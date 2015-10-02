@@ -1,0 +1,42 @@
+# object, module, library files
+*.o
+*.mod
+*.a
+
+# binaries
+src/critic2
+src/critic2.exe
+tools/basin2off/basin2off
+tools/off2off/off2off
+
+# files that depend on some other files
+Makefile
+Makefile.in
+aclocal.m4
+doc/user-guide.aux
+doc/user-guide.log
+doc/user-guide.out
+doc/user-guide.pdf
+doc/user-guide.tex
+doc/user-guide.toc
+config.log
+config.status
+src/config.F90
+autom4te.cache/
+configure
+.deps/
+
+# tests subdirectory
+*.outcritic
+tests/
+
+# fortran
+*.o
+*.mod
+*.a
+critic2
+basin2off
+off2off
+
+# emacs backups
+*~

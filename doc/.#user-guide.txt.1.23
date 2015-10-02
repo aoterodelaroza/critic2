@@ -1,0 +1,3558 @@
+=====================
+ Critic2 user's guide
+=====================
+
+:Author: Alberto Otero-de-la-Roza,
+         Ángel Martín Pendás,
+         Víctor Luaña.
+
+:Contact: alberto@carbono.quimica.uniovi.es
+
+:Address: Departamento de Química Física y Analítica,
+          Universidad de Oviedo, 33007 Oviedo, Spain.
+
+:Version: 1.0
+
+.. contents ::
+
+Introduction
+------------
+
+Critic2 is a program for the analysis and representation of
+solid-state electron densities and related scalar fields. This program
+has three main capabilities:
+
+- Provide a generalized platform to interface with as many solid-state
+  codes as possible. As of this version, critic2 understands fields
+  calculated by WIEN2k (FPLAPW), ELK (FPLAPW), PI (aiPI), Quantum
+  ESPRESSO (PP/PW), abinit (PP/PW), VASP (PP/PW), and any other
+  program able to write to a 3D grid (e.g. gaussian cubes). Critic2
+  encapsulates common methods for topological analysis under periodic
+  boundary conditions and applies them, irrespective of the source
+  of the electron density. 
+
+- Provide an implementation of the basic techniques for QTAIM (Bader)
+  analysis on periodic electron densities and related techniques
+  (e.g. Hirshfeld charges, NCIplot,...). This includes locating the
+  whole set of critical points (topology) and integrating atomic
+  regions. The latter is a challenging problem, that can be treated in
+  critic2 using the basic bisection algorithm (PROMEGA), the QTREE
+  algorithm (J. Comp. Chem. 32 (2011) 291) or the algorithm by Yu and
+  Trinkle (J. Chem. Phys. 134 (2011) 064111) in the case of grids.
+  The integrated atomic properties are, at least, volumes and charges,
+  but additional properties may be defined, if the user provides the
+  source for the integrand. Also, a number of tools for the
+  graphical representation of basins, cubes, planes, lines,
+  bundles,... are implemented.
+
+- Many scalar fields other than the electron density are amenable to
+  the topology/basin integration treatment to reduce the information
+  they represent. These techniques (termed Quantum Chemical Topology,
+  QCT, by P. Popelier) can be applied to a variety of scalar fields
+  including the ELF and the laplacian of the electron
+  density. Critic2 can handle any field if it is provided in one of
+  the formats the code understands.
+
+The tessel program:
+
+  http://azufre.quimica.uniovi.es/software.html#tessel
+
+does pretty graphical representations of crystals. Many of the critic2
+commands can generate input for tessel, which is useful for quick
+visualization of the results.
+
+Input overview and notation
+---------------------------
+
+Critic2 accepts a single input file (usually but not necessarily
+with extension .incritic). The command-line syntax is:
+
+  critic2 [file.incritic [file.outcritic]]
+
+If both arguments are present, the output is redirected to
+file.outcritic. Otherwise, it is written to standard output. If no
+file.incritic is present, the input is taken from standard
+input. Therefore, it is also valid to use:
+
+  critic2 < file.incritic > file.outcritic
+
+or
+
+  critic2
+
+and then enter the commands by hand (which is useful if you are using
+critic2, for instance, to convert between crystal description
+formats). 
+
+In addition, depending on the tasks in the incritic file, auxiliary
+files can be generated, usually with the same root as file.incritic
+(that is, 'file', in the example above). 
+
+The input file usually contains a specification of the crystal
+structure using the 'crystal' keyword. For instance:
+
+  crystal file.struct
+
+then one or more fields are loaded using the keyword 'load':
+
+  load file.clmsum file.struct
+
+A simple script (charges.sh) is provided to do the integration of
+atomic charges when the density is given on a grid. It can be used
+simply by:
+
+  charges.sh file_DEN     # (abinit)
+  charges.sh CHGCAR       # (vasp)
+  charges.sh file.cube    # (qe and cubes)
+
+More information on the usage with charges.sh -h.
+
+Notation
+--------
+
+* Critic2 maintains at all times two lists of atoms: the
+  *non-equivalent atom list*, that contains the atoms in the
+  asymmetric unit, and the *cell atom list*, containing all atoms in the
+  unit cell. The non-equivalent atom list reproduces the cell atom
+  list by applying the symmetry operations known to critic2. For
+  instance, the input for the conventional cell of the fluorite (CaF2)
+  crystal is:
+  
+  ::
+
+    #critic#
+    crystal 
+     spg F m -3 m
+     cell 5.463 5.463 5.463 90 90 90 ang
+     neq 0. 0. 0. Ca
+     neq 0.25 0.25 0.25 F
+    endcrystal
+
+  The non-equivalent atom list contains Ca at (0 0 0) with multiplicity
+  4 and F at (0.25 0.25 0.25) with multiplicity eight. The cell atom
+  list contains 4 Ca atoms at (0 0 0), (0.5 0.5 0),... and 8 F atoms at
+  (0.25 0.25 0.25), (0.75 0.25 0.25), ... Note that critic2 does not
+  convert the input to the primitive cell. In the keyword syntax, atoms
+  can also be addressed by their atomic symbol, in which case the
+  keyword applies to all atoms with the same atomic number unless
+  otherwise stated.
+
+  Similarly, when we write about *non-equivalent critical point* (CP)
+  we mean a CP in the symmetry-irreducible list of CPs (or the *final
+  report*, see below), whereas the *complete CP list* contains all the
+  critical points in the unit cell.
+
+* By *scalar field* or *field* we mean a numerical or analytical
+  representation of a function that gives a value to every point in
+  three-dimensional space. Most of the time, this function is the
+  calculated electron density, for which special treatment is provided
+  (for instance, core augmentation in the case of valence densities, see
+  ZPSP below). However, critic2 can deal with other scalar field such as
+  the ELF, the laplacian of rho,...
+
+* The *promolecular density* is simply the sum of the in-vacuo atomic
+  densities. This object comes up in a number of contexts. For instance,
+  NCIPLOT and HIRSHFELD, or in the calculation of the deformation
+  density: the real electron density minus the promolecular density. It
+  is a scalar field and does not require any input from the user (apart
+  from the crystal structure) since it is built using critic2's density
+  tables. 
+
+* We denote by <root> the root of the input file. That is, the name of
+  the file without the extension. If no input file is known (for
+  instance because critic2 was run as 'critic2 < inputfile'), then the
+  root defaults to stdin. The default root can be changed with the
+  keyword ROOT.
+
+* The critical points of a field can be classified by their *rank* (r)
+  and *signature* (s). The rank is the number of non-zero eigenvalues
+  of the hessian. In the vast majority of cases r = 3. The signature
+  is the number of positive eigenvalues minus the number of negative
+  eigenvalues. s=-3 is a maximum, s=-1 is a first-order saddle point,
+  s=+1 is a second-order saddle point and s=3 is a minimum. All these
+  critical points (CP) necessarily appear in a periodic field and
+  receive special names: nuclear CP, bond CP, ring CP and cage CP. The
+  abbreviations (ncp, bcp, rcp and ccp) are used throughout the manual
+  to describe these critical points. Note that a maximum is a 'nuclear
+  critical point' even though it may not be associated to any nucleus.
+
+Input format
+------------
+The input is free-format and case-insensitive. Lines preceded by # are
+treated as comments. In the following, most input variables are
+denoted using a suffix to indicate their type: a real number (.r), an
+integer (.i) and a string (.s). Keywords are written in
+UPPERCASE. When several keywords may be given, the or symbol (|) is
+used. Square brackets denote optional keyword and curly braces are
+used for grouping.
+
+Some of the sections below contain and 'additional options'
+subsection. These provide some keywords that control the behavior of
+critic2 and are meant to be used either before or after the keywords
+in the section in which they appear. For instance, NOGUESS can be used
+before CRYSTAL to avoid the automatic symmetry determination:
+
+:: 
+
+  noguess
+  crystal benzene.cif
+
+The crystal structure
+---------------------
+
+::
+
+  CRYSTAL file.cif
+  CRYSTAL file.cube
+  CRYSTAL file.par # MoPro parameters file
+  CRYSTAL file.struct
+  CRYSTAL [file.]POSCAR [at1.s at2.s ...|POTCAR]
+  CRYSTAL [file.]CONTCAR [at1.s at2.s ...|POTCAR]
+  CRYSTAL [file.]CHGCAR [at1.s at2.s ...|POTCAR]
+  CRYSTAL [file.]CHG [at1.s at2.s ...|POTCAR]
+  CRYSTAL file_DEN
+  CRYSTAL file.OUT # e.g. elk's GEOMETRY.OUT
+  CRYSTAL file.out # e.g. ESPRESSO's file.scf.out
+  CRYSTAL
+    SPG spg.s
+    CELL a.r b.r c.r alpha.r beta.r gamma.r 
+    CARTESIAN [scal.r]
+      # comment
+      [BOHR/AU]
+      [ANGSTROM/ANG]
+      x1.r y1.r z1.r
+      x2.r y2.r z2.r
+      x3.r y3.r z3.r
+    ENDCARTESIAN/END
+    NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i] 
+       [ANG/ANGSTROM] [BOHR/AU]
+    CENTER|CENTRE [x.r y.r z.r]
+  ENDCRYSTAL/ENDMOLECULE/END
+  # Note: all CRYSTAL keywords can be replaced by MOLECULE, 
+  # with the effect discussed below.
+
+Critic2 accepts the crystal structure specification in a number of
+different formats. In the simplest approximation, it can read one of
+the popular crystal descriptions, for instance, a cif file. This is
+done by using:
+
+::
+ 
+  crystal file.s
+
+The extension of file.s is used to determine the appropriate reading
+format. At present, critic2 understands cif files (extension .cif),
+gaussian cube files (.cube), WIEN2k's struct files (.struct), abinit
+density files (_DEN), elk's GEOMETRY.OUT (the .OUT extension is used,
+regardless of whether it is GEOMETRY.OUT or not), Quantum ESPRESSO's
+pw.x output (.out), and vasp's POSCAR, CONTCAR, CHGCAR and CHG. Some
+relevant notes:  
+
+* The cif files are read using the ciftbx library by Sydney R. Hall.
+
+* Gaussian cube files are assumed to represent a periodic system, even
+  though they may come from a molecular calculation (see below on the
+  use of the MOLECULE keyword). Despite their name, cube files have
+  become quite the standard and can be written by a lot of mainstream
+  solid-state programs, so it is a very good option if critic2
+  provides no native interface to the densities of your program of
+  choice. 
+
+* WIEN2k's struct files may come with or without the symmetry
+  operations (for instance, if they have been generated by the
+  web interface but not run). If symmetry is provided, then critic2
+  will accept it. Otherwise, the symmetry guess is used.
+
+* Depending on the version VASP's POSCAR and CONTCAR (and also CHG and
+  CHGCAR) may be missing the atomic symbols. In that case, they need
+  to be provided by hand after the file name. Even though it's the
+  name accepted by vasp, files that have the extension POSCAR,
+  CONTCAR, CHG and CHGCAR are also accepted (e.g. nacl.POSCAR). This
+  can be useful if you keep several of them in the same directory. It
+  is also possible to give the name of the POTCAR (usually POTCAR) to
+  get critic2 to read the atomic types from there (the number of
+  valence electrons is NOT read).
+
+* The same applies to elk's GEOMETRY.OUT. Any file with extension .OUT
+  will be understood to be in elk's format.
+
+* Regarding Quantum ESPRESSO outputs (usually file.scf.out, only the
+  .out extension is detected), the block at the beginning of the run
+  is read (from 'Title:' ... to 'Cartesian axes'). Because this block
+  is repeated at the end of an optimization ('a final calculation at
+  the relaxed geometry', it says), the final structure from a
+  successfully completed geometry optimization will be read. However,
+  if the optimization crashed, then the first structure is read. 
+
+* MoPro .par files can be read but the routine is still not well tested.
+
+If none of the file formats above is available (or if there is a
+problem that prevents them from being input), the crystal structure
+can be specified 'by hand'. This is done using the CRYSTAL
+environment. For instance, magnesium oxide (rocksalt structure) would
+be:  
+
+::
+
+  crystal
+    spg F m -3 m
+    cell 4.213 4.213 4.213 90 90 90 ang
+    neq 0. 0. 0. Mg
+    neq 0.5 0.5 0.5 O    
+  endcrystal
+
+There are several relevant keywords in the CRYSTAL environment. To
+use the space group library, use the keyword: 
+
+* **SPG**
+
+  ::
+
+    SPG spg.s
+
+  Enter the crystal space group using the following conventions:
+
+  - Input space group symbol using the international notation.
+
+  - Each different symmetry element must be separated by one blank (at least).
+
+  - Characters in a symmetry element must be given as a single
+    word. This is the case for subindices.
+
+  - Upperscore is represented by - preceding to the element.
+
+  - Letter case is irrelevant.
+
+  Self-explanatory examples of space groups are 'f m -3 m', 'p 21 21
+  21', 'p 4/m m m' and 'r -3 c'.
+
+If no SPG keyword is found, then the internal symmetry guess is
+used. There are two possible ways to input the cell parameters. In the
+simplest approach, the CELL keyword can be used together with the
+lengths and angles:
+
+* **CELL**
+
+  ::
+
+    CELL a.r b.r c.r alpha.r beta.r gamma.r 
+        [ANG/ANGSTROM]
+
+  Cell parameters in bohr and sexagesimal degrees. If the ANG
+  (ANGSTROM) keyword is used, then a.r, b.r and c.r are in angstrom. 
+
+This lets critic2 decide on the crystallographic-to-cartesian
+transformation matrix (which is not unique, and critic2 always uses
+the Cholesky decomposition of the metric tensor, for
+consistency). Alternatively, one could input this very matrix using
+the CARTESIAN keyword:
+
+* **CARTESIAN**
+
+  ::
+
+    CARTESIAN [scal.r]
+      # comment
+      [BOHR/AU]
+      [ANGSTROM/ANG]
+      x1.r y1.r z1.r
+      x2.r y2.r z2.r
+      x3.r y3.r z3.r
+    ENDCARTESIAN/END
+
+  Read the cartesian coordinates of the cell vectors. Each row
+  corresponds to a vector (hence the metric tensor is G = R * R' where
+  R is the matrix above and ' is the transpose, and the coordinate
+  transformation is (cryst) = (cart) * M). If scal.r is given,
+  all vectors are scaled by that factor. The input units can be
+  controlled with the BOHR/AU and ANG/ANGSTROM keywords.
+
+The CARTESIAN keyword is particularly useful in Quantum ESPRESSO
+inputs since the matrix corresponds exactly to the CELL_PARAMETERS
+matrix, and scal.r can be set to celldm(1).
+
+The NEQ keyword can be used to specify the atomic positions:
+
+* **NEQ**
+
+  ::
+
+    NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i] 
+       [ANG/ANGSTROM] [BOHR/AU]
+
+  Add an atom to the crystal. If symmetry was given (via SPG), then
+  only the non-equivalent atom list needs to be given (as in the MgO
+  example above). Otherwise, the complete list of atoms in the cell
+  has to be input, and the symmetry guess will reduce it to the
+  non-equivalent atoms list. The coordinates x.r y.r z.r are
+  crystallographic coordinates unless the ANG/ANGSTROM or BOHR/AU
+  keywords are used. Usage of cartesian coordinates requires a
+  previous CELL or CARTESIAN in order to convert the atomic positions
+  to crystallographic. The atomic symbol is at.s, and the atomic
+  number is detected from the symbol (essentially, from the beginning
+  of it, so atoms like Cl1 or baxx2 are valid. Deuterium (D) is
+  detected as hydrogen). 
+
+  In addition to the atomic position and identity, the atomic charge
+  (Q) and pseudopotential charge (ZPSP) can be given. The former is
+  used to calculate the point-charge electrostatic energy (using
+  Ewald's method, see below) and, if Q is positive, to build the
+  promolecular density using the corresponding cation instead of the
+  neutral atom.
+
+The role of ZPSP is more important because it is used to augment the
+fields defined on a grid (unless this option is deactivated with
+NOCORE). ZPSP is the pseudopotential Z, that is, the atomic number of
+the atom minus the number of electrons represented by the
+pseudopotential. For instance, ZPSP=2 in Ba. The normal use of critic2
+with grids involves loading the valence density or pseudo-density
+which needs to be augmented to recover the complete electron
+density. While this procedure is not satisfactory from the theoretical
+point of view, in practice, the valence regions are mostly
+unaffected. The net effect is simply augmenting the core regions. The
+augmented grid is then typically used as a reference density to
+compute the QTAIM basins. Of course, core augmentation needs to be
+deactivated if the field is not the density or the grid already
+contains the core contributions.
+
+The value of ZPSP can be found easily in a vasp calculation by looking
+for 'ZVAL' in the POTCAR. In Quantum ESPRESSO, this information is in
+the UPF file (the number of valence electrons). The ZPSP and Q values
+are not set when the structure is read from a file except in the case
+of abinit and ESPRESSO files. In that case, the standalone versions of
+ZPSP and Q can be used (see below).
+
+The CRYSTAL keyword can be replaced by MOLECULE in all the cases
+above. This keyword is supported to provide for the possibility of
+reading molecular grids and wavefunctions. At present, the only effect
+it has is a slight modification of the output. Note that cube files
+calculated with gaussian can be used in critic2. The program will
+assume periodic boundary conditions but topologies, graphical
+representations and computations with cubes can be performed
+nevertheless.
+
+When using a molecule as input (for instance, from an xyz file using
+the ANGSTROM keyword), the CENTER keyword can be useful.
+
+* **CENTER/CENTRE**
+
+  ::
+
+    CENTER/CENTRE x.r y.r z.r
+
+  Displace the crystallographic coordinates of all atoms by x.r, y.r
+  and z.r. 
+
+The typical scenario for this keyword is the calculation of
+promolecular densities from an xyz file: in order to displace the
+molecule to the center of the periodic cell by using 'CENTER 0.5 0.5
+0.5'. Note that it is not a good idea to use this keyword with, for
+instance, a cube file input, since the field and the geometry are
+going to be out of sync.
+
+Symmetry options
+~~~~~~~~~~~~~~~~
+
+Critic2 has two symmetry modules: spg and guess. spg accepts a label
+(for instance, 'P m -3 m') and builds the symmetry from it. guess
+reads the unit cell description (lengths, angles, and the list of
+atoms in it) and finds the symmetry operations. Depending on the type
+of CRYSTAL input, the symmetry defaults to:
+
++ cif: spg using the space group label in the file.
++ cube: guess.
++ struct: internal symmetry operations if present. Otherwise, guess.
++ vasp: guess.
++ abinit: internal information.
++ elk: guess.
++ espresso: guess.
++ cell/cartesian/neq: spg if used. Otherwise, guess.
+
+The treatment of symmetry in critic2 can be controlled using a number
+of keywords:
+
+* **[NO]GUESS**
+
+  Deactivate the use of guess.
+  
+  Where: before CRYSTAL.
+
+  Default: GUESS.
+
+* **CLEARSYM**
+  
+  Clear all symmetry operations (that is, use space group P 1). 
+
+  Where: after CRYSTAL.
+
+Atomic charge options
+~~~~~~~~~~~~~~~~~~~~~
+
+The Q and ZPSP keywords can be used to change the atomic charge and
+pseudopotential charge after CRYSTAL.
+
+* **Q|ZPSP**
+
+  ::
+  
+    {Q|ZPSP} {i1.i|at1.s} q1.r {i2.i|at2.s} q2.r ...
+
+  Change the atomic charge (Q) or the pseudopotential atomic number
+  (ZPSP) of the non-equivalent atom i1.i, i2.i,... or the atom type
+  at1.s, at2.s,.... Real numbers for the charges are acceptable but
+  they are internally converted to integers. See the discussion above
+  for an explanation on the behavior of Q and ZPSP.
+
+* **NOCORE**
+
+  Clear the ZPSP values in all atoms.
+
+Exporting the crystal structure
+-------------------------------
+
+Critic2 can be used as a converter between different crystal
+description formats. For instance, if we are given a cif file that
+needs to be converted to a QE input, one could use:
+
+::
+
+  crystal myfile.cif
+  write myfile.scf.in
+
+Sometimes, it is also useful to create a finite representation of the
+crystal by taking the cell motif, perhaps augmented by some atoms in
+the neighboring cell. The simplest way of doing this is by writing an
+xyz file:
+
+::
+
+  crystal myfile_DEN
+  write myfile.xyz molmotif 
+
+This keyword writes all molecules in the unit cell and completes them
+using the atoms in the neighboring cell. A covalent radii criterion
+is used to determine whether two atoms are bonded or not.
+
+::
+
+  WRITE file.xyz [BORDER] [MOLMOTIF] [ix.i iy.i iz.i] 
+  WRITE file.scf.in [NOPRIMITIVE]
+  WRITE file.tess 
+  WRITE file.incritic 
+  WRITE {[file.]POSCAR|[file.]CONTCAR} [NOPRIMITIVE]
+  WRITE file.abin [NOPRIMITIVE]
+  WRITE file.elk [NOPRIMITIVE]
+  WRITE file.cif 
+  WRITE file.m
+
+At present, a handful of formats can be written by critic2, although
+it is easy to add to this list and it is likely to increase in the
+future. As in CRYSTAL, the type of file is detected by the extension
+(xyz, in, tess, and incritic).
+
+In the first case, an xyz file containing a finite piece of the
+crystal is generated. The number of cells used in each direction is
+given by ix.i, iy.i and iz.i (default: 1, 1, 1). For the purpose of
+graphical representation, it is sometimes interesting to include atoms
+which are almost exactly at the edge of the cell. For instance, using 
+
+::
+
+  crystal
+    spg F m -3 m
+    cell 5.64 5.64 5.64 90 90 90 ang
+    neq 0. 0. 0. Na
+    neq 0.5 0.5 0.5 Cl
+  endcrystal
+  write nacl.xyz 
+
+will (correctly) generate a list of 4 Na and 4 Cl atoms, representing
+1/8th of the conventional cell, because atoms at (1, 0, 0), (1, 1/2,
+0), etc. are not part of the cell. By using BORDER, these atoms are
+included. 
+
+The keyword MOLMOTIF is used in molecular crystals. All atoms in the
+requested cells are written to the xyz file. Then, the molecules that
+lie between cells are completed using atoms from the neighboring
+cells. In order to do this, a connectivity criterion is used: two
+atoms are bonded if their distance is less than 1.5 times their sum of
+covalent radii.
+
+There is another application for the xyz WRITE keyword: the
+coordinates written to the xyz are consistent with the transformation
+to cartesian coordinates in critic2, so it is possible to give back
+all or part of these coordinates to critic2 in order to represent a
+subset of the atoms. This is useful when generating fragments for an
+NCIPLOT calculation (see FRAGMENT keyword below).
+
+Quantum ESPRESSO inputs can be written using file.scf.in. This is
+especially useful in the case of low-symmetry crystals
+(e.g. monoclinic in a non-conventional setting) where the conversion
+can be tricky. The QE input generation works by first determining the
+crystal system from the symmetry operations. Critic2 uses 'ibrav=0'
+always, and writes a CELL_PARAMETERS block containing the
+crystallographic-to-cartesian transformation matrix. QE is particular
+about this matrix (there are infinite matrices that could be used). If
+the crystal setting matches any of those covered in the QE manual,
+then that particular matrix is used. Otherwise, critic2 uses its own
+internal CELL_PARAMETERS matrix. In the last case, a correct input
+will be generated, but not all symmetry may be recovered by QE.
+
+A tessel input (extension .tess) and a critic2 input using the
+CELL/NEQ mechanism (.incritic) can be written as well.
+
+A VASP POSCAR (or CONTCAR) can be generated by using the
+POSCAR/CONTCAR extension or name. The list of atomic types is written
+to the critic2 output. This is necessary, for instance, to build the
+POTCAR. The atoms are always ordered in increasing atomic number.
+
+An abinit input file containing the input structure can be written by
+using the 'abin' extension. As in the case of Quantum ESPRESSO and
+VASP, the structure is converted to a primitive prior to the write. To
+deactivate this behavior, use the NOPRIMITIVE keyword.  An elk input
+template can be written using the elk extension. A simple cif file is
+generated if the cif extension is used.
+
+The octave script file (extension .m) contains the crystal structure
+in octave format and is prepared to be read using escher (see
+gatsby.ucmerced.edu).
+
+Loading a field
+---------------
+
+A number of different field formats are supported:
+
+::
+
+  LOAD file.cube 
+  LOAD {file.DEN|file_DEN} 
+  LOAD [file.]CHGCAR [file.]CHG 
+  LOAD file.qub 
+  LOAD file.xsf 
+  LOAD file.grid 
+  LOAD file.par 
+  LOAD file.clmsum file.struct 
+  LOAD file.OUT GEOMETRY.OUT
+  LOAD file.OUT GEOMETRY.OUT OTHER.OUT
+  LOAD file1.ion {atidx.i/attyp.s} file2.ion ...
+  LOAD PROMOLECULAR
+  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|QUB|XSF|ELKGRID] file
+  LOAD ... [NEAREST/TRILINEAR/TRISPLINE/EXACT/APPROXIMATE/
+            RHONORM/VNORM/CORE/NOCORE/NUMERICAL/
+            TYPNUC {-3,-1,1,3}/LAP/NOLAP/NORMALIZE n.r]
+  LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.i]
+  LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.i}
+  LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.i}
+  LOAD AS LAP id.i
+  LOAD AS GRAD id.i
+  LOAD AS CLM {ADD id1.i id2.i|SUB id1.i id2.i}
+
+Critic2 loads scalar fields in 'slots'. There are 31 slots, numbered
+from 0 up to 30. At the beginning of the run, slot number 0 is
+occupied by the promolecular density. Successive LOAD commands fill
+the slots in increasing order: the first LOAD will assign the new
+field to slot 1, the second LOAD will occupy slot 2 and so on. By
+default, the last field loaded becomes the reference field (see 'The
+reference field' below). 
+
+The simplest usage of load is:
+
+::
+
+  load file.ext
+
+where the field information is read from file.ext. Critic2 uses the
+extension to decide on which format to use for the reading: cube for
+gaussian cube files, DEN for abinit, CHGCAR or CHG for vasp, qub for
+aimpac, xsf for xcrysden, grid for elk's grids, clmsum for WIEN2k, OUT
+for elk's STATE.OUT, and ion for aiPI ion files. In the case of WIEN2k
+and elk, not all the necessary information is encapsulated in the
+clmsum or STATE.OUT (e.g. the muffin tin radii), so it is necessary to
+provide a second file: the struct file or the GEOMETRY.OUT
+respectively. This is true, regardless of whether these files have been
+used in the CRYSTAL keyword. For aiPI input, several ion files are
+necessary, that can be associated to atoms either using their
+non-equivalent atom number (atidx.i) or their atomic symbol
+(attyp.s). The keyword PROMOLECULAR is used to load a promolecular
+density field (same as the one in slot 0).
+
+Using a patched version of elk it is possible to generate other files
+(OTHER.OUT) containing the spherical harmonics/plane waves
+representation of other fields, such as the elf and the Coulomb
+potential. See the tools/elk_mod directory for the patch source
+files. When the OTHER.OUT (e.g. ELF.OUT) file is used, then that field
+is loaded instead of the density.
+
+In some cases, the extension of the file to be loaded may be different
+from the one which critic2 expects. For instance, WIEN2k creates files
+with extensions other than clmsum for different fields (e.g. clmup for
+the spin-up density) but the same format. In that cases, the keywords
+WIEN/ELK/... can be used to force critic2 to read in a specific
+format.
+
+The definition of a field can be supplemented by additional options
+that depend on the type of field in the input. These options come
+after the file name. They are:
+
+* **NEAREST/TRILINEAR/TRISPLINE**
+
+  Choose the mode of grid interpolation. NEAREST, use the field at the
+  nearest grid point. TRILINEAR, trilinear interpolation. TRISPLINE,
+  3d-spline interpolation (adapted from the abinit code, this part was
+  coded by A. Lherbier). If some derivatives are not available (first
+  and second in NEAREST, second in TRISPLINE), the next
+  GRID_INTERPOLATION level where they are is used. There is little
+  reason to go to anything other than TRISPLINE except for testing
+  purposes.
+
+  Applies to: grids.
+
+  Default: TRISPLINE.
+  
+* **CORE/NOCORE**
+
+  The electron density from a pseudopotential/plane-waves calculation
+  only represents valence electrons. In order to get an approximation
+  to the all-electron density, it can be augmented by summing the
+  corresponding core contributions to the electron density at the
+  atomic sites. The ZPSP values are used to determine how many
+  electrons are added by each core. NOCORE deactivates this behavior
+  (i.e., critic2 will use the valence density instead).
+
+  Applies to: grids (it can be activated for any other field using
+  CORE, but it wouldn't make much sense).
+
+  Default: CORE. Note that for most grid fields read with LOAD, the
+  pseudopotential charges (ZPSP) are not set, so even if CORE is
+  activated default, in practice, no core augmentation is done,
+  because critic2 does not know how many core electrons to add. Hence,
+  the effective behavior is *not* to core-augment, despite CORE being
+  active. The exception to this is the grid fields LOADed from an
+  abinit DEN file, from which the pseudopotential charges (ZPSP) are
+  automatically extracted and set.
+
+* **EXACT/APPROXIMATE**
+
+  The calculation of the electron density in aiPI fields is relatively
+  expensive. Using the APPROXIMATE keyword, the atomic contributions
+  to the density are calculated by interpolating from a radial grid,
+  that is precomputed at the beginning of the run. EXACT is the
+  opposite. 
+
+  Applies to: PI.
+  Default: APPROXIMATE.
+
+* **RHONORM/VNORM**
+ 
+  In WIEN2k, the clmsum and other files representing electron density
+  have different normalization. The l=0 m=0 radial component is
+  divided by sqrt(4*pi). The option VNORM can be used if the file in
+  the input does not present this normalization.
+
+  Applies to: WIEN2k.
+
+  Default: RHONORM.
+
+* **NUMERICAL**
+ 
+  Calculate the derivatives of the field numerically. For testing
+  purposes. 
+
+  Applies to: all.
+
+  Default: no.
+
+* **TYPNUC {-3,3}**
+
+  Controls whether the nuclei are maxima (-3) or minima (3) of the
+  field. 
+
+  Applies to: all.
+
+  Default: -3 (maxima).
+
+* **LAP/NOLAP**
+
+  It is easy to calculate the laplacian and its derivatives in fields
+  written in FP-LAPW format (i.e. spherical harmonics expansion in the
+  muffins, plane-wave expansion everywhere else). LAP activates the
+  use of the laplacian of the provided field instead of the field
+  itself. 
+
+  Applies to: WIEN2k and elk.
+
+  Default: NOLAP
+
+* **NORMALIZE n.r**
+
+  Normalize the grid integral over the unit cell to n.r.
+
+  Applies to: grids.
+
+New fields can be defined as combinations of the existing ones using
+the LOAD AS keyword. This is useful in combination with the
+cube-writing facilities below, and to access fields that are not
+directly computed by the electronic structure program. For instance,
+if rhoup.cube and rhodn.cube are the spin-up and spin-down densities,
+it is possible to get the total density and the spin density using:
+
+:: 
+
+  load rhoup.cube
+  load rhodn.cube
+  load as "$1+$2" 
+  load as "$1-$2" 
+
+The spin-up density is loaded as field 1, rhodn.cube is field 2, field
+3 is defined as the sum of both and field 4 is the spin density, which
+can, for instance, be graphically represented or integrated in the
+atomic basins to get the atomic magnetic moments (see INTEGRABLE
+below). 
+
+A little more complex: if rho.clmsum is the total density and
+tau.clmsum is the kinetic energy density, the ELF can be defined as:
+
+::
+
+  load rho.clmsum
+  load tau.clmsum
+  load as "0.348282306469781*$1^(-5/3)" n1 n2 n3
+  load as "0.125 * $g1^2 / $1" n1 n2 n3 
+  load as "$1^(5/3) * ($2 - $4)" n1 n2 n3
+  load as "1/(1+$5^2)" n1 n2 n3
+
+where n1, n2 and n3 are the number of points in the new grid. Then,
+the (n1 x n2 x n3) grid can written to a file using: 
+
+::
+
+  cube grid field 6 file elf.cube
+
+(see CUBE keyword below). The list of arithmetic operations that can
+be performed on fields is quite large, and is described below
+(Arithmetic expressions involving fields). The number of grid points
+(n1, n2, n3) are optional as long as there is at least one grid
+involved in the expression. If more than one grid appear, then the new
+grid size is the maximum of the number of points in every
+dimension. The number of points can also be set to the number of
+points for another grid with the SIZEOF keyword and the slot number of
+the field. 
+
+The PROMOLECULAR option of LOAD AS allows the creation of a grid (with
+number of points n1, n2, n3 or the size of grid field number id.i if
+the SIZEOF keyword is used) out of the promolecular
+density. Similarly, CORE creates a grid using only the core densities,
+as specified by the ZPSPs of the atoms.
+
+The LAP, GRAD and CLM keywords of LOAD AS apply only to specific types
+of fields. LAP and GRAD are used to define a new grid as the laplacian
+or norm of the gradient (respectively) of a previous grid (with slot
+id.i) by Fourier transform, which is in general a much better choice
+than using LOAD AS and an expression because derivatives computed
+using the spline interpolation tend to be noisy. Finally, some support
+for working directly with FPLAPW fields (elk and WIEN2k) is provided:
+LOAD AS CLM defines a new field as the addition (id1+id2) or
+substraction (id1-id2) of fields of the same type. Note that the
+muffin tin radii, number of plane-waves, etc. have to be the same for
+both source fields.
+
+Changing the field options after LOAD
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The field options can be changed anywhere in the input after it has 
+been loaded using the SETFIELD keyword:
+
+* **SETFIELD**
+
+  ::
+
+    SETFIELD id.i [NEAREST/TRILINEAR/TRISPLINE/
+                   EXACT/APPROXIMATE/
+                   RHONORM/VNORM/
+                   CORE/NOCORE/
+                   NUMERICAL/
+                   TYPNUC {-3,-1,1,3}/
+                   LAP|NOLAP]
+
+  Change the properties of the field in slot id.i. The keywords are
+  the same as above.
+
+  Where: after LOAD.
+
+Unloading a field
+~~~~~~~~~~~~~~~~~
+
+* **UNLOAD id.i**
+
+  Unload the field in slot id.i.
+
+  Where: after LOAD.
+
+Arithmetic expressions involving fields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Expressions involving fields can be used in LOAD and in other
+keywords. Arithmetic expressions must be enclosed in either double
+quotes ("") or single quotes ('') and can contain:
+
+* Operators: +, -, *, /, ** or ^, % (modulo)
+
+* Functions: abs, exp, sqrt, floor, ceil, ceiling, round, log, log10,
+  sin, asin, cos, acos, tan, atan, atan2, sinh, cosh, erf, erfc, min,
+  max.
+
+* Constants: pi, e and eps (the machine precision).
+
+* Fields: denoted by a dollar sign and the slot number (e.g. $0 for
+  the promolecular density). Between the $ and the number, it is
+  possible to specify an identifier to access the derivatives of the
+  field. The identifier can be:
+
+  + v: valence-only value of the field (usually, valence density in a
+    grid field).
+  + x, y, z: first derivatives.
+  + xx, xy, xz, yy, yz, zz: second derivatives.
+  + g: norm of the gradient
+  + l: laplacian
+  + lv: valence laplacian
+
+  Therefore, $l2 is the laplacian of field 2 and $xy3 is the
+  xy-component of the hessian of field 3.
+
+Parentheses can be used and the usual rules of associativity and
+precedence apply. 
+
+Use of LIBXC in arithmetic expressions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If critic2 is compiled with the libxc library (see the README for
+instructions on how to do this) then the xc() function can be used in
+arithmetic expressions. xc() calculates the exchange and/or
+correlation energy density for one of the functionals in the libxc
+library. The number of arguments to xc() depends on the type of
+functional invoked, which is selected using an integer index. The list
+of functionals available and their corresponding indices is in the
+libxc documentation. This integer index always appear *last* in the
+calling sequence of xc(). For ease of reference, the file
+libxc_funcs_2.0.1.txt, specifying the list of functionals in version
+2.0.1 of libxc, is included in the doc/ directory.
+
+The arguments to xc(...,idx) depend on the type of functional
+specified by the idx integer, which can be:
+
+* LDA: xc(rho,idx)
+
+* GGA: xc(rho,grad,idx)
+
+* meta-GGA: xc(rho,grad,lapl,tau,idx)
+
+where rho is the electron density, grad is its gradient, lapl is its
+laplacian and tau is the kinetic energy density. For instance, the
+expression for LDA using the density in slot 1 would be:
+
+::
+
+  xc($1,1)+xc($1,9)
+
+because idx=1 is Slater's exchange and idx=9 is Perdew-Zunger
+correlation. PBE (a GGA) would be:
+
+::
+
+  xc($1,$2,101)+xc($1,$2,130)
+
+Here 101 is PBE exchange and 130 is PBE correlation. Field $1 contains
+the electron density and $2 is its gradient, which can be determined
+using, for instance:: 
+
+  load as grad 1
+
+Note that any of the arguments to xc can be an expression itself,
+including the integer index.
+
+Additional options
+~~~~~~~~~~~~~~~~~~
+
+* **[NO]HMOVE**
+
+  In some crystals, the maximum of the electron density does not
+  correspond exactly to the positions of the hydrogens. In those
+  cases it may be interesting to move the hydrogens to the positions
+  of the actual maxima to avoid problems with the gradient path
+  terminations. This keyword activates the hydrogen-moving algorithm
+  after each LOAD.
+
+  Where: before LOAD.
+
+  Default: do not move the hydrogens.
+
+The reference field
+-------------------
+
+One of the loaded fields is chosen as the *reference* field. It is
+used as the primary field in all computations (e.g. representing its
+basins with BASINPLOT, integrations,...) unless otherwise specified
+(usually with an optional FIELD keyword, see below). The first field
+loaded becomes the reference field. If no fields have been loaded,
+then it is the promolecular density (field 0). In order to set the
+reference field, the REFERENCE keyword can be used:
+
+* **REFERENCE id.i**
+
+  Set field number id.i as reference.
+
+Usual CRYSTAL/LOAD combinations for programs
+--------------------------------------------
+
+* **WIEN2k**
+
+  ::
+
+    crystal name.struct
+    load name.clmsum name.struct
+
+* **Quantum ESPRESSO**
+
+  ::
+   
+    crystal name.scf.out
+    load name.cube 
+    zpsp C 4 H 1 ...
+
+  or:
+
+  ::
+   
+    crystal
+      cartesian celldm(1)
+        CELL_PARAMETERS matrix
+      endcartesian
+      neq x0 y0 z0 C zpsp 4
+      ... rest of the ATOMIC_POSITIONS list ...
+    endcrystal
+    load name.cube 
+
+* **Abinit**
+
+  ::
+  
+    crystal name_DEN
+    load name_DEN
+
+* **VASP**
+ 
+  :: 
+ 
+    crystal POSCAR C H
+    load CHGCAR zpsp C 4 H 4
+
+* **elk** 
+
+  :: 
+
+    crystal GEOMETRY.OUT
+    load STATE.OUT GEOMETRY.OUT
+
+* **aiPI**
+  
+  ::
+ 
+    crystal
+      cell a b c alpha beta gamma
+      spg 'space group'
+      neq x y z atom
+      ...
+    endcrystal
+    load at1.ion at1 at2.ion at2 ...
+
+* **Gaussian/any code that writes cubes**
+
+  ::
+   
+    crystal name.cube
+    load name.cube
+
+* **Promolecular density calculations**
+ 
+  ::
+  
+    crystal name.cif
+
+* **Conversion between crystal formats**
+  
+  :: 
+  
+    crystal name.cif
+    write name.scf.in
+    write name.xyz molmotif
+
+* **Conversion between grid formats**
+
+  ::
+
+    crystal name.cif
+    load rhoup_DEN
+    load rhodn_DEN
+    load as '$1-$2' n1 n2 n3
+    cube grid file rhospin.cube field 3
+
+Simple graphical representations: points, lines, planes, grids
+--------------------------------------------------------------
+
+* **POINT**
+
+  ::
+
+    POINT x.r y.r z.r [ALL] [FIELD id.i|"expr.s"]
+
+  Calculates the value of the reference field, its derivatives, and
+  related quantities at the point (x,y,z) (crystallographic
+  coordinates). If ALL is used, all loaded fields are evaluated. If
+  FIELD is used and followed by an integer (id.i), then only that
+  field is evaluated. FIELD followed by an arithmetic expression
+  calculates the value of that expression at the point.
+
+* **LINE**
+
+  ::
+
+    LINE x0.r y0.r z0.r x1.r y1.r z1.r npts.i
+        [FILE file.s] [FIELD id.i|"expr.s"]
+        [GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|HYZ|
+         HZX|HZY|HZZ|LAP]
+
+  Calculate a line from x0 to x1 with npts points. By default, the
+  result is written to the standard output, but it can be redirected
+  to a file using FILE. The reference field is used unless a FIELD
+  keyword appears, in which case the field id.i or the expression
+  expr.s are evaluated. Together with the value of the field, an
+  additional quantity is evaluated: the components of the gradient
+  (GX,GY,GZ), the norm of the gradient (GMOD), the components of the
+  hessian (HXX,...) and the laplacian (default: laplacian).
+
+* **PLANE keyword**
+
+  ::
+
+    PLANE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i
+          [FILE file.s] [FIELD id.i|"expr.s"]
+          [F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|HYZ|
+           HZX|HZY|HZZ|LAP]
+          [CONTOUR {LOG niso.i|ATAN niso.i|BADER|
+           LIN niso.i r0.r r1.r}]
+
+  Calculate the properties of a reference field on a plane. The
+  results are written to a file <root>_plane.dat. The name of the
+  output file can be changed with FILE. Using FIELD, one of the loaded
+  fields (id.i) or an expression ("expr.s") can be evaluated. In
+  addition to the field value, a second property can be evaluated: the
+  field again (F), its derivatives (G_), its second derivatives (H__),
+  the gradient norm (GMOD) or the laplacian (LAP).
+
+  The keyword CONTOUR writes a contour map representation of the
+  plane: two contour line files (.iso and .neg.iso) and a gnuplot
+  script (.gnu). The isovalue distribution can be: logarithmic (LOG,
+  with niso.i contours), arctangent (ATAN, with niso.i contours), the
+  original aimpac distribution (BADER, {1,2,4,8}x10^{-3,-2,-1,0,1})
+  and linear (LIN, niso.i contours from r0.r to r1.r). The field
+  property selected with [F|GX|...] is used for the contour plot.
+
+  The GRDVEC keyword (see below) performs the same functions as PLANE,
+  and more, but it is a little more complex. If the crystallographic
+  coordinates of the plane are difficult to find (because, for
+  instance, the cube comes from a gas-phase calculation), then GRDVEC
+  is probably a better idea.
+
+* **CUBE keyword**
+
+  ::
+
+    CUBE {{{x0.r y0.r z0.r x1.r y1.r z1.r|CELL} 
+         {nx.i ny.i nz.i|bpp.r}}|GRID} 
+         [FILE file.s] [FIELD id.i/"expr.s"]
+         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
+
+  Write a three-dimensional grid in gaussian cube format. The limits
+  of the grid can be set by giving the end-points (x0 and x1), in
+  which case the cube is orthogonal, or by using CELL to calculate a
+  cube spanning the entire crystal cell. The number of points along
+  each axis is nx.i, ny.i and nz.i. If a real number is used instead
+  (bpp.r), the number of points is the length of each axis divided by
+  that number.
+
+  Alternatively, the GRID keyword can be used to write a
+  field defined on a grid directly to a gaussian cube file. This is
+  useful when combined with the LOAD keyword to perform computations
+  with the grid files.
+
+  FILE sets the name of the output file (default: <root>.cube). If the
+  extension of file.s is not .cube, then critic2 uses the vasp-style
+  CHGCAR format for the output. FIELD sets the field slot number to be
+  used (or an expression that combines the existing fields). Finally,
+  a derivative of the scalar field (gradient, hessian, laplacian) can
+  be selected instead of the value of the field itself (F) to build
+  the cube.
+
+Finding critical points
+-----------------------
+
+The critical point (CP) search is almost always conducted
+automatically by critic2 using the AUTO keyword. The algorithm
+calculates the Wigner-Seitz (WS) cell and its irreducible wedges (the
+smallest piece that reproduces the WS cell by symmetry). Then seed
+points are chosen by subdividing the edges, faces and interior of
+these wedges up to a certain subdivision level (the IWS level). The
+seeds are used as starting points for the Newton-Raphson algorithm. 
+
+Two additional keywords are provided: NEWTON (a single search at a
+seed provided by the user) and CHECK (go over a list of user-given
+points to see if they are CPs or not). Regardless on how the CPs are
+found, the output contains the most complete list up to the point in
+the input where the order was found.
+
+The most important part in the output regarding CPs is the 'final
+report', which looks like:
+
+::
+
+  * Critical point list, final report (non-equivalent cps)
+    topological class (n|b|r|c):   2(  8)  1( 16)  1( 16)  2(  8)
+    morse sum :   0
+  # n  pg        type        position (cryst. coords.)          mult name     f           |grad|          lap
+     1 Td  (3, -3) nucleus 0.00000000  0.00000000  0.00000000     4 B    7.19548E+01   0.00000E+00  -3.00000E+15
+     2 Td  (3, -3) nucleus 0.25000000  0.25000000  0.25000000     4 P    2.36771E+03   0.00000E+00  -3.00000E+15
+     3 C3v (3, -1) bond    0.09867348  0.59867348  0.59867348    16 b001 1.25614E-01   4.43323E-17  -2.25322E-01
+     4 C3v (3,  1) ring    0.88790959  0.88790959  0.61209041    16 r001 1.08812E-02   1.09119E-16   3.45529E-02
+     5 Td  (3,  3) cage    0.75000000  0.75000000  0.75000000     4 c001 5.63065E-03   1.34238E-16   2.22108E-02
+     6 Td  (3,  3) cage    1.00000000  0.00000000  0.50000000     4 c002 7.28745E-03   1.32594E-16   2.58702E-02
+
+which gives the type and position of all the non-equivalent CPs found
+and their multiplicity. Critic2 also provides the site-symmetry (pg),
+and some values of the reference field evaluated at the points. If the
+list is complete, then the Morse sum is zero, as in the example
+above. Sometimes, the zero Morse sum condition can not be fulfilled,
+for a number of reasons:
+
+* In WIEN2k and elk densities, there might be spurious CPs at the
+  surface of the muffin tin (where the density is discontinuous) that
+  show up in the final report list. Every time an FPLAPW field is
+  loaded, every atomic muffin is checked for discontinuities.
+
+* In grid densities, the regions of small field (i.e. the crystal
+  voids) are noisy, which is a very bad situation for an algorithm
+  based on spline interpolation. It is usual that the zero Morse sum
+  can not be recovered in this case, as multitude of CPs tend to
+  appear clustered around the position of the real CPs. The CPs where
+  the value of the field is larger should be reliable, however. Using
+  a very low GRADEPS in AUTO and a high CPEPS usually helps.
+
+* Further problems may arise in densities defined on a grid when the
+  grid is very stretched (for instance, when the alpha, beta and gamma
+  angles are very different from 90 as in, for example, a
+  rhomobohedral cell). In such cases, the spline interpolation tends
+  to be not very reliable regarding CP location and some of the
+  high-density CPs may not be found.
+
+* In scalar fields with extreme variations in value (e.g. laplacian of
+  rho), finding the core CPs with AUTO is unlikely. A previous version
+  of critic2 does that (available upon request) but since the core CPs
+  are not all that interesting, we have decided to remove that code
+  from this version.
+
+The *complete CP list* is the list of all CPs in the unit cell. The
+identifiers from this list are used as input for other keywords (for
+instance, GRDVEC or FLUXPRINT) as they specify a particular position
+in the crystal.
+
+A simple way to obtain a graphical representation is by using the
+tessel input file _cps.tess automatically generated by AUTO.  The
+syntax of the keyword is:
+
+* **AUTO**
+
+  :: 
+
+    AUTO [GRADEPS eps.r] [WS_ORIGIN x.r y.r z.r] 
+         [IWS iws.i] [FILE file.cps] [VERBOSE] 
+
+  Automatic location of the CPs of the field. GRADEPS is the gradient
+  norm threshold for the optimization: if a point is found with
+  gradient norm less than GRADEPS (default: 1e-12), then it is
+  accepted as CP. The algorithm proceeds by recursive subdivision of
+  the Wigner-Seitz cell, centered at x.r y.r z.r (keyword WS_ORIGIN,
+  default: (0 0 0)). The number of subdivisions can be set with IWS
+  (default 1). 
+
+  At the end of the recursive subdivision, a search between atom pairs
+  located at 15 bohr or less is performed, with three points in the
+  line connecting the atoms. This procedure does not add significantly
+  to the total run time of AUTO.
+  
+  Because finding the CPs can be an expensive task in large
+  low-symmetry crystals, the CP list can be saved to a file using the 
+  FILE keyword. The file.cps file is read in subsequent runs by using
+  the same FILE syntax instead of calculating the CPs again.
+  
+  Finally, the user can set VERBOSE to make AUTO print more
+  information about the search to the standard output.
+
+* **AUTOGRID**
+
+  ::
+
+    AUTOGRID
+
+  In the particular case of a field given as a grid, autogrid finds
+  the maxima and the minima by examining the points of the grid
+  directly. At every grid point, the local Wigner-Seitz cell is
+  calculated. If the point has a field value greater (lower) than its
+  neighbors, it is a maximum (minimum). Note that the CPs found in
+  this way are replicated by symmetry. In noisy grids (and most of
+  them are), hundreds or thousands of critical points can be found in
+  this way.
+
+* **CHECK**
+
+  :: 
+
+    CHECK [eps.r]
+      x.r y.r z.r
+      ...
+    END/ENDCHECK
+
+ Read a user-entered list of points (in crystallographic coordinates)
+ to check if they are CPs. A point is considered a CP if the gradient
+ norm is less than eps.r (default: 1d-7. Note it is less than in AUTO
+ because of probable numerical roundoff of the positions in the user's
+ input). The CPs found are added to the CP list (CHECK can be run
+ before or after AUTO) and the new CP report is printed.
+
+* **NEWTON keyword**
+
+  ::
+
+    NEWTON x0.r y0.r z0.r [eps.r]
+
+  Start a CP search at x0 using the Newton-Raphson algorithm. The
+  optional eps.r value sets the gradient norm threshold to consider a
+  point a CP (default: 1d-12). The complete report is printed after
+  the search.
+
+* **CPREPORT**
+ 
+  ::
+
+     CPREPORT {SHORT|LONG|VERYLONG|SHELLS [n.i]|ESCHER}
+
+  Print additional information about the CP list to the output. SHORT:
+  print the list of non-equivalent critical points with
+  crystallographic coordinates, multiplicity, and properties of the
+  reference scalar field. LONG: the complete list of critical points
+  in the unit cell and the connectivity in the case of bcp and rcp
+  (when the graph is calculated). VERYLONG: detailed information at
+  every critical point, including the derivatives of the reference
+  field and the evaluation of all other fields, and the
+  flatness. SHELLS: local neighbor environment of every critical
+  point (up to n.i shells, default 10). ESCHER: write the crystal
+  structure description to an octave (escher) script, containing the
+  critical points.
+
+Additional options
+~~~~~~~~~~~~~~~~~~
+
+* **[NO]GRAPH**
+
+  Calculate the topological graph at the end of AUTO. The topological
+  graph associates each bcp with two ncps by tracing two gradient
+  paths in the direction of the positive-eigenvalue vector, and each
+  rcp with two ccps.
+
+  Where: before AUTO.
+
+  Default: calculate the graph.
+
+* **[NO]BETA**
+
+  The integration of the atomic basins is accelerated by using
+  integration spheres (called beta-spheres) that are known to be
+  entirely contained within the attractor basin. The bcps are known to
+  be on the surface of the basin, so knowledge of the complete
+  topological graph allows critic2 to predict a safe and large
+  integration sphere (0.8 times the distance to the closest
+  bcp). NOBETA deactivates this behavior.
+
+  Where: before AUTO.
+
+  Default: use beta-spheres.
+
+* **CPEPS eps.r**
+
+  Two CPs are considered to be the same if their distance is less than
+  eps.r.
+
+  Where: before AUTO.
+
+  Default: 1d-2.  
+
+Graphical representations of gradient paths
+-------------------------------------------
+
+Gradient paths are the solution of x' = grad(f(x)) and play an
+important role in the QTAIM theory. This is because gradient paths can
+not cross the boundary between atomic regions and, as a consequence, a
+gradient path plot is a simple way to investigate the shape and
+properties of a basin. Gradient paths originate at maxima (if the
+field is the density they are usually the nuclei) and end at the
+minima (the crystal voids).
+
+There are two keywords for gradient path representation: GRDVEC (2D
+together with a contour plot) and FLUXPRINT (3D).
+
+* **GRDVEC environment**
+
+  ::
+
+    GRDVEC
+       FILES rootname.s
+       PLANE x0.r y0.r z0.r x1.r y1.r z1.r 
+             x2.r y2.r z2.r
+       PLANE ATOM at1.i at2.i at3.i [SCALE sx.r sy.r] 
+                 [SIZE zx.r zy.r]
+       PLANE CP cp1.i [LVEC x.i y.i z.i] 
+                cp2.i [LVEC x.i y.i z.i] 
+                cp3.i [LVEC x.i y.i z.i] 
+               [SCALE sx.r sy.r] [SIZE zx.r zy.r]
+       PLANE CRYSTAL x0.r y0.r z0.r x1.r y1.r z1.r 
+                     x2.r y2.r z2.r
+                    [SCALE sx.r sy.r] [SIZE zx.r zy.r]
+       SCALE sx.r sy.r
+       PARAM rad1.r rad2.r rad3.r step.r endpt.r proj.i
+       HMAX hmax.r
+       ORIG x.r y.r z.r atr.i up.i down.i
+       CP id.i up.i down.i
+       CPALL
+       BCPALL up.i down.i
+       RBCPALL bup.i bdown.i rup.i rdown.i
+       CHECK
+            x.r y.r z.r
+            ...
+       ENDCHECK
+       CONTOUR {F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|
+                HYZ|HZX|HZY|HZZ|LAP} [LIN cini.r cend.r|
+                LOG|ATAN|BADER] [nptsu.i nptsv.i niso.i]
+    ENDGRDVEC
+
+  Plots a plane containing the gradient paths originating from a set
+  of points. The GRDVEC environment accepts a set of input lines (in
+  any order) specifying the type of plot.
+
+  With FILES the user sets the root name of the output files
+  containing the information for the plot (default: <root>). These
+  files include:
+
+  - rootname.grd : file with gradient path data.
+
+  - rootname.dat : file containing values of the field on a plane.
+
+  - rootname.iso, rootname.neg.iso : contour lines.
+
+  - rootname.gnu : gnuplot script file generating the merged
+    gradient/contour plot.
+
+  - rootname-label.gnu : gnuplot script file loaded in rootname.gnu
+    containing the information for the position of the CPs in the plot
+    plane.
+
+  In the standard syntax, PLANE sets the plane for the plot using
+  three points: x0 is the origin, x1 the end of the x-axis and x2 the
+  end of the y-axis. This plane may contain regions which are
+  traversed by gradient lines originating at critical points located
+  out of the plot plane. If this is the case, the SCALE option allows
+  the user to extend the plane when considering which origins to be
+  included. The sx.r and sy.r are scale parameters. The x-axis extends
+  (sx.r-1)*l(x) in each direction, where l(x) is the axis length. The
+  sy.r variable works the same way. Consequently, the plane determined
+  by the vectors given in PLANE acts as a clipping plane while the
+  scaled plane determines the gradient path origins.
+
+  There are three more possibilities for specifying the plot plane. By
+  using PLANE ATOM, the user can specify three atoms of the
+  non-equivalent atom list. The first atom is taken as reference, and
+  the other two atoms are replicated by symmetry until critic2 finds
+  the closest copy to the first. The three points found this way
+  (hopefully) determine a plane. The barycenter of the points is
+  calculated, and is set as the center of the plot window, which
+  consists of a rectangle with sides equal to two times the longest
+  distance from the barycenter to the nuclei. The x- and y- axis of
+  the rectangle are scaled with the optional parameters sx.r and sy.r,
+  given with the SCALE keyword (not to be confused with the previous
+  SCALE). The SIZE keyword allows the user to fix the length of the x
+  and y axis to the specified value (in bohr).
+
+  The second option is to use PLANE CP, very similar to PLANE
+  ATOM. Using this keyword, three CPs from the complete CP list
+  (determined by auto or check) are used, perhaps translated by real
+  lattice vectors (optional keyword LVEC). The points specified this
+  way build a plane, in a similar fashion to PLANE ATOM. The optional
+  SCALE and SIZE keywords are also available, with identical
+  meanings. Note that the CP list contains the cell atom list, so it
+  is possible to specify three atoms in the cell by using the CP
+  keyword with the same identifier as in the complete atom list.
+
+  With PLANE CRYSTAL, three points in crystallographic coordinates are
+  specified, and fed to the same process in PLANE CP and PLANE
+  ATOM. The optional SCALE and SIZE keywords are also present.
+
+  The PARAM keyword sets the gradient-path tracing algorithm
+  parameters: rad1.r is the separation for flux origins associated to
+  a nuclear or cage CP; rad2.r is the same for bcp and rcp when
+  sampling the associated 2d surface and rad3.r, when sampling the
+  associated 1d paths. step.r is the integrator initial and maximum
+  step (cartesian coordinates). If step.r < 0, the integration starts
+  with a small step (1d-3) and incrementally adjusts its size, up to a
+  maximum of step.r. This may be useful in zones where a small error
+  in the initial step may give a completely different gradient path.
+
+  Endpt.r is unused. The proj.i field is either 1 or 0, representing
+  that the flux lines diverging from the plane are to be projected on
+  it or not, respectively. If the PARAM line does not appear, the
+  default values are:
+
+  - Rad1.r, rad2.r and rad3.r assume the value of the change variable,
+    set by the CHANGE or SET CHANGE order (see below). If none of
+    these keywords are given, the default value is 1d-2.
+
+  - Step.r adopts the value of grdstep, which is given by a GRDSTEP or
+    SET GRDSTEP order (see below). If none of these keywords are
+    given, the default value is 0.1.
+
+  - By default, the gradient lines are projected onto the plane
+    (proj.i equals 1).
+
+  With HMAX, you can set the maximum distance from a CP to the plane
+  to be included in the plot. Default: 1d-4.
+
+  The ORIG keyword adds an origin of gradient lines to the plot. Its
+  crystallographic coordinates are x, y and z. atr.i is 1 if the point
+  is to be treated as a ncp or ccp (the up and down trajectories start
+  from points located on a sphere centered on the origin) and it is 0
+  if the point is to be treated as a bcp or ccp (a circle is built
+  around the CP in the plane determined by two eigenvectors whose
+  eigenvalues have equal sign. The remaining eigenvector determines a
+  unique direction.). up.i and down.i are the number of gradient paths
+  to be started in the upwards and downwards direction respectively.
+
+  The CP keyword accepts a critical point identifier from the FINAL
+  REPORT found in the output of AUTO. Also, the number of gradient
+  paths in the upwards and downwards directions must be given. A
+  special case is the CPALL keyword, which adds as origins every
+  critical point in the CP list which lays on the selected plane. The
+  number of gradient paths is 36 down for ncps and 36 up for ccps, and
+  2 up and 2 down for bcps and rcps. The BCPALL keyword is similar to
+  CPALL, except that only the bond critical points are included as
+  origins. If BCPALL is used, the user must supply the number of
+  gradient lines in the upwards and downwards directions. In a similar
+  way, RBCPALL includes bond and ring critical points, and the user
+  must give the number of upwards and downwards gradient paths for
+  bonds (bup.i, bown.i) and rings (rup.i, rdown.i).
+
+  The CHECK environment allows the user to enter the crystallographic
+  coordinates of a CP of the scalar field to add it as an
+  origin. If the point given is not a CP or if it lies out of the
+  selected plane, it is ruled out of the origin list. The valid CPs
+  are identified and an adequate number of gradient paths are started
+  according to its character: for a ncp and ccp, 36 upwards or
+  downwards and for a bcp or rcp, 2 upwards and 2 downwards.
+
+  The keywords [F|GX|...] generate a plot which merges the gradient
+  paths calculated in grdvec with a contour plot, in the spirit of
+  PLANE CONTOUR. This contour map corresponds to the scalar field if F
+  is used, to its laplacian, if LAP, etc. In a way analogous to
+  CONTOUR, the contour lines may be calculated using a linear spacing
+  between isocurves on a remapped scalar field. If LOG is given,
+  log(f) and log(abs(f)) are used while for ATAN, the function is
+  2/pi*atan(f). The BADER keyword corresponds to a fixed set of
+  iso-values ({1,2,4,8}x10^{-3,-2,-1,0,1}). LEVEL selects a linear set
+  of contour values from cini.r to cend.r. The number of points on
+  each axis of the grid and the number of contour lines can be
+  optionally given with nptsu.i, nptsv.i and niso.i. By default, they
+  are 100, 100 and 100.
+
+  Note that GRDVEC is able to handle non-orthogonal axis. If
+  the two plane axis determined in the PARAM keyword are
+  non-orthogonal, the final graph will correctly reflect the actual
+  appearance of the plane by conserving the original angle between the
+  x- and y- axis. This is done by transforming the data to an in-plane
+  cartesian reference system.
+
+  Also, note that only 2 gradient lines may be traced from bcps and
+  rcps, either upwards or backwards. Thus, for example, bcpall 2 2 is
+  equivalent to bcpall 2 100 or bcpall 100 100.
+
+* **FLUXPRINT keyword**
+
+  ::
+
+    FLUXPRINT
+      POINT {1|-1|0} x.r y.r z.r [step.r epsi.r]
+      NCP id.i ntheta.i nphi.i [step.r epsi.r] 
+         [LVEC x.i y.i z.i]
+      BCP id.i 1 [step.r epsi.r] [LVEC x.i y.i z.i]
+      BCP id.i {0|-1} n.i [step.r epsi.r] 
+         [LVEC x.i y.i z.i]
+         [BRAINDEAD|QUOTIENT|DYNAMICAL]
+      RCP id.i -1 [step.r epsi.r] [LVEC x.i y.i z.i]
+      RCP id.i {0|1} n.i [step.r epsi.r] 
+         [LVEC x.i y.i z.i]
+         [BRAINDEAD|QUOTIENT|DYNAMICAL]
+      CCP id.i ntheta.i nphi.i [step.r epsi.r] 
+         [LVEC x.i y.i z.i]
+      GRAPH igraph.i [step.r epsi.r]
+      GRAPHCP cpid.i [step.r epsi.r] [LVEC x.i y.i z.i]
+      STDOUT file-sout.s
+      TESSELOUT file-tout.s
+      EVERY every.i
+      MPOINTS m.i
+      MSTICKS m.i
+      TITLE title.i
+      SHELLS ishl.i
+      NOSYM
+    ENDFLUXPRINT
+
+  Print 3D gradient paths and related information. The first field
+  after the FLUXPRINT keyword controls the type of order:
+
+  - POINT: build a gradient path starting at point (x.r y.r z.r) in
+    cryst. coordinates. step.r is the maximum step (cartesian
+    coordinates) for the walking algorithm. If step.r > 0, use it also
+    as the initial step. If step.r < 0, use a small step as initial
+    (1d-3). epsi.r is the gradient norm stop
+    criterion. These two keywords maintain this meaning for every
+    FLUXPRINT keyword. Their default values are 0.1 for step and 1e-9
+    for epsi. The {1|-1|0} field controls the direction of
+    the path. An ascending gradient path is obtained with 1 while -1
+    issues a descending path. 0 = -1 + 1 makes FLUXPRINT represent
+    both ascending and descending paths.
+
+  - NCP: print gradient paths starting from a (small) sphere centered
+    on the nuclear CP identified by id.i (this identifier comes from
+    the complete cp list, written by AUTO). The number of points
+    is controlled by ntheta.i (number of points sampling the azimuthal
+    angle) and nphi.i (number of points sampling the polar
+    angle). id.i specifies a precise ncp in the main cell up to a
+    lattice translation. The LVEC optional keyword allows the user to
+    enter a lattice vector to displace the represented ncp gradient
+    paths from their position given in the complete cp list written by
+    AUTO. LVEC maintains its meaning in the rest of the
+    FLUXPRINT input description.
+
+  - BCP: print gradient paths starting from the vicinity of a bond
+    CP, identified by id.i. If the gradient path is ascending (1 in
+    the fourth field), the (unique) bond path associated to the bcp is
+    represented. If -1 is given instead, the IAS associated to the bcp
+    is sampled starting from a small circle surrounding the bcp, with
+    n.i points on it. With a 0 value, both tasks are performed.
+
+    The three keywords BRAINDEAD, QUOTIENT and DYNAMICAL establish the
+    method employed in generating the starting angular grid. With
+    BRAINDEAD, critic2 uses a uniform angular grid. Using QUOTIENT, the
+    uniform grid is remapped by x^(l1/l2) where l1 and l2 are the two
+    negative eigenvalues at the bcp. This way, the points get
+    accumulated around the bcp with lowest eigenvalue (highest if
+    absolute value is taken). DYNAMICAL uses a linearized model of the
+    interatomic surface and predicts the initial angles critic2 has to
+    take in order to generate a uniform distribution of points a given
+    distance away. This distance is calculated as 90% of the distance
+    to the nearest ccp found in a coarse exploration of the IAS
+    omega-limits. Unfortunately, this algorithm works only in cases
+    where the bcp has significant but not too large
+    ellipticty. Also, there is no gain in using this method in cases
+    where the number of ccps is different than 4.
+
+    By default, BRAINDEAD is used. H1 is experimental.
+
+  - RCP: print gradient paths starting from the neighbourhood of a
+    ring CP. The situation is analogous to that of the bcps.
+
+  - CCP: print gradient paths starting from the vicinity of a cage
+    CP. Again, the situation is symmetric to the ncp case.
+
+  - GRAPH: represent the complete graph in the unit cell. This means:
+
+    * All the bond paths for which both ncps and the bcp lay inside
+      the main unit cell.
+
+    * All the ring paths for which both ccps and the rcp lay inside
+      the main unit cell.
+
+    The critical points situated on the boundary of the main cell are
+    also represented.
+
+    The igraph.i value represents the quantity of information that is
+    to be printed. It is a sum of values, each representing an element
+    to plot:
+
+    * 1 : print ring paths and sticks associated to the rcps.
+
+    * 2 : print bond paths and sticks associated to the bcps.
+
+    The 4 options is only available if an AUTO task was carried
+    out with the option SET GRAPH.
+
+  - GRAPHCP: represents a partial graph in the unit cell. Only the
+    paths related to the CP cpid.i (complete cp list, translated by
+    LVEC, if present) are plotted. The behaviour of this keyword varies
+    according to the type of CP:
+
+    * ncps: all bond paths leading to it.
+
+    * bcps: bond paths for cpid.i.
+
+    * rcps: ring paths for cpid.i.
+
+    * ccps: all ring paths leading to it.
+
+  - OPTIONS: several parameters of FLUXPRINT can be changed using the
+    options keyword. STDOUT controls the name of the file where the
+    gradient path information is to be written. The keyword TESSELOUT
+    modifies the name of the tessel input file built with the
+    gradient path and CP information. The default names are
+    'graph.out' and 'graph.tess' respectively.
+
+    Sometimes the tessel input file contains too many points which
+    results in a very slow rendering. The EVERY keyword makes critic2
+    write only one in every every.i points for each gradient path.
+
+    The MPOINTS and MSTICKS keywords control the size of the arrays
+    that contain the path and stick information in
+    FLUXPRINT. Specifically, mpoints must be greater than twice the
+    number of points of the longest gradient path calculated. The
+    default values are 40000 for mpoints and 3000 for msticks. The
+    title for the standard output file can be set using the title
+    keyword.  The default title is 'gradient paths'.
+
+    Finally, the SHELLS keyword applies only to graph and graphcp. It
+    represents the number of unit cell shells where the graph is going
+    to be plotted. Thus, 0 represents the main unit cell; 1, the main
+    unit cell and its 26 neighbours; and so on. By default, SHELLS
+    adopts the -1 value, which is equivalent to 0 for the graph
+    keyword and means that the partial graph generated in graphcp is
+    not expanded through symmetry.
+
+    All the options except the SHELLS option remain fixed once the
+    first printing command is issued (point, ncp, bcp, rcp, ccp, graph
+    or graphcp).
+
+    The NOSYM keyword: do not use symmetry operations in the tessel
+    output. With this, the complete list of CPs in the unit cell is
+    written, together with the identity matrix as the only operation
+    in the space group.
+
+Atomic basin representations
+----------------------------
+
+* **BASINPLOT keyword**
+
+  ::
+
+    BASINPLOT [METHOD {CUBE [lvl.i] | TRIANG [lvl.i] | 
+               SPHERE [ntheta.i nphi.i]}] 
+              [OUTPUT {OFF|BASIN|DBASIN [npts.i]}]
+              [PHASE [phtheta.r phphi.r]] [CP cpid.i] 
+              [PREC delta.r] [VERBOSE]
+
+  Plot the attraction basin of the non-equivalent CP cpid.i (if CP
+  is not given, all the non-equivalent attractors. The rays on which
+  the bisection is carried out are determined by the METHOD
+  chosen. For CUBE, a cube is selected as the starting polyhedron,
+  and recursively subdivided lvl.i times. The final (convex)
+  polyhedron is placed on the attractor and the zero-flux surface
+  limit for the rays is determined. TRIANG follows the same process,
+  starting from an octahedron instead. SPHERE stands for a direct
+  triangulation of the unit sphere. There are nphi.r parallels. The
+  equatorial circles contain exponentially more points than the
+  polar. Ntheta.i thus represents a seed. The total number of points
+  is given by the formula 2*nphi*(2**ntheta-1)+2.
+
+  The OUTPUT keyword selects the output format for the basin
+  plot. Note that DBASIN files also contain information about scalar
+  fields measured along the basin rays.
+
+  The initial polyhedron may be rotated an angular phase phtheta.r
+  and phphi.r to avoid high symmetry lines. 
+
+  The naming scheme of the output files is <root>-cp.ext where root is
+  the general root of the run (the name of the input file up to the
+  first dot), cp is the complete CP list id. of the attractor and ext
+  is the appropriate extension (off, basin or dbasin)
+
+  The precision of the bisection is delta.r (set using the PREC
+  keyword). VERBOSE gives more information in the output about the
+  bisection process.
+
+  Default: triangulation (METHOD), lvl.i = 3, ntheta.i = nphi.i = 5,
+  OFF output, phtheta.r = 0d0, phphi.r = 0d0, all the non-equivalent
+  attractors found in AUTO.
+
+- **BUNDLEPLOT keyword**
+
+  ::
+ 
+    BUNDLEPLOT x.r y.r z.r 
+      [METHOD {CUBE [lvl.i] | TRIANG [lvl.i] | 
+       SPHERE [ntheta.i nphi.i]}] 
+      [OUTPUT {OFF | BASIN | DBASIN [npts.i]}]  
+      [PHASE phtheta.r phphi.r] [PREC delta.r]
+      [ROOT root.s]
+
+  Plot a primary bundle with x.r y.r z.r a point in its interior. The
+  bisection algorithm is used with precision delta.r (PREC
+  keyword). The rays traced are obtained by a recursive subdivision
+  (lvl.i cycles) a cube (METHOD CUBE), an octahedron (METHOD TRIANG)
+  or using a uniform distribution of ntheta.i * nphi.i points on the
+  unit sphere (METHOD SPHERE). The output file has root root.s, and
+  its format may be OFF, BASIN or DBASIN with npts.i points sampled
+  along each ray. The initial polyhedron may be rotated a phase given
+  by phtheta.r (polar angle) and phphi.r (azimuthal angle).
+
+  Default values: triangulation, lvl.i = 3, ntheta.i =
+  nphi.i = 5, OFF output, phtheta.r = 0d0, phphi.r = 0d0, root.s =
+  <root>-bundle.
+
+Integration
+-----------
+
+Overview
+~~~~~~~~
+
+Critic2 can integrate the attractor basins associated to the maxima of
+a field. In QTAIM theory, the field is usually the electron density,
+the attractors are nuclei and the basins are the atomic regions. In
+that case, the integrated properties are atomic properties
+(e.g. atomic charges, volumes, magnetic moments, etc.). The attractor
+basins are defined by a zero-flux condition of the gradient: no
+gradient paths cross the boundary between attractor regions. This
+makes the basins local to each attractor, but their definition yields
+a relatively complex algorithmic problem.
+
+The simplest way of integrating an atomic basin (we use this term
+henceforth, even though the attractors need not be atoms) is by
+bisection. A number of points distributed in a small sphere around the
+atom are chosen, each of them determining a ray. On each ray, a
+process of bisection is started. A point belongs to the basin if the
+gradient path traced upwards ends up at the position of the attractor
+we are considering. If the end-point is a different attractor, then
+the point is not in the basin. By using bisection, it is possible to
+determine the basin limit (called the interatomic surface, IAS). The
+bisection algorithm is implemented in critic2, and can be accessed
+with the INTEGRALS keyword.
+
+We have proposed a second algorithm based on the recursive subdivision
+of the irreducible Wigner-Seitz (IWS) cell, called qtree. In qtree,
+the smallest symmetry-irreducible portion of space is considered and a
+tetrahedral mesh of points is superimposed on it. The gradient path is
+traced from all those points and the points are assigned to different
+atoms (the points are 'colored'). The final integration is performed
+by quadrature. The qtree algorithm is accessed through the QTREE
+keyword.
+
+Lastly, integration algorithms based on grid discretization are very
+popular nowadays, thanks to the widespread use of
+pseudopotential/planewaves DFT methods. We have implemented the
+integration method of Yu and Trinkle (YT), described in JCP 134 (2011)
+064111. The algorithm is based on the assignment of integration
+weights to each point in the numerical grid by evaluating the flow of
+the gradient using the neighboring points. This algorithm is extremely
+efficient and robust and is strongly recommended in the case of fields
+on a grid. The keyword is YT.
+
+The field that determines the basins being calculated is always the
+reference field (see REFERENCE above). However, it may be interesting
+to define several integrable properties inside the basins. For
+instance, we can calculate the charge inside an ELF basin. In that
+case, the ELF would be the reference field and the electron density
+would be an integrable property. 
+
+The list of integrable properties follows the same scheme as the
+fields: there are slots for the properties, which can be modified by
+the user. The default integrable properties are:
+
+* Volume (1)
+
+* Charge (f): the value of the reference field is integrated. If the
+  reference field is the density, then it is indeed the
+  charge. Otherwise, the 'charge' in the output is only a label for
+  the integrated field on the basin.
+
+* Laplacian (lap(f)): the laplacian of the reference field. The
+  integrated laplacian has been traditionally used as a check of the
+  quality of the integration because the exact integral is zero
+  regardless of the basin (because of the divergence
+  theorem). However, it is difficult to obtain a zero in the laplacian
+  integral in critic2 because of numerical inaccuracies:
+
+  - In fields based on a grid, the numerical interpolation gives a
+    noisy laplacian.
+
+  - In FPLAPW fields (WIEN2k and elk), the discontinuity at the muffin
+    surface introduce a non-zero contribution to the integral.
+
+The list of integrable properties can be modified with the INTEGRABLE
+keyword: 
+
+* **INTEGRABLE keyword**
+
+  ::
+  
+    INTEGRABLE id.i [F|FVAL|GMOD|LAP|LAPVAL] [NAME name.s]
+    INTEGRABLE "expr.s" 
+    INTEGRABLE CLEAR
+
+Define a quantity related to field number id.i as an integrable
+property. The quantity can be the field value itself (F), its valence
+component (if the field is core-augmented, FVAL), the gradient norm
+(GMOD), the laplacian (LAP), or the valence-component of the laplacian
+(LAPVAL). By default, F is used. The name for the integrand can be
+changed using the keyword NAME. 
+
+In addition, it is possible to define an integrable property using an
+expression involving more than one field (expr.s). The keyword CLEAR
+resets the list to its initial state (volume, charge and
+laplacian). Using the INTEGRABLE keyword will print a report on the
+list of integrable properties.
+
+The charges.sh script is used to calculate charges of densities on a
+grid using the YT algorithm. Do 'charges.sh -h' for more info.
+
+Bisection
+~~~~~~~~~
+
+* **INTEGRALS keyword**
+
+  :: 
+
+    INTEGRALS {GAULEG ntheta.i nphi.i|LEBEDEV nleb.i} 
+              [CP id.i] [RWINT] [PHASETH theta.r] 
+              [PHASEPH phi.r] [VERBOSE]
+
+  Integrate the attractor basins using bisection. Ntheta.i and nphi.i
+  are the number of theta (polar angle) and phi (azimuthal angle)
+  points for the Gauss-Legendre quadrature, if GAULEG is used. The
+  number of azimuthal angles depends on the actual value of the polar
+  angle (theta) and is adapted according to the formula:
+
+      realnphi = int(nphi.i * sin(theta)) + 1
+
+  In the case of a Lebedev-Laikov quadrature [leb]_ , the number of
+  points of the radial Gauss-Legendre grid and the octahedral grid is
+  needed. The actual value of nleb.i is the smallest number larger
+  than the one given by the user included in the list: 6, 14, 26, 38,
+  50, 74, 86, 110, 146, 170, 194, 230, 266, 302, 350, 434, 590, 770,
+  974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890, 4334,
+  4802, 5294, 5810.
+
+  By using the CP keyword, a single non-equivalent CP (id.i) is
+  integrated. Otherwise, all the CPs of the correct type (found using
+  AUTO) are integrated. If RWINT is present, read (if they exist) and
+  write the .int files containing the interatomic surface limit for
+  the rays associated to the chosen quadrature method.  The PHASETH
+  and PHASEPH keywords are used to rotate the sphere quadrature (for
+  example, to avoid symmetry lines).
+
+  Defaults: ntheta.i = nphi.i = 50, nleb.i = 4802.
+
+* **SPHEREINTEGRALS keyword**
+
+  ::
+
+    SPHEREINTEGRALS {GAULEG ntheta.i nphi.i|
+                     LEBEDEV nleb.i} [CP id.i] [NR npts.i] 
+                    [R0 r0.r] [REND rend.r]
+
+  Integrates the volume, field and laplacian in successive spheres
+  centered around each of the attractor CPs. The same considerations
+  for GAULEG and LEBEDEV as in the keyword above apply. 
+
+  A total number of npts.i spheres are integrated per nucleus. The
+  grid is logarithmic, so that the region near the nucleus has a
+  higher population of points. The grid starts at the radius r0.r and
+  ends at rend.r . If rend.r < 0 then the final radius is taken as
+  half the nearest neighbor distance for each atom times abs(rend.r).
+
+  Default: npts.i = 100. In GAULEG, ntheta.i = 20 and nphi.i = 20. In
+  LEBEDEV, nquad.i = 770. r0 = 1d-3. rend = rnn/2 for each CP. id.i =
+  0 (all attractors).
+
+Qtree
+~~~~~
+
+::
+
+  QTREE_MINL minl.i
+  GRADIENT_MODE gmode.i
+  QTREE_ODE_MODE omode.i
+  STEPSIZE step.r
+  ODE_ABSERR abserr.r
+  INTEG_MODE level.i imode.i
+  INTEG_SCHEME ischeme.i
+  KEASTNUM k.i
+  PLOT_MODE plmode.i
+  PROP_MODE prmode.i
+  MPSTEP inistep.i
+  QTREEFAC f.r
+  CUB_ABS abs.r
+  CUB_REL rel.r
+  CUB_MPTS mpts.i
+  AUTOSPH {1|2}
+  SPHFACTOR {atom.i fac.r|atsymbol.s fac.r}
+  SPHINTFACTOR atom.i fac.r
+  DOCONTACTS 
+  NOCONTACTS
+  ACTIVE atom.i
+  INACTIVE atom.i
+  WS_ORIGIN x.r y.r z.r
+  WS_SCALE scale.r
+  WS_EPS_VOL eps_vol.r
+  NOWS
+  KILLEXT
+  NOKILLEXT
+  CHECKBETA
+  NOCHECKBETA
+  PLOTSTICKS
+  NOPLOTSTICKS
+  COLOR_ALLOCATE {0|1}
+  SETSPH_LVL lvl.i
+  VCUTOFF vcutoff.r
+  QTREE maxlevel.i plevel.i
+
+The QTREE integration method is a new algorithm capable of calculating
+the QTAIM atomic properties in a more efficient way than the bisection
+approach. QTREE is specific to solid-state problems, and is based on a
+hierarchical subdivision of the irreducible part of the WS cell,
+employing a tetrahedral grid. The integration region is selected so as
+to maximize the use of symmetry, and partitioned into
+tetrahedra. These tetrahedra enter a recursive subdivision process in
+which each of them is divided in 8 at each level, up to a level given
+by the user, the maxlevel.i indicated after the QTREE keyword
+(default, 6). Every tetrahedron vertex is assigned to a non-equivalent
+atom in the unit cell by tracing a gradient path. Finally, the
+tetrahedra are integrated and the properties assigned to the
+corresponding atoms. The space near the atoms is integrated using a
+beta-sphere, a method that proves more accurate despite generating a
+second interface in the atomic basin.
+
+In the simplest approach, qtree can be executed using:
+
+::
+ 
+  QTREE maxlevel.i
+
+where maxlevel.i is the level of subdivision. The optional plevel.i
+value corresponds to the pre-splitting level of the tetrahedra. The
+initial tetrahedra list is split into smaller tetrahedra plevel.i
+times. This can be useful in cases where a very high accuracy (and
+therefore a very high level) is required, but there is not enough
+memory available to advance to higher maxlevel.i. However, using
+plevel.i incurs in a overhead, because the painting procedure is not
+as efficient when smaller tetrahedra are used.
+
+Note: parallelization might not work with older versions of
+ifort. The newer versions of gfortran do work with parallel qtree. 
+
+The steps of the algorithm are:
+
+1. The WS cell is constructed and split into tetrahedra, all of which
+   have in common, at least, the origin. Then, the site symmetry of
+   the origin is calculated and the tetrahedra that are unique under
+   the operations of this group are found. This is what we call the
+   irreducible Wigner-Seitz cell (IWS). Note, however, that it is only
+   'irreducible' in the local symmetry of the origin, not by the full
+   set of space group operations. The IWS is the region that is to be
+   integrated in later steps of QTREE. We will refer to single IWS
+   tetrahedra as IWST.
+
+   It is possible, through the WS_ORIGIN keyword, to shift the origin
+   of the WS cell away from the (0 0 0) position. Using the procedure
+   above, the number and shape of IWST changes depending on the origin
+   chosen. Trivially, a general position will make the IWS exactly
+   equal to the WS.
+
+   Also, for large systems, the user can choose to shrink the size of
+   the original WS cell in order to integrate a smaller region, using
+   the WS_SCALE keyword (most likely in combination with WS_ORIGIN, to
+   move the region around). If a value is given to WS_SCALE (say rws),
+   then all the vectors connecting the origin of the WS cell with the
+   vertex are shrunk by a factor rws, therefore decreasing the volume
+   by a factor rws**3 . The IWS is calculated using the smaller WS
+   cell and integrated in the same way. Note that this integration
+   region is non-periodic: it does not fill the volume of the solid
+   and it does not integrate to the total number of electrons per
+   cell.
+
+2. Non-overlapping spheres are chosen centered on each of the atoms of
+   the cell, the so-called beta-spheres. Atoms equivalent by symmetry
+   share the same beta-sphere radius (say beta_i for atom i). The
+   beta-sphere takes two roles in QTREE:
+
+   i)  The atomic properties are integrated inside the beta-spheres
+       using a 2d cubature. The cubature can be a product of two 1d
+       Gauss-Legendre quadratures or a Lebedev quadrature of the
+       sphere. Both methods, and the number of nodes can be selected
+       using the INT_SPHEREQUAD_* keywords explained below. The radial
+       quadrature can be any of the available in critic, and is
+       controlled by the INT_RADQUAD_* options. The default values,
+       however, are usually fine, integrating the beta-spheres in a
+       matter of seconds with a precision that is orders of magnitude
+       better than the overall QTREE performance. 
+
+       This beta-sphere integration removes the error of the
+       finite-elements integration of a region where the integrated
+       scalar fields present the steeper variations in value. By
+       removing the high-error regions from the grid integration, the
+       accuracy of QTREE is enhanced. In particular, this increase in
+       precision outweights the loss by creating an additional
+       interface between the grid and the sphere.
+
+   ii) The space inside the beta-sphere of an atom is assumed to be
+       inside the basin of that atom. The terminus of any gradient
+       path that reaches the interior of the beta-sphere i is assumed
+       to be the atom i. It is known that most of the steps in the
+       integration of the gradient of the electron density are spent
+       in the close vicinity of the terminus. Therefore, this
+       modification saves precious function evaluations.
+
+   The reference radius for the atoms is taken as the distance to the
+   closest bcp (if the full topology was found in a previous step and
+   no NOBETA order was found) or as half the nearest-neighbor
+   distance. The default beta-sphere radius is set to 0.80 times 
+   the reference radius. Both i) and ii) above assume that the
+   beta-sphere is completely contained inside the basin of the
+   atom. This may turn out not to be true for the default beta-sphere
+   radius (specially for cations in ionic systems). In these cases,
+   the keyword SPHFACTOR is used. Its syntax is:
+   
+   SPHFACTOR 1 0.70   ! Make beta_1 = 0.70 * NN_dist(1)/2 (atom type 1)
+   SPHFACTOR 0 0.60   ! Make beta_i = 0.60 * NN_dist(i)/2 for all atoms
+   SPHFACTOR Si 0.60  ! Make beta_i = 0.60 for all Si atoms
+
+   If SPHFACTOR < 0, use the scheme by Rodriguez et al. to determine
+   the beta-sphere radii (JCC, 30 (2009) 1082-1092): a collection of
+   points around the atom are selected and the angle between the
+   gradient and the radial direction is determined. If all the angles
+   are < 45 degrees, the sphere is accepted. In solids, this strategy
+   yields usually spheres that too large.
+
+   In the case that any atomic SPHFACTOR is zero (the default value
+   for all atoms), then a pre-computation at a lower level is done to
+   ensure that all beta-spheres lie within the desired basins. There
+   are two methods for this that can be chosen using AUTOSPH (default:
+   method number 2). 
+   
+   Method number one involves a reduced version of QTREE. The
+   pre-computation usually takes no longer than some minutes (and
+   usually only few seconds) and the spheres are guaranteed to be
+   inside the basins. The keyword SETSPH_LVL controls the level of the
+   pre-computation, that must not be higher than 7. The default value
+   is 6 or maxl, whichever is smaller.
+
+   The second method (default) traces gradient path on a coarse sphere
+   around each nucleus, and reduces the sphere until all of the points
+   are inside the basin. NOCHECKBETA is used in this case.
+
+   An additional factor the user can define is the SPHINTFACTOR. It is
+   possible to consider the sphere where GPs terminate different from
+   the one that is integrated. If SPHINTFACTOR is defined, as in:
+
+   SPHINTFACTOR 1 0.75
+
+   then the sphere associated to atom 1 where the integration is done
+   has a radius which is 0.75 times that of the sphere where GP
+   terminate. 
+
+   The CHECKBETA and NOCHECKBETA keywords activate and deactivate the
+   check that ensures that the beta-spheres is completely contained
+   inside the basin.
+
+   If a beta-sphere is not strictly contained in the basin, QTREE
+   detects it and stops immediately (specifically, QTREE checks that
+   every tetrahedron that is partly contained in a beta-sphere has
+   vertex termini that are all assigned to the same atom as the
+   beta-sphere owner). 
+
+   For a new system, it is always a good idea to start with a
+   low-level QTREE (say, level 4) to check if the default beta-spheres
+   are adequate. If one of the beta-spheres is too large, the error
+   message looks like:
+
+    An undecided tetrahedron is overlapping with a beta-sphere.
+    Make beta-spheres smaller for this system.
+    terms:            1          -1           2           1
+
+   which indicates that there is a tetrahedron that is partly
+   contained in the sphere of the first atom (terminus -1) and that
+   has a vertex corresponding to atom 2. Modifying the sphfactor
+   solves this problem:
+
+   SPHFACTOR 1 0.70
+
+   At lower levels, QTREE is reasonably fast, so a trial-and-error
+   selection of beta-spheres is acceptable.
+
+   Note that the beta-spheres used in QTREE have no relation to the
+   ones reported after an AUTO calculation. 
+
+3. If the cell is periodic (which means that WS_SCALE was not set),
+   the contacts between the faces of the IWST are found. These
+   contacts are used in a later step to copy the termini information
+   between tetrahedron faces.
+
+   This step constitutes a check that the symmetry-handling routines
+   are sound. Also, for every system it is verified that:
+
+   * leqv == ncv * neqv / mmult(ws_origin)  ; where leqv is the order
+     of the site-symmetry group, ncv is the number of centering
+     vectors, neqv is the order of the space group (modulo
+     translations) and mmult(ws_origin) is the multiplicity of the WS
+     origin. 
+
+   * omega / ncv / ws_scale**3 == leqv * sum_t V_t ; where omega is
+     the volume of the conventional unit cell, ncv the number of
+     centering vectors, ws_scale the scale parameter, leqv the order
+     of the site-symmetry group and sum_t V_t the sum of the volumes
+     of all the tetrahedra to be integrated.
+
+   The determination of the tetrahedra contacts in a periodic
+   integration region is deactivated if the NOCONTACTS keyword is
+   issued. The opposite is the DOCONTACTS keyword. By default, the
+   contacts are not calculated.
+
+4. A grid is built for each of the IWST, for which the termini of the
+   gradient paths starting at each of the grid points will be
+   calculated. The grid is determined by subdividing the IWST
+   qtree_lvl times. In each subdivision step, a parent tetrahedron is
+   divided in 8 smaller tetrahedron (all with the same volume, V / 8)
+   by splitting each edge of the parent tetrahedron in two. There are
+   two possible ways of doing this, the election being irrelevant to
+   the performance of QTREE.
+
+   For a given IWST, the size of the grid is given by S =
+   n*(n+1)*(n+2)/6 where n = 2**qtree_lvl + 1, the approximate scaling
+   being as 8**qtree_lvl . The termini information on the grid is
+   saved to the array trm of type integer*1, with size nt * S, where
+   nt is the number of IWST (in fact, the integer type is that which
+   is the result of selected_int_kind(2)). 
+
+   The subdivision level is the main input parameter for QTREE,
+   controlling the accuracy (and cost!) of the integration. For
+   small-medium sized systems 4-5 are low cost integrations (seconds),
+   6-7 are medium cost (minutes) and 8-9 are the slowest and most
+   accurate (hours). The level is input in the call to the QTREE
+   integration:
+
+   QTREE 6   ! qtree_lvl is 6
+
+   By default, the integration level is 5.
+
+   In addition to trm, more work space can be allocated if the
+   integration is restricted to the volume and charge or to the
+   volume, charge and laplacian. The number and type of properties to
+   be integrated is controlled by the PROP_MODE keyword. The following
+   values are allowed:
+
+   * 0 -- only volume is integrated. This amounts to cancelling the
+     finite elements integration of tetrahedra and is equivalent to
+     INTEG_MODE 0 (see below). 
+
+   * 1 -- only charge and volume. If the integration uses the value of
+     the density at the grid points (INTEG_MODE 11, see below) In
+     addition to trm, another real*8 array, fgr, is allocated
+     (strictly it is selected_real_kind(14), not real*8). In fgr, the
+     value of the density at the grid points is stored.
+
+   * 2 -- charge, volume and laplacian. In a similar way to 1, if the
+     information on the grid points is used during the integration
+     (INTEG_MODE 11), an additional real*8 array, lapgr, is
+     allocated. It contains the value of the laplacian of the electron
+     density at the grid points.
+
+   * 3 -- all the integrable properties calculated by the module. The
+     number of properties varies with the interface being used. No fgr
+     or lapgr are allocated, as the grid points need to be recomputed
+     during integration. 
+
+   The default value for PROP_MODE is 2.
+
+   The termini of the grid points contained in a beta-sphere is marked
+   previous to the beginning of the subdivision.
+
+5. Each tetrahedron is subdivided recursively up to a level qtree_lvl,
+   and integrated at the same time. The IWST integration is relatively
+   independent of one another, so for the moment we will focus on just
+   one IWST, which we will call the base tetrahedron.
+
+   The IWST integration is not exactly independent of one another for
+   two reasons:
+
+   * When the integration ends, the termini of the four faces of a
+     base tetrahedron are copied to its neighbors' trm, according to
+     the contacts determined previously.
+
+   * Depending of the method chosen (see GRADIENT_MODE below), the
+     gradient path integration may be aware of the neighboring grid
+     points, that may very well belong to other IWST. In particular,
+     the gradient mode number 3 integrates a gradient path following
+     grid points. When the endpoint is reached, all the grid points
+     that have been traversed by the path are assigned the same common
+     terminus. Therefore, there is the possibility that gradient paths
+     starting inside a given base tetrahedron write the trm of other
+     IWST. 
+
+   Nevertheless, both features can be avoided if there is ever
+   interest in parallelizing the integration over IWST.
+
+6. A tetrahedra stack is built and initialized only one element: the
+   base tetrahedron. An iterator works on the stack, performing at
+   each step the following tasks:
+   
+   6.1 Pop a tetrahedron from the stack.
+
+   6.2 The termini of the vertex of the tetrahedron are calculated, if
+       they are not already known. Let us assume for now that we have
+       a method that traces a gradient path and reliably locates the
+       terminus for a given grid. This will be treated below.
+
+   6.3 If all the termini of the tetrahedron correspond to the same
+       atom, its inside of the tetrahedron is 'painted'. This means
+       that all the grid points that are in the interior or border of
+       the tetrahedron are assigned the same color as its vertex,
+       thereby saving the tracing of the gradient paths.
+
+       This 'painting' can be dangerous whenever a (curved) IAS
+       crosses the face of the tetrahedron which undergoes the
+       operation. To this end, a minimum level is defined, using the
+       keyword QTREE_MINL. If the subdivision level of the tetrahedron
+       is lower or equal than QTREE_MINL, the tetrahedron is not
+       painted. (Note: the base tetrahedron corresponds to level 0). 
+
+       Furthermore, if all the termini correspond to the same atom and
+       are located outside of the beta-sphere region, the tetrahedron
+       is integrated and does not enter another subdivision
+       process. Once more, this only happens to tetrahedra with a
+       level of subdivision strictly greater than QTREE_MINL. As we
+       did with the gradient path tracing, let us suppose that we have
+       at our disposal a method that calculates the integral of the
+       selected properties over one of these tetrahedra. We will
+       refer to this methods as an 'inner integration method', because
+       the value of the properties will be assigned to only one atom.  
+
+       On the contrary, if all the termini are located inside the
+       beta-sphere region, the tetrahedron does not subdivide, but the
+       properties are not integrated, because this region corresponds
+       to the sphere integration addressed in point 2. 
+
+       If the tetrahedron is in the border of a beta-sphere, it
+       is divided further.
+
+   6.4 If the tetrahedron is at subdivision level equal to qtree_lvl,
+       then it does not subdivide, it is integrated and the properties
+       are assigned to the atoms. There are several possibilities
+       depending of the nature of its vertex termini:
+
+       * If all the termini correspond to the same atom, and the
+         tetrahedron is completely inside or outside of this atom's
+         sphere, it corresponds to a case in 6.3.
+
+       * If it is completely inside an atom basin, but on the border
+         of a beta-sphere (remember that being on the border of a
+         beta-sphere implies that it is inside the basin), the part of
+         the tetrahedron that is outside of the sphere is integrated
+         and assigned to the atom. Another integration method is
+         required for this, essentially different from the 'inner
+         integration'. We will refer to this one as 'border,
+         same-color integration'.
+
+       * If the tetrahedron has termini corresponding to different
+         atoms, its properties are integrated and split into
+         contribution to atoms, according to the number of termini
+         each atom has. These tetrahedra are located on the IAS, and
+         require a third class of integration, 'border, diff-color
+         integration'.
+
+   6.5 A tetrahedron that has not been integrated continues to the
+       subdivision step. In this step, 8 new tetrahedra are pushed
+       into the stack. To this end, the edges of the parent
+       tetrahedron are split in two. Note that, by construction, the
+       newly generated points correspond to grid points also.
+
+       The subdivision scheme is:
+
+       * 1, 1-2, 1-3, 1-4
+       * 2, 1-2, 2-3, 2-4
+       * 3, 1-3, 2-3, 3-4
+       * 4, 1-4, 2-4, 3-4
+       * 2-3, 1-2, 1-3, 1-4
+       * 1-4, 1-2, 2-3, 2-4
+       * 1-4, 1-3, 2-3, 3-4
+       * 2-3, 1-4, 2-4, 3-4
+
+       where 'a' represents a vertex of the parent tetrahedron and
+       'a-b' the midpoint of both vertex. Each of the 8 child
+       tetrahedra enclose the same volume, equal to V / 8**l, where l
+       is the subdivision level and V is the volume of the base
+       tetrahedron. The 4 last subdivisions can be chosen in yet
+       another way, but this is not relevant to the results of QTREE.
+
+   6.6 When the stack is empty, the work on the base tetrahedron is
+       finished.
+              
+7. 'Inner integration'. The inner integration applies to tetrahedra
+   that are completely contained in the non-beta-sphere region of a
+   basin. It can apply to a tetrahedron of any level, as long as it is
+   greater than QTREE_MINL. The integrated properties are to be
+   assigned to a single atom, so the only problem with inner
+   integration is to obtain an accurate value of these integrals. 
+
+   In the current implementation of QTREE, several integration methods
+   are possible, and are controlled by the INTEG_MODE keyword. The
+   possible values of INTEG_MODE are:
+
+   * 11 : use the information of the density, laplacian and properties
+     at the vertex of the tetrahedron to integrate. The integral is
+     approximated by a quadrature of four terms, each corresponding to
+     a volume that is 1/4 of the volume of the tetrahedron and
+     multiplied by the value of the properties at the vertex. This
+     integration method is useful if only charge or charge and
+     laplacian are being integrated, because the information gained
+     during the gradient path tracing, and saved in the fgr and lapgr
+     arrays, is used. Nevertheless, it is not very accurate for large
+     tetrahedra. 
+
+   * 12 : use the CUBPACK routines. CUBPACK provides an adaptive
+     tetrahedron integration method based on recursive subdivision
+     (exactly the same as QTREE, by the way) and an integration rule
+     with 43 nodes (degree 8), that is equivalent to the DCUTET
+     library by Bernsten et al. The integration rule is fully
+     symmetric under the Th group operations. The error estimation is
+     compared to the error requested by the user, that is controlled
+     using the CUB_ABS (absolute error), CUB_REL (relative error) and
+     CUB_MPTS (maximum number of function evaluations) keywords. If
+     CUB_MPTS is exceeded, an error message is output, but the
+     QTREE integration continues. 
+
+     Note that, no matter how low the error requirements are, the
+     CUBPACK integration spends, at least, 43 function evaluations per
+     tetrahedron, so it is quite expensive if compared to other
+     integration modes. This should be reserved for large tetrahedra
+     (see below) or for really accurate calculations.
+
+   * 1...10 : use a non-adaptive rule from the KEAST library (Keast et
+     al., 1986), the number corresponding to:
+
+     + 1  -- order =  1,  degree =  0
+     + 2  -- order =  4,  degree =  1
+     + 3  -- order =  5,  degree =  2
+     + 4  -- order = 10,  degree =  3
+     + 5  -- order = 11,  degree =  4
+     + 6  -- order = 14,  degree =  4
+     + 7  -- order = 15,  degree =  5
+     + 8  -- order = 24,  degree =  6
+     + 9  -- order = 31,  degree =  7
+     + 10 -- order = 45,  degree =  8
+
+     In particular, the first KEAST rule uses the barycenter of the
+     tetrahedron. 
+
+   The syntax of the INTEG_MODE keyword is:
+
+   INTEG_MODE lvl.i mode.i
+
+   where mode.i is one of the modes above and lvl.i is the level for
+   which it applies. This means that, if a tetrahedron of a given
+   level is to be integrated, the value of INTEG_MODE(level) is
+   checked to decide on the method.
+
+   A last INTEG_MODE value is possible:
+
+   * -1 : do not integrate and force the tetrahedron into the
+     subdivision process. This value of INTEG_MODE can be combined
+     with a positive value at higher levels, amounting to a recursive
+     integration in the style of CUBPACK. Of course, -1 is not an
+     acceptable value for the last level, qtree_lvl .
+
+   As setting these INTEG_MODE by hand could be confusing, QTREE
+   provides some more-or-less well tested sets of INTEG_MODE values,
+   which we will call integration schemes. An integration scheme
+   conveys a full set of INTEG_MODEs that span from the lowest to the
+   highest level of subdivision. Integration schemes are selected
+   using the INTEG_SCHEME keyword, that can assume the following
+   values:
+
+   * 0 : do not integrate, only calculate volume and plot (see
+     below). This is equivalent to setting PROP_MODE to 0.
+
+   * 1 : subdivide each tetrahedron up to the highest level and then
+     integrate using the vertex information. This is most useful if
+     PROP_MODE is 1 (only charge and volume) or 2 (charge, volume and
+     laplacian) because the information of the gradient path tracing
+     (fgr and lapgr arrays) are used. 
+     INTEG_MODE = -1 -1 ... -1 11 
+     !            ^^           ^^
+     !        QTREE_MINL    qtree_lvl
+     
+   * 2 : subdivide each tetrahedron up to the highest level and then
+     integrate using the barycenter.
+     INTEG_MODE = -1 -1 ... -1 1.
+
+   * 3 : barycentric integration at all levels of subdivision. Less
+     accurate but faster than 2.
+     INTEG_MODE = 1 1 ... 1 1.
+  
+   * 4 : one of the Keast rules (given by the KEASTNUM keyword) is
+     used at all levels. If KEASTNUM is n,
+     INTEG_MODE = n n ... n n.
+
+   * 5 : CUBPACK, at all levels. Reserve this one for special
+     occasions.
+     INTEG_MODE = 12 12 ... 12 12.
+
+   * 6 : this scheme and the next are (poor) attempts at trying an
+     adaptive integration scheme. They are not more reliable or
+     efficient than, say, the scheme 2. Integration scheme 6
+     calculates levels 4, 5 and 6 using CUBPACK, and the rest with
+     subdivision up to the highest level and vertex-based
+     integration. 
+     INTEG_MODE = 12 12 12 -1 ... -1 11.
+
+   * 7 : same as 6 but the final integration is based on the
+     barycenter. 
+     INTEG_MODE = 12 12 12 -1 ... -1 1.
+     
+   * -1 : let the user enter the INTEG_MODEs by hand.
+
+   The default integration scheme is 2, suitable for low and
+   medium-accuracy calculations. 
+
+8. 'Border, same-color integration'. This integration applies to
+   tetrahedra that have reached the maximum subdivision level and sit
+   on the interface between a beta-sphere and the atomic basin. Some
+   of the vertex are known to be inside the sphere and some of them
+   are out. The objective is to integrate the out-of-sphere part and
+   summing it to the atomic properties, while ignoring the in-sphere
+   part (that has been integrated at the beginning using a sphere
+   cubature). 
+
+   The integration follows by assuming that the sphere radius is much
+   larger than the tetrahedron characteristic lengths and, therefore,
+   that the sphere surface can be considered a plane that intersects
+   the tetrahedron. The intersection points of the sphere with the
+   tetrahedron edges are easily calculated and, for the sake of
+   simplicity in the explanation, we will refer to them as the
+   'middle' of the edges. Note, however, that in the implementation,
+   these points are calculated exactly. There are three possible
+   cases: 
+
+   * One vertex is outside, three inside. The tetrahedron formed by
+     the vertex that is outside and the three middle points of the
+     edges that stem for it form a tetrahedron by itself, that is
+     integrated and added to the atom properties.
+
+   * Three vertex are outside, one inside. The difference between the
+     whole tetrahedron integration and the small tetrahedron inside
+     the sphere is added to the atom properties. The small tetrahedron
+     is formed by the vertex that is inside the sphere and the three
+     edges connected to it.
+
+   * Two vertex are inside, two outside. The region outside of the
+     sphere is a 'triangular prism', that is split in three tetrahedra
+     and integrated. 
+
+   Note that the INTEG_MODE of the maximum subdivision level
+   (qtree_lvl) applies to all the sub-integrations of the border,
+   same-color integration.
+
+9. 'Border, diff-color integration'. As in the case of 'border,
+   same-color integration', this method only applies to tetrahedra
+   which are at their maximum subdivision level. In this case, the
+   termini of the vertex corresponding to, at least, two different
+   atoms. 
+
+   In the current implementation of QTREE, the tetrahedron is
+   integrated as a whole. Then, the properties are equitatively
+   assigned to each of the termini atoms. For instance, if the termini
+   are (1 1 1 3), the properties of the tetrahedron are integrated,
+   then 3/4 of them assigned to atom 1 and 1/4 to atom 3.
+
+   In the literature, this problem has been addressed (although in
+   cubes, not in tetrahedra) by using a Monte-Carlo integration inside
+   the region. This requires tracing a gradient path for each of the
+   random points, to achieve a overall accuracy that scales as sqrt(N)
+   where N is the number of nodes. However, I feel that, if this type
+   of approach is to be used, then it is better to continue
+   subdividing the tetrahedron, in a way that is equivalent to going
+   to a higher QTREE level, that scales as N.
+
+10. Gradient path tracing. The gradient path start always at grid
+    points, and are traced using one of three methods, controlled by
+    the GRADIENT_MODE keyword, that can assume the following values: 
+
+    * 1 : 'full gradient'. This method is ODE integration as it is
+      meant to be. The integration is carried out ignoring the grid
+      information. As was explained before, the gradient path is
+      terminated whenever it enters a beta-sphere region. 
+
+      xxxx full gradient is recommended when there are many small
+      tetrahedra in the input list. E.g. molecular crystals,
+      complicates IWS, etc. This is caused by the painting procedure
+      not being as efficient when the tetrahedra are smaller. Also,
+      there is an overhead in the tetrahedron localization in the case
+      of color that may be important in cases where the evaluation of
+      the density is very fast (e.g. grids). When using the grid
+      module, full gradient is default. The crys2convex overhead is
+      smaller for aggressive compiler optimizations.
+
+    * 2 : 'color gradient'. At each point of the gradient path, the
+      neighboring grid points are checked. If all of them correspond
+      to the same atom, then the terminus of the gradient path is
+      assigned to that atom. 
+
+      In a tetrahedral mesh, the meaning of 'neighboring grid points'
+      is not as clear as in a cubic mesh. For a given point x, the
+      neighbors are calculated by first converting x to convex
+      coordinates, that range from 0 to 2**l (restricted to x_1 + x_2
+      + x_3 <= 2**l). The neighboring points are :
+
+      (x_1 +- 1, x_2 +- 1, x_3 +- 1) 
+
+      If any of these neighbors are not valid points in the
+      tetrahedron, they are discarded and not checked. This is the
+      default, except in the grid module. 
+
+    * 3 : 'qtree gradient'. This method behaves much like the 'full
+      gradient', but whenever the gradient path steps near a grid
+      point, it is projected to it. When a projection occurs, the grid
+      point is pushed into a stack. At the end of the gradient path,
+      when the terminus is known, all the grid points in the stack are
+      popped and assigned the terminus.
+
+      The projection regions are spheres located around each grid
+      point, whose radius is controlled by the QTREEFAC keyword. The
+      radius of these spheres is minlen / 2**qtreelvl / qtreefac ,
+      where minlen is the smallest edge length of the full set of IWST
+      and qtreelvl is the maximum subdivision level. Note that
+      QTREEFAC equals 1 is the maximum value allowed, and corresponds
+      to touching spheres along, at least, one tetrahedron edge. By
+      default, QTREEFAC is 2, that is a compromise value. Lower levels
+      of QTREEFAC tend to give errors when assigning the grid points
+      that lie on the IAS of two atoms (although *only* there). With
+      higher levels, the time saving is gone, and 'qtree gradient'
+      reduces to 'full gradient'.
+
+      Additionally, the projection can be started only after a certain
+      number of initial steps. The MPSTEP keyword controls this value,
+      and defaults to 0.
+
+    * -1, -2, -3: these correspond to the same as their positive
+       values, but each gradient path terminus is compared to their
+       'full gradient' version, using the best available ODE
+       integration method. Information about the results of the
+       comparison is output to stdout, and a .tess file is generated
+       (difftermxx.tess, where xx is the subdivision level) containing
+       the position of the points where both termini differ.
+      
+    If the integration region is not periodic, then methods 'color'
+    and 'qtree' are not defined. There are two possible options,
+    controlled by the 'KILLEXT' and 'NOKILLEXT' keywords. If KILLEXT
+    is active (the default behavior), the gradient path tracing is
+    killed whenever it leaves the integration region, independently of
+    the GRADIENT_MODE being used. The terminus is then assigned to an
+    'unknown' state, and the tetrahedra it generates are not
+    integrated. If NOKILLEXT is active, the gradient path is continued
+    as a 'full gradient', until the terminus is found.
+
+    The default is KILLEXT because, if the integration region is not
+    periodic, the integral over atoms that are partially contained in
+    it is most likely not meaningful to the user.
+
+    The ODE integration method can be chosen using the QTREE_ODE_MODE
+    keyword, that can assume the following values:
+
+    * 1 : Euler method, fixed step, 1st order.
+
+    * 2 : Heun method, fixed step, 2nd order.
+
+    * 3 : Kutta method, fixed step, 3rd order.
+
+    * 4 : Runge-Kutta method, fixed step, 4th order. 
+
+    * 5 : Euler-Heun embedded method, adaptive step. 1st order with
+          2nd order error estimation. 2 evaluations per step. 
+
+    * 6 : Bogacki-Shampine embedded method, adaptive step. 3rd order
+          with 5th order error estimation. The FSAL (first step also
+          last) allows only 4 evaluations per step. Local
+          extrapolation. 
+ 
+    * 7 : Runge-Kutta Cash-Karp embedded method, adaptive step. 4th
+          order with 5th order error estimation. 6 evaluations per
+          step. 
+
+    * 8 : Dormand-Prince 4-5 embedded method, adaptive step. 4th order
+          with 5th order error estimation. 6 evaluation per step, with
+          FSAL. Local extrapolation. 
+
+    For embedded methods (4--8), the absolute error requested to the
+    method can be set using the ODE_ABSERR keyword. The default of
+    this variable is chosen so that reasonable stepsizes are
+    kept. This default is 1d-3 for Euler-Heun and 1d-4 for the rest.
+    Note that it makes no sense an equivalent ODE_RELERR keyword.
+
+    Experimentally, using a method with n more evaluations is better
+    than reducing the step size of the lower accuracy method n
+    times. Additionally, there is no upper limit to the step size
+    (I am assuming nobody is going to use ODE_ABSERR = 1d2), so
+    methods with greater accuracy (7 and 8) save evaluations by
+    increasing stepsize to values much larger than their lower
+    accuracy counterparts.
+   
+    The step size of the fixed step methods (1--4) is controlled with
+    the STEPSIZE keyword. In the variable step methods (5--8) the
+    value of STEPSIZE is used as the starting step.
+
+    The default QTREE_ODE_MODE is Dormand-Prince (8).
+
+11. When the integration of the base tetrahedron is finished, the
+    termini of the grid points located at each one of its four faces
+    are copied to the corresponding neighboring IWST using the
+    information found in section 3. Of course, this is only done if
+    DOCONTACTS is active.
+
+12. Once the integration of the IWST is completed, the atomic
+    properties are scaled and summed to the integrals inside the
+    beta-spheres. The final result is output, together with an
+    analysis of the contribution of each subdivision level to the
+    total integrated properties.
+
+13. It is possible to plot the basins obtained by QTREE using the
+    PLOT_MODE keyword. It can assume the values:
+    
+    * 0 : no plotting is done.
+    
+    * 1 : a single tess file is written containing a description of
+      the unit cell CPs, the IWS, and balls corresponding to all the
+      grid points that have been sampled.
+      
+    * 2 : same as 1 but only the balls that are either on the face of
+      an IWST or close to a IAS are output.
+      
+    * 3 : the full WS cell
+
+    * 4 : a file for the full WS cell and several files, containing a
+      description of each of the integrated basins. Note that the
+      basins need not be connected.
+
+    * 5 : same as 4 but only balls belonging to faces of IWST and IAS
+      are output.
+
+    The default value is 0. If PLOT_MODE is > 0, then it is possible
+    (and it is active by default) to plot the sticks that form the
+    tetrahedra inside .stick files. The PLOTSTICKS and NOPLOTSTICKS
+    keywords control this behaviour.
+
+Additional considerations:
+
+* The integration of the volume is not done using the beta-sphere /
+  basin separation because the volume of each tetrahedron is exactly
+  known. This implies that the integrated cell volume for a periodic
+  integration region will always be exact (if it is not, then it is an
+  error). The integrated cell charge, on the contrary, is a measure of
+  how well the tetrahedra are being integrated, but *not* of how well
+  the IAS is being determined.
+
+* For very high levels of QTREE (say 10--11, depending on the amount
+  of memory your computer has), memory usage may turn out to be a
+  problem. The COLOR_ALLOCATE keyword controls the amount of memory
+  allocated for the color and property arrays. The syntax is:
+
+  COLOR_ALLOCATE {0|1}
+
+  Using a zero value, the color vector (and possibly the properties
+  vectors, depending on PROP_MODE) is allocated only for the current
+  IWST. This saves memory but makes the computation slower, specially
+  if the GRADIENT_MODE is 2 or 3. In addition, setting COLOR_ALLOCATE
+  to 0 deactivates the passing of colors through the contacts
+  (DOCONTACTS and NOCONTACTS keywords) and the plotting (sets
+  PLOT_MODE to 0). If COLOR_ALLOCATE is 1, the color (and optionally
+  the properties) of all the IWST are saved. By default,
+  COLOR_ALLOCATE is 1 if maxlevel.i <= 8 and 0 if the maximum level is
+  higher.
+
+* In cases where only the properties of some of the atoms are
+  interesting, there exists the possibility of deactivating the
+  integration of some atoms by using the INACTIVE and ACTIVE
+  keywords. Tetrahedra belonging to an inactive atom are not
+  integrated (apart from the volume, see above). The termini of
+  inactive atoms are all assigned to a common 'unknown' value (the
+  same value as the one assigned when a gradient path is 'killed' in
+  non-periodic cells, see KILLEXT above). If the number of inactive
+  atoms is large, the 'painting' of unknown termini becomes more
+  frequent and applies to more atoms, thus saving time even in the
+  termini localization step. The ACTIVE and INACTIVE keywords are
+  used: 
+  
+  INACTIVE 2   !  deactivate integration of atom 2
+  INACTIVE 0   !  deactivate all atoms
+  ACTIVE 1     !  activate atom 1
+
+  By default, all atoms are active.
+
+Yu and Trinkle (YT)
+~~~~~~~~~~~~~~~~~~~
+
+The Yu and Trinkle algorithm can be accessed using the YT keyword:
+
+::
+
+  YT [NONNM] [NOATOMS] [GATHER g.r]
+
+The YT algorithm uses the reference field, which must be defined on a
+grid. Hence it won't work directly with wien2k, elk or aiPI densities,
+but those can be transformed into a grid by appropriate use of the
+LOAD keyword. The algorithm proceeds by running over grid nodes in
+decreasing order of density. If a point has no neighboring points with
+higher density, then it's a local maximum. If it does, but all of them
+belong to the same basin then it belongs to the interior of that basin
+as well. Otherwise, it is sitting on top of the interatomic
+surface. The actual fraction of a grid point on a IAS belonging to a
+particular basin is calculated by evaluating the trajectory flow to
+neighboring points. The algorithm is described in J. Chem. Phys. 134
+(2011) 064111 which should be consulted for further details.
+
+The located maxima are identified by default with the closest nucleus
+if they are at a distance less than 2 bohr from it or simply to the
+closest nucleus if the NONNM keyword is used (this is appropriate if
+no NNM are expected). The NOATOMS option is appropriate for scalar
+fields where the maxima are not expected to be at the atomic positions
+(or at least not all of them). If NOATOMS is used, all the maxima
+found in the process are given as NNM. This is useful for fields such
+as the ELF, the laplacian,...
+
+Because of numerical noise in the grids, several maxima sometimes
+appear close to each other. Critic2 by default gathers maxima into a
+single point if they are closer than 2.5 times the longest grid
+step. The distance for this accumulation process can be changed using
+the GATHER keyword (g.r. in bohr).
+
+Not all the properties defined by the INTEGRABLE keyword are
+integrated. Only the subset of those properties that are grids, have F
+or FVAL as the integrand and are congruent with the reference grid are
+considered. This limitation can be circumvented by using LOAD AS. In
+addition, no core is used even if the CORE keyword is active. The
+volume is always integrated. A xyz file (<root>_yt.xyz) is always
+written, containing the unit cell description (with border, see WRITE)
+and the position of the maxima, labeled as XX.
+
+Note that in the output ('List of basins and local properties'),
+'Charge' refers not to the integrated electron density (because
+critic2 doesn't know what is an electron density and what not) but to
+the value of the integral of the reference field in its own basins
+(which may not make much sense if you are integrating, for instance,
+the ELF or the laplacian). Loading a second field and using INTEGRABLE
+and the field number is the way to go in such cases.
+
+Usage of the YT algorithm for grid integration is strongly
+recommended, as it is much more efficient, robust and accurate than the
+other alternatives combined with spline interpolation. 
+
+Henkelman et al. method (BADER)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The algorithm by Henkelman et al. uses the BADER keyword:
+
+::
+
+  BADER [NONNM] [NOATOMS]
+
+The BADER algorithm uses the reference field to calculate the basins;
+this field must be defined on a grid. BADER assigns grid nodes to
+basins using the near-grid method incrementally described in
+(Comput. Mater. Sci. 36, 254-360 (2006), J. Comput. Chem. 28, 899-908
+(2007), and J. Phys.: Condens. Matter 21, 084204 (2009)). The output
+and the option keywords have the same meaning as YT.
+
+Plotting of non-covalent interactions (NCIPLOT)
+-----------------------------------------------
+
+- **NCIPLOT**
+
+  ::
+
+    NCIPLOT 
+      ONAME root.s
+      CUTOFFS rhocut.r dimcut.r
+      RHOPARAM rhoparam.r
+      RHOPARAM2 rhoparam2.r
+      CUTPLOT rhoplot.r dimplot.r
+      VOID void.r
+      RTHRES rthres.r
+      INCREMENTS x.r y.r z.r
+      NSTEP nx.i ny.i nz.i
+      ONLYNEG
+      NOCHK
+      CUBE x0.r y0.r z0.r x1.r y1.r z1.r
+      CUBE file1.xyz file2.xyz ...
+      MOLMOTIF
+      FRAGMENT file.xyz
+      FRAGMENT
+       x.r y.r z.r # (in angstrom!)
+       ...
+      ENDFRAGMENT
+    ENDNCIPLOT
+
+Calculates the density and reduced density gradient on a cube for the
+visualization of non-covalent interactions. The output files are
+
+  * root.dat : a 2-column file with reduced density gradient (col. 2)
+               vs. density (col. 1) calculated at the points of a grid.
+
+  * root-dens.cube : a cube containing the electron density.
+
+  * root-grad.cube : a cube containing the reduced density gradient
+                     (RDG).
+
+  * root.vmd : the VMD script for convenient visualization of the
+               results. 
+
+The root of the files can be changed using the ONAME keyword (default:
+<root>). 
+
+By default, the region represented is the whole unit cell, with step
+lengths of 0.1 bohr in each direction. The step lengths or the number
+of points in each axis can be controlled with the keywords:
+
+* INCREMENTS x.r y.r z.r
+
+  x.r, y.r and z.r are the step lengths in each direction
+
+* NSTEP nx.i ny.i nz.i
+
+  Define the number of steps in each direction.
+
+If plotting the whole unit cell is not convenient, a parallelepipedic
+region can be extruded from the crystal with the keyword:
+
+* CUBE x0.r y0.r z0.r x1.r y1.r z1.r
+
+where x0 and x1 are the cube limits in crystallographic coordinates. A
+region (much) larger than one periodic cell can also be selected with
+this method. In addition, it is possible to define the cube containing
+a fragment of the crystal using:
+
+* CUBE file1.xyz file2.xyz ...
+
+Define the limits of the cube using the crystal fragments contained in
+file1.xyz, file2.xyz,... A small border (RTHRES) is added around the
+region exactly containing all the atoms. The xyz files have the usual
+xyz format (in angstrom), in the same spirit as the FRAGMENT
+keyword. The xyz, however, are not used as fragments for the NCI
+calculation.
+
+Some cutoffs are relevant to the visualization of the NCI:
+
+* CUTOFFS rhocut.r dimcut.r
+
+These cutoffs apply to the writing of density and reduced density
+gradients (respectively) to the dat file. If, at a given point, the
+density is above rhocut.r or the reduced density gradient is above
+dimcut.r, then the point is not written to the dat file. Defaults:
+rhocut.r = 0.2 and dimcut.r = 2.0 for loaded densities and 1.0 for
+promolecular densities.
+
+* CUTPLOT rhoplot.r dimplot.r
+
+When the density is greater than rhoplot.r, the rdg in the -grad.cube
+file is set to 100d0, effectively eliminating the point from the
+isosurface plot. Also, the color scale represented in RDG isosurfaces
+ranges from -rhoplot.r to rhoplot.r. The default value is 0.05
+(selfconsistent densities) or 0.07 (promolecular). The dimplot.r
+controls the isosurface value to be represented in VMD. Default: 0.5
+(SC) or 0.3 (promolecular).
+
+* MOLMOTIF
+
+Complete the molecules that lie across unit cell faces by using atoms
+in the neighboring cells.
+
+* ONLYNEG
+
+Represent only the points where the second eigenvalue of the hessian
+is negative.
+
+* NOCHK
+
+Do not read or write the checkpoint file.
+
+* VOID void.r
+
+Represent only the points where the promolecular density is lower than
+void.r.
+
+* **FRAGMENT environment**
+
+  ::
+
+    FRAGMENT file.xyz
+    FRAGMENT
+     x.r y.r z.r # (in angstrom!)
+     ...
+    ENDFRAGMENT
+
+  In the current version of NCIplot it is possible to define molecular
+  fragments in order to focus on some part of the crystal, or some
+  particular interaction. This is done by using the FRAGMENT
+  environments. Each FRAGMENT block defines one fragment and only the
+  intermolecular interactions between fragments are represented (hence,
+  you need at least two blocks). The atomic positions (in cartesian
+  coordinates, the units are angstrom) of the atoms in the fragment
+  appear inside. To obtain the list of atoms, the recommended
+  procedure is to write an xyz file (using the WRITE keyword), then
+  cutting it into pieces (using, for instance, avogadro) and then
+  placing the resulting atom lists in FRAGMENT environments.
+
+  Alternatively, the fragment can be read from an xyz file.
+
+  There are three options that control the behavior of the fragments:
+  RTHRES, RHOPARAM and RHOPARAM2.
+
+* RTHRES rthres.r
+
+  When fragments are used, the density and rdg grids are reduced to
+  a piece encompassing the fragments, with a border of rthres.r bohr
+  (default: 2.0).
+
+* RHOPARAM rhoparam.r
+
+  Consider only the points where none of the fragments contributes
+  more than rhoparam.r times the total promolecular density (default:
+  0.95). 
+
+* RHOPARAM2 rhoparam2.r
+
+  Consider only the points where the sum of the density of all
+  fragments is more than rhoparam2.r times the total promolecular
+  density (default: 0.75). Note that the fragments need not include
+  all atoms in the crystal.
+
+Some advice regarding the execution of NCIPLOT:
+
+* If the density is given on a grid, it is usually much faster and the
+  result is much better if core-augmentation (ZPSP) is *not* used. The
+  reason is that if the core augmentation is not present, the reduced
+  density gradient and the hessian components can be calculated by
+  Fourier transform (which is smoother) and it is not necessary to sum
+  over neighboring atoms. The NCI regions are in the interstitial,
+  where the density is mostly correct anyway, and the plots are only
+  qualitative. 
+
+* Likewise, any option that activates the calculation of the
+  promolecular density (VOID or FRAGMENT) is going to be expensive
+  because it involves a sum over neighboring atoms. In those cases, it
+  is recommended to calculate the promolecular density once for a
+  certain grid, then use the checkpoint file.
+
+Miscellaneous commands
+----------------------
+
+* **WS**
+
+  Find the Wigner-Seitz cell of the system and print information about
+  its partition in tetrahedra. Useful for debugging.
+
+* **ENVIRON [nshel.i]**
+
+  Print the shells of atomic neighbors for every non-equivalent atom
+  in the cell, up to nshel.i shells (default: 10).
+
+* **ROOT root.s**
+
+  Change the <root>. The root is used as prefix for most of the
+  auxiliary files written by critic2.
+
+* **HIRSHFELD**
+
+  Calculate the Hirshfeld charges. Only for fields on a grid.
+
+* **SUM id.i**
+  **MAX id.i**
+  **MIN id.i**
+  **MEAN id.i**
+  **COUNT id.i eps.r**
+
+  Using the field on a grid id.i, calculate the sum of the node values
+  (SUM), the maximum value (MAX), the minimum (MIN), the average
+  (MEAN), or count the number of elements that are greater than eps.r
+  (COUNT) 
+
+* **EWALD**
+
+  Calculate the electrostatic energy of the lattice of point charges
+  using Ewald's method. The atomic charges are defined using the Q
+  keyword. 
+
+* **BENCHMARK [nn.i]**
+
+  Benchmark the speed of the field calculation using nn.i points
+  (default: 10000)
+
+* **{RUN|SYSTEM} command.s**
+
+  Execute a shell command.
+
+* **END**
+ 
+  Terminates the execution of CRITIC.
+
+Global additional options
+-------------------------
+
+* **ODE_MODE {EULER|RKCK|DP} [step.r [gradeps.r]]**
+
+  Select the gradient path integration algorithm. Euler is
+  plain explicit Euler. RKCK, Runge-Kutta embedded 4-5th order method 
+  (Cash-Karp parametrization). DP, Dormand-Prince 4-5th order. step.r
+  is the initial step size and gradeps.r is the gradient norm
+  termination criterion for the gradient path.
+
+  This keyword applies to all gradient paths except those in qtree. 
+
+* **INT_RADIAL**
+
+  ::
+ 
+    INT_RADIAL [GAULEG|QAGS|QNG|QAG] [NR nr.r] 
+               [ABSERR aerr.r] [RELERR rerr.r] 
+               [ERRPROP prop.i] 
+               [PREC delta.r] [NOBETA]
+
+  Choose the radial integration method (e.g. inside spheres or
+  basins). The first keyword selects the qudrature method:
+
+    + GAULEG: Gauss-Legendre.
+ 
+    + QAGS: quadpack's dqags (general-purpose, extrapolation, globally
+      adaptive, end-point singularities). 
+
+    + QNG: quadpack's dqng (smooth integrand, non-adaptive,
+      gauss-kronrod(patterson))
+
+    + QAG: quadpack's dqag (general-purpose, integrand examiner,
+      globally adaptive, gauss-kronrod)
+    
+  The number of radial integration points, if appropriate (GAULEG,QAG)
+  is selected with NR. If the selected method is QAG, the number of
+  points may vary from nr.r. The allowed intervals are: 7 - 15, 10 -
+  21, 15 - 31, 20 - 41, 25 - 51, 30 - 61. Critic2 selects the
+  appropriate interval by comparing the given nr.r to the lower
+  limits of these intervals.
+  
+  ABSERR is the requested absolute error for QUADPACK
+  integrators. RELERR is the requested relative error for QUADPACK
+  integrators. ERRPROP controls the property for which the error is
+  estimated. If prop.i corresponds to one of the integrable properties
+  then RELERR and ABSERR apply only to it. The selected property
+  guides the adaptive integration procedure. If prop.i does not
+  represent one of the integrable properties, the maximum of the
+  absolute value of the properties vector is used.  Note : the option
+  where max(|prop|) is used is unstable. Some spheres (usually
+  associated to heavy atoms) may integrate to nonsense, depending on
+  the optimization levels of the compiler. Therefore, I have disabled
+  it by default.
+
+  In the case of basin integrations, PREC controls the precision in
+  the determination of the interatomic surface. Finally, NOBETA
+  prevents the use of beta-spheres in the integration by bisection. 
+
+  Default: QAGS, nr.r = 30, aerr.r = 1d0, rerr.r = 1d-6. The default
+  errprop is the field value for fields on a grid and the laplacian
+  for the rest.
+
+Tools
+-----
+
+charges.sh
+~~~~~~~~~~
+
+The script charges.sh (in the src/ directory) can be used to calculate
+atomic charges given an abinit, vasp or cube (QE) grid by applying the
+YT algorithm. The usage is simply: 
+
+::
+
+  charges.sh file_DEN     # (abinit)
+  charges.sh CHGCAR       # (vasp)
+  charges.sh file.cube    # (qe and cubes)
+
+For more info,
+
+:: 
+
+  charges.sh -h  
+
+Off2off
+~~~~~~~
+
+Off2off is a program to transform and combine OFF and COFF
+three-dimensional object description files. To run the program, use::
+
+  off2off [OPTIONS] input_file(s)
+
+where input_files are one or more files written in OFF or COFF
+format. The output, also written in OFF or COFF format is written
+to the standard output unit, as a default.
+
+The options for off2off are:
+
+* -c : give (solid) color to OFF files (default).
+
+* -u : remove color from COFF files.
+
+* -z : translate coordinates origin to the geometric center of files.
+
+* -m : translate coordinates to the mass center of input points.
+
+* -s : scale point (x,y,z) coordinates to [-1,1].
+
+* -b : read and write BASIN files instead of the standard OFF.
+
+* -d : read and write DBASIN files.
+
+* -o output : write results to given file instead to stdout.
+
+* -t matrix : read in a group of transformation matrices from the
+  given file.
+
+Basin2off
+~~~~~~~~~
+
+Basin2off uses the data contained in one or more BASIN data files and
+prepares OFF and COFF files to plot colormap renderings of a scalar
+property on the atomic basins surface. It is run::
+
+  basin2off [-c] [-g] [-l] [-a] [-L] [-A] [-n num] 
+            input_files....
+
+The list of input_files will be analyzed together to produce a
+common color scale. For each input file a COFF or OFF file will
+be produced, its name being that of the input with the suffix
+'.basin' stripped and substituted by '.coff' or '.off'. The list of
+options is:
+
+* -c : used together with -n 0 will produce colored OFF files. Each
+  basin input file will be given a different solid color.
+
+* -g : use a simple scale based on gray values, instead of the
+  default color scale.
+
+* -l : assign the colors according to a logarithmic scale rather
+  than the default linear scale.
+
+* -a : use a atan() mapping function instead.
+
+* -L : experimental: atan(log()) map
+
+* -A : experimental: atan(atan()) map
+
+* -n num : the scalar property used to produce the COFF files will
+  be the num-th one contained in the BASIN files. (Default: num =
+  1). (Special case: num=0 will produce OFF files with no color
+  defined for the basin faces).
+
+Basinmerge
+~~~~~~~~~~
+Basinmerge is a script to copy by symmetry and combine the
+BASIN/DBASIN/OFF/COFF datafiles of several atoms in the crystal. It
+uses the tessel, off2off and basin2off programs. The program
+interprets a collection of orders/instructions written according to
+the next language:
+
+- **FILETYPE [OFF|COFF|BASIN|DBASIN]**
+
+  Type of file to be processed.
+
+- **NEQION name.s file.s x.r y.r z.r**
+
+  Enter basin description for each non-equivalent ion
+
+- **CRYS2CART**
+
+  ::
+
+          c11.r  c12.r  c13.r  c14.r
+          c21.r  c22.r  c23.r  c24.r
+          c31.r  c32.r  c33.r  c34.r
+          c41.r  c42.r  c43.r  c44.r
+
+  Matrix that transforms from crystal to cartesian coordinates.
+  It is written in the critic2 output.
+
+- **CART2CRYST**
+
+  ::
+
+          d11.r  d12.r  d13.r  d14.r
+          d21.r  d22.r  d23.r  d24.r
+          d31.r  d32.r  d33.r  d34.r
+          d41.r  d42.r  d43.r  d44.r
+
+  Matrix that transforms from cartesian to crystal coordinates.
+  It is written in the critic2 output.
+
+- **COPY fromname.s toname.s fileto.s**
+
+  ::
+
+          t11.r  t12.r  t13.r  t14.r
+          t21.r  t22.r  t23.r  t24.r
+          t31.r  t32.r  t33.r  t34.r
+          t41.r  t42.r  t43.r  t44.r
+
+  Create a copy of the basin file of a NEQ ion into an equivalent
+  position. The transformation matrix that is entered should act
+  on the crystallographic coordinates, and it is produced by
+  critic2.
+
+- **MERGETO  destfile.s  file1.s  [ file2.s ... ]**
+
+  Merge a collection of files into a single one.
+
+- **BASIN2OFF  order.s**
+
+  Run directly the basin2off program.
+
+- **OFF2OFF  order.s**
+
+  Run directly the off2off program.
+
+Scripts
+~~~~~~~
+
+For now, just one script (in tools/scripts), cif2scf.sh, that converts
+from a cif file to a quantum espresso input. To use it, 
+
+  cif2scf.sh file.cif 
+
+which creates file.scf.in using critic2.
+
+Elk mod for the ELF and Coulomb potential
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The tools/elk_mode directory contains three source files to modify elk
+(1.3.2) and make it print a description of the ELF and the Coulomb
+potential. See the README in the subdirectory.
+
+Test files
+----------
+
+Some examples are provided with critic2. These can serve as templates for
+new calculations and to check the installation. They can be found in
+the examples subdirectory, together with a descriptive README file.
+
+Appendix
+--------
+
+Related programs and output file formats
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some programs required or just useful when working with critic2 are:
+
+- **gnuplot**: most of the output critic2 creates are text files with
+  column organized grid data, readily formatted to use with
+  gnuplot. Also, in some tasks, critic2 also generates the gnuplot
+  scripts required for the representation.
+
+- **geomview**: some atomic basin plots are created in geomview's OFF
+  and COFF format, which are described below.
+
+- **tessel**: tessel is a generalized plotting program for crystal
+  structures. Critic2 provides input files for tessel (mainly in
+  FLUXPRINT). Also, BASIN and DBASIN files, containing the information
+  about the atomic basins are generated, which are read and plotted by
+  tessel.
+
+- **avogadro**: can be used to manipulate xyz files for nciplot.
+
+The description of the output file formats in critic2 follows.
+
+INT files
++++++++++
+The INT files contain a description of an IAS surface for a number of
+rays. The rays are given by a fixed 2d angular quadrature, specified
+in the first line of the file. The successive lines are the r_ias, in
+the precise order needed. Only for internal use of CRITIC.
+
+BASIN files
++++++++++++
+
+The surface of an atomic basin is approximated in critic2 by a
+polyhedron, with vertices on the rays on which the zero-flux surface
+has been determined. This surface, named basin from now on, is
+approximately described as a number of polygonal facets, each being a
+ordered list of vertices.
+
+Let us consider, in addition, several scalar properties evaluated
+on the vertices of the surface. We can select any of this properties to
+create a color map of the scalar property on the basin surface.
+
+This files can only be used to analyze those surfaces that are
+monovaluated in spherical coordinates (i.e. surfaces that have
+one and only one value of the radial coordinate for every angular
+point).
+
+The structure of the BASIN files is:
+
+- **Rec. 0** : "#" comment.
+
+  Comment lines starting with "#" may appear anywhere.
+
+- **Rec. 1** : nvert, nface, nedge
+
+  Number of vertices, faces and edges of the polyhedron.
+
+- **Rec. 2**: npropty
+
+  Number of properties (scalars or scalar components) that will
+  be given for each point.
+
+- **Rec. 3** : (propname(i), i = 1, npropty)
+
+  Alphanumerical label for each property. Blank characters (one or
+  more) separate the properties.
+  Notice that vectors are given as three separate components, etc.
+
+- **Rec. 4i, i = 0, nvert-1** : x(i), y(i), z(i), (prop(j,i),j=1,npropty)
+
+  For each vertex: the cartesian coordinates and the values of
+  all the properties given for this point.
+
+- **Rec. 5j, j = 0, nface-1** : nv, (ivert(k,j), k=1,nv)
+
+  The number of vertices of this face is nv (nv=3 in the
+  triangular tesselations and 4 in the quadrilateral ones).
+  For each vertex in this face, the number of order in the
+  previous vertex list. Remember that vertices are numbered
+  from 0 to nvert-1.
+
+DBASIN files
+++++++++++++
+
+The DBASIN files contain the description of the basin of a point,
+and the value of a scalar property inside the basin (e.g. the
+electron density). Those data are used to plot the surfaces of
+constant value of the scalar property.
+
+A regular grid of NPOINT points is defined along each ray from
+the origin (excluded) to the limit of the basin for this ray.
+The scalar property is computed in these points. Notice that the grid
+is, in principle, different for each ray.
+
+The structure of a DBASIN file is:
+
+- **Rec. 0** : "#" comment
+
+  Comment lines starting with "#" may appear anywhere.
+
+- **Rec. 1** : nvert, nface, nedge
+
+  Number of vertices, faces and edges of the polyhedron.
+
+- **Rec. 2** : npoint, xnuc, ynuc, znuc, rhonuc
+
+  Number of sampled points along each ray. Cartesian (x,y,z) position
+  of the nucleus. Electron density at the nucleus.
+
+- **Rec. 3i, i = 0, nvert-1** : x(i), y(i), z(i), (rho(j,i),j=1,npoint)
+
+  For each vertex: the cartesian coordinates and the values of
+  the electron density at the grid points.
+
+- **Rec. 4j, j = 0, nface-1**: nv, (ivert(k,j), k=1,nv)
+
+  The number of vertices of this face is nv (nv=3 in the
+  triangular tesselations and 4 in the quadrilateral ones).
+  For each vertex in this face, the number of order in the
+  previous vertex list. Remember that vertices are numbered
+  from 0 to nvert-1.
+
+
+
+OFF and COFF files
+++++++++++++++++++
+
+The OFF/COFF files can be viewed and printed with geomview. The
+structure is:
+
+- **Rec. 0** : "#" comment.
+
+  Comment lines starting with "#" may appear anywhere.
+
+- **Rec. 1** : file_type
+
+  Either OFF or COFF keyword.
+
+- **Rec. 2** : nvert, nface, nedge
+
+  Number of vertices, faces and edges of the polyhedron.
+
+- **Rec. 3** : (x(i),y(i),z(i), [r(i),g(i),b(i),alpha(i)],i = 0, nvert-1)
+
+  Cartesian coordinates (x,y,z) of the vertices. In the case of
+  COFF files, additional information is given regarding the
+  RGB color associated to the vertex, and the degree of
+  transparency (alpha) of the surface at this position.
+
+- **Rec. 4j, j = 0, nface-1** : nv, (ivert(k,j), k=1,nv)
+
+  The number of vertices of this face is nv (nv=3 in the
+  triangular tesselations and 4 in the quadrilateral ones).
+  For each vertex in this face, the number of order in the
+  previous vertex list. Remember that vertices are numbered
+  from 0 to nvert-1.
+
+References
+----------
+
+For critic2:
+
+* Otero-de-la-Roza, A. et al., Comput. Phys. Commun. 180 (2009)
+  157–166. 
+
+* Otero-de-la-Roza, A. et al., Comput. Phys. Commun. (submitted)
+  (2013).
+
+For qtree:
+
+* Otero-de-la-Roza, A. and Luaña, V., J. Comput. Chem. 32 (2010) 
+  291–305. 
+
+For Yu and Trinkle (YT):
+
+* Yu, M. and Trinkle, D., J. Chem. Phys. 134 (2011) 064111.
+
+Copyright notice
+----------------
+
+Copyright (c) 2013 Alberto Otero de la Roza <alberto@carbono.quimica.uinovi.es>,
+Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+<victor@carbono.quimica.uniovi.es>. 
+
+critic2 is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+critic2 is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

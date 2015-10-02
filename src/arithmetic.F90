@@ -1,0 +1,1469 @@
+! Copyright (c) 2015 Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! Evaluation of arithmetic expressions. This entire module is
+! THREAD-SAFE (or should be, at least).
+module arithmetic
+#ifdef HAVE_LIBXC
+  use xc_f90_types_m, only: xc_f90_pointer_t
+#endif
+  use hashtype
+  implicit none
+
+  public :: eval, eval_hard_fail, eval_soft_fail
+  public :: fields_in_eval
+  public :: setvariable, isvariable, clearvariable, clearallvariables
+  public :: listvariables
+
+  private
+  integer, parameter :: fun_openpar  = 1  !< open parenthesis
+  integer, parameter :: fun_closepar = 2  !< close parenthesis
+  integer, parameter :: fun_uplus    = 3  !< unary +
+  integer, parameter :: fun_uminus   = 4  !< unary -
+  integer, parameter :: fun_abs      = 5  !< abs(.)
+  integer, parameter :: fun_exp      = 6  !< exp(.)
+  integer, parameter :: fun_sqrt     = 7  !< sqrt(.)
+  integer, parameter :: fun_floor    = 8  !< floor(.)
+  integer, parameter :: fun_ceiling  = 9  !< ceiling(.)
+  integer, parameter :: fun_round    = 10 !< round(.)
+  integer, parameter :: fun_log      = 11 !< log(.)
+  integer, parameter :: fun_log10    = 12 !< log10(.)
+  integer, parameter :: fun_sin      = 13 !< sin(.)
+  integer, parameter :: fun_asin     = 14 !< asin(.)
+  integer, parameter :: fun_cos      = 15 !< cos(.)
+  integer, parameter :: fun_acos     = 16 !< acos(.)
+  integer, parameter :: fun_tan      = 17 !< tan(.)
+  integer, parameter :: fun_atan     = 18 !< atan(.)
+  integer, parameter :: fun_atan2    = 19 !< atan2(.)
+  integer, parameter :: fun_sinh     = 20 !< sinh(.)
+  integer, parameter :: fun_cosh     = 21 !< cosh(.)
+  integer, parameter :: fun_erf      = 22 !< erf(.)
+  integer, parameter :: fun_erfc     = 23 !< erfc(.)
+  integer, parameter :: fun_min      = 24 !< min(.)
+  integer, parameter :: fun_max      = 25 !< max(.)
+  integer, parameter :: fun_power    = 26 !< **
+  integer, parameter :: fun_leq      = 27 !< <=
+  integer, parameter :: fun_geq      = 28 !< >=
+  integer, parameter :: fun_equal    = 29 !< ==
+  integer, parameter :: fun_neq      = 30 !< !=
+  integer, parameter :: fun_and      = 31 !< &&
+  integer, parameter :: fun_or       = 32 !< ||
+  integer, parameter :: fun_plus     = 33 !< binary +
+  integer, parameter :: fun_minus    = 34 !< binary -
+  integer, parameter :: fun_prod     = 35 !< *
+  integer, parameter :: fun_div      = 36 !< /
+  integer, parameter :: fun_modulo   = 37 !< %
+  integer, parameter :: fun_great    = 38 !< >
+  integer, parameter :: fun_less     = 39 !< <
+  integer, parameter :: fun_xc       = 40 !< xc(.,...)  (X)
+  integer, parameter :: fun_gtf      = 41 !< Thomas-Fermi kinetic energy density
+  integer, parameter :: fun_vtf      = 42 !< Potential energy density calcd using gtf and the local virial theorem
+  integer, parameter :: fun_htf      = 43 !< Total energy density calcd using gtf and the local virial theorem
+  integer, parameter :: fun_gtf_kir  = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
+  integer, parameter :: fun_vtf_kir  = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
+  integer, parameter :: fun_htf_kir  = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
+  integer, parameter :: fun_gkin     = 47 !< Kinetic energy density, G-version (grho * grho)
+  integer, parameter :: fun_kkin     = 48 !< Kinetic energy density, K-version (rho * laprho)
+  integer, parameter :: fun_l        = 49 !< Lagrangian density (-1/4 * laprho)
+  integer, parameter :: fun_elf      = 50 !< Electron localization function (ELF)
+  integer, parameter :: fun_vir      = 51 !< Electronic potential energy density, virial field
+  integer, parameter :: fun_he       = 52 !< Energy density, G + V
+  integer, parameter :: fun_lol      = 53 !< Localized-orbital locator (LOL)
+  integer, parameter :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
+
+#ifdef HAVE_LIBXC
+  integer, parameter :: maxfun = 600
+  type libxc_functional
+     logical :: init = .false.
+     integer :: family ! LDA, GGA, etc.
+     integer :: id     ! identifier
+     type(xc_f90_pointer_t) :: conf ! the pointer used to call the library
+     type(xc_f90_pointer_t) :: info ! information about the functional
+  end type libxc_functional
+  type(libxc_functional) :: ifun(maxfun)
+#endif
+
+  ! variables hash
+  type(hash) :: vh
+
+contains
+
+  !> Wrapper for hard-fail evaluation.
+  function eval_hard_fail(expr,x0,fcheck,feval)
+
+    real*8 :: eval_hard_fail
+    character(*), intent(in) :: expr
+    real*8, intent(in), optional :: x0(3)
+    optional :: fcheck, feval
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(id)
+         logical :: fcheck
+         integer, intent(in) :: id
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(id,nder,x0)
+         use types, only: scalar_value
+         type(scalar_value) :: feval
+         integer, intent(in) :: id, nder
+         real*8, intent(in) :: x0(3)
+       end function feval
+    end interface
+
+    logical :: fail
+
+    fail = .true.
+    if (present(x0).and.present(fcheck).and.present(feval)) then
+       eval_hard_fail = eval(expr,fail,x0,fcheck,feval)
+    else
+       eval_hard_fail = eval(expr,fail)
+    endif
+
+  endfunction eval_hard_fail
+
+  !> Wrapper for soft-fail evaluation.
+  function eval_soft_fail(expr,res,x0,fcheck,feval)
+
+    logical :: eval_soft_fail
+    character(*), intent(in) :: expr
+    real*8, intent(out) :: res
+    real*8, intent(in), optional :: x0(3)
+    optional :: fcheck, feval
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(id)
+         logical :: fcheck
+         integer, intent(in) :: id
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(id,nder,x0)
+         use types, only: scalar_value
+         type(scalar_value) :: feval
+         integer, intent(in) :: id, nder
+         real*8, intent(in) :: x0(3)
+       end function feval
+    end interface
+
+    logical :: ok
+
+    ok = .false.
+    if (present(x0).and.present(fcheck).and.present(feval)) then
+       res = eval(expr,ok,x0,fcheck,feval)
+    else
+       res = eval(expr,ok)
+    endif
+    eval_soft_fail = ok
+
+  endfunction eval_soft_fail
+
+  !> Evaluate an arithmetic expression expr. If the expression contains fields ($),
+  !> use x0 as the evaluation point. If hardfail is true, stop with error if the
+  !> expression fails to evaluate. Otherwise, return the exit status in the same
+  !> variable.
+  function eval(expr,hardfail,x0,fcheck,feval)
+    use types
+    use tools_io
+    real*8 :: eval
+    character(*), intent(in) :: expr
+    logical, intent(inout) :: hardfail
+    real*8, intent(in), optional :: x0(3)
+    optional :: fcheck, feval
+
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(id)
+         logical :: fcheck
+         integer, intent(in) :: id
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(id,nder,x0)
+         use types, only: scalar_value
+         type(scalar_value) :: feval
+         integer, intent(in) :: id, nder
+         real*8, intent(in) :: x0(3)
+       end function feval
+    end interface
+
+    integer :: lp, ll
+    real*8 :: a
+    integer :: c, s(100)
+    logical :: again, wasop, fail
+    real*8 :: q(100)
+    character*(len(expr)) :: expr0
+    integer :: nq, ns
+
+    ! initialize
+    expr0 = string(expr)
+    lp = 1
+    ll = len_trim(expr0)
+    nq = 0
+    ns = 0
+    q(1) = 0d0
+
+    ! run over tokens
+    wasop = .true.
+    main: do while (.true.)
+       if (lp > ll) exit main
+
+       ! skip blanks and quotes
+       do while (expr0(lp:lp) == ' '.or.expr0(lp:lp) == '\t'.or.expr0(lp:lp)=='\n'.or.&
+          expr0(lp:lp) == '"'.or.expr0(lp:lp) == "'")
+          lp = lp + 1
+          if (lp > ll) exit main
+       enddo
+
+       if (isnumber(a,expr0,lp)) then
+          ! a number (without sign)
+          nq = nq + 1
+          q(nq) = a
+          wasop = .false.
+       elseif (isfunction(c,expr0,lp,wasop)) then
+          ns = ns + 1
+          s(ns) = c
+       elseif (isoperator(c,expr0,lp)) then
+          ! a binary operator
+          again = .true.
+          do while (again)
+             again = .false.
+             if (ns > 0) then
+                if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
+                   call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+                   if (fail) then
+                      call dofail()
+                      return
+                   endif
+                   again = .true.
+                end if
+             end if
+          end do
+          ns = ns + 1
+          s(ns) = c
+          wasop = .true.
+       elseif (expr0(lp:lp) == '(') then
+          ! left parenthesis
+          ns = ns + 1
+          s(ns) = fun_openpar
+          lp = lp + 1
+          wasop = .true.
+       elseif (expr0(lp:lp) == ')') then
+          ! right parenthesis
+          do while (ns > 0)
+             if (s(ns) == fun_openpar) exit
+             call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+             if (fail) then
+                call dofail()
+                return
+             end if
+          end do
+          if (ns == 0) call die('mismatched parentheses')
+          ns = ns - 1
+          ! if the top of the stack is a function, pop it
+          if (ns > 0) then
+             c = s(ns)
+             if (istype(c,'function')) then
+                call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+                if (fail) then
+                   call dofail()
+                   return
+                end if
+             end if
+          end if
+          lp = lp + 1
+          wasop = .false.
+       elseif (expr0(lp:lp) == ',') then
+          ! a comma
+          do while (ns > 0)
+             if (s(ns) == fun_openpar) exit
+             call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+             if (fail) then
+                call dofail()
+                return
+             endif
+          end do
+          if (s(ns) /= fun_openpar) call die('mismatched parentheses')
+          lp = lp + 1
+       elseif (expr0(lp:lp) == '$') then
+          ! a field
+          lp = lp + 1
+          nq = nq + 1
+          if (present(x0).and.present(fcheck).and.present(feval)) then
+             q(nq) = fieldeval(expr0,lp,x0,fcheck,feval)
+          else
+             call dofail()
+             return
+          end if
+          wasop = .false.
+       elseif (isconstant(a,expr0,lp)) then
+          ! a constant (pi,...)
+          nq = nq + 1
+          q(nq) = a
+          wasop = .false.
+       elseif (isvariable_private(a,expr0,lp)) then
+          ! a variable (pi,...)
+          nq = nq + 1
+          q(nq) = a
+          wasop = .false.
+       else
+          if (hardfail) then
+             call die("unknown symbol, incorrect variable, or unexpected termination",expr0)
+          else
+             hardfail = .false.
+             eval = 0d0
+             return
+          endif
+       end if
+    end do main
+
+    hardfail = .true.
+    ! unwind the stack
+    do while (ns > 0)
+       call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+       if (fail) then
+          call dofail()
+          return
+       endif
+    end do
+    eval = q(1)
+
+  contains
+    subroutine dofail()
+      if (hardfail) then
+         call die("Failed evaluating expression: ",expr0)
+      else
+         hardfail = .false.
+         eval = 0d0
+         ! return ! let the calling routine do this
+      endif
+    end subroutine dofail
+  end function eval
+
+  !> Return field ids from the evaluation of an expression.
+  subroutine fields_in_eval(expr,n,idlist)
+    use tools_io
+    use types
+    character(*), intent(in) :: expr
+    integer, intent(out) :: n
+    integer, allocatable :: idlist(:)
+
+    integer :: lp, ll, id, i, npar
+    real*8 :: a, b
+    integer :: c, d
+    character*(len(expr)) :: expr0
+    logical :: ok
+
+    if (allocated(idlist)) deallocate(idlist)
+    allocate(idlist(10))
+
+    ! run over tokens
+    expr0 = string(expr)
+    n = 0
+    lp = 1
+    ll = len_trim(expr0)
+    main: do while (.true.)
+       if (lp > ll) exit main
+
+       ! skip blanks and quotes
+       do while (expr0(lp:lp) == ' '.or.expr0(lp:lp) == '\t'.or.expr0(lp:lp)=='\n'.or.&
+          expr0(lp:lp) == '"'.or.expr0(lp:lp) == "'")
+          lp = lp + 1
+          if (lp > ll) exit main
+       enddo
+
+       ok = isnumber(a,expr0,lp)
+       if (.not.ok) ok = isfunction(c,expr0,lp,.true.)
+       if (ok) then
+          ! it may be a chemical function
+          if (istype(c,'chemfunction')) then
+             npar = 1
+             do i = lp+1, ll
+                if (lp > ll) exit main
+                if (expr0(i:i) == '(') npar = npar + 1
+                if (expr0(i:i) == ')') npar = npar - 1
+                if (npar == 0) exit
+             end do
+             id = nint(eval_hard_fail(expr0(lp+1:i-1)))
+             n = n + 1
+             if (n > size(idlist)) call realloc(idlist,2*n)
+             idlist(n) = id
+             lp = i+1
+          endif
+          cycle
+       else
+          ok = isoperator(d,expr0,lp)
+       end if
+       if (.not.ok) ok = isconstant(b,expr0,lp)
+       if (ok) then
+          cycle
+       elseif (expr0(lp:lp) == '(' .or. expr0(lp:lp) == ')' .or.  expr0(lp:lp) == ',') then
+          lp = lp + 1
+          cycle
+       elseif (expr0(lp:lp) == '$') then
+          ! a field
+          lp = lp + 1
+          id = nint(fieldeval(expr0,lp)) / 100
+          n = n + 1
+          if (n > size(idlist)) call realloc(idlist,2*n)
+          idlist(n) = id
+       else
+          ! maybe a constant that will be defined later?
+          lp = lp + 1
+          cycle
+       end if
+    end do main
+    call realloc(idlist,n)
+
+  end subroutine fields_in_eval
+
+  !> Read a field definition and evaluate to a number. If no point is given,
+  !> evaluate to a label indicating the id of field and scalar quantity in the
+  !> expression.
+  function fieldeval(expr,lp,x0,fcheck,feval)
+    use tools_io, only: isdigit, isletter
+    use types
+
+    real*8 :: fieldeval
+    character*(*), intent(in) :: expr !< Input string
+    integer, intent(inout) :: lp !< Pointer to current position on string
+    real*8, intent(in), optional :: x0(3) !< position
+    optional :: fcheck, feval
+
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(id)
+         logical :: fcheck
+         integer, intent(in) :: id
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(id,nder,x0)
+         use types, only: scalar_value
+         type(scalar_value) :: feval
+         integer, intent(in) :: id, nder
+         real*8, intent(in) :: x0(3)
+       end function feval
+    end interface
+
+    integer :: i, ll, id, nder
+    character*1 :: ch
+    character*2 :: fder
+    type(scalar_value) :: res
+
+    fieldeval = 0d0
+    ll = len_trim(expr)
+    i = lp
+    if (i > ll) goto 999
+
+    ! read the letters
+    do while (isletter(expr(i:i)))
+       i = i + 1
+       if (i > ll) goto 999
+    enddo
+    fder = expr(lp:i-1)
+
+    ! read the numbers
+    lp = i
+    do while (isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) exit
+    enddo
+    read(expr(lp:i-1),*) id
+    lp = i
+
+    if (present(x0).and.present(feval).and.present(fcheck)) then
+       if (.not.fcheck(id)) call die('wrong field (unknown,not allocated,...)')
+       if (fder=="  ".or.fder=="v ".or.fder=="c ") then
+          nder = 0
+       elseif (fder=="x ".or.fder=="y ".or.fder=="z ".or.fder=="g ") then
+          nder = 1
+       else
+          nder = 2
+       end if
+       res = feval(id,nder,x0)
+
+       select case (trim(fder))
+       case ("")
+          fieldeval = res%f
+       case ("v")
+          fieldeval = res%fval
+       case ("c")
+          fieldeval = res%f - res%fval
+       case ("x")
+          fieldeval = res%gf(1)
+       case ("y")
+          fieldeval = res%gf(2)
+       case ("z")
+          fieldeval = res%gf(3)
+       case ("xx")
+          fieldeval = res%hf(1,1)
+       case ("xy")
+          fieldeval = res%hf(1,2)
+       case ("xz")
+          fieldeval = res%hf(1,3)
+       case ("yy")
+          fieldeval = res%hf(2,2)
+       case ("yz")
+          fieldeval = res%hf(2,3)
+       case ("zz")
+          fieldeval = res%hf(3,3)
+       case ("l")
+          fieldeval = res%del2f
+       case ("lv")
+          fieldeval = res%del2fval
+       case ("lc")
+          fieldeval = res%del2f - res%del2fval
+       case ("g")
+          fieldeval = res%gfmod
+       case default
+          call die("unknown field specifier")
+       end select
+    else
+       select case (trim(fder))
+       case ("")
+          fieldeval = 1
+       case ("v")
+          fieldeval = 2
+       case ("c")
+          fieldeval = 3
+       case ("x")
+          fieldeval = 4
+       case ("y")
+          fieldeval = 5
+       case ("z")
+          fieldeval = 6
+       case ("xx")
+          fieldeval = 7
+       case ("xy")
+          fieldeval = 8
+       case ("xz")
+          fieldeval = 9
+       case ("yy")
+          fieldeval = 10
+       case ("yz")
+          fieldeval = 11
+       case ("zz")
+          fieldeval = 12
+       case ("l")
+          fieldeval = 13
+       case ("lv")
+          fieldeval = 14
+       case ("lc")
+          fieldeval = 15
+       case ("g")
+          fieldeval = 16
+       case default
+          call die("unknown field specifier")
+       end select
+       fieldeval = fieldeval + 100 * id
+    end if
+
+    return
+999 continue
+    call die('unexpected end of expression')
+
+  end function fieldeval
+
+  ! read an unsigned number or return false and leave lp unchanged
+  function isnumber (rval,expr,lp)
+    use tools_io, only: isdigit
+    logical :: isnumber
+    character*(*), intent(in) :: expr !< Input string
+    integer, intent(inout) :: lp !< Pointer to current position on string
+    real*8, intent(out) :: rval !< Real value read
+
+    integer :: i, ll
+    character*1 :: ch
+
+    ll = len_trim(expr)
+    isnumber = .false.
+    rval = 0d0
+    i = lp
+    do while (isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) goto 999
+    enddo
+    if (expr(i:i) == '.') then
+       i = i + 1
+       if (i > ll) goto 999
+    end if
+    do while (isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) goto 999
+    enddo
+    if (i == lp) return
+
+    ! exponent
+    if (expr(i:i)=='e' .or. expr(i:i)=='E' .or. expr(i:i)=='d' .or. expr(i:i)=='D'.or.&
+       expr(i:i)=='q' .or. expr(i:i)=='Q') then
+       i = i + 1
+       if (i > ll) return
+       if (expr(i:i)=='-' .or. expr(i:i)=='+') then
+          i = i + 1
+          if (i > ll) return
+       end if
+       if (.not.isdigit(expr(i:i))) return
+       do while (isdigit(expr(i:i)))
+          i = i + 1
+          if (i > ll) goto 999
+       enddo
+    end if
+
+999 continue
+    isnumber=.true.
+    read(expr(lp:i-1),*) rval
+    lp = i
+
+  end function isnumber
+
+  ! read an operator or return false and leave lp unchanged
+  function isoperator(c,expr,lp)
+    use tools_io, only: ferror, faterr
+    logical :: isoperator
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    integer, intent(out) :: c
+
+    logical :: ok1, ok2
+    integer :: ll
+
+    ll = len_trim(expr)
+    isoperator = .false.
+    if (lp > len(expr)) return
+    ok1 = expr(lp:lp) == '+'.or.expr(lp:lp) == '-'.or.expr(lp:lp) == '*'.or.&
+          expr(lp:lp) == '/'.or.expr(lp:lp) == '^'.or.expr(lp:lp) == '%'.or.&
+          expr(lp:lp) == '<'.or.expr(lp:lp) == '>'
+    if (lp < ll) then
+       ok2 = expr(lp:lp+1) == '**'.or.expr(lp:lp+1) == '=='.or.&
+             expr(lp:lp+1) == '<='.or.expr(lp:lp+1) == '>='.or.&
+             expr(lp:lp+1) == '!='.or.expr(lp:lp+1) == '||'.or.&
+             expr(lp:lp+1) == '&&'
+    else
+       ok2 = .false.
+    endif
+
+    if (ok1 .or. ok2) then
+       if (ok2) then
+          if (expr(lp:lp+1) == "**") then
+             c = fun_power
+             lp = lp + 1
+          elseif (expr(lp:lp+1) == "<=") then
+             c = fun_leq
+             lp = lp + 1
+          elseif (expr(lp:lp+1) == ">=") then
+             c = fun_geq
+             lp = lp + 1
+          elseif (expr(lp:lp+1) == "==") then
+             c = fun_equal
+             lp = lp + 1
+          elseif (expr(lp:lp+1) == "!=") then
+             c = fun_neq
+             lp = lp + 1
+          elseif (expr(lp:lp+1) == "&&") then
+             c = fun_and
+             lp = lp + 1
+          elseif (expr(lp:lp+1) == "||") then
+             c = fun_or
+             lp = lp + 1
+          else
+             call ferror("isoperator","unknown operator",faterr)
+          end if
+       else
+          if (expr(lp:lp) == "+") then
+             c = fun_plus
+          elseif (expr(lp:lp) == "-") then
+             c = fun_minus
+          elseif (expr(lp:lp) == "*") then
+             c = fun_prod
+          elseif (expr(lp:lp) == "/") then
+             c = fun_div
+          elseif (expr(lp:lp) == "%") then
+             c = fun_modulo
+          elseif (expr(lp:lp) == ">") then
+             c = fun_great
+          elseif (expr(lp:lp) == "<") then
+             c = fun_less
+          elseif (expr(lp:lp) == "^") then
+             c = fun_power
+          else
+             call ferror("isoperator","unknown operator",faterr)
+          end if
+       endif
+       lp = lp + 1
+       isoperator = .true.
+    end if
+
+  end function isoperator
+
+  ! read an unary operator or return false and leave lp unchanged
+  function isfunction(c,expr,lp,wasop)
+    use tools_io, only: lower
+
+    logical :: isfunction
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    integer, intent(out) :: c
+    logical, intent(in) :: wasop
+
+    integer :: lpo, ll
+    character*(len(expr)) :: word
+
+    isfunction = .false.
+    lpo = lp
+    c = 0
+    ll = len_trim(expr)
+    if (lp > len(expr)) return
+    if (expr(lp:lp) == '+' .and. wasop) then
+       ! unary +
+       c = fun_uplus
+       lp = lp + 1
+    elseif (expr(lp:lp) == '-' .and. wasop) then
+       ! unary -
+       c = fun_uminus
+       lp = lp + 1
+    elseif (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
+       ! function
+       word = ""
+       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+          expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
+          expr(lp:lp) >= '0' .and. expr(lp:lp)<='9'.or. &
+          expr(lp:lp) == '_')
+          word = trim(word) // expr(lp:lp)
+          lp = lp + 1
+          if (lp > ll) exit
+       end do
+       select case (trim(lower(word)))
+       case ("abs")
+          c = fun_abs
+       case ("exp")
+          c = fun_exp
+       case ("sqrt")
+          c = fun_sqrt
+       case ("floor")
+          c = fun_floor
+       case ("ceil")
+          c = fun_ceiling
+       case ("ceiling")
+          c = fun_ceiling
+       case ("round")
+          c = fun_round
+       case ("log")
+          c = fun_log
+       case ("log10")
+          c = fun_log10
+       case ("sin")
+          c = fun_sin
+       case ("asin")
+          c = fun_asin
+       case ("cos")
+          c = fun_cos
+       case ("acos")
+          c = fun_acos
+       case ("tan")
+          c = fun_tan
+       case ("atan")
+          c = fun_atan
+       case ("atan2")
+          c = fun_atan2
+       case ("sinh")
+          c = fun_sinh
+       case ("cosh")
+          c = fun_cosh
+       case ("erf")
+          c = fun_erf
+       case ("erfc")
+          c = fun_erfc
+       case ("min")
+          c = fun_min
+       case ("max")
+          c = fun_max
+       case ("xc")
+          c = fun_xc
+       case ("gtf")
+          c = fun_gtf
+       case ("vtf")
+          c = fun_vtf
+       case ("htf")
+          c = fun_htf
+       case ("gtf_kir")
+          c = fun_gtf_kir
+       case ("vtf_kir")
+          c = fun_vtf_kir
+       case ("htf_kir")
+          c = fun_htf_kir
+       case ("gkin")
+          c = fun_gkin
+       case ("kkin")
+          c = fun_kkin
+       case ("lag")
+          c = fun_l
+       case ("elf")
+          c = fun_elf
+       case ("vir")
+          c = fun_vir
+       case ("he")
+          c = fun_he
+       case ("lol")
+          c = fun_lol
+       case ("lol_kir")
+          c = fun_lol_kir
+       case default
+          lp = lpo
+          return
+       end select
+    else
+       lp = lpo
+       return
+    end if
+
+    isfunction = .true.
+
+  end function isfunction
+
+  ! read an unary operator or return false and leave lp unchanged
+  function isconstant(rval,expr,lp)
+    use tools_io, only: lower
+    use param
+
+    logical :: isconstant
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    real*8, intent(out) :: rval
+
+    character*(len(expr)) :: word
+    integer :: lpo, ll
+
+    isconstant = .false.
+    lpo = lp
+    ll = len_trim(expr)
+    if (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
+       ! function
+       word = ""
+       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+                 expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
+                 expr(lp:lp) >= '0' .and. expr(lp:lp)<='9' .or.&
+                 expr(lp:lp) == '_')
+          word = trim(word) // expr(lp:lp)
+          lp = lp + 1
+          if (lp > ll) exit
+       end do
+       select case (trim(lower(word)))
+       case ("pi")
+          rval = pi
+       case ("e")
+          rval = cte
+       case ("eps")
+          rval = epsilon(1d0)
+       case default
+          lp = lpo
+          return
+       end select
+    else
+       lp = lpo
+       return
+    end if
+
+    isconstant = .true.
+
+  end function isconstant
+
+  ! read an unary operator or return false and leave lp unchanged
+  function isvariable_private(rval,expr,lp) result(isvar)
+    use tools_io, only: lower
+    use param
+
+    logical :: isvar
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    real*8, intent(out) :: rval
+
+    character*(len(expr)) :: word
+    integer :: lpo, i, ll
+
+    isvar = .false.
+    lpo = lp
+    ll = len_trim(expr)
+    if (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
+       ! function
+       word = ""
+       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+          expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
+          expr(lp:lp) >= '0' .and. expr(lp:lp)<='9' .or. &
+          expr(lp:lp) == '_')
+          word = trim(word) // expr(lp:lp)
+          lp = lp + 1
+          if (lp > ll) exit
+       end do
+       isvar = vh%iskey(trim(word))
+       if (isvar) then
+          rval = vh%get(trim(word),rval)
+          return
+       end if
+       lp = lpo
+       return
+    else
+       lp = lpo
+       return
+    end if
+
+    isvar = .true.
+
+  end function isvariable_private
+
+  ! return operator precedence
+  function iprec(c)
+    integer :: iprec
+    integer, intent(in) :: c
+
+    if (c == fun_or) then ! or
+       iprec = 1
+    else if (c == fun_and) then ! and
+       iprec = 2
+    else if (c == fun_neq .or. c == fun_equal .or. c == fun_leq .or. &
+       c == fun_geq .or. c == fun_less .or. c == fun_great) then ! relational
+       iprec = 3
+    else if (c == fun_plus .or. c == fun_minus) then ! add, sub
+       iprec = 4
+    elseif (c == fun_prod .or. c == fun_div .or. c == fun_modulo) then ! mult, div
+       iprec = 5
+    elseif (c == fun_power) then ! exp
+       iprec = 6
+    elseif (c == fun_uminus .or. c == fun_uplus) then ! unary plus and minus
+       iprec = 7
+    elseif (c == fun_openpar .or. c == fun_closepar) then ! parentheses
+       iprec = 0
+    end if
+
+  end function iprec
+
+  ! return 1 for right-associative operator and -1 for left-associative
+  function iassoc(c)
+    integer :: iassoc
+    integer, intent(in) :: c
+
+    if (c == fun_plus .or. c == fun_minus .or. c == fun_prod .or. &
+       c == fun_div .or. c == fun_modulo .or. c == fun_or .or. &
+       c == fun_and .or. c == fun_equal .or. c == fun_leq .or. &
+       c == fun_geq .or. c == fun_less .or. c == fun_great) then
+       iassoc = -1
+    elseif (c == fun_power .or. c == fun_openpar .or. c == fun_closepar .or.&
+       c == fun_uplus .or. c == fun_uminus) then
+       iassoc = 1
+    end if
+
+  end function iassoc
+
+  ! pop from the stack and operate on the queue
+  subroutine pop(q,nq,s,ns,x0,fcheck,feval,fail)
+    use tools_math, only: erf, erfc
+    use types
+    use param
+#ifdef HAVE_LIBXC
+    use xc_f90_types_m
+    use libxc_funcs_m
+    use xc_f90_lib_m
+#endif
+
+    real*8, intent(inout) :: q(:)
+    integer, intent(inout) :: s(:)
+    integer, intent(inout) :: nq, ns
+    real*8, intent(in), optional :: x0(3)
+    optional :: fcheck, feval
+    logical, intent(out) :: fail
+
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(id)
+         logical :: fcheck
+         integer, intent(in) :: id
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(id,nder,x0)
+         use types, only: scalar_value
+         type(scalar_value) :: feval
+         integer, intent(in) :: id, nder
+         real*8, intent(in) :: x0(3)
+       end function feval
+    end interface
+
+    integer :: ia
+    integer :: c
+    real*8 :: a, b, grho, lapl, rho, tau, zk
+    logical :: ok
+
+    ! pop from the stack
+    fail = .false.
+    if (ns == 0) call die('error in expression')
+    c = s(ns)
+    ns = ns - 1
+
+    ! And apply to the queue
+    if (c == fun_xc) then
+       ! Functional from the xc library
+#ifdef HAVE_LIBXC
+       ia = tointeger(q(nq))
+
+       if (.not.ifun(ia)%init) then
+          ifun(ia)%id = ia
+          ifun(ia)%family = xc_f90_family_from_id(ifun(ia)%id)
+          call xc_f90_func_init(ifun(ia)%conf,ifun(ia)%info,ifun(ia)%id,XC_UNPOLARIZED)
+          ifun(ia)%init = .true.
+       endif
+
+       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
+          ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
+          ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
+          call die("insufficient argument list in xc")
+       endif
+
+       select case(ifun(ia)%family)
+       case (XC_FAMILY_LDA)
+          rho = max(q(nq-1),1d-14)
+          call xc_f90_lda_exc(ifun(ia)%conf, 1, rho, zk)
+          nq = nq - 1
+       case (XC_FAMILY_GGA)
+          rho = max(q(nq-2),1d-14)
+          grho = q(nq-1)*q(nq-1)
+          call xc_f90_gga_exc(ifun(ia)%conf, 1, rho, grho, zk)
+          nq = nq - 2
+       case (XC_FAMILY_MGGA)
+          rho = max(q(nq-4),1d-14)
+          grho = q(nq-3)*q(nq-3)
+          lapl = q(nq-2)
+          tau = 2 * q(nq-1)
+          call xc_f90_mgga_exc(ifun(ia)%conf, 1, rho, grho, lapl, tau, zk)
+          nq = nq - 4
+       end select
+       q(nq) = zk * rho
+#else
+       call die('(/"!! ERROR !! critic2 was not compiled with libxc support !!"/)')
+#endif
+    elseif (istype(c,'binary')) then
+       ! a binary operator or function
+       if (nq < 2) call die('error in expression')
+       a = q(nq-1)
+       b = q(nq)
+       nq = nq - 1
+       select case(c)
+       case (fun_plus)
+          q(nq) = a + b
+       case (fun_minus)
+          q(nq) = a - b
+       case (fun_prod)
+          q(nq) = a * b
+       case (fun_div)
+          q(nq) = a / b
+       case (fun_power)
+          q(nq) = a ** b
+       case (fun_modulo)
+          q(nq) = modulo(a,b)
+       case (fun_atan2)
+          q(nq) = atan2(a,b)
+       case (fun_min)
+          q(nq) = min(a,b)
+       case (fun_max)
+          q(nq) = max(a,b)
+       case (fun_great)
+          if (a > b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_less)
+          if (a < b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_leq)
+          if (a <= b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_geq)
+          if (a >= b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_equal)
+          if (a == b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_neq)
+          if (a /= b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_and)
+          if (.not.(a == 0d0).and..not.(b == 0d0)) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case (fun_or)
+          if (.not.(a == 0d0).or..not.(b == 0d0)) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       end select
+    elseif (istype(c,'unary')) then
+       ! a unary operator or function
+       if (nq < 1) call die('error in expression')
+       select case(c)
+       case (fun_uplus)
+          q(nq) = +q(nq)
+       case (fun_uminus)
+          q(nq) = -q(nq)
+       case (fun_abs)
+          q(nq) = abs(q(nq))
+       case (fun_exp)
+          q(nq) = exp(q(nq))
+       case (fun_sqrt)
+          q(nq) = sqrt(q(nq))
+       case (fun_floor)
+          q(nq) = floor(q(nq))
+       case (fun_ceiling)
+          q(nq) = ceiling(q(nq))
+       case (fun_round)
+          q(nq) = nint(q(nq))
+       case (fun_log)
+          q(nq) = log(q(nq))
+       case (fun_log10)
+          q(nq) = log10(q(nq))
+       case (fun_sin)
+          q(nq) = sin(q(nq))
+       case (fun_asin)
+          q(nq) = asin(q(nq))
+       case (fun_cos)
+          q(nq) = cos(q(nq))
+       case (fun_acos)
+          q(nq) = acos(q(nq))
+       case (fun_tan)
+          q(nq) = tan(q(nq))
+       case (fun_atan)
+          q(nq) = atan(q(nq))
+       case (fun_sinh)
+          q(nq) = sinh(q(nq))
+       case (fun_cosh)
+          q(nq) = cosh(q(nq))
+       case (fun_erf)
+          q(nq) = erf(q(nq))
+       case (fun_erfc)
+          q(nq) = erfc(q(nq))
+       end select
+    elseif (istype(c,'chemfunction')) then
+       ! We need a point and the evaluator
+       if (.not.present(x0).or..not.present(feval).or..not.present(fcheck)) then
+          fail = .true.
+          return
+       endif
+
+       ! Also an integer field identifier as the first argument
+       ia = tointeger(q(nq))
+       if (.not.fcheck(ia)) call die('Wrong field (unknown,not allocated,...)')
+
+       ! Use the library of chemical functions
+       q(nq) = chemfunction(c,ia,x0,feval)
+
+    else
+       call die('error in expression')
+    end if
+  contains
+    function tointeger(a) result(ia)
+      real*8 :: a
+      integer :: ia
+
+      if (a - nint(a) > 1d-13) call die("An integer was required in this expression.")
+      ia = nint(a)
+    endfunction tointeger
+  end subroutine pop
+
+  !> Return the type of stack element (operator, function, unary, binary)
+  function istype(c,type)
+    integer, intent(in) :: c
+    character*(*), intent(in) :: type
+    logical :: istype
+
+    if (type == 'function') then
+       istype = &
+          c == fun_abs .or. c == fun_exp .or. c == fun_sqrt .or. &
+          c == fun_floor .or. c == fun_ceiling .or. c == fun_round .or. &
+          c == fun_log .or. c == fun_log10 .or. c == fun_sin .or. &
+          c == fun_asin .or. c == fun_cos .or. c == fun_acos .or. &
+          c == fun_tan .or. c == fun_atan .or. c == fun_atan2 .or. &
+          c == fun_sinh .or. c == fun_cosh .or. c == fun_erf .or. &
+          c == fun_erfc .or. c == fun_min .or. c == fun_max .or. &
+          c == fun_xc .or. c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
+          c == fun_gtf_kir .or. c == fun_vtf_kir .or. c == fun_htf_kir .or.&
+          c == fun_gkin .or. c == fun_kkin .or. c == fun_l .or. c == fun_elf .or.&
+          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir
+    elseif (type == 'chemfunction') then
+       istype = &
+          c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
+          c == fun_gtf_kir .or. c == fun_vtf_kir .or. c == fun_htf_kir .or.&
+          c == fun_gkin .or. c == fun_kkin .or. c == fun_l .or. c == fun_elf .or.&
+          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir
+    elseif (type == 'operator') then
+       istype = &
+          c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
+          c == fun_equal .or. c == fun_neq .or. c == fun_and .or.&
+          c == fun_or .or. c == fun_plus .or. c == fun_minus .or.&
+          c == fun_prod .or. c == fun_div .or. c == fun_modulo .or.&
+          c == fun_great .or. c == fun_less
+    elseif (type == 'binary') then
+       istype = &
+          c == fun_atan2 .or. c == fun_min .or. c == fun_max .or.&
+          c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
+          c == fun_equal .or. c == fun_neq .or. c == fun_and .or.&
+          c == fun_or .or. c == fun_plus .or. c == fun_minus .or.&
+          c == fun_prod .or. c == fun_div .or. c == fun_modulo .or.&
+          c == fun_great .or. c == fun_less
+    elseif (type == 'unary') then
+       istype = &
+          c == fun_uplus .or. c == fun_uminus .or. c == fun_abs .or.&
+          c == fun_exp .or. c == fun_sqrt .or. c == fun_floor .or.&
+          c == fun_ceiling .or. c == fun_round .or. c == fun_log .or.&
+          c == fun_log10 .or. c == fun_sin .or. c == fun_asin .or.&
+          c == fun_cos .or. c == fun_acos .or. c == fun_tan .or.&
+          c == fun_atan .or. c == fun_sinh .or. c == fun_cosh .or.&
+          c == fun_erf .or. c == fun_erfc
+    endif
+
+  endfunction istype
+
+  subroutine die(msg,msg2)
+    use tools_io
+    character*(*), intent(in) :: msg
+    character*(*), intent(in), optional :: msg2
+    !$omp critical (error)
+    call ferror('eval',msg,faterr,msg2)
+    !$omp end critical (error)
+  end subroutine die
+
+  !> Set the value of a variable
+  subroutine setvariable(ikey,ival)
+    use tools_io
+    use types
+
+    character*(*), intent(in) :: ikey
+    real*8, intent(in) :: ival
+
+    integer :: i
+
+    call vh%put(trim(ikey),ival)
+
+  end subroutine setvariable
+
+  !> Determine if a variable is defined
+  function isvariable(ikey,ival)
+
+    character*(*), intent(in) :: ikey
+    real*8, intent(out) :: ival
+    logical :: isvariable
+
+    integer :: i
+
+    isvariable = vh%iskey(trim(ikey))
+    if (isvariable) then
+       ival = vh%get(trim(ikey),ival)
+    end if
+
+  end function isvariable
+
+  !> Clear a variable
+  subroutine clearvariable(ikey)
+
+    character*(*), intent(in) :: ikey
+
+    call vh%delkey(trim(ikey))
+
+  end subroutine clearvariable
+
+  !> Clear all the variables by freeing the hash
+  subroutine clearallvariables()
+
+    call vh%free()
+
+  end subroutine clearallvariables
+
+  !> List of the variables in the internal database
+  subroutine listvariables()
+    use tools_io
+
+    integer :: i, nkeys, idum
+    character(len=:), allocatable :: key, typx, val
+    character*2 :: typ
+    real*4 :: rdum
+    real*8 :: ddum
+    character*1 :: sdum
+
+    nkeys = vh%keys()
+    write (uout,'("* LIST of variables (",A,")")') string(nkeys)
+    do i = 1, nkeys
+       key = vh%getkey(i)
+       typ = vh%type(key)
+       select case (typ)
+       case ("i_")
+          typx = "integer"
+          val = string(vh%get(key,idum))
+       case ("r_")
+          typx = "real"
+          val = string(vh%get(key,rdum),'G')
+       case ("d_")
+          typx = "double"
+          val = string(vh%get(key,ddum),'G')
+       case ("s_")
+          typx = "string"
+          val = string(vh%get(key,sdum))
+       end select
+       write (uout,'(A,". ",A," = ",A)') string(i,3,ioj_right), &
+          string(key), string(val)
+    end do
+    write (uout,*)
+
+  end subroutine listvariables
+
+  function chemfunction(c,ia,x0,feval) result(q)
+    use tools_math
+    use types
+    use param
+    integer, intent(in) :: c
+    integer, intent(in) :: ia
+    real*8, intent(in) :: x0(3)
+    real*8 :: q
+
+    interface
+       !> Evaluate the field at a point
+       function feval(id,nder,x0)
+         use types, only: scalar_value
+         type(scalar_value) :: feval
+         integer, intent(in) :: id, nder
+         real*8, intent(in) :: x0(3)
+       end function feval
+    end interface
+
+    type(scalar_value) :: res
+    real*8 :: f0, ds, ds0, g, g0
+
+    ! some common constant
+    real*8 :: ctf = 3d0/10d0 * (3d0*pi**2)**(2d0/3d0) ! Thomas-Fermi k.e.d. constant
+
+    select case(c)
+    case (fun_gtf)
+       ! Thomas-Fermi kinetic energy density for the uniform electron gas
+       ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
+       res = feval(ia,0,x0)
+       q = ctf * res%f**(5d0/3d0)
+    case (fun_vtf)
+       ! Potential energy density calculated using fun_gtf and the local
+       ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
+       res = feval(ia,2,x0)
+       q = ctf * res%f**(5d0/3d0)
+       q = 0.25d0 * res%del2f - 2 * q
+    case (fun_htf)
+       ! Total energy density calculated using fun_gtf and the local
+       ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
+       res = feval(ia,2,x0)
+       q = ctf * res%f**(5d0/3d0)
+       q = 0.25d0 * res%del2f - q
+    case (fun_gtf_kir)
+       ! Thomas-Fermi kinetic energy density with Kirzhnits'
+       ! semiclassical gradient correction for inhomogeinities. See:
+       !   Kirzhnits, D. (1957). Sov. Phys. JETP, 5, 64-72.
+       !   Kirzhnits, D. Field Theoretical Methods in Many-body Systeins (Pergamon, New York, 1967)
+       ! and also:
+       !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
+       ! for more references and its use applied to experimental electron
+       ! densities.
+       res = feval(ia,2,x0)
+       f0 = max(res%f,1d-30)
+       q = ctf * f0**(5d0/3d0) + &
+          1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
+    case (fun_vtf_kir)
+       ! Potential energy density calculated using fun_gtf_kir and the
+       ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
+       res = feval(ia,2,x0)
+       f0 = max(res%f,1d-30)
+       q = ctf * f0**(5d0/3d0) + &
+          1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
+       q = 0.25d0 * res%del2f - 2 * q
+    case (fun_htf_kir)
+       ! Total energy density calculated using fun_gtf_kir and the
+       ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
+       res = feval(ia,2,x0)
+       f0 = max(res%f,1d-30)
+       q = ctf * f0**(5d0/3d0) + &
+          1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
+       q = 0.25d0 * res%del2f - q
+    case (fun_gkin)
+       ! G-kinetic energy density (sum grho * grho)
+       res = feval(ia,1,x0)
+       q = res%gkin
+    case (fun_kkin)
+       ! K-kinetic energy density (sum rho * laprho)
+       res = feval(ia,2,x0)
+       q = res%gkin - 0.25d0 * res%del2f
+    case (fun_l)
+       ! Lagrangian density (-1/4 * lap)
+       res = feval(ia,2,x0)
+       q = - 0.25d0 * res%del2f
+    case (fun_elf)
+       ! Electron localization function
+       ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
+       res = feval(ia,1,x0)
+       f0 = max(res%f,1d-30)
+       ds = res%gkin  - 1d0/8d0 * res%gfmod**2 / f0
+       ds0 = ctf * f0**(5d0/3d0)
+       q = ds / ds0
+       q = 1d0 / (1d0 + q**2)
+    case (fun_vir)
+       ! Electronic potential energy density (virial field)
+       ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
+       res = feval(ia,2,x0)
+       q = res%vir
+    case (fun_he)
+       ! Energy density, fun_vir + fun_gkin
+       !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
+       res = feval(ia,2,x0)
+       q = res%vir + res%gkin
+    case (fun_lol)
+       ! Localized-orbital locator
+       !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
+       !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
+       res = feval(ia,2,x0)
+       q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
+       q = q / (1d0+q)
+    case (fun_lol_kir)
+       ! Localized-orbital locator using Kirzhnits k.e.d.
+       !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
+       res = feval(ia,2,x0)
+       f0 = max(res%f,1d-30)
+       g0 = ctf * f0**(5d0/3d0) 
+       g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
+       q = g0 / g
+       q = q / (1d0+q)
+    end select
+
+  end function chemfunction
+
+end module arithmetic

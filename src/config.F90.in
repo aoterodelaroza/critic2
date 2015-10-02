@@ -1,0 +1,41 @@
+! Copyright (c) 2015 Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>. 
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+! 
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+! 
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+module config
+  use param, only: dirsep
+  implicit none
+
+  public
+
+  character(len=*), parameter :: package = "@PACKAGE@"
+  character(len=*), parameter :: version = "@VERSION@"
+  character(len=*), parameter :: f77 = "@F77@"
+  character(len=*), parameter :: fc = "@FC@"
+  character(len=*), parameter :: fflags = "@FFLAGS@"
+  character(len=*), parameter :: fcflags = "@FCFLAGS@"
+  character(len=*), parameter :: ldflags = "@LDFLAGS@"
+  character(len=*), parameter :: atarget = "@TARGET@"
+  character(len=*), parameter :: adate = "@DATE@"
+  character(len=*), parameter :: enable_debug = "@DEBUG@"
+  character(len=*), parameter :: revision = "@AC_REVISION@"
+#ifdef DATADIR
+  character(len=*), parameter :: datadir = trim(adjustl(DATADIR)) // dirsep // "critic2"
+#else
+  character(len=*), parameter :: datadir = "."
+#endif
+
+end module config

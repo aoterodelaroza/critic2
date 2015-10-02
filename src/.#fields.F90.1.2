@@ -1,0 +1,2115 @@
+! Copyright (c) 2013 Alberto Otero de la Roza <alberto@carbono.quimica.uinovi.es>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@carbono.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! Evaluation of scalar fields
+module fields
+  use types
+#ifdef HAVE_LIBXC
+  use xc_f90_types_m, only: xc_f90_pointer_t
+#endif
+  implicit none
+
+  private
+
+  integer, parameter, public :: type_promol = 0 !< promolecular density
+  integer, parameter, public :: type_grid = 1 !< grid format
+  integer, parameter, public :: type_wien = 2 !< wien2k format
+  integer, parameter, public :: type_elk  = 3 !< elk format
+  integer, parameter, public :: type_pi   = 4 !< pi format
+  integer, parameter, public :: type_molly = 5 !< molly format
+
+  public :: fields_load
+  public :: fields_unload
+  public :: fields_init, fields_end
+  public :: fields_propty
+  public :: fields_integrable, fields_integrable_report
+  public :: setfield
+  public :: mf, f, fused
+  public :: grd, grd0, grdall
+  public :: benchmark
+  public :: testrmt
+  public :: eval
+
+  ! integrable properties
+  integer, parameter, public :: mprops = 101
+  integer, public :: nprops
+  type(integrable), public :: integ_prop(mprops)
+  integer, parameter, public :: itype_v = 1
+  integer, parameter, public :: itype_f = 2
+  integer, parameter, public :: itype_fval = 3
+  integer, parameter, public :: itype_gmod = 4
+  integer, parameter, public :: itype_lap = 5
+  integer, parameter, public :: itype_lapval = 6
+  integer, parameter, public :: itype_expr = 7
+
+  ! scalar fields
+  integer, parameter :: mf = 31
+  type(field), allocatable :: f(:)
+  logical :: fused(0:mf) = .false.
+
+  ! eps to move to the main cell
+  real*8, parameter :: flooreps = 1d-4 ! border around unit cell
+
+#ifdef HAVE_LIBXC
+  integer, parameter :: maxfun = 600
+  type libxc_functional
+     logical :: init = .false.
+     integer :: family ! LDA, GGA, etc.
+     integer :: id     ! identifier
+     type(xc_f90_pointer_t) :: conf ! the pointer used to call the library
+     type(xc_f90_pointer_t) :: info ! information about the functional
+  end type libxc_functional
+  type(libxc_functional) :: ifun(maxfun)
+#endif
+
+contains
+
+  subroutine fields_init()
+
+    integer :: i
+
+    ! allocate space for all fields
+    if (.not.allocated(f)) allocate(f(0:mf))
+    do i = 0, mf
+       f(i)%init = .false.
+       f(i)%numerical = .false.
+       f(i)%uselap = .false.
+    end do
+
+    ! initialize the promolecular density
+    f(0)%init = .true.
+    f(0)%type = type_promol
+    f(0)%usecore = .false.
+    f(0)%typnuc = -3
+    fused(0) = .true.
+
+    ! integrable properties, initialize
+    Nprops = 1
+    integ_prop(:)%used = .false.
+
+    ! integrable: volume
+    integ_prop(1)%used = .true.
+    integ_prop(1)%itype = itype_v
+    integ_prop(1)%fid = 0
+    integ_prop(1)%prop_name = "Volume"
+
+  end subroutine fields_init
+
+  subroutine fields_end()
+
+    if (allocated(f)) deallocate(f)
+
+  end subroutine fields_end
+
+  subroutine fields_load(line,id)
+    use elk_private
+    use wien_private
+    use pi_private
+    use molly_private
+    use struct
+    use grid_tools
+    use tools_io
+    use param
+
+    character*(mline), intent(inout) :: line
+    integer, intent(out) :: id
+
+    integer :: lp, lp2, i, id1, id2
+    character*(mline) :: file, wext1, wext2, word, word2, file2, file3, expr
+    integer :: zz, n(3)
+    logical :: ok
+    real*8 :: renv0(3,nenv), xp(3), rhopt
+    integer :: idx0(nenv), zenv0(nenv), ix, iy, iz, oid
+    real*8 :: xd(3,3)
+
+    ! read and parse
+    lp=1
+    file = getword(file,line,lp)
+    wext1 = file(index(file,'.',.true.)+1:)
+    wext2 = file(index(file,'_',.true.)+1:)
+
+    ! if it is one of the special keywords, change the extension
+    ! and read the next
+    if (equal(file,"wien"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "clmsum"//null
+       wext2 = wext1
+    elseif (equal(file,"elk"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "OUT"//null
+       wext2 = wext1
+    elseif (equal(file,"molly"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "molly"//null
+       wext2 = wext1
+    elseif (equal(file,"pi"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "ion"//null
+       wext2 = wext1
+    elseif (equal(file,"cube"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "cube"//null
+       wext2 = wext1
+    elseif (equal(file,"abinit"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "DEN"//null
+       wext2 = wext1
+    elseif (equal(file,"vasp"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "CHGCAR"//null
+       wext2 = wext1
+    elseif (equal(file,"qub"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "qub"//null
+       wext2 = wext1
+    elseif (equal(file,"xsf"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "xsf"//null
+       wext2 = wext1
+    elseif (equal(file,"elfgrid"//null)) then
+       file = getword(file,line,lp)
+       wext1 = "grid"//null
+       wext2 = wext1
+    elseif (equal(file,"as"//null)) then
+       file = ""
+       wext1 = "as"//null
+       wext2 = wext1
+    end if
+    file = file(1:leng(file))
+
+    ! allocate slot
+    do id = 1, mf
+       if (.not.fused(id)) exit
+    end do
+
+    write (uout,'("* LOAD scalar field in slot number: ",I3)') id
+    ! read cubes
+    if (equal(wext1,'cube'//null)) then
+       call grid_read_cube(file,f(id))
+       f(id)%type = type_grid
+    else if (equal(wext1,'DEN'//null) .or. equal(wext2,'DEN'//null)) then
+       call grid_read_abinit(file,f(id))
+       f(id)%type = type_grid
+    else if (equal(wext1,'CHGCAR'//null) .or. equal(wext1,'CHG'//null)) then
+       call grid_read_vasp(file,f(id),omega)
+       f(id)%type = type_grid
+    else if (equal(wext1,'qub'//null)) then
+       call grid_read_qub(file,f(id))
+       f(id)%type = type_grid
+    else if (equal(wext1,'xsf'//null)) then
+       call grid_read_xsf(file,f(id))
+       f(id)%type = type_grid
+    else if (equal(wext1,'grid'//null)) then
+       call grid_read_elk(file,f(id))
+       f(id)%type = type_grid
+    else if (equal(wext1,'clmsum'//null)) then
+       file2 = getword(file2,line,lp)
+       file2 = file2(1:leng(file2))
+       call wien_read_clmsum(file,file2,f(id))
+       f(id)%type = type_wien
+    else if (equal(wext1,'OUT'//null)) then
+       file2 = getword(file2,line,lp)
+       file2 = file2(1:leng(file2))
+       file3 = getword(file3,line,lp)
+       file3 = file3(1:leng(file3))
+       if (file3 == "") then
+          call elk_read_out(f(id),file,file2)
+       else
+          call elk_read_out(f(id),file,file2,file3)
+       end if
+       f(id)%type = type_elk
+    else if (equal(wext1,'promolecular'//null)) then
+       f(id)%type = type_promol
+    else if (equal(wext1,'ion'//null)) then
+       ! read all the ions
+       do while(.true.)
+          lp2 = lp
+          ok = isinteger(zz,line,lp)
+          if (ok) then
+             call pi_read_ion(file,f(id),zz)
+          else
+             word = lgetword(word,line,lp2)
+             zz = zatguess(word)
+             if (zz == 0) call ferror("fields_load",&
+                "syntax: load file.ion {atidx/atsym} ...",faterr)
+             do i = 1, nneq
+                if (at(i)%z == zz) call pi_read_ion(file,f(id),i)
+             end do
+             lp = lp2
+          endif
+          lp2 = lp
+          file = getword(file,line,lp)
+          wext1 = file(index(file,'.',.true.)+1:)
+          if (.not.equal(wext1,'ion'//null)) then
+             lp = lp2
+             exit
+          end if
+       end do
+       f(id)%type = type_pi
+       f(id)%init = .true.
+       f(id)%exact = .false.
+
+       ! register structural info in the pi module
+       do i = 1, nenv
+          renv0(:,i) = atenv(i)%r
+          idx0(i) = atenv(i)%idx
+          zenv0(i) = at(atenv(i)%idx)%z
+       end do
+       call pi_register_struct(nenv,renv0,idx0,zenv0)
+
+       ! fill the interpolation tables of the field
+       call fillinterpol(f(id))
+
+       ! output info
+       write (uout,'("* aiPI input, from ion files")')
+       write (uout,'("  Atom    File")')
+       do i = 1, nneq
+          if (.not.f(id)%pi_used(i)) then
+             write (uout,'("Non-equivalent atom missing in the load : ",I3)') i
+             call ferror("field_load","missing atoms in pi field description",faterr)
+          end if
+          write (uout,'(I4,5X,A)') i, trim(adjustl(f(id)%piname(i)))
+       end do
+       write (uout,*)
+    else if (equal(wext1,'as'//null)) then
+       lp2 = lp
+       word = getword(word,line,lp)
+       if (equal(word,"promolecular"//null).or.equal(word,"core"//null).or.&
+           equal(word,"grad"//null).or.equal(word,"lap"//null)) then
+          if (equal(word,"promolecular"//null).or.equal(word,"core"//null)) then
+             ok = isinteger(n(1),line,lp)
+             if (ok) then
+                ok = ok .and. isinteger(n(2),line,lp)
+                ok = ok .and. isinteger(n(3),line,lp)
+                if (.not.ok) &
+                   call ferror("fields_load","no grid size for promolecular/core",faterr)
+             else
+                word2 = getword(word2,line,lp)
+                if (equal(word2,"sizeof"//null)) then
+                   ok = isinteger(zz,line,lp)
+                   if (.not.ok) call ferror("fields_load","wrong sizeof",faterr)
+                   if (zz < 0 .or. zz > mf) call ferror("fields_load","invalid field",faterr)
+                   if (.not.fused(zz)) call ferror("fields_load","field not allocated",faterr)
+                   if (.not.f(zz)%init) call ferror("fields_load","field not initialized",faterr)
+                   if (f(zz)%type/=type_grid) call ferror("fields_load","field not a grid",faterr)
+                   n = f(zz)%n
+                else
+                   call ferror("fields_load","wrong grid size",faterr)
+                end if
+             end if
+          else
+             ok = isinteger(oid,line,lp)
+             if (.not.ok) &
+                call ferror("fields_load","no grid for lap/grad",faterr)
+             if (.not.fused(oid)) call ferror("fields_load","field not allocated",faterr)
+             if (.not.f(oid)%init) call ferror("fields_load","field not initialized",faterr)
+             if (f(oid)%type/=type_grid) call ferror("fields_load","field is not a grid",faterr)
+             n = f(oid)%n
+          end if
+          f(id)%init = .true.
+          f(id)%n = n
+          f(id)%type = type_grid
+          f(id)%mode = mode_trispline
+          allocate(f(id)%f(n(1),n(2),n(3)))
+          if (equal(word,"promolecular"//null)) then
+             call grid_rhoat(f(id),f(id),2)
+          elseif (equal(word,"core"//null)) then
+             call grid_rhoat(f(id),f(id),3)
+          elseif (equal(word,"lap"//null)) then
+             call grid_laplacian(f(oid),f(id))
+          elseif (equal(word,"grad"//null)) then
+             call grid_gradrho(f(oid),f(id))
+          end if
+
+       elseif (isexpression(expr,line,lp2)) then
+          lp = lp2
+          ok = isinteger(n(1),line,lp)
+          if (ok) then
+             ok = ok .and. isinteger(n(2),line,lp)
+             ok = ok .and. isinteger(n(3),line,lp)
+          else
+             word2 = getword(word2,line,lp)
+             if (equal(word2,"sizeof"//null)) then
+                ok = isinteger(zz,line,lp)
+                if (.not.ok) call ferror("fields_load","wrong sizeof",faterr)
+                if (zz < 0 .or. zz > mf) call ferror("fields_load","invalid field",faterr)
+                if (.not.fused(zz)) call ferror("fields_load","field not allocated",faterr)
+                if (.not.f(zz)%init) call ferror("fields_load","field not initialized",faterr)
+                if (f(zz)%type/=type_grid) call ferror("fields_load","field not a grid",faterr)
+                n = f(zz)%n
+             else
+                n = grid_from_eval(expr)
+                if (all(n == 0)) &
+                   call ferror("fields_load","no grid size for expression",faterr)
+             end if
+          end if
+
+          ! prepare the cube
+          f(id)%init = .true.
+          f(id)%n = n
+          f(id)%type = type_grid
+          f(id)%mode = mode_trispline
+          allocate(f(id)%f(n(1),n(2),n(3)))
+
+          ! dimensions
+          xd = eye
+          do i = 1, 3
+             call tocartesianas(xd(:,i))
+             xd(:,i) = xd(:,i) / real(n(i),8)
+          end do
+
+          !$omp parallel do private (xp,rhopt) schedule(dynamic)
+          do ix = 0, n(1)-1
+             do iy = 0, n(2)-1
+                do iz = 0, n(3)-1
+                   xp = real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
+                      + real(iz,8) * xd(:,3)
+                   rhopt = eval(expr,xp)
+                   !$omp critical (fieldwrite)
+                   f(id)%f(ix+1,iy+1,iz+1) = rhopt
+                   !$omp end critical (fieldwrite)
+                end do
+             end do
+          end do
+          !$omp end parallel do
+       elseif (equal(word,"clm"//null)) then
+          word = lgetword(word,line,lp)
+          if (equal(word,'add'//null).or.equal(word,'sub'//null)) then
+             ok = isinteger(id1,line,lp)
+             ok = ok .and. isinteger(id2,line,lp)
+             if (.not.ok) call ferror("fields_load","wrong syntax in LOAD AS CLM",faterr)
+             if (.not.fused(id1).or..not.fused(id2)) call ferror("fields_load","field not allocated",faterr)
+             if (.not.f(id1)%init.or..not.f(id2)%init) call ferror("fields_load","field not initialized",faterr)
+             if (f(id1)%type/=f(id2)%type) call ferror("fields_load","fields not the same type",faterr)
+             if (f(id1)%type/=type_wien.and.f(id1)%type/=type_elk) call ferror("fields_load","incorrect type",faterr) 
+             if (f(id1)%type == type_wien) then
+                ! wien
+                f(id) = f(id1)
+                if (any(shape(f(id1)%slm) /= shape(f(id2)%slm))) &
+                   call ferror("fields_load","nonconformant slm in wien fields",faterr) 
+                if (any(shape(f(id1)%sk) /= shape(f(id2)%sk))) &
+                   call ferror("fields_load","nonconformant sk in wien fields",faterr) 
+                if (equal(word,'add'//null)) then
+                   f(id)%slm = f(id)%slm + f(id2)%slm
+                   f(id)%sk = f(id)%sk + f(id2)%sk
+                   if (allocated(f(id)%ski)) &
+                      f(id)%ski = f(id)%ski + f(id2)%ski
+                else
+                   f(id)%slm = f(id)%slm - f(id2)%slm
+                   f(id)%sk = f(id)%sk - f(id2)%sk
+                   if (allocated(f(id)%ski)) &
+                      f(id)%ski = f(id)%ski - f(id2)%ski
+                end if
+             else
+                ! elk
+                f(id) = f(id1)
+                if (any(shape(f(id1)%rhomt) /= shape(f(id2)%rhomt))) &
+                   call ferror("fields_load","nonconformant rhomt in elk fields",faterr) 
+                if (any(shape(f(id1)%rhok) /= shape(f(id2)%rhok))) &
+                   call ferror("fields_load","nonconformant rhok in elk fields",faterr) 
+                if (equal(word,'add'//null)) then
+                   f(id)%rhomt = f(id)%rhomt + f(id2)%rhomt
+                   f(id)%rhok = f(id)%rhok + f(id2)%rhok
+                else
+                   f(id)%rhomt = f(id)%rhomt - f(id2)%rhomt
+                   f(id)%rhok = f(id)%rhok - f(id2)%rhok
+                end if
+             end if
+          else
+             call ferror("fields_load","invalid CLM syntax",faterr)
+          end if
+       else
+          call ferror("fields_load","invalid AS syntax",faterr)
+       end if
+    else
+       call ferror('fields_load','unrecognized file format',faterr)
+    end if
+
+    ! fill misc values
+    f(id)%c2x = car2crys
+    f(id)%x2c = crys2car
+    fused(id) = .true.
+    f(id)%typnuc = -3
+
+    ! initialize and print sum
+    if (f(id)%type == type_grid) then
+       if (f(id)%mode == mode_trispline) call init_trispline(f(id))
+    end if
+
+    ! use cores?
+    if (f(id)%type == type_grid) then
+       f(id)%usecore = .true.
+    else
+       f(id)%usecore = .false.
+    end if
+
+    ! parse the rest of the line
+    call setfield(id,line(lp:))
+
+    ! test the muffin tin discontinuity
+    call testrmt(id,0)
+
+  end subroutine fields_load
+
+  subroutine fields_unload(id)
+
+    integer, intent(in) :: id
+
+    fused(id) = .false.
+    f(id)%init = .false.
+    if (allocated(f(id)%f)) deallocate(f(id)%f)
+    if (allocated(f(id)%c2)) deallocate(f(id)%c2)
+    if (allocated(f(id)%lm)) deallocate(f(id)%lm)
+    if (allocated(f(id)%lmmax)) deallocate(f(id)%lmmax)
+    if (allocated(f(id)%slm)) deallocate(f(id)%slm)
+    if (allocated(f(id)%sk)) deallocate(f(id)%sk)
+    if (allocated(f(id)%ski)) deallocate(f(id)%ski)
+    if (allocated(f(id)%tauk)) deallocate(f(id)%tauk)
+    if (allocated(f(id)%tauki)) deallocate(f(id)%tauki)
+    if (allocated(f(id)%rotloc)) deallocate(f(id)%rotloc)
+    if (allocated(f(id)%rnot)) deallocate(f(id)%rnot)
+    if (allocated(f(id)%rmt)) deallocate(f(id)%rmt)
+    if (allocated(f(id)%dx)) deallocate(f(id)%dx)
+    if (allocated(f(id)%jri)) deallocate(f(id)%jri)
+    if (allocated(f(id)%multw)) deallocate(f(id)%multw)
+    if (allocated(f(id)%iatnr)) deallocate(f(id)%iatnr)
+    if (allocated(f(id)%pos)) deallocate(f(id)%pos)
+    if (allocated(f(id)%iop)) deallocate(f(id)%iop)
+    if (allocated(f(id)%iz)) deallocate(f(id)%iz)
+    if (allocated(f(id)%tau)) deallocate(f(id)%tau)
+    if (allocated(f(id)%krec)) deallocate(f(id)%krec)
+    if (allocated(f(id)%inst)) deallocate(f(id)%inst)
+    if (allocated(f(id)%spr)) deallocate(f(id)%spr)
+    if (allocated(f(id)%spr_a)) deallocate(f(id)%spr_a)
+    if (allocated(f(id)%spr_b)) deallocate(f(id)%spr_b)
+    if (allocated(f(id)%nrmt)) deallocate(f(id)%nrmt)
+    if (allocated(f(id)%vgc)) deallocate(f(id)%vgc)
+    if (allocated(f(id)%igfft)) deallocate(f(id)%igfft)
+    if (allocated(f(id)%xcel)) deallocate(f(id)%xcel)
+    if (allocated(f(id)%iesp)) deallocate(f(id)%iesp)
+    if (allocated(f(id)%rhomt)) deallocate(f(id)%rhomt)
+    if (allocated(f(id)%rhok)) deallocate(f(id)%rhok)
+    if (allocated(f(id)%piname)) deallocate(f(id)%piname)
+    if (allocated(f(id)%pi_used)) deallocate(f(id)%pi_used)
+    if (allocated(f(id)%nsym)) deallocate(f(id)%nsym)
+    if (allocated(f(id)%naos)) deallocate(f(id)%naos)
+    if (allocated(f(id)%naaos)) deallocate(f(id)%naaos)
+    if (allocated(f(id)%nsto)) deallocate(f(id)%nsto)
+    if (allocated(f(id)%nasto)) deallocate(f(id)%nasto)
+    if (allocated(f(id)%nn)) deallocate(f(id)%nn)
+    if (allocated(f(id)%z)) deallocate(f(id)%z)
+    if (allocated(f(id)%xnsto)) deallocate(f(id)%xnsto)
+    if (allocated(f(id)%c)) deallocate(f(id)%c)
+    if (allocated(f(id)%nelec)) deallocate(f(id)%nelec)
+    if (allocated(f(id)%pgrid)) deallocate(f(id)%pgrid)
+
+  end subroutine fields_unload
+
+  !> Calculates the properties of the scalar field f at point x0 and fills the
+  !> blanks.
+  subroutine fields_propty(id,x0,res,verbose,allfields)
+    use struct
+    use tools_math
+    use tools_io
+    use types
+    implicit none
+
+    integer, intent(in) :: id
+    real*8, dimension(:), intent(in)  :: x0
+    type(scalar_value), intent(out) :: res
+    logical, intent(in) :: verbose, allfields
+
+    real*8 :: xp(3)
+    integer :: i, j, k
+
+    ! get the scalar field properties
+    xp = x0
+    call tocartesianas(xp)
+    call grd(f(id),xp,2,res)
+
+    ! r and s
+    res%hfevec = res%hf
+    call rsindex(res%hfevec,res%hfeval,res%r,res%s)
+
+    if (verbose) then
+       write (uout,'("  Type : (",i1,",",i2,")")') res%r, res%s
+       write (uout,'("  Field value (f): ",1p,e18.9)') res%f
+       write (uout,'("  Field value, valence (fval): ",1p,e18.9)') res%fval
+       write (uout,'("  Gradient (grad f): "1p,3(e18.9,1x))') res%gfort
+       write (uout,'("  Gradient norm (|grad f|): ",1p,e18.9)') res%gfmodort
+       write (uout,'("  Laplacian (del2 f): ",1p,e18.9)') res%del2fort
+       write (uout,'("  Laplacian, valence (del2 fval): ",1p,e18.9)') res%del2fval
+       write (uout,'("  Hessian eigenvalues: ",3(e18.9,1x))') (res%hfeval(k), k = 1, 3)
+       write (uout,'("  Hessian:")')
+       do j = 1, 3
+          write (uout,'(4x,1p,3(e18.9,1x))') (res%hfort(j,k), k = 1, 3)
+       end do
+       ! Write ellipticity, if it is a candidate for bond critical point
+       if (res%r == 3 .and. res%s == 1) then
+          write (uout,'("  Ellipticity (l_1/l_2 - 1): ",1p,e18.9)') (res%hfeval(1)/res%hfeval(2))-1.d0
+       endif
+       if (allfields) then
+          do i = 0, mf
+             if (fused(i) .and. i /= id) then
+                call grd(f(i),xp,2,res)
+                write (uout,'("  Field ",I2," (f,|grad|,lap): ",1p,3(e18.9,x))') i, res%f, res%gfmod, res%del2f
+             end if
+          end do
+       end if
+    end if
+
+  end subroutine fields_propty
+
+  subroutine fields_integrable(line)
+    use global
+    use tools_io
+
+    character*(mline), intent(inout) :: line
+
+    logical :: ok
+    integer :: id, lp
+    character*(mline) :: word, expr, str
+    logical :: useexpr
+
+    ! read input
+    lp=1
+    useexpr = .false.
+    ok = isinteger(id,line,lp)
+    if (.not.ok) then
+       lp = 1
+       ! clear the integrable properties list
+       if (isexpression(expr,line,lp)) then
+          useexpr = .true.
+       else
+          word = lgetword(word,line,lp)
+          if (equal(word,'clear'//null)) then
+             nprops = 3
+             integ_prop(:)%used = .false.
+             integ_prop(1)%used = .true.
+             integ_prop(1)%itype = itype_v
+             integ_prop(1)%fid = 0
+             integ_prop(1)%prop_name = "Volume"
+             integ_prop(2)%used = .true.
+             integ_prop(2)%itype = itype_fval
+             integ_prop(2)%fid = refden
+             integ_prop(2)%prop_name = "Charge"
+             integ_prop(3)%used = .true.
+             integ_prop(3)%itype = itype_lapval
+             integ_prop(3)%fid = refden
+             integ_prop(3)%prop_name = "Lap"
+             call fields_integrable_report()
+             return
+          else
+             call ferror("fields_integrable","wrong integrable syntax",faterr)
+          end if
+       end if
+    end if
+
+    ! add property
+    nprops = nprops + 1
+    if (nprops > mprops) &
+       call ferror("fields_integrable","too many props",faterr)
+    if (useexpr) then
+       integ_prop(nprops)%used = .true.
+       integ_prop(nprops)%fid = 0
+       integ_prop(nprops)%itype = itype_expr
+       integ_prop(nprops)%prop_name = trim(adjustl(expr))
+       integ_prop(nprops)%expr = expr
+    else
+       integ_prop(nprops)%used = .true.
+       integ_prop(nprops)%fid = id
+       integ_prop(nprops)%itype = itype_f
+       integ_prop(nprops)%prop_name = ""
+       write (str,'("$",I2.2,"_f")') id
+       do while (.true.)
+          word = lgetword(word,line,lp)
+          if (equal(word,"f"//null)) then
+             integ_prop(nprops)%itype = itype_f
+          elseif (equal(word,"fval"//null)) then
+             integ_prop(nprops)%itype = itype_fval
+             write (str,'("$",I2.2,"_fval")') id
+          elseif (equal(word,"gmod"//null)) then
+             integ_prop(nprops)%itype = itype_gmod
+             write (str,'("$",I2.2,"_gmod")') id
+          elseif (equal(word,"lap"//null)) then
+             integ_prop(nprops)%itype = itype_lap
+             write (str,'("$",I2.2,"_lap")') id
+          elseif (equal(word,"lapval"//null)) then
+             integ_prop(nprops)%itype = itype_lapval
+             write (str,'("$",I2.2,"_lval")') id
+          elseif (equal(word,"name"//null)) then
+             word = getword(word,line,lp)
+             integ_prop(nprops)%prop_name = trim(word(1:leng(word)))
+          else
+             exit
+          end if
+       end do
+       if (trim(integ_prop(nprops)%prop_name) == "") then
+          integ_prop(nprops)%prop_name = trim(adjustl(str))
+       end if
+    end if
+
+    ! report
+    call fields_integrable_report()
+
+  end subroutine fields_integrable
+
+  subroutine fields_integrable_report()
+    use tools_io
+
+    integer :: i, id
+    character*4 :: sprop
+
+    write (uout,'("* Integrable properties list")')
+    write (uout,'("n Type Field  Name")')
+    do i = 1, nprops
+       if (.not.integ_prop(i)%used) cycle
+       id = integ_prop(i)%fid
+       if (id >= 0) then
+          if (.not.fused(id)) cycle
+       end if
+
+       select case(integ_prop(i)%itype)
+       case(itype_v)
+          sprop = "v"
+       case(itype_f)
+          sprop = "f"
+       case(itype_fval)
+          sprop = "fval"
+       case(itype_gmod)
+          sprop = "gmod"
+       case(itype_lap)
+          sprop = "lap"
+       case(itype_lapval)
+          sprop = "lval"
+       case(itype_expr)
+          sprop = "expr"
+       case default
+          call ferror('grdall','unknown property',faterr)
+       end select
+
+       if (integ_prop(i)%itype == itype_expr) then
+          write (uout,'(I2,X,A4,X,"""",A,"""")') &
+             i, sprop, trim(adjustl(integ_prop(i)%expr))
+       else
+          write (uout,'(I2,X,A4,X,I2,X,A10)') &
+             i, sprop, integ_prop(i)%fid, integ_prop(i)%prop_name
+       end if
+    end do
+    write (uout,*)
+
+  end subroutine fields_integrable_report
+
+  subroutine setfield(id,line)
+    use struct, only: omega
+    use grid_tools
+    use tools_io
+    use param
+
+    integer, intent(in) :: id
+    character*(*), intent(inout) :: line
+
+    character*(mline) :: word
+    integer :: lp
+    logical :: ok
+    real*8 :: norm
+
+    ! parse the rest of the line
+    lp = 1
+    do while (.true.)
+       word = lgetword(word,line,lp)
+       if (equal(word,'trispline'//null)) then
+          f(id)%mode = mode_trispline
+          if (allocated(f(id)%c2)) deallocate(f(id)%c2)
+          call init_trispline(f(id))
+       else if (equal(word,'trilinear'//null)) then
+          f(id)%mode = mode_trilinear
+       else if (equal(word,'nearest'//null)) then
+          f(id)%mode = mode_nearest
+       else if (equal(word,'exact'//null)) then
+          f(id)%exact = .true.
+       else if (equal(word,'approximate'//null)) then
+          f(id)%exact = .false.
+       else if (equal(word,'rhonorm'//null)) then
+          if (.not.f(id)%cnorm) then
+             f(id)%cnorm = .true.
+             if (allocated(f(id)%slm)) &
+                f(id)%slm(:,1,:) = f(id)%slm(:,1,:) / sqfp
+          end if
+       else if (equal(word,'vnorm'//null)) then
+          if (f(id)%cnorm) then
+             f(id)%cnorm = .false.
+             if (allocated(f(id)%slm)) &
+                f(id)%slm(:,1,:) = f(id)%slm(:,1,:) * sqfp
+          end if
+       else if (equal(word,'core'//null)) then
+          f(id)%usecore = .true.
+       else if (equal(word,'nocore'//null)) then
+          f(id)%usecore = .false.
+       else if (equal(word,'numerical'//null)) then
+          f(id)%numerical = .true.
+       else if (equal(word,'typnuc'//null)) then
+          ok = isinteger(f(id)%typnuc,line,lp)
+          if (.not.ok) call ferror("setfield","wrong typnuc",faterr)
+          if (f(id)%typnuc /= -3 .and. f(id)%typnuc /= -1 .and. &
+              f(id)%typnuc /= +1 .and. f(id)%typnuc /= +3) then
+             call ferror("setfield","wrong typnuc (-3,-1,+1,+3)",faterr)
+          end if
+       else if (equal(word,'nolap'//null)) then
+          f(id)%uselap = .false.
+       else if (equal(word,'lap'//null)) then
+          f(id)%uselap = .true.
+       else if (equal(word,'normalize'//null)) then
+          ok = isreal(norm,line,lp)
+          if (.not. ok) call ferror('setfield','normalize real number missing',faterr)
+          f(id)%f = f(id)%f / (sum(f(id)%f) * omega / real(product(f(id)%n),8)) * norm
+          if (allocated(f(id)%c2)) deallocate(f(id)%c2)
+          if (f(id)%mode == mode_trispline) call init_trispline(f(id))
+       else
+          exit
+       end if
+    end do
+
+    write (uout,'("+ Flags for field number: ",I3)') id
+    select case (f(id)%type)
+    case(type_grid)
+       write (uout,'("  Type: grid")')
+       write (uout,'("  Grid dimensions: ",3(I4,X))') f(id)%n
+       write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",I2)') f(id)%mode
+       write (uout,'("  Cell integral (grid SUM) (",I2,") = ",F15.8/)') &
+          id, sum(f(id)%f) * omega / real(product(f(id)%n),8)
+    case(type_wien)
+       write (uout,'("  Type: wien2k")')
+       write (uout,'("  Density-style normalization? ",L)') f(id)%cnorm
+    case(type_elk)
+       write (uout,'("  Type: elk")')
+    case(type_pi)
+       write (uout,'("  Type: pi")')
+       write (uout,'("  Exact calculation? ",L)') f(id)%exact
+    case(type_promol)
+       write (uout,'("  Type: promolecular")')
+    case(type_molly)
+       write (uout,'("  Type: molly")')
+    case default
+       call ferror("setfield","field type not set",faterr)
+    end select
+    write (uout,'("  Use core densities? ",L)') f(id)%usecore
+    write (uout,'("  Numerical derivatives? ",L)') f(id)%numerical
+    write (uout,'("  Nuclear CP signature: ",I2)') f(id)%typnuc
+    write (uout,*)
+
+  end subroutine setfield
+
+  ! Calculate the scalar field f at point v (cartesian) and its derivatives
+  ! up to nder. Return the results in res
+  subroutine grd(f,v,nder,res)
+    use grd_atomic
+    use grid_tools
+    use struct
+    use pi_private
+    use elk_private
+    use wien_private
+    use molly_private
+    use types
+    use tools_io
+    use tools_math
+
+    type(field), intent(in) :: f
+    real*8, intent(in) :: v(3) !< Target point in cartesian or spherical coordinates
+    integer, intent(in) :: nder !< Number of derivatives to calculate
+    type(scalar_value), intent(out) :: res
+
+    real*8 :: wx(3), wc(3), dist
+    integer :: i, nid, lvec(3)
+    real*8 :: rho, grad(3), h(3,3)
+    real*8 :: fval(3,-ndif_jmax:ndif_jmax), fzero
+
+    real*8, parameter :: hini = 1d-3, errcnv = 1d-8
+
+    if (.not.f%init) call ferror("grd","field not initialized",faterr)
+
+    ! numerical derivatives
+    if (f%numerical) then
+       fzero = grd0(f,v)
+       res%f = fzero
+       res%gf = 0d0
+       res%hf = 0d0
+       if (nder > 0) then
+          ! x
+          fval(1,:) = 0d0
+          fval(1,0) = fzero
+          res%gf(1) = der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(1,:),f,grd0)
+          ! y
+          fval(2,:) = 0d0
+          fval(2,0) = fzero
+          res%gf(2) = der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(2,:),f,grd0)
+          ! z
+          fval(3,:) = 0d0
+          fval(3,0) = fzero
+          res%gf(3) = der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(3,:),f,grd0)
+          if (nder > 1) then
+             ! xx, yy, zz
+             res%hf(1,1) = der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(1,:),f,grd0)
+             res%hf(2,2) = der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(2,:),f,grd0)
+             res%hf(3,3) = der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(3,:),f,grd0)
+             ! xy, xz, yz
+             res%hf(1,2) = der2ij((/1d0,0d0,0d0/),(/0d0,1d0,0d0/),v,hini,hini,errcnv,f,grd0)
+             res%hf(1,3) = der2ij((/1d0,0d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0)
+             res%hf(2,3) = der2ij((/0d0,1d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0)
+             ! final
+             res%hf(2,1) = res%hf(1,2)
+             res%hf(3,1) = res%hf(1,3)
+             res%hf(3,2) = res%hf(2,3)
+          end if
+       end if
+       res%gfmod = norm(res%gf)
+       res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+       ! valence quantities
+       res%fval = res%f
+       res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+       ! fill orthogonal qtys.
+       res%gfort = res%gf
+       res%hfort = res%hf
+       res%gfmodort = res%gfmod
+       res%del2fort = res%del2f
+       res%gfsph = 0d0
+       res%hfsph = 0d0
+       res%gfmodsph = 0d0
+       res%del2fsph = 0d0
+       return
+    end if
+
+    wx = v
+
+    ! To the main cell. Add a small safe zone around the limits of the unit cell
+    ! to prevent precision problems.
+    call tocrystal(wx)
+    do i = 1, 3
+       if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
+          wx(i) = wx(i) - real(floor(wx(i)),8)
+    end do
+    wc = wx
+    call tocartesianas(wc)
+
+    ! type selector
+    select case(f%type)
+    case(type_grid)
+       call grinterp(f,wx,nder,res%f,res%gf,res%hf)
+       res%gf = matmul(transpose(car2crys),res%gf)
+       res%hf = matmul(matmul(transpose(car2crys),res%hf),car2crys)
+    case(type_wien)
+       call wien_rho2(f,wx,res%f,res%gf,res%hf)
+       res%gf = matmul(transpose(car2crys),res%gf)
+       res%hf = matmul(matmul(transpose(car2crys),res%hf),car2crys)
+    case(type_elk)
+       call elk_rho2(f,wx,nder,res%f,res%gf,res%hf)
+       res%gf = matmul(transpose(car2crys),res%gf)
+       res%hf = matmul(matmul(transpose(car2crys),res%hf),car2crys)
+    case(type_pi)
+       call pi_rho2(f,wc,res%f,res%gf,res%hf)
+       ! transformation not needed because of pi_register_struct:
+       ! all work done in cartesian in a finite environment.
+    case(type_promol)
+       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.)
+       ! not needed because grd_atomic uses struct.
+    case(type_molly)
+       call molly_rho2(f,wx,res%f,res%gf,res%hf)
+       ! no gradient, nor hessian by now
+       !res%gf = matmul(transpose(car2crys),res%gf)
+       !res%hf = matmul(matmul(transpose(car2crys),res%hf),car2crys)
+    case default
+       call ferror("grd","unknown scalar field type",faterr)
+    end select
+
+    ! save the valence-only value
+    res%fval = res%f
+    res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+
+    ! augment with the core if applicable
+    if (f%usecore .and. any(at(1:nneq)%zpsp /= -1)) then
+       call grda_promolecular(wx,rho,grad,h,nder,.true.)
+       res%f = res%f + rho
+       res%gf  = res%gf + grad
+       res%hf = res%hf + h
+    end if
+
+    ! If it's on a nucleus, nullify the gradient (may not be zero in
+    ! grid fields, for instance)
+    call nearest_atom(wx,nid,dist,lvec)
+    if (dist < 1d-5) res%gf = 0d0
+    res%gfmod = norm(res%gf)
+    res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+
+    ! fill orthogonal qtys.
+    res%gfort = res%gf
+    res%hfort = res%hf
+    res%gfmodort = res%gfmod
+    res%del2fort = res%del2f
+    res%gfsph = 0d0
+    res%hfsph = 0d0
+    res%gfmodsph = 0d0
+    res%del2fsph = 0d0
+
+  end subroutine grd
+
+  subroutine grdall(xpos,lprop)
+    use tools_io
+
+    real*8, intent(in) :: xpos(3) !< Point (cartesian).
+    real*8, intent(out) :: lprop(nprops) !< the properties vector.
+
+    type(scalar_value) :: res(0:mf)
+    logical :: fdone(0:mf)
+    integer :: i, id
+
+    lprop = 0d0
+    fdone = .false.
+    do i = 1, nprops
+       if (.not.integ_prop(i)%used) cycle
+       if (integ_prop(i)%itype == itype_expr) then
+          lprop(i) = eval(integ_prop(i)%expr,xpos)
+       else
+          id = integ_prop(i)%fid
+          if (.not.fused(id)) cycle
+          if (.not.fdone(id).and.integ_prop(i)%itype /= itype_v) &
+             call grd(f(id),xpos,0,res(id))
+
+          select case(integ_prop(i)%itype)
+          case(itype_v)
+             lprop(i) = 1
+          case(itype_f)
+             lprop(i) = res(id)%f
+          case(itype_fval)
+             lprop(i) = res(id)%fval
+          case(itype_gmod)
+             lprop(i) = res(id)%gfmod
+          case(itype_lap)
+             lprop(i) = res(id)%del2f
+          case(itype_lapval)
+             lprop(i) = res(id)%del2fval
+          case default
+             call ferror('grdall','unknown property',faterr)
+          end select
+       end if
+    end do
+
+  end subroutine grdall
+
+  !> Calculate only the value of the scalar field at the given point
+  !> (v in cartesian).
+  function grd0(f,v)
+    use grd_atomic
+    use grid_tools
+    use struct
+    use pi_private
+    use elk_private
+    use wien_private
+    use types
+    use tools_io
+    use tools_math
+    use param
+
+    type(field), intent(in) :: f
+    real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
+    real*8 :: grd0
+
+    real*8 :: wx(3), wc(3)
+    integer :: i
+    real*8 :: h(3,3), grad(3), rho, rhoaux
+
+    ! To the main cell. Add a small safe zone around the limits of the unit cell
+    ! to prevent precision problems.
+    wx = v
+    call tocrystal(wx)
+    do i = 1, 3
+       if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
+          wx(i) = wx(i) - real(floor(wx(i)),8)
+    end do
+    wc = wx
+    call tocartesianas(wc)
+
+    ! type selector
+    select case(f%type)
+    case(type_grid)
+       call grinterp(f,wx,0,rho,grad,h)
+    case(type_wien)
+       call wien_rho2(f,wx,rho,grad,h)
+    case(type_elk)
+       call elk_rho2(f,wx,0,rho,grad,h)
+    case(type_pi)
+       call pi_rho2(f,wc,rho,grad,h)
+    case(type_promol)
+       call grda_promolecular(wx,rho,grad,h,0,.false.)
+    case default
+       call ferror("grd","unknown scalar field type",faterr)
+    end select
+
+    if (f%usecore .and. any(at(1:nneq)%zpsp /= -1)) then
+       call grda_promolecular(wx,rhoaux,grad,h,0,.true.)
+       rho = rho + rhoaux
+    end if
+    grd0 = rho
+
+  end function grd0
+
+  !> Do a benchmark of the speed of the external module in calculating grd and grdall
+  !> by using npts random points in the unit cell.
+  subroutine benchmark(npts)
+    use struct
+    use global
+    use tools_io
+    use types
+    use wien_private
+    use elk_private
+    implicit none
+
+    integer, intent(in) :: npts
+
+    integer :: wpts(nneq+1)
+    integer :: i, j
+    real*8 :: x(3), aux(3), dist
+    integer :: c1, c2, rate
+    real*8, allocatable :: randn(:,:,:)
+    type(scalar_value) :: res
+    logical :: inrmt
+
+    write (uout,'("* Benchmark of the field ")')
+    write (uout,'("* Field : ",I2)') refden
+
+    if (f(refden)%type == type_wien .or. f(refden)%type == type_elk) then
+       wpts = 0
+       allocate(randn(3,npts,nneq+1))
+
+       out: do while (any(wpts(1:nneq+1) < npts))
+          call random_number(x)
+          do i = 1, ncel
+             if (atcel(i)%idx > nneq) cycle
+             aux = x - atcel(i)%x
+             aux = aux - nint(aux)
+             call tocartesianas(aux)
+             dist = dot_product(aux,aux)
+             if (f(refden)%type == type_wien) then
+                inrmt = (dist < wien_rmt_atom(f(refden),at(atcel(i)%idx)%x)**2)
+             else
+                inrmt = (dist < elk_rmt_atom(f(refden),at(atcel(i)%idx)%x)**2)
+             end if
+             if (inrmt) then
+                if (wpts(atcel(i)%idx) >= npts) cycle out
+                wpts(atcel(i)%idx) = wpts(atcel(i)%idx) + 1
+                randn(:,wpts(atcel(i)%idx),atcel(i)%idx) = x
+                call tocartesianas(randn(:,wpts(atcel(i)%idx),atcel(i)%idx))
+                cycle out
+             end if
+          end do
+          if (wpts(nneq+1) >= npts) cycle out
+          wpts(nneq+1) = wpts(nneq+1) + 1
+          randn(:,wpts(nneq+1),nneq+1) = x
+          call tocartesianas(randn(:,wpts(nneq+1),nneq+1))
+       end do out
+
+       write (uout,'("* Benchmark of muffin / interstitial grd ")')
+       write (uout,'("* Number of points per zone : ",I8)') npts
+       do i = 1, nneq+1
+          call system_clock(count=c1,count_rate=rate)
+          do j = 1, npts
+             call grd(f(refden),randn(:,j,i),0,res)
+          end do
+          call system_clock(count=c2)
+          if (i <= nneq) then
+             write (uout,'("* Atom : ",I3)') i
+          else
+             write (uout,'("* Interstitial ")')
+          end if
+          write (uout,'("* Total wall time : ",F20.6," s ")') real(c2-c1,8) / rate
+          write (uout,'("* Avg. wall time per call : ",F20.8," us ")') &
+             real(c2-c1,8) / rate / real(npts,8) * 1d6
+       end do
+       write (uout,*)
+       deallocate(randn)
+
+    else
+       allocate(randn(3,npts,1))
+
+       call random_number(randn)
+       do i = 1, npts
+          call tocartesianas(randn(1:3,i,1))
+       end do
+
+       ! grd
+       write (uout,'("  Benchmark of the grd call ")')
+       write (uout,'("  Number of points : ",I8)') npts
+       call system_clock(count=c1,count_rate=rate)
+       do i = 1, npts
+          call grd(f(refden),randn(:,i,1),0,res)
+       end do
+       call system_clock(count=c2)
+       write (uout,'("  Total wall time : ",F20.6," s ")') real(c2-c1,8) / rate
+       write (uout,'("  Avg. wall time per call : ",F20.8," us ")') &
+          real(c2-c1,8) / rate / real(npts,8) * 1d6
+       write (uout,*)
+
+       ! ! grdall
+       ! write (uout,'("* Benchmark of the grdall call ")')
+       ! write (uout,'("* Number of points : ",I8)') npts
+       ! call system_clock(count=c1,count_rate=rate)
+       ! do i = 1, npts
+       !    call grdall(randn(:,i,1),dumprop,dumatom)
+       ! end do
+       ! call system_clock(count=c2)
+       ! write (uout,'("* Total wall time : ",F20.6," s ")') real(c2-c1,8) / rate
+       ! write (uout,'("* Avg. wall time per call : ",F20.8," us ")') &
+       !    real(c2-c1,8) / rate / real(npts,8) * 1d6
+       ! write (uout,*)
+
+       deallocate(randn)
+
+    end if
+
+  end subroutine benchmark
+
+  ! test the muffin tin discontinuity
+  subroutine testrmt(id,ilvl)
+    use struct
+    use global
+    use tools_io
+    use wien_private
+    use elk_private
+    use types
+    use param
+
+    integer, intent(in) :: id, ilvl
+
+    integer :: n, i
+    integer :: ntheta, nphi
+    integer :: nt, np
+    real*8 :: phi, theta, dir(3), xnuc(3), xp(3)
+    real*8 :: fin, fout, gfin, gfout
+    real*8 :: r, rmt
+    character*4 :: label
+    character*(mline) :: linefile
+    integer :: luline, luplane
+    integer  :: npass(nneq), nfail(nneq)
+    logical :: ok
+    real*8 :: epsm, epsp, mepsm, mepsp, dif, dosum, mindif, maxdif
+    type(scalar_value) :: res
+
+    real*8, parameter :: eps = 1d-3
+
+    if (f(id)%type /= type_wien .and. f(id)%type /= type_elk) return
+
+    write (uout,'("* Muffin-tin discontinuity test")')
+
+    ntheta = 10
+    nphi = 10
+    do n = 1, nneq
+       if (f(id)%type == type_wien) then
+          rmt = wien_rmt_atom(f(id),at(n)%x)
+       else
+          rmt = elk_rmt_atom(f(id),at(n)%x)
+       end if
+       mepsm = 0d0
+       mepsp = 0d0
+       if (ilvl > 1) then
+          write (uout,'("+ Analysis of the muffin tin discontinuity for atom ",I2)') n
+          write (uout,'("  ntheta = ",I3)') ntheta
+          write (uout,'("  nphi = ",I3)') nphi
+       end if
+
+       xnuc = at(n)%x
+       if (ilvl > 1) write (uout,'("  coords = ",3(E12.4,X))') xnuc
+       call tocartesianas(xnuc)
+
+       if (ilvl > 1) then
+          write (uout,'("  rmt = ",F12.7)') rmt
+          write (uout,'(2(A8,X),6(A12,X),A4)') "Azim.", "Polar", "f_in",&
+             "f_out", "f_in-f_out", "gf_in", "gf_out", "gf_in-gf_out", "ok?"
+          write (uout,'(100("-"))')
+       end if
+       npass(n) = 0
+       nfail(n) = 0
+       dosum = 0d0
+       mindif = 1d10
+       maxdif = -1d10
+       if (ilvl > 1) then
+          ! write line
+          write (linefile,'("plane_",I2.2,".dbg",A1)') n, null
+          luplane = fopen(luplane, linefile, iowrite)
+          write (luplane,'("#",A,I3)') " atom: ", n
+          write (luplane,'("#",A,1p,3(E20.13,X))') " at: ", at(n)%x
+          write (luplane,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
+          write (luplane,'("#",A,1p,E20.13)') " rmt: ", rmt
+          write (luplane,'("#  theta phi in out")')
+       end if
+       do nt = 1, ntheta
+          do np = 0, nphi
+             if ((np == 0 .or. np == nphi) .and. nt /= 1) cycle
+             phi = real(np,8) * pi / nphi
+             theta = real(nt,8) * 2d0 * pi / ntheta
+             dir(1) = 1d0 * cos(theta) * sin(phi)
+             dir(2) = 1d0 * sin(theta) * sin(phi)
+             dir(3) = 1d0 * cos(phi)
+
+             xp = xnuc + (rmt+eps) * dir
+             call grd(f(id),xp,1,res)
+             fout = res%f
+             gfout = dot_product(res%gf,xp-xnuc) / (rmt+eps)
+             xp = xnuc + (rmt-eps) * dir
+             call grd(f(id),xp,1,res)
+             fin = res%f
+             gfin = dot_product(res%gf,xp-xnuc) / (rmt-eps)
+
+             dif = fout - fin
+             dosum = dosum + dif * dif
+             if (dif < mindif) mindif = dif
+             if (dif > maxdif) maxdif = dif
+
+             if (ilvl > 1) then
+                ! write line
+                write (luplane,'(1p,4(E20.13,X))') theta, phi, fin, fout
+             end if
+
+             if (gfin*gfout > 0d0) then
+                label = "pass"
+                npass(n) = npass(n) + 1
+             else
+                label = "fail"
+                if (ilvl > 2) then
+                   ! write line
+                   write (linefile,'("line_",I2.2,"_",I3.3,"_",I3.3,".dbg",A1)') n, nt, np, null
+                   luline = fopen(luline, linefile, iowrite)
+                   write (luline,'("#",A,I3)') " atom: ", n
+                   write (luline,'("#",A,1p,3(E20.13,X))') " at: ", at(n)%x
+                   write (luline,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
+                   write (luline,'("#",A,1p,E20.13)') " rmt: ", rmt
+                   write (luline,'("#",A,1p,3(E20.13,X))') " dir: ", dir
+                   write (luline,'("#",A,1p,E20.13)') " r_ini: ", 0.50d0 * rmt
+                   write (luline,'("#",A,1p,E20.13)') " r_end: ", 4.50d0 * rmt
+                   do i = 0, 1000
+                      r = 0.50d0 * rmt + (real(i,8) / 1000) * 4d0 * rmt
+                      xp = xnuc + r * dir
+                      call grd(f(id),xp,1,res)
+                      write (luline,'(1p,3(E20.13,X))') r, res%f, dot_product(res%gf,xp-xnuc) / r
+                   end do
+                   call fclose(luline)
+                end if
+                epsm = 0d0
+                epsp = 0d0
+                mepsm = min(epsm,mepsm)
+                mepsp = max(epsp,mepsp)
+                nfail(n) = nfail(n) + 1
+             end if
+             if (ilvl > 1) write (uout,'(2(F8.4,X),1p,6(E12.4,X),0p,A4)') &
+                theta, phi, fin, fout, fin-fout, gfin, gfout, gfin-gfout, label
+          end do
+       end do
+       dosum = sqrt(dosum / (npass(n)+nfail(n)))
+       if (ilvl > 1) then
+          write (uout,'(100("-"))')
+          write (uout,*)
+       end if
+       if (ilvl > 1) then
+          call fclose(luplane)
+       end if
+       if (nfail(n) > 0) then
+          write (uout,'("  Atom : ",I2," delta_m = ",1p,E15.6," delta_p = ",E15.6)') n, mepsm+1d-3, mepsp+1d-3
+          write (uout,*)
+       end if
+       write (uout,'("  Atom : ",I2," RMS/max/min(fout-fin) = ",1p,3(E15.6,X))') &
+          n, dosum, maxdif, mindif
+    end do
+
+    ok = .true.
+    if (ilvl > 0) then
+       write (uout,'("+ Summary ")')
+       write (uout,'(A4,3(X,A7))') "Atom", "Pass", "Fail", "Total"
+    end if
+    do n = 1, nneq
+       if (ilvl > 0) write (uout,'(I4,3(X,I7))') n, npass(n), nfail(n), npass(n)+nfail(n)
+       ok = ok .and. (nfail(n) == 0)
+    end do
+    if (ilvl > 0) write (uout,*)
+    write (uout,'("+ Assert - no spurious CPs on the muffin tin surface: ",L1/)'), ok
+    if (.not.ok) call ferror('testrmt','Spurious CPs on the muffin tin surface!',warning)
+
+  end subroutine testrmt
+
+  !xx! functions for the evaluation of arithmetic expressions.
+  function eval(expr,x0)
+    use tools_io
+    real*8 :: eval
+    character(*), intent(in) :: expr
+    real*8, intent(in), optional :: x0(3)
+
+    integer :: lp, ll
+    real*8 :: a
+    character*1 :: c
+    logical :: again, wasop
+
+    real*8 :: q(100)
+    character*1 :: s(100)
+    integer :: nq, ns
+
+    ! initialize
+    lp = 1
+    ll = len(expr)
+    nq = 0
+    ns = 0
+
+    ! run over tokens
+    wasop = .true.
+    main: do while (.true.)
+       if (lp > ll) exit main
+
+       ! skip blanks
+       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == '\t'.or.expr(lp:lp)=='\n')
+          lp = lp + 1
+          if (lp > ll) exit main
+       enddo
+
+       if (isnumber(a,expr,lp)) then
+          ! a number (without sign)
+          nq = nq + 1
+          q(nq) = a
+          wasop = .false.
+       elseif (isfunction(c,expr,lp,wasop)) then
+          ns = ns + 1
+          s(ns) = c
+       elseif (isoperator(c,expr,lp)) then
+          ! a binary operator
+          again = .true.
+          do while (again)
+             again = .false.
+             if (ns > 0) then
+                if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
+                   call pop(q,nq,s,ns)
+                   again = .true.
+                end if
+             end if
+          end do
+          ns = ns + 1
+          s(ns) = c
+          wasop = .true.
+       elseif (expr(lp:lp) == '(') then
+          ! left parenthesis
+          ns = ns + 1
+          s(ns) = '('
+          lp = lp + 1
+          wasop = .true.
+       elseif (expr(lp:lp) == ')') then
+          ! right parenthesis
+          do while (ns > 0)
+             if (s(ns) == '(') exit
+             call pop(q,nq,s,ns)
+          end do
+          if (ns == 0) call die('mismatched parentheses')
+          ns = ns - 1
+          ! if the top of the stack is a function, pop it
+          c = s(ns)
+          if (c==':'.or.c=='m'.or.c=='M'.or.& ! binary
+              c=='a'.or.c=='e'.or.c=='2'.or.c=='v'.or.& ! unary
+              c=='h'.or.c=='o'.or.c=='l'.or.c=='L'.or.c=='s'.or.&
+              c=='S'.or.c=='c'.or.c=='C'.or.c=='t'.or.c=='T'.or.&
+              c=='x'.or.c=='y'.or.c=='r'.or.c=='R'.or.c=='X') then
+             call pop(q,nq,s,ns)
+          end if
+          lp = lp + 1
+          wasop = .false.
+       elseif (expr(lp:lp) == ',') then
+          ! a comma
+          do while (ns > 0)
+             if (s(ns) == '(') exit
+             call pop(q,nq,s,ns)
+          end do
+          if (s(ns) /= '(') call die('mismatched parentheses')
+          lp = lp + 1
+       elseif (expr(lp:lp) == '$') then
+          ! a field
+          lp = lp + 1
+          nq = nq + 1
+          if (present(x0)) then
+             q(nq) = fieldeval(expr,lp,x0)
+          else
+             call ferror("eval","evaluating field without point",faterr)
+          end if
+          wasop = .false.
+       elseif (isconstant(a,expr,lp)) then
+          ! a constant (pi,...)
+          nq = nq + 1
+          q(nq) = a
+          wasop = .false.
+       else
+          exit
+       end if
+    end do main
+
+    ! unwind the stack
+    do while (ns > 0)
+       call pop(q,nq,s,ns)
+    end do
+    eval = q(1)
+
+  end function eval
+
+  !xx! functions for the evaluation of arithmetic expressions.
+  function grid_from_eval(expr) result(n)
+    use tools_io
+    integer :: n(3)
+    character(*), intent(in) :: expr
+
+    integer :: lp, ll, id, i
+    real*8 :: a
+    character*1 :: c
+
+    ! run over tokens
+    n = 0
+    lp = 1
+    ll = len(expr)
+    main: do while (.true.)
+       if (lp > ll) exit main
+
+       ! skip blanks
+       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == '\t'.or.expr(lp:lp)=='\n')
+          lp = lp + 1
+          if (lp > ll) exit main
+       enddo
+
+       if (isnumber(a,expr,lp) .or. isfunction(c,expr,lp,.true.).or.isoperator(c,expr,lp)) then
+          cycle
+       elseif (expr(lp:lp) == '(' .or. expr(lp:lp) == ')' .or.  expr(lp:lp) == ',') then
+          lp = lp + 1
+          cycle
+       elseif (expr(lp:lp) == '$') then
+          ! a field
+          lp = lp + 1
+          id = nint(fieldeval(expr,lp)) / 100
+          if (id < 0 .or. id > mf) call ferror("grid_from_eval","invalid field",faterr)
+          if (.not.fused(id)) call ferror("grid_from_eval","field not allocated",faterr)
+          if (.not.f(id)%init) call ferror("grid_from_eval","field not initialized",faterr)
+          if (f(id)%type/=type_grid) cycle
+          do i = 1, 3
+             n(i) = max(n(i),f(id)%n(i))
+          end do
+       else
+          exit
+       end if
+    end do main
+
+  end function grid_from_eval
+
+  ! read an unsigned number or return false and leave lp unchanged
+  function isnumber (rval,expr,lp)
+    logical :: isnumber
+    character*(*), intent(in) :: expr !< Input string
+    integer, intent(inout) :: lp !< Pointer to current position on string
+    real*8, intent(out) :: rval !< Real value read
+
+    integer :: i, ll
+    character*1 :: ch
+    logical :: isdigit
+    isdigit(ch) = ch.ge.'0' .and. ch.le.'9'
+
+    ll = len(expr)
+    isnumber = .false.
+    rval = 0d0
+    i = lp
+    do while (isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) goto 999
+    enddo
+    if (expr(i:i) == '.') then
+       i = i + 1
+       if (i > ll) goto 999
+    end if
+    do while (isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) goto 999
+    enddo
+    if (i == lp) return
+
+    ! exponent
+    if (expr(i:i)=='e' .or. expr(i:i)=='E' .or. expr(i:i)=='d' .or. expr(i:i)=='D'.or.&
+       expr(i:i)=='q' .or. expr(i:i)=='Q') then
+       i = i + 1
+       if (i > ll) return
+       if (expr(i:i)=='-' .or. expr(i:i)=='+') then
+          i = i + 1
+          if (i > ll) return
+       end if
+       if (.not.isdigit(expr(i:i))) return
+       do while (isdigit(expr(i:i)))
+          i = i + 1
+          if (i > ll) goto 999
+       enddo
+    end if
+
+999 continue
+    isnumber=.true.
+    read(expr(lp:i-1),*) rval
+    lp = i
+
+  end function isnumber
+
+  ! read a field definition and evaluate to a number
+  function fieldeval(expr,lp,x0)
+    use types
+
+    real*8 :: fieldeval
+    character*(*), intent(in) :: expr !< Input string
+    integer, intent(inout) :: lp !< Pointer to current position on string
+    real*8, intent(in), optional :: x0(3) !< position
+
+    integer :: i, ll, id, nder
+    character*1 :: ch
+    character*2 :: fder
+    logical :: isdigit, ischar
+    type(scalar_value) :: res
+    isdigit(ch) = ch.ge.'0' .and. ch.le.'9'
+    ischar(ch) = ch>='a'.and.ch<='z'.or.ch>='A'.and.ch<='Z'
+
+    ll = len(expr)
+    i = lp
+    if (i > ll) goto 999
+
+    ! read the letters
+    do while (ischar(expr(i:i)))
+       i = i + 1
+       if (i > ll) goto 999
+    enddo
+    fder = expr(lp:i-1)
+
+    ! read the numbers
+    lp = i
+    do while (isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) exit
+    enddo
+    read(expr(lp:i-1),*) id
+    lp = i
+    if (id < 0 .or. id > mf) call die('wrong field number')
+    if (.not.fused(id)) call die('undefined field')
+    if (.not.f(id)%init) call die('uninitialized field')
+
+    if (present(x0)) then
+       if (fder=="  ".or.fder=="v ") then
+          nder = 0
+       elseif (fder=="x ".or.fder=="y ".or.fder=="z ".or.fder=="g ") then
+          nder = 1
+       else
+          nder = 2
+       end if
+       call grd(f(id),x0,nder,res)
+
+       select case (trim(fder))
+       case ("")
+          fieldeval = res%f
+       case ("v")
+          fieldeval = res%fval
+       case ("x")
+          fieldeval = res%gf(1)
+       case ("y")
+          fieldeval = res%gf(2)
+       case ("z")
+          fieldeval = res%gf(3)
+       case ("xx")
+          fieldeval = res%hf(1,1)
+       case ("xy")
+          fieldeval = res%hf(1,2)
+       case ("xz")
+          fieldeval = res%hf(1,3)
+       case ("yy")
+          fieldeval = res%hf(2,2)
+       case ("yz")
+          fieldeval = res%hf(2,3)
+       case ("zz")
+          fieldeval = res%hf(3,3)
+       case ("l")
+          fieldeval = res%del2f
+       case ("lv")
+          fieldeval = res%del2fval
+       case ("g")
+          fieldeval = res%gfmod
+       case default
+          call die("unknown field specifier")
+       end select
+    else
+       select case (trim(fder))
+       case ("")
+          fieldeval = 1
+       case ("v")
+          fieldeval = 2
+       case ("x")
+          fieldeval = 3
+       case ("y")
+          fieldeval = 4
+       case ("z")
+          fieldeval = 5
+       case ("xx")
+          fieldeval = 6
+       case ("xy")
+          fieldeval = 7
+       case ("xz")
+          fieldeval = 8
+       case ("yy")
+          fieldeval = 9
+       case ("yz")
+          fieldeval = 10
+       case ("zz")
+          fieldeval = 11
+       case ("l")
+          fieldeval = 12
+       case ("lv")
+          fieldeval = 13
+       case ("g")
+          fieldeval = 14
+       case default
+          call die("unknown field specifier")
+       end select
+       fieldeval = fieldeval + 100 * id
+    end if
+
+    return
+999 continue
+    call die('unexpected end of expression')
+
+  end function fieldeval
+
+  ! read an operator or return false and leave lp unchanged
+  function isoperator(c,expr,lp)
+    logical :: isoperator
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    character*1, intent(out) :: c
+
+    isoperator = .false.
+    if (expr(lp:lp) == '+'.or.expr(lp:lp) == '-'.or.expr(lp:lp) == '*' .or.&
+        expr(lp:lp) == '/'.or.expr(lp:lp) == '^'.or.expr(lp:lp) == '%' .or.&
+        expr(lp:lp) == '<'.or.expr(lp:lp) == '>'.or.expr(lp:lp+1) == '==' .or.&
+        expr(lp:lp+1) == '<='.or.expr(lp:lp+1) == '>='.or.expr(lp:lp+1) == '!=' .or.&
+        expr(lp:lp+1) == '||'.or.expr(lp:lp+1) == '&&') then
+       if (expr(lp:lp+1) == "**") then
+          c = '^'
+          lp = lp + 1
+       elseif (expr(lp:lp+1) == "<=") then
+          c = '{'
+          lp = lp + 1
+       elseif (expr(lp:lp+1) == ">=") then
+          c = '}'
+          lp = lp + 1
+       elseif (expr(lp:lp+1) == "==") then
+          c = '='
+          lp = lp + 1
+       elseif (expr(lp:lp+1) == "!=") then
+          c = '!'
+          lp = lp + 1
+       elseif (expr(lp:lp+1) == "&&") then
+          c = '&'
+          lp = lp + 1
+       elseif (expr(lp:lp+1) == "||") then
+          c = '|'
+          lp = lp + 1
+       else
+          c = expr(lp:lp)
+       end if
+       lp = lp + 1
+       isoperator = .true.
+    end if
+
+  end function isoperator
+
+  ! read an unary operator or return false and leave lp unchanged
+  function isfunction(c,expr,lp,wasop)
+    use tools_io, only: lower
+
+    logical :: isfunction
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    character*1, intent(out) :: c
+    logical, intent(in) :: wasop
+
+    integer :: lpo
+    character*(len(expr)) :: word
+
+    isfunction = .false.
+    lpo = lp
+    c = ''
+    if (expr(lp:lp) == '+' .and. wasop) then
+       ! unary +
+       c = '#'
+       lp = lp + 1
+    elseif (expr(lp:lp) == '-' .and. wasop) then
+       ! unary -
+       c = '_'
+       lp = lp + 1
+    elseif (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+            expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
+       ! function
+       word = ""
+       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+                 expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
+                 expr(lp:lp) >= '0' .and. expr(lp:lp)<='9')
+          word = trim(word) // expr(lp:lp)
+          lp = lp + 1
+       end do
+       select case (trim(lower(word)))
+       case ("abs")
+          c = 'a'
+       case ("exp")
+          c = 'e'
+       case ("sqrt")
+          c = '2'
+       case ("floor")
+          c = 'v'
+       case ("ceil")
+          c = 'h'
+       case ("ceiling")
+          c = 'h'
+       case ("round")
+          c = 'o'
+       case ("log")
+          c = 'l'
+       case ("log10")
+          c = 'L'
+       case ("sin")
+          c = 's'
+       case ("asin")
+          c = 'S'
+       case ("cos")
+          c = 'c'
+       case ("acos")
+          c = 'C'
+       case ("tan")
+          c = 't'
+       case ("atan")
+          c = 'T'
+       case ("atan2")
+          c = ':'
+       case ("sinh")
+          c = 'x'
+       case ("cosh")
+          c = 'y'
+       case ("erf")
+          c = 'r'
+       case ("erfc")
+          c = 'R'
+       case ("min")
+          c = 'm'
+       case ("max")
+          c = 'M'
+       case ("xc")
+          c = 'X'
+       case default
+          lp = lpo
+          return
+       end select
+    else
+       lp = lpo
+       return
+    end if
+
+    isfunction = .true.
+
+  end function isfunction
+
+  ! read an unary operator or return false and leave lp unchanged
+  function isconstant (rval,expr,lp)
+    use tools_io, only: lower
+    use param
+
+    logical :: isconstant
+    character*(*), intent(in) :: expr
+    integer, intent(inout) :: lp
+    real*8, intent(out) :: rval 
+
+    character*(len(expr)) :: word
+    integer :: lpo
+
+    isconstant = .false.
+    lpo = lp
+    if (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+        expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
+       ! function
+       word = ""
+       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
+                 expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
+                 expr(lp:lp) >= '0' .and. expr(lp:lp)<='9')
+          word = trim(word) // expr(lp:lp)
+          lp = lp + 1
+       end do
+       select case (trim(lower(word)))
+       case ("pi")
+          rval = pi
+       case ("e")
+          rval = cte
+       case ("eps")
+          rval = epsilon(1d0)
+       case default
+          lp = lpo
+          return
+       end select
+    else
+       lp = lpo
+       return
+    end if
+
+    isconstant = .true.
+
+  end function isconstant
+
+  ! return operator precedence
+  function iprec(c)
+    integer :: iprec
+    character*1, intent(in) :: c
+
+    if (c == '|') then ! or
+       iprec = 1
+    else if (c == '&') then ! and
+       iprec = 2
+    else if (c=='!'.or.c=='='.or.c=='{'.or.c=='}'.or.c=='<'.or.c=='>') then ! relational
+       iprec = 3
+    else if (c == '+' .or. c == '-') then ! add, sub
+       iprec = 4
+    elseif (c == '*' .or. c == '/' .or. c == '%') then ! mult, div
+       iprec = 5
+    elseif (c == '^') then ! exp
+       iprec = 6
+    elseif (c == '_' .or. c == '#') then ! unary plus and minus
+       iprec = 7
+    elseif (c == '(' .or. c == ')') then ! parentheses
+       iprec = 0
+    end if
+
+  end function iprec
+
+  ! return 1 for right-associative operator and -1 for left-associative
+  function iassoc(c)
+    integer :: iassoc
+    character*1, intent(in) :: c
+
+    if (c=='+'.or.c=='-'.or.c=='*'.or.c=='/'.or.c=='%'.or.c=='|'.or.c=='&'.or.&
+        c=='='.or.c=='{'.or.c=='}'.or.c=='<'.or.c=='>') then
+       iassoc = -1
+    elseif (c == '^' .or. c == '(' .or. c == ')' .or. c == '#' .or. c == '_') then
+       iassoc = 1
+    end if
+
+  end function iassoc
+
+  ! pop from the stack and operate on the queue
+  subroutine pop(q,nq,s,ns)
+    use tools_math, only: erf, erfc
+    use tools_io, only: uout
+#ifdef HAVE_LIBXC
+    use xc_f90_types_m
+    use libxc_funcs_m
+    use xc_f90_lib_m
+#endif
+
+    real*8, intent(inout) :: q(:)
+    character*1, intent(inout) :: s(:)
+    integer, intent(inout) :: nq, ns
+
+    character*1 :: c
+    real*8 :: a, b, rho, zk, grho, lapl, tau
+    integer :: ia, nqf
+
+    ! pop from the stack
+    if (ns == 0) call die('wrong expression')
+    c = s(ns)
+    ns = ns - 1
+
+    ! and apply to the queue
+    if (c=='X') then
+#ifdef HAVE_LIBXC
+       a = q(nq)
+       if (a - nint(a) > 1d-13) call die("unknown libxc functional")
+       ia = nint(a)
+
+       if (.not.ifun(ia)%init) then
+          ifun(ia)%id = ia
+          ifun(ia)%family = xc_f90_family_from_id(ifun(ia)%id)
+          call xc_f90_func_init(ifun(ia)%conf,ifun(ia)%info,ifun(ia)%id,XC_UNPOLARIZED)
+          ifun(ia)%init = .true.
+       endif
+
+       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
+           ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
+           ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
+          call die("insufficient argument list in xc")
+       endif
+
+       select case(ifun(ia)%family)
+       case (XC_FAMILY_LDA)
+          rho = max(q(nq-1),1d-14)
+          call xc_f90_lda_exc(ifun(ia)%conf, 1, rho, zk)
+          nq = nq - 1
+       case (XC_FAMILY_GGA)
+          rho = max(q(nq-2),1d-14)
+          grho = q(nq-1)*q(nq-1)
+          call xc_f90_gga_exc(ifun(ia)%conf, 1, rho, grho, zk)
+          nq = nq - 2
+       case (XC_FAMILY_MGGA)
+          rho = max(q(nq-4),1d-14)
+          grho = q(nq-3)*q(nq-3)
+          lapl = q(nq-2)
+          tau = 2 * q(nq-1)
+          call xc_f90_mgga_exc(ifun(ia)%conf, 1, rho, grho, lapl, tau, zk)
+          nq = nq - 4
+       end select
+       q(nq) = zk * rho
+#else
+       call die('(/"!! ERROR !! critic2 was not compiled with libxc support !!"/)')
+#endif
+    elseif (c=='+'.or.c=='-'.or.c=='*'.or.c=='/'.or.c=='%'.or.&
+        c=='^'.or.c==':'.or.c=='m'.or.c=='M'.or.c=='|'.or.&
+        c=='&'.or.c=='!'.or.c=='='.or.c=='{'.or.c=='}'.or.&
+        c=='<'.or.c=='>') then
+       ! a binary operator or function
+       if (nq < 2) call die('wrong expression')
+       a = q(nq-1)
+       b = q(nq)
+       nq = nq - 1
+       select case(c)
+       case ('+')
+          q(nq) = a + b
+       case ('-')
+          q(nq) = a - b
+       case ('*')
+          q(nq) = a * b
+       case ('/')
+          q(nq) = a / b
+       case ('^')
+          q(nq) = a ** b
+       case ('%')
+          q(nq) = modulo(a,b)
+       case (':')
+          q(nq) = atan2(a,b)
+       case ('m')
+          q(nq) = min(a,b)
+       case ('M')
+          q(nq) = max(a,b)
+       case ('>')
+          if (a > b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('<')
+          if (a < b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('{')
+          if (a <= b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('}')
+          if (a >= b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('=')
+          if (a == b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('!')
+          if (a /= b) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('&')
+          if (.not.(a == 0d0).and..not.(b == 0d0)) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       case ('|')
+          if (.not.(a == 0d0).or..not.(b == 0d0)) then
+             q(nq) = 1d0
+          else
+             q(nq) = 0d0
+          endif
+       end select
+    elseif (c=='a'.or.c=='e'.or.c=='2'.or.c=='v'.or.&
+            c=='h'.or.c=='o'.or.c=='l'.or.c=='L'.or.c=='s'.or.&
+            c=='S'.or.c=='c'.or.c=='C'.or.c=='t'.or.c=='T'.or.&
+            c=='x'.or.c=='y'.or.c=='r'.or.c=='R'.or.&
+            c=='#'.or.c=='_') then
+       ! a unary operator or function
+       if (nq < 1) call die('wrong expression')
+       select case(c)
+       case ('#')
+          q(nq) = +q(nq)
+       case ('_')
+          q(nq) = -q(nq)
+       case ('a')
+          q(nq) = abs(q(nq))
+       case ('e')
+          q(nq) = exp(q(nq))
+       case ('2')
+          q(nq) = sqrt(q(nq))
+       case ('v')
+          q(nq) = floor(q(nq))
+       case ('h')
+          q(nq) = ceiling(q(nq))
+       case ('o')
+          q(nq) = nint(q(nq))
+       case ('l')
+          q(nq) = log(q(nq))
+       case ('L')
+          q(nq) = log10(q(nq))
+       case ('s')
+          q(nq) = sin(q(nq))
+       case ('S')
+          q(nq) = asin(q(nq))
+       case ('c')
+          q(nq) = cos(q(nq))
+       case ('C')
+          q(nq) = acos(q(nq))
+       case ('t')
+          q(nq) = tan(q(nq))
+       case ('T')
+          q(nq) = atan(q(nq))
+       case ('x')
+          q(nq) = sinh(q(nq))
+       case ('y')
+          q(nq) = cosh(q(nq))
+       case ('r')
+          q(nq) = erf(q(nq))
+       case ('R')
+          q(nq) = erfc(q(nq))
+       end select
+    else
+       call die('wrong expression')
+    end if
+  end subroutine pop
+
+  subroutine die(msg)
+    use tools_io
+    character*(*), intent(in) :: msg
+    !$omp critical (error)
+    call ferror('expression',msg,faterr)
+    !$omp end critical (error)
+  end subroutine die
+
+end module fields

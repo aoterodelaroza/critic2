@@ -1,0 +1,10 @@
+These files contain a simple hack to the elk code to produce ELF.OUT
+and VCL.OUT files with the clm-style description of the elf and the
+Coulomb potential. The patch applies to the 1.3.2 version of elk, but
+it is easy to adapt to newer versions of the code. Use the new OUT
+files with critic2 like this:
+
+LOAD STATE.OUT GEOMETRY.OUT ELF.OUT
+LOAD STATE.OUT GEOMETRY.OUT VCL.OUT
+
+-- A.
