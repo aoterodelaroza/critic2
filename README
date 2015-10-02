@@ -1,7 +1,3 @@
-% critic2 README
-% Alberto Otero de la Roza
-% July 31, 2013
-
 Overview
 --------
 
@@ -28,28 +24,6 @@ using the same techniques. Hence, it is possible to compute, for
 instance, the charges inside the basins of ELF, or the gradient paths
 of the molecular electrostatic potential. New scalar fields can be
 computed using critic2's powerful arithmetic expressions.
-
-Download
---------
-
-**Source code**:
-[tar.bz2](http://gatsby.ucmerced.edu/downloads/critic2/critic2-1.0.tar.bz2), 
-[tar.gz](http://gatsby.ucmerced.edu/downloads/critic2/critic2-1.0.tar.gz),
-[zip](http://gatsby.ucmerced.edu/downloads/critic2/critic2-1.0.zip)
-
-**Examples**:
-[tar.bz2](http://gatsby.ucmerced.edu/downloads/critic2/critic2-examples.tar.bz2)
-
-**Documentation**: 
-[txt](http://gatsby.ucmerced.edu/downloads/critic2/user-guide.txt)
-[pdf](http://gatsby.ucmerced.edu/downloads/critic2/user-guide.pdf)
-[syntax](http://gatsby.ucmerced.edu/downloads/critic2/syntax.txt)
-
-**Recent changes**: 
-[ChangeLog](http://gatsby.ucmerced.edu/downloads/critic2/ChangeLog)
-
-**Contact**:
-Alberto Otero de la Roza [mailto:aoterodelaroza@ucmerced.edu aoterodelaroza@ucmerced.edu] 
 
 Files
 -----
@@ -178,25 +152,17 @@ The basic references for critic2 are:
 
 * A. Otero-de-la-Roza, E. R. Johnson and V. Luaña, 
   Comput. Phys. Commun. **185**, 1007-1018 (2014)
-  [link](http://dx.doi.org/10.1016/j.cpc.2013.10.026) 
+  (http://dx.doi.org/10.1016/j.cpc.2013.10.026) 
 * A. Otero-de-la-Roza, M. A. Blanco, A. Martín Pendás and V. Luaña, 
   Comput. Phys. Commun. **180**, 157–166 (2009)
-  [link](http://dx.doi.org/10.1016/j.cpc.2008.07.018) 
+  (http://dx.doi.org/10.1016/j.cpc.2008.07.018) 
 
-For qtree:
-
-* A. Otero-de-la-Roza, V. Luaña J. Comput. Chem. 32 (2010) 291–305.
-  [link](http://dx.doi.org/10.1002/jcc.21620)
-
-Topology of the laplacian:
-
-* A. Otero-de-la-Roza, V. Luaña J. Chem. Theory Comput. 6 (2010) 3761–3779.
-  [link](http://dx.doi.org/10.1021/ct100269e)
+See the outputs and the manual for references pertaining particular keywords. 
 
 Copyright notice
 ----------------
 
-Copyright (c) 2013 Alberto Otero de la Roza, Ángel Martín Pendás and
+Copyright (c) 2013-2015 Alberto Otero de la Roza, Ángel Martín Pendás and
 Víctor Luaña.
 
 critic2 is free software: you can redistribute it and/or modify
