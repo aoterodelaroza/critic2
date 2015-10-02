@@ -1,0 +1,100 @@
+Contributors to the critic2 code:
+
+* Jose Luis Casals Sainz at the University of Oviedo
+  <joseluiscasalssainz@gmail.com>:
+  Merge-sort routine in tools.f90
+
+* Enrico Benassi at the Scuola Normale Superiore di Pisa, Italy 
+  <ebenassi3@gmail.com>:
+  The STM module is based on one of Enrico's program, who also
+  provided guidance and encouragement.
+
+Critic2 contains code from the following sources. The complete
+copyright notice is included in the corresponding files.
+
+* ciftbx: fortran routines for CIF data, by Sydney R. Hall and Herbert
+  J. Bernstein. 
+
+  http://www.bernstein-plus-sons.com/software/ciftbx/
+
+  The ciftbx package is included in critic2. It is invoked when the
+  crystal structure is given as a cif file. ciftbx is distributed
+  under the GNU/GPL v2.
+  
+* abinit: electronic structure of periodic solids under the
+  pseudopotentials/plane-waves approximation. The lead developers are
+  X. Gonze and D. C. Allan, with contributions from many people (see
+  doc/developers/contributors.txt) in the abinit distribution.
+
+  Modified versions of some of the routines for reading DEN files are
+  used in abinit_private. The grid interpolation routine (trispline)
+  also comes from abinit, and was written by A. Lherbier. abinit is
+  distributed under the GNU/GPL v3.
+
+* wien2k: a FP-LAPW program for calculations in periodic solids, by
+  P. Blaha, K. Schwarz and others (http://www.wien2k.at/). The
+  routines for reading struct files and calculate the electron density
+  were adapted (with permission) from the WIEN2k code.
+
+* elk: a FP-LAPW program for calculations in periodic solids, by
+  J. K. Dewhurst, S. Sharma, C. Ambrosch-Draxl, and others.
+
+  Modified versions of the routines dealing with the elk file formats
+  and densities are in elk_private.f90. Also, the cfftnd.f90 file is
+  an almost exact copy of the equivalent file in elk, which in turn is
+  part of the fftpack5 library by P. Swarztrauber and Richard Valent. 
+  
+  elk is distributed under the GNU/GPL v3.
+
+* cubpack: a package for the automatic integration of n-dimensional
+  integration regions by numerical cubature. The authors are Alan Genz
+  and Ronald Cools. Adapted by J. Burkardt.
+
+* The routines for Lebedev integration on the sphere were developed
+  and coded by V. I. Lebedev and D. N. Laikov. See the header of
+  integration.f90 for details.
+
+* The keast library (keast.f90) does numerical integration on
+  tetrahedra. They were developed by A. Nijenhuis and Herbert
+  Wilf. Converted to fortran90 by J. Burkardt. The library is
+  distributed under the GNU/LGPL license.
+
+* The routines dealing with aiPI ion files (pi_private.f90) were
+  adapted from the PI code, by V. Luaña, E. Francisco,
+  A. Martín-Pendás, M. Flórez, M. Bermejo, and M. Álvarez Blanco.
+
+* Part of the LAPACK (and BLAS) library are included in the oldlibs/
+  directory, by J. Dongarra and others. LAPACK is under the BSD-new
+  license. 
+
+* A modified version of the quadpack library is used (quadpack.f90)
+  for vectorial 1D integration. Quadpack was written by R. Piessens,
+  E. de Doncker, C. Ueberhuber, and D. Kahaner. See
+  www.netlib.org/quadpack. The version included in critic2 was taken
+  from John Burkardt's page
+  (http://orion.math.iastate.edu/burkardt/f_src/f_src.html).
+
+* Part of the bader program sources. Bader is a program for the
+  integration of scalar fields on a grid developed by Graeme Henkelman
+  and collaborators at the University of Texas at Austin. The 'bader'
+  program was written by Wenjie Tang, Andri Arnaldsson, Samuel T.
+  Chill, and Graeme Henkelman, and distributed under a free license
+  (GNU/GPL). See the copyright notice in src/bader.f90 for more
+  details. 
+
+* The qhull library is used to calculate the vertices and faces of the
+  Wigner-Seitz cell, which is an essential component in several parts
+  of critic2. The author of the library is C. B. Barber and the
+  Geometry Center at the University of Minnesota. Qhull is free
+  software and a copy of the library is distributed with critic2. The
+  exact licensing conditions can be read in src/qhull/COPYING.txt.
+  Qhull may be obtained via http from www.qhull.org.
+
+* The Gaussian wfn/wfx code has been adapted from postg, by Alberto
+  Otero de la Roza, Felix Kannemann, Erin R. Johnson, Ross M. Dickson,
+  Hartmut Schmider, and Axel D. Becke. Postg calculates the dispersion
+  energy and related quantities in the exchange-hole dipole moment. It
+  is distributed under GPL, and can be obtained from
+  http://gatsby.ucmerced.edu .
+
+

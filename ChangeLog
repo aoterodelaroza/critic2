@@ -1,0 +1,2587 @@
+commit e7d44b3ee15876ac5dca5951c108a0689910200e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-09-09
+
+    default extensions renamed from incritic to cri
+
+commit 84053132bafb67b991205e464acce44b525bfae2
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-19
+
+    minor tweak to relief, added the plot properly
+
+commit b87b8e6c30ab9f2c67d2347f2c19748f66547be3
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-19
+
+    fixed an integrals test
+
+commit af8c9aa605e1a428c2870390353c869e69a55643
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-19
+
+    added the relief keyword to plane
+
+commit d6654f8dd282a734a03c7aed44d6e5301168985f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-16
+
+    minor tweak to field%file in pi fields
+
+commit 20dffa02534b00efba543efdabc1726c6042a69d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-16
+
+    added the NAME keyword to setfield; updated tests
+
+commit 2e98d047e2ed02afa3e80945e1f45b3075f64da7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-16
+
+    file name for the loaded crystal/molecule in output
+
+commit 363b6f8ec7d0b8ced2a7e08defbbbec81d2bd87c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-16
+
+    updated the copyright notices
+
+commit 8d63e864a775a9997decefbaf7792ee396c377ca
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-16
+
+    added 'and molecules' to the banner
+
+commit 78517d0d3b4e976554f2db0589c283386d358839
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    double the number of cells in powder; fixes compare
+
+commit 6da3410134aaa320184ddb694d18d0722c6899fc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    minor tweaks to the documentation
+
+commit 45c1529e212f4b190b707c385f77ce4d7ff5996b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    cleaned up syntax, keyword list in user's guide
+
+commit b15a7695b14dd9b148f299674ea8a81d2c26455c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    updated link in the documentation
+
+commit 167d1aaecb08dd1025592ca38d0699c813b5b3a5
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    moved src-attic -> attic
+
+commit 44ae59a5fdc3e03cf59ba0629faf075d41ba47e1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    minor tweak to the molcell documentation
+
+commit 432fcc2abf69adea7ea5734c280893b521e2e20a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-14
+
+    added compare keyword, rearranged powder routines, fixed tests
+
+commit 4be305a4414f4db1f15d0c989a3157788ce6daad
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-13
+
+    added test for symm
+
+commit 4c0eafa1478619d4b417be35fafbe7fa7012c174
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-13
+
+    added SYMM keyword to crystal, fixed typo in struct/wroot
+
+commit aa5ac468bbf5fe3866be1890b0abb283a212bd78
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-08-12
+
+    molecular cube writes, header option
+
+commit 4d87f22f13234e32fb6147b1d763e2bb86590224
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-31
+
+    added LOL functions
+
+commit bbcf9824c76a8fa695cb4322c24baf8e368d06a1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-31
+
+    clean up integration code
+
+commit 05c81b363a768079919a3f21591ff08b87d71c61
+Merge: 1ae694c b68982e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-31
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit 1ae694c2b5c5bd2a035fdaf9c548f2a883b76680
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-31
+
+    sort CPs in descending field value
+
+commit b68982e8819469036ef3136c1e35f38f7dbdb7ae
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-31
+
+    fixed tests; tweak to documentation
+
+commit 090f5d905a3c62c853aa75bdb940e5eeff821a60
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-31
+
+    added virial field and energy density
+
+commit a18e5546ed9acb6524968630d92d50c214e7f44d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-28
+
+    changed name of g, k, l to avoid clashes
+
+commit ed0c81c119dffd3c0f45a9d2bc885cc172159271
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-28
+
+    added the elf from wfn/wfx
+
+commit 59b2349a41bbe9370aef139f850e9376d5d85ff8
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-28
+
+    added the calculation of g, k, and l properties for wfn/wfx
+
+commit e85a1131c07b158b8b1c2ac9bcc9bf92ebd589b4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-28
+
+    g kinetic energy density in wfn implemented
+
+commit dc2303432bed4d794c621a0ae32d572d8ef7018b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-27
+
+    simplified wfn_mp2 test
+
+commit ea1024620c728b7edad6dfd5f2ab3a12aee7b74e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-27
+
+    added tests for pointprop and ghost; fields_in_eval now sees chemical functions
+
+commit bcb4efc063fcec37e787ad42c87cac17d45d313b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-26
+
+    more tweaks to the documentation; more point properties; ghost fields; changes in integration; changes in auto
+
+commit 819db0ec3effecc65ff3952d8a9ac36ea9ccd748
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-26
+
+    fixed charges.sh problem in Makefile.am
+
+commit d4674e02c6bf8f582fa14cadc222ac1b8ec5d9d1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-26
+
+    finished rewriting the documentation
+
+commit b9104e0903ea438f352fcdf415b94559abfa7690
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-25
+
+    rearranging the documentation, halfway done; minor tweaks in AUTO and fields
+
+commit f3ae5c54824c616c2492442e8eea31fd6e4ed60f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-25
+
+    fixed more issues in arithmetic, finished implementing pointprop
+
+commit f6890f0e92e7e2759f23dbb8a1496794ebb16ece
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-25
+
+    reverted stop in qe writer, fixed arithmetic module
+
+commit 00307b72d26ae111cb6f89e5afa7085fb182d9f2
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-24
+
+    cleaned up arithmetic operator/function symbols
+
+commit 1bd87c0cdba7d6d5da74fa41592d68d44288f7b1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-24
+
+    defined pointprop keyword and rearranged manual
+
+commit 6f87e367317080121fc8bbfbe89fbf00f99bfa38
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-23
+
+    added the prepare_for_packing.sh script
+
+commit 82c24f5de433fa83827de5474b0eb9dd4beed52a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-23
+
+    update makefile
+
+commit 93332171914bc7f4a795317856236e155b111f00
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-23
+
+    updated tests for auto
+
+commit 7eb9b0fd61f50c26f66a5b786f297bbf417f89f9
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-22
+
+    recovered the old behavior for existcpfile
+
+commit 342670529a85919814b002d93034989e2e010b65
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-22
+
+    improved uniqc, simplified newton search
+
+commit 07dd975d787e4309c4f8670265db3963cb29f0f1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-22
+
+    rewrote the whole AUTO system
+
+commit b0ab6a3e144deefd5e7cb675fb1c349d206cdd3e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-21
+
+    minor tweak to the packing ratio routine
+
+commit adb9ac73f4f93e4af0d7dafce7ba912dfff4c4d4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-21
+
+    minor tweak to the documentation
+
+commit 70689c4199c2defd1e96ca7e4e34dc66fe6f41f7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-21
+
+    added the packing keyword; test and documentation
+
+commit b7a8512f4ccfdfdc28e67c38a4c3f5738e84ed6d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-17
+
+    fixed some typos in the manual
+
+commit 7716ca4474d8806fc19c909f751582513053ec56
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    deleted two xyz needed for tests by mistake
+
+commit af08aabe2fd464f5c20a35652225fc62ce5e895e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    added BURST keyword, documentation and tests
+
+commit 7b52cce9a54442346a79a4f315ba7e44b2141464
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    new keyword newcell; documentation and test
+
+commit f7ae5df3acff1ba92448424b1a5c192bc3f79fdd
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    minor fixes to auto and documentation; new tests
+
+commit c43ff7573f863edfffc1a16135ab2eac5b033f27
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    added the SPHERE keyword and entry in the manual about constraining a CP search
+
+commit 28e2cfdee98eca198c1f42471483dd3923235f74
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    small fix in the manual about MOLECULE
+
+commit 7c4520d9f4c673ed31f3eaf50acf9051d2ab3390
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-16
+
+    Introduced major changes in the treatment of molecular structures (MOLECULE)
+
+commit b2f17a6ef50606cc2349ce3dcedfe5d8ebd04bc7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-15
+
+    replaced rho with ldos in STM tests
+
+commit 2bd40643948eb478ef1785302c14e752bf885dc3
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-13
+
+    finished STM implementation; documented; tests
+
+commit 6e4651f6974972c0b907473145f2efa3b1634f44
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-13
+
+    fixed noprimitive->primitive in tests; change in output format
+
+commit 1459b7ac782bab21ba1b97be8c9840718e8390a0
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-13
+
+    STM module, first implementation
+
+commit 3eb5b5a63e8268fa583874ba077bc5c53a7bcfef
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-12
+
+    The border option to xyz/wfn/wfx can be an arithmetic expression
+
+commit bc97f59036d3b09794afbb3109ea41ff2a477bd2
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-05-05
+
+    fix lines cut by the margin in the pdf manual
+
+commit 0bcd86b4faa4b22d6dcc1352869076c9f244320b
+Merge: 08eca3c cc8040c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-04-28
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit 08eca3cadba5fb21afff0e92343e1c5775f304bc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-04-25
+
+    transformation to primtive is no longer the default in WRITE
+
+commit cc8040c60367fdc5462cc48c2fcbaf7afd085fb1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-04-10
+
+    fixed file name error in contour when no . is given
+
+commit ad8874c9980b566274af1d9f71812a0498a65e6a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-04-10
+
+    fixed some nciplot tests; fixed format in autocp
+
+commit 296655f995155902452304097ab00b8d58a72fbf
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-17
+
+    ncigraph finished
+
+commit 24f27ebaae977905e13235a51306be77fc24ed8f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-13
+
+    progress in ncigraph
+
+commit 4e80bddd0d399d0720bfa59b56c6e99024d0a56a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-13
+
+    new field for promolecular densities from a fragment; change in syntax: pass a xyz file to promolecular
+
+commit 362d34fa87cb80ba4d7848d4aafc73f831f21deb
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-13
+
+    fixed error in the manual re nciplot -dens.cube (thanks Paul Fons)
+
+commit 3cc0276ceecebb2ad124883c473392b28f641ca1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-12
+
+    completed transition to fragments
+
+commit 7bbda3f00bd7ecae3d80ab1bdb83419b139df2cb
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-12
+
+    new fragmentmod module; fragment objects introduced in nci
+
+commit d31a4f8be775ba5ac55a8a587689f69862c42358
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-12
+
+    added fragment and anyatom types; identify_fragment and identify_fragment_from_xyz methods in crystal class
+
+commit 8263a51b3369a229c780efc3be2c0805fd2f33f1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-12
+
+    moved identify_atom to struct_basic; listmolecules method in crystal; started ncigraph
+
+commit 759b3c277ecb9f188a9a7c517f260af934582527
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-03-04
+
+    cidx element for celatom; implemented trick module
+
+commit 5c8638a363f09a30414d4fc93c28385dc39ffa69
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-02-25
+
+    saved hashtype.f90 for gfortran 4.8
+
+commit 93d7273166080e868701b6b6dc2e64ceed9cef1b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-02-10
+
+    read atom_site_type_symbol as an alternative to atom_site_label in cifs
+
+commit a528f76fe1403d2bc868deab926bf700594b56b1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-18
+
+    fixed bug in newcell routine
+
+commit bbbd01937589ece249ebe0dfa1d59d6c348cb147
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-17
+
+    removed name wurtzite for zincite
+
+commit e82f79ae355b9b0ee5e3dfcc618334392a8aca7d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-14
+
+    DI code -- first implementation complete; needs more testing and cleanup
+
+commit da15d5b3f9a755773c4555f7dc4655bc04a67aab
+Merge: 5e15d8f f82a38b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-14
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit 5e15d8fca4c40a091d1ebd4b9fcbd8edf928f7f3
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-14
+
+    struct_fill respects verbose now; more efficient DI integrator
+
+commit f82a38b71f9999ff582bec098e1dd874bc1c2842
+Merge: f588268 9df7f5a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-07
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit f588268713f43815aa72ce151bf0aa8425c9a7bd
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2015-01-07
+
+    changed the list of authors
+
+commit 9df7f5a8290f7f7ecaa1a811b51d0aee91da8aad
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-12-27
+
+    more changes to the DI calc
+
+commit 30c7a98674c9bc26495ddc38f6015d9afd4556c2
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-12-26
+
+    wannier90 xsf now correctly read; modified di integrator
+
+commit add757617822b3593bcdc8e1ccdd47bbdea0961d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-12-04
+
+    modified chemical notation format to avoid test errors
+
+commit 979fdcd018271f0a3b5ac02aa6991d5c1e37db6e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-12-02
+
+    gauleg is now default radial integrator; updated all tests
+
+commit 1578fb65614031189a2a0f91ad27f502a6da15ec
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-12-02
+
+    finished with the output formatting
+
+commit bd11c02e2cb33c229fcfeb25081af93b6adfa696
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-12-01
+
+    more changes to the formatting; only 6 tests left
+
+commit 1c8094ef0b449cb9157a9c0aa515d52e0a399d38
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-30
+
+    more output format modifications
+
+commit 3caf1654b6a94de95cfecf786f13d16f47aa7883
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-29
+
+    cleaning up output formatting
+
+commit 40b8f426abc6e9ae01e78eeb9aba1ddb37877057
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    fixed bug in isreal (real number followed by letter)
+
+commit b2e33e74b3a6dd48712c63022d7bbeffc4495ad1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    fluxprint commands are executed at the end and not in sequence
+
+commit bb8291d4d8938319c9ff33f96353debdf4493873
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    added obj/ply/off to fluxprint and cleaned up output
+
+commit 862a87e00050f89a532f7945b2094e5959f4083b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    minor tweak to 001_arithmetic.sh
+
+commit 4bbbb2f6b3cb3125ca7fdefbcea11295e588cbde
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    reallocate c%at in newcell
+
+commit 90038be720076e9aea9b71282df18356a052b7f0
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    reverted using valgrind in the tests
+
+commit 9d52516724653f9914ffe2b042779089fc6f7a25
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    implemented newcell keyword
+
+commit aa7fd9331c12b5d628d81ba039dfce412824e588
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    almost done with newcell
+
+commit 74e9f62c2ebfabe1d800f773473e1b64947abe3f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    fixed bug in wien struct reader
+
+commit 8758a5095d83d4855b0a6e6c9815d2ad5cf8ffc7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    tests now use valgrind; starting newcell
+
+commit 0da9daf7ca5bd9f4f56ff403e567572f0f8ef1ff
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-28
+
+    moved struct_init and struct_end to struct_basic
+
+commit 5773c9bcf53e324bf97fbcb57ac366508e5c4475
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-27
+
+    cleaned up wigner routines; done with crystal class and struct splitting
+
+commit 4c8189249507136009172d3fb81b82ee0bbc69a8
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-27
+
+    merged localpg with pointgroup
+
+commit ab3e37a95957df0067724f3f88878fd28a3b8177
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-27
+
+    fixed a bug in bisect; more routines to the crystal class
+
+commit 948ec1cd623eefeff0d1f849939ae8c8451113b4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-27
+
+    building the crystal class, tocartesianas, tocrystal and set_cryscar
+
+commit 8681a14852431bf81763060bb2878c311db22734
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-27
+
+    moved the struct type to struct_basic.f90
+
+commit 9069419ae3fab42316851350bab68e1588f3a43d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-26
+
+    struct module split into several smaller struct_* modules
+
+commit 0e8dd832a279d8907e009a540e8dac9e36100101
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-26
+
+    fixed bug in makemake.sh
+
+commit 6f319256d038d7177d5ac8f4578d937254de27fc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-26
+
+    fixed bug in cenbuild
+
+commit 1c48ba64e150a2c0498c8c83650534f3a7fc6acc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-25
+
+    packed the crystal structure into crystal type (error in multiple struct test)
+
+commit 232fafa7fc49582bef9c4b60b57332b41a79a5cc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-24
+
+    changed test 002_read_multiple to avoid weird compiler error in ifort 12.1
+
+commit 87d309112c3da9532a6863076668208c88ddc950
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-22
+
+    write gjf added
+
+commit c32d02977b042209a6ac286705cd9ae84e197989
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-22
+
+    fixed config.f90 in Makefile.am; added gitignore entry
+
+commit 51389e2b6ebe0264d3053c537beb5f003ca3346d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-22
+
+    more tweaks for windows
+
+commit eef3971152125e234eb84307342b725be15ce948
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-22
+
+    refer all paths to the path of the input file
+
+commit 7f9988dc094c2eb98df5b74526ad4579f0a76c17
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-22
+
+    plot basisn in the same color as the atom; rgb in surface; more tests basinplot/bundleplot
+
+commit 714110e5da92a10838e95ac257c3baa5134da2c8
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-21
+
+    basinplot and bundleplot do obj and ply
+
+commit ab7818125dc1b3a19a69642b4c3c7fb37ed6ab6e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-21
+
+    check for initialization in graphics routines
+
+commit bf8cf658eb240753e5347b4e49bc420d72d9e71e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-21
+
+    cpreport writes ply and off
+
+commit 3cc571a62cb8dcd31f2519cc76712c8dbc1c543f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-21
+
+    added ply and off routines to graphics, WRITE keyword accepts ply and off
+
+commit ff056093a396fc7c53b37b10f0d46b6be69f93df
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-21
+
+    surface types moved to types.f90; obj_surf routine added
+
+commit 85d6c12565a7ce6f0e9da2803023274b0d6eed2d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-20
+
+    removed keywlist restriction for variable names
+
+commit 327714d2b2a1d9a34756f98dd2d9c59569889ba3
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-20
+
+    strict syntax checking implemented
+
+commit 52bb6e5a6d99b8f638f324513d8b1ab1a603ec7a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-19
+
+    strict syntax checking, halfway there; fixed test 025_integrals5
+
+commit 3a3018a233b554979372d3b1c20f93308518fba6
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-19
+
+    implemented the RESET keyword
+
+commit 533840bdfa75d7dab10013dbad69ae68c99c7ac4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-19
+
+    support for reading multiple crystals in one input
+
+commit f38ee95506b2e018736c7e336be5b33bb461b433
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-19
+
+    list and clear keywords; fixed bug in promolecular/core; prepare global variables for reset keyword
+
+commit 7b05bb752c1d11fa4824a787386eff3e1863691e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-19
+
+    support for 32-bit and 64-bit windows cross-compilation
+
+commit e39f2b12153c3efc36eda2f7162e593142d95710
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-19
+
+    cleaned up configure.ac (ac_openmp) and included flag for windows cross-compilation
+
+commit 36951266753913e1abe0fcf5a674f6c25710d4c3
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-18
+
+    CUBE option in the WRITE keyword
+
+commit 13a9aa29643c2f76228d8b5ce04c1a4d3e1131a1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-18
+
+    extended the ENVIRON keyword to accept an arbitrary point in the cell
+
+commit 3c09676ee747b47d080d60fac262432c1547fdcf
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-18
+
+    fixed bug in write sphere, modified tests, fixed typo in test tests/005_write_xyz4
+
+commit 443f7fbfad9eb37a088dbd2c68556e629fcf239c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-13
+
+    deleted two files that shouldn't be there
+
+commit fdf9d286ce67a99bbb681906e4863e068c98590b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-13
+
+    fixed bug in reading VASP/cartesian
+
+commit b5abfa8822abf35b64f1b94165f2fb00b4aaf747
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-13
+
+    unify nobeta keywords
+
+commit 3c65b7fce485c2f02745ae906fc1232e8293438e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-01
+
+    fixed test for wien opts
+
+commit c73ffc45923b102d836788761f00ad17b958d9f4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-11-01
+
+    fixed reshape problem in param; updated Makefile.am
+
+commit a0791449fb2556905b2f97e2048af7a1b3fa8cd9
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-12
+
+    eliminated dependence on acum
+
+commit fd84dbf4db2731e2ca2f1e8f1477d1e9a8e931d7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-11
+
+    grdvec paths with jmol colors depending on endpoint
+
+commit 06205fc0b93d5d8b3ae1bb461a4545c58f3d5563
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-10
+
+    pick the data block of a cif file in input
+
+commit ab4a28752bcabf5e7a15e4ee8b7adc5f42deaf95
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-09
+
+    updated tests; new powder test
+
+commit 8df1ca17cbe2d5dab6279900f0de09d6b512dfb7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-09
+
+    POWDER keyword for powder diffraction patterns
+
+commit f09032516080efa7487fc7bee841ebf16b5a03c1
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-07
+
+    no CP type in the additional list for nuclei
+
+commit d375f7dc1e162d12bdc924c11435c94842c0c554
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-07
+
+    fixed bit in elk LOAD output about the LM pairs
+
+commit a97b7bf29ae00d19e406693bf84e4c95a648428c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-07
+
+    fixed magnetite entry in the library
+
+commit 86400a364cd3739015f852e86a7933b4bf183f3b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-06
+
+    deleted autogrid keyword
+
+commit 9100be2c344b2c586fccbda1aae9dcd479508928
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-06
+
+    field structure is reallocated when too many fields loaded; updated tests bc minor format change
+
+commit 8d616a3a93615ad7431cdf31481000b6ff7826b9
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-06
+
+    added check for erroneous field id in load copy
+
+commit cb8f054b90a3912eb5c49e86698409de0327a433
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-06
+
+    keyword for copying fields
+
+commit 086b80edb2755c9d4eceef3746de0a489211d613
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    new sphere keyword in write xyz/obj
+
+commit da1667f3bd0465ef9fd446eda1b1c3249850bed4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    core values for fields in arithmetic expressions
+
+commit 11f5ef7095b12c2344955c21c2058d0f3dc4acd5
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    introduced paramter for grid precision
+
+commit d0a95f884915e86890f38083709831c48f4024bc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    shorter commit version
+
+commit 0bc14404b8cc010cc08fef417e7d59a45bf2b451
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    git commit at run-time, for bug reports
+
+commit 774d5748c0f293334cacf8192981a7db1f779b50
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    proper usecore detection in nciplot
+
+commit 2aa649c98bcd9e58f5ae953e584e664f5890feae
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    moved init_trispline to grinterp in omp critical block
+
+commit d9bcbb7df4ad52f097aaa2d3d729f86d4fb5e8f3
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    deferred calculation of CP properties
+
+commit a711eda9191f4a21a41a1ee8e3ea5f382eaa8c5c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    fixed nearest and trilinear bug
+
+commit 9495fd05864a4129758da8b2f7244973cc0cc852
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    copyright notice in hashtype
+
+commit bd6b9b7fcc3666b97723a4a8638ef4234a47cfc6
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    new hash library for the variables
+
+commit 197f10e66b05655ba4742104e1f8e66ffeee4f17
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-05
+
+    update tests for grid integrations
+
+commit a58d267692eb33caadfe22b5e5163ec663ac90be
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-10-03
+
+    added two small notes about ordering in grid integration output
+
+commit 8fdb65c55c4dfc87915e95b40af8d34d0b774736
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-25
+
+    added test for dos-style line terminators
+
+commit 3b9ec0949730bed2d967d83c0a0f6da50c45e7f6
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-25
+
+    proper use of getline and getline_raw in struct
+
+commit 37a36b5a9ef516642ab4073d4072142165434417
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-25
+
+    update the lap part of the elk module; add test
+
+commit 10a3cb133d04e39a06a60e5f073d3c92012ab759
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-24
+
+    last changes to I/O, fixed test 006
+
+commit 70c14e2191e615e628848201d0904a582cc75a85
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-24
+
+    all tests updated, work with ifort and gfortran
+
+commit 6fe225e98febe9036c639753c02ab85fd26c775f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-24
+
+    fixed tests up to 6 (almost) and some bugs
+
+commit 4557a7706120aaf69bb706ee6475cb125cf546e0
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-24
+
+    fixed more bugs; tests 1--4 fixed
+
+commit 433eb30e05affc40710e329c64d0eaf4cabdd25e
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-23
+
+    tests converted into incritic files
+
+commit 43f093303af0ab213e39e44653718afa079771b7
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-23
+
+    completed the migration to tools_io; fixing getlines
+
+commit f770282e5c150d1750827e096f8cec0f31318ded
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-23
+
+    almost there; not quite done eliminating the mlines
+
+commit feabe218cba289241b14789846e786582cbf128d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-23
+
+    haflway through moving from tools_io to strings
+
+commit 8282bbda39f2dd0ba57541341332a9cbca973e0b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-22
+
+    writing I/O library
+
+commit 774f92f05aae3640d326bb97e226bf747a8e52db
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-22
+
+    strings module create
+
+commit ab1f7eb5d56fa92ac4c166aa8e9e122ebc502dde
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-21
+
+    siesta load reads spin-polarized grids
+
+commit 3864fdf3dd6d236b2f037e2deb3de19937dd9dbf
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-21
+
+    added test for siesta densities
+
+commit b65b10eec6e517ea4eb27772d8d7f3a971f24cf9
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-21
+
+    change \ for &
+
+commit d9e1cdde8731c709d693db8c29ff35c9b60b5b9a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-21
+
+    read siesta's RHO-style grids
+
+commit 0b83e70e6729d924076ce1282f8f9950fa44a680
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-21
+
+    added siesta structure read/write tests
+
+commit 529b4b5b83d95b0cc89cb480412e57a2aa980807
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-21
+
+    read siesta STRUCT_IN/STRUCT_OUT; write siesta fdf/STRUCT_IN
+
+commit 22cad465a0e0ecf59870052aafe1abe61be6b2ad
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-20
+
+    added test for wfn/mp2
+
+commit 5dd31953997cc9a524b9cc3a77393a8b5e572f8d
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-20
+
+    fixed bug in call to nearest_atom
+
+commit 22f56227f6dee420181b135f56efe286e0ce25b4
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-20
+
+    add a check for the number of atoms in the wfn
+
+commit e4bc5b62bd7d703b668fb6bef08e4a8680becc62
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-09-20
+
+    deleted the stopper for fractional occupations in wfn/wfx
+
+commit 883db421a2ec109536525ba276c2386d6998f0a3
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-09-19
+
+    load as lap works for elk fields; new 006 test for this
+
+commit 3c93272ca1679e8d3e8c05e6f6da914a8c33906f
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-19
+
+    load as lap works for wien2k fields; lap field option deleted
+
+commit b2ebd48cb6af8e90200edab89f44bd5bb7cbc55a
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-19
+
+    added test 002_read_crinput6 (lots of centering vectors)
+
+commit caf178d1c3c5cfbc632a32aab73df8d40572091c
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-09-18
+
+    fix the limitation in the number of centering vectors
+
+commit 02a4bcbdae1f63e218a58abe2032b0bf24ce0f35
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-09-17
+
+    updated elk STATE.OUT reader--all known versions supported
+
+commit a1d320b1ab4213f026f386e370db55bfc3e4affc
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-08-29
+
+    done fixing the manual
+
+commit a2b56998d684f9d3c67ecdea6413c39f8f782c9b
+Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>	2014-08-26
+
+    updated mails to fluor; halfway through cleaning up the manual
+
+commit dbe1264da31de4356052eade69b171b48cc9d524
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-08-22
+
+    fixed format problem in struct; fixed test 011_auto11
+
+commit a281b7f24f8cef2ebd7cd57412a591cab4a667e5
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-08-22
+
+    fixed tests: 2 nciplots and one more test for lammps
+
+commit ed72b8af8f09b6fbf6ec8bdfccb306ad2c1348d4
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-08-22
+
+    fixed mrot0 > mvec problem when non-standard translation vectors
+
+commit dfe5fefa079d9c96e72c291d5863d4cb8b95ae1b
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-08-05
+
+    nciplot now handles better non-periodic plot regions
+
+commit a85a59bad0a3e0f53856fe92d88789562632499e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-07-29
+
+    added lammps data writer; test 005_write_lammps
+
+commit 6630c0de1a52cf644c54bfd38f266556387eff59
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-07-17
+
+    allow CUBEs with zero atoms, accept negative steps
+
+commit c50bfa9f29aa8174e10cd8d76a2f1e5d2493b1c7
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-07-02
+
+    fix 005_write_obj test
+
+commit 42bd495a23f2cdc92c032e35c20c202c9b6ea545
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-07-02
+
+    added obj support to fluxprint
+
+commit 919997aa98b9657819290b6ddf81507267ef278a
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-07-02
+
+    cpreport obj keyword implemented
+
+commit 764148043e922f85458e516863f68a3a9a017359
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-07-02
+
+    write crystal structure to obj/mtl file
+
+commit a7fef81fee32b557d42b67a0f397521de7a17bf5
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-28
+
+    delete stray file
+
+commit 26af36ebfd510418b74d53e931bb88f06e9862d7
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-26
+
+    implemented QE input reader
+
+commit 795b94fcbb57b9dcc475016303eb631fbbbec5b1
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-26
+
+    fixed problem with lattpg in super-large cells; updated tests
+
+commit 80d67eb26454342765dc69e832cb6d67cfab1257
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-24
+
+    saved a piece of DI/LI code as comment; fix crystal library Li
+
+commit 070873cd586933bd0e7e767e9e9da0d940644c27
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-24
+
+    DI/LI final version for 1-kpoint
+
+commit 5d150372da8df9fa478b3cd13202faca007711b8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-24
+
+    DI/LI works for one k-point, almost for more
+
+commit 6fe8c1f8094e51033176687fd07b7e84b5282075
+Merge: c9dd579 46dcc14
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-24
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit 46dcc1493f00964bc45da0ad1728a45759614605
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-23
+
+    updated tests urea library
+
+commit b42b87d5d82ec86a325b3c8394492e329967cb4e
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-23
+
+    modified symorbit to avoid problems with MORBIT
+
+commit 5467985c22262a4687e6c1e483d42092ffef2a92
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-21
+
+    added c21 to the library
+
+commit c9dd5790b29e5b83dc249c1443b2ceadc4133a7d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-21
+
+    fixed too global variable access in struct
+
+commit 88edf0eaa4ada50d7fb4d5d1e342e7f0b5739ca4
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-20
+
+    todo deleted
+
+commit 2e51f7425d052f64b2ebd7d09574a1e72576ab89
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-19
+
+    new dreiding option for write gulp
+
+commit 62e924c1de681ead96fa24045108be61c6aa9407
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-19
+
+    added gulp input template writer
+
+commit 3fa109db814d0527e682b48f2c18ffaafaed557d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-19
+
+    split struct_write, list of routines at the beginning of struct.f90
+
+commit bd5928b452a1552dee7fd97b643922b1f562189d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-19
+
+    new hard test for wigner routine
+
+commit f801770a98ac28224389e9d50f5b1f91f043f789
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-19
+
+    improved wigner handling of extreme cells
+
+commit 230d133296536931a8fa9f4a6c7958901e328962
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-17
+
+    avoid ws_origin clash, modified format of op. axis output
+
+commit ab596d30908af243b12a85258bd3f2e8ac731d60
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-17
+
+    added hard test for WS, updated test oks, wigner is not verbose
+
+commit b1f55504f5216a12c1878b788059e71a8feb563f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-17
+
+    iterative threshold mod in wigner; deloc_brf temporarily deactivated
+
+commit ed28542dedfa089bf08e7d47952387cbf0ea699f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-06
+
+    more tests in the DI/LI code
+
+commit eade6e525176d0178ac33aa1440baf6ab448b03b
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-06
+
+    I think I found how to calculate LI/DI... save this
+
+commit a6e56069a69d30e5cbb30dbd54ae27da0750c9fc
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-05
+
+    meh about loc/deloc with wannier functions
+
+commit 26b3b313d038becb3c82d0e6fe24707a593eb6c7
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-04
+
+    small tweak to integration -> almost good sum rule (?)
+
+commit 43426aab07d42e8ce25ca0050598848ecfa221ad
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-04
+
+    almost there: sum rules and DI/LI work but need to figure out k-points; tweak in struct_fill output
+
+commit 1272642f4809847ee033efdf6192765562252b0b
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-06-04
+
+    progress in DI/LI, fixed typo in integration output
+
+commit de96defb409827323ca1ba3e43ba7c199831997f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-03
+
+    progress in brf reading
+
+commit 56e07a693867a157a110ccb72d33957392ba0937
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-03
+
+    converted dat to brf format from wannier90
+
+commit 649e3c67744165c93cf53ee704f9b9fa742e437d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-03
+
+    simple script to convert the structure to QE input
+
+commit d0834c3704a94ad428d020517232b3a559b9ba9b
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-06-01
+
+    progress in delocalization indices
+
+commit 0b3e52c3b7ba3c4da1c1eef068ab07a353af8d70
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-31
+
+    Started QE dat file reader
+
+commit e20ca394ffa1885a5ff93e96d4b8908c16d296da
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-31
+
+    cleaned up the VASP module
+
+commit 284bd79b312a84dea056dd4bae90d8f989c3d102
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-31
+
+    Error if AUTO with grid nearest/trilinear; CPRHO and CPEPS in auto
+
+commit 89a4e21c8bc3a23358214ad1a11edac79cfe6f03
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-30
+
+    identify does k-points; new test for identify; fixed oks; progress in vasp_private
+
+commit 5629ca0ef26ff5f60c4ce6afb06cfaec177e7d74
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-30
+
+    lattpg routine for lattice point groups; identify now gives mult; cleaned up param; progress in vasp_private
+
+commit 6e6013290c7e01f2676c7d1fcf6eba7343d6d94b
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-29
+
+    progress in the WAVECAR reader
+
+commit aa9fb1da8b40f44743e7ec989ab7149dc58f02ab
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-28
+
+    laue class/crystal system implemented (deleted poor man's version), fixed crystal library, half WAVECAR reader done
+
+commit 0cb4ca52c16b1239ffe0a3d26d091d95f7dfa656
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-28
+
+    added notes on big grids, fixed format issues with too many CPs
+
+commit 88f1223326a781ebee88d0e9ba5ef89b56be0246
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-27
+
+    reorder attractors before yt/bader output, fix dealloc bug
+
+commit 01b26c09f0447f8736ca1158a8a3a785b04ed1b3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-27
+
+    added test 31: libxc
+
+commit 05df7d3869a06187c55a698722b6c4ee9299adb3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-27
+
+    new mineral structures in the library
+
+commit ec5b1fa87a7f85c0ac46e5844f708a71e7b9a391
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-27
+
+    vasp struct reader now reads cartesian (kartesian)
+
+commit e0f0daf74c4ea1ccf0ff3bee2b47420a249666dd
+Merge: 4b47a83 d922b82
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-27
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit 4b47a830f2dc7548e5784e4c2cbc5c043d883c97
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-27
+
+    call to typeop is fixed
+
+commit 2c66c978a9251c0aeced98881434ad926fd98bd2
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-26
+
+    added fluorite to crystal.dat
+
+commit d922b820b036882aad3c6c9d5dd0bb6bdc80191b
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-24
+
+    small tweak deloc/loc indices
+
+commit 587e7f0ca3c7868a1b1f78ba2b496be1e37ad5f3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-23
+
+    added silicon to the library, fixed diamond
+
+commit 3230951d1eaf2a62e5b643f6f4fe7c66b7b9187e
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-23
+
+    a small tweak to wfn/wfx structure tests
+
+commit 82290c5e143ec9c57290e1f7935d3847cff565cd
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-22
+
+    fixed bug in xdm, data_qe_elf test now has XDM result
+
+commit 9704f4e26b569929c10fba8e8822c739f83ce8d4
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-22
+
+    border option for wfn/wfx/xyz; loc/deloc indices for wfn implemented
+
+commit f90934e7fc52476e0589b7ace3b9fd1c7e4d1c1d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-22
+
+    cleaned up newton: info about the new point and output formats (thanks Davide)
+
+commit df1f1e95fd4d247567efb1d857c29dc43e3c6883
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-22
+
+    ratoms used in bader/yt -> improved performance in noisy supercells; fixed bug p-1 in yt; nonnm -> nnm
+
+commit 05e784dd90933837c415fe8a0e2ec3994e8ab9a5
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-21
+
+    cleaned up manual and syntax.txt
+
+commit cf87a61a8c5a52040850eb2cc864bacf647cb9e8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    cleaned up multipole code, lmax option
+
+commit fb89abf18688621d31906b458c7dd4551f33c55a
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    final tweaks to test, xdm; all tests pass with {gfortran,intel}x{debug,production}
+
+commit 78a4758acee9ca1087c0a5357ef38dcef1354185
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    fixed obscure bug in Dormand-Prince stepper
+
+commit aa0871794dc35445fd4b658b8cf47ebb7caf2910
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    make install and make dist work; min, max, average when field is loaded
+
+commit 7de0b7484bb1a99d0ff48ec22d4b4fff59d27754
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    added test 30: yt; done combining yt and bader; yt does multipoles now
+
+commit 6a293a97a79c3a4d7ba9fa11eee908e08609b957
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    added test 29: bader; cleaned up bader/yt a bit; xdm1 test tweaked
+
+commit 3c0cf0432fcf228094080df0b28b73ee33e21511
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    added test grdvec6: ode_mode
+
+commit 7e4e61bb06b3a7b565ec455deea2070a57995b99
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    added test 28: xdm; test for int_radial; fixed error in documentation
+
+commit 36589f41cd43133d620b6b256d1f17f37bf7ba4f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    test 27: qtree; fixed segfault in omp qtree
+
+commit 77c2eb1259b807c151fe0f5fe7ff6920599fbf33
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    fixed crys2car out-of-bounds, for 023_basinplot2 test
+
+commit 84af821c8b2518197f38772e6ac8e97be18cc567
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-21
+
+    check for numdiff before tests, ignore off and coff in tests/results
+
+commit 2bbc6f03adf9797d5875268768ab7e77df388f5d
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-21
+
+    added test 26: nciplot; new tests data: co2 with qe
+
+commit cacc59018ef30f2aca30a07ce6dfc9cb89ad0b8b
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-20
+
+    fixed append to test results; improved integrals tests; deleted spurious test results; missing integrals4.ok
+
+commit f7365e2ba7c55580ffa2d3727d27d2d126378db3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added test 25: integrals. root  allows parallel make. fixed integration clear
+
+commit 8e0d679d7bf4663be5b1d682f657320100017f5d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added tests 23 and 24: basinplot and bundleplot
+
+commit e8af15ad3b0a750c9e33afc54fdac539f0d2489c
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added test 22: fluxprint. graphcp keyword deleted
+
+commit 01f4327594d2b2553a8c8f4065ebe94195893d7e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    tests 20 and 21: grdvec and sphereintegrals; cleaned up grdvec; eps results kept
+
+commit 3df65472646c7f29e695112302a861757e5c0334
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    tests 11 through 19; auto dry run
+
+commit 93e0153b7ed1a488cb52d13e8ec9e88ad2d8475e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added tests 11 and 12: auto, autogrid; xyz not ignored; no tictac if quiet
+
+commit c18c4ebcce0fa5af08c9fb92b09f372ce8d2f459
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    examples/ removed, all data in tests/, fixed null in output
+
+commit 4a7d91d8479bee6eb2e534fa5d02905f675ece60
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    tests: gfortran passes ifort tests, using numdiff
+
+commit 526bb50b20da1c068b39afd4227081dd41501c59
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    fixed bunch of bugs spotted by the tests, hard fail if critic2 crashes
+
+commit 24bc7d89eaefd68799be6732f665177473c11b32
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added another test 9: plane2. diff -B. echo keyword and manual fixed.
+
+commit bc8e51b0eed4b6a51cdbcd3135b674c18a0ec9bc
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added tests 8 and 9: line and plane. Tests independent of examples/
+
+commit e9f2d9b2dc8451acbcaacd2c23cc5f37fb9a9de2
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    Introduced Davide's change in the manual. Thank you Davide!
+
+commit 2d7acf97712bd0d721ffdf10aa5c889607b4e844
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-20
+
+    added test 7: point. Fixed cleanstr missing in rhoplot
+
+commit 34cf23aed8b747d97954bb0ddd77031bb5ffd4e5
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-20
+
+    [no]hmove keyword removed -> obsolete
+
+commit e7173f23e9e2dfd96e47289ef654cb54a02e4e28
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-20
+
+    added test 6: load, fixed LOAD ADD bug, example 6
+
+commit 03aa9081834bc76df4430668b2af7bcd338f3591
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-19
+
+    added test 5: write. CO2 and alpha-S new structures
+
+commit 8b4383619f56d02ce9ca43f9c29fe5749f53f17c
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-19
+
+    added test 4: ewald
+
+commit ebcf540ad5b0d1bdafab366534415e8aa6340255
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-19
+
+    added test 3: wigner-seitz cell, improved test 1 script
+
+commit 20109002737b2a61fd8cc70aa44f0d9bcfd2513d
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-19
+
+    added tests for structure input, fixed bug in VASP input, improved test system
+
+commit 3dc6f9c7c32fe865b3e7e7adc4bef23026f8faac
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-19
+
+    revamping grid integration code, halfway there
+
+commit bc9c535968ac1080b06781676550fe272cf8d08a
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-19
+
+    re-writing the examples as test cases to be run through autotools
+
+commit 0c2c7d2f25dde9624bdf17f1c0915c6e9e441dc8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-19
+
+    fixed bug in processing the ** operator
+
+commit aba6077d9ddcfbd4e86698acac217017822b8aba
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-19
+
+    added -r global option to specify the CRITIC_HOME
+
+commit db4c64ce5060d55db7b92c13f16c1d5306a9eb8f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-16
+
+    new structure: magnetite, deleted maghemite
+
+commit 756ee4a8923c25bb81245a29abeac56b79edc2b4
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-16
+
+    new mineral structures in the library: spinel, corundum, and more
+
+commit 6166d1d1dc58cbe7d43786344037a6fb102424e8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-16
+
+    fm3m and fd3m alias, spgs reads _space_group_symop_operation_xyz
+
+commit fff762190e24cfd890097142566f98144ac36a85
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-15
+
+    forgot some files in the last commit
+
+commit c8b770c7dbbdcee1c05d1c2b291a8e984145494f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-15
+
+    critic2 handles correctly the ELFCAR and the CHG files (not divided by cell volume)
+
+commit 7fa912bb58296af1dc80f59678fec7e3e4f00ea3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-12
+
+    fooling around with bader and the wfn MOs
+
+commit dc7aa7607bb025afa6c6b9e3abfea29980ab6392
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-10
+
+    xyz/wfn/wfx structure reader, wfn/wfx fields implemented
+
+commit 3c3b3b3eff4cd20109077a0626e3648b11a47196
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-10
+
+    read structure from xyz, wfn, wfx
+
+commit d061964b8aace652004ff6860b2aa4178195d219
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-10
+
+    improved spg input parser
+
+commit 82dbc9b499f19575b7c56d3401144de90ca5e166
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-08
+
+    mgo to the crystal library
+
+commit 0b77b7a98f50114435156eeb71cfe485740add36
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-08
+
+    new todo entry
+
+commit b4dad164b4caae5d1a4ce6712670981eda06e52d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-03
+
+    make gfortran accept character array constructors in parameter definition
+
+commit 672e237f432d262fdc04a67c841196d6404e9434
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    minor tweak to the manual
+
+commit 5818ad553b5e81af770abe86f2cf635b6105c5c5
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    updated src/Makefile.am
+
+commit 668cbc32f8500dfe119ca773e8f64d8fa9ed83e0
+Merge: a17e135 bf9378c
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    Merge branch 'spgs'
+
+commit bf9378cd10ec31acab27d504d29b0f1a3a0cfbf8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    save old x,y,z variables while reading cif, new isvariable function
+
+commit e2cf5f4140af8f85fb5844483c866d5528d9b45e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    finished with cif symmetry operations, some other tweaks
+
+commit bd50c937f0252802bc3f9e69796cfe728e605273
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    spgs input: allow more than one blank
+
+commit d55cf2f3614e397598563fa43cd11dbe3e617fa7
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    spgs implemented, replaced spgr completely, all aliases done
+
+commit a17e1354dba3047e7bd81461683f1ed417de3ce9
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    regenerated src/Makefile.am module dependencies
+
+commit 5a257d27e97ff154ad68cf0a2eda59df31e1140c
+Merge: 6447e64 00611a3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    merge master to spgs
+
+commit 00611a38ba5fae58596dffee8129d147def3b99a
+Merge: 1b744d2 31c9401
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    merge library into master
+
+commit 31c9401334cd80d7e033ebea8045d85edb2cc14d
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    updated the manual, variables with function names not permitted
+
+commit 6059eecb45e40e5c90188a0232073613e3e1646e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    last changes to the I/O: use expressions everywhere
+
+commit 376cae41a13b7c766263dba5ad2f9db508983c7c
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-02
+
+    changed ferror syntax, fixed problems with 1-long variables in arithmetic, eval_hard and eval_soft
+
+commit 1f31c5bc63558d73aa0a97750174080723d00543
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-01
+
+    z is no longer ignored
+
+commit 909c0b094a4441eb1b65a03171fae7c676494cfd
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-01
+
+    not Q or Z in crystal.lib
+
+commit da119121a9599931c4572f71e0bd2718fd3bac3b
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-05-01
+
+    simple variable capability in arithmetic, command line options, expression evaluation
+
+commit 1b744d21e846775d3b7f7b3ebdf666125118567a
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    fixed bug in isexpression routine
+
+commit 0aaec3598857ef813dff1eaf174d5306843b2cbd
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    library implemented, cell and neq read with expressions
+
+commit 21989fe869ba420e38ea46fb73359198eb406f57
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    new library file, crystal.lib
+
+commit 7bb21dbca263506cb97ef14a76484cc10bb7adc4
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    moved arithmetic to its own module. fields.F90->fields.f90
+
+commit a242c26f489471d3743b08f74e982fecf0b6449f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    emacs backup files ignored, cleaned up some rubbish in gitignore
+
+commit 34cfde3b492724479af14fbce7431710b5a2a56e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    first library implementation: missing a lot of stuff
+
+commit 17c8aa6051a293ece9ba0b2838a8074d742f1f0f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    qhull: more tweaks
+
+commit 89637d279e758313fcafffe1d62bef5b540a3f0a
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    reduced precision in qhull face detection
+
+commit b3e65f6b63a2d93022531e3b5f48ae92c06949d8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    increased format for nelec output
+
+commit a039cc4f422c9521149d86aef4932a61bffba444
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-05-01
+
+    tuned qhull options
+
+commit 6447e64d5a620c24f205a30f3c6fab305021003c
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-30
+
+    first spgs implementation, halfway through sorting out the space group names
+
+commit a39c4a7612abc73da690588539c5a8fbcb01a8e8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-27
+
+    improved IDENTIFY output format, +5 au encompassing cube
+
+commit 1a5140ddbc87854b037ad141a4dda12745f3b989
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-27
+
+    auto: don't search pairs automatically, more room for indices
+
+commit b43f7cc30862e9bc299897b5583b79b0c9efb5e1
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-27
+
+    grid nearest now works, included message about using it in YT and BADER
+
+commit 10226660df13fd5d81b8f6da47459e308279e4a6
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-27
+
+    added comments to the new functions
+
+commit 6a789743f7446d8862210fa68819592f88a251e8
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-27
+
+    added the IDENTIFY keyword and moved code nci->varbas
+
+commit 02d439d14ebb0ce1a2c4ae32e3eff12e382a7dd1
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-24
+
+    another minor tweak to the build system
+
+commit e1690c9a688991e2ae20f97b39f4c2b5ae2e9642
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-24
+
+    fixed handling the headers in the build system
+
+commit 27af5b250474ce73d6eacb51dad9a0c70e193d57
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-24
+
+    fixed several issues with the optional arguments in wigner
+
+commit 518dde516b3e34243621277d9b03d3948ebc1ba5
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-23
+
+    added the header files to the critic2 distribution, needed for compilation
+
+commit 12593cef16eadfb539f55de2b077d211b90b209e
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-23
+
+    fixed typo preventing gfortran compilation
+
+commit a8bfb09a5619a5ff35eda317417ead050f8052c6
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-23
+
+    added missing library in tools_system.c: string.h
+
+commit ed7daeadad872dfccec4d97631d838a28e368e97
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-23
+
+    added COPYING to the qhull directory and entry in THANKS
+
+commit 583eb9a0a9dee9192fcd236c2b17376865efb60c
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-23
+
+    wigner in struct_fill is silent now
+
+commit e19fd00c408244b4ad15c7c686612349fcf41692
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-23
+
+    .deps/ directory to the gitignore
+
+commit 348ff317e308a98f53cf5bc3a8b6daea73cce99f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-23
+
+    modified the WS cell calculation to use qhull. Qhull is now distributed with critic2
+
+commit aa8e9b736fd026cf947a05fdbc5bd753d56473f4
+Merge: ae1cffe 52136b2
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-22
+
+    Merge branch 'master' of azufre:/opt/git/critic2
+
+commit 52136b235b5a2d00c8855ae5de374a6d93a402f8
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-22
+
+    make wigner silent again
+
+commit d5c0a428cd2d5eaab37e69ee0eb0dd4c5455eec4
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-22
+
+    even looser criteria for WS cell construction... this is getting silly
+
+commit ae1cffe4a783a30d6d329848098a8260fe07b437
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-08
+
+    xdm: fixed bug in cube writing routine
+
+commit 536bd72e38b0e71d6a5f035b7796a80533f0561f
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-08
+
+    even looser parameters for the WS polygon identification
+
+commit 812798ec472dc41303404c82145b2749f1da75e3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-07
+
+    fixed division by zero bug
+
+commit bcc9ccf44ec370893f1e46287aff65a0bb683f98
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-07
+
+    added flag to avoid temporary array check in ifort: annoying
+
+commit 16c390cf5b81f7f86e9c0e735f0b34398ca7ea71
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-07
+
+    reverted ChangeLog.old and git log
+
+commit 30d9b0b2d78ed0743e7b843b111d32ef02fecd02
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-07
+
+    Write the atom list and the CP list in angstrom and referred to the cube center if molecule
+
+commit 88fc9825cfa4313292affff7013afda678150998
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-07
+
+    fixed eps too tight in wigner
+
+commit 66216a4cc045871a379da532dc0ece82666ffce2
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-06
+
+    empty ChangeLog, Makefile.am re-generates ChangeLog with make dist
+
+commit ad47010a1e25c7d8642559088492951edb4cc2e6
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-06
+
+    removed ChangeLog from README and Makefile.am
+
+commit 1ca7203843b572614b8de6a91af174d95f1814c3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-04
+
+    added ChangeLog.old
+
+commit 9abf2f76a872424621dddb066a6d3acf15cc3a46
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-04
+
+    deleted ChangeLog
+
+commit 0cc9918d47ca7663070d31368a96355f744330eb
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-04
+
+    fixed configure.ac--removed mopro
+
+commit 21ce598a3d068ee9f461b175fad5149cd6e7f20a
+Merge: 3074b53 0fc7fe9
+Daniel Menendez <danielmail7@gmail.com>	2014-04-04
+
+    Merge branch 'master' of azufre.quimica.uniovi.es:~/src/critic2
+    
+    * 'master' of azufre.quimica.uniovi.es:~/src/critic2:
+      xdm: more changes to avoid floating-point errors, output compatible with QE
+
+commit 3074b532755c3e37c8bc6c0c30951703b7896892
+Daniel Menendez <danielmail7@gmail.com>	2014-04-04
+
+    cleaned changes now included in mopro branch
+    
+    Changelog has been maintained
+modified:   dat/Makefile.am           
+deleted:    dat/mopro/Makefile.am           
+deleted:    dat/mopro/README           
+deleted:    dat/mopro/WAVEF           
+deleted:    dat/mopro/WAVEF_Su_Coppens_relativistic           
+deleted:    dat/mopro/mopro.tab           
+deleted:    dat/mopro/mopro_xd.tab           
+modified:   doc/syntax.txt           
+modified:   doc/user-guide.txt           
+deleted:    examples/02_simple_mopro/btdmttf_tcnq.par           
+deleted:    examples/02_simple_mopro/mopro/cellunit_rho_cor.cube           
+deleted:    examples/02_simple_mopro/mopro/mopro.cube           
+deleted:    examples/02_simple_mopro/mopro/mopro_rhocore.cube           
+deleted:    examples/02_simple_mopro/mopro/plot.gnu           
+deleted:    examples/02_simple_mopro/mopro/simple-label.gnu           
+deleted:    examples/02_simple_mopro/mopro/simple.gnu           
+deleted:    examples/02_simple_mopro/mopro/simple.incritic           
+deleted:    examples/02_simple_mopro/plot.gnu           
+deleted:    examples/02_simple_mopro/simple-label.gnu           
+deleted:    examples/02_simple_mopro/simple.gnu           
+deleted:    examples/02_simple_mopro/simple.incritic           
+modified:   src/Makefile.am           
+modified:   src/fields.F90           
+deleted:    src/molly_private.f90           
+modified:   src/struct.f90           
+modified:   src/types.f90           
+
+commit 0fc7fe951cf60f3ce12676fb03fae39a8ad69aa2
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-02
+
+    xdm: more changes to avoid floating-point errors, output compatible with QE
+
+commit cf2cb16e49fe4db7ebd93453b364fc12c6bce8b2
+Merge: 05ab6c6 0d35b72
+Daniel Menendez <danielmail7@gmail.com>	2014-04-02
+
+    Merge branch 'master' of azufre.quimica.uniovi.es:~/src/critic2
+    
+    * 'master' of azufre.quimica.uniovi.es:~/src/critic2:
+      xdm: fixed NaN and arithmetic op. errors when using supercells
+      fixed x-nint(x) problem
+      another todo entry
+    
+    Conflicts:
+ChangeLog           
+
+commit 05ab6c612167f3caa8e9741344908483f3c4167c
+Daniel Menendez <danielmail7@gmail.com>	2014-04-02
+
+    factorial -> fact
+
+commit 0d35b729c347c2f6e92884ece883920d7871ff08
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-04-02
+
+    xdm: fixed NaN and arithmetic op. errors when using supercells
+
+commit 68c99518f684e4d1303e8181994703cee48d7190
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-01
+
+    fixed x-nint(x) problem
+
+commit b563f840265c80e1649c93a0256b6c9a45601ac2
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-04-01
+
+    another todo entry
+
+commit a7cd61ea271ee93cf10ddb83745142200d474bbe
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-31
+
+    the result of factorial should be real, not integer
+
+commit 5cd910341ecaeb4e77f57f1236e77cae3af1198a
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-31
+
+    tweak on factorial
+
+commit 129a97300c90fa8f821e5b8779cd523818c2624b
+Merge: 2acffc2 4f9665c
+Daniel Menendez <danielmail7@gmail.com>	2014-03-31
+
+    Merge branch 'master' of azufre.quimica.uniovi.es:~/src/critic2
+    
+    * 'master' of azufre.quimica.uniovi.es:~/src/critic2: (36 commits)
+      write the total, core, and valence number of electrons
+      still playing around with integrals
+      testing sphere attenuation
+      new todo entry
+      xdm: intialized the n of core and pdens
+      new todo entry
+      xdm: check that grids have a congruent size
+      added manual entry for xdm
+      xdm: check that all the atoms have zpsp
+      xdm implemented
+      moved the lattice vector selection for environment building to a different routine
+      new todo entry
+      progress in xdm
+      fused(.)=.true. moved to getfieldnum
+      new getfieldnum function
+      created the goodfield function, started the xdm module
+      finished taufromelf (not checked)
+      fixed documentation for PLANE: missing keywords
+      logarithm in contour now uses max() instead of abs() to set the minimum contour value
+      taufromelf, halfway there
+      ...
+    
+    Conflicts:
+ChangeLog           
+src/tools_math.f90           
+
+commit 2acffc2983fd49b8d223ae4acff1f0598bf9eaa3
+Daniel Menendez <danielmail7@gmail.com>	2014-03-31
+
+    factorial change and some molly comparisions
+
+commit 4f9665cf1533cc9e0f9ca3ce3d366d0e79364858
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-31
+
+    write the total, core, and valence number of electrons
+
+commit 397e3406d7175b595273ccb7932df1397f80c53a
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-31
+
+    still playing around with integrals
+
+commit d6c2175273ad2cb3f9bb6c0cc9389011768bc204
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    testing sphere attenuation
+
+commit 11f6510ea17c53c1cc7a1b5d9b3221c1b0e67e32
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    new todo entry
+
+commit 0f3184266ea9ed9aecfdfdb436d7fed1a1083dcd
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    xdm: intialized the n of core and pdens
+
+commit 39abc999ad8c7e5f84cc9208c6ad28df395643c9
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    new todo entry
+
+commit 9c6a4cf0fa8aac55edbef44bfd94f053dc7fc5d2
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    xdm: check that grids have a congruent size
+
+commit 03cf1e5570f995a17bb2a923f5edfe1d96da34ab
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    added manual entry for xdm
+
+commit f6344a8e79e1354f4226999b39b71ec13c08c569
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    xdm: check that all the atoms have zpsp
+
+commit 572d69ec4760f4a7956858bea3a3bc526d9fbea3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    xdm implemented
+
+commit c4a590a72ac44b119159adf1927a360e1ed0d04e
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    moved the lattice vector selection for environment building to a different routine
+
+commit afd90f4a0c7b7c943078efcd7b1eeeb8cf0cf7cc
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-30
+
+    new todo entry
+
+commit 3e5e57df814d13cc343a73f7afc7cc87048d3129
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-29
+
+    progress in xdm
+
+commit dd38a7914bf756acaf69dfec7b19a5b02d6f0b6b
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-29
+
+    fused(.)=.true. moved to getfieldnum
+
+commit 3907e1863adcddda43bcaff7151b1ea7aceb1038
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-29
+
+    new getfieldnum function
+
+commit c204247e12de26f07bf7ceff63e6d37830a30ea9
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-29
+
+    created the goodfield function, started the xdm module
+
+commit 252396819172cf2aabf26e8d463005f15ccdd782
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-28
+
+    finished taufromelf (not checked)
+
+commit 1535cb43b0bf4f134c351bdd743d76c4f2a8b150
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-28
+
+    fixed documentation for PLANE: missing keywords
+
+commit 95732c774391e9fbd4dc67cc16bb82b38e1f87fe
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-28
+
+    logarithm in contour now uses max() instead of abs() to set the minimum contour value
+
+commit f0424d130f743e74840650046d26ed06ccbc00f8
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-28
+
+    taufromelf, halfway there
+
+commit 3811bab0de58f23d41c69139aed13003b02fa2da
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    implemented multipole moments in bader method
+
+commit 7a8480fd258f2c0fdce876b3e04c5e73c872aa10
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    imag=(0d0,1d0) in param
+
+commit 80add6864ff8a3a9792431a6365c4f747bb1acc5
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    move tosphere from elk_private to tools_math, first real solid harmonics routine
+
+commit 6661df3910d6a7dee9a1241dc85ca03c892e5df3
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    a bit of cleanup in yt
+
+commit 5a7479069abcba9aa7a6a21a3df95ace507d2b68
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    forgot the ChangeLog
+
+commit 6d4e30c003d16321a703829bbf07ec4a39c4ce6b
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    moved the spherical harmonics generator (genylm) from elk_private to tools_math
+
+commit 9de4a1419236e797673eed19f460d50e8dae3061
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-27
+
+    common integration property print out for yt and bader
+
+commit b98b75b9e6a1ca68ec499a48311a2f2a1cb8f516
+Merge: 3fb9875 6bb833a
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-26
+
+    Merge branch 'master' of azufre:/home/daniel/src/critic2
+
+commit 3fb987599627587375bd579f42b632c066dac3b0
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-26
+
+    Trying with Makefile.in out of git, regenerated src/Makefile.am dependencies, modified .gitignore
+
+commit 6bb833a45c4138eaf8b50e965d52826a06935f84
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-26
+
+    Trying with Makefile.in out of git, regenerated src/Makefile.am dependencies, modified .gitignore
+
+commit fc5b727d25c07dc6d25941c30df65e45371ad339
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-26
+
+    added todo and cleanup xxxx parts of the code
+
+commit 7fca67818ce86c5f969d79fa51886397f96017c5
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-26
+
+    Makefile.in in .gitignore
+
+commit 234581cb43e8a2edcfac019465e2140ca660f42c
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-26
+
+    added the fieldlist keyword to yt and bader
+
+commit af512aaf6b7b5ebc06f7d197482443b9ee1b79ee
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-26
+
+    bader and yt now write an escher script with the maxima
+
+commit ddd660e4d0874caef34e6498f08ef6997d6b1927
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-26
+
+    updated reference to the article
+
+commit 84ecddeb2147b7eb822df944522c37061d6ed7a4
+Alberto Otero de la Roza <alberto@carbono.quimica.uniovi.es>	2014-03-26
+
+    added .gitignore
+
+commit e7b4d5f88dd0f904a4e70983acb29c8371aa1fa9
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-17
+
+    Fixed distribution of mopro files with make install
+
+commit f24ab485fe7dcd27300e249716e382f1f719a171
+Merge: 9b6666d 2eed24b
+Daniel Menendez <danielmail7@gmail.com>	2014-03-17
+
+    Merge branch 'master' of azufre.quimica.uniovi.es:~/src/critic2
+    
+    * 'master' of azufre.quimica.uniovi.es:~/src/critic2:
+      Some cleanup, modified makemake.sh
+    
+    Conflicts:
+ChangeLog           
+
+commit 9b6666dae6952631d60043eae322bf3cc596427b
+Daniel Menendez <danielmail7@gmail.com>	2014-03-17
+
+    Mopro density lines and plots
+modified:   .gitignore           
+modified:   ChangeLog           
+modified:   dat/Makefile.am           
+modified:   dat/Makefile.in           
+new file:   dat/mopro/Makefile.am           
+new file:   examples/02_simple_mopro/mopro/mopro.cube           
+new file:   examples/02_simple_mopro/mopro/simple.gnu           
+new file:   examples/02_simple_mopro/mopro/simple.incritic           
+
+commit 5751bb507726d682d6524d4935aa7c66538fa604
+Daniel Menendez <danielmail7@gmail.com>	2014-03-14
+
+    core density with a exponential shape
+    
+    Only the first atom seems correct. Other atoms
+    don't appear. Work in progress...
+modified:   .gitignore           
+new file:   examples/02_simple_mopro/simple.gnu           
+modified:   examples/02_simple_mopro/simple.incritic           
+modified:   src/fields.F90           
+modified:   src/molly_private.f90           
+
+commit 4bfecdf5e0989fbea60f6326e1b26a7ef31da17c
+Daniel Menendez <danielmail7@gmail.com>	2014-03-11
+
+    creating rho_core and rho_valence
+    
+    In proccess...
+new file:   .gitignore           
+deleted:    examples/02_simple_mopro/btdmttf_tcnq.xyz           
+deleted:    examples/02_simple_mopro/simple.outcritic           
+modified:   src/fields.F90           
+modified:   src/molly_private.f90           
+modified:   src/struct.f90           
+modified:   src/types.f90           
+
+commit 2eed24be4ee8029c56e10966c49f1c382406d609
+Alberto Otero de la Roza <aoterodelaroza@ucmerced.edu>	2014-03-07
+
+    Some cleanup, modified makemake.sh
+
+commit 52c1d9a24a02b0218b6796527321fa8394ae7da9
+Daniel Menendez <danielmail7@gmail.com>	2014-03-06
+
+    A bit of cleanup
+
+commit f6143b6b3252313a3dc4f36df5d95df1db9859b1
+Daniel Menendez <danielmail7@gmail.com>	2014-03-06
+
+    Added all Makefile.in files
+
+commit afd2f2ec20f986545c94a038628db23a14bf1d50
+Daniel Menendez <danielmail7@gmail.com>	2014-03-06
+
+    Critic2 copy from the 6-03-2014 CVS version.
+2014-04-02  Daniel Menendez  <danielmail7@gmail.com>
+
+	* src/molly_private.f90: factorial -> fact.
+
+2014-04-01  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/struct.f90: fixed the problem with x-nint(x) not having
+	minimum distance. New "shortest" subroutine. Changed lots of code
+	in other routines.
+
+2014-03-31  Daniel Menendez  <danielmail7@gmail.com>
+
+	* examples/02_simple_mopro/mopro: mopro generated grid
+	density for comparision.
+
+	* examples/02_simple_mopro: gnuplot files for plotting.
+
+	* src/tools_math.f90 (factorial): changed from recursive
+	to an implicit loop. An argument size checker is included.
+
+	* src/fields.F90: molly field initialization
+
+	* src/molly_private.f90: factorial instead of gamma.
+	No crystallographic to cartesian needed.
+2014-03-31  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/grd_atomic.f90, src/struct.f90: write the total, valence and
+	core number of electrons.
+
+2014-03-30  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/grd_atomic.f90: zero-psp atoms do not contribute to the core
+	density.
+
+	* src/xdm.f90: done with xdm.
+
+2014-03-29  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90: fused(.)=.true. moved to getfieldnum.
+
+	* src/fields.F90: created the getfieldnum function to grab an
+	unallocated field number.
+
+	* src/fields.F90: created the goodfield function to check if a
+	field is usable.
+
+	* src/xdm.f90: started the xdm module. Not quite there yet.
+
+2014-03-28  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90: finished taufromelf (not checked).
+
+2014-03-27  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/wien_private.f90, src/param.f90: created imag=(0d0,1d0) to
+	represent the imaginary unit i. Moved some of wien's code out of
+	the way.
+
+	* src/tools_math.f90: first version of the routine that generates
+	real solid harmonics.
+
+	* src/tools_math.f90: moved the transformation from cartesian to
+	spherical from elk_private to tools_math.
+
+	* src/tools_math.f90: the spherical harmonics generator (genylm)
+	moved from elk_private.f90 to tools_math.f90.
+
+	* src/yt.f90, src/bader.f90, src/integration.f90: moved the
+	integrated properties printout to integration, so yt and bader can
+	use the same code.
+
+2014-03-26  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90, src/bader.f90: added keyword "fieldlist" to give a
+	list of grid maxima (or nuclei) and the integrable field value at
+	them.
+
+	* src/bader.f90, src/yt.f90: added the escher option to write a .m
+	file containing the positions of the grid maxima.
+
+2014-03-17  Daniel Menendez  <danielmail7@gmail.com>
+
+	* examples/02_simple_mopro/mopro: rhoplot of MoPro total density.
+
+	* examples/02_simple_mopro: rhoplot of core + valence density
+	using the Hansen--Coppens model.
+
+	* src/struct.f90 (struct_read_par): input cell parameters
+	transformed from angstroms to bohr.
+
+	* src/fields.F90: point coordinates for molly_rho2 are now
+	cartesian to be consistent. All unit cell atoms are charged after
+	calling molly_read_par.
+
+	* src/types.f90 (orb_sto, atom_multipolar): a new type for
+	holding parameters needed to build an orbital from STO linear
+	combination. The multipolar type now holds all the unit cell atoms
+	when it is fully initialized.
+
+2014-03-07  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90 (fields_unload): added f()%dummy.
+
+	* src/critic2.f90: cleaned up 'uses'.
+
+	* src/makemake.sh: deleted old $(MODULE) dependency.
+
+	* doc/syntax.txt: added LOAD file.par.
+
+	* AUTHORS: added Daniel.
+
+2014-03-06  Daniel Menendez  <danielmail7@gmail.com>
+
+	* doc/user-guide.txt: crystal file.par and load file.par
+	added.
+
+	* doc/syntax.txt: added support to read the structure
+	from a <struct>.par file and load a field from the same
+	.par file (the value of the field has non physical sense
+        by now).
+
+	* src/tools_math.f90 (factorial): a function to calculate
+	the factorial.
+
+	* src/types.f90 (atom_multipolar, fields): a type to
+	contain Hansen-Coppens model data. The fields type is
+	now populated with variables needed to recontruct the
+	density from the multipolar model parameters.
+
+	* examples/02_simple_mopro: an example that reads the
+	structure of BTDMTTF-TCNQ from a .par file and then it
+	is exported to .xyz (bug: a few atoms are not represented
+        correctly).
+
+	* src/makemake.sh: added the molly_private.f90 module
+	to the dependency chain.
+
+	* dat/mopro/: includes parameters used by MoPro for
+	the Hansen-Coppens multipolar density description.
+
+	* src/critic2.f90: molly_private.f90 is now imported.
+
+	* src/struct.f90 (struct_read_par): new MoPro .par file reader.
+
+	* src/fields.F90 (type_molly): new type to handle MoPro fields,
+	and molly_private import.
+
+	* src/molly_private: new module designed to calculate the density
+	and its derivatives within the Hansen-Coppens model as implemented
+	in MOLLY/MoPro. Still empty.
+
+2014-02-28  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/critic2.f90: unload all keyword added.
+
+2014-02-25  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (cpreport): cell/cell concatenation in escher
+	output.
+
+2014-02-24  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (cpreport): fixed bug in the generation of the CP
+	positions in the escher output.
+
+	* src/struct.f90 (struct_read_qeout): fixed typo.
+
+	* doc/user-guide.txt: added a little note about CORE usage in grid
+	fields.
+
+2014-02-05  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90, src/bader.f90: clean up.
+
+	* src/struct.f90: fixed problem with using the old H-M space group
+	label when reading from a cif file.
+
+	* dat/cif_core.dic: updated to the 2.4.3 version of the CIF core
+	dictionary (updated 2012-05-16).
+
+2014-01-25  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/struct.f90: deactivated set_cryscar in cube inputs.
+
+2014-01-21  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/bader.f90: finished first implementation, the output is
+	similar to YT.
+
+2014-01-20  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/bader.f90: not there yet.
+
+	* src/tools.f90: uniq and uniq1 are obsolete, removed.
+
+	* src/struct.f90, src/rhoplot.f90: fixed r/r' in vasp.
+
+	* src/critic2.f90 (critic): implemented max, min, sum, count, and
+	mean.
+
+	* src/rhoplot.f90 (rhoplot_cube): CUBE can now write CHGCAR-style
+	files.
+
+	* src/qtree.f90: fixed some symmetry problems.
+
+	* src/critic2.f90 (critic): added ENVIRON keyword.
+
+	* src/struct.f90 (struct): it is possible to do 'crystal POSCAR
+	POTCAR' now.
+
+2014-01-19  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (cpreport): completed escher output.
+
+	* src/escherplot.m: added. Plots the escher file created by
+	critic2.
+
+	* src/autocp.f90: added cpreport keyword. Modified critshell to
+	accept the number of shells.
+
+	* doc/syntax.txt: keywords in caps.
+
+	* src/yt.f90 (yt_integrate): small ws printout.
+
+	* src/autocp.f90 (autogrid): fixed some bugs
+
+	* src/struct.f90: cleaned up variables in wigner. Modified to
+	include normalization.
+
+	* src/nci.f90: fixed writing to * instead of uout.
+
+	* doc/user-guide.txt: fixed defaults in nciplot/cutoffs.
+
+2014-01-18  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (autogrid): first implementation, needs cleanup.
+
+	* src/struct.f90: re-written wigner. polyjoin
+	disappeared.
+
+	* src/yt.f90: removed yt_wigner. Using wigner from struct.f90
+	now.
+
+	* src/types.f90: implemented realloc2i.
+
+	* src/tools.f90: created uniqc--uniq a list of vectors in
+	cartesian coordinates.
+
+	* src/critic2.f90, src/autocp.f90: started autogrid.
+
+2013-10-18  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/nci.f90 (nciplot): fixed duplicity in grd0 call. Also, write
+	a cube file with the promolecular density (-pdens.cube).
+
+2013-09-13  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_integrate): print the atoms first.
+
+	* src/struct.f90: problem with trigonal primitive lattices in the
+	qe inputs.
+
+	* src/types.f90 (types): fixed bug in relloc2r.
+
+2013-09-06  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_integrate): handle the cases where the density is
+	negative (e.g. VASP slabs).
+
+2013-09-05  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_integrate): fixed bug in the matrix passed to
+	yt_wigner.
+
+2013-08-29  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/elk_private.f90: Jose Luis mod for elk 2.1.25 inputs.
+
+	* tools/elk_2.1.25_mod: Jose Luis mod to elk 2.1.25.
+
+	* src/yt.f90 (yt_integrate): added minimum eps to chi.
+	(yt_integrate): problems with mergesort -> I use quicksort again.
+
+2013-08-23  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_wigner): barycenter check not as strict.
+
+	* src/struct.f90 (struct_read_cube): cube is read even if it
+	contains ghost atoms.
+
+	* src/rhoplot.f90 (rhoplot_cube): bug in cube writing -- x0 was
+	nto converted to cartesian.
+
+2013-08-01  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/nci.f90: cube file1.xyz file2.xyz ... added.
+
+	* src/nci.f90: code restructured to make the logic clearer.
+
+	* src/struct.f90: crystal now accepts CHGCAR and CHG.
+
+	* README: adapted to pandoc.
+
+	* doc/user-guide.pdf: not in the repository (go online).
+
+2013-07-25  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* all: Makefile.in back in the repostitory.
+
+2013-07-20  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* doc/lstlocal.sty: keywords in uppercase.
+
+2013-07-15  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90: added constants--pi, e and eps.
+
+	* README: added entry for libxc
+
+	* doc/user-guide.txt: added entry for libxc.
+
+	* all: error -> ferror to avoid clash with libxc.
+
+	* doc/libxc_funcs_2.0.1.txt: included--a list of the functionals
+	available in libxc, version 2.0.1.
+
+	* configure.ac: added --with-libxc configure option.
+
+	* src/fields.F90: added support for libxc in LOAD AS.
+
+2013-07-10  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* configure.ac: fixed AM_INIT_AUTOMAKE
+
+	* src/yt.f90: added NOATOMS and GATHER keywords. Gather maxima
+	using a distance criterion equal to 2.5 times the longest grid
+	step.
+
+2013-06-17  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/tools.f90 (mergesort): added. Thanks to J. L. Casals for
+	this routine.
+
+	* src/bisect.f90 (bisect_msurface), src/yt.f90 (yt_integrate),
+	src/autocp.f90 (sortcps): now use mergesort.
+
+	* examples/12_nci_thymine/thymine.incritic: simpler example.
+
+	* examples/11_nci_adipicacid/adipic_acid.incritic: simpler
+	example.
+
+	* src/grid1_tools.f90 (grid1_tools): much less strict cutoff for
+	contributions to promolecular density -> makes nci calculations
+	faster.
+
+	* src/nci.f90 (nciplot): fourier transform for the hessian
+	components plus sylverster's inertia law. The calculation of the
+	eigenvalue sign is much faster now.
+	(nciplot): NOCHK keyword added.
+
+	* doc/user-guide.txt: added friendly note regarding the use of
+	NCIplot on grids.
+
+	* src/grid_tools.f90: deactivated usecore for rhoat, lap and grho
+	derived grids.
+	(grid_hxx): added. Calculate the xx/yy/zz component of the
+	hessian.
+
+2013-06-14  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* README: added line in README for examples/.
+
+	* doc/syntax.txt: added missing entry in syntax.txt (normalize in
+	setfield).
+
+2013-05-01  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* critic2: hello, ChangeLog!
+
+
+

@@ -1,0 +1,381 @@
+2014-04-02  Daniel Menendez  <danielmail7@gmail.com>
+
+	* src/molly_private.f90: factorial -> fact.
+
+2014-04-01  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/struct.f90: fixed the problem with x-nint(x) not having
+	minimum distance. New "shortest" subroutine. Changed lots of code
+	in other routines.
+
+2014-03-31  Daniel Menendez  <danielmail7@gmail.com>
+
+	* examples/02_simple_mopro/mopro: mopro generated grid
+	density for comparision.
+
+	* examples/02_simple_mopro: gnuplot files for plotting.
+
+	* src/tools_math.f90 (factorial): changed from recursive
+	to an implicit loop. An argument size checker is included.
+
+	* src/fields.F90: molly field initialization
+
+	* src/molly_private.f90: factorial instead of gamma.
+	No crystallographic to cartesian needed.
+2014-03-31  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/grd_atomic.f90, src/struct.f90: write the total, valence and
+	core number of electrons.
+
+2014-03-30  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/grd_atomic.f90: zero-psp atoms do not contribute to the core
+	density.
+
+	* src/xdm.f90: done with xdm.
+
+2014-03-29  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90: fused(.)=.true. moved to getfieldnum.
+
+	* src/fields.F90: created the getfieldnum function to grab an
+	unallocated field number.
+
+	* src/fields.F90: created the goodfield function to check if a
+	field is usable.
+
+	* src/xdm.f90: started the xdm module. Not quite there yet.
+
+2014-03-28  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90: finished taufromelf (not checked).
+
+2014-03-27  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/wien_private.f90, src/param.f90: created imag=(0d0,1d0) to
+	represent the imaginary unit i. Moved some of wien's code out of
+	the way.
+
+	* src/tools_math.f90: first version of the routine that generates
+	real solid harmonics.
+
+	* src/tools_math.f90: moved the transformation from cartesian to
+	spherical from elk_private to tools_math.
+
+	* src/tools_math.f90: the spherical harmonics generator (genylm)
+	moved from elk_private.f90 to tools_math.f90.
+
+	* src/yt.f90, src/bader.f90, src/integration.f90: moved the
+	integrated properties printout to integration, so yt and bader can
+	use the same code.
+
+2014-03-26  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90, src/bader.f90: added keyword "fieldlist" to give a
+	list of grid maxima (or nuclei) and the integrable field value at
+	them.
+
+	* src/bader.f90, src/yt.f90: added the escher option to write a .m
+	file containing the positions of the grid maxima.
+
+2014-03-17  Daniel Menendez  <danielmail7@gmail.com>
+
+	* examples/02_simple_mopro/mopro: rhoplot of MoPro total density.
+
+	* examples/02_simple_mopro: rhoplot of core + valence density
+	using the Hansen--Coppens model.
+
+	* src/struct.f90 (struct_read_par): input cell parameters
+	transformed from angstroms to bohr.
+
+	* src/fields.F90: point coordinates for molly_rho2 are now
+	cartesian to be consistent. All unit cell atoms are charged after
+	calling molly_read_par.
+
+	* src/types.f90 (orb_sto, atom_multipolar): a new type for
+	holding parameters needed to build an orbital from STO linear
+	combination. The multipolar type now holds all the unit cell atoms
+	when it is fully initialized.
+
+2014-03-07  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90 (fields_unload): added f()%dummy.
+
+	* src/critic2.f90: cleaned up 'uses'.
+
+	* src/makemake.sh: deleted old $(MODULE) dependency.
+
+	* doc/syntax.txt: added LOAD file.par.
+
+	* AUTHORS: added Daniel.
+
+2014-03-06  Daniel Menendez  <danielmail7@gmail.com>
+
+	* doc/user-guide.txt: crystal file.par and load file.par
+	added.
+
+	* doc/syntax.txt: added support to read the structure
+	from a <struct>.par file and load a field from the same
+	.par file (the value of the field has non physical sense
+        by now).
+
+	* src/tools_math.f90 (factorial): a function to calculate
+	the factorial.
+
+	* src/types.f90 (atom_multipolar, fields): a type to
+	contain Hansen-Coppens model data. The fields type is
+	now populated with variables needed to recontruct the
+	density from the multipolar model parameters.
+
+	* examples/02_simple_mopro: an example that reads the
+	structure of BTDMTTF-TCNQ from a .par file and then it
+	is exported to .xyz (bug: a few atoms are not represented
+        correctly).
+
+	* src/makemake.sh: added the molly_private.f90 module
+	to the dependency chain.
+
+	* dat/mopro/: includes parameters used by MoPro for
+	the Hansen-Coppens multipolar density description.
+
+	* src/critic2.f90: molly_private.f90 is now imported.
+
+	* src/struct.f90 (struct_read_par): new MoPro .par file reader.
+
+	* src/fields.F90 (type_molly): new type to handle MoPro fields,
+	and molly_private import.
+
+	* src/molly_private: new module designed to calculate the density
+	and its derivatives within the Hansen-Coppens model as implemented
+	in MOLLY/MoPro. Still empty.
+
+2014-02-28  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/critic2.f90: unload all keyword added.
+
+2014-02-25  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (cpreport): cell/cell concatenation in escher
+	output.
+
+2014-02-24  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (cpreport): fixed bug in the generation of the CP
+	positions in the escher output.
+
+	* src/struct.f90 (struct_read_qeout): fixed typo.
+
+	* doc/user-guide.txt: added a little note about CORE usage in grid
+	fields.
+
+2014-02-05  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90, src/bader.f90: clean up.
+
+	* src/struct.f90: fixed problem with using the old H-M space group
+	label when reading from a cif file.
+
+	* dat/cif_core.dic: updated to the 2.4.3 version of the CIF core
+	dictionary (updated 2012-05-16).
+
+2014-01-25  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/struct.f90: deactivated set_cryscar in cube inputs.
+
+2014-01-21  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/bader.f90: finished first implementation, the output is
+	similar to YT.
+
+2014-01-20  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/bader.f90: not there yet.
+
+	* src/tools.f90: uniq and uniq1 are obsolete, removed.
+
+	* src/struct.f90, src/rhoplot.f90: fixed r/r' in vasp.
+
+	* src/critic2.f90 (critic): implemented max, min, sum, count, and
+	mean.
+
+	* src/rhoplot.f90 (rhoplot_cube): CUBE can now write CHGCAR-style
+	files.
+
+	* src/qtree.f90: fixed some symmetry problems.
+
+	* src/critic2.f90 (critic): added ENVIRON keyword.
+
+	* src/struct.f90 (struct): it is possible to do 'crystal POSCAR
+	POTCAR' now.
+
+2014-01-19  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (cpreport): completed escher output.
+
+	* src/escherplot.m: added. Plots the escher file created by
+	critic2.
+
+	* src/autocp.f90: added cpreport keyword. Modified critshell to
+	accept the number of shells.
+
+	* doc/syntax.txt: keywords in caps.
+
+	* src/yt.f90 (yt_integrate): small ws printout.
+
+	* src/autocp.f90 (autogrid): fixed some bugs
+
+	* src/struct.f90: cleaned up variables in wigner. Modified to
+	include normalization.
+
+	* src/nci.f90: fixed writing to * instead of uout.
+
+	* doc/user-guide.txt: fixed defaults in nciplot/cutoffs.
+
+2014-01-18  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/autocp.f90 (autogrid): first implementation, needs cleanup.
+
+	* src/struct.f90: re-written wigner. polyjoin
+	disappeared.
+
+	* src/yt.f90: removed yt_wigner. Using wigner from struct.f90
+	now.
+
+	* src/types.f90: implemented realloc2i.
+
+	* src/tools.f90: created uniqc--uniq a list of vectors in
+	cartesian coordinates.
+
+	* src/critic2.f90, src/autocp.f90: started autogrid.
+
+2013-10-18  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/nci.f90 (nciplot): fixed duplicity in grd0 call. Also, write
+	a cube file with the promolecular density (-pdens.cube).
+
+2013-09-13  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_integrate): print the atoms first.
+
+	* src/struct.f90: problem with trigonal primitive lattices in the
+	qe inputs.
+
+	* src/types.f90 (types): fixed bug in relloc2r.
+
+2013-09-06  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_integrate): handle the cases where the density is
+	negative (e.g. VASP slabs).
+
+2013-09-05  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_integrate): fixed bug in the matrix passed to
+	yt_wigner.
+
+2013-08-29  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/elk_private.f90: Jose Luis mod for elk 2.1.25 inputs.
+
+	* tools/elk_2.1.25_mod: Jose Luis mod to elk 2.1.25.
+
+	* src/yt.f90 (yt_integrate): added minimum eps to chi.
+	(yt_integrate): problems with mergesort -> I use quicksort again.
+
+2013-08-23  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/yt.f90 (yt_wigner): barycenter check not as strict.
+
+	* src/struct.f90 (struct_read_cube): cube is read even if it
+	contains ghost atoms.
+
+	* src/rhoplot.f90 (rhoplot_cube): bug in cube writing -- x0 was
+	nto converted to cartesian.
+
+2013-08-01  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/nci.f90: cube file1.xyz file2.xyz ... added.
+
+	* src/nci.f90: code restructured to make the logic clearer.
+
+	* src/struct.f90: crystal now accepts CHGCAR and CHG.
+
+	* README: adapted to pandoc.
+
+	* doc/user-guide.pdf: not in the repository (go online).
+
+2013-07-25  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* all: Makefile.in back in the repostitory.
+
+2013-07-20  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* doc/lstlocal.sty: keywords in uppercase.
+
+2013-07-15  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/fields.F90: added constants--pi, e and eps.
+
+	* README: added entry for libxc
+
+	* doc/user-guide.txt: added entry for libxc.
+
+	* all: error -> ferror to avoid clash with libxc.
+
+	* doc/libxc_funcs_2.0.1.txt: included--a list of the functionals
+	available in libxc, version 2.0.1.
+
+	* configure.ac: added --with-libxc configure option.
+
+	* src/fields.F90: added support for libxc in LOAD AS.
+
+2013-07-10  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* configure.ac: fixed AM_INIT_AUTOMAKE
+
+	* src/yt.f90: added NOATOMS and GATHER keywords. Gather maxima
+	using a distance criterion equal to 2.5 times the longest grid
+	step.
+
+2013-06-17  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* src/tools.f90 (mergesort): added. Thanks to J. L. Casals for
+	this routine.
+
+	* src/bisect.f90 (bisect_msurface), src/yt.f90 (yt_integrate),
+	src/autocp.f90 (sortcps): now use mergesort.
+
+	* examples/12_nci_thymine/thymine.incritic: simpler example.
+
+	* examples/11_nci_adipicacid/adipic_acid.incritic: simpler
+	example.
+
+	* src/grid1_tools.f90 (grid1_tools): much less strict cutoff for
+	contributions to promolecular density -> makes nci calculations
+	faster.
+
+	* src/nci.f90 (nciplot): fourier transform for the hessian
+	components plus sylverster's inertia law. The calculation of the
+	eigenvalue sign is much faster now.
+	(nciplot): NOCHK keyword added.
+
+	* doc/user-guide.txt: added friendly note regarding the use of
+	NCIplot on grids.
+
+	* src/grid_tools.f90: deactivated usecore for rhoat, lap and grho
+	derived grids.
+	(grid_hxx): added. Calculate the xx/yy/zz component of the
+	hessian.
+
+2013-06-14  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* README: added line in README for examples/.
+
+	* doc/syntax.txt: added missing entry in syntax.txt (normalize in
+	setfield).
+
+2013-05-01  Alberto Otero de la Roza  <aoterodelaroza@ucmerced.edu>
+
+	* critic2: hello, ChangeLog!
+
+
+
