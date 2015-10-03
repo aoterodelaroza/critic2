@@ -28,7 +28,8 @@ configure
 
 # tests subdirectory
 *.outcritic
-tests/
+tests/*
+!tests/Makefile.am
 
 # fortran
 *.o
