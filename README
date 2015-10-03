@@ -30,7 +30,7 @@ Files
 
 * README: this file.
 * AUTHORS: the authors of the package.
-* COPYING: a copy of the licence. Critic2 is distributed under the
+* LICENSE: a copy of the licence. Critic2 is distributed under the
   GNU/GPL license v3.  
 * NEWS: a summary of changes from the last stable version.
 * INSTALL: installation instructions.
@@ -41,7 +41,6 @@ Files
         (syntax.txt). 
 * tools/: some tools to work with the files produced by critic2.
 * dat/: atomic density and cif database data.
-* tests/: test cases, for developers use.
 
 Compilation and installation
 ----------------------------
@@ -49,7 +48,7 @@ Compilation and installation
 If you got the code from the git repository and not from a package,
 you will need to run:
 
-autoreconf -i
+    autoreconf -i
 
 Prepare for compilation doing:
 
@@ -126,7 +125,9 @@ Use (documentation)
 The user's guide is in the doc/ directory in plain text
 (user-guide.txt) and PDF formats (user-guide.pdf). A concise summary
 of the syntax can be found in the syntax.txt file.  Input examples for
-critic2 are provided separately. 
+critic2 are provided separately. You can download them from:
+
+http://schooner.chem.dal.ca/downloads/critic2/critic2-examples.tar.bz2    
 
 Critic2 reads a single input file (the incritic file). A simple input
 is: 
