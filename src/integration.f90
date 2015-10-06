@@ -90,13 +90,13 @@ contains
 
     character*(*), intent(in) :: line
 
-    real*8, parameter :: ratom_def = 1d0
+    real*8, parameter :: ratom_def0 = 1d0
 
     character(len=:), allocatable :: word
     integer :: i, j, k, n(3), nn, ntot
     integer :: lp, itype, nid, lvec(3), p(3)
-    logical :: nonnm, noatoms, doflist, doescher, pmask(nprops)
-    real*8 :: ratom, dv(3), dist, r, tp(2)
+    logical :: ok, nonnm, noatoms, doflist, doescher, pmask(nprops)
+    real*8 :: ratom, dv(3), dist, r, tp(2), ratom_def
     integer, allocatable :: idg(:,:,:), idatt(:), idx(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
     real(kind=gk), allocatable :: w(:,:,:)
@@ -119,6 +119,7 @@ contains
     endif
 
     ! parse the input
+    ratom_def = ratom_def0
     nonnm = .true.
     noatoms = .false.
     doflist = .false.
@@ -129,6 +130,11 @@ contains
           nonnm = .false.
        elseif (equal(word,"noatoms")) then
           noatoms = .true.
+       elseif (equal(word,"ratom")) then
+          nonnm = .false.
+          ok = eval_next(ratom_def,line,lp)
+          if (.not.ok) &
+             call ferror("intgrid_driver","wrong RATOM keyword",faterr,line)
        elseif (equal(word,"escher")) then
           doescher = .true.
        elseif (equal(word,"fieldlist")) then

@@ -3941,7 +3941,7 @@ Yu and Trinkle (YT)
 
 ::
 
-  YT [NNM] [NOATOMS] [ESCHER] [FIELDLIST]
+  YT [NNM] [NOATOMS] [ESCHER] [RATOM ratom.r] [FIELDLIST]
 
 The Yu-Trinkle (YT) algorithm uses the reference field to calculate
 the attraction basins. The reference field must be defined on a
@@ -3963,10 +3963,11 @@ reference if you use this keyword in your work.
 The located maxima are identified by default with the closest
 nucleus. If non-nuclear maxima are expected, use the NNM keyword to
 assign only maxima that are only within 1 bohr of the closest atom.
-The NOATOMS option is appropriate for scalar fields where the maxima
-are not expected to be at the atomic positions (or at least not all of
-them). If NOATOMS is used, all the maxima found are given as NNM. This
-is useful for fields such as the ELF, the Laplacian,...
+This distance can be changed using the RATOM keyword (ratom.r in
+bohr). The NOATOMS option is appropriate for scalar fields where the
+maxima are not expected to be at the atomic positions (or at least not
+all of them). If NOATOMS is used, all the maxima found are given as
+NNM. This is useful for fields such as the ELF, the Laplacian,...
 
 With the ESCHER keyword, it is possible to write a .m octave script
 containing the geometry that can be interpreted by escher (run by the
@@ -4004,7 +4005,7 @@ The algorithm by Henkelman et al. uses the BADER keyword:
 
 ::
 
-  BADER [NNM] [NOATOMS] [ESCHER] [FIELDLIST]
+  BADER [NNM] [NOATOMS] [RATOM ratom.r] [ESCHER] [FIELDLIST]
 
 The BADER algorithm uses the reference field to calculate the basins;
 this field must be defined on a grid. BADER assigns grid nodes to
