@@ -352,7 +352,7 @@ contains
     logical :: iszero
 
     integer, parameter :: nbin = 100
-    real*8, parameter :: nbin_empty = 25
+    integer, parameter :: nbin_empty = 25
 
     allocate(ibin(nbin))
 
