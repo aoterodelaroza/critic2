@@ -4336,7 +4336,9 @@ its partition in tetrahedra. Useful for debugging.
 Print the shells of atomic neighbors for every non-equivalent atom
 in the cell, up to nshel.i shells (default: 10). If a point is given
 with the POINT keyword (crystallographic coordinates), then print the
-atomic environment of that point instead.
+atomic environment of that point instead. When the POINT keyword is
+used, critic2 also prints a complete list of all the atoms in the
+vicinity of that point.
 
 :: 
 
