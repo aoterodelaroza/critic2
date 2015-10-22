@@ -269,7 +269,7 @@ contains
     write (uout,'("    \___| |_|    |_|  \__| |_|  \___| |____|   ")')
     write (uout,*)
     write (uout,'("* CRITIC2: analysis of real-space scalar fields in solids and molecules.")')
-    write (uout,'("  (c) 1996-2015 A. Otero-de-la-Roza, A. Martin-Pendas, V. Luana")')
+    write (uout,'("  (c) 1996-2015 A. Otero-de-la-Roza, A. Martin-Pendas, V. Lua~na")')
     write (uout,'("  Distributed under GNU GPL v.3 (see COPYING for details)")')
     write (uout,'("  Bugs, requests, and rants: alberto@fluor.quimica.uniovi.es ")')
     write (uout,'("  If you find this software useful, please cite:")')
