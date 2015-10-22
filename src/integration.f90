@@ -200,19 +200,40 @@ contains
        write (sidx(nn),'("n",I2.2)') nn
     end do
 
-    ! find the properties mask
+    ! find the properties mask and output the rejected, summary of integrable properties
     pmask = .false.
+    write (uout,'("+ List of integrable properties used in this run")')
     do k = 1, nprops
        if (integ_prop(k)%itype == itype_v) then
           pmask(k) = .true.
-       elseif ((integ_prop(k)%itype == itype_f .or. integ_prop(k)%itype == itype_fval)) then
+       else
           fid = integ_prop(k)%fid
-          if (fid <= 0 .or. fid > mf) cycle
-          if (f(fid)%type /= type_grid) cycle
-          if (any(f(fid)%n /= f(refden)%n)) cycle
+          if (fid < 0 .or. fid > mf) then
+             write (uout,'("  Integrable ",A," is rejected: unknown field")') string(k)
+             cycle
+          endif
+          if (f(fid)%type /= type_grid) then
+             write (uout,'("  Integrable ",A," is rejected: not a grid")') string(k)
+             cycle
+          endif
+          if (any(f(fid)%n /= f(refden)%n)) then
+             write (uout,'("  Integrable ",A," is rejected: grid size not the same as reference field")') &
+                string(k)
+             cycle
+          endif
+          if (.not.integ_prop(k)%itype == itype_f .and..not.integ_prop(k)%itype == itype_fval) then
+             write (uout,'("  Integrable ",A," is rejected: only field values (f,fval) can be integrated on a grid")') &
+                string(k)
+             cycle
+          endif
           pmask(k) = .true.
        end if
+       if (pmask(k)) then
+          write (uout,'("  Integrable ",A," will be used under header label ''",A,"''")') &
+             string(k), string(integ_prop(k)%prop_name)
+       endif
     end do
+    write (uout,*)
 
     ! compute weights and integrate the scalar field properties
     if (itype == itype_yt) then
