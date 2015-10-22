@@ -736,12 +736,12 @@ contains
     character*(*), intent(in) :: line
 
     integer :: lp
-    integer :: nn, i, j
+    integer :: nn, i, j, k, l
     real*8 :: x0(3)
     logical :: doatoms, ok
     character(len=:), allocatable :: word
     integer, allocatable :: nneig(:), wat(:)
-    real*8, allocatable :: dist(:)
+    real*8, allocatable :: dist(:), xenv(:,:,:)
 
     nn = 10
     x0 = 0d0
@@ -771,37 +771,56 @@ contains
     allocate(nneig(nn),wat(nn),dist(nn))
     if (doatoms) then
        write (uout,'("+ Atomic environments")')
-       write (uout,'("     Atom     neig       d (a.u.)    nneq  type")')
+       write (uout,'("     Atom     neig       d (a.u.)    nneq  type        position (cryst. coords)")')
        do i = 1, cr%nneq
-          call cr%pointshell(cr%at(i)%x,nn,nneig,wat,dist)
+          call cr%pointshell(cr%at(i)%x,nn,nneig,wat,dist,xenv)
           do j = 1, nn
              if (j == 1) then
-                write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4)') &
+                write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
                    i, cr%at(i)%name, nneig(j), dist(j), wat(j), &
-                   cr%at(wat(j))%name
+                   cr%at(wat(j))%name, (string(xenv(k,1,j),'f',12,7,ioj_right),k=1,3)
              else
                 if (wat(j) /= 0) then
-                   write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4)') &
-                      nneig(j), dist(j), wat(j), cr%at(wat(j))%name
+                   write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
+                      nneig(j), dist(j), wat(j), cr%at(wat(j))%name,&
+                      (string(xenv(k,1,j),'f',12,7,ioj_right),k=1,3)
                 end if
              end if
           end do
        end do
        write (uout,*)
     else
-       call cr%pointshell(x0,nn,nneig,wat,dist)
+       call cr%pointshell(x0,nn,nneig,wat,dist,xenv)
+       ! List of atomic environments
        write (uout,'("+ Atomic environments of (",A,",",A,",",A,")")') &
           string(x0(1),'f'), string(x0(2),'f'), string(x0(3),'f')
-       write (uout,'("     Atom     neig       d (a.u.)    nneq  type")')
+       write (uout,'("     Atom     neig       d (a.u.)    nneq  type        position (cryst. coords)")')
        do j = 1, nn
           if (wat(j) /= 0) then
-             write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4)') &
-                nneig(j), dist(j), wat(j), cr%at(wat(j))%name
+             write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
+                nneig(j), dist(j), wat(j), cr%at(wat(j))%name, &
+                (string(xenv(k,1,j),'f',12,7,ioj_right),k=1,3)
           end if
+       end do
+       write (uout,*)
+
+       ! Detailed list of neighbors
+       write (uout,'("+ Neighbors of (",A,",",A,",",A,")")') &
+          string(x0(1),'f'), string(x0(2),'f'), string(x0(3),'f')
+       write (uout,'(" Atom Id           position (cryst. coords)      Distance (bohr)")')
+       do j = 1, nn
+          if (wat(j) == 0) cycle
+          do k = 1, nneig(j)
+             write (uout,'(6(A,X))') &
+                string(cr%at(wat(j))%name,5,ioj_center), string(wat(j),2),&
+                (string(xenv(l,k,j),'f',12,7,ioj_right),l=1,3),&
+                string(dist(j),'f',12,5,ioj_right)
+          end do
        end do
        write (uout,*)
     end if
     deallocate(nneig,wat,dist)
+    if (allocated(xenv)) deallocate(xenv)
     
   end subroutine struct_environ
 
