@@ -200,14 +200,14 @@ contains
 
     ! argh!
     call ferror("grda_init","The environment variable CRITIC_HOME is not set",warning)
-    write (uout,'("(!) The cif dict file, the density files, and the crystal library")')
+    write (uout,'("(!) The cif dict file, the density files, and the structure library")')
     write (uout,'("(!) will not be available. critic_home set to pwd.")')
     critic_home = "."
 
 99  continue
 
     ! library file path
-    library_file = trim(critic_home) // dirsep // "crystal.lib"
+    library_file = trim(critic_home) // dirsep // "library.dat"
 
     ! set all default values
     call global_set_defaults()
