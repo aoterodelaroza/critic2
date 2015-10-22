@@ -69,14 +69,13 @@ contains
 
     if (verbose) then
        write (uout,'("* Atomic radial density grids")')
-       write (uout,'("+ List of atoms and charges:")')
-       write (uout,'(5(2X,A))') &
-          string("id",length=3,justify=ioj_right), &
-          string("atom",length=5,justify=ioj_center), &
+       write (uout,'("+ List of atomic charges and atomic numbers")')
+       write (uout,'("# ",5(A,2X))') &
+          string("nat",length=3,justify=ioj_right), &
+          string("name",length=5,justify=ioj_center), &
           string("Z",length=2,justify=ioj_right), &
           string("Q",length=3,justify=ioj_right), &
           string("ZPSP",length=3,justify=ioj_right)
-       write (uout,'(2X,27("-"))')
        nelec = 0
        nval = 0
        do i = 1, cr%nneq
@@ -93,7 +92,7 @@ contains
              nval = nval + cr%at(i)%mult * cr%at(i)%z
           end if
        end do
-       write (uout,'(2X,27("-")/)')
+       write (uout,*)
        write (uout,'("+ Number of electrons: ",A)') string(nelec)
        write (uout,'("+ Number of valence electrons: ",A)') string(nval)
        write (uout,'("+ Number of core electrons: ",A)') string(nelec-nval)
@@ -102,18 +101,19 @@ contains
     
     if (dopro) then
        if (verbose) &
-          write (uout,'("+ Reading new promolecular density grids:")')
+          write (uout,'("* Reading new promolecular density grids")')
        do i = 1, cr%nneq
           if (cr%at(i)%z == 0) cycle
           if (agrid(cr%at(i)%z)%init .and. agrid(cr%at(i)%z)%z == cr%at(i)%z .and.&
               agrid(cr%at(i)%z)%qat == cr%at(i)%qat) cycle
           call grid1_read_db(agrid(cr%at(i)%z),cr%at(i)%z,cr%at(i)%qat,verbose)
        end do
+       if (verbose) write (uout,*)
     end if
 
     if (docore) then
        if (verbose) &
-          write (uout,'("+ Reading new core density grids:")')
+          write (uout,'("* Reading new core density grids")')
        do i = 1, cr%nneq
           if (cr%at(i)%zpsp <= 0) cycle
           iz = cr%at(i)%z
@@ -122,9 +122,8 @@ contains
               cgrid(iz,iq)%qat == iq) cycle
           call grid1_read_db(cgrid(iz,iq),iz,iq,verbose)
        end do
+       if (verbose) write (uout,*)
     endif
-
-    if (verbose) write (uout,*)
 
   end subroutine grda_init
 

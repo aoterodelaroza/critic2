@@ -140,7 +140,7 @@ contains
     integer :: i, j, n, lu, nat, idx
     logical :: found
 
-    integer :: dunit, unit, mm
+    integer :: ldunit, unit, mm
     integer, parameter :: unit_au = 1
     integer, parameter :: unit_ang = 2
     integer, parameter :: unit_x = 3
@@ -149,16 +149,16 @@ contains
     real*8, parameter :: eps = 1d-4
 
     ! parse the first word
-    dunit = unit_x
+    ldunit = unit_x
     word = lgetword(line0,lp)
     if (equal(word,'angstrom') .or.equal(word,'ang')) then
-       dunit = unit_ang
+       ldunit = unit_ang
     elseif (equal(word,'bohr') .or.equal(word,'au')) then
-       dunit = unit_au
+       ldunit = unit_au
     elseif (equal(word,'cryst')) then
-       dunit = unit_x
+       ldunit = unit_x
     elseif (equal(word,'reciprocal')) then
-       dunit = unit_rec
+       ldunit = unit_rec
     elseif (len_trim(word) > 0) then
        call ferror('varbas_identify','Unkwnon extra keyword',faterr,line0)
     endif
@@ -193,7 +193,7 @@ contains
           elseif (equal(word,'reciprocal')) then
              unit = unit_rec
           else
-             unit = dunit
+             unit = ldunit
           endif
 
           if (unit == unit_ang) then

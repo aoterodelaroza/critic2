@@ -708,8 +708,8 @@ contains
     call realloc(c%atenv,c%nenv)
 
     if (verbose) then
-       write (uout,'("+ Atoms contributing density to the main cell:")')
-       write (uout,'("  Number of atoms: ",A)') string(c%nenv)
+       write (uout,'("+ Building the atomic environment of the main cell")')
+       write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
        write (uout,*)
     end if
 
@@ -1460,64 +1460,70 @@ contains
        end do
        write (uout,'("  Number of electrons in the unit cell: ",A/)') string(nelec)
 
-       write (uout,'("+ List of non-equivalent atoms: ")')
-       write (uout,'(2x,6(A,X))') string("x",14,ioj_center), string("y",14,ioj_center),&
-          string("z",14,ioj_center), string("name",10,ioj_center), &
-          string("mult",4,ioj_center), string("Z",4,ioj_center)
-       write (uout,'(2X,65("-"))')
-       do i=1, c%nneq
+       if (.not.cr%ismolecule) then
+          write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
+          write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
+             string("x",14,ioj_center), string("y",14,ioj_center),&
+             string("z",14,ioj_center), string("name",10,ioj_center), &
+             string("mult",4,ioj_center), string("Z",4,ioj_center)
+          do i=1, c%nneq
+             write (uout,'(2x,7(A,X))') &
+                string(i,3,ioj_center),&
+                string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
+                string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
+                string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+                string(c%at(i)%name,10,ioj_center), &
+                string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
+          enddo
+          write (uout,*)
+
+          write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
+          write (uout,'("# ",6(A,X))') string("at",3,ioj_center),&
+             string("x",14,ioj_center), string("y",14,ioj_center),&
+             string("z",14,ioj_center), string("name",10,ioj_center),&
+             string("Z",4,ioj_center)
+          do i=1,c%ncel
+             write (uout,'(2x,6(A,X))') &
+                string(i,3,ioj_center),&
+                string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
+                string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
+                string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+                string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
+                string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
+          enddo
+          write (uout,*)
+       end if
+
+       write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname
+       write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
+          string("x",16,ioj_center), string("y",16,ioj_center),&
+          string("z",16,ioj_center), string("name",10,ioj_center),&
+          string("Z",4,ioj_center)
+       do i=1,c%ncel
           write (uout,'(2x,6(A,X))') &
-             string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
-             string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
-             string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-             string(c%at(i)%name,10,ioj_center), &
-             string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
+             string(i,3,ioj_center),&
+             (string(c%atcel(i)%r(j)*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
+             string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
+             string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
        enddo
-       write (uout,'(2X,65("-"))')
-
-       write (uout,'(/"+ List of atoms in the unit cell (cryst): ")')
-       write (uout,'(2x,4(A,X))') string("x",14,ioj_center), string("y",14,ioj_center),&
-          string("z",14,ioj_center), string("name",10,ioj_center)
-       write (uout,'(2X,55("-"))')
-       do i=1,c%ncel
-          write (uout,'(2x,4(A,X))') &
-             string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
-             string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
-             string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-             string(c%at(c%atcel(i)%idx)%name,10,ioj_center)
-       enddo
-       write (uout,'(2X,55("-"))')
-
-       write (uout,'(/"+ List of atoms in the unit cell (bohr): ")')
-       write (uout,'(2x,4(A,X))') string("x",14,ioj_center), string("y",14,ioj_center),&
-          string("z",14,ioj_center), string("name",10,ioj_center)
-       write (uout,'(2X,55("-"))')
-       do i=1,c%ncel
-          write (uout,'(2x,4(A,X))') &
-             string(c%atcel(i)%r(1),'f',length=14,decimal=8,justify=5),&
-             string(c%atcel(i)%r(2),'f',length=14,decimal=8,justify=5),&
-             string(c%atcel(i)%r(3),'f',length=14,decimal=8,justify=5),& 
-             string(c%at(c%atcel(i)%idx)%name,10,ioj_center)
-       enddo
-       write (uout,'(2X,55("-"))')
+       write (uout,*)
 
        ! For molecules, output the xyz in angstorm
        if (c%ismolecule) then
-          write (uout,'(/"+ The system is a MOLECULE [xcrys = (x-x0) * car2crys]")')
-          write (uout,'(/"+ List of atoms in the unit cell (angstrom, referred to the cube center if applicable): ")')
+          write (uout,'("+ The system is a MOLECULE [xcrys = (x-x0) * car2crys]"/)')
+          write (uout,'("+ List of atoms in the unit cell (angstrom, referred to the cube center if applicable): ")')
           do i=1,c%ncel
              write (uout,'(3x,3f18.10,3x,a)') &
                 (c%atcel(i)%r(:)+c%molx0)*bohrtoa, trim(c%at(c%atcel(i)%idx)%name)
           enddo
-       end if
-
-       ! For molecules, output the border
-       if (c%ismolecule) then
           write (uout,*)
+
+          ! The border of the cell
           write (uout,'("+ Limit of the molecule within the cell (cryst coords):")')
           write (uout,'("  a axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
           write (uout,'("  b axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
           write (uout,'("  c axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
+          write (uout,*)
        end if
     end if
 
@@ -1540,7 +1546,7 @@ contains
     ! Cell volume
     c%omega = root * c%aa(1) * c%aa(2) * c%aa(3)
     if (verbose) then
-       write (uout,'(/"+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
+       write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
        write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
        write (uout,*)
     end if
@@ -1571,8 +1577,9 @@ contains
           write (uout,'(2X,"Operation ",A,":")') string(k)
           write (uout,'(2(4X,4(A,X)/),4X,4(A,X))') ((string(c%rotm(i,j,k),'f',length=9,decimal=6,justify=3), j = 1, 4), i = 1, 3)
        enddo
+       write (uout,*)
 
-       write(uout,'(/"+ List of centering vectors (",A,"):")') string(c%ncv)
+       write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
        do k = 1, c%ncv
           write (uout,'(2X,"Vector ",A,": ",3(A,X))') string(k), &
              (string(c%cen(i,k),'f',length=9,decimal=6), i = 1, 3)
@@ -1581,18 +1588,18 @@ contains
 
        write (uout,'("+ Centering type (p=1,a=2,b=3,c=4,i=5,f=6,r=7): ",A/)') string(c%lcent)
 
-       write (uout,'("+ Cartesian/crystallographic transformation matrices:")')
-       write (uout,'("  Car to crys (xcrys = A * xcar)")')
+       write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
+       write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname
        do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j),'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j)/dunit,'f',length=16,decimal=10,justify=5),j=1,3)
        end do
-       write (uout,'("  Crys to car (xcar = B * xcrys)")')
+       write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname
        do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j),'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j)*dunit,'f',length=16,decimal=10,justify=5),j=1,3)
        end do
-       write (uout,'("  Metric tensor")')
+       write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname
        do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j),'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit**2,'f',length=16,decimal=10,justify=5),j=1,3)
        end do
        write (uout,*)
 
@@ -1602,12 +1609,13 @@ contains
 
     ! determine type and vector for symm. operations
     if (verbose) then
-       write (uout,'("+ Symmetry operations in chemical notation:")')
+       write (uout,'("+ Symmetry operations (rotations) in chemical notation:")')
        do i = 1, c%neqv
           call typeop(c%rotm(:,:,i),tipo,vec,order)
-          write (uout,'(2X,A,2X,A,2x,"( ",2(A," , "),A," )")') string(i,length=3), &
+          write (uout,'(2X,A,2X,A,2x,"(",2(A,", "),A,")")') string(i,length=3), &
              string(symchar(tipo),length=3), (string(vec(j),'f',decimal=5,length=8,justify=ioj_right),j=1,3)
        enddo
+       write (uout,*)
     end if
 
     ! Point group and Laue class
@@ -1713,15 +1721,14 @@ contains
 
     ! Print out atomic environments and determine the nearest neighbor distances
     if (verbose) then
-       write (uout,'("+ Atomic environments:")')
-       write (uout,'(6(2X,A))') &
+       write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname
+       write (uout,'("# ",6(A,2X))') &
           string("id",length=4,justify=ioj_center), &
           string("atom",length=5,justify=ioj_center), &
           string("nneig",length=5,justify=ioj_center), &
-          string("distance",length=14,justify=ioj_center), &
+          string("distance",length=11,justify=ioj_right), &
           string("nneq",length=4,justify=ioj_center), &
           string("type",length=10,justify=ioj_left)
-       write (uout,'(2X,48("-"))')
        nn = 10
     else
        nn = 1
@@ -1742,7 +1749,7 @@ contains
                 write (uout,'(6(2X,A))') &
                    str1, str2, &
                    string(nneig(j),length=5,justify=ioj_center), &
-                   string(dist(j),'f',length=12,decimal=7,justify=5), &
+                   string(dist(j)*dunit,'f',length=12,decimal=7,justify=5), &
                    string(wat(j),length=4,justify=ioj_center), &
                    string(c%at(wat(j))%name,length=10,justify=ioj_left)
              end if
@@ -1751,24 +1758,21 @@ contains
        c%at(i)%rnn2 = dist(1) / 2d0
     end do
     if (verbose) then
-       write (uout,'(2X,48("-"))')
        write (uout,*)
     end if
     deallocate(nneig,wat,dist)
 
     ! Determine nn/2 for every atom
     if (verbose) then
-       write (uout,'("+ List of nearest neighbor distances:")')
+       write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname
        write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
           string("atom",length=5,justify=ioj_center), &
-          string("rnn/2 (bohr)",length=12,justify=ioj_center)
-       write (uout,'(2X,27("-"))')
+          string("rnn/2",length=12,justify=ioj_center)
        do i = 1, c%nneq
           write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
              string(c%at(i)%name,length=5,justify=ioj_center), &
-             string(c%at(i)%rnn2,'f',length=12,decimal=7,justify=4)
+             string(c%at(i)%rnn2*dunit,'f',length=12,decimal=7,justify=4)
        end do
-       write (uout,'(2X,27("-"))')
        write (uout,*)
     end if
 
@@ -1776,7 +1780,7 @@ contains
     naux = 1
     call c%wigner((/0d0,0d0,0d0/),.false.,naux,c%nws,c%ivws)
     if (verbose) then
-       write (uout,'("+ Wigner-Seitz neighbors")')
+       write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
        do i = 1, c%nws
           write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
              (string(c%ivws(j,i),length=2,justify=ioj_right),j=1,size(c%ivws,1))
@@ -1787,6 +1791,7 @@ contains
              c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
           end do
        endif
+       write (uout,*)
        write (uout,'("+ Is the cell orthogonal? ",L1/)') c%isortho
     end if
 

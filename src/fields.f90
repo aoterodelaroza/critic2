@@ -871,11 +871,10 @@ contains
     integer :: i, id
     character*4 :: sprop
 
-    write (uout,'("* Integrable properties list")')
-    write (uout,'(2X,4(A,2X))') &
+    write (uout,'("* List of integrable properties")')
+    write (uout,'("# ",4(A,2X))') &
        string("Id",length=3,justify=ioj_right), string("Type",length=4,justify=ioj_center), &
        string("Field",length=5,justify=ioj_right), string("Name")
-    write (uout,'(2X,25("-"))')
     do i = 1, nprops
        if (.not.integ_prop(i)%used) cycle
        id = integ_prop(i)%fid
@@ -914,7 +913,6 @@ contains
              string(integ_prop(i)%fid,length=5,justify=ioj_right), string(integ_prop(i)%prop_name)
        end if
     end do
-    write (uout,'(2X,25("-"))')
     write (uout,*)
 
   end subroutine fields_integrable_report

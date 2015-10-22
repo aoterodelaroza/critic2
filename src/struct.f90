@@ -72,7 +72,13 @@ contains
     if (c%ismolecule) then
        ! deactivate symmetry
        doguess = .false.
+       ! default unit is ang
+       if (iunit_isdef) iunit = iunit_ang
+    else
+       if (iunit_isdef) iunit = iunit_bohr
     end if
+    iunitname = trim(iunitname0(iunit))
+    dunit = dunit0(iunit)
 
     ! read and parse
     lp=1

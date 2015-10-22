@@ -19,6 +19,7 @@
 ! Contains global variables and parameters, and initialization
 ! procedures run at the beginning of the execution.
 module global
+  use param, only: bohrtoa
   implicit none
 
   public
@@ -86,6 +87,17 @@ module global
   ! global control for critic
   character(len=:), allocatable :: fileroot !< file prefix
   logical :: quiet
+
+  ! units
+  integer :: iunit
+  logical :: iunit_isdef
+  character(len=:), allocatable :: iunitname
+  real*8 :: dunit
+
+  integer, parameter :: iunit_bohr = 1
+  integer, parameter :: iunit_ang = 2
+  character*4, parameter :: iunitname0(2) = (/"bohr","ang "/)
+  real*8, parameter :: dunit0(2) = (/1d0,bohrtoa/)
 
   ! guess and symmetry option
   logical :: doguess
@@ -207,6 +219,12 @@ contains
 
     doguess = .true.
     refden = 0
+
+    ! units
+    iunit = iunit_bohr
+    iunitname = trim(iunitname0(iunit))
+    dunit = dunit0(iunit)
+    iunit_isdef = .true.
 
     ! navigation
     NAV_stepper = NAV_stepper_euler
@@ -554,6 +572,22 @@ contains
        call check_no_extra_word()
     elseif (equal(word,'library')) then
        library_file = string(line(lp:))
+    elseif (equal(word,'units')) then
+       do while(.true.)
+          word = lgetword(line,lp)
+          if (equal(word,'bohr').or.equal(word,'au').or.equal(word,'a.u.')) then
+             iunit = iunit_bohr
+             iunit_isdef = .false.
+          elseif (equal(word,'ang').or.equal(word,'angstrom')) then
+             iunit = iunit_ang
+             iunit_isdef = .false.
+          elseif (len_trim(word) > 0) then
+             call ferror('critic_setvariables','Unknown keyword in UNITS',faterr,line)
+          else
+             exit
+          end if
+       end do
+       dunit = dunit0(iunit)
     elseif (isassignment(var,word,line)) then
        rdum = eval_hard_fail(word)
        call setvariable(trim(var),rdum)
