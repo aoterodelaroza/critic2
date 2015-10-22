@@ -1,21 +1,24 @@
 ## Keywords are in CAPS (except POSCAR, CONTCAR, etc.), .s are
 ## strings, .i are integer expressions, .r are real expressions,
 ## "expr" are arithmetic expresions involving fields (that is, "$"
-## objects in the expression). Other extensions correspond to
-## files. 
+## objects in the expression). Other extensions correspond to files.
 
 ## Arithmetic expressions can be given between single quotes (''),
 ## double quotes (""), parentheses, or without quoting as long as
 ## there are no spaces. They can be used in most places that a real or
 ## integer can. Variables can be used almost everywhere.
 
+## In non-quiet mode (no -q argument), a copy of each input line
+## is written to the output after a '%%' prefix.
+
+## Key to the syntax:
 ## nat.i  atom from the nonequivalent list (asymmetric unit)
 ## ncp.i  critical point from the non-equivalent list
 ## at.i   atom from the complete list (unit cell)
 ## cp.i   critical point from the complete list (unit cell)
 ## at.s   atomic symbol 
 
-# comment
+# comment; the continuation symbol is '\'
 variable.s = value.r # assigns the expression value to the variable.
 expression.r # prints the value of the expression to the output.
 * CRYSTAL/MOLECULE # molecule..endmolecule can be used to input a molecule.
