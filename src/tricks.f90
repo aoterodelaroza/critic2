@@ -29,6 +29,16 @@ contains
     use struct_basic
     character*(*), intent(in) :: line0
 
+    call trick_recalculate_xdm()
+
+  end subroutine trick
+
+  !> Recalculate the XDM dispersion energy from the information in the 
+  !> espresso output from which the crystal structure was read.
+  subroutine trick_recalculate_xdm()
+    use tools_io
+    use struct_basic
+
     integer :: i, j, ii, jj, nn, i3
     integer :: lu, idx, idx1, idx2
     character(len=:), allocatable :: line, str
@@ -138,6 +148,6 @@ contains
     
     write (uout,*)
 
-  end subroutine trick
+  end subroutine trick_recalculate_xdm
 
 end module tricks
