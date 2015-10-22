@@ -99,13 +99,16 @@ using the keyword LOAD::
 
   LOAD file.clmsum file.struct
 
-Unless otherwise stated in this manual, the units in critic2 are
-**atomic units**. In particular, distances are in bohr and the
-electron density is in electrons/bohr :sup:`3`. After loading the
-relevant fields, keywords are used to perform the required tasks. For
-instance, AUTO (automatic determination of critical points), INTEGRALS
-(atomic integration), NCIPLOT (non-covalent interaction index plots),
-etc.
+
+
+Unless otherwise stated, the default distance units in critic2 are
+atomic units (bohr) for crystals and angstrom for molecules. This can
+be changed using the UNITS keyword (see `Input and output
+units`_). Electron densities are always in atomic units
+(electrons/bohr:sup:`3`). After loading the relevant fields, keywords
+are used to perform the required tasks. For instance, AUTO (automatic
+determination of critical points), INTEGRALS (atomic integration),
+NCIPLOT (non-covalent interaction index plots), etc.
 
 A concise description of the critic2 keyword syntax is given in the
 syntax.txt file. If you are already familiar with this program, that
@@ -609,6 +612,18 @@ of the manual:
   and ccp are also used throughout the manual. Note that a maximum is
   a 'nuclear critical point' even though it may not be associated to
   any nucleus.
+
+Input and output units 
+~~~~~~~~~~~~~~~~~~~~~~
+
+The default input and output units in critic2 are bohr for crystals
+(the structure is loaded using the CRYSTAL keyword) and angstrom for
+molecules (MOLECULE keyword). This default behavior can be changed
+with the UNITS keyword::
+
+  UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
+
+Experimental xxxx do not use yet.
 
 Arithmetic expressions, variables, and functions in critic2
 -----------------------------------------------------------
@@ -1194,7 +1209,7 @@ with molecular grids and wavefunctions. Also, cube files calculated
 with Gaussian (e.g. with cubegen) can be used in critic2. The program
 will assume periodic boundary conditions but topologies, graphical
 representations and computations with cubes can be performed
-nevertheless (see the "Molecular structures" section below).
+nevertheless (see the `Molecular structures`_ section below).
 
 When using a molecule as input (for instance, from an xyz file using
 the ANGSTROM keyword), the CENTER keyword can be useful::
@@ -1209,6 +1224,10 @@ molecule to the center of the periodic cell by using 'CENTER 0.5 0.5
 instance, a cube file input, since the field and the geometry are
 going to be out of sync. Also, note that molecules read from xyz, wfn,
 and wfx files are automatically centered (by 1/2 1/2 1/2).
+
+The default distance units in input and output when using the CRYSTAL
+keyword to load a structure are atomic units (bohr). See `Input and
+output units`_.  
 
 The crystal library
 ~~~~~~~~~~~~~~~~~~~
@@ -1339,7 +1358,7 @@ MOLECULE keyword is most often used when loading an xyz or a Gaussian
 wfn/wfx file.  
 
 Because critic2 works under periodic boundary conditions, it does the
-analysis of molecular structures in the xyz/wfn/wfx format by placing
+analysis of molecular structures in the xyz/wfn/wfx format by
 translating the input molecule to the center of a supercell large
 enough to encompass it. The structures loaded from a format different
 from xyz/wfn/wfx are not translated. The amount of border around the
@@ -1370,6 +1389,10 @@ behavior in critic2. Namely:
   outside the molecular cell are discarded, and all downwards gradient
   paths that exit the molecular cell are assumed to have diverged to
   infinity.
+
+* The default units in input and output are angstrom instead of bohr
+  (use the UNITS keyword in `Input and output units`_ to change this
+  behavior).  
 
 In the (unusual) case in which you want to analyze a molecular
 structure not coming from a xyz/wfn/wfx, critic2 will not
@@ -5134,6 +5157,10 @@ SUM
 SYSTEM
   Same as RUN; run an external command. See `Control commands and
   options`_.  
+
+UNITS
+  Change the default units used in the input and output. See `Input
+  and output units`_. 
 
 UNLOAD
   Unload a field. See `Unloading a field (UNLOAD)`_.

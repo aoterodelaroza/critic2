@@ -55,6 +55,7 @@ expression.r # prints the value of the expression to the output.
   ENDCRYSTAL/END
   CRYSTAL LIBRARY label.s
 * LIBRARY path.s
+* UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
 * [NO]GUESS
 * MOLCELL [border.r]
 * CLEARSYM/CLEARSYMM
