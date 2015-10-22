@@ -92,10 +92,13 @@ program critic
      call config_write()
      call tictac('CRITIC2')
      write (uout,*)
+     ucopy = uout
+  else
+     ucopy = -1
   endif
 
   ! Start reading
-  do while (getline(uin,line))
+  do while (getline(uin,line,ucopy=ucopy))
      lp=1
      word = lgetword(line,lp)
      subline = line(lp:)

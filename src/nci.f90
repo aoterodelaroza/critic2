@@ -162,7 +162,7 @@ contains
     if (.not.quiet) call tictac("start nciplot")
 
     do while(.true.)
-       ok = getline(uin,line,.true.)
+       ok = getline(uin,line,.true.,ucopy)
        lp = 1
        word = lgetword(line,lp)
 
@@ -1205,7 +1205,11 @@ contains
 
     ! create a fragment from input
     do while (.true.)
-       ok = getline(lu,line,.true.)
+       if (lu == uin) then
+          ok = getline(lu,line,.true.,ucopy)
+       else
+          ok = getline(lu,line,.true.)
+       endif
        lp = 1
        word = lgetword(line,lp)
        if (.not.equal(word,"end") .and. .not.equal(word,"endfragment")) then

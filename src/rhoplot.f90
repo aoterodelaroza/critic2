@@ -1474,7 +1474,7 @@ contains
 
     !.Read user options:
     ll = len(line)
-    doagain = getline(uin,line)
+    doagain = getline(uin,line,ucopy=ucopy)
     goodplane = .false.
     do while (doagain)
        lp=1
@@ -1704,7 +1704,7 @@ contains
        elseif (equal (word,'check')) then
           call check_no_extra_word()
           ! read the user-entered points:
-          ok = getline(uin,line,.true.)
+          ok = getline(uin,line,.true.,ucopy)
           lp = 1
           word = lgetword (line,lp)
           do while (ok .and. .not.equal(word, 'endcheck'))
@@ -1720,7 +1720,7 @@ contains
              call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp))
              q0 = cr%c2x(q0)
 
-             ok = ok .and. getline(uin,line,.true.)
+             ok = ok .and. getline(uin,line,.true.,ucopy)
              lp = 1
              word = lgetword(line,lp)
           enddo
@@ -1800,7 +1800,7 @@ contains
        else
           call ferror ('grdvec','Unkown keyword in GRDVEC',faterr,line)
        endif
-       doagain = getline(uin,line)
+       doagain = getline(uin,line,ucopy=ucopy)
     enddo
     call ferror ('grdvec','Unexpected end of input',faterr,line)
 999 continue

@@ -169,7 +169,7 @@ contains
     lp = 1
     n = 0
     allocate(pointlist(3,10),isrec(10))
-    ok = getline(uin,line)
+    ok = getline(uin,line,ucopy=ucopy)
     if (ok) then
        word = lgetword(line,lp)
     else
@@ -229,7 +229,7 @@ contains
 
        ! read next line
        lp = 1
-       ok = getline(uin,line) 
+       ok = getline(uin,line,ucopy=ucopy) 
        if (ok) then
           word = lgetword(line,lp)
        else

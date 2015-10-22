@@ -561,8 +561,7 @@ contains
        word = string(line)
        rdum = eval_hard_fail(word)
        if (.not.quiet) then
-          write (uout,'("(i) ",A)') trim(word)
-          write (uout,'("(o) ",1p,G22.14/)') rdum
+          write (uout,'(1p,G22.14/)') rdum
        else
           write (uout,'(1p,G22.14)') rdum
        endif

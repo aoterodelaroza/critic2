@@ -38,7 +38,6 @@ contains
     real*8 :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
     real*8 :: rc(cr%ncel,cr%ncel), rvdw(cr%ncel,cr%ncel)
     
-
     real*8, parameter :: ecut = 1d-11
 
     write (uout,'("* Trick: sum the XDM dispersion energy")')

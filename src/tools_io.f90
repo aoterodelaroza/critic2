@@ -78,6 +78,7 @@ module tools_io
   ! main input and output, logical unit allocation
   integer :: uin !< main input lu
   integer :: uout !< main output lu
+  integer :: ucopy !< logical unit where the copy of the input is written
   logical, private :: alloc(0:100) !< allocation flag array
   character(len=:), allocatable :: filepath !< relative path to find related files
 
@@ -109,6 +110,7 @@ contains
     ghome=""
     uin = input_unit
     uout = output_unit
+    ucopy = uout
     uroot = "stdin"
     filepath = "."
 
@@ -469,18 +471,24 @@ contains
 
   end function equal
 
-  !Read a line from logical unit u, and return true if read was
-  !successful. Continuation with "\", skip blank lines and comments.
-  function getline(u,oline,eofexit)
+  !> Read a line from logical unit u, and return true if read was
+  !> successful. Continuation with "\", skip blank lines and comments.
+  !> If eofexit is true, raise error on EOF. If ucopy (integer) exists,
+  !> write a copy of the output line to that logical unit, preceded
+  !> by a prefix.
+  function getline(u,oline,eofexit,ucopy)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
     logical, intent(in), optional :: eofexit
+    integer, intent(in), optional :: ucopy
     logical :: getline
 
     integer :: i, lenu
     character(len=:), allocatable :: line
     logical :: notfirst, ok
     character*(1) :: inquote
+
+    character*(2), parameter :: prfx = '%%'
 
     getline = .false.
     oline = ""
@@ -536,7 +544,7 @@ contains
        end if
 
        ! continuation
-       if (line(lenu:lenu) /= "\") then ! emacs, turn the lights on! "
+       if (line(lenu:lenu) /= "\") then ! Hey, emacs, turn the lights on! " Thanks.
           oline = trim(oline) // " " // trim(line)
           oline = adjustl(oline)
           exit
@@ -544,6 +552,10 @@ contains
        oline = trim(oline) // " " // line(1:lenu-1)
        notfirst = .true.
     end do
+    if (present(ucopy)) then
+       if (ucopy >= 0) &
+          write (ucopy,'(A,X,A/)') prfx, trim(oline)
+    endif
     getline = .true.
 
   end function getline

@@ -66,7 +66,7 @@ contains
 
     character(len=:), allocatable :: word, aux, aexp, line
     character*255, allocatable :: sline(:)
-    integer :: i, j, k, lp, nsline, idx
+    integer :: i, j, k, lp, nsline, idx, luout
     real*8 :: gmat(3,3), rmat(3,3), scal, ascal, x(3), xn(3)
     logical :: ok, goodcell, goodspg, docenter
 
@@ -80,7 +80,12 @@ contains
     x0 = 0.5d0
     c%nneq = 0
     nsline = 0
-    do while (getline(lu,line))
+    if (lu == uin) then
+       luout = ucopy
+    else
+       luout = -1
+    endif
+    do while (getline(lu,line,ucopy=luout))
        lp = 1
        word = lgetword(line,lp)
        if (equal (word,'cell')) then
@@ -114,7 +119,7 @@ contains
           i = 0
           do while(.true.)
              lp = 1
-             ok = getline(lu,line)
+             ok = getline(lu,line,ucopy=luout)
              word = lgetword(line,lp)
              if (equal(word,'angstrom') .or.equal(word,'ang')) then
                 ! angstrom/ang
