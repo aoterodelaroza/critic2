@@ -689,9 +689,6 @@ contains
     !.Particular information for every critical point found
     call cp_vlong_report()
 
-    !.Obtain shell structure of critical points
-    call critshell(10)
-
     ! Write CPs to an external file
     if (.not.existcpfile) then
        call writecps(cpfile)
