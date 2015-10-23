@@ -1425,6 +1425,9 @@ keyword and the cell needs to be orthogonal.
 The molecular library is in molecule.dat. Change the library location
 with LIBRARY MOLECULE bleh.s
 
+The border is chosen with MOLCELL, but the default for molecules is
+c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
+
 Exporting the crystal structure (WRITE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

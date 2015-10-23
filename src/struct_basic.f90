@@ -656,6 +656,8 @@ contains
   !> formed by all the identical atoms equidistant to the target.
   !> A density cutoff of 1d-12 is used to determine atoms that contribute
   !> to the unit cell's density. Used in the structure initialization.
+  !> If dmax is given, use that number as an estimate of how many cells
+  !> should be included in the search for atoms. 
   subroutine build_env(c,verbose,dmax0)
     use tools_io
     use global
@@ -668,6 +670,24 @@ contains
     integer :: i, j, k, l(3), m
     real*8 :: xx(3), dmax
     integer :: imax, jmax, kmax
+
+    ! In molecules, use only the atoms in the main cell
+    if (c%ismolecule) then
+       c%nenv = c%ncel
+       if (c%nenv > size(c%atenv)) &
+          call realloc(c%atenv,c%nenv)
+       do m = 1, c%ncel
+          xx = c%atcel(m)%x
+          c%atenv(m)%x = xx
+          c%atenv(m)%r = c%x2c(xx)
+          c%atenv(m)%idx = c%atcel(m)%idx
+          c%atenv(m)%cidx = m
+          c%atenv(m)%ir = c%atcel(m)%ir
+          c%atenv(m)%ic = c%atcel(m)%ic
+          c%atenv(m)%lvec = c%atcel(m)%lvec + l
+       end do
+       return
+    endif
 
     if (present(dmax0)) then
        dmax = dmax0
@@ -707,7 +727,7 @@ contains
 
     call realloc(c%atenv,c%nenv)
 
-    if (verbose) then
+    if (verbose.and..not.c%ismolecule) then
        write (uout,'("+ Building the atomic environment of the main cell")')
        write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
        write (uout,*)
@@ -1439,28 +1459,41 @@ contains
 
     ! Print out data
     if (verbose) then
-       write (uout,'("* Input crystal data")')
-       write (uout,'("  From: ",A)') c%file
-       write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
-          string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-       write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
-          string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
-       write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
-          string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
+       if (.not.c%ismolecule) then
+          write (uout,'("* Input crystal structure")')
+          write (uout,'("  From: ",A)') c%file
+          write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
+             string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
+          write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
+             string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
+          write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
+             string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
+       else
+          write (uout,'("* Input molecular structure")')
+          write (uout,'("  From: ",A)') c%file
+          write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
+             string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
+          write (uout,'("  Encompassing cell dimensions (ang): ",3(A,2X))') &
+             string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
+       endif
 
        !compute unit formula, and z
-       maxdv = mcd(c%at(:)%mult,c%nneq)
-       write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
-          (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
-       write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
-       write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
+       if (.not.c%ismolecule) then
+          maxdv = mcd(c%at(:)%mult,c%nneq)
+          write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
+             (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
+          write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
+          write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
+       else
+          write (uout,'("  Number of atoms: ",A)') string(c%ncel)
+       endif
        nelec = 0
        do i = 1, c%nneq
           nelec = nelec + c%at(i)%z * c%at(i)%mult
        end do
-       write (uout,'("  Number of electrons in the unit cell: ",A/)') string(nelec)
+       write (uout,'("  Number of electrons: ",A/)') string(nelec)
 
-       if (.not.cr%ismolecule) then
+       if (.not.c%ismolecule) then
           write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
           write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
              string("x",14,ioj_center), string("y",14,ioj_center),&
@@ -1502,7 +1535,7 @@ contains
        do i=1,c%ncel
           write (uout,'(2x,6(A,X))') &
              string(i,3,ioj_center),&
-             (string(c%atcel(i)%r(j)*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
+             (string((c%atcel(i)%r(j)+c%molx0(j))*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
              string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
              string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
        enddo
@@ -1510,19 +1543,12 @@ contains
 
        ! For molecules, output the xyz in angstorm
        if (c%ismolecule) then
-          write (uout,'("+ The system is a MOLECULE [xcrys = (x-x0) * car2crys]"/)')
-          write (uout,'("+ List of atoms in the unit cell (angstrom, referred to the cube center if applicable): ")')
-          do i=1,c%ncel
-             write (uout,'(3x,3f18.10,3x,a)') &
-                (c%atcel(i)%r(:)+c%molx0)*bohrtoa, trim(c%at(c%atcel(i)%idx)%name)
-          enddo
-          write (uout,*)
-
-          ! The border of the cell
-          write (uout,'("+ Limit of the molecule within the cell (cryst coords):")')
-          write (uout,'("  a axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
-          write (uout,'("  b axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
-          write (uout,'("  c axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
+          write (uout,'("+ Limits of the molecular cell (in fractions of the encompassing cell).")')
+          write (uout,'("  The region of the encompassing cell outside the molecular cell is")')
+          write (uout,'("  assumed to represent infinity (no CPs or gradient paths in it).")')
+          write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
+          write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
+          write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
           write (uout,*)
        end if
     end if
@@ -1545,7 +1571,7 @@ contains
     
     ! Cell volume
     c%omega = root * c%aa(1) * c%aa(2) * c%aa(3)
-    if (verbose) then
+    if (verbose .and..not.c%ismolecule) then
        write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
        write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
        write (uout,*)
@@ -1571,7 +1597,7 @@ contains
     c%grtensor(3,3) = c%ar(3) * c%ar(3) 
 
     ! Write symmetry operations to output
-    if (verbose) then
+    if (verbose .and..not.c%ismolecule) then
        write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
        do k = 1, c%neqv
           write (uout,'(2X,"Operation ",A,":")') string(k)
@@ -1602,13 +1628,10 @@ contains
           write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit**2,'f',length=16,decimal=10,justify=5),j=1,3)
        end do
        write (uout,*)
-
-       if (c%ismolecule) &
-          write (uout,'("+ The system is a MOLECULE [xcrys = (x-x0) * car2crys]"/)')
     end if
 
     ! determine type and vector for symm. operations
-    if (verbose) then
+    if (verbose.and..not.c%ismolecule) then
        write (uout,'("+ Symmetry operations (rotations) in chemical notation:")')
        do i = 1, c%neqv
           call typeop(c%rotm(:,:,i),tipo,vec,order)
@@ -1621,25 +1644,25 @@ contains
     ! Point group and Laue class
     vec = 0d0
     call lattpg(transpose(c%crys2car),.false.,1,vec)
-    if (verbose) then
+    if (verbose.and..not.c%ismolecule) then
        write(uout,'("+ Crystal point group: ", A)') string(point_group)
        write(uout,'("+ Number of operations (point group): ", A)') string(nopsym)
     endif
     if (nopsym == 2) then
        c%lauec = 1
-       if (verbose) then
+       if (verbose.and..not.c%ismolecule) then
           write(uout,'("+ Laue class: -1")')
           write(uout,'("+ Crystal system: triclinic")')
        endif
     elseif (nopsym == 4) then
        c%lauec = 2
-       if (verbose) then
+       if (verbose.and..not.c%ismolecule) then
           write(uout,'("+ Laue class: 2/m")')
           write(uout,'("+ Crystal system: monoclinic")')
        end if
     elseif (nopsym == 6) then
        c%lauec = 6
-       if (verbose) then
+       if (verbose.and..not.c%ismolecule) then
           write(uout,'("+ Laue class: -3")')
           write(uout,'("+ Crystal system: trigonal")')
        end if
@@ -1647,13 +1670,13 @@ contains
        ! either mmm (3, D2h) or 4/m (4, C4h)
        if (any(oporder(1:nopsym) == 4)) then
           c%lauec = 4
-          if (verbose) then
+          if (verbose.and..not.c%ismolecule) then
              write(uout,'("+ Laue class: 4/m")')
              write(uout,'("+ Crystal system: tetragonal")')
           end if
        else
           c%lauec = 3
-          if (verbose) then
+          if (verbose.and..not.c%ismolecule) then
              write(uout,'("+ Laue class: mmm")')
              write(uout,'("+ Crystal system: orthorhombic")')
           end if
@@ -1666,20 +1689,20 @@ contains
        end do
        if (ok) then
           c%lauec = 8
-          if (verbose) then
+          if (verbose.and..not.c%ismolecule) then
              write(uout,'("+ Laue class: 6/m")')
              write(uout,'("+ Crystal system: hexagonal")')
           end if
        else
           c%lauec = 7
-          if (verbose) then
+          if (verbose.and..not.c%ismolecule) then
              write(uout,'("+ Laue class: -3/m")')
              write(uout,'("+ Crystal system: trigonal")')
           end if
        endif
     elseif (nopsym == 16) then
        c%lauec = 5
-       if (verbose) then
+       if (verbose.and..not.c%ismolecule) then
           write(uout,'("+ Laue class: 4/mmm")')
           write(uout,'("+ Crystal system: tetragonal")')
        end if
@@ -1690,27 +1713,27 @@ contains
        end do
        if (ok) then
           c%lauec = 9
-          if (verbose) then
+          if (verbose.and..not.c%ismolecule) then
              write(uout,'("+ Laue class: 6/mmm")')
              write(uout,'("+ Crystal system: hexagonal")')
           end if
        else
           c%lauec = 10
-          if (verbose) then
+          if (verbose.and..not.c%ismolecule) then
              write(uout,'("+ Laue class: m-3")')
              write(uout,'("+ Crystal system: cubic")')
           end if
        endif
     elseif (nopsym == 48) then
        c%lauec = 11
-       if (verbose) then
+       if (verbose.and..not.c%ismolecule) then
           write(uout,'("+ Laue class: m-3m")')
           write(uout,'("+ Crystal system: cubic")')
        end if
     else
        call ferror("struct_fill","Unknown Laue class",warning)
     end if
-    if (verbose) write (uout,*)
+    if (verbose.and..not.c%ismolecule) write (uout,*)
 
     ! Reciprocal space point group operations
     vec = 0d0
@@ -1727,7 +1750,7 @@ contains
           string("atom",length=5,justify=ioj_center), &
           string("nneig",length=5,justify=ioj_center), &
           string("distance",length=11,justify=ioj_right), &
-          string("nneq",length=4,justify=ioj_center), &
+          string("nat",length=4,justify=ioj_center), &
           string("type",length=10,justify=ioj_left)
        nn = 10
     else
@@ -1779,18 +1802,18 @@ contains
     ! Determine the wigner-seitz cell
     naux = 1
     call c%wigner((/0d0,0d0,0d0/),.false.,naux,c%nws,c%ivws)
-    if (verbose) then
+    c%isortho = (c%nws <= 6)
+    if (c%isortho) then
+       do i = 1, c%nws
+          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
+       end do
+    endif
+    if (verbose.and..not.c%ismolecule) then
        write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
        do i = 1, c%nws
           write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
              (string(c%ivws(j,i),length=2,justify=ioj_right),j=1,size(c%ivws,1))
        end do
-       c%isortho = (c%nws <= 6)
-       if (c%isortho) then
-          do i = 1, c%nws
-             c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
-          end do
-       endif
        write (uout,*)
        write (uout,'("+ Is the cell orthogonal? ",L1/)') c%isortho
     end if

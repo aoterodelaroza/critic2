@@ -2118,7 +2118,7 @@ contains
     c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm 
 
     ! set up the border around the molecule for CP and gradient path termination
-    c%molborder = max(rborder - max(2d0,0.1d0 * rborder),0d0) / (xmax - xmin)
+    c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
     ! no symmetry for now
     c%neqv = 1
