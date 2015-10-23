@@ -965,6 +965,7 @@ Loading a crystal structure (CRYSTAL/MOLECULE)
     BORDER border.r
   ENDMOLECULE   
   CRYSTAL LIBRARY label.s
+  MOLECULE LIBRARY label.s
   # Note: all CRYSTAL keywords can be replaced by MOLECULE
   # and viceversa, with the effect discussed below.
 
@@ -1229,7 +1230,7 @@ can be accessed using the CRYSTAL LIBRARY keyword like this::
 
 Critic2 tries to find the "NaCl" label (case-insensitive) in an
 internal library file that is distributed with the code, and usually
-located in dat/library.dat relative to the source of the
+located in dat/crystal.dat relative to the source of the
 distribution. The relevant library entry in this case reads::
 
   STRUCTURE B1 rock_salt rocksalt NaCl
@@ -1244,13 +1245,16 @@ distribution. The relevant library entry in this case reads::
 Note the four aliases (B1, rock_salt, rocksalt, and NaCl) that are
 defined for the same crystal structure. The syntax in the CRYSTAL
 environment is exactly the same as above.  The user can define their
-own library of crystal structures either by modifying the library.dat
+own library of crystal structures either by modifying the crystal.dat
 directly or by using the LIBRARY keyword::
 
-  LIBRARY /path/to/library
+  LIBRARY CRYSTAL /path/to/library
 
 where the indicated file is used instead to perform the lookup. The
 path can be absolute or relative to the execution directory.
+
+A similar library exists for molecules (molecule.dat) that can be
+accessed throught the MOLECULE keyword. See `Molecular structures`_. 
 
 Symmetry options
 ~~~~~~~~~~~~~~~~
@@ -1417,6 +1421,9 @@ is placed close to the center of the cell and if there is a sizable
 amount of vacuum between the molecule and the cell edges. In order to
 use MOLCELL, the input structure needs to be read using the MOLECULE
 keyword and the cell needs to be orthogonal.
+
+The molecular library is in molecule.dat. Change the library location
+with LIBRARY MOLECULE bleh.s
 
 Exporting the crystal structure (WRITE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

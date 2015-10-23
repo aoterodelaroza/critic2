@@ -6,7 +6,6 @@ structure A1 fcc Cu
     neq 0 0 0 Cu
   endcrystal
 endstructure
-
 structure A2 bcc Li
   crystal
     spg I m -3 m
@@ -14,7 +13,6 @@ structure A2 bcc Li
     neq 0 0 0 li
   endcrystal
 endstructure
-
 structure A3 hcp Be
   crystal
     spg P 63/m m c
@@ -22,7 +20,6 @@ structure A3 hcp Be
     neq 1/3 2/3 1/4 Be
   endcrystal
 endstructure
-
 structure A4 diamond diamante
   crystal 
     spg F d -3 m 2
@@ -37,7 +34,6 @@ structure Si silicon
     neq 0.125 0.125 0.125 Si
   endcrystal
 endstructure
-
 structure A9 graphite grafito
   crystal
     spg P 63/m m c
@@ -56,7 +52,6 @@ structure B1 rock_salt rocksalt NaCl
     neq 0.5 0.5 0.5 Cl 
   endcrystal
 endstructure
-
 structure B2 CsCl
   crystal
     spg P m -3 m
@@ -65,7 +60,6 @@ structure B2 CsCl
     neq 0.5 0.5 0.5 Cl 
   endcrystal
 endstructure
-
 structure B3 zincblende blende blenda
   crystal
     spg F -4 3 m
@@ -74,7 +68,6 @@ structure B3 zincblende blende blenda
     neq 0.25 0.25 0.25 S  
   endcrystal
 endstructure
-
 structure B4 zincite
   crystal
     spg P 63 m c
@@ -83,7 +76,6 @@ structure B4 zincite
     neq '1/3' '2/3' 0.345 O  
   endcrystal
 endstructure
-
 structure fluorite CaF2
   crystal 
     spg F m -3 m
@@ -214,7 +206,7 @@ structure sulphur sulfur S S8 alpha-sulfur alpha-sulphur alpha-S alpha-S8
   endcrystal
 endstructure
 
-### C21 crystal benchmark, experimental structures
+#xx# C21 crystal benchmark, experimental structures
 structure 14-cyclohexanedione
   crystal
     cell  12.56667878369  11.73519928522  12.98241853292  90.00000  99.82000  90.00000

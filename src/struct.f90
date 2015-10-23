@@ -174,8 +174,12 @@ contains
 
     else if (equal(word,'library')) then
        subline = line(lp:)
-       call struct_read_library(c,subline,x0)
-       c%file = "library (" // trim(line(lp:)) // ")"
+       call struct_read_library(c,subline,mol,x0)
+       if (mol) then
+          c%file = "molecular library (" // trim(line(lp:)) // ")"
+       else
+          c%file = "crystal library (" // trim(line(lp:)) // ")"
+       end if
 
     else if (equal(wext1,'xyz').or.equal(wext1,'wfn').or.equal(wext1,'wfx')) then
        docube = .false.

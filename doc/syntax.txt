@@ -61,7 +61,8 @@ expression.r # prints the value of the expression to the output.
    BORDER border.r
   ENDMOLECULE   
   CRYSTAL LIBRARY label.s
-* LIBRARY path.s
+  MOLECULE LIBRARY label.s
+* LIBRARY {CRYSTAL|MOLECULE} path.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
 * [NO]GUESS
 * MOLCELL [border.r]

@@ -39,7 +39,8 @@ module global
 
   ! Environment variables
   character(len=:), allocatable :: critic_home !< CRITIC_HOME directory (with trailing "/")
-  character(len=:), allocatable :: library_file !< The path to the library file
+  character(len=:), allocatable :: clib_file !< The path to the crystal library file
+  character(len=:), allocatable :: mlib_file !< The path to the molecular library file
 
   ! Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE). Up to Pu (93).
   real*8, parameter :: cutrad(120) = (/&
@@ -210,7 +211,8 @@ contains
 99  continue
 
     ! library file path
-    library_file = trim(critic_home) // dirsep // "library.dat"
+    clib_file = trim(critic_home) // dirsep // "crystal.dat"
+    mlib_file = trim(critic_home) // dirsep // "molecule.dat"
 
     ! set all default values
     call global_set_defaults()
@@ -574,7 +576,14 @@ contains
        if (.not. ok) call ferror('critic_setvariables','Wrong vcutoff',faterr,line)
        call check_no_extra_word()
     elseif (equal(word,'library')) then
-       library_file = string(line(lp:))
+       word = lgetword(line,lp)
+       if (equal(word,'crystal')) then
+          clib_file = string(line(lp:))
+       elseif (equal(word,'molecule')) then
+          mlib_file = string(line(lp:))
+       else
+          call ferror('critic_setvariables','Unknown keyword in LIBRARY',faterr,line)
+       end if
     elseif (equal(word,'units')) then
        do while(.true.)
           word = lgetword(line,lp)

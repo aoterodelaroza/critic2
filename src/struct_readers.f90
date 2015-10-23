@@ -433,16 +433,17 @@ contains
   end subroutine parse_molecule_env
 
   !> Read a structure from the critic2 structure library
-  subroutine struct_read_library(c,line,x0)
+  subroutine struct_read_library(c,line,ismol,x0)
     use global
     use tools_io
     use struct_basic
 
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: line
+    logical, intent(in) :: ismol
     real*8, intent(out) :: x0(3)
 
-    character(len=:), allocatable :: word, l2, stru, aux
+    character(len=:), allocatable :: word, l2, stru, aux, libfile
     logical :: lchk, found, ok
     integer :: lu, lp, lpo
 
@@ -450,17 +451,23 @@ contains
     lpo = 1
     stru = lgetword(line,lpo)
     if (len_trim(stru) < 1) &
-       call ferror("struct_read_library","structure label missing in CRYSTAL LIBRARY",faterr,line)
+       call ferror("struct_read_library","structure label missing in CRYSTAL/MOLECULE LIBRARY",faterr,line)
 
-    ! open the library file
-    inquire(file=library_file,exist=lchk)
-    if (.not.lchk) then
-       write (uout,'("(!) Library file:"/8X,A)') trim(library_file)
-       call ferror("struct_read_library","library file not found!",faterr)
+    if (ismol) then
+       libfile = mlib_file
+    else
+       libfile = clib_file
     endif
 
+    ! open the library file
+    inquire(file=libfile,exist=lchk)
+    if (.not.lchk) then
+       write (uout,'("(!) Library file:"/8X,A)') trim(libfile)
+       call ferror("struct_read_library","library file not found!",faterr)
+    endif
+    lu = fopen_read(libfile,abspath=.true.)
+
     ! find the block
-    lu = fopen_read(library_file,abspath=.true.)
     found = .false.
     main: do while (getline(lu,l2))
        lp = 1
@@ -476,18 +483,22 @@ contains
        endif
     end do main
     if (.not.found) then
-       write (uout,'("(!) Structure not found in file:"/8X,A)') trim(library_file)
+       write (uout,'("(!) Structure not found in file:"/8X,A)') trim(libfile)
        call ferror("struct_read_library","structure not found in library!",faterr)
     end if
 
-    ! read the crystal environment inside
+    ! read the crystal/molecule environment inside
     ok = getline(lu,l2)
-    call parse_crystal_env(c,lu,x0)
+    if (ismol) then
+       call parse_molecule_env(c,lu,x0)
+    else
+       call parse_crystal_env(c,lu,x0)
+    endif
     call fclose(lu)
 
     ! make sure there's no more input
     aux = getword(line,lpo)
-    if (len_trim(aux) > 0) call ferror('struct_read_library','Unknown extra keyword in CRYSTAL',faterr,line)
+    if (len_trim(aux) > 0) call ferror('struct_read_library','Unknown extra keyword in CRYSTAL/MOLECULE LIBRARY',faterr,line)
 
   end subroutine struct_read_library
 

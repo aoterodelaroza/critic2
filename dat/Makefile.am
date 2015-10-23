@@ -19,7 +19,7 @@ c2dat_names= \
        tc_pbe.wfc te_pbe.wfc th_pbe.wfc ti_pbe.wfc tl_pbe.wfc\
        tm_pbe.wfc u__pbe.wfc v__pbe.wfc w__pbe.wfc xe_pbe.wfc\
        yb_pbe.wfc y__pbe.wfc zn_pbe.wfc zr_pbe.wfc \
-       cif_core.dic library.dat
+       cif_core.dic crystal.dat molecule.dat
 c2datdir= $(datadir)/critic2
 c2dat_DATA=$(c2dat_names)
 EXTRA_DIST=$(c2dat_names)
