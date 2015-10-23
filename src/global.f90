@@ -99,6 +99,9 @@ module global
   character*4, parameter :: iunitname0(2) = (/"bohr","ang "/)
   real*8, parameter :: dunit0(2) = (/1d0,bohrtoa/)
 
+  ! default border for a molecular unit cell
+  real*8, parameter :: rborder_def = 3d0
+
   ! guess and symmetry option
   logical :: doguess
 

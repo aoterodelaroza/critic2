@@ -33,6 +33,7 @@ module struct_readers
   private
 
   public :: parse_crystal_env
+  public :: parse_molecule_env
   public :: struct_read_library
   public :: struct_read_cif
   public :: struct_read_cube
@@ -47,6 +48,7 @@ module struct_readers
   public :: struct_read_siesta
   private :: qe_latgen
   private :: spgs_wrap
+  private :: fill_molecule
   
 contains
 
@@ -220,7 +222,7 @@ contains
           if (nsline > size(sline)) call realloc(sline,2*size(sline))
           sline(nsline) = lower(adjustl(line(lp:)))
           
-       else if (equal(word,'endcrystal') .or. equal(word,'endmolecule') .or. equal(word,'end')) then
+       else if (equal(word,'endcrystal') .or. equal(word,'end')) then
           ! endcrystal/end
           exit
        else
@@ -229,7 +231,7 @@ contains
        endif
     end do
     aux = getword(line,lp)
-    if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in ENDCRYSTAL/ENDMOLECULE',faterr,line)
+    if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in ENDCRYSTAL',faterr,line)
 
     ! symm transformation
     if (nsline > 0 .and. allocated(sline)) then
@@ -298,6 +300,122 @@ contains
     if (.not.goodspg) call c%guessspg(.false.)
 
   end subroutine parse_crystal_env
+
+  !> Parse a molecule environment
+  subroutine parse_molecule_env(c,lu,x0)
+    use struct_basic
+    use global
+    use arithmetic
+    use tools_math
+    use tools_io
+    use types
+    use param
+
+    type(crystal), intent(inout) :: c
+    integer, intent(in) :: lu
+    real*8, intent(out) :: x0(3)
+
+    character(len=:), allocatable :: word, aux, line
+    integer :: i, j, k, lp, luout
+    real*8 :: rborder
+    logical :: ok, docube
+
+    docube = .false.
+    rborder = rborder_def
+    x0 = 0d0
+    c%nneq = 0
+    if (lu == uin) then
+       luout = ucopy
+    else
+       luout = -1
+    endif
+    do while (getline(lu,line,ucopy=luout))
+       lp = 1
+       word = lgetword(line,lp)
+
+       if (equal(word,'cube')) then
+          ! cube
+          docube = .true.
+          word = lgetword(line,lp)
+          call check_no_extra_word()
+
+       else if (equal(word,'border')) then
+          ! border [border.r]
+          ok = eval_next(rborder,line,lp)
+          if (.not.ok) &
+             call ferror('parse_molecule_input','Wrong syntax in BORDER',faterr,line)
+          call check_no_extra_word()
+
+       else if (equal(word,'endmolecule') .or. equal(word,'end')) then
+          ! endmolecule/end
+          exit
+       else
+          ! keyword not found, must be an atom. The syntax:
+          !    neq <x> <y> <z> <atom> ...
+          ! is also acceptable
+          if (.not.equal(word,'neq')) then
+             c%nneq = c%nneq+1
+             if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))
+             ok = eval_next(c%at(c%nneq)%x(1),line,lp)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
+             if (.not.ok) &
+                call ferror("parse_molecule_env","Wrong atomic input syntax",faterr,line)
+             c%at(c%nneq)%name = string(word)
+          else
+             c%nneq = c%nneq+1
+             if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))
+             ok = eval_next(c%at(c%nneq)%x(1),line,lp)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
+             if (.not.ok) &
+                call ferror("parse_molecule_env","Wrong NEQ syntax",faterr,line)
+             c%at(c%nneq)%name = getword(line,lp)
+             c%at(c%nneq)%name = string(c%at(c%nneq)%name)
+          endif
+
+          c%at(c%nneq)%x = c%at(c%nneq)%x / dunit
+          c%at(c%nneq)%z = zatguess(c%at(c%nneq)%name)
+          if (c%at(c%nneq)%z < 0) &
+             call ferror('parse_molecule_input','Unknown atomic symbol or incorrect syntax',faterr,line)
+          do while (.true.)
+             word = lgetword(line,lp)
+             if (equal(word,'zpsp')) then
+                ok = eval_next(c%at(c%nneq)%zpsp,line,lp)
+                if (.not.ok) call ferror('parse_molecule_env','Wrong ZPSP',faterr,line)
+             else if (equal(word,'q')) then
+                ok = eval_next(c%at(c%nneq)%qat,line,lp)
+                if (.not.ok) call ferror('parse_molecule_env','Wrong Q',faterr,line)
+             else if (equal(word,'ang') .or. equal(word,'angstrom')) then
+                c%at(c%nneq)%x = c%at(c%nneq)%x / bohrtoa
+             else if (equal(word,'bohr') .or. equal(word,'au')) then
+                c%at(c%nneq)%x = c%at(c%nneq)%x
+             else if (len_trim(word) > 0) then
+                call ferror('parse_molecule_input','Unknown extra keyword in atomic input',faterr,line)
+             else
+                exit
+             end if
+          end do
+       endif
+    end do
+    aux = getword(line,lp)
+    if (len_trim(aux) > 0) call ferror('parse_molecule_input','Unknown extra keyword in ENDMOLECULE',faterr,line)
+    if (c%nneq == 0) call ferror('parse_molecule_input','No atoms in input',faterr)
+
+    ! fill the missing information
+    call fill_molecule(c,rborder,docube)
+    call c%set_cryscar()
+    call c%guessspg(.false.)
+
+  contains
+    subroutine check_no_extra_word()
+      character(len=:), allocatable :: aux2
+      aux2 = getword(line,lp)
+      if (len_trim(aux2) > 0) &
+         call ferror('critic','Unknown extra keyword',faterr,line)
+    end subroutine check_no_extra_word
+  
+  end subroutine parse_molecule_env
 
   !> Read a structure from the critic2 structure library
   subroutine struct_read_library(c,line,x0)
@@ -572,10 +690,6 @@ contains
        ! call spgs and hope for the best
        call spgs_wrap(c,spg)
     endif
-
-    ! initialize atoms
-    c%at(1:c%nneq)%zpsp = -1
-    c%at(1:c%nneq)%qat = 0
 
     ! clean up
     call purge_()
@@ -1100,9 +1214,9 @@ contains
     integer, allocatable :: iz(:)
     real*8, allocatable :: x(:,:)
     integer :: lu, i, j, i1, i2
+    real*8 :: zreal
     character(len=:), allocatable :: line
     character*4 :: atsym
-    real*8 :: xmin(3), xmax(3), xcm(3), zreal
     character*4 :: orbtyp
 
     ! open the file
@@ -1174,45 +1288,14 @@ contains
     ! close the file
     call fclose(lu)
 
-    ! minimum, maximum, and center-of-mass
-    xmax = -1d40
-    xmin =  1d40
-    xcm = 0d0
-    do i = 1, c%nneq
-       do j = 1, 3
-          xmax(j) = max(c%at(i)%x(j)+rborder,xmax(j))
-          xmin(j) = min(c%at(i)%x(j)-rborder,xmin(j))
-       end do
-       xcm = xcm + c%at(i)%x
-    end do
-    xcm = xcm / c%nneq
-    if (docube) then
-       xmin = minval(xmin)
-       xmax = maxval(xmax)
-    end if
+    ! fill the rest of the info
+    call fill_molecule(c,rborder,docube)
 
-    ! write the positions and the rest of the information
-    c%aa = xmax - xmin
-    c%bb = 90d0
+    ! Do note use atomic charges or pseudos
     do i = 1, c%nneq
-       c%at(i)%x = (c%at(i)%x-xcm+0.5d0*c%aa) / c%aa
        c%at(i)%zpsp = -1
        c%at(i)%qat = 0
     end do
-
-    ! Keep the (1/2,1/2,1/2) translation we applied; this is a moleucle
-    c%ismolecule = .true.
-    c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm 
-
-    ! set up the border around the molecule for CP and gradient path termination
-    c%molborder = max(rborder - max(2d0,0.1d0 * rborder),0d0) / (xmax - xmin)
-
-    ! no symmetry for now
-    c%neqv = 1
-    c%rotm = 0d0
-    c%rotm(:,1:3,1) = eye
-    c%ncv = 0
-    c%lcent = 1
 
   end subroutine struct_read_mol
 
@@ -1960,5 +2043,64 @@ contains
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
 
   end subroutine spgs_wrap
+
+  !> Using the atomic position (bohr) in the field cr%x directly read
+  !> from a molecular description (a xyz file, for example), center
+  !> the molecule, set c%aa and c%bb by applying a border to it, set
+  !> the c%ismolecule, the c%molx0, and the c%molborder, and
+  !> deactivate the symmetry. Used in two cases: when the molecule is
+  !> read from an external file or when given in the critic2 input.
+  !> If docube is true, make a cubic cell instead of a parallelepiped.
+  subroutine fill_molecule(c,rborder,docube)
+    use struct_basic
+    use types
+    use param
+
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: docube
+    
+    real*8 :: xmin(3), xmax(3), xcm(3)
+    integer :: i, j
+
+    ! minimum, maximum, and center-of-mass
+    xmax = -1d40
+    xmin =  1d40
+    xcm = 0d0
+    do i = 1, c%nneq
+       do j = 1, 3
+          xmax(j) = max(c%at(i)%x(j)+rborder,xmax(j))
+          xmin(j) = min(c%at(i)%x(j)-rborder,xmin(j))
+       end do
+       xcm = xcm + c%at(i)%x
+    end do
+    xcm = xcm / c%nneq
+    if (docube) then
+       xmin = minval(xmin)
+       xmax = maxval(xmax)
+    end if
+
+    ! write the positions and the rest of the information
+    c%aa = xmax - xmin
+    c%bb = 90d0
+    do i = 1, c%nneq
+       c%at(i)%x = (c%at(i)%x-xcm+0.5d0*c%aa) / c%aa
+    end do
+
+    ! Keep the (1/2,1/2,1/2) translation we applied; this is a moleucle
+    c%ismolecule = .true.
+    c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm 
+
+    ! set up the border around the molecule for CP and gradient path termination
+    c%molborder = max(rborder - max(2d0,0.1d0 * rborder),0d0) / (xmax - xmin)
+
+    ! no symmetry for now
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,1:3,1) = eye
+    c%ncv = 0
+    c%lcent = 1
+    
+  end subroutine fill_molecule
 
 end module struct_readers

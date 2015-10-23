@@ -1375,6 +1375,7 @@ contains
        end if
     end do
 
+
     ! Reduce non-equivalent atoms that are equivalent under the space group
     ! symmetry operations
     allocate(atreduce(c%nneq))
@@ -1386,8 +1387,7 @@ contains
        do j = i+1, c%nneq
           if (atreduce(j)) cycle
           do k = 1, c%neqv
-             if (c%eql_distance(matmul(c%rotm(1:3,1:3,k),c%at(i)%x) +&
-                c%rotm(:,4,k), c%at(j)%x) < atomeps) then
+             if (c%eql_distance(matmul(c%rotm(1:3,1:3,k),c%at(i)%x) + c%rotm(:,4,k), c%at(j)%x) < atomeps) then
                 atreduce(j) = .true.
                 exit
              end if

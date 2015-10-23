@@ -57,7 +57,6 @@ contains
     integer :: ntyp, nn
     character*5 :: ztyp(100)
     real*8 :: x0(3), rborder, raux
-    real*8, parameter :: rborder_def = 3d0
     logical :: docube
 
     ! Initialize the structure
@@ -210,8 +209,13 @@ contains
        c%file = word
 
     else if (len_trim(word) < 1) then
-       if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse CRYSTAL environment but allownofile=.true.',faterr)
-       call parse_crystal_env(c,uin,x0)
+       if (.not.mol) then
+          if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse CRYSTAL environment but allownofile=.true.',faterr)
+          call parse_crystal_env(c,uin,x0)
+       else
+          if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse MOLECULE environment but allownofile=.true.',faterr)
+          call parse_molecule_env(c,uin,x0)
+       endif
        c%file = "<input>"
 
     else
@@ -974,8 +978,6 @@ contains
     integer :: i, j, lp
     real*8 :: xmin(3), xmax(3), rborder, raux
     logical :: ok
-
-    real*8, parameter :: rborder_def = 3d0
 
     if (.not.cr%ismolecule) &
        call ferror('struct_molcell','Use MOLCELL with MOLECULE, not CRYSTAL.',faterr)
