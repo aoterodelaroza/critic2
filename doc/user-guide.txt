@@ -1035,7 +1035,7 @@ comments:
   formats can be read using the CRYSTAL keyword as well, MOLECULE will
   make critic2 select the appropriate default options for
   molecules. The input molecule is enclosed in a parallelepiped that
-  is larger (default: 3 bohr) in all directions than the minimal
+  is larger (default: 10 bohr) in all directions than the minimal
   parallelepiped encompassing the molecule. If the CUBIC (or CUBE)
   keyword is given, then a cubic supercell is used. The width of the
   vacumm around the molecule can be changed with the optional border.r
@@ -1414,7 +1414,7 @@ can use the MOLCELL keyword to set it up:
 
 The MOLCELL keyword calculates the smallest parallelepiped
 encompassing the molecular motif and then adds a border to it in order
-to build the molecular cell. The default border is 3 bohr, but can be
+to build the molecular cell. The default border is 10 bohr, but can be
 controlled by passing an additional numerical argument (border.r, in
 bohr). Note that using this keyword only makes sense if the molecule
 is placed close to the center of the cell and if there is a sizable
