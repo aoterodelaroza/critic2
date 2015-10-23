@@ -333,7 +333,7 @@ contains
        lp = 1
        word = lgetword(line,lp)
 
-       if (equal(word,'cube')) then
+       if (equal(word,'cube').or.equal(word,'cubic')) then
           ! cube
           docube = .true.
           word = lgetword(line,lp)

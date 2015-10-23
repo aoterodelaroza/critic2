@@ -53,6 +53,12 @@ expression.r # prints the value of the expression to the output.
    CENTER/CENTRE [x.r y.r z.r]
    SYMM exprx.s, epxry.s, exprz.s
   ENDCRYSTAL/END
+  MOLECULE
+   NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+   atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+   CUBIC|CUBE
+   BORDER border.r
+  ENDMOLECULE   
   CRYSTAL LIBRARY label.s
 * LIBRARY path.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}

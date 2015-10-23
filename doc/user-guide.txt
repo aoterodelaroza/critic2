@@ -99,8 +99,6 @@ using the keyword LOAD::
 
   LOAD file.clmsum file.struct
 
-
-
 Unless otherwise stated, the default distance units in critic2 are
 atomic units (bohr) for crystals and angstrom for molecules. This can
 be changed using the UNITS keyword (see `Input and output
@@ -959,6 +957,12 @@ Loading a crystal structure (CRYSTAL/MOLECULE)
     CENTER|CENTRE [x.r y.r z.r]
     SYMM exprx.s, epxry.s, exprz.s
   ENDCRYSTAL/ENDMOLECULE/END
+  MOLECULE
+    NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+    atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+    CUBIC|CUBE
+    BORDER border.r
+  ENDMOLECULE   
   CRYSTAL LIBRARY label.s
   # Note: all CRYSTAL keywords can be replaced by MOLECULE
   # and viceversa, with the effect discussed below.
@@ -1024,17 +1028,18 @@ comments:
 * Quantum ESPRESSO (PW) inputs can also be read (usually file.scf.in
   but only the .in extension is detected).
 
-* A gas-phase molecule can be input using an xyz file or a Gaussian
-  wfn/wfx file. These file formats can be read using the CRYSTAL
-  keyword, but MOLECULE will make critic2 select the appropriate
-  default options for molecules in a supercell. The input molecule is
-  enclosed in a parallelepiped that is larger (default: 3 bohr) in all
-  directions than the minimal parallelepiped encompassing the
-  molecule. If the CUBIC (or CUBE) keyword is given, then a cubic
-  supercell is used. The width of the vacumm around the molecule can
-  be changed with the optional border.r argument (in bohr). The
-  molecule is automatically translated to the center of the cube. See
-  the section below (`Molecular structures`_) for more details.
+* A gas-phase molecule can be input using an xyz file, a Gaussian
+  wfn/wfx file, or the MOLECULE environment. Although these file
+  formats can be read using the CRYSTAL keyword as well, MOLECULE will
+  make critic2 select the appropriate default options for
+  molecules. The input molecule is enclosed in a parallelepiped that
+  is larger (default: 3 bohr) in all directions than the minimal
+  parallelepiped encompassing the molecule. If the CUBIC (or CUBE)
+  keyword is given, then a cubic supercell is used. The width of the
+  vacumm around the molecule can be changed with the optional border.r
+  argument (in bohr). The molecule is automatically translated to the
+  center of the cube. See the section below (`Molecular structures`_)
+  for more details.
 
 * CIF files are read using the ciftbx library by Sydney R. Hall. If
   the CIF file provides the symmetry operations, they are
@@ -1205,25 +1210,9 @@ except in the case of abinit files. The standalone versions of ZPSP
 and Q can be used outside the CRYSTAL environment (see below).
 
 The MOLECULE keyword can be used as an alternative to CRYSTAL to deal
-with molecular grids and wavefunctions. Also, cube files calculated
-with Gaussian (e.g. with cubegen) can be used in critic2. The program
-will assume periodic boundary conditions but topologies, graphical
-representations and computations with cubes can be performed
-nevertheless (see the `Molecular structures`_ section below).
-
-When using a molecule as input (for instance, from an xyz file using
-the ANGSTROM keyword), the CENTER keyword can be useful::
-
-  {CENTER|CENTRE} x.r y.r z.r
-
-CENTER displaces the crystallographic coordinates of all atoms by x.r,
-y.r and z.r. The typical scenario for this keyword is the calculation
-of promolecular densities from an xyz file: in order to displace the
-molecule to the center of the periodic cell by using 'CENTER 0.5 0.5
-0.5'. Note that it is not a good idea to use this keyword with, for
-instance, a cube file input, since the field and the geometry are
-going to be out of sync. Also, note that molecules read from xyz, wfn,
-and wfx files are automatically centered (by 1/2 1/2 1/2).
+with molecular systems in formats other than xyz and wfx/wfn. For
+instance, cube files calculated with Gaussian (e.g. with cubegen) can
+be used in critic2. (see the `Molecular structures`_ section below).
 
 The default distance units in input and output when using the CRYSTAL
 keyword to load a structure are atomic units (bohr). See `Input and
@@ -1355,20 +1344,28 @@ Critic2 can be used to analyze scalar fields in isolated molecules as
 well as in crystals. This behavior is activated by using the MOLECULE
 keyword to load the structure, instead of the usual CRYSTAL. The
 MOLECULE keyword is most often used when loading an xyz or a Gaussian
-wfn/wfx file.  
+wfn/wfx file, but the molecular geometry (default: in Cartesian
+coordinates, angstrom units) can also be given directly in the input
+using the MOLECULE/ENDMOLECULE environment.
 
 Because critic2 works under periodic boundary conditions, it does the
 analysis of molecular structures in the xyz/wfn/wfx format by
 translating the input molecule to the center of a supercell large
-enough to encompass it. The structures loaded from a format different
-from xyz/wfn/wfx are not translated. The amount of border around the
-molecule can be controlled (see border.r in "The crystal structure"
-section above) as well as the shape of the supercell
-(CUBIC/CUBE). Provided the size of the vacuum is large enough, the
-analysis can be carried out without problems.
+enough to encompass it. The structures loaded using the MOLECULE
+keyword but that have a format different from xyz/wfn/wfx are not
+translated. The amount of border around the molecule can be controlled
+(see border.r in `The crystal structure`_ section above) as well as
+the shape of the supercell (CUBIC/CUBE). Provided the size of the
+vacuum is large enough, the analysis should be carried out without
+problems.
 
 The use of MOLECULE instead of CRYSTAL changes some of the default
 behavior in critic2. Namely:
+
+* The default units in input and output are angstrom instead of bohr
+  (use the UNITS keyword in `Input and output units`_ to change this
+  behavior). In particular, this applies to the Cartesian coordinates
+  for the atoms in the MOLECULE environment.
 
 * The symmetry module is automatically deactivated. All molecular
   structures are run in the P1 space group.
@@ -1389,10 +1386,6 @@ behavior in critic2. Namely:
   outside the molecular cell are discarded, and all downwards gradient
   paths that exit the molecular cell are assumed to have diverged to
   infinity.
-
-* The default units in input and output are angstrom instead of bohr
-  (use the UNITS keyword in `Input and output units`_ to change this
-  behavior).  
 
 In the (unusual) case in which you want to analyze a molecular
 structure not coming from a xyz/wfn/wfx, critic2 will not
