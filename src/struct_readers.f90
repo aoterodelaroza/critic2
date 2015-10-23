@@ -316,7 +316,7 @@ contains
     real*8, intent(out) :: x0(3)
 
     character(len=:), allocatable :: word, aux, line
-    integer :: i, j, k, lp, luout
+    integer :: i, j, k, lp, lp2, luout, iat
     real*8 :: rborder
     logical :: ok, docube
 
@@ -352,16 +352,31 @@ contains
        else
           ! keyword not found, must be an atom. The syntax:
           !    neq <x> <y> <z> <atom> ...
-          ! is also acceptable
+          !    <atom> <x> <y> <z> ...
+          !    <atnumber> <x> <y> <z> ...
+          ! are acceptable
           if (.not.equal(word,'neq')) then
              c%nneq = c%nneq+1
              if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))
-             ok = eval_next(c%at(c%nneq)%x(1),line,lp)
-             ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
-             ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
-             if (.not.ok) &
-                call ferror("parse_molecule_env","Wrong atomic input syntax",faterr,line)
-             c%at(c%nneq)%name = string(word)
+
+             ! try to read four fields from the input
+             lp2 = 1
+             ok = isinteger(iat,line,lp2)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(1),line,lp2)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp2)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp2)
+             if (.not.ok) then
+                ! then it must be <atom> <x> <y> <z>
+                ok = eval_next(c%at(c%nneq)%x(1),line,lp)
+                ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
+                ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
+                if (.not.ok) &
+                   call ferror("parse_molecule_env","Wrong atomic input syntax",faterr,line)
+                c%at(c%nneq)%name = string(word)
+             else
+                lp = lp2
+                c%at(c%nneq)%name = nameguess(iat,.true.)
+             endif
           else
              c%nneq = c%nneq+1
              if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))

@@ -56,6 +56,7 @@ expression.r # prints the value of the expression to the output.
   MOLECULE
    NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
    atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+   atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
    CUBIC|CUBE
    BORDER border.r
   ENDMOLECULE   
