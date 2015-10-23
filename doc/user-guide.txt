@@ -1365,7 +1365,8 @@ behavior in critic2. Namely:
 * The default units in input and output are angstrom instead of bohr
   (use the UNITS keyword in `Input and output units`_ to change this
   behavior). In particular, this applies to the Cartesian coordinates
-  for the atoms in the MOLECULE environment.
+  for the atoms in the MOLECULE environment, where the input units for
+  a particular atom can be changed using the ANG/BOHR options.
 
 * The symmetry module is automatically deactivated. All molecular
   structures are run in the P1 space group.
