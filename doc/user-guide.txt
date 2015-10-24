@@ -105,9 +105,9 @@ parts of the output. The -r option tells critic2 where to find its
 data files. If /path/to/critic2 is given, the data files (wfc, dic,
 etc.) should be in /path/to/critic2/dat.
 
-The input file usually contains a specification of the crystal
-or molecular structure using the CRYSTAL or the MOLECULE keywords. For
-instance::
+The input file usually contains a specification of the crystal or
+molecular structure using the CRYSTAL (see `The crystal structure`_ or
+the MOLECULE (see `The molecular structure`_) keywords. For instance::
 
   CRYSTAL file.struct
 
@@ -142,16 +142,16 @@ keyword-driven: the first word in any (non-blank) input line
 determines the task to be performed. In the remainder of this manual,
 these main keywords and their usage are described.
 
-In this manual, keywords are written in CAPS (and sometimes in color,
-if you are reading the PDF). Input variables are denoted using a
-suffix to indicate their type: a real number (.r), an integer (.i) or
-a string (.s). Almost anywhere that a number is expected, it is
-possible to use an arithmetic expression (see the `Arithmetic
-expressions, variables, and functions in critic2`_ section). If an
-arithmetic expression is required (and not merely optional), then
-quotes are used (for instance, "expr.s"). When several alternative
-keywords are possible, the or symbol (|) is used. Square brackets ([])
-denote optional keywords and curly braces ({}) are used for grouping.
+In this manual, keywords are written in CAPS. Input variables are
+denoted using a suffix to indicate their type: a real number (.r), an
+integer (.i) or a string (.s). Almost anywhere that a number is
+expected, it is possible to use an arithmetic expression (see the
+`Arithmetic expressions, variables, and functions in critic2`_
+section). If an arithmetic expression is required (and not merely
+optional), then quotes are used (for instance, "expr.s"). When several
+alternative keywords are possible, the or symbol (|) is used. Square
+brackets ([]) denote optional keywords and curly braces ({}) are used
+for grouping.
 
 Some of the sections in the rest of this manual contain an "additional
 options" subsection. These provide some independent keywords that
@@ -594,7 +594,8 @@ output::
 Input and output for a simple molecular structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-xxxxxx
+Molecular structures are read in critic2 using the MOLECULE keyword. A
+simple example for a water molecule is:
 
 ::
 
@@ -604,39 +605,13 @@ xxxxxx
     H 0.000000 -0.756653 -0.475529
   ENDMOLECULE
 
-The output is:
+Unlike in CRYSTAL, the coordinates in the MOLECULE environment are
+Cartesian coordinates. The default units in and after a MOLECULE
+keyword are angstrom.
 
-::
+The output starts off with the same header as in CRYSTAL, and then::
 
-                    _   _     _          ___     
-                   (_) | |   (_)        |__ \    
-       ___   _ __   _  | |_   _    ___     ) |   
-      / __| | '__| | | | __| | |  / __|   / /    
-     | (__  | |    | | | |_  | | | (__   / /_    
-      \___| |_|    |_|  \__| |_|  \___| |____|   
-  
-  * CRITIC2: analysis of real-space scalar fields in solids and molecules.
-    (c) 1996-2015 A. Otero-de-la-Roza, A. Martin-Pendas, V. Lua~na
-    Distributed under GNU GPL v.3 (see COPYING for details)
-    Bugs, requests, and rants: alberto@fluor.quimica.uniovi.es 
-    If you find this software useful, please cite:
-    A. Otero-de-la-Roza et al., Comput. Phys. Commun. 185 (2014) 1007-1018.
-    A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157-166.
-  
-  + critic2, commit e7c2707
-   compile host: Linux puck 4.2.0-1-amd64 #1 SMP Debian 4.2.1-2 (2015-09-27) x86_64 GNU/Linux
-   compile date: Thu Oct 22 18:23:40 PDT 2015
-      using f77: gfortran -g -O2 
-            f90: gfortran -g -O2 -ffree-form -ffree-line-length-none -fopenmp
-        ldflags: 
-         debug?: no
-   compiled dat: /usr/local/share/critic2
-        datadir: /home/alberto/git/critic2/dat
-       dic file: /home/alberto/git/critic2/dat/cif_core.dic
-  ...was found?: T
-  
-  CRITIC2--2015/10/23, 23:18:42.246
-  
+  #ascii#
   %% MOLECULE
   
   %% O 0.000000 0.000000 0.118882
@@ -649,24 +624,79 @@ The output is:
   
   * Input molecular structure
     From: <input>                                                                                                                         
-    Encompassing cell dimensions (bohr): 20.000000  22.859734  21.123274
-    Encompassing cell dimensions (ang): 10.583544  12.096850  11.177955
+    Encompassing cell dimensions (bohr): 20.0 22.8 21.1
+    Encompassing cell dimensions (ang): 10.5 12.0 11.1
     Number of atoms: 3
     Number of electrons: 10
   
+The output shows a copy of the input lines (after the "%%" prefix),
+and some general information about the structure. Critic2 works under
+periodic boundary conditions, even for molecular structures. The
+difference is that the molecule is placed into a very large unit cell
+to mimic gas-phase conditions. However, critic2 treats the molecule in
+the same way as a crystal, converting the atomic coordinates to
+"crystallographic" coordinates inside the supercell. In the "Input
+molecular structure" output, critic2 shows the dimension of this cell
+in bohr and angstrom, and the number of atoms and electrons in the
+molecule. Keywords are available in the MOLECULE keyword and
+environment for changing the size and shape of the encompassing
+cell. 
+
+After that comes the list of atoms in Cartesian coordinates (angstrom
+units):: 
+
+  #ascii#
   + List of atoms in Cartesian coordinates (ang): 
-  # at         x                y                z            name     Z  
-     1     0.0000000000     0.0000000000     0.1188820000      o       8  
-     2     0.0000000000     0.7566530000    -0.4755290000      h       1  
-     3     0.0000000000    -0.7566530000    -0.4755290000      h       1  
+  # at      x       y       z  name  Z  
+     1  0.0000  0.0000  0.1188   o   8  
+     2  0.0000  0.7566 -0.4755   h   1  
+     3  0.0000 -0.7566 -0.4755   h   1  
   
-  + Limits of the molecular cell (in fractions of the encompassing cell).
-    The region of the encompassing cell outside the molecular cell is
-    assumed to represent infinity (no CPs or gradient paths in it).
+Contrary to CRYSTAL, two atom lists (non-equivalent and complete) are
+not necessary because symmetry is automatically deactivated. So when
+using MOLECULE, at.i and nat.i in the keyword syntax are completely
+equivalent, and refer to the first column numbers in the previous
+table. 
+
+In molecular structures, the molecule is placed inside a big cell that
+tries to model the empty space around the molecule. This, however, may
+lead to some problems with critic2's methods. For instance, the
+critical point search will find that at the border of the supercell
+the density is discontinuous (because critic2 uses periodic boundary
+conditions) and report spurious CPs. Likewise, the gradient path
+tracing routines can become trapped at the border of the cell. To
+prevent this, MOLECULE defines by default a second cell, slightly
+smaller than the encompassing cell defined above. This "molecular
+cell" (see `The molecular structure`_) represents the valid molecular
+space for the current structure. Regions outside the molecular cell
+(esssentially, the border of the encompassing cell) can not be
+traversed by gradient paths and can not hold any critical
+points. Essentially, the border of the encompassing cell becomes a
+representation of infinity for the gas-phase molecule under study. 
+
+The dimensions of the molecular cell are given next in the output::
+
+  #ascii#
+  + Limits of the molecular cell (in fractions of the cell).
+    The region of the encompassing cell outside the 
+    molecular cell is assumed to represent infinity (no 
+    CPs or gradient paths in it).
     x-axis: 0.1000 -> 0.9000
     y-axis: 0.0875 -> 0.9125
     z-axis: 0.0947 -> 0.9053
   
+where the limits are given in fractional coordinates of the
+encompassing cell. That is, the molecular cell goes from 0.1 to 0.9 of
+the encompassing cell (given above) in the x direction, etc. The
+remaining 10% of the cell in each direction becomes the forbidden zone
+for the structure.
+
+After this, the output is very similar to CRYSTAL, except the output
+related to the crystal symmetry is not present. The atomic
+environments and nearest neighbor distances (all in angstrom) are
+shown next::
+
+  #ascii#
   + Atomic environments (distances in ang)
   #  id   atom   nneig     distance  nat   type      
      1      o      2       0.9622101   2    h         
@@ -681,6 +711,10 @@ The output is:
      2      h      0.4811050 
      3      h      0.4811050 
   
+Then the program prepares for calculating the promolecular density by
+identifying and loading the atomic density grids::
+
+  #ascii#
   * Atomic radial density grids
   + List of atomic charges and atomic numbers
   # nat  name    Z    Q  ZPSP
@@ -693,19 +727,22 @@ The output is:
   + Number of core electrons: 0
   
   * Reading new promolecular density grids
-  + Read density file: /home/alberto/git/critic2/dat/o__pbe.wfc
-    Log grid (r = a*e^(b*x)) with a = 3.0984E-04, b = 2.0000E-03
+  + Read density file: o__pbe.wfc
+    Log grid (r = a*e^(b*x)) with a = 3.0984E-04, b = 2.0E-03
     Num. grid points = 5142, rmax (bohr) = 9.0481332
     Integrated charge = 7.9999938286
     El. conf.: 1S(2)2S(2)2P(4)
-  + Read density file: /home/alberto/git/critic2/dat/h__pbe.wfc
-    Log grid (r = a*e^(b*x)) with a = 2.4788E-03, b = 2.0000E-03
+  + Read density file: h__pbe.wfc
+    Log grid (r = a*e^(b*x)) with a = 2.4788E-03, b = 2.0E-03
     Num. grid points = 4153, rmax (bohr) = 10.0141591
     Integrated charge = 0.9999910815
     El. conf.: 1S(1)
   
   * Reading new core density grids
   
+And, finally, the promolecular density is set as the reference field
+and the default integrable properties are set::
+
   * Field number 0 is now REFERENCE.
   
   * List of integrable properties
@@ -1088,7 +1125,7 @@ comments:
   limitation provided the emcompassing cell is large enough and, in
   actuality, critic2 is prepared to handle the particular case of a
   gas-phase molecule by using the MOLECULE keyword instead of
-  CRYSTAL. See section `Molecular structures`_.
+  CRYSTAL. See section `The molecular structure`_.
 
   Despite their name, cube files may represent non-orthogonal cells,
   have become quite a standard, and can be written by a lot of
@@ -1135,7 +1172,7 @@ comments:
   keyword is given, then a cubic supercell is used. The width of the
   vacumm around the molecule can be changed with the optional border.r
   argument (in bohr). The molecule is automatically translated to the
-  center of the cube. See the section below (`Molecular structures`_)
+  center of the cube. See the section below (`The molecular structure`_)
   for more details.
 
 * CIF files are read using the ciftbx library by Sydney R. Hall. If
@@ -1309,7 +1346,7 @@ and Q can be used outside the CRYSTAL environment (see below).
 The MOLECULE keyword can be used as an alternative to CRYSTAL to deal
 with molecular systems in formats other than xyz and wfx/wfn. For
 instance, cube files calculated with Gaussian (e.g. with cubegen) can
-be used in critic2. (see the `Molecular structures`_ section below).
+be used in critic2. (see the `The molecular structure`_ section below).
 
 The default distance units in input and output when using the CRYSTAL
 keyword to load a structure are atomic units (bohr). See `Input and
@@ -1436,92 +1473,6 @@ are carried over. To clear the variables and set the global options to
 their default values, use the RESET keyword::
 
   RESET
-
-Molecular structures
-~~~~~~~~~~~~~~~~~~~~
-
-Critic2 can be used to analyze scalar fields in isolated molecules as
-well as in crystals. This behavior is activated by using the MOLECULE
-keyword to load the structure, instead of the usual CRYSTAL. The
-MOLECULE keyword is most often used when loading an xyz or a Gaussian
-wfn/wfx file, but the molecular geometry (default: Cartesian
-coordinates, angstrom units) can also be given directly in the input
-using the MOLECULE/ENDMOLECULE environment. Inside this environment,
-the atoms can be specified in three different ways::
-
-  NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-  atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-  atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-
-The NEQ keyword can be use, in the same way as in the CRYSTAL
-environment, but the atomic symbol can also be used as the first
-field, or even the atomic number. The two last options are convenient
-because the input can be generated by inserting an xyz file.
-
-Because critic2 works under periodic boundary conditions, it does the
-analysis of molecular structures in the xyz/wfn/wfx format by
-translating the input molecule to the center of a supercell large
-enough to encompass it. The structures loaded using the MOLECULE
-keyword but that have a format different from xyz/wfn/wfx are not
-translated. The amount of border around the molecule can be controlled
-(see border.r in `The crystal structure`_ section above) as well as
-the shape of the supercell (CUBIC/CUBE). Provided the size of the
-vacuum is large enough, the analysis should be carried out without
-problems.
-
-The use of MOLECULE instead of CRYSTAL changes some of the default
-behavior in critic2. Namely:
-
-* The default units in input and output are angstrom instead of bohr
-  (use the UNITS keyword in `Input and output units`_ to change this
-  behavior). In particular, this applies to the Cartesian coordinates
-  for the atoms in the MOLECULE environment, where the input units for
-  a particular atom can be changed using the ANG/BOHR options.
-
-* The symmetry module is automatically deactivated. All molecular
-  structures are run in the P1 space group.
-
-* The default CP search seeding strategy is modified (see `Finding
-  critical points`_). In a crystal, a recursive subdivision of a
-  symmetry-reduced portion of the Wigner-Seitz cell is used (SEED WS
-  with DEPTH 1). In a molecule, the default is to seed at the center
-  of every interatomic line between atom pairs less than 15 bohr apart
-  (SEED PAIR).
-
-* In addition to the supercell, a second smaller cell is defined, the
-  "molecular cell", that can be represented using the MOLCELL keyword
-  in WRITE (`Exporting the crystal structure (WRITE)`_) or CPREPORT
-  (`Finding critical points`_). The molecular cell is only used in
-  molecules loaded from a xyz/wfn/wfx file. The region outside the
-  molecular cell is assumed to belong to the vacuum. Any CPs found
-  outside the molecular cell are discarded, and all downwards gradient
-  paths that exit the molecular cell are assumed to have diverged to
-  infinity.
-
-In the (unusual) case in which you want to analyze a molecular
-structure not coming from a xyz/wfn/wfx, critic2 will not
-automatically translate or set up a molecular cell. In this case, you
-can use the MOLCELL keyword to set it up:
-
-::
-
-  MOLCELL [border.r]
-
-The MOLCELL keyword calculates the smallest parallelepiped
-encompassing the molecular motif and then adds a border to it in order
-to build the molecular cell. The default border is 10 bohr, but can be
-controlled by passing an additional numerical argument (border.r, in
-bohr). Note that using this keyword only makes sense if the molecule
-is placed close to the center of the cell and if there is a sizable
-amount of vacuum between the molecule and the cell edges. In order to
-use MOLCELL, the input structure needs to be read using the MOLECULE
-keyword and the cell needs to be orthogonal.
-
-The molecular library is in molecule.dat. Change the library location
-with LIBRARY MOLECULE bleh.s
-
-The border is chosen with MOLCELL, but the default for molecules is
-c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
 Exporting the crystal structure (WRITE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1690,6 +1641,92 @@ more "exotic" centering types, so I recommend you check your resulting
 structure with a visualization program. In the case of QE, critic2
 tries to conform as much as possible with the QE rules for writing the
 CELL_PARAMETERS matrix.
+
+The molecular structure
+-----------------------
+
+Critic2 can be used to analyze scalar fields in isolated molecules as
+well as in crystals. This behavior is activated by using the MOLECULE
+keyword to load the structure, instead of the usual CRYSTAL. The
+MOLECULE keyword is most often used when loading an xyz or a Gaussian
+wfn/wfx file, but the molecular geometry (default: Cartesian
+coordinates, angstrom units) can also be given directly in the input
+using the MOLECULE/ENDMOLECULE environment. Inside this environment,
+the atoms can be specified in three different ways::
+
+  NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+  atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+  atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+
+The NEQ keyword can be use, in the same way as in the CRYSTAL
+environment, but the atomic symbol can also be used as the first
+field, or even the atomic number. The two last options are convenient
+because the input can be generated by inserting an xyz file.
+
+Because critic2 works under periodic boundary conditions, it does the
+analysis of molecular structures in the xyz/wfn/wfx format by
+translating the input molecule to the center of a supercell large
+enough to encompass it. The structures loaded using the MOLECULE
+keyword but that have a format different from xyz/wfn/wfx are not
+translated. The amount of border around the molecule can be controlled
+(see border.r in `The crystal structure`_ section above) as well as
+the shape of the supercell (CUBIC/CUBE). Provided the size of the
+vacuum is large enough, the analysis should be carried out without
+problems.
+
+The use of MOLECULE instead of CRYSTAL changes some of the default
+behavior in critic2. Namely:
+
+* The default units in input and output are angstrom instead of bohr
+  (use the UNITS keyword in `Input and output units`_ to change this
+  behavior). In particular, this applies to the Cartesian coordinates
+  for the atoms in the MOLECULE environment, where the input units for
+  a particular atom can be changed using the ANG/BOHR options.
+
+* The symmetry module is automatically deactivated. All molecular
+  structures are run in the P1 space group.
+
+* The default CP search seeding strategy is modified (see `Finding
+  critical points`_). In a crystal, a recursive subdivision of a
+  symmetry-reduced portion of the Wigner-Seitz cell is used (SEED WS
+  with DEPTH 1). In a molecule, the default is to seed at the center
+  of every interatomic line between atom pairs less than 15 bohr apart
+  (SEED PAIR).
+
+* In addition to the supercell, a second smaller cell is defined, the
+  "molecular cell", that can be represented using the MOLCELL keyword
+  in WRITE (`Exporting the crystal structure (WRITE)`_) or CPREPORT
+  (`Finding critical points`_). The molecular cell is only used in
+  molecules loaded from a xyz/wfn/wfx file. The region outside the
+  molecular cell is assumed to belong to the vacuum. Any CPs found
+  outside the molecular cell are discarded, and all downwards gradient
+  paths that exit the molecular cell are assumed to have diverged to
+  infinity.
+
+In the (unusual) case in which you want to analyze a molecular
+structure not coming from a xyz/wfn/wfx, critic2 will not
+automatically translate or set up a molecular cell. In this case, you
+can use the MOLCELL keyword to set it up:
+
+::
+
+  MOLCELL [border.r]
+
+The MOLCELL keyword calculates the smallest parallelepiped
+encompassing the molecular motif and then adds a border to it in order
+to build the molecular cell. The default border is 10 bohr, but can be
+controlled by passing an additional numerical argument (border.r, in
+bohr). Note that using this keyword only makes sense if the molecule
+is placed close to the center of the cell and if there is a sizable
+amount of vacuum between the molecule and the cell edges. In order to
+use MOLCELL, the input structure needs to be read using the MOLECULE
+keyword and the cell needs to be orthogonal.
+
+The molecular library is in molecule.dat. Change the library location
+with LIBRARY MOLECULE bleh.s
+
+The border is chosen with MOLCELL, but the default for molecules is
+c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
 Scalar fields
 -------------
