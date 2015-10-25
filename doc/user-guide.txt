@@ -107,7 +107,7 @@ etc.) should be in /path/to/critic2/dat.
 
 The input file usually contains a specification of the crystal or
 molecular structure using the CRYSTAL (see `The crystal structure`_ or
-the MOLECULE (see `The molecular structure`_) keywords. For instance::
+the MOLECULE (see `The molecular structure (MOLECULE)`_) keywords. For instance::
 
   CRYSTAL file.struct
 
@@ -667,7 +667,8 @@ conditions) and report spurious CPs. Likewise, the gradient path
 tracing routines can become trapped at the border of the cell. To
 prevent this, MOLECULE defines by default a second cell, slightly
 smaller than the encompassing cell defined above. This "molecular
-cell" (see `The molecular structure`_) represents the valid molecular
+cell" (see `The molecular structure (MOLECULE)`_) represents the valid
+molecular 
 space for the current structure. Regions outside the molecular cell
 (esssentially, the border of the encompassing cell) can not be
 traversed by gradient paths and can not hold any critical
@@ -769,11 +770,11 @@ you can start critic2 and write::
 
   #ascii#
   3+2*sin(pi/4)
-  (i) 3+2*sin(pi/4)
-  (o)    4.4142135623731
+  %% 3+2*sin(pi/4)
+     4.4142135623731
 
-In the same way, variables can be defined and utilized in any
-expression. Variable names must start with a letter and be composed
+Similarly, variables can be defined and utilized in any
+expression. Variable names must start with a letter and are composed
 only of letters, numbers, and the underscore character. Also, they can
 not have the same name as a known constant (pi, e, eps) or a function,
 regardless of case. Variables in expressions are case-sensitive. To
@@ -782,8 +783,8 @@ use a variable, first you need to assign it. For instance::
   #ascii#
   a = 20+10
   a/7 + 1
-  (i) a/7 + 1
-  (o)    5.2857142857143
+  %% a/7 + 1
+     5.2857142857143
 
 By using the "-q" command-line option, critic2 can be used as a simple
 calculator:
@@ -850,8 +851,8 @@ be:
 + lv: valence Laplacian (Laplacian without core augmentation).
 + lc: core Laplacian.
 
-Therefore, for instance "$l2" is the Laplacian of field 2 and "$xy3"
-is the xy-component of the Hessian of field 3.
+For instance, "$l2" is the Laplacian of field 2 and "$xy3" is the
+xy-component of the Hessian of field 3.
 
 There is a clear divide between expressions that reference fields and
 those that do not and, for certain keywords, critic2 will decide what
@@ -903,10 +904,10 @@ The following "chemical" functions accept one or more integer field
 identifiers as their arguments. Their purpose is to provide shorthands
 to build fields from other fields using physically-relevant
 formulas. For instance, "gtf(1)" is the Thomas-Fermi kinetic energy
-density for field 1, which is assumed to be the electron density for
-the system. In all instances, "gtf(1)" is equivalent to writing the
-formula in full ("3/10*(3*pi^2)^(2d0/3d0)*$1^(5/3)") but, obviously,
-much more convenient. The library of chemical functions includes:
+density calculated using the electron density in field 1. In all
+instances, "gtf(1)" is equivalent to writing the formula in full
+("3/10*(3*pi^2)^(2d0/3d0)*$1^(5/3)") but, obviously, much more
+convenient. The library of chemical functions includes:
 
 * gtf(id) [GTF]: Thomas-Fermi kinetic energy density. The kinetic
   energy density for a uniform electron gas with its density given
@@ -1052,60 +1053,46 @@ using, for instance:
 The crystal structure
 ---------------------
 
-Loading a crystal structure (CRYSTAL/MOLECULE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Loading a crystal structure (CRYSTAL)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
-  CRYSTAL file.cif [datablock.s]
   CRYSTAL file.cube
   CRYSTAL file.struct
   CRYSTAL [file.]POSCAR [at1.s at2.s ...|POTCAR]
   CRYSTAL [file.]CONTCAR [at1.s at2.s ...|POTCAR]
   CRYSTAL [file.]CHGCAR [at1.s at2.s ...|POTCAR]
   CRYSTAL {[file.]CHG|[file.]ELFCAR} [at1.s at2.s ...|POTCAR]
-  CRYSTAL file_DEN
-  CRYSTAL file.OUT # e.g. elk's GEOMETRY.OUT
+  CRYSTAL file.OUT # elk's GEOMETRY.OUT
   CRYSTAL file.out # e.g. ESPRESSO's file.scf.out (PW output)
   CRYSTAL file.in  # e.g. ESPRESSO's file.scf.in (PW input)
+  CRYSTAL file.cif [datablock.s]
+  CRYSTAL file_DEN
   CRYSTAL file.STRUCT_IN
   CRYSTAL file.STRUCT_OUT
-  MOLECULE file.xyz [border.r] [CUBIC|CUBE]
-  MOLECULE file.wfn [border.r] [CUBIC|CUBE]
-  MOLECULE file.wfx [border.r] [CUBIC|CUBE]
   CRYSTAL
     SPG spg.s
     CELL a.r b.r c.r alpha.r beta.r gamma.r
     CARTESIAN [scal.r]
       # comment
-      [BOHR/AU]
-      [ANGSTROM/ANG]
+      [BOHR|AU]
+      [ANGSTROM|ANG]
       x1.r y1.r z1.r
       x2.r y2.r z2.r
       x3.r y3.r z3.r
-    ENDCARTESIAN/END
+    ENDCARTESIAN|END
     NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i]
-       [ANG/ANGSTROM] [BOHR/AU]
+       [ANG|ANGSTROM] [BOHR|AU]
     CENTER|CENTRE [x.r y.r z.r]
     SYMM exprx.s, epxry.s, exprz.s
-  ENDCRYSTAL/ENDMOLECULE/END
-  MOLECULE
-    NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-    atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-    atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-    CUBIC|CUBE
-    BORDER border.r
-  ENDMOLECULE
+  ENDCRYSTAL|END
   CRYSTAL LIBRARY label.s
-  MOLECULE LIBRARY label.s
-  # Note: all CRYSTAL keywords can be replaced by MOLECULE
-  # and viceversa, with the effect discussed below.
 
-The first part of every critic2 input usually specifies the crystal
-structure. Critic2 can read a large number of crystal structue
-formats. In the simplest usage, critic2 reads one of the popular
-crystal structure file formats like, for instance, a cif file. This is
-done by using::
+The first line of a critic2 input usually specifies the
+structure. Critic2 can read a large number of crystal structure
+formats. In the simplest usage, critic2 reads one of common file
+formats like, for instance, a cif file. This is done by using::
 
   CRYSTAL file.s
 
@@ -1117,74 +1104,122 @@ regardless of whether the file name is GEOMETRY.OUT or not), Quantum
 ESPRESSO's pw.x output (.out), Quantum ESPRESSO's pw.x input (.in),
 VASP's POSCAR, CONTCAR, CHGCAR, ELFCAR, and CHG, siesta's STRUCT_IN
 (input) and STRUCT_OUT (generated by the calculation), molecular xyz
-files, and Gaussian's wfn and wfx files. Some relevant format-specific
-comments:
+files, and Gaussian's wfn and wfx files. 
 
-* Gaussian cube files are assumed to represent a periodic system, even
-  though they come from a molecular calculation. This is not a
-  limitation provided the emcompassing cell is large enough and, in
-  actuality, critic2 is prepared to handle the particular case of a
-  gas-phase molecule by using the MOLECULE keyword instead of
-  CRYSTAL. See section `The molecular structure`_.
+The MOLECULE keyword can be used as a replacement for CRYSTAL in the
+entries above. It is used when the structure correspond to a molecular
+systems and comes in a format other than xyz and wfx/wfn. For
+instance, cube files calculated with Gaussian (e.g. with cubegen) can
+be used in critic2. See the `The molecular structure (MOLECULE)`_
+section for more details.
 
-  Despite their name, cube files may represent non-orthogonal cells,
-  have become quite a standard, and can be written by a lot of
-  mainstream solid-state programs, so it is a very good option if
-  critic2 provides no native interface to the densities of your
-  program of choice.
+The default distance units in input and output when using the CRYSTAL
+keyword to load a structure are atomic units (bohr). See `Input and
+output units`_.
 
-* WIEN2k's struct files may or may not contain the symmetry operations
-  (for instance, if they have been generated by the web interface but
-  not run). If symmetry is provided, then critic2 will use
-  it. Otherwise, critic2 will try to guess the symmetry (see `Symmetry
-  options`_).
+A simple example of CRYSTAL input and the corresponding output
+generated by critic2 is given in `Input and output for a simple
+crystal structure`_.
 
-* Depending on the version, VASP's POSCAR and CONTCAR (and also CHG
-  and CHGCAR) may be missing the atomic symbols. In that case, they
-  need to be provided by hand after the file name, either using a list
-  of atomic symbols or the location of the POTCAR. Even though it is
-  the name accepted by VASP, files that have the extension POSCAR,
-  CONTCAR, CHG and CHGCAR are also accepted (e.g. nacl.POSCAR). Note
-  that the pseudopotential charges are NOT read from the POTCAR.
+Cube files (cube)
++++++++++++++++++
 
-* Any file with extension .OUT will be understood to be in elk's
-  GEOMETRY.OUT format, even though it may not be called GEOMETRY.
+Gaussian cube files read using CRYSTAL are assumed to represent a
+periodic system. For molecular cube files, see section `The molecular
+structure (MOLECULE)`_. This format is used, for instance, by Quantum
+ESPRESSO. 
 
-* Regarding Quantum ESPRESSO outputs (usually file.scf.out, only the
-  .out extension is detected), the block at the beginning of the run
-  is read (from 'Title:' ... to 'Cartesian axes'). Because this block
-  is repeated at the end of a geometry optimization ('a final
-  calculation at the relaxed geometry', it says), the final structure
-  from a successfully completed geometry optimization will be
-  read. However, if the optimization crashed, then the first structure
-  is read.
+Despite their name, cube files may be used to represent non-orthogonal
+cells, and have become a de facto standard. They can be written by a
+lot of popular solid-state programs, so it is a good choice if critic2
+provides no native interface to the densities written in the native
+format of your program.
 
-* Quantum ESPRESSO (PW) inputs can also be read (usually file.scf.in
-  but only the .in extension is detected).
+WIEN2k (struct)
++++++++++++++++
 
-* A gas-phase molecule can be input using an xyz file, a Gaussian
-  wfn/wfx file, or the MOLECULE environment. Although these file
-  formats can be read using the CRYSTAL keyword as well, MOLECULE will
-  make critic2 select the appropriate default options for
-  molecules. The input molecule is enclosed in a parallelepiped that
-  is larger (default: 10 bohr) in all directions than the minimal
-  parallelepiped encompassing the molecule. If the CUBIC (or CUBE)
-  keyword is given, then a cubic supercell is used. The width of the
-  vacumm around the molecule can be changed with the optional border.r
-  argument (in bohr). The molecule is automatically translated to the
-  center of the cube. See the section below (`The molecular structure`_)
-  for more details.
+The structure of a crystal in WIEN2k is written to a file with
+extension .struct. WIEN2k's struct files may or may not contain the
+symmetry operations (for instance, if they have been generated by the
+web interface but not run). If symmetry is provided, then critic2 will
+use it. Otherwise, critic2 will try to guess the symmetry (see
+`Symmetry options`_).
 
-* CIF files are read using the ciftbx library by Sydney R. Hall. If
-  the CIF file provides the symmetry operations, they are
-  read. The specific data block to read from a multi-block cif file
-  can be specified with the optional argument datablock.s. For
-  instance, to read the data_shelx block, use datablock.s =
-  "shelx". If datablock.s is not present, then the first block is
-  read.
+VASP (POSCAR, CONTCAR, CHGCAR, CHG)
++++++++++++++++++++++++++++++++++++
 
-If none of the file formats above is available, the crystal structure
-can be specified "by hand". This is done using the CRYSTAL
+In VASP, the crystal structure can be read from a number of files,
+including the POSCAR (recommended), the CONTCAR, the CHGCAR, and the
+CHG. Depending on the version, VASP's POSCAR and CONTCAR (and also CHG
+and CHGCAR) may be missing the atomic symbols. In that case, they need
+to be provided by hand after the file name, either using a list of
+atomic symbols or the location of the POTCAR. Even though it is the
+name accepted by VASP, files that have the extension POSCAR, CONTCAR,
+CHG and CHGCAR are also accepted (e.g. nacl.POSCAR). Note that the
+pseudopotential charges are NOT read from the POTCAR.
+
+Elk (OUT)
++++++++++
+
+In elk, the geometry is written to the GEOMETRY.OUT file. Any file
+with extension .OUT will be understood to be in elk's GEOMETRY.OUT
+format, even though it may not be called GEOMETRY. 
+
+Quantum ESPRESSO (scf.in, scf.out)
+++++++++++++++++++++++++++++++++++
+
+In addition to the possibility of reading Gaussian cube files
+generated by Quantum ESPRESSO, the outputs (extension .scf.out) and
+inputs (.scf.in) of pw.x are also understood by critic2.
+
+If an output (file.scf.out) is used, only the .out extension is
+detected). The block at the beginning of the output is read (from
+'Title:' ... to 'Cartesian axes'). Because this block is repeated at
+the end of a geometry optimization ('A final calculation at the
+relaxed geometry', it says), the final structure from a successfully
+completed geometry optimization will be read. However, if the
+optimization crashed, then the first structure is read, and not the
+last geometry.
+
+For Quantum ESPRESSO inputs (file.scf.in), only the .in extension is
+detected.
+
+CIF files (cif)
++++++++++++++++
+
+CIF files are the standard format for crystal structures in the
+crystallography community. The standard is published by the
+International Univon for Crystallography (the core CIF dictionary).
+In critic2, CIF files are read using the ciftbx library by Sydney
+R. Hall. If the CIF file provides the crystal symmetry, they are
+read and used. 
+
+CIF files can contain multiple structures in "data blocks". The
+specific data block to read from a multi-block cif file can be
+specified with the optional argument datablock.s. For instance, to
+read the data_shelx block, use datablock.s = "shelx". If datablock.s
+is not present, then the first block is read.
+
+Abinit (DEN)
+++++++++++++
+
+Abinit density files (with suffix "_DEN") are binary files that, in
+addition to the electron density grid, contain the structural
+information for the crystal. Reading the structure from a DEN file
+sets the value of the pseudopotential charges (ZPSP), see `Atomic
+charge options`_.
+
+SIESTA (STRUCT_IN and STRUCT_OUT)
+++++++++++++++++++++++++++++++++++
+
+The structure file generated by siesta has extension STRUCT_OUT. In
+addition, the STRUCT_IN file (which has the same format) can be used
+to restart SIESTA calculations.
+
+Manual specification of the crystal structure (CRYSTAL environment)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The crystal structure can be specified by hand using the CRYSTAL
 environment. For instance, the input for magnesium oxide (rocksalt
 structure) would be::
 
@@ -1284,19 +1319,19 @@ The NEQ keyword can be used to specify the atomic positions::
   NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i] [ANG/ANGSTROM]
       [BOHR/AU]
 
-NEQ adds one atom to the crystal. If symmetry was given (via SPG),
-then only the non-equivalent atom list needs to be given (as in the
-MgO example above), which decreases the number of NEQs that are
+NEQ adds one atom to the crystal. If symmetry is used (via SPG or
+SYMM), then only the non-equivalent atom list needs to be given (as in
+the MgO example above), which decreases the number of NEQs that are
 necessary. Otherwise, the complete list of atoms in the cell has to be
-given, and the symmetry guess will reduce it to the non-equivalent
+indicated, and the symmetry guess will reduce it to the non-equivalent
 atoms list. The coordinates x.r y.r z.r are crystallographic
 (fractional) coordinates unless the ANG/ANGSTROM or BOHR/AU keywords
 are used. Usage of Cartesian coordinates requires a previous CELL or
-CARTESIAN in order to convert the atomic positions to
-crystallographic. The atomic symbol is at.s, and the atomic number is
-detected from the symbol (essentially, from the beginning of it, so
-atoms like Cl1 or baxx2 are valid). Deuterium (D) is detected as
-hydrogen.
+CARTESIAN command in order to convert the atomic positions to
+crystallographic coordinates. The atomic symbol is at.s, and the
+atomic number is detected from the symbol (essentially, from the
+beginning of it, so atoms like Cl1 or baxx2 are valid). Deuterium (D)
+is detected as hydrogen.
 
 The list of atomic positions can be extended by symmetry operations
 specified using the SYMM keyword. The SYMM keyword accepts three
@@ -1313,47 +1348,12 @@ non-standard setting for a low-symmetry space group, or when the
 space group symmetry is given in this format instead of a space group
 label (e.g. cif files and SHELX res files).
 
-In addition to the atomic position and identity, the atomic charge
-(Q) and pseudopotential charge (ZPSP) can be given. The former is
-used to calculate the point-charge electrostatic energy (using
-Ewald's method, see `Commands for crystallographic computation`_) and,
-if Q is positive, to build the promolecular density using the
-corresponding cation instead of the neutral atom.
+In addition to the atomic position and identity, the atomic charge (Q)
+and pseudopotential charge (ZPSP) can be given. See `Atomic charge
+options`_ for more information.
 
-The role of ZPSP is to augment the fields defined on a grid, a
-procedure called core augmentation. ZPSP is the pseudopotential atomic
-number, that is, the atomic number of the atom minus the number of
-electrons represented by the pseudopotential. For instance, ZPSP=2 for
-Ba. The normal use of critic2 with grids involves loading the valence
-density or pseudo-density that sometimes needs to be augmented to
-recover an electron density that has maxima at the nuclear positions,
-which is important for certain applications (for instance, plotting).
-While this procedure is not satisfactory from the theoretical point of
-view, in practice, the valence regions are mostly unaffected. Of
-course, core augmentation needs to be deactivated if the field is not
-the electron density or if the grid already contains the core
-contributions, and it is usually a better option to use the full
-all-electron density from the electronic structure code if it is able
-to reconstruct it.
-
-The value of ZPSP can be found easily in a VASP calculation by
-grepping 'ZVAL' in the POTCAR file. In Quantum ESPRESSO, this
-information is in the UPF file (the number of valence electrons). The
-ZPSP and Q values are not set when the structure is read from a file
-except in the case of abinit files. The standalone versions of ZPSP
-and Q can be used outside the CRYSTAL environment (see below).
-
-The MOLECULE keyword can be used as an alternative to CRYSTAL to deal
-with molecular systems in formats other than xyz and wfx/wfn. For
-instance, cube files calculated with Gaussian (e.g. with cubegen) can
-be used in critic2. (see the `The molecular structure`_ section below).
-
-The default distance units in input and output when using the CRYSTAL
-keyword to load a structure are atomic units (bohr). See `Input and
-output units`_.
-
-The crystal library
-~~~~~~~~~~~~~~~~~~~
+The crystal library (CRYSTAL LIBRARY)
++++++++++++++++++++++++++++++++++++++
 
 A library of (simple) crystal structures is provided with critic2, and
 can be accessed using the CRYSTAL LIBRARY keyword like this::
@@ -1386,7 +1386,8 @@ where the indicated file is used instead to perform the lookup. The
 path can be absolute or relative to the execution directory.
 
 A similar library exists for molecules (molecule.dat) that can be
-accessed throught the MOLECULE keyword. See `Molecular structures`_.
+accessed throught the MOLECULE keyword. See `The molecular structure
+(MOLECULE)`_.  
 
 Symmetry options
 ~~~~~~~~~~~~~~~~
@@ -1414,7 +1415,7 @@ behavior defaults to:
 
 * espresso: guess.
 
-* cell/cartesian/neq: spg if used. Otherwise, guess.
+* crystal environment: spg if used. Otherwise, guess.
 
 The treatment of symmetry in critic2 can be controlled using the
 GUESS/NOGUESS (before CRYSTAL) and CLEARSYM (after CRYSTAL) keywords.
@@ -1425,7 +1426,10 @@ GUESS/NOGUESS (before CRYSTAL) and CLEARSYM (after CRYSTAL) keywords.
   NOGUESS
 
 Activates (GUESS) or deactivates (NOGUESS) the use of guess. They must
-be used before crystal to be effective. The default is GUESS.
+be used before crystal to be effective. The default is GUESS. NOGUESS
+is occasionally useful for very large crystals where critic2 would
+take seconds or minutes to complete the symmetry analysis (probably
+resulting in a P 1 group anyway).
 
 ::
 
@@ -1444,38 +1448,186 @@ charge and pseudopotential charge after CRYSTAL:
 
   {Q|QAT|ZPSP} {nat1.i|at1.s} q1.r {nat2.i|at2.s} q2.r ...
 
-Changes the atomic charge (Q, QAT) or the pseudopotential atomic
-number (ZPSP) of the non-equivalent atom i1.i, i2.i,... or the atom
-type at1.s, at2.s,.... Real numbers for the charges are acceptable but
-they are internally converted to integers. See the discussion above
-(`Loading a crystal structure (CRYSTAL/MOLECULE)`_) for an explanation
-on the behavior of Q and ZPSP.
+This order changes the atomic charge (Q, QAT) or the pseudopotential
+atomic number (ZPSP) of the non-equivalent atom i1.i, i2.i,... or the
+atom type at1.s, at2.s,.... Real numbers for the charges are
+acceptable but they are internally converted to integers. The meaning
+of these keywords in the NEQ line of the CRYSTAL environment is
+exactly the same.  
 
-::
+Q is used to calculate the point-charge electrostatic energy (using
+Ewald's method, see `Other structural tools (NEWCELL, WS, ENVIRON,
+PACKING, IDENTIFY, EWALD)`_) and, if Q is positive, to build the
+promolecular density using the corresponding cation instead of the
+neutral atom.
+
+The role of ZPSP is to augment the fields defined on a grid, a
+procedure called core augmentation. ZPSP is the pseudopotential atomic
+number, that is, the atomic number of the atom minus the number of
+electrons represented by the pseudopotential. For instance, ZPSP=2 is
+a usual value for Ba. The normal use of critic2 with grids involves
+loading the valence density or pseudo-density that sometimes needs to
+be augmented to recover an electron density that has maxima at the
+nuclear positions, which is important for certain applications (for
+instance, plotting).  While this procedure is not satisfactory from
+the theoretical point of view, in practice, the valence regions are
+mostly unaffected. Of course, core augmentation needs to be
+deactivated if the field is not the electron density or if the grid
+already contains the core contributions, and it is usually a better
+option to use the full all-electron density from the electronic
+structure code if it is able to reconstruct it. 
+
+Core augmentation is only activated by default in structures read from
+abinit density files (_DEN). In a VASP calculation, the value of ZPSP
+can be found easily in a VASP calculation by grepping 'ZVAL' in the
+POTCAR file. In Quantum ESPRESSO, this information is in the UPF file
+(the "number of valence electrons"). 
+
+The keyword NOCORE clears the ZPSP values of all atoms::
 
   NOCORE
-
-Clears the ZPSP values of all atoms.
 
 Loading multiple crystal structures
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Critic2 can only work with one crystal structure at a given
-time. However, more than one crystal can be loaded in the same run,
-simply by giving a new CRYSTAL (or MOLECULE) keyword. When the second
-and subsequent CRYSTAL keywords are read, critic2 clears all the
-information for the previous crystal structure, including the
-structural data (cell parameters and atomic positions) as well as all
-the fields that had been loaded, all the critical point information,
-and the atomic and core density grids. Effectively, critic2 behaves as
-if starting a new run, except in that the variables and global options
-are carried over. To clear the variables and set the global options to
-their default values, use the RESET keyword::
+Critic2 can only work with one structure at a given time. However,
+more than one crystal can be loaded in the same run, simply by giving
+a new CRYSTAL (or MOLECULE) keyword. When the second and subsequent
+CRYSTAL/MOLECULE keywords are read, critic2 clears all the information
+for the previous structure, including the structural data (cell
+parameters, atomic positions, etc.) as well as all the fields that had
+been loaded, all the critical point information, and the atomic and
+core density grids. Effectively, critic2 behaves as if starting a new
+run, except in that the variables and global options are carried
+over. To clear the variables and set the global options to their
+default values, use the RESET keyword::
 
   RESET
 
-Exporting the crystal structure (WRITE)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The molecular structure (MOLECULE)
+----------------------------------
+
+::
+
+  MOLECULE file.xyz [border.r] [CUBIC|CUBE]
+  MOLECULE file.wfn [border.r] [CUBIC|CUBE]
+  MOLECULE file.wfx [border.r] [CUBIC|CUBE]
+  MOLECULE file.cube
+  MOLECULE file.???
+  MOLECULE
+    ???
+      [BOHR|AU]
+      [ANGSTROM|ANG]
+
+    NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+    atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+    atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+    CUBIC|CUBE
+    BORDER border.r
+  ENDMOLECULE|END
+  MOLECULE LIBRARY label.s
+
+* A gas-phase molecule can be input using an xyz file, a Gaussian
+  wfn/wfx file, or the MOLECULE environment. Although these file
+  formats can be read using the CRYSTAL keyword as well, MOLECULE will
+  make critic2 select the appropriate default options for
+  molecules. The input molecule is enclosed in a parallelepiped that
+  is larger (default: 10 bohr) in all directions than the minimal
+  parallelepiped encompassing the molecule. If the CUBIC (or CUBE)
+  keyword is given, then a cubic supercell is used. The width of the
+  vacumm around the molecule can be changed with the optional border.r
+  argument (in bohr). The molecule is automatically translated to the
+  center of the cube. See the section below (`The molecular structure
+  (MOLECULE)`_) for more details.
+
+# Note: all CRYSTAL keywords can be replaced by MOLECULE
+# and viceversa, with the effect discussed below.
+
+Critic2 can be used to analyze scalar fields in isolated molecules as
+well as in crystals. This behavior is activated by using the MOLECULE
+keyword to load the structure, instead of the usual CRYSTAL. The
+MOLECULE keyword is most often used when loading an xyz or a Gaussian
+wfn/wfx file, but the molecular geometry (default: Cartesian
+coordinates, angstrom units) can also be given directly in the input
+using the MOLECULE/ENDMOLECULE environment. Inside this environment,
+the atoms can be specified in three different ways::
+
+  NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+  atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+  atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+
+The NEQ keyword can be use, in the same way as in the CRYSTAL
+environment, but the atomic symbol can also be used as the first
+field, or even the atomic number. The two last options are convenient
+because the input can be generated by inserting an xyz file.
+
+Because critic2 works under periodic boundary conditions, it does the
+analysis of molecular structures in the xyz/wfn/wfx format by
+translating the input molecule to the center of a supercell large
+enough to encompass it. The structures loaded using the MOLECULE
+keyword but that have a format different from xyz/wfn/wfx are not
+translated. The amount of border around the molecule can be controlled
+(see border.r in `The crystal structure`_ section above) as well as
+the shape of the supercell (CUBIC/CUBE). Provided the size of the
+vacuum is large enough, the analysis should be carried out without
+problems.
+
+The use of MOLECULE instead of CRYSTAL changes some of the default
+behavior in critic2. Namely:
+
+* The default units in input and output are angstrom instead of bohr
+  (use the UNITS keyword in `Input and output units`_ to change this
+  behavior). In particular, this applies to the Cartesian coordinates
+  for the atoms in the MOLECULE environment, where the input units for
+  a particular atom can be changed using the ANG/BOHR options.
+
+* The symmetry module is automatically deactivated. All molecular
+  structures are run in the P1 space group.
+
+* The default CP search seeding strategy is modified (see `Finding
+  critical points`_). In a crystal, a recursive subdivision of a
+  symmetry-reduced portion of the Wigner-Seitz cell is used (SEED WS
+  with DEPTH 1). In a molecule, the default is to seed at the center
+  of every interatomic line between atom pairs less than 15 bohr apart
+  (SEED PAIR).
+
+* In addition to the supercell, a second smaller cell is defined, the
+  "molecular cell", that can be represented using the MOLCELL keyword
+  in WRITE (`Exporting the crystal structure (WRITE)`_) or CPREPORT
+  (`Finding critical points`_). The molecular cell is only used in
+  molecules loaded from a xyz/wfn/wfx file. The region outside the
+  molecular cell is assumed to belong to the vacuum. Any CPs found
+  outside the molecular cell are discarded, and all downwards gradient
+  paths that exit the molecular cell are assumed to have diverged to
+  infinity.
+
+In the (unusual) case in which you want to analyze a molecular
+structure not coming from a xyz/wfn/wfx, critic2 will not
+automatically translate or set up a molecular cell. In this case, you
+can use the MOLCELL keyword to set it up:
+
+::
+
+  MOLCELL [border.r]
+
+The MOLCELL keyword calculates the smallest parallelepiped
+encompassing the molecular motif and then adds a border to it in order
+to build the molecular cell. The default border is 10 bohr, but can be
+controlled by passing an additional numerical argument (border.r, in
+bohr). Note that using this keyword only makes sense if the molecule
+is placed close to the center of the cell and if there is a sizable
+amount of vacuum between the molecule and the cell edges. In order to
+use MOLCELL, the input structure needs to be read using the MOLECULE
+keyword and the cell needs to be orthogonal.
+
+The molecular library is in molecule.dat. Change the library location
+with LIBRARY MOLECULE bleh.s
+
+The border is chosen with MOLCELL, but the default for molecules is
+c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
+
+Exporting the structure (WRITE)
+-------------------------------
 
 Critic2 can be used as a converter between different crystal structure
 file formats. For instance, if we are given a cif file that needs to
@@ -1641,92 +1793,6 @@ more "exotic" centering types, so I recommend you check your resulting
 structure with a visualization program. In the case of QE, critic2
 tries to conform as much as possible with the QE rules for writing the
 CELL_PARAMETERS matrix.
-
-The molecular structure
------------------------
-
-Critic2 can be used to analyze scalar fields in isolated molecules as
-well as in crystals. This behavior is activated by using the MOLECULE
-keyword to load the structure, instead of the usual CRYSTAL. The
-MOLECULE keyword is most often used when loading an xyz or a Gaussian
-wfn/wfx file, but the molecular geometry (default: Cartesian
-coordinates, angstrom units) can also be given directly in the input
-using the MOLECULE/ENDMOLECULE environment. Inside this environment,
-the atoms can be specified in three different ways::
-
-  NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-  atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-  atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
-
-The NEQ keyword can be use, in the same way as in the CRYSTAL
-environment, but the atomic symbol can also be used as the first
-field, or even the atomic number. The two last options are convenient
-because the input can be generated by inserting an xyz file.
-
-Because critic2 works under periodic boundary conditions, it does the
-analysis of molecular structures in the xyz/wfn/wfx format by
-translating the input molecule to the center of a supercell large
-enough to encompass it. The structures loaded using the MOLECULE
-keyword but that have a format different from xyz/wfn/wfx are not
-translated. The amount of border around the molecule can be controlled
-(see border.r in `The crystal structure`_ section above) as well as
-the shape of the supercell (CUBIC/CUBE). Provided the size of the
-vacuum is large enough, the analysis should be carried out without
-problems.
-
-The use of MOLECULE instead of CRYSTAL changes some of the default
-behavior in critic2. Namely:
-
-* The default units in input and output are angstrom instead of bohr
-  (use the UNITS keyword in `Input and output units`_ to change this
-  behavior). In particular, this applies to the Cartesian coordinates
-  for the atoms in the MOLECULE environment, where the input units for
-  a particular atom can be changed using the ANG/BOHR options.
-
-* The symmetry module is automatically deactivated. All molecular
-  structures are run in the P1 space group.
-
-* The default CP search seeding strategy is modified (see `Finding
-  critical points`_). In a crystal, a recursive subdivision of a
-  symmetry-reduced portion of the Wigner-Seitz cell is used (SEED WS
-  with DEPTH 1). In a molecule, the default is to seed at the center
-  of every interatomic line between atom pairs less than 15 bohr apart
-  (SEED PAIR).
-
-* In addition to the supercell, a second smaller cell is defined, the
-  "molecular cell", that can be represented using the MOLCELL keyword
-  in WRITE (`Exporting the crystal structure (WRITE)`_) or CPREPORT
-  (`Finding critical points`_). The molecular cell is only used in
-  molecules loaded from a xyz/wfn/wfx file. The region outside the
-  molecular cell is assumed to belong to the vacuum. Any CPs found
-  outside the molecular cell are discarded, and all downwards gradient
-  paths that exit the molecular cell are assumed to have diverged to
-  infinity.
-
-In the (unusual) case in which you want to analyze a molecular
-structure not coming from a xyz/wfn/wfx, critic2 will not
-automatically translate or set up a molecular cell. In this case, you
-can use the MOLCELL keyword to set it up:
-
-::
-
-  MOLCELL [border.r]
-
-The MOLCELL keyword calculates the smallest parallelepiped
-encompassing the molecular motif and then adds a border to it in order
-to build the molecular cell. The default border is 10 bohr, but can be
-controlled by passing an additional numerical argument (border.r, in
-bohr). Note that using this keyword only makes sense if the molecule
-is placed close to the center of the cell and if there is a sizable
-amount of vacuum between the molecule and the cell edges. In order to
-use MOLCELL, the input structure needs to be read using the MOLECULE
-keyword and the cell needs to be orthogonal.
-
-The molecular library is in molecule.dat. Change the library location
-with LIBRARY MOLECULE bleh.s
-
-The border is chosen with MOLCELL, but the default for molecules is
-c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
 Scalar fields
 -------------
