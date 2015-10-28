@@ -98,7 +98,7 @@ contains
        c%file = word
 
     else if (equal(wext1,'cube')) then
-       call struct_read_cube(c,word,.false.)
+       call struct_read_cube(c,word,.false.,mol)
        call c%guessspg(.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)

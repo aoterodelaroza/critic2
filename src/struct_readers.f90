@@ -750,7 +750,7 @@ contains
   end subroutine struct_read_cif
 
   !> Read the structure from a gaussian cube file
-  subroutine struct_read_cube(c,file,verbose)
+  subroutine struct_read_cube(c,file,verbose,mol)
     use struct_basic
     use types
     use tools_io
@@ -760,6 +760,7 @@ contains
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: verbose !< Verbose?
+    logical, intent(in) :: mol
 
     integer :: lu
     integer :: i, nstep(3), nn, iz
@@ -824,6 +825,9 @@ contains
     c%at(1:c%nneq)%zpsp = -1
     c%at(1:c%nneq)%qat = 0
 
+    ! save the origin if this is a molecule
+    if (mol) c%molx0 = x0
+    
     call fclose(lu)
 
   end subroutine struct_read_cube
