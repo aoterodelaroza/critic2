@@ -53,7 +53,7 @@ module struct_readers
 contains
 
   !> Parse a crystal environment
-  subroutine parse_crystal_env(c,lu,x0)
+  subroutine parse_crystal_env(c,lu)
     use struct_basic
     use global
     use arithmetic
@@ -62,15 +62,14 @@ contains
     use types
     use param
 
-    type(crystal), intent(inout) :: c
-    integer, intent(in) :: lu
-    real*8, intent(out) :: x0(3)
+    type(crystal), intent(inout) :: c !< Crystal
+    integer, intent(in) :: lu !< Logical unit for input
 
     character(len=:), allocatable :: word, aux, aexp, line
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2
     real*8 :: gmat(3,3), rmat(3,3), scal, ascal, x(3), xn(3)
-    logical :: ok, goodcell, goodspg, docenter
+    logical :: ok, goodcell, goodspg
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
     logical :: icodef(3)
@@ -78,8 +77,6 @@ contains
 
     goodcell = .false.
     goodspg = .false.
-    docenter = .false.
-    x0 = 0.5d0
     c%nneq = 0
     nsline = 0
     if (lu == uin) then
@@ -160,16 +157,6 @@ contains
           c%crys2car = transpose(rmat) * scal * ascal
           c%car2crys = matinv(c%crys2car)
           goodcell = .true.
-
-       else if (equal(word,'center') .or. equal(word,'centre')) then
-          ! center [x y z]
-          docenter = .true.
-          ok = eval_next(x0(1),line,lp)
-          ok = ok .and. eval_next(x0(2),line,lp)
-          ok = ok .and. eval_next(x0(3),line,lp)
-          if (.not.ok) x0 = 0.5d0
-          aux = getword(line,lp)
-          if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in CENTER/CENTRE',faterr,line)
 
        else if (equal(word,'spg')) then
           ! spg <spg>
@@ -316,18 +303,12 @@ contains
        end do
     end if
 
-    ! do center transformation
-    if (docenter) then
-       do i = 1, c%nneq
-          c%at(i)%x = c%at(i)%x + x0
-       end do
-    endif
     if (.not.goodspg) call c%guessspg(.false.)
 
   end subroutine parse_crystal_env
 
   !> Parse a molecule environment
-  subroutine parse_molecule_env(c,lu,x0)
+  subroutine parse_molecule_env(c,lu)
     use struct_basic
     use global
     use arithmetic
@@ -336,9 +317,8 @@ contains
     use types
     use param
 
-    type(crystal), intent(inout) :: c
-    integer, intent(in) :: lu
-    real*8, intent(out) :: x0(3)
+    type(crystal), intent(inout) :: c !< Crystal
+    integer, intent(in) :: lu !< Logical unit for input
 
     character(len=:), allocatable :: word, aux, line
     integer :: i, j, k, lp, lp2, luout, iat
@@ -347,7 +327,6 @@ contains
 
     docube = .false.
     rborder = rborder_def
-    x0 = 0d0
     c%nneq = 0
     if (lu == uin) then
        luout = ucopy
@@ -458,15 +437,14 @@ contains
   end subroutine parse_molecule_env
 
   !> Read a structure from the critic2 structure library
-  subroutine struct_read_library(c,line,ismol,x0)
+  subroutine struct_read_library(c,line,mol)
     use global
     use tools_io
     use struct_basic
 
-    type(crystal), intent(inout) :: c
-    character*(*), intent(in) :: line
-    logical, intent(in) :: ismol
-    real*8, intent(out) :: x0(3)
+    type(crystal), intent(inout) :: c !< Crystal
+    character*(*), intent(in) :: line !< Library entry
+    logical, intent(in) :: mol !< Is this a molecule?
 
     character(len=:), allocatable :: word, l2, stru, aux, libfile
     logical :: lchk, found, ok
@@ -478,7 +456,7 @@ contains
     if (len_trim(stru) < 1) &
        call ferror("struct_read_library","structure label missing in CRYSTAL/MOLECULE LIBRARY",faterr,line)
 
-    if (ismol) then
+    if (mol) then
        libfile = mlib_file
     else
        libfile = clib_file
@@ -514,10 +492,10 @@ contains
 
     ! read the crystal/molecule environment inside
     ok = getline(lu,l2)
-    if (ismol) then
-       call parse_molecule_env(c,lu,x0)
+    if (mol) then
+       call parse_molecule_env(c,lu)
     else
-       call parse_crystal_env(c,lu,x0)
+       call parse_crystal_env(c,lu)
     endif
     call fclose(lu)
 
@@ -528,7 +506,7 @@ contains
   end subroutine struct_read_library
 
   !> Read the structure from a CIF file (uses ciftbx)
-  subroutine struct_read_cif(c,file,dblock,verbose)
+  subroutine struct_read_cif(c,file,dblock,verbose,mol)
     use struct_basic
     use arithmetic
     use global
@@ -539,10 +517,11 @@ contains
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
 
-    type(crystal), intent(inout) :: c
+    type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
-    logical, intent(in) :: verbose
+    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: verbose !< Write information to the output
 
     character(len=1024) :: dictfile, sym, tok
     character*30 :: atname, spg
@@ -747,20 +726,24 @@ contains
     call fdealloc(ludum)
     call fdealloc(luscr)
 
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
   end subroutine struct_read_cif
 
   !> Read the structure from a gaussian cube file
   subroutine struct_read_cube(c,file,verbose,mol)
     use struct_basic
+    use global
     use types
     use tools_io
     use tools_math
     use param
 
-    type(crystal), intent(inout) :: c
+    type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: verbose !< Verbose?
-    logical, intent(in) :: mol
+    logical, intent(in) :: mol !< Is this a molecule?
 
     integer :: lu
     integer :: i, nstep(3), nn, iz
@@ -799,7 +782,7 @@ contains
     c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
     rmat = matinv(transpose(rmat))
 
-    ! Atomic positions. The charge is interpreted as pseudopotential charge.
+    ! Atomic positions.
     if (c%nneq > size(c%at)) call realloc(c%at,c%nneq)
     nn = c%nneq
     c%nneq = 0
@@ -825,24 +808,25 @@ contains
     c%at(1:c%nneq)%zpsp = -1
     c%at(1:c%nneq)%qat = 0
 
-    ! save the origin if this is a molecule
-    if (mol) c%molx0 = x0
-    
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c,x0)
+
     call fclose(lu)
 
   end subroutine struct_read_cube
 
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
-  subroutine struct_read_wien(c,file,readall)
+  subroutine struct_read_wien(c,file,readall,mol)
     use struct_basic
     use tools_io
     use param
     use types
 
-    type(crystal), intent(inout) :: c
-    character*(*), intent(in) :: file
-    logical, intent(in) :: readall
+    type(crystal), intent(inout) :: c !< Crystal
+    character*(*), intent(in) :: file !< struct file
+    logical, intent(in) :: readall !< if true, read the atomic positions into c%at%x
+    logical, intent(in) :: mol !< is this a molecule?
 
     integer :: lut
     integer :: i, j, i1, i2, j1, iat, istart
@@ -938,22 +922,27 @@ contains
     c%at(1:c%nneq)%qat = 0
     call realloc(c%at,c%nneq)
 
+    ! clean up
     call fclose(lut)
+
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_wien
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
-  subroutine struct_read_vasp(c,filename,ntypat,ztypat)
+  subroutine struct_read_vasp(c,filename,ntypat,ztypat,mol)
     use struct_basic
     use types
     use tools_io
     use tools_math
     use param
 
-    type(crystal), intent(inout) :: c !< Output crystal
+    type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: filename !< Input file name
-    integer, intent(inout) :: ntypat
-    character*5, intent(inout) :: ztypat(100)
+    integer, intent(inout) :: ntypat !< Number of atom types
+    character*5, intent(inout) :: ztypat(100) !< Atomic numbers for the types
+    logical, intent(in) :: mol !< Is this a molecule?
 
     integer :: lu, lp, nn, typ
     character(len=:), allocatable :: word, line
@@ -1071,6 +1060,9 @@ contains
     c%at(1:c%nneq)%zpsp = -1
     c%at(1:c%nneq)%qat = 0
 
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
   end subroutine struct_read_vasp
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
@@ -1080,8 +1072,8 @@ contains
     use types
 
     character*(*), intent(in) :: filename !< Input file name
-    integer, intent(out) :: ntyp
-    character*5, intent(out) :: ztyp(100)
+    integer, intent(out) :: ntyp !< Number of atom types
+    character*5, intent(out) :: ztyp(100) !< Atomic numbers for the types
 
     integer :: lu, lp
     character(len=:), allocatable :: aux1, aatom, line
@@ -1111,7 +1103,7 @@ contains
   end subroutine struct_read_potcar
 
   !> Read the structure from an abinit DEN file
-  subroutine struct_read_abinit(c,file)
+  subroutine struct_read_abinit(c,file,mol)
     use struct_basic
     use types
     use tools_math
@@ -1119,8 +1111,9 @@ contains
     use abinit_private
     use param
 
-    type(crystal), intent(inout) :: c
+    type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
 
     integer :: lu, fform0
     type(hdr_type) :: hdr
@@ -1171,22 +1164,27 @@ contains
        c%at(i)%qat = 0
     end do
 
+    ! clean up
     call fclose(lu)
+
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_abinit
 
   ! The following code has been adapted from the elk distribution, version 1.3.2
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
-  subroutine struct_read_elk(c,filename)
+  subroutine struct_read_elk(c,filename,mol)
     use struct_basic
     use tools_io
     use tools_math
     use types
     use param
 
-    type(crystal), intent(inout) :: c
-    character*(*), intent(in) :: filename
+    type(crystal), intent(inout) :: c !< crystal
+    character*(*), intent(in) :: filename !< input filename
+    logical, intent(in) :: mol !< is this a molecule?
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, j, lp
@@ -1247,7 +1245,11 @@ contains
     c%at(1:c%nneq)%zpsp = -1
     c%at(1:c%nneq)%qat = 0
 
+    ! clean up
     call fclose(lu)
+
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_elk
 
@@ -1260,11 +1262,11 @@ contains
     use tools_io
     use param
 
-    type(crystal), intent(inout) :: c
+    type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
-    character*3, intent(in) :: fmt
-    real*8, intent(in) :: rborder
-    logical, intent(in) :: docube
+    character*3, intent(in) :: fmt !< wfn/wfx/xyz
+    real*8, intent(in) :: rborder !< user-defined border in bohr
+    logical, intent(in) :: docube !< if true, make the cell cubic
 
     integer, allocatable :: iz(:)
     real*8, allocatable :: x(:,:)
@@ -1355,15 +1357,16 @@ contains
   end subroutine struct_read_mol
 
   !> Read the structure from a quantum espresso output
-  subroutine struct_read_qeout(c,file)
+  subroutine struct_read_qeout(c,file,mol)
     use struct_basic
     use tools_io
     use tools_math
     use param
     use types
 
-    type(crystal), intent(inout) :: c
+    type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
 
     integer :: lu, nstrucs, is0, ideq, i, k
     character(len=:), allocatable :: line
@@ -1503,10 +1506,13 @@ contains
     ! close the shop
     call fclose(lu)
 
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
   end subroutine struct_read_qeout
 
   !> Read the structure from a quantum espresso input
-  subroutine struct_read_qein(c0,file)
+  subroutine struct_read_qein(c0,file,mol)
     ! This subroutine has been adapted from parts of the Quantum
     ! ESPRESSO code, version 4.3.2.  
     ! Copyright (C) 2002-2009 Quantum ESPRESSO group
@@ -1520,8 +1526,9 @@ contains
     use param
     use types
 
-    type(crystal), intent(inout) :: c0
+    type(crystal), intent(inout) :: c0 !< crystal
     character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
 
     integer, parameter :: dp = selected_real_kind(14,200)
     integer, parameter :: ntypx = 10
@@ -1770,18 +1777,22 @@ contains
     ! close
     call fclose(lu)
 
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c0)
+
   end subroutine struct_read_qein
 
   !> Read the structure from a siesta STRUCT_OUT input
-  subroutine struct_read_siesta(c,file)
+  subroutine struct_read_siesta(c,file,mol)
     use struct_basic
     use types
     use tools_io
     use tools_math
     use param
 
-    type(crystal), intent(inout) :: c !< Output crystal
+    type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
 
     integer :: lu
     real*8 :: r(3,3), g(3,3)
@@ -1828,9 +1839,12 @@ contains
     ! close
     call fclose(lu)
 
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
   end subroutine struct_read_siesta
 
-  !> From QE, generate the laticce from the ibrav
+  !> From QE, generate the lattice from the ibrav
   subroutine qe_latgen(ibrav,celldm,a1,a2,a3)
     ! This subroutine has been adapted from parts of the Quantum
     ! ESPRESSO code, version 4.3.2.  
@@ -2143,10 +2157,13 @@ contains
     end do
 
     ! Keep the (1/2,1/2,1/2) translation we applied; this is a moleucle
-    c%ismolecule = .true.
     c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm 
 
-    ! set up the border around the molecule for CP and gradient path termination
+    ! Set up the molecular cell. c%molborder is in fractional coordinates
+    ! and gives the position of the molecular cell in each axis. By default,
+    ! choose the molecular cell as the minimal encompassing cell for the molecule
+    ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell 
+    ! can not exceed the actual unit cell
     c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
     ! no symmetry for now
@@ -2157,5 +2174,45 @@ contains
     c%lcent = 1
     
   end subroutine fill_molecule
+
+  !> Fills the remaining information for a molecule loaded from a crystal
+  !> cell description (e.g. a cube file). Sets the origin to the given x0
+  !> or (if not present) to the center of the cell. Then, sets up the
+  !> molecular cell. Do not allow molecules in non-orthogonal cells.
+  subroutine fill_molecule_given_cell(c,x0)
+    use struct_basic
+    use tools_io
+    type(crystal), intent(inout) :: c
+    real*8, intent(in), optional :: x0(3)
+
+    integer :: i, j
+    real*8 :: xmin(3)
+
+    if (any(abs(c%bb - 90d0) > 1d-5)) &
+       call ferror('fill_molecule_given_cell','Can not use MOLECULE with a non-orthogonal cell',faterr)
+
+    ! save the origin
+    if (present(x0)) then
+       c%molx0 = x0
+    else
+       c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa 
+    endif
+
+    ! Set up the molecular cell. c%molborder is in fractional coordinates
+    ! and gives the position of the molecular cell in each axis. By default,
+    ! choose the molecular cell as the minimal encompassing cell for the molecule
+    ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell 
+    ! can not exceed the actual unit cell
+    xmin =  1d40
+    do i = 1, c%nneq
+       do j = 1, 3
+          xmin(j) = min(c%at(i)%x(j),xmin(j))
+          xmin(j) = min(1d0-max(c%at(i)%x(j),1d0-xmin(j)),xmin(j))
+       end do
+    end do
+
+    c%molborder = max(xmin - max(0.8d0 * xmin,2d0/c%aa),0d0)
+
+  end subroutine fill_molecule_given_cell
 
 end module struct_readers

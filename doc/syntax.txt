@@ -21,6 +21,7 @@
 # comment; the continuation symbol is '\'
 variable.s = value.r # assigns the expression value to the variable.
 expression.r # prints the value of the expression to the output.
+
 * CRYSTAL/MOLECULE # molecule..endmolecule can be used to input a molecule.
   CRYSTAL file.cif [datablock.s]
   CRYSTAL file.cube
@@ -35,9 +36,6 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.in # (file.scf.in, quantum espresso input)
   CRYSTAL file.STRUCT_IN 
   CRYSTAL file.STRUCT_OUT
-  MOLECULE file.xyz [border.r] [CUBIC|CUBE]
-  MOLECULE file.wfn [border.r] [CUBIC|CUBE]
-  MOLECULE file.wfx [border.r] [CUBIC|CUBE]
   CRYSTAL
    SPG spgsymbol.s
    CELL a.r b.r c.r alpha.r beta.r gamma.r [ANG/ANGSTROM/BOHR/AU] 
@@ -52,9 +50,15 @@ expression.r # prints the value of the expression to the output.
    atom.s x.r y.r z.r [ZPSP zpsp.i] [Q q.i] [ANG/ANGSTROM] [BOHR/AU]
    atnumber.i x.r y.r z.r [ZPSP zpsp.i] [Q q.i] [ANG/ANGSTROM] [BOHR/AU]
    ...
-   CENTER/CENTRE [x.r y.r z.r]
    SYMM exprx.s, epxry.s, exprz.s
   ENDCRYSTAL/END
+  CRYSTAL LIBRARY label.s
+* MOLECULE file.xyz [border.r] [CUBIC|CUBE]
+  MOLECULE file.wfn [border.r] [CUBIC|CUBE]
+  MOLECULE file.wfx [border.r] [CUBIC|CUBE]
+  MOLECULE file.cube
+  MOLECULE file.cif
+  MOLECULE ...
   MOLECULE
    NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
    atom.s x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
@@ -62,7 +66,6 @@ expression.r # prints the value of the expression to the output.
    CUBIC|CUBE
    BORDER border.r
   ENDMOLECULE   
-  CRYSTAL LIBRARY label.s
   MOLECULE LIBRARY label.s
 * LIBRARY {CRYSTAL|MOLECULE} path.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}

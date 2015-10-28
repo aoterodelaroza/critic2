@@ -1523,6 +1523,7 @@ The molecular structure (MOLECULE)
   MOLECULE file.wfn [border.r] [CUBIC|CUBE]
   MOLECULE file.wfx [border.r] [CUBIC|CUBE]
   MOLECULE file.cube
+  MOLECULE file.cif
   MOLECULE ...
   MOLECULE
     NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
@@ -1532,6 +1533,14 @@ The molecular structure (MOLECULE)
     BORDER border.r
   ENDMOLECULE|END
   MOLECULE LIBRARY label.s
+
+  Set up the molecular cell. c%molborder is in fractional coordinates
+  and gives the position of the molecular cell in each axis. By default,
+  choose the molecular cell as the minimal encompassing cell for the molecule
+  plus 80% of the border or 2 bohr, whichever is larger. The molecular cell 
+  can not exceed the actual unit cell
+
+  c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
 * A gas-phase molecule can be input using an xyz file, a Gaussian
   wfn/wfx file, or the MOLECULE environment. Although these file

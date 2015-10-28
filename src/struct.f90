@@ -56,7 +56,7 @@ contains
     character(len=:), allocatable :: word, word2, wext1, wext2, subline, aux
     integer :: ntyp, nn
     character*5 :: ztyp(100)
-    real*8 :: x0(3), rborder, raux
+    real*8 :: rborder, raux
     logical :: docube
 
     ! Initialize the structure
@@ -93,7 +93,7 @@ contains
        if (equal(aux,"")) then
           aux = " "
        end if
-       call struct_read_cif(c,word,aux,.false.)
+       call struct_read_cif(c,word,aux,.false.,mol)
        call c%set_cryscar()
        c%file = word
 
@@ -105,10 +105,10 @@ contains
        c%file = word
 
     else if (equal(wext1,'struct')) then
-       call struct_read_wien(c,word,.false.)
+       call struct_read_wien(c,word,.false.,mol)
        call c%set_cryscar()
        if (c%neqv == 0) then ! some structs may come without symmetry
-          call struct_read_wien(cr,word,.true.)
+          call struct_read_wien(cr,word,.true.,mol)
           call c%set_cryscar()
           call c%guessspg(.false.)
        endif
@@ -141,32 +141,32 @@ contains
              wext1 = getword(line,lp)
           end do
        end if
-       call struct_read_vasp(c,word,ntyp,ztyp)
+       call struct_read_vasp(c,word,ntyp,ztyp,mol)
        call c%guessspg(.false.)
        c%file = word
 
     else if (equal(wext1,'DEN') .or. equal(wext2,'DEN')) then
-       call struct_read_abinit(c,word)
+       call struct_read_abinit(c,word,mol)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'OUT')) then
-       call struct_read_elk(c,word)
+       call struct_read_elk(c,word,mol)
        call c%guessspg(.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'out')) then
-       call struct_read_qeout(c,word)
+       call struct_read_qeout(c,word,mol)
        call c%guessspg(.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'in')) then
-       call struct_read_qein(c,word)
+       call struct_read_qein(c,word,mol)
        call c%guessspg(.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
@@ -174,7 +174,7 @@ contains
 
     else if (equal(word,'library')) then
        subline = line(lp:)
-       call struct_read_library(c,subline,mol,x0)
+       call struct_read_library(c,subline,mol)
        if (mol) then
           c%file = "molecular library (" // trim(line(lp:)) // ")"
        else
@@ -206,7 +206,7 @@ contains
 
     else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN'))&
        & then
-       call struct_read_siesta(c,word)
+       call struct_read_siesta(c,word,mol)
        call c%guessspg(.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
@@ -215,10 +215,10 @@ contains
     else if (len_trim(word) < 1) then
        if (.not.mol) then
           if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse CRYSTAL environment but allownofile=.true.',faterr)
-          call parse_crystal_env(c,uin,x0)
+          call parse_crystal_env(c,uin)
        else
           if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse MOLECULE environment but allownofile=.true.',faterr)
-          call parse_molecule_env(c,uin,x0)
+          call parse_molecule_env(c,uin)
        endif
        c%file = "<input>"
 
