@@ -114,7 +114,7 @@ contains
        else if (equal (word,'cartesian')) then
           ok = eval_next(scal,line,lp)
           if (.not.ok) scal = 1d0
-          ascal = 1d0
+          ascal = 1d0/dunit
           aux = getword(line,lp)
           if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line)
 

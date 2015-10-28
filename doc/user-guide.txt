@@ -1084,7 +1084,6 @@ Loading a crystal structure (CRYSTAL)
     ENDCARTESIAN|END
     NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i]
        [ANG|ANGSTROM] [BOHR|AU]
-    CENTER|CENTRE [x.r y.r z.r]
     SYMM exprx.s, epxry.s, exprz.s
   ENDCRYSTAL|END
   CRYSTAL LIBRARY label.s
@@ -1303,12 +1302,13 @@ CARTESIAN keyword::
   ENDCARTESIAN/END
 
 CARTESIAN reads the Cartesian coordinates of the cell vectors in some
-arbitrary orthonormal reference frame . Each row corresponds to a
+arbitrary orthonormal reference frame. Each row corresponds to a
 vector (hence the metric tensor is G = R * R' where R is the matrix
 above and ' is the transpose, and the coordinate transformation is
 (cryst) = (cart) * R). If scal.r is given, all vectors are scaled by
-that factor. The input units can be controlled with the BOHR/AU and
-ANG/ANGSTROM keywords (default: bohr).
+that factor. The input units are bohr by default. The default can be
+changed with a previous UNITS command or with the BOHR/AU and
+ANG/ANGSTROM keywords inside the CARTESIAN environment.
 
 The CARTESIAN keyword is particularly useful for inputs based on
 Quantum ESPRESSO results since the matrix corresponds exactly to the
