@@ -326,7 +326,7 @@ contains
     logical :: ok, docube
 
     docube = .false.
-    rborder = rborder_def
+    rborder = rborder_def 
     c%nneq = 0
     if (lu == uin) then
        luout = ucopy

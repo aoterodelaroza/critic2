@@ -101,7 +101,7 @@ module global
   real*8, parameter :: dunit0(2) = (/1d0,bohrtoa/)
 
   ! default border for a molecular unit cell
-  real*8, parameter :: rborder_def = 10d0
+  real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
   ! guess and symmetry option
   logical :: doguess

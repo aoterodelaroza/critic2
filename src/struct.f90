@@ -183,14 +183,14 @@ contains
 
     else if (equal(wext1,'xyz').or.equal(wext1,'wfn').or.equal(wext1,'wfx')) then
        docube = .false.
-       rborder = rborder_def
+       rborder = rborder_def 
        do while(.true.)
           lp2 = 1
           word2 = lgetword(line,lp)
           if (equal(word2,'cubic').or.equal(word2,'cube')) then
              docube = .true.
           elseif (eval_next(raux,word2,lp2)) then
-             rborder = raux
+             rborder = raux / dunit
           elseif (len_trim(word2) > 1) then
              call ferror('struct_write','Unknown extra keyword',faterr,line)
           else
@@ -989,12 +989,12 @@ contains
        call ferror('struct_molcell','MOLCELL only allowed for orthogonal cells.',faterr)
 
     ! defaults
-    rborder = rborder_def
+    rborder = rborder_def 
 
     ! read optional border input
     lp = 1
     ok = eval_next(raux,line,lp)
-    if (ok) rborder = raux
+    if (ok) rborder = raux / dunit
 
     ! find the encompassing cube
     xmin = 1d40
