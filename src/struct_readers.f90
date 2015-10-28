@@ -68,7 +68,7 @@ contains
 
     character(len=:), allocatable :: word, aux, aexp, line
     character*255, allocatable :: sline(:)
-    integer :: i, j, k, lp, nsline, idx, luout
+    integer :: i, j, k, lp, nsline, idx, luout, iat, lp2
     real*8 :: gmat(3,3), rmat(3,3), scal, ascal, x(3), xn(3)
     logical :: ok, goodcell, goodspg, docenter
 
@@ -161,44 +161,6 @@ contains
           c%car2crys = matinv(c%crys2car)
           goodcell = .true.
 
-          ! neq <x> <y> <z> <file.ion>
-       else if (equal (word,'neq')) then
-          c%nneq = c%nneq+1
-          if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))
-          ok = eval_next(c%at(c%nneq)%x(1),line,lp)
-          ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
-          ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
-          if (.not.ok) &
-             call ferror("parse_crystal_env","Wrong NEQ syntax",faterr,line)
-
-          c%at(c%nneq)%name = getword(line,lp)
-          c%at(c%nneq)%name = string(c%at(c%nneq)%name)
-          c%at(c%nneq)%z = zatguess(c%at(c%nneq)%name)
-          if (c%at(c%nneq)%z < 0) &
-             call ferror('parse_crystal_input','Unknown atomic symbol in NEQ',faterr,line)
-          do while (.true.)
-             word = lgetword(line,lp)
-             if (equal(word,'zpsp')) then
-                ok = eval_next(c%at(c%nneq)%zpsp,line,lp)
-                if (.not.ok) call ferror('parse_crystal_env','Wrong ZPSP in neq',faterr,line)
-             else if (equal(word,'q')) then
-                ok = eval_next(c%at(c%nneq)%qat,line,lp)
-                if (.not.ok) call ferror('parse_crystal_env','Wrong Q in neq',faterr,line)
-             else if (equal(word,'ang') .or. equal(word,'angstrom')) then
-                if (.not.goodcell) &
-                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line)
-                c%at(c%nneq)%x = c%c2x(c%at(c%nneq)%x / bohrtoa)
-             else if (equal(word,'bohr') .or. equal(word,'au')) then
-                if (.not.goodcell) &
-                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line)
-                c%at(c%nneq)%x = c%c2x(c%at(c%nneq)%x)
-             else if (len_trim(word) > 0) then
-                call ferror('parse_crystal_input','Unknown keyword in NEQ',faterr,line)
-             else
-                exit
-             end if
-          end do
-
        else if (equal(word,'center') .or. equal(word,'centre')) then
           ! center [x y z]
           docenter = .true.
@@ -226,12 +188,75 @@ contains
           ! endcrystal/end
           exit
        else
-          ! keyword not found
-          call ferror ('parse_crystal_env','Unknown syntax',faterr,line)
-       endif
+          ! keyword not found, must be an atom. The syntax:
+          !    neq <x> <y> <z> <atom> ...
+          !    <atom> <x> <y> <z> ...
+          !    <atnumber> <x> <y> <z> ...
+          ! are acceptable
+          if (.not.equal(word,'neq')) then
+             c%nneq = c%nneq+1
+             if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))
+
+             ! try to read four fields from the input
+             lp2 = 1
+             ok = isinteger(iat,line,lp2)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(1),line,lp2)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp2)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp2)
+             if (.not.ok) then
+                ! then it must be <atom> <x> <y> <z>
+                ok = eval_next(c%at(c%nneq)%x(1),line,lp)
+                ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
+                ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
+                if (.not.ok) &
+                   call ferror("parse_crystal_env","Wrong atomic input syntax",faterr,line)
+                c%at(c%nneq)%name = string(word)
+             else
+                lp = lp2
+                c%at(c%nneq)%name = nameguess(iat,.true.)
+             end if
+          else
+             c%nneq = c%nneq+1
+             if (c%nneq > size(c%at)) call realloc(c%at,2*size(c%at))
+             ok = eval_next(c%at(c%nneq)%x(1),line,lp)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
+             ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
+             if (.not.ok) &
+                call ferror("parse_crystal_env","Wrong NEQ syntax",faterr,line)
+             c%at(c%nneq)%name = getword(line,lp)
+             c%at(c%nneq)%name = string(c%at(c%nneq)%name)
+          end if
+
+          c%at(c%nneq)%z = zatguess(c%at(c%nneq)%name)
+          if (c%at(c%nneq)%z < 0) &
+             call ferror('parse_crystal_input','Unknown atomic symbol in NEQ',faterr,line)
+          do while (.true.)
+             word = lgetword(line,lp)
+             if (equal(word,'zpsp')) then
+                ok = eval_next(c%at(c%nneq)%zpsp,line,lp)
+                if (.not.ok) call ferror('parse_crystal_env','Wrong ZPSP in neq',faterr,line)
+             else if (equal(word,'q')) then
+                ok = eval_next(c%at(c%nneq)%qat,line,lp)
+                if (.not.ok) call ferror('parse_crystal_env','Wrong Q in neq',faterr,line)
+             else if (equal(word,'ang') .or. equal(word,'angstrom')) then
+                if (.not.goodcell) &
+                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line)
+                c%at(c%nneq)%x = c%c2x(c%at(c%nneq)%x / bohrtoa)
+             else if (equal(word,'bohr') .or. equal(word,'au')) then
+                if (.not.goodcell) &
+                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line)
+                c%at(c%nneq)%x = c%c2x(c%at(c%nneq)%x)
+             else if (len_trim(word) > 0) then
+                call ferror('parse_crystal_input','Unknown keyword in NEQ',faterr,line)
+             else
+                exit
+             end if
+          end do
+       end if
     end do
     aux = getword(line,lp)
     if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in ENDCRYSTAL',faterr,line)
+    if (c%nneq == 0) call ferror('parse_crystal_input','No atoms in input',faterr)
 
     ! symm transformation
     if (nsline > 0 .and. allocated(sline)) then

@@ -48,7 +48,9 @@ expression.r # prints the value of the expression to the output.
      x2.r y2.r z2.r
      x3.r y3.r z3.r
    ENDCARTESIAN/END
-   NEQ x.r y.r z.r atom.s [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
+   NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i] [ANG|ANGSTROM] [BOHR|AU]
+   atom.s x.r y.r z.r [ZPSP zpsp.i] [Q q.i] [ANG/ANGSTROM] [BOHR/AU]
+   atnumber.i x.r y.r z.r [ZPSP zpsp.i] [Q q.i] [ANG/ANGSTROM] [BOHR/AU]
    ...
    CENTER/CENTRE [x.r y.r z.r]
    SYMM exprx.s, epxry.s, exprz.s

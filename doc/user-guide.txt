@@ -1084,6 +1084,10 @@ Loading a crystal structure (CRYSTAL)
     ENDCARTESIAN|END
     NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i]
        [ANG|ANGSTROM] [BOHR|AU]
+    atom.s x.r y.r z.r [ZPSP zpsp.i] [Q q.i] 
+       [ANG/ANGSTROM] [BOHR/AU]
+    atnumber.i x.r y.r z.r [ZPSP zpsp.i] [Q q.i] 
+       [ANG/ANGSTROM] [BOHR/AU]
     SYMM exprx.s, epxry.s, exprz.s
   ENDCRYSTAL|END
   CRYSTAL LIBRARY label.s
@@ -1314,10 +1318,16 @@ The CARTESIAN keyword is particularly useful for inputs based on
 Quantum ESPRESSO results since the matrix corresponds exactly to the
 CELL_PARAMETERS matrix, and scal.r can be set to celldm(1).
 
-The NEQ keyword can be used to specify the atomic positions::
+The NEQ keyword can be used to specify the atomic
+positions. Equivalently, one can start the line with the atomic symbol
+or the atomic number::
 
-  NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i] [ANG/ANGSTROM]
-      [BOHR/AU]
+  NEQ x.r y.r z.r at.s [ZPSP zpsp.i] [Q q.i] 
+     [ANG/ANGSTROM] [BOHR/AU]
+  atom.s x.r y.r z.r [ZPSP zpsp.i] [Q q.i] 
+     [ANG/ANGSTROM] [BOHR/AU]
+  atnumber.i x.r y.r z.r [ZPSP zpsp.i] [Q q.i] 
+     [ANG/ANGSTROM] [BOHR/AU]
 
 NEQ adds one atom to the crystal. If symmetry is used (via SPG or
 SYMM), then only the non-equivalent atom list needs to be given (as in
