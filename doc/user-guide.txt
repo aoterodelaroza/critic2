@@ -1674,8 +1674,26 @@ the global UNITS keyword). The default cell is an orthogonal
 parallelepiped: the three axes have different lengths. To make the
 cell cubic, use the CUBE/CUBIC keyword.
 
+The molecular library (MOLECULE LIBRARY)
+++++++++++++++++++++++++++++++++++++++++
+
+A library of molecular structures is provided with critic2, and can be
+accessed using the MOLECULE LIBRARY keyword::
+
+  MOLECULE LIBRARY h2o
+
+The molecular library file is dat/molecule.dat, in the root of the
+critic2 distribution. The location of the molecular library can be
+changed using::
+
+  LIBRARY MOLECULE bleh.s
+
+The behavior of the LIBRARY keyword is the same as in the CRYSTAL
+case. See `The crystal library (CRYSTAL LIBRARY)`_ for more
+information. 
+
 The molecular cell
-++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
 
 In molecular calculations, it is convenient to define a region of
 space, away from the molecule, that represents infinity. Critical
@@ -1714,24 +1732,6 @@ there is an amount of vacuum between the molecule and the cell edges
 enough to contain the molecular cell. In order to use MOLCELL, the
 input structure needs to be read using the MOLECULE keyword and the
 cell needs to be orthogonal.
-
-The molecular library (MOLECULE LIBRARY)
-++++++++++++++++++++++++++++++++++++++++
-
-A library of molecular structures is provided with critic2, and can be
-accessed using the MOLECULE LIBRARY keyword::
-
-  MOLECULE LIBRARY h2o
-
-The molecular library file is dat/molecule.dat, in the root of the
-critic2 distribution. The location of the molecular library can be
-changed using::
-
-  LIBRARY MOLECULE bleh.s
-
-The behavior of the LIBRARY keyword is the same as in the CRYSTAL
-case. See `The crystal library (CRYSTAL LIBRARY)`_ for more
-information. 
 
 Exporting the structure (WRITE)
 -------------------------------
@@ -1828,23 +1828,23 @@ There is an important application of the xyz-format WRITE keyword: the
 coordinates written to the xyz file are consistent with the
 transformation to Cartesian coordinates in critic2, so it is possible
 to bring back all or part of these coordinates to critic2 in order to
-represent a subset of the atoms in the crystal. This is very useful
+represent a subset of the atoms in a crystal. This is very useful
 when generating fragments for an NCIPLOT calculation (see FRAGMENT
 keyword in section `Non-covalent interaction visualization
 (NCIPLOT)`_).
 
 The OBJ output is similar to xyz: critic2 will write a finite piece of
-the crystal to a file with Wavefront OBJ format. The OBJ format is a
-three-dimensional model representation, that is, it uses vertices and
-faces instead of atoms. This file format is understood by many
-visualizers such as view3dscene, meshlab, blender, and others. The
-keywords have the same meaning as in the xyz format. The additional
-CELL keyword instructs critic2 to write a stick representation of the
-unit cell. In a molecular structure, the MOLCELL keyword can be used
-to represent the molecular cell (see `The molecular cell`_). The
-similarly popular PLY (polygon file format or Stanford triangle
-format) and OFF (Geomview) file formats can be used as well, with the
-same options.
+the crystal or molecule to a file with Wavefront OBJ format. The OBJ
+format is a three-dimensional model representation, that is, it uses
+vertices and faces instead of atoms. This file format is understood by
+many visualizers such as view3dscene, meshlab, blender, and
+others. The keywords have the same meaning as in the xyz format. The
+additional CELL keyword instructs critic2 to write a stick
+representation of the unit cell. In a molecular structure, the MOLCELL
+keyword can be used to represent the molecular cell (see `The
+molecular cell`_). The similarly popular PLY (polygon file format or
+Stanford triangle format) and OFF (Geomview) file formats can be used
+as well, with the same options.
 
 Quantum ESPRESSO inputs can be written using the extension
 scf.in. This conversion is especially useful in the case of
@@ -1911,9 +1911,8 @@ Scalar fields
 Loading a field (LOAD)
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Scalar field, functions that associate a value to every point in real
-space, are loaded with the LOAD keyword. A number of different field
-formats are supported:
+Scalar fields are loaded with the LOAD keyword. A number of different
+field formats are supported:
 
 ::
 
@@ -1928,9 +1927,9 @@ formats are supported:
   LOAD file.{RHO,BADER,DRHO,LDOS,VT,VH}
   LOAD file.OUT GEOMETRY.OUT
   LOAD file.OUT GEOMETRY.OUT OTHER.OUT
+  LOAD file1.ion {nat1.i/at1.s} file2.ion ...
   LOAD file.wfn
   LOAD file.wfx
-  LOAD file1.ion {nat1.i/at1.s} file2.ion ...
   LOAD COPY id.i [TO id2.i]
   LOAD PROMOLECULAR
   LOAD PROMOLECULAR file.xyz
@@ -1949,7 +1948,7 @@ Critic2 loads scalar fields in "field slots": integer identifiers that
 represent the field throughout the run. There are 31 slots, numbered
 from 0 up to 30. At the beginning of the run, slot number 0 is
 occupied by the promolecular density, which is automatically loaded
-right after the crystal structure is succesfully read. Successive LOAD
+right after the structure is succesfully read. Successive LOAD
 commands fill the slots in increasing order: the first LOAD will
 assign the new field to slot 1, the second LOAD will occupy slot 2 and
 so on. By default, the first loaded field (other than the promolecular
@@ -1963,11 +1962,13 @@ The simplest usage of load is::
 The field information is read from file.ext. Critic2 uses the
 extension to decide which format should be used for the reading:
 
-* cube for Gaussian cube files (grid).
+* cube for Gaussian cube files (grid). Cube files can also be
+  generated by programs other than Gaussian, for instance, Quantum
+  ESPRESSO.
 
 * DEN for abinit grids.
 
-* CHGCAR, CHG, or ELFCAR for vasp grids.
+* CHGCAR, CHG, or ELFCAR for VASP grids.
 
 * qub for aimpac grids.
 
@@ -1976,9 +1977,9 @@ extension to decide which format should be used for the reading:
 * grid for elk's grids (this requires a patch to elk, e-mail to
   request it).
 
-* RHO, BADER, DRHO, LDOS, VT, and VH for siesta's grids.
-
 * clmsum for WIEN2k.
+
+* RHO, BADER, DRHO, LDOS, VT, and VH for SIESTA's grids.
 
 * OUT for elk's STATE.OUT.
 
@@ -1986,34 +1987,33 @@ extension to decide which format should be used for the reading:
 
 * wfn and wfx for Gaussian wavefunction files.
 
-In the case of WIEN2k and elk, not all the necessary information is
-encapsulated in the clmsum or STATE.OUT (for instance, the muffin tin
-radii are missing), so it is necessary to provide a second file: the
-struct file or the GEOMETRY.OUT respectively. This is the case,
-regardless of whether these same files were used in the CRYSTAL
-keyword.
+Specific details about each of these field types are given in the
+following sections.
 
-Gaussian wavefunction files can be loaded by passing the wfn or wfx
-file to critic2. This option is normally used in combination with
-MOLECULE on the same file in order to obtain the same structure from
-the isolated molcule. The evaluation of wfn/wfx densities is
-analytical (no grids involved).
+In some cases, the extension of the file to be loaded may be different
+from the one that critic2 expects. For instance, WIEN2k creates files
+with extensions other than clmsum for different fields (e.g. clmup for
+the spin-up density) but the same format. In those cases, the keywords
+WIEN/ELK/... can be used to force critic2 to read in a specific
+format.
 
-For aiPI inputs, several ion files are necessary. The ion files can be
-associated to atoms either by using their non-equivalent atom number
-(nat1.i) or their atomic symbol (at1.s). The keyword PROMOLECULAR is
-used to load a promolecular density field (same as the one in slot
-0). If a finite fragment of the crystal is passed to LOAD PROMOLECULAR
-as an xyz file (file.xyz), then the sum of atomic densities is built
-using only the atoms in that fragment.
+Cube files (cube)
++++++++++++++++++
 
-Elk's STATE.OUT is version-dependent. The following versions of elk
-have been tested and work with critic2: 2.3.22, 2.3.16, 2.2.10, 2.2.9,
-2.2.8, 2.2.5, 2.2.1, 2.1.25, 2.1.22, 1.4.22, 1.4.18, 1.4.5, 1.3.31,
-1.3.30, 1.3.24, 1.3.22, 1.3.20, 1.3.15, 1.3.2, 1.2.20, 1.2.15, 1.1.4,
-1.0.17, 1.0.16, and 1.0.0. If your version is not supported (most
-likely because it's newer; I tend to revise the part of the code that
-reads elk files every aeon or so), please contact me.
+Cube files can be generated by Gaussian's cubegen utility, but also by
+other programs such as Quantum ESPRESSO. If the cube file corresponds
+to a crystal structure, it is possible that it contains a
+non-orthogonal grid (despite its name). 
+
+Abinit density grids (DEN)
+++++++++++++++++++++++++++
+
+Density files generated by abinit come in a binary DEN format
+(file_DEN) and can be loaded by simply passing them to LOAD. These
+files contain a grid of field values. 
+
+VASP files (CHGCAR, CHG, ELFCAR)
+++++++++++++++++++++++++++++++++
 
 VASP fields can come in two varieties. The CHGCAR and AECCAR* files
 give the grid values in a higher precision and multiplied by the cell
@@ -2049,8 +2049,43 @@ CHGCAR with:
   LOAD VASP CHG
 
 I have never seen an ELFCAR that is multiplied by the volume (it would
-not make much sense anyway), so the default for ELFCAR files is to
-assume this.
+not make much sense anyway), so the default behavior for ELFCAR files
+is to assume that it is not.
+
+WIEN2k (clmsum, etc.)
++++++++++++++++++++++
+
+In the case of WIEN2k, not all the necessary information is
+encapsulated in the clmsum (for instance, the muffin tin radii are
+missing), so it is necessary to provide a second file: the struct
+file. This is the case, regardless of whether these same files were
+used to load the structure in the CRYSTAL keyword.
+
+If the file extension is not clmsum (e.g. clmup or clmdn), you can
+force critic2 to use the WIEN2k interpreter by preceding the file name
+with the keyword WIEN::
+
+  LOAD WIEN file.clmup
+
+Some of these files (e.g. potentials) may have different
+normalizations for the l=0 m=0 components in the muffins if they do
+not represent electron densities (or spin densities). See RHONORM and
+VNORM in `Additional LOAD options`_.
+
+Elk (STATE.OUT and others)
+++++++++++++++++++++++++++
+
+Like in WIEN2k, in elk the STATE.OUT is missing structural information
+to calculate field values correctly. A second file is necessary: the
+GEOMETRY.OUT generated by the program.
+
+Elk's STATE.OUT is version-dependent. The following versions of elk
+have been tested and work with critic2: 2.3.22, 2.3.16, 2.2.10, 2.2.9,
+2.2.8, 2.2.5, 2.2.1, 2.1.25, 2.1.22, 1.4.22, 1.4.18, 1.4.5, 1.3.31,
+1.3.30, 1.3.24, 1.3.22, 1.3.20, 1.3.15, 1.3.2, 1.2.20, 1.2.15, 1.1.4,
+1.0.17, 1.0.16, and 1.0.0. If your version is not supported (most
+likely because it's newer; I tend to revise the part of the code that
+reads elk files every aeon or so), please contact me.
 
 Using a patched version of elk it is possible to generate other files
 (OTHER.OUT) containing the spherical harmonics/plane waves
@@ -2065,19 +2100,39 @@ is loaded instead of the density. [#]_
    a dirty hack I did to elk once wrote these). If you are planning on
    using these fields, please send me an e-mail -- A.
 
-In some cases, the extension of the file to be loaded may be different
-from the one that critic2 expects. For instance, WIEN2k creates files
-with extensions other than clmsum for different fields (e.g. clmup for
-the spin-up density) but the same format. In those cases, the keywords
-WIEN/ELK/... can be used to force critic2 to read in a specific
-format.
+aiPI ion files (ion)
+++++++++++++++++++++
+
+For aiPI inputs, several ion files are necessary. The ion files can be
+associated to atoms either by using their non-equivalent atom number
+(nat1.i) or their atomic symbol (at1.s). 
+
+Gaussian wavefunction files (wfn/wfx)
++++++++++++++++++++++++++++++++++++++
+
+Gaussian wavefunction files can be loaded by passing the wfn or wfx
+file to critic2. This option is normally used in combination with
+MOLECULE on the same file in order to obtain the same structure from
+the isolated molcule. The evaluation of wfn/wfx densities is
+analytical (no grids involved).
+
+Making copies of a field
+++++++++++++++++++++++++
 
 The LOAD COPY keyword can be used to make a copy of the field in slot
 id.i to the next available slot, or to slot id2.i if it is given with
 the keyword TO.
 
-Additional options
-~~~~~~~~~~~~~~~~~~
+Loading the promolecular density
+++++++++++++++++++++++++++++++++
+
+The keyword PROMOLECULAR is used to load a promolecular density field
+(same as the one in slot 0). If a finite fragment of the crystal is
+passed to LOAD PROMOLECULAR as an xyz file (file.xyz), then the sum of
+atomic densities is built using only the atoms in that fragment.
+
+Additional LOAD options
+~~~~~~~~~~~~~~~~~~~~~~~
 
 The definition of a field can be supplemented by additional optional
 keywords that depend on the type of field in the input and that come
@@ -2198,8 +2253,8 @@ Field arithmetics
 New fields can be defined as combinations of the existing ones using
 the LOAD AS keyword. This allows the creation of fields that are not
 directly computed by the electronic structure program, and is very
-useful in combination with the cube-writing facilities (keyword CUBE
-in `Simple graphical representations: points, lines, planes,
+useful in combination with the cube-writing keywords (keyword CUBE in
+`Simple graphical representations: points, lines, planes,
 grids`_). For instance, if rhoup.cube and rhodn.cube are the spin-up
 and spin-down densities, it is possible to get the total density and
 the spin density using:
@@ -2225,13 +2280,14 @@ two types of fields can be loaded. If the arithmetic expression
 involves at least one grid, the resulting field will be a grid with
 the same number of points. If more than one grid appears in the
 expression, then the new grid size is the maximum of the number of
-points in every dimension. If the expression contains no grid fields,
-then the resulting field is what critic2 calls a "ghost field". A
-ghost field is just an arithmetic expression that is parsed and
-processed every time the field is evaluated. The analyitcal
-derivatives for a ghost field are, naturally, not available, so the
-NUMERICAL option is the default for this kind of field (see
-`Additional options`_).
+points in every dimension. 
+
+If the expression contains no grid fields, then the resulting field is
+what critic2 calls a "ghost field". A ghost field is just an
+arithmetic expression that is parsed and processed every time the
+field is evaluated. The analyitcal derivatives for a ghost field are,
+naturally, not available, so the NUMERICAL option is the default for
+this kind of field (see `Additional LOAD options`_).
 
 Regardless of the types of fields in the expression passed to LOAD AS,
 a grid field can be enforced by explicitly specifying the size of the
@@ -2272,14 +2328,13 @@ Changing the field options after LOAD (SETFIELD)
 The options of a given field can be changed anywhere in the input
 after it has been loaded using the SETFIELD keyword::
 
-  SETFIELD [id.i] [NEAREST|TRILINEAR|TRISPLINE] [EXACT|APPROXIMATE]
-                  [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
-                  [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [NAME "expr.s"]
+  SETFIELD [id.i] [NEAREST|TRILINEAR|TRISPLINE] 
+     [EXACT|APPROXIMATE] [RHONORM|VNORM] [CORE|NOCORE] 
+     [NUMERICAL|ANALYTICAL] [TYPNUC {-3,-1,1,3}] 
+     [NORMALIZE n.r] [NAME "expr.s"]
 
 SETFIELD changes the properties of the field in slot id.i. The
 keywords have the same meaning as in the previous sections.
-
-Where: after the corresponding LOAD.
 
 Unloading a field (UNLOAD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2290,24 +2345,191 @@ Unloading a field (UNLOAD)
 
 Unload the field in slot id.i or all fields (keyword ALL).
 
-Where: after LOAD.
-
 The reference field (REFERENCE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-One of the loaded fields is chosen as the **reference** field. The
-reference field is used as the primary field in all computations
-(representing its basins with BASINPLOT, integrations, plotting, etc.)
-unless otherwise specified. The first field loaded becomes the
-reference field. If no fields have been loaded, then the reference is
-the promolecular density (field 0). In order to change the reference
-field, the REFERENCE keyword can be used:
+One of the loaded fields is chosen as the reference field. The
+reference field is used as the primary field in all computations. For
+instance, when BASINPLOT is used, the basins of the reference field
+are plotted. If one uses an integration method (INTEGRALS, QTREE, YT,
+BADER), the reference field provides the attraction basins in which
+other scalar fields are integrated. If AUTO is used, the critical
+points of the reference field are found. And so on.
+
+The first field loaded becomes the reference field. If no fields have
+been loaded, then the reference is the promolecular density (field
+0). In order to change the reference field, the REFERENCE keyword can
+be used:
 
 ::
 
   REFERENCE id.i
 
-Sets field number id.i as reference.
+Sets field number id.i as reference. The output of this keyword is
+shown in section `Typical output of the REFERENCE keyword`_.
+
+Typical output for the LOAD keyword
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The output when loading a field is composed of two parts: a first
+block containing information particular to the type of field loaded,
+and a second block containing the field flags.
+
+For instance, loading a cube file gives (or, actually, any grid) gives
+an output whose first block looks like this::  
+
+  * LOAD scalar field in slot number: 1
+  * GRID input, from a CUBE file
+    In file: rho.cube
+    Grid dimensions : 30  30  81
+    First elements... 5.8881e-03 6.1552e-03 6.9787e-03
+    Last elements... 8.4025e-03 6.9512e-03 6.1350e-03
+    Sum of elements... 4.941377690900E+03
+    Sum of squares of elements... 7.857493686793E+02
+    GRID input successful 
+
+The output for the other grid file formats (abinit DEN, VASP, qub,
+xcrysden's xsf, grid, SIESTA) is essentially the same.  This output
+gives the slot number for the loaded field, the type of file format
+and the name of the external file containing the field, and the grid
+dimension. Next, critic2 gives the first three and last three elements
+in the grid (this is mostly for debug purposes).
+
+The last two entries ("Sum of elements" and "Sum of squares of
+elements") give the sum of the field and the square of the field over
+all the grid nodes. The "Sum of elements" is particularly important
+because, in a crystal, it is related to the integral of the field over
+the entire unit cell. This integral is given by the "Sum of elements"
+times the volume (in bohr^3) divided by the number of grid nodes. 
+The example above, for instance, corresponds to a graphite crystal,
+with a volume of 236.04767 bohr^3 and 30x30x81 = 72900 grid
+points. This gives an integral over the cell of almost exactly 16
+electrons. 
+
+The second block for a grid field looks like this::
+
+  + Flags for field number: 1
+    Name: <field_1>
+    From: rho.cube
+    Type: grid
+    Grid dimensions: 30  30  81
+    Interpolation mode (1=nearest,2=linear,3=spline): 3
+    Cell integral (grid SUM) (1) = 16.00000922
+    Min: 3.40540000E-03
+    Average: 6.77829587E-02
+    Max: 3.25190000E-01
+    Use core densities? T
+    Numerical derivatives? F
+    Nuclear CP signature: -3
+
+This block gives the name of the field (used as identifier in the rest
+of the output), the source file, the type of field (grid in this
+case). Since this is a grid field, the grid dimensions are repeated,
+and the type of interpolation used to calculate the field values at
+arbitrary points is given. Then, several computed values are given:
+the integral of the field over the entire unit cell (related to the
+"Sum of elements" above), and the minimum, average, and maximum field
+values. This field uses core augmentation (although it is only
+actually used if ZPSP are given in the input as well), the calculated
+derivatives of the field are analytical, and critical points at the
+nuclei are maxima (signature -3).
+
+For WIEN2k and elk fields, the output is similar to::
+
+  * LOAD scalar field in slot number: 1
+  * WIEN2k input, from a CLMSUM file
+    In file: bp.clmsum
+    Struct file: bp.struct
+    Complex?: T
+    Spherical harmonics expansion LMmax: 6
+    Max. points in radial grid: 781
+    PW cutoff: 1.00000E-30
+    Total number of plane waves: 278
+    Removed trailing plane-waves: 1912
+    New/original number of plane-wave set : 2733/4645
+  
+  + Flags for field number: 1
+    Name: <field_1>
+    From: bp.clmsum
+    Type: wien2k
+    Density-style normalization? T
+    Use core densities? F
+    Numerical derivatives? F
+    Nuclear CP signature: -3
+  
+  * Muffin-tin discontinuity test
+    Atom: 1 RMS/max/min(fout-fin) = 0.000393 0.000757 -0.000874
+    Atom: 2 RMS/max/min(fout-fin) = 0.000972 0.002234 -0.002216
+  + Assert - no spurious CPs on the muffin tin surface: T
+
+The first block gives the source field and structure files, whether
+the field contains complex coefficients in the expansions (it does if
+the crystal structure is not centrosymmetric), the maximum L for the
+spherical harmonics expansion inside the muffins, the number of radial
+points inside the muffins, the cutoff for discarding negligible
+plane-wave contributions in the interstitial, and the number of
+plane-waves remaining after pruning.
+
+The second block gives the normalization of the l=0 m=0 component in
+the muffins (see RHONORM and VNORM in `Additional LOAD options`_). 
+
+WIEN2k and elk fields are particular in that they are discontinuous
+when the atomic spherical harmonics expansion matches the interstitial
+plane-wave expansion on the muffin tin surface. Experience has shown
+that, as long as no spurious critical points are generated by this
+mismatch, the field will pose no problems to the critical point search
+and the gradient path tracing. For small crystals, this is usually the
+case, but large molecular crystals may be more tricky. The last block
+in the output above shows an automated check for spurious critical
+points on the muffin surfaces. In this example, no CPs were found
+(last "Assert"). 
+
+The output for molecular wavefunctions is comparatively simpler::
+
+  * LOAD scalar field in slot number: 1
+  + Flags for field number: 1
+    Name: <field_1>
+    From: benzene.wfn
+    Type: wfn/wfx
+    Use core densities? F
+    Numerical derivatives? F
+    Nuclear CP signature: -3
+
+It contains only the type of field, the source file, and the three
+relevant flags (no core augmentation, analytical derivatives, nuclei
+are maxima).
+
+If the LOAD keyword is the first in the run, the field becomes
+reference, so the output for the REFERENCE keyword follows. See
+`Typical output for the REFERENCE keyword`_.
+
+Typical output for the REFERENCE keyword
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The output of the REFERENCE keyword is simple. First, the field set as
+reference is given::
+
+  * Field number 2 is now REFERENCE.
+ 
+and then the list of the integrable properties. These are the
+quantities that will be integrated by the basin integration
+methods. Chaning the reference field resets the integrable properties
+list to its default value. Namely, the default is to integrate the
+basin volumes, the reference field, and the Laplacian of the reference
+field. If the reference field is an electron density, then the last
+two correspond to the atomic electron population (i.e. the atomic
+charges) and the electron density Laplacian. An example of this output
+is:: 
+
+  * List of integrable properties
+  #  Id  Type  Field  Name
+      1   v        0  Volume
+      2  fval      2  Charge
+      3  lval      2  Lap
+
+See the `List of properties integrated in the attractor basins
+(INTEGRABLE)`_ section for more information on integrable properties
+list.
 
 Usual CRYSTAL/LOAD combinations
 -------------------------------

@@ -92,30 +92,30 @@ expression.r # prints the value of the expression to the output.
   WRITE file.lammps
   WRITE file.fdf
   WRITE file.STRUCT_IN
-* LOAD file.cube 
-  LOAD file.DEN file_DEN
-  LOAD [file.]CHGCAR 
+* LOAD file.cube
+  LOAD {file.DEN|file_DEN}
+  LOAD [file.]CHGCAR
   LOAD {[file.]CHG|[file.]ELFCAR}
   LOAD file.qub
   LOAD file.xsf
-  LOAD file.grid # elk grid (my own mod?)
-  LOAD file.{RHO,BADER,DRHO,LDOS,VT,VH} # siesta
-  LOAD file.clmsum file.struct # wien2k
-  LOAD file.OUT (STATE.OUT) GEOMETRY.OUT # elk
-  LOAD file.OUT (STATE.OUT) GEOMETRY.OUT OTHER.OUT # elk
+  LOAD file.grid
+  LOAD file.clmsum file.struct
+  LOAD file.{RHO,BADER,DRHO,LDOS,VT,VH}
+  LOAD file.OUT GEOMETRY.OUT
+  LOAD file.OUT GEOMETRY.OUT OTHER.OUT
+  LOAD file1.ion {nat1.i/at1.s} file2.ion ...
   LOAD file.wfn
   LOAD file.wfx
-  LOAD file1.ion {nat1.i/at1.s} file2.ion {nat2.i/at2.s} ...
   LOAD COPY id.i [TO id2.i]
   LOAD PROMOLECULAR
   LOAD PROMOLECULAR file.xyz
-  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID] file.s ...
+  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID] file
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [NAME "expr.s"]
-  LOAD AS "expression" [n1.i n2.i n3.i|SIZEOF id.i|GHOST]
+  LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.i|GHOST]
   LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.i} [file.xyz]
-  LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.i} [file.xyz]
+  LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.i}
   LOAD AS LAP id.i
   LOAD AS GRAD id.i
   LOAD AS CLM {ADD id1.i id2.i|SUB id1.i id2.i}
