@@ -284,6 +284,8 @@ expression.r # prints the value of the expression to the output.
     ...
     file.xyz
   ENDIDENTIFY
+xxxx implement: IDENTIFY file.xyz
+
 * XDM [RHO irho.i] [TAU itau.i] [ELF ielf.i] [PDENS ipdens.i] 
       [COR icor.i] [LAP ilap.i] [GRAD igrad.i] [RHOAE irhoae.i]
       [XB ib.i] [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]

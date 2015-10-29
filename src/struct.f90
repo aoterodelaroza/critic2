@@ -192,7 +192,7 @@ contains
           elseif (eval_next(raux,word2,lp2)) then
              rborder = raux / dunit
           elseif (len_trim(word2) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line)
+             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line)
           else
              exit
           end if
@@ -392,23 +392,33 @@ contains
              else
                 xsph = 0d0
              end if
+             ! convert units and coordinates
+             rsph = rsph / dunit
+             if (cr%ismolecule) then
+                xsph = xsph / dunit - cr%molx0
+                xsph = cr%c2x(xsph)
+             endif
           elseif (equal(word,'cube')) then
              ok = eval_next(rcub,line,lp)
              ok = ok .and. eval_next(xcub(1),line,lp)
              if (ok) then
                 ok = ok .and. eval_next(xcub(2),line,lp)
                 ok = ok .and. eval_next(xcub(3),line,lp)
-                if (.not.ok) call ferror('struct_write','incorrect&
-                   & WRITE CUBE syntax',faterr,line)
+                if (.not.ok) call ferror('struct_write','incorrect WRITE CUBE syntax',faterr,line)
              else
                 xcub = 0d0
              end if
+             ! convert units and coordinates
+             rcub = rcub / dunit
+             if (cr%ismolecule) then
+                xcub = xcub / dunit - cr%molx0
+                xcub = cr%c2x(xcub)
+             endif
           elseif (eval_next(iaux,word,lp2)) then
              ix(1) = iaux
              ok = eval_next(ix(2),line,lp)
              ok = ok .and. eval_next(ix(3),line,lp)
-             if (.not.ok) call ferror('struct_write','incorrect WRITE&
-                & syntax',faterr,line)
+             if (.not.ok) call ferror('struct_write','incorrect WRITE syntax',faterr,line)
           elseif (len_trim(word) > 1) then
              call ferror('struct_write','Unknown extra keyword',faterr,line)
           else

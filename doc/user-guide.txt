@@ -1737,13 +1737,13 @@ Exporting the structure (WRITE)
 -------------------------------
 
 Critic2 can be used as a converter between different crystal structure
-file formats. For instance, if we are given a cif file that needs to
-be converted to a QE input, we use::
+file formats. For instance, to convert a cif file to a QE input, we
+can use:: 
 
   CRYSTAL myfile.cif
   WRITE myfile.scf.in
 
-Sometimes, it is also useful to create a finite representation of the
+Sometimes, it is also useful to create a finite representation of a
 crystal by taking the crystal motif, perhaps extended with some of
 atoms in the neighboring cell. The simplest way of doing this is by
 writing an xyz file::
@@ -1775,18 +1775,18 @@ not. The full syntax of the WRITE keyword is::
   WRITE file.fdf
   WRITE file.STRUCT_IN
 
-At present, a number of formats can be written by critic2, although it
-is easy to add more to this list and it is likely to increase in the
-future. As in CRYSTAL, the type of file is detected by the extension
-(xyz, in, tess, cri, etc.).
+A number of file formats can be written by critic2. As in CRYSTAL and
+MOLECULE, the type of file is detected by the extension (xyz, in,
+tess, cri, etc.). 
 
 In the first WRITE command above, an xyz file containing a finite
-piece of the crystal is generated. Alternatively, if the gjf extension
-is used, a template for a Gaussian input file is written. The number
-of cells used in each direction is given by ix.i, iy.i and iz.i
-(default: 1, 1, 1). For the purpose of its graphical representation,
-it is sometimes interesting to include atoms which are almost exactly
-at the edge of the cell. For instance, when doing::
+piece of the crystal (if the structure was loaded with CRYSTAL) or the
+molecule (resp. MOLECULE) is generated. Alternatively, if the gjf
+extension is used, a template for a Gaussian input file is
+written. The number of cells used in each direction is given by ix.i,
+iy.i and iz.i (default: 1, 1, 1). For the purpose of its graphical
+representation, it is sometimes interesting to include atoms which are
+almost exactly at the edge of the cell. For instance, when doing::
 
   CRYSTAL
     SPG f m -3 m
@@ -1800,35 +1800,37 @@ Critic2 will (correctly) generate a list of 4 Na and 4 Cl atoms,
 representing 1/8th of the conventional cell, because the atoms at (1,
 0, 0), (1, 1/2, 0), etc. are repetitions of the atoms in the main
 cell. However, this does not look good when the unit cell is
-represented graphically, because many of the atoms in the cubic cell
+represented in a figure, because many of the atoms in the cubic cell
 are "missing". By using BORDER, these atoms are included.
 
 The keyword MOLMOTIF is used in molecular crystals. All atoms in the
-requested cells are written to the xyz file. Then, the molecules that
-lie across the cell boundary are completed using atoms from the
-neighboring cells. In order to do this, a connectivity criterion is
-used: two atoms are bonded if their distance is less than 1.5 times
-their sum of covalent radii.
+requested cells (ix.i iy.i iz.i) are written to the xyz file. Then,
+the molecules that lie across the cell boundary are completed using
+atoms from the neighboring cells. In order to do this, a connectivity
+criterion is used: two atoms are bonded if their distance is less than
+1.5 times their sum of covalent radii.
 
 The BURST keyword is similar to MOLMOTIF in that the molecular crystal
 structure is partitioned into individual molecules, which are then
-completed using the atoms from neighboring cells. However, in contrast
-to MOLMOTIF, each of those molecular fragments is written to a
-separate file.
+completed using the atoms from neighboring cells. In contrast to
+MOLMOTIF, each of those molecular fragments is written to a separate
+file.
 
-The SPHERE keyword writes all atoms inside a sphere of radius rad.r
-(in bohr) and centered around the crystallographic coordinates (x0.r
-y0.r z0.r). If no center is given, (0,0,0) is used. The similar
-keyword CUBE writes all atoms inside a cube of side side.r centered
-around (x0.r y0.r z0.r) (default: (0,0,0)).
+In crystals, the SPHERE keyword writes all atoms inside a sphere of
+radius rad.r (bohr) and centered around the crystallographic
+coordinates (x0.r y0.r z0.r). In molecules, the default units for both
+the center and radius of the sphere are Cartesian in angstrom. If no
+center is given, (0,0,0) is used. The similar keyword CUBE writes all
+atoms inside a cube of side side.r centered around (x0.r y0.r z0.r)
+(default: (0,0,0)).
 
 There is an important application of the xyz-format WRITE keyword: the
 coordinates written to the xyz file are consistent with the
 transformation to Cartesian coordinates in critic2, so it is possible
-to give back all or part of these coordinates to critic2 in order to
-represent a subset of the atoms in the crystal. This is incredibly
-useful when generating fragments for an NCIPLOT calculation (see
-FRAGMENT keyword in section `Non-covalent interaction visualization
+to bring back all or part of these coordinates to critic2 in order to
+represent a subset of the atoms in the crystal. This is very useful
+when generating fragments for an NCIPLOT calculation (see FRAGMENT
+keyword in section `Non-covalent interaction visualization
 (NCIPLOT)`_).
 
 The OBJ output is similar to xyz: critic2 will write a finite piece of
@@ -1838,13 +1840,11 @@ faces instead of atoms. This file format is understood by many
 visualizers such as view3dscene, meshlab, blender, and others. The
 keywords have the same meaning as in the xyz format. The additional
 CELL keyword instructs critic2 to write a stick representation of the
-unit cell. In the case of a molecular structure (loaded using the
-MOLECULE instead of the CRYSTAL keyword), the MOLCELL keyword can be
-used to represent the "molecular cell", that is, the region around the
-molecule outside which critic2 considers critical points and gradient
-paths to have diverged to infinity. The similarly popular PLY (polygon
-file format or Stanford triangle format) and OFF (Geomview) file
-formats can be used as well, with the same options.
+unit cell. In a molecular structure, the MOLCELL keyword can be used
+to represent the molecular cell (see `The molecular cell`_). The
+similarly popular PLY (polygon file format or Stanford triangle
+format) and OFF (Geomview) file formats can be used as well, with the
+same options.
 
 Quantum ESPRESSO inputs can be written using the extension
 scf.in. This conversion is especially useful in the case of
@@ -1858,35 +1858,39 @@ about how this matrix should written in order for its own symmetry
 module to work. If the crystal setting matches any of those covered in
 the QE manual, then that particular matrix is used. Otherwise, critic2
 uses its own internal CELL_PARAMETERS matrix, which may result in
-Quantum ESPRESSO failing to recognize the crystal symmetry.
+Quantum ESPRESSO failing to recognize the crystal symmetry. By
+default, the crystal cell used by critic2 is written to the QE input
+template. To reduce the cell to a primitive, use the PRIMITIVE
+keyword. 
 
-A tessel input (extension .tess) and a critic2 input using the
-CELL/NEQ mechanism (.cri or .incritic) can be written.
+A tessel input (extension .tess) and a critic2 input using the (.cri
+or .incritic) can be written. Tessel is a program for crystal and
+molecular plotting; it can be found at
+http://azufre.quimica.uniovi.es. 
 
-A VASP POSCAR (or CONTCAR) can be generated by using the
-POSCAR/CONTCAR extension or name. The list of atomic types is written
-to the critic2 output. This list is necessary to build the
-corresponding POTCAR. The atoms are always ordered in increasing
-atomic number.
+A VASP POSCAR (or CONTCAR) is generated by using the POSCAR/CONTCAR
+extension or name. The list of atomic types is written to the critic2
+output. This list is necessary to build the corresponding POTCAR. The
+atoms are always ordered in increasing atomic number. An abinit input
+file containing the input structure can be written by using the 'abin'
+extension. An elk input template can be written using the elk
+extension. In all three cases, the PRIMITIVE keyword transforms the
+current cell to the primitive cell. A simple cif file (no symmetry) is
+generated if the cif extension is used.
 
-An abinit input file containing the input structure can be written by
-using the 'abin' extension. An elk input template can be written using
-the elk extension. A simple cif file (no symmetry) is generated if the
-cif extension is used.
-
-The octave script file (extension .m) contains the crystal structure
-in octave format and is prepared to be read using escher (visit
+The octave script file (extension .m) contains the structure in octave
+format, to be read using the escher library (visit
 http://schooner.chem.dal.ca for more information).
 
 A simple GULP template input file containing the structure (and EEM as
 the first line) can be written using the .gin extension. If the
 DREIDING keyword is used, critic2 will attempt to find the atom types
-in the DREIDING force field. No resonant atoms are detected.  For file
-names with an extension .lammps, critic2 writes a simple LAMMPS data
-file containing one unit cell (length units are angstrom). Only
-orthogonal cells are supported for now. Both the GULP and the LAMMPS
-outputs are experimental, so please exercise care and double-check the
-templates.
+in the DREIDING force field. No resonant carbon atoms are detected.
+For file names with an extension .lammps, critic2 writes a simple
+LAMMPS data file containing one unit cell (length units are
+angstrom). Only orthogonal cells are supported for now. Both the GULP
+and the LAMMPS outputs are experimental, so please exercise care and
+double-check the templates.
 
 Two types of siesta inputs can be generated. The fdf extension writes
 a template for a proper functional siesta input template containing
