@@ -2531,8 +2531,8 @@ See the `List of properties integrated in the attractor basins
 (INTEGRABLE)`_ section for more information on integrable properties
 list.
 
-Usual CRYSTAL/LOAD combinations
--------------------------------
+Usual CRYSTAL/LOAD and MOLECULE/LOAD combinations
+-------------------------------------------------
 
 * **WIEN2k**
 
@@ -2678,12 +2678,14 @@ Points (POINT)
 
 Calculates the value of the reference field, its derivatives, and
 related quantities at the point (x.r, y.r, z.r) in crystallographic
-coordinates. If ALL is used, all loaded fields are evaluated.  In
-addition, all arithmetic expressions that have been registered using
-the POINTPROP keyword are also calculated (see `List of properties
-calculated at points (POINTPROP)`_). The POINTPROP keyword combined
-with POINT is useful to evaluate chemical functions at arbitrary
-points in space.
+coordinates (if the structure is a CRYSTAL) or molecular Cartesian
+coordinates (if it is a MOLECULE). For the latter, the default units
+are angstrom unless changed by the UNITS keyword. If ALL is used, all
+loaded fields are evaluated. In addition, all arithmetic expressions
+that have been registered using the POINTPROP keyword are also
+calculated (see `List of properties calculated at points
+(POINTPROP)`_). The POINTPROP keyword combined with POINT is useful to
+evaluate chemical functions at arbitrary points in space.
 
 If FIELD is used and followed by an integer (id.i), then only that
 field is evaluated. FIELD followed by an arithmetic expression
@@ -2699,13 +2701,18 @@ Lines (LINE)
        HYZ|HZX|HZY|HZZ|LAP]
 
 Calculate a line from (x0.r y0.r z0.r) to (x1.r y1.r z1.r) with npts.i
-points. By default, the result is written to the standard output, but
-it can be redirected to a file using FILE. The reference field is used
-unless a FIELD keyword appears, in which case the field id.i or the
+points. The units for the two endpoints (x0 and x1) are
+crystallographic coordinates in crystals and molecular Cartesian
+coordinates in molecules. The latter are angstrom by default (unless
+UNITS is used).
+
+By default, the result is written to the standard output, but it can
+be redirected to a file using FILE. The reference field is used unless
+a FIELD keyword appears, in which case the field id.i or the
 expression expr.s are evaluated. Together with the value of the field,
 an additional quantity is evaluated: the components of the gradient
 (GX,GY,GZ), the norm of the gradient (GMOD), the components of the
-Hessian (HXX,...) and the Laplacian (default: Laplacian) of the
+Hessian (HXX,...)  and the Laplacian (default: Laplacian) of the
 reference (or the id.i) field.
 
 Planes and contour plots (PLANE)
@@ -2728,7 +2735,10 @@ plane. The results are written to a file, with default name
 plane. In the first option, three points are given: (x0.r y0.r z0.r)
 is the origin, (x1.r y1.r z1.r) is the x-end of the plane and (x2.r
 y2.r z2.r) is the y-end. The number of calculated points on each axis
-are given by nx.i (x-axis) and ny.i (y-axis).
+are given by nx.i (x-axis) and ny.i (y-axis). The units for these
+points are crystallographic coordinates in a crystal, and molecular
+Cartesian coordinates in a molecule (default: angstrom unless the
+UNITS keyword is used).
 
 An alternative way of passing the plane geometry to critic2 is to use
 the ATOM (or ATOMS) keyword. This keyword accepts three integers,
@@ -2780,11 +2790,15 @@ Grids (CUBE)
 The CUBE keyword writes a three-dimensional grid in Gaussian cube or
 VASP CHGCAR formats. The limits of the grid can be set in three
 ways. By giving the end-points (x0.r y0.r z0.r) and (x1.r y1.r z1.r)
-in crystallographic coordinates it is possible to build a grid from an
-orthogonal fragment of the crystal. The CELL keyword calculates a grid
-spanning the entire unit cell, which may or may not be orthogonal
-depending on the crystal structure. GRID has the same effect as CELL
-regarding the output grid geometry.
+it is possible to build a grid from an orthogonal fragment of
+space. The CELL keyword calculates a grid spanning the entire unit
+cell, which may or may not be orthogonal depending on the
+structure. GRID has the same effect as CELL regarding the output grid
+geometry. If the end points are given, they should be in
+crystallographic coordinates in crystals (the structure was read using
+the CRYSTAL keyword) or molecular Cartesian coordinates
+(MOLECULE). The units in the latter default to angstrom unless changed
+using the UNITS keyword.
 
 The number of points in the grid can also be controlled in several
 ways. If the cube limits are given explicitly or using CELL, then the
@@ -2809,11 +2823,6 @@ expression that combines the existing fields can be used. Finally, a
 derivative of the scalar field (gradient, Hessian, Laplacian) can be
 selected instead of the value of the field itself (F) to build the
 grid.
-
-In the case of molecular systems, the molecule is centered before the
-cube is written. That is, the origin of the output cube is not at
-(0,0,0) but at minus (0.5,0.5,0.5) in cartesian coordinates. This is
-done to make the cube consistent with Gaussian's cubegen.
 
 Finding critical points
 -----------------------

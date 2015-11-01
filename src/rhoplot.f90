@@ -129,10 +129,15 @@ contains
        end do
     end if
     
-    xp = cr%x2c(x0)
     write (uout,'("* POINT ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
-    write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
-    write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
+    if (.not.cr%ismolecule) then
+       xp = cr%x2c(x0)
+       write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
+       write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
+    else
+       xp = x0 / dunit - cr%molx0
+       x0 = cr%c2x(xp)
+    endif
     if (imin > -1) then
        do i = imin, imax
           if (.not.goodfield(i)) cycle
@@ -253,8 +258,13 @@ contains
     write (luout,'("#",1x,4a15,1p,2a20,0p)') "x","y","z","d","f",string(prop)
 
     ! calculate the line
-    x0 = cr%x2c(x0)
-    x1 = cr%x2c(x1)
+    if (.not.cr%ismolecule) then
+       x0 = cr%x2c(x0)
+       x1 = cr%x2c(x1)
+    else
+       x0 = x0 / dunit - cr%molx0
+       x1 = x1 / dunit - cr%molx0
+    endif
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        xx = cr%c2x(xp)
@@ -292,8 +302,13 @@ contains
           rhopt = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
           lappt = rhopt
        end if
-       write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-          xx, dist, rhopt, lappt
+       if (.not.cr%ismolecule) then
+          write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
+             xx, dist, rhopt, lappt
+       else
+          write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
+             (xp + cr%molx0) * dunit, dist, rhopt, lappt
+       endif
     enddo
     write (luout,*)
 
@@ -343,6 +358,12 @@ contains
        ok = ok .and. eval_next(x1(2),line,lp)
        ok = ok .and. eval_next(x1(3),line,lp)
        if (.not. ok) call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line)
+
+       ! If it is a molecule, that was Cartesian
+       if (cr%ismolecule) then
+          x0 = cr%c2x(x0 / dunit - cr%molx0)
+          x1 = cr%c2x(x1 / dunit - cr%molx0)
+       endif
 
        ! cubic cube
        xd = 0d0
@@ -663,6 +684,11 @@ contains
        ok = ok .and. eval_next(x2(1),line,lp)
        ok = ok .and. eval_next(x2(2),line,lp)
        ok = ok .and. eval_next(x2(3),line,lp)
+       if (cr%ismolecule) then
+          x0 = cr%c2x(x0 / dunit - cr%molx0)
+          x1 = cr%c2x(x1 / dunit - cr%molx0)
+          x2 = cr%c2x(x2 / dunit - cr%molx0)
+       endif
        if (.not. ok) call ferror('rhoplot_plane','wrong PLANE order: x0, x1, x2',faterr,line)
     end if
 
@@ -852,6 +878,9 @@ contains
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
+          if (cr%ismolecule) then
+             xp = (cr%x2c(xp) + cr%molx0) * dunit
+          endif
           write (luout,'(1x,5(f15.10,x),1p,2(e18.10,x),0p)') &
              xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy), lf(ix,iy)
        end do
@@ -1404,6 +1433,7 @@ contains
 
   !> Write (x(n),y(n)) curve in luw.
   subroutine linea (x, y, n, luw)
+    use global
 
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: x, y
