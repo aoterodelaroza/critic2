@@ -1040,16 +1040,14 @@ contains
     integer :: i, id
     character*4 :: sprop
   
-    write(uout,'("* List of properties to be calculated at points (POINTPROP)")')
-    write(uout,'("  Id      Name       Expression")')
-    write(uout,'("  -------------------------------")')
+    write(uout,'("* List of properties to be calculated at (critical) points (POINTPROP)")')
+    write(uout,'("# Id      Name       Expression")')
     do i = 1, nptprops
        write (uout,'(2X,2(A,2X),2X,"""",A,"""")') &
           string(i,length=3,justify=ioj_right), &
           string(point_prop(i)%name,length=10,justify=ioj_center), &
           string(point_prop(i)%expr)
     end do
-    write(uout,'("  -------------------------------")')
     write (uout,*)
   
   end subroutine fields_pointprop_report

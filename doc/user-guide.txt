@@ -2847,7 +2847,7 @@ Automatic determination of critical points (AUTO)
   AUTO SEED TRIPLET [DIST dist.r]
   AUTO SEED LINE [X0 x0.r y0.r z0.r] [X1 x0.r y0.r z0.r]
                  [NPTS n.i]
-  AUTO SEED POINT  [X0 x0.r y0.r z0.r]
+  AUTO SEED POINT [X0 x0.r y0.r z0.r]
 
 The search for the critical points (CP) of a scalar field (the points
 where the gradient of the field vanishes) is a basic task in QTAIM. In
@@ -2896,46 +2896,61 @@ immediately after SEED. This keyword can be:
 
 * WS: a recursive subdivision of the Wigner-Seitz cell to level
   depth.i (keyword: DEPTH, default: 1). The WS cell can be displaced
-  and centered somewhere in the unit cell using X0 (cryst. coord.,
-  default: origin) and scaled down to a radius of rad.r bohr (keyword:
-  RADIUS, default: not used).
+  and centered somewhere in the unit cell using X0 (default: (0,0,0))
+  and scaled down to a radius of rad.r (keyword: RADIUS, default: not
+  used). The units for x0 are crystallographic coordinates in crystals
+  and molecular Cartesian coordinates in molecules (default: angstrom
+  unless changed by UNITS). For rad.r, the default units are bohr in
+  crystals and angstrom in molecules.
 
 * OH: a sphere of radius rad.r (keyword RADIUS, mandatory) is built
-  around (x0.r y0.r z0.r) (keyword X0, cryst. coord., mandatory). On
-  the surface of that sphere, points are set according to a recursive
-  subdivision algorithm that starts from a single octahedron and uses
-  depth.r recursion levels (keyword: DEPTH, default: 1). This is the
-  same procedure as the TRIANG keyword in BASINPLOT. Each resulting
-  point on the sphere surface determines a single ray along which nr.r
-  seeds are uniformly distributed (keyword: NR, mandatory), from X0 to
-  the surface of the sphere.
+  around (x0.r y0.r z0.r) (keyword X0, mandatory). On the surface of
+  that sphere, points are set according to a recursive subdivision
+  algorithm that starts from a single octahedron and uses depth.r
+  recursion levels (keyword: DEPTH, default: 1). This is the same
+  procedure as the TRIANG keyword in BASINPLOT. Each resulting point
+  on the sphere surface determines a single ray along which nr.r seeds
+  are uniformly distributed (keyword: NR, mandatory), from X0 to the
+  surface of the sphere. The units for x0 are crystallographic
+  coordinates in crystals and molecular Cartesian coordinates in
+  molecules (default: angstrom unless changed by UNITS). For rad.r,
+  the default units are bohr in crystals and angstrom in molecules.
 
 * SPHERE: a sphere of radius rad.r (keyword RADIUS, mandatory) is
-  built around (x0.r y0.r z0.r) (keyword X0, cryst. coord.,
-  mandatory). On the surface of that sphere, points are uniformly
-  distributed, with a placement algorithm that uses nphi.i points in
-  the azimuthal angle (keyword: NPHI, mandatory) and ntheta.i points
-  in the polar angle (keyword: NTHETA, mandatory). Each resulting
-  point on the sphere surface determines a single ray along which nr.r
-  seeds are uniformly distributed (keyword: NR, mandatory), from X0 to
-  the surface of the sphere.
+  built around (x0.r y0.r z0.r) (keyword X0, mandatory). On the
+  surface of that sphere, points are uniformly distributed, with a
+  placement algorithm that uses nphi.i points in the azimuthal angle
+  (keyword: NPHI, mandatory) and ntheta.i points in the polar angle
+  (keyword: NTHETA, mandatory). Each resulting point on the sphere
+  surface determines a single ray along which nr.r seeds are uniformly
+  distributed (keyword: NR, mandatory), from X0 to the surface of the
+  sphere. The units for x0 are crystallographic coordinates in
+  crystals and molecular Cartesian coordinates in molecules (default:
+  angstrom unless changed by UNITS). For rad.r, the default units are
+  bohr in crystals and angstrom in molecules.
 
 * PAIR: seeds are placed on the interatomic lines, for all atom pairs
-  at a distance less than dist.r bohr (keyword: DIST, default:
-  15). The number of seeds per line is n.i (keyword: NPTS, default:
-  1).
+  at a distance less than dist.r (keyword: DIST, default: 15). The
+  number of seeds per line is n.i (keyword: NPTS, default: 1). The
+  default units for dist.r are bohr in crystals, angstrom in
+  molecules. 
 
 * TRIPLET: seeds are placed at the barycenter of every atomic triplet
   in which the three atoms are at a distance from each other less than
-  dist.r (keyword: DIST, default: 15).
+  dist.r (keyword: DIST, default: 15). The default units for dist.r
+  are bohr in crystals, angstrom in molecules. 
 
 * LINE: place n.i seeds (keyword: NPTS, default: 1) along a line
-  between (x0.r y0.r z0.r) (keyword: X0, cryst. coords., default:
-  origin) and (x1.r y1.r z1.r) (keyword: X1, cryst. coords.,
-  mandatory).
+  between (x0.r y0.r z0.r) (keyword: X0, default: origin) and (x1.r
+  y1.r z1.r) (keyword: X1, mandatory). The units for x0 and x1 are
+  crystallographic coordinates in crystals and molecular Cartesian
+  coordinates in molecules (default: angstrom unless changed by
+  UNITS).
 
 * POINT: place a single seed at (x0.r y0.r z0.r) (keyword: X0,
-  cryst. coords., mandatory).
+  mandatory). The units for x0 are crystallographic coordinates in
+  crystals and molecular Cartesian coordinates in molecules (default:
+  angstrom unless changed by UNITS).
 
 Multiple SEED keywords can be given in the same AUTO command. For
 instance::
@@ -2950,15 +2965,19 @@ visualized using the optional VERBOSE keyword that writes an OBJ file
 positions.
 
 The AUTO search can be restricted to a portion of the unit cell using
-the CLIP keyword. The CLIP keyword specifies a periodic region of real
+the CLIP keyword. The CLIP keyword specifies a region of real
 space. Only the seeds inside that region are used, and only the CPs
-found inside that region are accepted (although symmetry can replicate
-the CPs and send them outside the CLIP region; use CLEARSYM or NOGUESS
-to deactivate symmetry if necessary, see `Symmetry options`_). There
-are two possible region shapes in CLIP: a parallelepiped (CUBE) and a
-sphere (SPHERE). The parallelepiped is specified by giving its initial
-(x0) and final (x1) points in crystallographic coordiantes. The sphere
-requires a center (x0 in cryst. coords.) and a radius (in bohr).
+found inside that region are accepted (although, in crystals, symmetry
+can replicate the CPs and send them outside the CLIP region; use
+CLEARSYM or NOGUESS to deactivate symmetry if necessary, see `Symmetry
+options`_). There are two possible region shapes in CLIP: a
+parallelepiped (CUBE) and a sphere (SPHERE). The parallelepiped is
+specified by giving its initial (x0) and final (x1) points. The sphere
+requires a center (x0) and a radius. The units for x0 and x1 are
+crystallographic coordinates in crystals and molecular Cartesian
+coordinates in molecules (default: angstrom unless changed by
+UNITS). For rad.r, the default units are bohr in crystals and angstrom
+in molecules.
 
 A number of additional optional keywords control the behavior of
 AUTO. GRADEPS is the gradient norm threshold for the optimization: if
@@ -2972,29 +2991,34 @@ zero computational cost (for intsance, after a CHECK run).
 
 CPRHO and CPEPS control the minimium field value that a CP needs to
 have to be accepted and the minimum distance between CPs to consider
-them equivalent, respectively.
+them equivalent, respectively. The default units for CPEPS are bohr in
+crystals and angstrom in molecules.
 
-Because finding the CPs can be an expensive task in large
-low-symmetry crystals, the CP list can be saved to a file using the
-FILE keyword. The file.cps file is read in subsequent runs by using
-the same FILE syntax instead of calculating the CPs again.
+Because finding the CPs can be an expensive task in large structures,
+the CP list can be saved to a file using the FILE keyword. The
+file.cps file is read in subsequent runs by using the same FILE syntax
+instead of calculating the CPs again.
 
-Critic2 writes all the critical points found by AUTO to two internal
-lists: the "non-equivalent" list, containing only those CPs not
-equivalent by symmetry, and the "complete" list, which contains all
-the CPs in the unit cell (see `Input format, output format, and
-notation`_). The most important part of the AUTO output is the "final
-report", which gives the non-equivalent CP list and some other useful
+Example output for AUTO in a crystal
+++++++++++++++++++++++++++++++++++++
+
+In crystals, critic2 writes all the critical points found by AUTO to
+two internal lists: the "non-equivalent" list, containing only those
+CPs not equivalent by symmetry, and the "complete" list, which
+contains all the CPs in the unit cell (see `Input format, output
+format, and notation`_). In molecules, symmetry is not used, so both
+lists are the same.
+
+The most important part of the AUTO output is the "final report",
+which gives the non-equivalent CP list and some other useful
 information. Its appearance is (the table has been simplified to fit
-the width of the page):
-
-::
+the width of the page)::
 
   #ascii#
   * Critical point list, final report (non-equivalent cps)
     Topological class (n|b|r|c):   2(8) 1(16) 1(16) 2( 8)
     Morse sum :   0
-  # n pg type       position  mult name  f     |grad|     lap
+  # ncp pg type    position  mult name  f     |grad|     lap
   1 Td  (3,-3) n 0.00 0.00 0.00  4 B  7.19E+1 0.00E+00 -3.00E+15
   2 Td  (3,-3) n 0.25 0.25 0.25  4 P  2.36E+3 0.00E+00 -3.00E+15
   3 C3v (3,-1) b 0.09 0.59 0.59 16 b1 1.25E-1 4.43E-17 -2.25E-01
@@ -3010,9 +3034,225 @@ Laplacian (lap) evaluated at the CPs. The 'topological class' gives
 the number of non-equivalent ncp, bcp, rcp, and ccp found. The values
 in parentheses correspond to the total number of CPs of each class in
 the cell. If the list is complete, then the Morse sum is zero (in a
-crystal) or one (in a molecule). Sometimes, the zero (one) Morse sum
-condition is not fulfilled, which is usually caused by (often
-unavoidable) numerical shortcomings of the scalar field:
+crystal) or one (in a molecule). 
+
+Following the final report is the "analysis of system bonds" and
+"analysis of system rings":: 
+
+  #ascii#
+  * Analysis of system bonds
+  # ncp end1 end2 r1(bohr) r2(bohr) r1/r2  r1-B-r2(degree)
+    3    Mg    O   1.7789   2.1999 0.80864  179.9999  
+  
+  * Analysis of system rings
+  # ncp end1 end2 r1(bohr) r2(bohr) r1/r2  r1-R-r2(degree)
+    4    c01  c01  1.9894   1.9894 1.00000  179.9999
+
+These contain a list of all the bond (resp. ring) critical points
+found and the corresponding nuclei (resp. cages) they connect. The
+connected nuclei are found by tracing an upwards gradient path from
+the bonds. The cages are found using a downwards gradient path from
+the ring. In addition, it is also shown the distance to the connected
+critical point, the ratio between the distances, and the angle formed
+by the bond path (ring path) at the bcp (rcp).
+
+The **complete CP list** is the list of all CPs in the unit cell, and
+comes next in the output. The identifiers from this list are used as
+input for other keywords (for instance, GRDVEC or FLUXPRINT) as they
+specify a particular position in the crystal. The entries are similar
+to the non-equivalent CP list (the table has been simplified):
+
+::
+
+  #ascii#
+  * Complete CP list
+    (x symbols are the non-equivalent representative atoms)
+    cp ncp typ | x  | y  | z  | op.   (lvec+cvec)
+  x 1  1  n    1.00 0.50 0.32  1   1.0   0.0   0.0
+    2  1  n    0.50 0.00 0.67  2   0.0   0.0   1.0
+  x 3  2  n    1.00 0.50 0.59  1   1.0   0.0   0.0
+    4  2  n    0.50 0.00 0.40  2   0.0   0.0   1.0
+  [...]
+
+The columns are, in order, the CP identifier (cp), the identifier for
+the same CP in the non-equivalent CP list (ncp), the type of CP, the
+position in crystallographic coordinates, and the symmetry operation
+that transforms the CP from the non-equivalent CP list into the listed
+CP. 'Op.' corresponds to one of the symmetry operations listed in the
+output and "lvec+cvec" is a translation. Application of the operation
+'op.' to the non-equivalent CP followed by the translation recovers
+the position of the CP in the complete list. The CPs that are at
+exactly the same position as the corresponding CPs in the
+non-equivalent list are listed first and marked with an 'x'. Note that
+for these, the operation is always 1 (the identity) and the
+translation vector is always a lattice translation.
+
+The complete list is followed by a list of all the bcps and rcps in
+the unit cell, together with the particular nuclei linked by the bond
+path they represent (bcp) or with the cages linked by the ring path
+(rcp)::
+
+  #ascii#
+  * Complete CP list, bcp and rcp connectivity table
+  # (cp(end)+lvec connected to bcp/rcp)
+  #cp ncp typ   position    end1 (l) end2 (l)
+  1    1   n 0.00 0.00 0.00 
+  [...]
+  9    3   b 0.50 0.50 0.77 4 (0 0 1) 5 (0 0 0)
+  10   3   b 0.50 1.00 0.27 3 (0 1 0) 6 (0 1 0)
+  [...]
+  33   4   r 0.75 0.25 1.00 63 (0 0 1) 57 (0 0 0)
+  34   4   r 0.75 0.75 0.50 64 (0 0 0) 58 (0 0 0)
+
+This list is similar to the complete CP list, but the two entries at
+the end (end1 and end2) give the two identifiers from the complete CP
+list that the bond or ring is connected to, as well as the lattice
+vector by which it should be translated to regenerate their actual
+position. 
+
+More information about the atomic connectivity through bcps can be
+found in the "attractor connectivity matrix::
+
+  * Attractor connectivity matrix
+                n(1)  n(2) 
+                 Mg    O   
+   n(1)    Mg     0     6   
+   n(2)    O      6     0   
+
+This list gives the number of bond paths between the different types
+of non-equivalent atoms in the cell. For instance, in the example
+above, each Mg (row 1) is bonded to six adjacent oxygens through six
+bcps (second entry in the matrix) but there are no Mg-Mg bond
+paths. Likewise, every oxygen is bonded to six Mg, but there are no
+O-O bond paths.
+
+The final part of the output from AUTO contains a detailed list of all
+the non-equivalent critical points found, together with an exahustive
+list of properties calculated at those points. More properties can be
+calculated by using the POINTPROP keyword (see `List of properties
+calculated at points (POINTPROP)`_)::
+
+  #ascii#
+  * Additional properties at the critical points
+  [...]
+  + Critical point no. 4
+    Crystallogrpahic coordinates: 0.75 0.25 1.00
+    Cartesian coordinates (bohr): 5.96 1.98 7.95
+    Type : (3,1)
+    Field value (f): 2.350841441E-02
+    Field value, valence (fval): 2.350841441E-02
+    Gradient (grad f): 3.77e-16 -3.76e-16 2.65e-17
+    Gradient norm (|grad f|): 5.340413578E-16
+    Laplacian (del2 f): 2.889105008E-02
+    Laplacian, valence (del2 fval): 2.889105008E-02
+    Hessian eigenvalues: -7.02e-3  3.42e-3  3.24e-2
+    Hessian:
+       1.795930240E-02   1.453912685E-02  -1.850420411E-19
+       1.453912685E-02   1.795930240E-02  -4.127816220E-19
+      -1.850420411E-19  -4.127816220E-19  -7.027554725E-03
+    Ellipticity (l_1/l_2 - 1): -3.054735092E+00
+  [...]
+  + Flatness (rho_min / rho_b,max): 0.462267
+
+The list of properties calculated by default contains the
+crystallographic and Cartesian coordinates, the rank and signature of
+the critical point, the value of the reference field at that point and
+its derivatives (gradient, gradient norm, Laplacian, Hessian). The
+ellipticity is the quotient between Hessian eigenvalues, only relevant
+at bcps or rcps. The final entry, flatness, given at the end of the
+list, is the quotient between the density minimum and the maximum
+density at the bond critical points.
+
+Example output for AUTO in a molecule
++++++++++++++++++++++++++++++++++++++
+
+The output for AUTO in a molecule is similar to a crystal but simpler,
+since there is no distinction between the non-equivalent critical
+point list and the complete CP list. The list of CPs is given first,
+together with the class, and the Poincare-Hopf sum (which is 1 for a
+complete list of CPs)::
+
+  #ascii#
+  * Critical point list, final report (non-equivalent cps)
+    Topological class (n|b|r|c): 12(12) 12(12) 1(1) 0(0) 
+    Poincare-Hopf sum: 1
+  # ncp type      position (ang_) name   f    |grad|   lap
+    1  (3,-3) n  0.00  1.20  0.69  C  1.1e+2 0.0e+00 -4.3e+5
+    [...]
+    24 (3,-1) b -0.00  1.81 -1.04 b06 2.7e-1 2.8e-13 -9.6e-1
+    25 (3,1 ) r -0.00 -0.00  0.00 r01 2.0e-2 1.0e-15 1.6e-1
+
+Each row contains the CP identfier, the rank and signature, the type
+of critical point, the position in Cartesian coordinates (angstrom
+by default), the name, and the value, gradient and Laplacian of the
+reference field at that point. The complete CP list is exactly the
+same as the above, so it is not repeated.
+
+The CP list is followed by the analysis of the connectivity between
+atoms via bonds and between cages via rings:
+
+  #ascii#
+  * Analysis of system bonds
+  # ncp end1 end2 r1(ang) r2(ang) r1/r2 r1-B-r2(degree)
+   13    C    C   0.6979  0.6979  1.000   179.8198  
+   [...]
+   24    C    H   0.6959  0.3907  1.781   179.9998  
+
+  * Analysis of system rings
+  # ncp end1 end2 r1(ang) r2(ang) r1/r2 r1-R-r2(degree)
+   25    ??  ??   6.7788  6.7788  1.000   180.0000  
+
+followed by the attractor connectivity matrix::
+
+  #ascii#
+  * Attractor connectivity matrix
+                n(1)  n(2)  n(3)  n(4)  n(5)  n(6) 
+                 C     H     C     H     C     H   
+   n(1)    C      0     1     1     0     0     0   
+   [...]
+  n(12)    H      0     0     0     0     0     0   
+                n(7)  n(8)  n(9) n(10) n(11) n(12) 
+                 C     H     C     H     C     H   
+   n(1)    C      0     0     0     0     1     0   
+   [...]
+  n(12)    H      0     0     0     0     1     0   
+
+These lists have the same meaning as in the crsytal example. Finally,
+the output contains the exhaustive list of properties at the critical
+points. As in the case of crystals, the list of properties calculated
+at the critical points can be varied using the POINTPROP keyword (see
+`List of properties calculated at points (POINTPROP)`_)::
+
+  #ascii#
+  * Additional properties at the critical points
+  [...]
+  + Critical point no. 4
+    Coordinates (ang_): 0.0000000000 2.1497999997 -1.2411900006
+    Type : nucleus
+    Field value (f): 4.254133728E-01
+    Field value, valence (fval): 4.254133728E-01
+    Gradient (grad f): 0.000000000E+00  0.000000000E+00  0.000000000E+00
+    Gradient norm (|grad f|): 0.000000000E+00
+    Laplacian (del2 f): -1.951050589E+01
+    Laplacian, valence (del2 fval): -1.951050589E+01
+    Hessian eigenvalues: -6.646486124E+00  -6.639684283E+00  -6.224335478E+00
+    Hessian:
+      -6.639684283E+00  -4.772491252E-15   2.755444887E-15
+      -4.772491252E-15  -6.329875105E+00  -1.827977265E-01
+       2.755444887E-15  -1.827977265E-01  -6.540946498E+00
+    Field 0 (f,|grad|,lap): 3.167808402E-01  0.000000000E+00  -7.262369060E+00
+  [...]
+
+The only difference with the output in a crystal is that the
+coordinates are given in Cartesian and referred to the molecular
+origin, and the flatness is missing.
+
+Problems finding the critical points
+++++++++++++++++++++++++++++++++++++
+
+Sometimes, the zero (one) sum condition for the critical points is not
+fulfilled, which is usually caused by (often unavoidable) numerical
+shortcomings of the scalar field:
 
 * In WIEN2k and elk densities, there might be spurious CPs at the
   surface of the muffin tin (where the density is discontinuous) that
@@ -3027,44 +3267,18 @@ unavoidable) numerical shortcomings of the scalar field:
   position of the real CPs. The CPs where the value of the field is
   larger should be reliable, however. Using a fine grid, and
   relatively high CPEPS and a CPRHO usually helps to eliminate the
-  uninteresting CPs.
+  uninteresting CPs. 
+
+  It is also usual in grids that critical points that should appear
+  can not be found (e.g. bonds) or have the wrong signature. If that
+  is the case, there is not much to do other than trying to find an
+  analytical representation for the field.
 
 * In scalar fields with extreme variations in value (e.g. the
   Laplacian of the electron density), it is unlikely that AUTO will
   find all the core CPs. A previous version of critic2 does that
   (available upon request) but since the core CPs are not all that
   interesting, we have decided to remove that code from this version.
-
-The **complete CP list** is the list of all CPs in the unit cell. The
-identifiers from this list are used as input for other keywords (for
-instance, GRDVEC or FLUXPRINT) as they specify a particular position
-in the crystal. The entries are similar to the non-equivalent CP list
-(the table has been simplified):
-
-::
-
-  #ascii#
-  * Complete CP list
-    (x symbols are the non-equivalent representative atoms)
-    n neq typ | x  | y  | z  | op.   (lvec+cvec)
-  x 1  1  n    1.00 0.50 0.32  1   1.0   0.0   0.0
-    2  1  n    0.50 0.00 0.67  2   0.0   0.0   1.0
-  x 3  2  n    1.00 0.50 0.59  1   1.0   0.0   0.0
-    4  2  n    0.50 0.00 0.40  2   0.0   0.0   1.0
-  [...]
-
-The columns are, in order, the CP identifier (n), the identifier for
-the same CP in the non-equivalent CP list (neq), the type of CP, the
-position in crystallographic coordinates, and the symmetry operation
-that transforms the CP from the non-equivalent CP list into the listed
-CP. 'Op.' corresponds to one of the symmetry operations listed in the
-output and "lvec+cvec" is a translation. Application of the operation
-'op.' to the non-equivalent CP followed by the translation recovers
-the position of the CP in the complete list. The CPs that are at
-exactly the same position as the corresponding CPs in the
-non-equivalent list are listed first and marked with an 'x'. Note that
-for these, the operation is always 1 (the identity) and the
-translation vector is always a lattice translation.
 
 Requesting more information about the critical point list (CPREPORT)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3076,13 +3290,13 @@ Requesting more information about the critical point list (CPREPORT)
             [BORDER] [ix.i iy.i iz.i]
 
 CPREPORT prints additional information about the critical points to
-the output. SHORT: print the list of non-equivalent critical points
-with crystallographic coordinates, multiplicity, and properties of the
-reference scalar field. LONG: the complete list of critical points in
-the unit cell and the connectivity in the case of bcp and rcp (when
-the graph is calculated). VERYLONG: detailed information at every
-critical point, including the derivatives of the reference field, the
-evaluation of all other fields, and the flatness. SHELLS: local
+the output. SHORT: print the list of non-equivalent critical
+points. LONG: in a crystal, print the complete list of critical points
+in the unit cell and the connectivity in the case of bcp and rcp (when
+the graph is calculated); in a molecule, it is the same as
+SHORT. VERYLONG: detailed information at every critical point,
+including the derivatives of the reference field, the evaluation of
+all other fields, and the flatness (in a crystal only). SHELLS: local
 neighbor environment of every critical point (up to n.i shells,
 default 10). ESCHER: write the crystal structure description to an
 octave (escher) script, containing the critical points.
@@ -3107,10 +3321,8 @@ List of properties calculated at points (POINTPROP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The default output for AUTO contains a list of detailed information
-at the critical points. This is an example of how this section looks
-like:
-
-::
+at the critical points. This is an example of what this section looks
+like::
 
   #ascii#
   * Additional properties at the critical points
@@ -3132,8 +3344,8 @@ like:
        1.179735612E-03  -4.510661176E-03  -4.029974096E-04
 
 For each critical point, the coordinates (Cartesian and
-crystallographic), the type, and the evaluation of the reference field
-and its derivatives is given. However, in many cases, it is
+crystallographic in a crysatl), the type, and the evaluation of the
+reference field and its derivatives is given. In many cases, it is
 interesting to calculate the value of a different field, or even an
 arithmetic expression involving other fields, at those critical
 points. For instance, it is relatively common to use the kinetic

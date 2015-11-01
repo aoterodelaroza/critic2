@@ -252,6 +252,7 @@ contains
           if (.not.ok) call ferror('autocritic','bad AUTO/GRADEPS syntax',faterr,line)
        elseif (equal(word,'cprho')) then
           ok = eval_next(CP_rho_cp,line,lp)
+          CP_rho_cp = CP_rho_cp / dunit
           if (.not.ok) call ferror('autocritic','bad AUTO/CPRHO syntax',faterr,line)
        elseif (equal(word,'cpeps')) then
           ok = eval_next(CP_eps_cp,line,lp)
@@ -272,6 +273,10 @@ contains
              ok = ok .and. eval_next(x1clip(3),line,lp)
              if (.not. ok) &
                 call ferror('critic','Wrong AUTO/CLIP/CUBE coordinates.',faterr,line)
+             if (cr%ismolecule) then
+                x0clip = cr%c2x(x0clip / dunit - cr%molx0)
+                x1clip = cr%c2x(x1clip / dunit - cr%molx0)
+             endif
           elseif (equal(word,'sphere')) then
              iclip = 2
              ok = eval_next(x0clip(1),line,lp)
@@ -280,11 +285,13 @@ contains
              ok = ok .and. eval_next(rclip,line,lp)
              if (.not. ok) &
                 call ferror('critic','Wrong AUTO/CLIP/SPHERE values.',faterr,line)
+             if (cr%ismolecule) x0clip = cr%c2x(x0clip / dunit - cr%molx0)
+             rclip = rclip / dunit
           else
              call ferror('critic','Wrong AUTO/CLIP option.',faterr,line)
           end if
           
-       else if  (equal(word,'seed')) then
+       else if (equal(word,'seed')) then
           if (firstseed) then
              nseed = 0
              firstseed = .false.
@@ -313,6 +320,11 @@ contains
           else
              call ferror('autocritic','Unknown keyword in AUTO/SEED',faterr,line)
           endif
+          ! convert the default positions to the center of the cell if this is a molecule
+          if (cr%ismolecule) then
+             seed(nseed)%x0 = cr%c2x(cr%x2c(seed(nseed)%x0) - cr%molx0)
+             seed(nseed)%x1 = cr%c2x(cr%x2c(seed(nseed)%x1) - cr%molx0)
+          endif
           do while (.true.)
              lpo = lp
              word = lgetword(line,lp)
@@ -324,11 +336,13 @@ contains
                 ok = ok.and.eval_next(seed(nseed)%x0(2),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x0(3),line,lp)
                 if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/X0',faterr,line)
+                if (cr%ismolecule) seed(nseed)%x0 = cr%c2x(seed(nseed)%x0 / dunit - cr%molx0)
              elseif (equal(word,'x1')) then
                 ok = eval_next(seed(nseed)%x1(1),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x1(2),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x1(3),line,lp)
                 if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/X1',faterr,line)
+                if (cr%ismolecule) seed(nseed)%x1 = cr%c2x(seed(nseed)%x1 / dunit - cr%molx0)
                 hadx1 = .true.
              elseif (equal(word,'npts')) then
                 ok = eval_next(seed(nseed)%npts,line,lp)
@@ -345,9 +359,11 @@ contains
              elseif (equal(word,'dist')) then
                 ok = eval_next(seed(nseed)%dist,line,lp)
                 if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line)
+                seed(nseed)%dist = seed(nseed)%dist / dunit
              elseif (equal(word,'radius')) then
                 ok = eval_next(seed(nseed)%rad,line,lp)
                 if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line)
+                seed(nseed)%rad = seed(nseed)%rad / dunit
              else
                 lp = lpo
                 exit
@@ -505,57 +521,66 @@ contains
 
     ! write the header to the output 
     write (uout,'("* Automatic determination of CPs")')
-    write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A," bohr")') string(CP_eps_cp,'e',decimal=3)
+    write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
+       string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard CPs if abs(f) is below: ",A)') string(CP_rho_cp,'e',decimal=3)
     write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
     write (uout,'("+ List of seeding actions")')
     write (uout,'("  Id nseed     Type           Description")')
     do i = 1, nseed
+       x0 = seed(i)%x0
+       x1 = seed(i)%x1
+       r = seed(i)%rad * dunit
+       dist = seed(i)%dist * dunit
+       if (cr%ismolecule) then
+          x0 = (cr%x2c(x0) + cr%molx0) * dunit
+          x1 = (cr%x2c(x1) + cr%molx0) * dunit
+       endif
        str = "  " // string(i,2)
        str = str // string(seed(i)%nseed,7)
        if (seed(i)%typ == styp_ws) then
           str = str // " WS recursive  "
           str = str // "  depth=" // string(seed(i)%depth)
-          str = trim(str) // ", x0=" // string(seed(i)%x0(1),'f',7,4) // " " // &
-             string(seed(i)%x0(2),'f',7,4) // " " // string(seed(i)%x0(3),'f',7,4)
-          if (seed(i)%rad > 0d0) then
-             str = trim(str) // ", radius=" // trim(string(seed(i)%rad,'f',10,4))
+          str = trim(str) // ", x0=" // string(x0(1),'f',7,4) // " " // &
+             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+          if (r > 0d0) then
+             str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
           else
              str = trim(str) // ", no radius "
           endif
        elseif (seed(i)%typ == styp_pair) then
           str = str // " Atom pairs    "
-          str = str // "  dist=" // trim(string(seed(i)%dist,'f',10,4))
+          str = str // "  dist=" // trim(string(dist,'f',10,4))
           str = str // ", npts=" // string(seed(i)%npts)
        elseif (seed(i)%typ == styp_triplet) then
           str = str // " Atom triplets "
-          str = str // "  dist=" // trim(string(seed(i)%dist,'f',10,4))
+          str = str // "  dist=" // trim(string(dist,'f',10,4))
        elseif (seed(i)%typ == styp_line) then
           str = str // " Line          "
-          str = str // "  x0=" // string(seed(i)%x0(1),'f',7,4) // " " // &
-             string(seed(i)%x0(2),'f',7,4) // " " // string(seed(i)%x0(3),'f',7,4)
-          str = trim(str) // ", x1=" // string(seed(i)%x1(1),'f',7,4) // " " // &
-             string(seed(i)%x1(2),'f',7,4) // " " // string(seed(i)%x1(3),'f',7,4)
+          str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
+             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+          str = trim(str) // ", x1=" // string(x1(1),'f',7,4) // " " // &
+             string(x1(2),'f',7,4) // " " // string(x1(3),'f',7,4)
           str = str // ", npts=" // string(seed(i)%npts)
        elseif (seed(i)%typ == styp_sphere) then
           str = str // " Sphere        "
-          str = str // "  x0=" // string(seed(i)%x0(1),'f',7,4) // " " // &
-             string(seed(i)%x0(2),'f',7,4) // " " // string(seed(i)%x0(3),'f',7,4)
-          str = trim(str) // ", radius=" // trim(string(seed(i)%rad,'f',10,4))
+          str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
+             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+          str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
           str = str // ", ntheta=" // string(seed(i)%ntheta)
           str = str // ", nphi=" // string(seed(i)%nphi)
           str = str // ", nr=" // string(seed(i)%nr)
        elseif (seed(i)%typ == styp_oh) then
           str = str // " Oh recursive  "
           str = str // "  depth=" // string(seed(i)%depth)
-          str = trim(str) // ", x0=" // string(seed(i)%x0(1),'f',7,4) // " " // &
-             string(seed(i)%x0(2),'f',7,4) // " " // string(seed(i)%x0(3),'f',7,4)
-          str = trim(str) // ", radius=" // trim(string(seed(i)%rad,'f',10,4))
+          str = trim(str) // ", x0=" // string(x0(1),'f',7,4) // " " // &
+             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+          str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
           str = str // ", nr=" // string(seed(i)%nr)
        elseif (seed(i)%typ == styp_point) then
           str = str // " Point         "
-          str = str // "  x0=" // string(seed(i)%x0(1),'f',7,4) // " " // &
-             string(seed(i)%x0(2),'f',7,4) // " " // string(seed(i)%x0(3),'f',7,4)
+          str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
+             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
        endif
        write (uout,'(A)') str
     end do
@@ -739,7 +764,11 @@ contains
        if (equal(word,'short')) then
           call cp_short_report()
        elseif (equal(word,'long')) then
-          call cp_long_report()
+          if (.not.cr%ismolecule) then
+             call cp_long_report()
+          else
+             call cp_short_report()
+          end if
        elseif (equal(word,'verylong')) then
           call cp_vlong_report()
        elseif (equal(word,'shells')) then
@@ -879,12 +908,13 @@ contains
 
   !> Calculates the neighbor environment of each non-equivalent CP.
   subroutine critshell(shmax)
+    use global
     use struct_basic
     use tools_io
 
     integer, intent(in) :: shmax
 
-    integer :: i, j, k, l, ln, lvec(3)
+    integer :: i, j, k, l, ln, lvec(3), ilo, ihi
     real*8 :: x0(3), xq(3)
     real*8 :: dist2(ncp,shmax), d2, dmin
     integer :: nneig(ncp,shmax), imin
@@ -897,10 +927,17 @@ contains
     dmin = 1d30
     nneig = 0
     wcp = 0
+    if (.not.cr%ismolecule) then
+       ilo = 0
+       ihi = 26
+    else
+       ilo = (1 * 3 + 1) * 3 + 1
+       ihi = ilo
+    end if
     do i = 1, ncp
        x0 = cr%x2c(cp(i)%x)
        do j = 1, ncpcel
-          do k = 0, 26
+          do k = ilo, ihi
              ln = k
              lvec(1) = mod(ln,3) - 1
              ln = ln / 3
@@ -933,21 +970,21 @@ contains
     end do
 
     write (uout,'("* Environments of the critical points")')
-    write (uout,'("# CP  typ neig  distance nneq typ")')
+    write (uout,'("# ncp typ neig   dist(",A,")  ncp typ")') string(iunitname0(iunit))
     do i = 1, ncp
        do j = 1, shmax
           if (j == 1) then
              write (uout,'(6(A,X))') &
                 string(i,length=6,justify=ioj_center), namecrit(cp(i)%typind),&
-                string(nneig(i,j),length=3,justify=ioj_center), &
-                string(sqrt(dist2(i,j)),'f',length=12,decimal=8,justify=3), &
+                string(nneig(i,j),length=5,justify=ioj_center), &
+                string(sqrt(dist2(i,j))*dunit,'f',length=12,decimal=8,justify=3), &
                 string(wcp(i,j),length=4,justify=ioj_center), &
                 namecrit(cp(wcp(i,j))%typind)
           else
              if (wcp(i,j) /= 0) then
                 write (uout,'(6X,"...",6(A,X))') &
-                   string(nneig(i,j),length=3,justify=ioj_center), &
-                   string(sqrt(dist2(i,j)),'f',length=12,decimal=8,justify=3), &
+                   string(nneig(i,j),length=5,justify=ioj_center), &
+                   string(sqrt(dist2(i,j))*dunit,'f',length=12,decimal=8,justify=3), &
                    string(wcp(i,j),length=4,justify=ioj_center), &
                    namecrit(cp(wcp(i,j))%typind)
              end if
@@ -955,9 +992,9 @@ contains
        end do
     end do
     write (uout,*)
-    write (uout,'("* Minimum CP distance is ",A," between CP# ",A," and ",A)') &
-       string(sqrt(dmin),'f',length=12,decimal=7,justify=ioj_center), &
-       string(imin), string(wcp(imin,1))
+    write (uout,'("* Minimum CP distance is ",A,X,A," between CP# ",A," and ",A)') &
+       string(sqrt(dmin)*dunit,'f',length=12,decimal=7,justify=ioj_center), &
+       string(iunitname0(iunit)), string(imin), string(wcp(imin,1))
     write (uout,*)
 
   end subroutine critshell
@@ -1043,7 +1080,6 @@ contains
     integer :: connectm(0:ncp,0:ncp), ncon, icon(0:ncp)
     character(len=1024) :: auxsmall(0:ncp)
     character*(1) ::    smallnamecrit(0:4)
-    logical :: dolong
 
     data   smallnamecrit   /'n','b','r','c','?'/
 
@@ -1074,22 +1110,18 @@ contains
     end do
 
     write (uout,'("* Attractor connectivity matrix")')
-    write (uout,'("  to be read: each cp a (row i) connects to mij cps b (column j)")')
-    dolong = any(icon(0:ncon) > 1000)
+    write (uout,'("  to be read: each cp in a row i connects to mij cps in column j")')
     do j = 0, ncon
        ind = (cp(icon(j))%typ + 3) / 2
-       if (dolong) then
-          write (auxsmall(j),'(a1,"(",I7,")")') smallnamecrit(ind), icon(j)
-       else
-          write (auxsmall(j),'(a1,"(",I3,")")') smallnamecrit(ind), icon(j)
-       end if
+       write (auxsmall(j),'(a1,"(",A,")")') smallnamecrit(ind), string(icon(j))
     end do
     do i = 0, ncon / 6
-       write (uout,'(12x,6(a10,x))') (auxsmall(j), j = 6*i,min(6*(i+1)-1,ncon))
-       write (uout,'(12x,6(a10,x))') (trim(cp(icon(j))%name), j = 6*i,min(6*(i+1)-1,ncon))
+       write (uout,'(13x,6(A))') (string(auxsmall(j),6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
+       write (uout,'(13x,6(A))') (string(cp(icon(j))%name,6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
        do j = 0, ncon
-          write (uout,'(a10,x,a10,x,6(3x,i4,4x))') auxsmall(j), &
-             cp(icon(j))%name, (connectm(icon(j),icon(k)), k = 6*i, min(6*(i+1)-1,ncon))
+          write (uout,'(A,x,A,x,6(A))') string(auxsmall(j),6,ioj_center), &
+             string(cp(icon(j))%name,6,ioj_center), &
+             (string(connectm(icon(j),icon(k)),6,ioj_center), k = 6*i, min(6*(i+1)-1,ncon))
        end do
     end do
     write (uout,*)
@@ -1122,10 +1154,16 @@ contains
     end do
     write (uout,'("  Topological class (n|b|r|c): ",4(A,"(",A,") "))') &
        (string(numclass(i)),string(multclass(i)),i=0,3)
-    write (uout,'("  Morse sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
+    if (cr%ismolecule) then
+       write (uout,'("  Poincare-Hopf sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
+       write (uout,'("# ncp   type   CPname              position (",A,")               name            f             |grad|           lap")') &
+          string(iunitname0(iunit))
+    else
+       write (uout,'("  Morse sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
+       write (uout,'("# ncp   pg  type   CPname         position (cryst. coords.)       mult  name            f             |grad|           lap")')
+    endif
 
     ! header
-    write (uout,'("# n  pg   type  CP name         position (cryst. coords.)       mult  name            f             |grad|           lap")')
 
     ! report
     do i=1,ncp
@@ -1145,14 +1183,25 @@ contains
           cp(i)%deferred = .false.
        endif
 
-       write (uout,'(A,1x,A," (3,",A,") ",A,1X,3(A,1X),A,1x,A,3(1X,A))') &
-          string(i,length=4,justify=ioj_left), string(cp(i)%pg,length=3,justify=ioj_center),&
-          string(cp(i)%typ,length=2), string(namecrit(ind),length=8,justify=ioj_center),&
-          (string(cp(i)%x(j),'f',length=12,decimal=8,justify=3),j=1,3), &
-          string(cp(i)%mult,length=3,justify=ioj_right), string(cp(i)%name,length=10,justify=ioj_center),&
-          string(cp(i)%rho,'e',decimal=8,length=15,justify=4),&
-          string(cp(i)%gmod,'e',decimal=8,length=15,justify=4),&
-          string(cp(i)%lap,'e',decimal=8,length=15,justify=4)
+       if (.not.cr%ismolecule) then
+          write (uout,'(2X,A,1x,A," (3,",A,") ",A,1X,3(A,1X),A,1x,A,3(1X,A))') &
+             string(i,length=4,justify=ioj_left), string(cp(i)%pg,length=3,justify=ioj_center),&
+             string(cp(i)%typ,length=2), string(namecrit(ind),length=8,justify=ioj_center),&
+             (string(cp(i)%x(j),'f',length=12,decimal=8,justify=3),j=1,3), &
+             string(cp(i)%mult,length=3,justify=ioj_right), string(cp(i)%name,length=10,justify=ioj_center),&
+             string(cp(i)%rho,'e',decimal=8,length=15,justify=4),&
+             string(cp(i)%gmod,'e',decimal=8,length=15,justify=4),&
+             string(cp(i)%lap,'e',decimal=8,length=15,justify=4)
+       else
+          write (uout,'(2X,A," (3,",A,") ",A,1X,3(A,1X),A,3(1X,A))') &
+             string(i,length=4,justify=ioj_left),&
+             string(cp(i)%typ,length=2), string(namecrit(ind),length=8,justify=ioj_center),&
+             (string((cp(i)%r(j)+cr%molx0(j))*dunit,'f',length=12,decimal=8,justify=3),j=1,3), &
+             string(cp(i)%name,length=10,justify=ioj_center),&
+             string(cp(i)%rho,'e',decimal=8,length=15,justify=4),&
+             string(cp(i)%gmod,'e',decimal=8,length=15,justify=4),&
+             string(cp(i)%lap,'e',decimal=8,length=15,justify=4)
+       endif
     enddo
     write (uout,*)
 
@@ -1765,10 +1814,12 @@ contains
 
     data smallnamecrit   /'n','b','r','c'/
 
+    if (cr%ismolecule) return
+
     ! Symmetry information 
     write (uout,'("* Complete CP list")')
     write (uout,'("# (x symbols are the non-equivalent representative atoms)")')
-    write (uout,'("#   n   neq  typ      position (cryst. coords.)        op.    (lvec+cvec)")')
+    write (uout,'("#  cp   ncp  typ      position (cryst. coords.)        op.    (lvec+cvec)")')
     do i = 1, ncpcel
        if (cpcel(i)%ir == 1 .and. cpcel(i)%ic == 1) then
           neqlab = "x"
@@ -1785,32 +1836,10 @@ contains
     end do
     write (uout,*)
 
-    if (cr%ismolecule) then
-       ! Symmetry information 
-       write (uout,'("* Complete CP list in molecular coordinates (angstrom)")')
-       write (uout,'("# (x symbols are the non-equivalent representative atoms)")')
-       write (uout,'("#   n   neq  typ        position (cryst. coords.)         op.    (lvec+cvec)")')
-       do i = 1, ncpcel
-          if (cpcel(i)%ir == 1 .and. cpcel(i)%ic == 1) then
-             neqlab = "x"
-          else
-             neqlab = " "
-          end if
-          write (uout,'(20(A,X))') &
-             string(neqlab,length=1), string(i,length=6,justify=ioj_left),&
-             string(cpcel(i)%idx,length=4,justify=ioj_left),&
-             string(smallnamecrit(cpcel(i)%typind),length=1),&
-             (string((cpcel(i)%r(j)+cr%molx0(j))*bohrtoa,'f',length=13,decimal=8,justify=4),j=1,3), &
-             string(cpcel(i)%ir,length=3,justify=ioj_center),&
-             (string(cpcel(i)%lvec(j) + cr%cen(j,cpcel(i)%ic),'f',length=5,decimal=1,justify=3),j=1,3)
-       end do
-       write (uout,*)
-    end if
-
     ! graph information 
     write (uout,'("* Complete CP list, bcp and rcp connectivity table")')
     write (uout,'("# (cp(end)+lvec connected to bcp/rcp)")')
-    write (uout,'("#n   neq   typ        position (cryst. coords.)            end1 (lvec)      end2 (lvec)")')
+    write (uout,'("#cp  ncp   typ        position (cryst. coords.)            end1 (lvec)      end2 (lvec)")')
     do i = 1,ncpcel
        if (cpcel(i)%typ == -1 .or. cpcel(i)%typ == 1 .and. dograph > 0) then
           write (uout,'(7(A,X),"(",3(A,X),") ",A," (",3(A,X),")")') &
@@ -1849,14 +1878,15 @@ contains
     maxbden = 1d-30
     do i = 1, ncp
        write (uout,'("+ Critical point no. ",A)') string(i)
-       write (uout,'("  Crystallogrpahic coordinates: ",3(A,X))') &
-          (string(cp(i)%x(j),'f',decimal=10),j=1,3)
-       write (uout,'("  Cartesian coordinates: ",3(A,X))') &
-          (string(cp(i)%r(j),'f',decimal=10),j=1,3)
-       if (cr%ismolecule) then
+       if (.not.cr%ismolecule) then
+          write (uout,'("  Crystallogrpahic coordinates: ",3(A,X))') &
+             (string(cp(i)%x(j),'f',decimal=10),j=1,3)
+          write (uout,'("  Cartesian coordinates (",A,"): ",3(A,X))') &
+             iunitname0(iunit), (string(cp(i)%r(j),'f',decimal=10),j=1,3)
+       else
           xx = (cp(i)%r + cr%molx0) * bohrtoa
-          write (uout,'("  Molecular coordinates (ang): ",3(A,X))') &
-             (string(xx(j),'f',decimal=10),j=1,3)
+          write (uout,'("  Coordinates (",A,"): ",3(A,X))') &
+             iunitname0(iunit), (string(xx(j),'f',decimal=10),j=1,3)
        end if
        call fields_propty(refden,cp(i)%x,res,.true.,.true.)
        if (res%f < minden) minden = res%f
@@ -1867,7 +1897,8 @@ contains
     else
        fness = 0d0
     end if
-    write (uout,'("+ Flatness (rho_min / rho_b,max): ",A)') string(fness,'f',decimal=6)
+    if (.not.cr%ismolecule) &
+       write (uout,'("+ Flatness (rho_min / rho_b,max): ",A)') string(fness,'f',decimal=6)
     write (uout,*)
 
   end subroutine cp_vlong_report
@@ -1885,17 +1916,20 @@ contains
        isbcp = (k==1)
        if (isbcp) then
           write (uout,'("* Analysis of system bonds")') 
-          write (uout,'("# CP    Atom1      Atom2    r1(bohr)   r2(bohr)     r1/r2   r1-B-r2 (degree)")')
+          write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-B-r2 (degree)")') &
+             string(iunitname0(iunit)), string(iunitname0(iunit))
+             
        else
           write (uout,'("* Analysis of system rings")') 
-          write (uout,'("# CP    Atom1      Atom2    r1(bohr)   r2(bohr)     r1/r2   r1-R-r2 (degree)")')
+          write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-R-r2 (degree)")') &
+             string(iunitname0(iunit)), string(iunitname0(iunit))
        end if
        do i = 1, ncp
           if (cp(i)%typ /= -1 .and. isbcp .or. cp(i)%typ /= 1 .and..not.isbcp) cycle
 
           do j = 1, 2
              if (cp(i)%ipath(j) == 0) then
-                nam(j) = 'fail'
+                nam(j) = ' ?? '
              elseif (cp(i)%ipath(j) == -1) then
                 nam(j) = 'Inf.'
              else
@@ -1904,7 +1938,7 @@ contains
           end do
           write (uout,'(7(A,X))') string(i,length=5,justify=ioj_center),&
              string(nam(1),length=10,justify=ioj_center), string(nam(2),length=10,justify=ioj_center),&
-             (string(cp(i)%brdist(j),'f',length=10,decimal=4,justify=3),j=1,2), &
+             (string(cp(i)%brdist(j)*dunit,'f',length=10,decimal=4,justify=3),j=1,2), &
              string(cp(i)%brdist(1)/cp(i)%brdist(2),'f',length=12,decimal=6,justify=3), &
              string(cp(i)%brang,'f',length=10,decimal=4,justify=3)
        enddo
@@ -1948,7 +1982,7 @@ contains
     ! run over known non-equivalent cps  
     !$omp parallel do private(isbcp,res,evec,reval,idir,xdtemp,nstep,ier) schedule(dynamic)
     do i = 1, ncp
-       ! BCP paths
+       ! BCP/RCP paths
        if (abs(cp(i)%typ) == 1) then
           isbcp = (cp(i)%typ == -1)
 

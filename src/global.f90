@@ -97,7 +97,7 @@ module global
 
   integer, parameter :: iunit_bohr = 1
   integer, parameter :: iunit_ang = 2
-  character*4, parameter :: iunitname0(2) = (/"bohr","ang "/)
+  character*4, parameter :: iunitname0(2) = (/"bohr","ang_"/)
   real*8, parameter :: dunit0(2) = (/1d0,bohrtoa/)
 
   ! default border for a molecular unit cell
