@@ -3189,7 +3189,7 @@ reference field at that point. The complete CP list is exactly the
 same as the above, so it is not repeated.
 
 The CP list is followed by the analysis of the connectivity between
-atoms via bonds and between cages via rings:
+atoms via bonds and between cages via rings::
 
   #ascii#
   * Analysis of system bonds
@@ -3231,16 +3231,16 @@ at the critical points can be varied using the POINTPROP keyword (see
     Type : nucleus
     Field value (f): 4.254133728E-01
     Field value, valence (fval): 4.254133728E-01
-    Gradient (grad f): 0.000000000E+00  0.000000000E+00  0.000000000E+00
+    Gradient (grad f): 0.00e+00  0.00e+00  0.00e+00
     Gradient norm (|grad f|): 0.000000000E+00
     Laplacian (del2 f): -1.951050589E+01
     Laplacian, valence (del2 fval): -1.951050589E+01
-    Hessian eigenvalues: -6.646486124E+00  -6.639684283E+00  -6.224335478E+00
+    Hessian eigenvalues: -6.64e+00  -6.63e+00  -6.22e+00
     Hessian:
       -6.639684283E+00  -4.772491252E-15   2.755444887E-15
       -4.772491252E-15  -6.329875105E+00  -1.827977265E-01
        2.755444887E-15  -1.827977265E-01  -6.540946498E+00
-    Field 0 (f,|grad|,lap): 3.167808402E-01  0.000000000E+00  -7.262369060E+00
+    Field 0 (f,|grad|,lap): 3.16e-01 0.00e+00 -7.26e+00
   [...]
 
 The only difference with the output in a crystal is that the
@@ -3420,8 +3420,8 @@ Overview
 
 Gradient paths are the solution of the differential equation x' =
 grad(f(x)) where f is a scalar field. They play an important role in
-the QTAIM theory because gradient paths of the electron density can
-not cross the boundary between atomic regions and, as a consequence, a
+QTAIM theory because gradient paths of the electron density can not
+cross the boundary between atomic regions and, as a consequence, a
 gradient path plot is a simple way to investigate the shape and
 properties of a basin. Gradient paths originate at maxima (if the
 field is the density they are usually the nuclei) and end at the
@@ -3429,7 +3429,8 @@ minima (the crystal voids) or at infinity in case of a gas-phase
 molecule.
 
 There are two keywords for gradient path representation in critic2:
-GRDVEC (2D gradient paths plus a contour plot) and FLUXPRINT (3D).
+GRDVEC (2D gradient paths plus a contour plot) and FLUXPRINT
+(3D). 
 
 Gradient path representations in a plane (GRDVEC)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3484,10 +3485,11 @@ the plot (default: <root>). These files include:
 
 In the standard syntax, PLANE specifies the plane for the plot using
 three points: x0 is the origin, x1 the end of the x-axis and x2 the
-end of the y-axis, all in crystallographic coordinates. The SCALE
-option allows the user to extend the plane relative to the reference
-points; The x- and y- axis of the rectangle are scaled using the sx.r
-and sy.r values.
+end of the y-axis. These points are in crystallographic coordinates in
+a crystal, and in molecular Cartesian coordinates in a molecule
+(default units: angstrom). The SCALE option allows the user to extend
+the plane relative to the reference points; The x- and y- axis of the
+rectangle are scaled using the sx.r and sy.r values.
 
 There is another possibility: the PLANE CP keyword (or the equivalent
 syntax PLANE ATOM) accepts three atoms or critical points from the
@@ -3512,17 +3514,20 @@ vectors given in PLANE acts as a clipping plane while the scaled
 plane determines the gradient path origins.
 
 With HMAX, you can set the maximum distance from a CP to the plane
-to be included in the plot. Default: 1d-4.
+to be included in the plot (units: bohr in crystals, angstrom in
+molecules). Default: 1d-4 bohr. 
 
 The ORIG keyword adds a source of gradient lines to the plot. Its
-crystallographic coordinates are x.r, y.r and z.r. atr.i is 1 if the
-point is to be treated as a ncp or ccp (the up and down trajectories
-start from points located on a sphere centered on the origin) and it
-is 0 if the point is to be treated as a bcp or ccp (a circle is built
-around the CP in the plane determined by two eigenvectors whose
-eigenvalues have equal sign. The remaining eigenvector determines a
-unique direction). up.i and down.i are the number of gradient paths to
-be started in the upwards and downwards direction respectively.
+coordinates are x.r, y.r and z.r. Crystallographic coordinates are
+used in a crystal, and molecular Cartesian coordinates in a molecule
+(default units: angstrom). atr.i is 1 if the point is to be treated as
+a ncp or ccp (the up and down trajectories start from points located
+on a sphere centered on the origin) and it is 0 if the point is to be
+treated as a bcp or ccp (a circle is built around the CP in the plane
+determined by two eigenvectors whose eigenvalues have equal sign. The
+remaining eigenvector determines a unique direction). up.i and down.i
+are the number of gradient paths to be started in the upwards and
+downwards direction respectively.
 
 The CP keyword accepts a critical point identifier from the complete
 CP list (or the complete atom list). The number of upwards and

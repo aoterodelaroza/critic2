@@ -1467,7 +1467,7 @@ contains
     real*8  :: xp(3), lappt
     logical :: doagain, ok, autocheck
     real*8  :: r0(3), r1(3), r2(3), xdum, raux0(3), raux1(3), raux2(3)
-    real*8  :: q0(3)
+    real*8  :: q0(3), xo0(3), xo1(3), xo2(3)
     integer :: cpid
     integer :: nti, nfi, ix, iy
     integer :: i1, i2, i3, lvecx(3,3)
@@ -1567,6 +1567,8 @@ contains
                    ok = eval_next (zx, line, lp)
                    ok = ok .and. eval_next (zy, line, lp)
                    if (.not. ok) call ferror ('grdvec','Bad size numbers', faterr,line)
+                   zx = zx / dunit
+                   zy = zy / dunit
                 elseif (len_trim(word) > 0) then
                    call ferror ('grdvec','Unknown extra keyword in PLANE', faterr,line)
                 else
@@ -1577,9 +1579,9 @@ contains
              r1 = cpcel(i2)%x + lvecx(2,:)
              r2 = cpcel(i3)%x + lvecx(3,:)
              write (uout,'("+ Building the plane using points: ",3(/1x,3(A,1x)))') &
-                (string(r0(j),'f',decimal=6,length=10,justify=3),j=1,3), &
-                (string(r1(j),'f',decimal=6,length=10,justify=3),j=1,3), &
-                (string(r2(j),'f',decimal=6,length=10,justify=3),j=1,3)
+                (string(r0(j),'f',6,10,ioj_right),j=1,3), &
+                (string(r1(j),'f',6,10,ioj_right),j=1,3), &
+                (string(r2(j),'f',6,10,ioj_right),j=1,3)
              write (uout,'("+ Scale: ",A,X,A)') string(sx,'g'), string(sy,'g')
              if (zx > 0d0 .and. zy > 0d0) &
                 write (uout,'("+ Size: ",A,X,A)') string(zx,'g'), string(zy,'g')
@@ -1597,6 +1599,13 @@ contains
              ok = ok .and. eval_next (r2(2), line, lp)
              ok = ok .and. eval_next (r2(3), line, lp)
              if (.not. ok) call ferror ('grdvec','Bad limits for crystal', faterr,line)
+             
+             if (cr%ismolecule) then
+                r0 = cr%c2x(r0 / dunit - cr%molx0)
+                r1 = cr%c2x(r1 / dunit - cr%molx0)
+                r2 = cr%c2x(r2 / dunit - cr%molx0)
+             endif
+
              sx = 1d0
              sy = 1d0
              do while (.true.)
@@ -1623,9 +1632,18 @@ contains
           end if
           indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
           write (uout,'("* Name of the output data file: ",a)') string(datafile)
-          write (uout,'("  Plane origin: ",3(A,X))') (string(r0(j),'f',decimal=6),j=1,3)
-          write (uout,'("  Plane x-end: ",3(A,X))') (string(r1(j),'f',decimal=6),j=1,3)
-          write (uout,'("  Plane y-end: ",3(A,X))') (string(r2(j),'f',decimal=6),j=1,3)
+          if (.not.cr%ismolecule) then
+             xo0 = r0
+             xo1 = r1
+             xo2 = r2
+          else
+             xo0 = (cr%x2c(r0) + cr%molx0) * dunit
+             xo1 = (cr%x2c(r1) + cr%molx0) * dunit
+             xo2 = (cr%x2c(r2) + cr%molx0) * dunit
+          end if
+          write (uout,'("  Plane origin: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
+          write (uout,'("  Plane x-end:  ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
+          write (uout,'("  Plane y-end:  ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
           goodplane = .true.
 
        else if (equal(word,'outcp')) then
@@ -1636,7 +1654,7 @@ contains
 
        else if (equal(word,'hmax')) then
           ok = eval_next (xdum, line, lp)
-          if (ok) RHOP_Hmax = xdum
+          if (ok) RHOP_Hmax = xdum / dunit
           if (.not. ok) call ferror ('grdvec','Wrong hmax line',warning,line)
           call check_no_extra_word()
 
@@ -1729,6 +1747,7 @@ contains
           ok = ok .and. eval_next (grpup(norig), line, lp)
           ok = ok .and. eval_next (grpdwn(norig), line, lp)
           if (.not. ok) call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line)
+          grpx(:,norig) = cr%c2x(grpx(:,norig) / dunit - cr%molx0)
           call check_no_extra_word()
 
        elseif (equal (word,'check')) then
@@ -1926,7 +1945,7 @@ contains
 
     integer :: nptf, i, j, iorig, up1d, up2d, ntotpts
     real*8  :: xflux(RHOP_Mstep,3), xstart(3), phii, u1, v1, u, v
-    real*8  :: r012, v1d(3), v2da(3), v2db(3)
+    real*8  :: r012, v1d(3), v2da(3), v2db(3), xo0(3), xo1(3), xo2(3)
     real*8  :: xtemp(3), c1coef, c2coef, ehess(3)
     integer :: ier, nindex, ntype
     type(scalar_value) :: res
@@ -1968,25 +1987,26 @@ contains
     write (uout,'("* Plot of the gradient vector field in the plane:")')
     write (uout,'("    r = r0 + u * (r1 - r0) + v * (r2 - r0)")')
     write (uout,'("  where the parametric coordinates u and v go from 0 to 1.")')
-    write (uout,'("+ Crystal coordinates of r0: ",3(A,2X))') (string(r0(j),'f',decimal=6),j=1,3)
-    write (uout,'("+ Crystal coordinates of r1: ",3(A,2X))') (string(r1(j),'f',decimal=6),j=1,3)
-    write (uout,'("+ Crystal coordinates of r2: ",3(A,2X))') (string(r2(j),'f',decimal=6),j=1,3)
-
-    write (uout,'("+ Orthogonal cartesian coordinates of r0: ",3(A,X))') (string(rp0(j),'f',decimal=6),j=1,3)
-    write (uout,'("+ Orthogonal cartesian coordinates of r1: ",3(A,X))') (string(rp1(j),'f',decimal=6),j=1,3)
-    write (uout,'("+ Orthogonal cartesian coordinates of r2: ",3(A,X))') (string(rp2(j),'f',decimal=6),j=1,3)
-    write (uout,'("+ Plane equation parameters (a,b,c,d): ",4(A,X))') (string(rpn(j),'f',decimal=6),j=1,4)
-
-    write (uout,'("+ Plane to cartesian transformation matrix: ",/2(4X,3(A,X)/),4X,3(A,X))') &
-       ((string(amat(i,j),'f',decimal=8,length=14), j = 1, 3), i = 1, 3)
-
-    write (uout,'("+ Cartesian to plane transformation matrix: ",/2(4X,3(A,X)/),4X,3(A,X))') &
-       ((string(bmat(i,j),'f',decimal=8,length=14), j = 1, 3), i = 1, 3)
-
+    if (.not.cr%ismolecule) then
+       write (uout,'("+ Crystal coordinates of r0: ",3(A,2X))') (string(r0(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Crystal coordinates of r1: ",3(A,2X))') (string(r1(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Crystal coordinates of r2: ",3(A,2X))') (string(r2(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Cartesian coordinates of r0: ",3(A,X))') (string(rp0(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Cartesian coordinates of r1: ",3(A,X))') (string(rp1(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Cartesian coordinates of r2: ",3(A,X))') (string(rp2(j),'f',12,6,ioj_right),j=1,3)
+    else
+       xo0 = (cr%x2c(r0) + cr%molx0) * dunit
+       xo1 = (cr%x2c(r1) + cr%molx0) * dunit
+       xo2 = (cr%x2c(r2) + cr%molx0) * dunit
+       write (uout,'("+ Coordinates of r0: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Coordinates of r1: ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Coordinates of r2: ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
+    endif
     ! Check the in-plane CPs
     if (autocheck) call autochk(rp0)
 
     !.Run over the points defined as origins:
+    write (uout,'("+ List of critical points that act as in-plane gradient path generators")')
     write (uout,'("# i       xcrys        ycrys        zcrys    iatr   up down     xplane       yplane")')
     do iorig = 1, norig
        ! calculate in-plane coordinates
@@ -1996,8 +2016,11 @@ contains
        u = xtemp(1)*r01 + xtemp(2)*r02*cosalfa
        v = xtemp(2)*r02*sinalfa
 
+       xtemp = grpx(:,iorig)
+       if (cr%ismolecule) &
+          xtemp = (cr%x2c(xtemp) + cr%molx0) * dunit
        write (uout,'(99(A,2X))') string(iorig,length=5,justify=ioj_left), &
-          (string(grpx(j,iorig),'f',decimal=6,length=11,justify=4),j=1,3),&
+          (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
           string(grpatr(iorig),length=3,justify=ioj_right), &
           string(grpup(iorig),length=3,justify=ioj_right), &
           string(grpdwn(iorig),length=3,justify=ioj_right), &
@@ -2005,6 +2028,7 @@ contains
     enddo
     write (uout,*)
     
+    write (uout,'("+ List of gradient paths traced")')
     write (uout,'("# i       xcrys        ycrys        zcrys        type    up down    pts")')
     do iorig = 1, norig
        ntotpts = 0
@@ -2046,9 +2070,12 @@ contains
           else
              ntype = -3
           end if
+
+          xtemp = (grpx(:,iorig) + cr%molx0) * dunit
+          
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &
-             (string(grpx(j,iorig),'f',decimal=6,length=11,justify=4),j=1,3),&
+             (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
              string(nindex,length=3,justify=ioj_right),&
              string(ntype,length=3,justify=ioj_right),&
              string(grpup(iorig),length=3,justify=ioj_right),&
@@ -2152,9 +2179,12 @@ contains
                 ntotpts = ntotpts + nptf
              endif
           endif
+
+          xtemp = (grpx(:,iorig) + cr%molx0) * dunit
+
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &
-             (string(grpx(j,iorig),'f',decimal=6,length=11,justify=4),j=1,3),&
+             (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
              string(nindex,length=3,justify=ioj_right),&
              string(ntype,length=3,justify=ioj_right),&
              string(grpup(iorig),length=3,justify=ioj_right),&
@@ -2261,12 +2291,14 @@ contains
     real*8 :: rp0(3), ehess(3)
 
     ! 
-    write (uout,'("* Checking in-plane CPs. Initial number of CPs : ",A)') string(newncriticp)
+    write (uout,'("+ List of candidate in-plane CPs")') 
+    write (uout,'("# cp       x           y           z")')
     do i = 1, newncriticp
        newcriticp(:,i) = newcriticp(:,i) - floor(newcriticp(:,i))
        write (uout,'(2X,4(A,2X))') string(i,length=3,justify=ioj_left), &
-          (string(newcriticp(j,i),'f',decimal=6,length=10,justify=3),j=1,3)
+          (string(newcriticp(j,i),'f',10,6,ioj_right),j=1,3)
     enddo
+    write (uout,*)
 
     inum = 2*indmax+1
     do i=1,inum
@@ -2285,13 +2317,14 @@ contains
        enddo
     enddo
 
+    write (uout,'("+ Pruning actions on the in-plane CP list")') 
     do i = 1, newncriticp
        xp = newcriticp(:,i)
 
        !.discard repeated points
        do j = i+1, newncriticp
           if (cr%distance(newcriticp(:,j),xp) < epsf) then
-             write (uout,'("Point ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
+             write (uout,'(2X,"CP ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
              cycle
           endif
        enddo
@@ -2300,7 +2333,7 @@ contains
        xp = cr%x2c(newcriticp(:,i))
        call grd(f(refden),xp,2,res)
        if (res%gfmod > grpcpeps) then
-          write (uout,'("Point ",A," has a large gradient: ",A," -> Rejected!")') &
+          write (uout,'(2X,"CP ",A," has a large gradient: ",A," -> Rejected!")') &
              string(i), string(res%gfmod,'e',decimal=6)
           cycle
        else
@@ -2359,7 +2392,7 @@ contains
              end if
           endif
        enddo
-       write (uout,'("Point ",A," created ",A," copies in plane (hmin = ",A,")")') &
+       write (uout,'(2X,"CP ",A," created ",A," copies in plane (hmin = ",A,")")') &
           string(i), string(ncopies), string(hmin,'f',decimal=6)
     end do
     write (uout,*)
