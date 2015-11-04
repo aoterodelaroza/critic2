@@ -327,6 +327,7 @@ contains
        write (uout,'(A)') "r0_{far} ids : (0)One r0_{near} (1)min(aa) (2)0.99*(rminCPsame) (3)0.75*(rminCPsame) "
        write (uout,'(A)') "               (4)1.1*(last r_{zfs}) (5)1.01* max(r_{far})  (6) mean(r_{far}) "
        write (uout,'(A)') "               (7) 1.2*mean(r_{zfs})"
+       write (uout,'("Units: ",A)') string(iunitname0(iunit))
        write (uout,'("* (",A5,"/",A5,") ",4(A12,2X))') "nray","total","r0_{near}","r_{ZFS}","r0_{far}","nsteps"
     end if
 
@@ -461,7 +462,7 @@ contains
        if (verbose) then
           !$omp critical (IO)
           write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,"(",I1,")",1X,E14.6,2X,E14.6,1X,"(",I1,") ",I8)') &
-             j,srf%nv,riaprox,id1,rlim,raprox,id2,nstep
+             j,srf%nv,riaprox*dunit,id1,rlim*dunit,raprox*dunit,id2,nstep
           !$omp end critical (IO)
        end if
 
@@ -823,7 +824,7 @@ contains
     end if
 
     ! print header to stdout
-    write (uout,'("* Atomic basins plot")')
+    write (uout,'("* Attraction basins plot (BASINPLOT)")')
     if (method == "bcb") then
        write (uout,'("  Starting polyhedron: cube ")') 
        write (uout,'("  Subdivision level: ",A)') string(level)
@@ -847,22 +848,36 @@ contains
     else 
        write (uout,'("  Output file format: DBASIN with ",A," radial points")') string(npts)
     end if
-    write (uout,'("  List of CP basins to be plotted: ")') 
-    write (uout,'("# nneq   eq       x             y             z")')
+    if (.not.cr%ismolecule) then
+       write (uout,'("+ List of CP basins to be plotted (cryst. coord.): ")') 
+    else
+       write (uout,'("+ List of CP basins to be plotted (",A,"): ")') iunitname0(iunit)
+    endif
+    write (uout,'("#  ncp   cp       x             y             z")')
     if (cpid <= 0) then
        neqdone = .false.
        do i = 1, ncpcel
           if (cpid == 0 .and. ((cpcel(i)%typ /= f(refden)%typnuc .and. i>cr%nneq) .or.&
              neqdone(cpcel(i)%idx))) cycle
           neqdone(cpcel(i)%idx) = .true.
+          if (.not.cr%ismolecule) then
+             xnuc = cpcel(i)%x
+          else
+             xnuc = (cpcel(i)%r+cr%molx0)*dunit
+          endif
           write (uout,'(99(A,2X))') string(cpcel(i)%idx,length=5,justify=ioj_right),&
              string(i,length=5,justify=ioj_right), &
-             (string(cpcel(i)%x(j),'e',length=12,decimal=6,justify=4),j=1,3)
+             (string(xnuc(j),'e',length=12,decimal=6,justify=4),j=1,3)
        end do
     else
+       if (.not.cr%ismolecule) then
+          xnuc = cpcel(cpid)%x
+       else
+          xnuc = (cpcel(cpid)%r+cr%molx0)*dunit
+       endif
        write (uout,'(99(A,2X))') string(cpcel(cpid)%idx,length=5,justify=ioj_right),&
           string(cpid,length=5,justify=ioj_right), &
-          (string(cpcel(cpid)%x(j),'e',length=12,decimal=6,justify=4),j=1,3)
+          (string(xnuc(j),'e',length=12,decimal=6,justify=4),j=1,3)
     end if
     write (uout,*)
 
@@ -896,7 +911,7 @@ contains
           neqdone(cpn))) cycle
        neqdone(cpn) = .true.
 
-       write (uout,'("  Plotting CP number (eq/neq): ",A,"(",A,")")') , string(i), string(cpn)
+       write (uout,'("  Plotting CP number (cp/ncp): ",A,"/",A)') , string(i), string(cpn)
 
        ! clean the surface 
        call minisurf_clean(srf)
