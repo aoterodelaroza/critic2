@@ -3247,8 +3247,8 @@ The only difference with the output in a crystal is that the
 coordinates are given in Cartesian and referred to the molecular
 origin, and the flatness is missing.
 
-Problems finding the critical points
-++++++++++++++++++++++++++++++++++++
+Problems finding critical points
+++++++++++++++++++++++++++++++++
 
 Sometimes, the zero (one) sum condition for the critical points is not
 fulfilled, which is usually caused by (often unavoidable) numerical
@@ -3606,14 +3606,16 @@ The FLUXPRINT keyword prints three-dimensional gradient paths.  There
 are several plotting comands:
 
 - POINT: build a gradient path starting at point (x.r y.r z.r) in
-  cryst. coordinates. step.r is the maximum step (Cartesian
-  coordinates) for the gradient path tracing algorithm. If step.r > 0,
-  use it also as the initial step. If step.r < 0, use a small step as
-  initial (1d-3). epsi.r is the gradient norm stop criterion. The
-  default values are 0.1 for step and 1e-9 for epsi. The {1|-1|0}
-  field controls the direction of the path. An ascending gradient path
-  is obtained with 1 while -1 issues a descending path. 0 = -1 + 1
-  makes FLUXPRINT represent both ascending and descending paths.
+  crystallographic coordinates (crystals) or in molecular Cartesian
+  coordinates (molecules, default unit: angstrom). step.r is the
+  maximum step (Cartesian coordinates) for the gradient path tracing
+  algorithm. If step.r > 0, use it also as the initial step. If step.r
+  < 0, use a small step as initial (1d-3). epsi.r is the gradient norm
+  stop criterion. The default values are 0.1 for step and 1e-9 for
+  epsi. The {1|-1|0} field controls the direction of the path. An
+  ascending gradient path is obtained with 1 while -1 issues a
+  descending path. 0 = -1 + 1 makes FLUXPRINT represent both ascending
+  and descending paths.
 
 - NCP: print gradient paths starting from a (small) sphere centered on
   the nuclear CP identified by cp.i (this identifier comes from the

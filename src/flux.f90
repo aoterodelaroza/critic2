@@ -121,6 +121,7 @@ contains
           ok= ok .and. eval_next(xpoint(3),line,lp)
           if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
           call check_no_extra_word()
+          xpoint = cr%c2x(xpoint / dunit - cr%molx0)
 
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
              call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line)
@@ -594,6 +595,7 @@ contains
   !> Print gradient path info to standard output.
   subroutine flx_printpath()
     use struct_basic
+    use global
     use graphics
 
     integer :: i, j
@@ -608,20 +610,34 @@ contains
        write (luout,'(A,I2)') "# Iup  : ", flx_iup
        write (luout,'(A,I6)') "# Number of points  : ", flx_n
 
-       maux = 0d0
-       maux(1:3,1:3) = cr%crys2car
-       maux(4,4) = 1d0
-       write (luout,'(A/1p,4("#",4E22.14/))') "# Crys2Car : ", ((maux(i,j),j=1,4),i=1,4)
-       maux(1:3,1:3) = cr%car2crys
-       write (luout,'(A/1p,4("#",4E22.14/))') "# Car2Crys : ", ((maux(i,j),j=1,4),i=1,4)
-       write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
-          "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
-       do i = 1,flx_n
-          write (luout,'(13(E20.12,X))') flx_x(i,1), flx_x(i,2), flx_x(i,3), flx_rho(i),&
-             flx_grad(i,1), flx_grad(i,2), flx_grad(i,3), flx_h(i,1,1), flx_h(i,1,2),&
-             flx_h(i,1,3), flx_h(i,2,2), flx_h(i,2,3), flx_h(i,3,3)
-       end do
+       if (.not.cr%ismolecule) then
+          maux = 0d0
+          maux(1:3,1:3) = cr%crys2car
+          maux(4,4) = 1d0
+          write (luout,'(A/1p,4("#",4E22.14/))') "# Crys2Car : ", ((maux(i,j),j=1,4),i=1,4)
+          maux(1:3,1:3) = cr%car2crys
+          write (luout,'(A/1p,4("#",4E22.14/))') "# Car2Crys : ", ((maux(i,j),j=1,4),i=1,4)
+          write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
+             "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
+          do i = 1,flx_n
+             write (luout,'(13(E20.12,X))') flx_x(i,1), flx_x(i,2), flx_x(i,3), flx_rho(i),&
+                flx_grad(i,1), flx_grad(i,2), flx_grad(i,3), flx_h(i,1,1), flx_h(i,1,2),&
+                flx_h(i,1,3), flx_h(i,2,2), flx_h(i,2,3), flx_h(i,3,3)
+          end do
+       else
+          write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
+             "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
+          do i = 1,flx_n
+             x = flx_x(i,:)
+             x = (cr%x2c(x) + cr%molx0) * dunit
+             write (luout,'(13(E20.12,X))') x, flx_rho(i),&
+                flx_grad(i,1), flx_grad(i,2), flx_grad(i,3),&
+                flx_h(i,1,1), flx_h(i,1,2), flx_h(i,1,3),&
+                flx_h(i,2,2), flx_h(i,2,3), flx_h(i,3,3)
+          end do
+       end if
        write (luout,'(A/)') "# End gradient path"
+
     elseif (outfmt == "tss") then
        write (luout,'("# ")') 
        write (luout,'(2X,A)') "curve balls type 6"
