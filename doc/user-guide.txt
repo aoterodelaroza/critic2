@@ -3884,10 +3884,10 @@ The default integrable properties are:
 
 * Volume (1)
 
-* Charge (f): the value of the reference field is integrated. If the
-  reference field is the density, then it is indeed the
-  charge. Otherwise, the 'charge' in the output is only a label for
-  the integrated field on the basin.
+* N (f): the value of the reference field is integrated. If the
+  reference field is the density, then this is the number of electrons
+  in the basin (hence the name). Otherwise, the "N" in the output is
+  only a label for the integrated field on the basin.
 
 * Laplacian (lap(f)): the Laplacian of the reference field. The
   integrated Laplacian has been traditionally used as a check of the

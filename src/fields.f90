@@ -787,7 +787,7 @@ contains
           integ_prop(2)%used = .true.
           integ_prop(2)%itype = itype_fval
           integ_prop(2)%fid = refden
-          integ_prop(2)%prop_name = "Charge"
+          integ_prop(2)%prop_name = "Pop"
           integ_prop(3)%used = .true.
           integ_prop(3)%itype = itype_lapval
           integ_prop(3)%fid = refden
