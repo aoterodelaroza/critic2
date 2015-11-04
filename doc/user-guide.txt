@@ -3762,8 +3762,10 @@ Primary bundle plots (BUNDLEPLOT)
     [ROOT root.s] [PREC delta.r] [VERBOSE] [MAP id.i|"expr"]
 
 Plot a primary bundle starting from a point in its interior, given by
-x.r y.r z.r. The bisection algorithm is used with precision delta.r
-(PREC keyword). The rays traced are obtained by a recursive
+x.r y.r z.r in crystallographic coordinates (crystal) or molecular
+Cartesian coordinates (moelcule, default units: angstrom). The
+bisection algorithm is used with precision delta.r (PREC keyword,
+default: 1d-5 bohr). The rays traced are obtained by a recursive
 subdivision (lvl.i cycles) a cube (CUBE), an octahedron (TRIANG) or
 using a uniform distribution of ntheta.i * nphi.i points on the unit
 sphere (SPHERE). The output file has root root.s, and its format may

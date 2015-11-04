@@ -1016,6 +1016,8 @@ contains
     ok = ok .and. eval_next (x0(2),line,lp)
     ok = ok .and. eval_next (x0(3),line,lp)
     if (.not.ok) call ferror ('bundleplot','bundleplot needs an initial interior point',faterr)
+    if (cr%ismolecule) &
+       x0 = cr%c2x(x0 / dunit - cr%molx0)
 
     do while(.true.)
        word = lgetword(line,lp)
@@ -1063,9 +1065,9 @@ contains
           end if
        else if (equal(word,'prec')) then
           ok = eval_next(prec,line,lp)
-          if (.not.ok) then
+          if (.not.ok) &
              call ferror('bundleplot','bundleplot delta: bad syntax',faterr,line)
-          end if
+          prec = prec / dunit
        else if (equal(word,'verbose')) then
           verbose = .true.
        else if (equal(word,'root')) then

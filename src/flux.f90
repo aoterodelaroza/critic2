@@ -121,7 +121,8 @@ contains
           ok= ok .and. eval_next(xpoint(3),line,lp)
           if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
           call check_no_extra_word()
-          xpoint = cr%c2x(xpoint / dunit - cr%molx0)
+          if (cr%ismolecule) &
+             xpoint = cr%c2x(xpoint / dunit - cr%molx0)
 
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
              call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line)
@@ -629,7 +630,8 @@ contains
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
              x = flx_x(i,:)
-             x = (cr%x2c(x) + cr%molx0) * dunit
+             if (cr%ismolecule) &
+                x = (cr%x2c(x) + cr%molx0) * dunit
              write (luout,'(13(E20.12,X))') x, flx_rho(i),&
                 flx_grad(i,1), flx_grad(i,2), flx_grad(i,3),&
                 flx_h(i,1,1), flx_h(i,1,2), flx_h(i,1,3),&
