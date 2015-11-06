@@ -57,18 +57,25 @@
 
 !> Quadrature schemes and integration-related tools.
 module integration
+  use fields, only: nprops
   implicit none
 
   private
 
   ! integration properties
   public :: intgrid_driver
-  public :: ppty_output
+  private :: intgrid_output
+  private :: intgrid_multipoles
+  private :: intgrid_deloc_wfn
+  private :: intgrid_deloc_brf
   public :: int_radialquad
   public :: gauleg_msetnodes
   public :: gauleg_mquad
   public :: lebedev_msetnodes
   public :: lebedev_mquad
+  private :: quadpack_f
+  public :: ppty_output
+  public :: int_output
 
   ! grid integration types
   integer, parameter :: itype_bader = 1
@@ -1545,6 +1552,23 @@ contains
 
   end subroutine lebedev_mquad
 
+  !> Dummy function for quadpack integration
+  function quadpack_f(x,unit,xnuc)
+    use fields, only: Nprops, grdall
+
+    real*8, intent(in) :: x
+    real*8, intent(in) :: unit(3)
+    real*8, intent(in) :: xnuc(3)
+    real*8 :: quadpack_f(Nprops)
+
+    real*8 :: xaux(3)
+
+    xaux = xnuc + x * unit
+    call grdall(xaux,quadpack_f)
+    quadpack_f = quadpack_f * x * x
+
+  end function quadpack_f
+
   !> Output the integrated atomic properties. id is the attractor id
   !> from the non-equivalent CP list. If id==0, then the properties
   !> correspond to the unit cell. atprop is the properties
@@ -1633,21 +1657,175 @@ contains
 
   end subroutine ppty_output
 
-  !> Dummy function for quadpack integration
-  function quadpack_f(x,unit,xnuc)
-    use fields, only: Nprops, grdall
+  !> Output routine for all integration methods
+  subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,di,mpole)
+    use fields
+    use struct_basic
+    use global
+    use varbas
+    use types
+    use tools_io
 
-    real*8, intent(in) :: x
-    real*8, intent(in) :: unit(3)
-    real*8, intent(in) :: xnuc(3)
-    real*8 :: quadpack_f(Nprops)
+    logical, intent(in) :: pmask(nprops)
+    character*(*), intent(in) :: reason(nprops)
+    integer, intent(in) :: nattr
+    integer, intent(in) :: icp(nattr)
+    real*8, intent(in) :: xattr(3,nattr)
+    real*8, intent(in) :: aprop(nprops,nattr)
+    logical, intent(in) :: usesym
+    real*8, intent(in), optional :: di(nattr,nattr)
+    real*8, intent(in), optional :: mpole(:,:)
 
-    real*8 :: xaux(3)
+    integer :: i, j, ip, ipmax, iplast
+    integer :: fid, idx, nacprop(5)
+    real*8 :: x(3), sump(nprops), xmult
+    character(len=:), allocatable :: saux, itaux, label, cini
+    character(len=:), allocatable :: sncp, scp, sname, sz, smult
 
-    xaux = xnuc + x * unit
-    call grdall(xaux,quadpack_f)
-    quadpack_f = quadpack_f * x * x
+    ! List of integrable properties and why they were rejected
+    write (uout,'("* List of properties integrated in the attractor basins")')
+    write (uout,'("+ The ""Label"" entries will be used to identify the integrable")')
+    write (uout,'("  in the tables of integrated atomic properties. The entries with")')
+    write (uout,'("  an ""x"" will not be integrated.")')
+    write (uout,'("# id    Label    fid  Field       Additional")')
+    do i = 1, nprops
+       fid = integ_prop(i)%fid
+       if (.not.pmask(i)) then
+          label = "--inactive--"
+          cini = "x "
+          saux = "Reason: " // string(reason(i))
+       else
+          label = integ_prop(i)%prop_name
+          cini = "  "
+       end if
+       if (integ_prop(i)%itype == itype_v) then
+          if (pmask(i)) saux = ""
+          itaux = "--"
+       elseif (integ_prop(i)%itype == itype_expr) then
+          if (pmask(i)) saux = "expr = " // string(integ_prop(i)%expr)
+          itaux = "--"
+       elseif (integ_prop(i)%itype == itype_mpoles) then
+          if (pmask(i)) saux = "Lmax = " // string(integ_prop(i)%lmax)
+          itaux = string(fid)
+       else
+          if (pmask(i)) saux = ""
+          itaux = string(fid)
+       end if
 
-  end function quadpack_f
+       write (uout,'(A2,99(A,X))') &
+          cini,&
+          string(i,2,ioj_left), &
+          string(label,12,ioj_center), &
+          string(itaux,2,ioj_right), &
+          string(itype_names(integ_prop(i)%itype),12,ioj_left),&
+          string(saux)
+    end do
+    write (uout,*)
+
+    ! List of attractors
+    write (uout,'("* List of attractors integrated")')
+    if (.not.cr%ismolecule) then
+       write (uout,'("# Id cp   ncp   Name  Z   mult           Position (cryst.) ")')
+    else
+       write (uout,'("# Id cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
+    endif
+    do i = 1, nattr
+       if (icp(i) > 0) then
+          ! this is a cp
+          idx = cpcel(icp(i))%idx
+          scp = string(icp(i),4,ioj_left)
+          sncp = string(idx,4,ioj_left)
+          sname = string(cp(idx)%name,6,ioj_center)
+          smult = string(cp(idx)%mult,4,ioj_center)
+          if (cp(idx)%isnuc) then
+             sz = string(cr%at(idx)%z,2,ioj_left)
+          else
+             sz = "--"
+          endif
+       else
+          ! this is an unknown nnm
+          scp = " -- "
+          sncp = " -- "
+          sname = "  ??  "
+          smult = string(1,4,ioj_center)
+          sz = "--"
+       end if
+       if (.not.usesym) smult = " -- "
+       if (.not.cr%ismolecule) then
+          x = xattr(:,i)
+       else
+          x = (cr%x2c(xattr(:,i)) + cr%molx0) * dunit
+       endif
+       write (uout,'(2X,99(A,X))') & 
+          string(i,2,ioj_left), scp, sncp, sname, sz, &
+          smult, (string(x(j),'f',12,7,4),j=1,3)
+    end do
+    write (uout,*)
+
+    write (uout,'("* Integrated atomic properties")')
+    iplast = 0
+    do ip = 0, (count(pmask)-1)/5
+       ! show only the properties that are active
+       nacprop = 0
+       ipmax = 0
+       do i = iplast+1, nprops
+          if (pmask(i)) then
+             ipmax = ipmax + 1
+             nacprop(ipmax) = i
+          end if
+          if (ipmax == 5) exit
+       end do
+       if (ipmax == 0) exit
+       iplast = nacprop(ipmax)
+
+       ! Table header for this set of properties
+       write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
+       write (uout,'("# Id cp   ncp   Name  Z   mult ",5(A,X))') &
+          (string(integ_prop(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+
+       ! Table rows
+       sump = 0d0
+       do i = 1, nattr
+          if (icp(i) > 0) then
+             ! this is a cp
+             idx = cpcel(icp(i))%idx
+             scp = string(icp(i),4,ioj_left)
+             sncp = string(idx,4,ioj_left)
+             sname = string(cp(idx)%name,6,ioj_center)
+             smult = string(cp(idx)%mult,4,ioj_center)
+             if (cp(idx)%isnuc) then
+                sz = string(cr%at(idx)%z,2,ioj_left)
+             else
+                sz = "--"
+             endif
+          else
+             ! this is an unknown nnm
+             scp = " -- "
+             sncp = " -- "
+             sname = "  ??  "
+             smult = string(1,4,ioj_center)
+             sz = "--"
+          end if
+          ! add to the sum
+          if (icp(i) > 0 .and. usesym) then
+             xmult = cp(cpcel(icp(i))%idx)%mult
+          else
+             xmult = 1
+          endif
+          do j = 1, ipmax
+             sump(nacprop(j)) = sump(nacprop(j)) + aprop(nacprop(j),i) * xmult
+          end do
+          ! table entry
+          write (uout,'(2X,99(A,X))') &
+             string(i,2,ioj_left), scp, sncp, sname, sz, smult, &
+             (string(aprop(nacprop(j),i),'e',15,8,4),j=1,ipmax)
+       end do
+       write (uout,'(24("-",99(A,X)))') ("---------------",j=1,ipmax)
+       write (uout,'(2X,"Sum                         ",99(A,X))') &
+          (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+       write (uout,*)
+    end do
+    
+  end subroutine int_output
 
 end module integration

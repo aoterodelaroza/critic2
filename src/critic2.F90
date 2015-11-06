@@ -499,7 +499,7 @@ contains
     integ_prop(2)%used = .true.
     integ_prop(2)%itype = itype_fval
     integ_prop(2)%fid = id
-    integ_prop(2)%prop_name = "Charge"
+    integ_prop(2)%prop_name = "Pop"
 
     ! define third integrable property as the valence laplacian.
     nprops = max(3,nprops)

@@ -1725,12 +1725,14 @@ contains
     logical :: usefiles, verbose
     integer :: lp
     integer :: linmin, linmax
-    integer :: i, j
-    real*8 :: atprop(Nprops)
-    logical :: maskprop(Nprops), ok
-    real*8 :: psum(Nprops)
+    integer :: i, j, n
+    real*8, allocatable :: atprop(:,:)
+    logical :: maskprop(nprops), ok
     character(len=:), allocatable :: aux, word
     character*(10) :: pname
+    character*(30) :: reason(nprops)
+    integer, allocatable :: icp(:)
+    real*8, allocatable :: xattr(:,:)
 
     ntheta = 0
     nphi = 0
@@ -1772,8 +1774,10 @@ contains
 
     if (.not.quiet) call tictac("Start INTEGRALS")
     maskprop = .true.
+    do i = 1, nprops
+       reason(i) = ""
+    end do
 
-    psum = 0d0
     if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
        pname = integ_prop(INT_radquad_errprop)%prop_name
     else
@@ -1789,8 +1793,6 @@ contains
           linmax = cpid
        end if
     else
-       call ferror('integrals','calling integrals without the CP list',warning)
-       write (uout,*)
        if (cpid <= 0) then
           linmin = 1
           linmax = cr%nneq
@@ -1799,6 +1801,11 @@ contains
           linmax = cpid
        end if
     end if
+
+    ! allocate space for results
+    n = linmax - linmin + 1
+    allocate(icp(n),xattr(3,n))
+    allocate(atprop(nprops,n))
 
     ! define the int files
     if (usefiles) then
@@ -1811,31 +1818,35 @@ contains
 
     call integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
 
+    n = 0
     do i = linmin, linmax
        if ((cp(i)%typ /= f(refden)%typnuc .and. i>cr%nneq)) cycle
-
+       n = n + 1
        if (meth == INT_gauleg) then
-          call integrals_gauleg(atprop,ntheta,nphi,i,usefiles,verbose)
+          call integrals_gauleg(atprop(:,n),ntheta,nphi,i,usefiles,verbose)
        else if (meth == INT_lebedev) then
-          call integrals_lebedev(atprop,np,i,usefiles,verbose)
+          call integrals_lebedev(atprop(:,n),np,i,usefiles,verbose)
        else
           call ferror('integrals','unknown method',faterr)
        end if
 
-       ! output properties
-       call ppty_output(i,atprop(:),maskprop)
-
-       psum = psum + atprop * cp(i)%mult
-
+       ! arrange results for int_output
+       do j = 1, ncpcel
+          if (cpcel(j)%idx == i) then
+             icp(n) = j
+             xattr(:,n) = cp(j)%x
+             exit
+          end if
+       end do
     end do
 
-    ! Cell properties
-    if (cpid <= 0) then
-       call ppty_output(0,psum,maskprop)
-    end if
+    call int_output(maskprop,reason,n,icp(1:n),xattr(:,1:n),atprop(:,1:n),.true.)
 
     ! Cleanup files
     if (allocated(intfile)) deallocate(intfile)
+    if (allocated(icp)) deallocate(icp)
+    if (allocated(xattr)) deallocate(xattr)
+    if (allocated(atprop)) deallocate(atprop)
 
     if (.not.quiet) call tictac("End INTEGRALS")
 

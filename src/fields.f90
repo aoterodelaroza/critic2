@@ -66,7 +66,10 @@ module fields
   integer, parameter, public :: itype_expr = 7
   integer, parameter, public :: itype_mpoles = 8
   integer, parameter, public :: itype_deloc = 9
-
+  character*10, parameter, public :: itype_names(9) = (/&
+     "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
+     "Laplcn (v)","Expression","Multipoles","Deloc indx"/)
+  
   ! pointprop properties
   integer, public :: nptprops
   type(pointpropable), public :: point_prop(mprops)
