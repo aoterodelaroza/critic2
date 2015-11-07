@@ -74,7 +74,6 @@ module integration
   public :: lebedev_msetnodes
   public :: lebedev_mquad
   private :: quadpack_f
-  public :: ppty_output
   public :: int_output
 
   ! grid integration types
@@ -89,6 +88,7 @@ contains
     use surface
     use fields
     use struct_basic
+    use varbas
     use global
     use types, only: gk
     use tools_math
@@ -104,15 +104,20 @@ contains
     integer :: lp, itype, nid, lvec(3), p(3)
     logical :: ok, nonnm, noatoms, doflist, doescher, pmask(nprops)
     real*8 :: ratom, dv(3), dist, r, tp(2), ratom_def
-    integer, allocatable :: idg(:,:,:), idatt(:), idx(:)
+    integer, allocatable :: idg(:,:,:), idgaux(:,:,:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
-    real(kind=gk), allocatable :: w(:,:,:)
-    integer :: fid, natt, ix, luw
-    character*3, allocatable :: sidx(:)
+    real(kind=gk), allocatable :: w(:,:,:), wsum(:,:,:)
+    integer :: fid, nattr, nattr0, ix, luw, luw2
+    character*60 :: reason(nprops)
+    integer, allocatable :: icp(:)
+    real*8, allocatable :: xattr(:,:), di(:,:,:), mpole(:,:,:)
+    integer, allocatable :: assigned(:)
+    
+    real*8, parameter :: distcp = 1d-2
 
     ! only grids
     if (f(refden)%type /= type_grid) &
-       call ferror("intgrid_driver","bader can only be used with grids",faterr,line)
+       call ferror("intgrid_driver","BADER/YT can only be used with grids",faterr,line)
 
     ! method and header
     lp = 1
@@ -166,7 +171,7 @@ contains
        ratom = ratom_def
     end if
 
-    ! call the integration method proper
+    ! call the integration method 
     luw = 0
     if (itype == itype_bader) then
        write (uout,'("* Henkelman et al. integration ")')
@@ -175,81 +180,136 @@ contains
        write (uout,'("    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).")')
        write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
        write (uout,'("+ Distance atomic assignment (bohr): ",A)') string(max(ratom,0d0),'e',decimal=4)
-       call bader_integrate(cr,f(refden),natt,xgatt,idatt,idg,ratom)
+       call bader_integrate(cr,f(refden),nattr,xgatt,idg)
     elseif (itype == itype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
        write (uout,'("+ Distance atomic assignment (bohr): ",A)') string(max(ratom,0d0),'e',decimal=4)
-       call yt_integrate(natt,xgatt,idatt,idg,ratom,luw)
+       call yt_integrate(cr,f(refden),nattr,xgatt,idg,luw)
     endif
     write (uout,*)
 
-    ! reorder the maxima
-    allocate(idx(natt),sidx(natt))
-    ! first the atoms
-    idx = 0
-    nn = 0
-    do i = 1, cr%ncel
-       if (all(idatt /= i)) cycle
-       do k = 1, natt
-          if (idatt(k) == i) exit
-       end do
-       nn = nn + 1
-       idx(nn) = k
-       sidx(nn) = trim(adjustl(cr%at(cr%atcel(i)%idx)%name))
+    ! reorder the maxima and assign maxima to atoms according to ratom
+    allocate(icp(nattr),xattr(3,nattr),assigned(nattr))
+    assigned = 0
+    nattr0 = nattr
+    nattr = 0
+    ! assign attractors to atoms
+    do i = 1, nattr0
+       nid = 0
+       call cr%nearest_atom(xgatt(:,i),nid,dist,lvec)
+       if (dist < ratom) then
+          if (any(icp == nid)) then
+             do j = 1, nattr
+                if (icp(j) == nid) exit
+             end do
+             assigned(i) = j
+          else
+             nattr = nattr + 1
+             icp(nattr) = nid
+             xattr(:,nattr) = cr%atcel(nid)%x
+             assigned(i) = nattr
+          endif
+       end if
     end do
-    !! then the rest
-    do i = 1, natt
-       if (any(idx == i)) cycle
-       nn = nn + 1
-       idx(nn) = i
-       write (sidx(nn),'("n",I2.2)') nn
+    ! assign attractors to nnms (small constant for the distance threshold)
+    do i = 1, nattr0
+       if (assigned(i) > 0) cycle
+       call nearest_cp(xgatt(:,i),nid,dist,f(refden)%typnuc)
+       if (dist < distcp .and. nid > cr%ncel) then
+          if (any(icp == nid)) then
+             do j = 1, nattr
+                if (icp(j) == nid) exit
+             end do
+             assigned(i) = j
+          else
+             nattr = nattr + 1
+             icp(nattr) = nid
+             xattr(:,nattr) = cpcel(nid)%x
+             assigned(i) = nattr
+          endif
+       end if
     end do
+    ! the rest are their own nnm
+    do i = 1, nattr0
+       if (assigned(i) > 0) cycle
+       nattr = nattr + 1
+       icp(nattr) = 0
+       xattr(:,nattr) = xgatt(:,i)
+       assigned(i) = nattr
+    end do
+    deallocate(xgatt)
 
-    ! find the properties mask and output the rejected, summary of integrable properties
+    ! update the idg
+    allocate(idgaux(size(idg,1),size(idg,2),size(idg,3)))
+    do i = 1, nattr0
+       where (idg == i)
+          idgaux = assigned(i)
+       end where
+    end do
+    call move_alloc(idgaux,idg)
+
+    ! update the weights the YT file
+    if (itype == itype_yt) then
+       luw2 = fopen_scratch()
+       allocate(w(n(1),n(2),n(3)),wsum(n(1),n(2),n(3)))
+       do j = 1, nattr
+          wsum = 0d0
+          rewind(luw)
+          do i = 1, nattr0
+             read (luw) w
+             if (assigned(i) == j) then
+                wsum = wsum + w
+             end if
+          end do
+          write (luw2) wsum
+       end do
+       deallocate(w,wsum)
+       call fclose(luw)
+       luw = luw2
+    end if
+    deallocate(assigned)
+
+    ! set the properties mask
     pmask = .false.
-    write (uout,'("+ List of integrable properties used in this run")')
     do k = 1, nprops
        if (integ_prop(k)%itype == itype_v) then
           pmask(k) = .true.
        else
           fid = integ_prop(k)%fid
           if (fid < 0 .or. fid > mf) then
-             write (uout,'("  Integrable ",A," is rejected: unknown field")') string(k)
+             reason(k) = "unknown field"
              cycle
           endif
           if (f(fid)%type /= type_grid) then
-             write (uout,'("  Integrable ",A," is rejected: not a grid")') string(k)
+             reason(k) = "not a grid"
              cycle
           endif
           if (any(f(fid)%n /= f(refden)%n)) then
-             write (uout,'("  Integrable ",A," is rejected: grid size not the same as reference field")') &
-                string(k)
+             reason(k) = "grid size is not the same as reference field"
              cycle
           endif
           if (.not.integ_prop(k)%itype == itype_f .and..not.integ_prop(k)%itype == itype_fval) then
-             write (uout,'("  Integrable ",A," is rejected: only field values (f,fval) can be integrated on a grid")') &
-                string(k)
+             if (integ_prop(k)%itype == itype_mpoles) then
+                reason(k) = "multipoles integrated separately (see table below)"
+             else
+                reason(k) = "only field values (f,fval) can be integrated on a grid"
+             end if
              cycle
           endif
           pmask(k) = .true.
        end if
-       if (pmask(k)) then
-          write (uout,'("  Integrable ",A," will be used under header label ''",A,"''")') &
-             string(k), string(integ_prop(k)%prop_name)
-       endif
     end do
-    write (uout,*)
 
     ! compute weights and integrate the scalar field properties
     if (itype == itype_yt) then
        rewind(luw)
     endif
-    allocate(psum(nprops,natt))
+    allocate(psum(nprops,nattr))
     allocate(w(n(1),n(2),n(3)))
     psum = 0d0
-    do i = 1, natt
+    do i = 1, nattr
        if (itype == itype_yt) then
           read (luw) w
        end if
@@ -257,9 +317,9 @@ contains
           if (.not.integ_prop(k)%used) cycle
           if (integ_prop(k)%itype == itype_v) then
              if (itype == itype_bader) then
-                psum(k,i) = count(idg == i) * cr%omega / ntot
+                psum(k,i) = psum(k,i) + count(idg == i) * cr%omega / ntot
              else
-                psum(k,i) = sum(w) * cr%omega / ntot
+                psum(k,i) = psum(k,i) + sum(w) * cr%omega / ntot
              endif
           elseif (pmask(k)) then
              fid = integ_prop(k)%fid
@@ -268,30 +328,33 @@ contains
                 where (idg == i)
                    w = f(fid)%f
                 end where
-                psum(k,i) = sum(w) * cr%omega / ntot
+                psum(k,i) = psum(k,i) + sum(w) * cr%omega / ntot
              else
-                psum(k,i) = sum(w * f(fid)%f) * cr%omega / ntot
+                psum(k,i) = psum(k,i) + sum(w * f(fid)%f) * cr%omega / ntot
              endif
           endif
        end do
     end do
     deallocate(w)
 
-    ! output all normal properties
-    call intgrid_output(noatoms,doescher,doflist,natt,idatt,psum,pmask,xgatt,idx,sidx)
-
-    ! compute and output multipoles
-    call intgrid_multipoles(natt,xgatt,idatt,idg,itype,luw,idx,sidx)
+    ! compute multipoles
+    call intgrid_multipoles(nattr,xattr,idg,itype,luw,mpole)
 
     ! localization and delocalization indices
-    call intgrid_deloc_wfn(natt,xgatt,idatt,idg,itype,luw,idx,sidx)
-    call intgrid_deloc_brf(natt,xgatt,idatt,idg,itype,luw,idx,sidx)
+    call intgrid_deloc_wfn(nattr,xattr,idg,itype,luw,di)
+    ! call intgrid_deloc_brf(nattr,xgatt,idatt,idg,itype,luw,idx,sidx)
+
+    ! output all normal properties
+    ! call intgrid_output(noatoms,doescher,doflist,nattr,idatt,psum,pmask,xgatt,idx,sidx)
+
+    ! output the results
+    call int_output(pmask,reason,nattr,icp,xattr,psum,.false.,di,mpole)
 
     ! clean up YT checkpoint files
     if (itype == itype_yt) then
        call fclose(luw)
     endif
-    deallocate(idx,sidx,psum,idatt,idg,xgatt)
+    deallocate(psum,idg,icp,xattr)
 
   end subroutine intgrid_driver
 
@@ -495,8 +558,12 @@ contains
 
   end subroutine intgrid_output
 
-  !> Calculate and output the multipole moments using integration on a grid.
-  subroutine intgrid_multipoles(natt,xgatt,idatt,idg,itype,luw,idx,sidx)
+  !> Calculate the multipole moments using integration on a grid. The input
+  !> is: the calculated number of attractors (natt), their positions in
+  !> crystallographic coordinates (xgatt), the attractor assignment for each
+  !> of the grid nodes (idg), the integration type (itype: bader or yt), 
+  !> the weight file for YT, and the output multipolar moments.
+  subroutine intgrid_multipoles(natt,xgatt,idg,itype,luw,mpole)
     use fields
     use struct_basic
     use global
@@ -506,52 +573,53 @@ contains
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idatt(natt)
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: itype
     integer, intent(in) :: luw
-    integer, intent(in) :: idx(natt)
-    character*3, intent(in) :: sidx(natt)
+    real*8, allocatable, intent(inout) :: mpole(:,:,:)
 
-    character(len=:), allocatable :: lbl
-    character*3 :: ls, ms
-    integer :: i, j, k, l, m, n(3), nn, ntot, nl
+    integer :: i, j, k, l, m, n(3), nn, ntot, nl, np
     integer :: ix
     integer :: fid, lmax
-    real*8, allocatable :: mpole(:,:)
     real(kind=gk), allocatable :: w(:,:,:)
-    integer, allocatable :: l_(:), m_(:)
     real*8 :: dv(3), r, tp(2), p(3)
     real*8, allocatable :: rrlm(:)
 
-    ! size of the grid
+    ! allocate space for the calculated multipoles
+    lmax = -1
+    np = 0
+    do l = 1, nprops
+       if (.not.integ_prop(l)%used) cycle
+       if (.not.integ_prop(l)%itype == itype_mpoles) cycle
+       lmax = max(integ_prop(l)%lmax,lmax)
+       np = np + 1
+    end do
+    if (np == 0) return
+
+    if (allocated(mpole)) deallocate(mpole)
+    allocate(mpole((lmax+1)*(lmax+1),natt,np))
+
+    ! size of the grid and YT weights
     n = f(refden)%n
     ntot = n(1)*n(2)*n(3)
-
     if (itype == itype_yt) then
        allocate(w(n(1),n(2),n(3)))
     endif
+
     ! run over all properties for which multipole calculation is active
+    np = 0
     do l = 1, nprops
        if (.not.integ_prop(l)%used) cycle
        if (.not.integ_prop(l)%itype == itype_mpoles) cycle
        fid = integ_prop(l)%fid
-       write (uout,'("* Basin multipole moments (using real solid harmonics)")')
-       write (uout,'("+ Reference field (number ",A,"): ",A)') string(refden), string(integ_prop(refden)%prop_name)
-       write (uout,'("+ Integrated field (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
-       write (uout,'("+ The calculated multipoles are: ")')
-       write (uout,'("    Q_lm^A = int_A rho(r) * Rlm(r) dr ")')
-       write (uout,'("  where the integral is over the basin of A, and Rlm is a real solid harmonic.")')
-       write (uout,'("  The coordinates are referred to the attractor of the A basin.")')
-       write (uout,*)
+       np = np + 1
 
        ! allocate space
        lmax = integ_prop(l)%lmax
        allocate(rrlm((lmax+1)*(lmax+1)))
-       allocate(mpole((lmax+1)*(lmax+1),natt))
 
        ! calcualate the multipoles
-       mpole = 0d0
+       mpole(:,:,np) = 0d0
        if (itype == itype_bader) then
           do i = 1, n(1)
              p(1) = real(i-1,8)
@@ -564,7 +632,7 @@ contains
                    call cr%shortest(dv,r)
                    call tosphere(dv,r,tp)
                    call genrlm_real(lmax,r,tp,rrlm)
-                   mpole(:,ix) = mpole(:,ix) + rrlm * f(fid)%f(i,j,k)
+                   mpole(:,ix,np) = mpole(:,ix,np) + rrlm * f(fid)%f(i,j,k)
                 end do
              end do
           end do
@@ -581,75 +649,14 @@ contains
                       call cr%shortest(dv,r)
                       call tosphere(dv,r,tp)
                       call genrlm_real(lmax,r,tp,rrlm)
-                      mpole(:,m) = mpole(:,m) + rrlm * f(fid)%f(i,j,k) * w(i,j,k)
+                      mpole(:,m,np) = mpole(:,m,np) + rrlm * f(fid)%f(i,j,k) * w(i,j,k)
                    end do
                 end do
              end do
           end do
        endif
        mpole = mpole * cr%omega / ntot
-
-       ! figure out the indices for the labels
-       allocate(l_((lmax+1)*(lmax+1)),m_((lmax+1)*(lmax+1)))
-       nn = 0
-       do i = 0, lmax
-          do j = -i, i
-             nn = nn + 1
-             l_(nn) = i
-             m_(nn) = j
-          end do
-       end do
-
-       ! pretty output
-       nn = (lmax+1)**2/5
-       if (mod((lmax+1)**2,5) /= 0) nn = nn + 1
-       do i = 1, nn
-          ! header
-          lbl = " n  at   "
-          do j = (i-1)*5+1,min(5*i,(lmax+1)**2)
-             if (j == 1) then
-                lbl = lbl // " " // string("1",18,justify=ioj_center)
-             elseif (j == 2) then
-                lbl = lbl // " " // string("x",18,justify=ioj_center)
-             elseif (j == 3) then
-                lbl = lbl // " " // string("z",18,justify=ioj_center)
-             elseif (j == 4) then
-                lbl = lbl // " " // string("y",18,justify=ioj_center)
-             elseif (j == 5) then
-                lbl = lbl // " " // string("sq(3)/2(x^2-y^2)",18,justify=ioj_center)
-             elseif (j == 6) then
-                lbl = lbl // " " // string("sq(3)xz",18,justify=ioj_center)
-             elseif (j == 7) then
-                lbl = lbl // " " // string("(3z^2-r^2)/2",18,justify=ioj_center)
-             elseif (j == 8) then
-                lbl = lbl // " " // string("sq(3)yz",18,justify=ioj_center)
-             elseif (j == 9) then
-                lbl = lbl // " " // string("sq(3)xy",18,justify=ioj_center)
-             else
-                write (ls,'(I3)') l_(j)
-                write (ms,'(I3)') abs(m_(j))
-                if (m_(j) <= 0) then
-                   lbl = lbl // " " // string("C("//string(ls)//","//string(ms)//")",18,justify=ioj_center)
-                else
-                   lbl = lbl // " " // string("S("//string(ls)//","//string(ms)//")",18,justify=ioj_center)
-                end if
-             endif
-          end do
-          write (uout,'(A)') lbl
-
-          ! body
-          do j = 1, natt
-             write (uout,'(99(A,X))') string(j,length=4,justify=ioj_right),&
-                string(sidx(j),length=5,justify=ioj_center),&
-                (string(mpole((i-1)*5+1+k,idx(j)),'f',decimal=10,length=18,justify=6),k=0,min(4,size(mpole,1)-(i-1)*5-1))
-          enddo
-          if (i < nn) then
-             write (uout,*)
-          else
-             write (uout,'(X,80("-")/)')
-          end if
-       end do
-       deallocate(mpole,l_,m_,rrlm)
+       deallocate(rrlm)
     end do
     if (itype == itype_yt) then
        deallocate(w)
@@ -659,7 +666,7 @@ contains
 
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a wfn scalar field.
-  subroutine intgrid_deloc_wfn(natt,xgatt,idatt,idg,itype,luw,idx,sidx)
+  subroutine intgrid_deloc_wfn(natt,xgatt,idg,itype,luw,di)
     use wfn_private
     use fields
     use struct_basic
@@ -669,38 +676,47 @@ contains
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idatt(natt)
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: itype
     integer, intent(in) :: luw
-    integer, intent(in) :: idx(natt)
-    character*3, intent(in) :: sidx(natt)
+    real*8, intent(inout), allocatable :: di(:,:,:)
 
-    integer :: i, j, k, l, m, i1, i2
+    integer :: i, j, k, l, m, i1, i2, ndeloc
     integer :: fid, n(3), ntot, lumo, ix, nn
     real(kind=gk), allocatable :: w(:,:,:)
     real*8, allocatable :: xmo(:), sij(:,:,:)
-    real*8, allocatable :: li(:), di(:,:)
     real*8 :: x(3), rho, auxg(3), auxh(3,3), gkin, vir
     character*3 :: sat1, sat2
 
-    ! size of the grid
-    n = f(refden)%n
-    ntot = n(1)*n(2)*n(3)
-
-    if (itype == itype_yt) then
-       allocate(w(n(1),n(2),n(3)))
-    endif
-    ! run over all properties for which multipole calculation is active
+    ndeloc = 0
     do l = 1, nprops
        ! only wfn fields for now
        if (.not.integ_prop(l)%used) cycle
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
        if (f(fid)%type /= type_wfn) cycle
-       write (uout,'("* Localization and delocalization indices")')
-       write (uout,'("+ Reference field (number ",I2,"): ",A)') refden, trim(integ_prop(refden)%prop_name)
-       write (uout,'("+ Integrated field (number ",I2,"): ",A)') l, trim(integ_prop(l)%prop_name)
+       ndeloc = ndeloc + 1
+    end do
+    if (ndeloc == 0) return
+
+    ! size of the grid
+    n = f(refden)%n
+    ntot = n(1)*n(2)*n(3)
+    if (allocated(di)) deallocate(di)
+    allocate(di(natt,natt,ndeloc))
+
+    if (itype == itype_yt) then
+       allocate(w(n(1),n(2),n(3)))
+    endif
+    ! run over all properties for which multipole calculation is active
+    ndeloc = 0
+    do l = 1, nprops
+       ! only wfn fields for now
+       if (.not.integ_prop(l)%used) cycle
+       if (.not.integ_prop(l)%itype == itype_deloc) cycle
+       fid = integ_prop(l)%fid
+       if (f(fid)%type /= type_wfn) cycle
+       ndeloc = ndeloc + 1
 
        ! calculate the overlap matrix
        allocate(sij(f(fid)%nmo,f(fid)%nmo,natt),xmo(f(fid)%nmo))
@@ -772,47 +788,27 @@ contains
        end do
 
        ! calculate localization and delocalization indices
-       allocate(li(natt),di(natt,natt))
        if (f(fid)%wfntyp == wfn_rhf) then
           do i = 1, natt
-             li(i) = 2d0 * sum(sij(:,:,i)*sij(:,:,i))
-             do j = i+1, natt
-                di(i,j) = 4d0 * sum(sij(:,:,i)*sij(:,:,j))
-                di(j,i) = di(i,j)
+             do j = i, natt
+                di(i,j,ndeloc) = 4d0 * sum(sij(:,:,i)*sij(:,:,j))
+                di(j,i,ndeloc) = di(i,j,ndeloc)
              end do
           end do
        else
           do i = 1, natt
-             li(i) = 0.5d0 * sum(sij(:,:,i)*sij(:,:,i))
              do j = i, natt
-                di(i,j) = sum(sij(:,:,i)*sij(:,:,j))
-                di(j,i) = di(i,j)
+                di(i,j,ndeloc) = sum(sij(:,:,i)*sij(:,:,j))
+                di(j,i,ndeloc) = di(i,j,ndeloc)
              end do
           end do
        end if
 
-       ! output the lambdas
-       write (uout,'("+ Localization indices (lambda)")')
-       do j = 1, natt
-          write (uout,'(I2,X,A3,5(F16.10,X))') j, sidx(j), li(idx(j))
-       enddo
-       write (uout,*)
-
-       write (uout,'("+ Delocalization indices (lambda)")')
-       do i = 1, natt
-          do j = i+1, natt
-             write (uout,'(I2,X,A3,X,I2,X,A3,5(F16.10,X))') i, sidx(i), j, sidx(j), di(idx(i),idx(j))
-          end do
-       end do
-       write (uout,*)
-
        ! wrap up
-       deallocate(sij,di,li)
+       deallocate(sij)
     end do
 
-    if (itype == itype_yt) then
-       deallocate(w)
-    endif
+    if (allocated(w)) deallocate(w)
 
   end subroutine intgrid_deloc_wfn
 
@@ -959,8 +955,10 @@ contains
        f1%x2c = cr1%crys2car
        f1%init = .true.
 
+       ! xxxxx fix arguments xxxxx !
        ! run bader integration on the supercell !xxxx! ratom
-       call bader_integrate(cr1,f1,natt1,xgatt1,idatt1,idg1,1d40)
+       ! call bader_integrate(cr1,f1,natt1,xgatt1,idatt1,idg1,1d40)
+       ! xxxxx fix arguments xxxxx !
 
        ! check -- list of attractors with identity, volumes, and charges
        ! natt1 -> number of attractors
@@ -1569,94 +1567,6 @@ contains
 
   end function quadpack_f
 
-  !> Output the integrated atomic properties. id is the attractor id
-  !> from the non-equivalent CP list. If id==0, then the properties
-  !> correspond to the unit cell. atprop is the properties
-  !> vector. Only valid for the appropriate scalar field.
-  subroutine ppty_output(id,atprop,maskprop)
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
-
-    integer, intent(in) :: id
-    real*8, intent(in) :: atprop(Nprops)
-    logical, intent(in) :: maskprop(Nprops)
-
-    character(len=:), allocatable :: saux
-    real*8 :: totaln
-    integer :: i, j, zaux
-
-    totaln = 0d0
-    do i = 1, cr%nneq
-       if (cr%at(i)%zpsp > 0) then
-          zaux = cr%at(i)%zpsp
-       else
-          zaux = cr%at(i)%z
-       end if
-       totaln = totaln + zaux * cr%at(i)%mult
-    end do
-
-    if (id == 0) then
-       write (uout,'("* Cell properties ")')
-    else
-       if (id <= cr%nneq) then
-          saux = cr%at(id)%name
-          if (cr%at(id)%zpsp > 0) then
-             zaux = cr%at(id)%zpsp
-          else
-             zaux = cr%at(id)%z
-          end if
-       else
-          saux = "NNM"
-          zaux = 0
-       end if
-    end if
-
-    if (id > 0) then
-       write (uout,'("+ Integrated properties for attractor: ",A," (",A,")")') &
-          string(id), string(saux)
-       write (uout,'("  Pos.: ",3(A,X))') (string(cp(id)%x(j),'f',decimal=6),j=1,3)
-       write (uout,'("  Z: ",A)'), string(zaux)
-       write (uout,'("  Cell multiplicity: ",A)') string(cp(id)%mult)
-    end if
-    !
-    if (maskprop(1)) then
-       write (uout,'("  Volume (<1>): ",A)') string(atprop(1),'f',decimal=10)
-       if (id == 0) then
-          write (uout,'("  Cell volume: ",A)') string(cr%omega,'f',decimal=10)
-          write (uout,'("  Cell volume error: ",A)') &
-             string(cr%omega - atprop(1),'e',decimal=10)
-          write (uout,'("  Rel. cell volume error: ",A)') &
-             string((cr%omega - atprop(1)) / cr%omega,'e',decimal=10)
-       end if
-    end if
-    !
-    if (maskprop(2)) then
-       write (uout,'("  Average population (<2>): ",A)') string(atprop(2),'f',decimal=10)
-       if (id > 0) then
-          write (uout,'("  Charge (Z - <2>): ",A)') string(zaux - atprop(2),'f',decimal=10)
-       else
-          write (uout,'("  Cell number of electrons: ",A)') string(totaln,'f',decimal=10)
-          write (uout,'("  Cell charge error: ",A)') string(totaln - atprop(2),'e',decimal=10)
-          write (uout,'("  Rel. cell charge error: ",A)') string((totaln - atprop(2)) / totaln,'e',decimal=10)
-       end if
-    end if
-    do i = 3, nprops
-       if (.not.integ_prop(i)%used) cycle
-       if (id > 0) then
-          write (uout,'("  Property (<",A,":",A,">): ",A)') string(i), &
-             string(integ_prop(i)%prop_name), string(atprop(i),'e',decimal=10)
-       else
-          write (uout,'("  Cell property (<",A,":",A,">) : ",A)') string(i), &
-             string(integ_prop(i)%prop_name), string(atprop(i),'e',decimal=10)
-       end if
-    end do
-    write (uout,*)
-
-  end subroutine ppty_output
-
   !> Output routine for all integration methods
   subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,di,mpole)
     use fields
@@ -1673,14 +1583,17 @@ contains
     real*8, intent(in) :: xattr(3,nattr)
     real*8, intent(in) :: aprop(nprops,nattr)
     logical, intent(in) :: usesym
-    real*8, intent(in), optional :: di(nattr,nattr)
-    real*8, intent(in), optional :: mpole(:,:)
+    real*8, intent(in), allocatable, optional :: di(:,:,:)
+    real*8, intent(in), allocatable, optional :: mpole(:,:,:)
 
-    integer :: i, j, ip, ipmax, iplast
-    integer :: fid, idx, nacprop(5)
+    integer :: i, j, k, l, n, ip, ipmax, iplast, nn, ndeloc
+    integer :: fid, idx, nacprop(5), lmax
     real*8 :: x(3), sump(nprops), xmult
-    character(len=:), allocatable :: saux, itaux, label, cini
+    character(len=:), allocatable :: saux, itaux, label, cini, lbl
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
+    character(len=:), allocatable :: sout1, sout2
+    integer, allocatable :: l_(:), m_(:)
+    character*3 :: ls, ms
 
     ! List of integrable properties and why they were rejected
     write (uout,'("* List of properties integrated in the attractor basins")')
@@ -1806,6 +1719,7 @@ contains
              smult = string(1,4,ioj_center)
              sz = "--"
           end if
+          if (.not.usesym) smult = " -- "
           ! add to the sum
           if (icp(i) > 0 .and. usesym) then
              xmult = cp(cpcel(icp(i))%idx)%mult
@@ -1826,6 +1740,211 @@ contains
        write (uout,*)
     end do
     
+    ! Multipole output
+    if (present(mpole)) then
+       if (allocated(mpole)) then
+          n = 0
+          do l = 1, nprops
+             if (.not.integ_prop(l)%used) cycle
+             if (.not.integ_prop(l)%itype == itype_mpoles) cycle
+             write (uout,'("* Basin multipole moments (using real solid harmonics)")')
+             write (uout,'("+ Integrated field (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
+             write (uout,'("+ The calculated multipoles are: ")')
+             write (uout,'("    Q_lm^A = int_A rho(r) * Rlm(r) dr ")')
+             write (uout,'("  where the integral is over the basin of A, and Rlm is a real solid harmonic.")')
+             write (uout,'("  The coordinates are referred to the attractor of the A basin.")')
+             write (uout,*)
+             lmax = integ_prop(l)%lmax
+             n = n + 1
+
+             ! figure out the indices for the labels
+             allocate(l_((lmax+1)*(lmax+1)),m_((lmax+1)*(lmax+1)))
+             nn = 0
+             do i = 0, lmax
+                do j = -i, i
+                   nn = nn + 1
+                   l_(nn) = i
+                   m_(nn) = j
+                end do
+             end do
+
+             ! pretty output
+             nn = (lmax+1)**2/5
+             if (mod((lmax+1)**2,5) /= 0) nn = nn + 1
+             do i = 1, nn
+                ! header
+                lbl = "# Id cp   ncp   Name  Z   mult "
+                do j = (i-1)*5+1,min(5*i,(lmax+1)**2)
+                   if (j == 1) then
+                      lbl = lbl // " " // string("1",15,justify=ioj_center)
+                   elseif (j == 2) then
+                      lbl = lbl // " " // string("x",15,justify=ioj_center)
+                   elseif (j == 3) then
+                      lbl = lbl // " " // string("z",15,justify=ioj_center)
+                   elseif (j == 4) then
+                      lbl = lbl // " " // string("y",15,justify=ioj_center)
+                   elseif (j == 5) then
+                      lbl = lbl // " " // string("sq(3)/2(x^2-y^2)",15,justify=ioj_center)
+                   elseif (j == 6) then
+                      lbl = lbl // " " // string("sq(3)xz",15,justify=ioj_center)
+                   elseif (j == 7) then
+                      lbl = lbl // " " // string("(3z^2-r^2)/2",15,justify=ioj_center)
+                   elseif (j == 8) then
+                      lbl = lbl // " " // string("sq(3)yz",15,justify=ioj_center)
+                   elseif (j == 9) then
+                      lbl = lbl // " " // string("sq(3)xy",15,justify=ioj_center)
+                   else
+                      write (ls,'(I3)') l_(j)
+                      write (ms,'(I3)') abs(m_(j))
+                      if (m_(j) <= 0) then
+                         lbl = lbl // " " // string("C("//string(ls)//","//string(ms)//")",15,justify=ioj_center)
+                      else
+                         lbl = lbl // " " // string("S("//string(ls)//","//string(ms)//")",15,justify=ioj_center)
+                      end if
+                   endif
+                end do
+                write (uout,'(A)') lbl
+
+                ! body
+                do j = 1, nattr
+                   if (icp(j) > 0) then
+                      ! this is a cp
+                      idx = cpcel(icp(j))%idx
+                      scp = string(icp(j),4,ioj_left)
+                      sncp = string(idx,4,ioj_left)
+                      sname = string(cp(idx)%name,6,ioj_center)
+                      smult = string(cp(idx)%mult,4,ioj_center)
+                      if (cp(idx)%isnuc) then
+                         sz = string(cr%at(idx)%z,2,ioj_left)
+                      else
+                         sz = "--"
+                      endif
+                   else
+                      ! this is an unknown nnm
+                      scp = " -- "
+                      sncp = " -- "
+                      sname = "  ??  "
+                      smult = string(1,4,ioj_center)
+                      sz = "--"
+                   end if
+                   if (.not.usesym) smult = " -- "
+                   write (uout,'(2X,99(A,X))') &
+                      string(j,2,ioj_left), scp, sncp, sname, sz, smult, &
+                      (string(mpole((i-1)*5+1+k,j,n),'e',15,8,4),k=0,min(4,size(mpole,1)-(i-1)*5-1))
+                enddo
+                if (i < nn) then
+                   write (uout,*)
+                else
+                   write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
+                end if
+             end do
+          end do
+       end if
+    end if
+
+    ! Localization and delocalization indices output
+    if (present(di)) then
+       if (allocated(di)) then
+          ndeloc = 0
+          do l = 1, nprops
+             if (.not.integ_prop(l)%used) cycle
+             if (.not.integ_prop(l)%itype == itype_deloc) cycle
+             fid = integ_prop(l)%fid
+             if (f(fid)%type /= type_wfn) cycle
+             ndeloc = ndeloc + 1
+             
+             ! Header
+             write (uout,'("* Localization and delocalization indices")')
+             write (uout,'("+ Integrated field (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
+
+             ! output the lambdas
+             write (uout,'("+ Localization indices (lambda(A))")')
+             write (uout,'("# Id cp   ncp   Name  Z  mult     lambda(A)  ")')
+             do j = 1, nattr
+                if (icp(j) > 0) then
+                   ! this is a cp
+                   idx = cpcel(icp(j))%idx
+                   scp = string(icp(j),4,ioj_left)
+                   sncp = string(idx,4,ioj_left)
+                   sname = string(cp(idx)%name,6,ioj_center)
+                   smult = string(cp(idx)%mult,4,ioj_center)
+                   if (cp(idx)%isnuc) then
+                      sz = string(cr%at(idx)%z,2,ioj_left)
+                   else
+                      sz = "--"
+                   endif
+                else
+                   ! this is an unknown nnm
+                   scp = " -- "
+                   sncp = " -- "
+                   sname = "  ??  "
+                   smult = string(1,4,ioj_center)
+                   sz = "--"
+                end if
+                if (.not.usesym) smult = " -- "
+                write (uout,'(2X,99(A,X))') &
+                   string(j,2,ioj_left), scp, sncp, sname, sz, smult, &
+                   string(0.5d0*di(j,j,ndeloc),'e',15,8,4)
+             enddo
+             write (uout,*)
+
+             write (uout,'("+ Delocalization indices (delta(A,B))")')
+             write (uout,'("#   ----- atom A -----             ----- atom B -----                            ")')
+             write (uout,'("#   Id cp   ncp   Name  Z   mult  Id cp   ncp   Name  Z   mult      delta(A,B)  ")')
+             do i = 1, nattr
+                if (icp(i) > 0) then
+                   ! this is a cp
+                   idx = cpcel(icp(i))%idx
+                   scp = string(icp(i),4,ioj_left)
+                   sncp = string(idx,4,ioj_left)
+                   sname = string(cp(idx)%name,6,ioj_center)
+                   smult = string(cp(idx)%mult,4,ioj_center)
+                   if (cp(idx)%isnuc) then
+                      sz = string(cr%at(idx)%z,2,ioj_left)
+                   else
+                      sz = "--"
+                   endif
+                else
+                   ! this is an unknown nnm
+                   scp = " -- "
+                   sncp = " -- "
+                   sname = "  ??  "
+                   smult = string(1,4,ioj_center)
+                   sz = "--"
+                end if
+                if (.not.usesym) smult = " -- "
+                sout1 = "| " // string(i,2,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
+                do j = i+1, nattr
+                   if (icp(j) > 0) then
+                      ! this is a cp
+                      idx = cpcel(icp(j))%idx
+                      scp = string(icp(j),4,ioj_left)
+                      sncp = string(idx,4,ioj_left)
+                      sname = string(cp(idx)%name,6,ioj_center)
+                      smult = string(cp(idx)%mult,4,ioj_center)
+                      if (cp(idx)%isnuc) then
+                         sz = string(cr%at(idx)%z,2,ioj_left)
+                      else
+                         sz = "--"
+                      endif
+                   else
+                      ! this is an unknown nnm
+                      scp = " -- "
+                      sncp = " -- "
+                      sname = "  ??  "
+                      smult = string(1,4,ioj_center)
+                      sz = "--"
+                   end if
+                   if (.not.usesym) smult = " -- "
+                   sout2 = string(j,2,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
+                   write (uout,'(2X,99(A,X))') string(sout1), string(sout2), &
+                      string(di(i,j,ndeloc),'e',15,8,4)
+                end do
+             end do
+             write (uout,*)
+          end do
+       end if
+    end if
   end subroutine int_output
 
 end module integration

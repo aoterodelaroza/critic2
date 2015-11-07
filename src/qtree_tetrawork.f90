@@ -297,7 +297,7 @@ contains
     xcrys = xp
 
     ! inside a beta-sphere?
-    call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
+    call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
     if (dist <= r_betagp(cpcel(nid)%idx)) then
        if (dist <= r_betaint(cpcel(nid)%idx)) then
           term_rec = -cpcel(nid)%idx
@@ -1529,7 +1529,7 @@ contains
              xx = xx + tvec(:,1,tt) * real(i,8) / l2
              xx = xx + tvec(:,2,tt) * real(j,8) / l2
              xx = xx + tvec(:,3,tt) * real(k,8) / l2
-             call nearestcp(xx,nid,dist,type=f(refden)%typnuc)
+             call nearest_cp(xx,nid,dist,type=f(refden)%typnuc)
              if (dist <= r_betagp(cpcel(nid)%idx)) then
                 vin = (/i,j,k/)
                 idx = cindex(vin,maxl)

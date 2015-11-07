@@ -130,7 +130,7 @@ contains
           ! error in gradient. Calculate the nearest nucleus
           if (ier > 0) nwarn = nwarn + 1
           xpoint = cr%c2x(xpoint)
-          call nearestcp(xpoint,imin,dtemp,f(refden)%typnuc)
+          call nearest_cp(xpoint,imin,dtemp,f(refden)%typnuc)
           if (dtemp <= bsr) then
              xin_ = xmed
           else

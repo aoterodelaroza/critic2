@@ -53,7 +53,7 @@ contains
   !> the nearest CP of type 'type' or non-equivalent index 'idx'. In the
   !> output, nid represents the id (complete CP list), dist is the
   !> distance. If nozero is used, skip zero distance CPs.
-  subroutine nearestcp(xp,nid,dist,type,idx,nozero)
+  subroutine nearest_cp(xp,nid,dist,type,idx,nozero)
     use struct_basic
     implicit none
 
@@ -90,7 +90,7 @@ contains
     end do
     dist = sqrt(d2min)
 
-  end subroutine nearestcp
+  end subroutine nearest_cp
 
   !> Given a position xp (usually the end-point of a gradient path),
   !> identify the critical point it represents and return the

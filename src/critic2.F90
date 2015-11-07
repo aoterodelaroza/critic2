@@ -229,11 +229,6 @@ program critic
         if (.not. cr%isinit) call ferror('critic2','need crystal before nciplot',faterr,line)
         call nciplot()
 
-     ! ncigraph
-     elseif (equal(word,'ncigraph')) then
-        if (.not. cr%isinit) call ferror('critic2','need crystal before ncigraph',faterr,line)
-        call ncigraph()
-
      ! benchmark 
      elseif (equal (word,'benchmark')) then
         if (.not. cr%isinit) call ferror('critic2','need crystal before benchmark',faterr,line)

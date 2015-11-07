@@ -28,41 +28,42 @@ module yt
 
 contains
 
-  !> Do the YT integration. Return the number of basins, their coordinates
-  !> (integer coordinates), the integer id of each grid point and the logical
-  !> unit of an open scratch file containing the weights.
-  subroutine yt_integrate(nbasin,xcoord,idatt,idg,ratom,luw)
-    use struct
+  !> Do the YT integration on crystal c and field f. Return the number
+  !> of basins (nbasin), their coordinates (cryst. coordinates), the
+  !> integer id that gives the basin for each grid point (idg) and the
+  !> logical unit of an open scratch file containing the weights
+  !> (luw).
+  subroutine yt_integrate(c,f,nbasin,xcoord,idg,luw)
+    use struct_basic
     use tools_io
     use tools
-    use fields
     use global
     use struct_basic
     use types
     
+    type(crystal), intent(in) :: c
+    type(field), intent(in) :: f
     integer, intent(out) :: nbasin
     real*8, allocatable, intent(inout) :: xcoord(:,:)
-    integer, allocatable, intent(inout) :: idatt(:)
     integer, allocatable, intent(inout) :: idg(:,:,:)
-    real*8, intent(in) :: ratom
     integer, intent(out) :: luw
 
     real(kind=gk), allocatable :: g(:)
     integer, allocatable :: io(:), iio(:)
     integer :: i, ii, j, n(3), nn, nvec, vec(3,40), ib(3), jb(3), jj, k, kk
     real*8 :: al(40), csum
-    integer :: nhi, nbas(cr%ncel)
+    integer :: nhi, nbas(c%ncel)
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:), neqb(:)
     real(kind=gk), allocatable :: chi(:), fnear(:,:), w(:)
     logical :: isias
-    integer :: nid, lvec(3), bat(cr%ncel), nnnm
+    integer :: nid, lvec(3), bat(c%ncel), nnnm
     real*8 :: dist, dv(3)
 
     ! Copy the field onto a grid
-    n = f(refden)%n(:)
+    n = f%n(:)
     nn = n(1)*n(2)*n(3)
     allocate(g(nn))
-    g = max(reshape(f(refden)%f,shape(g)),0d0)
+    g = max(reshape(f%f,shape(g)),0d0)
 
     ! sort g, from smaller to larger
     allocate(io(nn),iio(nn))
@@ -75,15 +76,14 @@ contains
     end do
 
     ! calculate areas*lengths and grid vectors
-    call cr%wigner((/0d0,0d0,0d0/),.false.,n,nvec,vec,al)
+    call c%wigner((/0d0,0d0,0d0/),.false.,n,nvec,vec,al)
 
     ! run over grid points in order of decreasing density
-    allocate(neqb(cr%ncel),idatt(cr%ncel))
+    allocate(neqb(c%ncel))
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))
     nbasin = 0
     nbas = 0
     neqb = 0
-    idatt = 0
     bat = 0
     nnnm = 0
     do ii = nn, 1, -1
@@ -110,28 +110,12 @@ contains
           ! this is a local maximum
           dv = real(ib-1,8) / n
           nid = 0
-          call cr%nearest_atom(dv,nid,dist,lvec)
-          if (dist <= ratom) then
-             if (bat(nid) > 0) then
-                ibasin(ii) = bat(nid)
-             else
-                nbasin = nbasin + 1
-                if (nbasin > size(neqb)) call realloc(neqb,2*size(neqb))
-                if (nbasin > size(idatt)) call realloc(idatt,2*size(neqb))
-                bat(nid) = nbasin
-                ibasin(ii) = nbasin
-                neqb(nbasin) = i
-                idatt(nbasin) = nid
-             endif
-          else
-             nbasin = nbasin + 1
-             nnnm = nnnm + 1
-             if (nbasin > size(neqb)) call realloc(neqb,2*size(neqb))
-             if (nbasin > size(idatt)) call realloc(idatt,2*size(neqb))
-             ibasin(ii) = nbasin
-             neqb(nbasin) = i
-             idatt(nbasin) = -nnnm
-          endif
+          call c%nearest_atom(dv,nid,dist,lvec)
+          nbasin = nbasin + 1
+          nnnm = nnnm + 1
+          if (nbasin > size(neqb)) call realloc(neqb,2*size(neqb))
+          ibasin(ii) = nbasin
+          neqb(nbasin) = i
        else
           isias = ibasin(ihi(1)) == 0
           do k = 1, nhi
@@ -185,17 +169,12 @@ contains
     ! output 
     allocate(xcoord(3,nbasin))
     do i = 1, nbasin
-       if (idatt(i) > 0) then
-          xcoord(:,i) = cr%atcel(idatt(i))%x
-       else
-          xcoord(:,i) = real(to3(neqb(i))-1,8) / n
-       end if
+       xcoord(:,i) = real(to3(neqb(i))-1,8) / n
     end do
     deallocate(neqb)
     allocate(idg(n(1),n(2),n(3)))
     idg = reshape(ibasin,shape(idg))
     deallocate(ibasin)
-    call realloc(idatt,nbasin)
 
   contains
     function to3(k)

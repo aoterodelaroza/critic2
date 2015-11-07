@@ -1609,7 +1609,7 @@ contains
     end if
 
     ! interstitial and normal CPs
-    call nearestcp(xc,nid,dist)
+    call nearest_cp(xc,nid,dist)
     if (dist < CP_eps_cp) then
        goto 999
     end if
@@ -2036,7 +2036,7 @@ contains
                    cp(i)%ipath(j) = -1
                 else
                    cp(i)%ipath(j) = 0
-                   call nearestcp(xdis(:,j,i),nid,dist)
+                   call nearest_cp(xdis(:,j,i),nid,dist)
                    ! call ferror('makegraph','gradient path terminal CP not in the CP list',warning)
                    ! write (uout,'("  Original CP (non-eq) : ",I5)') i
                    ! write (uout,'("  Closest CP (complete list) to endpoint is ",I5," at distance ",1p,E15.8)') nid, dist

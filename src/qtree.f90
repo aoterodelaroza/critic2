@@ -804,7 +804,7 @@ contains
           rref(i) = cr%at(i)%rnn2
        else
           xx = cp(i)%x
-          call nearestcp(xx,idum,rref(i),type=f(refden)%typnuc,nozero=.true.)
+          call nearest_cp(xx,idum,rref(i),type=f(refden)%typnuc,nozero=.true.)
           rref(i) = rref(i) / 2d0
        end if
 
@@ -882,7 +882,7 @@ contains
                       do nid = 1, nnuc
                          if (.not.nucmask(nid)) cycle
                          ! check if this point is inside a shell around the nucleus
-                         call nearestcp(xx,nid0,dist,idx=nid)
+                         call nearest_cp(xx,nid0,dist,idx=nid)
                          if (dist > r_betagp(nid)-mdist .and. dist < r_betagp(nid)+min(rdist,r_betagp(nid))) then
                             idx = cindex(vin,lvl)
                             trm(idx,tto) = int(term_rec(tt,vin,lvl,trm,fgr,lapgr),1)
@@ -1003,7 +1003,7 @@ contains
           rref = cr%at(i)%rnn2
        else
           xx = cp(i)%x
-          call nearestcp(xx,idum,rref,type=f(refden)%typnuc,nozero=.true.)
+          call nearest_cp(xx,idum,rref,type=f(refden)%typnuc,nozero=.true.)
           rref = rref / 2d0
        end if
 
@@ -1034,7 +1034,7 @@ contains
           rref = cr%at(i)%rnn2
        else
           x0 = cp(i)%r
-          call nearestcp(xx,idum,rref,type=f(refden)%typnuc,nozero=.true.)
+          call nearest_cp(xx,idum,rref,type=f(refden)%typnuc,nozero=.true.)
           rref = rref / 2d0
        end if
 

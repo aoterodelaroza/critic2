@@ -58,12 +58,9 @@ contains
 
   !> Do a grid integration using the BADER method. cr is the crystal
   !> and f is the field. Return the number of basins (bnum0), their
-  !> coordinates (crystallographic corods, volpos_lat) and the basin
-  !> id of every point in the grid (idatt, positive corresponds to an
-  !> atom and negative to an nnm). volnum0 gives the id of the basin
-  !> (from 1 to bnum0) on the lattice.  ratom is the minimum distance
-  !> for atom recognition.
-  subroutine bader_integrate(c,f,bnum0,volpos_lat,idatt,volnum0,ratom)
+  !> coordinates (crystallographic corods, volpos_lat). volnum0 gives
+  !> the id of the basin (from 1 to bnum0) on the lattice.  
+  subroutine bader_integrate(c,f,bnum0,volpos_lat,volnum0)
     use global
     use struct_basic
     use tools_math
@@ -73,9 +70,7 @@ contains
     type(field), intent(in) :: f
     integer, intent(out) :: bnum0
     real*8, allocatable, intent(inout) :: volpos_lat(:,:)
-    integer, allocatable, intent(inout) :: idatt(:)
     integer, allocatable, intent(inout) :: volnum0(:,:,:)
-    real*8, intent(in) :: ratom
 
     integer :: i, j, k, l, path_volnum, p(3)
     integer :: ptemp(3), ref_itrs, irefine_edge, nid, lvec(3)
@@ -108,7 +103,7 @@ contains
        end do
     end do
 
-    allocate(volnum(n(1),n(2),n(3)),volpos_lat(3,10),idatt(10),known(n(1),n(2),n(3)),path(3,10))
+    allocate(volnum(n(1),n(2),n(3)),volpos_lat(3,10),known(n(1),n(2),n(3)),path(3,10))
     volnum = 0
     known = 0
     bnum = 0
@@ -127,27 +122,11 @@ contains
                    dv = real(p-1,8) / n
                    nid = 0
                    call c%nearest_atom(dv,nid,dist,lvec)
-                   if (dist <= ratom) then
-                      if (bat(nid) > 0) then
-                         path_volnum = bat(nid)
-                      else
-                         bnum = bnum + 1
-                         if (bnum > size(volpos_lat,2)) call realloc(volpos_lat,3,2*bnum)
-                         if (bnum > size(idatt)) call realloc(idatt,2*bnum)
-                         bat(nid) = bnum
-                         path_volnum = bnum
-                         volpos_lat(:,bnum) = c%atcel(nid)%x * n
-                         idatt(bnum) = nid
-                      endif
-                   else
-                      bnum = bnum + 1
-                      nnnm = nnnm + 1
-                      if (bnum > size(volpos_lat,2)) call realloc(volpos_lat,3,2*bnum)
-                      if (bnum > size(idatt)) call realloc(idatt,2*bnum)
-                      path_volnum = bnum
-                      volpos_lat(:,bnum) = real(p-1,8)
-                      idatt(bnum) = -nnnm
-                   endif
+                   bnum = bnum + 1
+                   nnnm = nnnm + 1
+                   if (bnum > size(volpos_lat,2)) call realloc(volpos_lat,3,2*bnum)
+                   path_volnum = bnum
+                   volpos_lat(:,bnum) = real(p-1,8)
                 end if
 
                 ! assign all points along the trajectory
@@ -181,7 +160,6 @@ contains
     do i = 1, bnum
        volpos_lat(:,i) = volpos_lat(:,i) / n
     end do
-    call realloc(idatt,bnum)
     call move_alloc(volnum,volnum0)
     bnum0 = bnum
 

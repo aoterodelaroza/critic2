@@ -226,7 +226,7 @@ contains
        xp = cr%c2x(xp)
 
        ! get nearest nuclear CP
-       call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
+       call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
 
        ! is it inside a beta-sphere?
        if (dist <= r_betagp(cpcel(nid)%idx)) then
@@ -269,7 +269,7 @@ contains
 
     ! ! if (debug > 0) then
     !    xp = cr%c2x(xp)
-    !    call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
+    !    call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
     !    !$omp critical (IO)
     !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
@@ -472,7 +472,7 @@ contains
 1      continue
 
        ! get nearest nuclear CP
-       call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
+       call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
 
        ! is it inside a beta-sphere?
        if (dist <= r_betagp(cpcel(nid)%idx)) then
@@ -494,7 +494,7 @@ contains
 
     ! ! if (debug > 0) then
     !    xp = cr%c2x(xp)
-    !    call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
+    !    call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
     !    !$omp critical (IO)
     !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
@@ -627,7 +627,7 @@ contains
        end if
 
        ! get nearest nuclear CP
-       call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
+       call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
 
        ! is it inside a beta-sphere?
        if (dist <= r_betagp(cpcel(nid)%idx)) then
