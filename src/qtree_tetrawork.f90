@@ -299,14 +299,10 @@ contains
     ! inside a beta-sphere?
     call nearestcp(xp,nid,dist,type=f(refden)%typnuc)
     if (dist <= r_betagp(cpcel(nid)%idx)) then
-       if (qtree_active(cpcel(nid)%idx)) then
-          if (dist <= r_betaint(cpcel(nid)%idx)) then
-             term_rec = -cpcel(nid)%idx
-          else
-             term_rec = cpcel(nid)%idx
-          end if
+       if (dist <= r_betaint(cpcel(nid)%idx)) then
+          term_rec = -cpcel(nid)%idx
        else
-          term_rec = nnuc+2
+          term_rec = cpcel(nid)%idx
        end if
        return
     end if
@@ -1337,7 +1333,7 @@ contains
     lprop = 0d0
     do i = 1, 4
        idx(i) = cindex(iv(:,i),l)
-       if ((prop_mode == 1 .or. prop_mode == 2) .and. qtree_active(abs(ts(i)))) then
+       if ((prop_mode == 1 .or. prop_mode == 2)) then
           lf(i) = -1d0
           llap(i) = 0d0
           if (savefgr) then
@@ -1378,20 +1374,20 @@ contains
 
     if (prop_mode == 1) then
        do i = 1, 4
-          if (ts(i) > 0 .and. qtree_active(abs(ts(i)))) then
+          if (ts(i) > 0) then
              acum_atprop(ts(i),2) = acum_atprop(ts(i),2) + vfac * lf(i)
           end if
        end do
     else if (prop_mode == 2) then
        do i = 1, 4
-          if (ts(i) > 0 .and. qtree_active(abs(ts(i)))) then
+          if (ts(i) > 0) then
              acum_atprop(ts(i),2) = acum_atprop(ts(i),2) + vfac * lf(i)
              acum_atprop(ts(i),3) = acum_atprop(ts(i),3) + vfac * llap(i)
           end if
        end do
     else if (prop_mode == 3) then
        do i = 1, 4
-          if (ts(i) > 0 .and. qtree_active(abs(ts(i)))) then
+          if (ts(i) > 0) then
              xp = borig(:,base_t)
              do j = 1, 3
                 xp = xp + bvec(:,j,base_t) * iv(j,i) * lrest
@@ -1480,7 +1476,7 @@ contains
                 acum_atprop(abs(ts),1) = acum_atprop(abs(ts),1) + vfac
              end if
 
-             if (ts > 0 .and. qtree_active(abs(ts))) then
+             if (ts > 0) then
                 xx = borig(:,base_t)
                 xx = xx + bvec(:,1,base_t) * real(i,8)
                 xx = xx + bvec(:,2,base_t) * real(j,8)
@@ -1537,14 +1533,10 @@ contains
              if (dist <= r_betagp(cpcel(nid)%idx)) then
                 vin = (/i,j,k/)
                 idx = cindex(vin,maxl)
-                if (qtree_active(cpcel(nid)%idx)) then
-                   if (dist <= r_betaint(cpcel(nid)%idx)) then
-                      trm(idx,tto) = int(-cpcel(nid)%idx,1)
-                   else
-                      trm(idx,tto) = int(cpcel(nid)%idx,1)
-                   end if
+                if (dist <= r_betaint(cpcel(nid)%idx)) then
+                   trm(idx,tto) = int(-cpcel(nid)%idx,1)
                 else
-                   trm(idx,tto) = int(nnuc+2,1)
+                   trm(idx,tto) = int(cpcel(nid)%idx,1)
                 end if
              end if
           end do

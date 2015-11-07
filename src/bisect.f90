@@ -151,10 +151,7 @@ contains
        call cr%shortest(xtemp,dtemp)
        dtemp = sqrt(dtemp)
        if (dtemp <= cp(cpcel(i)%idx)%rbeta + delta + delta) then
-          call ferror('lim_surf','the basin limit is on the beta-sphere',noerr)
-          write (uout,'(A,A)') "  The basin limit is on the beta-sphere of cp ", string(i)
           cp(cpcel(i)%idx)%rbeta = 0.75d0 * cp(cpcel(i)%idx)%rbeta
-          write (uout,'(A,A/)') "  Shrinking r_beta to : ", string(cp(cpcel(i)%idx)%rbeta,'f',decimal=4)
           ! start over again
           goto 1
        end if
@@ -1822,6 +1819,7 @@ contains
     do i = linmin, linmax
        if ((cp(i)%typ /= f(refden)%typnuc .and. i>cr%nneq)) cycle
        n = n + 1
+       write (uout,'("+ Integrating CP: ",A)') string(i)
        if (meth == INT_gauleg) then
           call integrals_gauleg(atprop(:,n),ntheta,nphi,i,usefiles,verbose)
        else if (meth == INT_lebedev) then
@@ -1839,6 +1837,7 @@ contains
           end if
        end do
     end do
+    write (uout,*)
 
     call int_output(maskprop,reason,n,icp(1:n),xattr(:,1:n),atprop(:,1:n),.true.)
 
@@ -1868,7 +1867,7 @@ contains
     logical :: existfile
     integer :: i, linmin, linmax
 
-    write (uout,'("* Integration of attractor properties")')       
+    write (uout,'("* Integration of basin properties by bisection")')       
     write (uout,'("  Basins of the scalar field: ",A)') string(refden)
     write (uout,'("  Attractor signature: ",A)') string(f(refden)%typnuc)
     !

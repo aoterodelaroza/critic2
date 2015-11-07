@@ -1820,7 +1820,7 @@ contains
              string(i,2,ioj_left), scp, sncp, sname, sz, smult, &
              (string(aprop(nacprop(j),i),'e',15,8,4),j=1,ipmax)
        end do
-       write (uout,'(24("-",99(A,X)))') ("---------------",j=1,ipmax)
+       write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
        write (uout,'(2X,"Sum                         ",99(A,X))') &
           (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
        write (uout,*)

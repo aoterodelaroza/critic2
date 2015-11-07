@@ -231,11 +231,7 @@ contains
        ! is it inside a beta-sphere?
        if (dist <= r_betagp(cpcel(nid)%idx)) then
           xp = cpcel(nid)%x
-          if (qtree_active(cpcel(nid)%idx)) then
-             cpout = cpcel(nid)%idx
-          else
-             cpout = nnuc+2
-          end if
+          cpout = cpcel(nid)%idx
           if (usestack) then
              if (gridp) then
                 do i = 2, nstack-1
@@ -480,11 +476,7 @@ contains
 
        ! is it inside a beta-sphere?
        if (dist <= r_betagp(cpcel(nid)%idx)) then
-          if (qtree_active(cpcel(nid)%idx)) then
-             cpout = cpcel(nid)%idx
-          else
-             cpout = nnuc+2
-          end if
+          cpout = cpcel(nid)%idx
           ier = 0
           return
        end if
@@ -639,11 +631,7 @@ contains
 
        ! is it inside a beta-sphere?
        if (dist <= r_betagp(cpcel(nid)%idx)) then
-          if (qtree_active(cpcel(nid)%idx)) then
-             cpout = cpcel(nid)%idx
-          else
-             cpout = nnuc+2
-          end if
+          cpout = cpcel(nid)%idx
           ier = 0
           return
        end if

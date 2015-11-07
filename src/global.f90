@@ -148,7 +148,6 @@ module global
   integer :: cub_mpts
   integer :: plot_mode
   logical :: docontacts
-  logical :: qtree_active(mneq)
   real*8 :: ws_origin(3), ws_scale
   logical :: ws_use
   integer :: autosph
@@ -264,7 +263,6 @@ contains
     sphintfactor = 1d0
     plot_mode = 0
     docontacts = .false.
-    qtree_active =.true.
     ws_origin = (/0d0, 0d0, 0d0/)
     ws_scale = -1d0
     ws_use = .true.
@@ -501,24 +499,6 @@ contains
        call check_no_extra_word()
     elseif (equal(word,'nocontacts')) then
        docontacts = .false.
-       call check_no_extra_word()
-    elseif (equal(word,'active')) then
-       ok = isinteger(idum,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong active',faterr,line)
-       if (idum == 0) then
-          qtree_active = .true.
-       else
-          qtree_active(idum) = .true.
-       end if
-       call check_no_extra_word()
-    elseif (equal(word,'inactive')) then
-       ok = isinteger(idum,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong inactive',faterr,line)
-       if (idum == 0) then
-          qtree_active = .false.
-       else
-          qtree_active(idum) = .false.
-       end if
        call check_no_extra_word()
     elseif (equal(word,'ws_origin')) then
        ok = isreal(ws_origin(1),line,lp)

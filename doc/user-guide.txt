@@ -3983,8 +3983,6 @@ Qtree (QTREE)
   SPHINTFACTOR atom.i fac.r
   DOCONTACTS
   NOCONTACTS
-  ACTIVE atom.i
-  INACTIVE atom.i
   WS_ORIGIN x.r y.r z.r
   WS_SCALE scale.r
   WS_EPS_VOL eps_vol.r
@@ -4731,25 +4729,6 @@ Some additional considerations:
   the properties) of all the IWST are saved. By default,
   COLOR_ALLOCATE is 1 if maxlevel.i <= 8 and 0 if the maximum level is
   higher.
-
-* In cases where only the properties of some of the atoms are
-  interesting, there exists the possibility of deactivating the
-  integration of some atoms by using the INACTIVE and ACTIVE
-  keywords. Tetrahedra belonging to an inactive atom are not
-  integrated (apart from the volume, see above). The termini of
-  inactive atoms are all assigned to a common 'unknown' value (the
-  same value as the one assigned when a gradient path is 'killed' in
-  non-periodic cells, see KILLEXT above). If the number of inactive
-  atoms is large, the 'painting' of unknown termini becomes more
-  frequent and applies to more atoms, thus saving time even in the
-  termini localization step. The ACTIVE and INACTIVE keywords are
-  used::
-
-    INACTIVE 2   !  deactivate integration of atom 2
-    INACTIVE 0   !  deactivate all atoms
-    ACTIVE 1     !  activate atom 1
-
-  By default, all atoms are active.
 
 QTREE is described in J. Comput. Chem. 32 (2010) 291-305. Please, cite
 this reference if you use this keyword in your work.

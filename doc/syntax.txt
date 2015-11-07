@@ -229,8 +229,6 @@ expression.r # prints the value of the expression to the output.
   + SPHINTFACTOR atom.i fac.r
   + DOCONTACTS 
   + NOCONTACTS
-  + ACTIVE atom.i
-  + INACTIVE atom.i
   + WS_ORIGIN x.r y.r z.r
   + WS_SCALE scale.r
   + WS_EPS_VOL eps_vol.r

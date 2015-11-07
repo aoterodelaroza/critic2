@@ -39,7 +39,7 @@ contains
     use CUI
     use keast
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
-    use integration, only: ppty_output
+    use integration
     use varbas
     use fields
     use global
@@ -72,17 +72,21 @@ contains
     integer(qtreei), allocatable :: trm(:,:)
     real(qtreer), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable :: acum_atprop(:,:)
-
+    ! for the output
+    integer :: nout
+    integer, allocatable :: icp(:)
+    real*8, allocatable :: xattr(:,:), outprop(:,:)
+    character*30 :: reason(nprops)
 
     real*8, parameter :: eps = 1d-6
+
+    if (.not.quiet) call tictac("Start QTREE")
 
     ! header
     write (uout,'("* QTREE integration ")')
     write (uout,'("  Please cite: ")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157."/)')
     
-    if (.not.quiet) call tictac("Start QTREE")
-
     ! consistency warnings
     if (plot_mode > 0 .and. color_allocate == 0) then
        call ferror('qtree','Non zero PLOT_MODE is not compatible with a single color array',warning)
@@ -110,16 +114,16 @@ contains
     end if
 
     ! Determine sphere radii
-    write (uout,'("* Pre-calculating the beta-sphere radii at lvl : ",A/)') string(setsph_lvl)
+    write (uout,'("+ Pre-calculating the beta-sphere radii at lvl : ",A)') string(setsph_lvl)
 
     if (autosph == 1) then
-       call qtree_setsph1(min(setsph_lvl,lvl),.true.)
+       call qtree_setsph1(min(setsph_lvl,lvl),.false.)
     else
-       call qtree_setsph2(.true.)
+       call qtree_setsph2(.false.)
     end if
 
-    write (uout,'("* Initializing QTREE..."/)') 
-    call qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,.true.)
+    write (uout,'("+ Initializing QTREE")') 
+    call qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,.false.)
     l2 = 2**maxl
     nterm = 0
     ngrd_term = 0
@@ -129,72 +133,78 @@ contains
     korder = 0
 
     ! mask for the property output
+    do i = 1, nprops
+       reason(i) = ""
+    end do
     if (prop_mode == 0) then
        maskprop = .false.
        maskprop(1) = .true.
+       do i = 2, nprops
+          reason(i) = "because prop_mode = 0"
+       end do
     else if (prop_mode == 1) then
        maskprop = .false.
        maskprop(1) = .true.
        maskprop(2) = .true.
+       do i = 3, nprops
+          reason(i) = "because prop_mode = 1"
+       end do
     else if (prop_mode == 2) then
        maskprop = .false.
        maskprop(1) = .true.
        maskprop(2) = .true.
        maskprop(3) = .true.
+       do i = 4, nprops
+          reason(i) = "because prop_mode = 2"
+       end do
     else
        maskprop = .true.
     end if
 
     ! header
-    write (uout,'("* Maximum subdivision level: ",A)') string(maxl)
-    write (uout,'("* Tetrahedra pre-split level: ",A)') string(plvl)
-    write (uout,'("* Number of attractors: ",A)') string(nnuc)
-    do i = 1, nnuc
-       write (uout,'("  Active? atom = ",A," --> ",L1)') string(i), qtree_active(i)
-    end do
-    write (uout,'("* GRADIENT mode: ",A)') string(gradient_mode)
-    write (uout,'("* ODE mode: ",A)') string(qtree_ode_mode)
-    write (uout,'("* STEP size in ODE integration: ",A)') string(stepsize,'e',decimal=6)
-    write (uout,'("* Abs. error in ODE integration: ",A)') string(ode_abserr,'e',decimal=6)
-    write (uout,'("* PROPERTY calculation level: ",A)') string(prop_mode)
-    write (uout,*)
-    write (uout,'("* INTEGRATION scheme: ",A)') string(integ_scheme)
-    write (uout,'("* INTEGRATION modes, per level: ")') 
+    write (uout,'("  Maximum subdivision level: ",A)') string(maxl)
+    write (uout,'("  Tetrahedra pre-split level: ",A)') string(plvl)
+    write (uout,'("  Number of attractors: ",A)') string(nnuc)
+    write (uout,'("  GRADIENT mode: ",A)') string(gradient_mode)
+    write (uout,'("  ODE mode: ",A)') string(qtree_ode_mode)
+    write (uout,'("  STEP size in ODE integration: ",A)') string(stepsize,'e',decimal=6)
+    write (uout,'("  Abs. error in ODE integration: ",A)') string(ode_abserr,'e',decimal=6)
+    write (uout,'("  PROPERTY calculation level: ",A)') string(prop_mode)
+    write (uout,'("  INTEGRATION scheme: ",A)') string(integ_scheme)
+    write (uout,'("  INTEGRATION modes, per level: ")') 
     do i = minl+1, maxl
        write (uout,'("  Level ",A,": ",A)') string(i), string(integ_mode(i))
     end do
-    write (uout,'("* CORNER INTEGRATION deferred flag: ",L1)') , intcorner_deferred
-    write (uout,'("* PLOT mode : ",A)') string(plot_mode)
+    write (uout,'("  CORNER INTEGRATION deferred flag: ",L1)') , intcorner_deferred
+    write (uout,'("  PLOT mode : ",A)') string(plot_mode)
 
     if (any(integ_mode(minl+1:maxl) >= 1 .and. integ_mode(minl+1:maxl) <= 10)) then
-       write (uout,'("* Using the KEAST library ")') 
+       write (uout,'("+ Using the KEAST library ")') 
        write (uout,'("  P. Keast, Comput. Meth. Appl. Mech. 55 (1986) 339-348.")')
-       write (uout,*)
        call getkeast()
        do i = 1, 10
           call keast_order_num(i,korder(i))
           call keast_rule(i,korder(i),kxyz(:,:,i),kw(:,i))
        end do
-       write (uout,*)
     else if (any(integ_mode(minl+1:maxl) == 12)) then
-       write (uout,'("* Using the CUBPACK library ")') 
+       write (uout,'("+ Using the CUBPACK library ")') 
        write (uout,'("  R. Cools and A. Haegemans, ACM Trans. Math. Softw. 29 (2003) 287-296.")')
-       write (uout,*)
        call cubpack_info(uout)
     end if
+    write (uout,*)
 
-    ! Wigner-Seitz information
-    if (ws_use) then
-       write (uout,'("* LOCAL symmetry of : ",3(A,2X))') (string(ws_origin(j),'f',decimal=6),j=1,3)
-       write (uout,'("Number of sym. ops.: ",A)') string(leqv)
-       do i = 1, leqv
-          write (uout,'("Operation ",A)') string(i)
-          write (uout,'(3(A,2X))') (string(lrotm(1,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-          write (uout,'(3(A,2X))') (string(lrotm(2,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-          write (uout,'(3(A,2X))') (string(lrotm(3,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-       end do
-       write (uout,*)
-    end if
+    ! ! Wigner-Seitz information
+    ! if (ws_use) then
+    !    write (uout,'("* LOCAL symmetry of : ",3(A,2X))') (string(ws_origin(j),'f',decimal=6),j=1,3)
+    !    write (uout,'("Number of sym. ops.: ",A)') string(leqv)
+    !    do i = 1, leqv
+    !       write (uout,'("Operation ",A)') string(i)
+    !       write (uout,'(3(A,2X))') (string(lrotm(1,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
+    !       write (uout,'(3(A,2X))') (string(lrotm(2,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
+    !       write (uout,'(3(A,2X))') (string(lrotm(3,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
+    !    end do
+    !    write (uout,*)
+    ! end if
 
     ! Integration spehres
     if (cr%nneq > size(sphfactor)) then
@@ -205,93 +215,88 @@ contains
     else
        pname = "max       "
     end if
-    write (uout,'("* BETA sphere integration details")')
+    write (uout,'("+ BETA sphere integration details")')
     if (INT_spherequad_type == INT_gauleg) then
-       write (uout,'("+ Method : Gauss-Legendre, non-adaptive quadrature ")')       
-       write (uout,'("+ Polar angle (theta) num. of nodes: ",A)') string(INT_spherequad_ntheta)
-       write (uout,'("+ Azimuthal angle (phi) num. of nodes: ",A)') string(INT_spherequad_nphi)
+       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Polar angle (theta) num. of nodes: ",A)') string(INT_spherequad_ntheta)
+       write (uout,'("  Azimuthal angle (phi) num. of nodes: ",A)') string(INT_spherequad_nphi)
     else if (INT_spherequad_type == INT_lebedev) then
-       write (uout,'("+ Method : Lebedev, non-adaptive quadrature ")')       
-       write (uout,'("+ Number of nodes: ",A)') string(INT_spherequad_nleb)
-       write (uout,*)              
+       write (uout,'("  Method : Lebedev, non-adaptive quadrature ")')       
+       write (uout,'("  Number of nodes: ",A)') string(INT_spherequad_nleb)
     end if
     if (any(sphfactor(1:nnuc) < -1d-12)) then
-       write (uout,'("+ Using Rodriguez et al. strategy for beta-spehre radius (JCC 30(2009)1082).")')
-       write (uout,*)
+       write (uout,'("  Using Rodriguez et al. strategy for beta-spehre radius (JCC 30(2009)1082).")')
     end if
     if (INT_radquad_type == INT_qags .or. &
         INT_radquad_type == INT_qags .or. &
         INT_radquad_type == INT_qags) then
-       write (uout,'("+ Using the QUADPACK library ")') 
+       write (uout,'("  Using the QUADPACK library ")') 
        write (uout,'("  R. Piessens, E. deDoncker-Kapenga, C. Uberhuber and D. Kahaner,")')
        write (uout,'("  Quadpack: a subroutine package for automatic integration, Springer-Verlag 1983.")')
-       write (uout,*)
     end if
 
-    write (uout,'("* Initial number of tetrahedra in IWS: ",A)') string(nt_orig)
-    if (ws_use) then
-       write (uout,'("* Origin of WS cell: ",A)') (string(ws_origin(j),'e',decimal=6),j=1,3)
-       if (ws_scale > 0d0) then
-          write (uout,'("* Scaling of WS cell: ",A)') string(ws_scale,'f',decimal=6)
-       end if
-    else
-       write (uout,'("* Using the conventional unit cell")') 
-    end if
-    write (uout,'("* LIST of tetrahedra in crystallographic coordinates")')
-    do i = 1, nt_orig
-       ! output
-       write (uout,'("* Tetrahedron number: ",A)') string(i)
-       write (uout,'("     Origin: ",3(A,2X))') (string(torig(j,i),'f',decimal=6),j=1,3)
-       do j = 1, 3
-          write (uout,'("     Edge ",A,": ",3(A,2X))') string(j), (string(tvec(k,j,i),'f',decimal=6),k=1,3)
-       end do
-       write (uout,'("     Volume : ",A)') string(tvol(i),'f',decimal=6)
-       if (tvol(i) < vcutoff) then
-          write (uout,'(" (the volume of this tetrahedron is smaller than the vcutoff, will be skipped)")')
-       end if
-       write (uout,'(" Cartesian to convex matrix: ")')
-       write (uout,'(4X,3(A,2X))') (string(cmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-       write (uout,'(4X,3(A,2X))') (string(cmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-       write (uout,'(4X,3(A,2X))') (string(cmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-       write (uout,'(" Convex to cartesian matrix: ")')
-       write (uout,'(4X,3(A,2X))') (string(dmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-       write (uout,'(4X,3(A,2X))') (string(dmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-       write (uout,'(4X,3(A,2X))') (string(dmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-       write (uout,'("* Origin (cart.): ",3(A,2X))') (string(borig(j,i),'f',decimal=6),j=1,3)
-       do j = 1, 3
-          write (uout,'("* (v",A,"-v0) (cart./2**l): ",3(A,2X))') string(j), &
-             (string(bvec(k,j,i),'f',decimal=6,length=12,justify=4),k=1,3)
-       end do
-       write (uout,*)
-    end do
+    write (uout,'("+ Initial number of tetrahedra in IWS: ",A)') string(nt_orig)
+    ! if (ws_use) then
+    !    write (uout,'("* Origin of WS cell: ",A)') (string(ws_origin(j),'e',decimal=6),j=1,3)
+    !    if (ws_scale > 0d0) then
+    !       write (uout,'("* Scaling of WS cell: ",A)') string(ws_scale,'f',decimal=6)
+    !    end if
+    ! else
+    !    write (uout,'("* Using the conventional unit cell")') 
+    ! end if
+    ! write (uout,'("* LIST of tetrahedra in crystallographic coordinates")')
+    ! do i = 1, nt_orig
+    !    ! output
+    !    write (uout,'("* Tetrahedron number: ",A)') string(i)
+    !    write (uout,'("     Origin: ",3(A,2X))') (string(torig(j,i),'f',decimal=6),j=1,3)
+    !    do j = 1, 3
+    !       write (uout,'("     Edge ",A,": ",3(A,2X))') string(j), (string(tvec(k,j,i),'f',decimal=6),k=1,3)
+    !    end do
+    !    write (uout,'("     Volume : ",A)') string(tvol(i),'f',decimal=6)
+    !    if (tvol(i) < vcutoff) then
+    !       write (uout,'(" (the volume of this tetrahedron is smaller than the vcutoff, will be skipped)")')
+    !    end if
+    !    write (uout,'(" Cartesian to convex matrix: ")')
+    !    write (uout,'(4X,3(A,2X))') (string(cmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
+    !    write (uout,'(4X,3(A,2X))') (string(cmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
+    !    write (uout,'(4X,3(A,2X))') (string(cmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
+    !    write (uout,'(" Convex to cartesian matrix: ")')
+    !    write (uout,'(4X,3(A,2X))') (string(dmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
+    !    write (uout,'(4X,3(A,2X))') (string(dmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
+    !    write (uout,'(4X,3(A,2X))') (string(dmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
+    !    write (uout,'("* Origin (cart.): ",3(A,2X))') (string(borig(j,i),'f',decimal=6),j=1,3)
+    !    do j = 1, 3
+    !       write (uout,'("* (v",A,"-v0) (cart./2**l): ",3(A,2X))') string(j), &
+    !          (string(bvec(k,j,i),'f',decimal=6,length=12,justify=4),k=1,3)
+    !    end do
+    !    write (uout,*)
+    ! end do
 
     if (ws_scale > 0d0) then
        vtotal = cr%omega / ws_scale**3 
     else
        vtotal = cr%omega 
     end if
-    write (uout,'("* Volume of the primitive unit cell: ",A)') string(cr%omega,'f',decimal=6)
-    write (uout,'("* Volume of the integration region: ",A)') string(vtotal,'f',decimal=6)
-    write (uout,'("* Shortest tetrahedron side: ",A)') string(minlen,'f',decimal=6)
-    write (uout,'("* Longest tetrahedron side (estimated): ",A)') string(maxlen,'f',decimal=6)
-    write (uout,'("* QTREE proj. distance to grid points: ",A)') &
+    write (uout,'("  Volume of the primitive unit cell: ",A)') string(cr%omega,'f',decimal=6)
+    write (uout,'("  Volume of the integration region: ",A)') string(vtotal,'f',decimal=6)
+    write (uout,'("  Shortest tetrahedron side: ",A)') string(minlen,'f',decimal=6)
+    write (uout,'("  Longest tetrahedron side (estimated): ",A)') string(maxlen,'f',decimal=6)
+    write (uout,'("  QTREE proj. distance to grid points: ",A)') &
        string(min(minlen / 2**maxl / qtreefac,0.1d0),'e',decimal=7)
-    write (uout,*)
 
     ! Check consistency of the symmetry
     call qtree_checksymmetry()
 
-    write (uout,'("* Calculating the tetrahedra contacts?: ",L)') docontacts
-    write (uout,'("* Assuming periodic cell?: ",L)') periodic
-    write (uout,*)
+    write (uout,'("  Calculating the tetrahedra contacts?: ",L)') docontacts
+    write (uout,'("  Assuming periodic cell?: ",L)') periodic
 
     ! contact info
     if (docontacts) then
-       write (uout,'("* CONTACTS of the tetrahedra faces")')
-       write (uout,'("* Permutations: ")')
-       write (uout,'("  1(123), 2(231), 3(312), 4(132), 5(321), 6(213)")')
+       ! write (uout,'("* CONTACTS of the tetrahedra faces")')
+       ! write (uout,'("* Permutations: ")')
+       ! write (uout,'("  1(123), 2(231), 3(312), 4(132), 5(321), 6(213)")')
        do i = 1, nt_orig
-          write (uout,'("* Tetrahedron: ", A)') string(i)
+          ! write (uout,'("* Tetrahedron: ", A)') string(i)
           do j = 1, 4
              al1 = 24 * leqv
              al2 = 6 * leqv
@@ -310,26 +315,25 @@ contains
              cid = idum / al4 + 1
              idum = idum - (cid-1)*al4
              opid = idum + 1
-             write (uout,'("*  Face ",A," contact: t=",A," f=",A," p=",A," cv=",A," op=",A," inv? ",L1)') &
-                string(j), string(tt), string(ff), string(pp), string(cid), string(opid), invop
+             ! write (uout,'("*  Face ",A," contact: t=",A," f=",A," p=",A," cv=",A," op=",A," inv? ",L1)') &
+             !    string(j), string(tt), string(ff), string(pp), string(cid), string(opid), invop
           end do
        end do
-       write (uout,*)
+       ! write (uout,*)
     end if
 
     ! max level output
-    write (uout,'("* Integrating to max. level: ",A)') string(maxl)
-    write (uout,'("* Tetrahedra pre-split level: ",A)') string(plvl)
-    write (uout,*)
+    write (uout,'("+ Integrating to max. level: ",A)') string(maxl)
+    write (uout,'("  Tetrahedra pre-split level: ",A)') string(plvl)
     ! allocate output
     nalloc = size(trm,2)
     siz = size(trm,1)
-    write (uout,'("* The COLOR_ALLOCATE flag is: ",A)') string(color_allocate)
-    write (uout,'("* Color vectors (trm):")')     
-    write (uout,'("  + Number allocated: ",A)') string(nalloc)
-    write (uout,'("  + Elements per vector: ",A)') string(siz)
-    write (uout,'("  + Integer kind of elements: ",A)') string(qtreei)
-    write (uout,*)
+    ! write (uout,'("* The COLOR_ALLOCATE flag is: ",A)') string(color_allocate)
+    ! write (uout,'("* Color vectors (trm):")')     
+    ! write (uout,'("  + Number allocated: ",A)') string(nalloc)
+    ! write (uout,'("  + Elements per vector: ",A)') string(siz)
+    ! write (uout,'("  + Integer kind of elements: ",A)') string(qtreei)
+    ! write (uout,*)
     memsum = nalloc * siz * qtreei
 
     ralloc = 0
@@ -342,29 +346,29 @@ contains
     else if (allocated(vgr)) then
        siz = size(vgr)
     end if
-    write (uout,'("* F vector in memory?: ",L)') savefgr
-    write (uout,'("* DEL2F vector in memory?: ",L)') savelapgr
-    write (uout,'("* CORNER VOLUME vector in memory?: ",L)') allocated(vgr)
-    write (uout,'("* Real vectors (fgr, lapgr, vgr): ")')     
-    write (uout,'("  + Number allocated: ",A)') string(ralloc)
-    write (uout,'("  + Elements per vector: ",A)') string(siz)
-    write (uout,'("  + Real kind of elements: ",A)') string(qtreer)
-    write (uout,*)
+    ! write (uout,'("* F vector in memory?: ",L)') savefgr
+    ! write (uout,'("* DEL2F vector in memory?: ",L)') savelapgr
+    ! write (uout,'("* CORNER VOLUME vector in memory?: ",L)') allocated(vgr)
+    ! write (uout,'("* Real vectors (fgr, lapgr, vgr): ")')     
+    ! write (uout,'("  + Number allocated: ",A)') string(ralloc)
+    ! write (uout,'("  + Elements per vector: ",A)') string(siz)
+    ! write (uout,'("  + Real kind of elements: ",A)') string(qtreer)
+    ! write (uout,*)
     memsum = memsum + ralloc * siz * qtreer
 
-    write (uout,'("* Estimated memory requirement : ",A," MB")') string(memsum / 1024**2,'f',decimal=2)
-    write (uout,*)
+    ! write (uout,'("* Estimated memory requirement : ",A," MB")') string(memsum / 1024**2,'f',decimal=2)
+    ! write (uout,*)
 
     !!!!! THE TETRAHEDRA INTEGRATION STARTS HERE !!!!!
 
     ! Integrate the sphere properties
-    write (uout,'("* BETA sphere integration")')
+    ! write (uout,'("* BETA sphere integration")')
     sphereprop = 0d0
     do i = 1, nnuc
        xx = cr%x2c(cp(i)%x)
 
        sphereprop(i,:) = 0d0
-       if (all(integ_mode(minl+1:maxl) /= 0) .and. qtree_active(i) .and. r_betaint(i) > eps) then
+       if (all(integ_mode(minl+1:maxl) /= 0) .and. r_betaint(i) > eps) then
           if (INT_spherequad_type == INT_gauleg) then
              call sphereintegrals_gauleg(xx,r_betaint(i), &
                 INT_spherequad_ntheta,INT_spherequad_nphi,sphereprop(i,:),&
@@ -374,38 +378,39 @@ contains
                 INT_spherequad_nleb,sphereprop(i,:),abserr,neval,meaneval)
           end if
        end if
-       write (uout,'(" Non-equivalent ncp: ",A)') string(i)
-       write (uout,'(" NCP at: ",3(A,2X))') (string(cp(i)%x(j),'f',decimal=6),j=1,3)
-       write (uout,'(" Sphere factor : ",A)') string(sphfactor(i),'f',decimal=6)
-       write (uout,'(" Beta-sphere radius for gradpaths : ",A)') string(r_betagp(i),'f',decimal=6)
-       write (uout,'(" Beta-sphere radius for integrations : ",A)') string(r_betaint(i),'f',decimal=6)
-       write (uout,'(" Checking beta-sphere in basin?: ",L)') checkbeta
-       if (all(integ_mode(minl+1:maxl) /= 0) .and. qtree_active(i) .and. r_betaint(i) > eps) then
-          write (uout,'(" Integrated radial error (",A,"): ",A)') string(pname), string(abserr,'e',decimal=6)
-          if (abserr > 1d-1 .and. INT_radquad_errprop == 2) then
-             write (uout,'(/"! The adaptive radial integration error is too large.")')
-             write (uout,'("! This is usually caused by: i) discontinuities in the rmt, and ")')
-             write (uout,'("! ii) beta-spheres that are too large and include part of the interstitial  ")')
-             write (uout,'("! To avoid this problem, decrease beta-sphere size with sphfactor."/)')
-             call ferror('qtree_integration','Radial integration error is too large',warning)
-          end if
-          write (uout,'(" Number of evaluations: ",A)') string(neval)
-          write (uout,'(" Avg. evaluations per ray: ",A)') string(meaneval)
-          write (uout,'("id    property    Integral (sph.)")')
-          write (uout,'(35("-"))')
-          do j = 1, Nprops
-             write (uout,'(99(A,X))') string(j,length=3,justify=ioj_left),&
-                string(integ_prop(j)%prop_name,length=10,justify=ioj_center),&
-                string(sphereprop(i,j),'e',decimal=10,length=18,justify=6)
-          end do
-       end if
-       write (uout,*)
+       write (uout,'("+ Integrating the beta-sphere for ncp: ",A)') string(i)
+       ! write (uout,'(" Non-equivalent ncp: ",A)') string(i)
+       ! write (uout,'(" NCP at: ",3(A,2X))') (string(cp(i)%x(j),'f',decimal=6),j=1,3)
+       ! write (uout,'(" Sphere factor : ",A)') string(sphfactor(i),'f',decimal=6)
+       ! write (uout,'(" Beta-sphere radius for gradpaths : ",A)') string(r_betagp(i),'f',decimal=6)
+       ! write (uout,'(" Beta-sphere radius for integrations : ",A)') string(r_betaint(i),'f',decimal=6)
+       ! write (uout,'(" Checking beta-sphere in basin?: ",L)') checkbeta
+       ! if (all(integ_mode(minl+1:maxl) /= 0) .and. qtree_active(i) .and. r_betaint(i) > eps) then
+       !    write (uout,'(" Integrated radial error (",A,"): ",A)') string(pname), string(abserr,'e',decimal=6)
+       !    if (abserr > 1d-1 .and. INT_radquad_errprop == 2) then
+       !       write (uout,'(/"! The adaptive radial integration error is too large.")')
+       !       write (uout,'("! This is usually caused by: i) discontinuities in the rmt, and ")')
+       !       write (uout,'("! ii) beta-spheres that are too large and include part of the interstitial  ")')
+       !       write (uout,'("! To avoid this problem, decrease beta-sphere size with sphfactor."/)')
+       !       call ferror('qtree_integration','Radial integration error is too large',warning)
+       !    end if
+       !    write (uout,'(" Number of evaluations: ",A)') string(neval)
+       !    write (uout,'(" Avg. evaluations per ray: ",A)') string(meaneval)
+       !    write (uout,'("id    property    Integral (sph.)")')
+       !    write (uout,'(35("-"))')
+       !    do j = 1, Nprops
+       !       write (uout,'(99(A,X))') string(j,length=3,justify=ioj_left),&
+       !          string(integ_prop(j)%prop_name,length=10,justify=ioj_center),&
+       !          string(sphereprop(i,j),'e',decimal=10,length=18,justify=6)
+       !    end do
+       ! end if
+       ! write (uout,*)
     end do
 
     ! mark the grid point inside the beta-spheres, if
     ! all the color arrays have been allocated
     if (color_allocate == 1) then
-       write (uout,'("* Marking inside-spheres grid points")')
+       write (uout,'("+ Marking inside-spheres grid points")')
        write (uout,*)
        do tt = 1, nt_orig
           call paint_inside_spheres(tt,tt,trm)
@@ -704,100 +709,31 @@ contains
        end if
     end if
 
-    ! scale integrals, sum spheres and output properties
-    psum = 0d0
-    ssum = 0d0
+    ! scale integrals and sum spheres 
     do i = 1, nnuc
        atprop(i,:) = atprop(i,:) * leqvf / cp(i)%mult
        atprop(i,2:Nprops) = atprop(i,2:Nprops) + sphereprop(i,2:Nprops)
-       if (qtree_active(i)) then
-          call ppty_output(i,atprop(i,:),maskprop)
-          psum = psum + atprop(i,:) * cp(i)%mult
-          ssum = ssum + sphereprop(i,:) * cp(i)%mult
-       end if
     end do
-    do i = nnuc+1, nnuc+3
-       atprop(i,:) = atprop(i,:) * leqvf 
-    end do
-    psum = psum + atprop(nnuc+2,:)
 
-    ! charge and volume
-    write (uout,'("* Charge and volume summary")')
-    write (uout,'(" atom   name      Z  mult    Volume(a.u.)        Num. elec.           Charge ")')
-
-    auxs = 0d0
+    ! output the results
+    allocate(icp(nnuc),xattr(3,nnuc),outprop(nprops,nnuc))
+    k = 0
     do i = 1, nnuc
-       iaux = 0
-       if (i <= cr%nneq) then
-          if (cr%at(i)%zpsp > 0) then
-             iaux = cr%at(i)%zpsp
-          else
-             iaux = cr%at(i)%z
+       k = k + 1
+       outprop(:,k) = atprop(i,:)
+       do j = 1, ncpcel
+          if (cpcel(j)%idx == i) then
+             icp(k) = j
+             xattr(:,k) = cp(j)%x
+             exit
           end if
-       end if
-       write (uout,'(99(A,X))') &
-          string(i,length=4,justify=ioj_left), &
-          string(cp(i)%name,length=10,justify=ioj_center),&
-          string(iaux,length=4,justify=ioj_right), &
-          string(cp(i)%mult,length=3,justify=ioj_right), &
-          string(atprop(i,1),'f',decimal=10,length=18,justify=6), &
-          string(atprop(i,2),'f',decimal=10,length=18,justify=6), &
-          string(real(iaux,8)-atprop(i,2),'f',decimal=10,length=18,justify=6)
-       auxs = auxs + cp(i)%mult * (real(iaux,8) - atprop(i,2))
+       end do
     end do
-    write (uout,'(81("-"))')
-    write (uout,'(" Inactive ",15X,3(A,X))') &
-       string(atprop(nnuc+2,1),'f',decimal=10,length=18,justify=6),&
-       string(atprop(nnuc+2,2),'f',decimal=10,length=18,justify=6),&
-       string(-atprop(nnuc+2,2),'f',decimal=10,length=18,justify=6)
-    auxs = auxs - atprop(nnuc+2,2)
-    write (uout,'(" Total    ",15X,3(A,X))') &
-       string(psum(1),'f',decimal=10,length=18,justify=6),&
-       string(psum(2),'f',decimal=10,length=18,justify=6),&
-       string(auxs,'f',decimal=10,length=18,justify=6)
-
-    ! error contributions and grand total
-    write (uout,'(81("-"))')
-    write (uout,'(" Grid points on CPs ",5X,3(A,X))') &
-       string(atprop(nnuc+1,1),'f',decimal=10,length=18,justify=6),&
-       string(atprop(nnuc+1,2),'f',decimal=10,length=18,justify=6),&
-       string(-atprop(nnuc+1,2),'f',decimal=10,length=18,justify=6)
-    write (uout,'(" Error/unknown ",10X,3(A,X))') &
-       string(atprop(nnuc+3,1),'f',decimal=10,length=18,justify=6),&
-       string(atprop(nnuc+3,2),'f',decimal=10,length=18,justify=6),&
-       string(-atprop(nnuc+3,2),'f',decimal=10,length=18,justify=6)
-    write (uout,'(" Grand total",13x,3(A,X))') &
-       string(psum(1)+atprop(nnuc+1,1)+atprop(nnuc+3,1),'f',decimal=10,length=18,justify=6),&
-       string(psum(2)+atprop(nnuc+1,2)+atprop(nnuc+3,2),'f',decimal=10,length=18,justify=6),&
-       string(auxs-atprop(nnuc+1,2)-atprop(nnuc+3,2),'f',decimal=10,length=18,justify=6)
-    write (uout,*)
-
-    ! cell properties
-    call ppty_output(0,psum,maskprop)
-    if (.not.periodic) then
-       write (uout,'("* Volume of the primitive unit cell: ",A)') string(cr%omega,'f',decimal=10,length=18,justify=6)
-       write (uout,'("* Total volume of the integration region: ",A)') string(vtotal,'f',decimal=10,length=18,justify=6)
-       write (uout,'("* Integrated atomic volume: ",A/)') string(psum(1),'f',decimal=10,length=18,justify=6)
-    end if
-
-    ! gradients, grd and locate_tetrah calls
-    write (uout,'("* Points per tetrah: ",A)') string(siz)
-    write (uout,'("* Ncalls(term): ",A)') string(nterm)
-    write (uout,'("* Ncalls(grd_term): ",A)') string(ngrd_term)
-    write (uout,'("* Ncalls(grd_int): ",A)') string(ngrd_int)
-    write (uout,'("* Ncalls(locate_tetrah): ",A)') string(nlocate)
-    write (uout,'("* Ncalls(locate_tetrah,sloppy): ",A)') string(nlocate_sloppy)
-    if (nlocate_sloppy > 0) then
-       write (uout,'("* crys2convex had problems locating points inside the IWS")') 
-       write (uout,'("  This is usually caused by almost-degenerate tetrahedra that were")') 
-       write (uout,'("  removed from the IWS description to avoid problems.")') 
-       call ferror('qtree','Sloppy use of crys2convex.',warning)
-    end if
-    if (.not.quiet) call tictac("End QTREE")
-    write (uout,'("* End of QTREE integration")')
-    write (uout,*)
+    call int_output(maskprop,reason,nnuc,icp(1:nnuc),xattr(:,1:nnuc),outprop(:,1:nnuc),.true.)
+    deallocate(icp,xattr,outprop)
 
     ! clean up
+    if (.not.quiet) call tictac("End QTREE")
     call qtree_cleanup()
     if (allocated(trm)) deallocate(trm)
     if (allocated(fgr)) deallocate(fgr)
