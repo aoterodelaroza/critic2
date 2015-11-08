@@ -134,7 +134,7 @@ contains
 
     logical :: ok
     character(len=:), allocatable :: line, word
-    real*8 :: x0(3), xmin(3), xmax(3)
+    real*8 :: x0(3), xmin(3), xmax(3), x0out(3)
     real*8, allocatable :: pointlist(:,:)
     logical, allocatable :: isrec(:)
     integer :: i, j, n, lu, nat, idx
@@ -149,7 +149,15 @@ contains
     real*8, parameter :: eps = 1d-4
 
     ! parse the first word
-    ldunit = unit_x
+    if (cr%ismolecule) then
+       if (iunit == iunit_bohr) then
+          ldunit = unit_au
+       elseif (iunit == iunit_ang) then
+          ldunit = unit_ang
+       end if
+    else
+       ldunit = unit_x
+    endif
     word = lgetword(line0,lp)
     if (equal(word,'angstrom') .or.equal(word,'ang')) then
        ldunit = unit_ang
@@ -197,9 +205,9 @@ contains
           endif
 
           if (unit == unit_ang) then
-             x0 = cr%c2x(x0 / bohrtoa)
+             x0 = cr%c2x(x0 / bohrtoa - cr%molx0)
           elseif (unit == unit_au) then
-             x0 = cr%c2x(x0)
+             x0 = cr%c2x(x0 - cr%molx0)
           endif
           n = n + 1
           if (n > size(pointlist,2)) then
@@ -215,14 +223,14 @@ contains
           read(lu,*) 
           do i = 1, nat
              read(lu,*) word, x0
-             x0 = cr%c2x(x0 / bohrtoa)
+             x0 = cr%c2x(x0 / bohrtoa - cr%molx0)
              n = n + 1
              if (n > size(pointlist,2)) then
                 call realloc(pointlist,3,2*n)
                 call realloc(isrec,2*n)
              end if
              pointlist(:,n) = x0
-             isrec(n) = (unit == unit_rec)
+             isrec(n) = (ldunit == unit_rec)
           end do
           call fclose(lu)
        endif
@@ -245,8 +253,13 @@ contains
     xmax = -1d40
     found = .false.
     ! identify the atoms
-    write(uout,'("* IDENTIFY: match input coordinates to atoms or CPs in the crystal")')
-    write(uout,'("# (x,y,z) is the position in crystallographic coordinates ")')
+    write(uout,'("* IDENTIFY: match input coordinates to atoms or CPs in the structure")')
+    if (.not.cr%ismolecule) then
+       write(uout,'("# (x,y,z) is the position in crystallographic coordinates ")')
+    else
+       write(uout,'("# (x,y,z) is the position in Cartesian coordinates (",A,")")') &
+          iunitname0(iunit)
+    end if
     write(uout,'("# Sym is the atomic symbol/CP identifier (n=ncp,b=bcp,r=rcp,c=ccp) ")')
     write(uout,'("# N-neq is the index for the atom/CP in the non-equivalent list ")')
     write(uout,'("# Cel is the index for the atom/CP in the unit cell list ")')
@@ -254,12 +267,14 @@ contains
 
     do i = 1, n
        x0 = pointlist(:,i)
+       x0out = x0
        if (.not.isrec(i)) then
+          if (cr%ismolecule) x0out = (cr%x2c(x0)+cr%molx0) * dunit
           idx = identify_cp(x0,eps)
           mm = cr%get_mult(x0)
           if (idx > 0) then
              write (uout,'(99(A,X))') string(i,length=3,justify=ioj_left), &
-                (string(x0(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
                 string(mm,length=3,justify=ioj_center), &
                 string(cpcel(idx)%name,length=5,justify=ioj_center), &
                 string(cpcel(idx)%idx,length=4,justify=ioj_center), &
@@ -271,14 +286,14 @@ contains
              end do
           else
              write (uout,'(99(A,X))') string(i,length=3,justify=ioj_left), &
-                (string(x0(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
                 string(mm,length=3,justify=ioj_center), &
                 string(" --- not found --- ")
           endif
        else
           mm = cr%get_mult_reciprocal(x0)
           write (uout,'(99(A,X))') string(i,length=3,justify=ioj_left), &
-             (string(x0(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+             (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
              string(mm,length=3,justify=ioj_center), &
              string(" --- not found --- ")
        endif
@@ -286,18 +301,26 @@ contains
     deallocate(pointlist,isrec)
 
     if (found) then
-       write(uout,'("#")')
-       write(uout,'("+ Cube, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
-       write(uout,'("+ Cube, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
-       xmin = cr%c2x(cr%x2c(xmin) - 2)
-       xmax = cr%c2x(cr%x2c(xmax) + 2)
-       write(uout,'("+ Cube + 2 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
-       write(uout,'("+ Cube + 2 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
-       xmin = cr%c2x(cr%x2c(xmin) - 3)
-       xmax = cr%c2x(cr%x2c(xmax) + 3)
-       write(uout,'("+ Cube + 5 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
-       write(uout,'("+ Cube + 5 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
-       write(uout,*)
+       if (.not.cr%ismolecule) then
+          write(uout,'("#")')
+          write(uout,'("+ Cube, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          xmin = cr%c2x(cr%x2c(xmin) - 2)
+          xmax = cr%c2x(cr%x2c(xmax) + 2)
+          write(uout,'("+ Cube + 2 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 2 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          xmin = cr%c2x(cr%x2c(xmin) - 3)
+          xmax = cr%c2x(cr%x2c(xmax) + 3)
+          write(uout,'("+ Cube + 5 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 5 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          write(uout,*)
+       else
+          xmin = cr%x2c(xmin)+cr%molx0
+          xmax = cr%x2c(xmax)+cr%molx0
+          write(uout,'("+ Cube, x0 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmin(j)*dunit,'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmax(j)*dunit,'f',decimal=8),j=1,3)
+          write(uout,*)
+       end if
     end if
 
   end subroutine varbas_identify

@@ -545,6 +545,9 @@ contains
     character(len=:), allocatable :: root, word
     logical :: ok
 
+    if (c%ismolecule) &
+       call ferror("struct_powder","POWDER can not be used with molecules",faterr)
+
     ! default values
     th2ini = 5d0 
     th2end = 90d0 
@@ -685,6 +688,8 @@ contains
           if (equal(word,".")) then
              if (.not.cr%isinit) &
                 call ferror('struct_compare','Current structure is not initialized. Use CRYSTAL before COMPARE.',faterr)
+             if (cr%ismolecule) &
+                call ferror('struct_compare','Current structure is a molecule.',faterr)
              write (uout,'("  Crystal ",A,": <current>")') string(ns,2)
              c(ns) = cr
           else
@@ -761,7 +766,7 @@ contains
 
     integer :: lp
     integer :: nn, i, j, k, l
-    real*8 :: x0(3)
+    real*8 :: x0(3), xout(3), x0in(3)
     logical :: doatoms, ok
     character(len=:), allocatable :: word
     integer, allocatable :: nneig(:), wat(:)
@@ -784,6 +789,9 @@ contains
           ok = ok .and. eval_next(x0(3),line,lp)
           if (.not.ok) call ferror('struct_environ','Wrong POINT syntax',faterr,line)
           doatoms = .false.
+          x0in = x0
+          if (cr%ismolecule) &
+             x0 = cr%c2x(x0 / dunit - cr%molx0)
        elseif (len_trim(word) > 0) then
           call ferror('struct_environ','Unknown extra keyword',faterr,line)
        else
@@ -795,19 +803,27 @@ contains
     allocate(nneig(nn),wat(nn),dist(nn))
     if (doatoms) then
        write (uout,'("+ Atomic environments")')
-       write (uout,'("     Atom     neig       d (a.u.)    nneq  type        position (cryst. coords)")')
+       if (.not.cr%ismolecule) then
+          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
+             iunitname0(iunit)
+       else
+          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
+             iunitname0(iunit), iunitname0(iunit)
+       end if
        do i = 1, cr%nneq
           call cr%pointshell(cr%at(i)%x,nn,nneig,wat,dist,xenv)
           do j = 1, nn
+             xout = xenv(:,1,j)
+             if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
              if (j == 1) then
                 write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                   i, cr%at(i)%name, nneig(j), dist(j), wat(j), &
-                   cr%at(wat(j))%name, (string(xenv(k,1,j),'f',12,7,ioj_right),k=1,3)
+                   i, cr%at(i)%name, nneig(j), dist(j)*dunit, wat(j), &
+                   cr%at(wat(j))%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
              else
                 if (wat(j) /= 0) then
                    write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                      nneig(j), dist(j), wat(j), cr%at(wat(j))%name,&
-                      (string(xenv(k,1,j),'f',12,7,ioj_right),k=1,3)
+                      nneig(j), dist(j)*dunit, wat(j), cr%at(wat(j))%name,&
+                      (string(xout(k),'f',12,7,ioj_right),k=1,3)
                 end if
              end if
           end do
@@ -817,28 +833,39 @@ contains
        call cr%pointshell(x0,nn,nneig,wat,dist,xenv)
        ! List of atomic environments
        write (uout,'("+ Atomic environments of (",A,",",A,",",A,")")') &
-          string(x0(1),'f'), string(x0(2),'f'), string(x0(3),'f')
-       write (uout,'("     Atom     neig       d (a.u.)    nneq  type        position (cryst. coords)")')
+          string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
+       if (.not.cr%ismolecule) then
+          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
+             iunitname0(iunit)
+       else
+          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
+             iunitname0(iunit), iunitname0(iunit)
+       end if
        do j = 1, nn
+          xout = xenv(:,1,j)
+          if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
           if (wat(j) /= 0) then
              write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                nneig(j), dist(j), wat(j), cr%at(wat(j))%name, &
-                (string(xenv(k,1,j),'f',12,7,ioj_right),k=1,3)
+                nneig(j), dist(j)*dunit, wat(j), cr%at(wat(j))%name, &
+                (string(xout(k),'f',12,7,ioj_right),k=1,3)
           end if
        end do
        write (uout,*)
 
        ! Detailed list of neighbors
        write (uout,'("+ Neighbors of (",A,",",A,",",A,")")') &
-          string(x0(1),'f'), string(x0(2),'f'), string(x0(3),'f')
-       write (uout,'(" Atom Id           position (cryst. coords)      Distance (bohr)")')
+          string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
+       write (uout,'(" Atom Id           position (cryst. coords)      Distance (",A,")")') &
+          iunitname0(iunit)
        do j = 1, nn
           if (wat(j) == 0) cycle
           do k = 1, nneig(j)
+             xout = xenv(:,k,j)
+             if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
              write (uout,'(6(A,X))') &
                 string(cr%at(wat(j))%name,5,ioj_center), string(wat(j),2),&
-                (string(xenv(l,k,j),'f',12,7,ioj_right),l=1,3),&
-                string(dist(j),'f',12,5,ioj_right)
+                (string(xout(l),'f',12,7,ioj_right),l=1,3),&
+                string(dist(j)*dunit,'f',12,5,ioj_right)
           end do
        end do
        write (uout,*)
@@ -864,6 +891,9 @@ contains
     integer :: lvec(3)
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
+
+    if (cr%ismolecule) &
+       call ferror("critic2","PACKING can not be used with molecules",faterr)
 
     ! default values    
     dovdw = .false.
@@ -950,6 +980,9 @@ contains
     integer :: lp
     real*8 :: x0(3,3)
     logical :: doinv
+
+    if (cr%ismolecule) &
+       call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr)
 
     ! read the vectors from the input
     lp = 1

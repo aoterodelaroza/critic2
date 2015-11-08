@@ -53,6 +53,9 @@ contains
     real*8, allocatable :: ff(:,:), fl(:)
     character*1, parameter :: laxis(3) = (/"a","b","c"/)
 
+    if (cr%ismolecule) &
+       call ferror("stm_driver","STM can not be used with molecules",faterr)
+
     ! header
     write (uout,'("* Scanning tunneling microscopy plots ")')
 

@@ -331,6 +331,9 @@ program critic
      elseif (equal (word,'ewald')) then
         if (.not. cr%isinit) call ferror('critic2','need crystal before ewald',faterr,line)
         call check_no_extra_word()
+        if (cr%ismolecule) &
+           call ferror("critic2","EWALD can not be used with molecules",faterr)
+
         call ewald_energy(rdum)
         write (uout,'("* Ewald electrostatic energy (Hartree) = ",A/)') &
            string(rdum,'e',decimal=12)
@@ -339,6 +342,9 @@ program critic
      elseif (equal (word,'ws')) then
         if (.not. cr%isinit) call ferror('critic2','need crystal before ws',faterr,line)
         call check_no_extra_word()
+        if (cr%ismolecule) &
+           call ferror("critic2","WS can not be used with molecules",faterr)
+
         call cr%wigner((/0d0,0d0,0d0/),.true.)
 
      ! environ
