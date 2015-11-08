@@ -1296,7 +1296,7 @@ contains
 
     cpid = 0
     nr = 100
-    r0 = 1d-3
+    r0 = 1d-3 / dunit
     rend = -1d0
     do while (.true.)
        word = lgetword(line,lp)
@@ -1308,10 +1308,12 @@ contains
           ok= eval_next (r0,line,lp)
           if (.not. ok) &
              call ferror('sphereintegrals','sphereintegrals: bad R0',faterr,line)
+          r0 = r0 / dunit
        else if (equal(word,'rend')) then
           ok= eval_next (rend,line,lp)
           if (.not. ok) &
              call ferror('sphereintegrals','sphereintegrals: bad REND',faterr,line)
+          rend = rend / dunit
        else if (equal(word,'cp')) then
           ok= eval_next (cpid,line,lp)
           if (.not. ok) &
@@ -1362,6 +1364,7 @@ contains
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
     end if
     write (uout,'("  Error applies to ppty: ",a)') trim(pname)
+    write (uout,*)
     !
     if (INT_radquad_type == INT_qags .or. &
        INT_radquad_type == INT_qags .or. &
@@ -1406,17 +1409,20 @@ contains
 
        write (uout,'("+ Non-equivalent CP : ",A)') string(i)
        write (uout,'("  CP at: ",3(A,X))') (string(cp(i)%x(j),'e',decimal=4),j=1,3)
-       write (uout,'("  Initial radius (r0): ",A)') string(r0,'e',decimal=6)
+       write (uout,'("  Initial radius (r0,",A,"): ",A)') iunitname0(iunit), &
+          string(r0,'e',decimal=6)
        if (rend < 0d0) then
-          write (uout,'("  Final radius (rend): ",A)') string(cr%at(i)%rnn2 * abs(rend),'e',decimal=6)
+          write (uout,'("  Final radius (rend,",A,"): ",A)') iunitname0(iunit), &
+             string(cr%at(i)%rnn2 * abs(rend),'e',decimal=6)
        else
-          write (uout,'("  Final radius (rend): ",A)') string(rend,'e',decimal=6)
+          write (uout,'("  Final radius (rend,",A,"): ",A)') iunitname0(iunit), string(rend,'e',decimal=6)
        end if
        write (uout,'("  Logarithmic step h ( r = r0*exp(h*(n-1)) ): ",A)') string(h,'e',decimal=6)
        write (uout,'("  Radial points: ",A)') string(nr)
 
 
-       write (uout,'("#  r (bohr)   Eval/ray   Int. r_err       Volume          Charge          Lap        ")')
+       write (uout,'("#  r (",A,")   Eval/ray   Int. r_err       Volume          Charge          Lap        ")') &
+          iunitname0(iunit)
        do n = 1, nr
           if (nr == 1) then
              if (rend < 0d0) then
@@ -1435,6 +1441,7 @@ contains
              call ferror('sphereintegrals','unknown method',faterr)
           end if
 
+          r = r * dunit
           write (uout,'(2X,99(A,2X))') &
              string(r,'e',decimal=6,length=12,justify=4),&
              string(meaneval,length=6,justify=ioj_right),&

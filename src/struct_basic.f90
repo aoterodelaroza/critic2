@@ -453,7 +453,7 @@ contains
     do i = 1, nat
        word = ""
        read(lu,*) word, x0
-       x0 = x0 / bohrtoa
+       x0 = x0 / bohrtoa - c%molx0
        id = c%identify_atom(x0,.true.)
        fr%at(i)%r = x0 
        fr%at(i)%x = c%c2x(x0)

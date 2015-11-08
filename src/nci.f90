@@ -156,10 +156,6 @@ contains
     domolmotif = .false.
     usecore = f(refden)%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)
 
-    ! header
-    write (uout,'("* NCIPLOT: non-covalent interactions")')
-    if (.not.quiet) call tictac("start nciplot")
-
     do while(.true.)
        ok = getline(uin,line,.true.,ucopy)
        lp = 1
@@ -196,6 +192,7 @@ contains
           ok = eval_next(rthres,line,lp)
           if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
           call check_no_extra_word(line,lp,'nciplot')
+          rthres = rthres / dunit
        elseif (equal(word,'increments')) then
           istep = 0
           ok = eval_next(xinc(1),line,lp)
@@ -203,6 +200,7 @@ contains
           ok = ok .and. eval_next(xinc(3),line,lp)
           if (.not.ok) call ferror('nciplot','wrong increments keyword',faterr,line)
           call check_no_extra_word(line,lp,'nciplot')
+          xinc = xinc / dunit
        elseif (equal(word,'nstep')) then
           istep = 1
           ok = eval_next(nstep(1),line,lp)
@@ -227,8 +225,13 @@ contains
              ok = ok .and. eval_next(x1(2),line,lp)
              ok = ok .and. eval_next(x1(3),line,lp)
              call check_no_extra_word(line,lp,'nciplot')
-             x0 = cr%x2c(x0)
-             x1 = cr%x2c(x1)
+             if (.not.cr%ismolecule) then
+                x0 = cr%x2c(x0)
+                x1 = cr%x2c(x1)
+             else
+                x0 = x0 / dunit - cr%molx0
+                x1 = x1 / dunit - cr%molx0
+             endif
              ithres = 0
           else
              x0 = 1d30
@@ -270,6 +273,10 @@ contains
        end if
     end do
     if (nfrag > 0) call realloc(fr,nfrag)
+
+    ! header
+    write (uout,'("* NCIPLOT: non-covalent interactions")')
+    if (.not.quiet) call tictac("start nciplot")
 
     ! redefine the cube using the fragments
     if (findlimits == 1) then
@@ -334,21 +341,21 @@ contains
 
     ! do stuff
     write(uout,'("+ File root: ",A)') trim(oname)
-    write(uout,'("+ Density cube file: ",A)') trim(oname) // "-dens.cube"
-    write(uout,'("+ RDG cube file: ",A)') trim(oname) // "-grad.cube"
+    write(uout,'("  Density cube file: ",A)') trim(oname) // "-dens.cube"
+    write(uout,'("  RDG cube file: ",A)') trim(oname) // "-grad.cube"
     if (dopromol) then
-       write(uout,'("+ Promolecular density cube file: ",A)') trim(oname) // "-pdens.cube"
+       write(uout,'("  Promolecular density cube file: ",A)') trim(oname) // "-pdens.cube"
     end if
-    write(uout,'("+ RDG vs. density file: ",A)') trim(oname) // ".dat"
-    write(uout,'("+ VMD visualization script: ",A)') trim(oname) // ".vmd"
+    write(uout,'("  RDG vs. density file: ",A)') trim(oname) // ".dat"
+    write(uout,'("  VMD visualization script: ",A)') trim(oname) // ".vmd"
     write(uout,'("+ Density cutoff (for dat file): ",A)') string(rhocut,'f',decimal=6)
-    write(uout,'("+ RDG cutoff (for dat file): ",A)') string(dimcut,'f',decimal=6)
-    write(uout,'("+ Density plot cutoff: ",A)') string(rhoplot,'f',decimal=6)
-    write(uout,'("+ RDG plot cutoff: ",A)') string(dimplot,'f',decimal=6)
+    write(uout,'("  RDG cutoff (for dat file): ",A)') string(dimcut,'f',decimal=6)
+    write(uout,'("  Density plot cutoff: ",A)') string(rhoplot,'f',decimal=6)
+    write(uout,'("  RDG plot cutoff: ",A)') string(dimplot,'f',decimal=6)
     write(uout,'("+ Cube origin (crystal coord.): ",3(A,X))') (string(x0x(j),'f',decimal=6),j=1,3)
-    write(uout,'("+ Cube end (crystal coord.): ",3(A,X))') (string(x1x(j),'f',decimal=6),j=1,3)
-    write(uout,'("+ Cube nodes in each direction: ",3(A,X))') (string(nstep(j)),j=1,3)
-    write(uout,'("+ Cube steps in each direction: ",3(A,X))') (string(xinc(j),'f',decimal=6),j=1,3)
+    write(uout,'("  Cube end (crystal coord.): ",3(A,X))') (string(x1x(j),'f',decimal=6),j=1,3)
+    write(uout,'("  Cube nodes in each direction: ",3(A,X))') (string(nstep(j)),j=1,3)
+    write(uout,'("  Cube steps in each direction: ",3(A,X))') (string(xinc(j),'f',decimal=6),j=1,3)
     write(uout,*)
     
     ! allocate logical units and open files
@@ -833,7 +840,7 @@ contains
           ok = ok .and. eval_next(x(2),line,lp)
           ok = ok .and. eval_next(x(3),line,lp)
           if (.not.ok) call ferror('nciplot','bad atom in fragment',faterr)
-          x = x / bohrtoa
+          x = x / bohrtoa - cr%molx0
           id = cr%identify_atom(x,.true.)
           fr%at(fr%nat)%r = x
           fr%at(fr%nat)%x = cr%c2x(x)

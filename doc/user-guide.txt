@@ -3948,15 +3948,16 @@ Integrates the volume, field and Laplacian in successive spheres
 centered around each of the attractor CPs. The same considerations
 for GAULEG and LEBEDEV as in the keyword above apply.
 
-A total number of npts.i spheres are integrated per nucleus. The
-grid is logarithmic, so that the region near the nucleus has a
-higher population of points. The grid starts at the radius r0.r and
-ends at rend.r . If rend.r < 0 then the final radius is taken as
-half the nearest neighbor distance for each atom times abs(rend.r).
+A total number of npts.i spheres are integrated per nucleus. The grid
+is logarithmic, so that the region near the nucleus has a higher
+population of points. The grid starts at the radius r0.r and ends at
+rend.r (bohr in crystals, angstrom in molecules). If rend.r < 0 then
+the final radius is taken as half the nearest neighbor distance for
+each atom times abs(rend.r).
 
 Default: npts.i = 100. In GAULEG, ntheta.i = 20 and nphi.i = 20. In
-LEBEDEV, nquad.i = 770. r0 = 1d-3. rend = rnn/2 for each CP. id.i =
-0 (all attractors).
+LEBEDEV, nquad.i = 770. r0 = 1d-3 bohr. rend = rnn/2 for each CP. id.i
+= 0 (all attractors).
 
 Qtree (QTREE)
 ~~~~~~~~~~~~~
@@ -4738,7 +4739,7 @@ Yu and Trinkle (YT)
 
 ::
 
-  YT [NNM] [NOATOMS] [ESCHER] [RATOM ratom.r] [FIELDLIST]
+  YT [NNM] [NOATOMS] [RATOM ratom.r]
 
 The Yu-Trinkle (YT) algorithm uses the reference field to calculate
 the attraction basins. The reference field must be defined on a
@@ -4760,17 +4761,18 @@ reference if you use this keyword in your work.
 The located maxima are identified by default with the closest
 nucleus. If non-nuclear maxima are expected, use the NNM keyword to
 assign only maxima that are only within 1 bohr of the closest atom.
-This distance can be changed using the RATOM keyword (ratom.r in
-bohr). The NOATOMS option is appropriate for scalar fields where the
-maxima are not expected to be at the atomic positions (or at least not
-all of them). If NOATOMS is used, all the maxima found are given as
-NNM. This is useful for fields such as the ELF, the Laplacian,...
+This distance can be changed using the RATOM keyword (ratom.r in bohr
+(crystals) or angstrom (molecules)). The NOATOMS option is appropriate
+for scalar fields where the maxima are not expected to be at the
+atomic positions (or at least not all of them). If NOATOMS is used,
+all the maxima found are given as NNM. This is useful for fields such
+as the ELF, the Laplacian,...
 
-With the ESCHER keyword, it is possible to write a .m octave script
-containing the geometry that can be interpreted by escher (run by the
-escherplot.m file in the src/ subdirectory). With FIELDLIST, critic2
-writes a list of all the maxima found and the value of all integrable
-fields at those points.
+Any maxima that is not assigned to an existing atom or non-nuclear
+critical point is automatically added to the critical point list, see
+`Finding critical points`_. It is possible to get more information
+about these maxima by using the CPREPORT keyword, see `Requesting more
+information about the critical point list (CPREPORT)`_.
 
 Not all the properties defined by the INTEGRABLE keyword are
 integrated. Only the subset of those properties that are grids, have F
@@ -4802,7 +4804,7 @@ The algorithm by Henkelman et al. uses the BADER keyword:
 
 ::
 
-  BADER [NNM] [NOATOMS] [RATOM ratom.r] [ESCHER] [FIELDLIST]
+  BADER [NNM] [NOATOMS] [RATOM ratom.r]
 
 The BADER algorithm uses the reference field to calculate the basins;
 this field must be defined on a grid. BADER assigns grid nodes to
@@ -4870,7 +4872,8 @@ of points in each axis can be controlled with the keywords:
 
   INCREMENTS x.r y.r z.r
 
-x.r, y.r and z.r are the step lengths in each direction.
+x.r, y.r and z.r are the step lengths in each direction in bohr
+(crystals) or angstrom(molecules).
 
 ::
 
@@ -4886,10 +4889,11 @@ region can be extruded from the crystal with the keyword:
   CUBE x0.r y0.r z0.r x1.r y1.r z1.r
 
 where (x0.r y0.r z0.r) and (x1.r y1.r z1.r) are the cube limits in
-crystallographic coordinates. A region (much) larger than one periodic
-cell can also be selected with this method. In addition, it is
-possible to define the cube containing a fragment of the crystal
-using:
+crystallographic coordinates (crystals) or molecular Cartesian
+coordinates (molecules, default unit: angstrom). In crystals, a region
+larger than one periodic cell can also be selected with this
+method. In addition, it is possible to define the cube containing a
+fragment of the structure using:
 
 ::
 
@@ -4984,8 +4988,8 @@ RTHRES, RHOPARAM and RHOPARAM2.
   RTHRES rthres.r
 
 When fragments are used, the density and rdg grids are reduced to
-a piece encompassing the fragments, with a border of rthres.r bohr
-(default: 2.0).
+a piece encompassing the fragments, with a border of rthres.r (bohr in
+crsytals, angstrom in molecules, default: 2.0 bohr).
 
 ::
 

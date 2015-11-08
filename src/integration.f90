@@ -64,7 +64,6 @@ module integration
 
   ! integration properties
   public :: intgrid_driver
-  private :: intgrid_output
   private :: intgrid_multipoles
   private :: intgrid_deloc_wfn
   private :: intgrid_deloc_brf
@@ -83,6 +82,7 @@ module integration
 contains
 
   subroutine intgrid_driver(line)
+    use autocp
     use bader
     use yt
     use surface
@@ -102,7 +102,7 @@ contains
     character(len=:), allocatable :: word
     integer :: i, j, k, n(3), nn, ntot
     integer :: lp, itype, nid, lvec(3), p(3)
-    logical :: ok, nonnm, noatoms, doflist, doescher, pmask(nprops)
+    logical :: ok, nonnm, noatoms, pmask(nprops)
     real*8 :: ratom, dv(3), dist, r, tp(2), ratom_def
     integer, allocatable :: idg(:,:,:), idgaux(:,:,:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
@@ -134,8 +134,6 @@ contains
     ratom_def = ratom_def0
     nonnm = .true.
     noatoms = .false.
-    doflist = .false.
-    doescher = .false.
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"nnm")) then
@@ -147,10 +145,7 @@ contains
           ok = eval_next(ratom_def,line,lp)
           if (.not.ok) &
              call ferror("intgrid_driver","wrong RATOM keyword",faterr,line)
-       elseif (equal(word,"escher")) then
-          doescher = .true.
-       elseif (equal(word,"fieldlist")) then
-          doflist = .true.
+          ratom_def = ratom_def / dunit
        elseif (len_trim(word) > 0) then
           call ferror("intgrid_driver","Unknown extra keyword",faterr,line)
        else
@@ -179,13 +174,15 @@ contains
        write (uout,'("    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).")')
        write (uout,'("    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).")')
        write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
-       write (uout,'("+ Distance atomic assignment (bohr): ",A)') string(max(ratom,0d0),'e',decimal=4)
+       write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
+          string(max(ratom,0d0),'e',decimal=4)
        call bader_integrate(cr,f(refden),nattr,xgatt,idg)
     elseif (itype == itype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
-       write (uout,'("+ Distance atomic assignment (bohr): ",A)') string(max(ratom,0d0),'e',decimal=4)
+       write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
+          string(max(ratom,0d0),'e',decimal=4)
        call yt_integrate(cr,f(refden),nattr,xgatt,idg,luw)
     endif
     write (uout,*)
@@ -194,23 +191,12 @@ contains
     allocate(icp(nattr),xattr(3,nattr),assigned(nattr))
     assigned = 0
     nattr0 = nattr
-    nattr = 0
     ! assign attractors to atoms
     do i = 1, nattr0
        nid = 0
        call cr%nearest_atom(xgatt(:,i),nid,dist,lvec)
        if (dist < ratom) then
-          if (any(icp == nid)) then
-             do j = 1, nattr
-                if (icp(j) == nid) exit
-             end do
-             assigned(i) = j
-          else
-             nattr = nattr + 1
-             icp(nattr) = nid
-             xattr(:,nattr) = cr%atcel(nid)%x
-             assigned(i) = nattr
-          endif
+          assigned(i) = nid
        end if
     end do
     ! assign attractors to nnms (small constant for the distance threshold)
@@ -218,28 +204,33 @@ contains
        if (assigned(i) > 0) cycle
        call nearest_cp(xgatt(:,i),nid,dist,f(refden)%typnuc)
        if (dist < distcp .and. nid > cr%ncel) then
-          if (any(icp == nid)) then
-             do j = 1, nattr
-                if (icp(j) == nid) exit
-             end do
-             assigned(i) = j
-          else
-             nattr = nattr + 1
-             icp(nattr) = nid
-             xattr(:,nattr) = cpcel(nid)%x
-             assigned(i) = nattr
-          endif
+          assigned(i) = nattr
        end if
     end do
-    ! the rest are their own nnm
+    ! create the new attractors in the correct order
+    nattr = 0
+    do i = 1, ncpcel
+       if (any(assigned == i)) then
+          nattr = nattr + 1
+          icp(nattr) = i
+          xattr(:,nattr) = cpcel(i)%x
+       endif
+    end do
+    ! the rest are their own nnm, add them to the CP list
+    nn = 0
     do i = 1, nattr0
        if (assigned(i) > 0) cycle
        nattr = nattr + 1
        icp(nattr) = 0
        xattr(:,nattr) = xgatt(:,i)
        assigned(i) = nattr
+       call addcp(cr%x2c(xattr(:,nattr)),f(refden)%typnuc)
+       nn = nn + 1
     end do
     deallocate(xgatt)
+    if (nn > 0) then
+       write (uout,'("+ Number of unidentified attractors added to the CP list: ",A/)') string(nn)
+    endif
 
     ! update the idg
     allocate(idgaux(size(idg,1),size(idg,2),size(idg,3)))
@@ -283,7 +274,11 @@ contains
              cycle
           endif
           if (f(fid)%type /= type_grid) then
-             reason(k) = "not a grid"
+             if (f(fid)%type == type_wfn .and. integ_prop(k)%itype == itype_deloc) then
+                reason(k) = "DIs integrated separately (see table below)"
+             else
+                reason(k) = "not a grid"
+             end if
              cycle
           endif
           if (any(f(fid)%n /= f(refden)%n)) then
@@ -344,9 +339,6 @@ contains
     call intgrid_deloc_wfn(nattr,xattr,idg,itype,luw,di)
     ! call intgrid_deloc_brf(nattr,xgatt,idatt,idg,itype,luw,idx,sidx)
 
-    ! output all normal properties
-    ! call intgrid_output(noatoms,doescher,doflist,nattr,idatt,psum,pmask,xgatt,idx,sidx)
-
     ! output the results
     call int_output(pmask,reason,nattr,icp,xattr,psum,.false.,di,mpole)
 
@@ -357,206 +349,6 @@ contains
     deallocate(psum,idg,icp,xattr)
 
   end subroutine intgrid_driver
-
-  !> Output the results of an integration on a grid (YT or bader).
-  subroutine intgrid_output(noatoms,doescher,doflist,nbasin,idatt,psum,pmask,xcoord,idx,sidx)
-    use fields
-    use global
-    use struct
-    use struct_basic
-    use tools_io
-
-    logical, intent(in) :: noatoms, doescher, doflist
-    integer, intent(in) :: nbasin
-    integer, intent(in) :: idatt(nbasin)
-    real*8, intent(in) :: psum(nprops,nbasin)
-    logical, intent(in) :: pmask(nprops)
-    real*8, intent(in) :: xcoord(3,nbasin)
-    integer, intent(in) :: idx(nbasin)
-    character*3, intent(in) :: sidx(nbasin)
-
-    character*3 :: sat
-    real*8 :: auxs, tsum(2), asum(2), rpmask(nprops), rpmask2(nprops), dv(3)
-    integer :: i, j, k, iaux, fid
-    integer :: niprops, ntot, ntyp(100), nn, lu
-    character(len=:), allocatable :: lbl
-    character(len=:), allocatable :: oline, order
-    real*8, allocatable :: flist(:,:)
-
-    ! charge and volume summary
-    if (.not.noatoms) then
-       write (uout,'("   at   name     Z  mult    Volume(a.u.)        Num. elec.           Charge")')
-       auxs = 0d0
-       tsum = 0d0
-       do i = 1, cr%nneq
-          do k = 1, cr%ncel
-             if (cr%atcel(k)%idx == i) exit
-          end do
-          if (cr%at(i)%zpsp > 0) then
-             iaux = cr%at(i)%zpsp
-          else
-             iaux = cr%at(i)%z
-          end if
-
-          asum = 0d0
-          do j = 1, nbasin
-             if (idatt(j) == k) then
-                asum(:) = asum(:) + psum(1:2,j)
-             end if
-          end do
-
-          write (uout,'(99(A,X))') &
-             string(i,length=4,justify=ioj_right), &
-             string(cr%at(i)%name,length=10,justify=ioj_center), &
-             string(iaux,length=3,justify=ioj_right), &
-             string(cr%at(i)%mult,length=3,justify=ioj_right), &
-             string(asum(1),'f',decimal=10,length=18,justify=6), &
-             string(asum(2),'f',decimal=10,length=18,justify=6), &
-             string(real(iaux,8)-asum(2),'f',decimal=10,length=18,justify=6)
-          tsum(1) = tsum(1) + cr%at(i)%mult * asum(1)
-          tsum(2) = tsum(2) + cr%at(i)%mult * asum(2)
-          auxs = auxs + cr%at(i)%mult * (real(iaux,8) - asum(2))
-       end do
-       write (uout,'(80("-"))')
-       write (uout,'(" Total    ",14X,3(A,1X)/)') &
-          string(tsum(1),'f',decimal=10,length=18,justify=6), &
-          string(tsum(2),'f',decimal=10,length=18,justify=6), &
-          string(auxs,'f',decimal=10,length=18,justify=6)
-    endif
-
-    ! per-basin summary
-    ! header
-    write (uout,'("* List of basins and local properties (atoms not necessarily in input order)")')
-    oline = " bas atom               Approx. pos              "
-    niprops = 0
-    do k = 1, nprops
-       if (pmask(k)) then
-          oline = oline // " " // string(integ_prop(k)%prop_name,length=19,justify=ioj_center)
-       end if
-    end do
-    write (uout,'(A)') oline
-
-    ! body
-    do i = 1, nbasin
-       j = idx(i)
-       niprops = 0
-       do k = 1, nprops
-          if (pmask(k)) then
-             niprops = niprops + 1
-             rpmask(niprops) = psum(k,j)
-          end if
-       end do
-       ! write (uout,'(I3,X,A3,X,3(F11.7,X),1p,999(E18.11,X))') i, sidx(i), xcoord(:,j), (rpmask(k),k=1,niprops)
-       write (uout,'(999(A,X))') &
-          string(i,length=4,justify=ioj_right), &
-          string(sidx(i),length=5,justify=ioj_center), &
-          (string(xcoord(k,j),'f',decimal=6,length=12,justify=4),k=1,3), &
-          (string(rpmask(k),'e',decimal=10,length=18,justify=6),k=1,niprops)
-    end do
-    write (uout,'(80("-"))')
-
-    ! total and cell
-    rpmask = 0d0
-    rpmask2 = 0d0
-    niprops = 0
-    do k = 1, nprops
-       if (pmask(k)) then
-          niprops = niprops + 1
-          do i = 1, nbasin
-             rpmask(niprops) = rpmask(niprops) + psum(k,i)
-          end do
-          if (integ_prop(k)%itype == itype_v) then
-             rpmask2(niprops) = cr%omega
-          else
-             ntot = f(integ_prop(k)%fid)%n(1)*f(integ_prop(k)%fid)%n(2)*f(integ_prop(k)%fid)%n(3)
-             rpmask2(niprops) = sum(f(integ_prop(k)%fid)%f) * cr%omega / ntot
-          end if
-       end if
-    end do
-    write (uout,'("Total integration",33X,1p,999(A,X))') &
-          (string(rpmask(k),'e',decimal=10,length=18,justify=6),k=1,niprops)
-    write (uout,'("Cell ",45X,1p,999(A,X))') &
-          (string(rpmask2(k),'e',decimal=10,length=18,justify=6),k=1,niprops)
-    write (uout,*)
-
-    if (doescher) then
-       ! write an escher file
-       write(uout,'(" Writing the maxima escher file: ",A/)') trim(fileroot)//"_bader.m"
-       order = trim(fileroot) // "_bader.m"
-       call struct_write(order)
-
-       ! count number of atoms per type
-       ntyp = 0
-       do i = 1, cr%ncel
-          ntyp(cr%at(cr%atcel(i)%idx)%z) = ntyp(cr%at(cr%atcel(i)%idx)%z) + 1
-       end do
-
-       nn = count(idatt < 0)
-       lu = fopen_append(order)
-       write (lu,'("cr.nat += ",I6,";")') nn
-       write (lu,'("cr.ntyp += 1;")')
-       write (lu,'("cr.ztyp = [cr.ztyp 105];")')
-       write (lu,'("cr.attyp = [cr.attyp,""n@""];")')
-       lbl = "cr.typ = [cr.typ "
-       do j = 1, nn
-          lbl = lbl // " " // string(count(ntyp>0)+1)
-       end do
-       lbl = lbl // "];"
-       write (lu,'(A)') lbl
-       write (lu,'("cr.x = [cr.x")')
-       do i = 1, nbasin
-          if (idatt(i) > 0) cycle
-          dv = xcoord(:,i)
-          write (lu,'(2X,1p,3(E22.14,X))') dv
-       end do
-       write (lu,'("  ];")')
-       call fclose(lu)
-    end if
-
-    ! write the value of all integrable fields on the maxima
-    if (doflist) then
-       ! header
-       write (uout,'("* Integrable field values at the maxima")')
-       oline = string("bas",3) // " " // string("at",3) // string("Approx. pos.",35,justify=ioj_center)
-       niprops = 0
-       do k = 1, nprops
-          if (pmask(k).and.integ_prop(k)%itype/=itype_v) &
-             oline = oline // " " // string(integ_prop(k)%prop_name,17,justify=ioj_center)
-       end do
-       write (uout,'(A)') oline
-
-       ! allocate and calculate the field value list
-       allocate(flist(nbasin,nprops))
-       do k = 1, nprops
-          if (integ_prop(k)%itype == itype_v .or..not.pmask(k)) cycle
-          fid = integ_prop(k)%fid
-          do i = 1, nbasin
-             if (idatt(i) > 0) then
-                flist(i,k) = grd0(f(fid),cr%atcel(idatt(i))%r)
-             else
-                dv = cr%x2c(xcoord(:,i))
-                flist(i,k) = grd0(f(fid),dv)
-             endif
-          end do
-       end do
-
-       ! body
-       do i = 1, nbasin
-          j = idx(i)
-          niprops = 0
-          do k = 1, nprops
-             if (pmask(k) .and. integ_prop(k)%itype /= itype_v) then
-                niprops = niprops + 1
-                rpmask(niprops) = flist(j,k)
-             end if
-          end do
-          write (uout,'(I3,X,A3,X,3(F11.7,X),1p,999(E18.11,X))') i, sidx(i), xcoord(:,j), (rpmask(k),k=1,niprops)
-       end do
-       write (uout,'(X,80("-")/)')
-       deallocate(flist)
-    end if
-
-  end subroutine intgrid_output
 
   !> Calculate the multipole moments using integration on a grid. The input
   !> is: the calculated number of attractors (natt), their positions in
@@ -1643,27 +1435,7 @@ contains
        write (uout,'("# Id cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
     endif
     do i = 1, nattr
-       if (icp(i) > 0) then
-          ! this is a cp
-          idx = cpcel(icp(i))%idx
-          scp = string(icp(i),4,ioj_left)
-          sncp = string(idx,4,ioj_left)
-          sname = string(cp(idx)%name,6,ioj_center)
-          smult = string(cp(idx)%mult,4,ioj_center)
-          if (cp(idx)%isnuc) then
-             sz = string(cr%at(idx)%z,2,ioj_left)
-          else
-             sz = "--"
-          endif
-       else
-          ! this is an unknown nnm
-          scp = " -- "
-          sncp = " -- "
-          sname = "  ??  "
-          smult = string(1,4,ioj_center)
-          sz = "--"
-       end if
-       if (.not.usesym) smult = " -- "
+       call assign_strings(i)
        if (.not.cr%ismolecule) then
           x = xattr(:,i)
        else
@@ -1699,27 +1471,7 @@ contains
        ! Table rows
        sump = 0d0
        do i = 1, nattr
-          if (icp(i) > 0) then
-             ! this is a cp
-             idx = cpcel(icp(i))%idx
-             scp = string(icp(i),4,ioj_left)
-             sncp = string(idx,4,ioj_left)
-             sname = string(cp(idx)%name,6,ioj_center)
-             smult = string(cp(idx)%mult,4,ioj_center)
-             if (cp(idx)%isnuc) then
-                sz = string(cr%at(idx)%z,2,ioj_left)
-             else
-                sz = "--"
-             endif
-          else
-             ! this is an unknown nnm
-             scp = " -- "
-             sncp = " -- "
-             sname = "  ??  "
-             smult = string(1,4,ioj_center)
-             sz = "--"
-          end if
-          if (.not.usesym) smult = " -- "
+          call assign_strings(i)
           ! add to the sum
           if (icp(i) > 0 .and. usesym) then
              xmult = cp(cpcel(icp(i))%idx)%mult
@@ -1807,27 +1559,7 @@ contains
 
                 ! body
                 do j = 1, nattr
-                   if (icp(j) > 0) then
-                      ! this is a cp
-                      idx = cpcel(icp(j))%idx
-                      scp = string(icp(j),4,ioj_left)
-                      sncp = string(idx,4,ioj_left)
-                      sname = string(cp(idx)%name,6,ioj_center)
-                      smult = string(cp(idx)%mult,4,ioj_center)
-                      if (cp(idx)%isnuc) then
-                         sz = string(cr%at(idx)%z,2,ioj_left)
-                      else
-                         sz = "--"
-                      endif
-                   else
-                      ! this is an unknown nnm
-                      scp = " -- "
-                      sncp = " -- "
-                      sname = "  ??  "
-                      smult = string(1,4,ioj_center)
-                      sz = "--"
-                   end if
-                   if (.not.usesym) smult = " -- "
+                   call assign_strings(j)
                    write (uout,'(2X,99(A,X))') &
                       string(j,2,ioj_left), scp, sncp, sname, sz, smult, &
                       (string(mpole((i-1)*5+1+k,j,n),'e',15,8,4),k=0,min(4,size(mpole,1)-(i-1)*5-1))
@@ -1861,27 +1593,7 @@ contains
              write (uout,'("+ Localization indices (lambda(A))")')
              write (uout,'("# Id cp   ncp   Name  Z  mult     lambda(A)  ")')
              do j = 1, nattr
-                if (icp(j) > 0) then
-                   ! this is a cp
-                   idx = cpcel(icp(j))%idx
-                   scp = string(icp(j),4,ioj_left)
-                   sncp = string(idx,4,ioj_left)
-                   sname = string(cp(idx)%name,6,ioj_center)
-                   smult = string(cp(idx)%mult,4,ioj_center)
-                   if (cp(idx)%isnuc) then
-                      sz = string(cr%at(idx)%z,2,ioj_left)
-                   else
-                      sz = "--"
-                   endif
-                else
-                   ! this is an unknown nnm
-                   scp = " -- "
-                   sncp = " -- "
-                   sname = "  ??  "
-                   smult = string(1,4,ioj_center)
-                   sz = "--"
-                end if
-                if (.not.usesym) smult = " -- "
+                call assign_strings(j)
                 write (uout,'(2X,99(A,X))') &
                    string(j,2,ioj_left), scp, sncp, sname, sz, smult, &
                    string(0.5d0*di(j,j,ndeloc),'e',15,8,4)
@@ -1892,50 +1604,10 @@ contains
              write (uout,'("#   ----- atom A -----             ----- atom B -----                            ")')
              write (uout,'("#   Id cp   ncp   Name  Z   mult  Id cp   ncp   Name  Z   mult      delta(A,B)  ")')
              do i = 1, nattr
-                if (icp(i) > 0) then
-                   ! this is a cp
-                   idx = cpcel(icp(i))%idx
-                   scp = string(icp(i),4,ioj_left)
-                   sncp = string(idx,4,ioj_left)
-                   sname = string(cp(idx)%name,6,ioj_center)
-                   smult = string(cp(idx)%mult,4,ioj_center)
-                   if (cp(idx)%isnuc) then
-                      sz = string(cr%at(idx)%z,2,ioj_left)
-                   else
-                      sz = "--"
-                   endif
-                else
-                   ! this is an unknown nnm
-                   scp = " -- "
-                   sncp = " -- "
-                   sname = "  ??  "
-                   smult = string(1,4,ioj_center)
-                   sz = "--"
-                end if
-                if (.not.usesym) smult = " -- "
+                call assign_strings(i)
                 sout1 = "| " // string(i,2,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
                 do j = i+1, nattr
-                   if (icp(j) > 0) then
-                      ! this is a cp
-                      idx = cpcel(icp(j))%idx
-                      scp = string(icp(j),4,ioj_left)
-                      sncp = string(idx,4,ioj_left)
-                      sname = string(cp(idx)%name,6,ioj_center)
-                      smult = string(cp(idx)%mult,4,ioj_center)
-                      if (cp(idx)%isnuc) then
-                         sz = string(cr%at(idx)%z,2,ioj_left)
-                      else
-                         sz = "--"
-                      endif
-                   else
-                      ! this is an unknown nnm
-                      scp = " -- "
-                      sncp = " -- "
-                      sname = "  ??  "
-                      smult = string(1,4,ioj_center)
-                      sz = "--"
-                   end if
-                   if (.not.usesym) smult = " -- "
+                   call assign_strings(j)
                    sout2 = string(j,2,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
                    write (uout,'(2X,99(A,X))') string(sout1), string(sout2), &
                       string(di(i,j,ndeloc),'e',15,8,4)
@@ -1945,6 +1617,31 @@ contains
           end do
        end if
     end if
+  contains
+    subroutine assign_strings(i)
+      integer, intent(in) :: i
+      if (icp(i) > 0) then
+         ! this is a cp
+         idx = cpcel(icp(i))%idx
+         scp = string(icp(i),4,ioj_left)
+         sncp = string(idx,4,ioj_left)
+         sname = string(cp(idx)%name,6,ioj_center)
+         smult = string(cp(idx)%mult,4,ioj_center)
+         if (cp(idx)%isnuc) then
+            sz = string(cr%at(idx)%z,2,ioj_left)
+         else
+            sz = "--"
+         endif
+      else
+         ! this is an unknown nnm
+         scp = " -- "
+         sncp = " -- "
+         sname = "  ??  "
+         smult = string(1,4,ioj_center)
+         sz = "--"
+      end if
+      if (.not.usesym) smult = " -- "
+    end subroutine assign_strings
   end subroutine int_output
 
 end module integration

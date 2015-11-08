@@ -243,8 +243,8 @@ expression.r # prints the value of the expression to the output.
   + COLOR_ALLOCATE {0|1}
   + SETSPH_LVL lvl.i
   + VCUTOFF vcutoff.r
-* YT [NNM] [NOATOMS] [RATOM ratom.r] [ESCHER] [FIELDLIST]
-* BADER [NNM] [NOATOMS] [RATOM ratom.r] [ESCHER] [FIELDLIST]
+* YT [NNM] [NOATOMS] [RATOM ratom.r]
+* BADER [NNM] [NOATOMS] [RATOM ratom.r]
 * NCIPLOT 
     ONAME root.s
     CUTOFFS rhocut.r dimcut.r

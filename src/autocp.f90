@@ -35,7 +35,7 @@ module autocp
   private :: barycentric
   private :: barycentric_divide
   private :: seed_from_simplex
-  private :: addcp
+  public :: addcp
   private :: sortcps
   private :: cp_long_report
   private :: cp_vlong_report

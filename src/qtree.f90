@@ -86,6 +86,9 @@ contains
     write (uout,'("* QTREE integration ")')
     write (uout,'("  Please cite: ")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157."/)')
+    if (cr%ismolecule) then
+       call ferror("qtree","QTREE only available for crystals",faterr)
+    end if
     
     ! consistency warnings
     if (plot_mode > 0 .and. color_allocate == 0) then
