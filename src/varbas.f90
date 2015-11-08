@@ -260,10 +260,7 @@ contains
        write(uout,'("# (x,y,z) is the position in Cartesian coordinates (",A,")")') &
           iunitname0(iunit)
     end if
-    write(uout,'("# Sym is the atomic symbol/CP identifier (n=ncp,b=bcp,r=rcp,c=ccp) ")')
-    write(uout,'("# N-neq is the index for the atom/CP in the non-equivalent list ")')
-    write(uout,'("# Cel is the index for the atom/CP in the unit cell list ")')
-    write(uout,'("# n        x             y             z     mult name nneq  cel")')
+    write(uout,'("# id       x             y             z     mult name  ncp  cp")')
 
     do i = 1, n
        x0 = pointlist(:,i)
