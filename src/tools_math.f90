@@ -886,7 +886,7 @@ contains
     use param, only: pi
 
     integer, intent(in) :: npts
-    real*8, intent(out) :: xleb(5810), yleb(5810), zleb(5810), wleb(5810)
+    real*8, intent(out) :: xleb(:), yleb(:), zleb(:), wleb(:)
 
     integer :: n
     

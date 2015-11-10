@@ -21,6 +21,8 @@ module tricks
 
   private
   public :: trick
+  private :: trick_recalculate_xdm
+  private :: trick_grid_sphere
 
 contains
 
@@ -29,7 +31,8 @@ contains
     use struct_basic
     character*(*), intent(in) :: line0
 
-    call trick_recalculate_xdm()
+    ! call trick_recalculate_xdm()
+    call trick_grid_sphere()
 
   end subroutine trick
 
@@ -149,5 +152,99 @@ contains
     write (uout,*)
 
   end subroutine trick_recalculate_xdm
+
+  !> Test for the calculation of energies using a sphere plus grid approach.
+  subroutine trick_grid_sphere()
+    use bisect
+    use global
+    use varbas
+    use fields
+    use struct_basic
+    use arithmetic
+    use tools_math
+    use tools_io
+    use param
+
+    integer, parameter :: nleb = 770, nr = 50
+    integer, parameter :: nx = 100
+
+    character(len=:), allocatable :: saux
+    integer :: i, j, k, idx, idf, ids
+    integer :: ix, iy, iz
+    real*8 :: rsph(cr%ncel), xsphf(cr%ncel), xsphs(cr%ncel)
+    real*8 :: xleb(nleb), yleb(nleb), zleb(nleb), wleb(nleb)
+    real*8 :: rp(nr), rw(nr), lprop, x(3), x0(3), unit(3)
+    real*8 :: ff, fs, rsumf, rsums, ssumf(cr%ncel), ssums(cr%ncel)
+    real*8 :: gsums, gsumf, d2
+
+    ! define spheres and integrate
+    do i = 1, cr%ncel
+       idx = cr%atcel(i)%idx
+       rsph(i) = 0.95d0 * cr%at(idx)%rnn2
+       
+       call select_lebedev(nleb,xleb,yleb,zleb,wleb)
+       ssumf(i) = 0d0
+       ssums(i) = 0d0
+       !$omp parallel do private(unit,rp,rw,rsumf,rsums,x,fs,ff) schedule(guided)
+       do j = 1, nleb
+          unit = (/xleb(j),yleb(j),zleb(j)/)
+          call gauleg(0d0,rsph(i),rp,rw,nr)
+          rsumf = 0d0
+          rsums = 0d0
+          do k = 1, nr
+             x = cr%atcel(i)%r + rp(k) * unit
+             ! ff = eval_hard_fail("$1",x,fields_fcheck,fields_feval)
+             ff = eval_hard_fail("gkin(1)",x,fields_fcheck,fields_feval)
+             fs = ff * sin(0.5d0*pi*rp(k)/rsph(i))**6
+             rsumf = rsumf + rp(k)**2 * rw(k) * ff
+             rsums = rsums + rp(k)**2 * rw(k) * fs
+          end do
+          !$omp critical (acum_ang)
+          ssumf(i) = ssumf(i) + rsumf * wleb(j)
+          ssums(i) = ssums(i) + rsums * wleb(j)
+          !$omp end critical (acum_ang)
+       end do
+       !$omp end parallel do
+       write (*,*) i, ssumf(i), ssums(i)
+    end do
+
+    ! the analytical grid is grid 2
+    gsumf = sum(f(2)%f) * cr%omega / (f(2)%n(1)*f(2)%n(2)*f(2)%n(3))
+
+    ! make a copy of grid 2 on grid 3
+    f(3) = f(2)
+    fused(3) = .true.
+
+    ! smooth out the regions inside the spheres
+    !$omp parallel do private(x0,x,d2) schedule(guided)
+    do ix = 1, f(3)%n(1)
+       x0(1) = real(ix-1,8) / f(3)%n(1)
+       do iy = 1, f(3)%n(2)
+          x0(2) = real(iy-1,8) / f(3)%n(2)
+          do iz = 1, f(3)%n(3)
+             x0(3) = real(iz-1,8) / f(3)%n(3)
+             do i = 1, cr%ncel
+                x = cr%atcel(i)%x - x0
+                call cr%shortest(x,d2)
+                if (d2 <= rsph(i)*rsph(i)) then
+                   !$omp critical (smooth)
+                   f(3)%f(ix,iy,iz) = f(3)%f(ix,iy,iz) * sin(0.5d0*pi*sqrt(d2)/rsph(i))**6
+                   !$omp end critical (smooth)
+                   exit
+                end if
+             end do
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+    gsums = sum(f(3)%f) * cr%omega / (f(3)%n(1)*f(3)%n(2)*f(3)%n(3))
+
+    write (*,*) "gsumf ", gsumf
+    write (*,*) "gsums ", gsums
+
+    write (*,*) "all ", gsums - sum(ssums) + sum(ssumf)
+
+  end subroutine trick_grid_sphere
 
 end module tricks

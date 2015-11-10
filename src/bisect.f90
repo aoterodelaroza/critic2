@@ -1177,8 +1177,7 @@ contains
   !> the sprop array. abserr is integrated radial absoulte error.
   !> neval, number of evaluations; meaneval, mean number of
   !> evaluations per ray
-  subroutine sphereintegrals_gauleg(x0, rad, ntheta, nphi, &
-     sprop, abserr, neval, meaneval)
+  subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
     use integration
     use surface
     use fields

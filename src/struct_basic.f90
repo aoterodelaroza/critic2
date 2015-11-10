@@ -267,9 +267,9 @@ contains
 
   end function c2x
 
-  !> Given a point in crystallographic coordinates (x), find the lattice-translated
-  !> copy of x with the shortest length. Returns the shortest-length
-  !> vector in cartesian coordinates.
+  !> Given a point in crystallographic coordinates (x), find the
+  !> lattice-translated copy of x with the shortest length. Returns
+  !> the shortest-length vector in cartesian coordinates.
   subroutine shortest(c,x,dist2)
     class(crystal), intent(in) :: c
     real*8, intent(inout) :: x(3)
