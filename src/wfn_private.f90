@@ -280,16 +280,21 @@ contains
   !> xpos is in cartesian coordiantes and assume that the molecule
   !> has been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx.
-  subroutine wfn_rho2(f,xpos,nder,rho,grad,h,gkin,vir,xmo)
+  subroutine wfn_rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
     use tools_io
     use types
     use param
 
-    type(field), intent(in) :: f
-    real*8, intent(in) :: xpos(3)
-    integer, intent(in) :: nder
-    real*8, intent(out) :: rho, grad(3), h(3,3), gkin, vir
-    real*8, intent(out), optional :: xmo(f%nmo)
+    type(field), intent(in) :: f !< Input field
+    real*8, intent(in) :: xpos(3) !< Position in Cartesian
+    integer, intent(in) :: nder  !< Number of derivatives
+    real*8, intent(out) :: rho !< Density
+    real*8, intent(out) :: grad(3) !< Gradient
+    real*8, intent(out) :: h(3,3) !< Hessian 
+    real*8, intent(out) :: gkin !< G(r), kinetic energy density
+    real*8, intent(out) :: vir !< Virial field
+    real*8, intent(out) :: stress(3,3) !< Schrodinger stress tensor
+    real*8, intent(out), optional :: xmo(f%nmo) !< Values of the MO
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
     
@@ -370,22 +375,16 @@ contains
 
        chi(ipri,1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
        if (nder > 0) then
-          chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1))*xl(2,0)*xl(3,0)*ex
-          chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1))*xl(1,0)*xl(3,0)*ex
-          chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1))*xl(1,0)*xl(2,0)*ex
+          chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
+          chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
+          chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
           if (nder > 1) then
-             chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0)&
-                +4*al*al*dd(1,iat)**(l(1)+2))*xl(2,0)*xl(3,0)*ex
-             chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0)&
-                +4*al*al*dd(2,iat)**(l(2)+2))*xl(3,0)*xl(1,0)*ex
-             chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0)&
-                +4*al*al*dd(3,iat)**(l(3)+2))*xl(1,0)*xl(2,0)*ex
-             chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1))*&
-                (xl(2,1)-2*al*dd(2,iat)**(l(2)+1))*xl(3,0)*ex
-             chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1))*&
-                (xl(3,1)-2*al*dd(3,iat)**(l(3)+1))*xl(2,0)*ex
-             chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1))*&
-                (xl(2,1)-2*al*dd(2,iat)**(l(2)+1))*xl(1,0)*ex
+             chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
+             chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
+             chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
+             chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
+             chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
+             chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
           endif
        endif
 
@@ -411,6 +410,7 @@ contains
     hh = 0d0
     gkin = 0d0
     vir = 0d0
+    stress = 0d0
     do imo = 1, f%nmo
        aocc = f%occ(imo) 
        rho = rho + aocc * phi(imo,1) * phi(imo,1)
@@ -425,10 +425,20 @@ contains
           hh(6) = hh(6) + 2 * aocc * (phi(imo,1)*phi(imo,10)+phi(imo,3)*phi(imo,4))
           vir = vir + aocc * (phi(imo,1) * (phi(imo,5)+phi(imo,6)+phi(imo,7)) - &
              (phi(imo,2)**2 + phi(imo,3)**2 + phi(imo,4)**2))
+          stress(1,1) = stress(1,1) + aocc * (phi(imo,1) * phi(imo,5)  - phi(imo,2)*phi(imo,2))
+          stress(1,2) = stress(1,2) + aocc * (phi(imo,1) * phi(imo,8)  - phi(imo,2)*phi(imo,3))
+          stress(1,3) = stress(1,3) + aocc * (phi(imo,1) * phi(imo,9)  - phi(imo,2)*phi(imo,4))
+          stress(2,2) = stress(2,2) + aocc * (phi(imo,1) * phi(imo,6)  - phi(imo,3)*phi(imo,3))
+          stress(2,3) = stress(2,3) + aocc * (phi(imo,1) * phi(imo,10) - phi(imo,3)*phi(imo,4))
+          stress(3,3) = stress(3,3) + aocc * (phi(imo,1) * phi(imo,7)  - phi(imo,4)*phi(imo,4))
        endif
     enddo
+    stress(2,1) = stress(1,2)
+    stress(3,1) = stress(1,3)
+    stress(3,2) = stress(2,3)
+    stress = stress * 0.5d0
     gkin = 0.5d0 * gkin
-    vir = 0.5d0 * vir
+    vir = stress(1,1)+stress(2,2)+stress(3,3)
 
     ! save the MO values
     if (present(xmo)) xmo = phi(1:f%nmo,1)

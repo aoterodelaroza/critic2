@@ -707,7 +707,8 @@ contains
     type(scalar_value), intent(out) :: res
     logical, intent(in) :: verbose, allfields
 
-    real*8 :: xp(3), fres
+    real*8 :: xp(3), fres, stvec(3,3), stval(3)
+    integer :: str, sts
     integer :: i, j, k
 
     ! get the scalar field properties
@@ -730,11 +731,11 @@ contains
        write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmodort,'e',decimal=9)
        write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2fort,'e',decimal=9)
        write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
-       write (uout,'("  Hessian eigenvalues: ",3(A,2X))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
        write (uout,'("  Hessian:")')
        do j = 1, 3
           write (uout,'(4x,1p,3(A,2X))') (string(res%hfort(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
        end do
+       write (uout,'("  Hessian eigenvalues: ",3(A,2X))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
        ! Write ellipticity, if it is a candidate for bond critical point
        if (res%r == 3 .and. res%s == 1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
@@ -751,9 +752,21 @@ contains
        end if
        ! properties at points defined by the user
        do i = 1, nptprops
-          fres = eval_hard_fail(point_prop(i)%expr,xp,fields_fcheck,fields_feval)
-          write (uout,'(2X,A," (",A,"): ",A)') string(point_prop(i)%name),&
-             string(point_prop(i)%expr), string(fres,'e',decimal=9)
+          if (point_prop(i)%ispecial == 0) then
+             ! ispecial=0 ... use the expression
+             fres = eval_hard_fail(point_prop(i)%expr,xp,fields_fcheck,fields_feval)
+             write (uout,'(2X,A," (",A,"): ",A)') string(point_prop(i)%name),&
+                string(point_prop(i)%expr), string(fres,'e',decimal=9)
+          else
+             ! ispecial=1 ... schrodinger stress tensor
+             stvec = res%stress
+             call rsindex(stvec,stval,str,sts)
+             write (uout,'("  Stress tensor:")')
+             do j = 1, 3
+                write (uout,'(4x,1p,3(A,2X))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+             end do
+             write (uout,'("  Stress tensor eigenvalues: ",3(A,2X))') (string(stval(j),'e',decimal=9),j=1,3)
+          endif
        end do
     end if
 
@@ -927,21 +940,23 @@ contains
 
     character*(*), intent(in) :: line0
 
-    logical :: isblank
+    logical :: isblank, isstress
     integer :: lp, n, i
     character(len=:), allocatable :: expr, word, lword, line
     integer, allocatable :: idlist(:)
-    
+
     ! Get the name
     lp = 1
     line = line0
     word = getword(line,lp)
+    isstress = .false.
     lword = lower(word)
     if (equal(lword,'clear')) then
        do i = 1, nptprops
           point_prop(i)%name = ""
           point_prop(i)%expr = ""
           point_prop(i)%nf = 0
+          point_prop(i)%ispecial = 0
           if (allocated(point_prop(i)%fused)) deallocate(point_prop(i)%fused)
        end do
        nptprops = 0
@@ -977,6 +992,10 @@ contains
     elseif (equal(lword,'elf')) then
        lp = 1 
        line = "elf(" // string(refden) // ")"
+    elseif (equal(lword,'stress')) then
+       lp = 1
+       line = "stress(" // string(refden) // ")"
+       isstress = .true.
     elseif (equal(lword,'vir')) then
        lp = 1 
        line = "vir(" // string(refden) // ")"
@@ -1024,6 +1043,11 @@ contains
     point_prop(nptprops)%name = word
     point_prop(nptprops)%expr = expr
     point_prop(nptprops)%nf = n
+    if (isstress) then
+       point_prop(nptprops)%ispecial = 1
+    else
+       point_prop(nptprops)%ispecial = 0
+    end if
     if (allocated(point_prop(nptprops)%fused)) deallocate(point_prop(nptprops)%fused)
     allocate(point_prop(nptprops)%fused(n))
     point_prop(nptprops)%fused = idlist
@@ -1251,6 +1275,7 @@ contains
     ! initialize misc quantities 
     res%gkin = 0d0
     res%vir = 0d0
+    res%stress = 0d0
 
     ! numerical derivatives
     res%isnuc = .false.
@@ -1350,7 +1375,7 @@ contains
        ! all work done in cartesians in a finite environment.
 
     case(type_wfn)
-       call wfn_rho2(f,wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir)
+       call wfn_rho2(f,wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
        ! transformation not needed because all work done in cartesians
        ! in a finite environment. wfn assumes the crystal structure
        ! resulting from load xyz/wfn/wfx (molecule at the center of 
@@ -1476,7 +1501,7 @@ contains
 
     real*8 :: wx(3), wc(3)
     integer :: i
-    real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir
+    real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
@@ -1498,7 +1523,7 @@ contains
     case(type_pi)
        call pi_rho2(f,wc,rho,grad,h)
     case(type_wfn)
-       call wfn_rho2(f,wc,0,rho,grad,h,gkin,vir)
+       call wfn_rho2(f,wc,0,rho,grad,h,gkin,vir,stress)
     case(type_promol)
        call grda_promolecular(wx,rho,grad,h,0,.false.)
     case(type_promol_frag)

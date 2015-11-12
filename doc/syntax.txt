@@ -321,6 +321,7 @@ xxxx implement: IDENTIFY file.xyz
 * lag(id) [lag] # Lagrangian density (-1/4 laprho)
 * elf(id) [elf] # electron localization function
 * vir(id) [vir] # electronic potential energy density (virial field)
+* stress  [stress] # Schrodinger stress tensor for the reference field.
 * he(id) [he] # electronic energy density, gkin+vir.
 * lol(id) [lol] # localized-orbital locator
 * lol_kir(id) [lol_kir] # localized-orbital locator, with Kirzhnits k.e.d.

@@ -251,6 +251,8 @@ module types
      real*8 :: f, fval, gf(3), hf(3,3), gfmod, del2f, del2fval
      ! kinetic energy density
      real*8 :: gkin
+     ! schrodinger stress tensor
+     real*8 :: stress(3,3)
      ! electronic potential energy density, virial field
      real*8 :: vir
      ! spherical/orthogonal coordinates
@@ -277,6 +279,7 @@ module types
   type pointpropable
      character*(10) :: name
      character*(2048) :: expr
+     integer :: ispecial ! 0 = expression, 1 = stress
      integer :: nf 
      integer, allocatable :: fused(:)
   end type pointpropable

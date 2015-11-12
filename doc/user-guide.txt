@@ -995,6 +995,14 @@ The name in square brackets is a shorthand for applying the chemical
 function to the reference field (case-insensitive) in the POINTPROP
 keyword.
 
+Other special labels can be used, that activate the calculation of
+properties for the reference field. These are:
+
+* stress: calculate the Schrodinger stress tensor of the reference
+  field. The virial field is the trace of this tensor.
+
+  + Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
+
 A particular case of chemical function is xc(), that allows the user
 to access the external LIBXC library. This is only possible if the
 library was linked during the compilation of critic2. See `Use of
