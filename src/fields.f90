@@ -32,6 +32,7 @@ module fields
   integer, parameter, public :: type_ghost = 8 !< a ghost field
 
   public :: fields_load
+  public :: fields_load_real
   public :: fields_unload
   public :: fields_init
   public :: fields_end
@@ -75,7 +76,6 @@ module fields
   type(pointpropable), public :: point_prop(mprops)
 
   ! scalar fields
-  integer, public :: mf
   type(field), allocatable, public :: f(:)
   logical, allocatable, public :: fused(:)
 
@@ -88,8 +88,9 @@ contains
 
     integer :: i
 
+    integer, parameter :: mf = 1
+    
     ! allocate space for all fields
-    mf = 5
     if (.not.allocated(fused)) allocate(fused(0:mf))
     fused = .false.
     if (.not.allocated(f)) allocate(f(0:mf))
@@ -142,6 +143,70 @@ contains
 
     character*(*), intent(in) :: line
     integer, intent(out) :: id
+
+    integer :: lp, oid, id2
+    character(len=:), allocatable :: file, word
+    logical :: ok
+
+    ! read and parse
+    lp=1
+    file = getword(line,lp)
+
+    ! if it is one of the special keywords, change the extension
+    ! and read the next
+    if (equal(file,"copy")) then
+       ok = eval_next(oid,line,lp)
+       if (.not.ok) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
+       word = lgetword(line,lp)
+       if (equal(word,'to')) then
+          ok = eval_next(id,line,lp)
+          if (id < 0) &
+             call ferror("fields_load","erroneous field id in LOAD COPY",faterr,line)
+          if (id > ubound(f,1)) then
+             id2 = ubound(f,1)
+             call realloc(fused,id)
+             call realloc(f,id)
+             fused(id2+1:) = .false.
+          end if
+          if (.not.ok) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
+          if (fused(id)) call fields_unload(id)
+       else
+          id = getfieldnum()
+       end if
+       f(id) = f(oid)
+       fused(id) = .true.
+       write (uout,'("* COPIED scalar field from slot ",A," to ",A/)') string(oid), string(id)
+       return
+    end if
+
+    ! allocate slot
+    id = getfieldnum()
+    write (uout,'("* LOAD scalar field in slot number: ",A)') string(id)
+
+    ! load the field
+    f(id) = fields_load_real(line,.true.)
+
+    ! test the muffin tin discontinuity, if applicable
+    call testrmt(id,0)
+
+  end subroutine fields_load
+
+  function fields_load_real(line,verbose) result(ff)
+    use elk_private
+    use wien_private
+    use wfn_private
+    use pi_private
+    use struct_basic
+    use grid_tools
+    use global
+    use arithmetic
+    use tools_io
+    use types
+    use param
+
+    character*(*), intent(in) :: line
+    logical, intent(in) :: verbose
+    type(field) :: ff
 
     integer :: lp, lp2, i, j, id1, id2
     character(len=:), allocatable :: file, wext1, wext2, word, word2, file2, file3, expr
@@ -218,113 +283,94 @@ contains
        wext1 = "as"
        wext2 = wext1
     elseif (equal(file,"copy")) then
-       ok = eval_next(oid,line,lp)
-       if (.not.ok) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
-       word = lgetword(line,lp)
-       if (equal(word,'to')) then
-          ok = eval_next(id,line,lp)
-          if (id < 0 .or. id > mf) &
-             call ferror("fields_load","erroneous field id in LOAD COPY",faterr,line)
-          if (.not.ok) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
-          if (fused(id)) call fields_unload(id)
-       else
-          id = getfieldnum()
-       end if
-       f(id) = f(oid)
-       fused(id) = .true.
-       write (uout,'("* COPIED scalar field from slot ",A," to ",A/)') string(oid), string(id)
-       return
+       call ferror('fields_load_real','can not copy in fields_load_real',faterr)
     end if
 
-    ! allocate slot
-    id = getfieldnum()
-
-    write (uout,'("* LOAD scalar field in slot number: ",A)') string(id)
     if (equal(wext1,'cube')) then
-       call grid_read_cube(file,f(id))
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_cube(file,ff,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'DEN') .or. equal(wext2,'DEN')) then
-       call grid_read_abinit(file,f(id))
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_abinit(file,ff,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'RHO') .or. equal(wext1,'BADER') .or.&
        equal(wext1,'DRHO') .or. equal(wext1,'LDOS') .or.&
        equal(wext1,'VT') .or. equal(wext1,'VH')) then
-       call grid_read_siesta(file,f(id))
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_siesta(file,ff,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'CHGCAR')) then
-       call grid_read_vasp(file,f(id),cr%omega)
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_vasp(file,ff,cr%omega,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'CHG') .or. equal(wext1,'ELFCAR')) then
-       call grid_read_vasp(file,f(id),1d0)
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_vasp(file,ff,1d0,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'qub')) then
-       call grid_read_qub(file,f(id))
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_qub(file,ff,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'xsf')) then
-       call grid_read_xsf(file,f(id))
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_xsf(file,ff,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'grid')) then
-       call grid_read_elk(file,f(id))
-       f(id)%type = type_grid
-       f(id)%file = file
+       call grid_read_elk(file,ff,verbose)
+       ff%type = type_grid
+       ff%file = file
     else if (equal(wext1,'wfn')) then
-       call wfn_read_wfn(file,f(id))
-       f(id)%type = type_wfn
+       call wfn_read_wfn(file,ff)
+       ff%type = type_wfn
        call wfn_register_struct(cr%ncel,cr%atcel)
-       f(id)%file = file
+       ff%file = file
     else if (equal(wext1,'wfx')) then
-       call wfn_read_wfx(file,f(id))
-       f(id)%type = type_wfn
+       call wfn_read_wfx(file,ff)
+       ff%type = type_wfn
        call wfn_register_struct(cr%ncel,cr%atcel)
-       f(id)%file = file
+       ff%file = file
     else if (equal(wext1,'clmsum')) then
        file2 = getword(line,lp)
-       call wien_read_clmsum(file,file2,f(id))
-       f(id)%type = type_wien
-       f(id)%file = file
+       call wien_read_clmsum(file,file2,ff,verbose)
+       ff%type = type_wien
+       ff%file = file
     else if (equal(wext1,'OUT')) then
        file2 = getword(line,lp)
        file3 = getword(line,lp)
        if (file3 == "") then
-          call elk_read_out(f(id),file,file2)
+          call elk_read_out(ff,file,file2,verbose)
        else
-          call elk_read_out(f(id),file,file2,file3)
+          call elk_read_out(ff,file,file2,verbose,file3)
        end if
-       f(id)%type = type_elk
-       f(id)%file = file
+       ff%type = type_elk
+       ff%file = file
     else if (equal(wext1,'promolecular')) then
        word = getword(line,lp)
        if (len_trim(word) > 0) then
           fr = cr%identify_fragment_from_xyz(word)
-          f(id)%type = type_promol_frag
-          f(id)%fr = fr
+          ff%type = type_promol_frag
+          ff%fr = fr
        else
-          f(id)%type = type_promol
+          ff%type = type_promol
        end if
-       f(id)%init = .true.
+       ff%init = .true.
     else if (equal(wext1,'ion')) then
        ! read all the ions
-       f(id)%file = ""
+       ff%file = ""
        do while(.true.)
           lp2 = lp
           ok = eval_next(zz,line,lp)
           if (ok) then
-             call pi_read_ion(file,f(id),zz)
+             call pi_read_ion(file,ff,zz)
           else
              word = lgetword(line,lp2)
              zz = zatguess(word)
              if (zz == -1) call ferror("fields_load","syntax: load file.ion {atidx/atsym} ...",faterr,line)
              do i = 1, cr%nneq
-                if (cr%at(i)%z == zz) call pi_read_ion(file,f(id),i)
+                if (cr%at(i)%z == zz) call pi_read_ion(file,ff,i)
              end do
-             f(id)%file = adjustl(trim(f(id)%file) // " " // file)
+             ff%file = adjustl(trim(ff%file) // " " // file)
              lp = lp2
           endif
           lp2 = lp
@@ -335,10 +381,10 @@ contains
              exit
           end if
        end do
-       f(id)%type = type_pi
-       f(id)%init = .true.
-       f(id)%exact = .false.
-       f(id)%file = trim(f(id)%file)
+       ff%type = type_pi
+       ff%init = .true.
+       ff%exact = .false.
+       ff%file = trim(ff%file)
 
        ! register structural info in the pi module
        do i = 1, cr%nenv
@@ -349,19 +395,21 @@ contains
        call pi_register_struct(cr%nenv,renv0,idx0,zenv0)
 
        ! fill the interpolation tables of the field
-       call fillinterpol(f(id))
+       call fillinterpol(ff,verbose)
 
        ! output info
-       write (uout,'("* aiPI input, from ion files")')
-       write (uout,'(2X,A,2X,A)') string("Atom"), string("File")
-       do i = 1, cr%nneq
-          if (.not.f(id)%pi_used(i)) then
-             write (uout,'("Non-equivalent atom missing in the load : ",I3)') i
-             call ferror("field_load","missing atoms in pi field description",faterr)
-          end if
-          write (uout,'(4X,A,2X,A)') string(i), string(f(id)%piname(i))
-       end do
-       write (uout,*)
+       if (verbose) then
+          write (uout,'("* aiPI input, from ion files")')
+          write (uout,'(2X,A,2X,A)') string("Atom"), string("File")
+          do i = 1, cr%nneq
+             if (.not.ff%pi_used(i)) then
+                write (uout,'("Non-equivalent atom missing in the load : ",I3)') i
+                call ferror("field_load","missing atoms in pi field description",faterr)
+             end if
+             write (uout,'(4X,A,2X,A)') string(i), string(ff%piname(i))
+          end do
+          write (uout,*)
+       end if
     else if (equal(wext1,'wannier')) then
        ok = isinteger(n(1),line,lp)
        ok = ok .and. isinteger(n(2),line,lp)
@@ -370,17 +418,17 @@ contains
           call ferror("fields_load","Error reading wannier supercell",faterr,line)
 
        nwan = 0
-       f(id)%file = ""
+       ff%file = ""
        do while(.true.)
           nwan = nwan + 1
           file = getword(line,lp)
           if (len_trim(file) == 0) exit
           ! read another wannier function and accumulate
-          call grid_read_xsf(file,f(id),nwan,n,cr%omega)
-          f(id)%file = f(id)%file // file // " "
+          call grid_read_xsf(file,ff,verbose,nwan,n,cr%omega)
+          ff%file = ff%file // file // " "
        end do
-       f(id)%type = type_grid
-       f(id)%file = trim(f(id)%file)
+       ff%type = type_grid
+       ff%file = trim(ff%file)
 
     else if (equal(wext1,'as')) then
        lp2 = lp
@@ -423,35 +471,35 @@ contains
                 if (isfrag) fr = cr%identify_fragment_from_xyz(word2)
              end if
              ! build a grid 
-             f(id)%init = .true.
-             f(id)%n = n
-             f(id)%type = type_grid
-             f(id)%mode = mode_trispline
-             allocate(f(id)%f(n(1),n(2),n(3)))
+             ff%init = .true.
+             ff%n = n
+             ff%type = type_grid
+             ff%mode = mode_trispline
+             allocate(ff%f(n(1),n(2),n(3)))
              if (equal(word,"promolecular")) then
                 if (isfrag) then
-                   call grid_rhoat(f(id),f(id),2,fr)
+                   call grid_rhoat(ff,ff,2,fr)
                 else
-                   call grid_rhoat(f(id),f(id),2)
+                   call grid_rhoat(ff,ff,2)
                 end if
              elseif (equal(word,"core")) then
                 if (isfrag) then
-                   call grid_rhoat(f(id),f(id),3,fr)
+                   call grid_rhoat(ff,ff,3,fr)
                 else
-                   call grid_rhoat(f(id),f(id),3)
+                   call grid_rhoat(ff,ff,3)
                 end if
              elseif (equal(word,"lap")) then
-                call grid_laplacian(f(oid),f(id))
+                call grid_laplacian(f(oid),ff)
              elseif (equal(word,"grad")) then
-                call grid_gradrho(f(oid),f(id))
+                call grid_gradrho(f(oid),ff)
              end if
           elseif ((goodfield(oid,type_wien).or.goodfield(oid,type_elk)).and.equal(word,"lap")) then
              ! calculate the laplacian of a lapw scalar field
-             f(id) = f(oid)
+             ff = f(oid)
              if (f(oid)%type == type_wien) then
-                call wien_tolap(f(id))
+                call wien_tolap(ff)
              else
-                call elk_tolap(f(id))
+                call elk_tolap(ff)
              end if
           else
              call ferror("fields_load","Incorrect scalar field type",faterr,line)
@@ -469,35 +517,35 @@ contains
              if (f(id1)%type/=type_wien.and.f(id1)%type/=type_elk) call ferror("fields_load","incorrect type",faterr,line) 
              if (f(id1)%type == type_wien) then
                 ! wien
-                f(id) = f(id1)
+                ff = f(id1)
                 if (any(shape(f(id1)%slm) /= shape(f(id2)%slm))) &
                    call ferror("fields_load","nonconformant slm in wien fields",faterr,line) 
                 if (any(shape(f(id1)%sk) /= shape(f(id2)%sk))) &
                    call ferror("fields_load","nonconformant sk in wien fields",faterr,line) 
                 if (equal(word,'add')) then
-                   f(id)%slm = f(id)%slm + f(id2)%slm
-                   f(id)%sk = f(id)%sk + f(id2)%sk
-                   if (allocated(f(id)%ski)) &
-                      f(id)%ski = f(id)%ski + f(id2)%ski
+                   ff%slm = ff%slm + f(id2)%slm
+                   ff%sk = ff%sk + f(id2)%sk
+                   if (allocated(ff%ski)) &
+                      ff%ski = ff%ski + f(id2)%ski
                 else
-                   f(id)%slm = f(id)%slm - f(id2)%slm
-                   f(id)%sk = f(id)%sk - f(id2)%sk
-                   if (allocated(f(id)%ski)) &
-                      f(id)%ski = f(id)%ski - f(id2)%ski
+                   ff%slm = ff%slm - f(id2)%slm
+                   ff%sk = ff%sk - f(id2)%sk
+                   if (allocated(ff%ski)) &
+                      ff%ski = ff%ski - f(id2)%ski
                 end if
              else
                 ! elk
-                f(id) = f(id1)
+                ff = f(id1)
                 if (any(shape(f(id1)%rhomt) /= shape(f(id2)%rhomt))) &
                    call ferror("fields_load","nonconformant rhomt in elk fields",faterr,line) 
                 if (any(shape(f(id1)%rhok) /= shape(f(id2)%rhok))) &
                    call ferror("fields_load","nonconformant rhok in elk fields",faterr,line) 
                 if (equal(word,'add')) then
-                   f(id)%rhomt = f(id)%rhomt + f(id2)%rhomt
-                   f(id)%rhok = f(id)%rhok + f(id2)%rhok
+                   ff%rhomt = ff%rhomt + f(id2)%rhomt
+                   ff%rhok = ff%rhok + f(id2)%rhok
                 else
-                   f(id)%rhomt = f(id)%rhomt - f(id2)%rhomt
-                   f(id)%rhok = f(id)%rhok - f(id2)%rhok
+                   ff%rhomt = ff%rhomt - f(id2)%rhomt
+                   ff%rhok = ff%rhok - f(id2)%rhok
                 end if
              end if
           else
@@ -553,25 +601,27 @@ contains
                    call ferror('fields_load','Tried to define ghost field using and undefined field',faterr)
              end do
 
-             f(id)%init = .true.
-             f(id)%type = type_ghost
-             f(id)%expr = string(expr)
-             f(id)%nf = nid
-             if (allocated(f(id)%fused)) deallocate(f(id)%fused)
-             allocate(f(id)%fused(nid))
-             f(id)%fused = idlist
-             f(id)%usecore = .false.
-             f(id)%numerical = .true.
-             write (uout,'("* GHOST field with expression: ",A)') expr
-             write (uout,'("  Using NUMERICAL derivatives")') 
+             ff%init = .true.
+             ff%type = type_ghost
+             ff%expr = string(expr)
+             ff%nf = nid
+             if (allocated(ff%fused)) deallocate(ff%fused)
+             allocate(ff%fused(nid))
+             ff%fused = idlist
+             ff%usecore = .false.
+             ff%numerical = .true.
+             if (verbose) then
+                write (uout,'("* GHOST field with expression: ",A)') expr
+                write (uout,'("  Using NUMERICAL derivatives")') 
+             end if
           else
              ! Grid field
              ! prepare the cube
-             f(id)%init = .true.
-             f(id)%n = n
-             f(id)%type = type_grid
-             f(id)%mode = mode_trispline
-             allocate(f(id)%f(n(1),n(2),n(3)))
+             ff%init = .true.
+             ff%n = n
+             ff%type = type_grid
+             ff%mode = mode_trispline
+             allocate(ff%f(n(1),n(2),n(3)))
 
              ! dimensions
              xd = eye
@@ -580,7 +630,8 @@ contains
                 xd(:,i) = xd(:,i) / real(n(i),8)
              end do
 
-             write (uout,'("* GRID from expression: ",A)') expr
+             if (verbose) &
+                write (uout,'("* GRID from expression: ",A)') expr
              !$omp parallel do private (xp,rhopt) schedule(dynamic)
              do ix = 0, n(1)-1
                 do iy = 0, n(2)-1
@@ -589,18 +640,20 @@ contains
                          + real(iz,8) * xd(:,3)
                       rhopt = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
                       !$omp critical (fieldwrite)
-                      f(id)%f(ix+1,iy+1,iz+1) = rhopt
+                      ff%f(ix+1,iy+1,iz+1) = rhopt
                       !$omp end critical (fieldwrite)
                    end do
                 end do
              end do
              !$omp end parallel do
-             write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f(id)%n(j)),j=1,3)
-             write (uout,'("  First elements... ",3(A,2X))') (string(f(id)%f(1,1,j),'e',decimal=12),j=1,3)
-             write (uout,'("  Last elements... ",3(A,2X))') (string(f(id)%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-             write (uout,'("  Sum of elements... ",A)') string(sum(f(id)%f(:,:,:)),'e',decimal=12)
-             write (uout,'("  Sum of squares of elements... ",A)') string(sum(f(id)%f(:,:,:)**2),'e',decimal=12)
-             write (uout,*)
+             if (verbose) then
+                write (uout,'("  Grid dimensions : ",3(A,2X))') (string(ff%n(j)),j=1,3)
+                write (uout,'("  First elements... ",3(A,2X))') (string(ff%f(1,1,j),'e',decimal=12),j=1,3)
+                write (uout,'("  Last elements... ",3(A,2X))') (string(ff%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+                write (uout,'("  Sum of elements... ",A)') string(sum(ff%f(:,:,:)),'e',decimal=12)
+                write (uout,'("  Sum of squares of elements... ",A)') string(sum(ff%f(:,:,:)**2),'e',decimal=12)
+                write (uout,*)
+             end if
           end if
        else
           call ferror("fields_load","invalid AS syntax",faterr,line)
@@ -610,24 +663,21 @@ contains
     end if
 
     ! fill misc values
-    f(id)%c2x = cr%car2crys
-    f(id)%x2c = cr%crys2car
-    f(id)%typnuc = -3
+    ff%c2x = cr%car2crys
+    ff%x2c = cr%crys2car
+    ff%typnuc = -3
 
     ! use cores?
-    if (f(id)%type == type_grid) then
-       f(id)%usecore = .true.
+    if (ff%type == type_grid) then
+       ff%usecore = .true.
     else
-       f(id)%usecore = .false.
+       ff%usecore = .false.
     end if
 
     ! parse the rest of the line
-    call setfield(id,line(lp:))
+    call setfield(ff,line(lp:),verbose)
 
-    ! test the muffin tin discontinuity
-    call testrmt(id,0)
-
-  end subroutine fields_load
+  end function fields_load_real
 
   subroutine fields_unload(id)
 
@@ -741,7 +791,7 @@ contains
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
        if (allfields) then
-          do i = 0, mf
+          do i = 0, ubound(f,1)
              if (fused(i) .and. i /= id) then
                 call grd(f(i),xp,2,res)
                 write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,2X))') string(i),&
@@ -1086,7 +1136,7 @@ contains
     integer, intent(in) :: id
     integer, intent(in), optional :: type
 
-    good = (id >= 0 .and. id <= mf)
+    good = (id >= 0 .and. id <= ubound(f,1))
     if (.not.good) return
     good = fused(id)
     if (.not.good) return
@@ -1103,47 +1153,39 @@ contains
   integer function getfieldnum() result(id)
     use tools_io
 
-    integer :: nmf
+    integer :: mf, nmf
     type(field), allocatable :: nf(:)
     logical, allocatable :: nfused(:)
 
     logical :: found
 
     found = .false.
-    do id = 1, mf
+    do id = 1, ubound(f,1)
        if (.not.fused(id)) then
           found = .true.
           exit
        end if
     end do
     if (.not.found) then
-       nmf = mf + 5
-       ! reallocate the fused
-       allocate(nfused(0:nmf))
-       nfused(0:mf) = fused(0:mf)
-       call move_alloc(nfused,fused)
-       fused(mf+1:nmf) = .false.
-       ! reallocate the fields
-       allocate(nf(0:nmf))
-       nf(0:mf) = f(0:mf)
-       call move_alloc(nf,f)
-       ! update the mf and get the first one
+       mf = ubound(f,1)
+       call realloc(fused,mf+1)
+       call realloc(f,mf+1)
        id = mf + 1
-       mf = nmf
     end if
     fused(id) = .true.
     
   end function getfieldnum
 
-  subroutine setfield(id,line)
+  subroutine setfield(ff,line,verbose)
     use struct_basic
     use grid_tools
     use global
     use tools_io
     use param
 
-    integer, intent(in) :: id
+    type(field), intent(inout) :: ff
     character*(*), intent(in) :: line
+    logical, intent(in) :: verbose
 
     character(len=:), allocatable :: word, aux
     integer :: lp, j
@@ -1155,52 +1197,52 @@ contains
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'trispline')) then
-          f(id)%mode = mode_trispline
-          if (allocated(f(id)%c2)) deallocate(f(id)%c2)
+          ff%mode = mode_trispline
+          if (allocated(ff%c2)) deallocate(ff%c2)
        else if (equal(word,'trilinear')) then
-          f(id)%mode = mode_trilinear
+          ff%mode = mode_trilinear
        else if (equal(word,'nearest')) then
-          f(id)%mode = mode_nearest
+          ff%mode = mode_nearest
        else if (equal(word,'exact')) then
-          f(id)%exact = .true.
+          ff%exact = .true.
        else if (equal(word,'approximate')) then
-          f(id)%exact = .false.
+          ff%exact = .false.
        else if (equal(word,'rhonorm')) then
-          if (.not.f(id)%cnorm) then
-             f(id)%cnorm = .true.
-             if (allocated(f(id)%slm)) &
-                f(id)%slm(:,1,:) = f(id)%slm(:,1,:) / sqfp
+          if (.not.ff%cnorm) then
+             ff%cnorm = .true.
+             if (allocated(ff%slm)) &
+                ff%slm(:,1,:) = ff%slm(:,1,:) / sqfp
           end if
        else if (equal(word,'vnorm')) then
-          if (f(id)%cnorm) then
-             f(id)%cnorm = .false.
-             if (allocated(f(id)%slm)) &
-                f(id)%slm(:,1,:) = f(id)%slm(:,1,:) * sqfp
+          if (ff%cnorm) then
+             ff%cnorm = .false.
+             if (allocated(ff%slm)) &
+                ff%slm(:,1,:) = ff%slm(:,1,:) * sqfp
           end if
        else if (equal(word,'core')) then
-          f(id)%usecore = .true.
+          ff%usecore = .true.
        else if (equal(word,'nocore')) then
-          f(id)%usecore = .false.
+          ff%usecore = .false.
        else if (equal(word,'numerical')) then
-          f(id)%numerical = .true.
+          ff%numerical = .true.
        else if (equal(word,'analytical')) then
-          f(id)%numerical = .false.
+          ff%numerical = .false.
        else if (equal(word,'typnuc')) then
-          ok = eval_next(f(id)%typnuc,line,lp)
+          ok = eval_next(ff%typnuc,line,lp)
           if (.not.ok) call ferror("setfield","wrong typnuc",faterr,line)
-          if (f(id)%typnuc /= -3 .and. f(id)%typnuc /= -1 .and. &
-              f(id)%typnuc /= +1 .and. f(id)%typnuc /= +3) then
+          if (ff%typnuc /= -3 .and. ff%typnuc /= -1 .and. &
+              ff%typnuc /= +1 .and. ff%typnuc /= +3) then
              call ferror("setfield","wrong typnuc (-3,-1,+1,+3)",faterr,line)
           end if
        else if (equal(word,'normalize')) then
           ok = eval_next(norm,line,lp)
           if (.not. ok) call ferror('setfield','normalize real number missing',faterr,line)
-          f(id)%f = f(id)%f / (sum(f(id)%f) * cr%omega / real(product(f(id)%n),8)) * norm
-          if (allocated(f(id)%c2)) deallocate(f(id)%c2)
+          ff%f = ff%f / (sum(ff%f) * cr%omega / real(product(ff%n),8)) * norm
+          if (allocated(ff%c2)) deallocate(ff%c2)
        else if (equal(word,'name')) then
           ok = isexpression_or_word(aux,line,lp)
           if (.not. ok) call ferror('setfield','wrong name keyword',faterr,line)
-          f(id)%name = aux
+          ff%name = aux
        else if (len_trim(word) > 0) then
           call ferror('setfield','Unknown extra keyword',faterr,line)
        else
@@ -1208,36 +1250,35 @@ contains
        end if
     end do
 
-    write (uout,'("+ Flags for field number: ",A)') string(id)
-    if (len_trim(f(id)%name) > 0) then
-       write (uout,'("  Name: ",A)') string(f(id)%name)
-    else
-       write (uout,'("  Name: <field_",A,">")') string(id)
-    endif
-    if (len_trim(f(id)%file) > 0) then
-       write (uout,'("  From: ",A)') string(f(id)%file)
-    else
-       write (uout,'("  From: <generated>")')
+    if (verbose) then
+       write (uout,'("+ Flags for this field")')
+       if (len_trim(ff%name)) &
+          write (uout,'("  Name: ",A)') string(ff%name)
+       if (len_trim(ff%file) > 0) then
+          write (uout,'("  From: ",A)') string(ff%file)
+       else
+          write (uout,'("  From: <generated>")')
+       end if
+       write (uout,'("  Type: ",A)') fields_typestring(ff%type)
+       select case (ff%type)
+       case(type_grid)
+          write (uout,'("  Grid dimensions: ",3(A,2X))') (string(ff%n(j)),j=1,3)
+          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",A)') string(ff%mode)
+          write (uout,'("  Cell integral (grid SUM) = ",A)') &
+             string(sum(ff%f) * cr%omega / real(product(ff%n),8),'f',decimal=8)
+          write (uout,'("  Min: ",A)') string(minval(ff%f),'e',decimal=8)
+          write (uout,'("  Average: ",A)') string(sum(ff%f) / real(product(ff%n),8),'e',decimal=8)
+          write (uout,'("  Max: ",A)') string(maxval(ff%f),'e',decimal=8)
+       case(type_wien)
+          write (uout,'("  Density-style normalization? ",L)') ff%cnorm
+       case(type_pi)
+          write (uout,'("  Exact calculation? ",L)') ff%exact
+       end select
+       write (uout,'("  Use core densities? ",L)') ff%usecore
+       write (uout,'("  Numerical derivatives? ",L)') ff%numerical
+       write (uout,'("  Nuclear CP signature: ",A)') string(ff%typnuc)
+       write (uout,*)
     end if
-    write (uout,'("  Type: ",A)') fields_typestring(f(id)%type)
-    select case (f(id)%type)
-    case(type_grid)
-       write (uout,'("  Grid dimensions: ",3(A,2X))') (string(f(id)%n(j)),j=1,3)
-       write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",A)') string(f(id)%mode)
-       write (uout,'("  Cell integral (grid SUM) (",A,") = ",A)') &
-          string(id), string(sum(f(id)%f) * cr%omega / real(product(f(id)%n),8),'f',decimal=8)
-       write (uout,'("  Min: ",A)') string(minval(f(id)%f),'e',decimal=8)
-       write (uout,'("  Average: ",A)') string(sum(f(id)%f) / real(product(f(id)%n),8),'e',decimal=8)
-       write (uout,'("  Max: ",A)') string(maxval(f(id)%f),'e',decimal=8)
-    case(type_wien)
-       write (uout,'("  Density-style normalization? ",L)') f(id)%cnorm
-    case(type_pi)
-       write (uout,'("  Exact calculation? ",L)') f(id)%exact
-    end select
-    write (uout,'("  Use core densities? ",L)') f(id)%usecore
-    write (uout,'("  Numerical derivatives? ",L)') f(id)%numerical
-    write (uout,'("  Nuclear CP signature: ",A)') string(f(id)%typnuc)
-    write (uout,*)
 
   end subroutine setfield
 
@@ -1438,8 +1479,8 @@ contains
     real*8, intent(in) :: xpos(3) !< Point (cartesian).
     real*8, intent(out) :: lprop(nprops) !< the properties vector.
 
-    type(scalar_value) :: res(0:mf)
-    logical :: fdone(0:mf)
+    type(scalar_value) :: res(0:ubound(f,1))
+    logical :: fdone(0:ubound(f,1))
     integer :: i, id
 
     lprop = 0d0

@@ -164,7 +164,7 @@ program critic
         else
            word = lgetword(line,lp)
            if (equal(word,'all')) then
-              do i = 1, mf
+              do i = 1, ubound(f,1)
                  if (fused(i)) call fields_unload(i)
               end do
            else
@@ -186,7 +186,9 @@ program critic
         if (.not. cr%isinit) call ferror('critic2','need crystal before setfield',faterr,line)
         ok = eval_next(id,line,lp)
         if (.not.ok) id = refden
-        call setfield(id,line(lp:))
+        if (.not.goodfield(id)) &
+           call ferror('critic2','wrong field in setfield',faterr,line)
+        call setfield(f(id),line(lp:),.true.)
 
      ! reference
      elseif (equal (word,'reference')) then

@@ -374,18 +374,21 @@ contains
 
   ! Read a clmsum (file) and struct (file2) file and returns the
   ! wien2k field f. 
-  subroutine wien_read_clmsum(file,file2,f)
+  subroutine wien_read_clmsum(file,file2,f,verbose)
     use types
     use tools_io
 
     character*(*), intent(in) :: file, file2
     type(field), intent(inout) :: f
+    logical, intent(in) :: verbose
     
     integer :: lu, ntot, i, j
 
-    write (uout,'("* WIEN2k input, from a CLMSUM file")')
-    write (uout,'("  In file: ",A)') trim(file)
-    write (uout,'("  Struct file: ",A)') trim(file2)
+    if (verbose) then
+       write (uout,'("* WIEN2k input, from a CLMSUM file")')
+       write (uout,'("  In file: ",A)') trim(file)
+       write (uout,'("  Struct file: ",A)') trim(file2)
+    end if
 
     ! load field data from the struct file and save it in f
     call wien_read_struct(file2,f)
@@ -404,14 +407,16 @@ contains
           ntot = ntot + 1
        end DO
     end do
-    write (uout,'("  Complex?: ",L)') f%cmpl
-    write (uout,'("  Spherical harmonics expansion LMmax: ",A)') string(size(f%lm,2))
-    write (uout,'("  Max. points in radial grid: ",A)') string(size(f%slm,1))
-    write (uout,'("  PW cutoff: ",A)') string(pwcutoff,'e',decimal=5)
-    write (uout,'("  Total number of plane waves: ",A)') string(f%nwav)
-    write (uout,'("  Removed trailing plane-waves: ",A)') string(ntot-f%lastind)
-    write (uout,'("  New/original number of plane-wave set : ",A,"/",A)') string(f%lastind), string(ntot)
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Complex?: ",L)') f%cmpl
+       write (uout,'("  Spherical harmonics expansion LMmax: ",A)') string(size(f%lm,2))
+       write (uout,'("  Max. points in radial grid: ",A)') string(size(f%slm,1))
+       write (uout,'("  PW cutoff: ",A)') string(pwcutoff,'e',decimal=5)
+       write (uout,'("  Total number of plane waves: ",A)') string(f%nwav)
+       write (uout,'("  Removed trailing plane-waves: ",A)') string(ntot-f%lastind)
+       write (uout,'("  New/original number of plane-wave set : ",A,"/",A)') string(f%lastind), string(ntot)
+       write (uout,*)
+    end if
 
   end subroutine wien_read_clmsum
 

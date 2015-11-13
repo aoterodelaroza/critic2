@@ -43,19 +43,22 @@ module grid_tools
 contains
 
   !> Read a grid in gaussian CUBE format
-  subroutine grid_read_cube(file,f)
+  subroutine grid_read_cube(file,f,verbose)
     use tools_io
     use types
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
+    logical, intent(in) :: verbose
 
     integer :: luc
     integer :: nat
     integer :: istat, n(3), i, j, k
 
-    write (uout,'("* GRID input, from a CUBE file")')
-    write (uout,'("  In file: ",A)') trim(file)
+    if (verbose) then
+       write (uout,'("* GRID input, from a CUBE file")')
+       write (uout,'("  In file: ",A)') trim(file)
+    end if
 
     luc = fopen_read(file)
 
@@ -83,33 +86,38 @@ contains
     if (istat /= 0) &
        call ferror('grid_read_cube','Error reading grid',faterr,file)
 
-    write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-    write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-    write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-    write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-    write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-    write (uout,'("  GRID input successful ")') 
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+       write (uout,'("  GRID input successful ")') 
+       write (uout,*)
+    end if
 
     call fclose(luc)
 
   end subroutine grid_read_cube
 
   !> Read a grid in siesta RHO format
-  subroutine grid_read_siesta(file,f)
+  subroutine grid_read_siesta(file,f,verbose)
     use tools_io
     use types
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
+    logical, intent(in) :: verbose
 
     integer :: luc, nspin, istat, j
     integer :: i, iy, iz, n(3)
     real*8 :: r(3,3)
     real*4, allocatable :: g(:)
 
-    write (uout,'("* GRID input, from a SIESTA grid file")')
-    write (uout,'("  In file: ",A)') trim(file)
+    if (verbose) then
+       write (uout,'("* GRID input, from a SIESTA grid file")')
+       write (uout,'("  In file: ",A)') trim(file)
+    end if
 
     ! open file
     luc = fopen_read(file,'unformatted')
@@ -140,34 +148,39 @@ contains
     end do
     deallocate(g)
 
-    write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-    write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-    write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-    write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-    write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-    write (uout,'("  GRID input successful ")') 
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+       write (uout,'("  GRID input successful ")') 
+       write (uout,*)
+    end if
 
     call fclose(luc)
 
   end subroutine grid_read_siesta
 
   !> Read a grid in abinit format
-  subroutine grid_read_abinit(file,f)
+  subroutine grid_read_abinit(file,f,verbose)
     use types
     use tools_io
     use abinit_private
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
+    logical, intent(in) :: verbose
 
     integer :: luc
     integer :: fform0, istat, n(3), j
     type(hdr_type) :: hdr
     real*8, allocatable :: g(:,:,:)
 
-    write (uout,'("* GRID input, from an abinit-style file")')
-    write (uout,'("  In file: ",A)') trim(file)
+    if (verbose) then
+       write (uout,'("* GRID input, from an abinit-style file")')
+       write (uout,'("  In file: ",A)') trim(file)
+    end if
 
     luc = fopen_read(file,'unformatted')
 
@@ -188,34 +201,39 @@ contains
     if (istat /= 0) &
        call ferror('grid_read_abinit','Error reading grid',faterr,file)
 
-    write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-    write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-    write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-    write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-    write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-    write (uout,'("  GRID input successful ")') 
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+       write (uout,'("  GRID input successful ")') 
+       write (uout,*)
+    end if
 
     call fclose(luc)
 
   end subroutine grid_read_abinit
 
   !> Read a grid in VASP format
-  subroutine grid_read_vasp(file,f,omega)
+  subroutine grid_read_vasp(file,f,omega,verbose)
     use types
     use tools_io
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
     real*8, intent(in) :: omega
+    logical, intent(in) :: verbose
 
     integer :: luc
     integer :: istat, n(3), i, j, k
     character(len=:), allocatable :: line
     logical :: ok
 
-    write (uout,'("* GRID input, from a VASP-style file")')
-    write (uout,'("  In file: ",A)') trim(file)
+    if (verbose) then
+       write (uout,'("* GRID input, from a VASP-style file")')
+       write (uout,'("  In file: ",A)') trim(file)
+    end if
 
     luc = fopen_read(file)
 
@@ -239,31 +257,36 @@ contains
        call ferror('grid_read_vasp','Error reading grid',faterr,file)
     f%f(:,:,:) = f%f(:,:,:) / omega
 
-    write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-    write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-    write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-    write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-    write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-    write (uout,'("  GRID input successful ")') 
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+       write (uout,'("  GRID input successful ")') 
+       write (uout,*)
+    end if
 
     call fclose(luc)
 
   end subroutine grid_read_vasp
 
   !> Read a grid in aimpac qub format
-  subroutine grid_read_qub(file,f)
+  subroutine grid_read_qub(file,f,verbose)
     use tools_io
     use types
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
+    logical, intent(in) :: verbose
 
     integer :: luc
     integer :: istat, n(3), i, j, k
 
-    write (uout,'("* GRID input, from a AIMPAC QUB file")')
-    write (uout,'("  In file: ",A)') trim(file)
+    if (verbose) then
+       write (uout,'("* GRID input, from a AIMPAC QUB file")')
+       write (uout,'("  In file: ",A)') trim(file)
+    end if
 
     luc = fopen_read(file)
 
@@ -281,25 +304,28 @@ contains
     if (istat /= 0) &
        call ferror('grid_read_qub','Error reading grid',faterr,file)
 
-    write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-    write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-    write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-    write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-    write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-    write (uout,'("  GRID input successful ")') 
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+       write (uout,'("  GRID input successful ")') 
+       write (uout,*)
+    end if
 
     call fclose(luc)
 
   end subroutine grid_read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  subroutine grid_read_xsf(file,f,nwan,nin,omega)
+  subroutine grid_read_xsf(file,f,verbose,nwan,nin,omega)
     use tools_io
     use types
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(inout) :: f
+    logical, intent(in) :: verbose
     integer, intent(in), optional :: nwan
     integer, intent(in), optional :: nin(3)
     real*8, intent(in), optional :: omega
@@ -316,11 +342,13 @@ contains
     iswan = (present(nwan).and.present(nin).and.present(omega))
 
     ! header
-    if (.not.iswan) then
-       write (uout,'("* GRID input, from a xcrysden XSF file")')
-       write (uout,'("  In file: ",A)') trim(file)
-    else if (nwan == 1) then
-       write (uout,'("* Multiple GRID input, from xcrysden XSF file generated by wannier90")')
+    if (verbose) then
+       if (.not.iswan) then
+          write (uout,'("* GRID input, from a xcrysden XSF file")')
+          write (uout,'("  In file: ",A)') trim(file)
+       else if (nwan == 1) then
+          write (uout,'("* Multiple GRID input, from xcrysden XSF file generated by wannier90")')
+       end if
     end if
 
     ! open file for reading
@@ -432,21 +460,23 @@ contains
     endif
     n = f%n
 
-    if (.not.iswan) then
-       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-       write (uout,'("  GRID input successful ")') 
-       write (uout,*)
-    else
-       write (uout,'("  Wannier supercell-grid read from file ",A)') file
-       write (uout,'("  Band index ",A)') string(nwan)
-       write (uout,'("  Grid dimensions... ",3(A,X))') (string(f%nwan(j)),j=1,3)
-       write (uout,'("  Accum. First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-       write (uout,'("  Accum. Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-       write (uout,'("  Accum. Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+    if (verbose) then
+       if (.not.iswan) then
+          write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+          write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+          write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+          write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+          write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+          write (uout,'("  GRID input successful ")') 
+          write (uout,*)
+       else
+          write (uout,'("  Wannier supercell-grid read from file ",A)') file
+          write (uout,'("  Band index ",A)') string(nwan)
+          write (uout,'("  Grid dimensions... ",3(A,X))') (string(f%nwan(j)),j=1,3)
+          write (uout,'("  Accum. First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+          write (uout,'("  Accum. Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+          write (uout,'("  Accum. Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       end if
     end if
 
     call fclose(luc)
@@ -454,20 +484,23 @@ contains
   end subroutine grid_read_xsf
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
-  subroutine grid_read_elk(file,f)
+  subroutine grid_read_elk(file,f,verbose)
     use tools_io
     use types
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
+    logical, intent(in) :: verbose
 
     integer :: luc, ios
     integer :: n(3), i, j, k
     real*8 :: dum(3)
 
     ! header
-    write (uout,'("* GRID input, from a ELK file")')
-    write (uout,'("  In file: ",A)') trim(file)
+    if (verbose) then
+       write (uout,'("* GRID input, from a ELK file")')
+       write (uout,'("  In file: ",A)') trim(file)
+    end if
 
     ! open file for reading
     luc = fopen_read(file)
@@ -493,13 +526,15 @@ contains
     f%init = .true.
     f%mode = mode_default
 
-    write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
-    write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
-    write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-    write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
-    write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
-    write (uout,'("  GRID input successful ")') 
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f%n(j)),j=1,3)
+       write (uout,'("  First elements... ",3(A,2X))') (string(f%f(1,1,j),'e',decimal=12),j=1,3)
+       write (uout,'("  Last elements... ",3(A,2X))') (string(f%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+       write (uout,'("  Sum of elements... ",A)') string(sum(f%f(:,:,:)),'e',decimal=12)
+       write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%f(:,:,:)**2),'e',decimal=12)
+       write (uout,'("  GRID input successful ")') 
+       write (uout,*)
+    end if
 
     call fclose(luc)
 

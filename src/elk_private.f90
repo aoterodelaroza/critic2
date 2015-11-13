@@ -56,17 +56,20 @@ contains
   end function elk_rmt_atom
 
   ! read a scalar field from an OUT file 
-  subroutine elk_read_out(f,file,file2,file3)
+  subroutine elk_read_out(f,file,file2,verbose,file3)
     use types
     use tools_io
 
     type(field), intent(inout) :: f
     character*(*), intent(in) :: file, file2
+    logical, intent(in) :: verbose
     character*(*), intent(in), optional :: file3
     
-    write (uout,'("* ELK input, from an OUT file")')
-    write (uout,'("  State file : ",A)') trim(file)
-    write (uout,'("  Geometry file : ",A)') trim(file2)
+    if (verbose) then
+       write (uout,'("* ELK input, from an OUT file")')
+       write (uout,'("  State file : ",A)') trim(file)
+       write (uout,'("  Geometry file : ",A)') trim(file2)
+    end if
 
     ! geometry data
     call elk_geometry(file2,f)
@@ -77,14 +80,17 @@ contains
 
     ! read the third file
     if (present(file3)) then
-       write (uout,'("  Field file : ",A)') trim(file3)
+       if (verbose) &
+          write (uout,'("  Field file : ",A)') trim(file3)
        call read_elk_myout(file3,f)
     end if
 
-    write (uout,'("  Spherical harmonics expansion, number of LM pairs: ",A)') string(size(f%rhomt,2))
-    write (uout,'("  Max. points in radial grid: ",A)') string(size(f%rhomt,1))
-    write (uout,'("  Total number of plane waves: ",A)') string(size(f%rhok))
-    write (uout,*)
+    if (verbose) then
+       write (uout,'("  Spherical harmonics expansion, number of LM pairs: ",A)') string(size(f%rhomt,2))
+       write (uout,'("  Max. points in radial grid: ",A)') string(size(f%rhomt,1))
+       write (uout,'("  Total number of plane waves: ",A)') string(size(f%rhok))
+       write (uout,*)
+    end if
 
   end subroutine elk_read_out
 

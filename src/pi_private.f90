@@ -378,7 +378,7 @@ contains
   end function entero
 
   !> Fills the interpolation grids for ion densities.
-  subroutine fillinterpol(f)
+  subroutine fillinterpol(f,verbose)
     use global
     use tools_io
     use param
@@ -386,6 +386,7 @@ contains
     implicit none
 
     type(field), intent(inout) :: f
+    logical, intent(in) :: verbose
 
     real*8, parameter :: az = exp(-6d0)
     real*8, parameter :: b = 0.002
@@ -395,7 +396,8 @@ contains
     real*8 :: crad, rrho, rrho1, rrho2
     logical :: done(mnt)
 
-    write (uout,'("* Filling PI density interpolation grids.")')
+    if (verbose) &
+       write (uout,'("* Filling PI density interpolation grids.")')
 
     allocate(f%pgrid(mnt))
     done = .false.
@@ -428,15 +430,18 @@ contains
           call rhoex1(f,i,f%pgrid(i)%r(j),f%pgrid(i)%f(j),f%pgrid(i)%fp(j),f%pgrid(i)%fpp(j))
        end do
 
-       write (uout,'("+ Atom ",A)') string(i)
-       write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
-          string(f%pgrid(i)%a,'e',decimal=6), string(f%pgrid(i)%b,'e',decimal=6)
-       write (uout,'("  Num. grid points = ",A, ", rmax (bohr) = ",A)') &
-          string(f%pgrid(i)%ngrid), string(f%pgrid(i)%rmax,'f',decimal=6)
-       write (uout,'("  Integrated charge = ",A)') &
-          string(sum(f%pgrid(i)%f*f%pgrid(i)%r**3*f%pgrid(i)%b*4d0*pi),'f',decimal=10)
+       if (verbose) then
+          write (uout,'("+ Atom ",A)') string(i)
+          write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
+             string(f%pgrid(i)%a,'e',decimal=6), string(f%pgrid(i)%b,'e',decimal=6)
+          write (uout,'("  Num. grid points = ",A, ", rmax (bohr) = ",A)') &
+             string(f%pgrid(i)%ngrid), string(f%pgrid(i)%rmax,'f',decimal=6)
+          write (uout,'("  Integrated charge = ",A)') &
+             string(sum(f%pgrid(i)%f*f%pgrid(i)%r**3*f%pgrid(i)%b*4d0*pi),'f',decimal=10)
+       end if
     end do
-    write (uout,*)
+    if (verbose) &
+       write (uout,*)
 
   end subroutine fillinterpol
 

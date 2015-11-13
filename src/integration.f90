@@ -269,8 +269,8 @@ contains
           pmask(k) = .true.
        else
           fid = integ_prop(k)%fid
-          if (fid < 0 .or. fid > mf) then
-             reason(k) = "unknown field"
+          if (.not.goodfield(fid)) then
+             reason(k) = "unknown or invalid field"
              cycle
           endif
           if (f(fid)%type /= type_grid) then

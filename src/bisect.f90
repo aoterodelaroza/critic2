@@ -1838,7 +1838,7 @@ contains
        do j = 1, ncpcel
           if (cpcel(j)%idx == i) then
              icp(n) = j
-             xattr(:,n) = cp(j)%x
+             xattr(:,n) = cpcel(j)%x
              exit
           end if
        end do

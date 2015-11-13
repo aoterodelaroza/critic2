@@ -33,6 +33,7 @@ module types
 
   ! overloaded functions
   interface realloc
+     module procedure realloc_field
      module procedure realloc_atom
      module procedure realloc_celatom
      module procedure realloc_anyatom
@@ -305,6 +306,27 @@ module types
 
 contains
   
+  !> Adapt the size of an allocatable 1D type(field) array
+  subroutine realloc_field(a,nnew)
+    use tools_io
+
+    type(field), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(field), allocatable :: temp(:)
+    integer :: nold, i, l1, u1
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_field','array not allocated',faterr)
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_field
+
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_atom(a,nnew)
     use tools_io
@@ -420,14 +442,15 @@ contains
     integer, intent(in) :: nnew !< new dimension
     
     logical, allocatable :: temp(:)
-    integer :: nold
+    integer :: l1, u1
     
     if (.not.allocated(a)) &
        call ferror('realloc1l','array not allocated',faterr)
-    nold = size(a)
-    allocate(temp(nnew))
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    allocate(temp(l1:nnew))
     
-    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
     call move_alloc(temp,a)
 
   end subroutine realloc1l
