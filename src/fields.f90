@@ -1252,7 +1252,7 @@ contains
 
     if (verbose) then
        write (uout,'("+ Flags for this field")')
-       if (len_trim(ff%name)) &
+       if (len_trim(ff%name) > 0) &
           write (uout,'("  Name: ",A)') string(ff%name)
        if (len_trim(ff%file) > 0) then
           write (uout,'("  From: ",A)') string(ff%file)

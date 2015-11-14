@@ -1573,7 +1573,7 @@ contains
   !> compatible with the crystal structure. Reorder them, including
   !> the weights of the YT. On output, give the identity 
   !> of the attractors (icp) in the complete CP list.
-  subroutine int_reorder_gridout(cr,f,nattr,xgatt,idg,ratom,luw,icp)
+  subroutine int_reorder_gridout(c,ff,nattr,xgatt,idg,ratom,luw,icp)
     use autocp
     use fields
     use varbas
@@ -1582,8 +1582,8 @@ contains
     use tools_io
     use types
 
-    type(crystal), intent(in) :: cr
-    type(field), intent(in) :: f
+    type(crystal), intent(in) :: c
+    type(field), intent(in) :: ff
     integer, intent(inout) :: nattr
     real*8, intent(inout), allocatable :: xgatt(:,:)
     integer, intent(inout), allocatable :: idg(:,:,:)
@@ -1600,7 +1600,7 @@ contains
 
     real*8, parameter :: distcp = 1d-2
 
-    n = f%n
+    n = ff%n
 
     ! reorder the maxima and assign maxima to atoms according to ratom
     if (allocated(icp)) deallocate(icp)
@@ -1610,7 +1610,7 @@ contains
     ! assign attractors to atoms
     do i = 1, nattr0
        nid = 0
-       call cr%nearest_atom(xgatt(:,i),nid,dist,lvec)
+       call c%nearest_atom(xgatt(:,i),nid,dist,lvec)
        if (dist < ratom) then
           assigned(i) = nid
        end if
@@ -1618,8 +1618,8 @@ contains
     ! assign attractors to nnms (small constant for the distance threshold)
     do i = 1, nattr0
        if (assigned(i) > 0) cycle
-       call nearest_cp(xgatt(:,i),nid,dist,f%typnuc)
-       if (dist < distcp .and. nid > cr%ncel) then
+       call nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
+       if (dist < distcp .and. nid > c%ncel) then
           assigned(i) = nattr
        end if
     end do
@@ -1640,7 +1640,7 @@ contains
        icp(nattr) = 0
        xattr(:,nattr) = xgatt(:,i)
        assigned(i) = nattr
-       call addcp(cr%x2c(xattr(:,nattr)),f%typnuc)
+       call addcp(c%x2c(xattr(:,nattr)),ff%typnuc)
        nn = nn + 1
     end do
     deallocate(xgatt)
