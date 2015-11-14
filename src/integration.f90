@@ -74,6 +74,7 @@ module integration
   public :: lebedev_mquad
   private :: quadpack_f
   public :: int_output
+  public :: int_reorder_gridout
 
   ! grid integration types
   integer, parameter :: itype_bader = 1
@@ -101,20 +102,16 @@ contains
 
     character(len=:), allocatable :: word
     integer :: i, j, k, n(3), nn, ntot
-    integer :: lp, itype, nid, lvec(3), p(3)
+    integer :: lp, itype, p(3)
     logical :: ok, nonnm, noatoms, pmask(nprops)
-    real*8 :: ratom, dv(3), dist, r, tp(2), ratom_def
-    integer, allocatable :: idg(:,:,:), idgaux(:,:,:)
+    real*8 :: ratom, dv(3), r, tp(2), ratom_def
+    integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
     real(kind=gk), allocatable :: w(:,:,:), wsum(:,:,:)
-    integer :: fid, nattr, nattr0, ix, luw, luw2
+    integer :: fid, nattr, ix, luw, luw2
     character*60 :: reason(nprops)
-    integer, allocatable :: icp(:)
-    real*8, allocatable :: xattr(:,:), di(:,:,:), mpole(:,:,:)
-    integer, allocatable :: assigned(:)
+    real*8, allocatable :: di(:,:,:), mpole(:,:,:)
     
-    real*8, parameter :: distcp = 1d-2
-
     ! only grids
     if (f(refden)%type /= type_grid) &
        call ferror("intgrid_driver","BADER/YT can only be used with grids",faterr,line)
@@ -187,80 +184,8 @@ contains
     endif
     write (uout,*)
 
-    ! reorder the maxima and assign maxima to atoms according to ratom
-    allocate(icp(nattr),xattr(3,nattr),assigned(nattr))
-    assigned = 0
-    nattr0 = nattr
-    ! assign attractors to atoms
-    do i = 1, nattr0
-       nid = 0
-       call cr%nearest_atom(xgatt(:,i),nid,dist,lvec)
-       if (dist < ratom) then
-          assigned(i) = nid
-       end if
-    end do
-    ! assign attractors to nnms (small constant for the distance threshold)
-    do i = 1, nattr0
-       if (assigned(i) > 0) cycle
-       call nearest_cp(xgatt(:,i),nid,dist,f(refden)%typnuc)
-       if (dist < distcp .and. nid > cr%ncel) then
-          assigned(i) = nattr
-       end if
-    end do
-    ! create the new attractors in the correct order
-    nattr = 0
-    do i = 1, ncpcel
-       if (any(assigned == i)) then
-          nattr = nattr + 1
-          icp(nattr) = i
-          xattr(:,nattr) = cpcel(i)%x
-       endif
-    end do
-    ! the rest are their own nnm, add them to the CP list
-    nn = 0
-    do i = 1, nattr0
-       if (assigned(i) > 0) cycle
-       nattr = nattr + 1
-       icp(nattr) = 0
-       xattr(:,nattr) = xgatt(:,i)
-       assigned(i) = nattr
-       call addcp(cr%x2c(xattr(:,nattr)),f(refden)%typnuc)
-       nn = nn + 1
-    end do
-    deallocate(xgatt)
-    if (nn > 0) then
-       write (uout,'("+ Number of unidentified attractors added to the CP list: ",A/)') string(nn)
-    endif
-
-    ! update the idg
-    allocate(idgaux(size(idg,1),size(idg,2),size(idg,3)))
-    do i = 1, nattr0
-       where (idg == i)
-          idgaux = assigned(i)
-       end where
-    end do
-    call move_alloc(idgaux,idg)
-
-    ! update the weights the YT file
-    if (itype == itype_yt) then
-       luw2 = fopen_scratch()
-       allocate(w(n(1),n(2),n(3)),wsum(n(1),n(2),n(3)))
-       do j = 1, nattr
-          wsum = 0d0
-          rewind(luw)
-          do i = 1, nattr0
-             read (luw) w
-             if (assigned(i) == j) then
-                wsum = wsum + w
-             end if
-          end do
-          write (luw2) wsum
-       end do
-       deallocate(w,wsum)
-       call fclose(luw)
-       luw = luw2
-    end if
-    deallocate(assigned)
+    ! reorder the attractors
+    call int_reorder_gridout(cr,f(refden),nattr,xgatt,idg,ratom,luw,icp)
 
     ! set the properties mask
     pmask = .false.
@@ -333,20 +258,20 @@ contains
     deallocate(w)
 
     ! compute multipoles
-    call intgrid_multipoles(nattr,xattr,idg,itype,luw,mpole)
+    call intgrid_multipoles(nattr,xgatt,idg,itype,luw,mpole)
 
     ! localization and delocalization indices
-    call intgrid_deloc_wfn(nattr,xattr,idg,itype,luw,di)
+    call intgrid_deloc_wfn(nattr,xgatt,idg,itype,luw,di)
     ! call intgrid_deloc_brf(nattr,xgatt,idatt,idg,itype,luw,idx,sidx)
 
     ! output the results
-    call int_output(pmask,reason,nattr,icp,xattr,psum,.false.,di,mpole)
+    call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
 
     ! clean up YT checkpoint files
     if (itype == itype_yt) then
        call fclose(luw)
     endif
-    deallocate(psum,idg,icp,xattr)
+    deallocate(psum,idg,icp,xgatt)
 
   end subroutine intgrid_driver
 
@@ -643,7 +568,7 @@ contains
     integer :: natt1
     real*8 :: x0(3,3), x0inv(3,3), r1(3), r2(3)
     real*8, allocatable :: xgatt1(:,:), dist(:)
-    integer, allocatable :: idg1(:,:,:), idatt1(:), lvec(:,:)
+    integer, allocatable :: idg1(:,:,:), idatt1(:)
     integer, allocatable :: io(:)
     type(crystal) :: cr1
     type(field) :: f1
@@ -1643,5 +1568,117 @@ contains
       if (.not.usesym) smult = " -- "
     end subroutine assign_strings
   end subroutine int_output
+
+  !> The attractors coming out of YT and BADER are not in order
+  !> compatible with the crystal structure. Reorder them, including
+  !> the weights of the YT. On output, give the identity 
+  !> of the attractors (icp) in the complete CP list.
+  subroutine int_reorder_gridout(cr,f,nattr,xgatt,idg,ratom,luw,icp)
+    use autocp
+    use fields
+    use varbas
+    use struct_basic
+    use global
+    use tools_io
+    use types
+
+    type(crystal), intent(in) :: cr
+    type(field), intent(in) :: f
+    integer, intent(inout) :: nattr
+    real*8, intent(inout), allocatable :: xgatt(:,:)
+    integer, intent(inout), allocatable :: idg(:,:,:)
+    real*8, intent(in) :: ratom
+    integer, intent(inout) :: luw
+    integer, intent(inout), allocatable :: icp(:)
+
+    integer :: i, j
+    integer, allocatable :: idgaux(:,:,:)
+    real*8, allocatable :: xattr(:,:), w(:,:,:), wsum(:,:,:)
+    integer, allocatable :: assigned(:)
+    integer :: nn, nid, nattr0, luw2, n(3), lvec(3)
+    real*8 :: dist
+
+    real*8, parameter :: distcp = 1d-2
+
+    n = f%n
+
+    ! reorder the maxima and assign maxima to atoms according to ratom
+    if (allocated(icp)) deallocate(icp)
+    allocate(icp(nattr),xattr(3,nattr),assigned(nattr))
+    assigned = 0
+    nattr0 = nattr
+    ! assign attractors to atoms
+    do i = 1, nattr0
+       nid = 0
+       call cr%nearest_atom(xgatt(:,i),nid,dist,lvec)
+       if (dist < ratom) then
+          assigned(i) = nid
+       end if
+    end do
+    ! assign attractors to nnms (small constant for the distance threshold)
+    do i = 1, nattr0
+       if (assigned(i) > 0) cycle
+       call nearest_cp(xgatt(:,i),nid,dist,f%typnuc)
+       if (dist < distcp .and. nid > cr%ncel) then
+          assigned(i) = nattr
+       end if
+    end do
+    ! create the new attractors in the correct order
+    nattr = 0
+    do i = 1, ncpcel
+       if (any(assigned == i)) then
+          nattr = nattr + 1
+          icp(nattr) = i
+          xattr(:,nattr) = cpcel(i)%x
+       endif
+    end do
+    ! the rest are their own nnm, add them to the CP list
+    nn = 0
+    do i = 1, nattr0
+       if (assigned(i) > 0) cycle
+       nattr = nattr + 1
+       icp(nattr) = 0
+       xattr(:,nattr) = xgatt(:,i)
+       assigned(i) = nattr
+       call addcp(cr%x2c(xattr(:,nattr)),f%typnuc)
+       nn = nn + 1
+    end do
+    deallocate(xgatt)
+
+    ! update the idg
+    allocate(idgaux(size(idg,1),size(idg,2),size(idg,3)))
+    do i = 1, nattr0
+       where (idg == i)
+          idgaux = assigned(i)
+       end where
+    end do
+    call move_alloc(idgaux,idg)
+
+    ! update the weights the YT file
+    if (luw /= 0) then
+       luw2 = fopen_scratch()
+       allocate(w(n(1),n(2),n(3)),wsum(n(1),n(2),n(3)))
+       do j = 1, nattr
+          wsum = 0d0
+          rewind(luw)
+          do i = 1, nattr0
+             read (luw) w
+             if (assigned(i) == j) then
+                wsum = wsum + w
+             end if
+          end do
+          write (luw2) wsum
+       end do
+       deallocate(w,wsum)
+       call fclose(luw)
+       luw = luw2
+    end if
+    deallocate(assigned)
+    
+    if (allocated(xgatt)) deallocate(xgatt)
+    call realloc(xattr,3,nattr)
+    call move_alloc(xattr,xgatt)
+
+  end subroutine int_reorder_gridout
 
 end module integration

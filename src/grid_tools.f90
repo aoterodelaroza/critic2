@@ -21,6 +21,7 @@ module grid_tools
 
   private
 
+  public :: grid_from_array3
   public :: grid_read_cube
   public :: grid_read_siesta
   public :: grid_read_abinit
@@ -41,6 +42,27 @@ module grid_tools
   integer, parameter, public :: mode_default = mode_trispline
 
 contains
+
+  !> Build a grid field from a three-dimensional array
+  subroutine grid_from_array3(g,f)
+    use tools_io
+    use types
+
+    real*8, intent(in) :: g(:,:,:)
+    type(field), intent(out) :: f
+
+    integer :: istat, n(3)
+
+    f%init = .true.
+    f%mode = mode_default
+    n = ubound(g) - lbound(g) + 1
+    f%n(:) = n
+    allocate(f%f(n(1),n(2),n(3)),stat=istat)
+    if (istat /= 0) &
+       call ferror('grid_from_array3','Error allocating grid',faterr)
+    f%f = g
+
+  end subroutine grid_from_array3
 
   !> Read a grid in gaussian CUBE format
   subroutine grid_read_cube(file,f,verbose)

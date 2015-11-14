@@ -156,12 +156,15 @@ contains
   !> Test for the calculation of energies using a sphere plus grid approach.
   subroutine trick_grid_sphere()
     use bisect
+    use rhoplot
     use global
     use varbas
     use fields
     use bader
+    use integration
     use yt
     use struct_basic
+    use grid_tools
     use arithmetic
     use tools_math
     use tools_io
@@ -172,18 +175,18 @@ contains
     integer, parameter :: nx = 100
 
     character(len=:), allocatable :: saux
-    integer :: i, j, k, idx, idf, ids
+    integer :: i, j, k, l, idx, idf, ids
     integer :: ix, iy, iz
     real*8 :: rsph(cr%ncel), xsphf(cr%ncel), xsphs(cr%ncel)
     real*8 :: xleb(nleb), yleb(nleb), zleb(nleb), wleb(nleb)
     real*8 :: rp(nr), rw(nr), lprop, x(3), x0(3), unit(3)
-    real*8 :: ff, fs, rsumf, rsums, ssumf(cr%ncel), ssums(cr%ncel)
+    real*8 :: ff, fs, rsumf, rsums, ssumf, ssums
     real*8 :: gsums, gsumf, d2, atp(cr%ncel), ntot
-    type(scalar_value) :: res
+    type(scalar_value) :: res, res2
     ! for yt
     integer :: nbasin, luw
     real*8, allocatable :: xcoord(:,:)
-    integer, allocatable :: idg(:,:,:)
+    integer, allocatable :: idg(:,:,:), icp(:)
     real(kind=gk), allocatable :: w(:,:,:)
 
     ntot = f(2)%n(1)*f(2)%n(2)*f(2)%n(3)
@@ -198,78 +201,32 @@ contains
     ! integrate with yt
     write (*,*) "Doing YT on field 2"
     call yt_integrate(cr,f(2),nbasin,xcoord,idg,luw)
+    call int_reorder_gridout(cr,f(2),nbasin,xcoord,idg,2d0,luw,icp)
     ! call bader_integrate(cr,f(2),nbasin,xcoord,idg)
+
+    ! defining the weight fields
+    call realloc(fused,25)
+    call realloc(f,25)
+    rewind(luw)
+    allocate(w(f(2)%n(1),f(2)%n(2),f(2)%n(3)))
+    do i = 1, cr%ncel
+       read (luw) w
+       call grid_from_array3(w,f(10+i))
+       fused(10+i) = .true.
+       f(10+i)%type = type_grid
+    end do
+    close(luw)
+    deallocate(w)
+
+    call rhoplot_cube("grid field 11 file bleh.cube")
 
     ! determine the radius for each atom
     write (*,*) "Calculating the radii"
-    rsph = 1d30
-    !$omp parallel do private(x0,x,d2,i) schedule(guided)
-    do ix = 1, f(2)%n(1)
-       x0(1) = real(ix-1,8) / f(2)%n(1)
-       do iy = 1, f(2)%n(2)
-          x0(2) = real(iy-1,8) / f(2)%n(2)
-          do iz = 1, f(2)%n(3)
-             x0(3) = real(iz-1,8) / f(2)%n(3)
-             do i = 1, cr%ncel
-                idx = idg(ix,iy,iz)
-                if (i == idx) cycle
-                x = cr%atcel(i)%x - x0
-                call cr%shortest(x,d2)
-                if (d2 <= rsph(i)*rsph(i)) then
-                   !$omp critical (smooth)
-                   rsph(i) = sqrt(d2)
-                   !$omp end critical (smooth)
-                   exit
-                end if
-             end do
-          end do
-       end do
-    end do
-    !$omp end parallel do
-    ! rsph = rsph * 0.95d0
     do i = 1, cr%ncel
-       if (mod(i,2) == 1) then
-          rsph(i) = 0.69500103d0 / 0.52917720859d0 * 0.95d0
-       else
-          rsph(i) = 0.39155156d0 / 0.52917720859d0 * 0.95d0
-       endif
+       rsph(i) = cr%at(cr%atcel(i)%idx)%rnn2 * 0.99d0
     end do
 
-    ! define spheres and integrate
-    write (*,*) "Calculating the atomic spheres"
-    do i = 1, cr%ncel
-       call select_lebedev(nleb,xleb,yleb,zleb,wleb)
-       ssumf(i) = 0d0
-       ssums(i) = 0d0
-       !$omp parallel do private(unit,rp,rw,rsumf,rsums,x,fs,ff,res) schedule(guided)
-       do j = 1, nleb
-          unit = (/xleb(j),yleb(j),zleb(j)/)
-          call gauleg(0d0,rsph(i),rp,rw,nr)
-          rsumf = 0d0
-          rsums = 0d0
-          do k = 1, nr
-             x = cr%atcel(i)%r + rp(k) * unit
-             ! ff = eval_hard_fail("$1",x,fields_fcheck,fields_feval)
-             ! ff = eval_hard_fail("gkin(1)",x,fields_fcheck,fields_feval)
-             call grd(f(refden),x,2,res)
-             ff = res%del2f
-             fs = ff * sin(0.5d0*pi*rp(k)/rsph(i))**6
-             rsumf = rsumf + rp(k)**2 * rw(k) * ff
-             rsums = rsums + rp(k)**2 * rw(k) * fs
-          end do
-          !$omp critical (acum_ang)
-          ssumf(i) = ssumf(i) + rsumf * wleb(j)
-          ssums(i) = ssums(i) + rsums * wleb(j)
-          !$omp end critical (acum_ang)
-       end do
-       !$omp end parallel do
-       write (*,*) i, rsph(i), ssumf(i), ssums(i)
-    end do
-
-    ! the analytical grid is grid 2
-    gsumf = sum(f(3)%f) * cr%omega / ntot
-
-    ! make a copy of grid 2 on grid 3
+    ! field 4 will contain the smooth grid
     f(4) = f(3)
     fused(4) = .true.
 
@@ -297,24 +254,47 @@ contains
     end do
     !$omp end parallel do
 
-    gsums = sum(f(4)%f) * cr%omega / ntot
-
     ! integrate the basins
     atp = 0d0
-    rewind(luw)
-    allocate(w(f(4)%n(1),f(4)%n(2),f(4)%n(3)))
+    call select_lebedev(nleb,xleb,yleb,zleb,wleb)
     do i = 1, cr%ncel
-       read (luw) w
-       atp(i) = sum(w * f(4)%f) * cr%omega / ntot
-    end do
-    deallocate(w)
+       write (*,*) "integrating atom ", i
+       ! integrate the smooth field
+       atp(i) = sum(f(10+i)%f * f(4)%f) * cr%omega / ntot
 
-    write (*,*) "atomic integrations"
-    do i = 1, cr%ncel
-       write (*,*) i, atp(i) - ssums(i) + ssumf(i)
+       ! calculate the difference between the smooth field and the actual field
+       ! inside the basin. Contributions from all the spheres.
+       do j = 1, cr%ncel
+          ssumf = 0d0
+          ssums = 0d0
+          !$omp parallel do private(unit,rp,rw,rsumf,rsums,x,fs,ff,res,res2) schedule(guided)
+          do k = 1, nleb
+             unit = (/xleb(k),yleb(k),zleb(k)/)
+             call gauleg(0d0,rsph(j),rp,rw,nr)
+             rsumf = 0d0
+             rsums = 0d0
+             do l = 1, nr
+                x = cr%atcel(j)%r + rp(l) * unit
+                call grd(f(refden),x,2,res)
+                call grd(f(10+i),x,2,res2)
+                ff = res%del2f * res2%f
+                fs = ff * sin(0.5d0*pi*rp(l)/rsph(j))**6
+                rsumf = rsumf + rp(l)**2 * rw(l) * ff
+                rsums = rsums + rp(l)**2 * rw(l) * fs
+             end do
+             !$omp critical (acum_ang)
+             ssumf = ssumf + rsumf * wleb(k)
+             ssums = ssums + rsums * wleb(k)
+             !$omp end critical (acum_ang)
+          end do
+          !$omp end parallel do
+          write (*,*) "sphere ", j, ssumf, ssums
+          atp(i) = atp(i) + ssumf - ssums
+       end do
+       write (*,*) "atomic laplacian: ", atp(i)
     end do
-    write (*,*) "gsums ", gsums, sum(atp)
-    write (*,*) "all ", gsums - sum(ssums) + sum(ssumf)
+
+    write (*,*) "all ", sum(atp)
 
   end subroutine trick_grid_sphere
 
