@@ -25,6 +25,7 @@ module yt
   private
 
   public :: yt_integrate
+  public :: yt_weights
 
 contains
 
@@ -54,18 +55,18 @@ contains
     real*8 :: al(40), csum
     integer :: nhi, nbas(c%ncel)
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:), neqb(:)
-    real(kind=gk), allocatable :: chi(:), fnear(:,:), w(:)
+    real(kind=gk), allocatable :: chi(:), fnear(:,:)
     logical :: isias
     integer :: nid, lvec(3), bat(c%ncel), nnnm
     real*8 :: dist, dv(3)
 
-    ! Copy the field onto a grid
+    ! Copy the field onto a one-dimensional array
     n = f%n(:)
     nn = n(1)*n(2)*n(3)
     allocate(g(nn))
     g = max(reshape(f%f,shape(g)),0d0)
 
-    ! sort g, from smaller to larger
+    ! sort g, from smaller to larger field value
     allocate(io(nn),iio(nn))
     do i = 1, nn
        io(i) = i
@@ -139,32 +140,19 @@ contains
 
     ! clean up a little, we calculate the weights now
     deallocate(io,ihi,chi)
-    allocate(w(nn))
 
-    ! compute weights and save them to an external file, in order
-    ! reorder the weights in the output
+    ! Save the necessary information to reproduce the weights to an
+    ! external file. Saving the weights directly gives files
+    ! that are too large
     luw = fopen_scratch()
-    do i = 1, nbasin
-       ! which nodes belong to this basin?
-       where (ibasin == i)
-          w = 1d0
-       elsewhere
-          w = 0d0
-       end where
-
-       ! recompute w for the ias points
-       do j = nn, 1, -1
-          if (abs(w(j)) > 0d0) then
-             do k = 1, nlo(j)
-                w(inear(k,j)) = w(inear(k,j)) + fnear(k,j) * w(j)
-             end do
-          end if
-       end do
-       
-       write (luw) (w(iio(j)),j=1,nn)
-    end do
-    deallocate(w,inear,fnear,nlo,g,iio)
+    write (luw) nbasin, nn, nvec
+    write (luw) nlo
+    write (luw) ibasin
+    write (luw) iio
+    write (luw) inear
+    write (luw) fnear
     rewind(luw)
+    deallocate(inear,fnear,nlo,g,iio)
 
     ! output 
     allocate(xcoord(3,nbasin))
@@ -188,5 +176,72 @@ contains
       to1 = modulo(k(1)-1,n(1)) + n(1) * (modulo(k(2)-1,n(2)) + n(2) * (modulo(k(3)-1,n(3)))) + 1
     end function to1
   end subroutine yt_integrate
+
+  !> Read the neighbor and fractions from the external file and
+  !> generate the YT weights for the given input basin.
+  subroutine yt_weights(luw,idb,w)
+    use tools_io
+    use types
+
+    integer, intent(in) :: luw !< Logical unit for the YT checkpoint
+    integer, intent(in) :: idb !< Basin to integrate
+    real*8, intent(inout) :: w(:,:,:) !< Output weights for this basin
+
+    integer :: nbasin, nn, nvec
+    integer, allocatable :: nlo(:), ibasin(:), iio(:), inear(:,:)
+    real(kind=gk), allocatable :: fnear(:,:), waux(:)
+    logical :: opened, exist
+    integer :: i, j, k
+
+    ! read the yt checkpoint file header
+    inquire(luw,opened=opened,exist=exist)
+    if (.not.opened.or..not.exist) &
+       call ferror('yt_weights','YT checkpoint is not open',faterr)
+    rewind(luw)
+    read (luw) nbasin, nn, nvec
+    if (idb < 0 .or. idb > nn) &
+       call ferror('yt_weights','unknown basin',faterr)
+
+    ! allocate and rest of the yt checkpoint
+    allocate(ibasin(nn),nlo(nn),inear(nvec,nn),fnear(nvec,nn),iio(nn))
+    read (luw) nlo
+    read (luw) ibasin
+    read (luw) iio
+    read (luw) inear
+    read (luw) fnear
+
+    ! prepare the output grid
+    allocate(waux(nn))
+
+    ! which nodes belong to this basin?
+    where (ibasin == idb)
+       waux = 1d0
+    elsewhere
+       waux = 0d0
+    end where
+
+    ! recompute w for the ias points
+    do j = nn, 1, -1
+       if (abs(waux(j)) > 0d0) then
+          do k = 1, nlo(j)
+             waux(inear(k,j)) = waux(inear(k,j)) + fnear(k,j) * waux(j)
+          end do
+       end if
+    end do
+
+    nn = 0
+    do k = lbound(w,3), ubound(w,3)
+       do j = lbound(w,2), ubound(w,2)
+          do i = lbound(w,1), ubound(w,1)
+             nn = nn + 1
+             w(i,j,k) = waux(iio(nn))
+          end do
+       end do
+    end do
+
+    ! clean up
+    deallocate(nlo,ibasin,iio,inear,fnear,waux)
+  
+  end subroutine yt_weights
 
 end module yt

@@ -231,7 +231,7 @@ contains
     psum = 0d0
     do i = 1, nattr
        if (itype == itype_yt) then
-          read (luw) w
+          call yt_weights(luw,i,w)
        end if
        do k = 1, nprops
           if (.not.integ_prop(k)%used) cycle
@@ -281,6 +281,7 @@ contains
   !> of the grid nodes (idg), the integration type (itype: bader or yt), 
   !> the weight file for YT, and the output multipolar moments.
   subroutine intgrid_multipoles(natt,xgatt,idg,itype,luw,mpole)
+    use yt
     use fields
     use struct_basic
     use global
@@ -354,9 +355,8 @@ contains
              end do
           end do
        else
-          rewind(luw)
           do m = 1, natt
-             read(luw) w
+             call yt_weights(luw,m,w)
              do i = 1, n(1)
                 do j = 1, n(2)
                    do k = 1, n(3)
@@ -384,6 +384,7 @@ contains
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a wfn scalar field.
   subroutine intgrid_deloc_wfn(natt,xgatt,idg,itype,luw,di)
+    use yt
     use wfn_private
     use fields
     use struct_basic
@@ -473,9 +474,8 @@ contains
           end do
 
           ! calculate the atomic overlap matrix and kill the file
-          rewind(luw)
           do m = 1, natt
-             read(luw) w
+             call yt_weights(luw,m,w)
              rewind(lumo)
              do i = 1, n(1)
                 do j = 1, n(2)
@@ -1595,8 +1595,10 @@ contains
     integer, allocatable :: idgaux(:,:,:)
     real*8, allocatable :: xattr(:,:), w(:,:,:), wsum(:,:,:)
     integer, allocatable :: assigned(:)
-    integer :: nn, nid, nattr0, luw2, n(3), lvec(3)
+    integer :: nn, nid, nattr0, luw2, n(3), lvec(3), nbasin, nvec
     real*8 :: dist
+    integer, allocatable :: nlo(:), ibasin(:), ibasin2(:), iio(:), inear(:,:)
+    real(kind=gk), allocatable :: fnear(:,:)
 
     real*8, parameter :: distcp = 1d-2
 
@@ -1656,20 +1658,34 @@ contains
 
     ! update the weights the YT file
     if (luw /= 0) then
-       luw2 = fopen_scratch()
-       allocate(w(n(1),n(2),n(3)),wsum(n(1),n(2),n(3)))
-       do j = 1, nattr
-          wsum = 0d0
-          rewind(luw)
-          do i = 1, nattr0
-             read (luw) w
-             if (assigned(i) == j) then
-                wsum = wsum + w
-             end if
-          end do
-          write (luw2) wsum
+       ! read all the info from the scratch file
+       rewind(luw)
+       read (luw) nbasin, nn, nvec
+       if (nattr0 /= nbasin) &
+          call ferror('int_reorder_gridout','inconsistent number of attractors in yt checkpoint',faterr)
+       allocate(ibasin(nn),ibasin2(nn),nlo(nn),inear(nvec,nn),fnear(nvec,nn),iio(nn))
+       read (luw) nlo
+       read (luw) ibasin
+       read (luw) iio
+       read (luw) inear
+       read (luw) fnear
+
+       ! build a new ibasin array
+       ibasin2 = ibasin
+       do i = 1, nattr0
+          where (ibasin == i)
+             ibasin2 = assigned(i)
+          end where
        end do
-       deallocate(w,wsum)
+
+       ! write the new data to a new scratch file
+       luw2 = fopen_scratch()
+       write (luw2) nattr0, nn, nvec
+       write (luw2) nlo 
+       write (luw2) ibasin2
+       write (luw2) iio 
+       write (luw2) inear
+       write (luw2) fnear
        call fclose(luw)
        luw = luw2
     end if
