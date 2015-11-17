@@ -108,7 +108,7 @@ contains
     integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
     real(kind=gk), allocatable :: w(:,:,:), wsum(:,:,:)
-    integer :: fid, nattr, ix, luw, luw2
+    integer :: fid, nattr, ix, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: di(:,:,:), mpole(:,:,:)
     
@@ -223,9 +223,6 @@ contains
     end do
 
     ! compute weights and integrate the scalar field properties
-    if (itype == itype_yt) then
-       rewind(luw)
-    endif
     allocate(psum(nprops,nattr))
     allocate(w(n(1),n(2),n(3)))
     psum = 0d0

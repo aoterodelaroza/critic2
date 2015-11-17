@@ -207,10 +207,9 @@ contains
     ! defining the weight fields
     call realloc(fused,25)
     call realloc(f,25)
-    rewind(luw)
     allocate(w(f(2)%n(1),f(2)%n(2),f(2)%n(3)))
     do i = 1, cr%ncel
-       read (luw) w
+       call yt_weights(luw,i,w)
        call grid_from_array3(w,f(10+i))
        fused(10+i) = .true.
        f(10+i)%type = type_grid
