@@ -39,10 +39,9 @@ contains
   !> WARNING! It is not stable!?!?
   subroutine qcksort (arr, iord, first, last)
     use tools_io, only: ferror, faterr
-    use types, only: gk
     !.....Maximum number of elements to be sorted depends on nstack value:
     !     nstack...... ~2log2(last-first+1)
-    real(kind=gk), dimension(:), intent(in) :: arr !< Array to be sorted
+    real*8, dimension(:), intent(in) :: arr !< Array to be sorted
     integer, dimension(:), intent(inout) :: iord !< Permutation array
     integer, intent(in) :: first !< First index
     integer, intent(in) :: last  !< Last index

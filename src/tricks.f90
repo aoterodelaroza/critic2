@@ -187,7 +187,7 @@ contains
     integer :: nbasin, luw
     real*8, allocatable :: xcoord(:,:)
     integer, allocatable :: idg(:,:,:), icp(:)
-    real(kind=gk), allocatable :: w(:,:,:)
+    real*8, allocatable :: w(:,:,:)
 
     ntot = f(2)%n(1)*f(2)%n(2)*f(2)%n(3)
 

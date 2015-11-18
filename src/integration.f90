@@ -91,7 +91,6 @@ contains
     use struct_basic
     use varbas
     use global
-    use types, only: gk
     use tools_math
     use tools_io
     use param
@@ -107,7 +106,7 @@ contains
     real*8 :: ratom, dv(3), r, tp(2), ratom_def
     integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
-    real(kind=gk), allocatable :: w(:,:,:), wsum(:,:,:)
+    real*8, allocatable :: w(:,:,:), wsum(:,:,:)
     integer :: fid, nattr, ix, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: di(:,:,:), mpole(:,:,:)
@@ -282,7 +281,6 @@ contains
     use fields
     use struct_basic
     use global
-    use types, only: gk
     use tools_math
     use tools_io
 
@@ -296,7 +294,7 @@ contains
     integer :: i, j, k, l, m, n(3), nn, ntot, nl, np
     integer :: ix
     integer :: fid, lmax
-    real(kind=gk), allocatable :: w(:,:,:)
+    real*8, allocatable :: w(:,:,:)
     real*8 :: dv(3), r, tp(2), p(3)
     real*8, allocatable :: rrlm(:)
 
@@ -385,7 +383,6 @@ contains
     use wfn_private
     use fields
     use struct_basic
-    use types, only: gk
     use global
     use tools_io
 
@@ -398,7 +395,7 @@ contains
 
     integer :: i, j, k, l, m, i1, i2, ndeloc
     integer :: fid, n(3), ntot, lumo, ix, nn
-    real(kind=gk), allocatable :: w(:,:,:)
+    real*8, allocatable :: w(:,:,:)
     real*8, allocatable :: xmo(:), sij(:,:,:)
     real*8 :: x(3), rho, auxg(3), auxh(3,3), gkin, vir
     character*3 :: sat1, sat2
@@ -555,7 +552,7 @@ contains
     integer :: i0, i1, j0, j1, k0, k1, m1, m2, m3, n0(3)
     integer :: fid, n(3), lumo, ix, nn, kmo, lmo
     integer :: rat(3), idx1(3), idx2(3), idxw(3)
-    real(kind=gk), allocatable :: w(:,:,:)
+    real*8, allocatable :: w(:,:,:)
     integer :: nbnd, nnr, nlat, ilat, jlat, nmo, imo, jmo
     real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
     real*8, allocatable :: sij(:,:,:)
@@ -1595,7 +1592,7 @@ contains
     integer :: nn, nid, nattr0, luw2, n(3), lvec(3), nbasin, nvec
     real*8 :: dist
     integer, allocatable :: nlo(:), ibasin(:), ibasin2(:), iio(:), inear(:,:)
-    real(kind=gk), allocatable :: fnear(:,:)
+    real*8, allocatable :: fnear(:,:)
 
     real*8, parameter :: distcp = 1d-2
 

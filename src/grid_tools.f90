@@ -678,7 +678,7 @@ contains
     real*8 :: bbb, ddu(2), hrh(2), hh(4,2), grd(4), lder(4)
     real*8 :: cof(2,3), ddstar(6), rhstar(6), sqder(6,4), sqvlr(6,4)
     real*8 :: pomsq(2,3), pom2sq(2,3)
-    real(kind=gk),pointer :: ptddx(:,:,:),ptddy(:,:,:),ptddz(:,:,:),ptrho(:,:,:)
+    real*8,pointer :: ptddx(:,:,:),ptddy(:,:,:),ptddz(:,:,:),ptrho(:,:,:)
     real*8 :: xx(3), dix(3)
 
     real*8, parameter :: eps = 1d-12

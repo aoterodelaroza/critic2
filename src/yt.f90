@@ -49,13 +49,13 @@ contains
     integer, allocatable, intent(inout) :: idg(:,:,:)
     integer, intent(out) :: luw
 
-    real(kind=gk), allocatable :: g(:)
+    real*8, allocatable :: g(:)
     integer, allocatable :: io(:), iio(:)
     integer :: i, ii, j, n(3), nn, nvec, vec(3,40), ib(3), jb(3), jj, k, kk
     real*8 :: al(40), csum
     integer :: nhi, nbas(c%ncel)
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:), neqb(:)
-    real(kind=gk), allocatable :: chi(:), fnear(:,:)
+    real*8, allocatable :: chi(:), fnear(:,:)
     logical :: isias
     integer :: nid, lvec(3), bat(c%ncel), nnnm
     real*8 :: dist, dv(3)
@@ -64,7 +64,7 @@ contains
     n = f%n(:)
     nn = n(1)*n(2)*n(3)
     allocate(g(nn))
-    g = max(reshape(f%f,shape(g)),0d0)
+    g = reshape(f%f,shape(g))
 
     ! sort g, from smaller to larger field value
     allocate(io(nn),iio(nn))
@@ -93,6 +93,7 @@ contains
        i = io(ii)
        ib = to3(i)
        csum = 0d0
+       chi = 0d0
        do k = 1, nvec
           jb = ib + vec(:,k)
           j = to1(jb)
@@ -100,7 +101,7 @@ contains
           if (jj > ii) then
              nhi = nhi + 1
              ihi(nhi) = jj
-             chi(nhi) = max(al(k) * (g(j) - g(i)),1d-30)
+             chi(nhi) = al(k) * (g(j) - g(i))
              csum = csum + chi(nhi)
           end if
        end do
@@ -132,7 +133,7 @@ contains
                 kk = ihi(k)
                 nlo(kk) = nlo(kk) + 1
                 inear(nlo(kk),kk) = ii
-                fnear(nlo(kk),kk) = chi(k) / csum
+                fnear(nlo(kk),kk) = chi(k) / max(csum,1d-40)
              end do
           end if
        end if
@@ -189,7 +190,7 @@ contains
 
     integer :: nbasin, nn, nvec
     integer, allocatable :: nlo(:), ibasin(:), iio(:), inear(:,:)
-    real(kind=gk), allocatable :: fnear(:,:), waux(:)
+    real*8, allocatable :: fnear(:,:), waux(:)
     logical :: opened, exist
     integer :: i, j, k
 

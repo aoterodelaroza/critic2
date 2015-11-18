@@ -340,7 +340,7 @@ contains
     type(scalar_value) :: res
     logical :: ok
     integer :: ix, iy, iz, i, j, ntyp(100)
-    real(kind=gk), allocatable :: lf(:,:,:)
+    real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, iscube, doheader
 
     ! read the points

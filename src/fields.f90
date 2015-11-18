@@ -1897,13 +1897,12 @@ contains
   subroutine taufromelf(ielf,irho,itau)
     use grid_tools
     use tools_io
-    use types, only: gk
     use param
 
     integer, intent(in) :: ielf, irho, itau
 
     integer :: igrad
-    real(kind=gk), allocatable :: g(:,:,:)
+    real*8, allocatable :: g(:,:,:)
 
     ! check that the fields are good
     if (.not.goodfield(ielf,type_grid)) &

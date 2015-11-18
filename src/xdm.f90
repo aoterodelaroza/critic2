@@ -598,12 +598,11 @@ contains
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
     use tools_io
-    use types, only: gk
     use struct_basic
 
     character*(*), intent(in) :: file, line1, line2
     integer, intent(in) :: n(3)
-    real(kind=gk), intent(in) :: c(0:n(1)-1,0:n(2)-1,0:n(3)-1)
+    real*8, intent(in) :: c(0:n(1)-1,0:n(2)-1,0:n(3)-1)
 
     integer :: i, j, k, lu
     real*8 :: xx(3)

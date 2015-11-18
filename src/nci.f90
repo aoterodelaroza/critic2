@@ -50,8 +50,8 @@ contains
     integer :: lp, istat
     integer :: i, j, k, iat, ifr, l, nn
     integer :: lugc, ludc, luvmd, ludat, luchk, lupc
-    real(kind=gk), allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
-    real(kind=gk), allocatable, dimension(:,:,:,:) :: rhofrag
+    real*8, allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
+    real*8, allocatable, dimension(:,:,:,:) :: rhofrag
     real*8 :: ehess(3), dimgrad, dist, rrho, rrho1, rrho2
     real*8 :: sumq, sumqp, sumv
     logical :: onlyneg, lchk, inter, llat, llfrag, isden
@@ -779,7 +779,7 @@ contains
 
     integer, intent(in) :: lu
     integer, intent(in) :: n(3)
-    real(kind=gk), intent(in) :: c(0:n(3)-1,0:n(2)-1,0:n(1)-1)
+    real*8, intent(in) :: c(0:n(3)-1,0:n(2)-1,0:n(1)-1)
 
     integer :: i, j, k
 

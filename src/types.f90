@@ -27,10 +27,6 @@ module types
   public :: minisurf, miniface
   public :: realloc
 
-  ! grid type parameter
-  ! integer, parameter, public :: gk = selected_real_kind(6) ! single-precision
-  integer, parameter, public :: gk = selected_real_kind(12) ! double-precision
-
   ! overloaded functions
   interface realloc
      module procedure realloc_field
@@ -162,11 +158,11 @@ module types
      character*(255) :: file = "" !< file name
      ! grids
      integer :: mode
-     real(kind=gk), allocatable :: f(:,:,:)
-     real(kind=gk), allocatable, dimension(:,:,:,:) :: c2
+     real*8, allocatable :: f(:,:,:)
+     real*8, allocatable, dimension(:,:,:,:) :: c2
      real*8 :: c2x(3,3), x2c(3,3)
      integer :: nwan(3) ! number of wannier vectors
-     real(kind=gk), allocatable :: fwan(:,:,:,:) ! from wannier xsf
+     real*8, allocatable :: fwan(:,:,:,:) ! from wannier xsf
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)
