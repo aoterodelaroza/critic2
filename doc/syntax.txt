@@ -86,6 +86,7 @@ expression.r # prints the value of the expression to the output.
   WRITE {[file.]POSCAR|[file.]CONTCAR} [PRIMITIVE]
   WRITE file.abin [PRIMITIVE]
   WRITE file.elk [PRIMITIVE]
+  WRITE file.gau
   WRITE file.cif 
   WRITE file.m
   WRITE file.gin [DREIDING]

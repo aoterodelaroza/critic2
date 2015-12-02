@@ -1776,6 +1776,7 @@ not. The full syntax of the WRITE keyword is::
   WRITE {[file.]POSCAR|[file.]CONTCAR} [PRIMITIVE]
   WRITE file.abin [PRIMITIVE]
   WRITE file.elk [PRIMITIVE]
+  WRITE file.gau
   WRITE file.cif
   WRITE file.m
   WRITE file.gin [DREIDING]
@@ -1885,6 +1886,10 @@ extension. An elk input template can be written using the elk
 extension. In all three cases, the PRIMITIVE keyword transforms the
 current cell to the primitive cell. A simple cif file (no symmetry) is
 generated if the cif extension is used.
+
+A Gaussian input file for calculations under periodic boundary
+conditions can be written using the gau extension. For a template
+corresponding to a finite molecule, use gjf (see above).
 
 The octave script file (extension .m) contains the structure in octave
 format, to be read using the escher library (visit

@@ -440,6 +440,11 @@ contains
           call struct_write_3dmodel(cr,file,wext,ix,doborder,molmotif,doburst,&
              docell,domolcell,rsph,xsph,rcub,xcub)
        end if
+    elseif (equal(wext,'gau')) then
+       ! gaussian periodic boundary conditions
+       write (uout,'("* WRITE Gaussian file: ",A)') string(file)
+       call struct_write_gaussian(file,cr,doprim)
+       call check_no_extra_word()
     elseif (equal(wext,'in')) then
        ! espresso
        write (uout,'("* WRITE espresso file: ",A)') string(file)

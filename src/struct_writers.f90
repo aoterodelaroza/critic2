@@ -38,6 +38,7 @@ module struct_writers
   public :: struct_write_vasp
   public :: struct_write_abinit
   public :: struct_write_elk
+  public :: struct_write_gaussian
   public :: struct_write_tessel
   public :: struct_write_critic
   public :: struct_write_cif
@@ -606,6 +607,46 @@ contains
     call fclose(lu)
 
   end subroutine struct_write_elk
+
+  !> Write a Gaussian template input (periodic).
+  subroutine struct_write_gaussian(file,c,doprim)
+    use struct_basic
+    use tools_io
+    use param
+
+    character*(*), intent(in) :: file
+    type(crystal), intent(in) :: c
+    logical, intent(in) :: doprim
+
+    character(len=:), allocatable :: wroot
+    integer :: lu, i, j
+
+    wroot = file(:index(file,'.',.true.)-1)
+
+    lu = fopen_write(file)
+    write (lu,'("%chk=",A,".chk")') wroot
+    write (lu,'("%nprocs=8")') 
+    write (lu,'("%mem=2GB")') 
+    write (lu,'("#p pbepbe/sto-3g int(grid=ultrafine) pop=regular fmm=(print)")') 
+    write (lu,'("   iop1=timestamp iop(5/13=1,5/33=1,5/181=10,5/184=186)")') 
+    write (lu,'("   scf=(novaracc,noincfock,tight)")') 
+    write (lu,*) 
+    write (lu,'("title")') 
+    write (lu,*) 
+    write (lu,'("0 1")') 
+    do i = 1, c%ncel
+       write (lu,'(99(A,X))') string(nameguess(c%at(c%atcel(i)%idx)%z,.true.),2,ioj_left),&
+          (string(c%atcel(i)%r(j)*bohrtoa,'f',14,8,ioj_left),j=1,3)
+    end do
+    do i = 1, 3
+       write (lu,'(99(A,X))') string("Tv",2,ioj_left),&
+          (string(c%crys2car(j,i)*bohrtoa,'f',14,8,ioj_left),j=1,3)
+    end do
+    write (lu,*)
+
+    call fclose(lu)
+
+  end subroutine struct_write_gaussian
 
   !> Write a tessel input template
   subroutine struct_write_tessel(file,c)
