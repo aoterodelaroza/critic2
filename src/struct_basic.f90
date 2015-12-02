@@ -2409,8 +2409,8 @@ contains
     real*8, parameter :: ws_eps_vol = 1d-5 !< Reject tetrahedra smaller than this.
     real*8, parameter :: eps_bary = 1d-1 !< barycenter identification
     integer, parameter :: icelmax_def = 2 !< maximum number of cells in a direction.
-    integer, parameter :: icelmax_safe = 3 !< maximum number of cells in a direction (safe)
-    integer, parameter :: icelmax_usafe = 4 !< maximum number of cells in a direction (ultra-safe)
+    integer, parameter :: icelmax_safe = 4 !< maximum number of cells in a direction (safe)
+    integer, parameter :: icelmax_usafe = 10 !< maximum number of cells in a direction (ultra-safe)
 
     real*8 :: rnorm
     integer :: i, j, k, n, npolig, leqv, icelmax
@@ -2459,7 +2459,7 @@ contains
        write (uout,'("  Cell angles: ",3(A,2X))') (string(c%bb(j),'f',decimal=3),j=1,3)
        write (uout,*)
     end if
-
+       
     ! anchor for when critic2 and qhull fight each other
     ithr = ithr_def
     icelmax = icelmax_def
