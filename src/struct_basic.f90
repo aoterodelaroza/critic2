@@ -1635,7 +1635,7 @@ contains
        write (uout,'("+ Symmetry operations (rotations) in chemical notation:")')
        do i = 1, c%neqv
           call typeop(c%rotm(:,:,i),tipo,vec,order)
-          write (uout,'(2X,A,2X,A,2x,"(",2(A,", "),A,")")') string(i,length=3), &
+          write (uout,'(2X,A,2X,A,2x,"( ",2(A,", "),A,")")') string(i,length=3), &
              string(symchar(tipo),length=3), (string(vec(j),'f',decimal=5,length=8,justify=ioj_right),j=1,3)
        enddo
        write (uout,*)
