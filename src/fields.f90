@@ -1131,7 +1131,12 @@ contains
   
   end subroutine fields_pointprop_report
 
-  !> Write a grid to a cube file.
+  !> Write a grid to a cube file. The input is the crystal (c),
+  !> the grid in 3D array form (g), the filename (file), and whether
+  !> to write the whole cube or only the header (onlyheader). If xd0
+  !> is given, use it as the metric of the cube; otherwise, use the
+  !> unit cell. If x00 is given, use it as the origin of the cube
+  !> (in bohr). Otherwise, use the crystal's molx0.
   subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
     use struct_basic
     use tools_io
@@ -1186,7 +1191,9 @@ contains
 
   end subroutine writegrid_cube
 
-  !> Write a grid to a VASP CHGCAR file
+  !> Write a grid to a VASP CHGCAR file. The input is the crystal (c),
+  !> the grid in 3D array form (g), the filename (file), and whether
+  !> to write the whole cube or only the header (onlyheader). 
   subroutine writegrid_vasp(c,g,file,onlyheader)
     use struct_basic
     use tools_io
