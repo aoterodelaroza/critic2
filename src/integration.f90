@@ -99,10 +99,10 @@ contains
 
     real*8, parameter :: ratom_def0 = 1d0
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, file
     integer :: i, j, k, n(3), nn, ntot
     integer :: lp, itype, p(3)
-    logical :: ok, nonnm, noatoms, pmask(nprops)
+    logical :: ok, nonnm, noatoms, pmask(nprops), dowcube
     real*8 :: ratom, dv(3), r, tp(2), ratom_def
     integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
@@ -130,6 +130,7 @@ contains
     ratom_def = ratom_def0
     nonnm = .true.
     noatoms = .false.
+    dowcube = .false.
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"nnm")) then
@@ -142,6 +143,8 @@ contains
           if (.not.ok) &
              call ferror("intgrid_driver","wrong RATOM keyword",faterr,line)
           ratom_def = ratom_def / dunit
+       elseif (equal(word,"wcube")) then
+          dowcube = .true.
        elseif (len_trim(word) > 0) then
           call ferror("intgrid_driver","Unknown extra keyword",faterr,line)
        else
@@ -250,8 +253,20 @@ contains
              endif
           endif
        end do
+       if (dowcube) then
+          if (itype == itype_bader) then
+             w = 0d0
+             where (idg == i)
+                w = 1d0
+             end where
+          endif
+          file = trim(fileroot) // "_wcube_" // string(i,2,pad0=.true.) // ".cube"
+          call writegrid_cube(cr,w,file,.false.)
+       endif
     end do
     deallocate(w)
+    if (dowcube) &
+       write (uout,'("* Weights written to ",A,"_wcube_*.cube")') trim(fileroot)
 
     ! compute multipoles
     call intgrid_multipoles(nattr,xgatt,idg,itype,luw,mpole)
