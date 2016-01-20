@@ -69,7 +69,7 @@ contains
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2
     real*8 :: gmat(3,3), rmat(3,3), scal, ascal, x(3), xn(3)
-    logical :: ok, goodcell, goodspg
+    logical :: ok, goodcell, goodspg, useit
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
     logical :: icodef(3)
@@ -158,10 +158,11 @@ contains
           c%car2crys = matinv(c%crys2car)
           goodcell = .true.
 
-       else if (equal(word,'spg')) then
+       else if (equal(word,'spg').or.equal(word,'spgr')) then
           ! spg <spg>
+          useit = equal(word,'spgr')
           word = line(lp:)
-          call spgs_wrap(c,word)
+          call spgs_wrap(c,word,useit)
           goodspg = .true.
 
        else if (equal(word,'symm')) then
@@ -718,7 +719,7 @@ contains
           call ferror('struct_read_cif','error reading symmetry',faterr,file)
 
        ! call spgs and hope for the best
-       call spgs_wrap(c,spg)
+       call spgs_wrap(c,spg,.false.)
     endif
 
     ! clean up
@@ -2090,7 +2091,7 @@ contains
   end subroutine qe_latgen
 
   !> Wrapper to the spgs module
-  subroutine spgs_wrap(c,spg)
+  subroutine spgs_wrap(c,spg,usespgr)
     use struct_basic
     use spgs
     use global
@@ -2100,8 +2101,9 @@ contains
 
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: spg
+    logical, intent(in) :: usespgr
 
-    call spgs_driver(spg)
+    call spgs_driver(spg,usespgr)
     c%lcent = spgs_lcent
     c%ncv = spgs_ncv
     if (allocated(c%cen)) deallocate(c%cen)

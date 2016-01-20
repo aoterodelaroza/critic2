@@ -38,6 +38,7 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.STRUCT_OUT
   CRYSTAL
    SPG spgsymbol.s
+   SPGR spgsymbol.s
    CELL a.r b.r c.r alpha.r beta.r gamma.r [ANG/ANGSTROM/BOHR/AU] 
    CARTESIAN [scal.r]
      [BOHR/AU]

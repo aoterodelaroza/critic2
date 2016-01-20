@@ -1081,6 +1081,7 @@ Loading a crystal structure (CRYSTAL)
   CRYSTAL file.STRUCT_OUT
   CRYSTAL
     SPG spg.s
+    SPGR spg.s
     CELL a.r b.r c.r alpha.r beta.r gamma.r
     CARTESIAN [scal.r]
       # comment
@@ -1284,7 +1285,37 @@ origin choice, unique axis and hexagonal/rhombohedral axes
 apply. Example: "222" is equivalent to "Pn-3n", "Pn-3n1", and "P n -3
 n 1".
 
-If no SPG keyword is found in the CRYSTAL environment, then an
+If the space group is not one of the standard settings (for instance,
+"A 2/n", also written as "A 1 2/n 1"), then the routines from the SPGR
+library are used. These routines can be accessed direclty by using the
+SPGR keyword instead of SPG::
+
+  SPGR spg.s
+
+Even though the interpretation of the space group symbol is done by a
+different library, the result is the same: establishing the symmetry
+operations for the crystal.
+
+The notation for SPGR is slightly different and provides more
+flexibility than SPG (although space group numbers can not be
+used). The space group label in SPGR follows these conventions: 
+
+- Input space group symbol using the international Hermann-Mauguin
+  notation for the operations.
+
+- Each different symmetry element must be separated by a blank.
+
+- Characters in a symmetry element must be given as a single
+  word. This is also the case for subindices.
+
+- Upperscore is represented by - preceding the symmetry operation.
+
+- Case is irrelevant.
+
+Examples of space groups for SPGR are "F m -3 m", "P 21 21 21", "A 1
+21/n 1", "P 4/m m m", and "R -3 c".
+
+If no SPG or SPGR keyword is found in the CRYSTAL environment, then an
 internal routine calculates the symmetry from the atomic positions
 (which can be deactivated using NOGUESS, see `Symmetry options`_). In
 this case, all the atoms in the cell need to be given (in contrast to

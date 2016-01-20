@@ -48,6 +48,20 @@ module spgs
   logical :: spgs_inv !< true if centrosymmetric
   integer :: spgs_laue !< laue class. One of 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mm, 6=3bar, 7=3bar/m, 8=6/m, 9=6/mmm, 10=m3bar, 11=m3barm
 
+  ! private to spgr
+  integer :: npol !< internal spgr
+  integer :: jrt(3,4,24) !< internal spgr
+  real*8  :: cen(3,16) !< centering vectors
+  real*8  :: rotm(3,4,48) !< symmetry operations
+  integer :: laue !< laue group (1=1bar,2=2/m,3=mmm,4=4/m,5=4/mm,6=r3r,7=r3mr,
+                  !< 8=3, 9=3m1, 10=31m, 11=6/m, 12=6/mmm, 13=m3, 14=m3m)
+  integer :: lcent !< lattice centering 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=R.
+  integer :: lsys !< crystal system 1=tri,2=mon,3=ort,4=tet,5=triR,6=triH,7=hex,8=cub.
+  integer :: naxis !< unique axis for monoclinic groups (1=x,2=y,3=z)
+  integer :: ncent !< 1 for centrosymmetric, 0 for non-cs
+  integer :: ncv !< number of centering vectors
+  integer :: neqv !< number of symmetry operations
+
   ! public/protected interface
   public :: spgs_id, spgs_shortspg, spgs_longspg, spgs_n, spgs_m, spgs_ncv
   public :: spgs_cen, spgs_sys, spgs_tri, spgs_mon, spgs_ort, spgs_tet
@@ -689,12 +703,13 @@ module spgs
 contains
 
   !> Generate all symmetry information from the space group label
-  subroutine spgs_driver(spgin)
+  subroutine spgs_driver(spgin,usespgr)
     use tools_io
 
     character(len=*), intent(in) :: spgin
+    logical, intent(in) :: usespgr
 
-    integer :: i, n
+    integer :: i, n, lpt, lptx, ier
     character(len(spgin)) :: spgin0
     logical :: isblank
 
@@ -718,36 +733,67 @@ contains
     end do
     spgs_shortspg = lower(adjustl(spgs_shortspg))
 
-    ! check the master list
     spgs_id = 0
-    do i = 1, 306
-       if (trim(spgs_shortstr(i)) == trim(spgs_shortspg)) then
-          spgs_id = i
-          spgs_longspg = spgs_longstr(i)
-          exit
-       end if
-    end do
-
-    ! check the alias list
-    if (spgs_id == 0) then
-       do i = 1, nalias
-          if (trim(spgalias(i)) == trim(spgs_shortspg)) then
-             spgs_id = ialias(i)
-             spgs_longspg = spgs_longstr(ialias(i))
+    if (.not.usespgr) then
+       ! check the master list
+       do i = 1, 306
+          if (trim(spgs_shortstr(i)) == trim(spgs_shortspg)) then
+             spgs_id = i
+             spgs_longspg = spgs_longstr(i)
              exit
           end if
        end do
-    endif
 
-    ! argh!
-    if (spgs_id == 0) then
-       call ferror('spgs_driver','Unknown space group symbol',faterr,spgin)
+       ! check the alias list
+       if (spgs_id == 0) then
+          do i = 1, nalias
+             if (trim(spgalias(i)) == trim(spgs_shortspg)) then
+                spgs_id = ialias(i)
+                spgs_longspg = spgs_longstr(ialias(i))
+                exit
+             end if
+          end do
+       endif
     end if
 
-    ! do the stuff
-    call spgs_parse()
-    call spgs_generate()
-    call spgs_getlaue()
+    ! argh
+    if (spgs_id == 0) then
+       ! well, let's pass it to SPGR and hope for the best
+       rotm = 0d0
+       call spgr(spgs_shortspg,-1,-1,ier)
+
+       ! I give up
+       if (ier /= 0) &
+          call ferror('spgs_driver','Unknown space group symbol',faterr,spgin)
+
+       ! translate to spgs notation
+       spgs_longspg = spgs_shortspg
+       spgs_n = neqv
+       spgs_m(1:3,1:3,1:24) = nint(rotm(1:3,1:3,1:24))
+       spgs_m(1:3,4,1:24) = nint(rotm(1:3,4,1:24) * 12d0)
+       if (ncent == 1) then
+          spgs_n = 2 * neqv
+          do i = 1, neqv
+             spgs_m(1:3,1:3,neqv+i) = -spgs_m(1:3,1:3,i)
+             spgs_m(1:3,4,neqv+i) = spgs_m(1:3,4,i)
+          end do
+       endif
+       spgs_ncv = ncv
+       spgs_cen = nint(cen(:,1:4) * 12d0)
+       if (lsys==1.or.lsys==2.or.lsys==3.or.lsys==4.or.lsys==7.or.lsys==8) then
+          spgs_sys = lsys
+       elseif (lsys==5.or.lsys==6) then
+          spgs_sys = 6
+       endif
+       call spgs_getlaue()
+       spgs_lcent = lcent
+       spgs_inv = (ncent==1)
+    else
+       ! do the stuff
+       call spgs_parse()
+       call spgs_generate()
+       call spgs_getlaue()
+    end if
 
   end subroutine spgs_driver
 
@@ -3092,4 +3138,1977 @@ contains
 
   end subroutine spgs_init
 
+  subroutine spgr(spg, lpt, lptx, ier)
+    use struct
+    use tools_io
+    use param
+!-----------------------------------------------------------------------
+!
+!     SSSSSSSS      PPPPPPPPPP        GGGGGGGG      RRRRRRRRRR
+!    SSSSSSSSSS     PPPPPPPPPPP      GGGGGGGGGG     RRRRRRRRRRR
+!   SSS             PPP      PPP    GGG      GGG    RRR      RRR
+!   SSS             PPP      PPP    GGG      GGG    RRR      RRR
+!    SSSSSSSSS      PPP      PPP    GGG             RRR      RRR
+!     SSSSSSSSS     PPP      PPP    GGG             RRR      RRR
+!            SSS    PPPPPPPPPPP     GGG   GGGGGG    RRRRRRRRRRR
+!            SSS    PPPPPPPPPP      GGG   GGGGGG    RRRRRRRRRR
+!   SSS      SSS    PPP             GGG      GGG    RRR    RRR
+!   SSS      SSS    PPP             GGG      GGG    RRR     RRR
+!    SSSSSSSSSS     PPP              GGGGGGGGGG     RRR      RRR
+!     SSSSSSSS      PPP               GGGGGGGG      RRR       RRR
+!
+!.....Space group symbol recognition library.
+!
+!.....Based upon work by Allen C. Larson (the National Research
+!     Council of Canada) in the sixties.
+!
+!.....Rewritten in Fortran 77, cleaned up and corrected by Angel Martin
+!     Pendas (Universidad de Oviedo).
+!     Adapted to REAL*8 by Miguel Alvarez Blanco (Univ. de Oviedo)
+!
+!----------------------------------------------------------------------
+!
+!
+!.....spgr - interprets the space group symbol
+!
+!     data in the calling sequence are
+!
+!     spg ...... space group symbol
+!     laue ..... output the laue group number.
+!                1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mm, 6=r3r, 7=r3mr,
+!                8=3, 9=3m1, 10=31m, 11=6/m, 12=6/mmm, 13=m3 AND 14=m3m
+!     naxis .... unique axis in monoclinic space groups
+!     ncent .... 1bar flag  (0/1) for (acentric/centric)
+!     lcent .... lattice centering number.
+!                1=P, 2=A, 3=B, 4=C, 5=I, 6=F and 7=R
+!     neqv ..... Number of symmetry matrices generated.
+!     jrt ...... neqv (3,4,neqv) matrices
+!     cen ...... lattice centering vectors
+!     ncv ...... Number of lattice centering vectors.
+!     lpt ...... stdout
+!                if (lpt.lt.0) no listing will be produced
+!     lptx ..... stderr
+!                if (lptx.lt.0) no error report will be produced
+!     ier ...... if (ier.ne.0). An error has been found.
+!
+!
+      implicit none
+
+      character*(24)    spg
+      integer           lpt, lptx, ier
+!
+      character*(1)     chr(25)
+      real*8            rt(5,4,25), d(3,3)
+      integer           l(4,4)
+      integer           lcen(7)
+      integer           length
+      integer           i, j, k, m, ierx, n, nromb, ncubic, ifound
+      integer           nmenos, id, nxi, njs, m2, localident, nxl, nx
+      integer           m1
+!
+!.....data in lcen for  C B A P F I R  respectively
+!
+      data&
+       lcen(1),lcen(2),lcen(3),lcen(4),lcen(5) /4,3,2,1,6/,&
+       lcen(6),lcen(7)                         /5,7/
+!
+!                  1    2    3    4    5    6    7    8    9    10
+      data chr  / ' ', 'C', 'B', 'A', 'P', 'F', 'I', 'R', 'M', 'N',&
+                  'D', '1', '2', '3', '4', '5', '6', '-', '/', 'H',&
+                  '.', ' ', ' ', ' ', ' ' /
+!                  11   12   13   14   15   16   17   18   19   20
+!
+      do i = 1, 4
+         do j = 1, 4
+            l(i,j) = 0
+         enddo
+      enddo
+      ier    = 0
+      ncent  = 0
+      laue   = 0
+      naxis  = 0
+      ierx   = 0
+      n      = 0
+      nromb  = 0
+      ncubic = 0
+!
+!.....transform symbol to uppercase
+!
+      spg = upper(adjustl(spg))
+      length = len_trim(spg)
+!
+!.....break the space group symbol into the 4 fields and code
+!     as numerical values for manipulation
+      k = 0
+      m = 0
+      do 110 j=1,length
+         ifound=0
+         do 100 i=1,21
+!...........Exit if found
+            if ( spg(j:j).eq.chr(i) ) then 
+                ifound=i
+                go to 101
+            endif
+ 100     continue
+ 101     if (ifound.ne.0) then 
+            if (k+m+ifound.ne.1) then
+                if ( ifound.ne.1) then 
+                   if ( m.eq.0 ) k=k+1
+                   m = m+1
+                   l(m,k) = ifound
+                else
+                   m=0
+!..................exit loop if more than 3 fields read
+                   if (k.gt.3) goto 200
+                endif
+                if ( ifound.lt.12 .or. m.ge.4) then
+                   m=0
+!..................exit loop if more than 3 fields read
+                   if (k.gt.3) goto 200
+                endif
+            endif
+         endif      
+ 110  continue
+!
+!
+  200 if ( k.le.1 .or. l(1,1).gt.8 ) then
+         ier=1
+         if (l(1,1).gt.8) ier=2
+         if (lptx.ge.0) call sgerrs (spg(1:24), ier, lptx)
+         return
+      endif
+!
+!.....convert the -N notation to the nb(ar) notation
+!
+      nmenos=0
+      if ( l(1,2).eq.18 ) then
+         nmenos=nmenos+1
+         call sglpak(l(1,2),ier)
+         if (ier .gt. 0 ) then
+            if (lptx.ge.0) call sgerrs (spg(1:24), ier, lptx)
+            return
+         endif
+      endif
+      if ( l(1,3).eq.18 ) then
+         nmenos=nmenos+1
+         call sglpak(l(1,3),ier)
+         if (ier .gt. 0 ) then
+            if (lptx.ge.0) call sgerrs (spg(1:24), ier, lptx)
+            return
+         endif
+      endif
+      if ( l(1,4).eq.18 ) then
+         nmenos=nmenos+1
+         call sglpak(l(1,4),ier)
+         if (ier .gt. 0 ) then
+            if (lptx.ge.0) call sgerrs (spg(1:24), ier, lptx)
+            return
+         endif
+      endif
+!
+!.....only one bar allowed
+!
+      if ( nmenos.gt.1 ) then
+         ier=24
+         if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+         return
+      endif
+!
+!.....set the matrix count n to 2
+!
+      n = 2
+!
+!.....set the translation flags
+!
+      d(1,1) = zero
+      d(1,2) = zero
+      d(1,3) = zero
+      d(2,1) = zero
+      d(2,2) = zero
+      d(2,3) = zero
+      d(3,1) = zero
+      d(3,2) = zero
+      d(3,3) = zero
+!
+!.....set the lattice centering flag. 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=R
+!
+      lcent = l(1,1)-1
+      lcent = lcen(lcent)
+      if ( lcent.eq.7 ) then
+!
+!........rhombohedral lattice.
+!        make sure that there is a 3-axis.
+!
+         if ( l(1,2).ne.14 ) then
+            ier=3
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         endif
+         if ( l(1,k).ne.8 ) then
+!
+!...........hexagonal axes. retain r centering and set laue to 8 or 9
+!
+            if ( l(1,k).eq.20 ) k=k-1
+            laue = k+6
+         else
+!
+!...........rhombohedral axes. delete R centering.set laue to 6 or 7
+!
+            lcent = 1
+            k = k-1
+            laue = k+4
+            nromb=1
+         endif
+      else
+!
+!........determine laue and some preliminary data
+!
+         ier = 0
+         ncubic = 0
+         call sglatc(k, l, d, lcent, laue, naxis, ier, ncubic, id)
+         if ( ier.gt.0 ) then
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         endif
+      endif
+!
+      if ( ncubic.eq.1 .or. nromb.eq.1 ) then
+!
+!.........cubic or rhombohedral cell. insert the 3-fold axis
+!
+          call sgrmat(rt(1,1,2),0,1,0,0,0,1,1,0,0)
+          call sgrmat(rt(1,1,3),0,0,1,1,0,0,0,1,0)
+          n = 4
+      endif
+!
+!.....insert the unit matrix
+!
+      call sgrmat(rt,1,0,0,0,1,0,0,0,1)
+!
+!.....decode the last 3 fields of the symbol
+!
+      do 20 m=2,k
+         if ( l(1,m).eq.0 ) then
+            ier=6
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         endif
+         i = iabs(l(1,m)-5)
+  10     if ( i.le.0.or.i.gt.15 ) then
+            ier=7
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         endif
+         nxi = n
+!
+!       A   B   C   M   N   D   1   2   3   4   5   6   -   /   H
+!  i=   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+!
+         if (i.ge.1 .and. i.le.5) then
+!
+!...........a mirror is needed
+!
+            if (m .eq. 2) then
+!
+!         A   B   C  AXIS
+!  m=     1   2   3
+!
+               if ( laue.gt.3 )  then
+                  if (i.eq.3 ) then
+                      ier=10
+                      if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                      return
+                  endif
+!
+!.................a C-axis mirror
+!
+                  call sgrmat(rt(1,1,n),1,0,0,0,1,0,0,0,-1)
+                  rt(3,4,n) = d(3,3)
+                  if ( i.eq.1.or.i.eq.5 ) rt(1,4,n) = half 
+                  if ( i.eq.2.or.i.eq.5 ) rt(2,4,n) = half
+                  if ( m.eq. 2.and.l(1,2).eq.17) then
+!
+!....................if this is a 63-axis the mirror is at 1/4
+!
+                     if ( l(2,2).eq.14 ) rt(3,4,n)=half
+                  endif
+               else if (k.eq.2) then
+                  if (i.eq.2 ) then
+                     ier=9
+                     if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                     return
+                  endif
+!
+!.................a B-axis mirror
+!
+                  call sgrmat(rt(1,1,n),1,0,0,0,-1,0,0,0,1)
+                  rt(2,4,n) = d(2,2)
+                  if ( i.eq.1.or.i.eq.5 ) rt(1,4,n) = half
+                  if ( i.eq.3.or.i.eq.5 ) rt(3,4,n) = half
+               else if (i.eq.1) then
+                  ier=8
+                  if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                  return
+               else
+!
+!.................a A-axis mirror
+!
+                  call sgrmat(rt(1,1,n),-1,0,0,0,1,0,0,0,1)
+                  rt(1,4,n) = d(1,1)
+                  if ( i.eq.2.or.i.eq.5 ) rt(2,4,n)=half
+                  if ( i.eq.3.or.i.eq.5 ) rt(3,4,n)=half
+               endif
+            else if (m.eq.3) then
+               if ( l(1,2).eq.14.or.l(1,2).eq.17 ) then
+!
+                  if ( laue.eq.7 ) then
+!
+!....................a diagonal mirrror perpendicular to -110
+!
+                     call sgrmat(rt(1,1,n),0,1,0,1,0,0,0,0,1)
+                     rt(1,4,n) = d(2,2)
+                     rt(2,4,n) = -d(2,2)
+                     if ( i.eq.3.or.i.eq.5 ) rt(3,4,n) = half
+                     if (( laue.ne.7 .or. i.ne.3) .and. (  i.ne.3 .and. i.ne.4  )) then
+                        if ( lcent.eq.6.or.lcent.eq.4 ) then
+!
+!.......................F or C-centered tetragonal. glides are 1/4,1/4
+!
+                           rt(1,4,n) = fourth+rt(1,4,n)
+                           rt(2,4,n) = fourth+rt(2,4,n)
+                        else
+                           rt(1,4,n) = half+rt(1,4,n)
+                           rt(2,4,n) = half+rt(2,4,n)
+                        endif
+                     endif
+                  else
+!
+!....................mirror normal to (1000) in hex cell
+!
+                     call sgrmat(rt(1,1,n),-1,1,0,0,1,0,0,0,1)
+                     if ( i.eq.3 ) rt(3,4,n)=half
+                  endif
+               else if (l(1,2).eq.15) then
+                  if (i.eq.1) then
+                     ier=8
+                     if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                     return
+                  else
+!
+!...................a A-axis mirror
+!
+                    call sgrmat(rt(1,1,n),-1,0,0,0,1,0,0,0,1)
+                    rt(1,4,n) = d(1,1)
+                    if ( i.eq.2.or.i.eq.5 ) rt(2,4,n)=half
+                    if ( i.eq.3.or.i.eq.5 ) rt(3,4,n)=half
+                  endif
+               else
+                  if (i.eq.2 ) then
+                     ier=9
+                     if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                     return
+                  endif
+!
+!.................a B-axis mirror
+!
+                  call sgrmat(rt(1,1,n),1,0,0,0,-1,0,0,0,1)
+                  rt(2,4,n) = d(2,2)
+                  if ( i.eq.1.or.i.eq.5 ) rt(1,4,n) = half
+                  if ( i.eq.3.or.i.eq.5 ) rt(3,4,n) = half
+               endif
+            else if (m.eq.4) then
+!
+!..............it is not cubic or tetragonal nor trigonal or hexagonal
+!
+               if (( l(1,3).eq.14.or.l(1,2).eq.15 ) .or. ( l(1,2).eq.14.or.l(1,2).eq.17 )) then
+!
+!.................a diagonal mirrror perpendicular to -110
+!
+                  call sgrmat(rt(1,1,n),0,1,0,1,0,0,0,0,1)
+                  rt(1,4,n) = d(2,2)
+                  rt(2,4,n) = -d(2,2)
+                  if ( i.eq.3.or.i.eq.5 ) rt(3,4,n) = half
+                  if (( laue.ne.7 .or. i.ne.3) .and. (  i.ne.3 .and. i.ne.4  )) then
+                     if ( lcent.eq.6.or.lcent.eq.4 ) then
+!
+!....................F or C-centered tetragonal. glides are 1/4,1/4
+!
+                        rt(1,4,n) = fourth+rt(1,4,n)
+                        rt(2,4,n) = fourth+rt(2,4,n)
+                     else
+                        rt(1,4,n) = half+rt(1,4,n)
+                        rt(2,4,n) = half+rt(2,4,n)
+                     endif
+                  endif
+               else
+                  if ( i.eq.3 ) then
+                     ier=10
+                     if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                     return
+                  endif
+!
+!.................a c-axis mirror
+!
+                  call sgrmat(rt(1,1,n),1,0,0,0,1,0,0,0,-1)
+                  rt(3,4,n) = d(3,3)
+                  if ( i.eq.1.or.i.eq.5 ) rt(1,4,n) = half
+                  if ( i.eq.2.or.i.eq.5 ) rt(2,4,n) = half
+                  if ( m.eq. 2.and.l(1,2).eq.17) then
+!
+!....................if this is a 63-axis the mirror is at 1/4
+!
+                     if ( l(2,2).eq.14 ) rt(3,4,n)=half
+                  endif
+               endif
+            endif
+         else if (i.eq.6 ) then
+!
+!...........d type mirror
+!
+            if ( lcent.le.1 ) then
+               ier=11
+               if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+               return
+            endif
+!
+!           go to (500,246,247,248),m
+!
+            if (m.eq.2) then
+               if ( laue.gt.3 ) then
+                  call sgrmat(rt(1,1,n),1,0,0,0,1,0,0,0,-1)
+                  rt(1,4,n) = fourth
+                  rt(2,4,n) = fourth
+                  if ( id.eq.2 ) rt(3,4,n)=fourth
+               else if (k.eq.2) then
+                  call sgrmat(rt(1,1,n),1,0,0,0,-1,0,0,0,1)
+                  rt(1,4,n) = fourth
+                  if ( id.eq.2 ) rt(2,4,n)=fourth
+                  if ( laue.eq.5 ) rt(2,4,n) = d(2,1)
+                  rt(3,4,n) = fourth
+               else
+                  call sgrmat(rt(1,1,n),-1,0,0,0,1,0,0,0,1)
+                  if ( id.eq.2 ) rt(1,4,n)=fourth
+                  rt(2,4,n) = fourth
+                  rt(3,4,n) = fourth
+               endif
+            else if (m.eq.3) then
+               call sgrmat(rt(1,1,n),1,0,0,0,-1,0,0,0,1)
+               rt(1,4,n) = fourth
+               if ( id.eq.2 ) rt(2,4,n)=fourth
+               if ( laue.eq.5 ) rt(2,4,n) = d(2,1)
+               rt(3,4,n) = fourth
+            else if (m.eq.4) then
+               if ( l(1,2).eq.15.or.l(1,3).eq.14 ) then
+!
+!.................cubic or tetragonal. d-glide along diagonal
+!
+                  call sgrmat(rt(1,1,n),0,1,0,1,0,0,0,0,1)
+                  rt(1,4,n) = fourth
+                  rt(2,4,n) = fourth
+                  rt(3,4,n) = fourth
+                  if (l(1,3).eq.13) then
+                     rt(1,4,n) = zero
+                     rt(2,4,n) = half
+                  endif
+               else
+!
+!.................it is not tetragonal or cubic
+!
+                  call sgrmat(rt(1,1,n),1,0,0,0,1,0,0,0,-1)
+                  rt(1,4,n) = fourth
+                  rt(2,4,n) = fourth
+                  if ( id.eq.2 ) rt(3,4,n)=fourth
+               endif
+            endif
+         else if (i.eq.7) then
+!
+!...........1 fold rotation
+!
+            if ( l(2,m).eq.3 ) then
+!
+!..............we have a center of symmetry
+!
+               ncent = 1
+            endif
+!
+!...........Loop exit
+!
+            goto 20
+!
+         else if (i.eq.8) then
+!
+!...........2 fold rotation axis
+!...........we will not allow a -2 axis.
+!
+            if ( l(2,m).eq.3 )then
+               ier=19
+               if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+               return
+            endif
+!
+!           go to (500,256,257,258),m
+!
+            if (m.eq.2) then
+               if ( k.eq.2 )then
+!
+!.................rotation about the b-axis
+!
+                  call sgrmat(rt(1,1,n),-1,0,0,0,1,0,0,0,-1)
+                  rt(1,4,n) = d(1,2)
+                  rt(3,4,n) = d(3,2)
+                  if ( l(2,m).eq.12 ) rt(2,4,n)=half
+               else
+!
+!..................rotation about the a-axis. (orthogonal cell)
+!
+                   call sgrmat(rt(1,1,n),1,0,0,0,-1,0,0,0,-1)
+                   rt(2,4,n) = d(2,1)
+                   rt(3,4,n) = d(3,1)
+                   if ( iabs(l(2,m)-13).eq.1 ) rt(1,4,n) = half
+               endif
+            else if (m.eq.3) then
+               if ( l(1,2).eq.14 .or. l(1,2).eq.17 ) then
+                  if (l(1,2).eq.17 .and. l(1,4).ne.12) then
+!
+!.....................2-axis normal to (-2110)
+!.....................used for the p 6n22 groups
+!
+                      call sgrmat(rt(1,1,n),1,-1,0,0,-1,0,0,0,-1)
+                  else
+                     if ( laue.eq.7 ) then
+!
+!........................2-axis normal to (110)
+!
+                         call sgrmat(rt(1,1,n),0,-1,0,-1,0,0,0,0,-1)
+                     else
+!
+!........................2-axis along to (11-20) trig  and (110) tetrag
+!........................used for the p 3n21 groups
+!
+                         call sgrmat(rt(1,1,n),0,1,0,1,0,0,0,0,-1)
+                         rt(1,4,n) = d(2,1)
+                         if ( l(2,m).eq.12 ) rt(1,4,n)=rt(1,4,n)+half
+                         rt(2,4,n) = -d(2,1)
+                         rt(3,4,n) = d(3,1)
+                     endif
+                  endif
+               else
+!
+!.................it is not a hexagonal or trigonal group
+!.................rotation about the b-axis
+!
+                  call sgrmat(rt(1,1,n),-1,0,0,0,1,0,0,0,-1)
+                  rt(1,4,n) = d(1,2)
+                  rt(3,4,n) = d(3,2)
+                  if ( l(2,m).eq.12 ) rt(2,4,n)=half
+               endif
+            else if (m.eq.4) then
+!
+               if ( l(1,2).ge.14 .or. l(1,3).eq.14) then
+                  if ( l(1,2).eq.15 ) then
+!
+!.....................2-axis along to (11-20) trig  and (110) tetrag
+!.....................used for the p 3n21 groups
+!
+                      call sgrmat(rt(1,1,n),0,1,0,1,0,0,0,0,-1)
+                      rt(1,4,n) = d(2,1)
+                      if ( l(2,m).eq.12 ) rt(1,4,n)=rt(1,4,n)+half
+                      rt(2,4,n) = -d(2,1)
+                      rt(3,4,n) = d(3,1)
+                  else
+!cc                  if ( l(1,2).eq.17.and.l(1,3).ne.12 )
+!
+!.....................2-axis normal to (10-10)
+!
+                     call sgrmat(rt(1,1,n),1,0,0,1,-1,0,0,0,-1)
+                  endif
+               else
+                  call sgrmat(rt(1,1,n),-1,0,0,0,-1,0,0,0,1)
+                  rt(1,4,n) = d(1,3)
+                  rt(2,4,n) = d(2,3)
+                  if ( iabs(l(2,m)-13).eq.1 ) rt(3,4,n) = half
+                  if (l(2,m).eq.16) rt(3,4,n) = half
+               endif
+            endif
+         else if (i.eq.9) then
+            if (m.eq.2 .or. m.eq.3) then
+               if (m.eq.2 .and. laue.gt.7) then
+                  call sgrmat(rt(1,1,n),0,-1,0,1,-1,0,0,0,1)
+                  if ( l(2,m).eq.12 ) rt(3,4,n)=third
+                  if ( l(2,m).eq.13 ) rt(3,4,n)=2d0/3d0
+                  if ( l(2,2).eq.3 ) ncent=1
+               else
+!
+!.................1 fold rotation
+!
+                  if ( l(2,m).eq.3 ) then
+!
+!.....................we have a center of symmetry
+!
+                      ncent = 1
+                   endif
+!
+!..................Loop exit
+!
+                   goto 20
+               endif
+            else if (m.eq.4) then
+               ier=25
+               if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+               return
+            endif
+         else if (i.eq.10 ) then
+!
+!...........four fold axis
+!
+            if ( m.ne.2 ) then
+               ier=12
+               if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+               return
+            endif
+            if ( l(2,2).eq. 3 ) then
+               call sgrmat(rt(1,1,n),0,1,0,-1,0,0,0,0,-1)
+               rt(1,4,n) = d(1,3)
+               rt(2,4,n) = d(2,3)
+               rt(3,4,n) = d(3,3)
+            else
+               call sgrmat(rt(1,1,n),0,-1,0,1,0,0,0,0,1)
+               rt(1,4,n) = d(1,3)
+               rt(2,4,n) = d(2,3)
+               if ( l(2,2).eq.12 ) rt(3,4,n) = fourth
+               if ( l(2,2).eq.13 ) rt(3,4,n) = half
+               if ( l(2,2).eq.14 ) rt(3,4,n) = 0.75d0
+            endif
+         else if (i.eq.11) then
+            ier=25
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         else if (i.eq.12) then
+!
+!...........6-axis
+!
+            if ( m.ne.2 )then
+               ier=13
+               if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+               return
+            endif
+            if ( l(2,2).eq.3 ) then
+               call sgrmat(rt(1,1,n),-1,1,0,-1,0,0,0,0,-1)
+               if ( l(1,3).eq.2.or.l(1,4).eq.2 ) rt(3,4,n)=half
+            else
+               call sgrmat(rt(1,1,n),1,-1,0,1,0,0,0,0,1)
+            if ( l(2,2).gt.11.and.l(2,2).lt.18 ) rt(3,4,n)=(l(2,2)-11)/6.0d0
+            endif
+!
+!        else if (i.eq.13 .or. i.eq.14 .or. i.eq.15) then
+!
+         endif
+!
+         rt(1,4,n) = mod(rt(1,4,n)+5d0,1d0)
+         rt(2,4,n) = mod(rt(2,4,n)+5d0,1d0)
+         rt(3,4,n) = mod(rt(3,4,n)+5d0,1d0)
+         rt(5,2,n) = 1728*rt(1,4,n)+144*rt(2,4,n)+12*rt(3,4,n)
+         njs=n-1
+         do 69 m2=1,njs
+            if (rt(5,1,m2).eq.rt(5,1,n) .or. rt(5,1,m2).eq.-rt(5,1,n))  then
+               if (rt(5,1,m2).eq.-rt(5,1,n)) ncent=1
+               if (rt(5,2,n).ne.rt(5,2,m2)) then
+                  call sgtrcf(m,rt,n,m2,lcent,laue,ier,lptx)
+                  if (ier.gt.0) ierx=ier
+                  ier=0
+               endif
+!
+!..............Loop exit
+!
+               goto 20
+            endif
+ 69      continue
+         n = n+1
+         if ( n.gt.25 ) then
+            ier=14
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         endif
+! 59      continue
+ 59      localident=0
+         nxl = n-1
+!
+!........exit
+!
+         if ( nxl.lt.nxi )  goto 49
+         do 195 nx=nxi,nxl
+            do 196 m1=2,nx
+               call sgmtml(rt,m1,rt,nx,rt,n)
+               njs=n-1
+               do 194 m2=1,njs
+                  if (rt(5,1,m2).eq.rt(5,1,n) .or. rt(5,1,m2).eq.-rt(5,1,n))  then
+                     if (rt(5,1,m2).eq.-rt(5,1,n)) ncent=1
+!
+!....................Loop exit
+!
+                     go to 196
+                  endif
+194            continue
+               n = n+1
+               if ( n.gt.25 ) then
+                  ier=15
+                  if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+                  return
+               endif
+196         continue
+!
+!............Loop exit
+!
+            if ( n-1.eq.nxl ) goto 49
+195      continue
+         nxi = nxl+1
+!
+!........Repeat whole cycle
+!
+         go to 59
+!
+!........After completing loop cycle
+!
+ 49      continue
+!
+!........search for a / . a mirror perpendicular to this axis
+!........Next m
+!
+         if ( l(1,m).lt.12 .or. l(2,m).eq.3 )  goto 20
+         do 39 i=2,3
+!
+!...........Next m
+!
+            if ( l(i,m).eq.0 ) goto 20
+!
+!...........exit loop 39
+!
+            if ( l(i,m).eq.19 ) goto 29
+            if ( l(i,m).lt.12 ) then
+               ier=16
+               if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+               return
+            endif
+ 39      continue
+!
+!........Test for another matrix element
+!
+ 29      if ( l(i+1,m).le.1 ) then
+            ier=17
+            if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+            return
+         endif
+         i = iabs(l(i+1,m)-5)
+!
+!........Next matrix element
+!        Non ortodox control flow
+!
+         goto 10
+!
+!.....end of loop
+!
+ 20   continue
+      neqv = n-1
+      do 11 i=1,3
+         do 21 k=1,neqv
+            do 31 j=1,3
+               jrt(i,j,k) = int(rt(i,j,k))
+ 31         continue
+            jrt(i,4,k) = int(12*rt(i,4,k)+144.1)
+            jrt(i,4,k) = jrt(i,4,k)-12*(jrt(i,4,k)/12)
+ 21      continue
+ 11   continue
+!
+!.....print results and construct interface symmetry matrix
+!
+      call sgprnt(spg(1:24),lpt)
+      if ( ierx.eq.0 ) return
+      ier = ierx
+!
+!.....Error handling
+!
+      if (lptx.ge.0) call sgerrs(spg(1:24),ier,lptx)
+      return
+  end subroutine spgr
+
+  !> Determines parametrs for I-F centered lattices
+  subroutine ifcent (l, d, lcent, ier)
+      implicit none
+      real*8            d(3,3)
+      integer           l(4,4)
+      integer           lcent, ier
+!
+!.....is the lattice I or F-centered?
+      if ( lcent.lt.5 ) then
+!
+!........is the lattice C-centered?
+         if ( lcent.ne.4 ) then
+            ier=23
+            return
+         endif
+!
+!........c-centred.  an A normal to C
+         if ( l(3,2).eq.4.or.l(4,2).eq.4 )  then
+!
+!............C 4*/A * *
+             d(1,3) = 0.25
+             d(2,3) = 0.25
+             if ( l(1,4).eq.3.or.l(1,4).eq.10 ) d(1,1)=0.5
+             return
+         endif
+!
+!........if ( l(3,2).eq.0 ) d(1,1)=2.0*d(2,2)+d(1,1)
+         if ( d(1,1).eq.0.0 ) d(1,1)=2.0*d(2,2)
+!
+!........is there a 21 on the diagonal?
+         if ( l(1,4).eq.13.and.l(2,4).eq.12 )  then
+!
+!...........P 4N/N * *
+            d(1,3) = 0.5
+            return
+         endif
+         if ( l(2,2).le.0 ) return
+!
+!........is there a N-glide normal to (110)?
+         if ( l(1,4).ne.10 ) return
+         if ( l(2,2).gt.15 ) return
+         d(1,1) = d(1,1)-2.0*d(2,2)
+!
+!........P 4N/N * *
+         d(1,3) = 0.5
+         return
+      endif
+!
+!.....yes.
+!
+!.....if there is a C along (110) place the D at Y=1/4
+      if ( l(1,4).eq.2 ) d(2,1)=d(2,1)+0.5
+!
+!.....is this I 41/A * * or F 41/D * * ?
+      if ( l(4,2).ne.4.and.l(4,2).ne.11 ) then
+!
+!........is there a 41 present?
+         if ( l(2,2).ne.12 ) return
+!
+!........yes.
+!........F-centered?
+         if ( lcent.eq.6 ) then
+!
+!...........F 41 * *
+            d(1,3) = 0.25
+            d(2,3) = 0.75
+            return
+         endif
+         d(2,3) = 0.5
+!
+!........set the B-axis translation flags for I 41 2 2
+         if ( lcent.eq.5 ) d(1,2) = 0.5
+         d(3,2) = 0.75
+         return
+      endif
+!
+!.....yes
+!
+      d(1,3) = 0.25
+      if ( lcent.eq.5 ) d(2,3) = 0.75
+      return
+  end subroutine ifcent
+
+  subroutine ortho (d, l, laue, lcent, id)
+      implicit none
+      integer           laue, lcent, id
+      real*8            d(3,3)
+      integer           l(4,4)
+
+      integer           im, ir, ia, ib, ic, i21
+!
+!.....it is orthorhombic
+      laue = 3
+!
+!.....set up counts of the various types of mirrors.
+      im = 0
+      ir = 0
+      ia = 0
+      ib = 0
+      ic = 0
+      id = 0
+      i21 = 0
+!
+!.....do we have a 2-axis along A
+      if ( l(1,2).ne.13 ) then
+!
+         ir = 1
+         if ( l(1,2).eq.9 ) im=4
+!        if ( l(1,2).eq.4 ) ier =5  return
+         if ( l(1,2).eq.3 ) ib=1
+         if ( l(1,2).eq.2 ) ic=1
+         if ( l(1,2).eq.11 ) id=1
+         if ( l(1,3).eq.4.or.l(1,3).eq.10 ) d(1,1)=0.5
+         if ( l(1,4).eq.4.or.l(1,4).eq.10 ) d(1,1)=d(1,1)+0.5
+!
+!.....yes is it a 21?
+      else if(l(2,2).eq.12) then
+         d(1,2) = 0.5
+         d(1,3) = 0.5
+         i21 = 4
+      endif
+!
+!.....do we have a 2-axis along B
+      if ( l(1,3).ne.13 ) then
+!
+         ir = ir+1
+         if ( l(1,3).eq.9 ) im=im+2
+         if ( l(1,3).eq.4 ) ia=1
+!        if ( l(1,3).eq.3 ) ier =5 return
+         if ( l(1,3).eq.2 ) ic=ic+1
+         if ( l(1,3).eq.11 ) id=id+1
+         if ( l(1,2).eq.3.or.l(1,2).eq.10 ) d(2,2)=0.5
+         if ( l(1,4).eq.3.or.l(1,4).eq.10 ) d(2,2)=d(2,2)+0.5
+!
+!.....yes, is it a 21?
+      else if (l(2,3).eq.12) then
+         d(2,1) = 0.5
+         d(2,3) = 0.5
+         i21 = i21+2
+      endif
+!
+!.....do we have a 2-axis along C
+      if ( l(1,4).ne.13 ) then
+         ir = ir+1
+         if ( l(1,4).eq.9 ) im=im+1
+         if ( l(1,4).eq.4 ) ia=ia+1
+         if ( l(1,4).eq.3 ) ib=ib+1
+!        if ( l(1,4).eq.2 ) ier=5 return
+         if ( l(1,4).eq.11 ) id=id+1
+         if ( l(1,2).eq.2.or.l(1,2).eq.10 ) d(3,3)=0.5
+         if ( l(1,3).eq.2.or.l(1,3).eq.10 ) d(3,3)=d(3,3)+0.5
+!
+!.....yes , is it a 21
+      else if (l(2,4).eq.12) then
+         d(3,1) = 0.5
+         d(3,2) = 0.5
+         i21 = i21+1
+      endif
+!.....if there are 3 mirrors check for centering
+!     which may alter the origin location
+!
+      if ( ir.eq.3 )  then
+!........3 mirrors present.  is the lattice centered?
+         if ( lcent.eq.1 ) return
+!........yes . is it A-centered?
+         if ( lcent.eq.2 ) then
+!...........an A-centered lattice.
+!           only one B or C glide present.relocate the mirrors by A
+            if ( ib+ic.ne.1 ) return
+            if ( ia.eq.2 ) return
+            d(2,2) = d(2,2)+0.5
+            d(3,3) = d(3,3)+0.5
+            return
+         endif
+!
+!........no.   is it B-centered?
+         if ( lcent.eq.3 ) then
+!
+!...........a B-centered lattice
+            if ( ia+ic.ne.1 ) return
+            if ( ib.eq.2 ) return
+            d(1,1) = d(1,1)+0.5
+            d(3,3) = d(3,3)+0.5
+            return
+         endif
+!
+!........no.  is it C-centered?
+         if ( lcent.eq.4 ) then
+!
+!...........a C-centered lattice
+            if ( ia+ib.ne.1 ) return
+            if ( ic.eq.2 ) return
+            d(1,1) = d(1,1)+0.5
+            d(2,2) = d(2,2)+0.5
+            return
+         endif
+!
+!........no.   is it I-centered?
+         if ( lcent.ne.5 ) return
+!
+!........yes.  if only 1 glide plane shift the mirrors by I
+         if ( ia+ib+ic.ne.1 ) return
+         d(1,1) = d(1,1)+0.5
+         d(2,2) = d(2,2)+0.5
+         d(3,3) = d(3,3)+0.5
+         return
+      endif
+!
+!.....less than 3 mirrors. set up the 2-axes locations
+      if ( i21.eq.4.or.i21.eq.5.or.i21.eq.7 ) d(1,2)=0.0
+      if ( i21.eq.6.or.i21.eq.7 ) d(1,3)=0.0
+      if ( i21.eq.3 ) d(2,1)=0.0
+      if ( i21.eq.2.or.i21.eq.6.or.i21.eq.7 ) d(2,3)=0.0
+      if ( i21.eq.1.or.i21.eq.3.or.i21.eq.7 ) d(3,1)=0.0
+      if ( i21.eq.5 ) d(3,2)=0.0
+      if ( im.le.0 ) return
+      if ( im.eq.1.and.(i21.eq.4.or.i21.eq.2)) then
+         if ( d(3,3).eq.0.0 ) return
+         d(3,3)=0.0
+         d(3,2) = d(3,2)+0.5
+         return
+      endif
+      if ( im.eq.2.and.(i21.eq.4.or.i21.eq.1)) then
+         if ( d(2,2).eq.0.0 ) return
+         d(2,2)=0.0
+         d(2,1) = d(2,1)+0.5
+         return
+      endif
+      if ( im.eq.4.and.(i21.eq.2.or.i21.eq.1)) then
+         if ( d(1,1).eq.0.0 ) return
+         d(1,1)=0.0
+         d(1,3) = d(1,3)+0.5
+         return
+      endif
+!     if ( im.eq.3.amd.i21.eq.4 ) ier=5 return
+!     if ( im.eq.5.and.i21.eq.2 ) ier=5 return
+!     if ( im.eq.6.and.i21.eq.1 ) ier=5 return
+      return
+  end subroutine ortho
+
+  subroutine sgerrs (sgp, ierr, lpt)
+      implicit none
+      character*(30)    sgp
+      integer           ierr, lpt
+
+      integer           ier
+!
+      ier=ierr+1
+      write (lpt,999) ier,sgp
+!
+!.....gigant if
+!
+      if (ier.eq.1) then
+         write (lpt,1)
+      else if (ier.eq.2) then
+         write (lpt,2)
+      else if (ier.eq.3) then
+         write (lpt,3)
+      else if (ier.eq.4) then
+         write (lpt,4)
+      else if (ier.eq.5) then
+         write (lpt,5)
+      else if (ier.eq.6) then
+         write (lpt,6)
+      else if (ier.eq.7) then
+         write (lpt,7)
+      else if (ier.eq.8) then
+         write (lpt,8)
+      else if (ier.eq.9) then
+         write (lpt,9)
+      else if (ier.eq.10) then
+         write (lpt,10)
+      else if (ier.eq.11) then
+         write (lpt,11)
+      else if (ier.eq.12) then
+         write (lpt,12)
+      else if (ier.eq.13) then
+         write (lpt,13)
+      else if (ier.eq.14) then
+         write (lpt,14)
+      else if (ier.eq.15) then
+         write (lpt,15)
+      else if (ier.eq.16) then
+         write (lpt,16)
+      else if (ier.eq.17) then
+         write (lpt,17)
+      else if (ier.eq.18) then
+         write (lpt,18)
+      else if (ier.eq.19) then
+         write (lpt,19)
+      else if (ier.eq.20) then
+         write (lpt,20)
+      else if (ier.eq.21) then
+         write (lpt,21)
+      else if (ier.eq.22) then
+         write (lpt,22)
+      else if (ier.eq.23) then
+         write (lpt,23)
+      else if (ier.eq.24) then
+         write (lpt,24)
+      else if (ier.eq.25) then
+         write (lpt,25)
+      else if (ier.eq.26) then
+         write (lpt,26)
+      endif
+!
+      return
+!
+!.....formats
+!
+    1 format ('either a 5-axis anywhere or a 3-axis in field 4')
+    2 format ('less than 2 operator fields were found')
+    3 format ('lattice operator was not a p, a, b, c, i, f or r')
+    4 format ('rhombohedral lattice without a 3-axis')
+    5 format ('minus sign does not preceed 1, 2, 3, 4 or 6')
+    6 format ('lattice s. r. found an error')
+    7 format ('1st operator in a field was a space. impossible')
+    8 format ('i for computed go to out of range.')
+    9 format ('an a-glide mirror normal to a')
+   10 format ('a b-glide mirror normal to b')
+   11 format ('a c-glide mirror normal to c')
+   12 format ('d-glide in a primitive lattice')
+   13 format ('a 4-axis not in the 2nd operator field')
+   14 format ('a 6-axis not in the 2nd operator field')
+   15 format ('more than 24 matrices needed to define the group')
+   16 format ('more than 24 matrices needed to define the group')
+   17 format ('improper construction of a rotation operator')
+   18 format ('no mirror following a /')
+   19 format ('a translation conflict between operators')
+   20 format ('the 2bar operator is not allowed')
+   21 format ('3 fields are legal only in r-lattices and m3 cubic')
+   22 format ('syntax error. expected i-43d at this point.')
+   23 format ('error unknown')
+   24 format ('a or b centered tetragonal?  impossible!!!!')
+   25 format ('only one bar allowed')
+   26 format ('either a 5-axis anywhere or a 3-axis in field 4')
+!
+  999 format ('error no. ',i3,' in processing space group symbol ',a30)
+!
+  end subroutine sgerrs
+
+  subroutine sglatc (k, l, d, lcent, laue, naxis, ier, ncubic, id)
+      implicit none
+      integer           l(4,4), k, lcent, laue, naxis, ier, ncubic, id
+      real*8            d(3,3)
+!
+      integer           im, ia, ic, na, nb, nc
+!
+      if (k .lt.3 ) then
+         if(l(1,2).eq.17) then
+!
+!...........6/m
+!
+            laue=11
+            return
+         else if(l(1,2).eq.14) then
+!
+!...........2bar
+!
+            laue=8
+            return
+         else if(l(1,2).eq.12) then
+!
+!...........1bar
+!
+            laue=1
+            return
+         else if(l(1,2).ne.15) then
+!
+!...........2/m, B-axis unique
+!
+            im=2
+            laue = 2
+            naxis = 2
+            ia = 4
+            ic = 2
+            na = 1
+            nb = 2
+            nc = 3
+            if ( l(2,im).eq.12 ) d(nb,naxis)=0.5d0
+            if ( l(3,im).eq.ia.or.l(3,im).eq.10 ) d(na,naxis)=0.5d0
+            if ( l(3,im).eq.ic.or.l(3,im).eq.10 ) d(nc,naxis)=0.5d0
+            if ( l(4,im).eq.ia.or.l(4,im).eq.10 ) d(na,naxis)=0.5d0
+            if ( l(4,im).eq.ic.or.l(4,im).eq.10 ) d(nc,naxis)=0.5d0
+            return
+         else
+!
+!...........4/m
+!
+            laue=4
+!
+!...........is there a n-glide normal to c?
+!
+            if ( lcent.le.3 ) then
+               if (l(3,2).eq.10) then
+!
+!.................P 4N/N * *
+!
+                  d(1,3) = 0.5d0
+                  return
+                endif
+                if (l(4,2).eq.10) d(2,3)=0.5d0
+                return
+!
+!...........is it c-centered?
+!
+            else if (lcent.eq.4) then
+!
+!..............if there is no A-glide normal to C we are through
+!
+               if ( l(3,2).ne.4.and.l(4,2).ne.4 ) return
+               d(1,3) = 0.25d0
+               d(2,3) = 0.25d0
+               if ( l(4,2).eq.4 ) d(2,3)=0.75d0
+               return
+!
+!...........is it I-centered or F-centered
+!
+            else if (lcent.ge.5) then
+!
+!..............is there an A-glide or a D-glide normal to C?
+!
+               if ( l(4,2).ne.4.and.l(4,2).ne.11 ) then
+!
+!.................no
+!
+                  call ifcent (l,d,lcent,ier)
+                  return
+               else
+!
+!.................yes
+!
+                  d(1,3) = 0.75d0
+                  if ( lcent.eq.5 ) d(2,3) = 0.25d0
+                  return
+               endif
+            endif
+         endif
+!
+      else if (k .eq. 3) then
+!
+!........3 fields.  M3 cubic. (R3R has been taken care of)
+!
+         if ( l(1,3).ne.14 ) then
+            ier=20
+            return
+         endif
+         laue = 13
+!
+!........set the B-axis translation flag if A 21 along A
+!
+         if ( l(2,2).eq.12 ) d(2,1)=0.5d0
+!
+!........set the C-axis translation flag if an A-glide normal to C
+!
+         if ( l(1,2).eq.3.or.l(1,2).eq.4 ) d(3,3)=0.5d0
+         ncubic=1
+         return
+!
+      else if (k .gt. 3) then
+!
+!.........four fields read.
+!
+          if ( l(1,3).eq.14 ) then
+!
+!...........it is m3m cubic
+!
+            laue = 14
+!
+!...........set the C-axis translation flag if an A-glide normal to C
+!
+            if ( l(1,2).eq.3.or.l(1,2).eq.4 ) d(3,3)=0.5d0
+!
+!...........is a 4N-axis specified?
+!
+            if ( l(1,2).ne.15 ) then
+               ncubic=1
+               return
+            endif
+!
+!.......... yes.  is it 4bar?
+!
+            if ( l(2,2).eq.3 ) then
+!
+!..............4B.  is it 4B 3 M?
+!
+              if ( l(1,4).eq.9 )  then
+                 ncubic=1
+                 return
+              endif
+!
+!.............no.  is it 4B 3 D?
+!
+              if ( l(1,4).eq.11 ) then
+!
+!................I 4B 3 D we hope
+!
+                 if ( lcent.ne.5 ) then
+                    ier=21
+                    return
+                 endif
+                 d(1,3) = 0.75d0
+                 d(2,3) = 0.25d0
+                 d(3,3) = 0.75d0
+                 ncubic=1
+                 return
+              endif
+!
+!.............no.
+!
+              d(1,3) = 0.5d0
+              d(2,3) = 0.5d0
+              d(3,3) = 0.5d0
+              ncubic=1
+              return
+           endif
+!
+!..........no.  is it a 4?
+!
+           if ( l(2,2).lt.12 .or. l(2,2).gt.14 ) then
+              ncubic=1
+              return
+           endif
+!
+!..........no. is it a 41?
+!
+           if ( l(2,2).eq.12 ) then
+!
+!.............41-axis. is it F 41 3 2?
+!
+              if ( lcent.eq.6 ) then
+!
+!................F 41 3 2
+!
+                 d(1,3) = 0.25d0
+                 d(2,3) = 0.25d0
+                 ncubic=1
+                 return
+              endif
+!
+!.............no. it is either P 41 3 2 or I 41 3 2
+!
+              d(1,3) = 0.25d0
+              d(2,3) = -0.25d0
+              ncubic=1
+              return
+           endif
+!
+!..........no . is it a 42?
+!
+           if ( l(2,2).eq.13 ) then
+!
+!.............P 42 3 2
+!
+              d(1,3) = 0.5d0
+              d(2,3) = 0.5d0
+              ncubic=1
+              return
+           endif
+!
+!..........no.  it must be a 43
+!
+!..........P 43 3 2
+!
+           if ( lcent.eq.6 ) then
+!
+!.............F 41 3 2
+!
+              d(1,3) = 0.25d0
+              d(2,3) = 0.25d0
+              ncubic=1
+              return
+           endif
+           d(1,3) = 0.75d0
+           d(2,3) = 0.25d0
+           ncubic=1
+           return
+         else if (l(1,2).eq.17) then
+            if ( l(1,3).eq.12 ) then
+!
+!..............we have something like P 6N 1 *
+!
+               if ( l(1,4).ne.12 ) then
+!
+!.................it is hexagonal 6/mmm
+!
+                  laue = 12
+                  return
+               endif
+!
+!..............6/M
+!
+               laue = 11
+               return
+            endif
+!
+!...........it is hexagonal 6/mmm
+!
+            laue = 12
+            return
+!
+         else if (l(1,2).eq.14) then
+!
+!...........it is trigonal P3**
+!
+            if ( l(1,3).eq.12 ) then
+!
+!..............it is trigonal 31*
+!
+               if ( l(1,4).eq.12 ) then
+!
+!.................3BAR
+!
+                  laue = 8
+                  return
+               endif
+!
+!..............it is trigonal 31M
+!
+               laue = 10
+               return
+            endif
+            if ( l(1,4).ne.12 ) then
+!
+!..............it is hexagonal 6/mmm
+!
+               laue = 12
+               return
+            endif
+!
+!...........it is trigonal 3M1
+!
+            laue = 9
+            return
+         else if (l(1,2).eq.15) then
+!
+!...........it is tetragonal 4/mmm
+!
+            laue = 5
+!
+!...........if there is an N-glide normal to C place any
+!
+!           mirror normal to A at 1/4
+            if ( l(3,2).eq.10.or.l(4,2).eq.10 ) d(1,1)=0.5d0
+!
+!...........if there is an A-glide normal to C place any
+!
+!           mirror normal to (110) at 1/4
+            if ( l(3,2).eq.4.or.l(4,2).eq.4 ) d(2,2)=0.25d0
+!
+!...........if there is a 21 along B move place it at X=1/4
+!
+            if ( l(1,3).eq.13.and.l(2,3).eq.12 ) d(1,2)=0.5d0
+!
+!...........if there is a 21 along (110) move place it at X=1/4
+!
+            if ( l(1,4).eq.13.and.l(2,4).eq.12 ) d(2,1)=0.5d0
+!
+!...........if there is either a B- or N-glide normal to the A-axis
+!           shift the mirror by 1/4 along the A-axis
+!
+            if ( l(1,3).eq.3.or.l(1,3).eq.10 ) d(1,1)=d(1,1)+0.5d0
+!
+!...........if there is either a B- OR N-glide normal to (110)
+!           shift the mirror by 1/4 along the A-axis
+!
+            if ( l(1,4).eq.3.or.l(1,4).eq.10 ) d(2,2)=d(2,2)+0.25d0
+!
+!...........set the Z location for 2-axes along (110)
+!
+            if ( l(2,2).gt.11.and.l(2,2).lt.15.and.l(2,3).ne.12 ) d(3,1)=-(l(2,2)-11)/4.0d0
+!
+!...........set the Z-translation for 21-axes along (110)
+!
+            if ( l(1,4).eq.13.and.l(2,4).ne.12 ) then
+            else
+             if ( l(2,2).gt.11.and.l(2,2).lt.15 ) d(3,1)=(l(2,2)-11)/4.0d0
+            endif
+!
+!...........set the Z-translation for 21-axes along B
+!
+            if ( l(1,3).eq.13.and.l(2,3).ne.12 ) then
+            else
+            if ( l(2,2).gt.11.and.l(2,2).lt.15 ) d(3,2)=(l(2,2)-11)/4.0d0
+            endif
+!
+!...........place the D in F 4* D * at Y=7/8
+!
+            if ( l(1,3)+l(3,2).eq.11.and.lcent.eq.6 ) d(2,1)=0.75d0
+!
+!...........M in F 4** * * at X=1/8 if there is a C along (110)
+!
+            if ( l(1,4).eq.2.and.lcent.eq.6 ) d(1,1)=0.5d0
+!
+!...........is this a 4bar?
+!
+            if ( l(2,2).eq.3 ) then
+!
+!..............translations due to diagonal symmetry operation
+!
+               if ( l(1,3).eq.11.and.lcent.eq.6 ) d(3,1)=0.25d0
+!
+!..............if * 4B * 21 we want the mirror at X=1/4
+!
+               if ( l(1,4).eq.13.and.l(2,4).eq.12 ) d(1,1)=0.5d0
+!
+!..............C- or a N-glide along (110) set the 2-axis at Z=1/4
+!
+               if ( l(1,4).eq.2.or.l(1,4).eq.10 ) d(3,2)=0.5d0
+!
+!..............a B- or a N-glide along (110) set the 2 at X=1/4
+!
+               if ( l(1,4).eq.3.or.l(1,4).eq.10 ) d(1,2)=0.5d0
+               if ( l(1,4).ne.11 ) return
+               if ( lcent.eq.5 ) d(1,2) = 0.5d0
+               d(3,2) = 0.75d0
+               return
+            endif
+!
+!...........is the lattice primitive?
+!
+            if ( lcent.gt.1 ) then
+               call ifcent  (l,d,lcent,ier)
+               return
+            endif
+!
+!...........yes.  do we have a N-glide normal to C?
+!
+            if ( l(3,2).eq.10.or.l(4,2).eq.10 ) then
+!
+!..............P 4N/N * *
+!
+               d(1,3) = 0.5d0
+               return
+            endif
+!
+!...........no.  do we have a 21 along B?
+!
+            if ( l(1,3).eq.13.and.l(2,3).eq.12 ) then
+               d(1,3) = 0.5d0
+               d(2,3) = 0.5d0
+               return
+            endif
+!
+!...........no. do we have a N-glide normal to A?
+!
+            if ( l(1,3).ne.10 ) return
+            if ( l(2,2).le.0 )  return
+            if ( l(2,2).gt.15)  return
+            d(1,3) = 0.5d0
+            d(2,3) = 0.5d0
+            return
+         else if (l(1,2).eq.12) then
+            if ( l(1,3).eq.12 ) then
+               if ( l(1,4).eq.12 ) then
+!
+!.................1BAR
+!
+                  laue = 1
+                  return
+               endif
+!
+!..............it is C-axis unique monoclinic
+!
+               laue = 2
+               naxis = 3
+               ia = 4
+               ic = 3
+               na = 1
+               nb = 3
+               nc = 2
+               im = 4
+            else
+!
+!..............it is not C-axis unique monoclinic
+!
+               if ( l(1,4).ne.12 ) then
+                  call ortho (d, l, laue, lcent, id)
+                  return
+               endif
+               im = 3
+!
+!..............it is B-axis unique monoclinic. (FULL SYMBOL USED)
+!
+               laue = 2
+               naxis = 2
+               ia = 4
+               ic = 2
+               na = 1
+               nb = 2
+               nc = 3
+            endif
+            if ( l(2,im).eq.12 ) d(nb,naxis)=0.5d0
+            if ( l(3,im).eq.ia.or.l(3,im).eq.10 ) d(na,naxis)=0.5d0
+            if ( l(3,im).eq.ic.or.l(3,im).eq.10 ) d(nc,naxis)=0.5d0
+            if ( l(4,im).eq.ia.or.l(4,im).eq.10 ) d(na,naxis)=0.5d0
+            if ( l(4,im).eq.ic.or.l(4,im).eq.10 ) d(nc,naxis)=0.5d0
+            return
+         else if (l(1,3).eq.12) then
+            if ( l(1,4).ne.12 ) then
+               call ortho (d, l, laue, lcent, id)
+               return
+            endif
+!
+!...........it is A-axis unique monoclinic
+!
+            laue = 2
+            naxis = 1
+            ia = 3
+            ic = 2
+            na = 2
+            nb = 1
+            nc = 3
+            im = 2
+            if ( l(2,im).eq.12 ) d(nb,naxis)=0.5d0
+            if ( l(3,im).eq.ia.or.l(3,im).eq.10 ) d(na,naxis)=0.5d0
+            if ( l(3,im).eq.ic.or.l(3,im).eq.10 ) d(nc,naxis)=0.5d0
+            if ( l(4,im).eq.ia.or.l(4,im).eq.10 ) d(na,naxis)=0.5d0
+            if ( l(4,im).eq.ic.or.l(4,im).eq.10 ) d(nc,naxis)=0.5d0
+            return
+         else
+!
+!...........It may be orthorhombic
+!
+            call ortho (d, l, laue, lcent, id)
+            return
+         endif
+      endif
+!
+      return
+  end subroutine sglatc
+
+  !> Converts -N notation into Nbar notation
+  subroutine sglpak (l, ier)
+      implicit none
+      integer           l(4), ier
+
+      if ( l(2).lt.12 ) ier = 4
+      if ( l(2).gt.17 ) ier = 4
+      l(1) = l(2)
+      l(2) = 3
+      return
+  end subroutine sglpak
+
+  !> Space group matrix multiplication
+  subroutine sgmtml (x, i, y, j, z, k)
+      implicit none
+      real*8         x(5,4,25), y(5,4,25), z(5,4,25)
+      integer        i, j, k
+!
+      integer        l, m, n
+!
+      do 100 l=1,4
+         do 101 m=1,4
+            z(l,m,k) = 0.0d0
+            do 102 n=1,4
+               z(l,m,k) = z(l,m,k)+y(l,n,j)*x(n,m,i)
+102         continue
+101      continue
+100   continue
+      z(1,4,k) = mod(5.0d0+z(1,4,k),1.0d0)
+      z(2,4,k) = mod(5.0d0+z(2,4,k),1.0d0)
+      z(3,4,k) = mod(5.0d0+z(3,4,k),1.0d0)
+      z(5,1,k) = 81*(2*z(1,1,k)+3*z(1,2,k)+4*z(1,3,k))+9*(2*z(2,1,k)+3*z(2,2,k)+4*z(2,3,k))+2*z(3,1,k)+3*z(3,2,k)+4*z(3,3,k)
+      z(5,2,k) = 1728*z(1,4,k)+144*z(2,4,k)+12*z(3,4,k)
+      z(5,3,k) = 0.d0
+      z(5,4,k) = 0.d0
+!
+      return
+  end subroutine sgmtml
+
+  !> Prints out spatial symmetry information
+  subroutine sgprnt (spg, lpt)
+    use struct
+    use tools_io
+    use param
+    implicit none
+!
+      character*(*)     spg
+      integer           lpt
+!
+      character*(1)     nax(3)
+      character*(3)     outl(3,2,24), xyz(12), polar(8), tra(11)
+      character*(8)     chlaue(14)
+      character*(12)    ltyp(7), syst(8)
+!
+      integer           ncvt(7), nsys(14)
+      real*8            cenv(3,6), tra2(11)
+!      dimension         ncenv2(3,6)
+      integer           multgen
+      integer           i, j, k, ij, ik, i1, npx, npy, npz
+      integer           npxyz, npyxz, naxi
+!
+!.....datas
+!
+      data&
+       tra2( 1),tra2( 2),tra2( 3) /zero     ,zero     ,sixth    /,&
+       tra2( 4),tra2( 5),tra2( 6) /fourth   ,third    ,zero     /,&
+       tra2( 7),tra2( 8),tra2( 9) /half     ,zero     ,twothird /,&
+       tra2(10),tra2(11)          /threefourth        ,fivesixth/
+!
+!      data
+!     & ncenv2(1,1),ncenv2(2,1),ncenv2(3,1) /0,6,6/,
+!     & ncenv2(1,2),ncenv2(2,2),ncenv2(3,2) /6,0,6/,
+!     & ncenv2(1,3),ncenv2(2,3),ncenv2(3,3) /6,6,0/,
+!     & ncenv2(1,4),ncenv2(2,4),ncenv2(3,4) /6,6,6/,
+!     & ncenv2(1,5),ncenv2(2,5),ncenv2(3,5) /4,8,8/,
+!     & ncenv2(1,6),ncenv2(2,6),ncenv2(3,6) /8,4,4/
+!
+      data ltyp /   'primitive   ', 'A-centered  ', 'B-centered  ',&
+                    'C-centered  ', 'I-centered  ', 'F-centered  ',&
+                    'R-centered  ' /
+      data syst /   'triclinic   ', 'monoclinic  ', 'orthorhombic',&
+                    'tetragonal  ', 'trigonal-R  ', 'trigonal-P  ',&
+                    'hexagonal   ', 'cubic       ' /
+!
+      data chlaue / '1bar    ', '2/m     ', 'mmm     ', '4/m     ',&
+                    '4/mmm   ', '3bar    ', '3barm   ', '3bar    ',&
+                    '3barm1  ', '3bar1m  ', '6/m     ', '6/mmm   ',&
+                    'm3      ', 'm3m     ' /
+!
+      data polar  / 'x  ',   'y  ',   'x y',   'z  ',   'x z', 'y z',   'xyz',   '111' /
+!
+      data nax    / 'a',      'b',      'c' /
+!
+      data xyz   /  '-z ',   '-y ',   '-x ',   'x-y',   'err',&
+                    'y-x',   ' x ',   ' y ',   ' z ',   '+x ',&
+                    '+y ',   '+z ' /
+!
+      data tra   /  '   ',   'err',   '1/6',   '1/4',   '1/3',&
+                    'err',   '1/2',   'err',   '2/3',   '3/4',&
+                    '5/6' /
+!
+      data&
+       nsys( 1),nsys( 2),nsys( 3),nsys( 4),nsys( 5) /1,2,3,4,4/,&
+       nsys( 6),nsys( 7),nsys( 8),nsys( 9),nsys(10) /5,5,6,6,6/,&
+       nsys(11),nsys(12),nsys(13),nsys(14)          /7,7,8,8/
+!
+      data&
+       ncvt(1),ncvt(2),ncvt(3),ncvt(4),ncvt(5) /1,2,2,2,2/,&
+       ncvt(6),ncvt(7)                         /4,3/
+!
+      data&
+       cenv(1,1),cenv(2,1),cenv(3,1) /zero      ,half      ,half      /,&
+       cenv(1,2),cenv(2,2),cenv(3,2) /half      ,zero      ,half      /,&
+       cenv(1,3),cenv(2,3),cenv(3,3) /half      ,half      ,zero      /,&
+       cenv(1,4),cenv(2,4),cenv(3,4) /half      ,half      ,half      /,&
+       cenv(1,5),cenv(2,5),cenv(3,5) /third,twothird,twothird/&
+       cenv(1,6),cenv(2,6),cenv(3,6) /twothird,third,third/
+!
+      ncv = ncvt(lcent)
+      multgen = ncv*neqv*(ncent+1)
+      lsys = nsys(laue)
+      cen(1,1) = zero
+      cen(2,1) = zero
+      cen(3,1) = zero
+      if ( ncv.gt.1 )  then
+         j = lcent-1
+         if ( lcent.eq.6 ) j=1
+         if ( lcent.eq.7 ) j=5
+         do 100 i=2,ncv
+            cen(1,i) = cenv(1,j)
+            cen(2,i) = cenv(2,j)
+            cen(3,i) = cenv(3,j)
+            j = j+1
+100      continue
+      endif
+      npx = 1
+      npy = 2
+      npz = 4
+      npxyz = 0
+      npyxz = 1
+      do 120 i = 1, neqv
+         if ( jrt(1,1,i).le.0 ) npx = 0
+         if ( jrt(2,2,i).le.0 ) npy = 0
+         if ( jrt(3,3,i).le.0 ) npz = 0
+         if ( jrt(1,3,i).gt.0 ) npxyz = 8
+         if ( jrt(1,3,i).lt.0 ) npyxz = 0
+120   continue
+      npol = (npx+npy+npz+npxyz*npyxz)*(1-ncent)
+      naxi = naxis
+      if (lsys.eq.4.or.lsys.eq.6.or.lsys.eq.7) naxi = 3
+!
+!.....Create rotm matrix
+!
+      do 211 i=1,neqv
+         do 212 j=1,3
+            do 213 k=1,3
+               rotm(j,k,i)=jrt(j,k,i)
+ 213        continue
+            rotm(j,4,i)=tra2(jrt(j,4,i)+1)
+ 212     continue
+ 211  continue
+!
+!.....Write the results
+!
+      if (lpt.ge.0) then
+         write (lpt,'("* SPGR: space group symbol recognition library"/)')
+         write (lpt,1005) trim(adjustl(spg))
+         if (ncent.eq.0) write (lpt,1006)
+         if (ncent.eq.1) write (lpt,1007)
+         write (lpt,1008) ltyp(lcent)
+         write (lpt,1009) syst(lsys)
+         write (lpt,1010) chlaue(laue)
+         write (lpt,1011) multgen
+         if (naxi.gt.0) write (lpt,1012) nax(naxi)
+         if (naxi.eq.0) write (lpt,1013)
+         if (npol.gt.0) write (lpt,1014) polar(npol)
+         if (npol.le.0) write (lpt,1015)
+         write (lpt,1016) neqv
+      endif
+!
+!.....redefine npol
+!
+      npol=npol*10000+lsys*1000+multgen
+!
+!.....first part concluded, start with symmetry relations
+!
+      do 200 i=1,neqv
+         do 190 j=1,3
+            ij = 2*jrt(j,1,i)+3*jrt(j,2,i)+4*jrt(j,3,i)+5
+            ik = jrt(j,4,i)+1
+            if (ik.gt.1 .and. ij.gt.6) ij=ij+3
+            outl(j,2,i) = xyz(ij)
+            outl(j,1,i) = tra(ik)
+ 190     continue
+ 200  continue
+!
+!.....write the symmetry matrices and lattice centering vectors.
+!
+      if (lpt.ge.0) then
+         write (lpt,1026) ((outl(i1,1,i),outl(i1,2,i),i1=1,3),i=1,neqv)
+         write (lpt, 7001) neqv
+         write (lpt, 7020) ncv
+         do 7030 i=1,ncv
+            write (lpt, 7025) (cen(j,i), j=1,3)
+ 7030    continue
+         write (lpt,*)
+      endif
+!
+!.....Formats.
+!
+ 1026 format (3(2x,'(',2(2a3,1h,),2a3,') '))
+ 1005 format ("* Space group: ",a)
+ 1006 format ('  the structure is noncentrosymmetric')
+ 1007 format ('  the structure is centrosymmetric')
+ 1008 format ('  the lattice is ',a12)
+ 1009 format ('  the system is ',a12)
+ 1010 format ('  the laue group is ',a8)
+ 1011 format ('  the multiplicity of the general position is ',i3)
+ 1012 format ('  the unique axis is ',a1)
+ 1013 format ('  there is no unique axis')
+ 1014 format ('  the space group is polar along ',a3)
+ 1015 format ('  the space group is not polar')
+ 1016 format ('+ Number of generated symmetry relations: ',i2)
+ 7001 format ('+ Number of symmetry matrices:',i5)
+ 7020 format ('+ Number of Lattice Centering Vectors is ',i5)
+ 7025 format ('  Cent. vect.: ', 3f10.7)
+!
+      return
+  end subroutine sgprnt
+
+  !> Builds the rt(,) matrix out of the a..o rotational elements.
+  !> rt(,) is a 5x4 matrix, which contains a 3x3 rotation
+  !> plus a column for the traslation, a row that could
+  !> represent a deformation of the axes (set to 0), and ...
+  subroutine sgrmat (rt, a, b, c, d, e, f, g, h, o)
+      implicit none
+      real*8            rt(5,4)
+      integer           a, b, c, d, e, f, g, h, o
+!
+      rt(1,1) = a
+      rt(1,2) = b
+      rt(1,3) = c
+      rt(1,4) = 0.0d0
+      rt(2,1) = d
+      rt(2,2) = e
+      rt(2,3) = f
+      rt(2,4) = 0.0d0
+      rt(3,1) = g
+      rt(3,2) = h
+      rt(3,3) = o
+      rt(3,4) = 0.0d0
+      rt(4,1) = 0.0d0
+      rt(4,2) = 0.0d0
+      rt(4,3) = 0.0d0
+      rt(4,4) = 1.0d0
+      rt(5,1) = 81 * (2 * rt(1,1) + 3 * rt(1,2) + 4 * rt(1,3)) + 9 * (2 * rt(2,1) +&
+           3 * rt(2,2) + 4 * rt(2,3)) + 2 * rt(3,1) + 3 * rt(3,2) + 4 * rt(3,3)
+      rt(5,2) = 0.0d0
+      rt(5,3) = 10.0d0
+      rt(5,4) = 20.d0
+!
+      return
+  end subroutine sgrmat
+
+  !> Check rotation/traslation compatibility.
+  subroutine sgtrcf (m, rt, n, m2, lcent, laue, ier, lpt)
+      implicit none
+      integer           m, n, m2, lcent, laue, ier, lpt
+      real*8            rt(5,4,25)
+!
+      integer           icenv(3,5), ncvt(7), jcvt(7)
+      integer           irn, irm, irx, iry, irz, ncv, icv, jcv
+      integer           irx1, iry1, irz1, m2z, itottr
+!
+      data&
+       icenv(1,1),icenv(2,1),icenv(3,1) /0,0,0/,&
+       icenv(1,2),icenv(2,2),icenv(3,2) /0,6,6/,&
+       icenv(1,3),icenv(2,3),icenv(3,3) /6,0,6/,&
+       icenv(1,4),icenv(2,4),icenv(3,4) /6,6,0/,&
+       icenv(1,5),icenv(2,5),icenv(3,5) /6,6,6/
+!
+      data&
+       ncvt(1),ncvt(2),ncvt(3),ncvt(4),ncvt(5) /1,2,3,4,5/,&
+       ncvt(6),ncvt(7)                         /4,1/
+!
+      data&
+       jcvt(1),jcvt(2),jcvt(3),jcvt(4),jcvt(5) /1,1,2,3,4/,&
+       jcvt(6),jcvt(7)                         /1,1/
+!
+      ier = 0
+      irn = int(rt(5,2,n))
+      irm = int(rt(5,2,m2))
+      irx = mod((irn/144+irm/144),12)
+      iry = mod((irn/12 +irm/12 ),12)
+      irz = mod(irn+irm,12)
+      ncv = ncvt(lcent)
+      jcv = jcvt(lcent)
+!
+      do 100 icv=1,ncv,jcv
+         irx1 = mod(irx+icenv(1,icv),12)
+         iry1 = mod(iry+icenv(2,icv),12)
+         irz1 = mod(irz+icenv(3,icv),12)
+!
+!........does this pair make a 1bar?
+!
+         m2z = m2
+!
+!........yes
+!
+         if ( rt(5,1,n)+rt(5,1,m2).eq.0 ) m2z=1
+!
+!........no
+!
+         if ( rt(3,3,n)+rt(3,3,m2z).le.0 ) irz1=0
+!
+!........is this an operator operating along the face diagonal?
+!
+         if ( laue.le.3.or.m.ne.4 ) then
+!
+!...........no
+!
+            if ( rt(1,1,n)+rt(1,1,m2z).le.0 ) irx1=0
+            if ( rt(2,2,n)+rt(2,2,m2z).le.0 ) iry1=0
+         else
+!
+!...........yes
+!
+            irx1 = mod(irx1+iry1,12)
+            iry1 = 0
+         endif
+         itottr = 144*irx1+12*iry1+irz1
+         if ( itottr.eq.0 ) return
+ 100  continue
+!
+!.....An error has been found
+!
+      if (lpt.ge.0) write (lpt,2990) rt(5,2,n),rt(5,2,m2),itottr,irx,iry,irz,rt(5,1,n),rt(5,1,m2)
+      ier = 18
+      if (lpt.ge.0) write (lpt,2991) m,n,m2
+!
+!.....formats
+!
+2990  format (2(1x,f9.1),4(1x,i4),2(1x,f9.1))
+2991  format('operator ',i2,' generates matrix ',i3,' which has a',' translation conflict',2(1x,i2))
+!
+      return
+  end subroutine sgtrcf
+  
 end module spgs
