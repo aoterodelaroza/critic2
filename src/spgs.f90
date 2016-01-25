@@ -3139,7 +3139,6 @@ contains
   end subroutine spgs_init
 
   subroutine spgr(spg, lpt, lptx, ier)
-    use struct
     use tools_io
     use param
 !-----------------------------------------------------------------------
@@ -4804,7 +4803,6 @@ contains
 
   !> Prints out spatial symmetry information
   subroutine sgprnt (spg, lpt)
-    use struct
     use tools_io
     use param
     implicit none
