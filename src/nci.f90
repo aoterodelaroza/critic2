@@ -79,7 +79,7 @@ contains
     ! discarding rho parameter
     real*8 :: rhoparam, rhoparam2
     ! rthres
-    real*8 :: rthres
+    real*8 :: rthres, srhorange(2)
 
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
@@ -155,6 +155,7 @@ contains
     rthres = 2.d0
     domolmotif = .false.
     usecore = f(refden)%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)
+    srhorange = (/ -1d30, 1d30 /)
 
     do while(.true.)
        ok = getline(uin,line,.true.,ucopy)
@@ -182,6 +183,11 @@ contains
        elseif (equal(word,'cutplot')) then
           ok = eval_next(rhoplot,line,lp)
           ok = ok .and. eval_next(dimplot,line,lp)
+          if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
+          call check_no_extra_word(line,lp,'nciplot')
+       elseif (equal(word,'srhorange')) then
+          ok = eval_next(srhorange(1),line,lp)
+          ok = ok .and. eval_next(srhorange(2),line,lp)
           if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
           call check_no_extra_word(line,lp,'nciplot')
        elseif (equal(word,'void')) then
@@ -558,6 +564,7 @@ contains
                  write(ludat,'(1p,E15.7,E15.7)') crho(k,j,i)/100d0, cgrad(k,j,i)
               end if
               if (abs(crho(k,j,i)) > rhoplot*100d0 .or..not.inter) cgrad(k,j,i) = 100d0
+              if (crho(k,j,i) < srhorange(1)*100d0 .or. crho(k,j,i) > srhorange(2)*100d0 .or..not.inter) cgrad(k,j,i) = 100d0
               if (crho(k,j,i) > 0 .and. onlyneg) cgrad(k,j,i) = 100d0
            end do
         end do

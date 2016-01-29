@@ -253,6 +253,7 @@ expression.r # prints the value of the expression to the output.
     RHOPARAM rhoparam.r
     RHOPARAM2 rhoparam2.r
     CUTPLOT rhoplot.r dimplot.r
+    SRHORANGE srhomin.r srhomax.r
     VOID void.r
     RTHRES rthres.r
     INCREMENTS x.r y.r z.r

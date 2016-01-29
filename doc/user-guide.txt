@@ -4879,6 +4879,7 @@ Non-covalent interaction visualization (NCIPLOT)
     RHOPARAM rhoparam.r
     RHOPARAM2 rhoparam2.r
     CUTPLOT rhoplot.r dimplot.r
+    SRHORANGE srhomin.r srhomax.r
     VOID void.r
     RTHRES rthres.r
     INCREMENTS x.r y.r z.r
@@ -4981,6 +4982,17 @@ ranges from -rhoplot.r to rhoplot.r. The default value is 0.05
 (selfconsistent densities) or 0.07 (promolecular). The dimplot.r
 controls the isosurface value to be represented in VMD. Default: 0.5
 (SC) or 0.3 (promolecular).
+
+::
+
+  SRHORANGE srhomin.r srhomax.r
+
+Similar to CUTPLOT. When the density times the sign of the second
+Hessian eigenvalue is greater than srhomax.r or smaller than
+srhomin.r, the rdg in the -grad.cube file is set to 100d0, effectively
+eliminating the point from the isosurface plot. This is useful when
+plotting a subset of the peaks found in the dat file as
+isosurfaces. Default: no range used.
 
 ::
 
