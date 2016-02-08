@@ -23,6 +23,7 @@ module tricks
   public :: trick
   private :: trick_recalculate_xdm
   private :: trick_grid_sphere
+  private :: trick_stephens_nnm_channel
 
 contains
 
@@ -32,8 +33,9 @@ contains
     character*(*), intent(in) :: line0
 
     ! call trick_recalculate_xdm()
-    call trick_grid_sphere()
-
+    ! call trick_grid_sphere()
+    call trick_stephens_nnm_channel(line0)
+    
   end subroutine trick
 
   !> Recalculate the XDM dispersion energy from the information in the 
@@ -296,5 +298,169 @@ contains
     write (*,*) "all ", sum(atp)
 
   end subroutine trick_grid_sphere
+
+  subroutine trick_stephens_nnm_channel(line)
+    use struct_basic
+    use fields
+    use graphics
+    use global
+    use tools_math
+    use tools_io
+    use param
+    character*(*), intent(in) :: line
+    
+    ! parameters for input
+    integer, parameter :: nang = 30
+    integer, parameter :: nline = 30
+    real*8, parameter :: rho0 = 0.01d0
+    real*8, parameter :: zeronorm = 1d-10 ! zero norm 
+    real*8, parameter :: dmax = 10d0 ! maximum distance
+    ! bracketing and bisection
+    real*8, parameter :: bstep0 = 0.05d0
+    real*8, parameter :: bfactor = 1.2d0
+    real*8, parameter :: blimit = 1d-5
+
+    integer :: luobj, lumtl, lp, i, j
+    logical :: ok
+    real*8, dimension(3) :: x0, x1, x, xp1, xp2, a1, a2, xd, xa, xb
+    real*8 :: ang, rho, rhoi, step, dist, rhoa, rhob
+    real*8 :: xlimit(3,nang,nline), mindist, maxdist
+
+    ! read input
+    lp = 1
+    ok = eval_next(x0(1),line,lp)
+    ok = ok .and. eval_next(x0(2),line,lp)
+    ok = ok .and. eval_next(x0(3),line,lp)
+    ok = ok .and. eval_next(x1(1),line,lp)
+    ok = ok .and. eval_next(x1(2),line,lp)
+    ok = ok .and. eval_next(x1(3),line,lp)
+    if (.not.ok) &
+       call ferror('trick_stephens_nnm_channel','syntax: trick x0 y0 z0 x1 y1 z1',faterr)
+
+    ! convert to cartesian
+    x0 = cr%x2c(x0)
+    x1 = cr%x2c(x1)
+
+    ! calculate the promolecular density profile
+    ok = .true.
+    write (uout,'("+ Promolecular density along the line")')
+    write (uout,'("# Distance(bohr)  rho(promol) (a.u.)")')
+    do i = 1, nline
+       x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
+       rho = grd0(f(0),x)
+       write (uout,'(4X,99(A,X))') string(norm(x-x0),'f',14,6), string(rho,'e',12,6)
+       ok = ok .and. rho < rho0
+    end do
+    if (.not.ok) &
+       call ferror('trick_stephens_nnm_channel','promolecular density along the line higher than threshold',faterr)
+
+    ! vector in the line direction, normalized
+    a1 = x1-x0
+    a1 = a1 / norm(a1)
+
+    write (uout,'("# Id  Distance(bohr)  Avg. radius(bohr)  Circle area(bohr^2)")')
+    do i = 1, nline
+       ! position and density at this point along the line
+       x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
+       rhoi = grd0(f(0),x)
+
+       ! find a vector normal to x-x0
+       ok = .false.
+       do j = 1, 3 
+          a2 = 0d0
+          a2(j) = 1d0
+          xp1 = cross(a1,a2)
+          if (norm(xp1) > zeronorm) then
+             ok = .true.
+             exit 
+          end if
+       end do
+       if (.not.ok) &
+          call ferror('trick_stephens_nnm_channel','could not find a vector orthogonal to the line',faterr)
+       xp1 = xp1 / norm(xp1)
+       
+       ! find the other normal vector
+       xp2 = cross(a1,xp1)
+       if (norm(xp2) < zeronorm) &
+          call ferror('trick_stephens_nnm_channel','could not find the second orthogonal vector',faterr)
+       xp2 = xp2 / norm(xp2)
+       
+       ! run over the angles
+       mindist = 1d30
+       maxdist = 0d0
+       do j = 1, nang
+          ang = 2d0 * pi * real(j-1,8) / real(nang,8)
+
+          ! direction along this angle
+          xd = cos(ang) * xp1 + sin(ang) * xp2
+
+          ! bracket
+          step = bstep0 / bfactor
+          xb = x
+          rhob = rhoi
+          do while (rhob <= rho0)
+             step = step * bfactor
+             xa = xb
+             rhoa = rhob
+             xb = x + xd * step
+             rhob = grd0(f(0),xb)
+             if (step > dmax) then
+                xb = x + xd * dmax
+                exit
+             endif
+          end do
+
+          ! bisection
+          dist = norm(xb - xa)
+          do while (dist >= blimit)
+             xd = 0.5d0 * (xb + xa)
+             rho = grd0(f(0),xb)
+             if (rho > rho0) then
+                rhob = rho
+                xb = xd
+             else
+                rhoa = rho
+                xa = xd
+             endif
+             dist = norm(xb - xa)
+          end do
+          dist = norm(xd-x)
+          maxdist = max(maxdist,dist)
+          mindist = min(mindist,dist)
+          xlimit(:,j,i) = xd
+       end do
+
+       ! Calculate the average radius and output
+       dist = 0d0
+       do j = 1, nang
+          dist = dist + norm(xlimit(:,j,i) - x)
+       end do
+       dist = dist / nang
+       write (uout,'(2X,99(A,X))') string(i), string(norm(x-x0),'f',14,6,4), &
+          string(dist,'f',14,6,4), string(pi*dist*dist,'f',14,6,4)
+    end do
+
+    ! write the obj file
+    call obj_open("tube.obj",luobj,lumtl)
+    do i = 1, nline
+       x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
+       call obj_ball(luobj,x,(/0,0,255/),0.2d0)
+    end do
+    do i = 1, nang
+       call obj_stick(luobj,x0,xlimit(:,i,1),(/0,0,0/),0.1d0)
+       call obj_stick(luobj,x1,xlimit(:,i,nline),(/0,0,0/),0.1d0)
+       do j = 1, nline-1
+          call obj_stick(luobj,xlimit(:,i,j),xlimit(:,i,j+1),(/0,0,0/),0.05d0)
+       end do
+    end do
+    do i = 1, nline
+       do j = 1, nang-1
+          call obj_stick(luobj,xlimit(:,j,i),xlimit(:,j+1,i),(/0,0,0/),0.05d0)
+       end do
+       call obj_stick(luobj,xlimit(:,1,i),xlimit(:,nang,i),(/0,0,0/),0.05d0)
+    end do
+    call obj_close(luobj,lumtl)
+
+  end subroutine trick_stephens_nnm_channel
 
 end module tricks
