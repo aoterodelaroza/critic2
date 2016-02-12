@@ -335,7 +335,7 @@ contains
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux
     logical :: doborder, molmotif, doprim, dodreiding, docell, domolcell, ok
-    logical :: doburst
+    logical :: doburst, dopairs
     real*8 :: rsph, xsph(3), rcub, xcub(3)
 
     lp = 1
@@ -363,6 +363,7 @@ contains
        docell = .false.
        domolcell = .false.
        doburst = .false.
+       dopairs = .false.
        ix = 1
        rsph = -1d0
        xsph = 0d0
@@ -377,6 +378,8 @@ contains
              molmotif = .true.
           elseif (equal(word,'burst')) then
              doburst = .true.
+          elseif (equal(word,'pairs')) then
+             dopairs = .true.
           elseif (equal(word,'cell')) then
              docell = .true.
           elseif (equal(word,'molcell')) then
@@ -426,7 +429,7 @@ contains
           end if
        end do
 
-       if (.not.doburst) then
+       if (.not.doburst.and..not.dopairs) then
           write (uout,'("* WRITE ",A," file: ",A)') trim(wext), string(file)
        else
           write (uout,'("* WRITE ",A," files: ",A,"_*.",A)') trim(wext), &
@@ -435,7 +438,7 @@ contains
 
        if (equal(wext,'xyz').or.equal(wext,'gjf')) then
           call struct_write_mol(cr,file,wext,ix,doborder,molmotif,doburst,&
-             rsph,xsph,rcub,xcub)
+             dopairs,rsph,xsph,rcub,xcub)
        else
           call struct_write_3dmodel(cr,file,wext,ix,doborder,molmotif,doburst,&
              docell,domolcell,rsph,xsph,rcub,xcub)

@@ -95,7 +95,8 @@ contains
   !> rsph (bohr) is positive, then use all atoms in a sphere around xsph
   !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
   !> around xcub (cryst.). 
-  subroutine struct_write_mol(c,file,fmt,ix,doborder,molmotif,doburst,rsph,xsph,rcub,xcub)
+  subroutine struct_write_mol(c,file,fmt,ix,doborder,molmotif,doburst,dopairs,rsph,xsph,rcub,xcub)
+    use fragmentmod
     use struct_basic
     use graphics
     use tools_io
@@ -106,27 +107,27 @@ contains
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, molmotif, doburst
+    logical, intent(in) :: doborder, molmotif, doburst, dopairs
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
 
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical :: isdiscrete
-    integer :: i, nmol
+    integer :: i, j, nmol
     character(len=:), allocatable :: wroot, file0
 
     if (rcub > 0) then
        fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
     elseif (rsph > 0) then
        fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
-    elseif (doburst) then
+    elseif (doburst.or.dopairs) then
        call c%listmolecules(nmol,fr0,isdiscrete)
     else
        fr = c%listatoms_cells(ix,doborder,molmotif)
     endif
 
-    if (.not.doburst) then
+    if (.not.doburst.and..not.dopairs) then
        if (equal(fmt,"xyz")) then
           call writexyz(file,fr)
        elseif (equal(fmt,"gjf")) then
@@ -135,19 +136,36 @@ contains
           call ferror("struct_write_mol","Unknown format",faterr)
        endif
     else
-       wroot = file(:index(file,'.',.true.)-1)
-       do i = 1, nmol
-          file0 = wroot // "_" // string(i) // "." // fmt
-          if (equal(fmt,"xyz")) then
-             call writexyz(file0,fr0(i))
-          elseif (equal(fmt,"gjf")) then
-             call writegjf(file0,fr0(i))
-          else
-             call ferror("struct_write_mol","Unknown format",faterr)
-          endif
-       end do
+       if (doburst) then
+          wroot = file(:index(file,'.',.true.)-1)
+          do i = 1, nmol
+             file0 = wroot // "_" // string(i) // "." // fmt
+             if (equal(fmt,"xyz")) then
+                call writexyz(file0,fr0(i))
+             elseif (equal(fmt,"gjf")) then
+                call writegjf(file0,fr0(i))
+             else
+                call ferror("struct_write_mol","Unknown format",faterr)
+             endif
+          end do
+       end if
+       if (dopairs) then
+          wroot = file(:index(file,'.',.true.)-1)
+          do i = 1, nmol
+             do j = i+1, nmol
+                file0 = wroot // "_" // string(i) // "_" // string(j) // "." // fmt
+                fr = fragment_merge_array((/fr0(i),fr0(j)/))
+                if (equal(fmt,"xyz")) then
+                   call writexyz(file0,fr)
+                elseif (equal(fmt,"gjf")) then
+                   call writegjf(file0,fr)
+                else
+                   call ferror("struct_write_mol","Unknown format",faterr)
+                endif
+             end do
+          end do
+       end if
     end if
-
   end subroutine struct_write_mol
 
   !> Write an obj file containing the crystal structure. fmt can be

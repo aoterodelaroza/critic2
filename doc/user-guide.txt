@@ -1797,7 +1797,7 @@ not. The full syntax of the WRITE keyword is::
 
   WRITE file.{xyz,gjf} [SPHERE rad.r [x0.r y0.r z0.r]]
         [CUBE side.r [x0.r y0.r z0.r]]
-        [BORDER] [MOLMOTIF] [BURST] [ix.i iy.i iz.i]
+        [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i]
   WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
         [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] [BURST]
         [CELL] [MOLCELL] [ix.i iy.i iz.i]
@@ -1854,7 +1854,11 @@ The BURST keyword is similar to MOLMOTIF in that the molecular crystal
 structure is partitioned into individual molecules, which are then
 completed using the atoms from neighboring cells. In contrast to
 MOLMOTIF, each of those molecular fragments is written to a separate
-file.
+file. In the particular case of xyz or gjf output, the keyword PAIRS
+can also be used. The behavior of PAIRS is similar to burst in that it
+creates a collection of xyz (or gjf) files from fragments of the
+crystal. Instead of writing all individual molecules, PAIRS writes all
+pairs of molecules in the unit cell.
 
 In crystals, the SPHERE keyword writes all atoms inside a sphere of
 radius rad.r (bohr) and centered around the crystallographic
