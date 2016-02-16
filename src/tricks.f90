@@ -312,7 +312,7 @@ contains
     ! parameters for input
     integer, parameter :: nang = 30
     integer, parameter :: nline = 30
-    real*8, parameter :: rho0 = 0.01d0
+    real*8, parameter :: rho0_def = 0.01d0
     real*8, parameter :: zeronorm = 1d-10 ! zero norm 
     real*8, parameter :: dmax = 10d0 ! maximum distance
     ! bracketing and bisection
@@ -325,6 +325,7 @@ contains
     real*8, dimension(3) :: x0, x1, x, xp1, xp2, a1, a2, xd, xa, xb
     real*8 :: ang, rho, rhoi, step, dist, rhoa, rhob
     real*8 :: xlimit(3,nang,nline), mindist, maxdist
+    real*8 :: rho0
 
     ! read input
     lp = 1
@@ -336,6 +337,8 @@ contains
     ok = ok .and. eval_next(x1(3),line,lp)
     if (.not.ok) &
        call ferror('trick_stephens_nnm_channel','syntax: trick x0 y0 z0 x1 y1 z1',faterr)
+    ok = eval_next(rho0,line,lp)
+    if (.not.ok) rho0 = rho0_def
 
     ! convert to cartesian
     x0 = cr%x2c(x0)
