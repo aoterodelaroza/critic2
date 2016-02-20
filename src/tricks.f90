@@ -347,11 +347,11 @@ contains
     ! calculate the promolecular density profile
     ok = .true.
     write (uout,'("+ Promolecular density along the line")')
-    write (uout,'("# Distance(bohr)  rho(promol) (a.u.)")')
+    write (uout,'("# Distance(ang)  rho(promol) (a.u.)")')
     do i = 1, nline
        x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
        rho = grd0(f(0),x)
-       write (uout,'(4X,99(A,X))') string(norm(x-x0),'f',14,6), string(rho,'e',12,6)
+       write (uout,'(4X,99(A,X))') string(norm(x-x0)*bohrtoa,'f',14,6), string(rho,'e',12,6)
        ok = ok .and. rho < rho0
     end do
     if (.not.ok) &
@@ -361,8 +361,9 @@ contains
     a1 = x1-x0
     a1 = a1 / norm(a1)
 
-    write (uout,'("# Id  Distance(bohr)  Avg. radius(bohr)  Circle area(bohr^2)")')
-    do i = 1, nline
+    write (uout,'("# Id  Distance(ang)  Avg. diam(ang)  Circle area(ang^2)")')
+    ! do i = 1, nline
+    do i = 13, 13
        ! position and density at this point along the line
        x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
        rhoi = grd0(f(0),x)
@@ -439,8 +440,8 @@ contains
           dist = dist + norm(xlimit(:,j,i) - x)
        end do
        dist = dist / nang
-       write (uout,'(2X,99(A,X))') string(i), string(norm(x-x0),'f',14,6,4), &
-          string(dist,'f',14,6,4), string(pi*dist*dist,'f',14,6,4)
+       write (uout,'(2X,99(A,X))') string(i), string(norm(x-x0)*bohrtoa,'f',14,6,4), &
+          string(2d0*dist*bohrtoa,'f',14,6,4), string(pi*dist*dist*bohrtoa*bohrtoa,'f',14,6,4)
     end do
 
     ! write the obj file
