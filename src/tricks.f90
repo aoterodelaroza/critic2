@@ -362,8 +362,7 @@ contains
     a1 = a1 / norm(a1)
 
     write (uout,'("# Id  Distance(ang)  Avg. diam(ang)  Circle area(ang^2)")')
-    ! do i = 1, nline
-    do i = 13, 13
+    do i = 1, nline
        ! position and density at this point along the line
        x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
        rhoi = grd0(f(0),x)
