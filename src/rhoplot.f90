@@ -840,7 +840,7 @@ contains
 
     ! try doing the contour
     if (docontour) call contour(x0,x1,x2,nx,ny,nco,niso,root0,.true.,.true.)
-    if (dorelief) call relief(root0,zmin,zmax)
+    if (dorelief) call relief(root0,string(outfile),zmin,zmax)
 
     if (len_trim(outfile) > 0) then
        call fclose(luout)
@@ -1037,10 +1037,10 @@ contains
   end subroutine contour
 
   !> Write a gnuplot template for the relief plot
-  subroutine relief(rootname,zmin,zmax)
+  subroutine relief(rootname,outfile,zmin,zmax)
     use tools_io
     real*8, intent(in) :: zmin, zmax
-    character*(*), intent(in) :: rootname
+    character*(*), intent(in) :: rootname, outfile
 
     character(len=:), allocatable :: file
     integer :: lu
@@ -1061,7 +1061,7 @@ contains
     write (lu,'("# Define the zrange and the capping functions")')
     write (lu,'("zmin = ",A)') string(zmin,'e',12,5)
     write (lu,'("zmax = ",A)') string(zmax,'e',12,5)
-    write (lu,'("stats """,A,".dat"" u 6 nooutput")') rootname
+    write (lu,'("stats """,A,""" u 6 nooutput")') outfile
     write (lu,'("min(x) = (x<zmin)?min=x:zmin")')
     write (lu,'("max(x) = (x>zmax)?max=zmax:x")')
     write (lu,'("set zrange [(zmin<STATS_min)?STATS_min:zmin:(zmax>STATS_max)?STATS_max:zmax]")')
@@ -1080,7 +1080,7 @@ contains
     write (lu,'("set view 60,45")')
     write (lu,'("set size ratio -1")')
     write (lu,'("")')
-    write (lu,'("splot """,A,".dat"" u 4:5:(max($6)) ls 1 w pm3d notitle")') rootname
+    write (lu,'("splot """,A,""" u 4:5:(max($6)) ls 1 w pm3d notitle")') outfile
 
     ! wrap up
     call fclose(lu)
