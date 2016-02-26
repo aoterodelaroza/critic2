@@ -17,6 +17,7 @@
 
 ! Evaluation of scalar fields
 module fields
+  use hashtype
   use types
   implicit none
 
@@ -41,6 +42,7 @@ module fields
   public :: fields_integrable_report
   public :: fields_pointprop
   public :: fields_pointprop_report
+  public :: listfieldalias
   public :: writegrid_cube
   public :: writegrid_vasp
   public :: goodfield
@@ -53,6 +55,7 @@ module fields
   public :: benchmark
   public :: taufromelf
   public :: testrmt
+  public :: fieldname_to_idx
   public :: fields_fcheck
   public :: fields_feval
 
@@ -81,6 +84,9 @@ module fields
   type(field), allocatable, public :: f(:)
   logical, allocatable, public :: fused(:)
 
+  ! arrray for the field aliases
+  type(hash) :: falias
+
   ! eps to move to the main cell
   real*8, parameter :: flooreps = 1d-4 ! border around unit cell
 
@@ -107,6 +113,7 @@ contains
     f(0)%usecore = .false.
     f(0)%typnuc = -3
     fused(0) = .true.
+    call falias%put("rho0",0)
 
     ! integrable properties, initialize
     nprops = 1
@@ -127,6 +134,7 @@ contains
 
     if (allocated(fused)) deallocate(fused)
     if (allocated(f)) deallocate(f)
+    call falias%free()
 
   end subroutine fields_end
 
@@ -146,7 +154,7 @@ contains
     character*(*), intent(in) :: line
     integer, intent(out) :: id
 
-    integer :: lp, oid, id2
+    integer :: lp, lp2, oid, id2
     character(len=:), allocatable :: file, word
     logical :: ok
 
@@ -157,11 +165,14 @@ contains
     ! if it is one of the special keywords, change the extension
     ! and read the next
     if (equal(file,"copy")) then
-       ok = eval_next(oid,line,lp)
-       if (.not.ok) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
+       word = getword(line,lp)
+       oid = fieldname_to_idx(word)
+       if (oid < 0) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
+       lp2 = lp
        word = lgetword(line,lp)
        if (equal(word,'to')) then
-          ok = eval_next(id,line,lp)
+          word = getword(line,lp)
+          id = fieldname_to_idx(word)
           if (id < 0) &
              call ferror("fields_load","erroneous field id in LOAD COPY",faterr,line)
           if (id > ubound(f,1)) then
@@ -170,30 +181,33 @@ contains
              call realloc(f,id)
              fused(id2+1:) = .false.
           end if
-          if (.not.ok) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
           if (fused(id)) call fields_unload(id)
+          if (falias%iskey(trim(word))) call falias%put(trim(word),id)
        else
           id = getfieldnum()
+          lp = lp2
        end if
        f(id) = f(oid)
        fused(id) = .true.
        write (uout,'("* COPIED scalar field from slot ",A," to ",A/)') string(oid), string(id)
-       return
-    end if
 
-    ! allocate slot
-    id = getfieldnum()
-    write (uout,'("* LOAD scalar field in slot number: ",A)') string(id)
+       ! parse the rest of the line
+       call setfield(f(id),id,line(lp:),.true.)
+    else
+       ! allocate slot
+       id = getfieldnum()
+       write (uout,'("* LOAD scalar field in slot number: ",A)') string(id)
 
-    ! load the field
-    f(id) = fields_load_real(line,.true.)
+       ! load the field
+       f(id) = fields_load_real(line,id,.true.)
 
-    ! test the muffin tin discontinuity, if applicable
-    call testrmt(id,0)
+       ! test the muffin tin discontinuity, if applicable
+       call testrmt(id,0)
+    endif
 
   end subroutine fields_load
 
-  function fields_load_real(line,verbose) result(ff)
+  function fields_load_real(line,fid,verbose) result(ff)
     use elk_private
     use wien_private
     use wfn_private
@@ -207,10 +221,11 @@ contains
     use param
 
     character*(*), intent(in) :: line
+    integer, intent(in) :: fid
     logical, intent(in) :: verbose
     type(field) :: ff
 
-    integer :: lp, lp2, i, j, id1, id2
+    integer :: lp, lp2, i, j, id, id1, id2
     character(len=:), allocatable :: file, wext1, wext2, word, word2, file2, file3, expr
     integer :: zz, n(3)
     logical :: ok
@@ -218,7 +233,7 @@ contains
     integer :: idx0(cr%nenv), zenv0(cr%nenv), ix, iy, iz, oid, oid2
     real*8 :: xd(3,3)
     integer :: nid, nwan
-    integer, allocatable :: idlist(:)
+    character*255, allocatable :: idlist(:)
     type(fragment) :: fr
     logical :: isfrag
 
@@ -292,7 +307,12 @@ contains
        call grid_read_cube(file,ff,verbose)
        ff%type = type_grid
        ff%file = file
-    else if (equal(wext1,'DEN') .or. equal(wext2,'DEN')) then
+    else if (equal(wext1,'DEN').or.equal(wext2,'DEN').or.equal(wext1,'ELF').or.equal(wext2,'ELF').or.&
+       equal(wext1,'POT').or.equal(wext2,'POT').or.equal(wext1,'VHA').or.equal(wext2,'VHA').or.&
+       equal(wext1,'VHXC').or.equal(wext2,'VHXC').or.equal(wext1,'VXC').or.equal(wext2,'VXC').or.&
+       equal(wext1,'GDEN1').or.equal(wext2,'GDEN1').or.equal(wext1,'GDEN2').or.equal(wext2,'GDEN2').or.&
+       equal(wext1,'GDEN3').or.equal(wext2,'GDEN3').or.equal(wext1,'LDEN').or.equal(wext2,'LDEN').or.&
+       equal(wext1,'KDEN').or.equal(wext2,'KDEN')) then
        call grid_read_abinit(file,ff,verbose)
        ff%type = type_grid
        ff%file = file
@@ -449,8 +469,9 @@ contains
              else
                 word2 = getword(line,lp)
                 if (equal(word2,"sizeof")) then
-                   ok = eval_next(zz,line,lp)
-                   if (.not.ok) call ferror("fields_load","wrong sizeof",faterr,line)
+                   word2 = getword(line,lp)
+                   zz = fieldname_to_idx(word2)
+                   if (zz < 0) call ferror("fields_load","wrong sizeof",faterr,line)
                    if (.not.goodfield(zz,type_grid)) call ferror("fields_load","field not allocated",faterr,line)
                    n = f(zz)%n
                 else
@@ -458,8 +479,9 @@ contains
                 end if
              end if
           else
-             ok = eval_next(oid,line,lp)
-             if (.not.ok) &
+             word2 = getword(line,lp)
+             oid = fieldname_to_idx(word2)
+             if (oid < 0) &
                 call ferror("fields_load","wrong grid for lap/grad/etc.",faterr,line)
              if (.not.goodfield(oid)) call ferror("fields_load","field not allocated",faterr,line)
              n = f(oid)%n
@@ -511,9 +533,11 @@ contains
           ! load as clm
           word = lgetword(line,lp)
           if (equal(word,'add').or.equal(word,'sub')) then
-             ok = eval_next(id1,line,lp)
-             ok = ok .and. eval_next(id2,line,lp)
-             if (.not.ok) call ferror("fields_load","wrong syntax in LOAD AS CLM",faterr,line)
+             word2 = getword(line,lp)
+             id1 = fieldname_to_idx(word2)
+             word2 = getword(line,lp)
+             id2 = fieldname_to_idx(word2)
+             if (id1 < 0 .or. id2 < 0) call ferror("fields_load","wrong syntax in LOAD AS CLM",faterr,line)
              if (.not.goodfield(id1).or..not.goodfield(id2)) call ferror("fields_load","field not allocated",faterr,line)
              if (f(id1)%type/=f(id2)%type) call ferror("fields_load","fields not the same type",faterr,line)
              if (f(id1)%type/=type_wien.and.f(id1)%type/=type_elk) call ferror("fields_load","incorrect type",faterr,line) 
@@ -566,8 +590,9 @@ contains
              word2 = getword(line,lp)
              if (equal(word2,"sizeof")) then
                 ! load as "blehblah" sizeof
-                ok = eval_next(zz,line,lp)
-                if (.not.ok) call ferror("fields_load","wrong sizeof",faterr,line)
+                word2 = getword(line,lp)
+                zz = fieldname_to_idx(word2)
+                if (zz < 0) call ferror("fields_load","wrong sizeof",faterr,line)
                 if (.not.goodfield(zz,type_grid)) call ferror("fields_load","field not allocated",faterr,line)
                 n = f(zz)%n
              elseif (equal(word2,"ghost")) then
@@ -575,23 +600,22 @@ contains
                 ! ghost field -> no grid size
                 n = 0
                 call fields_in_eval(expr,nid,idlist)
-                if (nid == 0) call ferror("fields_load","No fields referenced in LOAD AS expression",faterr,line)
              else
                 ! load as "blehblah"
                 lp = lp2
                 call fields_in_eval(expr,nid,idlist)
                 n = 0
                 do i = 1, nid
-                   if (.not.goodfield(idlist(i),type_grid)) cycle
+                   id = fieldname_to_idx(idlist(i))
+                   if (.not.goodfield(id,type_grid)) cycle
                    do j = 1, 3
-                      n(j) = max(n(j),f(idlist(i))%n(j))
+                      n(j) = max(n(j),f(id)%n(j))
                    end do
                 end do
                 deallocate(idlist)
                 if (any(n < 1)) then
                    ! nothing read, must be a ghost
                    call fields_in_eval(expr,nid,idlist)
-                   if (nid == 0) call ferror("fields_load","No fields referenced in LOAD AS expression",faterr,line)
                 endif
              end if
           end if
@@ -599,7 +623,10 @@ contains
           if (any(n < 1)) then
              ! Ghost field
              do i = 1, nid
-                if (.not.fused(idlist(i))) &
+                id = fieldname_to_idx(idlist(i))
+                if (id < 0) &
+                   call ferror('fields_load','Tried to define ghost field using and undefined field',faterr)
+                if (.not.fused(id)) &
                    call ferror('fields_load','Tried to define ghost field using and undefined field',faterr)
              end do
 
@@ -609,7 +636,9 @@ contains
              ff%nf = nid
              if (allocated(ff%fused)) deallocate(ff%fused)
              allocate(ff%fused(nid))
-             ff%fused = idlist
+             do i = 1, nid
+                ff%fused(i) = fieldname_to_idx(idlist(i))
+             end do
              ff%usecore = .false.
              ff%numerical = .true.
              if (verbose) then
@@ -677,13 +706,16 @@ contains
     end if
 
     ! parse the rest of the line
-    call setfield(ff,line(lp:),verbose)
+    call setfield(ff,fid,line(lp:),verbose)
 
   end function fields_load_real
 
   subroutine fields_unload(id)
 
     integer, intent(in) :: id
+
+    integer :: i, idum, nkeys
+    character(len=:), allocatable :: key
 
     fused(id) = .false.
     f(id)%init = .false.
@@ -741,6 +773,14 @@ contains
     if (allocated(f(id)%occ)) deallocate(f(id)%occ)
     if (allocated(f(id)%cmo)) deallocate(f(id)%cmo)
     if (allocated(f(id)%fused)) deallocate(f(id)%fused)
+
+    ! clear all alias referring to this field
+    nkeys = falias%keys()
+    do i = 1, nkeys
+       key = falias%getkey(i)
+       idum = falias%get(key,idum)
+       if (idum == id) call falias%delkey(key)
+    end do
 
   end subroutine fields_unload
 
@@ -840,9 +880,12 @@ contains
     ! read input
     lp=1
     useexpr = .false.
-    ok = eval_next(id,line,lp)
-    if (.not.ok) then
-       lpold = lp
+
+    lpold = lp
+    word = getword(line,lp)
+    id = fieldname_to_idx(word)
+    if (id < 0) then
+       lp = lpold
        ! clear the integrable properties list
        word = lgetword(line,lp)
        if (equal(word,'clear')) then
@@ -870,6 +913,10 @@ contains
              call ferror("fields_integrable","Unknown integrable syntax",faterr,line)
           endif
        end if
+    else
+       if (.not.goodfield(id)) &
+          call ferror('fields_integrable','field not allocated',faterr,line)
+       str = "$" // string(word)
     end if
 
     ! add property
@@ -888,31 +935,31 @@ contains
        integ_prop(nprops)%itype = itype_f
        integ_prop(nprops)%prop_name = ""
        integ_prop(nprops)%lmax = 5
-       str = "$" // string(id,2,pad0=.true.) // "_f"
        do while (.true.)
           word = lgetword(line,lp)
           if (equal(word,"f")) then
              integ_prop(nprops)%itype = itype_f
+             str = trim(str) // "#f"
           elseif (equal(word,"fval")) then
              integ_prop(nprops)%itype = itype_fval
-             str = "$" // string(id,2,pad0=.true.) // "_fval"
+             str = trim(str) // "#fval"
           elseif (equal(word,"gmod")) then
              integ_prop(nprops)%itype = itype_gmod
-             str = "$" // string(id,2,pad0=.true.) // "_gmod"
+             str = trim(str) // "#gmod"
           elseif (equal(word,"lap")) then
              integ_prop(nprops)%itype = itype_lap
-             str = "$" // string(id,2,pad0=.true.) // "_lap"
+             str = trim(str) // "#lap"
           elseif (equal(word,"lapval")) then
              integ_prop(nprops)%itype = itype_lapval
-             str = "$" // string(id,2,pad0=.true.) // "_lval"
+             str = trim(str) // "#lapval"
           elseif (equal(word,"multipoles") .or. equal(word,"multipole")) then
              integ_prop(nprops)%itype = itype_mpoles
-             str = "$" // string(id,2,pad0=.true.) // "_mpol"
+             str = trim(str) // "#mpol"
              ok = isinteger(idum,line,lp)
              if (ok) integ_prop(nprops)%lmax = idum
           elseif (equal(word,"deloc")) then
              integ_prop(nprops)%itype = itype_deloc
-             str = "$" // string(id,2,pad0=.true.) // "_deloc"
+             str = trim(str) // "#deloca"
           elseif (equal(word,"name")) then
              word = getword(line,lp)
              integ_prop(nprops)%prop_name = string(word)
@@ -995,7 +1042,7 @@ contains
     logical :: isblank, isstress
     integer :: lp, n, i
     character(len=:), allocatable :: expr, word, lword, line
-    integer, allocatable :: idlist(:)
+    character*255, allocatable :: idlist(:)
 
     ! Get the name
     lp = 1
@@ -1086,7 +1133,7 @@ contains
     ! Determine the fields in the expression, check that they are defined
     call fields_in_eval(expr,n,idlist)
     do i = 1, n
-       if (.not.goodfield(idlist(i))) &
+       if (.not.goodfield(fieldname_to_idx(idlist(i)))) &
           call ferror("fields_pointprop","Unknown field in arithmetic expression",faterr,expr)
     end do
 
@@ -1102,7 +1149,9 @@ contains
     end if
     if (allocated(point_prop(nptprops)%fused)) deallocate(point_prop(nptprops)%fused)
     allocate(point_prop(nptprops)%fused(n))
-    point_prop(nptprops)%fused = idlist
+    do i = 1, n
+       point_prop(nptprops)%fused(i) = fieldname_to_idx(idlist(i))
+    end do
 
     ! Print report
     call fields_pointprop_report()
@@ -1130,6 +1179,24 @@ contains
     write (uout,*)
   
   end subroutine fields_pointprop_report
+
+  !> List all defined aliases for fields
+  subroutine listfieldalias()
+    use tools_io
+
+    integer :: i, nkeys, idum
+    character(len=:), allocatable :: key, val
+
+    nkeys = falias%keys()
+    write (uout,'("* LIST of named fields (",A,")")') string(nkeys)
+    do i = 1, nkeys
+       key = falias%getkey(i)
+       val = string(falias%get(key,idum))
+       write (uout,'(2X,"''",A,"'' is field number ",A)') string(key), string(val)
+    end do
+    write (uout,*)
+
+  end subroutine listfieldalias
 
   !> Write a grid to a cube file. The input is the crystal (c),
   !> the grid in 3D array form (g), the filename (file), and whether
@@ -1302,7 +1369,7 @@ contains
     
   end function getfieldnum
 
-  subroutine setfield(ff,line,verbose)
+  subroutine setfield(ff,fid,line,verbose)
     use struct_basic
     use grid_tools
     use global
@@ -1310,6 +1377,7 @@ contains
     use param
 
     type(field), intent(inout) :: ff
+    integer, intent(in) :: fid
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
@@ -1365,10 +1433,11 @@ contains
           if (.not. ok) call ferror('setfield','normalize real number missing',faterr,line)
           ff%f = ff%f / (sum(ff%f) * cr%omega / real(product(ff%n),8)) * norm
           if (allocated(ff%c2)) deallocate(ff%c2)
-       else if (equal(word,'name')) then
+       else if (equal(word,'name') .or. equal(word,'id')) then
           ok = isexpression_or_word(aux,line,lp)
           if (.not. ok) call ferror('setfield','wrong name keyword',faterr,line)
-          ff%name = aux
+          ff%name = trim(aux)
+          call falias%put(trim(aux),fid)
        else if (len_trim(word) > 0) then
           call ferror('setfield','Unknown extra keyword',faterr,line)
        else
@@ -2059,13 +2128,36 @@ contains
 
   end subroutine taufromelf
 
+  !> Convert a field name to the corresponding integer index.
+  function fieldname_to_idx(id) result(fid)
+    character*(*), intent(in) :: id
+    integer :: fid
+
+    character(len=:), allocatable :: oid
+    integer :: ierr
+
+    oid = trim(adjustl(id))
+    if (falias%iskey(oid)) then 
+       fid = falias%get(oid,fid)
+    else
+       read(oid,*,iostat=ierr) fid
+       if (ierr /= 0) fid = -1
+    endif
+
+  end function fieldname_to_idx
+
   !> Check that the id is a grid and is a sane field. Wrapper
   !> around goodfield() to pass it to the arithmetic module.
-  function fields_fcheck(id)
+  function fields_fcheck(id,iout)
     logical :: fields_fcheck
-    integer, intent(in) :: id
+    character*(*), intent(in) :: id
+    integer, intent(out), optional :: iout
 
-    fields_fcheck = goodfield(id)
+    integer :: iid
+
+    iid = fieldname_to_idx(id)
+    fields_fcheck = goodfield(iid)
+    if (present(iout)) iout = iid
 
   end function fields_fcheck
 
@@ -2074,10 +2166,14 @@ contains
   function fields_feval(id,nder,x0)
     use types, only: scalar_value
     type(scalar_value) :: fields_feval
-    integer, intent(in) :: id, nder
+    character*(*), intent(in) :: id
+    integer, intent(in) :: nder
     real*8, intent(in) :: x0(3)
 
-    call grd(f(id),x0,nder,fields_feval)
+    integer :: iid
+
+    iid = fieldname_to_idx(id)
+    call grd(f(iid),x0,nder,fields_feval)
 
   end function fields_feval
 

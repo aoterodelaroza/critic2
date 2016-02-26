@@ -85,6 +85,9 @@ module arithmetic
   integer, parameter :: fun_lol      = 53 !< Localized-orbital locator (LOL)
   integer, parameter :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
 
+  integer, parameter :: typ_num = 1 !< a number
+  integer, parameter :: typ_field = 2 !< a field identifier
+
 #ifdef HAVE_LIBXC
   integer, parameter :: maxfun = 600
   type libxc_functional
@@ -111,15 +114,17 @@ contains
     optional :: fcheck, feval
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id)
+       function fcheck(id,iout)
          logical :: fcheck
-         integer, intent(in) :: id
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
        function feval(id,nder,x0)
          use types, only: scalar_value
          type(scalar_value) :: feval
-         integer, intent(in) :: id, nder
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
        end function feval
     end interface
@@ -145,15 +150,17 @@ contains
     optional :: fcheck, feval
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id)
+       function fcheck(id,iout)
          logical :: fcheck
-         integer, intent(in) :: id
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
        function feval(id,nder,x0)
          use types, only: scalar_value
          type(scalar_value) :: feval
-         integer, intent(in) :: id, nder
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
        end function feval
     end interface
@@ -185,26 +192,30 @@ contains
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id)
+       function fcheck(id,iout)
          logical :: fcheck
-         integer, intent(in) :: id
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
        function feval(id,nder,x0)
          use types, only: scalar_value
          type(scalar_value) :: feval
-         integer, intent(in) :: id, nder
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
        end function feval
     end interface
 
     integer :: lp, ll
     real*8 :: a
-    integer :: c, s(100)
-    logical :: again, wasop, fail
+    integer :: c, s(100), iout, t(100)
+    logical :: again, wasop, fail, ok
     real*8 :: q(100)
     character*(len(expr)) :: expr0
     integer :: nq, ns
+    character(len=:), allocatable :: fid
+    character*2 :: fder
 
     ! initialize
     expr0 = string(expr)
@@ -213,6 +224,7 @@ contains
     nq = 0
     ns = 0
     q(1) = 0d0
+    t(1) = typ_num
 
     ! run over tokens
     wasop = .true.
@@ -230,6 +242,7 @@ contains
           ! a number (without sign)
           nq = nq + 1
           q(nq) = a
+          t(nq) = typ_num
           wasop = .false.
        elseif (isfunction(c,expr0,lp,wasop)) then
           ns = ns + 1
@@ -241,7 +254,7 @@ contains
              again = .false.
              if (ns > 0) then
                 if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+                   call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
                    if (fail) then
                       call dofail()
                       return
@@ -263,7 +276,7 @@ contains
           ! right parenthesis
           do while (ns > 0)
              if (s(ns) == fun_openpar) exit
-             call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+             call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
              if (fail) then
                 call dofail()
                 return
@@ -275,7 +288,7 @@ contains
           if (ns > 0) then
              c = s(ns)
              if (istype(c,'function')) then
-                call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+                call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
                 if (fail) then
                    call dofail()
                    return
@@ -288,7 +301,7 @@ contains
           ! a comma
           do while (ns > 0)
              if (s(ns) == fun_openpar) exit
-             call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+             call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
              if (fail) then
                 call dofail()
                 return
@@ -302,6 +315,7 @@ contains
           nq = nq + 1
           if (present(x0).and.present(fcheck).and.present(feval)) then
              q(nq) = fieldeval(expr0,lp,x0,fcheck,feval)
+             t(nq) = typ_num
           else
              call dofail()
              return
@@ -311,11 +325,27 @@ contains
           ! a constant (pi,...)
           nq = nq + 1
           q(nq) = a
+          t(nq) = typ_num
           wasop = .false.
        elseif (isvariable_private(a,expr0,lp)) then
           ! a variable (pi,...)
           nq = nq + 1
           q(nq) = a
+          t(nq) = typ_num
+          wasop = .false.
+       elseif (isfield(fid,fder,expr0,lp)) then
+          ! a named field for a chemical function
+          nq = nq + 1
+          ok = .false.
+          if (present(x0).and.present(fcheck).and.present(feval)) then
+             ok = fcheck(fid,iout)
+             q(nq) = real(iout,8)
+             t(nq) = typ_field
+          end if
+          if (.not.ok) then
+             call dofail()
+             return
+          end if
           wasop = .false.
        else
           if (hardfail) then
@@ -331,12 +361,16 @@ contains
     hardfail = .true.
     ! unwind the stack
     do while (ns > 0)
-       call pop(q,nq,s,ns,x0,fcheck,feval,fail)
+       call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
        if (fail) then
           call dofail()
           return
        endif
     end do
+    if (t(1) /= typ_num) then
+       call dofail()
+       return
+    end if
     eval = q(1)
 
   contains
@@ -357,13 +391,15 @@ contains
     use types
     character(*), intent(in) :: expr
     integer, intent(out) :: n
-    integer, allocatable :: idlist(:)
+    character*255, allocatable :: idlist(:)
 
-    integer :: lp, ll, id, i, npar
+    integer :: lp, ll, i, npar
     real*8 :: a, b
     integer :: c, d
     character*(len(expr)) :: expr0
     logical :: ok
+    character(len=:), allocatable :: id
+    character*2 :: fder
 
     if (allocated(idlist)) deallocate(idlist)
     allocate(idlist(10))
@@ -390,12 +426,14 @@ contains
           if (istype(c,'chemfunction')) then
              npar = 1
              do i = lp+1, ll
-                if (lp > ll) exit main
                 if (expr0(i:i) == '(') npar = npar + 1
                 if (expr0(i:i) == ')') npar = npar - 1
                 if (npar == 0) exit
              end do
-             id = nint(eval_hard_fail(expr0(lp+1:i-1)))
+             lp = lp + 1
+             ok = isfield(id,fder,expr0,lp)
+             if (.not.ok) &
+                call ferror("fields_in_eval","unknown field in expression (chem. function)",faterr)
              n = n + 1
              if (n > size(idlist)) call realloc(idlist,2*n)
              idlist(n) = id
@@ -414,7 +452,9 @@ contains
        elseif (expr0(lp:lp) == '$') then
           ! a field
           lp = lp + 1
-          id = nint(fieldeval(expr0,lp)) / 100
+          ok = isfield(id,fder,expr0,lp)
+          if (.not.ok) &
+             call die("unexpected termination parsing field name")
           n = n + 1
           if (n > size(idlist)) call realloc(idlist,2*n)
           idlist(n) = id
@@ -432,7 +472,7 @@ contains
   !> evaluate to a label indicating the id of field and scalar quantity in the
   !> expression.
   function fieldeval(expr,lp,x0,fcheck,feval)
-    use tools_io, only: isdigit, isletter
+    use tools_io, only: isdigit, isletter, string
     use types
 
     real*8 :: fieldeval
@@ -443,47 +483,35 @@ contains
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id)
+       function fcheck(id,iout)
          logical :: fcheck
-         integer, intent(in) :: id
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
        function feval(id,nder,x0)
          use types, only: scalar_value
          type(scalar_value) :: feval
-         integer, intent(in) :: id, nder
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
        end function feval
     end interface
 
-    integer :: i, ll, id, nder
+    integer :: i, ll, nder
     character*1 :: ch
+    character(len=:), allocatable :: id
     character*2 :: fder
     type(scalar_value) :: res
+    logical :: ok
+
+    ok = isfield(id,fder,expr,lp)
+    if (.not.ok) &
+       call die("unexpected termination parsing field name")
 
     fieldeval = 0d0
-    ll = len_trim(expr)
-    i = lp
-    if (i > ll) goto 999
-
-    ! read the letters
-    do while (isletter(expr(i:i)))
-       i = i + 1
-       if (i > ll) goto 999
-    enddo
-    fder = expr(lp:i-1)
-
-    ! read the numbers
-    lp = i
-    do while (isdigit(expr(i:i)))
-       i = i + 1
-       if (i > ll) exit
-    enddo
-    read(expr(lp:i-1),*) id
-    lp = i
-
     if (present(x0).and.present(feval).and.present(fcheck)) then
-       if (.not.fcheck(id)) call die('wrong field (unknown,not allocated,...)')
+       if (.not.fcheck(id)) call die('wrong field (unknown,not allocated,...): ' // string(expr))
        if (fder=="  ".or.fder=="v ".or.fder=="c ") then
           nder = 0
        elseif (fder=="x ".or.fder=="y ".or.fder=="z ".or.fder=="g ") then
@@ -529,51 +557,53 @@ contains
        case default
           call die("unknown field specifier")
        end select
-    else
-       select case (trim(fder))
-       case ("")
-          fieldeval = 1
-       case ("v")
-          fieldeval = 2
-       case ("c")
-          fieldeval = 3
-       case ("x")
-          fieldeval = 4
-       case ("y")
-          fieldeval = 5
-       case ("z")
-          fieldeval = 6
-       case ("xx")
-          fieldeval = 7
-       case ("xy")
-          fieldeval = 8
-       case ("xz")
-          fieldeval = 9
-       case ("yy")
-          fieldeval = 10
-       case ("yz")
-          fieldeval = 11
-       case ("zz")
-          fieldeval = 12
-       case ("l")
-          fieldeval = 13
-       case ("lv")
-          fieldeval = 14
-       case ("lc")
-          fieldeval = 15
-       case ("g")
-          fieldeval = 16
-       case default
-          call die("unknown field specifier")
-       end select
-       fieldeval = fieldeval + 100 * id
     end if
 
-    return
-999 continue
-    call die('unexpected end of expression')
-
   end function fieldeval
+
+  ! read a field identifier from the expression, return true, and advance lp or
+  ! return false and leave lp unchanged
+  function isfield(id,fder,expr,lp)
+    use tools_io, only: isdigit, isletter
+    logical :: isfield
+    character*(*), intent(in) :: expr !< Input string
+    integer, intent(inout) :: lp !< Pointer to current position on string
+    character(len=:), allocatable, intent(out) :: id !< Name of the field
+    character*2, intent(out) :: fder
+
+    integer :: ll, i
+
+    id = ""
+    fder = ""
+    isfield = .false.
+    ll = len_trim(expr)
+    i = lp
+    if (i > ll) return
+
+    ! read the entry for this field
+    do while (isletter(expr(i:i)) .or. isdigit(expr(i:i)))
+       i = i + 1
+       if (i > ll) exit
+    enddo
+    id = expr(lp:i-1)
+    lp = i
+
+    ! read the modifier for this field
+    if (lp < ll) then
+       if (expr(lp:lp) == "#") then
+          lp = lp + 1
+          i = lp
+          do while (isletter(expr(i:i)))
+             i = i + 1
+             if (i > ll) exit
+          enddo
+          fder = expr(lp:i-1)
+          lp = i
+       end if
+    end if
+    isfield = .true.
+
+  end function isfield
 
   ! read an unsigned number or return false and leave lp unchanged
   function isnumber (rval,expr,lp)
@@ -968,7 +998,7 @@ contains
   end function iassoc
 
   ! pop from the stack and operate on the queue
-  subroutine pop(q,nq,s,ns,x0,fcheck,feval,fail)
+  subroutine pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
     use tools_math, only: erf, erfc
     use types
     use param
@@ -979,6 +1009,7 @@ contains
 #endif
 
     real*8, intent(inout) :: q(:)
+    integer, intent(inout) :: t(:)
     integer, intent(inout) :: s(:)
     integer, intent(inout) :: nq, ns
     real*8, intent(in), optional :: x0(3)
@@ -987,15 +1018,17 @@ contains
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id)
+       function fcheck(id,iout)
          logical :: fcheck
-         integer, intent(in) :: id
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
        function feval(id,nder,x0)
          use types, only: scalar_value
          type(scalar_value) :: feval
-         integer, intent(in) :: id, nder
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
        end function feval
     end interface
@@ -1016,6 +1049,7 @@ contains
        ! Functional from the xc library
 #ifdef HAVE_LIBXC
        ia = tointeger(q(nq))
+       if (t(nq) /= typ_num) call die('wrong type in stack - 1')
 
        if (.not.ifun(ia)%init) then
           ifun(ia)%id = ia
@@ -1032,15 +1066,19 @@ contains
 
        select case(ifun(ia)%family)
        case (XC_FAMILY_LDA)
+          if (t(nq-1) /= typ_num) call die('wrong type in stack - 2')
           rho = max(q(nq-1),1d-14)
           call xc_f90_lda_exc(ifun(ia)%conf, 1, rho, zk)
           nq = nq - 1
        case (XC_FAMILY_GGA)
+          if (t(nq-1) /= typ_num .or. t(nq-2) /= typ_num) call die('wrong type in stack - 3')
           rho = max(q(nq-2),1d-14)
           grho = q(nq-1)*q(nq-1)
           call xc_f90_gga_exc(ifun(ia)%conf, 1, rho, grho, zk)
           nq = nq - 2
        case (XC_FAMILY_MGGA)
+          if (t(nq-1) /= typ_num .or. t(nq-2) /= typ_num .or. &
+              t(nq-3) /= typ_num .or. t(nq-4) /= typ_num) call die('wrong type in stack - 4')
           rho = max(q(nq-4),1d-14)
           grho = q(nq-3)*q(nq-3)
           lapl = q(nq-2)
@@ -1049,12 +1087,14 @@ contains
           nq = nq - 4
        end select
        q(nq) = zk * rho
+       t(nq) = typ_num
 #else
        call die('(/"!! ERROR !! critic2 was not compiled with libxc support !!"/)')
 #endif
     elseif (istype(c,'binary')) then
        ! a binary operator or function
        if (nq < 2) call die('error in expression')
+       if (t(nq) /= typ_num .or. t(nq-1) /= typ_num) call die('wrong type in stack - 5')
        a = q(nq-1)
        b = q(nq)
        nq = nq - 1
@@ -1126,9 +1166,11 @@ contains
              q(nq) = 0d0
           endif
        end select
+       t(nq) = typ_num
     elseif (istype(c,'unary')) then
        ! a unary operator or function
        if (nq < 1) call die('error in expression')
+       if (t(nq) /= typ_num) call die('wrong type in stack - 6')
        select case(c)
        case (fun_uplus)
           q(nq) = +q(nq)
@@ -1171,20 +1213,20 @@ contains
        case (fun_erfc)
           q(nq) = erfc(q(nq))
        end select
+       t(nq) = typ_num
     elseif (istype(c,'chemfunction')) then
        ! We need a point and the evaluator
        if (.not.present(x0).or..not.present(feval).or..not.present(fcheck)) then
           fail = .true.
           return
        endif
-
+    
        ! Also an integer field identifier as the first argument
        ia = tointeger(q(nq))
-       if (.not.fcheck(ia)) call die('Wrong field (unknown,not allocated,...)')
-
+    
        ! Use the library of chemical functions
        q(nq) = chemfunction(c,ia,x0,feval)
-
+    
     else
        call die('error in expression')
     end if
@@ -1344,6 +1386,7 @@ contains
   end subroutine listvariables
 
   function chemfunction(c,ia,x0,feval) result(q)
+    use tools_io
     use tools_math
     use types
     use param
@@ -1351,39 +1394,43 @@ contains
     integer, intent(in) :: ia
     real*8, intent(in) :: x0(3)
     real*8 :: q
-
+  
     interface
        !> Evaluate the field at a point
        function feval(id,nder,x0)
          use types, only: scalar_value
          type(scalar_value) :: feval
-         integer, intent(in) :: id, nder
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
        end function feval
     end interface
-
+  
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0
-
+    character*8 :: sia
+  
     ! some common constant
     real*8 :: ctf = 3d0/10d0 * (3d0*pi**2)**(2d0/3d0) ! Thomas-Fermi k.e.d. constant
-
+  
+    write (sia,'(I8)') ia
+    sia = adjustl(sia)
     select case(c)
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
-       res = feval(ia,0,x0)
+       res = feval(sia,0,x0)
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -1395,14 +1442,14 @@ contains
        !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
        ! for more references and its use applied to experimental electron
        ! densities.
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
     case (fun_vtf_kir)
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -1410,27 +1457,27 @@ contains
     case (fun_htf_kir)
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = 0.25d0 * res%del2f - q
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
-       res = feval(ia,1,x0)
+       res = feval(sia,1,x0)
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       res = feval(ia,1,x0)
+       res = feval(sia,1,x0)
        f0 = max(res%f,1d-30)
        ds = res%gkin  - 1d0/8d0 * res%gfmod**2 / f0
        ds0 = ctf * f0**(5d0/3d0)
@@ -1439,31 +1486,31 @@ contains
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
-       res = feval(ia,2,x0)
+       res = feval(sia,2,x0)
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0) 
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = g0 / g
        q = q / (1d0+q)
     end select
-
+  
   end function chemfunction
 
 end module arithmetic

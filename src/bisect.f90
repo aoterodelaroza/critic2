@@ -122,7 +122,6 @@ contains
           else
              xfin_ = xmed
           endif
-          dist2 = dot_product(xin_-xfin_,xin_-xfin_)
        elseif (ier == 3) then
           ! the gradient started at infinity (molecule)
           xfin_ = xmed
@@ -136,8 +135,8 @@ contains
           else
              xfin_ = xmed
           endif
-          dist2 = dot_product(xin_-xfin_,xin_-xfin_)
        end if
+       dist2 = dot_product(xin_-xfin_,xin_-xfin_)
     enddo
     xmed = 0.5d0 * (xin_ + xfin_)
 
@@ -150,7 +149,7 @@ contains
        xtemp = cpcel(i)%x - xpoint
        call cr%shortest(xtemp,dtemp)
        dtemp = sqrt(dtemp)
-       if (dtemp <= cp(cpcel(i)%idx)%rbeta + delta + delta) then
+       if (dtemp <= cp(cpcel(i)%idx)%rbeta ) then
           cp(cpcel(i)%idx)%rbeta = 0.75d0 * cp(cpcel(i)%idx)%rbeta
           ! start over again
           goto 1
@@ -800,12 +799,17 @@ contains
        else if (equal(word,'verbose')) then
           verbose = .true.
        else if (equal(word,'map')) then
-          ok = isinteger(idum,line,lp)
-          if (.not.ok) then
-             ok = isexpression(expr,line,lp)
+          lp2 = lp
+          word = getword(line,lp)
+          idum = fieldname_to_idx(word)
+          if (idum < 0) then
+             lp = lp2
+             ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) &
                 call ferror('basinplot','Unknown baisnplot map',faterr,line)
           else
+             if (.not.goodfield(idum)) &
+                call ferror('basinplot','field not allocated',faterr,line)
              expr = "$" // string(idum)
           endif
        else if (len_trim(word) > 0) then
@@ -979,6 +983,7 @@ contains
   subroutine bundleplot(line)
     use struct_basic
     use surface
+    use fields
     use global
     use types
     use tools_io
@@ -1070,12 +1075,17 @@ contains
        else if (equal(word,'root')) then
           surfile = getword(line,lp)
        else if (equal(word,'map')) then
-          ok = isinteger(idum,line,lp)
-          if (.not.ok) then
-             ok = isexpression(expr,line,lp)
+          lp2 = lp
+          word = getword(line,lp)
+          idum = fieldname_to_idx(word)
+          if (idum < 0) then
+             lp = lp2
+             ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) &
                 call ferror('bundleplot','Unknown bundleplot map',faterr,line)
           else
+             if (.not.goodfield(idum)) &
+                call ferror('bundleplot','field not allocated',faterr,line)
              expr = "$" // string(idum)
           endif
        else if (len_trim(word) > 0) then
@@ -1646,7 +1656,7 @@ contains
        ! bisect the surface
        call bisect_msurface(srf,cpid,INT_iasprec,verbose)
     end if
-
+    
     ! beta-sphere integration
     r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
     if (verbose) then

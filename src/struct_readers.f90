@@ -1103,7 +1103,7 @@ contains
 
   end subroutine struct_read_potcar
 
-  !> Read the structure from an abinit DEN file
+  !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
   subroutine struct_read_abinit(c,file,mol)
     use struct_basic
     use types
@@ -1161,7 +1161,8 @@ contains
     ! charges and pseudopotential charges
     if (hdr%ntypat /= hdr%npsp) call ferror('struct_read_abinit','Can not handle ntypat/=npsp (?)',faterr,file)
     do i = 1, c%nneq
-       c%at(i)%zpsp = nint(hdr%zionpsp(hdr%typat(i)))
+       ! c%at(i)%zpsp = nint(hdr%zionpsp(hdr%typat(i))) ! changed this behavior for consistency
+       c%at(i)%zpsp = -1
        c%at(i)%qat = 0
     end do
 

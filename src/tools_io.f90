@@ -892,7 +892,7 @@ contains
   !> Get a expression from the line. Expressions start with " or '.
   !> If the read fails, then lp0 is unchanged, and isexpression is
   !> false.
-  function isexpression (word, line, lp0)
+  function isexpression(word, line, lp0)
 
     character(len=:), allocatable, intent(out) :: word !< Expression read
     character*(*), intent(in) :: line !< Input line

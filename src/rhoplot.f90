@@ -83,7 +83,7 @@ contains
 
     type(scalar_value) :: res
     logical :: ok, doall
-    integer :: lp, i, j, imin, imax
+    integer :: lp, lp2, i, j, imin, imax
     real*8 :: x0(3), xp(3), rdum
     character(len=:), allocatable :: word, expr
 
@@ -103,12 +103,17 @@ contains
        if (equal(word,'all')) then
           doall = .true.
        elseif (equal(word,'field')) then
-          ok = eval_next(imin,line,lp)
-          if (.not.ok) then
-             imin = -1
+          lp2 = lp
+          word = getword(line,lp)
+          imin = fieldname_to_idx(word)
+          if (imin < 0) then
+             lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) &
                 call ferror('rhoplot_point','wrong FIELD in POINT',faterr,line)
+          else
+             if (.not.goodfield(imin)) &
+                call ferror('rhoplot_point','field not allocated',faterr,line)
           end if
           imax = imin
        elseif(len_trim(word) < 1) then
@@ -165,7 +170,7 @@ contains
 
     character*(*), intent(in) :: line
 
-    integer :: lp, nti, id, luout, np
+    integer :: lp, lp2, nti, id, luout, np
     real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3)
     character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
@@ -195,9 +200,11 @@ contains
           if (len_trim(outfile) < 1) &
              call ferror('rhoplot_line','file name not found',faterr,line)
        else if (equal(word,'field')) then
-          ok = eval_next(id,line,lp)
-          if (.not.ok) then
-             id = -1
+          lp2 = lp
+          word = getword(line,lp)
+          id = fieldname_to_idx(word)
+          if (id < 0) then
+             lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) &
                 call ferror('rhoplot_line','wrong FIELD in LINE',faterr,line)
@@ -319,7 +326,7 @@ contains
 
   end subroutine rhoplot_line
 
-  ! Calculate proeprties on a 3d cube
+  ! Calculate properties on a 3d cube
   subroutine rhoplot_cube(line)
     use fields
     use struct_basic
@@ -417,8 +424,11 @@ contains
           wext1 = outfile(index(outfile,'.',.true.)+1:)
           iscube = (equal(wext1,'cube')) 
        else if (equal(word,'field')) then
-          ok = eval_next(id,line,lp)
-          if (.not.ok) then
+          lp2 = lp
+          word = getword(line,lp)
+          id = fieldname_to_idx(word)
+          if (id < 0) then
+             lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              useexpr = .true.
              if (.not.ok) &
@@ -648,12 +658,14 @@ contains
           if (len_trim(outfile) < 1) &
              call ferror('rhoplot_plane','file name not found',faterr,line)
        else if (equal(word,'field')) then
-          ok = eval_next(id,line,lp)
-          if (.not.ok) then
-             id = -1
+          lp2 = lp
+          word = getword(line,lp)
+          id = fieldname_to_idx(word)
+          if (id < 0) then
+             lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) &
-                call ferror('rhoplot_point','wrong FIELD syntax',faterr,line)
+                call ferror('rhoplot_point','wrong FIELD in LINE',faterr,line)
           else
              if (.not.goodfield(id)) &
                 call ferror('rhoplot_plane','field not allocated',faterr,line)

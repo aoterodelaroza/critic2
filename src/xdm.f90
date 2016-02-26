@@ -87,39 +87,66 @@ contains
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"rho")) then
-          ok = eval_next(irho,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong rho field",faterr,line)
+          word = getword(line,lp)
+          irho = fieldname_to_idx(word)
+          if (irho < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(irho)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"tau")) then
-          ok = eval_next(itau,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong tau field",faterr,line)
+          word = getword(line,lp)
+          itau = fieldname_to_idx(word)
+          if (itau < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(itau)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"elf")) then
-          ok = eval_next(ielf,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong elf field",faterr,line)
+          word = getword(line,lp)
+          ielf = fieldname_to_idx(word)
+          if (ielf < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(ielf)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"pdens")) then
-          ok = eval_next(ipdens,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong pdens field",faterr,line)
+          word = getword(line,lp)
+          ipdens = fieldname_to_idx(word)
+          if (ipdens < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(ipdens)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"core")) then
-          ok = eval_next(icor,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong cor field",faterr,line)
+          word = getword(line,lp)
+          icor = fieldname_to_idx(word)
+          if (icor < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(icor)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"lap")) then
-          ok = eval_next(ilap,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong lap field",faterr,line)
+          word = getword(line,lp)
+          ilap = fieldname_to_idx(word)
+          if (ilap < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(ilap)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"grad")) then
-          ok = eval_next(igrad,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong grad field",faterr,line)
+          word = getword(line,lp)
+          igrad = fieldname_to_idx(word)
+          if (igrad < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(igrad)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"rhoae")) then
-          ok = eval_next(irhoae,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong rhoae field",faterr,line)
+          word = getword(line,lp)
+          irhoae = fieldname_to_idx(word)
+          if (irhoae < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(irhoae)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"xb")) then
-          ok = eval_next(ib,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong b field",faterr,line)
+          word = getword(line,lp)
+          ib = fieldname_to_idx(word)
+          if (ib < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
+          if (.not.goodfield(ib)) &
+             call ferror("xdm_driver","rho field not allocated",faterr,line)
        elseif (equal(word,"xa1")) then
           ok = eval_next(a1,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong a1 field",faterr,line)
+          if (.not.ok) call ferror("xdm_driver","wrong a1",faterr,line)
           isdefa = .false.
        elseif (equal(word,"xa2")) then
           ok = eval_next(a2,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong a2 field",faterr,line)
+          if (.not.ok) call ferror("xdm_driver","wrong a2",faterr,line)
           isdefa = .false.
        elseif (equal(word,"onlyc")) then
           onlyc = .true.

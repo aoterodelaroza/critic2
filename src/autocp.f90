@@ -1109,22 +1109,24 @@ contains
        end if
     end do
 
-    write (uout,'("* Attractor connectivity matrix")')
-    write (uout,'("  to be read: each cp in a row i connects to mij cps in column j")')
-    do j = 0, ncon
-       ind = (cp(icon(j))%typ + 3) / 2
-       write (auxsmall(j),'(a1,"(",A,")")') smallnamecrit(ind), string(icon(j))
-    end do
-    do i = 0, ncon / 6
-       write (uout,'(13x,6(A))') (string(auxsmall(j),6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
-       write (uout,'(13x,6(A))') (string(cp(icon(j))%name,6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
+    if (ncon >= 0) then
+       write (uout,'("* Attractor connectivity matrix")')
+       write (uout,'("  to be read: each cp in a row i connects to mij cps in column j")')
        do j = 0, ncon
-          write (uout,'(A,x,A,x,6(A))') string(auxsmall(j),6,ioj_center), &
-             string(cp(icon(j))%name,6,ioj_center), &
-             (string(connectm(icon(j),icon(k)),6,ioj_center), k = 6*i, min(6*(i+1)-1,ncon))
+          ind = (cp(icon(j))%typ + 3) / 2
+          write (auxsmall(j),'(a1,"(",A,")")') smallnamecrit(ind), string(icon(j))
        end do
-    end do
-    write (uout,*)
+       do i = 0, ncon / 6
+          write (uout,'(13x,6(A))') (string(auxsmall(j),6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
+          write (uout,'(13x,6(A))') (string(cp(icon(j))%name,6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
+          do j = 0, ncon
+             write (uout,'(A,x,A,x,6(A))') string(auxsmall(j),6,ioj_center), &
+                string(cp(icon(j))%name,6,ioj_center), &
+                (string(connectm(icon(j),icon(k)),6,ioj_center), k = 6*i, min(6*(i+1)-1,ncon))
+          end do
+       end do
+       write (uout,*)
+    end if
 
   end subroutine atomic_connect_report
 
