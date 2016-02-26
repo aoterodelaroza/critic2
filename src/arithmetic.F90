@@ -1226,7 +1226,7 @@ contains
     
        ! Use the library of chemical functions
        q(nq) = chemfunction(c,ia,x0,feval)
-    
+       t(nq) = typ_num
     else
        call die('error in expression')
     end if
