@@ -1,0 +1,3 @@
+molecule ../data/pyridine.wfx
+load ../data/pyridine.wfx
+plane 0.0 -2.5 -2.5 0.0 2.5 -2.5 0.0 -2.5 2.5 61 61 relief 0.0 0.5

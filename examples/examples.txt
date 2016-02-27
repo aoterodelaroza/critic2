@@ -181,7 +181,7 @@ An NCIplot showing the weak interactions between thymine
 layers. Corresponds to Figure 8c in the cited reference (with a
 smaller nstep). 
 
-* nciplot_thymine
+* mols_gaussian
 ** Density source: Gaussian wfn/wfx
 ** System: benzene, pyridine, and furan
 ** Description
@@ -204,3 +204,9 @@ Same for pyridine.
 ** furan.cri
 
 Same for furan.
+
+** pyridine_relief.cri
+
+A relief plot of the electron density in the molecular plane of
+pyridine. 
+
