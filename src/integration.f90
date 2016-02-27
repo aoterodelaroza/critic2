@@ -1656,10 +1656,8 @@ contains
           if (dist < ratom) then
              nn = nn + 1
              assigned(j) = nattr
-             xattr(:,nattr) = xattr(:,nattr) + xgatt(:,j)
           end if
        end do
-       xattr(:,nattr) = xattr(:,nattr) / nn
        call addcp(c%x2c(xattr(:,nattr)),ff%typnuc)
     end do
     deallocate(xgatt)
