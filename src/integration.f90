@@ -1353,7 +1353,7 @@ contains
 
        write (uout,'(A2,99(A,X))') &
           cini,&
-          string(i,2,ioj_left), &
+          string(i,4,ioj_left), &
           string(label,12,ioj_center), &
           string(itaux,2,ioj_right), &
           string(itype_names(integ_prop(i)%itype),12,ioj_left),&
@@ -1624,17 +1624,14 @@ contains
        call c%nearest_atom(xgatt(:,i),nid,dist,lvec)
        if (dist < ratom) then
           assigned(i) = nid
+       else
+          ! maybe the closest point is a known nnm
+          call nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
+          if (dist < ratom) &
+             assigned(i) = nid
        end if
     end do
-    ! assign attractors to nnms (small constant for the distance threshold)
-    do i = 1, nattr0
-       if (assigned(i) > 0) cycle
-       call nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
-       if (dist < distcp .and. nid > c%ncel) then
-          assigned(i) = nattr
-       end if
-    end do
-    ! create the new attractors in the correct order
+    ! create the new known attractors in the correct order
     nattr = 0
     do i = 1, ncpcel
        if (any(assigned == i)) then
@@ -1643,16 +1640,27 @@ contains
           xattr(:,nattr) = cpcel(i)%x
        endif
     end do
-    ! the rest are their own nnm, add them to the CP list
-    nn = 0
+    ! the rest are their own nnm, add them to the CP list, accumulate
+    ! using a radius equal to ratom.
     do i = 1, nattr0
        if (assigned(i) > 0) cycle
        nattr = nattr + 1
-       icp(nattr) = 0
-       xattr(:,nattr) = xgatt(:,i)
        assigned(i) = nattr
+       icp(nattr) = 0
+
+       nn = 1
+       xattr(:,nattr) = xgatt(:,i)
+       do j = i+1, nattr0
+          if (assigned(j) > 0) cycle
+          dist = cr%eql_distance(xgatt(:,i),xgatt(:,j))
+          if (dist < ratom) then
+             nn = nn + 1
+             assigned(j) = nattr
+             xattr(:,nattr) = xattr(:,nattr) + xgatt(:,j)
+          end if
+       end do
+       xattr(:,nattr) = xattr(:,nattr) / nn
        call addcp(c%x2c(xattr(:,nattr)),ff%typnuc)
-       nn = nn + 1
     end do
     deallocate(xgatt)
 

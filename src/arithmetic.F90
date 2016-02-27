@@ -245,6 +245,7 @@ contains
           t(nq) = typ_num
           wasop = .false.
        elseif (isfunction(c,expr0,lp,wasop)) then
+          ! a function
           ns = ns + 1
           s(ns) = c
        elseif (isoperator(c,expr0,lp)) then
@@ -328,7 +329,7 @@ contains
           t(nq) = typ_num
           wasop = .false.
        elseif (isvariable_private(a,expr0,lp)) then
-          ! a variable (pi,...)
+          ! a variable (defined by the user in input)
           nq = nq + 1
           q(nq) = a
           t(nq) = typ_num
