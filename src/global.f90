@@ -110,12 +110,14 @@ module global
   integer :: refden
 
   ! navigation options
-  real*8 :: NAV_step !< gradient path step length
+  real*8 :: NAV_step !< gradient path step length (bohr)
   real*8 :: NAV_gradeps !< gradient path gradient mod termination threshold
+  real*8 :: NAV_maxerr !< maximum error in gradient path tracing (bohr)
   integer :: NAV_stepper  !< the stepper in gp tracing
-  integer, parameter :: NAV_stepper_euler = 1 !< euler stepper
-  integer, parameter :: NAV_stepper_rkck  = 2 !< runge-kutta-cash-karp stepper
-  integer, parameter :: NAV_stepper_dp    = 3 !< dormand-prince 4(5) stepper
+  integer, parameter :: NAV_stepper_euler = 1 !< Euler stepper (1 eval), poor-man's adaptive step
+  integer, parameter :: NAV_stepper_rkck  = 2 !< Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation (6 eval), with error estimate
+  integer, parameter :: NAV_stepper_dp    = 3 !< Dormand-prince embedded 4(5)-order, local extrapolation (7 eval), with error estimate
+  integer, parameter :: NAV_stepper_bs    = 4 !< Bogacki-Shampine embedded 2(3)-order method, (5-1=4 eval, fsal), with error estimate
 
   ! radial integration
   integer :: INT_radquad_type !< type of radial integration
@@ -231,8 +233,9 @@ contains
     iunit_isdef = .true.
 
     ! navigation
-    NAV_stepper = NAV_stepper_euler
+    NAV_stepper = NAV_stepper_bs
     NAV_step = 0.1d0
+    NAV_maxerr = 1d-3
     NAV_gradeps = 1d-9
 
     ! integration
@@ -365,25 +368,36 @@ contains
        doguess = .true.
        call check_no_extra_word()
     else if (equal(word,'ode_mode')) then
-       word = lgetword(line,lp)
-       if (equal(word,'euler')) then
-          NAV_stepper = NAV_stepper_euler
-       else if (equal(word,'rkck')) then
-          NAV_stepper = NAV_stepper_rkck
-       else if (equal(word,'dp')) then
-          NAV_stepper = NAV_stepper_dp
-       else
-          call ferror('critic_setvariables','Wrong ODE_MODE stepper',faterr,line)
-       end if
-       ok = isreal(aux,line,lp)
-       if (ok) then
-          NAV_step = aux
-          ok = isreal(aux,line,lp)
-          if (ok) then
-             NAV_gradeps = aux
+       do while (.true.)
+          word = lgetword(line,lp)
+          if (equal(word,'method')) then
+             word = lgetword(line,lp)
+             if (equal(word,'euler')) then
+                NAV_stepper = NAV_stepper_euler
+             else if (equal(word,'bs')) then
+                NAV_stepper = NAV_stepper_bs
+             else if (equal(word,'rkck')) then
+                NAV_stepper = NAV_stepper_rkck
+             else if (equal(word,'dp')) then
+                NAV_stepper = NAV_stepper_dp
+             else
+                call ferror('critic_setvariables','Wrong ODE_MODE stepper',faterr,line)
+             end if
+          else if (equal(word,'maxstep')) then
+             ok = isreal(NAV_step,line,lp)
+             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXSTEP',faterr,line)
+          else if (equal(word,'maxerr')) then
+             ok = isreal(NAV_maxerr,line,lp)
+             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXERR',faterr,line)
+          else if (equal(word,'gradeps')) then
+             ok = isreal(NAV_gradeps,line,lp)
+             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/GRADEPS',faterr,line)
+          elseif (len_trim(word) > 0) then
+             call ferror('critic_setvariables','Unknown keyword in ODE_MODE',faterr,line)
+          else
+             exit
           end if
-       end if
-       call check_no_extra_word()
+       end do
     else if (equal (word,'int_radial')) then
        do while(.true.)
           word = lgetword(line,lp)

@@ -297,7 +297,7 @@ expression.r # prints the value of the expression to the output.
 * MEAN id.s
 * COUNT id.s eps.r
 * TESTRMT
-* ODE_MODE {EULER|RKCK|DP} [step.r] [gradeps.r]
+* ODE_MODE [METHOD {EULER|BS|RKCK|DP}] [MAXSTEP maxstep.r] [MAXERR maxerr.r] [GRADEPS gradeps.r]
 * INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
 * CLEAR {var1.s var2.s ...|ALL}

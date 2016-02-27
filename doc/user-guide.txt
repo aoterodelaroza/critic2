@@ -5504,14 +5504,25 @@ Control commands and options
 
 ::
 
-  ODE_MODE {EULER|RKCK|DP} [step.r [gradeps.r]]
+  ODE_MODE [METHOD {EULER|BS|RKCK|DP}] [MAXSTEP maxstep.r] 
+           [MAXERR maxerr.r] [GRADEPS gradeps.r]
 
-Select the gradient path integration algorithm. Euler is
-plain explicit Euler. RKCK, Runge-Kutta embedded 4-5th order method
-(Cash-Karp parametrization). DP, Dormand-Prince 4-5th order. step.r
-is the initial step size and gradeps.r is the gradient norm
-termination criterion for the gradient path. This keyword applies to
-all gradient paths except those in qtree.
+Select the gradient path integration algorithm and its
+parameters. EULER selects plain explicit Euler (1 evaulation per step)
+with a poor man's technique for the step size adaptation. BS,
+Bogacki-Shampine's embedded 2(3)th-order method with error estimation
+and first step as last. RKCK, Runge-Kutta-Cash-Karp embedded 4-5th
+order method with local extrapolation and error estimate. DP,
+Dormand-Prince 4-5th order with local extrapolation and error estimate
+(7 evaluations per step). maxstep.r is the initial (and maximum) step
+size (bohr), gradeps.r is the gradient norm termination criterion for
+the gradient path. maxerr.r is the maximum error in the trajectory (in
+bohr). MAXERR only affects methods that provide an error estimate for
+the predicted steps: BS, RKCK, and DP.
+
+This keyword applies to all gradient paths except those in qtree. The
+defaults are BS method with maxstep.r = 0.1 bohr, gradeps.r = 1e-9,
+and maxerr.r = 1e-3.
 
 ::
 

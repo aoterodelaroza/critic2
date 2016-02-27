@@ -120,13 +120,14 @@ contains
     logical, intent(out), optional :: upflag
 
     real*8, parameter :: minstep = 1d-7
+    integer, parameter :: mhist = 5
 
     integer :: i, j
     real*8 :: t, h0, hini
-    real*8 :: dx(3)
-    real*8 :: xlast(3), len, xold(3), xini(3)
+    real*8 :: dx(3), scalhist(mhist)
+    real*8 :: xlast(3), xlast2(3), len, xold(3), xini(3)
     real*8 :: sphrad, xnuc(3), cprad, xcp(3), dist2
-    integer :: idnuc, idcp
+    integer :: idnuc, idcp, nhist
     integer :: lvec(3)
     logical :: ok
     type(scalar_value) :: res
@@ -137,9 +138,14 @@ contains
     h0 = abs(NAV_step) * iup
     hini = h0
     xini = cr%c2x(xpoint)
+    scalhist = 1d0
+    nhist = 0
+    xlast2 = xpoint
+    xlast = xpoint
 
     if (present(up2r)) then
        if (present(xref)) then
+          xlast2 = xref
           xlast = xref
        else
           call ferror ('gradient','up2r but no reference', faterr)
@@ -263,7 +269,6 @@ contains
        ! up 2 r?
        if (present(up2r)) then
           len = len + sqrt(dot_product(xpoint-xlast,xpoint-xlast))
-          xlast = xpoint
           if (len > up2r) then
              if (present(upflag)) then
                 upflag = .true.
@@ -274,7 +279,15 @@ contains
        end if
 
        ! take step
-       ok = adaptive_old(fid,xpoint,h0,hini,NAV_gradeps,res)
+       xlast2 = xlast
+       xlast = xpoint
+       ok = adaptive_stepper(fid,xpoint,h0,hini,NAV_gradeps,res)
+
+       ! add to the trajectory angle history, terminate the gradient if the 
+       ! trajectory bounces around mhist times
+       nhist = mod(nhist,mhist) + 1
+       scalhist(nhist) = dot_product(xlast-xlast2,xpoint-xlast)
+       ok = ok .and. .not.(all(scalhist < 0d0))
 
        if (.not.ok .or. abs(h0) < minstep) then
           ier = 1
@@ -287,17 +300,18 @@ contains
 
   end subroutine gradient
 
-  !> Integration using adaptive step, old scheme. Grow the step if
+  !> Integration using adaptive_stepper step, old scheme. Grow the step if
   !> the angle of two successive steps is almost 180, shrink if it is
   !> less than 90 degrees.
-  function adaptive_old(fid,xpoint,h0,maxstep,eps,res)
+  function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
     use fields
     use global
     use struct_basic
+    use tools_math
     use param
     use types
 
-    logical :: adaptive_old
+    logical :: adaptive_stepper
     type(field), intent(inout) :: fid
     real*8, intent(inout) :: xpoint(3)
     real*8, intent(inout) :: h0
@@ -307,12 +321,13 @@ contains
     integer :: ier, iup
     real*8 :: grdt(3), ogrdt(3)
     real*8 :: xtemp(3), escalar, xerrv(3)
-    real*8 :: ogrdtemp(3)
-    logical :: ok
+    real*8 :: ogrdtemp(3), nerr
+    logical :: ok, first
 
-    real*8, parameter :: HMINIMAL = 1.d-40
+    real*8, parameter :: h0break = 1.d-10
+    real*8, parameter :: SMALL = 1.d-40
 
-    adaptive_old = .true.
+    adaptive_stepper = .true.
     ier = 1
     if (h0 > 0) then
        iup = 1
@@ -320,11 +335,11 @@ contains
        iup = -1
     end if
 
-    grdt = res%gf / (res%gfmod + 1d-80)
-    ogrdt = res%gfort / (res%gfmodort + 1d-80)
+    grdt = res%gf / (res%gfmod + SMALL)
+    ogrdt = res%gfort / (res%gfmodort + SMALL)
 
+    first = .true.
     do while (ier /= 0)
-
        ! new point
        if (NAV_stepper == NAV_stepper_euler) then
           call stepper_euler1(xpoint,grdt,h0,xtemp)
@@ -332,54 +347,113 @@ contains
           call stepper_rkck(fid,xpoint,grdt,h0,xtemp,xerrv,res)
        else if (NAV_stepper == NAV_stepper_dp) then
           call stepper_dp(fid,xpoint,grdt,h0,xtemp,xerrv,res)
+       else if (NAV_stepper == NAV_stepper_bs) then
+          call stepper_bs(fid,xpoint,grdt,h0,xtemp,xerrv,res)
        end if
 
-       ! fsal
-       if (NAV_stepper /= NAV_stepper_dp) then
+       ! FSAL for BS stepper
+       if (NAV_stepper /= NAV_stepper_bs) then
           call grd(fid,xtemp,2,res)
        end if
 
-       ! angle with next step
-       ogrdtemp = res%gfort / (res%gfmodort+1d-80)
-       escalar = dot_product(ogrdt,ogrdtemp)
+       ! poor man's adaptive step size in Euler
+       if (NAV_stepper == NAV_stepper_euler) then
+          ! angle with next step
+          ogrdtemp = res%gfort / (res%gfmodort+SMALL)
+          escalar = dot_product(ogrdt,ogrdtemp)
 
-       ! gradient eps in cartesian
-       ok = (res%gfmodort < 0.99d0*eps)
+          ! gradient eps in cartesian
+          ok = (res%gfmodort < 0.99d0*eps)
 
-       ! Check if they differ in > 90 deg.
-       if (escalar < 0.d0 .and. .not. ok) then
-          if (abs(h0) >= HMINIMAL) then
-             h0 = 0.5d0 * h0
-             ier = 1
+          ! Check if they differ in > 90 deg.
+          if (escalar < 0.d0.and..not.ok) then
+             if (abs(h0) >= h0break) then
+                h0 = 0.5d0 * h0
+                ier = 1
+             else
+                adaptive_stepper = .false.
+                return
+             end if
           else
-             adaptive_old = .false.
-             return
+             ! Accept point. If angle is favorable, take longer steps
+             if (escalar > 0.9 .and. first) &
+                h0 = dsign(min(abs(maxstep), abs(1.6d0*h0)),maxstep)
+             ier = 0
+             xpoint = xtemp
           end if
        else
-          ! If angle is favorable, take longer steps
-          if (escalar > 0.9) then
-             h0 = dsign(min(abs(maxstep), abs(1.6d0*h0)),maxstep)
-          end if
-          ier = 0
-
-          ! accept point
-          xpoint = xtemp
+          ! use the error estimate
+          nerr = norm(xerrv)
+          if (nerr < NAV_maxerr) then
+             ! accept point
+             ier = 0
+             xpoint = xtemp
+             ! if this is the first time through, and the norm is very small, propose a longer step
+             if (first .and. nerr < NAV_maxerr/10d0) &
+                h0 = dsign(min(abs(maxstep), abs(1.6d0*h0)),maxstep)
+          else
+             ! propose a new shorter step using the error estimate
+             h0 = 0.9d0 * h0 * NAV_maxerr / nerr
+             if (abs(h0) < SMALL) then
+                adaptive_stepper = .false.
+                return
+             end if
+          endif
        end if
+       first = .false.
     enddo
 
-  end function adaptive_old
+  end function adaptive_stepper
 
   !> Euler stepper.
   subroutine stepper_euler1(xpoint,grdt,h0,xout)
     
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3)
-
+  
     xout = xpoint + h0 * grdt
-
+  
   end subroutine stepper_euler1
 
-  !> Runge-Kutta embedded 4th order, Cash-Karp parametrization.
+  !> Bogacki-Shampine embedded 2(3) method, fsal
+  subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
+    use types
+    use fields
+    use global
+    
+    type(field), intent(inout) :: fid
+    real*8, intent(in) :: xpoint(3), h0, grdt(3)
+    real*8, intent(out) :: xout(3), xerr(3)
+    type(scalar_value), intent(inout) :: res
+
+    real*8, parameter :: SMALL = 1d-40
+
+    real*8, dimension(3) :: ak1, ak2, ak3, ak4
+
+
+    ak1 = grdt
+
+    xout = xpoint + h0 * (0.5d0*ak1)
+    call grd(fid,xout,2,res)
+    ak2 = res%gf / (res%gfmod+SMALL)
+
+    xout = xpoint + h0 * (0.75d0*ak2)
+    call grd(fid,xout,2,res)
+    ak3 = res%gf / (res%gfmod+SMALL)
+
+    xout = xpoint + h0 * (0.75d0*ak2)
+    call grd(fid,xout,2,res)
+    ak3 = res%gf / (res%gfmod+SMALL)
+
+    xout = xpoint + h0 * (2d0/9d0*ak1 + 1d0/3d0*ak2 + 4d0/9d0*ak3)
+    call grd(fid,xout,2,res)
+    ak4 = res%gf / (res%gfmod+SMALL)
+
+    xerr = xpoint + h0 * (7d0/24d0*ak1 + 1d0/4d0*ak2 + 1d0/3d0*ak3 + 1d0/8d0*ak4) - xout
+
+  end subroutine stepper_bs
+
+  !> Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation.
   subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
     use fields
     use global
@@ -425,7 +499,7 @@ contains
 
   end subroutine stepper_rkck
 
-  !> Dormand-Prince 4(5)
+  !> Doermand-Prince embedded 4(5)-order, local extrapolation.
   subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
     use fields
     use global
@@ -449,7 +523,7 @@ contains
        -92097d0/339200d0, 187d0/2100d0, 1d0/40d0/)
     real*8, parameter :: dp_b(7) = (/ 35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
        -2187d0/6784d0, 11d0/84d0, 0d0 /)
-    real*8, parameter :: dp_c(7) = dp_b - dp_b2
+    real*8, parameter :: dp_c(7) = dp_b2 - dp_b
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6, ak7
     real*8, parameter :: SMALL = 1d-40
 
@@ -478,6 +552,7 @@ contains
     call grd(fid,xout,2,res)
     ak7 = res%gf / (res%gfmod+SMALL)
     xerr = h0*(dp_c(1)*grdt+dp_c(2)*ak2+dp_c(3)*ak3+dp_c(4)*ak4+dp_c(5)*ak5+dp_c(6)*ak6+dp_c(7)*ak7)
+    xout = xout + xerr
 
   end subroutine stepper_dp
 
