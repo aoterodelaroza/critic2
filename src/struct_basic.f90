@@ -445,14 +445,14 @@ contains
     character(len=:), allocatable :: word
 
     lu = fopen_read(file)
-    read(lu,*) nat
-    read(lu,*) 
+    read(lu,*,err=999) nat
+    read(lu,*,err=999) 
     
     fr%nat = nat
     allocate(fr%at(nat))
     do i = 1, nat
        word = ""
-       read(lu,*) word, x0
+       read(lu,*,err=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
        id = c%identify_atom(x0,.true.)
        fr%at(i)%r = x0 
@@ -464,6 +464,10 @@ contains
     end do
     call fclose(lu)
     call realloc(fr%at,fr%nat)
+
+    return
+999 continue
+    call ferror('identify_fragment_from_xyz','error reading xyz file: '//string(file),faterr)
 
   end function identify_fragment_from_xyz
 
