@@ -1,0 +1,35 @@
+# Deactivate the automatic determination of crystal symmetry.  This
+# saves a few seconds, and can be done because grid integration does
+# not use crystal symmetry at all
+noguess
+
+# Load the crystal structure from any of the cube files.
+crystal ../data/GAVFIS.rhops.cube
+
+# Load the valence pseudo-density (plot_num = 0 in pp.x) as rhops,
+# the reconstructed valence density (plot_num = 17) as rhoval.
+load ../data/GAVFIS.rhops.cube id rhops 
+load ../data/GAVFIS.rhoval.cube id rhoval 
+
+# Set the valence density as the reference field, that is, the field
+# whose basins will be calculated.
+reference rhoval
+
+# Set the pseudo-density as an integrable property. This will
+# calculate the integral of the pseudo-density in the basins of the
+# reconstructed valence density
+integrable rhops
+
+# Integrate with the Yu-Trinkle algorithm. The NNM keyword permits the
+# detection of non-nuclear maxima, which makes sense in this case
+# since the system is an electride. The ratom keyword is the minimum
+# distance to consider two non-nuclear maxima different. This is
+# necessary because noise in the interstitial region may cause
+# spurious nnm to appear.
+yt nnm ratom 2
+
+# Write some more information about the non-nuclear maxima found,
+# jincluding a 3d plot of their positions in the cell.
+cpreport obj cell molmotif
+cpreport long
+cpreport shells 2

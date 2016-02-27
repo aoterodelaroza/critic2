@@ -1,0 +1,18 @@
+# Deactivate the automatic determination of crystal symmetry.  This
+# saves a few seconds, and can be done because grid integration does
+# not use crystal symmetry at all
+noguess
+
+# Load the crystal structure from any of the cube files.
+crystal ../data/GAVFIS.rhops.cube
+
+# Load one of the known densities
+load ../data/GAVFIS.rhops.cube id rho
+
+# Build a promolecular density grid with the same size as the density
+# we calculated
+load as promolecular sizeof rho id promol 
+
+# Write it to a cube file for vmd 
+cube grid field promol file GAVFIS10_promol.cube
+

@@ -103,7 +103,7 @@ contains
     integer :: i, j, k, n(3), nn, ntot
     integer :: lp, itype, p(3)
     logical :: ok, nonnm, noatoms, pmask(nprops), dowcube
-    real*8 :: ratom, dv(3), r, tp(2), ratom_def
+    real*8 :: ratom, dv(3), r, tp(2), ratom_def, padd
     integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
     real*8, allocatable :: w(:,:,:), wsum(:,:,:)
@@ -227,6 +227,7 @@ contains
     ! compute weights and integrate the scalar field properties
     allocate(psum(nprops,nattr))
     allocate(w(n(1),n(2),n(3)))
+    w = 0d0
     psum = 0d0
     do i = 1, nattr
        if (itype == itype_yt) then
@@ -236,9 +237,9 @@ contains
           if (.not.integ_prop(k)%used) cycle
           if (integ_prop(k)%itype == itype_v) then
              if (itype == itype_bader) then
-                psum(k,i) = psum(k,i) + count(idg == i) * cr%omega / ntot
+                padd = count(idg == i) * cr%omega / ntot
              else
-                psum(k,i) = psum(k,i) + sum(w) * cr%omega / ntot
+                padd = sum(w) * cr%omega / ntot
              endif
           elseif (pmask(k)) then
              fid = integ_prop(k)%fid
@@ -247,11 +248,12 @@ contains
                 where (idg == i)
                    w = f(fid)%f
                 end where
-                psum(k,i) = psum(k,i) + sum(w) * cr%omega / ntot
+                padd = sum(w) * cr%omega / ntot
              else
-                psum(k,i) = psum(k,i) + sum(w * f(fid)%f) * cr%omega / ntot
+                padd = sum(w * f(fid)%f) * cr%omega / ntot
              endif
           endif
+          psum(k,i) = psum(k,i) + padd
        end do
        if (dowcube) then
           if (itype == itype_bader) then
@@ -720,7 +722,7 @@ contains
        sij = 0d0
        
        if (itype == itype_bader) then
-          write (*,*) "+ Calculating overlap matrices..."
+          write (uout,*) "+ Calculating overlap matrices..."
           allocate(psic(n0(1),n0(2),n0(3)),psic2(n0(1),n0(2),n0(3)))
           do imo = 1, nmo
              write (*,*) "imo", imo
@@ -1664,10 +1666,13 @@ contains
 
     ! update the idg
     allocate(idgaux(size(idg,1),size(idg,2),size(idg,3)))
+    idgaux = idg
     do i = 1, nattr0
-       where (idg == i)
-          idgaux = assigned(i)
-       end where
+       if (assigned(i) /= i) then
+          where (idg == i)
+             idgaux = assigned(i)
+          end where
+       end if
     end do
     call move_alloc(idgaux,idg)
 
