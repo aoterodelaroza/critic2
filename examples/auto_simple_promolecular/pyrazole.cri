@@ -1,0 +1,24 @@
+# Load the pyrazole crystal at the experimental geometry from the library. 
+crystal library pyrazole
+
+# Do
+#   grep '^structure' /path_to_critic2/dat/crystal.dat
+#   grep '^structure' /path_to_critic2/dat/molecule.dat
+# for a list of all available structures in the crystal and molecular
+# libraries
+
+# Automatic search for critical points
+auto
+
+# This search fails to find all the critical points in the cell
+# (non-zero morse sum). The default CP search strategy in critic2
+# (a single subdivision of the Wigner-Seitz cell) is not enough 
+# in this case. Since this is a molecular crystal, to find all
+# critical points, we complement the WS subdivision search (ws depth
+# 1) with a search between all atom pairs in the cell.
+auto seed ws depth 1 seed pair
+
+# And this obtains a zero morse sum. Now, write an obj file to see the
+# location of the critical points. 
+cpreport obj molmotif border cell
+

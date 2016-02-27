@@ -1,0 +1,28 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct
+
+## Load the Thomas-Fermi potential energy density (Kirzhnits + virial theorem)
+## as a ghost field using the calculated electron density.
+load as "vtf_kir(1)" typnuc 3
+
+## Set vtf as the reference
+reference 2
+
+## Calculate the critical points and write them to an obj file together with the 
+## cell description
+auto
+cpreport obj border cell
+
+## Chemical graph of the vtf
+fluxprint
+ graph 1
+endfluxprint
+
+## Plot the vtf and its gradient lines in the (001) plane 
+grdvec
+  root v_001
+  plane -1/2 -1/2 0   +1/2 -1/2 0   -1/2 +1/2 0   scale 1.6 1.6
+  outcp 2.1 2.1
+  cpall
+  contour f atan 101 101 41
+endgrdvec

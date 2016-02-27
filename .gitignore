@@ -31,9 +31,6 @@ configure
 tests/*
 !tests/Makefile.am
 
-# examples subdirectory
-examples/
-
 # fortran
 *.o
 *.mod

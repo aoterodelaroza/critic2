@@ -1,0 +1,4 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct
+auto
+qtree 5

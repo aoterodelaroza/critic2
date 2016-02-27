@@ -1,0 +1,23 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct
+
+## find the critical points
+auto
+
+## density contours and gradient paths in the (001) plane
+grdvec
+  root plane_001
+  plane -1/2 -1/2 0   +1/2 -1/2 0   -1/2 +1/2 0   scale 1.6 1.6
+  outcp 2.1 2.1
+  cpall
+  contour f log 101 101 41
+endgrdvec
+
+## density contours and gradient paths in the (222) plane
+grdvec
+  root plane_222
+  plane 0 +1/2 0   0 1 +1/2   1 0 +1/2  scale 3.0 1.7
+  outcp 3.0 2.1
+  cpall
+  contour f log 101 101 41
+endgrdvec

@@ -1,0 +1,11 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct
+
+## Define G(r), V(r), and H(r) energy densities as properties to
+## calculate at the critical points
+pointprop gtf_kir
+pointprop vtf_kir
+pointprop htf_kir
+
+## Automatic search for critical points
+auto

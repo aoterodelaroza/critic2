@@ -1,0 +1,9 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct
+
+## plot the basins
+basinplot cube 4 obj
+
+## plot the basins with the GTF color-mapped on them
+root basin_shapes_gtf
+basinplot cube 4 obj map "gtf(1)"

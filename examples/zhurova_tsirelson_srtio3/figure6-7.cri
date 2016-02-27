@@ -1,0 +1,4 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct id rho
+plane -0.7 -0.7 -0.7 0.7 -0.7 -0.7 -0.7 0.7 0.7 101 101 relief -1.0 1.0 file vdef_110 field "vtf_kir(rho)-vtf_kir(rho0)"
+plane -0.7 -0.7 -0.7 0.7 -0.7 -0.7 -0.7 0.7 0.7 101 101 relief -1.0 1.0 file gdef_110 field "gtf_kir(rho)-gtf_kir(rho0)"

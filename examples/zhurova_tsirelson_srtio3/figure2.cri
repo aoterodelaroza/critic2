@@ -1,0 +1,16 @@
+crystal ../data/srtio3.struct
+load ../data/srtio3.clmsum ../data/srtio3.struct
+
+## find all critical points
+auto
+
+## three-dimensional plot of the chemical graph
+fluxprint
+ graph 2
+endfluxprint
+
+## gradient paths originating at the Sr
+root figure2-sr
+fluxprint
+ ncp 2 20 20
+endfluxprint

@@ -124,13 +124,10 @@ Use (documentation)
 
 The user's guide is in the doc/ directory in plain text
 (user-guide.txt) and PDF formats (user-guide.pdf). A concise summary
-of the syntax can be found in the syntax.txt file.  Input examples for
-critic2 are provided separately. You can download them from:
+of the syntax can be found in the syntax.txt file.  Input examples can
+be found in the examples/ subdirectory. 
 
-http://schooner.chem.dal.ca/downloads/critic2/critic2-examples.tar.bz2    
-
-Critic2 reads a single input file (the incritic file). A simple input
-is: 
+Critic2 reads a single input file (the cri file). A simple input is:
 
     crytal cubicBN.cube
     load cubicBN.cube
@@ -141,7 +138,7 @@ which reads the crystal structure from a cube file, then the electron
 density from the same cube file, and then calculates the atomic
 charges and volumes. Run critic2 as:
 
-    critic2 cubicBN.incritic cubicBN.outcritic
+    critic2 cubicBN.cri cubicBN.cro
 
 A detailed description of the keywords accepted by critic2 is given in
 the user's guide and a short reference in the syntax.txt file. 
