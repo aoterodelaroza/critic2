@@ -3,6 +3,15 @@
 List of critic2 examples
 ------------------------
 
+To run these examples, you will need the data files (structures,
+densities, etc.). You can download them from:
+
+http://schooner.chem.dal.ca/downloads/critic2/critic2_examples_data.tar.xz
+
+Uncompress the archive inside the examples/ subdirectory (creates
+examples/data/). Or, alternatively, by navigating to examples/ and
+running the fetch_data.sh script.
+
 * zhurova_tsirelson_srtio3
 
 ** Density source: WIEN2k 
