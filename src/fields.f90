@@ -368,12 +368,15 @@ contains
        ff%type = type_elk
        ff%file = file
     else if (equal(wext1,'promolecular')) then
-       word = getword(line,lp)
-       if (len_trim(word) > 0) then
+       lp2 = lp
+       word = lgetword(line,lp)
+       if (equal(word,"fragment")) then
+          word = getword(line,lp)
           fr = cr%identify_fragment_from_xyz(word)
           ff%type = type_promol_frag
           ff%fr = fr
        else
+          lp = lp2
           ff%type = type_promol
        end if
        ff%init = .true.
@@ -490,9 +493,16 @@ contains
           if (equal(word,"promolecular").or.equal(word,"core").or.goodfield(oid,type_grid)) then 
              if (equal(word,"promolecular").or.equal(word,"core")) then
                 ! maybe we are given a fragment?
-                word2 = getword(line,lp)
-                isfrag = (len_trim(word2) > 0)
-                if (isfrag) fr = cr%identify_fragment_from_xyz(word2)
+                lp2 = lp
+                word2 = lgetword(line,lp)
+                if (equal(word2,"fragment")) then
+                   word2 = getword(line,lp)
+                   isfrag = (len_trim(word2) > 0)
+                   if (isfrag) fr = cr%identify_fragment_from_xyz(word2)
+                else
+                   lp = lp2
+                   isfrag = .false.
+                end if
              end if
              ! build a grid 
              ff%init = .true.

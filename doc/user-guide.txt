@@ -1992,13 +1992,13 @@ field formats are supported:
   LOAD file.wfx
   LOAD COPY id.s [TO id2.s]
   LOAD PROMOLECULAR
-  LOAD PROMOLECULAR file.xyz
+  LOAD PROMOLECULAR [FRAGMENT file.xyz]
   LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID] file
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
   LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.s|GHOST]
-  LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} [file.xyz]
+  LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} [FRAGMENT file.xyz]
   LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.s}
   LOAD AS LAP id.s
   LOAD AS GRAD id.s
@@ -2195,8 +2195,9 @@ Loading the promolecular density
 
 The keyword PROMOLECULAR is used to load a promolecular density field
 (same as the one in slot 0). If a finite fragment of the crystal is
-passed to LOAD PROMOLECULAR as an xyz file (file.xyz), then the sum of
-atomic densities is built using only the atoms in that fragment.
+passed to LOAD PROMOLECULAR as an xyz file (file.xyz) using the
+optional FRAGMENT keyword, then the sum of atomic densities is built
+using only the atoms in that fragment.
 
 Additional LOAD options
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -2370,8 +2371,9 @@ of the promolecular density, with number of points n1.i, n2.i, n3.i or
 the size of grid field id.s if the SIZEOF keyword is used. Similarly,
 CORE creates a grid using only the core densities, as specified by the
 ZPSPs of the atoms. If a fragment of the crystal is passed as an xyz
-file to any of those keywords, then only the atoms in the fragment
-contribute to the sum of atomic (or core) densities.
+file to any of those keywords (with the optional FRAGMENT keyword),
+then only the atoms in the fragment contribute to the sum of atomic
+(or core) densities. 
 
 The LAP, GRAD and CLM keywords of LOAD AS apply only to specific types
 of fields:
