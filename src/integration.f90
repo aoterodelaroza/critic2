@@ -1364,9 +1364,9 @@ contains
     ! List of attractors
     write (uout,'("* List of attractors integrated")')
     if (.not.cr%ismolecule) then
-       write (uout,'("# Id cp   ncp   Name  Z   mult           Position (cryst.) ")')
+       write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (cryst.) ")')
     else
-       write (uout,'("# Id cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
+       write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
     endif
     do i = 1, nattr
        call assign_strings(i)
@@ -1376,7 +1376,7 @@ contains
           x = (cr%x2c(xattr(:,i)) + cr%molx0) * dunit
        endif
        write (uout,'(2X,99(A,X))') & 
-          string(i,2,ioj_left), scp, sncp, sname, sz, &
+          string(i,4,ioj_left), scp, sncp, sname, sz, &
           smult, (string(x(j),'f',12,7,4),j=1,3)
     end do
     write (uout,*)
@@ -1399,7 +1399,7 @@ contains
 
        ! Table header for this set of properties
        write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
-       write (uout,'("# Id cp   ncp   Name  Z   mult ",5(A,X))') &
+       write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A,X))') &
           (string(integ_prop(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
 
        ! Table rows
@@ -1417,7 +1417,7 @@ contains
           end do
           ! table entry
           write (uout,'(2X,99(A,X))') &
-             string(i,2,ioj_left), scp, sncp, sname, sz, smult, &
+             string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
              (string(aprop(nacprop(j),i),'e',15,8,4),j=1,ipmax)
        end do
        write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
@@ -1459,7 +1459,7 @@ contains
              if (mod((lmax+1)**2,5) /= 0) nn = nn + 1
              do i = 1, nn
                 ! header
-                lbl = "# Id cp   ncp   Name  Z   mult "
+                lbl = "# Id   cp   ncp   Name  Z   mult "
                 do j = (i-1)*5+1,min(5*i,(lmax+1)**2)
                    if (j == 1) then
                       lbl = lbl // " " // string("1",15,justify=ioj_center)
@@ -1495,7 +1495,7 @@ contains
                 do j = 1, nattr
                    call assign_strings(j)
                    write (uout,'(2X,99(A,X))') &
-                      string(j,2,ioj_left), scp, sncp, sname, sz, smult, &
+                      string(j,4,ioj_left), scp, sncp, sname, sz, smult, &
                       (string(mpole((i-1)*5+1+k,j,n),'e',15,8,4),k=0,min(4,size(mpole,1)-(i-1)*5-1))
                 enddo
                 if (i < nn) then
@@ -1525,24 +1525,24 @@ contains
 
              ! output the lambdas
              write (uout,'("+ Localization indices (lambda(A))")')
-             write (uout,'("# Id cp   ncp   Name  Z  mult     lambda(A)  ")')
+             write (uout,'("# Id   cp   ncp   Name  Z  mult     lambda(A)  ")')
              do j = 1, nattr
                 call assign_strings(j)
                 write (uout,'(2X,99(A,X))') &
-                   string(j,2,ioj_left), scp, sncp, sname, sz, smult, &
+                   string(j,4,ioj_left), scp, sncp, sname, sz, smult, &
                    string(0.5d0*di(j,j,ndeloc),'e',15,8,4)
              enddo
              write (uout,*)
 
              write (uout,'("+ Delocalization indices (delta(A,B))")')
-             write (uout,'("#   ----- atom A -----             ----- atom B -----                            ")')
-             write (uout,'("#   Id cp   ncp   Name  Z   mult  Id cp   ncp   Name  Z   mult      delta(A,B)  ")')
+             write (uout,'("#     ----- atom A -----               ----- atom B -----                            ")')
+             write (uout,'("#   Id   cp   ncp   Name  Z   mult  Id   cp   ncp   Name  Z   mult      delta(A,B)  ")')
              do i = 1, nattr
                 call assign_strings(i)
-                sout1 = "| " // string(i,2,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
+                sout1 = "| " // string(i,4,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
                 do j = i+1, nattr
                    call assign_strings(j)
-                   sout2 = string(j,2,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
+                   sout2 = string(j,4,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // smult // " |"
                    write (uout,'(2X,99(A,X))') string(sout1), string(sout2), &
                       string(di(i,j,ndeloc),'e',15,8,4)
                 end do
