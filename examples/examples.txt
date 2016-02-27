@@ -181,3 +181,26 @@ An NCIplot showing the weak interactions between thymine
 layers. Corresponds to Figure 8c in the cited reference (with a
 smaller nstep). 
 
+* nciplot_thymine
+** Density source: Gaussian wfn/wfx
+** System: benzene, pyridine, and furan
+** Description
+
+
+** benzene.cri
+
+Load the molecular structure for benzene and the wavefunction
+contained in a Gaussian wfx file. Then, calculate the critical points
+and write them to an obj file together with the periodic cell and the
+molecular cell. Use pointprop to activate the calculation of the
+kinetic, potential, and total energy densities at the critical
+points. Finally, make a plot of the electron density contours with an
+overlay of gradient lines.
+
+** pyridine.cri
+
+Same for pyridine.
+
+** furan.cri
+
+Same for furan.

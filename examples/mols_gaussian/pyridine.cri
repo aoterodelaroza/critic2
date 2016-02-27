@@ -1,0 +1,50 @@
+# Load the molecule and its wavefunction data
+molecule ../data/pyridine.wfx 
+load ../data/pyridine.wfx
+
+# Calculate the critical points. All critical points are found with
+# the default auto settings (Poincare-Hopf sum = 1). Note that the
+# units in output and input are angstrom, and they are referred to the
+# molecular origin. 
+auto
+
+# Plot the molecule together with the position of the critical
+# points. Critic2 works with molecules by placing them in a periodic
+# supercell and treating them as "special" periodic crystals. Two
+# cells are defined: the "normal" cell (cell) and the smaller
+# "molecular" cell (molcell). The space beyond molcell is considered
+# to be external to the molecule (no critical points found there, all
+# gradient paths terminate, etc.). The following command writes a
+# representation of the molecule, the critical points, and the two
+# cells. 
+cpreport obj cell molcell
+
+# Move the obj and the mtl file out of the way
+system sed 's/pyridine_cps.mtl/pyridine_cps_with_cell.mtl/' pyridine_cps.obj > pyridine_cps_with_cell.obj
+system mv pyridine_cps.mtl pyridine_cps_with_cell.mtl
+
+# Repeat the plot, but this time only the molecule and the critical
+# points. 
+cpreport obj 
+
+# Write the environments of all critical points in the output.
+cpreport shells 5
+
+# Activate the calculation of the kinetic, potential, and total energy
+# densities at the critical points, and print the list of critical
+# points again to get those quantities.
+pointprop gkin
+pointprop vir
+pointprop he
+cpreport verylong
+
+# Finally, make a contour plot of the electron density in the
+# molecular plane with an overlay of gradient lines. Note that the
+# coordinates in PLANE are in angstrom and referred to the molecular
+# origin, unlike what happens in crystals. Running the resulting gnu
+# file with gnuplot creates an eps file for the plot.
+grdvec
+ plane 0.0 -3.0 -3.0 0.0 3.0 -3.0 0.0 -3.0 3.0
+ cpall
+ contour f log 101 101 41
+endgrdvec
