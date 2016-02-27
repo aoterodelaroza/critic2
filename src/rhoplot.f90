@@ -874,12 +874,14 @@ contains
 
     integer :: nu
     integer :: nv
-    integer :: lud, lud1
+    integer :: lud, lud1, nhalf
     real*8  :: delta
-    real*8  :: zz
+    real*8  :: zz, fmin, fmax
     integer :: i, j
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
     real*8 :: du, dv, r012
+
+    real*8, parameter :: eps = 1d-6
 
     ! clean up rootname
     root0 = rootname
@@ -999,20 +1001,45 @@ contains
        do i = 1, niso
           ziso(i) = cntrini + real(i-1,8) * (cntrend - cntrini) / (niso-1)
        end do
-    else
-       if (nti == 1) then
-          fminimo = log(max(fminimo,1d-6))
+    else if (nti.eq.1) then
+       if (fminimo < eps) then
+          fmin = fminimo
+          fmax = fmaximo
+          ! negative contours
+          fminimo = log(eps)
+          fmaximo = log(-fmin)
+          nhalf = max(niso / 2,2)
+          delta = (fmaximo-fminimo) / (nhalf-1)
+          do i = 1, nhalf
+             ziso(i) = -exp(fminimo+(nhalf-i)*delta)
+          enddo
+          ! zero
+          ziso(nhalf+1) = 0d0
+          ! positive contours
+          fminimo = log(eps)
+          fmaximo = log(fmax)
+          delta = (fmaximo-fminimo) / (nhalf-1)
+          do i = 1, nhalf
+             ziso(nhalf+1+i) = exp(fminimo+(i-1)*delta)
+          enddo
+          niso = 2 * nhalf + 1
+       else
+          fminimo = log(max(fminimo,eps))
           fmaximo = log(abs(fmaximo))
-       else if (nti == 2) then
+          delta = (fmaximo-fminimo)/(niso-1)
+          do i=1,niso
+             ziso(i)=exp(fminimo+(i-1)*delta)
+          enddo
+       endif
+    else
+       if (nti == 2) then
           fminimo = 2d0/pi*atan(fminimo)
           fmaximo = 2d0/pi*atan(fmaximo)
        end if
        delta = (fmaximo-fminimo)/(niso-1)
        do i=1,niso
           zz=fminimo+(i-1)*delta
-          if (nti.eq.1) then 
-             ziso(i)=exp(zz)
-          else if (nti.eq.2) then
+          if (nti.eq.2) then
              ziso(i)=tan(pi*zz/2d0)
           else
              ziso(i)=zz
