@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Code for the FLUXPRINT environment: 3d plotting with tessel.
+!> Code for the FLUXPRINT environment: 3d plotting.
 module flux
   implicit none
 
@@ -59,11 +59,13 @@ contains
     use struct_basic
     use global
     use tools_io
+    use param
     
     type flxorder
        character*3 :: id, method
        real*8 :: x(3)
        integer :: iup, cpid, ntheta, nphi, lvec(3), num
+       integer :: rgb(3)
     end type flxorder
     integer :: norder
     type(flxorder), allocatable :: order(:), orderaux(:)
@@ -71,9 +73,11 @@ contains
     character(len=:), allocatable :: line, word
     integer :: local_flx_every, local_flx_nsym
     integer :: cpid, lvecx(3), iup, lp, nn, nphi, ntheta
-    integer :: num_points, i
+    integer :: num_points, i, rgb(3)
     real*8 :: xpoint(3)
     logical :: ok, nosym
+
+    integer, parameter :: irgb(3) = (/255,179,77/)
 
     ! set initial values for flx
     flx_init = .false.
@@ -83,6 +87,7 @@ contains
     outfmt = "obj"
     allocate(order(10))
     norder = 0
+    rgb = -1
 
     ! header
     write (uout,'(A)') "* FLUXPRINT: 3d representation of cell, CPs and gradient paths"
@@ -95,24 +100,34 @@ contains
        if (equal(word,'nosym')) then
           nosym = .true.
           call check_no_extra_word()
+       else if (equal(word,'color')) then
+          ok=eval_next(rgb(1),line,lp)
+          ok= ok .and. eval_next(rgb(2),line,lp)
+          ok= ok .and. eval_next(rgb(3),line,lp)
+          if (.not. ok) call ferror ('fluxprint','wrong COLOR syntax',faterr,line)
+          call check_no_extra_word()
        else if (equal(word,'every')) then
           ok = eval_next(local_flx_every,line,lp)
-          if (.not. ok) call ferror ('fluxprint','bad EVERY option',faterr,line)
+          if (.not. ok) call ferror ('fluxprint','wrong EVERY syntax',faterr,line)
           call check_no_extra_word()
        else if (equal(word,'text')) then
           outfmt = "txt"
+          call check_no_extra_word()
        else if (equal(word,'tessel').or.equal(word,'tess')) then
           outfmt = "tss"
           call check_no_extra_word()
        else if (equal(word,'obj')) then
           outfmt = "obj"
+          call check_no_extra_word()
        else if (equal(word,'ply')) then
           outfmt = "ply"
+          call check_no_extra_word()
        else if (equal(word,'off')) then
           outfmt = "off"
+          call check_no_extra_word()
        else if (equal(word,'shells')) then
           ok = eval_next(local_flx_nsym,line,lp)
-          if (.not. ok) call ferror ('fluxprint','bad shells option',faterr,line)
+          if (.not. ok) call ferror ('fluxprint','wrong SHELLS syntax',faterr,line)
           call check_no_extra_word()
        else if (equal(word,'point')) then
           ok=eval_next(iup ,line,lp)
@@ -133,6 +148,11 @@ contains
           order(norder)%id = "poi"
           order(norder)%iup = iup
           order(norder)%x = xpoint
+          if (any(rgb < 0)) then
+             order(norder)%rgb = irgb
+          else
+             order(norder)%rgb = rgb
+          end if
        elseif (equal(word,'ncp')) then
           ok=eval_next(cpid,line,lp)
           if (cpid <= 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= -3)) then
@@ -164,6 +184,11 @@ contains
           order(norder)%ntheta = ntheta
           order(norder)%nphi = nphi
           order(norder)%lvec = lvecx
+          if (any(rgb < 0).and.cp(cpid)%isnuc) then
+             order(norder)%rgb = jmlcol(:,cr%at(cr%atcel(cpid)%idx)%z)
+          else
+             order(norder)%rgb = rgb
+          end if
 
        elseif (equal(word,'bcp')) then
           ok=eval_next(cpid,line,lp)
@@ -215,6 +240,11 @@ contains
           order(norder)%num = num_points
           order(norder)%method = method
           order(norder)%lvec = lvecx
+          if (any(rgb < 0)) then
+             order(norder)%rgb = irgb
+          else
+             order(norder)%rgb = rgb
+          end if
 
        elseif (equal(word,'rcp')) then
           ok=eval_next(cpid,line,lp)
@@ -264,6 +294,11 @@ contains
           order(norder)%num = num_points
           order(norder)%method = method
           order(norder)%lvec = lvecx
+          if (any(rgb < 0)) then
+             order(norder)%rgb = irgb
+          else
+             order(norder)%rgb = rgb
+          end if
 
        elseif (equal(word,'ccp')) then
           ok = eval_next(cpid,line,lp)
@@ -296,6 +331,11 @@ contains
           order(norder)%ntheta = ntheta
           order(norder)%nphi = nphi
           order(norder)%lvec = lvecx
+          if (any(rgb < 0)) then
+             order(norder)%rgb = irgb
+          else
+             order(norder)%rgb = rgb
+          end if
 
        elseif (equal(word,'graph')) then
           ok = eval_next(nn,line,lp)
@@ -306,6 +346,11 @@ contains
           if (norder > size(order)) call realloc_flxorder()
           order(norder)%id = "gra"
           order(norder)%num = nn
+          if (any(rgb < 0)) then
+             order(norder)%rgb = irgb
+          else
+             order(norder)%rgb = rgb
+          end if
 
        elseif (equal(word,'endfluxprint')) then
           call check_no_extra_word()
@@ -319,17 +364,17 @@ contains
     call flx_initialize(local_flx_every,nosym)
     do i = 1, norder
        if (order(i)%id == "poi") then
-          call flx_point(order(i)%x,order(i)%iup,local_flx_nsym)
+          call flx_point(order(i)%x,order(i)%iup,local_flx_nsym,order(i)%rgb)
        elseif (order(i)%id == "ncp") then
-          call flx_ncp(order(i)%cpid,order(i)%ntheta,order(i)%nphi,local_flx_nsym,order(i)%lvec)
+          call flx_ncp(order(i)%cpid,order(i)%ntheta,order(i)%nphi,local_flx_nsym,order(i)%lvec,order(i)%rgb)
        elseif (order(i)%id == "bcp") then
-          call flx_bcp(order(i)%cpid,order(i)%iup,order(i)%num,local_flx_nsym,order(i)%method,order(i)%lvec)
+          call flx_bcp(order(i)%cpid,order(i)%iup,order(i)%num,local_flx_nsym,order(i)%method,order(i)%lvec,order(i)%rgb)
        elseif (order(i)%id == "rcp") then
-          call flx_bcp(order(i)%cpid,order(i)%iup,order(i)%num,local_flx_nsym,order(i)%method,order(i)%lvec)
+          call flx_bcp(order(i)%cpid,order(i)%iup,order(i)%num,local_flx_nsym,order(i)%method,order(i)%lvec,order(i)%rgb)
        elseif (order(i)%id == "ccp") then
-          call flx_ncp(order(i)%cpid,order(i)%ntheta,order(i)%nphi,local_flx_nsym,order(i)%lvec)
+          call flx_ncp(order(i)%cpid,order(i)%ntheta,order(i)%nphi,local_flx_nsym,order(i)%lvec,order(i)%rgb)
        elseif (order(i)%id == "gra") then
-          call flx_graph(local_flx_nsym,order(i)%num)
+          call flx_graph(local_flx_nsym,order(i)%num,rgb=order(i)%rgb)
        else
           call ferror('fluxprint','Unknown order id',faterr)
        end if
@@ -594,14 +639,15 @@ contains
   end subroutine flx_end
 
   !> Print gradient path info to standard output.
-  subroutine flx_printpath()
+  subroutine flx_printpath(rgb0)
     use struct_basic
     use global
     use graphics
 
+    integer, intent(in) :: rgb0(3)
+
     integer :: i, j
     real*8 :: x(3)
-    integer, parameter :: irgb(3) = (/255,179,77/)
     real*8, parameter :: rrad = 0.15d0
 
     real*8 :: maux(4,4)
@@ -653,11 +699,11 @@ contains
        do i=1,flx_n
           x = cr%x2c(flx_x(i,:))
           if (outfmt == "obj") then
-             call obj_ball(luout,x,irgb,rrad)
+             call obj_ball(luout,x,rgb0,rrad)
           elseif (outfmt == "off") then
-             call off_ball(luout,x,irgb,rrad)
+             call off_ball(luout,x,rgb0,rrad)
           elseif (outfmt == "ply") then
-             call ply_ball(luout,x,irgb,rrad)
+             call ply_ball(luout,x,rgb0,rrad)
           end if
        end do
     end if
@@ -673,7 +719,7 @@ contains
   !> contained in flxsym shells of unit cells.  flx_symprintpath is a
   !> wrapper for flx_printpath() so that this routine is not used
   !> directly.
-  subroutine flx_symprintpath(x,flxsym)
+  subroutine flx_symprintpath(x,flxsym,rgb)
     use navigation
     use fields
     use struct_basic
@@ -681,6 +727,7 @@ contains
 
     integer, intent(in) :: flxsym
     real*8, dimension(3), intent(in) :: x
+    integer, intent(in) :: rgb(3)
 
     real*8, parameter :: flx_epsx = 1d-4
 
@@ -731,7 +778,7 @@ contains
              end do
 
              ! print the new bond path
-             call flx_printpath()
+             call flx_printpath(rgb)
 
              ! retrieve the original bond path
              flx_x(1:flx_n,:) = flx_x(flx_n+1:2*flx_n,:)
@@ -739,7 +786,7 @@ contains
        end do
        deallocate(sympos,symrotm,symcenv)
     else
-       call flx_printpath()
+       call flx_printpath(rgb)
     end if
 
   end subroutine flx_symprintpath
@@ -749,7 +796,7 @@ contains
   !> direction. flxsym = -1, ignore symmetry ; 0, apply x symmetry
   !> to the unit cell and its boundary; >0 to a shell of flxsym unit
   !> cells.
-  subroutine flx_point(x,iup,flxsym)
+  subroutine flx_point(x,iup,flxsym,rgb)
     use navigation
     use fields
     use struct_basic
@@ -759,6 +806,7 @@ contains
     integer, intent(in) :: iup
     real*8, dimension(3), intent(in) :: x
     integer, intent(in) :: flxsym
+    integer, intent(in) :: rgb(3)
 
     real*8, dimension(3) :: tempx, xini
     integer :: ier
@@ -768,13 +816,13 @@ contains
 
     if (iup /= 0) then
        call gradient(f(refden),tempx,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call flx_symprintpath(xini,flxsym)
+       call flx_symprintpath(xini,flxsym,rgb)
     else
        call gradient(f(refden),tempx,1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call flx_symprintpath(xini,flxsym)
+       call flx_symprintpath(xini,flxsym,rgb)
        tempx = cr%x2c(x)
        call gradient(f(refden),tempx,-1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call flx_symprintpath(xini,flxsym)
+       call flx_symprintpath(xini,flxsym,rgb)
     end if
 
   end subroutine flx_point
@@ -784,7 +832,7 @@ contains
   !> lvec to the position of the cp. flxsym = -1, ignore symmetry ; 0,
   !> apply x symmetry to the unit cell and its boundary; >0 to a shell
   !> of flxsym unit cells.
-  subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec)
+  subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
     use autocp
     use navigation
     use fields
@@ -797,6 +845,7 @@ contains
     integer, intent(in) :: id, ntheta, nphi
     integer, intent(in) :: flxsym
     integer, intent(in), dimension(3), optional :: lvec
+    integer, intent(in) :: rgb(3)
 
     real*8, parameter :: change = 0.1d0
 
@@ -828,7 +877,7 @@ contains
           theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
           xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
           call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call flx_symprintpath(xini,flxsym)
+          call flx_symprintpath(xini,flxsym,rgb)
        end do
     end do
 
@@ -837,12 +886,12 @@ contains
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-    call flx_symprintpath(xini,flxsym)
+    call flx_symprintpath(xini,flxsym,rgb)
     phi = pi
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-    call flx_symprintpath(xini,flxsym)
+    call flx_symprintpath(xini,flxsym,rgb)
 
   end subroutine flx_ncp
 
@@ -859,7 +908,7 @@ contains
   !> good approximation to a grid. "h1 " (heuristic 1), experimental
   !> heuristic method, using information of the partially fluxed
   !> initial points. (h1 and dyn are experimental)
-  subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec)
+  subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
     use autocp
     use navigation
     use fields
@@ -875,6 +924,7 @@ contains
     integer, intent(in) :: flxsym
     character*3, intent(in) :: bcpmethod
     integer, intent(in), dimension(3), optional :: lvec
+    integer, intent(in) :: rgb(3)
 
     real*8, parameter :: change = 0.1d0
 
@@ -959,10 +1009,10 @@ contains
     if (iup == 0 .or. iup == ircp) then
        xpoint = xbcp + change * vup
        call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call flx_symprintpath(xini,flxsym)
+       call flx_symprintpath(xini,flxsym,rgb)
        xpoint = xbcp - change * vup
        call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call flx_symprintpath(xini,flxsym)
+       call flx_symprintpath(xini,flxsym,rgb)
     end if
 
     if (iup == 0 .or. iup == -ircp) then
@@ -976,7 +1026,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
           end do
        else if (bcpmethod == "quo") then
           ! use eigenvalue quotient to remap the uniform point distribution
@@ -990,14 +1040,14 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
              angle = angle + pi
              cangle = cos(angle)
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
           end do
        else
           ! write (uout,'("+ dyn: coarse exploration to determine bcp-ccp distance")')
@@ -1029,7 +1079,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
              cangle = cos(angle)
@@ -1037,7 +1087,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
 
              angle = -thetavec(i) + pi
              cangle = cos(angle)
@@ -1045,7 +1095,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
              cangle = cos(angle)
@@ -1053,7 +1103,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call flx_symprintpath(xini,flxsym)
+             call flx_symprintpath(xini,flxsym,rgb)
 
           end do
 
@@ -1061,16 +1111,16 @@ contains
           ! write (uout,'("+ dyn: fluxing special angles.")')
           xpoint = xbcp + change * v1
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call flx_symprintpath(xini,flxsym)
+          call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp + change * v2
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call flx_symprintpath(xini,flxsym)
+          call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v1
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call flx_symprintpath(xini,flxsym)
+          call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v2
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call flx_symprintpath(xini,flxsym)
+          call flx_symprintpath(xini,flxsym,rgb)
        end if
        ! write (uout,*)
     end if
@@ -1089,7 +1139,7 @@ contains
   !> cpid is present, the lines and paths associated to that cp are
   !> represented, with a lattice displacement given by the optional
   !> integer lvec vector.
-  subroutine flx_graph(flxsym,igraph,cpid,lvec)
+  subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
     use autocp
     use varbas
     use tools_io
@@ -1098,6 +1148,7 @@ contains
     integer, intent(in) :: igraph
     integer, intent(in), optional :: cpid
     integer, intent(in), dimension(3), optional :: lvec
+    integer, intent(in) :: rgb(3)
 
     integer :: i, l, ln
     integer :: m, temp
@@ -1137,7 +1188,7 @@ contains
                 templvec(3) = mod(ln,3) - 1
                 if (cpcel(i)%ipath(1) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,1) + templvec) .or. &
                    cpcel(i)%ipath(2) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,2) + templvec)) then
-                   call flx_bcp(i,1,1,flxsym,"dyn",templvec)
+                   call flx_bcp(i,1,1,flxsym,"dyn",templvec,rgb)
                 end if
              end do
           end do
@@ -1156,7 +1207,7 @@ contains
                 templvec(3) = mod(ln,3) - 1
                 if (cpcel(i)%ipath(1) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,1) + templvec) .or. &
                    cpcel(i)%ipath(2) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,2) + templvec)) then
-                   call flx_bcp(i,-1,1,flxsym,"dyn",templvec)
+                   call flx_bcp(i,-1,1,flxsym,"dyn",templvec,rgb)
                 end if
              end do
           end do
@@ -1164,12 +1215,12 @@ contains
        ! bcp
        ! bond paths for the bcp
        else if (cpcel(cpid)%typ == -1) then
-          call flx_bcp(cpid,1,1,flxsym,"dyn",locallvec)
+          call flx_bcp(cpid,1,1,flxsym,"dyn",locallvec,rgb)
 
        ! rcp
        ! ring paths for the rcp
        else if (cpcel(cpid)%typ == 1) then
-          call flx_bcp(cpid,-1,1,flxsym,"dyn",locallvec)
+          call flx_bcp(cpid,-1,1,flxsym,"dyn",locallvec,rgb)
        end if
 
     else
@@ -1180,14 +1231,14 @@ contains
           if (dobcp) then
              ! compute bcp bond paths
              if (cp(i)%typ == -1) then
-                call flx_bcp(m+1,1,1,localsym,"dyn")
+                call flx_bcp(m+1,1,1,localsym,"dyn",rgb=rgb)
              end if
           end if
 
           ! compute rcp ring paths
           if (dorcp) then
              if (cp(i)%typ == 1) then
-                call flx_bcp(m+1,-1,1,localsym,"dyn")
+                call flx_bcp(m+1,-1,1,localsym,"dyn",rgb=rgb)
              end if
           end if
 
