@@ -1,0 +1,13 @@
+# Load the structure and density for the thymine molecular crystal.
+crystal ../data/thymine_rho.cube
+load ../data/thymine_rho.cube 
+
+# Run a simple nciplot. If no "nstep" or any other option to control
+# the number of points and the reference field is defined on a grid,
+# then the necessary grids for the nciplot (rdg, etc.) are calculated on
+# the same grid as the original density using a fast Fourier
+# transform. This is usually much faster than using nstep to define a
+# smaller grid. 
+nciplot
+ molmotif
+endnciplot

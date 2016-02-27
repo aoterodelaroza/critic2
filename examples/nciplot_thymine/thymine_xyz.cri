@@ -1,0 +1,12 @@
+# Load the structure and density for the thymine molecular crystal.
+crystal ../data/thymine_rho.cube
+load ../data/thymine_rho.cube 
+
+# Write the cell to an xyz file with complete molecules. 
+write thymine_cell.xyz molmotif
+
+# Write all individual molecules to separate xyz files.
+write thymine_burst.xyz burst
+
+# Write all molecule pairs to separate xyz files.
+write thymine_pairs.xyz pairs

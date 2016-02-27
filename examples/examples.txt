@@ -140,3 +140,44 @@ of points as the selfconsistent density from Quantum ESPRESSO, then
 saved to a cube file. This data can be used to generate the plot in
 Figure 5 using vmd.
 
+* nciplot_thymine
+** Density source: Quantum ESPRESSO
+** System: thymine crystal.
+** Reference: Otero-de-la-Roza, Johnson, and Contreras-Garcia, Phys. Chem. Chem. Phys., 2012, 14, 12165-12172 
+** Description
+
+This example shows how to run an NCI plot in a simple molecular
+crystal (thymine) using the electron density calculated with Quantum
+ESPRESSO. 
+
+** thymine_simple.cri
+
+Calculate the NCI plots in the unit cell using fast Fourier transforms
+of the original density. This is a simple and efficient way of
+calculating all the NCIs in a periodic crystal. Subsequent
+calculations are much faster as long as the grid doesn't change
+(e.g. if you only change cutplot, etc.), because it reads the
+checkpoint file for the nciplot (ncichk).
+
+** thymine_xyz.cri
+
+Extract fragments of the thymine crystal to xyz files. The fragments
+include a snapshot of the unit cell with molecules completed using
+atoms from neighboring cells (thymine_cell.xyz), all molecules in the
+unit cell in separate xyz files (thymine_burst_*.xyz) and all
+molecular pairs in the cell in separate xyz files
+(thymine_pairs_*.xyz). These files can be used to focus on a specific
+region in subsequent calls to nciplot.
+
+** thymine_intra.cri
+
+An NCIplot showing the hydrogen bonds within the same layer of
+thymines. Corresponds to Figure 8b in the cited reference (with
+a smaller nstep). 
+
+** thymine_inter.cri
+
+An NCIplot showing the weak interactions between thymine
+layers. Corresponds to Figure 8c in the cited reference (with a
+smaller nstep). 
+
