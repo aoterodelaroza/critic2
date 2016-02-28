@@ -84,7 +84,6 @@ contains
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
     real*8, parameter :: const = 2.d0*(3.d0*pi**2)**(1.d0/3.d0)
-    real*8, parameter :: vsmall = 1d-40
     real*8, parameter :: rthres_xyz = 1d0
 
     real*8, parameter :: xlist0(3,12) = reshape((/&

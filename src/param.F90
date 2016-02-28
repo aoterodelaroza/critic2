@@ -23,6 +23,7 @@ module param
 
   ! named constants
   real*8, parameter :: VBIG     = huge(1) !< a very big number
+  real*8, parameter :: VSMALL   = 1d-80   !< a very small number
   real*8, parameter :: pi       = 3.14159265358979323846d0 !< pi
   real*8, parameter :: sqpi     = sqrt(pi) !< sqrt(pi)
   real*8, parameter :: sqfp     = sqrt(4d0*pi) !< sqrt(4pi)

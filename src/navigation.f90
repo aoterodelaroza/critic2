@@ -325,7 +325,6 @@ contains
     logical :: ok, first
 
     real*8, parameter :: h0break = 1.d-10
-    real*8, parameter :: SMALL = 1.d-40
 
     adaptive_stepper = .true.
     ier = 1
@@ -335,7 +334,7 @@ contains
        iup = -1
     end if
 
-    grdt = res%gf / (res%gfmod + SMALL)
+    grdt = res%gf / (res%gfmod + VSMALL)
     ogrdt = grdt
 
     first = .true.
@@ -361,7 +360,7 @@ contains
        ! poor man's adaptive step size in Euler
        if (NAV_stepper == NAV_stepper_euler .or. NAV_stepper_heun) then
           ! angle with next step
-          escalar = dot_product(ogrdt,res%gf / (res%gfmod+SMALL))
+          escalar = dot_product(ogrdt,res%gf / (res%gfmod+VSMALL))
 
           ! gradient eps in cartesian
           ok = (res%gfmod < 0.99d0*eps)
@@ -395,7 +394,7 @@ contains
           else
              ! propose a new shorter step using the error estimate
              h0 = 0.9d0 * h0 * NAV_maxerr / nerr
-             if (abs(h0) < SMALL) then
+             if (abs(h0) < VSMALL) then
                 adaptive_stepper = .false.
                 return
              end if
@@ -421,19 +420,18 @@ contains
     use types
     use fields
     use global
+    use param
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3), xerr(3)
     type(scalar_value), intent(inout) :: res
     
-    real*8, parameter :: SMALL = 1d-40
-
     real*8 :: ak2(3)
 
     xerr = xpoint + h0 * grdt
     call grd(fid,xerr,2,res)
-    ak2 = res%gf / (res%gfmod+SMALL)
+    ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
     xerr = xout - xerr
   
@@ -444,13 +442,12 @@ contains
     use types
     use fields
     use global
+    use param
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3), xerr(3)
     type(scalar_value), intent(inout) :: res
-
-    real*8, parameter :: SMALL = 1d-40
 
     real*8, dimension(3) :: ak1, ak2, ak3, ak4
 
@@ -458,19 +455,19 @@ contains
 
     xout = xpoint + h0 * (0.5d0*ak1)
     call grd(fid,xout,2,res)
-    ak2 = res%gf / (res%gfmod+SMALL)
+    ak2 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
     call grd(fid,xout,2,res)
-    ak3 = res%gf / (res%gfmod+SMALL)
+    ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
     call grd(fid,xout,2,res)
-    ak3 = res%gf / (res%gfmod+SMALL)
+    ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (2d0/9d0*ak1 + 1d0/3d0*ak2 + 4d0/9d0*ak3)
     call grd(fid,xout,2,res)
-    ak4 = res%gf / (res%gfmod+SMALL)
+    ak4 = res%gf / (res%gfmod+VSMALL)
 
     xerr = xpoint + h0 * (7d0/24d0*ak1 + 1d0/4d0*ak2 + 1d0/3d0*ak3 + 1d0/8d0*ak4) - xout
 
@@ -481,6 +478,7 @@ contains
     use fields
     use global
     use types
+    use param
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
@@ -495,28 +493,27 @@ contains
          C1=37.d0/378.d0, C3=250.d0/621.d0, C4=125.d0/594.d0, C6=512.d0/1771.d0,&
          DC1=C1-2825.d0/27648.d0, DC3=C3-18575.d0/48384.d0, DC4=C4-13525.d0/55296.d0, DC5=-277.d0/14336.d0, DC6=C6-.25d0
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6
-    real*8, parameter :: SMALL = 1d-40
     
     xout = xpoint + h0*B21*grdt
 
     call grd(fid,xout,2,res)
-    ak2 = res%gf / (res%gfmod+SMALL)
+    ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B31*grdt+B32*ak2)
 
     call grd(fid,xout,2,res)
-    ak3 = res%gf / (res%gfmod+SMALL)
+    ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B41*grdt+B42*ak2+B43*ak3)
 
     call grd(fid,xout,2,res)
-    ak4 = res%gf / (res%gfmod+SMALL)
+    ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B51*grdt+B52*ak2+B53*ak3+B54*ak4)
 
     call grd(fid,xout,2,res)
-    ak5 = res%gf / (res%gfmod+SMALL)
+    ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B61*grdt+B62*ak2+B63*ak3+B64*ak4+B65*ak5)
 
     call grd(fid,xout,2,res)
-    ak6 = res%gf / (res%gfmod+SMALL)
+    ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(C1*grdt+C3*ak3+C4*ak4+C6*ak6)
     xerr = h0*(DC1*grdt+DC3*ak3+DC4*ak4+DC5*ak5+DC6*ak6)
 
@@ -527,6 +524,7 @@ contains
     use fields
     use global
     use types
+    use param
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
@@ -548,32 +546,31 @@ contains
        -2187d0/6784d0, 11d0/84d0, 0d0 /)
     real*8, parameter :: dp_c(7) = dp_b2 - dp_b
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6, ak7
-    real*8, parameter :: SMALL = 1d-40
 
     xout = xpoint + h0*dp_a(2,1)*grdt
 
     call grd(fid,xout,2,res)
-    ak2 = res%gf / (res%gfmod+SMALL)
+    ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(3,1)*grdt+dp_a(3,2)*ak2)
 
     call grd(fid,xout,2,res)
-    ak3 = res%gf / (res%gfmod+SMALL)
+    ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(4,1)*grdt+dp_a(4,2)*ak2+dp_a(4,3)*ak3)
 
     call grd(fid,xout,2,res)
-    ak4 = res%gf / (res%gfmod+SMALL)
+    ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(5,1)*grdt+dp_a(5,2)*ak2+dp_a(5,3)*ak3+dp_a(5,4)*ak4)
 
     call grd(fid,xout,2,res)
-    ak5 = res%gf / (res%gfmod+SMALL)
+    ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(6,1)*grdt+dp_a(6,2)*ak2+dp_a(6,3)*ak3+dp_a(6,4)*ak4+dp_a(6,5)*ak5)
 
     call grd(fid,xout,2,res)
-    ak6 = res%gf / (res%gfmod+SMALL)
+    ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_b(1)*grdt+dp_b(2)*ak2+dp_b(3)*ak3+dp_b(4)*ak4+dp_b(5)*ak5+dp_b(6)*ak6)
 
     call grd(fid,xout,2,res)
-    ak7 = res%gf / (res%gfmod+SMALL)
+    ak7 = res%gf / (res%gfmod+VSMALL)
     xerr = h0*(dp_c(1)*grdt+dp_c(2)*ak2+dp_c(3)*ak3+dp_c(4)*ak4+dp_c(5)*ak5+dp_c(6)*ak6+dp_c(7)*ak7)
     xout = xout + xerr
 
