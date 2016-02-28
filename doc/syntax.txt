@@ -277,7 +277,7 @@ expression.r # prints the value of the expression to the output.
 * WS
 * ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r]
 * PACKING [VDW] [PREC prec.r]
-* IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
+* IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL|file.xyz]
     x y z [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
     ...
     file.xyz

@@ -137,8 +137,8 @@ contains
     real*8 :: x0(3), xmin(3), xmax(3), x0out(3)
     real*8, allocatable :: pointlist(:,:)
     logical, allocatable :: isrec(:)
-    integer :: i, j, n, lu, nat, idx
-    logical :: found
+    integer :: i, j, n, idx
+    logical :: found, doenv
 
     integer :: ldunit, unit, mm
     integer, parameter :: unit_au = 1
@@ -148,7 +148,7 @@ contains
 
     real*8, parameter :: eps = 1d-4
 
-    ! parse the first word
+    ! default units
     if (cr%ismolecule) then
        if (iunit == iunit_bohr) then
           ldunit = unit_au
@@ -158,6 +158,9 @@ contains
     else
        ldunit = unit_x
     endif
+
+    ! parse the first word
+    doenv = .true.
     word = lgetword(line0,lp)
     if (equal(word,'angstrom') .or.equal(word,'ang')) then
        ldunit = unit_ang
@@ -168,86 +171,78 @@ contains
     elseif (equal(word,'reciprocal')) then
        ldunit = unit_rec
     elseif (len_trim(word) > 0) then
-       call ferror('varbas_identify','Unkwnon extra keyword',faterr,line0)
+       doenv = .false.
     endif
-    word = lgetword(line0,lp)
-    if (len_trim(word) > 0) &
-       call ferror('varbas_identify','Unkwnon extra keyword',faterr,line0)
 
-    lp = 1
-    n = 0
+    ! read the input coordinates
     allocate(pointlist(3,10),isrec(10))
-    ok = getline(uin,line,ucopy=ucopy)
-    if (ok) then
-       word = lgetword(line,lp)
-    else
-       word = ""
-       lp = 1
-    end if
-    do while (ok.and..not.equal(word,'endidentify').and..not.equal(word,'end'))
-       lp = 1
-       ok = eval_next (x0(1), line, lp)
-       ok = ok .and. eval_next (x0(2), line, lp)
-       ok = ok .and. eval_next (x0(3), line, lp)
-       if (ok) then
-          ! this is a point, parse the last word
-          word = lgetword(line,lp)
-          if (equal(word,'angstrom') .or.equal(word,'ang')) then
-             unit = unit_ang
-          elseif (equal(word,'bohr') .or.equal(word,'au')) then
-             unit = unit_au
-          elseif (equal(word,'cryst')) then
-             unit = unit_x
-          elseif (equal(word,'reciprocal')) then
-             unit = unit_rec
-          else
-             unit = ldunit
-          endif
+    n = 0
+    if (doenv) then
+       word = lgetword(line0,lp)
+       if (len_trim(word) > 0) &
+          call ferror('varbas_identify','Unkwnon extra keyword',faterr,line0)
 
-          if (unit == unit_ang) then
-             x0 = cr%c2x(x0 / bohrtoa - cr%molx0)
-          elseif (unit == unit_au) then
-             x0 = cr%c2x(x0 - cr%molx0)
-          endif
-          n = n + 1
-          if (n > size(pointlist,2)) then
-             call realloc(pointlist,3,2*n)
-             call realloc(isrec,2*n)
-          end if
-          pointlist(:,n) = x0
-          isrec(n) = (unit == unit_rec)
+       lp = 1
+       ok = getline(uin,line,ucopy=ucopy)
+       if (ok) then
+          word = lgetword(line,lp)
        else
-          ! this is an xyz file
-          lu = fopen_read(word)
-          read(lu,*) nat
-          read(lu,*) 
-          do i = 1, nat
-             read(lu,*) word, x0
-             x0 = cr%c2x(x0 / bohrtoa - cr%molx0)
+          word = ""
+          lp = 1
+       end if
+       do while (ok.and..not.equal(word,'endidentify').and..not.equal(word,'end'))
+          lp = 1
+          ok = eval_next (x0(1), line, lp)
+          ok = ok .and. eval_next (x0(2), line, lp)
+          ok = ok .and. eval_next (x0(3), line, lp)
+          if (ok) then
+             ! this is a point, parse the last word
+             word = lgetword(line,lp)
+             if (equal(word,'angstrom') .or.equal(word,'ang')) then
+                unit = unit_ang
+             elseif (equal(word,'bohr') .or.equal(word,'au')) then
+                unit = unit_au
+             elseif (equal(word,'cryst')) then
+                unit = unit_x
+             elseif (equal(word,'reciprocal')) then
+                unit = unit_rec
+             else
+                unit = ldunit
+             endif
+
+             if (unit == unit_ang) then
+                x0 = cr%c2x(x0 / bohrtoa - cr%molx0)
+             elseif (unit == unit_au) then
+                x0 = cr%c2x(x0 - cr%molx0)
+             endif
              n = n + 1
              if (n > size(pointlist,2)) then
                 call realloc(pointlist,3,2*n)
                 call realloc(isrec,2*n)
              end if
              pointlist(:,n) = x0
-             isrec(n) = (ldunit == unit_rec)
-          end do
-          call fclose(lu)
-       endif
+             isrec(n) = (unit == unit_rec)
+          else
+             ! this is an xyz file
+             call readxyz()
+          endif
 
-       ! read next line
-       lp = 1
-       ok = getline(uin,line,ucopy=ucopy) 
-       if (ok) then
-          word = lgetword(line,lp)
-       else
-          line = ""
+          ! read next line
           lp = 1
-       end if
-    enddo
-    word = lgetword(line,lp)
-    if (len_trim(word) > 0) &
-       call ferror('varbas_identify','Unkwnon extra keyword',faterr,line)
+          ok = getline(uin,line,ucopy=ucopy) 
+          if (ok) then
+             word = lgetword(line,lp)
+          else
+             line = ""
+             lp = 1
+          end if
+       enddo
+       word = lgetword(line,lp)
+       if (len_trim(word) > 0) &
+          call ferror('varbas_identify','Unkwnon extra keyword',faterr,line)
+    else
+       call readxyz()
+    endif
 
     xmin = 1d40
     xmax = -1d40
@@ -260,7 +255,7 @@ contains
        write(uout,'("# (x,y,z) is the position in Cartesian coordinates (",A,")")') &
           iunitname0(iunit)
     end if
-    write(uout,'("# id       x             y             z     mult name  ncp  cp")')
+    write(uout,'("# id        x             y             z     mult name  ncp  cp")')
 
     do i = 1, n
        x0 = pointlist(:,i)
@@ -270,7 +265,7 @@ contains
           idx = identify_cp(x0,eps)
           mm = cr%get_mult(x0)
           if (idx > 0) then
-             write (uout,'(99(A,X))') string(i,length=3,justify=ioj_left), &
+             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
                 (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
                 string(mm,length=3,justify=ioj_center), &
                 string(cpcel(idx)%name,length=5,justify=ioj_center), &
@@ -282,14 +277,14 @@ contains
                 found = .true.
              end do
           else
-             write (uout,'(99(A,X))') string(i,length=3,justify=ioj_left), &
+             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
                 (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
                 string(mm,length=3,justify=ioj_center), &
                 string(" --- not found --- ")
           endif
        else
           mm = cr%get_mult_reciprocal(x0)
-          write (uout,'(99(A,X))') string(i,length=3,justify=ioj_left), &
+          write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
              string(mm,length=3,justify=ioj_center), &
              string(" --- not found --- ")
@@ -319,6 +314,30 @@ contains
           write(uout,*)
        end if
     end if
+
+  contains
+    !> Read an xyz file and add the coordinates to pointlist
+    subroutine readxyz()
+
+      integer :: lu, nat, i
+      real*8 :: x0(3)
+
+      lu = fopen_read(word)
+      read(lu,*) nat
+      read(lu,*) 
+      do i = 1, nat
+         read(lu,*) word, x0
+         x0 = cr%c2x(x0 / bohrtoa - cr%molx0)
+         n = n + 1
+         if (n > size(pointlist,2)) then
+            call realloc(pointlist,3,2*n)
+            call realloc(isrec,2*n)
+         end if
+         pointlist(:,n) = x0
+         isrec(n) = (ldunit == unit_rec)
+      end do
+      call fclose(lu)
+    end subroutine readxyz
 
   end subroutine varbas_identify
 

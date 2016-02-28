@@ -5253,7 +5253,7 @@ prec.r. The default prec.r is 0.1.
 
 ::
 
-  IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
+  IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL|file.xyz]
    x.r y.r z.r [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
    ...
    file.xyz
@@ -5264,7 +5264,9 @@ of atoms and critical points. If a coordinate is close (1e-4 bohr) to
 an atom or CP, the corresponding indices as well as the coordinates
 are written to the output. The input can come as either the
 coordinates of the points themselves or a filename pointing to an xyz
-file.
+file. IDENTIFY can be used as in environment mode
+(IDENTIFY/ENDIDENTIFY) or as a single command when applying it to a
+single xyz file.
 
 The default units are crystallographic coordinates in crystals and
 molecular Cartesian coordinates in molecules (default:
