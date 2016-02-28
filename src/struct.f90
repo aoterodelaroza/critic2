@@ -672,12 +672,12 @@ contains
     integer, allocatable :: hvecp(:,:)
     real*8, allocatable :: powdiff(:,:)
 
-    real*8, parameter :: sigma0 = 0.2d0
+    real*8, parameter :: sigma0 = 0.25d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end = 35d0
+    real*8, parameter :: th2end = 30d0
 
     ! initialized
     doguess0 = doguess
@@ -754,8 +754,9 @@ contains
     else
        do i = 1, ns
           do j = i+1, ns
-             write (uout,'("+ POWDIFF(",A,",",A,") = ",A)') string(i), string(j), &
-                string(powdiff(i,j),'e',12,6)
+             write (uout,'("+ POWDIFF(",A,": ",A," | ",A,": ",A,") = ",A)') &
+                string(i), string(c(i)%file), string(j), string(c(j)%file),&
+                string(powdiff(i,j),'f',10,6)
           end do
        end do
     endif
