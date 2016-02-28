@@ -252,9 +252,6 @@ module types
      real*8 :: stress(3,3)
      ! electronic potential energy density, virial field
      real*8 :: vir
-     ! spherical/orthogonal coordinates
-     real*8 :: gfsph(3), hfsph(3,3), gfmodsph, del2fsph
-     real*8 :: gfort(3), hfort(3,3), gfmodort, del2fort
      ! additional local properties
      real*8 :: hfevec(3,3), hfeval(3)
      integer :: r, s

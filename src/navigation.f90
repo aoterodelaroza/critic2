@@ -249,7 +249,7 @@ contains
        xpoint = cr%x2c(xpoint)
 
        ! is it a cp?
-       ok = (res%gfmodort < NAV_gradeps)
+       ok = (res%gfmod < NAV_gradeps)
        if (ok) then
           ier = 0
           return
@@ -319,9 +319,9 @@ contains
     type(scalar_value), intent(inout) :: res
 
     integer :: ier, iup
-    real*8 :: grdt(3), ogrdt(3)
+    real*8 :: grdt(3), ogrdtemp(3), ogrdt(3)
     real*8 :: xtemp(3), escalar, xerrv(3)
-    real*8 :: ogrdtemp(3), nerr
+    real*8 :: nerr
     logical :: ok, first
 
     real*8, parameter :: h0break = 1.d-10
@@ -336,7 +336,6 @@ contains
     end if
 
     grdt = res%gf / (res%gfmod + SMALL)
-    ogrdt = res%gfort / (res%gfmodort + SMALL)
 
     first = .true.
     do while (ier /= 0)
@@ -359,11 +358,11 @@ contains
        ! poor man's adaptive step size in Euler
        if (NAV_stepper == NAV_stepper_euler) then
           ! angle with next step
-          ogrdtemp = res%gfort / (res%gfmodort+SMALL)
+          ogrdtemp = res%gf / (res%gfmod+SMALL)
           escalar = dot_product(ogrdt,ogrdtemp)
 
           ! gradient eps in cartesian
-          ok = (res%gfmodort < 0.99d0*eps)
+          ok = (res%gfmod < 0.99d0*eps)
 
           ! Check if they differ in > 90 deg.
           if (escalar < 0.d0.and..not.ok) then

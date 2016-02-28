@@ -958,7 +958,7 @@ contains
     xini = xbcp
     xbcp = cr%x2c(xbcp)
     call grd(f(refden),xbcp,2,res)
-    evec = res%hfort
+    evec = res%hf
     call eig(evec,reval)
 
     if (ircp * reval(1) > 0) then

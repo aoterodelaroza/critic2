@@ -829,13 +829,13 @@ contains
        end if
        write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
        write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
-       write (uout,'("  Gradient (grad f): ",3(A,2X))') (string(res%gfort(j),'e',decimal=9),j=1,3)
-       write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmodort,'e',decimal=9)
-       write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2fort,'e',decimal=9)
+       write (uout,'("  Gradient (grad f): ",3(A,2X))') (string(res%gf(j),'e',decimal=9),j=1,3)
+       write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
+       write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
        write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
        write (uout,'("  Hessian:")')
        do j = 1, 3
-          write (uout,'(4x,1p,3(A,2X))') (string(res%hfort(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+          write (uout,'(4x,1p,3(A,2X))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
        end do
        write (uout,'("  Hessian eigenvalues: ",3(A,2X))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
        ! Write ellipticity, if it is a candidate for bond critical point
@@ -1563,15 +1563,6 @@ contains
        ! valence quantities
        res%fval = res%f
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-       ! fill orthogonal qtys.
-       res%gfort = res%gf
-       res%hfort = res%hf
-       res%gfmodort = res%gfmod
-       res%del2fort = res%del2f
-       res%gfsph = 0d0
-       res%hfsph = 0d0
-       res%gfmodsph = 0d0
-       res%del2fsph = 0d0
        return
     end if
 
@@ -1664,16 +1655,6 @@ contains
     if (res%isnuc) res%gf = 0d0
     res%gfmod = norm(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-
-    ! fill orthogonal qtys.
-    res%gfort = res%gf
-    res%hfort = res%hf
-    res%gfmodort = res%gfmod
-    res%del2fort = res%del2f
-    res%gfsph = 0d0
-    res%hfsph = 0d0
-    res%gfmodsph = 0d0
-    res%del2fsph = 0d0
 
   end subroutine grd
 
