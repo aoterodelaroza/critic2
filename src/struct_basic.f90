@@ -2734,19 +2734,19 @@ contains
           if (any(bary - nint(bary) > eps_bary)) then
              ithr = ithr - 1
              if (ithr > 1) then
-                write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
-                call ferror("wigner","wrong lattice vector",warning)
+                ! write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
+                ! call ferror("wigner","wrong lattice vector",warning)
              else
                 if (icelmax == icelmax_def) then
                    icelmax = icelmax_safe
                    ithr = ithr_def
-                   write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
-                   call ferror("wigner","wrong lattice vector",warning)
+                   ! write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
+                   ! call ferror("wigner","wrong lattice vector",warning)
                 elseif (icelmax == icelmax_safe) then
                    icelmax = icelmax_usafe
                    ithr = ithr_def
-                   write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
-                   call ferror("wigner","wrong lattice vector",warning)
+                   ! write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
+                   ! call ferror("wigner","wrong lattice vector",warning)
                 else
                    call ferror("wigner","wrong lattice vector",faterr)
                 end if
