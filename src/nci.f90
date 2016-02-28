@@ -122,11 +122,19 @@ contains
     isden = .not.(refden == 0)
     rhoparam = 0.95d0
     rhoparam2 = 0.75d0
-    x0 = 0d0
-    x1 = 1d0
-    x0 = cr%x2c(x0)
-    x1 = cr%x2c(x1)
-    periodic = .true.
+    if (cr%ismolecule) then
+       x0 = cr%molborder
+       x1 = 1d0 - cr%molborder
+       x0 = cr%x2c(x0)
+       x1 = cr%x2c(x1)
+       periodic = .false.
+    else
+       x0 = 0d0
+       x1 = 1d0
+       x0 = cr%x2c(x0)
+       x1 = cr%x2c(x1)
+       periodic = .true.
+    end if
     xinc = 0.1d0
     oname = fileroot
     rhocut = 0.2d0
@@ -361,6 +369,8 @@ contains
     write(uout,'("  Cube end (crystal coord.): ",3(A,X))') (string(x1x(j),'f',decimal=6),j=1,3)
     write(uout,'("  Cube nodes in each direction: ",3(A,X))') (string(nstep(j)),j=1,3)
     write(uout,'("  Cube steps in each direction: ",3(A,X))') (string(xinc(j),'f',decimal=6),j=1,3)
+    write(uout,'("  Cube side lengths in each direction (",A,"): ",3(A,X))') &
+       iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit,'f',decimal=4),j=1,3)
     write(uout,*)
     
     ! allocate logical units and open files
