@@ -255,4 +255,16 @@ errors.
 From the WIEN2k density, calculate the Laplacian and then find its
 critical points.
 
+* nciplot_molecule
+** Density source: Gaussian wfx.
+** System: phenol dimer (gas-phase)
+** Description
+
+Running an NCI plot calculation in a molecule.
+
+** phenol_phenol.cri
+
+Run an nciplot calculatin in phenol dimer, using a small molecular
+cell.
+
 

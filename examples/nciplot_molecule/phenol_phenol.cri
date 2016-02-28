@@ -1,0 +1,13 @@
+# Load the structure and wavefunction for the phenol dimer
+molecule ../data/phenol_phenol.wfx 
+load ../data/phenol_phenol.wfx
+
+# Define the molecular cell as the smallest parallelepiped that
+# encompasses the whole molecule. By default, NCIplot uses the
+# molecular cell as the plot region in molecular systems.
+molcell 0
+
+# Run the nciplot calculation with the default options
+nciplot
+endnciplot
+
