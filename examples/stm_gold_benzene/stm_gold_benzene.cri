@@ -1,0 +1,9 @@
+# Load the structure and the field from the cube containing the
+# density of states at the Fermi level calculated by Quantum ESPRESSO
+crystal ../data/aubenzene_ldos.cube
+load ../data/aubenzene_ldos.cube
+
+# Calculate the STM plot of the adsorbed molecule. The 0.224 
+# is the crystallographic coordinate along c for the top
+# of the gold surface.
+stm top 0.224 

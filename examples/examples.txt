@@ -267,4 +267,17 @@ Running an NCI plot calculation in a molecule.
 Run an nciplot calculatin in phenol dimer, using a small molecular
 cell.
 
+* stm_gold_benzene
+** Density source: Quantum ESPRESSO.
+** System: benzene adsorbed on a gold (111) surface.
+** Description
+
+Calculate and plot the STM image for benzene on gold (111).
+
+** stm_gold_benzene.cri
+
+Plot the STM image to a data file and write the gnuplot script. Run
+gnuplot on the gnu file to generate the image.
+
+
 
