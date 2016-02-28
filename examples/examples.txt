@@ -229,3 +229,30 @@ Plot the electrostatic potential of pyridine with its gradient paths
 Plot the gradient paths of the electrostatic potential (field lines)
 of pyridine in three dimensions. 
 
+* npf2_phosphazene
+** Density source: WIEN2k and Quantum ESPRESSO.
+** System: NPF2 phosphazene crystal.
+** Description
+
+Comparison of the densities obtained by WIEN2k (all-electron) and QE
+(pseudopotentials) for the NPF2 crystal at the same geometry.
+
+** npf2_cps.cri
+
+Find the critical points of the WIEN2k electron density. Then,
+calculate the value of the QE and WIEN2k densities at those points,
+and their difference. Reprsent the critical points and the chemical
+graph in three-dimensional plots.
+
+** npf2_contours.cri
+
+Write contour plots for the WIEN2k and QE densities and their
+Laplacians. The Laplacian of the QE density is affected by aliasing
+errors. 
+
+** npf2_lap.cri
+
+From the WIEN2k density, calculate the Laplacian and then find its
+critical points.
+
+

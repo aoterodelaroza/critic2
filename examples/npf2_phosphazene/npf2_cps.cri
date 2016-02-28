@@ -1,0 +1,28 @@
+# Load the crystal structure of the NPF2 phosphazene
+crystal ../data/npf2.struct
+
+# These two densities have been calculated at the same NPF2 geometry -
+# one with WIEN2k and the other with Quantum ESPRESSO.
+load ../data/npf2.clmsum ../data/npf2.struct id wien  
+load ../data/npf2_rho.cube id qe 
+
+# Define the WIEN2k and QE densities and their differences as 
+# properties to be calculated at the critical points.
+pointprop wien_rho "$wien" 
+pointprop qe_rho "$qe"
+pointprop diff "$qe-$wien"
+
+# Find all the critical points of the WIEN2k density (which is the
+# refernce field because it was loaded first). This will give the
+# value of all quantities defined by POINTPROP at the critical points.
+auto
+
+# Write an obj file with the critical points
+cpreport obj cell 
+
+# Write a representation of the chemical graph
+fluxprint
+ graph 3
+endfluxprint
+
+

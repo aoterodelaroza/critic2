@@ -1,0 +1,17 @@
+# Load the crystal structure of the NPF2 phosphazene
+crystal ../data/npf2.struct
+
+# Load the WIEN2k electron density and then calculate its Laplacian
+load ../data/npf2.clmsum ../data/npf2.struct id rho
+load as lap rho id lap
+
+# Set the Laplacian as reference
+reference lap
+
+# Find the critical points. Use the default seeding strategy
+auto
+
+# Represent the critical points of the Laplacian. The critical points
+# of the Laplacian are typically not found.
+cpreport obj
+

@@ -1,0 +1,25 @@
+# Load the crystal structure of the NPF2 phosphazene
+crystal ../data/npf2.struct
+
+# These two densities have been calculated at the same NPF2 geometry -
+# one with WIEN2k and the other with Quantum ESPRESSO.
+load ../data/npf2.clmsum ../data/npf2.struct id wien  
+load ../data/npf2_rho.cube id qe 
+
+# Load the corresponding Laplacians of those densities. The Laplacian
+# of a WIEN2k density is calculated analytically. The Laplacian of the
+# density on a grid is calculated by fast Fourier transform.
+load as lap wien id wienlap
+load as lap qe id qelap
+
+# Write a contour plot of the WIEN2k and QE densities. You can see the
+# missing core in the QE density.
+plane 0.5 0 0 0.5 1 0 0.5 0 1 101 101 f field wien contour log 41 file rho_wien
+plane 0.5 0 0 0.5 1 0 0.5 0 1 101 101 f field qe contour log 41 file rho_qe
+
+# Write a contour plot of the WIEN2k and QE Laplacian of the
+# density. The QE Laplacian is affected by severe aliasing problems.
+# A much denser grid would be needed for this kind of plot.
+plane 0.5 0 0 0.5 1 0 0.5 0 1 101 101 f field wienlap contour log 41 file lap_wien
+plane 0.5 0 0 0.5 1 0 0.5 0 1 101 101 f field qelap contour log 41 file lap_qe
+
