@@ -102,7 +102,7 @@ contains
     character(len=:), allocatable :: word, file
     integer :: i, j, k, n(3), nn, ntot
     integer :: lp, itype, p(3)
-    logical :: ok, nonnm, noatoms, pmask(nprops), dowcube
+    logical :: ok, nonnm, noatoms, atexist, pmask(nprops), dowcube
     real*8 :: ratom, dv(3), r, tp(2), ratom_def, padd
     integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
@@ -138,7 +138,6 @@ contains
        elseif (equal(word,"noatoms")) then
           noatoms = .true.
        elseif (equal(word,"ratom")) then
-          nonnm = .false.
           ok = eval_next(ratom_def,line,lp)
           if (.not.ok) &
              call ferror("intgrid_driver","wrong RATOM keyword",faterr,line)
@@ -158,10 +157,13 @@ contains
 
     ! distance for atom assignment
     if (noatoms) then
-       ratom = -1d0
+       atexist = .false.
+       ratom = ratom_def
     elseif (nonnm) then
+       atexist = .true.
        ratom = 1d40
     else
+       atexist = .true.
        ratom = ratom_def
     end if
 
@@ -175,19 +177,21 @@ contains
        write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
        write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(ratom,0d0),'e',decimal=4)
-       call bader_integrate(cr,f(refden),nattr,xgatt,idg)
+       call bader_integrate(cr,f(refden),atexist,ratom,nattr,xgatt,idg)
+       write (uout,'("+ Attractors in BADER: ",A)') string(nattr)
     elseif (itype == itype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
        write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(ratom,0d0),'e',decimal=4)
-       call yt_integrate(cr,f(refden),nattr,xgatt,idg,luw)
+       call yt_integrate(cr,f(refden),atexist,ratom,nattr,xgatt,idg,luw)
+       write (uout,'("+ Attractors in YT: ",A)') string(nattr)
     endif
-    write (uout,*)
 
     ! reorder the attractors
-    call int_reorder_gridout(cr,f(refden),nattr,xgatt,idg,ratom,luw,icp)
+    call int_reorder_gridout(cr,f(refden),nattr,xgatt,idg,atexist,ratom,luw,icp)
+    write (uout,'("+ Attractors after reordering: ",A)') string(nattr)
 
     ! set the properties mask
     pmask = .false.
@@ -229,6 +233,7 @@ contains
     allocate(w(n(1),n(2),n(3)))
     w = 0d0
     psum = 0d0
+    write (uout,'("+ Calculating properties"/)') 
     do i = 1, nattr
        if (itype == itype_yt) then
           call yt_weights(luw,i,w)
@@ -1584,7 +1589,7 @@ contains
   !> compatible with the crystal structure. Reorder them, including
   !> the weights of the YT. On output, give the identity 
   !> of the attractors (icp) in the complete CP list.
-  subroutine int_reorder_gridout(c,ff,nattr,xgatt,idg,ratom,luw,icp)
+  subroutine int_reorder_gridout(c,ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
     use autocp
     use fields
     use varbas
@@ -1598,6 +1603,7 @@ contains
     integer, intent(inout) :: nattr
     real*8, intent(inout), allocatable :: xgatt(:,:)
     integer, intent(inout), allocatable :: idg(:,:,:)
+    logical, intent(in) :: atexist
     real*8, intent(in) :: ratom
     integer, intent(inout) :: luw
     integer, intent(inout), allocatable :: icp(:)
@@ -1610,6 +1616,7 @@ contains
     real*8 :: dist
     integer, allocatable :: nlo(:), ibasin(:), ibasin2(:), iio(:), inear(:,:)
     real*8, allocatable :: fnear(:,:)
+    logical :: isassigned
 
     real*8, parameter :: distcp = 1d-2
 
@@ -1621,18 +1628,21 @@ contains
     assigned = 0
     nattr0 = nattr
     ! assign attractors to atoms
-    do i = 1, nattr0
-       nid = 0
-       call c%nearest_atom(xgatt(:,i),nid,dist,lvec)
-       if (dist < ratom) then
-          assigned(i) = nid
-       else
-          ! maybe the closest point is a known nnm
-          call nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
-          if (dist < ratom) &
+    if (atexist) then
+       do i = 1, nattr0
+          nid = 0
+          call c%nearest_atom(xgatt(:,i),nid,dist,lvec)
+          if (dist < ratom) then
              assigned(i) = nid
-       end if
-    end do
+          else
+             ! maybe the closest point is a known nnm
+             call nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
+             if (dist < ratom) then
+                assigned(i) = nid
+             end if
+          end if
+       end do
+    end if
     ! create the new known attractors in the correct order
     nattr = 0
     do i = 1, ncpcel

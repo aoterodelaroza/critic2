@@ -202,8 +202,8 @@ contains
 
     ! integrate with yt
     write (*,*) "Doing YT on field 2"
-    call yt_integrate(cr,f(2),nbasin,xcoord,idg,luw)
-    call int_reorder_gridout(cr,f(2),nbasin,xcoord,idg,2d0,luw,icp)
+    call yt_integrate(cr,f(2),.true.,2d0,nbasin,xcoord,idg,luw)
+    call int_reorder_gridout(cr,f(2),nbasin,xcoord,idg,.true.,2d0,luw,icp)
     ! call bader_integrate(cr,f(2),nbasin,xcoord,idg)
 
     ! defining the weight fields

@@ -47,7 +47,7 @@ module bader
   integer, allocatable :: known(:,:,:) !< Is the point known?
   integer, allocatable :: path(:,:) !< A path through the grid
   integer :: pnum !< number of points in the path
-  integer :: bnum !< number of bader maxima
+  integer :: nbasin !< number of bader maxima
   real*8, dimension(-1:1,-1:1,-1:1) :: lat_dist !< distance between neighbor grid points
   real*8, dimension(-1:1,-1:1,-1:1) :: lat_i_dist !< inverse of that
   real*8 :: lat2car(3,3) !< from integer to cartesian
@@ -57,25 +57,40 @@ module bader
 contains
 
   !> Do a grid integration using the BADER method. cr is the crystal
-  !> and f is the field. Return the number of basins (bnum0), their
+  !> and f is the field. Return the number of basins (nbasin0), their
   !> coordinates (crystallographic corods, volpos_lat). volnum0 gives
-  !> the id of the basin (from 1 to bnum0) on the lattice.  
-  subroutine bader_integrate(c,f,bnum0,volpos_lat,volnum0)
+  !> the id of the basin (from 1 to nbasin0) on the lattice.  
+  subroutine bader_integrate(c,f,atexist,ratom,nbasin0,xcoord,volnum0)
     use global
     use struct_basic
     use tools_math
     use types
+    use param
 
     type(crystal), intent(in) :: c
     type(field), intent(in) :: f
-    integer, intent(out) :: bnum0
-    real*8, allocatable, intent(inout) :: volpos_lat(:,:)
+    logical, intent(in) :: atexist
+    real*8, intent(in) :: ratom
+    integer, intent(out) :: nbasin0
+    real*8, allocatable, intent(inout) :: xcoord(:,:)
     integer, allocatable, intent(inout) :: volnum0(:,:,:)
 
     integer :: i, j, k, l, path_volnum, p(3)
     integer :: ptemp(3), ref_itrs, irefine_edge, nid, lvec(3)
     real*8 :: dlat(3), dcar(3), dist, dv(3)
-    integer :: bat(c%ncel), nnnm
+    integer :: bat(c%ncel)
+    logical :: isassigned
+
+    ! Pre-allocate atoms as maxima
+    allocate(xcoord(3,c%ncel))
+    xcoord = 0d0
+    nbasin = 0
+    if (atexist) then
+       nbasin = c%ncel
+       do i = 1, c%ncel
+          xcoord(:,i) = c%atcel(i)%x
+       end do
+    end if
 
     ! initialize
     bat = 0
@@ -103,11 +118,9 @@ contains
        end do
     end do
 
-    allocate(volnum(n(1),n(2),n(3)),volpos_lat(3,10),known(n(1),n(2),n(3)),path(3,10))
+    allocate(volnum(n(1),n(2),n(3)),known(n(1),n(2),n(3)),path(3,10))
     volnum = 0
     known = 0
-    bnum = 0
-    nnnm = 0
 
     do i = 1, n(1)
        do j = 1, n(2)
@@ -120,13 +133,35 @@ contains
                 ! maximum
                 if (path_volnum == 0) then
                    dv = real(p-1,8) / n
-                   nid = 0
-                   call c%nearest_atom(dv,nid,dist,lvec)
-                   bnum = bnum + 1
-                   nnnm = nnnm + 1
-                   if (bnum > size(volpos_lat,2)) call realloc(volpos_lat,3,2*bnum)
-                   path_volnum = bnum
-                   volpos_lat(:,bnum) = real(p-1,8)
+
+                   ! check if it is an atom (use ratom)
+                   isassigned = .false.
+                   if (atexist) then
+                      nid = 0
+                      call c%nearest_atom(dv,nid,dist,lvec)
+                      if (dist < ratom) then
+                         path_volnum = nid
+                         isassigned = .true.
+                      end if
+                   end if
+                   ! check if it is a known nnm
+                   if (.not.isassigned .and. ratom > vsmall) then
+                      do l = 1, nbasin
+                         dist = c%eql_distance(dv,xcoord(:,k))
+                         if (dist < ratom) then
+                            path_volnum = k
+                            isassigned = .true.
+                            exit
+                         end if
+                      end do
+                   end if
+                   ! well, it must be a new attractor then
+                   if (.not.isassigned) then
+                      nbasin = nbasin + 1
+                      if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
+                      path_volnum = nbasin
+                      xcoord(:,nbasin) = dv
+                   end if
                 end if
 
                 ! assign all points along the trajectory
@@ -156,12 +191,9 @@ contains
 
     ! wrap up
     deallocate(known,path)
-    call realloc(volpos_lat,3,bnum)
-    do i = 1, bnum
-       volpos_lat(:,i) = volpos_lat(:,i) / n
-    end do
+    call realloc(xcoord,3,nbasin)
     call move_alloc(volnum,volnum0)
-    bnum0 = bnum
+    nbasin0 = nbasin
 
   end subroutine bader_integrate
 
@@ -185,7 +217,7 @@ contains
              do n3 = 1, n(3)
                 p = (/n1,n2,n3/)
                 ! change for calculating the vacuum volume
-                if (volnum(n1,n2,n3) == bnum + 1) cycle
+                if (volnum(n1,n2,n3) == nbasin + 1) cycle
                 if (is_vol_edge(p) .and. (.not.is_max(f,p))) then
                    num_edge = num_edge + 1
                    volnum(p(1),p(2),p(3)) = -volnum(p(1),p(2),p(3))
@@ -202,7 +234,7 @@ contains
              do n3 = 1, n(3)
                 p = (/n1,n2,n3/)
                 ! change for calculating the vacuum volume
-                if (volnum(n1,n2,n3) == bnum+1) cycle
+                if (volnum(n1,n2,n3) == nbasin+1) cycle
                 
                 if(volnum(n1,n2,n3) < 0 .and. known(n1,n2,n3) /=-1) then
                    do d1 = -1,1
@@ -211,7 +243,7 @@ contains
                             pt = p + (/d1,d2,d3/)
                             call pbc(pt)
                             ! change for calculating the vacuum volume
-                            if (volnum(pt(1),pt(2),pt(3)) == bnum+1) cycle
+                            if (volnum(pt(1),pt(2),pt(3)) == nbasin+1) cycle
                             if(.not.is_max(f,pt)) then 
                                if(volnum(pt(1),pt(2),pt(3)) > 0) then
                                   volnum(pt(1),pt(2),pt(3)) = -volnum(pt(1),pt(2),pt(3))
@@ -267,7 +299,7 @@ contains
              if (bvolnum < 0) then
                 call max_neargrid(f,p)
                 path_volnum = volnum(p(1),p(2),p(3))
-                if (path_volnum < 0 .or. path_volnum > bnum) then
+                if (path_volnum < 0 .or. path_volnum > nbasin) then
                    call ferror('refine_edge','should be no new maxima in edge refinement',2)
                 end if
                 volnum(n1,n2,n3) = path_volnum

@@ -4839,14 +4839,15 @@ The located maxima are identified by default with the closest
 nucleus. If non-nuclear maxima are expected, use the NNM keyword to
 assign only maxima that are only within 1 bohr of the closest atom.
 This distance can be changed using the RATOM keyword (ratom.r in bohr
-(crystals) or angstrom (molecules)). The NOATOMS option is appropriate
-for scalar fields where the maxima are not expected to be at the
-atomic positions (or at least not all of them). If NOATOMS is used,
-all the maxima found are given as NNM. This is useful for fields such
-as the ELF, the Laplacian, etc. The WCUBE option makes critic2 write
-cube files for the integration weights of each attractor. In YT, these
-weights are values zero (outisde the basin), one (inside the basin),
-or some intermediate value near the atomic basin boundary. The
+(crystals) or angstrom (molecules)), which also controls the distance
+between two maxima to be considered equal. The NOATOMS option is
+appropriate for scalar fields where the maxima are not expected to be
+at the atomic positions (or at least not all of them). If NOATOMS is
+used, all the maxima found are given as NNM. This is useful for fields
+such as the ELF, the Laplacian, etc. The WCUBE option makes critic2
+write cube files for the integration weights of each attractor. In YT,
+these weights are values zero (outisde the basin), one (inside the
+basin), or some intermediate value near the atomic basin boundary. The
 generated cube files have names <root>_wcube_xx.cube, where xx is the
 attractor number.
 
