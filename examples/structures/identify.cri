@@ -1,0 +1,17 @@
+# CdS in the wurtzite phase. The information comes from Wyckoff
+# through the crystallography open database.
+crystal
+ cell 4.1348 4.1348 6.7490 90 90 120 ang
+ spg P 63 m c
+ Cd 1/3 2/3 0
+ S 1/3 2/3 0.385
+endcrystal
+
+# Write a spehrical particle with radius 20 angstrom
+write cds_np_20.xyz sphere 20/0.529
+
+# Identify all the atoms in the newly created particle. This command
+# find the crystallographic coordinates and the identity of all the 
+# atoms in the xyz, and the fractional coordinates of the encompassing
+# cube.
+identify cds_np_20.xyz

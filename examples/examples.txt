@@ -373,7 +373,7 @@ Reproduce the results in Table 3. Calculate the critical points of the
 reconstructed all-electron density and write them to a graphics file
 for visualization. 
 
-* library
+* structures
 ** Density source: n/a.
 ** System: zincblende, fluorite, MgO.
 ** Description
@@ -390,5 +390,14 @@ write cubic particles with sides 20, 30, and 40 angstrom. Read the MgO
 structure from the library and write QE template inputs with different
 unit cells. Use NEWCELL to transform the conventional to the primitive
 cell, then back to the conventional, then a 2x2x2 cubic supercell.
+
+** identify.cri
+
+Build the crystal structure of CdS (wurtzite phase) from scratch using
+critic2's symmetry module and the non-equivalent crystallographic
+coordinates for the two atoms. Then, extract a 20-angstrom-radius
+spherical particle at the crystal geometry. All atoms in the generated
+xyz are identified within the crystal (associated atoms and
+crystallographic coordinates are found) using the IDENTIFY keyword.
 
 
