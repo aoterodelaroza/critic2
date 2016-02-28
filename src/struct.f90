@@ -677,7 +677,7 @@ contains
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end = 90d0
+    real*8, parameter :: th2end = 35d0
 
     ! initialized
     doguess0 = doguess
@@ -724,10 +724,10 @@ contains
        call c(i)%powder(th2ini,th2end,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
 
        ! normalize the integral of abs(ih)
-       tini = abs(ih(1))
-       tend = abs(ih(npts))
-       nor = (2d0 * sum(abs(ih(2:npts-1))) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
-       iha(:,i) = ih / nor
+       tini = ih(1)**2
+       tend = ih(npts)**2
+       nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+       iha(:,i) = ih / sqrt(nor)
     end do
     if (allocated(t)) deallocate(t)
     if (allocated(ih)) deallocate(ih)
@@ -740,9 +740,9 @@ contains
     powdiff = 0d0
     do i = 1, ns
        do j = i, ns
-          tini = abs(iha(1,i)-iha(1,j))
-          tend = abs(iha(npts,i)-iha(npts,j))
-          powdiff(i,j) = (2d0 * sum(abs(iha(2:npts-1,i) - iha(2:npts-1,j))) + tini + tend) &
+          tini = (iha(1,i)-iha(1,j))**2
+          tend = (iha(npts,i)-iha(npts,j))**2
+          powdiff(i,j) = (2d0 * sum((iha(2:npts-1,i) - iha(2:npts-1,j))**2) + tini + tend) &
              * (th2end - th2ini) / 2d0 / real(npts-1,8)
           powdiff(j,i) = powdiff(i,j)
        end do
