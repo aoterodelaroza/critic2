@@ -372,3 +372,23 @@ charges at the equilibrium structure using the Yu-Trinkle algorithm.
 Reproduce the results in Table 3. Calculate the critical points of the
 reconstructed all-electron density and write them to a graphics file
 for visualization. 
+
+* library
+** Density source: n/a.
+** System: zincblende, fluorite, MgO.
+** Description
+
+Use the crystallography tools in critic2 to build molecular and
+crystal structures.
+
+** library.cri
+
+Load the zincblende (ZnS) structure from the library, then write
+spherical particles at the crystal geometry with radii 20, 30, and 40
+angstrom. Read the fluorite (CaF2) structure from the library and
+write cubic particles with sides 20, 30, and 40 angstrom. Read the MgO
+structure from the library and write QE template inputs with different
+unit cells. Use NEWCELL to transform the conventional to the primitive
+cell, then back to the conventional, then a 2x2x2 cubic supercell.
+
+

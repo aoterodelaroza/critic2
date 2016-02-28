@@ -1,0 +1,39 @@
+# Load the zincblende (ZnS) structure from the library.
+crystal library zincblende
+
+# Write spherical nanoparticles at the crystal geometry with radii
+# 20, 30, and 40 angstrom.
+write zns_np_20.xyz sphere 20/0.529
+write zns_np_30.xyz sphere 30/0.529
+write zns_np_40.xyz sphere 40/0.529
+
+# Load the fluorite (CaF2) structure from the library.
+crystal library fluorite
+
+# Write cubic nanoparticles at the crystal geometry with side
+# 20, 30, and 40 angstrom.
+write caf2_np_20.xyz cube 20/0.529
+write caf2_np_30.xyz cube 30/0.529
+write caf2_np_40.xyz cube 40/0.529
+
+# Load the MgO structure from the library
+crystal library mgo
+
+# Write the cubic cell to a QE template input
+write mgo_cubic1.scf.in
+
+# Build the primitive cell from the cubic cell
+newcell 1/2 1/2 0 1/2 0 1/2 0 1/2 1/2
+
+# Write the primitive cell to a QE input
+write mgo_prim.scf.in
+
+# Go back to the cubic cell
+newcell 1/2 1/2 0 1/2 0 1/2 0 1/2 1/2 inverse
+
+# And build a 2x2x2 cubic supercell
+newcell 2 0 0 0 2 0 0 0 2
+
+# Write the supercell to a QE input
+write mgo_cubic2.scf.in
+
