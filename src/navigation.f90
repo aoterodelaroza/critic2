@@ -336,6 +336,7 @@ contains
     end if
 
     grdt = res%gf / (res%gfmod + SMALL)
+    ogrdt = grdt
 
     first = .true.
     do while (ier /= 0)
@@ -358,8 +359,7 @@ contains
        ! poor man's adaptive step size in Euler
        if (NAV_stepper == NAV_stepper_euler) then
           ! angle with next step
-          ogrdtemp = res%gf / (res%gfmod+SMALL)
-          escalar = dot_product(ogrdt,ogrdtemp)
+          escalar = dot_product(ogrdt,res%gf / (res%gfmod+SMALL))
 
           ! gradient eps in cartesian
           ok = (res%gfmod < 0.99d0*eps)
@@ -428,7 +428,6 @@ contains
     real*8, parameter :: SMALL = 1d-40
 
     real*8, dimension(3) :: ak1, ak2, ak3, ak4
-
 
     ak1 = grdt
 
