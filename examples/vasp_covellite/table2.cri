@@ -1,0 +1,26 @@
+# Read the crystal structure from the CHGCAR
+crystal ../data/covellite.CHGCAR
+
+# In a PAW calculation with LCHARG=T in the INCAR, VASP generates two
+# additional files - the AECCAR0 (core density) and the AECCAR2
+# (reconstructed valence density), in addition to the CHGCAR
+# pseudo-density. The AECCAR0 and AECCAR2 do not integrate to the
+# correct number of electrons, because the atomic density peaks can
+# not be represented by a grid. On the other hand, the CHGCAR does
+# integrate to the correct number of electrons, but the nuclear
+# maxima may be missing. Hence, the recommended procedure for
+# integrating atomic charges in VASP is to use the sum of AECCAR0 and
+# AECCAR2 as the reference and integrate the CHGCAR in its basins.
+load ../data/covellite.AECCAR0
+load ../data/covellite.AECCAR2
+load as "$1+$2" id aerho
+load ../data/covellite.CHGCAR id rho
+
+# Set the sum of AECCAR0 and AECCAR2 as reference ("aerho") and the
+# CHGCAR ("rho") as an integrable property
+reference aerho
+integrable rho
+
+# Calculate the atomic charges and volumes. The $rho column contains
+# the integrated number of electrons in the atomic basins.
+yt

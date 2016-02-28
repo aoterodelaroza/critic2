@@ -346,3 +346,29 @@ Plot the powder diffraction patterns for the experimental structure
 and the three closest matches (kendrick-*.cif). Only kendrick-1.cif
 actually matches the experiment, including reflection labels.
 
+* vasp_covellite
+** Density source: VASP.
+** System: the covellite mineral (CuS).
+** Reference: Morales-García et al., J. Phys Chem. A. (2014) 118, 5823.
+** Description
+
+The data in Tables 2 and 3 of the cited reference is reproduced. The
+VASP densities have been kindly provded by Ángel Morales-García. This
+example shows how to calculate atomic charges and volumes and locate
+critical points using VASP densities. Generating the AECCAR0 (core
+density) and AECCAR2 (reconstructed valence density) requires using
+the LCHARG=T flag in the INCAR file. These grids do not integrate to
+the correct number of electrons, but they provide the correct basin
+shapes, which is not always the case with the pseudo-density
+(CHGCAR). 
+
+** table2.cri
+
+Reproduce some of the results in Table 2. Integrate the volumes and
+charges at the equilibrium structure using the Yu-Trinkle algorithm.
+
+** table3.cri
+
+Reproduce the results in Table 3. Calculate the critical points of the
+reconstructed all-electron density and write them to a graphics file
+for visualization. 

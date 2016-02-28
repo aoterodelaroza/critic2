@@ -1,0 +1,13 @@
+# Read the crystal structure from the CHGCAR
+crystal ../data/covellite.CHGCAR
+
+# Calculate the reconstructed all-electron density as the sum of core
+# and valence densities
+load ../data/covellite.AECCAR0
+load ../data/covellite.AECCAR2
+load as "$1+$2" id rhoae
+reference rhoae
+
+# Find the critical points and write them to an obj file
+auto
+cpreport obj cell border 
