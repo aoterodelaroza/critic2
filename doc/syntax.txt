@@ -27,10 +27,7 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.cif [datablock.s]
   CRYSTAL file.cube
   CRYSTAL file.struct
-  CRYSTAL [file.]POSCAR [at1.s at2.s ...|POTCAR]
-  CRYSTAL [file.]CONTCAR [at1.s at2.s ...|POTCAR]
-  CRYSTAL [file.]CHGCAR [at1.s at2.s ...|POTCAR]
-  CRYSTAL {[file.]CHG|[file.]ELFCAR} [at1.s at2.s ...|POTCAR]
+  CRYSTAL [file.]{POSCAR,CONTCAR,CHGCAR,CHG,ELFCAR,AECCAR0,AECCAR2} [at1.s at2.s ...|POTCAR]
   CRYSTAL file_{DEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
   CRYSTAL file.OUT # (GEOMETRY.OUT, elk)
   CRYSTAL file.out # (file.scf.out, quantum espresso output)

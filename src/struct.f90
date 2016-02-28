@@ -116,9 +116,9 @@ contains
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
-    else if (equal(wext1,'POSCAR') .or. equal(wext1,'CONTCAR') .or.&
-       & equal(wext1,'CHGCAR') .or. equal(wext1,'CHG') .or.&
-       & equal(wext1,'ELFCAR')) then
+    else if (equal(wext1,'POSCAR').or.equal(wext1,'CONTCAR').or.equal(wext1,'CHGCAR').or.&
+             equal(wext1,'CHG').or.equal(wext1,'ELFCAR').or.equal(wext1,'AECCAR0').or.&
+             equal(wext1,'AECCAR2')) then
        wext1 = getword(line,lp)
        wext2 = wext1(index(wext1,dirsep,.true.)+1:)
        wext2 = wext2(index(wext2,'.',.true.)+1:)
