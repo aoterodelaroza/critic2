@@ -2938,6 +2938,8 @@ C
          include   'ciftbx.sys'
 C
          integer i
+c     this allows opening an arbitrary number of cif files in sequence - aor
+         ndict = 0
          if(nrecd.ne.0) close(dirdev)
          do i = 1,NUMPAGE
            mppoint(i)=0
