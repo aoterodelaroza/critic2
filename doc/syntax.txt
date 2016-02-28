@@ -97,7 +97,7 @@ expression.r # prints the value of the expression to the output.
   WRITE file.STRUCT_IN
 * LOAD file.cube
   LOAD file_{DEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
-  LOAD [file.]CHGCAR
+  LOAD [file.]{CHGCAR|AECCAR0|AECCAR2}
   LOAD {[file.]CHG|[file.]ELFCAR}
   LOAD file.qub
   LOAD file.xsf

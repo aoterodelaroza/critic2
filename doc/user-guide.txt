@@ -1978,7 +1978,7 @@ field formats are supported:
 
   LOAD file.cube
   LOAD file_{DEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
-  LOAD [file.]CHGCAR
+  LOAD [file.]{CHGCAR|AECCAR0|AECCAR2}
   LOAD {[file.]CHG|[file.]ELFCAR}
   LOAD file.qub
   LOAD file.xsf
@@ -2028,7 +2028,7 @@ extension to decide which format should be used for the reading:
 
 * _DEN, _ELF,... for abinit grids.
 
-* CHGCAR, CHG, or ELFCAR for VASP grids.
+* CHGCAR, AECCAR0, AECCAR2, CHG, or ELFCAR for VASP grids.
 
 * qub for aimpac grids.
 
@@ -2079,8 +2079,8 @@ the kinetic energy density (usekden, prtkden, _KDEN), the Hartree
 potential (prtvha, _VHA), the Hartree plus xc potential (prtvhxc,
 _VHXC), and the total potential (prtpot, _POT).
 
-VASP files (CHGCAR, CHG, ELFCAR)
-++++++++++++++++++++++++++++++++
+VASP files (CHGCAR, AECCAR0, AECCAR2, CHG, ELFCAR)
+++++++++++++++++++++++++++++++++++++++++++++++++++
 
 VASP fields can come in two varieties. The CHGCAR and AECCAR* files
 give the grid values in a higher precision and multiplied by the cell

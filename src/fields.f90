@@ -322,7 +322,7 @@ contains
        call grid_read_siesta(file,ff,verbose)
        ff%type = type_grid
        ff%file = file
-    else if (equal(wext1,'CHGCAR')) then
+    else if (equal(wext1,'CHGCAR').or.equal(wext1,'AECCAR0').or.equal(wext1,'AECCAR2')) then
        call grid_read_vasp(file,ff,cr%omega,verbose)
        ff%type = type_grid
        ff%file = file
