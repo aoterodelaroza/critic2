@@ -279,5 +279,35 @@ Calculate and plot the STM image for benzene on gold (111).
 Plot the STM image to a data file and write the gnuplot script. Run
 gnuplot on the gnu file to generate the image.
 
+* 
+** Density source: aiPI version 7.
+** System: CaTiO3 ideal perovskite.
+** Description
+
+Several tasks related to the analysis of an electron density for the
+CaTiO3 perovskite crystal coming from a aiPI calculation.
+
+** catio3_basins.cri
+
+Plot the atomic basins with the Laplacian of the electron density
+mapped on the basin surfaces.
+
+** catio3_cps.cri
+
+Find all the critical points and write them to an obj file.
+
+** catio3_integrals.cri
+
+Integrate the charge and the volume in the atomic densities using a
+bisection algorithm.
+
+** catio3_line.cri
+
+Calculate the logarithm of the electron density along interatomic
+lines. 
+
+** catio3_qtree.cri
+
+Calculate the atomic charges and volumes using the qtree algorithm.
 
 

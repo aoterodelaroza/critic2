@@ -1,0 +1,17 @@
+# In pi inputs, the structure has to be given by hand. In this case,
+# the crystal is an ideal perovskite, with space group Pm-3m, and 
+# the indicated lattice parameters. The atoms are Ca at (1/2,1/2,1/2), 
+# Ti at (0,0,0), and O at (1/2,0,0). The rest of the atoms in the 
+# cubic cell are generated with the symmetry operations
+crystal
+ cell 7.25655 7.25655 7.25655 90 90 90
+ spg P m -3 m
+ neq 1/2 1/2 1/2 Ca
+ neq 0 0 0 Ti
+ neq 1/2 0 0 O
+endcrystal
+load ../data/catio3_ca_1.ion Ca ../data/catio3_ti_2.ion Ti ../data/catio3_o_3.ion O
+
+# Calculate the atomic integrals by bisection
+qtree 5
+
