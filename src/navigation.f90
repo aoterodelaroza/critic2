@@ -343,6 +343,8 @@ contains
        ! new point
        if (NAV_stepper == NAV_stepper_euler) then
           call stepper_euler1(xpoint,grdt,h0,xtemp)
+       else if (NAV_stepper == NAV_stepper_heun) then
+          call stepper_heun(fid,xpoint,grdt,h0,xtemp,xerrv,res)
        else if (NAV_stepper == NAV_stepper_rkck) then
           call stepper_rkck(fid,xpoint,grdt,h0,xtemp,xerrv,res)
        else if (NAV_stepper == NAV_stepper_dp) then
@@ -357,7 +359,7 @@ contains
        end if
 
        ! poor man's adaptive step size in Euler
-       if (NAV_stepper == NAV_stepper_euler) then
+       if (NAV_stepper == NAV_stepper_euler .or. NAV_stepper_heun) then
           ! angle with next step
           escalar = dot_product(ogrdt,res%gf / (res%gfmod+SMALL))
 
@@ -413,6 +415,29 @@ contains
     xout = xpoint + h0 * grdt
   
   end subroutine stepper_euler1
+
+  !> Heun stepper.
+  subroutine stepper_heun(fid,xpoint,grdt,h0,xout,xerr,res)
+    use types
+    use fields
+    use global
+    
+    type(field), intent(inout) :: fid
+    real*8, intent(in) :: xpoint(3), h0, grdt(3)
+    real*8, intent(out) :: xout(3), xerr(3)
+    type(scalar_value), intent(inout) :: res
+    
+    real*8, parameter :: SMALL = 1d-40
+
+    real*8 :: ak2(3)
+
+    xerr = xpoint + h0 * grdt
+    call grd(fid,xerr,2,res)
+    ak2 = res%gf / (res%gfmod+SMALL)
+    xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
+    xerr = xout - xerr
+  
+  end subroutine stepper_heun
 
   !> Bogacki-Shampine embedded 2(3) method, fsal
   subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)

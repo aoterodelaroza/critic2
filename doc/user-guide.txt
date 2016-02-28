@@ -5509,12 +5509,13 @@ Control commands and options
 
 ::
 
-  ODE_MODE [METHOD {EULER|BS|RKCK|DP}] [MAXSTEP maxstep.r] 
+  ODE_MODE [METHOD {EULER|HEUN|BS|RKCK|DP}] [MAXSTEP maxstep.r] 
            [MAXERR maxerr.r] [GRADEPS gradeps.r]
 
 Select the gradient path integration algorithm and its
 parameters. EULER selects plain explicit Euler (1 evaulation per step)
-with a poor man's technique for the step size adaptation. BS,
+with a poor man's technique for the step size adaptation. HEUN, Heun's
+method (2 evaluations), with the same size adaptation as Euler's. BS,
 Bogacki-Shampine's embedded 2(3)th-order method with error estimation
 and first step as last. RKCK, Runge-Kutta-Cash-Karp embedded 4-5th
 order method with local extrapolation and error estimate. DP,

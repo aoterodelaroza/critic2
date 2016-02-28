@@ -118,6 +118,7 @@ module global
   integer, parameter :: NAV_stepper_rkck  = 2 !< Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation (6 eval), with error estimate
   integer, parameter :: NAV_stepper_dp    = 3 !< Dormand-prince embedded 4(5)-order, local extrapolation (7 eval), with error estimate
   integer, parameter :: NAV_stepper_bs    = 4 !< Bogacki-Shampine embedded 2(3)-order method, (5-1=4 eval, fsal), with error estimate
+  integer, parameter :: NAV_stepper_heun  = 5 !< Heun stepper (2 eval), poor-man's adaptive step
 
   ! radial integration
   integer :: INT_radquad_type !< type of radial integration
@@ -374,6 +375,8 @@ contains
              word = lgetword(line,lp)
              if (equal(word,'euler')) then
                 NAV_stepper = NAV_stepper_euler
+             elseif (equal(word,'heun')) then
+                NAV_stepper = NAV_stepper_heun
              else if (equal(word,'bs')) then
                 NAV_stepper = NAV_stepper_bs
              else if (equal(word,'rkck')) then
