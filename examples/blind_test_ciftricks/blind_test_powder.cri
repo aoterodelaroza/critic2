@@ -1,0 +1,8 @@
+crystal all.cif expt
+powder root expt sigma 0.2 th2end 45
+crystal all.cif kendrick-1
+powder root kendrick-1 sigma 0.2 th2end 45
+crystal all.cif kendrick-2
+powder root kendrick-2 sigma 0.2 th2end 45
+crystal all.cif kendrick-3
+powder root kendrick-3 sigma 0.2 th2end 45

@@ -279,7 +279,7 @@ Calculate and plot the STM image for benzene on gold (111).
 Plot the STM image to a data file and write the gnuplot script. Run
 gnuplot on the gnu file to generate the image.
 
-* 
+* pi_catio3_example
 ** Density source: aiPI version 7.
 ** System: CaTiO3 ideal perovskite.
 ** Description
@@ -310,4 +310,39 @@ lines.
 
 Calculate the atomic charges and volumes using the qtree algorithm.
 
+* blind_test_ciftricks
+** Density source: n/a
+** System: structures in the fifth blind test.
+** Reference: Bardwell et al., Acta Cryst. (2011). B67, 535. (open access)
+** Description
+
+A compilation of the experimental structure and a subset of the
+submitted structures for molecule XVI in the fifth blind test is
+provided with this example. The input blind_test_writeall.cri reads
+this compiled cif file, extracts all the structures, and writes them
+to separate cif files. This input should be run before any of the
+others. This example also shows the use of powdiff to compare crystal
+structures, and how to calculate powder diffraction patterns with
+critic2. 
+
+** blind_test_writeall.cri
+
+Read all the blocks in the provided cif file (all.cif) and separate
+the structures into unique cif files. You should run this input before
+the other two.
+
+** blind_test_compare.cri
+
+Compare all proposed crystal structures. To restrict to the comparison
+with experiment, grep 'expt.cif' in the critic2 output. The powdiff
+value for kendrick-1 compared to the experimental structure is
+significantly smaller than any of the others. The match can be
+confirmed by inspecting the powder diffraction patterns using the next
+input. 
+
+** blind_test_powder.cri
+
+Plot the powder diffraction patterns for the experimental structure
+and the three closest matches (kendrick-*.cif). Only kendrick-1.cif
+actually matches the experiment, including reflection labels.
 

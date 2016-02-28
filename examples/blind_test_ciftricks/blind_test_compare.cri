@@ -1,0 +1,13 @@
+crystal expt.cif
+compare . ammon-1.cif ammon-2.cif ammon-3.cif \
+          boerrigter-1.cif boerritger-2.cif boerritger-3.cif \
+          day-1.cif day-2.cif day-3.cif \
+          desiraju-1.cif desiraju-2.cif desiraju-3.cif \
+          hofmann-1.cif hofmann-2.cif hofmann-3.cif \
+          kendrick-1.cif kendrick-2.cif kendrick-3.cif \
+          maleev-1.cif maleev-2.cif maleev-3.cif \
+          misquitta-1.cif misquitta-2.cif misquitta-3.cif \
+          orendt-1.cif orendt-2.cif orendt-3.cif \
+          price-1.cif price-2.cif price-3.cif \
+          scheraga-1.cif scheraga-2.cif scheraga-3.cif \
+          vaneijck-1.cif vaneijck-2.cif vaneijck-3.cif

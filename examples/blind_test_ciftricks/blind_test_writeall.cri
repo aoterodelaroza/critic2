@@ -1,0 +1,74 @@
+crystal all.cif ammon-1
+write ammon-1.cif
+crystal all.cif ammon-2
+write ammon-2.cif
+crystal all.cif ammon-3
+write ammon-3.cif
+crystal all.cif boerrigter-1
+write boerrigter-1.cif
+crystal all.cif boerritger-2
+write boerritger-2.cif
+crystal all.cif boerritger-3
+write boerritger-3.cif
+crystal all.cif day-1
+write day-1.cif
+crystal all.cif day-2
+write day-2.cif
+crystal all.cif day-3
+write day-3.cif
+crystal all.cif desiraju-1
+write desiraju-1.cif
+crystal all.cif desiraju-2
+write desiraju-2.cif
+crystal all.cif desiraju-3
+write desiraju-3.cif
+crystal all.cif expt
+write expt.cif
+crystal all.cif hofmann-1
+write hofmann-1.cif
+crystal all.cif hofmann-2
+write hofmann-2.cif
+crystal all.cif hofmann-3
+write hofmann-3.cif
+crystal all.cif kendrick-1
+write kendrick-1.cif
+crystal all.cif kendrick-2
+write kendrick-2.cif
+crystal all.cif kendrick-3
+write kendrick-3.cif
+crystal all.cif maleev-1
+write maleev-1.cif
+crystal all.cif maleev-2
+write maleev-2.cif
+crystal all.cif maleev-3
+write maleev-3.cif
+crystal all.cif misquitta-1
+write misquitta-1.cif
+crystal all.cif misquitta-2
+write misquitta-2.cif
+crystal all.cif misquitta-3
+write misquitta-3.cif
+crystal all.cif orendt-1
+write orendt-1.cif
+crystal all.cif orendt-2
+write orendt-2.cif
+crystal all.cif orendt-3
+write orendt-3.cif
+crystal all.cif price-1
+write price-1.cif
+crystal all.cif price-2
+write price-2.cif
+crystal all.cif price-3
+write price-3.cif
+crystal all.cif scheraga-1
+write scheraga-1.cif
+crystal all.cif scheraga-2
+write scheraga-2.cif
+crystal all.cif scheraga-3
+write scheraga-3.cif
+crystal all.cif vaneijck-1
+write vaneijck-1.cif
+crystal all.cif vaneijck-2
+write vaneijck-2.cif
+crystal all.cif vaneijck-3
+write vaneijck-3.cif
