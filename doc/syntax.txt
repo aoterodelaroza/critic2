@@ -64,7 +64,7 @@ expression.r # prints the value of the expression to the output.
    atnumber.i x.r y.r z.r [ZPSP bleh.i] [Q bleh.i] [ANG/ANGSTROM] [BOHR/AU]
    CUBIC|CUBE
    BORDER border.r
-  ENDMOLECULE   
+  ENDMOLECULE/END
   MOLECULE LIBRARY label.s
 * LIBRARY {CRYSTAL|MOLECULE} path.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
@@ -174,9 +174,9 @@ expression.r # prints the value of the expression to the output.
    CHECK
         x.r y.r z.r
         ...
-   ENDCHECK
+   ENDCHECK/END
    CONTOUR {F,GX,...} [LIN cini.r cend.r|LOG|ATAN|BADER] [nptsu.i nptsv.i niso.i]
-  ENDGRDVEC
+  ENDGRDVEC/END
 * FLUXPRINT
     POINT {1|-1|0} x.r y.r z.r 
     NCP cp.i ntheta.i nphi.i [LVEC x.i y.i z.i]
@@ -191,7 +191,7 @@ expression.r # prints the value of the expression to the output.
     EVERY every.i
     SHELLS ishl.i
     NOSYM
-  ENDFLUXPRINT
+  ENDFLUXPRINT/END
 * BASINPLOT [CUBE [lvl.i] | TRIANG [lvl.i] | SPHERE [ntheta.i nphi.i]]
             [OFF|OBJ|PLY|BASIN|DBASIN [npts.i]}]  
             [CP cp.i] [PREC delta.r] [VERBOSE] [MAP id.s|"expr"]
@@ -265,8 +265,8 @@ expression.r # prints the value of the expression to the output.
     FRAGMENT
      x.r y.r z.r # (in angstrom, use it with xyz)
      ...
-    ENDFRAGMENT
-  ENDNCIPLOT
+    ENDFRAGMENT/END
+  ENDNCIPLOT/END
 * POWDER [TH2INI t2i.r] [TH2END t2e.r] [{L|LAMBDA} l.r] [FPOL fpol.r]
   [NPTS npts.i] [SIGMA sigma.r] [ROOT root.s]
 * COMPARE {.|file1.s} {.|file2.s} [{.|file3.s} ...]
@@ -281,7 +281,7 @@ expression.r # prints the value of the expression to the output.
     x y z [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
     ...
     file.xyz
-  ENDIDENTIFY
+  ENDIDENTIFY/END
 * XDM [RHO irho.s] [TAU itau.s] [ELF ielf.s] [PDENS ipdens.s] 
       [COR icor.s] [LAP ilap.s] [GRAD igrad.s] [RHOAE irhoae.s]
       [XB ib.s] [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]

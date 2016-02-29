@@ -352,7 +352,7 @@ contains
              order(norder)%rgb = rgb
           end if
 
-       elseif (equal(word,'endfluxprint')) then
+       elseif (equal(word,'end').or.equal(word,'endfluxprint')) then
           call check_no_extra_word()
           exit
        else

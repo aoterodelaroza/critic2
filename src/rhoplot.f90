@@ -1733,7 +1733,7 @@ contains
           ok = getline(uin,line,.true.,ucopy)
           lp = 1
           word = lgetword (line,lp)
-          do while (ok .and. .not.equal(word, 'endcheck'))
+          do while (ok.and..not.equal(word, 'endcheck').and..not.equal(word, 'end'))
              newncriticp = newncriticp + 1
              if (newncriticp .gt. mncritp) &
                 call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr)
@@ -1820,7 +1820,7 @@ contains
           end if
           call check_no_extra_word()
 
-       else if (equal(word,'endgrdvec') .or.equal(word,'end')) then
+       else if (equal(word,'endgrdvec').or.equal(word,'end')) then
           call check_no_extra_word()
           goto 999
        else

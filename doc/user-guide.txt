@@ -1588,7 +1588,7 @@ Loading a molecular structure (MOLECULE)
         [ANG/ANGSTROM] [BOHR/AU]
     CUBIC|CUBE
     BORDER border.r
-  ENDMOLECULE|END
+  ENDMOLECULE/END
   MOLECULE LIBRARY label.s
 
 Critic2 can be used for gas-phase (isolated) molecules as well as
@@ -3526,11 +3526,11 @@ Gradient path representations in a plane (GRDVEC)
      CHECK
           x.r y.r z.r
           ...
-     ENDCHECK
+     ENDCHECK/END
      CONTOUR {F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|
               HYZ|HZX|HZY|HZZ|LAP} [LIN cini.r cend.r|
               LOG|ATAN|BADER] [nptsu.i nptsv.i niso.i]
-  ENDGRDVEC
+  ENDGRDVEC/END
 
 GRDVEC plots a plane containing all the gradient paths originating
 from a set of points. The GRDVEC environment accepts a set of input
@@ -3673,7 +3673,7 @@ Three-dimensional gradient path representations (FLUXPRINT)
     EVERY every.i
     SHELLS ishl.i
     NOSYM
-  ENDFLUXPRINT
+  ENDFLUXPRINT/END
 
 The FLUXPRINT keyword prints three-dimensional gradient paths.  There
 are several plotting comands:
@@ -4927,8 +4927,8 @@ Non-covalent interaction visualization (NCIPLOT)
     FRAGMENT
      x.r y.r z.r # (in angstrom!)
      ...
-    ENDFRAGMENT
-  ENDNCIPLOT
+    ENDFRAGMENT/END
+  ENDNCIPLOT/END
 
 Calculates the density and reduced density gradient on a cube for the
 visualization of non-covalent interactions. The output files are
@@ -5061,7 +5061,7 @@ void.r.
   FRAGMENT
    x.r y.r z.r # (in angstrom!)
    ...
-  ENDFRAGMENT
+  ENDFRAGMENT/END
 
 In the current version of NCIplot it is possible to define molecular
 fragments in order to focus on some part of the crystal, or some
@@ -5258,7 +5258,7 @@ prec.r. The default prec.r is 0.1.
    x.r y.r z.r [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
    ...
    file.xyz
-  ENDIDENTIFY
+  ENDIDENTIFY/END
 
 Identify the coordinates in the input and match them against the list
 of atoms and critical points. If a coordinate is close (1e-4 bohr) to
