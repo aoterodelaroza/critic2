@@ -489,4 +489,46 @@ files by the post-process program (pp.x). To generate the
 pseudo-density, use plot_num = 0. The reconstructed valence density
 can only be generated if using PAW datasets, with plot_num = 17.
 
+* grid_ammonia
+** Density source: Quantum ESPRESSO.
+** System: ammonia molecular crystal.
+** Description
+
+A guide for the calculation of critical points in fields defined on a
+grid, and some pointers regarding basin integration. In general, the
+YT algorithm is superior to BADER in accuracy and efficiency. The only
+downside is that it may be more memory consuming (both in disk and
+core), but you would need a really huge grid to see any problem (or a
+very slow disk). 
+
+Regarding the location of critical points, the only reliable way of
+avoiding spurious critical points caused by the pseudopotential
+smoothing is to use the reconstructed valence density (most programs
+that run PAW can do it) and then augment it with a core contribution,
+calculated from critic2's internal density tables. Even then, success
+is not guaranteed because there may be numerical noise in the
+low-density regions.
+
+** compare_yt_bader.cri
+
+Calculate the integral of the electron density in the basins of the
+electrostatic potential and the integral of the Laplacian in the
+basins of the electron density. This is an accuracy test. The density
+in the basins of the potential should integrate to a number of
+electrons equal to the pseudopotential charge (5 for N and 1 for
+H). The Laplacian in the basins of the density should integrate to
+zero. YT achieves superior performance on both counts, with less
+walltime. 
+
+** grid_auto.cri
+
+A study of the different possibilities for running the critical point
+search in a grid field. We use: i) the pseudo-density (spurious CPs
+caused by the pseudopotential smoothing at the N and H), ii)
+core-augmented pseudo-density (spurious CPs at the H, because it is
+not affected by core augmentation), iii) reconstructed valence density
+(spurious CPs at the N), and iv) core-augmented reconstructed valence
+(all-electron) density. The latter successfully finds all the critical
+points and gives a CP topology that is homeomorphic with the
+promolecular density, also calculated in this input.
 

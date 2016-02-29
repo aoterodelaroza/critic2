@@ -1,0 +1,59 @@
+# Read the structure from any of the cubes
+crystal ../data/ammonia.big.rhoae.cube
+
+# Define the core augmentation (you can get these values in QE
+# by counting the number of valence electrons in the UPF file).
+zpsp n 5 h 1
+
+# Load the pseudo-density as "rho_ps", and the core-augmented
+# pseudo-density as "rhoae_ps"
+load ../data/ammonia.big.rho.cube nocore id rho_ps
+load ../data/ammonia.big.rho.cube id rhoae_ps
+
+# Load the reconstructed valence density as "rho", and the 
+# core-augmented valence density (i.e., the all-electron density)
+# as "rhoae"
+load ../data/ammonia.big.rhoae.cube nocore id rho
+load ../data/ammonia.big.rhoae.cube id rhoae
+
+# Calculate the critical points in the pseudo-density. Many
+# critical points appear around the N atoms, caused by the 
+# pseudopotential smoothing. Morse sum = 20 (missing CPs).
+reference rho_ps
+root rho_ps
+auto seed ws depth 2
+cpreport obj cell
+
+# Calculate the critical points in the core-augmented
+# pseudo-density. The critical points around the N are gone, but the
+# spurious CPs around the H remain, because H has no core density
+# contribution. Morse sum = 12 (missing CPs).
+reference rhoae_ps
+root rhoae_ps
+auto seed ws depth 2
+cpreport obj cell
+
+# Calculate the critical points in the reconstructed valence
+# density. The spurious critical points around the N are back, but
+# this time the H looks right. Morse sum = 28 (missing CPs).
+reference rho
+root rho
+auto seed ws depth 2
+cpreport obj cell
+
+# Calculate the critical points in the core-augmented reconstructed
+# valence (all-electron) density. All critical points are found, with
+# Morse sum = 0. The CP topology is the same as the promolecular
+# density, examined next.
+root rhoae
+auto seed ws depth 2
+cpreport obj cell
+
+# Calculate the critical points in the promolecular density. The CPs
+# are found at roughly the same positions as the all-electron
+# density. 
+reference rho0
+root rho0
+auto seed ws depth 2
+cpreport obj cell
+

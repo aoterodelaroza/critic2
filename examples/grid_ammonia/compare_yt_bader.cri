@@ -1,0 +1,38 @@
+# Read the structure from any of the cube files
+crystal ../data/ammonia.big.rho.cube
+
+# The electrostatic potential (with maxima at the nuclei) is minus
+# the field obtained from QE. Load the cube into field $tmp, then
+# take -$tmp and delete the temporary field.
+load ../data/ammonia.big.vel.cube id tmp
+load as "-$tmp" id vel
+unload tmp
+
+# Load the electron density
+load ../data/ammonia.big.rho.cube id rho
+
+# Calculate the Laplacian of the electron density on the same grid
+# using FFT.
+load as lap rho id lap
+
+# Integrate the density in the basins of the electrostatic potential.
+# If the integration were perfectly accurate, the number of electrons
+# would coincide with the atomic number (minus the number of electrons
+# represented by the pseudopotential).
+reference vel
+integrable rho
+
+# Use YT and BADER; compare the results.
+yt
+bader
+
+# Integrate the Laplacian in the basins of the electron density. If
+# the integration is accurate, the integral should be zero for each 
+# basin
+reference rho
+integrable lap
+
+# Use YT and BADER; compare the results.
+yt
+bader
+
