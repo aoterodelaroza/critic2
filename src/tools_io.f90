@@ -167,7 +167,7 @@ contains
 
     logical :: ispad
     character*(maxlen) :: aux, fmt
-    integer :: i, ialen, ipad
+    integer :: i, ialen, ipad, ialen0
     
     if (present(pad0)) then
        ispad = pad0
@@ -180,10 +180,12 @@ contains
           ialen = length
        end if
     end if
+    write (aux,'(I0)') a
+    ialen0 = len_trim(aux)
     if (ialen == 0) then
-       write (aux,'(I0)') a
-       ialen = len_trim(aux)
+       ialen = ialen0
     else
+       ialen = max(ialen,ialen0)
        if (ispad) then
           write (fmt,'("(I0.",I0,")")') ialen
           write (aux,fmt) a
@@ -245,7 +247,7 @@ contains
 
     logical :: ispad
     character*(maxlen) :: aux, fmt
-    integer :: i, ialen, ipad
+    integer :: i, ialen, ipad, ialen0
     
     if (present(pad0)) then
        ispad = pad0
@@ -258,10 +260,12 @@ contains
           ialen = length
        end if
     end if
+    write (aux,'(I0)') a
+    ialen0 = len_trim(aux)
     if (ialen == 0) then
-       write (aux,'(I0)') a
-       ialen = len_trim(aux)
+       ialen = ialen0
     else
+       ialen = max(ialen,ialen0)
        if (ispad) then
           write (fmt,'("(I0.",I0,")")') ialen
           write (aux,fmt) a
@@ -322,16 +326,26 @@ contains
     integer, intent(in), optional :: justify
     integer, intent(in), optional :: padspace
 
-    integer, parameter :: default_decimal = 7
+    integer, parameter :: decimal_default = 7
 
     character*(maxlen) :: aux, fmt
-    integer :: i, ialen, ipad, dec, ipad0, idx
+    integer :: i, ialen, ipad, ipad0, idx, dec
+    logical :: islen, first
     
+    islen = .false.
+    if (present(length)) islen = (length > 0)
     if (present(decimal)) then
        dec = decimal
     else
-       dec = default_decimal
-    end if
+       dec = decimal_default
+    endif
+
+    ! We'll need two passes through here if length is present but
+    ! decimal is not. The first is to measure the length with the
+    ! default number of decimal places. The second sets the number of
+    ! decimals to match the requested length.
+    first = .true.
+10  continue
     if (desc == 'e' .or. desc == 'E' .or. desc == 'd' .or. desc == 'D') then
        write (fmt,'("(1p,",A1,I0,".",I0,")")') desc, maxlen, dec
     else
@@ -339,13 +353,18 @@ contains
     end if
     write (aux,fmt) a
     aux = adjustl(aux)
-
     ialen = len_trim(aux)
-    if (present(length)) then
-       if (length > 0 .and. length > ialen) then
-          ialen = length
+    if (islen .and..not.present(decimal)) then
+       if (ialen > length .and. first) then
+          ! Calculate the number of decimals to get that length, then
+          ! loop back and write the actual string.
+          dec = max(decimal_default - (ialen-length),1)
+          first = .false.
+          goto 10
        end if
     end if
+
+    if (islen) ialen = max(length,ialen)
     s = aux(1:ialen)
 
     ipad0 = 0
