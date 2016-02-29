@@ -483,7 +483,13 @@ contains
     end do
 
     ! step sizes
-    if (dogrid) nn = f(id)%n
+    if (dogrid) then
+       ok = (id > -1)
+       if (ok) ok = ok .and. (f(id)%type == type_grid)
+       if (.not.ok) &
+          call ferror('rhoplot_cube','CUBE GRID can only be used with grid fields',faterr)
+       nn = f(id)%n
+    end if
     do i = 1, 3
        xd(:,i) = xd(:,i) / real(nn(i),8)
     end do
