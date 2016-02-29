@@ -532,3 +532,35 @@ not affected by core augmentation), iii) reconstructed valence density
 points and gives a CP topology that is homeomorphic with the
 promolecular density, also calculated in this input.
 
+* elk_quartz
+** Density source: elk.
+** System: alpha-quartz at the experimental geometry.
+** Description
+
+An example of how to use elk densities and structures in critic2. Two
+calculations have been run: one with default parameters and rkmax =
+7.0 ("small") and one with rkmax = 9.0, lmaxvr = 14, lmaxapw = 14, and
+gmaxvr = 24. Better parameters have less chances of showing spurious
+CPs on the muffin tin surface caused by the density discontinuity but,
+at the same time, they increase the unitary cost of the density
+evalution. The problem with the muffin discontinuity is showcased in
+the second example (elk_issues.cri). These problems also affect WIEN2k
+densities to a large extent.
+
+** quartz_auto.cri
+
+Read the crystal structure of alpha-quartz from elk's GEOMETRY.OUT and
+the corresponding electron density from the STATE.OUT. Then, find all
+the critical points and represent these points and the chemical graph
+in 3d.
+
+** elk_issues.cri
+
+An example showing how spurious critical points caused by the density
+discontinuity at the muffin tin surface may affect the location of
+critical points and the tracing of gradient paths. In this particular
+case, it is shown how a single gradient path is trapped by the
+spurious CP manifold, and a line of the electron density is plotted
+that goes through the affected region of space.
+
+

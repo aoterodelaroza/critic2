@@ -1,0 +1,15 @@
+# Read the structure from the GEOMETRY.OUT
+crystal ../data/quartz.GEOMETRY.OUT
+
+# Read the density in interstitial+muffins form from the STATE.OUT
+# (the version with lower parameter settings)
+load ../data/quartz.small.STATE.OUT ../data/quartz.GEOMETRY.OUT
+
+# Find all critical points
+auto 
+
+# Plot the critical points, the cell, and the chemical graph
+cpreport obj border cell
+fluxprint 
+ graph 2
+endfluxprint

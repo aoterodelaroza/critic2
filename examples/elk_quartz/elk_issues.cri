@@ -1,0 +1,50 @@
+# Read the quartz structure from the GEOMETRY.OUT
+crystal ../data/quartz.GEOMETRY.OUT
+
+# Use the STATE.OUT generated with the better parameters (lmaxvr = 14,
+# lmaxapw = 14, gmaxvr = 24). This will increase the cost of every
+# density evaluation
+load ../data/quartz.big.STATE.OUT ../data/quartz.GEOMETRY.OUT
+
+## # basinplot cube 3 verbose
+# You'll notice that BASINPLOT takes an unreasonable amount of time to
+# run. This is not necessarily because the evaluation of an elk
+# density with very high values of Lmax and plane wave number is
+# slow. In this particular case, it is caused by spurious critical
+# points in the electron density caused by the muffin tin
+# discontinuity. A test for discontinuities in the muffin is run on
+# every elk and WIEN2k density automatically. In this case, critic2
+# detects spurious critical points on the muffin tins:
+#
+# * Muffin-tin discontinuity test
+#   Atom: 1 RMS/max/min(fout-fin) = 0.001515  -0.001252  -0.001812
+#   Atom: 2 delta_m = 0.001000 delta_p = 0.001000
+#   Atom: 2 RMS/max/min(fout-fin) = 0.003790  0.000613  -0.006886
+# + Assert - no spurious CPs on the muffin tin surface: F
+#
+# Whenever spurious CPs are present, it is a problem for any task
+# involving finding critical points and tracing gradient paths,
+# including integrating the atomic basins. The spurious CPs appear in
+# spherical manifolds around the affected atoms, and they tend to trap
+# the gradient lines passing through them. Likewise, the automatic
+# determination of critical points will tend to locate these spurious
+# points, even if they are unphysical.
+#
+# In this particular case, this can be seen easily by tracing a
+# gradient path that goes directly through the spurious CP manifold: 
+fluxprint 
+ obj
+ point 1 0.5477199d0   0.70850197d0   0.2275939d0
+endfluxprint
+fluxprint 
+ text
+ point 1 0.5477199d0   0.70850197d0   0.2275939d0
+endfluxprint
+
+# The text file containg the gradient path (_flux.txt) contains more
+# than 1300 steps, as the gradient path bounces around in the spurious
+# CPs trying to find a maximum that doesn't exist. A cross section of
+# the spurious CP seciton can be seen by running a line from the
+# affected oxygen to nearby atom:
+line 0.6778 0.7325 0.1194 0.51138412 0.40642964 0.3960033 501 file elk_issues_dat
+
