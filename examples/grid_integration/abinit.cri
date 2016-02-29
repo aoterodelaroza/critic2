@@ -1,0 +1,13 @@
+# Read the structure from the PAWDEN file
+crystal ../data/urea_PAWDEN
+
+# Read the reconstructed valence and pseudo-density grids 
+load ../data/urea_PAWDEN id rhoae
+load ../data/urea_DEN id rho
+
+# Set the valence density as reference and the pseudo-density as integrable
+reference rhoae
+integrable rho
+
+# Run the integration
+yt

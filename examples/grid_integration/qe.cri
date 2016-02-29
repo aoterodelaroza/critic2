@@ -1,0 +1,13 @@
+# Read the crystal structure from one of the cubes
+crystal ../data/urea.rhoae.cube
+
+# Load the density grids
+load ../data/urea.rhoae.cube id rhoae
+load ../data/urea.rho.cube id rho
+
+# Set the valence density as reference and the pseudo-density as integrable
+reference rhoae
+integrable rho
+
+# Run the integration
+yt
