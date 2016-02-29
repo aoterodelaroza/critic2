@@ -1,0 +1,8 @@
+# Read the structure and the wavefunction from the wfx
+molecule ../data/hf6.wfx
+load ../data/hf6.wfx
+
+# Integrate the atomic charges for F and H using bisection (may take a while).
+integrals gauleg 40 40 verbose cp 1
+integrals gauleg 40 40 verbose cp 2
+

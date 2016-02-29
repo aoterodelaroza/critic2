@@ -1,0 +1,10 @@
+# Read the structure and wavefunction from the wfx file
+molecule ../data/hf6.wfx
+load ../data/hf6.wfx
+
+# Find all critical points
+auto
+
+# Plot them to an obj file
+cpreport obj 
+

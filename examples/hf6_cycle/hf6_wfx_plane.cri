@@ -1,0 +1,14 @@
+# Read the structure and wavefunction from the wfx file
+molecule ../data/hf6.wfx
+load ../data/hf6.wfx
+
+# Find the critical points
+auto
+
+# Plot the density contours and the gradient lines in the molecualr plane
+grdvec
+ root hf6_plane
+ plane -4 -4 0  4 -4 0  -4 4 0
+ cpall
+ contour f log 101 101 41
+endgrdvec

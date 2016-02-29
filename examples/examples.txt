@@ -357,7 +357,7 @@ VASP densities have been kindly provded by Ángel Morales-García. This
 example shows how to calculate atomic charges and volumes and locate
 critical points using VASP densities. Generating the AECCAR0 (core
 density) and AECCAR2 (reconstructed valence density) requires using
-the LCHARG=T flag in the INCAR file. These grids do not integrate to
+the LAECHG=T flag in the INCAR file. These grids do not integrate to
 the correct number of electrons, but they provide the correct basin
 shapes, which is not always the case with the pseudo-density
 (CHGCAR). 
@@ -400,4 +400,42 @@ spherical particle at the crystal geometry. All atoms in the generated
 xyz are identified within the crystal (associated atoms and
 crystallographic coordinates are found) using the IDENTIFY keyword.
 
+
+* hf6_cycle
+** Density source: Gaussian wfx and Quantum ESPRESSO.
+** System: cyclic HF hexamer (gas-phase).
+** Description
+
+A calculation of the cyclic planar HF hexamer with Gaussian, and the
+same calculation using QE and a periodic supercell. Integration, basin
+plotting, critical points, and more.
+
+** hf6_grid_basins.cri
+
+Plot the atomic basins of H and F using the QE reconstructed valence
+density. 
+
+** hf6_grid_integrals.cri
+
+Calculate the atomic charges using the QE densities and the Yu-Trinkle
+algorithm. 
+
+** hf6_make_qe_supercell.cri
+
+Read the structutre from the wfx file and write it to a number of
+different files including gas-phase (xyz, gjf) and periodic (espresso,
+vasp, etc.) formats.
+
+** hf6_wfx_bisection.cri
+
+Calculate the atomic charges from the wfx file using bisection.
+
+** hf6_wfx_cps.cri
+
+Locate the critical points using the wfx file.
+
+** hf6_wfx_plane.cri
+
+Contour plot of the wfx electron density and gradient lines in the
+molecular plane.
 

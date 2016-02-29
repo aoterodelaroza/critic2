@@ -1,0 +1,18 @@
+# Read the HF hexamer in the wfx and put the molecule in 
+# a supercell 10 angstrom larger in each side than the encompassing
+# cube. 
+molecule ../data/hf6.wfx 10
+
+# Write templates. For periodic codes, the 10-angstrom supercell is
+# used.
+write hf6.scf.in # qe
+write hf6.gjf # gaussian
+write hf6.xyz # xyz file
+write hf6.obj # obj file
+write hf6.POSCAR # VASP
+write hf6.abin # abinit
+write hf6.elk # elk
+write hf6.cif # cif file
+write hf6.gin # gulp
+write hf6.lammps # lammps
+write hf6.fdf # siesta
