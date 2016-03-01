@@ -1,0 +1,19 @@
+# Read the crystal structure from the density file
+crystal ../data/urea_us_DEN
+
+# Load the density and the ELF
+load ../data/urea_us_DEN id rho
+load ../data/urea_us_ELF id elf
+
+# Calculate the charges in the ELF basins
+reference elf
+integrable rho
+
+# Run the integration. The ELF has maxima outside the nuclei,
+# so we need the NNM keyword
+yt nnm
+
+# Write the maxima to an obj file.
+cpreport obj molmotif border cell
+
+

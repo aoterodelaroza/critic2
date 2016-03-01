@@ -596,3 +596,30 @@ a cube file.
 Using the cube files above, make several plots of the pressure on a
 plane including one Ca atom.
 
+* elf_basins
+** Density source: Gaussian wfx and abinit.
+** System: gas-phase pyridine and urea molecular crystal.
+** Description
+
+Calculate the ELF and integrate its attractor basins. Two examples are
+provided: the ELF calculated by critic2 from a Gaussian wfx file, and
+the integration of the ELF basins in the urea crystal, from the ELF
+calculated by abinit.
+
+** pyridine_elf_basins.cri
+
+From the wfx file for a pyridine molecule, calculate the density and
+the ELF in a cube file spanning the molecule, then integrate its
+basins and plot the positions of the maxima
+
+** pyridine_elf_colormap.cri
+
+Plot the ELF from the pyridine wfx file on the molecular plane.
+
+** urea_crystal_elf_basins.cri
+
+Load the ELF and the density for the urea crystal calculated by
+abinit, then integrate the ELF basins and represent the ELF maxima in
+a three-dimensional plot.
+
+

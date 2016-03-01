@@ -1,0 +1,13 @@
+# Read the pyridine molecule from the wfx
+molecule ../data/pyridine.wfx 10
+
+# Load the wfx
+load ../data/pyridine.wfx 
+
+# Load the ELF as a ghost field
+load as "elf(1)" id elf
+
+# Set the elf as reference and write a colormap plot
+reference elf
+plane 0 -3.0 -3.0 0 3.0 -3.0 0 -3.0 3.0 101 101 colormap
+
