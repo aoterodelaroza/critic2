@@ -2799,7 +2799,7 @@ Planes and contour plots (PLANE)
   PLANE ... [FILE file.s] [FIELD id.s|"expr.s"]
       [F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|HYZ|HZX|HZY|HZZ|LAP]
       [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i r0.r r1.r}]
-      [RELIEF zmin.r zmax.r]
+      [COLORMAP] [RELIEF zmin.r zmax.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
@@ -2829,23 +2829,23 @@ addition to the field value, a second property can be evaluated: the
 field again (F), its derivatives (Gx), its second derivatives (Hxx),
 the gradient norm (GMOD) or the Laplacian (LAP).
 
-The keyword CONTOUR writes a contour map representation of the
-plane: two contour line files (.iso and .neg.iso) and a gnuplot
-script (.gnu). The isovalue distribution can be: logarithmic (LOG,
-with niso.i contours), arctangent (ATAN, with niso.i contours), the
-original aimpac distribution (BADER, {1,2,4,8}x10^{-3,-2,-1,0,1})
-and linear (LIN, niso.i contours from r0.r to r1.r). The field
-property selected with [F|GX|...] is used for the contour plot.
-
-The GRDVEC keyword (see `Gradient path representations in a plane
-(GRDVEC)`_) performs the same functions as PLANE with the CONTOUR
-option, and more (like, for instance, tracing gradient paths in the
-plane), but it is a little more complex to use.
+The keyword CONTOUR writes a contour map representation of the plane:
+two contour line files (.iso and .neg.iso) and a gnuplot script
+(.gnu). The isovalue distribution can be: logarithmic (LOG, with
+niso.i contours), arctangent (ATAN, with niso.i contours), the
+original aimpac distribution (BADER, {1,2,4,8}x10^{-3,-2,-1,0,1}) and
+linear (LIN, niso.i contours from r0.r to r1.r). The field property
+selected with [F|GX|...] is used for the contour plot.  The GRDVEC
+keyword (see `Gradient path representations in a plane (GRDVEC)`_)
+performs the same functions as PLANE with the CONTOUR option, and more
+(like, for instance, tracing gradient paths in the plane), but it is a
+little more complex to use.
 
 The RELIEF keyword writes a gnuplot template for a three-dimensional
 relief plot using the data calculated by PLANE. The default suffix is
 -relief.gnu. The mandatory arguments zmin.r and zmax.r establish the
-range of the z axis in the plot.
+range of the z axis in the plot. The COLORMAP keyword writes a
+template for a colormap plot of the field on the plane.
 
 Grids (CUBE)
 ~~~~~~~~~~~~

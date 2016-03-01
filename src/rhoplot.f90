@@ -590,7 +590,7 @@ contains
     real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt, lappt
     real*8 :: uu(3), vv(3)
     real*8 :: sx, sy, zx, zy, zmin, zmax
-    logical :: docontour, dorelief
+    logical :: docontour, dorelief, docolormap
     character(len=:), allocatable :: word, outfile, prop, root0, expr
     type(scalar_value) :: res
     logical :: ok
@@ -655,6 +655,7 @@ contains
     prop = "lap"
     docontour = .false.
     dorelief = .false.
+    docolormap = .false.
     id = refden
     outfile = trim(fileroot) // "_plane.dat" 
     do while (.true.)
@@ -706,6 +707,8 @@ contains
                 if (.not.ok) call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line)
              end if
           end if
+       else if (equal(word,'colormap')) then
+          docolormap = .true.
        elseif (equal(word,'f')) then
           nti = 0
           prop = word
@@ -847,6 +850,7 @@ contains
     ! try doing the contour
     if (docontour) call contour(x0,x1,x2,nx,ny,nco,niso,root0,.true.,.true.)
     if (dorelief) call relief(root0,string(outfile),zmin,zmax)
+    if (docolormap) call colormap(root0,string(outfile))
 
     if (len_trim(outfile) > 0) then
        call fclose(luout)
@@ -1119,6 +1123,56 @@ contains
     call fclose(lu)
 
   end subroutine relief
+
+  !> Write a gnuplot template for the color map plot
+  subroutine colormap(rootname,outfile)
+    use tools_io
+    character*(*), intent(in) :: rootname, outfile
+
+    character(len=:), allocatable :: file
+    integer :: lu
+    
+    ! file name
+    file = trim(rootname) // '-colormap.gnu'
+
+    ! connect unit
+    lu = fopen_write(file)
+    write (uout,'("* Gnuplot file (colormap): ",a)') string(file)
+
+    write (lu,'("set encoding iso_8859_1")')
+    write (lu,'("set terminal postscript eps color enhanced ""Helvetica""")')
+    write (lu,'("set output """,A,"-colormap.eps""")') rootname
+    write (lu,'("")')
+    write (lu,'("# line styles")')
+    write (lu,'("set style line 1 lt 1 lw 1 lc rgb ""#000000""")')
+    write (lu,'("set style line 2 lt 1 lw 1 lc rgb ""#000000""")')
+    write (lu,'("")')
+    write (lu,'("# title, key, size")')
+    write (lu,'("unset title")')
+    write (lu,'("unset key")')
+    write (lu,'("set size ratio -1")')
+    write (lu,'("")')
+    write (lu,'("# set pm3d at b map interpolate 5,5")')
+    write (lu,'("set pm3d at b map")')
+    write (lu,'("")')
+    write (lu,'("# tics")')
+    write (lu,'("set cbtics")')
+    write (lu,'("")')
+    write (lu,'("# color schemes")')
+    write (lu,'("set palette defined ( 0 ""red"", 1 ""white"", 2 ""green"" ) ")')
+    write (lu,'("")')
+    write (lu,'("# set contours")')
+    write (lu,'("unset clabel")')
+    write (lu,'("set contour base")')
+    write (lu,'("set cntrparam bspline")')
+    write (lu,'("# set cntrparam levels incremental -min,step,max")')
+    write (lu,'("")')
+    write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
+
+    ! wrap up
+    call fclose(lu)
+
+  end subroutine colormap
 
   !> Find contour with value = zc on a surface given by a grid.
   !> uses linear interpolation.
