@@ -358,7 +358,7 @@ contains
        end if
 
        ! poor man's adaptive step size in Euler
-       if (NAV_stepper == NAV_stepper_euler .or. NAV_stepper_heun) then
+       if (NAV_stepper == NAV_stepper_euler .or. NAV_stepper == NAV_stepper_heun) then
           ! angle with next step
           escalar = dot_product(ogrdt,res%gf / (res%gfmod+VSMALL))
 
