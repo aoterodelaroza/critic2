@@ -105,16 +105,17 @@ Compiling and using libxc
 Critic2 can be compiled with libxc support. Libxc is used in critic2
 to calculate exchange and correlation energy densities via the xc()
 function in arithmetic expressions. To do this, the --with-libxc
-option must be passed to configure:
+options must be passed to configure:
 
-./configure --with-libxc=/path/to/bleh
+./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
 
-Critic2 will assume that the include files (the module files necessary
-at compile time) are in /path/to/bleh/include and that the static
-library file (which is linked in critic2) is in
-/path/to/bleh/lib/libxc.a . These are the standard locations after a
-successfull 'make install' in libxc configure with
---prefix=/path/to/bleh.
+Here the /opt/libxc directory is the target for the libxc installation
+(use --prefix=/opt/libxc when you configure libxc). Make sure that you
+use the same compiler for libxc and for critic2; otherwise the library
+will not be linked. You can choose the compiler by changing the FC and
+F77 flags before configure:
+
+FC=gfortran F77=gfortran ./configure ...
 
 See 'Use of LIBXC in arithmetic expressions' in the user's guide for
 instructions on how to use libxc in critic2.

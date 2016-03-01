@@ -3,8 +3,6 @@ AC_PREREQ(2.68)
 AC_INIT(critic2,m4_esyscmd_s([./tools/version.sh]),[alberto@fluor.quimica.uniovi.es,victor@fluor.quimica.uniovi.es,angel@fluor.quimica.uniovi.es])
 AC_CONFIG_AUX_DIR([config/gnu])
 AC_CONFIG_MACRO_DIR([config/m4])
-m4_include([config/m4/ax_f90_module_extension.m4])
-m4_include([config/m4/ax_f90_module_flag.m4])
 
 # Initialize automake
 AC_CANONICAL_TARGET
@@ -85,12 +83,7 @@ if test "${enable_debug}" = "yes"; then
 fi
 
 # libxc
-AC_ARG_WITH([libxc-lib],[AS_HELP_STRING([--with-libxc-lib],[location of the libxc library (libxc.a).])])
-AC_ARG_WITH([libxc-inc],[AS_HELP_STRING([--with-libxc-inc],[location of the libxc includes (libxc_funcs_m.mod).])])
-if test "${with_libxc_lib}" != "" && test "${with_libxc_inc}" != ""; then
-   FCFLAGS+=" -I${with_libxc_inc} -DHAVE_LIBXC"
-   LIBADD+=" ${with_libxc_lib}/libxc.a"   
-fi
+ACX_LIBXC
 
 # qhull
 AC_ARG_WITH([qhull_inc],

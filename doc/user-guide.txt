@@ -1027,9 +1027,9 @@ functional invoked, which is selected using an integer index. The list
 of functionals available and their corresponding indices should be
 consulted in the libxc documentation. The integer index that selects
 the functional always appears *last* in the calling sequence of
-xc(). For ease of reference, the file libxc_funcs_2.0.1.txt,
-specifying the list of functionals in version 2.0.1 of libxc, is
-included in the doc/ directory.
+xc(). For ease of reference, the files libxc_funcs_*.txt, specifying
+the list of functionals in several versions of libxc, is included in
+the doc/ directory.
 
 The arguments to xc(...,idx) depend on the type of functional
 specified by the idx integer, which can be:
