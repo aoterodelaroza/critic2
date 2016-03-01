@@ -1,0 +1,45 @@
+# Some constants
+v1 = 288.19606 # volume of structure 1 (compressed wrt equilibrium)
+v3 = 279.67851 # volume of structure 3 (expanded wrt equilibrium)
+ntot = 40^3 # number of points in the grid
+
+# Read the crystal structure at equilibrium
+crystal ../data/ca_o_DS2_DEN
+
+# Read the densities in compression (+) and expansion (-)
+load ../data/ca_o_DS1_DEN id rho1
+load ../data/ca_o_DS3_DEN id rho3
+
+# Read the kinetic energy densities
+load ../data/ca_o_DS1_KDEN id kden1
+load ../data/ca_o_DS3_KDEN id kden3
+
+# Read the electrostatic potentials and calculate the Hartree energy densities
+load ../data/ca_o_DS1_VHA id vha1
+load ../data/ca_o_DS3_VHA id vha3
+load as "0.5*$vha1*$rho1" id eha1
+load as "0.5*$vha3*$rho3" id eha3
+
+# Read the total and exchange-correlation potentials and calculate the 
+# local pseudopotential energy densities
+load ../data/ca_o_DS1_POT id pot1
+load ../data/ca_o_DS3_POT id pot3
+load ../data/ca_o_DS1_VHXC id vhxc1
+load ../data/ca_o_DS3_VHXC id vhxc3
+load as "$rho1*($pot1-$vhxc1)" id eloc1
+load as "$rho3*($pot3-$vhxc3)" id eloc3
+
+# Calculate the pressure densities by using a finite difference formula
+load as "($kden1-$kden3)/(v1-v3)*ntot" id pkden
+load as "($eha1-$eha3)/(v1-v3)*ntot" id pha
+load as "($eloc1-$eloc3)/(v1-v3)*ntot" id ploc
+
+# The total pressure density (minus the remainder) is the sum of the two
+load as "$pkden+$pha+$ploc" id ptot
+
+# Write cube files for all the pressures
+cube grid file pkden.cube field pkden
+cube grid file pha.cube field pha
+cube grid file ploc.cube field ploc
+cube grid file ptot.cube field ptot
+

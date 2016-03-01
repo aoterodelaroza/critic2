@@ -1,0 +1,14 @@
+# Read the crystal structure at equilibrium
+crystal ../data/ca_o_DS2_DEN
+
+# Load the cubes containing the pressure density
+load pkden.cube id pkden
+load pha.cube id pha
+load ploc.cube id ploc
+load ptot.cube id ptot
+
+# Plot the pressures in planes containing one Ca atom
+plane 0 0 0 1 1 0 -1 1 0 201 201 contour log 81 colormap field pkden file pkden
+plane 0 0 0 1 1 0 -1 1 0 201 201 contour log 81 colormap field pha file pha
+plane 0 0 0 1 1 0 -1 1 0 201 201 contour log 81 colormap field ploc file ploc
+plane 0 0 0 1 1 0 -1 1 0 201 201 contour log 81 colormap field ptot file ptot
