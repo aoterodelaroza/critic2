@@ -3133,6 +3133,8 @@ contains
     call realloc(hvecp,3,np)
 
     ! normalize the intensities to 100
+    if (np == 0) &
+       call ferror('struct_powder','no peaks found in the 2theta range',faterr)
     ip = ip * multp
     ipmax = maxval(ip)
     ihmax = maxval(ih)
