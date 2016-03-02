@@ -53,7 +53,7 @@ contains
     real*8, allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
     real*8, allocatable, dimension(:,:,:,:) :: rhofrag
     real*8 :: ehess(3), dimgrad, dist, rrho, rrho1, rrho2
-    real*8 :: sumq, sumqp, sumv
+    real*8 :: sumq, sumqp, sumv, rdum1, rdum2
     logical :: onlyneg, lchk, inter, llat, llfrag, isden
     integer :: findlimits, ithres, istep
     logical :: periodic, usecore
@@ -193,10 +193,13 @@ contains
           if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
           call check_no_extra_word(line,lp,'nciplot')
        elseif (equal(word,'srhorange')) then
-          ok = eval_next(srhorange(1),line,lp)
-          ok = ok .and. eval_next(srhorange(2),line,lp)
+          ok = eval_next(rdum1,line,lp)
+          ok = ok .and. eval_next(rdum2,line,lp)
           if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
           call check_no_extra_word(line,lp,'nciplot')
+          
+          srhorange(1) = min(rdum1,rdum2)
+          srhorange(2) = max(rdum1,rdum2)
        elseif (equal(word,'void')) then
           ok = eval_next(rho_void,line,lp)
           if (.not.ok) call ferror('nciplot','wrong void keyword',faterr,line)
