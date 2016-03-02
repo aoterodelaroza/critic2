@@ -130,6 +130,14 @@ concise description of the critic2 keyword syntax is given in the
 syntax.txt file. If you are already familiar with this program, that
 file will probably be more useful to you than this guide.
 
+Example set
+~~~~~~~~~~~
+
+You can find a collection of examples that demonstrate the usage and
+features of critic2 in the examples/ subdirectory. The examples.txt
+contains the whole list and a brief description of every example. The
+input files mentioned contain more details inside.
+
 Input format, output format, and notation
 -----------------------------------------
 
@@ -5951,7 +5959,7 @@ NEWCELL
 
 NOCORE
   Clears the pseudopotential charge (ZPSP) of all atoms, deactivating
-  the use of the core contribution. See `Additional options`_.
+  the use of the core contribution. See `Atomic charge options`_.
 
 NOGUESS
   Deactivate the use of the symmetry module that lets critic2
@@ -6012,8 +6020,7 @@ RUN
 
 SETFIELD
   Change field flags after the field was loaded. See `Changing the
-  field options after LOAD (SETFIELD)`_ and also `Additional
-  options`_.
+  field options after LOAD (SETFIELD)`_.
 
 SPHEREINTEGRALS
   Integrate fields on a sphere. See `Bisection (INTEGRALS and
