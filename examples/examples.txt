@@ -264,7 +264,7 @@ Running an NCI plot calculation in a molecule.
 
 ** phenol_phenol.cri
 
-Run an nciplot calculatin in phenol dimer, using a small molecular
+Run an nciplot calculation in phenol dimer, using a small molecular
 cell.
 
 * stm_gold_benzene
@@ -353,7 +353,7 @@ actually matches the experiment, including reflection labels.
 ** Description
 
 The data in Tables 2 and 3 of the cited reference is reproduced. The
-VASP densities have been kindly provded by Ángel Morales-García. This
+VASP densities have been kindly provided by Ángel Morales-García. This
 example shows how to calculate atomic charges and volumes and locate
 critical points using VASP densities. Generating the AECCAR0 (core
 density) and AECCAR2 (reconstructed valence density) requires using
@@ -421,7 +421,7 @@ algorithm.
 
 ** hf6_make_qe_supercell.cri
 
-Read the structutre from the wfx file and write it to a number of
+Read the structure from the wfx file and write it to a number of
 different files including gas-phase (xyz, gjf) and periodic (espresso,
 vasp, etc.) formats.
 
@@ -455,7 +455,7 @@ surfaces at the correct positions, but it is the pseudo-density who
 integrates to the correct number of electrons. The pseudo-density can
 not be used to calculate the basins because of the pseudopotential
 smoothing (sometimes atomic density peaks are missing
-altogether). Reconstructed valence densitites can not be used as the
+altogether). Reconstructed valence densities can not be used as the
 integrand (in general) because grids can not represent accurately the
 density peaks near the cores.
 
@@ -543,7 +543,7 @@ calculations have been run: one with default parameters and rkmax =
 gmaxvr = 24. Better parameters have less chances of showing spurious
 CPs on the muffin tin surface caused by the density discontinuity but,
 at the same time, they increase the unitary cost of the density
-evalution. The problem with the muffin discontinuity is showcased in
+evaluation. The problem with the muffin discontinuity is showcased in
 the second example (elk_issues.cri). These problems also affect WIEN2k
 densities to a large extent.
 
