@@ -106,8 +106,6 @@ AC_MSG_RESULT([$acx_libxc_ok ($FCFLAGS_LIBXC $LIBS_LIBXC)])
 dnl Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
 if test x"$acx_libxc_ok" = xyes; then
   AC_DEFINE(HAVE_LIBXC, 1, [Defined if you have the LIBXC library.])
-else
-  AC_MSG_ERROR([Could not find required libxc library ( >= v 2.0.0).])
 fi
 
 acx_libxc_hyb_mgga_ok=no
@@ -126,6 +124,8 @@ fi
 
 AC_SUBST(FCFLAGS_LIBXC)
 AC_SUBST(LIBS_LIBXC)
-FCFLAGS+=" $acx_libxc_save_FCFLAGS"
-LDFLAGS+=" $acx_libxc_save_LIBS"
+if test x"$acx_libxc_ok" = xno; then
+  LIBS="$acx_libxc_save_LIBS"
+  FCFLAGS="$acx_libxc_save_FCFLAGS"
+fi
 ])dnl ACX_LIBXC
