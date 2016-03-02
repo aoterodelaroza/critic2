@@ -1,0 +1,28 @@
+# This example shows how to use critic2 to perform arithmetic
+# operations with grids, and calculate grid integrals over the whole
+# cell. In all cases, the part of the output that gives the cell
+# integral is:
+#
+#     Cell integral (grid SUM) = -23.73340101
+#
+# which is simply the sum over all the values in the grid, times the
+# volume, divided by the number of points
+
+# Read the crystal structure for urea from any of the cube files
+crystal ../data/urea_nc.rho.cube
+
+# Find the volume of the interstitial space, defined as the region
+# where the density is less than 0.01 a.u. Compare to the cell
+# volume: 978.90718
+load as "$rho0 < 0.01" 50 50 50
+
+# Find the charge inside the interstitial space defined in this way. 
+load as "($rho0 < 0.01)*$rho0" 50 50 50
+
+# The same calculations can be repeated with a calculated electron
+# density. Here we load the cube
+load ../data/urea.rhoae.cube id rho
+
+# And now we repeat the same process but using $rho instead of $rho0
+load as "$rho < 0.01" 50 50 50
+load as "($rho < 0.01)*$rho" 50 50 50

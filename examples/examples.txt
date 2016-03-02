@@ -14,7 +14,7 @@ running the fetch_data.sh script.
 
 * zhurova_tsirelson_srtio3
 
-** Density source: WIEN2k 
+** Source: WIEN2k 
 ** System: SrTiO3 perovskite crystal
 ** Reference: Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
 
@@ -78,7 +78,7 @@ atomic basin properties (charge and volume) using qtree.
 
 * auto_simple_promolecular
 
-** Density source: none (internal density tables)
+** Source: none (internal density tables)
 ** System: pyrazole crystal at the experimental geometry
 ** Description 
 
@@ -91,7 +91,7 @@ used. The critical points are written to a obj file for visualization.
 
 * nciplot_surf_kaolinite
 
-** Density source: Quantum ESPRESSO
+** Source: Quantum ESPRESSO
 ** System: kaolinite surface (slab) with an adsorbed benzene molecule
 ** Reference: Johnson and Otero-de-la-Roza, J. Chem. Theory Comput. (2012) 8, 5124.
 ** Description
@@ -116,7 +116,7 @@ visualization state...).
 
 * electride_yt
 
-** Density source: Quantum ESPRESSO
+** Source: Quantum ESPRESSO
 ** System: the K(cryptand-2.2.2) electride (CSD refcode GAVFIS)
 ** Reference: Dale, Otero-de-la-Roza, and Johnson, Phys. Chem. Chem. Phys. 16 (2014) 14584.
 ** Description
@@ -141,7 +141,7 @@ saved to a cube file. This data can be used to generate the plot in
 Figure 5 using vmd.
 
 * nciplot_thymine
-** Density source: Quantum ESPRESSO
+** Source: Quantum ESPRESSO
 ** System: thymine crystal.
 ** Reference: Otero-de-la-Roza, Johnson, and Contreras-Garcia, Phys. Chem. Chem. Phys., 2012, 14, 12165-12172 
 ** Description
@@ -182,7 +182,7 @@ layers. Corresponds to Figure 8c in the cited reference (with a
 smaller nstep). 
 
 * mols_gaussian
-** Density source: Gaussian wfn/wfx
+** Source: Gaussian wfn/wfx
 ** System: benzene, pyridine, and furan
 ** Description
 
@@ -212,7 +212,7 @@ A relief plot of the electron density in the molecular plane of
 pyridine. 
 
 * mols_ep
-** Density source: Gaussian wfn/wfx
+** Source: Gaussian wfn/wfx
 ** System: benzene, pyridine, and furan
 ** Description
 
@@ -230,7 +230,7 @@ Plot the gradient paths of the electrostatic potential (field lines)
 of pyridine in three dimensions. 
 
 * npf2_phosphazene
-** Density source: WIEN2k and Quantum ESPRESSO.
+** Source: WIEN2k and Quantum ESPRESSO.
 ** System: NPF2 phosphazene crystal.
 ** Description
 
@@ -256,7 +256,7 @@ From the WIEN2k density, calculate the Laplacian and then find its
 critical points.
 
 * nciplot_molecule
-** Density source: Gaussian wfx.
+** Source: Gaussian wfx.
 ** System: phenol dimer (gas-phase)
 ** Description
 
@@ -268,7 +268,7 @@ Run an nciplot calculatin in phenol dimer, using a small molecular
 cell.
 
 * stm_gold_benzene
-** Density source: Quantum ESPRESSO.
+** Source: Quantum ESPRESSO.
 ** System: benzene adsorbed on a gold (111) surface.
 ** Description
 
@@ -280,7 +280,7 @@ Plot the STM image to a data file and write the gnuplot script. Run
 gnuplot on the gnu file to generate the image.
 
 * pi_catio3_example
-** Density source: aiPI version 7.
+** Source: aiPI version 7.
 ** System: CaTiO3 ideal perovskite.
 ** Description
 
@@ -311,7 +311,7 @@ lines.
 Calculate the atomic charges and volumes using the qtree algorithm.
 
 * blind_test_ciftricks
-** Density source: n/a
+** Source: n/a
 ** System: structures in the fifth blind test.
 ** Reference: Bardwell et al., Acta Cryst. (2011). B67, 535. (open access)
 ** Description
@@ -347,7 +347,7 @@ and the three closest matches (kendrick-*.cif). Only kendrick-1.cif
 actually matches the experiment, including reflection labels.
 
 * vasp_covellite
-** Density source: VASP.
+** Source: VASP.
 ** System: the covellite mineral (CuS).
 ** Reference: Morales-García et al., J. Phys Chem. A. (2014) 118, 5823.
 ** Description
@@ -374,7 +374,7 @@ reconstructed all-electron density and write them to a graphics file
 for visualization. 
 
 * structures
-** Density source: n/a.
+** Source: n/a.
 ** System: zincblende, fluorite, MgO.
 ** Description
 
@@ -401,7 +401,7 @@ xyz are identified within the crystal (associated atoms and
 crystallographic coordinates are found) using the IDENTIFY keyword.
 
 * hf6_cycle
-** Density source: Gaussian wfx and Quantum ESPRESSO.
+** Source: Gaussian wfx and Quantum ESPRESSO.
 ** System: cyclic HF hexamer (gas-phase).
 ** Description
 
@@ -439,7 +439,7 @@ Contour plot of the wfx electron density and gradient lines in the
 molecular plane.
 
 * grid_integration
-** Density source: VASP, abinit, and Quantum ESPRESSO.
+** Source: VASP, abinit, and Quantum ESPRESSO.
 ** System: urea molecular crystal.
 ** Description
 
@@ -490,7 +490,7 @@ pseudo-density, use plot_num = 0. The reconstructed valence density
 can only be generated if using PAW datasets, with plot_num = 17.
 
 * grid_ammonia
-** Density source: Quantum ESPRESSO.
+** Source: Quantum ESPRESSO.
 ** System: ammonia molecular crystal.
 ** Description
 
@@ -533,7 +533,7 @@ points and gives a CP topology that is homeomorphic with the
 promolecular density, also calculated in this input.
 
 * elk_quartz
-** Density source: elk.
+** Source: elk.
 ** System: alpha-quartz at the experimental geometry.
 ** Description
 
@@ -564,7 +564,7 @@ spurious CP manifold, and a line of the electron density is plotted
 that goes through the affected region of space.
 
 * pressure_density
-** Density source: abinit.
+** Source: abinit.
 ** System: elemental Ca (fcc).
 ** Reference: D. C. Fredrickson, J. Am. Chem. Soc. 134, 5991 (2012).
 ** Description
@@ -597,7 +597,7 @@ Using the cube files above, make several plots of the pressure on a
 plane including one Ca atom.
 
 * elf_basins
-** Density source: Gaussian wfx and abinit.
+** Source: Gaussian wfx and abinit.
 ** System: gas-phase pyridine and urea molecular crystal.
 ** Description
 
@@ -621,5 +621,37 @@ Plot the ELF from the pyridine wfx file on the molecular plane.
 Load the ELF and the density for the urea crystal calculated by
 abinit, then integrate the ELF basins and represent the ELF maxima in
 a three-dimensional plot.
+
+* energy_components
+** Source: Quantum ESPRESSO.
+** System: urea molecular crystal.
+** Description
+
+The urea crystal was calculated at the experimental geometry with
+norm-conserving pseudopotentials and ecutrho = 4 * ecutwfc. Several
+grids were extracted from this calculation, including the density and
+various potentials and energy densities. We show how integrals over
+the unit cell of these grids and combinations therefor can be
+performed in critic2. 
+
+** crystal_voids.cri
+
+Find the volume and charge in the interstitial space of the urea
+crystal. The interstitial is (arbitrarily) defined as the region of
+the cell where the density is less than 0.01 atomic units. To do this,
+we load grids where the points with density less than this value are
+one, and the rest are zero. The same procedure can be applied to the
+promolecular or calculated densities.
+
+** energy_components.cri
+
+Calculate several components of the total energy in the urea crystal
+by integrating over the whole grid. These include the local
+pseudopotential energy, the kinetic energy, the Hartree energy, and
+the exchange-correlation energy. For the latter, we do it using both a
+cube calculated by QE and the libxc functional library (this requires
+that you compile critic2 against libxc, see the README). The ewald
+energy is calculated with the EWALD keyword.
+
 
 
