@@ -624,6 +624,7 @@ contains
 
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
+    use global
     use tools_io
     use struct_basic
 
@@ -656,7 +657,11 @@ contains
     ! write the field
     do i = 0, n(1)-1
        do j = 0, n(2)-1
-          write (lu,'(6(1x,e12.5))') (c(i,j,k),k=0,n(3)-1)
+             if (precisecube) then
+                write (lu,'(6(1x,e22.14))') (c(i,j,k),k=0,n(3)-1)
+             else
+                write (lu,'(1p,6(1x,e12.5))') (c(i,j,k),k=0,n(3)-1)
+             end if
        enddo
     enddo
 

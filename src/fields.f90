@@ -1216,6 +1216,7 @@ contains
   !> (in bohr). Otherwise, use the crystal's molx0.
   subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
     use struct_basic
+    use global
     use tools_io
     use param
 
@@ -1260,7 +1261,11 @@ contains
     if (.not.onlyheader) then
        do ix = 1, n(1)
           do iy = 1, n(2)
-             write (lu,'(6(1x,e22.14))') (g(ix,iy,iz),iz=1,n(3))
+             if (precisecube) then
+                write (lu,'(6(1x,e22.14))') (g(ix,iy,iz),iz=1,n(3))
+             else
+                write (lu,'(1p,6(1x,e12.5))') (g(ix,iy,iz),iz=1,n(3))
+             end if
           enddo
        enddo
     end if
