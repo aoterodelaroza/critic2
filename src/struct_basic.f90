@@ -975,7 +975,7 @@ contains
 
   !> List all molecules in the main cell of the crystal, perhaps
   !> completing them with atoms from adjacent molecules. 
-  subroutine listmolecules(c,nfrag,fr,isdiscrete)
+  subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
     use fragmentmod
     use tools_math
     use tools_io
@@ -983,6 +983,7 @@ contains
     use param
 
     class(crystal), intent(inout) :: c
+    type(fragment), intent(in) :: fri
     integer, intent(out) :: nfrag
     type(fragment), intent(out), allocatable :: fr(:)
     logical, intent(out), allocatable :: isdiscrete(:)
@@ -991,24 +992,35 @@ contains
     integer :: nat
     integer, allocatable :: id(:), lvec(:,:)
     logical, allocatable :: ldone(:)
-    logical :: found, iscel(c%ncel), ldist
-    
+    logical :: found, ldist
+    integer :: nseed
+    integer, allocatable :: idseed(:), lseed(:,:)
+    logical, allocatable :: fseed(:)
+
     ! find the neighbor stars, if not already done
     call c%find_asterisms()
+
+    ! unwrap the input fragment
+    nseed = fri%nat
+    allocate(idseed(nseed),lseed(3,nseed),fseed(nseed))
+    do j = 1, nseed
+       idseed(j) = fri%at(j)%cidx
+       lseed(:,j) = fri%at(j)%lvec
+    end do
+    fseed = .false.
 
     ! allocate stuff
     nfrag = 0
     allocate(fr(1),isdiscrete(1),id(10),lvec(3,10),ldone(10))
     isdiscrete = .true.
-    iscel = .false.
     
-    do i = 1, c%ncel
-       if (iscel(i)) cycle
+    do i = 1, nseed
+       if (fseed(i)) cycle
 
-       ! initialize the stack with atom i in the main cell
+       ! initialize the stack with atom i in the seed
        nat = 1
-       id(1) = i
-       lvec(:,1) = 0
+       id(1) = idseed(i)
+       lvec(:,1) = lseed(:,i)
        ldone(1) = .false.
        ldist = .true.
        ! run the stack
@@ -1062,7 +1074,7 @@ contains
        end do
 
        ! add this fragment to the list
-       iscel(i) = .true.
+       fseed(i) = .true.
        nfrag = nfrag + 1
        if (nfrag > size(fr)) then
           call realloc(fr,2*nfrag)
@@ -1080,10 +1092,13 @@ contains
           fr(nfrag)%at(j)%z = c%at(fr(nfrag)%at(j)%idx)%z
        end do
 
-       ! run over all atoms in the new fragment and mark those atoms in the unit cell
+       ! run over all atoms in the new fragment and mark those atoms in the seed
        do j = 1, nat
-          if (.not.iscel(id(j)) .and. all(lvec(:,j) == 0)) &
-             iscel(id(j)) = .true.
+          do k = 1, nseed
+             if (fseed(k)) cycle
+             if (id(j) == idseed(k) .and. all(lvec(:,j) == lseed(:,k))) &
+                fseed(k) = .true.
+          end do
        end do
     end do
 

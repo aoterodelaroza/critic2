@@ -1864,9 +1864,10 @@ represented in a figure, because many of the atoms in the cubic cell
 are "missing". By using BORDER, these atoms are included.
 
 The keyword MOLMOTIF is used in molecular crystals. All atoms in the
-requested cells (ix.i iy.i iz.i) are written to the xyz file. Then,
-the molecules that lie across the cell boundary are completed using
-atoms from the neighboring cells. In order to do this, a connectivity
+requested cells (ix.i iy.i iz.i) are written to the xyz file (BORDER
+can also be used to include the atoms at the cell border). Then, the
+molecules that lie across the cell boundary are completed using atoms
+from the neighboring cells. In order to do this, a connectivity
 criterion is used: two atoms are bonded if their distance is less than
 1.5 times their sum of covalent radii.
 

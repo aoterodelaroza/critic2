@@ -122,9 +122,11 @@ contains
     elseif (rsph > 0) then
        fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
     elseif (doburst.or.dopairs) then
-       call c%listmolecules(nmol,fr0,isdiscrete)
+       fr = c%listatoms_cells(ix,doborder)
+       call c%listmolecules(fr,nmol,fr0,isdiscrete)
     elseif (molmotif) then
-       call c%listmolecules(nmol,fr0,isdiscrete)
+       fr = c%listatoms_cells(ix,doborder)
+       call c%listmolecules(fr,nmol,fr0,isdiscrete)
        fr = fragment_merge_array(fr0)
     else
        fr = c%listatoms_cells(ix,doborder)
@@ -229,7 +231,8 @@ contains
     elseif (rsph > 0) then
        fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
     elseif (doburst .or. molmotif) then
-       call c%listmolecules(nmol,fr0,isdiscrete)
+       fr = c%listatoms_cells(ix,doborder)
+       call c%listmolecules(fr,nmol,fr0,isdiscrete)
     else
        fr = c%listatoms_cells(ix,doborder)
     endif
