@@ -25,6 +25,7 @@ module types
   public :: scalar_value, field
   public :: integrable, pointpropable
   public :: minisurf, miniface
+  public :: neighstar
   public :: realloc
 
   ! overloaded functions
@@ -296,6 +297,13 @@ module types
      integer :: mv !< mv
      integer :: mf !< maximum number of vertex and faces
   end type minisurf
+
+  !> Neighbor star -> to analyze the connectivity in a molecular crystal
+  type neighstar
+     integer :: ncon = 0 !< number of neighbor for this atom
+     integer, allocatable :: idcon(:) !< id (atcel) of the connected atom
+     integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
+  end type neighstar
 
 contains
   

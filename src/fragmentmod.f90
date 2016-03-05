@@ -40,7 +40,7 @@ contains
     
   end subroutine fragment_init
 
-  !> Merge two fragments, delete repeated atoms
+  !> Merge two or more fragments, delete repeated atoms
   function fragment_merge_array(fra) result(fr)
 
     type(fragment), intent(in) :: fra(:)

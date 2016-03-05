@@ -103,7 +103,7 @@ contains
     use types
     use param
 
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
@@ -113,7 +113,7 @@ contains
 
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
-    logical :: isdiscrete
+    logical, allocatable :: isdiscrete(:)
     integer :: i, j, nmol
     character(len=:), allocatable :: wroot, file0
 
@@ -123,8 +123,11 @@ contains
        fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
     elseif (doburst.or.dopairs) then
        call c%listmolecules(nmol,fr0,isdiscrete)
+    elseif (molmotif) then
+       call c%listmolecules(nmol,fr0,isdiscrete)
+       fr = fragment_merge_array(fr0)
     else
-       fr = c%listatoms_cells(ix,doborder,molmotif)
+       fr = c%listatoms_cells(ix,doborder)
     endif
 
     if (.not.doburst.and..not.dopairs) then
@@ -186,7 +189,7 @@ contains
     use tools_io
     use param
 
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
@@ -200,7 +203,7 @@ contains
     real*8 :: d, xd(3), x0(3), x1(3)
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
-    logical :: isdiscrete
+    logical, allocatable :: isdiscrete(:)
     integer :: k, nmol
     character(len=:), allocatable :: wroot, file0
 
@@ -225,34 +228,36 @@ contains
        fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
     elseif (rsph > 0) then
        fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
-    elseif (doburst) then
+    elseif (doburst .or. molmotif) then
        call c%listmolecules(nmol,fr0,isdiscrete)
     else
-       fr = c%listatoms_cells(ix,doborder,molmotif)
+       fr = c%listatoms_cells(ix,doborder)
     endif
 
     if (.not.doburst) then
        file0 = file
-       allocate(fr0(1))
-       fr0(1) = fr
+       if (.not.molmotif) then
+          allocate(fr0(1))
+          fr0(1) = fr
+       end if
     else
        wroot = file(:index(file,'.',.true.)-1)
     end if
 
+    if (doburst) then
+       file0 = wroot // "_" // string(k) // "." // fmt
+    end if
+
+    lumtl = 0
+    if (equal(fmt,"obj")) then
+       call obj_open(file0,lu,lumtl)
+    elseif (equal(fmt,"ply")) then
+       call ply_open(file0,lu)
+    elseif (equal(fmt,"off")) then
+       call off_open(file0,lu)
+    endif
+
     do k = 1, nmol
-       if (doburst) then
-          file0 = wroot // "_" // string(k) // "." // fmt
-       end if
-
-       lumtl = 0
-       if (equal(fmt,"obj")) then
-          call obj_open(file0,lu,lumtl)
-       elseif (equal(fmt,"ply")) then
-          call ply_open(file0,lu)
-       elseif (equal(fmt,"off")) then
-          call off_open(file0,lu)
-       endif
-
        ! add the balls
        do i = 1, fr0(k)%nat
           if (equal(fmt,"obj")) then
@@ -299,44 +304,44 @@ contains
              end if
           end do
        end if
-
-       ! add the molecular cell
-       if (domolcell .and. c%ismolecule) then
-          do i = 1, 12
-             x0 = x0cell(:,1,i)
-             x1 = x0cell(:,2,i)
-             do j = 1, 3
-                if (abs(x0(j)) < 1d-12) x0(j) = c%molborder(j)
-                if (abs(x0(j)-1d0) < 1d-12) x0(j) = 1d0-c%molborder(j)
-                if (abs(x1(j)) < 1d-12) x1(j) = c%molborder(j)
-                if (abs(x1(j)-1d0) < 1d-12) x1(j) = 1d0-c%molborder(j)
-             end do
-             x0 = c%x2c(x0)
-             x1 = c%x2c(x1)
-             if (equal(fmt,"obj")) then
-                call obj_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-             elseif (equal(fmt,"ply")) then
-                call ply_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-             elseif (equal(fmt,"off")) then
-                call off_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-             end if
-          end do
-       end if
-
-       ! close or give the handles to the calling routine, cleanup
-       if (present(lumtl0) .and. present(lu0)) then
-          lu0 = lu
-          lumtl0 = lumtl
-       else
-          if (equal(fmt,"obj")) then
-             call obj_close(lu,lumtl)
-          elseif (equal(fmt,"ply")) then
-             call ply_close(lu)
-          elseif (equal(fmt,"off")) then
-             call off_close(lu)
-          end if
-       end if
     end do
+
+    ! add the molecular cell
+    if (domolcell .and. c%ismolecule) then
+       do i = 1, 12
+          x0 = x0cell(:,1,i)
+          x1 = x0cell(:,2,i)
+          do j = 1, 3
+             if (abs(x0(j)) < 1d-12) x0(j) = c%molborder(j)
+             if (abs(x0(j)-1d0) < 1d-12) x0(j) = 1d0-c%molborder(j)
+             if (abs(x1(j)) < 1d-12) x1(j) = c%molborder(j)
+             if (abs(x1(j)-1d0) < 1d-12) x1(j) = 1d0-c%molborder(j)
+          end do
+          x0 = c%x2c(x0)
+          x1 = c%x2c(x1)
+          if (equal(fmt,"obj")) then
+             call obj_stick(lu,x0,x1,(/0,0,255/),0.03d0)
+          elseif (equal(fmt,"ply")) then
+             call ply_stick(lu,x0,x1,(/0,0,255/),0.03d0)
+          elseif (equal(fmt,"off")) then
+             call off_stick(lu,x0,x1,(/0,0,255/),0.03d0)
+          end if
+       end do
+    end if
+
+    ! close or give the handles to the calling routine, cleanup
+    if (present(lumtl0) .and. present(lu0)) then
+       lu0 = lu
+       lumtl0 = lumtl
+    else
+       if (equal(fmt,"obj")) then
+          call obj_close(lu,lumtl)
+       elseif (equal(fmt,"ply")) then
+          call ply_close(lu)
+       elseif (equal(fmt,"off")) then
+          call off_close(lu)
+       end if
+    end if
 
     if (allocated(fr0)) deallocate(fr0)
 

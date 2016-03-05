@@ -89,6 +89,9 @@ module struct_basic
      real*8 :: molborder(3) !< border length (cryst coords)
      ! save the file name for the occasional critic2 trick
      character(len=128) :: file
+     ! asterisms
+     logical :: havestar = .false. !< true if the neighbor stars have been calculated
+     type(neighstar), allocatable :: nstar(:) !< neighbor stars
    contains
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
@@ -107,6 +110,7 @@ module struct_basic
      procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
      procedure :: are_equiv !< Determine if two given points are equivalent by symmetry
      procedure :: build_env !< Build the crystal environment (atenv)
+     procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border and molmotif)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
@@ -225,6 +229,7 @@ contains
     if (allocated(c%atcel)) deallocate(c%atcel)
     if (allocated(c%atenv)) deallocate(c%atenv)
     if (allocated(c%cen)) deallocate(c%cen)
+    if (allocated(c%nstar)) deallocate(c%nstar)
     c%nneq = 0
     c%ncel = 0
     c%nenv = 0
@@ -234,6 +239,7 @@ contains
     c%nws = 0
     c%ismolecule = .false.
     c%isinit = .false.
+    c%havestar = .false.
 
   end subroutine struct_end
 
@@ -739,10 +745,80 @@ contains
 
   end subroutine build_env
 
+  !> Find asterisms. For every atom in the unit cell, find the atoms in the 
+  !> main cell or adjacent cells that are connected to it. Fills c%havestar
+  !> and c%nstar.
+  subroutine find_asterisms(c)
+    use types
+    use param
+
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j, k, istack(2*c%ncel), nstack, id, id2
+    real*8 :: rvws(3), dvws, x0(3), x(3), dist
+    real*8 :: d0, lvec0(3), lvec(3)
+
+    real*8, parameter :: rfac = 1.4d0
+
+    if (c%havestar) return
+    c%havestar = .true.
+    if (.not.allocated(c%nstar)) allocate(c%nstar(c%ncel))
+
+    ! allocate the neighbor star
+    do i = 1, c%ncel
+       allocate(c%nstar(i)%idcon(4))
+       allocate(c%nstar(i)%lcon(3,4))
+    end do
+
+    ! run over all pairs of atoms in the unit cell
+    do i = 1, c%ncel
+       do j = i, c%ncel
+          x0 = c%atcel(j)%x - c%atcel(i)%x
+          lvec0 = nint(x0)
+          x0 = x0 - lvec0
+          d0 = rfac * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
+
+          do k = 0, c%nws
+             if (k == 0) then
+                rvws = x0
+                lvec = lvec0
+             else
+                rvws = x0 - c%ivws(:,k)
+                lvec = lvec0 + c%ivws(:,k)
+             endif
+             rvws = matmul(c%crys2car,rvws)
+             if (all(abs(rvws) < d0)) then
+                dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
+                if (dist > vsmall .and. dist < d0) then
+                   ! j is a neighbor of i
+                   c%nstar(i)%ncon = c%nstar(i)%ncon + 1
+                   if (c%nstar(i)%ncon > size(c%nstar(i)%idcon)) then
+                      call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
+                      call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
+                   end if
+                   c%nstar(i)%idcon(c%nstar(i)%ncon) = j
+                   c%nstar(i)%lcon(:,c%nstar(i)%ncon) = -lvec
+
+                   ! i is a neighbor of j
+                   c%nstar(j)%ncon = c%nstar(j)%ncon + 1
+                   if (c%nstar(j)%ncon > size(c%nstar(j)%idcon)) then
+                      call realloc(c%nstar(j)%idcon,2*c%nstar(j)%ncon)
+                      call realloc(c%nstar(j)%lcon,3,2*c%nstar(j)%ncon)
+                   end if
+                   c%nstar(j)%idcon(c%nstar(j)%ncon) = i
+                   c%nstar(j)%lcon(:,c%nstar(j)%ncon) = lvec
+                end if
+             end if
+          end do
+       end do
+    end do
+
+  end subroutine find_asterisms
+
   !> List atoms in a number of cells around the main cell (nx),
   !> possibly with border (doborder) and motif filling
   !> (molmotif). 
-  function listatoms_cells(c,nx,doborder,molmotif) result(fr)
+  function listatoms_cells(c,nx,doborder) result(fr)
     use fragmentmod
     use tools_math
     use types
@@ -750,7 +826,7 @@ contains
 
     class(crystal), intent(in) :: c
     integer, intent(in) :: nx(3)
-    logical, intent(in) :: doborder, molmotif
+    logical, intent(in) :: doborder
     type(fragment) :: fr
 
     integer, parameter :: nx0 = 100
@@ -787,105 +863,36 @@ contains
        end do
     end do
 
-    ! border and molmotif: pick atoms
-    if (doborder .or. molmotif) then
-       if (molmotif) then
-          allocate(xc(3,c%ncel*((nx(1)+2)*(nx(2)+2)*(nx(3)+2)-nx(1)*nx(2)*nx(3))+1))
-          allocate(zxc(c%ncel*((nx(1)+2)*(nx(2)+2)*(nx(3)+2)-nx(1)*nx(2)*nx(3))+1))
-          allocate(idxc(c%ncel*((nx(1)+2)*(nx(2)+2)*(nx(3)+2)-nx(1)*nx(2)*nx(3))+1))
-          nxc = 0
-       end if
+    ! border: pick atoms
+    if (doborder) then
        do ix = -1,nx(1)
           do iy = -1,nx(2)
              do iz = -1,nx(3)
                 if (ix > -1 .and. ix < nx(1) .and. iy > -1 .and. iy < nx(2) .and.&
                    iz > -1 .and. iz < nx(3)) cycle
                 do i = 1, c%ncel
-
                    ! border
-                   if (doborder) then
-                      if1 = (ix == -1 .and. c%atcel(i)%x(1)<rthr1 .or. &
-                         ix == nx(1) .and. c%atcel(i)%x(1)>rthr .or. &
-                         iy == -1 .and. c%atcel(i)%x(2)<rthr1 .or. &
-                         iy == nx(2) .and. c%atcel(i)%x(2)>rthr .or. &
-                         iz == -1 .and. c%atcel(i)%x(3)<rthr1 .or. &
-                         iz == nx(3) .and. c%atcel(i)%x(3)>rthr)
-                      if (.not.if1) then
-                         fr%nat = fr%nat + 1
-                         if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
-                         fr%at(fr%nat)%x = c%atcel(i)%x + (/ix,iy,iz/)
-                         fr%at(fr%nat)%r = c%x2c(fr%at(fr%nat)%x)
-                         fr%at(fr%nat)%cidx = i
-                         fr%at(fr%nat)%idx = c%atcel(i)%idx
-                         fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                         fr%at(fr%nat)%z = c%at(c%atcel(i)%idx)%z
-                         cycle
-                      end if
-                   end if
-
-                   ! molmotif
-                   if (molmotif) then
-                      nxc = nxc + 1
-                      x0 = c%x2c(c%atcel(i)%x + (/ix,iy,iz/))
-                      xc(:,nxc) = x0
-                      zxc(nxc) = c%at(c%atcel(i)%idx)%z
-                      idxc(nxc) = i
+                   if1 = (ix == -1 .and. c%atcel(i)%x(1)<rthr1 .or. &
+                      ix == nx(1) .and. c%atcel(i)%x(1)>rthr .or. &
+                      iy == -1 .and. c%atcel(i)%x(2)<rthr1 .or. &
+                      iy == nx(2) .and. c%atcel(i)%x(2)>rthr .or. &
+                      iz == -1 .and. c%atcel(i)%x(3)<rthr1 .or. &
+                      iz == nx(3) .and. c%atcel(i)%x(3)>rthr)
+                   if (.not.if1) then
+                      fr%nat = fr%nat + 1
+                      if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
+                      fr%at(fr%nat)%x = c%atcel(i)%x + (/ix,iy,iz/)
+                      fr%at(fr%nat)%r = c%x2c(fr%at(fr%nat)%x)
+                      fr%at(fr%nat)%cidx = i
+                      fr%at(fr%nat)%idx = c%atcel(i)%idx
+                      fr%at(fr%nat)%lvec = (/ix,iy,iz/)
+                      fr%at(fr%nat)%z = c%at(c%atcel(i)%idx)%z
+                      cycle
                    end if
                 end do
              end do
           end do
        end do
-
-       ! molmotif: build the molecular motif
-       if (molmotif) then
-          allocate(usexc(nxc))
-          usexc = .false.
-          ! first pass: with the atoms already in the cell
-          do i = 1, nxc
-             do j = 1, fr%nat
-                x0 = fr%at(j)%r - xc(1:3,i)
-                d = norm(x0)
-                if (d < (atmcov(fr%at(j)%z) + atmcov(zxc(i))) * rfac) then
-                   usexc(i) = .true.
-                   exit
-                end if
-             end do
-          end do
-
-          ! second pass: only within xc
-          doagain = .true.
-          do while (doagain)
-             doagain=.false.
-             do i = 1, nxc
-                if (usexc(i)) cycle
-                do j = 1, nxc
-                   if (.not.usexc(j)) cycle
-                   x0 = xc(1:3,j) - xc(1:3,i)
-                   d = norm(x0)
-                   if (d < (atmcov(zxc(j)) + atmcov(zxc(i))) * rfac) then
-                      usexc(i) = .true.
-                      doagain = .true.
-                      exit
-                   end if
-                end do
-             end do
-          end do
-          ! include the new atoms in the list
-          do i = 1, nxc
-             if (usexc(i)) then
-                fr%nat = fr%nat + 1
-                if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
-                fr%at(fr%nat)%r = xc(:,i)
-                fr%at(fr%nat)%x = c%c2x(xc(:,i))
-                fr%at(fr%nat)%cidx = idxc(i)
-                fr%at(fr%nat)%idx = c%atcel(idxc(i))%idx
-                fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - c%atcel(idxc(i))%x)
-                fr%at(fr%nat)%z = c%at(c%atcel(idxc(i))%idx)%z
-             end if
-          end do
-          deallocate(xc,zxc,usexc)
-          deallocate(idxc)
-       end if
     end if
     call realloc(fr%at,fr%nat)
 
@@ -967,113 +974,118 @@ contains
   end function listatoms_sphcub
 
   !> List all molecules in the main cell of the crystal, perhaps
-  !> completing them with atoms from adjacent molecules. Similar to
-  !> listatoms_cells with border and molmotif, but this routine
-  !> returns molecules.
-  subroutine listmolecules(c,nmol,fr,isdiscrete)
+  !> completing them with atoms from adjacent molecules. 
+  subroutine listmolecules(c,nfrag,fr,isdiscrete)
     use fragmentmod
     use tools_math
     use tools_io
     use types
     use param
 
-    class(crystal), intent(in) :: c
-    integer, intent(out) :: nmol
+    class(crystal), intent(inout) :: c
+    integer, intent(out) :: nfrag
     type(fragment), intent(out), allocatable :: fr(:)
-    logical, intent(out) :: isdiscrete
+    logical, intent(out), allocatable :: isdiscrete(:)
     
-    type(fragment) :: frg
-    integer :: nsave, nadd, id
-    integer :: i, j, k
-    logical, allocatable :: lcon(:,:), used(:)
-    integer, allocatable :: isave(:)
-    real*8 :: d, dmax
-    logical :: doagain
-
-    real*8, parameter :: rfac = 1.4d0
+    integer :: i, j, k, l, newid, newl(3), jid
+    integer :: nat
+    integer, allocatable :: id(:), lvec(:,:)
+    logical, allocatable :: ldone(:)
+    logical :: found, iscel(c%ncel), ldist
+    
+    ! find the neighbor stars, if not already done
+    call c%find_asterisms()
 
     ! allocate stuff
-    allocate(fr(1))
-    
-    ! first do a normal molmotif
-    frg = c%listatoms_cells((/1,1,1/),.true.,.true.)
-    allocate(lcon(frg%nat,frg%nat))
-    lcon = .false.
-
-    ! calculate the adjacency matrix
-    do i = 1, frg%nat
-       do j = i+1, frg%nat
-          dmax = (atmcov(frg%at(i)%z) + atmcov(frg%at(j)%z)) * rfac
-          if (any(abs(frg%at(i)%r - frg%at(j)%r) > dmax)) cycle
-          d = norm(frg%at(i)%r - frg%at(j)%r)
-          if (d > dmax) cycle
-          lcon(i,j) = .true.
-          lcon(j,i) = .true.
-       end do
-       lcon(i,i) = .true.
-    end do
-    
-    ! determine the number of molecules (connected components)
-    nmol = 0
-    allocate(used(frg%nat),isave(frg%nat))
-    used = .false.
-    do i = 1, frg%nat
-       if (.not.used(i)) then
-          used(i) = .true.
-          nmol = nmol + 1
-          if (nmol > size(fr)) call realloc(fr,2*nmol)
-          fr(nmol)%nat = 1
-          allocate(fr(nmol)%at(1))
-          fr(nmol)%at(1) = frg%at(i)
-          
-          nsave = 1
-          isave(1) = i
-          ! determine all the atoms connected to i, depth-first
-          doagain = .true.
-          do while(doagain) 
-             nadd = 0
-             doagain = .false.
-             do j = 1, frg%nat
-                if (used(j)) cycle
-                do k = 1, nsave
-                   if (lcon(isave(k),j)) then
-                      used(j) = .true.
-                      fr(nmol)%nat = fr(nmol)%nat + 1
-                      if (fr(nmol)%nat > size(fr(nmol)%at)) call realloc(fr(nmol)%at,2*fr(nmol)%nat)
-                      fr(nmol)%at(fr(nmol)%nat) = frg%at(j)
-                      doagain = .true.
-                      nadd = nadd + 1
-                      isave(nsave+nadd) = j
-                      exit
-                   endif
-                end do
-             end do
-             nsave = nsave + nadd
-          end do
-       end if
-    end do
-    deallocate(used,isave)
-    
-    ! isdiscrete is false if two atoms in the same molecule correspond to the same
-    ! atom in the unit cell -> there are no discrete molecules.
-    allocate(used(c%ncel))
+    nfrag = 0
+    allocate(fr(1),isdiscrete(1),id(10),lvec(3,10),ldone(10))
     isdiscrete = .true.
-    main: do i = 1, nmol
-       used = .false.
-       do j = 1, fr(i)%nat
-          id = c%identify_atom(fr(i)%at(j)%r,.true.)
-          if (used(id)) then
-             isdiscrete = .false.
-             exit main
-          else
-             used(id) = .true.
-          endif
-       end do
-    end do main
-    deallocate(used)
+    iscel = .false.
+    
+    do i = 1, c%ncel
+       if (iscel(i)) cycle
 
-    ! deallocate and cleanup
-    if (allocated(lcon)) deallocate(lcon)
+       ! initialize the stack with atom i in the main cell
+       nat = 1
+       id(1) = i
+       lvec(:,1) = 0
+       ldone(1) = .false.
+       ldist = .true.
+       ! run the stack
+       do while (.not.all(ldone(1:nat)))
+          ! find the next atom that is not done
+          do j = 1, nat
+             if (.not.ldone(j)) exit
+          end do
+          ldone(j) = .true.
+          jid = id(j)
+
+          ! run over all neighbors of j
+          do k = 1, c%nstar(jid)%ncon
+             ! id for the atom and lattice vector
+             newid = c%nstar(jid)%idcon(k)
+             newl = c%nstar(jid)%lcon(:,k) + lvec(:,j)
+ 
+             ! is this atom in the fragment already? -> skip it
+             found = .false.
+             do l = 1, nat
+                found = (newid == id(l)) .and. all(newl == lvec(:,l))
+                if (found) exit
+             end do
+             if (found) cycle
+
+             ! is this atom in the fragment already with a different
+             ! lattice vector?  -> add it to the list but not to the
+             ! stack, and mark the fragment as non-discrete
+             found = .false.
+             do l = 1, nat
+                found = (newid == id(l))
+                if (found) exit
+             end do
+             nat = nat + 1
+             if (nat > size(ldone)) then
+                call realloc(id,2*nat)
+                call realloc(lvec,3,2*nat)
+                call realloc(ldone,2*nat)
+             end if
+             id(nat) = newid
+             lvec(:,nat) = newl
+
+             if (found) then
+                ldone(nat) = .true.
+                ldist = .false.
+             else
+                ! if it wasn't found, then add the atom to the stack
+                ldone(nat) = .false.
+             end if
+          end do
+       end do
+
+       ! add this fragment to the list
+       iscel(i) = .true.
+       nfrag = nfrag + 1
+       if (nfrag > size(fr)) then
+          call realloc(fr,2*nfrag)
+          call realloc(isdiscrete,2*nfrag)
+       end if
+       allocate(fr(nfrag)%at(nat))
+       isdiscrete(nfrag) = ldist
+       fr(nfrag)%nat = nat
+       do j = 1, nat
+          fr(nfrag)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
+          fr(nfrag)%at(j)%r = c%x2c(fr(nfrag)%at(j)%x)
+          fr(nfrag)%at(j)%cidx = id(j)
+          fr(nfrag)%at(j)%idx = c%atcel(id(j))%idx
+          fr(nfrag)%at(j)%lvec = lvec(:,j) 
+          fr(nfrag)%at(j)%z = c%at(fr(nfrag)%at(j)%idx)%z
+       end do
+
+       ! run over all atoms in the new fragment and mark those atoms in the unit cell
+       do j = 1, nat
+          if (.not.iscel(id(j)) .and. all(lvec(:,j) == 0)) &
+             iscel(id(j)) = .true.
+       end do
+    end do
 
   end subroutine listmolecules
 
