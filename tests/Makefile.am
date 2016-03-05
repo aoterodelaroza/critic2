@@ -18,7 +18,8 @@ TESTS=\
 005_write_abiconv.sh 005_write_abiprim.sh 005_write_elkconv.sh 005_write_elkprim.sh\
 005_write_escher.sh 005_write_qeconv.sh 005_write_qeprim.sh 005_write_tess.sh\
 005_write_vaspconv.sh 005_write_vaspprim.sh 005_write_xyz1.sh 005_write_xyz2.sh\
-005_write_xyz3.sh 005_write_xyz4.sh 005_write_xyz5.sh 005_write_xyz6.sh 005_write_gjf.sh\
+005_write_xyz3.sh 005_write_xyz4.sh 005_write_xyz5.sh 005_write_xyz6.sh  005_write_xyz7.sh\
+005_write_gjf.sh\
 005_write_gulp1.sh 005_write_gulp2.sh 005_write_obj.sh 005_write_obj2.sh\
 005_write_obj3.sh 005_write_obj4.sh 005_write_obj5.sh 005_write_ply.sh 005_write_off.sh\
 005_write_lammps1.sh 005_write_lammps2.sh\
