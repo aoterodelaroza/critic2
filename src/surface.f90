@@ -876,6 +876,7 @@ contains
     integer :: i
     real*8 :: x(3)
     real*8, allocatable :: fsurf(:)
+    logical :: iok
 
     if (s%init <= 1) &
        call ferror ('minisurf_write3dmodel','No face information in minisurf',faterr)
@@ -888,7 +889,7 @@ contains
           x(2) = s%n(2) + s%r(i) * sin(s%th(i)) * sin(s%ph(i))
           x(3) = s%n(3) + s%r(i) * cos(s%th(i))             
           call grd(f(refden),x,0,res)
-          fsurf(i) = eval_hard_fail(expr,x,fields_fcheck,fields_feval)
+          fsurf(i) = eval(expr,.true.,iok,x,fields_fcheck,fields_feval)
        end do
     else
        allocate(fsurf(3))

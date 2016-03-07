@@ -82,7 +82,7 @@ contains
     character*(*), intent(in) :: line
 
     type(scalar_value) :: res
-    logical :: ok, doall
+    logical :: ok, doall, iok
     integer :: lp, lp2, i, j, imin, imax
     real*8 :: x0(3), xp(3), rdum
     character(len=:), allocatable :: word, expr
@@ -150,7 +150,7 @@ contains
           call fields_propty(i,x0,res,.true.,.false.)
        end do
     else
-       rdum = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
+       rdum = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
        write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)
     endif
     write (uout,*)
@@ -174,7 +174,7 @@ contains
     real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3)
     character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
-    logical :: ok
+    logical :: ok, iok
     integer :: i
 
     ! read the points
@@ -306,7 +306,7 @@ contains
              lappt = res%del2f
           end select
        else
-          rhopt = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
+          rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
           lappt = rhopt
        end if
        if (.not.cr%ismolecule) then
@@ -345,7 +345,7 @@ contains
     integer :: lp2
     character(len=:), allocatable :: word, outfile, prop, expr, wext1, line0
     type(scalar_value) :: res
-    logical :: ok
+    logical :: ok, iok
     integer :: ix, iy, iz, i, j
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, iscube, doheader
@@ -552,7 +552,7 @@ contains
                       lappt = res%del2f
                    end select
                 else
-                   lappt = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
+                   lappt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
                 end if
                 !$omp critical (fieldwrite)
                 lf(ix+1,iy+1,iz+1) = lappt
@@ -593,7 +593,7 @@ contains
     logical :: docontour, dorelief, docolormap
     character(len=:), allocatable :: word, outfile, prop, root0, expr
     type(scalar_value) :: res
-    logical :: ok
+    logical :: ok, iok
     integer :: ix, iy
     real*8, allocatable :: ff(:,:)
 
@@ -806,7 +806,7 @@ contains
                 lappt = res%del2f
              end select
           else
-             rhopt = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
+             rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
              lappt = rhopt
           endif
           !$omp critical (write)

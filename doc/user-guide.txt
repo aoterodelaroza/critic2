@@ -850,7 +850,7 @@ if you load many of them.
 
 It is possible to specify a field modifier right after the number or
 name for that field in order to access its derivatives. The modifier,
-which is separated by the field name using the "#" character, may be
+which is separated by the field name using the ":" character, may be
 one of:  
 
 + v: valence-only value of the field (it is usually employed to access
@@ -864,7 +864,7 @@ one of:
 + lv: valence Laplacian (Laplacian without core augmentation).
 + lc: core Laplacian.
 
-For instance, "$2#l" is the Laplacian of field 2 and "$rho0#xy" is the
+For instance, "$2:l" is the Laplacian of field 2 and "$rho0:xy" is the
 xy-component of the Hessian of the promolecular density.
 
 There is a clear divide between expressions that reference fields and

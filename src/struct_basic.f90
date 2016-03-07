@@ -1101,6 +1101,8 @@ contains
           end do
        end do
     end do
+    call realloc(fr,nfrag)
+    call realloc(isdiscrete,nfrag)
 
   end subroutine listmolecules
 

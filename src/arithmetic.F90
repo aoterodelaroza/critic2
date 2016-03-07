@@ -22,12 +22,28 @@ module arithmetic
   use xc_f90_types_m, only: xc_f90_pointer_t
 #endif
   use hashtype
+  use param
   implicit none
 
-  public :: eval, eval_hard_fail, eval_soft_fail
+  public :: eval
   public :: fields_in_eval
-  public :: setvariable, isvariable, clearvariable, clearallvariables
+  private :: tokenize
+  private :: fieldeval
+  private :: isnumber
+  private :: isoperator
+  private :: isfunction
+  private :: isidentifier
+  private :: iprec
+  private :: iassoc
+  private :: pop
+  private :: istype
+  private :: die
+  public :: setvariable
+  public :: isvariable
+  public :: clearvariable
+  public :: clearallvariables
   public :: listvariables
+  private :: chemfunction
 
   private
   integer, parameter :: fun_openpar  = 1  !< open parenthesis
@@ -100,93 +116,35 @@ module arithmetic
   type(libxc_functional) :: ifun(maxfun)
 #endif
 
-  ! variables hash
-  type(hash) :: vh
+  ! token type
+  type token
+     integer :: type = 0
+     real*8 :: fval = 0d0
+     integer :: ival = 0
+     character(len=:), allocatable :: sval
+     character*2 :: fder = ""
+  end type token
+  integer, parameter :: token_undef = 0
+  integer, parameter :: token_num = 1
+  integer, parameter :: token_fun = 2
+  integer, parameter :: token_op = 3
+  integer, parameter :: token_lpar = 4
+  integer, parameter :: token_rpar = 5
+  integer, parameter :: token_comma = 6
+  integer, parameter :: token_field = 7
 
 contains
 
-  !> Wrapper for hard-fail evaluation.
-  function eval_hard_fail(expr,x0,fcheck,feval)
-
-    real*8 :: eval_hard_fail
-    character(*), intent(in) :: expr
-    real*8, intent(in), optional :: x0(3)
-    optional :: fcheck, feval
-    interface
-       !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
-         logical :: fcheck
-         character*(*), intent(in) :: id
-         integer, intent(out), optional :: iout
-       end function fcheck
-       !> Evaluate the field at a point
-       function feval(id,nder,x0)
-         use types, only: scalar_value
-         type(scalar_value) :: feval
-         character*(*), intent(in) :: id
-         integer, intent(in) :: nder
-         real*8, intent(in) :: x0(3)
-       end function feval
-    end interface
-
-    logical :: fail
-
-    fail = .true.
-    if (present(x0).and.present(fcheck).and.present(feval)) then
-       eval_hard_fail = eval(expr,fail,x0,fcheck,feval)
-    else
-       eval_hard_fail = eval(expr,fail)
-    endif
-
-  endfunction eval_hard_fail
-
-  !> Wrapper for soft-fail evaluation.
-  function eval_soft_fail(expr,res,x0,fcheck,feval)
-
-    logical :: eval_soft_fail
-    character(*), intent(in) :: expr
-    real*8, intent(out) :: res
-    real*8, intent(in), optional :: x0(3)
-    optional :: fcheck, feval
-    interface
-       !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
-         logical :: fcheck
-         character*(*), intent(in) :: id
-         integer, intent(out), optional :: iout
-       end function fcheck
-       !> Evaluate the field at a point
-       function feval(id,nder,x0)
-         use types, only: scalar_value
-         type(scalar_value) :: feval
-         character*(*), intent(in) :: id
-         integer, intent(in) :: nder
-         real*8, intent(in) :: x0(3)
-       end function feval
-    end interface
-
-    logical :: ok
-
-    ok = .false.
-    if (present(x0).and.present(fcheck).and.present(feval)) then
-       res = eval(expr,ok,x0,fcheck,feval)
-    else
-       res = eval(expr,ok)
-    endif
-    eval_soft_fail = ok
-
-  endfunction eval_soft_fail
-
   !> Evaluate an arithmetic expression expr. If the expression contains fields ($),
   !> use x0 as the evaluation point. If hardfail is true, stop with error if the
-  !> expression fails to evaluate. Otherwise, return the exit status in the same
-  !> variable.
-  function eval(expr,hardfail,x0,fcheck,feval)
+  !> expression fails to evaluate. Otherwise, return the exit status in ifail.
+  recursive function eval(expr,hardfail,iok,x0,fcheck,feval)
     use types
     use tools_io
     real*8 :: eval
     character(*), intent(in) :: expr
-    logical, intent(inout) :: hardfail
+    logical, intent(in) :: hardfail
+    logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
     optional :: fcheck, feval
 
@@ -207,56 +165,51 @@ contains
        end function feval
     end interface
 
-    integer :: lp, ll
+    integer :: i, ntok, lp
     real*8 :: a
-    integer :: c, s(100), iout, t(100)
-    logical :: again, wasop, fail, ok
+    integer :: c, s(100), iout
+    logical :: again, ok, ifail
     real*8 :: q(100)
-    character*(len(expr)) :: expr0
     integer :: nq, ns
     character(len=:), allocatable :: fid
     character*2 :: fder
+    type(token), allocatable :: toklist(:)
+
+    ! tokenize the expression in input
+    iok = .false.
+    eval = 0d0
+    lp = 1
+    ok = tokenize(expr,ntok,toklist,lp)
+    if (.not.ok) then
+       call dofail(expr(1:lp-1) // " -- " // expr(lp:))
+       return
+    end if
 
     ! initialize
-    expr0 = string(expr)
-    lp = 1
-    ll = len_trim(expr0)
     nq = 0
     ns = 0
     q(1) = 0d0
-    t(1) = typ_num
 
     ! run over tokens
-    wasop = .true.
-    main: do while (.true.)
-       if (lp > ll) exit main
-
-       ! skip blanks and quotes
-       do while (expr0(lp:lp) == ' '.or.expr0(lp:lp) == '\t'.or.expr0(lp:lp)=='\n'.or.&
-          expr0(lp:lp) == '"'.or.expr0(lp:lp) == "'")
-          lp = lp + 1
-          if (lp > ll) exit main
-       enddo
-
-       if (isnumber(a,expr0,lp)) then
-          ! a number (without sign)
+    do i = 1, ntok
+       if (toklist(i)%type == token_num) then
+          ! a number
           nq = nq + 1
-          q(nq) = a
-          t(nq) = typ_num
-          wasop = .false.
-       elseif (isfunction(c,expr0,lp,wasop)) then
+          q(nq) = toklist(i)%fval
+       elseif (toklist(i)%type == token_fun) then
           ! a function
           ns = ns + 1
-          s(ns) = c
-       elseif (isoperator(c,expr0,lp)) then
+          s(ns) = toklist(i)%ival
+       elseif (toklist(i)%type == token_op) then
           ! a binary operator
+          c = toklist(i)%ival
           again = .true.
           do while (again)
              again = .false.
              if (ns > 0) then
                 if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
-                   if (fail) then
+                   call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+                   if (ifail) then
                       call dofail()
                       return
                    endif
@@ -266,124 +219,93 @@ contains
           end do
           ns = ns + 1
           s(ns) = c
-          wasop = .true.
-       elseif (expr0(lp:lp) == '(') then
+       elseif (toklist(i)%type == token_lpar) then
           ! left parenthesis
           ns = ns + 1
           s(ns) = fun_openpar
-          lp = lp + 1
-          wasop = .true.
-       elseif (expr0(lp:lp) == ')') then
+       elseif (toklist(i)%type == token_rpar) then
           ! right parenthesis
-          do while (ns > 0)
-             if (s(ns) == fun_openpar) exit
-             call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
-             if (fail) then
-                call dofail()
-                return
-             end if
-          end do
-          if (ns == 0) call die('mismatched parentheses')
-          ns = ns - 1
-          ! if the top of the stack is a function, pop it
-          if (ns > 0) then
-             c = s(ns)
-             if (istype(c,'function')) then
-                call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
-                if (fail) then
-                   call dofail()
-                   return
-                end if
-             end if
-          end if
-          lp = lp + 1
-          wasop = .false.
-       elseif (expr0(lp:lp) == ',') then
-          ! a comma
-          do while (ns > 0)
-             if (s(ns) == fun_openpar) exit
-             call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
-             if (fail) then
-                call dofail()
-                return
-             endif
-          end do
-          if (s(ns) /= fun_openpar) call die('mismatched parentheses')
-          lp = lp + 1
-       elseif (expr0(lp:lp) == '$') then
-          ! a field
-          lp = lp + 1
-          nq = nq + 1
-          if (present(x0).and.present(fcheck).and.present(feval)) then
-             q(nq) = fieldeval(expr0,lp,x0,fcheck,feval)
-             t(nq) = typ_num
-          else
-             call dofail()
-             return
-          end if
-          wasop = .false.
-       elseif (isconstant(a,expr0,lp)) then
-          ! a constant (pi,...)
-          nq = nq + 1
-          q(nq) = a
-          t(nq) = typ_num
-          wasop = .false.
-       elseif (isvariable_private(a,expr0,lp)) then
-          ! a variable (defined by the user in input)
-          nq = nq + 1
-          q(nq) = a
-          t(nq) = typ_num
-          wasop = .false.
-       elseif (isfield(fid,fder,expr0,lp)) then
-          ! a named field for a chemical function
-          nq = nq + 1
-          ok = .false.
-          if (present(x0).and.present(fcheck).and.present(feval)) then
-             ok = fcheck(fid,iout)
-             q(nq) = real(iout,8)
-             t(nq) = typ_field
-          end if
-          if (.not.ok) then
-             call dofail()
-             return
-          end if
-          wasop = .false.
-       else
-          if (hardfail) then
-             call die("unknown symbol, incorrect variable, or unexpected termination",expr0)
-          else
-             hardfail = .false.
-             eval = 0d0
-             return
-          endif
-       end if
-    end do main
+           do while (ns > 0)
+              if (s(ns) == fun_openpar) exit
+              call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+              if (ifail) then
+                 call dofail()
+                 return
+              end if
+           end do
+           if (ns == 0) then
+              call dofail('mismatched parentheses')
+              return
+           end if
+           ns = ns - 1
+           ! if the top of the stack is a function, pop it
+           if (ns > 0) then
+              c = s(ns)
+              if (istype(c,'function')) then
+                 call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+                 if (ifail) then
+                    call dofail()
+                    return
+                 end if
+              end if
+           end if
+        elseif (toklist(i)%type == token_comma) then
+           ! a comma
+           do while (ns > 0)
+              if (s(ns) == fun_openpar) exit
+              call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+              if (ifail) then
+                 call dofail()
+                 return
+              endif
+           end do
+           if (s(ns) /= fun_openpar) then
+              call dofail('mismatched parentheses')
+              return
+           end if
+        elseif (toklist(i)%type == token_field) then
+           ! a field
+           nq = nq + 1
+           if (present(x0).and.present(fcheck).and.present(feval)) then
+              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,fcheck,feval)
+           else
+              call dofail()
+              return
+           end if
+        else
+           call dofail()
+           return
+        end if
+    end do
 
-    hardfail = .true.
     ! unwind the stack
     do while (ns > 0)
-       call pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
-       if (fail) then
+       call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+       if (ifail) then
           call dofail()
           return
        endif
     end do
-    if (t(1) /= typ_num) then
-       call dofail()
-       return
-    end if
+    iok = .true.
     eval = q(1)
+    return
 
   contains
-    subroutine dofail()
+    subroutine dofail(errmsg)
+      character*(*), intent(in), optional :: errmsg
+      
+      iok = .false.
       if (hardfail) then
-         call die("Failed evaluating expression: ",expr0)
+         if (present(errmsg)) then
+            call die("Error evaluating expression. ",errmsg)
+         else
+            call die("Error evaluating expression. ",expr)
+         end if
       else
-         hardfail = .false.
-         eval = 0d0
-         ! return ! let the calling routine do this
+         return
       endif
     end subroutine dofail
+
   end function eval
 
   !> Return field ids from the evaluation of an expression.
@@ -394,91 +316,191 @@ contains
     integer, intent(out) :: n
     character*255, allocatable :: idlist(:)
 
-    integer :: lp, ll, i, npar
-    real*8 :: a, b
-    integer :: c, d
-    character*(len(expr)) :: expr0
+    integer :: lp, i
     logical :: ok
-    character(len=:), allocatable :: id
-    character*2 :: fder
+    integer :: ntok
+    type(token), allocatable :: toklist(:)
+    character(len=:), allocatable :: errmsg
 
+    ! allocate space for the field ids
     if (allocated(idlist)) deallocate(idlist)
     allocate(idlist(10))
 
-    ! run over tokens
-    expr0 = string(expr)
-    n = 0
+    ! tokenize the expression
     lp = 1
-    ll = len_trim(expr0)
-    main: do while (.true.)
-       if (lp > ll) exit main
+    ok = tokenize(expr,ntok,toklist,lp)
+    if (.not. ok) &
+       call die("error evaluating expression: " // string(expr))
 
-       ! skip blanks and quotes
-       do while (expr0(lp:lp) == ' '.or.expr0(lp:lp) == '\t'.or.expr0(lp:lp)=='\n'.or.&
-          expr0(lp:lp) == '"'.or.expr0(lp:lp) == "'")
-          lp = lp + 1
-          if (lp > ll) exit main
-       enddo
-
-       ok = isnumber(a,expr0,lp)
-       if (.not.ok) ok = isfunction(c,expr0,lp,.true.)
-       if (ok) then
-          ! it may be a chemical function
-          if (istype(c,'chemfunction')) then
-             npar = 1
-             do i = lp+1, ll
-                if (expr0(i:i) == '(') npar = npar + 1
-                if (expr0(i:i) == ')') npar = npar - 1
-                if (npar == 0) exit
-             end do
-             lp = lp + 1
-             ok = isfield(id,fder,expr0,lp)
-             if (.not.ok) &
-                call ferror("fields_in_eval","unknown field in expression (chem. function)",faterr)
-             n = n + 1
-             if (n > size(idlist)) call realloc(idlist,2*n)
-             idlist(n) = id
-             lp = i+1
-          endif
-          cycle
-       else
-          ok = isoperator(d,expr0,lp)
-       end if
-       if (.not.ok) ok = isconstant(b,expr0,lp)
-       if (ok) then
-          cycle
-       elseif (expr0(lp:lp) == '(' .or. expr0(lp:lp) == ')' .or.  expr0(lp:lp) == ',') then
-          lp = lp + 1
-          cycle
-       elseif (expr0(lp:lp) == '$') then
-          ! a field
-          lp = lp + 1
-          ok = isfield(id,fder,expr0,lp)
-          if (.not.ok) &
-             call die("unexpected termination parsing field name")
+    ! return the ids of the fields in an array
+    n = 0
+    do i = 1, ntok
+       if (toklist(i)%type == token_field) then
           n = n + 1
           if (n > size(idlist)) call realloc(idlist,2*n)
-          idlist(n) = id
-       else
-          ! maybe a constant that will be defined later?
-          lp = lp + 1
-          cycle
+          idlist(n) = trim(toklist(i)%sval)
        end if
-    end do main
+    end do
     call realloc(idlist,n)
 
   end subroutine fields_in_eval
 
-  !> Read a field definition and evaluate to a number. If no point is given,
-  !> evaluate to a label indicating the id of field and scalar quantity in the
-  !> expression.
-  function fieldeval(expr,lp,x0,fcheck,feval)
+  !> Given an expression in string expr starting at lpexit, parse all
+  !> tokens for the arithmetic evaluation. Return the tokens in
+  !> toklist and the number of tokens in ntok, and advance the string
+  !> pointer lpexit. 
+  function tokenize(expr,ntok,toklist,lpexit) 
+    logical :: tokenize
+    character(*), intent(in) :: expr
+    integer, intent(out) :: ntok
+    type(token), intent(inout), allocatable :: toklist(:)
+    integer, intent(inout) :: lpexit
+
+    integer :: lp, ll
+    character(len=:), allocatable :: str
+    character*2 :: fder
+    logical :: ok, wasop, inchem
+    real*8 :: a
+    integer :: c, npar
+
+    ! initialize
+    tokenize = .true.
+    inchem = .false.
+    npar = 0
+
+    ! allocate the token list
+    if (allocated(toklist)) deallocate(toklist)
+    ntok = 0
+    allocate(toklist(10))
+
+    ! length of the expression and initialization
+    lp = lpexit
+    ll = len_trim(expr)
+
+    ! parse
+    wasop = .true.
+    main: do while (lp <= ll)
+       lpexit = lp
+       ! skip blanks and quotes
+       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == '\t'.or.expr(lp:lp)=='\n'.or.&
+          expr(lp:lp) == '"'.or.expr(lp:lp) == "'")
+          lp = lp + 1
+          if (lp > ll) exit main
+       enddo
+       if (isnumber(a,expr,lp)) then
+          ! a number (without sign)
+          call addtok(token_num,fval=a)
+          wasop = .false.
+       elseif (isfunction(c,expr,lp,wasop)) then
+          ! a function
+          call addtok(token_fun,ival=c)
+          wasop = .false.
+          if (istype(c,'chemfunction')) then
+             inchem = .true.
+             npar = 0
+          end if
+       elseif (isoperator(c,expr,lp)) then
+          ! a binary operator
+          call addtok(token_op,ival=c)
+          wasop = .true.
+       elseif (expr(lp:lp) == '(') then
+          ! a left parenthesis
+          call addtok(token_lpar)
+          wasop = .true.
+          lp = lp + 1
+          npar = npar + 1
+       elseif (expr(lp:lp) == ')') then
+          ! a right parenthesis
+          call addtok(token_rpar)
+          wasop = .false.
+          lp = lp + 1
+          npar = npar - 1
+          if (npar <= 0 .and. inchem) inchem = .false.
+       elseif (expr(lp:lp) == ',') then
+          ! a comma
+          call addtok(token_comma)
+          wasop = .true.
+          lp = lp + 1
+       elseif (expr(lp:lp) == '$') then
+          ! a field read the field identifier and the : identifier
+          lp = lp + 1
+          ok = isidentifier(str,expr,lp,fder)
+          if (.not.ok) goto 999
+          ok = fh%iskey(trim(str))
+          if (.not.ok) goto 999
+          if (.not.inchem) then
+             ! normal interpretation
+             call addtok(token_field,sval=str,fder=fder)
+          else
+             ! inside a chemical function
+             ok = fh%iskey(trim(str))
+             if (.not.ok) goto 999
+             call addtok(token_num,fval=fh%get(trim(str),a))
+          end if
+          wasop = .false.
+       elseif (isidentifier(str,expr,lp)) then
+          if (.not.inchem) then
+             ! a constant or a variable
+             ok = vh%iskey(trim(str))
+             if (.not.ok) goto 999
+             call addtok(token_num,fval=vh%get(trim(str),a))
+          else
+             ! inside a chemical function -> field identifier
+             ok = fh%iskey(trim(str))
+             if (.not.ok) goto 999
+             call addtok(token_num,fval=fh%get(trim(str),a))
+          end if
+          wasop = .false.
+       else
+          goto 999 
+       end if
+    end do main
+
+    lpexit = lp
+    tokenize = .true.
+    return
+
+999 continue ! could not tokenize
+    tokenize = .false.
+    return
+  contains
+    subroutine addtok(type,ival,fval,sval,fder)
+      integer, intent(in) :: type
+      integer, intent(in), optional :: ival
+      real*8, intent(in), optional :: fval
+      character*(*), intent(in), optional :: sval
+      character*2, intent(in), optional :: fder
+
+      type(token), allocatable :: auxtoklist(:)
+
+      ntok = ntok + 1
+      if (ntok > size(toklist)) then
+         allocate(auxtoklist(2*ntok))
+         auxtoklist(1:size(toklist)) = toklist
+         call move_alloc(auxtoklist,toklist)
+      end if
+      toklist(ntok)%type = type
+      if (present(ival)) toklist(ntok)%ival = ival
+      if (present(fval)) toklist(ntok)%fval = fval
+      if (present(sval)) then
+         toklist(ntok)%sval = sval
+      else
+         toklist(ntok)%sval = ""
+      end if
+      if (present(fder)) toklist(ntok)%fder = fder
+
+    end subroutine addtok
+  end function tokenize
+
+  !> Using the field id and the derivative flag, evaluate to a
+  !> number. 
+  recursive function fieldeval(fid,fder,x0,fcheck,feval)
     use tools_io, only: isdigit, isletter, string
     use types
 
     real*8 :: fieldeval
-    character*(*), intent(in) :: expr !< Input string
-    integer, intent(inout) :: lp !< Pointer to current position on string
+    character*(*), intent(in) :: fid
+    character*2, intent(in) :: fder
     real*8, intent(in), optional :: x0(3) !< position
     optional :: fcheck, feval
 
@@ -499,20 +521,13 @@ contains
        end function feval
     end interface
 
-    integer :: i, ll, nder
-    character*1 :: ch
-    character(len=:), allocatable :: id
-    character*2 :: fder
+    integer :: nder
     type(scalar_value) :: res
-    logical :: ok
-
-    ok = isfield(id,fder,expr,lp)
-    if (.not.ok) &
-       call die("unexpected termination parsing field name")
 
     fieldeval = 0d0
     if (present(x0).and.present(feval).and.present(fcheck)) then
-       if (.not.fcheck(id)) call die('wrong field (unknown,not allocated,...): ' // string(expr))
+       if (.not.fcheck(fid)) &
+          call die('wrong field in expression: ' // string(fid))
        if (fder=="  ".or.fder=="v ".or.fder=="c ") then
           nder = 0
        elseif (fder=="x ".or.fder=="y ".or.fder=="z ".or.fder=="g ") then
@@ -520,7 +535,7 @@ contains
        else
           nder = 2
        end if
-       res = feval(id,nder,x0)
+       res = feval(fid,nder,x0)
 
        select case (trim(fder))
        case ("")
@@ -556,57 +571,15 @@ contains
        case ("g")
           fieldeval = res%gfmod
        case default
-          call die("unknown field specifier")
+          call die("unknown field specifier: " // string(fder))
        end select
+    else
+       call die('evaluating field ' // string(fid) // ' without point')
     end if
 
   end function fieldeval
 
-  ! read a field identifier from the expression, return true, and advance lp or
-  ! return false and leave lp unchanged
-  function isfield(id,fder,expr,lp)
-    use tools_io, only: isdigit, isletter
-    logical :: isfield
-    character*(*), intent(in) :: expr !< Input string
-    integer, intent(inout) :: lp !< Pointer to current position on string
-    character(len=:), allocatable, intent(out) :: id !< Name of the field
-    character*2, intent(out) :: fder
-
-    integer :: ll, i
-
-    id = ""
-    fder = ""
-    isfield = .false.
-    ll = len_trim(expr)
-    i = lp
-    if (i > ll) return
-
-    ! read the entry for this field
-    do while (isletter(expr(i:i)) .or. isdigit(expr(i:i)))
-       i = i + 1
-       if (i > ll) exit
-    enddo
-    id = expr(lp:i-1)
-    lp = i
-
-    ! read the modifier for this field
-    if (lp < ll) then
-       if (expr(lp:lp) == "#") then
-          lp = lp + 1
-          i = lp
-          do while (isletter(expr(i:i)))
-             i = i + 1
-             if (i > ll) exit
-          enddo
-          fder = expr(lp:i-1)
-          lp = i
-       end if
-    end if
-    isfield = .true.
-
-  end function isfield
-
-  ! read an unsigned number or return false and leave lp unchanged
+  !> Read an unsigned number or return false and leave lp unchanged
   function isnumber (rval,expr,lp)
     use tools_io, only: isdigit
     logical :: isnumber
@@ -658,9 +631,8 @@ contains
 
   end function isnumber
 
-  ! read an operator or return false and leave lp unchanged
+  !> Read a binary operator or return false and leave lp unchanged
   function isoperator(c,expr,lp)
-    use tools_io, only: ferror, faterr
     logical :: isoperator
     character*(*), intent(in) :: expr
     integer, intent(inout) :: lp
@@ -708,7 +680,7 @@ contains
              c = fun_or
              lp = lp + 1
           else
-             call ferror("isoperator","unknown operator",faterr)
+             call die("isoperator","unknown operator")
           end if
        else
           if (expr(lp:lp) == "+") then
@@ -728,7 +700,7 @@ contains
           elseif (expr(lp:lp) == "^") then
              c = fun_power
           else
-             call ferror("isoperator","unknown operator",faterr)
+             call die("isoperator","unknown operator")
           end if
        endif
        lp = lp + 1
@@ -737,7 +709,7 @@ contains
 
   end function isoperator
 
-  ! read an unary operator or return false and leave lp unchanged
+  !> Read a unary operator (function) or return false and leave lp unchanged
   function isfunction(c,expr,lp,wasop)
     use tools_io, only: lower
 
@@ -863,73 +835,28 @@ contains
 
   end function isfunction
 
-  ! read an unary operator or return false and leave lp unchanged
-  function isconstant(rval,expr,lp)
-    use tools_io, only: lower
-    use param
-
-    logical :: isconstant
+  !> Read an identifier (field, variable, constant) or return false
+  !> and leave lp unchanged. If fder is present, try to find the field
+  !> derivative selector after the identifier (:xx).
+  function isidentifier(id,expr,lp,fder)
+    use tools_io, only: lower, isletter
+    logical :: isidentifier
+    character(len=:), allocatable, intent(out) :: id
     character*(*), intent(in) :: expr
     integer, intent(inout) :: lp
-    real*8, intent(out) :: rval
-
-    character*(len(expr)) :: word
-    integer :: lpo, ll
-
-    isconstant = .false.
-    lpo = lp
-    ll = len_trim(expr)
-    if (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
-       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
-       ! function
-       word = ""
-       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
-                 expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
-                 expr(lp:lp) >= '0' .and. expr(lp:lp)<='9' .or.&
-                 expr(lp:lp) == '_')
-          word = trim(word) // expr(lp:lp)
-          lp = lp + 1
-          if (lp > ll) exit
-       end do
-       select case (trim(lower(word)))
-       case ("pi")
-          rval = pi
-       case ("e")
-          rval = cte
-       case ("eps")
-          rval = epsilon(1d0)
-       case default
-          lp = lpo
-          return
-       end select
-    else
-       lp = lpo
-       return
-    end if
-
-    isconstant = .true.
-
-  end function isconstant
-
-  ! read an unary operator or return false and leave lp unchanged
-  function isvariable_private(rval,expr,lp) result(isvar)
-    use tools_io, only: lower
-    use param
-
-    logical :: isvar
-    character*(*), intent(in) :: expr
-    integer, intent(inout) :: lp
-    real*8, intent(out) :: rval
+    character*2, intent(out), optional :: fder
 
     character*(len(expr)) :: word
     integer :: lpo, i, ll
 
-    isvar = .false.
+    isidentifier = .false.
     lpo = lp
     ll = len_trim(expr)
     if (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
-       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z') then
-       ! function
+       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
+       expr(lp:lp) >= '0' .and. expr(lp:lp)<='9' .or. &
+       expr(lp:lp) == '_') then
+       ! read the identifier
        word = ""
        do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
           expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
@@ -939,23 +866,32 @@ contains
           lp = lp + 1
           if (lp > ll) exit
        end do
-       isvar = vh%iskey(trim(word))
-       if (isvar) then
-          rval = vh%get(trim(word),rval)
-          return
-       end if
-       lp = lpo
-       return
+       id = word
     else
        lp = lpo
        return
     end if
+    isidentifier = .true.
 
-    isvar = .true.
+    if (present(fder)) then
+       fder = ""
+       if (lp <= ll) then
+          if (expr(lp:lp) == ":") then
+             lp = lp + 1
+             i = lp
+             do while (isletter(expr(i:i)))
+                i = i + 1
+                if (i > ll) exit
+             enddo
+             fder = expr(lp:i-1)
+             lp = i
+          end if
+       end if
+    endif
 
-  end function isvariable_private
+  end function isidentifier
 
-  ! return operator precedence
+  !> Return an operator precedence
   function iprec(c)
     integer :: iprec
     integer, intent(in) :: c
@@ -981,7 +917,7 @@ contains
 
   end function iprec
 
-  ! return 1 for right-associative operator and -1 for left-associative
+  !> Return 1 for right-associative operator and -1 for left-associative
   function iassoc(c)
     integer :: iassoc
     integer, intent(in) :: c
@@ -998,11 +934,11 @@ contains
 
   end function iassoc
 
-  ! pop from the stack and operate on the queue
-  subroutine pop(q,t,nq,s,ns,x0,fcheck,feval,fail)
+  !> Pop from the stack and operate on the queue.
+  subroutine pop(q,nq,s,ns,x0,fcheck,feval,fail)
     use tools_math, only: erf, erfc
+    use tools_io, only: string
     use types
-    use param
 #ifdef HAVE_LIBXC
     use xc_f90_types_m
     use libxc_funcs_m
@@ -1010,7 +946,6 @@ contains
 #endif
 
     real*8, intent(inout) :: q(:)
-    integer, intent(inout) :: t(:)
     integer, intent(inout) :: s(:)
     integer, intent(inout) :: nq, ns
     real*8, intent(in), optional :: x0(3)
@@ -1038,6 +973,7 @@ contains
     integer :: c
     real*8 :: a, b, grho, lapl, rho, tau, zk
     logical :: ok
+    character*8 :: sia
 
     ! pop from the stack
     fail = .false.
@@ -1050,7 +986,6 @@ contains
        ! Functional from the xc library
 #ifdef HAVE_LIBXC
        ia = tointeger(q(nq))
-       if (t(nq) /= typ_num) call die('wrong type in stack - 1')
 
        if (.not.ifun(ia)%init) then
           ifun(ia)%id = ia
@@ -1088,14 +1023,12 @@ contains
           nq = nq - 4
        end select
        q(nq) = zk * rho
-       t(nq) = typ_num
 #else
        call die('(/"!! ERROR !! critic2 was not compiled with libxc support !!"/)')
 #endif
     elseif (istype(c,'binary')) then
        ! a binary operator or function
        if (nq < 2) call die('error in expression')
-       if (t(nq) /= typ_num .or. t(nq-1) /= typ_num) call die('wrong type in stack - 5')
        a = q(nq-1)
        b = q(nq)
        nq = nq - 1
@@ -1167,11 +1100,9 @@ contains
              q(nq) = 0d0
           endif
        end select
-       t(nq) = typ_num
     elseif (istype(c,'unary')) then
        ! a unary operator or function
        if (nq < 1) call die('error in expression')
-       if (t(nq) /= typ_num) call die('wrong type in stack - 6')
        select case(c)
        case (fun_uplus)
           q(nq) = +q(nq)
@@ -1214,7 +1145,6 @@ contains
        case (fun_erfc)
           q(nq) = erfc(q(nq))
        end select
-       t(nq) = typ_num
     elseif (istype(c,'chemfunction')) then
        ! We need a point and the evaluator
        if (.not.present(x0).or..not.present(feval).or..not.present(fcheck)) then
@@ -1224,10 +1154,13 @@ contains
     
        ! Also an integer field identifier as the first argument
        ia = tointeger(q(nq))
+       write (sia,'(I8)') ia
+       sia = adjustl(sia)
+       if (.not.fcheck(sia)) &
+          call die('wrong field ' // string(sia))
     
        ! Use the library of chemical functions
-       q(nq) = chemfunction(c,ia,x0,feval)
-       t(nq) = typ_num
+       q(nq) = chemfunction(c,sia,x0,feval)
     else
        call die('error in expression')
     end if
@@ -1386,13 +1319,12 @@ contains
 
   end subroutine listvariables
 
-  function chemfunction(c,ia,x0,feval) result(q)
+  function chemfunction(c,sia,x0,feval) result(q)
     use tools_io
     use tools_math
     use types
-    use param
     integer, intent(in) :: c
-    integer, intent(in) :: ia
+    character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
     real*8 :: q
   
@@ -1409,13 +1341,10 @@ contains
   
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0
-    character*8 :: sia
   
     ! some common constant
     real*8 :: ctf = 3d0/10d0 * (3d0*pi**2)**(2d0/3d0) ! Thomas-Fermi k.e.d. constant
   
-    write (sia,'(I8)') ia
-    sia = adjustl(sia)
     select case(c)
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas

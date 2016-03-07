@@ -72,7 +72,7 @@ contains
     logical :: ok, goodcell, goodspg, useit
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
-    logical :: icodef(3)
+    logical :: icodef(3), iok
     real*8 :: icoval(3)
 
     goodcell = .false.
@@ -116,6 +116,7 @@ contains
           if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line)
 
           i = 0
+          rmat = 0d0
           do while(.true.)
              lp = 1
              ok = getline(lu,line,ucopy=luout)
@@ -274,7 +275,7 @@ contains
                 else
                    aexp = line
                 end if
-                x(k) = eval_hard_fail(aexp)
+                x(k) = eval(aexp,.true.,iok)
              end do
              x = x - floor(x)
 
@@ -528,7 +529,7 @@ contains
     character*30 :: atname, spg
     real*8 :: x(3)
     real*8 :: sigx, rot0(3,4), xo, yo, zo
-    logical :: fl, fl1, fl2, found, ok, ix, iy, iz
+    logical :: fl, fl1, fl2, found, ok, ix, iy, iz, iok
     integer :: i, j, ludum, luscr, idx
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
@@ -648,12 +649,12 @@ contains
           do j = 1, 3
              call setvariable(ico(j),0d0)
           end do
-          rot0(i,4) = eval_hard_fail(tok)
+          rot0(i,4) = eval(tok,.true.,iok)
 
           ! the x-, y-, z- components
           do j = 1, 3
              call setvariable(ico(j),1d0)
-             rot0(i,j) = eval_hard_fail(tok) - rot0(i,4)
+             rot0(i,j) = eval(tok,.true.,iok) - rot0(i,4)
              call setvariable(ico(j),0d0)
           enddo
        enddo

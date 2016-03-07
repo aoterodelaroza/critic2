@@ -17,6 +17,7 @@
 
 ! Mathematical and physical constants, color specifications and factorials.
 module param
+  use hashtype
   implicit none
 
   public
@@ -479,6 +480,10 @@ module param
   character*1, parameter :: dirsep = "/"
 #endif
 
+  ! the symbols list
+  type(hash) :: vh ! variables hash
+  type(hash) :: fh ! functions hash
+
 contains
 
   !> Initialize basic variables. Use at the beginning of the run.
@@ -533,6 +538,11 @@ contains
     c_kub(10,6)=0.0625d0*sqrt(19.D0/3.D0)
     c_kub(10,8)=-.125*sqrt(187.D0/6.D0)
     c_kub(10,10)=-.0625d0*sqrt(85.d0)
+
+    ! initialize the constants in the variable hash
+    call vh%put("pi",pi)
+    call vh%put("e",cte)
+    call vh%put("eps",epsilon(1d0))
 
   end subroutine param_init
 

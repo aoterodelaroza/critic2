@@ -17,8 +17,9 @@
 
 ! Evaluation of scalar fields
 module fields
-  use hashtype
   use types
+  use param
+  use hashtype
   implicit none
 
   private
@@ -84,9 +85,6 @@ module fields
   type(field), allocatable, public :: f(:)
   logical, allocatable, public :: fused(:)
 
-  ! arrray for the field aliases
-  type(hash) :: falias
-
   ! eps to move to the main cell
   real*8, parameter :: flooreps = 1d-4 ! border around unit cell
 
@@ -113,7 +111,8 @@ contains
     f(0)%usecore = .false.
     f(0)%typnuc = -3
     fused(0) = .true.
-    call falias%put("rho0",0)
+    call fh%put("rho0",0)
+    call fh%put("0",0)
 
     ! integrable properties, initialize
     nprops = 1
@@ -134,7 +133,7 @@ contains
 
     if (allocated(fused)) deallocate(fused)
     if (allocated(f)) deallocate(f)
-    call falias%free()
+    call fh%free()
 
   end subroutine fields_end
 
@@ -149,7 +148,6 @@ contains
     use arithmetic
     use tools_io
     use types
-    use param
 
     character*(*), intent(in) :: line
     integer, intent(out) :: id
@@ -182,13 +180,14 @@ contains
              fused(id2+1:) = .false.
           end if
           if (fused(id)) call fields_unload(id)
-          if (falias%iskey(trim(word))) call falias%put(trim(word),id)
+          if (fh%iskey(trim(word))) call fh%put(trim(word),id)
        else
           id = getfieldnum()
           lp = lp2
        end if
        f(id) = f(oid)
        fused(id) = .true.
+       call fh%put(string(id),id)
        write (uout,'("* COPIED scalar field from slot ",A," to ",A/)') string(oid), string(id)
 
        ! parse the rest of the line
@@ -218,7 +217,6 @@ contains
     use arithmetic
     use tools_io
     use types
-    use param
 
     character*(*), intent(in) :: line
     integer, intent(in) :: fid
@@ -235,7 +233,7 @@ contains
     integer :: nid, nwan
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
-    logical :: isfrag
+    logical :: isfrag, iok
 
     ! read and parse
     lp=1
@@ -679,7 +677,7 @@ contains
                    do iz = 0, n(3)-1
                       xp = real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
                          + real(iz,8) * xd(:,3)
-                      rhopt = eval_hard_fail(expr,xp,fields_fcheck,fields_feval)
+                      rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
                       !$omp critical (fieldwrite)
                       ff%f(ix+1,iy+1,iz+1) = rhopt
                       !$omp end critical (fieldwrite)
@@ -721,6 +719,7 @@ contains
   end function fields_load_real
 
   subroutine fields_unload(id)
+    use tools_io, only: string
 
     integer, intent(in) :: id
 
@@ -728,6 +727,7 @@ contains
     character(len=:), allocatable :: key
 
     fused(id) = .false.
+    if (fh%iskey(string(id))) call fh%delkey(string(id))
     f(id)%init = .false.
     f(id)%name = ""
     f(id)%file = ""
@@ -785,11 +785,11 @@ contains
     if (allocated(f(id)%fused)) deallocate(f(id)%fused)
 
     ! clear all alias referring to this field
-    nkeys = falias%keys()
+    nkeys = fh%keys()
     do i = 1, nkeys
-       key = falias%getkey(i)
-       idum = falias%get(key,idum)
-       if (idum == id) call falias%delkey(key)
+       key = fh%getkey(i)
+       idum = fh%get(key,idum)
+       if (idum == id) call fh%delkey(key)
     end do
 
   end subroutine fields_unload
@@ -812,6 +812,7 @@ contains
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
     integer :: str, sts
     integer :: i, j, k
+    logical :: iok
 
     ! get the scalar field properties
     xp = cr%x2c(x0)
@@ -856,7 +857,7 @@ contains
        do i = 1, nptprops
           if (point_prop(i)%ispecial == 0) then
              ! ispecial=0 ... use the expression
-             fres = eval_hard_fail(point_prop(i)%expr,xp,fields_fcheck,fields_feval)
+             fres = eval(point_prop(i)%expr,.true.,iok,xp,fields_fcheck,fields_feval)
              write (uout,'(2X,A," (",A,"): ",A)') string(point_prop(i)%name),&
                 string(point_prop(i)%expr), string(fres,'e',decimal=9)
           else
@@ -1197,11 +1198,11 @@ contains
     integer :: i, nkeys, idum
     character(len=:), allocatable :: key, val
 
-    nkeys = falias%keys()
+    nkeys = fh%keys()
     write (uout,'("* LIST of named fields (",A,")")') string(nkeys)
     do i = 1, nkeys
-       key = falias%getkey(i)
-       val = string(falias%get(key,idum))
+       key = fh%getkey(i)
+       val = string(fh%get(key,idum))
        write (uout,'(2X,"''",A,"'' is field number ",A)') string(key), string(val)
     end do
     write (uout,*)
@@ -1217,7 +1218,6 @@ contains
   subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
     use struct_basic
     use tools_io
-    use param
 
     type(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
@@ -1274,7 +1274,6 @@ contains
   subroutine writegrid_vasp(c,g,file,onlyheader)
     use struct_basic
     use tools_io
-    use param
 
     type(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
@@ -1376,6 +1375,7 @@ contains
        id = mf + 1
     end if
     fused(id) = .true.
+    call fh%put(string(id),id)
     
   end function getfieldnum
 
@@ -1384,7 +1384,6 @@ contains
     use grid_tools
     use global
     use tools_io
-    use param
 
     type(field), intent(inout) :: ff
     integer, intent(in) :: fid
@@ -1447,7 +1446,7 @@ contains
           ok = isexpression_or_word(aux,line,lp)
           if (.not. ok) call ferror('setfield','wrong name keyword',faterr,line)
           ff%name = trim(aux)
-          call falias%put(trim(aux),fid)
+          call fh%put(trim(aux),fid)
        else if (len_trim(word) > 0) then
           call ferror('setfield','Unknown extra keyword',faterr,line)
        else
@@ -1489,7 +1488,7 @@ contains
 
   ! Calculate the scalar field f at point v (cartesian) and its derivatives
   ! up to nder. Return the results in res
-  subroutine grd(f,v,nder,res)
+  recursive subroutine grd(f,v,nder,res)
     use grd_atomic
     use grid_tools
     use struct_basic
@@ -1511,7 +1510,7 @@ contains
     integer :: i, nid, lvec(3), idx(3)
     real*8 :: rho, grad(3), h(3,3)
     real*8 :: fval(3,-ndif_jmax:ndif_jmax), fzero
-    logical :: isgrid
+    logical :: isgrid, iok
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
@@ -1627,7 +1626,7 @@ contains
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
-       res%f = eval_hard_fail(f%expr,wc,fields_fcheck,fields_feval)
+       res%f = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval)
        res%gf = 0d0
        res%hf = 0d0
 
@@ -1666,7 +1665,7 @@ contains
     real*8, intent(out) :: lprop(nprops) !< the properties vector.
 
     type(scalar_value) :: res(0:ubound(f,1))
-    logical :: fdone(0:ubound(f,1))
+    logical :: fdone(0:ubound(f,1)), iok
     integer :: i, id
 
     lprop = 0d0
@@ -1674,7 +1673,7 @@ contains
     do i = 1, nprops
        if (.not.integ_prop(i)%used) cycle
        if (integ_prop(i)%itype == itype_expr) then
-          lprop(i) = eval_hard_fail(integ_prop(i)%expr,xpos,fields_fcheck,fields_feval)
+          lprop(i) = eval(integ_prop(i)%expr,.true.,iok,xpos,fields_fcheck,fields_feval)
        else
           id = integ_prop(i)%fid
           if (.not.fused(id)) cycle
@@ -1708,7 +1707,7 @@ contains
 
   !> Calculate only the value of the scalar field at the given point
   !> (v in cartesian).
-  function grd0(f,v)
+  recursive function grd0(f,v)
     use grd_atomic
     use grid_tools
     use struct_basic
@@ -1720,7 +1719,6 @@ contains
     use types
     use tools_io
     use tools_math
-    use param
 
     type(field), intent(inout) :: f
     real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
@@ -1729,6 +1727,7 @@ contains
     real*8 :: wx(3), wc(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
+    logical :: iok
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
@@ -1756,7 +1755,7 @@ contains
     case(type_promol_frag)
        call grda_promolecular(wx,rho,grad,h,0,.false.,f%fr)
     case(type_ghost)
-       rho = eval_hard_fail(f%expr,wc,fields_fcheck,fields_feval)
+       rho = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval)
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select
@@ -1918,7 +1917,6 @@ contains
     use wien_private
     use elk_private
     use types
-    use param
 
     integer, intent(in) :: id, ilvl
 
@@ -2083,7 +2081,6 @@ contains
   subroutine taufromelf(ielf,irho,itau)
     use grid_tools
     use tools_io
-    use param
 
     integer, intent(in) :: ielf, irho, itau
 
@@ -2102,6 +2099,7 @@ contains
     if (allocated(f(itau)%c2)) deallocate(f(itau)%c2)
     f(itau) = f(ielf)
     fused(itau) = .true.
+    call fh%put(string(itau),itau)
     if (allocated(f(itau)%f)) deallocate(f(itau)%f)
 
     ! allocate a temporary field for the gradient
@@ -2128,8 +2126,8 @@ contains
     integer :: ierr
 
     oid = trim(adjustl(id))
-    if (falias%iskey(oid)) then 
-       fid = falias%get(oid,fid)
+    if (fh%iskey(oid)) then 
+       fid = fh%get(oid,fid)
     else
        read(oid,*,iostat=ierr) fid
        if (ierr /= 0) fid = -1
@@ -2154,7 +2152,7 @@ contains
 
   !> Evaluate the field at a point. Wrapper around grd() to pass
   !> it to the arithmetic module. 
-  function fields_feval(id,nder,x0)
+  recursive function fields_feval(id,nder,x0)
     use types, only: scalar_value
     type(scalar_value) :: fields_feval
     character*(*), intent(in) :: id

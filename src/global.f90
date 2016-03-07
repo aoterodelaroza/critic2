@@ -360,6 +360,7 @@ contains
     logical :: ok
     real*8 :: aux, rdum
     integer :: idum
+    logical :: iok
 
     word = lgetword(line,lp)
     if (equal(word,'noguess')) then
@@ -598,11 +599,11 @@ contains
        end do
        dunit = dunit0(iunit)
     elseif (isassignment(var,word,line)) then
-       rdum = eval_hard_fail(word)
+       rdum = eval(word,.true.,iok)
        call setvariable(trim(var),rdum)
     else
        word = string(line)
-       rdum = eval_hard_fail(word)
+       rdum = eval(word,.true.,iok)
        if (.not.quiet) then
           write (uout,'(1p,G22.14/)') rdum
        else
@@ -660,7 +661,7 @@ contains
     word = ""
     eval_next_real = isexpression_or_word(word,line,lp)
     if (eval_next_real) then
-       eval_next_real = eval_soft_fail(string(word),res)
+       res = eval(string(word),.false.,eval_next_real)
        if (eval_next_real) lp0 = lp
     endif
           
@@ -687,7 +688,7 @@ contains
     word = ""
     eval_next_int = isexpression_or_word(word,line,lp)
     if (eval_next_int) then
-       eval_next_int = eval_soft_fail(string(word),rdum)
+       rdum = eval(word,.false.,eval_next_int)
        if (abs(rdum - nint(rdum)) > eps) then
           eval_next_int = .false.
           return
