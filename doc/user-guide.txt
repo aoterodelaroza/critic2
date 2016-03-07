@@ -5592,6 +5592,19 @@ Default: GAULEG, nr.r = 50, aerr.r = 1d0, rerr.r = 1d-12. The default
 errprop is the field value for fields on a grid and the Laplacian for
 the rest.
 
+:: 
+
+  PRECISECUBE|STANDARDCUBE
+
+The field values in cube files written by Gaussian are written in
+exponential format with six significan digits. This precision may not
+be enough for some applications, particularly involving energies. The
+default behavior of critic2 (corresponding to the PRECISECUBE keyword)
+is to write cubes with 14 significant digits. Some other programs that
+use Gaussian cube files may not like this, however, so the keyword
+STANDARDCUBE is provided to make critic2 write cube files in the
+default Gaussian format.
+
 ::
 
   ROOT root.s

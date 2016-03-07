@@ -88,6 +88,7 @@ module global
   ! global control for critic
   character(len=:), allocatable :: fileroot !< file prefix
   logical :: quiet
+  logical :: precisecube
 
   ! units
   integer :: iunit
@@ -226,6 +227,7 @@ contains
 
     doguess = .true.
     refden = 0
+    precisecube = .true.
 
     ! units
     iunit = iunit_bohr
@@ -598,6 +600,10 @@ contains
           end if
        end do
        dunit = dunit0(iunit)
+    elseif (equal(word,'standardcube')) then
+       precisecube = .false.
+    elseif (equal(word,'precisecube')) then
+       precisecube = .true.
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,.true.,iok)
        call setvariable(trim(var),rdum)

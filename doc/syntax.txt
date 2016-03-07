@@ -298,6 +298,7 @@ expression.r # prints the value of the expression to the output.
 * ODE_MODE [METHOD {EULER|HEUN|BS|RKCK|DP}] [MAXSTEP maxstep.r] [MAXERR maxerr.r] [GRADEPS gradeps.r]
 * INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
+* PRECISECUBE|STANDARDCUBE
 * CLEAR {var1.s var2.s ...|ALL}
 * LIST
 * RESET
