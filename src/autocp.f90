@@ -1664,6 +1664,8 @@ contains
        cp(n)%isnuc = .false.
        cp(n)%isnnm = (s == f(refden)%typnuc)
     else
+       r = 3
+       s = itype
        cp(n)%isdeg = .false.
        cp(n)%typ = itype
        cp(n)%typind = (itype+3)/2
@@ -1679,23 +1681,7 @@ contains
 
     ! Name
     num = count(cp(1:n)%typ == s)
-    if (num < 100) then
-       write (cp(n)%name,'(A1,I2.2)') smallnamecrit(cp(n)%typind), num
-    elseif (num < 1000) then
-       write (cp(n)%name,'(A1,I3.3)') smallnamecrit(cp(n)%typind), num
-    elseif (num < 10000) then
-       write (cp(n)%name,'(A1,I4.4)') smallnamecrit(cp(n)%typind), num
-    elseif (num < 100000) then
-       write (cp(n)%name,'(A1,I5.5)') smallnamecrit(cp(n)%typind), num
-    elseif (num < 1000000) then
-       write (cp(n)%name,'(A1,I6.6)') smallnamecrit(cp(n)%typind), num
-    elseif (num < 10000000) then
-       write (cp(n)%name,'(A1,I7.7)') smallnamecrit(cp(n)%typind), num
-    elseif (num < 100000000) then
-       write (cp(n)%name,'(A1,I8.8)') smallnamecrit(cp(n)%typind), num
-    else
-       write (cp(n)%name,'(A1,I9.9)') smallnamecrit(cp(n)%typind), num
-    end if
+    cp(n)%name = smallnamecrit(cp(n)%typind) // string(num)
 
     ! Add positions to the complete CP list
     call cr%symeqv(cp(n)%x,cp(n)%mult,sympos,symrotm,symcenv,CP_eps_cp) 
