@@ -2158,6 +2158,8 @@ contains
   !> Evaluate the field at a point. Wrapper around grd() to pass
   !> it to the arithmetic module. 
   recursive function fields_feval(id,nder,x0)
+    use ewald, only: ewald_pot
+    use struct_basic, only: cr
     use types, only: scalar_value
     type(scalar_value) :: fields_feval
     character*(*), intent(in) :: id
@@ -2165,9 +2167,21 @@ contains
     real*8, intent(in) :: x0(3)
 
     integer :: iid
+    real*8 :: xp(3)
 
     iid = fieldname_to_idx(id)
-    call grd(f(iid),x0,nder,fields_feval)
+    if (iid >= 0) then
+       call grd(f(iid),x0,nder,fields_feval)
+    elseif (trim(id) == "ewald") then
+       xp = cr%c2x(x0)
+       fields_feval%f = ewald_pot(xp,.false.)
+       fields_feval%fval = fields_feval%f
+       fields_feval%gf = 0d0
+       fields_feval%gfmod = 0d0
+       fields_feval%hf = 0d0
+       fields_feval%del2f = 0d0
+       fields_feval%del2fval = 0d0
+    end if
 
   end function fields_feval
 

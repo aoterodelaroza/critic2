@@ -92,6 +92,10 @@ module struct_basic
      ! asterisms
      logical :: havestar = .false. !< true if the neighbor stars have been calculated
      type(neighstar), allocatable :: nstar(:) !< neighbor stars
+     ! ewald data
+     logical :: ewald_ready = .false. !< do we have the data for ewald's sum?
+     real*8 :: rcut, hcut, eta, qsum
+     integer :: lrmax(3), lhmax(3)
    contains
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
@@ -123,6 +127,7 @@ module struct_basic
      procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: powder !< Calculate the powder diffraction pattern
+     procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
   end type crystal
   public :: crystal
 
@@ -214,6 +219,9 @@ contains
        c%at(i)%qat = 0
        c%at(i)%rnn2 = 0d0
     end do
+
+    ! misc
+    c%ewald_ready = .false.
 
     ! the crystal is not initialized until struct_fill is run
     c%isinit = .false.
@@ -3192,6 +3200,110 @@ contains
 
 
   end subroutine powder
+
+  !> Calculate real and reciprocal space sum cutoffs
+  subroutine calculate_ewald_cutoffs(c)
+    use tools_io
+    use param
+
+    class(crystal), intent(inout) :: c
+
+    real*8, parameter :: sgrow = 1.4d0
+    real*8, parameter :: epscut = 1d-5
+    real*8, parameter :: eeps = 1d-12
+
+    integer :: i
+    real*8 :: aux, qsum, q2sum
+    integer :: ia, ib, ic
+    real*8 :: alrmax(3)
+    real*8 :: rcut1, rcut2, err_real
+    real*8 :: hcut1, hcut2, err_rec
+
+    if (c%ewald_ready) return
+
+    ! calculate sum of charges and charges**2
+    cr%qsum = 0d0
+    q2sum = 0d0
+    do i = 1, cr%nneq
+       if (cr%at(i)%qat == 0) &
+          call ferror('ewald_energy','Some of the charges are 0',faterr)
+       cr%qsum = cr%qsum + real(cr%at(i)%mult * cr%at(i)%qat,8)
+       q2sum = q2sum + real(cr%at(i)%mult * cr%at(i)%qat**2,8)
+    end do
+
+    ! determine shortest vector in real space
+    aux = 0d0
+    do i = 1, 3
+       if (cr%aa(i) > aux) then
+          aux = cr%aa(i)
+          ia = i
+       end if
+    end do
+    ! determine shortest vector in reciprocal space, dif. from ia
+    aux = 0d0
+    do i = 1, 3
+       if (cr%ar(i) > aux .and. i /= ia) then
+          aux = cr%ar(i)
+          ic = i
+       end if
+    end do
+    ! the remaining vector is ib
+    ib = 1
+    do i = 1, 3
+       if (i /= ia .and. i /= ic) ib = i
+    end do
+
+    ! convergence parameter
+    c%eta = sqrt(cr%omega / pi / cr%aa(ib) / sin(cr%bb(ic)*rad))
+
+    ! real space cutoff
+    rcut1 = 1d0
+    rcut2 = 2d0 / sgrow
+    err_real = 1d30
+    do while (err_real >= eeps)
+       rcut2 = rcut2 * sgrow
+       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(rcut2 / c%eta)
+    end do
+    do while (rcut2-rcut1 >= epscut)
+       c%rcut = 0.5*(rcut1+rcut2)
+       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(c%rcut / c%eta)
+       if (err_real > eeps) then
+          rcut1 = c%rcut
+       else
+          rcut2 = c%rcut
+       endif
+    end do
+    c%rcut = 0.5*(rcut1+rcut2)
+    ! real space cells to explore
+    alrmax = 0d0
+    alrmax(1) = cr%aa(2) * cr%aa(3) * sin(cr%bb(1)*rad)
+    alrmax(2) = cr%aa(1) * cr%aa(3) * sin(cr%bb(2)*rad)
+    alrmax(3) = cr%aa(1) * cr%aa(2) * sin(cr%bb(3)*rad)
+    c%lrmax = ceiling(c%rcut * alrmax / cr%omega)
+
+    ! reciprocal space cutoff
+    hcut1 = 1d0
+    hcut2 = 2d0 / sgrow
+    err_rec = 1d30
+    do while(err_rec >= eeps)
+       hcut2 = hcut2 * sgrow
+       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
+    end do
+    do while(hcut2-hcut1 > epscut)
+       c%hcut = 0.5*(hcut1+hcut2)
+       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
+       if (err_rec > eeps) then
+          hcut1 = c%hcut
+       else
+          hcut2 = c%hcut
+       endif
+    end do
+    c%hcut = 0.5*(hcut1+hcut2)
+    ! reciprocal space cells to explore
+    c%lhmax = ceiling(cr%aa(ia) / tpi * c%hcut)
+    c%ewald_ready = .true.
+
+  end subroutine calculate_ewald_cutoffs
 
   !xx! Private for wigner
 

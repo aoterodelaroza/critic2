@@ -897,6 +897,20 @@ printed to the output using the keyword LIST::
 
 The LIST keyword lists all named variables and fields.
 
+Special fields
+~~~~~~~~~~~~~~
+
+Some special fields are defined from the crystal (or molecular)
+structure alone. For now, the only available special field is "ewald",
+that can be accessed using "$ewald" in arithmetic expressions, and
+gives the value of the Ewald potential using the current existing
+charges (that can be set with the Q keyword, see `Atomic charge
+options`_ for more information). For instance::
+
+  cube cell field "2 * $ewald"
+
+calculates a grid using 2 times the value of the Ewald potential. 
+
 List of available functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

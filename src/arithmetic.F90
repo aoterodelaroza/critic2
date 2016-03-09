@@ -101,9 +101,6 @@ module arithmetic
   integer, parameter :: fun_lol      = 53 !< Localized-orbital locator (LOL)
   integer, parameter :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
 
-  integer, parameter :: typ_num = 1 !< a number
-  integer, parameter :: typ_field = 2 !< a field identifier
-
 #ifdef HAVE_LIBXC
   integer, parameter :: maxfun = 600
   type libxc_functional
@@ -335,7 +332,7 @@ contains
     ! return the ids of the fields in an array
     n = 0
     do i = 1, ntok
-       if (toklist(i)%type == token_field) then
+       if (toklist(i)%type == token_field .and..not.isspecialfield(toklist(i)%sval)) then
           n = n + 1
           if (n > size(idlist)) call realloc(idlist,2*n)
           idlist(n) = trim(toklist(i)%sval)
@@ -350,6 +347,7 @@ contains
   !> toklist and the number of tokens in ntok, and advance the string
   !> pointer lpexit. 
   function tokenize(expr,ntok,toklist,lpexit) 
+    use tools_io, only: lower
     logical :: tokenize
     character(*), intent(in) :: expr
     integer, intent(out) :: ntok
@@ -427,7 +425,12 @@ contains
           ok = isidentifier(str,expr,lp,fder)
           if (.not.ok) goto 999
           ok = fh%iskey(trim(str))
-          if (.not.ok) goto 999
+          if (.not.ok) then
+             str = lower(str)
+             ok = isspecialfield(trim(str))
+             if (.not.ok) goto 999
+             fder = ""
+          end if
           if (.not.inchem) then
              ! normal interpretation
              call addtok(token_field,sval=str,fder=fder)
@@ -526,7 +529,7 @@ contains
 
     fieldeval = 0d0
     if (present(x0).and.present(feval).and.present(fcheck)) then
-       if (.not.fcheck(fid)) &
+       if (.not.fcheck(fid).and..not.isspecialfield(fid)) &
           call die('wrong field in expression: ' // string(fid))
        if (fder=="  ".or.fder=="v ".or.fder=="c ") then
           nder = 0
@@ -1002,19 +1005,15 @@ contains
 
        select case(ifun(ia)%family)
        case (XC_FAMILY_LDA)
-          if (t(nq-1) /= typ_num) call die('wrong type in stack - 2')
           rho = max(q(nq-1),1d-14)
           call xc_f90_lda_exc(ifun(ia)%conf, 1, rho, zk)
           nq = nq - 1
        case (XC_FAMILY_GGA)
-          if (t(nq-1) /= typ_num .or. t(nq-2) /= typ_num) call die('wrong type in stack - 3')
           rho = max(q(nq-2),1d-14)
           grho = q(nq-1)*q(nq-1)
           call xc_f90_gga_exc(ifun(ia)%conf, 1, rho, grho, zk)
           nq = nq - 2
        case (XC_FAMILY_MGGA)
-          if (t(nq-1) /= typ_num .or. t(nq-2) /= typ_num .or. &
-              t(nq-3) /= typ_num .or. t(nq-4) /= typ_num) call die('wrong type in stack - 4')
           rho = max(q(nq-4),1d-14)
           grho = q(nq-3)*q(nq-3)
           lapl = q(nq-2)
@@ -1319,6 +1318,7 @@ contains
 
   end subroutine listvariables
 
+  !> Calculate a chemical function for a given field.
   function chemfunction(c,sia,x0,feval) result(q)
     use tools_io
     use tools_math
@@ -1442,5 +1442,15 @@ contains
     end select
   
   end function chemfunction
+
+  !> Does this identifier correspond to a special field
+  function isspecialfield(fid)
+    use tools_io, only: lower
+    character*(*), intent(in) :: fid
+    logical :: isspecialfield
+
+    isspecialfield = (trim(fid) == "ewald") 
+    
+  end function isspecialfield
 
 end module arithmetic
