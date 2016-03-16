@@ -1012,7 +1012,7 @@ contains
           ziso(i) = cntrini + real(i-1,8) * (cntrend - cntrini) / (niso-1)
        end do
     else if (nti.eq.1) then
-       if (fminimo < eps) then
+       if (fminimo < -eps) then
           fmin = fminimo
           fmax = fmaximo
           ! negative contours

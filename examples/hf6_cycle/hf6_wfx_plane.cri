@@ -5,7 +5,7 @@ load ../data/hf6.wfx
 # Find the critical points
 auto
 
-# Plot the density contours and the gradient lines in the molecualr plane
+# Plot the density contours and the gradient lines in the molecular plane
 grdvec
  root hf6_plane
  plane -4 -4 0  4 -4 0  -4 4 0
