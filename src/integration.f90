@@ -216,7 +216,8 @@ contains
              reason(k) = "grid size is not the same as reference field"
              cycle
           endif
-          if (.not.integ_prop(k)%itype == itype_f .and..not.integ_prop(k)%itype == itype_fval) then
+          if (.not.integ_prop(k)%itype == itype_f .and..not.integ_prop(k)%itype == itype_fval.and.&
+              .not.integ_prop(k)%itype == itype_deloc) then
              if (integ_prop(k)%itype == itype_mpoles) then
                 reason(k) = "multipoles integrated separately (see table below)"
              else
@@ -280,7 +281,7 @@ contains
 
     ! localization and delocalization indices
     call intgrid_deloc_wfn(nattr,xgatt,idg,itype,luw,di)
-    ! call intgrid_deloc_brf(nattr,xgatt,idatt,idg,itype,luw,idx,sidx)
+    call intgrid_deloc_brf(nattr,xgatt,idg,itype,luw,di)
 
     ! output the results
     call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
@@ -547,7 +548,7 @@ contains
 
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a grid-related dat file.
-  subroutine intgrid_deloc_brf(natt,xgatt,idatt,idg,itype,luw,idx,sidx)
+  subroutine intgrid_deloc_brf(natt,xgatt,idg,itype,luw,di)
     use bader
     use wfn_private
     use fields
@@ -560,13 +561,10 @@ contains
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idatt(natt)
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: itype
     integer, intent(in) :: luw
-    integer, intent(in) :: idx(natt)
-    character*3, intent(in) :: sidx(natt)
-    character(len=:), allocatable :: aux
+    real*8, intent(inout), allocatable :: di(:,:,:)
 
     integer :: iaa, jaa, kaa
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
@@ -591,10 +589,7 @@ contains
 
     ! size of the grid
     n = f(refden)%n
-
-    if (itype == itype_yt) then
-       allocate(w(n(1),n(2),n(3)))
-    endif
+    
     ! run over all properties for which multipole calculation is active
     do l = 1, nprops
        ! check that it is a brf file
@@ -605,7 +600,7 @@ contains
        write (uout,'("* Localization and delocalization indices")')
        write (uout,'("+ Reference field (number ",A,"): ",A)') string(refden), string(integ_prop(refden)%prop_name)
        write (uout,'("+ Integrated field (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
-
+    
        ! check -- is the density correct?
        if (refden == 1 .and. fid == 2) then
           write (uout,'("+ Density check +")')
@@ -618,7 +613,7 @@ contains
           write (uout,*) "rho needs to be field 1 and xsf field 2"
           stop 1
        endif
-
+     
        ! assign values to some integers
        nbnd = size(f(fid)%fwan,4)
        nlat = f(fid)%nwan(1)*f(fid)%nwan(2)*f(fid)%nwan(3)
@@ -629,7 +624,10 @@ contains
        j1 = f(fid)%nwan(2)-1
        k0 = 0
        k1 = f(fid)%nwan(3)-1
-
+       write (*,*) "nbnd = ", nbnd
+       write (*,*) "nwan = ", f(fid)%nwan
+       write (*,*) "nlat = ", nlat
+     
        ! ! check -- are the wannier functions orthonormal?
        ! if (allocated(f(fid)%fwan)) then
        !    do imo = 1, nmo
@@ -669,7 +667,7 @@ contains
           x0(i,i) = real(f(fid)%nwan(i),8)
        end do
        call cr1%newcell(x0,.false.)
-
+     
        ! build the field for the supercell
        f1%type = type_grid
        f1%usecore = .false.
@@ -687,205 +685,163 @@ contains
        f1%c2x = cr1%car2crys
        f1%x2c = cr1%crys2car
        f1%init = .true.
-
-       ! xxxxx fix arguments xxxxx !
-       ! run bader integration on the supercell !xxxx! ratom
-       ! call bader_integrate(cr1,f1,natt1,xgatt1,idatt1,idg1,1d40)
-       ! xxxxx fix arguments xxxxx !
-
-       ! check -- list of attractors with identity, volumes, and charges
-       ! natt1 -> number of attractors
-       ! xgatt1 -> cryst coords of the attractor
-       ! idatt1 -> id of the basin (>0 atom, <0 nnm)
-       ! idg1 -> array the size of the lattice with the id of the basin (1 to natt1)
+     
+       ! run bader integration on the supercell
+       call bader_integrate(cr1,f1,.true.,1d40,natt1,xgatt1,idg1)
+       
        allocate(w(n0(1),n0(2),n0(3)))
        write (uout,'("+ List of basins and charges")')
        do i = 1, natt1
           r1 = xgatt1(:,i) * n0 / real(n,8)
           r2 = floor(r1)
           r1 = r1 - r2
-          if (idatt1(i) > 0) then
-             aux = cr1%at(cr1%atcel(idatt1(i))%idx)%name
-             r1 = cr1%atcel(idatt1(i))%x * n0 / real(n,8)
-             r1 = r1 - floor(r1)
-          else
-             aux = "nnm" // string(idatt1(i))
-          endif
           w = 0d0
           where(idg1 == i)
              w = f1%f
           end where
           asum = sum(w) * cr1%omega / (n0(1)*n0(2)*n0(3))
           asum2 = count(idg1 == i) * cr1%omega / (n0(1)*n0(2)*n0(3))
-          write (uout,'(99A)') string(i), " (id=", string(idatt1(i)), ") x= ", &
-             (string(r1(j),'e',12,4),j=1,3), "atom = ", string(aux), " ", (string(nint(r2(j)),3),j=1,3), &
+          write (uout,'(99A)') string(i), " x= ", &
+             (string(r1(j),'e',12,4),j=1,3), (string(nint(r2(j)),3),j=1,3), &
              " q = ", string(asum,'e',15,6), " v = ", string(asum2,'e',15,6)
        end do
-
+     
        ! calculate the overlap matrix
        allocate(sij(nmo,nmo,natt1))
        sij = 0d0
-       
-       if (itype == itype_bader) then
-          write (uout,*) "+ Calculating overlap matrices..."
-          allocate(psic(n0(1),n0(2),n0(3)),psic2(n0(1),n0(2),n0(3)))
-          do imo = 1, nmo
-             write (*,*) "imo", imo
-             call unpackidx(imo,ia,ja,ka,iba)
+
+       write (uout,*) "+ Calculating overlap matrices..."
+       allocate(psic(n0(1),n0(2),n0(3)),psic2(n0(1),n0(2),n0(3)))
+       do imo = 1, nmo
+          write (*,*) "imo", imo
+          call unpackidx(imo,ia,ja,ka,iba)
+          ! prepare the supergrid
+          do m1 = 0, f(fid)%nwan(1)-1
+             do m2 = 0, f(fid)%nwan(2)-1
+                do m3 = 0, f(fid)%nwan(3)-1
+                   idx1 = (/m1,m2,m3/) + (/ia,ja,ka/)
+                   idx1 = modulo(idx1,f(fid)%nwan)
+                   psic(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) = &
+                      f(fid)%fwan(idx1(1)*n(1)+1:idx1(1)*n(1)+n(1),idx1(2)*n(2)+1:idx1(2)*n(2)+n(2),idx1(3)*n(3)+1:idx1(3)*n(3)+n(3),iba)
+                end do
+             end do
+          end do
+          do jmo = imo, nmo
+             write (*,*) "jmo", jmo
+             call unpackidx(jmo,ib,jb,kb,ibb)
              ! prepare the supergrid
              do m1 = 0, f(fid)%nwan(1)-1
                 do m2 = 0, f(fid)%nwan(2)-1
                    do m3 = 0, f(fid)%nwan(3)-1
-                      idx1 = (/m1,m2,m3/) + (/ia,ja,ka/)
-                      idx1 = modulo(idx1,f(fid)%nwan)
-                      psic(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) = &
-                         f(fid)%fwan(idx1(1)*n(1)+1:idx1(1)*n(1)+n(1),idx1(2)*n(2)+1:idx1(2)*n(2)+n(2),idx1(3)*n(3)+1:idx1(3)*n(3)+n(3),iba)
+                      idx2 = (/m1,m2,m3/) + (/ib,jb,kb/)
+                      idx2 = modulo(idx2,f(fid)%nwan)
+                      psic2(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) = &
+                         psic(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) * &
+                         f(fid)%fwan(idx2(1)*n(1)+1:idx2(1)*n(1)+n(1),idx2(2)*n(2)+1:idx2(2)*n(2)+n(2),idx2(3)*n(3)+1:idx2(3)*n(3)+n(3),ibb)
                    end do
                 end do
              end do
-             do jmo = imo, nmo
-                write (*,*) "jmo", jmo
-                call unpackidx(jmo,ib,jb,kb,ibb)
-                ! prepare the supergrid
-                do m1 = 0, f(fid)%nwan(1)-1
-                   do m2 = 0, f(fid)%nwan(2)-1
-                      do m3 = 0, f(fid)%nwan(3)-1
-                         idx2 = (/m1,m2,m3/) + (/ib,jb,kb/)
-                         idx2 = modulo(idx2,f(fid)%nwan)
-                         psic2(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) = &
-                            psic(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) * &
-                            f(fid)%fwan(idx2(1)*n(1)+1:idx2(1)*n(1)+n(1),idx2(2)*n(2)+1:idx2(2)*n(2)+n(2),idx2(3)*n(3)+1:idx2(3)*n(3)+n(3),ibb)
-                      end do
-                   end do
-                end do
-                do i = 1, natt1
-                   w = 0d0
-                   where(idg1 == i)
-                      w = psic2
-                   end where
-                   sij(imo,jmo,i) = sum(w)
-                   sij(jmo,imo,i) = sij(imo,jmo,i)
-                end do
+             do i = 1, natt1
+                w = 0d0
+                where(idg1 == i)
+                   w = psic2
+                end where
+                sij(imo,jmo,i) = sum(w)
+                sij(jmo,imo,i) = sij(imo,jmo,i)
              end do
           end do
-       else
-          write (uout,*) "Not implemented with YT"
-          stop 1
-       end if
-
-       ! scale (the omega comes from wannier)
-       sij = sij / (n(1)*n(2)*n(3))
-
-       ! non-spin-polarized
-       sij = 2d0 * sij
-
-       write (uout,'("+ Charge check using the overlap matrices")')
-       asum2 = 0d0
-       do i = 1, natt1
-          asum = 0d0
-          do imo = 1, nmo
-             asum = asum + sij(imo,imo,i)
-          end do
-          write (uout,'(" N(A) -- sum_Rn wRn^2 for atom ",I2,X,F12.6)') i, asum
-          asum2 = asum2 + asum
-       end do
-       write (uout,'(" N(total) -- sum_A sum_Rn wRn^2 ",F12.6)') asum2
-       
-       write (uout,'("+ Orthonormality check")')
-       do imo = 1, nmo
-          do jmo = 1, nmo
-             asum = sum(sij(imo,jmo,:))
-             write (uout,'("Orb. ",I2,X,I2,X,F12.6)') imo, jmo, asum
-          end do
        end do
 
-       ! calculate localization and delocalization indices
-       allocate(fa(natt1,natt1))
-       fa = 0d0
-       do i = 1, natt1
-          do j = i, natt1
-             fa(i,j) = sum(sij(:,:,i) * sij(:,:,j))
-             fa(j,i) = fa(i,j)
-          end do
-       end do
+        ! scale (the omega comes from wannier)
+        sij = sij / (n(1)*n(2)*n(3))
+     
+        ! non-spin-polarized
+        sij = 2d0 * sij
+     
+        write (uout,'("+ Charge check using the overlap matrices")')
+        asum2 = 0d0
+        do i = 1, natt1
+           asum = 0d0
+           do imo = 1, nmo
+              asum = asum + sij(imo,imo,i)
+           end do
+           write (uout,'(" N(A) -- sum_Rn wRn^2 for atom ",I2,X,F12.6)') i, asum
+           asum2 = asum2 + asum
+        end do
+        write (uout,'(" N(total) -- sum_A sum_Rn wRn^2 ",F12.6)') asum2
 
-       ! localization indices
-       write (uout,'("+ Localization indices (lambda)")')
-       do i = 1, natt1
-          r1 = xgatt1(:,i) * n0 / real(n,8)
-          r2 = floor(r1)
-          r1 = r1 - r2
-          if (idatt1(i) > 0) then
-             aux = cr1%at(cr1%atcel(idatt1(i))%idx)%name
-             r1 = cr1%atcel(idatt1(i))%x * n0 / real(n,8)
-             r1 = r1 - floor(r1)
-          else
-             aux = "nnm" // string(idatt1(i))
-          endif
+        write (uout,'("+ Orthonormality check")')
+        do imo = 1, nmo
+           do jmo = 1, nmo
+              asum = sum(sij(imo,jmo,:))
+              write (uout,'("Orb. ",I2,X,I2,X,F12.6)') imo, jmo, asum
+           end do
+        end do
 
-          asum = 0d0
-          do imo = 1, nmo
-             asum = asum + sij(imo,imo,i)
-          end do
-          write (uout,'(99A)') string(i), " (id=", string(idatt1(i)), ") x= ", &
-             (string(r1(j),'e',12,4),j=1,3), "atom = ", string(aux), " ", (string(nint(r2(j)),3),j=1,3), &
-             " li = ", string(0.5d0*fa(i,i),'e',15,6), " q(li) = ", string(0.5d0*sum(fa(i,:)),'e',15,6), &
-             " q = ", string(asum,'e',15,6)
-       end do
-       write (uout,*)
-       
-       write (uout,'("+ Delocalization indices (delta)")')
-       allocate(dist(natt1),io(natt1))
-       do i = 1, natt1
-          r1 = xgatt1(:,i) * n0 / real(n,8)
-          r2 = floor(r1)
-          if (.not.all(nint(r2) == 0)) cycle
-          r1 = r1 - r2
-          if (idatt1(i) > 0) then
-             aux = cr1%at(cr1%atcel(idatt1(i))%idx)%name
-             r1 = cr1%atcel(idatt1(i))%x * n0 / real(n,8)
-             r1 = r1 - floor(r1)
-          else
-             aux = "nnm" // string(idatt1(i))
-          endif
+        ! calculate localization and delocalization indices
+        allocate(fa(natt1,natt1))
+        fa = 0d0
+        do i = 1, natt1
+           do j = i, natt1
+              fa(i,j) = sum(sij(:,:,i) * sij(:,:,j))
+              fa(j,i) = fa(i,j)
+           end do
+        end do
 
-          write (uout,'(99A)') string(i), " (id=", string(idatt1(i)), ") x= ", &
-             (string(r1(j),'e',12,4),j=1,3), "atom = ", string(aux), " ", (string(nint(r2(j)),3),j=1,3)
+        ! localization indices
+        write (uout,'("+ Localization indices (lambda)")')
+        do i = 1, natt1
+           r1 = xgatt1(:,i) * n0 / real(n,8)
+           r2 = floor(r1)
+           r1 = r1 - r2
 
-          dist = 0d0
-          do j = 1, natt1
-             io(j) = j
-             if (j == i) cycle
-             dist(j) = cr1%eql_distance(xgatt1(:,i),xgatt1(:,j))
-          end do
-          
-          call qcksort(dist,io,1,natt1)
-          do m = 2, natt1
-             j = io(m)
-             r1 = xgatt1(:,j) * n0 / real(n,8)
-             r2 = floor(r1)
-             r1 = r1 - r2
-             if (idatt1(j) > 0) then
-                aux = cr1%at(cr1%atcel(idatt1(j))%idx)%name
-                r1 = cr1%atcel(idatt1(j))%x * n0 / real(n,8)
-                r1 = r1 - floor(r1)
-             else
-                aux = "nnm" // string(idatt1(j))
-             endif
-             write (uout,'(99A)') "+ ", string(j), " (id=", string(idatt1(j)), ") x= ", &
-                (string(r1(k),'e',12,4),k=1,3), "atom = ", string(aux), " ", (string(nint(r2(k)),3),k=1,3),&
-                "dist = ", string(dist(j),'f'), " di = ", string(fa(i,j),'f')
-          end do
-       end do
-       write (uout,*)
+           asum = 0d0
+           do imo = 1, nmo
+              asum = asum + sij(imo,imo,i)
+           end do
+           write (uout,'(99A)') string(i), " x= ", &
+              (string(r1(j),'e',12,4),j=1,3), " ", (string(nint(r2(j)),3),j=1,3), &
+              " li = ", string(0.5d0*fa(i,i),'e',15,6), " q(li) = ", string(0.5d0*sum(fa(i,:)),'e',15,6), &
+              " q = ", string(asum,'e',15,6)
+        end do
+        write (uout,*)
 
-       ! wrap up
-       deallocate(sij,fa)
+        write (uout,'("+ Delocalization indices (delta)")')
+        allocate(dist(natt1),io(natt1))
+        do i = 1, natt1
+           r1 = xgatt1(:,i) * n0 / real(n,8)
+           r2 = floor(r1)
+           if (.not.all(nint(r2) == 0)) cycle
+           r1 = r1 - r2
+
+           write (uout,'(99A)') string(i), " x= ", &
+              (string(r1(j),'e',12,4),j=1,3), " ", (string(nint(r2(j)),3),j=1,3)
+
+           dist = 0d0
+           do j = 1, natt1
+              io(j) = j
+              if (j == i) cycle
+              dist(j) = cr1%eql_distance(xgatt1(:,i),xgatt1(:,j))
+           end do
+
+           call qcksort(dist,io,1,natt1)
+           do m = 2, natt1
+              j = io(m)
+              r1 = xgatt1(:,j) * n0 / real(n,8)
+              r2 = floor(r1)
+              r1 = r1 - r2
+              write (uout,'(99A)') "+ ", string(j), " ", &
+                 (string(r1(k),'e',12,4),k=1,3), " ", (string(nint(r2(k)),3),k=1,3),&
+                 "dist = ", string(dist(j),'f'), " di = ", string(fa(i,j),'f')
+           end do
+        end do
+        write (uout,*)
+
+        ! wrap up
+        deallocate(sij,fa)
     end do
 
-    if (itype == itype_yt) then
-       deallocate(w)
-    endif
+    stop 1
 
   contains
 
