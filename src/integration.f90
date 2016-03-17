@@ -110,6 +110,7 @@ contains
     integer :: fid, nattr, ix, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: di(:,:,:), mpole(:,:,:)
+    logical :: dodeloc
     
     ! only grids
     if (f(refden)%type /= type_grid) &
@@ -194,6 +195,7 @@ contains
     write (uout,'("+ Attractors after reordering: ",A)') string(nattr)
 
     ! set the properties mask
+    dodeloc = .false.
     pmask = .false.
     do k = 1, nprops
        if (integ_prop(k)%itype == itype_v) then
@@ -226,6 +228,7 @@ contains
              cycle
           endif
           pmask(k) = .true.
+          if (pmask(k) .and. integ_prop(k)%itype == itype_deloc .and. f(fid)%type == type_grid) dodeloc = .true.
        end if
     end do
 
@@ -281,7 +284,7 @@ contains
 
     ! localization and delocalization indices
     call intgrid_deloc_wfn(nattr,xgatt,idg,itype,luw,di)
-    call intgrid_deloc_brf(nattr,xgatt,idg,itype,luw,di)
+    if (dodeloc) call intgrid_deloc_brf(nattr,xgatt,idg,itype,luw,di)
 
     ! output the results
     call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
