@@ -41,6 +41,7 @@ module types
      module procedure realloc2r
      module procedure realloc3r
      module procedure realloc4r
+     module procedure realloc5r
      module procedure realloc1i
      module procedure realloc2i
      module procedure realloc1c
@@ -163,7 +164,7 @@ module types
      real*8, allocatable, dimension(:,:,:,:) :: c2
      real*8 :: c2x(3,3), x2c(3,3)
      integer :: nwan(3) ! number of wannier vectors
-     real*8, allocatable :: fwan(:,:,:,:) ! from wannier xsf
+     real*8, allocatable :: fwan(:,:,:,:,:) ! from wannier xsf
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)
@@ -545,6 +546,32 @@ contains
     call move_alloc(temp,a)
 
   end subroutine realloc4r
+
+  !> Adapt the size of an allocatable 3D real*8 array
+  subroutine realloc5r(a,n1,n2,n3,n4,n5)
+    use tools_io, only: ferror, faterr
+
+    real*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, real*8, 3D
+    integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
+    
+    real*8, allocatable :: temp(:,:,:,:,:)
+    integer :: nold(5)
+    
+    if (.not.allocated(a)) &
+       call ferror('realloc5r','array not allocated',faterr)
+    nold(1) = size(a,1)
+    nold(2) = size(a,2)
+    nold(3) = size(a,3)
+    nold(4) = size(a,4)
+    nold(5) = size(a,5)
+    allocate(temp(n1,n2,n3,n4,n5))
+    
+    temp = 0d0
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5))) = &
+       a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc5r
 
   !> Adapt the size of an allocatable 1D integer array
   subroutine realloc1i(a,nnew)
