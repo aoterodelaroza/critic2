@@ -21,7 +21,7 @@ load as "($rho0 < 0.01)*$rho0" 50 50 50
 
 # The same calculations can be repeated with a calculated electron
 # density. Here we load the cube
-load ../data/urea.rhoae.cube id rho
+load ../data/urea.rhoval.cube id rho
 
 # And now we repeat the same process but using $rho instead of $rho0
 load as "$rho < 0.01" 50 50 50
