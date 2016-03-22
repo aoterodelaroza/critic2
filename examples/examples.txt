@@ -511,21 +511,22 @@ very slow disk).
 Regarding the location of critical points, the only reliable way of
 avoiding spurious critical points caused by the pseudopotential
 smoothing is to use the reconstructed valence density (most programs
-that run PAW can do it) and then augment it with a core contribution,
-calculated from critic2's internal density tables. Even then, success
-is not guaranteed because there may be numerical noise in the
-low-density regions.
+that run PAW can write this) and then augment it with a core
+contribution, calculated from critic2's internal density tables. Even
+then, success is not guaranteed because there may be numerical noise
+in the low-density regions.
 
 ** compare_yt_bader.cri
 
 Calculate the integral of the electron density in the basins of the
 electrostatic potential and the integral of the Laplacian in the
-basins of the electron density. This is an accuracy test. The density
-in the basins of the potential should integrate to a number of
-electrons equal to the pseudopotential charge (5 for N and 1 for
-H). The Laplacian in the basins of the density should integrate to
-zero. YT achieves superior performance on both counts, with less
-walltime. 
+basins of the electron density. This is an accuracy test; see the
+grid_integration example for the recommended procedure regarding
+atomic basin integration for fields on a grid. The density in the
+basins of the potential should integrate to a number of electrons
+equal to the pseudopotential charge (5 for N and 1 for H). The
+Laplacian in the basins of the density should integrate to zero. YT
+achieves superior performance on both counts, with less walltime.
 
 ** grid_auto.cri
 
