@@ -11,13 +11,33 @@ crystal ../data/GAVFIS.rhops.cube
 load ../data/GAVFIS.rhops.cube id rhops 
 load ../data/GAVFIS.rhoval.cube id rhoval 
 
-# Set the valence density as the reference field, that is, the field
-# whose basins will be calculated.
-reference rhoval
+# # Agument the valence density with the core contribution calculated
+# # from critic2's internal density tables. Normally, you would run this
+# # once, then save the core-augmented cube to a file and use it
+# # afterwards. For convenience, I provide the core-augmented cube file. 
+# #
+# # To calculate the core augmentation, you need the pseudopotential
+# # charges - the number of electrons each pseudopotential
+# # represents. You can get this information from the UPF file. By
+# # default, once ZPSP is given, all fields defined on a grid are
+# # core-augmented. Hence, it is only necessary to calculated the value
+# # of the core-augmented field on a grid ("$rhoval"), and then save it
+# # to a file (rhof.cube).
+# zpsp k 9 o 6 n 5 c 4 h 1
+# load as "$rhoval" id rhof
+# cube grid field rhof file rhof.cube
+# end
+
+# Instead, let's use the already-calculated core-augmented file.
+load ../data/GAVFIS.rhof.cube id rhof 
+
+# Set the all-electron density as the reference field, that is, the
+# field whose basins will be calculated.
+reference rhof
 
 # Set the pseudo-density as an integrable property. This will
 # calculate the integral of the pseudo-density in the basins of the
-# reconstructed valence density
+# all-electron density
 integrable rhops
 
 # Integrate with the Yu-Trinkle algorithm. The NNM keyword permits the

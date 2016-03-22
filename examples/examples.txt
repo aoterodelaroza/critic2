@@ -126,12 +126,13 @@ reference.
 
 ** GAVFIS10_yt.cri
 
-The pseudo-electron density and the reconstructed valence electron
-density are used to integrated the atomic charges and volumes,
-including the non-nuclear maximum in the crystal voids. This is done
-using a grid integration method (Yu-Trinkle algorithm), and takes
-several minutes. The positions of the non-nuclear maxima found by YT
-are written to an obj file, and included into the CP list.
+The pseudo-electron density, the reconstructed valence electron
+density, and the all-electron density (calcualted using critic2's
+internal density tables) are used to integrated the atomic charges and
+volumes, including the non-nuclear maximum in the crystal voids. This
+is done using a grid integration method (Yu-Trinkle algorithm), and
+takes several minutes. The positions of the non-nuclear maxima found
+by YT are written to an obj file, and included into the CP list.
 
 ** GAVFIS10_promol.cri
 
