@@ -247,6 +247,7 @@ contains
     integer :: i
 
     ! nullify the space group
+    cr%havesym = .false.
     cr%neqv = 1
     cr%rotm(:,:,1) = eyet
     cr%ncv = 1
