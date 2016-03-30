@@ -230,7 +230,7 @@ contains
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
     integer :: idx0(cr%nenv), zenv0(cr%nenv), ix, iy, iz, oid, oid2
     real*8 :: xd(3,3)
-    integer :: nid, nwan
+    integer :: nid, nwan, ispin
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
     logical :: isfrag, iok
@@ -442,16 +442,29 @@ contains
 
        nwan = 0
        ff%file = ""
+       ispin = 0
        do while(.true.)
-          nwan = nwan + 1
+          ! read the next token
           file = getword(line,lp)
           if (len_trim(file) == 0) exit
+
+          ! assign the correct channel
+          if (equal(file,"alpha")) then
+             ispin = 1
+             cycle
+          elseif (equal(file,"beta")) then
+             ispin = 2
+             cycle
+          end if
+
           ! read another wannier function and accumulate
-          call grid_read_xsf(file,ff,verbose,nwan,n,cr%omega)
+          nwan = nwan + 1
+          call grid_read_xsf(file,ff,verbose,nwan,n,cr%omega,ispin)
           ff%file = ff%file // file // " "
        end do
        ff%type = type_grid
        ff%file = trim(ff%file)
+       ff%init = .true.
 
     else if (equal(wext1,'as')) then
        lp2 = lp
@@ -2166,8 +2179,9 @@ contains
     integer, intent(in) :: nder
     real*8, intent(in) :: x0(3)
 
-    integer :: iid
-    real*8 :: xp(3)
+    integer :: iid, lvec(3)
+    real*8 :: xp(3), dist, u
+    real*8, parameter :: rc = 1.4d0
 
     iid = fieldname_to_idx(id)
     if (iid >= 0) then
@@ -2175,6 +2189,42 @@ contains
     elseif (trim(id) == "ewald") then
        xp = cr%c2x(x0)
        fields_feval%f = ewald_pot(xp,.false.)
+       fields_feval%fval = fields_feval%f
+       fields_feval%gf = 0d0
+       fields_feval%gfmod = 0d0
+       fields_feval%hf = 0d0
+       fields_feval%del2f = 0d0
+       fields_feval%del2fval = 0d0
+    elseif (trim(id) == "model1r") then
+       ! xxxx
+       iid = 0
+       xp = cr%c2x(x0)
+       call cr%nearest_atom(xp,iid,dist,lvec)
+       if (dist < rc) then
+          u = dist/rc
+          fields_feval%f = (1 - 10*u**3 + 15*u**4 - 6*u**5) * 21d0 / (5d0 * pi * rc**3)
+       else
+          fields_feval%f = 0d0
+       end if
+       fields_feval%fval = fields_feval%f
+       fields_feval%gf = 0d0
+       fields_feval%gfmod = 0d0
+       fields_feval%hf = 0d0
+       fields_feval%del2f = 0d0
+       fields_feval%del2fval = 0d0
+    elseif (trim(id) == "model1v") then
+       ! xxxx requires the +1 charges
+       iid = 0
+       xp = cr%c2x(x0)
+       call cr%nearest_atom(xp,iid,dist,lvec)
+       fields_feval%f = ewald_pot(xp,.false.) + cr%qsum * cr%eta**2 * pi / cr%omega 
+       if (dist < rc .and. dist > 1d-6) then ! correlates with the value in the ewald routine
+          u = dist/rc
+          fields_feval%f = fields_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 1d0 / dist
+       elseif (dist <= 1d-6) then
+          u = dist/rc
+          fields_feval%f = fields_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 2d0 / sqpi / cr%eta
+       end if
        fields_feval%fval = fields_feval%f
        fields_feval%gf = 0d0
        fields_feval%gfmod = 0d0

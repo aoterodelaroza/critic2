@@ -32,9 +32,9 @@ contains
     use struct_basic
     character*(*), intent(in) :: line0
 
-    ! call trick_recalculate_xdm()
+    call trick_recalculate_xdm()
     ! call trick_grid_sphere()
-    call trick_stephens_nnm_channel(line0)
+    ! call trick_stephens_nnm_channel(line0)
     
   end subroutine trick
 
@@ -96,17 +96,48 @@ contains
     end do main
     call fclose(lu)
 
-    ! do stuff
-    do i = 1, cr%ncel
-       if (cr%atcel(i)%x(3) < 0.25d0) then
-          c6(i,:) = 0d0
-          c6(:,i) = 0d0
-          c8(i,:) = 0d0
-          c8(:,i) = 0d0
-          c10(i,:) = 0d0
-          c10(:,i) = 0d0
-       endif
-    end do
+!    write (*,*) c6
+!    stop 1
+    ! ! do stuff
+    ! do i = 1, cr%ncel
+    !    if (cr%atcel(i)%x(3) < 0.25d0) then
+    !       c6(i,:) = 0d0
+    !       c6(:,i) = 0d0
+    !       c8(i,:) = 0d0
+    !       c8(:,i) = 0d0
+    !       c10(i,:) = 0d0
+    !       c10(:,i) = 0d0
+    !    endif
+    ! end do
+
+    ! do i = 1, cr%ncel
+    !    if (i >= 17 .and. i <= 64) then
+    !       c6(i,:) = 0d0
+    !       c6(:,i) = 0d0
+    !       c8(i,:) = 0d0
+    !       c8(:,i) = 0d0
+    !       c10(i,:) = 0d0
+    !       c10(:,i) = 0d0
+    !    elseif (i < 17) then
+    !       do j = 1, 17
+    !          c6(i,j) = 0d0
+    !          c6(j,i) = 0d0
+    !          c8(i,j) = 0d0
+    !          c8(j,i) = 0d0
+    !          c10(i,j) = 0d0
+    !          c10(j,i) = 0d0
+    !       end do
+    !    elseif (i > 64) then
+    !       do j = 64, cr%ncel
+    !          c6(i,j) = 0d0
+    !          c6(j,i) = 0d0
+    !          c8(i,j) = 0d0
+    !          c8(j,i) = 0d0
+    !          c10(i,j) = 0d0
+    !          c10(j,i) = 0d0
+    !       end do
+    !    end if
+    ! end do
 
     ! calculate the energy
     maxc6 = maxval(c6)
@@ -142,6 +173,9 @@ contains
              rix = ri**nn
              exx = cn0 / (rvdwx + rix)
              eat = eat + exx
+             ! if (abs(cn0) > 1d-14) then
+             !    write (*,*) i, j, nn, cn0, exx
+             ! endif
           end do
        end do ! jj
        etotal = etotal + eat 
