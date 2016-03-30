@@ -722,6 +722,7 @@ contains
        ! call spgs and hope for the best
        call spgs_wrap(c,spg,.false.)
     endif
+    c%havesym = .true.
 
     ! clean up
     call purge_()
@@ -800,6 +801,7 @@ contains
     if (c%nneq /= nn) call realloc(c%at,c%nneq)
 
     ! no symmetry
+    c%havesym = .false.
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
@@ -917,6 +919,8 @@ contains
        enddo
        c%rotm(:,4,i)=tau
     end do
+    c%havesym = (c%neqv > 0) 
+
 115 FORMAT(3(3I2,F10.5,/))
 
     ! initialize charge and pseudopotential charge
@@ -1158,6 +1162,7 @@ contains
        c%rotm(:,1:3,i) = real(hdr%symrel(:,:,i),8)
        c%rotm(:,4,i) = hdr%tnons(:,i)
     end do
+    c%havesym = (hdr%nsym > 0)
 
     ! charges and pseudopotential charges
     if (hdr%ntypat /= hdr%npsp) call ferror('struct_read_abinit','Can not handle ntypat/=npsp (?)',faterr,file)
@@ -1500,6 +1505,7 @@ contains
     deallocate(attyp,zpsptyp,atn,x)
 
     ! no symmetry
+    c%havesym = .false.
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
@@ -1771,6 +1777,7 @@ contains
     end do
 
     ! no symmetry
+    c0%havesym = .false.
     c0%neqv = 1
     c0%rotm = 0d0
     c0%rotm(:,1:3,1) = eye
@@ -1833,6 +1840,7 @@ contains
     c%car2crys = matinv(c%crys2car)
 
     ! no symmetry
+    c%havesym = .false.
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
@@ -2114,6 +2122,7 @@ contains
     c%neqv = spgs_n
     c%rotm = real(spgs_m,8)
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
+    c%havesym = .true.
 
   end subroutine spgs_wrap
 
@@ -2171,6 +2180,7 @@ contains
     c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
     ! no symmetry for now
+    c%havesym = .false.
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye

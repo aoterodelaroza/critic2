@@ -73,6 +73,7 @@ module struct_basic
      integer :: lauec !< laue class
      ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
      ! 9=6/mmm, 10=m3bar, 11=m3barm
+     logical :: havesym = .false. !< was the symmetry determined?
      integer :: neqv !< number of symmetry operations
      integer :: neqvg !< number of symmetry operations, reciprocal space
      integer :: ncv  !< number of centering vectors
@@ -125,6 +126,7 @@ module struct_basic
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
      procedure :: newcell !< Change the unit cell and rebuild the crystal
+     procedure :: primitive !< Transform to the primitive
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: powder !< Calculate the powder diffraction pattern
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
@@ -191,6 +193,7 @@ contains
     c%car2crys = 0d0
 
     ! no symmetry
+    c%havesym = .false.
     c%lcent = 0
     c%neqv = 1
     c%rotm = 0d0
@@ -241,6 +244,7 @@ contains
     c%nneq = 0
     c%ncel = 0
     c%nenv = 0
+    c%havesym = .false.
     c%neqv = 0
     c%neqvg = 0
     c%ncv = 0
@@ -1965,6 +1969,8 @@ contains
        write(uout,*)
     endif
 
+    c%havesym = .true.
+
 200 format (/1x, 'Centering vectors (',i4,'):')
 210 format (1x, 'Vector-', i5, ':', 3f10.6)
 220 format (1x, 'Matrix-', i3, ':'/ (4f12.6))
@@ -2976,6 +2982,15 @@ contains
     call c%struct_fill(verbose)
 
   end subroutine newcell
+
+  !> Transform to the primitive
+  subroutine primitive(c)
+    class(crystal), intent(inout) :: c
+
+    write (*,*) "xxxx"
+    stop 1
+
+  end subroutine primitive
 
   !> Calculate the packing ratio (in %) using the neareest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance
