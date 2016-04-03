@@ -1859,6 +1859,9 @@ contains
 
     real*8, parameter :: eps = 1d-6
 
+    ! ignore molecules
+    if (c%ismolecule) return
+
     ! Find the centering vectors
     if (c%havesym < 1) call c%guessspg(1,.false.) 
 
@@ -1959,19 +1962,26 @@ contains
        found = .false.
        maxsum = -1d40
        do ix = 1, nlat
-          do iy = ix+1, nlat
-             do iz = iy+1, nlat
+          do iy = 1, nlat
+             if (ix == iy) cycle
+             do iz = 1, nlat
+                if (ix == iz .or. iy == iz) cycle
+
                 ! skip those triplets with a different sum of distances
                 sum2 = dist(ix) + dist(iy) + dist(iz)
                 if (abs(sum2-udist(i)) > eps) cycle
+
+                ! skip those triplets where b is shorter than a or c is shorter than b
+                if (dist(iy)+eps <= dist(ix) .or. dist(iz)+eps <= dist(iy)) cycle
 
                 ! calculate angles and mixed product; reject bad triplets
                 ang(1) = dot_product(xlatc(:,ix),xlatc(:,iy)) / xnlat(ix) / xnlat(iy)
                 ang(2) = dot_product(xlatc(:,ix),xlatc(:,iz)) / xnlat(ix) / xnlat(iz)
                 ang(3) = dot_product(xlatc(:,iy),xlatc(:,iz)) / xnlat(iy) / xnlat(iz)
                 dd = mixed(xlatc(:,ix),xlatc(:,iy),xlatc(:,iz))
-                if (any(abs(ang) < eps) .or. abs(dd) < eps) cycle
+                if (any(abs(ang) < eps) .or. dd < eps) cycle
 
+                ! maximum sum of the cosines criterion
                 sum2 = abs(ang(1)) + abs(ang(2)) + abs(ang(3))
                 if (sum2 > maxsum) then
                    found = .true.

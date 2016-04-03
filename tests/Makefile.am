@@ -11,7 +11,7 @@ TESTS=\
 002_read_wfn.sh 002_read_wfx.sh 002_read_xyz.sh\
 002_read_qein1.sh 002_read_qein2.sh\
 002_read_siesta.sh 002_read_multiple.sh 002_read_reset.sh\
-002_read_newcell.sh 002_read_molecule.sh\
+002_read_newcell.sh 002_read_primitive.sh 002_read_molecule.sh\
 003_wigner_bcc.sh 003_wigner_fcc_nosym1.sh 003_wigner_fcc_nosym2.sh 003_wigner_fcc.sh\
 003_wigner_hcp.sh 003_wigner_sc.sh 003_wigner_hard1.sh 003_wigner_hard2.sh\
 004_ewald1.sh 004_ewald2.sh\
@@ -32,7 +32,7 @@ TESTS=\
 006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mp2.sh 006_load_wfx.sh \
 006_load_wien_oper.sh 006_load_wien_opts.sh 006_load_wien.sh 006_load_xsf.sh \
 006_load_elk_lap.sh 006_load_elk_lap2.sh 006_load_siesta_rho.sh\
-006_load_copy.sh 006_load_ghost.sh 006_load_lots.sh 006_load_labels.sh\
+006_load_copy.sh 006_load_ghost1.sh 006_load_lots.sh 006_load_labels.sh\
 007_point.sh\
 008_line.sh\
 009_plane1.sh 009_plane2.sh 009_plane3.sh\
