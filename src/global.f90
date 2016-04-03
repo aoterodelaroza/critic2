@@ -104,8 +104,8 @@ module global
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
-  ! guess and symmetry option
-  logical :: doguess
+  ! guess and symmetry option (0 = no, 1 = cen, 2 = full)
+  integer :: doguess
 
   ! reference scalar field
   integer :: refden
@@ -225,7 +225,7 @@ contains
   !> Set the default values for all the global variables
   subroutine global_set_defaults()
 
-    doguess = .true.
+    doguess = 2
     refden = 0
     precisecube = .true.
 
@@ -365,11 +365,12 @@ contains
     logical :: iok
 
     word = lgetword(line,lp)
-    if (equal(word,'noguess')) then
-       doguess = .false.
+    if (equal(word,'nosymm')) then
+       doguess = 0
        call check_no_extra_word()
-    elseif (equal(word,'guess')) then
-       doguess = .true.
+    elseif (equal(word,'symm')) then
+       ok = isinteger(doguess,line,lp)
+       if (.not.ok) doguess = 2
        call check_no_extra_word()
     else if (equal(word,'ode_mode')) then
        do while (.true.)

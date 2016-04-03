@@ -675,7 +675,7 @@ contains
        do i = 1, 3
           x0(i,i) = real(f(fid)%nwan(i),8)
        end do
-       call cr1%newcell(x0,.false.)
+       call cr1%newcell(x0,verbose=.false.)
        
        ! build the field for the supercell
        f1%type = type_grid

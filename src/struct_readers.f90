@@ -305,7 +305,7 @@ contains
        end do
     end if
 
-    if (.not.goodspg) call c%guessspg(.false.)
+    if (.not.goodspg) call c%guessspg(doguess,.false.)
 
   end subroutine parse_crystal_env
 
@@ -426,7 +426,7 @@ contains
     ! fill the missing information
     call fill_molecule(c,rborder,docube)
     call c%set_cryscar()
-    call c%guessspg(.false.)
+    call c%guessspg(doguess,.false.)
 
   contains
     subroutine check_no_extra_word()
@@ -722,7 +722,7 @@ contains
        ! call spgs and hope for the best
        call spgs_wrap(c,spg,.false.)
     endif
-    c%havesym = .true.
+    c%havesym = 2
 
     ! clean up
     call purge_()
@@ -801,7 +801,7 @@ contains
     if (c%nneq /= nn) call realloc(c%at,c%nneq)
 
     ! no symmetry
-    c%havesym = .false.
+    c%havesym = 0
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
@@ -919,7 +919,7 @@ contains
        enddo
        c%rotm(:,4,i)=tau
     end do
-    c%havesym = (c%neqv > 0) 
+    if (c%neqv > 0) c%havesym = 2
 
 115 FORMAT(3(3I2,F10.5,/))
 
@@ -1162,7 +1162,7 @@ contains
        c%rotm(:,1:3,i) = real(hdr%symrel(:,:,i),8)
        c%rotm(:,4,i) = hdr%tnons(:,i)
     end do
-    c%havesym = (hdr%nsym > 0)
+    if (hdr%nsym > 0) c%havesym = 2
 
     ! charges and pseudopotential charges
     if (hdr%ntypat /= hdr%npsp) call ferror('struct_read_abinit','Can not handle ntypat/=npsp (?)',faterr,file)
@@ -1505,7 +1505,7 @@ contains
     deallocate(attyp,zpsptyp,atn,x)
 
     ! no symmetry
-    c%havesym = .false.
+    c%havesym = 0
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
@@ -1777,7 +1777,7 @@ contains
     end do
 
     ! no symmetry
-    c0%havesym = .false.
+    c0%havesym = 0
     c0%neqv = 1
     c0%rotm = 0d0
     c0%rotm(:,1:3,1) = eye
@@ -1840,7 +1840,7 @@ contains
     c%car2crys = matinv(c%crys2car)
 
     ! no symmetry
-    c%havesym = .false.
+    c%havesym = 0
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
@@ -2122,7 +2122,7 @@ contains
     c%neqv = spgs_n
     c%rotm = real(spgs_m,8)
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
-    c%havesym = .true.
+    c%havesym = 0
 
   end subroutine spgs_wrap
 
@@ -2180,7 +2180,7 @@ contains
     c%molborder = max(rborder - max(2d0,0.8d0 * rborder),0d0) / (xmax - xmin)
 
     ! no symmetry for now
-    c%havesym = .false.
+    c%havesym = 0
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye

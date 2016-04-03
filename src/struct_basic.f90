@@ -73,7 +73,7 @@ module struct_basic
      integer :: lauec !< laue class
      ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
      ! 9=6/mmm, 10=m3bar, 11=m3barm
-     logical :: havesym = .false. !< was the symmetry determined?
+     integer :: havesym = 0 !< was the symmetry determined?
      integer :: neqv !< number of symmetry operations
      integer :: neqvg !< number of symmetry operations, reciprocal space
      integer :: ncv  !< number of centering vectors
@@ -120,16 +120,16 @@ module struct_basic
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
      procedure :: pointshell !< Calculate atomic shells around a point
-     procedure :: pointgroup !< Determine the local-symmetry group symbol for a point
+     procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
+     procedure :: get_pack_ratio !< Calculate the packing ratio
+     procedure :: powder !< Calculate the powder diffraction pattern
+     procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
+     procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: guessspg !< Guess the symmetry operations from the structure
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
-     procedure :: newcell !< Change the unit cell and rebuild the crystal
-     procedure :: primitive !< Transform to the primitive
-     procedure :: get_pack_ratio !< Calculate the packing ratio
-     procedure :: powder !< Calculate the powder diffraction pattern
-     procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
+     procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
   end type crystal
   public :: crystal
 
@@ -193,7 +193,7 @@ contains
     c%car2crys = 0d0
 
     ! no symmetry
-    c%havesym = .false.
+    c%havesym = 0
     c%lcent = 0
     c%neqv = 1
     c%rotm = 0d0
@@ -244,7 +244,7 @@ contains
     c%nneq = 0
     c%ncel = 0
     c%nenv = 0
-    c%havesym = .false.
+    c%havesym = 0
     c%neqv = 0
     c%neqvg = 0
     c%ncv = 0
@@ -495,7 +495,7 @@ contains
   !> the index of the rotation matrix and centering vectors
   !> responsible for the transformation of xp into the corresponding
   !> vec. eps is the minimum distance to consider two points
-  !> equivalent (in bohr). 
+  !> equivalent (in bohr). vec, irotm, icenv, and eps0 are optional. 
   subroutine symeqv(c,xp0,mmult,vec,irotm,icenv,eps0)
     use types
     use tools_io
@@ -604,7 +604,8 @@ contains
 
   end function get_mult
 
-  !> Calculate the multiplicity of the point x0 in reciprocal space.
+  !> Calculate the multiplicity of the point x0 in reciprocal space
+  !> (fractional coordinates). 
   function get_mult_reciprocal(c,x0) result (mult)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
@@ -827,9 +828,8 @@ contains
 
   end subroutine find_asterisms
 
-  !> List atoms in a number of cells around the main cell (nx),
-  !> possibly with border (doborder) and motif filling
-  !> (molmotif). 
+  !> List atoms in a number of cells around the main cell (nx cells),
+  !> possibly with border (doborder).
   function listatoms_cells(c,nx,doborder) result(fr)
     use fragmentmod
     use tools_math
@@ -985,8 +985,11 @@ contains
 
   end function listatoms_sphcub
 
-  !> List all molecules in the main cell of the crystal, perhaps
-  !> completing them with atoms from adjacent molecules. 
+  !> List all molecules resulting from completing the initial fragment
+  !> fri by adding adjacent atoms that are covalently bonded. Return
+  !> the numbe of fragment (nfrag), the fragments themselves (fr),
+  !> and whether the framgments are discrete (not connected to
+  !> copies of themselves in a different cell).
   subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
     use fragmentmod
     use tools_math
@@ -1192,14 +1195,17 @@ contains
 
   end subroutine pointshell
 
-  !> Determines the pointgroup for the slot number. i1 and i2 are
-  !> related to the wyckoff label for a point.
-  function pointgroup (c,x0,eps0,leqv,lrotm)
+  !> Determines the site symmetry for a point x0 in cryst. coords.
+  !> Two points are the same if their distance is less than eps0.
+  !> Returns the site symmetry group symbol (sitesymm), the
+  !> number of operations in this group (leqv) and the rotation
+  !> operations (lrotm)
+  function sitesymm(c,x0,eps0,leqv,lrotm)
     use tools_io
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in) :: x0(3) !< Input point in cryst. coords.
     real*8, intent(in), optional :: eps0 !< Two points are different if distance is > eps
-    character*3 :: pointgroup !< point group symbol
+    character*3 :: sitesymm !< point group symbol
     integer, optional :: leqv !< Number of operations in the group
     real*8, optional :: lrotm(3,3,48) !< Point group operations
 
@@ -1247,21 +1253,21 @@ contains
     enddo
 
     ! calculate the point group
-    pointgroup = ""
+    sitesymm = ""
     if (masksym(c3) > 2) then
        ! cubic groups
        if (masksym(c4) /= 0) then
           if (masksym(inv) /= 0) then
-             pointgroup='Oh'
+             sitesymm='Oh'
           else
-             pointgroup='O'
+             sitesymm='O'
           endif
        elseif (masksym(s4).ne.0) then
-          pointgroup= 'Td'
+          sitesymm= 'Td'
        elseif (masksym(inv).ne.0) then
-          pointgroup = 'Th'
+          sitesymm = 'Th'
        else
-          pointgroup = 'T'
+          sitesymm = 'T'
        endif
     else
        !Compute highest order proper axis.
@@ -1276,42 +1282,553 @@ contains
        if (masksym(s6) /= 0) highests=6
        if (highest == 0) then
           if (masksym(inv) /= 0) then
-             pointgroup='i'
+             sitesymm='i'
           elseif (masksym(sigma) /= 0) then
-             pointgroup='Cs'
+             sitesymm='Cs'
           else
-             pointgroup='C1'
+             sitesymm='C1'
           endif
        elseif (masksym(c2) >= highest) then
           if (masksym(sigma) == 0) then
-             pointgroup='D' // string(highest)
+             sitesymm='D' // string(highest)
           elseif (masksym(inv) .eq. 1) then
              if (highest == 3) then
-                pointgroup= 'D3d'
+                sitesymm= 'D3d'
              else
-                pointgroup= 'D' // string(highest) // 'h'
+                sitesymm= 'D' // string(highest) // 'h'
              endif
           else
              if (highest .eq. 3) then
-                pointgroup= 'D3h'
+                sitesymm= 'D3h'
              else
-                pointgroup= 'D' // string(highest) // 'd'
+                sitesymm= 'D' // string(highest) // 'd'
              endif
           endif
        elseif (masksym(sigma) == 0) then
           if (highests /= 0) then
-             pointgroup= 'S' // string(highests/2)
+             sitesymm= 'S' // string(highests/2)
           else
-             pointgroup= 'C' // string(highest)
+             sitesymm= 'C' // string(highest)
           endif
        elseif (masksym(sigma) .lt. highest) then
-          pointgroup= 'C' // string(highest) // 'h'
+          sitesymm= 'C' // string(highest) // 'h'
        else
-          pointgroup= 'C' // string(highest) // 'v'
+          sitesymm= 'C' // string(highest) // 'v'
        endif
     endif
 
-  end function pointgroup
+  end function sitesymm
+
+  !> Calculate the packing ratio (in %) using the nearest-neighbor
+  !> information. Each atom is assigned a ratio equal to half the distance
+  !> to its nearest neighbor.
+  function get_pack_ratio(c) result (px)
+    use param
+    class(crystal), intent(inout) :: c
+    real*8 :: px
+    
+    integer :: i
+
+    px = 0d0
+    do i = 1, c%nneq
+       px = px + c%at(i)%mult * 4d0/3d0 * pi * c%at(i)%rnn2**3
+    end do
+    px = px / c%omega * 100d0
+
+  end function get_pack_ratio
+
+  !> Calculate the powder diffraction pattern. 
+  !> On input, npts is the number of 2*theta points from the initial
+  !> (th2ini0) to the final (th2end0) 2*theta values. Both angles are
+  !> in degrees. lambda0 is the wavelength of the radiation (in
+  !> angstrom). sigma is the parameter for the Gaussian broadening.
+  !> fpol is the polarization correction factor (0 = unpolarized, 0.95
+  !> = syncrhotron).
+  !> On output, t is the 2*theta grid, ih is the intensity on the
+  !> 2*theta grid, th2p is the 2*theta for the located maxima, ip is
+  !> the list of maxima itensities, and hvecp is the reciprocal
+  !> lattice vector corresponding to the peaks.
+  subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
+     sigma,t,ih,th2p,ip,hvecp)
+    use param
+    use tools
+    use tools_io
+
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: th2ini0, th2end0
+    integer, intent(in) :: npts
+    real*8, intent(in) :: lambda0
+    real*8, intent(in) :: fpol
+    real*8, intent(in) :: sigma
+    real*8, allocatable, intent(inout) :: t(:)
+    real*8, allocatable, intent(inout) :: ih(:)
+    real*8, allocatable, intent(inout) :: th2p(:)
+    real*8, allocatable, intent(inout) :: ip(:)
+    integer, allocatable, intent(inout) :: hvecp(:,:)
+
+    integer :: i, ii, np, hcell, h, k, l, iz, idx
+    real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
+    real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
+    real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
+    real*8 :: ipmax, ihmax
+    integer :: hmax
+    integer, allocatable :: multp(:)
+    integer, allocatable :: io(:)
+    real*8, allocatable :: th2p_(:), ip_(:)
+    integer, allocatable :: hvecp_(:,:)
+
+    integer, parameter :: mp = 20
+    real*8, parameter :: ieps = 1d-5
+    real*8, parameter :: theps = 1d-5
+
+    ! prepare the grid limits
+    if (allocated(t)) deallocate(t)
+    if (allocated(ih)) deallocate(ih)
+    allocate(t(npts),ih(npts))
+    do i = 1, npts
+       t(i) = th2ini0 + real(i-1,8) / real(npts-1,8) * (th2end0-th2ini0)
+    end do
+    ih = 0d0
+    th2ini = th2ini0 * pi / 180d0
+    th2end = th2end0 * pi / 180d0
+
+    ! allocate for peak list
+    if (allocated(th2p)) deallocate(th2p)
+    if (allocated(ip)) deallocate(ip)
+    if (allocated(hvecp)) deallocate(hvecp)
+    allocate(th2p(mp),ip(mp),multp(mp),hvecp(3,mp))
+
+    ! cell limits, convert lambda to bohr
+    lambda = lambda0 / bohrtoa
+    smax = sin(th2end/2d0)
+    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
+    ! broadening -> gaussian
+    sigma2 = sigma * sigma
+
+    ! calculate the intensities
+    np = 0
+    do hcell = 1, hmax
+       do h = -hcell, hcell
+          do k = -hcell, hcell
+             do l = -hcell, hcell
+                if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
+                ! reciprocal lattice vector length
+                hvec = real((/h,k,l/),8)
+                dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
+                dh = sqrt(dh2)
+                dh3 = dh2 * dh
+
+                ! the theta is not outside the spectrum range
+                sth = 0.5d0 * lambda * dh
+                if (abs(sth) > smax) cycle
+                th = asin(sth)
+                th2 = 2d0 * th
+                if (th2 < th2ini .or. th2 > th2end) cycle
+
+                ! more stuff we need
+                sthlam = dh / bohrtoa / 2d0
+                kvec = 2 * pi * hvec
+
+                ! calculate the raw intensity for this (hkl)
+                cterm = 0d0
+                sterm = 0d0
+                do i = 1, c%ncel
+                   iz = c%at(c%atcel(i)%idx)%z
+                   if (iz < 1 .or. iz > size(cscatt,2)) &
+                      call ferror('struct_powder','invalic Z -> no atomic scattering factors',faterr)
+                   as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
+                   bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
+                   cs = cscatt(9,iz)
+                   if (dh < 2d0) then
+                      ffac = as(1)*exp(-bs(1)*dh2)+as(2)*exp(-bs(2)*dh2)+&
+                         as(3)*exp(-bs(3)*dh2)+as(4)*exp(-bs(4)*dh2)+cs
+                   elseif (iz == 1) then
+                      ffac = 0d0
+                   else
+                      c2s = c2scatt(:,iz)
+                      ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
+                   end if
+                   ffac = ffac * exp(-sthlam**2)
+                   cterm = cterm + ffac * cos(dot_product(kvec,c%atcel(i)%x))
+                   sterm = sterm + ffac * sin(dot_product(kvec,c%atcel(i)%x))
+                end do
+                int = cterm**2 + sterm**2
+
+                ! profile correction
+                ! Yinghua J. Appl. Cryst. 20 (1987) 258
+                ! lpf = (1 + cos(th2)**2) / sin(th)**2
+                ! int = int * lpf
+
+                ! gdis lorentz-polarization correction; checked in diamond; 
+                ! criticized by Yinghua because it is a correction for the integrated
+                ! intensity
+                ! lpf = 0.5*(1+cos(th2)**2) / sin(th2) / sin(th)
+                ! int = int * lpf
+
+                ! FoX-compatible
+                ! lorentz correction
+                mcorr = 1d0 / sin(th2)
+                ! slit aperture
+                mcorr = mcorr / sin(th)
+                ! polarization
+                afac = (1-fpol) / (1+fpol)
+                mcorr = mcorr * (1+afac*(0.5d0+0.5d0*cos(2*th2))) / (1+afac)
+                int = int * mcorr
+                
+                ! sum the peak
+                if (int > ieps) then
+                   ! use a gaussian profile, add the intensity
+                   ih = ih + int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
+
+                   ! identify the new peak
+                   if (all(abs(th2p(1:np)-th2) > theps)) then
+                      np = np + 1
+                      if (np > size(th2p)) then
+                         call realloc(th2p,2*np)
+                         call realloc(ip,2*np)
+                         call realloc(multp,2*np)
+                         call realloc(hvecp,3,2*np)
+                      end if
+                      th2p(np) = th2
+                      ip(np) = int
+                      multp(np) = 1
+                      hvecp(:,np) = (/h,k,l/)
+                   else
+                      do idx = 1, np
+                         if (abs(th2p(idx)-th2) <= theps) exit
+                      end do
+                      multp(idx) = multp(idx) + 1
+                      ! usually the hvec with the most positive indices is the last one
+                      hvecp(:,idx) = (/h,k,l/)
+                   endif
+                end if
+             end do
+          end do
+       end do
+    end do
+    call realloc(th2p,np)
+    call realloc(ip,np)
+    call realloc(multp,np)
+    call realloc(hvecp,3,np)
+
+    ! normalize the intensities to 100
+    if (np == 0) &
+       call ferror('struct_powder','no peaks found in the 2theta range',faterr)
+    ip = ip * multp
+    ipmax = maxval(ip)
+    ihmax = maxval(ih)
+    ih = ih / ihmax * 100
+    ip = ip / ipmax * 100
+
+    ! deallocate the multiplicities
+    deallocate(multp)
+
+    ! sort the peaks
+    allocate(io(np),th2p_(np),ip_(np),hvecp_(3,np))
+    do i = 1, np
+       io(i) = i
+    end do
+    call qcksort(th2p,io,1,np)
+    do ii = 1, np
+       i = io(ii)
+       th2p_(ii) = th2p(i)
+       ip_(ii) = ip(i)
+       hvecp_(:,ii) = hvecp(:,i)
+    end do
+    th2p = th2p_
+    ip = ip_
+    hvecp = hvecp_
+    deallocate(th2p_,ip_,hvecp_,io)
+
+
+  end subroutine powder
+
+  !> Calculate real and reciprocal space sum cutoffs
+  subroutine calculate_ewald_cutoffs(c)
+    use tools_io
+    use param
+
+    class(crystal), intent(inout) :: c
+
+    real*8, parameter :: sgrow = 1.4d0
+    real*8, parameter :: epscut = 1d-5
+    real*8, parameter :: eeps = 1d-12
+
+    integer :: i
+    real*8 :: aux, qsum, q2sum
+    integer :: ia, ib, ic
+    real*8 :: alrmax(3)
+    real*8 :: rcut1, rcut2, err_real
+    real*8 :: hcut1, hcut2, err_rec
+
+    if (c%ewald_ready) return
+
+    ! calculate sum of charges and charges**2
+    cr%qsum = 0d0
+    q2sum = 0d0
+    do i = 1, cr%nneq
+       if (cr%at(i)%qat == 0) &
+          call ferror('ewald_energy','Some of the charges are 0',faterr)
+       cr%qsum = cr%qsum + real(cr%at(i)%mult * cr%at(i)%qat,8)
+       q2sum = q2sum + real(cr%at(i)%mult * cr%at(i)%qat**2,8)
+    end do
+
+    ! determine shortest vector in real space
+    aux = 0d0
+    do i = 1, 3
+       if (cr%aa(i) > aux) then
+          aux = cr%aa(i)
+          ia = i
+       end if
+    end do
+    ! determine shortest vector in reciprocal space, dif. from ia
+    aux = 0d0
+    do i = 1, 3
+       if (cr%ar(i) > aux .and. i /= ia) then
+          aux = cr%ar(i)
+          ic = i
+       end if
+    end do
+    ! the remaining vector is ib
+    ib = 1
+    do i = 1, 3
+       if (i /= ia .and. i /= ic) ib = i
+    end do
+
+    ! convergence parameter
+    c%eta = sqrt(cr%omega / pi / cr%aa(ib) / sin(cr%bb(ic)*rad))
+
+    ! real space cutoff
+    rcut1 = 1d0
+    rcut2 = 2d0 / sgrow
+    err_real = 1d30
+    do while (err_real >= eeps)
+       rcut2 = rcut2 * sgrow
+       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(rcut2 / c%eta)
+    end do
+    do while (rcut2-rcut1 >= epscut)
+       c%rcut = 0.5*(rcut1+rcut2)
+       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(c%rcut / c%eta)
+       if (err_real > eeps) then
+          rcut1 = c%rcut
+       else
+          rcut2 = c%rcut
+       endif
+    end do
+    c%rcut = 0.5*(rcut1+rcut2)
+    ! real space cells to explore
+    alrmax = 0d0
+    alrmax(1) = cr%aa(2) * cr%aa(3) * sin(cr%bb(1)*rad)
+    alrmax(2) = cr%aa(1) * cr%aa(3) * sin(cr%bb(2)*rad)
+    alrmax(3) = cr%aa(1) * cr%aa(2) * sin(cr%bb(3)*rad)
+    c%lrmax = ceiling(c%rcut * alrmax / cr%omega)
+
+    ! reciprocal space cutoff
+    hcut1 = 1d0
+    hcut2 = 2d0 / sgrow
+    err_rec = 1d30
+    do while(err_rec >= eeps)
+       hcut2 = hcut2 * sgrow
+       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
+    end do
+    do while(hcut2-hcut1 > epscut)
+       c%hcut = 0.5*(hcut1+hcut2)
+       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
+       if (err_rec > eeps) then
+          hcut1 = c%hcut
+       else
+          hcut2 = c%hcut
+       endif
+    end do
+    c%hcut = 0.5*(hcut1+hcut2)
+    ! reciprocal space cells to explore
+    c%lhmax = ceiling(cr%aa(ia) / tpi * c%hcut)
+    c%ewald_ready = .true.
+
+  end subroutine calculate_ewald_cutoffs
+
+  !> Given a crystal structure (c) and three lattice vectors in cryst.
+  !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
+  !> structure using the unit cell given by those vectors. Uses guessspg
+  !> to determine the symmetry. 
+  subroutine newcell(c,x00,t0,verbose)
+    use tools_math
+    use tools_io
+    use param
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: x00(3,3)
+    real*8, intent(in), optional :: t0(3)
+    logical, intent(in) :: verbose
+
+    type(crystal) :: nc
+    logical :: ok, found
+    integer :: hadsym
+    real*8 :: x0(3,3), x0inv(3,3), fvol
+    real*8 :: r(3,3), g(3,3), x(3), dx(3), dd, t(3)
+    integer :: i, j, k, l, m
+    integer :: nr
+    integer :: nlat
+    real*8, allocatable :: xlat(:,:)
+
+    ! initialize
+    x0 = x00
+    dd = det(x0)
+    if (abs(dd) < 1d-10) then
+       call ferror('newcell','invalid input vectors',faterr)
+    elseif (dd < 0d0) then
+       ! switch two vectors
+       x0(1,:) = x00(2,:)
+       x0(2,:) = x00(1,:)
+       dd = -dd
+       call ferror('newcell','det < 0; vectors 1 and 2 switched',warning)
+    endif
+    if (present(t0)) then
+       t = t0
+    else
+       t = 0d0
+    end if
+
+    ! check that the vectors are pure translations
+    do i = 1, 3
+       ok = .false.
+       do j = 1, c%ncv
+          ok = (c%eql_distance(x0(:,i),c%cen(:,j)) < 1d-5)
+          if (ok) exit
+       end do
+       if (.not.ok) &
+          call ferror("struct_newcell","Cell vector number " // string(i) // &
+          " is not a pure translation",faterr)
+    end do
+
+    ! is this a smaller or a larger cell? Arrange vectors.
+    if (abs(dd-1d0) < 1d-10) then
+       nr = 1
+    elseif (dd > 1d0) then
+       nr = nint(dd)
+       if (abs(nr-dd) > 1d-10) &
+          call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
+    else
+       nr = -nint(1d0/dd)
+       if (abs(-nr-1d0/dd) > 1d-10) &
+          call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
+    end if
+
+    ! inverse matrix
+    x0inv = matinv(x0)
+
+    ! build the new crystal cell
+    call nc%init()
+    
+    ! metrics of the new cell
+    r = matmul(transpose(x0),transpose(c%crys2car))
+    g = matmul(r,transpose(r))
+    do i = 1, 3
+       nc%aa(i) = sqrt(g(i,i))
+    end do
+    nc%bb(1) = acos(g(2,3) / nc%aa(2) / nc%aa(3)) * 180d0 / pi
+    nc%bb(2) = acos(g(1,3) / nc%aa(1) / nc%aa(3)) * 180d0 / pi
+    nc%bb(3) = acos(g(1,2) / nc%aa(1) / nc%aa(2)) * 180d0 / pi
+    fvol = abs(det(r)) / c%omega
+    if (abs(nint(fvol)-fvol) > 1d-10 .and. abs(nint(1d0/fvol)-1d0/fvol) > 1d-10) &
+       call ferror("struct_newcell","Inconsistent newcell volume",faterr)
+
+    ! find a star of lattice vectors and supercell centering vectors, if any
+    ! first lattice vector is (0 0 0)
+    allocate(xlat(3,10))
+    xlat = 0d0
+    nlat = 1
+    do i = minval(floor(x0(1,:))),maxval(ceiling(x0(1,:)))
+       do j = minval(floor(x0(2,:))),maxval(ceiling(x0(2,:)))
+          do k = minval(floor(x0(3,:))),maxval(ceiling(x0(3,:)))
+             x = matmul((/i, j, k/),transpose(x0inv))
+             if (any(abs(x-nint(x)) > 1d-10)) then
+                ! this is a new candidate for supercell centering vector
+                ! check if we have it already
+                x = x - floor(x)
+                found = .false.
+                do l = 1, nlat
+                   if (all(abs(xlat(:,l) - x) < 1d-10)) then
+                      found = .true.
+                      exit
+                   end if
+                end do
+                if (.not.found) then
+                   nlat = nlat + 1
+                   if (nlat > size(xlat,2)) call realloc(xlat,3,2*nlat)
+                   xlat(:,nlat) = x
+                end if
+             endif
+          end do
+       end do
+    end do
+
+    ! build the new atom list
+    do i = 1, nlat
+       do j = 1, c%ncel
+          ! candidate atom
+          x = matmul(c%atcel(j)%x-t,transpose(x0inv)) + xlat(:,i)
+          x = x - floor(x)
+
+          ! check if we have it already
+          ok = .true.
+          do m = 1, nc%nneq
+             dx = x - nc%at(m)%x
+             dx = abs(dx - nint(dx))
+             if (all(dx < 1d-10)) then
+                ok = .false.
+                exit
+             end if
+          end do
+          if (ok) then
+             ! add it to the list
+             nc%nneq = nc%nneq + 1
+             if (nc%nneq > size(nc%at)) &
+                call realloc(nc%at,2*nc%nneq)
+             nc%at(nc%nneq)%x = x
+             nc%at(nc%nneq)%name = c%at(c%atcel(j)%idx)%name
+             nc%at(nc%nneq)%z = c%at(c%atcel(j)%idx)%z
+             nc%at(nc%nneq)%zpsp = c%at(c%atcel(j)%idx)%zpsp
+             nc%at(nc%nneq)%qat = c%at(c%atcel(j)%idx)%qat
+          end if
+       end do
+    end do
+    nc%crys2car = transpose(r)
+    nc%car2crys = matinv(nc%crys2car)
+
+    if (nr > 0) then
+       if (nc%nneq / c%ncel /= nr) then
+          write (uout,*) "c%nneq = ", c%ncel
+          write (uout,*) "nc%nneq = ", nc%nneq
+          write (uout,*) "nr = ", nr
+          call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
+       end if
+    else
+       if (c%ncel / nc%nneq /= -nr) then
+          write (uout,*) "c%nneq = ", c%ncel
+          write (uout,*) "nc%nneq = ", nc%nneq
+          write (uout,*) "nr = ", nr
+          call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
+       end if
+    endif
+
+    ! transfer info from nc to c
+    hadsym = c%havesym
+    call c%end()
+    call c%init()
+    c%aa = nc%aa
+    c%bb = nc%bb
+    c%nneq = nc%nneq
+    call realloc(c%at,c%nneq)
+    c%at = nc%at
+    c%car2crys = nc%car2crys
+    c%crys2car = nc%crys2car
+    call nc%end()
+
+    ! initialize the structure
+    if (hadsym > 0) call c%guessspg(hadsym,verbose) 
+    call c%struct_fill(verbose)
+
+  end subroutine newcell
 
   !> Uses the cell lengths, angles, centering type, non-equivalent
   !> atom list (positions, Z and names), space group operations and
@@ -1873,20 +2390,23 @@ contains
   !> cell and the positions of the atoms in it. Transform the atom
   !> list into the non-equivalent atom list.  In: cell parameters (aa,
   !> bb) Inout: nneq, at(:)%z, at(:)%x, at(:)%name Out: lcent, neqv,
-  !> rotm
-  subroutine guessspg(c,verbose)
+  !> rotm. If level = 0, use no symmetry. If level = 1, find only
+  !> the centering vectors. Level = 2, full symmetry.
+  subroutine guessspg(c,level,verbose)
     use global
     use tools_math
     use tools_io
     use param
 
     class(crystal), intent(inout) :: c
+    integer, intent(in) :: level
     logical, intent(in) :: verbose
 
     integer :: i, j, k
     real*8 :: sumcen, rmat(3,3)
 
-    if (.not.doguess) then
+    c%havesym = level
+    if (level == 0) then
        c%neqv = 1
        c%rotm(:,:,1) = eyet
        c%ncv = 1
@@ -1910,11 +2430,16 @@ contains
        enddo
        write (uout,*)
     endif
-    rmat = transpose(crys2car_from_cellpar(c%aa,c%bb))
-    call lattpg(rmat,verbose,c%ncv,c%cen,c%neqv,c%rotm(1:3,1:3,:))
 
-    ! Calculate the translation vectors
-    call filltrans(c,verbose)
+    ! Find the non-centering operations?
+    if (level > 1) then
+       ! Find the rotation parts of the operations
+       rmat = transpose(crys2car_from_cellpar(c%aa,c%bb))
+       call lattpg(rmat,verbose,c%ncv,c%cen,c%neqv,c%rotm(1:3,1:3,:))
+
+       ! Calculate the translation vectors
+       call filltrans(c,verbose)
+    end if
 
     ! Delete atoms that are symmetry-equivalent
     call reduceatoms(c,verbose)
@@ -1969,8 +2494,6 @@ contains
        write(uout,*)
     endif
 
-    c%havesym = .true.
-
 200 format (/1x, 'Centering vectors (',i4,'):')
 210 format (1x, 'Vector-', i5, ':', 3f10.6)
 220 format (1x, 'Matrix-', i3, ':'/ (4f12.6))
@@ -1979,7 +2502,8 @@ contains
 
   end subroutine guessspg
 
-  !> Build all possible non-lattice translation vectors, probably repeated
+  !> Find all centering vectors in the crystal. Uses c%nneq and c%at,
+  !> and writes c%cen and c%ncv.
   subroutine cenbuild (c)
     use global
     use types
@@ -2268,16 +2792,13 @@ contains
     do i = 1, c%nneq
        xnew = matmul(c%rotm(1:3,1:3,op),c%at(i)%x) + c%rotm(:,4,op)
        found = .false.
-       j = 0
-       do while (.not.found .and. j .lt. c%nneq)
-          j = j + 1
+       do j = 1, c%nneq
           if (c%at(i)%z .eq. c%at(j)%z) then
              v1 = xnew
              v2 = c%at(j)%x
 
-             if (c%eql_distance(v1,v2) < atomeps) then
-                found = .true.
-             end if
+             found = (c%eql_distance(v1,v2) < atomeps) 
+             if (found) exit
           end if
        end do
        if (.not.found) then
@@ -2623,7 +3144,7 @@ contains
     ! tetrahedra
     if (present(ntetrag).and.present(tetrag)) then
        ! local symmetry group
-       pg = c%pointgroup(xorigin,leqv=leqv,lrotm=lrotm)
+       pg = c%sitesymm(xorigin,leqv=leqv,lrotm=lrotm)
 
        if (verbose) then
           write (uout,'("+ Site-symmetry of the origin")')
@@ -2884,441 +3405,14 @@ contains
 
   end subroutine pmwigner
 
-  !> Given a crystal structure (c) and three lattice vectors in cryst.
-  !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
-  !> structure using the unit cell given by those vectors. Uses guessspg
-  !> to determine the symmetry. 
-  subroutine newcell(c,x0,verbose)
-    use tools_math
-    use tools_io
-    use param
-    class(crystal), intent(inout) :: c
-    real*8, intent(in) :: x0(3,3)
-    logical, intent(in) :: verbose
-
-    type(crystal) :: nc
-    logical :: ok
-    real*8 :: x0inv(3,3), fvol
-    real*8 :: r(3,3), g(3,3), x(3), dx(3)
-    integer :: i, j, k, l, m
-
-    ! check that the vectors are pure translations
-    do i = 1, 3
-       ok = .false.
-       do j = 1, c%ncv
-          ok = (c%eql_distance(x0(:,i),c%cen(:,j)) < 1d-5)
-          if (ok) exit
-       end do
-       if (.not.ok) &
-          call ferror("struct_newcell","Cell vector number " // string(i) // &
-          " is not a pure translation",faterr)
-    end do
-
-    ! build the new crystal 
-    call nc%init()
-    x0inv = matinv(x0)
-
-    r = matmul(transpose(x0),transpose(c%crys2car))
-    g = matmul(r,transpose(r))
-    do i = 1, 3
-       nc%aa(i) = sqrt(g(i,i))
-    end do
-    nc%bb(1) = acos(g(2,3) / nc%aa(2) / nc%aa(3)) * 180d0 / pi
-    nc%bb(2) = acos(g(1,3) / nc%aa(1) / nc%aa(3)) * 180d0 / pi
-    nc%bb(3) = acos(g(1,2) / nc%aa(1) / nc%aa(2)) * 180d0 / pi
-    fvol = abs(det(r)) / c%omega
-    if (abs(nint(fvol)-fvol) > 1d-10 .and. abs(nint(1d0/fvol)-1d0/fvol) > 1d-10) &
-       call ferror("struct_newcell","Inconsistent newcell volume",faterr)
-
-    do i = minval(floor(x0(1,:))),maxval(ceiling(x0(1,:)))
-       do j = minval(floor(x0(2,:))),maxval(ceiling(x0(2,:)))
-          do k = minval(floor(x0(3,:))),maxval(ceiling(x0(3,:)))
-             do l = 1, c%ncel
-                x = c%atcel(l)%x + (/i,j,k/)
-                x = matmul(x,transpose(x0inv))
-                if (all(x > -0.1d0) .and. all(x < 1.1d0)) then
-                   x = x - floor(x)
-                   ok = .true.
-                   do m = 1, nc%nneq
-                      dx = x - nc%at(m)%x
-                      dx = abs(dx - nint(dx))
-                      if (all(dx < 1d-10)) then
-                         ok = .false.
-                         exit
-                      end if
-                   end do
-                   if (ok) then
-                      nc%nneq = nc%nneq + 1
-                      if (nc%nneq > size(nc%at)) &
-                         call realloc(nc%at,2*nc%nneq)
-                      nc%at(nc%nneq)%x = x
-                      nc%at(nc%nneq)%name = c%at(c%atcel(l)%idx)%name
-                      nc%at(nc%nneq)%z = c%at(c%atcel(l)%idx)%z
-                      nc%at(nc%nneq)%zpsp = c%at(c%atcel(l)%idx)%zpsp
-                      nc%at(nc%nneq)%qat = c%at(c%atcel(l)%idx)%qat
-                   end if
-                end if
-             end do
-          end do
-       end do
-    end do
-    nc%crys2car = transpose(r)
-    nc%car2crys = matinv(nc%crys2car)
-
-    ! transfer info from nc to c
-    call c%end()
-    call c%init()
-    c%aa = nc%aa
-    c%bb = nc%bb
-    c%nneq = nc%nneq
-    call realloc(c%at,c%nneq)
-    c%at = nc%at
-    c%car2crys = nc%car2crys
-    c%crys2car = nc%crys2car
-    call nc%end()
-
-    ! initialize the structure
-    call c%guessspg(.false.)
-    call c%struct_fill(verbose)
-
-  end subroutine newcell
-
   !> Transform to the primitive
-  subroutine primitive(c)
+  subroutine primitive_buerger(c)
     class(crystal), intent(inout) :: c
 
     write (*,*) "xxxx"
     stop 1
 
-  end subroutine primitive
-
-  !> Calculate the packing ratio (in %) using the neareest-neighbor
-  !> information. Each atom is assigned a ratio equal to half the distance
-  !> to its nearest neighbor.
-  function get_pack_ratio(c) result (px)
-    use param
-    class(crystal), intent(inout) :: c
-    real*8 :: px
-    
-    integer :: i
-
-    px = 0d0
-    do i = 1, c%nneq
-       px = px + c%at(i)%mult * 4d0/3d0 * pi * c%at(i)%rnn2**3
-    end do
-    px = px / c%omega * 100d0
-
-  end function get_pack_ratio
-
-  !> Calculate the powder diffraction pattern. 
-  !> On input, npts is the number of 2*theta points from the initial
-  !> (th2ini0) to the final (th2end0) 2*theta values. Both angles are
-  !> in degrees. lambda0 is the wavelength of the radiation (in
-  !> angstrom). sigma is the parameter for the Gaussian broadening.
-  !> fpol is the polarization correction factor (0 = unpolarized, 0.95
-  !> = syncrhotron).
-  !> On output, t is the 2*theta grid, ih is the intensity on the
-  !> 2*theta grid, th2p is the 2*theta for the located maxima, ip is
-  !> the list of maxima itensities, and hvecp is the reciprocal
-  !> lattice vector corresponding to the peaks.
-  subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
-     sigma,t,ih,th2p,ip,hvecp)
-    use param
-    use tools
-    use tools_io
-
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: th2ini0, th2end0
-    integer, intent(in) :: npts
-    real*8, intent(in) :: lambda0
-    real*8, intent(in) :: fpol
-    real*8, intent(in) :: sigma
-    real*8, allocatable, intent(inout) :: t(:)
-    real*8, allocatable, intent(inout) :: ih(:)
-    real*8, allocatable, intent(inout) :: th2p(:)
-    real*8, allocatable, intent(inout) :: ip(:)
-    integer, allocatable, intent(inout) :: hvecp(:,:)
-
-    integer :: i, ii, np, hcell, h, k, l, iz, idx
-    real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
-    real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
-    real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
-    real*8 :: ipmax, ihmax
-    integer :: hmax
-    integer, allocatable :: multp(:)
-    integer, allocatable :: io(:)
-    real*8, allocatable :: th2p_(:), ip_(:)
-    integer, allocatable :: hvecp_(:,:)
-
-    integer, parameter :: mp = 20
-    real*8, parameter :: ieps = 1d-5
-    real*8, parameter :: theps = 1d-5
-
-    ! prepare the grid limits
-    if (allocated(t)) deallocate(t)
-    if (allocated(ih)) deallocate(ih)
-    allocate(t(npts),ih(npts))
-    do i = 1, npts
-       t(i) = th2ini0 + real(i-1,8) / real(npts-1,8) * (th2end0-th2ini0)
-    end do
-    ih = 0d0
-    th2ini = th2ini0 * pi / 180d0
-    th2end = th2end0 * pi / 180d0
-
-    ! allocate for peak list
-    if (allocated(th2p)) deallocate(th2p)
-    if (allocated(ip)) deallocate(ip)
-    if (allocated(hvecp)) deallocate(hvecp)
-    allocate(th2p(mp),ip(mp),multp(mp),hvecp(3,mp))
-
-    ! cell limits, convert lambda to bohr
-    lambda = lambda0 / bohrtoa
-    smax = sin(th2end/2d0)
-    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
-    ! broadening -> gaussian
-    sigma2 = sigma * sigma
-
-    ! calculate the intensities
-    np = 0
-    do hcell = 1, hmax
-       do h = -hcell, hcell
-          do k = -hcell, hcell
-             do l = -hcell, hcell
-                if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
-                ! reciprocal lattice vector length
-                hvec = real((/h,k,l/),8)
-                dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
-                dh = sqrt(dh2)
-                dh3 = dh2 * dh
-
-                ! the theta is not outside the spectrum range
-                sth = 0.5d0 * lambda * dh
-                if (abs(sth) > smax) cycle
-                th = asin(sth)
-                th2 = 2d0 * th
-                if (th2 < th2ini .or. th2 > th2end) cycle
-
-                ! more stuff we need
-                sthlam = dh / bohrtoa / 2d0
-                kvec = 2 * pi * hvec
-
-                ! calculate the raw intensity for this (hkl)
-                cterm = 0d0
-                sterm = 0d0
-                do i = 1, c%ncel
-                   iz = c%at(c%atcel(i)%idx)%z
-                   if (iz < 1 .or. iz > size(cscatt,2)) &
-                      call ferror('struct_powder','invalic Z -> no atomic scattering factors',faterr)
-                   as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
-                   bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
-                   cs = cscatt(9,iz)
-                   if (dh < 2d0) then
-                      ffac = as(1)*exp(-bs(1)*dh2)+as(2)*exp(-bs(2)*dh2)+&
-                         as(3)*exp(-bs(3)*dh2)+as(4)*exp(-bs(4)*dh2)+cs
-                   elseif (iz == 1) then
-                      ffac = 0d0
-                   else
-                      c2s = c2scatt(:,iz)
-                      ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
-                   end if
-                   ffac = ffac * exp(-sthlam**2)
-                   cterm = cterm + ffac * cos(dot_product(kvec,c%atcel(i)%x))
-                   sterm = sterm + ffac * sin(dot_product(kvec,c%atcel(i)%x))
-                end do
-                int = cterm**2 + sterm**2
-
-                ! profile correction
-                ! Yinghua J. Appl. Cryst. 20 (1987) 258
-                ! lpf = (1 + cos(th2)**2) / sin(th)**2
-                ! int = int * lpf
-
-                ! gdis lorentz-polarization correction; checked in diamond; 
-                ! criticized by Yinghua because it is a correction for the integrated
-                ! intensity
-                ! lpf = 0.5*(1+cos(th2)**2) / sin(th2) / sin(th)
-                ! int = int * lpf
-
-                ! FoX-compatible
-                ! lorentz correction
-                mcorr = 1d0 / sin(th2)
-                ! slit aperture
-                mcorr = mcorr / sin(th)
-                ! polarization
-                afac = (1-fpol) / (1+fpol)
-                mcorr = mcorr * (1+afac*(0.5d0+0.5d0*cos(2*th2))) / (1+afac)
-                int = int * mcorr
-                
-                ! sum the peak
-                if (int > ieps) then
-                   ! use a gaussian profile, add the intensity
-                   ih = ih + int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
-
-                   ! identify the new peak
-                   if (all(abs(th2p(1:np)-th2) > theps)) then
-                      np = np + 1
-                      if (np > size(th2p)) then
-                         call realloc(th2p,2*np)
-                         call realloc(ip,2*np)
-                         call realloc(multp,2*np)
-                         call realloc(hvecp,3,2*np)
-                      end if
-                      th2p(np) = th2
-                      ip(np) = int
-                      multp(np) = 1
-                      hvecp(:,np) = (/h,k,l/)
-                   else
-                      do idx = 1, np
-                         if (abs(th2p(idx)-th2) <= theps) exit
-                      end do
-                      multp(idx) = multp(idx) + 1
-                      ! usually the hvec with the most positive indices is the last one
-                      hvecp(:,idx) = (/h,k,l/)
-                   endif
-                end if
-             end do
-          end do
-       end do
-    end do
-    call realloc(th2p,np)
-    call realloc(ip,np)
-    call realloc(multp,np)
-    call realloc(hvecp,3,np)
-
-    ! normalize the intensities to 100
-    if (np == 0) &
-       call ferror('struct_powder','no peaks found in the 2theta range',faterr)
-    ip = ip * multp
-    ipmax = maxval(ip)
-    ihmax = maxval(ih)
-    ih = ih / ihmax * 100
-    ip = ip / ipmax * 100
-
-    ! deallocate the multiplicities
-    deallocate(multp)
-
-    ! sort the peaks
-    allocate(io(np),th2p_(np),ip_(np),hvecp_(3,np))
-    do i = 1, np
-       io(i) = i
-    end do
-    call qcksort(th2p,io,1,np)
-    do ii = 1, np
-       i = io(ii)
-       th2p_(ii) = th2p(i)
-       ip_(ii) = ip(i)
-       hvecp_(:,ii) = hvecp(:,i)
-    end do
-    th2p = th2p_
-    ip = ip_
-    hvecp = hvecp_
-    deallocate(th2p_,ip_,hvecp_,io)
-
-
-  end subroutine powder
-
-  !> Calculate real and reciprocal space sum cutoffs
-  subroutine calculate_ewald_cutoffs(c)
-    use tools_io
-    use param
-
-    class(crystal), intent(inout) :: c
-
-    real*8, parameter :: sgrow = 1.4d0
-    real*8, parameter :: epscut = 1d-5
-    real*8, parameter :: eeps = 1d-12
-
-    integer :: i
-    real*8 :: aux, qsum, q2sum
-    integer :: ia, ib, ic
-    real*8 :: alrmax(3)
-    real*8 :: rcut1, rcut2, err_real
-    real*8 :: hcut1, hcut2, err_rec
-
-    if (c%ewald_ready) return
-
-    ! calculate sum of charges and charges**2
-    cr%qsum = 0d0
-    q2sum = 0d0
-    do i = 1, cr%nneq
-       if (cr%at(i)%qat == 0) &
-          call ferror('ewald_energy','Some of the charges are 0',faterr)
-       cr%qsum = cr%qsum + real(cr%at(i)%mult * cr%at(i)%qat,8)
-       q2sum = q2sum + real(cr%at(i)%mult * cr%at(i)%qat**2,8)
-    end do
-
-    ! determine shortest vector in real space
-    aux = 0d0
-    do i = 1, 3
-       if (cr%aa(i) > aux) then
-          aux = cr%aa(i)
-          ia = i
-       end if
-    end do
-    ! determine shortest vector in reciprocal space, dif. from ia
-    aux = 0d0
-    do i = 1, 3
-       if (cr%ar(i) > aux .and. i /= ia) then
-          aux = cr%ar(i)
-          ic = i
-       end if
-    end do
-    ! the remaining vector is ib
-    ib = 1
-    do i = 1, 3
-       if (i /= ia .and. i /= ic) ib = i
-    end do
-
-    ! convergence parameter
-    c%eta = sqrt(cr%omega / pi / cr%aa(ib) / sin(cr%bb(ic)*rad))
-
-    ! real space cutoff
-    rcut1 = 1d0
-    rcut2 = 2d0 / sgrow
-    err_real = 1d30
-    do while (err_real >= eeps)
-       rcut2 = rcut2 * sgrow
-       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(rcut2 / c%eta)
-    end do
-    do while (rcut2-rcut1 >= epscut)
-       c%rcut = 0.5*(rcut1+rcut2)
-       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(c%rcut / c%eta)
-       if (err_real > eeps) then
-          rcut1 = c%rcut
-       else
-          rcut2 = c%rcut
-       endif
-    end do
-    c%rcut = 0.5*(rcut1+rcut2)
-    ! real space cells to explore
-    alrmax = 0d0
-    alrmax(1) = cr%aa(2) * cr%aa(3) * sin(cr%bb(1)*rad)
-    alrmax(2) = cr%aa(1) * cr%aa(3) * sin(cr%bb(2)*rad)
-    alrmax(3) = cr%aa(1) * cr%aa(2) * sin(cr%bb(3)*rad)
-    c%lrmax = ceiling(c%rcut * alrmax / cr%omega)
-
-    ! reciprocal space cutoff
-    hcut1 = 1d0
-    hcut2 = 2d0 / sgrow
-    err_rec = 1d30
-    do while(err_rec >= eeps)
-       hcut2 = hcut2 * sgrow
-       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
-    end do
-    do while(hcut2-hcut1 > epscut)
-       c%hcut = 0.5*(hcut1+hcut2)
-       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
-       if (err_rec > eeps) then
-          hcut1 = c%hcut
-       else
-          hcut2 = c%hcut
-       endif
-    end do
-    c%hcut = 0.5*(hcut1+hcut2)
-    ! reciprocal space cells to explore
-    c%lhmax = ceiling(cr%aa(ia) / tpi * c%hcut)
-    c%ewald_ready = .true.
-
-  end subroutine calculate_ewald_cutoffs
+  end subroutine primitive_buerger
 
   !xx! Private for wigner
 
@@ -3467,14 +3561,15 @@ contains
     allocate(atZmol(npos))
     atzmol = 1
 
-    if (verbose) then
-       write (uout,820)
-       do i = 1, npos
-          write (uout,'(I4,X,3(f12.6,2X))') i, ax(:,i)
-       end do
-    end if
+    ! if (verbose) then
+    !    write (uout,820)
+    !    do i = 1, npos
+    !       write (uout,'(I4,X,3(f12.6,2X))') i, ax(:,i)
+    !    end do
+    ! end if
+
     ! Use symmetry to determine the point group. Default options
-    call sym3d(ax(1,:),ax(2,:),ax(3,:),atZmol,npos,verbose)
+    call sym3d(rmat,ax(1,:),ax(2,:),ax(3,:),atZmol,npos,.false.)
 
     ! fill the reciprocal space matrices and clean up
     if (present(nn) .and. present(rot)) then
@@ -3507,7 +3602,7 @@ contains
   !> Calculate the number of lattice vectors in each direction in
   !> order to be sure that the main cell is surrounded by a shell at
   !> least rmax thick. x2r is the cryst-to-car matrix for the
-  !lattice. The heuristic method has been adapted from gulp.
+  !> lattice. The heuristic method has been adapted from gulp.
   subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
     use param
 

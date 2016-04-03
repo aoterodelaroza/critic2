@@ -123,7 +123,7 @@ contains
        cp(i)%inshell = 0
 
        ! calculate the point group symbol
-       cp(i)%pg = cr%pointgroup(cp(i)%x,atomeps)
+       cp(i)%pg = cr%sitesymm(cp(i)%x,atomeps)
     enddo
 
     ! add positions to the complete cp list
@@ -1649,7 +1649,7 @@ contains
     endif
 
     ! Symmetry info
-    cp(n)%pg = cr%pointgroup(cp(n)%x,CP_eps_cp)
+    cp(n)%pg = cr%sitesymm(cp(n)%x,CP_eps_cp)
     cp(n)%idx = n
     cp(n)%ir = 1
     cp(n)%ic = 1

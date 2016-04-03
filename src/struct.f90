@@ -70,7 +70,7 @@ contains
     ! enforce MOLECULE keyword particular settings
     if (c%ismolecule) then
        ! deactivate symmetry
-       doguess = .false.
+       doguess = 0
        ! default unit is ang
        if (iunit_isdef) iunit = iunit_ang
     else
@@ -99,7 +99,7 @@ contains
 
     else if (equal(wext1,'cube')) then
        call struct_read_cube(c,word,.false.,mol)
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -110,7 +110,7 @@ contains
        if (c%neqv == 0) then ! some structs may come without symmetry
           call struct_read_wien(cr,word,.true.,mol)
           call c%set_cryscar()
-          call c%guessspg(.false.)
+          call c%guessspg(doguess,.false.)
        endif
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
@@ -142,7 +142,7 @@ contains
           end do
        end if
        call struct_read_vasp(c,word,ntyp,ztyp,mol)
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        c%file = word
 
     else if (equal(wext1,'DEN').or.equal(wext2,'DEN').or.equal(wext1,'ELF').or.equal(wext2,'ELF').or.&
@@ -158,21 +158,21 @@ contains
 
     else if (equal(wext1,'OUT')) then
        call struct_read_elk(c,word,mol)
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'out')) then
        call struct_read_qeout(c,word,mol)
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'in')) then
        call struct_read_qein(c,word,mol)
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -204,7 +204,7 @@ contains
        end do
        call struct_read_mol(c,word,wext1,rborder,docube)
        call c%set_cryscar()
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -212,7 +212,7 @@ contains
     else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN'))&
        & then
        call struct_read_siesta(c,word,mol)
-       call c%guessspg(.false.)
+       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -247,7 +247,7 @@ contains
     integer :: i
 
     ! nullify the space group
-    cr%havesym = .false.
+    cr%havesym = 0
     cr%neqv = 1
     cr%rotm(:,:,1) = eyet
     cr%ncv = 1
@@ -664,7 +664,7 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    logical :: doguess0
+    integer :: doguess0
     integer :: lp, i, j
     integer :: ns
     type(crystal), allocatable :: c(:), caux(:)
@@ -689,7 +689,7 @@ contains
     write (uout,'("* COMPARE: compare crystal structures")')
 
     ! load all the crystal structures
-    doguess = .false.
+    doguess = 0
     do while(.true.)
        word = getword(line,lp)
        if (len_trim(word) > 0) then
@@ -993,7 +993,7 @@ contains
     character(len=:), allocatable :: word
     logical :: ok
     integer :: lp
-    real*8 :: x0(3,3)
+    real*8 :: x0(3,3), t0(3)
     logical :: doinv
 
     if (cr%ismolecule) &
@@ -1013,10 +1013,17 @@ contains
     if (.not.ok) &
        call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line)
 
+    t0 = 0d0
     doinv = .false.
     do while (.true.)
        word = lgetword(line,lp)
-       if (equal(word,"inv").or.equal(word,"inverse")) then
+       if (equal(word,"origin")) then
+          ok = eval_next(t0(1),line,lp)
+          ok = ok .and. eval_next(t0(2),line,lp)
+          ok = ok .and. eval_next(t0(3),line,lp)
+          if (.not.ok) &
+             call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line)
+       elseif (equal(word,"inv").or.equal(word,"inverse")) then
           doinv = .true.
        elseif (len_trim(word) > 0) then
           call ferror('struct_newcell','Unknown extra keyword',faterr,line)
@@ -1026,7 +1033,7 @@ contains
     end do
     if (doinv) x0 = matinv(x0)
 
-    call cr%newcell(x0,.true.)
+    call cr%newcell(x0,t0,verbose=.true.)
 
   end subroutine struct_newcell
 

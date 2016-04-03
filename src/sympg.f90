@@ -100,9 +100,10 @@ contains
   
   !> Check symmetry of nonlinear molecules.
   !> Adapted from TESSEL.
-  subroutine sym3d (ax, ay, az, atZmol, nmol, verbose)
+  subroutine sym3d (rmat, ax, ay, az, atZmol, nmol, verbose)
     use tools_io
 
+    real*8, intent(in) :: rmat(3,3)
     integer   :: nmol, atZmol(nmol)
     real*8    :: ax(nmol), ay(nmol), az(nmol)
     logical, intent(in) :: verbose
@@ -127,7 +128,7 @@ contains
     ! Is the inversion a sym op?
     !
     call symmatfill (xmat, -1d0,0d0,0d0, 0d0,-1d0,0d0, 0d0,0d0,-1d0)
-    if (symopchk(xmat, ax, ay, az, atZmol, nmol)) call symopadd (xmat)
+    if (symopchk(rmat,xmat,ax,ay,az,atZmol,nmol)) call symopadd (xmat)
 
     !.Find a linearly independent triplet of atoms.
     ! Try first to find a very good triplet, or use the best available
@@ -219,7 +220,7 @@ contains
 
              !.Check if this is a new sym operator:
              !
-             if (symopchk(xop,ax,ay,az,atZmol,nmol)) then
+             if (symopchk(rmat,xop,ax,ay,az,atZmol,nmol)) then
                 ntest2 = ntest2 + 1
                 call symopadd (xop)
                 if (TOLdirty) call symclosure(verbose)
@@ -648,20 +649,20 @@ contains
 
   !> Check if xmat is a sym operator.
   !> Adapted from TESSEL.
-  function symopchk (xmat, ax, ay, az, atgroup, nmol)
+  function symopchk(rmat,xmat,ax,ay,az,atgroup,nmol)
+    use tools_math
 
     logical :: symopchk
-
+    real*8, intent(in) :: rmat(3,3)
     integer :: nmol, atgroup(nmol)
     real*8  :: xmat(3,3), ax(nmol), ay(nmol), az(nmol)
 
-    integer           i, j, k
-    logical           found
-    real*8            xii, xij, xji
-    real*8            ximg, yimg, zimg, diff
+    integer :: i, j, k
+    logical :: found
+    real*8  :: xii, xij, xji, rmati(3,3)
+    real*8  :: ximg(3), diff, xdif(3)
 
     !.First check: The matrix must be orthogonal:
-    !
     symopchk = .false.
     do i = 1, 3
        xii = xmat(1,i)*xmat(1,i) + xmat(2,i)*xmat(2,i) + xmat(3,i)*xmat(3,i)
@@ -690,16 +691,19 @@ contains
     endif
 
     !.Transform every atom and check for the symmetric image:
-    !
+    rmati = matinv(rmat)
     do i = 1, nmol
-       ximg = xmat(1,1)*ax(i) + xmat(1,2)*ay(i) + xmat(1,3)*az(i)
-       yimg = xmat(2,1)*ax(i) + xmat(2,2)*ay(i) + xmat(2,3)*az(i)
-       zimg = xmat(3,1)*ax(i) + xmat(3,2)*ay(i) + xmat(3,3)*az(i)
+       ximg = (/ax(i), ay(i), az(i)/)
+       ximg = matmul(xmat, ximg)
        found = .false.
        j = 1
        do while (.not.found .and. j.le.nmol)
           if (atgroup(i).eq.atgroup(j)) then
-             found = abs(ximg-ax(j))+abs(yimg-ay(j))+abs(zimg-az(j)) .le. TOLdist
+             xdif = ximg - (/ax(j),ay(j),az(j)/)
+             xdif = matmul(xdif, rmati)
+             xdif = xdif - nint(xdif)
+             xdif = matmul(xdif, rmat)
+             found = sqrt(dot_product(xdif,xdif)) .le. TOLdist
           endif
           j = j + 1
        enddo

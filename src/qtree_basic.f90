@@ -344,7 +344,7 @@ contains
     ! Determine local point group
     if (ws_use) then
        ! Build initial tetrahedron list
-       pg = cr%pointgroup(ws_origin,leqv=leqv,lrotm=lrotm)
+       pg = cr%sitesymm(ws_origin,leqv=leqv,lrotm=lrotm)
        call cr%wigner(ws_origin,verbose,ntetrag=ntetrag,tetrag=tetrag) 
     else
        ws_scale = -1d0

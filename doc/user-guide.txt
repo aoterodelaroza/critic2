@@ -165,13 +165,13 @@ Some of the sections in the rest of this manual contain an "additional
 options" subsection. These provide some independent keywords that
 control the behavior of critic2 and are meant to be used either before
 or after the keywords in the section in which they appear. For
-instance, NOGUESS can be used before CRYSTAL to deactivate the
+instance, NOSYMM can be used before CRYSTAL to deactivate the
 automatic calculation of the crystal symmetry::
 
-  NOGUESS
+  NOSYMM
   CRYSTAL benzene.cif
 
-Hence, NOGUESS appears in this manual as an additional option to
+Hence, NOSYMM appears in this manual as an additional option to
 CRYSTAL.
 
 The critic2 output is mostly self-explanatory, although there are a
@@ -1351,7 +1351,7 @@ Examples of space groups for SPGR are "F m -3 m", "P 21 21 21", "A 1
 
 If no SPG or SPGR keyword is found in the CRYSTAL environment, then an
 internal routine calculates the symmetry from the atomic positions
-(which can be deactivated using NOGUESS, see `Symmetry options`_). In
+(which can be deactivated using NOSYMM, see `Symmetry options`_). In
 this case, all the atoms in the cell need to be given (in contrast to
 using SPG, in which case only the asymmetric unit needs to be
 given). There are two possible ways to input the cell parameters. In
@@ -1501,18 +1501,20 @@ behavior defaults to:
 * crystal environment: spg if used. Otherwise, guess.
 
 The treatment of symmetry in critic2 can be controlled using the
-GUESS/NOGUESS (before CRYSTAL) and CLEARSYM (after CRYSTAL) keywords.
+SYMM/NOSYMM (before CRYSTAL) and CLEARSYM (after CRYSTAL) keywords.
 
 ::
 
-  GUESS
-  NOGUESS
+  SYMM [0|1|2]
+  NOSYMM
 
-Activates (GUESS) or deactivates (NOGUESS) the use of guess. They must
-be used before crystal to be effective. The default is GUESS. NOGUESS
-is occasionally useful for very large crystals where critic2 would
-take seconds or minutes to complete the symmetry analysis (probably
-resulting in a P 1 group anyway).
+Activates (SYMM) or deactivates (NOSYMM) the use of symmetry. These
+keywords must be used before CRYSTAL to be effective. The three
+options two SYMM are: 0, no symmetry (same as NOSYMM); 1, only
+centering vectors; 2, full symmetry. The default is full
+symmetry. NOSYMM is occasionally useful for very large crystals where
+critic2 would take seconds or minutes to complete the symmetry
+analysis.
 
 ::
 
@@ -3064,7 +3066,7 @@ the CLIP keyword. The CLIP keyword specifies a region of real
 space. Only the seeds inside that region are used, and only the CPs
 found inside that region are accepted (although, in crystals, symmetry
 can replicate the CPs and send them outside the CLIP region; use
-CLEARSYM or NOGUESS to deactivate symmetry if necessary, see `Symmetry
+CLEARSYM or NOSYMM to deactivate symmetry if necessary, see `Symmetry
 options`_). There are two possible region shapes in CLIP: a
 parallelepiped (CUBE) and a sphere (SPHERE). The parallelepiped is
 specified by giving its initial (x0) and final (x1) points. The sphere
@@ -5209,7 +5211,7 @@ Other structural tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)
 ::
 
   NEWCELL x1.r y1.r z1.r x2.r y2.r z2.r x3.r y3.r z3.r
-          [INV|INVERSE]
+          [INV|INVERSE] [ORIGIN x0.r y0.r z0.r]
 
 Transform the crystal structure description by using a new unit cell
 given by the vectors x1, x2, x3 (in crystallographic coordinates)
@@ -5219,7 +5221,9 @@ vectors, or combinations of the two. NEWCELL unloads all fields
 (except the promolecular density) and clears the critical point
 list. If the INV (or INVERSE) keyword is used, the input vectors
 correspond to the crystallographic coordinates of the old cell in the
-new coordinate system.
+new coordinate system. Optionally, if an ORIGIN vector is given, the
+cell origin is translated to x0, which should be given in the
+coordinates of the original cell.
 
 The NEWCELL keyword is useful for building supercells or for
 performing routine but tedious crystallographic transformations. For
@@ -5915,7 +5919,7 @@ GRDVEC
   contour lines, gradient paths, or a combination of the two. See
   `Gradient path representations in a plane (GRDVEC)`_.
 
-GUESS
+SYMM
   Activate the use of the symmetry module that lets critic2 determine
   the space group operations of a crystal structure. See `Symmetry
   options`_.
@@ -5989,7 +5993,7 @@ NOCORE
   Clears the pseudopotential charge (ZPSP) of all atoms, deactivating
   the use of the core contribution. See `Atomic charge options`_.
 
-NOGUESS
+NOSYMM
   Deactivate the use of the symmetry module that lets critic2
   determine the space group operations of a crystal structure. See
   `Symmetry options`_.
