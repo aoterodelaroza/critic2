@@ -33,6 +33,7 @@ module struct
   public :: struct_environ
   public :: struct_packing
   public :: struct_newcell
+  public :: struct_primitive
   public :: struct_molcell
 
 contains
@@ -1033,9 +1034,24 @@ contains
     end do
     if (doinv) x0 = matinv(x0)
 
-    call cr%newcell(x0,t0,verbose=.true.)
+    call cr%newcell(x0,t0,.true.)
 
   end subroutine struct_newcell
+
+  !> Transform the crystal to a primitive cell
+  subroutine struct_primitive(line)
+    use struct_basic
+    use global
+    use tools_math
+    use tools_io
+    character*(*), intent(in) :: line
+
+    if (cr%ismolecule) &
+       call ferror("struct_primitive","PRIMITIVE can not be used with molecules",faterr)
+
+    call cr%primitive_buerger(.true.)
+
+  end subroutine struct_primitive
 
   !> Try to determine the molecular cell from the crystal geometry
   subroutine struct_molcell(line)

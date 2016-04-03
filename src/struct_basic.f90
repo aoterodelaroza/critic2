@@ -125,11 +125,11 @@ module struct_basic
      procedure :: powder !< Calculate the powder diffraction pattern
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: newcell !< Change the unit cell and rebuild the crystal
+     procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: guessspg !< Guess the symmetry operations from the structure
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
-     procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
   end type crystal
   public :: crystal
 
@@ -1651,17 +1651,17 @@ contains
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. Uses guessspg
   !> to determine the symmetry. 
-  subroutine newcell(c,x00,t0,verbose)
+  subroutine newcell(c,x00,t0,verbose0)
     use tools_math
     use tools_io
     use param
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
     real*8, intent(in), optional :: t0(3)
-    logical, intent(in) :: verbose
+    logical, intent(in), optional :: verbose0
 
     type(crystal) :: nc
-    logical :: ok, found
+    logical :: ok, found, verbose
     integer :: hadsym
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: r(3,3), g(3,3), x(3), dx(3), dd, t(3)
@@ -1687,6 +1687,9 @@ contains
     else
        t = 0d0
     end if
+    verbose = .false.
+    if (present(verbose0)) verbose = verbose0
+
 
     ! check that the vectors are pure translations
     do i = 1, 3
@@ -1829,6 +1832,184 @@ contains
     call c%struct_fill(verbose)
 
   end subroutine newcell
+
+  !> Transform to a primitive cell. The primitive cell is chosen so that
+  !> a is the shortest lattice vector, b is the shortest lattice vector other
+  !> than a, and c is shortest other than a and b. If there are several
+  !> lattice vector choices for b and c, the vectors that maximize the 
+  !> scalar product with previously chosen vectors is used.
+  subroutine primitive_buerger(c,verbose)
+    use tools
+    use tools_io
+    use tools_math
+    class(crystal), intent(inout) :: c
+    logical, intent(in) :: verbose
+
+    integer :: i, j, ix, iy, iz, l(3)
+    real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:), distaux(:), xlatc(:,:)
+    real*8, allocatable :: udist(:), xnlat(:)
+    integer, allocatable :: io(:)
+    real*8 :: x(3), xc(3), mindist2, d2, mindist20
+    integer :: nu
+    integer :: nlat, nshl, i1(3)
+    logical :: again, found
+    real*8 :: xp(3,3), xpc(3,3), xnorm(3), anorm
+    real*8 :: scal, xscal, dd, scal1, scal2, xscal1, xscal2
+    real*8 :: maxsum, sum2, ang(3)
+
+    real*8, parameter :: eps = 1d-6
+
+    ! Find the centering vectors
+    if (c%havesym < 1) call c%guessspg(1,.false.) 
+
+    ! allocate the xlat
+    allocate(xlat(3,10),dist(10))
+
+    ! Build a star of lattice and centering vectors 
+    nshl = -1
+    nlat = 0
+    mindist2 = 1d40
+    again = .true.
+    do while (again)
+       nshl = nshl + 1
+       again = .false.
+       do ix = -nshl, nshl
+          do iy = -nshl, nshl
+             do iz = -nshl, nshl
+                l = (/ix, iy, iz/)
+                if (all(abs(l) /= nshl)) cycle
+                do i = 1, c%ncv
+                   x = real(l,8) + c%cen(:,i)
+                   xc = c%x2c(x)
+                   d2 = dot_product(xc,xc)
+                   if (d2 < 1d-10) then
+                      again = .true.
+                      cycle
+                   end if
+                   if (d2 > 4d0*mindist2) cycle
+
+                   ! add this lattice to the xlat and dist2
+                   nlat = nlat + 1
+                   if (nlat > size(xlat,2)) then
+                      call realloc(xlat,3,2*nlat)
+                      call realloc(dist,2*nlat)
+                   end if
+                   xlat(:,nlat) = x
+                   dist(nlat) = sqrt(d2)
+                   again = .true.
+                   mindist2 = min(mindist2,d2)
+                end do
+             end do
+          end do
+       end do
+    end do
+
+    ! Sort the distances
+    allocate(io(nlat))
+    do i = 1, nlat
+       io(i) = i
+    end do
+    call qcksort(dist,io,1,nlat)
+    allocate(xlataux(3,nlat),distaux(nlat),xlatc(3,nlat),xnlat(nlat))
+    do i = 1, nlat
+       xlataux(:,i) = xlat(:,io(i))
+       distaux(i) = dist(io(i))
+       xlatc(:,i) = c%x2c(xlat(:,io(i)))
+       xnlat(i) = sqrt(dot_product(xlatc(:,i),xlatc(:,i)))
+    end do
+    call move_alloc(xlataux,xlat)
+    call move_alloc(distaux,dist)
+    deallocate(io)
+
+    ! Find all the unique sum of vector distances
+    allocate(udist(10))
+    nu = 0
+    do ix = 1, nlat
+       do iy = ix+1, nlat
+          do iz = iy+1, nlat
+             sum2 = dist(ix) + dist(iy) + dist(iz)
+             if (nu == 0) then
+                nu = nu + 1
+                udist(nu) = sum2
+             elseif (all(abs(udist(1:nu)-sum2) > eps)) then
+                nu = nu + 1
+                if (nu > size(udist,1)) call realloc(udist,2*nu)
+                udist(nu) = sum2
+             endif
+          end do
+       end do
+    end do
+
+    ! Sort the unique sums of distances
+    allocate(io(nu))
+    do i = 1, nu
+       io(i) = i
+    end do
+    call qcksort(udist,io,1,nu)
+    allocate(distaux(nu))
+    do i = 1, nu
+       distaux(i) = udist(io(i))
+    end do
+    call move_alloc(distaux,udist)
+    deallocate(io)
+
+    ! Run over minimal sum of distances
+    nuloop: do i = 1, nu
+       ! Run over lattice vector triplets that have that sum of distances
+       found = .false.
+       maxsum = -1d40
+       do ix = 1, nlat
+          do iy = ix+1, nlat
+             do iz = iy+1, nlat
+                ! skip those triplets with a different sum of distances
+                sum2 = dist(ix) + dist(iy) + dist(iz)
+                if (abs(sum2-udist(i)) > eps) cycle
+
+                ! calculate angles and mixed product; reject bad triplets
+                ang(1) = dot_product(xlatc(:,ix),xlatc(:,iy)) / xnlat(ix) / xnlat(iy)
+                ang(2) = dot_product(xlatc(:,ix),xlatc(:,iz)) / xnlat(ix) / xnlat(iz)
+                ang(3) = dot_product(xlatc(:,iy),xlatc(:,iz)) / xnlat(iy) / xnlat(iz)
+                dd = mixed(xlatc(:,ix),xlatc(:,iy),xlatc(:,iz))
+                if (any(abs(ang) < eps) .or. abs(dd) < eps) cycle
+
+                sum2 = abs(ang(1)) + abs(ang(2)) + abs(ang(3))
+                if (sum2 > maxsum) then
+                   found = .true.
+                   i1 = (/ix, iy, iz/)
+                   maxsum = sum2
+                end if
+             end do
+          end do
+       end do
+       if (found) exit
+    end do nuloop
+
+    ! final lattice vectors
+    do i = 1, 3
+       xp(:,i) = xlat(:,i1(i))
+    end do
+
+    ! some output
+    if (verbose) then
+       ang(1) = dot_product(xlatc(:,i1(1)),xlatc(:,i1(2))) / xnlat(i1(1)) / xnlat(i1(2))
+       ang(2) = dot_product(xlatc(:,i1(1)),xlatc(:,i1(3))) / xnlat(i1(1)) / xnlat(i1(3))
+       ang(3) = dot_product(xlatc(:,i1(2)),xlatc(:,i1(3))) / xnlat(i1(2)) / xnlat(i1(3))
+       write (uout,'("* Transformation to the primitive cell (PRIMITIVE)")')
+       write (uout,'("+ Basis vectors of the primitive cell in the previous cell coordinates:")')
+       write (uout,'("  a = ",99(A,X))') (string(xp(i,1),'f',10,6,ioj_right),i=1,3)
+       write (uout,'("  b = ",99(A,X))') (string(xp(i,2),'f',10,6,ioj_right),i=1,3)
+       write (uout,'("  c = ",99(A,X))') (string(xp(i,3),'f',10,6,ioj_right),i=1,3)
+       write (uout,'("+ Scalar products: ")')
+       write (uout,'("  ab = ",A)') string(ang(1),'f',10,6,ioj_right)
+       write (uout,'("  ac = ",A)') string(ang(2),'f',10,6,ioj_right)
+       write (uout,'("  bc = ",A)') string(ang(3),'f',10,6,ioj_right)
+       write (uout,*)
+    end if
+
+    ! transform to the primitive
+    call c%newcell(xp,verbose0=verbose)
+
+  end subroutine primitive_buerger
 
   !> Uses the cell lengths, angles, centering type, non-equivalent
   !> atom list (positions, Z and names), space group operations and
@@ -2405,7 +2586,13 @@ contains
     integer :: i, j, k
     real*8 :: sumcen, rmat(3,3)
 
+    ! check if we already have this level
+    if (c%havesym >= level) return
+
+    ! write down the new level
     c%havesym = level
+
+    ! no symmetry
     if (level == 0) then
        c%neqv = 1
        c%rotm(:,:,1) = eyet
@@ -3404,15 +3591,6 @@ contains
     end if
 
   end subroutine pmwigner
-
-  !> Transform to the primitive
-  subroutine primitive_buerger(c)
-    class(crystal), intent(inout) :: c
-
-    write (*,*) "xxxx"
-    stop 1
-
-  end subroutine primitive_buerger
 
   !xx! Private for wigner
 

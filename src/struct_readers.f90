@@ -2122,7 +2122,7 @@ contains
     c%neqv = spgs_n
     c%rotm = real(spgs_m,8)
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
-    c%havesym = 0
+    c%havesym = 2
 
   end subroutine spgs_wrap
 
