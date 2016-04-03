@@ -271,7 +271,8 @@ expression.r # prints the value of the expression to the output.
   [NPTS npts.i] [SIGMA sigma.r] [ROOT root.s]
 * COMPARE {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 * NEWCELL x1.r y1.r z1.r x2.r y2.r z2.r x3.r y3.r z3.r [INV|INVERSE]
-  [ORIGIN x0.r y0.r z0.r]
+  [ORIGIN x0.r y0.r z0.r] 
+  NEWCELL PRIMITIVE
 * ROOT {root.s}
 * HIRSHFELD
 * EWALD

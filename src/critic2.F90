@@ -124,16 +124,6 @@ program critic
         call fields_init()
         call set_reference(0)
         
-     elseif (equal(word,'primitive')) then
-        if (.not. cr%isinit) call ferror('critic2','need crystal before newcell',faterr,line)
-        call struct_primitive(subline)
-        ! clean the CP list
-        call varbas_end()
-        ! unload all fields and set the promolecular density as reference
-        call fields_end()
-        call fields_init()
-        call set_reference(0)
-        
      elseif (equal(word,'molcell')) then
         if (.not. cr%isinit) call ferror('critic2','need crystal before molcell',faterr,line)
         call struct_molcell(subline)

@@ -69,7 +69,7 @@ module struct_basic
      real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
      real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
      ! Symmetry information for the unit cell
-     integer :: lcent !< lattice centering 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=R.
+     integer :: lcent !< centring: 0=unset, 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=Robv, 8=Rrev, 9=unk.
      integer :: lauec !< laue class
      ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
      ! 9=6/mmm, 10=m3bar, 11=m3barm
@@ -101,6 +101,7 @@ module struct_basic
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: set_cryscar !< Set the crys2car and the car2crys using the cell parameters
+     procedure :: set_lcent !< Calculate the lcent from the centering vectors (ncv and cen)
      procedure :: x2c !< Convert crystallographic to cartesian
      procedure :: c2x !< Convert cartesian to crystallographic
      procedure :: shortest !< Gives the lattice-translated vector with shortest length
@@ -126,6 +127,7 @@ module struct_basic
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
+     procedure :: delaunay_reduction !< Transform to the delaunay-reduced cell
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: guessspg !< Guess the symmetry operations from the structure
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
@@ -264,6 +266,58 @@ contains
     c%car2crys = car2crys_from_cellpar(c%aa,c%bb)
 
   end subroutine set_cryscar
+
+  !> Calculate the lcent from the centering vectors (ncv and cen)
+  subroutine set_lcent(c)
+    use tools_io
+    class(crystal), intent(inout) :: c
+
+    integer :: lcent
+    logical :: ok
+
+    c%lcent = 9 ! unknown
+    if (c%ncv == 0) then
+       c%lcent = 0 ! unset
+    elseif (c%ncv == 1) then
+       c%lcent = 1 ! P
+    elseif (c%ncv == 2) then
+       if (c%eql_distance(c%cen(:,2),(/0.0d0,0.5d0,0.5d0/)) < 1d-12) then
+          c%lcent = 2 ! A
+       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.0d0,0.5d0/)) < 1d-12) then
+          c%lcent = 3 ! B
+       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.0d0/)) < 1d-12) then
+          c%lcent = 4 ! C
+       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.5d0/)) < 1d-12) then
+          c%lcent = 6 ! I
+       end if
+    elseif (c%ncv == 3) then
+       if (c%eql_distance(c%cen(:,2),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-12 .and.&
+           c%eql_distance(c%cen(:,3),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-12 .or.&
+           c%eql_distance(c%cen(:,2),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-12 .and.&
+           c%eql_distance(c%cen(:,3),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-12) then
+           c%lcent = 7 ! R (obverse)
+        elseif (c%eql_distance(c%cen(:,2),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-12 .and.&
+           c%eql_distance(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-12 .or.&
+           c%eql_distance(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-12 .and.&
+           c%eql_distance(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-12) then
+           c%lcent = 8 ! R (reverse)x
+        end if
+    elseif (c%ncv == 4) then
+       ok = c%eql_distance(c%cen(:,2),(/0d0,0.5d0,0.5d0/)) < 1d-12 .or.&
+          c%eql_distance(c%cen(:,2),(/0.5d0,0d0,0.5d0/)) < 1d-12 .or.&
+          c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0d0/)) < 1d-12
+       ok = ok .and. &
+          (c%eql_distance(c%cen(:,3),(/0d0,0.5d0,0.5d0/)) < 1d-12 .or.&
+          c%eql_distance(c%cen(:,3),(/0.5d0,0d0,0.5d0/)) < 1d-12 .or.&
+          c%eql_distance(c%cen(:,3),(/0.5d0,0.5d0,0d0/)) < 1d-12)
+       ok = ok .and. &
+          (c%eql_distance(c%cen(:,4),(/0d0,0.5d0,0.5d0/)) < 1d-12 .or.&
+          c%eql_distance(c%cen(:,4),(/0.5d0,0d0,0.5d0/)) < 1d-12 .or.&
+          c%eql_distance(c%cen(:,4),(/0.5d0,0.5d0,0d0/)) < 1d-12)
+       if (ok) c%lcent = 6 ! F
+    endif
+    
+  end subroutine set_lcent
 
   !> Transform crystallographic to cartesian
   function x2c(c,xx) 
@@ -1833,17 +1887,21 @@ contains
 
   end subroutine newcell
 
-  !> Transform to a primitive cell. The primitive cell is chosen so that
-  !> a is the shortest lattice vector, b is the shortest lattice vector other
-  !> than a, and c is shortest other than a and b. If there are several
-  !> lattice vector choices for b and c, the vectors that maximize the 
-  !> scalar product with previously chosen vectors is used.
-  subroutine primitive_buerger(c,verbose)
+  !> Transform to a primitive cell. The primitive cell is chosen so
+  !> that a is the shortest lattice vector, b is the shortest lattice
+  !> vector other than a, and c is shortest other than a and b. If
+  !> there are several lattice vector choices for b and c, the vectors
+  !> that maximize the scalar product with previously chosen vectors
+  !> is used. If rmat is given, return the new lattice vectors in
+  !> cryst. coordinates referred to the input cell in rmat, and do not
+  !> transform the crystal to the primitive.
+  subroutine primitive_buerger(c,verbose,rmat)
     use tools
     use tools_io
     use tools_math
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
+    real*8, optional :: rmat(3,3)
 
     integer :: i, j, ix, iy, iz, l(3)
     real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:), distaux(:), xlatc(:,:)
@@ -2016,10 +2074,31 @@ contains
        write (uout,*)
     end if
 
-    ! transform to the primitive
-    call c%newcell(xp,verbose0=verbose)
+    ! transform to the primitive or output through rmat
+    if (present(rmat)) then
+       rmat = xp
+    else
+       call c%newcell(xp,verbose0=verbose)
+    end if
 
   end subroutine primitive_buerger
+
+  !> Transforms the current basis to the Delaunay reduced basis.  If
+  !> rmat(3,4), return the Delaunay vectors and do not transform the
+  !> cell. The first three vectors in rmat are the new lattice
+  !> vectors.
+  subroutine delaunay_reduction(c,verbose,rmat)
+    use tools
+    use tools_io
+    use tools_math
+    class(crystal), intent(inout) :: c
+    logical, intent(in) :: verbose
+    real*8, optional :: rmat(3,3)
+    
+    write (*,*) "wola"
+    stop 1
+
+  end subroutine delaunay_reduction
 
   !> Uses the cell lengths, angles, centering type, non-equivalent
   !> atom list (positions, Z and names), space group operations and
@@ -2050,65 +2129,8 @@ contains
     real*8, allocatable :: dist(:)
     character(len=:), allocatable :: str1, str2
 
-    if (c%ncv == 0) then
-       ! interpret lcent to set ncv and centering vectors
-       if (allocated(c%cen)) deallocate(c%cen)
-       allocate(c%cen(3,4)) 
-       c%cen = 0d0
-       select case (c%lcent)
-       case (1, 7) ! p, r
-          c%ncv=1
-       case (2) ! cyz
-          c%ncv=2
-          c%cen(2,2)=0.5d0
-          c%cen(3,2)=0.5d0
-       case (3) ! cxz
-          c%ncv=2
-          c%cen(1,2)=0.5d0
-          c%cen(3,2)=0.5d0
-       case (4) ! cxy
-          c%ncv=2
-          c%cen(1,2)=0.5d0
-          c%cen(2,2)=0.5d0
-       case (5) ! bcc
-          c%ncv=2
-          c%cen(1,2)=0.5d0
-          c%cen(2,2)=0.5d0
-          c%cen(3,2)=0.5d0
-       case (6) ! fcc
-          c%ncv=4
-          c%cen(1,2)=0.5d0
-          c%cen(2,2)=0.5d0
-          c%cen(2,3)=0.5d0
-          c%cen(3,3)=0.5d0
-          c%cen(1,4)=0.5d0
-          c%cen(3,4)=0.5d0
-       end select
-    elseif (c%lcent == 0) then
-       ! or interpret the centering vectors and set lcent
-       if (c%ncv == 1) then
-          c%lcent = 1 ! P
-       elseif (c%ncv == 2) then
-          if (all(abs(c%cen(:,2) - (/0.0d0,0.5d0,0.5d0/)) < 1d-12)) then
-             c%lcent = 2 ! A
-          elseif (all(abs(c%cen(:,2) - (/0.5d0,0.0d0,0.5d0/)) < 1d-12)) then
-             c%lcent = 3 ! B
-          elseif (all(abs(c%cen(:,2) - (/0.5d0,0.5d0,0.0d0/)) < 1d-12)) then
-             c%lcent = 4 ! C
-          elseif (all(abs(c%cen(:,2) - (/0.5d0,0.5d0,0.5d0/)) < 1d-12)) then
-             c%lcent = 6 ! I
-          else
-             call ferror("struct_fill","Unknown centering vector",faterr)
-          end if
-       elseif (c%ncv == 3) then
-          ! todo: handle R centering
-          c%lcent = 7 ! R
-       elseif (c%ncv == 4) then
-          c%lcent = 6 ! F
-       else
-          call ferror("struct_fill","Unknown number of centering vectors",faterr)
-       endif
-    endif
+    ! set the centering type
+    call c%set_lcent()
 
     ! permute the operations to make the identity the first
     if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
@@ -2365,7 +2387,29 @@ contains
        enddo
        write (uout,*)
 
-       write (uout,'("+ Centering type (p=1,a=2,b=3,c=4,i=5,f=6,r=7): ",A/)') string(c%lcent)
+       select case(c%lcent)
+       case(0)
+          str1 = "not set"
+       case(1)
+          str1 = "P or H"
+       case(2)
+          str1 = "A"
+       case(3)
+          str1 = "B"
+       case(4)
+          str1 = "C"
+       case(5)
+          str1 = "I"
+       case(6)
+          str1 = "F"
+       case(7)
+          str1 = "R (obverse)"
+       case(8)
+          str1 = "R (reverse)"
+       case(9)
+          str1 = "unknown (non-standard)"
+       end select
+       write (uout,'("+ Centering type: ",A/)') trim(str1)
 
        write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
        write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname
@@ -2595,6 +2639,7 @@ contains
 
     integer :: i, j, k
     real*8 :: sumcen, rmat(3,3)
+    character(len=:), allocatable :: str1
 
     ! check if we already have this level
     if (c%havesym >= level) return
@@ -2608,7 +2653,7 @@ contains
        c%rotm(:,:,1) = eyet
        c%ncv = 1
        c%cen = 0d0
-       c%lcent = 1
+       c%lcent = 0
        return
     end if
 
@@ -2643,27 +2688,7 @@ contains
 
     ! Find the centering type. If it is not recognized, then fall back
     ! to primitive
-    ! lcent = 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=R.
-    if (c%ncv == 2) then
-       sumcen = c%cen(1,2) + c%cen(2,2) + c%cen(3,2)
-       if (sumcen .gt. 1d0) then
-          c%lcent = 5
-       else
-          if (c%cen(1,2) .lt. 0.25d0) then
-             c%lcent = 2
-          else if (c%cen(2,2) .lt. 0.25d0) then
-             c%lcent = 3
-          else if (c%cen(3,2) .lt. 0.25d0) then
-             c%lcent = 4
-          end if
-       end if
-    else if (c%ncv == 3) then
-       c%lcent = 7
-    else if (c%ncv == 4) then
-       c%lcent = 6
-    else
-       c%lcent = 1
-    end if
+    call c%set_lcent()
 
     if (verbose) then
        write(uout,'("* Summary ")')
@@ -2679,8 +2704,29 @@ contains
        enddo
        write (uout,*)
 
-       write (uout,'("+ Centering type (p=1,a=2,b=3,c=4,i=5,f=6,r=7) :",i1)') c%lcent
-       write (uout,*)
+       select case(c%lcent)
+       case(0)
+          str1 = "not set"
+       case(1)
+          str1 = "P or H"
+       case(2)
+          str1 = "A"
+       case(3)
+          str1 = "B"
+       case(4)
+          str1 = "C"
+       case(5)
+          str1 = "I"
+       case(6)
+          str1 = "F"
+       case(7)
+          str1 = "R (obverse)"
+       case(8)
+          str1 = "R (reverse)"
+       case(9)
+          str1 = "unknown (non-standard)"
+       end select
+       write (uout,'("+ Centering type: ",A/)') trim(str1)
 
        write (uout,'("+ List of atomic positions (",i4,") :")') c%nneq
        write (uout,230)

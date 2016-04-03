@@ -699,8 +699,8 @@ contains
     end do
     call realloc(c%cen,3,c%ncv)
 
-    ! let struct_fill handle this
-    c%lcent = 0
+    ! set the centering type
+    call c%set_lcent()
 
     ! restore the old values of x, y, and z
     if (ix) call setvariable("x",xo)
@@ -806,7 +806,7 @@ contains
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
     c%ncv = 0
-    c%lcent = 1
+    c%lcent = 0
 
     ! initialize atoms
     c%at(1:c%nneq)%zpsp = -1
@@ -848,25 +848,44 @@ contains
 103 FORMAT(A4,23X,I3,1x,a4,/,4X,4X) ! new
 
     c%ncv = 0
+    if (allocated(c%cen)) deallocate(c%cen)
+    allocate(c%cen(3,4)) 
+    c%cen = 0
     IF(LATTIC(1:1).EQ.'S'.OR.LATTIC(1:1).EQ.'P') THEN
-       c%lcent=1
+       c%ncv=1
     ELSE IF(LATTIC(1:1).EQ.'F') THEN
-       c%lcent=6
+       c%ncv=4
+       c%cen(1,2)=0.5d0
+       c%cen(2,2)=0.5d0
+       c%cen(2,3)=0.5d0
+       c%cen(3,3)=0.5d0
+       c%cen(1,4)=0.5d0
+       c%cen(3,4)=0.5d0
     ELSE IF(LATTIC(1:1).EQ.'B') THEN
-       c%lcent=5
+       c%ncv=2
+       c%cen(1,2)=0.5d0
+       c%cen(2,2)=0.5d0
+       c%cen(3,2)=0.5d0
     ELSE IF(LATTIC(1:1).EQ.'H') THEN
-       c%lcent=1
+       c%ncv=1
     ELSE IF(LATTIC(1:1).EQ.'R') THEN
-       c%lcent=7
+       c%ncv=1
     ELSE IF(LATTIC(1:3).EQ.'CXY') THEN
-       c%lcent=4
+       c%ncv=2
+       c%cen(1,2)=0.5d0
+       c%cen(2,2)=0.5d0
     ELSE IF(LATTIC(1:3).EQ.'CYZ') THEN
-       c%lcent=2
+       c%ncv=2
+       c%cen(2,2)=0.5d0
+       c%cen(3,2)=0.5d0
     ELSE IF(LATTIC(1:3).EQ.'CXZ') THEN
-       c%lcent=3
+       c%ncv=2
+       c%cen(1,2)=0.5d0
+       c%cen(3,2)=0.5d0
     ELSE
        STOP 'LATTIC NOT DEFINED'
     END IF
+    call c%set_lcent()
 
     READ(lut,100) c%aa(1:3), c%bb(1:3)
 100 FORMAT(6F10.5)
@@ -1145,7 +1164,7 @@ contains
 
     ! abinit always uses primitive cells, even when it does not (chkprim = -1)
     c%ncv = 0
-    c%lcent = 1
+    c%lcent = 0
 
     ! atoms
     c%nneq = hdr%natom
@@ -1510,7 +1529,7 @@ contains
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
     c%ncv = 0
-    c%lcent = 1
+    c%lcent = 0
 
     ! close the shop
     call fclose(lu)
@@ -1782,7 +1801,7 @@ contains
     c0%rotm = 0d0
     c0%rotm(:,1:3,1) = eye
     c0%ncv = 0
-    c0%lcent = 1
+    c0%lcent = 0
 
     ! close
     call fclose(lu)
@@ -1845,7 +1864,7 @@ contains
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
     c%ncv = 0
-    c%lcent = 1
+    c%lcent = 0
 
     ! close
     call fclose(lu)
@@ -2114,7 +2133,6 @@ contains
     logical, intent(in) :: usespgr
 
     call spgs_driver(spg,usespgr)
-    c%lcent = spgs_lcent
     c%ncv = spgs_ncv
     if (allocated(c%cen)) deallocate(c%cen)
     allocate(c%cen(3,c%ncv))
@@ -2122,6 +2140,7 @@ contains
     c%neqv = spgs_n
     c%rotm = real(spgs_m,8)
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
+    call c%set_lcent()
     c%havesym = 2
 
   end subroutine spgs_wrap
@@ -2185,7 +2204,7 @@ contains
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
     c%ncv = 0
-    c%lcent = 1
+    c%lcent = 0
     
   end subroutine fill_molecule
 

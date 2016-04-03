@@ -33,7 +33,6 @@ module struct
   public :: struct_environ
   public :: struct_packing
   public :: struct_newcell
-  public :: struct_primitive
   public :: struct_molcell
 
 contains
@@ -255,7 +254,7 @@ contains
     if (allocated(cr%cen)) deallocate(cr%cen)
     allocate(cr%cen(3,4))
     cr%cen = 0d0
-    cr%lcent = 1
+    cr%lcent = 0
 
     ! convert ncel to nneq
     aux = cr%at(1:cr%nneq)
@@ -1000,8 +999,17 @@ contains
     if (cr%ismolecule) &
        call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr)
 
-    ! read the vectors from the input
+    ! transform to the primitive?
     lp = 1
+    word = lgetword(line,lp)
+    if (equal(word,"primitive")) then
+       call cr%primitive_buerger(.true.)
+       return
+    else
+       lp = 1
+    end if
+
+    ! read the vectors from the input
     ok = eval_next(x0(1,1),line,lp)
     ok = ok .and. eval_next(x0(2,1),line,lp)
     ok = ok .and. eval_next(x0(3,1),line,lp)
@@ -1037,21 +1045,6 @@ contains
     call cr%newcell(x0,t0,.true.)
 
   end subroutine struct_newcell
-
-  !> Transform the crystal to a primitive cell
-  subroutine struct_primitive(line)
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
-    character*(*), intent(in) :: line
-
-    if (cr%ismolecule) &
-       call ferror("struct_primitive","PRIMITIVE can not be used with molecules",faterr)
-
-    call cr%primitive_buerger(.true.)
-
-  end subroutine struct_primitive
 
   !> Try to determine the molecular cell from the crystal geometry
   subroutine struct_molcell(line)
