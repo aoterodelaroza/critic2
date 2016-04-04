@@ -2083,20 +2083,59 @@ contains
 
   end subroutine primitive_buerger
 
-  !> Transforms the current basis to the Delaunay reduced basis.  If
-  !> rmat(3,4), return the Delaunay vectors and do not transform the
-  !> cell. The first three vectors in rmat are the new lattice
-  !> vectors.
-  subroutine delaunay_reduction(c,verbose,rmat)
+  !> Transforms the current basis to the Delaunay reduced basis.
+  !> Return the four Delaunay vectors in crystallographic coordinates
+  !> (rmat) cell. See 9.1.8 in ITC.
+  subroutine delaunay_reduction(c,rmat)
     use tools
     use tools_io
     use tools_math
-    class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
-    real*8, optional :: rmat(3,3)
+    class(crystal), intent(in) :: c
+    real*8, intent(out) :: rmat(3,4)
     
-    write (*,*) "wola"
-    stop 1
+    integer :: i, j, k
+    real*8 :: sc(4,4)
+    logical :: again
+
+    real*8, parameter :: eps = 1d-12
+
+    ! build the four Delaunay vectors
+    rmat = 0d0
+    do i = 1, 3
+       rmat(i,i) = 1d0
+       rmat(:,i) = c%x2c(rmat(:,i))
+    end do
+    rmat(:,4) = -(rmat(:,1)+rmat(:,2)+rmat(:,3))
+
+    ! reduce until all the scalar products are negative or zero
+    again = .true.
+    sc = -1d0
+    do while(again)
+       do i = 1, 4
+          do j = i+1, 4
+             sc(i,j) = dot_product(rmat(:,i),rmat(:,j))
+             sc(j,i) = sc(i,j)
+          end do
+       end do
+
+       if (any(sc > eps)) then
+          ai: do i = 1, 4
+             aj: do j = i+1, 4
+                if (sc(i,j) > eps) exit ai
+             end do aj
+          end do ai
+          do k = 1, 4
+             if (i == k .or. j == k) cycle
+             rmat(:,k) = rmat(:,i) + rmat(:,k)
+          end do
+          rmat(:,i) = -rmat(:,i)
+       else
+          again = .false.
+       end if
+    end do
+    do i = 1, 4
+       rmat(:,i) = c%c2x(rmat(:,i))
+    end do
 
   end subroutine delaunay_reduction
 
@@ -2132,7 +2171,7 @@ contains
     ! set the centering type
     call c%set_lcent()
 
-    ! permute the operations to make the identity the first
+    ! permute the symmetry operations to make the identity the first
     if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
        good = .false.
        do i = 1, c%neqv
@@ -2170,12 +2209,11 @@ contains
        end if
     end do
 
-
     ! Reduce non-equivalent atoms that are equivalent under the space group
     ! symmetry operations
     allocate(atreduce(c%nneq))
 
-    !! Detect reducible atoms
+    ! Detect reducible atoms
     atreduce = .false.
     do i = 1, c%nneq
        if (atreduce(i)) cycle
@@ -2191,7 +2229,7 @@ contains
     end do
     ncnt = count(atreduce)
 
-    !! do the reduction
+    ! Do the reduction
     j = 0
     do i = 1, c%nneq
        if (.not.atreduce(i)) then
@@ -2203,7 +2241,7 @@ contains
     c%nneq = c%nneq - ncnt
     deallocate(atreduce)
 
-    ! reallocate
+    ! Reallocate at
     call realloc(c%at,c%nneq)
 
     ! Generate full info for the positions in the unit cell
@@ -2229,7 +2267,7 @@ contains
     end do
     deallocate(atpos,irotm,icenv)
 
-    ! reallocate
+    ! Reallocate atcel
     call realloc(c%atcel,c%ncel)
 
     ! Print out data
@@ -2328,7 +2366,7 @@ contains
        end if
     end if
 
-    ! sine, cosine, root
+    ! Cell metrics: sines, cosines, root
     ss = sin(c%bb*rad)
     cc = cos(c%bb*rad)
     root=sqrt(1d0-cc(1)*cc(1)-cc(2)*cc(2)-cc(3)*cc(3)+2d0*cc(1)*cc(2)*cc(3))
@@ -2352,7 +2390,7 @@ contains
        write (uout,*)
     end if
 
-    ! Reciprocal cell quantities
+    ! Reciprocal cell metrics
     c%ar(1) = c%aa(2) * c%aa(3) * ss(1) / c%omega
     c%ar(2) = c%aa(3) * c%aa(1) * ss(2) / c%omega
     c%ar(3) = c%aa(1) * c%aa(2) * ss(3) / c%omega
@@ -3225,19 +3263,19 @@ contains
 
     real*8 :: rnorm
     integer :: i, j, k, n, npolig, leqv, icelmax
-    integer :: imax, jmax, kmax
     real*8 :: xp1(3), xp2(3), xp3(3), x0(3)
     logical, allocatable :: active(:)
     real*8, allocatable :: tvol(:), xstar(:,:)
     real*8 :: lrotm(3,3,48), sumi, xoriginc(3)
     real*8 :: area, bary(3), av(3)
-    real*8 :: x2r(3,3), r2x(3,3), amax
+    real*8 :: x2r(3,3), r2x(3,3)
     real*8, allocatable :: xws(:,:)
     integer :: nvert, iaux, lu
     integer, allocatable :: nside(:), iside(:,:)
     character(len=:), allocatable :: file1, file2, file3
     character(kind=c_char,len=1024) :: file1c, file2c, file3c
     character*3 :: pg
+    real*8 :: rmat(3,4)
     ! qhull threshold for face recognition
     integer(c_int) :: ithr
     integer(c_int), parameter :: ithr_def = 5
@@ -3258,10 +3296,6 @@ contains
           r2x = matinv(x2r)
        end if
     end if
-    amax = -1d0
-    do i = 1, 3
-       amax = max(amax,norm(x2r(:,i)))
-    end do
 
     if (verbose) then
        write (uout,'("* Wigner-Seitz cell and IWS construction")')
@@ -3276,26 +3310,28 @@ contains
     icelmax = icelmax_def
 99  continue
 
-    ! lattice vector limits
-    call search_lattice(x2r,amax,imax,jmax,kmax)
-    imax = min(imax,icelmax)
-    jmax = min(jmax,icelmax)
-    kmax = min(kmax,icelmax)
-
-    ! construct star of lattice vectors
-    allocate(xstar(3,(2*imax+1)*(2*jmax+1)*(2*kmax+1)))
-    n = 0
-    do i = -imax, imax
-       do j = -jmax, jmax
-          do k = -kmax, kmax
-             if (i == 0 .and. j == 0 .and. k == 0) cycle
-             n = n + 1
-             xstar(:,n) = (/i,j,k/)
-             xstar(:,n) = matmul(x2r,xstar(:,n))
-          enddo
-       enddo
-    enddo
-    call realloc(xstar,3,n)
+    ! construct star of lattice vectors -> use Delaunay reduction
+    ! see 9.1.8 in ITC.
+    n = 14
+    allocate(xstar(3,14))
+    call c%delaunay_reduction(rmat)
+    xstar(:,1)  = rmat(:,1)
+    xstar(:,2)  = rmat(:,2)
+    xstar(:,3)  = rmat(:,3)
+    xstar(:,4)  = rmat(:,4)
+    xstar(:,5)  = rmat(:,1)+rmat(:,2)
+    xstar(:,6)  = rmat(:,1)+rmat(:,3)
+    xstar(:,7)  = rmat(:,2)+rmat(:,3)
+    xstar(:,8)  = -(rmat(:,1))
+    xstar(:,9)  = -(rmat(:,2))
+    xstar(:,10) = -(rmat(:,3))
+    xstar(:,11) = -(rmat(:,4))
+    xstar(:,12) = -(rmat(:,1)+rmat(:,2))
+    xstar(:,13) = -(rmat(:,1)+rmat(:,3))
+    xstar(:,14) = -(rmat(:,2)+rmat(:,3))
+    do i = 1, 14
+       xstar(:,i) = matmul(x2r,xstar(:,i))
+    end do
 
     ! compute the voronoi polyhedron using libqhull
     file1 = trim(filepath) // dirsep // trim(fileroot) // "_wsstar.dat"
@@ -3322,7 +3358,7 @@ contains
     lu = fopen_read(file2,abspath=.true.)
     read(lu,*)
     read(lu,*) nvert
-    allocate(xws(3,n))
+    allocate(xws(3,nvert))
     do i = 1, nvert
        read(lu,*) xws(:,i)
     end do
