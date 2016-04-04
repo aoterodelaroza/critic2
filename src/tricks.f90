@@ -59,7 +59,7 @@ contains
     write (uout,'("+ Reading coefficients from the file: ",A)') string(cr%file)
 
     lu = fopen_read(string(cr%file))
-    call cr%build_env(.false.,150d0)
+    call cr%build_env(150d0)
 
     main: do while (getline(lu,line))
        ! read the parameters

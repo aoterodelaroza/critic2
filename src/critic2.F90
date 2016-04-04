@@ -62,7 +62,7 @@ program critic
   integer :: level, plevel
   integer :: i, id, nn
   logical :: ll1, ok
-  real*8 :: rdum
+  real*8 :: rdum, rdum1(3,3)
 
   ! initialize parameters
   call param_init()
@@ -462,6 +462,10 @@ program critic
      elseif (equal(word,'trick')) then
         call trick(line(lp:))
         
+     ! ! temp, for testing
+     ! elseif (equal(word,'temp')) then
+     !    call cr%classify()
+     !    
      ! end
      elseif (equal(word,'end')) then
         call check_no_extra_word()

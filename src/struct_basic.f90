@@ -68,9 +68,13 @@ module struct_basic
      ! crystallographic/cartesian conversion matrices
      real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
      real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
-     ! Symmetry information for the unit cell
+     ! Symmetry classification
      integer :: lcent !< centring: 0=unset, 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=Robv, 8=Rrev, 9=unk.
-     integer :: lauec !< laue class
+     character*2 :: delaunay !< Delaunay symbol (table 9.1.8.1, ITC)
+     character*2 :: bravais_type !< Bravais type (table 9.1.8.1, ITC)
+     character*1 :: cfam !< Crystal family 
+     integer :: symsort !< Symmetrische sorten (row in table 9.1.8.1, ITC)
+     character*3 :: pointgroup !< Crystal point group
      ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
      ! 9=6/mmm, 10=m3bar, 11=m3barm
      integer :: havesym = 0 !< was the symmetry determined?
@@ -102,6 +106,7 @@ module struct_basic
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: set_cryscar !< Set the crys2car and the car2crys using the cell parameters
      procedure :: set_lcent !< Calculate the lcent from the centering vectors (ncv and cen)
+     procedure :: classify !< Classify the crystal (symmetrische sorten, Bravais lattice, etc.)
      procedure :: x2c !< Convert crystallographic to cartesian
      procedure :: c2x !< Convert cartesian to crystallographic
      procedure :: shortest !< Gives the lattice-translated vector with shortest length
@@ -127,8 +132,10 @@ module struct_basic
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
+     procedure :: primitive_any !< Transform to an arbitrary primitive cell.
      procedure :: delaunay_reduction !< Transform to the delaunay-reduced cell
      procedure :: struct_fill !< Initialize the structure from minimal info
+     procedure :: struct_report !< Write lots of information about the crystal structure to uout
      procedure :: guessspg !< Guess the symmetry operations from the structure
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
@@ -207,7 +214,6 @@ contains
     if (allocated(c%cen)) deallocate(c%cen)
     allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lauec = 0
     c%isortho = .false.
     c%nws = 0
 
@@ -318,6 +324,226 @@ contains
     endif
     
   end subroutine set_lcent
+
+  subroutine classify(c)
+    use tools_io
+    class(crystal), intent(inout) :: c
+
+    real*8 :: rmat(3,3), dmat(3,4), sc(4,4), scv(6)
+    integer :: nzero, ndiff
+
+    real*8, parameter :: eps = 1d-10
+    integer :: i 
+    logical :: done(6)
+
+    ! run the delaunay reduction of the primitive cell
+    call c%primitive_any(rmat)
+    call c%delaunay_reduction(dmat,rmat,sc)
+    
+    ! unpack the scalar product matrix
+    scv(1) = sc(1,2)
+    scv(2) = sc(1,3)
+    scv(3) = sc(1,4)
+    scv(4) = sc(2,3)
+    scv(5) = sc(2,4)
+    scv(6) = sc(3,4)
+
+    ! implementation of the classification in table 9.1.8.1 ITC
+    ! count number of zeros and number of distinct elements
+    nzero = count(abs(scv) < eps)
+    done = (abs(scv) < eps)
+    ndiff = 0
+    do i = 1, 6
+       if (.not.done(i)) then
+          ndiff = ndiff + 1
+          done = done .or. (abs(scv - scv(i)) < eps)
+       end if
+    end do
+    
+    ! classify, from the top of the table
+    if (nzero == 0 .and. ndiff == 1) then
+       c%delaunay = "K1"
+       c%bravais_type = "cI"
+       c%cfam = "c"
+       c%symsort = 1
+    elseif (nzero == 2 .and. ndiff == 1) then
+       c%delaunay = "K2"
+       c%bravais_type = "cF"
+       c%cfam = "c"
+       c%symsort = 2
+    elseif (nzero == 3 .and. ndiff == 1) then
+       if (abs(scv(4)) > eps) then
+          c%delaunay = "K3"
+          c%bravais_type = "cP"
+          c%cfam = "c"
+          c%symsort = 3
+       else
+          c%delaunay = "K3"
+          c%bravais_type = "cP"
+          c%cfam = "c"
+          c%symsort = 4
+       end if
+    elseif (nzero == 2 .and. ndiff == 2) then
+       if (abs(scv(2)) < eps) then
+          c%delaunay = "H "
+          c%bravais_type = "hP"
+          c%cfam = "h"
+          c%symsort = 5
+       elseif (abs(scv(2) - scv(4)) < eps) then
+          c%delaunay = "R2"
+          c%bravais_type = "hR"
+          c%cfam = "h"
+          c%symsort = 7
+       elseif (abs(scv(4) - scv(4)) < eps) then
+          c%delaunay = "O4"
+          c%bravais_type = "oI"
+          c%cfam = "o"
+          c%symsort = 16
+       else
+          c%delaunay = "O4"
+          c%bravais_type = "oI"
+          c%cfam = "o"
+          c%symsort = 17
+       end if
+    elseif (nzero == 0 .and. ndiff == 2) then
+       if (abs(scv(1) - scv(2)) < eps) then
+          c%delaunay = "R1"
+          c%bravais_type = "hR"
+          c%cfam = "h"
+          c%symsort = 6
+       else
+          c%delaunay = "Q1"
+          c%bravais_type = "tI"
+          c%cfam = "t"
+          c%symsort = 8
+       end if
+    elseif (nzero == 1 .and. ndiff == 2) then
+       c%delaunay = "Q2"
+       c%bravais_type = "tI"
+       c%cfam = "t"
+       c%symsort = 9
+    elseif (nzero == 3 .and. ndiff == 2) then
+       if (abs(scv(4)) < eps) then
+          c%delaunay = "Q3"
+          c%bravais_type = "tP"
+          c%cfam = "t"
+          c%symsort = 10
+       elseif (abs(scv(6)) < eps) then
+          c%delaunay = "Q3"
+          c%bravais_type = "tP"
+          c%cfam = "t"
+          c%symsort = 11
+       else
+          c%delaunay = "Q3"
+          c%bravais_type = "tP"
+          c%cfam = "t"
+          c%symsort = 12
+       end if
+    elseif (nzero == 0 .and. ndiff == 3) then
+       if (abs(scv(2) - scv(3)) < eps) then
+          c%delaunay = "O1"
+          c%bravais_type = "oF"
+          c%cfam = "o"
+          c%symsort = 13
+       else
+          c%delaunay = "O2"
+          c%bravais_type = "oI"
+          c%cfam = "o"
+          c%symsort = 14
+       end if
+    elseif (nzero == 1 .and. ndiff == 3) then
+       if (abs(scv(2) - scv(3)) < eps) then
+          c%delaunay = "O3"
+          c%bravais_type = "oI"
+          c%cfam = "o"
+          c%symsort = 15
+       elseif (abs(scv(2) - scv(3)) < eps) then
+          c%delaunay = "M4"
+          c%bravais_type = "mI"
+          c%cfam = "o"
+          c%symsort = 25
+       else
+          c%delaunay = "M4"
+          c%bravais_type = "mI"
+          c%cfam = "o"
+          c%symsort = 26
+       end if
+    elseif (nzero == 2 .and. ndiff == 3) then
+       if (abs(scv(1) - scv(5)) < eps) then
+          c%delaunay = "O5"
+          c%bravais_type = "oC"
+          c%cfam = "o"
+          c%symsort = 18
+       elseif (abs(scv(2)) < eps) then
+          c%delaunay = "O5"
+          c%bravais_type = "oC"
+          c%cfam = "o"
+          c%symsort = 19
+       elseif (abs(scv(4) - scv(5)) < eps) then
+          c%delaunay = "M5"
+          c%bravais_type = "mI"
+          c%cfam = "m"
+          c%symsort = 27
+       else
+          c%delaunay = "M5"
+          c%bravais_type = "mI"
+          c%cfam = "m"
+          c%symsort = 28
+       end if
+    elseif (nzero == 3 .and. ndiff == 3) then
+       if (abs(scv(4)) < eps) then
+          c%delaunay = "O6"
+          c%bravais_type = "oP"
+          c%cfam = "o"
+          c%symsort = 20
+       else
+          c%delaunay = "O6"
+          c%bravais_type = "oP"
+          c%cfam = "o"
+          c%symsort = 21
+       end if
+    elseif (nzero == 0 .and. ndiff == 4) then
+       if (abs(scv(2) - scv(4)) < eps) then
+          c%delaunay = "M1"
+          c%bravais_type = "mI"
+          c%cfam = "m"
+          c%symsort = 22
+       else
+          c%delaunay = "M2"
+          c%bravais_type = "mI"
+          c%cfam = "m"
+          c%symsort = 23
+       end if
+    elseif (nzero == 1 .and. ndiff == 4) then
+       c%delaunay = "M3"
+       c%bravais_type = "mI"
+       c%cfam = "m"
+       c%symsort = 24
+    elseif (nzero == 2 .and. ndiff == 4) then
+       c%delaunay = "M6"
+       c%bravais_type = "mP"
+       c%cfam = "m"
+       c%symsort = 29
+    elseif (nzero == 0 .and. ndiff == 6) then
+       c%delaunay = "T1"
+       c%bravais_type = "aP"
+       c%cfam = "a"
+       c%symsort = 30
+    elseif (nzero == 1 .and. ndiff == 5) then
+       c%delaunay = "T2"
+       c%bravais_type = "aP"
+       c%cfam = "a"
+       c%symsort = 31
+    elseif (nzero == 2 .and. ndiff == 4) then
+       c%delaunay = "T3"
+       c%bravais_type = "aP"
+       c%cfam = "a"
+       c%symsort = 32
+    else
+       call ferror('classify','could not classify lattice symsort',faterr)
+    end if
+
+  end subroutine classify
 
   !> Transform crystallographic to cartesian
   function x2c(c,xx) 
@@ -735,13 +961,12 @@ contains
   !> to the unit cell's density. Used in the structure initialization.
   !> If dmax is given, use that number as an estimate of how many cells
   !> should be included in the search for atoms. 
-  subroutine build_env(c,verbose,dmax0)
+  subroutine build_env(c,dmax0)
     use tools_io
     use global
     use types
 
     class(crystal), intent(inout) :: c !< Input crystal
-    logical, intent(in) :: verbose !< print info to uout?
     real*8, intent(in), optional :: dmax0
 
     integer :: i, j, k, l(3), m
@@ -803,12 +1028,6 @@ contains
     enddo  !i
 
     call realloc(c%atenv,c%nenv)
-
-    if (verbose.and..not.c%ismolecule) then
-       write (uout,'("+ Building the atomic environment of the main cell")')
-       write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
-       write (uout,*)
-    end if
 
   end subroutine build_env
 
@@ -1883,7 +2102,8 @@ contains
 
     ! initialize the structure
     if (hadsym > 0) call c%guessspg(hadsym,verbose) 
-    call c%struct_fill(verbose)
+    call c%struct_fill()
+    if (verbose) call c%struct_report()
 
   end subroutine newcell
 
@@ -2083,15 +2303,140 @@ contains
 
   end subroutine primitive_buerger
 
+  !> Transform to any arbitrary primitive cell. Used for subsequent
+  !> processing. If rmat is given, return the new lattice vectors in
+  !> cryst. coordinates referred to the input cell in rmat, and do not
+  !> transform the crystal to the primitive.
+  subroutine primitive_any(c,rmat)
+    use tools
+    use tools_io
+    use tools_math
+    use param
+    class(crystal), intent(inout) :: c
+    real*8, intent(out), optional :: rmat(3,3)
+
+    integer :: i, j, ix, iy, iz, l(3)
+    real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:)
+    integer, allocatable :: io(:)
+    real*8 :: x(3), xc(3), mindist2, d2
+    integer :: nlat, nshl
+    logical :: again, found
+    real*8 :: xp(3,3), dd
+
+    real*8, parameter :: eps = 1d-6
+
+    if (present(rmat)) rmat = eye
+
+    ! ignore molecules
+    if (c%ismolecule) return
+
+    ! Find the centering vectors
+    if (c%havesym < 1) call c%guessspg(1,.false.) 
+
+    ! Exit if this is already a primitive
+    if (c%ncv == 1) return
+
+    ! allocate the xlat
+    allocate(xlat(3,10),dist(10))
+
+    ! Build a star of lattice and centering vectors 
+    nshl = -1
+    nlat = 0
+    mindist2 = 1d40
+    again = .true.
+    do while (again)
+       nshl = nshl + 1
+       again = .false.
+       do ix = -nshl, nshl
+          do iy = -nshl, nshl
+             do iz = -nshl, nshl
+                l = (/ix, iy, iz/)
+                if (all(abs(l) /= nshl)) cycle
+                do i = 1, c%ncv
+                   x = real(l,8) + c%cen(:,i)
+                   xc = c%x2c(x)
+                   d2 = dot_product(xc,xc)
+                   if (d2 < 1d-10) then
+                      again = .true.
+                      cycle
+                   end if
+                   if (d2 > 4d0*mindist2) cycle
+
+                   ! add this lattice to the xlat and dist2
+                   nlat = nlat + 1
+                   if (nlat > size(xlat,2)) then
+                      call realloc(xlat,3,2*nlat)
+                      call realloc(dist,2*nlat)
+                   end if
+                   xlat(:,nlat) = x
+                   dist(nlat) = sqrt(d2)
+                   again = .true.
+                   mindist2 = min(mindist2,d2)
+                end do
+             end do
+          end do
+       end do
+    end do
+
+    ! Sort the distances
+    allocate(io(nlat))
+    do i = 1, nlat
+       io(i) = i
+    end do
+    call qcksort(dist,io,1,nlat)
+    allocate(xlataux(3,nlat))
+    do i = 1, nlat
+       xlataux(:,i) = xlat(:,io(i))
+    end do
+    call move_alloc(xlataux,xlat)
+    deallocate(io,dist)
+
+    ! Run over lattice vector triplets 
+    found = .false.
+    main: do ix = 1, nlat
+       do iy = 1, nlat
+          if (ix == iy) cycle
+          do iz = 1, nlat
+             if (ix == iz .or. iy == iz) cycle
+
+             ! calculate angles and mixed product; reject bad triplets
+             dd = mixed(xlat(:,ix),xlat(:,iy),xlat(:,iz))
+             if (dd < eps) cycle
+             if (nint(1d0/dd) == c%ncv) then
+                xp(:,1) = xlat(:,ix)
+                xp(:,2) = xlat(:,iy)
+                xp(:,3) = xlat(:,iz)
+                found = .true.
+                exit main
+             end if
+          end do
+       end do
+    end do main
+
+    if (.not.found) call ferror('primitive_any','could not find triplet for primitive cell',faterr)
+
+    ! transform to the primitive or output through rmat
+    if (present(rmat)) then
+       rmat = xp
+    else
+       call c%newcell(xp,verbose0=.false.)
+    end if
+
+  end subroutine primitive_any
+
   !> Transforms the current basis to the Delaunay reduced basis.
   !> Return the four Delaunay vectors in crystallographic coordinates
-  !> (rmat) cell. See 9.1.8 in ITC.
-  subroutine delaunay_reduction(c,rmat)
+  !> (rmat) cell. See 9.1.8 in ITC. If rmati is given, use the three
+  !> vectors (cryst. coords.) as the basis for the reduction. If 
+  !> sco is present, use it in output for the scalar products.
+  subroutine delaunay_reduction(c,rmat,rmati,sco)
     use tools
     use tools_io
     use tools_math
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
+    real*8, intent(in), optional :: rmati(3,3)
+    real*8, intent(out), optional :: sco(4,4)
     
     integer :: i, j, k
     real*8 :: sc(4,4)
@@ -2100,11 +2445,17 @@ contains
     real*8, parameter :: eps = 1d-12
 
     ! build the four Delaunay vectors
-    rmat = 0d0
-    do i = 1, 3
-       rmat(i,i) = 1d0
-       rmat(:,i) = c%x2c(rmat(:,i))
-    end do
+    if (present(rmati)) then
+       do i = 1, 3
+          rmat(:,i) = c%x2c(rmati(:,i))
+       end do
+    else
+       rmat = 0d0
+       do i = 1, 3
+          rmat(i,i) = 1d0
+          rmat(:,i) = c%x2c(rmat(:,i))
+       end do
+    end if
     rmat(:,4) = -(rmat(:,1)+rmat(:,2)+rmat(:,3))
 
     ! reduce until all the scalar products are negative or zero
@@ -2137,6 +2488,8 @@ contains
        rmat(:,i) = c%c2x(rmat(:,i))
     end do
 
+    if (present(sco)) sco = sc
+
   end subroutine delaunay_reduction
 
   !> Uses the cell lengths, angles, centering type, non-equivalent
@@ -2144,32 +2497,23 @@ contains
   !> crystallographic/cartesian transformation matrices to determines
   !> the rest of the structural information needed for the run. This
   !> routine initializes the structure.
-  subroutine struct_fill(c,verbose)
+  subroutine struct_fill(c)
     use sympg
     use tools_math
     use global
-    use types
     use tools_io
     use param
 
     class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose !< Output to uout?
 
     real*8, allocatable :: atpos(:,:)
     integer, allocatable :: irotm(:), icenv(:)
     integer :: i, j, k, nn
-    integer :: tipo, nelec
     real*8, dimension(3) :: vec
     logical :: good, ok
-    real*8 :: maxdv, ss(3), cc(3), root
-    integer :: ncnt, naux(3), order
+    real*8 :: ss(3), cc(3), root, dist(1)
+    integer :: ncnt, naux(3), order, nneig(1), wat(1)
     logical, allocatable :: atreduce(:)
-    integer, allocatable :: nneig(:), wat(:)
-    real*8, allocatable :: dist(:)
-    character(len=:), allocatable :: str1, str2
-
-    ! set the centering type
-    call c%set_lcent()
 
     ! permute the symmetry operations to make the identity the first
     if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
@@ -2198,8 +2542,7 @@ contains
 
        ! Name / Z
        if (c%at(i)%name == "" .and. c%at(i)%z == 0) then
-          write (uout,'("Atom number : ", I6)') i
-          call ferror('struct_fill','No name or Z for atom',faterr)
+          call ferror('struct_fill','No name or Z for atom: '//string(i),faterr)
        else if (c%at(i)%name == "" .or. c%at(i)%z == 0) then
           if (c%at(i)%z == 0) then
              c%at(i)%z = zatguess(c%at(i)%name)
@@ -2241,7 +2584,7 @@ contains
     c%nneq = c%nneq - ncnt
     deallocate(atreduce)
 
-    ! Reallocate at
+    ! Reallocate non-equivalent atom list
     call realloc(c%at,c%nneq)
 
     ! Generate full info for the positions in the unit cell
@@ -2267,104 +2610,8 @@ contains
     end do
     deallocate(atpos,irotm,icenv)
 
-    ! Reallocate atcel
+    ! Reallocate cell atom list
     call realloc(c%atcel,c%ncel)
-
-    ! Print out data
-    if (verbose) then
-       if (.not.c%ismolecule) then
-          write (uout,'("* Input crystal structure")')
-          write (uout,'("  From: ",A)') c%file
-          write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
-             string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-          write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
-             string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
-          write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
-             string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
-       else
-          write (uout,'("* Input molecular structure")')
-          write (uout,'("  From: ",A)') c%file
-          write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
-             string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-          write (uout,'("  Encompassing cell dimensions (ang): ",3(A,2X))') &
-             string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
-       endif
-
-       !compute unit formula, and z
-       if (.not.c%ismolecule) then
-          maxdv = mcd(c%at(:)%mult,c%nneq)
-          write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
-             (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
-          write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
-          write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
-       else
-          write (uout,'("  Number of atoms: ",A)') string(c%ncel)
-       endif
-       nelec = 0
-       do i = 1, c%nneq
-          nelec = nelec + c%at(i)%z * c%at(i)%mult
-       end do
-       write (uout,'("  Number of electrons: ",A/)') string(nelec)
-
-       if (.not.c%ismolecule) then
-          write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
-          write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
-             string("x",14,ioj_center), string("y",14,ioj_center),&
-             string("z",14,ioj_center), string("name",10,ioj_center), &
-             string("mult",4,ioj_center), string("Z",4,ioj_center)
-          do i=1, c%nneq
-             write (uout,'(2x,7(A,X))') &
-                string(i,3,ioj_center),&
-                string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
-                string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
-                string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(c%at(i)%name,10,ioj_center), &
-                string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
-          enddo
-          write (uout,*)
-
-          write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
-          write (uout,'("# ",6(A,X))') string("at",3,ioj_center),&
-             string("x",14,ioj_center), string("y",14,ioj_center),&
-             string("z",14,ioj_center), string("name",10,ioj_center),&
-             string("Z",4,ioj_center)
-          do i=1,c%ncel
-             write (uout,'(2x,6(A,X))') &
-                string(i,3,ioj_center),&
-                string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
-                string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
-                string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
-                string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
-          enddo
-          write (uout,*)
-       end if
-
-       write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname
-       write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
-          string("x",16,ioj_center), string("y",16,ioj_center),&
-          string("z",16,ioj_center), string("name",10,ioj_center),&
-          string("Z",4,ioj_center)
-       do i=1,c%ncel
-          write (uout,'(2x,6(A,X))') &
-             string(i,3,ioj_center),&
-             (string((c%atcel(i)%r(j)+c%molx0(j))*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
-             string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
-       enddo
-       write (uout,*)
-
-       ! For molecules, output the xyz in angstorm
-       if (c%ismolecule) then
-          write (uout,'("+ Limits of the molecular cell (in fractions of the encompassing cell).")')
-          write (uout,'("  The region of the encompassing cell outside the molecular cell is")')
-          write (uout,'("  assumed to represent infinity (no CPs or gradient paths in it).")')
-          write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
-          write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
-          write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
-          write (uout,*)
-       end if
-    end if
 
     ! Cell metrics: sines, cosines, root
     ss = sin(c%bb*rad)
@@ -2384,11 +2631,6 @@ contains
     
     ! Cell volume
     c%omega = root * c%aa(1) * c%aa(2) * c%aa(3)
-    if (verbose .and..not.c%ismolecule) then
-       write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
-       write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
-       write (uout,*)
-    end if
 
     ! Reciprocal cell metrics
     c%ar(1) = c%aa(2) * c%aa(3) * ss(1) / c%omega
@@ -2409,22 +2651,188 @@ contains
     c%grtensor(3,2) = c%grtensor(2,3)
     c%grtensor(3,3) = c%ar(3) * c%ar(3) 
 
-    ! Write symmetry operations to output
-    if (verbose .and..not.c%ismolecule) then
+    ! Direct space crystal point group 
+    vec = 0d0
+    call lattpg(transpose(c%crys2car),1,vec)
+    c%pointgroup = trim(point_group)
+
+    ! Reciprocal space point group
+    vec = 0d0
+    call lattpg(matinv(c%crys2car),1,vec,c%neqvg,c%rotg)
+
+    ! set the centering type
+    call c%set_lcent()
+
+    ! classify the lattice
+    call c%classify()
+
+    ! Build shells of atoms
+    call c%build_env()
+
+    ! nearest neighbors
+    do i = 1, c%nneq
+       call c%pointshell(c%at(i)%x,1,nneig,wat,dist)
+       c%at(i)%rnn2 = dist(1) / 2d0
+    end do
+
+    ! calculate the wigner-seitz cell
+    naux = 1
+    call c%wigner((/0d0,0d0,0d0/),.false.,naux,c%nws,c%ivws)
+    c%isortho = (c%nws <= 6)
+    if (c%isortho) then
+       do i = 1, c%nws
+          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
+       end do
+    endif
+
+    ! the crystal can be used now
+    c%isinit = .true.
+
+  end subroutine struct_fill
+
+  subroutine struct_report(c)
+    use global
+    use tools_math
+    use tools_io
+    use param
+    class(crystal), intent(in) :: c
+
+    integer :: i, j, k
+    integer :: nelec
+    real*8 :: maxdv, vec(3)
+    character(len=:), allocatable :: str1, str2
+    integer :: tipo, order
+    integer, allocatable :: nneig(:), wat(:)
+    real*8, allocatable :: dist(:)
+
+    ! Header
+    if (.not.c%ismolecule) then
+       write (uout,'("* Input crystal structure")')
+       write (uout,'("  From: ",A)') string(c%file)
+       write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
+          string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
+       write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
+          string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
+       write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
+          string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
+    else
+       write (uout,'("* Input molecular structure")')
+       write (uout,'("  From: ",A)') string(c%file)
+       write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
+          string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
+       write (uout,'("  Encompassing cell dimensions (ang): ",3(A,2X))') &
+          string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
+    endif
+
+    ! Compute unit formula, and z
+    if (.not.c%ismolecule) then
+       maxdv = mcd(c%at(:)%mult,c%nneq)
+       write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
+          (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
+       write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
+       write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
+    else
+       write (uout,'("  Number of atoms: ",A)') string(c%ncel)
+    endif
+    nelec = 0
+    do i = 1, c%nneq
+       nelec = nelec + c%at(i)%z * c%at(i)%mult
+    end do
+    write (uout,'("  Number of electrons: ",A/)') string(nelec)
+    
+    ! List of atoms in crystallographic coordinates
+    if (.not.c%ismolecule) then
+       write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
+       write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
+          string("x",14,ioj_center), string("y",14,ioj_center),&
+          string("z",14,ioj_center), string("name",10,ioj_center), &
+          string("mult",4,ioj_center), string("Z",4,ioj_center)
+       do i=1, c%nneq
+          write (uout,'(2x,7(A,X))') &
+             string(i,3,ioj_center),&
+             string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
+             string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
+             string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+             string(c%at(i)%name,10,ioj_center), &
+             string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
+       enddo
+       write (uout,*)
+
+       write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
+       write (uout,'("# ",6(A,X))') string("at",3,ioj_center),&
+          string("x",14,ioj_center), string("y",14,ioj_center),&
+          string("z",14,ioj_center), string("name",10,ioj_center),&
+          string("Z",4,ioj_center)
+       do i=1,c%ncel
+          write (uout,'(2x,6(A,X))') &
+             string(i,3,ioj_center),&
+             string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
+             string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
+             string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+             string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
+             string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
+       enddo
+       write (uout,*)
+    end if
+
+    ! List of atoms in Cartesian coordinates
+    write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname
+    write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
+       string("x",16,ioj_center), string("y",16,ioj_center),&
+       string("z",16,ioj_center), string("name",10,ioj_center),&
+       string("Z",4,ioj_center)
+    do i=1,c%ncel
+       write (uout,'(2x,6(A,X))') &
+          string(i,3,ioj_center),&
+          (string((c%atcel(i)%r(j)+c%molx0(j))*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
+          string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
+          string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
+    enddo
+    write (uout,*)
+
+    ! Encompassing region for the molecule
+    if (c%ismolecule) then
+       write (uout,'("+ Limits of the molecular cell (in fractions of the encompassing cell).")')
+       write (uout,'("  The region of the encompassing cell outside the molecular cell is")')
+       write (uout,'("  assumed to represent infinity (no CPs or gradient paths in it).")')
+       write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
+       write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
+       write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
+       write (uout,*)
+    end if
+
+    ! Cell volume
+    if (.not.c%ismolecule) then
+       write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
+       write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
+       write (uout,*)
+    end if
+    
+    ! Information about the lattice
+    if (.not.c%ismolecule) then
+       write(uout,'("+ Crystal family: ", A)') string(c%cfam)
+       write(uout,'("  Bravais type: ", A)') string(c%bravais_type)
+       write(uout,'("  Crystal point group: ", A)') string(c%pointgroup)
+       write(uout,'("  Delaunay symbol: ", A)') string(c%delaunay)
+       write(uout,'("  Symmetry sort (ITC-9.1.8.1): ", A)') string(c%symsort)
+    end if
+
+    ! Write symmetry operations 
+    if (.not.c%ismolecule) then
        write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
        do k = 1, c%neqv
           write (uout,'(2X,"Operation ",A,":")') string(k)
           write (uout,'(2(4X,4(A,X)/),4X,4(A,X))') ((string(c%rotm(i,j,k),'f',length=9,decimal=6,justify=3), j = 1, 4), i = 1, 3)
        enddo
        write (uout,*)
-
+    
        write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
        do k = 1, c%ncv
           write (uout,'(2X,"Vector ",A,": ",3(A,X))') string(k), &
              (string(c%cen(i,k),'f',length=9,decimal=6), i = 1, 3)
        enddo
        write (uout,*)
-
+    
        select case(c%lcent)
        case(0)
           str1 = "not set"
@@ -2447,8 +2855,8 @@ contains
        case(9)
           str1 = "unknown (non-standard)"
        end select
-       write (uout,'("+ Centering type: ",A/)') trim(str1)
-
+       write (uout,'("+ Detected centering type: ",A/)') trim(str1)
+    
        write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
        write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname
        do i = 1, 3
@@ -2465,8 +2873,8 @@ contains
        write (uout,*)
     end if
 
-    ! determine type and vector for symm. operations
-    if (verbose.and..not.c%ismolecule) then
+    ! type and vector for symm. operations
+    if (.not.c%ismolecule) then
        write (uout,'("+ Symmetry operations (rotations) in chemical notation:")')
        do i = 1, c%neqv
           call typeop(c%rotm(:,:,i),tipo,vec,order)
@@ -2475,175 +2883,61 @@ contains
        enddo
        write (uout,*)
     end if
-
-    ! Point group and Laue class
-    vec = 0d0
-    call lattpg(transpose(c%crys2car),.false.,1,vec)
-    if (verbose.and..not.c%ismolecule) then
-       write(uout,'("+ Crystal point group: ", A)') string(point_group)
-       write(uout,'("+ Number of operations (point group): ", A)') string(nopsym)
-    endif
-    if (nopsym == 2) then
-       c%lauec = 1
-       if (verbose.and..not.c%ismolecule) then
-          write(uout,'("+ Laue class: -1")')
-          write(uout,'("+ Crystal system: triclinic")')
-       endif
-    elseif (nopsym == 4) then
-       c%lauec = 2
-       if (verbose.and..not.c%ismolecule) then
-          write(uout,'("+ Laue class: 2/m")')
-          write(uout,'("+ Crystal system: monoclinic")')
-       end if
-    elseif (nopsym == 6) then
-       c%lauec = 6
-       if (verbose.and..not.c%ismolecule) then
-          write(uout,'("+ Laue class: -3")')
-          write(uout,'("+ Crystal system: trigonal")')
-       end if
-    elseif (nopsym == 8) then
-       ! either mmm (3, D2h) or 4/m (4, C4h)
-       if (any(oporder(1:nopsym) == 4)) then
-          c%lauec = 4
-          if (verbose.and..not.c%ismolecule) then
-             write(uout,'("+ Laue class: 4/m")')
-             write(uout,'("+ Crystal system: tetragonal")')
-          end if
-       else
-          c%lauec = 3
-          if (verbose.and..not.c%ismolecule) then
-             write(uout,'("+ Laue class: mmm")')
-             write(uout,'("+ Crystal system: orthorhombic")')
-          end if
-       end if
-    elseif (nopsym == 12) then
-       ! either -3m (7, D3d) or 6/m (8, C6h)
-       ok = .false.
-       do i = 1, nopsym
-          ok = ok .or. (oporder(i) == 6 .and. opproper(i))
-       end do
-       if (ok) then
-          c%lauec = 8
-          if (verbose.and..not.c%ismolecule) then
-             write(uout,'("+ Laue class: 6/m")')
-             write(uout,'("+ Crystal system: hexagonal")')
-          end if
-       else
-          c%lauec = 7
-          if (verbose.and..not.c%ismolecule) then
-             write(uout,'("+ Laue class: -3/m")')
-             write(uout,'("+ Crystal system: trigonal")')
-          end if
-       endif
-    elseif (nopsym == 16) then
-       c%lauec = 5
-       if (verbose.and..not.c%ismolecule) then
-          write(uout,'("+ Laue class: 4/mmm")')
-          write(uout,'("+ Crystal system: tetragonal")')
-       end if
-    elseif (nopsym == 24) then
-       ok = .false.
-       do i = 1, nopsym
-          ok = ok .or. (oporder(i) == 6 .and. opproper(i))
-       end do
-       if (ok) then
-          c%lauec = 9
-          if (verbose.and..not.c%ismolecule) then
-             write(uout,'("+ Laue class: 6/mmm")')
-             write(uout,'("+ Crystal system: hexagonal")')
-          end if
-       else
-          c%lauec = 10
-          if (verbose.and..not.c%ismolecule) then
-             write(uout,'("+ Laue class: m-3")')
-             write(uout,'("+ Crystal system: cubic")')
-          end if
-       endif
-    elseif (nopsym == 48) then
-       c%lauec = 11
-       if (verbose.and..not.c%ismolecule) then
-          write(uout,'("+ Laue class: m-3m")')
-          write(uout,'("+ Crystal system: cubic")')
-       end if
-    else
-       call ferror("struct_fill","Unknown Laue class",warning)
-    end if
-    if (verbose.and..not.c%ismolecule) write (uout,*)
-
-    ! Reciprocal space point group operations
-    vec = 0d0
-    call lattpg(matinv(c%crys2car),.false.,1,vec,c%neqvg,c%rotg)
-
-    ! Build shells of atoms
-    call c%build_env(verbose)
-
-    ! Print out atomic environments and determine the nearest neighbor distances
-    if (verbose) then
-       write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname
-       write (uout,'("# ",6(A,2X))') &
-          string("id",length=4,justify=ioj_center), &
-          string("atom",length=5,justify=ioj_center), &
-          string("nneig",length=5,justify=ioj_center), &
-          string("distance",length=11,justify=ioj_right), &
-          string("nat",length=4,justify=ioj_center), &
-          string("type",length=10,justify=ioj_left)
-       nn = 10
-    else
-       nn = 1
-    end if
-    allocate(nneig(nn),wat(nn),dist(nn))
-    do i = 1, c%nneq
-       call c%pointshell(c%at(i)%x,nn,nneig,wat,dist)
-       if (verbose) then
-          do j = 1, nn
-             if (j == 1) then
-                str1 = string(i,length=4,justify=ioj_center)
-                str2 = string(c%at(i)%name,length=5,justify=ioj_center)
-             else
-                str1 = string("",length=4,justify=ioj_center)
-                str2 = " ... "
-             end if
-             if (wat(j) /= 0) then
-                write (uout,'(6(2X,A))') &
-                   str1, str2, &
-                   string(nneig(j),length=5,justify=ioj_center), &
-                   string(dist(j)*dunit,'f',length=12,decimal=7,justify=5), &
-                   string(wat(j),length=4,justify=ioj_center), &
-                   string(c%at(wat(j))%name,length=10,justify=ioj_left)
-             end if
-          end do
-       end if
-       c%at(i)%rnn2 = dist(1) / 2d0
-    end do
-    if (verbose) then
+    
+    ! Number of atoms in the atomic environment
+    if (.not.c%ismolecule) then
+       write (uout,'("+ Atomic environment of the main cell")')
+       write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
        write (uout,*)
     end if
+
+    ! Print out atomic environments and determine the nearest neighbor distances
+    write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname
+    write (uout,'("# ",6(A,2X))') &
+       string("id",length=4,justify=ioj_center), &
+       string("atom",length=5,justify=ioj_center), &
+       string("nneig",length=5,justify=ioj_center), &
+       string("distance",length=11,justify=ioj_right), &
+       string("nat",length=4,justify=ioj_center), &
+       string("type",length=10,justify=ioj_left)
+    allocate(nneig(10),wat(10),dist(10))
+    do i = 1, c%nneq
+       call c%pointshell(c%at(i)%x,10,nneig,wat,dist)
+       do j = 1, 10
+          if (j == 1) then
+             str1 = string(i,length=4,justify=ioj_center)
+             str2 = string(c%at(i)%name,length=5,justify=ioj_center)
+          else
+             str1 = string("",length=4,justify=ioj_center)
+             str2 = " ... "
+          end if
+          if (wat(j) /= 0) then
+             write (uout,'(6(2X,A))') &
+                str1, str2, &
+                string(nneig(j),length=5,justify=ioj_center), &
+                string(dist(j)*dunit,'f',length=12,decimal=7,justify=5), &
+                string(wat(j),length=4,justify=ioj_center), &
+                string(c%at(wat(j))%name,length=10,justify=ioj_left)
+          end if
+       end do
+    end do
+    write (uout,*)
     deallocate(nneig,wat,dist)
 
     ! Determine nn/2 for every atom
-    if (verbose) then
-       write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname
-       write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
-          string("atom",length=5,justify=ioj_center), &
-          string("rnn/2",length=12,justify=ioj_center)
-       do i = 1, c%nneq
-          write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
-             string(c%at(i)%name,length=5,justify=ioj_center), &
-             string(c%at(i)%rnn2*dunit,'f',length=12,decimal=7,justify=4)
-       end do
-       write (uout,*)
-    end if
+    write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname
+    write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
+       string("atom",length=5,justify=ioj_center), &
+       string("rnn/2",length=12,justify=ioj_center)
+    do i = 1, c%nneq
+       write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
+          string(c%at(i)%name,length=5,justify=ioj_center), &
+          string(c%at(i)%rnn2*dunit,'f',length=12,decimal=7,justify=4)
+    end do
+    write (uout,*)
 
     ! Determine the wigner-seitz cell
-    naux = 1
-    call c%wigner((/0d0,0d0,0d0/),.false.,naux,c%nws,c%ivws)
-    c%isortho = (c%nws <= 6)
-    if (c%isortho) then
-       do i = 1, c%nws
-          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
-       end do
-    endif
-    if (verbose.and..not.c%ismolecule) then
+    if (.not.c%ismolecule) then
        write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
        do i = 1, c%nws
           write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
@@ -2653,10 +2947,7 @@ contains
        write (uout,'("+ Is the cell orthogonal? ",L1/)') c%isortho
     end if
 
-    ! the crystal can be used now
-    c%isinit = .true.
-
-  end subroutine struct_fill
+  end subroutine struct_report
 
   !xx! guessspg - crystal symmetry guessing module
   !> Guesses the symmetry operations from the geometry of the unit
@@ -2685,6 +2976,17 @@ contains
     ! write down the new level
     c%havesym = level
 
+    ! message to output
+    if (verbose) then
+       if (level == 0) then
+          write(uout,'("* Calculating symmetry operations: no symmetry.")')
+       elseif (level == 1) then
+          write(uout,'("* Calculating symmetry operations: translations only.")')
+       elseif (level == 2) then
+          write(uout,'("* Calculating symmetry operations: full symmetry.")')
+       end if
+    end if
+
     ! no symmetry
     if (level == 0) then
        c%neqv = 1
@@ -2695,91 +2997,25 @@ contains
        return
     end if
 
-    if (verbose) &
-       write(uout,'("* GUESS: Guess space group operations")')
-
     ! Find the centering group by transforming to a primitive cell
-    if (verbose) &
-       write(uout,'("+ Finding the centering vector group")')
     call cenbuild(c)
-
-    if (verbose) then
-       write (uout,200) c%ncv
-       do j = 1, c%ncv
-          write (uout,210) j, (c%cen(i,j), i = 1, 3)
-       enddo
-       write (uout,*)
-    endif
 
     ! Find the non-centering operations?
     if (level > 1) then
        ! Find the rotation parts of the operations
        rmat = transpose(crys2car_from_cellpar(c%aa,c%bb))
-       call lattpg(rmat,verbose,c%ncv,c%cen,c%neqv,c%rotm(1:3,1:3,:))
+       call lattpg(rmat,c%ncv,c%cen,c%neqv,c%rotm(1:3,1:3,:))
 
        ! Calculate the translation vectors
-       call filltrans(c,verbose)
+       call filltrans(c)
     end if
 
     ! Delete atoms that are symmetry-equivalent
-    call reduceatoms(c,verbose)
+    call reduceatoms(c)
 
     ! Find the centering type. If it is not recognized, then fall back
     ! to primitive
     call c%set_lcent()
-
-    if (verbose) then
-       write(uout,'("* Summary ")')
-       write(uout,'("+ List of symmetry operations (",i4,") :")') c%neqv
-       do k = 1, c%neqv
-          write (uout,220) k, ((c%rotm(i,j,k), j = 1, 4), i = 1, 3)
-       enddo
-       write (uout,*)
-
-       write(uout,'("+ List of centering vectors (",i4,") :")') c%ncv
-       do k = 1, c%ncv
-          write (uout,210) k, (c%cen(i,k), i = 1, 3)
-       enddo
-       write (uout,*)
-
-       select case(c%lcent)
-       case(0)
-          str1 = "not set"
-       case(1)
-          str1 = "P or H"
-       case(2)
-          str1 = "A"
-       case(3)
-          str1 = "B"
-       case(4)
-          str1 = "C"
-       case(5)
-          str1 = "I"
-       case(6)
-          str1 = "F"
-       case(7)
-          str1 = "R (obverse)"
-       case(8)
-          str1 = "R (reverse)"
-       case(9)
-          str1 = "unknown (non-standard)"
-       end select
-       write (uout,'("+ Centering type: ",A/)') trim(str1)
-
-       write (uout,'("+ List of atomic positions (",i4,") :")') c%nneq
-       write (uout,230)
-       write (uout,240) (i, c%at(i)%x, trim(c%at(i)%name), c%at(i)%mult, c%at(i)%z,i = 1, c%nneq)
-       write (uout,*)
-
-       write(uout,'("+ GUESSing ended successfully ")')
-       write(uout,*)
-    endif
-
-200 format (/1x, 'Centering vectors (',i4,'):')
-210 format (1x, 'Vector-', i5, ':', 3f10.6)
-220 format (1x, 'Matrix-', i3, ':'/ (4f12.6))
-230 format (/1x,'---i--------x-----------y-----------z-------name--mult---At.N-----')
-240 format (i6, 3f12.6, a10, 2x, i4, i6)
 
   end subroutine guessspg
 
@@ -2978,19 +3214,15 @@ contains
   !>
   !> This routine is part of the spg operations guessing algorithm by
   !> teVelde, described in his PhD thesis.
-  subroutine filltrans(c,verbose)
+  subroutine filltrans(c)
     use tools_io
     use global
 
     type(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
 
     integer :: op, i, j, k, n
     real*8  :: xnew(3)
     logical :: saveop(48), doi, doj, dok
-
-    if (verbose) &
-       write(uout,'("+ Finding the translational part of the sym. ops")')
 
     ! skip identity
     saveop(1) = .true.
@@ -3044,12 +3276,7 @@ contains
           end do
        end if
     end do
-    if (verbose) &
-       write (uout,300) c%neqv, c%neqv - n, n
     c%neqv = n
-
-300 format (/1x, ' Input operations : ', i2,&
-       /1x, ' ...of which ',i2,' pruned and ',i2,' saved.')
 
   end subroutine filltrans
 
@@ -3092,21 +3319,17 @@ contains
 
   !> Reduce the list of positions of atoms using the
   !> symmetry operations of the space group
-  subroutine reduceatoms(c,verbose)
+  subroutine reduceatoms(c)
     use tools_io
     use global
     use types
 
     type(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
 
     integer :: i, j, io, it
     integer :: nnew, icpy
     logical :: found
     real*8  :: v1(3), v2(3)
-
-    if (verbose) &
-       write (uout,'("+ Reducing the atom list by symmetry...")')
 
     nnew = 0
     do i = 1, c%nneq
@@ -3139,12 +3362,8 @@ contains
           c%at(icpy)%mult = c%at(icpy)%mult + 1
        end if
     end do
-    if (verbose) &
-       write (uout,300) c%nneq, c%nneq - nnew, nnew
     c%nneq = nnew
     call realloc(c%at,c%nneq)
-
-300 format (/1x, ' Input atoms : ', i4/1x, ' ...of which ',i4,' pruned and ',i4,' saved.')
 
   end subroutine reduceatoms
 
@@ -3769,13 +3988,12 @@ contains
   !> uout. ncen and xcen are the centering vectors for the lattice in
   !> crystallographic coordinates. nn and rot, if present, receive the
   !> symmetry operations for the lattice.
-  subroutine lattpg(rmat,verbose,ncen,xcen,nn,rot)
+  subroutine lattpg(rmat,ncen,xcen,nn,rot)
     use sympg
     use tools_math
     use tools_io
     use types
     real*8, intent(in) :: rmat(3,3)
-    logical, intent(in) :: verbose
     integer, intent(in) :: ncen
     real*8, intent(in) :: xcen(3,ncen)
     integer, intent(out), optional :: nn
@@ -3786,9 +4004,6 @@ contains
     real*8  :: amax, amax2e, x(3), t(3), d2
     real*8, allocatable :: ax(:,:)
     integer, allocatable :: atZmol(:)
-
-    if (verbose) &
-       write(uout,'("+ Finding the lattice point group...")')
 
     ! the reciprocal-space matrix is the transpose of the inverse
     rmati = matinv(rmat)
@@ -3803,10 +4018,6 @@ contains
     na = int((amax/aal(1)) - 1d-7) + 2
     nb = int((amax/aal(2)) - 1d-7) + 2
     nc = int((amax/aal(3)) - 1d-7) + 2
-    if (verbose) then
-       write (uout,'("+ Star of lattice points")')
-       write (uout,100) na, nb, nc
-    endif
 
     ! build the lattice point molecule
     npos = 0
@@ -3831,13 +4042,6 @@ contains
     allocate(atZmol(npos))
     atzmol = 1
 
-    ! if (verbose) then
-    !    write (uout,820)
-    !    do i = 1, npos
-    !       write (uout,'(I4,X,3(f12.6,2X))') i, ax(:,i)
-    !    end do
-    ! end if
-
     ! Use symmetry to determine the point group. Default options
     call sym3d(rmat,ax(1,:),ax(2,:),ax(3,:),atZmol,npos,.false.)
 
@@ -3849,23 +4053,6 @@ contains
        end do
     end if
     deallocate(atZmol,ax)
-
-    ! write some stuff and exit
-    if (verbose) then
-       write (uout,700) point_group, nopsym
-       write (uout,780) nclas
-       do i = 1, nclas
-          write (uout,785) i, ninclas(i), opsymbol(iinclas(i,1))&
-             , (iinclas(i,j), j = 1, ninclas(i))
-       enddo
-    endif
-
-100 format (1x,'Number of Lattice vectors (a, b, c): ',3(i2,2x))
-820 format (1x, '---i-----x----------y----------z-----------')
-700 format (/1x, 'Point group: ', a/1x, 'Number of operators found: ', i5)
-780 format (/1x, 'Number of symmetry operation classes:', i5/1x,&
-       'Class...#op....Repres..Operations...')
-785 format (2i6, 2x, a10, (20i4))
 
   end subroutine lattpg
 

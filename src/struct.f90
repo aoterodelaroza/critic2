@@ -232,7 +232,8 @@ contains
           &,faterr,line)
     end if
 
-    call c%struct_fill(verbose)
+    call c%struct_fill()
+    if (verbose) call c%struct_report()
 
   end subroutine struct_crystal_input
 
@@ -267,7 +268,8 @@ contains
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
     write (uout,'("            The new crystal description follows"/)')
-    call cr%struct_fill(.true.)
+    call cr%struct_fill()
+    call cr%struct_report()
 
   end subroutine struct_clearsym
 
