@@ -3,6 +3,10 @@ AC_PREREQ(2.68)
 AC_INIT(critic2,m4_esyscmd_s([./tools/version.sh]),[alberto@fluor.quimica.uniovi.es,victor@fluor.quimica.uniovi.es,angel@fluor.quimica.uniovi.es])
 AC_CONFIG_AUX_DIR([config/gnu])
 AC_CONFIG_MACRO_DIR([config/m4])
+# These are necessary for older versions of autotools
+m4_include([config/m4/ax_f90_module_extension.m4])
+m4_include([config/m4/libxc.m4])
+m4_include([config/m4/ax_f90_module_flag.m4])
 
 # Initialize automake
 AC_CANONICAL_TARGET
