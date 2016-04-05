@@ -945,7 +945,7 @@ structure triazine
     neq   0.52606667   0.19273333   0.08333333         N1
   endcrystal
 endstructure
-stucture trioxane
+structure trioxane
   crystal
     cell  17.61224755849  17.61224755849  15.48819538513  90.00000  90.00000 120.00000
     neq   0.13570000   0.15210000   0.97180000         C1
