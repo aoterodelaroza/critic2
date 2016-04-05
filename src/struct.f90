@@ -1007,6 +1007,9 @@ contains
     if (equal(word,"primitive")) then
        call cr%primitive_buerger(.true.)
        return
+    elseif (equal(word,"conventional")) then
+       call cr%conventional_standard(.true.)
+       return
     else
        lp = 1
     end if
