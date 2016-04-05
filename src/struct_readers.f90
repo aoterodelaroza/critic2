@@ -1301,11 +1301,12 @@ contains
 
     integer, allocatable :: iz(:)
     real*8, allocatable :: x(:,:)
-    integer :: lu, i, j, i1, i2
+    integer :: lu, i, j, i1, i2, lp
     real*8 :: zreal
     character(len=:), allocatable :: line
     character*4 :: atsym
     character*4 :: orbtyp
+    logical :: ok
 
     ! open the file
     lu = fopen_read(file)
@@ -1318,8 +1319,13 @@ contains
        do i = 1, c%nneq
           read (lu,*) atsym, c%at(i)%x
           c%at(i)%z = zatguess(atsym)
-          if (c%at(i)%z == 0) &
-             call ferror('struct_read_mol','could not determine atomic number',faterr)
+          if (c%at(i)%z <= 0) then
+             ! maybe it's a number
+             lp = 1
+             ok = isinteger(c%at(i)%z,atsym,lp)
+             if (.not.ok) &
+                call ferror('struct_read_mol','could not determine atomic number',faterr)
+          end if
           c%at(i)%name = trim(adjustl(atsym))
           c%at(i)%x = c%at(i)%x / bohrtoa
        end do
