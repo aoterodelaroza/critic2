@@ -615,9 +615,8 @@ contains
     fl1 = .false.
     fl2 = .false.
     c%neqv = 0
-    c%ncv = 1
-    if (allocated(c%cen)) deallocate(c%cen)
-    allocate(c%cen(3,4))
+    c%ncv = 0
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen(:,1) = 0d0
     do while(.true.)
        if (.not.found) then
@@ -698,6 +697,8 @@ contains
        if (.not.loop_) exit
     end do
     call realloc(c%cen,3,c%ncv)
+
+    if (c%ncv == 0) c%ncv = 1
 
     ! set the centering type
     call c%set_lcent()
@@ -805,7 +806,9 @@ contains
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
-    c%ncv = 0
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
     c%lcent = 0
 
     ! initialize atoms
@@ -847,10 +850,9 @@ contains
 102 FORMAT(A80)
 103 FORMAT(A4,23X,I3,1x,a4,/,4X,4X) ! new
 
-    c%ncv = 0
-    if (allocated(c%cen)) deallocate(c%cen)
-    allocate(c%cen(3,4)) 
-    c%cen = 0
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
     IF(LATTIC(1:1).EQ.'S'.OR.LATTIC(1:1).EQ.'P') THEN
        c%ncv=1
     ELSE IF(LATTIC(1:1).EQ.'F') THEN
@@ -1163,7 +1165,9 @@ contains
     c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
 
     ! abinit always uses primitive cells, even when it does not (chkprim = -1)
-    c%ncv = 0
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
     c%lcent = 0
 
     ! atoms
@@ -1528,7 +1532,9 @@ contains
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
-    c%ncv = 0
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
     c%lcent = 0
 
     ! close the shop
@@ -1800,7 +1806,9 @@ contains
     c0%neqv = 1
     c0%rotm = 0d0
     c0%rotm(:,1:3,1) = eye
-    c0%ncv = 0
+    c0%ncv = 1
+    if (.not.allocated(c0%cen)) allocate(c0%cen(3,4))
+    c0%cen = 0d0
     c0%lcent = 0
 
     ! close
@@ -1863,7 +1871,9 @@ contains
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
-    c%ncv = 0
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
     c%lcent = 0
 
     ! close
@@ -2203,7 +2213,9 @@ contains
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,1:3,1) = eye
-    c%ncv = 0
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
     c%lcent = 0
     
   end subroutine fill_molecule

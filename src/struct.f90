@@ -202,6 +202,7 @@ contains
              exit
           end if
        end do
+
        call struct_read_mol(c,word,wext1,rborder,docube)
        call c%set_cryscar()
        call c%guessspg(doguess,.false.)

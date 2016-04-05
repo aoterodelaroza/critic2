@@ -2667,6 +2667,7 @@ contains
     allocate(atpos(3,192),irotm(192),icenv(192))
     do i = 1, c%nneq
        call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
+
        do j = 1, c%at(i)%mult
           c%ncel = c%ncel + 1
           if (c%ncel > size(c%atcel)) then
