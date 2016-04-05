@@ -1005,10 +1005,16 @@ contains
     lp = 1
     word = lgetword(line,lp)
     if (equal(word,"primitive")) then
-       call cr%primitive_buerger(.true.)
-       return
-    elseif (equal(word,"conventional")) then
-       call cr%conventional_standard(.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"buerger")) then
+          call cr%primitive_buerger(.true.)
+       else if (equal(word,"any")) then
+          call cr%primitive_any(.true.)
+       else if (equal(word,"delaunay")) then
+          call cr%primitive_delaunay(.true.)
+       else
+          call cr%primitive_buerger(.true.)
+       end if
        return
     else
        lp = 1

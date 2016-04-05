@@ -5212,7 +5212,7 @@ Other structural tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)
 
   NEWCELL x1.r y1.r z1.r x2.r y2.r z2.r x3.r y3.r z3.r
           [INV|INVERSE] [ORIGIN x0.r y0.r z0.r]
-  NEWCELL PRIMITIVE
+  NEWCELL PRIMITIVE [ANY|BUERGER|DELAUNAY]
 
 Transform the crystal structure description by using a new unit cell
 given by the vectors x1, x2, x3 (in crystallographic coordinates)
@@ -5251,7 +5251,10 @@ to the initial one read from the library.
 The NEWCELL PRIMITIVE keyword transforms the current cell into a
 primitive cell. A Buerger reduced cell is found (a <= b <= c, each the
 shortest possible vector) with maximum deviation (sum of the absolute
-value of the cell angle cosines).
+value of the cell angle cosines) by default. The type of primitive
+cell can also be chosen: Buerger (BUERGER), the cell resulting from
+Delaunay reduction (DELAUNAY), or a simple reduction to an arbitrary
+primitive cell (ANY).
 
 ::
 
