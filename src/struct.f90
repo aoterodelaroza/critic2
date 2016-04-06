@@ -336,7 +336,7 @@ contains
 
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux
-    logical :: doborder, molmotif, doprim, dodreiding, docell, domolcell, ok
+    logical :: doborder, molmotif, dodreiding, docell, domolcell, ok
     logical :: doburst, dopairs
     real*8 :: rsph, xsph(3), rcub, xcub(3)
 
@@ -344,18 +344,6 @@ contains
     file = getword(line,lp)
     wext = lower(file(index(file,'.',.true.)+1:))
     wroot = file(:index(file,'.',.true.)-1)
-
-    ! scan for keywords common to many formats
-    doprim = .false.
-    lp2 = lp
-    do while(.true.)
-       word = lgetword(line,lp2)
-       if (equal(word,'primitive')) then
-          doprim = .true.
-       else
-          exit
-       endif
-    end do
 
     if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'obj').or.&
         equal(wext,'ply').or.equal(wext,'off')) then
@@ -448,27 +436,27 @@ contains
     elseif (equal(wext,'gau')) then
        ! gaussian periodic boundary conditions
        write (uout,'("* WRITE Gaussian file: ",A)') string(file)
-       call struct_write_gaussian(file,cr,doprim)
+       call struct_write_gaussian(file,cr)
        call check_no_extra_word()
     elseif (equal(wext,'in')) then
        ! espresso
        write (uout,'("* WRITE espresso file: ",A)') string(file)
-       call struct_write_espresso(file,cr,doprim)
+       call struct_write_espresso(file,cr)
        call check_no_extra_word()
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
-       call struct_write_vasp(file,cr,doprim,.true.)
+       call struct_write_vasp(file,cr,.true.)
        call check_no_extra_word()
     elseif (equal(wext,'abin')) then
        ! abinit
        write (uout,'("* WRITE abinit file: ",A)') string(file)
-       call struct_write_abinit(file,cr,doprim)
+       call struct_write_abinit(file,cr)
        call check_no_extra_word()
     elseif (equal(wext,'elk')) then
        ! elk
        write (uout,'("* WRITE elk file: ",A)') string(file)
-       call struct_write_elk(file,cr,doprim)
+       call struct_write_elk(file,cr)
        call check_no_extra_word()
     elseif (equal(wext,'tess')) then
        ! tessel

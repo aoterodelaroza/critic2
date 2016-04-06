@@ -314,14 +314,13 @@ contains
   end subroutine struct_write_3dmodel
 
   !> Write a quantum espresso input template
-  subroutine struct_write_espresso(file,c,doprim)
+  subroutine struct_write_espresso(file,c)
     use struct_basic
     use tools_io
     use param
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
-    logical, intent(in) :: doprim
 
     character(len=:), allocatable :: lbl1
     integer :: i, lu
@@ -374,14 +373,14 @@ contains
   end subroutine struct_write_espresso
 
   !> Write a VASP POSCAR template
-  subroutine struct_write_vasp(file,c,doprim,verbose)
+  subroutine struct_write_vasp(file,c,verbose)
     use struct_basic
     use tools_io
     use param
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
-    logical, intent(in) :: doprim, verbose
+    logical, intent(in) :: verbose
 
     character(len=:), allocatable :: lbl1
     integer :: i, j, lu
@@ -436,14 +435,13 @@ contains
   end subroutine struct_write_vasp
 
   !> Write an abinit input template
-  subroutine struct_write_abinit(file,c,doprim)
+  subroutine struct_write_abinit(file,c)
     use struct_basic
     use tools_io
     use param
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
-    logical, intent(in) :: doprim
 
     character(len=:), allocatable :: lbl1
     integer :: ntyp(120), iz
@@ -456,7 +454,7 @@ contains
        ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
     end do
 
-    ! Find the lengths and angles of the primitive cell
+    ! Find the lengths and angles of the cell
     gpq = matmul(transpose(c%crys2car),c%crys2car)
     do i = 1, 3
        aap(i) = sqrt(gpq(i,i))
@@ -522,14 +520,13 @@ contains
   end subroutine struct_write_abinit
 
   !> Write an elk input template
-  subroutine struct_write_elk(file,c,doprim)
+  subroutine struct_write_elk(file,c)
     use struct_basic
     use tools_io
     use param
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
-    logical, intent(in) :: doprim
 
     integer :: ntyp(100)
     integer :: i, j, lu
@@ -574,14 +571,13 @@ contains
   end subroutine struct_write_elk
 
   !> Write a Gaussian template input (periodic).
-  subroutine struct_write_gaussian(file,c,doprim)
+  subroutine struct_write_gaussian(file,c)
     use struct_basic
     use tools_io
     use param
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
-    logical, intent(in) :: doprim
 
     character(len=:), allocatable :: wroot
     integer :: lu, i, j
