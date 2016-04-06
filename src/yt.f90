@@ -73,6 +73,8 @@ contains
        do i = 1, c%ncel
           xcoord(:,i) = c%atcel(i)%x
        end do
+    else
+       nbasin = 0
     end if
 
     ! Copy the field onto a one-dimensional array
