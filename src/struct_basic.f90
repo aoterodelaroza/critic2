@@ -75,6 +75,7 @@ module struct_basic
      character*1 :: cfam !< Crystal family 
      integer :: delsort !< Delaunay sort (row in table 9.1.8.1, ITC)
      character*3 :: pointgroup !< Crystal point group
+     real*8 :: rmat_conventional(3,3) !< Transformation to conventional cell
      ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
      ! 9=6/mmm, 10=m3bar, 11=m3barm
      integer :: havesym = 0 !< was the symmetry determined?
@@ -135,6 +136,7 @@ module struct_basic
      procedure :: primitive_any !< Transform to an arbitrary primitive cell.
      procedure :: primitive_delaunay !< Transform to the delaunay-reduced cell
      procedure :: delaunay_reduction !< Perform the delaunay reduction.
+     ! procedure :: conventional_standard !< Transform to the standard conventional cell
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: struct_report !< Write lots of information about the crystal structure to uout
      procedure :: guessspg !< Guess the symmetry operations from the structure
@@ -326,12 +328,13 @@ contains
     
   end subroutine set_lcent
 
+  !> Classify the lattice using Delaunay reduction.
   subroutine classify(c)
     use tools_io
     class(crystal), intent(inout) :: c
 
     real*8 :: rmat(3,3), dmat(3,4), sc(4,4), scv(6), xn(4)
-    integer :: nzero, ndiff
+    integer :: nzero, ndiff, nzero123, nsame(6)
 
     integer :: i
     logical :: done(6)
@@ -339,9 +342,20 @@ contains
     real*8, parameter :: eps = 1d-10
 
     ! run the delaunay reduction of the primitive cell
-    call c%primitive_any(.false.,rmat)
-    call c%delaunay_reduction(dmat,rmat,sc)
-    
+    if (c%havesym >= 1) then
+       call c%primitive_any(.false.,rmat)
+       call c%delaunay_reduction(dmat,rmat,sc)
+    else
+       c%delaunay = "??"
+       c%bravais_type = "??"
+       c%cfam = "?"
+       c%delsort = 0
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
+       return
+    end if
+
     ! unpack the scalar product matrix
     scv(1) = sc(1,2)
     scv(2) = sc(1,3)
@@ -353,196 +367,336 @@ contains
     ! implementation of the classification in table 9.1.8.1 ITC
     ! count number of zeros and number of distinct elements
     nzero = count(abs(scv) < eps)
+    nzero123 = count(abs(scv((/1,2,4/))) < eps)
     done = (abs(scv) < eps)
     ndiff = 0
     do i = 1, 6
        if (.not.done(i)) then
           ndiff = ndiff + 1
+          nsame(ndiff) = count(abs(scv - scv(i)) < eps)
           done = done .or. (abs(scv - scv(i)) < eps)
        end if
     end do
     
-    ! classify, from the top of the table
+    ! Classify, from the top of the table. I'm having trouble because
+    ! the vectors do not come in order out of the Delaunay reduction
+    ! procedure, and it's not clear in ITC how to choose the reduced
+    ! basis.
     if (nzero == 0 .and. ndiff == 1) then
+       ! row=1, K1, cI: 12 12 12 12 12 12 
        c%delaunay = "K1"
        c%bravais_type = "cI"
        c%cfam = "c"
        c%delsort = 1
+       c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
+       c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
+       c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
     elseif (nzero == 2 .and. ndiff == 1) then
+       ! row=2, K2, cF: 0 13 13 13 13 0
        c%delaunay = "K2"
        c%bravais_type = "cF"
        c%cfam = "c"
        c%delsort = 2
+       c%rmat_conventional(:,1) = (/ 1d0, -1d0, 1d0 /)
+       c%rmat_conventional(:,2) = (/ 1d0, 1d0, 1d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
     elseif (nzero == 3 .and. ndiff == 1) then
        if (abs(scv(4)) > eps) then
+          ! row=3, K3, cP: 0 0 14 14 14 0
           c%delaunay = "K3"
           c%bravais_type = "cP"
           c%cfam = "c"
           c%delsort = 3
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 1d0, 1d0 /)
        else
+          ! row=4, K3, cP: 0 0 14 0 14 14 0 
           c%delaunay = "K3"
           c%bravais_type = "cP"
           c%cfam = "c"
           c%delsort = 4
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
        end if
     elseif (nzero == 2 .and. ndiff == 2) then
-       if (abs(scv(2)) < eps) then
+       if (nzero123 == 2) then
+          ! row=5, H , hP: 12 0 12 0 12 34
           c%delaunay = "H "
           c%bravais_type = "hP"
           c%cfam = "h"
           c%delsort = 5
-       elseif (abs(scv(2) - scv(4)) < eps) then
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
+       elseif (nsame(1) == 3 .or. nsame(2) == 3) then
+          ! row=7, R2, hR: 0 13 13 13 24 0
           c%delaunay = "R2"
           c%bravais_type = "hR"
           c%cfam = "h"
           c%delsort = 7
-       elseif (abs(scv(4) - scv(4)) < eps) then
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 0d0, 3d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 1d0, 2d0 /)
+       elseif (abs(scv(3) - scv(4)) < eps) then
+          ! row=16, O4, oI: 0 13 14 14 13 0
           c%delaunay = "O4"
           c%bravais_type = "oI"
           c%cfam = "o"
           c%delsort = 16
+          c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
        else
+          ! row=17, O4, oI: 0 13 13 23 23 0
           c%delaunay = "O4"
           c%bravais_type = "oI"
           c%cfam = "o"
           c%delsort = 17
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
        end if
     elseif (nzero == 0 .and. ndiff == 2) then
-       if (abs(scv(1) - scv(2)) < eps) then
+       if (nsame(1) == 3 .or. nsame(2) == 3) then
+          ! row=6, R1, hR: 12 12 14 12 14 14
           c%delaunay = "R1"
           c%bravais_type = "hR"
           c%cfam = "h"
           c%delsort = 6
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ -1d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, -1d0, 1d0 /)
        else
+          ! row=8, Q1, tI: 12 13 13 13 13 12
           c%delaunay = "Q1"
           c%bravais_type = "tI"
           c%cfam = "t"
           c%delsort = 8
+          c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
        end if
-    elseif (nzero == 1 .and. ndiff == 2) then
+    elseif (nzero == 1 .and. (ndiff == 2 .or. ndiff == 1)) then
+       ! row=9, Q2, tI: 0 13 13 13 13 34
        c%delaunay = "Q2"
        c%bravais_type = "tI"
        c%cfam = "t"
        c%delsort = 9
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 1d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
     elseif (nzero == 3 .and. ndiff == 2) then
-       if (abs(scv(4)) < eps) then
+       if (nzero123 == 3) then
+          ! row=10, Q3, tP: 0 0 14 0 14 34
           c%delaunay = "Q3"
           c%bravais_type = "tP"
           c%cfam = "t"
           c%delsort = 10
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
        elseif (abs(scv(6)) < eps) then
+          ! row=11, Q3, tP: 0 0 14 14 24 0
           c%delaunay = "Q3"
           c%bravais_type = "tP"
           c%cfam = "t"
           c%delsort = 11
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 1d0, 1d0 /)
        else
+          ! row=12, Q3, tP: 0 0 14 23 0 23
           c%delaunay = "Q3"
           c%bravais_type = "tP"
           c%cfam = "t"
           c%delsort = 12
+          c%rmat_conventional(:,1) = (/ 0d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 1d0, 0d0 /)
        end if
     elseif (nzero == 0 .and. ndiff == 3) then
-       if (abs(scv(2) - scv(3)) < eps) then
+       if (any(nsame(1:3) == 4)) then
+          ! row=13, O1, oF: 12 13 13 13 13 34
           c%delaunay = "O1"
           c%bravais_type = "oF"
           c%cfam = "o"
           c%delsort = 13
+          c%rmat_conventional(:,1) = (/ 1d0, -1d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
        else
+          ! row=14, O2, oI: 12 13 14 14 13 12
           c%delaunay = "O2"
           c%bravais_type = "oI"
           c%cfam = "o"
           c%delsort = 14
+          c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
        end if
     elseif (nzero == 1 .and. ndiff == 3) then
        if (abs(scv(2) - scv(3)) < eps) then
+          ! row=15, O3, oI: 0 13 13 23 23 34
           c%delaunay = "O3"
           c%bravais_type = "oI"
           c%cfam = "o"
           c%delsort = 15
-       elseif (abs(scv(2) - scv(3)) < eps) then
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 1d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
+       elseif (abs(scv(2) - scv(5)) < eps) then
+          ! row=25, M4, mI: 0 13 14 14 13 34
           c%delaunay = "M4"
           c%bravais_type = "mI"
           c%cfam = "o"
           c%delsort = 25
+          c%rmat_conventional(:,1) = (/ 0d0, 1d0, -1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 1d0, 0d0, -1d0 /)
        else
+          ! row=26, M4, mI: 0 13 14 13 14 34
           c%delaunay = "M4"
           c%bravais_type = "mI"
           c%cfam = "o"
           c%delsort = 26
+          c%rmat_conventional(:,1) = (/ -1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ -1d0, -1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ -1d0, 0d0, 1d0 /)
        end if
     elseif (nzero == 2 .and. ndiff == 3) then
        if (abs(scv(1) - scv(5)) < eps) then
           c%delaunay = "O5"
+          ! row=18, O5, oC: 12 0 14 0 12 34
           c%bravais_type = "oC"
           c%cfam = "o"
           c%delsort = 18
-       elseif (abs(scv(2)) < eps) then
+          c%rmat_conventional(:,1) = (/ 2d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
+       elseif (abs(scv(3) - scv(5)) < eps) then
+          ! row=19, O5, oC: 12 0 14 0 14 34
           c%delaunay = "O5"
           c%bravais_type = "oC"
           c%cfam = "o"
           c%delsort = 19
+          c%rmat_conventional(:,1) = (/ 1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ -1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
        elseif (abs(scv(4) - scv(5)) < eps) then
+          ! row=27, M5, mI: 0 13 14 23 23 0
           c%delaunay = "M5"
           c%bravais_type = "mI"
           c%cfam = "m"
           c%delsort = 27
+          c%rmat_conventional(:,1) = (/ -1d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,2) = (/ -1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ -2d0, 0d0, 0d0 /)
        else
+          ! row=28, M5, mI: 0 13 14 23 13 0
           c%delaunay = "M5"
           c%bravais_type = "mI"
           c%cfam = "m"
           c%delsort = 28
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, -1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, -1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, -1d0, -1d0 /)
        end if
     elseif (nzero == 3 .and. ndiff == 3) then
        if (abs(scv(4)) < eps) then
+          ! row=20, O6, oP: 0 0 14 0 24 34
           c%delaunay = "O6"
           c%bravais_type = "oP"
           c%cfam = "o"
           c%delsort = 20
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
        else
+          ! row=21, O6, oP: 0 0 14 23 24 0
           c%delaunay = "O6"
           c%bravais_type = "oP"
           c%cfam = "o"
           c%delsort = 21
+          c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ 0d0, 0d0, 1d0 /)
+          c%rmat_conventional(:,3) = (/ 0d0, 1d0, 1d0 /)
        end if
     elseif (nzero == 0 .and. ndiff == 4) then
        if (abs(scv(2) - scv(4)) < eps) then
+          ! row=22, M1, mI: 12 13 14 13 14 34
           c%delaunay = "M1"
           c%bravais_type = "mI"
           c%cfam = "m"
           c%delsort = 22
+          c%rmat_conventional(:,1) = (/ -1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,2) = (/ -1d0, -1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ -1d0, 0d0, 1d0 /)
        else
+          ! row=23, M2, mI: 12 13 14 14 13 34
           c%delaunay = "M2"
           c%bravais_type = "mI"
           c%cfam = "m"
           c%delsort = 23
+          c%rmat_conventional(:,1) = (/ 0d0, 1d0, -1d0 /)
+          c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
+          c%rmat_conventional(:,3) = (/ 1d0, 0d0, -1d0 /)
        end if
     elseif (nzero == 1 .and. ndiff == 4) then
+       ! row=24, M3, mI: 0 13 14 23 23 34
        c%delaunay = "M3"
        c%bravais_type = "mI"
        c%cfam = "m"
        c%delsort = 24
+       c%rmat_conventional(:,1) = (/ -1d0, 0d0, 1d0 /)
+       c%rmat_conventional(:,2) = (/ -1d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ -2d0, 0d0, 0d0 /)
     elseif (nzero == 2 .and. ndiff == 4) then
+       ! row=29, M6, mP: 0 13 14 0 24 34
        c%delaunay = "M6"
        c%bravais_type = "mP"
        c%cfam = "m"
        c%delsort = 29
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
     elseif (nzero == 0 .and. ndiff == 6) then
+       ! row=30, T1, aP: 12 13 14 23 24 34
        c%delaunay = "T1"
        c%bravais_type = "aP"
        c%cfam = "a"
        c%delsort = 30
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
     elseif (nzero == 1 .and. ndiff == 5) then
+       ! row=31, T2, aP: 0 13 14 23 24 34
        c%delaunay = "T2"
        c%bravais_type = "aP"
        c%cfam = "a"
        c%delsort = 31
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
     elseif (nzero == 2 .and. ndiff == 4) then
+       ! row=32, T3, aP: 0 13 14 23 24 0
        c%delaunay = "T3"
        c%bravais_type = "aP"
        c%cfam = "a"
        c%delsort = 32
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
     else
-       call ferror('classify','could not classify lattice delsort',faterr)
+       c%delaunay = "??"
+       c%bravais_type = "??"
+       c%cfam = "?"
+       c%delsort = 0
+       c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
+       c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
+       c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
+       call ferror('classify','could not classify lattice delsort',warning)
     end if
 
   end subroutine classify
@@ -1945,16 +2099,18 @@ contains
     integer :: nlat
     real*8, allocatable :: xlat(:,:)
 
+    real*8, parameter :: eps = 1d-6
+
     ! initialize
     x0 = x00
     dd = det(x0)
-    if (abs(dd) < 1d-10) then
+
+    if (abs(dd) < eps) then
        call ferror('newcell','invalid input vectors',faterr)
     elseif (dd < 0d0) then
-       ! switch two vectors
-       x0(1,:) = x00(2,:)
-       x0(2,:) = x00(1,:)
-       dd = -dd
+       ! flip the cell
+       x0 = -x0
+       dd = det(x0)
        call ferror('newcell','det < 0; vectors 1 and 2 switched',warning)
     endif
     if (present(t0)) then
@@ -1964,7 +2120,6 @@ contains
     end if
     verbose = .false.
     if (present(verbose0)) verbose = verbose0
-
 
     ! check that the vectors are pure translations
     do i = 1, 3
@@ -1979,15 +2134,15 @@ contains
     end do
 
     ! is this a smaller or a larger cell? Arrange vectors.
-    if (abs(dd-1d0) < 1d-10) then
+    if (abs(dd-1d0) < eps) then
        nr = 1
     elseif (dd > 1d0) then
        nr = nint(dd)
-       if (abs(nr-dd) > 1d-10) &
+       if (abs(nr-dd) > eps) &
           call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
     else
        nr = -nint(1d0/dd)
-       if (abs(-nr-1d0/dd) > 1d-10) &
+       if (abs(-nr-1d0/dd) > eps) &
           call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
     end if
 
@@ -2007,7 +2162,7 @@ contains
     nc%bb(2) = acos(g(1,3) / nc%aa(1) / nc%aa(3)) * 180d0 / pi
     nc%bb(3) = acos(g(1,2) / nc%aa(1) / nc%aa(2)) * 180d0 / pi
     fvol = abs(det(r)) / c%omega
-    if (abs(nint(fvol)-fvol) > 1d-10 .and. abs(nint(1d0/fvol)-1d0/fvol) > 1d-10) &
+    if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
        call ferror("struct_newcell","Inconsistent newcell volume",faterr)
 
     ! find a star of lattice vectors and supercell centering vectors, if any
@@ -2019,13 +2174,13 @@ contains
        do j = minval(floor(x0(2,:))),maxval(ceiling(x0(2,:)))
           do k = minval(floor(x0(3,:))),maxval(ceiling(x0(3,:)))
              x = matmul((/i, j, k/),transpose(x0inv))
-             if (any(abs(x-nint(x)) > 1d-10)) then
+             if (any(abs(x-nint(x)) > eps)) then
                 ! this is a new candidate for supercell centering vector
                 ! check if we have it already
                 x = x - floor(x)
                 found = .false.
                 do l = 1, nlat
-                   if (all(abs(xlat(:,l) - x) < 1d-10)) then
+                   if (all(abs(xlat(:,l) - x) < eps)) then
                       found = .true.
                       exit
                    end if
@@ -2052,7 +2207,7 @@ contains
           do m = 1, nc%nneq
              dx = x - nc%at(m)%x
              dx = abs(dx - nint(dx))
-             if (all(dx < 1d-10)) then
+             if (all(dx < eps)) then
                 ok = .false.
                 exit
              end if
@@ -2093,6 +2248,7 @@ contains
     hadsym = c%havesym
     call c%end()
     call c%init()
+    c%file = "<derived>"
     c%aa = nc%aa
     c%bb = nc%bb
     c%nneq = nc%nneq
@@ -2103,7 +2259,7 @@ contains
     call nc%end()
 
     ! initialize the structure
-    if (hadsym > 0) call c%guessspg(hadsym,verbose) 
+    call c%guessspg(hadsym) 
     call c%struct_fill()
     if (verbose) call c%struct_report()
 
@@ -2145,11 +2301,8 @@ contains
     ! ignore molecules
     if (c%ismolecule) return
 
-    ! Find the centering vectors
-    if (c%havesym < 1) then
-       call c%guessspg(1,.false.) 
-       call c%classify()
-    end if
+    ! Only available if havesym >= 1
+    if (c%havesym < 1) return
 
     ! allocate the xlat
     allocate(xlat(3,10),dist(10))
@@ -2171,7 +2324,7 @@ contains
                    x = real(l,8) + c%cen(:,i)
                    xc = c%x2c(x)
                    d2 = dot_product(xc,xc)
-                   if (d2 < 1d-10) then
+                   if (d2 < eps) then
                       again = .true.
                       cycle
                    end if
@@ -2328,28 +2481,36 @@ contains
     real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:)
     integer, allocatable :: io(:)
     real*8 :: x(3), xc(3), mindist2, d2
-    integer :: nlat, nshl
+    integer :: nlat, nshl, ipass
     logical :: again, found
-    real*8 :: xp(3,3), dd
+    real*8 :: xp(3,3), dd, fac
 
     real*8, parameter :: eps = 1d-6
+    real*8, parameter :: fac0 = 4d0
+    real*8, parameter :: facinc = 2d0
+
 
     if (present(rmat)) rmat = eye
 
     ! ignore molecules
     if (c%ismolecule) return
 
-    ! Find the centering vectors
-    if (c%havesym < 1) then
-       call c%guessspg(1,.false.) 
-       call c%classify()
-    end if
+    ! Only available if havesym >= 1
+    if (c%havesym < 1) return
 
     ! Exit if this is already a primitive
     if (c%ncv == 1) return
 
     ! allocate the xlat
     allocate(xlat(3,10),dist(10))
+
+    ipass = 0
+    fac = fac0
+
+    ! anchor for when a bigger star is needed
+10  continue
+    ipass = ipass + 1
+    if (ipass == 4) call ferror('primitive_any','could not find triplet for primitive cell',faterr)
 
     ! Build a star of lattice and centering vectors 
     nshl = -1
@@ -2368,11 +2529,11 @@ contains
                    x = real(l,8) + c%cen(:,i)
                    xc = c%x2c(x)
                    d2 = dot_product(xc,xc)
-                   if (d2 < 1d-10) then
+                   if (d2 < eps) then
                       again = .true.
                       cycle
                    end if
-                   if (d2 > 4d0*mindist2) cycle
+                   if (d2 > fac*mindist2) cycle
 
                    ! add this lattice to the xlat and dist2
                    nlat = nlat + 1
@@ -2401,7 +2562,7 @@ contains
        xlataux(:,i) = xlat(:,io(i))
     end do
     call move_alloc(xlataux,xlat)
-    deallocate(io,dist)
+    deallocate(io)
 
     ! Run over lattice vector triplets 
     found = .false.
@@ -2425,7 +2586,12 @@ contains
        end do
     end do main
 
-    if (.not.found) call ferror('primitive_any','could not find triplet for primitive cell',faterr)
+    ! try again with a bigger star
+    if (.not.found) then
+       fac = fac * facinc
+       goto 10
+    end if
+    deallocate(dist)
 
     ! transform to the primitive or output through rmat
     if (present(rmat)) then
@@ -2454,7 +2620,7 @@ contains
     real*8 :: sc(4,4)
     logical :: again
 
-    real*8, parameter :: eps = 1d-12
+    real*8, parameter :: eps = 1d-10
 
     ! build the four Delaunay vectors
     if (present(rmati)) then
@@ -2557,6 +2723,9 @@ contains
        if (abs(det(rmat0)) > eps) exit
     end do
 
+    ! flip the cell?
+    if (det(rmat0) < 0d0) rmat0 = -rmat0
+
     ! transform to the primitive or output through rmat
     if (present(rmat)) then
        rmat = rmat0
@@ -2565,6 +2734,38 @@ contains
     end if
 
   end subroutine primitive_delaunay
+
+  ! !> Transform to the standard conventional cell. (???)
+  ! subroutine conventional_standard(c,verbose,rmat)
+  !   use tools
+  !   use tools_io
+  !   use tools_math
+  !   use param
+  !   class(crystal), intent(inout) :: c
+  !   logical, intent(in) :: verbose
+  !   real*8, intent(out), optional :: rmat(3,3)
+  ! 
+  !   real*8 :: m(3,3)
+  ! 
+  !   real*8, parameter :: eps = 1d-6
+  ! 
+  !   if (present(rmat)) rmat = eye
+  ! 
+  !   ! ignore molecules
+  !   if (c%ismolecule) return
+  ! 
+  !   ! Only available if havesym >= 1
+  !   if (c%havesym < 1) return
+  ! 
+  !   ! transform to the primitive or output through rmat
+  !   if (present(rmat)) then
+  !      rmat = c%rmat_conventional
+  !   else
+  !      call c%primitive_delaunay(.true.)
+  !      call c%newcell(c%rmat_conventional,verbose0=.true.)
+  !   end if
+  ! 
+  ! end subroutine conventional_standard
 
   !> Uses the cell lengths, angles, centering type, non-equivalent
   !> atom list (positions, Z and names), space group operations and
@@ -2588,6 +2789,8 @@ contains
     real*8 :: ss(3), cc(3), root, dist(1)
     integer :: ncnt, naux(3), order, nneig(1), wat(1)
     logical, allocatable :: atreduce(:)
+
+    real*8, parameter :: eps = 1d-6
 
     ! permute the symmetry operations to make the identity the first
     if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
@@ -2692,6 +2895,7 @@ contains
     ss = sin(c%bb*rad)
     cc = cos(c%bb*rad)
     root=sqrt(1d0-cc(1)*cc(1)-cc(2)*cc(2)-cc(3)*cc(3)+2d0*cc(1)*cc(2)*cc(3))
+    if (root < eps) call ferror('struct_fill','zero volume cell',faterr)
 
     ! Real space metric tensor
     c%gtensor(1,1) = c%aa(1) * c%aa(1)
@@ -2782,7 +2986,7 @@ contains
 
     ! Header
     if (.not.c%ismolecule) then
-       write (uout,'("* Input crystal structure")')
+       write (uout,'("* Crystal structure")')
        write (uout,'("  From: ",A)') string(c%file)
        write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
           string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
@@ -2791,7 +2995,7 @@ contains
        write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
           string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
     else
-       write (uout,'("* Input molecular structure")')
+       write (uout,'("* Molecular structure")')
        write (uout,'("  From: ",A)') string(c%file)
        write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
           string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
@@ -2801,7 +3005,7 @@ contains
 
     ! Compute unit formula, and z
     if (.not.c%ismolecule) then
-       maxdv = mcd(c%at(:)%mult,c%nneq)
+       maxdv = gcd(c%at(:)%mult,c%nneq)
        write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
           (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
        write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
@@ -3032,7 +3236,7 @@ contains
   !> bb) Inout: nneq, at(:)%z, at(:)%x, at(:)%name Out: lcent, neqv,
   !> rotm. If level = 0, use no symmetry. If level = 1, find only
   !> the centering vectors. Level = 2, full symmetry.
-  subroutine guessspg(c,level,verbose)
+  subroutine guessspg(c,level)
     use global
     use tools_math
     use tools_io
@@ -3040,38 +3244,27 @@ contains
 
     class(crystal), intent(inout) :: c
     integer, intent(in) :: level
-    logical, intent(in) :: verbose
 
     integer :: i, j, k
     real*8 :: sumcen, rmat(3,3)
     character(len=:), allocatable :: str1
+
+    ! no symmetry
+    if (level == 0 .and. c%havesym == 0) then
+       c%neqv = 1
+       c%rotm(:,:,1) = eyet
+       c%ncv = 1
+       c%cen = 0d0
+       c%lcent = 0
+       c%havesym = 0
+       return
+    end if
 
     ! check if we already have this level
     if (c%havesym >= level) return
 
     ! write down the new level
     c%havesym = level
-
-    ! message to output
-    if (verbose) then
-       if (level == 0) then
-          write(uout,'("* Calculating symmetry operations: no symmetry.")')
-       elseif (level == 1) then
-          write(uout,'("* Calculating symmetry operations: translations only.")')
-       elseif (level == 2) then
-          write(uout,'("* Calculating symmetry operations: full symmetry.")')
-       end if
-    end if
-
-    ! no symmetry
-    if (level == 0) then
-       c%neqv = 1
-       c%rotm(:,:,1) = eyet
-       c%ncv = 1
-       c%cen = 0d0
-       c%lcent = 0
-       return
-    end if
 
     ! Find the centering group by transforming to a primitive cell
     call cenbuild(c)
@@ -3909,7 +4102,7 @@ contains
 
   end subroutine wigner
 
-  !> Partition the conventional unit cell in tetrahedra.
+  !> Partition the unit cell in tetrahedra.
   subroutine pmwigner(c,verbose,ntetrag,tetrag)
     use tools_math
     use tools_io

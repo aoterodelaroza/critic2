@@ -305,7 +305,7 @@ contains
        end do
     end if
 
-    if (.not.goodspg) call c%guessspg(doguess,.false.)
+    if (.not.goodspg) c%havesym = 0
 
   end subroutine parse_crystal_env
 
@@ -426,7 +426,6 @@ contains
     ! fill the missing information
     call fill_molecule(c,rborder,docube)
     call c%set_cryscar()
-    call c%guessspg(doguess,.false.)
 
   contains
     subroutine check_no_extra_word()
@@ -696,9 +695,18 @@ contains
        ! exit the loop
        if (.not.loop_) exit
     end do
-    call realloc(c%cen,3,c%ncv)
 
-    if (c%ncv == 0) c%ncv = 1
+    if (c%neqv == 0) then
+       c%neqv = 1
+       c%rotm(:,:,1) = eyet
+       c%rotm = 0d0
+    end if
+    if (c%ncv == 0) then
+       c%ncv = 1
+       if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+       c%cen = 0d0
+    end if
+    call realloc(c%cen,3,c%ncv)
 
     ! set the centering type
     call c%set_lcent()
@@ -826,6 +834,7 @@ contains
   !> Code adapted from the WIEN2k distribution.
   subroutine struct_read_wien(c,file,readall,mol)
     use struct_basic
+    use global
     use tools_io
     use param
     use types
@@ -940,7 +949,6 @@ contains
        enddo
        c%rotm(:,4,i)=tau
     end do
-    if (c%neqv > 0) c%havesym = 2
 
 115 FORMAT(3(3I2,F10.5,/))
 
@@ -951,6 +959,15 @@ contains
 
     ! clean up
     call fclose(lut)
+
+    ! atomic numbers
+    do i = 1, c%nneq
+       c%at(i)%z = zatguess(c%at(i)%name)
+    end do
+
+    ! symmetry and Cartesian transformation
+    if (c%neqv > 0) c%havesym = 2
+    call c%set_cryscar()
 
     ! if this is a molecule, set up the origin and the molecular cell
     if (mol) call fill_molecule_given_cell(c)

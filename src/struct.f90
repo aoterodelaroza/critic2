@@ -99,7 +99,6 @@ contains
 
     else if (equal(wext1,'cube')) then
        call struct_read_cube(c,word,.false.,mol)
-       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -110,7 +109,6 @@ contains
        if (c%neqv == 0) then ! some structs may come without symmetry
           call struct_read_wien(cr,word,.true.,mol)
           call c%set_cryscar()
-          call c%guessspg(doguess,.false.)
        endif
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
@@ -142,7 +140,6 @@ contains
           end do
        end if
        call struct_read_vasp(c,word,ntyp,ztyp,mol)
-       call c%guessspg(doguess,.false.)
        c%file = word
 
     else if (equal(wext1,'DEN').or.equal(wext2,'DEN').or.equal(wext1,'ELF').or.equal(wext2,'ELF').or.&
@@ -158,21 +155,18 @@ contains
 
     else if (equal(wext1,'OUT')) then
        call struct_read_elk(c,word,mol)
-       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'out')) then
        call struct_read_qeout(c,word,mol)
-       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
     else if (equal(wext1,'in')) then
        call struct_read_qein(c,word,mol)
-       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -205,7 +199,6 @@ contains
 
        call struct_read_mol(c,word,wext1,rborder,docube)
        call c%set_cryscar()
-       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -213,7 +206,6 @@ contains
     else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN'))&
        & then
        call struct_read_siesta(c,word,mol)
-       call c%guessspg(doguess,.false.)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
@@ -233,6 +225,7 @@ contains
           &,faterr,line)
     end if
 
+    call c%guessspg(doguess)
     call c%struct_fill()
     if (verbose) call c%struct_report()
 
@@ -1017,6 +1010,9 @@ contains
           call cr%primitive_buerger(.true.)
        end if
        return
+    ! elseif (equal(word,"conventional")) then
+    !    call cr%conventional_standard(.true.)
+    !    return
     else
        lp = 1
     end if

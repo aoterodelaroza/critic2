@@ -26,7 +26,7 @@ module tools_math
   public :: factorial
   public :: eig, eigns, rsindex
   public :: gauleg, select_lebedev
-  public :: mcd, ep
+  public :: gcd, ep
   public :: cross, mixed, norm
   public :: det, detsym, matinv
   public :: erf, erfc
@@ -290,18 +290,18 @@ contains
     return
   end function ep
 
-  !> Compute maximum common divisor of array of integers n
+  !> Compute greatest common divisor of array of integers n
   !> num is the number of elements of n to be included.
-  function mcd (n,num)
+  function gcd (n,num)
     use tools_io, only: ferror, faterr
     
     integer, dimension(:) :: n !< Input array of numbers
-    integer :: num !< Do the mcd of 1..num
-    integer :: mcd 
+    integer :: num !< Do the gcd of 1..num
+    integer :: gcd 
 
     integer :: ini, i, mayor, menor, nresto
 
-    if (num <= 0 .or. any(n <= 0)) call ferror('mcd','incorrect arguments',faterr)
+    if (num <= 0 .or. any(n <= 0)) call ferror('gcd','incorrect arguments',faterr)
 
     ini=n(1)
     do i=2,num
@@ -315,9 +315,9 @@ contains
        enddo
        ini=menor
     enddo
-    mcd=ini
+    gcd=ini
 
-  end function mcd
+  end function gcd
 
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric matrix.
   !> The eigenvectors are stored column-wise in mat.
