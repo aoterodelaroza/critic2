@@ -47,7 +47,6 @@ module struct_writers
   public :: struct_write_lammps
   public :: struct_write_siesta_fdf
   public :: struct_write_siesta_in
-  private :: cell_for_espresso
 
 contains
 
@@ -326,11 +325,7 @@ contains
 
     character(len=:), allocatable :: lbl1
     integer :: i, lu
-    integer :: ncelq, zq(c%ncel)
-    real*8 :: x2cq(3,3), xq(3,c%ncel)
-    logical :: ishex, ztyp(120)
-
-    call cell_for_espresso(c,ncelq,x2cq,zq,xq,ishex,doprim)
+    logical :: ztyp(120)
 
     ztyp = .false.
     do i = 1, c%nneq
@@ -347,7 +342,7 @@ contains
     write (lu,'("&system")')
     write (lu,'(" ibrav=0,")')
     write (lu,'(" celldm(1)=1.0,")')
-    write (lu,'(" nat=",I6,",")') ncelq
+    write (lu,'(" nat=",I6,",")') c%ncel
     write (lu,'(" ntyp=",I3,",")') count(ztyp)
     write (lu,'(" ecutwfc=60.0,")')
     write (lu,'(" ecutrho=600.0,")')
@@ -366,17 +361,13 @@ contains
        end if
     end do
     write (lu,'(/"ATOMIC_POSITIONS crystal")')
-    do i = 1, ncelq
-       write (lu,'(A2,3(X,F13.8,X))') lower(nameguess(zq(i),.true.)), xq(:,i)
+    do i = 1, c%ncel
+       write (lu,'(A2,3(X,F13.8,X))') lower(nameguess(c%at(c%atcel(i)%idx)%z,.true.)), c%atcel(i)%x
     end do
     write (lu,'(/"K_POINTS automatic"/"2 2 2 1 1 1"/)')
-    if (ishex) then
-       write (lu,'("CELL_PARAMETERS hexagonal")')
-    else
-       write (lu,'("CELL_PARAMETERS cubic")')
-    end if
+    write (lu,'("CELL_PARAMETERS cubic")')
     do i = 1, 3
-       write (lu,'(3(F18.12,X))') x2cq(i,:)
+       write (lu,'(3(F18.12,X))') c%crys2car(:,i)
     end do
     call fclose(lu)
 
@@ -394,17 +385,12 @@ contains
 
     character(len=:), allocatable :: lbl1
     integer :: i, j, lu
-    integer :: ncelq, zq(c%ncel), ntyp(120)
-    real*8 :: x2cq(3,3), xq(3,c%ncel)
-    logical :: ishex
-
-    ! Use the same cell as espresso.
-    call cell_for_espresso(c,ncelq,x2cq,zq,xq,ishex,doprim)
+    integer :: ntyp(120)
 
     ! count number of atoms per type
     ntyp = 0
-    do i = 1, ncelq
-       ntyp(zq(i)) = ntyp(zq(i)) + 1
+    do i = 1, c%ncel
+       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
     end do
 
     ! Cell
@@ -412,7 +398,7 @@ contains
     write (lu,'("crystal")')
     write (lu,'("1.0")')
     do i = 1, 3
-       write (lu,'(3(F15.10,X))') x2cq(i,:) * bohrtoa
+       write (lu,'(3(F15.10,X))') c%crys2car(:,i) * bohrtoa
     end do
 
     ! Number of atoms per type and Direct
@@ -428,9 +414,9 @@ contains
     ! Atomic positions
     do i = 1, size(ntyp)
        if (ntyp(i) > 0) then
-          do j = 1, ncelq
-             if (zq(j) == i) then
-                write (lu,'(3(F13.8,X))') xq(:,j)
+          do j = 1, c%ncel
+             if (c%at(c%atcel(j)%idx)%z == i) then
+                write (lu,'(3(F13.8,X))') c%atcel(j)%x
              end if
           end do
        end if
@@ -460,23 +446,18 @@ contains
     logical, intent(in) :: doprim
 
     character(len=:), allocatable :: lbl1
-    integer :: ncelq, zq(c%ncel), ntyp(120), iz
-    real*8 :: x2cq(3,3), xq(3,c%ncel)
-    logical :: ishex
+    integer :: ntyp(120), iz
     real*8 :: aap(3), bbp(3), gpq(3,3)
     integer :: i, j, lu
 
-    ! Use the same cell as espresso.
-    call cell_for_espresso(c,ncelq,x2cq,zq,xq,ishex,doprim)
-
     ! count number of atoms per type
     ntyp = 0
-    do i = 1, ncelq
-       ntyp(zq(i)) = ntyp(zq(i)) + 1
+    do i = 1, c%ncel
+       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
     end do
 
     ! Find the lengths and angles of the primitive cell
-    gpq = matmul(x2cq,transpose(x2cq))
+    gpq = matmul(transpose(c%crys2car),c%crys2car)
     do i = 1, 3
        aap(i) = sqrt(gpq(i,i))
     end do
@@ -497,7 +478,7 @@ contains
        end if
     end do
     write (lu,'("znucl ",A)') lbl1
-    write (lu,'("natom ",I5)') ncelq
+    write (lu,'("natom ",I5)') c%ncel
 
     lbl1 = ""
     iz = 0
@@ -511,9 +492,9 @@ contains
 
     write (lu,'("xred ")')
     do i = 1, size(ntyp)
-       do j = 1, ncelq
-          if (zq(j) == i) then
-             write (lu,'(X,3(F15.10,X))') xq(:,j)
+       do j = 1, c%ncel
+          if (c%at(c%atcel(j)%idx)%z == i) then
+             write (lu,'(X,3(F15.10,X))') c%atcel(j)%x
           end if
        end do
     end do
@@ -550,19 +531,13 @@ contains
     type(crystal), intent(in) :: c
     logical, intent(in) :: doprim
 
-    integer :: ncelq, zq(c%ncel)
-    real*8 :: x2cq(3,3), xq(3,c%ncel)
-    logical :: ishex
     integer :: ntyp(100)
     integer :: i, j, lu
 
-    ! Use the same cell as espresso.
-    call cell_for_espresso(c,ncelq,x2cq,zq,xq,ishex,doprim)
-
     ! count number of atoms per type
     ntyp = 0
-    do i = 1, ncelq
-       ntyp(zq(i)) = ntyp(zq(i)) + 1
+    do i = 1, c%ncel
+       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
     end do
 
     ! Write input
@@ -571,7 +546,7 @@ contains
     write (lu,'("xctype"/,"20"/)')
     write (lu,'("avec")')
     do i = 1, 3
-       write (lu,'(2X,3(F15.10,X))') x2cq(i,:)
+       write (lu,'(2X,3(F15.10,X))') c%crys2car(:,i)
     end do
     write (lu,*)
 
@@ -583,9 +558,9 @@ contains
        if (ntyp(i) > 0) then
           write (lu,'(2X,"''",A,".in''")') trim(nameguess(i,.true.))
           write (lu,'(2X,I3)') ntyp(i)
-          do j = 1, ncelq
-             if (zq(j) == i) then
-                write (lu,'(2X,3(F14.10,X),"0.0 0.0 0.0")') xq(:,j)
+          do j = 1, c%ncel
+             if (c%at(c%atcel(j)%idx)%z == i) then
+                write (lu,'(2X,3(F14.10,X),"0.0 0.0 0.0")') c%atcel(j)%x
              end if
           end do
        end if
@@ -1216,253 +1191,5 @@ contains
     write (uout,*)
 
   end subroutine struct_write_siesta_in
-
-  !> Build a cell that is compliant with QE input rules, and perhaps
-  !> reduce to a primitive cell.
-  subroutine cell_for_espresso(c,ncelq,x2cq,zq,xq,ishex,lprim)
-    use struct_basic
-    use tools_math
-    use tools_io
-    use param
-
-    type(crystal), intent(in) :: c
-    integer, intent(out) :: ncelq
-    real*8, intent(out) :: x2cq(3,3)
-    integer, intent(out) :: zq(c%ncel)
-    real*8, intent(out) :: xq(3,c%ncel)
-    logical, intent(out) :: ishex
-    logical, intent(in) :: lprim
-
-    integer :: i, j
-    real*8 :: r(3,3), rinv(3,3), gprim(3,3), rootp, d0(3)
-    real*8 :: aap(3), ccp(3), ss3, tx, ty, tz, x0(3), dist2
-    real*8 :: ss(3), cc(3)
-    integer :: doprim, n0
-    logical :: dotrig
-
-    write (*,*) "temporarily deactivated"
-    stop 1
-
-    ! ! it defaults to the critic2 cell
-    ! ncelq = c%ncel
-    ! x2cq = transpose(c%crys2car)
-    ! do i = 1, c%ncel
-    !    zq(i) = c%at(c%atcel(i)%idx)%z
-    !    xq(:,i) = c%atcel(i)%x
-    ! end do
-    ! ishex = .false.
-    ! dotrig = .false.
-    ! 
-    ! ! the user says no primitive
-    ! if (.not.lprim) return
-    ! 
-    ! doprim = 0
-    ! select case (csys)
-    ! case (csys_cub)
-    !    if (c%lcent == 1) then
-    !       ! primitive
-    !       x2cq = transpose(c%crys2car)
-    !    else if (c%lcent == 6) then
-    !       ! F-centered
-    !       x2cq(1,:) = (/-c%aa(1)/2d0,         0d0, c%aa(3)/2d0 /)
-    !       x2cq(2,:) = (/         0d0, c%aa(2)/2d0, c%aa(3)/2d0 /)
-    !       x2cq(3,:) = (/-c%aa(1)/2d0, c%aa(2)/2d0,         0d0 /)
-    !       doprim = 1
-    !    else if (c%lcent == 5) then
-    !       ! I-centered
-    !       x2cq(1,:) = (/ c%aa(1)/2d0,  c%aa(2)/2d0,  c%aa(3)/2d0 /)
-    !       x2cq(2,:) = (/-c%aa(1)/2d0,  c%aa(2)/2d0,  c%aa(3)/2d0 /)
-    !       x2cq(3,:) = (/-c%aa(1)/2d0, -c%aa(2)/2d0,  c%aa(3)/2d0 /)
-    !       doprim = 1
-    !    else
-    !       doprim = 2
-    !    end if
-    ! case (csys_hex,csys_trig)
-    !    ishex = .true.
-    !    if (c%lcent == 1) then
-    !       x2cq = transpose(c%crys2car)
-    !    elseif (c%ncv == 3) then
-    !       doprim = 2
-    !       dotrig = .true.
-    !    end if
-    ! case (csys_tetr)
-    !    if (c%lcent == 1) then
-    !       ! primitive
-    !       x2cq(1,:) = (/ c%aa(1),     0d0,     0d0 /)
-    !       x2cq(2,:) = (/     0d0, c%aa(2),     0d0 /)
-    !       x2cq(3,:) = (/     0d0,     0d0, c%aa(3) /)
-    !    elseif (c%lcent == 5) then
-    !       ! I-centered
-    !       x2cq(1,:) = (/ c%aa(1)/2d0, -c%aa(2)/2d0, c%aa(3)/2d0 /)
-    !       x2cq(2,:) = (/ c%aa(1)/2d0,  c%aa(2)/2d0, c%aa(3)/2d0 /)
-    !       x2cq(3,:) = (/-c%aa(1)/2d0, -c%aa(2)/2d0, c%aa(3)/2d0 /)
-    !       doprim = 1
-    !    else
-    !       doprim = 2
-    !    end if
-    ! case (csys_orth)
-    !    if (c%lcent == 1) then
-    !       ! primitive
-    !       x2cq(1,:) = (/ c%aa(1),     0d0,     0d0 /)
-    !       x2cq(2,:) = (/     0d0, c%aa(2),     0d0 /)
-    !       x2cq(3,:) = (/     0d0,     0d0, c%aa(3) /)
-    !    elseif (c%lcent == 4) then
-    !       ! C-centered
-    !       x2cq(1,:) = (/ c%aa(1)/2d0, c%aa(2)/2d0,     0d0 /)
-    !       x2cq(2,:) = (/-c%aa(1)/2d0, c%aa(2)/2d0,     0d0 /)
-    !       x2cq(3,:) = (/         0d0,         0d0, c%aa(3) /)
-    !       doprim = 1
-    !    elseif (c%lcent == 6) then
-    !       ! F-centered
-    !       x2cq(1,:) = (/ c%aa(1)/2d0,         0d0, c%aa(3)/2d0 /)
-    !       x2cq(2,:) = (/ c%aa(1)/2d0, c%aa(2)/2d0,         0d0 /)
-    !       x2cq(3,:) = (/         0d0, c%aa(2)/2d0, c%aa(3)/2d0 /)
-    !       doprim = 1
-    !    elseif (c%lcent == 5) then
-    !       ! I-centered
-    !       x2cq(1,:) = (/ c%aa(1)/2d0,  c%aa(2)/2d0,  c%aa(3)/2d0 /)
-    !       x2cq(2,:) = (/-c%aa(1)/2d0,  c%aa(2)/2d0,  c%aa(3)/2d0 /)
-    !       x2cq(3,:) = (/-c%aa(1)/2d0, -c%aa(2)/2d0,  c%aa(3)/2d0 /)
-    !       doprim = 1
-    !    else
-    !       doprim = 2
-    !    end if
-    ! case (csys_mono)
-    !    if (c%lcent == 1) then
-    !       if (abs(cc(3)) > 1d-5) then
-    !          ! primitive unique axis c
-    !          x2cq(1,:) = (/ c%aa(1),   0d0, 0d0 /)
-    !          x2cq(2,:) = (/ c%aa(2)*cc(3), c%aa(2)*ss(3), 0d0/)
-    !          x2cq(3,:) = (/ 0d0, 0d0, c%aa(3) /)
-    !       else if (abs(cc(2)) > 1d-5) then
-    !          ! primitive unique axis b
-    !          x2cq(1,:) = (/ c%aa(1),   0d0, 0d0 /)
-    !          x2cq(2,:) = (/   0d0, c%aa(2), 0d0/)
-    !          x2cq(3,:) = (/ c%aa(3)*cc(2), 0d0, c%aa(3)*ss(2) /)
-    !       else
-    !          ! primitive unique axis a
-    !          doprim = 2
-    !       end if
-    !    else if (c%lcent == 3) then
-    !       if (abs(cc(3)) > 1d-5) then
-    !          ! B centering, unique axis c
-    !          x2cq(1,:) = (/ c%aa(1)/2d0, 0d0, -c%aa(3)/2d0 /)
-    !          x2cq(2,:) = (/ c%aa(2)*cc(3), c%aa(2)*ss(3), 0d0/)
-    !          x2cq(3,:) = (/ c%aa(1)/2d0, 0d0, c%aa(3)/2d0 /)
-    !          doprim = 1
-    !       else
-    !          doprim = 2
-    !       end if
-    !    else
-    !       ! some other centering and setting
-    !       doprim = 2
-    !    end if
-    ! case (csys_tric)
-    !    ! qe likes cholesky for triclinic
-    !    doprim = 2
-    ! case default
-    !    call ferror("cell_for_espresso","unknown crystal system",faterr)
-    ! end select
-    ! 
-    ! if (doprim == 1) then
-    !    ! use qe-suggested transformation to the primitive
-    !    r = x2cq
-    !    do i = 1,3
-    !       r(i,:) = c%c2x(r(i,:))
-    !    end do
-    !    r = transpose(r)
-    !    rinv = matinv(r)
-    ! else if (doprim == 2) then
-    !    ! then the setting was not considered in the manual, use my transformation
-    !    r = toc_real(:,:,c%lcent)
-    !    rinv = toc_rec(:,:,c%lcent)
-    !    ! special case -> trigonal
-    !    if (c%lcent == 7 .and. c%ncv == 3) then
-    !       if (abs(c%cen(3,2)-2d0/3d0)<1d-10.and.abs(c%cen(3,3)-2d0/3d0)<1d-10) then
-    !          ! r-
-    !          r = toc_real(:,:,9)
-    !          rinv = toc_rec(:,:,9)
-    !       else
-    !          ! r+
-    !          r = toc_real(:,:,8)
-    !          rinv = toc_rec(:,:,8)
-    !       endif
-    !    endif
-    ! end if
-    ! 
-    ! if (doprim > 0) then
-    !    ! transform the cell
-    !    gprim = matmul(transpose(r),matmul(c%gtensor,r))
-    !    do i = 1, 3
-    !       aap(i) = sqrt(gprim(i,i))
-    !    end do
-    !    ccp(1) = gprim(2,3)/aap(2)/aap(3)
-    !    ccp(2) = gprim(1,3)/aap(1)/aap(3)
-    !    ccp(3) = gprim(1,2)/aap(1)/aap(2)
-    !    ss3 = sqrt(1d0-ccp(3)**2)
-    ! 
-    !    ! transform the atoms
-    !    n0 = 0
-    !    main: do i = 1, ncelq
-    !       x0 = matmul(rinv,xq(:,i))
-    !       x0 = x0 - floor(x0)
-    !       do j = 1, n0
-    !          d0 = x0 - xq(:,j)
-    !          call c%shortest(d0,dist2)
-    !          if (dist2 < 1d-10) cycle main
-    !       end do
-    !       n0 = n0 + 1
-    !       xq(:,n0) = x0
-    !       zq(n0) = zq(i)
-    !    end do main
-    !    ncelq = n0
-    ! 
-    !    if (dotrig) then
-    !       tx = sqrt((1-ccp(3))/2)
-    !       ty = sqrt((1-ccp(3))/6)
-    !       tz = sqrt((1+2*ccp(3))/3)
-    !       x2cq(1,:) = (/tx,-ty,tz/) * aap(1)
-    !       x2cq(2,:) = (/0d0,2d0*ty,tz/) * aap(1)
-    !       x2cq(3,:) = (/-tx,-ty,tz/) * aap(1)
-    !    else if (doprim > 1) then
-    !       ! poor man's version of the crystal system determination for qe
-    !       ! we have a primitive now
-    !       if (all(abs(ccp) < 1d-5)) then
-    !          ! cubic, tetragonal, orthorhombic
-    !          x2cq = 0d0
-    !          do i = 1, 3
-    !             x2cq(i,i) = aap(i)
-    !          end do
-    !       elseif (abs(ccp(1))<1d-5 .and. abs(ccp(2))<1d-5 .and. abs(ccp(3)+0.5d0)<1d-5) then
-    !          ! hexagonal/trigonal
-    !          x2cq(1,:) = (/1d0, 0d0, 0d0/) * aap(1)
-    !          x2cq(2,:) = (/-0.5d0, sqrt(3d0)/2d0, 0d0/) * aap(1)
-    !          x2cq(3,:) = (/0d0, 0d0, aap(3)/aap(1)/) * aap(1)
-    !       elseif (abs(ccp(3))>1d-5 .and. abs(ccp(1))<1d-5 .and. abs(ccp(2))<1d-5) then
-    !          ! monoclinic c
-    !          x2cq(1,:) = (/ aap(1),   0d0, 0d0 /)
-    !          x2cq(2,:) = (/ aap(2)*ccp(3), aap(2)*sqrt(1-ccp(3)**2), 0d0/)
-    !          x2cq(3,:) = (/ 0d0, 0d0, c%aa(3) /)
-    !       elseif (abs(ccp(2))>1d-5 .and. abs(ccp(1))<1d-5 .and. abs(ccp(3))<1d-5) then
-    !          ! monoclinic b
-    !          x2cq(1,:) = (/ aap(1),   0d0, 0d0 /)
-    !          x2cq(2,:) = (/   0d0, aap(2), 0d0/)
-    !          x2cq(3,:) = (/ aap(3)*ccp(2), 0d0, aap(3)*sqrt(1-ccp(2)**2) /)
-    !       else
-    !          ! triclinic
-    !          rootp=sqrt(1d0-ccp(1)*ccp(1)-ccp(2)*ccp(2)-ccp(3)*ccp(3)+2d0*ccp(1)*ccp(2)*ccp(3))
-    !          x2cq = 0d0
-    !          x2cq(1,1) = aap(1)
-    !          x2cq(1,2) = aap(2)*ccp(3)
-    !          x2cq(1,3) = aap(3)*ccp(2)
-    !          x2cq(2,2) = aap(2)*ss3
-    !          x2cq(2,3) = aap(3)*(ccp(1)-ccp(3)*ccp(2))/ss3
-    !          x2cq(3,3) = aap(3)*rootp/ss3
-    !          x2cq = transpose(x2cq)
-    !       end if
-    !    end if
-    ! end if
-
-  end subroutine cell_for_espresso
 
 end module struct_writers
