@@ -456,9 +456,9 @@ interatomic surfaces at the correct positions, but it is the
 pseudo-density who integrates to the correct number of electrons. The
 pseudo-density can not be used to calculate the basins because of the
 pseudopotential smoothing (sometimes atomic density peaks are missing
-altogether). Reconstructed valence densities can not be used as the
-integrand (in general) because grids can not represent accurately the
-density peaks near the cores.
+altogether). Reconstructed valence and all-electron densities can not
+be used as the integrand (in general) because grids can not represent
+accurately the density peaks near the cores.
 
 A version in which only the pseudo-density is used, augmented with
 critic2's core density tables ("poor man's integration") is also
@@ -489,12 +489,15 @@ In Quantum ESPRESSO, the densities are generated as Gaussian cube
 files by the post-process program (pp.x). To generate the
 pseudo-density, use plot_num = 0. The reconstructed valence density
 can only be generated if using PAW datasets, with plot_num
-= 17. Normally, you need a critic2 step previous to the integration in
-which you generate the all-electron density by augmenting the
-reconstructed valence density coming from pp.x using critic2's
-internal density tables, then save it to a cube file. This
-pre-processing procedure takes at most a few minutes, even for the
-largest systems.
+= 17. In versions of QE newer than 5.3.0, plot_num = 21 can be used to
+plot the all-electron (core + valence) densities. 
+
+If you do not have the reconstructed all-electron density, you need a
+critic2 step previous to the integration in which you generate the
+all-electron density by augmenting the reconstructed valence density
+coming from pp.x using critic2's internal density tables, then save it
+to a cube file. This pre-processing procedure takes at most a few
+minutes, even for the largest systems.
 
 * grid_ammonia
 ** Source: Quantum ESPRESSO.

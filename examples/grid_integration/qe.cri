@@ -22,7 +22,10 @@ load ../data/urea.rho.cube id rho
 # cube grid field rhof file rhof.cube
 # end
 
-# Instead, let's use the already-calculated core-augmented file.
+# Instead, let's use the already-calculated core-augmented file.  This
+# file can be generated directly by QE (plot_num = 21) if you are
+# using a version newer than 5.3.0. In that case, the preceding
+# discussion does not apply.
 load ../data/urea.rhof.cube id rhof 
 
 # Set the valence density as reference and the pseudo-density as integrable
