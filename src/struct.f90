@@ -652,19 +652,21 @@ contains
     integer :: lp, i, j
     integer :: ns
     type(crystal), allocatable :: c(:), caux(:)
-    real*8 :: tini, tend, nor
+    real*8 :: tini, tend, nor, th2end
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
     integer, allocatable :: hvecp(:,:)
     real*8, allocatable :: powdiff(:,:)
+    logical :: ok
 
     real*8, parameter :: sigma0 = 0.25d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end = 30d0
+    real*8, parameter :: th2end0 = 30d0
 
     ! initialized
+    th2end = th2end0
     doguess0 = doguess
     lp = 1
     ns = 0
@@ -676,7 +678,10 @@ contains
     doguess = 0
     do while(.true.)
        word = getword(line,lp)
-       if (len_trim(word) > 0) then
+       if (equal(word,'th2end')) then
+          ok = eval_next(th2end,line,lp)
+          if (.not.ok) call ferror('struct_compare','incorrect TH2END',faterr)
+       elseif (len_trim(word) > 0) then
           ns = ns + 1
           if (ns > size(c)) then
              allocate(caux(2*size(c)))
