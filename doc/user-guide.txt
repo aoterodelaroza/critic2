@@ -5184,14 +5184,14 @@ Compare crystal structures (COMPARE)
 
 ::
 
-  COMPARE {.|file1.s} {.|file2.s} [{.|file3.s} ...]
+  COMPARE [TH2END t2e.r] {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 
 Compare two or more crystal structures and find the measure of
-similarity (POWDIFF) based on the powder diffraction patterns. The
-value of POWDIFF for two structures is obtained by calculating the
-integral of the absolute value of the the difference between both
-diffraction patterns. Two crystals are similar if the value of POWDIFF
-is close to zero.
+similarity (POWDIFF) based on the powder diffraction patterns (from
+2theta = 5 up to t2e.r, default = 30). The value of POWDIFF for two
+structures is obtained by calculating the integral of the absolute
+value of the the difference between both diffraction patterns. Two
+crystals are similar if the value of POWDIFF is close to zero.
 
 The crystal structures can be given by passing an external file to
 COMPARE. The syntax is the same as in CRYSTAL: the file format is
