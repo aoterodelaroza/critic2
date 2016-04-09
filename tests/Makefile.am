@@ -40,7 +40,7 @@ TESTS=\
 011_auto1.sh 011_auto2.sh 011_auto3.sh 011_auto4.sh 011_auto5.sh \
 011_auto6.sh 011_auto7.sh 011_auto10.sh \
 011_auto11.sh 011_auto12.sh 011_auto13.sh\
-012_powder.sh\
+012_powder.sh 012_rdf.sh\
 013_pointprop1.sh 013_pointprop2.sh\
 014_compare.sh\
 015_environ.sh\
