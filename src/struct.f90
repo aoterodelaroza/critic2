@@ -29,6 +29,7 @@ module struct
   public :: struct_charges
   public :: struct_write
   public :: struct_powder
+  public :: struct_rdf
   public :: struct_compare
   public :: struct_environ
   public :: struct_packing
@@ -639,6 +640,91 @@ contains
     if (allocated(hvecp)) deallocate(hvecp)
     
   end subroutine struct_powder
+
+  !> Calculate the radial distribution function for the current
+  !> structure.
+  subroutine struct_rdf(line,c)
+    use struct_basic
+    use global
+    use tools_io
+    use tools
+    use param
+    character*(*), intent(in) :: line
+    type(crystal), intent(in) :: c
+
+    real*8 :: rend
+    character(len=:), allocatable :: root, word
+    logical :: ok
+    integer :: npts
+    real*8, allocatable :: t(:), ih(:)
+
+    integer :: lp, lu, i
+    ! integer :: i, lp, lu, np
+    ! real*8 :: th2ini, th2end, lambda, fpol, sigma
+    ! integer, allocatable :: hvecp(:,:)
+
+    if (c%ismolecule) &
+       call ferror("struct_rdf","RDF can not be used with molecules",faterr)
+
+    ! default values
+    rend = 25d0
+    root = trim(fileroot) // "_rdf"
+    npts = 10001
+
+    ! header
+    write (uout,'("* RDF: radial distribution function")')
+    write (uout,*)
+
+    ! parse input
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"rend")) then
+          ok = eval_next(rend,line,lp)
+          if (.not.ok) call ferror('struct_powder','Incorrect TH2END',faterr,line)
+       elseif (equal(word,"npts")) then
+          ok = eval_next(npts,line,lp)
+          if (.not.ok) call ferror('struct_powder','Incorrect NPTS',faterr,line)
+       elseif (equal(word,"root")) then
+          root = getword(line,lp)
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_powder','Unknown extra keyword',faterr,line)
+       else
+          exit
+       end if
+    end do
+
+    call c%rdf(rend,npts,t,ih)
+
+    ! write the data file 
+    lu = fopen_write(trim(root) // ".dat")
+    write (lu,'("# ",A,A)') string("r (bohr)",13,ioj_center), string("RDF(r)",13,ioj_center)
+    do i = 1, npts
+       write (lu,'(A,X,A)') string(t(i),"f",15,7,ioj_center), &
+          string(ih(i),"f",15,7,ioj_center)
+    end do
+    call fclose(lu)
+    deallocate(t,ih)
+
+    ! write the gnuplot input file
+    lu = fopen_write(trim(root) // ".gnu")
+    write (lu,'("set terminal postscript eps color enhanced ""Helvetica"" 25")')
+    write (lu,'("set output """,A,".eps""")') trim(root)
+    write (lu,*)
+    write (lu,'("set xlabel ""r (bohr)""")')
+    write (lu,'("set ylabel ""RDF(r)""")')
+    write (lu,'("set xrange [0:",A,"]")') string(rend,"f")
+    write (lu,'("set style data lines")')
+    write (lu,'("set grid")')
+    write (lu,'("unset key")')
+    write (lu,'("plot """,A,".dat"" w lines")') string(root)
+    write (lu,*)
+    call fclose(lu)
+
+    if (allocated(t)) deallocate(t)
+    if (allocated(ih)) deallocate(ih)
+    
+  end subroutine struct_rdf
 
   !> Compare two crystal structures using the powder diffraction patterns.
   subroutine struct_compare(line)

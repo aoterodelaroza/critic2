@@ -180,6 +180,11 @@ program critic
         if (.not. cr%isinit) call ferror('critic2','need crystal before powder',faterr,line)
         call struct_powder(line(lp:),cr)
 
+     ! rdf
+     elseif (equal(word,'rdf')) then
+        if (.not. cr%isinit) call ferror('critic2','need crystal before rdf',faterr,line)
+        call struct_rdf(line(lp:),cr)
+
      ! compare
      elseif (equal(word,'compare')) then
         call struct_compare(line(lp:))

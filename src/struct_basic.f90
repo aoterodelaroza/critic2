@@ -129,6 +129,7 @@ module struct_basic
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: powder !< Calculate the powder diffraction pattern
+     procedure :: rdf !< Calculate the radial distribution function
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
@@ -1969,8 +1970,68 @@ contains
     hvecp = hvecp_
     deallocate(th2p_,ip_,hvecp_,io)
 
-
   end subroutine powder
+
+  !> Calculate the radial distribution function.  On input, npts is
+  !> the number of bins points from the initial (0) to the final
+  !> (rend) distance. On output, t is the distance grid, and ih is the
+  !> value of the RDF. This routine is based on:
+  !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
+  !> except using the sqrt of the atomic numbers instead of the 
+  !> charges.
+  subroutine rdf(c,rend,npts,t,ih)
+    use tools_math
+    use types
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: rend
+    integer, intent(in) :: npts
+    real*8, allocatable, intent(inout) :: t(:)
+    real*8, allocatable, intent(inout) :: ih(:)
+
+    integer :: i, j, ibin
+    real*8 :: d, hfac
+
+    ! integer :: i, ii, np, hcell, h, k, l, iz, idx
+    ! real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
+    ! real*8 :: smax, dh2, dh, dh3, sthlam, cterm, sterm
+    ! real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
+    ! real*8 :: ipmax, ihmax
+    ! integer :: hmax
+    ! integer, allocatable :: multp(:)
+    ! integer, allocatable :: io(:)
+    ! real*8, allocatable :: th2p_(:), ip_(:)
+    ! integer, allocatable :: hvecp_(:,:)
+
+    ! integer, parameter :: mp = 20
+    ! real*8, parameter :: ieps = 1d-5
+    ! real*8, parameter :: theps = 1d-5
+
+    ! prepare the grid limits
+    if (allocated(t)) deallocate(t)
+    if (allocated(ih)) deallocate(ih)
+    allocate(t(npts),ih(npts))
+    do i = 1, npts
+       t(i) = real(i-1,8) / real(npts-1,8) * rend
+    end do
+    ih = 0d0
+
+    ! calculate the radial distribution function for the crystal
+    ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%nenv sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
+    hfac = (npts-1) / rend
+    do i = 1, c%nneq
+       do j = 1, c%nenv
+          d = norm(c%at(i)%r - c%atenv(j)%r)
+          ibin = nint(d * hfac) + 1
+          if (ibin <= 0 .or. ibin > npts) cycle
+          ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
+       end do
+    end do
+    do i = 2, npts
+       ih(i) = ih(i) / t(i)
+    end do
+    ih = ih / c%nneq
+
+  end subroutine rdf
 
   !> Calculate real and reciprocal space sum cutoffs
   subroutine calculate_ewald_cutoffs(c)
