@@ -5201,14 +5201,20 @@ Compare crystal structures (COMPARE)
 
 ::
 
-  COMPARE [TH2END t2e.r] {.|file1.s} {.|file2.s} [{.|file3.s} ...]
+  COMPARE [XEND xend.r] [POWDER|RDF] {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 
 Compare two or more crystal structures and find the measure of
-similarity (POWDIFF) based on the powder diffraction patterns (from
-2theta = 5 up to t2e.r, default = 30). The value of POWDIFF for two
-structures is obtained by calculating the integral of the absolute
-value of the the difference between both diffraction patterns. Two
-crystals are similar if the value of POWDIFF is close to zero.
+similarity (DIFF) based on either their radial distribution functions
+(RDF keyword) or their powder diffraction patterns (POWDER). By
+default, use the radial distribution functions, which are less
+sensitive to changes in unit cell parameters. 
+
+The similarity measure is calculated using the cross-correlation
+functions defined in de Gelder et al., J. Comput. Chem., 22 (2001)
+273, using the triangle weight. Powder diffraction patterns are
+calculate from 2theta = 5 up to xend.r (default: 45). Radial
+distribution functions are calculated from zero up to xend.r bohr
+(default: 25 bohr).
 
 The crystal structures can be given by passing an external file to
 COMPARE. The syntax is the same as in CRYSTAL: the file format is

@@ -21,6 +21,7 @@ module tools_math
 
   private
 
+  public :: crosscorr_triangle
   public :: crys2car_from_cellpar
   public :: car2crys_from_cellpar
   public :: factorial
@@ -40,6 +41,46 @@ module tools_math
   real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
 
 contains
+
+  !> Calculate the cross-correlation between two functions with
+  !> triangle weight. For similarity measures between spectra, as
+  !> proposed here:
+  !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
+  function crosscorr_triangle(h,f,g,l) result(dfg)
+    use tools_io
+    real*8, intent(in) :: h, l
+    real*8, intent(in) :: f(:), g(:)
+    real*8 :: dfg
+
+    integer :: n, m, i
+    real*8 :: w
+    
+    ! check that the lengths are equal
+    n = size(f)
+    if (size(g) /= n) call ferror('crosscorr_triangle','inconsistent spectra',faterr)
+
+    ! calculate maximum displacement
+    m = floor(l / h)
+    if (m <= 0 .or. m >= n) &
+       call ferror('crosscorr_triangle','incorrect triangle slope',faterr)
+
+    ! calculate the cross-correlation integral
+    dfg = 0d0
+    do i = 0, m
+       ! triangle weight
+       w = max(1d0 - real(i,8) * h / l,0d0)
+
+       ! cfg(r) = int (f(x) * g(x+r))
+       dfg = dfg + sum(f(1:n-i) * g(i+1:n)) * w
+
+       ! cfg(-r) = int (f(x) * g(x-r))
+       if (i == 0) cycle
+       dfg = dfg + sum(g(1:n-i) * f(i+1:n)) * w
+
+    end do
+    dfg = dfg * h**2
+
+  end function crosscorr_triangle
 
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the

@@ -726,9 +726,13 @@ contains
     
   end subroutine struct_rdf
 
-  !> Compare two crystal structures using the powder diffraction patterns.
+  !> Compare two crystal structures using the powder diffraction
+  !> patterns or the radial distribution functions. Uses the
+  !> similarity based on cross-correlation functions proposed in
+  !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   subroutine struct_compare(line)
     use global
+    use tools_math
     use tools_io
     use struct_basic
     character*(*), intent(in) :: line
@@ -738,25 +742,28 @@ contains
     integer :: lp, i, j
     integer :: ns
     type(crystal), allocatable :: c(:), caux(:)
-    real*8 :: tini, tend, nor, th2end
+    real*8 :: tini, tend, nor, h, xend
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
     integer, allocatable :: hvecp(:,:)
-    real*8, allocatable :: powdiff(:,:)
+    real*8, allocatable :: diff(:,:), xnorm(:)
     logical :: ok
+    logical :: dopowder 
 
     real*8, parameter :: sigma0 = 0.25d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end0 = 30d0
+    real*8, parameter :: th2end0 = 45d0
+    real*8, parameter :: rend0 = 25d0
 
     ! initialized
-    th2end = th2end0
     doguess0 = doguess
     lp = 1
     ns = 0
     allocate(c(2))
+    dopowder = .false.
+    xend = -1d0
 
     write (uout,'("* COMPARE: compare crystal structures")')
 
@@ -764,9 +771,13 @@ contains
     doguess = 0
     do while(.true.)
        word = getword(line,lp)
-       if (equal(word,'th2end')) then
-          ok = eval_next(th2end,line,lp)
+       if (equal(word,'xend')) then
+          ok = eval_next(xend,line,lp)
           if (.not.ok) call ferror('struct_compare','incorrect TH2END',faterr)
+       elseif (equal(word,'powder')) then
+          dopowder = .true.
+       elseif (equal(word,'rdf')) then
+          dopowder = .false.
        elseif (len_trim(word) > 0) then
           ns = ns + 1
           if (ns > size(c)) then
@@ -793,17 +804,29 @@ contains
 
     if (ns < 2) &
        call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr)
+    if (xend < 0d0) then
+       if (dopowder) then
+          xend = th2end0
+       else
+          xend = rend0
+       end if
+    end if
 
     allocate(iha(10001,ns))
     do i = 1, ns
        ! calculate the powder diffraction pattern
-       call c(i)%powder(th2ini,th2end,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
+       if (dopowder) then
+          call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
 
-       ! normalize the integral of abs(ih)
-       tini = ih(1)**2
-       tend = ih(npts)**2
-       nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
-       iha(:,i) = ih / sqrt(nor)
+          ! normalize the integral of abs(ih)
+          tini = ih(1)**2
+          tend = ih(npts)**2
+          nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+          iha(:,i) = ih / sqrt(nor)
+       else
+          call c(i)%rdf(xend,npts,t,ih)
+          iha(:,i) = ih
+       end if
     end do
     if (allocated(t)) deallocate(t)
     if (allocated(ih)) deallocate(ih)
@@ -811,35 +834,41 @@ contains
     if (allocated(ip)) deallocate(ip)
     if (allocated(hvecp)) deallocate(hvecp)
 
+    ! self-correlation
+    allocate(xnorm(ns))
+    h =  (xend-th2ini) / real(npts-1,8)
+    do i = 1, ns
+       xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+    end do
+    xnorm = sqrt(abs(xnorm))
+
     ! calculate the overlap between diffraction patterns
-    allocate(powdiff(ns,ns))
-    powdiff = 0d0
+    allocate(diff(ns,ns))
+    diff = 0d0
     do i = 1, ns
        do j = i, ns
-          tini = (iha(1,i)-iha(1,j))**2
-          tend = (iha(npts,i)-iha(npts,j))**2
-          powdiff(i,j) = (2d0 * sum((iha(2:npts-1,i) - iha(2:npts-1,j))**2) + tini + tend) &
-             * (th2end - th2ini) / 2d0 / real(npts-1,8)
-          powdiff(j,i) = powdiff(i,j)
+          diff(i,j) = crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j)
+          diff(j,i) = diff(i,j)
        end do
     end do
+    deallocate(xnorm)
     
     ! write output 
     if (ns == 2) then
-       write (uout,'("+ POWDIFF = ",A)') string(powdiff(1,2),'e',12,6)
+       write (uout,'("+ DIFF = ",A)') string(diff(1,2),'e',12,6)
     else
        do i = 1, ns
           do j = i+1, ns
-             write (uout,'("+ POWDIFF(",A,": ",A," | ",A,": ",A,") = ",A)') &
+             write (uout,'("+ DIFF(",A,": ",A," | ",A,": ",A,") = ",A)') &
                 string(i), string(c(i)%file), string(j), string(c(j)%file),&
-                string(powdiff(i,j),'f',10,6)
+                string(diff(i,j),'f',10,6)
           end do
        end do
     endif
     write (uout,*)
 
     ! clean up
-    deallocate(powdiff)
+    deallocate(diff)
     doguess = doguess0
 
   end subroutine struct_compare

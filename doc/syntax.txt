@@ -270,7 +270,7 @@ expression.r # prints the value of the expression to the output.
 * POWDER [TH2INI t2i.r] [TH2END t2e.r] [{L|LAMBDA} l.r] [FPOL fpol.r]
   [NPTS npts.i] [SIGMA sigma.r] [ROOT root.s]
 * RDF [REND t2e.r] [NPTS npts.i] [ROOT root.s]
-* COMPARE [TH2END t2e.r] {.|file1.s} {.|file2.s} [{.|file3.s} ...]
+* COMPARE [XEND xend.r] [POWDER|RDF] {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 * NEWCELL x1.r y1.r z1.r x2.r y2.r z2.r x3.r y3.r z3.r [INV|INVERSE]
   [ORIGIN x0.r y0.r z0.r] 
   NEWCELL PRIMITIVE [ANY|BUERGER|DELAUNAY]
