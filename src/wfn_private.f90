@@ -183,6 +183,7 @@ contains
     mult = 0
     ncore = 0
     f%npri = 0
+    f%nedf = 0
     do while (getline_raw(luwfn,line))
        if (len_trim(line) < 1) exit
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
@@ -194,6 +195,8 @@ contains
              read (luwfn,*) ncore
           elseif (trim(line) == "<Number of Primitives>") then
              read(luwfn,*) f%npri
+          elseif (trim(line) == "<Number of EDF Primitives>") then
+             read(luwfn,*) f%nedf
           endif
        endif
     enddo
@@ -214,7 +217,17 @@ contains
     if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for occupations',faterr)
     allocate(f%cmo(f%nmo,f%npri),stat=istat)
     if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for orbital coefficients',faterr)
-    
+    if (f%nedf > 0) then
+       allocate(f%icenter_edf(f%nedf),stat=istat)
+       if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for icenter',faterr)
+       allocate(f%itype_edf(f%nedf),stat=istat)
+       if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for itype',faterr)
+       allocate(f%e_edf(f%nedf),stat=istat)
+       if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for exponents',faterr)
+       allocate(f%c_edf(f%npri),stat=istat)
+       if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for orbital coefficients',faterr)
+    endif
+
     ! second pass
     rewind(luwfn)
     do while (.true.)
@@ -238,6 +251,16 @@ contains
                 read(luwfn,*)
                 f%cmo(i,:) = wfx_read_reals1(luwfn,f%npri)
              enddo
+          elseif (trim(line) == "<EDF Primitive Centers>") then
+             f%icenter_edf = wfx_read_integers(luwfn,f%nedf)
+          elseif (trim(line) == "<EDF Primitive Types>") then
+             f%itype_edf = wfx_read_integers(luwfn,f%nedf)
+             if (any(f%itype_edf(1:f%nedf) > 56)) &
+                call ferror("wfn_read_wfx","primitive type not supported",faterr)
+          elseif (trim(line) == "<EDF Primitive Exponents>") then
+             f%e_edf = wfx_read_reals1(luwfn,f%nedf)
+          elseif (trim(line) == "<EDF Primitive Coefficients>") then
+             f%c_edf = wfx_read_reals1(luwfn,f%nedf)
           endif
        endif
     enddo
@@ -437,6 +460,64 @@ contains
     stress = stress * 0.5d0
     gkin = 0.5d0 * gkin
     vir = stress(1,1)+stress(2,2)+stress(3,3)
+
+    ! core contribution to the density
+    if (f%nedf > 0) then
+       do i = 1, f%nedf
+          ityp = f%itype_edf(i)
+          iat = f%icenter_edf(i)
+          al = f%e_edf(i)
+          ex = exp(-al * d2(iat))
+
+          l = li(1:3,ityp)
+          do ix = 1, 3
+             if (l(ix) == 0) then
+                xl(ix,0) = 1d0
+                xl(ix,1) = 0d0
+                xl(ix,2) = 0d0
+             else if (l(ix) == 1) then
+                xl(ix,0) = dd(ix,iat)
+                xl(ix,1) = 1d0
+                xl(ix,2) = 0d0
+             else if (l(ix) == 2) then
+                xl(ix,0) = dd(ix,iat) * dd(ix,iat)
+                xl(ix,1) = 2d0 * dd(ix,iat)
+                xl(ix,2) = 2d0
+             else if (l(ix) == 3) then
+                xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
+                xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
+                xl(ix,2) = 6d0 * dd(ix,iat)
+             else if (l(ix) == 4) then
+                xl2 = dd(ix,iat) * dd(ix,iat)
+                xl(ix,0) = xl2 * xl2
+                xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
+                xl(ix,2) = 12d0 * xl2
+             else if (l(ix) == 5) then
+                xl2 = dd(ix,iat) * dd(ix,iat)
+                xl(ix,0) = xl2 * xl2 * dd(ix,iat)
+                xl(ix,1) = 5d0 * xl2 * xl2
+                xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
+             else
+                call ferror('wfn_rho2','power of L not supported',faterr)
+             end if
+          end do
+          
+          rho = rho + f%c_edf(i) * xl(1,0)*xl(2,0)*xl(3,0)*ex
+          if (nder > 0) then
+             grad(1) = grad(1) + f%c_edf(i) * (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
+             grad(2) = grad(2) + f%c_edf(i) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
+             grad(3) = grad(3) + f%c_edf(i) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+             if (nder > 1) then
+                hh(1) = hh(1) + f%c_edf(i) * (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
+                hh(2) = hh(2) + f%c_edf(i) * (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
+                hh(3) = hh(3) + f%c_edf(i) * (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
+                hh(4) = hh(4) + f%c_edf(i) * (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
+                hh(5) = hh(5) + f%c_edf(i) * (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
+                hh(6) = hh(6) + f%c_edf(i) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
+             endif
+          endif
+       end do
+    end if
 
     ! save the MO values
     if (present(xmo)) xmo = phi(1:f%nmo,1)

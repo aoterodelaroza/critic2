@@ -236,6 +236,11 @@ module types
      real*8, allocatable :: e(:)
      real*8, allocatable :: occ(:)
      real*8, allocatable :: cmo(:,:)
+     integer :: nedf
+     integer, allocatable :: icenter_edf(:)
+     integer, allocatable :: itype_edf(:)
+     real*8, allocatable :: e_edf(:)
+     real*8, allocatable :: c_edf(:)
      ! promolecular from fragment
      type(fragment) :: fr
      ! ghost field

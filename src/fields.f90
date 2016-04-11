@@ -795,6 +795,10 @@ contains
     if (allocated(f(id)%e)) deallocate(f(id)%e)
     if (allocated(f(id)%occ)) deallocate(f(id)%occ)
     if (allocated(f(id)%cmo)) deallocate(f(id)%cmo)
+    if (allocated(f(id)%icenter_edf)) deallocate(f(id)%icenter_edf)
+    if (allocated(f(id)%itype_edf)) deallocate(f(id)%itype_edf)
+    if (allocated(f(id)%e_edf)) deallocate(f(id)%itype_edf)
+    if (allocated(f(id)%c_edf)) deallocate(f(id)%c_edf)
     if (allocated(f(id)%fused)) deallocate(f(id)%fused)
 
     ! clear all alias referring to this field
