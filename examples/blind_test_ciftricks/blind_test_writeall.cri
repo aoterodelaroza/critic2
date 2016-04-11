@@ -6,9 +6,9 @@ crystal ../data/all.cif ammon-3
 write ammon-3.cif
 crystal ../data/all.cif boerrigter-1
 write boerrigter-1.cif
-crystal ../data/all.cif boerritger-2
+crystal ../data/all.cif boerrigter-2
 write boerritger-2.cif
-crystal ../data/all.cif boerritger-3
+crystal ../data/all.cif boerrigter-3
 write boerritger-3.cif
 crystal ../data/all.cif day-1
 write day-1.cif

@@ -5206,15 +5206,17 @@ Compare crystal structures (COMPARE)
 Compare two or more crystal structures and find the measure of
 similarity (DIFF) based on either their radial distribution functions
 (RDF keyword) or their powder diffraction patterns (POWDER). By
-default, use the radial distribution functions, which are less
-sensitive to changes in unit cell parameters. 
+default, use the powder diffraction patterns. Two crystal structures
+are exactly equal if DIFF = 1. Maximum dissimilarity occurs when DIFF
+= 0.
 
 The similarity measure is calculated using the cross-correlation
 functions defined in de Gelder et al., J. Comput. Chem., 22 (2001)
 273, using the triangle weight. Powder diffraction patterns are
-calculate from 2theta = 5 up to xend.r (default: 45). Radial
-distribution functions are calculated from zero up to xend.r bohr
-(default: 25 bohr).
+calculate from 2theta = 5 up to xend.r (default: 30; this value may
+need to be tweaked for highly symmetric crystals, which have no
+reflections below 2theta=30). Radial distribution functions are
+calculated from zero up to xend.r bohr (default: 25 bohr).
 
 The crystal structures can be given by passing an external file to
 COMPARE. The syntax is the same as in CRYSTAL: the file format is

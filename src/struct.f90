@@ -749,12 +749,12 @@ contains
     logical :: ok
     logical :: dopowder 
 
-    real*8, parameter :: sigma0 = 0.25d0
+    real*8, parameter :: sigma0 = 0.1d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end0 = 45d0
+    real*8, parameter :: th2end0 = 30d0
     real*8, parameter :: rend0 = 25d0
 
     ! initialized
@@ -762,7 +762,7 @@ contains
     lp = 1
     ns = 0
     allocate(c(2))
-    dopowder = .false.
+    dopowder = .true.
     xend = -1d0
 
     write (uout,'("* COMPARE: compare crystal structures")')
@@ -844,9 +844,9 @@ contains
 
     ! calculate the overlap between diffraction patterns
     allocate(diff(ns,ns))
-    diff = 0d0
+    diff = 1d0
     do i = 1, ns
-       do j = i, ns
+       do j = i+1, ns
           diff(i,j) = crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j)
           diff(j,i) = diff(i,j)
        end do

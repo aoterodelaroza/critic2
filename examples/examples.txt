@@ -322,9 +322,9 @@ submitted structures for molecule XVI in the fifth blind test is
 provided with this example. The input blind_test_writeall.cri reads
 this compiled cif file, extracts all the structures, and writes them
 to separate cif files. This input should be run before any of the
-others. This example also shows the use of powdiff to compare crystal
-structures, and how to calculate powder diffraction patterns with
-critic2. 
+others. This example also shows the use of COMPARE to compare crystal
+structures, and how to calculate powder diffraction patterns and
+radial distribution functions with critic2.
 
 ** blind_test_writeall.cri
 
@@ -335,11 +335,10 @@ the other two.
 ** blind_test_compare.cri
 
 Compare all proposed crystal structures. To restrict to the comparison
-with experiment, grep 'expt.cif' in the critic2 output. The powdiff
-value for kendrick-1 compared to the experimental structure is
-significantly smaller than any of the others. The match can be
-confirmed by inspecting the powder diffraction patterns using the next
-input. 
+with experiment, grep 'expt.cif' in the critic2 output. The DIFF value
+for kendrick-1 compared to the experimental structure is higher than
+any of the others. The match can be confirmed by inspecting the powder
+diffraction patterns using the next input.
 
 ** blind_test_powder.cri
 

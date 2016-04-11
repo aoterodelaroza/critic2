@@ -1,5 +1,6 @@
 crystal expt.cif
-compare . ammon-1.cif ammon-2.cif ammon-3.cif \
+compare \
+          . ammon-1.cif ammon-2.cif ammon-3.cif \
           boerrigter-1.cif boerritger-2.cif boerritger-3.cif \
           day-1.cif day-2.cif day-3.cif \
           desiraju-1.cif desiraju-2.cif desiraju-3.cif \
