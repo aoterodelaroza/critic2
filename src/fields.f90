@@ -830,6 +830,7 @@ contains
     integer :: str, sts
     integer :: i, j, k
     logical :: iok
+    type(scalar_value) :: res2
 
     ! get the scalar field properties
     xp = cr%x2c(x0)
@@ -863,13 +864,14 @@ contains
        if (allfields) then
           do i = 0, ubound(f,1)
              if (fused(i) .and. i /= id) then
-                call grd(f(i),xp,2,res)
+                call grd(f(i),xp,2,res2)
                 write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,2X))') string(i),&
-                   string(res%f,'e',decimal=9), string(res%gfmod,'e',decimal=9), &
-                   string(res%del2f,'e',decimal=9)
+                   string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
+                   string(res2%del2f,'e',decimal=9)
              end if
           end do
        end if
+
        ! properties at points defined by the user
        do i = 1, nptprops
           if (point_prop(i)%ispecial == 0) then
@@ -1158,28 +1160,37 @@ contains
     if (len_trim(expr) == 0) &
        call ferror("fields_pointprop","Wrong arithmetic expression",faterr,line)
 
-    ! Determine the fields in the expression, check that they are defined
-    call fields_in_eval(expr,n,idlist)
-    do i = 1, n
-       if (.not.goodfield(fieldname_to_idx(idlist(i)))) &
-          call ferror("fields_pointprop","Unknown field in arithmetic expression",faterr,expr)
-    end do
-
     ! Add this pointprop to the list
     nptprops = nptprops + 1
     point_prop(nptprops)%name = word
     point_prop(nptprops)%expr = expr
-    point_prop(nptprops)%nf = n
     if (isstress) then
        point_prop(nptprops)%ispecial = 1
     else
        point_prop(nptprops)%ispecial = 0
     end if
-    if (allocated(point_prop(nptprops)%fused)) deallocate(point_prop(nptprops)%fused)
-    allocate(point_prop(nptprops)%fused(n))
-    do i = 1, n
-       point_prop(nptprops)%fused(i) = fieldname_to_idx(idlist(i))
-    end do
+
+    ! Determine the fields in the expression, check that they are defined
+    if (point_prop(nptprops)%ispecial == 0) then
+       call fields_in_eval(expr,n,idlist)
+       do i = 1, n
+          if (.not.goodfield(fieldname_to_idx(idlist(i)))) &
+             call ferror("fields_pointprop","Unknown field in arithmetic expression",faterr,expr)
+       end do
+
+       ! fill the fused array
+       if (allocated(point_prop(nptprops)%fused)) deallocate(point_prop(nptprops)%fused)
+       allocate(point_prop(nptprops)%fused(n))
+       point_prop(nptprops)%nf = n
+       do i = 1, n
+          point_prop(nptprops)%fused(i) = fieldname_to_idx(idlist(i))
+       end do
+    else
+       if (allocated(point_prop(nptprops)%fused)) deallocate(point_prop(nptprops)%fused)
+       allocate(point_prop(nptprops)%fused(1))
+       point_prop(nptprops)%nf = 1
+       point_prop(nptprops)%fused(1) = refden
+    end if
 
     ! Print report
     call fields_pointprop_report()
@@ -1634,6 +1645,7 @@ contains
 
     case(type_wfn)
        call wfn_rho2(f,wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
+
        ! transformation not needed because all work done in cartesians
        ! in a finite environment. wfn assumes the crystal structure
        ! resulting from load xyz/wfn/wfx (molecule at the center of 
