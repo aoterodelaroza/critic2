@@ -614,7 +614,7 @@ contains
     fl1 = .false.
     fl2 = .false.
     c%neqv = 0
-    c%ncv = 0
+    c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen(:,1) = 0d0
     do while(.true.)
