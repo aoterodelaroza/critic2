@@ -290,39 +290,39 @@ contains
     elseif (c%ncv == 1) then
        c%lcent = 1 ! P
     elseif (c%ncv == 2) then
-       if (c%eql_distance(c%cen(:,2),(/0.0d0,0.5d0,0.5d0/)) < 1d-12) then
+       if (c%eql_distance(c%cen(:,2),(/0.0d0,0.5d0,0.5d0/)) < 1d-5) then
           c%lcent = 2 ! A
-       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.0d0,0.5d0/)) < 1d-12) then
+       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.0d0,0.5d0/)) < 1d-5) then
           c%lcent = 3 ! B
-       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.0d0/)) < 1d-12) then
+       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.0d0/)) < 1d-5) then
           c%lcent = 4 ! C
-       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.5d0/)) < 1d-12) then
+       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.5d0/)) < 1d-5) then
           c%lcent = 6 ! I
        end if
     elseif (c%ncv == 3) then
-       if (c%eql_distance(c%cen(:,2),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-12 .and.&
-           c%eql_distance(c%cen(:,3),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-12 .or.&
-           c%eql_distance(c%cen(:,2),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-12 .and.&
-           c%eql_distance(c%cen(:,3),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-12) then
+       if (c%eql_distance(c%cen(:,2),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-5 .and.&
+           c%eql_distance(c%cen(:,3),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-5 .or.&
+           c%eql_distance(c%cen(:,2),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-5 .and.&
+           c%eql_distance(c%cen(:,3),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-5) then
            c%lcent = 7 ! R (obverse)
-        elseif (c%eql_distance(c%cen(:,2),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-12 .and.&
-           c%eql_distance(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-12 .or.&
-           c%eql_distance(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-12 .and.&
-           c%eql_distance(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-12) then
+        elseif (c%eql_distance(c%cen(:,2),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-5 .and.&
+           c%eql_distance(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-5 .or.&
+           c%eql_distance(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-5 .and.&
+           c%eql_distance(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-5) then
            c%lcent = 8 ! R (reverse)x
         end if
     elseif (c%ncv == 4) then
-       ok = c%eql_distance(c%cen(:,2),(/0d0,0.5d0,0.5d0/)) < 1d-12 .or.&
-          c%eql_distance(c%cen(:,2),(/0.5d0,0d0,0.5d0/)) < 1d-12 .or.&
-          c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0d0/)) < 1d-12
+       ok = c%eql_distance(c%cen(:,2),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
+          c%eql_distance(c%cen(:,2),(/0.5d0,0d0,0.5d0/)) < 1d-5 .or.&
+          c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0d0/)) < 1d-5
        ok = ok .and. &
-          (c%eql_distance(c%cen(:,3),(/0d0,0.5d0,0.5d0/)) < 1d-12 .or.&
-          c%eql_distance(c%cen(:,3),(/0.5d0,0d0,0.5d0/)) < 1d-12 .or.&
-          c%eql_distance(c%cen(:,3),(/0.5d0,0.5d0,0d0/)) < 1d-12)
+          (c%eql_distance(c%cen(:,3),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
+          c%eql_distance(c%cen(:,3),(/0.5d0,0d0,0.5d0/)) < 1d-5 .or.&
+          c%eql_distance(c%cen(:,3),(/0.5d0,0.5d0,0d0/)) < 1d-5)
        ok = ok .and. &
-          (c%eql_distance(c%cen(:,4),(/0d0,0.5d0,0.5d0/)) < 1d-12 .or.&
-          c%eql_distance(c%cen(:,4),(/0.5d0,0d0,0.5d0/)) < 1d-12 .or.&
-          c%eql_distance(c%cen(:,4),(/0.5d0,0.5d0,0d0/)) < 1d-12)
+          (c%eql_distance(c%cen(:,4),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
+          c%eql_distance(c%cen(:,4),(/0.5d0,0d0,0.5d0/)) < 1d-5 .or.&
+          c%eql_distance(c%cen(:,4),(/0.5d0,0.5d0,0d0/)) < 1d-5)
        if (ok) c%lcent = 6 ! F
     endif
     
