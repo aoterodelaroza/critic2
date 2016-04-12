@@ -749,12 +749,12 @@ contains
     logical :: ok
     logical :: dopowder 
 
-    real*8, parameter :: sigma0 = 0.1d0
+    real*8, parameter :: sigma0 = 0.2d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end0 = 30d0
+    real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: rend0 = 25d0
 
     ! initialized
