@@ -108,7 +108,7 @@ contains
        call struct_read_wien(c,word,.false.,mol)
        call c%set_cryscar()
        if (c%neqv == 0) then ! some structs may come without symmetry
-          call struct_read_wien(cr,word,.true.,mol)
+          call struct_read_wien(c,word,.true.,mol)
           call c%set_cryscar()
        endif
        aux = getword(line,lp)
