@@ -47,6 +47,8 @@ module struct_writers
   public :: struct_write_lammps
   public :: struct_write_siesta_fdf
   public :: struct_write_siesta_in
+  public :: struct_write_dftbp_hsd
+  public :: struct_write_dftbp_gen
 
 contains
 
@@ -1187,5 +1189,162 @@ contains
     write (uout,*)
 
   end subroutine struct_write_siesta_in
+
+  !> Write a DFTB+ human-friendly structured data format (hsd) file
+  subroutine struct_write_dftbp_hsd(file,c)
+    use struct_basic
+    use global
+    use tools_io
+    use tools_math
+    use param
+
+    character*(*), intent(in) :: file
+    type(crystal), intent(in) :: c
+
+    integer :: lu
+
+    lu = fopen_write(file)
+    write (lu,'("Geometry = GenFormat {")')
+    call struct_write_dftbp_gen(file,c,lu)
+    write(lu,'("}")')
+    write(lu,'("")')
+    write(lu,'("Driver = {}")')
+    write(lu,'("")')
+    write(lu,'("# Driver = ConjugateGradient {")')
+    write(lu,'("#        MovedAtoms = 1:-1")')
+    write(lu,'("#        MaxForceComponent = 1e-4")')
+    write(lu,'("#        MaxSteps = 100")')
+    write(lu,'("#        OutputPrefix = ""geom.out""")')
+    write(lu,'("# }")')
+    write(lu,'("")')
+    write(lu,'("Hamiltonian = DFTB{")')
+    write(lu,'("  SCC = Yes")')
+    write(lu,'("  SCCTolerance = 1e-5")')
+    write(lu,'("  MaxSCCIterations = 125")')
+    write(lu,'("  MaxAngularMomentum = {")')
+    write(lu,'("    xx = s,p,d,f")')
+    write(lu,'("  }")')
+    write(lu,'("  SlaterKosterFiles = Type2FileNames {")')
+    write(lu,'("    Prefix = ""./""")')
+    write(lu,'("    Separator = ""-""")')
+    write(lu,'("    Suffix = "".skf""")')
+    write(lu,'("    LowerCaseTypeName = No")')
+    write(lu,'("  }")')
+    if (.not.c%ismolecule) then
+       write(lu,'("  KPointsAndWeights = SupercellFolding {")')
+       write(lu,'("    4 0 0 ")')
+       write(lu,'("    0 4 0")')
+       write(lu,'("    0 0 4")')
+       write(lu,'("    0.5 0.5 0.5")')
+       write(lu,'("  }")')
+    end if
+    write(lu,'("}")')
+    write(lu,'("")')
+    write(lu,'("Options {")')
+    write(lu,'("  WriteDetailedXML = Yes")')
+    write(lu,'("}")')
+    write(lu,'("")')
+    write(lu,'("ParserOptions {")')
+    write(lu,'("  ParserVersion = 4")')
+    write(lu,'("}")')
+    write(lu,'("")')
+    call fclose(lu)
+
+  end subroutine struct_write_dftbp_hsd
+
+  !> Write a DFTB+ human-friendly gen structure file
+  subroutine struct_write_dftbp_gen(file,c,lu0)
+    use struct_basic
+    use global
+    use tools_io
+    use tools_math
+    use param
+
+    character*(*), intent(in) :: file
+    type(crystal), intent(in) :: c
+    integer, intent(in), optional :: lu0
+
+    integer :: lu, nspecies, n, nt, i, j, k
+    logical :: ltyp(100)
+    real*8 :: r(3,3)
+    character(len=:), allocatable :: strtyp
+
+    ! count atoms types
+    ltyp = .false.
+    do i = 1, c%ncel
+       ltyp(c%at(c%atcel(i)%idx)%z) = .true.
+    end do
+    nspecies = count(ltyp)
+
+    ! open file
+    if (present(lu0)) then
+       lu = lu0
+    else
+       lu = fopen_write(file)
+    end if
+
+    ! atom types
+    strtyp = ""
+    do i = 1, size(ltyp)
+       if (ltyp(i)) then
+          strtyp = strtyp // " " // string(nameguess(i,.true.))
+       end if
+    end do
+
+    if (c%ismolecule) then
+       ! molecule
+       write (lu,'(A," C")') string(c%ncel)
+       write (lu,'(A)') strtyp
+       write (lu,'("# ",A)') string(c%file)
+
+       ! Cartesian coordinates
+       n = 0
+       nt = 0
+       do i = 1, size(ltyp)
+          if (ltyp(i)) then
+             nt = nt + 1
+             do k = 1, c%ncel
+                if (c%at(c%atcel(k)%idx)%z == i) then
+                   n = n + 1
+                   write (lu,'(99(A,X))') string(n), string(nt), &
+                      (string(c%atcel(k)%r(j)*bohrtoa,'f',20,12),j=1,3)
+                end if
+             end do
+          end if
+       end do
+    else
+       ! crystal
+       write (lu,'(A," F")') string(c%ncel)
+       write (lu,'(A)') strtyp
+       write (lu,'("# ",A)') string(c%file)
+
+       ! fractional coordinates
+       n = 0
+       nt = 0
+       do i = 1, size(ltyp)
+          if (ltyp(i)) then
+             nt = nt + 1
+             do k = 1, c%ncel
+                if (c%at(c%atcel(k)%idx)%z == i) then
+                   n = n + 1
+                   write (lu,'(99(A,X))') string(n), string(nt), &
+                      (string(c%atcel(k)%x(j),'f',20,12),j=1,3)
+                end if
+             end do
+          end if
+       end do
+
+       ! lattice vectors
+       r = c%crys2car * bohrtoa
+       write (lu,'(3(A,X))') (string(0d0,'f',20,12),j=1,3)
+       do i = 1, 3
+          write (lu,'(3(A,X))') (string(r(j,i),'f',20,12),j=1,3)
+       end do
+    endif
+
+    ! close file
+    if (.not.present(lu0)) call fclose(lu)
+
+  end subroutine struct_write_dftbp_gen
 
 end module struct_writers

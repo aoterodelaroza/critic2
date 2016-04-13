@@ -506,6 +506,14 @@ contains
        write (uout,'("* WRITE STRUCT_IN file: ",A)') string(file)
        call struct_write_siesta_in(file,cr)
        call check_no_extra_word()
+    elseif (equal(wext,'hsd')) then
+       write (uout,'("* WRITE hsd file: ",A)') string(file)
+       call struct_write_dftbp_hsd(file,cr)
+       call check_no_extra_word()
+    elseif (equal(wext,'gen')) then
+       write (uout,'("* WRITE gen file: ",A)') string(file)
+       call struct_write_dftbp_gen(file,cr)
+       call check_no_extra_word()
     else
        call ferror('struct_write','unrecognized file format',faterr,line)
     end if

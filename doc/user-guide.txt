@@ -1837,12 +1837,12 @@ not. The full syntax of the WRITE keyword is::
   WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
         [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] [BURST]
         [CELL] [MOLCELL] [ix.i iy.i iz.i]
-  WRITE file.scf.in [PRIMITIVE]
+  WRITE file.scf.in
   WRITE file.tess
   WRITE file.cri|file.incritic
-  WRITE {[file.]POSCAR|[file.]CONTCAR} [PRIMITIVE]
-  WRITE file.abin [PRIMITIVE]
-  WRITE file.elk [PRIMITIVE]
+  WRITE {[file.]POSCAR|[file.]CONTCAR}
+  WRITE file.abin
+  WRITE file.elk
   WRITE file.gau
   WRITE file.cif
   WRITE file.m
@@ -1850,6 +1850,8 @@ not. The full syntax of the WRITE keyword is::
   WRITE file.lammps
   WRITE file.fdf
   WRITE file.STRUCT_IN
+  WRITE file.hsd
+  WRITE file.gen
 
 A number of file formats can be written by critic2. As in CRYSTAL and
 MOLECULE, the type of file is detected by the extension (xyz, in,
@@ -1941,8 +1943,8 @@ the QE manual, then that particular matrix is used. Otherwise, critic2
 uses its own internal CELL_PARAMETERS matrix, which may result in
 Quantum ESPRESSO failing to recognize the crystal symmetry. By
 default, the crystal cell used by critic2 is written to the QE input
-template. To reduce the cell to a primitive, use the PRIMITIVE
-keyword. 
+template. To reduce the cell to a primitive, use NEWCELL with the
+PRIMITIVE keyword before writing the file.
 
 A tessel input (extension .tess) and a critic2 input using the (.cri
 or .incritic) can be written. Tessel is a program for crystal and
@@ -1955,9 +1957,8 @@ output. This list is necessary to build the corresponding POTCAR. The
 atoms are always ordered in increasing atomic number. An abinit input
 file containing the input structure can be written by using the 'abin'
 extension. An elk input template can be written using the elk
-extension. In all three cases, the PRIMITIVE keyword transforms the
-current cell to the primitive cell. A simple cif file (no symmetry) is
-generated if the cif extension is used.
+extension. A simple cif file (no symmetry) is generated if the cif
+extension is used.
 
 A Gaussian input file for calculations under periodic boundary
 conditions can be written using the gau extension. For a template
@@ -1982,13 +1983,10 @@ a template for a proper functional siesta input template containing
 the crystal structure. The STRUCT_IN extension writes a files that can
 be read using the MD.UseStructFile option.
 
-To make critic2 try to reduce the current cell to the primitive cell
-before writing the template file, use the PRIMITIVE keyword. The code
-that does this is still not very well polished, particularly for the
-more "exotic" centering types, so I recommend you check your resulting
-structure with a visualization program. In the case of QE, critic2
-tries to conform as much as possible with the QE rules for writing the
-CELL_PARAMETERS matrix.
+Two inputs for DFTB+ may be written. The gen format contains only the
+structure and is meant to be used with the GenFormat method in
+Geometry. The hsd writes a fulll input template, including the
+structure.
 
 Scalar fields
 -------------
