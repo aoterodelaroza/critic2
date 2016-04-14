@@ -10,6 +10,7 @@ TESTS=\
 002_read_struct_sym.sh 002_read_vasp.sh 002_read_vasp2.sh 002_read_vasp3.sh\
 002_read_wfn.sh 002_read_wfx.sh 002_read_xyz.sh\
 002_read_qein1.sh 002_read_qein2.sh\
+002_read_dftbp1.sh 002_read_dftbp2.sh\
 002_read_siesta.sh 002_read_multiple.sh 002_read_reset.sh\
 002_read_newcell.sh 002_read_primitive.sh 002_read_molecule.sh\
 003_wigner_bcc.sh 003_wigner_fcc_nosym1.sh 003_wigner_fcc_nosym2.sh 003_wigner_fcc.sh\
@@ -24,6 +25,7 @@ TESTS=\
 005_write_obj3.sh 005_write_obj4.sh 005_write_obj5.sh 005_write_ply.sh 005_write_off.sh\
 005_write_lammps1.sh 005_write_lammps2.sh\
 005_write_fdf.sh 005_write_siesta_in.sh\
+005_write_dftbp1.sh 005_write_dftbp2.sh 005_write_dftbp3.sh\
 006_load_abinit.sh 006_load_cast_unload.sh 006_load_chgcar.sh 006_load_chg.sh\
 006_load_core_expr.sh 006_load_cube_opt1.sh 006_load_cube_opt2.sh\
 006_load_cube_opt3.sh 006_load_cube.sh\
