@@ -204,9 +204,30 @@ contains
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word
 
-    else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN'))&
-       & then
+    else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN')) then
        call struct_read_siesta(c,word,mol)
+       aux = getword(line,lp)
+       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       c%file = word
+
+    else if (equal(wext1,'gen')) then
+       docube = .false.
+       rborder = rborder_def
+       do while(.true.)
+          lp2 = 1
+          word2 = lgetword(line,lp)
+          if (equal(word2,'cubic').or.equal(word2,'cube')) then
+             docube = .true.
+          elseif (eval_next(raux,word2,lp2)) then
+             rborder = raux / dunit
+          elseif (len_trim(word2) > 1) then
+             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line)
+          else
+             exit
+          end if
+       end do
+
+       call struct_read_dftbp(c,word,mol,rborder,docube)
        aux = getword(line,lp)
        if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
        c%file = word

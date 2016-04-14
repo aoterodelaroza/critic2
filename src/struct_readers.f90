@@ -46,6 +46,7 @@ module struct_readers
   public :: struct_read_qeout
   public :: struct_read_qein
   public :: struct_read_siesta
+  public :: struct_read_dftbp
   private :: qe_latgen
   private :: spgs_wrap
   private :: fill_molecule
@@ -1906,6 +1907,114 @@ contains
     if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_siesta
+
+  !> Read the structure from a file in DFTB+ gen format.
+  subroutine struct_read_dftbp(c,file,mol,rborder,docube)
+    use struct_basic
+    use types
+    use tools_io
+    use tools_math
+    use param
+
+    type(crystal), intent(inout) :: c !< Crystal
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    real*8, intent(in) :: rborder !< user-defined border in bohr
+    logical, intent(in) :: docube !< if true, make the cell cubic
+
+    integer :: lu
+    real*8 :: r(3,3), g(3,3)
+    integer :: i, iz, idum, lp
+    logical :: ok
+    character*1 :: isfrac
+    character(len=:), allocatable :: line, word
+    integer :: ntypat, ityp
+    integer, allocatable :: itypat(:)
+
+    ! open
+    lu = fopen_read(file)
+
+    ! number of atoms and type of coordinates
+    ok = getline(lu,line,.true.)
+    read (line,*) c%nneq, isfrac
+    isfrac = lower(isfrac)
+    if (.not.(equal(isfrac,"f").or.equal(isfrac,"c").or.equal(isfrac,"s"))) &
+       call ferror('struct_read_dftbp','wrong coordinate selector in gen file',faterr)
+
+    ! atom types
+    ok = getline(lu,line,.true.)
+    lp = 1
+    word = getword(line,lp)
+    iz = zatguess(word)
+    ntypat = 0
+    allocate(itypat(10))
+    do while (iz >= 0)
+       ntypat = ntypat + 1
+       if (ntypat > size(itypat)) call realloc(itypat,2*ntypat)
+       itypat(ntypat) = iz
+       word = getword(line,lp)
+       iz = zatguess(word)
+    end do
+    if (ntypat == 0) call ferror('struct_read_dftbp','no atomic types found',faterr)
+
+    ! read atomic positions
+    call realloc(c%at,c%nneq)
+    do i = 1, c%nneq
+       ok = getline(lu,line,.true.)
+       read (line,*) idum, ityp, c%at(i)%x
+       if (isfrac /= "f") &
+          c%at(i)%x = c%at(i)%x / bohrtoa
+       c%at(i)%z = itypat(ityp)
+       c%at(i)%name = nameguess(c%at(i)%z)
+       c%at(i)%zpsp = -1
+       c%at(i)%qat = 0
+    end do
+
+    ! read lattice vectors, if they exist
+    ok = getline(lu,line,.false.)
+    if (ok) then
+       do i = 1, 3
+          ok = getline(lu,line,.true.)
+          read (line,*) r(i,:)
+       end do
+       r = r / bohrtoa
+
+       ! fill the cell metrics
+       g = matmul(r,transpose(r))
+       do i = 1, 3
+          c%aa(i) = sqrt(g(i,i))
+       end do
+       c%bb(1) = acos(g(2,3)/c%aa(2)/c%aa(3)) * 180d0 / pi
+       c%bb(2) = acos(g(1,3)/c%aa(1)/c%aa(3)) * 180d0 / pi
+       c%bb(3) = acos(g(1,2)/c%aa(1)/c%aa(2)) * 180d0 / pi
+       c%crys2car = transpose(r)
+       c%car2crys = matinv(c%crys2car)
+       if (isfrac == "c") then
+          call ferror('struct_read_dftbp','lattice plus C not supported',faterr)
+       elseif (isfrac == "s") then
+          do i = 1, c%nneq
+             c%at(i)%x = c%c2x(c%at(i)%x)
+          end do
+       end if
+    else
+       ! molecule and no lattice -> set up the origin and the molecular cell
+       if (isfrac == "f" .or. isfrac == "s") &
+          call ferror('struct_read_dftbp','S or C coordinates but no lattice vectors',faterr)
+       call fill_molecule(c,rborder,docube)
+       call c%set_cryscar()
+    end if
+
+    ! no symmetry
+    c%havesym = 0
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,1:3,1) = eye
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
+    c%lcent = 0
+
+  end subroutine struct_read_dftbp
 
   !> From QE, generate the lattice from the ibrav
   subroutine qe_latgen(ibrav,celldm,a1,a2,a3)

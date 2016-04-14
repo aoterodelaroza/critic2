@@ -34,6 +34,7 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.in # (file.scf.in, quantum espresso input)
   CRYSTAL file.STRUCT_IN 
   CRYSTAL file.STRUCT_OUT
+  CRYSTAL file.gen
   CRYSTAL
    SPG spgsymbol.s
    SPGR spgsymbol.s
@@ -55,6 +56,7 @@ expression.r # prints the value of the expression to the output.
 * MOLECULE file.xyz [border.r] [CUBIC|CUBE]
   MOLECULE file.wfn [border.r] [CUBIC|CUBE]
   MOLECULE file.wfx [border.r] [CUBIC|CUBE]
+  MOLECULE file.gen [border.r] [CUBIC|CUBE]
   MOLECULE file.cube
   MOLECULE file.cif
   MOLECULE ...

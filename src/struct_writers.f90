@@ -1295,7 +1295,6 @@ contains
        ! molecule
        write (lu,'(A," C")') string(c%ncel)
        write (lu,'(A)') strtyp
-       write (lu,'("# ",A)') string(c%file)
 
        ! Cartesian coordinates
        n = 0
@@ -1316,7 +1315,6 @@ contains
        ! crystal
        write (lu,'(A," F")') string(c%ncel)
        write (lu,'(A)') strtyp
-       write (lu,'("# ",A)') string(c%file)
 
        ! fractional coordinates
        n = 0
