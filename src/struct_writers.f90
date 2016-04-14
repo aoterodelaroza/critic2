@@ -1201,31 +1201,75 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
-    integer :: lu
+    logical :: ltyp(100)
+
+    real*8, parameter :: hderiv(100) = (/&
+     -0.1857d0,      0.d0,      0.d0,    0.d0,      0.d0, -0.1492d0,& ! 1:6   (H-C)
+     -0.1535d0, -0.1575d0, -0.1623d0,    0.d0, -0.0454d0,   -0.02d0,& ! 7:12  (N-Mg)
+          0.d0,      0.d0,   -0.14d0, -0.11d0, -0.0697d0,      0.d0,& ! 13:18 (Al-Ar)
+     -0.0339d0, -0.0340d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 19:24 (K-Cr)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,   -0.03d0,& ! 25:30 (Mn-Zn)
+          0.d0,      0.d0,      0.d0,    0.d0, -0.0573d0,      0.d0,& ! 31:36 (Ga-Kr)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 37:42 (Rb-Mo)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 43:48 (Tc-Cd)
+          0.d0,      0.d0,      0.d0,    0.d0, -0.0433d0,      0.d0,& ! 49:54 (In-Xe)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 55:60 (Cs-Nd)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 61:66 (Pm-Dy)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 67:72 (Ho-Hf)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 73:78 (Ta-Pt)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 79:84 (Au-Po)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 85:90 (At-Th)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 91:96 (Pa-Cm)
+          0.d0,      0.d0,      0.d0,    0.d0/) ! 97:100 (Bk-Fm)
+
+    character*1, parameter :: maxang(100) = (/&
+       "s", "x", "x", "x", "x", "p",& ! 1:6   (H-C)
+       "p", "p", "p", "x", "p", "p",& ! 7:12  (N-Mg)
+       "x", "x", "d", "d", "d", "x",& ! 13:18 (Al-Ar)
+       "p", "p", "x", "x", "x", "x",& ! 19:24 (K-Cr)
+       "x", "x", "x", "x", "x", "d",& ! 25:30 (Mn-Zn)
+       "x", "x", "x", "x", "d", "x",& ! 31:36 (Ga-Kr)
+       "x", "x", "x", "x", "x", "x",& ! 37:42 (Rb-Mo)
+       "x", "x", "x", "x", "x", "x",& ! 43:48 (Tc-Cd)
+       "x", "x", "x", "x", "d", "x",& ! 49:54 (In-Xe)
+       "x", "x", "x", "x", "x", "x",& ! 55:60 (Cs-Nd)
+       "x", "x", "x", "x", "x", "x",& ! 61:66 (Pm-Dy)
+       "x", "x", "x", "x", "x", "x",& ! 67:72 (Ho-Hf)
+       "x", "x", "x", "x", "x", "x",& ! 73:78 (Ta-Pt)
+       "x", "x", "x", "x", "x", "x",& ! 79:84 (Au-Po)
+       "x", "x", "x", "x", "x", "x",& ! 85:90 (At-Th)
+       "x", "x", "x", "x", "x", "x",& ! 91:96 (Pa-Cm)
+       "x", "x", "x", "x"/)           ! 97:100 (Bk-Fm)
+
+    integer :: lu, i
 
     lu = fopen_write(file)
     write (lu,'("Geometry = GenFormat {")')
-    call struct_write_dftbp_gen(file,c,lu)
+    call struct_write_dftbp_gen(file,c,lu,ltyp)
     write(lu,'("}")')
     write(lu,'("")')
-    write(lu,'("Driver = {}")')
-    write(lu,'("")')
-    write(lu,'("# Driver = ConjugateGradient {")')
-    write(lu,'("#        MovedAtoms = 1:-1")')
-    write(lu,'("#        MaxForceComponent = 1e-4")')
-    write(lu,'("#        MaxSteps = 100")')
-    write(lu,'("#        OutputPrefix = ""geom.out""")')
-    write(lu,'("# }")')
+    write(lu,'("Driver = ConjugateGradient {")')
+    write(lu,'("       MovedAtoms = 1:-1")')
+    write(lu,'("       MaxForceComponent = 1e-4")')
+    write(lu,'("       MaxSteps = 100")')
+    write(lu,'("       OutputPrefix = ""geom.out""")')
+    write(lu,'("}")')
     write(lu,'("")')
     write(lu,'("Hamiltonian = DFTB{")')
+    write(lu,'("  ThirdOrderFull = Yes")')
     write(lu,'("  SCC = Yes")')
-    write(lu,'("  SCCTolerance = 1e-5")')
+    write(lu,'("  SCCTolerance = 1e-7")')
     write(lu,'("  MaxSCCIterations = 125")')
     write(lu,'("  MaxAngularMomentum = {")')
-    write(lu,'("    xx = s,p,d,f")')
+    do i = 1, size(ltyp)
+       if (ltyp(i)) then
+          write (lu,'(4X,A," = ",A)') string(nameguess(i,.true.)), &
+             string(maxang(i))
+       end if
+    end do
     write(lu,'("  }")')
     write(lu,'("  SlaterKosterFiles = Type2FileNames {")')
-    write(lu,'("    Prefix = ""./""")')
+    write(lu,'("    Prefix = ""xxx""")')
     write(lu,'("    Separator = ""-""")')
     write(lu,'("    Suffix = "".skf""")')
     write(lu,'("    LowerCaseTypeName = No")')
@@ -1238,6 +1282,16 @@ contains
        write(lu,'("    0.5 0.5 0.5")')
        write(lu,'("  }")')
     end if
+    write(lu,'("  DampXH = Yes")')
+    write(lu,'("  DampXHExponent = 4.2")')
+    write(lu,'("  HubbardDerivs {")')
+    do i = 1, size(ltyp)
+       if (ltyp(i)) then
+          write (lu,'(4X,A," = ",A)') string(nameguess(i,.true.)), &
+             string(hderiv(i),'f',decimal=4)
+       end if
+    end do
+    write(lu,'("  }")')
     write(lu,'("}")')
     write(lu,'("")')
     write(lu,'("Options {")')
@@ -1253,7 +1307,7 @@ contains
   end subroutine struct_write_dftbp_hsd
 
   !> Write a DFTB+ human-friendly gen structure file
-  subroutine struct_write_dftbp_gen(file,c,lu0)
+  subroutine struct_write_dftbp_gen(file,c,lu0,ltyp0)
     use struct_basic
     use global
     use tools_io
@@ -1263,6 +1317,7 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
     integer, intent(in), optional :: lu0
+    logical, intent(out), optional :: ltyp0(100)
 
     integer :: lu, nspecies, n, nt, i, j, k
     logical :: ltyp(100)
@@ -1275,6 +1330,7 @@ contains
        ltyp(c%at(c%atcel(i)%idx)%z) = .true.
     end do
     nspecies = count(ltyp)
+    if (present(ltyp0)) ltyp0 = ltyp
 
     ! open file
     if (present(lu0)) then
