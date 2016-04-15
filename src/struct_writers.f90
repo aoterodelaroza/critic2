@@ -1253,6 +1253,7 @@ contains
     write(lu,'("       MaxForceComponent = 1e-5")')
     write(lu,'("       MaxSteps = 3000")')
     write(lu,'("       LatticeOpt = Yes")')
+    write(lu,'("       OutputPrefix = ""geo_end""")')
     write(lu,'("}")')
     write(lu,'("")')
     write(lu,'("Hamiltonian = DFTB{")')

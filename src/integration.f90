@@ -140,6 +140,7 @@ contains
        elseif (equal(word,"noatoms")) then
           noatoms = .true.
        elseif (equal(word,"ratom")) then
+          nonnm = .false.
           ok = eval_next(ratom_def,line,lp)
           if (.not.ok) &
              call ferror("intgrid_driver","wrong RATOM keyword",faterr,line)
