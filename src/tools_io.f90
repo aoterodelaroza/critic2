@@ -492,13 +492,13 @@ contains
 
   !> Read a line from logical unit u, and return true if read was
   !> successful. Continuation with "\", skip blank lines and comments.
-  !> If eofexit is true, raise error on EOF. If ucopy (integer) exists,
+  !> If eofstop is true, raise error on EOF. If ucopy (integer) exists,
   !> write a copy of the output line to that logical unit, preceded
   !> by a prefix.
-  function getline(u,oline,eofexit,ucopy)
+  function getline(u,oline,eofstop,ucopy)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
-    logical, intent(in), optional :: eofexit
+    logical, intent(in), optional :: eofstop
     integer, intent(in), optional :: ucopy
     logical :: getline
 
@@ -546,8 +546,8 @@ contains
           
        ! exit if eof
        if (.not.ok) then
-          if (present(eofexit)) then
-             if (eofexit) call ferror("getline","unexpected end of file",faterr)
+          if (present(eofstop)) then
+             if (eofstop) call ferror("getline","unexpected end of file",faterr)
           end if
           return
        end if
@@ -579,13 +579,14 @@ contains
 
   end function getline
 
-  !> Read a line from logical unit u. Don't process it to 
-  !> remove comments, etc.
-  function getline_raw(u,line,eofexit) result(ok)
+  !> Read a line from logical unit u, and return true if read was
+  !> successful. Don't process it to remove comments, etc.  If eofstop
+  !> is true, raise error on EOF.
+  function getline_raw(u,line,eofstop) result(ok)
     logical :: ok
     integer, intent(in) :: u
     character(len=:), allocatable, intent(out) :: line
-    logical, intent(in), optional :: eofexit
+    logical, intent(in), optional :: eofstop
 
     integer, parameter :: blocksize = 128
 
@@ -604,8 +605,8 @@ contains
        ok = .not.is_iostat_end(ios)
        if (is_iostat_eor(ios) .or. is_iostat_end(ios)) exit
     end do
-    if (.not.ok.and.present(eofexit)) then
-       if (eofexit) call ferror("getline_raw","unexpected end of file",faterr)
+    if (.not.ok.and.present(eofstop)) then
+       if (eofstop) call ferror("getline_raw","unexpected end of file",faterr)
     end if
 
   end function getline_raw

@@ -93,7 +93,7 @@ contains
     write (uout,'(A)') "* FLUXPRINT: 3d representation of cell, CPs and gradient paths"
     write (uout,*)
     do while(.true.)
-       ok = getline(uin,line,eofexit=.true.,ucopy=ucopy)
+       ok = getline(uin,line,eofstop=.true.,ucopy=ucopy)
        lp = 1
        word = lgetword(line,lp)
 
