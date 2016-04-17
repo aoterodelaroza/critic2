@@ -848,40 +848,53 @@ contains
     character(*), parameter :: exponents = 'eEdDqQ+-'
     character(*), parameter :: lexponents = 'eEdDqQ'
 
-    integer :: tp, i
+    integer :: i
 
+    ! initialize
     isreal = .false.
     len0 = len(line)
     if (lp > len0) return
+
+    ! trailing blanks
     i = lp
     do while (line(i:i)==" " .or. line(i:i)==tab)
        i=i+1
        if (i > len0) return
     enddo
+
+    ! sign
     matched = .false.
     if (line(i:i) == '+' .or. line(i:i) == '-') i = i + 1 
     if (i > len0) return
+
+    ! first sequence of digits
     if (isdigit(line(i:i))) then 
        matched = .true.
        do while (isdigit(line(i:i)))
-          if (i >= len0) exit
           i=i+1
+          if (i > len0) goto 10
        enddo
     end if
+
+    ! decimal point
     if (line(i:i) == '.') then 
-       if (i < len0) i=i+1
+       i=i+1
+       if (i > len0) goto 10
     end if
+
+    ! second sequence of digits
     if (isdigit(line(i:i))) then 
        matched = .true.
        do while (isdigit(line(i:i)))
-          if (i >= len0) exit
           i=i+1
+          if (i > len0) goto 10
        enddo
     end if
+
+    ! that did not look of a real number at all!
     if (.not.matched) return
 
-    !.get optional exponent
-    tp = i - 1
+    ! get optional exponent
     if (index(exponents,line(i:i)) > 0) then
        i = i+1
        if (i > len0) return
@@ -897,12 +910,14 @@ contains
 
        if (.not.isdigit(line(i:i))) return
        do while (isdigit(line(i:i)))
-          if (i >= len0) exit
           i=i+1
+          if (i > len0) goto 10
        enddo
 
        if (i < len0 .and..not.line(i:i) == " ") return
     endif
+
+10  continue
     read (line(lp:i-1),*) rval
     lp = i
     isreal = .true.
