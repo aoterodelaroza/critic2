@@ -30,8 +30,9 @@ module fields
   integer, parameter, public :: type_elk  = 3 !< elk format
   integer, parameter, public :: type_pi   = 4 !< pi format
   integer, parameter, public :: type_wfn  = 6 !< molecular wavefunction format
-  integer, parameter, public :: type_promol_frag = 7 !< promolecular density from a fragment
-  integer, parameter, public :: type_ghost = 8 !< a ghost field
+  integer, parameter, public :: type_dftb = 7 !< DFTB+ wavefunction
+  integer, parameter, public :: type_promol_frag = 8 !< promolecular density from a fragment
+  integer, parameter, public :: type_ghost = 9 !< a ghost field
 
   public :: fields_load
   public :: fields_load_real
@@ -207,6 +208,7 @@ contains
   end subroutine fields_load
 
   function fields_load_real(line,fid,verbose) result(ff)
+    use dftb_private
     use elk_private
     use wien_private
     use wfn_private
@@ -289,6 +291,10 @@ contains
        file = getword(line,lp)
        wext1 = "RHO"
        wext2 = wext1
+    elseif (equal(file,"dftb+")) then
+       file = getword(line,lp)
+       wext1 = "xml"
+       wext2 = wext1
     elseif (equal(file,"wannier")) then
        file = ""
        wext1 = "wannier"
@@ -319,6 +325,13 @@ contains
        equal(wext1,'VT') .or. equal(wext1,'VH')) then
        call grid_read_siesta(file,ff,verbose)
        ff%type = type_grid
+       ff%file = file
+    else if (equal(wext1,'xml')) then
+       file2 = getword(line,lp)
+       file3 = getword(line,lp)
+       call dftb_read(ff,file,file2,file3)
+       ff%type = type_dftb
+       call dftb_register_struct()
        ff%file = file
     else if (equal(wext1,'CHGCAR').or.equal(wext1,'AECCAR0').or.equal(wext1,'AECCAR2')) then
        call grid_read_vasp(file,ff,cr%omega,verbose)
@@ -1525,6 +1538,7 @@ contains
     use grd_atomic
     use grid_tools
     use struct_basic
+    use dftb_private
     use wfn_private
     use pi_private
     use elk_private
@@ -1651,6 +1665,10 @@ contains
        ! resulting from load xyz/wfn/wfx (molecule at the center of 
        ! a big cube).
 
+    case(type_dftb)
+       call dftb_rho2(f,wc,nder,res%f,res%gf,res%hf)
+       ! ????
+
     case(type_promol)
        call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.)
        ! not needed because grd_atomic uses struct.
@@ -1745,6 +1763,7 @@ contains
     use grd_atomic
     use grid_tools
     use struct_basic
+    use dftb_private
     use wfn_private
     use pi_private
     use elk_private
@@ -1784,6 +1803,8 @@ contains
        call pi_rho2(f,wc,rho,grad,h)
     case(type_wfn)
        call wfn_rho2(f,wc,0,rho,grad,h,gkin,vir,stress)
+    case(type_dftb)
+       call dftb_rho2(f,wc,0,rho,grad,h)
     case(type_promol)
        call grda_promolecular(wx,rho,grad,h,0,.false.)
     case(type_promol_frag)
@@ -1821,6 +1842,8 @@ contains
        s = "pi"
     case (type_wfn)
        s = "wfn/wfx"
+    case (type_dftb)
+       s = "dftb+"
     case (type_promol_frag)
        s = "promolecular fragment"
     case (type_ghost)

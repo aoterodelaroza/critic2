@@ -20,7 +20,7 @@ module types
   implicit none
 
   private
-  public :: grid1, atom, celatom, anyatom, fragment
+  public :: grid1, atom, celatom, anyatom, dftbatom, fragment
   public :: cp_type
   public :: scalar_value, field
   public :: integrable, pointpropable
@@ -34,6 +34,7 @@ module types
      module procedure realloc_atom
      module procedure realloc_celatom
      module procedure realloc_anyatom
+     module procedure realloc_dftbatom
      module procedure realloc_fragment
      module procedure realloc_cp
      module procedure realloc1l
@@ -100,6 +101,20 @@ module types
      integer :: z !< atomic number
   end type anyatom
 
+  !> Atomic basis set information in dftb fields
+  type dftbatom
+     character*10 :: name  !< name of the atom
+     integer :: z !< atomic number
+     integer :: norb !< number of orbitals
+     integer :: l(4) !< orbital angular momentum
+     real*8 :: occ(4) !< orbital occupations
+     real*8 :: cutoff(4) !< orbital cutoffs
+     integer :: nexp(4) !< number of exponents 
+     real*8 :: eexp(5,4) !< exponents
+     integer :: ncoef(5,4) !< number of coefficients
+     real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
+  end type dftbatom
+
   !> Type for a fragment of the crystal
   type fragment
      integer :: nat !< Number of atoms in the fragment
@@ -147,7 +162,7 @@ module types
      integer :: lvec(3) !< Lattice vector to the neq cp list 
   end type cp_type
 
-  !> Information about a field
+  !> Scalar field type
   type field
      ! all types/more than one type
      logical :: init = .false. !< is this field initialized?
@@ -241,6 +256,18 @@ module types
      integer, allocatable :: itype_edf(:)
      real*8, allocatable :: e_edf(:)
      real*8, allocatable :: c_edf(:)
+     ! dftb+
+     logical :: isreal
+     integer :: nkpt
+     integer :: nspin
+     integer :: nstates
+     integer :: norb
+     real*8, allocatable :: docc(:,:,:)
+     real*8, allocatable :: dw(:)
+     real*8, allocatable :: dkpt(:,:)
+     real*8, allocatable :: evecr(:,:,:)
+     complex*16, allocatable :: evecc(:,:,:,:)
+     type(dftbatom), allocatable :: bas(:)
      ! promolecular from fragment
      type(fragment) :: fr
      ! ghost field
@@ -400,6 +427,26 @@ contains
     call move_alloc(temp,a)
 
   end subroutine realloc_anyatom
+
+  !> Adapt the size of an allocatable 1D type(atom) array
+  subroutine realloc_dftbatom(a,nnew)
+    use tools_io
+
+    type(dftbatom), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(dftbatom), allocatable :: temp(:)
+    integer :: nold, i
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_dftbatom','array not allocated',faterr)
+    nold = size(a)
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_dftbatom
 
   !> Adapt the size of an allocatable 1D type(fragment) array
   subroutine realloc_fragment(a,nnew)
