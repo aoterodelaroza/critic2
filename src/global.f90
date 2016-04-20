@@ -42,7 +42,10 @@ module global
   character(len=:), allocatable :: clib_file !< The path to the crystal library file
   character(len=:), allocatable :: mlib_file !< The path to the molecular library file
 
-  ! Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE). Up to Pu (93).
+  ! Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE). Up
+  ! to Pu (93).  VAlues are bohr. This distance is usually enough to
+  ! converge any density or orbital (dftb+, pi) contribution from an
+  ! atom.
   real*8, parameter :: cutrad(120) = (/&
      2.149886192475d+01, 1.169139170668d+01, 3.430831385801d+01,& !001-003 H,  He, Li
      2.502075396007d+01, 2.801001395722d+01, 2.167675592180d+01,& !004-006 Be, B,  C 

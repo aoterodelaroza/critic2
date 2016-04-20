@@ -25,23 +25,32 @@ module dftb_private
   public :: dftb_register_struct
   public :: dftb_rho2
 
+  ! private structural info
+  real*8, allocatable :: renv(:,:)
+  integer, allocatable :: lenv(:,:), idxenv(:), zenv(:)
+  integer :: nenv
+
 contains
 
   !> Read the information for a DFTB+ field from the detailed.xml, eigenvec.bin,
   !> and the basis set definition in HSD format.
-  subroutine dftb_read(f,filexml,filebin,filehsd)
+  subroutine dftb_read(f,filexml,filebin,filehsd,zcel)
     use tools_io
     use types
+    use param
     
+    type(field), intent(out) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
-    type(field), intent(out) :: f !< Output field
+    integer, intent(in) :: zcel(:) !< atomic numbers for the atoms in the complete cell (in order)
 
-    integer :: lu, i, j, k, idum, n
+    integer :: lu, i, j, k, l, idum, n, nat, id
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
     type(dftbatom) :: at
+
+    nat = size(zcel)
 
     ! detailed.xml, first pass
     lu = fopen_read(filexml)
@@ -71,16 +80,20 @@ contains
        call ferror('dftb_read','missing information in xml',faterr)
 
     ! detailed.xml, second pass
+    if (allocated(f%dkpt)) deallocate(f%dkpt)
+    if (allocated(f%dw)) deallocate(f%dw)
+    if (allocated(f%docc)) deallocate(f%docc)
     allocate(f%dkpt(3,f%nkpt),f%dw(f%nkpt),f%docc(f%nstates,f%nkpt,f%nspin))
     rewind(lu)
     call read_kpointsandweights(lu,f%dkpt,f%dw)
     call read_occupations(lu,f%docc)
     call fclose(lu)
 
-    ! use occupations times weights
+    ! use occupations times weights; scale the kpts by 2pi
     do i = 1, f%nkpt
        f%docc(:,i,:) = f%docc(:,i,:) * f%dw(i)
     end do
+    f%dkpt = f%dkpt * tpi
 
     ! eigenvec.bin
     lu = fopen_read(filebin,"unformatted")
@@ -89,18 +102,18 @@ contains
     ! read the eigenvectors
     if (f%isreal) then
        if (allocated(f%evecr)) deallocate(f%evecr)
-       allocate(f%evecr(f%norb,f%norb,f%nspin))
+       allocate(f%evecr(f%norb,f%nstates,f%nspin))
        do i = 1, f%nspin
-          do k = 1, f%norb
+          do k = 1, f%nstates
              read (lu) f%evecr(:,k,i)
           end do
        end do
     else
        if (allocated(f%evecc)) deallocate(f%evecc)
-       allocate(f%evecc(f%norb,f%norb,f%nkpt,f%nspin))
+       allocate(f%evecc(f%norb,f%nstates,f%nkpt,f%nspin))
        do i = 1, f%nspin
           do j = 1, f%nkpt
-             do k = 1, f%norb
+             do k = 1, f%nstates
                 read (lu) f%evecc(:,k,j,i)
              end do
           end do
@@ -110,59 +123,178 @@ contains
 
     ! open the hsd file with the basis definition
     lu = fopen_read(filehsd)
+    if (allocated(f%bas)) deallocate(f%bas)
     allocate(f%bas(10))
     n = 0
     do while(next_hsd_atom(lu,at))
+       if (.not.any(zcel == at%z)) cycle
        n = n + 1 
        if (n > size(f%bas)) call realloc(f%bas,2*n)
-       f%bas = at
+       f%bas(n) = at
     end do
     call realloc(f%bas,n)
     call fclose(lu)
+
+    ! tie the atomic numbers to the basis types
+    if (allocated(f%ispec)) deallocate(f%ispec)
+    allocate(f%ispec(100))
+    f%ispec = 0
+    do i = 1, 100
+       do j = 1, n
+          if (f%bas(j)%z == i) then
+             f%ispec(i) = j
+             exit
+          end if
+       end do
+    end do
+
+    ! indices for the atomic orbitals
+    if (allocated(f%idxorb)) deallocate(f%idxorb)
+    allocate(f%idxorb(nat))
+    n = 0
+    do i = 1, nat
+       id = f%ispec(zcel(i))
+       if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(zcel(i)),faterr)
+
+       f%idxorb(i) = n + 1
+       do j = 1, f%bas(id)%norb
+          n = n + 2*f%bas(id)%l(j) + 1
+       end do
+    end do
+    f%midxorb = n
 
     ! finished
     f%init = .true.
 
   end subroutine dftb_read
 
-  !> Calculate the density and derivatives of a DFTB+ field.
+  !> Calculate the density and derivatives of a DFTB+ field (f) up to
+  !> the nder degree (max = 2). xpos is in Cartesian coordinates. In
+  !> output, the density (rho), the gradient (grad), and the Hessian
+  !> (h).
   subroutine dftb_rho2(f,xpos,nder,rho,grad,h)
+    use tools_math
     use tools_io
     use types
     use param
 
-    type(field), intent(in) :: f !< Input field
+    type(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
     real*8, intent(out) :: rho !< Density
     real*8, intent(out) :: grad(3) !< Gradient
     real*8, intent(out) :: h(3,3) !< Hessian 
 
-    integer, parameter :: imax(0:2) = (/1,4,10/)
-    
+    integer :: ion, it, is, istate, ik, iorb, i, j, l, lmax, n
+    integer :: ixorb
+    real*8 :: xion(3), rcut, dist, rx(5), rl, sum, r, tp(2)
+    real*8 :: rrlm(25), fac
+    complex*16 :: phase, xao(f%midxorb), xmo
+
+    ! initialize
     rho = 0d0
     grad = 0d0
     h = 0d0
 
+    ! run over spins
+    do is = 1, f%nspin
+       ! run over k-points
+       do ik = 1, f%nkpt
+
+          ! run over the states
+          do istate = 1, f%nstates
+
+             ! determine the atomic contributions
+             xao = 0d0
+             do ion = 1, nenv
+                xion = xpos - renv(:,ion)
+                it = f%ispec(zenv(ion))
+
+                ! apply the distance cutoff
+                rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
+                if (any(abs(xion) > rcut)) cycle
+                dist = sqrt(dot_product(xion,xion))
+                if (dist > rcut) cycle
+
+                ! phase
+                phase = exp(imag * dot_product(lenv(:,ion),f%dkpt(:,ik)))
+
+                ! calculate the spherical harmonics for this contribution
+                lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
+                call tosphere(xion,r,tp)
+                call genrlm_real(lmax,r,tp,rrlm)
+                n = 0
+                do l = 0, lmax
+                   fac = sqrt(real(2*l+1,8)) / sqfp
+                   do i = -l, l
+                      n = n + 1
+                      rrlm(n) = rrlm(n) / max(r,1d-10)**l * fac
+                   end do
+                end do
+
+                ! run over atomic orbital contributions
+                ixorb = f%idxorb(idxenv(ion)) - 1
+                do iorb = 1, f%bas(it)%norb
+                   if (dist > f%bas(it)%cutoff(iorb)) cycle
+
+                   ! calculate the radial component
+                   l = f%bas(it)%l(iorb)
+                   rx(1) = max(dist,1d-10)**l
+                   do i = 2, maxval(f%bas(it)%ncoef(:,iorb))
+                      rx(i) = rx(i-1) * dist
+                   end do
+                   rl = 0d0
+                   do i = 1, f%bas(it)%nexp(iorb)
+                      sum = 0d0
+                      do j = 1, f%bas(it)%ncoef(i,iorb)
+                         sum = sum + f%bas(it)%coef(j,i,iorb) * rx(j)
+                      end do
+                      rl = rl + sum * exp(-f%bas(it)%eexp(i,iorb) * dist)
+                   end do
+
+                   ! calculate the Rl(r) * Ylm(theta,phi) contribution
+                   do i = (l+1)*(l+1), l*l+1, -1
+                      ixorb = ixorb + 1
+                      xao(ixorb) = xao(ixorb) + rl * rrlm(i) * phase
+                   end do
+                end do ! iorb
+             end do ! ion
+
+             ! calculate the value of this extendedorbital
+             xmo = 0d0
+             do i = 1, f%midxorb
+                xmo = xmo + conjg(xao(i)) * f%evecc(i,istate,ik,is)
+             end do
+             rho = rho + abs(xmo)**2 * f%docc(istate,ik,is)
+          end do ! states
+       end do ! k-points
+    end do ! spins
+
   end subroutine dftb_rho2
 
   !> Register structural information.
-  subroutine dftb_register_struct()
+  subroutine dftb_register_struct(nenv0,renv0,lenv0,idx0,zenv0)
     use types
 
-    ! integer, intent(in) :: ncel
-    ! type(celatom), intent(in) :: atcel(:)
-    ! integer, intent(in) :: nneq
-    ! type(atom), intent(in) :: at(:)
+    integer, intent(in) :: nenv0
+    real*8, intent(in) :: renv0(:,:)
+    integer, intent(in) :: lenv0(:,:), idx0(:), zenv0(:)
 
-    ! integer :: i
-    ! 
-    ! nat = ncel
-    ! if (allocated(xat)) deallocate(xat)
-    ! allocate(xat(3,nat))
-    ! do i = 1, nat
-    !    xat(:,i) = atcel(i)%r
-    ! end do
+    ! save the atomic environment
+    nenv = nenv0
+    if (allocated(renv)) deallocate(renv)
+    allocate(renv(size(renv0,1),size(renv0,2)))
+    renv = renv0
+    if (allocated(lenv)) deallocate(lenv)
+    allocate(lenv(3,size(lenv0,2)))
+    lenv = lenv0
+    if (allocated(idxenv)) deallocate(idxenv)
+    allocate(idxenv(size(idx0)))
+    idxenv = idx0
+    if (allocated(zenv)) deallocate(zenv)
+    allocate(zenv(size(zenv0)))
+    zenv = zenv0
+    nenv = nenv0
     
   end subroutine dftb_register_struct
 

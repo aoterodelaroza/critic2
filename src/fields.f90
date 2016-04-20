@@ -230,7 +230,8 @@ contains
     integer :: zz, n(3)
     logical :: ok
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
-    integer :: idx0(cr%nenv), zenv0(cr%nenv), ix, iy, iz, oid, oid2
+    integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
+    integer :: ix, iy, iz, oid, oid2
     real*8 :: xd(3,3)
     integer :: nid, nwan, ispin
     character*255, allocatable :: idlist(:)
@@ -327,11 +328,26 @@ contains
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'xml')) then
+       ! array for the atomic numbers
+       do i = 1, cr%ncel
+          zenv0(i) = cr%at(cr%atcel(i)%idx)%z
+       end do
+
+       ! read the field
        file2 = getword(line,lp)
        file3 = getword(line,lp)
-       call dftb_read(ff,file,file2,file3)
+       call dftb_read(ff,file,file2,file3,zenv0(1:cr%ncel))
        ff%type = type_dftb
-       call dftb_register_struct()
+
+       ! register structural info
+       do i = 1, cr%nenv
+          renv0(:,i) = cr%atenv(i)%r
+          lenv0(:,i) = cr%atenv(i)%lenv
+          zenv0(i) = cr%at(cr%atenv(i)%idx)%z
+          idx0(i) = cr%atenv(i)%cidx
+       end do
+       call dftb_register_struct(cr%nenv,renv0,lenv0,idx0,zenv0)
+
        ff%file = file
     else if (equal(wext1,'CHGCAR').or.equal(wext1,'AECCAR0').or.equal(wext1,'AECCAR2')) then
        call grid_read_vasp(file,ff,cr%omega,verbose)

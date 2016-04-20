@@ -89,6 +89,7 @@ module types
      integer :: ir  !< rotation matrix to the representative equivalent atom
      integer :: ic  !< translation vector to the representative equivalent atom
      integer :: lvec(3) !< lattice vector to the representative equivalent atom
+     integer :: lenv(3) !< lattice vector to the main cell atom (for environments)
   end type celatom
 
   !> Any atom in the crystal (not necessarily in the main cell), type
@@ -267,6 +268,9 @@ module types
      real*8, allocatable :: dkpt(:,:)
      real*8, allocatable :: evecr(:,:,:)
      complex*16, allocatable :: evecc(:,:,:,:)
+     integer, allocatable :: ispec(:)
+     integer, allocatable :: idxorb(:)
+     integer :: midxorb
      type(dftbatom), allocatable :: bas(:)
      ! promolecular from fragment
      type(fragment) :: fr

@@ -1135,6 +1135,7 @@ contains
        c%nenv = c%ncel
        if (c%nenv > size(c%atenv)) &
           call realloc(c%atenv,c%nenv)
+       l = 0
        do m = 1, c%ncel
           xx = c%atcel(m)%x
           c%atenv(m)%x = xx
@@ -1144,6 +1145,7 @@ contains
           c%atenv(m)%ir = c%atcel(m)%ir
           c%atenv(m)%ic = c%atcel(m)%ic
           c%atenv(m)%lvec = c%atcel(m)%lvec + l
+          c%atenv(m)%lenv = l
        end do
        return
     endif
@@ -1165,7 +1167,8 @@ contains
           do k = -kmax, kmax
              !.run over the ions in the (i,j,k) cell
              do m = 1, c%ncel
-                xx = c%atcel(m)%x + (/i,j,k/)
+                l = (/i,j,k/)
+                xx = c%atcel(m)%x + l
                 c%nenv = c%nenv + 1
                 if (c%nenv > size(c%atenv)) then
                    call realloc(c%atenv,2*size(c%atenv))
@@ -1179,6 +1182,7 @@ contains
                 c%atenv(c%nenv)%ir = c%atcel(m)%ir
                 c%atenv(c%nenv)%ic = c%atcel(m)%ic
                 c%atenv(c%nenv)%lvec = c%atcel(m)%lvec + l
+                c%atenv(c%nenv)%lenv = l
              enddo  !m
           enddo  !k
        enddo  !j
