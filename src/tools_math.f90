@@ -206,7 +206,7 @@ contains
           im = imin + l - m 
           iphas = (-1)**m
           rrlm(im) = sh * real(iphas*rlm(ip)+rlm(im),8)
-          rrlm(ip) = sh * real(-iphas*imag*rlm(ip)+imag*rlm(im),8)
+          rrlm(ip) = sh * real(-iphas*img*rlm(ip)+img*rlm(im),8)
        end do
     end do
     

@@ -192,11 +192,82 @@ contains
     real*8, intent(out) :: grad(3) !< Gradient
     real*8, intent(out) :: h(3,3) !< Hessian 
 
+    integer, parameter :: maxenvl = 50
+    integer, parameter :: maxorb = 10
+
     integer :: ion, it, is, istate, ik, iorb, i, j, l, lmax, n
     integer :: ixorb
     real*8 :: xion(3), rcut, dist, rx(5), rl, rlp, rlpp, sum, r, tp(2)
     real*8 :: rrlm(25), fac
     complex*16 :: phase, xao(f%midxorb), xmo
+    integer :: nenvl, idxenvl(maxenvl), idenv, ionl, n0
+    real*8 :: denv(maxenvl), rrlml(25,maxenvl)
+    real*8 :: rll(maxorb,maxenvl), rlpl(maxorb,maxenvl), rlppl(maxorb,maxenvl)
+    complex*16 :: phasel(maxenvl,f%nkpt), rphase
+
+    ! precalculate the quantities that depend only on the environment
+    nenvl = 0
+    rrlml = 0d0
+    rll = 0d0
+    do ion = 1, nenv
+       xion = xpos - renv(:,ion)
+       it = f%ispec(zenv(ion))
+
+       ! apply the distance cutoff
+       rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
+       if (any(abs(xion) > rcut)) cycle
+       dist = sqrt(dot_product(xion,xion))
+       if (dist > rcut) cycle
+
+       ! write down this atom
+       nenvl = nenvl + 1
+       if (nenvl > maxenvl) call ferror('dftb_rho2','local environment exceeded array size',faterr)
+       idxenvl(nenvl) = ion
+       denv(nenvl) = dist
+
+       ! calculate the spherical harmonics contributions for this atom
+       lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
+       call tosphere(xion,r,tp)
+       call genrlm_real(lmax,r,tp,rrlm)
+       n = 0
+       do l = 0, lmax
+          fac = sqrt(real(2*l+1,8)) / sqfp
+          do i = -l, l
+             n = n + 1
+             rrlm(n) = rrlm(n) / max(r,mindist)**l * fac
+          end do
+       end do
+
+       ! calculate the radial contributions for this atom
+       if (f%bas(it)%norb > maxorb) &
+          call ferror('dftb_rho2','too many orbitals',faterr)
+       do iorb = 1, f%bas(it)%norb
+          if (dist > f%bas(it)%cutoff(iorb)) cycle
+          if (f%exact) then
+             call calculate_rl(f,it,iorb,dist,rl,rlp,rlpp)
+          else
+             call grid1_interp(f%bas(it)%orb(iorb),dist,rl,rlp,rlpp)
+          end if
+          rll(iorb,nenvl) = rl
+          rlpl(iorb,nenvl) = rlp
+          rlppl(iorb,nenvl) = rlpp
+       end do
+
+       ! reorder the spherical harmonics and write down the rlm and phi contributions
+       n = 0
+       do l = 0, lmax
+          n0 = n
+          do i = -l, l
+             n = n + 1
+             rrlml(n,nenvl) = rrlm(n0+2*l+2-(n-n0))
+          end do
+       end do
+
+       ! calculate the phases
+       do ik = 1, f%nkpt
+          phasel(nenvl,ik) = exp(img * dot_product(lenv(:,ion),f%dkpt(:,ik)))
+       end do
+    end do
 
     ! initialize
     rho = 0d0
@@ -212,59 +283,26 @@ contains
 
              ! determine the atomic contributions
              xao = 0d0
-             do ion = 1, nenv
-                xion = xpos - renv(:,ion)
+             do ionl = 1, nenvl
+                ion = idxenvl(ionl)
                 it = f%ispec(zenv(ion))
 
-                ! apply the distance cutoff
-                rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
-                if (any(abs(xion) > rcut)) cycle
-                dist = sqrt(dot_product(xion,xion))
-                if (dist > rcut) cycle
-
-                ! phase
-                phase = exp(imag * dot_product(lenv(:,ion),f%dkpt(:,ik)))
-
-                ! calculate the spherical harmonics for this contribution
-                lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
-                call tosphere(xion,r,tp)
-                call genrlm_real(lmax,r,tp,rrlm)
-                n = 0
-                do l = 0, lmax
-                   fac = sqrt(real(2*l+1,8)) / sqfp
-                   do i = -l, l
-                      n = n + 1
-                      rrlm(n) = rrlm(n) / max(r,mindist)**l * fac
-                   end do
-                end do
-
-                ! run over atomic orbital contributions
+                ! run over atomic orbitals
                 ixorb = f%idxorb(idxenv(ion)) - 1
                 do iorb = 1, f%bas(it)%norb
-                   if (dist > f%bas(it)%cutoff(iorb)) cycle
+                   rphase = rll(iorb,ionl) * phasel(ionl,ik)
 
-                   ! calculate the radial component and its derivatives
-                   if (f%exact) then
-                      call calculate_rl(f,it,iorb,dist,rl,rlp,rlpp)
-                   else
-                      call grid1_interp(f%bas(it)%orb(iorb),dist,rl,rlp,rlpp)
-                   end if
-
-                   ! calculate the Rl(r) * Ylm(theta,phi) contribution
-                   l = f%bas(it)%l(iorb)
-                   do i = (l+1)*(l+1), l*l+1, -1
+                   ! run over ms for the same l
+                   do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                       ixorb = ixorb + 1
-                      xao(ixorb) = xao(ixorb) + rl * rrlm(i) * phase
+                      xao(ixorb) = xao(ixorb) + rrlml(i,ionl) * rphase
                    end do
                 end do ! iorb
              end do ! ion
 
              ! calculate the value of this extended orbital
-             xmo = 0d0
-             do i = 1, f%midxorb
-                xmo = xmo + conjg(xao(i)) * f%evecc(i,istate,ik,is)
-             end do
-             rho = rho + abs(xmo)**2 * f%docc(istate,ik,is)
+             xmo = dot_product(xao(1:f%midxorb),f%evecc(1:f%midxorb,istate,ik,is))
+             rho = rho + (conjg(xmo)*xmo) * f%docc(istate,ik,is)
           end do ! states
        end do ! k-points
     end do ! spins
