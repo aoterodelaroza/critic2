@@ -114,6 +114,7 @@ module types
      real*8 :: eexp(5,4) !< exponents
      integer :: ncoef(5,4) !< number of coefficients
      real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
+     type(grid1), allocatable :: orb(:) !< radial component of the orbitals (grid)
   end type dftbatom
 
   !> Type for a fragment of the crystal

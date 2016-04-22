@@ -29,6 +29,10 @@ module dftb_private
   real*8, allocatable :: renv(:,:)
   integer, allocatable :: lenv(:,:), idxenv(:), zenv(:)
   integer :: nenv
+  real*8 :: globalcutoff = 0d0
+
+  ! minimum distance (bohr)
+  real*8, parameter :: mindist = 1d-6
 
 contains
 
@@ -163,6 +167,8 @@ contains
     end do
     f%midxorb = n
 
+    call build_interpolation_grid1(f)
+
     ! finished
     f%init = .true.
 
@@ -173,6 +179,7 @@ contains
   !> output, the density (rho), the gradient (grad), and the Hessian
   !> (h).
   subroutine dftb_rho2(f,xpos,nder,rho,grad,h)
+    use grid1_tools
     use tools_math
     use tools_io
     use types
@@ -187,7 +194,7 @@ contains
 
     integer :: ion, it, is, istate, ik, iorb, i, j, l, lmax, n
     integer :: ixorb
-    real*8 :: xion(3), rcut, dist, rx(5), rl, sum, r, tp(2)
+    real*8 :: xion(3), rcut, dist, rx(5), rl, rlp, rlpp, sum, r, tp(2)
     real*8 :: rrlm(25), fac
     complex*16 :: phase, xao(f%midxorb), xmo
 
@@ -200,7 +207,6 @@ contains
     do is = 1, f%nspin
        ! run over k-points
        do ik = 1, f%nkpt
-
           ! run over the states
           do istate = 1, f%nstates
 
@@ -228,7 +234,7 @@ contains
                    fac = sqrt(real(2*l+1,8)) / sqfp
                    do i = -l, l
                       n = n + 1
-                      rrlm(n) = rrlm(n) / max(r,1d-10)**l * fac
+                      rrlm(n) = rrlm(n) / max(r,mindist)**l * fac
                    end do
                 end do
 
@@ -237,22 +243,15 @@ contains
                 do iorb = 1, f%bas(it)%norb
                    if (dist > f%bas(it)%cutoff(iorb)) cycle
 
-                   ! calculate the radial component
-                   l = f%bas(it)%l(iorb)
-                   rx(1) = max(dist,1d-10)**l
-                   do i = 2, maxval(f%bas(it)%ncoef(:,iorb))
-                      rx(i) = rx(i-1) * dist
-                   end do
-                   rl = 0d0
-                   do i = 1, f%bas(it)%nexp(iorb)
-                      sum = 0d0
-                      do j = 1, f%bas(it)%ncoef(i,iorb)
-                         sum = sum + f%bas(it)%coef(j,i,iorb) * rx(j)
-                      end do
-                      rl = rl + sum * exp(-f%bas(it)%eexp(i,iorb) * dist)
-                   end do
+                   ! calculate the radial component and its derivatives
+                   if (f%exact) then
+                      call calculate_rl(f,it,iorb,dist,rl,rlp,rlpp)
+                   else
+                      call grid1_interp(f%bas(it)%orb(iorb),dist,rl,rlp,rlpp)
+                   end if
 
                    ! calculate the Rl(r) * Ylm(theta,phi) contribution
+                   l = f%bas(it)%l(iorb)
                    do i = (l+1)*(l+1), l*l+1, -1
                       ixorb = ixorb + 1
                       xao(ixorb) = xao(ixorb) + rl * rrlm(i) * phase
@@ -260,7 +259,7 @@ contains
                 end do ! iorb
              end do ! ion
 
-             ! calculate the value of this extendedorbital
+             ! calculate the value of this extended orbital
              xmo = 0d0
              do i = 1, f%midxorb
                 xmo = xmo + conjg(xao(i)) * f%evecc(i,istate,ik,is)
@@ -273,29 +272,57 @@ contains
   end subroutine dftb_rho2
 
   !> Register structural information.
-  subroutine dftb_register_struct(nenv0,renv0,lenv0,idx0,zenv0)
+  subroutine dftb_register_struct(rmat,maxcutoff,nenv0,renv0,lenv0,idx0,zenv0)
     use types
+    use tools_math
 
+    real*8, intent(in) :: rmat(3,3)
+    real*8, intent(in) :: maxcutoff
     integer, intent(in) :: nenv0
     real*8, intent(in) :: renv0(:,:)
     integer, intent(in) :: lenv0(:,:), idx0(:), zenv0(:)
 
-    ! save the atomic environment
-    nenv = nenv0
-    if (allocated(renv)) deallocate(renv)
-    allocate(renv(size(renv0,1),size(renv0,2)))
-    renv = renv0
-    if (allocated(lenv)) deallocate(lenv)
-    allocate(lenv(3,size(lenv0,2)))
-    lenv = lenv0
-    if (allocated(idxenv)) deallocate(idxenv)
-    allocate(idxenv(size(idx0)))
-    idxenv = idx0
-    if (allocated(zenv)) deallocate(zenv)
-    allocate(zenv(size(zenv0)))
-    zenv = zenv0
-    nenv = nenv0
-    
+    real*8 :: sphmax, x0(3), dist
+    integer :: i
+
+    ! calculate the sphere radius that encompasses the unit cell
+    if (maxcutoff > globalcutoff) then
+       sphmax = norm(matmul(rmat,(/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+       sphmax = max(sphmax,norm(matmul(rmat,(/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+       sphmax = max(sphmax,norm(matmul(rmat,(/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+       sphmax = max(sphmax,norm(matmul(rmat,(/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+
+       if (allocated(renv)) deallocate(renv)
+       allocate(renv(3,size(renv0,2)))
+       if (allocated(lenv)) deallocate(lenv)
+       allocate(lenv(3,size(lenv0,2)))
+       if (allocated(idxenv)) deallocate(idxenv)
+       allocate(idxenv(size(idx0)))
+       if (allocated(zenv)) deallocate(zenv)
+       allocate(zenv(size(zenv0)))
+
+       ! save the atomic environment
+       nenv = 0
+       x0 = matmul(rmat,(/0.5d0,0.5d0,0.5d0/))
+       do i = 1, nenv0
+          dist = norm(renv0(:,i) - x0)
+          if (dist <= sphmax+maxcutoff) then
+             nenv = nenv + 1
+             renv(:,nenv) = renv0(:,i)
+             lenv(:,nenv) = lenv0(:,i)
+             idxenv(nenv) = idx0(i)
+             zenv(nenv) = zenv0(i)
+          end if
+       end do
+       globalcutoff = maxcutoff
+
+       ! reallocate
+       call realloc(renv,3,nenv)
+       call realloc(lenv,3,nenv)
+       call realloc(idxenv,nenv)
+       call realloc(zenv,nenv)
+    end if
+
   end subroutine dftb_register_struct
 
   !xx! private !xx! 
@@ -619,5 +646,90 @@ contains
     end do
 
   end function next_hsd_atom
+
+  !> Build the interpolation grids for the radial parts of the orbitals.
+  subroutine build_interpolation_grid1(ff)
+    use types
+    use tools_io
+    type(field), intent(inout) :: ff
+
+    integer :: it, iorb, istat, ipt
+    real*8 :: r, f, fp, fpp, sumf, sumfp, sumfpp, rx(-1:5), ee
+
+    integer, parameter :: npt = 2001
+
+    do it = 1, size(ff%bas)
+       if (allocated(ff%bas(it)%orb)) deallocate(ff%bas(it)%orb)
+       allocate(ff%bas(it)%orb(ff%bas(it)%norb),stat=istat)
+       if (istat /= 0) call ferror('build_interpolation_grid1',&
+          'could not allocate memory for orbitals',faterr)
+       do iorb = 1, ff%bas(it)%norb
+          ff%bas(it)%orb(iorb)%init = .true.
+          ff%bas(it)%orb(iorb)%a = mindist
+          ff%bas(it)%orb(iorb)%rmax = ff%bas(it)%cutoff(iorb)
+          ff%bas(it)%orb(iorb)%rmax2 = ff%bas(it)%orb(iorb)%rmax * ff%bas(it)%orb(iorb)%rmax
+          ff%bas(it)%orb(iorb)%ngrid = npt
+          ff%bas(it)%orb(iorb)%b = log(ff%bas(it)%cutoff(iorb) / mindist) / real(npt-1,8)
+          ff%bas(it)%orb(iorb)%z = ff%bas(it)%z
+          ff%bas(it)%orb(iorb)%qat = 0
+
+          allocate(ff%bas(it)%orb(iorb)%r(npt),ff%bas(it)%orb(iorb)%f(npt),ff%bas(it)%orb(iorb)%fp(npt),ff%bas(it)%orb(iorb)%fpp(npt),stat=istat)
+          if (istat /= 0) call ferror('build_interpolation_grid1',&
+             'could not allocate memory for orbital radial grids',faterr)
+          do ipt = 1, npt
+             ff%bas(it)%orb(iorb)%r(ipt) = ff%bas(it)%orb(iorb)%a * exp(ff%bas(it)%orb(iorb)%b * real(ipt-1,8))
+             call calculate_rl(ff,it,iorb,ff%bas(it)%orb(iorb)%r(ipt),ff%bas(it)%orb(iorb)%f(ipt),&
+                ff%bas(it)%orb(iorb)%fp(ipt),ff%bas(it)%orb(iorb)%fpp(ipt))
+          end do
+       end do
+    end do
+  end subroutine build_interpolation_grid1
+
+  !> Calculate the radial part of an orbital and its first and second
+  !> derivatives exactly.
+  subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
+    use types
+    type(field), intent(in) :: ff
+    integer, intent(in) :: it, iorb
+    real*8, intent(in) :: r0
+    real*8, intent(out) :: f, fp, fpp
+
+    real*8 :: sumf, sumfp, sumfpp, rx(-1:5), ee, r
+    integer :: i, j, l
+
+    ! initialize
+    l = ff%bas(it)%l(iorb)
+    r = max(r0,mindist)
+
+    ! powers of the distance
+    rx = 0d0
+    rx(1) = r**l
+    do i = 2, maxval(ff%bas(it)%ncoef(:,iorb))
+       rx(i) = rx(i-1) * r
+    end do
+    if (l > 0) rx(0) = rx(1) / r
+    if (l > 1) rx(-1) = rx(0) / r
+
+    ! calculate the Rl and its derivatives
+    f = 0d0
+    fp = 0d0
+    fpp = 0d0
+    do i = 1, ff%bas(it)%nexp(iorb)
+       ee = exp(-ff%bas(it)%eexp(i,iorb) * r)
+
+       sumf = 0d0
+       sumfp = 0d0
+       sumfpp = 0d0
+       do j = 1, ff%bas(it)%ncoef(i,iorb)
+          sumf = sumf + ff%bas(it)%coef(j,i,iorb) * rx(j)
+          sumfp = sumfp + ff%bas(it)%coef(j,i,iorb) * rx(j-1) * real(l+j-1,8)
+          sumfpp = sumfpp + ff%bas(it)%coef(j,i,iorb) * rx(j-2) * real(l+j-1,8) * real(l+j-2,8)
+       end do
+       f = f + sumf * ee
+       fp = fp - ff%bas(it)%eexp(i,iorb) * ee * sumf + sumfp * ee
+       fpp = fpp + ff%bas(it)%eexp(i,iorb)**2 * ee * sumf + sumfpp * ee - 2 * ff%bas(it)%eexp(i,iorb) * ee * sumfp
+    end do
+
+  end subroutine calculate_rl
 
 end module dftb_private

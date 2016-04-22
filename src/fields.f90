@@ -232,7 +232,7 @@ contains
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
     integer :: ix, iy, iz, oid, oid2
-    real*8 :: xd(3,3)
+    real*8 :: xd(3,3), mcut
     integer :: nid, nwan, ispin
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
@@ -339,6 +339,14 @@ contains
        call dftb_read(ff,file,file2,file3,zenv0(1:cr%ncel))
        ff%type = type_dftb
 
+       ! calculate the maximum cutoff
+       mcut = -1d0
+       do i = 1, size(ff%bas)
+          do j = 1, ff%bas(i)%norb
+             mcut = max(mcut,ff%bas(i)%cutoff(j))
+          end do
+       end do
+
        ! register structural info
        do i = 1, cr%nenv
           renv0(:,i) = cr%atenv(i)%r
@@ -346,7 +354,7 @@ contains
           zenv0(i) = cr%at(cr%atenv(i)%idx)%z
           idx0(i) = cr%atenv(i)%cidx
        end do
-       call dftb_register_struct(cr%nenv,renv0,lenv0,idx0,zenv0)
+       call dftb_register_struct(cr%crys2car,mcut,cr%nenv,renv0,lenv0,idx0,zenv0)
 
        ff%file = file
     else if (equal(wext1,'CHGCAR').or.equal(wext1,'AECCAR0').or.equal(wext1,'AECCAR2')) then
