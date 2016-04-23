@@ -1690,8 +1690,9 @@ contains
        ! a big cube).
 
     case(type_dftb)
-       call dftb_rho2(f,wc,nder,res%f,res%gf,res%hf)
-       ! ????
+       call dftb_rho2(f,wc,nder,res%f,res%gf,res%hf,res%gkin)
+       ! transformation not needed because of dftb_register_struct:
+       ! all work done in cartesians in a finite environment.
 
     case(type_promol)
        call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.)
@@ -1828,7 +1829,7 @@ contains
     case(type_wfn)
        call wfn_rho2(f,wc,0,rho,grad,h,gkin,vir,stress)
     case(type_dftb)
-       call dftb_rho2(f,wc,0,rho,grad,h)
+       call dftb_rho2(f,wc,0,rho,grad,h,gkin)
     case(type_promol)
        call grda_promolecular(wx,rho,grad,h,0,.false.)
     case(type_promol_frag)

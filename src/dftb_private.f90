@@ -178,7 +178,7 @@ contains
   !> the nder degree (max = 2). xpos is in Cartesian coordinates. In
   !> output, the density (rho), the gradient (grad), and the Hessian
   !> (h).
-  subroutine dftb_rho2(f,xpos,nder,rho,grad,h)
+  subroutine dftb_rho2(f,xpos,nder,rho,grad,h,gkin)
     use grid1_tools
     use tools_math
     use tools_io
@@ -191,19 +191,26 @@ contains
     real*8, intent(out) :: rho !< Density
     real*8, intent(out) :: grad(3) !< Gradient
     real*8, intent(out) :: h(3,3) !< Hessian 
+    real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
     integer, parameter :: maxenvl = 50
     integer, parameter :: maxorb = 10
+    integer, parameter :: maxl = 49
 
-    integer :: ion, it, is, istate, ik, iorb, i, j, l, lmax, n
-    integer :: ixorb
+    integer :: ion, it, is, istate, ik, iorb, i, j, l, m, lmax, n
+    integer :: ixorb, ixorb0
     real*8 :: xion(3), rcut, dist, rx(5), rl, rlp, rlpp, sum, r, tp(2)
-    real*8 :: rrlm(25), fac
-    complex*16 :: phase, xao(f%midxorb), xmo
+    real*8 :: rrlm(maxl), fac
+    complex*16 :: phase, xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
+    complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
+    complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
     integer :: nenvl, idxenvl(maxenvl), idenv, ionl, n0
-    real*8 :: denv(maxenvl), rrlml(25,maxenvl)
+    real*8 :: denv(maxenvl), rrlml(maxl,maxenvl)
     real*8 :: rll(maxorb,maxenvl), rlpl(maxorb,maxenvl), rlppl(maxorb,maxenvl)
-    complex*16 :: phasel(maxenvl,f%nkpt), rphase
+    complex*16 :: phasel(maxenvl,f%nkpt), rphase, ylm(maxl)
+    integer :: imin, imax, ip, im, iphas
+    real*8 :: phi(maxl,maxorb,maxenvl), phip(3,maxl,maxorb,maxenvl), phipp(6,maxl,maxorb,maxenvl)
+    complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
 
     ! precalculate the quantities that depend only on the environment
     nenvl = 0
@@ -223,18 +230,28 @@ contains
        nenvl = nenvl + 1
        if (nenvl > maxenvl) call ferror('dftb_rho2','local environment exceeded array size',faterr)
        idxenvl(nenvl) = ion
-       denv(nenvl) = dist
+       denv(nenvl) = max(dist,mindist)
 
        ! calculate the spherical harmonics contributions for this atom
        lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
        call tosphere(xion,r,tp)
-       call genrlm_real(lmax,r,tp,rrlm)
-       n = 0
+       r = max(r,mindist)
+       call genylm(lmax+2,tp,ylm)
        do l = 0, lmax
-          fac = sqrt(real(2*l+1,8)) / sqfp
-          do i = -l, l
-             n = n + 1
-             rrlm(n) = rrlm(n) / max(r,mindist)**l * fac
+          imin = l*l+1
+          imax = (l+1)*(l+1)
+
+          ! m = 0
+          ip = imin+l
+          rrlml(ip,nenvl) = real(ylm(ip),8)
+
+          ! |m| > 0
+          do m = 1, l
+             ip = imin + l + m
+             im = imin + l - m
+             iphas = (-1)**m
+             rrlml(ip,nenvl) = real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
+             rrlml(im,nenvl) = real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
           end do
        end do
 
@@ -253,13 +270,35 @@ contains
           rlppl(iorb,nenvl) = rlpp
        end do
 
-       ! reorder the spherical harmonics and write down the rlm and phi contributions
-       n = 0
-       do l = 0, lmax
-          n0 = n
-          do i = -l, l
-             n = n + 1
-             rrlml(n,nenvl) = rrlm(n0+2*l+2-(n-n0))
+       ! populate the phi array and calculate the derivatives
+       do iorb = 1, f%bas(it)%norb
+          do l = 0, lmax
+             imin = l*l+1
+             imax = (l+1)*(l+1)
+
+             ! m = 0
+             ip = imin+l
+             call ylmderiv(ylm,r,l,0,rll(iorb,nenvl),rlpl(iorb,nenvl),rlppl(iorb,nenvl),xgrad1,xhess1)
+             phi(ip,iorb,nenvl) = rll(iorb,nenvl) * real(ylm(ip),8)
+             phip(:,ip,iorb,nenvl) = real(xgrad1,8)
+             phipp(:,ip,iorb,nenvl) = real(xhess1,8)
+
+             ! |m| > 0
+             do m = 1, l
+                ip = imin + l + m
+                im = imin + l - m
+                iphas = (-1)**m
+                call ylmderiv(ylm,r,l, m,rll(iorb,nenvl),rlpl(iorb,nenvl),rlppl(iorb,nenvl),xgrad1,xhess1)
+                call ylmderiv(ylm,r,l,-m,rll(iorb,nenvl),rlpl(iorb,nenvl),rlppl(iorb,nenvl),xgrad2,xhess2)
+
+                phi(ip,iorb,nenvl) = rll(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
+                phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
+                phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
+
+                phi(im,iorb,nenvl) = rll(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
+                phip(:,im,iorb,nenvl) = real(-iphas*img*xgrad1+img*xgrad2,8) / sqrt(2d0)
+                phipp(:,im,iorb,nenvl) = real(-iphas*img*xhess1+img*xhess2,8) / sqrt(2d0)
+             end do
           end do
        end do
 
@@ -273,6 +312,7 @@ contains
     rho = 0d0
     grad = 0d0
     h = 0d0
+    gkin = 0d0
 
     ! run over spins
     do is = 1, f%nspin
@@ -283,29 +323,53 @@ contains
 
              ! determine the atomic contributions
              xao = 0d0
+             xaop = 0d0
+             xaopp = 0d0
              do ionl = 1, nenvl
                 ion = idxenvl(ionl)
                 it = f%ispec(zenv(ion))
 
                 ! run over atomic orbitals
-                ixorb = f%idxorb(idxenv(ion)) - 1
+                ixorb0 = f%idxorb(idxenv(ion))
+                ixorb = ixorb0 - 1
                 do iorb = 1, f%bas(it)%norb
-                   rphase = rll(iorb,ionl) * phasel(ionl,ik)
-
                    ! run over ms for the same l
                    do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                       ixorb = ixorb + 1
-                      xao(ixorb) = xao(ixorb) + rrlml(i,ionl) * rphase
+                      xaol(ixorb) = phi(i,iorb,ionl)
+                      xaolp(:,ixorb) = phip(:,i,iorb,ionl)
+                      xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                    end do
                 end do ! iorb
+                xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phasel(ionl,ik)
+                xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phasel(ionl,ik)
+                xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phasel(ionl,ik)
              end do ! ion
 
              ! calculate the value of this extended orbital
-             xmo = dot_product(xao(1:f%midxorb),f%evecc(1:f%midxorb,istate,ik,is))
+             xmo = 0d0
+             xmop = 0d0
+             xmopp = 0d0
+             do i = 1, f%midxorb
+                xmo = xmo + conjg(xao(i))*f%evecc(i,istate,ik,is)
+                xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
+                xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
+             end do
              rho = rho + (conjg(xmo)*xmo) * f%docc(istate,ik,is)
+             grad = grad + (conjg(xmop)*xmo+conjg(xmo)*xmop) * f%docc(istate,ik,is)
+             h(1,1) = h(1,1) + (conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1)) * f%docc(istate,ik,is)
+             h(1,2) = h(1,2) + (conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2)) * f%docc(istate,ik,is)
+             h(1,3) = h(1,3) + (conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3)) * f%docc(istate,ik,is)
+             h(2,2) = h(2,2) + (conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4)) * f%docc(istate,ik,is)
+             h(2,3) = h(2,3) + (conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5)) * f%docc(istate,ik,is)
+             h(3,3) = h(3,3) + (conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6)) * f%docc(istate,ik,is)
+             gkin = gkin + (conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3)) * f%docc(istate,ik,is)
           end do ! states
        end do ! k-points
     end do ! spins
+    h(2,1) = h(1,2)
+    h(3,1) = h(1,3)
+    h(3,2) = h(2,3)
 
   end subroutine dftb_rho2
 
@@ -769,5 +833,147 @@ contains
     end do
 
   end subroutine calculate_rl
+
+  subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
+    use param
+
+    complex*16, dimension(:), intent(in) :: yl
+    real*8, intent(in) :: r
+    integer, intent(in) :: l, m
+    real*8, intent(in) :: c, cp, cpp
+    complex*16, intent(out) :: grad(3), hess(6)
+
+    !.Obtains derivatives of f(r) Ylm. See formulas used in notes and
+    ! varshalovic.
+    complex*16 :: dm, d0, dp
+    complex*16 :: d00, dp0, dm0, dmp, dmm, dpp
+    real*8 :: lpm,lmm,lpmm1,lpmm2,lpmm3,lpmp1,lpmp2,lpmp3
+    real*8 :: lpmp4,lmmm1,lmmm2,lmmm3,lmmp1,lmmp2,lmmp3,lmmp4
+    integer :: mm1, mm2, mp1, mp2, lp1, lp2, lm1, lm2
+    real*8  :: sqrt2, r1, r2, fcoef1, fcoef2, d1, d2, d3, c1, c2, fden1, fden2
+    real*8  :: dcoef1, dcoef2, dcoef3, dden1, dden2, dden3
+
+    integer :: elem
+    logical :: good
+
+    ! inline functions ----
+    elem(l,m)=l*(l+1)+m+1
+    good(l,m)=l.ge.abs(m) .and. l.ge.0
+    ! ---------------------
+
+    sqrt2=1d0/sqrt(2d0)
+    r1=1d0/r
+    r2=r1*r1
+    !.first derivatives
+    fcoef1=(l+1)*r1*c+cp
+    fcoef2=   -l*r1*c+cp
+    fden1=0d0
+    dden1=0d0
+    if (l.gt.0) fden1=sqrt((2*l+1d0)*(2*l-1d0))
+    fden2=sqrt((2*l+1d0)*(2*l+3d0))
+
+    !.second derivatives
+    dcoef1=(l*l-1)*r2*c + (2*l+1)*r1*cp +  cpp
+    dcoef2=l*(l+1)*r2*c -     2d0*r1*cp -  cpp
+    dcoef3=l*(l+2)*r2*c - (2*l+1)*r1*cp +  cpp
+
+    if (l.ge.2) dden1=sqrt((2*l-3d0)*(2*l-1d0)**2*(2*l+1d0))
+    dden2=(2*l-1) * (2*l+3)
+    dden3=sqrt((2*l+1d0)*(2*l+3d0)**2 *(2*l+5d0))
+
+    c1=0d0
+    d1=0d0
+
+    if (l.gt.0) c1=fcoef1/fden1
+    c2=fcoef2/fden2
+
+    if (l.ge.2) d1=dcoef1/dden1
+    d2=dcoef2/dden2
+    d3=dcoef3/dden3
+
+    lm1=l-1
+    lp1=l+1
+    mm1=m-1
+    mp1=m+1
+    lm2=l-2
+    lp2=l+2
+    mm2=m-2
+    mp2=m+2
+
+    lpm=dble(l+m)
+    lmm=dble(l-m)
+    lpmm1=lpm-1d0
+    lpmm2=lpm-2d0
+    lpmm3=lpm-3d0
+    lpmp1=lpm+1d0
+    lpmp2=lpm+2d0
+    lpmp3=lpm+3d0
+    lpmp4=lpm+4d0
+    lmmm1=lmm-1d0
+    lmmm2=lmm-2d0
+    lmmm3=lmm-3d0
+    lmmp1=lmm+1d0
+    lmmp2=lmm+2d0
+    lmmp3=lmm+3d0
+    lmmp4=lmm+4d0
+
+    !.first derivatives
+    ! follow varshalovich
+    dm=(0d0,0d0)
+    if (good(lm1,mm1)) dm=dm-sqrt2*sqrt(lpmm1*lpm  )*c1*yl(elem(lm1,mm1))
+    if (good(lp1,mm1)) dm=dm+sqrt2*sqrt(lmmp1*lmmp2)*c2*yl(elem(lp1,mm1))
+
+    d0=(0d0,0d0)
+    if (good(lm1,m)) d0=d0+      sqrt(lpm*  lmm  )*c1*yl(elem(lm1,m  ))
+    if (good(lp1,m)) d0=d0+      sqrt(lmmp1*lpmp1)*c2*yl(elem(lp1,m  ))
+
+    dp=(0d0,0d0)
+    if (good(lm1,mp1)) dp=dp-sqrt2*sqrt(lmmm1*lmm  )*c1*yl(elem(lm1,mp1))
+    if (good(lp1,mp1)) dp=dp+sqrt2*sqrt(lpmp1*lpmp2)*c2*yl(elem(lp1,mp1))
+
+    grad(1)=sqrt2*(dm-dp)
+    grad(2)=(0d0,1d0)*sqrt2*(dm+dp)
+    grad(3)=d0
+    !.End first derivatives
+
+    !.Second derivatives
+    dm0=(0d0,0d0)
+    if (good(lm2,mm1)) dm0=dm0-sqrt2*sqrt(lmm*lpm*lpmm1*lpmm2)*d1*yl(elem(lm2,mm1))
+    if (good(l  ,mm1)) dm0=dm0+sqrt2*(2*m-1)*sqrt(lpm*lmmp1)*  d2*yl(elem(l  ,mm1))
+    if (good(lp2,mm1)) dm0=dm0+sqrt2*sqrt(lmmp1*lpmp1*lmmp2*lmmp3)*d3*yl(elem(lp2,mm1))
+
+    dp0=(0d0,0d0)
+    if (good(lm2,mp1)) dp0=dp0-sqrt2*sqrt(lpm*lmm*lmmm1*lmmm2)*d1*yl(elem(lm2,mp1))
+    if (good(l  ,mp1)) dp0=dp0-sqrt2*(2*m+1)*sqrt(lmm*lpmp1)*  d2*yl(elem(l  ,mp1))
+    if (good(lp2,mp1)) dp0=dp0+sqrt2*sqrt(lpmp1*lmmp1*lpmp2*lpmp3)*d3*yl(elem(lp2,mp1))
+
+    d00=(0d0,0d0)
+    if (good(lm2,m)) d00=d00+sqrt(lmm*lmmm1*lpm*lpmm1)*d1*yl(elem(lm2,m))
+    if (good(l,m)) d00=d00-(2*l*l+2*l-2*m*m-1)*d2*yl(elem(l,m))
+    if (good(lp2,m)) d00=d00+sqrt(lmmp1*lmmp2*lpmp1*lpmp2)*d3*yl(elem(lp2,m))
+
+    dmm=(0d0,0d0)
+    if (good(lm2,mm2)) dmm=dmm+half*sqrt(lpm*lpmm1*lpmm2*lpmm3)*d1*yl(elem(lm2,mm2))
+    if (good(l,mm2)) dmm=dmm+sqrt(lmmp1*lmmp2*lpm*lpmm1)*d2*yl(elem(l,mm2))
+    if (good(lp2,mm2)) dmm=dmm+half*sqrt(lmmp1*lmmp2*lmmp3*lmmp4)*d3*yl(elem(lp2,mm2))
+
+    dmp=(0d0,0d0)
+    if (good(lm2,m)) dmp=dmp+half*sqrt(lpm*lpmm1*lmm*lmmm1)*d1*yl(elem(lm2,m))
+    if (good(l,m)) dmp=dmp+(l*l+l+m*m-1)*d2*yl(elem(l,m))
+    if (good(lp2,m)) dmp=dmp+half*sqrt(lmmp1*lmmp2*lpmp1*lpmp2)*d3*yl(elem(lp2,m))
+
+    dpp=(0d0,0d0)
+    if (good(lm2,mp2)) dpp=dpp+half*sqrt(lmm*lmmm1*lmmm2*lmmm3)*d1*yl(elem(lm2,mp2))
+    if (good(l,mp2)) dpp=dpp+sqrt(lpmp1*lpmp2*lmm*lmmm1)*d2*yl(elem(l,mp2))
+    if (good(lp2,mp2)) dpp=dpp+half*sqrt(lpmp1*lpmp2*lpmp3*lpmp4)*d3*yl(elem(lp2,mp2))
+
+    hess(1)=          half*(dmm-dmp-dmp+dpp)
+    hess(2)=(0d0,1d0)*half*(dmm        -dpp)
+    hess(4)=         -half*(dmm+dmp+dmp+dpp)
+    hess(6)=d00
+    hess(3)=          sqrt2*(dm0-dp0)
+    hess(5)=(0d0,1d0)*sqrt2*(dm0+dp0)
+
+  end subroutine ylmderiv
 
 end module dftb_private
