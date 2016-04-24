@@ -33,8 +33,10 @@ module tools_math
   public :: erf, erfc
   public :: der1i, der2ii, der2ij
   public :: good_lebedev
-  public :: tosphere, genylm
   public :: genrlm_real
+  public :: genylm
+  public :: tosphere
+  public :: ylmderiv
 
   ! numerical differentiation
   integer, parameter, public :: ndif_jmax = 10
@@ -311,6 +313,154 @@ contains
     end if
 
   end subroutine tosphere
+
+  !> Calculate the derivatives of f(r)* Ylm. yl contains the list of
+  !> spherical harmonics in standard (genylm) order. r is the distance
+  !> to the origin, l and m are the angular momentum numbers, c, cp,
+  !> and cpp are the value of f(r) and its first and second
+  !> derivative. On output, grad and hess are the gradient and the
+  !> hessian of f(r)*Ylm.
+  subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
+    use param
+
+    complex*16, dimension(:), intent(in) :: yl
+    real*8, intent(in) :: r
+    integer, intent(in) :: l, m
+    real*8, intent(in) :: c, cp, cpp
+    complex*16, intent(out) :: grad(3), hess(6)
+
+    !.Obtains derivatives of f(r) Ylm. See formulas used in notes and
+    ! varshalovic.
+    complex*16 :: dm, d0, dp
+    complex*16 :: d00, dp0, dm0, dmp, dmm, dpp
+    real*8 :: lpm,lmm,lpmm1,lpmm2,lpmm3,lpmp1,lpmp2,lpmp3
+    real*8 :: lpmp4,lmmm1,lmmm2,lmmm3,lmmp1,lmmp2,lmmp3,lmmp4
+    integer :: mm1, mm2, mp1, mp2, lp1, lp2, lm1, lm2
+    real*8  :: sqrt2, r1, r2, fcoef1, fcoef2, d1, d2, d3, c1, c2, fden1, fden2
+    real*8  :: dcoef1, dcoef2, dcoef3, dden1, dden2, dden3
+
+    integer :: elem
+    logical :: good
+
+    ! inline functions ----
+    elem(l,m)=l*(l+1)+m+1
+    good(l,m)=l.ge.abs(m) .and. l.ge.0
+    ! ---------------------
+
+    sqrt2=1d0/sqrt(2d0)
+    r1=1d0/r
+    r2=r1*r1
+    !.first derivatives
+    fcoef1=(l+1)*r1*c+cp
+    fcoef2=   -l*r1*c+cp
+    fden1=0d0
+    dden1=0d0
+    if (l.gt.0) fden1=sqrt((2*l+1d0)*(2*l-1d0))
+    fden2=sqrt((2*l+1d0)*(2*l+3d0))
+
+    !.second derivatives
+    dcoef1=(l*l-1)*r2*c + (2*l+1)*r1*cp +  cpp
+    dcoef2=l*(l+1)*r2*c -     2d0*r1*cp -  cpp
+    dcoef3=l*(l+2)*r2*c - (2*l+1)*r1*cp +  cpp
+
+    if (l.ge.2) dden1=sqrt((2*l-3d0)*(2*l-1d0)**2*(2*l+1d0))
+    dden2=(2*l-1) * (2*l+3)
+    dden3=sqrt((2*l+1d0)*(2*l+3d0)**2 *(2*l+5d0))
+
+    c1=0d0
+    d1=0d0
+
+    if (l.gt.0) c1=fcoef1/fden1
+    c2=fcoef2/fden2
+
+    if (l.ge.2) d1=dcoef1/dden1
+    d2=dcoef2/dden2
+    d3=dcoef3/dden3
+
+    lm1=l-1
+    lp1=l+1
+    mm1=m-1
+    mp1=m+1
+    lm2=l-2
+    lp2=l+2
+    mm2=m-2
+    mp2=m+2
+
+    lpm=dble(l+m)
+    lmm=dble(l-m)
+    lpmm1=lpm-1d0
+    lpmm2=lpm-2d0
+    lpmm3=lpm-3d0
+    lpmp1=lpm+1d0
+    lpmp2=lpm+2d0
+    lpmp3=lpm+3d0
+    lpmp4=lpm+4d0
+    lmmm1=lmm-1d0
+    lmmm2=lmm-2d0
+    lmmm3=lmm-3d0
+    lmmp1=lmm+1d0
+    lmmp2=lmm+2d0
+    lmmp3=lmm+3d0
+    lmmp4=lmm+4d0
+
+    !.first derivatives
+    ! follow varshalovich
+    dm=(0d0,0d0)
+    if (good(lm1,mm1)) dm=dm-sqrt2*sqrt(lpmm1*lpm  )*c1*yl(elem(lm1,mm1))
+    if (good(lp1,mm1)) dm=dm+sqrt2*sqrt(lmmp1*lmmp2)*c2*yl(elem(lp1,mm1))
+
+    d0=(0d0,0d0)
+    if (good(lm1,m)) d0=d0+      sqrt(lpm*  lmm  )*c1*yl(elem(lm1,m  ))
+    if (good(lp1,m)) d0=d0+      sqrt(lmmp1*lpmp1)*c2*yl(elem(lp1,m  ))
+
+    dp=(0d0,0d0)
+    if (good(lm1,mp1)) dp=dp-sqrt2*sqrt(lmmm1*lmm  )*c1*yl(elem(lm1,mp1))
+    if (good(lp1,mp1)) dp=dp+sqrt2*sqrt(lpmp1*lpmp2)*c2*yl(elem(lp1,mp1))
+
+    grad(1)=sqrt2*(dm-dp)
+    grad(2)=(0d0,1d0)*sqrt2*(dm+dp)
+    grad(3)=d0
+    !.End first derivatives
+
+    !.Second derivatives
+    dm0=(0d0,0d0)
+    if (good(lm2,mm1)) dm0=dm0-sqrt2*sqrt(lmm*lpm*lpmm1*lpmm2)*d1*yl(elem(lm2,mm1))
+    if (good(l  ,mm1)) dm0=dm0+sqrt2*(2*m-1)*sqrt(lpm*lmmp1)*  d2*yl(elem(l  ,mm1))
+    if (good(lp2,mm1)) dm0=dm0+sqrt2*sqrt(lmmp1*lpmp1*lmmp2*lmmp3)*d3*yl(elem(lp2,mm1))
+
+    dp0=(0d0,0d0)
+    if (good(lm2,mp1)) dp0=dp0-sqrt2*sqrt(lpm*lmm*lmmm1*lmmm2)*d1*yl(elem(lm2,mp1))
+    if (good(l  ,mp1)) dp0=dp0-sqrt2*(2*m+1)*sqrt(lmm*lpmp1)*  d2*yl(elem(l  ,mp1))
+    if (good(lp2,mp1)) dp0=dp0+sqrt2*sqrt(lpmp1*lmmp1*lpmp2*lpmp3)*d3*yl(elem(lp2,mp1))
+
+    d00=(0d0,0d0)
+    if (good(lm2,m)) d00=d00+sqrt(lmm*lmmm1*lpm*lpmm1)*d1*yl(elem(lm2,m))
+    if (good(l,m)) d00=d00-(2*l*l+2*l-2*m*m-1)*d2*yl(elem(l,m))
+    if (good(lp2,m)) d00=d00+sqrt(lmmp1*lmmp2*lpmp1*lpmp2)*d3*yl(elem(lp2,m))
+
+    dmm=(0d0,0d0)
+    if (good(lm2,mm2)) dmm=dmm+half*sqrt(lpm*lpmm1*lpmm2*lpmm3)*d1*yl(elem(lm2,mm2))
+    if (good(l,mm2)) dmm=dmm+sqrt(lmmp1*lmmp2*lpm*lpmm1)*d2*yl(elem(l,mm2))
+    if (good(lp2,mm2)) dmm=dmm+half*sqrt(lmmp1*lmmp2*lmmp3*lmmp4)*d3*yl(elem(lp2,mm2))
+
+    dmp=(0d0,0d0)
+    if (good(lm2,m)) dmp=dmp+half*sqrt(lpm*lpmm1*lmm*lmmm1)*d1*yl(elem(lm2,m))
+    if (good(l,m)) dmp=dmp+(l*l+l+m*m-1)*d2*yl(elem(l,m))
+    if (good(lp2,m)) dmp=dmp+half*sqrt(lmmp1*lmmp2*lpmp1*lpmp2)*d3*yl(elem(lp2,m))
+
+    dpp=(0d0,0d0)
+    if (good(lm2,mp2)) dpp=dpp+half*sqrt(lmm*lmmm1*lmmm2*lmmm3)*d1*yl(elem(lm2,mp2))
+    if (good(l,mp2)) dpp=dpp+sqrt(lpmp1*lpmp2*lmm*lmmm1)*d2*yl(elem(l,mp2))
+    if (good(lp2,mp2)) dpp=dpp+half*sqrt(lpmp1*lpmp2*lpmp3*lpmp4)*d3*yl(elem(lp2,mp2))
+
+    hess(1)=          half*(dmm-dmp-dmp+dpp)
+    hess(2)=(0d0,1d0)*half*(dmm        -dpp)
+    hess(4)=         -half*(dmm+dmp+dmp+dpp)
+    hess(6)=d00
+    hess(3)=          sqrt2*(dm0-dp0)
+    hess(5)=(0d0,1d0)*sqrt2*(dm0+dp0)
+
+  end subroutine ylmderiv
 
   !> Compute x**i assuming that the value is:
   !>   (a) x**0 = 1D0  no matter what x is.

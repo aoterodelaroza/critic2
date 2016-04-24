@@ -176,8 +176,8 @@ contains
 
   !> Calculate the density and derivatives of a DFTB+ field (f) up to
   !> the nder degree (max = 2). xpos is in Cartesian coordinates. In
-  !> output, the density (rho), the gradient (grad), and the Hessian
-  !> (h).
+  !> output, the density (rho), the gradient (grad), the Hessian
+  !> (h), and the G(r) kinetic energy density (gkin).
   subroutine dftb_rho2(f,xpos,nder,rho,grad,h,gkin)
     use grid1_tools
     use tools_math
@@ -341,12 +341,13 @@ contains
                       xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                    end do
                 end do ! iorb
+
                 xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phasel(ionl,ik)
                 xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phasel(ionl,ik)
                 xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phasel(ionl,ik)
              end do ! ion
 
-             ! calculate the value of this extended orbital
+             ! calculate the value of this extended orbital and its derivatives
              xmo = 0d0
              xmop = 0d0
              xmopp = 0d0
@@ -355,6 +356,8 @@ contains
                 xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
                 xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
              end do
+
+             ! accumulate properties
              rho = rho + (conjg(xmo)*xmo) * f%docc(istate,ik,is)
              grad = grad + (conjg(xmop)*xmo+conjg(xmo)*xmop) * f%docc(istate,ik,is)
              h(1,1) = h(1,1) + (conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1)) * f%docc(istate,ik,is)
@@ -370,10 +373,14 @@ contains
     h(2,1) = h(1,2)
     h(3,1) = h(1,3)
     h(3,2) = h(2,3)
+    gkin = 0.50 * gkin
 
   end subroutine dftb_rho2
 
-  !> Register structural information.
+  !> Register structural information. rmat is the crys2car matrix,
+  !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
+  !> and zenv is the environment information (number, position,
+  !> lattice vector, index in the complete list, and atomic number.
   subroutine dftb_register_struct(rmat,maxcutoff,nenv0,renv0,lenv0,idx0,zenv0)
     use types
     use tools_math
@@ -429,6 +436,7 @@ contains
 
   !xx! private !xx! 
 
+  !> Read the next logical value in xml format.
   function next_logical(lu,line0,key0) result(next)
     use tools_io
     integer, intent(in) :: lu
@@ -491,6 +499,7 @@ contains
 
   end function next_logical
 
+  !> Read the next integer value in xml format.
   function next_integer(lu,line0,key0) result(next)
     use tools_io
     integer, intent(in) :: lu
@@ -543,6 +552,7 @@ contains
 
   end function next_integer
 
+  !> Read the kpointsandweights entry from the xml.
   subroutine read_kpointsandweights(lu,kpts,w)
     use tools_io
     integer, intent(in) :: lu
@@ -573,6 +583,7 @@ contains
     
   end subroutine read_kpointsandweights
 
+  !> Read the occupations from the xml.
   subroutine read_occupations(lu,occ)
     use tools_io
     integer, intent(in) :: lu
@@ -613,7 +624,7 @@ contains
     
   end subroutine read_occupations
 
-  !> Read a list of n reals from a logical unit
+  !> Read a list of n reals from a logical unit.
   function dftb_read_reals1(lu,n) result(x)
     use tools_io
     integer, intent(in) :: lu, n
@@ -643,6 +654,7 @@ contains
 
   endfunction dftb_read_reals1
 
+  !> Read the next atom from the hsd wfc file.
   function next_hsd_atom(lu,at) result(ok)
     use tools_io
     use types
@@ -833,147 +845,5 @@ contains
     end do
 
   end subroutine calculate_rl
-
-  subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
-    use param
-
-    complex*16, dimension(:), intent(in) :: yl
-    real*8, intent(in) :: r
-    integer, intent(in) :: l, m
-    real*8, intent(in) :: c, cp, cpp
-    complex*16, intent(out) :: grad(3), hess(6)
-
-    !.Obtains derivatives of f(r) Ylm. See formulas used in notes and
-    ! varshalovic.
-    complex*16 :: dm, d0, dp
-    complex*16 :: d00, dp0, dm0, dmp, dmm, dpp
-    real*8 :: lpm,lmm,lpmm1,lpmm2,lpmm3,lpmp1,lpmp2,lpmp3
-    real*8 :: lpmp4,lmmm1,lmmm2,lmmm3,lmmp1,lmmp2,lmmp3,lmmp4
-    integer :: mm1, mm2, mp1, mp2, lp1, lp2, lm1, lm2
-    real*8  :: sqrt2, r1, r2, fcoef1, fcoef2, d1, d2, d3, c1, c2, fden1, fden2
-    real*8  :: dcoef1, dcoef2, dcoef3, dden1, dden2, dden3
-
-    integer :: elem
-    logical :: good
-
-    ! inline functions ----
-    elem(l,m)=l*(l+1)+m+1
-    good(l,m)=l.ge.abs(m) .and. l.ge.0
-    ! ---------------------
-
-    sqrt2=1d0/sqrt(2d0)
-    r1=1d0/r
-    r2=r1*r1
-    !.first derivatives
-    fcoef1=(l+1)*r1*c+cp
-    fcoef2=   -l*r1*c+cp
-    fden1=0d0
-    dden1=0d0
-    if (l.gt.0) fden1=sqrt((2*l+1d0)*(2*l-1d0))
-    fden2=sqrt((2*l+1d0)*(2*l+3d0))
-
-    !.second derivatives
-    dcoef1=(l*l-1)*r2*c + (2*l+1)*r1*cp +  cpp
-    dcoef2=l*(l+1)*r2*c -     2d0*r1*cp -  cpp
-    dcoef3=l*(l+2)*r2*c - (2*l+1)*r1*cp +  cpp
-
-    if (l.ge.2) dden1=sqrt((2*l-3d0)*(2*l-1d0)**2*(2*l+1d0))
-    dden2=(2*l-1) * (2*l+3)
-    dden3=sqrt((2*l+1d0)*(2*l+3d0)**2 *(2*l+5d0))
-
-    c1=0d0
-    d1=0d0
-
-    if (l.gt.0) c1=fcoef1/fden1
-    c2=fcoef2/fden2
-
-    if (l.ge.2) d1=dcoef1/dden1
-    d2=dcoef2/dden2
-    d3=dcoef3/dden3
-
-    lm1=l-1
-    lp1=l+1
-    mm1=m-1
-    mp1=m+1
-    lm2=l-2
-    lp2=l+2
-    mm2=m-2
-    mp2=m+2
-
-    lpm=dble(l+m)
-    lmm=dble(l-m)
-    lpmm1=lpm-1d0
-    lpmm2=lpm-2d0
-    lpmm3=lpm-3d0
-    lpmp1=lpm+1d0
-    lpmp2=lpm+2d0
-    lpmp3=lpm+3d0
-    lpmp4=lpm+4d0
-    lmmm1=lmm-1d0
-    lmmm2=lmm-2d0
-    lmmm3=lmm-3d0
-    lmmp1=lmm+1d0
-    lmmp2=lmm+2d0
-    lmmp3=lmm+3d0
-    lmmp4=lmm+4d0
-
-    !.first derivatives
-    ! follow varshalovich
-    dm=(0d0,0d0)
-    if (good(lm1,mm1)) dm=dm-sqrt2*sqrt(lpmm1*lpm  )*c1*yl(elem(lm1,mm1))
-    if (good(lp1,mm1)) dm=dm+sqrt2*sqrt(lmmp1*lmmp2)*c2*yl(elem(lp1,mm1))
-
-    d0=(0d0,0d0)
-    if (good(lm1,m)) d0=d0+      sqrt(lpm*  lmm  )*c1*yl(elem(lm1,m  ))
-    if (good(lp1,m)) d0=d0+      sqrt(lmmp1*lpmp1)*c2*yl(elem(lp1,m  ))
-
-    dp=(0d0,0d0)
-    if (good(lm1,mp1)) dp=dp-sqrt2*sqrt(lmmm1*lmm  )*c1*yl(elem(lm1,mp1))
-    if (good(lp1,mp1)) dp=dp+sqrt2*sqrt(lpmp1*lpmp2)*c2*yl(elem(lp1,mp1))
-
-    grad(1)=sqrt2*(dm-dp)
-    grad(2)=(0d0,1d0)*sqrt2*(dm+dp)
-    grad(3)=d0
-    !.End first derivatives
-
-    !.Second derivatives
-    dm0=(0d0,0d0)
-    if (good(lm2,mm1)) dm0=dm0-sqrt2*sqrt(lmm*lpm*lpmm1*lpmm2)*d1*yl(elem(lm2,mm1))
-    if (good(l  ,mm1)) dm0=dm0+sqrt2*(2*m-1)*sqrt(lpm*lmmp1)*  d2*yl(elem(l  ,mm1))
-    if (good(lp2,mm1)) dm0=dm0+sqrt2*sqrt(lmmp1*lpmp1*lmmp2*lmmp3)*d3*yl(elem(lp2,mm1))
-
-    dp0=(0d0,0d0)
-    if (good(lm2,mp1)) dp0=dp0-sqrt2*sqrt(lpm*lmm*lmmm1*lmmm2)*d1*yl(elem(lm2,mp1))
-    if (good(l  ,mp1)) dp0=dp0-sqrt2*(2*m+1)*sqrt(lmm*lpmp1)*  d2*yl(elem(l  ,mp1))
-    if (good(lp2,mp1)) dp0=dp0+sqrt2*sqrt(lpmp1*lmmp1*lpmp2*lpmp3)*d3*yl(elem(lp2,mp1))
-
-    d00=(0d0,0d0)
-    if (good(lm2,m)) d00=d00+sqrt(lmm*lmmm1*lpm*lpmm1)*d1*yl(elem(lm2,m))
-    if (good(l,m)) d00=d00-(2*l*l+2*l-2*m*m-1)*d2*yl(elem(l,m))
-    if (good(lp2,m)) d00=d00+sqrt(lmmp1*lmmp2*lpmp1*lpmp2)*d3*yl(elem(lp2,m))
-
-    dmm=(0d0,0d0)
-    if (good(lm2,mm2)) dmm=dmm+half*sqrt(lpm*lpmm1*lpmm2*lpmm3)*d1*yl(elem(lm2,mm2))
-    if (good(l,mm2)) dmm=dmm+sqrt(lmmp1*lmmp2*lpm*lpmm1)*d2*yl(elem(l,mm2))
-    if (good(lp2,mm2)) dmm=dmm+half*sqrt(lmmp1*lmmp2*lmmp3*lmmp4)*d3*yl(elem(lp2,mm2))
-
-    dmp=(0d0,0d0)
-    if (good(lm2,m)) dmp=dmp+half*sqrt(lpm*lpmm1*lmm*lmmm1)*d1*yl(elem(lm2,m))
-    if (good(l,m)) dmp=dmp+(l*l+l+m*m-1)*d2*yl(elem(l,m))
-    if (good(lp2,m)) dmp=dmp+half*sqrt(lmmp1*lmmp2*lpmp1*lpmp2)*d3*yl(elem(lp2,m))
-
-    dpp=(0d0,0d0)
-    if (good(lm2,mp2)) dpp=dpp+half*sqrt(lmm*lmmm1*lmmm2*lmmm3)*d1*yl(elem(lm2,mp2))
-    if (good(l,mp2)) dpp=dpp+sqrt(lpmp1*lpmp2*lmm*lmmm1)*d2*yl(elem(l,mp2))
-    if (good(lp2,mp2)) dpp=dpp+half*sqrt(lpmp1*lpmp2*lpmp3*lpmp4)*d3*yl(elem(lp2,mp2))
-
-    hess(1)=          half*(dmm-dmp-dmp+dpp)
-    hess(2)=(0d0,1d0)*half*(dmm        -dpp)
-    hess(4)=         -half*(dmm+dmp+dmp+dpp)
-    hess(6)=d00
-    hess(3)=          sqrt2*(dm0-dp0)
-    hess(5)=(0d0,1d0)*sqrt2*(dm0+dp0)
-
-  end subroutine ylmderiv
 
 end module dftb_private
