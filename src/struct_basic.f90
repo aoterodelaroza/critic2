@@ -1119,6 +1119,7 @@ contains
   !> If dmax is given, use that number as an estimate of how many cells
   !> should be included in the search for atoms. 
   subroutine build_env(c,dmax0)
+    use tools_math
     use tools_io
     use global
     use types
@@ -1127,7 +1128,7 @@ contains
     real*8, intent(in), optional :: dmax0
 
     integer :: i, j, k, l(3), m
-    real*8 :: xx(3), dmax
+    real*8 :: xx(3), dmax, sphmax, dist
     integer :: imax, jmax, kmax
 
     ! In molecules, use only the atoms in the main cell
@@ -1150,6 +1151,11 @@ contains
        return
     endif
 
+    sphmax = norm(c%x2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+    sphmax = max(sphmax,norm(c%x2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm(c%x2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm(c%x2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+
     if (present(dmax0)) then
        dmax = dmax0
     else
@@ -1169,6 +1175,9 @@ contains
              do m = 1, c%ncel
                 l = (/i,j,k/)
                 xx = c%atcel(m)%x + l
+                dist = norm(c%x2c(xx - (/0.5d0,0.5d0,0.5d0/)))
+                if (dist > sphmax+dmax) cycle
+
                 c%nenv = c%nenv + 1
                 if (c%nenv > size(c%atenv)) then
                    call realloc(c%atenv,2*size(c%atenv))
