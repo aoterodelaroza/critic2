@@ -986,7 +986,7 @@ contains
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: filename !< Input file name
     integer, intent(inout) :: ntypat !< Number of atom types
-    character*5, intent(inout) :: ztypat(100) !< Atomic numbers for the types
+    character*5, intent(inout) :: ztypat(maxzat) !< Atomic numbers for the types
     logical, intent(in) :: mol !< Is this a molecule?
 
     integer :: lu, lp, nn, typ
@@ -1118,7 +1118,7 @@ contains
 
     character*(*), intent(in) :: filename !< Input file name
     integer, intent(out) :: ntyp !< Number of atom types
-    character*5, intent(out) :: ztyp(100) !< Atomic numbers for the types
+    character*5, intent(out) :: ztyp(maxzat) !< Atomic numbers for the types
 
     integer :: lu, lp
     character(len=:), allocatable :: aux1, aatom, line

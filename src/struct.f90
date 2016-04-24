@@ -56,7 +56,7 @@ contains
     integer :: lp, lp2
     character(len=:), allocatable :: word, word2, wext1, wext2, subline, aux
     integer :: ntyp, nn
-    character*5 :: ztyp(100)
+    character*5 :: ztyp(maxzat)
     real*8 :: rborder, raux
     logical :: docube
 

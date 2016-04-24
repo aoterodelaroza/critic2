@@ -265,13 +265,14 @@ module types
      integer :: nstates
      integer :: norb
      real*8, allocatable :: docc(:,:,:)
-     real*8, allocatable :: dw(:)
      real*8, allocatable :: dkpt(:,:)
      real*8, allocatable :: evecr(:,:,:)
      complex*16, allocatable :: evecc(:,:,:,:)
      integer, allocatable :: ispec(:)
      integer, allocatable :: idxorb(:)
      integer :: midxorb
+     integer :: maxnorb
+     integer :: maxlm
      type(dftbatom), allocatable :: bas(:)
      ! promolecular from fragment
      type(fragment) :: fr

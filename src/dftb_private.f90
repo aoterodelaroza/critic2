@@ -22,8 +22,16 @@ module dftb_private
   private
 
   public :: dftb_read
-  public :: dftb_register_struct
   public :: dftb_rho2
+  public :: dftb_register_struct
+  private :: next_logical
+  private :: next_integer
+  private :: read_kpointsandweights
+  private :: read_occupations
+  private :: dftb_read_reals1
+  private :: next_hsd_atom
+  private :: build_interpolation_grid1
+  private :: calculate_rl
 
   ! private structural info
   real*8, allocatable :: renv(:,:)
@@ -36,8 +44,8 @@ module dftb_private
 
 contains
 
-  !> Read the information for a DFTB+ field from the detailed.xml, eigenvec.bin,
-  !> and the basis set definition in HSD format.
+  !> Read the information for a DFTB+ field from the detailed.xml,
+  !> eigenvec.bin, and the basis set definition in HSD format.
   subroutine dftb_read(f,filexml,filebin,filehsd,zcel)
     use tools_io
     use types
@@ -53,7 +61,9 @@ contains
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
     type(dftbatom) :: at
+    real*8, allocatable :: dw(:)
 
+    ! number of atoms in the cell
     nat = size(zcel)
 
     ! detailed.xml, first pass
@@ -85,19 +95,19 @@ contains
 
     ! detailed.xml, second pass
     if (allocated(f%dkpt)) deallocate(f%dkpt)
-    if (allocated(f%dw)) deallocate(f%dw)
     if (allocated(f%docc)) deallocate(f%docc)
-    allocate(f%dkpt(3,f%nkpt),f%dw(f%nkpt),f%docc(f%nstates,f%nkpt,f%nspin))
+    allocate(f%dkpt(3,f%nkpt),dw(f%nkpt),f%docc(f%nstates,f%nkpt,f%nspin))
     rewind(lu)
-    call read_kpointsandweights(lu,f%dkpt,f%dw)
+    call read_kpointsandweights(lu,f%dkpt,dw)
     call read_occupations(lu,f%docc)
     call fclose(lu)
 
     ! use occupations times weights; scale the kpts by 2pi
     do i = 1, f%nkpt
-       f%docc(:,i,:) = f%docc(:,i,:) * f%dw(i)
+       f%docc(:,i,:) = f%docc(:,i,:) * dw(i)
     end do
     f%dkpt = f%dkpt * tpi
+    deallocate(dw)
 
     ! eigenvec.bin
     lu = fopen_read(filebin,"unformatted")
@@ -141,9 +151,9 @@ contains
 
     ! tie the atomic numbers to the basis types
     if (allocated(f%ispec)) deallocate(f%ispec)
-    allocate(f%ispec(100))
+    allocate(f%ispec(maxzat))
     f%ispec = 0
-    do i = 1, 100
+    do i = 1, maxzat
        do j = 1, n
           if (f%bas(j)%z == i) then
              f%ispec(i) = j
@@ -152,20 +162,25 @@ contains
        end do
     end do
 
-    ! indices for the atomic orbitals
+    ! indices for the atomic orbitals, for array sizes later on
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     allocate(f%idxorb(nat))
     n = 0
+    f%maxnorb = 0
+    f%maxlm = 0
     do i = 1, nat
        id = f%ispec(zcel(i))
        if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(zcel(i)),faterr)
 
+       f%maxnorb = max(f%maxnorb,f%bas(id)%norb)
        f%idxorb(i) = n + 1
        do j = 1, f%bas(id)%norb
           n = n + 2*f%bas(id)%l(j) + 1
+          f%maxlm = max(f%maxlm,f%bas(id)%l(j))
        end do
     end do
     f%midxorb = n
+    f%maxlm = (f%maxlm+3)*(f%maxlm+3)
 
     call build_interpolation_grid1(f)
 
@@ -194,28 +209,30 @@ contains
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
     integer, parameter :: maxenvl = 50
-    integer, parameter :: maxorb = 10
-    integer, parameter :: maxl = 49
 
-    integer :: ion, it, is, istate, ik, iorb, i, j, l, m, lmax, n
+    integer :: ion, it, is, istate, ik, iorb, i, j, l, m, lmax
     integer :: ixorb, ixorb0
-    real*8 :: xion(3), rcut, dist, rx(5), rl, rlp, rlpp, sum, r, tp(2)
-    real*8 :: rrlm(maxl), fac
-    complex*16 :: phase, xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
+    real*8 :: xion(3), rcut, dist, sum, r, tp(2)
+    complex*16 :: xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
     complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
     complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
-    integer :: nenvl, idxenvl(maxenvl), idenv, ionl, n0
-    real*8 :: denv(maxenvl), rrlml(maxl,maxenvl)
-    real*8 :: rll(maxorb,maxenvl), rlpl(maxorb,maxenvl), rlppl(maxorb,maxenvl)
-    complex*16 :: phasel(maxenvl,f%nkpt), rphase, ylm(maxl)
-    integer :: imin, imax, ip, im, iphas
-    real*8 :: phi(maxl,maxorb,maxenvl), phip(3,maxl,maxorb,maxenvl), phipp(6,maxl,maxorb,maxenvl)
+    integer :: nenvl, idxion(maxenvl), ionl
+    real*8 :: rl(f%maxnorb,maxenvl), rlp(f%maxnorb,maxenvl), rlpp(f%maxnorb,maxenvl)
+    complex*16 :: phase(maxenvl,f%nkpt), ylm(f%maxlm)
+    integer :: imin, ip, im, iphas
+    real*8 :: phi(f%maxlm,f%maxnorb,maxenvl)
+    real*8 :: phip(3,f%maxlm,f%maxnorb,maxenvl)
+    real*8 :: phipp(6,f%maxlm,f%maxnorb,maxenvl)
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
+
+    ! xxxx
+    if (f%isreal) call ferror('dftb_rho2','not implemented yet',faterr)
 
     ! precalculate the quantities that depend only on the environment
     nenvl = 0
-    rrlml = 0d0
-    rll = 0d0
+    phi = 0d0
+    phip = 0d0
+    phipp = 0d0
     do ion = 1, nenv
        xion = xpos - renv(:,ion)
        it = f%ispec(zenv(ion))
@@ -229,82 +246,57 @@ contains
        ! write down this atom
        nenvl = nenvl + 1
        if (nenvl > maxenvl) call ferror('dftb_rho2','local environment exceeded array size',faterr)
-       idxenvl(nenvl) = ion
-       denv(nenvl) = max(dist,mindist)
+       idxion(nenvl) = ion
 
        ! calculate the spherical harmonics contributions for this atom
        lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
        call tosphere(xion,r,tp)
        r = max(r,mindist)
        call genylm(lmax+2,tp,ylm)
-       do l = 0, lmax
+
+       ! calculate the radial contributions for this atom
+       do iorb = 1, f%bas(it)%norb
+          if (dist > f%bas(it)%cutoff(iorb)) cycle
+          if (f%exact) then
+             call calculate_rl(f,it,iorb,dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+          else
+             call grid1_interp(f%bas(it)%orb(iorb),dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+          end if
+       end do
+
+       ! populate the phi array and calculate the derivatives
+       do iorb = 1, f%bas(it)%norb
+          l = f%bas(it)%l(iorb)
           imin = l*l+1
-          imax = (l+1)*(l+1)
 
           ! m = 0
           ip = imin+l
-          rrlml(ip,nenvl) = real(ylm(ip),8)
+          call ylmderiv(ylm,r,l,0,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad1,xhess1)
+          phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(ylm(ip),8)
+          phip(:,ip,iorb,nenvl) = real(xgrad1,8)
+          phipp(:,ip,iorb,nenvl) = real(xhess1,8)
 
           ! |m| > 0
           do m = 1, l
              ip = imin + l + m
              im = imin + l - m
              iphas = (-1)**m
-             rrlml(ip,nenvl) = real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
-             rrlml(im,nenvl) = real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
-          end do
-       end do
+             call ylmderiv(ylm,r,l, m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad1,xhess1)
+             call ylmderiv(ylm,r,l,-m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad2,xhess2)
 
-       ! calculate the radial contributions for this atom
-       if (f%bas(it)%norb > maxorb) &
-          call ferror('dftb_rho2','too many orbitals',faterr)
-       do iorb = 1, f%bas(it)%norb
-          if (dist > f%bas(it)%cutoff(iorb)) cycle
-          if (f%exact) then
-             call calculate_rl(f,it,iorb,dist,rl,rlp,rlpp)
-          else
-             call grid1_interp(f%bas(it)%orb(iorb),dist,rl,rlp,rlpp)
-          end if
-          rll(iorb,nenvl) = rl
-          rlpl(iorb,nenvl) = rlp
-          rlppl(iorb,nenvl) = rlpp
-       end do
+             phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
+             phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
+             phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
 
-       ! populate the phi array and calculate the derivatives
-       do iorb = 1, f%bas(it)%norb
-          do l = 0, lmax
-             imin = l*l+1
-             imax = (l+1)*(l+1)
-
-             ! m = 0
-             ip = imin+l
-             call ylmderiv(ylm,r,l,0,rll(iorb,nenvl),rlpl(iorb,nenvl),rlppl(iorb,nenvl),xgrad1,xhess1)
-             phi(ip,iorb,nenvl) = rll(iorb,nenvl) * real(ylm(ip),8)
-             phip(:,ip,iorb,nenvl) = real(xgrad1,8)
-             phipp(:,ip,iorb,nenvl) = real(xhess1,8)
-
-             ! |m| > 0
-             do m = 1, l
-                ip = imin + l + m
-                im = imin + l - m
-                iphas = (-1)**m
-                call ylmderiv(ylm,r,l, m,rll(iorb,nenvl),rlpl(iorb,nenvl),rlppl(iorb,nenvl),xgrad1,xhess1)
-                call ylmderiv(ylm,r,l,-m,rll(iorb,nenvl),rlpl(iorb,nenvl),rlppl(iorb,nenvl),xgrad2,xhess2)
-
-                phi(ip,iorb,nenvl) = rll(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
-                phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
-                phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
-
-                phi(im,iorb,nenvl) = rll(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
-                phip(:,im,iorb,nenvl) = real(-iphas*img*xgrad1+img*xgrad2,8) / sqrt(2d0)
-                phipp(:,im,iorb,nenvl) = real(-iphas*img*xhess1+img*xhess2,8) / sqrt(2d0)
-             end do
+             phi(im,iorb,nenvl) = rl(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
+             phip(:,im,iorb,nenvl) = real(-iphas*img*xgrad1+img*xgrad2,8) / sqrt(2d0)
+             phipp(:,im,iorb,nenvl) = real(-iphas*img*xhess1+img*xhess2,8) / sqrt(2d0)
           end do
        end do
 
        ! calculate the phases
        do ik = 1, f%nkpt
-          phasel(nenvl,ik) = exp(img * dot_product(lenv(:,ion),f%dkpt(:,ik)))
+          phase(nenvl,ik) = exp(img * dot_product(lenv(:,ion),f%dkpt(:,ik)))
        end do
     end do
 
@@ -321,12 +313,15 @@ contains
           ! run over the states
           do istate = 1, f%nstates
 
-             ! determine the atomic contributions
+             ! determine the atomic contributions. The unit cell atoms
+             ! in critic are in the same order as in dftb+, which is
+             ! why indexing the evecc/evecr works.
              xao = 0d0
              xaop = 0d0
              xaopp = 0d0
+             ! run over atoms
              do ionl = 1, nenvl
-                ion = idxenvl(ionl)
+                ion = idxion(ionl)
                 it = f%ispec(zenv(ion))
 
                 ! run over atomic orbitals
@@ -342,9 +337,9 @@ contains
                    end do
                 end do ! iorb
 
-                xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phasel(ionl,ik)
-                xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phasel(ionl,ik)
-                xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phasel(ionl,ik)
+                xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phase(ionl,ik)
+                xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
+                xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
              end do ! ion
 
              ! calculate the value of this extended orbital and its derivatives
@@ -370,6 +365,8 @@ contains
           end do ! states
        end do ! k-points
     end do ! spins
+
+    ! clean up
     h(2,1) = h(1,2)
     h(3,1) = h(1,3)
     h(3,2) = h(2,3)

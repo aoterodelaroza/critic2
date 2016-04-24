@@ -530,7 +530,7 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
-    integer :: ntyp(100)
+    integer :: ntyp(maxzat)
     integer :: i, j, lu
 
     ! count number of atoms per type
@@ -982,7 +982,7 @@ contains
     type(crystal), intent(in) :: c
 
     integer :: i, j, k, l
-    integer :: ntyp(100), lu
+    integer :: ntyp(maxzat), lu
     real*8 :: rnew(3,3)
 
     lu = fopen_write(file)
@@ -1013,7 +1013,7 @@ contains
 
     write (lu,'("Masses"/)')
     j = 0
-    do i = 1, 100
+    do i = 1, maxzat
        if (ntyp(i) > 0) then
           j = j + 1
           write (lu,'(I3,X,F10.4)') j, atmass(i)
@@ -1024,7 +1024,7 @@ contains
     write (lu,'("Atoms"/)')
     k = 0
     l = 0
-    do i = 1, 100
+    do i = 1, maxzat
        if (ntyp(i) == 0) cycle
        k = k + 1
        do j = 1, c%ncel
@@ -1050,7 +1050,7 @@ contains
     type(crystal), intent(in) :: c
 
     integer :: i, j, k
-    integer :: ntyp(100), lu, nspecies
+    integer :: ntyp(maxzat), lu, nspecies
 
     lu = fopen_write(file)
 
@@ -1142,7 +1142,7 @@ contains
 
     integer :: lu
     real*8 :: r(3,3)
-    integer :: i, j, k, ntyp(100), nspecies
+    integer :: i, j, k, ntyp(maxzat), nspecies
 
     lu = fopen_write(file)
 
@@ -1201,9 +1201,9 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
-    logical :: ltyp(100)
+    logical :: ltyp(maxzat)
 
-    real*8, parameter :: hderiv(100) = (/&
+    real*8, parameter :: hderiv(maxzat) = (/&
      -0.1857d0,      0.d0,      0.d0,    0.d0,      0.d0, -0.1492d0,& ! 1:6   (H-C)
      -0.1535d0, -0.1575d0, -0.1623d0,    0.d0, -0.0454d0,   -0.02d0,& ! 7:12  (N-Mg)
           0.d0,      0.d0,   -0.14d0, -0.11d0, -0.0697d0,      0.d0,& ! 13:18 (Al-Ar)
@@ -1220,9 +1220,12 @@ contains
           0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 79:84 (Au-Po)
           0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 85:90 (At-Th)
           0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 91:96 (Pa-Cm)
-          0.d0,      0.d0,      0.d0,    0.d0/) ! 97:100 (Bk-Fm)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 97:102 (Bk-No)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 103:108 (Lr-Hs)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 109:114 (Mt-Uuq)
+          0.d0,      0.d0,      0.d0,    0.d0/)                       ! 115:118 (Uup-Uuo)
 
-    character*1, parameter :: maxang(100) = (/&
+    character*1, parameter :: maxang(maxzat) = (/&
        "s", "x", "x", "x", "x", "p",& ! 1:6   (H-C)
        "p", "p", "p", "x", "p", "p",& ! 7:12  (N-Mg)
        "x", "x", "d", "d", "d", "x",& ! 13:18 (Al-Ar)
@@ -1239,7 +1242,10 @@ contains
        "x", "x", "x", "x", "x", "x",& ! 79:84 (Au-Po)
        "x", "x", "x", "x", "x", "x",& ! 85:90 (At-Th)
        "x", "x", "x", "x", "x", "x",& ! 91:96 (Pa-Cm)
-       "x", "x", "x", "x"/)           ! 97:100 (Bk-Fm)
+       "x", "x", "x", "x", "x", "x",& ! 97:102 (Bk-No)
+       "x", "x", "x", "x", "x", "x",& ! 103:108 (Lr-Hs)
+       "x", "x", "x", "x", "x", "x",& ! 109:114 (Mt-Uuq)
+       "x", "x", "x", "x"/)           ! 115:118 (Uup-Uuo)
 
     integer :: lu, i
 
@@ -1318,10 +1324,10 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
     integer, intent(in), optional :: lu0
-    logical, intent(out), optional :: ltyp0(100)
+    logical, intent(out), optional :: ltyp0(maxzat)
 
     integer :: lu, nspecies, n, nt, i, j, k
-    logical :: ltyp(100)
+    logical :: ltyp(maxzat)
     real*8 :: r(3,3)
     character(len=:), allocatable :: strtyp
 

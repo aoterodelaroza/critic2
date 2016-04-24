@@ -741,7 +741,7 @@ contains
     
     character*(*), intent(in) :: line
 
-    integer :: lp, n, lu, nn(0:3), ntyp(100), lp2
+    integer :: lp, n, lu, nn(0:3), ntyp(maxzat), lp2
     integer :: i, j, ni
     character(len=:), allocatable :: word, order
     character(len=:), allocatable :: lbl

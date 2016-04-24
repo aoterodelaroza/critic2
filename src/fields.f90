@@ -1352,7 +1352,7 @@ contains
 
     integer :: n(3), i, j, ix, iy, iz, lu
     real*8 :: xd(3,3), x0(3)
-    integer :: ntyp(100)
+    integer :: ntyp(maxzat)
     character(len=:), allocatable :: line0
 
     do i = 1, 3
@@ -1371,21 +1371,21 @@ contains
        ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
     end do
     line0 = ""
-    do i = 1, 100
+    do i = 1, maxzat
        if (ntyp(i) > 0) then
           line0 = line0 // " " // string(nameguess(i,.true.))
        end if
     end do
     write (lu,'(A)') line0
     line0 = ""
-    do i = 1, 100
+    do i = 1, maxzat
        if (ntyp(i) > 0) then
           line0 = line0 // " " // string(ntyp(i))
        end if
     end do
     write (lu,'(A)') line0
     write (lu,'("Direct")')
-    do i = 1, 100
+    do i = 1, maxzat
        if (ntyp(i) > 0) then
           do j = 1, c%ncel
              if (c%at(c%atcel(j)%idx)%z /= i) cycle
