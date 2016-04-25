@@ -34,6 +34,7 @@ TESTS=\
 006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mp2.sh 006_load_wfx.sh \
 006_load_wien_oper.sh 006_load_wien_opts.sh 006_load_wien.sh 006_load_xsf.sh \
 006_load_elk_lap.sh 006_load_elk_lap2.sh 006_load_siesta_rho.sh\
+006_load_dftbp1.sh 006_load_dftbp2.sh\
 006_load_copy.sh 006_load_ghost1.sh 006_load_lots.sh 006_load_labels.sh\
 007_point.sh\
 008_line.sh\
