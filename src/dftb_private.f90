@@ -216,6 +216,9 @@ contains
     complex*16 :: xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
     complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
     complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
+    real*8 :: rao(f%midxorb), raol(f%midxorb), rmo, rmop(3), rmopp(6)
+    real*8 :: raolp(3,f%midxorb), raolpp(6,f%midxorb)
+    real*8 :: raop(3,f%midxorb), raopp(6,f%midxorb)
     integer :: nenvl, idxion(maxenvl), ionl
     real*8 :: rl(f%maxnorb,maxenvl), rlp(f%maxnorb,maxenvl), rlpp(f%maxnorb,maxenvl)
     complex*16 :: phase(maxenvl,f%nkpt), ylm(f%maxlm)
@@ -224,9 +227,6 @@ contains
     real*8 :: phip(3,f%maxlm,f%maxnorb,maxenvl)
     real*8 :: phipp(6,f%maxlm,f%maxnorb,maxenvl)
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
-
-    ! xxxx
-    if (f%isreal) call ferror('dftb_rho2','not implemented yet',faterr)
 
     ! precalculate the quantities that depend only on the environment
     nenvl = 0
@@ -295,9 +295,11 @@ contains
        end do
 
        ! calculate the phases
-       do ik = 1, f%nkpt
-          phase(nenvl,ik) = exp(img * dot_product(lenv(:,ion),f%dkpt(:,ik)))
-       end do
+       if (.not.f%isreal) then
+          do ik = 1, f%nkpt
+             phase(nenvl,ik) = exp(img * dot_product(lenv(:,ion),f%dkpt(:,ik)))
+          end do
+       end if
     end do
 
     ! initialize
@@ -306,19 +308,80 @@ contains
     h = 0d0
     gkin = 0d0
 
-    ! run over spins
-    do is = 1, f%nspin
-       ! run over k-points
-       do ik = 1, f%nkpt
+    if (.not.f%isreal) then
+       ! complex version; for crystals with non-gamma k-points
+       ! run over spins
+       do is = 1, f%nspin
+          ! run over k-points
+          do ik = 1, f%nkpt
+             ! run over the states
+             do istate = 1, f%nstates
+
+                ! determine the atomic contributions. The unit cell atoms
+                ! in critic are in the same order as in dftb+, which is
+                ! why indexing the evecc/evecr works.
+                xao = 0d0
+                xaop = 0d0
+                xaopp = 0d0
+                ! run over atoms
+                do ionl = 1, nenvl
+                   ion = idxion(ionl)
+                   it = f%ispec(zenv(ion))
+
+                   ! run over atomic orbitals
+                   ixorb0 = f%idxorb(idxenv(ion))
+                   ixorb = ixorb0 - 1
+                   do iorb = 1, f%bas(it)%norb
+                      ! run over ms for the same l
+                      do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
+                         ixorb = ixorb + 1
+                         xaol(ixorb) = phi(i,iorb,ionl)
+                         xaolp(:,ixorb) = phip(:,i,iorb,ionl)
+                         xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
+                      end do
+                   end do ! iorb
+
+                   xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phase(ionl,ik)
+                   xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
+                   xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
+                end do ! ion
+
+                ! calculate the value of this extended orbital and its derivatives
+                xmo = 0d0
+                xmop = 0d0
+                xmopp = 0d0
+                do i = 1, f%midxorb
+                   xmo = xmo + conjg(xao(i))*f%evecc(i,istate,ik,is)
+                   xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
+                   xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
+                end do
+
+                ! accumulate properties
+                rho = rho + (conjg(xmo)*xmo) * f%docc(istate,ik,is)
+                grad = grad + (conjg(xmop)*xmo+conjg(xmo)*xmop) * f%docc(istate,ik,is)
+                h(1,1) = h(1,1) + (conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1)) * f%docc(istate,ik,is)
+                h(1,2) = h(1,2) + (conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2)) * f%docc(istate,ik,is)
+                h(1,3) = h(1,3) + (conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3)) * f%docc(istate,ik,is)
+                h(2,2) = h(2,2) + (conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4)) * f%docc(istate,ik,is)
+                h(2,3) = h(2,3) + (conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5)) * f%docc(istate,ik,is)
+                h(3,3) = h(3,3) + (conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6)) * f%docc(istate,ik,is)
+                gkin = gkin + (conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3)) * f%docc(istate,ik,is)
+             end do ! states
+          end do ! k-points
+       end do ! spins
+    else
+       ! real, for molecules or crystals with a single k-point at gamma
+       ! run over spins
+       do is = 1, f%nspin
           ! run over the states
           do istate = 1, f%nstates
 
              ! determine the atomic contributions. The unit cell atoms
              ! in critic are in the same order as in dftb+, which is
              ! why indexing the evecc/evecr works.
-             xao = 0d0
-             xaop = 0d0
-             xaopp = 0d0
+             rao = 0d0
+             raop = 0d0
+             raopp = 0d0
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
@@ -331,41 +394,40 @@ contains
                    ! run over ms for the same l
                    do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                       ixorb = ixorb + 1
-                      xaol(ixorb) = phi(i,iorb,ionl)
-                      xaolp(:,ixorb) = phip(:,i,iorb,ionl)
-                      xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
+                      raol(ixorb) = phi(i,iorb,ionl)
+                      raolp(:,ixorb) = phip(:,i,iorb,ionl)
+                      raolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                    end do
                 end do ! iorb
 
-                xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phase(ionl,ik)
-                xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
-                xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
+                rao(ixorb0:ixorb) = rao(ixorb0:ixorb) + raol(ixorb0:ixorb)
+                raop(:,ixorb0:ixorb) = raop(:,ixorb0:ixorb) + raolp(:,ixorb0:ixorb)
+                raopp(:,ixorb0:ixorb) = raopp(:,ixorb0:ixorb) + raolpp(:,ixorb0:ixorb)
              end do ! ion
 
              ! calculate the value of this extended orbital and its derivatives
-             xmo = 0d0
-             xmop = 0d0
-             xmopp = 0d0
+             rmo = 0d0
+             rmop = 0d0
+             rmopp = 0d0
              do i = 1, f%midxorb
-                xmo = xmo + conjg(xao(i))*f%evecc(i,istate,ik,is)
-                xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
-                xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
+                rmo = rmo + rao(i)*f%evecr(i,istate,is)
+                rmop = rmop + raop(:,i)*f%evecr(i,istate,is)
+                rmopp = rmopp + raopp(:,i)*f%evecr(i,istate,is)
              end do
 
              ! accumulate properties
-             rho = rho + (conjg(xmo)*xmo) * f%docc(istate,ik,is)
-             grad = grad + (conjg(xmop)*xmo+conjg(xmo)*xmop) * f%docc(istate,ik,is)
-             h(1,1) = h(1,1) + (conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1)) * f%docc(istate,ik,is)
-             h(1,2) = h(1,2) + (conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2)) * f%docc(istate,ik,is)
-             h(1,3) = h(1,3) + (conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3)) * f%docc(istate,ik,is)
-             h(2,2) = h(2,2) + (conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4)) * f%docc(istate,ik,is)
-             h(2,3) = h(2,3) + (conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5)) * f%docc(istate,ik,is)
-             h(3,3) = h(3,3) + (conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6)) * f%docc(istate,ik,is)
-             gkin = gkin + (conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3)) * f%docc(istate,ik,is)
+             rho = rho + (rmo*rmo) * f%docc(istate,1,is)
+             grad = grad + (rmop*rmo+rmo*rmop) * f%docc(istate,1,is)
+             h(1,1) = h(1,1) + (rmopp(1)*rmo+rmop(1)*rmop(1)+rmop(1)*rmop(1)+rmo*rmopp(1)) * f%docc(istate,1,is)
+             h(1,2) = h(1,2) + (rmopp(2)*rmo+rmop(1)*rmop(2)+rmop(2)*rmop(1)+rmo*rmopp(2)) * f%docc(istate,1,is)
+             h(1,3) = h(1,3) + (rmopp(3)*rmo+rmop(1)*rmop(3)+rmop(3)*rmop(1)+rmo*rmopp(3)) * f%docc(istate,1,is)
+             h(2,2) = h(2,2) + (rmopp(4)*rmo+rmop(2)*rmop(2)+rmop(2)*rmop(2)+rmo*rmopp(4)) * f%docc(istate,1,is)
+             h(2,3) = h(2,3) + (rmopp(5)*rmo+rmop(2)*rmop(3)+rmop(3)*rmop(2)+rmo*rmopp(5)) * f%docc(istate,1,is)
+             h(3,3) = h(3,3) + (rmopp(6)*rmo+rmop(3)*rmop(3)+rmop(3)*rmop(3)+rmo*rmopp(6)) * f%docc(istate,1,is)
+             gkin = gkin + (rmop(1)*rmop(1)+rmop(2)*rmop(2)+rmop(3)*rmop(3)) * f%docc(istate,1,is)
           end do ! states
-       end do ! k-points
-    end do ! spins
-
+       end do ! spins
+    end if
     ! clean up
     h(2,1) = h(1,2)
     h(3,1) = h(1,3)
