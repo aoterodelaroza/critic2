@@ -1,0 +1,7 @@
+crystal ../data/urea.gen
+zpsp c 4 n 5 o 6
+load ../data/urea.detailed.xml ../data/urea.eigenvec.bin ../data/wfc-3ob-3-1.hsd core
+auto
+cpreport obj cell molmotif
+
+

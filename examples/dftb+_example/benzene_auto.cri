@@ -1,0 +1,7 @@
+molecule ../data/benzene.gen 2
+zpsp c 4 
+load ../data/benzene.detailed.xml ../data/benzene.eigenvec.bin ../data/wfc-3ob-3-1.hsd core
+auto
+cpreport obj cell molcell molmotif 
+
+

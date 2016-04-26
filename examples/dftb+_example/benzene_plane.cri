@@ -1,0 +1,6 @@
+molecule ../data/benzene.gen 2
+zpsp c 4 
+load ../data/benzene.detailed.xml ../data/benzene.eigenvec.bin ../data/wfc-3ob-3-1.hsd core
+plane 9. 9. 10. 15.29 9. 10. 9. 16. 10. 101 101 contour log 41 relief 0 1
+
+
