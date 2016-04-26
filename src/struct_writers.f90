@@ -82,6 +82,7 @@ contains
     integer :: i, j, nmol
     character(len=:), allocatable :: wroot, file0
 
+    ! determine the fragments
     if (rcub > 0) then
        fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
     elseif (rsph > 0) then
@@ -97,7 +98,15 @@ contains
        fr = c%listatoms_cells(ix,doborder)
     endif
 
+    ! if this is a molecule, translate to the proper origin
+    if (c%ismolecule) then
+       do i = 1, fr%nat
+          fr%at(i)%r = fr%at(i)%r + c%molx0
+       end do
+    end if
+
     if (.not.doburst.and..not.dopairs) then
+       ! normal write 
        if (equal(fmt,"xyz")) then
           call writexyz(file,fr)
        elseif (equal(fmt,"gjf")) then
@@ -107,6 +116,7 @@ contains
        endif
     else
        if (doburst) then
+          ! burst into single-molecule files
           wroot = file(:index(file,'.',.true.)-1)
           do i = 1, nmol
              file0 = wroot // "_" // string(i) // "." // fmt
@@ -120,6 +130,7 @@ contains
           end do
        end if
        if (dopairs) then
+          ! double-molecule files
           wroot = file(:index(file,'.',.true.)-1)
           do i = 1, nmol
              do j = i+1, nmol
@@ -201,6 +212,13 @@ contains
     else
        fr = c%listatoms_cells(ix,doborder)
     endif
+
+    ! if this is a molecule, translate to the proper origin
+    if (c%ismolecule) then
+       do i = 1, fr%nat
+          fr%at(i)%r = fr%at(i)%r + c%molx0
+       end do
+    end if
 
     if (.not.doburst) then
        file0 = file

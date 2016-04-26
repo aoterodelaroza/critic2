@@ -1355,8 +1355,8 @@ contains
 
   !> List atoms inside a sphere of radius rsph and center xsph
   !> (cryst.)  or a cube of side rcub and center xcub (cryst.). Return
-  !> the list of atomic positions (cartesian) in x, the atomic numbers
-  !> in z and the number of atoms in nat.
+  !> the list of atomic positions (Cartesian) in x, the atomic numbers
+  !> in z and the number of atoms in nat. 
   function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
     use fragmentmod
     use tools_math
