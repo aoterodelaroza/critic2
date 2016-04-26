@@ -284,7 +284,7 @@ contains
        file = getword(line,lp)
        wext1 = "xsf"
        wext2 = wext1
-    elseif (equal(file,"elfgrid")) then
+    elseif (equal(file,"elkgrid")) then
        file = getword(line,lp)
        wext1 = "grid"
        wext2 = wext1
@@ -292,7 +292,7 @@ contains
        file = getword(line,lp)
        wext1 = "RHO"
        wext2 = wext1
-    elseif (equal(file,"dftb+")) then
+    elseif (equal(file,"dftb")) then
        file = getword(line,lp)
        wext1 = "xml"
        wext2 = wext1

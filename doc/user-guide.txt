@@ -2033,12 +2033,13 @@ field formats are supported:
   LOAD file.OUT GEOMETRY.OUT
   LOAD file.OUT GEOMETRY.OUT OTHER.OUT
   LOAD file1.ion {nat1.i/at1.s} file2.ion ...
+  LOAD file.xml file.bin file.hsd
   LOAD file.wfn
   LOAD file.wfx
   LOAD COPY id.s [TO id2.s]
   LOAD PROMOLECULAR
   LOAD PROMOLECULAR [FRAGMENT file.xyz]
-  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID] file
+  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID|SIESTA|DFTB] file
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
@@ -2089,6 +2090,8 @@ extension to decide which format should be used for the reading:
 * OUT for elk's STATE.OUT.
 
 * ion for aiPI ion files.
+
+* xml for DFTB+'s detailed.xml.
 
 * wfn and wfx for Gaussian wavefunction files.
 
@@ -2219,6 +2222,30 @@ For aiPI inputs, several ion files are necessary. The ion files can be
 associated to atoms either by using their non-equivalent atom number
 (nat1.i) or their atomic symbol (at1.s). 
 
+DFTB+ files (xml file and others)
++++++++++++++++++++++++++++++++++
+
+To load a field from the calcualted wavefunction using DFTB+, three
+files are required: the detailed.xml file (written by the
+WriteDetailedXML option), the eigenvec.bin file (using the
+WriteEigenVectors options), and the file containing the wavefunction
+coefficients, which has been provided by the authors of the DFTB+
+package and can be obtained online::
+
+  http://www.dftb-plus.info/tools/waveplot
+
+The DFTB type is detected by the xml extension of the first file and,
+therefore, the name of these files need not be "detailed.xml" or
+"eigenvec.bin". 
+
+Two different types of systems can be run in DFTB+: crystals under
+periodic boundary conditions, and molecules in the gas-phase. In the
+first case, if using k-points other than Gamma, the wavefunction is
+complex, and the evaluation of the density is relatively slow,
+comparable to aiPI. Molecules use real wavefunctions and they tend to
+be less crowded than crystals, so using molecular DFTB fields should
+be considerably faster. 
+
 Gaussian wavefunction files (wfn/wfx)
 +++++++++++++++++++++++++++++++++++++
 
@@ -2296,13 +2323,14 @@ core-augment, despite CORE being active.
 
   EXACT|APPROXIMATE
 
-The calculation of the electron density in aiPI fields is relatively
-expensive. Using the APPROXIMATE keyword, the atomic contributions to
-the density are calculated by interpolating from a radial grid, that
-is precomputed at the beginning of the run. EXACT calculates the fully
-analytical values of the field with no approximations.
+The calculation of the electron density in aiPI and DFTB+ fields is
+relatively expensive. Using the APPROXIMATE keyword, the atomic
+contributions to the density are calculated by interpolating from a
+radial grid, that is precomputed at the beginning of the run. EXACT
+calculates the fully analytical values of the field with no
+approximations.
 
-Applies to: PI. Default: APPROXIMATE.
+Applies to: PI and DFTB+ fields. Default: APPROXIMATE.
 
 ::
 
@@ -2734,6 +2762,20 @@ Usual CRYSTAL/LOAD and MOLECULE/LOAD combinations
       ...
     ENDCRYSTAL
     LOAD at1.ion at1 at2.ion at2 ...
+
+* **DFTB+ crystal**
+
+  ::
+
+    CRYSTAL crystal.gen
+    LOAD detailed.xml eigenvec.bin wfc.hsd
+
+* **DFTB+ molecule**
+
+  ::
+
+    MOLECULE mol.gen
+    LOAD detailed.xml eigenvec.bin wfc.hsd
 
 * **Any code that writes Gaussian cubes**
 
@@ -3390,6 +3432,11 @@ shortcomings of the scalar field:
   can not be found (e.g. bonds) or have the wrong signature. If that
   is the case, there is not much to do other than trying to find an
   analytical representation for the field.
+
+* In DFTB+ and other fields missing the core electrons
+  (e.g. plane-wave calculations), the use of core-augmentation (ZPSP
+  and CORE keywords) is recommended to prevent the appearance of
+  spurious critical points close to the nuclei.
 
 * In scalar fields with extreme variations in value (e.g. the
   Laplacian of the electron density), it is unlikely that AUTO will
