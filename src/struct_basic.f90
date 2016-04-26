@@ -87,7 +87,7 @@ module struct_basic
      real*8 :: rotg(3,3,48) !< symmetry operations, reciprocal space
      ! ws cell neighbor information
      integer :: nws !< number of WS neighbors
-     integer :: ivws(3,40) !< WS neighbor lattice points
+     integer :: ivws(3,16) !< WS neighbor lattice points
      logical :: isortho !< is the cell orthogonal?
      ! molecule
      logical :: ismolecule = .false. !< is it a molecule?
@@ -3029,8 +3029,7 @@ contains
     end do
 
     ! calculate the wigner-seitz cell
-    naux = 1
-    call c%wigner((/0d0,0d0,0d0/),.false.,naux,c%nws,c%ivws)
+    call c%wigner((/0d0,0d0,0d0/),.false.,c%nws,c%ivws)
     c%isortho = (c%nws <= 6)
     if (c%isortho) then
        do i = 1, c%nws
@@ -3777,7 +3776,7 @@ contains
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
-  subroutine wigner(c,xorigin,verbose,npts,nvec,vec,area0,ntetrag,tetrag)
+  subroutine wigner(c,xorigin,verbose,nvec,vec,area0,ntetrag,tetrag)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
     use global
     use tools_math
@@ -3797,9 +3796,8 @@ contains
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xorigin(3) !< Origin of the WS cell
     logical, intent(in) :: verbose !< Write to output?
-    integer, intent(in), optional :: npts(3) !< number of points per axis: useful for mini-WS in grids
     integer, intent(out),optional :: nvec !< Number of lattice point neighbors
-    integer, intent(out),optional :: vec(3,40) !< Integer vectors to neighbors
+    integer, intent(out),optional :: vec(3,16) !< Integer vectors to neighbors
     real*8, intent(out),optional :: area0(40) !< Area to neighbors
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
     real*8, allocatable, intent(out), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
@@ -3826,7 +3824,7 @@ contains
     character(len=:), allocatable :: file1, file2, file3
     character(kind=c_char,len=1024) :: file1c, file2c, file3c
     character*3 :: pg
-    real*8 :: rmat(3,4)
+    real*8 :: rmat(3,4), rmati(3,3)
     ! qhull threshold for face recognition
     integer(c_int) :: ithr
     integer(c_int), parameter :: ithr_def = 5
@@ -3834,19 +3832,16 @@ contains
     ! set origin
     xoriginc = c%x2c(xorigin)
 
+    ! input for delaunay
+    rmati = 0d0
+    do i = 1, 3
+       rmati(i,i) = 1d0
+    end do
+
     ! cartesian/crystallographic
     x2r = c%crys2car
     r2x = c%car2crys
     rnorm = 1d0
-    if (present(npts)) then
-       if (any(npts /= 1)) then
-          rnorm = sum(npts) / 3d0
-          do i = 1, 3
-             x2r(:,i) = x2r(:,i) / npts(i) * rnorm
-          end do
-          r2x = matinv(x2r)
-       end if
-    end if
 
     if (verbose) then
        write (uout,'("* Wigner-Seitz cell and IWS construction")')
@@ -3865,7 +3860,7 @@ contains
     ! see 9.1.8 in ITC.
     n = 14
     allocate(xstar(3,14))
-    call c%delaunay_reduction(rmat)
+    call c%delaunay_reduction(rmat,rmati)
     xstar(:,1)  = rmat(:,1)
     xstar(:,2)  = rmat(:,2)
     xstar(:,3)  = rmat(:,3)

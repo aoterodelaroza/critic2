@@ -56,7 +56,7 @@ contains
 
     real*8, allocatable :: g(:)
     integer, allocatable :: io(:), iio(:)
-    integer :: i, ii, j, n(3), nn, nvec, vec(3,40), ib(3), jb(3), jj, k, kk
+    integer :: i, ii, j, n(3), nn, nvec, vec(3,16), ib(3), jb(3), jj, k, kk
     real*8 :: al(40), csum
     integer :: nhi
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
@@ -64,6 +64,7 @@ contains
     logical :: isias, isassigned
     integer :: nid, lvec(3), nnnm
     real*8 :: dist, dv(3)
+    type(crystal) :: caux
 
     ! Pre-allocate atoms as maxima
     allocate(xcoord(3,c%ncel))
@@ -93,8 +94,13 @@ contains
        iio(io(i)) = i
     end do
 
-    ! calculate areas*lengths and grid vectors
-    call c%wigner((/0d0,0d0,0d0/),.false.,n,nvec,vec,al)
+    ! calculate areas*lengths and grid vectors. Use a smaller crystal
+    ! where the "lattice" corresponds to the cube grid points.
+    caux%isinit = .true.
+    caux%aa = c%aa / real(n,8)
+    caux%bb = c%bb
+    call caux%set_cryscar()
+    call caux%wigner((/0d0,0d0,0d0/),.false.,nvec,vec,al)
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))
