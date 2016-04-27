@@ -2185,7 +2185,7 @@ contains
        ! flip the cell
        x0 = -x0
        dd = det(x0)
-       call ferror('newcell','det < 0; vectors 1 and 2 switched',warning)
+       call ferror('newcell','det < 0; vectors flipped',warning)
     endif
     if (present(t0)) then
        t = t0
