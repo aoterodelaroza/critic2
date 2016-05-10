@@ -5518,9 +5518,17 @@ J. Chem. Phys. 138, 204109 (2013) for more details.
 
 ::
 
-  XDM [RHO irho.s] [TAU itau.s] [ELF ielf.s] [PDENS ipdens.s]
+  XDM GRID [RHO irho.s] [TAU itau.s] [ELF ielf.s] [PDENS ipdens.s]
       [CORE icor.s] [LAP ilap.s] [GRAD igrad.s] [RHOAE irhoae.s]
       [XB ib.s] [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]
+  XDM QE
+
+There are two modes for the XDM keyword. In QE, the coefficients are
+read from a Quantum ESPRESSO output (loaded using CRYSTAL), and the
+XDM energy is recalculated. This keyword is used mostly for testing
+purposes. In GRID, the information necessary to calculate the XDM
+dispersion energy and related quantities is provided using grid
+fields. 
 
 XDM uses the electron density (RHO), the kinetic energy density (TAU),
 the Laplacian (LAP), and the gradient of the electron density (GRAD)
@@ -5581,7 +5589,7 @@ The usual way of running XDM for the first time is:
   ZPSP C 4 O 6 H 1
   LOAD rho.cube
   LOAD elf.cube
-  XDM elf 2
+  XDM GRID elf 2
 
 This generates several cube files: root-tau.cube, root-pdens.cube,
 root-core.cube, root-lap.cube, root-grad.cube, and
@@ -5596,7 +5604,7 @@ PDENS, and CORE by doing:
   LOAD root-b.cube
   LOAD root-pdens.cube
   LOAD root-core.cube
-  XDM XB 2 PDENS 3 CORE 4
+  XDM GRID XB 2 PDENS 3 CORE 4
 
 Note that passing RHO 1 is not necessary because rho.cube is the first
 field loaded (hence the reference) and assumed by default to be the
