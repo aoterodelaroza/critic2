@@ -24,14 +24,14 @@ module dftb_private
   public :: dftb_read
   public :: dftb_rho2
   public :: dftb_register_struct
-  ! private :: next_logical
-  ! private :: next_integer
-  ! private :: read_kpointsandweights
-  ! private :: read_occupations
-  ! private :: dftb_read_reals1
-  ! private :: next_hsd_atom
-  ! private :: build_interpolation_grid1
-  ! private :: calculate_rl
+  private :: next_logical
+  private :: next_integer
+  private :: read_kpointsandweights
+  private :: read_occupations
+  private :: dftb_read_reals1
+  private :: next_hsd_atom
+  private :: build_interpolation_grid1
+  private :: calculate_rl
 
   ! private structural info
   real*8, allocatable :: renv(:,:)
