@@ -760,8 +760,9 @@ contains
              lp = 1
              word = lgetword(line,lp)
              idx = index(line,"{")
-             if (idx > 0) word = word(1:idx-1)
-             word = trim(adjustl(word))
+             aux = word
+             if (idx > 0) aux = word(1:idx-1)
+             word = trim(adjustl(aux))
 
              if (equal(word,"atomicnumber")) then
                 idx = index(line,"=")
@@ -776,8 +777,9 @@ contains
                    lp = 1
                    word = lgetword(line,lp)
                    idx = index(line,"{")
-                   if (idx > 0) word = word(1:idx-1)
-                   word = trim(adjustl(word))
+                   aux = word
+                   if (idx > 0) aux = word(1:idx-1)
+                   word = trim(adjustl(aux))
                    if (equal(word,"angularmomentum")) then
                       idx = index(line,"=")
                       word = line(idx+1:)
