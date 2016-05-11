@@ -103,8 +103,8 @@ contains
     integer, parameter :: arglen = 1024
 
     integer :: n 
-    integer :: argc
-    character(len=arglen) :: argv
+    integer :: argc, idx
+    character(len=arglen) :: argv, aux
 
     optv=""
     ghome=""
@@ -131,14 +131,25 @@ contains
                 optv = trim(optv) // argv(2:2)
              endif
           elseif (uin == input_unit) then
-             uroot = argv
+             uroot = trim(argv)
              if (index(uroot,dirsep) > 0) then
                 filepath = uroot(1:index(uroot,dirsep,.true.)-1)
                 if (len_trim(filepath) == 0) filepath = "."
-                uroot = uroot(index(uroot,dirsep,.true.)+1:)
+                ! xx(note1)xx
+                ! gfortran-5 and gfortran-6 have problems with the much simpler:
+                !   uroot = uroot(index(uroot,dirsep,.true.)+1:)
+                ! where they bail out with internal compiler error. Strangely,
+                ! gfortran-4 works perfectly. -- A.
+                idx = index(uroot,dirsep,.true.)
+                aux = uroot(idx+1:)
+                uroot = trim(aux)
              end if
-             if (index(uroot,'.') > 0) & 
-                uroot = uroot(1:index(uroot,'.',.true.)-1)
+             if (index(uroot,'.') > 0) then
+                ! see xx(note1)xx, tools_io.f90
+                idx = index(uroot,'.',.true.)
+                aux = uroot(1:idx-1)
+                uroot = trim(aux)
+             end if
              uroot = trim(adjustl(uroot))
              uin = fopen_read(argv,abspath=.true.)
           elseif (uout == output_unit) then
@@ -215,14 +226,18 @@ contains
           do ipad = padspace,0,-1
              if (s(len(s)-ipad+1:) == "") exit
           end do
-          s(ipad+1:) = s(1:len(s)-ipad)
+          ! see xx(note1)xx, tools_io.f90
+          aux = s(1:len(s)-ipad)
+          s(ipad+1:) = trim(adjustl(aux))
           s(1:ipad) = ""
        else
           do ipad = -padspace,0,-1
              if (s(1:ipad) == "") exit
           end do
           ialen = len(s)-ipad
-          s(1:ialen) = s(ipad+1:)
+          ! see xx(note1)xx, tools_io.f90
+          aux = s(ipad+1:)
+          s(1:ialen) = trim(adjustl(aux))
           s(ialen+1:) = ""
        endif
     endif
@@ -293,14 +308,18 @@ contains
           do ipad = padspace,0,-1
              if (s(len(s)-ipad+1:) == "") exit
           end do
-          s(ipad+1:) = s(1:len(s)-ipad)
+          ! see xx(note1)xx, tools_io.f90
+          aux = s(1:len(s)-ipad)
+          s(ipad+1:) = trim(adjustl(aux))
           s(1:ipad) = ""
        else
           do ipad = -padspace,0,-1
              if (s(1:ipad) == "") exit
           end do
           ialen = len(s)-ipad
-          s(1:ialen) = s(ipad+1:)
+          ! see xx(note1)xx, tools_io.f90
+          aux = s(ipad+1:)
+          s(1:ialen) = trim(adjustl(aux))
           s(ialen+1:) = ""
        endif
     endif

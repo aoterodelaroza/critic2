@@ -24,14 +24,14 @@ module dftb_private
   public :: dftb_read
   public :: dftb_rho2
   public :: dftb_register_struct
-  private :: next_logical
-  private :: next_integer
-  private :: read_kpointsandweights
-  private :: read_occupations
-  private :: dftb_read_reals1
-  private :: next_hsd_atom
-  private :: build_interpolation_grid1
-  private :: calculate_rl
+  ! private :: next_logical
+  ! private :: next_integer
+  ! private :: read_kpointsandweights
+  ! private :: read_occupations
+  ! private :: dftb_read_reals1
+  ! private :: next_hsd_atom
+  ! private :: build_interpolation_grid1
+  ! private :: calculate_rl
 
   ! private structural info
   real*8, allocatable :: renv(:,:)
@@ -502,18 +502,20 @@ contains
     character*(*), intent(in) :: line0, key0
     logical :: next
 
-    character(len=:), allocatable :: line, key
+    character(len=:), allocatable :: line, key, aux
     integer :: idx, idxn, idxy
     logical :: found, ok, lastpass
     
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
+
     ! lowercase and build key
     key = "<" // trim(adjustl(key0)) // ">"
     line = lower(line0)
 
     ! delete up to the key in the current line, leave the rest
     idx = index(line,key)
-    line = line(idx+len_trim(key):)
-    line = trim(adjustl(line))
+    aux = line(idx+len_trim(key):)
+    line = trim(adjustl(aux))
 
     ! parse all lines until </key> is found
     key = "</" // trim(adjustl(key0)) // ">"
@@ -543,12 +545,14 @@ contains
        if (.not.ok) exit
 
        ! clean up and lowercase
-       line = trim(adjustl(lower(line)))
+       aux = lower(line)
+       line = trim(adjustl(aux))
 
        ! if the </key> is detected, read up to the </key> and activate the last pass flag
        idx = index(line,key)
        if (idx > 0) then
-          line = line(1:idx-1)
+          aux = line(1:idx-1)
+          line = aux
           lastpass = .true.
        end if
     end do
@@ -565,18 +569,20 @@ contains
     character*(*), intent(in) :: line0, key0
     integer :: next
 
-    character(len=:), allocatable :: line, key
+    character(len=:), allocatable :: line, key, aux
     integer :: idx, idxn, idxy, lp 
     logical :: found, ok, lastpass
     
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
+
     ! lowercase and build key
     key = "<" // trim(adjustl(key0)) // ">"
     line = lower(line0)
 
     ! delete up to the key in the current line, leave the rest
     idx = index(line,key)
-    line = line(idx+len_trim(key):)
-    line = trim(adjustl(line))
+    aux = line(idx+len_trim(key):)
+    line = trim(adjustl(aux))
     lp = 1
 
     ! parse all lines until </key> is found
@@ -596,12 +602,14 @@ contains
        if (.not.ok) exit
 
        ! clean up and lowercase
-       line = trim(adjustl(lower(line)))
+       aux = lower(line)
+       line = trim(adjustl(aux))
 
        ! if the </key> is detected, read up to the </key> and activate the last pass flag
        idx = index(line,key)
        if (idx > 0) then
-          line = line(1:idx-1)
+          aux = line(1:idx-1)
+          line = aux
           lastpass = .true.
        end if
     end do
@@ -619,8 +627,10 @@ contains
     real*8, intent(out) :: w(:)
 
     logical :: ok, found
-    character(len=:), allocatable :: line, key
+    character(len=:), allocatable :: line, key, aux
     integer :: i
+
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     key = "<kpointsandweights>"
     found = .false.
@@ -649,15 +659,18 @@ contains
     real*8, intent(out) :: occ(:,:,:)
 
     logical :: ok, found
-    character(len=:), allocatable :: line, key
+    character(len=:), allocatable :: line, key, aux
     integer :: is, ik
+
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     key = "<occupations>"
     found = .false.
     do while (.true.)
        ok = getline_raw(lu,line)
        if (.not.ok) exit
-       line = trim(adjustl(lower(line)))
+       aux = lower(line)
+       line = trim(adjustl(aux))
        if (index(line,key) > 0) then
           found = .true.
 
@@ -691,18 +704,20 @@ contains
 
     integer :: kk, lp
     real*8 :: rdum
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, aux
     logical :: ok
+
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     kk = 0
     lp = 1
-    ok = getline_raw(lu,line,.true.)
-    line = trim(adjustl(line))
+    ok = getline_raw(lu,aux,.true.)
+    line = trim(adjustl(aux))
     do while(.true.)
        if (.not.isreal(rdum,line,lp)) then
           lp = 1
-          ok = getline_raw(lu,line)
-          line = trim(adjustl(line))
+          ok = getline_raw(lu,aux)
+          line = trim(adjustl(aux))
           if (.not.ok .or. line(1:1) == "<") exit
        else
           kk = kk + 1
@@ -721,7 +736,9 @@ contains
     type(dftbatom), intent(out) :: at
     logical :: ok
 
-    character(len=:), allocatable :: line, word
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
+
+    character(len=:), allocatable :: line, word, aux
     integer :: idx, nb, lp, i, n
     real*8 :: rdum
 
