@@ -81,6 +81,7 @@ module tools_io
   integer :: ucopy !< logical unit where the copy of the input is written
   logical, private :: alloc(0:100) !< allocation flag array
   character(len=:), allocatable :: filepath !< relative path to find related files
+  logical :: interactive !< is this an interactive sesion?
 
   ! error system
   integer, parameter :: faterr = -1 !< fatal error flag
@@ -110,6 +111,7 @@ contains
     ghome=""
     uin = input_unit
     uout = output_unit
+    interactive = .true.
     ucopy = uout
     uroot = "stdin"
     filepath = "."
@@ -152,6 +154,7 @@ contains
              end if
              uroot = trim(adjustl(uroot))
              uin = fopen_read(argv,abspath=.true.)
+             interactive = .false.
           elseif (uout == output_unit) then
              uout = fopen_write(argv)
           endif
@@ -1203,12 +1206,13 @@ contains
 
   !> Send an error message 'message' to stdout, coming from routine
   !> 'routine'. errortype is the error code (see mod_param.f90).
-  subroutine ferror(routine,message,errortype,inputline)
+  subroutine ferror(routine,message,errortype,inputline,syntax)
 
     character*(*), intent(in) :: routine !< Routine calling the error
     character*(*), intent(in) :: message !< The message
     integer, intent(in) :: errortype !< Fatal, warning or info
     character*(*), intent(in), optional :: inputline !< Previous-line input message
+    logical, intent(in), optional :: syntax !< Is this a syntax error? (do not stop if interactive)
 
     character*(20) :: chtype
 
@@ -1231,6 +1235,9 @@ contains
        !$omp critical (IO)
        write (uout,100) trim(chtype),trim(routine), trim(message)
        !$omp end critical (IO)
+       if (present(syntax)) then
+          if (syntax .and. interactive) return
+       end if
        stop 1
     else if(errortype.eq.warning) then
        nwarns = nwarns + 1

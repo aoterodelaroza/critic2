@@ -370,11 +370,11 @@ contains
     word = lgetword(line,lp)
     if (equal(word,'nosymm')) then
        doguess = 0
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'symm')) then
        ok = isinteger(doguess,line,lp)
        if (.not.ok) doguess = 2
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)
           word = lgetword(line,lp)
@@ -391,19 +391,19 @@ contains
              else if (equal(word,'dp')) then
                 NAV_stepper = NAV_stepper_dp
              else
-                call ferror('critic_setvariables','Wrong ODE_MODE stepper',faterr,line)
+                call ferror('critic_setvariables','Wrong ODE_MODE stepper',faterr,line,syntax=.true.)
              end if
           else if (equal(word,'maxstep')) then
              ok = isreal(NAV_step,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXSTEP',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXSTEP',faterr,line,syntax=.true.)
           else if (equal(word,'maxerr')) then
              ok = isreal(NAV_maxerr,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXERR',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXERR',faterr,line,syntax=.true.)
           else if (equal(word,'gradeps')) then
              ok = isreal(NAV_gradeps,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/GRADEPS',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/GRADEPS',faterr,line,syntax=.true.)
           elseif (len_trim(word) > 0) then
-             call ferror('critic_setvariables','Unknown keyword in ODE_MODE',faterr,line)
+             call ferror('critic_setvariables','Unknown keyword in ODE_MODE',faterr,line,syntax=.true.)
           else
              exit
           end if
@@ -422,54 +422,72 @@ contains
              else if (equal(word,'qag')) then
                 INT_radquad_type = INT_qag
              else
-                call ferror('critic_setvariables','Wrong INT_RADIAL type',faterr,line)
+                call ferror('critic_setvariables','Wrong INT_RADIAL type',faterr,line,syntax=.true.)
              end if
           elseif (equal(word,'nr')) then
              ok = isinteger(INT_radquad_nr,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL nr',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL nr',faterr,line,syntax=.true.)
           elseif (equal(word,'abserr')) then
              ok = isreal(INT_radquad_abserr,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL abserr',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL abserr',faterr,line,syntax=.true.)
           elseif (equal(word,'relerr')) then
              ok = isreal(INT_radquad_relerr,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL relerr',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL relerr',faterr,line,syntax=.true.)
           elseif (equal(word,'errprop')) then
              ok = isinteger(INT_radquad_errprop,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL errprop',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL errprop',faterr,line,syntax=.true.)
              INT_radquad_errprop_default = .false.
           elseif (equal(word,'prec')) then
              ok = isreal(INT_iasprec,line,lp)
-             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL prec',faterr,line)
+             if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL prec',faterr,line,syntax=.true.)
           elseif (len_trim(word) > 0) then
-             call ferror('critic_setvariables','Unknown keyword in INT_RADIAL',faterr,line)
+             call ferror('critic_setvariables','Unknown keyword in INT_RADIAL',faterr,line,syntax=.true.)
           else
              exit
           end if
        end do
     else if (equal (word,'gradient_mode')) then
        ok = isinteger(gradient_mode,line,lp)
-       if (.not.ok) call ferror('critic_setvariables','Wrong gradient_mode',faterr,line)
-       call check_no_extra_word()
+       if (.not.ok) then
+          call ferror('critic_setvariables','Wrong gradient_mode',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     else if (equal (word,'qtree_ode_mode')) then
        ok = isinteger(qtree_ode_mode,line,lp)
-       if (.not.ok) call ferror('critic_setvariables','Wrong qtree_ode_mode',faterr,line)
-       call check_no_extra_word()
+       if (.not.ok) then
+          call ferror('critic_setvariables','Wrong qtree_ode_mode',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     else if (equal (word,'stepsize')) then
        ok = isreal(stepsize,line,lp)
-       if (.not.ok) call ferror('critic_setvariables','Wrong stepsize',faterr,line)
-       call check_no_extra_word()
+       if (.not.ok) then
+          call ferror('critic_setvariables','Wrong stepsize',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'ode_abserr')) then
        ok = isreal(ode_abserr,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong ode_abserr',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong ode_abserr',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'mpstep')) then
        ok = isinteger(mpstep,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong mpstep',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong mpstep',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'qtreefac')) then
        ok = isreal(qtreefac,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong qtreefac',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong qtreefac',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'integ_mode')) then
        ok = isinteger(idum,line,lp)
        if (idum > 0) then
@@ -478,107 +496,155 @@ contains
           ok = ok .and. isinteger(idum,line,lp)
           integ_mode = idum
        end if
-       if (.not. ok) call ferror('critic_setvariables','Wrong integ_mode',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong integ_mode',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'integ_scheme')) then
        ok = isinteger(integ_scheme,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong integ_scheme',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong integ_scheme',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'keastnum')) then
        ok = isinteger(keastnum,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong keastnum',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong keastnum',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'prop_mode')) then
        ok = isinteger(prop_mode,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong prop_mode',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong prop_mode',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'sphintfactor')) then
        ok = isinteger(idum,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong sphintfactor',faterr,line)
-       ok = isreal(rdum,line,lp)
-       if (.not. ok .or. idum == 0d0) then
-          sphintfactor = rdum
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong sphintfactor',faterr,line,syntax=.true.)
        else
-          sphintfactor(idum) = rdum
+          ok = isreal(rdum,line,lp)
+          if (.not. ok .or. idum == 0d0) then
+             sphintfactor = rdum
+          else
+             sphintfactor(idum) = rdum
+          end if
+          call check_no_extra_word(ok)
        end if
-       call check_no_extra_word()
     elseif (equal(word,'cub_abs')) then
        ok = isreal(cub_abs,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong cub_abs',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong cub_abs',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'cub_rel')) then
        ok = isreal(cub_rel,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong cub_rel',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong cub_rel',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'cub_mpts')) then
        ok = isinteger(cub_mpts,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong cub_mpts',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong cub_mpts',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'plot_mode')) then
        ok = isinteger(plot_mode,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong plot_mode',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong plot_mode',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'docontacts')) then
        docontacts = .true.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'nocontacts')) then
        docontacts = .false.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'ws_origin')) then
        ok = isreal(ws_origin(1),line,lp)
        ok = ok .and. isreal(ws_origin(2),line,lp)
        ok = ok .and. isreal(ws_origin(3),line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong ws_origin',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong ws_origin',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'ws_scale')) then
        ok = isreal(ws_scale,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong ws_scale',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong ws_scale',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'nows')) then
        ws_use = .false.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'killext')) then
        killext = .true.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'nokillext')) then
        killext = .false.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'autosph')) then
        ok = isinteger(autosph,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong autosph',faterr,line)
-       if (autosph /= 1 .and. autosph /= 2) &
-          call ferror('critic_setvariables','autosph must be 1 or 2',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong autosph',faterr,line,syntax=.true.)
+       else if (autosph /= 1 .and. autosph /= 2) then
+          call ferror('critic_setvariables','autosph must be 1 or 2',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'checkbeta')) then
        checkbeta = .true.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'nocheckbeta')) then
        checkbeta = .false.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'qtree_minl')) then
        ok = isinteger(minl,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong gradient_mode',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong gradient_mode',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'plotsticks')) then
        plotsticks = .false.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'noplotsticks')) then
        plotsticks = .false.
-       call check_no_extra_word()
+       call check_no_extra_word(ok)
     elseif (equal(word,'color_allocate')) then
        ok = isinteger(color_allocate,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong color_allocate',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong color_allocate',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'setsph_lvl')) then
        ok = isinteger(color_allocate,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong setsph_lvl',faterr,line)
-       if (setsph_lvl > 7 .or. setsph_lvl < minl) &
-          call ferror('critic->qtree','setsph_lvl must be > minl and < 8',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong setsph_lvl',faterr,line,syntax=.true.)
+       else if (setsph_lvl > 7 .or. setsph_lvl < minl) then
+          call ferror('critic->qtree','setsph_lvl must be > minl and < 8',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       endif
     elseif (equal(word,'vcutoff')) then
        ok = isreal(vcutoff,line,lp)
-       if (.not. ok) call ferror('critic_setvariables','Wrong vcutoff',faterr,line)
-       call check_no_extra_word()
+       if (.not. ok) then
+          call ferror('critic_setvariables','Wrong vcutoff',faterr,line,syntax=.true.)
+       else
+          call check_no_extra_word(ok)
+       end if
     elseif (equal(word,'library')) then
        word = lgetword(line,lp)
        if (equal(word,'crystal')) then
@@ -586,7 +652,7 @@ contains
        elseif (equal(word,'molecule')) then
           mlib_file = string(line(lp:))
        else
-          call ferror('critic_setvariables','Unknown keyword in LIBRARY',faterr,line)
+          call ferror('critic_setvariables','Unknown keyword in LIBRARY',faterr,line,syntax=.true.)
        end if
     elseif (equal(word,'units')) then
        do while(.true.)
@@ -598,7 +664,8 @@ contains
              iunit = iunit_ang
              iunit_isdef = .false.
           elseif (len_trim(word) > 0) then
-             call ferror('critic_setvariables','Unknown keyword in UNITS',faterr,line)
+             call ferror('critic_setvariables','Unknown keyword in UNITS',faterr,line,syntax=.true.)
+             return
           else
              exit
           end if
@@ -606,14 +673,24 @@ contains
        dunit = dunit0(iunit)
     elseif (equal(word,'standardcube')) then
        precisecube = .false.
+       call check_no_extra_word(ok)
     elseif (equal(word,'precisecube')) then
        precisecube = .true.
+       call check_no_extra_word(ok)
     elseif (isassignment(var,word,line)) then
-       rdum = eval(word,.true.,iok)
+       rdum = eval(word,.false.,iok)
+       if (.not.iok) then
+          call ferror('critic2','Syntax error or wrong assignment',faterr,line,syntax=.true.)
+          return
+       end if
        call setvariable(trim(var),rdum)
     else
        word = string(line)
-       rdum = eval(word,.true.,iok)
+       rdum = eval(word,.false.,iok)
+       if (.not.iok) then
+          call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+          return
+       end if
        if (.not.quiet) then
           write (uout,'(1p,G22.14/)') rdum
        else
@@ -622,11 +699,15 @@ contains
     end if
     
   contains
-    subroutine check_no_extra_word()
+    subroutine check_no_extra_word(ok)
       character(len=:), allocatable :: aux2
+      logical :: ok
       aux2 = getword(line,lp)
-      if (len_trim(aux2) > 0) &
-         call ferror('critic_setvariables','Unknown extra keyword',faterr,line)
+      ok = .true.
+      if (len_trim(aux2) > 0) then
+         call ferror('critic_setvariables','Unknown extra keyword',faterr,line,syntax=.true.)
+         ok = .false.
+      end if
     end subroutine check_no_extra_word
   end subroutine critic_setvariables
 

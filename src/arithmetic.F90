@@ -134,7 +134,7 @@ contains
 
   !> Evaluate an arithmetic expression expr. If the expression contains fields ($),
   !> use x0 as the evaluation point. If hardfail is true, stop with error if the
-  !> expression fails to evaluate. Otherwise, return the exit status in ifail.
+  !> expression fails to evaluate. Otherwise, return the exit status in iok (tue=success).
   recursive function eval(expr,hardfail,iok,x0,fcheck,feval)
     use types
     use tools_io
