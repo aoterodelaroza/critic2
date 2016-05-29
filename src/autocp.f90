@@ -214,8 +214,10 @@ contains
     ! Check that the reference field makes sense
     if (f(refden)%type == type_grid) then
        ! if it's a grid, it can not be nearest or trilinear
-       if (f(refden)%mode == mode_nearest .or. f(refden)%mode == mode_trilinear) &
-          call ferror("autocritic","grid can not be nearest or trilinear in AUTO",faterr)
+       if (f(refden)%mode == mode_nearest .or. f(refden)%mode == mode_trilinear) then
+          call ferror("autocritic","grid can not be nearest or trilinear in AUTO",faterr,syntax=.true.)
+          return
+       end if
     end if
 
     ! defaults
@@ -249,18 +251,29 @@ contains
           cpdebug = .true.
        elseif (equal(word,'gradeps')) then
           ok = eval_next(gfnormeps,line,lp)
-          if (.not.ok) call ferror('autocritic','bad AUTO/GRADEPS syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/GRADEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'cprho')) then
           ok = eval_next(CP_rho_cp,line,lp)
           CP_rho_cp = CP_rho_cp / dunit
-          if (.not.ok) call ferror('autocritic','bad AUTO/CPRHO syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/CPRHO syntax',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'cpeps')) then
           ok = eval_next(CP_eps_cp,line,lp)
-          if (.not.ok) call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'file')) then
           cpfile = getword(line,lp)
-          if (len_trim(cpfile) < 1) &
-             call ferror('critic','file name not found in auto',faterr,line)
+          if (len_trim(cpfile) < 1) then
+             call ferror('critic','file name not found in auto',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'clip')) then
           word = lgetword(line,lp)
           if (equal(word,'cube')) then
@@ -271,8 +284,10 @@ contains
              ok = ok .and. eval_next(x1clip(1),line,lp)
              ok = ok .and. eval_next(x1clip(2),line,lp)
              ok = ok .and. eval_next(x1clip(3),line,lp)
-             if (.not. ok) &
-                call ferror('critic','Wrong AUTO/CLIP/CUBE coordinates.',faterr,line)
+             if (.not. ok) then
+                call ferror('critic','Wrong AUTO/CLIP/CUBE coordinates.',faterr,line,syntax=.true.)
+                return
+             end if
              if (cr%ismolecule) then
                 x0clip = cr%c2x(x0clip / dunit - cr%molx0)
                 x1clip = cr%c2x(x1clip / dunit - cr%molx0)
@@ -283,12 +298,15 @@ contains
              ok = ok .and. eval_next(x0clip(2),line,lp)
              ok = ok .and. eval_next(x0clip(3),line,lp)
              ok = ok .and. eval_next(rclip,line,lp)
-             if (.not. ok) &
-                call ferror('critic','Wrong AUTO/CLIP/SPHERE values.',faterr,line)
+             if (.not. ok) then
+                call ferror('critic','Wrong AUTO/CLIP/SPHERE values.',faterr,line,syntax=.true.)
+                return
+             end if
              if (cr%ismolecule) x0clip = cr%c2x(x0clip / dunit - cr%molx0)
              rclip = rclip / dunit
           else
-             call ferror('critic','Wrong AUTO/CLIP option.',faterr,line)
+             call ferror('critic','Wrong AUTO/CLIP option.',faterr,line,syntax=.true.)
+             return
           end if
           
        else if (equal(word,'seed')) then
@@ -318,7 +336,8 @@ contains
           elseif (equal(word,'point')) then
              seed(nseed)%typ = styp_point
           else
-             call ferror('autocritic','Unknown keyword in AUTO/SEED',faterr,line)
+             call ferror('autocritic','Unknown keyword in AUTO/SEED',faterr,line,syntax=.true.)
+             return
           endif
           ! convert the default positions to the center of the cell if this is a molecule
           if (cr%ismolecule) then
@@ -330,39 +349,66 @@ contains
              word = lgetword(line,lp)
              if (equal(word,'depth')) then
                 ok = eval_next(seed(nseed)%depth,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/DEPTH',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/DEPTH',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (equal(word,'x0')) then
                 ok = eval_next(seed(nseed)%x0(1),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x0(2),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x0(3),line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/X0',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/X0',faterr,line,syntax=.true.)
+                   return
+                end if
                 if (cr%ismolecule) seed(nseed)%x0 = cr%c2x(seed(nseed)%x0 / dunit - cr%molx0)
              elseif (equal(word,'x1')) then
                 ok = eval_next(seed(nseed)%x1(1),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x1(2),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x1(3),line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/X1',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/X1',faterr,line,syntax=.true.)
+                   return
+                end if
                 if (cr%ismolecule) seed(nseed)%x1 = cr%c2x(seed(nseed)%x1 / dunit - cr%molx0)
                 hadx1 = .true.
              elseif (equal(word,'npts')) then
                 ok = eval_next(seed(nseed)%npts,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (equal(word,'ntheta')) then
                 ok = eval_next(seed(nseed)%ntheta,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NTHETA',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/NTHETA',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (equal(word,'nphi')) then
                 ok = eval_next(seed(nseed)%nphi,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NPHI',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/NPHI',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (equal(word,'nr')) then
                 ok = eval_next(seed(nseed)%nr,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NR',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/NR',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (equal(word,'dist')) then
                 ok = eval_next(seed(nseed)%dist,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line,syntax=.true.)
+                   return
+                end if
                 seed(nseed)%dist = seed(nseed)%dist / dunit
              elseif (equal(word,'radius')) then
                 ok = eval_next(seed(nseed)%rad,line,lp)
-                if (.not.ok) call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line)
+                if (.not.ok) then
+                   call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line,syntax=.true.)
+                   return
+                end if
                 seed(nseed)%rad = seed(nseed)%rad / dunit
              else
                 lp = lpo
@@ -370,7 +416,8 @@ contains
              endif
           end do
        elseif (len_trim(word) > 0) then
-          call ferror('autocritic','Unknown keyword in AUTO',faterr,line)
+          call ferror('autocritic','Unknown keyword in AUTO',faterr,line,syntax=.true.)
+          return
        else
           exit
        endif
@@ -431,7 +478,10 @@ contains
              end do
           end do
        elseif (seed(i)%typ == styp_line) then
-          if (.not.hadx1) call ferror('autocritic','SEED/LINE requires X1',faterr)
+          if (.not.hadx1) then
+             call ferror('autocritic','SEED/LINE requires X1',faterr,syntax=.true.)
+             return
+          end if
           ! add a line of points
           do j = 1, seed(i)%npts
              nn = nn + 1
@@ -440,10 +490,14 @@ contains
                 (seed(i)%x1 - seed(i)%x0)
           end do
        elseif (seed(i)%typ == styp_sphere) then
-          if (seed(i)%nr == 0.or.seed(i)%ntheta == 0.or.seed(i)%nphi == 0) &
-             call ferror('autocritic','SEED/SPHERE requires NR, NPHI, and NTHETA',faterr)
-          if (seed(i)%rad < 0) &
-             call ferror('autocritic','SEED/SPHERE requires a radius',faterr)
+          if (seed(i)%nr == 0.or.seed(i)%ntheta == 0.or.seed(i)%nphi == 0) then
+             call ferror('autocritic','SEED/SPHERE requires NR, NPHI, and NTHETA',faterr,syntax=.true.)
+             return
+          end if
+          if (seed(i)%rad < 0) then
+             call ferror('autocritic','SEED/SPHERE requires a radius',faterr,syntax=.true.)
+             return
+          end if
           ! inside a sphere
           nr = seed(i)%nr
           nphi = seed(i)%nphi
@@ -477,12 +531,18 @@ contains
              nphiact = nphiact + nphiact
           end do
        elseif (seed(i)%typ == styp_oh) then
-          if (seed(i)%nr == 0) &
-             call ferror('autocritic','SEED/OH requires NR',faterr)
-          if (seed(i)%rad < 0) &
-             call ferror('autocritic','SEED/OH requires a radius',faterr)
-          if (seed(i)%depth > 7) &
-             call ferror('autocritic','The depth in SEED/OH can not be > 7',faterr)
+          if (seed(i)%nr == 0) then
+             call ferror('autocritic','SEED/OH requires NR',faterr,syntax=.true.)
+             return
+          end if
+          if (seed(i)%rad < 0) then
+             call ferror('autocritic','SEED/OH requires a radius',faterr,syntax=.true.)
+             return
+          end if
+          if (seed(i)%depth > 7) then
+             call ferror('autocritic','The depth in SEED/OH can not be > 7',faterr,syntax=.true.)
+             return
+          end if
           ! recursive subdivision of an octahedron
           nr = seed(i)%nr
           m = maxpointstr(seed(i)%depth) + 1
@@ -855,10 +915,13 @@ contains
                 ix(1) = iaux
                 ok = eval_next(ix(2),line,lp)
                 ok = ok .and. eval_next(ix(3),line,lp)
-                if (.not.ok) &
-                   call ferror('cpreport','incorrect CPREPORT OBJ/PLY/OFF syntax',faterr)
+                if (.not.ok) then
+                   call ferror('cpreport','incorrect CPREPORT OBJ/PLY/OFF syntax',faterr,syntax=.true.)
+                   return
+                end if
              elseif (len_trim(word) > 0) then
-                call ferror('cpreport','Unknown keyword in CPREPORT OBJ/PLY/OFF',faterr,line)
+                call ferror('cpreport','Unknown keyword in CPREPORT OBJ/PLY/OFF',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -898,7 +961,8 @@ contains
           end if
           exit
        elseif (len_trim(word) > 0) then
-          call ferror('cpreport','Unknown keyword in CPREPORT',faterr,line)
+          call ferror('cpreport','Unknown keyword in CPREPORT',faterr,line,syntax=.true.)
+          return
        else
           exit
        endif

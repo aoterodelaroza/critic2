@@ -179,8 +179,10 @@ contains
     n = 0
     if (doenv) then
        word = lgetword(line0,lp)
-       if (len_trim(word) > 0) &
-          call ferror('varbas_identify','Unkwnon extra keyword',faterr,line0)
+       if (len_trim(word) > 0) then
+          call ferror('varbas_identify','Unkwnon extra keyword',faterr,line0,syntax=.true.)
+          return
+       end if
 
        lp = 1
        ok = getline(uin,line,ucopy=ucopy)
@@ -238,8 +240,10 @@ contains
           end if
        enddo
        word = lgetword(line,lp)
-       if (len_trim(word) > 0) &
-          call ferror('varbas_identify','Unkwnon extra keyword',faterr,line)
+       if (len_trim(word) > 0) then
+          call ferror('varbas_identify','Unkwnon extra keyword',faterr,line,syntax=.true.)
+          return
+       end if
     else
        call readxyz()
     endif

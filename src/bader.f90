@@ -300,7 +300,7 @@ contains
                 call max_neargrid(f,p)
                 path_volnum = volnum(p(1),p(2),p(3))
                 if (path_volnum < 0 .or. path_volnum > nbasin) then
-                   call ferror('refine_edge','should be no new maxima in edge refinement',2)
+                   call ferror('refine_edge','should be no new maxima in edge refinement',faterr)
                 end if
                 volnum(n1,n2,n3) = path_volnum
                 if (abs(bvolnum) /= path_volnum) then

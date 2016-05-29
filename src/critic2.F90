@@ -109,11 +109,14 @@ program critic
         if (cr%isinit) call clean_structure()
         ! read the crystal enviornment
         call struct_crystal_input(cr,subline,equal(word,'molecule'),.true.,.true.)
-        ! initialize the radial densities
-        call grda_init(.true.,.true.,.true.)
-        ! set the promolecular density as reference
-        call set_reference(0)
-
+        if (cr%isinit) then
+           ! initialize the radial densities
+           call grda_init(.true.,.true.,.true.)
+           ! set the promolecular density as reference
+           call set_reference(0)
+        else
+           call cr%init()
+        end if
      elseif (equal(word,'newcell')) then
         if (.not. cr%isinit) then
            call ferror('critic2','need crystal before newcell',faterr,line,syntax=.true.)
@@ -150,10 +153,12 @@ program critic
            call ferror('critic2','need crystal before q/qat/zpsp/nocore',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_charges(line)
-        ll1 = equal(word,'zpsp') .or. equal(word,'nocore')
-        call grda_init(ll1,.not.ll1,.true.)
-           
+        call struct_charges(line,ok)
+        if (ok) then
+           ll1 = equal(word,'zpsp') .or. equal(word,'nocore')
+           call grda_init(ll1,.not.ll1,.true.)
+        end if
+
      ! write
      elseif (equal(word,'write')) then
         if (.not. cr%isinit) then
@@ -168,8 +173,12 @@ program critic
            call ferror('critic2','need crystal before load',faterr,line,syntax=.true.)
            cycle
         end if
-        call fields_load(subline,id)
-        if (refden == 0) call set_reference(id)
+        call fields_load(subline,id,ok)
+        if (ok) then
+           if (refden == 0) call set_reference(id)
+        else
+           call fields_unload(id)
+        end if
 
      ! unload
      elseif (equal(word,'unload')) then
@@ -235,7 +244,7 @@ program critic
            call ferror('critic2','wrong field in setfield',faterr,line,syntax=.true.)
            cycle
         end if
-        call setfield(f(id),id,line(lp:),.true.)
+        call setfield(f(id),id,line(lp:),.true.,ok)
 
      ! reference
      elseif (equal(word,'reference')) then

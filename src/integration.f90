@@ -114,8 +114,10 @@ contains
     logical :: dodeloc
     
     ! only grids
-    if (f(refden)%type /= type_grid) &
-       call ferror("intgrid_driver","BADER/YT can only be used with grids",faterr,line)
+    if (f(refden)%type /= type_grid) then
+       call ferror("intgrid_driver","BADER/YT can only be used with grids",faterr,line,syntax=.true.)
+       return
+    end if
 
     ! method and header
     lp = 1
@@ -125,7 +127,8 @@ contains
     elseif (equal(word,"bader")) then
        itype = itype_bader
     else
-       call ferror("intgrid_driver","wrong method",faterr,line)
+       call ferror("intgrid_driver","wrong method",faterr,line,syntax=.true.)
+       return
     endif
 
     ! parse the input
@@ -142,13 +145,16 @@ contains
        elseif (equal(word,"ratom")) then
           nonnm = .false.
           ok = eval_next(ratom_def,line,lp)
-          if (.not.ok) &
-             call ferror("intgrid_driver","wrong RATOM keyword",faterr,line)
+          if (.not.ok) then
+             call ferror("intgrid_driver","wrong RATOM keyword",faterr,line,syntax=.true.)
+             return
+          end if
           ratom_def = ratom_def / dunit
        elseif (equal(word,"wcube")) then
           dowcube = .true.
        elseif (len_trim(word) > 0) then
-          call ferror("intgrid_driver","Unknown extra keyword",faterr,line)
+          call ferror("intgrid_driver","Unknown extra keyword",faterr,line,syntax=.true.)
+          return
        else
           exit
        end if

@@ -54,7 +54,7 @@ module struct_readers
 contains
 
   !> Parse a crystal environment
-  subroutine parse_crystal_env(c,lu)
+  subroutine parse_crystal_env(c,lu,oksyn)
     use struct_basic
     use global
     use arithmetic
@@ -65,6 +65,7 @@ contains
 
     type(crystal), intent(inout) :: c !< Crystal
     integer, intent(in) :: lu !< Logical unit for input
+    logical, intent(out) :: oksyn !< Was there a syntax error?
 
     character(len=:), allocatable :: word, aux, aexp, line
     character*255, allocatable :: sline(:)
@@ -76,6 +77,7 @@ contains
     logical :: icodef(3), iok
     real*8 :: icoval(3)
 
+    oksyn = .false.
     goodcell = .false.
     goodspg = .false.
     c%nneq = 0
@@ -98,13 +100,15 @@ contains
           ok = ok .and. eval_next(c%bb(2),line,lp)
           ok = ok .and. eval_next(c%bb(3),line,lp)
           if (.not.ok) then
-             call ferror("parse_crystal_env","Wrong CELL syntax",faterr,line)
+             call ferror("parse_crystal_env","Wrong CELL syntax",faterr,line,syntax=.true.)
+             return
           endif
           word = lgetword(line,lp)
           if (equal(word,'angstrom') .or.equal(word,'ang')) then
              c%aa = c%aa / bohrtoa
           elseif (.not.equal(word,'bohr').and..not.equal(word,'au').and.len_trim(word) > 0) then
-             call ferror('parse_crystal_input','Unknown extra keyword in CELL',faterr,line)
+             call ferror('parse_crystal_input','Unknown extra keyword in CELL',faterr,line,syntax=.true.)
+             return
           endif
           call c%set_cryscar()
 
@@ -114,7 +118,10 @@ contains
           if (.not.ok) scal = 1d0
           ascal = 1d0/dunit
           aux = getword(line,lp)
-          if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line)
+          if (len_trim(aux) > 0) then
+             call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+             return
+          end if
 
           i = 0
           rmat = 0d0
@@ -131,7 +138,10 @@ contains
              else if (equal(word,'end').or.equal(word,'endcartesian')) then
                 ! end/endcartesian
                 aux = getword(line,lp)
-                if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line)
+                if (len_trim(aux) > 0) then
+                   call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+                   return
+                end if
                 exit
              else
                 ! matrix row
@@ -145,9 +155,15 @@ contains
                    ok = ok .and. eval_next(rmat(i,3),line,lp)
                 end if
              end if
-             if (.not.ok) call ferror('parse_crystal_env','Bad CARTESIAN environment',faterr,line)
+             if (.not.ok) then
+                call ferror('parse_crystal_env','Bad CARTESIAN environment',faterr,line,syntax=.true.)
+                return
+             end if
              aux = getword(line,lp)
-             if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line)
+             if (len_trim(aux) > 0) then
+                call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+                return
+             end if
           end do
           gmat = matmul(rmat,transpose(rmat)) * scal**2 * ascal**2
           do i = 1, 3
@@ -198,8 +214,10 @@ contains
                 ok = eval_next(c%at(c%nneq)%x(1),line,lp)
                 ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
                 ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
-                if (.not.ok) &
-                   call ferror("parse_crystal_env","Wrong atomic input syntax",faterr,line)
+                if (.not.ok) then
+                   call ferror("parse_crystal_env","Wrong atomic input syntax",faterr,line,syntax=.true.)
+                   return
+                end if
                 c%at(c%nneq)%name = string(word)
              else
                 lp = lp2
@@ -211,33 +229,48 @@ contains
              ok = eval_next(c%at(c%nneq)%x(1),line,lp)
              ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
              ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
-             if (.not.ok) &
-                call ferror("parse_crystal_env","Wrong NEQ syntax",faterr,line)
+             if (.not.ok) then
+                call ferror("parse_crystal_env","Wrong NEQ syntax",faterr,line,syntax=.true.)
+                return
+             end if
              c%at(c%nneq)%name = getword(line,lp)
              c%at(c%nneq)%name = string(c%at(c%nneq)%name)
           end if
 
           c%at(c%nneq)%z = zatguess(c%at(c%nneq)%name)
-          if (c%at(c%nneq)%z < 0) &
-             call ferror('parse_crystal_input','Unknown atomic symbol in NEQ',faterr,line)
+          if (c%at(c%nneq)%z < 0) then
+             call ferror('parse_crystal_input','Unknown atomic symbol in NEQ',faterr,line,syntax=.true.)
+             return
+          end if
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,'zpsp')) then
                 ok = eval_next(c%at(c%nneq)%zpsp,line,lp)
-                if (.not.ok) call ferror('parse_crystal_env','Wrong ZPSP in neq',faterr,line)
+                if (.not.ok) then
+                   call ferror('parse_crystal_env','Wrong ZPSP in neq',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (equal(word,'q')) then
                 ok = eval_next(c%at(c%nneq)%qat,line,lp)
-                if (.not.ok) call ferror('parse_crystal_env','Wrong Q in neq',faterr,line)
+                if (.not.ok) then
+                   call ferror('parse_crystal_env','Wrong Q in neq',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (equal(word,'ang') .or. equal(word,'angstrom')) then
-                if (.not.goodcell) &
-                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line)
+                if (.not.goodcell) then
+                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line,syntax=.true.)
+                   return
+                end if
                 c%at(c%nneq)%x = c%c2x(c%at(c%nneq)%x / bohrtoa)
              else if (equal(word,'bohr') .or. equal(word,'au')) then
-                if (.not.goodcell) &
-                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line)
+                if (.not.goodcell) then
+                   call ferror('struct_parse_input','Need cell parameters before cartesian neq',faterr,line,syntax=.true.)
+                   return
+                end if
                 c%at(c%nneq)%x = c%c2x(c%at(c%nneq)%x)
              else if (len_trim(word) > 0) then
-                call ferror('parse_crystal_input','Unknown keyword in NEQ',faterr,line)
+                call ferror('parse_crystal_input','Unknown keyword in NEQ',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -245,8 +278,14 @@ contains
        end if
     end do
     aux = getword(line,lp)
-    if (len_trim(aux) > 0) call ferror('parse_crystal_input','Unknown extra keyword in ENDCRYSTAL',faterr,line)
-    if (c%nneq == 0) call ferror('parse_crystal_input','No atoms in input',faterr)
+    if (len_trim(aux) > 0) then
+       call ferror('parse_crystal_input','Unknown extra keyword in ENDCRYSTAL',faterr,line,syntax=.true.)
+       return
+    end if
+    if (c%nneq == 0) then
+       call ferror('parse_crystal_input','No atoms in input',faterr,syntax=.true.)
+       return
+    end if
 
     ! symm transformation
     if (nsline > 0 .and. allocated(sline)) then
@@ -268,8 +307,10 @@ contains
              do k = 1, 3
                 if (k < 3) then
                    idx = index(line,",")
-                   if (idx == 0) &
-                      call ferror('parse_crystal_env','error reading symmetry operation',faterr,line)
+                   if (idx == 0) then
+                      call ferror('parse_crystal_env','error reading symmetry operation',faterr,line,syntax=.true.)
+                      return
+                   end if
                    aexp = line(1:idx-1)
                    aux = adjustl(line(idx+1:))
                    line = aux
@@ -307,11 +348,12 @@ contains
     end if
 
     if (.not.goodspg) c%havesym = 0
+    oksyn = .true.
 
   end subroutine parse_crystal_env
 
   !> Parse a molecule environment
-  subroutine parse_molecule_env(c,lu)
+  subroutine parse_molecule_env(c,lu,oksyn)
     use struct_basic
     use global
     use arithmetic
@@ -322,12 +364,14 @@ contains
 
     type(crystal), intent(inout) :: c !< Crystal
     integer, intent(in) :: lu !< Logical unit for input
+    logical, intent(out) :: oksyn !< Was there a syntax error?
 
     character(len=:), allocatable :: word, aux, line
     integer :: i, j, k, lp, lp2, luout, iat
     real*8 :: rborder
     logical :: ok, docube
 
+    ok = .false.
     docube = .false.
     rborder = rborder_def 
     c%nneq = 0
@@ -344,14 +388,18 @@ contains
           ! cube
           docube = .true.
           word = lgetword(line,lp)
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'border')) then
           ! border [border.r]
           ok = eval_next(rborder,line,lp)
-          if (.not.ok) &
-             call ferror('parse_molecule_input','Wrong syntax in BORDER',faterr,line)
-          call check_no_extra_word()
+          if (.not.ok) then
+             call ferror('parse_molecule_input','Wrong syntax in BORDER',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'endmolecule') .or. equal(word,'end')) then
           ! endmolecule/end
@@ -377,8 +425,10 @@ contains
                 ok = eval_next(c%at(c%nneq)%x(1),line,lp)
                 ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
                 ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
-                if (.not.ok) &
-                   call ferror("parse_molecule_env","Wrong atomic input syntax",faterr,line)
+                if (.not.ok) then
+                   call ferror("parse_molecule_env","Wrong atomic input syntax",faterr,line,syntax=.true.)
+                   return
+                end if
                 c%at(c%nneq)%name = string(word)
              else
                 lp = lp2
@@ -390,30 +440,41 @@ contains
              ok = eval_next(c%at(c%nneq)%x(1),line,lp)
              ok = ok .and. eval_next(c%at(c%nneq)%x(2),line,lp)
              ok = ok .and. eval_next(c%at(c%nneq)%x(3),line,lp)
-             if (.not.ok) &
-                call ferror("parse_molecule_env","Wrong NEQ syntax",faterr,line)
+             if (.not.ok) then
+                call ferror("parse_molecule_env","Wrong NEQ syntax",faterr,line,syntax=.true.)
+                return
+             end if
              c%at(c%nneq)%name = getword(line,lp)
              c%at(c%nneq)%name = string(c%at(c%nneq)%name)
           endif
 
           c%at(c%nneq)%x = c%at(c%nneq)%x / dunit
           c%at(c%nneq)%z = zatguess(c%at(c%nneq)%name)
-          if (c%at(c%nneq)%z < 0) &
-             call ferror('parse_molecule_input','Unknown atomic symbol or incorrect syntax',faterr,line)
+          if (c%at(c%nneq)%z < 0) then
+             call ferror('parse_molecule_input','Unknown atomic symbol or incorrect syntax',faterr,line,syntax=.true.)
+             return
+          end if
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,'zpsp')) then
                 ok = eval_next(c%at(c%nneq)%zpsp,line,lp)
-                if (.not.ok) call ferror('parse_molecule_env','Wrong ZPSP',faterr,line)
+                if (.not.ok) then
+                   call ferror('parse_molecule_env','Wrong ZPSP',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (equal(word,'q')) then
                 ok = eval_next(c%at(c%nneq)%qat,line,lp)
-                if (.not.ok) call ferror('parse_molecule_env','Wrong Q',faterr,line)
+                if (.not.ok) then
+                   call ferror('parse_molecule_env','Wrong Q',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (equal(word,'ang') .or. equal(word,'angstrom')) then
                 c%at(c%nneq)%x = c%at(c%nneq)%x / bohrtoa
              else if (equal(word,'bohr') .or. equal(word,'au')) then
                 c%at(c%nneq)%x = c%at(c%nneq)%x
              else if (len_trim(word) > 0) then
-                call ferror('parse_molecule_input','Unknown extra keyword in atomic input',faterr,line)
+                call ferror('parse_molecule_input','Unknown extra keyword in atomic input',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -421,25 +482,37 @@ contains
        endif
     end do
     aux = getword(line,lp)
-    if (len_trim(aux) > 0) call ferror('parse_molecule_input','Unknown extra keyword in ENDMOLECULE',faterr,line)
-    if (c%nneq == 0) call ferror('parse_molecule_input','No atoms in input',faterr)
+    if (len_trim(aux) > 0) then
+       call ferror('parse_molecule_input','Unknown extra keyword in ENDMOLECULE',faterr,line,syntax=.true.)
+       return
+    end if
+    if (c%nneq == 0) then
+       call ferror('parse_molecule_input','No atoms in input',faterr,syntax=.true.)
+       return
+    end if
 
     ! fill the missing information
     call fill_molecule(c,rborder,docube)
     call c%set_cryscar()
+    oksyn = .true.
 
   contains
-    subroutine check_no_extra_word()
+    function check_no_extra_word()
       character(len=:), allocatable :: aux2
+      integer :: check_no_extra_word
       aux2 = getword(line,lp)
-      if (len_trim(aux2) > 0) &
-         call ferror('critic','Unknown extra keyword',faterr,line)
-    end subroutine check_no_extra_word
+      if (len_trim(aux2) > 0) then
+         call ferror('critic','Unknown extra keyword',faterr,line,syntax=.true.)
+         check_no_extra_word = .false.
+      else
+         check_no_extra_word = .true.
+      end if
+    end function check_no_extra_word
   
   end subroutine parse_molecule_env
 
   !> Read a structure from the critic2 structure library
-  subroutine struct_read_library(c,line,mol)
+  subroutine struct_read_library(c,line,mol,oksyn)
     use global
     use tools_io
     use struct_basic
@@ -447,16 +520,20 @@ contains
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: line !< Library entry
     logical, intent(in) :: mol !< Is this a molecule?
+    logical, intent(out) :: oksyn !< Did this have a syntax error?
 
     character(len=:), allocatable :: word, l2, stru, aux, libfile
     logical :: lchk, found, ok
     integer :: lu, lp, lpo
 
     ! read the structure
+    oksyn = .false.
     lpo = 1
     stru = lgetword(line,lpo)
-    if (len_trim(stru) < 1) &
-       call ferror("struct_read_library","structure label missing in CRYSTAL/MOLECULE LIBRARY",faterr,line)
+    if (len_trim(stru) < 1) then
+       call ferror("struct_read_library","structure label missing in CRYSTAL/MOLECULE LIBRARY",faterr,line,syntax=.true.)
+       return
+    endif
 
     if (mol) then
        libfile = mlib_file
@@ -468,7 +545,8 @@ contains
     inquire(file=libfile,exist=lchk)
     if (.not.lchk) then
        write (uout,'("(!) Library file:"/8X,A)') trim(libfile)
-       call ferror("struct_read_library","library file not found!",faterr)
+       call ferror("struct_read_library","library file not found!",faterr,syntax=.true.)
+       return
     endif
     lu = fopen_read(libfile,abspath=.true.)
 
@@ -489,21 +567,27 @@ contains
     end do main
     if (.not.found) then
        write (uout,'("(!) Structure not found in file:"/8X,A)') trim(libfile)
-       call ferror("struct_read_library","structure not found in library!",faterr)
+       call ferror("struct_read_library","structure not found in library!",faterr,syntax=.true.)
+       return
     end if
 
     ! read the crystal/molecule environment inside
     ok = getline(lu,l2)
     if (mol) then
-       call parse_molecule_env(c,lu)
+       call parse_molecule_env(c,lu,ok)
     else
-       call parse_crystal_env(c,lu)
+       call parse_crystal_env(c,lu,ok)
     endif
     call fclose(lu)
+    if (.not.ok) return
 
     ! make sure there's no more input
     aux = getword(line,lpo)
-    if (len_trim(aux) > 0) call ferror('struct_read_library','Unknown extra keyword in CRYSTAL/MOLECULE LIBRARY',faterr,line)
+    if (len_trim(aux) > 0) then
+       call ferror('struct_read_library','Unknown extra keyword in CRYSTAL/MOLECULE LIBRARY',faterr,line,syntax=.true.)
+       return
+    end if
+    oksyn = .true.
 
   end subroutine struct_read_library
 

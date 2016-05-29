@@ -173,63 +173,102 @@ contains
           oname = line(lp:)
        elseif (equal(word,'molmotif')) then
           domolmotif = .true.
-          call check_no_extra_word(line,lp,'nciplot')
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'cutoffs')) then
           ok = eval_next(rhocut,line,lp)
           ok = ok .and. eval_next(dimcut,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong cutoffs keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong cutoffs keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'rhoparam')) then
           ok = eval_next(rhoparam,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong rhoparam keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong rhoparam keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'rhoparam2')) then
           ok = eval_next(rhoparam2,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong rhoparam2 keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong rhoparam2 keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'cutplot')) then
           ok = eval_next(rhoplot,line,lp)
           ok = ok .and. eval_next(dimplot,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong cutplot keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'srhorange')) then
           ok = eval_next(rdum1,line,lp)
           ok = ok .and. eval_next(rdum2,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong cutplot keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
           
           srhorange(1) = min(rdum1,rdum2)
           srhorange(2) = max(rdum1,rdum2)
        elseif (equal(word,'void')) then
           ok = eval_next(rho_void,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong void keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong void keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'rthres')) then
           ok = eval_next(rthres,line,lp)
-          if (.not.ok) call ferror('nciplot','wrong cutplot keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong cutplot keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
           rthres = rthres / dunit
        elseif (equal(word,'increments')) then
           istep = 0
           ok = eval_next(xinc(1),line,lp)
           ok = ok .and. eval_next(xinc(2),line,lp)
           ok = ok .and. eval_next(xinc(3),line,lp)
-          if (.not.ok) call ferror('nciplot','wrong increments keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong increments keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
           xinc = xinc / dunit
        elseif (equal(word,'nstep')) then
           istep = 1
           ok = eval_next(nstep(1),line,lp)
           ok = ok .and. eval_next(nstep(2),line,lp)
           ok = ok .and. eval_next(nstep(3),line,lp)
-          if (.not.ok) call ferror('nciplot','wrong nstep keyword',faterr,line)
-          call check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) then
+             call ferror('nciplot','wrong nstep keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'onlyneg')) then
           onlyneg = .true.
-          call check_no_extra_word(line,lp,'nciplot')
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'nochk')) then
           usechk = .false.
-          call check_no_extra_word(line,lp,'nciplot')
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
        elseif (equal(word,'cube')) then
           findlimits = 0
           periodic = .false.
@@ -240,7 +279,12 @@ contains
              ok = ok .and. eval_next(x1(1),line,lp)
              ok = ok .and. eval_next(x1(2),line,lp)
              ok = ok .and. eval_next(x1(3),line,lp)
-             call check_no_extra_word(line,lp,'nciplot')
+             if (.not.ok) then
+                call ferror('nciplot','wrong cube syntax',faterr,line,syntax=.true.)
+                return
+             end if
+             ok = check_no_extra_word(line,lp,'nciplot')
+             if (.not.ok) return
              if (.not.cr%ismolecule) then
                 x0 = cr%x2c(x0)
                 x1 = cr%x2c(x1)
@@ -268,7 +312,10 @@ contains
              end do
              ithres = 1
           endif
-          if (.not.ok) call ferror('nciplot','wrong cube keyword',faterr,line)
+          if (.not.ok) then
+             call ferror('nciplot','wrong cube keyword',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'fragment')) then
           if (findlimits == -1) findlimits = 1
           if (ithres == -1) ithres = 1
@@ -282,10 +329,12 @@ contains
           endif
 
        elseif (equal(word,'endnciplot').or.equal(word,'end')) then
-          call check_no_extra_word(line,lp,'nciplot')
+          ok = check_no_extra_word(line,lp,'nciplot')
+          if (.not.ok) return
           exit
        else
-          call ferror ('nciplot','unrecognized option',faterr,line)
+          call ferror ('nciplot','unknown keyword',faterr,line,syntax=.true.)
+          return
        end if
     end do
     if (nfrag > 0) call realloc(fr,nfrag)
@@ -814,17 +863,20 @@ contains
 
   end subroutine write_cube_body
 
-  subroutine check_no_extra_word(line,lp,routine)
+  function check_no_extra_word(line,lp,routine)
     use tools_io
     character(len=:), allocatable :: aux2
     character*(*), intent(in) :: line, routine
     integer, intent(inout) :: lp
+    logical :: check_no_extra_word
 
+    check_no_extra_word = .true.
     aux2 = getword(line,lp)
-    if (len_trim(aux2) > 0) &
-       call ferror(trim(routine),'Unknown extra keyword',faterr,line)
-
-  end subroutine check_no_extra_word
+    if (len_trim(aux2) > 0) then
+       call ferror(trim(routine),'Unknown extra keyword',faterr,line,syntax=.true.)
+       check_no_extra_word = .false.
+    end if
+  end function check_no_extra_word
 
   function read_fragment(lu) result(fr)
     use struct_basic
@@ -874,9 +926,6 @@ contains
           exit
        end if
     end do
-    word = getword(line,lp)
-    if (len_trim(word) > 0) &
-       call ferror('read_fragment','Unknown extra keyword',faterr,line)
     call realloc(fr%at,fr%nat)
     
   end function read_fragment

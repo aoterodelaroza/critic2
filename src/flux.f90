@@ -99,48 +99,71 @@ contains
 
        if (equal(word,'nosym')) then
           nosym = .true.
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'color')) then
           ok=eval_next(rgb(1),line,lp)
           ok= ok .and. eval_next(rgb(2),line,lp)
           ok= ok .and. eval_next(rgb(3),line,lp)
-          if (.not. ok) call ferror ('fluxprint','wrong COLOR syntax',faterr,line)
-          call check_no_extra_word()
+          if (.not. ok) then
+             call ferror ('fluxprint','wrong COLOR syntax',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'every')) then
           ok = eval_next(local_flx_every,line,lp)
-          if (.not. ok) call ferror ('fluxprint','wrong EVERY syntax',faterr,line)
-          call check_no_extra_word()
+          if (.not. ok) then
+             call ferror ('fluxprint','wrong EVERY syntax',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'text')) then
           outfmt = "txt"
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'tessel').or.equal(word,'tess')) then
           outfmt = "tss"
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'obj')) then
           outfmt = "obj"
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'ply')) then
           outfmt = "ply"
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'off')) then
           outfmt = "off"
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'shells')) then
           ok = eval_next(local_flx_nsym,line,lp)
-          if (.not. ok) call ferror ('fluxprint','wrong SHELLS syntax',faterr,line)
-          call check_no_extra_word()
+          if (.not. ok) then
+             call ferror ('fluxprint','wrong SHELLS syntax',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else if (equal(word,'point')) then
           ok=eval_next(iup ,line,lp)
           ok= ok .and. eval_next(xpoint(1),line,lp)
           ok= ok .and. eval_next(xpoint(2),line,lp)
           ok= ok .and. eval_next(xpoint(3),line,lp)
-          if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
-          call check_no_extra_word()
+          if (.not. ok) then
+             call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
           if (cr%ismolecule) &
              xpoint = cr%c2x(xpoint / dunit - cr%molx0)
 
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
-             call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line)
+             call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line,syntax=.true.)
+             return
           end if
 
           norder = norder + 1
@@ -156,11 +179,15 @@ contains
        elseif (equal(word,'ncp')) then
           ok=eval_next(cpid,line,lp)
           if (cpid <= 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= -3)) then
-             call ferror ('fluxprint','ncp identifier not recognized.',faterr,line)
+             call ferror ('fluxprint','ncp identifier not known.',faterr,line,syntax=.true.)
+             return
           end if
           ok=ok.and.eval_next(ntheta,line,lp)
           ok=ok.and.eval_next(nphi,line,lp)
-          if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+          if (.not. ok) then
+             call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+             return
+          end if
 
           lvecx = 0
           do while (.true.)
@@ -169,9 +196,13 @@ contains
                 ok=ok.and.eval_next(lvecx(1),line,lp)
                 ok=ok.and.eval_next(lvecx(2),line,lp)
                 ok=ok.and.eval_next(lvecx(3),line,lp)
-                if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+                if (.not. ok) then
+                   call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (len_trim(word) > 0) then
-                call ferror('fluxprint','Unknown extra keyword',faterr,line)
+                call ferror('fluxprint','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -193,19 +224,24 @@ contains
        elseif (equal(word,'bcp')) then
           ok=eval_next(cpid,line,lp)
           if (cpid < 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= -1) ) then
-             call ferror ('fluxprint','bcp identifier not recognized.',faterr,line)
+             call ferror ('fluxprint','bcp identifier not recognized.',faterr,line,syntax=.true.)
+             return
           end if
 
           ok=ok.and.eval_next(iup,line,lp)
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
-             call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line)
+             call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line,syntax=.true.)
+             return
           end if
           if (iup /= 1) then
              ok=ok.and.eval_next(num_points,line,lp)
           else
              num_points = 0
           end if
-          if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+          if (.not. ok) then
+             call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+             return
+          end if
 
           method = "bra"
           lvecx = 0
@@ -216,7 +252,10 @@ contains
                 ok=ok.and.eval_next(lvecx(1),line,lp)
                 ok=ok.and.eval_next(lvecx(2),line,lp)
                 ok=ok.and.eval_next(lvecx(3),line,lp)
-                if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+                if (.not. ok) then
+                   call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (equal(word,'braindead')) then
                 method = "bra"
              else if (equal(word,'quotient')) then
@@ -226,7 +265,8 @@ contains
              else if (equal(word,'h1')) then
                 method = "h1 "
              else if (len_trim(word) > 0) then
-                call ferror('fluxprint','Unknown extra keyword',faterr,line)
+                call ferror('fluxprint','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -249,19 +289,24 @@ contains
        elseif (equal(word,'rcp')) then
           ok=eval_next(cpid,line,lp)
           if (cpid < 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= 1) ) then
-             call ferror ('fluxprint','rcp identifier not recognized.',faterr,line)
+             call ferror ('fluxprint','rcp identifier not recognized.',faterr,line,syntax=.true.)
+             return
           end if
 
           ok=ok.and.eval_next(iup,line,lp)
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
-             call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line)
+             call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line,syntax=.true.)
+             return
           end if
           if (iup /= -1) then
              ok=ok.and.eval_next(num_points,line,lp)
           else
              num_points = 0
           end if
-          if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+          if (.not. ok) then
+             call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+             return
+          end if
 
           method = "bra"
           lvecx = 0
@@ -272,7 +317,10 @@ contains
                 ok=ok.and.eval_next(lvecx(1),line,lp)
                 ok=ok.and.eval_next(lvecx(2),line,lp)
                 ok=ok.and.eval_next(lvecx(3),line,lp)
-                if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+                if (.not. ok) then
+                   call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (equal(word,'braindead')) then
                 method = "bra"
              else if (equal(word,'quotient')) then
@@ -280,7 +328,8 @@ contains
              else if (equal(word,'dynamical')) then
                 method = "dyn"
              else if (len_trim(word) > 0) then
-                call ferror('fluxprint','Unknown extra keyword',faterr,line)
+                call ferror('fluxprint','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -303,11 +352,15 @@ contains
        elseif (equal(word,'ccp')) then
           ok = eval_next(cpid,line,lp)
           if (cpid < 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= 3)) then
-             call ferror ('fluxprint','ccp identifier not recognized.',faterr,line)
+             call ferror ('fluxprint','ccp identifier not recognized.',faterr,line,syntax=.true.)
+             return
           end if
           ok=ok.and.eval_next(ntheta,line,lp)
           ok=ok.and.eval_next(nphi,line,lp)
-          if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+          if (.not. ok) then
+             call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+             return
+          end if
 
           lvecx = 0
           do while (.true.)
@@ -316,9 +369,13 @@ contains
                 ok=ok.and.eval_next(lvecx(1),line,lp)
                 ok=ok.and.eval_next(lvecx(2),line,lp)
                 ok=ok.and.eval_next(lvecx(3),line,lp)
-                if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
+                if (.not. ok) then
+                   call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+                   return
+                end if
              elseif (len_trim(word) > 0) then
-                call ferror('fluxprint','Unknown extra keyword',faterr,line)
+                call ferror('fluxprint','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
              else
                 exit
              end if
@@ -339,8 +396,12 @@ contains
 
        elseif (equal(word,'graph')) then
           ok = eval_next(nn,line,lp)
-          if (.not. ok) call ferror ('fluxprint','Wrong syntax',faterr,line)
-          call check_no_extra_word()
+          if (.not. ok) then
+             call ferror ('fluxprint','Wrong syntax',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
           norder = norder + 1
           if (norder > size(order)) call realloc_flxorder()
@@ -353,10 +414,12 @@ contains
           end if
 
        elseif (equal(word,'end').or.equal(word,'endfluxprint')) then
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
           exit
        else
-          call ferror('fluxprint','Unknown keyword',faterr,line)
+          call ferror('fluxprint','Unknown keyword',faterr,line,syntax=.true.)
+          return
        end if
     end do
 
@@ -384,12 +447,16 @@ contains
 
   contains
     
-    subroutine check_no_extra_word()
+    function check_no_extra_word()
       character(len=:), allocatable :: aux2
+      logical :: check_no_extra_word
       aux2 = getword(line,lp)
-      if (len_trim(aux2) > 0) &
+      check_no_extra_word = .true.
+      if (len_trim(aux2) > 0) then
          call ferror('fluxprint','Unknown extra keyword',faterr,line)
-    end subroutine check_no_extra_word
+         check_no_extra_word = .false.
+      end if
+    end function check_no_extra_word
 
     subroutine realloc_flxorder()
       allocate(orderaux(2*norder))

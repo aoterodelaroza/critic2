@@ -92,7 +92,10 @@ contains
     ok = eval_next(x0(1),line,lp)
     ok = ok .and. eval_next(x0(2),line,lp)
     ok = ok .and. eval_next(x0(3),line,lp)
-    if (.not. ok) call ferror('critic','wrong POINT order',faterr,line)
+    if (.not. ok) then
+       call ferror('critic','wrong POINT command',faterr,line,syntax=.true.)
+       return
+    end if
 
     ! read additional options
     doall = .false.
@@ -109,17 +112,22 @@ contains
           if (imin < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
-             if (.not.ok) &
-                call ferror('rhoplot_point','wrong FIELD in POINT',faterr,line)
+             if (.not.ok) then
+                call ferror('rhoplot_point','wrong FIELD in POINT',faterr,line,syntax=.true.)
+                return
+             end if
           else
-             if (.not.goodfield(imin)) &
-                call ferror('rhoplot_point','field not allocated',faterr,line)
+             if (.not.goodfield(imin)) then
+                call ferror('rhoplot_point','field not allocated',faterr,line,syntax=.true.)
+                return
+             end if
           end if
           imax = imin
        elseif(len_trim(word) < 1) then
           exit
        else
-          call ferror('rhoplot_point','Unknown keyword in POINT',faterr,line)
+          call ferror('rhoplot_point','Unknown keyword in POINT',faterr,line,syntax=.true.)
+          return
        end if
     end do
 
@@ -186,7 +194,10 @@ contains
     ok = ok .and. eval_next(x1(2),line,lp)
     ok = ok .and. eval_next(x1(3),line,lp)
     ok = ok .and. eval_next(np,line,lp)
-    if (.not. ok) call ferror('critic','wrong LINE order',faterr,line)
+    if (.not. ok) then
+       call ferror('critic','wrong LINE order',faterr,line,syntax=.true.)
+       return
+    end if
 
     ! read additional options
     nti = 11
@@ -197,8 +208,10 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'file')) then
           outfile = getword(line,lp)
-          if (len_trim(outfile) < 1) &
-             call ferror('rhoplot_line','file name not found',faterr,line)
+          if (len_trim(outfile) < 1) then
+             call ferror('rhoplot_line','file name not found',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
@@ -206,11 +219,15 @@ contains
           if (id < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
-             if (.not.ok) &
-                call ferror('rhoplot_line','wrong FIELD in LINE',faterr,line)
+             if (.not.ok) then
+                call ferror('rhoplot_line','wrong FIELD in LINE',faterr,line,syntax=.true.)
+                return
+             end if
           else
-             if (.not.goodfield(id)) &
-                call ferror('rhoplot_line','field not allocated',faterr,line)
+             if (.not.goodfield(id)) then
+                call ferror('rhoplot_line','field not allocated',faterr,line,syntax=.true.)
+                return
+             end if
           end if
        elseif (equal(word,'gx')) then
           nti = 1
@@ -246,7 +263,8 @@ contains
           nti = 11
           prop = word
        else if (len_trim(word) > 0) then
-          call ferror('rhoplot_line','Unknown keyword in LINE',faterr,line)
+          call ferror('rhoplot_line','Unknown keyword in LINE',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -364,7 +382,10 @@ contains
        ok = ok .and. eval_next(x1(1),line,lp)
        ok = ok .and. eval_next(x1(2),line,lp)
        ok = ok .and. eval_next(x1(3),line,lp)
-       if (.not. ok) call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line)
+       if (.not. ok) then
+          call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line,syntax=.true.)
+          return
+       end if
 
        ! If it is a molecule, that was Cartesian
        if (cr%ismolecule) then
@@ -403,7 +424,10 @@ contains
        if (.not. ok) then
           lp = lp2
           ok = eval_next(rgr,line,lp)
-          if (.not. ok) call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line)
+          if (.not. ok) then
+             call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line,syntax=.true.)
+             return
+          end if
           nn = nint(dd / rgr) + 1
        end if
     end if
@@ -419,8 +443,10 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'file')) then
           outfile = getword(line,lp)
-          if (len_trim(outfile) < 1) &
-             call ferror('rhoplot_cube','file name not found',faterr,line)
+          if (len_trim(outfile) < 1) then
+             call ferror('rhoplot_cube','file name not found',faterr,line,syntax=.true.)
+             return
+          end if
           wext1 = outfile(index(outfile,'.',.true.)+1:)
           iscube = (equal(wext1,'cube')) 
        else if (equal(word,'field')) then
@@ -431,11 +457,15 @@ contains
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              useexpr = .true.
-             if (.not.ok) &
-                call ferror('rhoplot_cube','wrong FIELD in CUBE',faterr,line)
+             if (.not.ok) then
+                call ferror('rhoplot_cube','wrong FIELD in CUBE',faterr,line,syntax=.true.)
+                return
+             end if
           else
-             if (.not.goodfield(id)) &
-                call ferror('rhoplot_cube','field not allocated',faterr,line)
+             if (.not.goodfield(id)) then
+                call ferror('rhoplot_cube','field not allocated',faterr,line,syntax=.true.)
+                return
+             end if
           end if
        else if (equal(word,'header')) then
           doheader = .true.
@@ -476,7 +506,8 @@ contains
           nti = 11
           prop = word
        else if (len_trim(word) > 0) then
-          call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line)
+          call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -486,8 +517,10 @@ contains
     if (dogrid) then
        ok = (id > -1)
        if (ok) ok = ok .and. (f(id)%type == type_grid)
-       if (.not.ok) &
-          call ferror('rhoplot_cube','CUBE GRID can only be used with grid fields',faterr)
+       if (.not.ok) then
+          call ferror('rhoplot_cube','CUBE GRID can only be used with grid fields',faterr,syntax=.true.)
+          return
+       end if
        nn = f(id)%n
     end if
     do i = 1, 3
@@ -507,8 +540,10 @@ contains
 
     ! calculate properties
     if (dogrid) then
-       if (f(id)%type /= type_grid) &
-          call ferror('rhoplot_cube','grid can be used only with a grid field',faterr)
+       if (f(id)%type /= type_grid) then
+          call ferror('rhoplot_cube','grid can be used only with a grid field',faterr,syntax=.true.)
+          return
+       end if
        if (iscube) then
           call writegrid_cube(cr,f(id)%f,outfile,.false.,xd,x0+cr%molx0)
        else
@@ -606,7 +641,10 @@ contains
        ok = ok .and. eval_next(n3,line,lp)
        ok = ok .and. (n1 > 0) .and. (n1 <= cr%ncel) .and. &
           (n2 > 0) .and. (n2 <= cr%ncel) .and. (n3 > 0) .and. (n3 <= cr%ncel)
-       if (.not. ok) call ferror('rhoplot_plane','Bad ATOMS keyword in PLANE',faterr,line)
+       if (.not. ok) then
+          call ferror('rhoplot_plane','Bad ATOMS keyword in PLANE',faterr,line,syntax=.true.)
+          return
+       end if
        
        lp2 = lp
        word = lgetword(line,lp)
@@ -617,11 +655,17 @@ contains
        if (equal(word,'scale')) then
           ok = eval_next(sx,line,lp)
           ok = ok .and. eval_next(sy,line,lp)
-          if (.not. ok) call ferror('rhoplot_plane','wrong SCALE keyword in PLANE',faterr,line)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'size')) then
           ok = eval_next(zx,line,lp)
           ok = ok .and. eval_next(zy,line,lp)
-          if (.not. ok) call ferror('rhoplot_plane','wrong SIZE keyword in PLANE',faterr,line)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong SIZE keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
        else
           lp = lp2
        end if
@@ -643,12 +687,18 @@ contains
           x1 = cr%c2x(x1 / dunit - cr%molx0)
           x2 = cr%c2x(x2 / dunit - cr%molx0)
        endif
-       if (.not. ok) call ferror('rhoplot_plane','wrong PLANE order: x0, x1, x2',faterr,line)
+       if (.not. ok) then
+          call ferror('rhoplot_plane','wrong PLANE order: x0, x1, x2',faterr,line,syntax=.true.)
+          return
+       end if
     end if
 
     ok = eval_next(nx,line,lp)
     ok = ok .and. eval_next(ny,line,lp)
-    if (.not. ok) call ferror('rhoplot_plane','wrong PLANE order: nx and ny',faterr,line)
+    if (.not. ok) then
+       call ferror('rhoplot_plane','wrong PLANE order: nx and ny',faterr,line,syntax=.true.)
+       return
+    end if
 
     ! read additional options
     nti = -1
@@ -662,8 +712,10 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'file')) then
           outfile = getword(line,lp)
-          if (len_trim(outfile) < 1) &
-             call ferror('rhoplot_plane','file name not found',faterr,line)
+          if (len_trim(outfile) < 1) then
+             call ferror('rhoplot_plane','file name not found',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
@@ -671,11 +723,15 @@ contains
           if (id < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
-             if (.not.ok) &
-                call ferror('rhoplot_point','wrong FIELD in LINE',faterr,line)
+             if (.not.ok) then
+                call ferror('rhoplot_point','wrong FIELD in LINE',faterr,line,syntax=.true.)
+                return
+             end if
           else
-             if (.not.goodfield(id)) &
-                call ferror('rhoplot_plane','field not allocated',faterr,line)
+             if (.not.goodfield(id)) then
+                call ferror('rhoplot_plane','field not allocated',faterr,line,syntax=.true.)
+                return
+             end if
           end if
        else if (equal(word,'relief')) then
           dorelief = .true.
@@ -683,7 +739,10 @@ contains
           zmax = 1d0
           ok = eval_next(zmin,line,lp)
           ok = ok .and. eval_next(zmax,line,lp)
-          if (.not.ok) call ferror('rhoplot_plane','wrong levels in RELIEF',faterr,line)
+          if (.not.ok) then
+             call ferror('rhoplot_plane','wrong levels in RELIEF',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'contour')) then
           word = lgetword(line,lp)
           docontour = .true.
@@ -696,15 +755,22 @@ contains
           elseif (equal(word,'bader')) then
              nco = 3
           else
-             call ferror("rhoplot_plane","unknown contour keyword",faterr,line)
+             call ferror("rhoplot_plane","Unknown contour keyword",faterr,line,syntax=.true.)
+             return
           end if
           if (nco /= 3) then
              ok = eval_next(niso,line,lp)
-             if (.not.ok) call ferror("rhoplot_plane","number of isovalues not found",faterr,line)
+             if (.not.ok) then
+                call ferror("rhoplot_plane","number of isovalues not found",faterr,line,syntax=.true.)
+                return
+             end if
              if (nco == 4) then
                 ok = eval_next(cntrini,line,lp)
                 ok = ok .and. eval_next(cntrend,line,lp)
-                if (.not.ok) call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line)
+                if (.not.ok) then
+                   call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line,syntax=.true.)
+                   return
+                end if
              end if
           end if
        else if (equal(word,'colormap')) then
@@ -746,7 +812,8 @@ contains
           nti = 11
           prop = word
        else if (len_trim(word) > 0) then
-          call ferror('rhoplot_plane','Unknown keyword in PLANE',faterr,line)
+          call ferror('rhoplot_plane','Unknown keyword in PLANE',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1589,7 +1656,10 @@ contains
              end if
              ok = ok .and. (i1 > 0) .and. (i1 <= ncpcel) .and. &
                   (i2 > 0) .and. (i2 <= ncpcel) .and. (i3 > 0) .and. (i3 <= ncpcel)
-             if (.not. ok) call ferror ('grdvec','Bad CP identifiers', faterr,line)
+             if (.not. ok) then
+                call ferror ('grdvec','Bad CP identifiers',faterr,line,syntax=.true.)
+                return
+             end if
              sx = 1d0
              sy = 1d0
              zx = -1d0
@@ -1599,15 +1669,22 @@ contains
                 if (equal(word,'scale')) then
                    ok = eval_next (sx, line, lp)
                    ok = ok .and. eval_next (sy, line, lp)
-                   if (.not. ok) call ferror ('grdvec','Bad scal numbers', faterr,line)
+                   if (.not. ok) then
+                      call ferror ('grdvec','Bad scal numbers',faterr,line,syntax=.true.)
+                      return
+                   end if
                 elseif (equal(word,'size')) then
                    ok = eval_next (zx, line, lp)
                    ok = ok .and. eval_next (zy, line, lp)
-                   if (.not. ok) call ferror ('grdvec','Bad size numbers', faterr,line)
+                   if (.not. ok) then
+                      call ferror ('grdvec','Bad size numbers',faterr,line,syntax=.true.)
+                      return
+                   end if
                    zx = zx / dunit
                    zy = zy / dunit
                 elseif (len_trim(word) > 0) then
-                   call ferror ('grdvec','Unknown extra keyword in PLANE', faterr,line)
+                   call ferror ('grdvec','Unknown extra keyword in PLANE',faterr,line,syntax=.true.)
+                   return
                 else
                    exit
                 end if
@@ -1635,7 +1712,10 @@ contains
              ok = ok .and. eval_next (r2(1), line, lp)
              ok = ok .and. eval_next (r2(2), line, lp)
              ok = ok .and. eval_next (r2(3), line, lp)
-             if (.not. ok) call ferror ('grdvec','Bad limits for crystal', faterr,line)
+             if (.not. ok) then
+                call ferror ('grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
+                return
+             end if
              
              if (cr%ismolecule) then
                 r0 = cr%c2x(r0 / dunit - cr%molx0)
@@ -1651,9 +1731,13 @@ contains
                    doplane = .true.
                    ok = eval_next (sx, line, lp)
                    ok = ok .and. eval_next (sy, line, lp)
-                   if (.not. ok) call ferror ('grdvec','Bad scal numbers', faterr,line)
+                   if (.not. ok) then
+                      call ferror ('grdvec','Bad scal numbers',faterr,line,syntax=.true.)
+                      return
+                   end if
                 elseif (len_trim(word) > 0) then
-                   call ferror ('grdvec','Unknown extra keyword in PLANE', faterr,line)
+                   call ferror ('grdvec','Unknown extra keyword in PLANE',faterr,line,syntax=.true.)
+                   return
                 else
                    exit
                 end if
@@ -1686,31 +1770,46 @@ contains
        else if (equal(word,'outcp')) then
           ok = eval_next (scalex, line, lp)
           ok = ok .and. eval_next (scaley, line, lp)
-          if (.not. ok) call ferror ('grdvec','Bad outcp options', faterr,line)
-          call check_no_extra_word()
+          if (.not. ok) then
+             call ferror ('grdvec','Bad outcp options',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'hmax')) then
           ok = eval_next (xdum, line, lp)
           if (ok) RHOP_Hmax = xdum / dunit
-          if (.not. ok) call ferror ('grdvec','Wrong hmax line',warning,line)
-          call check_no_extra_word()
-
+          if (.not. ok) then
+             call ferror ('grdvec','Wrong hmax line',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = check_no_extra_word()
+          if (.not.ok) return
+          
        else if (equal(word,'cp')) then
           newncriticp = newncriticp + 1
-          if (newncriticp .gt. mncritp) call ferror ('grdvec',&
-               'too many points in a check order. Increase MNCRITP',faterr)
+          if (newncriticp .gt. mncritp) then
+             call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
+             return
+          end if
           ok = eval_next (cpid, line, lp)
           ok = ok .and. eval_next (cpup(newncriticp), line, lp)
           ok = ok .and. eval_next (cpdn(newncriticp), line, lp)
-          if (.not. ok) call ferror ('grdvec','bad cp option',faterr,line)
+          if (.not. ok) then
+             call ferror ('grdvec','bad cp option',faterr,line,syntax=.true.)
+             return
+          end if
           if (cpid <= 0 .or. cpid > ncpcel) then
-             call ferror ('grdvec','cp not recognized',faterr,line)
+             call ferror ('grdvec','cp not recognized',faterr,line,syntax=.true.)
+             return
           end if
           newcriticp(:,newncriticp) = cpcel(cpid)%x
           newtypcrit(newncriticp) = cpcel(cpid)%typ
           dograds = .true.
           autocheck = .true.
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'cpall')) then
           ! copy cps
@@ -1721,7 +1820,8 @@ contains
           end do
           dograds = .true.
           autocheck = .true.
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'bcpall')) then
           ok = eval_next (updum, line, lp)
@@ -1741,7 +1841,8 @@ contains
           end do
           dograds = .true.
           autocheck = .true.
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
           
        else if (equal(word,'rbcpall')) then
           ok = eval_next (updum, line, lp)
@@ -1771,32 +1872,43 @@ contains
           end do
           dograds = .true.
           autocheck = .true.
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'orig')) then
           dograds = .true.
           norig = norig + 1
-          if (norig .gt. MORIG) call ferror ('grdvec','Too many ORIGIN points. Increase MORIG', faterr)
+          if (norig .gt. MORIG) then
+             call ferror ('grdvec','Too many ORIGIN points. Increase MORIG',faterr,syntax=.true.)
+             return
+          end if
           ok = eval_next (grpx(1,norig), line, lp)
           ok = ok .and. eval_next (grpx(2,norig), line, lp)
           ok = ok .and. eval_next (grpx(3,norig), line, lp)
           ok = ok .and. eval_next (grpatr(norig), line, lp)
           ok = ok .and. eval_next (grpup(norig), line, lp)
           ok = ok .and. eval_next (grpdwn(norig), line, lp)
-          if (.not. ok) call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line)
+          if (.not. ok) then
+             call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
+             return
+          end if
           grpx(:,norig) = cr%c2x(grpx(:,norig) / dunit - cr%molx0)
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        elseif (equal (word,'check')) then
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
           ! read the user-entered points:
           ok = getline(uin,line,.true.,ucopy)
           lp = 1
           word = lgetword (line,lp)
           do while (ok.and..not.equal(word, 'endcheck').and..not.equal(word, 'end'))
              newncriticp = newncriticp + 1
-             if (newncriticp .gt. mncritp) &
-                call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr)
+             if (newncriticp .gt. mncritp) then
+                call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
+                return
+             end if
              lp = 1
              ok = eval_next (newcriticp(1,newncriticp), line, lp)
              ok = ok .and. eval_next (newcriticp(2,newncriticp), line, lp)
@@ -1812,7 +1924,8 @@ contains
           enddo
           dograds = .true.
           autocheck = .true.
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        elseif (equal(word,'contour')) then
           
@@ -1846,7 +1959,8 @@ contains
           else if (equal(word,'lap')) then
              nfi = 11
           else
-             call ferror('rhoplot_grdvec','contour field keyword necessary in grdvec',faterr,line)
+             call ferror('rhoplot_grdvec','contour field keyword necessary in grdvec',faterr,line,syntax=.true.)
+             return
           end if
 
           lpold = lp
@@ -1870,7 +1984,10 @@ contains
           if (ok) then
              ok = ok .and. eval_next (n2, line, lp)
              ok = ok .and. eval_next (niso, line, lp)
-             if (.not.ok) call ferror ('grdvec', 'bad nptsu/nptsv/niso option', faterr,line)
+             if (.not.ok) then
+                call ferror ('grdvec', 'bad nptsu/nptsv/niso option',faterr,line,syntax=.true.)
+                return
+             end if
           else
              n1 = 100
              n2 = 100
@@ -1878,17 +1995,21 @@ contains
              cntrini = -1d0
              cntrend = 1d0
           end if
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
 
        else if (equal(word,'endgrdvec').or.equal(word,'end')) then
-          call check_no_extra_word()
+          ok = check_no_extra_word()
+          if (.not.ok) return
           goto 999
        else
-          call ferror ('grdvec','Unkown keyword in GRDVEC',faterr,line)
+          call ferror ('grdvec','Unkown keyword in GRDVEC',faterr,line,syntax=.true.)
+          return
        endif
        doagain = getline(uin,line,ucopy=ucopy)
     enddo
-    call ferror ('grdvec','Unexpected end of input',faterr,line)
+    call ferror('grdvec','Unexpected end of input',faterr,line,syntax=.true.)
+    return
 999 continue
     
     ! calculate the contour plot
@@ -1937,9 +2058,11 @@ contains
        call contour(r0,r1,r2,n1,n2,nti,niso,rootname,.false.,.false.)
        deallocate(lf)
     end if
-    if (.not.goodplane) &
-       call ferror ('grdvec','No PLANE given in GRDVEC',faterr)
-
+    if (.not.goodplane) then
+       call ferror ('grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
+       return
+    end if
+       
     udat = fopen_write(datafile)
     call plotvec (r0, r1, r2, autocheck, udat)
     call fclose(udat)
@@ -1953,12 +2076,16 @@ contains
 
   contains
 
-    subroutine check_no_extra_word()
+    function check_no_extra_word()
       character(len=:), allocatable :: aux2
+      logical :: check_no_extra_word
       aux2 = getword(line,lp)
-      if (len_trim(aux2) > 0) &
-         call ferror('rhoplot_grdvec','Unknown extra keyword',faterr,line)
-    end subroutine check_no_extra_word
+      check_no_extra_word = .true.
+      if (len_trim(aux2) > 0) then
+         call ferror('rhoplot_grdvec','Unknown extra keyword',faterr,line,syntax=.true.)
+         check_no_extra_word = .false.
+      end if
+    end function check_no_extra_word
 
   end subroutine rhoplot_grdvec
 
@@ -2399,7 +2526,7 @@ contains
               abs(hh) <= RHOP_Hmax) then
              ncopies = ncopies + 1
              if (norig .ge. MORIG) then
-                call ferror ('autochk', 'Too many origins. Increase MORIG', warning)
+                call ferror('autochk', 'Too many origins. Increase MORIG',faterr,syntax=.true.)
                 return
              endif
              norig = norig + 1

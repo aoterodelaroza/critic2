@@ -53,8 +53,10 @@ contains
     real*8, allocatable :: ff(:,:), fl(:)
     character*1, parameter :: laxis(3) = (/"a","b","c"/)
 
-    if (cr%ismolecule) &
-       call ferror("stm_driver","STM can not be used with molecules",faterr)
+    if (cr%ismolecule) then
+       call ferror("stm_driver","STM can not be used with molecules",faterr,syntax=.true.)
+       return
+    end if
 
     ! header
     write (uout,'("* Scanning tunneling microscopy plots ")')
@@ -91,18 +93,24 @@ contains
           if (ok) rhei = rtmp
        elseif (equal(word,"top")) then
           ok = eval_next(rtop0,line,lp)
-          if (.not.ok) &
-             call ferror('stm_driver','Wrong syntax in STM/TOP',faterr)
+          if (.not.ok) then
+             call ferror('stm_driver','Wrong syntax in STM/TOP',faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"npts")) then
           ok = eval_next(np1,line,lp)
           ok = ok .and. eval_next(np2,line,lp)
-          if (.not.ok) &
-             call ferror('stm_driver','Wrong syntax in STM/NPTS',faterr)
+          if (.not.ok) then
+             call ferror('stm_driver','Wrong syntax in STM/NPTS',faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"cells").or.equal(word,"cell")) then
           ok = eval_next(nx(1),line,lp)
           ok = ok .and. eval_next(nx(2),line,lp)
-          if (.not.ok) &
-             call ferror('stm_driver','Wrong syntax in STM/CELLS',faterr)
+          if (.not.ok) then
+             call ferror('stm_driver','Wrong syntax in STM/CELLS',faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"line")) then
           doline = .true.
           ok = eval_next(x0(1),line,lp)
@@ -110,8 +118,10 @@ contains
           ok = ok .and. eval_next(x1(1),line,lp)
           ok = ok .and. eval_next(x1(2),line,lp)
           ok = ok .and. eval_next(nn,line,lp)
-          if (.not.ok) &
-             call ferror('stm_driver','Wrong syntax in STM/LINE',faterr)
+          if (.not.ok) then
+             call ferror('stm_driver','Wrong syntax in STM/LINE',faterr,syntax=.true.)
+             return
+          end if
        else
           exit
        end if

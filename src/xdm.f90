@@ -51,7 +51,8 @@ contains
     elseif (equal(word,"qe")) then
        call xdm_qe()
     else
-       call ferror('xdm_driver',"Unknown keyword in XDM",faterr)
+       call ferror('xdm_driver',"Unknown keyword in XDM",faterr,syntax=.true.)
+       return
     end if
 
   end subroutine xdm_driver
@@ -112,82 +113,141 @@ contains
        if (equal(word,"rho")) then
           word = getword(line,lp)
           irho = fieldname_to_idx(word)
-          if (irho < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(irho)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (irho < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(irho)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"tau")) then
           word = getword(line,lp)
           itau = fieldname_to_idx(word)
-          if (itau < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(itau)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (itau < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(itau)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"elf")) then
           word = getword(line,lp)
           ielf = fieldname_to_idx(word)
-          if (ielf < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(ielf)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (ielf < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(ielf)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"pdens")) then
           word = getword(line,lp)
           ipdens = fieldname_to_idx(word)
-          if (ipdens < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(ipdens)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (ipdens < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(ipdens)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"core")) then
           word = getword(line,lp)
           icor = fieldname_to_idx(word)
-          if (icor < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(icor)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (icor < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(icor)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"lap")) then
           word = getword(line,lp)
           ilap = fieldname_to_idx(word)
-          if (ilap < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(ilap)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (ilap < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(ilap)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"grad")) then
           word = getword(line,lp)
           igrad = fieldname_to_idx(word)
-          if (igrad < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(igrad)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (igrad < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(igrad)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"rhoae")) then
           word = getword(line,lp)
           irhoae = fieldname_to_idx(word)
-          if (irhoae < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(irhoae)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (irhoae < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(irhoae)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"xb")) then
           word = getword(line,lp)
           ib = fieldname_to_idx(word)
-          if (ib < 0) call ferror("xdm_driver","wrong rho field",faterr,line)
-          if (.not.goodfield(ib)) &
-             call ferror("xdm_driver","rho field not allocated",faterr,line)
+          if (ib < 0) then
+             call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.goodfield(ib)) then
+             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"xa1")) then
           ok = eval_next(a1,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong a1",faterr,line)
+          if (.not.ok) then
+             call ferror("xdm_driver","wrong a1",faterr,line,syntax=.true.)
+             return
+          end if
           isdefa = .false.
        elseif (equal(word,"xa2")) then
           ok = eval_next(a2,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong a2",faterr,line)
+          if (.not.ok) then
+             call ferror("xdm_driver","wrong a2",faterr,line,syntax=.true.)
+             return
+          end if
           isdefa = .false.
        elseif (equal(word,"onlyc")) then
           onlyc = .true.
        elseif (equal(word,"upto")) then
           ok = eval_next(upto,line,lp)
-          if (.not.ok) call ferror("xdm_driver","wrong upto field",faterr,line)
-          if (upto/=6.and.upto/=8.and.upto/=10) &
-             call ferror("xdm_driver","upto can only be 6, 8, or 10",faterr,line)
+          if (.not.ok) then
+             call ferror("xdm_driver","wrong upto field",faterr,line,syntax=.true.)
+             return
+          end if
+          if (upto/=6.and.upto/=8.and.upto/=10) then
+             call ferror("xdm_driver","upto can only be 6, 8, or 10",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
-          call ferror("xdm_driver","Unknown extra keyword",faterr,line)
+          call ferror("xdm_driver","Unknown extra keyword",faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
     end do
 
     ! Check that the zpsps are defined
-    if (any(cr%at(:)%zpsp < 0)) &
-       call ferror("xdm_driver","need ZPSP for all atoms for XDM",faterr,line)
+    if (any(cr%at(:)%zpsp < 0)) then
+       call ferror("xdm_driver","need ZPSP for all atoms for XDM",faterr,line,syntax=.true.)
+       return
+    end if
 
     ! Define damping coefficients
     write (uout,'("+ Damping function parameters")')
@@ -198,13 +258,25 @@ contains
        call ferror("xdm_driver","Using default a1 and a2 parameters",warning)
 
     ! we need at least the density and the b or kinetic energy density or elf
-    if (.not.goodfield(irho,type_grid)) call ferror("xdm_driver","wrong rho field",faterr,line)
+    if (.not.goodfield(irho,type_grid)) then
+       call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
+       return
+    end if
     if (ib > 0) then
-       if (.not.goodfield(ib,type_grid)) call ferror("xdm_driver","wrong b field",faterr,line)
+       if (.not.goodfield(ib,type_grid)) then
+          call ferror("xdm_driver","wrong b field",faterr,line,syntax=.true.)
+          return
+       end if
     elseif (itau > 0) then
-       if (.not.goodfield(itau,type_grid)) call ferror("xdm_driver","wrong tau field",faterr,line)
+       if (.not.goodfield(itau,type_grid)) then
+          call ferror("xdm_driver","wrong tau field",faterr,line,syntax=.true.)
+          return
+       end if
     elseif (ielf > 0) then
-       if (.not.goodfield(ielf,type_grid)) call ferror("xdm_driver","wrong elf field",faterr,line)
+       if (.not.goodfield(ielf,type_grid)) then
+          call ferror("xdm_driver","wrong elf field",faterr,line,syntax=.true.)
+          return
+       end if
        itau = getfieldnum()
        write (uout,'("+ Calculating tau from elf and rho")')
        call taufromelf(ielf,irho,itau)
@@ -213,7 +285,8 @@ contains
        write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
        call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",f(itau)%n,f(itau)%f)
     else
-       call ferror("xdm_driver","no tau or elf field given",faterr,line)
+       call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
+       return
     endif
 
     ! initialize

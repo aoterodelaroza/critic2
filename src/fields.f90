@@ -138,7 +138,7 @@ contains
 
   end subroutine fields_end
 
-  subroutine fields_load(line,id)
+  subroutine fields_load(line,id,oksyn)
     use elk_private
     use wien_private
     use wfn_private
@@ -152,12 +152,14 @@ contains
 
     character*(*), intent(in) :: line
     integer, intent(out) :: id
+    logical, intent(out) :: oksyn
 
     integer :: lp, lp2, oid, id2
     character(len=:), allocatable :: file, word
     logical :: ok
 
     ! read and parse
+    oksyn = .false.
     lp=1
     file = getword(line,lp)
 
@@ -166,14 +168,19 @@ contains
     if (equal(file,"copy")) then
        word = getword(line,lp)
        oid = fieldname_to_idx(word)
-       if (oid < 0) call ferror("fields_load","wrong LOAD COPY syntax",faterr,line)
+       if (oid < 0) then
+          call ferror("fields_load","wrong LOAD COPY syntax",faterr,line,syntax=.true.)
+          return
+       end if
        lp2 = lp
        word = lgetword(line,lp)
        if (equal(word,'to')) then
           word = getword(line,lp)
           id = fieldname_to_idx(word)
-          if (id < 0) &
-             call ferror("fields_load","erroneous field id in LOAD COPY",faterr,line)
+          if (id < 0) then
+             call ferror("fields_load","erroneous field id in LOAD COPY",faterr,line,syntax=.true.)
+             return
+          end if
           if (id > ubound(f,1)) then
              id2 = ubound(f,1)
              call realloc(fused,id)
@@ -192,22 +199,25 @@ contains
        write (uout,'("* COPIED scalar field from slot ",A," to ",A/)') string(oid), string(id)
 
        ! parse the rest of the line
-       call setfield(f(id),id,line(lp:),.true.)
+       call setfield(f(id),id,line(lp:),.true.,oksyn)
+       if (.not.oksyn) return
     else
        ! allocate slot
        id = getfieldnum()
        write (uout,'("* LOAD scalar field in slot number: ",A)') string(id)
 
        ! load the field
-       f(id) = fields_load_real(line,id,.true.)
+       f(id) = fields_load_real(line,id,.true.,oksyn)
+       if (.not.oksyn) return
 
        ! test the muffin tin discontinuity, if applicable
        call testrmt(id,0)
     endif
+    oksyn = .true.
 
   end subroutine fields_load
 
-  function fields_load_real(line,fid,verbose) result(ff)
+  function fields_load_real(line,fid,verbose,oksyn) result(ff)
     use dftb_private
     use elk_private
     use wien_private
@@ -223,6 +233,7 @@ contains
     character*(*), intent(in) :: line
     integer, intent(in) :: fid
     logical, intent(in) :: verbose
+    logical, intent(out) :: oksyn
     type(field) :: ff
 
     integer :: lp, lp2, i, j, id, id1, id2
@@ -239,6 +250,7 @@ contains
     logical :: isfrag, iok
 
     ! read and parse
+    oksyn = .false.
     lp=1
     file = getword(line,lp)
     word = file(index(file,dirsep,.true.)+1:)
@@ -426,7 +438,10 @@ contains
           else
              word = lgetword(line,lp2)
              zz = zatguess(word)
-             if (zz == -1) call ferror("fields_load","syntax: load file.ion {atidx/atsym} ...",faterr,line)
+             if (zz == -1) then
+                call ferror("fields_load_real","syntax: load file.ion {atidx/atsym} ...",faterr,line,syntax=.true.)
+                return
+             end if
              do i = 1, cr%nneq
                 if (cr%at(i)%z == zz) call pi_read_ion(file,ff,i)
              end do
@@ -464,7 +479,8 @@ contains
           do i = 1, cr%nneq
              if (.not.ff%pi_used(i)) then
                 write (uout,'("Non-equivalent atom missing in the load : ",I3)') i
-                call ferror("field_load","missing atoms in pi field description",faterr)
+                call ferror("field_load","missing atoms in pi field description",faterr,syntax=.true.)
+                return
              end if
              write (uout,'(4X,A,2X,A)') string(i), string(ff%piname(i))
           end do
@@ -474,8 +490,10 @@ contains
        ok = isinteger(n(1),line,lp)
        ok = ok .and. isinteger(n(2),line,lp)
        ok = ok .and. isinteger(n(3),line,lp)
-       if (.not.ok) &
-          call ferror("fields_load","Error reading wannier supercell",faterr,line)
+       if (.not.ok) then
+          call ferror("fields_load_real","Error reading wannier supercell",faterr,line,syntax=.true.)
+          return
+       end if
 
        nwan = 0
        ff%file = ""
@@ -515,26 +533,40 @@ contains
              if (ok) then
                 ok = ok .and. eval_next(n(2),line,lp)
                 ok = ok .and. eval_next(n(3),line,lp)
-                if (.not.ok) &
-                   call ferror("fields_load","wrong grid size for promolecular/core",faterr,line)
+                if (.not.ok) then
+                   call ferror("fields_load_real","wrong grid size for promolecular/core",faterr,line,syntax=.true.)
+                   return
+                end if
              else
                 word2 = getword(line,lp)
                 if (equal(word2,"sizeof")) then
                    word2 = getword(line,lp)
                    zz = fieldname_to_idx(word2)
-                   if (zz < 0) call ferror("fields_load","wrong sizeof",faterr,line)
-                   if (.not.goodfield(zz,type_grid)) call ferror("fields_load","field not allocated",faterr,line)
+                   if (zz < 0) then
+                      call ferror("fields_load_real","wrong sizeof",faterr,line,syntax=.true.)
+                      return
+                   end if
+                   if (.not.goodfield(zz,type_grid)) then
+                      call ferror("fields_load_real","field not allocated",faterr,line,syntax=.true.)
+                      return
+                   end if
                    n = f(zz)%n
                 else
-                   call ferror("fields_load","wrong grid size",faterr,line)
+                   call ferror("fields_load_real","wrong grid size",faterr,line,syntax=.true.)
+                   return
                 end if
              end if
           else
              word2 = getword(line,lp)
              oid = fieldname_to_idx(word2)
-             if (oid < 0) &
-                call ferror("fields_load","wrong grid for lap/grad/etc.",faterr,line)
-             if (.not.goodfield(oid)) call ferror("fields_load","field not allocated",faterr,line)
+             if (oid < 0) then
+                call ferror("fields_load_real","wrong grid for lap/grad/etc.",faterr,line,syntax=.true.)
+                return
+             end if
+             if (.not.goodfield(oid)) then
+                call ferror("fields_load_real","field not allocated",faterr,line,syntax=.true.)
+                return
+             end if
              n = f(oid)%n
           end if
 
@@ -584,7 +616,8 @@ contains
                 call elk_tolap(ff)
              end if
           else
-             call ferror("fields_load","Incorrect scalar field type",faterr,line)
+             call ferror("fields_load_real","Incorrect scalar field type",faterr,line,syntax=.true.)
+             return
           endif
 
        elseif (equal(word,"clm")) then
@@ -595,17 +628,33 @@ contains
              id1 = fieldname_to_idx(word2)
              word2 = getword(line,lp)
              id2 = fieldname_to_idx(word2)
-             if (id1 < 0 .or. id2 < 0) call ferror("fields_load","wrong syntax in LOAD AS CLM",faterr,line)
-             if (.not.goodfield(id1).or..not.goodfield(id2)) call ferror("fields_load","field not allocated",faterr,line)
-             if (f(id1)%type/=f(id2)%type) call ferror("fields_load","fields not the same type",faterr,line)
-             if (f(id1)%type/=type_wien.and.f(id1)%type/=type_elk) call ferror("fields_load","incorrect type",faterr,line) 
+             if (id1 < 0 .or. id2 < 0) then
+                call ferror("fields_load_real","wrong syntax in LOAD AS CLM",faterr,line,syntax=.true.)
+                return
+             end if
+             if (.not.goodfield(id1).or..not.goodfield(id2)) then
+                call ferror("fields_load_real","field not allocated",faterr,line,syntax=.true.)
+                return
+             end if
+             if (f(id1)%type/=f(id2)%type) then
+                call ferror("fields_load_real","fields not the same type",faterr,line,syntax=.true.)
+                return
+             end if
+             if (f(id1)%type/=type_wien.and.f(id1)%type/=type_elk) then
+                call ferror("fields_load_real","incorrect type",faterr,line,syntax=.true.) 
+                return
+             end if
              if (f(id1)%type == type_wien) then
                 ! wien
                 ff = f(id1)
-                if (any(shape(f(id1)%slm) /= shape(f(id2)%slm))) &
-                   call ferror("fields_load","nonconformant slm in wien fields",faterr,line) 
-                if (any(shape(f(id1)%sk) /= shape(f(id2)%sk))) &
-                   call ferror("fields_load","nonconformant sk in wien fields",faterr,line) 
+                if (any(shape(f(id1)%slm) /= shape(f(id2)%slm))) then
+                   call ferror("fields_load_real","nonconformant slm in wien fields",faterr,line,syntax=.true.) 
+                   return
+                end if
+                if (any(shape(f(id1)%sk) /= shape(f(id2)%sk))) then
+                   call ferror("fields_load_real","nonconformant sk in wien fields",faterr,line,syntax=.true.) 
+                   return
+                end if
                 if (equal(word,'add')) then
                    ff%slm = ff%slm + f(id2)%slm
                    ff%sk = ff%sk + f(id2)%sk
@@ -620,10 +669,14 @@ contains
              else
                 ! elk
                 ff = f(id1)
-                if (any(shape(f(id1)%rhomt) /= shape(f(id2)%rhomt))) &
-                   call ferror("fields_load","nonconformant rhomt in elk fields",faterr,line) 
-                if (any(shape(f(id1)%rhok) /= shape(f(id2)%rhok))) &
-                   call ferror("fields_load","nonconformant rhok in elk fields",faterr,line) 
+                if (any(shape(f(id1)%rhomt) /= shape(f(id2)%rhomt))) then
+                   call ferror("fields_load_real","nonconformant rhomt in elk fields",faterr,line,syntax=.true.) 
+                   return
+                end if
+                if (any(shape(f(id1)%rhok) /= shape(f(id2)%rhok))) then
+                   call ferror("fields_load_real","nonconformant rhok in elk fields",faterr,line,syntax=.true.) 
+                   return
+                end if
                 if (equal(word,'add')) then
                    ff%rhomt = ff%rhomt + f(id2)%rhomt
                    ff%rhok = ff%rhok + f(id2)%rhok
@@ -633,7 +686,8 @@ contains
                 end if
              end if
           else
-             call ferror("fields_load","invalid CLM syntax",faterr,line)
+             call ferror("fields_load_real","invalid CLM syntax",faterr,line,syntax=.true.)
+             return
           end if
        elseif (isexpression_or_word(expr,line,lp2)) then
           ! load as "blehblah"
@@ -650,8 +704,14 @@ contains
                 ! load as "blehblah" sizeof
                 word2 = getword(line,lp)
                 zz = fieldname_to_idx(word2)
-                if (zz < 0) call ferror("fields_load","wrong sizeof",faterr,line)
-                if (.not.goodfield(zz,type_grid)) call ferror("fields_load","field not allocated",faterr,line)
+                if (zz < 0) then
+                   call ferror("fields_load_real","wrong sizeof",faterr,line,syntax=.true.)
+                   return
+                end if
+                if (.not.goodfield(zz,type_grid)) then
+                   call ferror("fields_load_real","field not allocated",faterr,line,syntax=.true.)
+                   return
+                end if
                 n = f(zz)%n
              elseif (equal(word2,"ghost")) then
                 ! load as "blehblah" ghost
@@ -682,10 +742,14 @@ contains
              ! Ghost field
              do i = 1, nid
                 id = fieldname_to_idx(idlist(i))
-                if (id < 0) &
-                   call ferror('fields_load','Tried to define ghost field using and undefined field',faterr)
-                if (.not.fused(id)) &
-                   call ferror('fields_load','Tried to define ghost field using and undefined field',faterr)
+                if (id < 0) then
+                   call ferror('fields_load_real','Tried to define ghost field using and undefined field',faterr,syntax=.true.)
+                   return
+                end if
+                if (.not.fused(id)) then
+                   call ferror('fields_load_real','Tried to define ghost field using and undefined field',faterr,syntax=.true.)
+                   return
+                end if
              end do
 
              ff%init = .true.
@@ -719,6 +783,14 @@ contains
                 xd(:,i) = xd(:,i) / real(n(i),8)
              end do
 
+             ! check that the evaluation works
+             xp = 0d0
+             rhopt = eval(expr,.false.,iok,xp,fields_fcheck,fields_feval)
+             if (.not.iok) then
+                call ferror('fields_load_real','Error evaluationg expression: ' // string(expr),faterr,syntax=.true.)
+                return
+             end if
+
              if (verbose) &
                 write (uout,'("* GRID from expression: ",A)') expr
              !$omp parallel do private (xp,rhopt) schedule(dynamic)
@@ -745,10 +817,12 @@ contains
              end if
           end if
        else
-          call ferror("fields_load","invalid AS syntax",faterr,line)
+          call ferror("fields_load_real","invalid AS syntax",faterr,line,syntax=.true.)
+          return
        end if
     else
-       call ferror('fields_load','unrecognized file format',faterr,line)
+       call ferror('fields_load_real','unrecognized file format',faterr,line,syntax=.true.)
+       return
     end if
 
     ! fill misc values
@@ -764,7 +838,10 @@ contains
     end if
 
     ! parse the rest of the line
-    call setfield(ff,fid,line(lp:),verbose)
+    call setfield(ff,fid,line(lp:),verbose,oksyn)
+    if (.not.oksyn) return
+
+    oksyn = .true.
 
   end function fields_load_real
 
@@ -977,19 +1054,25 @@ contains
           if (isexpression_or_word(expr,line,lp)) then
              useexpr = .true.
           else
-             call ferror("fields_integrable","Unknown integrable syntax",faterr,line)
+             call ferror("fields_integrable","Unknown integrable syntax",faterr,line,syntax=.true.)
+             return
           endif
        end if
     else
-       if (.not.goodfield(id)) &
-          call ferror('fields_integrable','field not allocated',faterr,line)
+       if (.not.goodfield(id)) then
+          call ferror('fields_integrable','field not allocated',faterr,line,syntax=.true.)
+          return
+       end if
        str = "$" // string(word)
     end if
 
     ! add property
     nprops = nprops + 1
-    if (nprops > mprops) &
+    if (nprops > mprops) then
        call ferror("fields_integrable","too many props",faterr)
+       nprops = nprops - 1
+       return
+    end if
     if (useexpr) then
        integ_prop(nprops)%used = .true.
        integ_prop(nprops)%fid = 0
@@ -1031,7 +1114,9 @@ contains
              word = getword(line,lp)
              integ_prop(nprops)%prop_name = string(word)
           else if (len_trim(word) > 0) then
-             call ferror("fields_integrable","Unknown extra keyword",faterr,line)
+             call ferror("fields_integrable","Unknown extra keyword",faterr,line,syntax=.true.)
+             nprops = nprops - 1
+             return
           else
              exit
           end if
@@ -1194,8 +1279,10 @@ contains
        endif
     end do
     expr = trim(adjustl(expr))
-    if (len_trim(expr) == 0) &
-       call ferror("fields_pointprop","Wrong arithmetic expression",faterr,line)
+    if (len_trim(expr) == 0) then
+       call ferror("fields_pointprop","Wrong arithmetic expression",faterr,line,syntax=.true.)
+       return
+    end if
 
     ! Add this pointprop to the list
     nptprops = nptprops + 1
@@ -1211,8 +1298,11 @@ contains
     if (point_prop(nptprops)%ispecial == 0) then
        call fields_in_eval(expr,n,idlist)
        do i = 1, n
-          if (.not.goodfield(fieldname_to_idx(idlist(i)))) &
-             call ferror("fields_pointprop","Unknown field in arithmetic expression",faterr,expr)
+          if (.not.goodfield(fieldname_to_idx(idlist(i)))) then
+             call ferror("fields_pointprop","Unknown field in arithmetic expression",faterr,expr,syntax=.true.)
+             nptprops = nptprops - 1
+             return
+          end if
        end do
 
        ! fill the fused array
@@ -1449,7 +1539,7 @@ contains
     
   end function getfieldnum
 
-  subroutine setfield(ff,fid,line,verbose)
+  subroutine setfield(ff,fid,line,verbose,oksyn)
     use struct_basic
     use grid_tools
     use global
@@ -1459,6 +1549,7 @@ contains
     integer, intent(in) :: fid
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
+    logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word, aux
     integer :: lp, j
@@ -1466,6 +1557,7 @@ contains
     real*8 :: norm
 
     ! parse the rest of the line
+    oksyn = .false.
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
@@ -1502,23 +1594,34 @@ contains
           ff%numerical = .false.
        else if (equal(word,'typnuc')) then
           ok = eval_next(ff%typnuc,line,lp)
-          if (.not.ok) call ferror("setfield","wrong typnuc",faterr,line)
+          if (.not.ok) then
+             call ferror("setfield","wrong typnuc",faterr,line,syntax=.true.)
+             return
+          end if
           if (ff%typnuc /= -3 .and. ff%typnuc /= -1 .and. &
               ff%typnuc /= +1 .and. ff%typnuc /= +3) then
-             call ferror("setfield","wrong typnuc (-3,-1,+1,+3)",faterr,line)
+             call ferror("setfield","wrong typnuc (-3,-1,+1,+3)",faterr,line,syntax=.true.)
+             return
           end if
        else if (equal(word,'normalize')) then
           ok = eval_next(norm,line,lp)
-          if (.not. ok) call ferror('setfield','normalize real number missing',faterr,line)
+          if (.not. ok) then
+             call ferror('setfield','normalize real number missing',faterr,line,syntax=.true.)
+             return
+          end if
           ff%f = ff%f / (sum(ff%f) * cr%omega / real(product(ff%n),8)) * norm
           if (allocated(ff%c2)) deallocate(ff%c2)
        else if (equal(word,'name') .or. equal(word,'id')) then
           ok = isexpression_or_word(aux,line,lp)
-          if (.not. ok) call ferror('setfield','wrong name keyword',faterr,line)
+          if (.not. ok) then
+             call ferror('setfield','wrong name keyword',faterr,line,syntax=.true.)
+             return
+          end if
           ff%name = trim(aux)
           call fh%put(trim(aux),fid)
        else if (len_trim(word) > 0) then
-          call ferror('setfield','Unknown extra keyword',faterr,line)
+          call ferror('setfield','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1553,6 +1656,7 @@ contains
        write (uout,'("  Nuclear CP signature: ",A)') string(ff%typnuc)
        write (uout,*)
     end if
+    oksyn = .true.
 
   end subroutine setfield
 

@@ -787,15 +787,20 @@ contains
        else if (equal(word,'cp')) then
           ok = eval_next(cpid,line,lp)
           if (.not.ok) then
-             call ferror('basinplot','Uknown CP in basinplot',faterr,line)
+             call ferror('basinplot','Unknown CP',faterr,line,syntax=.true.)
+             return
           else
-             if (cpcel(cpid)%typ /= f(refden)%typnuc) &
-                call ferror('basinplot','cp: bad CP (bad syntax or type /= nuc.)',faterr,line)
+             if (cpcel(cpid)%typ /= f(refden)%typnuc) then
+                call ferror('basinplot','cp: bad CP (bad syntax or type /= nuc.)',faterr,line,syntax=.true.)
+                return
+             end if
           end if
        else if (equal(word,'prec')) then
           ok = eval_next(prec,line,lp)
-          if (.not.ok) &
-             call ferror('basinplot','Unknown basinplot prec',faterr,line)
+          if (.not.ok) then
+             call ferror('basinplot','Unknown basinplot prec',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'verbose')) then
           verbose = .true.
        else if (equal(word,'map')) then
@@ -805,23 +810,30 @@ contains
           if (idum < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
-             if (.not.ok) &
-                call ferror('basinplot','Unknown baisnplot map',faterr,line)
+             if (.not.ok) then
+                call ferror('basinplot','Unknown baisnplot map',faterr,line,syntax=.true.)
+                return
+             end if
           else
-             if (.not.goodfield(idum)) &
-                call ferror('basinplot','field not allocated',faterr,line)
+             if (.not.goodfield(idum)) then
+                call ferror('basinplot','field not allocated',faterr,line,syntax=.true.)
+                return
+             end if
              expr = "$" // string(idum)
           endif
        else if (len_trim(word) > 0) then
-          call ferror('basinplot','Unknown extra keyword',faterr,line)
+          call ferror('basinplot','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
     end do
 
     if (cpid > 0) then
-       if (cpcel(cpid)%typ /= f(refden)%typnuc) &
-          call ferror('basinplot','selected CP does not have nuc. type',faterr)
+       if (cpcel(cpid)%typ /= f(refden)%typnuc) then
+          call ferror('basinplot','selected CP does not have nuc. type',faterr,syntax=.true.)
+          return
+       end if
     end if
 
     ! print header to stdout
@@ -1017,7 +1029,10 @@ contains
     ok = eval_next (x0(1),line,lp)
     ok = ok .and. eval_next (x0(2),line,lp)
     ok = ok .and. eval_next (x0(3),line,lp)
-    if (.not.ok) call ferror ('bundleplot','bundleplot needs an initial interior point',faterr)
+    if (.not.ok) then
+       call ferror ('bundleplot','bundleplot needs an initial point',faterr,syntax=.true.)
+       return
+    end if
     if (cr%ismolecule) &
        x0 = cr%c2x(x0 / dunit - cr%molx0)
 
@@ -1067,8 +1082,10 @@ contains
           end if
        else if (equal(word,'prec')) then
           ok = eval_next(prec,line,lp)
-          if (.not.ok) &
-             call ferror('bundleplot','bundleplot delta: bad syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('bundleplot','bundleplot delta: bad syntax',faterr,line,syntax=.true.)
+             return
+          end if
           prec = prec / dunit
        else if (equal(word,'verbose')) then
           verbose = .true.
@@ -1081,15 +1098,20 @@ contains
           if (idum < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
-             if (.not.ok) &
-                call ferror('bundleplot','Unknown bundleplot map',faterr,line)
+             if (.not.ok) then
+                call ferror('bundleplot','Unknown bundleplot map',faterr,line,syntax=.true.)
+                return
+             end if
           else
-             if (.not.goodfield(idum)) &
-                call ferror('bundleplot','field not allocated',faterr,line)
+             if (.not.goodfield(idum)) then
+                call ferror('bundleplot','field not allocated',faterr,line,syntax=.true.)
+                return
+             end if
              expr = "$" // string(idum)
           endif
        else if (len_trim(word) > 0) then
-          call ferror('bundleplot','Unknown extra keyword',faterr,line)
+          call ferror('bundleplot','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1300,7 +1322,8 @@ contains
        if (ok) np = nn
        call good_lebedev(np)
     else
-       call ferror('sphereintegrals','sphereintegrals: bad method',faterr,line)
+       call ferror('sphereintegrals','sphereintegrals: bad method',faterr,line,syntax=.true.)
+       return
     end if
 
     cpid = 0
@@ -1311,24 +1334,33 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'nr')) then
           ok= eval_next (nr,line,lp)
-          if (.not. ok) &
-             call ferror('sphereintegrals','sphereintegrals: bad NR',faterr,line)
+          if (.not. ok) then
+             call ferror('sphereintegrals','sphereintegrals: bad NR',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'r0')) then
           ok= eval_next (r0,line,lp)
-          if (.not. ok) &
-             call ferror('sphereintegrals','sphereintegrals: bad R0',faterr,line)
+          if (.not. ok) then
+             call ferror('sphereintegrals','sphereintegrals: bad R0',faterr,line,syntax=.true.)
+             return
+          end if
           r0 = r0 / dunit
        else if (equal(word,'rend')) then
           ok= eval_next (rend,line,lp)
-          if (.not. ok) &
-             call ferror('sphereintegrals','sphereintegrals: bad REND',faterr,line)
+          if (.not. ok) then
+             call ferror('sphereintegrals','sphereintegrals: bad REND',faterr,line,syntax=.true.)
+             return
+          end if
           rend = rend / dunit
        else if (equal(word,'cp')) then
           ok= eval_next (cpid,line,lp)
-          if (.not. ok) &
-             call ferror('sphereintegrals','sphereintegrals: bad CP',faterr,line)
+          if (.not. ok) then
+             call ferror('sphereintegrals','sphereintegrals: bad CP',faterr,line,syntax=.true.)
+             return
+          end if
        else if (len_trim(word) > 0) then
-          call ferror('sphereintegrals','Unknown extra keyword',faterr,line)
+          call ferror('sphereintegrals','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1761,9 +1793,13 @@ contains
        ok= eval_next(np,line,lp)
        call good_lebedev(np)
     else
-       call ferror('integrals','Unknown method in INTEGRALS', faterr,line)
+       call ferror('integrals','Unknown method in INTEGRALS', faterr,line,syntax=.true.)
+       return
     end if
-    if (.not.ok) call ferror('integrals','integrals: bad method', faterr,line)
+    if (.not.ok) then
+       call ferror('integrals','integrals: bad method', faterr,line,syntax=.true.)
+       return
+    end if
 
     cpid = 0
     usefiles = .false.
@@ -1772,14 +1808,17 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'cp')) then
           ok= eval_next (cpid,line,lp)
-          if (.not. ok) &
-             call ferror('integrals','integrals: bad CP',faterr,line)
+          if (.not. ok) then
+             call ferror('integrals','integrals: bad CP',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'rwint')) then
           usefiles = .true.
        else if (equal(word,'verbose')) then
           verbose = .true.
        else if (len_trim(word) > 0) then
-          call ferror('integrals','Unknown extra keyword',faterr,line)
+          call ferror('integrals','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if

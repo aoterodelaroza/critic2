@@ -58,7 +58,7 @@ contains
     integer :: ntyp, nn
     character*5 :: ztyp(maxzat)
     real*8 :: rborder, raux
-    logical :: docube
+    logical :: docube, ok
 
     ! Initialize the structure
     call c%end()
@@ -101,7 +101,10 @@ contains
     else if (equal(wext1,'cube')) then
        call struct_read_cube(c,word,.false.,mol)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'struct')) then
@@ -112,7 +115,10 @@ contains
           call c%set_cryscar()
        endif
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'POSCAR').or.equal(wext1,'CONTCAR').or.equal(wext1,'CHGCAR').or.&
@@ -124,7 +130,10 @@ contains
        if (equal(wext2,'POTCAR')) then
           call struct_read_potcar(wext1,ntyp,ztyp)
           aux = getword(line,lp)
-          if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+          if (len_trim(aux) > 0) then
+             call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+             return
+          end if
        else
           ntyp = 0
           ztyp = ""
@@ -134,7 +143,10 @@ contains
                 ntyp = ntyp + 1
                 ztyp(ntyp) = string(wext1)
              else
-                if (len_trim(wext1) > 0) call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line)
+                if (len_trim(wext1) > 0) then
+                   call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line,syntax=.true.)
+                   return
+                end if
                 exit
              end if
              wext1 = getword(line,lp)
@@ -151,30 +163,43 @@ contains
        equal(wext1,'KDEN').or.equal(wext2,'KDEN').or.equal(wext1,'PAWDEN').or.equal(wext2,'PAWDEN')) then
        call struct_read_abinit(c,word,mol)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'OUT')) then
        call struct_read_elk(c,word,mol)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'out')) then
        call struct_read_qeout(c,word,mol)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'in')) then
        call struct_read_qein(c,word,mol)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(word,'library')) then
        subline = line(lp:)
-       call struct_read_library(c,subline,mol)
+       call struct_read_library(c,subline,mol,ok)
+       if (.not.ok) return
        if (mol) then
           c%file = "molecular library (" // trim(line(lp:)) // ")"
        else
@@ -192,7 +217,8 @@ contains
           elseif (eval_next(raux,word2,lp2)) then
              rborder = raux / dunit
           elseif (len_trim(word2) > 1) then
-             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line)
+             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
           else
              exit
           end if
@@ -201,13 +227,19 @@ contains
        call struct_read_mol(c,word,wext1,rborder,docube)
        call c%set_cryscar()
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN')) then
        call struct_read_siesta(c,word,mol)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (equal(wext1,'gen')) then
@@ -221,7 +253,8 @@ contains
           elseif (eval_next(raux,word2,lp2)) then
              rborder = raux / dunit
           elseif (len_trim(word2) > 1) then
-             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line)
+             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
           else
              exit
           end if
@@ -229,22 +262,33 @@ contains
 
        call struct_read_dftbp(c,word,mol,rborder,docube)
        aux = getword(line,lp)
-       if (len_trim(aux) > 0) call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line)
+       if (len_trim(aux) > 0) then
+          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+          return
+       end if
        c%file = word
 
     else if (len_trim(word) < 1) then
        if (.not.mol) then
-          if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse CRYSTAL environment but allownofile=.true.',faterr)
-          call parse_crystal_env(c,uin)
+          if (.not.allownofile) then
+             call ferror('struct_crystal_input','Attempted to parse CRYSTAL environment but allownofile=.true.',faterr,syntax=.true.)
+             return
+          end if
+          call parse_crystal_env(c,uin,ok)
+          if (.not.ok) return
        else
-          if (.not.allownofile) call ferror('struct_crystal_input','Attempted to parse MOLECULE environment but allownofile=.true.',faterr)
-          call parse_molecule_env(c,uin)
+          if (.not.allownofile) then
+             call ferror('struct_crystal_input','Attempted to parse MOLECULE environment but allownofile=.true.',faterr,syntax=.true.)
+             return
+          end if
+          call parse_molecule_env(c,uin,ok)
+          if (.not.ok) return
        endif
        c%file = "<input>"
 
     else
-       call ferror('struct_crystal_input','unrecognized file format'&
-          &,faterr,line)
+       call ferror('struct_crystal_input','unrecognized file format',faterr,line,syntax=.true.)
+       return
     end if
 
     call c%guessspg(doguess)
@@ -289,17 +333,19 @@ contains
 
   end subroutine struct_clearsym
 
-  subroutine struct_charges(line)
+  subroutine struct_charges(line,oksyn)
     use struct_basic
     use global
     use tools_io
 
     character*(*), intent(in) :: line
+    logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word
     integer :: lp, lp2, nn, i, xx
     logical :: ok, do1
 
+    oksyn = .false.
     lp = 1
     word = lgetword(line,lp)
     if (equal(word,'q') .or. equal(word,'zpsp') .or. equal(word,'qat')) then
@@ -309,8 +355,10 @@ contains
           ok = eval_next(nn,line,lp)
           if (ok) then
              ok = eval_next(xx,line,lp)
-             if (.not.ok) &
-                call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line)
+             if (.not.ok) then
+                call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line,syntax=.true.)
+                return
+             end if
              if (do1) then
                 cr%at(nn)%zpsp = xx
              else
@@ -321,11 +369,15 @@ contains
              word = getword(line,lp)
              if (len_trim(word) < 1) exit
              nn = zatguess(word)
-             if (nn == -1) &
-                call ferror('struct_charges','Unknown atomic symbol in Q/QAT/ZPSP',faterr,line)
+             if (nn == -1) then
+                call ferror('struct_charges','Unknown atomic symbol in Q/QAT/ZPSP',faterr,line,syntax=.true.)
+                return
+             end if
              ok = eval_next(xx,line,lp)
-             if (.not.ok) &
-                call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line)
+             if (.not.ok) then
+                call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line,syntax=.true.)
+                return
+             end if
              do i = 1, cr%nneq
                 if (cr%at(i)%z == nn) then
                    if (do1) then
@@ -340,9 +392,12 @@ contains
     elseif (equal(word,'nocore')) then
        cr%at(1:cr%nneq)%zpsp = -1
        word = getword(line,lp)
-       if (len_trim(word) > 0) &
-          call ferror('critic','Unknown extra keyword',faterr,line)
+       if (len_trim(word) > 0) then
+          call ferror('critic','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       end if
     endif
+    oksyn = .true.
 
   end subroutine struct_charges
 
@@ -402,8 +457,10 @@ contains
              if (ok) then
                 ok = ok .and. eval_next(xsph(2),line,lp)
                 ok = ok .and. eval_next(xsph(3),line,lp)
-                if (.not.ok) call ferror('struct_write','incorrect&
-                   & WRITE SPHERE syntax',faterr,line)
+                if (.not.ok) then
+                   call ferror('struct_write','incorrect WRITE SPHERE syntax',faterr,line,syntax=.true.)
+                   return
+                end if
              else
                 xsph = 0d0
              end if
@@ -419,7 +476,10 @@ contains
              if (ok) then
                 ok = ok .and. eval_next(xcub(2),line,lp)
                 ok = ok .and. eval_next(xcub(3),line,lp)
-                if (.not.ok) call ferror('struct_write','incorrect WRITE CUBE syntax',faterr,line)
+                if (.not.ok) then
+                   call ferror('struct_write','incorrect WRITE CUBE syntax',faterr,line,syntax=.true.)
+                   return
+                end if
              else
                 xcub = 0d0
              end if
@@ -433,9 +493,13 @@ contains
              ix(1) = iaux
              ok = eval_next(ix(2),line,lp)
              ok = ok .and. eval_next(ix(3),line,lp)
-             if (.not.ok) call ferror('struct_write','incorrect WRITE syntax',faterr,line)
+             if (.not.ok) then
+                call ferror('struct_write','incorrect WRITE syntax',faterr,line,syntax=.true.)
+                return
+             end if
           elseif (len_trim(word) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line)
+             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
           else
              exit
           end if
@@ -459,47 +523,56 @@ contains
        ! gaussian periodic boundary conditions
        write (uout,'("* WRITE Gaussian file: ",A)') string(file)
        call struct_write_gaussian(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'in')) then
        ! espresso
        write (uout,'("* WRITE espresso file: ",A)') string(file)
        call struct_write_espresso(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
        call struct_write_vasp(file,cr,.true.)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'abin')) then
        ! abinit
        write (uout,'("* WRITE abinit file: ",A)') string(file)
        call struct_write_abinit(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'elk')) then
        ! elk
        write (uout,'("* WRITE elk file: ",A)') string(file)
        call struct_write_elk(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'tess')) then
        ! tessel
        write (uout,'("* WRITE tess file: ",A)') string(file)
        call struct_write_tessel(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
        ! critic2
        write (uout,'("* WRITE critic2 input file: ",A)') string(file)
        call struct_write_critic(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'cif')) then
        ! cif
        write (uout,'("* WRITE cif file: ",A)') string(file)
        call struct_write_cif(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'m')) then
        ! escher
        write (uout,'("* WRITE escher file: ",A)') string(file)
        call struct_write_escher(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'gin')) then
        ! gulp
        dodreiding = .false.
@@ -508,7 +581,8 @@ contains
           if (equal(word,'dreiding')) then
              dodreiding = .true.
           elseif (len_trim(word) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line)
+             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
           else
              exit
           end if
@@ -518,41 +592,50 @@ contains
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
        call struct_write_lammps(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'fdf')) then
        write (uout,'("* WRITE fdf file: ",A)') string(file)
        call struct_write_siesta_fdf(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'struct_in')) then
        write (uout,'("* WRITE STRUCT_IN file: ",A)') string(file)
        call struct_write_siesta_in(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'hsd')) then
        write (uout,'("* WRITE hsd file: ",A)') string(file)
        call struct_write_dftbp_hsd(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'gen')) then
        write (uout,'("* WRITE gen file: ",A)') string(file)
        call struct_write_dftbp_gen(file,cr)
-       call check_no_extra_word()
+       ok = check_no_extra_word()
+       if (.not.ok) return
     else
-       call ferror('struct_write','unrecognized file format',faterr,line)
+       call ferror('struct_write','unrecognized file format',faterr,line,syntax=.true.)
+       return
     end if
     write (uout,*)
 
   contains
-    subroutine check_no_extra_word()
+    function check_no_extra_word()
       character(len=:), allocatable :: aux2
+      logical :: check_no_extra_word
 
       do while (.true.)
          aux2 = getword(line,lp)
          if (equal(aux2,'primitive')) cycle
-         if (len_trim(aux2) > 0) &
-            call ferror('struct_write','Unknown extra keyword',faterr,line)
+         if (len_trim(aux2) > 0) then
+            call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
+            check_no_extra_word = .false.
+         end if
          exit
       end do
 
-    end subroutine check_no_extra_word
+    end function check_no_extra_word
   end subroutine struct_write
 
   !> Calculate the powder diffraction pattern for the current
@@ -573,8 +656,10 @@ contains
     character(len=:), allocatable :: root, word
     logical :: ok
 
-    if (c%ismolecule) &
-       call ferror("struct_powder","POWDER can not be used with molecules",faterr)
+    if (c%ismolecule) then
+       call ferror("struct_powder","POWDER can not be used with molecules",faterr,syntax=.true.)
+       return
+    end if
 
     ! default values
     th2ini = 5d0 
@@ -595,26 +680,45 @@ contains
        word = lgetword(line,lp)
        if (equal(word,"th2ini")) then
           ok = eval_next(th2ini,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect TH2INI',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect TH2INI',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"th2end")) then
           ok = eval_next(th2end,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect TH2END',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect TH2END',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"l").or.equal(word,"lambda")) then
           ok = eval_next(lambda,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect LAMBDA',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect LAMBDA',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"fpol")) then
           ok = eval_next(fpol,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect FPOL',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect FPOL',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"npts")) then
           ok = eval_next(npts,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect NPTS',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect NPTS',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"sigma")) then
           ok = eval_next(sigma,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect SIGMA',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect SIGMA',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"root")) then
           root = getword(line,lp)
        elseif (len_trim(word) > 0) then
-          call ferror('struct_powder','Unknown extra keyword',faterr,line)
+          call ferror('struct_powder','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -692,8 +796,10 @@ contains
     ! real*8 :: th2ini, th2end, lambda, fpol, sigma
     ! integer, allocatable :: hvecp(:,:)
 
-    if (c%ismolecule) &
-       call ferror("struct_rdf","RDF can not be used with molecules",faterr)
+    if (c%ismolecule) then
+       call ferror("struct_rdf","RDF can not be used with molecules",faterr,syntax=.true.)
+       return
+    end if
 
     ! default values
     rend = 25d0
@@ -710,14 +816,21 @@ contains
        word = lgetword(line,lp)
        if (equal(word,"rend")) then
           ok = eval_next(rend,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect TH2END',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect TH2END',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"npts")) then
           ok = eval_next(npts,line,lp)
-          if (.not.ok) call ferror('struct_powder','Incorrect NPTS',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_powder','Incorrect NPTS',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"root")) then
           root = getword(line,lp)
        elseif (len_trim(word) > 0) then
-          call ferror('struct_powder','Unknown extra keyword',faterr,line)
+          call ferror('struct_powder','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -802,7 +915,10 @@ contains
        word = getword(line,lp)
        if (equal(word,'xend')) then
           ok = eval_next(xend,line,lp)
-          if (.not.ok) call ferror('struct_compare','incorrect TH2END',faterr)
+          if (.not.ok) then
+             call ferror('struct_compare','incorrect TH2END',faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'powder')) then
           dopowder = .true.
        elseif (equal(word,'rdf')) then
@@ -815,10 +931,14 @@ contains
              call move_alloc(caux,c)
           endif
           if (equal(word,".")) then
-             if (.not.cr%isinit) &
-                call ferror('struct_compare','Current structure is not initialized. Use CRYSTAL before COMPARE.',faterr)
-             if (cr%ismolecule) &
-                call ferror('struct_compare','Current structure is a molecule.',faterr)
+             if (.not.cr%isinit) then
+                call ferror('struct_compare','Current structure is not initialized. Use CRYSTAL before COMPARE.',faterr,syntax=.true.)
+                return
+             end if
+             if (cr%ismolecule) then
+                call ferror('struct_compare','Current structure is a molecule.',faterr,syntax=.true.)
+                return
+             end if
              write (uout,'("  Crystal ",A,": <current>")') string(ns,2)
              c(ns) = cr
           else
@@ -831,8 +951,10 @@ contains
     end do
     write (uout,*)
 
-    if (ns < 2) &
-       call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr)
+    if (ns < 2) then
+       call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr,syntax=.true.)
+       return
+    end if
     if (xend < 0d0) then
        if (dopowder) then
           xend = th2end0
@@ -930,18 +1052,25 @@ contains
        word = lgetword(line,lp)
        if (equal(word,"shells")) then
           ok = eval_next(nn,line,lp)
-          if (.not.ok) call ferror('struct_environ','Wrong SHELLS syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_environ','Wrong SHELLS syntax',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"point")) then
           ok = eval_next(x0(1),line,lp)
           ok = ok .and. eval_next(x0(2),line,lp)
           ok = ok .and. eval_next(x0(3),line,lp)
-          if (.not.ok) call ferror('struct_environ','Wrong POINT syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_environ','Wrong POINT syntax',faterr,line,syntax=.true.)
+             return
+          end if
           doatoms = .false.
           x0in = x0
           if (cr%ismolecule) &
              x0 = cr%c2x(x0 / dunit - cr%molx0)
        elseif (len_trim(word) > 0) then
-          call ferror('struct_environ','Unknown extra keyword',faterr,line)
+          call ferror('struct_environ','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1040,8 +1169,10 @@ contains
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
 
-    if (cr%ismolecule) &
-       call ferror("critic2","PACKING can not be used with molecules",faterr)
+    if (cr%ismolecule) then
+       call ferror("critic2","PACKING can not be used with molecules",faterr,syntax=.true.)
+       return
+    end if
 
     ! default values    
     dovdw = .false.
@@ -1058,9 +1189,13 @@ contains
           dovdw = .true.
        elseif (equal(word,"prec")) then
           ok = eval_next(prec,line,lp)
-          if (.not.ok) call ferror('struct_packing','Wrong PREC syntax',faterr,line)
+          if (.not.ok) then
+             call ferror('struct_packing','Wrong PREC syntax',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
-          call ferror('struct_packing','Unknown extra keyword',faterr,line)
+          call ferror('struct_packing','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1129,8 +1264,10 @@ contains
     real*8 :: x0(3,3), t0(3)
     logical :: doinv
 
-    if (cr%ismolecule) &
-       call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr)
+    if (cr%ismolecule) then
+       call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr,syntax=.true.)
+       return
+    end if
 
     ! transform to the primitive?
     lp = 1
@@ -1164,8 +1301,10 @@ contains
     ok = ok .and. eval_next(x0(1,3),line,lp)
     ok = ok .and. eval_next(x0(2,3),line,lp)
     ok = ok .and. eval_next(x0(3,3),line,lp)
-    if (.not.ok) &
-       call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line)
+    if (.not.ok) then
+       call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
+       return
+    end if
 
     t0 = 0d0
     doinv = .false.
@@ -1175,12 +1314,15 @@ contains
           ok = eval_next(t0(1),line,lp)
           ok = ok .and. eval_next(t0(2),line,lp)
           ok = ok .and. eval_next(t0(3),line,lp)
-          if (.not.ok) &
-             call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line)
+          if (.not.ok) then
+             call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (equal(word,"inv").or.equal(word,"inverse")) then
           doinv = .true.
        elseif (len_trim(word) > 0) then
-          call ferror('struct_newcell','Unknown extra keyword',faterr,line)
+          call ferror('struct_newcell','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
        else
           exit
        end if
@@ -1202,10 +1344,14 @@ contains
     real*8 :: xmin(3), xmax(3), rborder, raux
     logical :: ok
 
-    if (.not.cr%ismolecule) &
-       call ferror('struct_molcell','Use MOLCELL with MOLECULE, not CRYSTAL.',faterr)
-    if (any(abs(cr%bb-90d0) > 1d-5)) &
-       call ferror('struct_molcell','MOLCELL only allowed for orthogonal cells.',faterr)
+    if (.not.cr%ismolecule) then
+       call ferror('struct_molcell','Use MOLCELL with MOLECULE, not CRYSTAL.',faterr,syntax=.true.)
+       return
+    end if
+    if (any(abs(cr%bb-90d0) > 1d-5)) then
+       call ferror('struct_molcell','MOLCELL only allowed for orthogonal cells.',faterr,syntax=.true.)
+       return
+    end if
 
     ! defaults
     rborder = rborder_def 

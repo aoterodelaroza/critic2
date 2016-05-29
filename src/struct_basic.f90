@@ -2199,7 +2199,7 @@ contains
     do i = 1, 3
        ok = .false.
        do j = 1, c%ncv
-          ok = (c%eql_distance(x0(:,i),c%cen(:,j)) < 1d-5)
+          ok = (c%eql_distance(x0(:,i),c%cen(:,j)) < 1d-4)
           if (ok) exit
        end do
        if (.not.ok) &
