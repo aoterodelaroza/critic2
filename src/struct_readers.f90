@@ -499,7 +499,7 @@ contains
   contains
     function check_no_extra_word()
       character(len=:), allocatable :: aux2
-      integer :: check_no_extra_word
+      logical :: check_no_extra_word
       aux2 = getword(line,lp)
       if (len_trim(aux2) > 0) then
          call ferror('critic','Unknown extra keyword',faterr,line,syntax=.true.)
