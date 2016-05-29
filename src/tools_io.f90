@@ -402,7 +402,7 @@ contains
        elseif (justify > 0) then
           idx = index(s,".")
           if (idx > 0) then
-             ipad0 = justify - idx
+             ipad0 = max(justify - idx,0)
           endif
        endif
     end if
