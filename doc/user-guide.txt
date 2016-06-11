@@ -1103,6 +1103,7 @@ Loading a crystal structure (CRYSTAL)
   CRYSTAL file.out # e.g. ESPRESSO's file.scf.out (PW output)
   CRYSTAL file.in  # e.g. ESPRESSO's file.scf.in (PW input)
   CRYSTAL file.cif [datablock.s]
+  CRYSTAL file.res
   CRYSTAL file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
   CRYSTAL file.STRUCT_IN
   CRYSTAL file.STRUCT_OUT
@@ -1242,6 +1243,13 @@ specific data block to read from a multi-block cif file can be
 specified with the optional argument datablock.s. For instance, to
 read the data_shelx block, use datablock.s = "shelx". If datablock.s
 is not present, then the first block is read.
+
+SHELX res files (res)
++++++++++++++++++++++
+
+RES files are generated and used by SHELXL, a program for the
+interpretation of experimental X-ray diffraction data. The RES file
+format specification can be found in the SHELXL webpage.
 
 Abinit (DEN, PAWDEN, ELF, LDEN, etc.)
 +++++++++++++++++++++++++++++++++++++

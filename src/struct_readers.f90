@@ -36,6 +36,7 @@ module struct_readers
   public :: parse_molecule_env
   public :: struct_read_library
   public :: struct_read_cif
+  public :: struct_read_res
   public :: struct_read_cube
   public :: struct_read_wien
   public :: struct_read_vasp
@@ -827,6 +828,296 @@ contains
     if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_cif
+
+  !> Read the structure from a CIF file (uses ciftbx)
+  subroutine struct_read_res(c,file,verbose,mol)
+    use struct_basic
+    use arithmetic
+    use global
+    use tools_io
+    use types
+    use param
+
+    type(crystal), intent(inout) :: c !< Crystal
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: verbose !< Write information to the output
+    
+    integer :: lu, lp, ilat
+    logical :: ok, iscent, iok, havecell
+    character(len=1024) :: tok
+    character(len=:), allocatable :: word, line
+    real*8 :: raux, rot0(3,4)
+    integer :: i, j, idx, n
+    integer :: iz, ntyp
+    integer, allocatable :: ztyp(:)
+    real*8 :: xo, yo, zo
+    logical :: iix, iiy, iiz
+
+    ! character(len=1024) :: dictfile, sym, tok
+    ! character*30 :: atname, spg
+    ! real*8 :: x(3)
+    ! real*8 :: sigx, rot0(3,4), xo, yo, zo
+    ! logical :: fl, fl1, fl2, found, ok, ix, iy, iz, iok
+    ! integer :: i, j, ludum, luscr, idx
+    ! 
+    character*(1), parameter :: ico(3) = (/"x","y","z"/)
+
+    ! initialize symmetry
+    iscent = .false.
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
+    c%neqv = 1
+    c%rotm(:,:,c%neqv) = eyet
+    ntyp = 0
+    havecell = .false.
+
+    ! save the old value of x, y, and z variables
+    iix = isvariable("x",xo)
+    iiy = isvariable("y",yo)
+    iiz = isvariable("z",zo)
+
+    lu = fopen_read(file)
+    do while (.true.)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) exit
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"cell")) then
+          ! read the cell parameters from the cell card
+          ok = isreal(raux,line,lp)
+          ok = ok .and. isreal(c%aa(1),line,lp)
+          ok = ok .and. isreal(c%aa(2),line,lp)
+          ok = ok .and. isreal(c%aa(3),line,lp)
+          ok = ok .and. isreal(c%bb(1),line,lp)
+          ok = ok .and. isreal(c%bb(2),line,lp)
+          ok = ok .and. isreal(c%bb(3),line,lp)
+          if (.not.ok) &
+             call ferror('struct_read_res','Error reading CELL card',faterr)
+          c%aa = c%aa / bohrtoa
+          havecell = .true.
+       elseif (equal(word,"latt")) then
+          ! read the centering vectors from the latt card
+          ok = isinteger(ilat,line,lp)
+          if (.not.ok) &
+             call ferror('struct_read_res','Error reading LATT card',faterr)
+          select case(abs(ilat))
+          case(1)
+             ! P 
+             c%ncv=1
+          case(2)
+             ! I
+             c%ncv=2
+             c%cen(1,2)=0.5d0
+             c%cen(2,2)=0.5d0
+             c%cen(3,2)=0.5d0
+          case(3)
+             ! R obverse
+             c%ncv=3
+             c%cen(:,2) = (/2d0,1d0,1d0/) / 3d0
+             c%cen(:,3) = (/1d0,2d0,2d0/) / 3d0
+          case(4)
+             ! F
+             c%ncv=4
+             c%cen(1,2)=0.5d0
+             c%cen(2,2)=0.5d0
+             c%cen(2,3)=0.5d0
+             c%cen(3,3)=0.5d0
+             c%cen(1,4)=0.5d0
+             c%cen(3,4)=0.5d0
+          case(5)
+             ! A
+             c%ncv=2
+             c%cen(2,2)=0.5d0
+             c%cen(3,2)=0.5d0
+          case(6)
+             ! B
+             c%ncv=2
+             c%cen(1,2)=0.5d0
+             c%cen(3,2)=0.5d0
+          case(7)
+             ! C 
+             c%ncv=2
+             c%cen(1,2)=0.5d0
+             c%cen(2,2)=0.5d0
+          case default
+             call ferror('struct_read_res','Unknown LATT value',faterr)
+          end select
+          iscent = (ilat > 0)
+       elseif (equal(word,"symm")) then
+          ! symmetry operations from the symm card
+          line = line(lp:) // ","
+          rot0 = 0d0
+          do i = 1, 3
+             idx = index(line,",")
+             tok = lower(line(1:idx-1))
+             line = line(idx+1:)
+
+             ! the translation component
+             do j = 1, 3
+                call setvariable(ico(j),0d0)
+             end do
+             rot0(i,4) = eval(tok,.true.,iok)
+
+             ! the x-, y-, z- components
+             do j = 1, 3
+                call setvariable(ico(j),1d0)
+                rot0(i,j) = eval(tok,.true.,iok) - rot0(i,4)
+                call setvariable(ico(j),0d0)
+             enddo
+          end do
+
+          if (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
+             ! a non-zero pure translation or the identity should not be
+             ! part of SYMM -> raise error
+             call ferror('struct_read_res','Found identity or pure translation in SYMM',faterr)
+          else
+             ! a rotation, with some pure translation in it
+             ! check if I have this rotation matrix already
+             ok = .true.
+             do i = 1, c%neqv
+                if (all(abs(c%rotm(:,:,i) - rot0(:,:)) < 1d-12)) then
+                   ok = .false.
+                   exit
+                endif
+             end do
+             if (ok) then
+                c%neqv = c%neqv + 1
+                c%rotm(:,:,c%neqv) = rot0
+             else
+                call ferror('struct_read_res','Found repeated entry in SYMM',faterr)
+             endif
+          endif
+
+       elseif (equal(word,"sfac")) then
+          ! atomic types from the sfac card
+          allocate(ztyp(2))
+          do while (.true.)
+             word = lgetword(line,lp)
+             iz = zatguess(word)
+             if (iz <= 0 .or. len_trim(word) < 1) exit
+             ntyp = ntyp + 1
+             if (ntyp > size(ztyp)) call realloc(ztyp,2*ntyp)
+             ztyp(ntyp) = iz
+          end do
+       elseif (equal(word,"unit")) then
+          ! ignore the unit card... some res files don't have it,
+          ! and we can count the atoms in the list anyway
+
+          ! ignore all the following cards
+       elseif (equal(word,"abin").or.equal(word,"acta").or.equal(word,"afix").or.&
+               equal(word,"anis").or.equal(word,"ansc").or.equal(word,"ansr").or.&
+               equal(word,"basf").or.equal(word,"bind").or.equal(word,"bloc").or.&
+               equal(word,"bond").or.equal(word,"bump").or.equal(word,"cgls").or.&
+               equal(word,"chiv").or.equal(word,"conf").or.equal(word,"conn").or.&
+               equal(word,"damp").or.equal(word,"dang").or.equal(word,"defs").or.&
+               equal(word,"delu").or.equal(word,"dfix").or.equal(word,"disp").or.&
+               equal(word,"eadp").or.equal(word,"eqiv").or.equal(word,"exti").or.&
+               equal(word,"exyz").or.equal(word,"flat").or.equal(word,"fmap").or.&
+               equal(word,"free").or.equal(word,"fvar").or.equal(word,"grid").or.&
+               equal(word,"hfix").or.equal(word,"hklf").or.equal(word,"htab").or.&
+               equal(word,"isor").or.equal(word,"laue").or.equal(word,"list").or.&
+               equal(word,"l.s.").or.equal(word,"merg").or.equal(word,"more").or.&
+               equal(word,"move").or.equal(word,"mpla").or.equal(word,"ncsy").or.&
+               equal(word,"neut").or.equal(word,"omit").or.equal(word,"part").or.&
+               equal(word,"plan").or.equal(word,"prig").or.equal(word,"rem").or.&
+               equal(word,"resi").or.equal(word,"rigu").or.equal(word,"rtab").or.&
+               equal(word,"sadi").or.equal(word,"same").or.equal(word,"shel").or.&
+               equal(word,"simu").or.equal(word,"size").or.equal(word,"spec").or.&
+               equal(word,"stir").or.equal(word,"sump").or.equal(word,"swat").or.&
+               equal(word,"temp").or.equal(word,"titl").or.equal(word,"twin").or.&
+               equal(word,"twst").or.equal(word,"wght").or.equal(word,"wigl").or.&
+               equal(word,"wpdb").or.equal(word,"xnpd").or.equal(word,"zerr")) then
+          cycle
+
+          ! also ignore the frag...fend blocks
+       elseif (equal(word,"frag")) then
+          do while (.true.)
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) &
+                call ferror('struct_read_res','Unexpected end of file inside frag block',faterr)
+             lp = 1
+             word = lgetword(line,lp)
+             if (equal(word,"fend")) exit
+          end do
+       elseif (equal(word,"end")) then
+          ! end of the input
+          exit
+       else
+          ! check if this is an atom
+          c%nneq = 0
+          if (.not.allocated(c%at)) allocate(c%at(1))
+          do while(.true.)
+             if (equal(word,"end")) exit
+             c%nneq = c%nneq + 1
+             if (c%nneq > size(c%at)) call realloc(c%at,2*c%nneq)
+             ok = isinteger(iz,line,lp)
+             ok = ok .and. isreal(c%at(c%nneq)%x(1),line,lp)
+             ok = ok .and. isreal(c%at(c%nneq)%x(2),line,lp)
+             ok = ok .and. isreal(c%at(c%nneq)%x(3),line,lp)
+             if (.not.ok) then
+                c%nneq = c%nneq - 1
+                exit
+             end if
+             if (iz <= 0 .or. iz > ntyp) &
+                call ferror('struct_read_res','Atom type not found in SFAC list',faterr)
+             c%at(c%nneq)%z = ztyp(iz)
+             c%at(c%nneq)%name = word
+             
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) exit
+             lp = 1
+             word = lgetword(line,lp)
+          end do
+          exit
+       end if
+    end do
+    call fclose(lu)
+
+    if (ntyp == 0) &
+       call ferror('struct_read_res','No sfac information (atomic types) found',faterr)
+    if (c%nneq == 0) &
+       call ferror('struct_read_res','No atoms found',faterr)
+    if (.not.havecell) &
+       call ferror('struct_read_res','No cell found',faterr)
+       
+    if (iscent) then
+       ! do we have the -1 operation already?
+       ok = .true.
+       do i = 1, c%neqv
+          if (all(abs(c%rotm(:,:,i) + eyet) < 1d-12)) then
+             ok = .false.
+             exit
+          endif
+       end do
+       if (.not.ok) &
+          call ferror('struct_read_res','Found improper rotation in SYMM',faterr)
+       n = c%neqv
+       do i = 1, n
+          c%rotm(1:3,1:3,n+i) = -c%rotm(1:3,1:3,i) 
+          c%rotm(:,4,n+i) = c%rotm(:,4,i) 
+       end do
+       c%neqv = 2*n
+    end if
+
+    ! set the centering type
+    call c%set_lcent()
+
+    ! restore the old values of x, y, and z
+    if (iix) call setvariable("x",xo)
+    if (iiy) call setvariable("y",yo)
+    if (iiz) call setvariable("z",zo)
+
+    ! use the symmetry in this file
+    c%havesym = 2
+
+    if (allocated(ztyp)) deallocate(ztyp)
+
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
+  end subroutine struct_read_res
 
   !> Read the structure from a gaussian cube file
   subroutine struct_read_cube(c,file,verbose,mol)

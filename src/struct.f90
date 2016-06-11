@@ -98,6 +98,11 @@ contains
        call c%set_cryscar()
        c%file = word
 
+    else if (equal(wext1,'res')) then
+       call struct_read_res(c,word,.false.,mol)
+       call c%set_cryscar()
+       c%file = word
+
     else if (equal(wext1,'cube')) then
        call struct_read_cube(c,word,.false.,mol)
        aux = getword(line,lp)
