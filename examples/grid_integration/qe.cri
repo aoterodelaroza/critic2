@@ -5,7 +5,7 @@ crystal ../data/urea.rhoval.cube
 load ../data/urea.rhoval.cube id rhoval
 load ../data/urea.rho.cube id rho
 
-# # Agument the valence density with the core contribution calculated
+# # Augment the valence density with the core contribution calculated
 # # from critic2's internal density tables. Normally, you would run this
 # # once, then save the core-augmented cube to a file and use it
 # # afterwards. For convenience, I provide the core-augmented cube file. 
