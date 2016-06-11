@@ -1,7 +1,8 @@
 SUBDIRS=
 TESTS=\
 001_arithmetic.sh 001_arithmetic2.sh 001_dosinput.sh\
-002_read_abden.sh 002_read_chgcar.sh 002_read_chg.sh 002_read_cif.sh 002_read_crinput1.sh\
+002_read_abden.sh 002_read_chgcar.sh 002_read_chg.sh\
+002_read_res.sh 002_read_cif.sh 002_read_crinput1.sh\
 002_read_crinput2.sh 002_read_crinput3.sh\
 002_read_crinput4.sh 002_read_crinput5.sh\
 002_read_crinput6.sh 002_read_crinput7.sh\
