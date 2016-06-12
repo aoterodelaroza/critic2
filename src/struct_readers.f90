@@ -846,7 +846,7 @@ contains
     integer :: lu, lp, ilat
     logical :: ok, iscent, iok, havecell
     character(len=1024) :: tok
-    character(len=:), allocatable :: word, line
+    character(len=:), allocatable :: word, line, aux
     real*8 :: raux, rot0(3,4)
     integer :: i, j, idx, n
     integer :: iz, ntyp
@@ -947,12 +947,14 @@ contains
           iscent = (ilat > 0)
        elseif (equal(word,"symm")) then
           ! symmetry operations from the symm card
-          line = line(lp:) // ","
+          aux = line(lp:) // ","
+          line = aux
           rot0 = 0d0
           do i = 1, 3
              idx = index(line,",")
              tok = lower(line(1:idx-1))
-             line = line(idx+1:)
+             aux = line(idx+1:)
+             line = aux
 
              ! the translation component
              do j = 1, 3
