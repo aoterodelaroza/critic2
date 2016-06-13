@@ -5283,8 +5283,8 @@ Compare two or more crystal structures and find the measure of
 similarity (DIFF) based on either their radial distribution functions
 (RDF keyword) or their powder diffraction patterns (POWDER). By
 default, use the powder diffraction patterns. Two crystal structures
-are exactly equal if DIFF = 1. Maximum dissimilarity occurs when DIFF
-= 0.
+are exactly equal if DIFF = 0. Maximum dissimilarity occurs when DIFF
+= 1.
 
 The similarity measure is calculated using the cross-correlation
 functions defined in de Gelder et al., J. Comput. Chem., 22 (2001)

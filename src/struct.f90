@@ -912,8 +912,6 @@ contains
     dopowder = .true.
     xend = -1d0
 
-    write (uout,'("* COMPARE: compare crystal structures")')
-
     ! load all the crystal structures
     doguess = 0
     do while(.true.)
@@ -955,6 +953,14 @@ contains
        end if
     end do
     write (uout,*)
+
+    write (uout,'("* COMPARE: compare crystal structures")')
+    if (dopowder) then
+       write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
+    else
+       write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+    end if
+    write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
 
     if (ns < 2) then
        call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr,syntax=.true.)
@@ -1003,7 +1009,7 @@ contains
     diff = 1d0
     do i = 1, ns
        do j = i+1, ns
-          diff(i,j) = crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j)
+          diff(i,j) = 1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j)
           diff(j,i) = diff(i,j)
        end do
     end do
