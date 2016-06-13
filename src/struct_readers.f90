@@ -853,14 +853,9 @@ contains
     integer, allocatable :: ztyp(:)
     real*8 :: xo, yo, zo
     logical :: iix, iiy, iiz
+    integer :: lncv
+    integer, allocatable :: lcen(:,:)
 
-    ! character(len=1024) :: dictfile, sym, tok
-    ! character*30 :: atname, spg
-    ! real*8 :: x(3)
-    ! real*8 :: sigx, rot0(3,4), xo, yo, zo
-    ! logical :: fl, fl1, fl2, found, ok, ix, iy, iz, iok
-    ! integer :: i, j, ludum, luscr, idx
-    ! 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
     ! initialize symmetry
@@ -872,6 +867,13 @@ contains
     c%rotm(:,:,c%neqv) = eyet
     ntyp = 0
     havecell = .false.
+
+    ! centering vectors may come in symm. If that happens, 
+    ! replicate the atoms and let LATT determine the global 
+    ! centering vectors
+    lncv = 0
+    allocate(lcen(3,1))
+    lcen = 0d0
 
     ! save the old value of x, y, and z variables
     iix = isvariable("x",xo)
@@ -971,9 +973,16 @@ contains
           end do
 
           if (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
-             ! a non-zero pure translation or the identity should not be
-             ! part of SYMM -> raise error
-             call ferror('struct_read_res','Found identity or pure translation in SYMM',faterr)
+             ! a non-zero pure translation or the identity 
+             if (all(abs(rot0(:,4)) < 1d-12)) then
+                ! ignore the identity
+             else
+                ! must be a pure translation
+                lncv = lncv + 1
+                if (lncv > size(lcen,2)) &
+                   call realloc(lcen,3,2*lncv)
+                lcen(:,lncv) = rot0(:,4)
+             endif
           else
              ! a rotation, with some pure translation in it
              ! check if I have this rotation matrix already
@@ -1101,6 +1110,21 @@ contains
           c%rotm(:,4,n+i) = c%rotm(:,4,i) 
        end do
        c%neqv = 2*n
+    end if
+    
+    ! replicate the atoms using the local centering vectors passed in
+    ! SYMM, if there are any
+    if (lncv > 0) then
+       do i = 1, lncv
+          n = c%nneq
+          do j = 1, n
+             c%nneq = c%nneq + 1
+             if (c%nneq > size(c%at)) call realloc(c%at,2*c%nneq)
+             c%at(c%nneq) = c%at(j)
+             c%at(c%nneq)%x = c%at(c%nneq)%x + lcen(:,i)
+             c%at(c%nneq)%x = c%at(c%nneq)%x - floor(c%at(c%nneq)%x)
+          end do
+       end do
     end if
 
     ! set the centering type
