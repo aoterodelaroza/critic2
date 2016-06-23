@@ -912,7 +912,6 @@ contains
        end do
        write (luout,*)
     end do
-    write (luout,*)
 
     ! try doing the contour
     if (docontour) call contour(x0,x1,x2,nx,ny,nco,niso,root0,.true.,.true.)
