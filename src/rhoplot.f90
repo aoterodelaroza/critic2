@@ -1126,9 +1126,9 @@ contains
     do i=1,niso
        call hallarpuntos (ziso(i),nu,nv)
        if (ziso(i).gt.0) then
-          call ordenarpuntos (lud,cosalfa)
+          call ordenarpuntos (lud,cosalfa,ziso(i))
        else
-          call ordenarpuntos (lud1,cosalfa)
+          call ordenarpuntos (lud1,cosalfa,ziso(i))
        endif
     enddo
     call fclose(lud)
@@ -1340,13 +1340,13 @@ contains
   end subroutine hallarpuntos
 
   !> Determines the connectivity of the set of contour points.
-  subroutine ordenarpuntos (luw,calpha)
+  subroutine ordenarpuntos (luw,calpha,ziso)
     use param
 
     real*8, parameter :: eps = 0.10d0
 
     integer, intent(in) :: luw
-    real*8, intent(in) :: calpha
+    real*8, intent(in) :: calpha, ziso
 
     real*8 :: salpha
 
@@ -1525,7 +1525,7 @@ contains
        x = x + y * calpha
        y = y * salpha
 
-       call linea (x, y, nptoscurva, luw)
+       call linea(x,y,nptoscurva,luw,ziso)
 
        ! update number of points
        if (cerrada) nptoscurva = nptoscurva-1
@@ -1535,16 +1535,19 @@ contains
   end subroutine ordenarpuntos
 
   !> Write (x(n),y(n)) curve in luw.
-  subroutine linea (x, y, n, luw)
+  subroutine linea (x,y,n,luw,ziso)
     use global
+    use tools_io
 
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: x, y
     integer, intent(in) :: luw
+    real*8, intent(in) :: ziso
 
     integer :: i
 
     write (luw,*)
+    write (luw,'("# z = ",A)') string(ziso,'e',20,14)
     do i = 1, n
        write (luw,20) x(i), y(i)
     enddo
