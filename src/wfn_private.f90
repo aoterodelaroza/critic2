@@ -35,7 +35,9 @@ module wfn_private
   public :: wfn_read_molden_geometry
   public :: wfn_read_wfn
   public :: wfn_read_wfx
+  public :: wfn_read_fchk
   public :: wfn_register_struct
+  private :: gnorm
   public :: wfn_rho2
   public :: wfx_read_integers
   public :: wfx_read_reals1
@@ -48,6 +50,120 @@ module wfn_private
   ! atomic positions, internal copy
   integer :: nat
   real*8, allocatable :: xat(:,:)
+
+  ! double factorials minus one
+  integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/) 
+
+  ! double factorials
+  integer, parameter :: dfac(0:8) = (/1,1,2,3,8,15,48,105,384/) 
+
+  ! number of angular components for shell type
+  !                                    gs fs ds ps  s  p  d   f   g
+  integer, parameter :: nshlt(-4:4) = (/9, 7, 5, 3, 1, 3, 6, 10, 15/) 
+
+  ! initial and final types for cartesian shells
+  integer, parameter :: jshl0(0:4) = (/1, 2, 5,  11, 21/) ! s, p, d, f, g
+  integer, parameter :: jshl1(0:4) = (/1, 4, 10, 20, 35/) ! s, p, d, f, g
+
+  ! named constants for the sph to car matrices below
+  real*8, parameter :: s3 = sqrt(3d0)
+  real*8, parameter :: s3_4 = sqrt(3d0/4d0)
+  real*8, parameter :: s3_8 = sqrt(3d0/8d0)
+  real*8, parameter :: s5_8 = sqrt(5d0/8d0)
+  real*8, parameter :: s5_16 = sqrt(5d0/16d0)
+  real*8, parameter :: s6 = sqrt(6d0)
+  real*8, parameter :: s10 = sqrt(10d0)
+  real*8, parameter :: s10_8 = sqrt(10d0/8d0)
+  real*8, parameter :: s15 = sqrt(15d0)
+  real*8, parameter :: s15_4 = sqrt(15d0/4d0)
+  real*8, parameter :: s35_4 = sqrt(35d0/4d0)
+  real*8, parameter :: s35_8 = sqrt(35d0/8d0)
+  real*8, parameter :: s35_64 = sqrt(35d0/64d0)
+  real*8, parameter :: s45 = sqrt(45d0)
+  real*8, parameter :: s45_4 = sqrt(45d0/4d0)
+  real*8, parameter :: s45_8 = sqrt(45d0/8d0)
+  real*8, parameter :: s315_8 = sqrt(315d0/8d0)
+  real*8, parameter :: s315_16 = sqrt(315d0/16d0)
+  real*8, parameter :: d32 = 3d0/2d0
+  real*8, parameter :: d34 = 3d0/4d0
+  real*8, parameter :: d38 = 3d0/8d0
+
+  ! -- Real solid harmonics r^l * Slm as a function of Cartesian products. -- 
+
+  ! dsphcar: l = 2 
+  !   spherical molden order: m = 0, 1, -1, 2, -2
+  !   Cartesian molden order: xx, yy, zz, xy, xz, yz
+  real*8 :: dsphcar(5,6) = reshape((/&
+     !  0      1     -1      2     -2
+     -0.5d0, 0.0d0, 0.0d0,  s3_4, 0.0d0,& ! xx
+     -0.5d0, 0.0d0, 0.0d0, -s3_4, 0.0d0,& ! yy
+      1.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0,& ! zz
+      0.0d0, 0.0d0, 0.0d0, 0.0d0,    s3,& ! xy
+      0.0d0,    s3, 0.0d0, 0.0d0, 0.0d0,& ! xz
+      0.0d0, 0.0d0,    s3, 0.0d0, 0.0d0 & ! yz
+     /),shape(dsphcar))
+
+  ! fsphcar: l = 3 
+  !   spherical molden order: m = 0, 1, -1, 2, -2, 3, -3
+  !   Cartesian molden order: xxx, yyy, zzz, xyy, xxy, xxz, xzz, yzz, yyz, xyz
+  real*8 :: fsphcar(7,10) = reshape((/&
+     ! 0        1       -1         2       -2         3       -3 
+     0.0d0,   -s3_8,   0.0d0,    0.0d0,   0.0d0,     s5_8,   0.0d0,& ! xxx 
+     0.0d0,   0.0d0,   -s3_8,    0.0d0,   0.0d0,    0.0d0,   -s5_8,& ! yyy 
+     1.0d0,   0.0d0,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! zzz 
+     0.0d0,   -s3_8,   0.0d0,    0.0d0,   0.0d0,   -s45_8,   0.0d0,& ! xyy 
+     0.0d0,   0.0d0,   -s3_8,    0.0d0,   0.0d0,    0.0d0,   s45_8,& ! xxy 
+      -d32,   0.0d0,   0.0d0,    s15_4,   0.0d0,    0.0d0,   0.0d0,& ! xxz 
+     0.0d0,      s6,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! xzz 
+     0.0d0,   0.0d0,      s6,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! yzz 
+      -d32,   0.0d0,   0.0d0,   -s15_4,   0.0d0,    0.0d0,   0.0d0,& ! yyz 
+     0.0d0,   0.0d0,   0.0d0,    0.0d0,     s15,    0.0d0,   0.0d0 & ! xyz 
+     /),shape(fsphcar))
+
+  ! gsphcar: l = 4
+  !   spherical molden order: m = 0, 1, -1, 2, -2, 3, -3, 4, -4
+  !   Cartesian molden order: xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz
+  real*8 :: gsphcar(9,15) = reshape((/&
+  !    0       1      -1       2      -2        3      -3         4      -4
+       d38,  0.0d0,  0.0d0, -s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0,& ! xxxx
+       d38,  0.0d0,  0.0d0,  s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0,& ! yyyy
+       1d0,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! zzzz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0,  s35_4,& ! xxxy
+     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0,   s35_8,  0.0d0,    0.0d0,  0.0d0,& ! xxxz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0, -s35_4,& ! xyyy
+     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, -s35_8,    0.0d0,  0.0d0,& ! yyyz
+     0.0d0,    s10,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xzzz
+     0.0d0,  0.0d0,    s10,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yzzz
+       d34,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0, -s315_16,  0.0d0,& ! xxyy
+      -3d0,  0.0d0,  0.0d0,  s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xxzz
+      -3d0,  0.0d0,  0.0d0, -s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yyzz
+     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, s315_8,    0.0d0,  0.0d0,& ! xxyz
+     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0, -s315_8,  0.0d0,    0.0d0,  0.0d0,& ! xyyz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0,    s45,   0.0d0,  0.0d0,    0.0d0,  0.0d0 & ! xyzz
+     /),shape(gsphcar))
+
+  ! gsphcar: l = 4
+  !   spherical fchk order: m = 0, 1, -1, 2, -2, 3, -3, 4, -4
+  !   Cartesian fchk order:   zzzz yzzz yyzz yyyz yyyy xzzz xyzz xyyz xyyy xxzz xxyz xxyy xxxz xxxy xxxx
+  ! This is just a permutation of gsphcar where the rows are arranged in fchk's primitive order
+  real*8 :: gsphcar_fchk(9,15) = reshape((/&
+  !    0       1      -1       2      -2        3      -3         4      -4
+       1d0,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! zzzz
+     0.0d0,  0.0d0,    s10,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yzzz
+      -3d0,  0.0d0,  0.0d0, -s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yyzz
+     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, -s35_8,    0.0d0,  0.0d0,& ! yyyz
+       d38,  0.0d0,  0.0d0,  s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0,& ! yyyy
+     0.0d0,    s10,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xzzz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0,    s45,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xyzz
+     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0, -s315_8,  0.0d0,    0.0d0,  0.0d0,& ! xyyz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0, -s35_4,& ! xyyy
+      -3d0,  0.0d0,  0.0d0,  s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xxzz
+     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, s315_8,    0.0d0,  0.0d0,& ! xxyz
+       d34,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0, -s315_16,  0.0d0,& ! xxyy
+     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0,   s35_8,  0.0d0,    0.0d0,  0.0d0,& ! xxxz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0,  s35_4,& ! xxxy
+       d38,  0.0d0,  0.0d0, -s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0 & ! xxxx
+     /),shape(gsphcar))
 
 contains
 
@@ -568,6 +684,344 @@ contains
 
   end subroutine wfn_read_wfx
 
+  !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
+  subroutine wfn_read_fchk(file,f)
+    use tools_io
+    use types
+    use param, only: pi
+
+    character*(*), intent(in) :: file !< Input file
+    type(field), intent(out) :: f !< Output field
+
+    character(len=:), allocatable :: line
+    integer :: lp, i, j, k, k1, k2, nn, nm, nl, nc, ns, ncar, nsph
+    integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
+    integer :: istat, ityp
+    logical :: ok, isecp
+    real*8 :: norm, cons
+    integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
+    real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:)
+    real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:)
+    logical, allocatable :: icdup(:)
+
+    ! translation between primitive ordering fchk -> critic2
+    !           1   2 3 4    5  6  7  8  9 10    11  12  13  14  15  16  17  18  19  20
+    ! fchk:     s   x y z   xx yy zz xy xz yz   xxx yyy zzz xyy xxy xxz xzz yzz yyz xyz
+    ! critic2:  s   x y z   xx yy zz xy xz yz   xxx yyy zzz xxy xxz yyz xyy xzz yzz xyz
+    !
+    !             21   22   23   24   25   26   27   28   29   30   31   32   33   34   35   
+    ! fchk:     zzzz yzzz yyzz yyyz yyyy xzzz xyzz xyyz xyyy xxzz xxyz xxyy xxxz xxxy xxxx
+    ! critic2:  xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz 
+
+    ! reorder the primitives within the same shell
+    ! typtrans(fchk) = critic2
+    integer, parameter :: typtrans(35) = (/&
+       !1   2  3  4    5  6  7  8  9  10    11  12  13  14  15  16  17  18  19  20
+       1,   2, 3, 4,   5, 6, 7, 8, 9, 10,   11, 12, 13, 17, 14, 15, 18, 19, 16, 20,&
+       !21 22  23  24  25  26  27  28  29  30  31  32  33  34  35
+       23, 29, 32, 27, 22, 28, 35, 34, 26, 31, 33, 30, 25, 24, 21&
+       /)
+
+    ! no ecps for now
+    f%useecp = .false.
+
+    ! first pass: dimensions
+    luwfn = fopen_read(file)
+    f%wfntyp = 0
+
+    ! first pass: dimensions
+    isecp = .false.
+    nelec = 0
+    nalpha = 0
+    do while (getline_raw(luwfn,line,.false.))
+       lp = 45
+       if (line(1:19) == "Number of electrons") then
+          ok = isinteger(nelec,line,lp)
+       elseif (line(1:25) == "Number of alpha electrons") then
+          ok = isinteger(nalpha,line,lp)
+       elseif (line(1:25) == "Number of basis functions") then
+          ok = isinteger(nbassph,line,lp)
+       elseif (line(1:24) == "Number of beta electrons") then
+          ok = isinteger(nbeta,line,lp)
+       elseif (line(1:27) == "Number of contracted shells") then
+          ok = isinteger(ncshel,line,lp)
+       elseif (line(1:26) == "Number of primitive shells") then
+          ok = isinteger(nshel,line,lp)
+       elseif (line(1:24) == "Highest angular momentum") then
+          ok = isinteger(lmax,line,lp)
+       elseif (line(1:21) == "Beta Orbital Energies") then
+          f%wfntyp = 1
+       elseif (line(1:8) == "ECP-LMax") then
+          isecp = .true.
+       endif
+    enddo
+
+    ! ECPs not implemented yet
+    if (isecp) call ferror("wfn_read_fchk","ECPs not supported.",faterr)
+    if (nelec == 0) call ferror("wfn_read_fchk","nelec = 0",faterr)
+
+    ! Count the number of MOs
+    if (f%wfntyp == 0) then
+       if (mod(nelec,2) == 1) call ferror("wfn_read_fchk","odd nelec but closed-shell wavefunction",faterr)
+       f%nmo = nelec / 2
+       f%nalpha = nelec / 2
+    else if (f%wfntyp == 1) then
+       f%nmo = nelec
+       f%nalpha = nalpha
+    endif
+
+    ! allocate sutff
+    allocate(f%occ(f%nmo),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for occ',faterr)
+    allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for shell data',faterr)
+    allocate(exppri(nshel),ccontr(nshel),pccontr(nshel),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for primitive data',faterr)
+
+    ! type of wavefunction -> occupations
+    if (f%wfntyp == 1) then
+       f%occ = 1
+    else
+       f%occ = 2
+    end if
+
+    ! rewind
+    rewind(luwfn)
+
+    ! second pass
+    allocate(motemp(nbassph*f%nmo),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for MO coefs',faterr)
+    do while (getline_raw(luwfn,line,.false.))
+       lp = 45
+       if (line(1:11) == "Shell types") then
+          do i = 0, (ncshel-1)/6
+             read(luwfn,'(6I12)') (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
+          enddo
+       elseif (line(1:30) == "Number of primitives per shell") then
+          do i = 0, (ncshel-1)/6
+             read(luwfn,'(6I12)') (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
+          enddo
+       elseif (line(1:30) == "Shell to atom map") then
+          do i = 0, (ncshel-1)/6
+             read(luwfn,'(6I12)') (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
+          enddo
+       elseif (line(1:19) == "Primitive exponents") then
+          do i = 0, (nshel-1)/5
+             read(luwfn,'(5E16.8)') (exppri(5*i+j),j=1,min(5,nshel-5*i))
+          enddo
+       elseif (line(1:24) == "Contraction coefficients") then
+          do i = 0, (nshel-1)/5
+             read(luwfn,'(5E16.8)') (ccontr(5*i+j),j=1,min(5,nshel-5*i))
+          enddo
+       elseif (line(1:31) == "P(S=P) Contraction coefficients") then
+          do i = 0, (nshel-1)/5
+             read(luwfn,'(5E16.8)') (pccontr(5*i+j),j=1,min(5,nshel-5*i))
+          enddo
+       elseif (line(1:21) == "Alpha MO coefficients") then
+          do i = 0, (nalpha*nbassph-1)/5
+             read(luwfn,'(5E16.8)') (motemp(5*i+j),j=1,min(5,nalpha*nbassph-5*i))
+          enddo
+       elseif (line(1:21) == "Beta MO coefficients") then
+          do i = 0, (nbeta*nbassph-1)/5
+             read(luwfn,'(5E16.8)') (motemp(nalpha*nbassph+5*i+j),j=1,min(5,nbeta*nbassph-5*i))
+          enddo
+       endif
+    enddo
+
+    ! we are done with the file
+    close(luwfn)
+
+    ! unfold sp shells next
+    allocate(icdup(ncshel))
+    nshel = 0
+    ncshel = 0
+    do i = 1, size(icdup)
+       if (ishlt(i) == -1) then
+          icdup(i) = .true.
+          ncshel = ncshel + 2
+          nshel = nshel + 2 * ishlpri(i)
+       else
+          icdup(i) = .false.
+          ncshel = ncshel + 1
+          nshel = nshel + ishlpri(i)
+       endif
+    end do
+
+    ! transfer the information to the temporary sp-unfolded arrays
+    allocate(itemp(ncshel,3),rtemp(nshel,2))
+    nn = 0
+    nm = 0
+    nl = 0
+    do i = 1, size(icdup)
+       if (icdup(i)) then
+          nn = nn + 1
+          itemp(nn,1) = 0
+          itemp(nn,2) = ishlpri(i)
+          itemp(nn,3) = ishlat(i)
+          rtemp(nl+1:nl+ishlpri(i),1) = exppri(nm+1:nm+ishlpri(i))
+          rtemp(nl+1:nl+ishlpri(i),2) = ccontr(nm+1:nm+ishlpri(i))
+          nl = nl + ishlpri(i)
+
+          nn = nn + 1
+          itemp(nn,1) = 1
+          itemp(nn,2) = ishlpri(i)
+          itemp(nn,3) = ishlat(i)
+          rtemp(nl+1:nl+ishlpri(i),1) = exppri(nm+1:nm+ishlpri(i))
+          rtemp(nl+1:nl+ishlpri(i),2) = pccontr(nm+1:nm+ishlpri(i))
+          nl = nl + ishlpri(i)
+       else
+          nn = nn + 1
+          itemp(nn,1) = ishlt(i)
+          itemp(nn,2) = ishlpri(i)
+          itemp(nn,3) = ishlat(i)
+          rtemp(nl+1:nl+ishlpri(i),1) = exppri(nm+1:nm+ishlpri(i))
+          rtemp(nl+1:nl+ishlpri(i),2) = ccontr(nm+1:nm+ishlpri(i))
+          nl = nl + ishlpri(i)
+       endif
+       nm = nm + ishlpri(i)
+    end do
+
+    ! move the sp-unfolded information back and reallocate
+    deallocate(ishlt,ishlpri,ishlat,exppri,ccontr,pccontr,icdup)
+    allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),exppri(nshel),ccontr(nshel))
+    ishlt = itemp(:,1)
+    ishlpri = itemp(:,2)
+    ishlat = itemp(:,3)
+    exppri = rtemp(:,1)
+    ccontr = rtemp(:,2)
+    deallocate(itemp,rtemp)
+
+    ! count the number of primitives and basis functions
+    f%npri = 0
+    nbascar = 0
+    nbassph = 0
+    do i = 1, ncshel
+       ityp = ishlt(i)
+       nbascar = nbascar + nshlt(abs(ityp))
+       nbassph = nbassph + nshlt(ityp)
+       f%npri = f%npri + nshlt(abs(ishlt(i))) * ishlpri(i)
+    enddo
+    
+    ! convert spherical basis functions to Cartesian and build the mocoef
+    ! deallocate the temporary motemp
+    allocate(mocoef(f%nmo,nbascar))
+    nc = 0
+    ns = 0
+    do j = 1, ncshel
+       nsph = nshlt(ishlt(j))
+       ncar = nshlt(abs(ishlt(j)))
+       if (nsph == ncar) then
+          do i = 1, f%nmo
+             mocoef(i,nc+1:nc+ncar) = motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph)
+          end do
+       elseif (ishlt(j) == -2) then
+          do i = 1, f%nmo
+             mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),dsphcar)
+          end do
+       elseif (ishlt(j) == -3) then
+          do i = 1, f%nmo
+             mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),fsphcar)
+          end do
+       elseif (ishlt(j) == -4) then
+          do i = 1, f%nmo
+             mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),gsphcar_fchk)
+          end do
+       else
+          call ferror('wfn_read_fchk','h and higher primitives not supported yet',faterr)
+       endif
+       ns = ns + nsph
+       nc = nc + ncar
+    end do
+    deallocate(motemp)
+
+    ! Assign primitive center and type, exponents, etc.
+    allocate(f%icenter(f%npri),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for icenter',faterr)
+    allocate(f%itype(f%npri),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for itype',faterr)
+    allocate(f%e(f%npri),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for exponents',faterr)
+    allocate(f%cmo(f%nmo,f%npri),cpri(f%npri),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for coeffs',faterr)
+
+    ! normalize the primitive coefficients without the angular part
+    allocate(cnorm(maxval(ishlpri)))
+    nm = 0
+    nn = 0
+    do i = 1, ncshel
+       do j = jshl0(abs(ishlt(i))), jshl1(abs(ishlt(i)))
+          ityp = typtrans(j)
+          ! primitive coefficients normalized
+          do k = 1, ishlpri(i)
+             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
+          end do
+
+          ! normalization constant for the basis function
+          norm = 0d0
+          do k1 = 1, ishlpri(i)
+             do k2 = 1, ishlpri(i)
+                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(abs(ishlt(i))+3d0/2d0)
+             end do
+          end do
+          cons = pi**(3d0/2d0) * dfacm1(2*abs(ishlt(i))) / 2**(abs(ishlt(i)))
+          norm = 1d0 / sqrt(norm * cons)
+
+          ! gaussian fchk: multiply by sqrt((2lx-1)!! * (2ly-1)!! * (2lz-1)!! / (2l-1)!!)
+          ! only for Cartesian primitives
+          if (ishlt(i) >= 0) then
+             if (ityp >= 8 .and. ityp <= 10) then
+                norm = norm * sqrt(3d0)
+             elseif (ityp >= 14 .and. ityp <= 19) then
+                norm = norm * sqrt(5d0)
+             elseif (ityp == 20) then
+                norm = norm * sqrt(15d0)
+             else if (ityp >= 24 .and. ityp <= 29) then
+                norm = norm * sqrt(7d0)
+             else if (ityp >= 30 .and. ityp <= 32) then
+                norm = norm * sqrt(35d0/3d0)
+             else if (ityp >= 33 .and. ityp <= 35) then
+                norm = norm * sqrt(35d0)
+             end if
+          end if
+
+          ! calculate and assign the normalized primitive coefficients
+          do k = 1, ishlpri(i)
+             nn = nn + 1
+             cpri(nn) = cnorm(k) * norm
+          end do
+       end do
+       nm = nm + ishlpri(i)
+    end do
+    deallocate(cnorm)
+
+    ! build the wavefunction coefficients for the primitives
+    nn = 0
+    nm = 0
+    nl = 0
+    do i = 1, ncshel
+       do j = jshl0(abs(ishlt(i))), jshl1(abs(ishlt(i)))
+          ityp = typtrans(j)
+          nl = nl + 1
+          do k = 1, ishlpri(i)
+             nn = nn + 1
+             f%icenter(nn) = ishlat(i)
+             f%itype(nn) = ityp
+             f%e(nn) = exppri(nm+k)
+             f%cmo(:,nn) = cpri(nn) * mocoef(:,nl)
+          end do
+       end do
+       nm = nm + ishlpri(i)
+    end do
+
+    ! clean up
+    deallocate(ishlt,ishlpri,ishlat)
+    deallocate(exppri,ccontr)
+    deallocate(mocoef)
+    f%init = .true.
+    call fclose(luwfn)
+
+  end subroutine wfn_read_fchk
+
   !> Register structural information.
   subroutine wfn_register_struct(ncel,atcel)
     use types
@@ -585,6 +1039,65 @@ contains
     end do
     
   end subroutine wfn_register_struct
+
+  !> Calculate the normalization factor of a primitive of a given type
+  !> with exponent a.
+  function gnorm(type,a) result(N)
+    use tools_io
+    use param, only: pi
+    integer, intent(in) :: type
+    real*8, intent(in) :: a
+    real*8 :: N
+
+    if (type == 1) then
+       ! 1
+       ! x
+       N = 2**(3d0/4d0) * a**(3d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 2 .and. type <= 4) then
+       ! 2 3 4
+       ! x y z
+       N = 2**(7d0/4d0) * a**(5d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 5 .and. type <= 7) then
+       ! 5  6  7
+       ! xx yy zz
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
+    else if (type >= 8 .and. type <= 10) then
+       ! 7  8  9
+       ! xy xz yz
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) 
+    else if (type >= 11 .and. type <= 13) then
+       ! 11  12  13
+       ! xxx yyy zzz
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
+    else if (type >= 14 .and. type <= 19) then
+       ! 14  15  16  17  18  19  
+       ! xyy xxy xxz xzz yzz yyz 
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
+    else if (type == 20) then
+       ! 20
+       ! xyz
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 21 .and. type <= 23) then
+       ! 21   22   23   
+       ! xxxx yyyy zzzz 
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(35d0)
+    else if (type >= 24 .and. type <= 29) then
+       ! 24   25   26   27   28   29  
+       ! xxxy xxxz xyyy yyyz xzzz yzzz
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(5d0)
+    else if (type >= 30 .and. type <= 32) then
+       ! 30   31   32  
+       ! xxyy xxzz yyzz
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) * sqrt(3d0)
+    else if (type >= 33 .and. type <= 35) then
+       ! 33   34   35   
+       ! xxyz xyyz xyzz 
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0)
+    else
+       call ferror("gnorm","fixme: primitive type not supported",faterr)
+    endif
+
+  endfunction gnorm
 
   !> Determine the density and derivatives at a given target point.
   !> xpos is in cartesian coordiantes and assume that the molecule

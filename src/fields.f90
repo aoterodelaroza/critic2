@@ -399,6 +399,11 @@ contains
        ff%type = type_wfn
        call wfn_register_struct(cr%ncel,cr%atcel)
        ff%file = file
+    else if (equal(wext1,'fchk')) then
+       call wfn_read_fchk(file,ff)
+       ff%type = type_wfn
+       call wfn_register_struct(cr%ncel,cr%atcel)
+       ff%file = file
     else if (equal(wext1,'clmsum')) then
        file2 = getword(line,lp)
        call wien_read_clmsum(file,file2,ff,verbose)
