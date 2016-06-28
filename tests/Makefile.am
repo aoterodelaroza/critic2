@@ -9,7 +9,7 @@ TESTS=\
 002_read_cube.sh 002_read_elk.sh 002_read_library.sh\
 002_read_poscar_potcar.sh 002_read_poscar.sh 002_read_qeout.sh 002_read_struct.sh\
 002_read_struct_sym.sh 002_read_vasp.sh 002_read_vasp2.sh 002_read_vasp3.sh\
-002_read_wfn.sh 002_read_wfx.sh 002_read_xyz.sh\
+002_read_wfn.sh 002_read_wfx.sh 002_read_xyz.sh 002_read_fchk.sh 002_read_molden.sh\
 002_read_qein1.sh 002_read_qein2.sh\
 002_read_dftbp1.sh 002_read_dftbp2.sh\
 002_read_siesta.sh 002_read_multiple.sh 002_read_reset.sh\
@@ -33,6 +33,7 @@ TESTS=\
 006_load_elk.sh 006_load_expression.sh 006_load_grid_grad.sh 006_load_grid_lap.sh\
 006_load_pi_opts.sh 006_load_pi.sh 006_load_pro_expr.sh 006_load_promolecular.sh\
 006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mp2.sh 006_load_wfx.sh \
+006_load_fchk.sh 006_load_molden.sh \
 006_load_wien_oper.sh 006_load_wien_opts.sh 006_load_wien.sh 006_load_xsf.sh \
 006_load_elk_lap.sh 006_load_elk_lap2.sh 006_load_siesta_rho.sh\
 006_load_dftbp1.sh 006_load_dftbp2.sh\
