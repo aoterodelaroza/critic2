@@ -1980,7 +1980,7 @@ contains
     case (type_pi)
        s = "pi"
     case (type_wfn)
-       s = "wfn/wfx"
+       s = "molecular wavefunction"
     case (type_dftb)
        s = "dftb+"
     case (type_promol_frag)
