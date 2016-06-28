@@ -28,6 +28,11 @@ module wfn_private
   private
 
   public :: wfn_end
+  public :: wfn_read_xyz_geometry
+  public :: wfn_read_wfn_geometry
+  public :: wfn_read_wfx_geometry
+  public :: wfn_read_fchk_geometry
+  public :: wfn_read_molden_geometry
   public :: wfn_read_wfn
   public :: wfn_read_wfx
   public :: wfn_register_struct
@@ -46,13 +51,293 @@ module wfn_private
 
 contains
 
-  ! Terminate the wfn arrays
+  !> Terminate the wfn arrays
   subroutine wfn_end()
 
-    if (allocated(xat)) deallocate(xat)
+    ! if (allocated(xat)) deallocate(xat)
 
   end subroutine wfn_end
 
+  !> Read the molecular geometry from an xyz file
+  subroutine wfn_read_xyz_geometry(file,n,at)
+    use types
+    use tools_io
+    use param
+
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+
+    character*4 :: atsym
+    integer :: lu
+    integer :: i, lp
+    logical :: ok
+
+    ! read the number of atoms
+    lu = fopen_read(file)
+    read (lu,*) n
+    read (lu,*)
+    if (allocated(at)) deallocate(at)
+    allocate(at(n))
+
+    do i = 1, n
+       read (lu,*) atsym, at(i)%x
+       at(i)%z = zatguess(atsym)
+       if (at(i)%z <= 0) then
+          ! maybe it's a number
+          lp = 1
+          ok = isinteger(at(i)%z,atsym,lp)
+          if (.not.ok) &
+             call ferror('wfn_read_xyz_geometry','could not determine atomic number',faterr)
+       end if
+       at(i)%name = trim(adjustl(atsym))
+       at(i)%x = at(i)%x / bohrtoa
+    end do
+    call fclose(lu)
+
+  end subroutine wfn_read_xyz_geometry
+
+  !> Read the molecular geometry from a wfn file
+  subroutine wfn_read_wfn_geometry(file,n,at)
+    use types
+    use tools_io
+
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+
+    character*4 :: atsym, orbtyp
+    integer :: lu
+    integer :: i, i1, i2
+    real*8 :: zreal
+
+    lu = fopen_read(file)
+
+    ! read the number of atoms
+    read (lu,*)
+    read (lu,101) orbtyp, i1, i2, n
+    if (n <= 0) &
+       call ferror('wfn_read_wfn_geometry','wrong number of atoms',faterr)
+    if (allocated(at)) deallocate(at)
+    allocate(at(n))
+
+    ! read the geometry
+    do i = 1, n
+       read(lu,106) atsym, at(i)%x, zreal
+       at(i)%z = zatguess(atsym)
+       at(i)%name = trim(adjustl(atsym))
+    end do
+101 format (4X,A4,10X,3(I5,15X))
+106 format(2X,A2,20X,3F12.8,10X,F5.1)
+
+    call fclose(lu)
+
+  end subroutine wfn_read_wfn_geometry
+
+  !> Read the molecular geometry from a wfx file
+  subroutine wfn_read_wfx_geometry(file,n,at)
+    use types
+    use tools_io
+
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+
+    integer :: lu
+    character(len=:), allocatable :: line, line2
+    integer, allocatable :: iz(:)
+    real*8, allocatable :: x(:,:)
+    integer :: i
+
+    lu = fopen_read(file)
+
+    ! read the number of atoms
+    do while (getline_raw(lu,line,.true.))
+       if (line(1:1) == "<" .and. line(2:2) /= "/") then
+          if (trim(line) == "<Number of Nuclei>") then
+             read (lu,*) n
+             exit
+          endif
+       endif
+    enddo
+    if (n == 0) &
+       call ferror("wfn_read_wfx_geometry","Number of Nuclei tag not found",faterr)
+    if (allocated(at)) deallocate(at)
+    allocate(at(n),iz(n),x(3,n))
+
+    ! read the geometry
+    rewind(lu)
+    do while (.true.)
+       read(lu,'(A)',end=20) line
+       line2 = adjustl(line)
+       line = line2
+       if (line(1:1) == "<" .and. line(2:2) /= "/") then
+          if (trim(line) == "<Atomic Numbers>") then
+             iz = wfx_read_integers(lu,n)
+             do i = 1, n
+                at(i)%z = iz(i)
+                at(i)%name = nameguess(iz(i))
+             end do
+          elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
+             x = reshape(wfx_read_reals1(lu,3*n),shape(x))
+             do i = 1, n
+                at(i)%x = x(:,i)
+             end do
+          endif
+       endif
+    enddo
+20  continue
+    deallocate(iz,x)
+
+    call fclose(lu)
+
+  end subroutine wfn_read_wfx_geometry
+
+  !> Read the molecular geometry from a fchk file
+  subroutine wfn_read_fchk_geometry(file,n,at)
+    use types
+    use tools_io
+
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+
+    integer :: lu, lp, i, j
+    character(len=:), allocatable :: line
+    logical :: ok
+    real*8, allocatable :: xat(:)
+    integer, allocatable :: zat(:)
+
+    lu = fopen_read(file)
+
+    ! read the number of atoms
+    n = 0
+    do while (getline_raw(lu,line,.true.))
+       lp = 45
+       if (line(1:15) == "Number of atoms") then
+          ok = isinteger(n,line,lp)
+          if (.not.ok) call ferror('wfn_read_fchk_geometry','could not read number of atoms',faterr)
+          exit
+       endif
+    enddo
+    if (n == 0) &
+       call ferror("wfn_read_fchk_geometry","error reading number of atoms",faterr)
+    if (allocated(at)) deallocate(at)
+    allocate(at(n))
+
+    ! read the geometry
+    allocate(zat(n),xat(3*n))
+    rewind(lu)
+    do while (getline_raw(lu,line))
+       lp = 45
+       if (line(1:29) == "Current cartesian coordinates") then
+          do i = 0, (3*n-1)/5
+             read(lu,'(5E16.8)') (xat(5*i+j),j=1,min(5,3*n-5*i))
+          enddo
+       elseif (line(1:14) == "Atomic numbers") then
+          do i = 0, (n-1)/6
+             read(lu,'(6I12)') (zat(6*i+j),j=1,min(6,n-6*i))
+          enddo
+       endif
+    enddo
+    do i = 1, n
+       at(i)%x = xat((i-1)*3+1:(i-1)*3+3)
+       at(i)%z = zat(i)
+       at(i)%name = nameguess(zat(i))
+    end do
+    
+    ! clean up
+    deallocate(xat,zat)
+    call fclose(lu)
+
+  end subroutine wfn_read_fchk_geometry
+
+  !> Read the molecular geometry from a molden file (only tested with
+  !> new psi4 molden files).
+  subroutine wfn_read_molden_geometry(file,n,at)
+    use types
+    use tools_io
+    use param
+
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+
+    integer :: lu, lp, idum, i
+    character(len=:), allocatable :: line, keyword, word1, word2
+    character*(1024) :: fixword
+    logical :: ok, isang
+
+    lu = fopen_read(file)
+
+    ! read the number of atoms
+    n = 0
+    do while(next_keyword())
+       if (trim(lower(keyword)) == "atoms") then
+          n = 0
+          ok = getline_raw(lu,line,.true.)
+          do while(index(lower(line),"[") == 0 .and. len(trim(line)) > 0)
+             n = n + 1
+             ok = getline_raw(lu,line,.true.)
+          end do
+          exit
+       end if
+    end do
+    if (n == 0) &
+       call ferror("wfn_read_molden_geometry","error reading number of atoms",faterr)
+    if (allocated(at)) deallocate(at)
+    allocate(at(n))
+
+    ! read the geometry
+    rewind(lu)
+    do while(next_keyword())
+       if (trim(lower(keyword)) == "atoms") exit
+    end do
+    if (len_trim(keyword) == 0) &
+       call ferror("wfn_read_molden_geometry","error reading geometry",faterr)
+
+    ! geometry header -> detect the units for the geometry
+    lp = 1
+    word1 = lgetword(line,lp)
+    word2 = lgetword(line,lp)
+    isang = (trim(lower(word2)) == "(angs)".or.trim(lower(word2)) == "(ang)") 
+
+    ! read the atomic numbers and positions
+    do i = 1, n
+       ok = getline_raw(lu,line,.true.)
+       read(line,*) fixword, idum, at(i)%z, at(i)%x
+       if (isang) at(i)%x = at(i)%x / bohrtoa
+       at(i)%name = nameguess(at(i)%z)
+    end do
+
+    call fclose(lu)
+
+  contains
+
+    function next_keyword()
+
+      integer :: istart, iend
+      logical :: next_keyword
+
+      keyword = ""
+      next_keyword = .false.
+
+      do while(.true.)
+         ok = getline_raw(lu,line,.false.)
+         if (.not.ok) return
+         if (index(lower(line),"[") > 0) exit
+      end do
+      next_keyword =.true.
+      istart = index(lower(line),"[") + 1
+      iend = index(lower(line),"]") - 1
+      keyword = line(istart:iend)
+      return
+
+    end function next_keyword
+
+  end subroutine wfn_read_molden_geometry
+
+  !> Read the wavefunction from a wfn file
   subroutine wfn_read_wfn(file,f)
     use tools_io
     use types
@@ -164,6 +449,7 @@ contains
 
   end subroutine wfn_read_wfn
 
+  !> Read the wavefunction from a wfx file
   subroutine wfn_read_wfx(file,f)
     use tools_io
     use types
@@ -172,7 +458,7 @@ contains
     type(field), intent(out) :: f !< Output field
 
     integer :: luwfn, mult, ncore, istat, i
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, line2
     logical :: ok
 
     f%useecp = .false.
@@ -232,7 +518,8 @@ contains
     rewind(luwfn)
     do while (.true.)
        read(luwfn,'(A)',end=20) line
-       line = adjustl(line)
+       line2 = adjustl(line)
+       line = line2
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Primitive Centers>") then
              f%icenter = wfx_read_integers(luwfn,f%npri)

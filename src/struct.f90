@@ -211,7 +211,8 @@ contains
           c%file = "crystal library (" // trim(line(lp:)) // ")"
        end if
 
-    else if (equal(wext1,'xyz').or.equal(wext1,'wfn').or.equal(wext1,'wfx')) then
+    else if (equal(wext1,'xyz').or.equal(wext1,'wfn').or.equal(wext1,'wfx').or.&
+       equal(wext1,'fchk').or.equal(wext1,'molden')) then
        docube = .false.
        rborder = rborder_def 
        do while(.true.)

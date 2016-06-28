@@ -1714,7 +1714,7 @@ contains
 
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
-    character*3, intent(in) :: fmt !< wfn/wfx/xyz
+    character*(*), intent(in) :: fmt !< wfn/wfx/xyz
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
@@ -1723,83 +1723,24 @@ contains
     integer :: lu, i, j, i1, i2, lp
     real*8 :: zreal
     character(len=:), allocatable :: line
-    character*4 :: atsym
-    character*4 :: orbtyp
     logical :: ok
 
-    ! open the file
-    lu = fopen_read(file)
-
-    if (equal(fmt,'xyz')) then
+    if (equal(trim(fmt),'xyz')) then
        ! xyz
-       read (lu,*) c%nneq
-       read (lu,*)
-       call realloc(c%at,c%nneq)
-       do i = 1, c%nneq
-          read (lu,*) atsym, c%at(i)%x
-          c%at(i)%z = zatguess(atsym)
-          if (c%at(i)%z <= 0) then
-             ! maybe it's a number
-             lp = 1
-             ok = isinteger(c%at(i)%z,atsym,lp)
-             if (.not.ok) &
-                call ferror('struct_read_mol','could not determine atomic number',faterr)
-          end if
-          c%at(i)%name = trim(adjustl(atsym))
-          c%at(i)%x = c%at(i)%x / bohrtoa
-       end do
-    elseif (equal(fmt,'wfn')) then
+       call wfn_read_xyz_geometry(file,c%nneq,c%at)
+    elseif (equal(trim(fmt),'wfn')) then
        ! wfn
-       read (lu,*)
-       read (lu,101) orbtyp, i1, i2, c%nneq
-       if (c%nneq <= 0) &
-          call ferror('struct_read_mol','wrong number of atoms',faterr)
-       call realloc(c%at,c%nneq)
-       do i = 1, c%nneq
-          read(lu,106) atsym, c%at(i)%x, zreal
-          c%at(i)%z = zatguess(atsym)
-          c%at(i)%name = trim(adjustl(atsym))
-       end do
-101    format (4X,A4,10X,3(I5,15X))
-106    format(2X,A2,20X,3F12.8,10X,F5.1)
-    elseif (equal(fmt,'wfx')) then
+       call wfn_read_wfn_geometry(file,c%nneq,c%at)
+    elseif (equal(trim(fmt),'wfx')) then
        ! wfx
-       do while (getline_raw(lu,line))
-          if (line(1:1) == "<" .and. line(2:2) /= "/") then
-             if (trim(line) == "<Number of Nuclei>") then
-                read (lu,*) c%nneq
-             endif
-          endif
-       enddo
-
-       rewind(lu)
-       allocate(x(3,c%nneq),iz(c%nneq))
-       if (c%nneq == 0) &
-          call ferror("struct_read_mol","Number of Nuclei tag not found",faterr)
-       call realloc(c%at,c%nneq)
-       do while (.true.)
-          read(lu,'(A)',end=20) line
-          line = adjustl(line)
-          if (line(1:1) == "<" .and. line(2:2) /= "/") then
-             if (trim(line) == "<Atomic Numbers>") then
-                iz = wfx_read_integers(lu,c%nneq)
-                do i = 1, c%nneq
-                   c%at(i)%z = iz(i)
-                end do
-             elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
-                x = reshape(wfx_read_reals1(lu,3*c%nneq),shape(x))
-                do i = 1, c%nneq
-                   c%at(i)%x = x(:,i)
-                end do
-             endif
-          endif
-       enddo
-20     continue
-       deallocate(x,iz)
+       call wfn_read_wfx_geometry(file,c%nneq,c%at)
+    elseif (equal(trim(fmt),'fchk')) then
+       ! fchk
+       call wfn_read_fchk_geometry(file,c%nneq,c%at)
+    elseif (equal(trim(fmt),'molden')) then
+       ! molden (psi4)
+       call wfn_read_molden_geometry(file,c%nneq,c%at)
     end if
-
-    ! close the file
-    call fclose(lu)
 
     ! fill the rest of the info
     call fill_molecule(c,rborder,docube)
