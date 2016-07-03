@@ -945,7 +945,7 @@ contains
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
        read (lu) (m%f(j,5),j=1,m%n)
-       write (luh) (m%f(j,5)/max(m%f(j,4),1d-40),j=1,m%n)
+       write (luh) (max(m%f(j,5),1d-40)/max(m%f(j,4),1d-40),j=1,m%n)
     enddo
     call fclose(lu)
 
@@ -988,8 +988,6 @@ contains
           (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
     enddo
     write (uout,'("#")')
-
-    stop 1
     
   end subroutine xdm_mol
 
