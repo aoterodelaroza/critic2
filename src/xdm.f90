@@ -24,6 +24,13 @@ module xdm
   private
 
   public :: xdm_driver
+  private :: xdm_grid
+  private :: xdm_qe
+  private :: xdm_mol
+  private :: write_cube
+  private :: free_volume
+  private :: frevol
+  private :: edisp_mol
 
   integer, parameter :: chf_blyp = -1
   integer, parameter :: chf_b3lyp = -2
@@ -45,8 +52,10 @@ contains
     
     character*(*), intent(inout) :: line
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, chfw
     integer :: lp 
+    real*8 :: a1, a2, chf
+    logical :: ok
 
     ! header
     write (uout,'("* Exchange-hole dipole moment (XDM) dispersion calculation ")')
@@ -56,6 +65,7 @@ contains
     write (uout,'("  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).")')
     write (uout,*)
 
+    ! parse the input
     lp = 1
     word = lgetword(line,lp)
     if (equal(word,"grid")) then
@@ -63,13 +73,42 @@ contains
     elseif (equal(word,"qe")) then
        call xdm_qe()
     else
-       ! xxxx !
-       ! if (f(refden)%type == type_wfn) then
-          call xdm_mol(1d0,1d0,0d0)
-       ! else
-       !    call ferror('xdm_driver',"Unknown keyword in XDM",faterr,syntax=.true.)
-       !    return
-       ! end if
+       lp = 1
+       ok = eval_next(a1,line,lp)
+       ok = ok .and. eval_next(a2,line,lp)
+       if (.not.ok) &
+          call ferror("xdm_driver","wrong a1 or a2 in XDM",faterr)
+
+       chfw = lgetword(line,lp)
+       if (equal(chfw,"blyp")) then
+          chf = chf_blyp
+       elseif (equal(chfw,"b3lyp")) then
+          chf = chf_b3lyp
+       elseif (equal(chfw,"bhandhlyp").or.equal(chfw,"bhandh")&
+          .or.equal(chfw,"bhah") .or. equal(chfw,"bhahlyp")) then
+          chf = chf_bhahlyp
+       elseif (equal(chfw,"camb3lyp") .or. equal(chfw,"cam-b3lyp")) then
+          chf = chf_camb3lyp
+       elseif (equal(chfw,"pbe")) then
+          chf = chf_pbe
+       elseif (equal(chfw,"pbe0")) then
+          chf = chf_pbe0
+       elseif (equal(chfw,"lcwpbe").or.equal(chfw,"lc-wpbe")) then
+          chf = chf_lcwpbe
+       elseif (equal(chfw,"pw86").or.equal(chfw,"pw86pbe")) then
+          chf = chf_pw86
+       elseif (equal(chfw,"b971").or.equal(chfw,"b97-1")) then
+          chf = chf_b971
+       elseif (equal(chfw,"hf")) then
+          chf = 1.0d0
+       else
+          lp = 1
+          ok = eval_next(chf,chfw,lp)
+          if (.not.ok) &
+             call ferror("xdm_driver","unknown functional",faterr)
+       endif
+
+       call xdm_mol(a1,a2,chf)
     end if
 
   end subroutine xdm_driver
@@ -862,6 +901,10 @@ contains
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: mm(3,cr%ncel), v(cr%ncel)
     
+    ! only for wfn or dftb
+    if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
+       call ferror("xdm_mol","molecular XDM only for wfn and dftb fields",faterr)
+
     ! only for closed shells
     if (f(refden)%type == type_wfn) then
        if (f(refden)%wfntyp /= 0) &
@@ -979,16 +1022,9 @@ contains
     enddo
     call fclose(luh)
 
-    ! write moments and volumes
-    write (uout,'("moments and volumes ")')
-    write (uout,'("# i At        <M1^2>             <M2^2>              <M3^2>           Volume              Vfree")')
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
-       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(cr%at(cr%atcel(i)%idx)%name,2),&
-          (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
-    enddo
-    write (uout,'("#")')
-    
+    ! calculate and output energy and derivatives
+    call edisp_mol(a1,a2,chf,v,mm)
+
   end subroutine xdm_mol
 
   !> Write the header of a cube file
@@ -1040,6 +1076,7 @@ contains
   end subroutine write_cube
 
   function free_volume(iz) result(afree)
+    use tools_io
     use grd_atomic
     use grid1_tools
     use param
@@ -1064,6 +1101,7 @@ contains
   end function free_volume
 
   function frevol(z,chf)
+    use tools_io
 
     integer, intent(in) :: z
     real*8, intent(in) :: chf
@@ -1240,7 +1278,7 @@ contains
        case(chf_b971) 
           frevol = frevol_b971(z)
        case default
-          call error("frevol","unknown functional",2)
+          call ferror("frevol","unknown functional",faterr)
        end select
     else
        ! general hybrid
@@ -1265,7 +1303,7 @@ contains
           case(chf_b971) 
              rchf = 0.21d0
           case default
-             call error("frevol","unknown functional",2)
+             call ferror("frevol","unknown functional",faterr)
           end select
        else
           rchf = chf
@@ -1287,5 +1325,124 @@ contains
     endif
 
   endfunction frevol
+
+  !> Calculate the dispersion energy in a molecule
+  subroutine edisp_mol(a1,a2,chf,v,mm)
+    use struct_basic
+    use tools_io
+    use param
+
+    real*8, intent(in) :: a1, a2, chf
+    real*8, intent(in) :: v(cr%ncel), mm(3,cr%ncel)
+
+    integer :: i, j, k, k1, k2, iz
+    real*8 :: d, atpol(cr%ncel), fac, rvdw, c6, c8, c10, rc
+    real*8 :: c6com, c8com, c10com, xij(3), ifac
+    real*8 :: e, f(3,cr%ncel), q(3,cr%ncel,3,cr%ncel), qfac
+
+    ! write moments and volumes
+    write (uout,'("moments and volumes ")')
+    write (uout,'("# i At        <M1^2>             <M2^2>              <M3^2>           Volume              Vfree")')
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(cr%at(cr%atcel(i)%idx)%name,2),&
+          (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
+    enddo
+    write (uout,'("#")')
+    
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       atpol(i) = v(i) * alpha_free(iz) / frevol(iz,chf)
+    enddo
+
+    write (uout,'("coefficients and distances (a.u.)")')
+    write (uout,'("# i  j       dij            C6               C8               C10              Rc           Rvdw")') 
+    e = 0d0
+    f = 0d0
+    q = 0d0
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       do j = i, cr%ncel
+          iz = cr%at(cr%atcel(j)%idx)%z
+          if (iz < 1) cycle
+          xij = cr%atcel(j)%r-cr%atcel(i)%r
+          d = sqrt(dot_product(xij,xij))
+          fac = atpol(i)*atpol(j)/(mm(1,i)*atpol(j)+mm(1,j)*atpol(i))
+          c6 = fac*mm(1,i)*mm(1,j)
+          c8 = 1.5d0*fac*(mm(1,i)*mm(2,j)+mm(2,i)*mm(1,j))
+          c10 = 2.d0*fac*(mm(1,i)*mm(3,j)+mm(3,i)*mm(1,j))&
+             +4.2d0*fac*mm(2,i)*mm(2,j)
+          rc = (sqrt(c8/c6) + sqrt(sqrt(c10/c6)) +&
+             sqrt(c10/c8)) / 3.D0
+          rvdw = a1 * rc + a2
+          if (d > 1d-5) then
+             e = e - c6 / (rvdw**6 + d**6) - c8 / (rvdw**8+d**8) - &
+                c10 / (rvdw**10 + d**10)
+             c6com = 6.d0*c6*d**4/(rvdw**6+d**6)**2
+             c8com = 8.d0*c8*d**6/(rvdw**8+d**8)**2
+             c10com = 10.d0*c10*d**8/(rvdw**10+d**10)**2
+             f(:,i) = f(:,i) + (c6com+c8com+c10com) * xij
+             f(:,j) = f(:,j) - (c6com+c8com+c10com) * xij
+             do k1 = 1, 3
+                do k2 = 1, 3
+                   if (k1 == k2) then
+                      ifac = 1d0
+                   else
+                      ifac = 0d0
+                   endif
+                   qfac = &
+                      c6com  * (-ifac - 4*xij(k1)*xij(k2)/d**2 + 12*xij(k1)*xij(k2)*d**4/(rvdw**6+d**6)) + &
+                      c8com  * (-ifac - 6*xij(k1)*xij(k2)/d**2 + 16*xij(k1)*xij(k2)*d**6/(rvdw**8+d**8)) + &
+                      c10com * (-ifac - 8*xij(k1)*xij(k2)/d**2 + 20*xij(k1)*xij(k2)*d**8/(rvdw**10+d**10)) 
+                   q(k1,i,k2,j) = qfac
+                   q(k2,j,k1,i) = qfac
+                enddo
+             enddo
+          endif
+          write (uout,'(I3,X,I3,1p,E14.6,X,3(E16.9,X),2(E13.6,X))') &
+             i, j, d, c6, c8, c10, rc, rvdw
+       end do
+    end do
+    write (uout,'("#")')
+
+    ! sum rules for the second derivatives
+    do i = 1, cr%ncel
+       do k1 = 1, 3
+          do k2 = 1, 3
+             q(k1,i,k2,i) = 0d0
+             do j = 1, cr%ncel
+                if (j == i) cycle
+                q(k1,i,k2,i) = q(k1,i,k2,i) - q(k1,i,k2,j)
+             enddo
+          enddo
+       enddo
+    enddo
+
+    write (uout,'("dispersion energy ",1p,E20.12)') e
+    write (uout,'("dispersion forces ")')
+    write (uout,'("# i          Fx                   Fy                   Fz")')
+    do i = 1, cr%ncel
+       write (uout,'(I3,X,1p,3(E20.12,X))') i, f(:,i)
+    enddo
+    write (uout,'("#")')
+    write (uout,'("dispersion force constant matrix ")')
+    write (uout,'("# i  xyz   j   xyz    Exixj ")')
+    do i = 1, cr%ncel
+       do k1 = 1, 3
+          do j = 1, i-1
+             do k2 = 1, 3
+                write (uout,'(4(I3,X),1p,E20.12)') i, k1, j, k2, q(k1,i,k2,j)
+             enddo
+          enddo
+          do k2 = 1, k1
+             write (uout,'(4(I3,X),1p,E20.12)') i, k1, i, k2, q(k1,i,k2,i)
+          enddo
+       enddo
+    enddo
+    write (uout,'("#"/)')
+
+  end subroutine edisp_mol
 
 end module xdm

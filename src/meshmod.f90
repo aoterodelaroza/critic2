@@ -230,7 +230,7 @@ contains
                 rhos = 0.5d0 * res%f
                 drho2 = 0.25d0 * res%gfmod * res%gfmod
                 d2rho = 0.5d0 * res%del2f
-                taup = 0.5d0 * res%gkin
+                taup = res%gkin
                 dsigs = taup - 0.25d0 * drho2 / max(rhos,1d-30)
                 quads = (d2rho - 2d0 * dsigs) / 6d0
                 call bhole(rhos,quads,1d0,m%f(i,j))
