@@ -901,6 +901,10 @@ contains
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: mm(3,cr%ncel), v(cr%ncel)
     
+    ! only for molecules
+    if (.not.cr%ismolecule) &
+       call ferror("xdm_mol","molecular XDM only for molecules",faterr)
+
     ! only for wfn or dftb
     if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
        call ferror("xdm_mol","molecular XDM only for wfn and dftb fields",faterr)
