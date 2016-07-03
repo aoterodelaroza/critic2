@@ -202,6 +202,7 @@ contains
     type(scalar_value) :: res
     integer :: i, j, n
     real*8 :: x(3), rhos, drho2, d2rho, taup, dsigs, quads
+    real*8 :: fval
 
     if (size(id) /= size(prop)) &
        call ferror("fillmesh","incongruent id and prop arrays",faterr)
@@ -215,16 +216,17 @@ contains
        allocate(m%f(m%n,n))
     end if
 
+    !$omp parallel do private(fval,res,rhos,drho2,d2rho,taup,dsigs,quads)
     do i = 1, m%n
        call grd(ff,m%x(:,i),2,res,.false.)
        do j = 1, n
           select case(prop(j))
           case(im_rho)
-             m%f(i,j) = res%f
+             fval = res%f
           case(im_gradrho)
-             m%f(i,j) = res%gfmod
+             fval = res%gfmod
           case(im_gkin)
-             m%f(i,j) = res%gkin
+             fval = res%gkin
           case(im_b)
              if (res%f > bsmall) then
                 rhos = 0.5d0 * res%f
@@ -233,13 +235,17 @@ contains
                 taup = res%gkin
                 dsigs = taup - 0.25d0 * drho2 / max(rhos,1d-30)
                 quads = (d2rho - 2d0 * dsigs) / 6d0
-                call bhole(rhos,quads,1d0,m%f(i,j))
+                call bhole(rhos,quads,1d0,fval)
              endif
           case default
-             m%f(i,j) = 0d0
+             fval = 0d0
           end select
+          !$omp critical (save)
+          m%f(i,j) = fval
+          !$omp end critical (save)
        end do
     end do
+    !$omp end parallel do
 
   end subroutine fillmesh
 
