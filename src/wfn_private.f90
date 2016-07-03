@@ -627,7 +627,7 @@ contains
        if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for itype',faterr)
        allocate(f%e_edf(f%nedf),stat=istat)
        if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for exponents',faterr)
-       allocate(f%c_edf(f%npri),stat=istat)
+       allocate(f%c_edf(f%nedf),stat=istat)
        if (istat /= 0) call ferror('wfn_read_wfx','could not allocate memory for orbital coefficients',faterr)
     endif
 
