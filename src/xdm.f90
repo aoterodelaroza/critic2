@@ -25,10 +25,22 @@ module xdm
 
   public :: xdm_driver
 
+  integer, parameter :: chf_blyp = -1
+  integer, parameter :: chf_b3lyp = -2
+  integer, parameter :: chf_bhahlyp = -3
+  integer, parameter :: chf_camb3lyp = -4
+  integer, parameter :: chf_pbe = -5
+  integer, parameter :: chf_pbe0 = -6
+  integer, parameter :: chf_lcwpbe = -7
+  integer, parameter :: chf_pw86 = -8
+  integer, parameter :: chf_b971 = -9
+
 contains
 
   !> Driver for XDM
   subroutine xdm_driver(line)
+    use fields
+    use global
     use tools_io
     
     character*(*), intent(inout) :: line
@@ -51,8 +63,13 @@ contains
     elseif (equal(word,"qe")) then
        call xdm_qe()
     else
-       call ferror('xdm_driver',"Unknown keyword in XDM",faterr,syntax=.true.)
-       return
+       ! xxxx !
+       ! if (f(refden)%type == type_wfn) then
+          call xdm_mol(1d0,1d0,0d0)
+       ! else
+       !    call ferror('xdm_driver',"Unknown keyword in XDM",faterr,syntax=.true.)
+       !    return
+       ! end if
     end if
 
   end subroutine xdm_driver
@@ -723,7 +740,7 @@ contains
     use tools_io
     use struct_basic
     
-    integer :: i, j, ii, jj, nn, i3
+    integer :: i, j, jj, nn, i3
     integer :: lu, idx, idx1, idx2
     character(len=:), allocatable :: line, str
     logical :: ok
@@ -796,6 +813,7 @@ contains
              i3 = nn / 2 - 1
     
              ! check the ii and the jj, also how the env is generated
+             cn0 = 0d0
              if (nn == 6) then
                 cn0 = c6(i,j)
              elseif (nn == 8) then
@@ -821,6 +839,159 @@ contains
     write (uout,*)
 
   end subroutine xdm_qe
+
+  !> Calculate XDM in molecules
+  subroutine xdm_mol(a1o,a2o,chf)
+    use meshmod
+    use fields
+    use global
+    use struct_basic
+    use grd_atomic
+    use grid1_tools
+    use tools_math
+    use tools_io
+    use types
+    use param
+    
+    real*8, intent(in) :: a1o, a2o
+    real*8, intent(in) :: chf
+
+    type(molmesh) :: m
+    integer :: nelec
+    integer :: id(7), prop(7), i, j, lu, luh, iz
+    real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
+    real*8 :: mm(3,cr%ncel), v(cr%ncel)
+    
+    ! only for closed shells
+    if (f(refden)%type == type_wfn) then
+       if (f(refden)%wfntyp /= 0) &
+          call ferror("xdm_mol","open shell wavefunctions not supported",faterr)
+    end if
+
+    ! write some info to the output
+    write (uout,'("a1             ",A)') string(a1o,'f',12,6)
+    write (uout,'("a2(ang)        ",A)') string(a2o,'f',12,6)
+    a1 = a1o
+    a2 = a2o / bohrtoa
+
+    if (chf < 0d0) then
+       select case (nint(chf))
+       case (chf_blyp)
+          write(uout,'("a_hf           blyp")')
+       case (chf_b3lyp)
+          write(uout,'("a_hf           b3lyp")')
+       case (chf_bhahlyp)
+          write(uout,'("a_hf           bhandhlyp")')
+       case (chf_camb3lyp)
+          write(uout,'("a_hf           camb3lyp")')
+       case (chf_pbe)
+          write(uout,'("a_hf           pbe")')
+       case (chf_pbe0)
+          write(uout,'("a_hf           pbe0")')
+       case (chf_lcwpbe)
+          write(uout,'("a_hf           lcwpbe")')
+       case (chf_pw86)
+          write(uout,'("a_hf           pw86pbe")')
+       case (chf_b971)
+          write(uout,'("a_hf           b971")')
+       end select
+    elseif (abs(chf-1d0) < 1d-9) then
+       write(uout,'("a_hf           hf")')
+    else
+       write(uout,'("a_hf           ",A)') string(chf,'f',12,6)
+    endif
+
+    ! prepare the mesh
+    m = genmesh(cr)
+    write (uout,'("mesh size      ",A)') string(m%n)
+
+    ! properties to calculate 
+    do i = 1, 5
+       id(i) = i
+    end do
+    prop(1) = im_rho
+    prop(2) = im_gradrho
+    prop(3) = im_gkin
+    prop(4) = im_null ! for promolecular / hirshfeld weights
+    prop(5) = im_null ! for the atomic density contribution
+    prop(6) = im_b    
+
+    ! fill the mesh with those properties
+    call fillmesh(m,f(refden),id,prop)
+
+    ! fill the promolecular and the atomic densities
+    m%f(:,4:5) = 0d0
+    lu = fopen_scratch()
+    nelec = 0
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       nelec = nelec + iz
+
+       do j = 1, m%n
+          x = m%x(:,j) - cr%atcel(i)%r
+          r = norm(x)
+          call grid1_interp(agrid(iz),r,rho,rhop,rhopp)
+          m%f(j,4) = m%f(j,4) + rho
+          m%f(j,5) = rho
+       enddo
+       write (lu) (m%f(j,5),j=1,m%n)
+    enddo
+
+    ! create the temporary file with the weights
+    luh = fopen_scratch()
+    rewind(lu)
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       read (lu) (m%f(j,5),j=1,m%n)
+       write (luh) (m%f(j,5)/max(m%f(j,4),1d-40),j=1,m%n)
+    enddo
+    call fclose(lu)
+
+    ! integrate the number of electrons
+    nn = sum(m%f(:,1) * m%w)
+    write (uout,'("nelec          ",A)') string(nelec)
+    write (uout,'("nelec (promol) ",A)') string(sum(m%f(:,4) * m%w),'f',12,6)
+    write (uout,'("nelec, total   ",A)') string(nn,'f',12,6)
+    if (abs(nn - nelec) > 0.1d0) &
+       call ferror("xdm_mol","inconsistent nelec. I hope you know what you are doing",warning)
+
+    ! calculate moments and volumes
+    mm = 0d0
+    v = 0d0
+    rewind(luh)
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       read (luh) (m%f(j,4),j=1,m%n)
+
+       ! calculate hole dipole and moments
+       do j = 1, m%n
+          r = norm(m%x(:,j)-cr%atcel(i)%r)
+          rb = max(0.d0,r-m%f(j,6))
+
+          mm(1,i) = mm(1,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r-rb)**2
+          mm(2,i) = mm(2,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**2-rb**2)**2
+          mm(3,i) = mm(3,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**3-rb**3)**2
+          v(i) = v(i) + m%w(j) * m%f(j,4) * m%f(j,1) * r**3
+       enddo
+    enddo
+    call fclose(luh)
+
+    ! write moments and volumes
+    write (uout,'("moments and volumes ")')
+    write (uout,'("# i At        <M1^2>             <M2^2>              <M3^2>           Volume              Vfree")')
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(cr%at(cr%atcel(i)%idx)%name,2),&
+          (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
+    enddo
+    write (uout,'("#")')
+
+    stop 1
+    
+  end subroutine xdm_mol
 
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
@@ -893,5 +1064,230 @@ contains
        afree = afree + rhofree * rwei * r**3
     end do
   end function free_volume
+
+  function frevol(z,chf)
+
+    integer, intent(in) :: z
+    real*8, intent(in) :: chf
+    real*8 :: frevol
+
+    ! DKH LSDA/UGBS Free Atomic Volumes
+    real*8, parameter :: frevol0(0:103) = (/&
+       0.d0,&
+       9.194D0,   4.481D0,  91.957D0,  61.357D0,  49.813D0,  36.728D0,&
+       27.633D0,  23.517D0,  19.322D0,  15.950D0, 109.359D0, 103.064D0,&
+       120.419D0, 104.229D0,  86.782D0,  77.133D0,  66.372D0,  57.336D0,&
+       203.093D0, 212.202D0, 183.101D0, 162.278D0, 143.250D0, 108.209D0,&
+       123.098D0, 105.735D0,  92.944D0,  83.794D0,  75.750D0,  81.177D0,&
+       118.371D0, 116.334D0, 107.474D0, 103.221D0,  95.111D0,  87.605D0,&
+       248.772D0, 273.748D0, 249.211D0, 223.801D0, 175.809D0, 156.831D0,&
+       160.042D0, 136.654D0, 127.754D0,  97.024D0, 112.778D0, 121.627D0,&
+       167.906D0, 172.030D0, 165.500D0, 163.038D0, 153.972D0, 146.069D0,&
+       341.992D0, 385.767D0, 343.377D0, 350.338D0, 334.905D0, 322.164D0,&
+       310.337D0, 299.537D0, 289.567D0, 216.147D0, 268.910D0, 259.838D0,&
+       251.293D0, 243.174D0, 235.453D0, 228.284D0, 229.617D0, 209.971D0,&
+       197.541D0, 183.236D0, 174.685D0, 164.139D0, 150.441D0, 135.765D0,&
+       125.297D0, 131.258D0, 185.769D0, 195.671D0, 193.036D0, 189.142D0,&
+       185.919D0, 181.089D0, 357.787D0, 407.283D0, 383.053D0, 362.099D0,&
+       346.565D0, 332.462D0, 319.591D0, 308.095D0, 297.358D0, 300.572D0,&
+       275.792D0, 266.317D0, 257.429D0, 209.687D0, 203.250D0, 230.248D0,&
+       236.878D0/)
+
+    real*8, parameter :: frevol_blyp(0:36) = (/0.0d0,&
+       8.6751280810827840d0,  4.3645522950717863d0,  89.719664495180297d0,  61.278566735200307d0,&
+       49.519428604126382d0,  36.855287686102294d0,  27.995151669578650d0,  23.764998306645893d0,&
+       19.585085705364346d0,  16.198873185715303d0,  110.72206109235110d0,  104.99418885629647d0,&
+       124.86364864987824d0,  105.67572783021383d0,  87.717325899499158d0,  77.848560257666222d0,&
+       67.289916054772661d0,  58.134006480572936d0,                0.00d0,                0.00d0,&
+       189.14940377667708d0,  171.31844286164150d0,  149.09546424400813d0,  114.14072711487664d0,&
+       128.27850058556785d0,  108.89501751641639d0,  100.22570628848071d0,  88.525764030777225d0,&
+       79.682125997948589d0,  86.320056678306727d0,  125.54483633211143d0,  121.00196086145128d0,&
+       110.76811978260324d0,  106.26389443012715d0,  98.394240990660435d0,  90.352795412830417d0/)
+
+    real*8, parameter :: frevol_b3lyp(0:36) = (/0.0d0,&
+       8.3489695345990036d0,   4.2304165146306838d0,   88.786443805705602d0,   60.659572325858221d0,&
+       48.180704821245364d0,   35.739786376347816d0,   27.113474668623077d0,   22.954305454378311d0,&
+       18.919035719008878d0,   15.664743495672592d0,   110.10781957063872d0,   104.58688460317792d0,&
+       121.82866689851529d0,   103.64265930616017d0,   86.233229483159292d0,   76.534831202674539d0,&
+       66.225085507692555d0,   57.258468294377920d0,                 0.00d0,                 0.00d0,&
+       191.24458275864666d0,   171.33960226014415d0,   154.31690117090523d0,   111.84266101395626d0,&
+       128.53304731251799d0,   116.41853334783917d0,   108.02725265724374d0,   84.734127226732753d0,&
+       78.821628181721010d0,   86.690015512660722d0,   122.56838049698425d0,   118.57117842661357d0,&
+       108.88205342457658d0,   104.55842043337798d0,   96.968864870029904d0,   89.143550757884739d0/)
+
+    real*8, parameter :: frevol_bhahlyp(0:36) = (/0.0d0,&
+       8.0162383356457330d0,   4.0855044443453972d0,   89.521965961222222d0,   60.766620056468859d0,&
+       47.163104244372654d0,   34.732519196898075d0,   26.261248810982419d0,   22.163686460916928d0,&
+       18.257837007647932d0,   15.123544024501175d0,   112.24236986192338d0,   105.88927909724653d0,&
+       120.53914101629064d0,   102.42697418515390d0,   85.163324240312747d0,   75.599161377353852d0,&
+       65.445419322876759d0,   56.592207744291457d0,                 0.00d0,                 0.00d0,&
+       196.29478033696057d0,   175.14878735114101d0,   157.82044436715444d0,   112.66706636630363d0,&
+       131.50432127575891d0,   120.17186617063507d0,   110.69809115434559d0,   102.41457915920718d0,&
+       79.806952905523545d0,   88.942968328671427d0,   121.67064092786063d0,   117.25525753962938d0,&
+       107.64004292512693d0,   103.49115496709287d0,   96.074020468035101d0,   88.360967365230920d0/)
+
+    real*8, parameter :: frevol_camb3lyp(0:36) = (/0.0d0,&
+       8.4912418798953802d0,   4.3046720809866850d0,   88.495476866973974d0,   60.708687086264462d0,&
+       48.017293545760708d0,   35.742021952558758d0,   27.186861831258817d0,   23.059619196158092d0,&
+       19.022193061849432d0,   15.756088275099161d0,   109.34523733398444d0,   104.23708524052515d0,&
+       119.90584483487682d0,   102.80245055238821d0,   85.960831224028368d0,   76.454433439613283d0,&
+       66.279667949988067d0,   57.375114690853394d0,                 0.00d0,                 0.00d0,&
+       192.25186364675062d0,   171.60008159670065d0,   154.54149488373386d0,   111.51614466860299d0,&
+       105.82575187101907d0,   97.244815362081795d0,   90.518519096216096d0,   84.233565981799387d0,&
+       78.777041862773274d0,   86.830269580599790d0,   119.93150277142236d0,   117.12848860140892d0,&
+       108.22197759832967d0,   104.14881532532733d0,   96.808752555226278d0,   89.137842527944699d0/)
+
+    real*8, parameter :: frevol_pbe(0:36) = (/0.0d0,&
+       8.7017290470668396d0,   4.3452296013273557d0,   90.345016391875745d0,   60.583880555189161d0,&
+       49.405610809309636d0,   36.699238724745918d0,   27.804307905805462d0,   23.504820577931341d0,&
+       19.366722293791256d0,   16.015015785319534d0,   114.11568983081936d0,   105.34255389919765d0,&
+       122.27570960010875d0,   104.11673088180522d0,   86.659855994802655d0,   76.696371875869517d0,&
+       66.330422698625398d0,   57.338280708600728d0,                 0.00d0,                 0.00d0,&
+       187.56578096056526d0,   171.16842233126320d0,   148.57152896051596d0,   113.40726679106993d0,&
+       128.41370162442536d0,   107.47276564091520d0,   98.987585702398064d0,   87.019526141682050d0,&
+       79.950858621796073d0,   86.179295605944361d0,   123.32536942981970d0,   119.49220381812802d0,&
+       109.53573383239170d0,   104.78641436128312d0,   97.036678428323626d0,   89.131992369076343d0/)
+
+    real*8, parameter :: frevol_pbe0(0:36) = (/0.0d0,&
+       8.2794385587230224d0,   4.1765568461439084d0,   89.990651247904850d0,   60.150518670639258d0,&
+       47.925007649610208d0,   35.403450375407488d0,   26.774856262986901d0,   22.577665436425793d0,&
+       18.604506038051770d0,   15.403636840460491d0,   114.72060124074002d0,   105.56153583642701d0,&
+       119.94555610703479d0,   102.21839478488732d0,   85.124898059747593d0,   75.344227406670839d0,&
+       65.219744182377752d0,   56.417325659383977d0,                 0.00d0,                 0.00d0,&
+       191.49634784581932d0,   172.37802114577727d0,   155.38093772078227d0,   111.48097347813784d0,&
+       129.94413257650865d0,   118.24195915775856d0,   108.60919379569880d0,   84.698903894685841d0,&
+       79.451081251238904d0,   87.077874282230383d0,   120.92043418719176d0,   117.15417864570686d0,&
+       107.60403177731271d0,   103.07063942096924d0,   95.595468315759462d0,   87.905274745875047d0/)
+
+    real*8, parameter :: frevol_lcwpbe(0:36) = (/0.0d0,&
+       8.2370522934694321d0,   4.3223022069392556d0,   88.889190621676747d0,   59.167955275706255d0,&
+       46.644645536860530d0,   35.000149688018325d0,   26.874237675680991d0,   22.830136179756057d0,&
+       18.961662156609091d0,   15.787003768893198d0,   115.52305481049332d0,   105.20996979820804d0,&
+       115.58130215151486d0,   99.382061772188109d0,   83.591029347688959d0,   74.254876662748089d0,&
+       64.635098656590586d0,   56.191387396031978d0,                 0.00d0,                 0.00d0,&
+       191.95897600535326d0,   172.74995562085155d0,   155.27567955463721d0,   110.25556775344671d0,&
+       129.26382250173134d0,   117.09487172302605d0,   107.19200454429361d0,   83.698218802709803d0,&
+       78.438819467992630d0,   85.426026058281309d0,   114.73764666891768d0,   113.36022260917842d0,&
+       105.50701995208520d0,   101.36644049619710d0,   94.506386358808882d0,   87.304323578968550d0/)
+
+    real*8, parameter :: frevol_pw86(0:36) = (/0.0d0,&
+       8.5848597505149957d0,   4.3045044427345758d0,   89.105017427126995d0,   60.116125959883448d0,&
+       48.948725444378958d0,   36.639492704666679d0,   27.890608359059900d0,   23.482178111604007d0,&
+       19.392669723193279d0,   16.068196774925887d0,   110.77812603458771d0,   103.32122266742829d0,&
+       121.98526328640968d0,   104.32311632196750d0,   86.866106676280893d0,   76.813580132172405d0,&
+       66.479441471513695d0,   57.487390010861731d0,                 0.00d0,                 0.00d0,&
+       185.73638891654375d0,   168.40972266496894d0,   146.57709921981228d0,   114.30230293458976d0,&
+       127.03123778878130d0,   106.92921677417986d0,   79.779742298798681d0,   87.455617557953332d0,&
+       79.471676692123495d0,   85.082884646536542d0,   123.88868121486288d0,   120.63195902241362d0,&
+       110.68925500617975d0,   105.58567728669152d0,   97.798158973601787d0,   89.844087877827207d0/)
+
+    real*8, parameter :: frevol_b971(0:36) = (/0.0d0,&
+       8.2753044447676203d0,   4.1538172892410463d0,   92.548449604186061d0,   60.079247546006165d0,&
+       47.862796246981773d0,   35.305970222823603d0,   26.699111937155749d0,   22.644191719940501d0,&
+       18.675265336738804d0,   15.464799224948079d0,   121.31651007378332d0,   105.68066738843501d0,&
+       120.26430745377735d0,   101.96967180988391d0,   85.008007953828127d0,   75.622028007253363d0,&
+       65.525564639136547d0,   56.692633782240122d0,                 0.00d0,                 0.00d0,&
+       193.61923913260267d0,   171.80907721991764d0,   154.23278648930369d0,   114.13224357718498d0,&
+       107.38843940948567d0,   98.695645988131020d0,   92.056435539203278d0,   86.394941236711290d0,&
+       80.059364904746786d0,   87.457830726555457d0,   121.47718849519879d0,   116.93338080131248d0,&
+       107.07435287066555d0,   103.20705595068554d0,   95.879065901986593d0,   88.146215884084469d0/)
+
+    real*8 :: rchf
+
+    ! gaussian basis set, %HF=(0,25,50,75,100) for periods 1 and 2.
+    real*8 frevol1(5,0:10)
+    save frevol1
+    data frevol1/&
+       0.d0, 0.d0, 0.d0, 0.d0, 0.d0,&
+       8.7017290470668396d0, 8.2794385587230224d0, 7.9275669093485428d0, 7.6272753143131924d0, 7.3655545253236543d0,&
+       4.3452296013273557d0, 4.1765568461439084d0, 4.0288815322803657d0, 3.8977496795733644d0, 3.7798775917054876d0,&
+       90.345016391875745d0, 89.990651247904850d0, 89.843447659370099d0, 89.862545631289919d0, 90.018126381136568d0,&
+       60.583880555189161d0, 60.150518670639258d0, 59.789689626639294d0, 59.490664095467629d0, 59.244839599587813d0,&
+       49.405610809309636d0, 47.925007649610208d0, 46.767078359393196d0, 45.827336436528093d0, 45.040918655916336d0,&
+       36.699238724745918d0, 35.403450375407488d0, 34.355914497332748d0, 33.486552145008638d0, 32.747999094847692d0,&
+       27.804307905805462d0, 26.774856262986901d0, 25.931460984272665d0, 25.224788496044660d0, 24.620417659921344d0,&
+       23.504820577931341d0, 22.577665436425793d0, 21.811051051552955d0, 21.165993022839672d0, 20.614016545011395d0,&
+       19.366722293791256d0, 18.604506038051770d0, 17.967854713848929d0, 17.427825507512161d0, 16.962774503019283d0,&
+       16.015015785319534d0, 15.403636840460491d0, 14.886731288556328d0, 14.443878154969715d0, 14.059464430879629d0/
+
+    ! pure GGA
+    if (abs(chf) < 1d-10) then
+       if (z > 10) then
+          frevol = frevol0(z)
+       else
+          frevol = frevol1(1,z)
+       endif
+       return
+    endif
+
+    ! special cases
+    if (chf < 0d0 .and. (z<19.or.z>20.and.z<37)) then ! up to Kr except K and Ca
+       select case(nint(chf))
+       case(chf_blyp) 
+          frevol = frevol_blyp(z)
+       case(chf_b3lyp) 
+          frevol = frevol_b3lyp(z)
+       case(chf_bhahlyp) 
+          frevol = frevol_bhahlyp(z)
+       case(chf_camb3lyp) 
+          frevol = frevol_camb3lyp(z)
+       case(chf_pbe) 
+          frevol = frevol_pbe(z)
+       case(chf_pbe0) 
+          frevol = frevol_pbe0(z)
+       case(chf_lcwpbe) 
+          frevol = frevol_lcwpbe(z)
+       case(chf_pw86) 
+          frevol = frevol_pw86(z)
+       case(chf_b971) 
+          frevol = frevol_b971(z)
+       case default
+          call error("frevol","unknown functional",2)
+       end select
+    else
+       ! general hybrid
+       if (chf < 0d0) then
+          select case(nint(chf))
+          case(chf_blyp) 
+             rchf = 0d0
+          case(chf_b3lyp) 
+             rchf = 0.2d0
+          case(chf_bhahlyp) 
+             rchf = 0.5d0
+          case(chf_camb3lyp) 
+             rchf = 0.2d0
+          case(chf_pbe) 
+             rchf = 0.0d0
+          case(chf_pbe0) 
+             rchf = 0.25d0
+          case(chf_lcwpbe) 
+             rchf = 0.25d0
+          case(chf_pw86) 
+             rchf = 0.0d0
+          case(chf_b971) 
+             rchf = 0.21d0
+          case default
+             call error("frevol","unknown functional",2)
+          end select
+       else
+          rchf = chf
+       endif
+
+       if (z > 10) then
+          frevol = frevol0(z)
+       else
+          if (rchf < 0.25d0) then
+             frevol = frevol1(1,z) + (frevol1(2,z)-frevol1(1,z)) / 0.25d0 * (rchf-0d0)
+          elseif (rchf < 0.50d0) then
+             frevol = frevol1(2,z) + (frevol1(3,z)-frevol1(2,z)) / 0.25d0 * (rchf-0.25d0)
+          elseif (rchf < 0.75d0) then
+             frevol = frevol1(3,z) + (frevol1(4,z)-frevol1(3,z)) / 0.25d0 * (rchf-0.50d0)
+          else
+             frevol = frevol1(4,z) + (frevol1(5,z)-frevol1(4,z)) / 0.25d0 * (rchf-0.75d0)
+          endif
+       endif
+    endif
+
+  endfunction frevol
 
 end module xdm

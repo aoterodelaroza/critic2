@@ -136,7 +136,7 @@ contains
   !> Calculate the core or promolecular densities at a point x0
   !> (cryst. coords) using atomic radial grids. If a fragment is
   !> given, then only the atoms in it contribute.
-  subroutine grda_promolecular(x0,f,fp,fpp,nder,iscore,fr)
+  subroutine grda_promolecular(x0,f,fp,fpp,nder,iscore,fr,periodic)
     use struct_basic
     use grid1_tools
     use types
@@ -148,21 +148,33 @@ contains
     integer, intent(in) :: nder !< Number of derivatives to calculate
     logical, intent(in) :: iscore !< Use atomic cores or promolecular densities?
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
+    logical, intent(in), optional :: periodic
 
     integer :: i, j, k, ii
     real*8 :: xc(3), xx(3), r2, r, rinv1, rinv2
     real*8 :: rho, rhop, rhopp, rfac, radd
     integer :: idolist(cr%nenv), nido
+    logical :: per
 
     type(grid1), pointer :: g
 
+    ! initialize 
+    if (present(periodic)) then
+       per = periodic
+    else
+       per = .true.
+    end if
     f = 0d0 
     fp = 0d0
     fpp = 0d0
 
     ! precompute the list of atoms that contribute
     if (.not.present(fr)) then
-       xc = cr%x2c(x0 - floor(x0))
+       if (per) then
+          xc = cr%x2c(x0 - floor(x0))
+       else
+          xc = cr%x2c(x0)
+       end if
        nido = 0
        do i = 1, cr%nenv
           if (cr%at(cr%atenv(i)%idx)%z == 0) cycle

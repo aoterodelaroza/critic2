@@ -22,10 +22,14 @@ module types
   private
   public :: grid1, atom, celatom, anyatom, dftbatom, fragment
   public :: cp_type
-  public :: scalar_value, field
-  public :: integrable, pointpropable
-  public :: minisurf, miniface
+  public :: scalar_value
+  public :: field
+  public :: integrable
+  public :: pointpropable
+  public :: minisurf
+  public :: miniface
   public :: neighstar
+  public :: molmesh
   public :: realloc
 
   ! overloaded functions
@@ -344,6 +348,13 @@ module types
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
   end type neighstar
 
+  !> Becke-style molecular mesh for integration
+  type molmesh
+     integer :: n
+     real*8, allocatable :: w(:), x(:,:)
+     real*8, allocatable :: f(:,:)
+  end type molmesh
+
 contains
   
   !> Adapt the size of an allocatable 1D type(field) array
@@ -354,7 +365,7 @@ contains
     integer, intent(in) :: nnew
 
     type(field), allocatable :: temp(:)
-    integer :: nold, i, l1, u1
+    integer :: l1, u1
 
     if (.not.allocated(a)) &
        call ferror('realloc_field','array not allocated',faterr)
@@ -442,7 +453,7 @@ contains
     integer, intent(in) :: nnew
 
     type(dftbatom), allocatable :: temp(:)
-    integer :: nold, i
+    integer :: nold
 
     if (.not.allocated(a)) &
        call ferror('realloc_dftbatom','array not allocated',faterr)

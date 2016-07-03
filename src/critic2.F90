@@ -62,7 +62,7 @@ program critic
   integer :: level, plevel
   integer :: i, id, nn
   logical :: ll1, ok
-  real*8 :: rdum, rdum1(3,3)
+  real*8 :: rdum
 
   ! initialize parameters
   call param_init()

@@ -45,7 +45,7 @@ module struct_basic
   public :: search_lattice
   
   !> Crystal type
-  type :: crystal
+  type crystal
      ! Is this crystal intialized?
      logical :: isinit
      ! non-equivalent atoms list

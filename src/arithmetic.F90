@@ -132,10 +132,13 @@ module arithmetic
 
 contains
 
-  !> Evaluate an arithmetic expression expr. If the expression contains fields ($),
-  !> use x0 as the evaluation point. If hardfail is true, stop with error if the
-  !> expression fails to evaluate. Otherwise, return the exit status in iok (tue=success).
-  recursive function eval(expr,hardfail,iok,x0,fcheck,feval)
+  !> Evaluate an arithmetic expression expr. If the expression
+  !> contains fields ($), use x0 as the evaluation point. If hardfail
+  !> is true, stop with error if the expression fails to
+  !> evaluate. Otherwise, return the exit status in iok
+  !> (tue=success). If periodic is present and false, evaluate the
+  !> expression at x0 considering the field as non-periodic.
+  recursive function eval(expr,hardfail,iok,x0,fcheck,feval,periodic)
     use types
     use tools_io
     real*8 :: eval
@@ -144,6 +147,7 @@ contains
     logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
     optional :: fcheck, feval
+    logical, intent(in), optional :: periodic
 
     interface
        !> Check that the id is a grid and is a sane field
@@ -153,12 +157,13 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0)
+       function feval(id,nder,x0,periodic)
          use types, only: scalar_value
          type(scalar_value) :: feval
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
+         logical, intent(in), optional :: periodic
        end function feval
     end interface
 
@@ -205,7 +210,7 @@ contains
              again = .false.
              if (ns > 0) then
                 if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+                   call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
                    if (ifail) then
                       call dofail()
                       return
@@ -224,7 +229,7 @@ contains
           ! right parenthesis
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+              call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
               if (ifail) then
                  call dofail()
                  return
@@ -239,7 +244,7 @@ contains
            if (ns > 0) then
               c = s(ns)
               if (istype(c,'function')) then
-                 call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+                 call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
                  if (ifail) then
                     call dofail()
                     return
@@ -250,7 +255,7 @@ contains
            ! a comma
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+              call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
               if (ifail) then
                  call dofail()
                  return
@@ -264,7 +269,7 @@ contains
            ! a field
            nq = nq + 1
            if (present(x0).and.present(fcheck).and.present(feval)) then
-              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,fcheck,feval)
+              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,fcheck,feval,periodic)
            else
               call dofail()
               return
@@ -277,7 +282,7 @@ contains
 
     ! unwind the stack
     do while (ns > 0)
-       call pop(q,nq,s,ns,x0,fcheck,feval,ifail)
+       call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
        if (ifail) then
           call dofail()
           return
@@ -497,7 +502,7 @@ contains
 
   !> Using the field id and the derivative flag, evaluate to a
   !> number. 
-  recursive function fieldeval(fid,fder,x0,fcheck,feval)
+  recursive function fieldeval(fid,fder,x0,fcheck,feval,periodic)
     use tools_io, only: isdigit, isletter, string
     use types
 
@@ -506,6 +511,7 @@ contains
     character*2, intent(in) :: fder
     real*8, intent(in), optional :: x0(3) !< position
     optional :: fcheck, feval
+    logical, intent(in), optional :: periodic
 
     interface
        !> Check that the id is a grid and is a sane field
@@ -515,12 +521,13 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0)
+       function feval(id,nder,x0,periodic)
          use types, only: scalar_value
          type(scalar_value) :: feval
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
+         logical, intent(in), optional :: periodic
        end function feval
     end interface
 
@@ -538,7 +545,7 @@ contains
        else
           nder = 2
        end if
-       res = feval(fid,nder,x0)
+       res = feval(fid,nder,x0,periodic)
 
        select case (trim(fder))
        case ("")
@@ -938,7 +945,7 @@ contains
   end function iassoc
 
   !> Pop from the stack and operate on the queue.
-  subroutine pop(q,nq,s,ns,x0,fcheck,feval,fail)
+  subroutine pop(q,nq,s,ns,x0,fcheck,feval,periodic,fail)
     use tools_math, only: erf, erfc
     use tools_io, only: string
     use types
@@ -953,6 +960,7 @@ contains
     integer, intent(inout) :: nq, ns
     real*8, intent(in), optional :: x0(3)
     optional :: fcheck, feval
+    logical, intent(in), optional :: periodic
     logical, intent(out) :: fail
 
     interface
@@ -963,12 +971,13 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0)
+       function feval(id,nder,x0,periodic)
          use types, only: scalar_value
          type(scalar_value) :: feval
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
+         logical, intent(in), optional :: periodic
        end function feval
     end interface
 
@@ -1159,7 +1168,7 @@ contains
           call die('wrong field ' // string(sia))
     
        ! Use the library of chemical functions
-       q(nq) = chemfunction(c,sia,x0,feval)
+       q(nq) = chemfunction(c,sia,x0,feval,periodic)
     else
        call die('error in expression')
     end if
@@ -1319,7 +1328,7 @@ contains
   end subroutine listvariables
 
   !> Calculate a chemical function for a given field.
-  function chemfunction(c,sia,x0,feval) result(q)
+  function chemfunction(c,sia,x0,feval,periodic) result(q)
     use tools_io
     use tools_math
     use types
@@ -1327,15 +1336,17 @@ contains
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
     real*8 :: q
+    logical, intent(in), optional :: periodic
   
     interface
        !> Evaluate the field at a point
-       function feval(id,nder,x0)
+       function feval(id,nder,x0,periodic)
          use types, only: scalar_value
          type(scalar_value) :: feval
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
+         logical, intent(in), optional :: periodic
        end function feval
     end interface
   
@@ -1349,18 +1360,18 @@ contains
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
-       res = feval(sia,0,x0)
+       res = feval(sia,0,x0,periodic)
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -1372,14 +1383,14 @@ contains
        !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
        ! for more references and its use applied to experimental electron
        ! densities.
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
     case (fun_vtf_kir)
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -1387,27 +1398,27 @@ contains
     case (fun_htf_kir)
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = 0.25d0 * res%del2f - q
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
-       res = feval(sia,1,x0)
+       res = feval(sia,1,x0,periodic)
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       res = feval(sia,1,x0)
+       res = feval(sia,1,x0,periodic)
        f0 = max(res%f,1d-30)
        ds = res%gkin  - 1d0/8d0 * res%gfmod**2 / f0
        ds0 = ctf * f0**(5d0/3d0)
@@ -1416,24 +1427,24 @@ contains
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
-       res = feval(sia,2,x0)
+       res = feval(sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0) 
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f

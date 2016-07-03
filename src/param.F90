@@ -82,6 +82,15 @@ module param
   ! limits for critic2
   integer, parameter :: maxzat = 118 ! maximum atomic number supported
 
+  ! Enumerate for molecular and crystal properties. These are used
+  ! throughout the code as flags for the calculation of scalar fields. 
+  integer, parameter :: ims = 4    ! number of items in this enumerate
+  integer, parameter :: im_null = 0 ! the void property
+  integer, parameter :: im_rho = 1 ! the electron density (rho)
+  integer, parameter :: im_gradrho = 2  ! gradient of the electron density
+  integer, parameter :: im_gkin = 3  ! kinetic energy density (gradrho * gradrho)
+  integer, parameter :: im_b = 4  ! exchange-hole dipole 
+
   ! free atomic polarizabilities from CRC handbook, 88th ed.
   real*8, parameter :: alpha_free(1:maxzat) = (/  0.6668D0,  0.2051D0, 24.3300D0,  5.6000D0,& ! 1-4
       3.0300D0,  1.7600D0 , 1.1000D0,  0.8020D0,  0.5570D0,  0.3956D0, 24.1100D0, 10.6000D0,& ! 5-12

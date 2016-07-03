@@ -763,9 +763,9 @@ contains
     return  
   end function erfc
 
-  !> Function derivative using finite differences and Richardson's 
+  !> Function derivative using finite differences and Richardson's
   !> extrapolation formula.
-  function der1i (dir, x, h, errcnv, pool, fld, grd0)
+  function der1i (dir, x, h, errcnv, pool, fld, grd0, periodic)
     use types
 
     real*8 :: der1i
@@ -773,12 +773,14 @@ contains
     real*8, intent(in) :: x(3), h, errcnv
     real*8, intent(inout) :: pool(-ndif_jmax:ndif_jmax)
     type(field), intent(inout) :: fld
+    logical, intent(in), optional :: periodic
     interface
-       function grd0(f,v)
+       function grd0(f,v,periodic)
          use types
          type(field), intent(inout) :: f
          real*8, intent(in) :: v(3)
          real*8 :: grd0
+         logical, intent(in), optional :: periodic
        end function grd0
     end interface
 
@@ -792,14 +794,14 @@ contains
     nh = 0
     hh = h
     if (pool(nh+1) == 0d0) then
-       f = grd0(fld,x+dir*hh)
+       f = grd0(fld,x+dir*hh,periodic)
        pool(nh+1) = f
     else
        f = pool(nh+1)
     end if
     fp = f
     if (pool(nh+1) == 0d0) then
-       f = grd0(fld,x-dir*hh)
+       f = grd0(fld,x-dir*hh,periodic)
        pool(-nh-1) = f
     else
        f = pool(-nh-1)
@@ -812,14 +814,14 @@ contains
        hh = hh / derw
        nh = nh + 1
        if (pool(nh+1) == 0d0) then
-          f = grd0(fld,x+dir*hh)
+          f = grd0(fld,x+dir*hh,periodic)
           pool(nh+1) = f
        else
           f = pool(nh+1) 
        end if
        fp = f
        if (pool(-nh-1) == 0d0) then
-          f = grd0(fld,x-dir*hh)
+          f = grd0(fld,x-dir*hh,periodic)
           pool(-nh-1) = f
        else
           f = pool(-nh-1) 
@@ -841,19 +843,21 @@ contains
 
   end function der1i
 
-  function der2ii (dir, x, h, errcnv, pool, fld, grd0)
+  function der2ii (dir, x, h, errcnv, pool, fld, grd0, periodic)
     use types
     real*8 :: der2ii
     real*8, intent(in) :: dir(3)
     real*8, intent(in) :: x(3), h, errcnv
     real*8, intent(inout) :: pool(-ndif_jmax:ndif_jmax)
     type(field), intent(inout) :: fld
+    logical, intent(in), optional :: periodic
     interface
-       function grd0(f,v)
+       function grd0(f,v,periodic)
          use types
          type(field), intent(inout) :: f
          real*8, intent(in) :: v(3)
          real*8 :: grd0
+         logical, intent(in), optional :: periodic
        end function grd0
     end interface
 
@@ -868,21 +872,21 @@ contains
     nh = 0
     hh = h
     if (pool(nh) == 0d0) then
-       f = grd0(fld,x)
+       f = grd0(fld,x,periodic)
        pool(nh) = f
     else
        f = pool(nh)
     end if
     fx = 2 * f
     if (pool(nh-1) == 0d0) then
-       f = grd0(fld,x-dir*(hh+hh))
+       f = grd0(fld,x-dir*(hh+hh),periodic)
        pool(nh-1) = f
     else
        f = pool(nh-1)
     end if
     fm = f
     if (pool(nh+1) == 0d0) then
-       f = grd0(fld,x+dir*(hh+hh))
+       f = grd0(fld,x+dir*(hh+hh),periodic)
        pool(nh+1) = f
     else
        f = pool(nh+1)
@@ -894,14 +898,14 @@ contains
        hh = hh / derw
        nh = nh + 1
        if (pool(nh+1) == 0d0) then
-          f = grd0(fld,x-dir*(hh+hh))
+          f = grd0(fld,x-dir*(hh+hh),periodic)
           pool(nh+1) = f
        else
           f = pool(nh+1)
        end if
        fm = f
        if (pool(-nh-1) == 0d0) then
-          f = grd0(fld,x+dir*(hh+hh))
+          f = grd0(fld,x+dir*(hh+hh),periodic)
           pool(-nh-1) = f
        else
           f = pool(-nh-1)
@@ -924,18 +928,20 @@ contains
     return
   end function der2ii
 
-  function der2ij (dir1, dir2, x, h1, h2, errcnv, fld, grd0)
+  function der2ij (dir1, dir2, x, h1, h2, errcnv, fld, grd0, periodic)
     use types
     real*8 :: der2ij
     real*8, intent(in) :: dir1(3), dir2(3)
     real*8, intent(in) :: x(3), h1, h2, errcnv
     type(field), intent(inout) :: fld
+    logical, intent(in), optional :: periodic
     interface
-       function grd0(f,v)
+       function grd0(f,v,periodic)
          use types
          type(field), intent(inout) :: f
          real*8, intent(in) :: v(3)
          real*8 :: grd0
+         logical, intent(in), optional :: periodic
        end function grd0
     end interface
 
@@ -947,26 +953,26 @@ contains
     der2ij = 0d0
     hh1 = h1
     hh2 = h2
-    f = grd0(fld,x+dir1*hh1+dir2*hh2)
+    f = grd0(fld,x+dir1*hh1+dir2*hh2,periodic)
     fpp = f
-    f = grd0(fld,x+dir1*hh1-dir2*hh2)
+    f = grd0(fld,x+dir1*hh1-dir2*hh2,periodic)
     fpm = f
-    f = grd0(fld,x-dir1*hh1+dir2*hh2)
+    f = grd0(fld,x-dir1*hh1+dir2*hh2,periodic)
     fmp = f
-    f = grd0(fld,x-dir1*hh1-dir2*hh2)
+    f = grd0(fld,x-dir1*hh1-dir2*hh2,periodic)
     fmm = f
     n(1,1) = (fpp - fmp - fpm + fmm ) / (4d0*hh1*hh2)
     err = big
     do j = 2, ndif_jmax
        hh1 = hh1 / derw
        hh2 = hh2 / derw
-       f = grd0(fld,x+dir1*hh1+dir2*hh2)
+       f = grd0(fld,x+dir1*hh1+dir2*hh2,periodic)
        fpp = f
-       f = grd0(fld,x+dir1*hh1-dir2*hh2)
+       f = grd0(fld,x+dir1*hh1-dir2*hh2,periodic)
        fpm = f
-       f = grd0(fld,x-dir1*hh1+dir2*hh2)
+       f = grd0(fld,x-dir1*hh1+dir2*hh2,periodic)
        fmp = f
-       f = grd0(fld,x-dir1*hh1-dir2*hh2)
+       f = grd0(fld,x-dir1*hh1-dir2*hh2,periodic)
        fmm = f
        n(1,j) = (fpp - fmp - fpm + fmm) / (4d0*hh1*hh2)
        ww = derw2

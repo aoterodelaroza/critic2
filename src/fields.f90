@@ -1670,9 +1670,11 @@ contains
 
   end subroutine setfield
 
-  ! Calculate the scalar field f at point v (cartesian) and its derivatives
-  ! up to nder. Return the results in res
-  recursive subroutine grd(f,v,nder,res)
+  ! Calculate the scalar field f at point v (cartesian) and its
+  ! derivatives up to nder. Return the results in res. If periodic is
+  ! present and false, consider the field is defined in a non-periodic
+  ! system.
+  recursive subroutine grd(f,v,nder,res,periodic)
     use grd_atomic
     use grid_tools
     use struct_basic
@@ -1686,31 +1688,47 @@ contains
     use tools_io
     use tools_math
 
-    type(field), intent(inout) :: f
-    real*8, intent(in) :: v(3) !< Target point in cartesian or spherical coordinates
+    type(field), intent(inout) :: f !< Input field
+    real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate
-    type(scalar_value), intent(out) :: res
+    type(scalar_value), intent(out) :: res !< Output density and related scalar properties at the point
+    logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
     real*8 :: wx(3), wc(3), dist, x(3)
     integer :: i, nid, lvec(3), idx(3)
     real*8 :: rho, grad(3), h(3,3)
     real*8 :: fval(3,-ndif_jmax:ndif_jmax), fzero
-    logical :: isgrid, iok
+    logical :: isgrid, iok, per
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
 
     if (.not.f%init) call ferror("grd","field not initialized",faterr)
 
-    ! initialize misc quantities 
+    ! initialize output quantities 
+    res%f = 0d0
+    res%fval = 0d0
+    res%gf = 0d0
+    res%hf = 0d0
+    res%gfmod = 0d0
+    res%del2f = 0d0
+    res%del2fval = 0d0
     res%gkin = 0d0
     res%vir = 0d0
     res%stress = 0d0
+    res%isnuc = .false.
+
+    ! initialize flags
+    if (present(periodic)) then
+       per = periodic
+    else
+       per = .true.
+    end if
 
     ! numerical derivatives
     res%isnuc = .false.
     if (f%numerical) then
-       fzero = grd0(f,v)
+       fzero = grd0(f,v,periodic)
        res%f = fzero
        res%gf = 0d0
        res%hf = 0d0
@@ -1718,24 +1736,24 @@ contains
           ! x
           fval(1,:) = 0d0
           fval(1,0) = fzero
-          res%gf(1) = der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(1,:),f,grd0)
+          res%gf(1) = der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(1,:),f,grd0,periodic)
           ! y
           fval(2,:) = 0d0
           fval(2,0) = fzero
-          res%gf(2) = der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(2,:),f,grd0)
+          res%gf(2) = der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(2,:),f,grd0,periodic)
           ! z
           fval(3,:) = 0d0
           fval(3,0) = fzero
-          res%gf(3) = der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(3,:),f,grd0)
+          res%gf(3) = der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(3,:),f,grd0,periodic)
           if (nder > 1) then
              ! xx, yy, zz
-             res%hf(1,1) = der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(1,:),f,grd0)
-             res%hf(2,2) = der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(2,:),f,grd0)
-             res%hf(3,3) = der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(3,:),f,grd0)
+             res%hf(1,1) = der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(1,:),f,grd0,periodic)
+             res%hf(2,2) = der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(2,:),f,grd0,periodic)
+             res%hf(3,3) = der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(3,:),f,grd0,periodic)
              ! xy, xz, yz
-             res%hf(1,2) = der2ij((/1d0,0d0,0d0/),(/0d0,1d0,0d0/),v,hini,hini,errcnv,f,grd0)
-             res%hf(1,3) = der2ij((/1d0,0d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0)
-             res%hf(2,3) = der2ij((/0d0,1d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0)
+             res%hf(1,2) = der2ij((/1d0,0d0,0d0/),(/0d0,1d0,0d0/),v,hini,hini,errcnv,f,grd0,periodic)
+             res%hf(1,3) = der2ij((/1d0,0d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0,periodic)
+             res%hf(2,3) = der2ij((/0d0,1d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0,periodic)
              ! final
              res%hf(2,1) = res%hf(1,2)
              res%hf(3,1) = res%hf(1,3)
@@ -1753,10 +1771,22 @@ contains
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
     wx = cr%c2x(v)
-    do i = 1, 3
-       if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
-          wx(i) = wx(i) - real(floor(wx(i)),8)
-    end do
+    if (per) then
+       do i = 1, 3
+          if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
+             wx(i) = wx(i) - real(floor(wx(i)),8)
+       end do
+    else
+       if (.not.cr%ismolecule) &
+          call ferror("grd","non-periodic calculation in a crystal",faterr)
+       ! if outside the main cell and the field is limited to a certain region of 
+       ! space, nullify the result and exit
+       if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. & 
+          f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
+          f%type == type_pi) then 
+          return
+       end if
+    end if
     wc = cr%x2c(wx)
 
     ! type selector
@@ -1809,15 +1839,15 @@ contains
        ! all work done in cartesians in a finite environment.
 
     case(type_promol)
-       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.)
+       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.,periodic=periodic)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.,f%fr)
+       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.,f%fr,periodic=periodic)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
-       res%f = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval)
+       res%f = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval,periodic)
        res%gf = 0d0
        res%hf = 0d0
 
@@ -1831,7 +1861,7 @@ contains
 
     ! augment with the core if applicable
     if (f%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)) then
-       call grda_promolecular(wx,rho,grad,h,nder,.true.)
+       call grda_promolecular(wx,rho,grad,h,nder,.true.,periodic=periodic)
        res%f = res%f + rho
        res%gf  = res%gf + grad
        res%hf = res%hf + h
@@ -1841,13 +1871,17 @@ contains
     ! grid fields, for instance)
     nid = 0
     call cr%nearest_atom(wx,nid,dist,lvec)
-    res%isnuc = (dist < 1d-5)
-    if (res%isnuc) res%gf = 0d0
+    if (per .or. .not.per .and. all(lvec == 0)) then
+       res%isnuc = (dist < 1d-5)
+       if (res%isnuc) res%gf = 0d0
+    end if
     res%gfmod = norm(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
   end subroutine grd
 
+  !> Calculate the value of all integrable properties at the given position
+  !> xpos (Cartesian).
   subroutine grdall(xpos,lprop)
     use arithmetic
     use tools_io
@@ -1897,8 +1931,9 @@ contains
   end subroutine grdall
 
   !> Calculate only the value of the scalar field at the given point
-  !> (v in cartesian).
-  recursive function grd0(f,v)
+  !> (v in cartesian). If periodic is present and false, consider the
+  !> field is defined in a non-periodic system.
+  recursive function grd0(f,v,periodic)
     use grd_atomic
     use grid_tools
     use struct_basic
@@ -1915,19 +1950,40 @@ contains
     type(field), intent(inout) :: f
     real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
     real*8 :: grd0
+    logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
     real*8 :: wx(3), wc(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
-    logical :: iok
+    logical :: iok, per
+
+    ! initialize 
+    if (present(periodic)) then
+       per = periodic
+    else
+       per = .true.
+    end if
+    grd0 = 0d0
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
     wx = cr%c2x(v)
-    do i = 1, 3
-       if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
-          wx(i) = wx(i) - real(floor(wx(i)),8)
-    end do
+    if (per) then
+       do i = 1, 3
+          if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
+             wx(i) = wx(i) - real(floor(wx(i)),8)
+       end do
+    else
+       if (.not.cr%ismolecule) &
+          call ferror("grd","non-periodic calculation in a crystal",faterr)
+       ! if outside the main cell and the field is limited to a certain region of 
+       ! space, nullify the result and exit
+       if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. & 
+          f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
+          f%type == type_pi) then 
+          return
+       end if
+    end if
     wc = cr%x2c(wx)
 
     ! type selector
@@ -1945,17 +2001,17 @@ contains
     case(type_dftb)
        call dftb_rho2(f,wc,0,rho,grad,h,gkin)
     case(type_promol)
-       call grda_promolecular(wx,rho,grad,h,0,.false.)
+       call grda_promolecular(wx,rho,grad,h,0,.false.,periodic=periodic)
     case(type_promol_frag)
-       call grda_promolecular(wx,rho,grad,h,0,.false.,f%fr)
+       call grda_promolecular(wx,rho,grad,h,0,.false.,f%fr,periodic=periodic)
     case(type_ghost)
-       rho = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval)
+       rho = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval,periodic)
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select
 
     if (f%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)) then
-       call grda_promolecular(wx,rhoaux,grad,h,0,.true.)
+       call grda_promolecular(wx,rhoaux,grad,h,0,.true.,periodic=periodic)
        rho = rho + rhoaux
     end if
     grd0 = rho
@@ -2348,7 +2404,7 @@ contains
 
   !> Evaluate the field at a point. Wrapper around grd() to pass
   !> it to the arithmetic module. 
-  recursive function fields_feval(id,nder,x0)
+  recursive function fields_feval(id,nder,x0,periodic)
     use ewald, only: ewald_pot
     use struct_basic, only: cr
     use types, only: scalar_value
@@ -2356,6 +2412,7 @@ contains
     character*(*), intent(in) :: id
     integer, intent(in) :: nder
     real*8, intent(in) :: x0(3)
+    logical, intent(in), optional :: periodic
 
     integer :: iid, lvec(3)
     real*8 :: xp(3), dist, u
@@ -2363,7 +2420,7 @@ contains
 
     iid = fieldname_to_idx(id)
     if (iid >= 0) then
-       call grd(f(iid),x0,nder,fields_feval)
+       call grd(f(iid),x0,nder,fields_feval,periodic)
     elseif (trim(id) == "ewald") then
        xp = cr%c2x(x0)
        fields_feval%f = ewald_pot(xp,.false.)
