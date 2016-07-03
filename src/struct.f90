@@ -631,6 +631,7 @@ contains
       character(len=:), allocatable :: aux2
       logical :: check_no_extra_word
 
+      check_no_extra_word = .true.
       do while (.true.)
          aux2 = getword(line,lp)
          if (equal(aux2,'primitive')) cycle
