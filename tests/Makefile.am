@@ -62,7 +62,7 @@ TESTS=\
 025_integrals1.sh 025_integrals2.sh 025_integrals3.sh 025_integrals4.sh 025_integrals5.sh\
 026_nciplot1.sh 026_nciplot2.sh 026_nciplot3.sh 026_nciplot4.sh\
 027_qtree1.sh\
-028_xdm1.sh\
+028_xdm1.sh 028_xdm2.sh 028_xdm3.sh\
 029_bader1.sh 029_bader2.sh 029_bader3.sh 029_bader4.sh 029_bader5.sh\
 030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh\
 031_libxc1.sh\
