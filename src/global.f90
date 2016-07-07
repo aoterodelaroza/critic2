@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>,
+! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
@@ -301,7 +301,7 @@ contains
     write (uout,'("* CRITIC2: analysis of real-space scalar fields in solids and molecules.")')
     write (uout,'("  (c) 1996-2015 A. Otero-de-la-Roza, A. Martin-Pendas, V. Lua~na")')
     write (uout,'("  Distributed under GNU GPL v.3 (see COPYING for details)")')
-    write (uout,'("  Bugs, requests, and rants: alberto@fluor.quimica.uniovi.es ")')
+    write (uout,'("  Bugs, requests, and rants: aoterodelaroza@gmail.com ")')
     write (uout,'("  If you find this software useful, please cite:")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 185 (2014) 1007-1018.")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157-166.")')

@@ -6,7 +6,7 @@ Critic2 user's guide
          Ángel Martín Pendás,
          Víctor Luaña.
 
-:Contact: alberto@fluor.quimica.uniovi.es
+:Contact: aoterodelaroza@gmail.com
 
 :Address: Departamento de Química Física y Analítica,
           Universidad de Oviedo, 33007 Oviedo, Spain.

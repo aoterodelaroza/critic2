@@ -4,7 +4,7 @@
 !> Ross M. Dickson <ross.dickson@dal.ca>, Hartmut Schmider <hs7@post.queensu.ca>,
 !> and Axel D. Becke <axel.becke@dal.ca>
 
-! Copyright (c) 2015 Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>,
+! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
