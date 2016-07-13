@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <alberto@fluor.quimica.uniovi.es>,
+! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
@@ -1606,7 +1606,7 @@ contains
   !> Try to add the candidate CP xpoint to the CP list. This routine
   !> checks if it is already known, and calculates all the relevant
   !> information: multiplicity, type, shell, assoc. nucleus, etc.
-  !> Also, updates the complete CP list. Input x0 in cartesian.
+  !> Also, updates the complete CP list. Input x0 in Cartesian.
   subroutine addcp(x0,itype,defer0)
     use navigation
     use fields

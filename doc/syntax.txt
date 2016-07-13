@@ -140,7 +140,7 @@ expression.r # prints the value of the expression to the output.
 * PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r nx.i ny.i [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
         [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r}]
-	[COLORMAP] [RELIEF zmin.r zmax.r]
+	[COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
   PLANE {ATOM|ATOMS} at1.i at2.i at3.i [{SCALE sx.r sy.r}| 
         {SIZE zx.r zy.r}] nx.i ny.i ...
 * CUBE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i nz.i [FILE file.s] [FIELD id.s/"expr"]
