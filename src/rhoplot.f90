@@ -629,7 +629,7 @@ contains
     character(len=:), allocatable :: word, outfile, prop, root0, expr
     type(scalar_value) :: res
     logical :: ok, iok
-    integer :: ix, iy
+    integer :: ix, iy, cmopt
     real*8, allocatable :: ff(:,:)
 
     ! read the points
@@ -775,6 +775,16 @@ contains
           end if
        else if (equal(word,'colormap')) then
           docolormap = .true.
+          lp2 = lp
+          word = lgetword(line,lp)
+          cmopt = 0
+          if (equal(word,'log')) then
+             cmopt = 1
+          elseif (equal(word,'atan')) then
+             cmopt = 2
+          else
+             lp = lp2
+          end if
        elseif (equal(word,'f')) then
           nti = 0
           prop = word
@@ -916,7 +926,7 @@ contains
     ! try doing the contour
     if (docontour) call contour(x0,x1,x2,nx,ny,nco,niso,root0,.true.,.true.)
     if (dorelief) call relief(root0,string(outfile),zmin,zmax)
-    if (docolormap) call colormap(root0,string(outfile))
+    if (docolormap) call colormap(root0,string(outfile),cmopt)
 
     if (len_trim(outfile) > 0) then
        call fclose(luout)
@@ -1191,9 +1201,10 @@ contains
   end subroutine relief
 
   !> Write a gnuplot template for the color map plot
-  subroutine colormap(rootname,outfile)
+  subroutine colormap(rootname,outfile,cmopt)
     use tools_io
     character*(*), intent(in) :: rootname, outfile
+    integer, intent(in) :: cmopt
 
     character(len=:), allocatable :: file
     integer :: lu
@@ -1233,7 +1244,13 @@ contains
     write (lu,'("set cntrparam bspline")')
     write (lu,'("# set cntrparam levels incremental -min,step,max")')
     write (lu,'("")')
-    write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
+    if (cmopt == 1) then
+       write (lu,'("splot """,A,""" u 4:5:(log(abs($6))) ls 1 w pm3d notitle")') outfile
+    elseif (cmopt == 2) then
+       write (lu,'("splot """,A,""" u 4:5:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
+    else
+       write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
+    end if
 
     ! wrap up
     call fclose(lu)

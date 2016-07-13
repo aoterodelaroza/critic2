@@ -2937,7 +2937,7 @@ Planes and contour plots (PLANE)
   PLANE ... [FILE file.s] [FIELD id.s|"expr.s"]
       [F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|HYZ|HZX|HZY|HZZ|LAP]
       [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i r0.r r1.r}]
-      [COLORMAP] [RELIEF zmin.r zmax.r]
+      [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
@@ -2982,8 +2982,12 @@ little more complex to use.
 The RELIEF keyword writes a gnuplot template for a three-dimensional
 relief plot using the data calculated by PLANE. The default suffix is
 -relief.gnu. The mandatory arguments zmin.r and zmax.r establish the
-range of the z axis in the plot. The COLORMAP keyword writes a
-template for a colormap plot of the field on the plane.
+range of the z axis in the plot. 
+
+The COLORMAP keyword writes a template for a colormap plot of the
+field on the plane. If the LOG or ATAN keywords are given, the
+logarithm or the arctangent of the field are represented in the
+colormap.
 
 Grids (CUBE)
 ~~~~~~~~~~~~
