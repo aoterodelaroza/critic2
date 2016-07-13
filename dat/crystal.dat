@@ -34,12 +34,12 @@ structure Si silicon
     neq 0.125 0.125 0.125 Si
   endcrystal
 endstructure
-structure A9 graphite grafito
+structure A9 graphite 
   crystal
     spg P 63/m m c
     cell 2.456 2.456 6.696 90 90 120 ang
-    neq 00.00000000 0.000000000 0.25 C
-    neq 00.33333333 0.666666667 0.25 C
+    neq 0.00000000 0.000000000 0.25 C
+    neq 0.33333333 0.666666667 0.25 C
   endcrystal
 endstructure
 
