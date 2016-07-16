@@ -95,6 +95,15 @@ structure CaCl2
     neq 0.275 0.325 0.000 Cl 
   endcrystal
 endstructure
+# COD ID: 9009144
+structure MoS2
+  crystal
+    spg P 63/m m c
+    cell 3.1604 3.1604 12.295 90 90 120 ang
+    neq 1/3 2/3 1/4 Mo
+    neq 1/3 2/3 0.62900 S
+  endcrystal
+endstructure
 
 #xx# Common solids and minerals
 ### nacl-type
