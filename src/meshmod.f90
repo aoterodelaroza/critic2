@@ -28,6 +28,7 @@ module meshmod
 
   private
   public :: genmesh
+  public :: genmesh_franchini
   public :: fillmesh
   private :: rmesh
   private :: z2nr
@@ -37,7 +38,7 @@ module meshmod
 
 contains
 
-  !> Generate a Becke-style molecular 
+  !> Generate a Becke-style molecular mesh
   function genmesh(c) result(mesh)
     use struct_basic
     use tools_math
@@ -94,7 +95,7 @@ contains
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
     !$omp parallel do private(nr,nang,rmid,ir,r,il,x,j,k,r1,r2,hypr,&
-    !$omp cutoff,vp0,vpsum,vpi) firstprivate(rads,wrads,xang,yang,zang,wang)
+    !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
@@ -183,11 +184,151 @@ contains
 
   end function genmesh
 
+  !> Generate a Becke-style molecular mesh, Franchini weights.
+  !> J. Comput. Chem. 34 (2013) 1819.
+  !> This mesh is good for periodic systems because the calculation of the 
+  !> weights does not involve a double sum over environments.
+  function genmesh_franchini(c) result(mesh)
+    use struct_basic
+    use tools_math
+    use tools_io
+    use types
+
+    type(crystal), intent(in) :: c
+    type(molmesh) :: mesh
+
+    real*8 :: rmid, r, r1, r2, vp0, vpsum, vpi
+    integer :: i, j, k, kk
+    real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
+    integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
+    real*8 :: x(3), fscal
+    real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
+
+    ! allocate space for the mesh
+    mesh%n = 0
+    do i = 1, c%ncel
+       iz = c%at(c%atcel(i)%idx)%z 
+       if (iz < 1) cycle
+       mesh%n = mesh%n + z2nr(iz) * z2nang(iz)
+    enddo
+    allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
+
+    ! allocate work arrays
+    mr = -1
+    mang = -1
+    do i = 1, c%ncel
+       iz = c%at(c%atcel(i)%idx)%z 
+       if (iz < 1) cycle
+       mang = max(mang,z2nang(iz))
+       mr = max(mr,z2nr(iz))
+    end do
+    allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
+    allocate(rads(mr),wrads(mr),stat=istat)
+    if (istat /= 0) call ferror('genmesh','could not allocate memory for radial meshes',faterr)
+    allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
+    if (istat /= 0) call ferror('readwfn','could not allocate memory for angular meshes',faterr)
+    
+    ! Precompute the mesh weights with multiple threads. The job has to be
+    ! split in two because the nodes have to be positioned in the array in 
+    ! the correct order 
+    !! !$omp parallel do private(nr,nang,rmid,ir,r,il,x,j,k,r1,r2,&
+    !! !$omp vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
+    do i = 1, c%ncel
+       iz = c%at(c%atcel(i)%idx)%z 
+       if (iz < 1) then
+          cycle
+       elseif (iz == 1) then
+          fscal = 0.3d0
+       else
+          fscal = 1d0
+       end if
+
+       ! radial mesh
+       nr = z2nr(iz)
+       nang = z2nang(iz)
+       rmid = 1d0/real(iz,8)**third
+       call rmesh(nr,rmid,rads,wrads)
+
+       ! angular mesh
+       call good_lebedev(nang)
+       call select_lebedev(nang,xang,yang,zang,wang)
+       wang = wang / fourpi
+
+       ! 3d mesh, do not parallelize to get the nodes in order
+       do ir = 1, nr
+          r = rads(ir)
+          if (r < 1d-6) then
+             vp0 = 1d0
+          else
+             vp0 = fscal * exp(-2d0 * r) / r**3
+          end if
+
+          do il = 1, nang
+             x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
+             x = c%c2x(x)
+             x = x - floor(x)
+             x = c%x2c(x)
+
+             vpsum = 0d0
+             do j = 1, c%nenv
+                iz = c%at(c%atenv(j)%idx)%z 
+                if (iz < 1) then
+                   cycle
+                elseif (iz == 1) then
+                   fscal = 0.3d0
+                else
+                   fscal = 1d0
+                end if
+                r1 = sqrt((x(1)-c%atenv(j)%r(1))**2+(x(2)-c%atenv(j)%r(2))**2+(x(3)-c%atenv(j)%r(3))**2)
+                if (r1 < 1d-6) then
+                   vpsum = vpsum + 1d0
+                else
+                   vpsum = vpsum + fscal * exp(-2d0 * r1) / r1**3
+                end if
+             enddo
+                
+             !! !$omp critical (mmesh)
+             meshrl(il,ir,i) = vp0/vpsum * wrads(ir) * wang(il)
+             meshx(:,il,ir,i) = x
+             !! !$omp end critical (mmesh)
+          enddo
+       enddo
+    end do
+    !! !$omp end parallel do
+
+    ! clean up
+    if (allocated(rads)) deallocate(rads)
+    if (allocated(wrads)) deallocate(wrads)
+    if (allocated(xang)) deallocate(xang)
+    if (allocated(yang)) deallocate(yang)
+    if (allocated(zang)) deallocate(zang)
+    if (allocated(wang)) deallocate(wang)
+
+    ! fill the 3d mesh
+    kk = 0
+    do i = 1, c%ncel
+       iz = c%at(c%atcel(i)%idx)%z 
+       if (iz < 1) cycle
+       nr = z2nr(iz)
+       nang = z2nang(iz)
+       do ir = 1, nr
+          do il = 1, nang
+             kk = kk + 1
+             mesh%w(kk) = meshrl(il,ir,i)
+             mesh%x(:,kk) = meshx(:,il,ir,i)
+          enddo
+       enddo
+    enddo
+
+  end function genmesh_franchini
+
   !> Calculate one or more scalar fields on the molecular mesh (m)
   !> using field f. id and prop are one-dimensional arrays of the same
   !> size. id contains the index in the mesh scalar field array and
   !> prop is the integer label for the property (param module).
-  subroutine fillmesh(m,ff,id,prop)
+  !> If periodic, assume the mesh is for a crystal (calculate the 
+  !> properties by moving the points back to the main cell.
+  subroutine fillmesh(m,ff,id,prop,periodic)
     use fields
     use tools_io
     use types
@@ -196,6 +337,7 @@ contains
     type(field), intent(inout) :: ff
     integer, intent(in) :: id(:)
     integer, intent(in) :: prop(:)
+    logical, intent(in) :: periodic
     
     real*8, parameter :: bsmall = 1d-10
 
@@ -218,7 +360,7 @@ contains
 
     !$omp parallel do private(fval,res,rhos,drho2,d2rho,taup,dsigs,quads)
     do i = 1, m%n
-       call grd(ff,m%x(:,i),2,res,.false.)
+       call grd(ff,m%x(:,i),2,res,periodic)
        do j = 1, n
           select case(prop(j))
           case(im_rho)

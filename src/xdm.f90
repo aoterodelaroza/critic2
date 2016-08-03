@@ -27,6 +27,7 @@ module xdm
   private :: xdm_grid
   private :: xdm_qe
   private :: xdm_mol
+  private :: xdm_crystal
   private :: write_cube
   private :: free_volume
   private :: frevol
@@ -47,6 +48,7 @@ contains
   !> Driver for XDM
   subroutine xdm_driver(line)
     use fields
+    use struct_basic
     use global
     use tools_io
     
@@ -108,7 +110,11 @@ contains
              call ferror("xdm_driver","unknown functional",faterr)
        endif
 
-       call xdm_mol(a1,a2,chf)
+       if (cr%ismolecule) then
+          call xdm_mol(a1,a2,chf)
+       else
+          call xdm_crystal(a1,a2,chf)
+       end if
     end if
 
   end subroutine xdm_driver
@@ -953,7 +959,7 @@ contains
     write (uout,'("mesh size      ",A)') string(m%n)
 
     ! properties to calculate 
-    do i = 1, 5
+    do i = 1, 6
        id(i) = i
     end do
     prop(1) = im_rho
@@ -964,7 +970,7 @@ contains
     prop(6) = im_b    
 
     ! fill the mesh with those properties
-    call fillmesh(m,f(refden),id,prop)
+    call fillmesh(m,f(refden),id,prop,.false.)
 
     ! fill the promolecular and the atomic densities
     m%f(:,4:5) = 0d0
@@ -1030,6 +1036,166 @@ contains
     call edisp_mol(a1,a2,chf,v,mm)
 
   end subroutine xdm_mol
+
+  !> Calculate XDM in crystals
+  subroutine xdm_crystal(a1o,a2o,chf)
+    use meshmod
+    use fields
+    use global
+    use struct_basic
+    use grd_atomic
+    use grid1_tools
+    use tools_math
+    use tools_io
+    use types
+    use param
+    
+    real*8, intent(in) :: a1o, a2o
+    real*8, intent(in) :: chf
+
+    type(molmesh) :: m
+    integer :: nelec
+    integer :: id(7), prop(7), i, j, lu, luh, iz
+    real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
+    real*8 :: mm(3,cr%ncel), v(cr%ncel), dum1(3), dum2(3,3)
+
+    ! only for wfn or dftb
+    if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
+       call ferror("xdm_mol","molecular XDM only for wfn and dftb fields",faterr)
+
+    ! only for closed shells
+    if (f(refden)%type == type_wfn) then
+       if (f(refden)%wfntyp /= 0) &
+          call ferror("xdm_mol","open shell wavefunctions not supported",faterr)
+    end if
+    
+    ! write some info to the output
+    write (uout,'("a1             ",A)') string(a1o,'f',12,6)
+    write (uout,'("a2(ang)        ",A)') string(a2o,'f',12,6)
+    a1 = a1o
+    a2 = a2o / bohrtoa
+    
+    if (chf < 0d0) then
+       select case (nint(chf))
+       case (chf_blyp)
+          write(uout,'("a_hf           blyp")')
+       case (chf_b3lyp)
+          write(uout,'("a_hf           b3lyp")')
+       case (chf_bhahlyp)
+          write(uout,'("a_hf           bhandhlyp")')
+       case (chf_camb3lyp)
+          write(uout,'("a_hf           camb3lyp")')
+       case (chf_pbe)
+          write(uout,'("a_hf           pbe")')
+       case (chf_pbe0)
+          write(uout,'("a_hf           pbe0")')
+       case (chf_lcwpbe)
+          write(uout,'("a_hf           lcwpbe")')
+       case (chf_pw86)
+          write(uout,'("a_hf           pw86pbe")')
+       case (chf_b971)
+          write(uout,'("a_hf           b971")')
+       end select
+    elseif (abs(chf-1d0) < 1d-9) then
+       write(uout,'("a_hf           hf")')
+    else
+       write(uout,'("a_hf           ",A)') string(chf,'f',12,6)
+    endif
+    
+    ! prepare the mesh
+    m = genmesh_franchini(cr)
+    write (uout,'("mesh size      ",A)') string(m%n)
+    
+    ! properties to calculate 
+    do i = 1, 6
+       id(i) = i
+    end do
+    prop(1) = im_rho
+    prop(2) = im_gradrho
+    prop(3) = im_gkin
+    prop(4) = im_null ! for promolecular / hirshfeld weights
+    prop(5) = im_null ! for the atomic density contribution
+    prop(6) = im_b    
+    
+    ! fill the mesh with those properties
+    ! xxxx !
+    ! call fillmesh(m,f(refden),id,prop,.true.)
+    allocate(m%f(m%n,6))
+    m%f = 0d0
+    
+    ! fill the promolecular and the atomic densities
+    m%f(:,4:5) = 0d0
+    lu = fopen_scratch()
+    nelec = 0
+    do i = 1, cr%ncel
+       write (*,*) i
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       nelec = nelec + iz
+    
+       do j = 1, m%n
+          x = m%x(:,j) - cr%atcel(i)%r
+          r = norm(x)
+          call grid1_interp(agrid(iz),r,rho,rhop,rhopp)
+          m%f(j,5) = rho
+          m%f(j,4) = m%f(j,4) + rho
+       enddo
+       write (lu) (m%f(j,5),j=1,m%n)
+    enddo
+
+    if (.not.cr%ismolecule) then
+       do j = 1, m%n
+          x = cr%c2x(m%x(:,j))
+          call grda_promolecular(x,rho,dum1,dum2,0,.false.,periodic=.true.)
+          m%f(j,4) = rho
+       enddo
+    end if
+
+    ! create the temporary file with the weights
+    luh = fopen_scratch()
+    rewind(lu)
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       read (lu) (m%f(j,5),j=1,m%n)
+       write (luh) (max(m%f(j,5),1d-40)/max(m%f(j,4),1d-40),j=1,m%n)
+    enddo
+    call fclose(lu)
+    
+    ! integrate the number of electrons
+    nn = sum(m%f(:,1) * m%w)
+    write (uout,'("nelec          ",A)') string(nelec)
+    write (uout,'("nelec (promol) ",A)') string(sum(m%f(:,4) * m%w),'f',12,6)
+    write (uout,'("nelec, total   ",A)') string(nn,'f',12,6)
+    if (abs(nn - nelec) > 0.1d0) &
+       call ferror("xdm_mol","inconsistent nelec. I hope you know what you are doing",warning)
+    
+    ! ! calculate moments and volumes
+    ! mm = 0d0
+    ! v = 0d0
+    ! rewind(luh)
+    ! do i = 1, cr%ncel
+    !    iz = cr%at(cr%atcel(i)%idx)%z
+    !    if (iz < 1) cycle
+    !    read (luh) (m%f(j,4),j=1,m%n)
+    ! 
+    !    ! calculate hole dipole and moments
+    !    do j = 1, m%n
+    !       r = norm(m%x(:,j)-cr%atcel(i)%r)
+    !       rb = max(0.d0,r-m%f(j,6))
+    ! 
+    !       mm(1,i) = mm(1,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r-rb)**2
+    !       mm(2,i) = mm(2,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**2-rb**2)**2
+    !       mm(3,i) = mm(3,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**3-rb**3)**2
+    !       v(i) = v(i) + m%w(j) * m%f(j,4) * m%f(j,1) * r**3
+    !    enddo
+    ! enddo
+    ! call fclose(luh)
+    ! 
+    ! ! calculate and output energy and derivatives
+    ! call edisp_mol(a1,a2,chf,v,mm)
+
+  end subroutine xdm_crystal
 
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
