@@ -81,8 +81,11 @@ contains
     logical, allocatable :: isdiscrete(:)
     integer :: i, j, nmol
     character(len=:), allocatable :: wroot, file0
+    logical :: didburst, didpairs
 
     ! determine the fragments
+    didburst = .false.
+    didpairs = .false.
     if (rcub > 0) then
        fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
     elseif (rsph > 0) then
@@ -90,6 +93,8 @@ contains
     elseif (doburst.or.dopairs) then
        fr = c%listatoms_cells(ix,doborder)
        call c%listmolecules(fr,nmol,fr0,isdiscrete)
+       didburst = doburst
+       didpairs = dopairs
     elseif (molmotif) then
        fr = c%listatoms_cells(ix,doborder)
        call c%listmolecules(fr,nmol,fr0,isdiscrete)
@@ -105,7 +110,7 @@ contains
        end do
     end if
 
-    if (.not.doburst.and..not.dopairs) then
+    if (.not.didburst.and..not.didburst) then
        ! normal write 
        if (equal(fmt,"xyz")) then
           call writexyz(file,fr)
@@ -115,7 +120,7 @@ contains
           call ferror("struct_write_mol","Unknown format",faterr)
        endif
     else
-       if (doburst) then
+       if (didburst) then
           ! burst into single-molecule files
           wroot = file(:index(file,'.',.true.)-1)
           do i = 1, nmol
@@ -129,7 +134,7 @@ contains
              endif
           end do
        end if
-       if (dopairs) then
+       if (didpairs) then
           ! double-molecule files
           wroot = file(:index(file,'.',.true.)-1)
           do i = 1, nmol
