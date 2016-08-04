@@ -138,6 +138,11 @@ module global
   integer, parameter :: INT_qag = 4 !< quadpack qag
   integer, parameter :: INT_lebedev = 5 !< lebedev
 
+  ! mesh type and quality for molecular integrations
+  ! 0 = Becke, >0 = Franchini with 1 (small), 2 (normal), 3 (good),
+  ! 4(very good), 5 (excellent).
+  integer :: MESH_type !< type and quality of mesh for molecular integration
+
   ! qtree
   ! note: ws_origin also used in auto
   integer :: gradient_mode   
@@ -252,6 +257,9 @@ contains
     INT_radquad_errprop = 2
     INT_radquad_errprop_default = .true.
     INT_iasprec = 1d-5
+
+    ! molecular mesh
+    MESH_type = 2
 
     ! qtree
     ! gradient_mode set in critic->set_reference
@@ -446,6 +454,19 @@ contains
              exit
           end if
        end do
+    else if (equal (word,'meshtype')) then
+       word = lgetword(line,lp)
+       if (equal(word,'becke')) then
+          MESH_type = 0
+       elseif (equal(word,'franchini')) then
+          ok = isinteger(MESH_type,line,lp)
+          if (MESH_type < 0 .or. MESH_type > 5) &
+             call ferror('critic_setvariables','Invalid Franchini quality in MESHTYPE',faterr,line,syntax=.true.)
+       else
+          call ferror('critic_setvariables','Unknown keyword in MESHTYPE',faterr,line,syntax=.true.)
+       end if
+       call check_no_extra_word(ok)
+       
     else if (equal (word,'gradient_mode')) then
        ok = isinteger(gradient_mode,line,lp)
        if (.not.ok) then

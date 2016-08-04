@@ -28,18 +28,45 @@ module meshmod
 
   private
   public :: genmesh
-  public :: genmesh_franchini
+  private :: genmesh_becke
+  private :: genmesh_franchini
   public :: fillmesh
-  private :: rmesh
-  private :: z2nr
-  private :: z2nang
+  private :: rmesh_postg
+  private :: z2nr_postg
+  private :: z2nr_franchini
+  private :: z2nang_postg
+  private :: z2nang_franchini
   private :: bhole
   private :: xfuncs
 
 contains
 
-  !> Generate a Becke-style molecular mesh
+  !> Driver for the generation of a molecular mesh. Uses the global
+  !> MESH_type to decide the type and quality of the mesh.
   function genmesh(c) result(mesh)
+    use struct_basic
+    use global
+    use types
+    type(crystal), intent(in) :: c
+    type(molmesh) :: mesh
+
+    integer :: tmesh
+
+    tmesh = MESH_type
+    if (.not.c%ismolecule .and. MESH_type == 0) then
+       tmesh = 3
+    end if
+
+    if (tmesh == 0) then
+       mesh = genmesh_becke(c)
+    else
+       mesh = genmesh_franchini(c,tmesh)
+    end if
+    
+  end function genmesh
+
+  !> Generate a Becke-style molecular mesh. Only for molecules.
+  function genmesh_becke(c) result(mesh)
     use struct_basic
     use tools_math
     use tools_io
@@ -48,7 +75,7 @@ contains
     type(crystal), intent(in) :: c
     type(molmesh) :: mesh
 
-    real*8 :: rr(c%ncel,c%ncel), rmid, r, r1, r2, hypr, vp0, vpsum, vpi
+    real*8 :: rr(c%ncel,c%ncel), r, r1, r2, hypr, vp0, vpsum, vpi
     integer :: i, j, k, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
@@ -56,7 +83,7 @@ contains
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
 
     if (.not.c%ismolecule) &
-       call ferror("genmesh","genmesh can only work with molecules",faterr)
+       call ferror("genmesh_becke","genmesh_becke can only work with molecules",faterr)
     
     ! interatomic distances
     rr = 0d0
@@ -72,7 +99,7 @@ contains
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
-       mesh%n = mesh%n + z2nr(iz) * z2nang(iz)
+       mesh%n = mesh%n + z2nr_postg(iz) * z2nang_postg(iz)
     enddo
     allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
 
@@ -82,29 +109,28 @@ contains
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
-       mang = max(mang,z2nang(iz))
-       mr = max(mr,z2nr(iz))
+       mang = max(mang,z2nang_postg(iz))
+       mr = max(mr,z2nr_postg(iz))
     end do
     allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
     allocate(rads(mr),wrads(mr),stat=istat)
-    if (istat /= 0) call ferror('genmesh','could not allocate memory for radial meshes',faterr)
+    if (istat /= 0) call ferror('genmesh_becke','could not allocate memory for radial meshes',faterr)
     allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
-    if (istat /= 0) call ferror('readwfn','could not allocate memory for angular meshes',faterr)
+    if (istat /= 0) call ferror('genmesh_becke','could not allocate memory for angular meshes',faterr)
     
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
-    !$omp parallel do private(nr,nang,rmid,ir,r,il,x,j,k,r1,r2,hypr,&
+    !$omp parallel do private(nr,nang,ir,r,il,x,j,k,r1,r2,hypr,&
     !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
 
        ! radial mesh
-       nr = z2nr(iz)
-       nang = z2nang(iz)
-       rmid = 1d0/real(iz,8)**third
-       call rmesh(nr,rmid,rads,wrads)
+       nr = z2nr_postg(iz)
+       nang = z2nang_postg(iz)
+       call rmesh_postg(nr,iz,rads,wrads)
 
        ! angular mesh
        call good_lebedev(nang)
@@ -171,8 +197,8 @@ contains
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
-       nr = z2nr(iz)
-       nang = z2nang(iz)
+       nr = z2nr_postg(iz)
+       nang = z2nang_postg(iz)
        do ir = 1, nr
           do il = 1, nang
              kk = kk + 1
@@ -182,34 +208,38 @@ contains
        enddo
     enddo
 
-  end function genmesh
+  end function genmesh_becke
 
-  !> Generate a Becke-style molecular mesh, Franchini weights.
+  !> Generate a Becke-style molecular mesh, Franchini weights
   !> J. Comput. Chem. 34 (2013) 1819.
+  !> The lvl parameter controls the quality:
+  !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   !> This mesh is good for periodic systems because the calculation of the 
-  !> weights does not involve a double sum over environments.
-  function genmesh_franchini(c) result(mesh)
+  !> weights does not involve a double sum over atoms.
+  function genmesh_franchini(c,lvl) result(mesh)
     use struct_basic
     use tools_math
     use tools_io
     use types
 
     type(crystal), intent(in) :: c
+    integer, intent(in) :: lvl
     type(molmesh) :: mesh
 
-    real*8 :: rmid, r, r1, r2, vp0, vpsum, vpi
+    real*8 :: r, r1, r2, vp0, vpsum, vpi
     integer :: i, j, k, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
-    real*8 :: x(3), fscal
+    real*8 :: x(3), fscal, fscal2
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
+    real*8 :: cutoff(c%ncel,c%ncel), hypr, rr
 
     ! allocate space for the mesh
     mesh%n = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
-       mesh%n = mesh%n + z2nr(iz) * z2nang(iz)
+       mesh%n = mesh%n + z2nr_franchini(iz,lvl) * z2nang_franchini(iz,lvl)
     enddo
     allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
 
@@ -219,20 +249,20 @@ contains
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
-       mang = max(mang,z2nang(iz))
-       mr = max(mr,z2nr(iz))
+       mang = max(mang,z2nang_franchini(iz,lvl))
+       mr = max(mr,z2nr_franchini(iz,lvl))
     end do
     allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
     allocate(rads(mr),wrads(mr),stat=istat)
-    if (istat /= 0) call ferror('genmesh','could not allocate memory for radial meshes',faterr)
+    if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for radial meshes',faterr)
     allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
-    if (istat /= 0) call ferror('readwfn','could not allocate memory for angular meshes',faterr)
+    if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for angular meshes',faterr)
     
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
-    !! !$omp parallel do private(nr,nang,rmid,ir,r,il,x,j,k,r1,r2,&
-    !! !$omp vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
+    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1) &
+    !$omp firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) then
@@ -244,10 +274,9 @@ contains
        end if
 
        ! radial mesh
-       nr = z2nr(iz)
-       nang = z2nang(iz)
-       rmid = 1d0/real(iz,8)**third
-       call rmesh(nr,rmid,rads,wrads)
+       nr = z2nr_franchini(iz,lvl)
+       nang = z2nang_franchini(iz,lvl)
+       call rmesh_franchini(nr,iz,rads,wrads)
 
        ! angular mesh
        call good_lebedev(nang)
@@ -257,44 +286,33 @@ contains
        ! 3d mesh, do not parallelize to get the nodes in order
        do ir = 1, nr
           r = rads(ir)
-          if (r < 1d-6) then
-             vp0 = 1d0
-          else
-             vp0 = fscal * exp(-2d0 * r) / r**3
-          end if
+          vp0 = fscal * exp(-2d0 * r) / max(r,1d-10)**3
 
           do il = 1, nang
              x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
-             x = c%c2x(x)
-             x = x - floor(x)
-             x = c%x2c(x)
 
              vpsum = 0d0
              do j = 1, c%nenv
-                iz = c%at(c%atenv(j)%idx)%z 
-                if (iz < 1) then
+                iz2 = c%at(c%atenv(j)%idx)%z 
+                if (iz2 < 1) then
                    cycle
-                elseif (iz == 1) then
-                   fscal = 0.3d0
+                elseif (iz2 == 1) then
+                   fscal2 = 0.3d0
                 else
-                   fscal = 1d0
+                   fscal2 = 1d0
                 end if
                 r1 = sqrt((x(1)-c%atenv(j)%r(1))**2+(x(2)-c%atenv(j)%r(2))**2+(x(3)-c%atenv(j)%r(3))**2)
-                if (r1 < 1d-6) then
-                   vpsum = vpsum + 1d0
-                else
-                   vpsum = vpsum + fscal * exp(-2d0 * r1) / r1**3
-                end if
+                vpsum = vpsum + fscal2 * exp(-2d0 * r1) / max(r1,1d-10)**3
              enddo
                 
-             !! !$omp critical (mmesh)
+             !$omp critical (mmesh)
              meshrl(il,ir,i) = vp0/vpsum * wrads(ir) * wang(il)
              meshx(:,il,ir,i) = x
-             !! !$omp end critical (mmesh)
+             !$omp end critical (mmesh)
           enddo
        enddo
     end do
-    !! !$omp end parallel do
+    !$omp end parallel do
 
     ! clean up
     if (allocated(rads)) deallocate(rads)
@@ -309,8 +327,8 @@ contains
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1) cycle
-       nr = z2nr(iz)
-       nang = z2nang(iz)
+       nr = z2nr_franchini(iz,lvl)
+       nang = z2nang_franchini(iz,lvl)
        do ir = 1, nr
           do il = 1, nang
              kk = kk + 1
@@ -392,25 +410,21 @@ contains
   end subroutine fillmesh
 
   !> Radial mesh for integration of exponential-like functions.
-  subroutine rmesh(n,rmid,r,wintr)
+  !> From postg.
+  subroutine rmesh_postg(n,iz,r,wintr)
     ! Radial mesh and integration weights,
     ! derivatives of variable r with respect to variable q.
-    !
     ! The q-mesh is uniform on the interval (0,+1). Transformation is
-    !
-    !                    Q
-    !     R  =  RMID ---------
-    !                ( 1 - Q )
-    !
-    ! Also, 3 and 7-point finite difference matrices for d2(wrt)r on q-mesh.
+    ! r = rmid * q / (1-q)
 
     integer, intent(in) :: n
-    real*8, intent(in) :: rmid
+    integer, intent(in) :: iz
     real*8, intent(out) :: r(n), wintr(n)
 
-    real*8 :: h, q
+    real*8 :: h, q, rmid
     integer :: i
 
+    rmid = 1d0/real(iz,8)**third
     h = 1d0/real(n+1,8)
     do i=1,n
        q=h*i
@@ -418,29 +432,131 @@ contains
        wintr(i) = fourpi * h * r(i)**2 * rmid / (1.d0-q)**2
     enddo
 
-  end subroutine rmesh
+  end subroutine rmesh_postg
 
-  function z2nr(z)
+  !> Radial mesh for integration of exponential-like functions.
+  !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
+  !> The transformation is:
+  !>   r = zeta/ln(2) * (1+q) * ln(2/(1-q))
+  !> where zeta is a function of the atomic number.
+  subroutine rmesh_franchini(n,iz,r,wintr)
+    use tools_math
+
+    integer, intent(in) :: n
+    integer, intent(in) :: iz
+    real*8, intent(out) :: r(n), wintr(n)
+
+    !> From the SI in Franchini's.
+    real*8, parameter :: zeta(103) = (/&
+       0.8, 0.9, 1.8, 1.4, 1.3, 1.1, 0.9, 0.9, 0.9, 0.9,& !  1-10
+       1.4, 1.3, 1.3, 1.2, 1.1, 1.0, 1.0, 1.0, 1.5, 1.4,& ! 11-20
+       1.3, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.1, 1.1, 1.1,& ! 21-30
+       1.1, 1.0, 0.9, 0.9, 0.9, 0.9, 1.4, 1.4, 1.1, 1.3,& ! 31-40
+       1.0, 1.2, 0.9, 0.9, 0.9, 1.0, 0.9, 1.0, 1.0, 1.3,& ! 41-50
+       1.2, 1.2, 0.9, 1.0, 1.7, 1.5, 1.5, 1.3, 1.3, 1.4,& ! 51-60
+       1.8, 1.4, 1.2, 1.3, 1.3, 1.4, 1.1, 1.1, 1.2, 1.6,& ! 61-70
+       1.4, 1.3, 1.2, 1.0, 1.0, 0.9, 1.3, 1.2, 1.2, 1.0,& ! 71-80
+       1.2, 1.2, 1.1, 1.2, 1.1, 2.1, 2.2, 1.8, 1.7, 1.3,& ! 81-90
+       1.4, 1.2, 1.2, 1.3, 1.4, 1.4, 1.7, 1.9, 1.9, 2.0,& ! 91-100
+       2.0, 1.6, 2.0/) ! 101-103
+
+    real*8 :: h, q
+    integer :: i
+
+    call gauleg(-1d0,1d0,r,wintr,n)
+    h = 1d0/real(n+1,8)
+    do i = 1, n
+       q = r(i)
+       r(i) = zeta(iz)/log2 * (1+q) * log(2/(1-q))
+       wintr(i) = fourpi * r(i)**2 * wintr(i) * zeta(iz)/log2 * (log(2/(1-q)) + (1+q)/(1-q))
+    enddo
+
+  end subroutine rmesh_franchini
+
+  !> Atomic number to radial point number. From postg - really good
+  !> accuracy but slow.
+  function z2nr_postg(z) result(nr)
     integer, intent(in) :: z
-    integer :: z2nr
+    integer :: nr
 
-    z2nr = 40
-    if (z > 2) z2nr = 60
-    if (z > 10) z2nr = 80
-    if (z > 18) z2nr = 100
-    if (z > 36) z2nr = 120
-    if (z > 54) z2nr = 140
-    if (z > 86) z2nr = 160
+    nr = 40
+    if (z > 2) nr = 60
+    if (z > 10) nr = 80
+    if (z > 18) nr = 100
+    if (z > 36) nr = 120
+    if (z > 54) nr = 140
+    if (z > 86) nr = 160
 
-  endfunction z2nr
+  endfunction z2nr_postg
 
-  function z2nang(z)
+  !> Atomic number to radial point number. 
+  !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
+  !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
+  !> Some changes to the choice of ni0
+  function z2nr_franchini(z,lvl) result(nr)
+    use tools_io
     integer, intent(in) :: z
-    integer :: z2nang
+    integer, intent(in) :: lvl
+    integer :: nr
 
-    z2nang = 194
+    nr = 15
+    if (z > 2) nr = 20
+    if (z > 10) nr = 25
+    if (z > 18) nr = 35
+    if (z > 36) nr = 60
+    if (z > 54) nr = 85
+    if (z > 86) nr = 110
 
-  endfunction z2nang
+    if (lvl == 1) then
+       nr = ceiling(nr * 2.37)
+    elseif (lvl == 2) then
+       nr = ceiling(nr * 3.08)
+    elseif (lvl == 3) then
+       nr = ceiling(nr * 3.42)
+    elseif (lvl == 4) then
+       nr = ceiling(nr * 4.27)
+    elseif (lvl == 5) then
+       nr = ceiling(nr * 6.72)
+    else
+       call ferror("z2nr_franchini","unknown accuracy level",faterr)
+    end if
+
+  endfunction z2nr_franchini
+
+  !> Select the number of points for the angular (Lebedev) quadrature.
+  !> From postg.
+  function z2nang_postg(z) result(nang)
+    integer, intent(in) :: z
+    integer :: nang
+
+    nang = 194
+
+  endfunction z2nang_postg
+
+  !> Select the number of points for the angular (Lebedev) quadrature.
+  !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
+  !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
+  function z2nang_franchini(z,lvl) result(nang)
+    use tools_io
+    integer, intent(in) :: z
+    integer, intent(in) :: lvl
+    integer :: nang
+
+    if (lvl == 1) then
+       nang = 110
+    elseif (lvl == 2) then
+       nang = 194
+    elseif (lvl == 3) then
+       nang = 302
+    elseif (lvl == 4) then
+       nang = 590
+    elseif (lvl == 5) then
+       nang = 770
+    else
+       call ferror("z2nang_franchini","unknown accuracy level",faterr)
+    end if
+       
+  endfunction z2nang_franchini
 
   subroutine bhole(rho,quad,hnorm,b)
     use param

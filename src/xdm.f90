@@ -822,8 +822,6 @@ contains
                 ok = getline(lu,line)
                 read(line,*) idx1, idx2, c6(i,j), c8(i,j), c10(i,j), rc(i,j), rvdw(i,j)
                 if (idx1 /= i .or. idx2 /= j) then
-                   write (*,*) idx1, i
-                   write (*,*) idx2, j
                    call ferror("trick","read indices do not match",faterr)
                 end if
                 c6(j,i) = c6(i,j)
@@ -1059,15 +1057,17 @@ contains
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: mm(3,cr%ncel), v(cr%ncel), dum1(3), dum2(3,3)
 
-    ! only for wfn or dftb
-    if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
-       call ferror("xdm_mol","molecular XDM only for wfn and dftb fields",faterr)
+    ! xxxx !
 
-    ! only for closed shells
-    if (f(refden)%type == type_wfn) then
-       if (f(refden)%wfntyp /= 0) &
-          call ferror("xdm_mol","open shell wavefunctions not supported",faterr)
-    end if
+    ! ! only for wfn or dftb
+    ! if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
+    !    call ferror("xdm_mol","crystal XDM only for wfn and dftb fields",faterr)
+
+    ! ! only for closed shells
+    ! if (f(refden)%type == type_wfn) then
+    !    if (f(refden)%wfntyp /= 0) &
+    !       call ferror("xdm_mol","open shell wavefunctions not supported",faterr)
+    ! end if
     
     ! write some info to the output
     write (uout,'("a1             ",A)') string(a1o,'f',12,6)
@@ -1103,7 +1103,7 @@ contains
     endif
     
     ! prepare the mesh
-    m = genmesh_franchini(cr)
+    m = genmesh(cr)
     write (uout,'("mesh size      ",A)') string(m%n)
     
     ! properties to calculate 
@@ -1128,7 +1128,6 @@ contains
     lu = fopen_scratch()
     nelec = 0
     do i = 1, cr%ncel
-       write (*,*) i
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
        nelec = nelec + iz

@@ -5780,6 +5780,29 @@ Default: GAULEG, nr.r = 50, aerr.r = 1d0, rerr.r = 1d-12. The default
 errprop is the field value for fields on a grid and the Laplacian for
 the rest.
 
+::
+
+  MESHTYPE {BECKE|FRANCHINI {1|2|3|4|5}}
+
+Choose the type and quality of the molecular integration mesh. These
+meshes are used in molecular and crystals to calculate integrals over
+the whole space. For now, they are only used in the XDM module. 
+
++ BECKE: Becke-style integration grids with the same quality
+  parameters as in postg. As currently implemented, it is quite slow
+  and only available for molecules. If this option is chosen,
+  FRANCHINI 3 is used by default for crystals. 
+
++ FRANCHINI: a Becke-style molecular mesh with weights and quality 
+  parameters adapted from Franchini et al. J. Comput. Chem. 34 (2013)
+  1819. Works for molecules and crystals, and it is relatively
+  efficient. No pruning is done yet. The number after the keyword is
+  hte quality selector, that controls the size of the mesh and the
+  accuracy of the integration.  The values are 1 (small), 2 (normal),
+  3 (good), 4(very good), 5 (excellent).
+
+Default: FRANCHINI with lvl = 2 (normal accuracy).
+
 :: 
 
   PRECISECUBE|STANDARDCUBE
@@ -6138,6 +6161,10 @@ MAX
 MEAN
   Find the average of a field defined on a grid. See `Control commands
   and options`_.
+
+MESHTYPE
+  Type and quality of the molecular integration mesh. See `Control
+  commands and options`_.
 
 MIN
   Find the minimum value of a field defined on a grid. See `Control
