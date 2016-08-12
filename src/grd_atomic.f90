@@ -41,7 +41,8 @@ contains
 
     logical, intent(in) :: docore, dopro, verbose
 
-    integer :: i, j, iz, iq, nval, nelec
+    integer :: i, j, iz, iq, nval, nelec, atq
+    
 
     ! allocate memory for all atomic types
     if (docore) then
@@ -74,7 +75,7 @@ contains
           string("nat",length=3,justify=ioj_right), &
           string("name",length=5,justify=ioj_center), &
           string("Z",length=2,justify=ioj_right), &
-          string("Q",length=3,justify=ioj_right), &
+          string("Q",length=4,justify=ioj_right), &
           string("ZPSP",length=3,justify=ioj_right)
        nelec = 0
        nval = 0
@@ -83,7 +84,7 @@ contains
              string(i,length=3,justify=ioj_right), &
              string(cr%at(i)%name,length=5,justify=ioj_center), &
              string(cr%at(i)%z,length=2,justify=ioj_right), &
-             string(cr%at(i)%qat,length=3,justify=ioj_right), &
+             string(cr%at(i)%qat,'f',length=4,decimal=1,justify=ioj_right), &
              string(cr%at(i)%zpsp,length=3,justify=ioj_right)
           nelec = nelec + cr%at(i)%mult * cr%at(i)%z
           if (cr%at(i)%zpsp >= 0) then
@@ -104,9 +105,14 @@ contains
           write (uout,'("* Reading new promolecular density grids")')
        do i = 1, cr%nneq
           if (cr%at(i)%z <= 0 .or. cr%at(i)%z > maxzat) cycle
+          if (abs(nint(cr%at(i)%qat) - cr%at(i)%qat) < 1d-10) then
+             atq = nint(cr%at(i)%qat)
+          else
+             atq = 0
+          end if
           if (agrid(cr%at(i)%z)%init .and. agrid(cr%at(i)%z)%z == cr%at(i)%z .and.&
-              agrid(cr%at(i)%z)%qat == cr%at(i)%qat) cycle
-          call grid1_read_db(agrid(cr%at(i)%z),cr%at(i)%z,cr%at(i)%qat,verbose)
+             agrid(cr%at(i)%z)%qat == atq) cycle
+          call grid1_read_db(agrid(cr%at(i)%z),cr%at(i)%z,atq,verbose)
        end do
        if (verbose) write (uout,*)
     end if
@@ -119,7 +125,7 @@ contains
           iz = cr%at(i)%z
           iq = cr%at(i)%zpsp
           if (cgrid(iz,iq)%init .and. cgrid(iz,iq)%z == iz .and.&
-              cgrid(iz,iq)%qat == iq) cycle
+             cgrid(iz,iq)%qat == iq) cycle
           call grid1_read_db(cgrid(iz,iq),iz,iq,verbose)
        end do
        if (verbose) write (uout,*)

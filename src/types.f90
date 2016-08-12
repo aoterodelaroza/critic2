@@ -79,7 +79,7 @@ module types
      character*(10) :: name = "" !< name
      integer :: z = 0 !< atomic number
      integer :: zpsp = -1 !< pseudopotential ionic charge (Z-core)
-     integer :: qat = 0 !< ionic charge for promolecular densities and Ewald
+     real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
   end type atom
@@ -399,7 +399,7 @@ contains
        a(i)%name = ""
        a(i)%z = 0
        a(i)%zpsp = -1
-       a(i)%qat = 0
+       a(i)%qat = 0d0
        a(i)%rnn2 = 0d0
     end do
 

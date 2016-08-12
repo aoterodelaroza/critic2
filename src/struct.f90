@@ -348,8 +348,9 @@ contains
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word
-    integer :: lp, lp2, nn, i, xx
+    integer :: lp, lp2, nn, i
     logical :: ok, do1
+    real*8 :: xx
 
     oksyn = .false.
     lp = 1
@@ -366,7 +367,7 @@ contains
                 return
              end if
              if (do1) then
-                cr%at(nn)%zpsp = xx
+                cr%at(nn)%zpsp = nint(xx)
              else
                 cr%at(nn)%qat = xx
              end if
@@ -387,7 +388,7 @@ contains
              do i = 1, cr%nneq
                 if (cr%at(i)%z == nn) then
                    if (do1) then
-                      cr%at(i)%zpsp = xx
+                      cr%at(i)%zpsp = nint(xx)
                    else
                       cr%at(i)%qat = xx
                    end if

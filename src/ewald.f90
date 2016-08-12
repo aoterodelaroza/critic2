@@ -61,8 +61,8 @@ contains
 
     real*8 :: nuc_cutoff2 = 1d-14
 
-    real*8 :: rcut2
-    integer :: i, i1, i2, i3, qnuc
+    real*8 :: rcut2, qnuc
+    integer :: i, i1, i2, i3
     real*8 :: px(3), lvec(3), d2, d, dh
     real*8 :: sfac_c, sfacp, bbarg
     real*8 :: sum_real, sum_rec, sum0, sum_back
@@ -73,7 +73,7 @@ contains
     !$omp end critical (fill_ewald)
     
     ! is this a nuclear position? -> get charge
-    qnuc = 0
+    qnuc = 0d0
     if (isnuc) then
        do i = 1, cr%ncel
           px = cr%atcel(i)%x - x

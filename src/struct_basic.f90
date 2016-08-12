@@ -230,7 +230,7 @@ contains
        c%at(i)%name = ""
        c%at(i)%z = 0
        c%at(i)%zpsp = -1
-       c%at(i)%qat = 0
+       c%at(i)%qat = 0d0
        c%at(i)%rnn2 = 0d0
     end do
 
@@ -2070,7 +2070,7 @@ contains
     cr%qsum = 0d0
     q2sum = 0d0
     do i = 1, cr%nneq
-       if (cr%at(i)%qat == 0) &
+       if (abs(cr%at(i)%qat) < 1d-6) &
           call ferror('ewald_energy','Some of the charges are 0',faterr)
        cr%qsum = cr%qsum + real(cr%at(i)%mult * cr%at(i)%qat,8)
        q2sum = q2sum + real(cr%at(i)%mult * cr%at(i)%qat**2,8)

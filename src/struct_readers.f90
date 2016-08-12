@@ -1223,7 +1223,7 @@ contains
 
     ! initialize atoms
     c%at(1:c%nneq)%zpsp = -1
-    c%at(1:c%nneq)%qat = 0
+    c%at(1:c%nneq)%qat = 0d0
 
     ! if this is a molecule, set up the origin and the molecular cell
     if (mol) call fill_molecule_given_cell(c,x0)
@@ -1356,7 +1356,7 @@ contains
 
     ! initialize charge and pseudopotential charge
     c%at(1:c%nneq)%zpsp = -1
-    c%at(1:c%nneq)%qat = 0
+    c%at(1:c%nneq)%qat = 0d0
     call realloc(c%at,c%nneq)
 
     ! clean up
@@ -1504,7 +1504,7 @@ contains
 
     ! initialize charge and pseudopotential charge
     c%at(1:c%nneq)%zpsp = -1
-    c%at(1:c%nneq)%qat = 0
+    c%at(1:c%nneq)%qat = 0d0
 
     ! if this is a molecule, set up the origin and the molecular cell
     if (mol) call fill_molecule_given_cell(c)
@@ -1611,7 +1611,7 @@ contains
     do i = 1, c%nneq
        ! c%at(i)%zpsp = nint(hdr%zionpsp(hdr%typat(i))) ! changed this behavior for consistency
        c%at(i)%zpsp = -1
-       c%at(i)%qat = 0
+       c%at(i)%qat = 0d0
     end do
 
     ! clean up
@@ -1686,14 +1686,14 @@ contains
           c%at(c%nneq)%r = c%x2c(c%at(c%nneq)%x)
           c%at(c%nneq)%z = zat
           c%at(c%nneq)%zpsp = -1
-          c%at(c%nneq)%qat = 0
+          c%at(c%nneq)%qat = 0d0
           c%at(c%nneq)%name = trim(adjustl(atname))
        end do
     end do
 
     ! initialize charge and pseudopotential charge
     c%at(1:c%nneq)%zpsp = -1
-    c%at(1:c%nneq)%qat = 0
+    c%at(1:c%nneq)%qat = 0d0
 
     ! clean up
     call fclose(lu)
@@ -1748,7 +1748,7 @@ contains
     ! Do note use atomic charges or pseudos
     do i = 1, c%nneq
        c%at(i)%zpsp = -1
-       c%at(i)%qat = 0
+       c%at(i)%qat = 0d0
     end do
 
   end subroutine struct_read_mol
@@ -1883,7 +1883,7 @@ contains
        end do
        if (id == 0) call ferror('struct_read_qeout','atom type not found',faterr)
        c%at(i)%zpsp = zpsptyp(id)
-       c%at(i)%qat = 0
+       c%at(i)%qat = 0d0
        c%at(i)%name = attyp(id)
        c%at(i)%z = zatguess(c%at(i)%name)
        if (c%at(i)%z == 0) &
@@ -2161,7 +2161,7 @@ contains
        endif
        c0%at(i)%x = c0%at(i)%x - floor(c0%at(i)%x)
        c0%at(i)%zpsp = -1
-       c0%at(i)%qat = 0
+       c0%at(i)%qat = 0d0
        c0%at(i)%z = zatguess(c0%at(i)%name)
        if (c0%at(i)%z == 0) &
           call ferror('struct_read_qeout','could not determine atomic number',faterr)
@@ -2218,7 +2218,7 @@ contains
        c%at(i)%z = iz
        c%at(i)%name = nameguess(iz)
        c%at(i)%zpsp = -1
-       c%at(i)%qat = 0
+       c%at(i)%qat = 0d0
     end do
 
     ! fill the cell metrics
@@ -2309,7 +2309,7 @@ contains
        c%at(i)%z = itypat(ityp)
        c%at(i)%name = nameguess(c%at(i)%z)
        c%at(i)%zpsp = -1
-       c%at(i)%qat = 0
+       c%at(i)%qat = 0d0
     end do
 
     ! read lattice vectors, if they exist
