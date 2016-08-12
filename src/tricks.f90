@@ -23,6 +23,7 @@ module tricks
   public :: trick
   private :: trick_grid_sphere
   private :: trick_stephens_nnm_channel
+  private :: trick_cell_integral
 
 contains
 
@@ -33,7 +34,8 @@ contains
 
     ! call trick_recalculate_xdm()
     ! call trick_grid_sphere()
-    call trick_stephens_nnm_channel(line0)
+    ! call trick_stephens_nnm_channel(line0)
+    call trick_cell_integral()
     
   end subroutine trick
 
@@ -349,5 +351,29 @@ contains
     call obj_close(luobj,lumtl)
 
   end subroutine trick_stephens_nnm_channel
+
+  !> Calculate the cell integral of the reference field using 
+  !> Franchini et al.'s Becke-style mesh
+  subroutine trick_cell_integral()
+    use fields
+    use struct_basic
+    use meshmod
+    use global
+    use types
+    use tools_io
+    use param
+
+    type(molmesh) :: m
+    integer :: prop(1), id(1)
+
+    write (uout,'("* Trick: cell integral")')
+    m = genmesh(cr)
+    write (uout,'("  mesh size      ",A)') string(m%n)
+    id(1) = 1
+    prop(1) = im_rho
+    call fillmesh(m,f(refden),id,prop,.not.cr%ismolecule)
+    write (uout,'("cell integral ",A)') string(sum(m%f(:,1) * m%w),'f',12,6)
+
+  end subroutine trick_cell_integral
 
 end module tricks

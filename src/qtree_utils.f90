@@ -143,7 +143,7 @@ contains
        else if (i == nnuc+1) then
           zz = 1
        else
-          zz = 120
+          zz = maxzat0
        end if
        write (luo,'(2X,A,I4,A,F10.6,A,3(F6.2,X))') &
           "type ", 2*i-1, " pointrad ", diab, " pointrgb ", real(JMLcol(:,zz),8)/255d0

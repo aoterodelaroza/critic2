@@ -98,7 +98,7 @@ contains
     mesh%n = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
        mesh%n = mesh%n + z2nr_postg(iz) * z2nang_postg(iz)
     enddo
     allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
@@ -108,7 +108,7 @@ contains
     mang = -1
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang_postg(iz))
        mr = max(mr,z2nr_postg(iz))
     end do
@@ -125,7 +125,7 @@ contains
     !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
 
        ! radial mesh
        nr = z2nr_postg(iz)
@@ -144,10 +144,10 @@ contains
              x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
              do j = 2, c%ncel
                 iz = c%at(c%atcel(j)%idx)%z 
-                if (iz < 1) cycle
+                if (iz < 1 .or. iz > maxzat) cycle
                 do k = 1, j-1
                    iz2 = c%at(c%atcel(k)%idx)%z 
-                   if (iz2 < 1) cycle
+                   if (iz2 < 1 .or. iz2 > maxzat) cycle
                    r1 = sqrt((x(1)-c%atcel(j)%r(1))**2+(x(2)-c%atcel(j)%r(2))**2+(x(3)-c%atcel(j)%r(3))**2)
                    r2 = sqrt((x(1)-c%atcel(k)%r(1))**2+(x(2)-c%atcel(k)%r(2))**2+(x(3)-c%atcel(k)%r(3))**2)
                    hypr = (r1-r2) / rr(j,k)
@@ -165,12 +165,12 @@ contains
              vpsum = 0d0
              do j = 1, c%ncel
                 iz = c%at(c%atcel(j)%idx)%z 
-                if (iz < 1) cycle
+                if (iz < 1 .or. iz > maxzat) cycle
                 vp0=vp0*cutoff(i,j)
                 vpi=1d0
                 do k = 1, c%ncel
                    iz2 = c%at(c%atcel(k)%idx)%z 
-                   if (iz2 < 1) cycle
+                   if (iz2 < 1 .or. iz2 > maxzat) cycle
                    vpi = vpi * cutoff(j,k)
                 enddo
                 vpsum = vpsum + vpi
@@ -196,7 +196,7 @@ contains
     kk = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
        nr = z2nr_postg(iz)
        nang = z2nang_postg(iz)
        do ir = 1, nr
@@ -238,7 +238,7 @@ contains
     mesh%n = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
        mesh%n = mesh%n + z2nr_franchini(iz,lvl) * z2nang_franchini(iz,lvl)
     enddo
     allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
@@ -248,7 +248,7 @@ contains
     mang = -1
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang_franchini(iz,lvl))
        mr = max(mr,z2nr_franchini(iz,lvl))
     end do
@@ -265,7 +265,7 @@ contains
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) then
+       if (iz < 1 .or. iz > maxzat) then
           cycle
        elseif (iz == 1) then
           fscal = 0.3d0
@@ -294,7 +294,7 @@ contains
              vpsum = 0d0
              do j = 1, c%nenv
                 iz2 = c%at(c%atenv(j)%idx)%z 
-                if (iz2 < 1) then
+                if (iz2 < 1 .or. iz2 > maxzat) then
                    cycle
                 elseif (iz2 == 1) then
                    fscal2 = 0.3d0
@@ -326,7 +326,7 @@ contains
     kk = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
-       if (iz < 1) cycle
+       if (iz < 1 .or. iz > maxzat) cycle
        nr = z2nr_franchini(iz,lvl)
        nang = z2nang_franchini(iz,lvl)
        do ir = 1, nr

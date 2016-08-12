@@ -560,6 +560,7 @@ contains
                        do iat = 1, fr(ifr)%nat
                           xd = x - fr(ifr)%at(iat)%r
                           dist = sqrt(dot_product(xd,xd))
+                          if (.not.agrid(fr(ifr)%at(iat)%z)%init) cycle
                           if (dist > agrid(fr(ifr)%at(iat)%z)%rmax) cycle
                           dist = max(dist,agrid(fr(ifr)%at(iat)%z)%r(1))
                           dist = max(dist,1d-14)
@@ -662,7 +663,7 @@ contains
         if (periodic) then
            file = trim(file) // " border"
            if (domolmotif) file = trim(file) // " molmotif"
-           call struct_write(file)
+           call struct_write(cr,file)
         else
            call fragment_init(fr0)
            xx0 = cr%c2x(x0 - rthres_xyz)

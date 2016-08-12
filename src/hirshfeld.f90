@@ -97,6 +97,7 @@ contains
                       x = lvec + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + &
                          (k-1) * xdelta(:,3) - cr%at(iat)%r
                       dist = sqrt(dot_product(x,x))
+                      if (.not.agrid(cr%at(iat)%z)%init) cycle
                       if (dist > agrid(cr%at(iat)%z)%rmax / 2) cycle
 
                       doagain = .true.

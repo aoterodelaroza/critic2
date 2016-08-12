@@ -27,7 +27,6 @@ module grd_atomic
   public :: grda_end
   public :: grda_promolecular
 
-  integer, parameter :: maxz = 103
   type(grid1), target, allocatable, public :: agrid(:)
   type(grid1), target, allocatable, public :: cgrid(:,:)
 
@@ -38,6 +37,7 @@ contains
     use struct_basic
     use grid1_tools
     use tools_io
+    use param
 
     logical, intent(in) :: docore, dopro, verbose
 
@@ -46,21 +46,21 @@ contains
     ! allocate memory for all atomic types
     if (docore) then
        if (allocated(cgrid)) deallocate(cgrid)
-       allocate(cgrid(maxz,maxz))
+       allocate(cgrid(maxzat0,maxzat0))
     endif
     if (dopro) then
        if (allocated(agrid)) deallocate(agrid)
-       allocate(agrid(maxz))
+       allocate(agrid(maxzat0))
     endif
 
     ! initialize default agrid and cgrid values
-    do i = 1, maxz
+    do i = 1, maxzat0
        if (dopro) then
           agrid(i)%z = 0
           agrid(i)%qat = 0
        end if
        if (docore) then
-          do j = 1, maxz
+          do j = 1, maxzat0
              cgrid(i,j)%z = 0
              cgrid(i,j)%qat = 0
           end do
@@ -103,7 +103,7 @@ contains
        if (verbose) &
           write (uout,'("* Reading new promolecular density grids")')
        do i = 1, cr%nneq
-          if (cr%at(i)%z == 0) cycle
+          if (cr%at(i)%z <= 0 .or. cr%at(i)%z > maxzat) cycle
           if (agrid(cr%at(i)%z)%init .and. agrid(cr%at(i)%z)%z == cr%at(i)%z .and.&
               agrid(cr%at(i)%z)%qat == cr%at(i)%qat) cycle
           call grid1_read_db(agrid(cr%at(i)%z),cr%at(i)%z,cr%at(i)%qat,verbose)
@@ -115,7 +115,7 @@ contains
        if (verbose) &
           write (uout,'("* Reading new core density grids")')
        do i = 1, cr%nneq
-          if (cr%at(i)%zpsp <= 0) cycle
+          if (cr%at(i)%zpsp <= 0 .or. cr%at(i)%zpsp > maxzat) cycle
           iz = cr%at(i)%z
           iq = cr%at(i)%zpsp
           if (cgrid(iz,iq)%init .and. cgrid(iz,iq)%z == iz .and.&
@@ -140,6 +140,7 @@ contains
     use struct_basic
     use grid1_tools
     use types
+    use param
 
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
     real*8, intent(out) :: f !< Density
@@ -177,7 +178,7 @@ contains
        end if
        nido = 0
        do i = 1, cr%nenv
-          if (cr%at(cr%atenv(i)%idx)%z == 0) cycle
+          if (cr%at(cr%atenv(i)%idx)%z == 0 .or. cr%at(cr%atenv(i)%idx)%z > maxzat) cycle
           if (iscore .and. (cr%at(cr%atenv(i)%idx)%zpsp <= 0)) cycle
           if (iscore .and. (cr%at(cr%atenv(i)%idx)%z - cr%at(cr%atenv(i)%idx)%zpsp == 0)) cycle
           if (iscore) then

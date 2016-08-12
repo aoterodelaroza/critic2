@@ -56,7 +56,7 @@ contains
     integer :: lp, lp2
     character(len=:), allocatable :: word, word2, wext1, wext2, subline, aux
     integer :: ntyp, nn
-    character*5 :: ztyp(maxzat)
+    character*5 :: ztyp(maxzat0)
     real*8 :: rborder, raux
     logical :: docube, ok
 
@@ -408,13 +408,14 @@ contains
   end subroutine struct_charges
 
   ! Write the crystal structure to a file
-  subroutine struct_write(line)
+  subroutine struct_write(c,line)
     use struct_writers
     use struct_basic
     use global
     use tools_io
     use param
 
+    type(crystal), intent(inout) :: c
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, wext, file, wroot
@@ -472,9 +473,9 @@ contains
              end if
              ! convert units and coordinates
              rsph = rsph / dunit
-             if (cr%ismolecule) then
-                xsph = xsph / dunit - cr%molx0
-                xsph = cr%c2x(xsph)
+             if (c%ismolecule) then
+                xsph = xsph / dunit - c%molx0
+                xsph = c%c2x(xsph)
              endif
           elseif (equal(word,'cube')) then
              ok = eval_next(rcub,line,lp)
@@ -491,9 +492,9 @@ contains
              end if
              ! convert units and coordinates
              rcub = rcub / dunit
-             if (cr%ismolecule) then
-                xcub = xcub / dunit - cr%molx0
-                xcub = cr%c2x(xcub)
+             if (c%ismolecule) then
+                xcub = xcub / dunit - c%molx0
+                xcub = c%c2x(xcub)
              endif
           elseif (eval_next(iaux,word,lp2)) then
              ix(1) = iaux
@@ -519,64 +520,64 @@ contains
        end if
 
        if (equal(wext,'xyz').or.equal(wext,'gjf')) then
-          call struct_write_mol(cr,file,wext,ix,doborder,molmotif,doburst,&
+          call struct_write_mol(c,file,wext,ix,doborder,molmotif,doburst,&
              dopairs,rsph,xsph,rcub,xcub)
        else
-          call struct_write_3dmodel(cr,file,wext,ix,doborder,molmotif,doburst,&
+          call struct_write_3dmodel(c,file,wext,ix,doborder,molmotif,doburst,&
              docell,domolcell,rsph,xsph,rcub,xcub)
        end if
     elseif (equal(wext,'gau')) then
        ! gaussian periodic boundary conditions
        write (uout,'("* WRITE Gaussian file: ",A)') string(file)
-       call struct_write_gaussian(file,cr)
+       call struct_write_gaussian(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'in')) then
        ! espresso
        write (uout,'("* WRITE espresso file: ",A)') string(file)
-       call struct_write_espresso(file,cr)
+       call struct_write_espresso(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
-       call struct_write_vasp(file,cr,.true.)
+       call struct_write_vasp(file,c,.true.)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'abin')) then
        ! abinit
        write (uout,'("* WRITE abinit file: ",A)') string(file)
-       call struct_write_abinit(file,cr)
+       call struct_write_abinit(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'elk')) then
        ! elk
        write (uout,'("* WRITE elk file: ",A)') string(file)
-       call struct_write_elk(file,cr)
+       call struct_write_elk(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'tess')) then
        ! tessel
        write (uout,'("* WRITE tess file: ",A)') string(file)
-       call struct_write_tessel(file,cr)
+       call struct_write_tessel(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
        ! critic2
        write (uout,'("* WRITE critic2 input file: ",A)') string(file)
-       call struct_write_critic(file,cr)
+       call struct_write_critic(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'cif')) then
        ! cif
        write (uout,'("* WRITE cif file: ",A)') string(file)
-       call struct_write_cif(file,cr)
+       call struct_write_cif(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then
        ! escher
        write (uout,'("* WRITE escher file: ",A)') string(file)
-       call struct_write_escher(file,cr)
+       call struct_write_escher(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'gin')) then
@@ -594,30 +595,30 @@ contains
           end if
        end do
        write (uout,'("* WRITE gulp file: ",A)') string(file)
-       call struct_write_gulp(file,cr,dodreiding)
+       call struct_write_gulp(file,c,dodreiding)
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
-       call struct_write_lammps(file,cr)
+       call struct_write_lammps(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'fdf')) then
        write (uout,'("* WRITE fdf file: ",A)') string(file)
-       call struct_write_siesta_fdf(file,cr)
+       call struct_write_siesta_fdf(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'struct_in')) then
        write (uout,'("* WRITE STRUCT_IN file: ",A)') string(file)
-       call struct_write_siesta_in(file,cr)
+       call struct_write_siesta_in(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'hsd')) then
        write (uout,'("* WRITE hsd file: ",A)') string(file)
-       call struct_write_dftbp_hsd(file,cr)
+       call struct_write_dftbp_hsd(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'gen')) then
        write (uout,'("* WRITE gen file: ",A)') string(file)
-       call struct_write_dftbp_gen(file,cr)
+       call struct_write_dftbp_gen(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     else

@@ -435,14 +435,6 @@ contains
     do i = 1, fr%nat
        if (fr%at(i)%z >= 0) then
           write (lu,*) nameguess(fr%at(i)%z,.true.), fr%at(i)%r * bohrtoa
-       elseif (fr%at(i)%z == -1) then
-          write (lu,*) "NCP", fr%at(i)%r * bohrtoa
-       elseif (fr%at(i)%z == -2) then
-          write (lu,*) "BCP", fr%at(i)%r * bohrtoa
-       elseif (fr%at(i)%z == -3) then
-          write (lu,*) "RCP", fr%at(i)%r * bohrtoa
-       elseif (fr%at(i)%z == -4) then
-          write (lu,*) "CCP", fr%at(i)%r * bohrtoa
        end if
     end do
     call fclose(lu)

@@ -1385,6 +1385,7 @@ contains
   function ball_radius(i,cel)
     use varbas
     use struct_basic
+    use param
     
     integer, intent(in) :: i
     logical, intent(in) :: cel
@@ -1432,8 +1433,10 @@ contains
           ball_radius = 0.60d0
        else if (z <= 86) then ! Cs-Rn
           ball_radius = 0.650
-       else ! Fr-...
+       else if (z <= maxzat) then ! Fr-...
           ball_radius = 0.70d0
+       else
+          ball_radius = 0.20d0 ! cps
        end if
     end select
   end function ball_radius

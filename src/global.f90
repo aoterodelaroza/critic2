@@ -19,7 +19,7 @@
 ! Contains global variables and parameters, and initialization
 ! procedures run at the beginning of the execution.
 module global
-  use param, only: bohrtoa
+  use param, only: bohrtoa, maxzat0
   implicit none
 
   public
@@ -46,7 +46,7 @@ module global
   ! to Pu (93).  VAlues are bohr. This distance is usually enough to
   ! converge any density or orbital (dftb+, pi) contribution from an
   ! atom.
-  real*8, parameter :: cutrad(118) = (/&
+  real*8, parameter :: cutrad(maxzat0) = (/&
      2.149886192475d+01, 1.169139170668d+01, 3.430831385801d+01,& !001-003 H,  He, Li
      2.502075396007d+01, 2.801001395722d+01, 2.167675592180d+01,& !004-006 Be, B,  C 
      1.749805708313d+01, 1.465173060207d+01, 1.263885024136d+01,& !007-009 N,  O,  F 
@@ -86,7 +86,9 @@ module global
      37d0, 37d0, 37d0,&                                           !109-111 Mt
      37d0, 37d0, 37d0,&                                           !112-114
      37d0, 37d0, 37d0,&                                           !115-117
-     37d0/) !< Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE)
+     37d0,&                                                       !118
+     0d0, 0d0, 0d0, 0d0, 0d0&                                     !119-123
+     /) !< Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE)
 
   ! global control for critic
   character(len=:), allocatable :: fileroot !< file prefix

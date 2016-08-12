@@ -791,6 +791,7 @@ contains
 
   end subroutine autocritic
 
+  !> Report the results of the critical point search.
   subroutine cpreport(line)
     use struct
     use struct_basic
@@ -798,10 +799,11 @@ contains
     use global
     use graphics
     use tools_io
+    use types
     
     character*(*), intent(in) :: line
 
-    integer :: lp, n, lu, nn(0:3), ntyp(maxzat), lp2
+    integer :: lp, n, lu, nn(0:3), ntyp(maxzat0), lp2
     integer :: i, j, ni
     character(len=:), allocatable :: word, order
     character(len=:), allocatable :: lbl
@@ -810,6 +812,7 @@ contains
     integer :: ix(3), iaux, lug, lumtl, idx, nx, ny, nz
     real*8 :: x0(3)
     character*3 :: fmt
+    type(crystal) :: caux
 
     real*8, parameter :: cprad = 0.3d0
     integer, parameter :: cprgb(3,4) = reshape((/&
@@ -835,133 +838,33 @@ contains
           ok = eval_next(n,line,lp)
           if (.not.ok) n = 10
           call critshell(n)
-       elseif (equal(word,'escher')) then
-          order = trim(fileroot) // ".m"
-          call struct_write(order)
-          
-          ! count number of atoms per type
-          ntyp = 0
-          do i = 1, cr%ncel
-             ntyp(cr%at(cr%atcel(i)%idx)%z) = ntyp(cr%at(cr%atcel(i)%idx)%z) + 1
-          end do
-
-          ! append the critical points to it
-          lu = fopen_append(order)
-          n = 0
-          do i = 1, ncpcel
-             if (cpcel(i)%isnuc) cycle
-             n = n + 1
-          end do
-          write (lu,'("cr.nat += ",I6,";")') n
-          write (lu,'("cr.ntyp += 4;")')
-          write (lu,'("cr.ztyp = [cr.ztyp 105 106 107 108];")')
-          write (lu,'("cr.attyp = [cr.attyp,{""n@"",""b@"",""r@"",""c@""}];")')
-          nn = 0
-          do i = 1, ncpcel
-             if (cpcel(i)%isnuc) cycle
-             nn(cpcel(i)%typind) = nn(cpcel(i)%typind) + 1
-          end do
-
-          lbl = "cr.typ = [cr.typ "
-          ni = 0
-          do i = 0, 3
-             do j = 1, nn(i)
-                ni = ni + 1
-                lbl = trim(lbl) // " " // string(count(ntyp > 0) + i + 1,3)
-                if (ni >= 150) then
-                   write (lu,'(A,"\")') trim(lbl)
-                   lbl = ""
-                   ni = 0
-                endif
-             end do
-          end do
-          lbl = trim(lbl) // "];"
-          write (lu,'(A)') trim(lbl)
-
-          write (lu,'("cr.x = [cr.x")') 
-          do i = 0, 3
-             do j = 1, ncpcel
-                if (cpcel(j)%isnuc) cycle
-                if (cpcel(j)%typind /= i) cycle
-                write (lu,'(2X,1p,3(E22.14,X))') cpcel(j)%x
-             end do
-          end do
-          write (lu,'("  ];")') 
-          call fclose(lu)
-       elseif (equal(word,'obj').or.equal(word,'ply').or.equal(word,'off')) then
-          fmt = trim(word)
-
-          ! file name
-          order = trim(fileroot) // "_cps." // fmt
-
-          ! 3d model file, with the same options as in write
-          doborder = .false.
-          molmotif = .false.
-          docell = .false.
-          domolcell = .false.
-          ix = 1
-          do while(.true.)
-             word = lgetword(line,lp)
-             lp2 = 1
-             if (equal(word,'border')) then
-                doborder = .true.
-             elseif (equal(word,'molmotif')) then
-                molmotif = .true.
-             elseif (equal(word,'cell')) then
-                docell = .true.
-             elseif (equal(word,'molcell')) then
-                domolcell = .true.
-             elseif (eval_next(iaux,word,lp2)) then
-                ix(1) = iaux
-                ok = eval_next(ix(2),line,lp)
-                ok = ok .and. eval_next(ix(3),line,lp)
-                if (.not.ok) then
-                   call ferror('cpreport','incorrect CPREPORT OBJ/PLY/OFF syntax',faterr,syntax=.true.)
-                   return
-                end if
-             elseif (len_trim(word) > 0) then
-                call ferror('cpreport','Unknown keyword in CPREPORT OBJ/PLY/OFF',faterr,line,syntax=.true.)
-                return
-             else
-                exit
-             end if
-          end do
-
-          ! write the atoms
-          call struct_write_3dmodel(cr,order,fmt,ix,doborder,molmotif,.false.,&
-             docell,domolcell,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),lug,lumtl)
-
-          ! write the critical points
-          do nx = 0, ix(1)-1
-             do ny = 0, ix(2)-1
-                do nz = 0, ix(3)-1
-                   do i = 1, ncpcel
-                      if (cpcel(i)%isnuc) cycle
-                      idx = cpcel(i)%typind+1
-                      x0 = cr%x2c(cpcel(i)%x + (/nx,ny,nz/))
-                      if (equal(fmt,"obj")) then
-                         call obj_ball(lug,x0,cprgb(:,idx),cprad)
-                      elseif (equal(fmt,"ply")) then
-                         call ply_ball(lug,x0,cprgb(:,idx),cprad)
-                      elseif (equal(fmt,"off")) then
-                         call off_ball(lug,x0,cprgb(:,idx),cprad)
-                      end if
-                   end do
-                end do
-             end do
-          end do
-
-          ! clean up
-          if (equal(fmt,"obj")) then
-             call obj_close(lug,lumtl)
-          elseif (equal(fmt,"ply")) then
-             call ply_close(lug)
-          elseif (equal(fmt,"off")) then
-             call off_close(lug)
-          end if
-          exit
        elseif (len_trim(word) > 0) then
-          call ferror('cpreport','Unknown keyword in CPREPORT',faterr,line,syntax=.true.)
+          caux = cr
+          call realloc(caux%at,ncp)
+          do i = caux%nneq+1, ncp
+             n = caux%nneq + 1
+             caux%nneq = n
+             caux%at(n)%x = cp(i)%x
+             if (cp(i)%typ == -3) then
+                caux%at(n)%z = 119
+             elseif (cp(i)%typ == -1) then
+                caux%at(n)%z = 120
+             elseif (cp(i)%typ == 1) then
+                caux%at(n)%z = 121
+             elseif (cp(i)%typ == 3) then
+                caux%at(n)%z = 122
+             else
+                caux%at(n)%z = 123
+             end if
+             caux%at(n)%name = nameguess(caux%at(n)%z)
+          end do
+          call caux%struct_fill()
+
+          caux%havesym = 0
+          call caux%guessspg(0)
+
+          call struct_write(caux,line)
+
           return
        else
           exit

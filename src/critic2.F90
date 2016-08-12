@@ -165,7 +165,7 @@ program critic
            call ferror('critic2','need crystal before write',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_write(subline)
+        call struct_write(cr,subline)
 
      ! load
      elseif (equal(word,'load')) then

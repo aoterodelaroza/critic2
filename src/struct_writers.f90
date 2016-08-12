@@ -183,7 +183,7 @@ contains
 
     integer :: lu, lumtl
     integer :: i, j
-    real*8 :: d, xd(3), x0(3), x1(3)
+    real*8 :: d, xd(3), x0(3), x1(3), rr
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
@@ -251,18 +251,24 @@ contains
     do k = 1, nmol
        ! add the balls
        do i = 1, fr0(k)%nat
+          if (fr0(k)%at(i)%z > maxzat) then
+             rr = 0.21d0
+          else
+             rr = 0.6d0*atmcov(fr0(k)%at(i)%z)
+          endif
           if (equal(fmt,"obj")) then
-             call obj_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),0.6d0*atmcov(fr0(k)%at(i)%z))
+             call obj_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
           elseif (equal(fmt,"ply")) then
-             call ply_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),0.6d0*atmcov(fr0(k)%at(i)%z))
+             call ply_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
           elseif (equal(fmt,"off")) then
-             call off_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),0.6d0*atmcov(fr0(k)%at(i)%z))
+             call off_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
           end if
        end do
 
        ! add the sticks
        do i = 1, fr0(k)%nat
           do j = i+1, fr0(k)%nat
+             if (fr0(k)%at(i)%z > maxzat .or. fr0(k)%at(j)%z > maxzat) cycle
              xd = fr0(k)%at(i)%r - fr0(k)%at(j)%r
              d = norm(xd)
              if (d < (atmcov(fr0(k)%at(i)%z) + atmcov(fr0(k)%at(j)%z)) * rfac) then
@@ -349,11 +355,13 @@ contains
 
     character(len=:), allocatable :: lbl1
     integer :: i, lu
-    logical :: ztyp(120)
+    logical :: ztyp(maxzat0)
 
     ztyp = .false.
     do i = 1, c%nneq
-       if (.not.ztyp(c%at(i)%z)) ztyp(c%at(i)%z) = .true.
+       if (c%at(i)%z > 0 .and. c%at(i)%z <= maxzat0) then
+          ztyp(c%at(i)%z) = .true.
+       end if
     end do
 
     lu = fopen_write(file)
@@ -409,7 +417,7 @@ contains
 
     character(len=:), allocatable :: lbl1
     integer :: i, j, lu
-    integer :: ntyp(120)
+    integer :: ntyp(maxzat0)
 
     ! count number of atoms per type
     ntyp = 0
@@ -469,7 +477,7 @@ contains
     type(crystal), intent(in) :: c
 
     character(len=:), allocatable :: lbl1
-    integer :: ntyp(120), iz
+    integer :: ntyp(maxzat0), iz
     real*8 :: aap(3), bbp(3), gpq(3,3)
     integer :: i, j, lu
 
@@ -553,7 +561,7 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
-    integer :: ntyp(maxzat)
+    integer :: ntyp(maxzat0)
     integer :: i, j, lu
 
     ! count number of atoms per type
@@ -768,7 +776,7 @@ contains
 
     character(len=:), allocatable :: lbl1
     integer :: lu, i, j, n
-    integer :: ntyp(120)
+    integer :: ntyp(maxzat0)
 
     lu = fopen_write(file)
 
@@ -1005,7 +1013,7 @@ contains
     type(crystal), intent(in) :: c
 
     integer :: i, j, k, l
-    integer :: ntyp(maxzat), lu
+    integer :: ntyp(maxzat0), lu
     real*8 :: rnew(3,3)
 
     lu = fopen_write(file)
@@ -1036,7 +1044,7 @@ contains
 
     write (lu,'("Masses"/)')
     j = 0
-    do i = 1, maxzat
+    do i = 1, maxzat0
        if (ntyp(i) > 0) then
           j = j + 1
           write (lu,'(I3,X,F10.4)') j, atmass(i)
@@ -1047,7 +1055,7 @@ contains
     write (lu,'("Atoms"/)')
     k = 0
     l = 0
-    do i = 1, maxzat
+    do i = 1, maxzat0
        if (ntyp(i) == 0) cycle
        k = k + 1
        do j = 1, c%ncel
@@ -1073,7 +1081,7 @@ contains
     type(crystal), intent(in) :: c
 
     integer :: i, j, k
-    integer :: ntyp(maxzat), lu, nspecies
+    integer :: ntyp(maxzat0), lu, nspecies
 
     lu = fopen_write(file)
 
@@ -1165,7 +1173,7 @@ contains
 
     integer :: lu
     real*8 :: r(3,3)
-    integer :: i, j, k, ntyp(maxzat), nspecies
+    integer :: i, j, k, ntyp(maxzat0), nspecies
 
     lu = fopen_write(file)
 
@@ -1224,9 +1232,9 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
-    logical :: ltyp(maxzat)
+    logical :: ltyp(maxzat0)
 
-    real*8, parameter :: hderiv(maxzat) = (/&
+    real*8, parameter :: hderiv(maxzat0) = (/&
      -0.1857d0,      0.d0,      0.d0,    0.d0,      0.d0, -0.1492d0,& ! 1:6   (H-C)
      -0.1535d0, -0.1575d0, -0.1623d0,    0.d0, -0.0454d0,   -0.02d0,& ! 7:12  (N-Mg)
           0.d0,      0.d0,   -0.14d0, -0.11d0, -0.0697d0,      0.d0,& ! 13:18 (Al-Ar)
@@ -1246,9 +1254,10 @@ contains
           0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 97:102 (Bk-No)
           0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 103:108 (Lr-Hs)
           0.d0,      0.d0,      0.d0,    0.d0,      0.d0,      0.d0,& ! 109:114 (Mt-Uuq)
-          0.d0,      0.d0,      0.d0,    0.d0/)                       ! 115:118 (Uup-Uuo)
+          0.d0,      0.d0,      0.d0,    0.d0,&                       ! 115:118 (Uup-Uuo)
+          0.d0,      0.d0,      0.d0,    0.d0,      0.d0/)            ! 119:123
 
-    character*1, parameter :: maxang(maxzat) = (/&
+    character*1, parameter :: maxang(maxzat0) = (/&
        "s", "x", "x", "x", "x", "p",& ! 1:6   (H-C)
        "p", "p", "p", "x", "p", "p",& ! 7:12  (N-Mg)
        "x", "x", "d", "d", "d", "x",& ! 13:18 (Al-Ar)
@@ -1268,7 +1277,8 @@ contains
        "x", "x", "x", "x", "x", "x",& ! 97:102 (Bk-No)
        "x", "x", "x", "x", "x", "x",& ! 103:108 (Lr-Hs)
        "x", "x", "x", "x", "x", "x",& ! 109:114 (Mt-Uuq)
-       "x", "x", "x", "x"/)           ! 115:118 (Uup-Uuo)
+       "x", "x", "x", "x",&           ! 115:118 (Uup-Uuo)
+       "x", "x", "x", "x", "x"/)      ! 119:123
 
     integer :: lu, i
 
@@ -1347,10 +1357,10 @@ contains
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
     integer, intent(in), optional :: lu0
-    logical, intent(out), optional :: ltyp0(maxzat)
+    logical, intent(out), optional :: ltyp0(maxzat0)
 
     integer :: lu, nspecies, n, nt, i, j, k
-    logical :: ltyp(maxzat)
+    logical :: ltyp(maxzat0)
     real*8 :: r(3,3)
     character(len=:), allocatable :: strtyp
 

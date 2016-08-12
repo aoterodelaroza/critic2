@@ -593,7 +593,7 @@ contains
 
     ! free volumes and polarizabilities
     write (uout,'("+ Calculating free volumes and polarizabilities")')
-    allocate(ityp(103),afree(cr%nneq),alpha(cr%nneq))
+    allocate(ityp(maxzat0),afree(cr%nneq),alpha(cr%nneq))
     ityp = 0
     do i = 1, cr%nneq
        if (ityp(cr%at(i)%z) == 0) then
@@ -1057,17 +1057,15 @@ contains
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: mm(3,cr%ncel), v(cr%ncel), dum1(3), dum2(3,3)
 
-    ! xxxx !
+    ! only for wfn or dftb
+    if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
+       call ferror("xdm_crystal","crystal XDM only for wfn and dftb fields",faterr)
 
-    ! ! only for wfn or dftb
-    ! if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
-    !    call ferror("xdm_mol","crystal XDM only for wfn and dftb fields",faterr)
-
-    ! ! only for closed shells
-    ! if (f(refden)%type == type_wfn) then
-    !    if (f(refden)%wfntyp /= 0) &
-    !       call ferror("xdm_mol","open shell wavefunctions not supported",faterr)
-    ! end if
+    ! only for closed shells
+    if (f(refden)%type == type_wfn) then
+       if (f(refden)%wfntyp /= 0) &
+          call ferror("xdm_crystal","open shell wavefunctions not supported",faterr)
+    end if
     
     ! write some info to the output
     write (uout,'("a1             ",A)') string(a1o,'f',12,6)
@@ -1118,10 +1116,7 @@ contains
     prop(6) = im_b    
     
     ! fill the mesh with those properties
-    ! xxxx !
-    ! call fillmesh(m,f(refden),id,prop,.true.)
-    allocate(m%f(m%n,6))
-    m%f = 0d0
+    call fillmesh(m,f(refden),id,prop,.true.)
     
     ! fill the promolecular and the atomic densities
     m%f(:,4:5) = 0d0
@@ -1167,32 +1162,32 @@ contains
     write (uout,'("nelec (promol) ",A)') string(sum(m%f(:,4) * m%w),'f',12,6)
     write (uout,'("nelec, total   ",A)') string(nn,'f',12,6)
     if (abs(nn - nelec) > 0.1d0) &
-       call ferror("xdm_mol","inconsistent nelec. I hope you know what you are doing",warning)
+       call ferror("xdm_crystal","inconsistent nelec. I hope you know what you are doing",warning)
     
-    ! ! calculate moments and volumes
-    ! mm = 0d0
-    ! v = 0d0
-    ! rewind(luh)
-    ! do i = 1, cr%ncel
-    !    iz = cr%at(cr%atcel(i)%idx)%z
-    !    if (iz < 1) cycle
-    !    read (luh) (m%f(j,4),j=1,m%n)
-    ! 
-    !    ! calculate hole dipole and moments
-    !    do j = 1, m%n
-    !       r = norm(m%x(:,j)-cr%atcel(i)%r)
-    !       rb = max(0.d0,r-m%f(j,6))
-    ! 
-    !       mm(1,i) = mm(1,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r-rb)**2
-    !       mm(2,i) = mm(2,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**2-rb**2)**2
-    !       mm(3,i) = mm(3,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**3-rb**3)**2
-    !       v(i) = v(i) + m%w(j) * m%f(j,4) * m%f(j,1) * r**3
-    !    enddo
-    ! enddo
-    ! call fclose(luh)
-    ! 
-    ! ! calculate and output energy and derivatives
-    ! call edisp_mol(a1,a2,chf,v,mm)
+    ! calculate moments and volumes
+    mm = 0d0
+    v = 0d0
+    rewind(luh)
+    do i = 1, cr%ncel
+       iz = cr%at(cr%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       read (luh) (m%f(j,4),j=1,m%n)
+    
+       ! calculate hole dipole and moments
+       do j = 1, m%n
+          r = norm(m%x(:,j)-cr%atcel(i)%r)
+          rb = max(0.d0,r-m%f(j,6))
+    
+          mm(1,i) = mm(1,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r-rb)**2
+          mm(2,i) = mm(2,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**2-rb**2)**2
+          mm(3,i) = mm(3,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**3-rb**3)**2
+          v(i) = v(i) + m%w(j) * m%f(j,4) * m%f(j,1) * r**3
+       enddo
+    enddo
+    call fclose(luh)
+    
+    ! calculate and output energy and derivatives
+    call edisp_mol(a1,a2,chf,v,mm)
 
   end subroutine xdm_crystal
 
@@ -1271,13 +1266,14 @@ contains
 
   function frevol(z,chf)
     use tools_io
+    use param
 
     integer, intent(in) :: z
     real*8, intent(in) :: chf
     real*8 :: frevol
 
     ! DKH LSDA/UGBS Free Atomic Volumes
-    real*8, parameter :: frevol0(0:103) = (/&
+    real*8, parameter :: frevol0(0:maxzat0) = (/&
        0.d0,&
        9.194D0,   4.481D0,  91.957D0,  61.357D0,  49.813D0,  36.728D0,&
        27.633D0,  23.517D0,  19.322D0,  15.950D0, 109.359D0, 103.064D0,&
@@ -1296,7 +1292,10 @@ contains
        185.919D0, 181.089D0, 357.787D0, 407.283D0, 383.053D0, 362.099D0,&
        346.565D0, 332.462D0, 319.591D0, 308.095D0, 297.358D0, 300.572D0,&
        275.792D0, 266.317D0, 257.429D0, 209.687D0, 203.250D0, 230.248D0,&
-       236.878D0/)
+       236.878D0,& ! 0-103
+       0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0,& ! 104-113
+       0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0 & ! 114-123
+       /)
 
     real*8, parameter :: frevol_blyp(0:36) = (/0.0d0,&
        8.6751280810827840d0,  4.3645522950717863d0,  89.719664495180297d0,  61.278566735200307d0,&

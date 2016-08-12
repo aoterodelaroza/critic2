@@ -151,9 +151,9 @@ contains
 
     ! tie the atomic numbers to the basis types
     if (allocated(f%ispec)) deallocate(f%ispec)
-    allocate(f%ispec(maxzat))
+    allocate(f%ispec(maxzat0))
     f%ispec = 0
-    do i = 1, maxzat
+    do i = 1, maxzat0
        do j = 1, n
           if (f%bas(j)%z == i) then
              f%ispec(i) = j

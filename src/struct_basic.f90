@@ -1161,7 +1161,7 @@ contains
     else
        dmax = 0d0
        do i = 1, c%nneq
-          if (c%at(i)%z > 0d0) dmax = max(dmax,cutrad(c%at(i)%z))
+          if (c%at(i)%z > 0) dmax = max(dmax,cutrad(c%at(i)%z))
        end do
     end if
     call search_lattice(c%crys2car,dmax,imax,jmax,kmax)
@@ -3088,6 +3088,7 @@ contains
     endif
     nelec = 0
     do i = 1, c%nneq
+       if (c%at(i)%z >= maxzat) cycle
        nelec = nelec + c%at(i)%z * c%at(i)%mult
     end do
     write (uout,'("  Number of electrons: ",A/)') string(nelec)

@@ -638,13 +638,14 @@ contains
   !> made of one or two letters corresponding to a legal atomic symbol
   !> followed by any other additional characters.
   function zatguess(atname)
+    use param
     integer :: zatguess !< Ouptut atomic number
     character*(*), intent(in) :: atname !< Input atomic symbol (case insensitive)
 
     character*(len(atname)) :: aux
     character*(2) :: atsymbol
     integer :: i
-    character*(2), parameter :: an(1:103) =(/&
+    character*(2), parameter :: an(1:maxzat0) =(/&
        'H ', 'HE', 'LI', 'BE', 'B ', 'C ', 'N ', 'O ', 'F ', 'NE',& ! 1-10
        'NA', 'MG', 'AL', 'SI', 'P ', 'S ', 'CL', 'AR', 'K ', 'CA',& ! 11-20
        'SC', 'TI', 'V ', 'CR', 'MN', 'FE', 'CO', 'NI', 'CU', 'ZN',& ! 21-30
@@ -655,7 +656,10 @@ contains
        'LU', 'HF', 'TA', 'W ', 'RE', 'OS', 'IR', 'PT', 'AU', 'HG',& ! 71-80
        'TL', 'PB', 'BI', 'PO', 'AT', 'RN', 'FR', 'RA', 'AC', 'TH',& ! 81-90
        'PA', 'U ', 'NP', 'PU', 'AM', 'CM', 'BK', 'CF', 'ES', 'FM',& ! 91-100
-       'MD', 'NO', 'LW'/)                                           ! 101-103
+       'MD', 'NO', 'LR', 'RF', 'DB', 'SG', 'BH', 'HS', 'MT', 'DS',& ! 101-110
+       'RG', 'CN', 'U3', 'FL', 'U5', 'LV', 'U7', 'U8',& ! 111-118
+       'XN', 'XB', 'XR', 'XC', 'XZ'& ! 119-123
+       /)                           
 
     aux = adjustl(atname)
     atsymbol = aux(1:min(2,len(aux)))
@@ -691,12 +695,13 @@ contains
   !> If nounderscore is true, use blanks instead of underscores to pad
   !> the symbol.
   function nameguess (zat,nounderscore)
+    use param
     
     integer, intent(in) :: zat !< Input atomic number
     logical, intent(in), optional :: nounderscore !< Use blanks instead of underscore to fill
     character*(2) :: nameguess !< Output atomic symbol 
 
-    character*(2), parameter :: an(1:103) =(/&
+    character*(2), parameter :: an(1:maxzat0) =(/&
        'H_', 'He', 'Li', 'Be', 'B_', 'C_', 'N_', 'O_', 'F_', 'Ne',& ! 1-10
        'Na', 'Mg', 'Al', 'Si', 'P_', 'S_', 'Cl', 'Ar', 'K_', 'Ca',& ! 11-20
        'Sc', 'Ti', 'V_', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',& ! 21-30
@@ -707,12 +712,15 @@ contains
        'Lu', 'Hf', 'Ta', 'W_', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',& ! 71-80
        'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',& ! 81-90
        'Pa', 'U_', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',& ! 91-100
-       'Md', 'No', 'Lw'/)                                           ! 101-103
+       'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',& ! 101-110
+       'Rg', 'Cn', 'U3', 'Fl', 'U5', 'Lv', 'U7', 'U8',& ! 111-118
+       'Xn', 'Xb', 'Xr', 'Xc', 'Xz'& ! 119-123
+       /) 
 
-    if (zat > 0 .and. zat < 104) then
+    if (zat > 0 .and. zat <= maxzat0) then
        nameguess = an(zat)
-    else
-       nameguess = 'XX'
+    elseif (zat == 201) then
+       nameguess = 'Xx'
     end if
     if (present(nounderscore)) then
        if (nounderscore) then
