@@ -26,6 +26,13 @@ module navigation
 
   public :: gradient
   public :: newton
+  private :: adaptive_stepper
+  private :: stepper_euler1
+  private :: stepper_heun
+  private :: stepper_bs
+  private :: stepper_rkck
+  private :: stepper_dp
+  public :: prunepath
 
 contains
 
@@ -81,7 +88,7 @@ contains
   end subroutine newton
   
   !> Generalized gradient tracing routine. The gp integration starts
-  !> at xpoint (cartesian) with step step (step < 0 for a slow, i.e.,
+  !> at xpoint (Cartesian) with step step (step < 0 for a slow, i.e.,
   !> 1d-3, start). iup = 1 if the gp is traced up the density, -1 if
   !> down. mstep = max. number of steps. nstep = actual number of
   !> steps (output). ier = 0 (correct), 1 (short step), 2 (too many
@@ -575,5 +582,37 @@ contains
     xout = xout + xerr
 
   end subroutine stepper_dp
+
+  !> Prune a gradient path. A gradient path is given by the n points
+  !> in x (fractional coordinates) referred to crystal structure c.
+  !> In output, the number of points in the path is reduced so that
+  !> the distances between adjacent points are at least fprune. The
+  !> reduced number of points is returned in n, and the fractional
+  !> coordinates in x(:,1:n).
+  subroutine prunepath(c,n,x,fprune)
+    use struct_basic
+    
+    type(crystal), intent(in) :: c
+    integer, intent(inout) :: n
+    real*8, intent(inout) :: x(n,3)
+    real*8, intent(in) :: fprune
+
+    integer :: i, nn
+    real*8 :: x0(3), d
+
+    ! prune the path
+    x0 = x(1,:)
+    nn = 1
+    do i = 1, n
+       d = c%distance(x(i,:),x0)
+       if (d > fprune) then
+          nn = nn + 1
+          x(nn,:) = x(i,:)
+          x0 = x(i,:)
+       end if
+    end do
+    n = nn
+
+  end subroutine prunepath
 
 end module navigation

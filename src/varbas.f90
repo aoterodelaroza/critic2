@@ -36,7 +36,7 @@ module varbas
   integer :: ncpcel = 0
   type(cp_type), allocatable :: cpcel(:)
 
-  real*8, parameter :: Rbetadef  = 0.5d0 !< default beta sphere radius
+  real*8, parameter :: Rbetadef  = 0.1d0 !< default beta sphere radius
 
 contains
 

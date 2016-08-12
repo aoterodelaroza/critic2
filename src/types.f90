@@ -155,6 +155,7 @@ module types
      integer :: ilvec(3,2) !< Lattice vector to shift the cp_(ipath) position of the actual attractor
      real*8 :: brdist(2) !< If b or r, distance to attractor/repulsor
      real*8 :: brang !< If b or r, angle wrt attractors/repulsors
+     real*8 :: brvec(3) !< If b or r, the eigenvector along the bond (ring) path
 
      ! In shell-structured scalar fields,
      integer :: innuc !< associated nucleus 

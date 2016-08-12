@@ -209,7 +209,7 @@ module param
      255,102,087, 065,000,168&                ! 122-123 ccp, xcp
      /),shape(JMLcol2)) !< jmol color definitions, slightly darker
 
-  ! covalent radii, from tessel
+  ! covalent radii in pm, from tessel
   real*8, parameter :: atmcov(maxzat0) = (/&
      23,  70,  68,  35,  83,  68,  68,  68,  64,  70,  97, 110,&   ! 1-12
      135, 120, 105, 102, 99,  70, 133,  99, 144, 147, 133, 135,&   ! 13-24
@@ -221,7 +221,7 @@ module param
      170, 240, 200, 190, 188, 179, 161, 158, 155, 153, 151, 151,&  ! 85-96
      151, 151, 151, 151, 151, 151, 151, 151, 151,-999,-999,-999,&  ! 97-108
      -999,-999,-999,-999,-999,-999,-999,-999,-999,-999,&           ! 109-118
-       0,   0,   0,   0,   0/) / bohr2pm                           ! 119-123
+      50,  50,  50,  50,  20/) / bohr2pm                           ! 119-123
 
   ! van der waals radii, from the CSD
   real*8, parameter :: atmvdw(maxzat0) = (/&

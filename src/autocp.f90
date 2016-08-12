@@ -53,9 +53,9 @@ module autocp
   real*8 :: x0clip(3), x1clip(3), rclip
 
   !
-  real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (cartesian).
+  real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (Cartesian).
   real*8 :: CP_rho_cp = 0d0  !< discard all CPs with abs(density) below this value.
-  integer :: dograph =1 !< attempt build the topological graph after CP search
+  integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains
   
@@ -793,6 +793,8 @@ contains
 
   !> Report the results of the critical point search.
   subroutine cpreport(line)
+    use navigation
+    use fields
     use struct
     use struct_basic
     use struct_writers
@@ -803,23 +805,17 @@ contains
     
     character*(*), intent(in) :: line
 
-    integer :: lp, n, lu, nn(0:3), ntyp(maxzat0), lp2
-    integer :: i, j, ni
-    character(len=:), allocatable :: word, order
-    character(len=:), allocatable :: lbl
-    logical :: ok
-    logical :: doborder, molmotif, docell, domolcell
-    integer :: ix(3), iaux, lug, lumtl, idx, nx, ny, nz
-    real*8 :: x0(3)
-    character*3 :: fmt
-    type(crystal) :: caux
+    real*8, parameter :: fprune = 0.1d0 ! pruning distance for gradient path
+    integer, parameter :: mstep = 1000 ! maximum steps for gradient
 
-    real*8, parameter :: cprad = 0.3d0
-    integer, parameter :: cprgb(3,4) = reshape((/&
-       0, 010, 255,&
-       0, 100, 165,&
-       0, 165, 100,&
-       0, 255, 010/),(/3,4/))
+    integer :: lp, n, lu, lp2
+    integer :: i, j, iup, nstep, ier
+    character(len=:), allocatable :: word
+    character(len=:), allocatable :: line2, aux
+    logical :: ok
+    logical :: agraph
+    type(crystal) :: caux
+    real*8 :: x(3), xpath(mstep,3)
 
     lp = 1
     do while (.true.)
@@ -839,31 +835,87 @@ contains
           if (.not.ok) n = 10
           call critshell(n)
        elseif (len_trim(word) > 0) then
-          caux = cr
-          call realloc(caux%at,ncp)
-          do i = caux%nneq+1, ncp
-             n = caux%nneq + 1
-             caux%nneq = n
-             caux%at(n)%x = cp(i)%x
-             if (cp(i)%typ == -3) then
-                caux%at(n)%z = 119
-             elseif (cp(i)%typ == -1) then
-                caux%at(n)%z = 120
-             elseif (cp(i)%typ == 1) then
-                caux%at(n)%z = 121
-             elseif (cp(i)%typ == 3) then
-                caux%at(n)%z = 122
+          ! parse for special keywords and build the line for write
+          lp2 = 1
+          line2 = ""
+          agraph = .false.
+          do while (.true.)
+             word = lgetword(line,lp2)
+             if (equal(word,'graph')) then
+                agraph = .true.
+             elseif (len_trim(word) > 0) then
+                aux = line2 // " " // trim(word)
+                line2 = aux
              else
-                caux%at(n)%z = 123
+                exit
              end if
-             caux%at(n)%name = nameguess(caux%at(n)%z)
           end do
-          call caux%struct_fill()
+          
+          ! build the crystal structure containing the crystal points
+          caux = cr
+          call realloc(caux%at,ncpcel)
+          caux%nneq = 0
+          do i = 1, ncpcel
+             caux%at(i)%x = cpcel(i)%x
+             if (cp(cpcel(i)%idx)%typ == -3) then
+                caux%at(i)%z = 119
+             elseif (cp(cpcel(i)%idx)%typ == -1) then
+                caux%at(i)%z = 120
+             elseif (cp(cpcel(i)%idx)%typ == 1) then
+                caux%at(i)%z = 121
+             elseif (cp(cpcel(i)%idx)%typ == 3) then
+                caux%at(i)%z = 122
+             else
+                call ferror("cpreport","unclassified critical point",faterr)
+             end if
+             if (i <= cr%ncel) then
+                caux%at(i)%z = cr%at(cr%atcel(i)%idx)%z
+                caux%at(i)%name = cr%at(cr%atcel(i)%idx)%name
+             else
+                caux%at(i)%name = nameguess(caux%at(i)%z)
+             end if
+          end do
+          caux%nneq = ncpcel
 
+          ! calculate gradient paths
+          if (agraph) then
+             !$omp parallel do private(iup,x,nstep,ier,xpath) schedule(dynamic)
+             do i = cr%ncel+1, ncpcel
+                
+                if (f(refden)%typnuc == -3 .and. cp(cpcel(i)%idx)%typ == -1) then
+                   iup = 1
+                else if (f(refden)%typnuc == 3 .and. cp(cpcel(i)%idx)%typ == 1) then
+                   iup = -1
+                else
+                   iup = 0
+                end if
+          
+                if (iup /= 0) then
+                   x = cpcel(i)%r + 0.5d0 * fprune * cpcel(i)%brvec
+                   call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
+                   call prunepath(cr,nstep,xpath(1:nstep,:),fprune)
+                   !$omp critical (add)
+                   call addpath(nstep,xpath(1:nstep,:))
+                   !$omp end critical (add)
+                   x = cpcel(i)%r - 0.5d0 * fprune * cpcel(i)%brvec
+                   call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
+                   call prunepath(cr,nstep,xpath(1:nstep,:),fprune)
+                   !$omp critical (add)
+                   call addpath(nstep,xpath(1:nstep,:))
+                   !$omp end critical (add)
+                end if
+             end do
+             !$omp end parallel do
+          end if
+
+          ! no symmetry
           caux%havesym = 0
           call caux%guessspg(0)
 
-          call struct_write(caux,line)
+          ! fill the rest of the properties
+          call caux%struct_fill()
+
+          call struct_write(caux,line2)
 
           return
        else
@@ -871,6 +923,24 @@ contains
        endif
     end do
 
+  contains
+    subroutine addpath(nstep,xpath)
+      integer, intent(in) :: nstep
+      real*8, intent(in) :: xpath(nstep,3)
+
+      integer :: i, n
+      
+      call realloc(caux%at,caux%nneq+nstep)
+      n = caux%nneq
+      do i = 1, nstep
+         n = n + 1
+         caux%at(n)%x = xpath(i,:)
+         caux%at(n)%z = 123
+         caux%at(n)%name = nameguess(caux%at(n)%z)
+      end do
+      caux%nneq = n
+
+    end subroutine addpath
   end subroutine cpreport
 
   !> Calculates the neighbor environment of each non-equivalent CP.
@@ -1645,6 +1715,7 @@ contains
     cp(n)%brang = 0d0
     cp(n)%ipath = 0
     cp(n)%rbeta = Rbetadef
+    cp(n)%brvec = 0d0
 
     ! Name
     num = count(cp(1:n)%typ == s)
@@ -1921,7 +1992,7 @@ contains
     real*8 :: xdif(3,2), v(3)
     real*8, dimension(3,3) :: evec
     real*8, dimension(3) :: reval
-    real*8 :: dist, xdtemp(3,2)
+    real*8 :: dist, xdtemp(3,2), xx(3)
     integer :: wcp, nid
     integer :: ier, idir
     logical :: isbcp
@@ -1935,7 +2006,7 @@ contains
     allocate(xdis(3,2,ncp))
 
     ! run over known non-equivalent cps  
-    !$omp parallel do private(isbcp,res,evec,reval,idir,xdtemp,nstep,ier) schedule(dynamic)
+    !$omp parallel do private(isbcp,res,evec,reval,idir,xdtemp,nstep,ier,xx) schedule(dynamic)
     do i = 1, ncp
        ! BCP/RCP paths
        if (abs(cp(i)%typ) == 1) then
@@ -1947,12 +2018,13 @@ contains
           evec = res%hf
           call eig(evec,reval)
           if (isbcp) then
-             xdtemp(:,1) = cp(i)%r + change * evec(:,3)
-             xdtemp(:,2) = cp(i)%r - change * evec(:,3)
+             xx = evec(:,3)
           else
-             xdtemp(:,1) = cp(i)%r + change * evec(:,1)
-             xdtemp(:,2) = cp(i)%r - change * evec(:,1)
+             xx = evec(:,1)
           end if
+          xx = xx / norm(xx)
+          xdtemp(:,1) = cp(i)%r + change * xx
+          xdtemp(:,2) = cp(i)%r - change * xx
 
           ! follow up/down both directions
           if (isbcp) then
@@ -1962,12 +2034,36 @@ contains
           end if
           do j = 1, 2
              call gradient(f(refden),xdtemp(:,j),idir,nstep,cp_mstep,ier,0,up2beta=.true.) 
-             ! if (ier > 0) call ferror('makegraph','Attractor/repulsor not found: using last point in the trajectory',warning)
           end do
+          !$omp critical (xdis1)
+          cp(i)%brvec = xx 
           xdis(:,:,i) = xdtemp
+          !$omp end critical (xdis1)
+       else
+          !$omp critical (xdis2)
+          cp(i)%brvec = 0d0
+          !$omp end critical (xdis2)
        end if
     end do
     !$omp end parallel do
+
+    ! Fill the eigenvectors
+    do i = 1, ncpcel
+       if (abs(cp(cpcel(i)%idx)%typ) == 1) then
+          isbcp = (cp(cpcel(i)%idx)%typ == -1)
+          call grd(f(refden),cpcel(i)%r,2,res)
+          evec = res%hf
+          call eig(evec,reval)
+          if (isbcp) then
+             xx = evec(:,3)
+          else
+             xx = evec(:,1)
+          end if
+          cpcel(i)%brvec = xx / norm(xx)
+       else
+          cpcel(i)%brvec = 0d0
+       end if
+    end do
 
     ! run over known non-equivalent cps  
     do i = 1, ncp
