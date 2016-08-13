@@ -1,5 +1,5 @@
-Overview
---------
+# Critic2
+## Overview
 
 Critic2 is a program for the topological anaylisis of real-space
 scalar fields in periodic systems. The functionality includes Bader's
@@ -25,8 +25,7 @@ instance, the charges inside the basins of ELF, or the gradient paths
 of the molecular electrostatic potential. New scalar fields can be
 computed using critic2's powerful arithmetic expressions.
 
-Files
------
+## Files
 
 * README: this file.
 * AUTHORS: the authors of the package.
@@ -42,8 +41,7 @@ Files
 * tools/: some tools to work with the files produced by critic2.
 * dat/: atomic density and cif database data.
 
-Compilation and installation
-----------------------------
+## Compilation and installation
 
 If you got the code from the git repository and not from a package,
 you will need to run:
@@ -99,8 +97,7 @@ NOTE: critic2 as it is distributed can be compiled only with the more
 recent versions of gfortran (somewhere along 4.8.x, and all versions
 >= 4.9). If you have an older version of gfortran, please e-mail me. 
 
-Compiling and using libxc
--------------------------
+## Compiling and using libxc
 
 Critic2 can be compiled with libxc support. Libxc is used in critic2
 to calculate exchange and correlation energy densities via the xc()
@@ -120,8 +117,7 @@ FC=gfortran F77=gfortran ./configure ...
 See 'Use of LIBXC in arithmetic expressions' in the user's guide for
 instructions on how to use libxc in critic2.
 
-Use (documentation)
--------------------
+## Use (documentation)
 
 The user's guide is in the doc/ directory in plain text
 (user-guide.txt) and PDF formats (user-guide.pdf). A concise summary
@@ -144,8 +140,7 @@ charges and volumes. Run critic2 as:
 A detailed description of the keywords accepted by critic2 is given in
 the user's guide and a short reference in the syntax.txt file. 
 
-References and citation
------------------------
+## References and citation
 
 The basic references for critic2 are:
 
@@ -158,8 +153,7 @@ The basic references for critic2 are:
 
 See the outputs and the manual for references pertaining particular keywords. 
 
-Copyright notice
-----------------
+## Copyright notice
 
 Copyright (c) 2013-2015 Alberto Otero de la Roza, Ángel Martín Pendás and
 Víctor Luaña.
