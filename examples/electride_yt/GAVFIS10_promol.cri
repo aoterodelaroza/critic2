@@ -1,7 +1,7 @@
 # Deactivate the automatic determination of crystal symmetry.  This
 # saves a few seconds, and can be done because grid integration does
 # not use crystal symmetry at all
-noguess
+nosymm
 
 # Load the crystal structure from any of the cube files.
 crystal ../data/GAVFIS.rhops.cube

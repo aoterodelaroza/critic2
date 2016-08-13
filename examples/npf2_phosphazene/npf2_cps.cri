@@ -18,7 +18,7 @@ pointprop diff "$qe-$wien"
 auto
 
 # Write an obj file with the critical points
-cpreport obj cell 
+cpreport npf2_cps.cml cell 
 
 # Write a representation of the chemical graph
 fluxprint

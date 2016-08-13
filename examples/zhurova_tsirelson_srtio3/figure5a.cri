@@ -11,18 +11,19 @@ reference 2
 ## Calculate the critical points and write them to an obj file together with the 
 ## cell description
 auto
-cpreport obj border cell
+cpreport figure5a.obj border cell graph
 
-## Chemical graph of the vtf
+## Chemical graph of the vtf using fluxprint
 fluxprint
  graph 1
 endfluxprint
 
-## Plot the vtf and its gradient lines in the (001) plane 
-grdvec
-  root v_001
-  plane -1/2 -1/2 0   +1/2 -1/2 0   -1/2 +1/2 0   scale 1.6 1.6
-  outcp 2.1 2.1
-  cpall
-  contour f atan 101 101 41
-endgrdvec
+## ## (this takes some time)
+## ## Plot the vtf and its gradient lines in the (001) plane 
+## grdvec
+##   root v_001
+##   plane -1/2 -1/2 0   +1/2 -1/2 0   -1/2 +1/2 0   scale 1.6 1.6
+##   outcp 2.1 2.1
+##   cpall
+##   contour f atan 101 101 41
+## endgrdvec

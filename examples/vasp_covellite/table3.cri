@@ -10,4 +10,4 @@ reference rhoae
 
 # Find the critical points and write them to an obj file
 auto
-cpreport obj cell border 
+cpreport table3.cml cell border 

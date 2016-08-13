@@ -1,7 +1,7 @@
 # Deactivate the automatic determination of crystal symmetry.  This
 # saves a few seconds, and can be done because grid integration does
 # not use crystal symmetry at all
-noguess
+nosymm
 
 # Load the crystal structure from any of the cube files.
 crystal ../data/GAVFIS.rhops.cube
@@ -50,6 +50,6 @@ yt nnm ratom 2
 
 # Write some more information about the non-nuclear maxima found,
 # jincluding a 3d plot of their positions in the cell.
-cpreport obj cell molmotif
+cpreport GAVFIS10.cml cell molmotif
 cpreport long
 cpreport shells 2

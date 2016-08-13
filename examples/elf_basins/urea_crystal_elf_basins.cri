@@ -14,6 +14,6 @@ integrable rho
 yt nnm
 
 # Write the maxima to an obj file.
-cpreport obj molmotif border cell
+cpreport urea_crystal_elf_basins.cml molmotif border cell
 
 

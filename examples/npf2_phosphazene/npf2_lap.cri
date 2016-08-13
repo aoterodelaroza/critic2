@@ -13,5 +13,6 @@ auto
 
 # Represent the critical points of the Laplacian. The critical points
 # of the Laplacian are typically not found.
-cpreport obj
+cpreport npf2_lap.cml
+
 

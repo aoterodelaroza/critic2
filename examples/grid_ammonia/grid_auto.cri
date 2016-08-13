@@ -22,7 +22,7 @@ load ../data/ammonia.big.rhoae.cube id rhoae
 reference rho_ps
 root rho_ps
 auto seed ws depth 2
-cpreport obj cell
+cpreport rho_ps.cml cell
 
 # Calculate the critical points in the core-augmented
 # pseudo-density. The critical points around the N are gone, but the
@@ -31,7 +31,7 @@ cpreport obj cell
 reference rhoae_ps
 root rhoae_ps
 auto seed ws depth 2
-cpreport obj cell
+cpreport rhoae_ps.cml cell
 
 # Calculate the critical points in the reconstructed valence
 # density. The spurious critical points around the N are back, but
@@ -39,7 +39,7 @@ cpreport obj cell
 reference rho
 root rho
 auto seed ws depth 2
-cpreport obj cell
+cpreport rho.cml cell
 
 # Calculate the critical points in the core-augmented reconstructed
 # valence (all-electron) density. All critical points are found, with
@@ -47,7 +47,7 @@ cpreport obj cell
 # density, examined next.
 root rhoae
 auto seed ws depth 2
-cpreport obj cell
+cpreport rhoae.cml cell
 
 # Calculate the critical points in the promolecular density. The CPs
 # are found at roughly the same positions as the all-electron
@@ -55,5 +55,5 @@ cpreport obj cell
 reference rho0
 root rho0
 auto seed ws depth 2
-cpreport obj cell
+cpreport rho0.cml cell
 

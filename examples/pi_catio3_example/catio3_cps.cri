@@ -17,5 +17,5 @@ auto
 
 # Write them to an obj file. Include atoms on the cell border 
 # and the cell itself
-cpreport obj cell border
+cpreport catio3_cps.cml cell border
 

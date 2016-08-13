@@ -9,7 +9,7 @@ load ../data/quartz.small.STATE.OUT ../data/quartz.GEOMETRY.OUT
 auto 
 
 # Plot the critical points, the cell, and the chemical graph
-cpreport obj border cell
+cpreport quartz_auto.cml border cell
 fluxprint 
  graph 2
 endfluxprint

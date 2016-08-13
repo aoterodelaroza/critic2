@@ -6,5 +6,6 @@ load ../data/hf6.wfx
 auto
 
 # Plot them to an obj file
-cpreport obj 
+cpreport hf6_wfx_cps.cml
+
 

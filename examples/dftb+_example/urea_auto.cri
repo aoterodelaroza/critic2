@@ -14,6 +14,6 @@ load ../data/urea.detailed.xml ../data/urea.eigenvec.bin ../data/wfc-3ob-3-1.hsd
 auto
 
 # Write an obj file with the critical points
-cpreport urea.obj cell molmotif
+cpreport urea.cml cell molmotif graph
 
 

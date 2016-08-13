@@ -18,7 +18,7 @@ auto
 # 1) with a search between all atom pairs in the cell.
 auto seed ws depth 1 seed pair
 
-# And this obtains a zero morse sum. Now, write an obj file to see the
-# location of the critical points. 
-cpreport obj molmotif border cell
+# And this obtains a zero morse sum. Now, write a CML file to see the
+# location of the critical points.
+cpreport pyrazole.cml molmotif border cell graph
 

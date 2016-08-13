@@ -17,15 +17,7 @@ auto
 # gradient paths terminate, etc.). The following command writes a
 # representation of the molecule, the critical points, and the two
 # cells. 
-cpreport obj cell molcell
-
-# Move the obj and the mtl file out of the way
-system sed 's/furan_cps.mtl/furan_cps_with_cell.mtl/' furan_cps.obj > furan_cps_with_cell.obj
-system mv furan_cps.mtl furan_cps_with_cell.mtl
-
-# Repeat the plot, but this time only the molecule and the critical
-# points. 
-cpreport obj 
+cpreport furan.obj cell molcell
 
 # Write the environments of all critical points in the output.
 cpreport shells 5

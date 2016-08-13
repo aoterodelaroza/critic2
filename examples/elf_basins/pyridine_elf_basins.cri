@@ -1,6 +1,6 @@
 # Read the pyridine wfx, in a supercell with a 5 angstrom border 
 # around it.
-molecule ../data/pyridine.wfx 5
+molecule ../data/pyridine.wfx 3
 
 # Load the wfx
 load ../data/pyridine.wfx id wfx
@@ -25,5 +25,5 @@ integrable rho
 yt nnm
 
 # Write the YT maxima and the nuclei to an obj file
-cpreport obj
+cpreport pyridine_elf_basins.cml molcell cell
 
