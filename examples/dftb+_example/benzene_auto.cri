@@ -1,7 +1,19 @@
+# Critical points in benzene using the DFTB+ wavefunction. 
+
+# Read the benzene molecule from the gen file
 molecule ../data/benzene.gen 2
+
+# In DFTB+, only valence electrons are used. Hence, we need core-augmentation
+# to account for the missing core density (4 electrons in this case).
 zpsp c 4 
+
+# Load the DFTB+ wavefunction
 load ../data/benzene.detailed.xml ../data/benzene.eigenvec.bin ../data/wfc-3ob-3-1.hsd core
+
+# Find the critical points
 auto
-cpreport obj cell molcell molmotif 
+
+# Write an obj file with the critical points
+cpreport benzene.obj cell molcell 
 
 
