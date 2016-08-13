@@ -27,6 +27,7 @@ TESTS=\
 005_write_lammps1.sh 005_write_lammps2.sh\
 005_write_fdf.sh 005_write_siesta_in.sh\
 005_write_dftbp1.sh 005_write_dftbp2.sh 005_write_dftbp3.sh\
+005_write_cml.sh\
 006_load_abinit.sh 006_load_cast_unload.sh 006_load_chgcar.sh 006_load_chg.sh\
 006_load_core_expr.sh 006_load_cube_opt1.sh 006_load_cube_opt2.sh\
 006_load_cube_opt3.sh 006_load_cube.sh\
@@ -42,7 +43,7 @@ TESTS=\
 008_line.sh\
 009_plane1.sh 009_plane2.sh 009_plane3.sh\
 010_cube1.sh 010_cube2.sh\
-011_auto1.sh 011_auto2.sh 011_auto3.sh 011_auto4.sh 011_auto5.sh \
+011_auto1.sh 011_auto2.sh 011_auto3.sh 011_auto4.sh 011_auto5.sh\
 011_auto6.sh 011_auto7.sh 011_auto10.sh \
 011_auto11.sh 011_auto12.sh 011_auto13.sh\
 012_powder.sh 012_rdf.sh\

@@ -11,4 +11,4 @@ ChangeLog: configure.ac
 ## point to places where stuff can be found
 SUBDIRS = dat src tools doc tests
 
-EXTRA_DIST = AUTHORS COPYING INSTALL NEWS README THANKS ChangeLog
+EXTRA_DIST = AUTHORS COPYING INSTALL NEWS README.md THANKS ChangeLog
