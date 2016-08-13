@@ -308,8 +308,8 @@ contains
        ! add the cell
        if (docell) then
           do i = 1, 12
-             x0 = c%x2c(x0cell(:,1,i))
-             x1 = c%x2c(x0cell(:,2,i))
+             x0 = c%x2c(x0cell(:,1,i)) + c%molx0
+             x1 = c%x2c(x0cell(:,2,i)) + c%molx0
              if (equal(fmt,"obj")) then
                 call obj_stick(lu,x0,x1,(/255,0,0/),0.03d0)
              elseif (equal(fmt,"ply")) then
@@ -332,8 +332,8 @@ contains
              if (abs(x1(j)) < 1d-12) x1(j) = c%molborder(j)
              if (abs(x1(j)-1d0) < 1d-12) x1(j) = 1d0-c%molborder(j)
           end do
-          x0 = c%x2c(x0)
-          x1 = c%x2c(x1)
+          x0 = c%x2c(x0) + c%molx0
+          x1 = c%x2c(x1) + c%molx0
           if (equal(fmt,"obj")) then
              call obj_stick(lu,x0,x1,(/0,0,255/),0.03d0)
           elseif (equal(fmt,"ply")) then
