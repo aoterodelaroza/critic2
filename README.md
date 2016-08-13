@@ -95,7 +95,7 @@ correctly as far as I know.
 
 NOTE: critic2 as it is distributed can be compiled only with the more
 recent versions of gfortran (somewhere along 4.8.x, and all versions
->= 4.9). If you have an older version of gfortran, please e-mail me. 
+starting at 4.9). 
 
 ## Compiling and using libxc
 
@@ -104,7 +104,7 @@ to calculate exchange and correlation energy densities via the xc()
 function in arithmetic expressions. To do this, the --with-libxc
 options must be passed to configure:
 
-./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
+   ./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
 
 Here the /opt/libxc directory is the target for the libxc installation
 (use --prefix=/opt/libxc when you configure libxc). Make sure that you
@@ -112,7 +112,7 @@ use the same compiler for libxc and for critic2; otherwise the library
 will not be linked. You can choose the compiler by changing the FC and
 F77 flags before configure:
 
-FC=gfortran F77=gfortran ./configure ...
+   FC=gfortran F77=gfortran ./configure ...
 
 See 'Use of LIBXC in arithmetic expressions' in the user's guide for
 instructions on how to use libxc in critic2.
