@@ -703,3 +703,32 @@ close to the non-hydrogen nuclei.
 
 Plot of the electron density in the molecular plane of benzene.
 
+* visualization_cps
+** Source: DFTB+ and Gaussian
+** System: urea molecular crystal and the benzene molecule.
+** Description
+
+Two examples showing how to do critical point visualization using
+critic2 to write CML files for avogadro. For this to work, you will
+need to install a recent version of avogadro and openbabel from:
+
+   http://avogadro.cc/wiki/Main_Page
+   http://openbabel.org/wiki/Main_Page
+
+In both cases, the critical points are calculated and written to a CML
+files: one of the inputs is a molecule (HF6) and the other is a
+molecular solid (urea).
+
+** urea.cri
+
+Calculate the critical points of in the urea solid (DFTB+ densities)
+and write the structure and the critical points to a CML file, along
+with the bond paths. Redundant atoms outside the unit cell and the
+cell geometry are written, too.
+
+** hf6.cri
+
+Calculate the critical points in HF hexamers and write a CML file with
+the atoms and the CP list. 
+
+

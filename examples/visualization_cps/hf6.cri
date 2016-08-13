@@ -1,0 +1,12 @@
+# Read the molecular structure from the wfx file
+molecule ../data/hf6.wfx
+
+# Load the Gaussianwavefunction
+load ../data/hf6.wfx
+
+# Calculate the critical points
+auto verbose
+
+# Write the CML file for avogadro. This file contains the atoms, 
+# the critical points, and all the bond paths (GRAPH keyword).
+cpreport hf6_cps.cml graph

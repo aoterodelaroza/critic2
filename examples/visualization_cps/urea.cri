@@ -1,0 +1,14 @@
+# Read the structure 
+crystal ../data/urea.gen
+
+# Load a core-augmented DFTB+ density
+zpsp c 4 n 5 o 6
+load ../data/urea.detailed.xml ../data/urea.eigenvec.bin ../data/wfc-3ob-3-1.hsd core
+
+# Find the critical points
+auto verbose
+
+# Write the CML file containing: the atoms, critical points, bond
+# paths (keyword GRAPH), and an environment of the unit cell with 
+# complete molecules.
+cpreport urea_cps.cml molmotif graph
