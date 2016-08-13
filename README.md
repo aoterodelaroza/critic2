@@ -81,7 +81,7 @@ The environment variable CRITIC_HOME is necessary if critic2 was not
 installed with 'make install'. It must point to the root directory of
 the distribution:
 
-export CRITIC_HOME=/home/alberto/programs/critic2dir
+   export CRITIC_HOME=/home/alberto/programs/critic2dir
 
 This variable is necessary for critic2 to find the atomic densities,
 the cif dictionary and the library data. These should be located in
@@ -104,7 +104,7 @@ to calculate exchange and correlation energy densities via the xc()
 function in arithmetic expressions. To do this, the --with-libxc
 options must be passed to configure:
 
-   ./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
+    ./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
 
 Here the /opt/libxc directory is the target for the libxc installation
 (use --prefix=/opt/libxc when you configure libxc). Make sure that you
@@ -112,7 +112,7 @@ use the same compiler for libxc and for critic2; otherwise the library
 will not be linked. You can choose the compiler by changing the FC and
 F77 flags before configure:
 
-   FC=gfortran F77=gfortran ./configure ...
+    FC=gfortran F77=gfortran ./configure ...
 
 See 'Use of LIBXC in arithmetic expressions' in the user's guide for
 instructions on how to use libxc in critic2.
