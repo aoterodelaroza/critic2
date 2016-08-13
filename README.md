@@ -81,21 +81,11 @@ The environment variable CRITIC_HOME is necessary if critic2 was not
 installed with 'make install'. It must point to the root directory of
 the distribution:
 
-   export CRITIC_HOME=/home/alberto/programs/critic2dir
+    export CRITIC_HOME=/home/alberto/programs/critic2dir
 
 This variable is necessary for critic2 to find the atomic densities,
 the cif dictionary and the library data. These should be located in
 ${CRITIC_HOME}/dat/.
-
-NOTE: older versions of the intel fortran compiler have a bug in how
-openmp deals with allocatable arrays which affects the qtree
-integrator and maybe other parts of the code. These problems have been
-solved in version 13.1. Gfortran 4.4.5 and later versions compile
-correctly as far as I know.
-
-NOTE: critic2 as it is distributed can be compiled only with the more
-recent versions of gfortran (somewhere along 4.8.x, and all versions
-starting at 4.9). 
 
 ## Compiling and using libxc
 
@@ -116,6 +106,20 @@ F77 flags before configure:
 
 See 'Use of LIBXC in arithmetic expressions' in the user's guide for
 instructions on how to use libxc in critic2.
+
+Some notes: 
+
+* Older versions of the intel fortran compiler have a bug in how
+openmp deals with allocatable arrays which affects the qtree
+integrator and maybe other parts of the code. These problems have been
+solved in version 13.1.
+
+* critic2 as it is distributed can be compiled only with the more
+recent versions of gfortran (somewhere along 4.8.x, and all versions
+starting at 4.9). If a recent compiler is not available, a possibility
+is to compile the program elsewhere with the static linking option:
+
+    LDFLAGS=-static ./configure ...
 
 ## Use (documentation)
 
