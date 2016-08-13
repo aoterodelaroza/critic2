@@ -430,9 +430,9 @@ contains
     wext = lower(file(index(file,'.',.true.)+1:))
     wroot = file(:index(file,'.',.true.)-1)
 
-    if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'obj').or.&
-        equal(wext,'ply').or.equal(wext,'off')) then
-       ! xyz, gjf, obj, ply, off
+    if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml').or.&
+        equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
+       ! xyz, gjf, cml, obj, ply, off
        doborder = .false.
        molmotif = .false.
        docell = .false.
@@ -520,7 +520,7 @@ contains
              string(wroot), trim(wext)
        end if
 
-       if (equal(wext,'xyz').or.equal(wext,'gjf')) then
+       if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
           call struct_write_mol(c,file,wext,ix,doborder,molmotif,doburst,&
              dopairs,rsph,xsph,rcub,xcub)
        else

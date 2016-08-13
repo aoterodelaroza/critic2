@@ -199,7 +199,7 @@ contains
     integer :: m, nf, ntheta, nphi, nr
     type(seed_), allocatable :: seed(:), saux(:)
     logical :: firstseed, hadx1
-    integer :: nn, lug, lumtl, ilag, nphiact, ier
+    integer :: nn, lug, lumtl, ilag, nphiact, ier, nss
     real*8 :: x0(3), x1(3), dist, r, theta, phi, delta_phi, delta_theta
     real*8, allocatable :: xseed(:,:)
     logical, allocatable :: keep(:)
@@ -740,8 +740,18 @@ contains
     ! If not a dry run, do the search
     if (.not.existcpfile.and..not.dryrun) then
        write (uout,'("+ Searching for CPs")')
+       if (cpdebug) &
+          write (uout,'("  CP localization progress:")')
+       nss = max(nn / 25,1)
        !$omp parallel do private(ier,x0) schedule(dynamic)
        do i = 1, nn
+          if (cpdebug) then
+             !$omp critical (progress)
+             if (mod(i,nss) == 1) then
+                write (uout,'("  [",A,"/",A,"]")') string(i), string(nn)
+             end if
+             !$omp end critical (progress)
+          end if
           x0 = xseed(:,i)
           call newton(x0,gfnormeps,ier)
           if (ier <= 0) call addcp(x0)

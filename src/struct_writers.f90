@@ -52,8 +52,8 @@ module struct_writers
 
 contains
 
-  !> Write an xyz/gjf file containing a finite piece of the crystal
-  !> structure. fmt can be one of xyz or gjf. ix is the number of
+  !> Write a xyz/gjf/cml file containing a finite piece of the crystal
+  !> structure. fmt can be one of xyz, gjf, or cml. ix is the number of
   !> unit cells to plot.  If doborder is .true., add all atoms at the
   !> border. If molmotif is .true., complete molecules with atoms in
   !> adjacent cells. If docell, add sticks for the unit cell limits. If
@@ -116,6 +116,12 @@ contains
           call writexyz(file,fr)
        elseif (equal(fmt,"gjf")) then
           call writegjf(file,fr)
+       elseif (equal(fmt,"cml")) then
+          if (c%ismolecule) then
+             call writecml(file,fr)
+          else
+             call writecml(file,fr,c%crys2car)
+          end if
        else
           call ferror("struct_write_mol","Unknown format",faterr)
        endif
@@ -129,6 +135,12 @@ contains
                 call writexyz(file0,fr0(i))
              elseif (equal(fmt,"gjf")) then
                 call writegjf(file0,fr0(i))
+             elseif (equal(fmt,"cml")) then
+                if (c%ismolecule) then
+                   call writecml(file,fr)
+                else
+                   call writecml(file,fr,c%crys2car)
+                end if
              else
                 call ferror("struct_write_mol","Unknown format",faterr)
              endif
@@ -145,6 +157,12 @@ contains
                    call writexyz(file0,fr)
                 elseif (equal(fmt,"gjf")) then
                    call writegjf(file0,fr)
+                elseif (equal(fmt,"cml")) then
+                   if (c%ismolecule) then
+                      call writecml(file,fr)
+                   else
+                      call writecml(file,fr,c%crys2car)
+                   end if
                 else
                    call ferror("struct_write_mol","Unknown format",faterr)
                 endif
