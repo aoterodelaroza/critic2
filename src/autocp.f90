@@ -850,7 +850,7 @@ contains
           line2 = ""
           agraph = .false.
           do while (.true.)
-             word = lgetword(line,lp2)
+             word = getword(line,lp2)
              if (equal(word,'graph')) then
                 agraph = .true.
              elseif (len_trim(word) > 0) then
