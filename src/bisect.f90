@@ -109,7 +109,7 @@ contains
        xmed = 0.5d0 * (xin_ + xfin_)
 
        xpoint = xmed
-       call gradient (f(refden),xpoint,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+       call gradient(f(refden),xpoint,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
        tstep = tstep + nstep
 
        if (ier <= 0) then
@@ -205,7 +205,7 @@ contains
        !.alpha limit
        xpoint = xmed
 
-       call gradient (f(refden),xpoint,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+       call gradient(f(refden),xpoint,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
        tstep = tstep + nstep
        if (ier == 3) then
           inbundle = .false.
@@ -219,7 +219,7 @@ contains
        !.omega limit
        if (inbundle) then
           xpoint = xmed
-          call gradient (f(refden),xpoint,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call gradient(f(refden),xpoint,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
           tstep = tstep + nstep
           if (ier == 3) then
              inbundle = .false.

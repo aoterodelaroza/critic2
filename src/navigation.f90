@@ -117,10 +117,10 @@ contains
     integer, intent(in) :: mstep
     integer, intent(out) :: ier
     integer, intent(in) :: extinf
-    real*8, intent(out), dimension(mstep,3), optional :: ax
+    real*8, intent(out), dimension(3,mstep), optional :: ax
     real*8, intent(out), dimension(mstep), optional :: arho
-    real*8, intent(out), dimension(mstep,3), optional :: agrad
-    real*8, intent(out), dimension(mstep,3,3), optional :: ah
+    real*8, intent(out), dimension(3,mstep), optional :: agrad
+    real*8, intent(out), dimension(3,3,mstep), optional :: ah
     real*8, intent(in), optional :: up2r, up2rho
     logical, intent(in), optional :: up2beta
     real*8, intent(in), dimension(3), optional :: xref
@@ -220,12 +220,12 @@ contains
        if (ok) then
           xpoint = xcp
           if (extinf > 0) then
-             ax(nstep,:) = cr%c2x(xpoint)
+             ax(:,nstep) = cr%c2x(xpoint)
              if (extinf > 1) then
                 arho(nstep) = res%f
-                agrad(nstep,:) =  (/ 0d0, 0d0, 0d0 /)
-                forall (i=1:3, j=1:3) ah(nstep,i,j) = 0d0
-                forall (i=1:3) ah(nstep,i,i) = 1d0
+                agrad(:,nstep) =  (/ 0d0, 0d0, 0d0 /)
+                forall (i=1:3, j=1:3) ah(i,j,nstep) = 0d0
+                forall (i=1:3) ah(i,i,nstep) = 1d0
              end if
           end if
           ier = 0
@@ -234,11 +234,11 @@ contains
 
        ! save info
        if (extinf > 0) then
-          ax(nstep,:) = xpoint
+          ax(:,nstep) = xpoint
           if (extinf > 1) then
              arho(nstep) = res%f
-             agrad(nstep,:) = res%gf
-             ah(nstep,:,:) = res%hf
+             agrad(:,nstep) = res%gf
+             ah(:,:,nstep) = res%hf
           end if
        end if
 

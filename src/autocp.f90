@@ -825,7 +825,7 @@ contains
     logical :: ok
     logical :: agraph
     type(crystal) :: caux
-    real*8 :: x(3), xpath(mstep,3)
+    real*8 :: x(3), xpath(3,mstep)
 
     lp = 1
     do while (.true.)
@@ -903,15 +903,15 @@ contains
                 if (iup /= 0) then
                    x = cpcel(i)%r + 0.5d0 * fprune * cpcel(i)%brvec
                    call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(cr,nstep,xpath(1:nstep,:),fprune)
+                   call prunepath(cr,nstep,xpath(:,1:nstep),fprune)
                    !$omp critical (add)
-                   call addpath(nstep,xpath(1:nstep,:))
+                   call addpath(nstep,xpath(:,1:nstep))
                    !$omp end critical (add)
                    x = cpcel(i)%r - 0.5d0 * fprune * cpcel(i)%brvec
                    call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(cr,nstep,xpath(1:nstep,:),fprune)
+                   call prunepath(cr,nstep,xpath(:,1:nstep),fprune)
                    !$omp critical (add)
-                   call addpath(nstep,xpath(1:nstep,:))
+                   call addpath(nstep,xpath(:,1:nstep))
                    !$omp end critical (add)
                 end if
              end do
@@ -936,7 +936,7 @@ contains
   contains
     subroutine addpath(nstep,xpath)
       integer, intent(in) :: nstep
-      real*8, intent(in) :: xpath(nstep,3)
+      real*8, intent(in) :: xpath(3,nstep)
 
       integer :: i, n
       
@@ -944,7 +944,7 @@ contains
       n = caux%nneq
       do i = 1, nstep
          n = n + 1
-         caux%at(n)%x = xpath(i,:)
+         caux%at(n)%x = xpath(:,i)
          caux%at(n)%z = 123
          caux%at(n)%name = nameguess(caux%at(n)%z)
       end do

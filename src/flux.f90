@@ -508,10 +508,10 @@ contains
     end if
 
     ! Allocate memory
-    allocate(flx_x(flx_m,3))
+    allocate(flx_x(3,flx_m))
     allocate(flx_rho(flx_m))
-    allocate(flx_grad(flx_m,3))
-    allocate(flx_h(flx_m,3,3))
+    allocate(flx_grad(3,flx_m))
+    allocate(flx_h(3,3,flx_m))
 
     ! Connect and initialize tessel file
     if (outfmt == "tss") then
@@ -734,21 +734,18 @@ contains
           write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
-             write (luout,'(13(E20.12,X))') flx_x(i,1), flx_x(i,2), flx_x(i,3), flx_rho(i),&
-                flx_grad(i,1), flx_grad(i,2), flx_grad(i,3), flx_h(i,1,1), flx_h(i,1,2),&
-                flx_h(i,1,3), flx_h(i,2,2), flx_h(i,2,3), flx_h(i,3,3)
+             write (luout,'(13(E20.12,X))') flx_x(:,i), flx_rho(i),&
+                flx_grad(:,i), flx_h(1,:,i), flx_h(2,:,i), flx_h(3,:,i)
           end do
        else
           write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
-             x = flx_x(i,:)
+             x = flx_x(:,i)
              if (cr%ismolecule) &
                 x = (cr%x2c(x) + cr%molx0) * dunit
              write (luout,'(13(E20.12,X))') x, flx_rho(i),&
-                flx_grad(i,1), flx_grad(i,2), flx_grad(i,3),&
-                flx_h(i,1,1), flx_h(i,1,2), flx_h(i,1,3),&
-                flx_h(i,2,2), flx_h(i,2,3), flx_h(i,3,3)
+                flx_grad(:,i), flx_h(1,:,i), flx_h(2,:,i), flx_h(3,:,i)
           end do
        end if
        write (luout,'(A/)') "# End gradient path"
@@ -758,13 +755,13 @@ contains
        write (luout,'(2X,A)') "curve balls type 6"
        do i=1,flx_n
           if (mod(i,flx_every) == 0) then
-             write (luout,'(3X,3(E20.12,X))') flx_x(i,:)
+             write (luout,'(3X,3(E20.12,X))') flx_x(:,i)
           end if
        end do
        write (luout,'(2X,A)') "endcurve"
     elseif (outfmt == "obj" .or. outfmt == "off" .or. outfmt == "ply") then
        do i=1,flx_n
-          x = cr%x2c(flx_x(i,:))
+          x = cr%x2c(flx_x(:,i))
           if (outfmt == "obj") then
              call obj_ball(luout,x,rgb0,rrad)
           elseif (outfmt == "off") then
@@ -832,15 +829,15 @@ contains
              end if
 
              do k = 1, flx_n
-                flx_x(flx_n+k,:) = flx_x(k,:)
-                flx_x(k,:) = matmul(cr%rotm(:,1:3,symrotm(j)),flx_x(k,:))
-                flx_x(k,:) = flx_x(k,:) + cr%rotm(:,4,symrotm(j))
-                flx_x(k,:) = flx_x(k,:) + cr%cen(:,symcenv(j))
-                flx_x(k,:) = flx_x(k,:) + templvec
+                flx_x(:,flx_n+k) = flx_x(:,k)
+                flx_x(:,k) = matmul(cr%rotm(:,1:3,symrotm(j)),flx_x(:,k))
+                flx_x(:,k) = flx_x(:,k) + cr%rotm(:,4,symrotm(j))
+                flx_x(:,k) = flx_x(:,k) + cr%cen(:,symcenv(j))
+                flx_x(:,k) = flx_x(:,k) + templvec
 
                 ! return the point to the big cell
-                where (flx_x(k,:) > 1.d0+flxsym+flx_epsx) flx_x(k,:) = flx_x(k,:) - 2*flxsym - 1.d0
-                where (flx_x(k,:) < -flxsym-flx_epsx)     flx_x(k,:) = flx_x(k,:) + 2*flxsym + 1.d0
+                where (flx_x(:,k) > 1.d0+flxsym+flx_epsx) flx_x(:,k) = flx_x(:,k) - 2*flxsym - 1.d0
+                where (flx_x(:,k) < -flxsym-flx_epsx)     flx_x(:,k) = flx_x(:,k) + 2*flxsym + 1.d0
 
              end do
 
@@ -848,7 +845,7 @@ contains
              call flx_printpath(rgb)
 
              ! retrieve the original bond path
-             flx_x(1:flx_n,:) = flx_x(flx_n+1:2*flx_n,:)
+             flx_x(:,1:flx_n) = flx_x(:,flx_n+1:2*flx_n)
           end do
        end do
        deallocate(sympos,symrotm,symcenv)
@@ -1128,7 +1125,7 @@ contains
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
              ! last point before newton -> not converted to the main cell
-             xpoint = cr%x2c(flx_x(flx_n-1,:))
+             xpoint = cr%x2c(flx_x(:,flx_n-1))
              r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
           end do
 

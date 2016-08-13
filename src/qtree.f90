@@ -1049,7 +1049,7 @@ contains
                 sin(srf%th(j)) * sin(srf%ph(j)),&
                 cos(srf%th(j)) /)
              xx = x0 + r_betagp(i) * unit
-             call gradient (f(refden),xx,+1,nstep,mstep,ier,0,up2beta=.true.)
+             call gradient(f(refden),xx,+1,nstep,mstep,ier,0,up2beta=.true.)
              dist = norm(xx - x0)
              if (dist > dthres) then
                 !$omp critical (write)

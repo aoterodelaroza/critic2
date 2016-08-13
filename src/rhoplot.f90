@@ -2127,7 +2127,7 @@ contains
     real*8, dimension(3), intent(in) :: r0, r1, r2
 
     integer :: nptf, i, j, iorig, up1d, up2d, ntotpts
-    real*8  :: xflux(RHOP_Mstep,3), xstart(3), phii, u1, v1, u, v
+    real*8  :: xflux(3,RHOP_Mstep), xstart(3), phii, u1, v1, u, v
     real*8  :: r012, v1d(3), v2da(3), v2db(3), xo0(3), xo1(3), xo2(3)
     real*8  :: xtemp(3), c1coef, c2coef, ehess(3)
     integer :: ier, nindex, ntype
@@ -2228,7 +2228,7 @@ contains
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
              call gradient(f(refden),xstart,+1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
              do j = 1, nptf
-                xflux(j,:) = cr%x2c(xflux(j,:))
+                xflux(:,j) = cr%x2c(xflux(:,j))
              end do
              call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
@@ -2242,7 +2242,7 @@ contains
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
              call gradient(f(refden),xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
              do j = 1, nptf
-                xflux(j,:) = cr%x2c(xflux(j,:))
+                xflux(:,j) = cr%x2c(xflux(:,j))
              end do
              call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
@@ -2313,14 +2313,14 @@ contains
                    xstart = grpx(:,iorig) + grprad2 * v2da
                    call gradient(f(refden),xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(j,:) = cr%x2c(xflux(j,:))
+                      xflux(:,j) = cr%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * v2da
                    call gradient(f(refden),xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(j,:) = cr%x2c(xflux(j,:))
+                      xflux(:,j) = cr%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
@@ -2329,14 +2329,14 @@ contains
                    xstart = grpx(:,iorig) + grprad2 * xtemp
                    call gradient(f(refden),xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(j,:) = cr%x2c(xflux(j,:))
+                      xflux(:,j) = cr%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * xtemp
                    call gradient(f(refden),xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(j,:) = cr%x2c(xflux(j,:))
+                      xflux(:,j) = cr%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
@@ -2350,13 +2350,13 @@ contains
                 xstart = grpx(:,iorig) + grprad3 * v1d
                 call gradient(f(refden),xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                 do j = 1, nptf
-                   xflux(j,:) = cr%x2c(xflux(j,:))
+                   xflux(:,j) = cr%x2c(xflux(:,j))
                 end do
                 call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                 xstart = grpx(:,iorig) - grprad3 * v1d
                 call gradient(f(refden),xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                 do j = 1, nptf
-                   xflux(j,:) = cr%x2c(xflux(j,:))
+                   xflux(:,j) = cr%x2c(xflux(:,j))
                 end do
                 call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                 ntotpts = ntotpts + nptf
@@ -2385,7 +2385,7 @@ contains
     use param
 
     integer, intent(in) :: mptf
-    real*8, dimension(mptf,3), intent(in) :: xflux
+    real*8, dimension(3,mptf), intent(in) :: xflux
     integer, intent(in) :: nptf
     integer, intent(in) :: udat
     real*8, intent(in) :: rp0(3), r01, r02, cosalfa, sinalfa
@@ -2397,10 +2397,10 @@ contains
     real*8, parameter :: mindist = 0.2d0
 
     ! identify the endpoints
-    x0 = cr%c2x(xflux(1,:))
+    x0 = cr%c2x(xflux(:,1))
     nid1 = 0
     call cr%nearest_atom(x0,nid1,dist1,lvec)
-    x0 = cr%c2x(xflux(nptf,:))
+    x0 = cr%c2x(xflux(:,nptf))
     nid2 = 0
     call cr%nearest_atom(x0,nid2,dist2,lvec)
     rgb = (/0,0,0/)
@@ -2417,9 +2417,9 @@ contains
     wasblank = .true.
     do i = 1, nptf
        !.transform the point to the plotting plane coordinates:
-       xxx = xflux(i,1) - rp0(1)
-       yyy = xflux(i,2) - rp0(2)
-       zzz = xflux(i,3) - rp0(3)
+       xxx = xflux(1,i) - rp0(1)
+       yyy = xflux(2,i) - rp0(2)
+       zzz = xflux(3,i) - rp0(3)
        u = bmat(1,1)*xxx + bmat(1,2)*yyy + bmat(1,3)*zzz
        v = bmat(2,1)*xxx + bmat(2,2)*yyy + bmat(2,3)*zzz
        h = bmat(3,1)*xxx + bmat(3,2)*yyy + bmat(3,3)*zzz
@@ -2431,7 +2431,7 @@ contains
              uort = u*r01 + v*r02*cosalfa
              vort = v*r02*sinalfa
              if (abs(h) < grphcutoff .or. grpproj > 0) then
-                write (udat,200) uort, vort, (xflux(i,j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+                write (udat,200) uort, vort, (xflux(j,i), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
              end if
           end if
           if (.not.wasblank) write (udat,*)
@@ -2441,7 +2441,7 @@ contains
           uort = u*r01 + v*r02*cosalfa
           vort = v*r02*sinalfa
           if (abs(h) < grphcutoff .or. grpproj > 0) then
-             write (udat,200) uort, vort, (xflux(i,j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+             write (udat,200) uort, vort, (xflux(j,i), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
           end if
        endif
     enddo
