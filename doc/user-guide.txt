@@ -1099,14 +1099,16 @@ Loading a crystal structure (CRYSTAL)
 
   CRYSTAL file.cube
   CRYSTAL file.struct
-  CRYSTAL [file.]{POSCAR,CONTCAR,CHGCAR,CHG,ELFCAR,AECCAR0,AECCAR2} [at1.s at2.s ...|POTCAR]
+  CRYSTAL [file.]{POSCAR,CONTCAR,CHGCAR,CHG,ELFCAR,AECCAR0,
+                  AECCAR2} [at1.s at2.s ...|POTCAR]
   CRYSTAL {[file.]CHG|[file.]ELFCAR} [at1.s at2.s ...|POTCAR]
   CRYSTAL file.OUT # elk's GEOMETRY.OUT
   CRYSTAL file.out # e.g. ESPRESSO's file.scf.out (PW output)
   CRYSTAL file.in  # e.g. ESPRESSO's file.scf.in (PW input)
   CRYSTAL file.cif [datablock.s]
   CRYSTAL file.res
-  CRYSTAL file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
+  CRYSTAL file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|
+                GDEN2|GDEN3|LDEN|KDEN}
   CRYSTAL file.STRUCT_IN
   CRYSTAL file.STRUCT_OUT
   CRYSTAL file.gen
@@ -1872,8 +1874,8 @@ not. The full syntax of the WRITE keyword is::
         [CUBE side.r [x0.r y0.r z0.r]]
         [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i]
   WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] [BURST]
-        [CELL] [MOLCELL] [ix.i iy.i iz.i]
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] 
+        [BURST] [CELL] [MOLCELL] [ix.i iy.i iz.i]
   WRITE file.scf.in
   WRITE file.tess
   WRITE file.cri|file.incritic
@@ -2037,7 +2039,8 @@ field formats are supported:
 ::
 
   LOAD file.cube
-  LOAD file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
+  LOAD file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|
+             GDEN2|GDEN3|LDEN|KDEN}
   LOAD [file.]{CHGCAR|AECCAR0|AECCAR2}
   LOAD {[file.]CHG|[file.]ELFCAR}
   LOAD file.qub
@@ -2056,12 +2059,14 @@ field formats are supported:
   LOAD COPY id.s [TO id2.s]
   LOAD PROMOLECULAR
   LOAD PROMOLECULAR [FRAGMENT file.xyz]
-  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID|SIESTA|DFTB] file
+  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|
+        ELKGRID|SIESTA|DFTB] file
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
   LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.s|GHOST]
-  LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} [FRAGMENT file.xyz]
+  LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} 
+          [FRAGMENT file.xyz]
   LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.s}
   LOAD AS LAP id.s
   LOAD AS GRAD id.s
@@ -2549,7 +2554,7 @@ keyword can be used:
   REFERENCE id.s
 
 Sets field id.s as reference. The output of this keyword is shown in
-section `Typical output of the REFERENCE keyword`_.
+section `Typical output for the REFERENCE keyword`_.
 
 Typical output for the LOAD keyword
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3499,6 +3504,77 @@ shortcomings of the scalar field:
   (available upon request) but since the core CPs are not all that
   interesting, we have decided to remove that code from this version.
 
+Visualization of critical points
+++++++++++++++++++++++++++++++++
+
+Critic2 does not come with a graphical interface to visualize the
+results of your calculations (yet). This can be a problem when your
+list of critical points is very large, or if you want to identify one
+particular critical point among many. However, there are some
+molecular visualization programs that can be used to read the output
+of critic2, and I will describe in this section the most comfortable
+procedure (in my opinion) to do so. If you know a better way, please
+let me know.
+
+The key to critical point visualization is the CPREPORT keyword. When
+used with one of the available output file formats, critic2 will write
+the list of atoms plus the critical points in that format. The
+critical points are labeled as "Xn" (nuclear CP), "Xb" (bonds), "Xr"
+(rings), and "Xc" (cages). The color scheme for critical points is
+dark green (nCP), yellow (bCP), purple (rCP), and light red
+(cCP). Gradient paths can also be represented using the GRAPH
+keyword. Points along a gradient path use the symbol "Xz" in the
+output, and are colored in green.
+
+The list of critical points is written to the output in the same order
+as in critic2's complete critical point list, unless one of the
+special keywords to modify the plotting region is used
+(e.g. MOLMOTIF). This means that, if your graphical program gives you
+the atom labels, atom number n in the GUI will correspond exactly to
+critical point number n in critic2.
+
+The challenege, therefore, is to make external programs understand
+that we have objects (critical points) that should be treated like
+atoms, but are not atoms. An easy (and sometimes very convenient) way
+of doing this is to replace the critical point labels ("Xb", "Xr",...)
+with atoms we know are not present in our system (e.g. H). 
+
+However, a better method is to make the extend the list of atoms
+available to the GUI program. This can be done using avogadro, an
+open-source visualizer for crystals and molecules that can be obtained
+from::
+  
+   http://avogadro.cc/wiki/Main_Page
+
+The following comments apply to version 1.2.0 of the program (August
+2016). 
+
+Avogadro uses openbabel (http://openbabel.org/wiki/Main_Page) as the
+underlying format converter. To make avogadro understand the critical
+point types, all you need to do is modify the element.txt file that
+comes with openbabel, and add the critical point types at the end of
+the atomic species list::
+
+  #ascii#
+  [...]
+  118     Uuh     0.00    1.60    0.00    0.00    6       294     0.00    0       0       0.99    0.00    0.06    Ununoctium
+  119     Xn      0.00    0.50    0.00    0.50    0       0       0.00    0       0       0.2805  0.6223  0.0164  nCP
+  120     Xb      0.00    0.50    0.00    0.50    0       0       0.00    0       0       1.0000  0.8512  0.2380  bCP
+  121     Xr      0.00    0.50    0.00    0.50    0       0       0.00    0       0       0.5851  0.5349  1.0000  rCP
+  122     Xc      0.00    0.50    0.00    0.50    0       0       0.00    0       0       1.0000  0.3998  0.3411  cCP
+  123     Xz      0.00    0.20    0.00    0.20    0       0       0.00    0       0       0.1709  1.0000  0.0000  xCP
+
+With these changes, atoms and critical points will be represented, and
+the latter will use the color scheme mentioned above. 
+
+The simplest file formats generated by critic2 and understood by
+avogadro are cif files (for crystals), and xyz files (for molecules
+and finite representations of crystals). At the moment, the
+capabilities of avogadro to handle periodic systems are limited, but
+development is currently ongoing. To access the critical point labels
+(which correspond to the critic2 lables), go to Display types, mark
+"Label", click on the Label options, and select "Text: atom number". 
+
 Requesting more information about the critical point list (CPREPORT)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -3509,8 +3585,8 @@ Requesting more information about the critical point list (CPREPORT)
            [CUBE side.r [x0.r y0.r z0.r]]
            [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i]
   CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] [BURST]
-           [CELL] [MOLCELL] [ix.i iy.i iz.i]
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] 
+           [BURST] [CELL] [MOLCELL] [ix.i iy.i iz.i]
   CPREPORT file.scf.in
   CPREPORT file.tess
   CPREPORT file.cri|file.incritic
@@ -5345,7 +5421,8 @@ Compare crystal structures (COMPARE)
 
 ::
 
-  COMPARE [XEND xend.r] [POWDER|RDF] {.|file1.s} {.|file2.s} [{.|file3.s} ...]
+  COMPARE [XEND xend.r] [POWDER|RDF] {.|file1.s} 
+          {.|file2.s} [{.|file3.s} ...]
 
 Compare two or more crystal structures and find the measure of
 similarity (DIFF) based on either their radial distribution functions
@@ -5594,9 +5671,10 @@ J. Chem. Phys. 138, 204109 (2013) for more details.
 
 ::
 
-  XDM GRID [RHO irho.s] [TAU itau.s] [ELF ielf.s] [PDENS ipdens.s]
-      [CORE icor.s] [LAP ilap.s] [GRAD igrad.s] [RHOAE irhoae.s]
-      [XB ib.s] [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]
+  XDM GRID [RHO irho.s] [TAU itau.s] [ELF ielf.s] 
+      [PDENS ipdens.s] [CORE icor.s] [LAP ilap.s] 
+      [GRAD igrad.s] [RHOAE irhoae.s] [XB ib.s] 
+      [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]
   XDM QE
   XDM a1.r a2.r chf.s
 
