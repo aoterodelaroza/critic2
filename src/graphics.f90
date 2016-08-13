@@ -487,7 +487,7 @@ contains
           if (present(r)) then
              x = matmul(ri,fr%at(i)%r)
              write (lu,'("<atom id=""a",A,""" elementType=""",A,""" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")') &
-                string(i), trim(nameguess(fr%at(i)%z,.true.)), (trim(string(x(j) * bohrtoa,'f',18,10)),j=1,3)
+                string(i), trim(nameguess(fr%at(i)%z,.true.)), (trim(string(x(j),'f',18,10)),j=1,3)
           else
              write (lu,'("<atom id=""a",A,""" elementType=""",A,""" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
                 string(i), trim(nameguess(fr%at(i)%z,.true.)), &
