@@ -924,7 +924,7 @@ contains
           neqdone(cpn))) cycle
        neqdone(cpn) = .true.
 
-       write (uout,'("  Plotting CP number (cp/ncp): ",A,"/",A)') , string(i), string(cpn)
+       write (uout,'("  Plotting CP number (cp/ncp): ",A,"/",A)') string(i), string(cpn)
 
        ! clean the surface 
        call minisurf_clean(srf)
