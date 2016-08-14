@@ -35,18 +35,23 @@ contains
   !> logical unit of an open scratch file containing the weights
   !> (luw). A maximum is considered to belong to an atom if it is at a
   !> distance of less than ratom away (bohr). Two maxima are equal if
-  !> they are less than ratom away.
-  subroutine yt_integrate(c,f,atexist,ratom,nbasin,xcoord,idg,luw)
+  !> they are less than ratom away. If the arithmetic expression
+  !> discexpr is not empty, then apply that expression to the basin
+  !> attractors. If the expression is non-zero, discard the attractor.
+  subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
+    use fields
     use struct_basic
     use tools_io
     use tools
     use global
     use struct_basic
+    use arithmetic
     use types
     use param
     
     type(crystal), intent(in) :: c
-    type(field), intent(in) :: f
+    type(field), intent(in) :: ff
+    character*(*), intent(in) :: discexpr
     logical, intent(in) :: atexist
     real*8, intent(in) :: ratom
     integer, intent(out) :: nbasin
@@ -61,9 +66,9 @@ contains
     integer :: nhi
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
     real*8, allocatable :: chi(:), fnear(:,:)
-    logical :: isias, isassigned
+    logical :: isias, isassigned, ok
     integer :: nid, lvec(3), nnnm
-    real*8 :: dist, dv(3)
+    real*8 :: dist, dv(3), fval, x(3)
     type(crystal) :: caux
 
     ! Pre-allocate atoms as maxima
@@ -79,10 +84,10 @@ contains
     end if
 
     ! Copy the field onto a one-dimensional array
-    n = f%n(:)
+    n = ff%n(:)
     nn = n(1)*n(2)*n(3)
     allocate(g(nn))
-    g = reshape(f%f,shape(g))
+    g = reshape(ff%f,shape(g))
 
     ! sort g, from smaller to larger field value
     allocate(io(nn),iio(nn))
@@ -152,10 +157,20 @@ contains
           end if
           ! well, it must be a new attractor then
           if (.not.isassigned) then
-             nbasin = nbasin + 1
-             if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
-             ibasin(ii) = nbasin
-             xcoord(:,nbasin) = dv
+             ok = .true.
+             if (len_trim(discexpr) > 0) then
+                x = c%x2c(dv)
+                fval = eval(discexpr,.false.,ok,x,fields_fcheck,fields_feval)
+                if (.not.ok) &
+                   call ferror("yt","invalid DISCARD expression",faterr)
+                ok = (abs(fval) < 1d-30)
+             end if
+             if (ok) then
+                nbasin = nbasin + 1
+                if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
+                ibasin(ii) = nbasin
+                xcoord(:,nbasin) = dv
+             end if
           end if
        else
           isias = ibasin(ihi(1)) == 0

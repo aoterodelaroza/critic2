@@ -99,7 +99,7 @@ contains
 
     real*8, parameter :: ratom_def0 = 1d0
 
-    character(len=:), allocatable :: word, file
+    character(len=:), allocatable :: word, file, expr
     integer :: i, j, k, n(3), nn, ntot
     integer :: lp, itype, p(3)
     logical :: ok, nonnm, noatoms, atexist, pmask(nprops), dowcube
@@ -136,6 +136,7 @@ contains
     nonnm = .true.
     noatoms = .false.
     dowcube = .false.
+    expr = ""
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"nnm")) then
@@ -152,6 +153,12 @@ contains
           ratom_def = ratom_def / dunit
        elseif (equal(word,"wcube")) then
           dowcube = .true.
+       elseif (equal(word,"discard")) then
+          ok = isexpression_or_word(expr,line,lp)
+          if (.not. ok) then
+             call ferror("intgrid_driver","wrong DISCARD keyword",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
           call ferror("intgrid_driver","Unknown extra keyword",faterr,line,syntax=.true.)
           return
@@ -186,7 +193,9 @@ contains
        write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
        write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(ratom,0d0),'e',decimal=4)
-       call bader_integrate(cr,f(refden),atexist,ratom,nattr,xgatt,idg)
+       if (len_trim(expr) > 0) &
+          write (uout,'("+ Discard attractor expression: ",A)') trim(expr)
+       call bader_integrate(cr,f(refden),expr,atexist,ratom,nattr,xgatt,idg)
        write (uout,'("+ Attractors in BADER: ",A)') string(nattr)
     elseif (itype == itype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
@@ -194,7 +203,9 @@ contains
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
        write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(ratom,0d0),'e',decimal=4)
-       call yt_integrate(cr,f(refden),atexist,ratom,nattr,xgatt,idg,luw)
+       if (len_trim(expr) > 0) &
+          write (uout,'("+ Discard attractor expression: ",A)') trim(expr)
+       call yt_integrate(cr,f(refden),expr,atexist,ratom,nattr,xgatt,idg,luw)
        write (uout,'("+ Attractors in YT: ",A)') string(nattr)
     endif
 
@@ -703,7 +714,7 @@ contains
        f1%init = .true.
        
        ! run bader integration on the supercell
-       call bader_integrate(cr1,f1,.true.,1d40,natt1,xgatt1,idg1)
+       call bader_integrate(cr1,f1,"",.true.,1d40,natt1,xgatt1,idg1)
        
        allocate(w(n0(1),n0(2),n0(3)))
        write (uout,'("+ List of basins and charges")')

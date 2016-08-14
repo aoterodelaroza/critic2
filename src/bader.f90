@@ -59,16 +59,23 @@ contains
   !> Do a grid integration using the BADER method. cr is the crystal
   !> and f is the field. Return the number of basins (nbasin0), their
   !> coordinates (crystallographic corods, volpos_lat). volnum0 gives
-  !> the id of the basin (from 1 to nbasin0) on the lattice.  
-  subroutine bader_integrate(c,f,atexist,ratom,nbasin0,xcoord,volnum0)
+  !> the id of the basin (from 1 to nbasin0) on the lattice. If 
+  !> the arithmetic expression discexpr is not empty, then apply that
+  !> expression to the basin attractors. If the expression is non-zero,
+  !> discard the attractor.
+  subroutine bader_integrate(c,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
+    use fields
     use global
     use struct_basic
+    use tools_io
     use tools_math
+    use arithmetic
     use types
     use param
 
     type(crystal), intent(in) :: c
-    type(field), intent(in) :: f
+    type(field), intent(in) :: ff
+    character*(*), intent(in) :: discexpr
     logical, intent(in) :: atexist
     real*8, intent(in) :: ratom
     integer, intent(out) :: nbasin0
@@ -77,9 +84,9 @@ contains
 
     integer :: i, j, k, l, path_volnum, p(3)
     integer :: ptemp(3), ref_itrs, irefine_edge, nid, lvec(3)
-    real*8 :: dlat(3), dcar(3), dist, dv(3)
+    real*8 :: dlat(3), dcar(3), dist, dv(3), x(3), fval
     integer :: bat(c%ncel)
-    logical :: isassigned
+    logical :: isassigned, ok
 
     ! Pre-allocate atoms as maxima
     allocate(xcoord(3,c%ncel))
@@ -96,7 +103,7 @@ contains
     bat = 0
 
     ! metrics
-    n = f%n
+    n = ff%n
     do i = 1, 3
        lat2car(:,i) = c%crys2car(:,i) / n(i)
     end do
@@ -127,7 +134,7 @@ contains
           do k = 1, n(3)
              p = (/i, j, k/)
              if (volnum(i,j,k) == 0) then
-                call max_neargrid(f,p)
+                call max_neargrid(ff,p)
                 path_volnum = volnum(p(1),p(2),p(3))
 
                 ! maximum
@@ -157,10 +164,20 @@ contains
                    end if
                    ! well, it must be a new attractor then
                    if (.not.isassigned) then
-                      nbasin = nbasin + 1
-                      if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
-                      path_volnum = nbasin
-                      xcoord(:,nbasin) = dv
+                      ok = .true.
+                      if (len_trim(discexpr) > 0) then
+                         x = c%x2c(dv)
+                         fval = eval(discexpr,.false.,ok,x,fields_fcheck,fields_feval)
+                         if (.not.ok) &
+                            call ferror("yt","invalid DISCARD expression",faterr)
+                         ok = (abs(fval) < 1d-30)
+                      end if
+                      if (ok) then
+                         nbasin = nbasin + 1
+                         if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
+                         path_volnum = nbasin
+                         xcoord(:,nbasin) = dv
+                      end if
                    end if
                 end if
 
@@ -184,7 +201,7 @@ contains
     ref_itrs = 1
     irefine_edge = -1
     do while (.true.)
-       call refine_edge(f,irefine_edge,ref_itrs)
+       call refine_edge(ff,irefine_edge,ref_itrs)
        if (irefine_edge == 0) exit
        ref_itrs = ref_itrs + 1
     end do
@@ -528,10 +545,10 @@ contains
 
   end subroutine pbc
 
-  function rho_val(f,p1,p2,p3)
+  function rho_val(ff,p1,p2,p3)
     use types
 
-    type(field), intent(in) :: f
+    type(field), intent(in) :: ff
     integer, intent(in) :: p1, p2, p3
     real*8 :: rho_val
 
@@ -548,7 +565,7 @@ contains
           p(i) = p(i) - n(i)
        end do
     end do
-    rho_val = f%f(p(1),p(2),p(3))
+    rho_val = ff%f(p(1),p(2),p(3))
 
   end function rho_val
 

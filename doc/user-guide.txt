@@ -5073,7 +5073,7 @@ Yu and Trinkle (YT)
 
 ::
 
-  YT [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r]
+  YT [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
 
 The Yu-Trinkle (YT) algorithm uses the reference field to calculate
 the attraction basins. The reference field must be defined on a
@@ -5113,7 +5113,19 @@ Any maxima that is not assigned to an existing atom or non-nuclear
 critical point is automatically added to the critical point list, see
 `Finding critical points`_. It is possible to get more information
 about these maxima by using the CPREPORT keyword, see `Requesting more
-information about the critical point list (CPREPORT)`_.
+information about the critical point list (CPREPORT)`_. 
+
+In some cases, particularly if there is a vacuum region in your system
+(or your system is a molecule), multiple spurious maxima will appear
+due to numerical noise in the grid values. The number of spurious
+attractors will increase the computational cost and serve little
+purpose, as the vacuum region will integrate to zero anyway. In these
+cases, the DISCARD keyword can be used to make critic2 ignore any
+attractor that matches the expression expr.s when it is evaluated at
+that point. For instance, if the electron density is given by field
+$rho, and we want to discard low-density critical points, we could use
+DISCARD "$rho < 1e-7". The arithmetic expression can involve any
+number of fields, not just the reference field.
 
 Not all the properties defined by the INTEGRABLE keyword are
 integrated. Only the subset of those properties that are grids, have F
@@ -5145,7 +5157,7 @@ The algorithm by Henkelman et al. uses the BADER keyword:
 
 ::
 
-  BADER [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r]
+  BADER [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
 
 The BADER algorithm uses the reference field to calculate the basins;
 this field must be defined on a grid. BADER assigns grid nodes to
