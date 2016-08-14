@@ -244,7 +244,8 @@ program critic
            call ferror('critic2','wrong field in setfield',faterr,line,syntax=.true.)
            cycle
         end if
-        call setfield(f(id),id,line(lp:),.true.,ok)
+        call setfield(f(id),id,line(lp:),ok)
+        call fieldinfo(id,.false.,.true.)
 
      ! reference
      elseif (equal(word,'reference')) then

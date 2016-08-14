@@ -178,7 +178,7 @@ contains
     do i = minl+1, maxl
        write (uout,'("  Level ",A,": ",A)') string(i), string(integ_mode(i))
     end do
-    write (uout,'("  CORNER INTEGRATION deferred flag: ",L1)') , intcorner_deferred
+    write (uout,'("  CORNER INTEGRATION deferred flag: ",L1)') intcorner_deferred
     write (uout,'("  PLOT mode : ",A)') string(plot_mode)
 
     if (any(integ_mode(minl+1:maxl) >= 1 .and. integ_mode(minl+1:maxl) <= 10)) then

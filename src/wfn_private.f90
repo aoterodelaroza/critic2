@@ -728,7 +728,7 @@ contains
 
     ! first pass: dimensions
     luwfn = fopen_read(file)
-    f%wfntyp = 0
+    f%wfntyp = wfn_rhf
 
     ! first pass: dimensions
     isecp = .false.
@@ -751,7 +751,7 @@ contains
        elseif (line(1:24) == "Highest angular momentum") then
           ok = isinteger(lmax,line,lp)
        elseif (line(1:21) == "Beta Orbital Energies") then
-          f%wfntyp = 1
+          f%wfntyp = wfn_uhf
        elseif (line(1:8) == "ECP-LMax") then
           isecp = .true.
        endif
@@ -762,11 +762,11 @@ contains
     if (nelec == 0) call ferror("wfn_read_fchk","nelec = 0",faterr)
 
     ! Count the number of MOs
-    if (f%wfntyp == 0) then
+    if (f%wfntyp == wfn_rhf) then
        if (mod(nelec,2) == 1) call ferror("wfn_read_fchk","odd nelec but closed-shell wavefunction",faterr)
        f%nmo = nelec / 2
        f%nalpha = nelec / 2
-    else if (f%wfntyp == 1) then
+    else if (f%wfntyp == wfn_uhf) then
        f%nmo = nelec
        f%nalpha = nalpha
     endif
@@ -780,7 +780,7 @@ contains
     if (istat /= 0) call ferror('wfn_read_fchk','could not allocate memory for primitive data',faterr)
 
     ! type of wavefunction -> occupations
-    if (f%wfntyp == 1) then
+    if (f%wfntyp == wfn_uhf) then
        f%occ = 1
     else
        f%occ = 2
@@ -1153,8 +1153,8 @@ contains
                    if (isalpha) then
                       nalpha = nalpha + idum
                    endif
-                   if (f%wfntyp < 0 .and. idum == 2) f%wfntyp = 0
-                   if (idum == 1) f%wfntyp = 1
+                   if (f%wfntyp < 0 .and. idum == 2) f%wfntyp = wfn_rhf
+                   if (idum == 1) f%wfntyp = wfn_uhf
                 elseif (idum == 0) then
                    ! do not read MOs with zero occupation
                    continue
@@ -1186,7 +1186,7 @@ contains
     end do
     
     ! type of wavefunction -> number of MOs
-    if (f%wfntyp == 1) then
+    if (f%wfntyp == wfn_uhf) then
        f%nmo = nelec
     else
        if (mod(nelec,2) == 1) call ferror("wfn_read_molden","odd nelec but closed-shell wavefunction",faterr)
@@ -1202,7 +1202,7 @@ contains
     if (istat /= 0) call ferror('wfn_read_molden','alloc. memory for prim. shells',faterr)
 
     ! type of wavefunction -> occupations
-    if (f%wfntyp == 1) then
+    if (f%wfntyp == wfn_uhf) then
        f%occ = 1
     else
        f%occ = 2
@@ -1302,7 +1302,7 @@ contains
        if (.not.ok) exit
 
        ! is this an alpha electron?
-       if (index(lower(line),"spin=") /= 0 .and. f%wfntyp > 0) then
+       if (index(lower(line),"spin=") /= 0 .and. f%wfntyp /= wfn_rhf) then
           lp = 1
           word1 = lgetword(line,lp)
           word2 = lgetword(line,lp)
@@ -1319,10 +1319,10 @@ contains
              call ferror("wfn_read_molden","error reading mo block",faterr)
           idum = nint(rdum)
           if (idum > 0) then
-             if (f%wfntyp > 0 .and. isalpha) then
+             if (f%wfntyp /= wfn_rhf .and. isalpha) then
                 lnmoa = lnmoa + 1
                 lnmo = lnmoa
-             elseif (f%wfntyp > 0) then
+             elseif (f%wfntyp /= wfn_rhf) then
                 lnmob = lnmob + 1
                 lnmo = lnmob 
              else
@@ -1340,7 +1340,7 @@ contains
     call fclose(luwfn)
 
     ! check the number of MOs is correct
-    if (f%wfntyp == 0) then
+    if (f%wfntyp == wfn_rhf) then
        if (f%nmo /= lnmo) &
           call ferror('wfn_read_molden','inconsistent number of MOs in the second pass',faterr)
     else

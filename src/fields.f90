@@ -58,6 +58,7 @@ module fields
   public :: taufromelf
   public :: testrmt
   public :: fieldname_to_idx
+  public :: fieldinfo
   public :: fields_fcheck
   public :: fields_feval
 
@@ -196,18 +197,16 @@ contains
        f(id) = f(oid)
        fused(id) = .true.
        call fh%put(string(id),id)
-       write (uout,'("* COPIED scalar field from slot ",A," to ",A/)') string(oid), string(id)
 
        ! parse the rest of the line
-       call setfield(f(id),id,line(lp:),.true.,oksyn)
+       call setfield(f(id),id,line(lp:),oksyn)
        if (.not.oksyn) return
     else
        ! allocate slot
        id = getfieldnum()
-       write (uout,'("* LOAD scalar field in slot number: ",A)') string(id)
 
        ! load the field
-       f(id) = fields_load_real(line,id,.true.,oksyn)
+       f(id) = fields_load_real(line,id,oksyn)
        if (.not.oksyn) return
 
        ! test the muffin tin discontinuity, if applicable
@@ -215,9 +214,11 @@ contains
     endif
     oksyn = .true.
 
+    call fieldinfo(id,.true.,.true.)
+
   end subroutine fields_load
 
-  function fields_load_real(line,fid,verbose,oksyn) result(ff)
+  function fields_load_real(line,fid,oksyn) result(ff)
     use dftb_private
     use elk_private
     use wien_private
@@ -232,7 +233,6 @@ contains
 
     character*(*), intent(in) :: line
     integer, intent(in) :: fid
-    logical, intent(in) :: verbose
     logical, intent(out) :: oksyn
     type(field) :: ff
 
@@ -321,7 +321,7 @@ contains
     end if
 
     if (equal(wext1,'cube')) then
-       call grid_read_cube(file,ff,verbose)
+       call grid_read_cube(file,ff)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'DEN').or.equal(wext2,'DEN').or.equal(wext1,'ELF').or.equal(wext2,'ELF').or.&
@@ -330,13 +330,13 @@ contains
        equal(wext1,'GDEN1').or.equal(wext2,'GDEN1').or.equal(wext1,'GDEN2').or.equal(wext2,'GDEN2').or.&
        equal(wext1,'GDEN3').or.equal(wext2,'GDEN3').or.equal(wext1,'LDEN').or.equal(wext2,'LDEN').or.&
        equal(wext1,'KDEN').or.equal(wext2,'KDEN').or.equal(wext1,'PAWDEN').or.equal(wext2,'PAWDEN')) then
-       call grid_read_abinit(file,ff,verbose)
+       call grid_read_abinit(file,ff)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'RHO') .or. equal(wext1,'BADER') .or.&
        equal(wext1,'DRHO') .or. equal(wext1,'LDOS') .or.&
        equal(wext1,'VT') .or. equal(wext1,'VH')) then
-       call grid_read_siesta(file,ff,verbose)
+       call grid_read_siesta(file,ff)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'xml')) then
@@ -370,23 +370,23 @@ contains
 
        ff%file = file
     else if (equal(wext1,'CHGCAR').or.equal(wext1,'AECCAR0').or.equal(wext1,'AECCAR2')) then
-       call grid_read_vasp(file,ff,cr%omega,verbose)
+       call grid_read_vasp(file,ff,cr%omega)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'CHG') .or. equal(wext1,'ELFCAR')) then
-       call grid_read_vasp(file,ff,1d0,verbose)
+       call grid_read_vasp(file,ff,1d0)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'qub')) then
-       call grid_read_qub(file,ff,verbose)
+       call grid_read_qub(file,ff)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'xsf')) then
-       call grid_read_xsf(file,ff,verbose)
+       call grid_read_xsf(file,ff)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'grid')) then
-       call grid_read_elk(file,ff,verbose)
+       call grid_read_elk(file,ff)
        ff%type = type_grid
        ff%file = file
     else if (equal(wext1,'wfn')) then
@@ -411,16 +411,16 @@ contains
        ff%file = file
     else if (equal(wext1,'clmsum')) then
        file2 = getword(line,lp)
-       call wien_read_clmsum(file,file2,ff,verbose)
+       call wien_read_clmsum(file,file2,ff)
        ff%type = type_wien
        ff%file = file
     else if (equal(wext1,'OUT')) then
        file2 = getword(line,lp)
        file3 = getword(line,lp)
        if (file3 == "") then
-          call elk_read_out(ff,file,file2,verbose)
+          call elk_read_out(ff,file,file2)
        else
-          call elk_read_out(ff,file,file2,verbose,file3)
+          call elk_read_out(ff,file,file2,file3)
        end if
        ff%type = type_elk
        ff%file = file
@@ -466,6 +466,12 @@ contains
              exit
           end if
        end do
+
+       do i = 1, cr%nneq
+          if (.not.ff%pi_used(i)) then
+             call ferror("field_load","missing atoms in pi field description",faterr)
+          end if
+       end do
        ff%type = type_pi
        ff%init = .true.
        ff%exact = .false.
@@ -480,22 +486,8 @@ contains
        call pi_register_struct(cr%nenv,renv0,idx0,zenv0)
 
        ! fill the interpolation tables of the field
-       call fillinterpol(ff,verbose)
+       call fillinterpol(ff)
 
-       ! output info
-       if (verbose) then
-          write (uout,'("* aiPI input, from ion files")')
-          write (uout,'(2X,A,2X,A)') string("Atom"), string("File")
-          do i = 1, cr%nneq
-             if (.not.ff%pi_used(i)) then
-                write (uout,'("Non-equivalent atom missing in the load : ",I3)') i
-                call ferror("field_load","missing atoms in pi field description",faterr,syntax=.true.)
-                return
-             end if
-             write (uout,'(4X,A,2X,A)') string(i), string(ff%piname(i))
-          end do
-          write (uout,*)
-       end if
     else if (equal(wext1,'wannier')) then
        ok = isinteger(n(1),line,lp)
        ok = ok .and. isinteger(n(2),line,lp)
@@ -524,7 +516,7 @@ contains
 
           ! read another wannier function and accumulate
           nwan = nwan + 1
-          call grid_read_xsf(file,ff,verbose,nwan,n,cr%omega,ispin)
+          call grid_read_xsf(file,ff,nwan,n,cr%omega,ispin)
           ff%file = ff%file // file // " "
        end do
        ff%type = type_grid
@@ -773,10 +765,6 @@ contains
              end do
              ff%usecore = .false.
              ff%numerical = .true.
-             if (verbose) then
-                write (uout,'("* GHOST field with expression: ",A)') expr
-                write (uout,'("  Using NUMERICAL derivatives")') 
-             end if
           else
              ! Grid field
              ! prepare the cube
@@ -801,8 +789,6 @@ contains
                 return
              end if
 
-             if (verbose) &
-                write (uout,'("* GRID from expression: ",A)') expr
              !$omp parallel do private (xp,rhopt) schedule(dynamic)
              do ix = 0, n(1)-1
                 do iy = 0, n(2)-1
@@ -817,14 +803,6 @@ contains
                 end do
              end do
              !$omp end parallel do
-             if (verbose) then
-                write (uout,'("  Grid dimensions : ",3(A,2X))') (string(ff%n(j)),j=1,3)
-                write (uout,'("  First elements... ",3(A,2X))') (string(ff%f(1,1,j),'e',decimal=12),j=1,3)
-                write (uout,'("  Last elements... ",3(A,2X))') (string(ff%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
-                write (uout,'("  Sum of elements... ",A)') string(sum(ff%f(:,:,:)),'e',decimal=12)
-                write (uout,'("  Sum of squares of elements... ",A)') string(sum(ff%f(:,:,:)**2),'e',decimal=12)
-                write (uout,*)
-             end if
           end if
        else
           call ferror("fields_load_real","invalid AS syntax",faterr,line,syntax=.true.)
@@ -848,7 +826,7 @@ contains
     end if
 
     ! parse the rest of the line
-    call setfield(ff,fid,line(lp:),verbose,oksyn)
+    call setfield(ff,fid,line(lp:),oksyn)
     if (.not.oksyn) return
 
     oksyn = .true.
@@ -1549,7 +1527,7 @@ contains
     
   end function getfieldnum
 
-  subroutine setfield(ff,fid,line,verbose,oksyn)
+  subroutine setfield(ff,fid,line,oksyn)
     use struct_basic
     use grid_tools
     use global
@@ -1558,7 +1536,6 @@ contains
     type(field), intent(inout) :: ff
     integer, intent(in) :: fid
     character*(*), intent(in) :: line
-    logical, intent(in) :: verbose
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word, aux
@@ -1637,35 +1614,6 @@ contains
        end if
     end do
 
-    if (verbose) then
-       write (uout,'("+ Flags for this field")')
-       if (len_trim(ff%name) > 0) &
-          write (uout,'("  Name: ",A)') string(ff%name)
-       if (len_trim(ff%file) > 0) then
-          write (uout,'("  From: ",A)') string(ff%file)
-       else
-          write (uout,'("  From: <generated>")')
-       end if
-       write (uout,'("  Type: ",A)') fields_typestring(ff%type)
-       select case (ff%type)
-       case(type_grid)
-          write (uout,'("  Grid dimensions: ",3(A,2X))') (string(ff%n(j)),j=1,3)
-          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",A)') string(ff%mode)
-          write (uout,'("  Cell integral (grid SUM) = ",A)') &
-             string(sum(ff%f) * cr%omega / real(product(ff%n),8),'f',decimal=8)
-          write (uout,'("  Min: ",A)') string(minval(ff%f),'e',decimal=8)
-          write (uout,'("  Average: ",A)') string(sum(ff%f) / real(product(ff%n),8),'e',decimal=8)
-          write (uout,'("  Max: ",A)') string(maxval(ff%f),'e',decimal=8)
-       case(type_wien)
-          write (uout,'("  Density-style normalization? ",L)') ff%cnorm
-       case(type_pi)
-          write (uout,'("  Exact calculation? ",L)') ff%exact
-       end select
-       write (uout,'("  Use core densities? ",L)') ff%usecore
-       write (uout,'("  Numerical derivatives? ",L)') ff%numerical
-       write (uout,'("  Nuclear CP signature: ",A)') string(ff%typnuc)
-       write (uout,*)
-    end if
     oksyn = .true.
 
   end subroutine setfield
@@ -2324,7 +2272,7 @@ contains
        ok = ok .and. (nfail(n) == 0)
     end do
     if (ilvl > 0) write (uout,*)
-    write (uout,'("+ Assert - no spurious CPs on the muffin tin surface: ",L1/)'), ok
+    write (uout,'("+ Assert - no spurious CPs on the muffin tin surface: ",L1/)') ok
     if (.not.ok) call ferror('testrmt','Spurious CPs on the muffin tin surface!',warning)
 
   end subroutine testrmt
@@ -2386,6 +2334,118 @@ contains
     endif
 
   end function fieldname_to_idx
+
+  !> Write information about the field to the standard output.  isload
+  !> = show load-time information, isset = show flags for this field.
+  subroutine fieldinfo(id,isload,isset)
+    use struct_basic
+    use tools_io
+    integer, intent(in) :: id
+    logical, intent(in) :: isload, isset
+    
+    integer :: i, j, n(3)
+
+    ! header
+    write (uout,'("* Scalar field number: ",A)') string(id)
+    if (.not.f(id)%init) then
+       write (uout,'("  Not initialized! ")')
+       return
+    end if
+       
+    ! general information about the field
+    if (len_trim(f(id)%name) > 0) &
+       write (uout,'("  Name: ",A)') string(f(id)%name)
+    if (len_trim(f(id)%file) > 0) then
+       write (uout,'("  Source: ",A)') string(f(id)%file)
+    else
+       write (uout,'("  Source: <generated>")')
+    end if
+    write (uout,'("  Type: ",A)') fields_typestring(f(id)%type)
+
+    ! type-specific
+    if (f(id)%type == type_promol) then
+       ! promolecular densities
+       if (isload) then
+          write (uout,'("  Atoms in the environment: ",A)') string(cr%nenv)
+       end if
+    elseif (f(id)%type == type_grid) then
+       ! grids
+       n = f(id)%n
+       if (isload) then
+          write (uout,'("  Grid dimensions : ",3(A,2X))') (string(f(id)%n(j)),j=1,3)
+          write (uout,'("  First elements... ",3(A,2X))') (string(f(id)%f(1,1,j),'e',decimal=12),j=1,3)
+          write (uout,'("  Last elements... ",3(A,2X))') (string(f(id)%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+          write (uout,'("  Sum of elements... ",A)') string(sum(f(id)%f(:,:,:)),'e',decimal=12)
+          write (uout,'("  Sum of squares of elements... ",A)') string(sum(f(id)%f(:,:,:)**2),'e',decimal=12)
+          write (uout,'("  Cell integral (grid SUM) = ",A)') &
+             string(sum(f(id)%f) * cr%omega / real(product(f(id)%n),8),'f',decimal=8)
+          write (uout,'("  Min: ",A)') string(minval(f(id)%f),'e',decimal=8)
+          write (uout,'("  Average: ",A)') string(sum(f(id)%f) / real(product(f(id)%n),8),'e',decimal=8)
+          write (uout,'("  Max: ",A)') string(maxval(f(id)%f),'e',decimal=8)
+       end if
+       if (isset) then
+          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",A)') string(f(id)%mode)
+       end if
+    elseif (f(id)%type == type_wien) then
+       if (isload) then
+          write (uout,'("  Complex?: ",L)') f(id)%cmpl
+          write (uout,'("  Spherical harmonics expansion LMmax: ",A)') string(size(f(id)%lm,2))
+          write (uout,'("  Max. points in radial grid: ",A)') string(size(f(id)%slm,1))
+          write (uout,'("  Total number of plane waves (new/orig): ",A,"/",A)') string(f(id)%nwav), string(f(id)%lastind)
+       end if
+       if (isset) then
+          write (uout,'("  Density-style normalization? ",L)') f(id)%cnorm
+       end if
+    elseif (f(id)%type == type_elk) then
+       if (isload) then
+          write (uout,'("  Number of LM pairs: ",A)') string(size(f(id)%rhomt,2))
+          write (uout,'("  Max. points in radial grid: ",A)') string(size(f(id)%rhomt,1))
+          write (uout,'("  Total number of plane waves: ",A)') string(size(f(id)%rhok))
+       end if
+    elseif (f(id)%type == type_pi) then
+       if (isset) then
+          write (uout,'("  Exact calculation? ",L)') f(id)%exact
+       end if
+    elseif (f(id)%type == type_wfn) then
+       if (isload) then
+          write (uout,'("  Number of MOs: ",A)') string(f(id)%nmo)
+          write (uout,'("  Number of primitives: ",A)') string(f(id)%npri)
+          write (uout,'("  Wavefunction type (0=closed,1=open,2=frac): ",A)') string(f(id)%wfntyp)
+          write (uout,'("  Number of EDFs: ",A)') string(f(id)%nedf)
+       end if
+    elseif (f(id)%type == type_dftb) then
+       if (isload) then
+          write (uout,'("  Number of states: ",A)') string(f(id)%nstates)
+          write (uout,'("  Number of spin channels: ",A)') string(f(id)%nspin)
+          write (uout,'("  Number of orbitals: ",A)') string(f(id)%norb)
+          write (uout,'("  Number of kpoints: ",A)') string(f(id)%nkpt)
+          write (uout,'("  Real wavefunction? ",L)') f(id)%isreal
+       end if
+       if (isset) then
+          write (uout,'("  Exact calculation? ",L)') f(id)%exact
+       end if
+    elseif (f(id)%type == type_promol_frag) then
+       if (isload) then
+          write (uout,'("  Number of atoms in fragment: ",A)') string(f(id)%fr%nat)
+       end if
+    elseif (f(id)%type == type_ghost) then
+       write (uout,'("  Expression: ",A)') string(f(id)%expr)
+    else
+       call ferror("fieldinfo","unknown field type",faterr)
+    end if
+
+    ! xxxxx ! check options of each field.
+
+    ! flags for any field
+    if (isset) then
+       write (uout,'("  Use core densities? ",L)') f(id)%usecore
+       write (uout,'("  Numerical derivatives? ",L)') f(id)%numerical
+       write (uout,'("  Nuclear CP signature: ",A)') string(f(id)%typnuc)
+    end if
+
+    write (uout,*)
+
+  end subroutine fieldinfo
 
   !> Check that the id is a grid and is a sane field. Wrapper
   !> around goodfield() to pass it to the arithmetic module.
