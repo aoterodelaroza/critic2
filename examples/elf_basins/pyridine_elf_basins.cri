@@ -1,6 +1,6 @@
 # Read the pyridine wfx, in a supercell with a 5 angstrom border 
 # around it.
-molecule ../data/pyridine.wfx 3
+molecule ../data/pyridine.wfx
 
 # Load the wfx
 load ../data/pyridine.wfx id wfx
@@ -21,8 +21,10 @@ integrable rho
 # Run the integrations. Since the ELF has maxima at the bonds, we need
 # the nnm keyword. Note rho does not sum exactly to 42 electrons
 # because the grid can not represent the density near the nuclei with
-# enough accuracy
-yt nnm
+# enough accuracy. The DISCARD keyword is necessary to prevent critic2
+# from finding spurious maxima in the vacuum region. All maxima
+# of the elf with value greater than 0.1 are discarded.
+yt nnm discard "$elf < 0.1"
 
 # Write the YT maxima and the nuclei to an obj file
 cpreport pyridine_elf_basins.cml molcell cell
