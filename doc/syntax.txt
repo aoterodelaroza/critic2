@@ -219,7 +219,7 @@ expression.r # prints the value of the expression to the output.
     GRAPH igraph.i 
     COLOR r.i g.i b.i
     TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
-    EVERY every.i
+    PRUNE prune.r
     SHELLS ishl.i
     NOSYM
   ENDFLUXPRINT/END

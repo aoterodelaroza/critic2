@@ -594,21 +594,21 @@ contains
     
     type(crystal), intent(in) :: c
     integer, intent(inout) :: n
-    real*8, intent(inout) :: x(n,3)
+    real*8, intent(inout) :: x(3,n)
     real*8, intent(in) :: fprune
 
     integer :: i, nn
     real*8 :: x0(3), d
 
     ! prune the path
-    x0 = x(1,:)
+    x0 = x(:,1)
     nn = 1
     do i = 1, n
-       d = c%distance(x(i,:),x0)
+       d = c%distance(x(:,i),x0)
        if (d > fprune) then
           nn = nn + 1
-          x(nn,:) = x(i,:)
-          x0 = x(i,:)
+          x(:,nn) = x(:,i)
+          x0 = x(:,i)
        end if
     end do
     n = nn

@@ -3927,7 +3927,7 @@ Three-dimensional gradient path representations (FLUXPRINT)
     GRAPH igraph.i [step.r epsi.r]
     COLOR r.i g.i b.i
     TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
-    EVERY every.i
+    PRUNE prune.r
     SHELLS ishl.i
     NOSYM
   ENDFLUXPRINT/END
@@ -4020,8 +4020,10 @@ following keywords: TEXT (plain text file), TESS or TESSEL (tessel),
 OBJ (Wavefront obj), PLY (ply format), OFF (Geomview's off), and CML
 (Chemical Markup Language). The CML format, which can be read with the
 avogadro program, is used by default. The color specs are not used in
-CML format. The EVERY keyword makes critic2 write only one in every
-every.i points for each gradient path.
+CML format. To keep the number of points manageable, critic2 writes
+one gradient path point every certain distance is advanced. The PRUNE
+keyword controls how much this distance is (bohr in crystals, angstrom
+in molecules). The default PRUNE is 0.1 bohr.
 
 Finally, the SHELLS keyword applies only to graph and graphcp. It
 represents the number of unit cell shells where the graph is going

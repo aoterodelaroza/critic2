@@ -38,7 +38,7 @@ module flux
   ! General info
   integer :: flx_n
   integer :: flx_iup
-  integer :: flx_every
+  real*8 :: flx_prune
   integer, parameter :: flx_m = 4000
 
   ! output format
@@ -71,7 +71,8 @@ contains
     type(flxorder), allocatable :: order(:), orderaux(:)
     character*3 :: method
     character(len=:), allocatable :: line, word
-    integer :: local_flx_every, local_flx_nsym
+    real*8 :: local_flx_prune
+    integer :: local_flx_nsym
     integer :: cpid, lvecx(3), iup, lp, nn, nphi, ntheta
     integer :: num_points, i, rgb(3)
     real*8 :: xpoint(3)
@@ -81,7 +82,7 @@ contains
 
     ! set initial values for flx
     flx_init = .false.
-    local_flx_every = 1
+    local_flx_prune = 0.1d0
     local_flx_nsym = -1
     nosym = .false.
     outfmt = "cml"
@@ -111,10 +112,11 @@ contains
           end if
           ok = check_no_extra_word()
           if (.not.ok) return
-       else if (equal(word,'every')) then
-          ok = eval_next(local_flx_every,line,lp)
+       else if (equal(word,'prune')) then
+          ok = eval_next(local_flx_prune,line,lp)
+          local_flx_prune = local_flx_prune / dunit
           if (.not. ok) then
-             call ferror ('fluxprint','wrong EVERY syntax',faterr,line,syntax=.true.)
+             call ferror ('fluxprint','wrong PRUNE syntax',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -428,7 +430,7 @@ contains
     end do
 
     ! run the commands, in order
-    call flx_initialize(local_flx_every,nosym)
+    call flx_initialize(local_flx_prune,nosym)
     do i = 1, norder
        if (order(i)%id == "poi") then
           call flx_point(order(i)%x,order(i)%iup,local_flx_nsym,order(i)%rgb)
@@ -471,12 +473,12 @@ contains
   end subroutine fluxprint
 
   !> Initialize the module, allocate memory for a gradient
-  !> path. every, plot gradient path, one point each every points. If
-  !> noballs, do not write the BALL commands to the tessel output
-  !> (optional). If nocell, do not write the CELL command to the
-  !> tessel output (optional). If nosym, do not write the symmetry
-  !> elements.
-  subroutine flx_initialize(every,nosym,noballs,nocell)
+  !> path. prune, plot gradient path, one point each prune distance
+  !> step along the path. If noballs, do not write the BALL commands
+  !> to the tessel output (optional). If nocell, do not write the CELL
+  !> command to the tessel output (optional). If nosym, do not write
+  !> the symmetry elements.
+  subroutine flx_initialize(prune,nosym,noballs,nocell)
     use autocp
     use varbas
     use global
@@ -485,7 +487,7 @@ contains
     use graphics
     use tools_io
 
-    integer, intent(in) :: every
+    real*8, intent(in) :: prune
     logical, intent(in) :: nosym
     logical, intent(in), optional :: noballs, nocell
 
@@ -500,7 +502,7 @@ contains
     ! Initialize variables
     flx_n = 0
     flx_init = .true.
-    flx_every = every
+    flx_prune = prune
 
     doballs = .true.
     if (present(noballs)) then
@@ -769,9 +771,7 @@ contains
        write (luout,'("# ")') 
        write (luout,'(2X,A)') "curve balls type 6"
        do i=1,flx_n
-          if (mod(i,flx_every) == 0) then
-             write (luout,'(3X,3(E20.12,X))') flx_x(:,i)
-          end if
+          write (luout,'(3X,3(E20.12,X))') flx_x(:,i)
        end do
        write (luout,'(2X,A)') "endcurve"
     elseif (outfmt=="obj" .or. outfmt=="off" .or. outfmt=="ply" .or. outfmt=="cml") then
@@ -903,12 +903,15 @@ contains
 
     if (iup /= 0) then
        call gradient(f(refden),tempx,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(cr,flx_n,flx_x,flx_prune)
        call flx_symprintpath(xini,flxsym,rgb)
     else
        call gradient(f(refden),tempx,1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(cr,flx_n,flx_x,flx_prune)
        call flx_symprintpath(xini,flxsym,rgb)
        tempx = cr%x2c(x)
        call gradient(f(refden),tempx,-1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(cr,flx_n,flx_x,flx_prune)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -964,6 +967,7 @@ contains
           theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
           xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
           call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(cr,flx_n,flx_x,flx_prune)
           call flx_symprintpath(xini,flxsym,rgb)
        end do
     end do
@@ -973,11 +977,13 @@ contains
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+    call prunepath(cr,flx_n,flx_x,flx_prune)
     call flx_symprintpath(xini,flxsym,rgb)
     phi = pi
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+    call prunepath(cr,flx_n,flx_x,flx_prune)
     call flx_symprintpath(xini,flxsym,rgb)
 
   end subroutine flx_ncp
@@ -1096,9 +1102,11 @@ contains
     if (iup == 0 .or. iup == ircp) then
        xpoint = xbcp + change * vup
        call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(cr,flx_n,flx_x,flx_prune)
        call flx_symprintpath(xini,flxsym,rgb)
        xpoint = xbcp - change * vup
        call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(cr,flx_n,flx_x,flx_prune)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -1113,6 +1121,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else if (bcpmethod == "quo") then
@@ -1127,6 +1136,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
              angle = angle + pi
              cangle = cos(angle)
@@ -1134,6 +1144,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else
@@ -1147,6 +1158,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              ! last point before newton -> not converted to the main cell
              xpoint = cr%x2c(flx_x(:,flx_n-1))
              r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
@@ -1166,6 +1178,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1174,6 +1187,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = -thetavec(i) + pi
@@ -1182,6 +1196,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1190,6 +1205,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(cr,flx_n,flx_x,flx_prune)
              call flx_symprintpath(xini,flxsym,rgb)
 
           end do
@@ -1198,15 +1214,19 @@ contains
           ! write (uout,'("+ dyn: fluxing special angles.")')
           xpoint = xbcp + change * v1
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(cr,flx_n,flx_x,flx_prune)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp + change * v2
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(cr,flx_n,flx_x,flx_prune)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v1
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(cr,flx_n,flx_x,flx_prune)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v2
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(cr,flx_n,flx_x,flx_prune)
           call flx_symprintpath(xini,flxsym,rgb)
        end if
        ! write (uout,*)
