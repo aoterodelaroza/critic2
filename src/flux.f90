@@ -788,6 +788,7 @@ contains
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")')&
                    string(i), (trim(string(flx_x(j,i),'f',18,10)),j=1,3)
              else
+                x = x + cr%molx0
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
                    string(i), (trim(string(x(j) * bohrtoa,'f',18,10)),j=1,3)
              end if
