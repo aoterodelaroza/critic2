@@ -133,11 +133,12 @@ module arithmetic
 contains
 
   !> Evaluate an arithmetic expression expr. If the expression
-  !> contains fields ($), use x0 as the evaluation point. If hardfail
-  !> is true, stop with error if the expression fails to
-  !> evaluate. Otherwise, return the exit status in iok
-  !> (tue=success). If periodic is present and false, evaluate the
-  !> expression at x0 considering the field as non-periodic.
+  !> contains fields ($), use x0 as the evaluation point
+  !> (Cartesian). If hardfail is true, stop with error if the
+  !> expression fails to evaluate. Otherwise, return the exit status
+  !> in iok (tue=success). If periodic is present and false, evaluate
+  !> the expression at x0 considering the field as
+  !> non-periodic. Otherwise, evaluate it as if in a periodic system.
   recursive function eval(expr,hardfail,iok,x0,fcheck,feval,periodic)
     use types
     use tools_io
@@ -1419,11 +1420,15 @@ contains
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
        res = feval(sia,1,x0,periodic)
-       f0 = max(res%f,1d-30)
-       ds = res%gkin  - 1d0/8d0 * res%gfmod**2 / f0
-       ds0 = ctf * f0**(5d0/3d0)
-       q = ds / ds0
-       q = 1d0 / (1d0 + q**2)
+       if (res%f < 1d-30) then
+          q = 0d0
+       else
+          f0 = max(res%f,1d-30)
+          ds = res%gkin  - 1d0/8d0 * res%gfmod**2 / f0
+          ds0 = ctf * f0**(5d0/3d0)
+          q = ds / ds0
+          q = 1d0 / (1d0 + q**2)
+       end if
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
