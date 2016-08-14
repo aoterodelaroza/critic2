@@ -119,7 +119,7 @@ recent versions of gfortran (somewhere along 4.8.x, and all versions
 starting at 4.9). If a recent compiler is not available, a possibility
 is to compile the program elsewhere with the static linking option:
 
-    LDFLAGS=-static ./configure ...
+      LDFLAGS=-static ./configure ...
 
 ## Use (documentation)
 

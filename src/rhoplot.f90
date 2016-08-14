@@ -332,7 +332,7 @@ contains
              xx, dist, rhopt, lappt
        else
           write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             (xp + cr%molx0) * dunit, dist, rhopt, lappt
+             (xp + cr%molx0) * dunit, dist * dunit, rhopt, lappt
        endif
     enddo
     write (luout,*)
