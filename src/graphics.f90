@@ -440,7 +440,7 @@ contains
   end subroutine writexyz
 
   !> Write a cml file (molecule) from an array of atomic coordinates. 
-  subroutine writecml(file,fr,r)
+  subroutine writecml(file,fr,r,luout)
     use tools_math
     use tools_io
     use types
@@ -449,6 +449,7 @@ contains
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
     real*8, intent(in), optional :: r(3,3)
+    integer, intent(out), optional :: luout
 
     integer :: i, j, lu
     real*8 :: g(3,3), aa(3), bb(3), x(3), ri(3,3)
@@ -495,9 +496,13 @@ contains
           end if
        end if
     end do
-    write (lu,'(" </atomArray>")')
-    write (lu,'("</molecule>")')
-    call fclose(lu)
+    if (present(luout)) then
+       luout = lu
+    else
+       write (lu,'(" </atomArray>")')
+       write (lu,'("</molecule>")')
+       call fclose(lu)
+    end if
 
   end subroutine writecml
 

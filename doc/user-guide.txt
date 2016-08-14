@@ -3926,7 +3926,7 @@ Three-dimensional gradient path representations (FLUXPRINT)
        [LVEC x.i y.i z.i]
     GRAPH igraph.i [step.r epsi.r]
     COLOR r.i g.i b.i
-    TEXT|TESSEL|TESS|OBJ|PLY|OFF
+    TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
     EVERY every.i
     SHELLS ishl.i
     NOSYM
@@ -4017,9 +4017,11 @@ the red, green, and blue components). By default, NCP uses the color
 corresponding to the originating atom, and a gold color is used
 otherwise. The format of the output file can be controlled with the
 following keywords: TEXT (plain text file), TESS or TESSEL (tessel),
-OBJ (Wavefront obj), PLY (ply format), and OFF (Geomview's off).  The
-EVERY keyword makes critic2 write only one in every every.i points for
-each gradient path.
+OBJ (Wavefront obj), PLY (ply format), OFF (Geomview's off), and CML
+(Chemical Markup Language). The CML format, which can be read with the
+avogadro program, is used by default. The color specs are not used in
+CML format. The EVERY keyword makes critic2 write only one in every
+every.i points for each gradient path.
 
 Finally, the SHELLS keyword applies only to graph and graphcp. It
 represents the number of unit cell shells where the graph is going

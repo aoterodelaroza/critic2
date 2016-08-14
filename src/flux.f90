@@ -84,7 +84,7 @@ contains
     local_flx_every = 1
     local_flx_nsym = -1
     nosym = .false.
-    outfmt = "obj"
+    outfmt = "cml"
     allocate(order(10))
     norder = 0
     rgb = -1
@@ -137,6 +137,10 @@ contains
           if (.not.ok) return
        else if (equal(word,'off')) then
           outfmt = "off"
+          ok = check_no_extra_word()
+          if (.not.ok) return
+       else if (equal(word,'cml')) then
+          outfmt = "cml"
           ok = check_no_extra_word()
           if (.not.ok) return
        else if (equal(word,'shells')) then
@@ -636,16 +640,22 @@ contains
        write (luout,'(2X,A)') "type 6 pointrad 0.02 pointrgb 1.0 0.7 0.3"
        write (luout,'(2X,A)') "type 7 pointrad 0.03 pointrgb 1.0 0.5 0.1"
     elseif (outfmt == "txt") then
-       ! Connect and initalize flux file
+       ! connect and initalize flux file
        outfile = trim(fileroot) // "_flux.txt"
-       write (uout,'(A,A/)') "* Writing paths to file : ", trim(outfile)
+       write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
        luout = fopen_write(outfile)
-    elseif (outfmt == "obj" .or. outfmt == "ply" .or. outfmt == "off") then
-       ! Connect and initalize obj file
+    elseif (outfmt=="obj" .or. outfmt=="ply" .or. outfmt=="off") then
+       ! connect and initialize obj/ply/off file 
        outfile = trim(fileroot) // "_flux." // outfmt
-       write (uout,'(A,A/)') "* Writing paths to file : ", trim(outfile)
+       write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
        call struct_write_3dmodel(cr,outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout,lumtl)
+    elseif (outfmt=="cml") then
+       ! connect and initialize cml file 
+       outfile = trim(fileroot) // "_flux." // outfmt
+       write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
+       call struct_write_mol(cr,outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
+          .false.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout)
     endif
 
   end subroutine flx_initialize
@@ -671,6 +681,10 @@ contains
        call ply_close(luout)
     elseif (outfmt == "off") then
        call off_close(luout)
+    elseif (outfmt == "cml") then
+       write (luout,'(" </atomArray>")')
+       write (luout,'("</molecule>")')
+       call fclose(luout)
     elseif (outfmt == "tss") then
        ! End tessel output
        write (luout,'(X,A)') "endfreehand"
@@ -710,6 +724,7 @@ contains
     use struct_basic
     use global
     use graphics
+    use tools_io
 
     integer, intent(in) :: rgb0(3)
 
@@ -759,7 +774,7 @@ contains
           end if
        end do
        write (luout,'(2X,A)') "endcurve"
-    elseif (outfmt == "obj" .or. outfmt == "off" .or. outfmt == "ply") then
+    elseif (outfmt=="obj" .or. outfmt=="off" .or. outfmt=="ply" .or. outfmt=="cml") then
        do i=1,flx_n
           x = cr%x2c(flx_x(:,i))
           if (outfmt == "obj") then
@@ -768,6 +783,14 @@ contains
              call off_ball(luout,x,rgb0,rrad)
           elseif (outfmt == "ply") then
              call ply_ball(luout,x,rgb0,rrad)
+          elseif (outfmt == "cml") then
+             if (.not.cr%ismolecule) then
+                write (luout,'("<atom id=""a",A,""" elementType=""Xz"" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")')&
+                   string(i), (trim(string(flx_x(j,i),'f',18,10)),j=1,3)
+             else
+                write (luout,'("<atom id=""a",A,""" elementType=""Xz"" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
+                   string(i), (trim(string(x(j) * bohrtoa,'f',18,10)),j=1,3)
+             end if
           end if
        end do
     end if

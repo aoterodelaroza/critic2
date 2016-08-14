@@ -59,8 +59,9 @@ contains
   !> adjacent cells. If docell, add sticks for the unit cell limits. If
   !> rsph (bohr) is positive, then use all atoms in a sphere around xsph
   !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
-  !> around xcub (cryst.). 
-  subroutine struct_write_mol(c,file,fmt,ix,doborder,molmotif,doburst,dopairs,rsph,xsph,rcub,xcub)
+  !> around xcub (cryst.). The luout option only applies to cml formats.
+  !> If it is present, do not close the file and return the logical unit.
+  subroutine struct_write_mol(c,file,fmt,ix,doborder,molmotif,doburst,dopairs,rsph,xsph,rcub,xcub,luout)
     use fragmentmod
     use struct_basic
     use graphics
@@ -75,6 +76,7 @@ contains
     logical, intent(in) :: doborder, molmotif, doburst, dopairs
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
+    integer, intent(out), optional :: luout
 
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
@@ -118,9 +120,9 @@ contains
           call writegjf(file,fr)
        elseif (equal(fmt,"cml")) then
           if (c%ismolecule) then
-             call writecml(file,fr)
+             call writecml(file,fr,luout=luout)
           else
-             call writecml(file,fr,c%crys2car)
+             call writecml(file,fr,c%crys2car,luout=luout)
           end if
        else
           call ferror("struct_write_mol","Unknown format",faterr)
@@ -137,9 +139,9 @@ contains
                 call writegjf(file0,fr0(i))
              elseif (equal(fmt,"cml")) then
                 if (c%ismolecule) then
-                   call writecml(file,fr)
+                   call writecml(file,fr,luout=luout)
                 else
-                   call writecml(file,fr,c%crys2car)
+                   call writecml(file,fr,c%crys2car,luout=luout)
                 end if
              else
                 call ferror("struct_write_mol","Unknown format",faterr)
@@ -159,9 +161,9 @@ contains
                    call writegjf(file0,fr)
                 elseif (equal(fmt,"cml")) then
                    if (c%ismolecule) then
-                      call writecml(file,fr)
+                      call writecml(file,fr,luout=luout)
                    else
-                      call writecml(file,fr,c%crys2car)
+                      call writecml(file,fr,c%crys2car,luout=luout)
                    end if
                 else
                    call ferror("struct_write_mol","Unknown format",faterr)

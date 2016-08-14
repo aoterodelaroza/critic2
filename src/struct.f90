@@ -1256,7 +1256,7 @@ contains
           end if
        end do
        !$omp end parallel do
-       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A)'), &
+       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A)') &
           trim(string(vout,'f',100,4))
        write (uout,'("+ Cell volume: ",A)') trim(string(cr%omega,'f',100,4))
        write (uout,'("+ Packing ratio (%): ",A)') string((cr%omega-vout)/cr%omega*100,'f',10,4)
