@@ -590,7 +590,7 @@ contains
              ff%init = .true.
              ff%n = n
              ff%type = type_grid
-             ff%mode = mode_trispline
+             ff%mode = mode_tricubic
              allocate(ff%f(n(1),n(2),n(3)))
              if (equal(word,"promolecular")) then
                 if (isfrag) then
@@ -771,7 +771,7 @@ contains
              ff%init = .true.
              ff%n = n
              ff%type = type_grid
-             ff%mode = mode_trispline
+             ff%mode = mode_tricubic
              allocate(ff%f(n(1),n(2),n(3)))
 
              ! dimensions
@@ -1392,15 +1392,25 @@ contains
     endif
 
     lu = fopen_write(file)
-    write(lu,'("title1")') 
-    write(lu,'("title2")') 
-    write(lu,'(I5,3(F12.6))') c%ncel, x0
-    do i = 1, 3
-       write(lu,'(I5,3(F12.6))') n(i), xd(:,i)
-    end do
-    do i = 1, c%ncel
-       write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
-    end do
+    write(lu,'("critic2-cube")')
+    write(lu,'("critic2-cube")')
+    if (precisecube) then
+       write(lu,'(I5,1x,3(E22.14,1X))') c%ncel, x0
+       do i = 1, 3
+          write(lu,'(I5,1x,3(E22.14,1X))') n(i), xd(:,i)
+       end do
+       do i = 1, c%ncel
+          write(lu,'(I4,F5.1,3(E22.14,1X))') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+       end do
+    else
+       write(lu,'(I5,3(F12.6))') c%ncel, x0
+       do i = 1, 3
+          write(lu,'(I5,3(F12.6))') n(i), xd(:,i)
+       end do
+       do i = 1, c%ncel
+          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+       end do
+    end if
     if (.not.onlyheader) then
        do ix = 1, n(1)
           do iy = 1, n(2)
@@ -1548,7 +1558,9 @@ contains
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
-       if (equal(word,'trispline')) then
+       if (equal(word,'tricubic')) then
+          ff%mode = mode_tricubic
+       else if (equal(word,'trispline')) then
           ff%mode = mode_trispline
           if (allocated(ff%c2)) deallocate(ff%c2)
        else if (equal(word,'trilinear')) then

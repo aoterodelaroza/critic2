@@ -39,7 +39,8 @@ module grid_tools
   integer, parameter, public :: mode_nearest = 1 !< interpolation mode: nearest grid node
   integer, parameter, public :: mode_trilinear = 2 !< interpolation mode: trilinear
   integer, parameter, public :: mode_trispline = 3 !< interpolation mode: trispline
-  integer, parameter, public :: mode_default = mode_trispline
+  integer, parameter, public :: mode_tricubic = 4 !< interpolation mode: tricubic
+  integer, parameter, public :: mode_default = mode_tricubic
 
 contains
 
@@ -475,8 +476,12 @@ contains
     else if (f%mode == mode_trilinear) then
        call grinterp_trilinear(f,x0,y,yp)
        ypp = 0d0
-    else  
+    else if (f%mode == mode_trispline) then
        call grinterp_trispline(f,x0,y,yp,ypp)
+    else if (f%mode == mode_tricubic) then
+       ! xxx not ready yet !
+       call grinterp_trispline(f,x0,y,yp,ypp)
+       ! call grinterp_tricubic(f,x0,y,yp,ypp)
     end if
 
     !    ! transform to derivatives wrt cryst coordinates
