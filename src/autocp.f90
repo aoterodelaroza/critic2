@@ -2012,7 +2012,7 @@ contains
     real*8, dimension(3,3) :: evec
     real*8, dimension(3) :: reval
     real*8 :: dist, xdtemp(3,2), xx(3)
-    integer :: wcp, nid
+    integer :: wcp
     integer :: ier, idir
     logical :: isbcp
     type(scalar_value) :: res
@@ -2095,7 +2095,7 @@ contains
 
              ! check the identity of the cp
              xdis(:,j,i) = cr%c2x(xdis(:,j,i))
-             wcp = whichcp(xdis(:,j,i),CP_eps_cp)
+             call nearest_cp(xdis(:,j,i),wcp,dist,type=cp(i)%typ*3)
              if (wcp /= 0) then
                 cp(i)%ipath(j) = cpcel(wcp)%idx
              else
@@ -2105,11 +2105,6 @@ contains
                    xdis(3,j,i) < cr%molborder(3) .or. xdis(3,j,i) > (1d0-cr%molborder(3)))) then
                    cp(i)%ipath(j) = -1
                 else
-                   cp(i)%ipath(j) = 0
-                   call nearest_cp(xdis(:,j,i),nid,dist)
-                   ! call ferror('makegraph','gradient path terminal CP not in the CP list',warning)
-                   ! write (uout,'("  Original CP (non-eq) : ",I5)') i
-                   ! write (uout,'("  Closest CP (complete list) to endpoint is ",I5," at distance ",1p,E15.8)') nid, dist
                    cp(i)%ilvec(:,j) = 0
                    do k = 1, ncpcel
                       if (cpcel(k)%idx /= i) cycle
@@ -2125,9 +2120,9 @@ contains
                 if (cpcel(k)%idx /= i) cycle
                 v = matmul(cr%rotm(1:3,1:3,cpcel(k)%ir),xdis(:,j,i)) + cr%rotm(:,4,cpcel(k)%ir) + &
                    cr%cen(:,cpcel(k)%ic) + cpcel(k)%lvec
-                nid = whichcp(v,2*CP_eps_cp)
-                cpcel(k)%ipath(j) = nid
-                cpcel(k)%ilvec(:,j) = nint(v - cpcel(nid)%x)
+                call nearest_cp(v,wcp,dist,type=cp(i)%typ*3)
+                cpcel(k)%ipath(j) = wcp
+                cpcel(k)%ilvec(:,j) = nint(v - cpcel(wcp)%x)
              end do
           end do
           cp(i)%brang = dot_product(xdif(:,1),xdif(:,2)) / (cp(i)%brdist(1)+1d-12) / (cp(i)%brdist(2)+1d-12)

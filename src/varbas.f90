@@ -70,6 +70,7 @@ contains
     integer :: j
 
     ! check if it is a known cp
+    nid = 0
     d2min = 1d30
     do j = 1, ncpcel
        if (present(type)) then
@@ -91,36 +92,6 @@ contains
     dist = sqrt(d2min)
 
   end subroutine nearest_cp
-
-  !> Given a position xp (usually the end-point of a gradient path),
-  !> identify the critical point it represents and return the
-  !> complete CP list id. If not found, 0. eps is the distance
-  !> criterion (bohr). xp is in crystallographic coordinates.
-  function whichcp(xp,eps)
-    use struct_basic
-    use tools_io
-
-    real*8, intent(in) :: xp(3)
-    real*8, intent(in) :: eps
-    integer :: whichcp
-
-    real*8 :: x(3), eps2, d2
-    integer :: j
-
-    ! check if it is a known cp
-    eps2 = eps * eps
-    do j = 1, ncpcel
-       x = cpcel(j)%x - xp
-       call cr%shortest(x,d2)
-       ! is it this cp?
-       if (d2 < eps2) then
-          whichcp = j
-          return 
-       end if
-    end do
-    whichcp = 0
-
-  end function whichcp
 
   subroutine varbas_identify(line0,lp)
     use struct_basic
