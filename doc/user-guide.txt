@@ -3061,7 +3061,7 @@ Automatic determination of critical points (AUTO)
 
 ::
 
-  AUTO [GRADEPS eps.r] [CPRHO rho.r] [CPEPS eps.r]
+  AUTO [GRADEPS eps.r] [CPEPS eps.r] [DISCARD expr.s]
        [FILE file.s] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
@@ -3213,15 +3213,23 @@ AUTO. GRADEPS is the gradient norm threshold for the optimization: if
 a CP is found with gradient norm less than GRADEPS (default: 1e-12),
 then it is accepted as CP.
 
+The DISCARD keyword can be used to reduce the list of critical
+points. If the expression expr.s evaluated at the critical point is
+non-zero, the critical point is discarded. A typical use for this
+keyword is when the system has a vacuum region. The (spurious)
+critical points in the vacuum region can be eliminated from the list
+by doing, for instance, DISCARD "$rho < 1e-7" to remove the critical
+points with density lower than 1e-7. The arithmetic expression can
+involve any number of fields, not just the reference field.
+
 If DRY (dry run) is used, then the seeding is done but the actual CP
 search is skipped. This is useful to examine the seed placement (in
 combination with VERBOSE) and also to print the current list of CPs at
 zero computational cost (for intsance, after a CHECK run).
 
-CPRHO and CPEPS control the minimium field value that a CP needs to
-have to be accepted and the minimum distance between CPs to consider
-them equivalent, respectively. The default units for CPEPS are bohr in
-crystals and angstrom in molecules.
+CPEPS controls the minimum distance between CPs to consider them
+equivalent. The default units for CPEPS are bohr in crystals and
+angstrom in molecules.
 
 Because finding the CPs can be an expensive task in large structures,
 the CP list can be saved to a file using the FILE keyword. The
@@ -3494,9 +3502,8 @@ shortcomings of the scalar field:
   points. It is usual that a zero Morse sum is unobtainable in this
   case, as multitude of CPs tend to appear clustered around the
   position of the real CPs. The CPs where the value of the field is
-  larger should be reliable, however. Using a fine grid, and
-  relatively high CPEPS and a CPRHO usually helps to eliminate the
-  uninteresting CPs. 
+  larger should be reliable, however. Using a fine grid usually helps
+  to eliminate the uninteresting CPs. 
 
   It is also usual in grids that critical points that should appear
   can not be found (e.g. bonds) or have the wrong signature. If that

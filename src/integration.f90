@@ -1698,7 +1698,7 @@ contains
              assigned(j) = nattr
           end if
        end do
-       call addcp(c%x2c(xattr(:,nattr)),ff%typnuc)
+       call addcp(c%x2c(xattr(:,nattr)),"",ff%typnuc)
     end do
     deallocate(xgatt)
 

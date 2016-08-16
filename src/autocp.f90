@@ -54,7 +54,6 @@ module autocp
 
   !
   real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (Cartesian).
-  real*8 :: CP_rho_cp = 0d0  !< discard all CPs with abs(density) below this value.
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains
@@ -188,7 +187,7 @@ contains
     real*8  :: iniv(4,3)  
     integer :: nt
     logical :: existcpfile, ok, dryrun
-    character(len=:), allocatable :: word, str
+    character(len=:), allocatable :: word, str, discexpr
     character(len=:), allocatable :: cpfile !< gradthr is the file for cps
     real*8 :: gfnormeps
     integer :: ntetrag
@@ -238,11 +237,11 @@ contains
     hadx1 = .false.
     iclip = 0
     CP_eps_cp = 1d-2
-    CP_rho_cp = 0d0
     dograph = 1
 
     ! parse the input
     lp = 1
+    discexpr = ""
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'dry')) then
@@ -253,13 +252,6 @@ contains
           ok = eval_next(gfnormeps,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/GRADEPS syntax',faterr,line,syntax=.true.)
-             return
-          end if
-       elseif (equal(word,'cprho')) then
-          ok = eval_next(CP_rho_cp,line,lp)
-          CP_rho_cp = CP_rho_cp / dunit
-          if (.not.ok) then
-             call ferror('autocritic','bad AUTO/CPRHO syntax',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,'cpeps')) then
@@ -415,6 +407,12 @@ contains
                 exit
              endif
           end do
+       elseif (equal(word,"discard")) then
+          ok = isexpression_or_word(discexpr,line,lp)
+          if (.not. ok) then
+             call ferror("autocritic","wrong DISCARD keyword",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
           call ferror('autocritic','Unknown keyword in AUTO',faterr,line,syntax=.true.)
           return
@@ -583,7 +581,8 @@ contains
     write (uout,'("* Automatic determination of CPs")')
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
        string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
-    write (uout,'("  Discard CPs if abs(f) is below: ",A)') string(CP_rho_cp,'e',decimal=3)
+    if (len_trim(discexpr) > 0) &
+       write (uout,'("  Discard CP expression: ",A)') trim(discexpr)
     write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
     write (uout,'("+ List of seeding actions")')
     write (uout,'("  Id nseed     Type           Description")')
@@ -754,7 +753,7 @@ contains
           end if
           x0 = xseed(:,i)
           call newton(x0,gfnormeps,ier)
-          if (ier <= 0) call addcp(x0)
+          if (ier <= 0) call addcp(x0,discexpr)
        end do
        !$omp end parallel do
 
@@ -1589,23 +1588,30 @@ contains
   !> Try to add the candidate CP xpoint to the CP list. This routine
   !> checks if it is already known, and calculates all the relevant
   !> information: multiplicity, type, shell, assoc. nucleus, etc.
-  !> Also, updates the complete CP list. Input x0 in Cartesian.
-  subroutine addcp(x0,itype,defer0)
+  !> Also, updates the complete CP list. Input x0 in Cartesian.  If
+  !> discexpr has non-zero length, discard the critical points that
+  !> give a non-zero value for this expression. If itype is present,
+  !> assign itype as the type of critical bond (-3,-1,1,3). If defer
+  !> is present, defer the calculation of the density and properties
+  !> at the CP.
+  subroutine addcp(x0,discexpr,itype,defer0)
     use navigation
     use fields
     use struct
     use struct_basic
+    use arithmetic
     use tools_math
     use tools_io
     use types
 
-    real*8, intent(in) :: x0(3) !< Position of the CP, in cartesian coordinates
+    real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
+    character*(*), intent(in) :: discexpr !< Discard expression
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
     logical, intent(in), optional :: defer0 !< Defer the density and laplacian calculation
 
     real*8 :: xc(3), xp(3), ehess(3), x(3)
     integer :: nid
-    real*8 :: dist
+    real*8 :: dist, fval
     integer :: n, i, num
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
@@ -1614,7 +1620,7 @@ contains
     character*3 :: namecrit(0:3)
     character*(1) :: smallnamecrit(0:3)
     type(scalar_value) :: res
-    logical :: defer
+    logical :: defer, ok
 
     data smallnamecrit   /'n','b','r','c'/
     data namecrit /'ncp','bcp','rcp','ccp'/
@@ -1663,6 +1669,15 @@ contains
        goto 999
     end if
 
+    ! check if it should be discarded
+    if (len_trim(discexpr) > 0) then
+       fval = eval(discexpr,.false.,ok,xp,fields_fcheck,fields_feval)
+       if (.not.ok) &
+          call ferror("addcp","invalid DISCARD expression",faterr)
+       ok = (abs(fval) < 1d-30)
+       if (.not.ok) goto 999
+    end if
+
     ! reallocate if more slots are needed for the new cp
     if (ncp >= size(cp)) then
        call realloc(cp,2*ncp)
@@ -1688,12 +1703,6 @@ contains
        cp(n)%lap = res%del2f
        cp(n)%deferred = .false.
     end if
-
-    ! check: cp_rho_cp -- discard CPs below this density
-    if (abs(res%f) < cp_rho_cp) then
-       ncp = ncp - 1
-       goto 999
-    endif
 
     ! Symmetry info
     cp(n)%pg = cr%sitesymm(cp(n)%x,CP_eps_cp)
