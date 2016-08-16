@@ -18,7 +18,7 @@ load ../data/ammonia.big.rhoae.cube id rhoae
 
 # Calculate the critical points in the pseudo-density. Many
 # critical points appear around the N atoms, caused by the 
-# pseudopotential smoothing. Morse sum = 20 (missing CPs).
+# pseudopotential smoothing. Morse sum = 12.
 reference rho_ps
 root rho_ps
 auto seed ws depth 2
@@ -35,7 +35,7 @@ cpreport rhoae_ps.cml cell
 
 # Calculate the critical points in the reconstructed valence
 # density. The spurious critical points around the N are back, but
-# this time the H looks right. Morse sum = 28 (missing CPs).
+# this time the H looks right. Morse sum = -12 (missing CPs).
 reference rho
 root rho
 auto seed ws depth 2
@@ -45,8 +45,9 @@ cpreport rho.cml cell
 # valence (all-electron) density. All critical points are found, with
 # Morse sum = 0. The CP topology is the same as the promolecular
 # density, examined next.
+reference rhoae
 root rhoae
-auto seed ws depth 2
+auto seed ws depth 2 
 cpreport rhoae.cml cell
 
 # Calculate the critical points in the promolecular density. The CPs

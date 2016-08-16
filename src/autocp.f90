@@ -236,7 +236,7 @@ contains
     firstseed = .true.
     hadx1 = .false.
     iclip = 0
-    CP_eps_cp = 1d-2
+    CP_eps_cp = 1d-1
     dograph = 1
 
     ! parse the input
