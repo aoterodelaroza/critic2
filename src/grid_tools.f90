@@ -813,7 +813,9 @@ contains
     yp(1) = ff(1,2,2) - ff(0,2,2)
     yp(2) = ff(2,1,2) - ff(2,0,2)
     yp(3) = ff(2,2,1) - ff(2,2,0)
-    ! yp = matmul((f%n-1)*yp,f%c2x)
+
+    ! from cell to crystallographic coordinates
+    yp = yp * f%n
 
   end subroutine grinterp_trilinear
 
