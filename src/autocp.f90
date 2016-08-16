@@ -53,7 +53,7 @@ module autocp
   real*8 :: x0clip(3), x1clip(3), rclip
 
   !
-  real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (Cartesian).
+  real*8 :: CP_eps_cp = 1d-1 !< distance to consider two CPs as different (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains

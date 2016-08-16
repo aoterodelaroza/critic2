@@ -3229,7 +3229,7 @@ zero computational cost (for intsance, after a CHECK run).
 
 CPEPS controls the minimum distance between CPs to consider them
 equivalent. The default units for CPEPS are bohr in crystals and
-angstrom in molecules.
+angstrom in molecules. Default: 0.1 bohr.
 
 Because finding the CPs can be an expensive task in large structures,
 the CP list can be saved to a file using the FILE keyword. The
