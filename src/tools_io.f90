@@ -1137,7 +1137,7 @@ contains
 
   end function fopen_write
 
-  !> Open a file for writing
+  !> Open a file for appending
   function fopen_append(file,form,abspath) result(lu)
     use param
     character*(*), intent(in) :: file

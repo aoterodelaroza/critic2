@@ -2068,7 +2068,7 @@ field formats are supported:
   LOAD PROMOLECULAR [FRAGMENT file.xyz]
   LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|
         ELKGRID|SIESTA|DFTB] file
-  LOAD ... [NEAREST|TRILINEAR|TRISPLINE] [EXACT|APPROXIMATE]
+  LOAD ... [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
   LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.s|GHOST]
@@ -2331,23 +2331,26 @@ after the file name. They are:
 
 ::
 
-  NEAREST|TRILINEAR|TRISPLINE
+  NEAREST|TRILINEAR|TRISPLINE|TRICUBIC
 
-Choose the grid interpolation mode in a grid field (e.g. a cube
-file). NEAREST, use the field at the nearest grid point. TRILINEAR,
-trilinear interpolation. TRISPLINE, 3d-spline interpolation (adapted
-from the abinit code, this part was coded by A. Lherbier according to
-the source). If some derivatives are not available (first and second
-in NEAREST, second in TRISPLINE), they are taken as zero.
+Choose the grid interpolation mode in a grid field. NEAREST, use the
+field at the nearest grid point (zero first and second
+derivatives). TRILINEAR, trilinear interpolation (zero second
+derivatives). TRISPLINE, 3d-spline interpolation (adapted from the
+abinit code, this part was coded by A. Lherbier according to the
+source). If some derivatives are not available (first and second in
+NEAREST, second in TRISPLINE), they are taken as zero. TRICUBIC,
+tricubic interpolation using local information, see Lekien and
+Marsden, Int. J. Numer. Meth. Engng, 63 (2005) 455-471. 
 
-By default, TRISPLINE is used but this may require a lot of memory in
+By default, TRICUBIC is used. TRISPLINE may require a lot of memory in
 very large cube files (say, 400^3). However, the memory allocation for
 the TRISPLINE interpolation only happens if the parts of critic2 that
 require derivatives or interpolation at points outside of the grid are
 called. If only grid-based algorithms (e.g. YT, BADER, NCIPLOT with
 default NSTEP,...) then no additional memory is used.
 
-Applies to: grids. Default: TRISPLINE.
+Applies to: grids. Default: TRICUBIC.
 
 ::
 
@@ -2523,7 +2526,7 @@ Changing the field options after LOAD (SETFIELD)
 The options of a given field can be changed anywhere in the input
 after it has been loaded using the SETFIELD keyword::
 
-  SETFIELD {id.s} [NEAREST|TRILINEAR|TRISPLINE] 
+  SETFIELD {id.s} [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] 
      [EXACT|APPROXIMATE] [RHONORM|VNORM] [CORE|NOCORE] 
      [NUMERICAL|ANALYTICAL] [TYPNUC {-3,-1,1,3}] 
      [NORMALIZE n.r] [{NAME|ID} id.s]
@@ -2608,7 +2611,7 @@ The second block for a grid field looks like this::
     From: rho.cube
     Type: grid
     Grid dimensions: 30  30  81
-    Interpolation mode (1=nearest,2=linear,3=spline): 3
+    Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 3
     Cell integral (grid SUM) (1) = 16.00000922
     Min: 3.40540000E-03
     Average: 6.77829587E-02
@@ -5148,11 +5151,10 @@ the value of the integral of the reference field in its own basins
 the ELF or the Laplacian). Loading a second field and using INTEGRABLE
 and the field number is the way to go in such cases.
 
-Usage of the YT algorithm for grid integration is strongly
-recommended, as it is much more efficient, robust and accurate than the
-other alternatives combined with spline interpolation. BADER is,
-however, more memory-efficient than YT, so it is recommended for very
-large grids instead.
+Usage of the YT algorithm for grid fields is strongly recommended, as
+it is much more efficient, robust and accurate than the other
+alternatives. BADER is, however, more memory-efficient than YT, so it
+is recommended for very large grids instead.
 
 Henkelman et al. method (BADER)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
