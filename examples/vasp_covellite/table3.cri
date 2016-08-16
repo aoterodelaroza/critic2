@@ -8,6 +8,6 @@ load ../data/covellite.AECCAR2
 load as "$1+$2" id rhoae
 reference rhoae
 
-# Find the critical points and write them to an obj file
+# Find the critical points and write them to a cml file
 auto
-cpreport table3.cml cell border 
+cpreport table3.cml cell border graph
