@@ -77,7 +77,7 @@ AC_ARG_ENABLE(debug,
   Do not look at it. Go away, shoo shoo! -- aor, default: no])],,[enable_debug=no])
 if test "${enable_debug}" = "yes"; then
    case $FC in
-   "gfortran"|"i686-w64-mingw32-gfortran"|"x86_64-w64-mingw32-gfortran")
+   "gfortran"|"i686-w64-mingw32-gfortran"|"x86_64-w64-mingw32-gfortran"|"gfortran-5"|"gfortran-6")
 	FCFLAGS+=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
 	;;
    "ifort")
