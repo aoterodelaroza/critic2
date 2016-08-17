@@ -1097,6 +1097,7 @@ contains
     luwfn = fopen_read(file)
     nat = 0
     f%wfntyp = -1
+    line = ""
 
     ! parse the molden file, first pass -> read dimensions prior to allocation
     do while(next_keyword())
@@ -1139,6 +1140,8 @@ contains
              if (index(lower(line),"ene=") /= 0) then
                 ! spin
                 ok = getline_raw(luwfn,line,.true.)
+                word1 = ""
+                word2 = ""
                 read (line,*) word1, word2
                 isalpha = (trim(lower(word2)) == "alpha")
 
