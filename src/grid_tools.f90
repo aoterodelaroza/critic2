@@ -30,10 +30,16 @@ module grid_tools
   public :: grid_read_xsf
   public :: grid_read_elk
   public :: grinterp
+  private :: grinterp_nearest
+  private :: grinterp_trilinear
+  private :: grinterp_trispline
+  private :: grinterp_tricubic
+  private :: grid_near
+  private :: grid_floor
   public :: init_trispline
+  public :: grid_laplacian
   public :: grid_gradrho
   public :: grid_rhoat
-  public :: grid_laplacian
   public :: grid_hxx
 
   integer, parameter, public :: mode_nearest = 1 !< interpolation mode: nearest grid node
