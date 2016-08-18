@@ -3829,7 +3829,8 @@ the plot (default: <root>). These files include:
 
 * <root>.dat : values of the field on thea plane.
 
-* <root>.iso, <root>.neg.iso : positive and negative contour lines.
+* <root>.iso, <root>.neg.iso : positive (green) and negative (blue)
+  contour lines. 
 
 * <root>.gnu : gnuplot script file that generates the merged
   gradient/contour plot.
