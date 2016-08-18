@@ -54,6 +54,7 @@ module autocp
 
   !
   real*8 :: CP_eps_cp = 1d-1 !< distance to consider two CPs as different (Cartesian).
+  real*8 :: NUC_eps_cp = 1d-1 !< distance to consider a CP as different from a nucleus (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains
@@ -237,6 +238,11 @@ contains
     hadx1 = .false.
     iclip = 0
     CP_eps_cp = 1d-1
+    if (f(refden)%type == type_grid) then
+       NUC_eps_cp = 2d0 * maxval(cr%aa / f(refden)%n)
+    else
+       NUC_eps_cp = CP_eps_cp
+    end if
     dograph = 1
 
     ! parse the input
@@ -258,6 +264,12 @@ contains
           ok = eval_next(CP_eps_cp,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'nuceps')) then
+          ok = eval_next(NUC_eps_cp,line,lp)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
              return
           end if
        else if (equal(word,'file')) then
@@ -581,6 +593,8 @@ contains
     write (uout,'("* Automatic determination of CPs")')
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
        string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
+    write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
+       string(NUC_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
     if (len_trim(discexpr) > 0) &
        write (uout,'("  Discard CP expression: ",A)') trim(discexpr)
     write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
@@ -817,8 +831,8 @@ contains
     real*8, parameter :: fprune = 0.1d0 ! pruning distance for gradient path
     integer, parameter :: mstep = 1000 ! maximum steps for gradient
 
-    integer :: lp, n, lu, lp2
-    integer :: i, j, iup, nstep, ier
+    integer :: lp, n, lp2
+    integer :: i, iup, nstep, ier
     character(len=:), allocatable :: word
     character(len=:), allocatable :: line2, aux
     logical :: ok
@@ -1610,7 +1624,7 @@ contains
     logical, intent(in), optional :: defer0 !< Defer the density and laplacian calculation
 
     real*8 :: xc(3), xp(3), ehess(3), x(3)
-    integer :: nid
+    integer :: nid, lvec(3)
     real*8 :: dist, fval
     integer :: n, i, num
     real*8, allocatable  :: sympos(:,:)
@@ -1663,9 +1677,16 @@ contains
        end if
     end if
 
-    ! interstitial and normal CPs
+    ! distance to other CPs
     call nearest_cp(xc,nid,dist)
     if (dist < CP_eps_cp) then
+       goto 999
+    end if
+
+    ! distance to atoms
+    nid = 0
+    call cr%nearest_atom(xc,nid,dist,lvec)
+    if (dist < NUC_eps_cp) then
        goto 999
     end if
 

@@ -1646,8 +1646,6 @@ contains
     real*8, allocatable :: fnear(:,:)
     logical :: isassigned
 
-    real*8, parameter :: distcp = 1d-2
-
     n = ff%n
 
     ! reorder the maxima and assign maxima to atoms according to ratom

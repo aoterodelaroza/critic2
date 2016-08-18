@@ -3061,8 +3061,8 @@ Automatic determination of critical points (AUTO)
 
 ::
 
-  AUTO [GRADEPS eps.r] [CPEPS eps.r] [DISCARD expr.s]
-       [FILE file.s] [VERBOSE] [DRY] ...
+  AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] 
+       [DISCARD expr.s] [FILE file.s] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
   AUTO ... [SEED ...] [SEED ...] ...
@@ -3229,7 +3229,12 @@ zero computational cost (for intsance, after a CHECK run).
 
 CPEPS controls the minimum distance between CPs to consider them
 equivalent. The default units for CPEPS are bohr in crystals and
-angstrom in molecules. Default: 0.1 bohr.
+angstrom in molecules. Default: 0.1 bohr. Similarly, NUCEPS controls
+the distance to consider a CP the same as a nucleus. If a CP is found
+at a distance less than neps.r from the closest nucleus, critic2
+considers the two are the same. The default value of NUCEPS is 0.1
+bohr, except for fields defined on a grid, where it defaults to 2
+times the maximum of the grid step in each direction.
 
 Because finding the CPs can be an expensive task in large structures,
 the CP list can be saved to a file using the FILE keyword. The
@@ -3489,37 +3494,48 @@ Problems finding critical points
 
 Sometimes, the zero (one) sum condition for the critical points is not
 fulfilled, which is usually caused by (often unavoidable) numerical
-shortcomings of the scalar field:
+shortcomings of the scalar field.
 
-* In WIEN2k and elk densities, there might be spurious CPs at the
-  surface of the muffin tin (where the density is discontinuous) that
-  show up in the final report list. Every time a FPLAPW field is
-  loaded, every atomic muffin is checked for discontinuities and the
-  report printed to the output.
+In WIEN2k and elk densities, there might be spurious CPs at the
+surface of the muffin tin (where the density is discontinuous) that
+show up in the final report list. Every time a FPLAPW field is
+loaded, every atomic muffin is checked for discontinuities and the
+report printed to the output.
 
-* In fields defined on a grid, the regions of small field (i.e. the
-  crystal voids) are noisy, which creates a lot of spurious critical
-  points. It is usual that a zero Morse sum is unobtainable in this
-  case, as multitude of CPs tend to appear clustered around the
-  position of the real CPs. The CPs where the value of the field is
-  larger should be reliable, however. Using a fine grid usually helps
-  to eliminate the uninteresting CPs. 
+In DFTB+ and other fields missing the core electrons
+(e.g. plane-wave calculations), the use of core-augmentation (ZPSP
+and CORE keywords) is recommended to prevent the appearance of
+spurious critical points close to the nuclei.
 
-  It is also usual in grids that critical points that should appear
-  can not be found (e.g. bonds) or have the wrong signature. If that
-  is the case, there is not much to do other than trying to find an
-  analytical representation for the field.
+In scalar fields with extreme variations in value (e.g. the
+Laplacian of the electron density), it is unlikely that AUTO will
+find all the core CPs. A previous version of critic2 does that
+(available upon request) but since the core CPs are not all that
+interesting, we have decided to remove that code from this version.
 
-* In DFTB+ and other fields missing the core electrons
-  (e.g. plane-wave calculations), the use of core-augmentation (ZPSP
-  and CORE keywords) is recommended to prevent the appearance of
-  spurious critical points close to the nuclei.
+By far, the most problematic type of field for CP localization is a
+grid of values. The difficulty is in finding a way to calculate the
+first and second derivatives of the field at arbitrary points in space
+(i.e. doing an interpolation) in a way that is both accurate and
+smooth. Barring numerical noise from the grid, the TRICUBIC
+interpolant (which is the default) is quite adequate. Typically, all
+high-density critical points will be found. Critical points close to
+degenerate (i.e. that are near to other critical points), may appear
+as clusters, which is caused by the oscillations of the field
+derivatives in that region. It is strongly advised that the position
+of the critical points with respect to the structure is examined
+always (a graphical representation can be obtained using the CPREPORT
+keyword). A finer grid may help with the CP clustering, but this will
+increase the cost of the density calculation.
 
-* In scalar fields with extreme variations in value (e.g. the
-  Laplacian of the electron density), it is unlikely that AUTO will
-  find all the core CPs. A previous version of critic2 does that
-  (available upon request) but since the core CPs are not all that
-  interesting, we have decided to remove that code from this version.
+The region where the value of the field is very small are subject to
+the appearance of many spurious critical points, due to the very small
+value of the gradient. These regions typically appear in the vacuum
+region of a slab, or far away from a molecular system. To eliminate
+the critical points in these regions, use the DISCARD keyword combined
+with a threshold for the field value. For instance, to discard all
+critical points with density less (loaded in field $rho) than 1e-5,
+use DISCARD "$rho < 1e-5".
 
 Visualization of critical points
 ++++++++++++++++++++++++++++++++
