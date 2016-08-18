@@ -64,8 +64,8 @@ TESTS=\
 026_nciplot1.sh 026_nciplot2.sh 026_nciplot3.sh 026_nciplot4.sh\
 027_qtree1.sh\
 028_xdm1.sh 028_xdm2.sh 028_xdm3.sh\
-029_bader1.sh 029_bader2.sh 029_bader3.sh 029_bader4.sh 029_bader5.sh\
-030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh\
+029_bader1.sh 029_bader2.sh 029_bader3.sh 029_bader4.sh 029_bader5.sh 029_bader6.sh\
+030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh 030_yt6.sh\
 031_libxc1.sh\
 032_stm1.sh 032_stm2.sh\
 033_molcell1.sh\
