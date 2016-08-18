@@ -1,0 +1,33 @@
+# Read the crystal structure from one of the cubes
+crystal ../data/urea.rhoval.cube
+
+# Load the density grid. urea.rhoval.cube contains the
+# PAW-reconstructed valence density. Augment it with the core
+# contribution to calculate the critical points.  A grid containing
+# the (formally correct) all-electron density can be generated
+# directly by QE (plot_num = 21) if you are using a version newer than
+# 5.3.0. In that case, you should load that cube directly instead of
+# using the ZPSP and CORE keywords.
+zpsp o 6 n 5 c 4 h 1
+load ../data/urea.rhoval.cube id rhoae core
+
+# Set the all-electron density as reference
+reference rhoae
+
+# Automatic search for critical points Note that, unlike in abinit and
+# vasp, the Morse sum is non-zero. That is because the N-N bond that
+# can be seen in the VASP and abinit outputs is almost degenerate with
+# the two rings beside it. In VAPS and abinit, the bond and the rings
+# are far enough that it does not matter, but in qe this causes
+# oscillations in the tricubic interpolant, that cause the incorrect
+# assignment of these critical points. These almost degenerate
+# situations are unavoidable when using densities on a grid, and they
+# are best dealt with by examining the structure + critical points
+# plot (see cpreport below).
+auto 
+
+# Write the results to a file for visualization with
+# avogadro/openbabel (see the "visualization of critical points"
+# section in the manual for details). The GRAPH keyword calculates and
+# represents the bond paths.
+cpreport qe.cml cell molmotif graph

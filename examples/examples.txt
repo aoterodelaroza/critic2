@@ -498,6 +498,103 @@ coming from pp.x using critic2's internal density tables, then save it
 to a cube file. This pre-processing procedure takes at most a few
 minutes, even for the largest systems.
 
+* grid_cps
+** Source: VASP, abinit, and Quantum ESPRESSO.
+** System: urea molecular crystal.
+** Description
+
+A guide for best practices regarding the localization and
+visualization of critical points with densities given on a grid.
+Three codes (VASP, abinit, and QE) are used to calculate the
+PAW-reconstructed density (valence in abinit and QE, all-electron in
+VASP). Then, this density is used in AUTO and the critical poitns are
+represented using the CPREPORT keyword. 
+
+The all-electron density should be used for correcteness, if
+available. The grid_auto.cri input in the grid_ammonia example shows
+the effects of ignoring this recommmendation. However, if the
+all-electron density is not available, e.g. if the calculation is not
+run using the PAW formalism and hence no reconstruction is available,
+the critical points in the interstitial (away from the nuclei) should
+still be correctly determined.
+
+For the purpose of finding critical points in a field given on a grid,
+the tricubic interpolant (TRICUBIC keyword in LOAD and SETFIELD)
+should always be used. This minimizes the oscillation in the
+calculated first and second derivatives of the field, which is what
+causes most of the problems during CP localization. However, these
+oscillations may still appear when the topology is close to degenerate
+(i.e. when some critical points are very close to other critical
+points). An example of this is given by the qe.cri input, where there
+is some clustering around a low-density bond critical point value. The
+same effect can be observed for very low density critical points, and
+the user should be prepared to examine the topology visually using the
+CPREPORT keyword. In general, the critical points where the field has
+a reasonably high value are reliably calculated. See the "Problems
+finding critical points" section in the manual for more information.
+
+The visualization of critical points is done using the CPREPORT
+keyword. Many formats can be written, but the best way at present is
+the cml format, that can be viewed using avogadro. Please, follow the
+steps in the "Visualization of critical points" section of the manual
+to have avogadro/openbable understand the critical points
+types. Avogadro lets you identify particular critical points in the
+system (the numerical identifier in avogadro is the same as in
+critic2), calculate distances, and more. In addition, it has support
+for crystals as well as molecules.
+
+** vasp.cri
+
+The sum of AECCAR0 (the core density) and AECCAR2 (the
+PAW-reconstructed valence density) is used as reference for the
+localization of critical points in the urea crystal. One ring CP near
+the almost-degenerate low-density bcp is missing (see abinit density
+for the complete topology, and the similar problems in qe.cri).
+
+** abinit.cri
+
+The reconstructed valence density from abinit (_PAWDEN) is
+core-augmented using critic2's internal density tables. The flag
+prtden = 2 writes both the PAWDEN and the DEN files, but PAW datasets
+have to be used to get a PAWDEN file. All CPs are found, with Morse
+sum zero.
+
+** qe.cri
+
+The reconstructed valence density generated using PAW datasets
+(plot_num = 17) is core-augmented with critic2's internal density
+tables. A cluster of spurious critical points is found near a bond
+critical point that is close to degenerate but, other than that, the
+topology is equivalent to the previous two examples. 
+
+** icecake.cri
+
+This example is a more complicated structure than the urea
+crystal. The critical points are calculated in a slab
+model composed of two graphene layers with some ice in between
+them. There are two important differences with respect to the previous
+examples. First, the seeding strategy is modified to search between
+pairs of atoms (i.e. what critic2 does in molecules), instead of using
+a recursive subdivision of the Wigner-Seitz cell in other
+crystals. This is necessary to focus the CP localization algorithm on
+the slab region. The second difference is that the the low-density
+critical points which appear in the vacuum region are discarded using
+the DISCARD keyword. 
+
+There are two ways of loading the density from VASP: i) use the sum of
+the AECCAR0 plus the AECCAR2, and ii) use critic2's internal density
+tables to build the core. While the former is formally more correct,
+the very steep density peaks at certain points in the grid will cause
+the interpolant to generate some spurious maxima close to the nuclei
+(but otherwise the topology will not be affected). If the second
+option is used, then critic2 finds what looks like the complete
+topology, with a Poincare-Hopf (Morse) sum of 1 (same as in a
+molecule). 
+
+The topology and the bond paths are written to cml and xyz files which
+can be viewed using avogadro/openbabel (see "Visualization of critical
+points" in the manual for how to make this work).
+
 * grid_ammonia
 ** Source: Quantum ESPRESSO.
 ** System: ammonia molecular crystal.
@@ -607,14 +704,16 @@ Using the cube files above, make several plots of the pressure on a
 plane including one Ca atom.
 
 * elf_basins
-** Source: Gaussian wfx and abinit.
-** System: gas-phase pyridine and urea molecular crystal.
+** Source: Gaussian wfx, abinit, VASP.
+** System: gas-phase pyridine, urea molecular crystal, ice-packed graphene bilayer.
 ** Description
 
-Calculate the ELF and integrate its attractor basins. Two examples are
-provided: the ELF calculated by critic2 from a Gaussian wfx file, and
-the integration of the ELF basins in the urea crystal, from the ELF
-calculated by abinit.
+Calculate the ELF and integrate its attractor basins. Three examples
+are provided: i) the ELF calculated by critic2 from a Gaussian wfx
+file, ii) the integration of the ELF basins in the urea crystal, from the
+ELF calculated by abinit, and iii) the integration of the charge
+inside the ELF basins in a slab model of a graphene bilayer with
+ice between the two layers (icecake).
 
 ** pyridine_elf_basins.cri
 
@@ -631,6 +730,15 @@ Plot the ELF from the pyridine wfx file on the molecular plane.
 Load the ELF and the density for the urea crystal calculated by
 abinit, then integrate the ELF basins and represent the ELF maxima in
 a three-dimensional plot.
+
+** icecake.cri
+
+Load the ELF and the density for the ice-filled graphene bilayer
+("icecake"). Then, integrate the ELF basins and represent the ELF
+maxima in a three-dimensional plot. The spurious ELF maxima in the
+vacuum, caused by numerical noise, are discarded using the DISCARD
+option to YT. All ELF maxima are found, together with two spurious
+maxima that would probably disappear if one used a finer grid.
 
 * energy_components
 ** Source: Quantum ESPRESSO.

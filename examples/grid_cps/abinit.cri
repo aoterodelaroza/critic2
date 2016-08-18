@@ -1,0 +1,18 @@
+# Read the structure from the PAWDEN file
+crystal ../data/urea_PAWDEN
+
+# Read the reconstructed valence and core-augment it
+zpsp o 6 n 5 c 4 h 1
+load ../data/urea_PAWDEN id rhoae core
+
+# Set the all-electron density as reference
+reference rhoae
+
+# Automatic search for critical points
+auto
+
+# Write the results to a file for visualization with
+# avogadro/openbabel (see the "visualization of critical points"
+# section in the manual for details). The GRAPH keyword calculates and
+# represents the bond paths.
+cpreport abinit.cml cell molmotif graph

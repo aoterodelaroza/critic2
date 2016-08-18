@@ -1,0 +1,29 @@
+# Read the structure from the CHGCAR
+crystal ../data/urea.CHGCAR
+
+# Read the core (AECCAR0) and the reconstructed valence density
+# (AECCAR2) and calculate the sum of the two ("rhoae").  Using the
+# AECCAR0+AECCAR2 sometimes may cause problems due to the appearance
+# of nuclear critical points close to actual nuclei. This is caused by
+# the interpolant trying to reproduce the very steep density peak near
+# the nucleus. See the icecake.cri example.
+load ../data/urea.AECCAR0
+load ../data/urea.AECCAR2
+load as "$1+$2" id rhoae
+
+# # The rhoae field can be saved to a cube file (using the CUBE 
+# # keyword). Loading this cube file will prevent you from having to 
+# # recalculate the sum of the AECCAR0 and AECCAR2 every time
+# cube grid field rhoae file rhoae.cube
+
+# Set the all-electron density as reference
+reference rhoae
+
+# Automatic search for critical points
+auto
+
+# Write the results to a file for visualization with
+# avogadro/openbabel (see the "visualization of critical points"
+# section in the manual for details). The GRAPH keyword calculates and
+# represents the bond paths.
+cpreport vasp.cml cell molmotif graph

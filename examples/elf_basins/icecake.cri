@@ -1,0 +1,33 @@
+# Read the crystal structure from the CHGCAR
+crystal ../data/icecake.CHGCAR
+
+# Load the ELF from the ELFCAR and the pseudo-valence density from the
+# CHGCAR. The ELFCAR can be generated using 
+#   LELF = .TRUE.
+# in the INCAR. However, if you are using PAW or ultrasoft pseudos,
+# you need to change NG{X,Y,Z} and/or NG{X,Y,Z}F variables so that
+# both ELFCAR and CHGCAR have the same number of grid points.
+load ../data/icecake.ELFCAR id elf
+load ../data/icecake.CHGCAR id rho
+
+# Calculate the charges in the ELF basins
+reference elf
+integrable rho
+
+# Run the integration. The ELF has maxima at points other than the
+# nuclei, so the NNM keyword is necessary. Since this system is a
+# slab, we need to discard the spurious maxima in the vacuum region
+# caused by numerical noise. To do this, we discard all maxima whose
+# value of the ELF is less than 0.4.
+yt nnm discard "$elf < 0.4"
+
+# Write the positions of the ELF maxima to the output
+cpreport short
+
+# Write the structure and the positions of the ELF maxima to 
+# a file for visualization. These files can be viewed using 
+# avogadro and openbabel. Please, read the notes in the manual
+# ("Visualization of critical points" section) for details.
+cpreport icecake.cml border cell
+cpreport icecake.xyz border cell
+
