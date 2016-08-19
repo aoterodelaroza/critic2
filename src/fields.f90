@@ -44,6 +44,7 @@ module fields
   public :: fields_integrable_report
   public :: fields_pointprop
   public :: fields_pointprop_report
+  public :: listfields
   public :: listfieldalias
   public :: writegrid_cube
   public :: writegrid_vasp
@@ -1335,6 +1336,30 @@ contains
   end subroutine fields_pointprop_report
 
   !> List all defined aliases for fields
+  subroutine listfields()
+    use tools_io
+
+    integer :: i, n
+    character(len=:), allocatable :: name, file, type
+
+    n = count(fused)
+    write (uout,'("* LIST of fields (",A,")")') string(n)
+    do i = 0, ubound(fused,1)
+       if (fused(i)) then
+          name = trim(f(i)%name)
+          if (len_trim(name) == 0) name = "<unnamed>"
+          file = trim(f(i)%file)
+          if (len_trim(file) == 0) file = "<no-file>"
+          type = trim(fields_typestring(f(i)%type))
+          write (uout,'(A,". ",A,", ",A,", ",A)') string(i,3,ioj_right), &
+             string(type), string(name), string(file)
+       end if
+    end do
+    write (uout,*)
+
+  end subroutine listfields
+
+  !> List all defined aliases for fields
   subroutine listfieldalias()
     use tools_io
 
@@ -2354,7 +2379,7 @@ contains
     integer, intent(in) :: id
     logical, intent(in) :: isload, isset
     
-    integer :: i, j, n(3)
+    integer :: j, n(3)
 
     ! header
     write (uout,'("* Scalar field number: ",A)') string(id)

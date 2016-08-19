@@ -641,6 +641,7 @@ program critic
         call check_no_extra_word(ok)
         if (.not.ok) cycle
         call listvariables()
+        call listfields()
         call listfieldalias()
 
      ! reset
