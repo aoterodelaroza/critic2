@@ -3259,6 +3259,8 @@ calculation in AUTO, you can do::
 
   AUTO DRY CHK
 
+By default, checkpoint files are not used.
+
 Example output for AUTO in a crystal
 ++++++++++++++++++++++++++++++++++++
 
@@ -5364,7 +5366,13 @@ is negative.
 
   NOCHK
 
-Do not read or write the checkpoint file.
+Do not read or write the checkpoint file. The nciplot checkpoint file
+(<root>.chk_nci) contains the promolecular densities for the whole
+system and the fragments, the density, and the reduced density
+gradient. If the checkpoint file exists and is compatible with the
+current structure and fragments, it is read. Otherwise, it is
+discarded and a new checkpoint is written. By default, checkpoitn
+files are used unless NOCHK is given in the input.
 
 ::
 

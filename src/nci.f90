@@ -24,6 +24,8 @@ module nci
   private :: write_cube_body
   private :: check_no_extra_word
   private :: read_fragment
+  private :: readchk
+  private :: writechk
 
 contains
 
@@ -49,16 +51,14 @@ contains
     logical :: ok, ok2
     integer :: lp, istat
     integer :: i, j, k, iat, ifr, l, nn
-    integer :: lugc, ludc, luvmd, ludat, luchk, lupc
+    integer :: lugc, ludc, luvmd, ludat, lupc
     real*8, allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
     real*8, allocatable, dimension(:,:,:,:) :: rhofrag
     real*8 :: ehess(3), dimgrad, dist, rrho, rrho1, rrho2
     real*8 :: sumq, sumqp, sumv, rdum1, rdum2
-    logical :: onlyneg, lchk, inter, llat, llfrag, isden
+    logical :: onlyneg, lchk, inter, isden
     integer :: findlimits, ithres, istep
     logical :: periodic, usecore
-    integer :: nfrag0, ixx(3)
-    real*8 :: xxx(3)
     ! molmotif
     logical :: domolmotif
     ! chk
@@ -468,46 +468,12 @@ contains
      end if
 
      ! calculate density, rdg,... read from chkpoint if available
+     lchk = .false.
      if (usechk) then
-        inquire(file=trim(oname)//".ncichk",exist=lchk)
-     else
-        lchk = .false.
-     endif
-99   continue
-     if (lchk) then
-        write(uout,'("  Reading the checkpoint file: ",A/)') trim(oname)//".ncichk"
-        luchk = fopen_read(trim(oname)//".ncichk","unformatted")
-        read (luchk) llat, llfrag, nfrag0
-        if (.not.llat .and. allocated(rhoat)) goto 999
-        if (.not.llfrag .and. allocated(rhofrag)) goto 999
-        if (nfrag0 /= nfrag) goto 999
-        read (luchk) xxx
-        if (any(abs(xxx-x0) > 1d-13)) goto 999
-        read (luchk) xxx
-        if (any(abs(xxx-xmat(:,1)) > 1d-13)) goto 999
-        read (luchk) xxx
-        if (any(abs(xxx-xmat(:,2)) > 1d-13)) goto 999
-        read (luchk) xxx
-        if (any(abs(xxx-xmat(:,3)) > 1d-13)) goto 999
-        read (luchk) ixx
-        if (any(abs(ixx-nstep) > 0)) goto 999
-        read (luchk) crho, cgrad
-        if (llat .and. allocated(rhoat)) then
-           read (luchk) rhoat
-           if (allocated(rhofrag) .and. llfrag) then
-              read (luchk) rhofrag
-           endif
-        endif
-        lchk = .false.
+        lchk = readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
+     end if
 
-999     continue
-        call fclose(luchk)
-        if (lchk) then
-           write(uout,'("  Checkpoint file is not compatible -- restarting."/)')
-           lchk = .false.
-           goto 99
-        endif
-     else
+     if (.not.lchk) then
         ! Initialize gradrho out of the omp loop
         if (f(refden)%type == type_grid .and..not.usecore) then
            call grid_gradrho(f(refden),fgrho)
@@ -584,20 +550,7 @@ contains
         deallocate(rhofragl)
 
         ! save the ncichk file
-        if (usechk) then
-           write(uout,'("  Writing the checkpoint file: ",A/)') trim(oname)//".ncichk"
-           luchk = fopen_write(trim(oname)//".ncichk","unformatted")
-           write (luchk) allocated(rhoat), allocated(rhofrag), nfrag
-           write (luchk) x0
-           write (luchk) xmat(:,1)
-           write (luchk) xmat(:,2)
-           write (luchk) xmat(:,3)
-           write (luchk) nstep
-           write (luchk) crho, cgrad
-           if (allocated(rhoat)) write (luchk) rhoat
-           if (allocated(rhofrag)) write (luchk) rhofrag
-           call fclose(luchk)
-        endif
+        if (usechk) call writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
      endif
 
      ! calculate cutoff effect on grid
@@ -608,7 +561,7 @@ contains
         do j = 0, nstep(2)-1
            do k = 0, nstep(3)-1
               x = x0 + i*xmat(:,1) + j*xmat(:,2) + k*xmat(:,3)
-     
+
               ! ! calculate properties at x
               inter = .true.
               if (nfrag > 0) then
@@ -623,7 +576,7 @@ contains
                     sumv = sumv + 1
                  endif
               endif
-     
+
               ! apply cutoffs and write the dat file 
               if ((abs(crho(k,j,i)) < rhocut*100d0) .and. (cgrad(k,j,i) < dimcut) .and. inter) then
                  write(ludat,'(1p,E15.7,E15.7)') crho(k,j,i)/100d0, cgrad(k,j,i)
@@ -674,8 +627,8 @@ contains
                     do l = 1, cr%ncel
                        x = cr%atcel(l)%x + real((/i,j,k/),8)
                        if (x(1) > xx0(1) .and. x(1) < xx1(1) .and.&
-                           x(2) > xx0(2) .and. x(2) < xx1(2) .and.&
-                           x(3) > xx0(3) .and. x(3) < xx1(3)) then
+                          x(2) > xx0(2) .and. x(2) < xx1(2) .and.&
+                          x(3) > xx0(3) .and. x(3) < xx1(3)) then
                           fr0%nat = fr0%nat + 1
                           if (fr0%nat > size(fr0%at)) call realloc(fr0%at,2*fr0%nat)
                           fr0%at(fr0%nat)%x = x
@@ -751,12 +704,11 @@ contains
 
      ! close files
      call fclose(ludat)
-     if (usechk) call fclose(luchk)
      call fclose(luvmd)
 
      if (.not.quiet) call tictac("End NCIPLOT")
 
-  end subroutine nciplot
+   end subroutine nciplot
 
   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
     use struct_basic
@@ -930,5 +882,109 @@ contains
     call realloc(fr%at,fr%nat)
     
   end function read_fragment
+
+  !> Write the NCI checkpoint file. x0, xmat, and nstep are checks to
+  !> make sure that the checkpoint file corresponds to this structure.
+  !> crho, cgrad, rhoat, and rhofrag contain the density, rdg,
+  !> promolecular, and fragment promolecular densities on output, and
+  !> they should already be allocated when passed to this function.
+  function readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
+    use global
+    use tools_io
+    logical :: lchk
+    
+    real*8, intent(in) :: x0(3), xmat(3,3)
+    integer, intent(in) :: nstep(3)
+    real*8, allocatable, dimension(:,:,:), intent(inout) :: crho, cgrad, rhoat
+    integer, intent(in) :: nfrag
+    real*8, allocatable, dimension(:,:,:,:), intent(inout) :: rhofrag
+
+    integer :: luchk
+    character(len=:), allocatable :: chkfile
+    logical :: llat, llfrag
+    real*8 :: xxx(3)
+    integer :: ixx(3), nfrag0
+
+    chkfile = trim(fileroot) // ".chk_nci" 
+    
+    inquire(file=chkfile,exist=lchk)
+
+    if (lchk) then
+       ! open the file
+       lchk = .false.
+       write(uout,'("  Reading the checkpoint file: ",A/)') trim(chkfile)
+       luchk = fopen_read(chkfile,"unformatted")
+
+       ! check that the structure and fragments are the same
+       read (luchk) llat, llfrag, nfrag0
+       if (.not.llat .and. allocated(rhoat)) goto 99
+       if (.not.llfrag .and. allocated(rhofrag)) goto 99
+       if (nfrag0 /= nfrag) goto 99
+       read (luchk) xxx
+       if (any(abs(xxx-x0) > 1d-13)) goto 99
+       read (luchk) xxx
+       if (any(abs(xxx-xmat(:,1)) > 1d-13)) goto 99
+       read (luchk) xxx
+       if (any(abs(xxx-xmat(:,2)) > 1d-13)) goto 99
+       read (luchk) xxx
+       if (any(abs(xxx-xmat(:,3)) > 1d-13)) goto 99
+       read (luchk) ixx
+       if (any(abs(ixx-nstep) > 0)) goto 99
+
+       ! read the actual densities
+       read (luchk) crho, cgrad
+       if (llat .and. allocated(rhoat)) then
+          read (luchk) rhoat
+          if (allocated(rhofrag) .and. llfrag) then
+             read (luchk) rhofrag
+          endif
+       endif
+
+       ! wrap up
+       lchk = .true.
+       call fclose(luchk)
+    end if
+
+    return
+99  continue
+    call fclose(luchk)
+    write(uout,'("  Checkpoint file is not compatible -- restarting."/)')
+  end function readchk
+
+  !> Write the checkpoint file.
+  subroutine writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
+    use global
+    use tools_io
+
+    real*8, intent(in) :: x0(3), xmat(3,3)
+    integer, intent(in) :: nstep(3)
+    real*8, allocatable, dimension(:,:,:), intent(in) :: crho, cgrad, rhoat
+    integer, intent(in) :: nfrag
+    real*8, allocatable, dimension(:,:,:,:), intent(in) :: rhofrag
+
+    character(len=:), allocatable :: chkfile
+
+    integer :: luchk
+
+    ! open the file
+    chkfile = trim(fileroot) // ".chk_nci" 
+    write(uout,'("  Writing the checkpoint file: ",A/)') trim(chkfile)
+    luchk = fopen_write(chkfile,"unformatted")
+
+    ! write it
+    write (luchk) allocated(rhoat), allocated(rhofrag), nfrag
+    write (luchk) x0
+    write (luchk) xmat(:,1)
+    write (luchk) xmat(:,2)
+    write (luchk) xmat(:,3)
+    write (luchk) nstep
+    write (luchk) crho, cgrad
+    if (allocated(rhoat)) write (luchk) rhoat
+    if (allocated(rhofrag)) write (luchk) rhofrag
+
+    ! close it
+    call fclose(luchk)
+
+  end subroutine writechk
 
 end module nci
