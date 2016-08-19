@@ -1799,11 +1799,11 @@ contains
        ! all work done in cartesians in a finite environment.
 
     case(type_promol)
-       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.,periodic=periodic)
+       call grda_promolecular(wc,res%f,res%gf,res%hf,nder,.false.,periodic=periodic)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call grda_promolecular(wx,res%f,res%gf,res%hf,nder,.false.,f%fr,periodic=periodic)
+       call grda_promolecular(wc,res%f,res%gf,res%hf,nder,.false.,f%fr,periodic=periodic)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
@@ -1821,7 +1821,7 @@ contains
 
     ! augment with the core if applicable
     if (f%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)) then
-       call grda_promolecular(wx,rho,grad,h,nder,.true.,periodic=periodic)
+       call grda_promolecular(wc,rho,grad,h,nder,.true.,periodic=periodic)
        res%f = res%f + rho
        res%gf  = res%gf + grad
        res%hf = res%hf + h
@@ -1961,9 +1961,9 @@ contains
     case(type_dftb)
        call dftb_rho2(f,wc,0,rho,grad,h,gkin)
     case(type_promol)
-       call grda_promolecular(wx,rho,grad,h,0,.false.,periodic=periodic)
+       call grda_promolecular(wc,rho,grad,h,0,.false.,periodic=periodic)
     case(type_promol_frag)
-       call grda_promolecular(wx,rho,grad,h,0,.false.,f%fr,periodic=periodic)
+       call grda_promolecular(wc,rho,grad,h,0,.false.,f%fr,periodic=periodic)
     case(type_ghost)
        rho = eval(f%expr,.true.,iok,wc,fields_fcheck,fields_feval,periodic)
     case default
@@ -1971,7 +1971,7 @@ contains
     end select
 
     if (f%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)) then
-       call grda_promolecular(wx,rhoaux,grad,h,0,.true.,periodic=periodic)
+       call grda_promolecular(wc,rhoaux,grad,h,0,.true.,periodic=periodic)
        rho = rho + rhoaux
     end if
     grd0 = rho

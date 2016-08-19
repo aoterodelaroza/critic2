@@ -1593,6 +1593,7 @@ contains
   !> template; only the frho%n is used except if itype == 1.
   subroutine grid_rhoat(frho,frhoat,itype,fr)
     use grd_atomic
+    use struct_basic
     use tools_io
     use tools_math
     use types
@@ -1623,6 +1624,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+             x = cr%x2c(x)
 
              if (itype == 1) then
                 call grda_promolecular(x,rhoat,rdum1,rdum2,0,.false.,fr)

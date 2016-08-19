@@ -388,6 +388,7 @@ contains
           do j = 1, n(2)
              do i = 1, n(1)
                 x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/)
+                x = cr%x2c(x)
 
                 if (dopro) call grda_promolecular(x,rhoat,rdum1,rdum2,0,.false.)
                 if (docor) call grda_promolecular(x,rhocore,rdum1,rdum2,0,.true.)
@@ -1139,8 +1140,7 @@ contains
 
     if (.not.cr%ismolecule) then
        do j = 1, m%n
-          x = cr%c2x(m%x(:,j))
-          call grda_promolecular(x,rho,dum1,dum2,0,.false.,periodic=.true.)
+          call grda_promolecular(m%x(:,j),rho,dum1,dum2,0,.false.,periodic=.true.)
           m%f(j,4) = rho
        enddo
     end if

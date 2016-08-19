@@ -140,7 +140,7 @@ contains
   end subroutine grda_end
 
   !> Calculate the core or promolecular densities at a point x0
-  !> (cryst. coords) using atomic radial grids. If a fragment is
+  !> (Cartesian coords) using atomic radial grids. If a fragment is
   !> given, then only the atoms in it contribute.
   subroutine grda_promolecular(x0,f,fp,fpp,nder,iscore,fr,periodic)
     use struct_basic
@@ -161,15 +161,17 @@ contains
     real*8 :: xc(3), xx(3), r2, r, rinv1, rinv2
     real*8 :: rho, rhop, rhopp, rfac, radd
     integer :: idolist(cr%nenv), nido
-    logical :: per
 
     type(grid1), pointer :: g
 
     ! initialize 
+    xc = x0
     if (present(periodic)) then
-       per = periodic
-    else
-       per = .true.
+       if (periodic) then
+          xc = cr%c2x(x0)
+          xc = xc - floor(xc)
+          xc = cr%x2c(xc)
+       end if
     end if
     f = 0d0 
     fp = 0d0
@@ -177,11 +179,6 @@ contains
 
     ! precompute the list of atoms that contribute
     if (.not.present(fr)) then
-       if (per) then
-          xc = cr%x2c(x0 - floor(x0))
-       else
-          xc = cr%x2c(x0)
-       end if
        nido = 0
        do i = 1, cr%nenv
           if (cr%at(cr%atenv(i)%idx)%z == 0 .or. cr%at(cr%atenv(i)%idx)%z > maxzat) cycle
@@ -200,7 +197,6 @@ contains
           idolist(nido) = i
        end do
     else
-       xc = cr%x2c(x0)
        nido = fr%nat
     end if
 
