@@ -720,7 +720,7 @@ contains
 
        ! process the three symmetry elements
        rot0 = 0d0
-       sym = trim(adjustl(sym)) // ","
+       sym = trim(adjustl(lower(sym))) // ","
        do i = 1, 3
           ! extract the next token
           idx = index(sym,",")
@@ -949,7 +949,7 @@ contains
           iscent = (ilat > 0)
        elseif (equal(word,"symm")) then
           ! symmetry operations from the symm card
-          aux = line(lp:) // ","
+          aux = lower(line(lp:)) // ","
           line = aux
           rot0 = 0d0
           do i = 1, 3
