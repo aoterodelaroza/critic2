@@ -33,7 +33,8 @@ TESTS=\
 006_load_cube_opt3.sh 006_load_cube.sh\
 006_load_elk.sh 006_load_expression.sh 006_load_grid_grad.sh 006_load_grid_lap.sh\
 006_load_pi_opts.sh 006_load_pi.sh 006_load_pro_expr.sh 006_load_promolecular.sh\
-006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mp2.sh 006_load_wfx.sh \
+006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mo.sh \
+006_load_wfn_mp2.sh 006_load_wfx.sh \
 006_load_fchk.sh 006_load_molden.sh \
 006_load_wien_oper.sh 006_load_wien_opts.sh 006_load_wien.sh 006_load_xsf.sh \
 006_load_elk_lap.sh 006_load_elk_lap2.sh 006_load_siesta_rho.sh\

@@ -6,7 +6,19 @@
 ## Arithmetic expressions can be given between single quotes (''),
 ## double quotes (""), parentheses, or without quoting as long as
 ## there are no spaces. They can be used in most places that a real or
-## integer can. Variables can be used almost everywhere.
+## integer can. Variables can be used almost everywhere. Fields are
+## accessed using the $ symbol. 
+##
+## Field modifiers ($field:modifier):
+## v - valence-only value of the field
+## c - core-only value of the field
+## x, y, z: first derivatives.
+## xx, xy, xz, yy, yz, zz: second derivatives.
+## g: norm of the gradient.
+## l: Laplacian.
+## lv: valence Laplacian.
+## lc: core Laplacian.
+## <number>: in molecular wavefunctions, value of a particular MO.
 
 ## In non-quiet mode (no -q argument), a copy of each input line
 ## is written to the output after a '%%' prefix.

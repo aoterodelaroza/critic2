@@ -119,7 +119,7 @@ module arithmetic
      real*8 :: fval = 0d0
      integer :: ival = 0
      character(len=:), allocatable :: sval
-     character*2 :: fder = ""
+     character*4 :: fder = ""
   end type token
   integer, parameter :: token_undef = 0
   integer, parameter :: token_num = 1
@@ -175,7 +175,7 @@ contains
     real*8 :: q(100)
     integer :: nq, ns
     character(len=:), allocatable :: fid
-    character*2 :: fder
+    character*4 :: fder
     type(token), allocatable :: toklist(:)
 
     ! tokenize the expression in input
@@ -362,7 +362,7 @@ contains
 
     integer :: lp, ll
     character(len=:), allocatable :: str
-    character*2 :: fder
+    character*4 :: fder
     logical :: ok, wasop, inchem
     real*8 :: a
     integer :: c, npar
@@ -478,7 +478,7 @@ contains
       integer, intent(in), optional :: ival
       real*8, intent(in), optional :: fval
       character*(*), intent(in), optional :: sval
-      character*2, intent(in), optional :: fder
+      character*4, intent(in), optional :: fder
 
       type(token), allocatable :: auxtoklist(:)
 
@@ -504,12 +504,12 @@ contains
   !> Using the field id and the derivative flag, evaluate to a
   !> number. 
   recursive function fieldeval(fid,fder,x0,fcheck,feval,periodic)
-    use tools_io, only: isdigit, isletter, string
+    use tools_io
     use types
 
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
-    character*2, intent(in) :: fder
+    character*4, intent(in) :: fder
     real*8, intent(in), optional :: x0(3) !< position
     optional :: fcheck, feval
     logical, intent(in), optional :: periodic
@@ -532,16 +532,17 @@ contains
        end function feval
     end interface
 
-    integer :: nder
+    integer :: nder, ider, lp
     type(scalar_value) :: res
+    logical :: ok
 
     fieldeval = 0d0
     if (present(x0).and.present(feval).and.present(fcheck)) then
        if (.not.fcheck(fid).and..not.isspecialfield(fid)) &
           call die('wrong field in expression: ' // string(fid))
-       if (fder=="  ".or.fder=="v ".or.fder=="c ") then
+       if (fder=="    ".or.fder=="v   ".or.fder=="c   ") then
           nder = 0
-       elseif (fder=="x ".or.fder=="y ".or.fder=="z ".or.fder=="g ") then
+       elseif (fder=="x   ".or.fder=="y   ".or.fder=="z   ".or.fder=="g   ") then
           nder = 1
        else
           nder = 2
@@ -582,7 +583,13 @@ contains
        case ("g")
           fieldeval = res%gfmod
        case default
-          call die("unknown field specifier: " // string(fder))
+          lp = 1
+          ok = isinteger(ider,fder,lp)
+          if (.not.ok) &
+             call die("unknown field specifier: " // string(fder))
+          if (.not.allocated(res%mo)) &
+             call die("Molecular orbitals unavailable for this field ")
+          fieldeval = res%mo(ider)
        end select
     else
        call die('evaluating field ' // string(fid) // ' without point')
@@ -850,12 +857,12 @@ contains
   !> and leave lp unchanged. If fder is present, try to find the field
   !> derivative selector after the identifier (:xx).
   function isidentifier(id,expr,lp,fder)
-    use tools_io, only: lower, isletter
+    use tools_io
     logical :: isidentifier
     character(len=:), allocatable, intent(out) :: id
     character*(*), intent(in) :: expr
     integer, intent(inout) :: lp
-    character*2, intent(out), optional :: fder
+    character*4, intent(out), optional :: fder
 
     character*(len(expr)) :: word
     integer :: lpo, i, ll
@@ -890,7 +897,7 @@ contains
           if (expr(lp:lp) == ":") then
              lp = lp + 1
              i = lp
-             do while (isletter(expr(i:i)))
+             do while (isletter(expr(i:i)).or.isdigit(expr(i:i)))
                 i = i + 1
                 if (i > ll) exit
              enddo

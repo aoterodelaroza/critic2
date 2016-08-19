@@ -1786,8 +1786,7 @@ contains
        ! all work done in cartesians in a finite environment.
 
     case(type_wfn)
-       call wfn_rho2(f,wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
-
+       call wfn_rho2(f,wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress,res%mo)
        ! transformation not needed because all work done in cartesians
        ! in a finite environment. wfn assumes the crystal structure
        ! resulting from load xyz/wfn/wfx (molecule at the center of 

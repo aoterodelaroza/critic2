@@ -1580,7 +1580,7 @@ contains
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
     real*8, intent(out) :: vir !< Virial field
     real*8, intent(out) :: stress(3,3) !< Schrodinger stress tensor
-    real*8, intent(out), optional :: xmo(f%nmo) !< Values of the MO
+    real*8, allocatable, intent(out), optional :: xmo(:) !< Values of the MO
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
     
@@ -1783,7 +1783,13 @@ contains
     end if
 
     ! save the MO values
-    if (present(xmo)) xmo = phi(1:f%nmo,1)
+    if (present(xmo)) then
+       if (allocated(xmo)) then
+          if (size(xmo) /= f%nmo) deallocate(xmo)
+       end if
+       if (.not.allocated(xmo)) allocate(xmo(f%nmo))
+       xmo = phi(1:f%nmo,1)
+    end if
 
     ! re-order the hessian
     do i = 1, 3

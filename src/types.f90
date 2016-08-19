@@ -302,6 +302,8 @@ module types
      integer :: r, s
      ! is it a nuclear position?
      logical :: isnuc
+     ! molecular orbital values
+     real*8, allocatable :: mo(:)
   end type scalar_value
 
   !> Information about an integrable field
