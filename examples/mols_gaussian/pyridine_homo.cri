@@ -1,0 +1,8 @@
+# Load the molecule and its wavefunction data
+molecule ../data/pyridine.wfx
+load ../data/pyridine.wfx
+
+# Make a contour plot of the 21st molecular orbital (the HOMO) in the
+# molecular plane.  Individual molecular orbitals are selected with a
+# numerical modifier after the field in an arithmetic expression.
+plane 0.0 -2.5 -2.5 0.0 2.5 -2.5 0.0 -2.5 2.5 61 61 field "$1:21" contour atan 41
