@@ -3075,7 +3075,7 @@ Automatic determination of critical points (AUTO)
 ::
 
   AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] 
-       [DISCARD expr.s] [FILE file.s] [VERBOSE] [DRY] ...
+       [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
   AUTO ... [SEED ...] [SEED ...] ...
@@ -3250,9 +3250,14 @@ bohr, except for fields defined on a grid, where it defaults to 2
 times the maximum of the grid step in each direction.
 
 Because finding the CPs can be an expensive task in large structures,
-the CP list can be saved to a file using the FILE keyword. The
-file.cps file is read in subsequent runs by using the same FILE syntax
-instead of calculating the CPs again.
+the CP list for the current field can be saved to a checkpoint file
+using the CHK keyword. This keyword generates a <root>.chk_cps file
+where the list of critical points is stored. It can be accessed in
+subsequent critic2 runs by using the CHK keyword in AUTO. For
+instance, to read the CPs from the checkpoint file and skip any
+calculation in AUTO, you can do::
+
+  AUTO DRY CHK
 
 Example output for AUTO in a crystal
 ++++++++++++++++++++++++++++++++++++

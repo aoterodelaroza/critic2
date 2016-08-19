@@ -28,8 +28,8 @@ module autocp
   public :: autocritic
   public :: cpreport
   private :: critshell
-  private :: writecps
-  private :: readcps
+  private :: writechk
+  private :: readchk
   private :: atomic_connect_report
   private :: cp_short_report
   private :: barycentric
@@ -187,9 +187,8 @@ contains
 
     real*8  :: iniv(4,3)  
     integer :: nt
-    logical :: existcpfile, ok, dryrun
+    logical :: ok, dryrun, dochk
     character(len=:), allocatable :: word, str, discexpr
-    character(len=:), allocatable :: cpfile !< gradthr is the file for cps
     real*8 :: gfnormeps
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
@@ -221,7 +220,7 @@ contains
     end if
 
     ! defaults
-    cpfile = "" 
+    dochk = .false.
     gfnormeps = 1d-12
     cpdebug = .false.
     dryrun = .false.
@@ -272,12 +271,8 @@ contains
              call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
              return
           end if
-       else if (equal(word,'file')) then
-          cpfile = getword(line,lp)
-          if (len_trim(cpfile) < 1) then
-             call ferror('critic','file name not found in auto',faterr,line,syntax=.true.)
-             return
-          end if
+       else if (equal(word,'chk')) then
+          dochk = .true.
        else if (equal(word,'clip')) then
           word = lgetword(line,lp)
           if (equal(word,'cube')) then
@@ -748,10 +743,10 @@ contains
     end if
 
     ! Read cps from external file
-    call readcps(cpfile,existcpfile)
+    if (dochk) call readchk()
 
     ! If not a dry run, do the search
-    if (.not.existcpfile.and..not.dryrun) then
+    if (.not.dryrun) then
        write (uout,'("+ Searching for CPs")')
        if (cpdebug) &
           write (uout,'("  CP localization progress:")')
@@ -782,7 +777,7 @@ contains
 
     ! Graph
     if (dograph > 0) then
-       if (.not.existcpfile) then
+       if (.not.dryrun) then
           call makegraph()
        end if
        call graph_short_report()
@@ -798,9 +793,7 @@ contains
     call cp_vlong_report()
 
     ! Write CPs to an external file
-    if (.not.existcpfile) then
-       call writecps(cpfile)
-    end if
+    if (dochk) call writechk()
 
     ! reallocate to the new CP list and clean up
     call realloc(cp,ncp)
@@ -1059,76 +1052,72 @@ contains
 
   end subroutine critshell
   
-  !> Write the CP data to an external file.
-  subroutine writecps(cpfile)
+  !> Write the CP information to the checkpoint file.
+  subroutine writechk()
     use fields
+    use global
     use struct_basic
     use tools_io
 
-    character*(*), intent(in) :: cpfile
-
+    character(len=:), allocatable :: cpfile
     integer :: lucp, i
 
-    ! Write output file
-    if (len_trim(cpfile) > 0) then
-       write (uout,'("* Writing CP file : ",A)') string(cpfile)
-       write (uout,*)
+    cpfile = trim(fileroot) // ".chk_cps" 
+
+    write (uout,'("* Writing CP file : ",A)') string(cpfile)
+    write (uout,*)
+
+    lucp = fopen_write(cpfile,"unformatted")
+    write (lucp) ncp, ncpcel
+    write (lucp) (cp(i),i=1,ncp)
+    write (lucp) (cpcel(i),i=1,ncpcel)
+    call fclose(lucp)
+
+  end subroutine writechk
+
+  !> Read the CP information from the checkpoint file.
+  subroutine readchk()
+    use fields
+    use global
+    use struct_basic
+    use tools_io
+    use types, only: realloc
+  
+    integer :: lucp, i
+
+    character(len=:), allocatable :: cpfile
+    logical :: existcpfile
+  
+    cpfile = trim(fileroot) // ".chk_cps" 
+
+    inquire(file=cpfile,exist=existcpfile)
+    if (existcpfile) then
+       write (uout,'("* Reading checkpoint file : ",A)') string(cpfile)
+       write (uout,*) 
 
        lucp = fopen_write(cpfile,"unformatted")
-       write (lucp) ncp, ncpcel
-       write (lucp) (cp(i),i=1,ncp)
-       write (lucp) (cpcel(i),i=1,ncpcel)
+       read (lucp) ncp, ncpcel
+
+       if (.not.allocated(cp)) then
+          allocate(cp(ncp))
+       else if (size(cp) < ncp) then
+          call realloc(cp,ncp)
+       end if
+       read (lucp) (cp(i),i=1,ncp)
+
+       if (.not.allocated(cpcel)) then
+          allocate(cpcel(ncpcel))
+       else if (size(cpcel) < ncpcel) then
+          call realloc(cpcel,ncpcel)
+       end if
+       read (lucp) (cpcel(i),i=1,ncpcel)
 
        call fclose(lucp)
 
     end if
 
-  end subroutine writecps
+  end subroutine readchk
 
-  !> Read the CP information from an external file.
-  subroutine readcps(cpfile,existcpfile)
-    use fields
-    use struct_basic
-    use tools_io
-    use types, only: realloc
-  
-    character*(*), intent(in) :: cpfile
-    logical, intent(out) :: existcpfile
-    
-    integer :: lucp, i
-  
-    ! Read input file
-    existcpfile = .false.
-    if (len_trim(cpfile) > 0) then
-       inquire(file=cpfile,exist=existcpfile)
-       if (existcpfile) then
-          write (uout,'("* Reading CP file : ",A)') string(cpfile)
-          write (uout,*) 
-  
-          lucp = fopen_write(cpfile,"unformatted")
-          read (lucp) ncp, ncpcel
-
-          if (.not.allocated(cp)) then
-             allocate(cp(ncp))
-          else if (size(cp) < ncp) then
-             call realloc(cp,ncp)
-          end if
-          read (lucp) (cp(i),i=1,ncp)
-
-          if (.not.allocated(cpcel)) then
-             allocate(cpcel(ncpcel))
-          else if (size(cpcel) < ncpcel) then
-             call realloc(cpcel,ncpcel)
-          end if
-          read (lucp) (cpcel(i),i=1,ncpcel)
-
-          call fclose(lucp)
-
-       end if
-
-    end if
-    
-  end subroutine readcps
 
   subroutine atomic_connect_report()
     use fields
