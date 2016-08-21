@@ -346,6 +346,7 @@ contains
 
   ! Calculate properties on a 3d cube
   subroutine rhoplot_cube(line)
+    use grid_tools
     use fields
     use struct_basic
     use global
@@ -357,16 +358,17 @@ contains
 
     character*(*), intent(in) :: line
 
-    integer :: lp, nti, id, luout, nn(3)
+    integer :: lp, nti, id, nn(3)
     real*8 :: x0(3), x1(3), xp(3), lappt
     real*8 :: rgr, dd(3), xd(3,3)
     integer :: lp2
-    character(len=:), allocatable :: word, outfile, prop, expr, wext1, line0
+    character(len=:), allocatable :: word, outfile, prop, expr, wext1
     type(scalar_value) :: res
     logical :: ok, iok
-    integer :: ix, iy, iz, i, j
+    integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, iscube, doheader
+    type(field) :: faux
 
     ! read the points
     lp = 1
@@ -544,10 +546,17 @@ contains
           call ferror('rhoplot_cube','grid can be used only with a grid field',faterr,syntax=.true.)
           return
        end if
-       if (iscube) then
-          call writegrid_cube(cr,f(id)%f,outfile,.false.,xd,x0+cr%molx0)
+       if (f(id)%usecore) then
+          faux = f(id)
+          call grid_rhoat(f(id),faux,3)
+          faux%f = faux%f + f(id)%f
        else
-          call writegrid_vasp(cr,f(id)%f,outfile,.false.)
+          faux = f(id)
+       end if
+       if (iscube) then
+          call writegrid_cube(cr,faux%f,outfile,.false.,xd,x0+cr%molx0)
+       else
+          call writegrid_vasp(cr,faux%f,outfile,.false.)
        end if
     else
        allocate(lf(nn(1),nn(2),nn(3)))

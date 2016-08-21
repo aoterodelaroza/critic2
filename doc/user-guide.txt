@@ -1587,11 +1587,12 @@ already contains the core contributions, and it is usually a better
 option to use the full all-electron density from the electronic
 structure code if it is able to reconstruct it. 
 
-Core augmentation is not activated by default. In a VASP calculation,
-the value of ZPSP can be found easily in a VASP calculation by
-grepping 'ZVAL' in the POTCAR file. In Quantum ESPRESSO, this
-information is in the UPF file (the "number of valence electrons"). In
-abinit, it can be found in the pseudopotential files.
+Core augmentation is not activated by default, even if the ZPSP
+keyword is used (see CORE in `Additional LOAD options`_) . In a VASP
+calculation, the value of ZPSP can be found easily in a VASP
+calculation by grepping 'ZVAL' in the POTCAR file. In Quantum
+ESPRESSO, this information is in the UPF file (the "number of valence
+electrons"). In abinit, it can be found in the pseudopotential files.
 
 The keyword NOCORE clears the ZPSP values of all atoms::
 
@@ -2374,17 +2375,16 @@ given on a grid, only represents valence electrons. In order to get an
 approximation to the all-electron density, it can be augmented by
 summing the corresponding core contributions to the electron density
 at the atomic sites. The ZPSP values are used to determine how many
-electrons are added by each core. NOCORE deactivates this behavior
-(i.e., critic2 will use only the valence density from the external
-grid file).
+electrons are added by each core. The CORE keyword activates this
+behavior (i.e., critic2 will use only the valence density from the
+external grid file).
 
 Applies to: grids (it can be activated for any other field using CORE,
-but that would not make much sense). Default: CORE. Note that for most
-grid fields read with LOAD, the pseudopotential charges (ZPSP) are not
-set, so even if CORE is active by default, in practice, no core
-augmentation is done, because critic2 does not know how many core
-electrons to add. Hence, the effective behavior is *not* to
-core-augment, despite CORE being active. 
+but that would not make much sense). Default: NOCORE. Note that for
+most grid fields read with LOAD, the pseudopotential charges (ZPSP)
+are not set, so even if CORE is active, critic2 does not know how many
+core electrons to add. ZPSP values are also required for core
+augmentation.
 
 ::
 

@@ -822,11 +822,7 @@ contains
     ff%typnuc = -3
 
     ! use cores?
-    if (ff%type == type_grid) then
-       ff%usecore = .true.
-    else
-       ff%usecore = .false.
-    end if
+    ff%usecore = .false.
 
     ! parse the rest of the line
     call setfield(ff,fid,line(lp:),oksyn)
@@ -2472,8 +2468,6 @@ contains
     else
        call ferror("fieldinfo","unknown field type",faterr)
     end if
-
-    ! xxxxx ! check options of each field.
 
     ! flags for any field
     if (isset) then
