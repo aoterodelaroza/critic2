@@ -49,7 +49,7 @@ contains
     real*8, parameter :: eps = 1d-10
 
     integer :: i, j, k, nat0, nat1
-    real*8 :: d2, x(3)
+    real*8 :: x(3)
     logical :: found
 
     call fragment_init(fr)

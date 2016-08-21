@@ -49,7 +49,7 @@ module grid_tools
   integer, parameter, public :: mode_default = mode_tricubic
 
   ! The 64x64 matrix for tricubic interpolation
-  integer, parameter, private :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
+  real*8, parameter, private :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
     1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&  ! 1-16, 1
     0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 1
    -3d0,  0d0,  9d0, -6d0,  0d0,  0d0,  0d0,  0d0,  9d0,  0d0, -27d0,  18d0, -6d0,  0d0,  18d0, -12d0,&	 ! 33-48, 1
@@ -1593,7 +1593,6 @@ contains
   !> template; only the frho%n is used except if itype == 1.
   subroutine grid_rhoat(frho,frhoat,itype,fr)
     use grd_atomic
-    use struct_basic
     use tools_io
     use tools_math
     use types
@@ -1613,6 +1612,8 @@ contains
     if (.not.allocated(frhoat%f)) allocate(frhoat%f(n(1),n(2),n(3)))
     if (allocated(frhoat%c2)) deallocate(frhoat%c2)
     frhoat%usecore = .false.
+    frhoat%x2c = frho%x2c
+    frhoat%c2x = frho%c2x
 
     do i = 1, 3
        xdelta(:,i) = 0d0
@@ -1624,7 +1625,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             x = cr%x2c(x)
+             x = matmul(frhoat%x2c,x)
 
              if (itype == 1) then
                 call grda_promolecular(x,rhoat,rdum1,rdum2,0,.false.,fr)

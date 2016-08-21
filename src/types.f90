@@ -181,12 +181,14 @@ module types
      character*(255) :: name = "" !< field name
      character*(255) :: file = "" !< file name
      ! grids
-     integer :: mode
-     real*8, allocatable :: f(:,:,:)
-     real*8, allocatable, dimension(:,:,:,:) :: c2
-     real*8 :: c2x(3,3), x2c(3,3)
-     integer :: nwan(3) ! number of wannier vectors
-     real*8, allocatable :: fwan(:,:,:,:,:) ! from wannier xsf
+     integer :: mode !< interpolation mode
+     real*8, allocatable :: fcore(:,:,:) !< core-density grid
+     real*8, allocatable :: f(:,:,:) !< grid values
+     real*8, allocatable, dimension(:,:,:,:) :: c2 !< cubic coefficients for spline interpolation
+     real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
+     real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
+     integer :: nwan(3) !< Number of wannier vectors
+     real*8, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)

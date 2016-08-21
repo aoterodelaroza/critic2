@@ -599,7 +599,7 @@ contains
     real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
     real*8, allocatable :: sij(:,:,:,:)
     real*8, allocatable :: fa(:,:,:)
-    real*8 :: li, asum, asum2, x(3), fval1, fval2, fspin
+    real*8 :: li, asum, asum2, x(3), fspin
     logical :: found
     integer :: natt1
     real*8 :: x0(3,3), x0inv(3,3), r1(3), r2(3)
@@ -1638,13 +1638,12 @@ contains
 
     integer :: i, j
     integer, allocatable :: idgaux(:,:,:)
-    real*8, allocatable :: xattr(:,:), w(:,:,:), wsum(:,:,:)
+    real*8, allocatable :: xattr(:,:)
     integer, allocatable :: assigned(:)
     integer :: nn, nid, nattr0, luw2, n(3), lvec(3), nbasin, nvec
     real*8 :: dist
     integer, allocatable :: nlo(:), ibasin(:), ibasin2(:), iio(:), inear(:,:)
     real*8, allocatable :: fnear(:,:)
-    logical :: isassigned
 
     n = ff%n
 

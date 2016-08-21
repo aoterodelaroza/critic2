@@ -130,6 +130,6 @@ critic2.$(OBJEXT) struct_readers.$(OBJEXT) integration.$(OBJEXT) fields.$(OBJEXT
 qtree.$(OBJEXT) fields.$(OBJEXT) : wien_private.$(MODEXT)
 critic2.$(OBJEXT) : xdm.$(MODEXT)
 tricks.$(OBJEXT) integration.$(OBJEXT) : yt.$(MODEXT)
-critic2.$(OBJEXT) yt.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_readers.$(OBJEXT) rhoplot.$(OBJEXT) global.$(OBJEXT) fields.$(OBJEXT) bader.$(OBJEXT) : arithmetic.$(MODEXT)
+critic2.$(OBJEXT) yt.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_readers.$(OBJEXT) rhoplot.$(OBJEXT) global.$(OBJEXT) fields.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : arithmetic.$(MODEXT)
 critic2.$(OBJEXT) global.$(OBJEXT) : config.$(MODEXT)
 critic2.$(OBJEXT) config.$(OBJEXT) arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) wfn_private.$(OBJEXT) varbas.$(OBJEXT) tricks.$(OBJEXT) tools_math.$(OBJEXT) tools_io.$(OBJEXT) sympg.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) spgs.$(OBJEXT) rhoplot.$(OBJEXT) quadpack.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_basic.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) grid_tools.$(OBJEXT) grid1_tools.$(OBJEXT) grd_atomic.$(OBJEXT) graphics.$(OBJEXT) global.$(OBJEXT) fragmentmod.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) ewald.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : param.$(MODEXT)

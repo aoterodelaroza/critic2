@@ -57,7 +57,7 @@ contains
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
     integer, intent(in) :: zcel(:) !< atomic numbers for the atoms in the complete cell (in order)
 
-    integer :: lu, i, j, k, l, idum, n, nat, id
+    integer :: lu, i, j, k, idum, n, nat, id
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
     type(dftbatom) :: at
@@ -210,9 +210,9 @@ contains
 
     integer, parameter :: maxenvl = 50
 
-    integer :: ion, it, is, istate, ik, iorb, i, j, l, m, lmax
+    integer :: ion, it, is, istate, ik, iorb, i, l, m, lmax
     integer :: ixorb, ixorb0
-    real*8 :: xion(3), rcut, dist, sum, r, tp(2)
+    real*8 :: xion(3), rcut, dist, r, tp(2)
     complex*16 :: xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
     complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
     complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
@@ -570,7 +570,7 @@ contains
     integer :: next
 
     character(len=:), allocatable :: line, key, aux
-    integer :: idx, idxn, idxy, lp 
+    integer :: idx, lp 
     logical :: found, ok, lastpass
     
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
@@ -627,7 +627,7 @@ contains
     real*8, intent(out) :: w(:)
 
     logical :: ok, found
-    character(len=:), allocatable :: line, key, aux
+    character(len=:), allocatable :: line, key
     integer :: i
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
@@ -846,7 +846,6 @@ contains
     type(field), intent(inout) :: ff
 
     integer :: it, iorb, istat, ipt
-    real*8 :: r, f, fp, fpp, sumf, sumfp, sumfpp, rx(-1:5), ee
 
     integer, parameter :: npt = 2001
 

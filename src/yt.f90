@@ -40,6 +40,7 @@ contains
   !> attractors. If the expression is non-zero, discard the attractor.
   subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
     use fields
+    use grid_tools
     use struct_basic
     use tools_io
     use tools
@@ -67,7 +68,7 @@ contains
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
     real*8, allocatable :: chi(:), fnear(:,:)
     logical :: isias, isassigned, ok
-    integer :: nid, lvec(3), nnnm
+    integer :: nid, lvec(3)
     real*8 :: dist, dv(3), fval, x(3)
     type(crystal) :: caux
 

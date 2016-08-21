@@ -592,6 +592,8 @@ contains
              ff%n = n
              ff%type = type_grid
              ff%mode = mode_tricubic
+             ff%c2x = cr%car2crys
+             ff%x2c = cr%crys2car
              allocate(ff%f(n(1),n(2),n(3)))
              if (equal(word,"promolecular")) then
                 if (isfrag) then
@@ -848,6 +850,7 @@ contains
     f(id)%name = ""
     f(id)%file = ""
     if (allocated(f(id)%f)) deallocate(f(id)%f)
+    if (allocated(f(id)%fcore)) deallocate(f(id)%fcore)
     if (allocated(f(id)%fwan)) deallocate(f(id)%fwan)
     if (allocated(f(id)%c2)) deallocate(f(id)%c2)
     if (allocated(f(id)%lm)) deallocate(f(id)%lm)

@@ -169,13 +169,10 @@ contains
     end interface
 
     integer :: i, ntok, lp
-    real*8 :: a
-    integer :: c, s(100), iout
+    integer :: c, s(100)
     logical :: again, ok, ifail
     real*8 :: q(100)
     integer :: nq, ns
-    character(len=:), allocatable :: fid
-    character*4 :: fder
     type(token), allocatable :: toklist(:)
 
     ! tokenize the expression in input
@@ -323,7 +320,6 @@ contains
     logical :: ok
     integer :: ntok
     type(token), allocatable :: toklist(:)
-    character(len=:), allocatable :: errmsg
 
     ! allocate space for the field ids
     if (allocated(idlist)) deallocate(idlist)
@@ -606,7 +602,6 @@ contains
     real*8, intent(out) :: rval !< Real value read
 
     integer :: i, ll
-    character*1 :: ch
 
     ll = len_trim(expr)
     isnumber = .false.
@@ -914,6 +909,7 @@ contains
     integer :: iprec
     integer, intent(in) :: c
 
+    iprec = 0
     if (c == fun_or) then ! or
        iprec = 1
     else if (c == fun_and) then ! and
@@ -992,7 +988,6 @@ contains
     integer :: ia
     integer :: c
     real*8 :: a, b, grho, lapl, rho, tau, zk
-    logical :: ok
     character*8 :: sia
 
     ! pop from the stack
@@ -1196,6 +1191,7 @@ contains
     character*(*), intent(in) :: type
     logical :: istype
 
+    istype = 0
     if (type == 'function') then
        istype = &
           c == fun_abs .or. c == fun_exp .or. c == fun_sqrt .or. &
@@ -1260,8 +1256,6 @@ contains
     character*(*), intent(in) :: ikey
     real*8, intent(in) :: ival
 
-    integer :: i
-
     call vh%put(trim(ikey),ival)
 
   end subroutine setvariable
@@ -1272,8 +1266,6 @@ contains
     character*(*), intent(in) :: ikey
     real*8, intent(out) :: ival
     logical :: isvariable
-
-    integer :: i
 
     isvariable = vh%iskey(trim(ikey))
     if (isvariable) then

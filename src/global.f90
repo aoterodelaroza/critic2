@@ -373,7 +373,7 @@ contains
 
     character(len=:), allocatable :: word, var
     logical :: ok
-    real*8 :: aux, rdum
+    real*8 :: rdum
     integer :: idum
     logical :: iok
 
