@@ -100,3 +100,7 @@ copyright notice is included in the corresponding files.
   earlier work by Allen C. Larson at the National Research Council of
   Canada. 
 
+* The tricubic interpolation routine is based on code by David Kirkby
+  at the University of California, Irvine
+  (https://github.com/deepzot/likely).
+
