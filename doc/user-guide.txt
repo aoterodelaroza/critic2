@@ -4269,12 +4269,12 @@ The default integrable properties are:
 
 * Volume (1)
 
-* N (f): the value of the reference field is integrated. If the
+* Pop (fval): the value of the reference field is integrated. If the
   reference field is the density, then this is the number of electrons
-  in the basin (hence the name). Otherwise, the "N" in the output is
-  only a label for the integrated field on the basin.
+  in the basin. If core augmentation is active for this field, only
+  the valence contribution is integrated.
 
-* Laplacian (lap(f)): the Laplacian of the reference field. The
+* Lap (lap(fval)): the Laplacian of the reference field. The
   integrated Laplacian has been traditionally used as a check of the
   quality of the integration because the exact integral is zero
   regardless of the basin (because of the divergence
@@ -4286,6 +4286,9 @@ The default integrable properties are:
 
   - In FPLAPW fields (WIEN2k and elk), the discontinuity at the muffin
     surface introduce a non-zero contribution to the integral.
+
+  If f is a core-augmented field, only the valence Laplacian is
+  integrated. 
 
 The keyword CLEAR resets the list to its initial state (volume, charge
 and Laplacian). Using the INTEGRABLE keyword will print a report on

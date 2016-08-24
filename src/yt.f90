@@ -51,7 +51,7 @@ contains
     use param
     
     type(crystal), intent(in) :: c
-    type(field), intent(in) :: ff
+    real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
     logical, intent(in) :: atexist
     real*8, intent(in) :: ratom
@@ -85,10 +85,12 @@ contains
     end if
 
     ! Copy the field onto a one-dimensional array
-    n = ff%n(:)
+    do i = 1, 3
+       n(i) = size(ff,i)
+    end do
     nn = n(1)*n(2)*n(3)
     allocate(g(nn))
-    g = reshape(ff%f,shape(g))
+    g = reshape(ff,shape(g))
 
     ! sort g, from smaller to larger field value
     allocate(io(nn),iio(nn))

@@ -1865,28 +1865,38 @@ contains
 
   !> Calculate the value of all integrable properties at the given position
   !> xpos (Cartesian).
-  subroutine grdall(xpos,lprop)
+  subroutine grdall(xpos,lprop,pmask)
     use arithmetic
     use tools_io
 
     real*8, intent(in) :: xpos(3) !< Point (cartesian).
     real*8, intent(out) :: lprop(nprops) !< the properties vector.
+    logical, intent(in), optional :: pmask(nprops) !< properties mask
 
     type(scalar_value) :: res(0:ubound(f,1))
-    logical :: fdone(0:ubound(f,1)), iok
+    logical :: fdone(0:ubound(f,1)), iok, pmask0(nprops)
     integer :: i, id
+
+    if (present(pmask)) then
+       pmask0 = pmask
+    else
+       pmask0 = .true.
+    end if
 
     lprop = 0d0
     fdone = .false.
     do i = 1, nprops
+       if (.not.pmask0(i)) cycle
        if (.not.integ_prop(i)%used) cycle
        if (integ_prop(i)%itype == itype_expr) then
           lprop(i) = eval(integ_prop(i)%expr,.true.,iok,xpos,fields_fcheck,fields_feval)
        else
           id = integ_prop(i)%fid
           if (.not.fused(id)) cycle
-          if (.not.fdone(id).and.integ_prop(i)%itype /= itype_v) &
+          if (.not.fdone(id).and.integ_prop(i)%itype /= itype_v) then
              call grd(f(id),xpos,2,res(id))
+             fdone(id) = .true.
+          end if
 
           select case(integ_prop(i)%itype)
           case(itype_v)

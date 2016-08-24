@@ -77,8 +77,8 @@ module integration
   public :: int_reorder_gridout
 
   ! grid integration types
-  integer, parameter :: itype_bader = 1
-  integer, parameter :: itype_yt = 2
+  integer, parameter :: imtype_bader = 1
+  integer, parameter :: imtype_yt = 2
 
 contains
 
@@ -88,11 +88,13 @@ contains
     use yt
     use surface
     use fields
+    use grid_tools
     use struct_basic
     use varbas
     use global
     use tools_math
     use tools_io
+    use types
     use param
 
     character*(*), intent(in) :: line
@@ -101,17 +103,21 @@ contains
 
     character(len=:), allocatable :: word, file, expr
     integer :: i, j, k, n(3), nn, ntot
-    integer :: lp, itype, p(3)
+    integer :: lp, imtype, p(3), i1, i2, i3
     logical :: ok, nonnm, noatoms, atexist, pmask(nprops), dowcube
-    real*8 :: ratom, dv(3), r, tp(2), ratom_def, padd
-    integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:)
+    logical :: plmask(nprops)
+    real*8 :: ratom, dv(3), r, tp(2), ratom_def, padd, lprop(nprops)
+    real*8 :: x(3), x2(3)
+    integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:), idprop(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
     real*8, allocatable :: w(:,:,:), wsum(:,:,:)
     integer :: fid, nattr, ix, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: di(:,:,:), mpole(:,:,:)
     real*8, allocatable :: sij(:,:,:,:,:)
-    logical :: dodeloc
+    logical :: dodeloc, fillgrd
+    real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
+    type(field) :: faux
     
     ! only grids
     if (f(refden)%type /= type_grid) then
@@ -123,9 +129,9 @@ contains
     lp = 1
     word = lgetword(line,lp)
     if (equal(word,"yt")) then
-       itype = itype_yt
+       imtype = imtype_yt
     elseif (equal(word,"bader")) then
-       itype = itype_bader
+       imtype = imtype_bader
     else
        call ferror("intgrid_driver","wrong method",faterr,line,syntax=.true.)
        return
@@ -183,9 +189,20 @@ contains
        ratom = ratom_def
     end if
 
+    ! prepare the array for the basin field
+    allocate(fbasin(n(1),n(2),n(3)))
+    if (f(refden)%usecore) then
+       faux = f(refden)
+       call grid_rhoat(faux,faux,3)
+       fbasin = f(refden)%f + faux%f
+       if(allocated(faux%f)) deallocate(faux%f)
+    else
+       fbasin = f(refden)%f
+    end if
+
     ! call the integration method 
     luw = 0
-    if (itype == itype_bader) then
+    if (imtype == imtype_bader) then
        write (uout,'("* Henkelman et al. integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).")')
@@ -195,9 +212,9 @@ contains
           string(max(ratom,0d0),'e',decimal=4)
        if (len_trim(expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(expr)
-       call bader_integrate(cr,f(refden),expr,atexist,ratom,nattr,xgatt,idg)
+       call bader_integrate(cr,fbasin,expr,atexist,ratom,nattr,xgatt,idg)
        write (uout,'("+ Attractors in BADER: ",A)') string(nattr)
-    elseif (itype == itype_yt) then
+    elseif (imtype == imtype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
@@ -205,9 +222,10 @@ contains
           string(max(ratom,0d0),'e',decimal=4)
        if (len_trim(expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(expr)
-       call yt_integrate(cr,f(refden),expr,atexist,ratom,nattr,xgatt,idg,luw)
+       call yt_integrate(cr,fbasin,expr,atexist,ratom,nattr,xgatt,idg,luw)
        write (uout,'("+ Attractors in YT: ",A)') string(nattr)
     endif
+    deallocate(fbasin)
 
     ! reorder the attractors
     call int_reorder_gridout(cr,f(refden),nattr,xgatt,idg,atexist,ratom,luw,icp)
@@ -219,35 +237,79 @@ contains
     do k = 1, nprops
        if (integ_prop(k)%itype == itype_v) then
           pmask(k) = .true.
+          cycle
+       end if
+       fid = integ_prop(k)%fid
+       if (.not.goodfield(fid)) then
+          reason(k) = "unknown or invalid field"
+          cycle
+       endif
+       if (integ_prop(k)%itype == itype_deloc) then
+          if (f(fid)%type == type_grid) dodeloc = .true.
+          reason(k) = "DIs integrated separately (see table below)"
+          cycle
+       end if
+       if (integ_prop(k)%itype == itype_mpoles) then
+          reason(k) = "multipoles integrated separately (see table below)"
+          cycle
+       end if
+       pmask(k) = .true.
+    end do
+
+    ! allocate and fill the integrable properties
+    allocate(idprop(nprops),fint(n(1),n(2),n(3),count(pmask)))
+    nn = 0
+    do k = 1, nprops
+       fillgrd = .false.
+       if (integ_prop(k)%itype == itype_v) cycle
+       if (.not.pmask(k).and..not.integ_prop(k)%itype == itype_mpoles) cycle
+       fid = integ_prop(k)%fid
+       nn = nn + 1
+       idprop(k) = nn
+
+       ! Use the grid values if available. Use FFT when possible.
+       if (f(fid)%type == type_grid) then
+          if (integ_prop(k)%itype == itype_fval .or.&
+              integ_prop(k)%itype == itype_f.and..not.f(fid)%usecore.or.&
+              integ_prop(k)%itype == itype_mpoles.and..not.f(fid)%usecore) then
+             fint(:,:,:,nn) = f(fid)%f
+          elseif (integ_prop(k)%itype == itype_lapval .or.&
+                  integ_prop(k)%itype == itype_lap.and..not.f(fid)%usecore) then
+             faux = f(fid)
+             call grid_laplacian(f(fid),faux)
+             fint(:,:,:,nn) = faux%f
+          elseif (integ_prop(k)%itype == itype_gmod.and..not.f(fid)%usecore) then
+             faux = f(fid)
+             call grid_gradrho(f(fid),faux)
+             fint(:,:,:,nn) = faux%f
+          else
+             fillgrd = .true.
+          end if
+          if(allocated(faux%f)) deallocate(faux%f)
        else
-          fid = integ_prop(k)%fid
-          if (.not.goodfield(fid)) then
-             reason(k) = "unknown or invalid field"
-             cycle
-          endif
-          if (f(fid)%type /= type_grid) then
-             if (f(fid)%type == type_wfn .and. integ_prop(k)%itype == itype_deloc) then
-                reason(k) = "DIs integrated separately (see table below)"
-             else
-                reason(k) = "not a grid"
-             end if
-             cycle
-          endif
-          if (any(f(fid)%n /= f(refden)%n)) then
-             reason(k) = "grid size is not the same as reference field"
-             cycle
-          endif
-          if (.not.integ_prop(k)%itype == itype_f .and..not.integ_prop(k)%itype == itype_fval.and.&
-              .not.integ_prop(k)%itype == itype_deloc) then
-             if (integ_prop(k)%itype == itype_mpoles) then
-                reason(k) = "multipoles integrated separately (see table below)"
-             else
-                reason(k) = "only field values (f,fval) can be integrated on a grid"
-             end if
-             cycle
-          endif
-          pmask(k) = .true.
-          if (pmask(k) .and. integ_prop(k)%itype == itype_deloc .and. f(fid)%type == type_grid) dodeloc = .true.
+          fillgrd = .true.
+       endif
+
+       ! Calculate the grid values using the general routine (grd).
+       if (fillgrd) then
+          plmask = .false.
+          plmask(k) = .true.
+          !$omp parallel do private (x,x2,lprop) schedule(dynamic)
+          do i1 = 1, n(1)
+             x(1) = real(i1-1,8) / n(1)
+             do i2 = 1, n(2)
+                x(2) = real(i2-1,8) / n(2)
+                do i3 = 1, n(3)
+                   x(3) = real(i3-1,8) / n(3)
+                   x2 = cr%x2c(x)
+                   call grdall(x2,lprop,plmask)
+                   !$omp critical (write)
+                   fint(i1,i2,i3,nn) = lprop(k)
+                   !$omp end critical (write)
+                end do
+             end do
+          end do
+          !$omp end parallel do
        end if
     end do
 
@@ -258,33 +320,32 @@ contains
     psum = 0d0
     write (uout,'("+ Calculating properties"/)') 
     do i = 1, nattr
-       if (itype == itype_yt) then
+       if (imtype == imtype_yt) then
           call yt_weights(luw,i,w)
        end if
        do k = 1, nprops
           if (.not.integ_prop(k)%used) cycle
           if (integ_prop(k)%itype == itype_v) then
-             if (itype == itype_bader) then
+             if (imtype == imtype_bader) then
                 padd = count(idg == i) * cr%omega / ntot
              else
                 padd = sum(w) * cr%omega / ntot
              endif
           elseif (pmask(k)) then
-             fid = integ_prop(k)%fid
-             if (itype == itype_bader) then
+             if (imtype == imtype_bader) then
                 w = 0d0
                 where (idg == i)
-                   w = f(fid)%f
+                   w = fint(:,:,:,idprop(k))
                 end where
                 padd = sum(w) * cr%omega / ntot
              else
-                padd = sum(w * f(fid)%f) * cr%omega / ntot
+                padd = sum(w * fint(:,:,:,idprop(k))) * cr%omega / ntot
              endif
           endif
           psum(k,i) = psum(k,i) + padd
        end do
        if (dowcube) then
-          if (itype == itype_bader) then
+          if (imtype == imtype_bader) then
              w = 0d0
              where (idg == i)
                 w = 1d0
@@ -299,29 +360,32 @@ contains
        write (uout,'("* Weights written to ",A,"_wcube_*.cube")') trim(fileroot)
 
     ! compute multipoles
-    call intgrid_multipoles(nattr,xgatt,idg,itype,luw,mpole)
+    call intgrid_multipoles(fint,idprop,nattr,xgatt,idg,imtype,luw,mpole)
 
     ! localization and delocalization indices
-    call intgrid_deloc_wfn(nattr,xgatt,idg,itype,luw,di)
-    if (dodeloc) call intgrid_deloc_brf(nattr,xgatt,idg,itype,luw,sij)
+    call intgrid_deloc_wfn(nattr,xgatt,idg,imtype,luw,di)
+    if (dodeloc) call intgrid_deloc_brf(nattr,xgatt,idg,imtype,luw,sij)
 
     ! output the results
     call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
 
     ! clean up YT checkpoint files
-    if (itype == itype_yt) then
+    if (imtype == imtype_yt) then
        call fclose(luw)
     endif
     deallocate(psum,idg,icp,xgatt)
 
   end subroutine intgrid_driver
 
-  !> Calculate the multipole moments using integration on a grid. The input
-  !> is: the calculated number of attractors (natt), their positions in
-  !> crystallographic coordinates (xgatt), the attractor assignment for each
-  !> of the grid nodes (idg), the integration type (itype: bader or yt), 
-  !> the weight file for YT, and the output multipolar moments.
-  subroutine intgrid_multipoles(natt,xgatt,idg,itype,luw,mpole)
+  !> Calculate the multipole moments using integration on a grid. The
+  !> input is: the array containing the integrable field information
+  !> on the basin field grid (fint), the index array relating
+  !> 1->nprops to the fint array, the calculated number of attractors
+  !> (natt), their positions in crystallographic coordinates (xgatt),
+  !> the attractor assignment for each of the grid nodes (idg), the
+  !> integration type (imtype: bader or yt), the weight file for YT,
+  !> and the output multipolar moments.
+  subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
     use yt
     use fields
     use struct_basic
@@ -329,10 +393,12 @@ contains
     use tools_math
     use tools_io
 
+    real*8, intent(in) :: fint(:,:,:,:)
+    integer, intent(in) :: idprop(:)
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
     integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: itype
+    integer, intent(in) :: imtype
     integer, intent(in) :: luw
     real*8, allocatable, intent(inout) :: mpole(:,:,:)
 
@@ -360,7 +426,7 @@ contains
     ! size of the grid and YT weights
     n = f(refden)%n
     ntot = n(1)*n(2)*n(3)
-    if (itype == itype_yt) then
+    if (imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
     endif
 
@@ -378,7 +444,7 @@ contains
 
        ! calcualate the multipoles
        mpole(:,:,np) = 0d0
-       if (itype == itype_bader) then
+       if (imtype == imtype_bader) then
           do i = 1, n(1)
              p(1) = real(i-1,8)
              do j = 1, n(2)
@@ -390,7 +456,7 @@ contains
                    call cr%shortest(dv,r)
                    call tosphere(dv,r,tp)
                    call genrlm_real(lmax,r,tp,rrlm)
-                   mpole(:,ix,np) = mpole(:,ix,np) + rrlm * f(fid)%f(i,j,k)
+                   mpole(:,ix,np) = mpole(:,ix,np) + rrlm * fint(i,j,k,idprop(l))
                 end do
              end do
           end do
@@ -406,7 +472,7 @@ contains
                       call cr%shortest(dv,r)
                       call tosphere(dv,r,tp)
                       call genrlm_real(lmax,r,tp,rrlm)
-                      mpole(:,m,np) = mpole(:,m,np) + rrlm * f(fid)%f(i,j,k) * w(i,j,k)
+                      mpole(:,m,np) = mpole(:,m,np) + rrlm * fint(i,j,k,idprop(l)) * w(i,j,k)
                    end do
                 end do
              end do
@@ -415,7 +481,7 @@ contains
        mpole = mpole * cr%omega / ntot
        deallocate(rrlm)
     end do
-    if (itype == itype_yt) then
+    if (imtype == imtype_yt) then
        deallocate(w)
     endif
 
@@ -423,7 +489,7 @@ contains
 
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a wfn scalar field.
-  subroutine intgrid_deloc_wfn(natt,xgatt,idg,itype,luw,di)
+  subroutine intgrid_deloc_wfn(natt,xgatt,idg,imtype,luw,di)
     use yt
     use wfn_private
     use fields
@@ -434,7 +500,7 @@ contains
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
     integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: itype
+    integer, intent(in) :: imtype
     integer, intent(in) :: luw
     real*8, intent(inout), allocatable :: di(:,:,:)
 
@@ -444,6 +510,7 @@ contains
     real*8, allocatable :: xmo(:), sij(:,:,:)
     real*8 :: x(3), rho, auxg(3), auxh(3,3), gkin, vir
     character*3 :: sat1, sat2
+    real*8 :: stress(3,3)
 
     ndeloc = 0
     do l = 1, nprops
@@ -462,7 +529,7 @@ contains
     if (allocated(di)) deallocate(di)
     allocate(di(natt,natt,ndeloc))
 
-    if (itype == itype_yt) then
+    if (imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
     endif
     ! run over all properties for which multipole calculation is active
@@ -479,13 +546,13 @@ contains
        allocate(sij(f(fid)%nmo,f(fid)%nmo,natt),xmo(f(fid)%nmo))
        sij = 0d0
        xmo = 0d0
-       if (itype == itype_bader) then
+       if (imtype == imtype_bader) then
           !$omp parallel do private (i,j,k,x,rho,auxg,auxh,ix,i1,i2,gkin,vir) firstprivate(xmo) schedule(dynamic)
           do i = 1, n(1)
              do j = 1, n(2)
                 do k = 1, n(3)
                    x = cr%x2c(real((/i-1,j-1,k-1/),8) / n)
-                   call wfn_rho2(f(fid),x,0,rho,auxg,auxh,gkin,vir,xmo)
+                   call wfn_rho2(f(fid),x,0,rho,auxg,auxh,gkin,vir,stress,xmo)
                    ix = idg(i,j,k)
                    do i1 = 1, f(fid)%nmo
                       do i2 = i1, f(fid)%nmo
@@ -505,7 +572,7 @@ contains
              do j = 1, n(2)
                 do k = 1, n(3)
                    x = cr%x2c(real((/i-1,j-1,k-1/),8) / n)
-                   call wfn_rho2(f(fid),x,0,rho,auxg,auxh,gkin,vir,xmo)
+                   call wfn_rho2(f(fid),x,0,rho,auxg,auxh,gkin,vir,stress,xmo)
                    ix = idg(i,j,k)
                    write (lumo) xmo
                 end do
@@ -570,7 +637,7 @@ contains
 
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a grid-related dat file.
-  subroutine intgrid_deloc_brf(natt,xgatt,idg,itype,luw,sij0)
+  subroutine intgrid_deloc_brf(natt,xgatt,idg,imtype,luw,sij0)
     use bader
     use wfn_private
     use fields
@@ -584,11 +651,11 @@ contains
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
     integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: itype
+    integer, intent(in) :: imtype
     integer, intent(in) :: luw
     real*8, intent(inout), allocatable :: sij0(:,:,:,:,:)
 
-    integer :: iaa, jaa, kaa, is, nspin
+    integer :: jaa, kaa, is, nspin
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
     integer :: i, j, k, l, m, in, jn, kn, ia1, ia2, ia3
     integer :: i0, i1, j0, j1, k0, k1, m1, m2, m3, n0(3)
@@ -604,7 +671,7 @@ contains
     integer :: natt1
     real*8 :: x0(3,3), x0inv(3,3), r1(3), r2(3)
     real*8, allocatable :: xgatt1(:,:), dist(:)
-    integer, allocatable :: idg1(:,:,:), idatt1(:)
+    integer, allocatable :: idg1(:,:,:)
     integer, allocatable :: io(:)
     type(crystal) :: cr1
     type(field) :: f1
@@ -714,7 +781,7 @@ contains
        f1%init = .true.
        
        ! run bader integration on the supercell
-       call bader_integrate(cr1,f1,"",.true.,1d40,natt1,xgatt1,idg1)
+       call bader_integrate(cr1,f1%f,"",.true.,1d40,natt1,xgatt1,idg1)
        
        allocate(w(n0(1),n0(2),n0(3)))
        write (uout,'("+ List of basins and charges")')
@@ -1361,7 +1428,7 @@ contains
     write (uout,'("+ The ""Label"" entries will be used to identify the integrable")')
     write (uout,'("  in the tables of integrated atomic properties. The entries with")')
     write (uout,'("  an ""x"" will not be integrated.")')
-    write (uout,'("# id    Label    fid  Field       Additional")')
+    write (uout,'("# id    Label      fid  Field       Additional")')
     do i = 1, nprops
        fid = integ_prop(i)%fid
        if (.not.pmask(i)) then

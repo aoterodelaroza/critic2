@@ -722,15 +722,18 @@ contains
 
   !> Interpolate the function value, first and second derivative at
   !> point x0 (crystallographic coords.) using the grid g.
-  subroutine grinterp(f,x0,y,yp,ypp) 
+  subroutine grinterp(f,xi,y,yp,ypp) 
     use types
 
     type(field), intent(inout) :: f !< Grid to interpolate
-    real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
+    real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
 
+    real*8 :: x0(3)
+
+    x0 = xi - floor(xi)
     y = 0d0
     yp = 0d0
     ypp = 0d0

@@ -74,7 +74,7 @@ contains
     use param
 
     type(crystal), intent(in) :: c
-    type(field), intent(in) :: ff
+    real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
     logical, intent(in) :: atexist
     real*8, intent(in) :: ratom
@@ -103,8 +103,8 @@ contains
     bat = 0
 
     ! metrics
-    n = ff%n
     do i = 1, 3
+       n(i) = size(ff,i)
        lat2car(:,i) = c%crys2car(:,i) / n(i)
     end do
     car2lat = matinv(lat2car)
@@ -218,7 +218,7 @@ contains
     use tools_io
     use types
 
-    type(field), intent(in) :: f
+    real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: irefine_edge
     integer, intent(inout) :: ref_itrs
 
@@ -346,7 +346,7 @@ contains
   subroutine max_neargrid(f,p)
     use types
 
-    type(field), intent(in) :: f
+    real*8, intent(in) :: f(:,:,:)
     integer, dimension(3), intent(inout) :: p
     
     pnum = 1
@@ -375,7 +375,7 @@ contains
   subroutine step_neargrid(f,p)
     use types
     
-    type(field), intent(in) :: f
+    real*8, intent(in) :: f(:,:,:)
     integer,dimension(3),intent(inout) :: p
 
     real*8, save :: dr(3)
@@ -422,7 +422,7 @@ contains
   SUBROUTINE step_ongrid(f,p)
     use types
 
-    type(field), intent(in) :: f
+    real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: p(3)
 
     integer :: pm(3), pt(3)
@@ -456,7 +456,7 @@ contains
   function rho_grad_dir(f,p)
     use types
 
-    type(field), intent(in) :: f
+    real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
     real*8 :: rho_grad_dir(3)
 
@@ -497,7 +497,7 @@ contains
   function is_max(f,p)
     use types
 
-    type(field), intent(in) :: f
+    real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
     logical :: is_max
 
@@ -548,7 +548,7 @@ contains
   function rho_val(ff,p1,p2,p3)
     use types
 
-    type(field), intent(in) :: ff
+    real*8, intent(in) :: ff(:,:,:)
     integer, intent(in) :: p1, p2, p3
     real*8 :: rho_val
 
@@ -565,7 +565,7 @@ contains
           p(i) = p(i) - n(i)
        end do
     end do
-    rho_val = ff%f(p(1),p(2),p(3))
+    rho_val = ff(p(1),p(2),p(3))
 
   end function rho_val
 
