@@ -1,8 +1,11 @@
 # Read the structure from the PAWDEN file
 crystal ../data/urea_PAWDEN
 
-# Read the reconstructed valence and pseudo-density grids 
-load ../data/urea_PAWDEN id rhoae
+# Read the reconstructed valence and pseudo-density grids Augment the
+# PAWDEN valence density with the core electrons to give the
+# all-electron density.
+zpsp o 6 n 5 c 4 h 1
+load ../data/urea_PAWDEN id rhoae core
 load ../data/urea_DEN id rho
 
 # Set the valence density as reference and the pseudo-density as integrable

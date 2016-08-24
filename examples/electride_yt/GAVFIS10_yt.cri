@@ -24,7 +24,7 @@ load ../data/GAVFIS.rhoval.cube id rhoval
 # # of the core-augmented field on a grid ("$rhoval"), and then save it
 # # to a file (rhof.cube).
 # zpsp k 9 o 6 n 5 c 4 h 1
-# load as "$rhoval" id rhof
+# load as "$rhoval" id rhof core
 # cube grid field rhof file rhof.cube
 # end
 

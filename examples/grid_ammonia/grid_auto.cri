@@ -7,14 +7,14 @@ zpsp n 5 h 1
 
 # Load the pseudo-density as "rho_ps", and the core-augmented
 # pseudo-density as "rhoae_ps"
-load ../data/ammonia.big.rho.cube nocore id rho_ps
-load ../data/ammonia.big.rho.cube id rhoae_ps
+load ../data/ammonia.big.rho.cube id rho_ps
+load ../data/ammonia.big.rho.cube id rhoae_ps core
 
 # Load the reconstructed valence density as "rho", and the 
 # core-augmented valence density (i.e., the all-electron density)
 # as "rhoae"
-load ../data/ammonia.big.rhoae.cube nocore id rho
-load ../data/ammonia.big.rhoae.cube id rhoae
+load ../data/ammonia.big.rhoae.cube id rho
+load ../data/ammonia.big.rhoae.cube id rhoae core
 
 # Calculate the critical points in the pseudo-density. Many
 # critical points appear around the N atoms, caused by the 
