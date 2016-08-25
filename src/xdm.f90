@@ -26,12 +26,12 @@ module xdm
   public :: xdm_driver
   private :: xdm_grid
   private :: xdm_qe
-  private :: xdm_mol
-  private :: xdm_crystal
+  private :: xdm_wfn
   private :: write_cube
   private :: free_volume
   private :: frevol
-  private :: edisp_mol
+  private :: calc_edisp
+  private :: calc_coefs
 
   integer, parameter :: chf_blyp = -1
   integer, parameter :: chf_b3lyp = -2
@@ -110,11 +110,7 @@ contains
              call ferror("xdm_driver","unknown functional",faterr)
        endif
 
-       if (cr%ismolecule) then
-          call xdm_mol(a1,a2,chf)
-       else
-          call xdm_crystal(a1,a2,chf)
-       end if
+       call xdm_wfn(a1,a2,chf)
     end if
 
   end subroutine xdm_driver
@@ -836,208 +832,13 @@ contains
     end do main
     call fclose(lu)
 
-    ! calculate the energy
-    maxc6 = maxval(c6)
-    ! set the atomic environment for the sum
-    rmax = (maxc6/ecut)**(1d0/6d0)
-    rmax2 = rmax*rmax
-    etotal = 0d0
-    do i = 1, cr%ncel
-       eat = 0d0
-       do jj = 1, cr%nenv
-          j = cr%atenv(jj)%cidx
-          x = cr%atenv(jj)%r - cr%atcel(i)%r
-          ri2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
-          if (ri2 < 1d-15 .or. ri2>rmax2) cycle
-          ri = sqrt(ri2)
-          ri3 = ri2 * ri
-    
-          do nn = 6, 10, 2
-             ! order R^nn
-             i3 = nn / 2 - 1
-    
-             ! check the ii and the jj, also how the env is generated
-             cn0 = 0d0
-             if (nn == 6) then
-                cn0 = c6(i,j)
-             elseif (nn == 8) then
-                cn0 = c8(i,j)
-             elseif (nn == 10) then
-                cn0 = c10(i,j)
-             end if
-    
-             ! energy contribution
-             rvdwx = rvdw(i,j)**nn
-             rix = ri**nn
-             exx = cn0 / (rvdwx + rix)
-             eat = eat + exx
-          end do
-       end do ! jj
-       etotal = etotal + eat 
-    end do ! ii
-    etotal= -0.5d0 * etotal
-    
-    write (uout,'("  Evdw = ",A," Hartree, ",A," Ry")') &
-       string(etotal,'e',decimal=10), string(etotal*2,'e',decimal=10)
-    
-    write (uout,*)
+    ! calculate and print out the energy
+    call calc_edisp(c6,c8,c10,rvdw)
 
   end subroutine xdm_qe
 
-  !> Calculate XDM in molecules
-  subroutine xdm_mol(a1o,a2o,chf)
-    use meshmod
-    use fields
-    use global
-    use struct_basic
-    use grd_atomic
-    use grid1_tools
-    use tools_math
-    use tools_io
-    use types
-    use param
-    
-    real*8, intent(in) :: a1o, a2o
-    real*8, intent(in) :: chf
-
-    type(molmesh) :: m
-    integer :: nelec
-    integer :: id(7), prop(7), i, j, lu, luh, iz
-    real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
-    real*8 :: mm(3,cr%ncel), v(cr%ncel)
-    
-    ! only for molecules
-    if (.not.cr%ismolecule) &
-       call ferror("xdm_mol","molecular XDM only for molecules",faterr)
-
-    ! only for wfn or dftb
-    if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
-       call ferror("xdm_mol","molecular XDM only for wfn and dftb fields",faterr)
-
-    ! only for closed shells
-    if (f(refden)%type == type_wfn) then
-       if (f(refden)%wfntyp /= 0) &
-          call ferror("xdm_mol","open shell wavefunctions not supported",faterr)
-    end if
-
-    ! write some info to the output
-    write (uout,'("a1             ",A)') string(a1o,'f',12,6)
-    write (uout,'("a2(ang)        ",A)') string(a2o,'f',12,6)
-    a1 = a1o
-    a2 = a2o / bohrtoa
-
-    if (chf < 0d0) then
-       select case (nint(chf))
-       case (chf_blyp)
-          write(uout,'("a_hf           blyp")')
-       case (chf_b3lyp)
-          write(uout,'("a_hf           b3lyp")')
-       case (chf_bhahlyp)
-          write(uout,'("a_hf           bhandhlyp")')
-       case (chf_camb3lyp)
-          write(uout,'("a_hf           camb3lyp")')
-       case (chf_pbe)
-          write(uout,'("a_hf           pbe")')
-       case (chf_pbe0)
-          write(uout,'("a_hf           pbe0")')
-       case (chf_lcwpbe)
-          write(uout,'("a_hf           lcwpbe")')
-       case (chf_pw86)
-          write(uout,'("a_hf           pw86pbe")')
-       case (chf_b971)
-          write(uout,'("a_hf           b971")')
-       end select
-    elseif (abs(chf-1d0) < 1d-9) then
-       write(uout,'("a_hf           hf")')
-    else
-       write(uout,'("a_hf           ",A)') string(chf,'f',12,6)
-    endif
-
-    ! prepare the mesh
-    m = genmesh(cr)
-    write (uout,'("mesh size      ",A)') string(m%n)
-
-    ! properties to calculate 
-    do i = 1, 6
-       id(i) = i
-    end do
-    prop(1) = im_rho
-    prop(2) = im_gradrho
-    prop(3) = im_gkin
-    prop(4) = im_null ! for promolecular / hirshfeld weights
-    prop(5) = im_null ! for the atomic density contribution
-    prop(6) = im_b    
-
-    ! fill the mesh with those properties
-    call fillmesh(m,f(refden),id,prop,.false.)
-
-    ! fill the promolecular and the atomic densities
-    m%f(:,4:5) = 0d0
-    lu = fopen_scratch()
-    nelec = 0
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
-       if (iz < 1) cycle
-       nelec = nelec + iz
-
-       do j = 1, m%n
-          x = m%x(:,j) - cr%atcel(i)%r
-          r = norm(x)
-          call grid1_interp(agrid(iz),r,rho,rhop,rhopp)
-          m%f(j,4) = m%f(j,4) + rho
-          m%f(j,5) = rho
-       enddo
-       write (lu) (m%f(j,5),j=1,m%n)
-    enddo
-
-    ! create the temporary file with the weights
-    luh = fopen_scratch()
-    rewind(lu)
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
-       if (iz < 1) cycle
-       read (lu) (m%f(j,5),j=1,m%n)
-       write (luh) (max(m%f(j,5),1d-40)/max(m%f(j,4),1d-40),j=1,m%n)
-    enddo
-    call fclose(lu)
-
-    ! integrate the number of electrons
-    nn = sum(m%f(:,1) * m%w)
-    write (uout,'("nelec          ",A)') string(nelec)
-    write (uout,'("nelec (promol) ",A)') string(sum(m%f(:,4) * m%w),'f',12,6)
-    write (uout,'("nelec, total   ",A)') string(nn,'f',12,6)
-    if (abs(nn - nelec) > 0.1d0) &
-       call ferror("xdm_mol","inconsistent nelec. I hope you know what you are doing",warning)
-
-    ! calculate moments and volumes
-    mm = 0d0
-    v = 0d0
-    rewind(luh)
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
-       if (iz < 1) cycle
-       read (luh) (m%f(j,4),j=1,m%n)
-
-       ! calculate hole dipole and moments
-       do j = 1, m%n
-          r = norm(m%x(:,j)-cr%atcel(i)%r)
-          rb = max(0.d0,r-m%f(j,6))
-
-          mm(1,i) = mm(1,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r-rb)**2
-          mm(2,i) = mm(2,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**2-rb**2)**2
-          mm(3,i) = mm(3,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**3-rb**3)**2
-          v(i) = v(i) + m%w(j) * m%f(j,4) * m%f(j,1) * r**3
-       enddo
-    enddo
-    call fclose(luh)
-
-    ! calculate and output energy and derivatives
-    call edisp_mol(a1,a2,chf,v,mm)
-
-  end subroutine xdm_mol
-
-  !> Calculate XDM in crystals
-  subroutine xdm_crystal(a1o,a2o,chf)
+  !> Calculate XDM in molecules and crystals using the wavefunction.
+  subroutine xdm_wfn(a1o,a2o,chf)
     use meshmod
     use fields
     use global
@@ -1057,23 +858,25 @@ contains
     integer :: id(7), prop(7), i, j, lu, luh, iz
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: mm(3,cr%ncel), v(cr%ncel), dum1(3), dum2(3,3)
-
+    real*8 :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
+    real*8 :: rvdw(cr%ncel,cr%ncel)
+    
     ! only for wfn or dftb
     if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
-       call ferror("xdm_crystal","crystal XDM only for wfn and dftb fields",faterr)
+       call ferror("xdm_wfn","molecular XDM only for wfn and dftb fields",faterr)
 
     ! only for closed shells
     if (f(refden)%type == type_wfn) then
        if (f(refden)%wfntyp /= 0) &
-          call ferror("xdm_crystal","open shell wavefunctions not supported",faterr)
+          call ferror("xdm_wfn","open shell wavefunctions not supported",faterr)
     end if
-    
+
     ! write some info to the output
     write (uout,'("a1             ",A)') string(a1o,'f',12,6)
     write (uout,'("a2(ang)        ",A)') string(a2o,'f',12,6)
     a1 = a1o
     a2 = a2o / bohrtoa
-    
+
     if (chf < 0d0) then
        select case (nint(chf))
        case (chf_blyp)
@@ -1100,48 +903,60 @@ contains
     else
        write(uout,'("a_hf           ",A)') string(chf,'f',12,6)
     endif
-    
+
     ! prepare the mesh
     m = genmesh(cr)
     write (uout,'("mesh size      ",A)') string(m%n)
-    
+    if (MESH_type == 0) then
+       write (uout,'("mesh type      Becke")')
+    elseif (MESH_type == 1) then
+       write (uout,'("mesh type      Franchini (small)")')
+    elseif (MESH_type == 2) then
+       write (uout,'("mesh type      Franchini (normal)")')
+    elseif (MESH_type == 3) then
+       write (uout,'("mesh type      Franchini (good)")')
+    elseif (MESH_type == 4) then
+       write (uout,'("mesh type      Franchini (very good)")')
+    elseif (MESH_type == 5) then
+       write (uout,'("mesh type      Franchini (excellent)")')
+    end if
+
     ! properties to calculate 
     do i = 1, 6
        id(i) = i
     end do
     prop(1) = im_rho
-    prop(2) = im_gradrho
-    prop(3) = im_gkin
-    prop(4) = im_null ! for promolecular / hirshfeld weights
-    prop(5) = im_null ! for the atomic density contribution
-    prop(6) = im_b    
-    
+    prop(2) = im_null ! for promolecular / hirshfeld weights
+    prop(3) = im_null ! for the atomic density contribution
+    prop(4) = im_b    
+
     ! fill the mesh with those properties
-    call fillmesh(m,f(refden),id,prop,.true.)
-    
+    call fillmesh(m,f(refden),id,prop,.not.cr%ismolecule)
+
     ! fill the promolecular and the atomic densities
-    m%f(:,4:5) = 0d0
+    m%f(:,2:3) = 0d0
     lu = fopen_scratch()
     nelec = 0
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
        nelec = nelec + iz
-    
+
        do j = 1, m%n
           x = m%x(:,j) - cr%atcel(i)%r
           r = norm(x)
           call grid1_interp(agrid(iz),r,rho,rhop,rhopp)
-          m%f(j,5) = rho
-          m%f(j,4) = m%f(j,4) + rho
+          m%f(j,2) = m%f(j,2) + rho
+          m%f(j,3) = rho
        enddo
-       write (lu) (m%f(j,5),j=1,m%n)
+       write (lu) (m%f(j,3),j=1,m%n)
     enddo
 
+    ! fill the actual periodic promolecular density
     if (.not.cr%ismolecule) then
        do j = 1, m%n
           call grda_promolecular(m%x(:,j),rho,dum1,dum2,0,.false.,periodic=.true.)
-          m%f(j,4) = rho
+          m%f(j,2) = rho
        enddo
     end if
 
@@ -1151,19 +966,19 @@ contains
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
-       read (lu) (m%f(j,5),j=1,m%n)
-       write (luh) (max(m%f(j,5),1d-40)/max(m%f(j,4),1d-40),j=1,m%n)
+       read (lu) (m%f(j,3),j=1,m%n)
+       write (luh) (max(m%f(j,3),1d-40)/max(m%f(j,2),1d-40),j=1,m%n)
     enddo
     call fclose(lu)
-    
+
     ! integrate the number of electrons
     nn = sum(m%f(:,1) * m%w)
     write (uout,'("nelec          ",A)') string(nelec)
-    write (uout,'("nelec (promol) ",A)') string(sum(m%f(:,4) * m%w),'f',12,6)
+    write (uout,'("nelec (promol) ",A)') string(sum(m%f(:,2) * m%w),'f',12,6)
     write (uout,'("nelec, total   ",A)') string(nn,'f',12,6)
     if (abs(nn - nelec) > 0.1d0) &
-       call ferror("xdm_crystal","inconsistent nelec. I hope you know what you are doing",warning)
-    
+       call ferror("xdm_wfn","inconsistent nelec. I hope you know what you are doing",warning)
+
     ! calculate moments and volumes
     mm = 0d0
     v = 0d0
@@ -1171,25 +986,28 @@ contains
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
-       read (luh) (m%f(j,4),j=1,m%n)
-    
+       read (luh) (m%f(j,2),j=1,m%n)
+
        ! calculate hole dipole and moments
        do j = 1, m%n
           r = norm(m%x(:,j)-cr%atcel(i)%r)
-          rb = max(0.d0,r-m%f(j,6))
-    
-          mm(1,i) = mm(1,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r-rb)**2
-          mm(2,i) = mm(2,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**2-rb**2)**2
-          mm(3,i) = mm(3,i) + m%w(j) * m%f(j,4) * m%f(j,1) * (r**3-rb**3)**2
-          v(i) = v(i) + m%w(j) * m%f(j,4) * m%f(j,1) * r**3
+          rb = max(0.d0,r-m%f(j,4))
+
+          mm(1,i) = mm(1,i) + m%w(j) * m%f(j,2) * m%f(j,1) * (r-rb)**2
+          mm(2,i) = mm(2,i) + m%w(j) * m%f(j,2) * m%f(j,1) * (r**2-rb**2)**2
+          mm(3,i) = mm(3,i) + m%w(j) * m%f(j,2) * m%f(j,1) * (r**3-rb**3)**2
+          v(i) = v(i) + m%w(j) * m%f(j,2) * m%f(j,1) * r**3
        enddo
     enddo
     call fclose(luh)
-    
-    ! calculate and output energy and derivatives
-    call edisp_mol(a1,a2,chf,v,mm)
 
-  end subroutine xdm_crystal
+    ! calculate and print out coefficients
+    call calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
+
+    ! calculate and output energy and derivatives
+    call calc_edisp(c6,c8,c10,rvdw)
+
+  end subroutine xdm_wfn
 
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
@@ -1494,19 +1312,77 @@ contains
 
   endfunction frevol
 
-  !> Calculate the dispersion energy in a molecule
-  subroutine edisp_mol(a1,a2,chf,v,mm)
+  !> Calculate and print the dispersion energy and its derivatives
+  !> using the dispersion coefficients and the van der Waals
+  !> radii. Works for molecules and crystals.
+  subroutine calc_edisp(c6,c8,c10,rvdw)
+    use struct_basic
+    use tools_io
+    use param
+
+    real*8, intent(in) :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
+    real*8, intent(in) :: rvdw(cr%ncel,cr%ncel)
+
+    type(crystal) :: caux
+    integer :: i, j, jj, k, k1, k2, iz
+    real*8 :: d, d2, fac, rc
+    real*8 :: c6com, c8com, c10com, xij(3), ifac
+    real*8 :: e
+    real*8 :: rmax, rmax2, maxc6
+
+    real*8, parameter :: ecut = 1d-11
+
+    ! build the environment
+    maxc6 = maxval(c6)
+    rmax = (maxc6/ecut)**(1d0/6d0)
+    rmax2 = rmax * rmax
+    caux = cr
+    call caux%build_env(150d0)
+
+    ! calculate the energies and derivatives
+    e = 0d0
+    do i = 1, caux%ncel
+       iz = caux%at(caux%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       do jj = 1, caux%nenv
+          j = caux%atenv(jj)%cidx
+          iz = caux%at(caux%atenv(jj)%idx)%z
+          if (iz < 1) cycle
+          xij = caux%atenv(jj)%r-caux%atcel(i)%r
+          d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
+          if (d2 < 1d-15 .or. d2>rmax2) cycle
+          d = sqrt(d2)
+
+          e = e - c6(i,j) / (rvdw(i,j)**6 + d**6) &
+                - c8(i,j) / (rvdw(i,j)**8 + d**8) &
+                - c10(i,j) / (rvdw(i,j)**10 + d**10)
+       end do
+    end do
+    e = 0.5d0 * e
+
+    write (uout,'("dispersion energy (Ha) ",1p,E20.12)') e
+    write (uout,'("dispersion energy (Ry) ",1p,E20.12)') 2d0*e
+    write (uout,'("#"/)')
+
+  end subroutine calc_edisp
+
+  !> Calculate and the coefficients and van der Waals radii using the
+  !> volumes and moments (v, mm) and the damping function parameters
+  !> (a1, a2, chf). Print out the calculated values. Works for
+  !> molecules and crystals.
+  subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
     use struct_basic
     use tools_io
     use param
 
     real*8, intent(in) :: a1, a2, chf
     real*8, intent(in) :: v(cr%ncel), mm(3,cr%ncel)
+    real*8, intent(out) :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel)
+    real*8, intent(out) :: c10(cr%ncel,cr%ncel), rvdw(cr%ncel,cr%ncel)
 
-    integer :: i, j, k, k1, k2, iz
-    real*8 :: d, atpol(cr%ncel), fac, rvdw, c6, c8, c10, rc
-    real*8 :: c6com, c8com, c10com, xij(3), ifac
-    real*8 :: e, f(3,cr%ncel), q(3,cr%ncel,3,cr%ncel), qfac
+    integer :: i, j
+    integer :: iz
+    real*8 :: atpol(cr%ncel), fac, rc
 
     ! write moments and volumes
     write (uout,'("moments and volumes ")')
@@ -1517,100 +1393,40 @@ contains
           (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
     enddo
     write (uout,'("#")')
-    
+
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
        atpol(i) = v(i) * alpha_free(iz) / frevol(iz,chf)
     enddo
 
+    ! coefficients and distances
     write (uout,'("coefficients and distances (a.u.)")')
     write (uout,'("# i  j       dij            C6               C8               C10              Rc           Rvdw")') 
-    e = 0d0
-    f = 0d0
-    q = 0d0
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        if (iz < 1) cycle
        do j = i, cr%ncel
           iz = cr%at(cr%atcel(j)%idx)%z
           if (iz < 1) cycle
-          xij = cr%atcel(j)%r-cr%atcel(i)%r
-          d = sqrt(dot_product(xij,xij))
           fac = atpol(i)*atpol(j)/(mm(1,i)*atpol(j)+mm(1,j)*atpol(i))
-          c6 = fac*mm(1,i)*mm(1,j)
-          c8 = 1.5d0*fac*(mm(1,i)*mm(2,j)+mm(2,i)*mm(1,j))
-          c10 = 2.d0*fac*(mm(1,i)*mm(3,j)+mm(3,i)*mm(1,j))&
+          c6(i,j) = fac*mm(1,i)*mm(1,j)
+          c8(i,j) = 1.5d0*fac*(mm(1,i)*mm(2,j)+mm(2,i)*mm(1,j))
+          c10(i,j) = 2.d0*fac*(mm(1,i)*mm(3,j)+mm(3,i)*mm(1,j))&
              +4.2d0*fac*mm(2,i)*mm(2,j)
-          rc = (sqrt(c8/c6) + sqrt(sqrt(c10/c6)) +&
-             sqrt(c10/c8)) / 3.D0
-          rvdw = a1 * rc + a2
-          if (d > 1d-5) then
-             e = e - c6 / (rvdw**6 + d**6) - c8 / (rvdw**8+d**8) - &
-                c10 / (rvdw**10 + d**10)
-             c6com = 6.d0*c6*d**4/(rvdw**6+d**6)**2
-             c8com = 8.d0*c8*d**6/(rvdw**8+d**8)**2
-             c10com = 10.d0*c10*d**8/(rvdw**10+d**10)**2
-             f(:,i) = f(:,i) + (c6com+c8com+c10com) * xij
-             f(:,j) = f(:,j) - (c6com+c8com+c10com) * xij
-             do k1 = 1, 3
-                do k2 = 1, 3
-                   if (k1 == k2) then
-                      ifac = 1d0
-                   else
-                      ifac = 0d0
-                   endif
-                   qfac = &
-                      c6com  * (-ifac - 4*xij(k1)*xij(k2)/d**2 + 12*xij(k1)*xij(k2)*d**4/(rvdw**6+d**6)) + &
-                      c8com  * (-ifac - 6*xij(k1)*xij(k2)/d**2 + 16*xij(k1)*xij(k2)*d**6/(rvdw**8+d**8)) + &
-                      c10com * (-ifac - 8*xij(k1)*xij(k2)/d**2 + 20*xij(k1)*xij(k2)*d**8/(rvdw**10+d**10)) 
-                   q(k1,i,k2,j) = qfac
-                   q(k2,j,k1,i) = qfac
-                enddo
-             enddo
-          endif
-          write (uout,'(I3,X,I3,1p,E14.6,X,3(E16.9,X),2(E13.6,X))') &
-             i, j, d, c6, c8, c10, rc, rvdw
+          rc = (sqrt(c8(i,j)/c6(i,j)) + sqrt(sqrt(c10(i,j)/c6(i,j))) +&
+             sqrt(c10(i,j)/c8(i,j))) / 3.D0
+          rvdw(i,j) = a1 * rc + a2
+          c6(j,i) = c6(i,j)
+          c8(j,i) = c8(i,j)
+          c10(j,i) = c10(i,j)
+          rvdw(j,i) = rvdw(i,j)
+          write (uout,'(I3,X,I3,1p,3(E16.9,X),2(E13.6,X))') &
+             i, j, c6(i,j), c8(i,j), c10(i,j), rc, rvdw(i,j)
        end do
     end do
     write (uout,'("#")')
 
-    ! sum rules for the second derivatives
-    do i = 1, cr%ncel
-       do k1 = 1, 3
-          do k2 = 1, 3
-             q(k1,i,k2,i) = 0d0
-             do j = 1, cr%ncel
-                if (j == i) cycle
-                q(k1,i,k2,i) = q(k1,i,k2,i) - q(k1,i,k2,j)
-             enddo
-          enddo
-       enddo
-    enddo
-
-    write (uout,'("dispersion energy ",1p,E20.12)') e
-    write (uout,'("dispersion forces ")')
-    write (uout,'("# i          Fx                   Fy                   Fz")')
-    do i = 1, cr%ncel
-       write (uout,'(I3,X,1p,3(E20.12,X))') i, f(:,i)
-    enddo
-    write (uout,'("#")')
-    write (uout,'("dispersion force constant matrix ")')
-    write (uout,'("# i  xyz   j   xyz    Exixj ")')
-    do i = 1, cr%ncel
-       do k1 = 1, 3
-          do j = 1, i-1
-             do k2 = 1, 3
-                write (uout,'(4(I3,X),1p,E20.12)') i, k1, j, k2, q(k1,i,k2,j)
-             enddo
-          enddo
-          do k2 = 1, k1
-             write (uout,'(4(I3,X),1p,E20.12)') i, k1, i, k2, q(k1,i,k2,i)
-          enddo
-       enddo
-    enddo
-    write (uout,'("#"/)')
-
-  end subroutine edisp_mol
+  end subroutine calc_coefs
 
 end module xdm

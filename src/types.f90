@@ -292,7 +292,7 @@ module types
   !> Result of the evaluation of a scalar field
   type scalar_value
      ! basic
-     real*8 :: f, fval, gf(3), hf(3,3), gfmod, del2f, del2fval
+     real*8 :: f, fval, gf(3), hf(3,3), gfmod, gfmodval, del2f, del2fval
      ! kinetic energy density
      real*8 :: gkin
      ! schrodinger stress tensor

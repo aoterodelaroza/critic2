@@ -389,9 +389,9 @@ contains
              fval = res%gkin
           case(im_b)
              if (res%f > bsmall) then
-                rhos = 0.5d0 * res%f
-                drho2 = 0.25d0 * res%gfmod * res%gfmod
-                d2rho = 0.5d0 * res%del2f
+                rhos = 0.5d0 * res%fval
+                drho2 = 0.25d0 * res%gfmodval * res%gfmodval
+                d2rho = 0.5d0 * res%del2fval
                 taup = res%gkin
                 dsigs = taup - 0.25d0 * drho2 / max(rhos,1d-30)
                 quads = (d2rho - 2d0 * dsigs) / 6d0

@@ -1695,6 +1695,7 @@ contains
     res%gf = 0d0
     res%hf = 0d0
     res%gfmod = 0d0
+    res%gfmodval = 0d0
     res%del2f = 0d0
     res%del2fval = 0d0
     res%gkin = 0d0
@@ -1748,6 +1749,7 @@ contains
        res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
        ! valence quantities
        res%fval = res%f
+       res%gfmodval = res%gfmod
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
        return
     end if
@@ -1840,6 +1842,7 @@ contains
 
     ! save the valence-only value
     res%fval = res%f
+    res%gfmodval = res%gfmod
     res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
     ! augment with the core if applicable
@@ -2530,6 +2533,7 @@ contains
        fields_feval%fval = fields_feval%f
        fields_feval%gf = 0d0
        fields_feval%gfmod = 0d0
+       fields_feval%gfmodval = 0d0
        fields_feval%hf = 0d0
        fields_feval%del2f = 0d0
        fields_feval%del2fval = 0d0
@@ -2547,6 +2551,7 @@ contains
        fields_feval%fval = fields_feval%f
        fields_feval%gf = 0d0
        fields_feval%gfmod = 0d0
+       fields_feval%gfmodval = 0d0
        fields_feval%hf = 0d0
        fields_feval%del2f = 0d0
        fields_feval%del2fval = 0d0
@@ -2566,6 +2571,7 @@ contains
        fields_feval%fval = fields_feval%f
        fields_feval%gf = 0d0
        fields_feval%gfmod = 0d0
+       fields_feval%gfmodval = 0d0
        fields_feval%hf = 0d0
        fields_feval%del2f = 0d0
        fields_feval%del2fval = 0d0
