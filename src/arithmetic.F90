@@ -1191,7 +1191,7 @@ contains
     character*(*), intent(in) :: type
     logical :: istype
 
-    istype = 0
+    istype = .false.
     if (type == 'function') then
        istype = &
           c == fun_abs .or. c == fun_exp .or. c == fun_sqrt .or. &
