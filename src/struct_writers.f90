@@ -744,6 +744,7 @@ contains
   !> Write a simple cif file
   subroutine struct_write_cif(file,c)
     use struct_basic
+    use global
     use tools_io
     use param
 
@@ -754,7 +755,7 @@ contains
 
     lu = fopen_write(file)
 
-    write (lu,'("data_default")')
+    write (lu,'("data_",A)') string(fileroot)
     write (lu,'("_cell_volume ",F20.6)') c%omega * bohrtoa**3
     write (lu,'("_symmetry_space_group_name_H-M ''P 1''")');
     write (lu,'("_symmetry_Int_Tables_number 1")');
