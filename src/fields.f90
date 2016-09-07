@@ -250,6 +250,9 @@ contains
     type(fragment) :: fr
     logical :: isfrag, iok
 
+    ! check that we have an environment
+    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+
     ! read and parse
     oksyn = .false.
     lp=1
@@ -2392,6 +2395,9 @@ contains
     logical, intent(in) :: isload, isset
     
     integer :: j, n(3)
+
+    ! check that we have an environment
+    call cr%checkflags(.true.,init0=.true.,env0=.true.)
 
     ! header
     write (uout,'("* Scalar field number: ",A)') string(id)

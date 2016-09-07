@@ -234,6 +234,9 @@ contains
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
     real*8 :: cutoff(c%ncel,c%ncel), hypr, rr
 
+    ! check that we have an environment
+    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+
     ! allocate space for the mesh
     mesh%n = 0
     do i = 1, c%ncel

@@ -258,6 +258,7 @@ contains
                 string(" --- not found --- ")
           endif
        else
+          call cr%checkflags(.false.,init0=.true.,recip0=.true.)
           mm = cr%get_mult_reciprocal(x0)
           write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &

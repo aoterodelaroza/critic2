@@ -868,7 +868,11 @@ contains
           end do
           
           ! build the crystal structure containing the crystal points
-          caux = cr
+          call caux%init()
+          caux%aa = cr%aa
+          caux%bb = cr%bb
+          caux%crys2car = cr%crys2car
+          caux%car2crys = cr%car2crys
           call realloc(caux%at,ncpcel)
           caux%nneq = 0
           do i = 1, ncpcel
@@ -892,6 +896,7 @@ contains
              end if
           end do
           caux%nneq = ncpcel
+          caux%havesym = 0
 
           ! calculate gradient paths
           if (agraph) then
@@ -924,13 +929,10 @@ contains
              !$omp end parallel do
           end if
 
-          ! no symmetry
-          caux%havesym = 0
-          call caux%guessspg(0)
-
           ! fill the rest of the properties
-          call caux%struct_fill()
-
+          call caux%struct_fill(.true.,.false.,0,.false.,.false.,.false.,.false.)
+          
+          ! write the structure to the external file
           call struct_write(caux,line2)
 
           return

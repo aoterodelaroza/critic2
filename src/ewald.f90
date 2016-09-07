@@ -35,8 +35,7 @@ contains
     real*8 :: x(3)
     integer :: i
 
-    if (.not.cr%ewald_ready) &
-       call cr%calculate_ewald_cutoffs()
+    call cr%checkflags(.false.,ewald0=.true.)
     
     ewe = 0d0
     do i = 1, cr%nneq
@@ -68,8 +67,7 @@ contains
     real*8 :: sum_real, sum_rec, sum0, sum_back
 
     !$omp critical (fill_ewald)
-    if (.not.cr%ewald_ready) &
-       call cr%calculate_ewald_cutoffs()
+    call cr%checkflags(.false.,ewald0=.true.)
     !$omp end critical (fill_ewald)
     
     ! is this a nuclear position? -> get charge

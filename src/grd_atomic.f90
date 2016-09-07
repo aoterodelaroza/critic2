@@ -164,6 +164,9 @@ contains
 
     type(grid1), pointer :: g
 
+    ! check that we have an environment
+    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+
     ! initialize 
     xc = x0
     if (present(periodic)) then

@@ -34,7 +34,6 @@ module struct_basic
   private :: cenreduce
   private :: filltrans
   private :: goodop
-  private :: reduceatoms
   private :: reduce
   private :: iscelltr
   private :: isrepeated
@@ -46,17 +45,25 @@ module struct_basic
   
   !> Crystal type
   type crystal
-     ! Is this crystal intialized?
-     logical :: isinit
+     ! Initialization flags
+     logical :: isinit = .false. !< has the crystal structure been initialized?
+     logical :: isenv = .false. !< were the atomic environments determined?
+     integer :: havesym = 0 !< was the symmetry determined?
+     logical :: isast = .false. !< have the molecular asterisms and connectivity been calculated?
+     logical :: isewald = .false. !< do we have the data for ewald's sum?
+     logical :: isrecip = .false. !< symmetry information about the reciprocal cell
+     logical :: isnn = .false. !< information about the nearest neighbors
+
+     ! file name for the occasional critic2 trick
+     character(len=128) :: file
+
+     !! Initialization level: isinit !!
      ! non-equivalent atoms list
      integer :: nneq = 0 !< Number of non-equivalent atoms
      type(atom), allocatable :: at(:) !< Non-equivalent atom array
      ! complete atoms list
      integer :: ncel = 0 !< Number of atoms in the main cell
      type(celatom), allocatable :: atcel(:) !< List of atoms in the main cell
-     ! atomic environment of the cell
-     integer :: nenv = 0 !< Environment around the main cell
-     type(celatom), allocatable :: atenv(:) !< Atoms around the main cell
      ! cell and lattice metrics
      real*8 :: aa(3) !< cell lengths (bohr)
      real*8 :: bb(3) !< cell angles (degrees)
@@ -68,8 +75,40 @@ module struct_basic
      ! crystallographic/cartesian conversion matrices
      real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
      real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
-     ! Symmetry classification (classify is deactivated)
+     ! space-group symmetry
      integer :: lcent !< centring: 0=unset, 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=Robv, 8=Rrev, 9=unk.
+     integer :: neqv !< number of symmetry operations
+     integer :: neqvg !< number of symmetry operations, reciprocal space
+     integer :: ncv  !< number of centering vectors
+     real*8, allocatable :: cen(:,:) !< centering vectors
+     real*8 :: rotm(3,4,48) !< symmetry operations
+     real*8 :: rotg(3,3,48) !< symmetry operations, reciprocal space
+     ! variables for molecular systems
+     logical :: ismolecule = .false. !< is it a molecule?
+     real*8 :: molx0(3) !< centering vector for the molecule
+     real*8 :: molborder(3) !< border length (cryst coords)
+     ! wigner-seitz cell 
+     integer :: nws !< number of WS neighbors
+     integer :: ivws(3,16) !< WS neighbor lattice points
+     logical :: isortho !< is the cell orthogonal?
+
+     !! Initialization level: isenv !!
+     ! atomic environment of the cell
+     integer :: nenv = 0 !< Environment around the main cell
+     real*8 :: dmax0_env !< Maximum environment distance
+     type(celatom), allocatable :: atenv(:) !< Atoms around the main cell
+
+     !! Initialization level: isast !!
+     ! asterisms
+     type(neighstar), allocatable :: nstar(:) !< neighbor stars
+
+     !! Initialization level: isewald !!
+     ! ewald data
+     real*8 :: rcut, hcut, eta, qsum
+     integer :: lrmax(3), lhmax(3)
+
+     !! Attic !!
+     ! Symmetry classification (classify is deactivated)
      ! character*2 :: delaunay !< Delaunay symbol (table 9.1.8.1, ITC)
      ! character*2 :: bravais_type !< Bravais type (table 9.1.8.1, ITC)
      ! character*1 :: cfam !< Crystal family 
@@ -78,32 +117,10 @@ module struct_basic
      ! real*8 :: rmat_conventional(3,3) !< Transformation to conventional cell
      ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
      ! 9=6/mmm, 10=m3bar, 11=m3barm
-     integer :: havesym = 0 !< was the symmetry determined?
-     integer :: neqv !< number of symmetry operations
-     integer :: neqvg !< number of symmetry operations, reciprocal space
-     integer :: ncv  !< number of centering vectors
-     real*8, allocatable :: cen(:,:) !< centering vectors
-     real*8 :: rotm(3,4,48) !< symmetry operations
-     real*8 :: rotg(3,3,48) !< symmetry operations, reciprocal space
      ! ws cell neighbor information
-     integer :: nws !< number of WS neighbors
-     integer :: ivws(3,16) !< WS neighbor lattice points
-     logical :: isortho !< is the cell orthogonal?
-     ! molecule
-     logical :: ismolecule = .false. !< is it a molecule?
-     real*8 :: molx0(3) !< centering vector for the molecule
-     real*8 :: molborder(3) !< border length (cryst coords)
-     ! save the file name for the occasional critic2 trick
-     character(len=128) :: file
-     ! asterisms
-     logical :: havestar = .false. !< true if the neighbor stars have been calculated
-     type(neighstar), allocatable :: nstar(:) !< neighbor stars
-     ! ewald data
-     logical :: ewald_ready = .false. !< do we have the data for ewald's sum?
-     real*8 :: rcut, hcut, eta, qsum
-     integer :: lrmax(3), lhmax(3)
    contains
      procedure :: init => struct_init !< Allocate arrays and nullify variables
+     procedure :: checkflags => struct_checkflags !< Check the flags for a given crystal
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: set_cryscar !< Set the crys2car and the car2crys using the cell parameters
      procedure :: set_lcent !< Calculate the lcent from the centering vectors (ncv and cen)
@@ -140,6 +157,7 @@ module struct_basic
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: struct_report !< Write lots of information about the crystal structure to uout
      procedure :: guessspg !< Guess the symmetry operations from the structure
+     procedure :: reduceatoms !< Reduce the non-equivalent atom list using symmetry ops.
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
   end type crystal
@@ -166,8 +184,11 @@ module struct_basic
   integer, parameter :: s4=7 !< identifier for sym. operations
   integer, parameter :: s6=8 !< identifier for sym. operations
   integer, parameter :: sigma=9 !< identifier for sym. operations
-  character*3, parameter :: symchar(0:9) = (/ 'E  ', 'i  ', 'C2 ',&
-     & 'C3 ', 'C4 ', 'C6 ', 'S3 ', 'S4 ', 'S6 ', 's  '/) !< symmetry ops. symbols
+
+  ! array initialization values
+  integer, parameter :: mneq0 = 4
+  integer, parameter :: mcel0 = 10
+  integer, parameter :: menv0 = 100
 
 contains
 
@@ -176,10 +197,6 @@ contains
   subroutine struct_init(c)
     use param
     class(crystal), intent(inout) :: c
-
-    integer, parameter :: mneq0 = 4
-    integer, parameter :: mcel0 = 10
-    integer, parameter :: menv0 = 100
 
     integer :: i
 
@@ -205,7 +222,6 @@ contains
     c%car2crys = 0d0
 
     ! no symmetry
-    c%havesym = 0
     c%lcent = 0
     c%neqv = 1
     c%rotm = 0d0
@@ -234,15 +250,84 @@ contains
        c%at(i)%rnn2 = 0d0
     end do
 
-    ! misc
-    c%ewald_ready = .false.
-
     ! the crystal is not initialized until struct_fill is run
-    c%isinit = .false.
+    c%isinit = .false. 
+    c%isenv = .false. 
+    c%havesym = 0 
+    c%isast = .false. 
+    c%isewald = .false. 
 
   end subroutine struct_init
 
-  ! Terminate allocated arrays
+  !> Check that the flags necessary for the operation of critic2 using
+  !> the given crystal structure have been set. Several flags are
+  !> available: structure initialized (init), environments available
+  !> (env), symmetry level (isym), wigner-seitz cell calculated (ws),
+  !> asterisms determined (ast), reciprocal cell symmetry
+  !> known (recip), nearest-neighbor information (nn). If
+  !> crash=.true., crash with error if the requested flag is not
+  !> set. If crash=.false., take the necessary steps to initialize the
+  !> crystal.
+  subroutine struct_checkflags(c,crash,init0,env0,isym0,ast0,recip0,nn0,ewald0)
+    use tools_io
+    class(crystal), intent(inout) :: c
+    logical :: crash
+    logical, intent(in), optional :: init0
+    logical, intent(in), optional :: env0
+    integer, intent(in), optional :: isym0
+    logical, intent(in), optional :: ast0
+    logical, intent(in), optional :: recip0
+    logical, intent(in), optional :: nn0
+    logical, intent(in), optional :: ewald0
+
+    logical :: init, env, ast, recip, nn, ewald
+    integer :: isym
+    character(len=:), allocatable :: reason
+    logical :: lflag(8)
+
+    ! initialize optional arguments
+    init = .false.
+    if (present(init0)) init = init0
+    env = .false.
+    if (present(env0)) env = env0
+    isym = 0
+    if (present(isym0)) isym = isym0
+    ast = .false.
+    if (present(ast0)) ast = ast0
+    recip = .false.
+    if (present(recip0)) recip = recip0
+    nn = .false.
+    if (present(nn0)) nn = nn0
+    ewald = .false.
+    if (present(ewald0)) ewald = ewald0
+
+    lflag = .false.
+    if (init .and. .not.c%isinit) lflag(1) = .true.
+    if (env .and. .not.c%isenv) lflag(2) = .true.
+    if (isym > c%havesym) lflag(3) = .true.
+    if (ast .and. .not.c%isast) lflag(4) = .true.
+    if (recip .and. .not.c%isrecip) lflag(5) = .true.
+    if (nn .and. .not.c%isnn) lflag(6) = .true.
+    if (ewald .and. .not.c%isewald) lflag(7) = .true.
+
+    if (any(lflag)) then
+       if (crash) then
+          if (lflag(1)) reason = "crystal structure not initialized"
+          if (lflag(2)) reason = "atomic environments not determined for this crystal"
+          if (lflag(3)) reason = "not enough symmetry information"
+          if (lflag(4)) reason = "molecular connectivity has not been calculated"
+          if (lflag(5)) reason = "reciprocal cell metrics and symmetry not determined"
+          if (lflag(6)) reason = "nearest-neighbor information not available"
+          if (lflag(7)) reason = "ewald cutoffs not available"
+          call ferror('struct_checkflags',reason,faterr)
+       else
+          call c%struct_fill(lflag(1),lflag(2),isym,lflag(4),lflag(5),lflag(6),lflag(7))
+       end if
+    end if
+
+  end subroutine struct_checkflags
+
+  !> Terminate allocated arrays
   subroutine struct_end(c)
     class(crystal), intent(inout) :: c
 
@@ -260,9 +345,14 @@ contains
     c%neqvg = 0
     c%ncv = 0
     c%nws = 0
+    c%lcent = 0
     c%ismolecule = .false.
     c%isinit = .false.
-    c%havestar = .false.
+    c%isenv = .false. 
+    c%havesym = 0 
+    c%isast = .false. 
+    c%isewald = .false. 
+    c%isrecip = .false. 
 
   end subroutine struct_end
 
@@ -281,7 +371,6 @@ contains
     use tools_io
     class(crystal), intent(inout) :: c
 
-    integer :: lcent
     logical :: ok
 
     c%lcent = 9 ! unknown
@@ -309,7 +398,7 @@ contains
            c%eql_distance(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-5 .or.&
            c%eql_distance(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-5 .and.&
            c%eql_distance(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-5) then
-           c%lcent = 8 ! R (reverse)x
+           c%lcent = 8 ! R (reverse)
         end if
     elseif (c%ncv == 4) then
        ok = c%eql_distance(c%cen(:,2),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
@@ -837,6 +926,7 @@ contains
     lncel = .false.
     if (present(lncel0)) lncel = lncel0
 
+    identify_atom = 0
     x = c%c2x(x0)
     do i = 1, c%ncel
        xd = x - c%atcel(i)%x
@@ -1131,6 +1221,9 @@ contains
     real*8 :: xx(3), dmax, sphmax, dist
     integer :: imax, jmax, kmax
 
+    ! allocate atenv
+    if (.not.allocated(c%atenv)) allocate(c%atenv(menv0))
+
     ! In molecules, use only the atoms in the main cell
     if (c%ismolecule) then
        c%nenv = c%ncel
@@ -1164,6 +1257,7 @@ contains
           if (c%at(i)%z > 0) dmax = max(dmax,cutrad(c%at(i)%z))
        end do
     end if
+    c%dmax0_env = dmax
     call search_lattice(c%crys2car,dmax,imax,jmax,kmax)
 
     ! build environment
@@ -1202,22 +1296,21 @@ contains
   end subroutine build_env
 
   !> Find asterisms. For every atom in the unit cell, find the atoms in the 
-  !> main cell or adjacent cells that are connected to it. Fills c%havestar
-  !> and c%nstar.
+  !> main cell or adjacent cells that are connected to it. 
   subroutine find_asterisms(c)
     use types
     use param
 
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, k, istack(2*c%ncel), nstack, id, id2
-    real*8 :: rvws(3), dvws, x0(3), x(3), dist
-    real*8 :: d0, lvec0(3), lvec(3)
+    integer :: i, j, k
+    real*8 :: rvws(3), x0(3), dist
+    real*8 :: d0
+    integer :: lvec0(3), lvec(3)
 
     real*8, parameter :: rfac = 1.4d0
 
-    if (c%havestar) return
-    c%havestar = .true.
+    if (allocated(c%nstar)) deallocate(c%nstar)
     if (.not.allocated(c%nstar)) allocate(c%nstar(c%ncel))
 
     ! allocate the neighbor star
@@ -1284,17 +1377,11 @@ contains
     logical, intent(in) :: doborder
     type(fragment) :: fr
 
-    integer, parameter :: nx0 = 100
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
-    real*8, parameter :: rfac = 1.4d0
 
-    real*8, allocatable :: temp(:,:), xc(:,:)
-    integer, allocatable :: zxc(:), idxc(:)
-    integer :: ix, iy, iz, i, j, nxc, nn
-    real*8 :: x0(3), d
-    logical :: if1, doagain
-    logical, allocatable :: usexc(:)
+    integer :: ix, iy, iz, i
+    logical :: if1
 
     allocate(fr%at(1))
     fr%nat = 0
@@ -1369,16 +1456,9 @@ contains
     real*8, intent(in), optional :: rcub, xcub(3)
     type(fragment) :: fr
 
-    real*8, parameter :: rthr = 0.01d0
-    real*8, parameter :: rthr1 = 1-rthr
-    real*8, parameter :: rfac = 1.4d0
-
-    real*8, allocatable :: temp(:,:), xc(:,:)
-    integer, allocatable :: zxc(:)
     integer :: ix, iy, iz, i, nn
     real*8 :: x0(3), d, rsph2
     logical :: doagain, dosph
-    logical, allocatable :: usexc(:)
 
     if (.not.(present(rsph).and.present(xsph)).and..not.(present(rcub).and.present(xcub))) &
        call ferror("listatoms_sphcub","Need sphere or cube input",faterr)
@@ -1456,7 +1536,7 @@ contains
     logical, allocatable :: fseed(:)
 
     ! find the neighbor stars, if not already done
-    call c%find_asterisms()
+    call c%checkflags(.false.,init0=.true.,ast0=.true.)
 
     ! unwrap the input fragment
     nseed = fri%nat
@@ -2058,37 +2138,35 @@ contains
     real*8, parameter :: eeps = 1d-12
 
     integer :: i
-    real*8 :: aux, qsum, q2sum
+    real*8 :: aux, q2sum
     integer :: ia, ib, ic
     real*8 :: alrmax(3)
     real*8 :: rcut1, rcut2, err_real
     real*8 :: hcut1, hcut2, err_rec
 
-    if (c%ewald_ready) return
-
     ! calculate sum of charges and charges**2
-    cr%qsum = 0d0
+    c%qsum = 0d0
     q2sum = 0d0
-    do i = 1, cr%nneq
-       if (abs(cr%at(i)%qat) < 1d-6) &
+    do i = 1, c%nneq
+       if (abs(c%at(i)%qat) < 1d-6) &
           call ferror('ewald_energy','Some of the charges are 0',faterr)
-       cr%qsum = cr%qsum + real(cr%at(i)%mult * cr%at(i)%qat,8)
-       q2sum = q2sum + real(cr%at(i)%mult * cr%at(i)%qat**2,8)
+       c%qsum = c%qsum + real(c%at(i)%mult * c%at(i)%qat,8)
+       q2sum = q2sum + real(c%at(i)%mult * c%at(i)%qat**2,8)
     end do
 
     ! determine shortest vector in real space
     aux = 0d0
     do i = 1, 3
-       if (cr%aa(i) > aux) then
-          aux = cr%aa(i)
+       if (c%aa(i) > aux) then
+          aux = c%aa(i)
           ia = i
        end if
     end do
     ! determine shortest vector in reciprocal space, dif. from ia
     aux = 0d0
     do i = 1, 3
-       if (cr%ar(i) > aux .and. i /= ia) then
-          aux = cr%ar(i)
+       if (c%ar(i) > aux .and. i /= ia) then
+          aux = c%ar(i)
           ic = i
        end if
     end do
@@ -2099,7 +2177,7 @@ contains
     end do
 
     ! convergence parameter
-    c%eta = sqrt(cr%omega / pi / cr%aa(ib) / sin(cr%bb(ic)*rad))
+    c%eta = sqrt(c%omega / pi / c%aa(ib) / sin(c%bb(ic)*rad))
 
     ! real space cutoff
     rcut1 = 1d0
@@ -2107,11 +2185,11 @@ contains
     err_real = 1d30
     do while (err_real >= eeps)
        rcut2 = rcut2 * sgrow
-       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(rcut2 / c%eta)
+       err_real = pi * c%ncel**2 * q2sum / c%omega * c%eta**2 * erfc(rcut2 / c%eta)
     end do
     do while (rcut2-rcut1 >= epscut)
        c%rcut = 0.5*(rcut1+rcut2)
-       err_real = pi * cr%ncel**2 * q2sum / cr%omega * c%eta**2 * erfc(c%rcut / c%eta)
+       err_real = pi * c%ncel**2 * q2sum / c%omega * c%eta**2 * erfc(c%rcut / c%eta)
        if (err_real > eeps) then
           rcut1 = c%rcut
        else
@@ -2121,10 +2199,10 @@ contains
     c%rcut = 0.5*(rcut1+rcut2)
     ! real space cells to explore
     alrmax = 0d0
-    alrmax(1) = cr%aa(2) * cr%aa(3) * sin(cr%bb(1)*rad)
-    alrmax(2) = cr%aa(1) * cr%aa(3) * sin(cr%bb(2)*rad)
-    alrmax(3) = cr%aa(1) * cr%aa(2) * sin(cr%bb(3)*rad)
-    c%lrmax = ceiling(c%rcut * alrmax / cr%omega)
+    alrmax(1) = c%aa(2) * c%aa(3) * sin(c%bb(1)*rad)
+    alrmax(2) = c%aa(1) * c%aa(3) * sin(c%bb(2)*rad)
+    alrmax(3) = c%aa(1) * c%aa(2) * sin(c%bb(3)*rad)
+    c%lrmax = ceiling(c%rcut * alrmax / c%omega)
 
     ! reciprocal space cutoff
     hcut1 = 1d0
@@ -2132,11 +2210,11 @@ contains
     err_rec = 1d30
     do while(err_rec >= eeps)
        hcut2 = hcut2 * sgrow
-       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
+       err_rec = c%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
     end do
     do while(hcut2-hcut1 > epscut)
        c%hcut = 0.5*(hcut1+hcut2)
-       err_rec = cr%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
+       err_rec = c%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
        if (err_rec > eeps) then
           hcut1 = c%hcut
        else
@@ -2145,8 +2223,7 @@ contains
     end do
     c%hcut = 0.5*(hcut1+hcut2)
     ! reciprocal space cells to explore
-    c%lhmax = ceiling(cr%aa(ia) / tpi * c%hcut)
-    c%ewald_ready = .true.
+    c%lhmax = ceiling(c%aa(ia) / tpi * c%hcut)
 
   end subroutine calculate_ewald_cutoffs
 
@@ -2333,8 +2410,7 @@ contains
     call nc%end()
 
     ! initialize the structure
-    call c%guessspg(hadsym) 
-    call c%struct_fill()
+    call c%struct_fill(.true.,.true.,hadsym,.false.,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine newcell
@@ -2356,16 +2432,16 @@ contains
     logical, intent(in) :: verbose
     real*8, optional :: rmat(3,3)
 
-    integer :: i, j, ix, iy, iz, l(3)
+    integer :: i, ix, iy, iz, l(3)
     real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:), distaux(:), xlatc(:,:)
     real*8, allocatable :: udist(:), xnlat(:)
     integer, allocatable :: io(:)
-    real*8 :: x(3), xc(3), mindist2, d2, mindist20
+    real*8 :: x(3), xc(3), mindist2, d2
     integer :: nu
     integer :: nlat, nshl, i1(3)
     logical :: again, found
-    real*8 :: xp(3,3), xpc(3,3), xnorm(3), anorm
-    real*8 :: scal, xscal, dd, scal1, scal2, xscal1, xscal2
+    real*8 :: xp(3,3)
+    real*8 :: dd
     real*8 :: maxsum, sum2, ang(3)
 
     real*8, parameter :: eps = 1d-6
@@ -2551,7 +2627,7 @@ contains
     logical, intent(in) :: verbose
     real*8, intent(out), optional :: rmat(3,3)
 
-    integer :: i, j, ix, iy, iz, l(3)
+    integer :: i, ix, iy, iz, l(3)
     real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:)
     integer, allocatable :: io(:)
     real*8 :: x(3), xc(3), mindist2, d2
@@ -2841,12 +2917,30 @@ contains
   ! 
   ! end subroutine conventional_standard
 
-  !> Uses the cell lengths, angles, centering type, non-equivalent
-  !> atom list (positions, Z and names), space group operations and
-  !> crystallographic/cartesian transformation matrices to determines
-  !> the rest of the structural information needed for the run. This
-  !> routine initializes the structure.
-  subroutine struct_fill(c)
+  !> If init, fill the information and initialize a crystal
+  !> object. The basic information needed is:
+  !> * Cell lengths (c%aa)
+  !> * Cell angles (c%bb)
+  !> * c%crys2car and c%car2crys 
+  !> * Non-equivalent atoms:
+  !>   - Number of atoms (c%nneq)
+  !>   - Atomic positions (c%at%x)
+  !>   - Atomic numbers (c%at%z)
+  !>   - Atomic names, (c%at%name)
+  !> * Level of symmetry (c%havesym)
+  !> * Number of symmetry operations (c%neqv)
+  !> * Symmetry operations (c%rotm)
+  !> * Number of centering vectors (c%ncv)
+  !> * Centering vectors (c%cen)
+  !> The symmetry information and centering vectors are initialized
+  !> by default to P1 in the constructor, so that is not strictly
+  !> necessary either. 
+  !> If env, build the atomic environments. If isym > 0, try to
+  !> determine the symmetry to the given level. If ws, determine the
+  !> Wigner-Seitz cell. If ast, determine the molecular asterisms.  If
+  !> recip, determine the reciprocal cell metrics and symmetry.  If
+  !> nn, determine the nearest-neighbor information.
+  subroutine struct_fill(c,init0,env0,isym0,ast0,recip0,lnn0,ewald0)
     use sympg
     use tools_math
     use global
@@ -2854,191 +2948,248 @@ contains
     use param
 
     class(crystal), intent(inout) :: c
+    integer :: isym0
+    logical, intent(in) :: init0, env0, ast0, recip0, lnn0, ewald0
 
+    logical :: init, env, ast, recip, lnn, ewald
+    integer :: isym
     real*8, allocatable :: atpos(:,:)
     integer, allocatable :: irotm(:), icenv(:)
-    integer :: i, j, k, nn
+    integer :: i, j
     real*8, dimension(3) :: vec
-    logical :: good, ok
+    logical :: good
     real*8 :: ss(3), cc(3), root, dist(1)
-    integer :: ncnt, naux(3), order, nneig(1), wat(1)
-    logical, allocatable :: atreduce(:)
+    integer :: nneig(1), wat(1)
+    integer :: ncelgen, nreduce
 
     real*8, parameter :: eps = 1d-6
 
-    ! permute the symmetry operations to make the identity the first
-    if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
-       good = .false.
-       do i = 1, c%neqv
-          if (all(abs(eyet - c%rotm(:,:,i)) < 1d-12)) then
-             c%rotm(:,:,i) = c%rotm(:,:,1)
-             c%rotm(:,:,1) = eyet
-             good = .true.
-             exit
+    ! Handle input flag dependencies
+    init = init0
+    env = env0
+    isym = isym0
+    ast = ast0
+    recip = recip0
+    lnn = lnn0
+    ewald = ewald0
+
+    ! nearest-neighbor shells requires environment
+    if (lnn) env = .true.
+
+    ! First initialization pass. 
+    ncelgen = 0
+    nreduce = 0
+    if (init) then
+       ! permute the symmetry operations to make the identity the first
+       if (c%neqv > 1) then
+          if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
+             good = .false.
+             do i = 1, c%neqv
+                if (all(abs(eyet - c%rotm(:,:,i)) < 1d-12)) then
+                   c%rotm(:,:,i) = c%rotm(:,:,1)
+                   c%rotm(:,:,1) = eyet
+                   good = .true.
+                   exit
+                end if
+             end do
+             if (.not.good) &
+                call ferror('struct_fill','identity op. not found',faterr)
+          end if
+       end if
+
+       ! Check consistency of atomic information in input data. Fill in some
+       ! of the missing information.
+       if (c%nneq <= 0) call ferror('struct_fill','No atoms found',faterr)
+       do i = 1, c%nneq
+          ! Bring non-equivalent atoms into the main unit cell
+          c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+
+          ! Fill the cartesian coordinates
+          c%at(i)%r = c%x2c(c%at(i)%x)
+
+          ! Name / Z
+          if (c%at(i)%name == "" .and. c%at(i)%z == 0) then
+             call ferror('struct_fill','No name or Z for atom: '//string(i),faterr)
+          else if (c%at(i)%name == "" .or. c%at(i)%z == 0) then
+             if (c%at(i)%z == 0) then
+                c%at(i)%z = zatguess(c%at(i)%name)
+             else
+                c%at(i)%name = nameguess(c%at(i)%z)
+             end if
           end if
        end do
-       if (.not.good) &
-          call ferror('struct_fill','identity op. not found',faterr)
+
+       ! Cell metrics: sines, cosines, root
+       ss = sin(c%bb*rad)
+       cc = cos(c%bb*rad)
+       root=sqrt(1d0-cc(1)*cc(1)-cc(2)*cc(2)-cc(3)*cc(3)+2d0*cc(1)*cc(2)*cc(3))
+       if (root < eps) call ferror('struct_fill','zero volume cell',faterr)
+
+       ! Real space metric tensor
+       c%gtensor(1,1) = c%aa(1) * c%aa(1)
+       c%gtensor(1,2) = c%aa(1) * c%aa(2) * cc(3)
+       c%gtensor(2,1) = c%gtensor(1,2)
+       c%gtensor(2,2) = c%aa(2) * c%aa(2)
+       c%gtensor(1,3) = c%aa(1) * c%aa(3) * cc(2)
+       c%gtensor(3,1) = c%gtensor(1,3)
+       c%gtensor(2,3) = c%aa(2) * c%aa(3) * cc(1)
+       c%gtensor(3,2) = c%gtensor(2,3)
+       c%gtensor(3,3) = c%aa(3) * c%aa(3)
+
+       ! Cell volume
+       c%omega = root * c%aa(1) * c%aa(2) * c%aa(3)
+
+       ! Reiprocal cell metrics
+       c%ar(1) = c%aa(2) * c%aa(3) * ss(1) / c%omega
+       c%ar(2) = c%aa(3) * c%aa(1) * ss(2) / c%omega
+       c%ar(3) = c%aa(1) * c%aa(2) * ss(3) / c%omega
+       c%br(1) = (cc(2) * cc(3) - cc(1)) / (ss(2) * ss(3))
+       c%br(2) = (cc(3) * cc(1) - cc(2)) / (ss(3) * ss(1))
+       c%br(3) = (cc(1) * cc(2) - cc(3)) / (ss(1) * ss(2))
+
+       ! Reciprocal space metric tensor
+       c%grtensor(1,1) = c%ar(1) * c%ar(1)
+       c%grtensor(1,2) = c%ar(1) * c%ar(2) * c%br(3)
+       c%grtensor(2,1) = c%grtensor(1,2)
+       c%grtensor(2,2) = c%ar(2) * c%ar(2)
+       c%grtensor(1,3) = c%ar(1) * c%ar(3) * c%br(2)
+       c%grtensor(3,1) = c%grtensor(1,3)
+       c%grtensor(2,3) = c%ar(2) * c%ar(3) * c%br(1)
+       c%grtensor(3,2) = c%grtensor(2,3)
+       c%grtensor(3,3) = c%ar(3) * c%ar(3) 
+
+       ! schedule building the complete atom list for later
+       if (c%neqv > 1 .or. c%ncv > 1) then
+          ncelgen = 2
+       else
+          ncelgen = 1
+       end if
+
+       ! calculate the wigner-seitz cell
+       call c%wigner((/0d0,0d0,0d0/),.false.,c%nws,c%ivws)
+       c%isortho = (c%nws <= 6)
+       if (c%isortho) then
+          do i = 1, c%nws
+             c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
+          end do
+       endif
+
+       ! reduce the non-equivalent atom list 
+       call c%reduceatoms()
+
+       ! set centering
+       call c%set_lcent()
     end if
 
-    ! Check consistency of atomic information in input data. Fill in some
-    ! of the missing information.
-    if (c%nneq <= 0) call ferror('struct_fill','No atoms found',faterr)
-    do i = 1, c%nneq
-       ! Bring non-equivalent atoms into the main unit cell
-       c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
-
-       ! Fill the cartesian coordinates
-       c%at(i)%r = c%x2c(c%at(i)%x)
-
-       ! Name / Z
-       if (c%at(i)%name == "" .and. c%at(i)%z == 0) then
-          call ferror('struct_fill','No name or Z for atom: '//string(i),faterr)
-       else if (c%at(i)%name == "" .or. c%at(i)%z == 0) then
-          if (c%at(i)%z == 0) then
-             c%at(i)%z = zatguess(c%at(i)%name)
-          else
-             c%at(i)%name = nameguess(c%at(i)%z)
-          end if
+    ! Calculate the space-group symmetry operations
+    if (isym > 0) then
+       ! If the requested symmetry level is higher than the current value,
+       ! run the symmetry guesser
+       if (c%havesym < isym) then
+          call c%guessspg(isym)
+          c%havesym = isym
+          ncelgen = 2
+          call c%reduceatoms()
+          call c%set_lcent()
        end if
-    end do
+    end if
 
-    ! Reduce non-equivalent atoms that are equivalent under the space group
-    ! symmetry operations
-    allocate(atreduce(c%nneq))
+    ! Generate the complete atom list
+    if (ncelgen == 2) then
+       ! Generate full info for the positions in the unit cell
+       ! Use all symetry matrices to create copies of the input atoms:
+       c%ncel = 0
+       if (.not.allocated(c%atcel)) allocate(c%atcel(mcel0))
+       allocate(atpos(3,192),irotm(192),icenv(192))
+       do i = 1, c%nneq
+          call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
 
-    ! Detect reducible atoms
-    atreduce = .false.
-    do i = 1, c%nneq
-       if (atreduce(i)) cycle
-       do j = i+1, c%nneq
-          if (atreduce(j)) cycle
-          do k = 1, c%neqv
-             if (c%eql_distance(matmul(c%rotm(1:3,1:3,k),c%at(i)%x) + c%rotm(:,4,k), c%at(j)%x) < atomeps) then
-                atreduce(j) = .true.
-                exit
+          do j = 1, c%at(i)%mult
+             c%ncel = c%ncel + 1
+             if (c%ncel > size(c%atcel)) then
+                call realloc(c%atcel,2 * size(c%atcel))
              end if
+             c%atcel(c%ncel)%x = atpos(:,j)
+             c%atcel(c%ncel)%r = c%x2c(atpos(:,j))
+             c%atcel(c%ncel)%idx = i
+             c%atcel(c%ncel)%ir = irotm(j)
+             c%atcel(c%ncel)%ic = icenv(j)
+             c%atcel(c%ncel)%lvec = nint(atpos(:,j) - &
+                (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
+                c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
           end do
        end do
-    end do
-    ncnt = count(atreduce)
+       deallocate(atpos,irotm,icenv)
 
-    ! Do the reduction
-    j = 0
-    do i = 1, c%nneq
-       if (.not.atreduce(i)) then
-          j = j + 1
-          if (i == j) cycle
-          c%at(j) = c%at(i)
+       ! Reallocate cell atom list
+       call realloc(c%atcel,c%ncel)
+    elseif (ncelgen == 1) then
+       ! No symmetry: simply copy the non-equivalent atom list into
+       ! the cell list
+       if (.not.allocated(c%atcel)) then
+          allocate(c%atcel(c%nneq))
+       else
+          call realloc(c%atcel,c%nneq)
        end if
-    end do
-    c%nneq = c%nneq - ncnt
-    deallocate(atreduce)
-
-    ! Reallocate non-equivalent atom list
-    call realloc(c%at,c%nneq)
-
-    ! Generate full info for the positions in the unit cell
-    ! Use all symetry matrices to create copies of the input atoms:
-    c%ncel = 0
-    allocate(atpos(3,192),irotm(192),icenv(192))
-    do i = 1, c%nneq
-       call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
-
-       do j = 1, c%at(i)%mult
-          c%ncel = c%ncel + 1
-          if (c%ncel > size(c%atcel)) then
-             call realloc(c%atcel,2 * size(c%atcel))
-          end if
-          c%atcel(c%ncel)%x = atpos(:,j)
-          c%atcel(c%ncel)%r = c%x2c(atpos(:,j))
-          c%atcel(c%ncel)%idx = i
-          c%atcel(c%ncel)%ir = irotm(j)
-          c%atcel(c%ncel)%ic = icenv(j)
-          c%atcel(c%ncel)%lvec = nint(atpos(:,j) - &
-             (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
-             c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
+       c%ncel = c%nneq
+       do i = 1, c%nneq
+          c%atcel(i)%x = c%at(i)%x
+          c%atcel(i)%r = c%at(i)%r
+          c%atcel(i)%idx = i
+          c%atcel(i)%ir = 1
+          c%atcel(i)%ic = 1
+          c%atcel(i)%lvec = 0
        end do
-    end do
-    deallocate(atpos,irotm,icenv)
+    end if
 
-    ! Reallocate cell atom list
-    call realloc(c%atcel,c%ncel)
+    ! the initialization is done 
+    if (init) c%isinit = .true.
 
-    ! Cell metrics: sines, cosines, root
-    ss = sin(c%bb*rad)
-    cc = cos(c%bb*rad)
-    root=sqrt(1d0-cc(1)*cc(1)-cc(2)*cc(2)-cc(3)*cc(3)+2d0*cc(1)*cc(2)*cc(3))
-    if (root < eps) call ferror('struct_fill','zero volume cell',faterr)
+    ! Build the atomic environments
+    if (env) then
+       call c%build_env()
+       c%isenv = .true.
+    end if
 
-    ! Real space metric tensor
-    c%gtensor(1,1) = c%aa(1) * c%aa(1)
-    c%gtensor(1,2) = c%aa(1) * c%aa(2) * cc(3)
-    c%gtensor(2,1) = c%gtensor(1,2)
-    c%gtensor(2,2) = c%aa(2) * c%aa(2)
-    c%gtensor(1,3) = c%aa(1) * c%aa(3) * cc(2)
-    c%gtensor(3,1) = c%gtensor(1,3)
-    c%gtensor(2,3) = c%aa(2) * c%aa(3) * cc(1)
-    c%gtensor(3,2) = c%gtensor(2,3)
-    c%gtensor(3,3) = c%aa(3) * c%aa(3)
-    
-    ! Cell volume
-    c%omega = root * c%aa(1) * c%aa(2) * c%aa(3)
+    ! Reciprocal cell symmetry
+    if (recip) then
+       ! Reciprocal space point group
+       vec = 0d0
+       call lattpg(matinv(c%crys2car),1,vec,c%neqvg,c%rotg)
+       c%isrecip = .true.
+    end if
 
-    ! Reciprocal cell metrics
-    c%ar(1) = c%aa(2) * c%aa(3) * ss(1) / c%omega
-    c%ar(2) = c%aa(3) * c%aa(1) * ss(2) / c%omega
-    c%ar(3) = c%aa(1) * c%aa(2) * ss(3) / c%omega
-    c%br(1) = (cc(2) * cc(3) - cc(1)) / (ss(2) * ss(3))
-    c%br(2) = (cc(3) * cc(1) - cc(2)) / (ss(3) * ss(1))
-    c%br(3) = (cc(1) * cc(2) - cc(3)) / (ss(1) * ss(2))
+    ! asterisms 
+    if (ast) then
+       call c%find_asterisms()
+       c%isast = .true.
+    end if
 
-    ! Reciprocal space metric tensor
-    c%grtensor(1,1) = c%ar(1) * c%ar(1)
-    c%grtensor(1,2) = c%ar(1) * c%ar(2) * c%br(3)
-    c%grtensor(2,1) = c%grtensor(1,2)
-    c%grtensor(2,2) = c%ar(2) * c%ar(2)
-    c%grtensor(1,3) = c%ar(1) * c%ar(3) * c%br(2)
-    c%grtensor(3,1) = c%grtensor(1,3)
-    c%grtensor(2,3) = c%ar(2) * c%ar(3) * c%br(1)
-    c%grtensor(3,2) = c%grtensor(2,3)
-    c%grtensor(3,3) = c%ar(3) * c%ar(3) 
+    ! nearest neighbors
+    if (lnn) then
+       ! nearest neighbors
+       do i = 1, c%nneq
+          call c%pointshell(c%at(i)%x,1,nneig,wat,dist)
+          c%at(i)%rnn2 = dist(1) / 2d0
+       end do
+       c%isnn = .true.
+    end if
+
+    ! preparation for ewald 
+    if (ewald) then
+       call c%calculate_ewald_cutoffs()
+       c%isewald = .true.
+    end if
+
+    ! attic !
 
     ! ! Direct space crystal point group (deactivated)
     ! vec = 0d0
     ! call lattpg(transpose(c%crys2car),1,vec)
     ! c%pointgroup = trim(point_group)
 
-    ! Reciprocal space point group
-    vec = 0d0
-    call lattpg(matinv(c%crys2car),1,vec,c%neqvg,c%rotg)
-
-    ! set the centering type
-    call c%set_lcent()
-
     ! classify the lattice (deactivated)
     ! if (c%havesym >= 1) call c%classify()
-
-    ! Build shells of atoms
-    call c%build_env()
-
-    ! nearest neighbors
-    do i = 1, c%nneq
-       call c%pointshell(c%at(i)%x,1,nneig,wat,dist)
-       c%at(i)%rnn2 = dist(1) / 2d0
-    end do
-
-    ! calculate the wigner-seitz cell
-    call c%wigner((/0d0,0d0,0d0/),.false.,c%nws,c%ivws)
-    c%isortho = (c%nws <= 6)
-    if (c%isortho) then
-       do i = 1, c%nws
-          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
-       end do
-    endif
-
-    ! the crystal can be used now
-    c%isinit = .true.
 
   end subroutine struct_fill
 
@@ -3051,9 +3202,8 @@ contains
 
     integer :: i, j, k
     integer :: nelec
-    real*8 :: maxdv, vec(3)
+    real*8 :: maxdv
     character(len=:), allocatable :: str1, str2
-    integer :: tipo, order
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:)
 
@@ -3308,9 +3458,7 @@ contains
     class(crystal), intent(inout) :: c
     integer, intent(in) :: level
 
-    integer :: i, j, k
-    real*8 :: sumcen, rmat(3,3)
-    character(len=:), allocatable :: str1
+    real*8 :: rmat(3,3)
 
     ! no symmetry
     if (level == 0 .and. c%havesym == 0) then
@@ -3342,13 +3490,6 @@ contains
        call filltrans(c)
     end if
 
-    ! Delete atoms that are symmetry-equivalent
-    call reduceatoms(c)
-
-    ! Find the centering type. If it is not recognized, then fall back
-    ! to primitive
-    call c%set_lcent()
-
   end subroutine guessspg
 
   !> Find all centering vectors in the crystal. Uses c%nneq and c%at,
@@ -3370,6 +3511,7 @@ contains
     c%ncv = 1
     c%cen = 0d0
 
+    if (allocated(disctr)) deallocate(disctr)
     allocate(disctr(3,maxch))
     disctr = 0d0
     ! check all possible translations
@@ -3540,6 +3682,81 @@ contains
 
   end subroutine cenreduce
 
+  !> Given a vector in crystallographic coordinates, reduce
+  !> it to the main cell (xi \in (-pusheps,1-pusheps]).
+  subroutine reduce(tr)
+
+    real*8, intent(inout) :: tr(3) !< Inpout/output vector to reduce
+
+    integer :: i
+
+    do i = 1, 3
+       if (tr(i) .gt. -pusheps) then
+          tr(i) = tr(i) - int(tr(i)+pusheps)
+       else
+          tr(i) = tr(i) - int(tr(i)+pusheps) + 1d0
+       end if
+    end do
+
+  end subroutine reduce
+
+  !> Calculates if a given translation vector (tr)
+  !> is a symmetry operation by itself in the current cell setup.
+  !>
+  !> This routine is part of the spg operations guessing algorithm by
+  !> teVelde, described in his PhD thesis.
+  function iscelltr(c,tr)
+    use global
+
+    logical :: iscelltr
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: tr(3) !< Cell translation vector to check
+
+    integer :: i, j
+    real*8  :: v1(3), v2(3)
+
+    iscelltr = .true.
+    do i = 1, c%nneq
+       iscelltr = .false.
+       j = 0
+       do while (.not.iscelltr .and. j < c%nneq)
+          j = j + 1
+          if (i /= j) then
+             if (c%at(i)%z == c%at(j)%z) then
+                v1 = c%at(i)%x + tr
+                v2 = c%at(j)%x
+                if (c%eql_distance(v1,v2) < atomeps) then
+                   iscelltr = .true.
+                end if
+             end if
+          end if
+       end do
+       if (.not.iscelltr) return
+    end do
+
+  end function iscelltr
+
+  !> For a given trasnlation vector, determines if it
+  !> is contained in the ncv / cen
+  function isrepeated(c,tr)
+    use global
+
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: tr(3) !< Vector to check
+    logical :: isrepeated
+
+    integer :: i
+
+    isrepeated = .false.
+    do i = 1, c%ncv
+       if (c%eql_distance(c%cen(:,i),tr) < atomeps) then
+          isrepeated = .true.
+          return
+       end if
+    end do
+
+  end function isrepeated
+
   !> Given {abc}red, {xyz}neq, ncv, cen, neqv and the
   !> rotational parts of the space group operators (rotm(1:3,1:3,i)),
   !> fill their translational part (rotm(:,4,i)).
@@ -3649,14 +3866,14 @@ contains
 
   end function goodop
 
-  !> Reduce the list of positions of atoms using the
-  !> symmetry operations of the space group
+  !> Reduce the non-equivalent list of atomic positions using the
+  !> symmetry operations. This routine only affects the non-equivalent
+  !> atom list. All the other lists need to be regenerated after this. 
   subroutine reduceatoms(c)
     use tools_io
     use global
     use types
-
-    type(crystal), intent(inout) :: c
+    class(crystal), intent(inout) :: c
 
     integer :: i, j, io, it
     integer :: nnew, icpy
@@ -3672,7 +3889,15 @@ contains
              do j = 1, nnew
                 v2 = c%at(j)%x
                 if (c%eql_distance(v1,v2) < atomeps) then
-                   if (c%at(i)%z .ne. c%at(j)%z) then
+                   if (c%at(i)%z /= c%at(j)%z) then
+                      write (*,*) "i ", i
+                      write (*,*) "v1 ", v1
+                      write (*,*) "x ", c%at(i)%x
+                      write (*,*) "name ", trim(c%at(i)%name)
+                      write (*,*) "j ", j
+                      write (*,*) "v2 ", v2
+                      write (*,*) "x ", c%at(j)%x
+                      write (*,*) "name ", trim(c%at(j)%name)
                       call ferror('reduceatoms','eq. atoms with /= Z',faterr)
                    end if
                    found = .true.
@@ -3698,81 +3923,6 @@ contains
     call realloc(c%at,c%nneq)
 
   end subroutine reduceatoms
-
-  !> Given a vector in crystallographic coordinates, reduce
-  !> it to the main cell (xi \in (-pusheps,1-pusheps]).
-  subroutine reduce(tr)
-
-    real*8, intent(inout) :: tr(3) !< Inpout/output vector to reduce
-
-    integer :: i
-
-    do i = 1, 3
-       if (tr(i) .gt. -pusheps) then
-          tr(i) = tr(i) - int(tr(i)+pusheps)
-       else
-          tr(i) = tr(i) - int(tr(i)+pusheps) + 1d0
-       end if
-    end do
-
-  end subroutine reduce
-
-  !> Calculates if a given translation vector (tr)
-  !> is a symmetry operation by itself in the current cell setup.
-  !>
-  !> This routine is part of the spg operations guessing algorithm by
-  !> teVelde, described in his PhD thesis.
-  function iscelltr(c,tr)
-    use global
-
-    logical :: iscelltr
-    type(crystal), intent(inout) :: c
-    real*8, intent(in) :: tr(3) !< Cell translation vector to check
-
-    integer :: i, j
-    real*8  :: v1(3), v2(3)
-
-    iscelltr = .true.
-    do i = 1, c%nneq
-       iscelltr = .false.
-       j = 0
-       do while (.not.iscelltr .and. j < c%nneq)
-          j = j + 1
-          if (i /= j) then
-             if (c%at(i)%z == c%at(j)%z) then
-                v1 = c%at(i)%x + tr
-                v2 = c%at(j)%x
-                if (c%eql_distance(v1,v2) < atomeps) then
-                   iscelltr = .true.
-                end if
-             end if
-          end if
-       end do
-       if (.not.iscelltr) return
-    end do
-
-  end function iscelltr
-
-  !> For a given trasnlation vector, determines if it
-  !> is contained in the ncv / cen
-  function isrepeated(c,tr)
-    use global
-
-    type(crystal), intent(inout) :: c
-    real*8, intent(in) :: tr(3) !< Vector to check
-    logical :: isrepeated
-
-    integer :: i
-
-    isrepeated = .false.
-    do i = 1, c%ncv
-       if (c%eql_distance(c%cen(:,i),tr) < atomeps) then
-          isrepeated = .true.
-          return
-       end if
-    end do
-
-  end function isrepeated
 
   !xx! Wigner-Seitz cell tools and cell partition
 
@@ -4328,7 +4478,7 @@ contains
     real*8, intent(out), optional :: rot(3,3,48)
 
     real*8 :: rmati(3,3), aal(3), gmat(3,3)
-    integer :: i, j, na, nb, nc, npos, ia, ib, ic, it, op
+    integer :: i, na, nb, nc, npos, ia, ib, ic, it, op
     real*8  :: amax, amax2e, x(3), t(3), d2
     real*8, allocatable :: ax(:,:)
     integer, allocatable :: atZmol(:)

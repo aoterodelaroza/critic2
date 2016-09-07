@@ -885,7 +885,7 @@ contains
     use param
 
     character*(*), intent(in) :: file
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     logical :: dodreiding
 
     integer, parameter :: maxneigh = 20
@@ -901,6 +901,9 @@ contains
     integer :: nhb(maxneigh), ihb(maxneigh,c%nneq)
     real*8 :: d, x1(3), x2(3), ang
     logical :: ok, isat
+
+    ! check that we have an environment
+    call c%checkflags(.true.,init0=.true.,env0=.true.)
 
     lu = fopen_write(file)
     if (.not. dodreiding) then

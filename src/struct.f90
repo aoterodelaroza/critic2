@@ -297,8 +297,7 @@ contains
        return
     end if
 
-    call c%guessspg(doguess)
-    call c%struct_fill()
+    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine struct_crystal_input
@@ -334,7 +333,7 @@ contains
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
     write (uout,'("            The new crystal description follows"/)')
-    call cr%struct_fill()
+    call cr%struct_fill(.true.,.true.,0,.false.,.false.,.true.,.false.)
     call cr%struct_report()
 
   end subroutine struct_clearsym
