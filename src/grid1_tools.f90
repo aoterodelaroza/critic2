@@ -110,7 +110,7 @@ contains
     end if
 
     ! Read header and allocate arrays
-    lu = fopen_read(file,abspath=abspath)
+    lu = fopen_read(file,abspath0=abspath)
     read (lu,*) nn
 
     allocate(wfcin(nn),wfcl(nn),occ(nn))

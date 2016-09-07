@@ -549,7 +549,7 @@ contains
        call ferror("struct_read_library","library file not found!",faterr,syntax=.true.)
        return
     endif
-    lu = fopen_read(libfile,abspath=.true.)
+    lu = fopen_read(libfile,abspath0=.true.)
 
     ! find the block
     found = .false.

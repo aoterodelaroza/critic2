@@ -153,7 +153,7 @@ contains
                 uroot = trim(aux)
              end if
              uroot = trim(adjustl(uroot))
-             uin = fopen_read(argv,abspath=.true.)
+             uin = fopen_read(argv,abspath0=.true.)
              interactive = .false.
           elseif (uout == output_unit) then
              uout = fopen_write(argv)
@@ -1085,21 +1085,24 @@ contains
 
   end subroutine ioinit
 
-  !> Open a file for reading
-  function fopen_read(file,form,abspath) result(lu)
+  !> Open a file for reading. The argument form controls the
+  !> formatting, and is passed directly to open(). If abspath is
+  !> present, file in input is as an absolute path.
+  function fopen_read(file,form,abspath0) result(lu)
     use param
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
-    logical, intent(in), optional :: abspath
+    logical, intent(in), optional :: abspath0
     integer :: lu
     
     integer :: ios
     character(len=:), allocatable :: ofile
+    logical :: abspath
 
-    ofile = filepath // dirsep // file
-    if (present(abspath)) then
-       if (abspath) ofile = file
-    end if
+    ofile = trim(adjustl(filepath)) // dirsep // file
+    if (ofile(1:1) == dirsep) abspath = .true.
+    if (present(abspath0)) abspath = abspath0
+    if (abspath) ofile = file
 
     lu = falloc()
     if (present(form)) then
@@ -1111,21 +1114,24 @@ contains
 
   end function fopen_read
 
-  !> Open a file for writing
-  function fopen_write(file,form,abspath) result(lu)
+  !> Open a file for reading. The argument form controls the
+  !> formatting, and is passed directly to open(). If abspath is
+  !> present, file in input is as an absolute path.
+  function fopen_write(file,form,abspath0) result(lu)
     use param
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
-    logical, intent(in), optional :: abspath
+    logical, intent(in), optional :: abspath0
     integer :: lu
     
     integer :: ios
     character(len=:), allocatable :: ofile
+    logical :: abspath
 
-    ofile = filepath // dirsep // file
-    if (present(abspath)) then
-       if (abspath) ofile = file
-    end if
+    ofile = trim(adjustl(filepath)) // dirsep // file
+    if (ofile(1:1) == dirsep) abspath = .true.
+    if (present(abspath0)) abspath = abspath0
+    if (abspath) ofile = file
 
     lu = falloc()
     if (present(form)) then

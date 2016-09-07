@@ -4039,7 +4039,7 @@ contains
     file3c = trim(file3) // C_NULL_CHAR
 
     ! write the file with the star vertices
-    lu = fopen_write(file1,abspath=.true.)
+    lu = fopen_write(file1,abspath0=.true.)
     write (lu,'("3"/I4)') n+1
     write (lu,'(3(F20.12,X))') 0d0,0d0,0d0
     do i = 1, n
@@ -4052,7 +4052,7 @@ contains
     call doqhull(file1c,file2c,file3c,ithr)
 
     ! read the vertices from file number 2
-    lu = fopen_read(file2,abspath=.true.)
+    lu = fopen_read(file2,abspath0=.true.)
     read(lu,*)
     read(lu,*) nvert
     allocate(xws(3,nvert))
@@ -4081,7 +4081,7 @@ contains
     end if
 
     ! first pass, the number of sides of each polygon
-    lu = fopen_read(file3,abspath=.true.)
+    lu = fopen_read(file3,abspath0=.true.)
     read(lu,*)
     read(lu,*) iaux, npolig
     allocate(nside(npolig))
