@@ -376,6 +376,7 @@ contains
        call ferror('realloc_field','array not allocated',faterr)
     l1 = lbound(a,1)
     u1 = ubound(a,1)
+    if (u1 == nnew) return
     allocate(temp(l1:nnew))
 
     temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
@@ -396,6 +397,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc_atom','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
 
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -423,6 +425,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc_celatom','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
 
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -443,6 +446,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc_anyatom','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
 
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -463,6 +467,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc_dftbatom','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
 
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -483,6 +488,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc_fragment','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
 
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -503,6 +509,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc_atom','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
     
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -524,6 +531,7 @@ contains
        call ferror('realloc1l','array not allocated',faterr)
     l1 = lbound(a,1)
     u1 = ubound(a,1)
+    if (u1 == nnew) return
     allocate(temp(l1:nnew))
     
     temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
@@ -544,6 +552,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc1r','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
     
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -565,6 +574,7 @@ contains
        call ferror('realloc2r','array not allocated',faterr)
     nold(1) = size(a,1)
     nold(2) = size(a,2)
+    if (nold(1) == n1 .and. nold(2) == n2) return
     allocate(temp(n1,n2))
     
     temp = 0d0
@@ -588,6 +598,7 @@ contains
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     nold(3) = size(a,3)
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3) return
     allocate(temp(n1,n2,n3))
     
     temp = 0d0
@@ -612,6 +623,8 @@ contains
     nold(2) = size(a,2)
     nold(3) = size(a,3)
     nold(4) = size(a,4)
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3 .and.&
+        nold(4) == n4) return
     allocate(temp(n1,n2,n3,n4))
     
     temp = 0d0
@@ -638,6 +651,8 @@ contains
     nold(3) = size(a,3)
     nold(4) = size(a,4)
     nold(5) = size(a,5)
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3 .and.&
+        nold(4) == n4 .and. nold(5) == n5) return
     allocate(temp(n1,n2,n3,n4,n5))
     
     temp = 0d0
@@ -660,6 +675,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc1i','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
     
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -681,6 +697,7 @@ contains
        call ferror('realloc2i','array not allocated',faterr)
     nold(1) = size(a,1)
     nold(2) = size(a,2)
+    if (nold(1) == n1 .and. nold(2) == n2) return
     allocate(temp(n1,n2))
     
     temp = 0
@@ -702,6 +719,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc1c','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
     
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -722,6 +740,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc1cmplx4','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
     
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
@@ -743,6 +762,7 @@ contains
        call ferror('realloc2cmplx4','array not allocated',faterr)
     nold(1) = size(a,1)
     nold(2) = size(a,2)
+    if (nold(1) == n1 .and. nold(2) == n2) return
     allocate(temp(n1,n2))
     
     temp = cmplx(0,8)
@@ -766,6 +786,8 @@ contains
     do i = 1, 4
        nold(i) = size(a,i)
     end do
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3 .and.&
+        nold(4) == n4) return
     allocate(temp(n1,n2,n3,n4))
     
     temp = cmplx(0,8)
@@ -788,6 +810,7 @@ contains
     if (.not.allocated(a)) &
        call ferror('realloc1cmplx8','array not allocated',faterr)
     nold = size(a)
+    if (nold == nnew) return
     allocate(temp(nnew))
     
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
