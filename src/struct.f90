@@ -950,6 +950,8 @@ contains
           else
              write (uout,'("  Crystal ",A,": ",A)') string(ns,2), string(word) 
              call struct_crystal_input(c(ns),word,.false.,.false.,.false.)
+             if (.not.c(ns)%isinit) &
+                call ferror("struct_compare","could not load crystal structure",faterr)
           end if
        else
           exit
