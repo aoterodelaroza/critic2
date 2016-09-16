@@ -1715,6 +1715,14 @@ argument (by default in angstrom, the units can be changed with the
 UNITS keyword). The molecule is automatically translated to the
 center of the supercell. 
 
+For molecular calculations that use effective core potentials (ECPs),
+Gaussian provides the core density as a sum over atom-centered
+Gaussian functions ("electron density functions"). These functions are
+only present in a usable form in a wfx file, but not in the wfn
+format. Hence, densities for molecules containing ECPs will be correct
+and contain the core contribution only if the wavefunction is provided
+to critic2 using the wfx format.
+
 The transformation from fractional coordinates referred to the
 encompassing cell to Cartesian coordinates is made so that the
 latter correspond to the original coordinate system in the
