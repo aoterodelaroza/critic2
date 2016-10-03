@@ -67,6 +67,11 @@ references if you find this program useful. The file THANKS contains a
 complete list of contributors and other programs from where parts of
 critic2 have been adapted.
 
+Installation
+------------
+
+Please, see the README file.
+
 Command-line options, usage, and input overview
 -----------------------------------------------
 
