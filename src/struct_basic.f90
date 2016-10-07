@@ -3873,6 +3873,7 @@ contains
     use tools_io
     use global
     use types
+    use param
     class(crystal), intent(inout) :: c
 
     integer :: i, j, io, it
@@ -3883,10 +3884,12 @@ contains
     nnew = 0
     do i = 1, c%nneq
        found = .false.
+       if (c%at(i)%z > maxzat) goto 1 ! skip critical points
        do io = 1, c%neqv
           do it = 1, c%ncv
              v1 = matmul(c%rotm(1:3,1:3,io), c%at(i)%x) + c%rotm(:,4,io) + c%cen(:,it)
              do j = 1, nnew
+                if (c%at(j)%z > maxzat) cycle ! skip critical points
                 v2 = c%at(j)%x
                 if (c%eql_distance(v1,v2) < atomeps) then
                    if (c%at(i)%z /= c%at(j)%z) then
