@@ -10,7 +10,7 @@ m4_include([config/m4/ax_f90_module_flag.m4])
 
 # Initialize automake
 AC_CANONICAL_TARGET
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([-Wno-portability])
 
 # Check the fortran compiler
 AC_PROG_FC([ifort gfortran])

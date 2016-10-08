@@ -7,5 +7,5 @@ if [ -d .git ] ; then
 elif [ -f ChangeLog ] ; then
     head -n 1 ChangeLog | cut -f2 -d' '
 else
-    echo "unknown"
+    echo "<unavailable>"
 fi

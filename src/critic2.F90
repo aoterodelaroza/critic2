@@ -72,7 +72,7 @@ program critic
   call stdargs(optv,ghome,fileroot)
 
   ! set default values and initialize the rest of the modules
-  call global_init(ghome)
+  call global_init(ghome,datadir)
   call cr%init()
   call fields_init()
   call spgs_init()
@@ -89,7 +89,8 @@ program critic
   ! header, interface, date
   if (.not.quiet) then
      call initial_banner()
-     call config_write()
+     call config_write(package,version,atarget,adate,f77,fflags,fc,&
+        fcflags,ldflags,enable_debug,datadir)
      call tictac('CRITIC2')
      write (uout,*)
      ucopy = uout

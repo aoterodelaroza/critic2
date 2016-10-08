@@ -177,12 +177,12 @@ contains
 
   !> Initialize basic variables at the beginning of the run.
   !> Also sets default values by calling global_set_defaults.
-  subroutine global_init(ghome)
+  subroutine global_init(ghome,datadir)
     use tools_io
-    use config
+    use param, only: dirsep
     implicit none
 
-    character*(*) :: ghome
+    character*(*) :: ghome, datadir
 
     integer :: isenv
     logical :: lchk
@@ -340,10 +340,13 @@ contains
   end subroutine help_me
 
   !> Print out the compilation details and the hardwired paths
-  subroutine config_write()
+  subroutine config_write(package,version,atarget,adate,f77,fflags,fc,&
+     fcflags,ldflags,enable_debug,datadir)
+    use param, only: dirsep
     use tools_io
-    use config 
-
+    character*(*), intent(in) :: package, version, atarget, adate
+    character*(*), intent(in) :: f77, fflags, fc, fcflags
+    character*(*), intent(in) :: ldflags, enable_debug, datadir
     logical :: lchk
 
     write (uout,'("+ ",A,", commit ",A,"")') package, version
