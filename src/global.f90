@@ -381,7 +381,7 @@ contains
     logical :: iok
 
     word = lgetword(line,lp)
-    if (equal(word,'nosymm')) then
+    if (equal(word,'nosymm') .or. equal(word,'nosym')) then
        doguess = 0
        call check_no_extra_word(ok)
     elseif (equal(word,'symm')) then
