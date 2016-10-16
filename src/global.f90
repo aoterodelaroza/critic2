@@ -109,8 +109,9 @@ module global
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
-  ! guess and symmetry option (0 = no, 1 = cen, 2 = full)
+  ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = cen, 2 = full)
   integer :: doguess
+  integer, parameter :: natsymguess = 200
 
   ! reference scalar field
   integer :: refden
@@ -235,7 +236,7 @@ contains
   !> Set the default values for all the global variables
   subroutine global_set_defaults()
 
-    doguess = 2
+    doguess = -1
     refden = 0
     precisecube = .true.
 

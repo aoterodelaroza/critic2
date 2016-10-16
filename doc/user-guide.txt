@@ -1535,16 +1535,16 @@ SYMM/NOSYMM (before CRYSTAL) and CLEARSYM (after CRYSTAL) keywords.
 
 ::
 
-  SYMM [0|1|2]
+  SYMM [-1|0|1|2]
   NOSYMM|NOSYM
 
 Activates (SYMM) or deactivates (NOSYMM or NOSYM) the use of
-symmetry. These keywords must be used before CRYSTAL to be
-effective. The three options two SYMM are: 0, no symmetry (same as
-NOSYMM); 1, only centering vectors; 2, full symmetry. The default is
-full symmetry. NOSYMM is occasionally useful for very large crystals
-where critic2 would take seconds or minutes to complete the symmetry
-analysis.
+symmetry. These keywords must be used before CRYSTAL to be effective,
+and they have no effect on MOLECULE (molecules never use
+symmetry). The four options to SYMM are: 0, no symmetry (same as
+NOSYMM); 1, only centering vectors; 2, full symmetry; -1, use full
+symmetry only if the system is small (<= 200 atoms). The default is
+-1. 
 
 ::
 

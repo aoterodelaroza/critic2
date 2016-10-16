@@ -267,7 +267,7 @@ contains
   !> known (recip), nearest-neighbor information (nn). If
   !> crash=.true., crash with error if the requested flag is not
   !> set. If crash=.false., take the necessary steps to initialize the
-  !> crystal.
+  !> crystal flags that are .true.
   subroutine struct_checkflags(c,crash,init0,env0,isym0,ast0,recip0,nn0,ewald0)
     use tools_io
     class(crystal), intent(inout) :: c
@@ -2232,6 +2232,7 @@ contains
   !> structure using the unit cell given by those vectors. Uses guessspg
   !> to determine the symmetry. 
   subroutine newcell(c,x00,t0,verbose0)
+    use global
     use tools_math
     use tools_io
     use param
@@ -2242,7 +2243,6 @@ contains
 
     type(crystal) :: nc
     logical :: ok, found, verbose
-    integer :: hadsym
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: r(3,3), g(3,3), x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
@@ -2280,7 +2280,7 @@ contains
           if (ok) exit
        end do
        if (.not.ok) &
-          call ferror("struct_newcell","Cell vector number " // string(i) // &
+          call ferror("newcell","Cell vector number " // string(i) // &
           " is not a pure translation",faterr)
     end do
 
@@ -2314,7 +2314,7 @@ contains
     nc%bb(3) = acos(g(1,2) / nc%aa(1) / nc%aa(2)) * 180d0 / pi
     fvol = abs(det(r)) / c%omega
     if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
-       call ferror("struct_newcell","Inconsistent newcell volume",faterr)
+       call ferror("newcell","Inconsistent newcell volume",faterr)
 
     ! find a star of lattice vectors and supercell centering vectors, if any
     ! first lattice vector is (0 0 0)
@@ -2396,7 +2396,6 @@ contains
     endif
 
     ! transfer info from nc to c
-    hadsym = c%havesym
     call c%end()
     call c%init()
     c%file = "<derived>"
@@ -2410,7 +2409,7 @@ contains
     call nc%end()
 
     ! initialize the structure
-    call c%struct_fill(.true.,.true.,hadsym,.false.,.false.,.true.,.false.)
+    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine newcell
@@ -2917,8 +2916,8 @@ contains
   ! 
   ! end subroutine conventional_standard
 
-  !> If init, fill the information and initialize a crystal
-  !> object. The basic information needed is:
+  !> If init0 is .true., fill the information and initialize a
+  !> crystal object. The basic information needed is:
   !> * Cell lengths (c%aa)
   !> * Cell angles (c%bb)
   !> * c%crys2car and c%car2crys 
@@ -2967,7 +2966,15 @@ contains
     ! Handle input flag dependencies
     init = init0
     env = env0
-    isym = isym0
+    if (isym0 >= 0) then
+       isym = isym0
+    else
+       if (c%nneq > natsymguess) then
+          isym = 0
+       else
+          isym = 2
+       end if
+    end if
     ast = ast0
     recip = recip0
     lnn = lnn0
@@ -3193,6 +3200,7 @@ contains
 
   end subroutine struct_fill
 
+  !> Write information about the crystal structure to the output.
   subroutine struct_report(c)
     use global
     use tools_math
