@@ -2373,11 +2373,13 @@ contains
              nc%at(nc%nneq)%z = c%at(c%atcel(j)%idx)%z
              nc%at(nc%nneq)%zpsp = c%at(c%atcel(j)%idx)%zpsp
              nc%at(nc%nneq)%qat = c%at(c%atcel(j)%idx)%qat
+             nc%at(nc%nneq)%rnn2 = c%at(c%atcel(j)%idx)%rnn2
           end if
        end do
     end do
     nc%crys2car = transpose(r)
     nc%car2crys = matinv(nc%crys2car)
+    nc%isnn = c%isnn
 
     if (nr > 0) then
        if (nc%nneq / c%ncel /= nr) then
@@ -2406,10 +2408,11 @@ contains
     c%at = nc%at
     c%car2crys = nc%car2crys
     c%crys2car = nc%crys2car
+    c%isnn = nc%isnn
     call nc%end()
 
     ! initialize the structure
-    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.true.,.false.)
+    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.false.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine newcell
@@ -3208,6 +3211,8 @@ contains
     use param
     class(crystal), intent(in) :: c
 
+    integer, parameter :: natenvmax = 2000
+
     integer :: i, j, k
     integer :: nelec
     real*8 :: maxdv
@@ -3393,37 +3398,43 @@ contains
     end if
 
     ! Print out atomic environments and determine the nearest neighbor distances
-    write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname
-    write (uout,'("# ",6(A,2X))') &
-       string("id",length=4,justify=ioj_center), &
-       string("atom",length=5,justify=ioj_center), &
-       string("nneig",length=5,justify=ioj_center), &
-       string("distance",length=11,justify=ioj_right), &
-       string("nat",length=4,justify=ioj_center), &
-       string("type",length=10,justify=ioj_left)
-    allocate(nneig(10),wat(10),dist(10))
-    do i = 1, c%nneq
-       call c%pointshell(c%at(i)%x,10,nneig,wat,dist)
-       do j = 1, 10
-          if (j == 1) then
-             str1 = string(i,length=4,justify=ioj_center)
-             str2 = string(c%at(i)%name,length=5,justify=ioj_center)
-          else
-             str1 = string("",length=4,justify=ioj_center)
-             str2 = " ... "
-          end if
-          if (wat(j) /= 0) then
-             write (uout,'(6(2X,A))') &
-                str1, str2, &
-                string(nneig(j),length=5,justify=ioj_center), &
-                string(dist(j)*dunit,'f',length=12,decimal=7,justify=5), &
-                string(wat(j),length=4,justify=ioj_center), &
-                string(c%at(wat(j))%name,length=10,justify=ioj_left)
-          end if
+    if (c%nneq <= natenvmax) then
+       write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname
+       write (uout,'("# ",6(A,2X))') &
+          string("id",length=4,justify=ioj_center), &
+          string("atom",length=5,justify=ioj_center), &
+          string("nneig",length=5,justify=ioj_center), &
+          string("distance",length=11,justify=ioj_right), &
+          string("nat",length=4,justify=ioj_center), &
+          string("type",length=10,justify=ioj_left)
+       allocate(nneig(10),wat(10),dist(10))
+       do i = 1, c%nneq
+          call c%pointshell(c%at(i)%x,10,nneig,wat,dist)
+          do j = 1, 10
+             if (j == 1) then
+                str1 = string(i,length=4,justify=ioj_center)
+                str2 = string(c%at(i)%name,length=5,justify=ioj_center)
+             else
+                str1 = string("",length=4,justify=ioj_center)
+                str2 = " ... "
+             end if
+             if (wat(j) /= 0) then
+                write (uout,'(6(2X,A))') &
+                   str1, str2, &
+                   string(nneig(j),length=5,justify=ioj_center), &
+                   string(dist(j)*dunit,'f',length=12,decimal=7,justify=5), &
+                   string(wat(j),length=4,justify=ioj_center), &
+                   string(c%at(wat(j))%name,length=10,justify=ioj_left)
+             end if
+          end do
        end do
-    end do
-    write (uout,*)
-    deallocate(nneig,wat,dist)
+       write (uout,*)
+       deallocate(nneig,wat,dist)
+    else
+       write (uout,'("+ Atomic environments not written because of the large number ")')
+       write (uout,'("  of non-equivalent atoms (",A," > ",A,"). Please, use the")') string(c%nneq), string(natenvmax)
+       write (uout,'("  ENVIRON keyword to calculate the atomic environments.")')
+    end if
 
     ! Determine nn/2 for every atom
     write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname
@@ -3901,14 +3912,6 @@ contains
                 v2 = c%at(j)%x
                 if (c%eql_distance(v1,v2) < atomeps) then
                    if (c%at(i)%z /= c%at(j)%z) then
-                      write (*,*) "i ", i
-                      write (*,*) "v1 ", v1
-                      write (*,*) "x ", c%at(i)%x
-                      write (*,*) "name ", trim(c%at(i)%name)
-                      write (*,*) "j ", j
-                      write (*,*) "v2 ", v2
-                      write (*,*) "x ", c%at(j)%x
-                      write (*,*) "name ", trim(c%at(j)%name)
                       call ferror('reduceatoms','eq. atoms with /= Z',faterr)
                    end if
                    found = .true.
