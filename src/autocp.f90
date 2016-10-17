@@ -48,11 +48,14 @@ module autocp
   integer, allocatable :: barstack(:,:,:), depstack(:)
   integer, parameter :: bardenom(2:4) = (/ 2, 6, 12 /)
 
+  ! number of discarded degenerate critical points
+  integer :: ndegenr
+
   ! clip the CPs and the seeds
   integer :: iclip = 0
   real*8 :: x0clip(3), x1clip(3), rclip
 
-  !
+  ! variables that control the CP search
   real*8 :: CP_eps_cp = 1d-1 !< distance to consider two CPs as different (Cartesian).
   real*8 :: NUC_eps_cp = 1d-1 !< distance to consider a CP as different from a nucleus (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
@@ -236,6 +239,7 @@ contains
     firstseed = .true.
     hadx1 = .false.
     iclip = 0
+    CP_hdegen = 1d-8
     CP_eps_cp = 1d-1
     if (f(refden)%type == type_grid) then
        NUC_eps_cp = 2d0 * maxval(cr%aa / f(refden)%n)
@@ -261,6 +265,12 @@ contains
           end if
        elseif (equal(word,'cpeps')) then
           ok = eval_next(CP_eps_cp,line,lp)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'epsdegen')) then
+          ok = eval_next(CP_hdegen,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
              return
@@ -590,6 +600,8 @@ contains
        string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
        string(NUC_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
+    write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
+       string(CP_hdegen,'e',decimal=3)
     if (len_trim(discexpr) > 0) &
        write (uout,'("  Discard CP expression: ",A)') trim(discexpr)
     write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
@@ -751,6 +763,7 @@ contains
        if (cpdebug) &
           write (uout,'("  CP localization progress:")')
        nss = max(nn / 25,1)
+       ndegenr = 0
        !$omp parallel do private(ier,x0) schedule(dynamic)
        do i = 1, nn
           if (cpdebug) then
@@ -765,6 +778,18 @@ contains
           if (ier <= 0) call addcp(x0,discexpr)
        end do
        !$omp end parallel do
+
+       if (ndegenr > 0) then
+          call ferror('autocritic',string(ndegenr) // " degenerate critical points discarded.",warning)
+          write (uout,'("This is normal if your system has a vacuum (i.e. a molecule or a slab)")')
+          write (uout,'("Consider: ")')
+          write (uout,'("  - changing the threshold for degenerate critical points (EPSDEGEN)")')
+          write (uout,'("  - checking the sanity of the scalar field.")')
+          write (uout,'("  - using the DISCARD keyword to delete vacuum critical points.")')
+          if (cr%ismolecule) &
+             write (uout,'("  - reducing the size of the molecular cell")')
+          write (uout,*)
+       end if
 
        ! Sort the cp list, using the value of the reference field
        write (uout,'("+ Sorting the CPs")')
@@ -1725,7 +1750,7 @@ contains
 
     ! Type of critical point
     if (.not.present(itype)) then
-       call rsindex(res%hf,ehess,r,s)
+       call rsindex(res%hf,ehess,r,s,CP_hdegen)
        cp(n)%isdeg = (r /= 3)
        cp(n)%typ = s
        cp(n)%typind = (s+3)/2
@@ -1739,6 +1764,13 @@ contains
        cp(n)%typind = (itype+3)/2
        cp(n)%isnuc = .false.
        cp(n)%isnnm = (itype == f(refden)%typnuc)
+    end if
+    
+    ! discard degenerate critical points
+    if (cp(n)%isdeg.and..not.defer) then
+       ndegenr = ndegenr + 1
+       ncp = ncp - 1
+       goto 999
     end if
 
     ! Wait until reconstruction to calculate graph properties

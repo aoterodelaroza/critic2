@@ -1943,7 +1943,7 @@ contains
              ok = ok .and. eval_next (newcriticp(3,newncriticp), line, lp)
              q0 = cr%x2c(newcriticp(:,newncriticp))
              call grd(f(refden),q0,2,res)
-             call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp))
+             call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp),0d0)
              q0 = cr%c2x(q0)
 
              ok = ok .and. getline(uin,line,.true.,ucopy)
@@ -2277,7 +2277,7 @@ contains
           ! A (3,-1) or (3,+3) critical point:
           xstart = grpx(:,iorig)
           call grd(f(refden),xstart,2,res)
-          call rsindex(res%hf,ehess,nindex,ntype)
+          call rsindex(res%hf,ehess,nindex,ntype,0d0)
           if (nindex .eq. 3) then
              if (ntype .eq. -1) then
                 up1d = +1
@@ -2530,7 +2530,7 @@ contains
           cycle
        else
           if (newtypcrit(i) == 0) then
-             call rsindex(res%hf,ehess,nindex,newtypcrit(i))
+             call rsindex(res%hf,ehess,nindex,newtypcrit(i),CP_hdegen)
           end if
        endif
 

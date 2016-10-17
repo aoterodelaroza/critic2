@@ -559,13 +559,16 @@ contains
     if (ifail /= 0) call ferror('eigns','Error in diagonalization',faterr)
   end subroutine eigns
 
-  !> Given a point x0 (cartesian), calculate the rank and
-  !> signature of the hessian of f. Adapted to the determination of CP type. 
-  subroutine rsindex(mat,ehess,r,s)
+  !> Given a point x0 (cartesian), calculate the rank and signature of
+  !> the hessian of f. Adapted to the determination of CP type.  If
+  !> the Hessian elements are less than eps (in absolute value), it is
+  !> considered zero.
+  subroutine rsindex(mat,ehess,r,s,eps)
 
     real*8, intent(inout)  :: mat(3,3)
     real*8, intent(out) :: ehess(3)
     integer, intent(out) :: r, s
+    real*8, intent(in) :: eps
 
     integer :: nhplus, nhminus, i
 
@@ -574,8 +577,8 @@ contains
     nhplus = 0
     nhminus = 0
     do i = 1, 3
-       if (ehess(i) > 0d0) nhplus = nhplus+1
-       if (ehess(i) < 0d0) nhminus = nhminus+1
+       if (ehess(i) > eps) nhplus = nhplus+1
+       if (ehess(i) < -eps) nhminus = nhminus+1
     end do
     r = nhplus+nhminus
     s = nhplus-nhminus

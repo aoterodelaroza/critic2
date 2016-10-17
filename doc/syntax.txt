@@ -163,7 +163,7 @@ expression.r # prints the value of the expression to the output.
   CUBE GRID ...
   CUBE ... FILE CHGCAR
   CUBE ... FILE bleh.cube
-* AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] 
+* AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [EPSDEGEN edeg.r] 
        [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]

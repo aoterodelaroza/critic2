@@ -920,6 +920,7 @@ contains
   !> blanks.
   subroutine fields_propty(id,x0,res,verbose,allfields)
     use struct_basic
+    use global
     use tools_math
     use tools_io
     use arithmetic
@@ -943,7 +944,7 @@ contains
 
     ! r and s
     res%hfevec = res%hf
-    call rsindex(res%hfevec,res%hfeval,res%r,res%s)
+    call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
 
     if (verbose) then
        if (res%isnuc) then
@@ -987,7 +988,7 @@ contains
           else
              ! ispecial=1 ... schrodinger stress tensor
              stvec = res%stress
-             call rsindex(stvec,stval,str,sts)
+             call rsindex(stvec,stval,str,sts,CP_hdegen)
              write (uout,'("  Stress tensor:")')
              do j = 1, 3
                 write (uout,'(4x,1p,3(A,2X))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)

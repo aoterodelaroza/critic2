@@ -3087,7 +3087,7 @@ Automatic determination of critical points (AUTO)
 
 ::
 
-  AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] 
+  AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [EPSDEGEN edeg.r] 
        [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
@@ -3260,7 +3260,12 @@ the distance to consider a CP the same as a nucleus. If a CP is found
 at a distance less than neps.r from the closest nucleus, critic2
 considers the two are the same. The default value of NUCEPS is 0.1
 bohr, except for fields defined on a grid, where it defaults to 2
-times the maximum of the grid step in each direction.
+times the maximum of the grid step in each direction. EPSDEGEN
+controls how degenerate critical points (i.e. one or more eigenvalues
+of the Hessian is zero) are discarded. This is important to get rid of
+critical points that appear in vacuum regions. A critical point is
+considered degenerate if any of the elements of the diagonal of the
+Hessian is less than edeg.r in absolute value.
 
 Because finding the CPs can be an expensive task in large structures,
 the CP list for the current field can be saved to a checkpoint file
