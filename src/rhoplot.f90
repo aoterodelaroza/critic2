@@ -2515,7 +2515,7 @@ contains
 
        !.discard repeated points
        do j = i+1, newncriticp
-          if (cr%distance(newcriticp(:,j),xp) < epsf) then
+          if (cr%are_close(newcriticp(:,j),xp,epsf)) then
              write (uout,'(2X,"CP ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
              cycle
           endif

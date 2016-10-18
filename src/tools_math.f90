@@ -28,7 +28,7 @@ module tools_math
   public :: eig, eigns, rsindex
   public :: gauleg, select_lebedev
   public :: gcd, ep
-  public :: cross, mixed, norm
+  public :: cross, mixed, norm, mnorm2
   public :: det, detsym, matinv
   public :: erf, erfc
   public :: der1i, der2ii, der2ij
@@ -144,6 +144,7 @@ contains
 
   end function car2crys_from_cellpar
 
+  !> Factorial of an integer (returns real)
   function factorial(n) result(f)
     use param, only: mfact, fact
     use tools_io, only: ferror, faterr
@@ -612,6 +613,7 @@ contains
 
   end function mixed
 
+  !> Norm of a 3d vector
   function norm(v)
 
     real*8, intent(in) :: v(3)
@@ -620,6 +622,20 @@ contains
     norm = sqrt(v(1)*v(1)+v(2)*v(2)+v(3)*v(3))
     
   end function norm
+
+  !> Norm-2 of a 3x3 matrix
+  function mnorm2(a)
+
+    real*8, intent(in) :: a(3,3)
+    real*8 :: mnorm2
+    
+    real*8 :: b(3,3), eval(3)
+
+    b = matmul(transpose(a),a)
+    call eig(b,eval)
+    mnorm2 = sqrt(maxval(eval))
+    
+  end function mnorm2
 
   !> Determinant of a real 3x3 symmetric matrix
   function detsym(m)

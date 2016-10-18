@@ -33,8 +33,8 @@ module param
   real*8, parameter :: fourpi   = 4d0 * pi !< 4pi
   real*8, parameter :: rad      = pi / 180d0 !< pi / 180
   real*8, parameter :: cte      = 2.71828182845904523536d0 !< e
-  real*8, parameter :: ctsq2    = 1.41421356237309504880d0 !< sqrt(2)
-  real*8, parameter :: ctsq3    = 1.73205080756887729352d0 !< sqrt(3)
+  real*8, parameter :: ctsq2    = sqrt(2d0) !< sqrt(2)
+  real*8, parameter :: ctsq3    = sqrt(3d0) !< sqrt(3)
   real*8, parameter :: cteuler  = 0.57721566490153286061d0 !< gamma
   real*8, parameter :: ctgold   = 1.61803398874989484820d0 !< golden ratio (1+sqrt(5))/2
   real*8, parameter :: bohrtoa  =  0.52917720859d0 !< bohr to angstrom conversion factor

@@ -75,6 +75,8 @@ module struct_basic
      ! crystallographic/cartesian conversion matrices
      real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
      real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
+     real*8 :: n2_x2c !< sqrt(3)/norm-2 of the crystallographic to cartesian matrix
+     real*8 :: n2_c2x !< sqrt(3)/norm-2 of the cartesian to crystallographic matrix
      ! space-group symmetry
      integer :: lcent !< centring: 0=unset, 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=Robv, 8=Rrev, 9=unk.
      integer :: neqv !< number of symmetry operations
@@ -126,9 +128,11 @@ module struct_basic
      procedure :: set_lcent !< Calculate the lcent from the centering vectors (ncv and cen)
      procedure :: x2c !< Convert crystallographic to cartesian
      procedure :: c2x !< Convert cartesian to crystallographic
-     procedure :: shortest !< Gives the lattice-translated vector with shortest length
-     procedure :: eql_distance !< Shortest distance between lattice-translated vectors
      procedure :: distance !< Distance between points in crystallographic coordinates
+     procedure :: eql_distance !< Shortest distance between lattice-translated vectors
+     procedure :: shortest !< Gives the lattice-translated vector with shortest length
+     procedure :: are_close !< True if a vector is at a distance less than eps of another
+     procedure :: are_lclose !< True if a vector is at a distance less than eps of all latice translations of another
      procedure :: nearest_atom !< Calculate the atom nearest to a given point
      procedure :: identify_atom !< Identify an atom in the unit cell
      procedure :: identify_fragment !< Build an atomic fragment of the crystal
@@ -136,7 +140,6 @@ module struct_basic
      procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
      procedure :: get_mult !< Multiplicity of a point
      procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
-     procedure :: are_equiv !< Determine if two given points are equivalent by symmetry
      procedure :: build_env !< Build the crystal environment (atenv)
      procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border and molmotif)
@@ -220,6 +223,8 @@ contains
     c%grtensor = 0d0
     c%crys2car = 0d0
     c%car2crys = 0d0
+    c%n2_x2c = 0d0
+    c%n2_c2x = 0d0
 
     ! no symmetry
     c%lcent = 0
@@ -811,9 +816,42 @@ contains
 
   end function c2x
 
+  !> Compute the distance between points in crystallographic.
+  function distance(c,x1,x2)
+    class(crystal), intent(in) :: c !< Input crystal
+    real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
+    real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
+    real*8 :: distance
+
+    real*8 :: xd(3)
+
+    xd = c%x2c(x1 - x2)
+    distance = sqrt(dot_product(xd,xd))
+
+  end function distance
+
+  !> Compute the shortest distance between a point x1 and all
+  !> lattice translations of another point x2. Input points in cryst.
+  !> coordinates. 
+  function eql_distance(c,x1,x2)
+    use tools_math
+    class(crystal), intent(in) :: c !< Input crystal
+    real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
+    real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
+    real*8 :: eql_distance
+
+    real*8 :: xd(3), dist2
+
+    xd = x1 - x2
+    call c%shortest(xd,dist2)
+    eql_distance = sqrt(dist2)
+
+  end function eql_distance
+
   !> Given a point in crystallographic coordinates (x), find the
   !> lattice-translated copy of x with the shortest length. Returns
-  !> the shortest-length vector in cartesian coordinates.
+  !> the shortest-length vector in cartesian coordinates and 
+  !> the square of the distance.
   subroutine shortest(c,x,dist2)
     class(crystal), intent(in) :: c
     real*8, intent(inout) :: x(3)
@@ -843,38 +881,75 @@ contains
 
   end subroutine shortest
 
-  !> Compute the distance considering all the traslationally
-  !> equivalent replicas of the given points (centering vectors not
-  !> taken into account).  Input points in cryst. coordinates, output
-  !> in bohr.
-  function eql_distance(c,x1,x2)
-    use tools_math
-    class(crystal), intent(in) :: c !< Input crystal
-    real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
-    real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
-    real*8 :: eql_distance
+  !> Determine if two points x0 and x1 (cryst.) are at a distance
+  !> less than eps. Logical veresion of c%distance().
+  function are_close(c,x0,x1,eps)
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: x0(3), x1(3)
+    real*8, intent(in) :: eps
+    logical :: are_close
 
-    real*8 :: xd(3), dist2
+    real*8 :: x(3), dbound, dist2
 
-    xd = x1 - x2
-    call c%shortest(xd,dist2)
-    eql_distance = sqrt(dist2)
+    are_close = .false.
+    x = x0 - x1
+    dbound = minval(abs(x)) * c%n2_c2x
+    if (dbound > eps) return
+    x = matmul(c%crys2car,x)
+    if (any(abs(x) > eps)) return
+    dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+    are_close = (dist2 < (eps*eps))
 
-  end function eql_distance
+  end function are_close
 
-  !> Compute the distance between points in crystallographic. Output in bohr.
-  function distance(c,x1,x2)
-    class(crystal), intent(in) :: c !< Input crystal
-    real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
-    real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
-    real*8 :: distance
+  !> Determine if a points x0 is at a distance less than eps from x1
+  !> or any of its lattice translations. x0 and x1 are in cryst.
+  !> coords. Logical version of c%ldistance().
+  function are_lclose(c,x0,x1,eps) 
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: x0(3), x1(3)
+    real*8, intent(in) :: eps
+    logical :: are_lclose
 
-    real*8 :: xd(3)
+    real*8 :: x(3), xa(3), dist2, dbound
+    integer :: i
 
-    xd = c%x2c(x1 - x2)
-    distance = sqrt(dot_product(xd,xd))
+    are_lclose = .false.
+    x = x0 - x1
+    x = x - nint(x)
+    dbound = minval(abs(x)) * c%n2_c2x
+    if (c%isortho .or. c%ismolecule) then
+       if (dbound > eps) return
+       x = matmul(c%crys2car,x)
+       if (any(abs(x) > eps)) return
+       dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+       are_lclose = (dist2 < (eps*eps))
+    else
+       xa = x
+       if (dbound < eps) then
+          x = matmul(c%crys2car,x)
+          if (.not.any(abs(x) > eps)) then
+             dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+             are_lclose = (dist2 < (eps*eps))
+             if (are_lclose) return
+          end if
+       end if
+       do i = 1, c%nws
+          x = c%ivws(:,i) + xa
+          dbound = minval(abs(x)) * c%n2_c2x
+          if (dbound < eps) then
+             x = matmul(c%crys2car,x)
+             if (.not.any(abs(x) > eps)) then
+                dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+                are_lclose = (dist2 < (eps*eps))
+                if (are_lclose) return
+             end if
+          end if
+       end do
+       are_lclose = .false.
+    end if
 
-  end function distance
+  end function are_lclose
 
   !> Given the point xp in crystallographic coordinates, calculates
   !> the nearest atom. If nid /= 0, then consider only atoms of the
@@ -1169,38 +1244,6 @@ contains
     mult = nvec
 
   end function get_mult_reciprocal
-
-  !> Determine if two points x0 and x1 (cryst.) are equivalent by symmetry. 
-  function are_equiv(c,x0,x1,eps0) 
-    use tools_math
-
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: x0(3), x1(3)
-    real*8, intent(in), optional :: eps0
-    logical :: are_equiv
-
-    real*8, parameter :: eps_default = 1d-5
-
-    integer :: k, l
-    real*8 :: x(3), eps
-
-    eps = eps_default
-    if (present(eps0)) eps = eps0
-
-    are_equiv = .false.
-    do k = 1, c%neqv
-       do l = 1, c%ncv
-          x = matmul(c%rotm(:,1:3,k),x0) + c%rotm(:,4,k) + c%cen(:,l) - x1
-          x = x - nint(x)
-          x = c%x2c(x)
-          if (norm(x) < eps) then
-             are_equiv = .true.
-             return
-          end if
-       end do
-    end do
-
-  end function are_equiv
 
   !> Build succesive shells around the target point. Each shell is
   !> formed by all the identical atoms equidistant to the target.
@@ -3068,6 +3111,10 @@ contains
        c%grtensor(3,2) = c%grtensor(2,3)
        c%grtensor(3,3) = c%ar(3) * c%ar(3) 
 
+       ! crys2car and car2crys 2-norms
+       c%n2_x2c = ctsq3 / mnorm2(c%crys2car)
+       c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
+
        ! schedule building the complete atom list for later
        if (c%neqv > 1 .or. c%ncv > 1) then
           ncelgen = 2
@@ -3545,7 +3592,7 @@ contains
              k = 0
              do while (.not.checked .and. k .lt. nch)
                 k = k + 1
-                if (c%distance(disctr(:,k),tr) < atomeps) then
+                if (c%are_close(disctr(:,k),tr,atomeps)) then
                    checked = .true.
                 end if
              end do

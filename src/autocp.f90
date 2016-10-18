@@ -898,6 +898,8 @@ contains
           caux%bb = cr%bb
           caux%crys2car = cr%crys2car
           caux%car2crys = cr%car2crys
+          caux%n2_x2c = cr%n2_x2c
+          caux%n2_c2x = cr%n2_c2x
           call realloc(caux%at,ncpcel)
           caux%nneq = 0
           do i = 1, ncpcel

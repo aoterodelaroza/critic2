@@ -598,14 +598,13 @@ contains
     real*8, intent(in) :: fprune
 
     integer :: i, nn
-    real*8 :: x0(3), d
+    real*8 :: x0(3)
 
     ! prune the path
     x0 = x(:,1)
     nn = 1
     do i = 1, n
-       d = c%distance(x(:,i),x0)
-       if (d > fprune) then
+       if (.not.c%are_close(x(:,i),x0,fprune)) then
           nn = nn + 1
           x(:,nn) = x(:,i)
           x0 = x(:,i)

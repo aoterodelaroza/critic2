@@ -48,6 +48,7 @@ program critic
   use arithmetic
   use types
   use tools
+  use tools_math ! xxxx
   use tools_io
   use param
   implicit none
@@ -62,7 +63,8 @@ program critic
   integer :: level, plevel
   integer :: i, id, nn
   logical :: ll1, ok
-  real*8 :: rdum
+  real*8 :: rdum, rdum2 ! xxxx (rdum2)
+  real*8 :: x1(3), x2(3) ! xxxx
 
   ! initialize parameters
   call param_init()
@@ -667,8 +669,7 @@ program critic
         
      ! ! temp, for testing
      ! elseif (equal(word,'temp')) then
-     !    call cr%classify()
-     !    
+
      ! end
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)
