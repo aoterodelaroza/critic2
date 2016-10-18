@@ -709,7 +709,7 @@ contains
        else
           ! sphere
           do i = 1, nn
-             if (cr%eql_distance(xseed(:,i),x0clip) > rclip) &
+             if (.not.cr%are_lclose(xseed(:,i),x0clip,rclip)) &
                 keep(i) = .false.
           end do
        end if

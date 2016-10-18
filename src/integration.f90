@@ -1756,8 +1756,7 @@ contains
        xattr(:,nattr) = xgatt(:,i)
        do j = i+1, nattr0
           if (assigned(j) > 0) cycle
-          dist = cr%eql_distance(xgatt(:,i),xgatt(:,j))
-          if (dist < ratom) then
+          if (c%are_lclose(xgatt(:,i),xgatt(:,j),ratom)) then
              nn = nn + 1
              assigned(j) = nattr
           end if

@@ -150,8 +150,7 @@ contains
           ! check if it is a known nnm
           if (.not.isassigned .and. ratom > vsmall) then
              do k = 1, nbasin
-                dist = c%eql_distance(dv,xcoord(:,k))
-                if (dist < ratom) then
+                if (c%are_lclose(dv,xcoord(:,k),ratom)) then
                    ibasin(ii) = k
                    isassigned = .true.
                    exit

@@ -154,8 +154,7 @@ contains
                    ! check if it is a known nnm
                    if (.not.isassigned .and. ratom > vsmall) then
                       do l = 1, nbasin
-                         dist = c%eql_distance(dv,xcoord(:,l))
-                         if (dist < ratom) then
+                         if (c%are_lclose(dv,xcoord(:,l),ratom)) then
                             path_volnum = l
                             isassigned = .true.
                             exit

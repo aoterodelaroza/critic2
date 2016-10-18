@@ -384,39 +384,39 @@ contains
     elseif (c%ncv == 1) then
        c%lcent = 1 ! P
     elseif (c%ncv == 2) then
-       if (c%eql_distance(c%cen(:,2),(/0.0d0,0.5d0,0.5d0/)) < 1d-5) then
+       if (c%are_lclose(c%cen(:,2),(/0.0d0,0.5d0,0.5d0/),1d-5)) then
           c%lcent = 2 ! A
-       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.0d0,0.5d0/)) < 1d-5) then
+       elseif (c%are_lclose(c%cen(:,2),(/0.5d0,0.0d0,0.5d0/),1d-5)) then
           c%lcent = 3 ! B
-       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.0d0/)) < 1d-5) then
+       elseif (c%are_lclose(c%cen(:,2),(/0.5d0,0.5d0,0.0d0/),1d-5)) then
           c%lcent = 4 ! C
-       elseif (c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0.5d0/)) < 1d-5) then
+       elseif (c%are_lclose(c%cen(:,2),(/0.5d0,0.5d0,0.5d0/),1d-5)) then
           c%lcent = 6 ! I
        end if
     elseif (c%ncv == 3) then
-       if (c%eql_distance(c%cen(:,2),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-5 .and.&
-           c%eql_distance(c%cen(:,3),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-5 .or.&
-           c%eql_distance(c%cen(:,2),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/)) < 1d-5 .and.&
-           c%eql_distance(c%cen(:,3),(/2d0/3d0,1d0/3d0,1d0/3d0/)) < 1d-5) then
+       if (c%are_lclose(c%cen(:,2),(/2d0/3d0,1d0/3d0,1d0/3d0/),1d-5) .and.&
+           c%are_lclose(c%cen(:,3),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/),1d-5) .or.&
+           c%are_lclose(c%cen(:,2),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/),1d-5) .and.&
+           c%are_lclose(c%cen(:,3),(/2d0/3d0,1d0/3d0,1d0/3d0/),1d-5)) then
            c%lcent = 7 ! R (obverse)
-        elseif (c%eql_distance(c%cen(:,2),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-5 .and.&
-           c%eql_distance(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-5 .or.&
-           c%eql_distance(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/)) < 1d-5 .and.&
-           c%eql_distance(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/)) < 1d-5) then
+        elseif (c%are_lclose(c%cen(:,2),(/1d0/3d0,2d0/3d0,1d0/3d0/),1d-5) .and.&
+           c%are_lclose(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/),1d-5) .or.&
+           c%are_lclose(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/),1d-5) .and.&
+           c%are_lclose(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/),1d-5)) then
            c%lcent = 8 ! R (reverse)
         end if
     elseif (c%ncv == 4) then
-       ok = c%eql_distance(c%cen(:,2),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
-          c%eql_distance(c%cen(:,2),(/0.5d0,0d0,0.5d0/)) < 1d-5 .or.&
-          c%eql_distance(c%cen(:,2),(/0.5d0,0.5d0,0d0/)) < 1d-5
+       ok = c%are_lclose(c%cen(:,2),(/0d0,0.5d0,0.5d0/),1d-5) .or.&
+          c%are_lclose(c%cen(:,2),(/0.5d0,0d0,0.5d0/),1d-5) .or.&
+          c%are_lclose(c%cen(:,2),(/0.5d0,0.5d0,0d0/),1d-5)
        ok = ok .and. &
-          (c%eql_distance(c%cen(:,3),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
-          c%eql_distance(c%cen(:,3),(/0.5d0,0d0,0.5d0/)) < 1d-5 .or.&
-          c%eql_distance(c%cen(:,3),(/0.5d0,0.5d0,0d0/)) < 1d-5)
+          (c%are_lclose(c%cen(:,3),(/0d0,0.5d0,0.5d0/),1d-5) .or.&
+          c%are_lclose(c%cen(:,3),(/0.5d0,0d0,0.5d0/),1d-5) .or.&
+          c%are_lclose(c%cen(:,3),(/0.5d0,0.5d0,0d0/),1d-5))
        ok = ok .and. &
-          (c%eql_distance(c%cen(:,4),(/0d0,0.5d0,0.5d0/)) < 1d-5 .or.&
-          c%eql_distance(c%cen(:,4),(/0.5d0,0d0,0.5d0/)) < 1d-5 .or.&
-          c%eql_distance(c%cen(:,4),(/0.5d0,0.5d0,0d0/)) < 1d-5)
+          (c%are_lclose(c%cen(:,4),(/0d0,0.5d0,0.5d0/),1d-5) .or.&
+          c%are_lclose(c%cen(:,4),(/0.5d0,0d0,0.5d0/),1d-5) .or.&
+          c%are_lclose(c%cen(:,4),(/0.5d0,0.5d0,0d0/),1d-5))
        if (ok) c%lcent = 6 ! F
     endif
     
@@ -1150,8 +1150,7 @@ contains
     mrot = 0
     d: do i = 1, mrot0
        do j = 1,i-1
-          dist = c%eql_distance(avec(:,i),avec(:,j))
-          if (dist < eps) cycle d
+          if (c%are_lclose(avec(:,i),avec(:,j),eps)) cycle d
        end do
        mrot = mrot + 1
        if (present(vec)) vec(:,mrot) = avec(:,i)
@@ -2319,7 +2318,7 @@ contains
     do i = 1, 3
        ok = .false.
        do j = 1, c%ncv
-          ok = (c%eql_distance(x0(:,i),c%cen(:,j)) < 1d-4)
+          ok = (c%are_lclose(x0(:,i),c%cen(:,j),1d-4))
           if (ok) exit
        end do
        if (.not.ok) &
@@ -3734,7 +3733,7 @@ contains
           j = j + 1
           v1 = cv(:,i)
           v2 = cv(:,j)
-          if (c%eql_distance(v1,v2) < atomeps) then
+          if (c%are_lclose(v1,v2,atomeps)) then
              found = .true.
           end if
        end do
@@ -3791,7 +3790,7 @@ contains
              if (c%at(i)%z == c%at(j)%z) then
                 v1 = c%at(i)%x + tr
                 v2 = c%at(j)%x
-                if (c%eql_distance(v1,v2) < atomeps) then
+                if (c%are_lclose(v1,v2,atomeps)) then
                    iscelltr = .true.
                 end if
              end if
@@ -3815,7 +3814,7 @@ contains
 
     isrepeated = .false.
     do i = 1, c%ncv
-       if (c%eql_distance(c%cen(:,i),tr) < atomeps) then
+       if (c%are_lclose(c%cen(:,i),tr,atomeps)) then
           isrepeated = .true.
           return
        end if
@@ -3882,7 +3881,7 @@ contains
           k = 1
           do while (dok .and. k<c%ncv)
              k = k + 1
-             if (c%eql_distance(c%rotm(:,4,n),c%cen(:,k)) < atomeps) then
+             if (c%are_lclose(c%rotm(:,4,n),c%cen(:,k),atomeps)) then
                 c%rotm(1,4,n) = 0d0
                 c%rotm(2,4,n) = 0d0
                 c%rotm(3,4,n) = 0d0
@@ -3920,7 +3919,7 @@ contains
              v1 = xnew
              v2 = c%at(j)%x
 
-             found = (c%eql_distance(v1,v2) < atomeps) 
+             found = (c%are_lclose(v1,v2,atomeps))
              if (found) exit
           end if
        end do
@@ -3957,7 +3956,7 @@ contains
              do j = 1, nnew
                 if (c%at(j)%z > maxzat) cycle ! skip critical points
                 v2 = c%at(j)%x
-                if (c%eql_distance(v1,v2) < atomeps) then
+                if (c%are_lclose(v1,v2,atomeps)) then
                    if (c%at(i)%z /= c%at(j)%z) then
                       call ferror('reduceatoms','eq. atoms with /= Z',faterr)
                    end if
