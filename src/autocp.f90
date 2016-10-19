@@ -894,6 +894,7 @@ contains
           
           ! build the crystal structure containing the crystal points
           call caux%init()
+          caux%ismolecule = cr%ismolecule
           caux%aa = cr%aa
           caux%bb = cr%bb
           caux%crys2car = cr%crys2car
