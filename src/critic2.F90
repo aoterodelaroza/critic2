@@ -48,7 +48,6 @@ program critic
   use arithmetic
   use types
   use tools
-  use tools_math ! xxxx
   use tools_io
   use param
   implicit none
@@ -63,8 +62,7 @@ program critic
   integer :: level, plevel
   integer :: i, id, nn
   logical :: ll1, ok
-  real*8 :: rdum, rdum2 ! xxxx (rdum2)
-  real*8 :: x1(3), x2(3) ! xxxx
+  real*8 :: rdum
 
   ! initialize parameters
   call param_init()

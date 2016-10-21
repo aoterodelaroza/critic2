@@ -882,11 +882,14 @@ contains
   end subroutine shortest
 
   !> Determine if two points x0 and x1 (cryst.) are at a distance
-  !> less than eps. Logical veresion of c%distance().
-  function are_close(c,x0,x1,eps)
+  !> less than eps. Logical veresion of c%distance(). If d2
+  !> is present and are_close is .true., return the square of
+  !> the distance in that argument.
+  function are_close(c,x0,x1,eps,d2)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
+    real*8, intent(out), optional :: d2
     logical :: are_close
 
     real*8 :: x(3), dbound, dist2
@@ -899,16 +902,20 @@ contains
     if (any(abs(x) > eps)) return
     dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
     are_close = (dist2 < (eps*eps))
+    if (present(d2) .and. are_close) d2 = dist2
 
   end function are_close
 
   !> Determine if a points x0 is at a distance less than eps from x1
   !> or any of its lattice translations. x0 and x1 are in cryst.
-  !> coords. Logical version of c%ldistance().
-  function are_lclose(c,x0,x1,eps) 
+  !> coords. Logical version of c%ldistance(). If d2 is present and
+  !> are_close is .true., return the square of the distance in that
+  !> argument.
+  function are_lclose(c,x0,x1,eps,d2)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
+    real*8, intent(out), optional :: d2
     logical :: are_lclose
 
     real*8 :: x(3), xa(3), dist2, dbound
@@ -924,6 +931,7 @@ contains
        if (any(abs(x) > eps)) return
        dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
        are_lclose = (dist2 < (eps*eps))
+       goto 999
     else
        xa = x
        if (dbound < eps) then
@@ -931,7 +939,7 @@ contains
           if (.not.any(abs(x) > eps)) then
              dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
              are_lclose = (dist2 < (eps*eps))
-             if (are_lclose) return
+             if (are_lclose) goto 999
           end if
        end if
        do i = 1, c%nws
@@ -942,12 +950,16 @@ contains
              if (.not.any(abs(x) > eps)) then
                 dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
                 are_lclose = (dist2 < (eps*eps))
-                if (are_lclose) return
+                if (are_lclose) goto 999
              end if
           end if
        end do
        are_lclose = .false.
     end if
+    return
+
+999 continue
+    if (present(d2) .and. are_lclose) d2 = dist2
 
   end function are_lclose
 
@@ -1346,7 +1358,7 @@ contains
     class(crystal), intent(inout) :: c
 
     integer :: i, j, k
-    real*8 :: rvws(3), x0(3), dist
+    real*8 :: rvws(3), x0(3), dist, dist2
     real*8 :: d0
     integer :: lvec0(3), lvec(3)
 
@@ -1361,49 +1373,81 @@ contains
        allocate(c%nstar(i)%lcon(3,4))
     end do
 
-    ! run over all pairs of atoms in the unit cell
-    do i = 1, c%ncel
-       do j = i, c%ncel
-          x0 = c%atcel(j)%x - c%atcel(i)%x
-          lvec0 = nint(x0)
-          x0 = x0 - lvec0
-          d0 = rfac * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
-
-          do k = 0, c%nws
-             if (k == 0) then
-                rvws = x0
-                lvec = lvec0
-             else
-                rvws = x0 - c%ivws(:,k)
-                lvec = lvec0 + c%ivws(:,k)
-             endif
-             rvws = matmul(c%crys2car,rvws)
-             if (all(abs(rvws) < d0)) then
-                dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
-                if (dist > vsmall .and. dist < d0) then
-                   ! j is a neighbor of i
-                   c%nstar(i)%ncon = c%nstar(i)%ncon + 1
-                   if (c%nstar(i)%ncon > size(c%nstar(i)%idcon)) then
-                      call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
-                      call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
-                   end if
-                   c%nstar(i)%idcon(c%nstar(i)%ncon) = j
-                   c%nstar(i)%lcon(:,c%nstar(i)%ncon) = -lvec
-
-                   ! i is a neighbor of j
-                   c%nstar(j)%ncon = c%nstar(j)%ncon + 1
-                   if (c%nstar(j)%ncon > size(c%nstar(j)%idcon)) then
-                      call realloc(c%nstar(j)%idcon,2*c%nstar(j)%ncon)
-                      call realloc(c%nstar(j)%lcon,3,2*c%nstar(j)%ncon)
-                   end if
-                   c%nstar(j)%idcon(c%nstar(j)%ncon) = i
-                   c%nstar(j)%lcon(:,c%nstar(j)%ncon) = lvec
-                end if
+    if (c%ismolecule) then
+       ! run over all pairs of atoms in the molecule
+       lvec = 0
+       do i = 1, c%ncel
+          do j = i+1, c%ncel
+             d0 = rfac * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
+             ! use the Cartesian directly
+             x0 = c%atcel(j)%r - c%atcel(i)%r
+             if (any(abs(x0) > d0)) cycle
+             d0 = d0 * d0
+             dist2 = x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)
+             if (dist2 < d0) then
+                call addpair(i,j,lvec)
+                call addpair(j,i,lvec)
              end if
           end do
        end do
-    end do
+    else
+       ! run over all pairs of atoms in the unit cell
+       do i = 1, c%ncel
+          do j = i, c%ncel
+             x0 = c%atcel(j)%x - c%atcel(i)%x
+             lvec0 = nint(x0)
+             x0 = x0 - lvec0
+             d0 = rfac * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
 
+             do k = 0, c%nws
+                if (k == 0) then
+                   rvws = x0
+                   lvec = lvec0
+                else
+                   rvws = x0 - c%ivws(:,k)
+                   lvec = lvec0 + c%ivws(:,k)
+                endif
+                rvws = matmul(c%crys2car,rvws)
+                if (all(abs(rvws) < d0)) then
+                   dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
+                   if (dist > vsmall .and. dist < d0) then
+                      ! j is a neighbor of i
+                      c%nstar(i)%ncon = c%nstar(i)%ncon + 1
+                      if (c%nstar(i)%ncon > size(c%nstar(i)%idcon)) then
+                         call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
+                         call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
+                      end if
+                      c%nstar(i)%idcon(c%nstar(i)%ncon) = j
+                      c%nstar(i)%lcon(:,c%nstar(i)%ncon) = -lvec
+
+                      ! i is a neighbor of j
+                      c%nstar(j)%ncon = c%nstar(j)%ncon + 1
+                      if (c%nstar(j)%ncon > size(c%nstar(j)%idcon)) then
+                         call realloc(c%nstar(j)%idcon,2*c%nstar(j)%ncon)
+                         call realloc(c%nstar(j)%lcon,3,2*c%nstar(j)%ncon)
+                      end if
+                      c%nstar(j)%idcon(c%nstar(j)%ncon) = i
+                      c%nstar(j)%lcon(:,c%nstar(j)%ncon) = lvec
+                   end if
+                end if
+             end do
+          end do
+       end do
+    end if
+
+  contains
+    subroutine addpair(i,j,lvec)
+      integer :: i, j, lvec(3)
+
+      c%nstar(i)%ncon = c%nstar(i)%ncon + 1
+      if (c%nstar(i)%ncon > size(c%nstar(i)%idcon)) then
+         call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
+         call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
+      end if
+      c%nstar(i)%idcon(c%nstar(i)%ncon) = j
+      c%nstar(i)%lcon(:,c%nstar(i)%ncon) = -lvec
+
+    end subroutine addpair
   end subroutine find_asterisms
 
   !> List atoms in a number of cells around the main cell (nx cells),
