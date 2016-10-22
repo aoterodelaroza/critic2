@@ -48,7 +48,7 @@ module struct_basic
      ! Initialization flags
      logical :: isinit = .false. !< has the crystal structure been initialized?
      logical :: isenv = .false. !< were the atomic environments determined?
-     integer :: havesym = 0 !< was the symmetry determined?
+     integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - centering, 2 - full)
      logical :: isast = .false. !< have the molecular asterisms and connectivity been calculated?
      logical :: isewald = .false. !< do we have the data for ewald's sum?
      logical :: isrecip = .false. !< symmetry information about the reciprocal cell
@@ -1411,23 +1411,8 @@ contains
                 if (all(abs(rvws) < d0)) then
                    dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
                    if (dist > vsmall .and. dist < d0) then
-                      ! j is a neighbor of i
-                      c%nstar(i)%ncon = c%nstar(i)%ncon + 1
-                      if (c%nstar(i)%ncon > size(c%nstar(i)%idcon)) then
-                         call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
-                         call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
-                      end if
-                      c%nstar(i)%idcon(c%nstar(i)%ncon) = j
-                      c%nstar(i)%lcon(:,c%nstar(i)%ncon) = -lvec
-
-                      ! i is a neighbor of j
-                      c%nstar(j)%ncon = c%nstar(j)%ncon + 1
-                      if (c%nstar(j)%ncon > size(c%nstar(j)%idcon)) then
-                         call realloc(c%nstar(j)%idcon,2*c%nstar(j)%ncon)
-                         call realloc(c%nstar(j)%lcon,3,2*c%nstar(j)%ncon)
-                      end if
-                      c%nstar(j)%idcon(c%nstar(j)%ncon) = i
-                      c%nstar(j)%lcon(:,c%nstar(j)%ncon) = lvec
+                      call addpair(i,j,lvec)
+                      call addpair(j,i,-lvec)
                    end if
                 end if
              end do
@@ -3267,7 +3252,6 @@ contains
 
     ! nearest neighbors
     if (lnn) then
-       ! nearest neighbors
        do i = 1, c%nneq
           call c%pointshell(c%at(i)%x,1,nneig,wat,dist)
           c%at(i)%rnn2 = dist(1) / 2d0
@@ -3331,7 +3315,7 @@ contains
 
     ! Compute unit formula, and z
     if (.not.c%ismolecule) then
-       maxdv = gcd(c%at(:)%mult,c%nneq)
+       maxdv = gcd(c%at(1:c%nneq)%mult,c%nneq)
        write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
           (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
        write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
@@ -3976,8 +3960,9 @@ contains
   end function goodop
 
   !> Reduce the non-equivalent list of atomic positions using the
-  !> symmetry operations. This routine only affects the non-equivalent
-  !> atom list. All the other lists need to be regenerated after this. 
+  !> symmetry operations and eliminate redundant atoms. This routine
+  !> only affects the non-equivalent atom list and sets the
+  !> multiplicity of all atoms.
   subroutine reduceatoms(c)
     use tools_io
     use global
@@ -3990,6 +3975,7 @@ contains
     logical :: found
     real*8  :: v1(3), v2(3)
 
+    ! calculate all the multiplicities and eliminate repeated atoms
     nnew = 0
     do i = 1, c%nneq
        found = .false.

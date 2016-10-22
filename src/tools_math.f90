@@ -484,7 +484,7 @@ contains
 
   !> Compute greatest common divisor of array of integers n
   !> num is the number of elements of n to be included.
-  function gcd (n,num)
+  function gcd(n,num)
     use tools_io, only: ferror, faterr
     
     integer, dimension(:) :: n !< Input array of numbers
