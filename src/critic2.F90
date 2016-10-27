@@ -140,6 +140,10 @@ program critic
         
      ! clearsym/clearsymm
      elseif (equal(word,'clearsym') .or. equal(word,'clearsymm')) then
+        if (.not. cr%isinit) then
+           call ferror('critic2','need crystal before clearsym',faterr,line,syntax=.true.)
+           cycle
+        end if
         call struct_clearsym() 
         call check_no_extra_word(ok)
         if (.not.ok) cycle
@@ -709,11 +713,13 @@ contains
     integer, intent(in) :: id
 
     ! header and change refden
-    refden = id
-    write (uout,'("* Field number ",A," is now REFERENCE."/)') string(refden)
+    write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
 
     ! initialize CP list, defer the calculation of nuclei properties to the report
-    call init_cplist(.true.)
+    if (refden /= id .or. id == 0) then
+       refden = id
+       call init_cplist(.true.)
+    end if
 
     ! define second integrable property as the valence charge.
     nprops = max(2,nprops)
@@ -729,9 +735,6 @@ contains
     integ_prop(3)%fid = id
     integ_prop(3)%prop_name = "Lap"
 
-    ! report
-    call fields_integrable_report()
-
     ! reset defaults for qtree
     if (f(refden)%type == type_grid) then
        gradient_mode = 1
@@ -740,6 +743,9 @@ contains
        gradient_mode = 2
        if (INT_radquad_errprop_default) INT_radquad_errprop = 3
     end if
+
+    ! report
+    call fields_integrable_report()
 
   end subroutine set_reference
 
