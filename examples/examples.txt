@@ -846,3 +846,38 @@ Calculate the critical points in HF hexamers and write a CML file with
 the atoms and the CP list. 
 
 
+* mols_large
+** Source: Gaussian wfn/wfx
+** System: a buckycatcher from the S12L (4_COMPLEX2), a buckycatcher from the S30L (12_di), a small nanotube, and insulin.
+** Description
+
+Calculations of the full topology in very large systems. See
+visualization_cps and the manual for information on how to view the
+cml files with avogadro. 
+
+** 12_di.cri
+
+A buckycatcher from the S30L set. By placing 3 seeds between each atom
+pair, all critical points are found.
+
+** 4_COMPLEX.cri
+
+A buckycatcher from the S12L set. By placing 3 seeds between each atom
+pair, all critical points are found.
+
+** tube_6_4.cri
+
+A small section of a (6,4) carbon nanotube. The points at the center
+of the tube are almost degenerate, so the EPSDEGEN keyword needs to be
+used to get them, along with a restriction on the encompassing unit
+cell to prevent the very similar spurious critical points in the
+vacuum region.
+
+** insulin.cri
+
+The human insulin hormone. Thsi protein is a very large system,
+containing 778 atoms, and it may take a while to run (~1 hour or more,
+depending on the number of available processors). The full topology is
+found by placing 3 seeds between each atom pair. 
+
+

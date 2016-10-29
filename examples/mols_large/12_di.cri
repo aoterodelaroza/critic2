@@ -1,0 +1,14 @@
+## Load the molecule and the wavefunction
+molecule ../data/12_di.wfx
+load ../data/12_di.wfx
+
+## Find the critical points. In this particular case, three points are
+## needed between every pair of atoms to find the full topology
+## successfully. All critical points are found (Morse sum = 1). The
+## chk keyword writes a checkpoint file that can be used to
+## incrementally add more points with successive searches.
+auto verbose seed pair npts 3 chk
+
+## Write a graphics file for visualization with avogadro (requires
+## tweaking openbabel's element.txt, see manual).
+cpreport 12_di.cml graph

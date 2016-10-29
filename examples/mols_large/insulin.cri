@@ -1,0 +1,16 @@
+## Warning: this is a big system, and it may take a while to run.
+## Load the molecule and the wavefunction
+molecule ../data/insulin_hf.wfx
+
+load ../data/insulin_hf.wfx
+
+## Find the critical points. Three points are needed between every
+## pair of atoms to find the critical points, particularly those in
+## the periphery of the system. All critical points are found. The chk
+## keyword writes a checkpoint file that can be used to incrementally
+## add more points with successive searches.
+auto seed pair npts 3 verbose chk
+
+## Write a graphics file for visualization with avogadro (requires
+## tweaking openbabel's element.txt, see manual).
+cpreport insulin.cml graph
