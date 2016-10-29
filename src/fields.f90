@@ -1394,9 +1394,9 @@ contains
     type(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
     character*(*), intent(in) :: file
-    logical :: onlyheader
-    real*8, optional :: xd0(3,3)
-    real*8, optional :: x00(3)
+    logical, intent(in) :: onlyheader
+    real*8, intent(in), optional :: xd0(3,3)
+    real*8, intent(in), optional :: x00(3)
 
     integer :: n(3), i, ix, iy, iz, lu
     real*8 :: xd(3,3), x0(3)
