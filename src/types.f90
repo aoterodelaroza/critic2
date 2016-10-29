@@ -257,6 +257,7 @@ module types
      integer :: wfntyp
      integer, allocatable :: icenter(:)
      integer, allocatable :: itype(:)
+     real*8, allocatable :: d2ran(:)
      real*8, allocatable :: e(:)
      real*8, allocatable :: occ(:)
      real*8, allocatable :: cmo(:,:)

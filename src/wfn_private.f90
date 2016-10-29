@@ -166,6 +166,9 @@ module wfn_private
        d38,  0.0d0,  0.0d0, -s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0 & ! xxxx
      /),shape(gsphcar))
 
+  ! threshold for primitive exponential range
+  real*8 :: rprim_thres = 1d-12
+
 contains
 
   !> Terminate the wfn arrays
@@ -554,6 +557,9 @@ contains
     endif
     call fclose(luwfn)
 
+    ! calculate the range of each primitive (in distance^2)
+    call calculate_d2ran(f)
+
     ! we are done
     f%init = .true.
 
@@ -679,6 +685,9 @@ contains
        f%nalpha = (f%nmo - mult + 1) / 2
     end if
     
+    ! calculate the range of each primitive (in distance^2)
+    call calculate_d2ran(f)
+
     ! done
     f%init = .true.
     call fclose(luwfn)
@@ -1013,6 +1022,9 @@ contains
        end do
        nm = nm + ishlpri(i)
     end do
+
+    ! calculate the range of each primitive (in distance^2)
+    call calculate_d2ran(f)
 
     ! clean up
     deallocate(ishlt,ishlpri,ishlat)
@@ -1451,6 +1463,9 @@ contains
        nm = nm + ishlpri(i)
     end do
 
+    ! calculate the range of each primitive (in distance^2)
+    call calculate_d2ran(f)
+
     ! clean up and exit
     deallocate(ishlt,ishlpri,ishlat)
     deallocate(exppri,ccontr)
@@ -1587,10 +1602,11 @@ contains
     real*8 :: al, ex, xl(3,0:2), xl2
     integer :: ipri, iat, ityp, l(3), ix, i
     integer :: imo
-    real*8 :: chi(f%npri,imax(nder)), maxc(f%npri), dd(3,nat), d2(nat)
-    real*8 :: phi(f%nmo,imax(nder)), aocc
-    real*8 :: hh(6)
-    logical :: ldopri(f%npri,imax(nder))
+    real*8 :: chi(f%npri,imax(nder))
+    real*8 :: phi(f%nmo,imax(nder))
+    logical :: ldopri(f%npri)
+    real*8 :: dd(3,nat), d2(nat)
+    real*8 :: hh(6), aocc
     
     real*8, parameter :: cutoff_pri = 1d-15
     integer, parameter :: li(3,56) = reshape((/&
@@ -1605,14 +1621,6 @@ contains
        1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
        3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
 
-    ! identify the max coefficients
-    maxc = 0d0
-    do imo = 1, f%nmo
-       do ipri = 1, f%npri
-          maxc(ipri) = max(maxc(ipri),abs(f%cmo(imo,ipri)))
-       enddo
-    enddo
-
     ! calculate distances
     do iat = 1, nat
        dd(:,iat) = xpos - xat(:,iat)
@@ -1620,7 +1628,12 @@ contains
     enddo
 
     ! primitive and derivatives 
+    ldopri = .true.
     do ipri = 1, f%npri
+       if (d2(f%icenter(ipri)) > f%d2ran(ipri)) then
+          ldopri(ipri) = .false.
+          cycle
+       end if
        ityp = f%itype(ipri)
        iat = f%icenter(ipri)
        al = f%e(ipri)
@@ -1673,17 +1686,13 @@ contains
              chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
           endif
        endif
-
-       do ix = 1, imax(nder)
-          ldopri(ipri,ix) = (abs(chi(ipri,ix))*maxc(ipri) > cutoff_pri)
-       enddo
     enddo ! ipri = 1, npri
 
-    ! build the MO avlues at the point
+    ! build the MO values at the point
     phi = 0d0
     do ix = 1, imax(nder)
        do ipri = 1, f%npri
-          if (.not.ldopri(ipri,ix)) cycle
+          if (.not.ldopri(ipri)) cycle
           do imo = 1, f%nmo
              phi(imo,ix) = phi(imo,ix) + f%cmo(imo,ipri)*chi(ipri,ix)
           enddo
@@ -1859,4 +1868,20 @@ contains
 
   endfunction wfx_read_reals1
 
+  !> Calculate the distance range of each primitive
+  subroutine calculate_d2ran(f)
+    use types
+    use tools_io
+    type(field), intent(inout) :: f
+
+    integer :: istat, i
+
+    if (allocated(f%d2ran)) deallocate(f%d2ran)
+    allocate(f%d2ran(f%npri),stat=istat)
+    if (istat /= 0) call ferror('wfn_read_wfn','could not allocate memory for d2ran',faterr)
+    do i = 1, f%npri
+       f%d2ran(i) = -log(rprim_thres) / f%e(i)
+    end do
+
+  end subroutine calculate_d2ran
 end module wfn_private
