@@ -58,6 +58,7 @@ module autocp
   ! variables that control the CP search
   real*8 :: CP_eps_cp = 1d-1 !< distance to consider two CPs as different (Cartesian).
   real*8 :: NUC_eps_cp = 1d-1 !< distance to consider a CP as different from a nucleus (Cartesian).
+  real*8 :: NUC_eps_cp_H = 2d-1 !< distance to consider a CP as different from a hydrogen (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains
@@ -243,8 +244,10 @@ contains
     CP_eps_cp = 1d-1
     if (f(refden)%type == type_grid) then
        NUC_eps_cp = 2d0 * maxval(cr%aa / f(refden)%n)
+       NUC_eps_cp_H = 2d0 * maxval(cr%aa / f(refden)%n)
     else
-       NUC_eps_cp = CP_eps_cp
+       NUC_eps_cp = 1d-1
+       NUC_eps_cp_H = 2d-1
     end if
     dograph = 1
 
@@ -277,6 +280,12 @@ contains
           end if
        elseif (equal(word,'nuceps')) then
           ok = eval_next(NUC_eps_cp,line,lp)
+          if (.not.ok) then
+             call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'nucepsh')) then
+          ok = eval_next(NUC_eps_cp_H,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
              return
@@ -600,6 +609,8 @@ contains
        string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
        string(NUC_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
+    write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A,X,A)') &
+       string(NUC_eps_cp_H*dunit,'e',decimal=3), iunitname0(iunit)
     write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
        string(CP_hdegen,'e',decimal=3)
     if (len_trim(discexpr) > 0) &
@@ -1707,6 +1718,13 @@ contains
     call cr%nearest_atom(xc,nid,dist,lvec)
     if (dist < NUC_eps_cp) then
        goto 999
+    end if
+
+    ! distance to hydrogens
+    if (cr%at(cr%atcel(nid)%idx)%z == 1) then
+       if (dist < NUC_eps_cp_H) then
+          goto 999
+       end if
     end if
 
     ! check if it should be discarded
