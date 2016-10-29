@@ -1989,7 +1989,7 @@ contains
     do i = 1, ncp
        write (uout,'("+ Critical point no. ",A)') string(i)
        if (.not.cr%ismolecule) then
-          write (uout,'("  Crystallogrpahic coordinates: ",3(A,X))') &
+          write (uout,'("  Crystallographic coordinates: ",3(A,X))') &
              (string(cp(i)%x(j),'f',decimal=10),j=1,3)
           write (uout,'("  Cartesian coordinates (",A,"): ",3(A,X))') &
              iunitname0(iunit), (string(cp(i)%r(j),'f',decimal=10),j=1,3)
