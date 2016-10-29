@@ -1123,8 +1123,9 @@ contains
 
     integer :: idx(3), iidx(3), i, j, k, l
     real*8 :: g(-1:2,-1:2,-1:2), x(3)
-    real*8 :: z0, z1, z2, y0, y1, y2, x0, x1, x2
     real*8 :: a(64), b(64)
+    real*8, dimension(0:3) :: aa, bb, bbx, bbxx, aax, aay, aaxy
+    real*8, dimension(0:3) :: aaxx, aayy
 
     ! initialize
     y = 0d0
@@ -1231,45 +1232,42 @@ contains
     x = (x * f%n - (idx-1))
 
     l = 1 ! packed coefficient vector index
-    z0 = 1d0 ! z^k
-    z1 = 0d0 ! k*z^(k-1)
-    z2 = 0d0 ! k*(k-1)*z^(k-2)
     do k = 0, 3
-       y0 = 1d0 ! y^j
-       y1 = 0d0 ! j*y^(j-1)
-       y2 = 0d0 ! j*(j-1)*y^(j-2)
        do j = 0, 3
-          ! x-value and coefficients -> Horner's rule plus derivatives
-          x0 = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
-          x1 = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
-          x2 = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
-    
-          ! value of the function
-          y = y + x0 * y0 * z0
-    
-          ! first derivatives
-          yp(1) = yp(1) + x1 * y0 * z0
-          yp(2) = yp(2) + x0 * y1 * z0
-          yp(3) = yp(3) + x0 * y0 * z1
-    
-          ! second derivatives
-          ypp(1,1) = ypp(1,1) + x2 * y0 * z0
-          ypp(1,2) = ypp(1,2) + x1 * y1 * z0
-          ypp(1,3) = ypp(1,3) + x1 * y0 * z1
-          ypp(2,2) = ypp(2,2) + x0 * y2 * z0
-          ypp(2,3) = ypp(2,3) + x0 * y1 * z1
-          ypp(3,3) = ypp(3,3) + x0 * y0 * z2
-    
+          ! horner's rule on x
+          bb(j) = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
+          bbx(j) = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
+          bbxx(j) = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
+
           ! advance
-          y2 = (j+1) * y1
-          y1 = (j+1) * y0
-          y0 = y0 * x(2)
           l = l + 4
        end do
-       z2 = (k+1) * z1
-       z1 = (k+1) * z0
-       z0 = z0 * x(3)
+       ! horner's rule on y
+       aa(k) = bb(0) + x(2) * (bb(1) + x(2) * (bb(2) + x(2) * bb(3)))
+
+       aax(k) = bbx(0) + x(2) * (bbx(1) + x(2) * (bbx(2) + x(2) * bbx(3)))
+       aay(k) = bb(1) + x(2) * (2d0 * bb(2) + x(2) * 3d0 * bb(3))
+       aaxy(k) = bbx(1) + x(2) * (2d0 * bbx(2) + x(2) * 3d0 * bbx(3))
+
+       aaxx(k) = bbxx(0) + x(2) * (bbxx(1) + x(2) * (bbxx(2) + x(2) * bbxx(3)))
+       aayy(k) = 2d0 * bb(2) + 6d0 * x(2) * bb(3)
     end do
+
+    ! field value
+    y = aa(0) + x(3) * (aa(1) + x(3) * (aa(2) + x(3) * aa(3)))
+
+    ! gradient
+    yp(1) = aax(0) + x(3) * (aax(1) + x(3) * (aax(2) + x(3) * aax(3)))
+    yp(2) = aay(0) + x(3) * (aay(1) + x(3) * (aay(2) + x(3) * aay(3)))
+    yp(3) = aa(1) + x(3) * (2d0 * aa(2) + x(3) * 3d0 * aa(3))
+
+    ! hessian
+    ypp(1,1) = aaxx(0) + x(3) * (aaxx(1) + x(3) * (aaxx(2) + x(3) * aaxx(3)))
+    ypp(1,2) = aaxy(0) + x(3) * (aaxy(1) + x(3) * (aaxy(2) + x(3) * aaxy(3)))
+    ypp(1,3) = aax(1) + x(3) * (2d0 * aax(2) + x(3) * 3d0 * aax(3))
+    ypp(2,2) = aayy(0) + x(3) * (aayy(1) + x(3) * (aayy(2) + x(3) * aayy(3)))
+    ypp(2,3) = aay(1) + x(3) * (2d0 * aay(2) + x(3) * 3d0 * aay(3))
+    ypp(3,3) = 2d0 * aa(2) + 6d0 * x(3) * aa(3)
 
     ! transform back to fractional coordinates and fill the Hessian
     do i = 1, 3
