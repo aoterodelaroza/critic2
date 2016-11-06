@@ -1,0 +1,17 @@
+## Load the crystal structure and the density. The cube
+## file contains the all-electron density (including the core)
+## so there is no need to augment it.
+crystal ../data/helicene-07.rhoae.cube
+load ../data/helicene-07.rhoae.cube
+
+## Find the critical points. Seven points are needed between every
+## pair of atoms to find all critical points. The chk keyword writes a
+## checkpoint file that can be used to incrementally add more points
+## with successive searches. Note that the default seeding strategy
+## for a crystal would have been a subdivision of the Wigner-Seitz
+## cell. 
+auto seed pair npts 7 verbose chk
+
+## Write a graphics file for visualization with avogadro (requires
+## tweaking openbabel's element.txt, see manual).
+cpreport helicene-07.cml graph

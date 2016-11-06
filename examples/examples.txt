@@ -845,15 +845,22 @@ cell geometry are written, too.
 Calculate the critical points in HF hexamers and write a CML file with
 the atoms and the CP list. 
 
-
-* mols_large
-** Source: Gaussian wfn/wfx
-** System: a buckycatcher from the S12L (4_COMPLEX2), a buckycatcher from the S30L (12_di), a small nanotube, and insulin.
+* cps_large
+** Source: Gaussian wfn/wfx, quantum espresso
+** System: a buckycatcher from the S12L (4_COMPLEX2), a buckycatcher from the S30L (12_di), a small nanotube, insulin, and a helicene crystal.
 ** Description
 
 Calculations of the full topology in very large systems. See
 visualization_cps and the manual for information on how to view the
 cml files with avogadro. 
+
+Most of the times the CP search requires some threshold tweaking to
+get the complete topology in the system. Usually, by performing a
+non-default seeding or by changing the distance criteria to discard
+calculated CPs. In this context, the CHK keyword is very useful. When
+the CHK keyword is used, all found critical points are written to a
+checkpoint file. In subsequent runs, the checkpoint file is read and
+new CPs are added to it. 
 
 ** 12_di.cri
 
@@ -875,9 +882,16 @@ vacuum region.
 
 ** insulin.cri
 
-The human insulin hormone. Thsi protein is a very large system,
+The human insulin hormone. This protein is a very large system,
 containing 778 atoms, and it may take a while to run (~1 hour or more,
 depending on the number of available processors). The full topology is
 found by placing 3 seeds between each atom pair. 
+
+** helicene-07.cri
+
+A helicene crystal. Given the molecular nature of this system, the
+seeding strategy is changed from the default (a subdivision of the
+Wigner-Seitz celll) to a search over atomic pairs, in a manner similar
+to what is done in molecules. All CPs are found.
 
 
