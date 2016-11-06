@@ -56,7 +56,7 @@ module autocp
   real*8 :: x0clip(3), x1clip(3), rclip
 
   ! variables that control the CP search
-  real*8 :: CP_eps_cp = 1d-1 !< distance to consider two CPs as different (Cartesian).
+  real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (Cartesian).
   real*8 :: NUC_eps_cp = 1d-1 !< distance to consider a CP as different from a nucleus (Cartesian).
   real*8 :: NUC_eps_cp_H = 2d-1 !< distance to consider a CP as different from a hydrogen (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
@@ -241,7 +241,7 @@ contains
     hadx1 = .false.
     iclip = 0
     CP_hdegen = 1d-8
-    CP_eps_cp = 1d-1
+    CP_eps_cp = 1d-2
     if (f(refden)%type == type_grid) then
        NUC_eps_cp = 2d0 * maxval(cr%aa / f(refden)%n)
        NUC_eps_cp_H = 2d0 * maxval(cr%aa / f(refden)%n)

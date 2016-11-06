@@ -3255,7 +3255,7 @@ zero computational cost (for intsance, after a CHECK run).
 
 CPEPS controls the minimum distance between CPs to consider them
 equivalent. The default units for CPEPS are bohr in crystals and
-angstrom in molecules. Default: 0.1 bohr. Similarly, NUCEPS controls
+angstrom in molecules. Default: 0.2 bohr. Similarly, NUCEPS controls
 the distance to consider a CP the same as a nucleus. If a CP is found
 at a distance less than neps.r from the closest nucleus, critic2
 considers the two are the same. The default value of NUCEPS is 0.1
