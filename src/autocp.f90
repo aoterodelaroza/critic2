@@ -754,7 +754,7 @@ contains
        call struct_write_3dmodel(cr,str,"obj",(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),lug,lumtl)
        do i = 1, nn
-          call obj_ball(lug,xseed(:,i),(/100,100,255/),0.3d0)
+          call obj_ball(lug,xseed(:,i) + cr%molx0,(/100,100,255/),0.3d0)
        end do
        call obj_close(lug,lumtl)
     endif
