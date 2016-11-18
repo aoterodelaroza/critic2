@@ -721,7 +721,8 @@ contains
   end subroutine grid_read_elk
 
   !> Interpolate the function value, first and second derivative at
-  !> point x0 (crystallographic coords.) using the grid g.
+  !> point x0 (crystallographic coords.) using the grid g.  This
+  !> routine is thread-safe.
   subroutine grinterp(f,xi,y,yp,ypp) 
     use types
 
@@ -761,6 +762,7 @@ contains
   !> (or the would-be nearest, it is nearest only in orthogonal
   !> grids). f is the grid field to interpolate. xi is the point in
   !> crystallographic coordinates. y is the interpolated value at xi.
+  !> This routine is thread-safe.
   subroutine grinterp_nearest(f,x0,y)
     use types
 
@@ -779,7 +781,8 @@ contains
 
   !> Interpolate using a trilinear interpolant. f is the grid field to
   !> interpolate. xi is the point in crystallographic coordinates. y
-  !> and yp are the value and gradient at xi.
+  !> and yp are the value and gradient at xi.  This routine is
+  !> thread-safe.
   subroutine grinterp_trilinear(f,x0,y,yp)
     use types
 
@@ -834,7 +837,8 @@ contains
   !> spline prediction. This is a modified version of the abinit
   !> density interpolation subroutine. f is the grid field to
   !> interpolate. xi is the point in crystallographic coordinates. y,
-  !> yp, and ypp are the value, gradient, and Hessian at xi.
+  !> yp, and ypp are the value, gradient, and Hessian at xi.  This
+  !> routine is thread-safe.
   subroutine grinterp_trispline(f,x0,y,yp,ypp)
     use types
     use tools_io
@@ -1102,15 +1106,15 @@ contains
 
   end subroutine grinterp_trispline
 
-  !> Tricubic interpolation based on:
-  !> Lekien and Marsden, Int. J. Numer. Meth. Engng, 63 (2005) 455-471.  
-  !> This interpolation is C^1 and local (the interpolant uses
-  !> information of the grid points close to the point).  This
-  !> subroutine has been adapted from the likely code, by David
-  !> Kirkby, University of California, Irvine
-  !> (https://github.com/deepzot/likely). f is the grid field to
-  !> interpolate. xi is the point in crystallographic coordinates. y,
-  !> yp, and ypp are the value, gradient, and Hessian at xi.
+  !> Tricubic interpolation based on: Lekien and Marsden,
+  !> Int. J. Numer. Meth. Engng, 63 (2005) 455-471.  This
+  !> interpolation is C^1 and local (the interpolant uses information
+  !> of the grid points close to the point).  This subroutine has been
+  !> adapted from the likely code, by David Kirkby, University of
+  !> California, Irvine (https://github.com/deepzot/likely). f is the
+  !> grid field to interpolate. xi is the point in crystallographic
+  !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
+  !> at xi.  This routine is thread-safe.
   subroutine grinterp_tricubic(f,xi,y,yp,ypp)
     use types
     use tools_io

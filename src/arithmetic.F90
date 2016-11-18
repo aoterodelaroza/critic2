@@ -139,6 +139,7 @@ contains
   !> in iok (tue=success). If periodic is present and false, evaluate
   !> the expression at x0 considering the field as
   !> non-periodic. Otherwise, evaluate it as if in a periodic system.
+  !> This routine is thread-safe.
   recursive function eval(expr,hardfail,iok,x0,fcheck,feval,periodic)
     use types
     use tools_io
@@ -308,7 +309,8 @@ contains
 
   end function eval
 
-  !> Return field ids from the evaluation of an expression.
+  !> Return field ids from the evaluation of an expression.  This
+  !> routine is thread-safe.
   subroutine fields_in_eval(expr,n,idlist)
     use tools_io
     use types
@@ -347,7 +349,7 @@ contains
   !> Given an expression in string expr starting at lpexit, parse all
   !> tokens for the arithmetic evaluation. Return the tokens in
   !> toklist and the number of tokens in ntok, and advance the string
-  !> pointer lpexit. 
+  !> pointer lpexit.  This routine is thread-safe.
   function tokenize(expr,ntok,toklist,lpexit) 
     use tools_io, only: lower
     logical :: tokenize
@@ -497,8 +499,8 @@ contains
     end subroutine addtok
   end function tokenize
 
-  !> Using the field id and the derivative flag, evaluate to a
-  !> number. 
+  !> Using the field id and the derivative flag, evaluate to a number.
+  !> This routine is thread-safe.
   recursive function fieldeval(fid,fder,x0,fcheck,feval,periodic)
     use tools_io
     use types
@@ -594,6 +596,7 @@ contains
   end function fieldeval
 
   !> Read an unsigned number or return false and leave lp unchanged
+  !> This routine is thread-safe.
   function isnumber (rval,expr,lp)
     use tools_io, only: isdigit
     logical :: isnumber
@@ -645,6 +648,7 @@ contains
   end function isnumber
 
   !> Read a binary operator or return false and leave lp unchanged
+  !> This routine is thread-safe.
   function isoperator(c,expr,lp)
     logical :: isoperator
     character*(*), intent(in) :: expr
@@ -722,7 +726,8 @@ contains
 
   end function isoperator
 
-  !> Read a unary operator (function) or return false and leave lp unchanged
+  !> Read a unary operator (function) or return false and leave lp
+  !> unchanged This routine is thread-safe.
   function isfunction(c,expr,lp,wasop)
     use tools_io, only: lower
 
@@ -850,7 +855,8 @@ contains
 
   !> Read an identifier (field, variable, constant) or return false
   !> and leave lp unchanged. If fder is present, try to find the field
-  !> derivative selector after the identifier (:xx).
+  !> derivative selector after the identifier (:xx).  This routine is
+  !> thread-safe.
   function isidentifier(id,expr,lp,fder)
     use tools_io
     logical :: isidentifier
@@ -904,7 +910,7 @@ contains
 
   end function isidentifier
 
-  !> Return an operator precedence
+  !> Return an operator precedence. This routine is thread-safe.
   function iprec(c)
     integer :: iprec
     integer, intent(in) :: c
@@ -931,7 +937,8 @@ contains
 
   end function iprec
 
-  !> Return 1 for right-associative operator and -1 for left-associative
+  !> Return 1 for right-associative operator and -1 for
+  !> left-associative.  This routine is thread-safe.
   function iassoc(c)
     integer :: iassoc
     integer, intent(in) :: c
@@ -948,7 +955,8 @@ contains
 
   end function iassoc
 
-  !> Pop from the stack and operate on the queue.
+  !> Pop from the stack and operate on the queue.  This routine is
+  !> thread-safe.
   subroutine pop(q,nq,s,ns,x0,fcheck,feval,periodic,fail)
     use tools_math, only: erf, erfc
     use tools_io, only: string
@@ -1185,7 +1193,8 @@ contains
     endfunction tointeger
   end subroutine pop
 
-  !> Return the type of stack element (operator, function, unary, binary)
+  !> Return the type of stack element (operator, function, unary,
+  !> binary).  This routine is thread-safe.
   function istype(c,type)
     integer, intent(in) :: c
     character*(*), intent(in) :: type
@@ -1248,7 +1257,7 @@ contains
     !$omp end critical (error)
   end subroutine die
 
-  !> Set the value of a variable
+  !> Set the value of a variable.
   subroutine setvariable(ikey,ival)
     use tools_io
     use types
@@ -1260,7 +1269,7 @@ contains
 
   end subroutine setvariable
 
-  !> Determine if a variable is defined
+  !> Determine if a variable is defined This routine is thread-safe.
   function isvariable(ikey,ival)
 
     character*(*), intent(in) :: ikey
@@ -1274,7 +1283,7 @@ contains
 
   end function isvariable
 
-  !> Clear a variable
+  !> Clear a variable.
   subroutine clearvariable(ikey)
 
     character*(*), intent(in) :: ikey
@@ -1283,14 +1292,15 @@ contains
 
   end subroutine clearvariable
 
-  !> Clear all the variables by freeing the hash
+  !> Clear all the variables by freeing the hash.
   subroutine clearallvariables()
 
     call vh%free()
 
   end subroutine clearallvariables
 
-  !> List of the variables in the internal database
+  !> List of the variables in the internal database.  This routine is
+  !> thread-safe.
   subroutine listvariables()
     use tools_io
 
@@ -1327,7 +1337,8 @@ contains
 
   end subroutine listvariables
 
-  !> Calculate a chemical function for a given field.
+  !> Calculate a chemical function for a given field.  This routine is
+  !> thread-safe.
   function chemfunction(c,sia,x0,feval,periodic) result(q)
     use tools_io
     use tools_math
@@ -1458,7 +1469,8 @@ contains
   
   end function chemfunction
 
-  !> Does this identifier correspond to a special field
+  !> Does this identifier correspond to a special field. This routine
+  !> is thread-safe.
   function isspecialfield(fid)
     use tools_io, only: lower
     character*(*), intent(in) :: fid

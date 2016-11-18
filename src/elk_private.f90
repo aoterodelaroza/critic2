@@ -414,6 +414,8 @@ contains
 
   end subroutine read_elk_myout
 
+  !> Calculate the density and its derivatives at a point in the unit
+  !> cell vpl (crystallographic).  This routine is thread-safe.
   subroutine elk_rho2(f,vpl,nder,frho,gfrho,hfrho)
     use types
     use grid1_tools, only: radial_derivs

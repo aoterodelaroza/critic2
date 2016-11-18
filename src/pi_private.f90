@@ -483,8 +483,9 @@ contains
 
   end subroutine rhoex1
 
-  !> Determine the density and derivatives at a given target point (cartesian).
-  !> It is possible to use the 'approximate' method, by interpolating on a grid.
+  !> Determine the density and derivatives at a given target point
+  !> (cartesian).  It is possible to use the 'approximate' method, by
+  !> interpolating on a grid.  This routine is thread-safe.
   subroutine pi_rho2 (f,xpos,rho,grad,h)
     use grid1_tools
     use tools_math

@@ -1578,9 +1578,9 @@ contains
   endfunction gnorm
 
   !> Determine the density and derivatives at a given target point.
-  !> xpos is in cartesian coordiantes and assume that the molecule
-  !> has been displaced to the center of a big cube. Same transformation
-  !> as in load xyz/wfn/wfx.
+  !> xpos is in cartesian coordiantes and assume that the molecule has
+  !> been displaced to the center of a big cube. Same transformation
+  !> as in load xyz/wfn/wfx. This routine is thread-safe.
   subroutine wfn_rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
     use tools_io
     use types

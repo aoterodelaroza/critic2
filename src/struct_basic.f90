@@ -273,6 +273,7 @@ contains
   !> crash=.true., crash with error if the requested flag is not
   !> set. If crash=.false., take the necessary steps to initialize the
   !> crystal flags that are .true.
+  !> This routine is thread-safe if crash = .true.
   subroutine struct_checkflags(c,crash,init0,env0,isym0,ast0,recip0,nn0,ewald0)
     use tools_io
     class(crystal), intent(inout) :: c
@@ -796,8 +797,8 @@ contains
   ! 
   ! end subroutine classify
 
-  !> Transform crystallographic to cartesian
-  function x2c(c,xx) 
+  !> Transform crystallographic to cartesian. This routine is thread-safe.
+  pure function x2c(c,xx) 
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xx(3) 
     real*8 :: x2c(3)
@@ -806,8 +807,8 @@ contains
 
   end function x2c
 
-  !> Transform cartesian to crystallographic
-  function c2x(c,xx)
+  !> Transform cartesian to crystallographic. This routine is thread-safe. 
+  pure function c2x(c,xx)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
     real*8 :: c2x(3)
@@ -816,8 +817,9 @@ contains
 
   end function c2x
 
-  !> Compute the distance between points in crystallographic.
-  function distance(c,x1,x2)
+  !> Compute the distance between points in crystallographic.  This
+  !> routine is thread-safe.
+  pure function distance(c,x1,x2)
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
     real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
@@ -832,8 +834,8 @@ contains
 
   !> Compute the shortest distance between a point x1 and all
   !> lattice translations of another point x2. Input points in cryst.
-  !> coordinates. 
-  function eql_distance(c,x1,x2)
+  !> coordinates. This routine is thread-safe.
+  pure function eql_distance(c,x1,x2)
     use tools_math
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
@@ -851,8 +853,8 @@ contains
   !> Given a point in crystallographic coordinates (x), find the
   !> lattice-translated copy of x with the shortest length. Returns
   !> the shortest-length vector in cartesian coordinates and 
-  !> the square of the distance.
-  subroutine shortest(c,x,dist2)
+  !> the square of the distance. This routine is thread-safe.
+  pure subroutine shortest(c,x,dist2)
     class(crystal), intent(in) :: c
     real*8, intent(inout) :: x(3)
     real*8, intent(out) :: dist2
@@ -881,10 +883,10 @@ contains
 
   end subroutine shortest
 
-  !> Determine if two points x0 and x1 (cryst.) are at a distance
-  !> less than eps. Logical veresion of c%distance(). If d2
-  !> is present and are_close is .true., return the square of
-  !> the distance in that argument.
+  !> Determine if two points x0 and x1 (cryst.) are at a distance less
+  !> than eps. Logical veresion of c%distance(). If d2 is present and
+  !> are_close is .true., return the square of the distance in that
+  !> argument.  This routine is thread-safe.
   function are_close(c,x0,x1,eps,d2)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
@@ -910,7 +912,7 @@ contains
   !> or any of its lattice translations. x0 and x1 are in cryst.
   !> coords. Logical version of c%ldistance(). If d2 is present and
   !> are_close is .true., return the square of the distance in that
-  !> argument.
+  !> argument. This routine is thread-safe.
   function are_lclose(c,x0,x1,eps,d2)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
@@ -968,7 +970,7 @@ contains
   !> nid type (nneq atom list). In the output, nid represents the
   !> complete list id (atcel). dist is the distance and lvec the
   !> lattice vector required to transform atcel(nid)%x to the nearest
-  !> position.
+  !> position. This routine is thread-safe.
   subroutine nearest_atom(c,xp,nid,dist,lvec)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xp(:)
@@ -996,8 +998,9 @@ contains
   end subroutine nearest_atom
 
   !> Identify an atom in the unit cell. Input: cartesian coords. Output:
-  !> the non-equivalent atom index (default if lncel is false) or
-  !> the complete atom index (if lncel is true).
+  !> the non-equivalent atom index (default if lncel is false) or the
+  !> complete atom index (if lncel is true). This routine is
+  !> thread-safe.
   function identify_atom(c,x0,lncel0)
     use tools_io
     
@@ -1032,7 +1035,7 @@ contains
   endfunction identify_atom
 
   !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
-  !> A fragment object.
+  !> A fragment object. This routine is thread-safe.
   function identify_fragment(c,nat,x0,z0) result(fr)
     use tools_io
     use types
@@ -1061,7 +1064,7 @@ contains
   end function identify_fragment
 
   !> Identify a fragment in the unit cell from an external
-  !> xyz file. An instance of a fragment object is returned
+  !> xyz file. An instance of a fragment object is returned.
   function identify_fragment_from_xyz(c,file) result(fr)
     use tools_io
     use types

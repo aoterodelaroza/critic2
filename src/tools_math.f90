@@ -783,7 +783,7 @@ contains
   end function erfc
 
   !> Function derivative using finite differences and Richardson's
-  !> extrapolation formula.
+  !> extrapolation formula. This routine is thread-safe.
   function der1i (dir, x, h, errcnv, pool, fld, grd0, periodic)
     use types
 
@@ -862,6 +862,8 @@ contains
 
   end function der1i
 
+  !> Function second derivative using finite differences and
+  !> Richardson's extrapolation formula. This routine is thread-safe.
   function der2ii (dir, x, h, errcnv, pool, fld, grd0, periodic)
     use types
     real*8 :: der2ii
@@ -947,6 +949,8 @@ contains
     return
   end function der2ii
 
+  !> Function mixed second derivative using finite differences and
+  !> Richardson's extrapolation formula. This routine is thread-safe.
   function der2ij (dir1, dir2, x, h1, h2, errcnv, fld, grd0, periodic)
     use types
     real*8 :: der2ij

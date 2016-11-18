@@ -141,7 +141,8 @@ contains
 
   !> Calculate the core or promolecular densities at a point x0
   !> (Cartesian coords) using atomic radial grids. If a fragment is
-  !> given, then only the atoms in it contribute.
+  !> given, then only the atoms in it contribute.  This routine is
+  !> thread-safe.
   subroutine grda_promolecular(x0,f,fp,fpp,nder,iscore,fr,periodic)
     use struct_basic
     use grid1_tools

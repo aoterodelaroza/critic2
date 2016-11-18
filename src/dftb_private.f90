@@ -191,8 +191,9 @@ contains
 
   !> Calculate the density and derivatives of a DFTB+ field (f) up to
   !> the nder degree (max = 2). xpos is in Cartesian coordinates. In
-  !> output, the density (rho), the gradient (grad), the Hessian
-  !> (h), and the G(r) kinetic energy density (gkin).
+  !> output, the density (rho), the gradient (grad), the Hessian (h),
+  !> and the G(r) kinetic energy density (gkin).  This routine is
+  !> thread-safe.
   subroutine dftb_rho2(f,xpos,nder,rho,grad,h,gkin)
     use grid1_tools
     use tools_math

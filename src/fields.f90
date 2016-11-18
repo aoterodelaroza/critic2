@@ -93,6 +93,7 @@ module fields
 
 contains
 
+  !> Initialize the moduel variable for the fields.
   subroutine fields_init()
 
     integer :: i
@@ -132,6 +133,7 @@ contains
 
   end subroutine fields_init
 
+  !> Terminate the variable allocations for the fields.
   subroutine fields_end()
 
     if (allocated(fused)) deallocate(fused)
@@ -140,6 +142,7 @@ contains
 
   end subroutine fields_end
 
+  !> Load a field - parse copy and allocate slot
   subroutine fields_load(line,id,oksyn)
     use elk_private
     use wien_private
@@ -219,6 +222,7 @@ contains
 
   end subroutine fields_load
 
+  !> Load a field - parse the line and call the appropriate reader. 
   function fields_load_real(line,fid,oksyn) result(ff)
     use dftb_private
     use elk_private
@@ -835,6 +839,7 @@ contains
 
   end function fields_load_real
 
+  !> Unload the field in slot id.
   subroutine fields_unload(id)
     use tools_io, only: string
 
@@ -1176,6 +1181,7 @@ contains
 
   end subroutine fields_integrable_report
 
+  !> Define properties to calculate at selected points in the unit cell. 
   subroutine fields_pointprop(line0)
     use arithmetic
     use global
@@ -1565,6 +1571,7 @@ contains
     
   end function getfieldnum
 
+  !> Set field flags.
   subroutine setfield(ff,fid,line,oksyn)
     use struct_basic
     use grid_tools
@@ -1661,7 +1668,7 @@ contains
   ! Calculate the scalar field f at point v (cartesian) and its
   ! derivatives up to nder. Return the results in res. If periodic is
   ! present and false, consider the field is defined in a non-periodic
-  ! system.
+  ! system. This routine is thread-safe.
   recursive subroutine grd(f,v,nder,res,periodic)
     use grd_atomic
     use grid_tools
@@ -1871,7 +1878,7 @@ contains
   end subroutine grd
 
   !> Calculate the value of all integrable properties at the given position
-  !> xpos (Cartesian).
+  !> xpos (Cartesian). This routine is thread-safe.
   subroutine grdall(xpos,lprop,pmask)
     use arithmetic
     use tools_io
@@ -1932,7 +1939,8 @@ contains
 
   !> Calculate only the value of the scalar field at the given point
   !> (v in cartesian). If periodic is present and false, consider the
-  !> field is defined in a non-periodic system.
+  !> field is defined in a non-periodic system. This routine is
+  !> thread-safe.
   recursive function grd0(f,v,periodic)
     use grd_atomic
     use grid_tools
@@ -2018,7 +2026,7 @@ contains
 
   end function grd0
 
-  !> Return a string description of the field type
+  !> Return a string description of the field type.
   function fields_typestring(itype) result(s)
     use tools_io
     integer, intent(in) :: itype
@@ -2502,6 +2510,7 @@ contains
 
   !> Check that the id is a grid and is a sane field. Wrapper
   !> around goodfield() to pass it to the arithmetic module.
+  !> This routine is thread-safe.
   function fields_fcheck(id,iout)
     logical :: fields_fcheck
     character*(*), intent(in) :: id
@@ -2515,8 +2524,8 @@ contains
 
   end function fields_fcheck
 
-  !> Evaluate the field at a point. Wrapper around grd() to pass
-  !> it to the arithmetic module. 
+  !> Evaluate the field at a point. Wrapper around grd() to pass it to
+  !> the arithmetic module.  This routine is thread-safe.
   recursive function fields_feval(id,nder,x0,periodic)
     use ewald, only: ewald_pot
     use struct_basic, only: cr

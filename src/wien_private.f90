@@ -1731,7 +1731,8 @@ contains
 !
   END SUBROUTINE YLM
 
-  ! Calculate the density and its derivatives at point v0
+  !> Calculate the density and its derivatives at point v0 This
+  !> routine is thread-safe.
   subroutine wien_rho2(f,v0,rho,grad,h)
     use global
     use tools_io
