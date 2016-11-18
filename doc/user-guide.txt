@@ -2971,42 +2971,35 @@ Planes and contour plots (PLANE)
 
 ::
 
-  PLANE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i ...
-  PLANE {ATOM|ATOMS} at1.i at2.i at3.i [{SCALE sx.r sy.r}|
-        {SIZE zx.r zy.r}] nx.i ny.i ...
-
-  PLANE ... [FILE file.s] [FIELD id.s|"expr.s"]
-      [F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|HYZ|HZX|HZY|HZZ|LAP]
-      [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i r0.r r1.r}]
-      [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
+  PLANE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i 
+   	[SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
+        [FILE file.s] [FIELD id.s/"expr"]
+        [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
+        [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r}]
+	[COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
-<root>_plane.dat. There are two ways to specify the geometry of the
-plane. In the first option, three points are given: (x0.r y0.r z0.r)
-is the origin, (x1.r y1.r z1.r) is the x-end of the plane and (x2.r
-y2.r z2.r) is the y-end. The number of calculated points on each axis
-are given by nx.i (x-axis) and ny.i (y-axis). The units for these
-points are crystallographic coordinates in a crystal, and molecular
-Cartesian coordinates in a molecule (default: angstrom unless the
-UNITS keyword is used).
+<root>_plane.dat. The geometry of the plane is specified by three
+points: (x0.r y0.r z0.r) is the origin, (x1.r y1.r z1.r) is the x-end
+of the plane and (x2.r y2.r z2.r) is the y-end. The number of
+calculated points on each axis are given by nx.i (x-axis) and ny.i
+(y-axis). The units for these points are crystallographic coordinates
+in a crystal, and molecular Cartesian coordinates in a molecule
+(default: angstrom unless the UNITS keyword is used). The two axes of
+the plane can be scaled using the SCALE keyword. If sx.r (sy.r) is
+given, the total length of the x-axis (y-axis) is scaled by sx.r
+(sy.r). If EXTENDX is used, extend the x-axis by zx0.r (initial point
+of the x-axis) and zx1.r (end point). The keyword EXTENDY performs the
+equivalent operation on the y-axis. The units for EXTENDX and EXTENDY
+are bohr (crystals) or angstrom (molecules) unless changed by the
+UNITS keyword.
 
-An alternative way of passing the plane geometry to critic2 is to use
-the ATOM (or ATOMS) keyword. This keyword accepts three integers,
-corresponding to the atom identifiers in the atomic cell list. The
-sx.r and sy.r parameters to SCALE enlarge the plot plane by sx.r in
-the x direction and by sy.r in the y direction. The total length of
-the x or y axis can be set with SIZE (in bohr). SCALE and SIZE are
-mutually exclusive. The syntax of ATOM is similar to GRDVEC. The rest
-of the options FILE, FIELD, ... are treated in the same way.
-
-Regardless of how the plane geometry is given, there are a number of
-additional options that control the behavior of PLANE.  The name of
-the output file can be changed with FILE. Using FIELD, one of the
-loaded fields (id.s) or an expression ("expr.s") can be evaluated. In
-addition to the field value, a second property can be evaluated: the
-field again (F), its derivatives (Gx), its second derivatives (Hxx),
-the gradient norm (GMOD) or the Laplacian (LAP).
+The name of the output file can be changed with FILE. Using FIELD, one
+of the loaded fields (id.s) or an expression ("expr.s") can be
+evaluated. In addition to the field value, a second property can be
+evaluated: the field again (F), its derivatives (Gx), its second
+derivatives (Hxx), the gradient norm (GMOD) or the Laplacian (LAP).
 
 The keyword CONTOUR writes a contour map representation of the plane:
 two contour line files (.iso and .neg.iso) and a gnuplot script
@@ -3838,10 +3831,9 @@ Gradient path representations in a plane (GRDVEC)
   GRDVEC
      {FILES|ROOT|ONAME} rootname.s
      PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r
-           [SCALE sx.r sy.r]
-     PLANE {CP|ATOM} cp1.i [LVEC x.i y.i z.i]
-           cp2.i [LVEC x.i y.i z.i] cp3.i [LVEC x.i y.i z.i]
-           [SCALE sx.r sy.r] [SIZE zx.r zy.r]
+     SCALE sx.r sy.r
+     EXTENDX zx0.r zx1.r
+     EXTENDY zy0.r zy1.r
      OUTCP sx.r sy.r
      HMAX hmax.r
      ORIG x.r y.r z.r atr.i up.i down.i
@@ -3882,25 +3874,17 @@ the plot (default: <root>). These files include:
   containing the information for the position of the CPs in the plot
   plane.
 
-In the standard syntax, PLANE specifies the plane for the plot using
-three points: x0 is the origin, x1 the end of the x-axis and x2 the
-end of the y-axis. These points are in crystallographic coordinates in
-a crystal, and in molecular Cartesian coordinates in a molecule
-(default units: angstrom). The SCALE option allows the user to extend
-the plane relative to the reference points; The x- and y- axis of the
-rectangle are scaled using the sx.r and sy.r values.
-
-There is another possibility: the PLANE CP keyword (or the equivalent
-syntax PLANE ATOM) accepts three atoms or critical points from the
-complete CP (or atom) list. The first atom (or CP) is taken as
-reference, and the other two are replicated by symmetry until critic2
-finds the equivalent position that is nearest to the first. The three
-points found this way (hopefully) determine a plane. The barycenter of
-the points is calculated, and is set as the center of the plot window,
-which consists of a rectangle with sides equal to two times the
-longest distance from the barycenter to the nuclei. The reference
-points for the plane in PLANE CP may translated by lattice vectors
-(optional keyword LVEC).
+PLANE specifies the plane for the plot using three points: x0 is the
+origin, x1 the end of the x-axis and x2 the end of the y-axis. These
+points are in crystallographic coordinates in a crystal, and in
+molecular Cartesian coordinates in a molecule (default units:
+angstrom). The two axes of the plane can be scaled using the SCALE
+keyword. If sx.r (sy.r) is given, the total length of the x-axis
+(y-axis) is scaled by sx.r (sy.r). If EXTENDX is used, extend the
+x-axis by zx0.r (initial point of the x-axis) and zx1.r (end
+point). The keyword EXTENDY performs the equivalent operation on the
+y-axis. The units for EXTENDX and EXTENDY are bohr (crystals) or
+angstrom (molecules) unless changed by the UNITS keyword.
 
 The plot plane may contain regions that are traversed by gradient
 lines originating at critical points located outside the plot

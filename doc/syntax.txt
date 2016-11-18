@@ -150,12 +150,12 @@ expression.r # prints the value of the expression to the output.
 * POINT x.r y.r z.r [ALL] [FIELD {id.s/"expr"}]
 * LINE x0.r y0.r z0.r x1.r y1.r z1.r npts.i [FILE file.s] [FIELD id.s/"expr"]
        [GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-* PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r nx.i ny.i [FILE file.s] [FIELD id.s/"expr"]
+* PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r nx.i ny.i 
+   	[SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
+        [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
         [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r}]
 	[COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
-  PLANE {ATOM|ATOMS} at1.i at2.i at3.i [{SCALE sx.r sy.r}| 
-        {SIZE zx.r zy.r}] nx.i ny.i ...
 * CUBE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i nz.i [FILE file.s] [FIELD id.s/"expr"]
        [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] [HEADER]
   CUBE x0.r y0.r z0.r x1.r y1.r z1.r bpp.r ...
@@ -203,10 +203,9 @@ expression.r # prints the value of the expression to the output.
 * GRDVEC
    {FILES|ROOT|ONAME} rootname.s
    PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r
-         [SCALE sx.r sy.r]
-   PLANE {CP|ATOM} cp1.i [LVEC x.i y.i z.i] cp2.i [LVEC x.i y.i z.i]
-         cp3.i [LVEC x.i y.i z.i] [SCALE sx.r sy.r]
-         [SIZE zx.r zy.r]
+   SCALE sx.r sy.r
+   EXTENDX zx0.r zx1.r
+   EXTENDY zy0.r zy1.r
    OUTCP sx.r sy.r
    HMAX hmax.r
    ORIG x.r y.r z.r atr.i up.i down.i

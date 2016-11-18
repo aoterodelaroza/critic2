@@ -633,7 +633,7 @@ contains
     integer :: lp, nti, id, luout, nx, ny, nco, niso, nn
     real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt, lappt
     real*8 :: uu(3), vv(3)
-    real*8 :: sx, sy, zx, zy, zmin, zmax
+    real*8 :: sx, sy, zx0, zx1, zy0, zy1, zmin, zmax
     logical :: docontour, dorelief, docolormap
     character(len=:), allocatable :: word, outfile, prop, root0, expr
     type(scalar_value) :: res
@@ -643,73 +643,39 @@ contains
 
     ! read the points
     lp = 1
-    word = lgetword(line,lp)
-    if (equal(word,'atoms') .or. equal(word,'atom')) then
-       ok = eval_next(n1,line,lp)
-       ok = ok .and. eval_next(n2,line,lp)
-       ok = ok .and. eval_next(n3,line,lp)
-       ok = ok .and. (n1 > 0) .and. (n1 <= cr%ncel) .and. &
-          (n2 > 0) .and. (n2 <= cr%ncel) .and. (n3 > 0) .and. (n3 <= cr%ncel)
-       if (.not. ok) then
-          call ferror('rhoplot_plane','Bad ATOMS keyword in PLANE',faterr,line,syntax=.true.)
-          return
-       end if
-       
-       lp2 = lp
-       word = lgetword(line,lp)
-       sx = 1d0
-       sy = 1d0
-       zx = -1d0
-       zy = -1d0
-       if (equal(word,'scale')) then
-          ok = eval_next(sx,line,lp)
-          ok = ok .and. eval_next(sy,line,lp)
-          if (.not. ok) then
-             call ferror('rhoplot_plane','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
-             return
-          end if
-       elseif (equal(word,'size')) then
-          ok = eval_next(zx,line,lp)
-          ok = ok .and. eval_next(zy,line,lp)
-          if (.not. ok) then
-             call ferror('rhoplot_plane','wrong SIZE keyword in PLANE',faterr,line,syntax=.true.)
-             return
-          end if
-       else
-          lp = lp2
-       end if
-
-       call atomplane(n1,n2,n3,sx,sy,zx,zy,x0,x1,x2)
-    else
-       lp = 1
-       ok = eval_next(x0(1),line,lp)
-       ok = ok .and. eval_next(x0(2),line,lp)
-       ok = ok .and. eval_next(x0(3),line,lp)
-       ok = ok .and. eval_next(x1(1),line,lp)
-       ok = ok .and. eval_next(x1(2),line,lp)
-       ok = ok .and. eval_next(x1(3),line,lp)
-       ok = ok .and. eval_next(x2(1),line,lp)
-       ok = ok .and. eval_next(x2(2),line,lp)
-       ok = ok .and. eval_next(x2(3),line,lp)
-       if (cr%ismolecule) then
-          x0 = cr%c2x(x0 / dunit - cr%molx0)
-          x1 = cr%c2x(x1 / dunit - cr%molx0)
-          x2 = cr%c2x(x2 / dunit - cr%molx0)
-       endif
-       if (.not. ok) then
-          call ferror('rhoplot_plane','wrong PLANE order: x0, x1, x2',faterr,line,syntax=.true.)
-          return
-       end if
+    ok = eval_next(x0(1),line,lp)
+    ok = ok .and. eval_next(x0(2),line,lp)
+    ok = ok .and. eval_next(x0(3),line,lp)
+    ok = ok .and. eval_next(x1(1),line,lp)
+    ok = ok .and. eval_next(x1(2),line,lp)
+    ok = ok .and. eval_next(x1(3),line,lp)
+    ok = ok .and. eval_next(x2(1),line,lp)
+    ok = ok .and. eval_next(x2(2),line,lp)
+    ok = ok .and. eval_next(x2(3),line,lp)
+    if (.not. ok) then
+       call ferror('rhoplot_plane','Wrong PLANE command: x0, x1, x2',faterr,line,syntax=.true.)
+       return
     end if
+    if (cr%ismolecule) then
+       x0 = cr%c2x(x0 / dunit - cr%molx0)
+       x1 = cr%c2x(x1 / dunit - cr%molx0)
+       x2 = cr%c2x(x2 / dunit - cr%molx0)
+    endif
 
     ok = eval_next(nx,line,lp)
     ok = ok .and. eval_next(ny,line,lp)
     if (.not. ok) then
-       call ferror('rhoplot_plane','wrong PLANE order: nx and ny',faterr,line,syntax=.true.)
+       call ferror('rhoplot_plane','Wrong PLANE command: nx and ny',faterr,line,syntax=.true.)
        return
     end if
 
     ! read additional options
+    sx = 1d0
+    sy = 1d0
+    zx0 = 0d0
+    zx1 = 0d0
+    zy0 = 0d0
+    zy1 = 0d0
     nti = -1
     prop = "lap"
     docontour = .false.
@@ -742,6 +708,31 @@ contains
                 return
              end if
           end if
+       elseif (equal(word,'scale')) then
+          ok = eval_next(sx,line,lp)
+          ok = ok .and. eval_next(sy,line,lp)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'extendx')) then
+          ok = eval_next(zx0,line,lp)
+          ok = ok .and. eval_next(zx1,line,lp)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
+          zx0 = zx0 / dunit
+          zx1 = zx1 / dunit
+       elseif (equal(word,'extendy')) then
+          ok = eval_next(zy0,line,lp)
+          ok = ok .and. eval_next(zy1,line,lp)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
+          zy0 = zy0 / dunit
+          zy1 = zy1 / dunit
        else if (equal(word,'relief')) then
           dorelief = .true.
           zmin = -1d0
@@ -837,6 +828,8 @@ contains
           exit
        end if
     end do
+
+    ! root file name and additional property
     nn = index(outfile,".",.true.)
     if (nn == 0) nn = len(trim(outfile)) + 1
     root0 = outfile(1:nn-1)
@@ -848,15 +841,20 @@ contains
        end if
     end if
 
-    ! calcualte properties
-    allocate(ff(nx,ny),lf(nx,ny))
+    ! Transform to Cartesian, extend and scale, and set up the plane
+    ! vectors.
     x0 = cr%x2c(x0)
     x1 = cr%x2c(x1)
     x2 = cr%x2c(x2)
+    call plane_scale_extend(x0,x1,x2,sx,sy,zx0,zx1,zy0,zy1)
     uu = (x1-x0) / real(nx-1,8)
     du = norm(uu)
     vv = (x2-x0) / real(ny-1,8)
     dv = norm(vv)
+
+    ! allocate space for field values on the plane
+    allocate(ff(nx,ny),lf(nx,ny))
+
     !$omp parallel do private (xp,res,rhopt,lappt) schedule(dynamic)
     do ix = 1, nx
        do iy = 1, ny
@@ -1603,8 +1601,9 @@ contains
     integer :: cpid
     integer :: nti, nfi, ix, iy
     integer :: i1, i2, i3, lvecx(3,3)
-    real*8 :: sx, sy, zx, zy, ehess(3), x0(3), uu(3), vv(3)
-    logical :: docontour, dograds, doplane, goodplane
+    real*8 :: sx, sy, zx0, zx1, zy0, zy1
+    real*8 :: ehess(3), x0(3), uu(3), vv(3)
+    logical :: docontour, dograds, goodplane
     integer :: n1, n2, niso
     type(scalar_value) :: res
 
@@ -1633,6 +1632,12 @@ contains
     docontour = .false.
     dograds = .false.
     nfi = 0
+    sx = 1d0
+    sy = 1d0
+    zx0 = 0d0
+    zx1 = 0d0
+    zy0 = 0d0
+    zy1 = 0d0
 
     !.Read user options:
     ll = len(line)
@@ -1648,153 +1653,51 @@ contains
           datafile = trim(rootname) // ".dat" 
 
        else if (equal(word,'plane')) then
-          lpold = lp
-          word = lgetword(line,lp)
-          if (equal(word,'cp').or.equal(word,'atom')) then
-             lvecx = 0
-             ok = eval_next (i1, line, lp)
-             lpold = lp
-             word = getword(line,lp)
-             if (equal(word,'lvec')) then
-                ok=ok.and.eval_next(lvecx(1,1),line,lp)
-                ok=ok.and.eval_next(lvecx(1,2),line,lp)
-                ok=ok.and.eval_next(lvecx(1,3),line,lp)
-             else
-                lp = lpold
-             end if
-             ok = ok .and. eval_next (i2, line, lp)
-             lpold = lp
-             word = getword(line,lp)
-             if (equal(word,'lvec')) then
-                ok=ok.and.eval_next(lvecx(2,1),line,lp)
-                ok=ok.and.eval_next(lvecx(2,2),line,lp)
-                ok=ok.and.eval_next(lvecx(2,3),line,lp)
-             else
-                lp = lpold
-             end if
-             ok = ok .and. eval_next (i3, line, lp)
-             lpold = lp
-             word = getword(line,lp)
-             if (equal(word,'lvec')) then
-                ok=ok.and.eval_next(lvecx(3,1),line,lp)
-                ok=ok.and.eval_next(lvecx(3,2),line,lp)
-                ok=ok.and.eval_next(lvecx(3,3),line,lp)
-             else
-                lp = lpold
-             end if
-             ok = ok .and. (i1 > 0) .and. (i1 <= ncpcel) .and. &
-                  (i2 > 0) .and. (i2 <= ncpcel) .and. (i3 > 0) .and. (i3 <= ncpcel)
-             if (.not. ok) then
-                call ferror ('grdvec','Bad CP identifiers',faterr,line,syntax=.true.)
-                return
-             end if
-             sx = 1d0
-             sy = 1d0
-             zx = -1d0
-             zy = -1d0
-             do while(.true.)
-                word = getword(line,lp)
-                if (equal(word,'scale')) then
-                   ok = eval_next (sx, line, lp)
-                   ok = ok .and. eval_next (sy, line, lp)
-                   if (.not. ok) then
-                      call ferror ('grdvec','Bad scal numbers',faterr,line,syntax=.true.)
-                      return
-                   end if
-                elseif (equal(word,'size')) then
-                   ok = eval_next (zx, line, lp)
-                   ok = ok .and. eval_next (zy, line, lp)
-                   if (.not. ok) then
-                      call ferror ('grdvec','Bad size numbers',faterr,line,syntax=.true.)
-                      return
-                   end if
-                   zx = zx / dunit
-                   zy = zy / dunit
-                elseif (len_trim(word) > 0) then
-                   call ferror ('grdvec','Unknown extra keyword in PLANE',faterr,line,syntax=.true.)
-                   return
-                else
-                   exit
-                end if
-             end do
-             r0 = cpcel(i1)%x + lvecx(1,:)
-             r1 = cpcel(i2)%x + lvecx(2,:)
-             r2 = cpcel(i3)%x + lvecx(3,:)
-             write (uout,'("+ Building the plane using points: ",3(/1x,3(A,1x)))') &
-                (string(r0(j),'f',6,10,ioj_right),j=1,3), &
-                (string(r1(j),'f',6,10,ioj_right),j=1,3), &
-                (string(r2(j),'f',6,10,ioj_right),j=1,3)
-             write (uout,'("+ Scale: ",A,X,A)') string(sx,'g'), string(sy,'g')
-             if (zx > 0d0 .and. zy > 0d0) &
-                write (uout,'("+ Size: ",A,X,A)') string(zx,'g'), string(zy,'g')
-             call buildplane(r0,r1,r2,sx,sy,zx,zy)
-          else
-             lp = lpold
-             doplane = .false.
-             ok = eval_next (r0(1), line, lp)
-             ok = ok .and. eval_next (r0(2), line, lp)
-             ok = ok .and. eval_next (r0(3), line, lp)
-             ok = ok .and. eval_next (r1(1), line, lp)
-             ok = ok .and. eval_next (r1(2), line, lp)
-             ok = ok .and. eval_next (r1(3), line, lp)
-             ok = ok .and. eval_next (r2(1), line, lp)
-             ok = ok .and. eval_next (r2(2), line, lp)
-             ok = ok .and. eval_next (r2(3), line, lp)
-             if (.not. ok) then
-                call ferror ('grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
-                return
-             end if
-             
-             if (cr%ismolecule) then
-                r0 = cr%c2x(r0 / dunit - cr%molx0)
-                r1 = cr%c2x(r1 / dunit - cr%molx0)
-                r2 = cr%c2x(r2 / dunit - cr%molx0)
-             endif
-
-             sx = 1d0
-             sy = 1d0
-             do while (.true.)
-                word = getword(line,lp)
-                if (equal(word,'scale')) then
-                   doplane = .true.
-                   ok = eval_next (sx, line, lp)
-                   ok = ok .and. eval_next (sy, line, lp)
-                   if (.not. ok) then
-                      call ferror ('grdvec','Bad scal numbers',faterr,line,syntax=.true.)
-                      return
-                   end if
-                elseif (len_trim(word) > 0) then
-                   call ferror ('grdvec','Unknown extra keyword in PLANE',faterr,line,syntax=.true.)
-                   return
-                else
-                   exit
-                end if
-             end do
-             if (doplane) then
-                raux0 = r0
-                raux1 = r1
-                raux2 = r2
-                r0 = r0 - 0.5d0 * (sx-1) * (r1 - r0) - 0.5d0 * (sy-1) * (r2 - r0)
-                r1 = r1 + 0.5d0 * (sx-1) * (r1 - raux0) - 0.5d0 * (sy-1) * (r2 - raux0)
-                r2 = r2 - 0.5d0 * (sx-1) * (raux1 - raux0) + 0.5d0 * (sy-1) * (r2 - raux0)
-             end if
+          ok = eval_next (r0(1), line, lp)
+          ok = ok .and. eval_next (r0(2), line, lp)
+          ok = ok .and. eval_next (r0(3), line, lp)
+          ok = ok .and. eval_next (r1(1), line, lp)
+          ok = ok .and. eval_next (r1(2), line, lp)
+          ok = ok .and. eval_next (r1(3), line, lp)
+          ok = ok .and. eval_next (r2(1), line, lp)
+          ok = ok .and. eval_next (r2(2), line, lp)
+          ok = ok .and. eval_next (r2(3), line, lp)
+          if (.not. ok) then
+             call ferror ('grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
+             return
           end if
-          indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
-          write (uout,'("* Name of the output data file: ",a)') string(datafile)
-          if (.not.cr%ismolecule) then
-             xo0 = r0
-             xo1 = r1
-             xo2 = r2
-          else
-             xo0 = (cr%x2c(r0) + cr%molx0) * dunit
-             xo1 = (cr%x2c(r1) + cr%molx0) * dunit
-             xo2 = (cr%x2c(r2) + cr%molx0) * dunit
-          end if
-          write (uout,'("  Plane origin: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
-          write (uout,'("  Plane x-end:  ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
-          write (uout,'("  Plane y-end:  ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
+          if (cr%ismolecule) then
+             r0 = cr%c2x(r0 / dunit - cr%molx0)
+             r1 = cr%c2x(r1 / dunit - cr%molx0)
+             r2 = cr%c2x(r2 / dunit - cr%molx0)
+          endif
           goodplane = .true.
 
+       elseif (equal(word,'scale')) then
+          ok = eval_next(sx,line,lp)
+          ok = ok .and. eval_next(sy,line,lp)
+          if (.not. ok) then
+             call ferror('grdvec','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'extendx')) then
+          ok = eval_next(zx0,line,lp)
+          ok = ok .and. eval_next(zx1,line,lp)
+          if (.not. ok) then
+             call ferror('grdvec','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
+          zx0 = zx0 / dunit
+          zx1 = zx1 / dunit
+       elseif (equal(word,'extendy')) then
+          ok = eval_next(zy0,line,lp)
+          ok = ok .and. eval_next(zy1,line,lp)
+          if (.not. ok) then
+             call ferror('grdvec','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
+          zy0 = zy0 / dunit
+          zy1 = zy1 / dunit
        else if (equal(word,'outcp')) then
           ok = eval_next (scalex, line, lp)
           ok = ok .and. eval_next (scaley, line, lp)
@@ -2039,7 +1942,36 @@ contains
     call ferror('grdvec','Unexpected end of input',faterr,line,syntax=.true.)
     return
 999 continue
+    if (.not.goodplane) then
+       call ferror ('grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
+       return
+    end if
     
+    ! extend and scale
+    r0 = cr%x2c(r0)
+    r1 = cr%x2c(r1)
+    r2 = cr%x2c(r2)
+    call plane_scale_extend(r0,r1,r2,sx,sy,zx0,zx1,zy0,zy1)
+    r0 = cr%c2x(r0)
+    r1 = cr%c2x(r1)
+    r2 = cr%c2x(r2)
+
+    ! output the plane
+    indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
+    write (uout,'("* Name of the output data file: ",a)') string(datafile)
+    if (.not.cr%ismolecule) then
+       xo0 = r0
+       xo1 = r1
+       xo2 = r2
+    else
+       xo0 = (cr%x2c(r0) + cr%molx0) * dunit
+       xo1 = (cr%x2c(r1) + cr%molx0) * dunit
+       xo2 = (cr%x2c(r2) + cr%molx0) * dunit
+    end if
+    write (uout,'("  Plane origin: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
+    write (uout,'("  Plane x-end:  ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
+    write (uout,'("  Plane y-end:  ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
+
     ! calculate the contour plot
     if (docontour) then
        allocate(lf(n1,n2))
@@ -2085,10 +2017,6 @@ contains
        !$omp end parallel do
        call contour(r0,r1,r2,n1,n2,nti,niso,rootname,.false.,.false.)
        deallocate(lf)
-    end if
-    if (.not.goodplane) then
-       call ferror ('grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
-       return
     end if
        
     udat = fopen_write(datafile)
@@ -2747,77 +2675,6 @@ contains
      &        1x,'set yrange [',f7.3,':',f7.3,']')
 
   end subroutine write_fichgnu
-
-  !> Calculate the axis of the plane determined by 3 atoms. 
-  subroutine atomplane(i,j,k,scalx,scaly,sizex,sizey,p0,p1,p2)
-    use struct_basic
-    use global
-    use tools_io
-
-    integer, intent(in) :: i, j, k
-    real*8, intent(in) :: scalx, scaly, sizex, sizey
-    real*8, dimension(3), intent(out) :: p0, p1, p2
-
-    real*8, allocatable :: vec(:,:)
-    real*8, dimension(3) :: v2, x
-    real*8 :: dist, dmax, det
-    integer :: m, l, mult
-    integer :: lvec(3), ln
-
-    p0 = cr%atcel(i)%x
-    p1 = cr%atcel(j)%x
-    call cr%symeqv(p1,mult,vec)
-    dmax = 1d10
-    do l = 1, mult
-       do m = 0, 26
-          ln = m
-          lvec(1) = mod(ln,3) - 1
-          ln = ln / 3
-          lvec(2) = mod(ln,3) - 1
-          ln = ln / 3
-          lvec(3) = mod(ln,3) - 1
-
-          x = cr%x2c(vec(:,l) - p0 + real(lvec,8))
-          dist = dot_product(x,x)
-          if (dist < 1d-8) cycle
-          if (dist < dmax) then
-             p1 = vec(:,l) + real(lvec,8)
-             dmax = dist
-          end if
-       end do
-    end do
-
-    p2 = cr%atcel(k)%x
-    call cr%symeqv(p2,mult,vec)
-    dmax = 1d10
-    do l = 1, mult
-       do m = 0, 26
-          ln = m
-          lvec(1) = mod(ln,3) - 1
-          ln = ln / 3
-          lvec(2) = mod(ln,3) - 1
-          ln = ln / 3
-          lvec(3) = mod(ln,3) - 1
-          
-          x = cr%x2c(vec(:,l) - p0 + real(lvec,8))
-          dist = dot_product(x,x)
-          if (dist < 1d-8) cycle
-          if (dist < dmax) then
-             ! check determinant
-             v2 = vec(:,l) + real(lvec,8)
-             det = p0(1)*p1(2)*v2(3) + p0(2)*p1(3)*v2(1) + &
-                  p0(3)*p1(1)*v2(2) - p0(3)*p1(2)*v2(1) - &
-                  p0(2)*p1(1)*v2(3) - p0(1)*p1(3)*v2(2)
-             if (abs(det) < 1d-5) cycle
-             p2 = v2
-             dmax = dist
-          end if
-       end do
-    end do
-    deallocate(vec)
-    call buildplane(p0,p1,p2,scalx,scaly,sizex,sizey)
-
-  end subroutine atomplane
 
   !> Calculate the axis of the plane given by 3 points
   subroutine buildplane(x0,x1,x2,scalx,scaly,sizex,sizey)

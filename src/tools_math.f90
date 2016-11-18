@@ -32,6 +32,7 @@ module tools_math
   public :: det, detsym, matinv
   public :: erf, erfc
   public :: der1i, der2ii, der2ij
+  public :: plane_scale_extend
   public :: good_lebedev
   public :: genrlm_real
   public :: genylm
@@ -1012,6 +1013,50 @@ contains
     enddo
   end function der2ij
   
+  !> Scale or extend the plane defined by points x0, x1, x2 (Cartesian)
+  !> with scale factors sxi, syi (default: 1) and extend factors
+  !> zx0i, zx1i in the x direction (default: 0) and zy0i, zy1i in the
+  !> y direction (default: 0).
+  subroutine plane_scale_extend(x0,x1,x2,sxi,syi,zx0i,zx1i,zy0i,zy1i)
+    use tools_io, only: ferror, faterr
+    use param, only: VSMALL
+    real*8, intent(inout) :: x0(3), x1(3), x2(3)
+    real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
+    
+    real*8 :: sx, sy, zx0, zx1, zy0, zy1
+    real*8 :: ax(3), ay(3), ax0(3), ax1(3), ay0(3), ay1(3), dx, dy
+
+    sx = 1d0
+    sy = 1d0
+    zx0 = 0d0
+    zx1 = 0d0
+    zy0 = 0d0
+    zy1 = 0d0
+    if (present(sxi)) sx = sxi
+    if (present(syi)) sy = syi
+    if (present(zx0i)) zx0 = zx0i
+    if (present(zx1i)) zx1 = zx1i
+    if (present(zy0i)) zy0 = zy0i
+    if (present(zy1i)) zy1 = zy1i
+    
+    ax = (x1-x0)
+    ay = (x2-x0)
+    dx = norm(ax)
+    dy = norm(ay)
+    if (dx < VSMALL .or. dy < VSMALL) &
+       call ferror('plane_scale_extend','zero-area plane',faterr)
+
+    ax0 = -(ax/dx) * (0.5d0 * (sx-1d0) * dx + zx0)
+    ax1 =  (ax/dx) * (0.5d0 * (sx-1d0) * dx + zx1)
+    ay0 = -(ay/dy) * (0.5d0 * (sy-1d0) * dy + zy0)
+    ay1 =  (ay/dy) * (0.5d0 * (sy-1d0) * dy + zy1)
+
+    x0 = x0 + ax0 + ay0
+    x1 = x1 + ax1 + ay0
+    x2 = x2 + ax0 + ay1
+
+  end subroutine plane_scale_extend
+
   !> Find the Gauss-Legendre nodes and weights for an interval.
   subroutine gauleg (x1,x2,x,w,n)
     use param, only: pi
