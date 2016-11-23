@@ -27,6 +27,7 @@ module tools_io
   private :: string_real8
   private :: string_real4
   private :: string_char
+  private :: string_logical
   public :: equal
   public :: getline
   public :: getline_raw
@@ -67,6 +68,7 @@ module tools_io
      module procedure string_real8
      module procedure string_real4
      module procedure string_char
+     module procedure string_logical
   end interface string
 
   ! character parameters
@@ -445,12 +447,12 @@ contains
 
   end function string_real4
 
-  !Build a string from another string. length is the length of the
-  !output string. If the length given by the user is not enough to
-  !contain the original string, then it is ignored. Justify selects
-  !the justification of the integer in the field (left, center, and
-  !right). padspace, pad with this number of spaces. If padspace > 0,
-  !pad in the left, if < 0, in the right.
+  !> Build a string from another string. length is the length of the
+  !> output string. If the length given by the user is not enough to
+  !> contain the original string, then it is ignored. Justify selects
+  !> the justification of the integer in the field (left, center, and
+  !> right). padspace, pad with this number of spaces. If padspace > 0,
+  !> pad in the left, if < 0, in the right.
   function string_char(a,length,justify,padspace) result(s)
     character(len=:), allocatable :: s
     character(len=*), intent(in) :: a
@@ -502,7 +504,21 @@ contains
 
   end function string_char
 
-  !> Compare two null-terminated strings for equality.
+  !> Build a string from a logical value. Returns "Yes"
+  !> if input is true or "No" if it is false.
+  function string_logical(a) result(s)
+    character(len=:), allocatable :: s
+    logical, intent(in) :: a
+
+    if (a) then
+       s = "Yes"
+    else
+       s = "No"
+    end if
+
+  end function string_logical
+
+  !> Compare two strings for equality.
   logical function equal (s,t)
     
     character*(*), intent(in) :: s !< First string
