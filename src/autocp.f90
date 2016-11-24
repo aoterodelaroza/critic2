@@ -969,7 +969,7 @@ contains
           end if
 
           ! fill the rest of the properties
-          call caux%struct_fill(.true.,.false.,0,.false.,.false.,.false.,.false.)
+          call caux%struct_fill(.true.,.false.,0,0,.false.,.false.,.false.)
           
           ! write the structure to the external file
           call struct_write(caux,line2)

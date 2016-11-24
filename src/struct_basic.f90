@@ -102,7 +102,10 @@ module struct_basic
 
      !! Initialization level: isast !!
      ! asterisms
-     type(neighstar), allocatable :: nstar(:) !< neighbor stars
+     type(neighstar), allocatable :: nstar(:) !< Neighbor stars
+     integer :: nmol = 0 !< Number of molecules in the unit cell
+     type(fragment), allocatable :: mol(:) !< Molecular fragments
+     logical, allocatable :: moldiscrete(:) !< Is the crystal extended or molecular?
 
      !! Initialization level: isewald !!
      ! ewald data
@@ -142,6 +145,7 @@ module struct_basic
      procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
      procedure :: build_env !< Build the crystal environment (atenv)
      procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
+     procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border and molmotif)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
@@ -255,6 +259,9 @@ contains
        c%at(i)%rnn2 = 0d0
     end do
 
+    ! no molecular fragments
+    c%nmol = 0
+
     ! the crystal is not initialized until struct_fill is run
     c%isinit = .false. 
     c%isenv = .false. 
@@ -287,7 +294,7 @@ contains
     logical, intent(in), optional :: ewald0
 
     logical :: init, env, ast, recip, nn, ewald
-    integer :: isym
+    integer :: isym, iast
     character(len=:), allocatable :: reason
     logical :: lflag(8)
 
@@ -327,7 +334,12 @@ contains
           if (lflag(7)) reason = "ewald cutoffs not available"
           call ferror('struct_checkflags',reason,faterr)
        else
-          call c%struct_fill(lflag(1),lflag(2),isym,lflag(4),lflag(5),lflag(6),lflag(7))
+          if (lflag(4)) then
+             iast = 1
+          else
+             iast = 0
+          end if
+          call c%struct_fill(lflag(1),lflag(2),isym,iast,lflag(5),lflag(6),lflag(7))
        end if
     end if
 
@@ -352,6 +364,7 @@ contains
     c%ncv = 0
     c%nws = 0
     c%lcent = 0
+    c%nmol = 0
     c%ismolecule = .false.
     c%isinit = .false.
     c%isenv = .false. 
@@ -1582,11 +1595,133 @@ contains
 
   end function listatoms_sphcub
 
+  !> Using the calculated asterisms for each atom determine the
+  !> molecular in the system and whether the crystal is extended or
+  !> molecular. This routine fills nmol, mol, and moldiscrete.
+  subroutine fill_molecular_fragments(c)
+    use fragmentmod
+    use tools_io
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j, k, l, jid, newid, newl(3)
+    integer :: nat
+    logical :: used(c%ncel), found, fdisc
+    integer, allocatable :: id(:), lvec(:,:)
+    logical, allocatable :: ldone(:)
+    real*8 :: xcm(3)
+
+    if (.not.allocated(c%nstar)) &
+       call ferror('fill_molecular_fragments','no asterisms found',faterr)
+    if (allocated(c%mol)) deallocate(c%mol)
+    if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
+
+    ! initizialize 
+    used = .false.
+    c%nmol = 0
+    allocate(c%mol(1),c%moldiscrete(1),id(10),lvec(3,10),ldone(10))
+    c%moldiscrete = .true.
+
+    ! run over atoms in the unit cell
+    do i = 1, c%ncel
+       if (used(i)) cycle
+       
+       ! increment the fragment counter
+       c%nmol = c%nmol + 1
+       if (c%nmol > size(c%mol)) then
+          call realloc(c%mol,2*c%nmol)
+          call realloc(c%moldiscrete,2*c%nmol)
+          c%moldiscrete(c%nmol:2*c%nmol) = .true.
+       end if
+
+       ! initialize the stack with atom i in the seed
+       nat = 1
+       id(1) = i
+       lvec(:,1) = 0d0
+       ldone(1) = .false.
+       ! run the stack
+       do while (.not.all(ldone(1:nat)))
+          ! find the next atom that is not done
+          do j = 1, nat
+             if (.not.ldone(j)) exit
+          end do
+          ldone(j) = .true.
+          jid = id(j)
+
+          ! run over all neighbors of j
+          do k = 1, c%nstar(jid)%ncon
+             ! id for the atom and lattice vector
+             newid = c%nstar(jid)%idcon(k)
+             newl = c%nstar(jid)%lcon(:,k) + lvec(:,j)
+
+             ! Is this atom in the fragment already? -> skip it. If it
+             ! has a different lattice vector, mark the fragment as
+             ! not discrete.
+             found = .false.
+             do l = 1, nat
+                found = (newid == id(l))
+                fdisc = all(newl == lvec(:,l))
+                if (found) exit
+             end do
+             if (found) then
+                if (.not.fdisc) then
+                   c%moldiscrete(c%nmol) = .false.
+                end if
+                cycle
+             end if
+
+             ! Have we used this atom already?
+             if (used(newid)) cycle
+
+             ! Add the atom to the stack and mark it as used.
+             nat = nat + 1
+             if (nat > size(ldone)) then
+                call realloc(id,2*nat)
+                call realloc(lvec,3,2*nat)
+                call realloc(ldone,2*nat)
+             end if
+             id(nat) = newid
+             lvec(:,nat) = newl
+             used(newid) = .true.
+             ldone(nat) = .false.
+          end do
+       end do
+       
+       ! add this fragment to the list
+       used(i) = .true.
+       allocate(c%mol(c%nmol)%at(nat))
+       c%mol(c%nmol)%nat = nat
+       do j = 1, nat
+          c%mol(c%nmol)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
+          c%mol(c%nmol)%at(j)%r = c%x2c(c%mol(c%nmol)%at(j)%x)
+          c%mol(c%nmol)%at(j)%cidx = id(j)
+          c%mol(c%nmol)%at(j)%idx = c%atcel(id(j))%idx
+          c%mol(c%nmol)%at(j)%lvec = lvec(:,j)
+          c%mol(c%nmol)%at(j)%z = c%at(c%mol(c%nmol)%at(j)%idx)%z
+       end do
+    end do
+    call realloc(c%mol,c%nmol)
+    call realloc(c%moldiscrete,c%nmol)
+
+    ! translate all fragments to the wigner-seitz cell
+    if (.not.c%ismolecule) then
+       do i = 1, c%nmol
+          xcm = fragment_cmass(c%mol(i))
+          newl = nint(c%c2x(xcm))
+          do j = 1, c%mol(i)%nat
+             c%mol(i)%at(j)%x = c%mol(i)%at(j)%x - newl
+             c%mol(i)%at(j)%r = c%x2c(c%mol(i)%at(j)%x)
+             c%mol(i)%at(j)%lvec = lvec(:,j) - newl
+          end do
+       end do
+    end if
+
+  end subroutine fill_molecular_fragments
+
   !> List all molecules resulting from completing the initial fragment
   !> fri by adding adjacent atoms that are covalently bonded. Return
-  !> the numbe of fragment (nfrag), the fragments themselves (fr),
-  !> and whether the framgments are discrete (not connected to
-  !> copies of themselves in a different cell).
+  !> the number of fragment (nfrag), the fragments themselves (fr),
+  !> and whether the fragments are discrete (not connected to copies
+  !> of themselves in a different cell). 
   subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
     use fragmentmod
     use tools_math
@@ -1627,7 +1762,7 @@ contains
     isdiscrete = .true.
     
     do i = 1, nseed
-       if (fseed(i)) cycle
+        if (fseed(i)) cycle
 
        ! initialize the stack with atom i in the seed
        nat = 1
@@ -2453,6 +2588,8 @@ contains
     end do
     nc%crys2car = transpose(r)
     nc%car2crys = matinv(nc%crys2car)
+    nc%n2_x2c = ctsq3 / mnorm2(nc%crys2car)
+    nc%n2_c2x = ctsq3 / mnorm2(nc%car2crys)
     nc%isnn = c%isnn
 
     if (nr > 0) then
@@ -2482,11 +2619,13 @@ contains
     c%at = nc%at
     c%car2crys = nc%car2crys
     c%crys2car = nc%crys2car
+    c%n2_x2c = nc%n2_x2c
+    c%n2_c2x = nc%n2_c2x
     c%isnn = nc%isnn
     call nc%end()
 
     ! initialize the structure
-    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.false.,.false.)
+    call c%struct_fill(.true.,.true.,doguess,-1,.false.,.false.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine newcell
@@ -3013,10 +3152,12 @@ contains
   !> necessary either. 
   !> If env, build the atomic environments. If isym > 0, try to
   !> determine the symmetry to the given level. If ws, determine the
-  !> Wigner-Seitz cell. If ast, determine the molecular asterisms.  If
-  !> recip, determine the reciprocal cell metrics and symmetry.  If
-  !> nn, determine the nearest-neighbor information.
-  subroutine struct_fill(c,init0,env0,isym0,ast0,recip0,lnn0,ewald0)
+  !> Wigner-Seitz cell. If iast = 1, determine the molecular
+  !> asterisms; iast = 0, do not determine the asterisms; iast = 1,
+  !> only for small crystals.  If recip, determine the reciprocal cell
+  !> metrics and symmetry.  If nn, determine the nearest-neighbor
+  !> information.
+  subroutine struct_fill(c,init0,env0,isym0,iast0,recip0,lnn0,ewald0)
     use sympg
     use tools_math
     use global
@@ -3024,8 +3165,8 @@ contains
     use param
 
     class(crystal), intent(inout) :: c
-    integer :: isym0
-    logical, intent(in) :: init0, env0, ast0, recip0, lnn0, ewald0
+    integer :: isym0, iast0
+    logical, intent(in) :: init0, env0, recip0, lnn0, ewald0
 
     logical :: init, env, ast, recip, lnn, ewald
     integer :: isym
@@ -3046,13 +3187,19 @@ contains
     if (isym0 >= 0) then
        isym = isym0
     else
-       if (c%nneq > natsymguess) then
+       if (c%nneq > crsmall) then
           isym = 0
        else
           isym = 2
        end if
     end if
-    ast = ast0
+    if (iast0 == 1) then
+       ast = .true.
+    elseif (iast0 == 0) then
+       ast = .false.
+    else
+       ast = (c%nneq <= crsmall)
+    end if
     recip = recip0
     lnn = lnn0
     ewald = ewald0
@@ -3251,6 +3398,7 @@ contains
     if (ast) then
        call c%find_asterisms()
        c%isast = .true.
+       call c%fill_molecular_fragments()
     end if
 
     ! nearest neighbors
@@ -3282,6 +3430,7 @@ contains
 
   !> Write information about the crystal structure to the output.
   subroutine struct_report(c)
+    use fragmentmod
     use global
     use tools_math
     use tools_io
@@ -3292,7 +3441,7 @@ contains
 
     integer :: i, j, k
     integer :: nelec
-    real*8 :: maxdv
+    real*8 :: maxdv, xcm(3)
     character(len=:), allocatable :: str1, str2
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:)
@@ -3467,6 +3616,25 @@ contains
        write (uout,*)
     end if
 
+    ! Discrete molecules, if available
+    if (allocated(c%nstar) .and. allocated(c%mol) .and. c%nmol > 0) then
+       write (uout,'("+ List of fragments in the system")')
+       write (uout,'("  Number of fragments: ",A)') string(c%nmol)
+       write (uout,'("# Id  nat           Center of mass          Discrete? ")')
+       do i = 1, c%nmol
+          if (c%ismolecule) then
+             xcm = (fragment_cmass(c%mol(i))+c%molx0) * dunit
+          else
+             xcm = c%c2x(fragment_cmass(c%mol(i)))
+          end if
+          write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
+             (string(xcm(j),'f',10,6,3),j=1,3), string(c%moldiscrete(i))
+       end do
+       if (.not.c%ismolecule .and. all(c%moldiscrete(1:c%nmol))) &
+          write (uout,'(/"+ This is a molecular crystal.")')
+       write (uout,*)
+    end if
+
     ! Number of atoms in the atomic environment
     if (.not.c%ismolecule) then
        write (uout,'("+ Atomic environment of the main cell")')
@@ -3599,7 +3767,6 @@ contains
     real*8  :: tr(3)
     integer :: i, j, k
     logical :: checked
-    real*8, allocatable :: adisctr(:,:)
 
     ! add the trivial centering vector
     if (allocated(c%cen)) deallocate(c%cen)
@@ -3630,12 +3797,8 @@ contains
              ! if it is a true translation
              if (.not. checked) then
                 nch = nch + 1
-                if (nch > size(disctr,2)) then
-                   allocate(adisctr(3,2*size(disctr,2)))
-                   adisctr = 0d0
-                   adisctr(:,1:nch-1) = disctr(:,1:nch-1)
-                   call move_alloc(adisctr,disctr)
-                end if
+                if (nch > size(disctr,2)) &
+                   call realloc(disctr,3,2*size(disctr,2))
                 disctr(:,nch) = tr
                 !
                 if (.not.isrepeated(c,tr)) then
@@ -3656,11 +3819,8 @@ contains
 
              if (.not. checked) then
                 nch = nch + 1
-                if (nch > size(disctr,2)) then
-                   allocate(adisctr(3,2*size(disctr,2)))
-                   adisctr(:,nch-1) = disctr(:,nch-1)
-                   call move_alloc(adisctr,disctr)
-                end if
+                if (nch > size(disctr,2)) &
+                   call realloc(disctr,3,2*size(disctr,2))
                 disctr(:,nch) = tr
 
                 if (.not.isrepeated(c,tr)) then
@@ -3722,11 +3882,8 @@ contains
              end do
 
              nch = nch + 1
-             if (nch > size(disctr,2)) then
-                allocate(adisctr(3,2*size(disctr,2)))
-                adisctr(:,nch-1) = disctr(:,nch-1)
-                call move_alloc(adisctr,disctr)
-             end if
+             if (nch > size(disctr,2)) &
+                call realloc(disctr,3,2*size(disctr,2))
              disctr(:,nch) = c%cen(:,fnc)
 
 1            continue

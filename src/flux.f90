@@ -657,7 +657,7 @@ contains
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
        call struct_write_mol(cr,outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
-          .false.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout)
+          .false.,0d0,.false.,1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout)
     endif
 
   end subroutine flx_initialize

@@ -111,7 +111,10 @@ module global
 
   ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = cen, 2 = full)
   integer :: doguess
-  integer, parameter :: natsymguess = 200
+
+  ! A crystal is considered small if it has less than this number of
+  ! atoms in the unit cell.
+  integer, parameter :: crsmall = 500
 
   ! reference scalar field
   integer :: refden

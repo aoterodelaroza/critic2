@@ -53,18 +53,25 @@ module struct_writers
 contains
 
   !> Write a xyz/gjf/cml file containing a finite piece of the crystal
-  !> structure. fmt can be one of xyz, gjf, or cml. ix is the number of
-  !> unit cells to plot.  If doborder is .true., add all atoms at the
-  !> border. If molmotif is .true., complete molecules with atoms in
-  !> adjacent cells. If docell, add sticks for the unit cell limits. If
-  !> rsph (bohr) is positive, then use all atoms in a sphere around xsph
-  !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
-  !> around xcub (cryst.). The luout option only applies to cml formats.
-  !> If it is present, do not close the file and return the logical unit.
-  subroutine struct_write_mol(c,file,fmt,ix,doborder,molmotif,doburst,dopairs,rsph,xsph,rcub,xcub,luout)
+  !> structure. fmt can be one of xyz, gjf, or cml. ix is the number
+  !> of unit cells to plot.  If doborder is .true., add all atoms at
+  !> the border. If onemotif is .true., write all molecules in the
+  !> unit cell.  If molmotif is .true., complete molecules with atoms
+  !> in adjacent cells. If docell, add sticks for the unit cell
+  !> limits. If environ is true, write all molecules up to a distance
+  !> renv (bohr) from the origin. If lnmer, partition the resulting
+  !> list of molecules into n-mers, up to nth order. If rsph (bohr) is
+  !> positive, then use all atoms in a sphere around xsph (cryst.). If
+  !> rcub (bohr) is positive, use all atoms in a cube around xcub
+  !> (cryst.). If luout is present, return the LU in that argument
+  !> and do not close the file.
+  subroutine struct_write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
+     environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
     use fragmentmod
     use struct_basic
+    use global
     use graphics
+    use tools_math
     use tools_io
     use types
     use param
@@ -73,7 +80,10 @@ contains
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, molmotif, doburst, dopairs
+    logical, intent(in) :: doborder, onemotif, molmotif, environ
+    real*8, intent(in) :: renv
+    logical, intent(in) :: lnmer
+    integer, intent(in) :: nmer
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
     integer, intent(out), optional :: luout
@@ -81,38 +91,127 @@ contains
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
-    integer :: i, j, nmol
-    character(len=:), allocatable :: wroot, file0
-    logical :: didburst, didpairs
+    integer :: i, j, k, l, m, nmol, icel, lvec(3), ncm
+    integer :: ncomb
+    integer, allocatable :: icomb(:), origmol(:)
+    character(len=:), allocatable :: wroot, file0, aux
+    logical :: doagain
+    real*8, allocatable :: cmlist(:,:)
+    real*8 :: xcm(3), dist
+
+    ! calculate the motifs if necessary
+    if (onemotif .or. environ) &
+       call c%checkflags(.false.,init0=.true.,ast0=.true.)
 
     ! determine the fragments
-    didburst = .false.
-    didpairs = .false.
-    if (rcub > 0) then
-       fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
-    elseif (rsph > 0) then
-       fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
-    elseif (doburst.or.dopairs) then
-       fr = c%listatoms_cells(ix,doborder)
-       call c%listmolecules(fr,nmol,fr0,isdiscrete)
-       didburst = doburst
-       didpairs = dopairs
-    elseif (molmotif) then
-       fr = c%listatoms_cells(ix,doborder)
-       call c%listmolecules(fr,nmol,fr0,isdiscrete)
+    if (onemotif) then
+       fr = fragment_merge_array(c%mol(1:c%nmol))
+       allocate(fr0(c%nmol))
+       fr0 = c%mol
+       nmol = c%nmol
+    elseif (environ) then
+       ! calculate the centers of mass for all fragments in the molecular motif
+       allocate(cmlist(3,c%nmol),fr0(c%nmol),origmol(c%nmol))
+       nmol = c%nmol
+       fr0 = c%mol
+       do i = 1, c%nmol
+          cmlist(:,i) = fragment_cmass(c%mol(i))
+          origmol(i) = i
+       end do
+       ncm = c%nmol
+
+       doagain = .true.
+       icel = 0
+       do while(doagain)
+          doagain = .false.
+          icel = icel + 1
+          do i = -icel, icel
+             do j = -icel, icel
+                do k = -icel, icel
+                   lvec = (/i,j,k/)
+                   if (all(abs(lvec) /= icel)) cycle
+                   
+                   do l = 1, c%nmol
+                      xcm = c%c2x(cmlist(:,l)) + lvec
+                      xcm = c%x2c(xcm)
+                      dist = norm(xcm)
+                      if (dist <= renv) then
+                         ncm = ncm + 1
+                         if (ncm > size(cmlist,2)) then
+                            call realloc(cmlist,3,2*ncm)
+                            call realloc(origmol,2*ncm)
+                            call realloc(fr0,2*ncm)
+                         end if
+                         cmlist(:,ncm) = xcm
+                         fr0(ncm) = c%mol(l)
+                         do m = 1, fr0(ncm)%nat
+                            fr0(ncm)%at(m)%x = fr0(ncm)%at(m)%x + lvec
+                            fr0(ncm)%at(m)%r = c%x2c(fr0(ncm)%at(m)%x)
+                            fr0(ncm)%at(m)%lvec = fr0(ncm)%at(m)%lvec + lvec
+                         end do
+                         origmol(ncm) = l
+                         doagain = .true.
+                      end if
+                   end do
+                end do
+             end do
+          end do
+       end do
        fr = fragment_merge_array(fr0)
+       nmol = ncm
     else
-       fr = c%listatoms_cells(ix,doborder)
-    endif
+       if (rcub > 0) then
+          fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
+       elseif (rsph > 0) then
+          fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
+       else
+          fr = c%listatoms_cells(ix,doborder)
+       endif
+       if (molmotif) then
+          call c%listmolecules(fr,nmol,fr0,isdiscrete)
+          fr = fragment_merge_array(fr0)
+       end if
+    end if
+
+    if (lnmer .and..not.allocated(fr0)) &
+       call ferror('struct_write_mol','ONEMOTIF, MOLMOTIF, or ENVIRON are necessary with NMER',faterr)
+
+    ! If environ, report the identities of all the molecules in the environment
+    if (environ) then
+       write (uout,'("+ List of fragments in the molecular environment")')
+       write (uout,'("  Number of fragments: ",A)') string(nmol)
+       write (uout,'("  Fragment number Id with nat atoms at center-of-mass comes from")')
+       write (uout,'("  from fragment idmol in the Wigner-Seitz cell translated by")')
+       write (uout,'("  lattice vector lvec.")')
+       write (uout,'("# Id nat               Center of mass          idmol     lvec")')
+       do i = 1, nmol
+          if (c%ismolecule) then
+             xcm = cmlist(:,i) * dunit
+          else
+             xcm = c%c2x(cmlist(:,i))
+          end if
+          write (uout,'(99(2X,A))') string(i,3,ioj_left), string(fr0(i)%nat,4,ioj_left),&
+             (string(xcm(j),'f',10,6,3),j=1,3), string(origmol(i)), &
+             (string(nint(fr0(i)%at(1)%x(j)-c%mol(origmol(i))%at(1)%x(j)),3,ioj_right),j=1,3)
+       end do
+       write (uout,*)
+    end if
 
     ! if this is a molecule, translate to the proper origin
     if (c%ismolecule) then
        do i = 1, fr%nat
           fr%at(i)%r = fr%at(i)%r + c%molx0
        end do
+       if (allocated(fr0)) then
+          do i = 1, nmol
+             do j = 1, fr0(i)%nat
+                fr0(i)%at(j)%r = fr0(i)%at(j)%r + c%molx0
+             end do
+          end do
+       end if
     end if
 
-    if (.not.didburst.and..not.didburst) then
+    if (.not.lnmer) then
        ! normal write 
        if (equal(fmt,"xyz")) then
           call writexyz(file,fr)
@@ -128,63 +227,57 @@ contains
           call ferror("struct_write_mol","Unknown format",faterr)
        endif
     else
-       if (didburst) then
-          ! burst into single-molecule files
+       do i = 1, nmer
+          ncomb = nchoosek(nmol,i)
           wroot = file(:index(file,'.',.true.)-1)
-          do i = 1, nmol
-             file0 = wroot // "_" // string(i) // "." // fmt
+          allocate(icomb(i))
+          do j = 1, ncomb
+             call comb(nmol,i,j,icomb)
+             if (environ .and. icomb(1) > c%nmol) cycle
+             file0 = wroot 
+             call fragment_init(fr)
+             do k = 1, i
+                aux = trim(file0) // "_" // string(icomb(k))
+                file0 = aux
+                fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+             end do
+             aux = trim(file0) // "." // fmt
+             file0 = aux
              if (equal(fmt,"xyz")) then
-                call writexyz(file0,fr0(i))
+                call writexyz(file0,fr)
              elseif (equal(fmt,"gjf")) then
-                call writegjf(file0,fr0(i))
+                call writegjf(file0,fr)
              elseif (equal(fmt,"cml")) then
                 if (c%ismolecule) then
-                   call writecml(file,fr,luout=luout)
+                   call writecml(file0,fr,luout=luout)
                 else
-                   call writecml(file,fr,c%crys2car,luout=luout)
+                   call writecml(file0,fr,c%crys2car,luout=luout)
                 end if
              else
                 call ferror("struct_write_mol","Unknown format",faterr)
              endif
           end do
-       end if
-       if (didpairs) then
-          ! double-molecule files
-          wroot = file(:index(file,'.',.true.)-1)
-          do i = 1, nmol
-             do j = i+1, nmol
-                file0 = wroot // "_" // string(i) // "_" // string(j) // "." // fmt
-                fr = fragment_merge_array((/fr0(i),fr0(j)/))
-                if (equal(fmt,"xyz")) then
-                   call writexyz(file0,fr)
-                elseif (equal(fmt,"gjf")) then
-                   call writegjf(file0,fr)
-                elseif (equal(fmt,"cml")) then
-                   if (c%ismolecule) then
-                      call writecml(file,fr,luout=luout)
-                   else
-                      call writecml(file,fr,c%crys2car,luout=luout)
-                   end if
-                else
-                   call ferror("struct_write_mol","Unknown format",faterr)
-                endif
-             end do
-          end do
-       end if
+          deallocate(icomb)
+       end do
     end if
+
   end subroutine struct_write_mol
 
-  !> Write an obj file containing the crystal structure. fmt can be
-  !> one of obj, ply, or off. ix is the number of unit cells to plot.
-  !> If doborder is .true., add all atoms at the border. If molmotif is
-  !> .true., complete molecules with atoms in adjacent cells. If
-  !> docell, add sticks for the unit cell limits. If rsph (bohr) is positive,
-  !> then use all atoms in a sphere around xsph (cryst.). If rcub (bohr) is
-  !> positive, use all atoms in a cube around xcub (cryst.). If lu0 and
-  !> lumtl0 are present, then return the logical units for the obj and
-  !> the mtl files and do not close the files.
-  subroutine struct_write_3dmodel(c,file,fmt,ix,doborder,molmotif,doburst,&
+  !> Write an obj/ply/off file containing the crystal structure. fmt
+  !> can be one of obj, ply, or off. ix is the number of unit cells to
+  !> plot. If doborder is .true., add all atoms at the border. If
+  !> onemotif is .true., write all molecules in the unit cell. If
+  !> molmotif is .true., complete molecules with atoms in adjacent
+  !> cells. If docell, add sticks for the unit cell
+  !> limits. If domolcell, add sticks tfor the molecular cell. If rsph
+  !> (bohr) is positive, then use all atoms in a sphere around xsph
+  !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
+  !> around xcub (cryst.). If lu0 and lumtl0 are present, then return
+  !> the logical units for the obj and the mtl files and do not close
+  !> the files.
+  subroutine struct_write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
+    use fragmentmod
     use graphics
     use struct_basic
     use tools_math
@@ -196,7 +289,8 @@ contains
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
     integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, molmotif, doburst, docell, domolcell
+    logical, intent(in) :: doborder, onemotif, molmotif
+    logical, intent(in) :: docell, domolcell
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
     integer, intent(out), optional :: lu0, lumtl0
@@ -208,7 +302,6 @@ contains
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
     integer :: k, nmol
-    character(len=:), allocatable :: wroot, file0
 
     real*8, parameter :: rfac = 1.4d0
     real*8, parameter :: x0cell(3,2,12) = reshape((/&
@@ -226,17 +319,21 @@ contains
        1d0, 1d0, 1d0,   1d0, 1d0, 0d0/),shape(x0cell))
 
     ! open and get the atom list
-    nmol = 1
-    if (rcub > 0) then
-       fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
-    elseif (rsph > 0) then
-       fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
-    elseif (doburst .or. molmotif) then
-       fr = c%listatoms_cells(ix,doborder)
-       call c%listmolecules(fr,nmol,fr0,isdiscrete)
+    if (onemotif) then
+       fr = fragment_merge_array(c%mol(1:c%nmol))
     else
-       fr = c%listatoms_cells(ix,doborder)
-    endif
+       if (rcub > 0) then
+          fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
+       elseif (rsph > 0) then
+          fr = c%listatoms_sphcub(rsph=rsph,xsph=xsph)
+       else
+          fr = c%listatoms_cells(ix,doborder)
+       endif
+       if (molmotif) then
+          call c%listmolecules(fr,nmol,fr0,isdiscrete)
+          fr = fragment_merge_array(fr0)
+       end if
+    end if
 
     ! if this is a molecule, translate to the proper origin
     if (c%ismolecule) then
@@ -245,83 +342,67 @@ contains
        end do
     end if
 
-    if (.not.doburst) then
-       file0 = file
-       if (.not.molmotif) then
-          allocate(fr0(1))
-          fr0(1) = fr
-       end if
-    else
-       wroot = file(:index(file,'.',.true.)-1)
-    end if
-
-    if (doburst) then
-       file0 = wroot // "_" // string(k) // "." // fmt
-    end if
-
     lumtl = 0
     if (equal(fmt,"obj")) then
-       call obj_open(file0,lu,lumtl)
+       call obj_open(file,lu,lumtl)
     elseif (equal(fmt,"ply")) then
-       call ply_open(file0,lu)
+       call ply_open(file,lu)
     elseif (equal(fmt,"off")) then
-       call off_open(file0,lu)
+       call off_open(file,lu)
     endif
 
-    do k = 1, nmol
-       ! add the balls
-       do i = 1, fr0(k)%nat
-          if (fr0(k)%at(i)%z > maxzat) then
-             rr = 0.21d0
-          else
-             rr = 0.6d0*atmcov(fr0(k)%at(i)%z)
-          endif
-          if (equal(fmt,"obj")) then
-             call obj_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
-          elseif (equal(fmt,"ply")) then
-             call ply_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
-          elseif (equal(fmt,"off")) then
-             call off_ball(lu,fr0(k)%at(i)%r,JMLcol(:,fr0(k)%at(i)%z),rr)
-          end if
-       end do
-
-       ! add the sticks
-       do i = 1, fr0(k)%nat
-          do j = i+1, fr0(k)%nat
-             if (fr0(k)%at(i)%z > maxzat .or. fr0(k)%at(j)%z > maxzat) cycle
-             xd = fr0(k)%at(i)%r - fr0(k)%at(j)%r
-             d = norm(xd)
-             if (d < (atmcov(fr0(k)%at(i)%z) + atmcov(fr0(k)%at(j)%z)) * rfac) then
-                xd = fr0(k)%at(i)%r + 0.5d0 * (fr0(k)%at(j)%r - fr0(k)%at(i)%r)
-                if (equal(fmt,"obj")) then
-                   call obj_stick(lu,fr0(k)%at(i)%r,xd,JMLcol(:,fr0(k)%at(i)%z),0.05d0)
-                   call obj_stick(lu,fr0(k)%at(j)%r,xd,JMLcol(:,fr0(k)%at(j)%z),0.05d0)
-                elseif (equal(fmt,"ply")) then
-                   call ply_stick(lu,fr0(k)%at(i)%r,xd,JMLcol(:,fr0(k)%at(i)%z),0.05d0)
-                   call ply_stick(lu,fr0(k)%at(j)%r,xd,JMLcol(:,fr0(k)%at(j)%z),0.05d0)
-                elseif (equal(fmt,"off")) then
-                   call off_stick(lu,fr0(k)%at(i)%r,xd,JMLcol(:,fr0(k)%at(i)%z),0.05d0)
-                   call off_stick(lu,fr0(k)%at(j)%r,xd,JMLcol(:,fr0(k)%at(j)%z),0.05d0)
-                end if
-             end if
-          end do
-       end do
-
-       ! add the cell
-       if (docell) then
-          do i = 1, 12
-             x0 = c%x2c(x0cell(:,1,i)) + c%molx0
-             x1 = c%x2c(x0cell(:,2,i)) + c%molx0
-             if (equal(fmt,"obj")) then
-                call obj_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-             elseif (equal(fmt,"ply")) then
-                call ply_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-             elseif (equal(fmt,"off")) then
-                call off_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-             end if
-          end do
+    ! add the balls
+    do i = 1, fr%nat
+       if (fr%at(i)%z > maxzat) then
+          rr = 0.21d0
+       else
+          rr = 0.6d0*atmcov(fr%at(i)%z)
+       endif
+       if (equal(fmt,"obj")) then
+          call obj_ball(lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
+       elseif (equal(fmt,"ply")) then
+          call ply_ball(lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
+       elseif (equal(fmt,"off")) then
+          call off_ball(lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
        end if
     end do
+
+    ! add the sticks
+    do i = 1, fr%nat
+       do j = i+1, fr%nat
+          if (fr%at(i)%z > maxzat .or. fr%at(j)%z > maxzat) cycle
+          xd = fr%at(i)%r - fr%at(j)%r
+          d = norm(xd)
+          if (d < (atmcov(fr%at(i)%z) + atmcov(fr%at(j)%z)) * rfac) then
+             xd = fr%at(i)%r + 0.5d0 * (fr%at(j)%r - fr%at(i)%r)
+             if (equal(fmt,"obj")) then
+                call obj_stick(lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
+                call obj_stick(lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
+             elseif (equal(fmt,"ply")) then
+                call ply_stick(lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
+                call ply_stick(lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
+             elseif (equal(fmt,"off")) then
+                call off_stick(lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
+                call off_stick(lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
+             end if
+          end if
+       end do
+    end do
+
+    ! add the cell
+    if (docell) then
+       do i = 1, 12
+          x0 = c%x2c(x0cell(:,1,i)) + c%molx0
+          x1 = c%x2c(x0cell(:,2,i)) + c%molx0
+          if (equal(fmt,"obj")) then
+             call obj_stick(lu,x0,x1,(/255,0,0/),0.03d0)
+          elseif (equal(fmt,"ply")) then
+             call ply_stick(lu,x0,x1,(/255,0,0/),0.03d0)
+          elseif (equal(fmt,"off")) then
+             call off_stick(lu,x0,x1,(/255,0,0/),0.03d0)
+          end if
+       end do
+    end if
 
     ! add the molecular cell
     if (domolcell .and. c%ismolecule) then

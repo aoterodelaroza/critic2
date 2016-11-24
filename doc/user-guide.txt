@@ -1543,7 +1543,7 @@ symmetry. These keywords must be used before CRYSTAL to be effective,
 and they have no effect on MOLECULE (molecules never use
 symmetry). The four options to SYMM are: 0, no symmetry (same as
 NOSYMM); 1, only centering vectors; 2, full symmetry; -1, use full
-symmetry only if the system is small (<= 200 atoms). The default is
+symmetry only if the system is small (<= 500 atoms). The default is
 -1. 
 
 ::
@@ -1888,11 +1888,12 @@ radii criterion is used to determine whether two atoms are bonded or
 not. The full syntax of the WRITE keyword is::
 
   WRITE file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
-        [CUBE side.r [x0.r y0.r z0.r]] 
-        [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i] 
-  WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] 
-        [BURST] [CELL] [MOLCELL] [ix.i iy.i iz.i]
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+        [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+        [NMER nmer.i]
+  WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]] 
+        [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i] 
+        [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL] 
   WRITE file.scf.in
   WRITE file.tess
   WRITE file.cri|file.incritic
@@ -1937,31 +1938,37 @@ cell. However, this does not look good when the unit cell is
 represented in a figure, because many of the atoms in the cubic cell
 are "missing". By using BORDER, these atoms are included.
 
+The SPHERE keyword writes all atoms inside a sphere of radius rad.r
+(bohr) and centered around the crystallographic coordinates (x0.r y0.r
+z0.r). In molecules, the default units for both the center and radius
+of the sphere are Cartesian in angstrom. If no center is given,
+(0,0,0) is used. The similar keyword CUBE writes all atoms inside a
+cube of side side.r centered around (x0.r y0.r z0.r) (default:
+(0,0,0)).
+
 The keyword MOLMOTIF is used in molecular crystals. All atoms in the
-requested cells (ix.i iy.i iz.i) are written to the xyz file (BORDER
-can also be used to include the atoms at the cell border). Then, the
-molecules that lie across the cell boundary are completed using atoms
-from the neighboring cells. In order to do this, a connectivity
-criterion is used: two atoms are bonded if their distance is less than
-1.5 times their sum of covalent radii.
+requested crystal fragment are written to the xyz file. Then, the
+molecules are completed using atoms from outside the fragment. In
+order to do this, a connectivity criterion is used: two atoms are
+bonded if their distance is less than 1.5 times their sum of covalent
+radii.
 
-The BURST keyword is similar to MOLMOTIF in that the molecular crystal
-structure is partitioned into individual molecules, which are then
-completed using the atoms from neighboring cells. In contrast to
-MOLMOTIF, each of those molecular fragments is written to a separate
-file. In the particular case of xyz or gjf output, the keyword PAIRS
-can also be used. The behavior of PAIRS is similar to burst in that it
-creates a collection of xyz (or gjf) files from fragments of the
-crystal. Instead of writing all individual molecules, PAIRS writes all
-pairs of molecules in the unit cell.
+The ONEMOTIF and ENVIRON keywords are also used in molecular
+crystals. ONEMOTIF writes all atoms in the unit cell, translated by
+lattice vectors to give connected molecules. ENVIRON writes the
+molecular environment of the unit cell origin up to a distance renv.r
+(bohr in crystals, angstrom in molecules). All connected molecules
+whose center of mass is at a distance less than renv.r are written.
 
-In crystals, the SPHERE keyword writes all atoms inside a sphere of
-radius rad.r (bohr) and centered around the crystallographic
-coordinates (x0.r y0.r z0.r). In molecules, the default units for both
-the center and radius of the sphere are Cartesian in angstrom. If no
-center is given, (0,0,0) is used. The similar keyword CUBE writes all
-atoms inside a cube of side side.r centered around (x0.r y0.r z0.r)
-(default: (0,0,0)).
+The NMER keyword is used in molecular systems as well, and in
+combination with ONEMOTIF, MOLMOTIF, or ENVIRON. When NMER is given,
+the selected fragment of the system is split into its component
+connected molecules. Then, all monomers, dimers, trimers,... are
+written to separate files. All n-mers are written from monomers up to
+n-mers, where n is the value of nmer.i. In NMER is used with ENVIRON,
+the first molecule is always part of the Wigner-Seitz cell, which is
+useful when generating molecular environments of the crystal for
+calculations using incremental methods.
 
 There is an important application of the xyz-format WRITE keyword: the
 coordinates written to the xyz file are consistent with the
@@ -1971,6 +1978,13 @@ represent a subset of the atoms in a crystal. This is very useful
 when generating fragments for an NCIPLOT calculation (see FRAGMENT
 keyword in section `Non-covalent interaction visualization
 (NCIPLOT)`_).
+
+The CML (Chemical Markup Language) format has the same options as the
+xyz and obj output formats. In the CML format, an XML-style file is
+written containing the selected crystal fragment. If the system is a
+crystal (loaded with the CRYSTAL keyword), then the cell geometry is
+written as well. The CML output format is specially tailored for being
+easy to read by avogadro and its underlying engine, openbabel.
 
 The OBJ output is similar to xyz: critic2 will write a finite piece of
 the crystal or molecule to a file with Wavefront OBJ format. The OBJ
@@ -1984,13 +1998,6 @@ keyword can be used to represent the molecular cell (see `The
 molecular cell`_). The similarly popular PLY (polygon file format or
 Stanford triangle format) and OFF (Geomview) file formats can be used
 as well, with the same options.
-
-The CML (Chemical Markup Language) has the same options as the xyz and
-obj output formats. In the CML format, an XML-style file is written
-containing the selected crystal fragment. If the system is a crystal
-(loaded with the CRYSTAL keyword), then the cell geometry is written
-as well. The CML output format is specially tailored for being easy to
-read by avogadro and its underlying engine, openbabel.
 
 Quantum ESPRESSO inputs can be written using the extension
 scf.in. This conversion is especially useful in the case of
@@ -3656,12 +3663,13 @@ Requesting more information about the critical point list (CPREPORT)
 ::
 
   CPREPORT {SHORT|LONG|VERYLONG|SHELLS [n.i]}
-  CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]]
-           [BORDER] [MOLMOTIF] [BURST] [PAIRS] [ix.i iy.i iz.i]
-  CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
-           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [MOLMOTIF] 
-           [BURST] [CELL] [MOLCELL] [ix.i iy.i iz.i]
+  CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+           [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+           [NMER nmer.i]
+  CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]] 
+           [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i] 
+           [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL] 
   CPREPORT file.scf.in
   CPREPORT file.tess
   CPREPORT file.cri|file.incritic

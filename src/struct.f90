@@ -297,7 +297,7 @@ contains
        return
     end if
 
-    call c%struct_fill(.true.,.true.,doguess,.false.,.false.,.true.,.false.)
+    call c%struct_fill(.true.,.true.,doguess,-1,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine struct_crystal_input
@@ -333,7 +333,7 @@ contains
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
     write (uout,'("            The new crystal description follows"/)')
-    call cr%struct_fill(.true.,.true.,0,.false.,.false.,.true.,.false.)
+    call cr%struct_fill(.true.,.true.,0,-1,.false.,.true.,.false.)
     call cr%struct_report()
 
   end subroutine struct_clearsym
@@ -419,10 +419,10 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, wext, file, wroot
-    integer :: lp, ix(3), lp2, iaux
+    integer :: lp, ix(3), lp2, iaux, nmer
     logical :: doborder, molmotif, dodreiding, docell, domolcell, ok
-    logical :: doburst, dopairs
-    real*8 :: rsph, xsph(3), rcub, xcub(3)
+    logical :: onemotif, environ, lnmer
+    real*8 :: rsph, xsph(3), rcub, xcub(3), renv
 
     lp = 1
     file = getword(line,lp)
@@ -433,11 +433,13 @@ contains
         equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
        ! xyz, gjf, cml, obj, ply, off
        doborder = .false.
+       lnmer = .false.
+       onemotif = .false.
        molmotif = .false.
+       environ = .false.
        docell = .false.
        domolcell = .false.
-       doburst = .false.
-       dopairs = .false.
+       nmer = 1
        ix = 1
        rsph = -1d0
        xsph = 0d0
@@ -448,12 +450,21 @@ contains
           lp2 = 1
           if (equal(word,'border')) then
              doborder = .true.
+          elseif (equal(word,'onemotif')) then
+             onemotif = .true.
           elseif (equal(word,'molmotif')) then
              molmotif = .true.
-          elseif (equal(word,'burst')) then
-             doburst = .true.
-          elseif (equal(word,'pairs')) then
-             dopairs = .true.
+          elseif (equal(word,'environ')) then
+             environ = .true.
+             ok = eval_next(renv,line,lp)
+             if (.not.ok) &
+                call ferror('struct_write','incorrect ENVIRON',faterr,line,syntax=.true.)
+             renv = renv / dunit
+          elseif (equal(word,'nmer')) then
+             lnmer = .true.
+             ok = eval_next(nmer,line,lp)
+             if (.not.ok) &
+                call ferror('struct_write','incorrect NMER',faterr,line,syntax=.true.)
           elseif (equal(word,'cell')) then
              docell = .true.
           elseif (equal(word,'molcell')) then
@@ -512,7 +523,7 @@ contains
           end if
        end do
 
-       if (.not.doburst.and..not.dopairs) then
+       if (.not.lnmer) then
           write (uout,'("* WRITE ",A," file: ",A)') trim(wext), string(file)
        else
           write (uout,'("* WRITE ",A," files: ",A,"_*.",A)') trim(wext), &
@@ -520,10 +531,10 @@ contains
        end if
 
        if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-          call struct_write_mol(c,file,wext,ix,doborder,molmotif,doburst,&
-             dopairs,rsph,xsph,rcub,xcub)
+          call struct_write_mol(c,file,wext,ix,doborder,onemotif,molmotif,&
+             environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub)
        else
-          call struct_write_3dmodel(c,file,wext,ix,doborder,molmotif,doburst,&
+          call struct_write_3dmodel(c,file,wext,ix,doborder,onemotif,molmotif,&
              docell,domolcell,rsph,xsph,rcub,xcub)
        end if
     elseif (equal(wext,'gau')) then
