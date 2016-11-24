@@ -75,7 +75,7 @@ contains
     
   end function fragment_merge_array
 
-  !> Returns the center of mass (in cartesian coordinates).  If
+  !> Returns the center of mass (in Cartesian coordinates).  If
   !> weight0 is false, then all atoms have the same weight.
   function fragment_cmass(fr,weight0) result (x)
     use param
@@ -104,7 +104,7 @@ contains
           sum = sum + 1d0
        end do
     end if
-    x = x / sum
+    x = x / max(sum,1d-40)
 
   end function fragment_cmass
 
