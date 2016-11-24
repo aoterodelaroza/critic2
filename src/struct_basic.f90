@@ -1047,6 +1047,7 @@ contains
   !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
   !> A fragment object. This routine is thread-safe.
   function identify_fragment(c,nat,x0,z0) result(fr)
+    use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: nat
     real*8, intent(in) :: x0(3,nat)
@@ -1073,8 +1074,9 @@ contains
   !> Identify a fragment in the unit cell from an external
   !> xyz file. An instance of a fragment object is returned.
   function identify_fragment_from_xyz(c,file) result(fr)
-    use tools_io, only: fopen_read, string, ferror, faterr
+    use tools_io, only: fopen_read, string, ferror, faterr, fclose
     use param, only: bohrtoa
+    use types, only: realloc
 
     class(crystal), intent(in) :: c
     character*(*) :: file
@@ -1120,6 +1122,7 @@ contains
   !> vec. eps is the minimum distance to consider two points
   !> equivalent (in bohr). vec, irotm, icenv, and eps0 are optional. 
   subroutine symeqv(c,xp0,mmult,vec,irotm,icenv,eps0)
+    use types, only: realloc
     class(crystal), intent(in) :: c !< Input crystal
     real*8, dimension(3), intent(in) :: xp0 !< input position (crystallographic)
     integer, intent(out) :: mmult !< multiplicity
@@ -1272,7 +1275,7 @@ contains
   subroutine build_env(c,dmax0)
     use tools_math, only: norm
     use global, only: cutrad
-
+    use types, only: realloc
     class(crystal), intent(inout) :: c !< Input crystal
     real*8, intent(in), optional :: dmax0
 
@@ -1426,6 +1429,7 @@ contains
 
   contains
     subroutine addpair(i,j,lvec)
+      use types, only: realloc
       integer :: i, j, lvec(3)
 
       c%nstar(i)%ncon = c%nstar(i)%ncon + 1
@@ -1442,6 +1446,7 @@ contains
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
   function listatoms_cells(c,nx,doborder) result(fr)
+    use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: nx(3)
     logical, intent(in) :: doborder
@@ -1516,7 +1521,7 @@ contains
   !> in z and the number of atoms in nat. 
   function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
     use tools_io, only: ferror, faterr
-
+    use types, only: realloc
     class(crystal), intent(in) :: c
     real*8, intent(in), optional :: rsph, xsph(3)
     real*8, intent(in), optional :: rcub, xcub(3)
@@ -1580,6 +1585,7 @@ contains
   subroutine fill_molecular_fragments(c)
     use fragmentmod, only: fragment_cmass
     use tools_io, only: ferror, faterr
+    use types, only: realloc
     class(crystal), intent(inout) :: c
 
     integer :: i, j, k, l, jid, newid, newl(3)
@@ -1702,6 +1708,7 @@ contains
   !> and whether the fragments are discrete (not connected to copies
   !> of themselves in a different cell). 
   subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
+    use types, only: realloc
     class(crystal), intent(inout) :: c
     type(fragment), intent(in) :: fri
     integer, intent(out) :: nfrag
@@ -1833,7 +1840,7 @@ contains
   !> return the position of a representative atom from each shell.
   subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
     use global, only: atomeps, atomeps2
-
+    use types, only: realloc
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
     integer, intent(in) :: shmax
@@ -2056,7 +2063,8 @@ contains
      sigma,t,ih,th2p,ip,hvecp)
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
-
+    use tools, only: qcksort
+    use types, only: realloc
     class(crystal), intent(in) :: c
     real*8, intent(in) :: th2ini0, th2end0
     integer, intent(in) :: npts
@@ -2415,6 +2423,7 @@ contains
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
     use param, only: pi, ctsq3
+    use types, only: realloc
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
     real*8, intent(in), optional :: t0(3)
@@ -2612,6 +2621,8 @@ contains
     use tools_io, only: uout, string, ioj_right
     use tools_math, only: mixed
     use param, only: eye
+    use types, only: realloc
+    use tools, only: qcksort
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
     real*8, optional :: rmat(3,3)
@@ -2806,6 +2817,8 @@ contains
     use tools_io, only: ferror, faterr
     use tools_math, only: mixed
     use param, only: eye
+    use types, only: realloc
+    use tools, only: qcksort
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
     real*8, intent(out), optional :: rmat(3,3)
@@ -3007,6 +3020,7 @@ contains
   subroutine primitive_delaunay(c,verbose,rmat)
     use tools_math, only: norm, det
     use param, only: eye
+    use tools, only: qcksort
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
     real*8, intent(out), optional :: rmat(3,3)
@@ -3122,6 +3136,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_io, only: ferror, faterr, string, zatguess, nameguess
     use param, only: eyet, rad, ctsq3
+    use types, only: realloc
 
     class(crystal), intent(inout) :: c
     integer :: isym0, iast0
@@ -3717,6 +3732,7 @@ contains
   !> and writes c%cen and c%ncv.
   subroutine cenbuild (c)
     use global, only: atomeps
+    use types, only: realloc
     type(crystal), intent(inout) :: c
 
     real*8  :: tr(3)
@@ -3798,6 +3814,7 @@ contains
   !> Determine the full cetering group using the
   !> (possibly repeated) centering vectors.
   subroutine cenclosure(c)
+    use types, only: realloc
     type(crystal), intent(inout) :: c
 
     integer :: fnc
@@ -4073,6 +4090,7 @@ contains
     use tools_io, only: faterr, ferror
     use global, only: atomeps
     use param, only: maxzat
+    use types, only: realloc
     class(crystal), intent(inout) :: c
 
     integer :: i, j, io, it
@@ -4127,8 +4145,9 @@ contains
     use global, only: fileroot
     use tools_math, only: norm, mixed, cross
     use tools_io, only: uout, string, filepath, fopen_write, fopen_read,&
-       ioj_right, ioj_center, ferror, warning, faterr
+       ioj_right, ioj_center, ferror, warning, faterr, fclose
     use param, only: dirsep
+    use types, only: realloc
 
     interface
        subroutine doqhull(fin,fvert,fface,ithr) bind(c)
@@ -4661,8 +4680,9 @@ contains
   !> crystallographic coordinates. nn and rot, if present, receive the
   !> symmetry operations for the lattice.
   subroutine lattpg(rmat,ncen,xcen,nn,rot)
-    use sympg, only: nopsym, opsym
+    use sympg, only: nopsym, opsym, sym3d
     use tools_math, only: matinv
+    use types, only: realloc
     real*8, intent(in) :: rmat(3,3)
     integer, intent(in) :: ncen
     real*8, intent(in) :: xcen(3,ncen)
@@ -4770,7 +4790,7 @@ contains
   !> direction of the axis or the normal to the plane, 0 for a point
   !> symmetry element). Used in the structure initialization.
   subroutine typeop(rot,type,vec,order)
-    use tools_math, only: norm
+    use tools_math, only: norm, eigns
     use tools_io, only: ferror, faterr
     use param, only: tpi, eye
 

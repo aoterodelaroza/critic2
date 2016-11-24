@@ -42,7 +42,7 @@ contains
 
   !> Merge two or more fragments, delete repeated atoms
   function fragment_merge_array(fra) result(fr)
-    use types, only: fragment
+    use types, only: fragment, realloc
     type(fragment), intent(in) :: fra(:)
     type(fragment) :: fr
     

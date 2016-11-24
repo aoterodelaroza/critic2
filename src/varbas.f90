@@ -99,6 +99,7 @@ contains
     use tools_io, only: lgetword, getword, getline, equal, ferror, &
        faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read
     use param, only: bohrtoa
+    use types, only: realloc
     
     character*(*), intent(in) :: line0
     integer, intent(inout) :: lp
@@ -294,6 +295,8 @@ contains
   contains
     !> Read an xyz file and add the coordinates to pointlist
     subroutine readxyz()
+      use types, only: realloc
+      use tools_io, only: fclose
 
       integer :: lu, nat, i
       real*8 :: x0(3)

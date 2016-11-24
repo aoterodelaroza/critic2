@@ -309,6 +309,7 @@ contains
   !> routine is thread-safe.
   subroutine fields_in_eval(expr,n,idlist)
     use tools_io, only: string
+    use types, only: realloc
     character(*), intent(in) :: expr
     integer, intent(out) :: n
     character*255, allocatable :: idlist(:)

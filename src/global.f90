@@ -374,7 +374,7 @@ contains
 
   !> Parse the command line and set a global variable
   subroutine critic_setvariables(line,lp)
-    use arithmetic, only: eval
+    use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
        faterr, string, uout, isassignment, getword
     character*(*), intent(in) :: line
@@ -745,6 +745,7 @@ contains
 
   !> Clear the value of a variable
   subroutine critic_clearvariable(line)
+    use arithmetic, only: clearallvariables, clearvariable
     use tools_io, only: getword, lower, equal
     character*(*), intent(in) :: line
 

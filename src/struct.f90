@@ -41,7 +41,11 @@ contains
   !> Parse the input of the crystal keyword
   subroutine struct_crystal_input(c,line,mol,allownofile,verbose) 
     use struct_basic, only: crystal
-    ! use struct_readers
+    use struct_readers, only: struct_read_cif, struct_read_res, struct_read_cube,&
+       struct_read_wien, struct_read_wien, struct_read_potcar, struct_read_vasp,&
+       struct_read_abinit, struct_read_elk, struct_read_qeout, struct_read_qein,&
+       struct_read_library, struct_read_mol, struct_read_siesta, struct_read_dftbp,&
+       parse_crystal_env, parse_molecule_env
     use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
        iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
@@ -306,10 +310,9 @@ contains
   ! use the P1 space group
   subroutine struct_clearsym()
     use struct_basic, only: cr
-    use types, only: atom
+    use types, only: atom, realloc
     use tools_io, only: uout
     use param, only: eyet
-
     type(atom) :: aux(cr%nneq)
     integer :: i
 
@@ -410,6 +413,11 @@ contains
 
   ! Write the crystal structure to a file
   subroutine struct_write(c,line)
+    use struct_writers, only: struct_write_mol, struct_write_3dmodel, struct_write_gaussian,&
+       struct_write_espresso, struct_write_vasp, struct_write_abinit, struct_write_elk,&
+       struct_write_tessel, struct_write_critic, struct_write_cif, struct_write_escher,&
+       struct_write_gulp, struct_write_lammps, struct_write_siesta_fdf, struct_write_siesta_in,&
+       struct_write_dftbp_hsd, struct_write_dftbp_gen
     use struct_basic, only: crystal
     use global, only: eval_next, dunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
@@ -662,7 +670,7 @@ contains
     use struct_basic, only: crystal
     use global, only: fileroot, eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, getword, &
-       fopen_write, string, ioj_center, string
+       fopen_write, string, ioj_center, string, fclose
     use param, only: pi
     character*(*), intent(in) :: line
     type(crystal), intent(in) :: c
@@ -798,7 +806,7 @@ contains
     use struct_basic, only: crystal
     use global, only: fileroot, eval_next
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
-       ioj_center, getword, string
+       ioj_center, getword, string, fclose
     character*(*), intent(in) :: line
     type(crystal), intent(in) :: c
 

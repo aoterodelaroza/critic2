@@ -58,11 +58,12 @@ contains
   subroutine parse_crystal_env(c,lu,oksyn)
     use struct_basic, only: crystal
     use global, only: eval_next, dunit
-    use arithmetic, only: isvariable, eval
+    use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
        getword, lower, isinteger, string, nameguess, zatguess
     use param, only: bohrtoa, pi
+    use types, only: realloc
 
     type(crystal), intent(inout) :: c !< Crystal
     integer, intent(in) :: lu !< Logical unit for input
@@ -360,6 +361,7 @@ contains
      use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
         string, isinteger, nameguess, getword, zatguess
      use param, only: bohrtoa
+     use types, only: realloc
 
     type(crystal), intent(inout) :: c !< Crystal
     integer, intent(in) :: lu !< Logical unit for input
@@ -515,7 +517,7 @@ contains
     use struct_basic, only: crystal
     use global, only: mlib_file, clib_file
     use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
-       equal, getword
+       equal, getword, fclose
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: line !< Library entry
@@ -594,10 +596,11 @@ contains
   !> Read the structure from a CIF file (uses ciftbx)
   subroutine struct_read_cif(c,file,dblock,verbose,mol)
     use struct_basic, only: crystal
-    use arithmetic, only: eval, isvariable
+    use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
-    use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr
+    use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc
     use param, only: dirsep, bohrtoa, eye, eyet
+    use types, only: realloc
 
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
@@ -830,11 +833,11 @@ contains
   !> Read the structure from a CIF file (uses ciftbx)
   subroutine struct_read_res(c,file,verbose,mol)
     use struct_basic, only: crystal
-    use arithmetic, only: isvariable, eval
+    use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
-       lower, ferror, faterr, zatguess
+       lower, ferror, faterr, zatguess, fclose
     use param, only: eyet, eye, bohrtoa
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
@@ -1145,10 +1148,10 @@ contains
   !> Read the structure from a gaussian cube file
   subroutine struct_read_cube(c,file,verbose,mol)
     use struct_basic, only: crystal
-    use tools_io, only: fopen_read, uout
+    use tools_io, only: fopen_read, uout, fclose
     use tools_math, only: matinv
     use param, only: pi, eye
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: verbose !< Verbose?
@@ -1231,8 +1234,8 @@ contains
   !> Code adapted from the WIEN2k distribution.
   subroutine struct_read_wien(c,file,readall,mol)
     use struct_basic, only: crystal
-    use tools_io, only: fopen_read, faterr, ferror, zatguess
-
+    use tools_io, only: fopen_read, faterr, ferror, zatguess, fclose
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: readall !< if true, read the atomic positions into c%at%x
@@ -1371,9 +1374,9 @@ contains
   !> Read everything except the grid from a VASP POSCAR, etc. file
   subroutine struct_read_vasp(c,filename,ntypat,ztypat,mol)
     use struct_basic, only: crystal
-    ! use types
+    use types, only: realloc
     use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
-       getword, zatguess, string, isinteger, nameguess
+       getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: detsym, matinv
     use param, only: bohrtoa, pi, maxzat0
 
@@ -1506,7 +1509,7 @@ contains
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
   subroutine struct_read_potcar(filename,ntyp,ztyp)
-    use tools_io, only: fopen_read, getline_raw, getword
+    use tools_io, only: fopen_read, getline_raw, getword, fclose
     use param, only: maxzat0
 
     character*(*), intent(in) :: filename !< Input file name
@@ -1544,10 +1547,10 @@ contains
   subroutine struct_read_abinit(c,file,mol)
     use struct_basic, only: crystal
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, nameguess, faterr, ferror
-    use abinit_private, only: hdr_type
+    use tools_io, only: fopen_read, nameguess, faterr, ferror, fclose
+    use abinit_private, only: hdr_type, hdr_io
     use param, only: pi
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -1619,10 +1622,10 @@ contains
   subroutine struct_read_elk(c,filename,mol)
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
-       zatguess
+       zatguess, fclose
     use tools_math, only: matinv
     use param, only: pi
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: filename !< input filename
     logical, intent(in) :: mol !< is this a molecule?
@@ -1696,6 +1699,8 @@ contains
 
   !> Read the structure from an xyz/wfn/wfx file
   subroutine struct_read_mol(c,file,fmt,rborder,docube)
+    use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
+       wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry
     use struct_basic, only: crystal
     use tools_io, only: equal
 
@@ -1744,10 +1749,10 @@ contains
   subroutine struct_read_qeout(c,file,mol)
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
-       zatguess
+       zatguess, fclose
     use tools_math, only: matinv
     use param, only: pi, eye
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -1909,10 +1914,10 @@ contains
     ! or http://www.gnu.org/copyleft/gpl.txt .
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, faterr, ferror, getline_raw, upper, getword,&
-       equal, zatguess
+       equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: pi, bohrtoa, eye
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c0 !< crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2175,10 +2180,10 @@ contains
   !> Read the structure from a siesta STRUCT_OUT input
   subroutine struct_read_siesta(c,file,mol)
     use struct_basic, only: crystal
-    use tools_io, only: fopen_read, nameguess
+    use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa, pi, eye
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2243,7 +2248,7 @@ contains
     use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
        getword, zatguess, nameguess
     use param, only: bohrtoa, pi, eye
-
+    use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2592,7 +2597,7 @@ contains
   !> Wrapper to the spgs module
   subroutine spgs_wrap(c,spg,usespgr)
     use struct_basic, only: crystal
-    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m
+    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m, spgs_driver
 
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: spg
