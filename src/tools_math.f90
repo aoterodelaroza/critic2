@@ -33,6 +33,8 @@ module tools_math
   public :: erf, erfc
   public :: der1i, der2ii, der2ij
   public :: plane_scale_extend
+  public :: comb
+  public :: nchoosek
   public :: good_lebedev
   public :: genrlm_real
   public :: genylm
@@ -1056,6 +1058,70 @@ contains
     x2 = x2 + ax0 + ay1
 
   end subroutine plane_scale_extend
+
+  !> Generate the combination of n objects taken p at a time that
+  !> corresponds to a given index in the lexicographic order. Buckles
+  !> and Lybanon's algorithm (toms/515, B.P. Buckles and M.  Lybanon,
+  !> ACM TOMS 3 (1977) 180-182).
+  subroutine comb(n, p, l, c)                                       
+    ! THIS SUBROUTINE FINDS THE COMBINATION SET OF N THINGS
+    ! TAKEN P AT A TIME FOR A GIVEN LEXICOGRAPHICAL INDEX.
+    ! N - NUMBER OF THINGS IN THE SET
+    ! P - NUMBER OF THINGS IN EACH COMBINATION
+    ! L - LEXICOGRAPHICAL INDEX OF COMBINATION SOUGHT
+    ! C - OUTPUT ARRAY CONTAINING THE COMBINATION SET
+    ! THE FOLLOWING RELATIONSHIPS MUST EXIST AMONG THE INPUT
+    ! VARIABLES.  L MUST BE GREATER THAN OR EQUAL TO 1 AND LESS
+    ! THAN OR EQUAL TO THE MAXIMUM LEXICOGRAPHICAL INDEX.
+    ! P MUST BE LESS THAN OR EQUAL TO N AND GREATER THAN ZERO.
+    INTEGER N, P, L, C(P), K, R, P1, I
+
+    ! SPECIAL CASE CODE IF P = 1
+    if (p <= 1) then
+       C(1) = L
+       return
+    endif
+
+    ! INITIALIZE LOWER BOUND INDEX AT ZERO
+    K = 0
+    ! LOOP TO SELECT ELEMENTS IN ASCENDING ORDER
+    P1 = P - 1
+    C(1) = 0
+    do I=1,P1
+       ! SET LOWER BOUND ELEMENT NUMBER FOR NEXT ELEMENT VALUE
+       if (I.NE.1) C(I) = C(I-1)
+       ! LOOP TO CHECK VALIDITY OF EACH ELEMENT VALUE
+       do while (k < l)
+          C(I) = C(I) + 1
+          R = nchoosek(N-C(I),P-I)
+          K = K + R
+       end do
+       K = K - R
+    end do
+    C(P) = C(P1) + L - K
+
+  end subroutine comb
+
+  !> Returns m choose n. Same source as comb.
+  integer function nchoosek(M, N)
+    ! ACM ALGORITHM 160 TRANSLATED TO FORTRAN.  CALCULATES THE
+    ! NUMBER OF COMBINATIONS OF M THINGS TAKEN N AT A TIME.
+    INTEGER M, N, P, I, N1, R
+    N1 = N
+    P = M - N1
+    IF (N1 < P) then
+       P = N1
+       N1 = M - P
+    end IF
+    R = N1 + 1
+    IF (P.EQ.0) R = 1
+    IF (P >= 2) then
+       do I=2,P
+          R = (R*(N1+I))/I
+       end DO
+    end IF
+    nchoosek = R
+   end function nchoosek
 
   !> Find the Gauss-Legendre nodes and weights for an interval.
   subroutine gauleg (x1,x2,x,w,n)
