@@ -1144,6 +1144,7 @@ contains
     character(len=:), allocatable :: ofile
     logical :: abspath
 
+    abspath = .false.
     ofile = trim(adjustl(filepath)) // dirsep // file
     if (ofile(1:1) == dirsep) abspath = .true.
     if (present(abspath0)) abspath = abspath0
