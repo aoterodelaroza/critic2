@@ -1130,6 +1130,7 @@ contains
              ok = getline_raw(luwfn,line,.true.)
              ok = getline_raw(luwfn,line,.true.)
              do while (index(line,".") /= 0)
+                word = ""
                 read (line,*) word, idum, rdum
                 ncshel = ncshel + 1
                 nshel = nshel + idum
@@ -1159,6 +1160,7 @@ contains
 
                 ! occupation
                 ok = getline_raw(luwfn,line,.true.)
+                word = ""
                 read (line,*) word, rdum
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) &
