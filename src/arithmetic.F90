@@ -21,8 +21,6 @@ module arithmetic
 #ifdef HAVE_LIBXC
   use xc_f90_types_m, only: xc_f90_pointer_t
 #endif
-  use hashtype
-  use param
   implicit none
 
   public :: eval
@@ -141,8 +139,6 @@ contains
   !> non-periodic. Otherwise, evaluate it as if in a periodic system.
   !> This routine is thread-safe.
   recursive function eval(expr,hardfail,iok,x0,fcheck,feval,periodic)
-    use types
-    use tools_io
     real*8 :: eval
     character(*), intent(in) :: expr
     logical, intent(in) :: hardfail
@@ -312,8 +308,7 @@ contains
   !> Return field ids from the evaluation of an expression.  This
   !> routine is thread-safe.
   subroutine fields_in_eval(expr,n,idlist)
-    use tools_io
-    use types
+    use tools_io, only: string
     character(*), intent(in) :: expr
     integer, intent(out) :: n
     character*255, allocatable :: idlist(:)
@@ -352,6 +347,7 @@ contains
   !> pointer lpexit.  This routine is thread-safe.
   function tokenize(expr,ntok,toklist,lpexit) 
     use tools_io, only: lower
+    use param, only: fh, vh
     logical :: tokenize
     character(*), intent(in) :: expr
     integer, intent(out) :: ntok
@@ -502,9 +498,8 @@ contains
   !> Using the field id and the derivative flag, evaluate to a number.
   !> This routine is thread-safe.
   recursive function fieldeval(fid,fder,x0,fcheck,feval,periodic)
-    use tools_io
-    use types
-
+    use tools_io, only: string, isinteger
+    use types, only: scalar_value
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
     character*4, intent(in) :: fder
@@ -858,7 +853,7 @@ contains
   !> derivative selector after the identifier (:xx).  This routine is
   !> thread-safe.
   function isidentifier(id,expr,lp,fder)
-    use tools_io
+    use tools_io, only: isletter, isdigit
     logical :: isidentifier
     character(len=:), allocatable, intent(out) :: id
     character*(*), intent(in) :: expr
@@ -960,7 +955,6 @@ contains
   subroutine pop(q,nq,s,ns,x0,fcheck,feval,periodic,fail)
     use tools_math, only: erf, erfc
     use tools_io, only: string
-    use types
 #ifdef HAVE_LIBXC
     use xc_f90_types_m
     use libxc_funcs_m
@@ -1249,7 +1243,7 @@ contains
   endfunction istype
 
   subroutine die(msg,msg2)
-    use tools_io
+    use tools_io, only: ferror, faterr
     character*(*), intent(in) :: msg
     character*(*), intent(in), optional :: msg2
     !$omp critical (error)
@@ -1259,8 +1253,7 @@ contains
 
   !> Set the value of a variable.
   subroutine setvariable(ikey,ival)
-    use tools_io
-    use types
+    use param, only: vh
 
     character*(*), intent(in) :: ikey
     real*8, intent(in) :: ival
@@ -1271,6 +1264,7 @@ contains
 
   !> Determine if a variable is defined This routine is thread-safe.
   function isvariable(ikey,ival)
+    use param, only: vh
 
     character*(*), intent(in) :: ikey
     real*8, intent(out) :: ival
@@ -1285,6 +1279,7 @@ contains
 
   !> Clear a variable.
   subroutine clearvariable(ikey)
+    use param, only: vh
 
     character*(*), intent(in) :: ikey
 
@@ -1294,6 +1289,7 @@ contains
 
   !> Clear all the variables by freeing the hash.
   subroutine clearallvariables()
+    use param, only: vh
 
     call vh%free()
 
@@ -1302,7 +1298,8 @@ contains
   !> List of the variables in the internal database.  This routine is
   !> thread-safe.
   subroutine listvariables()
-    use tools_io
+    use tools_io, only: uout, string, ioj_right
+    use param, only: vh
 
     integer :: i, nkeys, idum
     character(len=:), allocatable :: key, typx, val
@@ -1340,9 +1337,8 @@ contains
   !> Calculate a chemical function for a given field.  This routine is
   !> thread-safe.
   function chemfunction(c,sia,x0,feval,periodic) result(q)
-    use tools_io
-    use tools_math
-    use types
+    use types, only: scalar_value
+    use param, only: pi
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)

@@ -17,7 +17,6 @@
 
 !> External density-independent global variables and tools.
 module varbas
-  use global, only: mneq
   use types, only: cp_type
   implicit none
 
@@ -54,7 +53,7 @@ contains
   !> output, nid represents the id (complete CP list), dist is the
   !> distance. If nozero is used, skip zero distance CPs.
   subroutine nearest_cp(xp,nid,dist,type,idx,nozero)
-    use struct_basic
+    use struct_basic, only: cr
     implicit none
 
     real*8, intent(in) :: xp(:)
@@ -94,11 +93,12 @@ contains
   end subroutine nearest_cp
 
   subroutine varbas_identify(line0,lp)
-    use struct_basic
-    use global
-    use tools_io
-    use types
-    use param
+    use struct_basic, only: cr
+    use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit, &
+       eval_next
+    use tools_io, only: lgetword, getword, getline, equal, ferror, &
+       faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read
+    use param, only: bohrtoa
     
     character*(*), intent(in) :: line0
     integer, intent(inout) :: lp
@@ -320,8 +320,7 @@ contains
   !> Identify a CP in the unit cell. Input: cryst coords. Output:
   !> the cell CP index.
   function identify_cp(x0,eps)
-    use struct_basic
-    use tools_io
+    use struct_basic, only: cr
 
     integer :: identify_cp
     real*8, intent(in) :: x0(3)

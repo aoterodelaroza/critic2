@@ -704,7 +704,7 @@ contains
 
   !> Generate all symmetry information from the space group label
   subroutine spgs_driver(spgin,usespgr)
-    use tools_io
+    use tools_io, only: string, lower, ferror, faterr
 
     character(len=*), intent(in) :: spgin
     logical, intent(in) :: usespgr
@@ -798,7 +798,7 @@ contains
   end subroutine spgs_driver
 
   subroutine spgs_parse()
-    use tools_io
+    use tools_io, only: faterr, ferror
 
     integer :: i,l
     logical :: proper
@@ -1004,7 +1004,7 @@ contains
   end subroutine spgs_generate
 
   subroutine spgs_getlaue()
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     integer :: order
     ! laue: 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 9=6/mmm
@@ -3139,8 +3139,8 @@ contains
   end subroutine spgs_init
 
   subroutine spgr(spg, lpt, lptx, ier)
-    use tools_io
-    use param
+    use tools_io, only: upper
+    use param, only: zero, half, fourth, third
 !-----------------------------------------------------------------------
 !
 !     SSSSSSSS      PPPPPPPPPP        GGGGGGGG      RRRRRRRRRR

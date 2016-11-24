@@ -17,7 +17,7 @@
 
 ! Mathematical and physical constants, color specifications and factorials.
 module param
-  use hashtype
+  use hashtype, only: hash
   implicit none
 
   public

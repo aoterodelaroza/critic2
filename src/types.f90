@@ -365,7 +365,7 @@ contains
   
   !> Adapt the size of an allocatable 1D type(field) array
   subroutine realloc_field(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(field), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -387,7 +387,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_atom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(atom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -415,7 +415,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   subroutine realloc_celatom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(celatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -436,7 +436,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   subroutine realloc_anyatom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(anyatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -457,7 +457,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_dftbatom(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(dftbatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -478,7 +478,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(fragment) array
   subroutine realloc_fragment(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(fragment), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -499,7 +499,7 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_cp(a,nnew)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     type(cp_type), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew

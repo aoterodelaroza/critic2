@@ -20,7 +20,6 @@
 
 ! Geometry of the crystal: variables and tools.
 module struct
-  use types
   implicit none
 
   private
@@ -41,11 +40,13 @@ contains
   !xx! top-level routines
   !> Parse the input of the crystal keyword
   subroutine struct_crystal_input(c,line,mol,allownofile,verbose) 
-    use struct_readers
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    ! use struct_readers
+    use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
+       iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
+    use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
+       string, uin
+    use param, only: dirsep, maxzat0
 
     character*(*), intent(in) :: line
     logical, intent(in) :: mol
@@ -304,10 +305,10 @@ contains
 
   ! use the P1 space group
   subroutine struct_clearsym()
-    use struct_basic
-    use types
-    use tools_io
-    use param
+    use struct_basic, only: cr
+    use types, only: atom
+    use tools_io, only: uout
+    use param, only: eyet
 
     type(atom) :: aux(cr%nneq)
     integer :: i
@@ -339,9 +340,9 @@ contains
   end subroutine struct_clearsym
 
   subroutine struct_charges(line,oksyn)
-    use struct_basic
-    use global
-    use tools_io
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_io, only: lgetword, equal, ferror, faterr, getword, zatguess
 
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
@@ -409,12 +410,10 @@ contains
 
   ! Write the crystal structure to a file
   subroutine struct_write(c,line)
-    use struct_writers
-    use struct_basic
-    use global
-    use tools_io
-    use param
-
+    use struct_basic, only: crystal
+    use global, only: eval_next, dunit
+    use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
+       string
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: line
 
@@ -660,11 +659,11 @@ contains
   !> Calculate the powder diffraction pattern for the current
   !structure.
   subroutine struct_powder(line,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot, eval_next
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, getword, &
+       fopen_write, string, ioj_center, string
+    use param, only: pi
     character*(*), intent(in) :: line
     type(crystal), intent(in) :: c
 
@@ -796,11 +795,10 @@ contains
   !> Calculate the radial distribution function for the current
   !> structure.
   subroutine struct_rdf(line,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot, eval_next
+    use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
+       ioj_center, getword, string
     character*(*), intent(in) :: line
     type(crystal), intent(in) :: c
 
@@ -892,10 +890,10 @@ contains
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   subroutine struct_compare(line)
-    use global
-    use tools_math
-    use tools_io
-    use struct_basic
+    use struct_basic, only: crystal, cr
+    use global, only: doguess, eval_next
+    use tools_math, only: crosscorr_triangle
+    use tools_io, only: getword, equal, faterr, ferror, uout, string
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -1054,11 +1052,10 @@ contains
   !> Calculate the atomic environment of a point or all the 
   !> non-equivalent atoms in the unit cell.
   subroutine struct_environ(line)
-    use struct_basic
-    use global
-    use tools_io
-    use tools
-    use param
+    use struct_basic, only: cr
+    use global, only: eval_next, dunit, iunit, iunitname0
+    use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
+       ioj_right, ioj_center
     character*(*), intent(in) :: line
 
     integer :: lp
@@ -1181,10 +1178,10 @@ contains
 
   !> Calculate the packing ratio of the crystal.
   subroutine struct_packing(line)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, string
+    use param, only: atmvdw
 
     character*(*), intent(in) :: line
 
@@ -1279,10 +1276,10 @@ contains
 
   !> Build a new crystal from the current crystal by cell transformation
   subroutine struct_newcell(line)
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_math, only: matinv
+    use tools_io, only: ferror, faterr, lgetword, equal
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -1362,9 +1359,9 @@ contains
 
   !> Try to determine the molecular cell from the crystal geometry
   subroutine struct_molcell(line)
-    use struct_basic
-    use global
-    use tools_io
+    use struct_basic, only: cr
+    use global, only: rborder_def, eval_next, dunit
+    use tools_io, only: ferror, faterr, uout, string
 
     character*(*), intent(in) :: line
     integer :: i, j, lp

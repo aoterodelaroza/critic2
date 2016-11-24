@@ -185,7 +185,7 @@ contains
   !> Initialize basic variables at the beginning of the run.
   !> Also sets default values by calling global_set_defaults.
   subroutine global_init(ghome,datadir)
-    use tools_io
+    use tools_io, only: string, ferror, warning, uout
     use param, only: dirsep
     implicit none
 
@@ -350,7 +350,7 @@ contains
   subroutine config_write(package,version,atarget,adate,f77,fflags,fc,&
      fcflags,ldflags,enable_debug,datadir)
     use param, only: dirsep
-    use tools_io
+    use tools_io, only: uout
     character*(*), intent(in) :: package, version, atarget, adate
     character*(*), intent(in) :: f77, fflags, fc, fcflags
     character*(*), intent(in) :: ldflags, enable_debug, datadir
@@ -374,10 +374,9 @@ contains
 
   !> Parse the command line and set a global variable
   subroutine critic_setvariables(line,lp)
-    use arithmetic
-    use tools_io
-    use param
-  
+    use arithmetic, only: eval
+    use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
+       faterr, string, uout, isassignment, getword
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
@@ -746,8 +745,7 @@ contains
 
   !> Clear the value of a variable
   subroutine critic_clearvariable(line)
-    use arithmetic
-    use tools_io
+    use tools_io, only: getword, lower, equal
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -769,8 +767,8 @@ contains
 
   !> Evaluate next expression of word in line and return a real number.
   function eval_next_real(res,line,lp0)
-    use arithmetic
-    use tools_io
+    use arithmetic, only: eval
+    use tools_io, only: isexpression_or_word, string
 
     logical :: eval_next_real
     character*(*), intent(in) :: line !< Input line

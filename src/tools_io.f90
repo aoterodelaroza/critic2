@@ -96,8 +96,8 @@ contains
 
   !> Connect input files to units with standard defaults.
   subroutine stdargs(optv,ghome,uroot)
-    use iso_fortran_env
-    use param
+    use iso_fortran_env, only: input_unit, output_unit
+    use param, only: dirsep
     
     character(len=:), allocatable, intent(out) :: optv !< Dash-options passed to the program
     character(len=:), allocatable, intent(out) :: ghome !< critic_home passed with -r
@@ -654,7 +654,7 @@ contains
   !> made of one or two letters corresponding to a legal atomic symbol
   !> followed by any other additional characters.
   function zatguess(atname)
-    use param
+    use param, only: maxzat0
     integer :: zatguess !< Ouptut atomic number
     character*(*), intent(in) :: atname !< Input atomic symbol (case insensitive)
 
@@ -711,7 +711,7 @@ contains
   !> If nounderscore is true, use blanks instead of underscores to pad
   !> the symbol.
   function nameguess (zat,nounderscore)
-    use param
+    use param, only: maxzat0
     
     integer, intent(in) :: zat !< Input atomic number
     logical, intent(in), optional :: nounderscore !< Use blanks instead of underscore to fill
@@ -1037,7 +1037,7 @@ contains
 
   !> Read an assignment from the input line
   function isassignment(var, expr, line)
-    use param
+    use param, only: constlist, funclist
 
     character*(*), intent(in) :: line !< Input line
     character(len=:), allocatable, intent(out) :: var !< Output variable name (left hand side)
@@ -1092,7 +1092,7 @@ contains
   !> Initialize file system and connect standard units. 
   !> Use this before falloc and fdealloc.
   subroutine ioinit ()
-    use iso_fortran_env
+    use iso_fortran_env, only: error_unit, input_unit, output_unit
 
     alloc = .false.
     alloc(error_unit) = .true.
@@ -1105,7 +1105,7 @@ contains
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
   function fopen_read(file,form,abspath0) result(lu)
-    use param
+    use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
@@ -1135,7 +1135,7 @@ contains
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
   function fopen_write(file,form,abspath0) result(lu)
-    use param
+    use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
@@ -1163,7 +1163,7 @@ contains
 
   !> Open a file for appending
   function fopen_append(file,form,abspath) result(lu)
-    use param
+    use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath

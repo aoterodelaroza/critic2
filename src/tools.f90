@@ -272,8 +272,6 @@ contains
   !> out of the standard loop, and use dedicated coding.
   subroutine mergesort(xvalt, irngt)
 
-    use tools_io
-
     real*8, dimension (:), intent (in) :: xvalt !< array to order
     integer, dimension (:), intent (out) :: irngt !< ordered index
 
@@ -437,8 +435,6 @@ contains
   !> for performance reasons, the first 2 passes are taken
   !> out of the standard loop, and use dedicated coding.
   subroutine imergesort(xvalt, irngt)
-
-    use tools_io
 
     integer, dimension (:), intent (in) :: xvalt !< array to order
     integer, dimension (:), intent (out) :: irngt !< ordered index

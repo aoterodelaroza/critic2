@@ -841,8 +841,6 @@ contains
 
   !> The wrtout subroutine from abinit.
   subroutine wrtout(message)
-    use tools_io
-
     !Arguments ------------------------------------
     !scalars
     character(len=500),intent(inout) :: message

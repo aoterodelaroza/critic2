@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza
+! Copyright (c) 2015 Alberto Otero de la Roza,
 ! <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
@@ -56,13 +56,13 @@ contains
 
   !> Parse a crystal environment
   subroutine parse_crystal_env(c,lu,oksyn)
-    use struct_basic
-    use global
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use struct_basic, only: crystal
+    use global, only: eval_next, dunit
+    use arithmetic, only: isvariable, eval
+    use tools_math, only: matinv
+    use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
+       getword, lower, isinteger, string, nameguess, zatguess
+    use param, only: bohrtoa, pi
 
     type(crystal), intent(inout) :: c !< Crystal
     integer, intent(in) :: lu !< Logical unit for input
@@ -355,13 +355,11 @@ contains
 
   !> Parse a molecule environment
   subroutine parse_molecule_env(c,lu,oksyn)
-    use struct_basic
-    use global
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use struct_basic, only: crystal
+     use global, only: rborder_def, eval_next, dunit
+     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
+        string, isinteger, nameguess, getword, zatguess
+     use param, only: bohrtoa
 
     type(crystal), intent(inout) :: c !< Crystal
     integer, intent(in) :: lu !< Logical unit for input
@@ -514,9 +512,10 @@ contains
 
   !> Read a structure from the critic2 structure library
   subroutine struct_read_library(c,line,mol,oksyn)
-    use global
-    use tools_io
-    use struct_basic
+    use struct_basic, only: crystal
+    use global, only: mlib_file, clib_file
+    use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
+       equal, getword
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: line !< Library entry
@@ -594,12 +593,11 @@ contains
 
   !> Read the structure from a CIF file (uses ciftbx)
   subroutine struct_read_cif(c,file,dblock,verbose,mol)
-    use struct_basic
-    use arithmetic
-    use global
-    use tools_io
-    use types
-    use param
+    use struct_basic, only: crystal
+    use arithmetic, only: eval, isvariable
+    use global, only: critic_home
+    use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr
+    use param, only: dirsep, bohrtoa, eye, eyet
 
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
@@ -831,12 +829,11 @@ contains
 
   !> Read the structure from a CIF file (uses ciftbx)
   subroutine struct_read_res(c,file,verbose,mol)
-    use struct_basic
-    use arithmetic
-    use global
-    use tools_io
-    use types
-    use param
+    use struct_basic, only: crystal
+    use arithmetic, only: isvariable, eval
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
+       lower, ferror, faterr, zatguess
+    use param, only: eyet, eye, bohrtoa
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1147,12 +1144,10 @@ contains
 
   !> Read the structure from a gaussian cube file
   subroutine struct_read_cube(c,file,verbose,mol)
-    use struct_basic
-    use global
-    use types
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, uout
+    use tools_math, only: matinv
+    use param, only: pi, eye
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1235,11 +1230,8 @@ contains
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
   subroutine struct_read_wien(c,file,readall,mol)
-    use struct_basic
-    use global
-    use tools_io
-    use param
-    use types
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, faterr, ferror, zatguess
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< struct file
@@ -1378,11 +1370,12 @@ contains
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
   subroutine struct_read_vasp(c,filename,ntypat,ztypat,mol)
-    use struct_basic
-    use types
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    ! use types
+    use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
+       getword, zatguess, string, isinteger, nameguess
+    use tools_math, only: detsym, matinv
+    use param, only: bohrtoa, pi, maxzat0
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: filename !< Input file name
@@ -1513,9 +1506,8 @@ contains
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
   subroutine struct_read_potcar(filename,ntyp,ztyp)
-    use tools_io
-    use param
-    use types
+    use tools_io, only: fopen_read, getline_raw, getword
+    use param, only: maxzat0
 
     character*(*), intent(in) :: filename !< Input file name
     integer, intent(out) :: ntyp !< Number of atom types
@@ -1550,12 +1542,11 @@ contains
 
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
   subroutine struct_read_abinit(c,file,mol)
-    use struct_basic
-    use types
-    use tools_math
-    use tools_io
-    use abinit_private
-    use param
+    use struct_basic, only: crystal
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, nameguess, faterr, ferror
+    use abinit_private, only: hdr_type
+    use param, only: pi
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1626,11 +1617,11 @@ contains
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
   subroutine struct_read_elk(c,filename,mol)
-    use struct_basic
-    use tools_io
-    use tools_math
-    use types
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
+       zatguess
+    use tools_math, only: matinv
+    use param, only: pi
 
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: filename !< input filename
@@ -1705,12 +1696,8 @@ contains
 
   !> Read the structure from an xyz/wfn/wfx file
   subroutine struct_read_mol(c,file,fmt,rborder,docube)
-    use struct_basic
-    use wfn_private
-    use grid1_tools
-    use types
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: equal
 
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1755,11 +1742,11 @@ contains
 
   !> Read the structure from a quantum espresso output
   subroutine struct_read_qeout(c,file,mol)
-    use struct_basic
-    use tools_io
-    use tools_math
-    use param
-    use types
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+       zatguess
+    use tools_math, only: matinv
+    use param, only: pi, eye
 
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1920,11 +1907,11 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use struct_basic
-    use tools_io
-    use tools_math
-    use param
-    use types
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, faterr, ferror, getline_raw, upper, getword,&
+       equal, zatguess
+    use tools_math, only: matinv
+    use param, only: pi, bohrtoa, eye
 
     type(crystal), intent(inout) :: c0 !< crystal
     character*(*), intent(in) :: file !< Input file name
@@ -2187,11 +2174,10 @@ contains
 
   !> Read the structure from a siesta STRUCT_OUT input
   subroutine struct_read_siesta(c,file,mol)
-    use struct_basic
-    use types
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, nameguess
+    use tools_math, only: matinv
+    use param, only: bohrtoa, pi, eye
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -2252,11 +2238,11 @@ contains
 
   !> Read the structure from a file in DFTB+ gen format.
   subroutine struct_read_dftbp(c,file,mol,rborder,docube)
-    use struct_basic
-    use types
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
+       getword, zatguess, nameguess
+    use param, only: bohrtoa, pi, eye
 
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -2367,7 +2353,7 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use tools_io
+    use tools_io, only: ferror, faterr
     !-----------------------------------------------------------------------
     !     sets up the crystallographic vectors a1, a2, and a3.
     !
@@ -2605,12 +2591,8 @@ contains
 
   !> Wrapper to the spgs module
   subroutine spgs_wrap(c,spg,usespgr)
-    use struct_basic
-    use spgs
-    use global
-    use types
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m
 
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: spg
@@ -2637,9 +2619,8 @@ contains
   !> read from an external file or when given in the critic2 input.
   !> If docube is true, make a cubic cell instead of a parallelepiped.
   subroutine fill_molecule(c,rborder,docube)
-    use struct_basic
-    use types
-    use param
+    use struct_basic, only: crystal
+    use param, only: eye
 
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: rborder
@@ -2699,8 +2680,8 @@ contains
   !> or (if not present) to the center of the cell. Then, sets up the
   !> molecular cell. Do not allow molecules in non-orthogonal cells.
   subroutine fill_molecule_given_cell(c,x0)
-    use struct_basic
-    use tools_io
+    use struct_basic, only: crystal
+    use tools_io, only: faterr, ferror
     type(crystal), intent(inout) :: c
     real*8, intent(in), optional :: x0(3)
 

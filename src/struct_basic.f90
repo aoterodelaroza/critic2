@@ -20,7 +20,7 @@
 
 ! Routines for basic crystallography computations
 module struct_basic
-  use types
+  use types, only: atom, celatom, neighstar, fragment
   implicit none
 
   private
@@ -202,7 +202,7 @@ contains
   !xx! crystal class methods
   !> Initialize the struct arrays
   subroutine struct_init(c)
-    use param
+    use param, only: eyet, eye
     class(crystal), intent(inout) :: c
 
     integer :: i
@@ -282,7 +282,7 @@ contains
   !> crystal flags that are .true.
   !> This routine is thread-safe if crash = .true.
   subroutine struct_checkflags(c,crash,init0,env0,isym0,ast0,recip0,nn0,ewald0)
-    use tools_io
+    use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     logical :: crash
     logical, intent(in), optional :: init0
@@ -377,7 +377,7 @@ contains
 
   !> Fill crys2car and car2crys using aa and bb
   subroutine set_cryscar(c)
-    use tools_math
+    use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar
     class(crystal), intent(inout) :: c
 
     c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
@@ -387,7 +387,6 @@ contains
 
   !> Calculate the lcent from the centering vectors (ncv and cen)
   subroutine set_lcent(c)
-    use tools_io
     class(crystal), intent(inout) :: c
 
     logical :: ok
@@ -439,7 +438,6 @@ contains
   !> Classify the lattice using Delaunay reduction. (deactivated, 
   !> see 002_read_crinput6)
   ! subroutine classify(c)
-  !   use tools_io
   !   class(crystal), intent(inout) :: c
   ! 
   !   real*8 :: rmat(3,3), dmat(3,4), sc(4,4), scv(6), xn(4)
@@ -849,7 +847,6 @@ contains
   !> lattice translations of another point x2. Input points in cryst.
   !> coordinates. This routine is thread-safe.
   pure function eql_distance(c,x1,x2)
-    use tools_math
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
     real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
@@ -1015,7 +1012,7 @@ contains
   !> complete atom index (if lncel is true). This routine is
   !> thread-safe.
   function identify_atom(c,x0,lncel0)
-    use tools_io
+    use tools_io, only: ferror, faterr
     
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
@@ -1050,9 +1047,6 @@ contains
   !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
   !> A fragment object. This routine is thread-safe.
   function identify_fragment(c,nat,x0,z0) result(fr)
-    use tools_io
-    use types
-
     class(crystal), intent(in) :: c
     integer, intent(in) :: nat
     real*8, intent(in) :: x0(3,nat)
@@ -1079,9 +1073,8 @@ contains
   !> Identify a fragment in the unit cell from an external
   !> xyz file. An instance of a fragment object is returned.
   function identify_fragment_from_xyz(c,file) result(fr)
-    use tools_io
-    use types
-    use param
+    use tools_io, only: fopen_read, string, ferror, faterr
+    use param, only: bohrtoa
 
     class(crystal), intent(in) :: c
     character*(*) :: file
@@ -1127,8 +1120,6 @@ contains
   !> vec. eps is the minimum distance to consider two points
   !> equivalent (in bohr). vec, irotm, icenv, and eps0 are optional. 
   subroutine symeqv(c,xp0,mmult,vec,irotm,icenv,eps0)
-    use types
-    use tools_io
     class(crystal), intent(in) :: c !< Input crystal
     real*8, dimension(3), intent(in) :: xp0 !< input position (crystallographic)
     integer, intent(out) :: mmult !< multiplicity
@@ -1279,10 +1270,8 @@ contains
   !> If dmax is given, use that number as an estimate of how many cells
   !> should be included in the search for atoms. 
   subroutine build_env(c,dmax0)
-    use tools_math
-    use tools_io
-    use global
-    use types
+    use tools_math, only: norm
+    use global, only: cutrad
 
     class(crystal), intent(inout) :: c !< Input crystal
     real*8, intent(in), optional :: dmax0
@@ -1368,8 +1357,7 @@ contains
   !> Find asterisms. For every atom in the unit cell, find the atoms in the 
   !> main cell or adjacent cells that are connected to it. 
   subroutine find_asterisms(c)
-    use types
-    use param
+    use param, only: atmcov, vsmall
 
     class(crystal), intent(inout) :: c
 
@@ -1454,11 +1442,6 @@ contains
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
   function listatoms_cells(c,nx,doborder) result(fr)
-    use fragmentmod
-    use tools_math
-    use types
-    use param
-
     class(crystal), intent(in) :: c
     integer, intent(in) :: nx(3)
     logical, intent(in) :: doborder
@@ -1532,11 +1515,7 @@ contains
   !> the list of atomic positions (Cartesian) in x, the atomic numbers
   !> in z and the number of atoms in nat. 
   function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
-    use fragmentmod
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use tools_io, only: ferror, faterr
 
     class(crystal), intent(in) :: c
     real*8, intent(in), optional :: rsph, xsph(3)
@@ -1599,8 +1578,8 @@ contains
   !> molecular in the system and whether the crystal is extended or
   !> molecular. This routine fills nmol, mol, and moldiscrete.
   subroutine fill_molecular_fragments(c)
-    use fragmentmod
-    use tools_io
+    use fragmentmod, only: fragment_cmass
+    use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
 
     integer :: i, j, k, l, jid, newid, newl(3)
@@ -1723,12 +1702,6 @@ contains
   !> and whether the fragments are discrete (not connected to copies
   !> of themselves in a different cell). 
   subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
-    use fragmentmod
-    use tools_math
-    use tools_io
-    use types
-    use param
-
     class(crystal), intent(inout) :: c
     type(fragment), intent(in) :: fri
     integer, intent(out) :: nfrag
@@ -1859,8 +1832,7 @@ contains
   !> and the distance in dist. If the argument xenv is present,
   !> return the position of a representative atom from each shell.
   subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
-    use global
-    use tools_io
+    use global, only: atomeps, atomeps2
 
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
@@ -1933,7 +1905,7 @@ contains
   !> number of operations in this group (leqv) and the rotation
   !> operations (lrotm)
   function sitesymm(c,x0,eps0,leqv,lrotm)
-    use tools_io
+    use tools_io, only: string
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in) :: x0(3) !< Input point in cryst. coords.
     real*8, intent(in), optional :: eps0 !< Two points are different if distance is > eps
@@ -2055,7 +2027,7 @@ contains
   !> information. Each atom is assigned a ratio equal to half the distance
   !> to its nearest neighbor.
   function get_pack_ratio(c) result (px)
-    use param
+    use param, only: pi
     class(crystal), intent(inout) :: c
     real*8 :: px
     
@@ -2082,9 +2054,8 @@ contains
   !> lattice vector corresponding to the peaks.
   subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
      sigma,t,ih,th2p,ip,hvecp)
-    use param
-    use tools
-    use tools_io
+    use param, only: pi, bohrtoa, cscatt, c2scatt
+    use tools_io, only: ferror, faterr
 
     class(crystal), intent(in) :: c
     real*8, intent(in) :: th2ini0, th2end0
@@ -2282,8 +2253,7 @@ contains
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges.
   subroutine rdf(c,rend,npts,t,ih)
-    use tools_math
-    use types
+    use tools_math, only: norm
     class(crystal), intent(in) :: c
     real*8, intent(in) :: rend
     integer, intent(in) :: npts
@@ -2337,8 +2307,8 @@ contains
 
   !> Calculate real and reciprocal space sum cutoffs
   subroutine calculate_ewald_cutoffs(c)
-    use tools_io
-    use param
+    use tools_io, only: ferror, faterr
+    use param, only: pi, rad, sqpi, tpi
 
     class(crystal), intent(inout) :: c
 
@@ -2441,10 +2411,10 @@ contains
   !> structure using the unit cell given by those vectors. Uses guessspg
   !> to determine the symmetry. 
   subroutine newcell(c,x00,t0,verbose0)
-    use global
-    use tools_math
-    use tools_io
-    use param
+    use global, only: doguess
+    use tools_math, only: det, matinv, mnorm2
+    use tools_io, only: ferror, faterr, warning, string, uout
+    use param, only: pi, ctsq3
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
     real*8, intent(in), optional :: t0(3)
@@ -2639,10 +2609,9 @@ contains
   !> cryst. coordinates referred to the input cell in rmat, and do not
   !> transform the crystal to the primitive.
   subroutine primitive_buerger(c,verbose,rmat)
-    use tools
-    use tools_io
-    use tools_math
-    use param
+    use tools_io, only: uout, string, ioj_right
+    use tools_math, only: mixed
+    use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
     real*8, optional :: rmat(3,3)
@@ -2834,10 +2803,9 @@ contains
   !> cryst. coordinates referred to the input cell in rmat, and do not
   !> transform the crystal to the primitive.
   subroutine primitive_any(c,verbose,rmat)
-    use tools
-    use tools_io
-    use tools_math
-    use param
+    use tools_io, only: ferror, faterr
+    use tools_math, only: mixed
+    use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
     real*8, intent(out), optional :: rmat(3,3)
@@ -2973,9 +2941,6 @@ contains
   !> vectors (cryst. coords.) as the basis for the reduction. If sco
   !> is present, use it in output for the scalar products.
   subroutine delaunay_reduction(c,rmat,rmati,sco)
-    use tools
-    use tools_io
-    use tools_math
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
     real*8, intent(in), optional :: rmati(3,3)
@@ -3040,9 +3005,8 @@ contains
   !> cryst. coordinates referred to the input cell in rmat, and do not
   !> transform the crystal to the primitive.
   subroutine primitive_delaunay(c,verbose,rmat)
-    use tools
-    use tools_math
-    use param
+    use tools_math, only: norm, det
+    use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: verbose
     real*8, intent(out), optional :: rmat(3,3)
@@ -3102,10 +3066,6 @@ contains
 
   ! !> Transform to the standard conventional cell. (???)
   ! subroutine conventional_standard(c,verbose,rmat)
-  !   use tools
-  !   use tools_io
-  !   use tools_math
-  !   use param
   !   class(crystal), intent(inout) :: c
   !   logical, intent(in) :: verbose
   !   real*8, intent(out), optional :: rmat(3,3)
@@ -3158,11 +3118,10 @@ contains
   !> metrics and symmetry.  If nn, determine the nearest-neighbor
   !> information.
   subroutine struct_fill(c,init0,env0,isym0,iast0,recip0,lnn0,ewald0)
-    use sympg
-    use tools_math
-    use global
-    use tools_io
-    use param
+    use tools_math, only: mnorm2, matinv
+    use global, only: crsmall, atomeps
+    use tools_io, only: ferror, faterr, string, zatguess, nameguess
+    use param, only: eyet, rad, ctsq3
 
     class(crystal), intent(inout) :: c
     integer :: isym0, iast0
@@ -3430,11 +3389,11 @@ contains
 
   !> Write information about the crystal structure to the output.
   subroutine struct_report(c)
-    use fragmentmod
-    use global
-    use tools_math
-    use tools_io
-    use param
+    use fragmentmod, only: fragment_cmass
+    use global, only: iunitname, dunit
+    use tools_math, only: gcd
+    use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
+    use param, only: bohrtoa, maxzat
     class(crystal), intent(in) :: c
 
     integer, parameter :: natenvmax = 2000
@@ -3714,10 +3673,8 @@ contains
   !> rotm. If level = 0, use no symmetry. If level = 1, find only
   !> the centering vectors. Level = 2, full symmetry.
   subroutine guessspg(c,level)
-    use global
-    use tools_math
-    use tools_io
-    use param
+    use tools_math, only: crys2car_from_cellpar, crys2car_from_cellpar
+    use param, only: eyet
 
     class(crystal), intent(inout) :: c
     integer, intent(in) :: level
@@ -3759,9 +3716,7 @@ contains
   !> Find all centering vectors in the crystal. Uses c%nneq and c%at,
   !> and writes c%cen and c%ncv.
   subroutine cenbuild (c)
-    use global
-    use types
-
+    use global, only: atomeps
     type(crystal), intent(inout) :: c
 
     real*8  :: tr(3)
@@ -3843,9 +3798,6 @@ contains
   !> Determine the full cetering group using the
   !> (possibly repeated) centering vectors.
   subroutine cenclosure(c)
-    use tools_io
-    use types
-
     type(crystal), intent(inout) :: c
 
     integer :: fnc
@@ -3903,8 +3855,7 @@ contains
   !> Purges the repeated vectors in a list of centering
   !> vectors
   subroutine cenreduce(c,nc,cv)
-    use global
-
+    use global, only: atomeps
     type(crystal), intent(inout) :: c
     integer, intent(inout) :: nc !< Number of vectors in the list
     real*8, intent(inout) :: cv(3,nc) !< Array of vectors
@@ -3959,8 +3910,7 @@ contains
   !> This routine is part of the spg operations guessing algorithm by
   !> teVelde, described in his PhD thesis.
   function iscelltr(c,tr)
-    use global
-
+    use global, only: atomeps
     logical :: iscelltr
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: tr(3) !< Cell translation vector to check
@@ -3992,8 +3942,7 @@ contains
   !> For a given trasnlation vector, determines if it
   !> is contained in the ncv / cen
   function isrepeated(c,tr)
-    use global
-
+    use global, only: atomeps
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: tr(3) !< Vector to check
     logical :: isrepeated
@@ -4017,9 +3966,7 @@ contains
   !> This routine is part of the spg operations guessing algorithm by
   !> teVelde, described in his PhD thesis.
   subroutine filltrans(c)
-    use tools_io
-    use global
-
+    use global, only: atomeps
     type(crystal), intent(inout) :: c
 
     integer :: op, i, j, k, n
@@ -4088,8 +4035,7 @@ contains
   !> This routine is part of the spg operations guessing algorithm by
   !> teVelde, described in his PhD thesis.
   function goodop(c,op)
-    use global
-
+    use global, only: atomeps
     logical :: goodop
     type(crystal), intent(inout) :: c
     integer, intent(in) :: op !< Operation identifier
@@ -4124,10 +4070,9 @@ contains
   !> only affects the non-equivalent atom list and sets the
   !> multiplicity of all atoms.
   subroutine reduceatoms(c)
-    use tools_io
-    use global
-    use types
-    use param
+    use tools_io, only: faterr, ferror
+    use global, only: atomeps
+    use param, only: maxzat
     class(crystal), intent(inout) :: c
 
     integer :: i, j, io, it
@@ -4179,12 +4124,11 @@ contains
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
   subroutine wigner(c,xorigin,verbose,nvec,vec,area0,ntetrag,tetrag)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
-    use global
-    use tools_math
-    use tools_io
-    use tools
-    use types
-    use param
+    use global, only: fileroot
+    use tools_math, only: norm, mixed, cross
+    use tools_io, only: uout, string, filepath, fopen_write, fopen_read,&
+       ioj_right, ioj_center, ferror, warning, faterr
+    use param, only: dirsep
 
     interface
        subroutine doqhull(fin,fvert,fface,ithr) bind(c)
@@ -4563,8 +4507,8 @@ contains
 
   !> Partition the unit cell in tetrahedra.
   subroutine pmwigner(c,verbose,ntetrag,tetrag)
-    use tools_math
-    use tools_io
+    use tools_math, only: mixed
+    use tools_io, only: uout
     class(crystal), intent(in) :: c !< the crystal structure
     logical, intent(in) :: verbose !< verbose flag
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
@@ -4717,10 +4661,8 @@ contains
   !> crystallographic coordinates. nn and rot, if present, receive the
   !> symmetry operations for the lattice.
   subroutine lattpg(rmat,ncen,xcen,nn,rot)
-    use sympg
-    use tools_math
-    use tools_io
-    use types
+    use sympg, only: nopsym, opsym
+    use tools_math, only: matinv
     real*8, intent(in) :: rmat(3,3)
     integer, intent(in) :: ncen
     real*8, intent(in) :: xcen(3,ncen)
@@ -4789,7 +4731,7 @@ contains
   !> least rmax thick. x2r is the cryst-to-car matrix for the
   !> lattice. The heuristic method has been adapted from gulp.
   subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
-    use param
+    use param, only: pi
 
     real*8, intent(in) :: x2r(3,3), rmax
     integer, intent(out) :: imax, jmax, kmax
@@ -4828,9 +4770,9 @@ contains
   !> direction of the axis or the normal to the plane, 0 for a point
   !> symmetry element). Used in the structure initialization.
   subroutine typeop(rot,type,vec,order)
-    use tools_math
-    use tools_io
-    use param
+    use tools_math, only: norm
+    use tools_io, only: ferror, faterr
+    use param, only: tpi, eye
 
     real*8, intent(in) :: rot(3,4) !< rotm operation
     integer, intent(out) :: type !< output type

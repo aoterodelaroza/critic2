@@ -52,7 +52,7 @@ contains
   !> proposed here:
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   function crosscorr_triangle(h,f,g,l) result(dfg)
-    use tools_io
+    use tools_io, only: ferror, faterr
     real*8, intent(in) :: h, l
     real*8, intent(in) :: f(:), g(:)
     real*8 :: dfg
@@ -91,7 +91,7 @@ contains
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor.
   function crys2car_from_cellpar(aal,bbl) result(mat)
-    use tools_io
+    use tools_io, only: ferror, faterr
 
     real*8, intent(in) :: aal(3),bbl(3)
     real*8 :: mat(3,3)
@@ -184,7 +184,7 @@ contains
   !> S21 = sqrt(3)*y*z ; S22 = sqrt(3)*x*y
   !>
   subroutine genrlm_real(lmax,r,tp,rrlm)
-    use param
+    use param, only: pi, img
 
     integer, intent(in) :: lmax !< maximum angular momentum
     real*8, intent(in) :: r !< distance to origin
@@ -325,7 +325,7 @@ contains
   !> derivative. On output, grad and hess are the gradient and the
   !> hessian of f(r)*Ylm.
   subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
-    use param
+    use param, only: half
 
     complex*16, dimension(:), intent(in) :: yl
     real*8, intent(in) :: r
@@ -788,7 +788,7 @@ contains
   !> Function derivative using finite differences and Richardson's
   !> extrapolation formula. This routine is thread-safe.
   function der1i (dir, x, h, errcnv, pool, fld, grd0, periodic)
-    use types
+    use types, only: field
 
     real*8 :: der1i
     real*8, intent(in) :: dir(3)
@@ -868,7 +868,7 @@ contains
   !> Function second derivative using finite differences and
   !> Richardson's extrapolation formula. This routine is thread-safe.
   function der2ii (dir, x, h, errcnv, pool, fld, grd0, periodic)
-    use types
+    use types, only: field
     real*8 :: der2ii
     real*8, intent(in) :: dir(3)
     real*8, intent(in) :: x(3), h, errcnv
@@ -955,7 +955,7 @@ contains
   !> Function mixed second derivative using finite differences and
   !> Richardson's extrapolation formula. This routine is thread-safe.
   function der2ij (dir1, dir2, x, h1, h2, errcnv, fld, grd0, periodic)
-    use types
+    use types, only: field
     real*8 :: der2ij
     real*8, intent(in) :: dir1(3), dir2(3)
     real*8, intent(in) :: x(3), h1, h2, errcnv

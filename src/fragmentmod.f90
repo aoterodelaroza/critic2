@@ -20,7 +20,6 @@
 
 ! Methods for the fragment class.
 module fragmentmod
-  use types
   implicit none
 
   private
@@ -32,6 +31,7 @@ contains
 
   !> Initialize a fragment
   subroutine fragment_init(fr)
+    use types, only: fragment
     type(fragment), intent(inout) :: fr
     
     if (allocated(fr%at)) deallocate(fr%at)
@@ -42,7 +42,7 @@ contains
 
   !> Merge two or more fragments, delete repeated atoms
   function fragment_merge_array(fra) result(fr)
-
+    use types, only: fragment
     type(fragment), intent(in) :: fra(:)
     type(fragment) :: fr
     
@@ -78,7 +78,8 @@ contains
   !> Returns the center of mass (in Cartesian coordinates).  If
   !> weight0 is false, then all atoms have the same weight.
   function fragment_cmass(fr,weight0) result (x)
-    use param
+    use types, only: fragment
+    use param, only: atmass
 
     type(fragment), intent(in) :: fr
     logical, intent(in), optional :: weight0
