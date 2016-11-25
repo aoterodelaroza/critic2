@@ -20,7 +20,6 @@
 
 !> Interface to WIEN2k densities.
 module wien_private
-  use param
   implicit none
 
   private
@@ -34,10 +33,6 @@ module wien_private
   integer, parameter  :: nrad = 781 !< maximum value of npt
   integer, parameter  :: nsym = 48 !< max. number of symmetry operations
   integer, parameter  :: lmax2 = 14 !< maximum l for LM lattice harmonics expansion of charte inside muffins.
-
-  real*8, parameter :: tpi2 = tpi * tpi
-  real*8, parameter :: tpi3 = tpi * tpi2
-  real*8, parameter :: tpi4 = tpi * tpi3
 
   integer, parameter :: nsa = 3, nsb = 3, nsc = 3
   integer, parameter :: nnpos = (2*nsa+1)*(2*nsb+1)*(2*nsc+1) !< maximum number of cell origins
@@ -84,8 +79,7 @@ contains
   ! Given the field f, returns the Rmt of the atom at
   !  crystallographic position x.
   function wien_rmt_atom(f,x)
-    use types
-
+    use types, only: field
     type(field), intent(in) :: f
     real*8, intent(in) :: x(3)
     real*8 :: wien_rmt_atom
@@ -118,8 +112,9 @@ contains
   !> Read the crystal structure from a STRUCT file, with logical unit lut.
   !> Store WIEN2k variables (rmt, etc.) in the module.
   subroutine wien_read_struct(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
+    use param, only: pi
 
     character*(*), intent(in) :: file
     type(field), intent(inout) :: f
@@ -375,8 +370,8 @@ contains
   ! Read a clmsum (file) and struct (file2) file and returns the
   ! wien2k field f. 
   subroutine wien_read_clmsum(file,file2,f)
-    use types
-    use tools_io
+    use types, only: field
+    use tools_io, only: fopen_read, fclose
 
     character*(*), intent(in) :: file, file2
     type(field), intent(inout) :: f
@@ -407,9 +402,9 @@ contains
 
   !> Read the atomic sphere part of a clmsum style file
   subroutine readslm(lu,f)
-    use tools_io
-    use types
-
+    use tools_io, only: ferror, faterr
+    use types, only: field
+    use param, only: sqfp
     integer, intent(in) :: lu !< Input logical unit
     type(field), intent(inout) :: f
 
@@ -477,9 +472,8 @@ contains
 
   !> Read the plane wave part of a clmsum-style file
   subroutine readk(lu,f)
-    use types
-    use tools_io
-
+    use types, only: field
+    use tools_io, only: faterr, ferror
     integer, intent(in) :: lu !< Input logical unit
     type(field), intent(inout) :: f
 
@@ -597,13 +591,11 @@ contains
   ! The following routines have been adapted from the WIEN2k source by
   ! P. Blaha, K. Schwarz et al. 
   subroutine gbass(rbas,gbas)
-
+    use param, only: pi
     real*8, dimension(3,3) :: rbas, gbas
-    real*8 :: pi
     real*8 :: det
     integer :: i, j
 
-    PI=4.D0*DATAN(1.D0)
     GBAS(1,1)=RBAS(2,2)*RBAS(3,3)-RBAS(3,2)*RBAS(2,3)
     GBAS(2,1)=RBAS(3,2)*RBAS(1,3)-RBAS(1,2)*RBAS(3,3)
     GBAS(3,1)=RBAS(1,2)*RBAS(2,3)-RBAS(2,2)*RBAS(1,3)
@@ -625,7 +617,7 @@ contains
   end subroutine gbass
 
   subroutine rotdef(f)
-    use types
+    use types, only: field
     ! new version of rotdef, adapted from rotdef1.f wien2k_08.3
     ! replaces old rotdef (rotdef.f)
     type(field), intent(inout) :: f
@@ -733,8 +725,8 @@ contains
    end subroutine rotdef
 
   SUBROUTINE GENER(f)
-    use tools_io
-    use types
+    use tools_io, only: ferror, faterr
+    use types, only: field
 
     type(field), intent(inout) :: f
 
@@ -763,8 +755,8 @@ contains
   END SUBROUTINE GENER
 
   SUBROUTINE STERNB(f)
-    use types
-
+    use types, only: field
+    use param, only: tpi
     type(field), intent(in) :: f
     ! generate star of g
     ! taken from wien2k_08.3
@@ -911,7 +903,7 @@ contains
   END SUBROUTINE ROTAT
 
   SUBROUTINE REDUC(V,ATP,NPOS,POS,IAT,rmt)
-    use tools_io
+    use tools_io, only: uout
     ! INPUT
     !     v                       vector to reduce (cartesian coordinates). Must belong to
     !     some atom's muffin tin.
@@ -976,10 +968,10 @@ contains
 
   ! Calculate the density and derivatives inside a muffin tin.
   subroutine charge (f,chg,grad,hess,ir,r,jatom,v,natnr)
-    use types
-    use tools_math
-    use tools_io
-    use param
+    use types, only: field
+    use tools_math, only: ylmderiv
+    use tools_io, only: uout
+    use param, only: c_kub
 
     type(field), intent(in) :: f
     real*8, intent(out) :: chg
@@ -1210,7 +1202,7 @@ contains
 
   ! Evaluate the radial density and derivatives
   subroutine radial(f,rlm,rho,rho1,rho2,r,ir,jatom)
-    use types
+    use types, only: field
     ! note: rlm = clm, but name is changed to avoid collisions with wien.inc
     !.obtain by linear (oops) interpolation radial coefficients
     ! rho, and first and second derivatives rho1,rho2,at requested
@@ -1308,8 +1300,8 @@ contains
 
   ! Calculate the density and derivatives in the interstitial
   subroutine rhoout(f,v,chg,grad,hess)
-    use types
-
+    use types, only: field
+    use param, only: tpi, tpi2
     type(field), intent(in) :: f
     real*8, dimension(3), intent(in) :: v
     real*8, intent(out) :: chg
@@ -1452,8 +1444,9 @@ contains
 
   end subroutine rhoout
 
-  ! Spherical harmonics up to lmax
+  !> Spherical harmonics up to lmax
   SUBROUTINE YLM(V,LMAX,Y)
+    use param, only: pi
 ! -----------------------------------------------------------------
 ! This subroutine is taken from SRC_LAPW2 and subsitutes the old
 ! version of ylm.f which was found to be numerically unstable for
@@ -1734,10 +1727,7 @@ contains
   !> Calculate the density and its derivatives at point v0 This
   !> routine is thread-safe.
   subroutine wien_rho2(f,v0,rho,grad,h)
-    use global
-    use tools_io
-    use types
-
+    use types, only: field
     type(field) :: f
     real*8, dimension(3), intent(in) :: v0
     real*8, intent(out) :: rho, grad(3), h(3,3)
@@ -1973,7 +1963,8 @@ contains
 
   !> Convert a given wien2k scalar field into its laplacian.
   subroutine wien_tolap(f)
-    use types
+    use types, only: field
+    use param, only: tpi2
     type(field), intent(inout) :: f
 
     integer :: jatom, lmmx, ilm, ir
@@ -1981,7 +1972,6 @@ contains
     integer :: l, lp1, i, kpp, niz
     real*8 :: r, r2, tpik2
     real*8, allocatable :: rgrid(:)
-    real*8, parameter :: tpi2 = tpi*tpi
     real*8 :: factor(3)
 
     ! atomic spheres

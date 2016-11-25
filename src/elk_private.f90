@@ -24,7 +24,6 @@
 
 !> Interface to ELK densities.
 module elk_private
-  use param, only: pi, tpi
   implicit none
 
   private
@@ -40,8 +39,7 @@ module elk_private
 contains
 
   function elk_rmt_atom(f,x)
-    use types
-
+    use types, only: field
     type(field), intent(in) :: f
     real*8, intent(in) :: x(3)
     real*8 :: elk_rmt_atom
@@ -57,9 +55,7 @@ contains
 
   ! read a scalar field from an OUT file 
   subroutine elk_read_out(f,file,file2,file3)
-    use types
-    use tools_io
-
+    use types, only: field
     type(field), intent(inout) :: f
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
@@ -83,10 +79,10 @@ contains
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
   subroutine elk_geometry(filename,f)
-    use tools_io
-    use tools_math
-    use types
-    
+    use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, zatguess,&
+       fclose
+    use tools_math, only: matinv
+    use types, only: field
     character*(*), intent(in) :: filename
     type(field), intent(inout) :: f
 
@@ -164,6 +160,7 @@ contains
     use tools_math
     use grid1_tools
     use types
+    use param, only: pi
     
     character*(*), intent(in) :: filename
     type(field), intent(inout) :: f

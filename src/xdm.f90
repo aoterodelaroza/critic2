@@ -47,10 +47,8 @@ contains
 
   !> Driver for XDM
   subroutine xdm_driver(line)
-    use fields
-    use struct_basic
-    use global
-    use tools_io
+    use global, only: eval_next
+    use tools_io, only: uout, lgetword, equal, ferror, faterr
     
     character*(*), intent(inout) :: line
 
@@ -117,15 +115,16 @@ contains
 
   !> Calculate XDM using grids.
   subroutine xdm_grid(line)
-    use fields
-    use struct_basic
-    use grid_tools
-    use grd_atomic
-    use grid1_tools
-    use global
-    use tools_io
-    use param
-
+    use fields, only: fieldname_to_idx, goodfield, type_grid, getfieldnum, f,&
+       taufromelf, fields_unload
+    use struct_basic, only: cr, search_lattice
+    use grid_tools, only: grid_laplacian, grid_gradrho
+    use grd_atomic, only: agrid, grda_promolecular
+    use grid1_tools, only: grid1_interp
+    use global, only: refden, eval_next, fileroot, cutrad
+    use tools_io, only: uout, lgetword, equal, getword, ferror, faterr, string,&
+       warning, ioj_right
+    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa
     character*(*), intent(inout) :: line
 
     logical :: ok, dopro, docor
@@ -782,9 +781,8 @@ contains
 
   !> Calculate XDM from the information in a QE output
   subroutine xdm_qe()
-    use tools_io
-    use struct_basic
-    
+    use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose
+    use struct_basic, only: cr
     integer :: i, j, jj, nn, i3
     integer :: lu, idx, idx1, idx2
     character(len=:), allocatable :: line, str
@@ -842,16 +840,16 @@ contains
 
   !> Calculate XDM in molecules and crystals using the wavefunction.
   subroutine xdm_wfn(a1o,a2o,chf)
-    use meshmod
-    use fields
-    use global
-    use struct_basic
-    use grd_atomic
-    use grid1_tools
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use meshmod, only: genmesh, fillmesh
+    use fields, only: f, type_wfn, type_dftb
+    use global, only: refden, mesh_type
+    use struct_basic, only: cr
+    use grd_atomic, only: agrid, grda_promolecular
+    use grid1_tools, only: grid1_interp
+    use tools_math, only: norm
+    use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
+    use types, only: molmesh
+    use param, only: bohrtoa, im_rho, im_null, im_b
     
     real*8, intent(in) :: a1o, a2o
     real*8, intent(in) :: chf
@@ -1014,10 +1012,9 @@ contains
 
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
-    use global
-    use tools_io
-    use struct_basic
-
+    use global, only: precisecube
+    use tools_io, only: fopen_write, fclose
+    use struct_basic, only: cr
     character*(*), intent(in) :: file, line1, line2
     integer, intent(in) :: n(3)
     real*8, intent(in) :: c(0:n(1)-1,0:n(2)-1,0:n(3)-1)
@@ -1061,11 +1058,9 @@ contains
   end subroutine write_cube
 
   function free_volume(iz) result(afree)
-    use tools_io
-    use grd_atomic
-    use grid1_tools
-    use param
-
+    use grd_atomic, only: agrid
+    use grid1_tools, only: grid1_interp
+    use param, only: pi
     integer, intent(in) :: iz
     real*8 :: afree
 
@@ -1086,9 +1081,8 @@ contains
   end function free_volume
 
   function frevol(z,chf)
-    use tools_io
-    use param
-
+    use tools_io, only: faterr, ferror
+    use param, only: maxzat0
     integer, intent(in) :: z
     real*8, intent(in) :: chf
     real*8 :: frevol
@@ -1319,10 +1313,9 @@ contains
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
   subroutine calc_edisp(c6,c8,c10,rvdw)
-    use struct_basic
-    use tools_io
-    use param
-
+    use struct_basic, only: cr, crystal
+    use tools_io, only: uout
+    ! use param
     real*8, intent(in) :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
     real*8, intent(in) :: rvdw(cr%ncel,cr%ncel)
 
@@ -1377,9 +1370,9 @@ contains
   !> (a1, a2, chf). Print out the calculated values. Works for
   !> molecules and crystals.
   subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: cr
+    use tools_io, only: uout, string
+    use param, only: alpha_free
 
     real*8, intent(in) :: a1, a2, chf
     real*8, intent(in) :: v(cr%ncel), mm(3,cr%ncel)

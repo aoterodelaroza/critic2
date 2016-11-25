@@ -312,8 +312,8 @@ contains
 
   !> Build a grid field from a three-dimensional array
   subroutine grid_from_array3(g,f)
-    use tools_io
-    use types
+    use tools_io, only: ferror, faterr
+    use types, only: field
 
     real*8, intent(in) :: g(:,:,:)
     type(field), intent(out) :: f
@@ -333,8 +333,8 @@ contains
 
   !> Read a grid in gaussian CUBE format
   subroutine grid_read_cube(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -375,8 +375,8 @@ contains
 
   !> Read a grid in siesta RHO format
   subroutine grid_read_siesta(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, faterr, ferror, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -421,9 +421,9 @@ contains
 
   !> Read a grid in abinit format
   subroutine grid_read_abinit(file,f)
-    use types
-    use tools_io
-    use abinit_private
+    use types, only: field
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use abinit_private, only: hdr_type, hdr_io
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -458,8 +458,8 @@ contains
 
   !> Read a grid in VASP format
   subroutine grid_read_vasp(file,f,omega)
-    use types
-    use tools_io
+    use types, only: field
+    use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -498,8 +498,8 @@ contains
 
   !> Read a grid in aimpac qub format
   subroutine grid_read_qub(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -529,8 +529,9 @@ contains
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
   subroutine grid_read_xsf(file,f,nwan,nin,omega,ispin)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
+       fclose
+    use types, only: field, realloc
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(inout) :: f
@@ -682,8 +683,8 @@ contains
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
   subroutine grid_read_elk(file,f)
-    use tools_io
-    use types
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use types, only: field
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
@@ -724,8 +725,7 @@ contains
   !> point x0 (crystallographic coords.) using the grid g.  This
   !> routine is thread-safe.
   subroutine grinterp(f,xi,y,yp,ypp) 
-    use types
-
+    use types, only: field
     type(field), intent(inout) :: f !< Grid to interpolate
     real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -764,8 +764,7 @@ contains
   !> crystallographic coordinates. y is the interpolated value at xi.
   !> This routine is thread-safe.
   subroutine grinterp_nearest(f,x0,y)
-    use types
-
+    use types, only: field
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -784,8 +783,7 @@ contains
   !> and yp are the value and gradient at xi.  This routine is
   !> thread-safe.
   subroutine grinterp_trilinear(f,x0,y,yp)
-    use types
-
+    use types, only: field
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -840,9 +838,7 @@ contains
   !> yp, and ypp are the value, gradient, and Hessian at xi.  This
   !> routine is thread-safe.
   subroutine grinterp_trispline(f,x0,y,yp,ypp)
-    use types
-    use tools_io
-
+    use types, only: field
     type(field), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
@@ -1116,9 +1112,7 @@ contains
   !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
   !> at xi.  This routine is thread-safe.
   subroutine grinterp_tricubic(f,xi,y,yp,ypp)
-    use types
-    use tools_io
-
+    use types, only: field
     type(field), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
@@ -1287,7 +1281,7 @@ contains
   !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in 
   !> orthogonal grids).
   function grid_near(f,x)
-    use types
+    use types, only: field
 
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
@@ -1299,7 +1293,7 @@ contains
 
   !> Floor grid point of a point x in crystallographic coords.
   function grid_floor(f,x)
-    use types
+    use types, only: field
 
     type(field), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
@@ -1313,8 +1307,7 @@ contains
   !> modified version of the corresponding subroutine in abinit.
   subroutine init_trispline(f)
     use tools_io
-    use types
-
+    use types, only: field
     type(field), intent(inout) :: f !< Input grid
 
     integer :: istat
@@ -1425,11 +1418,10 @@ contains
   !> Given the electron density in the isrho slot, calculate the laplacian 
   !> in islap using FFT.
   subroutine grid_laplacian(frho,flap)
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use tools_io, only: ferror, faterr
+    use tools_math, only: cross, det
+    use param, only: pi
+    use types, only: field
     type(field), intent(in) :: frho
     type(field), intent(out) :: flap
 
@@ -1515,11 +1507,10 @@ contains
 
   !> Calculate the gradient norm of a scalar field using FFT.
   subroutine grid_gradrho(frho,fgrho)
-    use tools_io
-    use tools_math
-    use types
-    use param
-
+    use tools_io, only: faterr, ferror
+    use tools_math, only: det, cross
+    use types, only: field
+    use param, only: pi
     type(field), intent(in) :: frho
     type(field), intent(out) :: fgrho
 
@@ -1597,12 +1588,8 @@ contains
   !> weight, 2: rho_promolecular 3: rho_core. frho serves as a
   !> template; only the frho%n is used except if itype == 1.
   subroutine grid_rhoat(frho,frhoat,itype,fr)
-    use grd_atomic
-    use tools_io
-    use tools_math
-    use types
-    use param
-
+    use grd_atomic, only: grda_promolecular
+    use types, only: field, fragment
     type(field), intent(in) :: frho
     type(field), intent(inout) :: frhoat
     integer, intent(in) :: itype ! 1: hirsh weight, 2: rho_promolecular 3: rho_core
@@ -1656,11 +1643,10 @@ contains
   !> Given the electron density in the isrho slot, calculate the
   !> diagonal component ix (x=1,y=2,z=3) of the Hessian using FFT.
   subroutine grid_hxx(frho,fxx,ix)
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use tools_io, only: ferror, faterr
+    use tools_math, only: det, cross
+    use param, only: pi
+    use types, only: field
     type(field), intent(in) :: frho
     type(field), intent(out) :: fxx
     integer, intent(in) :: ix

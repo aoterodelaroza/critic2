@@ -417,10 +417,9 @@ contains
 
   !> write an xyz-style file from an array of atomic coordinates.
   subroutine writexyz(file,fr)
-    use tools_io
-    use types
-    use param
-
+    use tools_io, only: fopen_write, nameguess, fclose
+    use types, only: fragment
+    use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
 
@@ -441,11 +440,10 @@ contains
 
   !> Write a cml file (molecule) from an array of atomic coordinates. 
   subroutine writecml(file,fr,r,luout)
-    use tools_math
-    use tools_io
-    use types
-    use param
-
+    use tools_math, only: matinv
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use types, only: fragment
+    use param, only: pi, bohrtoa
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
     real*8, intent(in), optional :: r(3,3)
@@ -508,9 +506,9 @@ contains
 
   !> write an Gaussian-style input file from an array of atomic coordinates.
   subroutine writegjf(file,fr)
-    use tools_io
-    use types
-    use param
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use types, only: fragment
+    use param, only: bohrtoa
 
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
@@ -544,8 +542,7 @@ contains
 
   !> Open an obj file (and its mtl companion)
   subroutine obj_open(file,luobj,lumtl)
-    use tools_io
-    use types
+    use tools_io, only: faterr, ferror, fopen_write
     character*(*), intent(in) :: file
     integer, intent(out) :: luobj, lumtl
 
@@ -584,7 +581,7 @@ contains
 
   !> Close an obj file (and its mtl companion)
   subroutine obj_close(luobj,lumtl)
-    use tools_io
+    use tools_io, only: ferror, faterr, string, fclose
     integer, intent(in) :: luobj, lumtl
 
     integer :: i
@@ -620,7 +617,7 @@ contains
 
   !> Write a ball to the obj file
   subroutine obj_ball(luobj,x,rgb,r)
-    use tools_io
+    use tools_io, only: ferror, faterr, string
     integer, intent(in) :: luobj
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
@@ -658,8 +655,8 @@ contains
   
   !> Write a stick to the obj file
   subroutine obj_stick(luobj,x1,x2,rgb,r)
-    use tools_io
-    use tools_math
+    use tools_io, only: ferror, faterr, string
+    use tools_math, only: norm, cross
     integer, intent(in) :: luobj
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
@@ -716,9 +713,9 @@ contains
   
   !> Write a surface to the obj file
   subroutine obj_surf(luobj,lumtl,srf,fsurf)
-    use types
-    use tools_io
-    use param
+    use types, only: minisurf
+    use tools_io, only: ferror, faterr, string
+    use param, only: pi
     integer, intent(in) :: luobj, lumtl
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
@@ -775,7 +772,7 @@ contains
 
   !> Register a texture using the color triplet.
   function register_texture(rgb) result(imtl)
-    use types
+    use types, only: realloc
     integer, intent(in) :: rgb(3)
     integer :: imtl
 
@@ -796,8 +793,7 @@ contains
 
   !> Open a ply file
   subroutine ply_open(file,luply)
-    use tools_io
-    use types
+    use tools_io, only: faterr, ferror, fopen_scratch
     character*(*), intent(in) :: file
     integer, intent(out) :: luply
 
@@ -821,7 +817,7 @@ contains
 
   !> Close a ply file 
   subroutine ply_close(luply)
-    use tools_io
+    use tools_io, only: ferror, faterr, getline_raw, fopen_write, string, fclose
     integer, intent(in) :: luply
 
     integer :: i, lu
@@ -881,7 +877,7 @@ contains
 
   !> Write a ball to the ply file
   subroutine ply_ball(luply,x,rgb,r)
-    use tools_io
+    use tools_io, only: ferror, faterr, string
     integer, intent(in) :: luply
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
@@ -917,8 +913,8 @@ contains
   
   !> Write a stick to the ply file
   subroutine ply_stick(luply,x1,x2,rgb,r)
-    use tools_io
-    use tools_math
+    use tools_io, only: ferror, faterr, string
+    use tools_math, only: norm, cross
     integer, intent(in) :: luply
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
@@ -973,9 +969,9 @@ contains
   
   !> Write a surface to the ply file
   subroutine ply_surf(luply,srf,fsurf)
-    use types
-    use tools_io
-    use param
+    use types, only: minisurf
+    use tools_io, only: ferror, faterr, string
+    use param, only: pi
     integer, intent(in) :: luply
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
@@ -1028,8 +1024,7 @@ contains
 
   !> Open an off file
   subroutine off_open(file,luoff)
-    use tools_io
-    use types
+    use tools_io, only: ferror, faterr, fopen_scratch
     character*(*), intent(in) :: file
     integer, intent(out) :: luoff
 
@@ -1053,7 +1048,7 @@ contains
 
   !> Close a off file 
   subroutine off_close(luoff)
-    use tools_io
+    use tools_io, only: ferror, faterr, getline_raw, string, fopen_write, fclose
     integer, intent(in) :: luoff
 
     integer :: i, lu
@@ -1101,7 +1096,7 @@ contains
 
   !> Write a ball to the off file
   subroutine off_ball(luoff,x,rgb,r)
-    use tools_io
+    use tools_io, only: faterr, ferror, string
     integer, intent(in) :: luoff
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
@@ -1139,8 +1134,8 @@ contains
   
   !> Write a stick to the off file
   subroutine off_stick(luoff,x1,x2,rgb,r)
-    use tools_io
-    use tools_math
+    use tools_io, only: faterr, ferror, string
+    use tools_math, only: norm, cross
     integer, intent(in) :: luoff
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
@@ -1197,9 +1192,9 @@ contains
   
   !> Write a surface to the off file
   subroutine off_surf(luoff,srf,fsurf)
-    use types
-    use tools_io
-    use param
+    use types, only: minisurf
+    use tools_io, only: faterr, ferror, string
+    use param, only: pi
     integer, intent(in) :: luoff
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)

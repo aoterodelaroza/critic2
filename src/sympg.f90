@@ -101,7 +101,7 @@ contains
   !> Check symmetry of nonlinear molecules.
   !> Adapted from TESSEL.
   subroutine sym3d (rmat, ax, ay, az, atZmol, nmol, verbose)
-    use tools_io
+    use tools_io, only: ferror, faterr, uout
 
     real*8, intent(in) :: rmat(3,3)
     integer   :: nmol, atZmol(nmol)
@@ -251,7 +251,7 @@ contains
   !> and get the properties of the symmetry operators.
   !> Adapted from TESSEL.
   subroutine symclosure (verbose)
-    use tools_io
+    use tools_io, only: uout, faterr, ferror
 
     logical, intent(in) :: verbose
 
@@ -409,9 +409,8 @@ contains
   !> have the same atomic number and the same distance to the center.
   !> Adapted from TESSEL.
   subroutine symorb (ax, ay, az, atZmol, nmol, verbose)
-    use tools_io
-    use types
-
+    use tools_io, only: uout
+    use types, only: realloc
     integer :: nmol, atZmol(nmol)
     real*8  :: ax(nmol), ay(nmol), az(nmol)
     logical, intent(in) :: verbose

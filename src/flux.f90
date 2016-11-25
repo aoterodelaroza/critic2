@@ -55,11 +55,12 @@ module flux
 contains
 
   subroutine fluxprint()
-    use varbas
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use varbas, only: ncpcel, cpcel, cp
+    use struct_basic, only: cr
+    use global, only: eval_next, dunit
+    use tools_io, only: uout, getline, lgetword, equal, ferror, faterr, uin, &
+       ucopy, getword, lower
+    use param, only: jmlcol
     
     type flxorder
        character*3 :: id, method
@@ -479,13 +480,11 @@ contains
   !> command to the tessel output (optional). If nosym, do not write
   !> the symmetry elements.
   subroutine flx_initialize(prune,nosym,noballs,nocell)
-    use autocp
-    use varbas
-    use global
-    use struct_basic
-    use struct_writers
-    use graphics
-    use tools_io
+    use varbas, only: ncpcel, cpcel, ncp, cp
+    use global, only: fileroot
+    use struct_basic, only: cr
+    use struct_writers, only: struct_write_3dmodel, struct_write_mol
+    use tools_io, only: faterr, ferror, uout, fopen_write
 
     real*8, intent(in) :: prune
     logical, intent(in) :: nosym
@@ -664,10 +663,9 @@ contains
 
   !> Deallocate memory, end the tessel output and close files.
   subroutine flx_end(molmotif)
-    use tools_io
-    use varbas
-    use graphics
-    use global
+    use tools_io, only: fclose
+    use graphics, only: obj_close, ply_close, off_close
+    use global, only: fileroot
 
     logical, intent(in) :: molmotif
 
@@ -723,11 +721,11 @@ contains
 
   !> Print gradient path info to standard output.
   subroutine flx_printpath(rgb0)
-    use struct_basic
-    use global
-    use graphics
-    use tools_io
-
+    use struct_basic, only: cr
+    use graphics, only: obj_ball, off_ball, ply_ball
+    use global, only: dunit
+    use tools_io, only: string
+    use param, only: bohrtoa
     integer, intent(in) :: rgb0(3)
 
     integer :: i, j
@@ -808,10 +806,7 @@ contains
   !> wrapper for flx_printpath() so that this routine is not used
   !> directly.
   subroutine flx_symprintpath(x,flxsym,rgb)
-    use navigation
-    use fields
-    use struct_basic
-    use global
+    use struct_basic, only: cr
 
     integer, intent(in) :: flxsym
     real*8, dimension(3), intent(in) :: x
@@ -885,11 +880,10 @@ contains
   !> to the unit cell and its boundary; >0 to a shell of flxsym unit
   !> cells.
   subroutine flx_point(x,iup,flxsym,rgb)
-    use navigation
-    use fields
-    use struct_basic
-    use global
-    use tools_io
+    use navigation, only: gradient, prunepath
+    use fields, only: f
+    use struct_basic, only: cr
+    use global, only: refden
 
     integer, intent(in) :: iup
     real*8, dimension(3), intent(in) :: x
@@ -924,14 +918,13 @@ contains
   !> apply x symmetry to the unit cell and its boundary; >0 to a shell
   !> of flxsym unit cells.
   subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
-    use autocp
-    use navigation
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
-    use param
+    use navigation, only: gradient, prunepath
+    use fields, only: f
+    use varbas, only: ncpcel, cpcel
+    use global, only: refden
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr
+    use param, only: pi
 
     integer, intent(in) :: id, ntheta, nphi
     integer, intent(in) :: flxsym
@@ -1003,16 +996,15 @@ contains
   !> heuristic method, using information of the partially fluxed
   !> initial points. (h1 and dyn are experimental)
   subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
-    use autocp
-    use navigation
-    use fields
-    use varbas
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
-    use param
-    use types
+    use navigation, only: gradient, prunepath
+    use fields, only: f, grd
+    use varbas, only: ncpcel, cpcel
+    use struct_basic, only: cr
+    use global, only: refden
+    use tools_math, only: eig
+    use tools_io, only: ferror, faterr
+    use param, only: pi
+    use types, only: scalar_value
 
     integer, intent(in) :: id, iup, npoints
     integer, intent(in) :: flxsym
@@ -1248,9 +1240,7 @@ contains
   !> represented, with a lattice displacement given by the optional
   !> integer lvec vector.
   subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
-    use autocp
-    use varbas
-    use tools_io
+    use varbas, only: ncp, cp, cpcel, ncpcel
 
     integer, intent(in) :: flxsym
     integer, intent(in) :: igraph
@@ -1364,8 +1354,7 @@ contains
   !> flux. Always R > r0. This routine is used to determine a set of
   !> starting angles that samples uniformly a given bcp-IAS.
   subroutine flx_findthetagrid(lx,ly,r0,R,n,thetavec)
-    use tools_io
-    use param
+    use param, only: pi
 
     real*8, intent(in) :: lx, ly, r0, R
     integer, intent(in) :: n
@@ -1424,9 +1413,9 @@ contains
   !> Given the complete or reduced list index of a CP, 
   !> output the appropriate ball radius.
   function ball_radius(i,cel)
-    use varbas
-    use struct_basic
-    use param
+    use varbas, only: cpcel, cp
+    use struct_basic, only: cr
+    use param, only: maxzat
     
     integer, intent(in) :: i
     logical, intent(in) :: cel

@@ -20,8 +20,6 @@
 
 !> Interface to aiPI (pi7) densities.
 module pi_private
-  use types, only: grid1
-
   private
 
   public :: pi_end
@@ -78,9 +76,9 @@ contains
 
   !> From PI: read an ion description file.
   subroutine pi_read_ion(fichero,f,ni)
-    use tools_io
-    use types
-    use param
+    use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
+    use types, only: field
+    use param, only: fact, zero
     implicit none
 
     character*(*)  fichero
@@ -269,7 +267,6 @@ contains
 
   !xx! PRIVATE functions and subroutines
   subroutine buscapar (line,chpar,nchpar,ipar,nipar)
-    use tools_io
     implicit none
     
     integer, parameter :: mpar=3
@@ -358,7 +355,6 @@ contains
   end subroutine buscapar
 
   logical function entero (palabra,ipal)
-    use tools_io
     implicit none
     
     character*(*)     palabra
@@ -379,10 +375,8 @@ contains
 
   !> Fills the interpolation grids for ion densities.
   subroutine fillinterpol(f)
-    use global
-    use tools_io
-    use param
-    use types
+    use global, only: cutrad
+    use types, only: field
     implicit none
 
     type(field), intent(inout) :: f
@@ -431,9 +425,9 @@ contains
 
   !> Calculates radial density and its radial derivatives for an atom.
   subroutine rhoex1(f, ni, rion0, rhoval, firstder, secondder)
-    use tools_math
-    use types
-    use param
+    use tools_math, only: ep
+    use types, only: field
+    use param, only: pi, zero, two
     implicit none
 
     type(field), intent(inout) :: f
@@ -487,10 +481,10 @@ contains
   !> (cartesian).  It is possible to use the 'approximate' method, by
   !> interpolating on a grid.  This routine is thread-safe.
   subroutine pi_rho2 (f,xpos,rho,grad,h)
-    use grid1_tools
-    use tools_math
-    use param
-    use types
+    use grid1_tools, only: grid1_interp
+    use tools_math, only: ep, norm
+    use param, only: pi, one
+    use types, only: field
     implicit none
 
     type(field), intent(in) :: f

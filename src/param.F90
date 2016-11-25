@@ -30,6 +30,7 @@ module param
   real*8, parameter :: sqpi     = sqrt(pi) !< sqrt(pi)
   real*8, parameter :: sqfp     = sqrt(4d0*pi) !< sqrt(4pi)
   real*8, parameter :: tpi      = 2d0 * pi !< 2pi
+  real*8, parameter :: tpi2     = tpi*tpi !< (2pi)^2
   real*8, parameter :: fourpi   = 4d0 * pi !< 4pi
   real*8, parameter :: rad      = pi / 180d0 !< pi / 180
   real*8, parameter :: cte      = 2.71828182845904523536d0 !< e

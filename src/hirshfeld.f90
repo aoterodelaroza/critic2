@@ -29,14 +29,14 @@ contains
 
   ! calculate hirshfeld charges using a grid
   subroutine hirsh_props_grid()
-    use grid_tools
-    use grid1_tools
-    use fields
-    use struct_basic
-    use global
-    use grd_atomic
-    use tools_io
-    use types
+    use grid_tools, only: grid_rhoat
+    use grid1_tools, only: grid1_interp
+    use fields, only: f, type_grid
+    use struct_basic, only: cr
+    use global, only: refden
+    use grd_atomic, only: agrid, grid_rhoat
+    use tools_io, only: ferror, faterr, uout, string, ioj_center
+    use types, only: field
 
     integer :: i, j, k
     real*8 :: dist, rrho, rrho1, rrho2, x(3), xdelta(3,3)

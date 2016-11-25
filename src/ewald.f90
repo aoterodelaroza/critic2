@@ -27,8 +27,7 @@ contains
 
   !> Calculates the Ewald electrostatic energy, using the input charges.
   subroutine ewald_energy(ewe) 
-    use struct_basic
-    use tools_io
+    use struct_basic, only: cr
 
     real*8, intent(out) :: ewe
 
@@ -47,12 +46,12 @@ contains
 
   end subroutine ewald_energy
 
-  !> calculate the Ewald electrostatic potential at 
-  !> an arbitrary position x (crystallographic coords.)
-  !> If x is the nucleus j, return pot - q_j / |r-rj| at rj.
+  !> Calculate the Ewald electrostatic potential at an arbitrary
+  !> position x (crystallographic coords.)  If x is the nucleus j,
+  !> return pot - q_j / |r-rj| at rj.
   function ewald_pot(x,isnuc)
-    use struct_basic
-    use param
+    use struct_basic, only: cr
+    use param, only: tpi, pi, sqpi
 
     real*8, intent(in) :: x(3)
     logical, intent(in) :: isnuc

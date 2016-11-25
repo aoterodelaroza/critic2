@@ -39,17 +39,13 @@ contains
   !> discexpr is not empty, then apply that expression to the basin
   !> attractors. If the expression is non-zero, discard the attractor.
   subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
-    use fields
-    use grid_tools
-    use struct_basic
-    use tools_io
-    use tools
-    use global
-    use struct_basic
-    use arithmetic
-    use types
-    use param
-    
+    use struct_basic, only: crystal
+    use fields, only: fields_fcheck, fields_feval
+    use tools_io, only: ferror, faterr, fopen_scratch
+    use arithmetic, only: eval
+    use param, only: vsmall
+    use tools, only: qcksort
+    use types, only: realloc
     type(crystal), intent(in) :: c
     real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
@@ -233,8 +229,7 @@ contains
   !> Read the neighbor and fractions from the external file and
   !> generate the YT weights for the given input basin.
   subroutine yt_weights(luw,idb,w)
-    use tools_io
-    use types
+    use tools_io, only: ferror, faterr
 
     integer, intent(in) :: luw !< Logical unit for the YT checkpoint
     integer, intent(in) :: idb !< Basin to integrate

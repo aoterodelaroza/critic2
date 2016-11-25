@@ -17,7 +17,6 @@
 
 !> Surface and mini-surface user-defined types and tools to work with them. 
 module surface
-  use types, only: miniface, minisurf
   implicit none
 
   private
@@ -37,7 +36,7 @@ contains
 
   !> Initialize a minisurface
   subroutine minisurf_init(s,m,f)
-
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     integer, intent(in) :: m, f
     
@@ -56,7 +55,7 @@ contains
 
   !> Destroy a minisurface
   subroutine minisurf_close(s)
-
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     
     deallocate(s%r,s%th,s%ph)
@@ -68,7 +67,7 @@ contains
 
   !> Clean the information in the minisurface.
   subroutine minisurf_clean(s)
-
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
 
     s%n = (/ 0d0, 0d0, 0d0 /)
@@ -91,9 +90,9 @@ contains
   !> method to place the points. Analogous to surf_spheresphere,
   !> minisurface version.
   subroutine minisurf_spheresphere(s,xnuc,ntheta,nphi)
-    use tools_io
-    use param
-
+    use tools_io, only: ferror, faterr
+    use param, only: pi, two, zero
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: ntheta, nphi
@@ -274,8 +273,8 @@ contains
   !> Triangulate the unit sphere by recursively subdividing an
   !> octahedron level times. Minisurface version.
   subroutine minisurf_spheretriang(s,xnuc,level)
-    use tools_io
-
+    use tools_io, only: faterr, ferror, warning, uout
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: level
@@ -513,8 +512,8 @@ contains
   !> Triangulate the unit sphere by recursively subdividing a cube
   !> level times. Minisurface version.
   subroutine minisurf_spherecub(s,xnuc,level)
-    use tools_io
-
+    use tools_io, only: ferror, warning, uout, faterr
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: level
@@ -831,8 +830,8 @@ contains
   !> Transform the points in the minisurface s using the symmetry operation op 
   !> and the translation vector tvec.
   subroutine minisurf_transform(s,op,tvec)
-    use struct_basic
-    
+    use struct_basic, only: cr
+    use types, only: minisurf
     type(minisurf) :: s
     integer, intent(in) :: op
     real*8, intent(in) :: tvec(3)
@@ -859,13 +858,13 @@ contains
 
   !> Write the minisurface s to the OFF file offfile.
   subroutine minisurf_write3dmodel(s,fmt,file,expr)
-    use fields
-    use global
-    use graphics
-    use arithmetic
-    use tools_io
-    use types
-    
+    use fields, only: f, grd, fields_fcheck, fields_feval
+    use global, only: refden
+    use graphics, only: obj_open, obj_surf, obj_close, off_open, off_surf, off_close,&
+       ply_open, ply_surf, ply_close
+    use arithmetic, only: eval
+    use tools_io, only: faterr, ferror
+    use types, only: minisurf, scalar_value
     type(minisurf), intent(inout) :: s
     character*3, intent(in) :: fmt
     character*(*), intent(in) :: file
@@ -917,13 +916,11 @@ contains
 
   !> Write the surface s to the BASIN file offfile. Minisurface version.
   subroutine minisurf_writebasin (s,offfile,doprops)
-    use varbas
-    use global
-    use fields
-    use struct_basic
-    use tools_io
-    use types
-    
+    use global, only: refden
+    use fields, only: integ_prop, f, nprops, grd, grdall
+    use struct_basic, only: cr
+    use tools_io, only: faterr, ferror, fopen_write, fclose
+    use types, only: minisurf, scalar_value
     type(minisurf), intent(inout) :: s
     character*(*), intent(in) :: offfile
     logical, intent(in) :: doprops
@@ -995,11 +992,10 @@ contains
   !> Write the minisurface s and scalar field information on the
   !> basin rays to the DBASIN file offfile.
   subroutine minisurf_writedbasin (s,npoint,offfile)
-    use global
-    use fields
-    use tools_io
-    use types
-    
+    use global, only: refden
+    use fields, only: f, grd
+    use tools_io, only: ferror, faterr, fopen_write, fclose
+    use types, only: minisurf, scalar_value
     type(minisurf), intent(inout) :: s
     integer, intent(in) :: npoint
     character*(*), intent(in) :: offfile
@@ -1057,8 +1053,8 @@ contains
   !> These files are used to write and read the IAS information
   !> for a particular quadrature method (meth) with n1 / n2 nodes.
   subroutine minisurf_writeint (s,n1,n2,meth,offfile)
-    use tools_io
-    
+    use tools_io, only: fopen_write, fclose
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     integer, intent(in) :: n1, n2, meth
     character*(*), intent(in) :: offfile
@@ -1080,10 +1076,9 @@ contains
   !> minisurface s. The method fingerprint (meth, n1, n2) must match
   !> the one contained in the file.
   subroutine minisurf_readint (s,n1,n2,meth,offfile,ierr)
-    use varbas
-    use global
-    use tools_io
-    
+    use global, only: int_gauleg
+    use tools_io, only: fopen_read, ferror, warning, string, fclose
+    use types, only: minisurf
     type(minisurf), intent(inout) :: s
     integer, intent(in) :: n1, n2, meth
     character*(*), intent(in) :: offfile

@@ -31,19 +31,20 @@ contains
 
   ! nci plots
   subroutine nciplot()
-    use fields
-    use struct
-    use struct_basic
-    use global
-    use grid_tools
-    use grd_atomic
-    use grid1_tools
-    use graphics
-    use fragmentmod
-    use tools_io
-    use tools_math
-    use param
-    use types
+    use fields, only: f, type_grid, type_promol, grd0, grd
+    use struct, only: struct_write
+    use struct_basic, only: cr
+    use global, only: refden, fileroot, eval_next, dunit, quiet, iunit, iunitname0
+    use grid_tools, only: grid_gradrho, grid_hxx
+    use grd_atomic, only: agrid
+    use grid1_tools, only: grid1_interp
+    use graphics, only: writexyz
+    use fragmentmod, only: fragment_merge_array, fragment_init
+    use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
+       string, getword, uout, fopen_write, tictac, fclose
+    use tools_math, only: eig
+    use types, only: field, scalar_value, fragment, realloc
+    use param, only: pi, vsmall, bohrtoa
 
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: res, resg
@@ -711,8 +712,8 @@ contains
    end subroutine nciplot
 
   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
-    use struct_basic
-    use types
+    use struct_basic, only: cr
+    use types, only: fragment
 
     integer, intent(in) :: lu
     character*(*), intent(in) :: l1, l2
@@ -797,9 +798,7 @@ contains
   end subroutine write_cube_header
 
   subroutine write_cube_body(lu,n,c)
-    use tools_io
-    use types
-    use param
+    use tools_io, only: fclose
 
     integer, intent(in) :: lu
     integer, intent(in) :: n(3)
@@ -817,7 +816,7 @@ contains
   end subroutine write_cube_body
 
   function check_no_extra_word(line,lp,routine)
-    use tools_io
+    use tools_io, only: getword, ferror, faterr
     character(len=:), allocatable :: aux2
     character*(*), intent(in) :: line, routine
     integer, intent(inout) :: lp
@@ -832,12 +831,11 @@ contains
   end function check_no_extra_word
 
   function read_fragment(lu) result(fr)
-    use struct_basic
-    use varbas
-    use global
-    use tools_io
-    use types
-    use param
+    use struct_basic, only: cr
+    use global, only: eval_next
+    use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
+    use types, only: fragment, realloc
+    use param, only: bohrtoa
 
     type(fragment) :: fr
     integer, intent(in) :: lu
@@ -889,8 +887,8 @@ contains
   !> promolecular, and fragment promolecular densities on output, and
   !> they should already be allocated when passed to this function.
   function readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
-    use global
-    use tools_io
+    use global, only: fileroot
+    use tools_io, only: uout, fopen_read, fclose
     logical :: lchk
     
     real*8, intent(in) :: x0(3), xmat(3,3)
@@ -953,9 +951,8 @@ contains
 
   !> Write the checkpoint file.
   subroutine writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
-    use global
-    use tools_io
-
+    use global, only: fileroot
+    use tools_io, only: uout, fopen_write, fclose
     real*8, intent(in) :: x0(3), xmat(3,3)
     integer, intent(in) :: nstep(3)
     real*8, allocatable, dimension(:,:,:), intent(in) :: crho, cgrad, rhoat

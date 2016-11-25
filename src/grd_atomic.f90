@@ -17,8 +17,7 @@
 
 !> Promolecular and core density calculation using radial grids.
 module grd_atomic
-  use grid1_tools
-  use types
+  use types, only: grid1
   implicit none
 
   private
@@ -34,11 +33,10 @@ contains
 
   !> Initialize the atomic density grids for the promolecular densities
   subroutine grda_init(docore,dopro,verbose)
-    use struct_basic
-    use grid1_tools
-    use tools_io
-    use param
-
+    use grid1_tools, only: grid1_read_db
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_right, ioj_center
+    use param, only: maxzat0, maxzat
     logical, intent(in) :: docore, dopro, verbose
 
     integer :: i, j, iz, iq, nval, nelec, atq
@@ -144,11 +142,10 @@ contains
   !> given, then only the atoms in it contribute.  This routine is
   !> thread-safe.
   subroutine grda_promolecular(x0,f,fp,fpp,nder,iscore,fr,periodic)
-    use struct_basic
-    use grid1_tools
-    use types
-    use param
-
+    use grid1_tools, only: grid1_interp
+    use struct_basic, only: cr
+    use types, only: fragment
+    use param, only: maxzat
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
     real*8, intent(out) :: f !< Density
     real*8, intent(out) :: fp(3) !< Density gradient

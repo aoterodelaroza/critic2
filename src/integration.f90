@@ -57,7 +57,6 @@
 
 !> Quadrature schemes and integration-related tools.
 module integration
-  use fields, only: nprops
   implicit none
 
   private
@@ -83,19 +82,17 @@ module integration
 contains
 
   subroutine intgrid_driver(line)
-    use autocp
-    use bader
-    use yt
-    use surface
-    use fields
-    use grid_tools
-    use struct_basic
-    use varbas
-    use global
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use bader, only: bader_integrate
+    use yt, only: yt_integrate, yt_weights
+    use fields, only: f, type_grid, integ_prop, itype_v, itype_deloc, itype_mpoles,&
+       itype_fval, itype_f, itype_lapval, itype_lap, itype_gmod, goodfield, nprops,&
+       writegrid_cube, grdall
+    use grid_tools, only: grid_rhoat, grid_laplacian, grid_gradrho
+    use struct_basic, only: cr
+    use global, only: refden, eval_next, dunit, iunit, iunitname0, fileroot
+    use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
+       string, fclose
+    use types, only: field
 
     character*(*), intent(in) :: line
 
@@ -386,12 +383,11 @@ contains
   !> integration type (imtype: bader or yt), the weight file for YT,
   !> and the output multipolar moments.
   subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
-    use yt
-    use fields
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
+    use yt, only: yt_weights
+    use fields, only: nprops, integ_prop, itype_mpoles, f
+    use struct_basic, only: cr
+    use global, only: refden
+    use tools_math, only: tosphere, genrlm_real
 
     real*8, intent(in) :: fint(:,:,:,:)
     integer, intent(in) :: idprop(:)
@@ -490,12 +486,12 @@ contains
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a wfn scalar field.
   subroutine intgrid_deloc_wfn(natt,xgatt,idg,imtype,luw,di)
-    use yt
-    use wfn_private
-    use fields
-    use struct_basic
-    use global
-    use tools_io
+    use yt, only: yt_weights
+    use wfn_private, only: wfn_rhf, wfn_rho2
+    use fields, only: nprops, integ_prop, itype_deloc, f, type_wfn
+    use struct_basic, only: cr
+    use global, only: refden
+    use tools_io, only: fopen_scratch, fclose
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
@@ -638,15 +634,13 @@ contains
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a grid-related dat file.
   subroutine intgrid_deloc_brf(natt,xgatt,idg,imtype,luw,sij0)
-    use bader
-    use wfn_private
-    use fields
-    use struct_basic
-    use global
-    use types
-    use tools_io
-    use tools_math
-    use tools
+    use bader, only: bader_integrate
+    use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
+    use struct_basic, only: crystal, cr
+    use global, only: refden
+    use types, only: field
+    use tools_io, only: uout, string, ferror, faterr
+    use tools, only: qcksort
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
@@ -1036,10 +1030,10 @@ contains
   !> selected radii and return the properties. The r^2 factor is
   !> included.
   subroutine int_radialquad(x,theta,phi,r0,rend,lprop,abserr,neval,iaserr,ierr)
-    use quadpack
-    use varbas
-    use global
-    use fields
+    use quadpack, only: dqags, dqng, dqag
+    use global, only: int_radquad_type, int_gauleg, int_radquad_nr, int_qags, &
+       int_radquad_relerr, int_qng, int_radquad_abserr, int_qag, int_iasprec
+    use fields, only: nprops, grdall
     use tools_math, only: gauleg
 
     real*8, intent(in) :: x(3)  !< The center of the basin (cartesian coords)
@@ -1147,10 +1141,9 @@ contains
   !> is int(nphi*abs(sin(theta)))+1, where nphi is provided in the input.
   !> minisurface version
   subroutine gauleg_msetnodes(srf,ntheta,nphi)
-    use surface
+    use types, only: minisurf
+    use param, only: pi
     use tools_math, only: gauleg
-    use types
-    use param
 
     type(minisurf), intent(inout) :: srf !< Surface where the node info is placed
     integer, intent(in) :: ntheta !< Number of phi points
@@ -1192,12 +1185,11 @@ contains
   !> caused by IAS inaccuracies.  neval is the number of evaluations of
   !> grdall used. rbeta is a reference radius (beta-sphere).
   subroutine gauleg_mquad(srf,ntheta,nphi,rbeta,lprop,abserr,neval,iaserr)
-    use surface
-    use fields
     use tools_math, only: gauleg
     use tools_io, only: ferror, warning, uout
-    use types
-    use param
+    use fields, only: nprops
+    use types, only: minisurf
+    use param, only: pi
 
     type(minisurf), intent(inout) :: srf !< Surface representing the basin
     integer, intent(in) :: ntheta !< Number of polar points
@@ -1288,9 +1280,8 @@ contains
   !> 5294, 5810). The (theta,phi) information is written to the surface.
   !> minisurface version.
   subroutine lebedev_msetnodes(srf,npts)
-    use surface
     use tools_math, only: select_lebedev
-    use types
+    use types, only: minisurf
 
     type(minisurf), intent(inout) :: srf !< Surface where the node info is placed
     integer, intent(in) :: npts !< Number of quadrature points
@@ -1322,11 +1313,10 @@ contains
   !> caused by IAS inaccuracies.  neval is the number of evaluations of
   !> grdall used. rbeta is a reference radius (beta-sphere).
   subroutine lebedev_mquad(srf,npts,rbeta,lprop,abserr,neval,iaserr)
-    use surface
-    use fields
     use tools_math, only: select_lebedev
     use tools_io, only: uout, ferror, warning
-    use types
+    use fields, only: nprops
+    use types, only: minisurf
 
     type(minisurf), intent(inout) :: srf !< Surface representing the basin
     integer, intent(in) :: npts   !< Number of points
@@ -1397,12 +1387,12 @@ contains
 
   !> Output routine for all integration methods
   subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,di,mpole)
-    use fields
-    use struct_basic
-    use global
-    use varbas
-    use types
-    use tools_io
+    use fields, only: integ_prop, itype_v, itype_expr, itype_mpoles, itype_names,&
+       itype_deloc, f, type_wfn, nprops
+    use struct_basic, only: cr
+    use global, only: iunitname0, iunit, dunit
+    use varbas, only: cp, cpcel
+    use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
 
     logical, intent(in) :: pmask(nprops)
     character*(*), intent(in) :: reason(nprops)
@@ -1685,13 +1675,11 @@ contains
   !> the weights of the YT. On output, give the identity 
   !> of the attractors (icp) in the complete CP list.
   subroutine int_reorder_gridout(c,ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
-    use autocp
-    use fields
-    use varbas
-    use struct_basic
-    use global
-    use tools_io
-    use types
+    use autocp, only: addcp
+    use varbas, only: ncpcel, cpcel, nearest_cp
+    use struct_basic, only: crystal
+    use tools_io, only: ferror, faterr, fopen_scratch, fclose
+    use types, only: field, realloc
 
     type(crystal), intent(in) :: c
     type(field), intent(in) :: ff

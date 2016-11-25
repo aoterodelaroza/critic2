@@ -67,15 +67,14 @@ contains
   !> and do not close the file.
   subroutine struct_write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
-    use fragmentmod
-    use struct_basic
-    use global
-    use graphics
-    use tools_math
-    use tools_io
-    use types
-    use param
-
+    use fragmentmod, only: fragment_merge_array, fragment_cmass, fragment_init
+    use struct_basic, only: crystal
+    use global, only: dunit
+    use graphics, only: writecml, writexyz, writegjf
+    use tools_math, only: norm, nchoosek, comb
+    use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
+       equal
+    use types, only: fragment, realloc
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
@@ -277,14 +276,14 @@ contains
   !> the files.
   subroutine struct_write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
-    use fragmentmod
-    use graphics
-    use struct_basic
-    use tools_math
-    use types
-    use tools_io
-    use param
-
+    use fragmentmod, only: fragment_merge_array
+    use graphics, only: obj_open, ply_open, off_open, obj_ball, ply_ball, off_ball,&
+       obj_stick, ply_stick, off_stick, obj_close, off_close, ply_close
+    use struct_basic, only: crystal
+    use tools_math, only: norm
+    use types, only: fragment
+    use tools_io, only: equal
+    use param, only: maxzat, atmcov, jmlcol
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
@@ -447,9 +446,9 @@ contains
 
   !> Write a quantum espresso input template
   subroutine struct_write_espresso(file,c)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, lower, fclose
+    use param, only: maxzat0, atmass
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -508,9 +507,9 @@ contains
 
   !> Write a VASP POSCAR template
   subroutine struct_write_vasp(file,c,verbose)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, string, uout, fclose
+    use param, only: bohrtoa, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -570,9 +569,9 @@ contains
 
   !> Write an abinit input template
   subroutine struct_write_abinit(file,c)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, fclose
+    use param, only: pi, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -655,10 +654,9 @@ contains
 
   !> Write an elk input template
   subroutine struct_write_elk(file,c)
-    use struct_basic
-    use tools_io
-    use param
-
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, fclose
+    use param, only: maxzat0
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
@@ -706,10 +704,9 @@ contains
 
   !> Write a Gaussian template input (periodic).
   subroutine struct_write_gaussian(file,c)
-    use struct_basic
-    use tools_io
-    use param
-
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, nameguess, ioj_left, fclose
+    use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
@@ -745,10 +742,9 @@ contains
 
   !> Write a tessel input template
   subroutine struct_write_tessel(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot
+    use tools_io, only: fopen_write, fclose
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -799,9 +795,8 @@ contains
 
   !> Write a critic2 input template
   subroutine struct_write_critic(file,c)
-    use struct_basic
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, fclose
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -824,10 +819,10 @@ contains
 
   !> Write a simple cif file
   subroutine struct_write_cif(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot
+    use tools_io, only: fopen_write, fclose, string, nameguess
+    use param, only: bohrtoa
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -868,10 +863,10 @@ contains
 
   !> Write an escher octave script
   subroutine struct_write_escher(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use struct_basic, only: crystal
+    use global, only: fileroot
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: pi, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -960,11 +955,10 @@ contains
 
   !> Write a gulp input script
   subroutine struct_write_gulp(file,c,dodreiding)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose
+    use tools_math, only: norm
+    use param, only: bohrtoa, atmcov, pi
 
     character*(*), intent(in) :: file
     type(crystal), intent(inout) :: c
@@ -1108,11 +1102,10 @@ contains
 
   !> Write a lammps data file
   subroutine struct_write_lammps(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, ferror, faterr, fclose
+    use tools_math, only: crys2car_from_cellpar
+    use param, only: bohrtoa, maxzat0, atmass
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -1176,12 +1169,9 @@ contains
 
   !> Write a siesta fdf data file
   subroutine struct_write_siesta_fdf(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
-
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, lower, fclose
+    use param, only: bohrtoa, maxzat0
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
 
@@ -1267,11 +1257,9 @@ contains
 
   !> Write a siesta STRUCT_IN data file
   subroutine struct_write_siesta_in(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, uout, nameguess, string, fclose
+    use param, only: bohrtoa, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -1328,11 +1316,9 @@ contains
 
   !> Write a DFTB+ human-friendly structured data format (hsd) file
   subroutine struct_write_dftbp_hsd(file,c)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -1453,11 +1439,9 @@ contains
 
   !> Write a DFTB+ human-friendly gen structure file
   subroutine struct_write_dftbp_gen(file,c,lu0,ltyp0)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, nameguess, string, fclose
+    use param, only: bohrtoa, maxzat0
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c

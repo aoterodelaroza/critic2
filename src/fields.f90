@@ -17,9 +17,7 @@
 
 ! Evaluation of scalar fields
 module fields
-  use types
-  use param
-  use hashtype
+  use types, only: integrable, pointpropable, field
   implicit none
 
   private
@@ -95,6 +93,7 @@ contains
 
   !> Initialize the moduel variable for the fields.
   subroutine fields_init()
+    use param, only: fh
 
     integer :: i
 
@@ -135,6 +134,7 @@ contains
 
   !> Terminate the variable allocations for the fields.
   subroutine fields_end()
+    use param, only: fh
 
     if (allocated(fused)) deallocate(fused)
     if (allocated(f)) deallocate(f)
@@ -144,16 +144,9 @@ contains
 
   !> Load a field - parse copy and allocate slot
   subroutine fields_load(line,id,oksyn)
-    use elk_private
-    use wien_private
-    use wfn_private
-    use pi_private
-    use struct_basic
-    use grid_tools
-    use global
-    use arithmetic
-    use tools_io
-    use types
+    use tools_io, only: getword, equal, ferror, faterr, lgetword, string
+    use types, only: realloc
+    use param, only: fh
 
     character*(*), intent(in) :: line
     integer, intent(out) :: id
@@ -224,17 +217,22 @@ contains
 
   !> Load a field - parse the line and call the appropriate reader. 
   function fields_load_real(line,fid,oksyn) result(ff)
-    use dftb_private
-    use elk_private
-    use wien_private
-    use wfn_private
-    use pi_private
-    use struct_basic
-    use grid_tools
-    use global
-    use arithmetic
-    use tools_io
-    use types
+    use dftb_private, only: dftb_read, dftb_register_struct
+    use elk_private, only: elk_read_out, elk_tolap
+    use wien_private, only: wien_read_clmsum, wien_tolap
+    use wfn_private, only: wfn_read_wfn, wfn_register_struct, wfn_read_fchk, wfn_read_molden,&
+       wfn_read_wfx
+    use pi_private, only: pi_read_ion, pi_register_struct, fillinterpol
+    use struct_basic, only: cr
+    use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
+       grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
+       grid_laplacian, grid_gradrho
+    use global, only: eval_next
+    use arithmetic, only: eval, fields_in_eval
+    use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
+       isexpression_or_word, string
+    use types, only: fragment
+    use param, only: dirsep, eye
 
     character*(*), intent(in) :: line
     integer, intent(in) :: fid
@@ -842,6 +840,7 @@ contains
   !> Unload the field in slot id.
   subroutine fields_unload(id)
     use tools_io, only: string
+    use param, only: fh
 
     integer, intent(in) :: id
 
@@ -1371,6 +1370,7 @@ contains
   !> List all defined aliases for fields
   subroutine listfieldalias()
     use tools_io
+    use param, only: fh
 
     integer :: i, nkeys, idum
     character(len=:), allocatable :: key, val
@@ -1396,7 +1396,7 @@ contains
     use struct_basic
     use global
     use tools_io
-
+    use param, only: eye
     type(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
     character*(*), intent(in) :: file
@@ -1466,6 +1466,7 @@ contains
   subroutine writegrid_vasp(c,g,file,onlyheader)
     use struct_basic
     use tools_io
+    use param, only: bohrtoa, maxzat0
 
     type(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
@@ -1546,6 +1547,8 @@ contains
   !> Gives an unused field number
   integer function getfieldnum() result(id)
     use tools_io
+    use types, only: realloc
+    use param, only: fh
 
     integer :: mf, nmf
     type(field), allocatable :: nf(:)
@@ -1577,6 +1580,8 @@ contains
     use grid_tools
     use global
     use tools_io
+    use types, only: field
+    use param, only: sqfp, fh
 
     type(field), intent(inout) :: ff
     integer, intent(in) :: fid
@@ -1882,6 +1887,7 @@ contains
   subroutine grdall(xpos,lprop,pmask)
     use arithmetic
     use tools_io
+    use types, only: scalar_value
 
     real*8, intent(in) :: xpos(3) !< Point (cartesian).
     real*8, intent(out) :: lprop(nprops) !< the properties vector.
@@ -2177,7 +2183,7 @@ contains
     use wien_private
     use elk_private
     use types
-
+    use param, only: pi
     integer, intent(in) :: id, ilvl
 
     integer :: n, i, j
@@ -2341,7 +2347,7 @@ contains
   subroutine taufromelf(ielf,irho,itau)
     use grid_tools
     use tools_io
-
+    use param, only: fh, pi
     integer, intent(in) :: ielf, irho, itau
 
     integer :: igrad
@@ -2379,6 +2385,7 @@ contains
 
   !> Convert a field name to the corresponding integer index.
   function fieldname_to_idx(id) result(fid)
+    use param, only: fh
     character*(*), intent(in) :: id
     integer :: fid
 
@@ -2530,6 +2537,7 @@ contains
     use ewald, only: ewald_pot
     use struct_basic, only: cr
     use types, only: scalar_value
+    use param, only: sqpi, pi
     type(scalar_value) :: fields_feval
     character*(*), intent(in) :: id
     integer, intent(in) :: nder

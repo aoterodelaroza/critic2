@@ -17,9 +17,6 @@
 
 !> Tools for automatic or manual critical point determination.
 module autocp
-  use varbas
-  use global
-  use param
   implicit none
 
   private 
@@ -65,13 +62,12 @@ contains
   
   !> initializes the cp list.
   subroutine init_cplist(defer0)
-    use navigation
-    use fields
-    use struct
-    use struct_basic
-    use tools_io
-    use types
-
+    use varbas, only: cp, cpcel, ncpcel, rbetadef
+    use global, only: refden, atomeps
+    use fields, only: f, grd
+    use struct_basic, only: cr
+    use types, only: scalar_value
+    use varbas, only: ncp
     logical, intent(in), optional :: defer0 !< Defer the use of grd to the report
 
     integer :: i, j
@@ -149,20 +145,22 @@ contains
   !> Automatic search for all the critical points in the crystal unit cell.
   !> Uses the IWS, with barycentric subdivision.
   subroutine autocritic(line)
-    use navigation
-    use grid_tools
-    use struct_writers
-    use graphics
-    use surface
-    use struct
-    use struct_basic
-    use fields
-    use global
-    use tools_math
-    use tools_io
-    use tools
-    use types
-
+    use navigation, only: newton
+    use grid_tools, only: mode_nearest, mode_trilinear
+    use graphics, only: obj_ball, obj_close
+    use struct_writers, only: struct_write_3dmodel
+    use struct_basic, only: cr
+    use surface, only: minisurf_init, minisurf_clean, minisurf_spheretriang, minisurf_close
+    use fields, only: f, type_grid
+    use global, only: quiet, refden, cp_hdegen, eval_next, dunit, iunit, &
+       iunitname0, fileroot
+    use tools, only: uniqc
+    use tools_math, only: norm
+    use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
+       string, warning, tictac
+    use types, only: minisurf, realloc
+    use varbas, only: cp, mneqcp0, cpcel, ncpcel, ncp
+    use param, only: pi
     character*(*), intent(in) :: line
 
     integer, parameter :: styp_ws = 1      ! recursive subdivision of the WS cell
@@ -845,16 +843,14 @@ contains
 
   !> Report the results of the critical point search.
   subroutine cpreport(line)
-    use navigation
-    use fields
-    use struct
-    use struct_basic
-    use struct_writers
-    use global
-    use graphics
-    use tools_io
-    use types
-    
+    use navigation, only: gradient, prunepath
+    use fields, only: f
+    use struct, only: struct_write
+    use struct_basic, only: cr, crystal
+    use global, only: eval_next, refden
+    use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
+    use varbas, only: ncpcel, cp, cpcel
+    use types, only: realloc
     character*(*), intent(in) :: line
 
     real*8, parameter :: fprune = 0.1d0 ! pruning distance for gradient path
@@ -982,6 +978,7 @@ contains
 
   contains
     subroutine addpath(nstep,xpath)
+      use types, only: realloc
       integer, intent(in) :: nstep
       real*8, intent(in) :: xpath(3,nstep)
 
@@ -1002,10 +999,10 @@ contains
 
   !> Calculates the neighbor environment of each non-equivalent CP.
   subroutine critshell(shmax)
-    use global
-    use struct_basic
-    use tools_io
-
+    use global, only: iunit, iunitname0, dunit
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_center
+    use varbas, only: ncpcel, cp, cpcel, ncp
     integer, intent(in) :: shmax
 
     integer :: i, j, k, l, ln, lvec(3), ilo, ihi
@@ -1095,11 +1092,9 @@ contains
   
   !> Write the CP information to the checkpoint file.
   subroutine writechk()
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-
+    use global, only: fileroot
+    use tools_io, only: uout, fopen_write, fclose, string
+    use varbas, only: ncp, ncpcel, cp, cpcel
     character(len=:), allocatable :: cpfile
     integer :: lucp, i
 
@@ -1118,12 +1113,10 @@ contains
 
   !> Read the CP information from the checkpoint file.
   subroutine readchk()
-    use fields
-    use global
-    use struct_basic
-    use tools_io
+    use global, only: fileroot
+    use tools_io, only: uout, fopen_write, string, fclose
     use types, only: realloc
-  
+    use varbas, only: ncp, ncpcel, cp, cpcel
     integer :: lucp, i
 
     character(len=:), allocatable :: cpfile
@@ -1161,10 +1154,10 @@ contains
 
 
   subroutine atomic_connect_report()
-    use fields
-    use struct_basic
-    use tools_io
-
+    use fields, only: f
+    use tools_io, only: uout, string, ioj_center
+    use global, only: refden
+    use varbas, only: cp, ncp
     integer :: i, j, k, i1, i2, m1, m2
     integer :: ind
     integer :: connectm(0:ncp,0:ncp), ncon, icon(0:ncp)
@@ -1222,11 +1215,12 @@ contains
 
   ! write the short report about the non-equivalent cps
   subroutine cp_short_report()
-    use fields
-    use struct_basic
-    use tools_io
-    use types
-
+    use fields, only: f, grd
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
+    use types, only: scalar_value
+    use global, only: iunit, iunitname0, dunit, refden
+    use varbas, only: cp, ncp
     integer :: i, j
     integer :: numclass(0:3), multclass(0:3)
     character*(8) :: namecrit(0:6)
@@ -1304,9 +1298,6 @@ contains
   !> of simplex where a search is launched. Accumulates the seeds in
   !> xseed (number of seeds nn).
   subroutine barycentric(iniv,depthmax,nn,xseed)
-    use navigation
-    use struct_basic
-
     real*8, dimension(4,3), intent(in) :: iniv
     integer, intent(in) :: depthmax
     integer, intent(inout) :: nn
@@ -1415,7 +1406,6 @@ contains
   !> convex coordinates and integer arithmetic.
   recursive subroutine barycentric_divide(n,simp,depth)
     use tools_io, only: ferror, faterr
-
     integer, intent(in) :: n
     integer, intent(in) :: simp(:,:)
     integer, intent(in) :: depth
@@ -1601,9 +1591,8 @@ contains
   !> output to stdout. this routine directly writes the cp to the cp
   !> list if one is found.
   subroutine seed_from_simplex (simp, dim, nn, xseed)
-    use struct_basic
-    use types
-
+    use struct_basic, only: cr
+    use types, only: realloc
     real*8, intent(in) :: simp(4,3)
     integer, intent(in) :: dim
     integer, intent(inout) :: nn
@@ -1639,15 +1628,15 @@ contains
   !> is present, defer the calculation of the density and properties
   !> at the CP.
   subroutine addcp(x0,discexpr,itype,defer0)
-    use navigation
-    use fields
-    use struct
-    use struct_basic
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-
+    use fields, only: f, fields_fcheck, fields_feval, grd
+    use struct_basic, only: cr
+    use arithmetic, only: eval
+    use tools_math, only: norm, rsindex
+    use tools_io, only: ferror, faterr, string
+    use types, only: scalar_value, realloc
+    use global, only: refden, CP_hdegen
+    use varbas, only: cp, ncp, cpcel, ncpcel, rbetadef, nearest_cp
+    use types, only: realloc
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
     character*(*), intent(in) :: discexpr !< Discard expression
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
@@ -1831,9 +1820,10 @@ contains
 
   ! sort the non-equivalent cp list
   subroutine sortcps()
-    use struct_basic
+    use struct_basic, only: cr
     use tools, only: mergesort
-
+    use types, only: cp_type
+    use varbas, only: cp, ncp, ncpcel, cpcel
     integer :: i, j, k, iperm(ncp), nin, nina
     integer :: perms, perm(2,ncp)
     integer :: num, mi
@@ -1915,9 +1905,9 @@ contains
   end subroutine sortcps
 
   subroutine cp_long_report()
-    use struct_basic
-    use tools_io
-
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
+    use varbas, only: ncpcel, cpcel
     integer :: i, j
     character :: neqlab
     character*(1) :: smallnamecrit(0:3)
@@ -1974,11 +1964,13 @@ contains
   end subroutine cp_long_report
 
   subroutine cp_vlong_report()
-    use struct_basic
-    use fields
-    use tools_io
-    use types
-
+    use fields, only: fields_propty
+    use struct_basic, only: cr
+    use tools_io, only: uout, string
+    use types, only: scalar_value
+    use global, only: iunitname0, iunit, refden
+    use varbas, only: ncp, cp
+    use param, only: bohrtoa
     integer :: i, j
     real*8 :: minden, maxbden, fness, xx(3)
     type(scalar_value) :: res
@@ -2015,8 +2007,9 @@ contains
 
   !> Write to the stdout information about the graph.
   subroutine graph_short_report()
-    use tools_io
-
+    use tools_io, only: uout, string, ioj_center
+    use global, only: iunit, iunitname0, dunit
+    use varbas, only: ncp, cp
     integer :: i, j, k
     character*(10) :: nam(2)
     logical :: isbcp
@@ -2064,13 +2057,14 @@ contains
   !> unstable cps on each 2d manifold associated to every
   !> non-equivalent bcp and rcp.
   subroutine makegraph()
-    use fields
-    use navigation
-    use struct_basic
-    use tools_math
-    use tools_io
-    use types
-
+    use fields, only: f, grd
+    use navigation, only: gradient
+    use struct_basic, only: cr
+    use tools_math, only: norm, eig
+    use types, only: scalar_value
+    use varbas, only: ncp, cp, ncpcel, cpcel, nearest_cp
+    use global, only: refden
+    use param, only: pi
     integer :: i, j, k
     integer :: nstep
     real*8 :: xdif(3,2), v(3)
@@ -2203,9 +2197,8 @@ contains
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
   !> rad. 
   subroutine scale_ws(rad,wso,ntetrag,tetrag)
-    use struct_basic
-    use tools_math
-
+    use struct_basic, only: cr
+    use tools_math, only: norm
     real*8, intent(in) :: rad
     real*8, intent(in) :: wso(3)
     integer, intent(inout) :: ntetrag

@@ -47,9 +47,9 @@ contains
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
   subroutine dftb_read(f,filexml,filebin,filehsd,zcel)
-    use tools_io
-    use types
-    use param
+    use types, only: field, dftbatom, realloc
+    use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
+    use param, only: tpi, maxzat0
     
     type(field), intent(out) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file

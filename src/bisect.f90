@@ -17,8 +17,7 @@
 
 !> Integration and plotting of basins through bisection.
 module bisect
-  use global, only: INT_gauleg, INT_lebedev
-
+  use global, only: INT_lebedev
   private 
 
   public :: basinplot
@@ -45,7 +44,7 @@ module bisect
   real*8, parameter :: bs_rnearnuc2 = 1d-5
   real*8, parameter :: bs_rnearnuc = sqrt(bs_rnearnuc2)
 
-  ! default integratin parameters for atomic spheres
+  ! default integration parameters for atomic spheres
   integer, parameter :: bs_spherequad_type = INT_lebedev
   integer, parameter :: bs_spherequad_ntheta = 30
   integer, parameter :: bs_spherequad_nphi = 30
@@ -61,12 +60,11 @@ contains
   !> crystallographic coordinates. The cpid is an index from the non
   !> -equivalent CP list
   subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
-    use navigation
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
+    use navigation, only: gradient
+    use fields, only: f, type_grid
+    use varbas, only: cp, cpcel, ncpcel, nearest_cp
+    use global, only: refden
+    use struct_basic, only: cr
     implicit none
 
     integer, intent(in) :: cpid
@@ -164,12 +162,9 @@ contains
   !> limit is returned in xmed(). All parameters in cartesian
   !> coordinates. nstep is the number of function evaluations.
   subroutine lim_bundle (xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
-    use navigation
-    use varbas
-    use fields
-    use struct_basic
-    use global
-    use tools_io
+    use navigation, only: gradient
+    use fields, only: f, type_grid
+    use global, only: refden
     implicit none
     !
     real*8, intent(in) :: xup(3), xdn(3)
@@ -248,16 +243,15 @@ contains
   !> to the IAS of the CP cpid (non-equivalent CP list). Adaptive
   !> bracketing + bisection.
   subroutine bisect_msurface(srf,cpid,prec,verbose)
-    use navigation
-    use surface
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools
-    use tools_io
-    use types
-    use param
+    use navigation, only: gradient
+    use fields, only: f, type_grid
+    use varbas, only: cp, ncpcel, cpcel
+    use global, only: refden, iunit, iunitname0, dunit
+    use struct_basic, only: cr
+    use tools, only: mergesort
+    use tools_io, only: uout, string, ferror, faterr
+    use types, only: minisurf
+    use param, only: vbig
     implicit none
 
     integer, intent(in) :: cpid
@@ -496,16 +490,15 @@ contains
   !> Determine the surface representing the primary bundle with seed
   !> srf%n (cartesian) by bisection.
   subroutine bundle_msurface(srf,prec,verbose)
-    use surface
-    use navigation
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use navigation, only: gradient
+    use fields, only: f, type_grid
+    use varbas, only: ncp, cp, rbetadef
+    use global, only: refden
+    use struct_basic, only: cr
+    use tools_math, only: norm
+    use tools_io, only: uout, string, faterr, ferror
+    use types, only: minisurf
+    use param, only: vbig
     implicit none
 
     type(minisurf), intent(inout) :: srf
@@ -700,16 +693,17 @@ contains
   !> number of points along each ray in the dbasin output mode.
   !> cpid is the CP basin (equivalent CP list) to be represented. 
   subroutine basinplot(line)
-    use integration
-    use surface
-    use graphics
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
-    use types
-    use param
+    use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_spheretriang,&
+       minisurf_spheresphere, minisurf_transform, minisurf_write3dmodel,&
+       minisurf_writebasin, minisurf_writedbasin, minisurf_close
+    use fields, only: f, fieldname_to_idx, goodfield
+    use varbas, only: ncpcel, cpcel, ncp, cp
+    use global, only: eval_next, refden, iunit, iunitname0, dunit, fileroot
+    use struct_basic, only: cr
+    use tools_io, only: lgetword, equal, ferror, faterr, getword, isexpression_or_word,&
+       string, uout, ioj_right
+    use types, only: minisurf
+    use param, only: jmlcol
     implicit none
 
     character*(*), intent(in) :: line
@@ -993,12 +987,15 @@ contains
   !> "dbs", dbasin file. npts is the number of points along each ray
   !> in the dbasin output mode. rootfile is the root of the files written.
   subroutine bundleplot(line)
-    use struct_basic
-    use surface
-    use fields
-    use global
-    use types
-    use tools_io
+    use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_spheretriang,&
+       minisurf_spheresphere, minisurf_write3dmodel,&
+       minisurf_writebasin, minisurf_writedbasin, minisurf_close
+    use struct_basic, only: cr
+    use fields, only: fieldname_to_idx, goodfield
+    use global, only: fileroot, eval_next, dunit
+    use types, only: minisurf
+    use tools_io, only: ferror, faterr, lgetword, equal, getword, isexpression_or_word,&
+       string, uout
     implicit none
 
     character*(*), intent(in) :: line
@@ -1210,10 +1207,10 @@ contains
   !> neval, number of evaluations; meaneval, mean number of
   !> evaluations per ray
   subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
-    use integration
-    use surface
-    use fields
-    use types
+    use surface, only: minisurf_init, minisurf_clean, minisurf_close
+    use integration, only: gauleg_msetnodes, gauleg_mquad
+    use fields, only: nprops
+    use types, only: minisurf
     implicit none
     
     real*8, intent(in) :: x0(3), rad
@@ -1248,10 +1245,10 @@ contains
   !> Neval, number of evaluations; meaneval, mean number of
   !> evaluations per ray
   subroutine sphereintegrals_lebedev(x0,rad,nleb,sprop,abserr,neval,meaneval)
-    use integration
-    use surface
-    use fields
-    use types
+    use surface, only: minisurf_init, minisurf_clean, minisurf_close
+    use integration, only: lebedev_msetnodes, lebedev_mquad
+    use fields, only: nprops
+    use types, only: minisurf
     implicit none
     
     real*8, intent(in) :: x0(3), rad
@@ -1283,12 +1280,15 @@ contains
   !> of the radial grid. This routine handles the
   !> output and calls the low-level sphereintegrals_*.
   subroutine sphereintegrals(line)
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
-    use tools_math
+    use fields, only: f, integ_prop, nprops
+    use varbas, only: ncp, cp
+    use global, only: int_gauleg, eval_next, dunit, int_radquad_errprop, refden,&
+       int_radquad_type, int_radquad_nr, int_qags, int_radquad_abserr, &
+       int_radquad_relerr, int_qng, int_qag, iunit, iunitname0
+    use struct_basic, only: cr
+    use tools_io, only: lgetword, equal, ferror, faterr, warning, uout, string,&
+       ioj_right
+    use tools_math, only: good_lebedev
     implicit none
 
     character*(*), intent(in) :: line
@@ -1499,14 +1499,15 @@ contains
   !> and n2 = nphi. If usefiles, read and/or write the .int files
   !> containing the ZFS description for each atom. 
   subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
-    use integration
-    use surface
-    use varbas
-    use global
-    use fields
-    use struct_basic
-    use tools_io
-    use types
+    use surface, only: minisurf_init, minisurf_clean, minisurf_readint,&
+       minisurf_writeint, minisurf_close
+    use integration, only: gauleg_msetnodes, gauleg_mquad
+    use varbas, only: cp
+    use global, only: int_gauleg, int_iasprec
+    use fields, only: integ_prop, nprops
+    use struct_basic, only: cr
+    use tools_io, only: uout
+    use types, only: minisurf
     implicit none
 
     real*8, intent(out) :: atprop(Nprops)
@@ -1627,14 +1628,15 @@ contains
   !> usefiles, read and/or write the .int files containing the ZFS
   !> description for each atom.
   subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
-    use integration
-    use surface
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use types
+    use surface, only: minisurf_init, minisurf_clean, minisurf_readint, minisurf_writeint,&
+       minisurf_close
+    use integration, only: lebedev_msetnodes, lebedev_mquad
+    use varbas, only: cp
+    use fields, only: integ_prop, nprops
+    use global, only: int_iasprec, int_gauleg
+    use struct_basic, only: cr
+    use tools_io, only: uout
+    use types, only: minisurf
     implicit none
 
     real*8, intent(out) :: atprop(Nprops)
@@ -1755,13 +1757,14 @@ contains
   !> for this method. This routine handles the output and calls the
   !> low-level integrals_*.
   subroutine integrals(line)
-    use integration
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_math
-    use tools_io
+    use integration, only: int_output
+    use varbas, only: ncp, cp, ncpcel, cpcel
+    use fields, only: integ_prop, f, nprops
+    use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop, refden,&
+       fileroot
+    use struct_basic, only: cr
+    use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
+    use tools_math, only: good_lebedev
     implicit none
 
     character*(*), intent(in) :: line
@@ -1908,11 +1911,13 @@ contains
 
   !> Header output for the integrals subroutine.
   subroutine integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
+    use fields, only: f
+    use varbas, only: ncp, cp
+    use global, only: refden, int_gauleg, int_radquad_type, int_radquad_nr,&
+       int_qags, int_radquad_abserr, int_radquad_relerr, int_qng, int_qag,&
+       int_iasprec
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, ioj_left
     implicit none
 
     integer, intent(in) :: meth, ntheta, nphi, np, cpid

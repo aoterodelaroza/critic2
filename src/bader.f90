@@ -64,15 +64,13 @@ contains
   !> expression to the basin attractors. If the expression is non-zero,
   !> discard the attractor.
   subroutine bader_integrate(c,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use tools_math
-    use arithmetic
-    use types
-    use param
-
+    use struct_basic, only: crystal
+    use fields, only: fields_fcheck, fields_feval
+    use tools_io, only: faterr, ferror
+    use tools_math, only: matinv
+    use arithmetic, only: eval
+    use param, only: vsmall
+    use types, only: realloc
     type(crystal), intent(in) :: c
     real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
@@ -214,8 +212,7 @@ contains
   end subroutine bader_integrate
 
   subroutine refine_edge(f,irefine_edge,ref_itrs)
-    use tools_io
-    use types
+    use tools_io, only: faterr, ferror
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: irefine_edge
@@ -343,8 +340,7 @@ contains
   ! From the point p do a maximization on the charge density grid and
   ! assign the maximum found to the volnum array.
   subroutine max_neargrid(f,p)
-    use types
-
+    use types, only: realloc
     real*8, intent(in) :: f(:,:,:)
     integer, dimension(3), intent(inout) :: p
     
@@ -372,7 +368,6 @@ contains
   ! Do a single iteration of a maximization on the charge density 
   ! grid from the point (px,py,pz).
   subroutine step_neargrid(f,p)
-    use types
     
     real*8, intent(in) :: f(:,:,:)
     integer,dimension(3),intent(inout) :: p
@@ -418,8 +413,7 @@ contains
   ! Do a single iteration of a maximization on the charge density 
   ! grid from the point (px,py,pz).  Return a logical indicating 
   ! if the current  point is a charge density maximum.
-  SUBROUTINE step_ongrid(f,p)
-    use types
+  subroutine step_ongrid(f,p)
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: p(3)
@@ -453,7 +447,6 @@ contains
   ! Return the direction of the gradient in lattice vectors
   ! at the grid position p
   function rho_grad_dir(f,p)
-    use types
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
@@ -494,7 +487,6 @@ contains
   ! is_max
   ! return .true. if the grid point is a maximum of charge density
   function is_max(f,p)
-    use types
 
     real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
@@ -545,7 +537,6 @@ contains
   end subroutine pbc
 
   function rho_val(ff,p1,p2,p3)
-    use types
 
     real*8, intent(in) :: ff(:,:,:)
     integer, intent(in) :: p1, p2, p3

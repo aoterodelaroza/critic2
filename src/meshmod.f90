@@ -23,7 +23,6 @@
 ! Ross M. Dickson <ross.dickson@dal.ca>, Hartmut Schmider
 ! <hs7@post.queensu.ca>, and Axel D. Becke <axel.becke@dal.ca>
 module meshmod
-  use param
   implicit none
 
   private
@@ -44,10 +43,10 @@ contains
   !> Driver for the generation of a molecular mesh. Uses the global
   !> MESH_type to decide the type and quality of the mesh.
   function genmesh(c) result(mesh)
-    use struct_basic
-    use global
-    use types
-    type(crystal), intent(in) :: c
+    use struct_basic, only: crystal
+    use global, only: mesh_type
+    use types, only: molmesh
+    type(crystal), intent(inout) :: c
     type(molmesh) :: mesh
 
     integer :: tmesh
@@ -67,11 +66,11 @@ contains
 
   !> Generate a Becke-style molecular mesh. Only for molecules.
   function genmesh_becke(c) result(mesh)
-    use struct_basic
-    use tools_math
-    use tools_io
-    use types
-
+    use struct_basic, only: crystal
+    use tools_math, only: good_lebedev, select_lebedev
+    use tools_io, only: ferror, faterr
+    use types, only: molmesh
+    use param, only: fourpi, maxzat
     type(crystal), intent(in) :: c
     type(molmesh) :: mesh
 
@@ -217,11 +216,11 @@ contains
   !> This mesh is good for periodic systems because the calculation of the 
   !> weights does not involve a double sum over atoms.
   function genmesh_franchini(c,lvl) result(mesh)
-    use struct_basic
-    use tools_math
-    use tools_io
-    use types
-
+    use struct_basic, only: crystal
+    use tools_math, only: good_lebedev, select_lebedev
+    use tools_io, only: faterr, ferror
+    use types, only: molmesh
+    use param, only: maxzat, fourpi
     type(crystal), intent(in) :: c
     integer, intent(in) :: lvl
     type(molmesh) :: mesh
@@ -233,9 +232,6 @@ contains
     real*8 :: x(3), fscal, fscal2
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
     real*8 :: cutoff(c%ncel,c%ncel), hypr, rr
-
-    ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
 
     ! allocate space for the mesh
     mesh%n = 0
@@ -350,10 +346,10 @@ contains
   !> If periodic, assume the mesh is for a crystal (calculate the 
   !> properties by moving the points back to the main cell.
   subroutine fillmesh(m,ff,id,prop,periodic)
-    use fields
-    use tools_io
-    use types
-
+    use fields, only: grd
+    use tools_io, only: faterr, ferror
+    use types, only: molmesh, field, scalar_value, realloc
+    use param, only: im_rho, im_gradrho, im_gkin, im_b
     type(molmesh), intent(inout) :: m
     type(field), intent(inout) :: ff
     integer, intent(in) :: id(:)
@@ -419,7 +415,7 @@ contains
     ! derivatives of variable r with respect to variable q.
     ! The q-mesh is uniform on the interval (0,+1). Transformation is
     ! r = rmid * q / (1-q)
-
+    use param, only: third, fourpi
     integer, intent(in) :: n
     integer, intent(in) :: iz
     real*8, intent(out) :: r(n), wintr(n)
@@ -443,8 +439,8 @@ contains
   !>   r = zeta/ln(2) * (1+q) * ln(2/(1-q))
   !> where zeta is a function of the atomic number.
   subroutine rmesh_franchini(n,iz,r,wintr)
-    use tools_math
-
+    use tools_math, only: gauleg
+    use param, only: log2, fourpi
     integer, intent(in) :: n
     integer, intent(in) :: iz
     real*8, intent(out) :: r(n), wintr(n)
@@ -497,7 +493,7 @@ contains
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   !> Some changes to the choice of ni0
   function z2nr_franchini(z,lvl) result(nr)
-    use tools_io
+    use tools_io, only: faterr, ferror
     integer, intent(in) :: z
     integer, intent(in) :: lvl
     integer :: nr
@@ -540,7 +536,7 @@ contains
   !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   function z2nang_franchini(z,lvl) result(nang)
-    use tools_io
+    use tools_io, only: ferror, faterr
     integer, intent(in) :: z
     integer, intent(in) :: lvl
     integer :: nang
@@ -562,7 +558,7 @@ contains
   endfunction z2nang_franchini
 
   subroutine bhole(rho,quad,hnorm,b)
-    use param
+    use param, only: twothird, pi, third
 
     real*8, intent(in) :: rho, quad, hnorm
     real*8, intent(out) :: b 

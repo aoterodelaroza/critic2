@@ -17,7 +17,6 @@
 
 !> Tools for the manipulation of 1D grids.
 module grid1_tools
-  use types, only: grid1
   implicit none
 
   private
@@ -49,9 +48,10 @@ contains
 
   !> Read a density core file from the database.
   subroutine grid1_read_db(g,z,q,verbose)
-    use global
-    use tools_io
-    use param
+    use types, only: grid1
+    use global, only: critic_home
+    use tools_io, only: nameguess, warning, lower, ferror
+    use param, only: dirsep
 
     type(grid1), intent(out) :: g !< Output radial grid
     integer, intent(in) :: z !< Atomic number
@@ -80,10 +80,9 @@ contains
   !> of the ld1 program in the quantum espresso distribution. Only n electrons
   !> out of the total Z are used to build the grid.
   subroutine grid1_read_critic(g,file,n,verbose,abspath)
-    use tools
-    use types
-    use tools_io
-    use param
+    use types, only: grid1, realloc
+    use tools_io, only: uout, warning, ferror, fopen_read, string, fclose
+    use param, only: pi
 
     type(grid1), intent(out) :: g !< One-dimensional grid on output
     character*(*), intent(in) :: file !< File with the grid description
@@ -216,7 +215,7 @@ contains
   !> Interpolate the radial grid g at distance r0, and obtain the value,
   !> first derivative and second derivative.
   subroutine grid1_interp(g,r0,f,fp,fpp)
-
+    use types, only: grid1
     type(grid1), intent(in) :: g !< The radial grid.
     real*8, intent(in) :: r0 !< Value of the radial coordinate.
     real*8, intent(out) :: f !< Interpolated value
