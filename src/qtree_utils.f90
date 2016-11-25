@@ -30,14 +30,14 @@ contains
   !> Write a .tess file containing the color information on the grid.
   !> Optionally, represent only the outer (visible) balls.
   subroutine small_writetess(roottess,otrm,trm)
-    use qtree_basic
-    use autocp
-    use fields
-    use varbas
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use qtree_basic, only: qtreei, nt_orig, minlen, maxl, nnuc, leqv, cindex,&
+       torig, tvec, lrotm
+    use fields, only: f
+    use varbas, only: ncp, cp
+    use struct_basic, only: cr
+    use global, only: refden, ws_origin, plot_mode, fileroot, plotsticks
+    use tools_io, only: fopen_write, fclose
+    use param, only: maxzat0, jmlcol, jmlcol2
 
     character*50, intent(in) :: roottess
     integer, intent(in) :: otrm
@@ -235,12 +235,11 @@ contains
 
   !> Open and write the header of a tessel input file.
   subroutine open_difftess(roottess)
-    use qtree_basic
-    use autocp
-    use varbas
-    use global
-    use struct_basic
-    use tools_io
+    use qtree_basic, only: ludif, minlen, maxl
+    use varbas, only: ncp, cp
+    use global, only: gradient_mode, qtree_ode_mode, ws_origin
+    use struct_basic, only: cr
+    use tools_io, only: fopen_write
 
     character*50, intent(in) :: roottess
 
@@ -329,8 +328,8 @@ contains
 
   !> Write the ending and close a tessel input file.
   subroutine close_difftess(roottess)
-    use qtree_basic
-    use tools_io
+    use qtree_basic, only: ludif
+    use tools_io, only: fclose
 
     character*50, intent(in) :: roottess
 
@@ -351,8 +350,8 @@ contains
 
   !> Load and output information about the keast cuadratures.
   subroutine getkeast()
-    use keast
-    use tools_io
+    use keast, only: keast_rule_num, keast_order_num
+    use tools_io, only: uout
     
     integer*4 :: num
     integer*4 :: i, order

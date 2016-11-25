@@ -28,8 +28,6 @@ module tricks
 contains
 
   subroutine trick(line0)
-    use tools_io
-    use struct_basic
     character*(*), intent(in) :: line0
 
     ! call trick_recalculate_xdm()
@@ -41,21 +39,17 @@ contains
 
   !> Test for the calculation of energies using a sphere plus grid approach.
   subroutine trick_grid_sphere()
-    use bisect
-    use rhoplot
-    use global
-    use varbas
-    use fields
-    use bader
-    use integration
-    use yt
-    use struct_basic
-    use grid_tools
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-    use param
+    use rhoplot, only: rhoplot_cube
+    use global, only: refden
+    use fields, only: f, fused, type_grid, grd
+    use integration, only: int_reorder_gridout
+    use yt, only: yt_integrate, yt_weights
+    use struct_basic, only: cr
+    use grid_tools, only: grid_from_array3
+    use tools_math, only: select_lebedev, gauleg
+    use tools_io, only: string
+    use types, only: scalar_value, realloc
+    use param, only: fh, pi
 
     integer, parameter :: nleb = 770, nr = 50
     integer, parameter :: nx = 100
@@ -186,13 +180,13 @@ contains
   end subroutine trick_grid_sphere
 
   subroutine trick_stephens_nnm_channel(line)
-    use struct_basic
-    use fields
-    use graphics
-    use global
-    use tools_math
-    use tools_io
-    use param
+    use struct_basic, only: cr
+    use fields, only: f, grd0
+    use graphics, only: obj_open, obj_ball, obj_stick, obj_close
+    use global, only: eval_next
+    use tools_math, only: norm, cross
+    use tools_io, only: faterr, ferror, uout, string
+    use param, only: bohrtoa, pi
     character*(*), intent(in) :: line
     
     ! parameters for input
@@ -355,13 +349,13 @@ contains
   !> Calculate the cell integral of the reference field using 
   !> Franchini et al.'s Becke-style mesh
   subroutine trick_cell_integral()
-    use fields
-    use struct_basic
-    use meshmod
-    use global
-    use types
-    use tools_io
-    use param
+    use fields, only: f
+    use struct_basic, only: cr
+    use meshmod, only: genmesh, fillmesh
+    use global, only: refden
+    use types, only: molmesh
+    use tools_io, only: uout, string
+    use param, only: im_rho
 
     type(molmesh) :: m
     integer :: prop(1), id(1)

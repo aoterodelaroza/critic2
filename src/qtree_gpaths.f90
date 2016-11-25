@@ -30,13 +30,16 @@ contains
   !> close enough. xp in cartesian, f, gf and gfmod must be known
   !> output xp is garbage
   subroutine gradient_qtree (xp,base_t,res,iidx,cpout,ier,usestack,trm,fgr,lapgr)
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use types
+    use qtree_basic, only: qtreeidx, qtreei, qtreer, nnuc, maxl, minlen,&
+       ode_type, ode_b, ode_o, ode_a, ngrd_term, ode_b2, safety, qinv, q1inv,&
+       periodic, r_betagp, r_betaint, ode_fsal, nder, savefgr, savelapgr, neargp
+    use varbas, only: nearest_cp, cpcel
+    use fields, only: f, GRD
+    use global, only: color_allocate, qtreefac, stepsize, refden, ode_abserr,&
+       killext, mpstep
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr, uout
+    use types, only: scalar_value
 
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -286,13 +289,16 @@ contains
   !> Trace a GP, checking adjacent grid point colors. xp in cartesian,
   !> f, gf and gfmod must be known output xp is garbage.
   subroutine gradient_color (xp,base_t,rver,res,cpout,ier,trm)
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use types
+    use qtree_basic, only: qtreei, qtreeidx, nnuc, maxl, ode_type, ode_b,&
+       ode_o, ode_a, ngrd_term, ode_b2, safety, periodic,&
+       qinv, q1inv, lrotm, cindex, ode_fsal, r_betagp, crys2convex, locate_tetrah
+    use varbas, only: nearest_cp, cpcel
+    use fields, only: f, grd
+    use global, only: color_allocate, stepsize, refden, ode_abserr,&
+       ws_origin, killext
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr
+    use types, only: scalar_value
 
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -511,13 +517,15 @@ contains
   !> Trace a GP, without approximations. xp in cartesian,
   !> f, gf and gfmod must be known output xp is garbage.
   subroutine gradient_full (xp,base_t,rver,res,cpout,ier)
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use types
+    use qtree_basic, only: nnuc, ode_o, ode_a, ode_type, ode_b, ngrd_term,&
+       ode_b2, safety, qinv, q1inv, periodic, lrotm, r_betagp, ode_fsal,&
+       crys2convex, locate_tetrah
+    use varbas, only: nearest_cp, cpcel
+    use fields, only: f, grd
+    use global, only: stepsize, refden, ode_abserr, killext, ws_origin
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr
+    use types, only: scalar_value
 
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t

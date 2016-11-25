@@ -36,11 +36,12 @@ contains
 
   
   subroutine stm_driver(line)
-    use fields
-    use struct_basic
-    use global
-    use tools_io
-    use param
+    use fields, only: f, type_grid, grd0, fields_typestring
+    use struct_basic, only: cr
+    use global, only: refden, eval_next, fileroot
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, string,&
+       fopen_write, fclose
+    use param, only: bohrtoa
 
     character*(*), intent(inout) :: line
 
@@ -354,8 +355,8 @@ contains
   end subroutine stm_driver
 
   subroutine detect_vacuum(ix,rtop)
-    use struct_basic
-    use tools_io
+    use struct_basic, only: cr
+    use tools_io, only: faterr, ferror
     integer, intent(out) :: ix
     real*8, intent(out) :: rtop
     
@@ -415,10 +416,10 @@ contains
   !> The reference field is assumed to be locally monotonic along ix.
   !> The output z is in cartesian.
   function stm_bisect(x,ix,rho0) result(z)
-    use fields
-    use struct_basic
-    use global
-    use tools_io
+    use fields, only: f, grd0
+    use struct_basic, only: cr
+    use global, only: refden
+    use tools_io, only: faterr, ferror
     
     real*8, intent(in) :: x(3)
     integer, intent(in) :: ix
@@ -488,10 +489,10 @@ contains
   !> at iz. The output z is in cartesian. The reference field is
   !> assumed to be locally monotonic along ix. 
   function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
-    use fields
-    use struct_basic
-    use global
-    use tools_io
+    use fields, only: f, type_grid
+    use struct_basic, only: cr
+    use global, only: refden
+    use tools_io, only: ferror, faterr
     
     integer, intent(in) :: i1, i2, iz, ip1, ip2, ix
     real*8, intent(in) :: rho0

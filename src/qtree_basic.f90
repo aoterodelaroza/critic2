@@ -235,14 +235,15 @@ contains
   !> at the beginning of the integration, or twice if the beta-sphere sizes are determined
   !> dynamically.
   subroutine qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,verbose)
-    use fields
-    use varbas
-    use struct
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
-    use param
+    use fields, only: f, nprops
+    use varbas, only: ncp, cp
+    use struct_basic, only: cr
+    use global, only: refden, minl, prop_mode, integ_scheme, integ_mode, keastnum,&
+       qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_use, ws_origin,&
+       ws_scale
+    use tools_math, only: mixed, cross
+    use tools_io, only: ferror, faterr, uout, warning
+    use param, only: eye
 
     integer, intent(in) :: lvl, plvl
     logical, intent(in) :: verbose
@@ -497,9 +498,8 @@ contains
 
   !> Check that the symmetry of the cell and the tetrahedra are consistent.
   subroutine qtree_checksymmetry()
-    use global
-    use struct_basic
-    use tools_io
+    use global, only: ws_scale
+    use struct_basic, only: cr
 
     real*8 :: sumi
     integer :: i
@@ -538,13 +538,12 @@ contains
   !> the gradient at a collection of points is at most 45 degrees from
   !> the radial direction.
   subroutine find_beta_rodriguez(nuc,rbeta)
-    use fields
-    use varbas
-    use surface
-    use global
-    use param
-    use types
-    
+    use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_close
+    use fields, only: f, grd
+    use varbas, only: cp
+    use global, only: refden
+    use param, only: pi
+    use types, only: minisurf, scalar_value
     integer, intent(in) :: nuc
     real*8, intent(inout) :: rbeta
 
@@ -587,8 +586,8 @@ contains
 
   !> Remap the pointers to the given one-step ODE solver.
   subroutine map_ode_pointers(odem)
-    use global
-    use tools_io
+    use global, only: ode_abserr
+    use tools_io, only: ferror, faterr
 
     integer, intent(in) :: odem
 
@@ -693,8 +692,7 @@ contains
   !> Transforms from crystallographic to convex coordinates. If the
   !> point is not inside any known IWST, base_t = 0 is returned.
   subroutine crys2convex(x,base_t,rver)
-    use struct_basic
-
+    use struct_basic, only: cr
     real*8, intent(in) :: x(3)
     integer, intent(out) :: base_t
     real*8, intent(out) :: rver(3)
@@ -720,9 +718,7 @@ contains
   !> which it belongs and the associated convex coordinates. Also,
   ! return the poi
   subroutine locate_tetrah(x,base_t,rver,lrot)
-    use global
-    use struct_basic
-
+    use global, only: ws_origin
     real*8, intent(inout) :: x(3)
     integer, intent(out) :: base_t
     real*8, intent(out) :: rver(3)
@@ -766,10 +762,9 @@ contains
   !> index, the rotation matrix from the site-symmetry point group of
   !> the origin to use on xp and the distance
   subroutine neargp(xp,base_t,lrot,idx,dist)
-    use global
-    use struct_basic
-    use tools_io
-
+    use global, only: ws_origin
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
     integer, intent(inout) :: lrot
@@ -834,9 +829,8 @@ contains
 
   !> Find the contacts between tetrahedron faces
   subroutine find_tetrah_contacts()
-    use struct_basic
-    use tools_io
-
+    use struct_basic, only: cr
+    use tools_io, only: uout, ferror, faterr
     integer :: t, f, p, op, c, i, t2, f2, invp, invc, invop
     real*8 :: xface(3,3,4,nt_orig) ! xface(vcoords,vertex,face,tetrah)
     real*8 :: aux(3,3), aux2(3,3)
@@ -934,10 +928,9 @@ contains
   !> by a rotation (op), a centering translation (c) and a permutation of the 
   !> vertex (p).
   subroutine inverse_operation(p,op,c,invp,invop,invc)
-    use struct_basic
-    use tools_io
-    use param
-
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr
+    use param, only: eye
     integer, intent(in) :: p, op, c
     integer, intent(out) :: invp, invop, invc
 
@@ -1088,9 +1081,6 @@ contains
 
   !> Pre-split the initial tetrahedra list p times.
   subroutine presplit_ws(plvl,ntetrag,tetrag)
-    use struct
-    use struct_basic
-
     integer, intent(in) :: plvl
     integer, intent(inout) :: ntetrag
     real*8, intent(inout), allocatable :: tetrag(:,:,:)

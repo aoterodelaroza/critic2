@@ -22,34 +22,44 @@
 !                 \___|_|  |_|\__|_|\___|_____|
 !                                     
 program critic
-  use tricks
-  use stm
-  use xdm
-  use ewald
-  use hirshfeld
-  use qtree
-  use bisect
-  use integration
-  use flux
-  use autocp
-  use nci
-  use rhoplot
-  use fields
-  use varbas
-  use grd_atomic
-  use struct
-  use struct_basic
-  use wfn_private
-  use pi_private
-  use spgs
-  use global
-  use config
-  use graphics
-  use arithmetic
-  use types
-  use tools
-  use tools_io
-  use param
+  use tricks, only: trick
+  use stm, only: stm_driver
+  use xdm, only: xdm_driver
+  use ewald, only: ewald_energy
+  use hirshfeld, only: hirsh_props_grid
+  use qtree, only: qtree_integration, qtree_setsphfactor
+  use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
+  use integration, only: intgrid_driver
+  use flux, only: fluxprint
+  use autocp, only: init_cplist, autocritic, cpreport
+  use nci, only: nciplot
+  use rhoplot, only: rhoplot_point, rhoplot_line, rhoplot_plane, rhoplot_cube,&
+     rhoplot_grdvec
+  use fields, only: fieldname_to_idx, goodfield, f, fused, type_grid, nprops,&
+     integ_prop, itype_fval, itype_lapval, fields_init, fields_end, &
+     fields_load, fields_unload, setfield, fieldinfo, benchmark, &
+     fields_integrable, fields_pointprop, testrmt, listfields, listfieldalias,&
+     fields_integrable_report
+  use varbas, only: varbas_end, varbas_identify
+  use grd_atomic, only: grda_init, grda_end
+  use struct, only: struct_crystal_input, struct_newcell, struct_molcell,&
+     struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
+     struct_compare, struct_environ, struct_packing
+  use struct_basic, only: cr
+  use wfn_private, only: wfn_end
+  use pi_private, only: pi_end
+  use spgs, only: spgs_init
+  use global, only: fileroot, quiet, refden, eval_next, gradient_mode,&
+     int_radquad_errprop_default, int_radquad_errprop, global_init,&
+     initial_banner, help_me, config_write, critic_clearvariable,&
+     critic_setvariables,global_set_defaults
+  use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
+     fcflags, ldflags, enable_debug, package
+  use graphics, only: graphics_init
+  use arithmetic, only: listvariables
+  use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
+     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac
+  use param, only: param_init
   implicit none
 
   ! command-line arguments

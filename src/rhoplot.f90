@@ -71,14 +71,15 @@ contains
 
   ! Calculate properties at a point
   subroutine rhoplot_point(line)
-    use fields
-    use struct_basic
-    use global
-    use arithmetic
-    use tools_io
-    use types
-    use param
-
+    use fields, only: fieldname_to_idx, goodfield, fused, fields_fcheck, &
+       fields_feval, fields_propty
+    use struct_basic, only: cr
+    use global, only: eval_next, refden, dunit
+    use arithmetic, only: eval
+    use tools_io, only: ferror, faterr, lgetword, equal, getword, &
+       isexpression_or_word, uout, string
+    use types, only: scalar_value
+    use param, only: bohrtoa
     character*(*), intent(in) :: line
 
     type(scalar_value) :: res
@@ -167,15 +168,15 @@ contains
 
   ! Calculate properties on a line
   subroutine rhoplot_line(line)
-    use fields
-    use struct_basic
-    use global
-    use arithmetic
-    use tools_io
-    use tools_math
-    use types
-    use param
-
+    use fields, only: fieldname_to_idx, goodfield, f, fields_feval, fields_fcheck,&
+       grd
+    use struct_basic, only: cr
+    use global, only: eval_next, refden, dunit
+    use arithmetic, only: eval
+    use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
+       isexpression_or_word, fopen_write, uout, string, fclose
+    use tools_math, only: norm
+    use types, only: scalar_value
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
@@ -346,16 +347,17 @@ contains
 
   ! Calculate properties on a 3d cube
   subroutine rhoplot_cube(line)
-    use grid_tools
-    use fields
-    use struct_basic
-    use global
-    use arithmetic
-    use tools_math
-    use tools_io
-    use types
-    use param
-
+    use grid_tools, only: grid_rhoat
+    use fields, only: fieldname_to_idx, goodfield, f, type_grid, fields_fcheck,&
+       fields_feval, writegrid_cube, writegrid_vasp, grd
+    use struct_basic, only: cr
+    use global, only: eval_next, dunit, refden, fileroot
+    use arithmetic, only: eval
+    use tools_math, only: norm
+    use tools_io, only: lgetword, faterr, ferror, equal, getword, &
+       isexpression_or_word, uout, string
+    use types, only: scalar_value, field
+    use param, only: eye
     character*(*), intent(in) :: line
 
     integer :: lp, nti, id, nn(3)
@@ -618,15 +620,15 @@ contains
 
   ! Calculate properties on a plane.
   subroutine rhoplot_plane(line)
-    use fields
-    use struct_basic
-    use global
-    use arithmetic
-    use tools_io
-    use tools_math
-    use types
-    use param
-
+    use fields, only: fieldname_to_idx, goodfield, f, grd, fields_fcheck, &
+       fields_feval
+    use struct_basic, only: cr
+    use global, only: eval_next, dunit, refden, fileroot
+    use arithmetic, only: eval
+    use tools_io, only: ferror, faterr, lgetword, equal, getword, &
+       isexpression_or_word, fopen_write, uout, string, fclose
+    use tools_math, only: norm, plane_scale_extend
+    use types, only: scalar_value
     character*(*), intent(in) :: line
 
     integer :: n1, n2, n3, lp2
@@ -951,13 +953,10 @@ contains
   !> .gnu). If dolabels, write the labels file. If dognu, write the
   !> gnu file.
   subroutine contour(r0,r1,r2,nx,ny,nti,niso,rootname,dognu,dolabels)
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use struct_basic, only: cr
+    use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
+    use tools_math, only: norm, cross, det, matinv
+    use param, only: vbig, pi
     real*8, intent(in) :: r0(3), r1(3), r2(3)
     integer, intent(in) :: nx, ny
     integer, intent(in) :: nti
@@ -1158,7 +1157,7 @@ contains
 
   !> Write a gnuplot template for the relief plot
   subroutine relief(rootname,outfile,zmin,zmax)
-    use tools_io
+    use tools_io, only: fopen_write, uout, string, fclose
     real*8, intent(in) :: zmin, zmax
     character*(*), intent(in) :: rootname, outfile
 
@@ -1209,7 +1208,7 @@ contains
 
   !> Write a gnuplot template for the color map plot
   subroutine colormap(rootname,outfile,cmopt)
-    use tools_io
+    use tools_io, only: fopen_write, uout, string, fclose
     character*(*), intent(in) :: rootname, outfile
     integer, intent(in) :: cmopt
 
@@ -1267,8 +1266,7 @@ contains
   !> Find contour with value = zc on a surface given by a grid.
   !> uses linear interpolation.
   subroutine hallarpuntos(zc,nx,ny)
-    use param
-
+    use param, only: zero
     real*8, intent(in) :: zc
     integer, intent(in) :: nx, ny
 
@@ -1365,8 +1363,7 @@ contains
 
   !> Determines the connectivity of the set of contour points.
   subroutine ordenarpuntos (luw,calpha,ziso)
-    use param
-
+    use param, only: one, half, zero
     real*8, parameter :: eps = 0.10d0
 
     integer, intent(in) :: luw
@@ -1560,9 +1557,7 @@ contains
 
   !> Write (x(n),y(n)) curve in luw.
   subroutine linea (x,y,n,luw,ziso)
-    use global
-    use tools_io
-
+    use tools_io, only: string
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: x, y
     integer, intent(in) :: luw
@@ -1581,16 +1576,14 @@ contains
 
   !> Plot of gradient paths and contours in the style of aimpac's grdvec.
   subroutine rhoplot_grdvec()
-    use autocp
-    use fields
-    use varbas
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use fields, only: f, grd
+    use varbas, only: ncpcel, cpcel
+    use struct_basic, only: cr
+    use global, only: fileroot, eval_next, dunit, refden
+    use tools_io, only: uout, uin, ucopy, getline, lgetword, equal, eval_next,&
+       faterr, ferror, string, ioj_right, fopen_write, getword, fclose
+    use tools_math, only: rsindex, plane_scale_extend
+    use types, only: scalar_value
     character(len=:), allocatable :: line, word, datafile, rootname
     integer :: lpold, lp, udat, ll, idum, i, j
     integer :: updum, dndum, updum1, dndum1
@@ -2048,17 +2041,14 @@ contains
   !> Plot of the gradient vector field in the plane defined
   !> by the vectors (r1-r0) & (r2-r0).
   subroutine plotvec (r0, r1, r2, autocheck, udat)
-    use autocp
-    use navigation
-    use fields
-    use varbas
-    use global
-    use struct_basic
-    use tools_math
-    use tools_io
-    use param
-    use types
-
+    use navigation, only: gradient
+    use fields, only: f, grd
+    use global, only: dunit, refden
+    use struct_basic, only: cr
+    use tools_math, only: cross, matinv, rsindex
+    use tools_io, only: uout, string, ioj_right, ioj_left
+    use param, only: pi
+    use types, only: scalar_value
     integer, intent(in) :: udat
     logical, intent(in) :: autocheck
     real*8, dimension(3), intent(in) :: r0, r1, r2
@@ -2318,9 +2308,8 @@ contains
 
   !> Write the gradient path to the udat logical unit.
   subroutine wrtpath (xflux, nptf, mptf, udat, rp0, r01, r02, cosalfa, sinalfa)
-    use struct_basic
-    use param
-
+    use struct_basic, only: cr
+    use param, only: jmlcol
     integer, intent(in) :: mptf
     real*8, dimension(3,mptf), intent(in) :: xflux
     integer, intent(in) :: nptf
@@ -2391,17 +2380,13 @@ contains
   !> are critical points, remove repeated points, and check which
   !> equivalents (within the main cell) lie on the plotting plane.
   subroutine autochk(rp0)
-    use autocp
-    use navigation
-    use fields
-    use varbas
-    use struct_basic
-    use global
-    use tools_io
-    use tools_math
-    use param
-    use types
-
+    use fields, only: f, grd
+    use struct_basic, only: cr
+    use global, only: refden, cp_hdegen
+    use tools_io, only: uout, string, ioj_left, ioj_right, faterr, ferror
+    use tools_math, only: rsindex
+    use param, only: one
+    use types, only: scalar_value
     integer :: i, j, k, l, ncopies
     integer :: iorde(2*indmax+1), indcell(3,(2*indmax+1)**3), iii, inum
     real*8  :: xp(3)
@@ -2523,13 +2508,10 @@ contains
   !> contains the list of critical points contained in the plot
   !> plane, ready to be read in gnuplot.
   subroutine write_fichlabel(rootname)
-    use autocp
-    use varbas
-    use navigation
-    use struct_basic
-    use tools_io
-    use param
-
+    use varbas, only: ncpcel, cpcel
+    use struct_basic, only: cr
+    use tools_io, only: uout, string, fopen_write, fclose
+    use param, only: one
     character*(*), intent(in) :: rootname
 
     character(len=:), allocatable :: fichlabel
@@ -2620,9 +2602,7 @@ contains
   !> -values) and the .neg.iso (negative iso-values). If dograds,
   !> write the file containing the gradient paths.
   subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
-    use global
-    use tools_io
-
+    use tools_io, only: uout, string, fopen_write, string, fclose
     character*(*), intent(in) :: rootname
     logical, intent(in) :: dolabels, docontour, dograds
     
@@ -2678,9 +2658,8 @@ contains
 
   !> Calculate the axis of the plane given by 3 points
   subroutine buildplane(x0,x1,x2,scalx,scaly,sizex,sizey)
-    use struct_basic
-    use tools_math
-
+    use struct_basic, only: cr
+    use tools_math, only: norm
     real*8, intent(inout) :: x0(3), x1(3), x2(3)
     real*8, intent(in) :: scalx, scaly, sizex, sizey
 

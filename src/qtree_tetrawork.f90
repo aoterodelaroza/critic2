@@ -38,10 +38,12 @@ contains
   !> Stack-based recursive subdivision of one IWST with in-line
   !> integration.
   subroutine tetrah_subdivide(base_t,iiv,il,acum_atprop,trm,fgr,lapgr,vgr)
-    use qtree_basic
-    use global
-    use struct_basic
-    use tools_io
+    use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, lustick, &
+       cindex, nnuc, tvol, periodic, intcorner_deferred, maxl
+    use global, only: color_allocate, plot_mode, plotsticks, minl, integ_mode,&
+       checkbeta
+    use struct_basic, only: cr
+    use tools_io, only: uout, faterr, ferror
     
     integer, intent(in) :: base_t
     integer, intent(in) :: iiv(3,4)
@@ -250,14 +252,16 @@ contains
 
   !> Determines the color of a given grid point, if it is not known. 
   function term_rec(base_t,iver,l,trm,fgr,lapgr)
-    use qtree_basic
-    use qtree_gpaths
-    use varbas
-    use fields
-    use global
-    use struct_basic
-    use tools_io
-    use types
+    use qtree_basic, only: qtreei, qtreer, qtreeidx, trm, cindex, maxl,&
+       torig, tvec, r_betagp, r_betaint, nder, ngrd_term, savefgr,&
+       savelapgr, nterm, ngrd1, ngrd2, ndiff, ludif, map_ode_pointers
+    use qtree_gpaths, only: gradient_full, gradient_color, gradient_qtree
+    use varbas, only: nearest_cp, cpcel
+    use fields, only: f, grd
+    use global, only: color_allocate, refden, qtree_ode_mode, gradient_mode
+    use struct_basic, only: cr
+    use tools_io, only: uout, ferror, faterr
+    use types, only: scalar_value
 
     integer, intent(in) :: base_t, iver(3), l
     integer(qtreei), intent(inout) :: trm(:,:)
