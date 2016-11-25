@@ -1966,9 +1966,10 @@ the selected fragment of the system is split into its component
 connected molecules. Then, all monomers, dimers, trimers,... are
 written to separate files. All n-mers are written from monomers up to
 n-mers, where n is the value of nmer.i. In NMER is used with ENVIRON,
-the first molecule is always part of the Wigner-Seitz cell, which is
-useful when generating molecular environments of the crystal for
-calculations using incremental methods.
+the first molecule in all n-mers except for those with n = nmer.i is
+always part of the Wigner-Seitz cell, which is useful when generating
+molecular environments of the crystal for calculations using
+incremental methods.
 
 There is an important application of the xyz-format WRITE keyword: the
 coordinates written to the xyz file are consistent with the
