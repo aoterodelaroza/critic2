@@ -232,7 +232,7 @@ contains
           allocate(icomb(i))
           do j = 1, ncomb
              call comb(nmol,i,j,icomb)
-             if (environ .and. icomb(1) > c%nmol .and. i == nmer) cycle
+             if (environ .and. icomb(1) > c%nmol .and. (i == nmer .or. i == 1)) cycle
              file0 = wroot 
              call fragment_init(fr)
              do k = 1, i
