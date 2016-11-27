@@ -24,7 +24,7 @@
 ! of Standards- Washington D.C., U.S.A.).
 ! -- More on www.netlib.org/quadpack --
 module quadpack
-
+  implicit none
   private
 
   public :: dqagi
@@ -37,7 +37,6 @@ contains
   subroutine dqagi(f,unit,xnuc,bound,inf,epsabs,epsrel,result,abserr,neval,&
      ier,limit,lenw,last,iwork,work)
     use fields, only:Nprops
-    implicit none
 !***begin prologue  dqagi
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -203,7 +202,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -243,7 +241,6 @@ contains
     use fields, only: Nprops
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
-    implicit none
 !***begin prologue  dqagie
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -408,7 +405,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -713,7 +709,6 @@ contains
     use fields, only:Nprops
     use global, only:INT_radquad_errprop
     use param, only: d1mach_
-    implicit none
 !***begin prologue  dqk15i
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -793,7 +788,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -927,7 +921,6 @@ contains
     use fields, only: Nprops
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
-    implicit none
 !***begin prologue  dqage
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -1090,7 +1083,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -1300,7 +1292,6 @@ contains
   subroutine dqag(f,unit,xnuc,a,b,epsabs,epsrel,key,result,abserr,neval,ier,&
          limit,lenw,last,iwork,work)
     use fields, only: Nprops
-    implicit none
 !***begin prologue  dqag
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -1457,7 +1448,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -1497,7 +1487,6 @@ contains
     use fields, only: Nprops
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
-    implicit none
 !***begin prologue  dqagse
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -1664,7 +1653,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -1992,7 +1980,6 @@ contains
   subroutine dqags(f,unit,xnuc,a,b,epsabs,epsrel,result,abserr,neval,ier,&
          limit,lenw,last,iwork,work)
     use fields, only: Nprops
-    implicit none
 !***begin prologue  dqags
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -2155,7 +2142,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2194,7 +2180,6 @@ contains
     use fields, only: Nprops
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
-    implicit none
 
     real*8, parameter :: VSMALL = 1d-40
 !***begin prologue  dqelg
@@ -2499,7 +2484,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2699,7 +2683,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2907,7 +2890,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3125,7 +3107,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3357,7 +3338,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3604,7 +3584,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3887,7 +3866,6 @@ contains
       interface
          function f(x,unit,xnuc)
            use fields, only: Nprops, grdall
-           implicit none
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)

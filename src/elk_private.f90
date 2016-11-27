@@ -563,7 +563,6 @@ contains
     ! !REVISION HISTORY:
     !   Created October 2002 (JKD)
     !   Included tolerance eps, April 2006 (JKD)
-    implicit none
     ! arguments
     integer, intent(in) :: n
     real(8), intent(in) :: a(n)

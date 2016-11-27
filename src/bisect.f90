@@ -18,6 +18,8 @@
 !> Integration and plotting of basins through bisection.
 module bisect
   use global, only: INT_lebedev
+  implicit none
+
   private 
 
   public :: basinplot
@@ -65,7 +67,6 @@ contains
     use varbas, only: cp, cpcel, ncpcel, nearest_cp
     use global, only: refden
     use struct_basic, only: cr
-    implicit none
 
     integer, intent(in) :: cpid
     real*8, dimension(3), intent(in) :: xin, xfin
@@ -165,7 +166,6 @@ contains
     use navigation, only: gradient
     use fields, only: f, type_grid
     use global, only: refden
-    implicit none
     !
     real*8, intent(in) :: xup(3), xdn(3)
     real*8, intent(inout) :: xin(3), xfin(3)
@@ -252,7 +252,6 @@ contains
     use tools_io, only: uout, string, ferror, faterr
     use types, only: minisurf
     use param, only: vbig
-    implicit none
 
     integer, intent(in) :: cpid
     type(minisurf), intent(inout) :: srf
@@ -499,7 +498,6 @@ contains
     use tools_io, only: uout, string, faterr, ferror
     use types, only: minisurf
     use param, only: vbig
-    implicit none
 
     type(minisurf), intent(inout) :: srf
     real*8, intent(in) :: prec
@@ -704,7 +702,6 @@ contains
        string, uout, ioj_right
     use types, only: minisurf
     use param, only: jmlcol
-    implicit none
 
     character*(*), intent(in) :: line
 
@@ -996,7 +993,6 @@ contains
     use types, only: minisurf
     use tools_io, only: ferror, faterr, lgetword, equal, getword, isexpression_or_word,&
        string, uout
-    implicit none
 
     character*(*), intent(in) :: line
 
@@ -1211,7 +1207,6 @@ contains
     use integration, only: gauleg_msetnodes, gauleg_mquad
     use fields, only: nprops
     use types, only: minisurf
-    implicit none
     
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: ntheta, nphi
@@ -1249,7 +1244,6 @@ contains
     use integration, only: lebedev_msetnodes, lebedev_mquad
     use fields, only: nprops
     use types, only: minisurf
-    implicit none
     
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: nleb
@@ -1289,7 +1283,6 @@ contains
     use tools_io, only: lgetword, equal, ferror, faterr, warning, uout, string,&
        ioj_right
     use tools_math, only: good_lebedev
-    implicit none
 
     character*(*), intent(in) :: line
 
@@ -1508,7 +1501,6 @@ contains
     use struct_basic, only: cr
     use tools_io, only: uout
     use types, only: minisurf
-    implicit none
 
     real*8, intent(out) :: atprop(Nprops)
     integer, intent(in) :: n1, n2, cpid
@@ -1637,7 +1629,6 @@ contains
     use struct_basic, only: cr
     use tools_io, only: uout
     use types, only: minisurf
-    implicit none
 
     real*8, intent(out) :: atprop(Nprops)
     integer, intent(in) :: nleb, cpid
@@ -1765,7 +1756,6 @@ contains
     use struct_basic, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
-    implicit none
 
     character*(*), intent(in) :: line
 
@@ -1918,7 +1908,6 @@ contains
        int_iasprec
     use struct_basic, only: cr
     use tools_io, only: uout, string, ioj_left
-    implicit none
 
     integer, intent(in) :: meth, ntheta, nphi, np, cpid
     logical, intent(in) :: usefiles

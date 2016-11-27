@@ -252,7 +252,7 @@ contains
 
   !> Determines the color of a given grid point, if it is not known. 
   function term_rec(base_t,iver,l,trm,fgr,lapgr)
-    use qtree_basic, only: qtreei, qtreer, qtreeidx, trm, cindex, maxl,&
+    use qtree_basic, only: qtreei, qtreer, qtreeidx, cindex, maxl,&
        torig, tvec, r_betagp, r_betaint, nder, ngrd_term, savefgr,&
        savelapgr, nterm, ngrd1, ngrd2, ndiff, ludif, map_ode_pointers
     use qtree_gpaths, only: gradient_full, gradient_color, gradient_qtree

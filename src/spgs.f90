@@ -3191,8 +3191,6 @@ contains
 !     ier ...... if (ier.ne.0). An error has been found.
 !
 !
-      implicit none
-
       character*(24)    spg
       integer           lpt, lptx, ier
 !
@@ -3932,7 +3930,6 @@ contains
 
   !> Determines parametrs for I-F centered lattices
   subroutine ifcent (l, d, lcent, ier)
-      implicit none
       real*8            d(3,3)
       integer           l(4,4)
       integer           lcent, ier
@@ -4014,7 +4011,6 @@ contains
   end subroutine ifcent
 
   subroutine ortho (d, l, laue, lcent, id)
-      implicit none
       integer           laue, lcent, id
       real*8            d(3,3)
       integer           l(4,4)
@@ -4171,7 +4167,6 @@ contains
   end subroutine ortho
 
   subroutine sgerrs (sgp, ierr, lpt)
-      implicit none
       character*(30)    sgp
       integer           ierr, lpt
 
@@ -4272,7 +4267,6 @@ contains
   end subroutine sgerrs
 
   subroutine sglatc (k, l, d, lcent, laue, naxis, ier, ncubic, id)
-      implicit none
       integer           l(4,4), k, lcent, laue, naxis, ier, ncubic, id
       real*8            d(3,3)
 !
@@ -4764,7 +4758,6 @@ contains
 
   !> Converts -N notation into Nbar notation
   subroutine sglpak (l, ier)
-      implicit none
       integer           l(4), ier
 
       if ( l(2).lt.12 ) ier = 4
@@ -4776,7 +4769,6 @@ contains
 
   !> Space group matrix multiplication
   subroutine sgmtml (x, i, y, j, z, k)
-      implicit none
       real*8         x(5,4,25), y(5,4,25), z(5,4,25)
       integer        i, j, k
 !
@@ -4805,7 +4797,6 @@ contains
   subroutine sgprnt (spg, lpt)
     use tools_io
     use param
-    implicit none
 !
       character*(*)     spg
       integer           lpt
@@ -4996,7 +4987,6 @@ contains
   !> plus a column for the traslation, a row that could
   !> represent a deformation of the axes (set to 0), and ...
   subroutine sgrmat (rt, a, b, c, d, e, f, g, h, o)
-      implicit none
       real*8            rt(5,4)
       integer           a, b, c, d, e, f, g, h, o
 !
@@ -5027,7 +5017,6 @@ contains
 
   !> Check rotation/traslation compatibility.
   subroutine sgtrcf (m, rt, n, m2, lcent, laue, ier, lpt)
-      implicit none
       integer           m, n, m2, lcent, laue, ier, lpt
       real*8            rt(5,4,25)
 !

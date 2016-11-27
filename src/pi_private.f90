@@ -20,6 +20,8 @@
 
 !> Interface to aiPI (pi7) densities.
 module pi_private
+  implicit none
+
   private
 
   public :: pi_end
@@ -79,7 +81,6 @@ contains
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
     use types, only: field
     use param, only: fact, zero
-    implicit none
 
     character*(*)  fichero
     type(field)    f
@@ -267,7 +268,6 @@ contains
 
   !xx! PRIVATE functions and subroutines
   subroutine buscapar (line,chpar,nchpar,ipar,nipar)
-    implicit none
     
     integer, parameter :: mpar=3
     integer :: ipar(mpar)
@@ -355,7 +355,6 @@ contains
   end subroutine buscapar
 
   logical function entero (palabra,ipal)
-    implicit none
     
     character*(*)     palabra
     character*(1)     cero,nueve,ch
@@ -377,7 +376,6 @@ contains
   subroutine fillinterpol(f)
     use global, only: cutrad
     use types, only: field
-    implicit none
 
     type(field), intent(inout) :: f
 
@@ -428,7 +426,6 @@ contains
     use tools_math, only: ep
     use types, only: field
     use param, only: pi, zero, two
-    implicit none
 
     type(field), intent(inout) :: f
     integer, intent(in) :: ni
@@ -485,7 +482,6 @@ contains
     use tools_math, only: ep, norm
     use param, only: pi, one
     use types, only: field
-    implicit none
 
     type(field), intent(in) :: f
     real*8, intent(in) :: xpos(3)

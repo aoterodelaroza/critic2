@@ -1580,7 +1580,7 @@ contains
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
     use global, only: fileroot, eval_next, dunit, refden
-    use tools_io, only: uout, uin, ucopy, getline, lgetword, equal, eval_next,&
+    use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend
     use types, only: scalar_value

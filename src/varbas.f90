@@ -54,7 +54,6 @@ contains
   !> distance. If nozero is used, skip zero distance CPs.
   subroutine nearest_cp(xp,nid,dist,type,idx,nozero)
     use struct_basic, only: cr
-    implicit none
 
     real*8, intent(in) :: xp(:)
     integer, intent(out) :: nid

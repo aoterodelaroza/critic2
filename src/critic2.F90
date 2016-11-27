@@ -719,7 +719,6 @@ program critic
 contains
   !> Set field number id as reference
   subroutine set_reference(id)
-    implicit none
 
     integer, intent(in) :: id
 

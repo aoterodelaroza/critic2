@@ -156,8 +156,6 @@ contains
     !    computation.  The user should allocate space for these in the calling
     !    program, include them in the calling sequence, but never alter them!
     !
-    implicit none
-
     integer ( kind = 4 ) k
 
     integer ( kind = 4 ) a(k)
@@ -234,8 +232,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) IUNIT, the free unit number.
     !
-    implicit none
-
     integer ( kind = 4 ) i
     integer ( kind = 4 ) ios
     integer ( kind = 4 ) iunit
@@ -315,8 +311,6 @@ contains
     !    Output, integer ( kind = 4 ) I4_MODP, the nonnegative remainder when I is
     !    divided by J.
     !
-    implicit none
-
     integer ( kind = 4 ) i
     integer ( kind = 4 ) i4_modp
     integer ( kind = 4 ) j
@@ -389,8 +383,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) I4_WRAP, a "wrapped" version of IVAL.
     !
-    implicit none
-
     integer ( kind = 4 ) i4_wrap
     integer ( kind = 4 ) ihi
     integer ( kind = 4 ) ilo
@@ -446,8 +438,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) DEGREE, the degree of the rule.
     !
-    implicit none
-
     integer ( kind = 4 ) degree
     integer ( kind = 4 ) rule
 
@@ -512,8 +502,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) ORDER_NUM, the order of the rule.
     !
-    implicit none
-
     integer ( kind = 4 ) order_num
     integer ( kind = 4 ) rule
     integer ( kind = 4 ), allocatable, dimension ( : ) :: suborder
@@ -566,8 +554,6 @@ contains
     !
     !    Output, real ( kind = 8 ) W(ORDER_NUM), the weights of the rule.
     !
-    implicit none
-
     integer ( kind = 4 ) order_num
 
     integer ( kind = 4 ) k
@@ -758,8 +744,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) RULE_NUM, the number of rules.
     !
-    implicit none
-
     integer ( kind = 4 ) rule_num
 
     rule_num = 10
@@ -799,8 +783,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) SUBORDER(SUBORDER_NUM), the suborders.
     !
-    implicit none
-
     integer ( kind = 4 ) suborder_num
 
     integer ( kind = 4 ) rule
@@ -866,8 +848,6 @@ contains
     !
     !    Output, integer ( kind = 4 ) SUBORDER_NUM, the number of suborders.
     !
-    implicit none
-
     integer ( kind = 4 ) rule
     integer ( kind = 4 ) suborder_num
 
@@ -938,8 +918,6 @@ contains
     !    Output, real ( kind = 8 ) SUBORDER_W(SUBORDER_NUM), the
     !    suborder weights.
     !
-    implicit none
-
     integer ( kind = 4 ) suborder_num
 
     integer ( kind = 4 ) :: i4_4 = 4
@@ -1182,8 +1160,6 @@ contains
     !
     !    Output, real ( kind = 8 ) VALUE(POINT_NUM), the value of the monomial.
     !
-    implicit none
-
     integer ( kind = 4 ) dim_num
     integer ( kind = 4 ) point_num
 
@@ -1230,8 +1206,6 @@ contains
     !
     !    Output, real ( kind = 8 ) R8MAT_DET_4D, the determinant of the matrix.
     !
-    implicit none
-
     real    ( kind = 8 ) a(4,4)
     real    ( kind = 8 ) r8mat_det_4d
 
@@ -1299,8 +1273,6 @@ contains
     !    Output, real ( kind = 8 ) PHY(3,N), corresponding points in the
     !    physical tetrahedron.
     !
-    implicit none
-
     integer ( kind = 4 ) n
 
     integer ( kind = 4 ) i
@@ -1341,8 +1313,6 @@ contains
     !
     !    Output, real ( kind = 8 ) VOLUME, the volume of the tetrahedron.
     !
-    implicit none
-
     integer ( kind = 4 ), parameter :: dim_num = 3
 
     real    ( kind = 8 ) a(4,4)
@@ -1382,8 +1352,6 @@ contains
     !
     !    None
     !
-    implicit none
-
     character ( len = 8 ) ampm
     integer ( kind = 4 ) d
     integer ( kind = 4 ) h

@@ -2377,7 +2377,6 @@ contains
     !     NOTA BENE: all axis sets are right-handed
     !     Boxes for US PPs do not work properly with left-handed axis
     !
-    implicit none
     integer, parameter :: dp = selected_real_kind(14,200)
     integer, intent(in) :: ibrav
     real(DP), intent(inout) :: celldm(6)

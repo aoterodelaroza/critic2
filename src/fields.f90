@@ -929,7 +929,6 @@ contains
     use tools_io
     use arithmetic
     use types
-    implicit none
 
     integer, intent(in) :: id
     real*8, dimension(:), intent(in)  :: x0

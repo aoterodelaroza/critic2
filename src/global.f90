@@ -187,7 +187,6 @@ contains
   subroutine global_init(ghome,datadir)
     use tools_io, only: string, ferror, warning, uout
     use param, only: dirsep
-    implicit none
 
     character*(*) :: ghome, datadir
 

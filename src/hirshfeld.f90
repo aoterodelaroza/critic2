@@ -34,7 +34,7 @@ contains
     use fields, only: f, type_grid
     use struct_basic, only: cr
     use global, only: refden
-    use grd_atomic, only: agrid, grid_rhoat
+    use grd_atomic, only: agrid
     use tools_io, only: ferror, faterr, uout, string, ioj_center
     use types, only: field
 
