@@ -99,16 +99,16 @@ contains
     real*8, parameter :: ratom_def0 = 1d0
 
     character(len=:), allocatable :: word, file, expr
-    integer :: i, j, k, n(3), nn, ntot
-    integer :: lp, imtype, p(3), i1, i2, i3
+    integer :: i, k, n(3), nn, ntot
+    integer :: lp, imtype, i1, i2, i3
     logical :: ok, nonnm, noatoms, atexist, pmask(nprops), dowcube
     logical :: plmask(nprops)
-    real*8 :: ratom, dv(3), r, tp(2), ratom_def, padd, lprop(nprops)
+    real*8 :: ratom, ratom_def, padd, lprop(nprops)
     real*8 :: x(3), x2(3)
-    integer, allocatable :: idg(:,:,:), idgaux(:,:,:), icp(:), idprop(:)
+    integer, allocatable :: idg(:,:,:), icp(:), idprop(:)
     real*8, allocatable :: psum(:,:), xgatt(:,:)
-    real*8, allocatable :: w(:,:,:), wsum(:,:,:)
-    integer :: fid, nattr, ix, luw
+    real*8, allocatable :: w(:,:,:)
+    integer :: fid, nattr, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: di(:,:,:), mpole(:,:,:), sf(:,:)
     real*8, allocatable :: sij(:,:,:,:,:)
@@ -402,7 +402,7 @@ contains
     integer, intent(in) :: luw
     real*8, allocatable, intent(inout) :: mpole(:,:,:)
 
-    integer :: i, j, k, l, m, n(3), nn, ntot, nl, np
+    integer :: i, j, k, l, m, n(3), ntot, np
     integer :: ix
     integer :: fid, lmax
     real*8, allocatable :: w(:,:,:)
@@ -513,12 +513,10 @@ contains
     integer, intent(in) :: luw
     real*8, allocatable, intent(inout) :: sf(:,:)
 
-    integer :: i, j, k, l, m, n(3), nn, ntot, nl, np
-    integer :: ix
+    integer :: i, j, k, l, n(3), ntot, np
     integer :: fid
     real*8, allocatable :: w(:,:,:)
-    real*8 :: dv(3), r, tp(2), p(3), r2
-    real*8, allocatable :: rrlm(:)
+    real*8 :: dv(3), p(3), r2
     type(field) :: faux
 
     ! allocate space for the source function
@@ -606,11 +604,10 @@ contains
     real*8, intent(inout), allocatable :: di(:,:,:)
 
     integer :: i, j, k, l, m, i1, i2, ndeloc
-    integer :: fid, n(3), ntot, lumo, ix, nn
+    integer :: fid, n(3), ntot, lumo, ix
     real*8, allocatable :: w(:,:,:)
     real*8, allocatable :: xmo(:), sij(:,:,:)
     real*8 :: x(3), rho, auxg(3), auxh(3,3), gkin, vir
-    character*3 :: sat1, sat2
     real*8 :: stress(3,3)
 
     ndeloc = 0
@@ -754,21 +751,21 @@ contains
     integer, intent(in) :: luw
     real*8, intent(inout), allocatable :: sij0(:,:,:,:,:)
 
-    integer :: jaa, kaa, is, nspin
+    integer :: is, nspin
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, k, l, m, in, jn, kn, ia1, ia2, ia3
+    integer :: i, j, k, l, m, ia1, ia2, ia3
     integer :: i0, i1, j0, j1, k0, k1, m1, m2, m3, n0(3)
-    integer :: fid, n(3), lumo, ix, nn, kmo, lmo
-    integer :: rat(3), idx1(3), idx2(3), idxw(3)
+    integer :: fid, n(3), ix
+    integer :: idx1(3), idx2(3)
     real*8, allocatable :: w(:,:,:)
-    integer :: nbnd, nnr, nlat, ilat, jlat, nmo, imo, jmo
+    integer :: nbnd, nlat, nmo, imo, jmo
     real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
     real*8, allocatable :: sij(:,:,:,:)
     real*8, allocatable :: fa(:,:,:)
-    real*8 :: li, asum, asum2, x(3), fspin
+    real*8 :: asum, asum2, x(3), fspin
     logical :: found
     integer :: natt1
-    real*8 :: x0(3,3), x0inv(3,3), r1(3), r2(3)
+    real*8 :: x0(3,3), r1(3), r2(3)
     real*8, allocatable :: xgatt1(:,:), dist(:)
     integer, allocatable :: idg1(:,:,:)
     integer, allocatable :: io(:)

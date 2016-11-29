@@ -52,16 +52,14 @@ contains
     use param, only: fh, pi
 
     integer, parameter :: nleb = 770, nr = 50
-    integer, parameter :: nx = 100
 
-    character(len=:), allocatable :: saux
-    integer :: i, j, k, l, idx, idf, ids
+    integer :: i, j, k, l
     integer :: ix, iy, iz
-    real*8 :: rsph(cr%ncel), xsphf(cr%ncel), xsphs(cr%ncel)
+    real*8 :: rsph(cr%ncel)
     real*8 :: xleb(nleb), yleb(nleb), zleb(nleb), wleb(nleb)
-    real*8 :: rp(nr), rw(nr), lprop, x(3), x0(3), unit(3)
+    real*8 :: rp(nr), rw(nr), x(3), x0(3), unit(3)
     real*8 :: ff, fs, rsumf, rsums, ssumf, ssums
-    real*8 :: gsums, gsumf, d2, atp(cr%ncel), ntot
+    real*8 :: d2, atp(cr%ncel), ntot
     type(scalar_value) :: res, res2
     ! for yt
     integer :: nbasin, luw

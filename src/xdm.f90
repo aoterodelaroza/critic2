@@ -783,17 +783,14 @@ contains
   subroutine xdm_qe()
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose
     use struct_basic, only: cr
-    integer :: i, j, jj, nn, i3
+    integer :: i, j
     integer :: lu, idx, idx1, idx2
     character(len=:), allocatable :: line, str
     logical :: ok
-    real*8 :: a1, a2, maxc6, rmax, rmax2, x(3), ri, ri2, ri3
-    real*8 :: cn0, rvdwx, rix, exx, eat, etotal
+    real*8 :: a1, a2
     real*8 :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
     real*8 :: rc(cr%ncel,cr%ncel), rvdw(cr%ncel,cr%ncel)
     
-    real*8, parameter :: ecut = 1d-11
-
     write (uout,'("* Sum the XDM dispersion energy using a QE output")')
     write (uout,'("+ Reading coefficients from the file: ",A)') string(cr%file)
 
@@ -1320,9 +1317,9 @@ contains
     real*8, intent(in) :: rvdw(cr%ncel,cr%ncel)
 
     type(crystal) :: caux
-    integer :: i, j, jj, k, k1, k2, iz
-    real*8 :: d, d2, fac, rc
-    real*8 :: c6com, c8com, c10com, xij(3), ifac
+    integer :: i, j, jj, iz
+    real*8 :: d, d2
+    real*8 :: xij(3)
     real*8 :: e
     real*8 :: rmax, rmax2, maxc6
 

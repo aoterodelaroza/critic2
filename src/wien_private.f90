@@ -591,7 +591,6 @@ contains
   ! The following routines have been adapted from the WIEN2k source by
   ! P. Blaha, K. Schwarz et al. 
   subroutine gbass(rbas,gbas)
-    use param, only: pi
     real*8, dimension(3,3) :: rbas, gbas
     real*8 :: det
     integer :: i, j

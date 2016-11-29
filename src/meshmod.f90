@@ -225,13 +225,12 @@ contains
     integer, intent(in) :: lvl
     type(molmesh) :: mesh
 
-    real*8 :: r, r1, r2, vp0, vpsum, vpi
-    integer :: i, j, k, kk
+    real*8 :: r, r1, vp0, vpsum
+    integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
     real*8 :: x(3), fscal, fscal2
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
-    real*8 :: cutoff(c%ncel,c%ncel), hypr, rr
 
     ! allocate space for the mesh
     mesh%n = 0
@@ -360,7 +359,7 @@ contains
 
     type(scalar_value) :: res
     integer :: i, j, n
-    real*8 :: x(3), rhos, drho2, d2rho, taup, dsigs, quads
+    real*8 :: rhos, drho2, d2rho, taup, dsigs, quads
     real*8 :: fval
 
     if (size(id) /= size(prop)) &

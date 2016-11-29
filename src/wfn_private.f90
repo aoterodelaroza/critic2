@@ -582,7 +582,6 @@ contains
 
     integer :: luwfn, mult, ncore, istat, i
     character(len=:), allocatable :: line, line2
-    logical :: ok
 
     f%useecp = .false.
 
@@ -1608,7 +1607,6 @@ contains
     real*8 :: dd(3,nat), d2(nat)
     real*8 :: hh(6), aocc
     
-    real*8, parameter :: cutoff_pri = 1d-15
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
        1,0,0, 0,1,0, 0,0,1, & ! p

@@ -53,7 +53,6 @@ contains
     real*8 :: r1(3), xx(3), er
     integer :: iw(3)
     integer :: it
-    logical :: ok
     type(scalar_value) :: res
 
     integer, parameter :: maxit = 200
@@ -321,7 +320,7 @@ contains
     type(scalar_value), intent(inout) :: res
 
     integer :: ier, iup
-    real*8 :: grdt(3), ogrdtemp(3), ogrdt(3)
+    real*8 :: grdt(3), ogrdt(3)
     real*8 :: xtemp(3), escalar, xerrv(3)
     real*8 :: nerr
     logical :: ok, first

@@ -990,7 +990,7 @@ contains
 
     integer :: ia
     integer :: c
-    real*8 :: a, b, grho, lapl, rho, tau, zk
+    real*8 :: a, b
     character*8 :: sia
 
     ! pop from the stack

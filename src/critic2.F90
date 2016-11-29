@@ -73,7 +73,6 @@ program critic
   integer :: i, id, nn
   logical :: ll1, ok
   real*8 :: rdum
-  integer :: idum(3)
 
   ! initialize parameters
   call param_init()

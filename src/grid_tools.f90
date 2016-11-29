@@ -381,7 +381,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     type(field), intent(out) :: f
 
-    integer :: luc, nspin, istat, j
+    integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
     real*8 :: r(3,3)
     real*4, allocatable :: g(:)
@@ -429,7 +429,7 @@ contains
     type(field), intent(out) :: f
 
     integer :: luc
-    integer :: fform0, istat, n(3), j
+    integer :: fform0, istat, n(3)
     type(hdr_type) :: hdr
     real*8, allocatable :: g(:,:,:)
 
@@ -543,12 +543,11 @@ contains
     integer :: luc
     integer :: istat, n(3), lp, i, j, k, ix, jx, kx
     character(len=:), allocatable :: line, word
-    logical :: found, ok, ok2, iswan
+    logical :: found, ok, iswan
     real*8, dimension(3) :: x0, x1, x2, x3
     real*8 :: pmat(3,3)
 
     real*8, allocatable :: ggloc(:,:,:), otherloc(:,:,:)
-    character*5, parameter :: spinname(2) = (/'alpha','beta '/)
 
     iswan = (present(nwan).and.present(nin).and.present(omega).and.present(ispin))
 

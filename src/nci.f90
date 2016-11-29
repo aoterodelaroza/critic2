@@ -51,7 +51,7 @@ contains
     character(len=:), allocatable :: line, word, oname, file
     logical :: ok, ok2
     integer :: lp, istat
-    integer :: i, j, k, iat, ifr, l, nn
+    integer :: i, j, k, iat, ifr, l
     integer :: lugc, ludc, luvmd, ludat, lupc
     real*8, allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
     real*8, allocatable, dimension(:,:,:,:) :: rhofrag

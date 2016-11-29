@@ -709,7 +709,7 @@ contains
     character(len=*), intent(in) :: spgin
     logical, intent(in) :: usespgr
 
-    integer :: i, n, lpt, lptx, ier
+    integer :: i, n, ier
     character(len(spgin)) :: spgin0
     logical :: isblank
 

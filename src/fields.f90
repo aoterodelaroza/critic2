@@ -160,7 +160,6 @@ contains
 
     integer :: lp, lp2, oid, id2
     character(len=:), allocatable :: file, word
-    logical :: ok
 
     ! read and parse
     oksyn = .false.
@@ -251,7 +250,7 @@ contains
     logical :: ok
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
-    integer :: ix, iy, iz, oid, oid2
+    integer :: ix, iy, iz, oid
     real*8 :: xd(3,3), mcut
     integer :: nid, nwan, ispin
     character*255, allocatable :: idlist(:)
@@ -1403,8 +1402,7 @@ contains
   subroutine fields_pointprop_report()
     use tools_io, only: uout, string, ioj_center, ioj_right
   
-    integer :: i, id
-    character*4 :: sprop
+    integer :: i
   
     write(uout,'("* List of properties to be calculated at (critical) points (POINTPROP)")')
     write(uout,'("# Id      Name       Expression")')
@@ -1548,7 +1546,6 @@ contains
     logical :: onlyheader
 
     integer :: n(3), i, j, ix, iy, iz, lu
-    real*8 :: xd(3,3), x0(3)
     integer :: ntyp(maxzat0)
     character(len=:), allocatable :: line0
 
@@ -1623,10 +1620,7 @@ contains
     use types, only: realloc
     use param, only: fh
 
-    integer :: mf, nmf
-    type(field), allocatable :: nf(:)
-    logical, allocatable :: nfused(:)
-
+    integer :: mf
     logical :: found
 
     found = .false.
@@ -1663,7 +1657,7 @@ contains
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word, aux
-    integer :: lp, j
+    integer :: lp
     logical :: ok
     real*8 :: norm
 

@@ -423,7 +423,7 @@ contains
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
 
-    integer :: i, n, lu
+    integer :: i, lu
 
     ! write it
     lu = fopen_write(file)
@@ -797,8 +797,6 @@ contains
     character*(*), intent(in) :: file
     integer, intent(out) :: luply
 
-    integer :: idx
-
     if (isopen) &
        call ferror('ply_open','error opening graphics file: one is already open',faterr)
     isopen = .true.
@@ -820,7 +818,7 @@ contains
     use tools_io, only: ferror, faterr, getline_raw, fopen_write, string, fclose
     integer, intent(in) :: luply
 
-    integer :: i, lu
+    integer :: lu
     character(len=:), allocatable :: file, line
     logical :: ok
 
@@ -1028,8 +1026,6 @@ contains
     character*(*), intent(in) :: file
     integer, intent(out) :: luoff
 
-    integer :: idx
-
     if (isopen) &
        call ferror('off_open','error opening graphics file: one is already open',faterr)
     isopen = .true.
@@ -1051,7 +1047,7 @@ contains
     use tools_io, only: ferror, faterr, getline_raw, string, fopen_write, fclose
     integer, intent(in) :: luoff
 
-    integer :: i, lu
+    integer :: lu
     character(len=:), allocatable :: file, line
     logical :: ok
 

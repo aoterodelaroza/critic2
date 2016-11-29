@@ -66,22 +66,20 @@ contains
     logical :: ok
     real*8 :: xx(3)
     character*50 :: roottess
-    real*8 :: psum(Nprops), sphereprop(mneq,Nprops), auxs
-    real*8 :: ssum(Nprops)
+    real*8 :: sphereprop(mneq,Nprops)
     real*8 :: abserr
     integer :: neval, meaneval, vin(3), vino(3)
     character(10) :: pname
     logical :: maskprop(Nprops)
     real*8 :: xface_orig(3,3), xface_end(3,3), vtotal, memsum
     real*8 :: rface_orig(3,3), rface_end(3,3), face_diff(3)
-    integer :: nalloc, ralloc, iaux
+    integer :: nalloc, ralloc
     integer(qtreeidx) :: siz
     ! data arrays
     integer(qtreei), allocatable :: trm(:,:)
     real(qtreer), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable :: acum_atprop(:,:)
     ! for the output
-    integer :: nout
     integer, allocatable :: icp(:)
     real*8, allocatable :: xattr(:,:), outprop(:,:)
     character*30 :: reason(nprops)

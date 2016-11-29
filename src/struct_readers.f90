@@ -368,7 +368,7 @@ contains
     logical, intent(out) :: oksyn !< Was there a syntax error?
 
     character(len=:), allocatable :: word, aux, line
-    integer :: i, j, k, lp, lp2, luout, iat
+    integer :: lp, lp2, luout, iat
     real*8 :: rborder
     logical :: ok, docube
 
@@ -1710,12 +1710,7 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
-    integer, allocatable :: iz(:)
-    real*8, allocatable :: x(:,:)
-    integer :: lu, i, j, i1, i2, lp
-    real*8 :: zreal
-    character(len=:), allocatable :: line
-    logical :: ok
+    integer :: i
 
     if (equal(trim(fmt),'xyz')) then
        ! xyz

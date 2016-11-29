@@ -631,7 +631,7 @@ contains
     use types, only: scalar_value
     character*(*), intent(in) :: line
 
-    integer :: n1, n2, n3, lp2
+    integer :: lp2
     integer :: lp, nti, id, luout, nx, ny, nco, niso, nn
     real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt, lappt
     real*8 :: uu(3), vv(3)
@@ -1589,11 +1589,10 @@ contains
     integer :: updum, dndum, updum1, dndum1
     real*8  :: xp(3), lappt
     logical :: doagain, ok, autocheck
-    real*8  :: r0(3), r1(3), r2(3), xdum, raux0(3), raux1(3), raux2(3)
+    real*8  :: r0(3), r1(3), r2(3), xdum
     real*8  :: q0(3), xo0(3), xo1(3), xo2(3)
     integer :: cpid
     integer :: nti, nfi, ix, iy
-    integer :: i1, i2, i3, lvecx(3,3)
     real*8 :: sx, sy, zx0, zx1, zy0, zy1
     real*8 :: ehess(3), x0(3), uu(3), vv(3)
     logical :: docontour, dograds, goodplane

@@ -47,7 +47,7 @@ contains
 
     character(len=:), allocatable :: word, fname
     logical :: ok, iscur, doline, isgrid
-    integer :: fid, lp, i, j, i1, i2, i3, idx
+    integer :: fid, lp, i, j, i1, i2, idx
     integer :: ix, nx(2), nn, ip1, ip2, np1, np2
     real*8 :: rtop, rtop0, rcur, rhei, rtmp, x0(2), x1(2), xx(3), xr(3), axlen
     real*8 :: faux, xmin, xmax, ymin, ymax, dist
@@ -362,7 +362,7 @@ contains
     
     integer :: i, j, jj, idx, nempty
     integer, allocatable :: ibin(:)
-    real*8 :: rbin, rcur
+    real*8 :: rcur
     logical :: iszero
 
     integer, parameter :: nbin = 100
@@ -430,7 +430,6 @@ contains
     integer :: isign
 
     real*8, parameter :: step = 0.3d0
-    real*8, parameter :: eps = 1d-4
 
     axlen = cr%aa(ix)
 

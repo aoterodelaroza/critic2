@@ -1046,12 +1046,11 @@ contains
 
   !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
   !> A fragment object. This routine is thread-safe.
-  function identify_fragment(c,nat,x0,z0) result(fr)
+  function identify_fragment(c,nat,x0) result(fr)
     use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: nat
     real*8, intent(in) :: x0(3,nat)
-    integer, intent(in) :: z0(3,nat)
     type(fragment) :: fr
 
     integer :: id, i
@@ -1134,7 +1133,7 @@ contains
     real*8 :: avec(3,c%neqv*c%ncv)
     integer :: i, j, k, l
     integer :: mrot, mrot0
-    real*8 :: tmp(3), xp(3), dist
+    real*8 :: tmp(3), xp(3)
     real*8 :: l2
     real*8 :: loweps, dist2, eps
 
@@ -3820,7 +3819,6 @@ contains
     integer :: fnc
     integer :: i, j, k
     logical :: doagain
-    real*8, allocatable :: adisctr(:,:)
 
     if (c%ncv == 0) return
 
