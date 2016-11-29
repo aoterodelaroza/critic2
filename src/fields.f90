@@ -1770,7 +1770,7 @@ contains
     real*8 :: wx(3), wc(3), dist, x(3)
     integer :: i, nid, lvec(3), idx(3)
     real*8 :: rho, grad(3), h(3,3)
-    real*8 :: fval(3,-ndif_jmax:ndif_jmax), fzero
+    real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
     logical :: isgrid, iok, per
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
@@ -1808,22 +1808,22 @@ contains
        res%hf = 0d0
        if (nder > 0) then
           ! x
-          fval(1,:) = 0d0
-          fval(1,0) = fzero
-          res%gf(1) = der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(1,:),f,grd0,periodic)
+          fval(:,1) = 0d0
+          fval(0,1) = fzero
+          res%gf(1) = der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(:,1),f,grd0,periodic)
           ! y
-          fval(2,:) = 0d0
-          fval(2,0) = fzero
-          res%gf(2) = der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(2,:),f,grd0,periodic)
+          fval(:,2) = 0d0
+          fval(0,2) = fzero
+          res%gf(2) = der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(:,2),f,grd0,periodic)
           ! z
-          fval(3,:) = 0d0
-          fval(3,0) = fzero
-          res%gf(3) = der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(3,:),f,grd0,periodic)
+          fval(:,3) = 0d0
+          fval(0,3) = fzero
+          res%gf(3) = der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(:,3),f,grd0,periodic)
           if (nder > 1) then
              ! xx, yy, zz
-             res%hf(1,1) = der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(1,:),f,grd0,periodic)
-             res%hf(2,2) = der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(2,:),f,grd0,periodic)
-             res%hf(3,3) = der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(3,:),f,grd0,periodic)
+             res%hf(1,1) = der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(:,1),f,grd0,periodic)
+             res%hf(2,2) = der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(:,2),f,grd0,periodic)
+             res%hf(3,3) = der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(:,3),f,grd0,periodic)
              ! xy, xz, yz
              res%hf(1,2) = der2ij((/1d0,0d0,0d0/),(/0d0,1d0,0d0/),v,hini,hini,errcnv,f,grd0,periodic)
              res%hf(1,3) = der2ij((/1d0,0d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,f,grd0,periodic)
