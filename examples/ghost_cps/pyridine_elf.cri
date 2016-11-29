@@ -1,0 +1,25 @@
+## Load the molecular structure and the wavefunction for pyridine
+## (Gaussian wfx file).
+molecule ../data/pyridine.wfx
+load ../data/pyridine.wfx
+
+## Load the ELF function for this system. This is a ghost field
+## (its value is calculated from the expression every time the 
+## field is evaluated) so the derivatives are numerical.  
+load as "elf(1)" id elf
+
+## Set the ELF function as the reference field
+reference elf
+
+## Find the critical points. The ELF has critical points outside the
+## molecular plane, so the default seeding strategy (between pairs of
+## atoms) needs to be augmented. Several attempts may be needed before
+## the correct seeding strategy is found - the verbose and chk
+## keywords are useful in this regard.
+auto verbose chk \
+      seed oh depth 3 x0 0. 0. 0. radius 5. nr 15 \
+      seed pair npts 12
+
+## Write a graphics file for visualization with avogadro (requires
+## tweaking openbabel's element.txt, see manual).
+cpreport pyridine_elf.cml graph

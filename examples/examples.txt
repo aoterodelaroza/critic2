@@ -895,3 +895,24 @@ Wigner-Seitz celll) to a search over atomic pairs, in a manner similar
 to what is done in molecules. All CPs are found.
 
 
+* ghost_cps
+** Source: Gaussian wfn/wfx
+** System: pyridine
+** Description
+
+This example shows how to calculate the topology of arbitrary scalar
+functions, for which no analytical derivatives are available. Two
+scalar properties (the ELF and the LOL) in pyridine are loaded and
+the complete set of CPs found. The derivatives necessary for this task
+are calcualted numerically (at a higher cost). A non-default seeding
+strategy is required to found all critical points.
+
+** pyridine_elf.cri
+
+This example shows how to find the complete topology of the ELF in the
+pyridine molecule.
+
+** pyridine_lol.cri
+
+This example shows how to find the complete topology of the LOL in the
+pyridine molecule.
