@@ -62,9 +62,8 @@ module fields
   public :: fields_feval
 
   ! integrable properties
-  integer, parameter, public :: mprops = 101
   integer, public :: nprops
-  type(integrable), public :: integ_prop(mprops)
+  type(integrable), allocatable, public :: integ_prop(:)
   integer, parameter, public :: itype_v = 1
   integer, parameter, public :: itype_f = 2
   integer, parameter, public :: itype_fval = 3
@@ -74,13 +73,14 @@ module fields
   integer, parameter, public :: itype_expr = 7
   integer, parameter, public :: itype_mpoles = 8
   integer, parameter, public :: itype_deloc = 9
-  character*10, parameter, public :: itype_names(9) = (/&
+  integer, parameter, public :: itype_source = 10
+  character*10, parameter, public :: itype_names(10) = (/&
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
-     "Laplcn (v)","Expression","Multipoles","Deloc indx"/)
+     "Laplcn (v)","Expression","Multipoles","Deloc indx","Source fun"/)
   
   ! pointprop properties
   integer, public :: nptprops
-  type(pointpropable), public :: point_prop(mprops)
+  type(pointpropable), allocatable, public :: point_prop(:)
 
   ! scalar fields
   type(field), allocatable, public :: f(:)
@@ -91,7 +91,7 @@ module fields
 
 contains
 
-  !> Initialize the moduel variable for the fields.
+  !> Initialize the module variable for the fields.
   subroutine fields_init()
     use param, only: fh
 
@@ -108,6 +108,10 @@ contains
        f(i)%numerical = .false.
     end do
 
+    ! allocate space for integrable
+    if (allocated(integ_prop)) deallocate(integ_prop)
+    allocate(integ_prop(10))
+
     ! initialize the promolecular density
     f(0)%init = .true.
     f(0)%type = type_promol
@@ -123,6 +127,8 @@ contains
 
     ! point properties, initialize
     nptprops = 0
+    if (allocated(point_prop)) deallocate(point_prop)
+    allocate(point_prop(10))
 
     ! integrable: volume
     integ_prop(1)%used = .true.
@@ -740,7 +746,6 @@ contains
                       n(j) = max(n(j),f(id)%n(j))
                    end do
                 end do
-                deallocate(idlist)
                 if (any(n < 1)) then
                    ! nothing read, must be a ghost
                    call fields_in_eval(expr,nid,idlist)
@@ -923,12 +928,12 @@ contains
   !> Calculates the properties of the scalar field f at point x0 and fills the
   !> blanks.
   subroutine fields_propty(id,x0,res,verbose,allfields)
-    use struct_basic
-    use global
-    use tools_math
-    use tools_io
-    use arithmetic
-    use types
+    use struct_basic, only: cr
+    use global, only: cp_hdegen
+    use tools_math, only: rsindex
+    use tools_io, only: uout, string
+    use arithmetic, only: eval
+    use types, only: scalar_value
 
     integer, intent(in) :: id
     real*8, dimension(:), intent(in)  :: x0
@@ -1006,15 +1011,18 @@ contains
   !> Define fields as integrable. Atomic integrals for these fields
   !> will be calculated in the basins of the reference field.
   subroutine fields_integrable(line)
-    use global
-    use tools_io
-
+    use struct_basic, only: cr
+    use global, only: refden, eval_next, dunit
+    use tools_io, only: ferror, faterr, getword, lgetword, equal,&
+       isexpression_or_word, string, isinteger, ucopy, uin, getline
+    use types, only: realloc
     character*(*), intent(in) :: line
 
     logical :: ok
     integer :: id, lp, lpold, idum
-    character(len=:), allocatable :: word, expr, str
+    character(len=:), allocatable :: word, expr, str, oline
     logical :: useexpr
+    real*8 :: x0(3)
 
     ! read input
     lp=1
@@ -1063,11 +1071,8 @@ contains
 
     ! add property
     nprops = nprops + 1
-    if (nprops > mprops) then
-       call ferror("fields_integrable","too many props",faterr)
-       nprops = nprops - 1
-       return
-    end if
+    if (nprops > size(integ_prop)) &
+       call realloc(integ_prop,2*nprops)
     if (useexpr) then
        integ_prop(nprops)%used = .true.
        integ_prop(nprops)%fid = 0
@@ -1105,6 +1110,53 @@ contains
           elseif (equal(word,"deloc")) then
              integ_prop(nprops)%itype = itype_deloc
              str = trim(str) // "#deloca"
+          elseif (equal(word,"deloc")) then
+             integ_prop(nprops)%itype = itype_deloc
+             str = trim(str) // "#deloca"
+          elseif (equal(word,"source")) then
+             integ_prop(nprops)%itype = itype_source
+             str = trim(str) // "#source"
+             integ_prop(nprops)%prop_name = str
+             ok = eval_next(integ_prop(nprops)%x0(1),line,lp)
+             ok = ok.and.eval_next(integ_prop(nprops)%x0(2),line,lp)
+             ok = ok.and.eval_next(integ_prop(nprops)%x0(3),line,lp)
+             if (.not.ok) then
+                ! read an environment
+                do while(.true.)
+                   ok = getline(uin,oline,.true.,ucopy)
+                   if (.not.ok) &
+                      call ferror("fields_integrable","eof reading source function env.",faterr)
+                   lp = 1
+                   word = getword(oline,lp)
+                   if (equal(word,"end").or.equal(word,"endintegrable")) then
+                      nprops = nprops - 1
+                      exit
+                   else
+                      lp = 1
+                      ok = eval_next(x0(1),oline,lp)
+                      ok = ok.and.eval_next(x0(2),oline,lp)
+                      ok = ok.and.eval_next(x0(3),oline,lp)
+                      if (.not.ok) &
+                         call ferror("fields_integrable","error reading source function env.",faterr)
+                   end if
+                   integ_prop(nprops) = integ_prop(nprops-1)
+                   integ_prop(nprops)%x0 = x0
+                   if (cr%ismolecule) then
+                      integ_prop(nprops)%x0 = integ_prop(nprops)%x0 / dunit - cr%molx0
+                      integ_prop(nprops)%x0 = cr%c2x(integ_prop(nprops)%x0)
+                   end if
+                   nprops = nprops + 1
+                   if (nprops > size(integ_prop)) &
+                      call realloc(integ_prop,2*nprops)
+                end do
+                exit
+             else
+                ! convert the point read in a single line
+                if (cr%ismolecule) then
+                   integ_prop(nprops)%x0 = integ_prop(nprops)%x0 / dunit - cr%molx0
+                   integ_prop(nprops)%x0 = cr%c2x(integ_prop(nprops)%x0)
+                end if
+             end if
           elseif (equal(word,"name")) then
              word = getword(line,lp)
              integ_prop(nprops)%prop_name = string(word)
@@ -1128,10 +1180,14 @@ contains
 
   !> Report for the integrable fields.
   subroutine fields_integrable_report()
-    use tools_io
+    use global, only: dunit, iunitname0, iunit
+    use struct_basic, only: cr
+    use tools_io, only: ferror, faterr, string, ioj_center, ioj_right, ioj_left, uout
 
-    integer :: i, id
+    integer :: i, j, id
     character*4 :: sprop
+    real*8 :: x0(3)
+    character(len=:), allocatable :: sunit
 
     write (uout,'("* List of integrable properties")')
     write (uout,'("# ",4(A,2X))') &
@@ -1161,6 +1217,8 @@ contains
           sprop = "mpol"
        case(itype_deloc)
           sprop = "dloc"
+       case(itype_source)
+          sprop = "sf"
        case default
           call ferror('grdall','unknown property',faterr)
        end select
@@ -1169,6 +1227,21 @@ contains
           write (uout,'(2X,2(A,2X),2X,"""",A,"""")') &
              string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
              string(integ_prop(i)%expr)
+       elseif (integ_prop(i)%itype == itype_source) then
+          if (cr%ismolecule) then
+             x0 = cr%x2c(integ_prop(i)%x0)
+             x0 = (x0 + cr%molx0) * dunit
+             sunit = "("// iunitname0(iunit) //")"
+          else
+             x0 = integ_prop(i)%x0
+             sunit = "(cryst.)"
+          end if
+          write (uout,'(2X,4(A,2X),99(A))') &
+             string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
+             string(integ_prop(i)%fid,length=5,justify=ioj_right), &
+             string(integ_prop(i)%prop_name,10,ioj_left),&
+             "at point: (", (trim(string(x0(j),'f',10,6))//", ",j=1,2),&
+             trim(string(x0(3),'f',10,6)),") ", sunit
        else
           write (uout,'(2X,4(A,2X))') &
              string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
@@ -1181,9 +1254,10 @@ contains
 
   !> Define properties to calculate at selected points in the unit cell. 
   subroutine fields_pointprop(line0)
-    use arithmetic
-    use global
-    use tools_io
+    use global, only: refden
+    use tools_io, only: ferror, faterr, uout, getword, lower, equal, string
+    use arithmetic, only: fields_in_eval
+    use types, only: realloc
 
     character*(*), intent(in) :: line0
 
@@ -1282,6 +1356,8 @@ contains
 
     ! Add this pointprop to the list
     nptprops = nptprops + 1
+    if (nptprops > size(point_prop)) &
+       call realloc(point_prop,2*nptprops)
     point_prop(nptprops)%name = word
     point_prop(nptprops)%expr = expr
     if (isstress) then
@@ -1325,7 +1401,7 @@ contains
 
   !> Report for the pointprop fields.
   subroutine fields_pointprop_report()
-    use tools_io
+    use tools_io, only: uout, string, ioj_center, ioj_right
   
     integer :: i, id
     character*4 :: sprop
@@ -1344,8 +1420,7 @@ contains
 
   !> List all defined aliases for fields
   subroutine listfields()
-    use tools_io
-
+    use tools_io, only: ioj_right, uout, string
     integer :: i, n
     character(len=:), allocatable :: name, file, type
 
@@ -1368,7 +1443,7 @@ contains
 
   !> List all defined aliases for fields
   subroutine listfieldalias()
-    use tools_io
+    use tools_io, only: uout, string
     use param, only: fh
 
     integer :: i, nkeys, idum
@@ -1392,9 +1467,9 @@ contains
   !> unit cell. If x00 is given, use it as the origin of the cube
   !> (in bohr). Otherwise, use the crystal's molx0.
   subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
-    use struct_basic
-    use global
-    use tools_io
+    use struct_basic, only: crystal
+    use global, only: precisecube
+    use tools_io, only: fopen_write, fclose
     use param, only: eye
     type(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
@@ -1463,8 +1538,8 @@ contains
   !> the grid in 3D array form (g), the filename (file), and whether
   !> to write the whole cube or only the header (onlyheader). 
   subroutine writegrid_vasp(c,g,file,onlyheader)
-    use struct_basic
-    use tools_io
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa, maxzat0
 
     type(crystal), intent(in) :: c
@@ -1526,7 +1601,6 @@ contains
 
   !> Returns .true. if the field is initialized and usable.
   logical function goodfield(id,type) result(good)
-
     integer, intent(in) :: id
     integer, intent(in), optional :: type
 
@@ -1545,7 +1619,7 @@ contains
 
   !> Gives an unused field number
   integer function getfieldnum() result(id)
-    use tools_io
+    use tools_io, only: string
     use types, only: realloc
     use param, only: fh
 
@@ -1575,10 +1649,11 @@ contains
 
   !> Set field flags.
   subroutine setfield(ff,fid,line,oksyn)
-    use struct_basic
-    use grid_tools
-    use global
-    use tools_io
+    use struct_basic, only: cr
+    use grid_tools, only: mode_nearest, mode_tricubic, mode_trilinear, mode_trispline
+    use global, only: eval_next
+    use tools_io, only: faterr, ferror, string, lgetword, equal, &
+       isexpression_or_word
     use types, only: field
     use param, only: sqfp, fh
 
@@ -1674,19 +1749,18 @@ contains
   ! present and false, consider the field is defined in a non-periodic
   ! system. This routine is thread-safe.
   recursive subroutine grd(f,v,nder,res,periodic)
-    use grd_atomic
-    use grid_tools
-    use struct_basic
-    use dftb_private
-    use wfn_private
-    use pi_private
-    use elk_private
-    use wien_private
-    use arithmetic
-    use types
-    use tools_io
-    use tools_math
-
+    use grd_atomic, only: grda_promolecular
+    use grid_tools, only: grinterp
+    use struct_basic, only: cr
+    use dftb_private, only: dftb_rho2
+    use wfn_private, only: wfn_rho2
+    use pi_private, only: pi_rho2
+    use elk_private, only: elk_rho2
+    use wien_private, only: wien_rho2
+    use arithmetic, only: eval
+    use types, only: scalar_value
+    use tools_io, only: ferror, faterr
+    use tools_math, only: ndif_jmax, der1i, der2ii, der2ij, norm
     type(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate
@@ -1884,8 +1958,8 @@ contains
   !> Calculate the value of all integrable properties at the given position
   !> xpos (Cartesian). This routine is thread-safe.
   subroutine grdall(xpos,lprop,pmask)
-    use arithmetic
-    use tools_io
+    use arithmetic, only: eval
+    use tools_io, only: ferror, faterr
     use types, only: scalar_value
 
     real*8, intent(in) :: xpos(3) !< Point (cartesian).
@@ -1947,19 +2021,18 @@ contains
   !> field is defined in a non-periodic system. This routine is
   !> thread-safe.
   recursive function grd0(f,v,periodic)
-    use grd_atomic
-    use grid_tools
-    use struct_basic
-    use dftb_private
-    use wfn_private
-    use pi_private
-    use elk_private
-    use wien_private
-    use arithmetic
-    use types
-    use tools_io
-    use tools_math
-
+    use grd_atomic, only: grda_promolecular
+    use grid_tools, only: grinterp
+    use struct_basic, only: cr
+    use dftb_private, only: dftb_rho2
+    use wfn_private, only: wfn_rho2
+    use pi_private, only: pi_rho2
+    use elk_private, only: elk_rho2
+    use wien_private, only: wien_rho2
+    use arithmetic, only: eval
+    ! use types
+    use tools_io, only: ferror, faterr
+    ! use tools_math
     type(field), intent(inout) :: f
     real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
     real*8 :: grd0
@@ -2033,7 +2106,7 @@ contains
 
   !> Return a string description of the field type.
   function fields_typestring(itype) result(s)
-    use tools_io
+    use tools_io, only: faterr, ferror
     integer, intent(in) :: itype
     character(len=:), allocatable :: s
     
@@ -2065,12 +2138,12 @@ contains
   !> Do a benchmark of the speed of the external module in calculating grd and grdall
   !> by using npts random points in the unit cell.
   subroutine benchmark(npts)
-    use struct_basic
-    use global
-    use tools_io
-    use types
-    use wien_private
-    use elk_private
+    use struct_basic, only: cr
+    use global, only: refden
+    use tools_io, only: uout
+    use types, only: scalar_value
+    use wien_private, only: wien_rmt_atom
+    use elk_private, only: elk_rmt_atom
     implicit none
 
     integer, intent(in) :: npts
@@ -2176,12 +2249,12 @@ contains
 
   ! test the muffin tin discontinuity
   subroutine testrmt(id,ilvl)
-    use struct_basic
-    use global
-    use tools_io
-    use wien_private
-    use elk_private
-    use types
+    use struct_basic, only: cr
+    ! use global
+    use tools_io, only: uout, ferror, warning, string, fopen_write, fclose
+    use wien_private, only: wien_rmt_atom
+    use elk_private, only: elk_rmt_atom
+    use types, only: scalar_value
     use param, only: pi
     integer, intent(in) :: id, ilvl
 
@@ -2344,8 +2417,8 @@ contains
 
   !> Calculate the kinetic energy density from the elf
   subroutine taufromelf(ielf,irho,itau)
-    use grid_tools
-    use tools_io
+    use grid_tools, only: grid_gradrho
+    use tools_io, only: ferror, faterr, string, fclose
     use param, only: fh, pi
     integer, intent(in) :: ielf, irho, itau
 

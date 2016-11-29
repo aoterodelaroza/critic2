@@ -312,7 +312,7 @@ contains
     use types, only: realloc
     character(*), intent(in) :: expr
     integer, intent(out) :: n
-    character*255, allocatable :: idlist(:)
+    character*255, allocatable, intent(inout) :: idlist(:)
 
     integer :: lp, i
     logical :: ok

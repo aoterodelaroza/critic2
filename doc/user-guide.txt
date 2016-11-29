@@ -4253,24 +4253,24 @@ List of properties integrated in the attractor basins (INTEGRABLE)
   INTEGRABLE "expr.s"
   INTEGRABLE CLEAR
 
-The list of integrable properties follows a similar strategy to field
+In critic2 there is an internal list of the properties that will be
+integrated in the attraction basins, which can be modified by the user
+with the INTEGRABLE keyword. This follows a similar strategy to field
 loading (`Loading a field (LOAD)`_) and the list of properties
 calculated at the critical points (`List of properties calculated at
-points (POINTPROP)`_). There is an internal list of the properties
-that will be integrated in the attraction basins, which can be
-modified by the user using the INTEGRABLE keyword.
+points (POINTPROP)`_).
 
-INTEGRABLE defines a new quantity to be integrated in the basins. The
-new integrable property is related to field id.s (given as field
-number or identifier) as an integrable property. This quantity can be
-the field value itself (F), its valence component (if the field is
-core-augmented, FVAL), the gradient norm (GMOD), the Laplacian (LAP),
-or the valence-component of the Laplacian (LAPVAL). By default, F is
-used. With MULTIPOLES (or MULTIPOLE), the multipole moments of the
-field are calculated up to l=lmax.i (default: 5). This keyword only
-applies to the BADER and YT integration methods; for the others, it is
-equivalent to the field value (same as F). The name for the integrand
-can be changed using the keyword NAME.
+INTEGRABLE defines a new quantity to be integrated in the atomic
+basins. The new integrable property is related to field id.s (given as
+field number or identifier). This quantity can be the field value
+itself (F), its valence component (if the field is core-augmented,
+FVAL), the gradient norm (GMOD), the Laplacian (LAP), or the
+valence-component of the Laplacian (LAPVAL). If no keyword is given
+after id.s, F is used by default. With MULTIPOLES (or MULTIPOLE), the
+multipole moments of the field are calculated up to l=lmax.i (default:
+5). This keyword only applies to the BADER and YT integration methods;
+for the others, it is equivalent to the field value (same as F). The
+name for the integrand can be changed using the keyword NAME.
 
 In addition, it is possible to define an integrable property using an
 expression involving more than one field (expr.s). For instance, if
@@ -4281,7 +4281,8 @@ field 2, the atomic moments can be obtained using::
   REFERENCE 3
   INTEGRABLE "$1-$2"
 
-The default integrable properties are:
+Note that the double quotation marks are required. The default
+integrable properties are:
 
 * Volume (1)
 

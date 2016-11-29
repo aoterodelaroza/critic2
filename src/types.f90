@@ -34,6 +34,8 @@ module types
 
   ! overloaded functions
   interface realloc
+     module procedure realloc_pointpropable
+     module procedure realloc_integrable
      module procedure realloc_field
      module procedure realloc_atom
      module procedure realloc_celatom
@@ -317,6 +319,7 @@ module types
      character*(10) :: prop_name
      character*(2048) :: expr
      integer :: lmax
+     real*8 :: x0(3)
   end type integrable
 
   !> Information about an point-property field
@@ -363,6 +366,51 @@ module types
 
 contains
   
+  !> Adapt the size of an allocatable 1D type(pointpropable) array
+  subroutine realloc_pointpropable(a,nnew)
+    use tools_io, only: ferror, faterr
+
+    type(pointpropable), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(pointpropable), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) &
+
+       call ferror('realloc_pointpropable','array not allocated',faterr)
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_pointpropable
+
+  !> Adapt the size of an allocatable 1D type(integrable) array
+  subroutine realloc_integrable(a,nnew)
+    use tools_io, only: ferror, faterr
+
+    type(integrable), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(integrable), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_integrable','array not allocated',faterr)
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_integrable
+
   !> Adapt the size of an allocatable 1D type(field) array
   subroutine realloc_field(a,nnew)
     use tools_io, only: ferror, faterr
