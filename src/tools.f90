@@ -215,8 +215,6 @@ contains
   !> returns the index for the last element. The comparison is
   !> performed in cartesian coordinates.
   subroutine uniqc(v, nini, nfin, eps)
-    use tools_io, only: ferror, faterr
-    
     integer, intent(in) :: nini !< Starting index
     integer, intent(inout) :: nfin !< End index
     real*8, intent(inout), dimension(3,*) :: v !< The initial and final array

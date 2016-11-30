@@ -1207,6 +1207,7 @@ contains
        call ferror('off_surf','error: graphics file is not open',faterr)
 
     ! limits of the color scale
+    minf = 0d0
     rgb = rgb_default
     xrgb = real(rgb,8) / 255d0
     if (present(fsurf)) then
