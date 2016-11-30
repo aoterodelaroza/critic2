@@ -73,10 +73,9 @@ module fields
   integer, parameter, public :: itype_expr = 7
   integer, parameter, public :: itype_mpoles = 8
   integer, parameter, public :: itype_deloc = 9
-  integer, parameter, public :: itype_source = 10
-  character*10, parameter, public :: itype_names(10) = (/&
+  character*10, parameter, public :: itype_names(9) = (/&
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
-     "Laplcn (v)","Expression","Multipoles","Deloc indx","Source fun"/)
+     "Laplcn (v)","Expression","Multipoles","Deloc indx"/)
   
   ! pointprop properties
   integer, public :: nptprops
@@ -584,6 +583,7 @@ contains
           end if
 
           if (equal(word,"promolecular").or.equal(word,"core").or.goodfield(oid,type_grid)) then 
+             isfrag = .false.
              if (equal(word,"promolecular").or.equal(word,"core")) then
                 ! maybe we are given a fragment?
                 lp2 = lp
@@ -1010,18 +1010,16 @@ contains
   !> Define fields as integrable. Atomic integrals for these fields
   !> will be calculated in the basins of the reference field.
   subroutine fields_integrable(line)
-    use struct_basic, only: cr
-    use global, only: refden, eval_next, dunit
+    use global, only: refden, eval_next
     use tools_io, only: ferror, faterr, getword, lgetword, equal,&
-       isexpression_or_word, string, isinteger, ucopy, uin, getline
+       isexpression_or_word, string, isinteger, uin, getline
     use types, only: realloc
     character*(*), intent(in) :: line
 
     logical :: ok
     integer :: id, lp, lpold, idum
-    character(len=:), allocatable :: word, expr, str, oline
+    character(len=:), allocatable :: word, expr, str
     logical :: useexpr
-    real*8 :: x0(3)
 
     ! read input
     lp=1
@@ -1112,50 +1110,6 @@ contains
           elseif (equal(word,"deloc")) then
              integ_prop(nprops)%itype = itype_deloc
              str = trim(str) // "#deloca"
-          elseif (equal(word,"source")) then
-             integ_prop(nprops)%itype = itype_source
-             str = trim(str) // "#source"
-             integ_prop(nprops)%prop_name = str
-             ok = eval_next(integ_prop(nprops)%x0(1),line,lp)
-             ok = ok.and.eval_next(integ_prop(nprops)%x0(2),line,lp)
-             ok = ok.and.eval_next(integ_prop(nprops)%x0(3),line,lp)
-             if (.not.ok) then
-                ! read an environment
-                do while(.true.)
-                   ok = getline(uin,oline,.true.,ucopy)
-                   if (.not.ok) &
-                      call ferror("fields_integrable","eof reading source function env.",faterr)
-                   lp = 1
-                   word = getword(oline,lp)
-                   if (equal(word,"end").or.equal(word,"endintegrable")) then
-                      nprops = nprops - 1
-                      exit
-                   else
-                      lp = 1
-                      ok = eval_next(x0(1),oline,lp)
-                      ok = ok.and.eval_next(x0(2),oline,lp)
-                      ok = ok.and.eval_next(x0(3),oline,lp)
-                      if (.not.ok) &
-                         call ferror("fields_integrable","error reading source function env.",faterr)
-                   end if
-                   integ_prop(nprops) = integ_prop(nprops-1)
-                   integ_prop(nprops)%x0 = x0
-                   if (cr%ismolecule) then
-                      integ_prop(nprops)%x0 = integ_prop(nprops)%x0 / dunit - cr%molx0
-                      integ_prop(nprops)%x0 = cr%c2x(integ_prop(nprops)%x0)
-                   end if
-                   nprops = nprops + 1
-                   if (nprops > size(integ_prop)) &
-                      call realloc(integ_prop,2*nprops)
-                end do
-                exit
-             else
-                ! convert the point read in a single line
-                if (cr%ismolecule) then
-                   integ_prop(nprops)%x0 = integ_prop(nprops)%x0 / dunit - cr%molx0
-                   integ_prop(nprops)%x0 = cr%c2x(integ_prop(nprops)%x0)
-                end if
-             end if
           elseif (equal(word,"name")) then
              word = getword(line,lp)
              integ_prop(nprops)%prop_name = string(word)
@@ -1179,14 +1133,10 @@ contains
 
   !> Report for the integrable fields.
   subroutine fields_integrable_report()
-    use global, only: dunit, iunitname0, iunit
-    use struct_basic, only: cr
-    use tools_io, only: ferror, faterr, string, ioj_center, ioj_right, ioj_left, uout
+    use tools_io, only: ferror, faterr, string, ioj_center, ioj_right, uout
 
-    integer :: i, j, id
+    integer :: i, id
     character*4 :: sprop
-    real*8 :: x0(3)
-    character(len=:), allocatable :: sunit
 
     write (uout,'("* List of integrable properties")')
     write (uout,'("# ",4(A,2X))') &
@@ -1216,8 +1166,6 @@ contains
           sprop = "mpol"
        case(itype_deloc)
           sprop = "dloc"
-       case(itype_source)
-          sprop = "sf"
        case default
           call ferror('grdall','unknown property',faterr)
        end select
@@ -1226,21 +1174,6 @@ contains
           write (uout,'(2X,2(A,2X),2X,"""",A,"""")') &
              string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
              string(integ_prop(i)%expr)
-       elseif (integ_prop(i)%itype == itype_source) then
-          if (cr%ismolecule) then
-             x0 = cr%x2c(integ_prop(i)%x0)
-             x0 = (x0 + cr%molx0) * dunit
-             sunit = "("// iunitname0(iunit) //")"
-          else
-             x0 = integ_prop(i)%x0
-             sunit = "(cryst.)"
-          end if
-          write (uout,'(2X,4(A,2X),99(A))') &
-             string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
-             string(integ_prop(i)%fid,length=5,justify=ioj_right), &
-             string(integ_prop(i)%prop_name,10,ioj_left),&
-             "at point: (", (trim(string(x0(j),'f',10,6))//", ",j=1,2),&
-             trim(string(x0(3),'f',10,6)),") ", sunit
        else
           write (uout,'(2X,4(A,2X))') &
              string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &

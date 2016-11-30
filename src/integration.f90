@@ -86,7 +86,7 @@ contains
     use yt, only: yt_integrate, yt_weights
     use fields, only: f, type_grid, integ_prop, itype_v, itype_deloc, itype_mpoles,&
        itype_fval, itype_f, itype_lapval, itype_lap, itype_gmod, goodfield, nprops,&
-       writegrid_cube, grdall, itype_source
+       writegrid_cube, grdall
     use grid_tools, only: grid_rhoat, grid_laplacian, grid_gradrho
     use struct_basic, only: cr
     use global, only: refden, eval_next, dunit, iunit, iunitname0, fileroot
@@ -110,7 +110,7 @@ contains
     real*8, allocatable :: w(:,:,:)
     integer :: fid, nattr, luw
     character*60 :: reason(nprops)
-    real*8, allocatable :: di(:,:,:), mpole(:,:,:), sf(:,:)
+    real*8, allocatable :: di(:,:,:), mpole(:,:,:)
     real*8, allocatable :: sij(:,:,:,:,:)
     logical :: dodeloc, fillgrd
     real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
@@ -244,9 +244,6 @@ contains
           if (f(fid)%type == type_grid) dodeloc = .true.
           reason(k) = "DIs integrated separately (see table below)"
           cycle
-       elseif (integ_prop(k)%itype == itype_source) then
-          reason(k) = "Source function integrated separately (see table below)"
-          cycle
        elseif (integ_prop(k)%itype == itype_mpoles) then
           reason(k) = "multipoles integrated separately (see table below)"
           cycle
@@ -364,11 +361,8 @@ contains
     call intgrid_deloc_wfn(nattr,xgatt,idg,imtype,luw,di)
     if (dodeloc) call intgrid_deloc_brf(nattr,xgatt,idg,imtype,luw,sij)
 
-    ! source function
-    call intgrid_source(fint,idprop,nattr,xgatt,idg,imtype,luw,sf)
-
     ! output the results
-    call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole,sf)
+    call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
 
     ! clean up YT checkpoint files
     if (imtype == imtype_yt) then
@@ -486,105 +480,6 @@ contains
     endif
 
   end subroutine intgrid_multipoles
-
-  !> Calculate the source function at given points using integration
-  !> on a grid. The input is: the array containing the integrable
-  !> field information on the basin field grid (fint), the index array
-  !> relating 1->nprops to the fint array, the calculated number of
-  !> attractors (natt), their positions in crystallographic
-  !> coordinates (xgatt), the attractor assignment for each of the
-  !> grid nodes (idg), the integration type (imtype: bader or yt), the
-  !> weight file for YT, and the output multipolar moments.
-  subroutine intgrid_source(fint,idprop,natt,xgatt,idg,imtype,luw,sf)
-    use grid_tools, only: grid_laplacian
-    use yt, only: yt_weights
-    use fields, only: nprops, integ_prop, itype_source, f
-    use struct_basic, only: cr
-    use global, only: refden
-    use tools_math, only: tosphere, genrlm_real
-    use types, only: field
-    use param, only: fourpi
-    real*8, intent(in) :: fint(:,:,:,:)
-    integer, intent(in) :: idprop(:)
-    integer, intent(in) :: natt
-    real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: imtype
-    integer, intent(in) :: luw
-    real*8, allocatable, intent(inout) :: sf(:,:)
-
-    integer :: i, j, k, l, n(3), ntot, np
-    integer :: fid
-    real*8, allocatable :: w(:,:,:)
-    real*8 :: dv(3), p(3), r2
-    type(field) :: faux
-
-    ! allocate space for the source function
-    np = 0
-    do l = 1, nprops
-       if (.not.integ_prop(l)%used) cycle
-       if (.not.integ_prop(l)%itype == itype_source) cycle
-       np = np + 1
-    end do
-    if (np == 0) return
-
-    if (allocated(sf)) deallocate(sf)
-    allocate(sf(natt,np))
-    sf = 0d0
-
-    ! size of the grid and YT weights
-    n = f(refden)%n
-    ntot = n(1)*n(2)*n(3)
-    if (imtype == imtype_yt) then
-       allocate(w(n(1),n(2),n(3)))
-    endif
-
-    ! run over all properties for which the s.f. calculation is active
-    np = 0
-    do l = 1, nprops
-       if (.not.integ_prop(l)%used) cycle
-       if (.not.integ_prop(l)%itype == itype_source) cycle
-       fid = integ_prop(l)%fid
-       np = np + 1
-
-       call grid_laplacian(f(fid),faux)
-
-       do i = 1, n(1)
-          do j = 1, n(2)
-             do k = 1, n(3)
-                p = real((/i-1,j-1,k-1/),8)
-                dv = p/real(n,8) - integ_prop(l)%x0
-                call cr%shortest(dv, r2)
-                if (abs(r2) < 1d-8) cycle
-                faux%f(i,j,k) = -faux%f(i,j,k) / (sqrt(r2)*fourpi)
-             end do
-          end do
-       end do
-
-       ! calcualate the source function contributions from each atom
-       if (imtype == imtype_yt) then
-          rewind(luw)
-       endif
-       do i = 1, natt
-          if (imtype == imtype_yt) then
-             call yt_weights(luw,i,w)
-          end if
-          if (imtype == imtype_bader) then
-             w = 0d0
-             where (idg == i)
-                w = faux%f
-             end where
-             sf(i,np) = sum(w) * cr%omega / ntot
-          else
-             sf(i,np) = sum(w * faux%f) * cr%omega / ntot
-          endif
-       end do
-    end do
-    if (imtype == imtype_yt) then
-       deallocate(w)
-    endif
-
-  end subroutine intgrid_source
 
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a wfn scalar field.
@@ -1488,9 +1383,9 @@ contains
   end function quadpack_f
 
   !> Output routine for all integration methods
-  subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,di,mpole,sf)
+  subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,di,mpole)
     use fields, only: integ_prop, itype_v, itype_expr, itype_mpoles, itype_names,&
-       itype_deloc, f, type_wfn, nprops, itype_source
+       itype_deloc, f, type_wfn, nprops
     use struct_basic, only: cr
     use global, only: iunitname0, iunit, dunit
     use varbas, only: cp, cpcel
@@ -1505,7 +1400,6 @@ contains
     logical, intent(in) :: usesym
     real*8, intent(in), allocatable, optional :: di(:,:,:)
     real*8, intent(in), allocatable, optional :: mpole(:,:,:)
-    real*8, intent(in), allocatable, optional :: sf(:,:)
 
     integer :: i, j, k, l, n, ip, ipmax, iplast, nn, ndeloc
     integer :: fid, idx, nacprop(5), lmax
@@ -1698,28 +1592,6 @@ contains
                 else
                    write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
                 end if
-             end do
-          end do
-       end if
-    end if
-
-    ! Source function output
-    if (present(sf)) then
-       if (allocated(sf)) then
-          write (uout,'("* Source function calculation ")')
-          write (uout,'("  Please cite: ")')
-          write (uout,'("  Carlo Gatti, Richard W. Bader, Chem. Phys. Lett. 287 (1998) 233.")')
-          write (uout,'("  Christian Tantardini, Davide Ceresoli, Enrico Benassi, J. Comput. Chem. 37 (2016) 2133–2139.")')
-          n = 0
-          do l = 1, nprops
-             if (.not.integ_prop(l)%used) cycle
-             if (.not.integ_prop(l)%itype == itype_source) cycle
-             n = n + 1
-             write (uout,*)
-             write (*,*) " property : ", l
-             write (*,*) " point : ", integ_prop(l)%x0
-             do i = 1, nattr
-                write (*,*) " attractor : ", i, sf(i,n)
              end do
           end do
        end if
