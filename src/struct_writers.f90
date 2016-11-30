@@ -212,53 +212,78 @@ contains
 
     if (.not.lnmer) then
        ! normal write 
-       if (equal(fmt,"xyz")) then
-          call writexyz(file,fr)
-       elseif (equal(fmt,"gjf")) then
-          call writegjf(file,fr)
-       elseif (equal(fmt,"cml")) then
-          if (c%ismolecule) then
-             call writecml(file,fr,luout=luout)
-          else
-             call writecml(file,fr,c%crys2car,luout=luout)
-          end if
-       else
-          call ferror("struct_write_mol","Unknown format",faterr)
-       endif
+       call dowrite(file,fr)
     else
+       wroot = file(:index(file,'.',.true.)-1)
        do i = 1, nmer
-          ncomb = nchoosek(nmol,i)
-          wroot = file(:index(file,'.',.true.)-1)
-          allocate(icomb(i))
-          do j = 1, ncomb
-             call comb(nmol,i,j,icomb)
-             if (environ .and. icomb(1) > c%nmol .and. (i == nmer .or. i == 1)) cycle
-             file0 = wroot 
-             call fragment_init(fr)
-             do k = 1, i
-                aux = trim(file0) // "_" // string(icomb(k))
-                file0 = aux
-                fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+          if (i == 1) then
+             ! monomers
+             do j = 1, c%nmol
+                file0 = trim(wroot) // "_" // string(j) // "." // fmt
+                call dowrite(file0,fr0(j))
              end do
-             aux = trim(file0) // "." // fmt
-             file0 = aux
-             if (equal(fmt,"xyz")) then
-                call writexyz(file0,fr)
-             elseif (equal(fmt,"gjf")) then
-                call writegjf(file0,fr)
-             elseif (equal(fmt,"cml")) then
-                if (c%ismolecule) then
-                   call writecml(file0,fr,luout=luout)
-                else
-                   call writecml(file0,fr,c%crys2car,luout=luout)
-                end if
-             else
-                call ferror("struct_write_mol","Unknown format",faterr)
-             endif
-          end do
-          deallocate(icomb)
+          elseif (i == nmer) then
+             ! n-mers
+             allocate(icomb(i-1))
+             do l = 1, c%nmol
+                ncomb = nchoosek(nmol,i-1)
+                do j = 1, ncomb
+                   call comb(nmol,i-1,j,icomb)
+                   file0 = trim(wroot) // "_" // string(l)
+                   fr = fr0(l)
+                   do k = 1, i-1
+                      aux = trim(file0) // "_" // string(icomb(k))
+                      file0 = aux
+                      fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+                   end do
+                   aux = trim(file0) // "." // fmt
+                   file0 = aux
+                   call dowrite(file0,fr)
+                end do
+             end do
+             deallocate(icomb)
+          else
+             ! everything in between
+             allocate(icomb(i))
+             ncomb = nchoosek(nmol,i)
+             do j = 1, ncomb
+                call comb(nmol,i,j,icomb)
+                file0 = wroot 
+                call fragment_init(fr)
+                do k = 1, i
+                   aux = trim(file0) // "_" // string(icomb(k))
+                   file0 = aux
+                   fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+                end do
+                aux = trim(file0) // "." // fmt
+                file0 = aux
+                call dowrite(file0,fr)
+             end do
+             deallocate(icomb)
+          end if
        end do
     end if
+
+  contains
+    subroutine dowrite(fileo,fro)
+      character*(*) :: fileo
+      type(fragment) :: fro
+      
+      if (equal(fmt,"xyz")) then
+         call writexyz(fileo,fro)
+      elseif (equal(fmt,"gjf")) then
+         call writegjf(fileo,fro)
+      elseif (equal(fmt,"cml")) then
+         if (c%ismolecule) then
+            call writecml(fileo,fro,luout=luout)
+         else
+            call writecml(fileo,fro,c%crys2car,luout=luout)
+         end if
+      else
+         call ferror("struct_write_mol","Unknown format",faterr)
+      endif
+
+    end subroutine dowrite
 
   end subroutine struct_write_mol
 
@@ -300,7 +325,7 @@ contains
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
-    integer :: k, nmol
+    integer :: nmol
 
     real*8, parameter :: rfac = 1.4d0
     real*8, parameter :: x0cell(3,2,12) = reshape((/&
