@@ -91,7 +91,7 @@ contains
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
     integer :: i, j, k, l, m, nmol, icel, lvec(3), ncm
-    integer :: ncomb
+    integer :: ncomb, nlimi, nlimj
     integer, allocatable :: icomb(:), origmol(:)
     character(len=:), allocatable :: wroot, file0, aux
     logical :: doagain
@@ -124,12 +124,20 @@ contains
        do while(doagain)
           doagain = .false.
           icel = icel + 1
-          do i = -icel, icel
-             do j = -icel, icel
-                do k = -icel, icel
-                   lvec = (/i,j,k/)
-                   if (all(abs(lvec) /= icel)) cycle
-                   
+          do k = 1, 6
+             if (k == 1 .or. k == 2) then
+                nlimi = icel
+                nlimj = icel
+             elseif (k == 3 .or. k == 4) then
+                nlimi = icel
+                nlimj = icel-1
+             else
+                nlimi = icel-1
+                nlimj = icel-1
+             end if
+             do i = -nlimi, nlimi
+                do j = -nlimj, nlimj
+                   lvec = icelcomb(k,i,j,icel)
                    do l = 1, c%nmol
                       xcm = c%c2x(cmlist(:,l)) + lvec
                       xcm = c%x2c(xcm)
@@ -284,7 +292,26 @@ contains
       endif
 
     end subroutine dowrite
+    function icelcomb(idx,i,j,icel)
+      integer, intent(in) :: idx, i, j, icel
+      integer :: icelcomb(3)
 
+      icelcomb = 0
+      if (idx == 1) then
+         icelcomb = (/i,j,icel/)
+      elseif (idx == 2) then
+         icelcomb = (/i,j,-icel/)
+      elseif (idx == 3) then
+         icelcomb = (/i,icel,j/)
+      elseif (idx == 4) then
+         icelcomb = (/i,-icel,j/)
+      elseif (idx == 5) then
+         icelcomb = (/icel,i,j/)
+      elseif (idx == 6) then
+         icelcomb = (/-icel,i,j/)
+      endif
+
+    end function icelcomb
   end subroutine struct_write_mol
 
   !> Write an obj/ply/off file containing the crystal structure. fmt
