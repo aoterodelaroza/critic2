@@ -29,9 +29,8 @@ module rhoplot
   public :: rhoplot_grdvec
 
   ! contours
-  integer, parameter :: maxiso = 1000
   real*8 :: cntrini, cntrend
-  real*8 :: ua, va, ub, vc, x(maxiso), y(maxiso), fminimo, fmaximo, ziso(maxiso)
+  real*8 :: ua, va, ub, vc, fminimo, fmaximo
   real*8, allocatable :: lf(:,:)
 
   ! contour lines common variables.
@@ -972,7 +971,7 @@ contains
     integer :: i, j
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
     real*8 :: du, dv, r012
-
+    real*8, allocatable :: ziso(:), x(:), y(:)
     real*8, parameter :: eps = 1d-6
 
     ! clean up rootname
@@ -1032,6 +1031,8 @@ contains
     fmaximo = -VBIG
     nu = size(lf,1)
     nv = size(lf,2)
+    allocate(x(nu))
+    allocate(y(nv))
     do i = 1, nu
        do j = 1, nv
           fminimo = min(fminimo,lf(i,j))
@@ -1045,6 +1046,7 @@ contains
     ! print .iso file
     if (nti.eq.3) then
        niso = 20
+       allocate(ziso(niso))
        ziso(1) = 1.d-3
        ziso(2) = 2.d-3
        ziso(3) = 4.d-3
@@ -1090,6 +1092,7 @@ contains
           ziso(20)= -1.d-3
        end if
     else if (nti.eq.4) then
+       allocate(ziso(niso))
        do i = 1, niso
           ziso(i) = cntrini + real(i-1,8) * (cntrend - cntrini) / (niso-1)
        end do
@@ -1101,6 +1104,8 @@ contains
           fminimo = log(eps)
           fmaximo = log(-fmin)
           nhalf = max(niso / 2,2)
+          niso = 2 * nhalf + 1
+          allocate(ziso(niso))
           delta = (fmaximo-fminimo) / (nhalf-1)
           do i = 1, nhalf
              ziso(i) = -exp(fminimo+(nhalf-i)*delta)
@@ -1114,8 +1119,8 @@ contains
           do i = 1, nhalf
              ziso(nhalf+1+i) = exp(fminimo+(i-1)*delta)
           enddo
-          niso = 2 * nhalf + 1
        else
+          allocate(ziso(niso))
           fminimo = log(max(fminimo,eps))
           fmaximo = log(abs(fmaximo))
           delta = (fmaximo-fminimo)/(niso-1)
@@ -1124,6 +1129,7 @@ contains
           enddo
        endif
     else
+       allocate(ziso(niso))
        if (nti == 2) then
           fminimo = 2d0/pi*atan(fminimo)
           fmaximo = 2d0/pi*atan(fmaximo)
@@ -1140,7 +1146,7 @@ contains
     end if
 
     do i=1,niso
-       call hallarpuntos (ziso(i),nu,nv)
+       call hallarpuntos (ziso(i),x,y,nu,nv)
        if (ziso(i).gt.0) then
           call ordenarpuntos (lud,cosalfa,ziso(i))
        else
@@ -1152,6 +1158,9 @@ contains
 
     if (dolabels) call write_fichlabel(root0)
     if (dognu) call write_fichgnu(root0,dolabels,.true.,.false.)
+    if (allocated(ziso)) deallocate(ziso)
+    if (allocated(x)) deallocate(x)
+    if (allocated(y)) deallocate(y)
     
   end subroutine contour
 
@@ -1265,9 +1274,10 @@ contains
 
   !> Find contour with value = zc on a surface given by a grid.
   !> uses linear interpolation.
-  subroutine hallarpuntos(zc,nx,ny)
+  subroutine hallarpuntos(zc,x,y,nx,ny)
     use param, only: zero
     real*8, intent(in) :: zc
+    real*8, intent(in) :: x(:), y(:)
     integer, intent(in) :: nx, ny
 
     integer :: i, j
