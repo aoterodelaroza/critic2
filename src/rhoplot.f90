@@ -1001,7 +1001,7 @@ contains
     dv = r02 / real(ny-1,8)
     r012 = dot_product(rp01,rp02)
     cosalfa = r012/r01/r02
-    sinalfa = sqrt(1-cosalfa**2)
+    sinalfa = sqrt(max(1-cosalfa**2,0d0))
 
     indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
 
@@ -1045,7 +1045,11 @@ contains
 
     ! print .iso file
     if (nti.eq.3) then
-       niso = 20
+       if (isneg) then
+          niso = 40
+       else
+          niso = 20
+       end if
        allocate(ziso(niso))
        ziso(1) = 1.d-3
        ziso(2) = 2.d-3
