@@ -251,9 +251,9 @@ contains
     real(qtreer), allocatable, intent(out) :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable, intent(out) :: acum_atprop(:,:)
 
-    integer :: i, ntetrag
+    integer :: i, j, ntetrag
     real*8 :: xp1(3), xp2(3), xp3(3), xx(3), dist, iw(3), r1(3), er
-    real*8 :: vtotal
+    real*8 :: vtotal, sumi
     integer :: l2
     integer(qtreeidx) :: siz
     character*3 :: pg
@@ -346,13 +346,13 @@ contains
     if (ws_use) then
        ! Build initial tetrahedron list
        pg = cr%sitesymm(ws_origin,leqv=leqv,lrotm=lrotm)
-       call cr%wigner(ws_origin,verbose,ntetrag=ntetrag,tetrag=tetrag) 
+       call cr%wigner(ws_origin,ntetrag=ntetrag,tetrag=tetrag) 
     else
        ws_scale = -1d0
        ws_origin = 0d0
        leqv = 1
        lrotm(:,:,1) = eye
-       call cr%pmwigner(.true.,ntetrag=ntetrag,tetrag=tetrag)
+       call cr%pmwigner(ntetrag=ntetrag,tetrag=tetrag)
     end if
     periodic = .true.
        
@@ -442,6 +442,24 @@ contains
        vtotal = cr%omega 
     end if
     
+    if (verbose) then
+       write (uout,'("* Cell list of tetrahedra (cryst. coord.) contains : ",I3)') ntetrag
+       sumi = 0d0
+       do i = 1, ntetrag
+          write (uout,'("+ Tetrahedron : ",I3," with points at ")') i
+          do j = 1, 4
+             write (uout,'(4X,I3,3(1X,E20.13))') j, tetrag(j,1,i), tetrag(j,2,i), tetrag(j,3,i)
+          end do
+          write (uout,'(4X," Volume : ",1p,E20.12)') tvol(i)
+          sumi = sumi + tvol(i)
+       end do
+       write (uout,'("+ Sum of tetrahedra volumes : ",1p,E20.12)') sumi
+       write (uout,'("+ Cell volume               : ",1p,E20.12)') cr%omega / cr%ncv
+       write (uout,*)
+       write (uout,'("* END of cell construction.")')
+       write (uout,*)
+    end if
+
     ! eps for crys2convex
     crys2convex_eps = tetra_eps_warn * maxlen / 2**maxl
     crys2convex_eps1 = 1d0 + crys2convex_eps

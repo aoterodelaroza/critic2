@@ -93,6 +93,11 @@ module struct_basic
      integer :: nws !< number of WS neighbors
      integer :: ivws(3,16) !< WS neighbor lattice points
      logical :: isortho !< is the cell orthogonal?
+     integer :: nface_ws !< number of faces in the WScell
+     integer :: nvert_ws !< number of vertices of the WS cell
+     integer, allocatable :: nside_ws(:) !< number of sides of WS faces
+     integer, allocatable :: iside_ws(:,:) !< sides of the WS faces
+     real*8, allocatable :: vws(:,:) !< vertices of the WS cell
 
      !! Initialization level: isenv !!
      ! atomic environment of the cell
@@ -3274,7 +3279,9 @@ contains
        end if
 
        ! calculate the wigner-seitz cell
-       call c%wigner((/0d0,0d0,0d0/),.false.,c%nws,c%ivws)
+       call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
+          nvert_ws=c%nvert_ws,nface_ws=c%nface_ws,nside_ws=c%nside_ws,&
+          iside_ws=c%iside_ws,vws=c%vws)
        c%isortho = (c%nws <= 6)
        if (c%isortho) then
           do i = 1, c%nws
@@ -3405,7 +3412,7 @@ contains
   subroutine struct_report(c)
     use fragmentmod, only: fragment_cmass
     use global, only: iunitname, dunit
-    use tools_math, only: gcd
+    use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat
     class(crystal), intent(in) :: c
@@ -3414,7 +3421,7 @@ contains
 
     integer :: i, j, k
     integer :: nelec
-    real*8 :: maxdv, xcm(3)
+    real*8 :: maxdv, xcm(3), x0(3)
     character(len=:), allocatable :: str1, str2
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:)
@@ -3668,6 +3675,28 @@ contains
 
     ! Determine the wigner-seitz cell
     if (.not.c%ismolecule) then
+       write (uout,'("+ Vertex of the WS cell (cryst. coords.)")')
+       write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
+          string("x",length=11,justify=ioj_center),&
+          string("y",length=11,justify=ioj_center),&
+          string("z",length=11,justify=ioj_center),&
+          string("d ("//iunitname//")",length=14,justify=ioj_center)
+       do i = 1, c%nvert_ws
+          x0 = c%x2c(c%vws(:,i))
+          write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
+             (string(c%vws(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
+             string(norm(x0)*dunit,'f',length=14,decimal=8,justify=4)
+       enddo
+       write (uout,*)
+
+       write (uout,'("+ Faces of the WS cell")')
+       write (uout,'("  Number of faces: ",A)') string(c%nface_ws)
+       do i = 1, c%nface_ws
+          write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
+             (string(c%iside_ws(j,i),length=2),j=1,c%nside_ws(i))
+       end do
+       write (uout,*)
+
        write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
        do i = 1, c%nws
           write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
@@ -4138,7 +4167,8 @@ contains
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
-  subroutine wigner(c,xorigin,verbose,nvec,vec,area0,ntetrag,tetrag)
+  subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
+     nvert_ws,nface_ws,nside_ws,iside_ws,vws)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
     use global, only: fileroot
     use tools_math, only: norm, mixed, cross
@@ -4157,12 +4187,16 @@ contains
 
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xorigin(3) !< Origin of the WS cell
-    logical, intent(in) :: verbose !< Write to output?
-    integer, intent(out),optional :: nvec !< Number of lattice point neighbors
-    integer, intent(out),optional :: vec(3,16) !< Integer vectors to neighbors
-    real*8, intent(out),optional :: area0(40) !< Area to neighbors
+    integer, intent(out), optional :: nvec !< Number of lattice point neighbors
+    integer, intent(out), optional :: vec(3,16) !< Integer vectors to neighbors
+    real*8, intent(out), optional :: area0(40) !< Area to neighbors
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
-    real*8, allocatable, intent(out), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
+    real*8, allocatable, intent(inout), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
+    integer, intent(out), optional :: nvert_ws !< number of vertices of the WS cell
+    integer, intent(out), optional :: nface_ws !< number of faces of the WS cell
+    integer, allocatable, intent(inout), optional :: nside_ws(:) !< number of sides of WS faces
+    integer, allocatable, intent(inout), optional :: iside_ws(:,:) !< sides of the WS faces
+    real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell
 
     ! three WS vertices are collinear if det < -eps
     real*8, parameter :: eps_wspesca = 1d-5 !< Criterion for tetrahedra equivalence
@@ -4205,14 +4239,6 @@ contains
     r2x = c%car2crys
     rnorm = 1d0
 
-    if (verbose) then
-       write (uout,'("* Wigner-Seitz cell and IWS construction")')
-       write (uout,'("  Origin: ",3(A,2X))') (string(xorigin(j),'f',decimal=6),j=1,3)
-       write (uout,'("  Cell lengths: ",3(A,2X))') (string(c%aa(j),'f',decimal=6),j=1,3)
-       write (uout,'("  Cell angles: ",3(A,2X))') (string(c%bb(j),'f',decimal=3),j=1,3)
-       write (uout,*)
-    end if
-       
     ! anchor for when critic2 and qhull fight each other
     ithr = ithr_def
     icelmax = icelmax_def
@@ -4272,25 +4298,6 @@ contains
     end do
     call fclose(lu)
 
-    !. Vertices in cryst coordinates
-    if (verbose) then
-       write (uout,'("+ Vertex of the WS cell (cryst. coords.)")')
-       write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
-          string("x",length=11,justify=ioj_center),&
-          string("y",length=11,justify=ioj_center),&
-          string("z",length=11,justify=ioj_center),&
-          string("distance",length=14,justify=ioj_center)
-       write (uout,'(2X,58("-"))')
-       do i = 1, nvert
-          x0 = matmul(r2x,xws(:,i))
-          write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
-             (string(x0(j),'f',length=11,decimal=6,justify=4),j=1,3), &
-             string(norm(xws(:,i)),'f',length=14,decimal=8,justify=4)
-       enddo
-       write (uout,'(2X,58("-"))')
-       write (uout,*)
-    end if
-
     ! first pass, the number of sides of each polygon
     lu = fopen_read(file3,abspath0=.true.)
     read(lu,*)
@@ -4318,29 +4325,47 @@ contains
 
     call fclose(lu)
 
-    if (verbose) then
-       write (uout,'("+ Faces of the WS cell")')
-       write (uout,'("  Number of polygons: ",A)') string(npolig)
-       do i = 1, npolig
-          write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
-             (string(iside(i,j),length=2),j=1,nside(i))
-       end do
-       write (uout,*)
+    ! save faces and vertices
+    if (present(nface_ws)) then
+       nface_ws = npolig
     end if
+    if (present(nside_ws)) then
+       if (allocated(nside_ws)) deallocate(nside_ws)
+       allocate(nside_ws(npolig))
+       nside_ws = nside(1:npolig)
+    end if
+    if (present(iside_ws)) then
+       if(allocated(iside_ws)) deallocate(iside_ws)
+       allocate(iside_ws(maxval(nside(1:npolig)),npolig))
+       iside_ws = 0
+       do i = 1, npolig
+          do j = 1, nside(i)
+             iside_ws(j,i) = iside(i,j)
+          end do
+       end do
+    end if
+    if (present(nvert_ws)) then
+       nvert_ws = nvert
+    end if
+    if (present(vws)) then
+       if (allocated(vws)) deallocate(vws)
+       allocate(vws(3,nvert))
+       do i = 1, nvert
+          x0 = matmul(r2x,xws(:,i))
+          vws(:,i) = x0
+       end do
+    end if
+
+    ! real*8, allocatable, intent(inout), optional :: vws(:) !< vertices of the WS cell
 
     ! tetrahedra
     if (present(ntetrag).and.present(tetrag)) then
        ! local symmetry group
        pg = c%sitesymm(xorigin,leqv=leqv,lrotm=lrotm)
 
-       if (verbose) then
-          write (uout,'("+ Site-symmetry of the origin")')
-          write (uout,'("  Number of operations: ",A)') string(leqv)
-          write (uout,*)
-       end if
-
        ! build all the tetrahedra
        ntetrag = 0
+       if (allocated(tetrag)) deallocate(tetrag)
        allocate(tetrag(4,3,10))
        do i = 1, npolig
           n = nside(i)
@@ -4373,10 +4398,6 @@ contains
 
        ! output some info
        sumi = 0d0
-       if (verbose) then
-          write (uout,'("+ WS cell tetrahedra")')
-          write (uout,'("  Number of tetrahedra: ",A)') string(ntetrag)
-       end if
        allocate(active(ntetrag),tvol(ntetrag))
        active = .true.
        do i = 1, ntetrag
@@ -4386,12 +4407,6 @@ contains
           xp3 = tetrag(4,:,i) - tetrag(1,:,i)
           tvol(i) = abs(mixed(xp1,xp2,xp3)) / 6d0
           if (tvol(i) < ws_eps_vol) then
-             if (verbose) then
-                call ferror('wigner','removing degenerate tetrahedron',warning)
-                write (uout,'("   Number: ",I3)') i
-                write (uout,'("   Volume: ",1p,E20.12)') tvol(i)
-                write (uout,'("   Cutoff: ",1p,E20.12)') ws_eps_vol
-             end if
              active(i) = .false.
              cycle
           end if
@@ -4400,11 +4415,6 @@ contains
              tetrag(j,:,i) = matmul(r2x,tetrag(j,:,i))
           end do
        end do
-       if (verbose) then
-          write (uout,'("+ Sum of the tetrahedra volumes: ",A)') string(sumi,'f',decimal=5)
-          write (uout,'("+ Cell volume: ",A)') string(c%omega,'f',decimal=5)
-          write (uout,*)
-       end if
 
        ! reduce tetrahedra equivalent by symmetry
        do i = 1, ntetrag
@@ -4435,26 +4445,6 @@ contains
        ! renormalize
        tvol = tvol
 
-       ! stdout some info
-       if (verbose) then
-          write (uout,'("+ IWS list of tetrahedra (cryst. coord.) contains: ",A)') string(ntetrag)
-          sumi = 0d0
-          do i = 1, ntetrag
-             write (uout,'("+ Tetrahedron ",A," with vertex at:")') string(i)
-             do j = 1, 4
-                write (uout,'(4X,A,": ",3(A,2X))') string(j),&
-                   (string(tetrag(j,k,i),'f',length=12,decimal=8,justify=4),k=1,3)
-             end do
-             write (uout,'(4X," Volume: ",A)') string(tvol(i),'f',decimal=5)
-             sumi = sumi + tvol(i)
-          end do
-          write (uout,'("+ Sum of IWS tetrahedra volumes: ",A)') string(sumi,'f',decimal=5)
-          write (uout,'("+ ... times order of origin grp: ",A)') string(sumi*leqv,'f',decimal=5)
-          write (uout,'("+ Cell volume: ",A)') string(c%omega,'f',decimal=5)
-          write (uout,'("+ Cell/IWS volume ratio: ",A)') string(c%omega/sumi,'f',decimal=8)
-          write (uout,'("+ END of WS and IWS construction.")')
-          write (uout,*)
-       end if
        deallocate(active,tvol)
     end if
 
@@ -4523,11 +4513,10 @@ contains
   end subroutine wigner
 
   !> Partition the unit cell in tetrahedra.
-  subroutine pmwigner(c,verbose,ntetrag,tetrag)
+  subroutine pmwigner(c,ntetrag,tetrag)
     use tools_math, only: mixed
     use tools_io, only: uout
     class(crystal), intent(in) :: c !< the crystal structure
-    logical, intent(in) :: verbose !< verbose flag
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
     real*8, allocatable, intent(out), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
 
@@ -4570,25 +4559,6 @@ contains
        tvol(i) = abs(mixed(xp1,xp2,xp3)) / 6d0
        sumi = sumi + tvol(i)
     end do
-
-    ! stdout some info
-    if (verbose) then
-       write (uout,'("* Cell list of tetrahedra (cryst. coord.) contains : ",I3)') ntetrag
-       sumi = 0d0
-       do i = 1, ntetrag
-          write (uout,'("+ Tetrahedron : ",I3," with points at ")') i
-          do j = 1, 4
-             write (uout,'(4X,I3,3(1X,E20.13))') j, tetrag(j,1,i), tetrag(j,2,i), tetrag(j,3,i)
-          end do
-          write (uout,'(4X," Volume : ",1p,E20.12)') tvol(i)
-          sumi = sumi + tvol(i)
-       end do
-       write (uout,'("+ Sum of tetrahedra volumes : ",1p,E20.12)') sumi
-       write (uout,'("+ Cell volume               : ",1p,E20.12)') c%omega / c%ncv
-       write (uout,*)
-       write (uout,'("* END of cell construction.")')
-       write (uout,*)
-    end if
 
   end subroutine pmwigner
 

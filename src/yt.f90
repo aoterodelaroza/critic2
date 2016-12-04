@@ -30,14 +30,16 @@ module yt
 contains
 
   !> Do the YT integration on crystal c and field f. Return the number
-  !> of basins (nbasin), their coordinates (cryst. coordinates), the
-  !> integer id that gives the basin for each grid point (idg) and the
-  !> logical unit of an open scratch file containing the weights
-  !> (luw). A maximum is considered to belong to an atom if it is at a
-  !> distance of less than ratom away (bohr). Two maxima are equal if
-  !> they are less than ratom away. If the arithmetic expression
-  !> discexpr is not empty, then apply that expression to the basin
-  !> attractors. If the expression is non-zero, discard the attractor.
+  !> of basins (nbasin), their coordinates (cryst. coordinates,
+  !> xcoord), the integer id that gives the basin for each grid point
+  !> (idg) and the logical unit of an open scratch file containing the
+  !> weights (luw). If the arithmetic expression discexpr is not
+  !> empty, then apply that expression to the basin attractors. If the
+  !> expression is non-zero, discard the attractor. If atexist is
+  !> true, then the code is aware of the presence of atoms, which are
+  !> added as attractors at the beginning of the run. Two attractors
+  !> are considered equal if they are within a ditsance of ratom
+  !> (bohr).
   subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
     use struct_basic, only: crystal
     use fields, only: fields_fcheck, fields_feval
@@ -104,7 +106,7 @@ contains
     caux%aa = c%aa / real(n,8)
     caux%bb = c%bb
     call caux%set_cryscar()
-    call caux%wigner((/0d0,0d0,0d0/),.false.,nvec,vec,al)
+    call caux%wigner((/0d0,0d0,0d0/),nvec=nvec,vec=vec,area0=al)
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))

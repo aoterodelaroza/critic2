@@ -1571,7 +1571,7 @@ of these keywords in the NEQ line of the CRYSTAL environment is
 exactly the same.  
 
 Q is used to calculate the point-charge electrostatic energy (using
-Ewald's method, see `Other structural tools (NEWCELL, WS, ENVIRON,
+Ewald's method, see `Other structural tools (NEWCELL, ENVIRON,
 PACKING, IDENTIFY, EWALD)`_) and, if Q is positive, to build the
 promolecular density using the corresponding cation instead of the
 neutral atom.
@@ -5551,7 +5551,7 @@ keyword. Hence, a valid critic2 input would be::
 
 provided the two files exist.
 
-Other structural tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)
+Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -5601,13 +5601,6 @@ value of the cell angle cosines) by default. The type of primitive
 cell can also be chosen: Buerger (BUERGER), the cell resulting from
 Delaunay reduction (DELAUNAY), or a simple reduction to an arbitrary
 primitive cell (ANY).
-
-::
-
-  WS
-
-Find the Wigner-Seitz cell of the system and print information about
-its partition in tetrahedra. Useful for debugging.
 
 ::
 
@@ -6480,11 +6473,6 @@ UNLOAD
 WRITE
   Write the crystal structure to an external file. See `Exporting the
   structure (WRITE)`_.
-
-WS
-  Calculate the Wigner-Seitz cell and give information about its
-  partition in tetrahedra. Mostly for debug. See `Other structural
-  tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)`_.
 
 XDM
   Calculate the XDM dispersion energy and derivatives. See `The

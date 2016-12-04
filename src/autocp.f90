@@ -453,7 +453,7 @@ contains
        seed(i)%nseed = 0
        if (seed(i)%typ == styp_ws) then
           ! Determine the WS cell
-          call cr%wigner(seed(i)%x0,.true.,ntetrag=ntetrag,tetrag=tetrag)
+          call cr%wigner(seed(i)%x0,ntetrag=ntetrag,tetrag=tetrag)
           if (seed(i)%rad > 0) call scale_ws(seed(i)%rad,seed(i)%x0,ntetrag,tetrag)
           ! Recursively subdivide each tetrahedron
           do nt = 1, ntetrag     

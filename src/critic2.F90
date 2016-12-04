@@ -502,21 +502,6 @@ program critic
         write (uout,'("* Ewald electrostatic energy (Hartree) = ",A/)') &
            string(rdum,'e',decimal=12)
 
-     ! ws
-     elseif (equal(word,'ws')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before ws',faterr,line,syntax=.true.)
-           cycle
-        end if
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        if (cr%ismolecule) then
-           call ferror("critic2","WS can not be used with molecules",faterr,syntax=.true.)
-           cycle
-        end if
-           
-        call cr%wigner((/0d0,0d0,0d0/),.true.)
-
      ! environ
      elseif (equal(word,'environ')) then
         if (.not. cr%isinit) then
