@@ -180,7 +180,7 @@ contains
   subroutine trick_stephens_nnm_channel(line)
     use struct_basic, only: cr
     use fields, only: f, grd0
-    use graphics, only: obj_open, obj_ball, obj_stick, obj_close
+    use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
     use global, only: eval_next
     use tools_math, only: norm, cross
     use tools_io, only: faterr, ferror, uout, string
@@ -322,25 +322,25 @@ contains
     end do
 
     ! write the obj file
-    call obj_open("tube.obj",luobj,lumtl)
+    call graphics_open("obj","tube.obj",luobj,lumtl)
     do i = 1, nline
        x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
-       call obj_ball(luobj,x,(/0,0,255/),0.2d0)
+       call graphics_ball("obj",luobj,x,(/0,0,255/),0.2d0)
     end do
     do i = 1, nang
-       call obj_stick(luobj,x0,xlimit(:,i,1),(/0,0,0/),0.1d0)
-       call obj_stick(luobj,x1,xlimit(:,i,nline),(/0,0,0/),0.1d0)
+       call graphics_stick("obj",luobj,x0,xlimit(:,i,1),(/0,0,0/),0.1d0)
+       call graphics_stick("obj",luobj,x1,xlimit(:,i,nline),(/0,0,0/),0.1d0)
        do j = 1, nline-1
-          call obj_stick(luobj,xlimit(:,i,j),xlimit(:,i,j+1),(/0,0,0/),0.05d0)
+          call graphics_stick("obj",luobj,xlimit(:,i,j),xlimit(:,i,j+1),(/0,0,0/),0.05d0)
        end do
     end do
     do i = 1, nline
        do j = 1, nang-1
-          call obj_stick(luobj,xlimit(:,j,i),xlimit(:,j+1,i),(/0,0,0/),0.05d0)
+          call graphics_stick("obj",luobj,xlimit(:,j,i),xlimit(:,j+1,i),(/0,0,0/),0.05d0)
        end do
-       call obj_stick(luobj,xlimit(:,1,i),xlimit(:,nang,i),(/0,0,0/),0.05d0)
+       call graphics_stick("obj",luobj,xlimit(:,1,i),xlimit(:,nang,i),(/0,0,0/),0.05d0)
     end do
-    call obj_close(luobj,lumtl)
+    call graphics_close("obj",luobj,lumtl)
 
   end subroutine trick_stephens_nnm_channel
 

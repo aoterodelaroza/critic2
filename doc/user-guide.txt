@@ -5144,7 +5144,8 @@ Yu and Trinkle (YT)
 
 ::
 
-  YT [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
+  YT [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+     [DISCARD expr.s]
 
 The Yu-Trinkle (YT) algorithm uses the reference field to calculate
 the attraction basins. The reference field must be defined on a
@@ -5174,11 +5175,17 @@ of NNM. The NOATOMS option is appropriate for scalar fields where the
 maxima are not expected to be at the atomic positions (or at least not
 all of them). If NOATOMS is used, all the maxima found are given as
 NNM. This is useful for fields such as the ELF, the Laplacian,
-etc. The WCUBE option makes critic2 write cube files for the
-integration weights of each attractor. In YT, these weights are values
-zero (outisde the basin), one (inside the basin), or some intermediate
+etc.
+
+The WCUBE option makes critic2 write cube files for the integration
+weights of each attractor. In YT, these weights are values zero
+(outisde the basin), one (inside the basin), or some intermediate
 value near the atomic basin boundary. The generated cube files have
 names <root>_wcube_xx.cube, where xx is the attractor number.
+
+Use the BASINS option to write a graphical representation of the
+calculated basins. The format can be chosen using the OBJ, PLY, and
+OFF keywords (default: OBJ).
 
 Any maxima that is not assigned to an existing atom or non-nuclear
 critical point is automatically added to the critical point list, see
@@ -5227,7 +5234,8 @@ The algorithm by Henkelman et al. uses the BADER keyword:
 
 ::
 
-  BADER [NNM] [NOATOMS] [WCUBE] [RATOM ratom.r] [DISCARD expr.s]
+  BADER [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+     [DISCARD expr.s]
 
 The BADER algorithm uses the reference field to calculate the basins;
 this field must be defined on a grid. BADER assigns grid nodes to

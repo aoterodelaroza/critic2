@@ -24,26 +24,36 @@ module graphics
   public :: writexyz
   public :: writecml
   public :: writegjf
-  public :: obj_open
-  public :: obj_close
-  public :: obj_ball
-  public :: obj_stick
-  public :: obj_surf
-  public :: ply_open
-  public :: ply_close
-  public :: ply_ball
-  public :: ply_stick
-  public :: ply_surf
-  public :: off_open
-  public :: off_close
-  public :: off_ball
-  public :: off_stick
-  public :: off_surf
+  public :: graphics_open
+  public :: graphics_close
+  public :: graphics_ball
+  public :: graphics_polygon
+  public :: graphics_stick
+  public :: graphics_surf
+  private :: graphics_checkfmt
+  private :: obj_open
+  private :: obj_close
+  private :: obj_ball
+  private :: obj_polygon
+  private :: obj_stick
+  private :: obj_surf
   private :: register_texture
+  private :: ply_open
+  private :: ply_close
+  private :: ply_ball
+  private :: ply_polygon
+  private :: ply_stick
+  private :: ply_surf
+  private :: off_open
+  private :: off_close
+  private :: off_ball
+  private :: off_polygon
+  private :: off_stick
+  private :: off_surf
 
   ! graphics database
   logical :: isopen
-  integer :: nball, nstick, nsurf
+  integer :: nball, nstick, nsurf, nface
   integer :: nmtl
   integer, allocatable :: mtlrgb(:,:)
   integer :: nv, nf
@@ -407,6 +417,7 @@ contains
     ! nullify the graphics database
     isopen = .false.
     nball = 0
+    nface = 0
     nstick = 0
     nsurf = 0
     nmtl = 0
@@ -540,6 +551,143 @@ contains
 
   end subroutine writegjf
 
+  !> Open a graphics file (file) with format fmt. Returns the logical
+  !> unit and (in obj files) the mtl file.
+  subroutine graphics_open(fmt,file,lu,lumtl)
+    use tools_io, only: faterr, ferror, equal
+    character*3, intent(in) :: fmt
+    character*(*), intent(in) :: file
+    integer, intent(out) :: lu
+    integer, intent(out), optional :: lumtl
+
+    call graphics_checkfmt(fmt)
+    if (equal(fmt,"obj")) then
+       if (.not.present(lumtl)) &
+          call ferror("graphics_open","mtl LU argument not found",faterr)
+       call obj_open(file,lu,lumtl)
+    elseif (equal(fmt,"ply")) then
+       call ply_open(file,lu)
+    elseif (equal(fmt,"off")) then
+       call off_open(file,lu)
+    end if
+
+  end subroutine graphics_open
+
+  !> Open a graphics file (lu, lumtl) with format fmt.
+  subroutine graphics_close(fmt,lu,lumtl)
+    use tools_io, only: ferror, faterr, equal
+    character*3, intent(in) :: fmt
+    integer, intent(in) :: lu
+    integer, intent(in), optional :: lumtl
+
+    call graphics_checkfmt(fmt)
+    if (equal(fmt,"obj")) then
+       if (.not.present(lumtl)) &
+          call ferror("graphics_close","mtl LU argument not found",faterr)
+       call obj_close(lu,lumtl)
+    elseif (equal(fmt,"ply")) then
+       call ply_close(lu)
+    elseif (equal(fmt,"off")) then
+       call off_close(lu)
+    end if
+
+  end subroutine graphics_close
+
+  !> Write a ball to graphics file with LU lu and format fmt.  The
+  !> center is at x and the radius is r. rgb is the color.
+  subroutine graphics_ball(fmt,lu,x,rgb,r)
+    use tools_io, only: equal
+    character*3, intent(in) :: fmt
+    integer, intent(in) :: lu
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: rgb(3)
+    real*8, intent(in) :: r
+
+    call graphics_checkfmt(fmt)
+    if (equal(fmt,"obj")) then
+       call obj_ball(lu,x,rgb,r)
+    elseif (equal(fmt,"ply")) then
+       call ply_ball(lu,x,rgb,r)
+    elseif (equal(fmt,"off")) then
+       call off_ball(lu,x,rgb,r)
+    end if
+
+  end subroutine graphics_ball
+
+  !> Write a polygon to graphics file with LU lu and format fmt.  The
+  !> vertices are in x, and are assumed to be consecutive. rgb is the
+  !> color.
+  subroutine graphics_polygon(fmt,lu,x,rgb)
+    use tools_io, only: equal
+    character*3, intent(in) :: fmt
+    integer, intent(in) :: lu
+    real*8, intent(in) :: x(:,:)
+    integer, intent(in) :: rgb(3)
+
+    call graphics_checkfmt(fmt)
+    if (equal(fmt,"obj")) then
+       call obj_polygon(lu,x,rgb)
+    elseif (equal(fmt,"ply")) then
+       call ply_polygon(lu,x,rgb)
+    elseif (equal(fmt,"off")) then
+       call off_polygon(lu,x,rgb)
+    end if
+
+  end subroutine graphics_polygon
+
+  !> Write a stick to graphics file with LU lu and format fmt.  The
+  !> vertices are in x, and are assumed to be consecutive. rgb is the
+  !> color.
+  subroutine graphics_stick(fmt,lu,x1,x2,rgb,r)
+    use tools_io, only: equal
+    character*3, intent(in) :: fmt
+    integer, intent(in) :: lu
+    real*8, intent(in) :: x1(3), x2(3)
+    integer, intent(in) :: rgb(3)
+    real*8, intent(in) :: r
+
+    call graphics_checkfmt(fmt)
+    if (equal(fmt,"obj")) then
+       call obj_stick(lu,x1,x2,rgb,r)
+    elseif (equal(fmt,"ply")) then
+       call ply_stick(lu,x1,x2,rgb,r)
+    elseif (equal(fmt,"off")) then
+       call off_stick(lu,x1,x2,rgb,r)
+    end if
+
+  end subroutine graphics_stick
+
+  !> Write a surface (srf with colors fsurf) to graphics file with LU
+  !> lu and format fmt.
+  subroutine graphics_surf(fmt,lu,srf,fsurf)
+    use tools_io, only: equal
+    use types, only: minisurf
+    character*3, intent(in) :: fmt
+    integer, intent(in) :: lu
+    type(minisurf), intent(in) :: srf
+    real*8, intent(in), optional :: fsurf(:)
+
+    call graphics_checkfmt(fmt)
+    if (equal(fmt,"obj")) then
+       call obj_surf(lu,srf,fsurf)
+    elseif (equal(fmt,"ply")) then
+       call ply_surf(lu,srf,fsurf)
+    elseif (equal(fmt,"off")) then
+       call off_surf(lu,srf,fsurf)
+    end if
+
+  end subroutine graphics_surf
+
+  subroutine graphics_checkfmt(fmt) 
+    use tools_io, only: equal, ferror, faterr
+    character*3, intent(in) :: fmt
+    logical :: ok
+
+    if (.not.(equal(fmt,"obj") .or. equal(fmt,"ply") .or. equal(fmt,"off"))) &
+       call ferror("graphics_checkfmt","unknown graphics format "//fmt,faterr)
+
+  end subroutine graphics_checkfmt
+
   !> Open an obj file (and its mtl companion)
   subroutine obj_open(file,luobj,lumtl)
     use tools_io, only: faterr, ferror, fopen_write
@@ -568,6 +716,7 @@ contains
     ! clear and initialize the mtl database
     nmtl = 0
     nball = 0
+    nface = 0
     nstick = 0
     nv = 0
     if (allocated(mtlrgb)) deallocate(mtlrgb)
@@ -604,6 +753,7 @@ contains
     ! clear the mtl database
     nmtl = 0
     nball = 0
+    nface = 0
     nstick = 0
     nv = 0
     deallocate(mtlrgb)
@@ -652,6 +802,40 @@ contains
     nv = nv + nvsph(lvl)
 
   end subroutine obj_ball
+
+  !> Write a polygon to the obj file. The coordinates are in array x
+  !> (Cartesian), and are assumed to be in order.
+  subroutine obj_polygon(luobj,x,rgb)
+    use tools_io, only: ferror, faterr, string
+    integer, intent(in) :: luobj
+    real*8, intent(in) :: x(:,:)
+    integer, intent(in) :: rgb(3)
+
+    integer :: imtl, i, n
+    character(len=:), allocatable :: str, aux
+
+    if (.not.isopen) &
+       call ferror('obj_polygon','error: graphics file is not open',faterr)
+
+    ! write the face to the obj
+    n = size(x,2)
+    nface = nface+1
+    write (luobj,'("o face_",A)') string(nface)
+    write (luobj,'("s on")')
+    imtl = register_texture(rgb)
+    write (luobj,'("usemtl mat",A)') string(imtl)
+    do i = 1, n
+       write (luobj,'("v ",3(F20.12,X))') x(:,i)
+    end do
+    str = ""
+    do i = 1, n
+       aux = str // string(nv+i) // " "
+       str = aux
+    end do
+    write (luobj,'("f ",A)') str
+    nv = nv + n
+
+  end subroutine obj_polygon
   
   !> Write a stick to the obj file
   subroutine obj_stick(luobj,x1,x2,rgb,r)
@@ -712,11 +896,11 @@ contains
   end subroutine obj_stick
   
   !> Write a surface to the obj file
-  subroutine obj_surf(luobj,lumtl,srf,fsurf)
+  subroutine obj_surf(luobj,srf,fsurf)
     use types, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
-    integer, intent(in) :: luobj, lumtl
+    integer, intent(in) :: luobj
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
 
@@ -909,6 +1093,46 @@ contains
 
   end subroutine ply_ball
   
+  !> Write a polygon to the ply file. The coordinates are in array x
+  !> (Cartesian), and are assumed to be in order.
+  subroutine ply_polygon(luply,x,rgb)
+    use tools_io, only: ferror, faterr, string
+    integer, intent(in) :: luply
+    real*8, intent(in) :: x(:,:)
+    integer, intent(in) :: rgb(3)
+
+    integer :: i, i1, n
+    character(len=:), allocatable :: str, aux
+    real*8 :: xcm(3)
+
+    if (.not.isopen) &
+       call ferror('ply_polygon','error: graphics file is not open',faterr)
+
+    ! center of the face
+    n = size(x,2)
+    xcm = 0d0
+    do i = 1, n
+       xcm = xcm + x(:,i)
+    end do
+    xcm = xcm / n
+
+    ! write the face to the obj
+    do i = 1, n
+       write (luply,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+          string(rgb(1)), string(rgb(2)), string(rgb(3))
+    end do
+    write (luply,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+       string(rgb(1)), string(rgb(2)), string(rgb(3))
+
+    do i = 1, n
+       i1 = mod(i,n) + 1
+       write (luply,'("f3 ",3(A,X))') string(nv+i-1), string(nv+i1-1), string(nv+n)
+    end do
+    nv = nv + n + 1
+    nf = nf + n
+
+  end subroutine ply_polygon
+
   !> Write a stick to the ply file
   subroutine ply_stick(luply,x1,x2,rgb,r)
     use tools_io, only: ferror, faterr, string
@@ -1128,6 +1352,46 @@ contains
 
   end subroutine off_ball
   
+  !> Write a polygon to the off file. The coordinates are in array x
+  !> (Cartesian), and are assumed to be in order.
+  subroutine off_polygon(luoff,x,rgb)
+    use tools_io, only: ferror, faterr, string
+    integer, intent(in) :: luoff
+    real*8, intent(in) :: x(:,:)
+    integer, intent(in) :: rgb(3)
+
+    integer :: i, i1, n
+    character(len=:), allocatable :: str, aux
+    real*8 :: xcm(3)
+
+    if (.not.isopen) &
+       call ferror('off_polygon','error: graphics file is not open',faterr)
+
+    ! center of the face
+    n = size(x,2)
+    xcm = 0d0
+    do i = 1, n
+       xcm = xcm + x(:,i)
+    end do
+    xcm = xcm / n
+
+    ! write the face to the obj
+    do i = 1, n
+       write (luoff,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+          string(rgb(1)), string(rgb(2)), string(rgb(3))
+    end do
+    write (luoff,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+       string(rgb(1)), string(rgb(2)), string(rgb(3))
+
+    do i = 1, n
+       i1 = mod(i,n) + 1
+       write (luoff,'("f3 ",3(A,X))') string(nv+i-1), string(nv+i1-1), string(nv+n)
+    end do
+    nv = nv + n + 1
+    nf = nf + n
+
+  end subroutine off_polygon
+
   !> Write a stick to the off file
   subroutine off_stick(luoff,x1,x2,rgb,r)
     use tools_io, only: faterr, ferror, string

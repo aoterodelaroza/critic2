@@ -860,8 +860,7 @@ contains
   subroutine minisurf_write3dmodel(s,fmt,file,expr)
     use fields, only: f, grd, fields_fcheck, fields_feval
     use global, only: refden
-    use graphics, only: obj_open, obj_surf, obj_close, off_open, off_surf, off_close,&
-       ply_open, ply_surf, ply_close
+    use graphics, only: graphics_open, graphics_surf, graphics_close
     use arithmetic, only: eval
     use tools_io, only: faterr, ferror
     use types, only: minisurf, scalar_value
@@ -895,21 +894,9 @@ contains
        fsurf = real(s%rgb,8) / 255d0
     end if
 
-    if (fmt == "obj") then
-       call obj_open(file,lu1,lu2)
-       call obj_surf(lu1,lu2,s,fsurf)
-       call obj_close(lu1,lu2)
-    elseif (fmt == "off") then
-       call off_open(file,lu1)
-       call off_surf(lu1,s,fsurf)
-       call off_close(lu1)
-    elseif (fmt == "ply") then
-       call ply_open(file,lu1)
-       call ply_surf(lu1,s,fsurf)
-       call ply_close(lu1)
-    else
-       call ferror ('minisurf_write3dmodel','Unknown format',faterr)
-    endif
+    call graphics_open(fmt,file,lu1,lu2)
+    call graphics_surf(fmt,lu1,s,fsurf)
+    call graphics_close(fmt,lu1,lu2)
     deallocate(fsurf)
 
   end subroutine minisurf_write3dmodel

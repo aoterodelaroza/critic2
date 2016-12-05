@@ -328,9 +328,8 @@ contains
   !> the files.
   subroutine struct_write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
+    use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
     use fragmentmod, only: fragment_merge_array
-    use graphics, only: obj_open, ply_open, off_open, obj_ball, ply_ball, off_ball,&
-       obj_stick, ply_stick, off_stick, obj_close, off_close, ply_close
     use struct_basic, only: crystal
     use tools_math, only: norm
     use types, only: fragment
@@ -394,13 +393,7 @@ contains
     end if
 
     lumtl = 0
-    if (equal(fmt,"obj")) then
-       call obj_open(file,lu,lumtl)
-    elseif (equal(fmt,"ply")) then
-       call ply_open(file,lu)
-    elseif (equal(fmt,"off")) then
-       call off_open(file,lu)
-    endif
+    call graphics_open(fmt,file,lu,lumtl)
 
     ! add the balls
     do i = 1, fr%nat
@@ -409,13 +402,7 @@ contains
        else
           rr = 0.6d0*atmcov(fr%at(i)%z)
        endif
-       if (equal(fmt,"obj")) then
-          call obj_ball(lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
-       elseif (equal(fmt,"ply")) then
-          call ply_ball(lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
-       elseif (equal(fmt,"off")) then
-          call off_ball(lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
-       end if
+       call graphics_ball(fmt,lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
     end do
 
     ! add the sticks
@@ -426,16 +413,8 @@ contains
           d = norm(xd)
           if (d < (atmcov(fr%at(i)%z) + atmcov(fr%at(j)%z)) * rfac) then
              xd = fr%at(i)%r + 0.5d0 * (fr%at(j)%r - fr%at(i)%r)
-             if (equal(fmt,"obj")) then
-                call obj_stick(lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
-                call obj_stick(lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
-             elseif (equal(fmt,"ply")) then
-                call ply_stick(lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
-                call ply_stick(lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
-             elseif (equal(fmt,"off")) then
-                call off_stick(lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
-                call off_stick(lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
-             end if
+             call graphics_stick(fmt,lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
+             call graphics_stick(fmt,lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
           end if
        end do
     end do
@@ -445,13 +424,7 @@ contains
        do i = 1, 12
           x0 = c%x2c(x0cell(:,1,i)) + c%molx0
           x1 = c%x2c(x0cell(:,2,i)) + c%molx0
-          if (equal(fmt,"obj")) then
-             call obj_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-          elseif (equal(fmt,"ply")) then
-             call ply_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-          elseif (equal(fmt,"off")) then
-             call off_stick(lu,x0,x1,(/255,0,0/),0.03d0)
-          end if
+          call graphics_stick(fmt,lu,x0,x1,(/255,0,0/),0.03d0)
        end do
     end if
 
@@ -468,13 +441,7 @@ contains
           end do
           x0 = c%x2c(x0) + c%molx0
           x1 = c%x2c(x1) + c%molx0
-          if (equal(fmt,"obj")) then
-             call obj_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-          elseif (equal(fmt,"ply")) then
-             call ply_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-          elseif (equal(fmt,"off")) then
-             call off_stick(lu,x0,x1,(/0,0,255/),0.03d0)
-          end if
+          call graphics_stick(fmt,lu,x0,x1,(/0,0,255/),0.03d0)
        end do
     end if
 
@@ -483,13 +450,7 @@ contains
        lu0 = lu
        lumtl0 = lumtl
     else
-       if (equal(fmt,"obj")) then
-          call obj_close(lu,lumtl)
-       elseif (equal(fmt,"ply")) then
-          call ply_close(lu)
-       elseif (equal(fmt,"off")) then
-          call off_close(lu)
-       end if
+       call graphics_close(fmt,lu,lumtl)
     end if
 
     if (allocated(fr0)) deallocate(fr0)

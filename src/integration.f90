@@ -99,9 +99,10 @@ contains
     real*8, parameter :: ratom_def0 = 1d0
 
     character(len=:), allocatable :: word, file, expr
+    character*3 :: basinfmt
     integer :: i, k, n(3), nn, ntot
-    integer :: lp, imtype, i1, i2, i3
-    logical :: ok, nonnm, noatoms, atexist, pmask(nprops), dowcube
+    integer :: lp, lp2, imtype, i1, i2, i3
+    logical :: ok, nonnm, noatoms, atexist, pmask(nprops), dowcube, dobasins
     logical :: plmask(nprops)
     real*8 :: ratom, ratom_def, padd, lprop(nprops)
     real*8 :: x(3), x2(3)
@@ -139,6 +140,8 @@ contains
     nonnm = .true.
     noatoms = .false.
     dowcube = .false.
+    dobasins = .false.
+    basinfmt = "obj"
     expr = ""
     do while(.true.)
        word = lgetword(line,lp)
@@ -156,6 +159,20 @@ contains
           ratom_def = ratom_def / dunit
        elseif (equal(word,"wcube")) then
           dowcube = .true.
+       elseif (equal(word,"basins")) then
+          dobasins = .true.
+          lp2 = lp
+          word = lgetword(line,lp)
+          if (equal(word,"obj")) then
+             basinfmt = "obj"
+          elseif (equal(word,"ply")) then
+             basinfmt = "ply"
+          elseif (equal(word,"off")) then
+             basinfmt = "off"
+          else
+             lp = lp2
+             basinfmt = "obj"
+          end if
        elseif (equal(word,"discard")) then
           ok = isexpression_or_word(expr,line,lp)
           if (.not. ok) then
@@ -363,6 +380,10 @@ contains
 
     ! output the results
     call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
+
+    ! plot the bains
+    if (dobasins) &
+       call int_gridbasins(basinfmt,nattr,icp,xgatt,idg,imtype,luw)
 
     ! clean up YT checkpoint files
     if (imtype == imtype_yt) then
@@ -1802,5 +1823,99 @@ contains
     call move_alloc(xattr,xgatt)
 
   end subroutine int_reorder_gridout
+
+  subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
+    use global, only: fileroot
+    use struct_basic, only: cr, crystal
+    use struct_writers, only: struct_write_3dmodel
+    use graphics, only: graphics_open, graphics_close, graphics_polygon
+    use tools_io, only: string, uout
+    use yt, only: yt_weights
+    character*3, intent(in) :: fmt
+    integer, intent(in) :: nattr
+    integer, intent(in), allocatable :: icp(:)
+    real*8, intent(in) :: xgatt(3,nattr)
+    integer, intent(in) :: idg(:,:,:)
+    integer, intent(in) :: imtype
+    integer, intent(in) :: luw
+
+    integer :: lu, lumtl
+    character(len=:), allocatable :: str
+    integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3)
+    real*8 :: x(3)
+    type(crystal) :: caux
+    real*8, allocatable :: xface(:,:), w(:,:,:)
+    integer, allocatable :: idg0(:,:,:)
+
+    integer, parameter :: rgb1(3) = (/128,128,128/)
+
+    ! prepare wigner-seitz tetrahedra
+    do i = 1, 3
+       n(i) = size(idg,i)
+    end do
+    caux%isinit = .true.
+    caux%aa = cr%aa / real(n,8)
+    caux%bb = cr%bb
+    call caux%set_cryscar()
+    call caux%wigner((/0d0,0d0,0d0/),nvec=caux%nws,vec=caux%ivws,&
+       nvert_ws=caux%nvert_ws,nside_ws=caux%nside_ws,iside_ws=caux%iside_ws,&
+       vws=caux%vws)
+    allocate(xface(3,size(caux%iside_ws,1)))
+
+    ! output
+    write (uout,'("* Basins written to ",A,"_basins-*.",A/)') trim(fileroot), fmt
+
+    ! write the unit cell
+    str = trim(fileroot) // "_basins-cell." // fmt
+    call struct_write_3dmodel(cr,str,fmt,(/1,1,1/),.true.,.false.,.true.,&
+       .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
+
+    ! prepare the idg array
+    allocate(idg0(n(1),n(2),n(3)))
+    if (imtype == imtype_bader) then
+       idg0 = idg
+    elseif (imtype == imtype_yt) then
+       allocate(w(n(1),n(2),n(3)))
+       do i = 1, nattr
+          call yt_weights(luw,i,w)
+          where(w >= 0.5d0)
+             idg0 = i
+          end where
+       end do
+       deallocate(w)
+    endif
+
+    ! write the basins
+    do i = 1, nattr
+       ! name this file
+       str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
+       call graphics_open(fmt,str,lu,lumtl)
+
+       do i1 = 1, n(1)
+          do i2 = 1, n(2)
+             do i3 = 1, n(3)
+                if (idg0(i1,i2,i3) == i) then
+                   p = (/i1,i2,i3/)
+                   do j = 1, caux%nws
+                      q = modulo(p + caux%ivws(:,j) - 1,n) + 1
+                      if (idg0(q(1),q(2),q(3)) /= i) then
+                         x = cr%x2c(real(p-1,8) / n)
+                         do k = 1, caux%nside_ws(j)
+                            xface(:,k) = x + caux%x2c(caux%vws(:,caux%iside_ws(k,j)))
+                         end do
+                         call graphics_polygon(fmt,lu,xface,rgb1)
+                      end if
+                   end do
+                end if
+             end do
+          end do
+       end do
+
+       call graphics_close(fmt,lu,lumtl)
+    end do
+
+    deallocate(xface)
+
+  end subroutine int_gridbasins
 
 end module integration

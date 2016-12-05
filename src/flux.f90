@@ -664,7 +664,7 @@ contains
   !> Deallocate memory, end the tessel output and close files.
   subroutine flx_end(molmotif)
     use tools_io, only: fclose
-    use graphics, only: obj_close, ply_close, off_close
+    use graphics, only: graphics_close
     use global, only: fileroot
 
     logical, intent(in) :: molmotif
@@ -675,12 +675,8 @@ contains
     flx_init = .false.
 
     ! close it
-    if (outfmt == "obj") then
-       call obj_close(luout,lumtl)
-    elseif (outfmt == "ply") then
-       call ply_close(luout)
-    elseif (outfmt == "off") then
-       call off_close(luout)
+    if (outfmt == "obj" .or. outfmt == "ply" .or. outfmt == "off") then
+       call graphics_close(outfmt,luout,lumtl)
     elseif (outfmt == "cml") then
        write (luout,'(" </atomArray>")')
        write (luout,'("</molecule>")')
@@ -722,7 +718,7 @@ contains
   !> Print gradient path info to standard output.
   subroutine flx_printpath(rgb0)
     use struct_basic, only: cr
-    use graphics, only: obj_ball, off_ball, ply_ball
+    use graphics, only: graphics_ball
     use global, only: dunit
     use tools_io, only: string
     use param, only: bohrtoa
@@ -775,12 +771,8 @@ contains
     elseif (outfmt=="obj" .or. outfmt=="off" .or. outfmt=="ply" .or. outfmt=="cml") then
        do i=1,flx_n
           x = cr%x2c(flx_x(:,i))
-          if (outfmt == "obj") then
-             call obj_ball(luout,x,rgb0,rrad)
-          elseif (outfmt == "off") then
-             call off_ball(luout,x,rgb0,rrad)
-          elseif (outfmt == "ply") then
-             call ply_ball(luout,x,rgb0,rrad)
+          if (outfmt == "obj" .or. outfmt == "off" .or. outfmt == "ply") then
+             call graphics_ball(outfmt,luout,x,rgb0,rrad)
           elseif (outfmt == "cml") then
              if (.not.cr%ismolecule) then
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")')&

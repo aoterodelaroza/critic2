@@ -90,10 +90,9 @@ module struct_basic
      real*8 :: molx0(3) !< centering vector for the molecule
      real*8 :: molborder(3) !< border length (cryst coords)
      ! wigner-seitz cell 
-     integer :: nws !< number of WS neighbors
+     integer :: nws !< number of WS neighbors/faces
      integer :: ivws(3,16) !< WS neighbor lattice points
      logical :: isortho !< is the cell orthogonal?
-     integer :: nface_ws !< number of faces in the WScell
      integer :: nvert_ws !< number of vertices of the WS cell
      integer, allocatable :: nside_ws(:) !< number of sides of WS faces
      integer, allocatable :: iside_ws(:,:) !< sides of the WS faces
@@ -3280,8 +3279,7 @@ contains
 
        ! calculate the wigner-seitz cell
        call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
-          nvert_ws=c%nvert_ws,nface_ws=c%nface_ws,nside_ws=c%nside_ws,&
-          iside_ws=c%iside_ws,vws=c%vws)
+          nvert_ws=c%nvert_ws,nside_ws=c%nside_ws,iside_ws=c%iside_ws,vws=c%vws)
        c%isortho = (c%nws <= 6)
        if (c%isortho) then
           do i = 1, c%nws
@@ -3690,8 +3688,8 @@ contains
        write (uout,*)
 
        write (uout,'("+ Faces of the WS cell")')
-       write (uout,'("  Number of faces: ",A)') string(c%nface_ws)
-       do i = 1, c%nface_ws
+       write (uout,'("  Number of faces: ",A)') string(c%nws)
+       do i = 1, c%nws
           write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
              (string(c%iside_ws(j,i),length=2),j=1,c%nside_ws(i))
        end do
@@ -4168,7 +4166,7 @@ contains
 
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
   subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
-     nvert_ws,nface_ws,nside_ws,iside_ws,vws)
+     nvert_ws,nside_ws,iside_ws,vws)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
     use global, only: fileroot
     use tools_math, only: norm, mixed, cross
@@ -4193,7 +4191,6 @@ contains
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
     real*8, allocatable, intent(inout), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
     integer, intent(out), optional :: nvert_ws !< number of vertices of the WS cell
-    integer, intent(out), optional :: nface_ws !< number of faces of the WS cell
     integer, allocatable, intent(inout), optional :: nside_ws(:) !< number of sides of WS faces
     integer, allocatable, intent(inout), optional :: iside_ws(:,:) !< sides of the WS faces
     real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell
@@ -4326,9 +4323,6 @@ contains
     call fclose(lu)
 
     ! save faces and vertices
-    if (present(nface_ws)) then
-       nface_ws = npolig
-    end if
     if (present(nside_ws)) then
        if (allocated(nside_ws)) deallocate(nside_ws)
        allocate(nside_ws(npolig))
