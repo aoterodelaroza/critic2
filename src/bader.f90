@@ -56,13 +56,17 @@ module bader
 
 contains
 
-  !> Do a grid integration using the BADER method. cr is the crystal
-  !> and f is the field. Return the number of basins (nbasin0), their
-  !> coordinates (crystallographic corods, volpos_lat). volnum0 gives
-  !> the id of the basin (from 1 to nbasin0) on the lattice. If 
-  !> the arithmetic expression discexpr is not empty, then apply that
-  !> expression to the basin attractors. If the expression is non-zero,
-  !> discard the attractor.
+  !> Do a grid integration using the BADER method. c is the crystal
+  !> and ff is the field. Return the number of basins (nbasin0), their
+  !> coordinates (crystallographic corods, xcoord). volnum0 gives the
+  !> id of the basin (from 1 to nbasin0) on the lattice. If the
+  !> arithmetic expression discexpr is not empty, then apply that
+  !> expression to the basin attractors. If the expression is
+  !> non-zero, discard the attractor. If atexist is true, then the
+  !> code is aware of the presence of atoms, which are added as
+  !> attractors at the beginning of the run. Two attractors are
+  !> considered equal if they are within a ditsance of ratom
+  !> (bohr).
   subroutine bader_integrate(c,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
     use struct_basic, only: crystal
     use fields, only: fields_fcheck, fields_feval
@@ -85,6 +89,12 @@ contains
     real*8 :: dlat(3), dcar(3), dist, dv(3), x(3), fval
     integer :: bat(c%ncel)
     logical :: isassigned, ok
+
+    ! deallocate the arguments and private globals
+    if (allocated(volnum0)) deallocate(volnum0)
+    if (allocated(volnum)) deallocate(volnum)
+    if (allocated(known)) deallocate(known)
+    if (allocated(path)) deallocate(path)
 
     ! Pre-allocate atoms as maxima
     allocate(xcoord(3,c%ncel))
@@ -208,6 +218,8 @@ contains
     call realloc(xcoord,3,nbasin)
     call move_alloc(volnum,volnum0)
     nbasin0 = nbasin
+    if (allocated(known)) deallocate(known)
+    if (allocated(path)) deallocate(path)
 
   end subroutine bader_integrate
 
@@ -280,7 +292,7 @@ contains
           end do
        end do
 
-       ! make the surrounding points unkown
+       ! make the surrounding points unknown
        do n1 = 1, n(1)
           do n2 = 1, n(2)
              do n3 = 1, n(3)
@@ -370,7 +382,7 @@ contains
   subroutine step_neargrid(f,p)
     
     real*8, intent(in) :: f(:,:,:)
-    integer,dimension(3),intent(inout) :: p
+    integer, intent(inout) :: p(3)
 
     real*8, save :: dr(3)
     real*8 :: gradrl(3), coeff
@@ -518,7 +530,6 @@ contains
   ! pbc
   ! Wrap the point (p(1),p(2),p(3)) to the boundary conditions [0,pmax].
   subroutine pbc(p)
-
     integer, intent(inout) :: p(3)
 
     integer :: i

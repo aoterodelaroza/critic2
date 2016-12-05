@@ -74,6 +74,7 @@ module integration
   private :: quadpack_f
   public :: int_output
   public :: int_reorder_gridout
+  private :: int_gridbasins
 
   ! grid integration types
   integer, parameter :: imtype_bader = 1
@@ -1723,6 +1724,7 @@ contains
     ! reorder the maxima and assign maxima to atoms according to ratom
     if (allocated(icp)) deallocate(icp)
     allocate(icp(nattr),xattr(3,nattr),assigned(nattr))
+    icp = 0
     assigned = 0
     nattr0 = nattr
     ! assign attractors to atoms
@@ -1842,7 +1844,7 @@ contains
     integer :: lu, lumtl
     character(len=:), allocatable :: str
     integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3)
-    real*8 :: x(3)
+    real*8 :: x(3), xd(3), d2
     type(crystal) :: caux
     real*8, allocatable :: xface(:,:), w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
@@ -1896,10 +1898,19 @@ contains
              do i3 = 1, n(3)
                 if (idg0(i1,i2,i3) == i) then
                    p = (/i1,i2,i3/)
+                   x = real(p-1,8) / n
+
+                   ! move to the ws of the attractor
+                   xd = x - xgatt(:,i)
+                   call cr%shortest(xd,d2)
+
+                   ! convert to Cartesian
+                   x = cr%x2c(xgatt(:,i)) + xd
+
+                   ! plot, if on the border of the cell
                    do j = 1, caux%nws
                       q = modulo(p + caux%ivws(:,j) - 1,n) + 1
                       if (idg0(q(1),q(2),q(3)) /= i) then
-                         x = cr%x2c(real(p-1,8) / n)
                          do k = 1, caux%nside_ws(j)
                             xface(:,k) = x + caux%x2c(caux%vws(:,caux%iside_ws(k,j)))
                          end do
