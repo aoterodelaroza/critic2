@@ -225,6 +225,7 @@ contains
        wroot = file(:index(file,'.',.true.)-1)
        do i = 1, nmer
           if (i == 1) then
+             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol), string(i)
              ! monomers
              do j = 1, c%nmol
                 file0 = trim(wroot) // "_" // string(j) // "." // fmt
@@ -232,6 +233,7 @@ contains
              end do
           elseif (i == nmer) then
              ! n-mers
+             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol * nchoosek(nmol,i-1)), string(i)
              allocate(icomb(i-1))
              do l = 1, c%nmol
                 ncomb = nchoosek(nmol,i-1)
@@ -252,8 +254,9 @@ contains
              deallocate(icomb)
           else
              ! everything in between
-             allocate(icomb(i))
              ncomb = nchoosek(nmol,i)
+             write (uout,'("+ Writing ",A," ",A,"-mers")') string(ncomb), string(i)
+             allocate(icomb(i))
              do j = 1, ncomb
                 call comb(nmol,i,j,icomb)
                 file0 = wroot 
