@@ -54,7 +54,8 @@ Prepare for compilation doing:
 
 Use <code>configure --help</code> for information about the
 compilation options. The --prefix option sets the installation
-path. Once critic2 is configured, compile using:
+path; more details about configure can be found in the INSTALL
+file. Once critic2 is configured, compile using:
 
     make
 
