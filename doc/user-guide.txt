@@ -4270,7 +4270,8 @@ after id.s, F is used by default. With MULTIPOLES (or MULTIPOLE), the
 multipole moments of the field are calculated up to l=lmax.i (default:
 5). This keyword only applies to the BADER and YT integration methods;
 for the others, it is equivalent to the field value (same as F). The
-name for the integrand can be changed using the keyword NAME.
+units for all calculated multipoles are atomic units. The name for the
+integrand can be changed using the keyword NAME.
 
 In addition, it is possible to define an integrable property using an
 expression involving more than one field (expr.s). For instance, if

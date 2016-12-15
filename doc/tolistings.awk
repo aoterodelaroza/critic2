@@ -1,4 +1,4 @@
-#! /usr/bin/gawk -f
+#! /usr/bin/awk -f
 
 /\\begin{quote}\\begin{verbatim}/ {
    getline
