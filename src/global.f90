@@ -193,6 +193,7 @@ contains
     integer :: isenv
     logical :: lchk
 
+    character(len=:), allocatable :: msg1, msg2, msg3, msg4
     integer, parameter :: maxlenpath = 1024
 
     ! read the -r option
@@ -200,6 +201,7 @@ contains
        critic_home = string(ghome) // dirsep // "dat"
        inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
        if (lchk) goto 99
+       write (uout,'("  File not found: ",A)') trim(critic_home)// dirsep // "cif_core.dic"
     endif
 
     ! read env variable CRITIC_HOME
@@ -209,22 +211,28 @@ contains
        critic_home = trim(critic_home) // dirsep // "dat"
        inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
        if (lchk) goto 99
+       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home)// dirsep // "cif_core.dic"
+    else
+       msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
     ! then the install path
     critic_home = trim(adjustl(datadir))
     inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
     if (lchk) goto 99
+    msg2 = "(!) 2. Not found (install path): " // trim(critic_home)// dirsep // "cif_core.dic"
 
     ! then the current directory
     critic_home = "."
     inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
     if (lchk) goto 99
+    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home)// dirsep // "cif_core.dic"
 
     ! argh!
-    call ferror("grda_init","The environment variable CRITIC_HOME is not set",warning)
+    call ferror("grda_init","Could not find data files.",warning)
+    write (uout,'(A/A/A)') msg1, msg2, msg3
     write (uout,'("(!) The cif dict file, the density files, and the structure library")')
-    write (uout,'("(!) will not be available. critic_home set to pwd.")')
+    write (uout,'("(!) will not be available.")')
     critic_home = "."
 
 99  continue
