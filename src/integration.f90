@@ -65,7 +65,7 @@ module integration
   public :: intgrid_driver
   private :: intgrid_multipoles
   private :: intgrid_deloc_wfn
-  private :: intgrid_deloc_brf
+  private :: intgrid_deloc_wannier
   public :: int_radialquad
   public :: gauleg_msetnodes
   public :: gauleg_mquad
@@ -113,7 +113,6 @@ contains
     integer :: fid, nattr, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: di(:,:,:), mpole(:,:,:)
-    real*8, allocatable :: sij(:,:,:,:,:)
     logical :: dodeloc, fillgrd
     real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
     type(field) :: faux
@@ -377,7 +376,7 @@ contains
 
     ! localization and delocalization indices
     call intgrid_deloc_wfn(nattr,xgatt,idg,imtype,luw,di)
-    if (dodeloc) call intgrid_deloc_brf(nattr,xgatt,idg,imtype,luw,sij)
+    if (dodeloc) call intgrid_deloc_wannier(nattr,xgatt,idg,imtype,luw)
 
     ! output the results
     call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,di,mpole)
@@ -547,6 +546,7 @@ contains
     if (imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
     endif
+
     ! run over all properties for which multipole calculation is active
     ndeloc = 0
     do l = 1, nprops
@@ -652,13 +652,13 @@ contains
 
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a grid-related dat file.
-  subroutine intgrid_deloc_brf(natt,xgatt,idg,imtype,luw,sij0)
+  subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw)
     use bader, only: bader_integrate
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
     use struct_basic, only: crystal, cr
     use global, only: refden
-    use types, only: field
-    use tools_io, only: uout, string, ferror, faterr
+    use types, only: field, realloc
+    use tools_io, only: uout, string, ferror, faterr, fopen_write, fclose
     use tools, only: qcksort
 
     integer, intent(in) :: natt
@@ -666,26 +666,26 @@ contains
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: imtype
     integer, intent(in) :: luw
-    real*8, intent(inout), allocatable :: sij0(:,:,:,:,:)
 
     integer :: is, nspin
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
+    integer :: ic, jc, kc, id, jd, kd
     integer :: i, j, k, l, m, ia1, ia2, ia3
     integer :: i0, i1, j0, j1, k0, k1, m1, m2, m3, n0(3)
-    integer :: fid, n(3), ix
+    integer :: fid, n(3), ix, lu, p(3)
     integer :: idx1(3), idx2(3)
     real*8, allocatable :: w(:,:,:)
-    integer :: nbnd, nlat, nmo, imo, jmo
+    integer :: nbnd, nlat, nmo, imo, jmo, kmo, lmo, imo1, jmo1
     real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
-    real*8, allocatable :: sij(:,:,:,:)
-    real*8, allocatable :: fa(:,:,:)
-    real*8 :: asum, asum2, x(3), fspin
+    real*8, allocatable :: sij(:,:,:,:), oij(:,:,:)
+    real*8, allocatable :: fa(:,:,:,:)
+    real*8 :: asum, asum2, x(3), xs(3), fspin, d2
     logical :: found
     integer :: natt1
     real*8 :: x0(3,3), r1(3), r2(3)
-    real*8, allocatable :: xgatt1(:,:), dist(:)
-    integer, allocatable :: idg1(:,:,:)
-    integer, allocatable :: io(:)
+    real*8, allocatable :: xgatt1(:,:), dist(:), diout(:)
+    integer, allocatable :: idg1(:,:,:), idat(:)
+    integer, allocatable :: io(:), ilvec(:,:), iatt(:), imap(:,:)
     type(crystal) :: cr1
     type(field) :: f1
 
@@ -750,7 +750,7 @@ contains
        !                      idx1 = modulo(idx1,f(fid)%nwan)
        !                      idx2 = (/m1,m2,m3/) + (/ib,jb,kb/)
        !                      idx2 = modulo(idx2,f(fid)%nwan)
-       ! 
+       
        !                      asum = asum + sum(f(fid)%fwan(idx1(1)*n(1)+1:idx1(1)*n(1)+n(1),idx1(2)*n(2)+1:idx1(2)*n(2)+n(2),idx1(3)*n(3)+1:idx1(3)*n(3)+n(3),iba,is) * &
        !                         f(fid)%fwan(idx2(1)*n(1)+1:idx2(1)*n(1)+n(1),idx2(2)*n(2)+1:idx2(2)*n(2)+n(2),idx2(3)*n(3)+1:idx2(3)*n(3)+n(3),ibb,is))
        !                   end do
@@ -767,133 +767,75 @@ contains
        !    stop 1
        ! end if
 
-       ! build the supercell
-       cr1 = cr
-       x0 = 0d0
-       do i = 1, 3
-          x0(i,i) = real(f(fid)%nwan(i),8)
-       end do
-       call cr1%newcell(x0,verbose0=.false.)
-       
-       ! build the field for the supercell
-       f1%type = type_grid
-       f1%usecore = .false.
-       n0 = f(fid)%n * f(fid)%nwan
-       f1%n = n0
-       f1%mode = f(refden)%mode
-       allocate(f1%f(n0(1),n0(2),n0(3)))
-       do i = 0, f(fid)%nwan(1)-1
-          do j = 0, f(fid)%nwan(2)-1
-             do k = 0, f(fid)%nwan(3)-1
-                f1%f(i*n(1)+1:(i+1)*n(1),j*n(2)+1:(j+1)*n(2),k*n(3)+1:(k+1)*n(3)) = f(refden)%f
+       ! precompute the lattice vector displacement
+       allocate(iatt(natt))
+       natt1 = natt
+       do i = 1, natt
+          iatt(i) = i
+       enddo
+       write (*,*) "Number of attractors before remapping: ", natt
+       allocate(ilvec(3,natt),idg1(n(1),n(2),n(3)))
+       ilvec = 0
+       do m1 = 1, n(1)
+          do m2 = 1, n(2)
+             do m3 = 1, n(3)
+                idg1(m1,m2,m3) = idg(m1,m2,m3)
+                p = (/m1,m2,m3/)
+                x = real(p-1,8) / n - xgatt(:,idg(m1,m2,m3))
+                xs = x
+                call cr%shortest(xs,d2)
+                p = nint(x - cr%c2x(xs))
+                if (any(p /= 0)) then
+                   found = .false.
+                   do i = natt+1, natt1
+                      if (iatt(i) == idg(m1,m2,m3) .and. all(p == ilvec(:,i))) then
+                         found = .true.
+                         idg1(m1,m2,m3) = i
+                         exit
+                      end if
+                   end do
+                   if (.not.found) then
+                      natt1 = natt1 + 1
+                      if (natt1 > size(ilvec,2)) then
+                         call realloc(ilvec,3,2*natt1)
+                         call realloc(iatt,2*natt1)
+                      end if
+                      ilvec(:,natt1) = p
+                      idg1(m1,m2,m3) = natt1
+                      iatt(natt1) = idg(m1,m2,m3)
+                   end if
+                end if
              end do
           end do
        end do
-       f1%c2x = cr1%car2crys
-       f1%x2c = cr1%crys2car
-       f1%init = .true.
-       
-       ! run bader integration on the supercell
-       call bader_integrate(cr1,f1%f,"",.true.,1d40,natt1,xgatt1,idg1)
-       
-       allocate(w(n0(1),n0(2),n0(3)))
-       write (uout,'("+ List of basins and charges")')
-       do i = 1, natt1
-          r1 = xgatt1(:,i) * n0 / real(n,8)
-          r2 = floor(r1)
-          r1 = r1 - r2
-          w = 0d0
-          where(idg1 == i)
-             w = f1%f
-          end where
-          asum = sum(w) * cr1%omega / (n0(1)*n0(2)*n0(3))
-          asum2 = count(idg1 == i) * cr1%omega / (n0(1)*n0(2)*n0(3))
-          write (uout,'(99A)') string(i), " x= ", &
-             (string(r1(j),'e',12,4),j=1,3), (string(nint(r2(j)),3),j=1,3), &
-             " q = ", string(asum,'e',15,6), " v = ", string(asum2,'e',15,6)
-       end do
-       
-       ! calculate the overlap matrix
-       allocate(sij(nmo,nmo,natt1,nspin))
+       call realloc(ilvec,3,natt1)
+       call realloc(iatt,natt1)
+       write (*,*) "Number of attractors after remapping: ", natt1
+
+       allocate(sij(nmo,nmo,natt,nspin),psic(n(1),n(2),n(3)),w(n(1),n(2),n(3)))
        sij = 0d0
-       
-       write (uout,*) "+ Calculating overlap matrices..."
-       allocate(psic(n0(1),n0(2),n0(3)),psic2(n0(1),n0(2),n0(3)))
-       do is = 1 ,nspin
+       do is = 1, nspin
           do imo = 1, nmo
-             write (*,*) "imo", imo
              call unpackidx(imo,ia,ja,ka,iba)
-             ! prepare the supergrid
-             do m1 = 0, f(fid)%nwan(1)-1
-                do m2 = 0, f(fid)%nwan(2)-1
-                   do m3 = 0, f(fid)%nwan(3)-1
-                      idx1 = (/m1,m2,m3/) + (/ia,ja,ka/)
-                      idx1 = modulo(idx1,f(fid)%nwan)
-                      psic(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) = &
-                         f(fid)%fwan(idx1(1)*n(1)+1:idx1(1)*n(1)+n(1),idx1(2)*n(2)+1:idx1(2)*n(2)+n(2),idx1(3)*n(3)+1:idx1(3)*n(3)+n(3),iba,is)
-                   end do
-                end do
-             end do
              do jmo = imo, nmo
-                write (*,*) "jmo", jmo
                 call unpackidx(jmo,ib,jb,kb,ibb)
-                ! prepare the supergrid
-                do m1 = 0, f(fid)%nwan(1)-1
-                   do m2 = 0, f(fid)%nwan(2)-1
-                      do m3 = 0, f(fid)%nwan(3)-1
-                         idx2 = (/m1,m2,m3/) + (/ib,jb,kb/)
-                         idx2 = modulo(idx2,f(fid)%nwan)
-                         psic2(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) = &
-                            psic(m1*n(1)+1:m1*n(1)+n(1),m2*n(2)+1:m2*n(2)+n(2),m3*n(3)+1:m3*n(3)+n(3)) * &
-                            f(fid)%fwan(idx2(1)*n(1)+1:idx2(1)*n(1)+n(1),idx2(2)*n(2)+1:idx2(2)*n(2)+n(2),idx2(3)*n(3)+1:idx2(3)*n(3)+n(3),ibb,is)
-                      end do
-                   end do
-                end do
+                psic = f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is) * &
+                       f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
                 do i = 1, natt1
                    w = 0d0
-                   where(idg1 == i)
-                      w = psic2
+                   where (idg1 == i)
+                      w = psic
                    end where
-                   sij(imo,jmo,i,is) = sum(w)
-                   sij(jmo,imo,i,is) = sij(imo,jmo,i,is)
+                   call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1)
+                   call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1)
+                   sij(imo1,jmo1,iatt(i),is) = sij(imo1,jmo1,iatt(i),is) + sum(w)
+                   sij(jmo1,imo1,iatt(i),is) = sij(imo1,jmo1,iatt(i),is)
                 end do
              end do
           end do
        end do
-
        ! scale (the omega comes from wannier)
        sij = sij / (n(1)*n(2)*n(3))
-       
-       if (allocated(sij0)) deallocate(sij0)
-       allocate(sij0(nmo,nmo,natt,nlat,nspin))
-       sij0 = 0d0
-       do i = 1, natt
-          do j = 1, nlat
-             ia1 = modulo(j-1,f(fid)%nwan(1))
-             ix = (j-1 - ia1) / f(fid)%nwan(1)
-             ia2 = modulo(ix,f(fid)%nwan(2))
-             ix = (ix - ia2) / f(fid)%nwan(2)
-             ia3 = modulo(ix,f(fid)%nwan(2))
-
-             ! identify the attractor from the supercell
-             x = real(xgatt(:,i) + (/ia1,ia2,ia3/),8) / f(fid)%nwan
-             found = .false.
-             do k = 1, natt1
-                if (all(abs(x - xgatt1(:,k)) < 1d-10)) then
-                   found = .true.
-                   exit
-                endif
-             end do
-             if (.not.found) then
-                write (*,*) x
-                write (*,*) xgatt(:,i)
-                write (*,*) (/ia1,ia2,ia3/)
-                write (*,*) f(fid)%nwan
-                call ferror('intgrid_deloc_brf','attractor not found',faterr)
-             end if
-             sij0(:,:,i,j,:) = sij(:,:,k,:)
-          end do
-       end do
 
        if (nspin == 1) then
           fspin = 2d0
@@ -904,95 +846,133 @@ contains
        write (uout,'("+ Charge check using the overlap matrices")')
        do is = 1, nspin
           write (uout,'(" Spin = ",A)') string(is)
-          asum2 = 0d0
-          do i = 1, natt1
-             asum = 0d0
-             do imo = 1, nmo
-                asum = asum + sum(sij(imo,imo,i,:)) * fspin
-             end do
-             write (uout,'(" N(A) -- sum_Rn wRn^2 for atom ",I2,X,F12.6)') i, asum 
-             asum2 = asum2 + asum
+          asum = 0d0
+          do imo = 1, nmo
+             asum = asum + sum(sij(imo,imo,:,:)) * fspin
           end do
-          write (uout,'(" N(total) -- sum_A sum_Rn wRn^2 ",F12.6)') asum2
+          write (uout,'(" N(1) -- sum_Rn wRn^2 for atom ",I2,X,F12.6)') 1, asum 
        end do
        
+       allocate(oij(nmo,nmo,nspin))
+       oij = 0d0
        write (uout,'("+ Orthonormality check")')
        do is = 1, nspin
           write (uout,'(" Spin = ",A)') string(is)
           do imo = 1, nmo
+             call unpackidx(imo,ia,ja,ka,iba)
              do jmo = 1, nmo
-                asum = sum(sij(imo,jmo,:,:)) * fspin
-                write (uout,'("Orb. ",I2,X,I2,X,F12.6)') imo, jmo, asum
+                call unpackidx(jmo,ib,jb,kb,ibb)
+                do ic = i0, i1
+                   do jc = j0, j1
+                      do kc = k0, k1
+                         idx1 = (/ic+ia-ib,jc+ja-jb,kc+ka-kb/)
+                         idx1 = modulo(idx1,f(fid)%nwan)
+                         id = idx1(1)
+                         jd = idx1(2)
+                         kd = idx1(3)
+                         call packidx(id,jd,kd,iba,kmo)
+                         call packidx(ic,jc,kc,ibb,lmo)
+                         oij(kmo,lmo,is) = oij(kmo,lmo,is) + sum(sij(imo,jmo,:,is))
+                      end do
+                   end do
+                end do
+             end do
+          end do
+          do imo = 1, nmo
+             do jmo = 1, nmo
+                write (uout,'("Orb. ",I2,X,I2,X,F12.6)') imo, jmo, oij(imo,jmo,1)
              end do
           end do
        end do
-       
-       ! calculate localization and delocalization indices
-       allocate(fa(natt1,natt1,nspin))
+       write (uout,*)
+
+       ! mapping for the fa matrix
+       allocate(imap(nmo,nlat))
+       do imo = 1, nmo
+          call unpackidx(imo,ia,ja,ka,iba)
+          k = 0
+          do ic = i0, i1
+             do jc = j0, j1
+                do kc = k0, k1
+                   k = k + 1
+                   idx1 = (/ic+ia,jc+ja,kc+ka/)
+                   idx1 = modulo(idx1,f(fid)%nwan)
+                   id = idx1(1)
+                   jd = idx1(2)
+                   kd = idx1(3)
+                   call packidx(id,jd,kd,iba,imap(imo,k))
+                end do
+             end do
+          end do
+       end do
+
+       ! calculate the values of the fa matrix
+       allocate(fa(natt,natt,nlat,nspin))
        fa = 0d0
        do is = 1, nspin
-          do i = 1, natt1
-             do j = i, natt1
-                fa(i,j,is) = sum(sij(:,:,i,is) * sij(:,:,j,is))
-                fa(j,i,is) = fa(i,j,is)
+          do k = 1, nlat
+             do i = 1, natt
+                do j = 1, natt
+                   fa(i,j,k,is) = 0d0
+                   do imo = 1, nmo
+                      do jmo = 1, nmo
+                         fa(i,j,k,is) = fa(i,j,k,is) + sij(imo,jmo,i,is) * sij(imap(imo,k),imap(jmo,k),j,is)
+                      end do
+                   end do
+                end do
              end do
           end do
        end do
        
        ! localization indices
        write (uout,'("+ Localization indices (lambda)")')
-       do i = 1, natt1
-          r1 = xgatt1(:,i) * n0 / real(n,8)
-          r2 = floor(r1)
-          r1 = r1 - r2
-       
-          asum = 0d0
-          do imo = 1, nmo
-             asum = asum + sum(abs(sij(imo,imo,i,:)))
-          end do
-          write (uout,'(99A)') string(i), " x= ", &
-             (string(r1(j),'e',12,4),j=1,3), " ", (string(nint(r2(j)),3),j=1,3), &
-             " li = ", string(sum(abs(fa(i,i,:)) * fspin),'e',15,6), &
-             " q(li) = ", string(sum(abs(fa(i,:,:)) * fspin),'e',15,6), &
-             " q = ", string(asum * fspin,'e',15,6)
+       do i = 1, natt
+          write (uout,'(99A)') string(i), ": x= ", &
+             (string(xgatt(j,i),'e',12,4),j=1,3), " ", &
+             " li = ", string(sum(abs(fa(i,i,1,:)) * fspin),'e',15,6), &
+             " q(li) = ", string(sum(abs(fa(i,:,:,:)) * fspin),'e',15,6)
        end do
        write (uout,*)
-       
+
        write (uout,'("+ Delocalization indices (delta)")')
-       allocate(dist(natt1),io(natt1))
-       do i = 1, natt1
-          r1 = xgatt1(:,i) * n0 / real(n,8)
-          r2 = floor(r1)
-          if (.not.all(nint(r2) == 0)) cycle
-          r1 = r1 - r2
-       
-          write (uout,'(99A)') string(i), " x= ", &
-             (string(r1(j),'e',12,4),j=1,3), " ", (string(nint(r2(j)),3),j=1,3)
-       
+       if (allocated(ilvec)) deallocate(ilvec)
+       allocate(dist(natt*nlat),io(natt*nlat),diout(natt*nlat),ilvec(3,natt*nlat),idat(natt*nlat))
+       do i = 1, natt
+          write (uout,'(99A)') string(i), ": x= ", (string(xgatt(j,i),'e',12,4),j=1,3)
           dist = 0d0
-          do j = 1, natt1
-             io(j) = j
-             if (j == i) cycle
-             dist(j) = cr1%eql_distance(xgatt1(:,i),xgatt1(:,j))
+          k = 0
+          m = 0
+          do ic = i0, i1
+             do jc = j0, j1
+                do kc = k0, k1
+                   k = k + 1
+                   do j = 1, natt
+                      m = m + 1
+                      io(m) = m
+                      dist(m) = cr%distance(xgatt(:,i),xgatt(:,j) + (/ic,jc,kc/))
+                      diout(m) = 2d0 * sum(abs(fa(i,j,k,:))) * fspin
+                      if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
+                      idat(m) = j
+                      ilvec(:,m) = (/ic,jc,kc/)
+                   end do
+                end do
+             end do
           end do
-       
-          call qcksort(dist,io,1,natt1)
-          do m = 2, natt1
+
+          call qcksort(dist,io,1,natt*nlat)
+          do m = 1, natt*nlat
              j = io(m)
-             r1 = xgatt1(:,j) * n0 / real(n,8)
-             r2 = floor(r1)
-             r1 = r1 - r2
+             r1 = xgatt(:,idat(j)) + ilvec(:,j)
              write (uout,'(99A)') "+ ", string(j), " ", &
-                (string(r1(k),'e',12,4),k=1,3), " ", (string(nint(r2(k)),3),k=1,3),&
+                (string(r1(k),'e',12,4),k=1,3), " ", (string(ilvec(k,j),3),k=1,3),&
                 "dist = ", string(dist(j),'f'), " di = ", &
-                string(2d0 * sum(abs(fa(i,j,:))) * fspin,'f')
+                string(diout(j),'f')
           end do
        end do
        write (uout,*)
-       deallocate(fa)
        
        ! wrap up
-       deallocate(sij)
+       deallocate(ilvec,idg1,iatt,psic,oij,imap,fa,sij,dist,io,diout,idat)
     end do
 
   contains
@@ -1004,12 +984,14 @@ contains
       integer :: iaux
       integer :: inn, jnn, knn
 
+      ! divisors
       inn = i1-i0+1
       jnn = j1-j0+1
       knn = k1-k0+1
 
       ! unpack
-      bo = modulo(idx-1,nbnd) + 1
+      iaux = modulo(idx-1,nmo)
+      bo = modulo(iaux,nbnd) + 1
       iaux = (idx-1 - (bo-1)) / nbnd
       ko = modulo(iaux,knn) + 1
       iaux = (iaux - (ko-1)) / knn
@@ -1031,9 +1013,12 @@ contains
       integer :: zio, zjo, zko
       integer :: inn, jnn, knn
 
+      ! divisors
       inn = i1-i0+1
       jnn = j1-j0+1
       knn = k1-k0+1
+
+      ! transformed indices
       zio = modulo(io-i0,inn) + 1
       zjo = modulo(jo-j0,jnn) + 1
       zko = modulo(ko-k0,knn) + 1
@@ -1043,7 +1028,7 @@ contains
 
     end subroutine packidx
 
-  end subroutine intgrid_deloc_brf
+  end subroutine intgrid_deloc_wannier
 
   !> Do a radial numerical quadrature on the given ray, between the
   !> selected radii and return the properties. The r^2 factor is
