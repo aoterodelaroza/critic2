@@ -670,12 +670,12 @@ contains
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a grid-related dat file.
   subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
-    use bader, only: bader_integrate
+    use yt, only: yt_weights
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
-    use struct_basic, only: crystal, cr
+    use struct_basic, only: cr
     use global, only: refden
-    use types, only: field, realloc
-    use tools_io, only: uout, string, ferror, faterr, fopen_write, fclose
+    use types, only: realloc
+    use tools_io, only: uout, string
     use tools, only: qcksort
 
     integer, intent(in) :: natt
@@ -695,17 +695,12 @@ contains
     real*8, allocatable :: w(:,:,:)
     integer :: nbnd, nlat, nmo, imo, jmo, kmo, lmo, imo1, jmo1
     real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
-    real*8, allocatable :: oij(:,:,:)
-    real*8, allocatable :: fa(:,:,:,:)
-    real*8 :: asum, asum2, x(3), xs(3), fspin, d2
+    real*8 :: x(3), xs(3), d2
     logical :: found
     integer :: natt1
-    real*8 :: x0(3,3), r1(3), r2(3)
-    real*8, allocatable :: xgatt1(:,:), dist(:), diout(:)
-    integer, allocatable :: idg1(:,:,:), idat(:)
-    integer, allocatable :: io(:), ilvec(:,:), iatt(:), imap(:,:)
-    type(crystal) :: cr1
-    type(field) :: f1
+    real*8 :: x0(3,3), r1(3), r2(3), padd
+    integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
+    logical, allocatable :: wmask(:,:,:)
 
     ! run over properties with wannier delocalization indices; allocate sij
     ndeloc = 0
@@ -723,51 +718,25 @@ contains
        nmo = max(nmo,nlat * nbnd)
     end do
     if (ndeloc == 0) return
-    if (allocated(sij)) deallocate(sij)
-    allocate(sij(nmo,nmo,natt,nspin,ndeloc))
-    sij = 0d0
-
-    ! header
-    write (uout,'("+ Calculating atomic overlap matrices")')
 
     ! size of the grid
     n = f(refden)%n
 
-    ! run over all properties
-    ndeloc = 0
-    do l = 1, nprops
-       if (.not.integ_prop(l)%used) cycle
-       if (.not.integ_prop(l)%itype == itype_deloc) cycle
-       fid = integ_prop(l)%fid
-       if (f(fid)%type /= type_grid .or..not.allocated(f(fid)%fwan)) cycle
-       ndeloc = ndeloc + 1
-
-       ! assign values to some integers
-       nbnd = size(f(fid)%fwan,4)
-       nwan = f(fid)%nwan
-       nlat = nwan(1)*nwan(2)*nwan(3)
-       nmo = nlat * nbnd
-       nspin = size(f(fid)%fwan,5)
-
-       ! write out some info
-       write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
-       write (uout,'(99(A,X))') "  Number of bands =", string(nbnd)
-       write (uout,'(99(A,X))') "  ... lattice translations =", (string(f(fid)%nwan(j)),j=1,3)
-       write (uout,'(99(A,X))') "  ... Wannier functions =", string(nmo)
-       write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
-     
-       ! precompute the lattice vector displacement
-       allocate(iatt(natt))
-       natt1 = natt
-       do i = 1, natt
-          iatt(i) = i
-       enddo
-       write (uout,'(99(A,X))') "  Attractors before remapping =", string(natt)
-       allocate(ilvec(3,natt),idg1(n(1),n(2),n(3)))
-       ilvec = 0
-       do m1 = 1, n(1)
+    ! Recalculate the number of attractors by breaking cell translation symmetry.
+    allocate(iatt(natt))
+    natt1 = natt
+    do i = 1, natt
+       iatt(i) = i
+    enddo
+    allocate(ilvec(3,natt))
+    ilvec = 0
+    write (uout,'("+ Calculating atomic overlap matrices")')
+    write (uout,'(99(A,X))') "  Attractors before remapping =", string(natt)
+    if (imtype == imtype_bader) then
+       allocate(idg1(n(1),n(2),n(3)))
+       do m3 = 1, n(3)
           do m2 = 1, n(2)
-             do m3 = 1, n(3)
+             do m1 = 1, n(1)
                 idg1(m1,m2,m3) = idg(m1,m2,m3)
                 p = (/m1,m2,m3/)
                 x = real(p-1,8) / n - xgatt(:,idg(m1,m2,m3))
@@ -797,39 +766,147 @@ contains
              end do
           end do
        end do
-       call realloc(ilvec,3,natt1)
-       call realloc(iatt,natt1)
-       write (uout,'(99(A,X))') "  Attractors after remapping =", string(natt1)
-
-       write (uout,'(99(A,X))') "  Calculating overlaps..."
-       allocate(psic(n(1),n(2),n(3)),w(n(1),n(2),n(3)))
-       sij(:,:,:,:,ndeloc) = 0d0
-       do is = 1, nspin
-          do imo = 1, nmo
-             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-             do jmo = imo, nmo
-                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                psic = f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is) * &
-                       f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
-                do i = 1, natt1
-                   w = 0d0
-                   where (idg1 == i)
-                      w = psic
-                   end where
-                   call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                   call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                   sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + sum(w)
-                   sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc)
+    else
+       allocate(w(n(1),n(2),n(3)))
+       do i = 1, natt
+          call yt_weights(luw,i,w)
+          do m3 = 1, n(3)
+             do m2 = 1, n(2)
+                do m1 = 1, n(1)
+                   if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                   p = (/m1,m2,m3/)
+                   x = real(p-1,8) / n - xgatt(:,i)
+                   xs = x
+                   call cr%shortest(xs,d2)
+                   p = nint(x - cr%c2x(xs))
+                   if (any(p /= 0)) then
+                      found = .false.
+                      do j = natt+1, natt1
+                         if (iatt(j) == i .and. all(p == ilvec(:,j))) then
+                            found = .true.
+                            exit
+                         end if
+                      end do
+                      if (.not.found) then
+                         natt1 = natt1 + 1
+                         if (natt1 > size(ilvec,2)) then
+                            call realloc(ilvec,3,2*natt1)
+                            call realloc(iatt,2*natt1)
+                         end if
+                         ilvec(:,natt1) = p
+                         iatt(natt1) = i
+                      end if
+                   end if
                 end do
              end do
           end do
        end do
+       deallocate(w)
+    end if
+    call realloc(ilvec,3,natt1)
+    call realloc(iatt,natt1)
+    write (uout,'(99(A,X))') "  Attractors after remapping =", string(natt1)
+
+    ! header
+    if (allocated(sij)) deallocate(sij)
+    allocate(sij(nmo,nmo,natt,nspin,ndeloc))
+    sij = 0d0
+
+    ! run over all properties
+    ndeloc = 0
+    do l = 1, nprops
+       if (.not.integ_prop(l)%used) cycle
+       if (.not.integ_prop(l)%itype == itype_deloc) cycle
+       fid = integ_prop(l)%fid
+       if (f(fid)%type /= type_grid .or..not.allocated(f(fid)%fwan)) cycle
+       ndeloc = ndeloc + 1
+
+       ! assign values to some integers
+       nbnd = size(f(fid)%fwan,4)
+       nwan = f(fid)%nwan
+       nlat = nwan(1)*nwan(2)*nwan(3)
+       nmo = nlat * nbnd
+       nspin = size(f(fid)%fwan,5)
+
+       ! write out some info
+       write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
+       write (uout,'(99(A,X))') "  Number of bands =", string(nbnd)
+       write (uout,'(99(A,X))') "  ... lattice translations =", (string(f(fid)%nwan(j)),j=1,3)
+       write (uout,'(99(A,X))') "  ... Wannier functions =", string(nmo)
+       write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
+     
+       write (uout,'(99(A,X))') "  Calculating overlaps..."
+       allocate(psic(n(1),n(2),n(3)))
+       sij(:,:,:,:,ndeloc) = 0d0
+
+       if (imtype == imtype_bader) then
+          ! bader integration
+          do is = 1, nspin
+             do imo = 1, nmo
+                call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                do jmo = imo, nmo
+                   call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                   psic = f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is) * &
+                      f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
+                   do i = 1, natt1
+                      call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                      call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                      sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + sum(psic,idg1==i)
+                      sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc)
+                   end do
+                end do
+             end do
+          end do
+       else
+          ! yt integration
+          allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
+          do i = 1, natt1
+             call yt_weights(luw,iatt(i),w)
+             wmask = .false.
+             do m3 = 1, n(3)
+                do m2 = 1, n(2)
+                   do m1 = 1, n(1)
+                      if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                      p = (/m1,m2,m3/)
+                      x = real(p-1,8) / n - xgatt(:,iatt(i))
+                      xs = x
+                      call cr%shortest(xs,d2)
+                      p = nint(x - cr%c2x(xs))
+                      wmask(m1,m2,m3) = all(p == ilvec(:,i))
+                   end do
+                end do
+             end do
+             psic2 = 0d0
+             do is = 1, nspin
+                do imo = 1, nmo
+                   call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                   where (wmask)
+                      psic2 = f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is) * w
+                   end where
+                   do jmo = imo, nmo
+                      call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                      where (wmask)
+                         psic =  psic2 * &
+                            f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
+                      end where
+                      padd = sum(psic,wmask)
+                      call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                      call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                      sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                      sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc)
+                   end do
+                end do
+             end do
+          end do
+          deallocate(w,wmask)
+       end if
        ! scale (the omega comes from wannier)
        sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
        write (uout,'("  Done."/)')
 
        ! wrap up
-       deallocate(ilvec,idg1,iatt,psic,w)
+       if (allocated(idg1)) deallocate(idg1)
+       deallocate(ilvec,iatt,psic)
     end do
 
   end subroutine intgrid_deloc_wannier
