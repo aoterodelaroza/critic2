@@ -366,11 +366,7 @@ contains
              endif
           elseif (pmask(k)) then
              if (imtype == imtype_bader) then
-                w = 0d0
-                where (idg == i)
-                   w = fint(:,:,:,idprop(k))
-                end where
-                padd = sum(w) * cr%omega / ntot
+                padd = sum(fint(:,:,:,idprop(k)),idg==i) * cr%omega / ntot
              else
                 padd = sum(w * fint(:,:,:,idprop(k))) * cr%omega / ntot
              endif
@@ -676,7 +672,6 @@ contains
     use global, only: refden
     use types, only: realloc
     use tools_io, only: uout, string
-    use tools, only: qcksort
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
@@ -685,20 +680,16 @@ contains
     integer, intent(in) :: luw
     real*8, allocatable, intent(inout) :: sij(:,:,:,:,:)
 
-    integer :: is, nspin, ndeloc
+    integer :: is, nspin, ndeloc, natt1
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: ic, jc, kc, id, jd, kd
-    integer :: i, j, k, l, m, ia1, ia2, ia3
-    integer :: nwan(3), m1, m2, m3, n0(3)
-    integer :: fid, n(3), ix, lu, p(3)
-    integer :: idx1(3), idx2(3)
+    integer :: i, j, l
+    integer :: nwan(3), m1, m2, m3
+    integer :: fid, n(3), p(3)
+    integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
-    integer :: nbnd, nlat, nmo, imo, jmo, kmo, lmo, imo1, jmo1
     real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
-    real*8 :: x(3), xs(3), d2
+    real*8 :: x(3), xs(3), d2, padd
     logical :: found
-    integer :: natt1
-    real*8 :: x0(3,3), r1(3), r2(3), padd
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
 
