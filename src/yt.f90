@@ -198,7 +198,7 @@ contains
 
     ! Save the necessary information to reproduce the weights to an
     ! external file. Saving the weights directly gives files
-    ! that are too large
+    ! that are too large.
     luw = fopen_scratch()
     write (luw) nbasin, nn, nvec
     write (luw) nlo
