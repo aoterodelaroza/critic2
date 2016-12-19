@@ -90,7 +90,7 @@ contains
 
   subroutine intgrid_driver(line)
     use bader, only: bader_integrate
-    use yt, only: yt_integrate, yt_weights
+    use yt, only: yt_integrate, yt_weights, ytdata, ytdata_clean
     use fields, only: f, type_grid, type_wfn, integ_prop, itype_v, itype_deloc, itype_mpoles,&
        itype_fval, itype_f, itype_lapval, itype_lap, itype_gmod, goodfield, nprops,&
        writegrid_cube, grdall
@@ -122,6 +122,7 @@ contains
     logical :: dodelocwfn, dodelocwan, dompole, fillgrd
     real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
     type(field) :: faux
+    type(ytdata) :: dat
     
     ! only grids
     if (f(refden)%type /= type_grid) then
@@ -349,12 +350,16 @@ contains
 
     ! compute weights and integrate the scalar field properties
     allocate(psum(nprops,nattr))
-    allocate(w(n(1),n(2),n(3)))
-    w = 0d0
     psum = 0d0
+    if (imtype == imtype_yt) then
+       allocate(w(n(1),n(2),n(3)))
+       w = 0d0
+       call yt_weights(luw=luw,dout=dat)
+    end if
+    !$omp parallel do private(padd) firstprivate(w) schedule(dynamic)
     do i = 1, nattr
        if (imtype == imtype_yt) then
-          call yt_weights(luw,i,w)
+          call yt_weights(din=dat,idb=i,w=w)
        end if
        do k = 1, nprops
           if (.not.integ_prop(k)%used) cycle
@@ -371,10 +376,19 @@ contains
                 padd = sum(w * fint(:,:,:,idprop(k))) * cr%omega / ntot
              endif
           endif
+          !$omp critical (accum)
           psum(k,i) = psum(k,i) + padd
+          !$omp end critical (accum)
        end do
-       if (dowcube) then
-          if (imtype == imtype_bader) then
+    end do
+    !$omp end parallel do
+
+    ! write weight cubes
+    if (dowcube) then
+       do i = 1, nattr
+          if (imtype == imtype_yt) then
+             call yt_weights(din=dat,idb=i,w=w)
+          else
              w = 0d0
              where (idg == i)
                 w = 1d0
@@ -382,13 +396,17 @@ contains
           endif
           file = trim(fileroot) // "_wcube_" // string(i,2,pad0=.true.) // ".cube"
           call writegrid_cube(cr,w,file,.false.)
-       endif
-    end do
-    deallocate(w)
-    if (dowcube) &
+       end do
        write (uout,'("* Weights written to ",A,"_wcube_*.cube")') trim(fileroot)
+    end if
 
-    ! atomic basin multipoles
+    ! clean up
+    if (imtype == imtype_yt) then
+       if (allocated(w)) deallocate(w)
+       call ytdata_clean(dat)
+    end if
+
+    ! calculate atomic basin multipoles
     if (dompole) &
        call intgrid_multipoles(fint,idprop,nattr,xgatt,idg,imtype,luw,mpole)
 
@@ -402,11 +420,11 @@ contains
     ! output the results for the attractor and the scalar properties
     call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,sij,mpole)
 
-    ! Multipole output
+    ! multipole output
     if (dompole) &
        call int_output_multipoles(nattr,icp,mpole)
 
-    ! Localization and delocalization indices output
+    ! localization and delocalization indices output
     if (dodelocwfn) then
        call int_output_deloc_wfn(nattr,icp,sij)
     else
@@ -434,7 +452,7 @@ contains
   !> integration type (imtype: bader or yt), the weight file for YT,
   !> and the output multipolar moments.
   subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
-    use yt, only: yt_weights
+    use yt, only: yt_weights, ytdata, ytdata_clean
     use fields, only: nprops, integ_prop, itype_mpoles, f
     use struct_basic, only: cr
     use global, only: refden
@@ -455,6 +473,7 @@ contains
     real*8, allocatable :: w(:,:,:)
     real*8 :: dv(3), r, tp(2), p(3)
     real*8, allocatable :: rrlm(:)
+    type(ytdata) :: dat
 
     ! allocate space for the calculated multipoles
     lmax = -1
@@ -475,6 +494,7 @@ contains
     ntot = n(1)*n(2)*n(3)
     if (imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
+       call yt_weights(luw=luw,dout=dat)
     endif
 
     ! run over all properties for which multipole calculation is active
@@ -492,6 +512,7 @@ contains
        ! calcualate the multipoles
        mpole(:,:,np) = 0d0
        if (imtype == imtype_bader) then
+          !$omp parallel do private(p,ix,dv,r,tp,rrlm) schedule(dynamic)
           do i = 1, n(1)
              p(1) = real(i-1,8)
              do j = 1, n(2)
@@ -503,13 +524,18 @@ contains
                    call cr%shortest(dv,r)
                    call tosphere(dv,r,tp)
                    call genrlm_real(lmax,r,tp,rrlm)
+
+                   !$omp critical (accum)
                    mpole(:,ix,np) = mpole(:,ix,np) + rrlm * fint(i,j,k,idprop(l))
+                   !$omp end critical (accum)
                 end do
              end do
           end do
+          !$omp end parallel do
        else
+          !$omp parallel do private(p,dv,r,tp,rrlm) firstprivate(w) schedule(dynamic)
           do m = 1, natt
-             call yt_weights(luw,m,w)
+             call yt_weights(din=dat,idb=m,w=w)
              do i = 1, n(1)
                 do j = 1, n(2)
                    do k = 1, n(3)
@@ -519,17 +545,22 @@ contains
                       call cr%shortest(dv,r)
                       call tosphere(dv,r,tp)
                       call genrlm_real(lmax,r,tp,rrlm)
+
+                      !$omp critical (accum)
                       mpole(:,m,np) = mpole(:,m,np) + rrlm * fint(i,j,k,idprop(l)) * w(i,j,k)
+                      !$omp end critical (accum)
                    end do
                 end do
              end do
           end do
+          !$omp end parallel do
        endif
        mpole = mpole * cr%omega / ntot
        deallocate(rrlm)
     end do
     if (imtype == imtype_yt) then
        deallocate(w)
+       call ytdata_clean(dat)
     endif
 
   end subroutine intgrid_multipoles
@@ -630,7 +661,7 @@ contains
 
           ! calculate the atomic overlap matrix and kill the file
           do m = 1, natt
-             call yt_weights(luw,m,w)
+             call yt_weights(luw=luw,idb=m,w=w)
              rewind(lumo)
              do i = 1, n(1)
                 do j = 1, n(2)
@@ -666,7 +697,7 @@ contains
   !> Calculate localization and delocalization indices using the
   !> basin assignment found by YT or BADER and a grid-related dat file.
   subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
-    use yt, only: yt_weights
+    use yt, only: yt_weights, ytdata, ytdata_clean
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
     use struct_basic, only: cr
     use global, only: refden
@@ -692,6 +723,7 @@ contains
     logical :: found
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
+    type(ytdata) :: dat
 
     ! run over properties with wannier delocalization indices; allocate sij
     ndeloc = 0
@@ -710,10 +742,16 @@ contains
     end do
     if (ndeloc == 0) return
 
-    ! size of the grid
+    ! size of the grid and header
     n = f(refden)%n
+    write (uout,'("+ Calculating atomic overlap matrices")')
 
-    ! Recalculate the number of attractors by breaking cell translation symmetry.
+    ! yt data
+    if (imtype == imtype_yt) then
+       call yt_weights(luw=luw,dout=dat)
+    end if
+
+    ! Recalculate the number of attractors without cell translation symmetry.
     allocate(iatt(natt))
     natt1 = natt
     do i = 1, natt
@@ -721,7 +759,6 @@ contains
     enddo
     allocate(ilvec(3,natt))
     ilvec = 0
-    write (uout,'("+ Calculating atomic overlap matrices")')
     write (uout,'(99(A,X))') "  Attractors before remapping =", string(natt)
     if (imtype == imtype_bader) then
        allocate(idg1(n(1),n(2),n(3)))
@@ -760,7 +797,7 @@ contains
     else
        allocate(w(n(1),n(2),n(3)))
        do i = 1, natt
-          call yt_weights(luw,i,w)
+          call yt_weights(din=dat,idb=i,w=w)
           do m3 = 1, n(3)
              do m2 = 1, n(2)
                 do m1 = 1, n(1)
@@ -851,8 +888,14 @@ contains
        else
           ! yt integration
           allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
+          w = 0d0
+          wmask = .false.
+          psic2 = 0d0
+          psic = 0d0
+          !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1)&
+          !$omp firstprivate(w,wmask,psic2,psic) schedule(dynamic)
           do i = 1, natt1
-             call yt_weights(luw,iatt(i),w)
+             call yt_weights(din=dat,idb=iatt(i),w=w)
              wmask = .false.
              do m3 = 1, n(3)
                 do m2 = 1, n(2)
@@ -883,22 +926,28 @@ contains
                       padd = sum(psic,wmask)
                       call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                       call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                      !$omp critical (sum)
                       sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
                       sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc)
+                      !$omp end critical (sum)
                    end do
                 end do
              end do
           end do
-          deallocate(w,wmask)
+          !$omp end parallel do
+          deallocate(w,wmask,psic2)
        end if
        ! scale (the omega comes from wannier)
        sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
        write (uout,'("  Done."/)')
 
        ! wrap up
-       if (allocated(idg1)) deallocate(idg1)
-       deallocate(ilvec,iatt,psic)
+       deallocate(psic)
     end do
+
+    ! clean up
+    if (allocated(idg1)) deallocate(idg1)
+    deallocate(iatt,ilvec)
 
   end subroutine intgrid_deloc_wannier
 
@@ -1970,7 +2019,7 @@ contains
     use struct_writers, only: struct_write_3dmodel
     use graphics, only: graphics_open, graphics_close, graphics_polygon
     use tools_io, only: string, uout
-    use yt, only: yt_weights
+    use yt, only: yt_weights, ytdata_clean, ytdata
     character*3, intent(in) :: fmt
     integer, intent(in) :: nattr
     integer, intent(in), allocatable :: icp(:)
@@ -1986,6 +2035,7 @@ contains
     type(crystal) :: caux
     real*8, allocatable :: xface(:,:), w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
+    type(ytdata) :: dat
 
     integer, parameter :: rgb1(3) = (/128,128,128/)
 
@@ -2016,12 +2066,14 @@ contains
        idg0 = idg
     elseif (imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
+       call yt_weights(luw=luw,dout=dat)
        do i = 1, nattr
-          call yt_weights(luw,i,w)
+          call yt_weights(din=dat,idb=i,w=w)
           where(w >= 0.5d0)
              idg0 = i
           end where
        end do
+       call ytdata_clean(dat)
        deallocate(w)
     endif
 

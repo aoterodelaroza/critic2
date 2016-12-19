@@ -87,7 +87,7 @@ contains
     call realloc(f,25)
     allocate(w(f(2)%n(1),f(2)%n(2),f(2)%n(3)))
     do i = 1, cr%ncel
-       call yt_weights(luw,i,w)
+       call yt_weights(luw=luw,idb=i,w=w)
        call grid_from_array3(w,f(10+i))
        fused(10+i) = .true.
        call fh%put(string(10+i),10+i)
