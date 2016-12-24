@@ -230,7 +230,7 @@ contains
     use struct_basic, only: cr
     use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
        grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
-       grid_laplacian, grid_gradrho
+       grid_laplacian, grid_gradrho, grid_read_wanbin
     use global, only: eval_next
     use arithmetic, only: eval, fields_in_eval
     use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
@@ -321,6 +321,10 @@ contains
     elseif (equal(file,"wannier")) then
        file = ""
        wext1 = "wannier"
+       wext2 = wext1
+    elseif (equal(file,"wanbin")) then
+       file = ""
+       wext1 = "wanbin"
        wext2 = wext1
     elseif (equal(file,"as")) then
        file = ""
@@ -531,6 +535,12 @@ contains
        end do
        ff%type = type_grid
        ff%file = trim(ff%file)
+       ff%init = .true.
+
+    else if (equal(wext1,'wanbin')) then
+       call grid_read_wanbin(file,ff,cr%omega)
+       ff%type = type_grid
+       ff%file = trim(file)
        ff%init = .true.
 
     else if (equal(wext1,'as')) then

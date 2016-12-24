@@ -119,6 +119,7 @@ contains
     integer :: fid, nattr, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: sij(:,:,:,:,:), mpole(:,:,:)
+    complex*8, allocatable :: sijc(:,:,:,:,:)
     logical :: dodelocwfn, dodelocwan, dompole, fillgrd
     real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
     type(field) :: faux
@@ -414,7 +415,7 @@ contains
     if (dodelocwfn) then
        call intgrid_deloc_wfn(nattr,xgatt,idg,imtype,luw,sij)
     elseif (dodelocwan) then
-       call intgrid_deloc_wannier(nattr,xgatt,idg,imtype,luw,sij)
+       call intgrid_deloc_wannier(nattr,xgatt,idg,imtype,luw,sijc)
     end if
 
     ! output the results for the attractor and the scalar properties
@@ -428,7 +429,7 @@ contains
     if (dodelocwfn) then
        call int_output_deloc_wfn(nattr,icp,sij)
     else
-       call int_output_deloc_wannier(nattr,icp,xgatt,sij)
+       call int_output_deloc_wannier(nattr,icp,xgatt,sijc)
     end if
 
     ! bains plotting
@@ -709,7 +710,7 @@ contains
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: imtype
     integer, intent(in) :: luw
-    real*8, allocatable, intent(inout) :: sij(:,:,:,:,:)
+    complex*8, allocatable, intent(inout) :: sij(:,:,:,:,:)
 
     integer :: is, nspin, ndeloc, natt1
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
@@ -718,8 +719,9 @@ contains
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
-    real*8, allocatable :: psic(:,:,:), psic2(:,:,:)
-    real*8 :: x(3), xs(3), d2, padd
+    complex*8, allocatable :: psic(:,:,:), psic2(:,:,:)
+    complex*8 :: padd
+    real*8 :: x(3), xs(3), d2
     logical :: found
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
@@ -870,28 +872,32 @@ contains
        if (imtype == imtype_bader) then
           ! bader integration
           do is = 1, nspin
+             !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,imo1,jmo1,padd) firstprivate(psic) schedule(dynamic)
              do imo = 1, nmo
                 call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                do jmo = imo, nmo
+                do jmo = 1, nmo
                    call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                   psic = f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is) * &
+                   psic = conjg(f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is)) * &
                       f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
                    do i = 1, natt1
                       call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                       call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                      sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + sum(psic,idg1==i)
-                      sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc)
+                      padd = sum(psic,idg1==i)
+                      !$omp critical (sum)
+                      sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                      !$omp end critical (sum)
                    end do
                 end do
              end do
+             !$omp end parallel do
           end do
        else
           ! yt integration
           allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
           w = 0d0
           wmask = .false.
-          psic2 = 0d0
-          psic = 0d0
+          psic2 = cmplx(0.,0.)
+          psic = cmplx(0.,0.)
           !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1)&
           !$omp firstprivate(w,wmask,psic2,psic) schedule(dynamic)
           do i = 1, natt1
@@ -910,14 +916,15 @@ contains
                    end do
                 end do
              end do
-             psic2 = 0d0
+
+             psic2 = cmplx(0.,0.)
              do is = 1, nspin
                 do imo = 1, nmo
                    call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                    where (wmask)
-                      psic2 = f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is) * w
+                      psic2 = conjg(f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is)) * w
                    end where
-                   do jmo = imo, nmo
+                   do jmo = 1, nmo
                       call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                       where (wmask)
                          psic =  psic2 * &
@@ -928,7 +935,6 @@ contains
                       call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
                       !$omp critical (sum)
                       sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                      sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc)
                       !$omp end critical (sum)
                    end do
                 end do
@@ -1653,12 +1659,13 @@ contains
     integer, intent(in) :: natt
     integer, intent(in) :: icp(natt)
     real*8, intent(in) :: xgatt(3,natt)
-    real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
+    complex*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
 
     integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3)
     real*8 :: fspin, xnn, xli, r1(3), d2, asum
     integer, allocatable :: imap(:,:), io(:), ilvec(:,:), idat(:)
-    real*8, allocatable :: fa(:,:,:,:), diout(:), dist(:)
+    real*8, allocatable :: fa(:,:,:,:)
+    real*8, allocatable :: diout(:), dist(:)
     integer :: imo, jmo, ia, ja, ka, iba
     integer :: ic, jc, kc, i, j, k, idx(3), is
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
@@ -1725,7 +1732,7 @@ contains
                    fa(i,j,k,is) = 0d0
                    do imo = 1, nmo
                       do jmo = 1, nmo
-                         fa(i,j,k,is) = fa(i,j,k,is) + sij(imo,jmo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc)
+                         fa(i,j,k,is) = fa(i,j,k,is) + real(sij(jmo,imo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc),8)
                       end do
                    end do
                 end do
@@ -1745,7 +1752,6 @@ contains
              string(i,4,ioj_left), scp, sncp, sname, sz, &
              string(xli,'f',15,8,4), string(xnn,'f',12,8,4)
        end do
-       write (uout,*)
 
        ! Prepare the supercell crystal. For c%shortest, we need
        ! c%isortho, c%car2crys, c%crys2car, c%nws, and c%ivws. The
@@ -1789,7 +1795,7 @@ contains
                       r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
                       dist(m) = sqrt(d2) * dunit
-                      diout(m) = 2d0 * sum(abs(fa(i,j,k,:))) * fspin
+                      diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
                       ilvec(:,m) = nint(xgatt(:,i) + cr1%c2x(r1) * nwan - xgatt(:,j))

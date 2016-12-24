@@ -70,7 +70,7 @@ program critic
   character(len=:), allocatable :: line
   !
   integer :: level, plevel
-  integer :: i, id, nn
+  integer :: i, j, k, id, nn
   logical :: ll1, ok
   real*8 :: rdum
 
@@ -664,8 +664,13 @@ program critic
      elseif (equal(word,'trick')) then
         call trick(line(lp:))
         
-     ! ! temp, for testing
-     ! elseif (equal(word,'temp')) then
+     ! temp, for testing
+     elseif (equal(word,'temp')) then
+        ! write (*,*) f(1)%f(1,1,1), f(2)%f(1,1,1)
+        ! do i = 1, 54
+        ! write (*,*) f(1)%f(i,i,i), f(2)%f(i,i,i)
+        ! end do
+        ! stop 1
 
      ! end
      elseif (equal(word,'end')) then
