@@ -529,28 +529,22 @@ contains
   end subroutine grid_read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  subroutine grid_read_xsf(file,f,nwan,nin,omega,ispin)
+  subroutine grid_read_xsf(file,f)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose
     use types, only: field, realloc
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(inout) :: f
-    integer, intent(in), optional :: nwan
-    integer, intent(in), optional :: nin(3)
-    real*8, intent(in), optional :: omega
-    integer, intent(in), optional :: ispin
 
     integer :: luc
-    integer :: istat, n(3), lp, i, j, k, ix, jx, kx
+    integer :: istat, n(3), lp, i, j, k
     character(len=:), allocatable :: line, word
-    logical :: found, ok, iswan
+    logical :: found, ok
     real*8, dimension(3) :: x0, x1, x2, x3
     real*8 :: pmat(3,3)
 
-    real*8, allocatable :: ggloc(:,:,:), otherloc(:,:,:)
-
-    iswan = (present(nwan).and.present(nin).and.present(omega).and.present(ispin))
+    real*8, allocatable :: ggloc(:,:,:)
 
     ! open file for reading
     luc = fopen_read(file)
@@ -589,19 +583,7 @@ contains
     read (luc,*,iostat=istat) n 
     if (istat /= 0) &
        call ferror('grid_read_xsf','Error reading n1, n2, n3',faterr,file)
-    if (iswan) then
-       if (any(nint(real(n,8)/nin) /= (n/nin))) &
-          call ferror('grid_read_xsf','Wannier supercell not congruent with grid size',faterr,file)
-       if (nwan > 1) then
-          if (any(f%n * nin /= n)) &
-             call ferror('grid_read_xsf','Wannier grid sizes not equal',faterr,file)
-       else
-          f%n = n / nin
-       end if
-    else
-       f%n = n - 1
-       iswan = .false.
-    endif
+    f%n = n - 1
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -618,63 +600,8 @@ contains
        call ferror('grid_read_xsf','Error reading grid',faterr,file)
 
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
-    if (.not.iswan) then
-       f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
-       deallocate(ggloc)
-    else
-       ! re-order the grid from wannier90
-       allocate(otherloc(n(1),n(2),n(3)))
-       do i = 1, n(1)
-          ix = mod(i,n(1))+1
-          do j = 1, n(2)
-             jx = mod(j,n(2))+1
-             do k = 1, n(3)
-                kx = mod(k,n(3))+1
-                otherloc(i,j,k) = ggloc(ix,jx,kx)
-             end do
-          end do
-       end do
-       deallocate(ggloc)
-       call move_alloc(otherloc,ggloc)
-
-       ! save the wannier function
-       if (nwan == 1 .and. allocated(f%fwan)) &
-          call ferror('grid_read_xsf','nwan = 1 but fwan already allocated',faterr)
-       if (nwan == 1) then
-          if (ispin == 0) then
-             allocate(f%fwan(n(1),n(2),n(3),1,1))
-          else
-             allocate(f%fwan(n(1),n(2),n(3),1,2))
-          end if
-       end if
-       if (nwan > size(f%fwan,4)) call realloc(f%fwan,n(1),n(2),n(3),nwan,size(f%fwan,5))
-       if (ispin == 0) then
-          f%fwan(:,:,:,nwan,1) = ggloc
-       else
-          f%fwan(:,:,:,nwan,ispin) = ggloc
-       end if
-
-       ! convert to density contribution
-       if (ispin == 0) then
-          ggloc = ggloc**2 * 2d0 / omega
-       else
-          ggloc = ggloc**2 / omega
-       end if
-
-       ! add to the density
-       if (nwan == 1) then
-          f%nwan = nin
-          f%f = 0d0
-       end if
-       do i = 1, nin(1)
-          do j = 1, nin(2)
-             do k = 1, nin(3)
-                f%f = f%f + ggloc((i-1)*f%n(1)+1:i*f%n(1),(j-1)*f%n(2)+1:j*f%n(2),(k-1)*f%n(3)+1:k*f%n(3))
-             end do
-          end do
-       end do
-       deallocate(ggloc)
-    endif
+    f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
+    deallocate(ggloc)
     n = f%n
 
     call fclose(luc)
