@@ -883,9 +883,9 @@ contains
                       call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                       call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
                       padd = sum(psic,idg1==i)
-                      !$omp critical (sum)
+                      !$omp critical (summ)
                       sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                      !$omp end critical (sum)
+                      !$omp end critical (summ)
                    end do
                 end do
              end do
@@ -933,9 +933,9 @@ contains
                       padd = sum(psic,wmask)
                       call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                       call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                      !$omp critical (sum)
+                      !$omp critical (summ)
                       sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                      !$omp end critical (sum)
+                      !$omp end critical (summ)
                    end do
                 end do
              end do
@@ -1829,8 +1829,6 @@ contains
        call cr1%end()
        deallocate(fa,dist,io,diout,ilvec,idat)
     end do
-
-  contains
 
   end subroutine int_output_deloc_wannier
 
