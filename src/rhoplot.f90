@@ -1593,7 +1593,7 @@ contains
     use fields, only: f, grd
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
-    use global, only: fileroot, eval_next, dunit, refden
+    use global, only: fileroot, eval_next, dunit, refden, prunedist
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend
@@ -1613,16 +1613,14 @@ contains
     integer :: n1, n2, niso
     type(scalar_value) :: res
 
-    real*8, parameter :: change = 0.1d0
-
     ! Header
     write (uout,'("* GRDVEC: gradient paths and contours in 2d")')
 
     ! Initialization
     grpcpeps = 1d-2
-    grprad1 = change
-    grprad2 = change
-    grprad3 = change
+    grprad1 = prunedist
+    grprad2 = prunedist
+    grprad3 = prunedist
     grpendpt = 1.0d-6
     grphcutoff = 1.0d-3
     grpproj = 1
@@ -2322,6 +2320,7 @@ contains
   !> Write the gradient path to the udat logical unit.
   subroutine wrtpath (xflux, nptf, mptf, udat, rp0, r01, r02, cosalfa, sinalfa)
     use struct_basic, only: cr
+    use global, only: prunedist
     use param, only: jmlcol
     integer, intent(in) :: mptf
     real*8, dimension(3,mptf), intent(in) :: xflux
@@ -2333,7 +2332,6 @@ contains
     real*8 :: xxx, yyy, zzz, u, v, h, uort, vort, x0(3)
     real*8 :: dist1, dist2
     logical :: wasblank
-    real*8, parameter :: mindist = 0.2d0
 
     ! identify the endpoints
     x0 = cr%c2x(xflux(:,1))
@@ -2343,10 +2341,10 @@ contains
     nid2 = 0
     call cr%nearest_atom(x0,nid2,dist2,lvec)
     rgb = (/0,0,0/)
-    if (dist1 < dist2 .and. dist1 < mindist) then
+    if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
        iz = cr%at(cr%atcel(nid1)%idx)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
-    elseif (dist2 < dist1 .and. dist2 < mindist) then
+    elseif (dist2 < dist1 .and. dist2 < 1.1d0*prunedist) then
        iz = cr%at(cr%atcel(nid2)%idx)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     endif
@@ -2523,7 +2521,7 @@ contains
   subroutine write_fichlabel(rootname)
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
-    use tools_io, only: uout, string, fopen_write, fclose
+    use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
     character*(*), intent(in) :: rootname
 
@@ -2591,7 +2589,7 @@ contains
                 cpletter = "b"
              case (-3)
                 if (cpcel(i)%isnuc) then
-                   cpletter = trim(adjustl(cpcel(i)%name))
+                   cpletter = nameguess(cr%at(cpcel(i)%idx)%z,.true.)
                 else
                    cpletter = "n"
                 endif
