@@ -230,7 +230,7 @@ contains
     use struct_basic, only: cr
     use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
        grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
-       grid_laplacian, grid_gradrho
+       grid_laplacian, grid_gradrho, grid_read_wanbin
     use global, only: eval_next
     use arithmetic, only: eval, fields_in_eval
     use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
@@ -321,6 +321,10 @@ contains
     elseif (equal(file,"wannier")) then
        file = ""
        wext1 = "wannier"
+       wext2 = wext1
+    elseif (equal(file,"wanbin")) then
+       file = ""
+       wext1 = "wanbin"
        wext2 = wext1
     elseif (equal(file,"as")) then
        file = ""
@@ -498,39 +502,10 @@ contains
        ! fill the interpolation tables of the field
        call fillinterpol(ff)
 
-    else if (equal(wext1,'wannier')) then
-       ok = isinteger(n(1),line,lp)
-       ok = ok .and. isinteger(n(2),line,lp)
-       ok = ok .and. isinteger(n(3),line,lp)
-       if (.not.ok) then
-          call ferror("fields_load_real","Error reading wannier supercell",faterr,line,syntax=.true.)
-          return
-       end if
-
-       nwan = 0
-       ff%file = ""
-       ispin = 0
-       do while(.true.)
-          ! read the next token
-          file = getword(line,lp)
-          if (len_trim(file) == 0) exit
-
-          ! assign the correct channel
-          if (equal(file,"alpha")) then
-             ispin = 1
-             cycle
-          elseif (equal(file,"beta")) then
-             ispin = 2
-             cycle
-          end if
-
-          ! read another wannier function and accumulate
-          nwan = nwan + 1
-          call grid_read_xsf(file,ff,nwan,n,cr%omega,ispin)
-          ff%file = ff%file // file // " "
-       end do
+    else if (equal(wext1,'wanbin')) then
+       call grid_read_wanbin(file,ff,cr%omega)
        ff%type = type_grid
-       ff%file = trim(ff%file)
+       ff%file = trim(file)
        ff%init = .true.
 
     else if (equal(wext1,'as')) then

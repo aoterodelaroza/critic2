@@ -26,6 +26,20 @@ module yt
 
   public :: yt_integrate
   public :: yt_weights
+  public :: ytdata_clean
+  public :: ytdata
+
+  !> Data needed to regenerate the YT weights for a given attractor.
+  type ytdata
+     integer :: nbasin !< Number of basins
+     integer :: nn !< Number of grid points
+     integer :: nvec !< Number of WS vectors
+     integer, allocatable :: nlo(:) !< Number of points with lower density
+     integer, allocatable :: ibasin(:) !< Basin identifier for interior points
+     integer, allocatable :: iio(:) !< Density sorting map 
+     integer, allocatable :: inear(:,:) !< Identifiers for neighbor points
+     real*8, allocatable :: fnear(:,:) !< Flux to neighbor
+  end type ytdata
 
 contains
 
@@ -198,7 +212,7 @@ contains
 
     ! Save the necessary information to reproduce the weights to an
     ! external file. Saving the weights directly gives files
-    ! that are too large
+    ! that are too large.
     luw = fopen_scratch()
     write (luw) nbasin, nn, nvec
     write (luw) nlo
@@ -228,14 +242,21 @@ contains
     end function to1
   end subroutine yt_integrate
 
-  !> Read the neighbor and fractions from the external file and
-  !> generate the YT weights for the given input basin.
-  subroutine yt_weights(luw,idb,w)
+  !> Read or use the neighbor and fractions and generate the YT
+  !> weights for the given input basin. The input for the weight has
+  !> to come from a file (logical unit luw), or from the data passed
+  !> in the din argument. On output, this routine gives the read
+  !> data (dout) and the weights for basin idb. All arguments are
+  !> optional. One of luw and din has to be given (but not both).
+  !> One of dout and (w,idb) is allowed (but not both).
+  subroutine yt_weights(luw,din,idb,w,dout)
     use tools_io, only: ferror, faterr
 
-    integer, intent(in) :: luw !< Logical unit for the YT checkpoint
-    integer, intent(in) :: idb !< Basin to integrate
-    real*8, intent(inout) :: w(:,:,:) !< Output weights for this basin
+    integer, intent(in), optional :: luw !< Logical unit for the YT checkpoint
+    type(ytdata), intent(in), optional :: din !< Data for generating weights (input)
+    integer, intent(in), optional :: idb !< Basin to calculate the weights for
+    type(ytdata), intent(inout), optional :: dout !< Data for generating weights (output)
+    real*8, intent(inout), optional :: w(:,:,:) !< Output weights for this basin
 
     integer :: nbasin, nn, nvec
     integer, allocatable :: nlo(:), ibasin(:), iio(:), inear(:,:)
@@ -243,55 +264,134 @@ contains
     logical :: opened, exist
     integer :: i, j, k
 
+    if (present(luw) .and. present(din)) &
+       call ferror('yt_weights','luw and din both present in yt_weights',faterr)
+    if (.not.present(luw) .and. .not.present(din)) &
+       call ferror('yt_weights','luw and din both absent in yt_weights',faterr)
+    if (present(dout) .and. present(w)) &
+       call ferror('yt_weights','dout and w/idb both present in yt_weights',faterr)
+    if (.not.present(dout) .and. .not.present(w)) &
+       call ferror('yt_weights','dout and w/idb both absent in yt_weights',faterr)
+
     ! read the yt checkpoint file header
-    inquire(luw,opened=opened,exist=exist)
-    if (.not.opened.or..not.exist) &
-       call ferror('yt_weights','YT checkpoint is not open',faterr)
-    rewind(luw)
-    read (luw) nbasin, nn, nvec
+    if (present(luw)) then
+       inquire(luw,opened=opened,exist=exist)
+       if (.not.opened.or..not.exist) &
+          call ferror('yt_weights','YT checkpoint is not open',faterr)
+       rewind(luw)
+       read (luw) nbasin, nn, nvec
+
+       ! allocate and rest of the yt checkpoint
+       allocate(ibasin(nn),nlo(nn),inear(nvec,nn),fnear(nvec,nn),iio(nn))
+       read (luw) nlo
+       read (luw) ibasin
+       read (luw) iio
+       read (luw) inear
+       read (luw) fnear
+    else
+       nbasin = din%nbasin
+       nn = din%nn
+       nvec = din%nvec
+    end if
+
+    ! write dout
+    if (present(dout)) then
+       if (present(luw)) then
+          dout%nbasin = nbasin
+          dout%nn = nn
+          dout%nvec = nvec
+          if (allocated(dout%nlo)) deallocate(dout%nlo)
+          call move_alloc(nlo,dout%nlo)
+          if (allocated(dout%ibasin)) deallocate(dout%ibasin)
+          call move_alloc(ibasin,dout%ibasin)
+          if (allocated(dout%iio)) deallocate(dout%iio)
+          call move_alloc(iio,dout%iio)
+          if (allocated(dout%inear)) deallocate(dout%inear)
+          call move_alloc(inear,dout%inear)
+          if (allocated(dout%fnear)) deallocate(dout%fnear)
+          call move_alloc(fnear,dout%fnear)
+       else
+          dout = din
+       end if
+       return
+    end if
+
+    ! Calculate the weight for this attractor
+    if (.not.present(w).or..not.present(idb)) &
+       call ferror('yt_weights','one of w/idb is missing',faterr)
     if (idb < 0 .or. idb > nn) &
        call ferror('yt_weights','unknown basin',faterr)
-
-    ! allocate and rest of the yt checkpoint
-    allocate(ibasin(nn),nlo(nn),inear(nvec,nn),fnear(nvec,nn),iio(nn))
-    read (luw) nlo
-    read (luw) ibasin
-    read (luw) iio
-    read (luw) inear
-    read (luw) fnear
 
     ! prepare the output grid
     allocate(waux(nn))
 
-    ! which nodes belong to this basin?
-    where (ibasin == idb)
-       waux = 1d0
-    elsewhere
-       waux = 0d0
-    end where
-
     ! recompute w for the ias points
-    do j = nn, 1, -1
-       if (abs(waux(j)) > 0d0) then
-          do k = 1, nlo(j)
-             waux(inear(k,j)) = waux(inear(k,j)) + fnear(k,j) * waux(j)
-          end do
-       end if
-    end do
+    if (present(luw)) then
+       where (ibasin == idb)
+          waux = 1d0
+       elsewhere
+          waux = 0d0
+       end where
 
-    nn = 0
-    do k = lbound(w,3), ubound(w,3)
-       do j = lbound(w,2), ubound(w,2)
-          do i = lbound(w,1), ubound(w,1)
-             nn = nn + 1
-             w(i,j,k) = waux(iio(nn))
+       do j = nn, 1, -1
+          if (abs(waux(j)) > 0d0) then
+             do k = 1, nlo(j)
+                waux(inear(k,j)) = waux(inear(k,j)) + fnear(k,j) * waux(j)
+             end do
+          end if
+       end do
+
+       nn = 0
+       do k = lbound(w,3), ubound(w,3)
+          do j = lbound(w,2), ubound(w,2)
+             do i = lbound(w,1), ubound(w,1)
+                nn = nn + 1
+                w(i,j,k) = waux(iio(nn))
+             end do
           end do
        end do
-    end do
+       deallocate(nlo,ibasin,iio,inear,fnear)
+    else
+       where (din%ibasin == idb)
+          waux = 1d0
+       elsewhere
+          waux = 0d0
+       end where
+
+       do j = nn, 1, -1
+          if (abs(waux(j)) > 0d0) then
+             do k = 1, din%nlo(j)
+                waux(din%inear(k,j)) = waux(din%inear(k,j)) + din%fnear(k,j) * waux(j)
+             end do
+          end if
+       end do
+
+       nn = 0
+       do k = lbound(w,3), ubound(w,3)
+          do j = lbound(w,2), ubound(w,2)
+             do i = lbound(w,1), ubound(w,1)
+                nn = nn + 1
+                w(i,j,k) = waux(din%iio(nn))
+             end do
+          end do
+       end do
+    end if
 
     ! clean up
-    deallocate(nlo,ibasin,iio,inear,fnear,waux)
+    deallocate(waux)
   
   end subroutine yt_weights
+
+  !> Deallocate a ytdata object
+  subroutine ytdata_clean(dat)
+    type(ytdata), intent(inout) :: dat
+
+    if (allocated(dat%nlo)) deallocate(dat%nlo)
+    if (allocated(dat%ibasin)) deallocate(dat%ibasin)
+    if (allocated(dat%iio)) deallocate(dat%iio)
+    if (allocated(dat%inear)) deallocate(dat%inear)
+    if (allocated(dat%fnear)) deallocate(dat%fnear)
+
+  end subroutine ytdata_clean
 
 end module yt

@@ -226,8 +226,13 @@ contains
        do i = 1, nmer
           if (i == 1) then
              write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol), string(i)
+             if (nmer == 1) then
+                nlimj = nmol
+             else
+                nlimj = c%nmol
+             end if
              ! monomers
-             do j = 1, c%nmol
+             do j = 1, nlimj
                 file0 = trim(wroot) // "_" // string(j) // "." // fmt
                 call dowrite(file0,fr0(j))
              end do
