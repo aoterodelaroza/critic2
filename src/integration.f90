@@ -386,6 +386,7 @@ contains
 
     ! write weight cubes
     if (dowcube) then
+       if (.not.allocated(w)) allocate(w(n(1),n(2),n(3)))
        do i = 1, nattr
           if (imtype == imtype_yt) then
              call yt_weights(din=dat,idb=i,w=w)
@@ -402,8 +403,8 @@ contains
     end if
 
     ! clean up
+    if (allocated(w)) deallocate(w)
     if (imtype == imtype_yt) then
-       if (allocated(w)) deallocate(w)
        call ytdata_clean(dat)
     end if
 
