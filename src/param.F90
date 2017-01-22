@@ -161,7 +161,7 @@ module param
      000,220,220, 230,010,010, 140,255,140, & ! 115-117 Uup, Lv, Uuh
      112,112,255, &                           ! 118 Uuh
      072,159,004, 255,217,061, 149,136,255, & ! 119-121 ncp, bcp, rcp
-     255,102,087, 065,000,168&                ! 122-123 ccp, xcp
+     255,102,087, 044,255,000&                ! 122-123 ccp, xcp
      /),shape(JMLcol)) !< jmol color definitions
 
   ! jmol colors, slightly darker
@@ -207,7 +207,7 @@ module param
      000,160,160, 170,000,000, 080,195,080, & ! 115-117 Uup, Lv, Uuh
      112,112,255, &                           ! 118 Uuh
      072,159,004, 255,217,061, 149,136,255, & ! 119-121 ncp, bcp, rcp
-     255,102,087, 065,000,168&                ! 122-123 ccp, xcp
+     255,102,087, 044,255,000&                ! 122-123 ccp, xcp
      /),shape(JMLcol2)) !< jmol color definitions, slightly darker
 
   ! covalent radii in pm, from tessel
