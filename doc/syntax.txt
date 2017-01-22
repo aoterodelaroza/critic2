@@ -232,7 +232,6 @@ expression.r # prints the value of the expression to the output.
     GRAPH igraph.i 
     COLOR r.i g.i b.i
     TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
-    PRUNE prune.r
     SHELLS ishl.i
     NOSYM
   ENDFLUXPRINT/END
@@ -346,6 +345,7 @@ expression.r # prints the value of the expression to the output.
 * COUNT id.s eps.r
 * TESTRMT
 * ODE_MODE [METHOD {EULER|HEUN|BS|RKCK|DP}] [MAXSTEP maxstep.r] [MAXERR maxerr.r] [GRADEPS gradeps.r]
+* PRUNE_DISTANCE prune.r
 * INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
 * MESHTYPE {BECKE|FRANCHINI {1|2|3|4|5}}

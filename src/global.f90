@@ -129,6 +129,7 @@ module global
   integer, parameter :: NAV_stepper_dp    = 3 !< Dormand-prince embedded 4(5)-order, local extrapolation (7 eval), with error estimate
   integer, parameter :: NAV_stepper_bs    = 4 !< Bogacki-Shampine embedded 2(3)-order method, (5-1=4 eval, fsal), with error estimate
   integer, parameter :: NAV_stepper_heun  = 5 !< Heun stepper (2 eval), poor-man's adaptive step
+  real*8 :: prunedist
 
   ! critical points
   real*8 :: CP_hdegen = 1d-8 !< a CP is degenerate if any Hessian element is less than this value
@@ -264,6 +265,7 @@ contains
     NAV_step = 0.1d0
     NAV_maxerr = 1d-3
     NAV_gradeps = 1d-9
+    prunedist = 0.1d0
 
     ! integration
     INT_radquad_type = INT_gauleg
@@ -434,6 +436,9 @@ contains
              exit
           end if
        end do
+    else if (equal(word,'prune_distance')) then
+       ok = isreal(prunedist,line,lp)
+       if (.not.ok) call ferror('critic_setvariables','Wrong PRUNE_DISTANCE',faterr,line,syntax=.true.)
     else if (equal (word,'int_radial')) then
        do while(.true.)
           word = lgetword(line,lp)

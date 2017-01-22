@@ -38,7 +38,6 @@ module flux
   ! General info
   integer :: flx_n
   integer :: flx_iup
-  real*8 :: flx_prune
   integer, parameter :: flx_m = 4000
 
   ! output format
@@ -72,7 +71,6 @@ contains
     type(flxorder), allocatable :: order(:), orderaux(:)
     character*3 :: method
     character(len=:), allocatable :: line, word
-    real*8 :: local_flx_prune
     integer :: local_flx_nsym
     integer :: cpid, lvecx(3), iup, lp, nn, nphi, ntheta
     integer :: num_points, i, rgb(3)
@@ -83,7 +81,6 @@ contains
 
     ! set initial values for flx
     flx_init = .false.
-    local_flx_prune = 0.1d0
     local_flx_nsym = -1
     nosym = .false.
     outfmt = "cml"
@@ -109,15 +106,6 @@ contains
           ok= ok .and. eval_next(rgb(3),line,lp)
           if (.not. ok) then
              call ferror ('fluxprint','wrong COLOR syntax',faterr,line,syntax=.true.)
-             return
-          end if
-          ok = check_no_extra_word()
-          if (.not.ok) return
-       else if (equal(word,'prune')) then
-          ok = eval_next(local_flx_prune,line,lp)
-          local_flx_prune = local_flx_prune / dunit
-          if (.not. ok) then
-             call ferror ('fluxprint','wrong PRUNE syntax',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -431,7 +419,7 @@ contains
     end do
 
     ! run the commands, in order
-    call flx_initialize(local_flx_prune,nosym)
+    call flx_initialize(nosym)
     do i = 1, norder
        if (order(i)%id == "poi") then
           call flx_point(order(i)%x,order(i)%iup,local_flx_nsym,order(i)%rgb)
@@ -479,14 +467,13 @@ contains
   !> to the tessel output (optional). If nocell, do not write the CELL
   !> command to the tessel output (optional). If nosym, do not write
   !> the symmetry elements.
-  subroutine flx_initialize(prune,nosym,noballs,nocell)
+  subroutine flx_initialize(nosym,noballs,nocell)
     use varbas, only: ncpcel, cpcel, ncp, cp
     use global, only: fileroot
     use struct_basic, only: cr
     use struct_writers, only: struct_write_3dmodel, struct_write_mol
     use tools_io, only: faterr, ferror, uout, fopen_write
 
-    real*8, intent(in) :: prune
     logical, intent(in) :: nosym
     logical, intent(in), optional :: noballs, nocell
 
@@ -501,7 +488,6 @@ contains
     ! Initialize variables
     flx_n = 0
     flx_init = .true.
-    flx_prune = prune
 
     doballs = .true.
     if (present(noballs)) then
@@ -875,7 +861,7 @@ contains
     use navigation, only: gradient, prunepath
     use fields, only: f
     use struct_basic, only: cr
-    use global, only: refden
+    use global, only: refden, prunedist
 
     integer, intent(in) :: iup
     real*8, dimension(3), intent(in) :: x
@@ -890,15 +876,15 @@ contains
 
     if (iup /= 0) then
        call gradient(f(refden),tempx,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,flx_prune)
+       call prunepath(cr,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
     else
        call gradient(f(refden),tempx,1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,flx_prune)
+       call prunepath(cr,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
        tempx = cr%x2c(x)
        call gradient(f(refden),tempx,-1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,flx_prune)
+       call prunepath(cr,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -913,7 +899,7 @@ contains
     use navigation, only: gradient, prunepath
     use fields, only: f
     use varbas, only: ncpcel, cpcel
-    use global, only: refden
+    use global, only: refden, prunedist
     use struct_basic, only: cr
     use tools_io, only: ferror, faterr
     use param, only: pi
@@ -953,7 +939,7 @@ contains
           theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
           xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
           call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,flx_prune)
+          call prunepath(cr,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
        end do
     end do
@@ -963,13 +949,13 @@ contains
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-    call prunepath(cr,flx_n,flx_x,flx_prune)
+    call prunepath(cr,flx_n,flx_x,prunedist)
     call flx_symprintpath(xini,flxsym,rgb)
     phi = pi
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-    call prunepath(cr,flx_n,flx_x,flx_prune)
+    call prunepath(cr,flx_n,flx_x,prunedist)
     call flx_symprintpath(xini,flxsym,rgb)
 
   end subroutine flx_ncp
@@ -992,7 +978,7 @@ contains
     use fields, only: f, grd
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
-    use global, only: refden
+    use global, only: refden, prunedist
     use tools_math, only: eig
     use tools_io, only: ferror, faterr
     use param, only: pi
@@ -1087,11 +1073,11 @@ contains
     if (iup == 0 .or. iup == ircp) then
        xpoint = xbcp + change * vup
        call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,flx_prune)
+       call prunepath(cr,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
        xpoint = xbcp - change * vup
        call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,flx_prune)
+       call prunepath(cr,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -1106,7 +1092,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else if (bcpmethod == "quo") then
@@ -1121,7 +1107,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
              angle = angle + pi
              cangle = cos(angle)
@@ -1129,7 +1115,7 @@ contains
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else
@@ -1143,7 +1129,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              ! last point before newton -> not converted to the main cell
              xpoint = cr%x2c(flx_x(:,flx_n-1))
              r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
@@ -1163,7 +1149,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1172,7 +1158,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = -thetavec(i) + pi
@@ -1181,7 +1167,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1190,7 +1176,7 @@ contains
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
              call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,flx_prune)
+             call prunepath(cr,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
           end do
@@ -1199,19 +1185,19 @@ contains
           ! write (uout,'("+ dyn: fluxing special angles.")')
           xpoint = xbcp + change * v1
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,flx_prune)
+          call prunepath(cr,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp + change * v2
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,flx_prune)
+          call prunepath(cr,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v1
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,flx_prune)
+          call prunepath(cr,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v2
           call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,flx_prune)
+          call prunepath(cr,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
        end if
        ! write (uout,*)

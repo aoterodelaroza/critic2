@@ -3990,7 +3990,6 @@ Three-dimensional gradient path representations (FLUXPRINT)
     GRAPH igraph.i [step.r epsi.r]
     COLOR r.i g.i b.i
     TEXT|TESSEL|TESS|OBJ|PLY|OFF|CML
-    PRUNE prune.r
     SHELLS ishl.i
     NOSYM
   ENDFLUXPRINT/END
@@ -4084,9 +4083,7 @@ OBJ (Wavefront obj), PLY (ply format), OFF (Geomview's off), and CML
 (Chemical Markup Language). The CML format, which can be read with the
 avogadro program, is used by default. The color specs are not used in
 CML format. To keep the number of points manageable, critic2 writes
-one gradient path point every certain distance is advanced. The PRUNE
-keyword controls how much this distance is (bohr in crystals, angstrom
-in molecules). The default PRUNE is 0.1 bohr.
+one gradient path point every certain distance is advanced. 
 
 Finally, the SHELLS keyword applies only to graph and graphcp. It
 represents the number of unit cell shells where the graph is going
@@ -5934,6 +5931,14 @@ the predicted steps: BS, RKCK, and DP.
 This keyword applies to all gradient paths except those in qtree. The
 defaults are BS method with maxstep.r = 0.1 bohr, gradeps.r = 1e-9,
 and maxerr.r = 1e-3.
+
+::
+
+  PRUNE_DISTANCE prune.r
+
+Prune gradient paths so that only one point is plotted every prune.r
+distance (units: bohr in crystals and angstrom in molecules, default:
+0.1 bohr).
 
 ::
 

@@ -847,13 +847,12 @@ contains
     use fields, only: f
     use struct, only: struct_write
     use struct_basic, only: cr, crystal
-    use global, only: eval_next, refden
+    use global, only: eval_next, refden, prunedist
     use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
     use varbas, only: ncpcel, cp, cpcel
     use types, only: realloc
     character*(*), intent(in) :: line
 
-    real*8, parameter :: fprune = 0.1d0 ! pruning distance for gradient path
     integer, parameter :: mstep = 1000 ! maximum steps for gradient
 
     integer :: lp, n, lp2
@@ -947,15 +946,15 @@ contains
                 end if
           
                 if (iup /= 0) then
-                   x = cpcel(i)%r + 0.5d0 * fprune * cpcel(i)%brvec
+                   x = cpcel(i)%r + 0.5d0 * prunedist * cpcel(i)%brvec
                    call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(cr,nstep,xpath(:,1:nstep),fprune)
+                   call prunepath(cr,nstep,xpath(:,1:nstep),prunedist)
                    !$omp critical (add)
                    call addpath(nstep,xpath(:,1:nstep))
                    !$omp end critical (add)
-                   x = cpcel(i)%r - 0.5d0 * fprune * cpcel(i)%brvec
+                   x = cpcel(i)%r - 0.5d0 * prunedist * cpcel(i)%brvec
                    call gradient(f(refden),x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(cr,nstep,xpath(:,1:nstep),fprune)
+                   call prunepath(cr,nstep,xpath(:,1:nstep),prunedist)
                    !$omp critical (add)
                    call addpath(nstep,xpath(:,1:nstep))
                    !$omp end critical (add)
