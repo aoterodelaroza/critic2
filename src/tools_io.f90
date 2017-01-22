@@ -1117,7 +1117,7 @@ contains
 
     abspath = .false.
     ofile = trim(adjustl(filepath)) // dirsep // file
-    if (ofile(1:1) == dirsep) abspath = .true.
+    if (file(1:1) == dirsep) abspath = .true.
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
@@ -1147,7 +1147,7 @@ contains
 
     abspath = .false.
     ofile = trim(adjustl(filepath)) // dirsep // file
-    if (ofile(1:1) == dirsep) abspath = .true.
+    if (file(1:1) == dirsep) abspath = .true.
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
@@ -1162,20 +1162,22 @@ contains
   end function fopen_write
 
   !> Open a file for appending
-  function fopen_append(file,form,abspath) result(lu)
+  function fopen_append(file,form,abspath0) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
-    logical, intent(in), optional :: abspath
+    logical, intent(in), optional :: abspath0
     integer :: lu
     
     integer :: ios
     character(len=:), allocatable :: ofile
+    logical :: abspath
 
-    ofile = filepath // dirsep // file
-    if (present(abspath)) then
-       if (abspath) ofile = file
-    end if
+    abspath = .false.
+    ofile = trim(adjustl(filepath)) // dirsep // file
+    if (file(1:1) == dirsep) abspath = .true.
+    if (present(abspath0)) abspath = abspath0
+    if (abspath) ofile = file
 
     lu = falloc()
     if (present(form)) then
