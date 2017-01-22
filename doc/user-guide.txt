@@ -5063,7 +5063,7 @@ The steps of the algorithm are:
   accuracy counterparts.
 
   The step size of the fixed step methods (1--4) is controlled with
-  the STEPSIZE keyword. In the variable step methods (5--8) the
+  the STEPSIZE keyword (bohr). In the variable step methods (5--8) the
   value of STEPSIZE is used as the starting step.
 
   The default QTREE_ODE_MODE is Dormand-Prince (8).
@@ -5923,10 +5923,11 @@ and first step as last. RKCK, Runge-Kutta-Cash-Karp embedded 4-5th
 order method with local extrapolation and error estimate. DP,
 Dormand-Prince 4-5th order with local extrapolation and error estimate
 (7 evaluations per step). maxstep.r is the initial (and maximum) step
-size (bohr), gradeps.r is the gradient norm termination criterion for
-the gradient path. maxerr.r is the maximum error in the trajectory (in
-bohr). MAXERR only affects methods that provide an error estimate for
-the predicted steps: BS, RKCK, and DP.
+size (bohr in crystals, angstrom in molecules), gradeps.r is the
+gradient norm termination criterion for the gradient path. maxerr.r is
+the maximum error in the trajectory (in bohr). MAXERR only affects
+methods that provide an error estimate for the predicted steps: BS,
+RKCK, and DP.
 
 This keyword applies to all gradient paths except those in qtree. The
 defaults are BS method with maxstep.r = 0.1 bohr, gradeps.r = 1e-9,
@@ -5986,11 +5987,12 @@ the optimization levels of the compiler. Therefore, I have disabled
 it by default.
 
 In the case of basin integrations, PREC controls the precision in
-the determination of the interatomic surface.
+the determination of the interatomic surface (bohr in crystal,
+angstrom in molecules).
 
 Default: GAULEG, nr.r = 50, aerr.r = 1d0, rerr.r = 1d-12. The default
 errprop is the field value for fields on a grid and the Laplacian for
-the rest.
+the rest. delta.r = 1e-5 bohr.
 
 ::
 

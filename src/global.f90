@@ -424,6 +424,7 @@ contains
           else if (equal(word,'maxstep')) then
              ok = isreal(NAV_step,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXSTEP',faterr,line,syntax=.true.)
+             NAV_step = NAV_step / dunit
           else if (equal(word,'maxerr')) then
              ok = isreal(NAV_maxerr,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXERR',faterr,line,syntax=.true.)
@@ -439,6 +440,7 @@ contains
     else if (equal(word,'prune_distance')) then
        ok = isreal(prunedist,line,lp)
        if (.not.ok) call ferror('critic_setvariables','Wrong PRUNE_DISTANCE',faterr,line,syntax=.true.)
+       prunedist = prunedist / dunit
     else if (equal (word,'int_radial')) then
        do while(.true.)
           word = lgetword(line,lp)
@@ -471,6 +473,7 @@ contains
           elseif (equal(word,'prec')) then
              ok = isreal(INT_iasprec,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL prec',faterr,line,syntax=.true.)
+             INT_iasprec = INT_iasprec / dunit
           elseif (len_trim(word) > 0) then
              call ferror('critic_setvariables','Unknown keyword in INT_RADIAL',faterr,line,syntax=.true.)
           else
@@ -511,6 +514,7 @@ contains
        else
           call check_no_extra_word(ok)
        end if
+       stepsize = stepsize / dunit
     elseif (equal(word,'ode_abserr')) then
        ok = isreal(ode_abserr,line,lp)
        if (.not. ok) then
