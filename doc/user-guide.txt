@@ -5610,14 +5610,24 @@ primitive cell (ANY).
 
 ::
 
-  ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r]
+  ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r] [AT at.s/iat.i] [BY by.s/iby.i]
 
 Print the shells of atomic neighbors for every non-equivalent atom
 in the cell, up to nshel.i shells (default: 10). If a point is given
 with the POINT keyword (crystallographic coordinates), then print the
 atomic environment of that point instead. When the POINT keyword is
 used, critic2 also prints a complete list of all the atoms in the
-vicinity of that point.
+vicinity of that point. 
+
+The list of atoms in the environment can be filtered with the AT and
+BY keywords. If AT is given with an atomic symbol (at.s), only the
+environments of the atoms with the same atomic number are printed. If
+an integer is given (iat.i), the environments of non-equivalent atom
+iat.i are printed. The BY keyword filters the atoms in each
+environment. If a string is used as argument to BY, only the atoms in
+the environment with the same atomic number as by.s are printed. If an
+integer is used, only the atoms equivalent by symmetry to
+non-equivalent atom iby.i are shown.
 
 ::
 

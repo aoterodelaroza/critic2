@@ -1063,10 +1063,10 @@ contains
     use struct_basic, only: cr
     use global, only: eval_next, dunit, iunit, iunitname0
     use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
-       ioj_right, ioj_center
+       ioj_right, ioj_center, zatguess, isinteger
     character*(*), intent(in) :: line
 
-    integer :: lp
+    integer :: lp, lp2
     integer :: nn, i, j, k, l
     real*8 :: x0(3), xout(3), x0in(3)
     logical :: doatoms, ok
@@ -1074,9 +1074,18 @@ contains
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:), xenv(:,:,:)
 
+    integer :: iat, iby, iat_mode, iby_mode
+    integer, parameter :: inone = 0
+    integer, parameter :: iznuc = 1
+    integer, parameter :: iid = 2
+
     nn = 10
     x0 = 0d0
     doatoms = .true.
+    iat = 0
+    iat_mode = inone
+    iby = 0
+    iby_mode = inone
 
     ! parse input
     lp = 1
@@ -1100,6 +1109,32 @@ contains
           x0in = x0
           if (cr%ismolecule) &
              x0 = cr%c2x(x0 / dunit - cr%molx0)
+       elseif (equal(word,"at")) then
+          lp2 = lp
+          word = lgetword(line,lp)
+          iat = zatguess(word)
+          if (iat < 0) then
+             lp = lp2
+             ok = isinteger(iat,line,lp)
+             if (.not.ok) &
+                call ferror('struct_environ','Syntax error in ENVIRON/AT',faterr,line,syntax=.true.)
+             iat_mode = iid
+          else
+             iat_mode = iznuc
+          end if
+       elseif (equal(word,"by")) then
+          lp2 = lp
+          word = lgetword(line,lp)
+          iby = zatguess(word)
+          if (iby < 0) then
+             lp = lp2
+             ok = isinteger(iby,line,lp)
+             if (.not.ok) &
+                call ferror('struct_environ','Syntax error in ENVIRON/BY',faterr,line,syntax=.true.)
+             iby_mode = iid
+          else
+             iby_mode = iznuc
+          end if
        elseif (len_trim(word) > 0) then
           call ferror('struct_environ','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -1120,8 +1155,18 @@ contains
              iunitname0(iunit), iunitname0(iunit)
        end if
        do i = 1, cr%nneq
+          if (iat_mode == iid) then
+             if (iat /= i) cycle
+          elseif (iat_mode == iznuc) then
+             if (iat /= cr%at(i)%z) cycle
+          end if
           call cr%pointshell(cr%at(i)%x,nn,nneig,wat,dist,xenv)
           do j = 1, nn
+             if (iby_mode == iid) then
+                if (iby /= wat(j)) cycle
+             elseif (iby_mode == iznuc) then
+                if (iby /= cr%at(wat(j))%z) cycle
+             end if
              xout = xenv(:,1,j)
              if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
              if (j == 1) then
@@ -1151,6 +1196,11 @@ contains
              iunitname0(iunit), iunitname0(iunit)
        end if
        do j = 1, nn
+          if (iby_mode == iid) then
+             if (iby /= wat(j)) cycle
+          elseif (iby_mode == iznuc) then
+             if (iby /= cr%at(wat(j))%z) cycle
+          end if
           xout = xenv(:,1,j)
           if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
           if (wat(j) /= 0) then
@@ -1168,6 +1218,11 @@ contains
           iunitname0(iunit)
        do j = 1, nn
           if (wat(j) == 0) cycle
+          if (iby_mode == iid) then
+             if (iby /= wat(j)) cycle
+          elseif (iby_mode == iznuc) then
+             if (iby /= cr%at(wat(j))%z) cycle
+          end if
           do k = 1, nneig(j)
              xout = xenv(:,k,j)
              if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit
