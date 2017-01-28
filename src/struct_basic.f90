@@ -4761,7 +4761,7 @@ contains
     real*8, dimension(3), intent(out) :: vec !< output eigenvector
     integer, intent(out) :: order
 
-    real*8, parameter :: eps = 1e-6
+    real*8, parameter :: eps = 1e-3
 
     integer, dimension(2,2) :: iord
     real*8 :: trace, tone
