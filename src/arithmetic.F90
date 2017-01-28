@@ -992,6 +992,9 @@ contains
     integer :: c
     real*8 :: a, b
     character*8 :: sia
+#ifdef HAVE_LIBXC
+    real*8 :: rho, grho, lapl, tau, zk
+#endif
 
     ! pop from the stack
     fail = .false.
