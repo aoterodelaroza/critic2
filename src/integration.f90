@@ -304,7 +304,7 @@ contains
        idprop(k) = nn
 
        ! Use the grid values if available. Use FFT when possible.
-       if (f(fid)%type == type_grid) then
+       if (f(fid)%type == type_grid .and. all(f(fid)%n == n)) then
           if (integ_prop(k)%itype == itype_fval .or.&
               integ_prop(k)%itype == itype_f.and..not.f(fid)%usecore.or.&
               integ_prop(k)%itype == itype_mpoles.and..not.f(fid)%usecore) then
