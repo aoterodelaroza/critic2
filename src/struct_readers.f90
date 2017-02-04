@@ -48,6 +48,7 @@ module struct_readers
   public :: struct_read_qein
   public :: struct_read_siesta
   public :: struct_read_dftbp
+  public :: struct_read_xsf
   private :: qe_latgen
   private :: spgs_wrap
   private :: fill_molecule
@@ -2343,6 +2344,77 @@ contains
     c%lcent = 0
 
   end subroutine struct_read_dftbp
+
+  !> Read the structure from an xsf file.
+  subroutine struct_read_xsf(c,file,mol)
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal
+    use tools_math, only: matinv
+    use param, only: bohrtoa, eye, pi
+    use types, only: realloc
+    type(crystal), intent(inout) :: c !< Crystal
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+
+    character(len=:), allocatable :: line, word
+    integer :: lu, lp, i, iz
+    real*8 :: r(3,3), g(3,3)
+    logical :: ok
+
+    ! open
+    lu = fopen_read(file)
+
+    do while (.true.)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) exit
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"primvec")) then
+          do i = 1, 3
+             read (lu,*) r(i,:)
+          end do
+          r = r / bohrtoa
+       elseif (equal(word,"primcoord")) then
+          read (lu,*) c%nneq
+          call realloc(c%at,c%nneq)
+          do i = 1, c%nneq
+             read (lu,*) iz, c%at(i)%x
+             c%at(i)%z = iz
+             c%at(i)%name = nameguess(iz)
+             c%at(i)%zpsp = -1
+             c%at(i)%qat = 0d0
+          end do
+       end if
+    end do
+
+    ! fill the cell metrics
+    g = matmul(r,transpose(r))
+    do i = 1, 3
+       c%aa(i) = sqrt(g(i,i))
+    end do
+    c%bb(1) = acos(g(2,3)/c%aa(2)/c%aa(3)) * 180d0 / pi
+    c%bb(2) = acos(g(1,3)/c%aa(1)/c%aa(3)) * 180d0 / pi
+    c%bb(3) = acos(g(1,2)/c%aa(1)/c%aa(2)) * 180d0 / pi
+    c%crys2car = transpose(r)
+    c%car2crys = matinv(c%crys2car)
+
+    ! no symmetry
+    c%havesym = 0
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,1:3,1) = eye
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
+    c%lcent = 0
+
+    ! close
+    call fclose(lu)
+
+    ! if this is a molecule, set up the origin and the molecular cell
+    if (mol) call fill_molecule_given_cell(c)
+
+  end subroutine struct_read_xsf
 
   !> From QE, generate the lattice from the ibrav
   subroutine qe_latgen(ibrav,celldm,a1,a2,a3)

@@ -48,6 +48,7 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.STRUCT_IN 
   CRYSTAL file.STRUCT_OUT
   CRYSTAL file.gen
+  CRYSTAL file.xsf
   CRYSTAL
    SPG spgsymbol.s
    SPGR spgsymbol.s
