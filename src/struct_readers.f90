@@ -2379,6 +2379,7 @@ contains
           call realloc(c%at,c%nneq)
           do i = 1, c%nneq
              read (lu,*) iz, c%at(i)%x
+             c%at(i)%x = c%at(i)%x / bohrtoa
              c%at(i)%z = iz
              c%at(i)%name = nameguess(iz)
              c%at(i)%zpsp = -1
@@ -2397,6 +2398,11 @@ contains
     c%bb(3) = acos(g(1,2)/c%aa(1)/c%aa(2)) * 180d0 / pi
     c%crys2car = transpose(r)
     c%car2crys = matinv(c%crys2car)
+
+    ! convert atoms to crystallographic
+    do i = 1, c%nneq
+       c%at(i)%x = matmul(c%car2crys,c%at(i)%x)
+    end do
 
     ! no symmetry
     c%havesym = 0
