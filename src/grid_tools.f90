@@ -560,7 +560,7 @@ contains
           read(luc,*,iostat=istat) pmat
           if (istat /= 0) &
              call ferror('grid_read_xsf','Error PRIMVEC',faterr,file)
-       else if (equal(word,'begin_block_datagrid_3d'))then
+       else if (equal(word,'begin_block_datagrid_3d').or.equal(word,'begin_block_datagrid3d'))then
           found = .true.
           exit
        end if
@@ -572,7 +572,8 @@ contains
     do while (getline_raw(luc,line))
        lp = 1
        word = lgetword(line,lp)
-       if (equal(word(1:min(17,len(word))),'begin_datagrid_3d') .or. equal(word(1:min(11,len(word))),'datagrid_3d')) then
+       if (equal(word(1:min(17,len(word))),'begin_datagrid_3d') .or. equal(word(1:min(11,len(word))),'datagrid_3d').or.&
+           equal(word(1:min(16,len(word))),'begin_datagrid3d') .or. equal(word(1:min(10,len(word))),'datagrid3d')) then
           found = .true.
           exit
        end if
