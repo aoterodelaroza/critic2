@@ -425,8 +425,31 @@ contains
        ff%type = type_wien
        ff%file = file
     else if (equal(wext1,'OUT')) then
+       file2 = ""
+       file3 = ""
+
+       lp2 = lp
        file2 = getword(line,lp)
-       file3 = getword(line,lp)
+       if (len_trim(file2) > 0) then
+          word = file2(index(file2,dirsep,.true.)+1:)
+          wext2 = word(index(word,'.',.true.)+1:)
+          if (equal(wext2,'OUT')) then
+             lp2 = lp
+             file3 = getword(line,lp)
+             if (len_trim(file3) > 0) then
+                word = file3(index(file3,dirsep,.true.)+1:)
+                wext2 = word(index(word,'.',.true.)+1:)
+                if (.not.equal(wext2,'OUT')) then
+                   file3 = ""
+                   lp = lp2
+                end if
+             end if
+          else
+             file2 = ""
+             lp = lp2
+          end if
+       end if
+
        if (file2 == "" .and. file3 == "") then
           call grid_read_elk(file,ff)
           ff%type = type_grid
@@ -438,7 +461,7 @@ contains
        else
           call elk_read_out(ff,file,file2,file3)
           ff%type = type_elk
-          ff%file = file
+          ff%file = file3
        end if
     else if (equal(wext1,'promolecular')) then
        lp2 = lp
