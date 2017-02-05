@@ -690,13 +690,13 @@ contains
     if (ios /= 0) &
        call ferror('grid_read_elk','Error reading n1, n2, n3',faterr,file)
 
-    f%n = n - 1
-    allocate(f%f(n(1)-1,n(2)-1,n(3)-1),stat=ios)
+    f%n = n
+    allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
        call ferror('grid_read_elk','Error allocating grid',faterr,file)
-    do k = 1, n(3)-1
-       do j = 1, n(2)-1
-          do i = 1, n(1)-1
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
              read (luc,*) dum, f%f(i,j,k)
           end do
        end do

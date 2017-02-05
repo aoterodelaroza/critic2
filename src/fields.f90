@@ -399,10 +399,6 @@ contains
        call grid_read_xsf(file,ff)
        ff%type = type_grid
        ff%file = file
-    else if (equal(wext1,'grid')) then
-       call grid_read_elk(file,ff)
-       ff%type = type_grid
-       ff%file = file
     else if (equal(wext1,'wfn')) then
        call wfn_read_wfn(file,ff)
        ff%type = type_wfn
@@ -431,13 +427,19 @@ contains
     else if (equal(wext1,'OUT')) then
        file2 = getword(line,lp)
        file3 = getword(line,lp)
-       if (file3 == "") then
+       if (file2 == "" .and. file3 == "") then
+          call grid_read_elk(file,ff)
+          ff%type = type_grid
+          ff%file = file
+       elseif (file3 == "") then
           call elk_read_out(ff,file,file2)
+          ff%type = type_elk
+          ff%file = file
        else
           call elk_read_out(ff,file,file2,file3)
+          ff%type = type_elk
+          ff%file = file
        end if
-       ff%type = type_elk
-       ff%file = file
     else if (equal(wext1,'promolecular')) then
        lp2 = lp
        word = lgetword(line,lp)

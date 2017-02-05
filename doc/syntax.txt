@@ -123,8 +123,9 @@ expression.r # prints the value of the expression to the output.
   LOAD file.grid
   LOAD file.clmsum file.struct
   LOAD file.{RHO,BADER,DRHO,LDOS,VT,VH}
-  LOAD file.OUT GEOMETRY.OUT
-  LOAD file.OUT GEOMETRY.OUT OTHER.OUT
+  LOAD file.OUT
+  LOAD STATE.OUT GEOMETRY.OUT
+  LOAD STATE.OUT GEOMETRY.OUT OTHER.OUT
   LOAD file1.ion {nat1.i/at1.s} file2.ion ...
   LOAD file.xml file.bin file.hsd
   LOAD file.wfn
