@@ -2230,7 +2230,7 @@ contains
              if (c%nneq > size(c%at,1)) & 
                 call realloc(c%at,2*c%nneq)
              read (line,*) idum, iz, ats, x
-             c%at(c%nneq)%z = iz
+             c%at(c%nneq)%z = modulo(iz,200)
              c%at(c%nneq)%name = trim(ats)
              c%at(c%nneq)%x = x / bohrtoa
           end do

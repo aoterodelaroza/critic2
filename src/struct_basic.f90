@@ -2149,7 +2149,7 @@ contains
                 do i = 1, c%ncel
                    iz = c%at(c%atcel(i)%idx)%z
                    if (iz < 1 .or. iz > size(cscatt,2)) &
-                      call ferror('struct_powder','invalic Z -> no atomic scattering factors',faterr)
+                      call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
                    as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
                    bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
                    cs = cscatt(9,iz)
