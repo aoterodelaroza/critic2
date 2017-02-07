@@ -44,8 +44,9 @@ contains
     use struct_readers, only: struct_read_cif, struct_read_res, struct_read_cube,&
        struct_read_wien, struct_read_wien, struct_read_potcar, struct_read_vasp,&
        struct_read_abinit, struct_read_elk, struct_read_qeout, struct_read_qein,&
+       struct_read_crystalout,&
        struct_read_library, struct_read_mol, struct_read_siesta, struct_read_dftbp,&
-       struct_read_xsf, parse_crystal_env, parse_molecule_env
+       struct_read_xsf, parse_crystal_env, parse_molecule_env, is_espresso
     use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
        iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
@@ -189,14 +190,17 @@ contains
        c%file = word
 
     else if (equal(wext1,'out')) then
-       call struct_read_qeout(c,word,mol)
+       if (is_espresso(word)) then
+          call struct_read_qeout(c,word,mol)
+       else
+          call struct_read_crystalout(c,word,mol)
+       end if
        aux = getword(line,lp)
        if (len_trim(aux) > 0) then
           call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
           return
        end if
        c%file = word
-
     else if (equal(wext1,'in')) then
        call struct_read_qein(c,word,mol)
        aux = getword(line,lp)

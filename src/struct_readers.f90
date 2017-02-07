@@ -46,9 +46,11 @@ module struct_readers
   public :: struct_read_mol
   public :: struct_read_qeout
   public :: struct_read_qein
+  public :: struct_read_crystalout
   public :: struct_read_siesta
   public :: struct_read_dftbp
   public :: struct_read_xsf
+  public :: is_espresso
   private :: qe_latgen
   private :: spgs_wrap
   private :: fill_molecule
@@ -2173,6 +2175,112 @@ contains
 
   end subroutine struct_read_qein
 
+  !> Read the structure from a crystal output
+  subroutine struct_read_crystalout(c,file,mol)
+    use struct_basic, only: crystal
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+       zatguess, fclose
+    use tools_math, only: matinv
+    use param, only: pi, eye, bohrtoa
+    use types, only: realloc
+    type(crystal), intent(inout) :: c !< crystal
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+
+    integer :: lu, nstrucs, is0, ideq, i, k
+    character(len=:), allocatable :: line
+    integer :: ibrav, nat, ntyp, id, idum, iz, lp
+    real*8 :: alat, r(3,3), qaux, g(3,3), x(3)
+    logical :: ok, iscrystal
+    character*(10), allocatable :: attyp(:), atn(:)
+    character*(10) :: ats
+    integer, allocatable :: zpsptyp(:)
+
+    lu = fopen_read(file)
+
+    r = 0d0
+    iscrystal = .false.
+    ! rewind and read the correct structure
+    rewind(lu)
+    do while (getline_raw(lu,line))
+       if (index(line,"CRYSTAL CALCULATION") > 0) then
+          iscrystal = .true.
+       elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
+          ok = getline_raw(lu,line,.true.)
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             lp = 1
+             ok = isreal(r(i,1),line,lp)
+             ok = ok.and.isreal(r(i,2),line,lp)
+             ok = ok.and.isreal(r(i,3),line,lp)
+             if (.not.ok) &
+                call ferror("struct_read_crystalout","wrong lattice vectors",faterr)
+          end do
+          r = r / bohrtoa
+       elseif (index(line,"CARTESIAN COORDINATES - PRIMITIVE CELL") > 0) then
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+          end do
+          line = ""
+          c%nneq = 0
+          do while (.true.)
+             ok = getline_raw(lu,line,.true.)
+             if (len_trim(line) < 1) exit
+             c%nneq = c%nneq + 1
+             if (c%nneq > size(c%at,1)) & 
+                call realloc(c%at,2*c%nneq)
+             read (line,*) idum, iz, ats, x
+             c%at(c%nneq)%z = iz
+             c%at(c%nneq)%name = trim(ats)
+             c%at(c%nneq)%x = x / bohrtoa
+          end do
+       end if
+    end do
+
+    if (.not.iscrystal) &
+       call ferror("struct_read_crystalout","only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)",faterr)
+    if (all(r == 0d0)) &
+       call ferror("struct_read_crystalout","could not find lattice vectors",faterr)
+
+     ! fill struct quantities
+     ! cell
+     g = matmul(r,transpose(r))
+     do i = 1, 3
+        c%aa(i) = sqrt(g(i,i))
+     end do
+     c%bb(1) = acos(g(2,3)/c%aa(2)/c%aa(3)) * 180d0 / pi
+     c%bb(2) = acos(g(1,3)/c%aa(1)/c%aa(3)) * 180d0 / pi
+     c%bb(3) = acos(g(1,2)/c%aa(1)/c%aa(2)) * 180d0 / pi
+     c%crys2car = transpose(r)
+     c%car2crys = matinv(c%crys2car)
+
+     ! atoms
+     call realloc(c%at,c%nneq)
+     do i = 1, c%nneq
+        c%at(i)%x = c%c2x(c%at(i)%x)
+        c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+        c%at(i)%zpsp = -1
+        c%at(i)%qat = 0d0
+     end do
+ 
+     ! no symmetry
+     c%havesym = 0
+     c%neqv = 1
+     c%rotm = 0d0
+     c%rotm(:,1:3,1) = eye
+     c%ncv = 1
+     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+     c%cen = 0d0
+     c%lcent = 0
+ 
+     ! close the file
+     call fclose(lu)
+ 
+     ! if this is a molecule, set up the origin and the molecular cell
+     if (mol) call fill_molecule_given_cell(c)
+
+  end subroutine struct_read_crystalout
+
   !> Read the structure from a siesta STRUCT_OUT input
   subroutine struct_read_siesta(c,file,mol)
     use struct_basic, only: crystal
@@ -2421,6 +2529,32 @@ contains
     if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_xsf
+
+  !> Determine whether a given output file (.scf.out or .out) comes
+  !> from a crystal or a quantum espresso calculation. To do this,
+  !> try to find the "Program PWSCF" line in the output header.
+  function is_espresso(file)
+    use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
+    
+    logical :: is_espresso
+    character*(*), intent(in) :: file !< Input file name
+
+    integer :: lu, lp
+    character(len=:), allocatable :: line, word1, word2
+    logical :: ok
+
+    lu = fopen_read(file)
+    line = ""
+    do while(len_trim(line) < 1)
+       ok = getline_raw(lu,line,.true.)
+    end do
+    call fclose(lu)
+    lp = 1
+    word1 = lgetword(line,lp)
+    word2 = lgetword(line,lp)
+    is_espresso = (equal(word1,"program") .and. equal(word2,"pwscf"))
+
+  end function is_espresso
 
   !> From QE, generate the lattice from the ibrav
   subroutine qe_latgen(ibrav,celldm,a1,a2,a3)
