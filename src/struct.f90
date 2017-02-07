@@ -50,7 +50,7 @@ contains
     use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
        iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
-       string, uin
+       string, uin, isinteger
     use param, only: dirsep, maxzat0
 
     character*(*), intent(in) :: line
@@ -59,7 +59,7 @@ contains
     logical, intent(in) :: allownofile
     logical, intent(in) :: verbose
 
-    integer :: lp, lp2
+    integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, wext1, wext2, subline, aux
     integer :: ntyp, nn
     character*5 :: ztyp(maxzat0)
@@ -191,7 +191,9 @@ contains
 
     else if (equal(wext1,'out')) then
        if (is_espresso(word)) then
-          call struct_read_qeout(c,word,mol)
+          ok = isinteger(istruct,line,lp)
+          if (.not.ok) istruct = 0
+          call struct_read_qeout(c,word,mol,istruct)
        else
           call struct_read_crystalout(c,word,mol)
        end if

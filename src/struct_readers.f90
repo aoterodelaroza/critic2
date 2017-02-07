@@ -1743,23 +1743,27 @@ contains
 
   end subroutine struct_read_mol
 
-  !> Read the structure from a quantum espresso output
-  subroutine struct_read_qeout(c,file,mol)
+  !> Read the structure from a quantum espresso output (file) and
+  !> return it as a crystal object. If mol, the structure is assumed
+  !> to be a molecule.  If istruct is zero, read the last geometry;
+  !> otherwise, read geometry number istruct.
+  subroutine struct_read_qeout(c,file,mol,istruct)
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose
     use tools_math, only: matinv
-    use param, only: pi, eye
+    use param, only: pi, eye, bohrtoa
     use types, only: realloc
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    integer, intent(in) :: istruct !< structure number
 
-    integer :: lu, nstrucs, is0, ideq, i, k
+    integer :: lu, nstructs, nn, is0, ideq, i, k
     character(len=:), allocatable :: line
     integer :: ibrav, nat, ntyp, id, idum
-    real*8 :: alat, r(3,3), qaux, g(3,3)
-    logical :: ok
+    real*8 :: alat, r(3,3), qaux, g(3,3), rfac, cfac
+    logical :: ok, tox
     character*(10), allocatable :: attyp(:), atn(:)
     integer, allocatable :: zpsptyp(:)
     real*8, allocatable :: x(:,:)
@@ -1767,86 +1771,126 @@ contains
     lu = fopen_read(file)
 
     ! first pass: read the number of structures
-    nstrucs = 0
+    nstructs = 0
     do while (getline_raw(lu,line))
-       if (index(line,"Title:") > 0) then
-          nstrucs = nstrucs + 1
+       if (index(line,"Self-consistent Calculation") > 0) then
+          nstructs = nstructs + 1
        end if
     end do
 
-    ! which of them? -> last one
-    is0 = nstrucs
+    ! which of them?
+    if (istruct == 0) then
+       is0 = nstructs
+    else
+       if (istruct > nstructs .or. istruct < 0) then
+          call ferror("struct_read_qeout","wrong structure number",faterr)
+       end if
+       is0 = istruct
+    end if
 
     ! rewind and read the correct structure
     rewind(lu)
-    nstrucs = 0
-    a: do while (getline_raw(lu,line))
-       if (index(line,"Title:") > 0) then
-          nstrucs = nstrucs + 1
+    nstructs = 0
+    ntyp = 0
+    nat = 0
+    tox = .false.
+    do while (getline_raw(lu,line))
+       ideq = index(line,"=") + 1
+
+       ! Count the structures
+       if (index(line,"Self-consistent Calculation") > 0) then
+          nstructs = nstructs + 1
+          if (is0 /= 0 .and. nstructs == is0) exit
+       ! Title: block at the beginning of the output (and at the end in minimizations) 
+       elseif (index(line,"bravais-lattice index") > 0) then
+          ok = isinteger(ibrav,line,ideq)
+       elseif (index(line,"lattice parameter (alat)") > 0) then
+          ok = isreal(alat,line,ideq)
+       elseif (index(line,"number of atoms/cell") > 0) then
+          ok = isinteger(nat,line,ideq)
+       elseif (index(line,"number of atomic types") > 0) then
+          ok = isinteger(ntyp,line,ideq)
+       elseif (index(line,"crystal axes:") > 0) then
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             ideq = index(line,"(",.true.) + 1
+             ok = isreal(r(i,1),line,ideq)
+             ok = ok.and.isreal(r(i,2),line,ideq)
+             ok = ok.and.isreal(r(i,3),line,ideq)
+          end do
+          r = r * alat ! alat comes before crystal axes
+       elseif (index(line,"atomic species   valence    mass     pseudopotential")>0) then
+          if (ntyp == 0) &
+             call ferror("struct_read_qeout","number of atomic types unknown",faterr)
+          if (.not.allocated(attyp)) allocate(attyp(ntyp))
+          if (.not.allocated(zpsptyp)) then
+             allocate(zpsptyp(ntyp))
+             zpsptyp = 0
+          end if
+          do i = 1, ntyp
+             ok = getline_raw(lu,line,.true.)
+             read (line,*) attyp(i), qaux
+             zpsptyp(i) = nint(qaux)
+          end do
+       elseif (index(line,"Cartesian axes")>0) then
+          if (nat == 0) &
+             call ferror("struct_read_qeout","number of atoms unknown",faterr)
+          if (.not.allocated(atn)) allocate(atn(nat))
+          if (.not.allocated(x)) allocate(x(3,nat))
+          ok = getline_raw(lu,line,.true.)
+          ok = getline_raw(lu,line,.true.)
+          do i = 1, nat
+             ok = getline_raw(lu,line,.true.)
+             read(line,*) idum, atn(i)
+             line = line(index(line,"(",.true.)+1:)
+             read(line,*) x(:,i)
+          end do
+          tox = .true.
+       elseif (line(1:15) == "CELL_PARAMETERS") then
+          if (index(line,"angstrom") > 0) then
+             cfac = 1d0 / bohrtoa 
+          elseif (index(line,"alat") > 0) then
+             cfac = alat
+          elseif (index(line,"bohr") > 0) then
+             cfac = 1d0
+          end if
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             ideq = 1
+             ok = isreal(r(i,1),line,ideq)
+             ok = ok.and.isreal(r(i,2),line,ideq)
+             ok = ok.and.isreal(r(i,3),line,ideq)
+          end do
+          r = r * cfac
+       elseif (line(1:16) == "ATOMIC_POSITIONS") then
+          if (nat == 0) &
+             call ferror("struct_read_qeout","number of atoms unknown",faterr)
+          if (.not.allocated(atn)) allocate(atn(nat))
+          if (.not.allocated(x)) allocate(x(3,nat))
+
+          if (index(line,"angstrom") > 0) then
+             tox = .true.
+             rfac = 1d0 / bohrtoa 
+          elseif (index(line,"alat") > 0) then
+             tox = .true.
+             rfac = alat
+          elseif (index(line,"bohr") > 0) then
+             tox = .true.
+             rfac = 1d0
+          elseif (index(line,"crystal") > 0) then
+             tox = .false.
+             rfac = 1d0
+          end if
+          do i = 1, nat
+             ok = getline_raw(lu,line,.true.)
+             read(line,*) atn(i), x(:,i)
+          end do
+          x = x * rfac
        end if
-       if (nstrucs == is0) then
-          ! read header
-          do while (getline_raw(lu,line))
-             ideq = index(line,"=") + 1
-             if (index(line,"bravais-lattice index") > 0) then
-                ok = isinteger(ibrav,line,ideq)
-             elseif (index(line,"lattice parameter (alat)") > 0) then
-                ok = isreal(alat,line,ideq)
-             elseif (index(line,"number of atoms/cell") > 0) then
-                ok = isinteger(nat,line,ideq)
-             elseif (index(line,"number of atomic types") > 0) then
-                ok = isinteger(ntyp,line,ideq)
-             elseif (index(line,"crystal axes:") > 0) then
-                do i = 1, 3
-                   ok = getline_raw(lu,line,.true.)
-                   ideq = index(line,"(",.true.) + 1
-                   ok = isreal(r(i,1),line,ideq)
-                   ok = ok.and.isreal(r(i,2),line,ideq)
-                   ok = ok.and.isreal(r(i,3),line,ideq)
-                end do
-                exit
-             end if
-          end do
-
-          ! allocate types
-          allocate(attyp(ntyp),zpsptyp(ntyp))
-          allocate(atn(nat), x(3,nat))
-          zpsptyp = 0
-
-          ! atomic species
-          do while (getline_raw(lu,line))
-             if (index(line,"atomic species   valence    mass     pseudopotential")>0) then
-                do i = 1, ntyp
-                   ok = getline_raw(lu,line,.true.)
-                   read (line,*) attyp(i), qaux
-                   zpsptyp(i) = nint(qaux)
-                end do
-                exit
-             end if
-          end do
-
-          ! coordinates
-          do while (getline_raw(lu,line))
-             if (index(line,"Cartesian axes")>0) then
-                ok = getline_raw(lu,line,.true.)
-                ok = getline_raw(lu,line,.true.)
-                do i = 1, nat
-                   ok = getline_raw(lu,line,.true.)
-                   read(line,*) idum, atn(i)
-                   line = line(index(line,"(",.true.)+1:)
-                   read(line,*) x(:,i)
-                end do
-             end if
-          end do
-
-          ! last structure, done
-          exit a
-       end if
-    end do a
+    end do
 
     ! fill struct quantities
     ! cell
-    r = r * alat
     g = matmul(r,transpose(r))
     do i = 1, 3
        c%aa(i) = sqrt(g(i,i))
@@ -1860,7 +1904,11 @@ contains
     c%nneq = nat
     call realloc(c%at,c%nneq)
     do i = 1, nat
-       c%at(i)%x = c%c2x(x(:,i) * alat)
+       if (tox) then
+          c%at(i)%x = c%c2x(x(:,i) * alat)
+       else
+          c%at(i)%x = x(:,i)
+       end if
        c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
 
        ! identify type
