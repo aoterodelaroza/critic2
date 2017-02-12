@@ -5578,7 +5578,7 @@ keyword. Hence, a valid critic2 input would be::
 provided the two files exist.
 
 Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -6338,13 +6338,13 @@ END
 
 ENVIRON
   Calculate the nearest neighbors of the atoms in the crystal
-  structure. See `Other structural tools (NEWCELL, WS, ENVIRON,
-  PACKING, IDENTIFY, EWALD)`_.
+  structure. See `Other structural tools (NEWCELL, ENVIRON, PACKING,
+  IDENTIFY, EWALD)`_. 
 
 EWALD
   Calculate the electrostatic energy by performing an Ewald
-  summation. See `Other structural tools (NEWCELL, WS, ENVIRON,
-  PACKING, IDENTIFY, EWALD)`_.
+  summation. See `Other structural tools (NEWCELL, ENVIRON, PACKING,
+  IDENTIFY, EWALD)`_. 
 
 FLUXPRINT
   Three-dimensional representations of the current field's gradient
@@ -6446,7 +6446,7 @@ ODE_MODE
 PACKING
   Calculate the packing ratio of the current crystal structure. See
   `Other structural tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY,
-  EWALD)`_.
+  EWALD)`_. 
 
 PLANE
   Write a file containing the values of a field on a plane and,
