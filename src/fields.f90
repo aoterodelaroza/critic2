@@ -857,7 +857,6 @@ contains
     f(id)%name = ""
     f(id)%file = ""
     if (allocated(f(id)%f)) deallocate(f(id)%f)
-    if (allocated(f(id)%fcore)) deallocate(f(id)%fcore)
     if (allocated(f(id)%fwan)) deallocate(f(id)%fwan)
     if (allocated(f(id)%c2)) deallocate(f(id)%c2)
     if (allocated(f(id)%lm)) deallocate(f(id)%lm)

@@ -185,7 +185,6 @@ module types
      character*(255) :: file = "" !< file name
      ! grids
      integer :: mode !< interpolation mode
-     real*8, allocatable :: fcore(:,:,:) !< core-density grid
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable, dimension(:,:,:,:) :: c2 !< cubic coefficients for spline interpolation
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
