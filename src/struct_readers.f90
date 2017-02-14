@@ -2504,7 +2504,8 @@ contains
   !> Read the structure from an xsf file.
   subroutine struct_read_xsf(c,file,mol)
     use struct_basic, only: crystal
-    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
+       ferror, faterr, zatguess, isinteger, getword, isreal
     use tools_math, only: matinv
     use param, only: bohrtoa, eye, pi
     use types, only: realloc
@@ -2534,10 +2535,24 @@ contains
           read (lu,*) c%nneq
           call realloc(c%at,c%nneq)
           do i = 1, c%nneq
-             read (lu,*) iz, c%at(i)%x
+             ok = getline_raw(lu,line,.true.)
+             lp = 1
+             ok = isinteger(iz,line,lp)
+             if (ok) then
+                ! Z x y z
+                c%at(i)%z = iz
+                c%at(i)%name = nameguess(iz,.true.)
+             else
+                word = getword(line,lp)
+                c%at(i)%name = trim(adjustl(word))
+                c%at(i)%z = zatguess(c%at(i)%name)
+             end if
+             ok = isreal(c%at(i)%x(1),line,lp)
+             ok = ok.and.isreal(c%at(i)%x(2),line,lp)
+             ok = ok.and.isreal(c%at(i)%x(3),line,lp)
+             if (.not.ok) &
+                call ferror('struct_read_xsf','wrong position in xsf',faterr)
              c%at(i)%x = c%at(i)%x / bohrtoa
-             c%at(i)%z = iz
-             c%at(i)%name = nameguess(iz)
              c%at(i)%zpsp = -1
              c%at(i)%qat = 0d0
           end do
