@@ -2589,18 +2589,18 @@ contains
 
     integer :: lu, lp
     character(len=:), allocatable :: line, word1, word2
-    logical :: ok
 
+    is_espresso = .false.
     lu = fopen_read(file)
     line = ""
-    do while(len_trim(line) < 1)
-       ok = getline_raw(lu,line,.true.)
+    do while(getline_raw(lu,line))
+       lp = 1
+       word1 = lgetword(line,lp)
+       word2 = lgetword(line,lp)
+       is_espresso = (equal(word1,"program") .and. equal(word2,"pwscf"))
+       if (is_espresso) exit
     end do
     call fclose(lu)
-    lp = 1
-    word1 = lgetword(line,lp)
-    word2 = lgetword(line,lp)
-    is_espresso = (equal(word1,"program") .and. equal(word2,"pwscf"))
 
   end function is_espresso
 
