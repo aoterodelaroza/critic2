@@ -23,7 +23,7 @@ integrable rho
 # because the grid can not represent the density near the nuclei with
 # enough accuracy. The DISCARD keyword is necessary to prevent critic2
 # from finding spurious maxima in the vacuum region. All maxima
-# of the elf with value greater than 0.1 are discarded.
+# of the elf with value less than 0.1 are discarded.
 yt nnm discard "$elf < 0.1"
 
 # Write the YT maxima and the nuclei to an obj file
