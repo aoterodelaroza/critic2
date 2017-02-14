@@ -10,6 +10,8 @@ TESTS=\
 002_read_poscar_potcar.sh 002_read_poscar.sh 002_read_qeout.sh 002_read_struct.sh\
 002_read_struct_sym.sh 002_read_vasp.sh 002_read_vasp2.sh 002_read_vasp3.sh\
 002_read_wfn.sh 002_read_wfx.sh 002_read_xyz.sh 002_read_fchk.sh 002_read_molden.sh\
+002_read_xsf1.sh\
+002_read_crystal1.sh\
 002_read_qein1.sh 002_read_qein2.sh\
 002_read_dftbp1.sh 002_read_dftbp2.sh\
 002_read_siesta.sh 002_read_multiple.sh 002_read_reset.sh\
@@ -31,7 +33,8 @@ TESTS=\
 006_load_abinit.sh 006_load_cast_unload.sh 006_load_chgcar.sh 006_load_chg.sh\
 006_load_core_expr.sh 006_load_cube_opt1.sh 006_load_cube_opt2.sh\
 006_load_cube_opt3.sh 006_load_cube.sh\
-006_load_elk.sh 006_load_expression.sh 006_load_grid_grad.sh 006_load_grid_lap.sh\
+006_load_elk1.sh 006_load_elk2.sh\
+006_load_expression.sh 006_load_grid_grad.sh 006_load_grid_lap.sh\
 006_load_pi_opts.sh 006_load_pi.sh 006_load_pro_expr.sh 006_load_promolecular.sh\
 006_load_reference.sh 006_load_wfn.sh 006_load_wfn_mo.sh \
 006_load_wfn_mp2.sh 006_load_wfx.sh \
@@ -66,7 +69,7 @@ TESTS=\
 027_qtree1.sh\
 028_xdm1.sh 028_xdm2.sh 028_xdm3.sh\
 029_bader1.sh 029_bader2.sh 029_bader3.sh 029_bader4.sh 029_bader5.sh 029_bader6.sh\
-030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh 030_yt6.sh\
+030_yt1.sh 030_yt2.sh 030_yt3.sh 030_yt4.sh 030_yt5.sh 030_yt6.sh 030_yt7.sh\
 031_libxc1.sh\
 032_stm1.sh 032_stm2.sh\
 033_molcell1.sh\
