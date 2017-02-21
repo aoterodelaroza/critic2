@@ -91,7 +91,7 @@ contains
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
     integer :: i, j, k, l, m, nmol, icel, lvec(3), ncm
-    integer :: ncomb, nlimi, nlimj
+    integer :: ncomb, nlimi, nlimj, icount
     integer, allocatable :: icomb(:), origmol(:)
     character(len=:), allocatable :: wroot, file0, aux
     logical :: doagain
@@ -225,7 +225,6 @@ contains
        wroot = file(:index(file,'.',.true.)-1)
        do i = 1, nmer
           if (i == 1) then
-             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol), string(i)
              if (nmer == 1) then
                 nlimj = nmol
              else
@@ -236,14 +235,16 @@ contains
                 file0 = trim(wroot) // "_" // string(j) // "." // fmt
                 call dowrite(file0,fr0(j))
              end do
+             write (uout,'("+ Written ",A," ",A,"-mers")') string(c%nmol), string(i)
           elseif (i == nmer) then
              ! n-mers
-             write (uout,'("+ Writing ",A," ",A,"-mers")') string(c%nmol * nchoosek(nmol,i-1)), string(i)
              allocate(icomb(i-1))
+             icount = 0
              do l = 1, c%nmol
                 ncomb = nchoosek(nmol,i-1)
                 do j = 1, ncomb
                    call comb(nmol,i-1,j,icomb)
+                   if (any(icomb == l)) cycle
                    file0 = trim(wroot) // "_" // string(l)
                    fr = fr0(l)
                    do k = 1, i-1
@@ -254,14 +255,16 @@ contains
                    aux = trim(file0) // "." // fmt
                    file0 = aux
                    call dowrite(file0,fr)
+                   icount = icount + 1
                 end do
              end do
              deallocate(icomb)
+             write (uout,'("+ Written ",A," ",A,"-mers")') string(icount), string(i)
           else
              ! everything in between
              ncomb = nchoosek(nmol,i)
-             write (uout,'("+ Writing ",A," ",A,"-mers")') string(ncomb), string(i)
              allocate(icomb(i))
+             icount = 0
              do j = 1, ncomb
                 call comb(nmol,i,j,icomb)
                 file0 = wroot 
@@ -274,8 +277,10 @@ contains
                 aux = trim(file0) // "." // fmt
                 file0 = aux
                 call dowrite(file0,fr)
+                icount = icount + 1
              end do
              deallocate(icomb)
+             write (uout,'("+ Written ",A," ",A,"-mers")') string(icount), string(i)
           end if
        end do
     end if
