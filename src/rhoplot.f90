@@ -179,7 +179,7 @@ contains
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
-    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3)
+    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3), xout(3), dout
     character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
     logical :: ok, iok
@@ -203,8 +203,8 @@ contains
     np = max(np,2)
 
     ! read additional options
-    nti = 11
-    prop = "lap"
+    nti = 0
+    prop = ""
     id = refden
     outfile = "" 
     do while (.true.)
@@ -282,7 +282,7 @@ contains
     end if
 
     ! header
-    write (luout,'("# Field values (and derivatives) along a line")')
+    write (luout,'("# Field values (f) along a line (d = distance).")')
     write (luout,'("#",1x,4a15,1p,2a20,0p)') "x","y","z","d","f",string(prop)
 
     ! calculate the line
@@ -299,10 +299,18 @@ contains
 
        dist = norm(xp-x0)
        if (id >= 0) then
-          call grd(f(id),xp,2,res)
+          if (nti == 0) then
+             call grd(f(id),xp,0,res)
+          elseif (nti >= 1 .and. nti <= 4) then
+             call grd(f(id),xp,1,res)
+          else
+             call grd(f(id),xp,2,res)
+          end if
 
           rhopt = res%f
           select case(nti)
+          case (0)
+             lappt = rhopt
           case (1)
              lappt = res%gf(1)
           case (2)
@@ -330,13 +338,19 @@ contains
           rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
           lappt = rhopt
        end if
+
        if (.not.cr%ismolecule) then
+          xout = xx
+       else
+          xout = (xp + cr%molx0) * dunit
+       end if
+       if (nti == 0) then
           write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             xx, dist, rhopt, lappt
+             xout, dist * dunit, rhopt
        else
           write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             (xp + cr%molx0) * dunit, dist * dunit, rhopt, lappt
-       endif
+             xout, dist * dunit, rhopt, lappt
+       end if
     enddo
     write (luout,*)
 

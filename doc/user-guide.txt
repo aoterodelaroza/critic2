@@ -3002,10 +3002,10 @@ By default, the result is written to the standard output, but it can
 be redirected to a file using FILE. The reference field is used unless
 a FIELD keyword appears, in which case the field id.s or the
 expression expr.s are evaluated. Together with the value of the field,
-an additional quantity is evaluated: the components of the gradient
-(GX,GY,GZ), the norm of the gradient (GMOD), the components of the
-Hessian (HXX,...)  and the Laplacian (default: Laplacian) of the
-reference (or the id.i) field.
+an additional quantity can be evaluated: the components of the
+gradient (GX,GY,GZ), the norm of the gradient (GMOD), the components
+of the Hessian (HXX,...) and the Laplacian of the reference (or the
+id.i) field.
 
 Planes and contour plots (PLANE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
