@@ -184,6 +184,7 @@ contains
     type(scalar_value) :: res
     logical :: ok, iok
     integer :: i
+    real*8, allocatable :: rhoout(:), lapout(:)
 
     ! read the points
     lp = 1
@@ -293,11 +294,12 @@ contains
        x0 = x0 / dunit - cr%molx0
        x1 = x1 / dunit - cr%molx0
     endif
+    allocate(rhoout(np),lapout(np))
+    lapout = 0d0
+
+    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt) schedule(dynamic)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
-       xx = cr%c2x(xp)
-
-       dist = norm(xp-x0)
        if (id >= 0) then
           if (nti == 0) then
              call grd(f(id),xp,0,res)
@@ -339,25 +341,38 @@ contains
           lappt = rhopt
        end if
 
+       !$omp critical (iowrite)
+       rhoout(i) = rhopt
+       lapout(i) = lappt
+       !$omp end critical (iowrite)
+    enddo
+    !$omp end parallel do
+
+    ! write the line to output
+    do i = 1, np
+       xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
+       dist = norm(xp-x0) * dunit
        if (.not.cr%ismolecule) then
-          xout = xx
+          xout = cr%c2x(xp)
        else
           xout = (xp + cr%molx0) * dunit
        end if
        if (nti == 0) then
-          write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             xout, dist * dunit, rhopt
+          write (luout,'(1x,4(f15.10,x),1p,1(e18.10,x),0p)') &
+             xout, dist, rhoout(i)
        else
           write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             xout, dist * dunit, rhopt, lappt
+             xout, dist, rhoout(i), lapout(i)
        end if
-    enddo
+    end do
     write (luout,*)
-
     if (len_trim(outfile) > 0) then
        call fclose(luout)
        write (uout,'("* LINE written to file: ",A/)') string(outfile)
     end if
+
+    ! clean up
+    deallocate(rhoout,lapout)
 
   end subroutine rhoplot_line
 
