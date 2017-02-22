@@ -234,7 +234,7 @@ contains
     use global, only: eval_next
     use arithmetic, only: eval, fields_in_eval
     use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
-       isexpression_or_word, string
+       isexpression_or_word, string, lower
     use types, only: fragment
     use param, only: dirsep, eye
 
@@ -244,7 +244,8 @@ contains
     type(field) :: ff
 
     integer :: lp, lp2, i, j, id, id1, id2
-    character(len=:), allocatable :: file, wext1, wext2, word, word2, file2, file3, expr
+    character(len=:), allocatable :: file, lfile, file2, file3
+    character(len=:), allocatable :: wext1, wext2, word, word2, expr
     integer :: zz, n(3)
     logical :: ok
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
@@ -263,6 +264,7 @@ contains
     oksyn = .false.
     lp=1
     file = getword(line,lp)
+    lfile = lower(file)
     word = file(index(file,dirsep,.true.)+1:)
     wext1 = word(index(word,'.',.true.)+1:)
     word = file(index(file,dirsep,.true.)+1:)
@@ -270,67 +272,67 @@ contains
 
     ! if it is one of the special keywords, change the extension
     ! and read the next
-    if (equal(file,"wien")) then
+    if (equal(lfile,"wien")) then
        file = getword(line,lp)
        wext1 = "clmsum"
        wext2 = wext1
-    elseif (equal(file,"elk")) then
+    elseif (equal(lfile,"elk")) then
        file = getword(line,lp)
        wext1 = "OUT"
        wext2 = wext1
-    elseif (equal(file,"pi")) then
+    elseif (equal(lfile,"pi")) then
        file = getword(line,lp)
        wext1 = "ion"
        wext2 = wext1
-    elseif (equal(file,"cube")) then
+    elseif (equal(lfile,"cube")) then
        file = getword(line,lp)
        wext1 = "cube"
        wext2 = wext1
-    elseif (equal(file,"abinit")) then
+    elseif (equal(lfile,"abinit")) then
        file = getword(line,lp)
        wext1 = "DEN"
        wext2 = wext1
-    elseif (equal(file,"vasp")) then
+    elseif (equal(lfile,"vasp")) then
        file = getword(line,lp)
        wext1 = "CHGCAR"
        wext2 = wext1
-    elseif (equal(file,"vaspchg")) then
+    elseif (equal(lfile,"vaspchg")) then
        file = getword(line,lp)
        wext1 = "CHG"
        wext2 = wext1
-    elseif (equal(file,"qub")) then
+    elseif (equal(lfile,"qub")) then
        file = getword(line,lp)
        wext1 = "qub"
        wext2 = wext1
-    elseif (equal(file,"xsf")) then
+    elseif (equal(lfile,"xsf")) then
        file = getword(line,lp)
        wext1 = "xsf"
        wext2 = wext1
-    elseif (equal(file,"elkgrid")) then
+    elseif (equal(lfile,"elkgrid")) then
        file = getword(line,lp)
        wext1 = "grid"
        wext2 = wext1
-    elseif (equal(file,"siesta")) then
+    elseif (equal(lfile,"siesta")) then
        file = getword(line,lp)
        wext1 = "RHO"
        wext2 = wext1
-    elseif (equal(file,"dftb")) then
+    elseif (equal(lfile,"dftb")) then
        file = getword(line,lp)
        wext1 = "xml"
        wext2 = wext1
-    elseif (equal(file,"wannier")) then
+    elseif (equal(lfile,"wannier")) then
        file = ""
        wext1 = "wannier"
        wext2 = wext1
-    elseif (equal(file,"wanbin")) then
+    elseif (equal(lfile,"wanbin")) then
        file = ""
        wext1 = "wanbin"
        wext2 = wext1
-    elseif (equal(file,"as")) then
+    elseif (equal(lfile,"as")) then
        file = ""
        wext1 = "as"
        wext2 = wext1
-    elseif (equal(file,"copy")) then
+    elseif (equal(lfile,"copy")) then
        call ferror('fields_load_real','can not copy in fields_load_real',faterr)
     end if
 
