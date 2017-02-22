@@ -159,6 +159,7 @@ contains
 
     integer :: lp, lp2, oid, id2
     character(len=:), allocatable :: file, word
+    logical :: dormt
 
     ! read and parse
     oksyn = .false.
@@ -207,11 +208,12 @@ contains
        id = getfieldnum()
 
        ! load the field
-       f(id) = fields_load_real(line,id,oksyn)
+       f(id) = fields_load_real(line,id,oksyn,dormt)
        if (.not.oksyn) return
 
        ! test the muffin tin discontinuity, if applicable
-       call testrmt(id,0)
+       if (dormt) &
+          call testrmt(id,0)
     endif
     oksyn = .true.
 
@@ -219,8 +221,11 @@ contains
 
   end subroutine fields_load
 
-  !> Load a field - parse the line and call the appropriate reader. 
-  function fields_load_real(line,fid,oksyn) result(ff)
+  !> Load a field - parse the line (line) and call the appropriate
+  !> reader.  fid is the slot where the field will be saved. oksyn is
+  !> true in output if the syntax was correct. dormt is true if the MT
+  !> discontinuity test for elk/wien2k needs to be run.
+  function fields_load_real(line,fid,oksyn,dormt) result(ff)
     use dftb_private, only: dftb_read, dftb_register_struct
     use elk_private, only: elk_read_out, elk_tolap
     use wien_private, only: wien_read_clmsum, wien_tolap
@@ -241,6 +246,7 @@ contains
     character*(*), intent(in) :: line
     integer, intent(in) :: fid
     logical, intent(out) :: oksyn
+    logical, intent(out) :: dormt
     type(field) :: ff
 
     integer :: lp, lp2, i, j, id, id1, id2
@@ -259,6 +265,9 @@ contains
 
     ! check that we have an environment
     call cr%checkflags(.true.,init0=.true.,env0=.true.)
+
+    ! defaults
+    dormt = .true.
 
     ! read and parse
     oksyn = .false.
@@ -836,7 +845,7 @@ contains
     ff%usecore = .false.
 
     ! parse the rest of the line
-    call setfield(ff,fid,line(lp:),oksyn)
+    call setfield(ff,fid,line(lp:),oksyn,dormt)
     if (.not.oksyn) return
 
     oksyn = .true.
@@ -1575,8 +1584,11 @@ contains
     
   end function getfieldnum
 
-  !> Set field flags.
-  subroutine setfield(ff,fid,line,oksyn)
+  !> Set field flags. ff is the input/output field. fid is the intended
+  !> slot. line is the input line to parse. oksyn is true in output if 
+  !> the syntax was OK. dormt is true in output if the MT test
+  !> discontinuity test needs to be run for elk/wien2k fields.
+  subroutine setfield(ff,fid,line,oksyn,dormt)
     use struct_basic, only: cr
     use grid_tools, only: mode_nearest, mode_tricubic, mode_trilinear, mode_trispline
     use global, only: eval_next
@@ -1589,11 +1601,15 @@ contains
     integer, intent(in) :: fid
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
+    logical, intent(out), optional :: dormt
 
     character(len=:), allocatable :: word, aux
     integer :: lp
     logical :: ok
     real*8 :: norm
+
+    ! default -> do the mt test
+    if (present(dormt)) dormt = .true.
 
     ! parse the rest of the line
     oksyn = .false.
@@ -1660,6 +1676,9 @@ contains
           end if
           ff%name = trim(aux)
           call fh%put(trim(aux),fid)
+       else if (equal(word,'notestmt')) then
+          if (present(dormt)) &
+             dormt = .false.
        else if (len_trim(word) > 0) then
           call ferror('setfield','Unknown extra keyword',faterr,line,syntax=.true.)
           return

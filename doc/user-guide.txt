@@ -2113,6 +2113,7 @@ field formats are supported:
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
+	   [NOTESTMT]
   LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.s|GHOST]
   LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} 
           [FRAGMENT file.xyz]
@@ -2451,6 +2452,16 @@ input does not present this normalization (e.g. a potential file).
 
 Applies to: WIEN2k. Default: RHONORM.
 
+:: 
+  
+  NOTESTMT
+
+FPLAPW (WIEN2k and elk) scalar fields are checked by default for
+discontinuities on the muffin tin surface, which can affect (or even
+preclude) the location of critical points and the tracing of gradient
+paths. This test may take some time if the number of atoms in the
+system is large. NOTESTMT skips the discontinuity test.
+
 ::
 
   NUMERICAL
@@ -2734,7 +2745,9 @@ and the gradient path tracing. For small crystals, this is usually the
 case, but large molecular crystals may be more tricky. The last block
 in the output above shows an automated check for spurious critical
 points on the muffin surfaces. In this example, no CPs were found
-(last "Assert"). 
+(last "Assert"). The muffin tin discontiuity test can be
+computationally expensive (minutes) if the system contains many
+non-equivalent atoms. The NOTESTMT keyword allows skipping the test.
 
 The output for molecular wavefunctions is comparatively simpler::
 
