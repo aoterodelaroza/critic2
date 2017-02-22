@@ -1538,7 +1538,10 @@ behavior defaults to:
 
 * vasp: guess.
 
-* abinit: internal information in the DEN/PAWDEN/ELF/... file.
+* abinit: guess. (In previous critic2 versions, symmetry was read from
+  the binary DEN file, but i) abinit's behavior regarding symmetry has
+  changed, and ii) critic2 usually catches more symmetry operations
+  anyway). 
 
 * elk: guess.
 

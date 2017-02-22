@@ -1553,7 +1553,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, nameguess, faterr, ferror, fclose
     use abinit_private, only: hdr_type, hdr_io
-    use param, only: pi
+    use param, only: pi, eye
     use types, only: realloc
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
@@ -1581,12 +1581,6 @@ contains
     c%bb(2) = acos(g(1,3) / c%aa(1) / c%aa(3)) * 180d0 / pi
     c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
 
-    ! abinit always uses primitive cells, even when it does not (chkprim = -1)
-    c%ncv = 1
-    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
-    c%cen = 0d0
-    c%lcent = 0
-
     ! atoms
     c%nneq = hdr%natom
     if (c%nneq > size(c%at)) call realloc(c%at,c%nneq)
@@ -1596,13 +1590,17 @@ contains
        write (c%at(i)%name,'(A2,I2.2)') nameguess(c%at(i)%z),i
     end do
 
-    ! symmetry and transformations
-    c%neqv = hdr%nsym
-    do i = 1, hdr%nsym
-       c%rotm(:,1:3,i) = real(hdr%symrel(:,:,i),8)
-       c%rotm(:,4,i) = hdr%tnons(:,i)
-    end do
-    if (hdr%nsym > 0) c%havesym = 2
+    ! abinit has symmetry in hdr%nsym/hdr%symrel, but there is no
+    ! distinction between pure centering and rotation operations, and
+    ! the user may not want any symmetry - let critic2 guess.
+    c%havesym = 0
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,1:3,1) = eye
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+    c%cen = 0d0
+    c%lcent = 0
 
     ! charges and pseudopotential charges
     if (hdr%ntypat /= hdr%npsp) call ferror('struct_read_abinit','Can not handle ntypat/=npsp (?)',faterr,file)
