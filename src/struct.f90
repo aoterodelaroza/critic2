@@ -913,23 +913,26 @@ contains
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   subroutine struct_compare(line)
-    use struct_basic, only: crystal, cr
-    use global, only: doguess, eval_next
-    use tools_math, only: crosscorr_triangle
-    use tools_io, only: getword, equal, faterr, ferror, uout, string
+    use struct_basic, only: crystal, isformat_unknown, cr
+    use struct_readers, only: struct_detect_format
+    use global, only: doguess, eval_next, dunit, iunit, iunitname0
+    use tools_math, only: crosscorr_triangle, rmsd_walker
+    use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center
+    use types, only: realloc
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, tname, difstr, difout
     integer :: doguess0
-    integer :: lp, i, j
-    integer :: ns
-    type(crystal), allocatable :: c(:), caux(:)
+    integer :: lp, i, j, k, n
+    integer :: ns, imol, isformat
+    type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
     integer, allocatable :: hvecp(:,:)
-    real*8, allocatable :: diff(:,:), xnorm(:)
-    logical :: ok
-    logical :: dopowder 
+    real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
+    logical :: ok, usedot
+    logical :: dopowder, ismol, laux
+    character*1024, allocatable :: fname(:)
 
     real*8, parameter :: sigma0 = 0.2d0
     real*8, parameter :: lambda0 = 1.5406d0
@@ -943,12 +946,13 @@ contains
     doguess0 = doguess
     lp = 1
     ns = 0
-    allocate(c(2))
     dopowder = .true.
     xend = -1d0
+    allocate(fname(1))
 
-    ! load all the crystal structures
+    ! read the input optons
     doguess = 0
+    imol = -1
     do while(.true.)
        word = getword(line,lp)
        if (equal(word,'xend')) then
@@ -961,106 +965,164 @@ contains
           dopowder = .true.
        elseif (equal(word,'rdf')) then
           dopowder = .false.
+       elseif (equal(word,'molecule')) then
+          imol = 1
+       elseif (equal(word,'crystal')) then
+          imol = 0
        elseif (len_trim(word) > 0) then
           ns = ns + 1
-          if (ns > size(c)) then
-             allocate(caux(2*size(c)))
-             caux(1:size(c)) = c
-             call move_alloc(caux,c)
-          endif
-          if (equal(word,".")) then
-             if (.not.cr%isinit) then
-                call ferror('struct_compare','Current structure is not initialized. Use CRYSTAL before COMPARE.',faterr,syntax=.true.)
-                return
-             end if
-             if (cr%ismolecule) then
-                call ferror('struct_compare','Current structure is a molecule.',faterr,syntax=.true.)
-                return
-             end if
-             write (uout,'("  Crystal ",A,": <current>")') string(ns,2)
-             c(ns) = cr
-          else
-             write (uout,'("  Crystal ",A,": ",A)') string(ns,2), string(word) 
-             call struct_crystal_input(c(ns),word,.false.,.false.,.false.)
-             if (.not.c(ns)%isinit) &
-                call ferror("struct_compare","could not load crystal structure",faterr)
-          end if
+          if (ns > size(fname)) &
+             call realloc(fname,2*ns)
+          fname(ns) = word
        else
           exit
        end if
     end do
-    write (uout,*)
+    if (ns < 2) &
+       call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr)
 
-    write (uout,'("* COMPARE: compare crystal structures")')
-    if (dopowder) then
-       write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
+    ! determine whether to use crystal or molecule comparison
+    ismol = .true.
+    usedot = .false.
+    do i = 1, ns
+       if (.not.equal(fname(i),".")) then
+          call struct_detect_format(fname(i),isformat,laux)
+          ismol = ismol .and. laux
+          if (isformat == isformat_unknown) &
+             call ferror("struct_compare","unknown file format: " // string(fname(i)),faterr)
+          inquire(file=fname(i),exist=laux)
+          if (.not.laux) &
+             call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
+       else
+          usedot = .true.
+       end if
+    end do
+    if (imol == 0) then
+       ismol = .false.
+    elseif (imol == 1) then
+       ismol = .true.
+    end if
+    if (usedot .and. (cr%ismolecule .neqv. ismol)) &
+       call ferror("struct_compare","current structure (.) incompatible with molecule/crystal in compare",faterr)
+    if (usedot.and..not.cr%isinit) &
+       call ferror('struct_compare','Current structure is not initialized.',faterr)
+       
+    ! Read the structures and header
+    write (uout,'("* COMPARE: compare structures")')
+    if (ismol) then
+       tname = "Molecule"
     else
-       write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+       tname = "Crystal"
     end if
-    write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
-
-    if (ns < 2) then
-       call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr,syntax=.true.)
-       return
-    end if
-    if (xend < 0d0) then
-       if (dopowder) then
-          xend = th2end0
-       else
-          xend = rend0
-       end if
-    end if
-
-    allocate(iha(10001,ns))
+    allocate(c(ns))
     do i = 1, ns
-       ! calculate the powder diffraction pattern
-       if (dopowder) then
-          call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
-
-          ! normalize the integral of abs(ih)
-          tini = ih(1)**2
-          tend = ih(npts)**2
-          nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-          iha(:,i) = ih / sqrt(nor)
+       if (equal(fname(i),".")) then
+          write (uout,'("  ",A," ",A,": <current>")') string(tname), string(i,2)
+          c(i) = cr
        else
-          call c(i)%rdf(xend,npts,t,ih)
-          iha(:,i) = ih
+          write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i)) 
+          call struct_crystal_input(c(i),fname(i),ismol,.false.,.false.)
+          if (.not.c(i)%isinit) &
+             call ferror("struct_compare","could not load crystal structure" // string(fname(i)),faterr)
        end if
     end do
-    if (allocated(t)) deallocate(t)
-    if (allocated(ih)) deallocate(ih)
-    if (allocated(th2p)) deallocate(th2p)
-    if (allocated(ip)) deallocate(ip)
-    if (allocated(hvecp)) deallocate(hvecp)
 
-    ! self-correlation
-    allocate(xnorm(ns))
-    h =  (xend-th2ini) / real(npts-1,8)
-    do i = 1, ns
-       xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
-    end do
-    xnorm = sqrt(abs(xnorm))
+    ! rest of the header and default variables
+    if (ismol) then
+       difstr = "RMS"
+       write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
+    else
+       difstr = "DIFF"
+       if (dopowder) then
+          write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
+          if (xend < 0d0) xend = th2end0
+       else
+          write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+          if (xend < 0d0) xend = rend0
+       end if
+       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+    end if
 
-    ! calculate the overlap between diffraction patterns
+    ! allocate space for difference/rms values
     allocate(diff(ns,ns))
     diff = 1d0
-    do i = 1, ns
-       do j = i+1, ns
-          diff(i,j) = 1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j)
-          diff(j,i) = diff(i,j)
+
+    if (.not.ismol) then
+       ! crystals
+       allocate(iha(10001,ns))
+       do i = 1, ns
+          ! calculate the powder diffraction pattern
+          if (dopowder) then
+             call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
+
+             ! normalize the integral of abs(ih)
+             tini = ih(1)**2
+             tend = ih(npts)**2
+             nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             iha(:,i) = ih / sqrt(nor)
+          else
+             call c(i)%rdf(xend,npts,t,ih)
+             iha(:,i) = ih
+          end if
        end do
-    end do
-    deallocate(xnorm)
-    
+       if (allocated(t)) deallocate(t)
+       if (allocated(ih)) deallocate(ih)
+       if (allocated(th2p)) deallocate(th2p)
+       if (allocated(ip)) deallocate(ip)
+       if (allocated(hvecp)) deallocate(hvecp)
+       
+       ! self-correlation
+       allocate(xnorm(ns))
+       h =  (xend-th2ini) / real(npts-1,8)
+       do i = 1, ns
+          xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+       end do
+       xnorm = sqrt(abs(xnorm))
+
+       ! calculate the overlap between diffraction patterns
+       do i = 1, ns
+          do j = i+1, ns
+             diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
+             diff(j,i) = diff(i,j)
+          end do
+       end do
+       deallocate(xnorm)
+    else
+       ! molecules
+       diff = 0d0
+       do i = 1, ns
+          do j = i+1, ns
+             if (c(i)%ncel == c(j)%ncel) then
+                n = c(i)%ncel
+                allocate(x1(3,n),x2(3,n))
+                do k = 1, n
+                   x1(:,k) = c(i)%atcel(k)%r + c(i)%molx0
+                   x2(:,k) = c(j)%atcel(k)%r + c(j)%molx0
+                end do
+                diff(i,j) = rmsd_walker(x1,x2)
+                deallocate(x1,x2)
+             else
+                diff(i,j) = -1d0
+             end if
+          end do
+       end do
+       diff = diff * dunit
+    endif
+   
     ! write output 
     if (ns == 2) then
-       write (uout,'("+ DIFF = ",A)') string(diff(1,2),'e',12,6)
+       write (uout,'("+ ",A," = ",A)') string(difstr), string(diff(1,2),'e',12,6)
     else
        do i = 1, ns
           do j = i+1, ns
-             write (uout,'("+ DIFF(",A,": ",A," | ",A,": ",A,") = ",A)') &
-                string(i), string(c(i)%file), string(j), string(c(j)%file),&
-                string(diff(i,j),'f',10,6)
+             if (diff(i,j) < 0d0) then
+                difout = "<not comparable>"
+             else
+                difout = string(diff(i,j),'f',10,6)
+             end if
+             write (uout,'("+ ",A,"(",A,": ",A," | ",A,": ",A,") = ",A)') &
+                string(difstr), string(i), string(c(i)%file), string(j), &
+                string(c(j)%file), difout
           end do
        end do
     endif

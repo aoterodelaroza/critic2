@@ -5548,34 +5548,46 @@ Compare crystal structures (COMPARE)
 
 ::
 
-  COMPARE [XEND xend.r] [POWDER|RDF] {.|file1.s} 
-          {.|file2.s} [{.|file3.s} ...]
+  COMPARE [MOLECULE|CRYSTAL] [XEND xend.r] [POWDER|RDF] 
+          {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 
-Compare two or more crystal structures and find the measure of
-similarity (DIFF) based on either their radial distribution functions
-(RDF keyword) or their powder diffraction patterns (POWDER). By
-default, use the powder diffraction patterns. Two crystal structures
-are exactly equal if DIFF = 0. Maximum dissimilarity occurs when DIFF
-= 1.
+Compare two or more structures. If the structures are crystals, find
+the measure of similarity (DIFF) based on either their radial
+distribution functions (RDF keyword) or their powder diffraction
+patterns (POWDER). If they are molecules, find the translation and
+rotation that brings the two molecules into closest agreement and
+report the root-mean-square (RMS) of the atomic positions.
 
-The similarity measure is calculated using the cross-correlation
-functions defined in de Gelder et al., J. Comput. Chem., 22 (2001)
-273, using the triangle weight. Powder diffraction patterns are
-calculate from 2theta = 5 up to xend.r (default: 50). Radial
-distribution functions are calculated from zero up to xend.r bohr
-(default: 25 bohr).
+In crystals, the default is to use the powder diffraction
+patterns. Two crystal structures are exactly equal if DIFF =
+0. Maximum dissimilarity occurs when DIFF = 1.  The crystal similarity
+measure is calculated using the cross-correlation functions defined in
+de Gelder et al., J. Comput. Chem., 22 (2001) 273, using the triangle
+weight. Powder diffraction patterns are calculated from 2theta = 5 up
+to xend.r (default: 50). Radial distribution functions are calculated
+from zero up to xend.r bohr (default: 25 bohr).
 
-The crystal structures can be given by passing an external file to
-COMPARE. The syntax is the same as in CRYSTAL: the file format is
-identified using the file extension. If a dot (".") is used instead of
-a file name, use the current structure (loaded with CRYSTAL).
+In molecules, the root mean square (RMS) of the atomic positions is
+reported (the units are angstrom, unless changed with the UNITS
+keyword). The molecular rotation is calculated using Walker et al.'s
+quaternion algorithm (Walker et al., CVGIP-Imag. Understan. 54 (1991)
+358). For the comparison to work correctly, it is necessary that the
+two molecules have the same number of atoms and that the atoms are in
+the same sequence.
 
-The COMPARE keyword does not require a previous CRYSTAL
-keyword. Hence, a valid critic2 input would be::
+The structures can be given by passing an external file to
+COMPARE. The syntax is the same as in CRYSTAL and MOLECULE: the file
+format is identified using the file extension. If a dot (".") is used
+instead of a file name, use the current structure (previously loaded
+with CRYSTAL/MOLECULE).
+
+The COMPARE keyword does not require a previous CRYSTAL or MOLECULE
+keyword. Hence, valid critic2 inputs would be::
 
   CRYSTAL bleh1.scf.in bleh2.cif
+  MOLECULE bleh1.xyz bleh2.wfx
 
-provided the two files exist.
+provided the files exist.
 
 Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

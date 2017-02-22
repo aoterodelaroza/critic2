@@ -35,6 +35,7 @@ module tools_math
   public :: plane_scale_extend
   public :: comb
   public :: nchoosek
+  public :: rmsd_walker
   public :: good_lebedev
   public :: genrlm_real
   public :: genylm
@@ -1121,7 +1122,84 @@ contains
        end DO
     end IF
     nchoosek = R
-   end function nchoosek
+  end function nchoosek
+
+
+  !> Rotate and translate the set of points x1 (3,n) to match the set
+  !> of points x2 (3,n), and calculate the rmsd of the resulting
+  !> positions. This routine uses Walker's algorithm based on
+  !> quaternion algebra. (Walker et al., CVGIP-Imag. Understan. 54
+  !> (1991) 358.)
+  function rmsd_walker(x1o,x2o) result(rmsd)
+    use tools_io, only: ferror, faterr
+    real*8, intent(in) :: x1o(:,:), x2o(:,:)
+    real*8 :: rmsd
+    
+    integer :: n, i, idx
+    real*8, allocatable :: x1(:,:), x2(:,:)
+    real*8 :: xcm1(3), xcm2(3), c1(4,4), c2, c3(4,4), xex(4)
+    real*8 :: w(4,4), q(4,4), a(4,4), eval(4), evali(4)
+
+    n = size(x1o,2)
+    if (size(x1o,1) /= 3 .or. size(x2o,1) /= 3 .or. size(x2o,2) /= n) &
+       call ferror("rmsd_walker","Inconsistent number of points",faterr)
+    allocate(x1(3,n),x2(3,n))
+    
+    xcm1 = sum(x1o,2) / n
+    xcm2 = sum(x2o,2) / n
+    do i = 1, n
+       x1(:,i) = x1o(:,i) - xcm1
+       x2(:,i) = x2o(:,i) - xcm2
+    end do
+
+    ! The c1, c2, and c3 quantities (eqs. 35-37)
+    c1 = 0d0
+    c2 = 0.5d0 * real(n,8)
+    c3 = 0d0
+    xex = 0d0
+    do i = 1, n
+       xex(1:3) = x1(:,i)
+       w = wmat(xex)
+       xex(1:3) = x2(:,i)
+       q = qmat(xex)
+       c1 = c1 - matmul(transpose(q),w)
+       c3 = c3 + (w - q)
+    end do
+
+    ! the a matrix (eq. 47), diagonalization, and rotation matrix
+    a = matmul(transpose(c3),c3) * c2 - c1;
+    call eigns(a,eval,evali)
+    idx = maxloc(eval,1)
+    xex = a(:,idx)
+    xex = xex / sqrt(dot_product(xex,xex))
+    w = wmat(xex)
+    q = qmat(xex)
+    q = matmul(transpose(wmat(xex)),qmat(xex))
+
+    ! rmsd and clean up
+    x1 = matmul(q(1:3,1:3),x1)
+    rmsd = sqrt(sum((x1 - x2)**2) / n)
+    deallocate(x1,x2)
+
+  contains
+    ! the W and Q functions (eqs. 15 and 16)
+    function wmat(x) result(w)
+      real*8, intent(in) :: x(4)
+      real*8 :: w(4,4)
+      w(:,1) = (/  x(4), -x(3),  x(2), -x(1)/)
+      w(:,2) = (/  x(3),  x(4), -x(1), -x(2)/)
+      w(:,3) = (/ -x(2),  x(1),  x(4), -x(3)/)
+      w(:,4) = (/  x(1),  x(2),  x(3),  x(4)/)
+    end function wmat
+    function qmat(x) result(q)
+      real*8, intent(in) :: x(4)
+      real*8 :: q(4,4)
+      q(:,1) = (/  x(4),  x(3), -x(2), -x(1)/)
+      q(:,2) = (/ -x(3),  x(4),  x(1), -x(2)/)
+      q(:,3) = (/  x(2), -x(1),  x(4), -x(3)/)
+      q(:,4) = (/  x(1),  x(2),  x(3),  x(4)/)
+    end function qmat
+  end function rmsd_walker
 
   !> Find the Gauss-Legendre nodes and weights for an interval.
   subroutine gauleg (x1,x2,x,w,n)

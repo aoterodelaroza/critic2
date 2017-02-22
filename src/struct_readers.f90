@@ -50,6 +50,7 @@ module struct_readers
   public :: struct_read_siesta
   public :: struct_read_dftbp
   public :: struct_read_xsf
+  public :: struct_detect_format
   public :: is_espresso
   private :: qe_latgen
   private :: spgs_wrap
@@ -2592,6 +2593,102 @@ contains
     if (mol) call fill_molecule_given_cell(c)
 
   end subroutine struct_read_xsf
+
+  !> Detect the format for the structure-containing file. Normally,
+  !> this works by detecting the extension, but the file may be
+  !> opened and searched if ambiguity is present. The format and
+  !> whether the file contains a molecule or crysatl is returned.
+  subroutine struct_detect_format(file,isformat,ismol)
+    use struct_basic, only: isformat_unknown, isformat_cif, isformat_res,&
+       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
+       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
+       isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp
+    use tools_io, only: equal
+    use param, only: dirsep
+
+    character*(*), intent(in) :: file
+    integer, intent(out) :: isformat
+    logical, intent(out) :: ismol
+
+    character(len=:), allocatable :: basename, aux, wextdot, wext_
+    logical :: isvasp
+
+    basename = file(index(file,dirsep,.true.)+1:)
+    wextdot = basename(index(basename,'.',.true.)+1:)
+    wext_ = basename(index(basename,'_',.true.)+1:)
+    isvasp = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CONTCAR') > 0) .or. &
+       (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
+       (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
+       (index(basename,'AECCAR2') > 0)
+
+    if (equal(wextdot,'cif')) then
+       isformat = isformat_cif
+       ismol = .false.
+    elseif (equal(wextdot,'res')) then
+       isformat = isformat_res
+       ismol = .false.
+    elseif (equal(wextdot,'cube')) then
+       isformat = isformat_cube
+       ismol = .false.
+    elseif (equal(wextdot,'struct')) then
+       isformat = isformat_struct
+       ismol = .false.
+    elseif (equal(wextdot,'DEN').or.equal(wext_,'DEN').or.equal(wextdot,'ELF').or.equal(wext_,'ELF').or.&
+       equal(wextdot,'POT').or.equal(wext_,'POT').or.equal(wextdot,'VHA').or.equal(wext_,'VHA').or.&
+       equal(wextdot,'VHXC').or.equal(wext_,'VHXC').or.equal(wextdot,'VXC').or.equal(wext_,'VXC').or.&
+       equal(wextdot,'GDEN1').or.equal(wext_,'GDEN1').or.equal(wextdot,'GDEN2').or.equal(wext_,'GDEN2').or.&
+       equal(wextdot,'GDEN3').or.equal(wext_,'GDEN3').or.equal(wextdot,'LDEN').or.equal(wext_,'LDEN').or.&
+       equal(wextdot,'KDEN').or.equal(wext_,'KDEN').or.equal(wextdot,'PAWDEN').or.equal(wext_,'PAWDEN')) then
+       isformat = isformat_abinit
+       ismol = .false.
+    elseif (equal(wextdot,'OUT')) then
+       isformat = isformat_elk
+       ismol = .false.
+    elseif (equal(wextdot,'out')) then
+       if (is_espresso(file)) then
+          isformat = isformat_qeout
+          ismol = .false.
+       else
+          isformat = isformat_crystal
+          ismol = .false.
+       end if
+    elseif (equal(wextdot,'in')) then
+       isformat = isformat_qein
+       ismol = .false.
+    elseif (equal(wextdot,'xyz')) then
+       isformat = isformat_xyz
+       ismol = .true.
+    elseif (equal(wextdot,'wfn')) then
+       isformat = isformat_wfn
+       ismol = .true.
+    elseif (equal(wextdot,'wfx')) then
+       isformat = isformat_wfx
+       ismol = .true.
+    elseif (equal(wextdot,'fchk')) then
+       isformat = isformat_fchk
+       ismol = .true.
+    elseif (equal(wextdot,'molden')) then
+       isformat = isformat_molden
+       ismol = .true.
+    elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
+       isformat = isformat_siesta
+       ismol = .false.
+    elseif (equal(wextdot,'xsf')) then
+       isformat = isformat_xsf
+       ismol = .false.
+    elseif (equal(wextdot,'gen')) then
+       isformat = isformat_gen
+       ismol = .false.
+    elseif (isvasp) then
+       isformat = isformat_vasp
+       ismol = .false.
+    else
+       isformat = isformat_unknown
+       ismol = .false.
+    endif
+
+  end subroutine struct_detect_format
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal or a quantum espresso calculation. To do this,
