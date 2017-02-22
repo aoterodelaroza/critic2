@@ -5575,6 +5575,10 @@ quaternion algorithm (Walker et al., CVGIP-Imag. Understan. 54 (1991)
 two molecules have the same number of atoms and that the atoms are in
 the same sequence.
 
+Whether the molecular or the crystal comparison is used depends on the
+file formats passed to COMPARE. If the MOLECULE/CRYSTAL keyword is
+used then the molecule/crystal comparison code is used.
+
 The structures can be given by passing an external file to
 COMPARE. The syntax is the same as in CRYSTAL and MOLECULE: the file
 format is identified using the file extension. If a dot (".") is used
