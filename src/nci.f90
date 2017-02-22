@@ -262,6 +262,9 @@ contains
           end if
           ok = check_no_extra_word(line,lp,'nciplot')
           if (.not.ok) return
+          do i = 1, 3
+             nstep(i) = max(nstep(i),2)
+          end do
        elseif (equal(word,'onlyneg')) then
           onlyneg = .true.
           ok = check_no_extra_word(line,lp,'nciplot')

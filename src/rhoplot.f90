@@ -199,6 +199,9 @@ contains
        return
     end if
 
+    ! at least two points
+    np = max(np,2)
+
     ! read additional options
     nti = 11
     prop = "lap"
@@ -432,6 +435,10 @@ contains
              return
           end if
           nn = nint(dd / rgr) + 1
+       else
+          do i = 1, 3
+             nn(i) = max(nn(i),2)
+          end do
        end if
     end if
 
@@ -669,6 +676,10 @@ contains
        call ferror('rhoplot_plane','Wrong PLANE command: nx and ny',faterr,line,syntax=.true.)
        return
     end if
+
+    ! at least two points 
+    nx = max(nx,2)
+    ny = max(ny,2)
 
     ! read additional options
     sx = 1d0
@@ -1923,6 +1934,9 @@ contains
                 call ferror ('grdvec', 'bad nptsu/nptsv/niso option',faterr,line,syntax=.true.)
                 return
              end if
+             n1 = max(n1,2)
+             n2 = max(n2,2)
+             niso = max(niso,2)
           else
              n1 = 100
              n2 = 100
