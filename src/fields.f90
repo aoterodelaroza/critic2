@@ -981,7 +981,7 @@ contains
        end do
        write (uout,'("  Hessian eigenvalues: ",3(A,2X))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
        ! Write ellipticity, if it is a candidate for bond critical point
-       if (res%r == 3 .and. res%s == 1 .and..not.res%isnuc) then
+       if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
        if (allfields) then
