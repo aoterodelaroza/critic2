@@ -250,7 +250,7 @@ contains
     type(field) :: ff
 
     integer :: lp, lp2, i, j, id, id1, id2
-    character(len=:), allocatable :: file, lfile, file2, file3
+    character(len=:), allocatable :: file, lfile, file2, file3, lword
     character(len=:), allocatable :: wext1, wext2, word, word2, expr
     integer :: zz, n(3)
     logical :: ok
@@ -547,11 +547,12 @@ contains
     else if (equal(wext1,'as')) then
        lp2 = lp
        word = getword(line,lp)
-       if (equal(word,"promolecular").or.equal(word,"core").or.&
-           equal(word,"grad").or.equal(word,"lap").or.equal(word,"taufromelf")) then
+       lword = lower(word)
+       if (equal(lword,"promolecular").or.equal(lword,"core").or.&
+           equal(lword,"grad").or.equal(lword,"lap").or.equal(lword,"taufromelf")) then
           ! load as {promolecular,core,grad,lap,taufromelf}
 
-          if (equal(word,"promolecular").or.equal(word,"core")) then
+          if (equal(lword,"promolecular").or.equal(lword,"core")) then
              ok = eval_next(n(1),line,lp)
              if (ok) then
                 ok = ok .and. eval_next(n(2),line,lp)
@@ -561,7 +562,7 @@ contains
                    return
                 end if
              else
-                word2 = getword(line,lp)
+                word2 = lgetword(line,lp)
                 if (equal(word2,"sizeof")) then
                    word2 = getword(line,lp)
                    zz = fieldname_to_idx(word2)
@@ -593,9 +594,9 @@ contains
              n = f(oid)%n
           end if
 
-          if (equal(word,"promolecular").or.equal(word,"core").or.goodfield(oid,type_grid)) then 
+          if (equal(lword,"promolecular").or.equal(lword,"core").or.goodfield(oid,type_grid)) then 
              isfrag = .false.
-             if (equal(word,"promolecular").or.equal(word,"core")) then
+             if (equal(lword,"promolecular").or.equal(lword,"core")) then
                 ! maybe we are given a fragment?
                 lp2 = lp
                 word2 = lgetword(line,lp)
@@ -616,24 +617,24 @@ contains
              ff%c2x = cr%car2crys
              ff%x2c = cr%crys2car
              allocate(ff%f(n(1),n(2),n(3)))
-             if (equal(word,"promolecular")) then
+             if (equal(lword,"promolecular")) then
                 if (isfrag) then
                    call grid_rhoat(ff,ff,2,fr)
                 else
                    call grid_rhoat(ff,ff,2)
                 end if
-             elseif (equal(word,"core")) then
+             elseif (equal(lword,"core")) then
                 if (isfrag) then
                    call grid_rhoat(ff,ff,3,fr)
                 else
                    call grid_rhoat(ff,ff,3)
                 end if
-             elseif (equal(word,"lap")) then
+             elseif (equal(lword,"lap")) then
                 call grid_laplacian(f(oid),ff)
-             elseif (equal(word,"grad")) then
+             elseif (equal(lword,"grad")) then
                 call grid_gradrho(f(oid),ff)
              end if
-          elseif ((goodfield(oid,type_wien).or.goodfield(oid,type_elk)).and.equal(word,"lap")) then
+          elseif ((goodfield(oid,type_wien).or.goodfield(oid,type_elk)).and.equal(lword,"lap")) then
              ! calculate the laplacian of a lapw scalar field
              ff = f(oid)
              if (f(oid)%type == type_wien) then
@@ -646,7 +647,7 @@ contains
              return
           endif
 
-       elseif (equal(word,"clm")) then
+       elseif (equal(lword,"clm")) then
           ! load as clm
           word = lgetword(line,lp)
           if (equal(word,'add').or.equal(word,'sub')) then
@@ -725,7 +726,7 @@ contains
              ok = ok .and. eval_next(n(3),line,lp)
           else
              lp2 = lp
-             word2 = getword(line,lp)
+             word2 = lgetword(line,lp)
              if (equal(word2,"sizeof")) then
                 ! load as "blehblah" sizeof
                 word2 = getword(line,lp)
