@@ -2343,9 +2343,9 @@ contains
              string(n), string(mepsm+1d-3,'f',decimal=6), string(mepsp+1d-3,'f',decimal=6)
           write (uout,*)
        end if
-       write (uout,'("  Atom: ",A," RMS/max/min(fout-fin) = ",3(A,2X))') &
-          string(n), string(dosum,'f',decimal=6), string(maxdif,'f',decimal=6), &
-          string(mindif,'f',decimal=6)
+       write (uout,'("  Atom: ",A," rmt= ",A," RMS/max/min(fout-fin) = ",3(A,2X))') &
+          string(n), string(rmt,'f',decimal=7), string(dosum,'f',decimal=6), &
+          string(maxdif,'f',decimal=6), string(mindif,'f',decimal=6)
     end do
 
     ok = .true.
