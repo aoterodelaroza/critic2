@@ -574,6 +574,7 @@ contains
     if (.not.found) then
        write (uout,'("(!) Structure not found in file:"/8X,A)') trim(libfile)
        call ferror("struct_read_library","structure not found in library!",faterr,syntax=.true.)
+       call fclose(lu)
        return
     end if
 
