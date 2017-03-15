@@ -1625,7 +1625,7 @@ contains
   subroutine struct_read_elk(c,filename,mol)
     use struct_basic, only: crystal
     use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
-       zatguess, nameguess, fclose
+       zatguess, nameguess, fclose, string
     use tools_math, only: matinv
     use param, only: pi
     use types, only: realloc
@@ -1684,7 +1684,7 @@ contains
           c%at(c%nneq)%z = zat
           c%at(c%nneq)%zpsp = -1
           c%at(c%nneq)%qat = 0d0
-          c%at(c%nneq)%name = trim(adjustl(nameguess(zat,.true.)))
+          c%at(c%nneq)%name = trim(adjustl(nameguess(zat,.true.))) // string(i)
        end do
     end do
 
