@@ -25,26 +25,50 @@ module tools_math
   public :: crys2car_from_cellpar
   public :: car2crys_from_cellpar
   public :: factorial
-  public :: eig, eigns, rsindex
-  public :: gauleg, select_lebedev
-  public :: gcd, ep
-  public :: cross, mixed, norm, mnorm2
-  public :: det, detsym, matinv
-  public :: erf, erfc
-  public :: der1i, der2ii, der2ij
-  public :: plane_scale_extend
-  public :: comb
-  public :: nchoosek
-  public :: rmsd_walker
-  public :: good_lebedev
   public :: genrlm_real
   public :: genylm
   public :: tosphere
   public :: ylmderiv
+  public :: ep
+  public :: gcd
+  public :: eig
+  public :: eigns
+  public :: rsindex
+  public :: cross
+  public :: mixed
+  public :: norm
+  public :: mnorm2
+  public :: detsym
+  public :: det
+  public :: matinv
+  public :: erf
+  public :: erfc
+  public :: der1i
+  public :: der2ii
+  public :: der2ij
+  public :: plane_scale_extend
+  public :: assign_ziso
+  public :: comb
+  public :: nchoosek
+  public :: rmsd_walker
+  public :: gauleg
+  public :: good_lebedev
+  public :: select_lebedev
+  private :: gen_oh
+  private :: ld0006
+  !...
+  private :: ld5810
 
   ! numerical differentiation
   integer, parameter, public :: ndif_jmax = 10
   real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
+
+  ! types of contour level choosing strategies
+  integer, parameter, public :: niso_manual = 0
+  integer, parameter, public :: niso_lin = 1
+  integer, parameter, public :: niso_log = 2
+  integer, parameter, public :: niso_atan = 3
+  integer, parameter, public :: niso_bader = 4
 
 contains
 
@@ -1060,6 +1084,133 @@ contains
 
   end subroutine plane_scale_extend
 
+  !> This routine selects particular contour values (ziso(1:niso))
+  !> based on the given selection scheme (niso_type). lin0 and lin1
+  !> are the limits of the linear range fmax and fmin are the maximum
+  !> and minimum values of the field. 
+  subroutine assign_ziso(niso_type,niso,ziso,lin0,lin1,fmax,fmin)
+    use param, only: pi
+    integer, intent(in) :: niso_type
+    integer, intent(inout) :: niso
+    real*8, allocatable, intent(inout) :: ziso(:)
+    real*8, intent(in) :: lin0, lin1, fmax, fmin
+
+    real*8 :: ffmin, ffmax, delta
+    integer :: i
+    integer :: nhalf
+    real*8, parameter :: eps = 1d-12
+
+    if (niso_type == niso_manual) then
+       ! niso/ziso already given in input
+    elseif (niso_type == niso_lin) then
+       ! linear range
+       if (allocated(ziso)) deallocate(ziso)
+       allocate(ziso(niso))
+       do i = 1, niso
+          ziso(i) = lin0 + real(i-1,8) * (lin1 - lin0) / real(niso-1,8)
+       end do
+    elseif (niso_type == niso_log) then
+       if (allocated(ziso)) deallocate(ziso)
+
+       ! logarithmic range
+       if (fmin < -eps) then
+          ! negative contours
+          ffmin = log(eps)
+          ffmax = log(-fmin)
+          nhalf = max(niso / 2,2)
+          niso = 2 * nhalf + 1
+          allocate(ziso(niso))
+          delta = (ffmax-ffmin) / (nhalf-1)
+          do i = 1, nhalf
+             ziso(i) = -exp(ffmin+(nhalf-i)*delta)
+          enddo
+
+          ! zero
+          ziso(nhalf+1) = 0d0
+
+          ! positive contours
+          ffmin = log(eps)
+          ffmax = log(fmax)
+          delta = (ffmax-ffmin) / (nhalf-1)
+          do i = 1, nhalf
+             ziso(nhalf+1+i) = exp(ffmin+(i-1)*delta)
+          enddo
+       else
+          ! positive contours
+          allocate(ziso(niso))
+          ffmin = log(max(fmin,eps))
+          ffmax = log(abs(fmax))
+          delta = (ffmax-ffmin)/(niso-1)
+          do i = 1, niso
+             ziso(i)=exp(ffmin+(i-1)*delta)
+          enddo
+       endif
+    elseif (niso_type == niso_atan) then
+       ! arctangent mapping
+       if (allocated(ziso)) deallocate(ziso)
+       allocate(ziso(niso))
+       ffmin = 2d0/pi*atan(fmin)
+       ffmax = 2d0/pi*atan(fmax)
+       delta = (ffmax-ffmin)/(niso-1)
+       do i = 1, niso
+          ziso(i) = tan(pi*(ffmin+(i-1)*delta)/2d0)
+       enddo
+    elseif (niso_type == niso_bader) then
+       ! bader
+       if (fmin < -eps) then
+          niso = 40
+       else
+          niso = 20
+       end if
+       if (allocated(ziso)) deallocate(ziso)
+       allocate(ziso(niso))
+       ziso(1) = 1.d-3
+       ziso(2) = 2.d-3
+       ziso(3) = 4.d-3
+       ziso(4) = 8.d-3
+       ziso(5) = 1.d-2
+       ziso(6) = 2.d-2
+       ziso(7) = 4.d-2
+       ziso(8) = 8.d-2
+       ziso(9) = 1.d-1
+       ziso(10)= 2.d-1
+       ziso(11)= 4.d-1
+       ziso(12)= 8.d-1
+       ziso(13)= 1.d0 
+       ziso(14)= 2.d0 
+       ziso(15)= 4.d0 
+       ziso(16)= 8.d0 
+       ziso(17)= 1.d1 
+       ziso(18)= 2.d1 
+       ziso(19)= 4.d1 
+       ziso(20)= 8.d1 
+       if (fmin < -eps) then
+          ziso(21:40) = ziso(1:20)
+          ziso(1) = -8.d1
+          ziso(2) = -4.d1
+          ziso(3) = -2.d1
+          ziso(4) = -1.d1
+          ziso(5) = -8.d0
+          ziso(6) = -4.d0
+          ziso(7) = -2.d0
+          ziso(8) = -1.d0
+          ziso(9) = -8.d-1
+          ziso(10)= -4.d-1
+          ziso(11)= -2.d-1
+          ziso(12)= -1.d-1
+          ziso(13)= -8.d-2
+          ziso(14)= -4.d-2
+          ziso(15)= -2.d-2
+          ziso(16)= -1.d-2
+          ziso(17)= -8.d-3
+          ziso(18)= -4.d-3
+          ziso(19)= -2.d-3
+          ziso(20)= -1.d-3
+       end if
+    end if
+
+  end subroutine assign_ziso
+
   !> Generate the combination of n objects taken p at a time that
   !> corresponds to a given index in the lexicographic order. Buckles
   !> and Lybanon's algorithm (toms/515, B.P. Buckles and M.  Lybanon,
@@ -1266,6 +1417,8 @@ contains
 
   end subroutine gauleg
 
+  !> Returns a "good" number of lebedev points that is larger
+  !> than npts.
   subroutine good_lebedev(npts)
 
     integer, intent(inout) :: npts

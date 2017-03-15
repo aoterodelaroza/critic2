@@ -3019,8 +3019,8 @@ Planes and contour plots (PLANE)
    	[SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
         [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-        [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r}]
-	[COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
+        [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r|
+	i1.i i2.i ...}] [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
@@ -3048,14 +3048,15 @@ derivatives (Hxx), the gradient norm (GMOD) or the Laplacian (LAP).
 The keyword CONTOUR writes a contour map representation of the plane:
 two contour line files (.iso and .neg.iso) and a gnuplot script
 (.gnu). The isovalue distribution can be: logarithmic (LOG, with
-niso.i contours), arctangent (ATAN, with niso.i contours), the
-original aimpac distribution (BADER, {1,2,4,8}x10^{-3,-2,-1,0,1}) and
-linear (LIN, niso.i contours from r0.r to r1.r). The field property
-selected with [F|GX|...] is used for the contour plot.  The GRDVEC
-keyword (see `Gradient path representations in a plane (GRDVEC)`_)
-performs the same functions as PLANE with the CONTOUR option, and more
-(like, for instance, tracing gradient paths in the plane), but it is a
-little more complex to use.
+niso.i contours), arctangent (ATAN, with niso.i contours), same as in
+the aimpac program (BADER, {1,2,4,8}x10^{-3,-2,-1,0,1}), linear (LIN,
+niso.i contours from r0.r to r1.r), or the user can specify the
+contour values manually (no keyword). The field or any of its
+derivatives, selected with the [F|GX|...] keyword, is used for the
+contour plot.  The GRDVEC keyword (see `Gradient path representations
+in a plane (GRDVEC)`_) performs the same functions as PLANE with the
+CONTOUR option, and more (like, for instance, tracing gradient paths
+in the plane), but is more complex to use.
 
 The RELIEF keyword writes a gnuplot template for a three-dimensional
 relief plot using the data calculated by PLANE. The default suffix is
@@ -3890,9 +3891,9 @@ Gradient path representations in a plane (GRDVEC)
           x.r y.r z.r
           ...
      ENDCHECK/END
-     CONTOUR {F|GX|GY|GZ|GMOD|HXX|HXY|HXZ|HYX|HYY|
-              HYZ|HZX|HZY|HZZ|LAP} [LIN cini.r cend.r|
-              LOG|ATAN|BADER] [nptsu.i nptsv.i niso.i]
+     CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP} 
+       nptsu.i nptsv.i {LIN niso.i cini.r cend.r|LOG niso.i|
+       ATAN niso.i|BADER|i1.i i2.i...}
   ENDGRDVEC/END
 
 GRDVEC plots a plane containing all the gradient paths originating
@@ -3979,20 +3980,19 @@ identified and an adequate number of gradient paths are started
 according to its character: for a ncp and ccp, 36 upwards or downwards
 and for a bcp or rcp, 2 upwards and 2 downwards.
 
-The keywords [F|GX|...] request critic2 to generate a plot in which
-the gradient paths calculated in GRDVEC are merged with a contour
-plot, in the spirit of PLANE CONTOUR (see `Planes and contour plots
-(PLANE)`_). This contour map corresponds to the reference scalar field
-if F is used, to its Laplacian (LAP), etc. In a way analogous to
-CONTOUR, the contour lines may be calculated using a linear spacing
-between isocurves on a remapped scalar field. If LOG is given, log(f)
-and log(abs(f)) are used while for ATAN, the function is
-2/pi*atan(f). The BADER keyword corresponds to a fixed set of
-iso-values ({1,2,4,8}x10^{-3,-2,-1,0,1}). LEVEL selects a linear set
-of contour values from cini.r to cend.r. The number of points on each
-axis of the grid and the number of contour lines can be optionally
-given with nptsu.i, nptsv.i and niso.i. By default, they are 100, 100
-and 100.
+The CONTOUR keyword tells critic2 to generate a plot in which the
+gradient paths calculated in GRDVEC is merged with a contour plot, in
+the spirit of PLANE CONTOUR (see `Planes and contour plots
+(PLANE)`_). The scalar field for the contour plot can be selected with
+F (current reference field), GX, GY,... The syntax for the derivatives
+is the same as in PLANE. After this, the user needs to specify the
+number of points in each direction of the plane (nptsu.i and nptsv.i)
+and the contour values and type of mapping. The isovalue distribution
+can be: logarithmic (LOG, with niso.i contours), arctangent (ATAN,
+with niso.i contours), same as in the aimpac program (BADER,
+{1,2,4,8}x10^{-3,-2,-1,0,1}), linear (LIN, niso.i contours from r0.r
+to r1.r), or the user can specify the contour values manually (no
+keyword).
 
 Note that GRDVEC is able to handle non-orthogonal axis. If
 the two plane axis determined in the PLANE keyword are

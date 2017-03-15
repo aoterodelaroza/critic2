@@ -22,14 +22,25 @@ module rhoplot
 
   private
   
-  public :: rhoplot_line
   public :: rhoplot_point
-  public :: rhoplot_plane
+  public :: rhoplot_line
   public :: rhoplot_cube
+  public :: rhoplot_plane
+  private :: contour
+  private :: relief
+  private :: colormap
+  private :: hallarpuntos
+  private :: ordenarpuntos
+  private :: linea
   public :: rhoplot_grdvec
+  private :: plotvec
+  private :: wrtpath
+  private :: autochk
+  private :: write_fichlabel
+  private :: write_fichgnu
+  private :: buildplane
 
   ! contours
-  real*8 :: cntrini, cntrend
   real*8 :: ua, va, ub, vc, fminimo, fmaximo
   real*8, allocatable :: lf(:,:)
 
@@ -653,7 +664,7 @@ contains
     
   end subroutine rhoplot_cube
 
-  ! Calculate properties on a plane.
+  !> Calculate properties on a plane.
   subroutine rhoplot_plane(line)
     use fields, only: fieldname_to_idx, goodfield, f, grd, fields_fcheck, &
        fields_feval
@@ -662,21 +673,21 @@ contains
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
-    use tools_math, only: norm, plane_scale_extend
-    use types, only: scalar_value
+    use tools_math, only: norm, plane_scale_extend, assign_ziso, niso_manual,&
+       niso_lin, niso_log, niso_atan, niso_bader
+    use types, only: scalar_value, realloc
     character*(*), intent(in) :: line
 
-    integer :: lp2
-    integer :: lp, nti, id, luout, nx, ny, nco, niso, nn
-    real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt, lappt
-    real*8 :: uu(3), vv(3)
-    real*8 :: sx, sy, zx0, zx1, zy0, zy1, zmin, zmax
+    integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
+    real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt
+    real*8 :: uu(3), vv(3), lin0, lin1
+    real*8 :: sx, sy, zx0, zx1, zy0, zy1, zmin, zmax, rdum
     logical :: docontour, dorelief, docolormap
-    character(len=:), allocatable :: word, outfile, prop, root0, expr
+    character(len=:), allocatable :: word, outfile, root0, expr
     type(scalar_value) :: res
     logical :: ok, iok
-    integer :: ix, iy, cmopt
-    real*8, allocatable :: ff(:,:)
+    integer :: ix, iy, cmopt, nder
+    real*8, allocatable :: ff(:,:), ziso(:)
 
     ! read the points
     lp = 1
@@ -711,14 +722,15 @@ contains
     ny = max(ny,2)
 
     ! read additional options
+    lin0 = 0d0
+    lin1 = 1d0
     sx = 1d0
     sy = 1d0
     zx0 = 0d0
     zx1 = 0d0
     zy0 = 0d0
     zy1 = 0d0
-    nti = -1
-    prop = "lap"
+    nti = 0
     docontour = .false.
     dorelief = .false.
     docolormap = .false.
@@ -785,29 +797,49 @@ contains
              return
           end if
        else if (equal(word,'contour')) then
+          lp2 = lp
           word = lgetword(line,lp)
           docontour = .true.
           if (equal(word,'lin')) then
-             nco = 4
+             niso_type = niso_lin
           elseif (equal(word,'log')) then
-             nco = 1
+             niso_type = niso_log
           elseif (equal(word,'atan')) then
-             nco = 2
+             niso_type = niso_atan
           elseif (equal(word,'bader')) then
-             nco = 3
+             niso_type = niso_bader
           else
-             call ferror("rhoplot_plane","Unknown contour keyword",faterr,line,syntax=.true.)
-             return
+             niso_type = niso_manual
+             lp = lp2
+             ok = eval_next(rdum,line,lp)
+             if (ok) then
+                niso = 1
+                if (allocated(ziso)) deallocate(ziso)
+                allocate(ziso(1))
+                ziso(1) = rdum
+                do while (.true.)
+                   lp2 = lp
+                   ok = eval_next(rdum,line,lp)
+                   if (.not.ok) exit
+                   niso = niso + 1
+                   if (niso > size(ziso,1)) call realloc(ziso,2*niso)
+                   ziso(niso) = rdum
+                end do
+                call realloc(ziso,niso)
+             else
+                call ferror("rhoplot_plane","Unknown contour keyword",faterr,line,syntax=.true.)
+             end if
           end if
-          if (nco /= 3) then
+          if (niso_type == niso_lin .or. niso_type == niso_log .or.&
+              niso_type == niso_atan) then
              ok = eval_next(niso,line,lp)
              if (.not.ok) then
                 call ferror("rhoplot_plane","number of isovalues not found",faterr,line,syntax=.true.)
                 return
              end if
-             if (nco == 4) then
-                ok = eval_next(cntrini,line,lp)
-                ok = ok .and. eval_next(cntrend,line,lp)
+             if (niso_type == niso_lin) then
+                ok = eval_next(lin0,line,lp)
+                ok = ok .and. eval_next(lin1,line,lp)
                 if (.not.ok) then
                    call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line,syntax=.true.)
                    return
@@ -828,40 +860,28 @@ contains
           end if
        elseif (equal(word,'f')) then
           nti = 0
-          prop = word
        else if (equal(word,'gx')) then
           nti = 1
-          prop = word
        else if (equal(word,'gy')) then
           nti = 2
-          prop = word
        else if (equal(word,'gz')) then
           nti = 3
-          prop = word
        else if (equal(word,'gmod')) then
           nti = 4
-          prop = word
        else if (equal(word,'hxx')) then
           nti = 5
-          prop = word
        else if (equal(word,'hxy') .or. equal(word,'hyx')) then
           nti = 6
-          prop = word
        else if (equal(word,'hxz') .or. equal(word,'hzx')) then
           nti = 7
-          prop = word
        else if (equal(word,'hyy')) then
           nti = 8
-          prop = word
        else if (equal(word,'hyz') .or. equal(word,'hzy')) then
           nti = 9
-          prop = word
        else if (equal(word,'hzz')) then
           nti = 10
-          prop = word
        else if (equal(word,'lap')) then
           nti = 11
-          prop = word
        else if (len_trim(word) > 0) then
           call ferror('rhoplot_plane','Unknown keyword in PLANE',faterr,line,syntax=.true.)
           return
@@ -870,17 +890,10 @@ contains
        end if
     end do
 
-    ! root file name and additional property
+    ! root file name
     nn = index(outfile,".",.true.)
     if (nn == 0) nn = len(trim(outfile)) + 1
     root0 = outfile(1:nn-1)
-    if (nti == -1) then
-       if (docontour) then
-          nti = 0
-       else
-          nti = 11
-       end if
-    end if
 
     ! Transform to Cartesian, extend and scale, and set up the plane
     ! vectors.
@@ -894,49 +907,53 @@ contains
     dv = norm(vv)
 
     ! allocate space for field values on the plane
-    allocate(ff(nx,ny),lf(nx,ny))
+    allocate(ff(nx,ny))
+    if (nti == 0) then
+       nder = 0
+    elseif (nti >= 1 .and. nti <= 4) then
+       nder = 1 
+    else
+       nder = 2
+    end if
 
-    !$omp parallel do private (xp,res,rhopt,lappt) schedule(dynamic)
+    !$omp parallel do private (xp,res,rhopt,iok) schedule(dynamic)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
 
           if (id >= 0) then
-             call grd(f(id),xp,2,res)
-             rhopt = res%f
+             call grd(f(id),xp,nder,res)
              select case(nti)
              case (0)
-                lappt = res%f
+                rhopt = res%f
              case (1)
-                lappt = res%gf(1)
+                rhopt = res%gf(1)
              case (2)
-                lappt = res%gf(2)
+                rhopt = res%gf(2)
              case (3)
-                lappt = res%gf(3)
+                rhopt = res%gf(3)
              case (4)
-                lappt = res%gfmod
+                rhopt = res%gfmod
              case (5)
-                lappt = res%hf(1,1)
+                rhopt = res%hf(1,1)
              case (6)
-                lappt = res%hf(1,2)
+                rhopt = res%hf(1,2)
              case (7)
-                lappt = res%hf(1,3)
+                rhopt = res%hf(1,3)
              case (8)
-                lappt = res%hf(2,2)
+                rhopt = res%hf(2,2)
              case (9)
-                lappt = res%hf(2,3)
+                rhopt = res%hf(2,3)
              case (10)
-                lappt = res%hf(3,3)
+                rhopt = res%hf(3,3)
              case (11)
-                lappt = res%del2f
+                rhopt = res%del2f
              end select
           else
              rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
-             lappt = rhopt
           endif
           !$omp critical (write)
           ff(ix,iy) = rhopt
-          lf(ix,iy) = lappt
           !$omp end critical (write)
        end do
     end do
@@ -952,7 +969,7 @@ contains
 
     ! header
     write (luout,'("# Field values (and derivatives) on a plane")')
-    write (luout,'("# x y z u v f ",A)') string(prop)
+    write (luout,'("# x y z u v f ")')
 
     x0 = cr%c2x(x0)
     x1 = cr%c2x(x1)
@@ -965,14 +982,17 @@ contains
           if (cr%ismolecule) then
              xp = (cr%x2c(xp) + cr%molx0) * dunit
           endif
-          write (luout,'(1x,5(f15.10,x),1p,2(e18.10,x),0p)') &
-             xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy), lf(ix,iy)
+          write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') &
+             xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
        end do
        write (luout,*)
     end do
 
-    ! try doing the contour
-    if (docontour) call contour(x0,x1,x2,nx,ny,nco,niso,root0,.true.,.true.)
+    ! contour/relief/colormap plots
+    if (docontour) then
+       call assign_ziso(niso_type,niso,ziso,lin0,lin1,maxval(ff),minval(ff))
+       call contour(ff,x0,x1,x2,nx,ny,niso,ziso,root0,.true.,.true.)
+    end if
     if (dorelief) call relief(root0,string(outfile),zmin,zmax)
     if (docolormap) call colormap(root0,string(outfile),cmopt)
 
@@ -982,39 +1002,38 @@ contains
        write (uout,*)
     end if
 
-    deallocate(ff,lf)
+    if (allocated(ziso)) deallocate(ziso)
+    deallocate(ff)
 
   end subroutine rhoplot_plane
 
-  !> Contour plots using the field in lf(:,:). nti controls the contour
-  !> scale (log,atan,bader,linear). rootname is the root of
-  !> all the files generated (.iso, .neg.iso, -grd.dat, -label.gnu,
+  !> Contour plots using the 2d-field ff, defined on a plane
+  !> determined by poitns r0, r1, r2 (crystallographic coords.). The
+  !> number of points in each direction is nx and ny. ziso(1:niso) is the
+  !> array contaiing the contour levels. rootname is the root for all
+  !> the files generated (.iso, .neg.iso, -grd.dat, -label.gnu,
   !> .gnu). If dolabels, write the labels file. If dognu, write the
   !> gnu file.
-  subroutine contour(r0,r1,r2,nx,ny,nti,niso,rootname,dognu,dolabels)
+  subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
     use struct_basic, only: cr
     use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
     use tools_math, only: norm, cross, det, matinv
-    use param, only: vbig, pi
-    real*8, intent(in) :: r0(3), r1(3), r2(3)
+    use param, only: pi
     integer, intent(in) :: nx, ny
-    integer, intent(in) :: nti
-    integer, intent(inout) :: niso
+    real*8, intent(in) :: ff(nx,ny)
+    real*8, intent(in) :: r0(3), r1(3), r2(3)
+    integer, intent(in) :: niso
+    real*8, intent(in) :: ziso(niso)
     character*(*), intent(in) :: rootname
     logical, intent(in) :: dognu, dolabels
 
-    integer :: nu
-    integer :: nv
-    integer :: lud, lud1, nhalf
-    real*8  :: delta
-    real*8  :: zz, fmin, fmax
-    integer :: i, j
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
+    integer :: lud, lud1
+    integer :: i, j
     real*8 :: du, dv, r012
-    real*8, allocatable :: ziso(:), x(:), y(:)
-    real*8, parameter :: eps = 1d-6
+    real*8, allocatable :: x(:), y(:)
 
-    ! clean up rootname
+    ! set rootname
     root0 = rootname
 
     ! name files
@@ -1066,131 +1085,19 @@ contains
     va = 0d0
     vc = r02
 
-    isneg = .false.
-    fminimo = VBIG
-    fmaximo = -VBIG
-    nu = size(lf,1)
-    nv = size(lf,2)
-    allocate(x(nu))
-    allocate(y(nv))
-    do i = 1, nu
-       do j = 1, nv
-          fminimo = min(fminimo,lf(i,j))
-          fmaximo = max(fmaximo,lf(i,j))
-          x(i) = ua + (i-1) * (ub-ua) / real(nu-1,8)
-          y(j) = va + (j-1) * (vc-va) / real(nv-1,8)
-          if (lf(i,j) < 0d0) isneg = .true.
+    ! calculate grid in each direction
+    isneg = minval(ff) < 0d0
+    allocate(x(nx))
+    allocate(y(ny))
+    do i = 1, nx
+       do j = 1, ny
+          x(i) = ua + (i-1) * (ub-ua) / real(nx-1,8)
+          y(j) = va + (j-1) * (vc-va) / real(ny-1,8)
        end do
     end do
 
-    ! print .iso file
-    if (nti.eq.3) then
-       if (isneg) then
-          niso = 40
-       else
-          niso = 20
-       end if
-       allocate(ziso(niso))
-       ziso(1) = 1.d-3
-       ziso(2) = 2.d-3
-       ziso(3) = 4.d-3
-       ziso(4) = 8.d-3
-       ziso(5) = 1.d-2
-       ziso(6) = 2.d-2
-       ziso(7) = 4.d-2
-       ziso(8) = 8.d-2
-       ziso(9) = 1.d-1
-       ziso(10)= 2.d-1
-       ziso(11)= 4.d-1
-       ziso(12)= 8.d-1
-       ziso(13)= 1.d0 
-       ziso(14)= 2.d0 
-       ziso(15)= 4.d0 
-       ziso(16)= 8.d0 
-       ziso(17)= 1.d1 
-       ziso(18)= 2.d1 
-       ziso(19)= 4.d1 
-       ziso(20)= 8.d1 
-       if (isneg) then
-          niso = 40
-          ziso(21:40) = ziso(1:20)
-          ziso(1) = -8.d1
-          ziso(2) = -4.d1
-          ziso(3) = -2.d1
-          ziso(4) = -1.d1
-          ziso(5) = -8.d0
-          ziso(6) = -4.d0
-          ziso(7) = -2.d0
-          ziso(8) = -1.d0
-          ziso(9) = -8.d-1
-          ziso(10)= -4.d-1
-          ziso(11)= -2.d-1
-          ziso(12)= -1.d-1
-          ziso(13)= -8.d-2
-          ziso(14)= -4.d-2
-          ziso(15)= -2.d-2
-          ziso(16)= -1.d-2
-          ziso(17)= -8.d-3
-          ziso(18)= -4.d-3
-          ziso(19)= -2.d-3
-          ziso(20)= -1.d-3
-       end if
-    else if (nti.eq.4) then
-       allocate(ziso(niso))
-       do i = 1, niso
-          ziso(i) = cntrini + real(i-1,8) * (cntrend - cntrini) / (niso-1)
-       end do
-    else if (nti.eq.1) then
-       if (fminimo < -eps) then
-          fmin = fminimo
-          fmax = fmaximo
-          ! negative contours
-          fminimo = log(eps)
-          fmaximo = log(-fmin)
-          nhalf = max(niso / 2,2)
-          niso = 2 * nhalf + 1
-          allocate(ziso(niso))
-          delta = (fmaximo-fminimo) / (nhalf-1)
-          do i = 1, nhalf
-             ziso(i) = -exp(fminimo+(nhalf-i)*delta)
-          enddo
-          ! zero
-          ziso(nhalf+1) = 0d0
-          ! positive contours
-          fminimo = log(eps)
-          fmaximo = log(fmax)
-          delta = (fmaximo-fminimo) / (nhalf-1)
-          do i = 1, nhalf
-             ziso(nhalf+1+i) = exp(fminimo+(i-1)*delta)
-          enddo
-       else
-          allocate(ziso(niso))
-          fminimo = log(max(fminimo,eps))
-          fmaximo = log(abs(fmaximo))
-          delta = (fmaximo-fminimo)/(niso-1)
-          do i=1,niso
-             ziso(i)=exp(fminimo+(i-1)*delta)
-          enddo
-       endif
-    else
-       allocate(ziso(niso))
-       if (nti == 2) then
-          fminimo = 2d0/pi*atan(fminimo)
-          fmaximo = 2d0/pi*atan(fmaximo)
-       end if
-       delta = (fmaximo-fminimo)/(niso-1)
-       do i=1,niso
-          zz=fminimo+(i-1)*delta
-          if (nti.eq.2) then
-             ziso(i)=tan(pi*zz/2d0)
-          else
-             ziso(i)=zz
-          endif
-       enddo
-    end if
-
-    do i=1,niso
-       call hallarpuntos (ziso(i),x,y,nu,nv)
+    do i = 1, niso
+       call hallarpuntos (ff,ziso(i),x,y,nx,ny)
        if (ziso(i).gt.0) then
           call ordenarpuntos (lud,cosalfa,ziso(i))
        else
@@ -1202,7 +1109,6 @@ contains
 
     if (dolabels) call write_fichlabel(root0)
     if (dognu) call write_fichgnu(root0,dolabels,.true.,.false.)
-    if (allocated(ziso)) deallocate(ziso)
     if (allocated(x)) deallocate(x)
     if (allocated(y)) deallocate(y)
     
@@ -1318,11 +1224,12 @@ contains
 
   !> Find contour with value = zc on a surface given by a grid.
   !> uses linear interpolation.
-  subroutine hallarpuntos(zc,x,y,nx,ny)
+  subroutine hallarpuntos(ff,zc,x,y,nx,ny)
     use param, only: zero
+    integer, intent(in) :: nx, ny
+    real*8, intent(in) :: ff(nx,ny)
     real*8, intent(in) :: zc
     real*8, intent(in) :: x(:), y(:)
-    integer, intent(in) :: nx, ny
 
     integer :: i, j
     real*8 :: xa, ya, za, xb, yb, zb
@@ -1335,7 +1242,7 @@ contains
     do i = 1, nx
        xa = x(i)
        ya = y(1)
-       za = lf(i,1)
+       za = ff(i,1)
        zazc = za-zc
 
        ! check if it is an intersection
@@ -1353,7 +1260,7 @@ contains
        do j = 2,ny
           xb = x(i)
           yb = y(j)
-          zb = lf(i,j)
+          zb = ff(i,j)
           zbzc = zb-zc
 
           ! sign changed, interpolate and write a point
@@ -1387,13 +1294,13 @@ contains
     do j = 1,ny
        xa = x(1)
        ya = y(j)
-       za = lf(1,j)
+       za = ff(1,j)
        zazc = za-zc
 
        do i = 2, nx
           xb = x(i)
           yb = y(j)
-          zb = lf(i,j)
+          zb = ff(i,j)
           zbzc = zb-zc
           ! sign changed, interpolate and write a point
           if ((zazc*zbzc).lt.zero) then
@@ -1636,22 +1543,24 @@ contains
     use global, only: fileroot, eval_next, dunit, refden, prunedist
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
-    use tools_math, only: rsindex, plane_scale_extend
-    use types, only: scalar_value
+    use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
+       niso_manual, niso_atan, niso_lin, niso_log, niso_bader
+    use types, only: scalar_value, realloc
     character(len=:), allocatable :: line, word, datafile, rootname
     integer :: lpold, lp, udat, ll, idum, i, j
     integer :: updum, dndum, updum1, dndum1
-    real*8  :: xp(3), lappt
+    real*8  :: xp(3), rhopt
     logical :: doagain, ok, autocheck
     real*8  :: r0(3), r1(3), r2(3), xdum
     real*8  :: q0(3), xo0(3), xo1(3), xo2(3)
     integer :: cpid
-    integer :: nti, nfi, ix, iy
-    real*8 :: sx, sy, zx0, zx1, zy0, zy1
-    real*8 :: ehess(3), x0(3), uu(3), vv(3)
+    integer :: niso_type, nfi, ix, iy
+    real*8 :: sx, sy, zx0, zx1, zy0, zy1, rdum
+    real*8 :: ehess(3), x0(3), uu(3), vv(3), lin0, lin1
     logical :: docontour, dograds, goodplane
-    integer :: n1, n2, niso
+    integer :: n1, n2, niso, nder
     type(scalar_value) :: res
+    real*8, allocatable :: ff(:,:), ziso(:)
 
     ! Header
     write (uout,'("* GRDVEC: gradient paths and contours in 2d")')
@@ -1934,44 +1843,62 @@ contains
           else if (equal(word,'lap')) then
              nfi = 11
           else
-             call ferror('rhoplot_grdvec','contour field keyword necessary in grdvec',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','contour field keyword needed',faterr,line,syntax=.true.)
              return
           end if
 
+          ! read the number of points
+          ok = eval_next (n1, line, lp)
+          ok = ok .and. eval_next (n2, line, lp)
+          if (.not.ok) then
+             call ferror('rhoplot_grdvec','contour number of points needed',faterr,line,syntax=.true.)
+             return
+          end if
+          n1 = max(n1,2)
+          n2 = max(n2,2)
+
+          ok = .true.
+          lin0 = 0d0
+          lin1 = 1d0
           lpold = lp
           word = lgetword(line,lp)
           if (equal(word,'atan')) then
-             nti = 2
+             niso_type = niso_atan
+             ok = eval_next (niso, line, lp)
           else if (equal(word,'log')) then
-             nti = 1
+             niso_type = niso_log
+             ok = eval_next (niso, line, lp)
           else if (equal(word,'bader')) then
-             nti = 3
+             niso_type = niso_bader
           else if (equal(word,'lin')) then
-             nti = 4
-             ok = eval_next (cntrini, line, lp)
-             ok = eval_next (cntrend, line, lp)
+             niso_type = niso_lin
+             ok = eval_next(niso, line, lp)
+             ok = ok .and. eval_next(lin0, line, lp)
+             ok = ok .and. eval_next(lin1, line, lp)
           else
              lp = lpold
-             nti = 0
-          end if
-
-          ok = eval_next (n1, line, lp)
-          if (ok) then
-             ok = ok .and. eval_next (n2, line, lp)
-             ok = ok .and. eval_next (niso, line, lp)
-             if (.not.ok) then
-                call ferror ('grdvec', 'bad nptsu/nptsv/niso option',faterr,line,syntax=.true.)
+             niso_type = niso_manual
+             if (allocated(ziso)) deallocate(ziso)
+             allocate(ziso(1))
+             niso = 0
+             do while (.true.)
+                ok = eval_next(rdum,line,lp)
+                if (.not.ok) exit
+                niso = niso + 1
+                if (niso > size(ziso,1)) call realloc(ziso,2*niso)
+                ziso(niso) = rdum
+             end do
+             if (niso == 0) then
+                call ferror("rhoplot_plane","wrong contour values",faterr,line,syntax=.true.)
                 return
              end if
-             n1 = max(n1,2)
-             n2 = max(n2,2)
-             niso = max(niso,2)
-          else
-             n1 = 100
-             n2 = 100
-             niso = 100
-             cntrini = -1d0
-             cntrend = 1d0
+             call realloc(ziso,niso)
+             ok = .true.
+          end if
+
+          if (.not.ok) then
+             call ferror ('grdvec','wrong contour values',faterr,line,syntax=.true.)
+             return
           end if
           ok = check_no_extra_word()
           if (.not.ok) return
@@ -2021,49 +1948,58 @@ contains
 
     ! calculate the contour plot
     if (docontour) then
-       allocate(lf(n1,n2))
+       allocate(ff(n1,n2))
        x0 = cr%x2c(r0)
        uu = cr%x2c((r1-r0) / real(n1-1,8))
        vv = cr%x2c((r2-r0) / real(n2-1,8))
-       !$omp parallel do private (xp,res,lappt) schedule(dynamic)
+       if (nfi == 0) then
+          nder = 0
+       else if (nfi >= 1 .and. nfi <= 4) then
+          nder = 1
+       else
+          nder = 2
+       end if
+       !$omp parallel do private (xp,res,rhopt) schedule(dynamic)
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-             call grd(f(refden),xp,2,res)
+             call grd(f(refden),xp,nder,res)
              select case(nfi)
              case (0)
-                lappt = res%f
+                rhopt = res%f
              case (1)
-                lappt = res%gf(1)
+                rhopt = res%gf(1)
              case (2)
-                lappt = res%gf(2)
+                rhopt = res%gf(2)
              case (3)
-                lappt = res%gf(3)
+                rhopt = res%gf(3)
              case (4)
-                lappt = res%gfmod
+                rhopt = res%gfmod
              case (5)
-                lappt = res%hf(1,1)
+                rhopt = res%hf(1,1)
              case (6)
-                lappt = res%hf(1,2)
+                rhopt = res%hf(1,2)
              case (7)
-                lappt = res%hf(1,3)
+                rhopt = res%hf(1,3)
              case (8)
-                lappt = res%hf(2,2)
+                rhopt = res%hf(2,2)
              case (9)
-                lappt = res%hf(2,3)
+                rhopt = res%hf(2,3)
              case (10)
-                lappt = res%hf(3,3)
+                rhopt = res%hf(3,3)
              case (11)
-                lappt = res%del2f
+                rhopt = res%del2f
              end select
              !$omp critical (write)
-             lf(ix,iy) = lappt
+             ff(ix,iy) = rhopt
              !$omp end critical (write)
           end do
        end do
        !$omp end parallel do
-       call contour(r0,r1,r2,n1,n2,nti,niso,rootname,.false.,.false.)
-       deallocate(lf)
+       call assign_ziso(niso_type,niso,ziso,lin0,lin1,maxval(ff),minval(ff))
+       call contour(ff,r0,r1,r2,n1,n2,niso,ziso,rootname,.false.,.false.)
+       if (allocated(ziso)) deallocate(ziso)
+       deallocate(ff)
     end if
        
     udat = fopen_write(datafile)
