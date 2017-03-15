@@ -40,10 +40,6 @@ module rhoplot
   private :: write_fichgnu
   private :: buildplane
 
-  ! contours
-  real*8 :: ua, va, ub, vc, fminimo, fmaximo
-  real*8, allocatable :: lf(:,:)
-
   ! contour lines common variables.
   ! npuntos                     number of points in the isoline
   ! xc, yc                      coordinates of the points
@@ -1030,7 +1026,7 @@ contains
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
     integer :: lud, lud1
     integer :: i, j
-    real*8 :: du, dv, r012
+    real*8 :: du, dv, r012, ua, va, ub, vc
     real*8, allocatable :: x(:), y(:)
 
     ! set rootname
