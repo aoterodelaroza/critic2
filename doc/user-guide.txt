@@ -3375,9 +3375,9 @@ These contain a list of all the bond (resp. ring) critical points
 found and the corresponding nuclei (resp. cages) they connect. The
 connected nuclei are found by tracing an upwards gradient path from
 the bonds. The cages are found using a downwards gradient path from
-the ring. In addition, it is also shown the distance to the connected
-critical point, the ratio between the distances, and the angle formed
-by the bond path (ring path) at the bcp (rcp).
+the ring. In addition, it is also shown the geometric distance to the
+connected critical point, the ratio between the distances, and the
+angle formed by the bond path (ring path) at the bcp (rcp).
 
 The **complete CP list** is the list of all CPs in the unit cell, and
 comes next in the output. The identifiers from this list are used as
