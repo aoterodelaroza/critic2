@@ -87,7 +87,7 @@ expression.r # prints the value of the expression to the output.
   MOLECULE LIBRARY label.s
 * LIBRARY {CRYSTAL|MOLECULE} path.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
-* NOSYMM|NOSYM|SYMM [-1|0|1|2]
+* NOSYMM|NOSYM|{SYMM|SYM} [-1|0|1]
 * MOLCELL [border.r]
 * CLEARSYM/CLEARSYMM
 * Q/QAT {nat1.i|at1.s} q1.r {nat2.i|at2.s} q2.r ...

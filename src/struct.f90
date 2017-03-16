@@ -339,7 +339,6 @@ contains
     if (allocated(cr%cen)) deallocate(cr%cen)
     allocate(cr%cen(3,4))
     cr%cen = 0d0
-    cr%lcent = 0
 
     ! convert ncel to nneq
     aux = cr%at(1:cr%nneq)

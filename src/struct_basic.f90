@@ -20,6 +20,7 @@
 
 ! Routines for basic crystallography computations
 module struct_basic
+  use spglib, only: SpglibDataset
   use types, only: atom, celatom, neighstar, fragment
   implicit none
 
@@ -28,15 +29,6 @@ module struct_basic
   ! private to this module
   private :: lattpg
   private :: typeop
-  ! private for guessspg crystal symmetry guessing module
-  private :: cenbuild
-  private :: cenclosure
-  private :: cenreduce
-  private :: filltrans
-  private :: goodop
-  private :: reduce
-  private :: iscelltr
-  private :: isrepeated
   ! private for wigner-seitz routines
   private :: equiv_tetrah
   private :: perm3
@@ -48,7 +40,7 @@ module struct_basic
      ! Initialization flags
      logical :: isinit = .false. !< has the crystal structure been initialized?
      logical :: isenv = .false. !< were the atomic environments determined?
-     integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - centering, 2 - full)
+     integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
      logical :: isast = .false. !< have the molecular asterisms and connectivity been calculated?
      logical :: isewald = .false. !< do we have the data for ewald's sum?
      logical :: isrecip = .false. !< symmetry information about the reciprocal cell
@@ -78,7 +70,7 @@ module struct_basic
      real*8 :: n2_x2c !< sqrt(3)/norm-2 of the crystallographic to cartesian matrix
      real*8 :: n2_c2x !< sqrt(3)/norm-2 of the cartesian to crystallographic matrix
      ! space-group symmetry
-     integer :: lcent !< centring: 0=unset, 1=P, 2=A, 3=B, 4=C, 5=I, 6=F, 7=Robv, 8=Rrev, 9=unk.
+     type(SpglibDataset) :: spg !< spglib's symmetry dataset
      integer :: neqv !< number of symmetry operations
      integer :: neqvg !< number of symmetry operations, reciprocal space
      integer :: ncv  !< number of centering vectors
@@ -116,23 +108,11 @@ module struct_basic
      real*8 :: rcut, hcut, eta, qsum
      integer :: lrmax(3), lhmax(3)
 
-     !! Attic !!
-     ! Symmetry classification (classify is deactivated)
-     ! character*2 :: delaunay !< Delaunay symbol (table 9.1.8.1, ITC)
-     ! character*2 :: bravais_type !< Bravais type (table 9.1.8.1, ITC)
-     ! character*1 :: cfam !< Crystal family 
-     ! integer :: delsort !< Delaunay sort (row in table 9.1.8.1, ITC)
-     ! character*3 :: pointgroup !< Crystal point group
-     ! real*8 :: rmat_conventional(3,3) !< Transformation to conventional cell
-     ! 1=1bar, 2=2/m, 3=mmm, 4=4/m, 5=4/mmm, 6=3bar, 7=3bar/m, 8=6/m, 
-     ! 9=6/mmm, 10=m3bar, 11=m3barm
-     ! ws cell neighbor information
    contains
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: checkflags => struct_checkflags !< Check the flags for a given crystal
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: set_cryscar !< Set the crys2car and the car2crys using the cell parameters
-     procedure :: set_lcent !< Calculate the lcent from the centering vectors (ncv and cen)
      procedure :: x2c !< Convert crystallographic to cartesian
      procedure :: c2x !< Convert cartesian to crystallographic
      procedure :: distance !< Distance between points in crystallographic coordinates
@@ -164,10 +144,9 @@ module struct_basic
      procedure :: primitive_any !< Transform to an arbitrary primitive cell.
      procedure :: primitive_delaunay !< Transform to the delaunay-reduced cell
      procedure :: delaunay_reduction !< Perform the delaunay reduction.
-     ! procedure :: conventional_standard !< Transform to the standard conventional cell
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: struct_report !< Write lots of information about the crystal structure to uout
-     procedure :: guessspg !< Guess the symmetry operations from the structure
+     procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
      procedure :: reduceatoms !< Reduce the non-equivalent atom list using symmetry ops.
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
@@ -198,12 +177,6 @@ module struct_basic
   integer, parameter, public :: isformat_xsf = 16
   integer, parameter, public :: isformat_gen = 17
   integer, parameter, public :: isformat_vasp = 18
-
-  ! private to guessspg
-  integer, parameter :: maxch=1000 !< max. possible unit cell translations
-  real*8, allocatable  :: disctr(:,:) !< possible unit cell translations
-  real*8, parameter :: pusheps = 1d-14 !< Reduce atom coords. to (-pusheps,1-pusheps]
-  integer :: nch !< number of checked translations
 
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
@@ -256,7 +229,6 @@ contains
     c%n2_c2x = 0d0
 
     ! no symmetry
-    c%lcent = 0
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,:,1) = eyet
@@ -269,6 +241,7 @@ contains
     c%cen = 0d0
     c%isortho = .false.
     c%nws = 0
+    c%spg%n_atoms = 0
 
     ! no molecule
     c%ismolecule = .false.
@@ -388,12 +361,10 @@ contains
     c%neqvg = 0
     c%ncv = 0
     c%nws = 0
-    c%lcent = 0
     c%nmol = 0
     c%ismolecule = .false.
     c%isinit = .false.
     c%isenv = .false. 
-    c%havesym = 0 
     c%isast = .false. 
     c%isewald = .false. 
     c%isrecip = .false. 
@@ -409,429 +380,6 @@ contains
     c%car2crys = car2crys_from_cellpar(c%aa,c%bb)
 
   end subroutine set_cryscar
-
-  !> Calculate the lcent from the centering vectors (ncv and cen)
-  subroutine set_lcent(c)
-    class(crystal), intent(inout) :: c
-
-    logical :: ok
-
-    c%lcent = 9 ! unknown
-    if (c%ncv == 0) then
-       c%lcent = 0 ! unset
-    elseif (c%ncv == 1) then
-       c%lcent = 1 ! P
-    elseif (c%ncv == 2) then
-       if (c%are_lclose(c%cen(:,2),(/0.0d0,0.5d0,0.5d0/),1d-5)) then
-          c%lcent = 2 ! A
-       elseif (c%are_lclose(c%cen(:,2),(/0.5d0,0.0d0,0.5d0/),1d-5)) then
-          c%lcent = 3 ! B
-       elseif (c%are_lclose(c%cen(:,2),(/0.5d0,0.5d0,0.0d0/),1d-5)) then
-          c%lcent = 4 ! C
-       elseif (c%are_lclose(c%cen(:,2),(/0.5d0,0.5d0,0.5d0/),1d-5)) then
-          c%lcent = 6 ! I
-       end if
-    elseif (c%ncv == 3) then
-       if (c%are_lclose(c%cen(:,2),(/2d0/3d0,1d0/3d0,1d0/3d0/),1d-5) .and.&
-           c%are_lclose(c%cen(:,3),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/),1d-5) .or.&
-           c%are_lclose(c%cen(:,2),(/-2d0/3d0,-1d0/3d0,-1d0/3d0/),1d-5) .and.&
-           c%are_lclose(c%cen(:,3),(/2d0/3d0,1d0/3d0,1d0/3d0/),1d-5)) then
-           c%lcent = 7 ! R (obverse)
-        elseif (c%are_lclose(c%cen(:,2),(/1d0/3d0,2d0/3d0,1d0/3d0/),1d-5) .and.&
-           c%are_lclose(c%cen(:,3),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/),1d-5) .or.&
-           c%are_lclose(c%cen(:,2),(/-1d0/3d0,-2d0/3d0,-1d0/3d0/),1d-5) .and.&
-           c%are_lclose(c%cen(:,3),(/1d0/3d0,2d0/3d0,1d0/3d0/),1d-5)) then
-           c%lcent = 8 ! R (reverse)
-        end if
-    elseif (c%ncv == 4) then
-       ok = c%are_lclose(c%cen(:,2),(/0d0,0.5d0,0.5d0/),1d-5) .or.&
-          c%are_lclose(c%cen(:,2),(/0.5d0,0d0,0.5d0/),1d-5) .or.&
-          c%are_lclose(c%cen(:,2),(/0.5d0,0.5d0,0d0/),1d-5)
-       ok = ok .and. &
-          (c%are_lclose(c%cen(:,3),(/0d0,0.5d0,0.5d0/),1d-5) .or.&
-          c%are_lclose(c%cen(:,3),(/0.5d0,0d0,0.5d0/),1d-5) .or.&
-          c%are_lclose(c%cen(:,3),(/0.5d0,0.5d0,0d0/),1d-5))
-       ok = ok .and. &
-          (c%are_lclose(c%cen(:,4),(/0d0,0.5d0,0.5d0/),1d-5) .or.&
-          c%are_lclose(c%cen(:,4),(/0.5d0,0d0,0.5d0/),1d-5) .or.&
-          c%are_lclose(c%cen(:,4),(/0.5d0,0.5d0,0d0/),1d-5))
-       if (ok) c%lcent = 6 ! F
-    endif
-    
-  end subroutine set_lcent
-
-  !> Classify the lattice using Delaunay reduction. (deactivated, 
-  !> see 002_read_crinput6)
-  ! subroutine classify(c)
-  !   class(crystal), intent(inout) :: c
-  ! 
-  !   real*8 :: rmat(3,3), dmat(3,4), sc(4,4), scv(6), xn(4)
-  !   integer :: nzero, ndiff, nzero123, nsame(6)
-  ! 
-  !   integer :: i
-  !   logical :: done(6)
-  ! 
-  !   real*8, parameter :: eps = 1d-10
-  ! 
-  !   ! run the delaunay reduction of the primitive cell
-  !   if (c%havesym >= 1) then
-  !      call c%primitive_any(.false.,rmat)
-  !      call c%delaunay_reduction(dmat,rmat,sc)
-  !   else
-  !      c%delaunay = "??"
-  !      c%bravais_type = "??"
-  !      c%cfam = "?"
-  !      c%delsort = 0
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      return
-  !   end if
-  ! 
-  !   ! unpack the scalar product matrix
-  !   scv(1) = sc(1,2)
-  !   scv(2) = sc(1,3)
-  !   scv(3) = sc(1,4)
-  !   scv(4) = sc(2,3)
-  !   scv(5) = sc(2,4)
-  !   scv(6) = sc(3,4)
-  ! 
-  !   ! implementation of the classification in table 9.1.8.1 ITC
-  !   ! count number of zeros and number of distinct elements
-  !   nzero = count(abs(scv) < eps)
-  !   nzero123 = count(abs(scv((/1,2,4/))) < eps)
-  !   done = (abs(scv) < eps)
-  !   ndiff = 0
-  !   do i = 1, 6
-  !      if (.not.done(i)) then
-  !         ndiff = ndiff + 1
-  !         nsame(ndiff) = count(abs(scv - scv(i)) < eps)
-  !         done = done .or. (abs(scv - scv(i)) < eps)
-  !      end if
-  !   end do
-  !   
-  !   ! Classify, from the top of the table. I'm having trouble because
-  !   ! the vectors do not come in order out of the Delaunay reduction
-  !   ! procedure, and it's not clear in ITC how to choose the reduced
-  !   ! basis.
-  !   if (nzero == 0 .and. ndiff == 1) then
-  !      ! row=1, K1, cI: 12 12 12 12 12 12 
-  !      c%delaunay = "K1"
-  !      c%bravais_type = "cI"
-  !      c%cfam = "c"
-  !      c%delsort = 1
-  !      c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
-  !      c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
-  !      c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
-  !   elseif (nzero == 2 .and. ndiff == 1) then
-  !      ! row=2, K2, cF: 0 13 13 13 13 0
-  !      c%delaunay = "K2"
-  !      c%bravais_type = "cF"
-  !      c%cfam = "c"
-  !      c%delsort = 2
-  !      c%rmat_conventional(:,1) = (/ 1d0, -1d0, 1d0 /)
-  !      c%rmat_conventional(:,2) = (/ 1d0, 1d0, 1d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
-  !   elseif (nzero == 3 .and. ndiff == 1) then
-  !      if (abs(scv(4)) > eps) then
-  !         ! row=3, K3, cP: 0 0 14 14 14 0
-  !         c%delaunay = "K3"
-  !         c%bravais_type = "cP"
-  !         c%cfam = "c"
-  !         c%delsort = 3
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 1d0, 1d0 /)
-  !      else
-  !         ! row=4, K3, cP: 0 0 14 0 14 14 0 
-  !         c%delaunay = "K3"
-  !         c%bravais_type = "cP"
-  !         c%cfam = "c"
-  !         c%delsort = 4
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      end if
-  !   elseif (nzero == 2 .and. ndiff == 2) then
-  !      if (nzero123 == 2) then
-  !         ! row=5, H , hP: 12 0 12 0 12 34
-  !         c%delaunay = "H "
-  !         c%bravais_type = "hP"
-  !         c%cfam = "h"
-  !         c%delsort = 5
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      elseif (nsame(1) == 3 .or. nsame(2) == 3) then
-  !         ! row=7, R2, hR: 0 13 13 13 24 0
-  !         c%delaunay = "R2"
-  !         c%bravais_type = "hR"
-  !         c%cfam = "h"
-  !         c%delsort = 7
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 0d0, 3d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 1d0, 2d0 /)
-  !      elseif (abs(scv(3) - scv(4)) < eps) then
-  !         ! row=16, O4, oI: 0 13 14 14 13 0
-  !         c%delaunay = "O4"
-  !         c%bravais_type = "oI"
-  !         c%cfam = "o"
-  !         c%delsort = 16
-  !         c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
-  !      else
-  !         ! row=17, O4, oI: 0 13 13 23 23 0
-  !         c%delaunay = "O4"
-  !         c%bravais_type = "oI"
-  !         c%cfam = "o"
-  !         c%delsort = 17
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
-  !      end if
-  !   elseif (nzero == 0 .and. ndiff == 2) then
-  !      if (nsame(1) == 3 .or. nsame(2) == 3) then
-  !         ! row=6, R1, hR: 12 12 14 12 14 14
-  !         c%delaunay = "R1"
-  !         c%bravais_type = "hR"
-  !         c%cfam = "h"
-  !         c%delsort = 6
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ -1d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, -1d0, 1d0 /)
-  !      else
-  !         ! row=8, Q1, tI: 12 13 13 13 13 12
-  !         c%delaunay = "Q1"
-  !         c%bravais_type = "tI"
-  !         c%cfam = "t"
-  !         c%delsort = 8
-  !         c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
-  !      end if
-  !   elseif (nzero == 1 .and. (ndiff == 2 .or. ndiff == 1)) then
-  !      ! row=9, Q2, tI: 0 13 13 13 13 34
-  !      c%delaunay = "Q2"
-  !      c%bravais_type = "tI"
-  !      c%cfam = "t"
-  !      c%delsort = 9
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 1d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
-  !   elseif (nzero == 3 .and. ndiff == 2) then
-  !      if (nzero123 == 3) then
-  !         ! row=10, Q3, tP: 0 0 14 0 14 34
-  !         c%delaunay = "Q3"
-  !         c%bravais_type = "tP"
-  !         c%cfam = "t"
-  !         c%delsort = 10
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      elseif (abs(scv(6)) < eps) then
-  !         ! row=11, Q3, tP: 0 0 14 14 24 0
-  !         c%delaunay = "Q3"
-  !         c%bravais_type = "tP"
-  !         c%cfam = "t"
-  !         c%delsort = 11
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 1d0, 1d0 /)
-  !      else
-  !         ! row=12, Q3, tP: 0 0 14 23 0 23
-  !         c%delaunay = "Q3"
-  !         c%bravais_type = "tP"
-  !         c%cfam = "t"
-  !         c%delsort = 12
-  !         c%rmat_conventional(:,1) = (/ 0d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 1d0, 0d0 /)
-  !      end if
-  !   elseif (nzero == 0 .and. ndiff == 3) then
-  !      if (any(nsame(1:3) == 4)) then
-  !         ! row=13, O1, oF: 12 13 13 13 13 34
-  !         c%delaunay = "O1"
-  !         c%bravais_type = "oF"
-  !         c%cfam = "o"
-  !         c%delsort = 13
-  !         c%rmat_conventional(:,1) = (/ 1d0, -1d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
-  !      else
-  !         ! row=14, O2, oI: 12 13 14 14 13 12
-  !         c%delaunay = "O2"
-  !         c%bravais_type = "oI"
-  !         c%cfam = "o"
-  !         c%delsort = 14
-  !         c%rmat_conventional(:,1) = (/ 0d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 1d0, 1d0, 0d0 /)
-  !      end if
-  !   elseif (nzero == 1 .and. ndiff == 3) then
-  !      if (abs(scv(2) - scv(3)) < eps) then
-  !         ! row=15, O3, oI: 0 13 13 23 23 34
-  !         c%delaunay = "O3"
-  !         c%bravais_type = "oI"
-  !         c%cfam = "o"
-  !         c%delsort = 15
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 1d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 2d0 /)
-  !      elseif (abs(scv(2) - scv(5)) < eps) then
-  !         ! row=25, M4, mI: 0 13 14 14 13 34
-  !         c%delaunay = "M4"
-  !         c%bravais_type = "mI"
-  !         c%cfam = "o"
-  !         c%delsort = 25
-  !         c%rmat_conventional(:,1) = (/ 0d0, 1d0, -1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 1d0, 0d0, -1d0 /)
-  !      else
-  !         ! row=26, M4, mI: 0 13 14 13 14 34
-  !         c%delaunay = "M4"
-  !         c%bravais_type = "mI"
-  !         c%cfam = "o"
-  !         c%delsort = 26
-  !         c%rmat_conventional(:,1) = (/ -1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ -1d0, -1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ -1d0, 0d0, 1d0 /)
-  !      end if
-  !   elseif (nzero == 2 .and. ndiff == 3) then
-  !      if (abs(scv(1) - scv(5)) < eps) then
-  !         c%delaunay = "O5"
-  !         ! row=18, O5, oC: 12 0 14 0 12 34
-  !         c%bravais_type = "oC"
-  !         c%cfam = "o"
-  !         c%delsort = 18
-  !         c%rmat_conventional(:,1) = (/ 2d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      elseif (abs(scv(3) - scv(5)) < eps) then
-  !         ! row=19, O5, oC: 12 0 14 0 14 34
-  !         c%delaunay = "O5"
-  !         c%bravais_type = "oC"
-  !         c%cfam = "o"
-  !         c%delsort = 19
-  !         c%rmat_conventional(:,1) = (/ 1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ -1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      elseif (abs(scv(4) - scv(5)) < eps) then
-  !         ! row=27, M5, mI: 0 13 14 23 23 0
-  !         c%delaunay = "M5"
-  !         c%bravais_type = "mI"
-  !         c%cfam = "m"
-  !         c%delsort = 27
-  !         c%rmat_conventional(:,1) = (/ -1d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,2) = (/ -1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ -2d0, 0d0, 0d0 /)
-  !      else
-  !         ! row=28, M5, mI: 0 13 14 23 13 0
-  !         c%delaunay = "M5"
-  !         c%bravais_type = "mI"
-  !         c%cfam = "m"
-  !         c%delsort = 28
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, -1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, -1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, -1d0, -1d0 /)
-  !      end if
-  !   elseif (nzero == 3 .and. ndiff == 3) then
-  !      if (abs(scv(4)) < eps) then
-  !         ! row=20, O6, oP: 0 0 14 0 24 34
-  !         c%delaunay = "O6"
-  !         c%bravais_type = "oP"
-  !         c%cfam = "o"
-  !         c%delsort = 20
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      else
-  !         ! row=21, O6, oP: 0 0 14 23 24 0
-  !         c%delaunay = "O6"
-  !         c%bravais_type = "oP"
-  !         c%cfam = "o"
-  !         c%delsort = 21
-  !         c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ 0d0, 0d0, 1d0 /)
-  !         c%rmat_conventional(:,3) = (/ 0d0, 1d0, 1d0 /)
-  !      end if
-  !   elseif (nzero == 0 .and. ndiff == 4) then
-  !      if (abs(scv(2) - scv(4)) < eps) then
-  !         ! row=22, M1, mI: 12 13 14 13 14 34
-  !         c%delaunay = "M1"
-  !         c%bravais_type = "mI"
-  !         c%cfam = "m"
-  !         c%delsort = 22
-  !         c%rmat_conventional(:,1) = (/ -1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,2) = (/ -1d0, -1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ -1d0, 0d0, 1d0 /)
-  !      else
-  !         ! row=23, M2, mI: 12 13 14 14 13 34
-  !         c%delaunay = "M2"
-  !         c%bravais_type = "mI"
-  !         c%cfam = "m"
-  !         c%delsort = 23
-  !         c%rmat_conventional(:,1) = (/ 0d0, 1d0, -1d0 /)
-  !         c%rmat_conventional(:,2) = (/ 1d0, 1d0, 0d0 /)
-  !         c%rmat_conventional(:,3) = (/ 1d0, 0d0, -1d0 /)
-  !      end if
-  !   elseif (nzero == 1 .and. ndiff == 4) then
-  !      ! row=24, M3, mI: 0 13 14 23 23 34
-  !      c%delaunay = "M3"
-  !      c%bravais_type = "mI"
-  !      c%cfam = "m"
-  !      c%delsort = 24
-  !      c%rmat_conventional(:,1) = (/ -1d0, 0d0, 1d0 /)
-  !      c%rmat_conventional(:,2) = (/ -1d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ -2d0, 0d0, 0d0 /)
-  !   elseif (nzero == 2 .and. ndiff == 4) then
-  !      ! row=29, M6, mP: 0 13 14 0 24 34
-  !      c%delaunay = "M6"
-  !      c%bravais_type = "mP"
-  !      c%cfam = "m"
-  !      c%delsort = 29
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !   elseif (nzero == 0 .and. ndiff == 6) then
-  !      ! row=30, T1, aP: 12 13 14 23 24 34
-  !      c%delaunay = "T1"
-  !      c%bravais_type = "aP"
-  !      c%cfam = "a"
-  !      c%delsort = 30
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !   elseif (nzero == 1 .and. ndiff == 5) then
-  !      ! row=31, T2, aP: 0 13 14 23 24 34
-  !      c%delaunay = "T2"
-  !      c%bravais_type = "aP"
-  !      c%cfam = "a"
-  !      c%delsort = 31
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !   elseif (nzero == 2 .and. ndiff == 4) then
-  !      ! row=32, T3, aP: 0 13 14 23 24 0
-  !      c%delaunay = "T3"
-  !      c%bravais_type = "aP"
-  !      c%cfam = "a"
-  !      c%delsort = 32
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !   else
-  !      c%delaunay = "??"
-  !      c%bravais_type = "??"
-  !      c%cfam = "?"
-  !      c%delsort = 0
-  !      c%rmat_conventional(:,1) = (/ 1d0, 0d0, 0d0 /)
-  !      c%rmat_conventional(:,2) = (/ 0d0, 1d0, 0d0 /)
-  !      c%rmat_conventional(:,3) = (/ 0d0, 0d0, 1d0 /)
-  !      call ferror('classify','could not classify lattice delsort',warning)
-  !   end if
-  ! 
-  ! end subroutine classify
 
   !> Transform crystallographic to cartesian. This routine is thread-safe.
   pure function x2c(c,xx) 
@@ -2440,8 +1988,7 @@ contains
 
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
-  !> structure using the unit cell given by those vectors. Uses guessspg
-  !> to determine the symmetry. 
+  !> structure using the unit cell given by those vectors. 
   subroutine newcell(c,x00,t0,verbose0)
     use global, only: doguess
     use tools_math, only: det, matinv, mnorm2
@@ -3102,34 +2649,6 @@ contains
 
   end subroutine primitive_delaunay
 
-  ! !> Transform to the standard conventional cell. (???)
-  ! subroutine conventional_standard(c,verbose,rmat)
-  !   class(crystal), intent(inout) :: c
-  !   logical, intent(in) :: verbose
-  !   real*8, intent(out), optional :: rmat(3,3)
-  ! 
-  !   real*8 :: m(3,3)
-  ! 
-  !   real*8, parameter :: eps = 1d-6
-  ! 
-  !   if (present(rmat)) rmat = eye
-  ! 
-  !   ! ignore molecules
-  !   if (c%ismolecule) return
-  ! 
-  !   ! Only available if havesym >= 1
-  !   if (c%havesym < 1) return
-  ! 
-  !   ! transform to the primitive or output through rmat
-  !   if (present(rmat)) then
-  !      rmat = c%rmat_conventional
-  !   else
-  !      call c%primitive_delaunay(.true.)
-  !      call c%newcell(c%rmat_conventional,verbose0=.true.)
-  !   end if
-  ! 
-  ! end subroutine conventional_standard
-
   !> If init0 is .true., fill the information and initialize a
   !> crystal object. The basic information needed is:
   !> * Cell lengths (c%aa)
@@ -3157,7 +2676,7 @@ contains
   !> information.
   subroutine struct_fill(c,init0,env0,isym0,iast0,recip0,lnn0,ewald0)
     use tools_math, only: mnorm2, matinv
-    use global, only: crsmall, atomeps
+    use global, only: crsmall
     use tools_io, only: ferror, faterr, string, zatguess, nameguess
     use param, only: eyet, rad, ctsq3
     use types, only: realloc
@@ -3168,14 +2687,12 @@ contains
 
     logical :: init, env, ast, recip, lnn, ewald
     integer :: isym
-    real*8, allocatable :: atpos(:,:)
-    integer, allocatable :: irotm(:), icenv(:)
     integer :: i, j
     real*8, dimension(3) :: vec
     logical :: good
     real*8 :: ss(3), cc(3), root, dist(1)
     integer :: nneig(1), wat(1)
-    integer :: ncelgen, nreduce
+    integer :: nreduce
 
     real*8, parameter :: eps = 1d-6
 
@@ -3188,7 +2705,7 @@ contains
        if (c%nneq > crsmall) then
           isym = 0
        else
-          isym = 2
+          isym = 1
        end if
     end if
     if (iast0 == 1) then
@@ -3206,7 +2723,6 @@ contains
     if (lnn) env = .true.
 
     ! First initialization pass. 
-    ncelgen = 0
     nreduce = 0
     if (init) then
        ! permute the symmetry operations to make the identity the first
@@ -3291,13 +2807,6 @@ contains
        c%n2_x2c = ctsq3 / mnorm2(c%crys2car)
        c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
 
-       ! schedule building the complete atom list for later
-       if (c%neqv > 1 .or. c%ncv > 1) then
-          ncelgen = 2
-       else
-          ncelgen = 1
-       end if
-
        ! calculate the wigner-seitz cell
        call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
           nvert_ws=c%nvert_ws,nside_ws=c%nside_ws,iside_ws=c%iside_ws,vws=c%vws)
@@ -3308,72 +2817,20 @@ contains
           end do
        endif
 
-       ! reduce the non-equivalent atom list 
+       ! reduce and fill the non-equivalent atom list 
        call c%reduceatoms()
 
-       ! set centering
-       call c%set_lcent()
+       ! generate the complete atom list
+       call makeatcel(.false.)
     end if
 
-    ! Calculate the space-group symmetry operations
+    ! Calculate the space-group symmetry operations, and reduce the atom list again
     if (isym > 0) then
-       ! If the requested symmetry level is higher than the current value,
-       ! run the symmetry guesser
-       if (c%havesym < isym) then
-          call c%guessspg(isym)
-          c%havesym = isym
-          ncelgen = 2
-          call c%reduceatoms()
-          call c%set_lcent()
-       end if
-    end if
-
-    ! Generate the complete atom list
-    if (ncelgen == 2) then
-       ! Generate full info for the positions in the unit cell
-       ! Use all symetry matrices to create copies of the input atoms:
-       c%ncel = 0
-       if (.not.allocated(c%atcel)) allocate(c%atcel(mcel0))
-       allocate(atpos(3,192),irotm(192),icenv(192))
-       do i = 1, c%nneq
-          call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
-
-          do j = 1, c%at(i)%mult
-             c%ncel = c%ncel + 1
-             if (c%ncel > size(c%atcel)) then
-                call realloc(c%atcel,2 * size(c%atcel))
-             end if
-             c%atcel(c%ncel)%x = atpos(:,j)
-             c%atcel(c%ncel)%r = c%x2c(atpos(:,j))
-             c%atcel(c%ncel)%idx = i
-             c%atcel(c%ncel)%ir = irotm(j)
-             c%atcel(c%ncel)%ic = icenv(j)
-             c%atcel(c%ncel)%lvec = nint(atpos(:,j) - &
-                (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
-                c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
-          end do
-       end do
-       deallocate(atpos,irotm,icenv)
-
-       ! Reallocate cell atom list
-       call realloc(c%atcel,c%ncel)
-    elseif (ncelgen == 1) then
-       ! No symmetry: simply copy the non-equivalent atom list into
-       ! the cell list
-       if (.not.allocated(c%atcel)) then
-          allocate(c%atcel(c%nneq))
-       else
-          call realloc(c%atcel,c%nneq)
-       end if
-       c%ncel = c%nneq
-       do i = 1, c%nneq
-          c%atcel(i)%x = c%at(i)%x
-          c%atcel(i)%r = c%at(i)%r
-          c%atcel(i)%idx = i
-          c%atcel(i)%ir = 1
-          c%atcel(i)%ic = 1
-          c%atcel(i)%lvec = 0
-       end do
+       call c%spglib_wrap()
+       c%havesym = isym
+       ! update both atom lists
+       call c%reduceatoms()
+       call makeatcel(.true.)
     end if
 
     ! the initialization is done 
@@ -3415,16 +2872,76 @@ contains
        c%isewald = .true.
     end if
 
-    ! attic !
+  contains
+    subroutine makeatcel(relabel)
+      use global, only: atomeps
+      
+      logical, intent(in) :: relabel
 
-    ! ! Direct space crystal point group (deactivated)
-    ! vec = 0d0
-    ! call lattpg(transpose(c%crys2car),1,vec)
-    ! c%pointgroup = trim(point_group)
+      real*8, allocatable :: atpos(:,:)
+      integer, allocatable :: irotm(:), icenv(:)
+      real*8 :: x(3)
+      integer :: i, j, k, iat
 
-    ! classify the lattice (deactivated)
-    ! if (c%havesym >= 1) call c%classify()
-
+      if (c%havesym > 0) then
+         allocate(atpos(3,192),irotm(192),icenv(192))
+         if (.not.relabel) c%ncel = 0
+         atpos = 0d0
+         irotm = 0
+         icenv = 0
+         do i = 1, c%nneq
+            call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
+            do j = 1, c%at(i)%mult
+               if (.not.relabel) then
+                  c%ncel = c%ncel + 1
+                  if (c%ncel > size(c%atcel)) then
+                     call realloc(c%atcel,2 * size(c%atcel))
+                  end if
+                  iat = c%ncel
+               else
+                  iat = 0
+                  do k = 1, c%ncel
+                     x = c%atcel(k)%x-atpos(:,j)
+                     x = x - nint(x)
+                     if (all(abs(x) < 1d-3)) then
+                        iat = k
+                        exit
+                     end if
+                  end do 
+                  if (iat == 0) &
+                     call ferror("makeatcel","relabeling but atom not found",faterr)
+               end if
+               c%atcel(iat)%x = atpos(:,j)
+               c%atcel(iat)%r = c%x2c(atpos(:,j))
+               c%atcel(iat)%idx = i
+               c%atcel(iat)%ir = irotm(j)
+               c%atcel(iat)%ic = icenv(j)
+               c%atcel(iat)%lvec = nint(atpos(:,j) - &
+                  (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
+                  c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
+            end do
+         end do
+         deallocate(atpos,irotm,icenv)
+         call realloc(c%atcel,c%ncel)
+      else
+         ! No symmetry: simply copy the non-equivalent atom list into
+         ! the cell list
+         if (.not.allocated(c%atcel)) then
+            allocate(c%atcel(c%nneq))
+         else
+            call realloc(c%atcel,c%nneq)
+         end if
+         c%ncel = c%nneq
+         do i = 1, c%nneq
+            c%atcel(i)%x = c%at(i)%x
+            c%atcel(i)%r = c%at(i)%r
+            c%atcel(i)%idx = i
+            c%atcel(i)%ir = 1
+            c%atcel(i)%ic = 1
+            c%atcel(i)%lvec = 0
+         end do
+      end if
+    end subroutine makeatcel
   end subroutine struct_fill
 
   !> Write information about the crystal structure to the output.
@@ -3433,7 +2950,7 @@ contains
     use global, only: iunitname, dunit
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat
+    use param, only: bohrtoa, maxzat, eye
     class(crystal), intent(in) :: c
 
     integer, parameter :: natenvmax = 2000
@@ -3549,16 +3066,6 @@ contains
        write (uout,*)
     end if
     
-    ! ! Information about the lattice (deactivated)
-    ! if (.not.c%ismolecule .and. c%havesym >= 1) then
-    !    write(uout,'("+ Crystal family: ", A)') string(c%cfam)
-    !    write(uout,'("  Bravais type: ", A)') string(c%bravais_type)
-    !    write(uout,'("  Crystal point group: ", A)') string(c%pointgroup)
-    !    write(uout,'("  Delaunay symbol: ", A)') string(c%delaunay)
-    !    write(uout,'("  Delaunay sort (ITC-9.1.8.1): ", A)') string(c%delsort)
-    !    write(uout,*)
-    ! end if
-
     ! Write symmetry operations 
     if (.not.c%ismolecule) then
        write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
@@ -3575,30 +3082,37 @@ contains
        enddo
        write (uout,*)
     
-       select case(c%lcent)
-       case(0)
-          str1 = "not set"
-       case(1)
-          str1 = "P or H"
-       case(2)
-          str1 = "A"
-       case(3)
-          str1 = "B"
-       case(4)
-          str1 = "C"
-       case(5)
-          str1 = "I"
-       case(6)
-          str1 = "F"
-       case(7)
-          str1 = "R (obverse)"
-       case(8)
-          str1 = "R (reverse)"
-       case(9)
-          str1 = "unknown (non-standard)"
-       end select
-       write (uout,'("+ Detected centering type: ",A/)') trim(str1)
-    
+       if (c%havesym > 0) then
+          write(uout,'("+ Crystal symmetry information")')
+          if (c%spg%n_atoms > 0) then
+             if (len_trim(c%spg%choice) > 0) then
+                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,", setting ",A,")")') &
+                   string(c%spg%international_symbol), string(c%spg%spacegroup_number),&
+                   string(c%spg%choice)
+             else
+                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
+                   string(c%spg%international_symbol), string(c%spg%spacegroup_number)
+             end if
+             write(uout,'("  Space group (Hall): ",A, " (number ",A,")")') &
+                string(c%spg%hall_symbol), string(c%spg%hall_number)
+             write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
+
+             if (all(abs(c%spg%transformation_matrix(:,:) - eye) < 1d-10)) then
+                write(uout,'("  This cell is NOT standard")')
+             else
+                write(uout,'("  This cell is standard")')
+             end if
+             if (all(abs(c%spg%origin_shift(:)) < 1d-10)) then
+                write(uout,'("  The cell origin is NOT at the standard position")')
+             else
+                write(uout,'("  The cell origin is at the standard position")')
+             end if
+          else
+             write(uout,'("  Unavailable because symmetry read from external file")')
+          end if
+          write (uout,*)
+       end if
+
        write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
        write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname
        do i = 1, 3
@@ -3727,406 +3241,95 @@ contains
 
   end subroutine struct_report
 
-  !xx! guessspg - crystal symmetry guessing module
-  !> Guesses the symmetry operations from the geometry of the unit
-  !> cell and the positions of the atoms in it. Transform the atom
-  !> list into the non-equivalent atom list.  In: cell parameters (aa,
-  !> bb) Inout: nneq, at(:)%z, at(:)%x, at(:)%name Out: lcent, neqv,
-  !> rotm. If level = 0, use no symmetry. If level = 1, find only
-  !> the centering vectors. Level = 2, full symmetry.
-  subroutine guessspg(c,level)
-    use tools_math, only: crys2car_from_cellpar, crys2car_from_cellpar
-    use param, only: eyet
-
+  !> Use the spg library to find information about the space group.
+  !> In: cell vectors (crys2car), ncel, atcel(:), at(:) Out: neqv,
+  !> rotm, spg.
+  subroutine spglib_wrap(c)
+    use iso_c_binding, only: c_double
+    use spglib, only: spg_get_dataset, spg_get_error_message
+    use tools_io, only: string, ferror, warning, equal
+    use param, only: maxzat0, eyet, eye
+    use types, only: realloc
     class(crystal), intent(inout) :: c
-    integer, intent(in) :: level
 
-    real*8 :: rmat(3,3)
+    real(c_double) :: lattice(3,3)
+    real(c_double), allocatable :: x(:,:)
+    integer, allocatable :: types(:)
+    integer :: ntyp, nat
+    integer :: i, j, iz(maxzat0)
+    character(len=32) :: error
+    logical :: found
+    real*8 :: rotm(3,3)
 
-    ! no symmetry
-    if (level == 0 .and. c%havesym == 0) then
-       c%neqv = 1
-       c%rotm(:,:,1) = eyet
-       c%ncv = 1
-       c%cen = 0d0
-       c%lcent = 0
-       c%havesym = 0
-       return
-    end if
+    real(c_double) :: symprec = 1d-6
 
-    ! check if we already have this level
-    if (c%havesym >= level) return
-
-    ! write down the new level
-    c%havesym = level
-
-    ! Find the centering group by transforming to a primitive cell
-    call cenbuild(c)
-
-    ! Find the non-centering operations?
-    if (level > 1) then
-       ! Find the rotation parts of the operations
-       rmat = transpose(crys2car_from_cellpar(c%aa,c%bb))
-       call lattpg(rmat,c%ncv,c%cen,c%neqv,c%rotm(1:3,1:3,:))
-
-       ! Calculate the translation vectors
-       call filltrans(c)
-    end if
-
-  end subroutine guessspg
-
-  !> Find all centering vectors in the crystal. Uses c%nneq and c%at,
-  !> and writes c%cen and c%ncv.
-  subroutine cenbuild (c)
-    use global, only: atomeps
-    use types, only: realloc
-    type(crystal), intent(inout) :: c
-
-    real*8  :: tr(3)
-    integer :: i, j, k
-    logical :: checked
-
-    ! add the trivial centering vector
-    if (allocated(c%cen)) deallocate(c%cen)
-    allocate(c%cen(3,4))
-    c%ncv = 1
-    c%cen = 0d0
-
-    if (allocated(disctr)) deallocate(disctr)
-    allocate(disctr(3,maxch))
-    disctr = 0d0
-    ! check all possible translations
-    nch = 0
-    do i = 1, c%nneq
-       do j = i+1, c%nneq
-          if (c%at(i)%z .eq. c%at(j)%z) then
-             tr = c%at(i)%x - c%at(j)%x
-             call reduce(tr)
-
-             checked = .false.
-             k = 0
-             do while (.not.checked .and. k .lt. nch)
-                k = k + 1
-                if (c%are_close(disctr(:,k),tr,atomeps)) then
-                   checked = .true.
-                end if
-             end do
-
-             ! if it is a true translation
-             if (.not. checked) then
-                nch = nch + 1
-                if (nch > size(disctr,2)) &
-                   call realloc(disctr,3,2*size(disctr,2))
-                disctr(:,nch) = tr
-                !
-                if (.not.isrepeated(c,tr)) then
-                   if (iscelltr(c,tr)) then
-                      c%ncv = c%ncv + 1
-                      if (c%ncv > size(c%cen,2)) call realloc(c%cen,3,2*c%ncv)
-                      c%cen(:,c%ncv) = tr
-                      call cenclosure(c)
-                   end if
-                end if
-             endif
-
-             ! also its inverse may be a translation
-             tr(1) = -tr(1)
-             tr(2) = -tr(2)
-             tr(3) = -tr(3)
-             call reduce(tr)
-
-             if (.not. checked) then
-                nch = nch + 1
-                if (nch > size(disctr,2)) &
-                   call realloc(disctr,3,2*size(disctr,2))
-                disctr(:,nch) = tr
-
-                if (.not.isrepeated(c,tr)) then
-                   if (iscelltr(c,tr)) then
-                      c%ncv = c%ncv + 1
-                      if (c%ncv > size(c%cen,2)) call realloc(c%cen,3,2*c%ncv)
-                      c%cen(:,c%ncv) = tr
-                      call cenclosure(c)
-                   end if
-                endif
-             end if
-          end if
-       end do
-    end do
-    deallocate(disctr)
-    call realloc(c%cen,3,c%ncv)
-
-  end subroutine cenbuild
-
-  !> Determine the full cetering group using the
-  !> (possibly repeated) centering vectors.
-  subroutine cenclosure(c)
-    use types, only: realloc
-    type(crystal), intent(inout) :: c
-
-    integer :: fnc
-    integer :: i, j, k
-    logical :: doagain
-
-    if (c%ncv == 0) return
-
-    ! purge the equivalent vectors
-    call cenreduce(c,c%ncv,c%cen)
-
-    ! generate all possible combinations until consistency
-    fnc = -1
-    doagain = .true.
-    do while(doagain)
-       fnc = c%ncv
-       ! abelian group -> only over pairs (perhaps same-pairs)
-       do i = 1, c%ncv
-          do j = i, c%ncv
-             fnc = fnc + 1
-             if (fnc > size(c%cen,2)) call realloc(c%cen,3,2*fnc)
-             c%cen(:,fnc) = c%cen(:,i) + c%cen(:,j)
-             call reduce(c%cen(:,fnc))
-
-             do k = 1, nch
-                if (abs(disctr(1,k) - c%cen(1,fnc)) .lt. 1d-5 .and. &
-                   abs(disctr(2,k) - c%cen(2,fnc)) .lt. 1d-5 .and. &
-                   abs(disctr(3,k) - c%cen(3,fnc)) .lt. 1d-5) then
-                   fnc = fnc - 1
-                   ! cycle the j-loop
-                   goto 1
-                end if
-             end do
-
-             nch = nch + 1
-             if (nch > size(disctr,2)) &
-                call realloc(disctr,3,2*size(disctr,2))
-             disctr(:,nch) = c%cen(:,fnc)
-
-1            continue
-          end do
-       end do
-       call cenreduce(c,fnc,c%cen)
-       if (fnc .gt. c%ncv) then
-          c%ncv = fnc
-          doagain = .true.
+    ! get the dataset from spglib
+    lattice = transpose(c%crys2car)
+    iz = 0
+    ntyp = 0
+    nat = c%ncel
+    allocate(x(3,c%ncel),types(c%ncel))
+    do i = 1, c%ncel
+       x(:,i) = c%atcel(i)%x
+       if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
+          ntyp = ntyp + 1
+          iz(c%at(c%atcel(i)%idx)%z) = ntyp
+          types(i) = ntyp
        else
-          doagain = .false.
+          types(i) = iz(c%at(c%atcel(i)%idx)%z)
        end if
     end do
+    c%spg = spg_get_dataset(lattice,x,types,nat,symprec)
+    deallocate(x,types)
 
-  end subroutine cenclosure
+    ! check error messages
+    error = trim(spg_get_error_message(c%spg%spglib_error))
+    if (.not.equal(error,"no error")) &
+       call ferror("spglib_wrap","error from spglib: "//string(error),warning)
 
-  !> Purges the repeated vectors in a list of centering
-  !> vectors
-  subroutine cenreduce(c,nc,cv)
-    use global, only: atomeps
-    type(crystal), intent(inout) :: c
-    integer, intent(inout) :: nc !< Number of vectors in the list
-    real*8, intent(inout) :: cv(3,nc) !< Array of vectors
+    ! unpack spglib's output into pure translations and symops
+    c%neqv = 1
+    c%rotm(:,:,1) = eyet
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,1))
+    c%cen = 0d0
+    do i = 1, c%spg%n_operations
+       rotm = transpose(c%spg%rotations(:,:,i))
 
-    integer :: i, j, nnc
-    logical :: found
-    real*8  :: v1(3), v2(3)
+       ! is this a pure translation?
+       if (all(abs(rotm - eye) < symprec)) then
+          found = .false.
+          do j = 1, c%ncv
+             if (all(abs(c%spg%translations(:,i) - c%cen(:,j)) < symprec)) then
+                found = .true.
+                exit
+             end if
+          end do
+          if (.not.found) then
+             c%ncv = c%ncv + 1
+             if (c%ncv > size(c%cen,2)) &
+                call realloc(c%cen,3,2*c%ncv)
+             c%cen(:,c%ncv) = c%spg%translations(:,i)
+          end if
+          cycle
+       end if
 
-    nnc = 0
-    do i = 1, nc
+       ! Do I have this rotation already?
        found = .false.
-       j = 0
-       do while(.not.found .and. j.lt.nnc)
-          j = j + 1
-          v1 = cv(:,i)
-          v2 = cv(:,j)
-          if (c%are_lclose(v1,v2,atomeps)) then
+       do j = 1, c%neqv
+          if (all(abs(rotm - c%rotm(1:3,1:3,j)) < symprec)) then
              found = .true.
           end if
        end do
        if (.not.found) then
-          nnc = nnc + 1
-          cv(:,nnc) = cv(:,i)
-          call reduce(cv(:,nnc))
+          c%neqv = c%neqv + 1
+          c%rotm(1:3,1:3,c%neqv) = rotm
+          c%rotm(1:3,4,c%neqv) = c%spg%translations(:,i)
        end if
     end do
-    nc = nnc
+    call realloc(c%cen,3,c%ncv)
 
-  end subroutine cenreduce
-
-  !> Given a vector in crystallographic coordinates, reduce
-  !> it to the main cell (xi \in (-pusheps,1-pusheps]).
-  subroutine reduce(tr)
-
-    real*8, intent(inout) :: tr(3) !< Inpout/output vector to reduce
-
-    integer :: i
-
-    do i = 1, 3
-       if (tr(i) .gt. -pusheps) then
-          tr(i) = tr(i) - int(tr(i)+pusheps)
-       else
-          tr(i) = tr(i) - int(tr(i)+pusheps) + 1d0
-       end if
-    end do
-
-  end subroutine reduce
-
-  !> Calculates if a given translation vector (tr)
-  !> is a symmetry operation by itself in the current cell setup.
-  !>
-  !> This routine is part of the spg operations guessing algorithm by
-  !> teVelde, described in his PhD thesis.
-  function iscelltr(c,tr)
-    use global, only: atomeps
-    logical :: iscelltr
-    type(crystal), intent(inout) :: c
-    real*8, intent(in) :: tr(3) !< Cell translation vector to check
-
-    integer :: i, j
-    real*8  :: v1(3), v2(3)
-
-    iscelltr = .true.
-    do i = 1, c%nneq
-       iscelltr = .false.
-       j = 0
-       do while (.not.iscelltr .and. j < c%nneq)
-          j = j + 1
-          if (i /= j) then
-             if (c%at(i)%z == c%at(j)%z) then
-                v1 = c%at(i)%x + tr
-                v2 = c%at(j)%x
-                if (c%are_lclose(v1,v2,atomeps)) then
-                   iscelltr = .true.
-                end if
-             end if
-          end if
-       end do
-       if (.not.iscelltr) return
-    end do
-
-  end function iscelltr
-
-  !> For a given trasnlation vector, determines if it
-  !> is contained in the ncv / cen
-  function isrepeated(c,tr)
-    use global, only: atomeps
-    type(crystal), intent(inout) :: c
-    real*8, intent(in) :: tr(3) !< Vector to check
-    logical :: isrepeated
-
-    integer :: i
-
-    isrepeated = .false.
-    do i = 1, c%ncv
-       if (c%are_lclose(c%cen(:,i),tr,atomeps)) then
-          isrepeated = .true.
-          return
-       end if
-    end do
-
-  end function isrepeated
-
-  !> Given {abc}red, {xyz}neq, ncv, cen, neqv and the
-  !> rotational parts of the space group operators (rotm(1:3,1:3,i)),
-  !> fill their translational part (rotm(:,4,i)).
-  !>
-  !> This routine is part of the spg operations guessing algorithm by
-  !> teVelde, described in his PhD thesis.
-  subroutine filltrans(c)
-    use global, only: atomeps
-    type(crystal), intent(inout) :: c
-
-    integer :: op, i, j, k, n
-    real*8  :: xnew(3)
-    logical :: saveop(48), doi, doj, dok
-
-    ! skip identity
-    saveop(1) = .true.
-    do op = 2, c%neqv
-       saveop(op) = .false.
-       doi = .true.
-       i = 0
-       do while (doi .and. i .lt. c%nneq)
-          i = i + 1
-          ! the transformed i atom
-          xnew = matmul(c%rotm(1:3,1:3,op),c%at(i)%x)
-          doj = .true.
-          j = 0
-          do while (doj .and. j .lt. c%nneq)
-             j = j + 1
-             if (c%at(i)%z .eq. c%at(j)%z) then
-                !.propose a translation vector
-                c%rotm(:,4,op) = c%at(j)%x - xnew - floor(c%at(j)%x - xnew)
-                !.if it is truly an operation exit the i- and j- loops
-                if (goodop(c,op)) then
-                   saveop(op) = .true.
-                   doj = .false.
-                end if
-             end if
-          end do
-          if (saveop(op)) doi = .false.
-       end do
-    end do
-
-    ! rewrite the list of operations
-    n = 0
-    do op = 1, c%neqv
-       if (saveop(op)) then
-          n = n + 1
-          do k = 1, 4
-             do j = 1, 3
-                c%rotm(j,k,n) = c%rotm(j,k,op)
-             end do
-          end do
-          call reduce(c%rotm(:,4,n))
-          dok = .true.
-          k = 1
-          do while (dok .and. k<c%ncv)
-             k = k + 1
-             if (c%are_lclose(c%rotm(:,4,n),c%cen(:,k),atomeps)) then
-                c%rotm(1,4,n) = 0d0
-                c%rotm(2,4,n) = 0d0
-                c%rotm(3,4,n) = 0d0
-                dok = .false.
-             end if
-          end do
-       end if
-    end do
-    c%neqv = n
-
-  end subroutine filltrans
-
-  !> Check if a symmetry operation (rotm) is consistent with
-  !> the atomic positions.
-  !>
-  !> This routine is part of the spg operations guessing algorithm by
-  !> teVelde, described in his PhD thesis.
-  function goodop(c,op)
-    use global, only: atomeps
-    logical :: goodop
-    type(crystal), intent(inout) :: c
-    integer, intent(in) :: op !< Operation identifier
-
-    integer :: i, j
-    real*8  :: xnew(3), v1(3), v2(3)
-    logical :: found
-
-    goodop = .true.
-    do i = 1, c%nneq
-       xnew = matmul(c%rotm(1:3,1:3,op),c%at(i)%x) + c%rotm(:,4,op)
-       found = .false.
-       do j = 1, c%nneq
-          if (c%at(i)%z .eq. c%at(j)%z) then
-             v1 = xnew
-             v2 = c%at(j)%x
-
-             found = (c%are_lclose(v1,v2,atomeps))
-             if (found) exit
-          end if
-       end do
-       if (.not.found) then
-          goodop = .false.
-          return
-       end if
-    end do
-
-  end function goodop
+  end subroutine spglib_wrap
 
   !> Reduce the non-equivalent list of atomic positions using the
   !> symmetry operations and eliminate redundant atoms. This routine

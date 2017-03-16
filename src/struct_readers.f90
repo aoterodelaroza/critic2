@@ -800,9 +800,6 @@ contains
     end if
     call realloc(c%cen,3,c%ncv)
 
-    ! set the centering type
-    call c%set_lcent()
-
     ! restore the old values of x, y, and z
     if (ix) call setvariable("x",xo)
     if (iy) call setvariable("y",yo)
@@ -823,7 +820,7 @@ contains
        ! call spgs and hope for the best
        call spgs_wrap(c,spg,.false.)
     endif
-    c%havesym = 2
+    c%havesym = 1
 
     ! clean up
     call purge_()
@@ -1132,16 +1129,13 @@ contains
        end do
     end if
 
-    ! set the centering type
-    call c%set_lcent()
-
     ! restore the old values of x, y, and z
     if (iix) call setvariable("x",xo)
     if (iiy) call setvariable("y",yo)
     if (iiz) call setvariable("z",zo)
 
     ! use the symmetry in this file
-    c%havesym = 2
+    c%havesym = 1
 
     if (allocated(ztyp)) deallocate(ztyp)
 
@@ -1222,7 +1216,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! initialize atoms
     c%at(1:c%nneq)%zpsp = -1
@@ -1298,7 +1291,6 @@ contains
     ELSE
        STOP 'LATTIC NOT DEFINED'
     END IF
-    call c%set_lcent()
 
     READ(lut,100) c%aa(1:3), c%bb(1:3)
 100 FORMAT(6F10.5)
@@ -1368,7 +1360,7 @@ contains
     end do
 
     ! symmetry and Cartesian transformation
-    if (c%neqv > 0) c%havesym = 2
+    if (c%neqv > 0) c%havesym = 1
     call c%set_cryscar()
 
     ! if this is a molecule, set up the origin and the molecular cell
@@ -1601,7 +1593,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! charges and pseudopotential charges
     if (hdr%ntypat /= hdr%npsp) call ferror('struct_read_abinit','Can not handle ntypat/=npsp (?)',faterr,file)
@@ -1939,7 +1930,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! close the shop
     call fclose(lu)
@@ -2213,7 +2203,6 @@ contains
     c0%ncv = 1
     if (.not.allocated(c0%cen)) allocate(c0%cen(3,4))
     c0%cen = 0d0
-    c0%lcent = 0
 
     ! close
     call fclose(lu)
@@ -2319,7 +2308,6 @@ contains
      c%ncv = 1
      if (.not.allocated(c%cen)) allocate(c%cen(3,4))
      c%cen = 0d0
-     c%lcent = 0
  
      ! close the file
      call fclose(lu)
@@ -2383,7 +2371,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! close
     call fclose(lu)
@@ -2497,7 +2484,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
   end subroutine struct_read_dftbp
 
@@ -2583,7 +2569,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
 
     ! close
     call fclose(lu)
@@ -2976,8 +2961,7 @@ contains
     c%neqv = spgs_n
     c%rotm = real(spgs_m,8)
     c%rotm(:,4,:) = c%rotm(:,4,:) / 12d0
-    call c%set_lcent()
-    c%havesym = 2
+    c%havesym = 1
 
   end subroutine spgs_wrap
 
@@ -3041,7 +3025,6 @@ contains
     c%ncv = 1
     if (.not.allocated(c%cen)) allocate(c%cen(3,4))
     c%cen = 0d0
-    c%lcent = 0
     
   end subroutine fill_molecule
 

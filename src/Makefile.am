@@ -56,13 +56,15 @@ critic2_SOURCES = \
 	quadpack.f90 \
 	cfftnd.f90 \
 	config.F90 \
-	doqhull.c 
+	doqhull.c \
+	spglib.f90
 
 # Library subdirectories
-SUBDIRS = oldlibs ciftbx cubpack qhull
+SUBDIRS = oldlibs ciftbx cubpack qhull spglib
 
 # Static libraries
-critic2_LDADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a $(LIBADD)
+critic2_LDADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a \
+	spglib/libspglib.a $(LIBADD)
 critic2_DEPENDENCIES=$(critic2_LDADD)
 
 # Include the subdirectories with the modules
@@ -108,7 +110,7 @@ critic2.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) 
 critic2.$(OBJEXT) : flux.$(MODEXT)
 struct_writers.$(OBJEXT) struct_basic.$(OBJEXT) nci.$(OBJEXT) : fragmentmod.$(MODEXT)
 critic2.$(OBJEXT) xdm.$(OBJEXT) varbas.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) rhoplot.$(OBJEXT) quadpack.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) grid1_tools.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : global.$(MODEXT)
-critic2.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) nci.$(OBJEXT) flux.$(OBJEXT) autocp.$(OBJEXT) : graphics.$(MODEXT)
+critic2.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) nci.$(OBJEXT) integration.$(OBJEXT) flux.$(OBJEXT) autocp.$(OBJEXT) : graphics.$(MODEXT)
 critic2.$(OBJEXT) xdm.$(OBJEXT) nci.$(OBJEXT) hirshfeld.$(OBJEXT) grid_tools.$(OBJEXT) fields.$(OBJEXT) : grd_atomic.$(MODEXT)
 xdm.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) hirshfeld.$(OBJEXT) grd_atomic.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) : grid1_tools.$(MODEXT)
 xdm.$(OBJEXT) tricks.$(OBJEXT) rhoplot.$(OBJEXT) nci.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) fields.$(OBJEXT) autocp.$(OBJEXT) : grid_tools.$(MODEXT)
@@ -127,16 +129,17 @@ qtree.$(OBJEXT) : qtree_tetrawork.$(MODEXT)
 qtree.$(OBJEXT) : qtree_utils.$(MODEXT)
 integration.$(OBJEXT) : quadpack.$(MODEXT)
 critic2.$(OBJEXT) tricks.$(OBJEXT) : rhoplot.$(MODEXT)
+struct_basic.$(OBJEXT) : spglib.$(MODEXT)
 critic2.$(OBJEXT) struct_readers.$(OBJEXT) : spgs.$(MODEXT)
 critic2.$(OBJEXT) : stm.$(MODEXT)
 critic2.$(OBJEXT) nci.$(OBJEXT) autocp.$(OBJEXT) : struct.$(MODEXT)
 critic2.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) varbas.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) rhoplot.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) grd_atomic.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) ewald.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : struct_basic.$(MODEXT)
 struct.$(OBJEXT) : struct_readers.$(MODEXT)
-struct.$(OBJEXT) flux.$(OBJEXT) autocp.$(OBJEXT) : struct_writers.$(MODEXT)
+struct.$(OBJEXT) integration.$(OBJEXT) flux.$(OBJEXT) autocp.$(OBJEXT) : struct_writers.$(MODEXT)
 qtree_basic.$(OBJEXT) qtree.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : surface.$(MODEXT)
 struct_basic.$(OBJEXT) : sympg.$(MODEXT)
 yt.$(OBJEXT) struct_basic.$(OBJEXT) integration.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : tools.$(MODEXT)
-critic2.$(OBJEXT) arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) wfn_private.$(OBJEXT) varbas.$(OBJEXT) types.$(OBJEXT) tricks.$(OBJEXT) tools_math.$(OBJEXT) tools.$(OBJEXT) sympg.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) spgs.$(OBJEXT) rhoplot.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) grid_tools.$(OBJEXT) grid1_tools.$(OBJEXT) grd_atomic.$(OBJEXT) graphics.$(OBJEXT) global.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : tools_io.$(MODEXT)
+critic2.$(OBJEXT) arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) wfn_private.$(OBJEXT) varbas.$(OBJEXT) types.$(OBJEXT) tricks.$(OBJEXT) tools_math.$(OBJEXT) tools.$(OBJEXT) sympg.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) spgs.$(OBJEXT) rhoplot.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) grid_tools.$(OBJEXT) grid1_tools.$(OBJEXT) grd_atomic.$(OBJEXT) graphics.$(OBJEXT) global.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) abinit_private.$(OBJEXT) : tools_io.$(MODEXT)
 arithmetic.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) tricks.$(OBJEXT) sympg.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) rhoplot.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) grid_tools.$(OBJEXT) graphics.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : tools_math.$(MODEXT)
 critic2.$(OBJEXT) : tricks.$(MODEXT)
 arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) wfn_private.$(OBJEXT) varbas.$(OBJEXT) tricks.$(OBJEXT) tools_math.$(OBJEXT) sympg.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) rhoplot.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) grid_tools.$(OBJEXT) grid1_tools.$(OBJEXT) grd_atomic.$(OBJEXT) graphics.$(OBJEXT) fragmentmod.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : types.$(MODEXT)
