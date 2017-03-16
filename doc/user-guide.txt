@@ -5601,7 +5601,7 @@ Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)
 
   NEWCELL x1.r y1.r z1.r x2.r y2.r z2.r x3.r y3.r z3.r
           [INV|INVERSE] [ORIGIN x0.r y0.r z0.r]
-  NEWCELL PRIMITIVE [ANY|BUERGER|DELAUNAY]
+  NEWCELL [STANDARD [ORIGIN]|PRIMITIVE|NIGGLI|DELAUNAY]
 
 Transform the crystal structure description by using a new unit cell
 given by the vectors x1, x2, x3 (in crystallographic coordinates)
@@ -5637,13 +5637,20 @@ but including the INVERSE keyword transforms to the cubic. That is:
 gives a unit cell and crystal structure description that is equivalent
 to the initial one read from the library.
 
-The NEWCELL PRIMITIVE keyword transforms the current cell into a
-primitive cell. A Buerger reduced cell is found (a <= b <= c, each the
-shortest possible vector) with maximum deviation (sum of the absolute
-value of the cell angle cosines) by default. The type of primitive
-cell can also be chosen: Buerger (BUERGER), the cell resulting from
-Delaunay reduction (DELAUNAY), or a simple reduction to an arbitrary
-primitive cell (ANY).
+NEWCELL admits specific keywords. The cell is transformed to:
+
+* STANDARD: standard unit cell. If the ORIGIN option is given, move 
+  the origin to the standard position in the new setting.
+
+* PRIMITIVE: standard primitive unit cell.
+
+* NIGGLI: Niggli-reduced cell for the current lattice. Use a NEWCELL
+  PRIMITIVE first to get the primitive Niggli cell.
+
+* DELAUNAY: Delaunay-reduced cell for the current lattice. Use a
+  NEWCELL PRIMITIVE first to get the primitive Delaunay cell.
+
+See the spglib manual for more information.
 
 ::
 

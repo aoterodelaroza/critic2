@@ -50,6 +50,7 @@ module spglib
   public :: spgat_get_schoenflies
   public :: spg_get_pointgroup
   public :: spg_refine_cell
+  public :: spg_standardize_cell
   public :: spgat_refine_cell
   public :: spg_get_ir_kpoints
   public :: spg_get_ir_reciprocal_mesh
@@ -303,7 +304,6 @@ module spglib
        integer(c_int) :: spg_get_pointgroup
      end function spg_get_pointgroup
 
-
      function spg_refine_cell( lattice, position, types, num_atom, symprec) bind(c)
        import c_int, c_double
        real(c_double), intent(inout) :: lattice(3,3), position(3,*)
@@ -321,6 +321,18 @@ module spglib
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_refine_cell
      end function spgat_refine_cell
+
+     function spg_standardize_cell(lattice, position, types, num_atom, &
+        to_primitive, no_idealize, symprec) bind(c)
+       import c_int, c_double
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
+       integer(c_int), intent(in), value :: num_atom
+       integer(c_int), intent(in), value :: to_primitive
+       integer(c_int), intent(in), value :: no_idealize
+       real(c_double), intent(in), value :: symprec
+       integer(c_int) :: spg_standardize_cell
+     end function spg_standardize_cell
 
 
      function spg_get_ir_kpoints( map, kpoints, num_kpoints, lattice, position, &
@@ -497,7 +509,6 @@ contains
     type(SpglibDataset_c), pointer :: dset_c
     type(c_ptr) :: dataset_ptr_c
     integer :: n_operations, n_atoms, n_std_atoms, i
-    integer(kind(SPGLIB_SUCCESS)) :: SpglibErrcode
     real(c_double), pointer :: translations(:,:)
     integer(c_int), pointer :: rotations(:,:,:), wyckoffs(:), equivalent_atoms(:), std_types(:), std_positions(:,:)
 

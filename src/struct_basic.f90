@@ -140,9 +140,9 @@ module struct_basic
      procedure :: rdf !< Calculate the radial distribution function
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: newcell !< Change the unit cell and rebuild the crystal
-     procedure :: primitive_buerger !< Transform to the primitive cell (Buerger)
-     procedure :: primitive_any !< Transform to an arbitrary primitive cell.
-     procedure :: primitive_delaunay !< Transform to the delaunay-reduced cell
+     procedure :: cell_standard !< Transform the the standard cell (possibly primitive)
+     procedure :: cell_niggli !< Transform to the Niggli primitive cell
+     procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: delaunay_reduction !< Perform the delaunay reduction.
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: struct_report !< Write lots of information about the crystal structure to uout
@@ -2180,344 +2180,139 @@ contains
 
   end subroutine newcell
 
-  !> Transform to a primitive cell. The primitive cell is chosen so
-  !> that a is the shortest lattice vector, b is the shortest lattice
-  !> vector other than a, and c is shortest other than a and b. If
-  !> there are several lattice vector choices for b and c, the vectors
-  !> that maximize the scalar product with previously chosen vectors
-  !> is used. If rmat is given, return the new lattice vectors in
-  !> cryst. coordinates referred to the input cell in rmat, and do not
-  !> transform the crystal to the primitive.
-  subroutine primitive_buerger(c,verbose,rmat)
-    use tools_io, only: uout, string, ioj_right
-    use tools_math, only: mixed
-    use param, only: eye
-    use types, only: realloc
-    use tools, only: qcksort
-    class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
-    real*8, optional :: rmat(3,3)
-
-    integer :: i, ix, iy, iz, l(3)
-    real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:), distaux(:), xlatc(:,:)
-    real*8, allocatable :: udist(:), xnlat(:)
-    integer, allocatable :: io(:)
-    real*8 :: x(3), xc(3), mindist2, d2
-    integer :: nu
-    integer :: nlat, nshl, i1(3)
-    logical :: again, found
-    real*8 :: xp(3,3)
-    real*8 :: dd
-    real*8 :: maxsum, sum2, ang(3)
-
-    real*8, parameter :: eps = 1d-6
-
-    if (present(rmat)) rmat = eye
-
-    ! ignore molecules
-    if (c%ismolecule) return
-
-    ! Only available if havesym >= 1
-    if (c%havesym < 1) return
-
-    ! allocate the xlat
-    allocate(xlat(3,10),dist(10))
-
-    ! Build a star of lattice and centering vectors 
-    nshl = -1
-    nlat = 0
-    mindist2 = 1d40
-    again = .true.
-    do while (again)
-       nshl = nshl + 1
-       again = .false.
-       do ix = -nshl, nshl
-          do iy = -nshl, nshl
-             do iz = -nshl, nshl
-                l = (/ix, iy, iz/)
-                if (all(abs(l) /= nshl)) cycle
-                do i = 1, c%ncv
-                   x = real(l,8) + c%cen(:,i)
-                   xc = c%x2c(x)
-                   d2 = dot_product(xc,xc)
-                   if (d2 < eps) then
-                      again = .true.
-                      cycle
-                   end if
-                   if (d2 > 4d0*mindist2) cycle
-
-                   ! add this lattice to the xlat and dist2
-                   nlat = nlat + 1
-                   if (nlat > size(xlat,2)) then
-                      call realloc(xlat,3,2*nlat)
-                      call realloc(dist,2*nlat)
-                   end if
-                   xlat(:,nlat) = x
-                   dist(nlat) = sqrt(d2)
-                   again = .true.
-                   mindist2 = min(mindist2,d2)
-                end do
-             end do
-          end do
-       end do
-    end do
-
-    ! Sort the distances
-    allocate(io(nlat))
-    do i = 1, nlat
-       io(i) = i
-    end do
-    call qcksort(dist,io,1,nlat)
-    allocate(xlataux(3,nlat),distaux(nlat),xlatc(3,nlat),xnlat(nlat))
-    do i = 1, nlat
-       xlataux(:,i) = xlat(:,io(i))
-       distaux(i) = dist(io(i))
-       xlatc(:,i) = c%x2c(xlat(:,io(i)))
-       xnlat(i) = sqrt(dot_product(xlatc(:,i),xlatc(:,i)))
-    end do
-    call move_alloc(xlataux,xlat)
-    call move_alloc(distaux,dist)
-    deallocate(io)
-
-    ! Find all the unique sum of vector distances
-    allocate(udist(10))
-    nu = 0
-    do ix = 1, nlat
-       do iy = ix+1, nlat
-          do iz = iy+1, nlat
-             sum2 = dist(ix) + dist(iy) + dist(iz)
-             if (nu == 0) then
-                nu = nu + 1
-                udist(nu) = sum2
-             elseif (all(abs(udist(1:nu)-sum2) > eps)) then
-                nu = nu + 1
-                if (nu > size(udist,1)) call realloc(udist,2*nu)
-                udist(nu) = sum2
-             endif
-          end do
-       end do
-    end do
-
-    ! Sort the unique sums of distances
-    allocate(io(nu))
-    do i = 1, nu
-       io(i) = i
-    end do
-    call qcksort(udist,io,1,nu)
-    allocate(distaux(nu))
-    do i = 1, nu
-       distaux(i) = udist(io(i))
-    end do
-    call move_alloc(distaux,udist)
-    deallocate(io)
-
-    ! Run over minimal sum of distances
-    nuloop: do i = 1, nu
-       ! Run over lattice vector triplets that have that sum of distances
-       found = .false.
-       maxsum = -1d40
-       do ix = 1, nlat
-          do iy = 1, nlat
-             if (ix == iy) cycle
-             do iz = 1, nlat
-                if (ix == iz .or. iy == iz) cycle
-
-                ! skip those triplets with a different sum of distances
-                sum2 = dist(ix) + dist(iy) + dist(iz)
-                if (abs(sum2-udist(i)) > eps) cycle
-
-                ! skip those triplets where b is shorter than a or c is shorter than b
-                if (dist(iy)+eps <= dist(ix) .or. dist(iz)+eps <= dist(iy)) cycle
-
-                ! calculate angles and mixed product; reject bad triplets
-                ang(1) = dot_product(xlatc(:,ix),xlatc(:,iy)) / xnlat(ix) / xnlat(iy)
-                ang(2) = dot_product(xlatc(:,ix),xlatc(:,iz)) / xnlat(ix) / xnlat(iz)
-                ang(3) = dot_product(xlatc(:,iy),xlatc(:,iz)) / xnlat(iy) / xnlat(iz)
-                dd = mixed(xlatc(:,ix),xlatc(:,iy),xlatc(:,iz))
-                if (any(abs(ang) < eps) .or. dd < eps) cycle
-
-                ! maximum sum of the cosines criterion
-                sum2 = abs(ang(1)) + abs(ang(2)) + abs(ang(3))
-                if (sum2 > maxsum) then
-                   found = .true.
-                   i1 = (/ix, iy, iz/)
-                   maxsum = sum2
-                end if
-             end do
-          end do
-       end do
-       if (found) exit
-    end do nuloop
-
-    ! final lattice vectors
-    do i = 1, 3
-       xp(:,i) = xlat(:,i1(i))
-    end do
-
-    ! some output
-    if (verbose) then
-       ang(1) = dot_product(xlatc(:,i1(1)),xlatc(:,i1(2))) / xnlat(i1(1)) / xnlat(i1(2))
-       ang(2) = dot_product(xlatc(:,i1(1)),xlatc(:,i1(3))) / xnlat(i1(1)) / xnlat(i1(3))
-       ang(3) = dot_product(xlatc(:,i1(2)),xlatc(:,i1(3))) / xnlat(i1(2)) / xnlat(i1(3))
-       write (uout,'("* Transformation to the primitive cell (PRIMITIVE)")')
-       write (uout,'("+ Basis vectors of the primitive cell in the previous cell coordinates:")')
-       write (uout,'("  a = ",99(A,X))') (string(xp(i,1),'f',10,6,ioj_right),i=1,3)
-       write (uout,'("  b = ",99(A,X))') (string(xp(i,2),'f',10,6,ioj_right),i=1,3)
-       write (uout,'("  c = ",99(A,X))') (string(xp(i,3),'f',10,6,ioj_right),i=1,3)
-       write (uout,'("+ Scalar products: ")')
-       write (uout,'("  ab = ",A)') string(ang(1),'f',10,6,ioj_right)
-       write (uout,'("  ac = ",A)') string(ang(2),'f',10,6,ioj_right)
-       write (uout,'("  bc = ",A)') string(ang(3),'f',10,6,ioj_right)
-       write (uout,*)
-    end if
-
-    ! transform to the primitive or output through rmat
-    if (present(rmat)) then
-       rmat = xp
-    else
-       call c%newcell(xp,verbose0=verbose)
-    end if
-
-  end subroutine primitive_buerger
-
-  !> Transform to any arbitrary primitive cell. Used for subsequent
-  !> processing. If rmat is given, return the new lattice vectors in
-  !> cryst. coordinates referred to the input cell in rmat, and do not
-  !> transform the crystal to the primitive.
-  subroutine primitive_any(c,verbose,rmat)
+  !> Transform to the standard cell. If toprim, to the primitive
+  !> standard cell. If toorigin and not toprim, move the origin to the
+  !> standard origin as well.
+  subroutine cell_standard(c,toprim,toorigin,verbose)
+    use iso_c_binding, only: c_double
+    use spglib, only: spg_standardize_cell, spg_get_dataset
+    use global, only: symprec
+    use tools_math, only: det, matinv
     use tools_io, only: ferror, faterr
-    use tools_math, only: mixed
-    use param, only: eye
-    use types, only: realloc
-    use tools, only: qcksort
+    use param, only: maxzat0
     class(crystal), intent(inout) :: c
+    logical, intent(in) :: toprim, toorigin
     logical, intent(in) :: verbose
-    real*8, intent(out), optional :: rmat(3,3)
-
-    integer :: i, ix, iy, iz, l(3)
-    real*8, allocatable :: xlat(:,:), dist(:), xlataux(:,:)
-    integer, allocatable :: io(:)
-    real*8 :: x(3), xc(3), mindist2, d2
-    integer :: nlat, nshl, ipass
-    logical :: again, found
-    real*8 :: xp(3,3), dd, fac
-
-    real*8, parameter :: eps = 1d-6
-    real*8, parameter :: fac0 = 4d0
-    real*8, parameter :: facinc = 2d0
-
-
-    if (present(rmat)) rmat = eye
+    
+    integer :: ntyp, nat
+    integer :: i, iz(maxzat0), id
+    real(c_double), allocatable :: x(:,:)
+    integer, allocatable :: types(:)
+    real*8 :: rmat(3,3), rmat2(3,3), t(3)
 
     ! ignore molecules
     if (c%ismolecule) return
 
-    ! Only available if havesym >= 1
-    if (c%havesym < 1) return
-
-    ! Exit if this is already a primitive
-    if (c%ncv == 1) return
-
-    ! allocate the xlat
-    allocate(xlat(3,10),dist(10))
-
-    ipass = 0
-    fac = fac0
-
-    ! anchor for when a bigger star is needed
-10  continue
-    ipass = ipass + 1
-    if (ipass == 4) call ferror('primitive_any','could not find triplet for primitive cell',faterr)
-
-    ! Build a star of lattice and centering vectors 
-    nshl = -1
-    nlat = 0
-    mindist2 = 1d40
-    again = .true.
-    do while (again)
-       nshl = nshl + 1
-       again = .false.
-       do ix = -nshl, nshl
-          do iy = -nshl, nshl
-             do iz = -nshl, nshl
-                l = (/ix, iy, iz/)
-                if (all(abs(l) /= nshl)) cycle
-                do i = 1, c%ncv
-                   x = real(l,8) + c%cen(:,i)
-                   xc = c%x2c(x)
-                   d2 = dot_product(xc,xc)
-                   if (d2 < eps) then
-                      again = .true.
-                      cycle
-                   end if
-                   if (d2 > fac*mindist2) cycle
-
-                   ! add this lattice to the xlat and dist2
-                   nlat = nlat + 1
-                   if (nlat > size(xlat,2)) then
-                      call realloc(xlat,3,2*nlat)
-                      call realloc(dist,2*nlat)
-                   end if
-                   xlat(:,nlat) = x
-                   dist(nlat) = sqrt(d2)
-                   again = .true.
-                   mindist2 = min(mindist2,d2)
-                end do
-             end do
-          end do
+    ! use spglib transformation to the standard cell
+    rmat = transpose(c%crys2car)
+    iz = 0
+    ntyp = 0
+    nat = c%ncel
+    allocate(x(3,c%ncel),types(c%ncel))
+    do i = 1, c%ncel
+       x(:,i) = c%atcel(i)%x
+       if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
+          ntyp = ntyp + 1
+          iz(c%at(c%atcel(i)%idx)%z) = ntyp
+          types(i) = ntyp
+       else
+          types(i) = iz(c%at(c%atcel(i)%idx)%z)
+       end if
+    end do
+    if (toprim) then
+       id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
+       if (id == 0) &
+          call ferror("cell_standard","could not find standard cell",faterr)
+       rmat = transpose(rmat)
+       do i = 1, 3
+          rmat(:,i) = c%c2x(rmat(:,i))
        end do
-    end do
-
-    ! Sort the distances
-    allocate(io(nlat))
-    do i = 1, nlat
-       io(i) = i
-    end do
-    call qcksort(dist,io,1,nlat)
-    allocate(xlataux(3,nlat))
-    do i = 1, nlat
-       xlataux(:,i) = xlat(:,io(i))
-    end do
-    call move_alloc(xlataux,xlat)
-    deallocate(io)
-
-    ! Run over lattice vector triplets 
-    found = .false.
-    main: do ix = 1, nlat
-       do iy = 1, nlat
-          if (ix == iy) cycle
-          do iz = 1, nlat
-             if (ix == iz .or. iy == iz) cycle
-
-             ! calculate angles and mixed product; reject bad triplets
-             dd = mixed(xlat(:,ix),xlat(:,iy),xlat(:,iz))
-             if (dd < eps) cycle
-             if (nint(1d0/dd) == c%ncv) then
-                xp(:,1) = xlat(:,ix)
-                xp(:,2) = xlat(:,iy)
-                xp(:,3) = xlat(:,iz)
-                found = .true.
-                exit main
-             end if
-          end do
-       end do
-    end do main
-
-    ! try again with a bigger star
-    if (.not.found) then
-       fac = fac * facinc
-       goto 10
-    end if
-    deallocate(dist)
-
-    ! transform to the primitive or output through rmat
-    if (present(rmat)) then
-       rmat = xp
+       t = 0d0
     else
-       call c%newcell(xp,verbose0=verbose)
+       if (c%spg%n_atoms == 0) &
+          c%spg = spg_get_dataset(rmat,x,types,nat,symprec)
+       rmat = c%spg%transformation_matrix
+       rmat2 = matinv(transpose(rmat))
+       if (toorigin) then
+          t = matmul(rmat2,-c%spg%origin_shift)
+       else
+          t = 0d0
+       end if
     end if
 
-  end subroutine primitive_any
+    ! flip the cell?
+    if (det(rmat) < 0d0) rmat = -rmat
+
+    ! transform
+    call c%newcell(rmat,t,verbose)
+
+  end subroutine cell_standard
+
+  !> Transform to the Niggli cell.
+  subroutine cell_niggli(c,verbose)
+    use spglib, only: spg_niggli_reduce
+    use global, only: symprec
+    use tools_io, only: ferror, faterr
+    use tools_math, only: det
+    class(crystal), intent(inout) :: c
+    logical, intent(in) :: verbose
+    
+    real*8 :: rmat(3,3)
+    integer :: id, i
+
+    ! ignore molecules
+    if (c%ismolecule) return
+
+    ! use spglib delaunay reduction
+    rmat = transpose(c%crys2car)
+    id = spg_niggli_reduce(rmat,symprec)
+    if (id == 0) &
+       call ferror("cell_niggli","could not find Niggli reduction",faterr)
+    rmat = transpose(rmat)
+    do i = 1, 3
+       rmat(:,i) = c%c2x(rmat(:,i))
+    end do
+
+    ! flip the cell?
+    if (det(rmat) < 0d0) rmat = -rmat
+
+    ! transform
+    call c%newcell(rmat,verbose0=verbose)
+
+  end subroutine cell_niggli
+
+  !> Transform to the  Delaunay cell
+  subroutine cell_delaunay(c,verbose)
+    use spglib, only: spg_delaunay_reduce
+    use global, only: symprec
+    use tools_io, only: ferror, faterr
+    use tools_math, only: det
+    class(crystal), intent(inout) :: c
+    logical, intent(in) :: verbose
+
+    real*8 :: rmat(3,3)
+    integer :: id, i
+
+    ! ignore molecules
+    if (c%ismolecule) return
+
+    ! use spglib delaunay reduction
+    rmat = transpose(c%crys2car)
+    id = spg_delaunay_reduce(rmat,symprec)
+    if (id == 0) &
+       call ferror("cell_delaunay","could not find Delaunay reduction",faterr)
+    rmat = transpose(rmat)
+    do i = 1, 3
+       rmat(:,i) = c%c2x(rmat(:,i))
+    end do
+
+    ! flip the cell?
+    if (det(rmat) < 0d0) rmat = -rmat
+
+    ! transform
+    call c%newcell(rmat,verbose0=verbose)
+
+  end subroutine cell_delaunay
 
   !> Transforms the current basis to the Delaunay reduced basis.
   !> Return the four Delaunay vectors in crystallographic coordinates
@@ -2583,71 +2378,6 @@ contains
     if (present(sco)) sco = sc
 
   end subroutine delaunay_reduction
-
-  !> Transform to the primitive cell corresponding to the Delaunay
-  !> reduced basis. If rmat is given, return the new lattice vectors in
-  !> cryst. coordinates referred to the input cell in rmat, and do not
-  !> transform the crystal to the primitive.
-  subroutine primitive_delaunay(c,verbose,rmat)
-    use tools_math, only: norm, det
-    use param, only: eye
-    use tools, only: qcksort
-    class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
-    real*8, intent(out), optional :: rmat(3,3)
-
-    integer :: i, io(7)
-    real*8 :: rmat0(3,3), dmat(3,4), sc(4,4)
-    real*8 :: v0(3,7), xn(7)
-
-    real*8, parameter :: eps = 1d-6
-    
-    if (present(rmat)) rmat = eye
-
-    ! ignore molecules
-    if (c%ismolecule) return
-    
-    ! transform to any primitive
-    call c%primitive_any(.false.,rmat0)
-
-    ! run the delaunay reduction on that primitive cell
-    call c%delaunay_reduction(dmat,rmat0,sc)
-
-    ! write the possible vectors
-    v0(:,1) = dmat(:,1)
-    v0(:,2) = dmat(:,2)
-    v0(:,3) = dmat(:,3)
-    v0(:,4) = dmat(:,4)
-    v0(:,5) = dmat(:,1)+dmat(:,2)
-    v0(:,6) = dmat(:,1)+dmat(:,3)
-    v0(:,7) = dmat(:,2)+dmat(:,3)
-    do i = 1, 7
-       xn(i) = norm(c%x2c(v0(:,i)))
-    end do
-
-    ! sort them by norm
-    do i = 1, 7
-       io(i) = i
-    end do
-    call qcksort(xn,io,1,7)
-    rmat0(:,1) = v0(:,io(1))
-    rmat0(:,2) = v0(:,io(2))
-    do i = 3, 7
-       rmat0(:,3) = v0(:,io(i))
-       if (abs(det(rmat0)) > eps) exit
-    end do
-
-    ! flip the cell?
-    if (det(rmat0) < 0d0) rmat0 = -rmat0
-
-    ! transform to the primitive or output through rmat
-    if (present(rmat)) then
-       rmat = rmat0
-    else
-       call c%newcell(rmat0,verbose0=verbose)
-    end if
-
-  end subroutine primitive_delaunay
 
   !> If init0 is .true., fill the information and initialize a
   !> crystal object. The basic information needed is:
@@ -2947,7 +2677,7 @@ contains
   !> Write information about the crystal structure to the output.
   subroutine struct_report(c)
     use fragmentmod, only: fragment_cmass
-    use global, only: iunitname, dunit
+    use global, only: iunitname, dunit, symprec
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, eye
@@ -3102,11 +2832,6 @@ contains
              else
                 write(uout,'("  This cell is standard")')
              end if
-             if (all(abs(c%spg%origin_shift(:)) < 1d-10)) then
-                write(uout,'("  The cell origin is NOT at the standard position")')
-             else
-                write(uout,'("  The cell origin is at the standard position")')
-             end if
           else
              write(uout,'("  Unavailable because symmetry read from external file")')
           end if
@@ -3247,6 +2972,7 @@ contains
   subroutine spglib_wrap(c)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
+    use global, only: symprec
     use tools_io, only: string, ferror, warning, equal
     use param, only: maxzat0, eyet, eye
     use types, only: realloc
@@ -3260,8 +2986,6 @@ contains
     character(len=32) :: error
     logical :: found
     real*8 :: rotm(3,3)
-
-    real(c_double) :: symprec = 1d-6
 
     ! get the dataset from spglib
     lattice = transpose(c%crys2car)

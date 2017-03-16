@@ -1422,8 +1422,8 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    logical :: ok
-    integer :: lp
+    logical :: ok, doprim, doorigin
+    integer :: lp, dotyp
     real*8 :: x0(3,3), t0(3)
     logical :: doinv
 
@@ -1434,25 +1434,37 @@ contains
 
     ! transform to the primitive?
     lp = 1
-    word = lgetword(line,lp)
-    if (equal(word,"primitive")) then
+    doprim = .false.
+    doorigin = .false.
+    dotyp = 0
+    do while (.true.)
        word = lgetword(line,lp)
-       if (equal(word,"buerger")) then
-          call cr%primitive_buerger(.true.)
-       else if (equal(word,"any")) then
-          call cr%primitive_any(.true.)
-       else if (equal(word,"delaunay")) then
-          call cr%primitive_delaunay(.true.)
+       if (equal(word,"standard")) then
+          dotyp = 1
+          doprim = .false.
+       elseif (equal(word,"origin")) then
+          doorigin = .true.
+       elseif (equal(word,"primitive")) then
+          dotyp = 1
+          doprim = .true.
+       elseif (equal(word,"niggli")) then
+          dotyp = 2
+       elseif (equal(word,"delaunay")) then
+          dotyp = 3
        else
-          call cr%primitive_buerger(.true.)
+          lp = 1
+          exit
        end if
-       return
-    ! elseif (equal(word,"conventional")) then
-    !    call cr%conventional_standard(.true.)
-    !    return
-    else
-       lp = 1
+    end do
+
+    if (dotyp == 1) then
+       call cr%cell_standard(doprim,doorigin,.true.)
+    elseif (dotyp == 2) then
+       call cr%cell_niggli(.true.)
+    elseif (dotyp == 3) then
+       call cr%cell_delaunay(.true.)
     end if
+    if (dotyp > 0) return
 
     ! read the vectors from the input
     ok = eval_next(x0(1,1),line,lp)

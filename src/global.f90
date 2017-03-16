@@ -112,6 +112,9 @@ module global
   ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = cen, 2 = full)
   integer :: doguess
 
+  ! symmetry precision (spglib)
+  real*8 :: symprec = 1d-6
+
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
   integer, parameter :: crsmall = 5000
@@ -194,7 +197,7 @@ contains
     integer :: isenv
     logical :: lchk
 
-    character(len=:), allocatable :: msg1, msg2, msg3, msg4
+    character(len=:), allocatable :: msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
 
     ! read the -r option
