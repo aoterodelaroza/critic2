@@ -2723,7 +2723,8 @@ contains
     integer :: i, j, k
     integer :: nelec, holo, laue
     real*8 :: maxdv, xcm(3), x0(3)
-    character(len=:), allocatable :: str1, str2, schpg
+    character(len=:), allocatable :: str1, str2
+    character(len=3) :: schpg
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:)
 
@@ -3856,7 +3857,7 @@ contains
   subroutine pointgroup_info(hmpg,schpg,holo,laue)
     use tools_io, only: equal
     character*(*), intent(in) :: hmpg
-    character(len=:), allocatable :: schpg
+    character(len=3), intent(out) :: schpg
     integer, intent(out) :: holo
     integer, intent(out) :: laue
 
