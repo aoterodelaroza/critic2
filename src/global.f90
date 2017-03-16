@@ -114,7 +114,7 @@ module global
 
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
-  integer, parameter :: crsmall = 500
+  integer, parameter :: crsmall = 5000
 
   ! reference scalar field
   integer :: refden

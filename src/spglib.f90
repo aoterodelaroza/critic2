@@ -23,12 +23,17 @@ module spglib
   public :: spg_get_micro_version
 
   ! spglib_error = spg_get_error_code()
+  !   If spglib failed, finds the error code 
   public :: spg_get_error_code
 
   ! character(len=32) spg_get_error_message(spglib_error)
+  !   Convert the error code into an error message
   public :: spg_get_error_message 
 
+  ! spglibdataset function spg_get_dataset(lattice, position, types, num_atom, symprec)
+  !   Calculate the dataset given the crystal structure
   public :: spg_get_dataset
+
   public :: spg_get_symmetry
   public :: spgat_get_symmetry
   public :: spg_get_symmetry_with_collinear_spin
@@ -444,8 +449,6 @@ contains
     integer, intent(in), value :: num_atom
     real(c_double), intent(in), value :: symprec
     type(SpglibDataset) :: dset
-
-
 
     type, bind(c) :: SpglibDataset_c
        integer(c_int) :: spacegroup_number
