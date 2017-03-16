@@ -2180,9 +2180,10 @@ contains
 
   end subroutine newcell
 
-  !> Transform to the standard cell. If toprim, to the primitive
-  !> standard cell. If toorigin and not toprim, move the origin to the
-  !> standard origin as well.
+  !> Transform to the standard cell. If toprim, convert to the
+  !> primitive standard cell. If toorigin and not toprim, move the
+  !> origin to the standard origin as well. If verbose, write
+  !> information about the new crystal.
   subroutine cell_standard(c,toprim,toorigin,verbose)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
@@ -2248,7 +2249,8 @@ contains
 
   end subroutine cell_standard
 
-  !> Transform to the Niggli cell.
+  !> Transform to the Niggli cell. If verbose, write information
+  !> about the new crystal.
   subroutine cell_niggli(c,verbose)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
@@ -2281,7 +2283,8 @@ contains
 
   end subroutine cell_niggli
 
-  !> Transform to the  Delaunay cell
+  !> Transform to the Delaunay cell. If verbose, write information
+  !> about the new crystal.
   subroutine cell_delaunay(c,verbose)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec

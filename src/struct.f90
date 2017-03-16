@@ -1423,8 +1423,8 @@ contains
 
     character(len=:), allocatable :: word
     logical :: ok, doprim, doorigin
-    integer :: lp, dotyp
-    real*8 :: x0(3,3), t0(3)
+    integer :: lp, lp2, dotyp, i
+    real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv
 
     if (cr%ismolecule) then
@@ -1467,18 +1467,34 @@ contains
     if (dotyp > 0) return
 
     ! read the vectors from the input
-    ok = eval_next(x0(1,1),line,lp)
-    ok = ok .and. eval_next(x0(2,1),line,lp)
-    ok = ok .and. eval_next(x0(3,1),line,lp)
-    ok = ok .and. eval_next(x0(1,2),line,lp)
-    ok = ok .and. eval_next(x0(2,2),line,lp)
-    ok = ok .and. eval_next(x0(3,2),line,lp)
-    ok = ok .and. eval_next(x0(1,3),line,lp)
-    ok = ok .and. eval_next(x0(2,3),line,lp)
-    ok = ok .and. eval_next(x0(3,3),line,lp)
+    ok = eval_next(rdum(1),line,lp)
+    ok = ok .and. eval_next(rdum(2),line,lp)
+    ok = ok .and. eval_next(rdum(3),line,lp)
     if (.not.ok) then
        call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
        return
+    end if
+    
+    lp2 = lp
+    ok = eval_next(rdum(4),line,lp)
+    if (ok) then
+       x0(:,1) = rdum(1:3)
+       x0(1,2) = rdum(4)
+       ok = eval_next(x0(2,2),line,lp)
+       ok = ok .and. eval_next(x0(3,2),line,lp)
+       ok = ok .and. eval_next(x0(1,3),line,lp)
+       ok = ok .and. eval_next(x0(2,3),line,lp)
+       ok = ok .and. eval_next(x0(3,3),line,lp)
+       if (.not.ok) then
+          call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
+          return
+       end if
+    else
+       lp = lp2
+       x0 = 0d0
+       do i = 1, 3
+          x0(i,i) = rdum(i)
+       end do
     end if
 
     t0 = 0d0
