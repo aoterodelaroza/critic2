@@ -1906,6 +1906,7 @@ not. The full syntax of the WRITE keyword is::
   WRITE file.elk
   WRITE file.gau
   WRITE file.cif
+  WRITE file.d12
   WRITE file.m
   WRITE file.gin [DREIDING]
   WRITE file.lammps
@@ -2034,6 +2035,11 @@ file containing the input structure can be written by using the 'abin'
 extension. An elk input template can be written using the elk
 extension. A simple cif file (no symmetry) is generated if the cif
 extension is used.
+
+A template input file for crystal14 (incomplete - no basis set
+specification) can be written with the extension d12. The generation
+of these inputs uses the spglib symmetry routines to find the standard
+cell setting, and is still experimental.
 
 A Gaussian input file for calculations under periodic boundary
 conditions can be written using the gau extension. For a template
@@ -5601,7 +5607,7 @@ Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)
 
   NEWCELL {x1.r y1.r z1.r x2.r y2.r z2.r x3.r y3.r z3.r|n1.i n2.i n3.i}
           [INV|INVERSE] [ORIGIN x0.r y0.r z0.r]
-  NEWCELL [STANDARD [ORIGIN]|PRIMITIVE|NIGGLI|DELAUNAY]
+  NEWCELL [STANDARD|PRIMITIVE|NIGGLI|DELAUNAY]
 
 Transform the crystal structure description by using a new unit cell
 given by the vectors x1, x2, x3 (in crystallographic coordinates)
@@ -5642,8 +5648,7 @@ to the initial one read from the library.
 
 NEWCELL also admits specific keywords. The cell can be transformed to: 
 
-* STANDARD: standard unit cell. If the ORIGIN option is given, move 
-  the origin to the standard position in the new setting.
+* STANDARD: standard unit cell. 
 
 * PRIMITIVE: standard primitive unit cell.
 

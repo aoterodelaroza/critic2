@@ -2215,15 +2215,15 @@ contains
   !> primitive standard cell. If toorigin and not toprim, move the
   !> origin to the standard origin as well. If verbose, write
   !> information about the new crystal.
-  subroutine cell_standard(c,toprim,toorigin,verbose)
+  subroutine cell_standard(c,toprim,verbose)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
     use global, only: symprec
     use tools_math, only: det, matinv
-    use tools_io, only: ferror, faterr
-    use param, only: maxzat0
+    use tools_io, only: ferror, faterr, uout
+    use param, only: maxzat0, eye
     class(crystal), intent(inout) :: c
-    logical, intent(in) :: toprim, toorigin
+    logical, intent(in) :: toprim
     logical, intent(in) :: verbose
     
     integer :: ntyp, nat
@@ -2255,29 +2255,34 @@ contains
     if (toprim) then
        id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
        if (id == 0) &
+          call ferror("cell_standard","could not find primitive cell",faterr)
+       rmat = transpose(rmat)
+       do i = 1, 3
+          rmat(:,i) = c%c2x(rmat(:,i))
+       end do
+    else
+       id = spg_standardize_cell(rmat,x,types,nat,0,1,symprec)
+       if (id == 0) &
           call ferror("cell_standard","could not find standard cell",faterr)
        rmat = transpose(rmat)
        do i = 1, 3
           rmat(:,i) = c%c2x(rmat(:,i))
        end do
-       t = 0d0
-    else
-       if (c%spg%n_atoms == 0) &
-          c%spg = spg_get_dataset(rmat,x,types,nat,symprec)
-       rmat = c%spg%transformation_matrix
-       rmat2 = transpose(rmat)
-       rmat2 = matinv(rmat2)
-       if (toorigin) then
-          t = matmul(rmat2,-c%spg%origin_shift)
-       else
-          t = 0d0
-       end if
     end if
 
     ! flip the cell?
     if (det(rmat) < 0d0) rmat = -rmat
 
+    ! if a primitive is wanted but det is not less than 1, do not make the change
+    if ((toprim .and. .not.(det(rmat) < 1d0-symprec)) .or. &
+        (all(abs(rmat - eye) < symprec))) then
+       if (verbose) &
+          write (uout,'("+ Cell transformation does not lead to a different/smaller cell: skipping."/)')
+       return
+    end if
+
     ! transform
+    t = 0d0
     call c%newcell(rmat,t,verbose)
 
   end subroutine cell_standard
@@ -2868,12 +2873,6 @@ contains
              write(uout,'("  Point group (Schoenflies): ",A)') string(schpg)
              write(uout,'("  Holohedry: ",A)') string(holo_string(holo))
              write(uout,'("  Laue class: ",A)') string(laue_string(laue))
-
-             if (all(abs(c%spg%transformation_matrix(:,:) - eye) < 1d-10)) then
-                write(uout,'("  This cell is standard")')
-             else
-                write(uout,'("  This cell is NOT standard")')
-             end if
           else
              write(uout,'("  Unavailable because symmetry read from external file")')
           end if

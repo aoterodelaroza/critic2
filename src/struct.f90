@@ -431,7 +431,7 @@ contains
        struct_write_espresso, struct_write_vasp, struct_write_abinit, struct_write_elk,&
        struct_write_tessel, struct_write_critic, struct_write_cif, struct_write_escher,&
        struct_write_gulp, struct_write_lammps, struct_write_siesta_fdf, struct_write_siesta_in,&
-       struct_write_dftbp_hsd, struct_write_dftbp_gen
+       struct_write_dftbp_hsd, struct_write_dftbp_gen, struct_write_d12
     use struct_basic, only: crystal
     use global, only: eval_next, dunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
@@ -604,6 +604,12 @@ contains
        ! cif
        write (uout,'("* WRITE cif file: ",A)') string(file)
        call struct_write_cif(file,c)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+    elseif (equal(wext,'d12')) then
+       ! d12
+       write (uout,'("* WRITE crystal file: ",A)') string(file)
+       call struct_write_d12(file,c)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then
@@ -1422,7 +1428,7 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    logical :: ok, doprim, doorigin
+    logical :: ok, doprim
     integer :: lp, lp2, dotyp, i
     real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv
@@ -1435,15 +1441,12 @@ contains
     ! transform to the primitive?
     lp = 1
     doprim = .false.
-    doorigin = .false.
     dotyp = 0
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,"standard")) then
           dotyp = 1
           doprim = .false.
-       elseif (equal(word,"origin")) then
-          doorigin = .true.
        elseif (equal(word,"primitive")) then
           dotyp = 1
           doprim = .true.
@@ -1458,7 +1461,7 @@ contains
     end do
 
     if (dotyp == 1) then
-       call cr%cell_standard(doprim,doorigin,.true.)
+       call cr%cell_standard(doprim,.true.)
     elseif (dotyp == 2) then
        call cr%cell_niggli(.true.)
     elseif (dotyp == 3) then
