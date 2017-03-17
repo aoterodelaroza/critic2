@@ -908,7 +908,6 @@ contains
 
     ! we need symmetry for this
     nc = c
-    call nc%cell_standard(.false.,.false.)
     if (nc%havesym < 1) &
        call nc%struct_fill(.false.,.false.,1,0,.false.,.false.,.false.)
 

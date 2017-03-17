@@ -2044,8 +2044,9 @@ extension is used.
 
 A template input file for crystal14 (incomplete - no basis set
 specification) can be written with the extension d12. The generation
-of these inputs uses the spglib symmetry routines to find the standard
-cell setting, and is still experimental.
+of these inputs uses the spglib symmetry routines to find the crystal
+symmetry, and is still experimental. You should do NEWCELL PRIMITIVE
+or NEWCELL STANDARD before writing a d12 file.
 
 A Gaussian input file for calculations under periodic boundary
 conditions can be written using the gau extension. For a template
