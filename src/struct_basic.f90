@@ -197,32 +197,32 @@ module struct_basic
   integer, parameter :: menv0 = 100
 
   ! holohedry identifier
-  integer, parameter :: holo_unk = 0 ! unknown
-  integer, parameter :: holo_tric = 1 ! triclinic
-  integer, parameter :: holo_mono = 2 ! monoclinic
-  integer, parameter :: holo_ortho = 3 ! orthorhombic
-  integer, parameter :: holo_tetra = 4 ! tetragonal
-  integer, parameter :: holo_trig = 5 ! trigonal
-  integer, parameter :: holo_hex = 6 ! hexagonal
-  integer, parameter :: holo_cub = 7 ! cubic
-  character(len=12), parameter :: holo_string(0:7) = (/ &
+  integer, parameter, public :: holo_unk = 0 ! unknown
+  integer, parameter, public :: holo_tric = 1 ! triclinic
+  integer, parameter, public :: holo_mono = 2 ! monoclinic
+  integer, parameter, public :: holo_ortho = 3 ! orthorhombic
+  integer, parameter, public :: holo_tetra = 4 ! tetragonal
+  integer, parameter, public :: holo_trig = 5 ! trigonal
+  integer, parameter, public :: holo_hex = 6 ! hexagonal
+  integer, parameter, public :: holo_cub = 7 ! cubic
+  character(len=12), parameter, public :: holo_string(0:7) = (/ &
      "unknown     ","triclinic   ","monoclinic  ","orthorhombic",&
      "tetragonal  ","trigonal    ","hexagonal   ","cubic       "/)
 
   ! Laue class identifier
-  integer, parameter :: laue_unk = 0 ! unknown
-  integer, parameter :: laue_1 = 1 ! -1
-  integer, parameter :: laue_2m = 2 ! 2/m
-  integer, parameter :: laue_mmm = 3 ! mmm
-  integer, parameter :: laue_4m = 4 ! 4/m
-  integer, parameter :: laue_4mmm = 5 ! 4/mmm
-  integer, parameter :: laue_3 = 6 ! -3
-  integer, parameter :: laue_3m = 7 ! -3m
-  integer, parameter :: laue_6m = 8 ! 6/m
-  integer, parameter :: laue_6mmm = 9 ! 6/mmm
-  integer, parameter :: laue_m3 = 10 ! m-3
-  integer, parameter :: laue_m3m = 11 ! m-3m
-  character(len=12), parameter :: laue_string(0:11) = (/ &
+  integer, parameter, public :: laue_unk = 0 ! unknown
+  integer, parameter, public :: laue_1 = 1 ! -1
+  integer, parameter, public :: laue_2m = 2 ! 2/m
+  integer, parameter, public :: laue_mmm = 3 ! mmm
+  integer, parameter, public :: laue_4m = 4 ! 4/m
+  integer, parameter, public :: laue_4mmm = 5 ! 4/mmm
+  integer, parameter, public :: laue_3 = 6 ! -3
+  integer, parameter, public :: laue_3m = 7 ! -3m
+  integer, parameter, public :: laue_6m = 8 ! 6/m
+  integer, parameter, public :: laue_6mmm = 9 ! 6/mmm
+  integer, parameter, public :: laue_m3 = 10 ! m-3
+  integer, parameter, public :: laue_m3m = 11 ! m-3m
+  character(len=12), parameter, public :: laue_string(0:11) = (/ &
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
 
@@ -2251,6 +2251,7 @@ contains
           types(i) = iz(c%at(c%atcel(i)%idx)%z)
        end if
     end do
+
     if (toprim) then
        id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
        if (id == 0) &
@@ -2869,9 +2870,9 @@ contains
              write(uout,'("  Laue class: ",A)') string(laue_string(laue))
 
              if (all(abs(c%spg%transformation_matrix(:,:) - eye) < 1d-10)) then
-                write(uout,'("  This cell is NOT standard")')
-             else
                 write(uout,'("  This cell is standard")')
+             else
+                write(uout,'("  This cell is NOT standard")')
              end if
           else
              write(uout,'("  Unavailable because symmetry read from external file")')
