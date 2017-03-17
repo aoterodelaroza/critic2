@@ -39,5 +39,5 @@ cpreport verylong
 grdvec
  plane -3.0 -3.0 0.0 3.0 -3.0 0.0 -3.0 3.0 0.0 
  cpall
- contour f log 101 101 41
+ contour f 101 101 log 41
 endgrdvec

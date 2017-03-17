@@ -14,5 +14,5 @@ reference ep
 grdvec
  plane 0. -6.0 -6.0 0. 6.0 -6.0 0. -6.0 6.0 
  cpall
- contour f log 101 101 81
+ contour f 101 101 log 81
 endgrdvec

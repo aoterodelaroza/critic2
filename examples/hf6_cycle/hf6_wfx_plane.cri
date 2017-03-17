@@ -10,5 +10,5 @@ grdvec
  root hf6_plane
  plane -4 -4 0  4 -4 0  -4 4 0
  cpall
- contour f log 101 101 41
+ contour f 101 101 log 41
 endgrdvec

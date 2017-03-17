@@ -10,7 +10,7 @@ grdvec
   plane -1/2 -1/2 0   +1/2 -1/2 0   -1/2 +1/2 0   scale 1.6 1.6
   outcp 2.1 2.1
   cpall
-  contour f log 101 101 41
+  contour f 101 101 log 41
 endgrdvec
 
 ## density contours and gradient paths in the (222) plane
@@ -19,5 +19,5 @@ grdvec
   plane 0 +1/2 0   0 1 +1/2   1 0 +1/2  scale 3.0 1.7
   outcp 3.0 2.1
   cpall
-  contour f log 101 101 41
+  contour f 101 101 log 41
 endgrdvec

@@ -25,5 +25,5 @@ endfluxprint
 ##   plane -1/2 -1/2 0   +1/2 -1/2 0   -1/2 +1/2 0   scale 1.6 1.6
 ##   outcp 2.1 2.1
 ##   cpall
-##   contour f atan 101 101 41
+##   contour f 101 101 atan 41
 ## endgrdvec

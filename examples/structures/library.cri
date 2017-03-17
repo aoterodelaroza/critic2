@@ -32,7 +32,7 @@ write mgo_prim.scf.in
 newcell 1/2 1/2 0 1/2 0 1/2 0 1/2 1/2 inverse
 
 # And build a 2x2x2 cubic supercell
-newcell 2 0 0 0 2 0 0 0 2
+newcell 2 2 2
 
 # Write the supercell to a QE input
 write mgo_cubic2.scf.in
