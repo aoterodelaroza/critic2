@@ -2474,7 +2474,7 @@ contains
           write (uout,'("  Max: ",A)') string(maxval(f(id)%f),'e',decimal=8)
        end if
        if (isset) then
-          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline): ",A)') string(f(id)%mode)
+          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): ",A)') string(f(id)%mode)
        end if
     elseif (f(id)%type == type_wien) then
        if (isload) then
