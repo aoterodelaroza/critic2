@@ -3021,7 +3021,7 @@ contains
 
     real(c_double) :: lattice(3,3)
     real(c_double), allocatable :: x(:,:)
-    integer, allocatable :: types(:)
+    integer, allocatable :: typ(:)
     integer :: ntyp, nat
     integer :: i, j, iz(maxzat0)
     character(len=32) :: error
@@ -3033,19 +3033,19 @@ contains
     iz = 0
     ntyp = 0
     nat = c%ncel
-    allocate(x(3,c%ncel),types(c%ncel))
+    allocate(x(3,c%ncel),typ(c%ncel))
     do i = 1, c%ncel
        x(:,i) = c%atcel(i)%x
        if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
           ntyp = ntyp + 1
           iz(c%at(c%atcel(i)%idx)%z) = ntyp
-          types(i) = ntyp
+          typ(i) = ntyp
        else
-          types(i) = iz(c%at(c%atcel(i)%idx)%z)
+          typ(i) = iz(c%at(c%atcel(i)%idx)%z)
        end if
     end do
-    c%spg = spg_get_dataset(lattice,x,types,nat,symprec)
-    deallocate(x,types)
+    c%spg = spg_get_dataset(lattice,x,typ,nat,symprec)
+    deallocate(x,typ)
 
     ! check error messages
     error = trim(spg_get_error_message(c%spg%spglib_error))
