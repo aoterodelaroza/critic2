@@ -1207,11 +1207,11 @@ including the POSCAR (recommended), the CONTCAR, the CHGCAR, and
 others. Depending on the version, VASP's POSCAR and CONTCAR (and also
 the rest) may be missing the atomic symbols. In that case, they need
 to be provided by hand after the file name, either using a list of
-atomic symbols or the location of the POTCAR. Files that have the
-extension POSCAR, CONTCAR, CHG, CHGCAR, AECCAR0, AECCAR2, and ELFCAR
-are also accepted (e.g. nacl.POSCAR). Note that the pseudopotential
-charges (ZPSP, see `Atomic charge options`_) are NOT read from the
-POTCAR.
+atomic symbols or the location of the POTCAR. Files that contain the
+word POSCAR, CONTCAR, CHG, CHGCAR, AECCAR0, AECCAR2, and ELFCAR are
+also accepted (e.g. nacl.POSCAR or POSCAR_nacl). Note that the
+pseudopotential charges (ZPSP, see `Atomic charge options`_) are NOT
+read from the POTCAR.
 
 Elk (OUT)
 +++++++++

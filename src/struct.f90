@@ -40,17 +40,23 @@ contains
   !xx! top-level routines
   !> Parse the input of the crystal keyword
   subroutine struct_crystal_input(c,line,mol,allownofile,verbose) 
-    use struct_basic, only: crystal
+    use struct_basic, only: isformat_unknown, isformat_cif, isformat_res,&
+       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
+       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
+       isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp,&
+       crystal
     use struct_readers, only: struct_read_cif, struct_read_res, struct_read_cube,&
        struct_read_wien, struct_read_wien, struct_read_potcar, struct_read_vasp,&
        struct_read_abinit, struct_read_elk, struct_read_qeout, struct_read_qein,&
        struct_read_crystalout,&
        struct_read_library, struct_read_mol, struct_read_siesta, struct_read_dftbp,&
-       struct_read_xsf, parse_crystal_env, parse_molecule_env, is_espresso
+       struct_read_xsf, parse_crystal_env, parse_molecule_env, is_espresso, &
+       struct_detect_format
     use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
        iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
-       string, uin, isinteger
+       string, uin, isinteger, lower
     use param, only: dirsep, maxzat0
 
     character*(*), intent(in) :: line
@@ -60,11 +66,11 @@ contains
     logical, intent(in) :: verbose
 
     integer :: lp, lp2, istruct
-    character(len=:), allocatable :: word, word2, wext1, wext2, subline, aux
-    integer :: ntyp, nn
+    character(len=:), allocatable :: word, word2, subline
+    integer :: ntyp, nn, isformat
     character*5 :: ztyp(maxzat0)
     real*8 :: rborder, raux
-    logical :: docube, ok
+    logical :: docube, ok, ismol
 
     ! Initialize the structure
     call c%end()
@@ -89,141 +95,105 @@ contains
     ! read and parse
     lp=1
     word = getword(line,lp)
-    aux = word(index(word,dirsep,.true.)+1:)
-    wext1 = aux(index(aux,'.',.true.)+1:)
-    aux = word(index(word,dirsep,.true.)+1:)
-    wext2 = aux(index(aux,'_',.true.)+1:)
     c%file = ""
 
-    if (equal(wext1,'cif')) then
-       aux = getword(line,lp)
-       if (equal(aux,"")) then
-          aux = " "
-       end if
-       call struct_read_cif(c,word,aux,.false.,mol)
+    ! detect the format for this file
+    call struct_detect_format(word,isformat,ismol)
+
+    if (isformat == isformat_cif) then
+       word2 = getword(line,lp)
+       call struct_read_cif(c,word,word2,.false.,mol)
        call c%set_cryscar()
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'res')) then
+    elseif (isformat == isformat_res) then
        call struct_read_res(c,word,.false.,mol)
        call c%set_cryscar()
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'cube')) then
+    elseif (isformat == isformat_cube) then
        call struct_read_cube(c,word,.false.,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'struct')) then
+    elseif (isformat == isformat_struct) then
        call struct_read_wien(c,word,.false.,mol)
        call c%set_cryscar()
        if (c%neqv == 0) then ! some structs may come without symmetry
           call struct_read_wien(c,word,.true.,mol)
           call c%set_cryscar()
        endif
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'POSCAR').or.equal(wext1,'CONTCAR').or.equal(wext1,'CHGCAR').or.&
-             equal(wext1,'CHG').or.equal(wext1,'ELFCAR').or.equal(wext1,'AECCAR0').or.&
-             equal(wext1,'AECCAR2')) then
-       wext1 = getword(line,lp)
-       wext2 = wext1(index(wext1,dirsep,.true.)+1:)
-       wext2 = wext2(index(wext2,'.',.true.)+1:)
-       if (equal(wext2,'POTCAR')) then
-          call struct_read_potcar(wext1,ntyp,ztyp)
-          aux = getword(line,lp)
-          if (len_trim(aux) > 0) then
-             call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-             return
-          end if
+    elseif (isformat == isformat_vasp) then
+       word2 = getword(line,lp)
+       if (index(word2,'POTCAR') > 0) then
+          call struct_read_potcar(word2,ntyp,ztyp)
+          ok = check_no_extra_word()
+          if (.not.ok) return
        else
           ntyp = 0
           ztyp = ""
           do while(.true.)
-             nn = zatguess(wext1)
+             nn = zatguess(word2)
              if (nn >= 0) then
                 ntyp = ntyp + 1
-                ztyp(ntyp) = string(wext1)
+                ztyp(ntyp) = string(word2)
              else
-                if (len_trim(wext1) > 0) then
+                if (len_trim(word2) > 0) then
                    call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line,syntax=.true.)
                    return
                 end if
                 exit
              end if
-             wext1 = getword(line,lp)
+             word2 = getword(line,lp)
           end do
        end if
        call struct_read_vasp(c,word,ntyp,ztyp,mol)
        c%file = word
 
-    else if (equal(wext1,'DEN').or.equal(wext2,'DEN').or.equal(wext1,'ELF').or.equal(wext2,'ELF').or.&
-       equal(wext1,'POT').or.equal(wext2,'POT').or.equal(wext1,'VHA').or.equal(wext2,'VHA').or.&
-       equal(wext1,'VHXC').or.equal(wext2,'VHXC').or.equal(wext1,'VXC').or.equal(wext2,'VXC').or.&
-       equal(wext1,'GDEN1').or.equal(wext2,'GDEN1').or.equal(wext1,'GDEN2').or.equal(wext2,'GDEN2').or.&
-       equal(wext1,'GDEN3').or.equal(wext2,'GDEN3').or.equal(wext1,'LDEN').or.equal(wext2,'LDEN').or.&
-       equal(wext1,'KDEN').or.equal(wext2,'KDEN').or.equal(wext1,'PAWDEN').or.equal(wext2,'PAWDEN')) then
+    elseif (isformat == isformat_abinit) then
        call struct_read_abinit(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(wext1,'OUT')) then
-       call struct_read_elk(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(wext1,'out')) then
-       if (is_espresso(word)) then
-          ok = isinteger(istruct,line,lp)
-          if (.not.ok) istruct = 0
-          call struct_read_qeout(c,word,mol,istruct)
-       else
-          call struct_read_crystalout(c,word,mol)
-       end if
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-    else if (equal(wext1,'in')) then
-       call struct_read_qein(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
-       c%file = word
-
-    else if (equal(word,'library')) then
-       subline = line(lp:)
-       call struct_read_library(c,subline,mol,ok)
+       ok = check_no_extra_word()
        if (.not.ok) return
-       if (mol) then
-          c%file = "molecular library (" // trim(line(lp:)) // ")"
-       else
-          c%file = "crystal library (" // trim(line(lp:)) // ")"
-       end if
+       c%file = word
 
-    else if (equal(wext1,'xyz').or.equal(wext1,'wfn').or.equal(wext1,'wfx').or.&
-       equal(wext1,'fchk').or.equal(wext1,'molden')) then
+    elseif (isformat == isformat_elk) then
+       call struct_read_elk(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_qeout) then
+       ok = isinteger(istruct,line,lp)
+       if (.not.ok) istruct = 0
+       call struct_read_qeout(c,word,mol,istruct)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_crystal) then
+       call struct_read_crystalout(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_qein) then
+       call struct_read_qein(c,word,mol)
+       ok = check_no_extra_word()
+       if (.not.ok) return
+       c%file = word
+
+    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
+       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
+       isformat == isformat_molden) then
        docube = .false.
        rborder = rborder_def 
        do while(.true.)
@@ -241,34 +211,25 @@ contains
           end if
        end do
 
-       call struct_read_mol(c,word,wext1,rborder,docube)
+       call struct_read_mol(c,word,isformat,rborder,docube)
        call c%set_cryscar()
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'STRUCT_OUT') .or. equal(wext1,'STRUCT_IN')) then
+    elseif (isformat == isformat_siesta) then
        call struct_read_siesta(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'xsf')) then
+    elseif (isformat == isformat_xsf) then
        call struct_read_xsf(c,word,mol)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
 
-    else if (equal(wext1,'gen')) then
+    elseif (isformat == isformat_gen) then
        docube = .false.
        rborder = rborder_def
        do while(.true.)
@@ -287,12 +248,19 @@ contains
        end do
 
        call struct_read_dftbp(c,word,mol,rborder,docube)
-       aux = getword(line,lp)
-       if (len_trim(aux) > 0) then
-          call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
-          return
-       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
        c%file = word
+
+    else if (equal(lower(word),'library')) then
+       subline = line(lp:)
+       call struct_read_library(c,subline,mol,ok)
+       if (.not.ok) return
+       if (mol) then
+          c%file = "molecular library (" // trim(line(lp:)) // ")"
+       else
+          c%file = "crystal library (" // trim(line(lp:)) // ")"
+       end if
 
     else if (len_trim(word) < 1) then
        if (.not.mol) then
@@ -320,6 +288,19 @@ contains
     call c%struct_fill(.true.,.true.,doguess,-1,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
+  contains
+    function check_no_extra_word()
+      logical :: check_no_extra_word
+
+      character(len=:), allocatable :: aux
+
+      check_no_extra_word = .true.
+      aux = getword(line,lp)
+      if (len_trim(aux) > 0) then
+         call ferror('struct_crystal_input','Unknown extra keyword in CRYSTAL',faterr,line,syntax=.true.)
+         check_no_extra_word = .false.
+      end if
+    end function check_no_extra_word
   end subroutine struct_crystal_input
 
   ! use the P1 space group

@@ -1695,30 +1695,31 @@ contains
   subroutine struct_read_mol(c,file,fmt,rborder,docube)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry
-    use struct_basic, only: crystal
+    use struct_basic, only: crystal, isformat_xyz, isformat_wfn, isformat_wfx,&
+       isformat_fchk, isformat_molden
     use tools_io, only: equal
 
     type(crystal), intent(inout) :: c !< crystal
     character*(*), intent(in) :: file !< Input file name
-    character*(*), intent(in) :: fmt !< wfn/wfx/xyz
+    integer, intent(in) :: fmt !< wfn/wfx/xyz
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
     integer :: i
 
-    if (equal(trim(fmt),'xyz')) then
+    if (fmt == isformat_xyz) then
        ! xyz
        call wfn_read_xyz_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'wfn')) then
+    elseif (fmt == isformat_wfn) then
        ! wfn
        call wfn_read_wfn_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'wfx')) then
+    elseif (fmt == isformat_wfx) then
        ! wfx
        call wfn_read_wfx_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'fchk')) then
+    elseif (fmt == isformat_fchk) then
        ! fchk
        call wfn_read_fchk_geometry(file,c%nneq,c%at)
-    elseif (equal(trim(fmt),'molden')) then
+    elseif (fmt == isformat_molden) then
        ! molden (psi4)
        call wfn_read_molden_geometry(file,c%nneq,c%at)
     end if
@@ -2604,7 +2605,7 @@ contains
     isvasp = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CONTCAR') > 0) .or. &
        (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
        (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
-       (index(basename,'AECCAR2') > 0)
+       (index(basename,'AECCAR2') > 0) .or. (index(basename,'POSCAR') > 0)
 
     if (equal(wextdot,'cif')) then
        isformat = isformat_cif
