@@ -922,11 +922,12 @@ contains
     use struct_readers, only: struct_detect_format
     use global, only: doguess, eval_next, dunit, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker
-    use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center
+    use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
+       ioj_left, string
     use types, only: realloc
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word, tname, difstr, difout
+    character(len=:), allocatable :: word, tname, difstr, difout, diftyp
     integer :: doguess0
     integer :: lp, i, j, k, n
     integer :: ns, imol, isformat
@@ -1034,9 +1035,11 @@ contains
 
     ! rest of the header and default variables
     if (ismol) then
+       diftyp = "Molecule"
        difstr = "RMS"
        write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
     else
+       diftyp = "Crystal"
        difstr = "DIFF"
        if (dopowder) then
           write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
@@ -1085,6 +1088,7 @@ contains
        xnorm = sqrt(abs(xnorm))
 
        ! calculate the overlap between diffraction patterns
+       diff = 0d0
        do i = 1, ns
           do j = i+1, ns
              diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
@@ -1109,6 +1113,7 @@ contains
              else
                 diff(i,j) = -1d0
              end if
+             diff(j,i) = diff(i,j)
           end do
        end do
        diff = diff * dunit
@@ -1118,17 +1123,28 @@ contains
     if (ns == 2) then
        write (uout,'("+ ",A," = ",A)') string(difstr), string(diff(1,2),'e',12,6)
     else
-       do i = 1, ns
-          do j = i+1, ns
-             if (diff(i,j) < 0d0) then
-                difout = "<not comparable>"
-             else
-                difout = string(diff(i,j),'f',10,6)
-             end if
-             write (uout,'("+ ",A,"(",A,": ",A," | ",A,": ",A,") = ",A)') &
-                string(difstr), string(i), string(c(i)%file), string(j), &
-                string(c(j)%file), difout
+       ! do i = 1, ns
+       !    do j = i+1, ns
+       !       if (diff(i,j) < 0d0) then
+       !          difout = "<not comparable>"
+       !       else
+       !          difout = string(diff(i,j),'f',10,6)
+       !       end if
+       !       write (uout,'("+ ",A,"(",A,": ",A," | ",A,": ",A,") = ",A)') &
+       !          string(difstr), string(i), string(c(i)%file), string(j), &
+       !          string(c(j)%file), difout
+       !    end do
+       ! end do
+       do i = 0, (ns-1)/5
+          write (uout,'(99(A,X))') string(diftyp,15,ioj_center), &
+             (string(c(5*i+j)%file,15,ioj_center),j=1,min(5,ns-i*5))
+          write (uout,'(99(A,X))') string(difstr,15,ioj_center), &
+             (string(5*i+j,15,ioj_center),j=1,min(5,ns-i*5))
+          do j = 1, ns
+             write (uout,'(2X,99(A,X))') string(c(j)%file,15,ioj_left), &
+                (string(diff(j,5*i+k),'f',15,7,3),k=1,min(5,ns-i*5))
           end do
+          write (uout,*)
        end do
     endif
     write (uout,*)
