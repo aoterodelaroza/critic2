@@ -3339,8 +3339,6 @@ contains
        end do
     end if
 
-    ! real*8, allocatable, intent(inout), optional :: vws(:) !< vertices of the WS cell
-
     ! tetrahedra
     if (present(ntetrag).and.present(tetrag)) then
        ! local symmetry group
