@@ -309,11 +309,11 @@ contains
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
           if (nti == 0) then
-             call grd(f(id),xp,0,res)
+             call grd(f(id),xp,0,res,.not.cr%ismolecule)
           elseif (nti >= 1 .and. nti <= 4) then
-             call grd(f(id),xp,1,res)
+             call grd(f(id),xp,1,res,.not.cr%ismolecule)
           else
-             call grd(f(id),xp,2,res)
+             call grd(f(id),xp,2,res,.not.cr%ismolecule)
           end if
 
           rhopt = res%f
@@ -612,7 +612,7 @@ contains
                    + real(iz,8) * xd(:,3)
 
                 if (.not.useexpr) then
-                   call grd(f(id),xp,2,res)
+                   call grd(f(id),xp,2,res,.not.cr%ismolecule)
                    select case(nti)
                    case (0)
                       lappt = res%f
@@ -918,7 +918,7 @@ contains
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
 
           if (id >= 0) then
-             call grd(f(id),xp,nder,res)
+             call grd(f(id),xp,nder,res,.not.cr%ismolecule)
              select case(nti)
              case (0)
                 rhopt = res%f
@@ -1794,7 +1794,7 @@ contains
              ok = ok .and. eval_next (newcriticp(2,newncriticp), line, lp)
              ok = ok .and. eval_next (newcriticp(3,newncriticp), line, lp)
              q0 = cr%x2c(newcriticp(:,newncriticp))
-             call grd(f(refden),q0,2,res)
+             call grd(f(refden),q0,2,res,.not.cr%ismolecule)
              call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp),0d0)
              q0 = cr%c2x(q0)
 
@@ -1959,7 +1959,7 @@ contains
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-             call grd(f(refden),xp,nder,res)
+             call grd(f(refden),xp,nder,res,.not.cr%ismolecule)
              select case(nfi)
              case (0)
                 rhopt = res%f
@@ -2180,7 +2180,7 @@ contains
        else
           ! A (3,-1) or (3,+3) critical point:
           xstart = grpx(:,iorig)
-          call grd(f(refden),xstart,2,res)
+          call grd(f(refden),xstart,2,res,.not.cr%ismolecule)
           call rsindex(res%hf,ehess,nindex,ntype,0d0)
           if (nindex .eq. 3) then
              if (ntype .eq. -1) then
@@ -2422,7 +2422,7 @@ contains
 
        !.Get the properties
        xp = cr%x2c(newcriticp(:,i))
-       call grd(f(refden),xp,2,res)
+       call grd(f(refden),xp,2,res,.not.cr%ismolecule)
        if (res%gfmod > grpcpeps) then
           write (uout,'(2X,"CP ",A," has a large gradient: ",A," -> Rejected!")') &
              string(i), string(res%gfmod,'e',decimal=6)
