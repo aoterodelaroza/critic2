@@ -92,6 +92,10 @@ module tools_io
   integer :: nwarns = 0 !< Number of warnings
   integer :: ncomms = 0 !< Number of comments
 
+  ! clock
+  integer, private :: stime0
+  real, private :: ctime0
+
 contains
 
   !> Connect input files to units with standard defaults.
@@ -1305,5 +1309,70 @@ contains
     write (uout,'(A)') output
 
   end subroutine tictac
+
+  !> Start the clock
+  subroutine start_clock()
+    call system_clock(stime0)
+    call cpu_time(ctime0)
+  end subroutine start_clock
+  
+  !> Print the elapsed time to output
+  subroutine print_clock()
+    
+    integer :: irate, imax
+    real :: ctime
+    integer :: stime
+    character(len=:), allocatable :: sout
+
+    call system_clock(count_rate=irate,count_max=imax)
+    call cpu_time(ctime)
+    call system_clock(stime)
+
+    call sectotime(real(stime-stime0)/real(irate),s0=sout)
+    write (uout,'("Elapsed wall time: ",A)') string(sout)
+    call sectotime(ctime-ctime0,s0=sout)
+    write (uout,'("Elapsed CPU time: ",A)') string(sout)
+
+  end subroutine print_clock
+
+  !> Seconds to days/hours/minutes/seconds format. x(1): seconds,
+  !> x(2): minutes, x(3): hours, x(4): days.
+  subroutine sectotime(s,x0,s0)
+    real, intent(in) :: s
+    integer, intent(out), optional :: x0(4)
+    character(len=:), allocatable, optional :: s0
+
+    integer :: i
+    integer, parameter :: f(3) = (/60, 60, 24/)
+    integer :: x(4)
+    character(len=:), allocatable :: saux
+
+    x = 0
+    x(1) = floor(s)
+    do i = 1, 3
+       x(i+1) = x(i) / f(i)
+       x(i) = x(i) - f(i) * x(i+1)
+    end do
+
+    if (present(x0)) x0 = x
+    if (present(s0)) then
+       s0 = ""
+       if (x(4) > 0) then
+          saux = trim(s0) // " " // string(x(4)) // "d"
+          s0 = saux
+       end if
+       if (x(3) > 0) then
+          saux = trim(s0) // " " // string(x(3)) // "h"
+          s0 = saux
+       end if
+       if (x(2) > 0) then
+          saux = trim(s0) // " " // string(x(2)) // "m"
+          s0 = saux
+       end if
+       saux = trim(s0) // " " // string(x(1)) // "s"
+       s0 = saux
+    end if
+
+  end subroutine sectotime
 
 end module tools_io

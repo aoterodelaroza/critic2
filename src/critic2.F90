@@ -58,7 +58,8 @@ program critic
   use graphics, only: graphics_init
   use arithmetic, only: listvariables
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
-     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac
+     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
+     start_clock, print_clock
   use param, only: param_init
   implicit none
 
@@ -75,6 +76,7 @@ program critic
   real*8 :: rdum
 
   ! initialize parameters
+  call start_clock()
   call param_init()
 
   ! input/output, arguments (tools_io)
@@ -695,6 +697,7 @@ program critic
   if (.not.quiet) then
      write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
         string(nwarns), string(ncomms)
+     call print_clock()
      call tictac('CRITIC2')
   endif
 
