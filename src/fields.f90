@@ -235,7 +235,7 @@ contains
     use struct_basic, only: cr
     use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
        grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
-       grid_laplacian, grid_gradrho, grid_read_wanbin
+       grid_laplacian, grid_gradrho, grid_read_wanbin, grid_read_unk
     use global, only: eval_next
     use arithmetic, only: eval, fields_in_eval
     use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
@@ -258,7 +258,7 @@ contains
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
     integer :: ix, iy, iz, oid
     real*8 :: xd(3,3), mcut
-    integer :: nid, nwan, ispin
+    integer :: nid, nwan, ispin, nk1, nk2, nk3
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
     logical :: isfrag, iok
@@ -329,9 +329,9 @@ contains
        file = getword(line,lp)
        wext1 = "xml"
        wext2 = wext1
-    elseif (equal(lfile,"wannier")) then
+    elseif (equal(lfile,"unk")) then
        file = ""
-       wext1 = "wannier"
+       wext1 = "unk"
        wext2 = wext1
     elseif (equal(lfile,"wanbin")) then
        file = ""
@@ -540,6 +540,13 @@ contains
 
     else if (equal(wext1,'wanbin')) then
        call grid_read_wanbin(file,ff,cr%omega)
+       ff%type = type_grid
+       ff%file = trim(file)
+       ff%init = .true.
+
+    else if (equal(wext1,'unk')) then
+       file2 = getword(line,lp)
+       call grid_read_unk(file2,ff,cr%omega)
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.

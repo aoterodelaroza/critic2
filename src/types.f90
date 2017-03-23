@@ -190,7 +190,7 @@ module types
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
      real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
      integer :: nwan(3) !< Number of wannier vectors
-     complex*8, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
+     complex*16, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)
