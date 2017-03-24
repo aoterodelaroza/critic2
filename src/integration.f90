@@ -878,6 +878,8 @@ contains
           f1 = 0d0
           do is = 1, nspin
              do ibnd1 = 1, f(fid)%wan_nbnd
+                write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
+                   string(f(fid)%wan_nbnd), string(is), string(nspin)
                 ! first wannier function
                 call get_qe_psink(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
                    f(fid)%wan_kpt,.true.,.true.,f1)
@@ -926,6 +928,8 @@ contains
           f1 = 0d0
           do is = 1, nspin
              do ibnd1 = 1, f(fid)%wan_nbnd
+                write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
+                   string(f(fid)%wan_nbnd), string(is), string(nspin)
                 ! first wannier function
                 call get_qe_psink(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
                    f(fid)%wan_kpt,.true.,.true.,f1)
