@@ -119,7 +119,7 @@ contains
     integer :: fid, nattr, luw
     character*60 :: reason(nprops)
     real*8, allocatable :: sij(:,:,:,:,:), mpole(:,:,:)
-    complex*8, allocatable :: sijc(:,:,:,:,:)
+    complex*16, allocatable :: sijc(:,:,:,:,:)
     logical :: dodelocwfn, dodelocwan, dompole, fillgrd
     real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
     type(field) :: faux
@@ -277,7 +277,7 @@ contains
           if (f(fid)%type == type_wfn .and. cr%ismolecule) then
              dodelocwfn = .true.
              reason(k) = "DIs integrated separately (see table below)"
-          elseif (f(fid)%type == type_grid .and. allocated(f(fid)%fwan)) then
+          elseif (f(fid)%type == type_grid .and. f(fid)%iswan) then
              dodelocwan = .true.
              reason(k) = "DIs integrated separately (see table below)"
           else
@@ -701,32 +701,34 @@ contains
   subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
     use yt, only: yt_weights, ytdata, ytdata_clean
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
+    use grid_tools, only: get_qe_psink
     use struct_basic, only: cr
     use global, only: refden
     use types, only: realloc
-    use tools_io, only: uout, string
+    use tools_io, only: uout, string, fopen_read, fclose
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: imtype
     integer, intent(in) :: luw
-    complex*8, allocatable, intent(inout) :: sij(:,:,:,:,:)
+    complex*16, allocatable, intent(inout) :: sij(:,:,:,:,:)
 
     integer :: is, nspin, ndeloc, natt1
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, l
-    integer :: nwan(3), m1, m2, m3
+    integer :: i, j, l, ibnd1, ibnd2, is1 ,is2
+    integer :: nwan(3), m1, m2, m3, lu1, lu2
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
-    complex*8, allocatable :: psic(:,:,:), psic2(:,:,:)
-    complex*8 :: padd
+    complex*16, allocatable :: psic(:,:,:), psic2(:,:,:)
+    complex*16 :: padd
     real*8 :: x(3), xs(3), d2
     logical :: found
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
     type(ytdata) :: dat
+    complex*16, allocatable :: f1(:,:,:), f2(:,:,:)
 
     ! run over properties with wannier delocalization indices; allocate sij
     ndeloc = 0
@@ -736,10 +738,10 @@ contains
        if (.not.integ_prop(l)%used) cycle
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
-       if (f(fid)%type /= type_grid .or..not.allocated(f(fid)%fwan)) cycle
+       if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
        ndeloc = ndeloc + 1
-       nspin = max(nspin,size(f(fid)%fwan,5))
-       nbnd = size(f(fid)%fwan,4)
+       nspin = max(nspin,f(fid)%wan_nspin)
+       nbnd = f(fid)%wan_nbnd
        nlat = f(fid)%nwan(1)*f(fid)%nwan(2)*f(fid)%nwan(3)
        nmo = max(nmo,nlat * nbnd)
     end do
@@ -849,15 +851,15 @@ contains
        if (.not.integ_prop(l)%used) cycle
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
-       if (f(fid)%type /= type_grid .or..not.allocated(f(fid)%fwan)) cycle
+       if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
        ndeloc = ndeloc + 1
 
        ! assign values to some integers
-       nbnd = size(f(fid)%fwan,4)
+       nbnd = f(fid)%wan_nbnd
        nwan = f(fid)%nwan
        nlat = nwan(1)*nwan(2)*nwan(3)
        nmo = nlat * nbnd
-       nspin = size(f(fid)%fwan,5)
+       nspin = f(fid)%wan_nspin
 
        ! write out some info
        write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
@@ -871,78 +873,124 @@ contains
        sij(:,:,:,:,ndeloc) = 0d0
 
        if (imtype == imtype_bader) then
-          ! bader integration
+          allocate(f1(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
+          allocate(f2(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
+          f1 = 0d0
           do is = 1, nspin
-             !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,imo1,jmo1,padd) firstprivate(psic) schedule(dynamic)
-             do imo = 1, nmo
-                call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                do jmo = 1, nmo
-                   call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                   psic = conjg(f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is)) * &
-                      f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
-                   do i = 1, natt1
-                      call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                      call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                      padd = sum(psic,idg1==i)
-                      !$omp critical (summ)
-                      sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                      !$omp end critical (summ)
+             do ibnd1 = 1, f(fid)%wan_nbnd
+                ! first wannier function
+                call get_qe_psink(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
+                   f(fid)%wan_kpt,.true.,.true.,f1)
+
+                f2 = 0d0
+                psic = 0d0
+                !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,imo1,jmo1,padd) firstprivate(psic,f2) schedule(dynamic)
+                do ibnd2 = 1, f(fid)%wan_nbnd
+                   ! second wannier function
+                   if (ibnd1 == ibnd2) then
+                      f2 = f1
+                   else
+                      call get_qe_psink(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
+                         f(fid)%wan_kpt,.true.,.true.,f2)
+                   endif
+
+                   do imo = 1, nmo
+                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                      if (iba /= ibnd1) cycle
+                      do jmo = 1, nmo
+                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                         if (ibb /= ibnd2) cycle
+                         psic = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * &
+                            f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
+                         do i = 1, natt1
+                            padd = sum(psic,idg1==i)
+                            call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                            call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                            !$omp critical (summ)
+                            sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                            !$omp end critical (summ)
+                         end do
+                      end do
                    end do
                 end do
+                !$omp end parallel do
              end do
-             !$omp end parallel do
           end do
+          deallocate(f1,f2)
        else
           ! yt integration
+          allocate(f1(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
+          allocate(f2(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
           allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
-          w = 0d0
-          wmask = .false.
-          psic2 = cmplx(0.,0.)
-          psic = cmplx(0.,0.)
-          !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1)&
-          !$omp firstprivate(w,wmask,psic2,psic) schedule(dynamic)
-          do i = 1, natt1
-             call yt_weights(din=dat,idb=iatt(i),w=w)
-             wmask = .false.
-             do m3 = 1, n(3)
-                do m2 = 1, n(2)
-                   do m1 = 1, n(1)
-                      if (abs(w(m1,m2,m3)) < 1d-15) cycle
-                      p = (/m1,m2,m3/)
-                      x = real(p-1,8) / n - xgatt(:,iatt(i))
-                      xs = x
-                      call cr%shortest(xs,d2)
-                      p = nint(x - cr%c2x(xs))
-                      wmask(m1,m2,m3) = all(p == ilvec(:,i))
-                   end do
-                end do
-             end do
 
-             psic2 = cmplx(0.,0.)
-             do is = 1, nspin
-                do imo = 1, nmo
-                   call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                   where (wmask)
-                      psic2 = conjg(f(fid)%fwan(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3),iba,is)) * w
-                   end where
-                   do jmo = 1, nmo
-                      call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                      where (wmask)
-                         psic =  psic2 * &
-                            f(fid)%fwan(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3),ibb,is)
-                      end where
-                      padd = sum(psic,wmask)
-                      call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                      call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                      !$omp critical (summ)
-                      sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                      !$omp end critical (summ)
+          f1 = 0d0
+          do is = 1, nspin
+             do ibnd1 = 1, f(fid)%wan_nbnd
+                ! first wannier function
+                call get_qe_psink(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
+                   f(fid)%wan_kpt,.true.,.true.,f1)
+
+                f2 = 0d0
+                psic = 0d0
+                psic2 = 0d0
+                w = 0d0
+                wmask = .false.
+                !$omp parallel do private(p,x,xs,d2,imo,ia,ja,ka,iba,jmo,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic,f2,w,wmask,psic2) schedule(dynamic)
+                do ibnd2 = 1, f(fid)%wan_nbnd
+                   ! second wannier function
+                   if (ibnd1 == ibnd2) then
+                      f2 = f1
+                   else
+                      call get_qe_psink(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
+                         f(fid)%wan_kpt,.true.,.true.,f2)
+                   endif
+
+                   do i = 1, natt1
+                      call yt_weights(din=dat,idb=iatt(i),w=w)
+                      wmask = .false.
+                      do m3 = 1, n(3)
+                         do m2 = 1, n(2)
+                            do m1 = 1, n(1)
+                               if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                               p = (/m1,m2,m3/)
+                               x = real(p-1,8) / n - xgatt(:,iatt(i))
+                               xs = x
+                               call cr%shortest(xs,d2)
+                               p = nint(x - cr%c2x(xs))
+                               wmask(m1,m2,m3) = all(p == ilvec(:,i))
+                            end do
+                         end do
+                      end do
+
+                      psic2 = cmplx(0.,0.)
+                      do imo = 1, nmo
+                         call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                         if (iba /= ibnd1) cycle
+                         where (wmask)
+                            psic2 = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * w
+                         end where
+                         do jmo = 1, nmo
+                            call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                            if (ibb /= ibnd2) cycle
+                            where (wmask)
+                               psic =  psic2 * &
+                                  f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
+                            end where
+                            padd = sum(psic,wmask)
+                            call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                            call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                            !$omp critical (summ)
+                            sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                            !$omp end critical (summ)
+                         end do
+                      end do
                    end do
                 end do
+                !$omp end parallel do
              end do
           end do
-          !$omp end parallel do
           deallocate(w,wmask,psic2)
+          deallocate(f1,f2)
        end if
        ! scale (the omega comes from wannier)
        sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
@@ -1660,7 +1708,7 @@ contains
     integer, intent(in) :: natt
     integer, intent(in) :: icp(natt)
     real*8, intent(in) :: xgatt(3,natt)
-    complex*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
+    complex*16, intent(in), allocatable, optional :: sij(:,:,:,:,:)
 
     integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3)
     real*8 :: fspin, xnn, xli, r1(3), d2, asum
@@ -1683,7 +1731,7 @@ contains
        if (.not.integ_prop(l)%used) cycle
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
-       if (f(fid)%type /= type_grid .or..not.allocated(f(fid)%fwan)) cycle
+       if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
        ndeloc = ndeloc + 1
 
        ! header
@@ -1691,8 +1739,8 @@ contains
 
        ! some integers for the run
        nwan = f(fid)%nwan
-       nspin = size(f(fid)%fwan,5)
-       nbnd = size(f(fid)%fwan,4)
+       nspin = f(fid)%wan_nspin
+       nbnd = f(fid)%wan_nbnd
        nlat = nwan(1)*nwan(2)*nwan(3)
        nmo = nlat * nbnd
 

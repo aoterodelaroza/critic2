@@ -189,8 +189,12 @@ module types
      real*8, allocatable, dimension(:,:,:,:) :: c2 !< cubic coefficients for spline interpolation
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
      real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
-     integer :: nwan(3) !< Number of wannier vectors
-     complex*16, allocatable :: fwan(:,:,:,:,:) !< Wannier xsf
+     ! wannier functions
+     logical :: iswan
+     integer :: nwan(3) !< Number of real-space vectors
+     integer :: wan_nbnd !< Number of bands
+     integer :: wan_nspin !< Number of spins
+     real*8, allocatable :: wan_kpt(:,:) !< k-points for wannier
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)
