@@ -102,6 +102,7 @@ contains
 
     if (isformat == isformat_cif) then
        word2 = getword(line,lp)
+       if (len_trim(word2) == 0) word2 = " "
        call struct_read_cif(c,word,word2,.false.,mol)
        call c%set_cryscar()
        ok = check_no_extra_word()
