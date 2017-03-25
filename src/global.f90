@@ -258,7 +258,7 @@ contains
 
     ! symmetry
     doguess = -1
-    symprec = 1d-6
+    symprec = 1d-4
 
     ! units
     iunit = iunit_bohr

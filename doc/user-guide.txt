@@ -1554,7 +1554,7 @@ small (<= 5000 atoms). The default is -1.
 
   SYMPREC symprec.r
 
-Sets the precision for the spglib symmetry module (default: 1d-6).
+Sets the precision for the spglib symmetry module (default: 1d-4).
 
 ::
 
