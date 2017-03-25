@@ -889,7 +889,7 @@ contains
   end subroutine struct_write_cif
 
   !> Write a simple cif file
-  subroutine struct_write_d12(file,c)
+  subroutine struct_write_d12(file,c,dosym)
     use struct_basic, only: crystal, pointgroup_info, holo_unk, holo_tric,&
        holo_mono, holo_ortho, holo_tetra, holo_trig, holo_hex, holo_cub
     use tools_io, only: fopen_write, fclose, string, ferror, faterr
@@ -898,70 +898,86 @@ contains
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
+    logical, intent(in) :: dosym
 
     integer :: holo, laue, i, j
     character(len=3) :: schpg
     type(crystal) :: nc
-    integer :: lu, nmin
+    integer :: lu, nmin, spgnum
     real*8 :: xmin(6)
     logical :: ok
 
     ! we need symmetry for this
-    nc = c
-    if (nc%havesym < 1) &
-       call nc%struct_fill(.false.,.false.,1,0,.false.,.false.,.false.)
+    if (dosym) then
+       nc = c
+       if (nc%havesym < 1) &
+          call nc%struct_fill(.false.,.false.,1,0,.false.,.false.,.false.)
 
-    call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
-    xmin = 0d0
-    if (holo == holo_unk) then
-       call ferror("struct_write_d12","unknown holohedry",faterr)
-    elseif (holo == holo_tric) then
+       call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
+       xmin = 0d0
+       if (holo == holo_unk) then
+          call ferror("struct_write_d12","unknown holohedry",faterr)
+       elseif (holo == holo_tric) then
+          nmin = 6
+          xmin(1:3) = nc%aa * bohrtoa
+          xmin(4:6) = nc%bb
+       elseif (holo == holo_mono) then
+          nmin = 4
+          xmin(1:3) = nc%aa * bohrtoa
+          ok = .false.
+          do i = 1, 3
+             if (abs(nc%bb(i) - 90d0) > symprec) then
+                xmin(4) = nc%bb(i)
+                ok = .true.
+                exit
+             end if
+          end do
+          if (.not.ok) &
+             xmin(4) = 90d0
+       elseif (holo == holo_ortho) then
+          nmin = 3
+          xmin(1:3) = nc%aa * bohrtoa
+       elseif (holo == holo_tetra) then
+          nmin = 2
+          xmin(1) = nc%aa(1) * bohrtoa
+          xmin(2) = nc%aa(3) * bohrtoa
+       elseif (holo == holo_trig) then
+          nmin = 2
+          xmin(1) = nc%aa(1) * bohrtoa
+          xmin(2) = nc%bb(1)
+       elseif (holo == holo_hex) then
+          nmin = 2
+          xmin(1) = nc%aa(1) * bohrtoa
+          xmin(2) = nc%aa(3) * bohrtoa
+       elseif (holo == holo_cub) then
+          nmin = 1
+          xmin(1) = nc%aa(1) * bohrtoa
+       end if
+       spgnum = nc%spg%spacegroup_number
+    else
+       spgnum = 1
        nmin = 6
-       xmin(1:3) = nc%aa * bohrtoa
-       xmin(4:6) = nc%bb
-    elseif (holo == holo_mono) then
-       nmin = 4
-       xmin(1:3) = nc%aa * bohrtoa
-       ok = .false.
-       do i = 1, 3
-          if (abs(nc%bb(i) - 90d0) > symprec) then
-             xmin(4) = nc%bb(i)
-             ok = .true.
-             exit
-          end if
-       end do
-       if (.not.ok) &
-          xmin(4) = 90d0
-    elseif (holo == holo_ortho) then
-       nmin = 3
-       xmin(1:3) = nc%aa * bohrtoa
-    elseif (holo == holo_tetra) then
-       nmin = 2
-       xmin(1) = nc%aa(1) * bohrtoa
-       xmin(2) = nc%aa(3) * bohrtoa
-    elseif (holo == holo_trig) then
-       nmin = 2
-       xmin(1) = nc%aa(1) * bohrtoa
-       xmin(2) = nc%bb(1)
-    elseif (holo == holo_hex) then
-       nmin = 2
-       xmin(1) = nc%aa(1) * bohrtoa
-       xmin(2) = nc%aa(3) * bohrtoa
-    elseif (holo == holo_cub) then
-       nmin = 1
-       xmin(1) = nc%aa(1) * bohrtoa
+       xmin(1:3) = c%aa * bohrtoa
+       xmin(4:6) = c%bb
     end if
 
     lu = fopen_write(file)
     write (lu,'("Title")')
     write (lu,'("CRYSTAL")')
     write (lu,'("0 0 0")')
-    write (lu,'(A)') string(nc%spg%spacegroup_number)
+    write (lu,'(A)') string(spgnum)
     write (lu,'(6(A,X))') (string(xmin(i),'f',15,8),i=1,nmin)
-    write (lu,'(A)') string(nc%nneq)
-    do i = 1, nc%nneq
-       write (lu,'(4(A,X))') string(nc%at(i)%z), (string(nc%at(i)%x(j),'f',15,8),j=1,3)
-    end do
+    if (dosym) then
+       write (lu,'(A)') string(nc%nneq)
+       do i = 1, nc%nneq
+          write (lu,'(4(A,X))') string(nc%at(i)%z), (string(nc%at(i)%x(j),'f',15,8),j=1,3)
+       end do
+    else
+       write (lu,'(A)') string(c%ncel)
+       do i = 1, c%ncel
+          write (lu,'(4(A,X))') string(c%at(c%atcel(i)%idx)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
+       end do
+    end if
     write (lu,'("SETPRINT")')
     write (lu,'("1")')
     write (lu,'("3 1")')

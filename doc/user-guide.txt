@@ -1912,7 +1912,7 @@ not. The full syntax of the WRITE keyword is::
   WRITE file.elk
   WRITE file.gau
   WRITE file.cif
-  WRITE file.d12
+  WRITE file.d12 [NOSYM|NOSYMM]
   WRITE file.m
   WRITE file.gin [DREIDING]
   WRITE file.lammps
@@ -2046,7 +2046,8 @@ A template input file for crystal14 (incomplete - no basis set
 specification) can be written with the extension d12. The generation
 of these inputs uses the spglib symmetry routines to find the crystal
 symmetry, and is still experimental. You should do NEWCELL PRIMITIVE
-or NEWCELL STANDARD before writing a d12 file.
+or NEWCELL STANDARD before writing a d12 file. The NOSYM (or NOSYMM)
+option writes a template in the P1 space group.
 
 A Gaussian input file for calculations under periodic boundary
 conditions can be written using the gau extension. For a template

@@ -423,7 +423,7 @@ contains
 
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer
-    logical :: doborder, molmotif, dodreiding, docell, domolcell, ok
+    logical :: doborder, molmotif, dodreiding, dosym, docell, domolcell, ok
     logical :: onemotif, environ, lnmer
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv
 
@@ -590,8 +590,20 @@ contains
        if (.not.ok) return
     elseif (equal(wext,'d12')) then
        ! d12
+       dosym = .true.
+       do while(.true.)
+          word = lgetword(line,lp)
+          if (equal(word,'nosym').or.equal(word,'nosymm')) then
+             dosym = .false.
+          elseif (len_trim(word) > 1) then
+             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
+          else
+             exit
+          end if
+       end do
        write (uout,'("* WRITE crystal file: ",A)') string(file)
-       call struct_write_d12(file,c)
+       call struct_write_d12(file,c,dosym)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then
