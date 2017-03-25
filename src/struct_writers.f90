@@ -931,7 +931,7 @@ contains
           end if
        end do
        if (.not.ok) &
-          call ferror("struct_write_d12","could not find unique axis for monoclinic",faterr)
+          xmin(4) = 90d0
     elseif (holo == holo_ortho) then
        nmin = 3
        xmin(1:3) = nc%aa * bohrtoa
