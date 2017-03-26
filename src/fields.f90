@@ -329,9 +329,9 @@ contains
        file = getword(line,lp)
        wext1 = "xml"
        wext2 = wext1
-    elseif (equal(lfile,"unk")) then
+    elseif (equal(lfile,"chk")) then
        file = ""
-       wext1 = "unk"
+       wext1 = "chk"
        wext2 = wext1
     elseif (equal(lfile,"as")) then
        file = ""
@@ -534,9 +534,8 @@ contains
        ! fill the interpolation tables of the field
        call fillinterpol(ff)
 
-    else if (equal(wext1,'unk')) then
-       file2 = getword(line,lp)
-       call grid_read_unk(file2,ff,cr%omega)
+    else if (equal(wext1,'chk')) then
+       call grid_read_unk(file,ff,cr%omega)
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.
