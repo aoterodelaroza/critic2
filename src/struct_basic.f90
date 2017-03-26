@@ -147,6 +147,7 @@ module struct_basic
      procedure :: delaunay_reduction !< Perform the delaunay reduction.
      procedure :: struct_fill !< Initialize the structure from minimal info
      procedure :: struct_report !< Write lots of information about the crystal structure to uout
+     procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
      procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
      procedure :: reduceatoms !< Reduce the non-equivalent atom list using symmetry ops.
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
@@ -2225,7 +2226,7 @@ contains
   !> primitive standard cell. If toorigin and not toprim, move the
   !> origin to the standard origin as well. If verbose, write
   !> information about the new crystal.
-  subroutine cell_standard(c,toprim,verbose)
+  subroutine cell_standard(c,toprim,doforce,verbose)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
     use global, only: symprec
@@ -2234,6 +2235,7 @@ contains
     use param, only: maxzat0, eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: toprim
+    logical, intent(in) :: doforce
     logical, intent(in) :: verbose
     
     integer :: ntyp, nat
@@ -2284,15 +2286,20 @@ contains
     if (det(rmat) < 0d0) rmat = -rmat
 
     ! if a primitive is wanted but det is not less than 1, do not make the change
-    if ((toprim .and. .not.(det(rmat) < 1d0-symprec)) .or. &
-        (all(abs(rmat - eye) < symprec))) then
+    if (all(abs(rmat - eye) < symprec)) then
        if (verbose) &
-          write (uout,'("+ Cell transformation does not lead to a different/smaller cell: skipping."/)')
+          write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
+       return
+    end if
+    if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
+       if (verbose) &
+          write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
        return
     end if
 
-    ! transform
-    t = 0d0
+    ! transform -> use the origin shift
+    t = -matmul(c%spg%origin_shift,rmat)
+    ! rmat = transpose(matinv(c%spg%transformation_matrix))
     call c%newcell(rmat,t,verbose)
 
   end subroutine cell_standard
@@ -2857,6 +2864,8 @@ contains
        enddo
        write (uout,*)
     
+       call c%struct_report_symxyz()
+
        write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
        do k = 1, c%ncv
           write (uout,'(2X,"Vector ",A,": ",3(A,X))') string(k), &
@@ -3016,6 +3025,73 @@ contains
     end if
 
   end subroutine struct_report
+
+  !> Write the list of symmetry operations to stdout, using crystallographic
+  !> notation (if possible).
+  subroutine struct_report_symxyz(c)
+    use tools_io, only: uout, string
+    use global, only: symprec
+    class(crystal), intent(in) :: c
+
+    real*8, parameter :: rfrac(25) = (/-12d0/12d0,-11d0/12d0,-10d0/12d0,&
+       -9d0/12d0,-8d0/12d0,-7d0/12d0,-6d0/12d0,-5d0/12d0,-4d0/12d0,-3d0/12d0,&
+       -2d0/12d0,-1d0/12d0,0d0/12d0,1d0/12d0,2d0/12d0,3d0/12d0,4d0/12d0,&
+       5d0/12d0,6d0/12d0,7d0/12d0,8d0/12d0,9d0/12d0,10d0/12d0,11d0/12d0,12d0/12d0/)
+    character*6, parameter :: sfrac(25) = (/"      ","-11/12","-5/6  ",&
+       "-3/4  ","-2/3  ","-7/12 ","-1/2  ","-5/12 ","-1/3  ","-1/4  ","-1/6  ",&
+       "-1/12 ","      ","1/12  ","1/6   ","1/4   ","1/3   ","5/12  ","1/2   ",&
+       "7/12  ","2/3   ","3/4   ","5/6   ","11/12 ","      "/)
+    character*1, parameter :: xyz(3) = (/"x","y","z"/)
+
+    logical :: ok, iszero
+    integer :: i, j, k
+    character*255 :: strout(c%neqv)
+
+    do i = 1, c%neqv
+       strout(i) = ""
+       do j = 1, 3
+          ! translation
+          ok = .false.
+          do k = 1, 25
+             if (abs(c%rotm(j,4,i) - rfrac(k)) < symprec) then
+                ok = .true.
+                strout(i) = trim(strout(i)) // sfrac(k)
+                iszero = (k == 13) .or. (k == 1) .or. (k == 25)
+                exit
+             end if
+          end do
+          if (.not.ok) return
+
+          ! rotation
+          do k = 1, 3
+             if (abs(c%rotm(j,k,i) - 1d0) < symprec) then
+                if (iszero) then
+                   strout(i) = trim(strout(i)) // xyz(k)
+                else
+                   strout(i) = trim(strout(i)) // "+" // xyz(k)
+                end if
+                iszero = .false.
+             elseif (abs(c%rotm(j,k,i) + 1d0) < symprec) then
+                strout(i) = trim(strout(i)) // "-" // xyz(k)
+                iszero = .false.
+             elseif (abs(c%rotm(j,k,i)) > symprec) then
+                return
+             end if
+          end do
+
+          ! the comma
+          if (j < 3) &
+             strout(i) = trim(strout(i)) // ","
+       end do
+    end do
+
+    write(uout,'("+ List of symmetry operations in crystallographic notation:")')
+    do k = 1, c%neqv
+       write (uout,'(3X,A,": ",A)') string(k), string(strout(k))
+    enddo
+    write (uout,*)
+
+  end subroutine struct_report_symxyz
 
   !> Use the spg library to find information about the space group.
   !> In: cell vectors (crys2car), ncel, atcel(:), at(:) Out: neqv,

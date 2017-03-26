@@ -1438,7 +1438,7 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    logical :: ok, doprim
+    logical :: ok, doprim, doforce
     integer :: lp, lp2, dotyp, i
     real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv
@@ -1451,6 +1451,7 @@ contains
     ! transform to the primitive?
     lp = 1
     doprim = .false.
+    doforce = .false.
     dotyp = 0
     do while (.true.)
        word = lgetword(line,lp)
@@ -1458,6 +1459,11 @@ contains
           dotyp = 1
           doprim = .false.
        elseif (equal(word,"primitive")) then
+          doforce = .false.
+          dotyp = 1
+          doprim = .true.
+       elseif (equal(word,"primstd")) then
+          doforce = .true.
           dotyp = 1
           doprim = .true.
        elseif (equal(word,"niggli")) then
@@ -1471,7 +1477,7 @@ contains
     end do
 
     if (dotyp == 1) then
-       call cr%cell_standard(doprim,.true.)
+       call cr%cell_standard(doprim,doforce,.true.)
     elseif (dotyp == 2) then
        call cr%cell_niggli(.true.)
     elseif (dotyp == 3) then
