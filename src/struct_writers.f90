@@ -894,7 +894,7 @@ contains
        holo_mono, holo_ortho, holo_tetra, holo_trig, holo_hex, holo_cub
     use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use global, only: symprec
-    use param, only: bohrtoa
+    use param, only: bohrtoa, pi
 
     character*(*), intent(in) :: file
     type(crystal), intent(in) :: c
@@ -944,7 +944,7 @@ contains
           xmin(2) = nc%aa(3) * bohrtoa
        elseif (holo == holo_trig) then
           count90 = count(abs(nc%bb - 90d0) < 1d-1)
-          count120 = count(abs(sin(nc%bb) - sqrt(3d0)/2d0) < 1d-1)
+          count120 = count(abs(sin(nc%bb * pi / 180d0) - sqrt(3d0)/2d0) < 1d-2)
           nmin = 2
           xmin(1) = nc%aa(1) * bohrtoa
           if (count90 == 2 .and. count120 == 1) then
