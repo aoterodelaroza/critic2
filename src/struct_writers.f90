@@ -903,7 +903,7 @@ contains
     integer :: holo, laue, i, j
     character(len=3) :: schpg
     type(crystal) :: nc
-    integer :: lu, nmin, spgnum
+    integer :: lu, nmin, spgnum, irhomb, count90, count120
     real*8 :: xmin(6)
     logical :: ok
 
@@ -915,6 +915,7 @@ contains
 
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0
+       irhomb = 0
        if (holo == holo_unk) then
           call ferror("struct_write_d12","unknown holohedry",faterr)
        elseif (holo == holo_tric) then
@@ -942,9 +943,19 @@ contains
           xmin(1) = nc%aa(1) * bohrtoa
           xmin(2) = nc%aa(3) * bohrtoa
        elseif (holo == holo_trig) then
+          count90 = count(abs(nc%bb - 90d0) < 1d-1)
+          count120 = count(abs(sin(nc%bb) - sqrt(3d0)/2d0) < 1d-1)
           nmin = 2
           xmin(1) = nc%aa(1) * bohrtoa
-          xmin(2) = nc%bb(1)
+          if (count90 == 2 .and. count120 == 1) then
+             ! hexagonal axes
+             xmin(2) = nc%aa(3) * bohrtoa
+             irhomb = 0
+          else
+             ! rhombohedral axes
+             xmin(2) = nc%bb(1)
+             irhomb = 1
+          end if
        elseif (holo == holo_hex) then
           nmin = 2
           xmin(1) = nc%aa(1) * bohrtoa
@@ -956,6 +967,7 @@ contains
        spgnum = nc%spg%spacegroup_number
     else
        spgnum = 1
+       irhomb = 0
        nmin = 6
        xmin(1:3) = c%aa * bohrtoa
        xmin(4:6) = c%bb
@@ -964,7 +976,7 @@ contains
     lu = fopen_write(file)
     write (lu,'("Title")')
     write (lu,'("CRYSTAL")')
-    write (lu,'("0 0 0")')
+    write (lu,'("0 ",A," 0")') string(irhomb)
     write (lu,'(A)') string(spgnum)
     write (lu,'(6(A,X))') (string(xmin(i),'f',15,8),i=1,nmin)
     if (dosym) then
