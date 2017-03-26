@@ -696,19 +696,31 @@ int spgat_standardize_cell(double lattice[3][3],
                            const double symprec,
                            const double angle_tolerance)
 {
+
+  double position_[4*num_atom][3];
+  int types_[4*num_atom];
+  int i, j;
+
+  for (i = 0; i < num_atom; i++) {
+    for (j = 0; j < 3; j++) {
+      position_[i][j] = position[i][j];
+    }
+    types_[i] = types[i];
+  }
+
   if (to_primitive) {
     if (no_idealize) {
       return get_standardized_cell(lattice,
-                                   position,
-                                   types,
+                                   position_,
+                                   types_,
                                    num_atom,
                                    1,
                                    symprec,
 				   angle_tolerance);
     } else {
       return standardize_primitive(lattice,
-                                   position,
-                                   types,
+                                   position_,
+                                   types_,
                                    num_atom,
                                    symprec,
 				   angle_tolerance);
@@ -716,16 +728,16 @@ int spgat_standardize_cell(double lattice[3][3],
   } else {
     if (no_idealize) {
       return get_standardized_cell(lattice,
-                                   position,
-                                   types,
+                                   position_,
+                                   types_,
                                    num_atom,
                                    0,
                                    symprec,
 				   angle_tolerance);
     } else {
       return standardize_cell(lattice,
-                              position,
-                              types,
+                              position_,
+                              types_,
                               num_atom,
                               symprec,
 			      angle_tolerance);

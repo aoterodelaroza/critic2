@@ -325,8 +325,9 @@ module spglib
      function spg_standardize_cell(lattice, position, types, num_atom, &
         to_primitive, no_idealize, symprec) bind(c)
        import c_int, c_double
-       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(inout) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3)
+       real(c_double), intent(in) :: position(3,*)
+       integer(c_int), intent(in) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        integer(c_int), intent(in), value :: to_primitive
        integer(c_int), intent(in), value :: no_idealize
