@@ -2087,6 +2087,16 @@ contains
           call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
     end if
 
+    if (verbose) then
+       write (uout,'("* Transformation to a new unit cell (NEWCELL)")')
+       write (uout,'("  Lattice vectors of the new cell in the old setting (cryst. coord.):")')
+       write (uout,'(4X,3(A,X))') (string(x0(i,1),'f',12,7,4),i=1,3)
+       write (uout,'(4X,3(A,X))') (string(x0(i,2),'f',12,7,4),i=1,3)
+       write (uout,'(4X,3(A,X))') (string(x0(i,3),'f',12,7,4),i=1,3)
+       write (uout,'("  Origin translation: ",3(A,X))') (string(t(i),'f',12,7,4),i=1,3)
+       write (uout,*)
+    end if
+
     ! inverse matrix
     x0inv = matinv(x0)
 
