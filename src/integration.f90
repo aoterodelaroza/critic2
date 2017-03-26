@@ -701,7 +701,7 @@ contains
   subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
     use yt, only: yt_weights, ytdata, ytdata_clean
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
-    use grid_tools, only: get_qe_psink
+    use grid_tools, only: get_qe_wnr
     use struct_basic, only: cr
     use global, only: refden
     use types, only: realloc
@@ -881,19 +881,16 @@ contains
                 write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
                    string(f(fid)%wan_nbnd), string(is), string(nspin)
                 ! first wannier function
-                call get_qe_psink(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
-                   f(fid)%wan_kpt,.true.,.true.,f1)
+                call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
 
                 f2 = 0d0
                 psic = 0d0
-                !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,imo1,jmo1,padd) firstprivate(psic,f2) schedule(dynamic)
                 do ibnd2 = 1, f(fid)%wan_nbnd
                    ! second wannier function
                    if (ibnd1 == ibnd2) then
                       f2 = f1
                    else
-                      call get_qe_psink(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
-                         f(fid)%wan_kpt,.true.,.true.,f2)
+                      call get_qe_wnr(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
                    endif
 
                    do imo = 1, nmo
@@ -908,14 +905,11 @@ contains
                             padd = sum(psic,idg1==i)
                             call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                             call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                            !$omp critical (summ)
                             sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                            !$omp end critical (summ)
                          end do
                       end do
                    end do
                 end do
-                !$omp end parallel do
              end do
           end do
           deallocate(f1,f2)
@@ -931,22 +925,19 @@ contains
                 write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
                    string(f(fid)%wan_nbnd), string(is), string(nspin)
                 ! first wannier function
-                call get_qe_psink(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
-                   f(fid)%wan_kpt,.true.,.true.,f1)
+                call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
 
                 f2 = 0d0
                 psic = 0d0
                 psic2 = 0d0
                 w = 0d0
                 wmask = .false.
-                !$omp parallel do private(p,x,xs,d2,imo,ia,ja,ka,iba,jmo,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic,f2,w,wmask,psic2) schedule(dynamic)
                 do ibnd2 = 1, f(fid)%wan_nbnd
                    ! second wannier function
                    if (ibnd1 == ibnd2) then
                       f2 = f1
                    else
-                      call get_qe_psink(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),&
-                         f(fid)%wan_kpt,.true.,.true.,f2)
+                      call get_qe_wnr(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
                    endif
 
                    do i = 1, natt1
@@ -983,14 +974,11 @@ contains
                             padd = sum(psic,wmask)
                             call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                             call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                            !$omp critical (summ)
                             sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                            !$omp end critical (summ)
                          end do
                       end do
                    end do
                 end do
-                !$omp end parallel do
              end do
           end do
           deallocate(w,wmask,psic2)

@@ -536,8 +536,7 @@ contains
 
     else if (equal(wext1,'unk')) then
        file2 = getword(line,lp)
-       word = lgetword(line,lp)
-       call grid_read_unk(file2,ff,cr%omega,equal(word,"saveunk"))
+       call grid_read_unk(file2,ff,cr%omega)
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.
