@@ -700,12 +700,14 @@ contains
   !> basin assignment found by YT or BADER and a grid-related dat file.
   subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
     use yt, only: yt_weights, ytdata, ytdata_clean
-    use fields, only: f, integ_prop, nprops, itype_deloc, type_grid
+    use fields, only: f, integ_prop, nprops, itype_deloc, type_grid,&
+       writegrid_cube
     use grid_tools, only: get_qe_wnr
-    use struct_basic, only: cr
+    use struct_basic, only: cr, crystal
     use global, only: refden
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose
+    use tools_math, only: norm
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
@@ -881,7 +883,8 @@ contains
                 write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
                    string(f(fid)%wan_nbnd), string(is), string(nspin)
                 ! first wannier function
-                call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
+                ! call get_qe_wnr("W",ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
+                call get_qe_wnr("U",ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
 
                 f2 = 0d0
                 psic = 0d0
@@ -890,7 +893,8 @@ contains
                    if (ibnd1 == ibnd2) then
                       f2 = f1
                    else
-                      call get_qe_wnr(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
+                      ! call get_qe_wnr("W",ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
+                      call get_qe_wnr("U",ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
                    endif
 
                    do imo = 1, nmo
@@ -925,7 +929,8 @@ contains
                 write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
                    string(f(fid)%wan_nbnd), string(is), string(nspin)
                 ! first wannier function
-                call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
+                ! call get_qe_wnr("W",ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
+                call get_qe_wnr("U",ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
 
                 f2 = 0d0
                 psic = 0d0
@@ -937,7 +942,8 @@ contains
                    if (ibnd1 == ibnd2) then
                       f2 = f1
                    else
-                      call get_qe_wnr(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
+                      !call get_qe_wnr("W",ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
+                      call get_qe_wnr("U",ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
                    endif
 
                    do i = 1, natt1

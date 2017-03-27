@@ -195,6 +195,8 @@ module types
      integer :: wan_nbnd !< Number of bands
      integer :: wan_nspin !< Number of spins
      real*8, allocatable :: wan_kpt(:,:) !< k-points for wannier
+     real*8, allocatable :: wan_center(:,:) !< wannier function centers (cryst)
+     real*8, allocatable :: wan_spread(:) !< wannier function spreads (bohr)
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)
