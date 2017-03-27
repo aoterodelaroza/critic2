@@ -50,6 +50,7 @@ copyright notice is included in the corresponding files.
   for the crystal structures in critic2. spglib was created and is
   maintained by Atsushi Togo (atztogo.github.io/spglib). A static copy
   of the 1.9.0 version of spglib is shipped with critic2 (src/spglib).
+  See src/spglib/COPYING for license details.
 
 * cubpack: a package for the automatic integration of n-dimensional
   integration regions by numerical cubature. The authors are Alan Genz
@@ -108,4 +109,11 @@ copyright notice is included in the corresponding files.
 * The tricubic interpolation routine is based on code by David Kirkby
   at the University of California, Irvine
   (https://github.com/deepzot/likely).
+
+* The part of the grid_read_unk routine that reads wannnier90
+  checkpoints has been adapted from wannier90, version
+  2.0.1. Wannier90 is authored by Jonathan Yates, Arash Mostofi,       
+  Giovanni Pizzi, Young-Su Lee, Nicola Marzari, Ivo Souza, and David
+  Vanderbilt. Distributed under the GNU/GPL v2.
+
 
