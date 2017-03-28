@@ -760,57 +760,62 @@ contains
     deallocate(raux)
     f%f = f%f * fspin / omega
 
-    ! ! write the maximally-localized wannier funcions, if appropriate
-    ! call make_mlwnr(nk,n,nspin,u_matrix)
+    ! write the maximally-localized wannier funcions, if appropriate
+    call make_mlwnr(nk,n,nspin,u_matrix)
 
-    ! write (*,*) "centers and spreads"
-    ! do ibnd = 1, nbnd
-    !    write (*,*) "band ", ibnd
-    !    write (*,*) "center ", f%wan_center(:,ibnd)
-    !    write (*,*) "spread ", f%wan_spread(ibnd)
-    ! end do
-    ! write (*,*) 
+    write (*,*) "centers and spreads"
+    do ibnd = 1, nbnd
+       write (*,*) "band ", ibnd
+       write (*,*) "center ", f%wan_center(:,ibnd)
+       write (*,*) "spread ", f%wan_spread(ibnd)
+    end do
+    write (*,*) 
 
     ! if (allocated(raux)) deallocate(raux)
-    ! if (allocated(raux2)) deallocate(raux2)
-    ! allocate(raux(nk1*n(1),nk2*n(2),nk3*n(3)))
-    ! allocate(raux2(nk1*n(1),nk2*n(2),nk3*n(3)))
-    ! do ibnd = 1, nbnd
-    !    call get_qe_wnr("W",ibnd,1,n,nk1,nk2,nk3,f%wan_kpt,raux)
-    !    do jbnd = 1, nbnd
-    !       call get_qe_wnr("W",jbnd,1,n,nk1,nk2,nk3,f%wan_kpt,raux2)
-    !       do i = 0, 1
-    !          do j = 0, 1
-    !             do k = 0, 1
-    !                x = (f%wan_center(:,ibnd) + (/i,j,k/) - f%wan_center(:,jbnd)) / 2d0
-    !                x = x - nint(x)
-    !                x = x * 2d0
-    !                x = matmul(x,rlatt) / bohrtoa
-    !                dist = sqrt(dot_product(x,x))
+    if (allocated(raux2)) deallocate(raux2)
+    allocate(raux(nk1*n(1),nk2*n(2),nk3*n(3)))
+    allocate(raux2(nk1*n(1),nk2*n(2),nk3*n(3)))
+    do ibnd = 1, nbnd
+       call get_qe_wnr("W",ibnd,1,n,nk1,nk2,nk3,f%wan_kpt,raux)
+       ! write (*,*) "band :", ibnd
+       ! imax = maxloc(abs(aimag(raux))/abs(real(raux,8)),abs(real(raux)) > 0.01d0)
+       ! write (*,*) "imax :", imax
+       ! write (*,*) "value :", raux(imax(1),imax(2),imax(3))
+       ! write (*,*) "ratio :", abs(aimag(raux(imax(1),imax(2),imax(3))))/abs(real(raux(imax(1),imax(2),imax(3)),8))
+       do jbnd = 1, nbnd
+          call get_qe_wnr("W",jbnd,1,n,nk1,nk2,nk3,f%wan_kpt,raux2)
+          do i = 0, nk1-1
+             do j = 0, nk2-1
+                do k = 0, nk3-1
+                   x = (f%wan_center(:,ibnd) + (/i,j,k/) - f%wan_center(:,jbnd)) / (/nk1,nk2,nk3/)
+                   x = x - nint(x)
+                   x = x * (/nk1,nk2,nk3/)
+                   x = matmul(x,rlatt) / bohrtoa
+                   dist = sqrt(dot_product(x,x))
 
-    !                ovrlp = 0d0
-    !                aovrlp = 0d0
-    !                do i1 = 0, nk1-1
-    !                   ik1 = mod(i1 + i,2)
-    !                   do j1 = 0, nk2-1
-    !                      ik2 = mod(j1 + j,2)
-    !                      do k1 = 0, nk3-1
-    !                         ik3 = mod(k1 + k,2)
-    !                         ovrlp = ovrlp + sum(raux(i1*n(1)+1:(i1+1)*n(1),j1*n(2)+1:(j1+1)*n(2),k1*n(3)+1:(k1+1)*n(3)) * &
-    !                            raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)))
-    !                         aovrlp = aovrlp + abs(sum(conjg(raux(i1*n(1)+1:(i1+1)*n(1),j1*n(2)+1:(j1+1)*n(2),k1*n(3)+1:(k1+1)*n(3))) * &
-    !                            raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3))))
-    !                      end do
-    !                   end do
-    !                end do
-    !                write (*,'(99(A,X))') string(ibnd), string(jbnd), string(dist,'f',10,5), &
-    !                   string(abs(ovrlp)/(n(1)*n(2)*n(3)),'f',14,7), string(abs(aovrlp)/(n(1)*n(2)*n(3)),'f',14,7)
-    !             end do
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-    ! stop 1
+                   ovrlp = 0d0
+                   aovrlp = 0d0
+                   do i1 = 0, nk1-1
+                      ik1 = mod(i1 + i,nk1)
+                      do j1 = 0, nk2-1
+                         ik2 = mod(j1 + j,nk2)
+                         do k1 = 0, nk3-1
+                            ik3 = mod(k1 + k,nk3)
+                            ovrlp = ovrlp + sum(conjg(raux(i1*n(1)+1:(i1+1)*n(1),j1*n(2)+1:(j1+1)*n(2),k1*n(3)+1:(k1+1)*n(3))) * &
+                               raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)))
+                            aovrlp = aovrlp + sum(abs(conjg(raux(i1*n(1)+1:(i1+1)*n(1),j1*n(2)+1:(j1+1)*n(2),k1*n(3)+1:(k1+1)*n(3))) * &
+                               raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3))))
+                         end do
+                      end do
+                   end do
+                   write (*,'(99(A,X))') string(ibnd), string(jbnd), string(dist,'f',10,5), &
+                      string(abs(ovrlp)/(n(1)*n(2)*n(3)),'f',14,7), string(abs(aovrlp)/(n(1)*n(2)*n(3)),'f',14,7)
+                end do
+             end do
+          end do
+       end do
+    end do
+    stop 1
 
     f%init = .true.
     f%mode = mode_default
@@ -893,12 +898,24 @@ contains
 
        call fclose(luc)
     end do
+    ! if (ibnd == 2) then
+    !    write (*,*) "final2 ", fout(27,25,28)
+    ! end if
 
     ! normalize
     imax = maxloc(abs(fout))
     tnorm = fout(imax(1),imax(2),imax(3))
     tnorm = tnorm / abs(tnorm) * nk
     fout = fout / tnorm
+    ! if (ibnd == 2) then
+       ! write (*,*) "final3 ", fout(27,25,28)
+
+       ! imax = maxloc(abs(aimag(fout))/abs(real(fout,8)))
+       ! write (*,*) "imax :", imax
+       ! write (*,*) "value :", fout(imax(1),imax(2),imax(3))
+       ! write (*,*) "ratio :", maxval(abs(aimag(fout))/abs(real(fout,8)))
+       ! stop 1
+    ! end if
 
   end subroutine get_qe_wnr
 
@@ -941,9 +958,19 @@ contains
              do jbnd = 1, nbnd
                 read(luc) raux
                 raux2 = raux2 + u(jbnd,ibnd,ik) * raux
+                ! if (ibnd == 2) then
+                !    write (*,*) "looprcv ", ibnd
+                !    write (*,*) "loopadd ", jbnd
+                !    write (*,*) "u ", u(jbnd,ibnd,ik)
+                !    write (*,*) "rwvfn1 ", raux(27,25,28)
+                !    write (*,*) "add1 ", u(jbnd,ibnd,ik) * raux(27,25,28)
+                !    write (*,*) "sum1 ", raux2(27,25,28)
+                ! end if
              end do
 
              ! write to the ml-wan file
+             ! if (ibnd == 2) &
+             !    write (*,*) "final ", raux2(27,25,28)
              write(luw) raux2
           end do
 
