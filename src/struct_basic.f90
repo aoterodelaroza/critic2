@@ -2242,7 +2242,7 @@ contains
     integer :: i, iz(maxzat0), id
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types(:)
-    real*8 :: rmat(3,3), rmat2(3,3), t(3)
+    real*8 :: rmat(3,3), t(3)
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2475,7 +2475,7 @@ contains
 
     logical :: init, env, ast, recip, lnn, ewald
     integer :: isym
-    integer :: i, j
+    integer :: i
     real*8, dimension(3) :: vec
     logical :: good
     real*8 :: ss(3), cc(3), root, dist(1)
@@ -2735,10 +2735,10 @@ contains
   !> Write information about the crystal structure to the output.
   subroutine struct_report(c)
     use fragmentmod, only: fragment_cmass
-    use global, only: iunitname, dunit, symprec
+    use global, only: iunitname, dunit
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat, eye
+    use param, only: bohrtoa, maxzat
     class(crystal), intent(in) :: c
 
     integer, parameter :: natenvmax = 2000
@@ -3245,8 +3245,8 @@ contains
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
     use global, only: fileroot
     use tools_math, only: norm, mixed, cross
-    use tools_io, only: uout, string, filepath, fopen_write, fopen_read,&
-       ioj_right, ioj_center, ferror, warning, faterr, fclose
+    use tools_io, only: string, filepath, fopen_write, fopen_read,&
+       ferror, faterr, fclose
     use param, only: dirsep
     use types, only: realloc
 
@@ -3582,13 +3582,12 @@ contains
   !> Partition the unit cell in tetrahedra.
   subroutine pmwigner(c,ntetrag,tetrag)
     use tools_math, only: mixed
-    use tools_io, only: uout
     class(crystal), intent(in) :: c !< the crystal structure
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
     real*8, allocatable, intent(out), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
 
     real*8 :: sumi, tvol(5), xp1(3), xp2(3), xp3(3)
-    integer :: i, j
+    integer :: i
 
     if (allocated(tetrag)) deallocate(tetrag)
     allocate(tetrag(4,3,5))

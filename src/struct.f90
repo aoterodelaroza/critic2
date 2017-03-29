@@ -40,7 +40,7 @@ contains
   !xx! top-level routines
   !> Parse the input of the crystal keyword
   subroutine struct_crystal_input(c,line,mol,allownofile,verbose) 
-    use struct_basic, only: isformat_unknown, isformat_cif, isformat_res,&
+    use struct_basic, only: isformat_cif, isformat_res,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
@@ -57,7 +57,7 @@ contains
        iunitname0, iunitname, dunit0, dunit, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, lower
-    use param, only: dirsep, maxzat0
+    use param, only: maxzat0
 
     character*(*), intent(in) :: line
     logical, intent(in) :: mol
@@ -110,7 +110,7 @@ contains
        c%file = word
 
     elseif (isformat == isformat_res) then
-       call struct_read_res(c,word,.false.,mol)
+       call struct_read_res(c,word,mol)
        call c%set_cryscar()
        ok = check_no_extra_word()
        if (.not.ok) return
@@ -921,7 +921,7 @@ contains
     use types, only: realloc
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word, tname, difstr, difout, diftyp
+    character(len=:), allocatable :: word, tname, difstr, diftyp
     integer :: doguess0
     integer :: lp, i, j, k, n
     integer :: ns, imol, isformat

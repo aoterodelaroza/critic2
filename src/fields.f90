@@ -258,7 +258,7 @@ contains
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
     integer :: ix, iy, iz, oid
     real*8 :: xd(3,3), mcut
-    integer :: nid, nwan, ispin, nk1, nk2, nk3
+    integer :: nid
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
     logical :: isfrag, iok
@@ -1019,7 +1019,7 @@ contains
   subroutine fields_integrable(line)
     use global, only: refden, eval_next
     use tools_io, only: ferror, faterr, getword, lgetword, equal,&
-       isexpression_or_word, string, isinteger, uin, getline
+       isexpression_or_word, string, isinteger, getline
     use types, only: realloc
     character*(*), intent(in) :: line
 

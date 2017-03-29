@@ -622,16 +622,15 @@ contains
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write
     use types, only: field, realloc
-    use param, only: tpi, img, bohrtoa
+    use param, only: bohrtoa
 
     character*(*), intent(in) :: file !< Input file
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
 
-    integer :: luc, luw
-    character(len=:), allocatable :: fname
-    integer :: ispin, iz, ikk, ibnd, ik, nbnd, jbnd, idum
-    integer :: n(3), ik1, ik2, ik3, imax(3)
+    integer :: luc
+    integer :: ispin, ibnd, nbnd, jbnd, idum
+    integer :: n(3), ik1, ik2, ik3
     real*8 :: fspin
     integer :: i, j, k, l
     complex*16, allocatable :: raux(:,:,:)
@@ -837,7 +836,6 @@ contains
     real*8, intent(in) :: kpt(3,nk1*nk2*nk3)
     complex*16 :: fout(nk1*n(1),nk2*n(2),nk3*n(3))
 
-    logical :: ok
     integer :: luc
     integer :: nk, ik, ik1, ik2, ik3, nall(3), naux(3), ikk, nbnd
     integer :: jbnd, imax(3)

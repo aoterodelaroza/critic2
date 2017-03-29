@@ -900,10 +900,10 @@ contains
     type(crystal), intent(in) :: c
     logical, intent(in) :: dosym
 
-    integer :: holo, laue, i, j
+    integer :: holo, laue, i, j, nmin
     character(len=3) :: schpg
     type(crystal) :: nc
-    integer :: lu, nmin, spgnum, irhomb, count90, count120
+    integer :: lu, spgnum, irhomb, count90, count120
     real*8 :: xmin(6)
     logical :: ok
 

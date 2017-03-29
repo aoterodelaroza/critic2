@@ -681,7 +681,6 @@ contains
   subroutine graphics_checkfmt(fmt) 
     use tools_io, only: equal, ferror, faterr
     character*3, intent(in) :: fmt
-    logical :: ok
 
     if (.not.(equal(fmt,"obj") .or. equal(fmt,"ply") .or. equal(fmt,"off"))) &
        call ferror("graphics_checkfmt","unknown graphics format "//fmt,faterr)
@@ -1102,7 +1101,6 @@ contains
     integer, intent(in) :: rgb(3)
 
     integer :: i, i1, n
-    character(len=:), allocatable :: str, aux
     real*8 :: xcm(3)
 
     if (.not.isopen) &
@@ -1361,7 +1359,6 @@ contains
     integer, intent(in) :: rgb(3)
 
     integer :: i, i1, n
-    character(len=:), allocatable :: str, aux
     real*8 :: xcm(3)
 
     if (.not.isopen) &

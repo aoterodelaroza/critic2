@@ -38,7 +38,6 @@ module rhoplot
   private :: autochk
   private :: write_fichlabel
   private :: write_fichgnu
-  private :: buildplane
 
   ! contour lines common variables.
   ! npuntos                     number of points in the isoline
@@ -186,7 +185,7 @@ contains
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
-    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xx(3), xout(3), dout
+    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xout(3)
     character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
     logical :: ok, iok
@@ -1014,7 +1013,6 @@ contains
     use struct_basic, only: cr
     use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
     use tools_math, only: norm, cross, det, matinv
-    use param, only: pi
     integer, intent(in) :: nx, ny
     real*8, intent(in) :: ff(nx,ny)
     real*8, intent(in) :: r0(3), r1(3), r2(3)
@@ -2641,56 +2639,6 @@ contains
      &        1x,'set yrange [',f7.3,':',f7.3,']')
 
   end subroutine write_fichgnu
-
-  !> Calculate the axis of the plane given by 3 points
-  subroutine buildplane(x0,x1,x2,scalx,scaly,sizex,sizey)
-    use struct_basic, only: cr
-    use tools_math, only: norm
-    real*8, intent(inout) :: x0(3), x1(3), x2(3)
-    real*8, intent(in) :: scalx, scaly, sizex, sizey
-
-    real*8 :: d1(3), d2(3), b(3), dirx(3), diry(3), xn(3)
-    real*8 :: dmax, xlen, ylen
-
-    x0 = cr%x2c(x0)
-    x1 = cr%x2c(x1)
-    x2 = cr%x2c(x2)
-
-    d1 = x1 - x0
-    d2 = x2 - x0
-    b = (x0 + x1 + x2) / 3d0
-    dirx = b - x0
-    dirx = dirx / norm(dirx)
-    dmax = max(dot_product(b-x0,b-x0),dot_product(b-x1,b-x1),dot_product(b-x2,b-x2))
-    dmax = sqrt(dmax)
-    if (sizex > 0d0) then
-       xlen = 0.5d0*sizex
-    else
-       xlen = scalx*dmax
-    end if
-    if (sizey > 0d0) then
-       ylen = 0.5d0*sizey
-    else
-       ylen = scaly*dmax
-    end if
-
-    xn(1) =   d1(2)*d2(3) - d1(3)*d2(2)
-    xn(2) = - d1(1)*d2(3) + d1(3)*d2(1)
-    xn(3) =   d1(1)*d2(2) - d1(2)*d2(1)
-
-    diry(1) =   xn(2)*dirx(3) - xn(3)*dirx(2)
-    diry(2) = - xn(1)*dirx(3) + xn(3)*dirx(1)
-    diry(3) =   xn(1)*dirx(2) - xn(2)*dirx(1)
-    diry = diry / norm(diry)
-
-    x0 = b - xlen * dirx - ylen * diry
-    x1 = x0 + dirx * 2d0 * xlen
-    x2 = x0 + diry * 2d0 * ylen
-    x0 = cr%c2x(x0)
-    x1 = cr%c2x(x1)
-    x2 = cr%c2x(x2)
-
-  end subroutine buildplane
 
 end module rhoplot
 

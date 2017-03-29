@@ -833,7 +833,7 @@ contains
   end subroutine struct_read_cif
 
   !> Read the structure from a CIF file (uses ciftbx)
-  subroutine struct_read_res(c,file,verbose,mol)
+  subroutine struct_read_res(c,file,mol)
     use struct_basic, only: crystal
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
@@ -843,7 +843,6 @@ contains
     type(crystal), intent(inout) :: c !< Crystal
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
-    logical, intent(in) :: verbose !< Write information to the output
     
     integer :: lu, lp, ilat
     logical :: ok, iscent, iok, havecell
@@ -1751,7 +1750,7 @@ contains
     logical, intent(in) :: mol !< is this a molecule?
     integer, intent(in) :: istruct !< structure number
 
-    integer :: lu, nstructs, nn, is0, ideq, i, k
+    integer :: lu, nstructs, is0, ideq, i, k
     character(len=:), allocatable :: line
     integer :: ibrav, nat, ntyp, id, idum
     real*8 :: alat, r(3,3), qaux, g(3,3), rfac, cfac
@@ -2225,14 +2224,12 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
 
-    integer :: lu, nstrucs, is0, ideq, i, k
+    integer :: lu, i
     character(len=:), allocatable :: line
-    integer :: ibrav, nat, ntyp, id, idum, iz, lp
-    real*8 :: alat, r(3,3), qaux, g(3,3), x(3)
+    integer :: idum, iz, lp
+    real*8 :: r(3,3), g(3,3), x(3)
     logical :: ok, iscrystal
-    character*(10), allocatable :: attyp(:), atn(:)
     character*(10) :: ats
-    integer, allocatable :: zpsptyp(:)
 
     lu = fopen_read(file)
 
@@ -2596,7 +2593,7 @@ contains
     integer, intent(out) :: isformat
     logical, intent(out) :: ismol
 
-    character(len=:), allocatable :: basename, aux, wextdot, wext_
+    character(len=:), allocatable :: basename, wextdot, wext_
     logical :: isvasp
 
     basename = file(index(file,dirsep,.true.)+1:)

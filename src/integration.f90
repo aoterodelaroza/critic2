@@ -718,8 +718,8 @@ contains
 
     integer :: is, nspin, ndeloc, natt1
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, l, ibnd1, ibnd2, is1 ,is2
-    integer :: nwan(3), m1, m2, m3, lu1, lu2
+    integer :: i, j, l, ibnd1, ibnd2
+    integer :: nwan(3), m1, m2, m3
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
@@ -1375,7 +1375,7 @@ contains
   !> delocalization indices (optional). mpole: multipoles (optional).
   subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,sij,mpole)
     use fields, only: integ_prop, itype_v, itype_expr, itype_mpoles, itype_names,&
-       itype_deloc, f, type_wfn, nprops
+       nprops
     use struct_basic, only: cr
     use global, only: iunitname0, iunit, dunit
     use varbas, only: cp, cpcel
@@ -1391,12 +1391,11 @@ contains
     real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
     real*8, intent(in), allocatable, optional :: mpole(:,:,:)
 
-    integer :: i, j, k, l, n, ip, ipmax, iplast, nn, ndeloc
-    integer :: fid, nacprop(5), lmax
+    integer :: i, j, ip, ipmax, iplast
+    integer :: fid, nacprop(5)
     real*8 :: x(3), sump(nprops), xmult
     character(len=:), allocatable :: saux, itaux, label, cini
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
-    character(len=:), allocatable :: sout1, sout2
 
     ! List of integrable properties accepted/rejected and why some
     ! were rejected
@@ -1511,7 +1510,7 @@ contains
   !> (nattr), CP identifiers for the attractors (icp), and the
   !> multipoles themselves (mpole).
   subroutine int_output_multipoles(nattr,icp,mpole)
-    use fields, only: integ_prop, itype_mpoles, nprops, f
+    use fields, only: integ_prop, itype_mpoles, nprops
     use tools_io, only: uout, string, ioj_left, ioj_center
     integer, intent(in) :: nattr
     integer, intent(in) :: icp(nattr)
@@ -1699,7 +1698,7 @@ contains
   !> attractors (icp), and the atomic overlap matrix (sij).
   subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
     use fields, only: integ_prop, itype_deloc, f, type_grid, nprops
-    use global, only: refden, iunit, iunitname0, dunit
+    use global, only: iunit, iunitname0, dunit
     use struct_basic, only: cr, crystal
     use tools, only: qcksort
     use tools_io, only: uout, string, ioj_left, ioj_right
