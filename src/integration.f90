@@ -877,7 +877,6 @@ contains
        if (imtype == imtype_bader) then
           allocate(f1(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
           allocate(f2(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
-          f1 = 0d0
           do is = 1, nspin
              do ibnd1 = 1, f(fid)%wan_nbnd
                 write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
@@ -885,8 +884,6 @@ contains
                 ! first wannier function
                 call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
 
-                f2 = 0d0
-                psic = 0d0
                 do ibnd2 = 1, f(fid)%wan_nbnd
                    ! second wannier function
                    if (ibnd1 == ibnd2) then

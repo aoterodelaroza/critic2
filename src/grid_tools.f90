@@ -741,16 +741,24 @@ contains
        ! end of wannier checkpoint
        call fclose(luc)
 
+       ! dimensions for the supercell
+       f%nwan = (/nk1,nk2,nk3/)
+       nall = f%n * f%nwan
+
        ! convert centers to crystallographic and spread to bohr
        rlatti = matinv(rlatt)
        do i = 1, nbnd
           f%wan_center(:,i,ispin) = matmul(f%wan_center(:,i,ispin),rlatti)
+          do j = 1, 3
+             if (f%wan_center(j,i,ispin) > f%nwan(j)) &
+                f%wan_center(j,i,ispin) = f%wan_center(j,i,ispin) - f%nwan(j)
+             if (f%wan_center(j,i,ispin) < 0d0) &
+                f%wan_center(j,i,ispin) = f%wan_center(j,i,ispin) + f%nwan(j)
+          end do
           f%wan_spread(i,ispin) = sqrt(f%wan_spread(i,ispin)) / bohrtoa
        end do
 
        ! allocate arrays and fill some info
-       f%nwan = (/nk1,nk2,nk3/)
-       nall = f%n * f%nwan
        if (.not.nou) allocate(raux(n(1),n(2),n(3)))
        allocate(raux2(n(1),n(2),n(3)))
 
