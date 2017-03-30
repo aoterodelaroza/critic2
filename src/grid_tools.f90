@@ -617,25 +617,27 @@ contains
   !>                Giovanni Pizzi, Young-Su Lee,               
   !>                Nicola Marzari, Ivo Souza, David Vanderbilt 
   !> Distributed under GNU/GPL v2.
-  subroutine grid_read_unk(file,f,omega)
+  subroutine grid_read_unk(file,file2,f,omega,nou)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write
     use types, only: field, realloc
     use param, only: bohrtoa
 
-    character*(*), intent(in) :: file !< Input file
+    character*(*), intent(in) :: file !< Input file (spin up or total)
+    character*(*), intent(in) :: file2 !< Input file (spin down)
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
+    logical, intent(in) :: nou
 
-    integer :: luc
-    integer :: ispin, ibnd, nbnd, jbnd, idum
-    integer :: n(3), ik1, ik2, ik3
+    integer :: luc, luw
+    integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
+    integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
     real*8 :: fspin
     integer :: i, j, k, l
-    complex*16, allocatable :: raux(:,:,:)
-    integer :: nk1, nk2, nk3, nk, nspin
-
+    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:)
+    integer :: nk1, nk2, nk3, nk
+    character(len=:), allocatable :: fname, oname
     ! for the wannier checkpoint (wannier90, 2.0.1)
     character(len=33) :: header
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
@@ -644,178 +646,158 @@ contains
     complex*16, allocatable :: u_matrix(:,:,:)
     complex*16 :: cdum
 
-    ! xxxx
-    real*8 :: x(3), dist
-    complex*16 :: ovrlp, aovrlp
-    complex*16, allocatable :: raux2(:,:,:)
-    integer :: i1, j1, k1
-
-    luc = fopen_read(file,form="unformatted")
-
-    ! header and number of bands
-    read(luc) header
-    read(luc) nbnd 
-    read(luc) jbnd 
-    if (jbnd > 0) &
-       call ferror("grid_read_unk","number of excluded bands /= 0",faterr)
-    read(luc) (idum,i=1,jbnd) 
-
-    ! real and reciprocal lattice
-    read(luc) ((rlatt(i,j),i=1,3),j=1,3)
-    if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-       call ferror("grid_read_unk","wannier and current structure's volumes differ by more than 1%",faterr)
-    read(luc) ((rclatt(i,j),i=1,3),j=1,3)
-    
-    ! number of k-points
-    read(luc) nk 
-    read(luc) nk1, nk2, nk3
-    if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-       call ferror("grid_read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
-
-    ! k-points
-    if (allocated(f%wan_kpt)) deallocate(f%wan_kpt)
-    allocate(f%wan_kpt(3,nk))
-    read(luc) ((f%wan_kpt(i,j),i=1,3),j=1,nk) 
-    do i = 1, nk
-       ik1 = nint(f%wan_kpt(1,i) * nk1)
-       ik2 = nint(f%wan_kpt(2,i) * nk2)
-       ik3 = nint(f%wan_kpt(3,i) * nk3)
-       if (abs(f%wan_kpt(1,i) * nk1 - ik1) > 1d-8 .or.abs(f%wan_kpt(2,i) * nk2 - ik2) > 1d-8 .or.&
-           abs(f%wan_kpt(3,i) * nk3 - ik3) > 1d-8) &
-           call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
-    end do
-
-    read(luc) idum ! number of nearest k-point neighbours
-    read(luc) jbnd ! number of wannier functions
-    if (jbnd /= nbnd) &
-       call ferror("grid_read_unk","number of wannier functions /= number of bands",faterr)
-       
-    ! checkpoint positon and disentanglement
-    read(luc) chkpt1
-    read(luc) have_disentangled
-    if (have_disentangled) & 
-       call ferror("grid_read_unk","can not handle disentangled wannier functions",faterr)
-
-    ! u and m matrices
-    allocate(u_matrix(nbnd,nbnd,nk))
-    read(luc) (((u_matrix(i,j,k),i=1,nbnd),j=1,nbnd),k=1,nk)
-    read(luc) ((((cdum,i=1,nbnd),j=1,nbnd),k=1,idum),l=1,nk) ! m matrix
-
-    ! wannier centers and spreads
-    if (allocated(f%wan_center)) deallocate(f%wan_center)
-    if (allocated(f%wan_spread)) deallocate(f%wan_spread)
-    allocate(f%wan_center(3,nbnd),f%wan_spread(nbnd))
-    read(luc) ((f%wan_center(i,j),i=1,3),j=1,nbnd)
-    read(luc) (f%wan_spread(i),i=1,nbnd)
-
-    ! end of wannier checkpoint
-    call fclose(luc)
-
-    ! convert centers to crystallographic and spread to bohr
-    rlatti = matinv(rlatt)
-    do i = 1, nbnd
-       f%wan_center(:,i) = matmul(f%wan_center(:,i),rlatti)
-       f%wan_spread(i) = sqrt(f%wan_spread(i)) / bohrtoa
-    end do
-
-    ! no spin = 2 yet
-    ! xxxx !
-    nspin = 1
-    if (nspin == 1) then
+    ! spin
+    if (len_trim(file2) < 1) then
+       nspin = 1
        fspin = 2d0
     else
+       nspin = 2
        fspin = 1d0
-       call ferror('grid_read_unk','nspin = 2 not implemented yet',faterr)
     end if
 
     ! get the number of grid points from the first UNK file
     luc = fopen_read("UNK00001.1",form="unformatted")
     read(luc) n, idum, jbnd
     call fclose(luc)
-    
-    ! allocate arrays and fill some info
     f%n = n
-    f%nwan = (/nk1,nk2,nk3/)
+
+    ! allocate the density
     if (allocated(f%f)) deallocate(f%f)
     allocate(f%f(f%n(1),f%n(2),f%n(3)))
-    allocate(raux(nk1*n(1),nk2*n(2),nk3*n(3)))
     f%f = 0d0
 
-    ! run over bands
-    do jbnd = 1, nbnd
-       do ispin = 1, nspin
-          call get_qe_wnr("U",jbnd,ispin,n,nk1,nk2,nk3,f%wan_kpt,raux)
-          ! density contribution
-          do i = 1, nk1
-             do j = 1, nk2
-                do k = 1, nk3
-                   f%f = f%f + real(raux((i-1)*n(1)+1:i*n(1),(j-1)*n(2)+1:j*n(2),(k-1)*n(3)+1:k*n(3)),8)**2 + &
-                      aimag(raux((i-1)*n(1)+1:i*n(1),(j-1)*n(2)+1:j*n(2),(k-1)*n(3)+1:k*n(3)))**2
-                end do
-             end do
-          end do
+    ! run over spins
+    do ispin = 1, nspin
+       if (ispin == 1) then
+          luc = fopen_read(file,form="unformatted")
+       else
+          luc = fopen_read(file2,form="unformatted")
+       end if
+
+       ! header and number of bands
+       read(luc) header
+       read(luc) nbnd 
+       read(luc) jbnd 
+       if (jbnd > 0) &
+          call ferror("grid_read_unk","number of excluded bands /= 0",faterr)
+       read(luc) (idum,i=1,jbnd) 
+
+       ! real and reciprocal lattice
+       read(luc) ((rlatt(i,j),i=1,3),j=1,3)
+       if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
+          call ferror("grid_read_unk","wannier and current structure's volumes differ by more than 1%",faterr)
+       read(luc) ((rclatt(i,j),i=1,3),j=1,3)
+    
+       ! number of k-points
+       read(luc) nk 
+       read(luc) nk1, nk2, nk3
+       if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
+          call ferror("grid_read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
+
+       ! k-points
+       if (allocated(f%wan_kpt)) deallocate(f%wan_kpt)
+       allocate(f%wan_kpt(3,nk))
+       read(luc) ((f%wan_kpt(i,j),i=1,3),j=1,nk) 
+       do i = 1, nk
+          ik1 = nint(f%wan_kpt(1,i) * nk1)
+          ik2 = nint(f%wan_kpt(2,i) * nk2)
+          ik3 = nint(f%wan_kpt(3,i) * nk3)
+          if (abs(f%wan_kpt(1,i) * nk1 - ik1) > 1d-8 .or.abs(f%wan_kpt(2,i) * nk2 - ik2) > 1d-8 .or.&
+             abs(f%wan_kpt(3,i) * nk3 - ik3) > 1d-8) &
+             call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
        end do
-    end do
-    deallocate(raux)
-    f%f = f%f * fspin / omega
 
-    ! write the maximally-localized wannier funcions, if appropriate
-    call make_mlwnr(nk,n,nspin,u_matrix)
+       read(luc) idum ! number of nearest k-point neighbours
+       read(luc) jbnd ! number of wannier functions
+       if (jbnd /= nbnd) &
+          call ferror("grid_read_unk","number of wannier functions /= number of bands",faterr)
+       
+       ! checkpoint positon and disentanglement
+       read(luc) chkpt1
+       read(luc) have_disentangled
+       if (have_disentangled) & 
+          call ferror("grid_read_unk","can not handle disentangled wannier functions",faterr)
 
-    write (*,*) "centers and spreads"
-    do ibnd = 1, nbnd
-       write (*,*) "band ", ibnd
-       write (*,*) "center ", f%wan_center(:,ibnd)
-       write (*,*) "spread ", f%wan_spread(ibnd)
-    end do
-    write (*,*) 
+       ! u and m matrices
+       if (allocated(u_matrix)) deallocate(u_matrix)
+       allocate(u_matrix(nbnd,nbnd,nk))
+       read(luc) (((u_matrix(i,j,k),i=1,nbnd),j=1,nbnd),k=1,nk)
+       read(luc) ((((cdum,i=1,nbnd),j=1,nbnd),k=1,idum),l=1,nk) ! m matrix
 
-    ! if (allocated(raux)) deallocate(raux)
-    if (allocated(raux2)) deallocate(raux2)
-    allocate(raux(nk1*n(1),nk2*n(2),nk3*n(3)))
-    allocate(raux2(nk1*n(1),nk2*n(2),nk3*n(3)))
-    do ibnd = 1, nbnd
-       call get_qe_wnr("W",ibnd,1,n,nk1,nk2,nk3,f%wan_kpt,raux)
-       ! write (*,*) "band :", ibnd
-       ! imax = maxloc(abs(aimag(raux))/abs(real(raux,8)),abs(real(raux)) > 0.01d0)
-       ! write (*,*) "imax :", imax
-       ! write (*,*) "value :", raux(imax(1),imax(2),imax(3))
-       ! write (*,*) "ratio :", abs(aimag(raux(imax(1),imax(2),imax(3))))/abs(real(raux(imax(1),imax(2),imax(3)),8))
-       do jbnd = 1, nbnd
-          call get_qe_wnr("W",jbnd,1,n,nk1,nk2,nk3,f%wan_kpt,raux2)
-          do i = 0, nk1-1
-             do j = 0, nk2-1
-                do k = 0, nk3-1
-                   x = (f%wan_center(:,ibnd) + (/i,j,k/) - f%wan_center(:,jbnd)) / (/nk1,nk2,nk3/)
-                   x = x - nint(x)
-                   x = x * (/nk1,nk2,nk3/)
-                   x = matmul(x,rlatt) / bohrtoa
-                   dist = sqrt(dot_product(x,x))
+       ! wannier centers and spreads
+       if (ispin == 1) then
+          if (allocated(f%wan_center)) deallocate(f%wan_center)
+          if (allocated(f%wan_spread)) deallocate(f%wan_spread)
+          allocate(f%wan_center(3,nbnd,nspin),f%wan_spread(nbnd,nspin))
+       else
+          if (nbnd > size(f%wan_spread,1)) then
+             call realloc(f%wan_center,3,nbnd,nspin)
+             call realloc(f%wan_spread,nbnd,nspin)
+          end if
+       end if
+       read(luc) ((f%wan_center(i,j,ispin),i=1,3),j=1,nbnd)
+       read(luc) (f%wan_spread(i,ispin),i=1,nbnd)
 
-                   ovrlp = 0d0
-                   aovrlp = 0d0
-                   do i1 = 0, nk1-1
-                      ik1 = mod(i1 + i,nk1)
-                      do j1 = 0, nk2-1
-                         ik2 = mod(j1 + j,nk2)
-                         do k1 = 0, nk3-1
-                            ik3 = mod(k1 + k,nk3)
-                            ovrlp = ovrlp + sum(conjg(raux(i1*n(1)+1:(i1+1)*n(1),j1*n(2)+1:(j1+1)*n(2),k1*n(3)+1:(k1+1)*n(3))) * &
-                               raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)))
-                            aovrlp = aovrlp + sum(abs(conjg(raux(i1*n(1)+1:(i1+1)*n(1),j1*n(2)+1:(j1+1)*n(2),k1*n(3)+1:(k1+1)*n(3))) * &
-                               raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3))))
-                         end do
-                      end do
-                   end do
-                   write (*,'(99(A,X))') string(ibnd), string(jbnd), string(dist,'f',10,5), &
-                      string(abs(ovrlp)/(n(1)*n(2)*n(3)),'f',14,7), string(abs(aovrlp)/(n(1)*n(2)*n(3)),'f',14,7)
-                end do
-             end do
-          end do
+       ! end of wannier checkpoint
+       call fclose(luc)
+
+       ! convert centers to crystallographic and spread to bohr
+       rlatti = matinv(rlatt)
+       do i = 1, nbnd
+          f%wan_center(:,i,ispin) = matmul(f%wan_center(:,i,ispin),rlatti)
+          f%wan_spread(i,ispin) = sqrt(f%wan_spread(i,ispin)) / bohrtoa
        end do
-    end do
-    stop 1
 
+       ! allocate arrays and fill some info
+       f%nwan = (/nk1,nk2,nk3/)
+       nall = f%n * f%nwan
+       if (.not.nou) allocate(raux(n(1),n(2),n(3)))
+       allocate(raux2(n(1),n(2),n(3)))
+
+       do ik = 1, nk
+          ! unk file name
+          fname = "UNK" // string(ik,5,pad0=.true.) // "." // string(ispin)
+
+          ! open file for reading
+          luc = fopen_read(fname,form="unformatted")
+
+          ! read the header
+          read(luc) naux, ikk, idum
+
+          ! read the bands and pass them to the WNK file open file for writing
+          do ibnd = 1, nbnd
+             oname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
+             luw = fopen_write(oname,form="unformatted")
+
+             if (.not.nou) then
+                ! apply the transformation
+                raux2 = 0d0
+                rewind(luc)
+                read(luc) naux, ikk, idum
+                do jbnd = 1, nbnd
+                   read(luc) raux
+                   raux2 = raux2 + u_matrix(jbnd,ibnd,ik) * raux
+                end do
+             else
+                ! transfer this band to the new file
+                read(luc) raux2
+             end if
+
+             ! write and close
+             write(luw) raux2
+             call fclose(luw)
+
+             f%f = f%f + conjg(raux2) * raux2
+          end do
+
+          ! close the unk file
+          call fclose(luc)
+       end do
+       if (allocated(raux)) deallocate(raux)
+       deallocate(raux2)
+    end do
+
+    f%f = f%f * fspin / omega / real(nk,8)
     f%init = .true.
     f%mode = mode_default
     f%iswan = .true.
@@ -825,10 +807,9 @@ contains
   end subroutine grid_read_unk
 
   !> Build a Wannier function from QEs unk(r) functions in the UNK files.
-  subroutine get_qe_wnr(letter,ibnd,ispin,n,nk1,nk2,nk3,kpt,fout)
+  subroutine get_qe_wnr(ibnd,ispin,n,nk1,nk2,nk3,kpt,fout)
     use tools_io, only: string, ferror, faterr, fopen_read, fopen_write,&
        fclose
-    character*1, intent(in) :: letter
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
     integer, intent(in) :: n(3)
@@ -870,19 +851,12 @@ contains
        ! end do
        
        ! unk file name
-       fname = letter // "NK" // string(ik,5,pad0=.true.) // "." // string(ispin)
+       fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
 
        ! open file for reading
        luc = fopen_read(fname,form="unformatted")
 
-       ! read the header
-       read(luc) naux, ikk, nbnd
-       if (any(naux /= n) .or. ikk /= ik) &
-          call ferror('grid_read_unk','error in read unk file',faterr)
-
-       do jbnd = 1, ibnd-1
-          read(luc) raux
-       end do
+       ! add the contribution from this k-point
        read(luc) raux
        do ikk = 1, nk
           ik1 = nint(kpt(1,ikk) * nk1)
@@ -896,89 +870,14 @@ contains
 
        call fclose(luc)
     end do
-    ! if (ibnd == 2) then
-    !    write (*,*) "final2 ", fout(27,25,28)
-    ! end if
 
     ! normalize
     imax = maxloc(abs(fout))
     tnorm = fout(imax(1),imax(2),imax(3))
     tnorm = tnorm / abs(tnorm) * nk
     fout = fout / tnorm
-    ! if (ibnd == 2) then
-       ! write (*,*) "final3 ", fout(27,25,28)
-
-       ! imax = maxloc(abs(aimag(fout))/abs(real(fout,8)))
-       ! write (*,*) "imax :", imax
-       ! write (*,*) "value :", fout(imax(1),imax(2),imax(3))
-       ! write (*,*) "ratio :", maxval(abs(aimag(fout))/abs(real(fout,8)))
-       ! stop 1
-    ! end if
 
   end subroutine get_qe_wnr
-
-  !> Build a Wannier function from QEs unk(r) functions in the UNK files.
-  subroutine make_mlwnr(nk,n,nspin,u)
-    use tools_io, only: fopen_read, fopen_write, fclose, string
-    integer, intent(in) :: nk
-    integer, intent(in) :: n(3)
-    integer, intent(in) :: nspin
-    complex*16, intent(in) :: u(:,:,:)
-
-    integer :: luc, luw
-    character(len=:), allocatable :: fname, oname
-    complex*16 :: raux(n(1),n(2),n(3)), raux2(n(1),n(2),n(3))
-    integer :: ispin, ik, naux(3), ikk, nbnd, ibnd, jbnd
-
-    ! run over spins and k-points
-    do ispin = 1, nspin
-       do ik = 1, nk
-          ! unk file name
-          fname = "UNK" // string(ik,5,pad0=.true.) // "." // string(ispin)
-
-          ! open file for reading
-          luc = fopen_read(fname,form="unformatted")
-
-          ! read the header
-          read(luc) naux, ikk, nbnd
-
-          ! open file for writing
-          oname = "WNK" // string(ik,5,pad0=.true.) // "." // string(ispin)
-          luw = fopen_write(oname,form="unformatted")
-          write(luw) naux, ikk, nbnd
-
-          do ibnd = 1, nbnd
-             rewind(luc)
-             read(luc) naux, ikk, nbnd
-
-             ! apply the transformation
-             raux2 = 0d0
-             do jbnd = 1, nbnd
-                read(luc) raux
-                raux2 = raux2 + u(jbnd,ibnd,ik) * raux
-                ! if (ibnd == 2) then
-                !    write (*,*) "looprcv ", ibnd
-                !    write (*,*) "loopadd ", jbnd
-                !    write (*,*) "u ", u(jbnd,ibnd,ik)
-                !    write (*,*) "rwvfn1 ", raux(27,25,28)
-                !    write (*,*) "add1 ", u(jbnd,ibnd,ik) * raux(27,25,28)
-                !    write (*,*) "sum1 ", raux2(27,25,28)
-                ! end if
-             end do
-
-             ! write to the ml-wan file
-             ! if (ibnd == 2) &
-             !    write (*,*) "final ", raux2(27,25,28)
-             write(luw) raux2
-          end do
-
-          ! close both files
-          call fclose(luc)
-          call fclose(luw)
-       end do
-    end do
-
-  end subroutine make_mlwnr
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
   subroutine grid_read_elk(file,f)

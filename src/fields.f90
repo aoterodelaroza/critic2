@@ -253,12 +253,12 @@ contains
     character(len=:), allocatable :: file, lfile, file2, file3, lword
     character(len=:), allocatable :: wext1, wext2, word, word2, expr
     integer :: zz, n(3)
-    logical :: ok
-    real*8 :: renv0(3,cr%nenv), xp(3), rhopt
+    logical :: ok, nou
+    real*8 :: renv0(3,cr%nenv), xp(3), rhopt, realthr
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
-    integer :: ix, iy, iz, oid
+    integer :: ix, iy, iz, oid, nspin
     real*8 :: xd(3,3), mcut
-    integer :: nid
+    integer :: nid, nword
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
     logical :: isfrag, iok
@@ -535,7 +535,32 @@ contains
        call fillinterpol(ff)
 
     else if (equal(wext1,'chk')) then
-       call grid_read_unk(file,ff,cr%omega)
+       nspin = 1
+       nou = .false.
+       realthr = 1d-6
+       nword = 0
+       file2 = ""
+       do while (.true.)
+          word = getword(line,lp)
+          lword = lower(word)
+          nword = nword + 1
+          if (equal(lword,"spin")) then
+             nspin = 2
+          elseif (equal(lword,"nou")) then
+             nou = .true.
+          else if (len_trim(lword) > 0) then
+             if (nword == 1) then
+                file2 = word
+             else
+                call ferror('fields_load_real','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
+             end if
+          else
+             exit
+          end if
+       end do
+
+       call grid_read_unk(file,file2,ff,cr%omega,nou)
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.
@@ -2422,11 +2447,12 @@ contains
   !> = show load-time information, isset = show flags for this field.
   subroutine fieldinfo(id,isload,isset)
     use struct_basic
+    use global, only: dunit, iunit, iunitname0
     use tools_io
     integer, intent(in) :: id
     logical, intent(in) :: isload, isset
     
-    integer :: j, n(3)
+    integer :: i, j, k, n(3)
 
     ! check that we have an environment
     call cr%checkflags(.true.,init0=.true.,env0=.true.)
@@ -2525,6 +2551,28 @@ contains
        write (uout,'("  Use core densities? ",L)') f(id)%usecore
        write (uout,'("  Numerical derivatives? ",L)') f(id)%numerical
        write (uout,'("  Nuclear CP signature: ",A)') string(f(id)%typnuc)
+    end if
+
+    ! Wannier information
+    if (f(id)%iswan) then
+       write (uout,*)
+       write (uout,'("+ Wannier functions available for this field")') 
+       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f(id)%nwan(i)),i=1,3)
+       write (uout,'("  Number of bands: ",A)') string(f(id)%wan_nbnd)
+       write (uout,'("  Number of spin channels: ",A)') string(f(id)%wan_nspin)
+       write (uout,'("  List of k-points: ")')
+       do i = 1, f(id)%nwan(1)*f(id)%nwan(2)*f(id)%nwan(3)
+          write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f(id)%wan_kpt(j,i),'f',8,4),j=1,3)
+       end do
+       write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
+       write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
+       do i = 1, f(id)%wan_nspin
+          do j = 1, f(id)%wan_nbnd
+             write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
+                (string(f(id)%wan_center(k,j,i),'f',10,6,4),k=1,3),&
+                string(f(id)%wan_spread(j,i) * dunit,'f',14,8,4)
+          end do
+       end do
     end if
 
     write (uout,*)
