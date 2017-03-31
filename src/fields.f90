@@ -253,11 +253,11 @@ contains
     character(len=:), allocatable :: file, lfile, file2, file3, lword
     character(len=:), allocatable :: wext1, wext2, word, word2, expr
     integer :: zz, n(3)
-    logical :: ok, nou
-    real*8 :: renv0(3,cr%nenv), xp(3), rhopt, realthr
+    logical :: ok, nou, nochk
+    real*8 :: renv0(3,cr%nenv), xp(3), rhopt
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
     integer :: ix, iy, iz, oid, nspin
-    real*8 :: xd(3,3), mcut
+    real*8 :: xd(3,3), mcut, wancut
     integer :: nid, nword
     character*255, allocatable :: idlist(:)
     type(fragment) :: fr
@@ -537,7 +537,8 @@ contains
     else if (equal(wext1,'chk')) then
        nspin = 1
        nou = .false.
-       realthr = 1d-6
+       nochk = .false.
+       wancut = -1d0
        nword = 0
        file2 = ""
        do while (.true.)
@@ -548,6 +549,10 @@ contains
              nspin = 2
           elseif (equal(lword,"nou")) then
              nou = .true.
+          elseif (equal(lword,"nochk")) then
+             nochk = .true.
+          elseif (equal(lword,"wancut")) then
+             ok = eval_next(wancut,line,lp)
           else if (len_trim(lword) > 0) then
              if (nword == 1) then
                 file2 = word
@@ -560,7 +565,7 @@ contains
           end if
        end do
 
-       call grid_read_unk(file,file2,ff,cr%omega,nou)
+       call grid_read_unk(file,file2,ff,cr%omega,nou,nochk,wancut)
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.
@@ -2570,6 +2575,8 @@ contains
        write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f(id)%nwan(i)),i=1,3)
        write (uout,'("  Number of bands: ",A)') string(f(id)%wan_nbnd)
        write (uout,'("  Number of spin channels: ",A)') string(f(id)%wan_nspin)
+       if (f(id)%wan_cutoff > 0d0) &
+          write (uout,'("  Overlap calculation distance cutoff: ",A)') string(f(id)%wan_cutoff,'f',10,4)
        write (uout,'("  List of k-points: ")')
        do i = 1, f(id)%nwan(1)*f(id)%nwan(2)*f(id)%nwan(3)
           write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f(id)%wan_kpt(j,i),'f',8,4),j=1,3)

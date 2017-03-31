@@ -2532,7 +2532,6 @@ contains
 
        ! Check consistency of atomic information in input data. Fill in some
        ! of the missing information.
-       if (c%nneq <= 0) call ferror('struct_fill','No atoms found',faterr)
        do i = 1, c%nneq
           ! Bring non-equivalent atoms into the main unit cell
           c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)

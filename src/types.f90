@@ -192,8 +192,10 @@ module types
      ! wannier functions
      logical :: iswan
      integer :: nwan(3) !< Number of real-space vectors
+     logical :: wan_dochk !< Save the sij to a checkpoint file
      integer :: wan_nbnd !< Number of bands
      integer :: wan_nspin !< Number of spins
+     real*8 :: wan_cutoff !< distance cutoff factor for overlaps
      real*8, allocatable :: wan_kpt(:,:) !< k-points for wannier
      real*8, allocatable :: wan_center(:,:,:) !< wannier function centers (cryst)
      real*8, allocatable :: wan_spread(:,:) !< wannier function spreads (bohr)

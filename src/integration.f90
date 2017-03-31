@@ -706,8 +706,10 @@ contains
     use struct_basic, only: cr, crystal
     use global, only: refden
     use types, only: realloc
-    use tools_io, only: uout, string, fopen_read, fclose
-    use tools_math, only: norm
+    use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
+       ferror, faterr
+    use tools_math, only: norm, matinv
+    use param, only: tpi, img
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
@@ -716,21 +718,24 @@ contains
     integer, intent(in) :: luw
     complex*16, allocatable, intent(inout) :: sij(:,:,:,:,:)
 
-    integer :: is, nspin, ndeloc, natt1
+    integer :: is, nspin, ndeloc, natt1, lu
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, l, ibnd1, ibnd2
+    integer :: i, j, k, l, m, ibnd1, ibnd2
     integer :: nwan(3), m1, m2, m3
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
     complex*16, allocatable :: psic(:,:,:), psic2(:,:,:)
     complex*16 :: padd
-    real*8 :: x(3), xs(3), d2
+    real*8 :: x(3), xs(3), d2, d0, rrdum, ridum
     logical :: found
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
     type(ytdata) :: dat
     complex*16, allocatable :: f1(:,:,:), f2(:,:,:)
+    logical, allocatable :: lovrlp(:,:,:,:,:,:)
+    type(crystal) :: nc
+    character(len=:), allocatable :: sijfname
 
     ! run over properties with wannier delocalization indices; allocate sij
     ndeloc = 0
@@ -856,139 +861,239 @@ contains
        if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
        ndeloc = ndeloc + 1
 
-       ! assign values to some integers
-       nbnd = f(fid)%wan_nbnd
-       nwan = f(fid)%nwan
-       nlat = nwan(1)*nwan(2)*nwan(3)
-       nmo = nlat * nbnd
-       nspin = f(fid)%wan_nspin
+       sijfname = trim(f(fid)%file) // "-sij"
+       found = .false.
+       if (f(fid)%wan_dochk) then
+          inquire(file=sijfname,exist=found)
+       end if
 
-       ! write out some info
-       write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
-       write (uout,'(99(A,X))') "  Number of bands =", string(nbnd)
-       write (uout,'(99(A,X))') "  ... lattice translations =", (string(f(fid)%nwan(j)),j=1,3)
-       write (uout,'(99(A,X))') "  ... Wannier functions =", string(nmo)
-       write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
-     
-       write (uout,'(99(A,X))') "  Calculating overlaps..."
-       allocate(psic(n(1),n(2),n(3)))
-       sij(:,:,:,:,ndeloc) = 0d0
+       if (.not.found) then
+          ! assign values to some integers
+          nbnd = f(fid)%wan_nbnd
+          nwan = f(fid)%nwan
+          nlat = nwan(1)*nwan(2)*nwan(3)
+          nmo = nlat * nbnd
+          nspin = f(fid)%wan_nspin
 
-       if (imtype == imtype_bader) then
-          allocate(f1(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
-          allocate(f2(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
-          do is = 1, nspin
-             do ibnd1 = 1, f(fid)%wan_nbnd
-                write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
-                   string(f(fid)%wan_nbnd), string(is), string(nspin)
-                ! first wannier function
-                call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
+          ! write out some info
+          write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
+          write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
+          write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
+          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nmo)
+          write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
 
-                do ibnd2 = 1, f(fid)%wan_nbnd
-                   ! second wannier function
-                   if (ibnd1 == ibnd2) then
-                      f2 = f1
-                   else
-                      call get_qe_wnr(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
-                   endif
+          write (uout,'(99(A,X))') "  Calculating overlaps..."
+          sij(:,:,:,:,ndeloc) = 0d0
 
-                   do imo = 1, nmo
-                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                      if (iba /= ibnd1) cycle
-                      do jmo = 1, nmo
-                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                         if (ibb /= ibnd2) cycle
-                         psic = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * &
-                            f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
-                         do i = 1, natt1
-                            padd = sum(psic,idg1==i)
-                            call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                            call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                            sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                         end do
-                      end do
-                   end do
-                end do
-             end do
+          ! build the supercell
+          call nc%init()
+          nc%aa = cr%aa * nwan
+          nc%bb = cr%bb
+          do i = 1, 3
+             nc%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
           end do
-          deallocate(f1,f2)
-       else
-          ! yt integration
-          allocate(f1(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
-          allocate(f2(f(fid)%n(1)*f(fid)%nwan(1),f(fid)%n(2)*f(fid)%nwan(2),f(fid)%n(3)*f(fid)%nwan(3)))
-          allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
+          nc%car2crys = matinv(nc%crys2car)
+          nc%nneq = 0
+          nc%ncel = 0
+          nc%havesym = 0
+          call nc%struct_fill(.true.,.false.,0,0,.false.,.false.,.false.)
 
-          f1 = 0d0
+          allocate(psic(n(1),n(2),n(3)))
+          allocate(f1(f(fid)%n(1)*nwan(1),f(fid)%n(2)*nwan(2),f(fid)%n(3)*nwan(3)))
+          allocate(f2(f(fid)%n(1)*nwan(1),f(fid)%n(2)*nwan(2),f(fid)%n(3)*nwan(3)))
+          allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
+          if (imtype == imtype_yt) &
+             allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
           do is = 1, nspin
-             do ibnd1 = 1, f(fid)%wan_nbnd
-                write (uout,'(4X,"Band ",A,"/",A,"  Spin ",A,"/",A)') string(ibnd1), &
-                   string(f(fid)%wan_nbnd), string(is), string(nspin)
+             do ibnd1 = 1, nbnd
                 ! first wannier function
-                call get_qe_wnr(ibnd1,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f1)
+                call get_qe_wnr(ibnd1,is,f(fid)%n,nwan(1),nwan(2),nwan(3),f(fid)%wan_kpt,f1)
 
-                f2 = 0d0
-                psic = 0d0
-                psic2 = 0d0
-                w = 0d0
-                wmask = .false.
-                do ibnd2 = 1, f(fid)%wan_nbnd
+                do ibnd2 = ibnd1, nbnd
                    ! second wannier function
                    if (ibnd1 == ibnd2) then
                       f2 = f1
                    else
-                      call get_qe_wnr(ibnd2,is,f(fid)%n,f(fid)%nwan(1),f(fid)%nwan(2),f(fid)%nwan(3),f(fid)%wan_kpt,f2)
+                      call get_qe_wnr(ibnd2,is,f(fid)%n,nwan(1),nwan(2),nwan(3),f(fid)%wan_kpt,f2)
                    endif
 
-                   do i = 1, natt1
-                      call yt_weights(din=dat,idb=iatt(i),w=w)
-                      wmask = .false.
-                      do m3 = 1, n(3)
-                         do m2 = 1, n(2)
-                            do m1 = 1, n(1)
-                               if (abs(w(m1,m2,m3)) < 1d-15) cycle
-                               p = (/m1,m2,m3/)
-                               x = real(p-1,8) / n - xgatt(:,iatt(i))
-                               xs = x
-                               call cr%shortest(xs,d2)
-                               p = nint(x - cr%c2x(xs))
-                               wmask(m1,m2,m3) = all(p == ilvec(:,i))
-                            end do
-                         end do
-                      end do
-
-                      psic2 = cmplx(0.,0.)
+                   ! lovrlp
+                   lovrlp = .true.
+                   if (f(fid)%wan_cutoff > 0d0) then
+                      d0 = (f(fid)%wan_spread(ibnd1,is)+f(fid)%wan_spread(ibnd2,is)) * f(fid)%wan_cutoff
                       do imo = 1, nmo
                          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                          if (iba /= ibnd1) cycle
-                         where (wmask)
-                            psic2 = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * w
-                         end where
                          do jmo = 1, nmo
                             call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                             if (ibb /= ibnd2) cycle
-                            where (wmask)
-                               psic =  psic2 * &
-                                  f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
-                            end where
-                            padd = sum(psic,wmask)
-                            call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                            call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                            sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                            x = (f(fid)%wan_center(:,ibnd1,is) + (/ia,ja,ka/) - (/ib,jb,kb/) - f(fid)%wan_center(:,ibnd2,is)) / real(nwan,8)
+                            call nc%shortest(x,d2)
+                            if (sqrt(d2) > d0) &
+                               lovrlp(ia,ja,ka,ib,jb,kb) = .false.
                          end do
+                      end do
+                   end if
+
+                   write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
+                      string(ibnd1), string(ibnd2), string(nbnd), string(is), string(nspin),&
+                      string(count(lovrlp)), string(nlat*nlat)
+
+                   if (imtype == imtype_bader) then
+                      ! bader integration
+                      psic = 0d0
+                      !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic) schedule(dynamic)
+                      do imo = 1, nmo
+                         call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                         if (iba /= ibnd1) cycle
+                         do jmo = 1, nmo
+                            call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                            if (ibb /= ibnd2) cycle
+                            if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
+                            psic = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * &
+                               f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
+                            do i = 1, natt1
+                               padd = sum(psic,idg1==i)
+                               call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                               call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                               !$omp critical (add)
+                               sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                               if (ibnd1 /= ibnd2) then
+                                  sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(jmo1,imo1,iatt(i),is,ndeloc) + conjg(padd)
+                               end if
+                               !$omp end critical (add)
+                            end do
+                         end do
+                      end do
+                      !$omp end parallel do
+                   else
+                      ! yt integration
+                      psic = 0d0
+                      psic2 = 0d0
+                      w = 0d0
+                      wmask = .false.
+                      !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic,psic2,w,wmask) schedule(dynamic)
+                      do i = 1, natt1
+                         call yt_weights(din=dat,idb=iatt(i),w=w)
+                         wmask = .false.
+                         do m3 = 1, n(3)
+                            do m2 = 1, n(2)
+                               do m1 = 1, n(1)
+                                  if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                                  p = (/m1,m2,m3/)
+                                  x = real(p-1,8) / n - xgatt(:,iatt(i))
+                                  xs = x
+                                  call cr%shortest(xs,d2)
+                                  p = nint(x - cr%c2x(xs))
+                                  wmask(m1,m2,m3) = all(p == ilvec(:,i))
+                               end do
+                            end do
+                         end do
+
+                         psic2 = 0d0
+                         do imo = 1, nmo
+                            call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                            if (iba /= ibnd1) cycle
+                            where (wmask)
+                               psic2 = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * w
+                            end where
+
+                            do jmo = 1, nmo
+                               call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                               if (ibb /= ibnd2) cycle
+                               if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
+
+                               where (wmask)
+                                  psic =  psic2 * &
+                                     f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
+                               end where
+                               padd = sum(psic,wmask)
+                               call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                               call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                               !$omp critical (add)
+                               sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
+                               if (ibnd1 /= ibnd2) then
+                                  sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(jmo1,imo1,iatt(i),is,ndeloc) + conjg(padd)
+                               end if
+                               !$omp end critical (add)
+                            end do
+                         end do
+                      end do
+                      !$omp end parallel do
+                   end if
+
+                end do
+             end do
+          end do
+
+          ! clean up
+          deallocate(f1,f2,lovrlp)
+          if (imtype == imtype_yt) &
+             deallocate(w,wmask,psic2)
+          deallocate(psic)
+
+          ! scale (the omega comes from wannier)
+          sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
+
+          ! write the checkpoint
+          if (f(fid)%wan_dochk) then
+             write (uout,'("+ Writing Sij checkpoint file: ",A)') trim(sijfname)
+             lu = fopen_write(sijfname)
+             write (lu,'("# Sij file generated by critic2.")')
+             write (lu,'(A," # number of bands (nbnd)")') string(nbnd)
+             write (lu,'(3(A,X)," # number of lattice vectors (nwan)")') (string(nwan(i)),i=1,3)
+             write (lu,'(A," # number of attractors")') string(natt)
+             write (lu,'(A," # number of spin channels")') string(nspin)
+             write (lu,'("# ispin  iatt  jmo  imo  sij(imo,jmo,iatt,is) (re,im)")')
+             do is = 1, nspin
+                do ia = 1, natt
+                   do jmo = 1, nmo
+                      do imo = 1, nmo
+                         write (lu,'(6(A,X))') string(imo), string(jmo), string(ia), string(is), &
+                            string(real(sij(imo,jmo,ia,is,ndeloc),8),'d',22,15),&
+                            string(aimag(sij(imo,jmo,ia,is,ndeloc)),'d',22,15)
                       end do
                    end do
                 end do
              end do
-          end do
-          deallocate(w,wmask,psic2)
-          deallocate(f1,f2)
-       end if
-       ! scale (the omega comes from wannier)
-       sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
-       write (uout,'("  Done."/)')
+             call fclose(lu)
+          end if
+       else
+          ! read the checkpoint file
+          write (uout,'("+ Reading Sij checkpoint file: ",A)') trim(sijfname)
+          lu = fopen_read(sijfname)
+          read (lu,*)
+          read (lu,*) nbnd
+          read (lu,*) nwan
+          read (lu,*) natt1
+          read (lu,*) nspin
+          read (lu,*)
+          if (nbnd /= f(fid)%wan_nbnd) &
+             call ferror("intgrid_deloc_wannier","wrong number of bands (delete chk-sij?)",faterr)
+          if (natt /= natt1) &
+             call ferror("intgrid_deloc_wannier","wrong number of attractors (delete chk-sij?)",faterr)
+          if (any(nwan /= f(fid)%nwan)) &
+             call ferror("intgrid_deloc_wannier","wrong number of lattice vectors (delete chk-sij?)",faterr)
+          if (nspin /= f(fid)%wan_nspin) &
+             call ferror("intgrid_deloc_wannier","wrong spin (delete chk-sij?)",faterr)
 
-       ! wrap up
-       deallocate(psic)
+          nlat = nwan(1)*nwan(2)*nwan(3)
+          nmo = nlat * nbnd
+          do is = 1, nspin
+             do ia = 1, natt1
+                do jmo = 1, nmo
+                   do imo = 1, nmo
+                      read (lu,*) i, j, k, m, rrdum, ridum
+                      sij(imo,jmo,ia,is,ndeloc) = cmplx(rrdum,ridum,8)                      
+                   end do
+                end do
+             end do
+          end do
+          call fclose(lu)
+       end if
+       
+       ! final message
+       write (uout,'("+ Done."/)')
     end do
 
     ! clean up

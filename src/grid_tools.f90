@@ -617,7 +617,7 @@ contains
   !>                Giovanni Pizzi, Young-Su Lee,               
   !>                Nicola Marzari, Ivo Souza, David Vanderbilt 
   !> Distributed under GNU/GPL v2.
-  subroutine grid_read_unk(file,file2,f,omega,nou)
+  subroutine grid_read_unk(file,file2,f,omega,nou,nochk,wancut)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write
@@ -629,6 +629,8 @@ contains
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
     logical, intent(in) :: nou
+    logical, intent(in) :: nochk
+    real*8, intent(in) :: wancut
 
     integer :: luc, luw
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -811,6 +813,8 @@ contains
     f%iswan = .true.
     f%wan_nbnd = nbnd
     f%wan_nspin = nspin
+    f%wan_cutoff = wancut
+    f%wan_dochk = .not.nochk
 
   end subroutine grid_read_unk
 
@@ -818,20 +822,21 @@ contains
   subroutine get_qe_wnr(ibnd,ispin,n,nk1,nk2,nk3,kpt,fout)
     use tools_io, only: string, ferror, faterr, fopen_read, fopen_write,&
        fclose
+    use param, only: tpi, img
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
     integer, intent(in) :: n(3)
     integer, intent(in) :: nk1, nk2, nk3
     real*8, intent(in) :: kpt(3,nk1*nk2*nk3)
-    complex*16 :: fout(nk1*n(1),nk2*n(2),nk3*n(3))
+    complex*16, intent(out) :: fout(nk1*n(1),nk2*n(2),nk3*n(3))
 
-    integer :: luc
+    integer :: luc, i, j, k
     integer :: nk, ik, ik1, ik2, ik3, nall(3), naux(3), ikk, nbnd
     integer :: jbnd, imax(3)
     complex*16 :: raux(n(1),n(2),n(3))
-    complex*16 :: raux2(nk1*n(1),nk2*n(2),nk3*n(3))
+    complex*16 :: raux2(n(1),n(2),n(3))
     character(len=:), allocatable :: fname
-    complex*16 :: tnorm
+    complex*16 :: tnorm, ph
 
     fout = 0d0
     nk = nk1 * nk2 * nk3
@@ -842,41 +847,34 @@ contains
     ! run over k-points
     do ik = 1, nk
        ! phase factor
-       ik1 = nint(kpt(1,ik) * nk1) + 1
-       ik2 = nint(kpt(2,ik) * nk2) + 1
-       ik3 = nint(kpt(3,ik) * nk3) + 1
-       raux2 = 0d0
-       raux2(ik1,ik2,ik3) = (1d0,0d0)
-       call cfftnd(3,nall,1,raux2)
-
-       ! do k = 1, n(3)*2
-       !    do j = 1, n(2)*2
-       !       do i = 1, n(1)*2
-       !          raux2(i,j,k) = exp(tpi*img*(kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
-       !             kpt(2,ik)*real(j-1,8)/real(n(2),8)+kpt(3,ik)*real(k-1,8)/real(n(3),8)))
-       !       end do
-       !    end do
-       ! end do
+       do k = 1, n(3)
+          do j = 1, n(2)
+             do i = 1, n(1)
+                raux2(i,j,k) = exp(tpi*img*(kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
+                   kpt(2,ik)*real(j-1,8)/real(n(2),8)+kpt(3,ik)*real(k-1,8)/real(n(3),8)))
+             end do
+          end do
+       end do
        
        ! unk file name
        fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
 
-       ! open file for reading
+       ! read the external file
        luc = fopen_read(fname,form="unformatted")
+       read(luc) raux
+       call fclose(luc)
 
        ! add the contribution from this k-point
-       read(luc) raux
+       raux2 = raux2 * raux
        do ikk = 1, nk
           ik1 = nint(kpt(1,ikk) * nk1)
           ik2 = nint(kpt(2,ikk) * nk2)
           ik3 = nint(kpt(3,ikk) * nk3)
+          ph = exp(tpi*img*(kpt(1,ik)*ik1+kpt(2,ik)*ik2+kpt(3,ik)*ik3))
           fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) = &
              fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) + &
-             raux2(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) * &
-             raux
+             raux2 * ph
        end do
-
-       call fclose(luc)
     end do
 
     ! normalize
