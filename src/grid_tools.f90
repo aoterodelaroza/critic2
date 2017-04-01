@@ -620,7 +620,7 @@ contains
   subroutine grid_read_unk(file,file2,f,omega,nou,nochk,wancut)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
-       fclose, string, fopen_write
+       fclose, string, fopen_write, uout
     use types, only: field, realloc
     use param, only: bohrtoa
 
@@ -704,9 +704,13 @@ contains
           ik1 = nint(f%wan_kpt(1,i) * nk1)
           ik2 = nint(f%wan_kpt(2,i) * nk2)
           ik3 = nint(f%wan_kpt(3,i) * nk3)
-          if (abs(f%wan_kpt(1,i) * nk1 - ik1) > 1d-8 .or.abs(f%wan_kpt(2,i) * nk2 - ik2) > 1d-8 .or.&
-             abs(f%wan_kpt(3,i) * nk3 - ik3) > 1d-8) &
+          if (abs(f%wan_kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan_kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
+             abs(f%wan_kpt(3,i) * nk3 - ik3) > 1d-5) then
+             write (uout,*) f%wan_kpt(:,i)
+             write (uout,*) f%wan_kpt(1,i)*nk1,f%wan_kpt(1,i)*nk2,f%wan_kpt(1,i)*nk3
+             write (uout,*) ik1, ik2, ik3
              call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+          end if
        end do
 
        read(luc) idum ! number of nearest k-point neighbours
