@@ -113,6 +113,7 @@ contains
 
     ! initialize the promolecular density
     f(0)%init = .true.
+    f(0)%iswan = .false.
     f(0)%type = type_promol
     f(0)%usecore = .false.
     f(0)%typnuc = -3
@@ -268,6 +269,7 @@ contains
 
     ! defaults
     dormt = .true.
+    ff%iswan = .false.
 
     ! read and parse
     oksyn = .false.
@@ -892,6 +894,7 @@ contains
     fused(id) = .false.
     if (fh%iskey(string(id))) call fh%delkey(string(id))
     f(id)%init = .false.
+    f(id)%iswan = .false.
     f(id)%name = ""
     f(id)%file = ""
     if (allocated(f(id)%f)) deallocate(f(id)%f)
