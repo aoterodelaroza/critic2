@@ -66,7 +66,7 @@ distribution can be installed to the 'prefix' path by doing:
     make install
 
 Critic2 is parallelized for shared-memory architectures (unless
-compiled with --disable-openmp). You modify the number of parallel
+compiled with --disable-openmp). You change the number of parallel
 threads by setting the OMP_NUM_THREADS environment variable. The
 following are parallelized in critic2:
 
@@ -74,9 +74,17 @@ following are parallelized in critic2:
 * Bisection (over integration rays)
 * Generation of 3D grids in CUBE, WRITE,... (over planes)
 * Qtree (over tetrahedra)
+* Atomic basin integtration with grids (YT and BADER)
 
 Note that the compilation flags for compilers different from ifort and
-gfortran regarding parallelization may not be correct.
+gfortran regarding parallelization may not be correct. 
+
+In the case of ifort (and maybe other compilers), it may be necessary
+in some cases to increase the stack size using, for instance:
+
+export OMP_STACKSIZE=128MB
+
+This is applies in particular to integrations using YT.
 
 The environment variable CRITIC_HOME is necessary if critic2 was not
 installed with 'make install'. It must point to the root directory of
