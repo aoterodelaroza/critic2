@@ -6439,7 +6439,7 @@ HIRSHFELD
 IDENTIFY
   Identify the position of an atom or a critical point given in
   crystallographic or cartesian coordinates. See `Other structural
-  tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY, EWALD)`_.
+  tools (NEWCELL, ENVIRON, PACKING, IDENTIFY, EWALD)`_.
 
 INTEGRABLE
   Mark a field as a property to be integrated in the attraction
@@ -6498,7 +6498,7 @@ NCIPLOT
 
 NEWCELL
   Change the cell setting of the current crystal structure by defining
-  a new unit cell. See `Other structural tools (NEWCELL, WS, ENVIRON,
+  a new unit cell. See `Other structural tools (NEWCELL, ENVIRON,
   PACKING, IDENTIFY, EWALD)`_.
 
 NOCORE
@@ -6516,7 +6516,7 @@ ODE_MODE
 
 PACKING
   Calculate the packing ratio of the current crystal structure. See
-  `Other structural tools (NEWCELL, WS, ENVIRON, PACKING, IDENTIFY,
+  `Other structural tools (NEWCELL, ENVIRON, PACKING, IDENTIFY,
   EWALD)`_. 
 
 PLANE

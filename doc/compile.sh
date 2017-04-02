@@ -37,13 +37,13 @@
 #                         character. Default is "" which leads to package "ae"
 #                         (a T1 emulation using CM fonts).
 
-DOCSBASELIST="user-guide user-guide-public"
+DOCSBASELIST="user-guide"
 STYLESHEET="--stylesheet=RST3"
 DOCOPTIONS="12pt,a4paper"
 
 for DOCSBASENAME in ${DOCSBASELIST} ; do
     if [ -f "${DOCSBASENAME}.txt" ] ; then
-	rst2latex --language=en --report=4 --use-latex-footnotes \
+	rst2latex --language=en --report=4 \
 	    --section-numbering ${STYLESHEET} --use-verbatim-when-possible \
 	    --graphicx-option=pdftex --font-encoding=T1 \
 	    --documentoptions=${DOCOPTIONS} \
