@@ -29,8 +29,10 @@ module config
 #endif
   character(len=*), parameter :: f77 = "@F77@"
   character(len=*), parameter :: fc = "@FC@"
+  character(len=*), parameter :: cc = "@CC@"
   character(len=*), parameter :: fflags = "@FFLAGS@"
   character(len=*), parameter :: fcflags = "@FCFLAGS@"
+  character(len=*), parameter :: cflags = "@CFLAGS@"
   character(len=*), parameter :: ldflags = "@LDFLAGS@"
   character(len=*), parameter :: atarget = "@TARGET@"
 #ifdef DATE

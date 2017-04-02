@@ -54,7 +54,7 @@ program critic
      initial_banner, help_me, config_write, critic_clearvariable,&
      critic_setvariables,global_set_defaults
   use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
-     fcflags, ldflags, enable_debug, package
+     fcflags, cc, cflags, ldflags, enable_debug, package
   use graphics, only: graphics_init
   use arithmetic, only: listvariables
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
@@ -103,7 +103,7 @@ program critic
   if (.not.quiet) then
      call initial_banner()
      call config_write(package,version,atarget,adate,f77,fflags,fc,&
-        fcflags,ldflags,enable_debug,datadir)
+        fcflags,cc,cflags,ldflags,enable_debug,datadir)
      call tictac('CRITIC2')
      write (uout,*)
      ucopy = uout

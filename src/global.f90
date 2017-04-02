@@ -363,11 +363,11 @@ contains
 
   !> Print out the compilation details and the hardwired paths
   subroutine config_write(package,version,atarget,adate,f77,fflags,fc,&
-     fcflags,ldflags,enable_debug,datadir)
+     fcflags,cc,cflags,ldflags,enable_debug,datadir)
     use param, only: dirsep
     use tools_io, only: uout
     character*(*), intent(in) :: package, version, atarget, adate
-    character*(*), intent(in) :: f77, fflags, fc, fcflags
+    character*(*), intent(in) :: f77, fflags, fc, fcflags, cc, cflags
     character*(*), intent(in) :: ldflags, enable_debug, datadir
     logical :: lchk
 
@@ -376,6 +376,7 @@ contains
     write (uout,'(" compile date: ",A)') adate
     write (uout,'("    using f77: ",A," ",A)') f77, fflags
     write (uout,'("          f90: ",A," ",A)') fc, fcflags
+    write (uout,'("            c: ",A," ",A)') cc, cflags
     write (uout,'("      ldflags: ",A)') ldflags
     write (uout,'("       debug?: ",A)') enable_debug
     write (uout,'(" compiled dat: ",A)') datadir

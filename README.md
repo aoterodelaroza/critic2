@@ -79,12 +79,12 @@ following are parallelized in critic2:
 Note that the compilation flags for compilers different from ifort and
 gfortran regarding parallelization may not be correct. 
 
-In the case of ifort (and maybe other compilers), it may be necessary
-in some cases to increase the stack size using, for instance:
+In the case of ifort (and maybe other compilers), sometimes it may be
+necessary to increase the stack size using, for instance:
 
 export OMP_STACKSIZE=128MB
 
-This is applies in particular to integrations using YT.
+This applies in particular to integrations using YT.
 
 The environment variable CRITIC_HOME is necessary if critic2 was not
 installed with 'make install'. It must point to the root directory of
