@@ -44,7 +44,7 @@ program critic
   use grd_atomic, only: grda_init, grda_end
   use struct, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
-     struct_compare, struct_environ, struct_packing
+     struct_compare, struct_environ, struct_packing, struct_atomlabel
   use struct_basic, only: cr
   use wfn_private, only: wfn_end
   use pi_private, only: pi_end
@@ -144,6 +144,7 @@ program critic
         call fields_init()
         call set_reference(0)
         
+     ! molcell
      elseif (equal(word,'molcell')) then
         if (.not. cr%isinit) then
            call ferror('critic2','need crystal before molcell',faterr,line,syntax=.true.)
@@ -176,6 +177,14 @@ program critic
            ll1 = equal(word,'zpsp') .or. equal(word,'nocore')
            call grda_init(ll1,.not.ll1,.true.)
         end if
+
+     ! atomlabel
+     elseif (equal(word,'atomlabel')) then
+        if (.not. cr%isinit) then
+           call ferror('critic2','need crystal before atomlabel',faterr,line,syntax=.true.)
+           cycle
+        end if
+        call struct_atomlabel(cr,subline)
 
      ! write
      elseif (equal(word,'write')) then

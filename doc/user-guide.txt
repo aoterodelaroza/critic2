@@ -5518,6 +5518,29 @@ Some advice regarding the execution of NCIPLOT:
 Structural tools
 ----------------
 
+Relabel the atoms in the structure (ATOMLABEL)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+  ATOMLABEL template.s
+
+The ATOMLABEL keyword can be used to change the atomic labels for the
+atoms in the current structure. The template string (template.s) is
+used to build the new atomic names. The format specifiers for this
+template are:
+
+* %aid : the index for the atom in the non-equivalent atom list. 
+
+* %id : the index for the atom in the non-equivalent atom list,
+   counting only the atoms with the same atomic number.
+
+* %S : the atomic symbol, derived from the current atomic number.
+
+* %s : same as %S, but lowercase.
+
+* %l : the current atom label.
+
 Powder diffraction (POWDER)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -6319,6 +6342,10 @@ structure is:
 
 Keyword list
 ------------
+
+ATOMLABEL
+  Relabel the atoms in the current structure `Relabel the atoms in the
+  structure (ATOMLABEL)`_. 
 
 AUTO
   Determine the position and properties of the critical points.

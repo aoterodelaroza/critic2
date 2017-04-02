@@ -82,7 +82,7 @@ gfortran regarding parallelization may not be correct.
 In the case of ifort (and maybe other compilers), sometimes it may be
 necessary to increase the stack size using, for instance:
 
-export OMP_STACKSIZE=128MB
+export OMP_STACKSIZE=128M
 
 This applies in particular to integrations using YT.
 

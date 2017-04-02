@@ -27,6 +27,7 @@ module struct
   public :: struct_clearsym
   public :: struct_charges
   public :: struct_write
+  public :: struct_atomlabel
   public :: struct_powder
   public :: struct_rdf
   public :: struct_compare
@@ -677,6 +678,102 @@ contains
 
     end function check_no_extra_word
   end subroutine struct_write
+
+  !> Relabel atoms based on user's input
+  subroutine struct_atomlabel(c,line)
+    use struct_basic, only: cr, crystal
+    use global, only: iunitname, dunit
+    use tools_io, only: tab, string, nameguess, lower, ioj_center, uout
+    type(crystal), intent(inout) :: c
+    character*(*), intent(in) :: line
+
+    character(len=:), allocatable :: templ, aux, aux2
+
+    integer :: i, j, inum, idx
+    
+    ! clean up the input label and build the template
+    templ = trim(adjustl(line))
+    aux = ""
+    do i = 1, len(templ)
+       if (templ(i:i) == "'" .or. templ(i:i) == '"' .or. templ(i:i) == tab) cycle
+       aux2 = trim(aux) // templ(i:i)
+       aux = aux2
+    end do
+    templ = aux
+
+    do i = 1, cr%nneq
+       aux = templ
+       do while(.true.)
+          if (index(aux,"%aid") > 0) then
+             ! the absolute index for this atom
+             idx = index(aux,"%aid")
+             aux2 = aux(1:idx-1) // string(i) // aux(idx+4:)
+             aux = aux2
+          elseif (index(aux,"%id") > 0) then
+             ! the index by counting atoms only of this type
+             inum = 0
+             do j = 1, i
+                if (cr%at(j)%z == cr%at(i)%z) inum = inum + 1
+             end do
+             idx = index(aux,"%id")
+             aux2 = aux(1:idx-1) // string(inum) // aux(idx+3:)
+             aux = aux2
+          elseif (index(aux,"%S") > 0) then
+             ! the atomic symbol
+             idx = index(aux,"%S")
+             aux2 = aux(1:idx-1) // string(nameguess(cr%at(i)%z,.true.)) // aux(idx+2:)
+             aux = aux2
+          elseif (index(aux,"%s") > 0) then
+             ! the atomic symbol, lowercase
+             idx = index(aux,"%s")
+             aux2 = aux(1:idx-1) // string(lower(nameguess(cr%at(i)%z,.true.))) // aux(idx+2:)
+             aux = aux2
+          elseif (index(aux,"%l") > 0) then
+             ! the original atom label
+             idx = index(aux,"%l")
+             aux2 = aux(1:idx-1) // string(cr%at(i)%name) // aux(idx+2:)
+             aux = aux2
+          else
+             exit
+          endif
+       end do
+       cr%at(i)%name = trim(aux)
+    end do
+    
+    ! Write the list of atomic coordinates
+    if (.not.cr%ismolecule) then
+       write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
+       write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
+          string("x",14,ioj_center), string("y",14,ioj_center),&
+          string("z",14,ioj_center), string("name",10,ioj_center), &
+          string("mult",4,ioj_center), string("Z",4,ioj_center)
+       do i=1, cr%nneq
+          write (uout,'(2x,7(A,X))') &
+             string(i,3,ioj_center),&
+             string(cr%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
+             string(cr%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
+             string(cr%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+             string(cr%at(i)%name,10,ioj_center), &
+             string(cr%at(i)%mult,4,ioj_center), string(cr%at(i)%z,4,ioj_center)
+       enddo
+       write (uout,*)
+    else
+       write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname
+       write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
+          string("x",16,ioj_center), string("y",16,ioj_center),&
+          string("z",16,ioj_center), string("name",10,ioj_center),&
+          string("Z",4,ioj_center)
+       do i=1,cr%ncel
+          write (uout,'(2x,6(A,X))') &
+             string(i,3,ioj_center),&
+             (string((cr%atcel(i)%r(j)+cr%molx0(j))*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
+             string(cr%at(cr%atcel(i)%idx)%name,10,ioj_center),&
+             string(cr%at(cr%atcel(i)%idx)%z,4,ioj_center)
+       enddo
+       write (uout,*)
+    end if
+
+  end subroutine struct_atomlabel
 
   !> Calculate the powder diffraction pattern for the current
   !structure.

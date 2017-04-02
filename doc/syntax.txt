@@ -86,6 +86,7 @@ expression.r # prints the value of the expression to the output.
   ENDMOLECULE/END
   MOLECULE LIBRARY label.s
 * LIBRARY {CRYSTAL|MOLECULE} path.s
+* ATOMLABEL template.s
 * UNITS {BOHR|AU|A.U.|ANG|ANGSTROM}
 * NOSYMM|NOSYM|{SYMM|SYM} [-1|0|1]
   SYMPREC symprec.r
