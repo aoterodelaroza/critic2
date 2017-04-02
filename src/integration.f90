@@ -490,6 +490,7 @@ contains
 
     if (allocated(mpole)) deallocate(mpole)
     allocate(mpole((lmax+1)*(lmax+1),natt,np))
+    mpole = 0d0
 
     ! size of the grid and YT weights
     n = f(refden)%n
@@ -514,7 +515,8 @@ contains
        ! calcualate the multipoles
        mpole(:,:,np) = 0d0
        if (imtype == imtype_bader) then
-          !$omp parallel do private(p,ix,dv,r,tp,rrlm) schedule(dynamic)
+          rrlm = 0d0
+          !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm) schedule(dynamic)
           do i = 1, n(1)
              p(1) = real(i-1,8)
              do j = 1, n(2)
@@ -535,7 +537,9 @@ contains
           end do
           !$omp end parallel do
        else
-          !$omp parallel do private(p,dv,r,tp,rrlm) firstprivate(w) schedule(dynamic)
+          w = 0d0
+          rrlm = 0d0
+          !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm) schedule(dynamic)
           do m = 1, natt
              call yt_weights(din=dat,idb=m,w=w)
              do i = 1, n(1)
