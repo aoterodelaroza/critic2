@@ -2009,8 +2009,8 @@ contains
     use tools_io, only: uout, string, ioj_center
     use global, only: iunit, iunitname0, dunit
     use varbas, only: ncp, cp
-    integer :: i, j, k
-    character*(10) :: nam(2)
+    integer :: i, j, k, maxlen
+    character*(20) :: nam(2)
     logical :: isbcp
 
     ! bonds
@@ -2018,11 +2018,21 @@ contains
        isbcp = (k==1)
        if (isbcp) then
           write (uout,'("* Analysis of system bonds")') 
+          write (uout,'("# ncp is the bond from the non-equivalent CP list.")') 
+          write (uout,'("# End-1 and End-2 are the bond path terminator from the non-equivalent")') 
+          write (uout,'("#   CP list (index in parentheses).")') 
+          write (uout,'("# r1 and r2 are the geometric distances between bond and terminators.")') 
+          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators.")') 
           write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-B-r2 (degree)")') &
              string(iunitname0(iunit)), string(iunitname0(iunit))
              
        else
           write (uout,'("* Analysis of system rings")') 
+          write (uout,'("# ncp is the ring from the non-equivalent CP list.")') 
+          write (uout,'("# End-1 and End-2 are the ring path terminator from the non-equivalent")') 
+          write (uout,'("#   CP list (index in parentheses).")') 
+          write (uout,'("# r1 and r2 are the geometric distances between ring and terminators.")') 
+          write (uout,'("# r1-B-r2 is the geometric angle between ring and terminators.")') 
           write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-R-r2 (degree)")') &
              string(iunitname0(iunit)), string(iunitname0(iunit))
        end if
@@ -2035,11 +2045,12 @@ contains
              elseif (cp(i)%ipath(j) == -1) then
                 nam(j) = 'Inf.'
              else
-                nam(j) = cp(cp(i)%ipath(j))%name
+                nam(j) = string(cp(cp(i)%ipath(j))%name) // " (" // string(cp(i)%ipath(j)) // ")"
              end if
           end do
+          maxlen = max(10,len_trim(nam(1)),len_trim(nam(2)))
           write (uout,'(7(A,X))') string(i,length=5,justify=ioj_center),&
-             string(nam(1),length=10,justify=ioj_center), string(nam(2),length=10,justify=ioj_center),&
+             string(nam(1),length=maxlen,justify=ioj_center), string(nam(2),length=maxlen,justify=ioj_center),&
              (string(cp(i)%brdist(j)*dunit,'f',length=10,decimal=4,justify=3),j=1,2), &
              string(cp(i)%brdist(1)/cp(i)%brdist(2),'f',length=12,decimal=6,justify=3), &
              string(cp(i)%brang,'f',length=10,decimal=4,justify=3)
