@@ -618,7 +618,7 @@ contains
   !>                Giovanni Pizzi, Young-Su Lee,               
   !>                Nicola Marzari, Ivo Souza, David Vanderbilt 
   !> Distributed under GNU/GPL v2.
-  subroutine grid_read_unk(file,file2,f,omega,nou,nochk,wancut)
+  subroutine grid_read_unk(file,filedn,f,omega,nou)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
@@ -626,12 +626,10 @@ contains
     use param, only: bohrtoa
 
     character*(*), intent(in) :: file !< Input file (spin up or total)
-    character*(*), intent(in) :: file2 !< Input file (spin down)
+    character*(*), intent(in) :: filedn !< Input file (spin down)
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
     logical, intent(in) :: nou
-    logical, intent(in) :: nochk
-    real*8, intent(in) :: wancut
 
     integer :: luc, luw
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -650,7 +648,7 @@ contains
     complex*16 :: cdum
 
     ! spin
-    if (len_trim(file2) < 1) then
+    if (len_trim(filedn) < 1) then
        nspin = 1
        fspin = 2d0
     else
@@ -674,7 +672,7 @@ contains
        if (ispin == 1) then
           luc = fopen_read(file,form="unformatted")
        else
-          luc = fopen_read(file2,form="unformatted")
+          luc = fopen_read(filedn,form="unformatted")
        end if
 
        ! header and number of bands
@@ -698,17 +696,17 @@ contains
           call ferror("grid_read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
 
        ! k-points
-       if (allocated(f%wan_kpt)) deallocate(f%wan_kpt)
-       allocate(f%wan_kpt(3,nk))
-       read(luc) ((f%wan_kpt(i,j),i=1,3),j=1,nk) 
+       if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
+       allocate(f%wan%kpt(3,nk))
+       read(luc) ((f%wan%kpt(i,j),i=1,3),j=1,nk) 
        do i = 1, nk
-          ik1 = nint(f%wan_kpt(1,i) * nk1)
-          ik2 = nint(f%wan_kpt(2,i) * nk2)
-          ik3 = nint(f%wan_kpt(3,i) * nk3)
-          if (abs(f%wan_kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan_kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
-             abs(f%wan_kpt(3,i) * nk3 - ik3) > 1d-5) then
-             write (uout,*) f%wan_kpt(:,i)
-             write (uout,*) f%wan_kpt(1,i)*nk1,f%wan_kpt(1,i)*nk2,f%wan_kpt(1,i)*nk3
+          ik1 = nint(f%wan%kpt(1,i) * nk1)
+          ik2 = nint(f%wan%kpt(2,i) * nk2)
+          ik3 = nint(f%wan%kpt(3,i) * nk3)
+          if (abs(f%wan%kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan%kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
+             abs(f%wan%kpt(3,i) * nk3 - ik3) > 1d-5) then
+             write (uout,*) f%wan%kpt(:,i)
+             write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
              write (uout,*) ik1, ik2, ik3
              call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
           end if
@@ -733,36 +731,37 @@ contains
 
        ! wannier centers and spreads
        if (ispin == 1) then
-          if (allocated(f%wan_center)) deallocate(f%wan_center)
-          if (allocated(f%wan_spread)) deallocate(f%wan_spread)
-          allocate(f%wan_center(3,nbnd,nspin),f%wan_spread(nbnd,nspin))
+          if (allocated(f%wan%center)) deallocate(f%wan%center)
+          if (allocated(f%wan%spread)) deallocate(f%wan%spread)
+          allocate(f%wan%center(3,nbnd,nspin),f%wan%spread(nbnd,nspin))
        else
-          if (nbnd > size(f%wan_spread,1)) then
-             call realloc(f%wan_center,3,nbnd,nspin)
-             call realloc(f%wan_spread,nbnd,nspin)
+          if (nbnd > size(f%wan%spread,1)) then
+             call realloc(f%wan%center,3,nbnd,nspin)
+             call realloc(f%wan%spread,nbnd,nspin)
           end if
        end if
-       read(luc) ((f%wan_center(i,j,ispin),i=1,3),j=1,nbnd)
-       read(luc) (f%wan_spread(i,ispin),i=1,nbnd)
+       read(luc) ((f%wan%center(i,j,ispin),i=1,3),j=1,nbnd)
+       read(luc) (f%wan%spread(i,ispin),i=1,nbnd)
 
        ! end of wannier checkpoint
        call fclose(luc)
 
        ! dimensions for the supercell
-       f%nwan = (/nk1,nk2,nk3/)
-       nall = f%n * f%nwan
+       f%wan%nwan = (/nk1,nk2,nk3/)
+       f%wan%nks = nk1*nk2*nk3
+       nall = f%n * f%wan%nwan
 
        ! convert centers to crystallographic and spread to bohr
        rlatti = matinv(rlatt)
        do i = 1, nbnd
-          f%wan_center(:,i,ispin) = matmul(f%wan_center(:,i,ispin),rlatti)
+          f%wan%center(:,i,ispin) = matmul(f%wan%center(:,i,ispin),rlatti)
           do j = 1, 3
-             if (f%wan_center(j,i,ispin) > f%nwan(j)) &
-                f%wan_center(j,i,ispin) = f%wan_center(j,i,ispin) - f%nwan(j)
-             if (f%wan_center(j,i,ispin) < 0d0) &
-                f%wan_center(j,i,ispin) = f%wan_center(j,i,ispin) + f%nwan(j)
+             if (f%wan%center(j,i,ispin) > f%wan%nwan(j)) &
+                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) - f%wan%nwan(j)
+             if (f%wan%center(j,i,ispin) < 0d0) &
+                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) + f%wan%nwan(j)
           end do
-          f%wan_spread(i,ispin) = sqrt(f%wan_spread(i,ispin)) / bohrtoa
+          f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
        end do
 
        ! allocate arrays and fill some info
@@ -816,29 +815,30 @@ contains
     f%init = .true.
     f%mode = mode_default
     f%iswan = .true.
-    f%wan_nbnd = nbnd
-    f%wan_nspin = nspin
-    f%wan_cutoff = wancut
-    f%wan_dochk = .not.nochk
+    f%wan%nbnd = nbnd
+    f%wan%nspin = nspin
+    if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
+    if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
+    if (allocated(f%wan%nls)) deallocate(f%wan%nls)
+    if (allocated(f%wan%evc)) deallocate(f%wan%evc)
+    if (allocated(f%wan%u)) deallocate(f%wan%u)
 
   end subroutine grid_read_unk
 
-  !> Read unkgen
-  subroutine grid_read_unkgen(file,file2,file3,f,omega,nou,nochk,wancut)
+  !> Read unkgen file.
+  subroutine grid_read_unkgen(fchk,fchkdn,funkgen,funkgendn,f,omega)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
     use types, only: field, realloc
     use param, only: bohrtoa
 
-    character*(*), intent(in) :: file !< Input file (spin up or total)
-    character*(*), intent(in) :: file2 !< Input file (spin down)
-    character*(*), intent(in) :: file3 !< unkgen file (spin up or total)
+    character*(*), intent(in) :: fchk !< Input file (spin up or total)
+    character*(*), intent(in) :: fchkdn !< Input file (spin down)
+    character*(*), intent(in) :: funkgen !< unkgen file (spin up or total)
+    character*(*), intent(in) :: funkgendn !< unkgen file (spin down)
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
-    logical, intent(in) :: nou
-    logical, intent(in) :: nochk
-    real*8, intent(in) :: wancut
 
     integer :: luc, luw
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -856,18 +856,16 @@ contains
     complex*16 :: cdum
 
     ! spin
-    if (len_trim(file2) < 1) then
+    if (len_trim(fchkdn) < 1) then
        nspin = 1
        fspin = 2d0
     else
        nspin = 2
        fspin = 1d0
-       write (*,*) "nspin = 2 not supported"
-       stop 1
     end if
     
-    ! read the grid size from the unkgen file
-    luc = fopen_read(file3,form="unformatted")
+    ! read the grid size from the unkgen fchk
+    luc = fopen_read(funkgen,form="unformatted")
     read (luc) ikk, idum, ibnd, ispin
     read (luc) n
     call fclose(luc)
@@ -876,9 +874,9 @@ contains
     ! run over spins
     do ispin = 1, nspin
        if (ispin == 1) then
-          luc = fopen_read(file,form="unformatted")
+          luc = fopen_read(fchk,form="unformatted")
        else
-          luc = fopen_read(file2,form="unformatted")
+          luc = fopen_read(fchkdn,form="unformatted")
        end if
 
        ! header and number of bands
@@ -902,17 +900,17 @@ contains
           call ferror("grid_read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
 
        ! k-points
-       if (allocated(f%wan_kpt)) deallocate(f%wan_kpt)
-       allocate(f%wan_kpt(3,nk))
-       read(luc) ((f%wan_kpt(i,j),i=1,3),j=1,nk) 
+       if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
+       allocate(f%wan%kpt(3,nk))
+       read(luc) ((f%wan%kpt(i,j),i=1,3),j=1,nk) 
        do i = 1, nk
-          ik1 = nint(f%wan_kpt(1,i) * nk1)
-          ik2 = nint(f%wan_kpt(2,i) * nk2)
-          ik3 = nint(f%wan_kpt(3,i) * nk3)
-          if (abs(f%wan_kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan_kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
-             abs(f%wan_kpt(3,i) * nk3 - ik3) > 1d-5) then
-             write (uout,*) f%wan_kpt(:,i)
-             write (uout,*) f%wan_kpt(1,i)*nk1,f%wan_kpt(1,i)*nk2,f%wan_kpt(1,i)*nk3
+          ik1 = nint(f%wan%kpt(1,i) * nk1)
+          ik2 = nint(f%wan%kpt(2,i) * nk2)
+          ik3 = nint(f%wan%kpt(3,i) * nk3)
+          if (abs(f%wan%kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan%kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
+             abs(f%wan%kpt(3,i) * nk3 - ik3) > 1d-5) then
+             write (uout,*) f%wan%kpt(:,i)
+             write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
              write (uout,*) ik1, ik2, ik3
              call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
           end if
@@ -937,41 +935,41 @@ contains
 
        ! wannier centers and spreads
        if (ispin == 1) then
-          if (allocated(f%wan_center)) deallocate(f%wan_center)
-          if (allocated(f%wan_spread)) deallocate(f%wan_spread)
-          allocate(f%wan_center(3,nbnd,nspin),f%wan_spread(nbnd,nspin))
+          if (allocated(f%wan%center)) deallocate(f%wan%center)
+          if (allocated(f%wan%spread)) deallocate(f%wan%spread)
+          allocate(f%wan%center(3,nbnd,nspin),f%wan%spread(nbnd,nspin))
        else
-          if (nbnd > size(f%wan_spread,1)) then
-             call realloc(f%wan_center,3,nbnd,nspin)
-             call realloc(f%wan_spread,nbnd,nspin)
+          if (nbnd > size(f%wan%spread,1)) then
+             call realloc(f%wan%center,3,nbnd,nspin)
+             call realloc(f%wan%spread,nbnd,nspin)
           end if
        end if
-       read(luc) ((f%wan_center(i,j,ispin),i=1,3),j=1,nbnd)
-       read(luc) (f%wan_spread(i,ispin),i=1,nbnd)
+       read(luc) ((f%wan%center(i,j,ispin),i=1,3),j=1,nbnd)
+       read(luc) (f%wan%spread(i,ispin),i=1,nbnd)
 
        ! end of wannier checkpoint
        call fclose(luc)
 
        ! dimensions for the supercell
-       f%nwan = (/nk1,nk2,nk3/)
-       nall = f%n * f%nwan
+       f%wan%nwan = (/nk1,nk2,nk3/)
+       nall = f%n * f%wan%nwan
 
        ! convert centers to crystallographic and spread to bohr
        rlatti = matinv(rlatt)
        do i = 1, nbnd
-          f%wan_center(:,i,ispin) = matmul(f%wan_center(:,i,ispin),rlatti)
+          f%wan%center(:,i,ispin) = matmul(f%wan%center(:,i,ispin),rlatti)
           do j = 1, 3
-             if (f%wan_center(j,i,ispin) > f%nwan(j)) &
-                f%wan_center(j,i,ispin) = f%wan_center(j,i,ispin) - f%nwan(j)
-             if (f%wan_center(j,i,ispin) < 0d0) &
-                f%wan_center(j,i,ispin) = f%wan_center(j,i,ispin) + f%nwan(j)
+             if (f%wan%center(j,i,ispin) > f%wan%nwan(j)) &
+                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) - f%wan%nwan(j)
+             if (f%wan%center(j,i,ispin) < 0d0) &
+                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) + f%wan%nwan(j)
           end do
-          f%wan_spread(i,ispin) = sqrt(f%wan_spread(i,ispin)) / bohrtoa
+          f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
        end do
     end do
 
     ! read the unkgen info
-    luc = fopen_read(file3,form="unformatted")
+    luc = fopen_read(funkgen,form="unformatted")
     read (luc) ikk, idum, ibnd, ispin
     if (ikk /= 1 .or. idum /= nk .or. ibnd /= nbnd .or. ispin /= nspin) &
        call ferror("grid_read_unk","inconsistent unkgen",faterr)
@@ -982,7 +980,6 @@ contains
     read (luc) n
     if (any(n /= f%n)) &
        call ferror("grid_read_unk","inconsistent unkgen",faterr)
-    f%wan%n = n
 
     ! allocate and read integer indices
     read(luc) naux
@@ -1030,10 +1027,8 @@ contains
     f%init = .true.
     f%mode = mode_default
     f%iswan = .true.
-    f%wan_nbnd = nbnd
-    f%wan_nspin = nspin
-    f%wan_cutoff = wancut
-    f%wan_dochk = .not.nochk
+    f%wan%nbnd = nbnd
+    f%wan%nspin = nspin
 
   end subroutine grid_read_unkgen
 
@@ -1058,7 +1053,6 @@ contains
     complex*16 :: raux2(n(1),n(2),n(3)), raux3(n(1),n(2),n(3))
     character(len=:), allocatable :: fname
     complex*16 :: tnorm, ph
-    logical :: ok
 
     fout = 0d0
     nk = nk1 * nk2 * nk3
@@ -1078,16 +1072,8 @@ contains
           end do
        end do
        
-       ! unk file name
-       fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
-
-       ! read the external file
-       inquire(file=fname,exist=ok)
-       if (ok) then
-          luc = fopen_read(fname,form="unformatted")
-          read(luc) raux
-          call fclose(luc)
-       else
+       if (allocated(f%wan%evc)) then
+          ! from a unkgen
           rseq = 0d0
           do jbnd = 1, f%wan%nbnd
              rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = &
@@ -1096,6 +1082,12 @@ contains
           end do
           raux = reshape(rseq,shape(raux))
           call cfftnd(3,n,+1,raux)
+       else
+          ! from the WNK created using the UNK files
+          fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
+          luc = fopen_read(fname,form="unformatted")
+          read(luc) raux
+          call fclose(luc)
        end if
 
        ! add the contribution from this k-point

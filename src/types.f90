@@ -174,15 +174,29 @@ module types
 
   !> Information for wannier functions
   type wandat
-     integer :: nks
-     integer :: nbnd
-     integer :: nspin
-     integer :: n(3)
+     integer :: nks !< Number of k-points (lattice vectors)
+     integer :: nwan(3) !< Number of lattice vectors
+     integer :: nbnd !< Number of bands
+     integer :: nspin !< Number of spins
+     logical :: dochk !< Save the sij to a checkpoint file
+     logical :: useu !< Use the U transformation to get MLWF
+     real*8 :: cutoff !< Cutoff for atomic overlaps
+     real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
+     real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
+     real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
      integer, allocatable :: ngk(:)
      integer, allocatable :: igk_k(:,:)
      integer, allocatable :: nls(:)
      complex*16, allocatable :: evc(:,:,:)
      complex*16, allocatable :: u(:,:,:)
+     ! integer :: nwan(3) !< Number of real-space vectors
+     ! logical :: wan_dochk !< Save the sij to a checkpoint file
+     ! integer :: wan_nbnd !< Number of bands
+     ! integer :: wan_nspin !< Number of spins
+     ! real*8 :: wan_cutoff !< distance cutoff factor for overlaps
+     ! real*8, allocatable :: wan_kpt(:,:) !< k-points for wannier
+     ! real*8, allocatable :: wan_center(:,:,:) !< wannier function centers (cryst)
+     ! real*8, allocatable :: wan_spread(:,:) !< wannier function spreads (bohr)
   end type wandat
 
   !> Scalar field type
@@ -204,14 +218,6 @@ module types
      real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
      ! wannier functions
      logical :: iswan
-     integer :: nwan(3) !< Number of real-space vectors
-     logical :: wan_dochk !< Save the sij to a checkpoint file
-     integer :: wan_nbnd !< Number of bands
-     integer :: wan_nspin !< Number of spins
-     real*8 :: wan_cutoff !< distance cutoff factor for overlaps
-     real*8, allocatable :: wan_kpt(:,:) !< k-points for wannier
-     real*8, allocatable :: wan_center(:,:,:) !< wannier function centers (cryst)
-     real*8, allocatable :: wan_spread(:,:) !< wannier function spreads (bohr)
      type(wandat) :: wan
      ! wien2k 
      logical :: cnorm
