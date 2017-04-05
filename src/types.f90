@@ -172,6 +172,19 @@ module types
      integer :: lvec(3) !< Lattice vector to the neq cp list 
   end type cp_type
 
+  !> Information for wannier functions
+  type wandat
+     integer :: nks
+     integer :: nbnd
+     integer :: nspin
+     integer :: n(3)
+     integer, allocatable :: ngk(:)
+     integer, allocatable :: igk_k(:,:)
+     integer, allocatable :: nls(:)
+     complex*16, allocatable :: evc(:,:,:)
+     complex*16, allocatable :: u(:,:,:)
+  end type wandat
+
   !> Scalar field type
   type field
      ! all types/more than one type
@@ -199,6 +212,7 @@ module types
      real*8, allocatable :: wan_kpt(:,:) !< k-points for wannier
      real*8, allocatable :: wan_center(:,:,:) !< wannier function centers (cryst)
      real*8, allocatable :: wan_spread(:,:) !< wannier function spreads (bohr)
+     type(wandat) :: wan
      ! wien2k 
      logical :: cnorm
      integer, allocatable :: lm(:,:,:)

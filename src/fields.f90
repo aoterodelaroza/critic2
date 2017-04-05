@@ -236,7 +236,7 @@ contains
     use struct_basic, only: cr
     use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
        grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
-       grid_laplacian, grid_gradrho, grid_read_unk
+       grid_laplacian, grid_gradrho, grid_read_unk, grid_read_unkgen
     use global, only: eval_next
     use arithmetic, only: eval, fields_in_eval
     use tools_io, only: getword, equal, ferror, faterr, lgetword, zatguess, isinteger,&
@@ -543,6 +543,7 @@ contains
        wancut = -1d0
        nword = 0
        file2 = ""
+       file3 = ""
        do while (.true.)
           word = getword(line,lp)
           lword = lower(word)
@@ -555,6 +556,8 @@ contains
              nochk = .true.
           elseif (equal(lword,"wancut")) then
              ok = eval_next(wancut,line,lp)
+          elseif (equal(lword,"unkgen")) then
+             file3 = getword(line,lp)
           else if (len_trim(lword) > 0) then
              if (nword == 1) then
                 file2 = word
@@ -567,7 +570,11 @@ contains
           end if
        end do
 
-       call grid_read_unk(file,file2,ff,cr%omega,nou,nochk,wancut)
+       if (len_trim(file3) < 1) then
+          call grid_read_unk(file,file2,ff,cr%omega,nou,nochk,wancut)
+       else
+          call grid_read_unkgen(file,file2,file3,ff,cr%omega,nou,nochk,wancut)
+       end if
        ff%type = type_grid
        ff%file = trim(file)
        ff%init = .true.

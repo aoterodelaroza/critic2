@@ -911,14 +911,14 @@ contains
           do is = 1, nspin
              do ibnd1 = 1, nbnd
                 ! first wannier function
-                call get_qe_wnr(ibnd1,is,f(fid)%n,nwan(1),nwan(2),nwan(3),f(fid)%wan_kpt,f1)
+                call get_qe_wnr(f(fid),ibnd1,is,f(fid)%n,nwan(1),nwan(2),nwan(3),f(fid)%wan_kpt,f1)
 
                 do ibnd2 = ibnd1, nbnd
                    ! second wannier function
                    if (ibnd1 == ibnd2) then
                       f2 = f1
                    else
-                      call get_qe_wnr(ibnd2,is,f(fid)%n,nwan(1),nwan(2),nwan(3),f(fid)%wan_kpt,f2)
+                      call get_qe_wnr(f(fid),ibnd2,is,f(fid)%n,nwan(1),nwan(2),nwan(3),f(fid)%wan_kpt,f2)
                    endif
 
                    ! lovrlp
