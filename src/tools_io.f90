@@ -93,7 +93,7 @@ module tools_io
   integer :: ncomms = 0 !< Number of comments
 
   ! clock
-  integer, private :: stime0
+  integer*8, private :: stime0
   real, private :: ctime0
 
 contains
@@ -1319,9 +1319,9 @@ contains
   !> Print the elapsed time to output
   subroutine print_clock()
     
-    integer :: irate, imax
+    integer*8 :: irate, imax
     real :: ctime
-    integer :: stime
+    integer*8 :: stime
     character(len=:), allocatable :: sout
 
     call system_clock(count_rate=irate,count_max=imax)
