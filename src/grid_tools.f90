@@ -1007,14 +1007,16 @@ contains
 
     ! calculate the electron density
     allocate(raux(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
-    do ik = 1, nk
-       do ibnd = 1, nbnd
-          read (luc) evc(1:f%wan%ngk(ik))
-          rseq = 0d0
-          rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
-          raux = reshape(rseq,shape(raux))
-          call cfftnd(3,n,+1,raux)
-          f%f = f%f + conjg(raux) * raux
+    do ispin = 1, nspin
+       do ik = 1, nk
+          do ibnd = 1, nbnd
+             read (luc) evc(1:f%wan%ngk(ik))
+             rseq = 0d0
+             rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
+             raux = reshape(rseq,shape(raux))
+             call cfftnd(3,n,+1,raux)
+             f%f = f%f + conjg(raux) * raux
+          end do
        end do
     end do
     deallocate(raux,rseq,evc)
@@ -1061,6 +1063,13 @@ contains
     if (allocated(f%wan%ngk)) then
        allocate(evc(maxval(f%wan%ngk(1:nk))))
        luc = fopen_read(f%wan%fevc,form="unformatted")
+       if (ispin == 2) then
+          do ik = 1, nk
+             do jbnd = 1, f%wan%nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+             end do
+          end do
+       end if
     end if
 
     ! run over k-points
