@@ -820,13 +820,12 @@ contains
     if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
     if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
     if (allocated(f%wan%nls)) deallocate(f%wan%nls)
-    if (allocated(f%wan%evc)) deallocate(f%wan%evc)
     if (allocated(f%wan%u)) deallocate(f%wan%u)
 
   end subroutine grid_read_unk
 
   !> Read unkgen file.
-  subroutine grid_read_unkgen(fchk,fchkdn,funkgen,funkgendn,f,omega)
+  subroutine grid_read_unkgen(fchk,fchkdn,funkgen,fevc,f,omega)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
@@ -836,7 +835,7 @@ contains
     character*(*), intent(in) :: fchk !< Input file (spin up or total)
     character*(*), intent(in) :: fchkdn !< Input file (spin down)
     character*(*), intent(in) :: funkgen !< unkgen file (spin up or total)
-    character*(*), intent(in) :: funkgendn !< unkgen file (spin down)
+    character*(*), intent(in) :: fevc !< unkgen file (spin down)
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
 
@@ -845,7 +844,7 @@ contains
     integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
     real*8 :: fspin
     integer :: i, j, k, l
-    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:), rseq(:)
+    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:), rseq(:), evc(:)
     integer :: nk1, nk2, nk3, nk
     character(len=:), allocatable :: fname, oname
     ! for the wannier checkpoint (wannier90, 2.0.1)
@@ -992,36 +991,34 @@ contains
     read (luc) f%wan%ngk
     read (luc) f%wan%igk_k
     read (luc) f%wan%nls
-
-    ! allocate evc
-    if (allocated(f%wan%evc)) deallocate(f%wan%evc)
-    allocate(f%wan%evc(maxval(f%wan%ngk(1:nk)),nbnd,nk))
-    f%wan%evc = 0d0
-
-    ! read the evc
-    do ik = 1, nk
-       do ibnd = 1, nbnd
-          read (luc) f%wan%evc(1:f%wan%ngk(ik),ibnd,ik)
-       end do
-    end do
     call fclose(luc)
+
+    ! save the evc file name
+    f%wan%fevc = fevc
 
     ! allocate the density
     if (allocated(f%f)) deallocate(f%f)
     allocate(f%f(f%n(1),f%n(2),f%n(3)))
     f%f = 0d0
 
+    ! open the evc file
+    luc = fopen_read(fevc,form="unformatted")
+    allocate(evc(maxval(f%wan%ngk(1:nk))))
+
     ! calculate the electron density
     allocate(raux(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
     do ik = 1, nk
        do ibnd = 1, nbnd
+          read (luc) evc(1:f%wan%ngk(ik))
           rseq = 0d0
-          rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = f%wan%evc(1:f%wan%ngk(ik),ibnd,ik)
+          rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
           raux = reshape(rseq,shape(raux))
           call cfftnd(3,n,+1,raux)
           f%f = f%f + conjg(raux) * raux
        end do
     end do
+    deallocate(raux,rseq,evc)
+    call fclose(luc)
 
     f%f = f%f * fspin / omega / real(nk,8)
     f%init = .true.
@@ -1053,12 +1050,18 @@ contains
     complex*16 :: raux2(n(1),n(2),n(3)), raux3(n(1),n(2),n(3))
     character(len=:), allocatable :: fname
     complex*16 :: tnorm, ph
+    complex*16, allocatable :: evc(:)
 
     fout = 0d0
     nk = nk1 * nk2 * nk3
     nall(1) = n(1) * nk1
     nall(2) = n(2) * nk2
     nall(3) = n(3) * nk3
+
+    if (allocated(f%wan%ngk)) then
+       allocate(evc(maxval(f%wan%ngk(1:nk))))
+       luc = fopen_read(f%wan%fevc,form="unformatted")
+    end if
 
     ! run over k-points
     do ik = 1, nk
@@ -1072,14 +1075,24 @@ contains
           end do
        end do
        
-       if (allocated(f%wan%evc)) then
+       if (allocated(f%wan%ngk)) then
           ! from a unkgen
-          rseq = 0d0
-          do jbnd = 1, f%wan%nbnd
-             rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = &
-                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) + &
-                f%wan%u(jbnd,ibnd,ik) * f%wan%evc(1:f%wan%ngk(ik),jbnd,ik)
-          end do
+          if (f%wan%useu) then
+             rseq = 0d0
+             do jbnd = 1, f%wan%nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = &
+                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) + &
+                   f%wan%u(jbnd,ibnd,ik) * evc(1:f%wan%ngk(ik))
+             end do
+          else
+             rseq = 0d0
+             do jbnd = 1, f%wan%nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+                if (jbnd == ibnd) &
+                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
+             end do
+          end if
           raux = reshape(rseq,shape(raux))
           call cfftnd(3,n,+1,raux)
        else
@@ -1102,6 +1115,11 @@ contains
              raux2 * ph
        end do
     end do
+
+    if (allocated(f%wan%ngk)) then
+       deallocate(evc)
+       call fclose(luc)
+    end if
 
     ! normalize
     imax = maxloc(abs(fout))

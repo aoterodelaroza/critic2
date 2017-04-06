@@ -254,7 +254,7 @@ contains
     character(len=:), allocatable :: file, lfile, file2, file3, file4, lword
     character(len=:), allocatable :: wext1, wext2, word, word2, expr
     integer :: zz, n(3)
-    logical :: ok, nou, nochk, ingen
+    logical :: ok, nou, nochk
     real*8 :: renv0(3,cr%nenv), xp(3), rhopt
     integer :: idx0(cr%nenv), zenv0(cr%nenv), lenv0(3,cr%nenv)
     integer :: ix, iy, iz, oid
@@ -544,7 +544,6 @@ contains
        file2 = ""
        file3 = ""
        file4 = ""
-       ingen = .false.
        ff%wan%useu = .true.
        ff%wan%dochk = .true.
        ff%wan%cutoff = -1d0
@@ -560,15 +559,10 @@ contains
              ok = eval_next(ff%wan%cutoff,line,lp)
           elseif (equal(lword,"unkgen")) then
              file3 = getword(line,lp)
-             nword = 0
-             ingen = .true.
+             file4 = getword(line,lp)
           else if (len_trim(lword) > 0) then
              if (nword == 1) then
-                if (ingen) then
-                   file4 = word
-                else
-                   file2 = word
-                end if
+                file2 = word
              else
                 call ferror('fields_load_real','Unknown extra keyword',faterr,line,syntax=.true.)
                 return
@@ -920,7 +914,6 @@ contains
     if (allocated(f(id)%wan%ngk)) deallocate(f(id)%wan%ngk)
     if (allocated(f(id)%wan%igk_k)) deallocate(f(id)%wan%igk_k)
     if (allocated(f(id)%wan%nls)) deallocate(f(id)%wan%nls)
-    if (allocated(f(id)%wan%evc)) deallocate(f(id)%wan%evc)
     if (allocated(f(id)%wan%u)) deallocate(f(id)%wan%u)
     if (allocated(f(id)%lm)) deallocate(f(id)%lm)
     if (allocated(f(id)%lmmax)) deallocate(f(id)%lmmax)
@@ -2595,7 +2588,7 @@ contains
     if (f(id)%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions available for this field")') 
-       if (allocated(f(id)%wan%evc)) then
+       if (allocated(f(id)%wan%ngk)) then
           write (uout,'("  Source: unkgen")') 
        else
           write (uout,'("  Source: UNK files")') 
