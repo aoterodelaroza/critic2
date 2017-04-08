@@ -1900,6 +1900,7 @@ contains
              string(i,4,ioj_left), scp, sncp, sname, sz, &
              string(xli,'f',15,8,4), string(xnn,'f',12,8,4)
        end do
+       write (uout,*)
 
        ! Prepare the supercell crystal. For c%shortest, we need
        ! c%isortho, c%car2crys, c%crys2car, c%nws, and c%ivws. The
