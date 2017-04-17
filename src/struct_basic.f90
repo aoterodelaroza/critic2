@@ -2819,6 +2819,12 @@ contains
              string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
        enddo
        write (uout,*)
+
+       write (uout,'("+ Lattice vectors (",A,")")') iunitname
+       do i = 1, 3
+          write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%crys2car(j,i)*dunit,'f',length=16,decimal=10,justify=5),j=1,3)
+       end do
+       write (uout,*)
     end if
 
     ! List of atoms in Cartesian coordinates
