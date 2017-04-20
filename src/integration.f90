@@ -1773,7 +1773,7 @@ contains
     complex*16, intent(in), allocatable, optional :: sij(:,:,:,:,:)
 
     integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3)
-    real*8 :: fspin, xnn, xli, r1(3), d2, asum
+    real*8 :: fspin, xnn, xli, r1(3), d2, asum, fatemp
     integer, allocatable :: imap(:,:), io(:), ilvec(:,:), idat(:)
     real*8, allocatable :: fa(:,:,:,:)
     real*8, allocatable :: diout(:), dist(:)
@@ -1836,20 +1836,25 @@ contains
        ! calculate the values of the fa matrix
        allocate(fa(natt,natt,nlat,nspin))
        fa = 0d0
-       do is = 1, nspin
-          do k = 1, nlat
-             do i = 1, natt
-                do j = 1, natt
-                   fa(i,j,k,is) = 0d0
+       !$omp parallel do private(fatemp) schedule(dynamic)
+       do i = 1, natt
+          do j = 1, natt
+             do is = 1, nspin
+                do k = 1, nlat
+                   fatemp = 0d0
                    do imo = 1, nmo
                       do jmo = 1, nmo
-                         fa(i,j,k,is) = fa(i,j,k,is) + real(sij(jmo,imo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc),8)
+                         fatemp = fatemp + real(sij(jmo,imo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc),8)
                       end do
                    end do
+                   !$omp critical (addfa)
+                   fa(i,j,k,is) = fatemp
+                   !$omp end critical (addfa)
                 end do
              end do
           end do
        end do
+       !$omp end parallel do
        deallocate(imap)
        
        ! localization indices
