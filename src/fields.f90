@@ -546,6 +546,7 @@ contains
        file4 = ""
        ff%wan%useu = .true.
        ff%wan%dochk = .true.
+       ff%wan%haschk = .false.
        ff%wan%cutoff = -1d0
        do while (.true.)
           word = getword(line,lp)
@@ -573,9 +574,9 @@ contains
        end do
 
        if (len_trim(file3) < 1) then
-          call grid_read_unk(file,file2,ff,cr%omega,nou)
+          call grid_read_unk(file,file2,ff,cr%omega,nou,ff%wan%dochk)
        else
-          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega)
+          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega,ff%wan%dochk)
        end if
        ff%type = type_grid
        ff%file = trim(file)
@@ -2588,11 +2589,15 @@ contains
     if (f(id)%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions available for this field")') 
-       if (allocated(f(id)%wan%ngk)) then
-          write (uout,'("  Source: unkgen")') 
+       if (f(id)%wan%haschk) then
+          write (uout,'("  Source: sij-chk checkpoint file")') 
        else
-          write (uout,'("  Source: UNK files")') 
-       end if
+          if (allocated(f(id)%wan%ngk)) then
+             write (uout,'("  Source: unkgen")') 
+          else
+             write (uout,'("  Source: UNK files")') 
+          end if
+       endif
        write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f(id)%wan%nwan(i)),i=1,3)
        write (uout,'("  Number of bands: ",A)') string(f(id)%wan%nbnd)
        write (uout,'("  Number of spin channels: ",A)') string(f(id)%wan%nspin)

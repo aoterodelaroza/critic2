@@ -178,7 +178,8 @@ module types
      integer :: nwan(3) !< Number of lattice vectors
      integer :: nbnd !< Number of bands
      integer :: nspin !< Number of spins
-     logical :: dochk !< Save the sij to a checkpoint file
+     logical :: dochk !< Save the sij to a checkpoint (chk-sij) file
+     logical :: haschk !< A chk-sij file is currently available
      logical :: useu !< Use the U transformation to get MLWF
      real*8 :: cutoff !< Cutoff for atomic overlaps
      character*(255) :: fevc !< evc file name

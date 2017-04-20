@@ -618,7 +618,7 @@ contains
   !>                Giovanni Pizzi, Young-Su Lee,               
   !>                Nicola Marzari, Ivo Souza, David Vanderbilt 
   !> Distributed under GNU/GPL v2.
-  subroutine grid_read_unk(file,filedn,f,omega,nou)
+  subroutine grid_read_unk(file,filedn,f,omega,nou,dochk)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
@@ -630,6 +630,7 @@ contains
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
     logical, intent(in) :: nou
+    logical, intent(in) :: dochk
 
     integer :: luc, luw
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -638,7 +639,8 @@ contains
     integer :: i, j, k, l
     complex*16, allocatable :: raux(:,:,:), raux2(:,:,:), rseq(:)
     integer :: nk1, nk2, nk3, nk
-    character(len=:), allocatable :: fname, oname
+    character(len=:), allocatable :: fname, oname, sijfname
+    logical :: haschk
     ! for the wannier checkpoint (wannier90, 2.0.1)
     character(len=33) :: header
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
@@ -656,10 +658,23 @@ contains
        fspin = 1d0
     end if
 
-    ! get the number of grid points from the first UNK file
-    luc = fopen_read("UNK00001.1",form="unformatted")
-    read(luc) n, idum, jbnd
-    call fclose(luc)
+    ! checkpoint files
+    haschk = .false.
+    if (dochk) then
+       sijfname = trim(file) // "-sij"
+       inquire(file=sijfname,exist=haschk)
+    end if
+
+    ! read the grid size from the unk or the checkpoint
+    if (haschk) then
+       luc = fopen_read(sijfname,form="unformatted")
+       read (luc) n
+       call fclose(luc)
+    else
+       luc = fopen_read("UNK00001.1",form="unformatted")
+       read(luc) n, idum, jbnd
+       call fclose(luc)
+    endif
     f%n = n
 
     ! allocate the density
@@ -667,7 +682,7 @@ contains
     allocate(f%f(f%n(1),f%n(2),f%n(3)))
     f%f = 0d0
 
-    ! run over spins
+    ! read the chk file/s
     do ispin = 1, nspin
        if (ispin == 1) then
           luc = fopen_read(file,form="unformatted")
@@ -764,54 +779,67 @@ contains
           f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
        end do
 
-       ! allocate arrays and fill some info
-       if (.not.nou) allocate(raux(n(1),n(2),n(3)))
-       allocate(raux2(n(1),n(2),n(3)))
+       if (.not.haschk) then
+          ! allocate arrays and fill some info
+          if (.not.nou) allocate(raux(n(1),n(2),n(3)))
+          allocate(raux2(n(1),n(2),n(3)))
 
-       do ik = 1, nk
-          ! unk file name
-          fname = "UNK" // string(ik,5,pad0=.true.) // "." // string(ispin)
+          do ik = 1, nk
+             ! unk file name
+             fname = "UNK" // string(ik,5,pad0=.true.) // "." // string(ispin)
 
-          ! open file for reading
-          luc = fopen_read(fname,form="unformatted")
+             ! open file for reading
+             luc = fopen_read(fname,form="unformatted")
 
-          ! read the header
-          read(luc) naux, ikk, idum
+             ! read the header
+             read(luc) naux, ikk, idum
 
-          ! read the bands and pass them to the WNK file open file for writing
-          do ibnd = 1, nbnd
-             oname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
-             luw = fopen_write(oname,form="unformatted")
+             ! read the bands and pass them to the WNK file open file for writing
+             do ibnd = 1, nbnd
+                oname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
+                luw = fopen_write(oname,form="unformatted")
 
-             if (.not.nou) then
-                ! apply the transformation
-                raux2 = 0d0
-                rewind(luc)
-                read(luc) naux, ikk, idum
-                do jbnd = 1, nbnd
-                   read(luc) raux
-                   raux2 = raux2 + u_matrix(jbnd,ibnd,ik) * raux
-                end do
-             else
-                ! transfer this band to the new file
-                read(luc) raux2
-             end if
+                if (.not.nou) then
+                   ! apply the transformation
+                   raux2 = 0d0
+                   rewind(luc)
+                   read(luc) naux, ikk, idum
+                   do jbnd = 1, nbnd
+                      read(luc) raux
+                      raux2 = raux2 + u_matrix(jbnd,ibnd,ik) * raux
+                   end do
+                else
+                   ! transfer this band to the new file
+                   read(luc) raux2
+                end if
 
-             ! write and close
-             write(luw) raux2
-             call fclose(luw)
+                ! write and close
+                write(luw) raux2
+                call fclose(luw)
 
-             f%f = f%f + conjg(raux2) * raux2
+                f%f = f%f + conjg(raux2) * raux2
+             end do
+
+             ! close the unk file
+             call fclose(luc)
           end do
-
-          ! close the unk file
-          call fclose(luc)
-       end do
-       if (allocated(raux)) deallocate(raux)
-       deallocate(raux2)
+          if (allocated(raux)) deallocate(raux)
+          deallocate(raux2)
+       end if
     end do
 
-    f%f = f%f * fspin / omega / real(nk,8)
+    if (haschk) then
+       ! read the density from the checkpoint file
+       luc = fopen_read(sijfname,form="unformatted")
+       read (luc) n
+       read (luc) f%f
+       call fclose(luc)
+    else
+       f%f = f%f * fspin / omega / real(nk,8)
+    end if
+
+    f%wan%dochk = dochk
+    f%wan%haschk = haschk
     f%init = .true.
     f%mode = mode_default
     f%iswan = .true.
@@ -825,7 +853,7 @@ contains
   end subroutine grid_read_unk
 
   !> Read unkgen file.
-  subroutine grid_read_unkgen(fchk,fchkdn,funkgen,fevc,f,omega)
+  subroutine grid_read_unkgen(fchk,fchkdn,funkgen,fevc,f,omega,dochk)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
@@ -838,6 +866,7 @@ contains
     character*(*), intent(in) :: fevc !< unkgen file (spin down)
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
+    logical, intent(in) :: dochk
 
     integer :: luc, luw
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -846,12 +875,12 @@ contains
     integer :: i, j, k, l
     complex*16, allocatable :: raux(:,:,:), raux2(:,:,:), rseq(:), evc(:)
     integer :: nk1, nk2, nk3, nk
-    character(len=:), allocatable :: fname, oname
+    character(len=:), allocatable :: fname, oname, sijfname
     ! for the wannier checkpoint (wannier90, 2.0.1)
     character(len=33) :: header
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
     character(len=20) :: chkpt1
-    logical :: have_disentangled
+    logical :: have_disentangled, ok1, ok2, haschk
     complex*16 :: cdum
 
     ! spin
@@ -863,14 +892,33 @@ contains
        fspin = 1d0
     end if
     
-    ! read the grid size from the unkgen fchk
-    luc = fopen_read(funkgen,form="unformatted")
-    read (luc) ikk, idum, ibnd, ispin
-    read (luc) n
-    call fclose(luc)
+    ! checkpoint files
+    haschk = .false.
+    if (dochk) then
+       sijfname = trim(fchk) // "-sij"
+       inquire(file=sijfname,exist=haschk)
+    end if
+    if (.not.haschk) then
+       inquire(file=funkgen,exist=ok1)
+       inquire(file=fevc,exist=ok2)
+       if (.not.ok1.or..not.ok2) &
+          call ferror("grid_read_unkgen","unkgen/evc and chk-sij files not found",faterr)
+    end if
+
+    ! read the grid size from the unkgen or the checkpoint
+    if (haschk) then
+       luc = fopen_read(sijfname,form="unformatted")
+       read (luc) n
+       call fclose(luc)
+    else
+       luc = fopen_read(funkgen,form="unformatted")
+       read (luc) ikk, idum, ibnd, ispin
+       read (luc) n
+       call fclose(luc)
+    end if
     f%n = n
 
-    ! run over spins
+    ! read the chk file/s
     do ispin = 1, nspin
        if (ispin == 1) then
           luc = fopen_read(fchk,form="unformatted")
@@ -883,20 +931,20 @@ contains
        read(luc) nbnd 
        read(luc) jbnd 
        if (jbnd > 0) &
-          call ferror("grid_read_unk","number of excluded bands /= 0",faterr)
+          call ferror("grid_read_unkgen","number of excluded bands /= 0",faterr)
        read(luc) (idum,i=1,jbnd) 
 
        ! real and reciprocal lattice
        read(luc) ((rlatt(i,j),i=1,3),j=1,3)
        if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-          call ferror("grid_read_unk","wannier and current structure's volumes differ by more than 1%",faterr)
+          call ferror("grid_read_unkgen","wannier and current structure's volumes differ by more than 1%",faterr)
        read(luc) ((rclatt(i,j),i=1,3),j=1,3)
     
        ! number of k-points
        read(luc) nk 
        read(luc) nk1, nk2, nk3
        if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-          call ferror("grid_read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
+          call ferror("grid_read_unkgen","no monkhorst-pack grid or inconsistent k-point number",faterr)
 
        ! k-points
        if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
@@ -911,20 +959,20 @@ contains
              write (uout,*) f%wan%kpt(:,i)
              write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
              write (uout,*) ik1, ik2, ik3
-             call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+             call ferror("grid_read_unkgen","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
           end if
        end do
 
        read(luc) idum ! number of nearest k-point neighbours
        read(luc) jbnd ! number of wannier functions
        if (jbnd /= nbnd) &
-          call ferror("grid_read_unk","number of wannier functions /= number of bands",faterr)
+          call ferror("grid_read_unkgen","number of wannier functions /= number of bands",faterr)
        
        ! checkpoint positon and disentanglement
        read(luc) chkpt1
        read(luc) have_disentangled
        if (have_disentangled) & 
-          call ferror("grid_read_unk","can not handle disentangled wannier functions",faterr)
+          call ferror("grid_read_unkgen","can not handle disentangled wannier functions",faterr)
 
        ! u and m matrices
        if (allocated(f%wan%u)) deallocate(f%wan%u)
@@ -966,63 +1014,74 @@ contains
           f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
        end do
     end do
-
-    ! read the unkgen info
-    luc = fopen_read(funkgen,form="unformatted")
-    read (luc) ikk, idum, ibnd, ispin
-    if (ikk /= 1 .or. idum /= nk .or. ibnd /= nbnd .or. ispin /= nspin) &
-       call ferror("grid_read_unk","inconsistent unkgen",faterr)
     f%wan%nks = nk
     f%wan%nbnd = nbnd
     f%wan%nspin = nspin
 
-    read (luc) n
-    if (any(n /= f%n)) &
-       call ferror("grid_read_unk","inconsistent unkgen",faterr)
-
-    ! allocate and read integer indices
-    read(luc) naux
-    if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
-    allocate(f%wan%ngk(nk))
-    if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
-    allocate(f%wan%igk_k(naux(2),nk))
-    if (allocated(f%wan%nls)) deallocate(f%wan%nls)
-    allocate(f%wan%nls(naux(3)))
-    read (luc) f%wan%ngk
-    read (luc) f%wan%igk_k
-    read (luc) f%wan%nls
-    call fclose(luc)
-
     ! save the evc file name
     f%wan%fevc = fevc
+
+    if (.not.haschk) then
+       ! read the unkgen info
+       luc = fopen_read(funkgen,form="unformatted")
+       read (luc) ikk, idum, ibnd, ispin
+       if (ikk /= 1 .or. idum /= nk .or. ibnd /= nbnd .or. ispin /= nspin) &
+          call ferror("grid_read_unkgen","inconsistent unkgen",faterr)
+
+       read (luc) n
+       if (any(n /= f%n)) &
+          call ferror("grid_read_unkgen","inconsistent unkgen",faterr)
+
+       ! allocate and read integer indices
+       read(luc) naux
+       if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
+       allocate(f%wan%ngk(nk))
+       if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
+       allocate(f%wan%igk_k(naux(2),nk))
+       if (allocated(f%wan%nls)) deallocate(f%wan%nls)
+       allocate(f%wan%nls(naux(3)))
+       read (luc) f%wan%ngk
+       read (luc) f%wan%igk_k
+       read (luc) f%wan%nls
+       call fclose(luc)
+    end if
 
     ! allocate the density
     if (allocated(f%f)) deallocate(f%f)
     allocate(f%f(f%n(1),f%n(2),f%n(3)))
     f%f = 0d0
 
-    ! open the evc file
-    luc = fopen_read(fevc,form="unformatted")
-    allocate(evc(maxval(f%wan%ngk(1:nk))))
+    if (.not.haschk) then
+       ! open the evc file
+       luc = fopen_read(fevc,form="unformatted")
+       allocate(evc(maxval(f%wan%ngk(1:nk))))
 
-    ! calculate the electron density
-    allocate(raux(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
-    do ispin = 1, nspin
-       do ik = 1, nk
-          do ibnd = 1, nbnd
-             read (luc) evc(1:f%wan%ngk(ik))
-             rseq = 0d0
-             rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
-             raux = reshape(rseq,shape(raux))
-             call cfftnd(3,n,+1,raux)
-             f%f = f%f + conjg(raux) * raux
+       ! calculate the electron density
+       allocate(raux(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
+       do ispin = 1, nspin
+          do ik = 1, nk
+             do ibnd = 1, nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+                rseq = 0d0
+                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
+                raux = reshape(rseq,shape(raux))
+                call cfftnd(3,n,+1,raux)
+                f%f = f%f + conjg(raux) * raux
+             end do
           end do
        end do
-    end do
-    deallocate(raux,rseq,evc)
-    call fclose(luc)
+       deallocate(raux,rseq,evc)
+       call fclose(luc)
+       f%f = f%f * fspin / omega / real(nk,8)
+    else
+       luc = fopen_read(sijfname,form="unformatted")
+       read (luc) n
+       read (luc) f%f
+       call fclose(luc)
+    end if
 
-    f%f = f%f * fspin / omega / real(nk,8)
+    f%wan%dochk = dochk
+    f%wan%haschk = haschk
     f%init = .true.
     f%mode = mode_default
     f%iswan = .true.
