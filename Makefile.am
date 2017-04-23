@@ -9,6 +9,6 @@ ChangeLog: configure.ac
 	cat ChangeLog.old >> ChangeLog 
 
 ## point to places where stuff can be found
-SUBDIRS = dat src tools doc tests
+SUBDIRS = dat src src-gui tools doc tests
 
 EXTRA_DIST = AUTHORS COPYING INSTALL NEWS README.md THANKS ChangeLog

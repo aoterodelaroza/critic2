@@ -48,7 +48,6 @@ contains
     use param, only: param_init
     character(len=:), allocatable :: optv
     character(len=:), allocatable :: ghome
-    character(len=:), allocatable :: uroot
 
     if (cr%isinit) then
       call cr%end()
@@ -269,7 +268,6 @@ contains
   end subroutine auto_cp
 
   subroutine num_of_crit_points(n_critp) bind (c, name="num_of_crit_points")
-    use struct_basic, only: cr
     use varbas, only: ncpcel
     integer(c_int), intent(out) :: n_critp
 
@@ -280,7 +278,7 @@ contains
   subroutine get_cp_pos_type(cpIdx, type, x, y, z) bind (c, name="get_cp_pos_type")
     use struct_basic, only: cr
     use global, only: dunit
-    use varbas, only: cp, cpcel, ncpcel
+    use varbas, only: cpcel
 
     integer (kind=c_int), value :: cpIdx
     integer(c_int), intent(out) :: type
