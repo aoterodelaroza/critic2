@@ -23,6 +23,7 @@ module gui_interface
   implicit none
   private
 
+  public :: hello
   public :: initialize
   public :: init_struct
   public :: call_structure
@@ -36,6 +37,11 @@ module gui_interface
   public :: get_cp_pos_type
 
 contains
+  ! test routine
+  subroutine hello() bind(c,name="hello")
+    write (*,*) "In fortran: hello, world!"
+  end subroutine hello
+
   !xx! top-level routines
   subroutine initialize() bind (c,name="initialize")
     use graphics, only: graphics_init

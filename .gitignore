@@ -6,6 +6,7 @@
 # binaries
 src/critic2
 src/critic2.exe
+src-gui/gcritic2
 tools/basin2off/basin2off
 tools/off2off/off2off
 

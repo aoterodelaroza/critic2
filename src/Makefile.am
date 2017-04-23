@@ -24,6 +24,9 @@ SUBDIRS = oldlibs ciftbx cubpack qhull spglib
 critic2_LDADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a \
 	spglib/libspglib.a $(LIBADD)
 critic2_DEPENDENCIES=$(critic2_LDADD)
+# libcritic2_a_LIBADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a \
+# 	spglib/libspglib.a $(LIBADD)
+# libcritic2_a_DEPENDENCIES=$(gcritic2_LIBADD)
 
 # Include the subdirectories with the modules
 AM_FCFLAGS= -I$(top_srcdir)/src/cubpack
