@@ -12,7 +12,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw_gl3.h>
 #include <matrix_math.h>
-#include <tinyfiledialogs.h>
+#include "tinyfiledialogs.h"
 #include "geometry.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
@@ -875,100 +875,6 @@ void drawSelectedCPStats() {
   }
 }
 
-// /// print information about the current state of the camra
-// void printCamStats() {
-// 	bool p_open = false;
-// 	ImGui::SetNextWindowSize(ImVec2(300, 75), ImGuiSetCond_Appearing);
-// 	ImGui::Begin("cam stats", &p_open);
-// 	string camPos = "cam pos: " + (string)charConverter(cam.Pos[0]) + "," + charConverter(cam.Pos[1]) + "," + charConverter(cam.Pos[2]);
-// 	string camTarget = "cam target: " + (string)charConverter(cam.Target[0]) + "," + charConverter(cam.Target[1]) + "," + charConverter(cam.Target[2]);
-// 	string camUp = "cam up: " + (string)charConverter(cam.Up[0]) + "," + charConverter(cam.Up[1]) + "," + charConverter(cam.Up[2]);
-// 
-// 	ImGui::Text(camPos.c_str());
-// 	ImGui::Text(camTarget.c_str());
-// 	ImGui::Text(camUp.c_str());
-// 
-// 
-// 	ImGui::End();
-// }
-// 
-// /// draw menu items in a toolbar, currently replaced with dropdowns
-// void drawToolBar(int screen_w, int screen_h,
-//                  bool * show_bonds, bool * show_cps, bool * show_atoms) {
-// 	ImGui::SetNextWindowSize(ImVec2(50, screen_h),ImGuiSetCond_Once);
-// 	ImGui::SetNextWindowPos(ImVec2(0, 0),ImGuiSetCond_Always);
-//   ImGuiWindowFlags flags = 0;
-//     flags |= ImGuiWindowFlags_AlwaysAutoResize;
-//     flags |= ImGuiWindowFlags_NoResize;
-//     flags |= ImGuiWindowFlags_NoMove;
-//     flags |= ImGuiWindowFlags_NoTitleBar;
-// 
-// 	bool p_open = false;
-// 	ImGui::Begin("ToolBar",&p_open, flags);
-//   if (ImGui::Button("Load Molecule")){
-//       char const * lTheOpenFileName = tinyfd_openFileDialog(
-//     		"Select Molecule file",
-//     		"../../examples/data/benzene.wfx",
-//     		0,
-//         NULL,
-//     		NULL,
-//     		0);
-// 
-//       if (lTheOpenFileName == NULL) {
-//         return;
-//       }
-// 
-//       init_struct();
-//       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 1);
-//       destructLoadedMolecule();
-//       destructCriticalPoints();
-//       loadAtoms();
-//       loadBonds();
-//   }
-//   if (ImGui::Button("Load Crystal")){
-//       char const * lTheOpenFileName = tinyfd_openFileDialog(
-//     		"Select Molecule file",
-//     		"../../examples/data/ammonia.big.vel.cube",
-//     		0,
-//     		NULL,
-//     		NULL,
-//     		0);
-// 
-//       if (lTheOpenFileName == NULL) {
-//         return;
-//       }
-// 
-//       init_struct();
-//       call_structure(lTheOpenFileName, (int) strlen(lTheOpenFileName), 0);
-//       destructLoadedMolecule();
-//       destructCriticalPoints();
-//       loadAtoms();
-//       loadBonds();
-//   }
-//   if (ImGui::Button("Generate Critical Points")){
-//     auto_cp();
-//   }
-//   if (ImGui::Button("Load Critical Points")) {
-//     destructCriticalPoints();
-//     loadCriticalPoints();
-//   }
-//   if (ImGui::Button("Clear")){
-//     destructLoadedMolecule();
-//     destructCriticalPoints();
-//   }
-//   ImGui::Checkbox("Bonds", show_bonds);
-//   ImGui::Checkbox("Crit Pts", show_cps);
-//   ImGui::Checkbox("Atoms", show_atoms);
-// 
-//   if (ImGui::Checkbox("`elc.find", &flashAtoms)) { //set flashing to defults
-// 	  framesMax = 15; // ~0.5 seconds
-// 	  framesLeft = 0;
-// 	  otherAtomsVisable = true;
-//   }
-// 
-//   ImGui::End();
-// }
-
 /// This is the main imgui window describing atoms,bonds,critical points, and additonal information
 void drawMainMenuTree(int screen_w, int screen_h) {
   ImGui::SetNextWindowSize(ImVec2(300, screen_h),ImGuiSetCond_Always);
@@ -1161,18 +1067,30 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 
 static void ShowMenuFile()
 {
+  if (ImGui::MenuItem("Open molecule/crystal...")) {
+    char const * lTheOpenFileName = tinyfd_openFileDialog("Open molecule/crystal",NULL,0,NULL,NULL,0);
+
+    if (lTheOpenFileName == NULL) 
+      return;
+
+    init_struct();
+    call_structure(lTheOpenFileName, (int)strlen(lTheOpenFileName), 1);
+    destructLoadedMolecule();
+    destructCriticalPoints();
+    loadAtoms();
+    loadBonds();
+  }
   if (ImGui::MenuItem("Load Molecule")) {
     char const * lTheOpenFileName = tinyfd_openFileDialog(
 							  "Select Molecule file",
-							  "../../examples/data/benzene.wfx",
+							  NULL,
 							  0,
 							  NULL,
 							  NULL,
 							  0);
 
-    if (lTheOpenFileName == NULL) {
+    if (lTheOpenFileName == NULL) 
       return;
-    }
 
     init_struct();
     call_structure(lTheOpenFileName, (int)strlen(lTheOpenFileName), 1);
@@ -1204,6 +1122,11 @@ static void ShowMenuFile()
   if (ImGui::MenuItem("Clear")) {
     destructLoadedMolecule();
     destructCriticalPoints();
+  }
+  if (ImGui::MenuItem("Testing")) {
+    ImGui::OpenPopup("FilePopup");
+    if (ImGui::BeginPopup("filepopup")){
+    }
   }
 }
 
