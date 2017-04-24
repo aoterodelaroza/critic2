@@ -1240,9 +1240,9 @@ int main(int, char**)
 #ifdef WIN32
 	Sleep(frameTime - difftime(lastTime, curTime));
 #endif // WIN32
-#if defined(LINUX) || defined(__APPLE__)
+//#if defined(LINUX) || defined(__APPLE__)
 	usleep(frameTime - difftime(lastTime, curTime));
-#endif // LINUX || __APPLE__
+//#endif // LINUX || __APPLE__
  
  
       }
