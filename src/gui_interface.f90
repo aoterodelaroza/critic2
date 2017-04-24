@@ -21,10 +21,11 @@
 module gui_interface
   use, intrinsic :: iso_c_binding
   implicit none
+
   private
 
-  public :: hello
-  public :: initialize
+  public :: critic2_initialize
+  public :: critic2_end
   public :: init_struct
   public :: call_structure
   public :: get_positions
@@ -37,35 +38,24 @@ module gui_interface
   public :: get_cp_pos_type
 
 contains
-  ! test routine
-  subroutine hello() bind(c,name="hello")
-    write (*,*) "In fortran: hello, world!"
-  end subroutine hello
 
-  !xx! top-level routines
-  subroutine initialize() bind (c,name="initialize")
+  !> Initialize the critic2 library
+  subroutine critic2_initialize() bind(c)
     use graphics, only: graphics_init
     use spgs, only: spgs_init
     use fields, only: fields_init, fields_end
     use struct_basic, only: cr
-    use config, only: datadir
-    use global, only: global_init, fileroot
-    use tools_io, only: stdargs, ioinit
+    use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
+       fcflags, cc, cflags, ldflags, enable_debug, package
+    use global, only: global_init, fileroot, config_write, initial_banner
+    use tools_io, only: stdargs, ioinit, ucopy, uout, start_clock, &
+       tictac
     use param, only: param_init
     character(len=:), allocatable :: optv
     character(len=:), allocatable :: ghome
 
-    if (cr%isinit) then
-      call cr%end()
-      ! ...the fields associated to the previous structure
-      call fields_end()
-      ! ...the loaded radial atomic and core densities
-      !call grda_end()
-      ! ...the CP list
-      !call varbas_end()
-    end if
-
     ! initialize parameters
+    call start_clock()
     call param_init()
 
     ! input/output, arguments (tools_io)
@@ -74,10 +64,42 @@ contains
 
     ! set default values and initialize the rest of the modules
     call global_init(ghome,datadir)
+    call cr%init()
+    call fields_init()
     call spgs_init()
     call graphics_init()
 
-  end subroutine initialize
+    call initial_banner()
+    call config_write(package,version,atarget,adate,f77,fflags,fc,&
+       fcflags,cc,cflags,ldflags,enable_debug,datadir)
+    call tictac('CRITIC2')
+    write (uout,*)
+    ucopy = -1
+
+  end subroutine critic2_initialize
+
+  !> Terminate the critic2 library
+  subroutine critic2_end() bind(c)
+    use fields, only: fields_end
+    use struct_basic, only: cr
+    use pi_private, only: pi_end
+    use wfn_private, only: wfn_end
+    use varbas, only: varbas_end
+    use grd_atomic, only: grda_end
+    use tools_io, only: uout, nwarns, ncomms, print_clock, tictac, string
+    
+    call pi_end()
+    call wfn_end()
+    call grda_end()
+    call varbas_end()
+    call cr%end()
+    call fields_end()
+    
+    write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
+       string(nwarns), string(ncomms)
+    call print_clock()
+    call tictac('CRITIC2')
+  end subroutine critic2_end
 
   subroutine init_struct() bind (c,name="init_struct")
     use fields, only: fields_init, fields_end

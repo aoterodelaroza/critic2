@@ -1,6 +1,6 @@
 // Public interface for src/gui_interface.f90
-extern "C" void hello();
-extern "C" void initialize();
+extern "C" void critic2_initialize();
+extern "C" void critic2_end();
 extern "C" void init_struct();
 extern "C" void call_structure(const char *filename, int size, int isMolecule); //pass file to critic2
 extern "C" void get_num_atoms(int *n);
