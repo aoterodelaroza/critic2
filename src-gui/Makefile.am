@@ -1,6 +1,7 @@
 # binary and sources
 bin_PROGRAMS = gcritic2
-gcritic2_SOURCES = main.cpp
+gcritic2_SOURCES = main.cpp imgui_impl_glfw_gl3.cpp imgui.cpp imgui_draw.cpp \
+	matrix_math.cpp tinyfiledialogs.c gl3w.c 
 
 # subdirectories
 SUBDIRS=
@@ -16,6 +17,7 @@ gcritic2_LDADD=$(top_srcdir)/src/libcritic2.a \
 gcritic2_DEPENDENCIES=$(gcritic2_LDADD)
 
 # Include the header files
-AM_CXXFLAGS= -I$(top_srcdir)/include
-AM_LDFLAGS=-lgfortran -lgomp
+AM_CFLAGS=-I$(top_srcdir)/include
+AM_CXXFLAGS=-I$(top_srcdir)/include `pkg-config --cflags glfw3` -Wall -Wformat -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -w -g
+AM_LDFLAGS=-ldl -lgfortran -lgomp -lglfw -lGL
 
