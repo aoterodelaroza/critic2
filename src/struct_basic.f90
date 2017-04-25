@@ -1290,11 +1290,11 @@ contains
     call realloc(c%mol,c%nmol)
     call realloc(c%moldiscrete,c%nmol)
 
-    ! translate all fragments to the wigner-seitz cell
+    ! translate all fragments to the main cell
     if (.not.c%ismolecule) then
        do i = 1, c%nmol
           xcm = fragment_cmass(c%mol(i))
-          newl = nint(c%c2x(xcm))
+          newl = floor(c%c2x(xcm))
           do j = 1, c%mol(i)%nat
              c%mol(i)%at(j)%x = c%mol(i)%at(j)%x - newl
              c%mol(i)%at(j)%r = c%x2c(c%mol(i)%at(j)%x)
