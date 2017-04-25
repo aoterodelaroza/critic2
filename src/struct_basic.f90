@@ -964,6 +964,7 @@ contains
   !> Find asterisms. For every atom in the unit cell, find the atoms in the 
   !> main cell or adjacent cells that are connected to it. 
   subroutine find_asterisms(c)
+    use global, only: bondfactor
     use param, only: atmcov, vsmall
 
     class(crystal), intent(inout) :: c
@@ -972,8 +973,6 @@ contains
     real*8 :: rvws(3), x0(3), dist, dist2
     real*8 :: d0
     integer :: lvec0(3), lvec(3)
-
-    real*8, parameter :: rfac = 1.4d0
 
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (.not.allocated(c%nstar)) allocate(c%nstar(c%ncel))
@@ -989,7 +988,7 @@ contains
        lvec = 0
        do i = 1, c%ncel
           do j = i+1, c%ncel
-             d0 = rfac * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
+             d0 = bondfactor * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
              ! use the Cartesian directly
              x0 = c%atcel(j)%r - c%atcel(i)%r
              if (any(abs(x0) > d0)) cycle
@@ -1008,7 +1007,7 @@ contains
              x0 = c%atcel(j)%x - c%atcel(i)%x
              lvec0 = nint(x0)
              x0 = x0 - lvec0
-             d0 = rfac * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
+             d0 = bondfactor * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
 
              do k = 0, c%nws
                 if (k == 0) then

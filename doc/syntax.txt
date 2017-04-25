@@ -365,6 +365,7 @@ xxxx
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
 * MESHTYPE {BECKE|FRANCHINI {1|2|3|4|5}}
 * PRECISECUBE|STANDARDCUBE
+* BONDFACTOR bondfactor.r
 * CLEAR {var1.s var2.s ...|ALL}
 * LIST
 * RESET

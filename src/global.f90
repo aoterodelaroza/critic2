@@ -106,6 +106,9 @@ module global
   character*4, parameter :: iunitname0(2) = (/"bohr","ang_"/)
   real*8, parameter :: dunit0(2) = (/1d0,bohrtoa/)
 
+  ! covalent bond factor
+  real*8 :: bondfactor
+
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
@@ -255,6 +258,9 @@ contains
 
     refden = 0
     precisecube = .true.
+
+    ! bond factor
+    bondfactor = 1.4d0
 
     ! symmetry
     doguess = -1
@@ -414,6 +420,11 @@ contains
        ok = isreal(symprec,line,lp)
        if (.not.ok) &
           call ferror('critic_setvariables','Wrong symprec',faterr,line,syntax=.true.)
+       call check_no_extra_word(ok)
+    elseif (equal(word,'bondfactor')) then
+       ok = isreal(bondfactor,line,lp)
+       if (.not.ok) &
+          call ferror('critic_setvariables','Wrong bondfactor',faterr,line,syntax=.true.)
        call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)

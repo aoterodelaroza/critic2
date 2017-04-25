@@ -1895,7 +1895,8 @@ writing an xyz file::
 The MOLMOTIF keyword writes all atoms in the unit cell and completes
 the molecules by using the atoms in the neighboring cells. A covalent
 radii criterion is used to determine whether two atoms are bonded or
-not. The full syntax of the WRITE keyword is::
+not (see the BONDFACTOR keyword in `Control commands and
+options`_). The full syntax of the WRITE keyword is::
 
   WRITE file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
         [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
@@ -1961,8 +1962,9 @@ The keyword MOLMOTIF is used in molecular crystals. All atoms in the
 requested crystal fragment are written to the xyz file. Then, the
 molecules are completed using atoms from outside the fragment. In
 order to do this, a connectivity criterion is used: two atoms are
-bonded if their distance is less than 1.5 times their sum of covalent
-radii.
+bonded if their distance is less than BONDFACTOR times their sum of
+covalent radii (see the BONDFACTOR keyword in `Control commands and
+options`_).
 
 The ONEMOTIF and ENVIRON keywords are also used in molecular
 crystals. ONEMOTIF writes all atoms in the unit cell, translated by
@@ -6129,6 +6131,14 @@ default Gaussian format.
 
 ::
 
+  BONDFACTOR bondfactor.r
+
+Critic2 considers two atoms are covalently bonded if their distance is
+less than the sum of their covalent radii times bondfactor.r (default:
+1.4).
+
+::
+
   ROOT root.s
 
 Change the <root>. The root is used as prefix for most of the
@@ -6364,6 +6374,11 @@ BENCHMARK
   Run a benchmark test to measure the evaluation cost of the reference
   field. Mostly for debug purposes. See `Control commands and
   options`_.
+
+BONDFACTOR
+  Two atoms are considered covalently bonded if their distance is less
+  than the sum of their covalent radii times BONDFACTOR. See `Control
+  commands and options`_.
 
 BUNDLEPLOT
   Three-dimensional plot of a primary bundle. See `Primary bundle
