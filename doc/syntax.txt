@@ -152,8 +152,8 @@ expression.r # prints the value of the expression to the output.
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
 
 xxxx
-LOAD file.chk [filedn.chk] [UNKGEN file.unkgen file.evc] [NOU] [NOCHK]
-     [WANCUT cut.r]
+LOAD file.chk [filedn.chk] [UNKGEN file.unkgen file.evc] [NOU]
+              [NOSIJCHK] [NOFACHK] [WANCUT cut.r]
 xxxx
 
 * UNLOAD {id.s|ALL}

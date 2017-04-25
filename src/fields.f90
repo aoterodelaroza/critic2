@@ -545,7 +545,8 @@ contains
        file3 = ""
        file4 = ""
        ff%wan%useu = .true.
-       ff%wan%dochk = .true.
+       ff%wan%sijchk = .true.
+       ff%wan%fachk = .true.
        ff%wan%haschk = .false.
        ff%wan%cutoff = -1d0
        do while (.true.)
@@ -554,8 +555,10 @@ contains
           nword = nword + 1
           if (equal(lword,"nou")) then
              ff%wan%useu = .false.
-          elseif (equal(lword,"nochk")) then
-             ff%wan%dochk = .false.
+          elseif (equal(lword,"nosijchk")) then
+             ff%wan%sijchk = .false.
+          elseif (equal(lword,"nofachk")) then
+             ff%wan%fachk = .false.
           elseif (equal(lword,"wancut")) then
              ok = eval_next(ff%wan%cutoff,line,lp)
           elseif (equal(lword,"unkgen")) then
@@ -574,9 +577,9 @@ contains
        end do
 
        if (len_trim(file3) < 1) then
-          call grid_read_unk(file,file2,ff,cr%omega,nou,ff%wan%dochk)
+          call grid_read_unk(file,file2,ff,cr%omega,nou,ff%wan%sijchk)
        else
-          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega,ff%wan%dochk)
+          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega,ff%wan%sijchk)
        end if
        ff%type = type_grid
        ff%file = trim(file)

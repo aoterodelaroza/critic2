@@ -838,7 +838,7 @@ contains
        f%f = f%f * fspin / omega / real(nk,8)
     end if
 
-    f%wan%dochk = dochk
+    f%wan%sijchk = dochk
     f%wan%haschk = haschk
     f%init = .true.
     f%mode = mode_default
@@ -1080,7 +1080,7 @@ contains
        call fclose(luc)
     end if
 
-    f%wan%dochk = dochk
+    f%wan%sijchk = dochk
     f%wan%haschk = haschk
     f%init = .true.
     f%mode = mode_default
