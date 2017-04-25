@@ -1445,6 +1445,7 @@ contains
     use global, only: iunitname0, iunit, dunit
     use varbas, only: cp, cpcel
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
+    use fragmentmod, only: fragment_cmass
 
     logical, intent(in) :: pmask(nprops)
     character*(*), intent(in) :: reason(nprops)
@@ -1456,11 +1457,12 @@ contains
     real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
     real*8, intent(in), allocatable, optional :: mpole(:,:,:)
 
-    integer :: i, j, ip, ipmax, iplast
+    integer :: i, j, k, ip, ipmax, iplast, idx
     integer :: fid, nacprop(5)
-    real*8 :: x(3), sump(nprops), xmult
+    real*8 :: x(3), sump(nprops), xmult, xcm(3)
     character(len=:), allocatable :: saux, itaux, label, cini
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
+    integer :: idxmol(2,nattr)
 
     ! List of integrable properties accepted/rejected and why some
     ! were rejected
@@ -1501,6 +1503,18 @@ contains
           string(itype_names(integ_prop(i)%itype),12,ioj_left),&
           string(saux)
     end do
+    write (uout,*)
+
+    ! key
+    write (uout,'("* Key for the interpretation of table headings")')
+    write (uout,'("# Id = attractor identifier")')
+    write (uout,'("# cp/at = critical point/atom from the complete CP/atom list")')
+    write (uout,'("# (lvec) = lattice translation from CP/atom to the main cell''s representative")')
+    write (uout,'("# ncp/nat = critical point/atom from the non-equivalent CP/atom list")')
+    write (uout,'("# Name = atomic name")')
+    write (uout,'("# Z = atomic number")')
+    write (uout,'("# Position = atomic position")')
+    write (uout,'("# Mol = molecule identifier (see corresponding table above)")')
     write (uout,*)
 
     ! List of attractors and positions
@@ -1564,11 +1578,98 @@ contains
              (string(aprop(nacprop(j),i),'e',15,8,4),j=1,ipmax)
        end do
        write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
-       write (uout,'(2X,"Sum                         ",99(A,X))') &
+       write (uout,'(2X,"Sum                           ",99(A,X))') &
           (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
        write (uout,*)
     end do
     
+    ! Molecular properties
+    if (.not.cr%ismolecule .and. all(cr%moldiscrete(1:cr%nmol))) then
+       ! Assign attractors to molecules
+       idxmol = 0
+       do i = 1, nattr
+          jlo: do j = 1, cr%nmol
+             do k = 1, cr%mol(j)%nat
+                if (icp(i) == cr%mol(j)%at(k)%cidx) then
+                   idxmol(1,i) = j
+                   idxmol(2,i) = k
+                   exit jlo
+                end if
+             end do
+          end do jlo
+       end do
+
+       ! List of molecules and associated attractors
+       write (uout,'("* List of molecules integrated")')
+       write (uout,'("+ Id   at (lvec)   nat    Name  Z              Position (cryst.) ")')
+       do i = 1, cr%nmol
+          xcm = cr%c2x(fragment_cmass(cr%mol(i)))
+          ! name the molecule
+          write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), string(cr%mol(i)%nat),&
+             (string(xcm(j),'f',10,6,3),j=1,3)
+
+          ! Atomic composition
+          do j = 1, nattr
+             if (idxmol(1,j) /= i) cycle
+             call assign_strings(j,icp(j),usesym,scp,sncp,sname,smult,sz)
+             x = cr%mol(idxmol(1,j))%at(idxmol(2,j))%x
+             write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') & 
+                string(j,4,ioj_left), scp, (string(cr%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
+                sncp, sname, sz, (string(x(k),'f',12,7,4),k=1,3)
+          end do
+       end do
+       write (uout,*)
+       
+       ! List of integrated properties in the molecules
+       write (uout,'("* Integrated molecular properties")')
+       iplast = 0
+       do ip = 0, (count(pmask)-1)/5
+          ! show only the properties that are active
+          nacprop = 0
+          ipmax = 0
+          do i = iplast+1, nprops
+             if (pmask(i)) then
+                ipmax = ipmax + 1
+                nacprop(ipmax) = i
+             end if
+             if (ipmax == 5) exit
+          end do
+          if (ipmax == 0) exit
+          iplast = nacprop(ipmax)
+
+          ! Table header for this set of properties
+          write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
+          write (uout,'("# Mol ",5(A,X))') &
+             (string(integ_prop(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+
+          ! Table rows
+          do k = 1, cr%nmol+1
+             if (k == cr%nmol+1 .and. all(idxmol > 0)) cycle
+             sump = 0d0
+             do i = 1, nattr
+                if (idxmol(1,i) /= mod(k,cr%nmol+1)) cycle
+                ! add to the sum
+                if (icp(i) > 0 .and. usesym) then
+                   xmult = cp(cpcel(icp(i))%idx)%mult
+                else
+                   xmult = 1
+                endif
+                do j = 1, ipmax
+                   sump(nacprop(j)) = sump(nacprop(j)) + aprop(nacprop(j),i) * xmult
+                end do
+             end do
+             ! table entry
+             if (k < cr%nmol+1) then
+                write (uout,'(2X,99(A,X))') &
+                   string(k,4,ioj_left), (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+             else
+                write (uout,'(2X,99(A,X))') "????", (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+             end if
+          end do
+          write (uout,*) 
+       end do
+    end if
+
   end subroutine int_output
 
   !> Output calculate multipole moments. Inputs: number of attractors
