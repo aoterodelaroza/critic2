@@ -1299,7 +1299,7 @@ contains
           do j = 1, c%mol(i)%nat
              c%mol(i)%at(j)%x = c%mol(i)%at(j)%x - newl
              c%mol(i)%at(j)%r = c%x2c(c%mol(i)%at(j)%x)
-             c%mol(i)%at(j)%lvec = lvec(:,j) - newl
+             c%mol(i)%at(j)%lvec = c%mol(i)%at(j)%lvec - newl
           end do
        end do
     end if
