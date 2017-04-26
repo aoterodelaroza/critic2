@@ -66,3 +66,7 @@ COPYING
 
 # emacs tags
 src/TAGS
+
+# gui
+imgui.ini
+

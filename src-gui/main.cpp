@@ -29,7 +29,7 @@ using namespace std;
 static const char bondresolution = 2;
 static const char atomresolution = 1;
 
-static void new_structure_dialog(bool *p_open);
+static void new_structure_dialog(bool *p_open, int ismolecule);
 static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms);
 
 ///platform independent convertion vars into a string representation
@@ -1051,16 +1051,26 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 {
   // logical variables for persistent dialogs
   static bool show_new_structure_dialog = false;
+  static int ismolecule;
 
   // persistent dialog calls
-  if (show_new_structure_dialog) new_structure_dialog(&show_new_structure_dialog);
+  if (show_new_structure_dialog) new_structure_dialog(&show_new_structure_dialog,ismolecule);
 
   // immediate actions
   if (ImGui::BeginMainMenuBar())
     {
       if (ImGui::BeginMenu("File")){
-	show_new_structure_dialog = ImGui::MenuItem("New structure...","Ctrl+O");
-	if (ImGui::MenuItem("Clear structure","Ctrl+Backspace")) {
+	if (ImGui::MenuItem("New","Ctrl+N")){}
+	if (ImGui::MenuItem("Open crystal","Ctrl+O")){
+	  show_new_structure_dialog = true;
+	  ismolecule = 0;
+	}
+	if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O")) {
+	  show_new_structure_dialog = true;
+	  ismolecule = 1;
+	}
+	if (ImGui::MenuItem("Open recent")) {}
+	if (ImGui::MenuItem("Close","Ctrl+W")) {
 	  destructLoadedMolecule();
 	  destructCriticalPoints();
 	}
@@ -1304,7 +1314,7 @@ int main(int argc, char *argv[])
 }
 
 // 
-static void new_structure_dialog(bool *p_open){
+static void new_structure_dialog(bool *p_open, int ismolecule){
   static ImGuiFs::Dialog fsopenfile;
   static bool firstpass = true;
 
@@ -1322,7 +1332,7 @@ static void new_structure_dialog(bool *p_open){
     destructLoadedMolecule();
     destructCriticalPoints();
     init_struct();
-    call_structure(filename, (int)strlen(filename), 1); // last 1 from molecule/crytsal selector
+    call_structure(filename, (int)strlen(filename), ismolecule); 
     destructLoadedMolecule();
     destructCriticalPoints();
     loadAtoms();
