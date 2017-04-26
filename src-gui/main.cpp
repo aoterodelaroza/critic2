@@ -9,9 +9,9 @@
 #include <critic2.h>
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
-#include <imgui.h>
-#include <imgui_impl_glfw_gl3.h>
-#include <matrix_math.h>
+#include "imgui.h"
+#include "imgui_impl_glfw_gl3.h"
+#include "matrix_math.h"
 #include "tinyfiledialogs.h"
 #include "geometry.h"
 
