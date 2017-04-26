@@ -67,7 +67,9 @@ namespace ImGuiStb
 // Context
 //-----------------------------------------------------------------------------
 
-extern IMGUI_API ImGuiContext*  GImGui;     // current implicit ImGui context pointer
+#ifndef GImGui
+extern IMGUI_API ImGuiContext* GImGui;  // Current implicit ImGui context pointer
+#endif
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -86,7 +88,8 @@ IMGUI_API int           ImTextCountUtf8BytesFromStr(const ImWchar* in_text, cons
 
 // Helpers: Misc
 IMGUI_API ImU32         ImHash(const void* data, int data_size, ImU32 seed = 0);    // Pass data_size==0 for zero-terminated strings
-IMGUI_API void*         ImLoadFileToMemory(const char* filename, const char* file_open_mode, int* out_file_size = NULL, int padding_bytes = 0);
+IMGUI_API void*         ImFileLoadToMemory(const char* filename, const char* file_open_mode, int* out_file_size = NULL, int padding_bytes = 0);
+IMGUI_API FILE*         ImFileOpen(const char* filename, const char* file_open_mode);         
 IMGUI_API bool          ImIsPointInTriangle(const ImVec2& p, const ImVec2& a, const ImVec2& b, const ImVec2& c);
 static inline bool      ImCharIsSpace(int c)            { return c == ' ' || c == '\t' || c == 0x3000; }
 static inline int       ImUpperPowerOfTwo(int v)        { v--; v |= v >> 1; v |= v >> 2; v |= v >> 4; v |= v >> 8; v |= v >> 16; v++; return v; }
@@ -195,6 +198,15 @@ enum ImGuiDataType
     ImGuiDataType_Int,
     ImGuiDataType_Float,
     ImGuiDataType_Float2,
+};
+
+enum ImGuiCorner
+{
+    ImGuiCorner_TopLeft     = 1 << 0, // 1
+    ImGuiCorner_TopRight    = 1 << 1, // 2
+    ImGuiCorner_BottomRight = 1 << 2, // 4
+    ImGuiCorner_BottomLeft  = 1 << 3, // 8
+    ImGuiCorner_All         = 0x0F
 };
 
 // 2D axis aligned bounding-box
@@ -479,9 +491,11 @@ struct ImGuiContext
         SetNextWindowSizeCond = 0;
         SetNextWindowContentSizeCond = 0;
         SetNextWindowCollapsedCond = 0;
-        SetNextWindowFocus = false;
+        SetNextWindowSizeConstraintRect = ImRect();
         SetNextWindowSizeConstraintCallback = NULL;
         SetNextWindowSizeConstraintCallbackUserData = NULL;
+        SetNextWindowSizeConstraint = false;
+        SetNextWindowFocus = false;
         SetNextTreeNodeOpenVal = false;
         SetNextTreeNodeOpenCond = 0;
 
@@ -588,6 +602,7 @@ struct IMGUI_API ImGuiDrawContext
         memset(StackSizesBackup, 0, sizeof(StackSizesBackup));
 
         IndentX = 0.0f;
+        GroupOffsetX = 0.0f;
         ColumnsOffsetX = 0.0f;
         ColumnsCurrent = 0;
         ColumnsCount = 1;
@@ -695,6 +710,7 @@ namespace ImGui
     IMGUI_API void          EndFrame();                 // Ends the ImGui frame. Automatically called by Render()! you most likely don't need to ever call that yourself directly. If you don't need to render you can call EndFrame() but you'll have wasted CPU already. If you don't need to render, don't create any windows instead!
 
     IMGUI_API void          SetActiveID(ImGuiID id, ImGuiWindow* window);
+	IMGUI_API void          ClearActiveID();
     IMGUI_API void          SetHoveredID(ImGuiID id);
     IMGUI_API void          KeepAliveID(ImGuiID id);
 
@@ -717,7 +733,7 @@ namespace ImGui
     IMGUI_API void          RenderTextWrapped(ImVec2 pos, const char* text, const char* text_end, float wrap_width);
     IMGUI_API void          RenderTextClipped(const ImVec2& pos_min, const ImVec2& pos_max, const char* text, const char* text_end, const ImVec2* text_size_if_known, const ImVec2& align = ImVec2(0,0), const ImRect* clip_rect = NULL);
     IMGUI_API void          RenderFrame(ImVec2 p_min, ImVec2 p_max, ImU32 fill_col, bool border = true, float rounding = 0.0f);
-    IMGUI_API void          RenderCollapseTriangle(ImVec2 pos, bool is_open, float scale = 1.0f, bool shadow = false);
+    IMGUI_API void          RenderCollapseTriangle(ImVec2 pos, bool is_open, float scale = 1.0f);
     IMGUI_API void          RenderBullet(ImVec2 pos);
     IMGUI_API void          RenderCheckMark(ImVec2 pos, ImU32 col);
     IMGUI_API const char*   FindRenderedTextEnd(const char* text, const char* text_end = NULL); // Find the optional ## from which we stop displaying text.
