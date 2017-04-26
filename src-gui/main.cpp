@@ -14,6 +14,7 @@
 #include "matrix_math.h"
 #include "tinyfiledialogs.h"
 #include "geometry.h"
+#include "imguifilesystem.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
@@ -28,8 +29,8 @@ using namespace std;
 static const char bondresolution = 2;
 static const char atomresolution = 1;
 
+static void new_structure_dialog(bool *p_open);
 static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms);
-static void ShowMenuFile();
 
 ///platform independent convertion vars into a string representation
 string charConverter(float t) {
@@ -974,7 +975,7 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 
 ///search bar to find atoms by atomic number
 void createAtomSearchBar() {
-  ImGui::SetNextWindowSize(ImVec2(200, 70), ImGuiSetCond_Appearing);
+  ImGui::SetNextWindowSize(ImVec2(200, 130), ImGuiSetCond_Appearing);
   ImGui::Begin("Atom Search by atomic #");
   ImGuiWindowFlags Flags;
   int atomAtomicNumber = 0;
@@ -990,6 +991,8 @@ void createAtomSearchBar() {
     framesLeft = 0;
     otherAtomsVisable = true;
   }
+
+  static ImGuiFs::Dialog fsopenfile;
 
   ImGui::End();
 }
@@ -1044,12 +1047,25 @@ static void showMenuVisuals(bool * show_bonds, bool * show_cps, bool * show_atom
   }
 }
 
-static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms)
+static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms, bool * want_quit)
 {
+  // logical variables for persistent dialogs
+  static bool show_new_structure_dialog = false;
+
+  // persistent dialog calls
+  if (show_new_structure_dialog) new_structure_dialog(&show_new_structure_dialog);
+
+  // immediate actions
   if (ImGui::BeginMainMenuBar())
     {
       if (ImGui::BeginMenu("File")){
-	ShowMenuFile();
+	show_new_structure_dialog = ImGui::MenuItem("New structure...","Ctrl+O");
+	if (ImGui::MenuItem("Clear structure","Ctrl+Backspace")) {
+	  destructLoadedMolecule();
+	  destructCriticalPoints();
+	}
+	if (ImGui::MenuItem("Quit","Ctrl+Q")) 
+	  *want_quit = true;
 	ImGui::EndMenu();
       }
       if (ImGui::BeginMenu("Functions")) {
@@ -1063,71 +1079,6 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 
       ImGui::EndMainMenuBar();
     }
-}
-
-static void ShowMenuFile()
-{
-  if (ImGui::MenuItem("Open molecule/crystal...")) {
-    char const * lTheOpenFileName = tinyfd_openFileDialog("Open molecule/crystal",NULL,0,NULL,NULL,0);
-
-    if (lTheOpenFileName == NULL) 
-      return;
-
-    init_struct();
-    call_structure(lTheOpenFileName, (int)strlen(lTheOpenFileName), 1);
-    destructLoadedMolecule();
-    destructCriticalPoints();
-    loadAtoms();
-    loadBonds();
-  }
-  if (ImGui::MenuItem("Load Molecule")) {
-    char const * lTheOpenFileName = tinyfd_openFileDialog(
-							  "Select Molecule file",
-							  NULL,
-							  0,
-							  NULL,
-							  NULL,
-							  0);
-
-    if (lTheOpenFileName == NULL) 
-      return;
-
-    init_struct();
-    call_structure(lTheOpenFileName, (int)strlen(lTheOpenFileName), 1);
-    destructLoadedMolecule();
-    destructCriticalPoints();
-    loadAtoms();
-    loadBonds();
-  }
-  if (ImGui::MenuItem("Load Crystal")) {
-    char const * lTheOpenFileName = tinyfd_openFileDialog(
-							  "Select Molecule file",
-							  "../../examples/data/ammonia.big.vel.cube",
-							  0,
-							  NULL,
-							  NULL,
-							  0);
-
-    if (lTheOpenFileName == NULL) {
-      return;
-    }
-
-    init_struct();
-    call_structure(lTheOpenFileName, (int)strlen(lTheOpenFileName), 0);
-    destructLoadedMolecule();
-    destructCriticalPoints();
-    loadAtoms();
-    loadBonds();
-  }
-  if (ImGui::MenuItem("Clear")) {
-    destructLoadedMolecule();
-    destructCriticalPoints();
-  }
-  if (ImGui::MenuItem("Testing")) {
-    ImGui::OpenPopup("FilePopup");
-    if (ImGui::BeginPopup("filepopup")){
-    }
-  }
 }
 
 int main(int argc, char *argv[])
@@ -1194,6 +1145,7 @@ int main(int argc, char *argv[])
   static bool show_bonds = true;
   static bool show_cps = true;
   static bool show_atoms = true;
+  static bool want_quit = false;
  
   // input variables;
   // c means for current loop, l means last loop, p means last pressed
@@ -1329,7 +1281,9 @@ int main(int argc, char *argv[])
     //drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
     createAtomSearchBar();
     createCriticalPointSearchBar();
-    ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms);
+    ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms, &want_quit);
+    if (want_quit)
+      glfwSetWindowShouldClose(window, GLFW_TRUE);
  
     glDisableVertexAttribArray(0);
     glUseProgram(lightshader);
@@ -1347,5 +1301,34 @@ int main(int argc, char *argv[])
   critic2_end();
 
   return 0;
+}
+
+// 
+static void new_structure_dialog(bool *p_open){
+  static ImGuiFs::Dialog fsopenfile;
+  static bool firstpass = true;
+
+  const char* filename = fsopenfile.chooseFileDialog(firstpass,"./",NULL,"bleh");
+  firstpass = false;
+
+  if (fsopenfile.hasUserJustCancelledDialog() || strlen(filename) > 0){
+    // Dialog has been closed - set up for next time and prevent more calls for now
+    firstpass = true;
+    *p_open = false;
+  }
+
+  if (strlen(filename) > 0){
+    // Clean up previous and initialize the structure
+    destructLoadedMolecule();
+    destructCriticalPoints();
+    init_struct();
+    call_structure(filename, (int)strlen(filename), 1); // last 1 from molecule/crytsal selector
+    destructLoadedMolecule();
+    destructCriticalPoints();
+    loadAtoms();
+    loadBonds();
+    firstpass = true;
+    *p_open = false;
+  }
 }
 
