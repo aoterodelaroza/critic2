@@ -1069,7 +1069,9 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 	  show_new_structure_dialog = true;
 	  ismolecule = 1;
 	}
+	if (ImGui::MenuItem("Open from library","Ctrl+L")) {}
 	if (ImGui::MenuItem("Open recent")) {}
+	ImGui::Separator();
 	if (ImGui::MenuItem("Close","Ctrl+W")) {
 	  destructLoadedMolecule();
 	  destructCriticalPoints();
