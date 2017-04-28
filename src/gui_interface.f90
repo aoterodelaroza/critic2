@@ -145,6 +145,10 @@ contains
 
     call struct_crystal_input(cr, filename, isMolecule == 1, .true.)
     if (cr%isinit) then
+       ! fill environments, asterisms, nearest neighbors
+       call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
+       ! print some information about the structure
+       call cr%struct_report()
        ! initialize the radial densities
        call grda_init(.true.,.true.,.false.)
        ! header and change refden

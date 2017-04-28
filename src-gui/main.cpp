@@ -1,4 +1,23 @@
-/* Test program */
+/*
+Copyright (c) 2015 Alberto Otero de la Roza
+<aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
+Visintainer <x@example.com>, Richard Greaves <x@example.com>, Ángel
+Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+<victor@fluor.quimica.uniovi.es>.
+
+critic2 is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+critic2 is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <stdio.h>
 #include <string>
@@ -6,13 +25,16 @@
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
+
 #include <critic2.h>
+
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
+
 #include "imgui.h"
 #include "imgui_impl_glfw_gl3.h"
+
 #include "matrix_math.h"
-#include "tinyfiledialogs.h"
 #include "geometry.h"
 #include "imguifilesystem.h"
 
@@ -25,34 +47,15 @@
 
 using namespace std;
 
-// Bond and atom resolutions (0 to 3)
-static const char bondresolution = 2;
-static const char atomresolution = 1;
+// Forward declarations //
 
 static void new_structure_dialog(bool *p_open, int ismolecule);
 static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms);
 
-///platform independent convertion vars into a string representation
-string charConverter(float t) {
-  char buffer[64];
-  int len = sprintf(buffer, "%f", t);
-  string val = buffer;
-  return val;
-}
-
-string charConverter(size_t t) {
-  char buffer[64];
-  int len = sprintf(buffer, "%d", t);
-  string val = buffer;
-  return val;
-}
-
-string charConverter(int t) {
-  char buffer[64];
-  int len = sprintf(buffer, "%d", t);
-  string val = buffer;
-  return val;
-}
+// Static GUI variables //
+// Bond and atom resolutions (0 = coarse -> 3 = smooth)
+static const char bondresolution = 2;
+static const char atomresolution = 1;
 
 //
 //  Global Variables and Structs
@@ -375,15 +378,15 @@ void loadAtoms() {
 
   //tree names must be constant
   for (size_t x = 0; x < loadedAtomsAmount; x++) {
-    std::string nodeName = "";
+    string nodeName = "";
     nodeName += "Elem Name: ";
     nodeName += loadedAtoms[x].name;
     nodeName += "Atomic #:";
-    nodeName += charConverter(loadedAtoms[x].atomicNumber);
+    nodeName += to_string(loadedAtoms[x].atomicNumber);
     nodeName += "  ID: ";
-    nodeName += charConverter(x);
+    nodeName += to_string(x);
     nodeName += "##TreeID = "; //extra info for imgui to find selection
-    nodeName += charConverter(x);
+    nodeName += to_string(x);
     loadedAtoms[x].atomTreeName = nodeName;
     loadedAtoms[x].atomTreePosition = x;
   }
@@ -790,13 +793,13 @@ void displayCol(string * displayStats, int numberOfCol) {
 
 void atomBondAmountInfo(string * displayVars, int atomNumber) {
   displayVars[0] = "number of bonds";
-  displayVars[1] = charConverter(loadedAtoms[atomNumber].numberOfBonds);
+  displayVars[1] = to_string(loadedAtoms[atomNumber].numberOfBonds);
   displayVars[2] = "";
 }
 
 void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
   displayVars[0] = "atomic number";
-  displayVars[1] = charConverter(loadedAtoms[atomNumber].atomicNumber);
+  displayVars[1] = to_string(loadedAtoms[atomNumber].atomicNumber);
   displayVars[2] = "";
 }
 
@@ -899,20 +902,20 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 	//selection based on atoms bonds
 	for (size_t i = 0; i < bondsAmount; i++) {
 	  if (bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-	    string bondName = "bondedTo" + charConverter(bonds[i].a2->atomTreePosition);
+	    string bondName = "bondedTo" + to_string(bonds[i].a2->atomTreePosition);
 	    if (ImGui::TreeNode(bondName.c_str())) {
 	      //select a2
 	      closeOthers = bonds[i].a2->atomTreePosition;
-	      // cout << "going to atom" + charConverter(closeOthers) << endl;
+	      // cout << "going to atom" + to_string(closeOthers) << endl;
 	      ImGui::TreePop();
 	    }
 	  }
 	  else if (bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-	    string bondName = "bondedTo" + charConverter(bonds[i].a1->atomTreePosition);
+	    string bondName = "bondedTo" + to_string(bonds[i].a1->atomTreePosition);
 	    if (ImGui::TreeNode(bondName.c_str())) {
 	      //select a1
 	      closeOthers = bonds[i].a1->atomTreePosition;
-	      // cout << "going to atom" + charConverter(closeOthers) << endl;
+	      // cout << "going to atom" + to_string(closeOthers) << endl;
 	      ImGui::TreePop();
 	    }
 	  }
@@ -939,7 +942,7 @@ void drawMainMenuTree(int screen_w, int screen_h) {
       int closeOthers = -1;
 
       for (size_t i = 0; i < loadedCPAmount; i++) {
-	if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str())) { //critical point tree node
+	if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + to_string(i)).c_str())) { //critical point tree node
 	  if (loadedCriticalPoints[i].selected == false) {
 	    loadedCriticalPoints[i].selected = true;
 	    lookAtCritPoint(i);
@@ -955,9 +958,9 @@ void drawMainMenuTree(int screen_w, int screen_h) {
 
       if (closeOthers != -1) { //only one cp tab should be open at a time
 	for (int i = 0; i < loadedAtomsAmount; i++) {
-	  ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[i].typeName + ":" + charConverter(i)).c_str()), 0); // close all tabs
+	  ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[i].typeName + ":" + to_string(i)).c_str()), 0); // close all tabs
 	}
-	ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + charConverter(closeOthers)).c_str()), 1); // leave selected tab open
+	ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + to_string(closeOthers)).c_str()), 1); // leave selected tab open
 	closeOthers = -1;
       }
     }

@@ -1,8 +1,7 @@
 # binary and sources
 bin_PROGRAMS = gcritic2
 gcritic2_SOURCES = main.cpp imgui_impl_glfw_gl3.cpp imgui.cpp imgui_draw.cpp \
-	matrix_math.cpp tinyfiledialogs.c gl3w.c \
-	geometry.cpp imguifilesystem.cpp
+	matrix_math.cpp gl3w.c geometry.cpp imguifilesystem.cpp
 
 # subdirectories
 SUBDIRS=
