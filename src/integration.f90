@@ -96,7 +96,7 @@ contains
        writegrid_cube, grdall
     use grid_tools, only: grid_rhoat, grid_laplacian, grid_gradrho
     use struct_basic, only: cr
-    use global, only: refden, eval_next, dunit, iunit, iunitname0, fileroot
+    use global, only: refden, eval_next, dunit0, iunit, iunitname0, fileroot
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
        string, fclose
     use types, only: field
@@ -164,7 +164,7 @@ contains
              call ferror("intgrid_driver","wrong RATOM keyword",faterr,line,syntax=.true.)
              return
           end if
-          ratom_def = ratom_def / dunit
+          ratom_def = ratom_def / dunit0(iunit)
        elseif (equal(word,"wcube")) then
           dowcube = .true.
        elseif (equal(word,"basins")) then
@@ -707,7 +707,7 @@ contains
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid,&
        writegrid_cube
     use grid_tools, only: get_qe_wnr
-    use struct_basic, only: cr, crystal
+    use struct_basic, only: cr, crystal, crystalseed
     use global, only: refden
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
@@ -738,6 +738,7 @@ contains
     type(ytdata) :: dat
     complex*16, allocatable :: f1(:,:,:), f2(:,:,:)
     logical, allocatable :: lovrlp(:,:,:,:,:,:)
+    type(crystalseed) :: ncseed
     type(crystal) :: nc
     character(len=:), allocatable :: sijfname
 
@@ -885,17 +886,16 @@ contains
           sij(:,:,:,:,ndeloc) = 0d0
 
           ! build the supercell
-          call nc%init()
-          nc%aa = cr%aa * nwan
-          nc%bb = cr%bb
+          ncseed%isused = .true.
           do i = 1, 3
-             nc%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
+             ncseed%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
           end do
-          nc%car2crys = matinv(nc%crys2car)
-          nc%nneq = 0
-          nc%ncel = 0
-          nc%havesym = 0
-          call nc%struct_fill(.true.,.false.,0,0,.false.,.false.,.false.)
+          ncseed%useabr = 2
+          ncseed%nat = 0
+          ncseed%havesym = 0
+          ncseed%findsym = 0
+          ncseed%ismolecule = cr%ismolecule
+          call nc%struct_new(ncseed)
 
           allocate(psic(n(1),n(2),n(3)))
           allocate(f1(f(fid)%n(1)*nwan(1),f(fid)%n(2)*nwan(2),f(fid)%n(3)*nwan(3)))
@@ -1442,7 +1442,7 @@ contains
     use fields, only: integ_prop, itype_v, itype_expr, itype_mpoles, itype_names,&
        nprops
     use struct_basic, only: cr
-    use global, only: iunitname0, iunit, dunit
+    use global, only: iunitname0, iunit, dunit0
     use varbas, only: cp, cpcel
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     use fragmentmod, only: fragment_cmass
@@ -1529,7 +1529,7 @@ contains
        if (.not.cr%ismolecule) then
           x = xattr(:,i)
        else
-          x = (cr%x2c(xattr(:,i)) + cr%molx0) * dunit
+          x = (cr%x2c(xattr(:,i)) + cr%molx0) * dunit0(iunit)
        endif
        write (uout,'(2X,99(A,X))') & 
           string(i,4,ioj_left), scp, sncp, sname, sz, &
@@ -1864,9 +1864,9 @@ contains
   !> attractors (icp), and the atomic overlap matrix (sij).
   subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
     use fields, only: integ_prop, itype_deloc, f, type_grid, nprops
-    use global, only: iunit, iunitname0, dunit
+    use global, only: iunit, iunitname0, dunit0
     use fragmentmod, only: fragment_cmass
-    use struct_basic, only: cr, crystal
+    use struct_basic, only: cr, crystal, crystalseed
     use tools, only: qcksort
     use tools_io, only: uout, string, ioj_left, ioj_right, fopen_read,&
        fopen_write, fclose
@@ -1886,6 +1886,7 @@ contains
     integer :: ic, jc, kc, i, j, k, idx(3), is, lvec1(3), lvec2(3), lvec3(3)
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     type(crystal) :: cr1
+    type(crystalseed) :: ncseed
     integer :: idxmol(2,natt)
     logical :: haschk
     character(len=:), allocatable :: fafname
@@ -2000,21 +2001,17 @@ contains
        end do
        write (uout,*)
 
-       ! Prepare the supercell crystal. For c%shortest, we need
-       ! c%isortho, c%car2crys, c%crys2car, c%nws, and c%ivws. The
-       ! last two come from a call to c%wigner.
-       call cr1%init()
+       ! build the supercell
+       ncseed%isused = .true.
        do i = 1, 3
-          cr1%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
-          cr1%car2crys(i,:) = cr%car2crys(i,:) / nwan(i)
+          ncseed%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
        end do
-       call cr1%wigner((/0d0,0d0,0d0/),nvec=cr1%nws,vec=cr1%ivws)
-       cr1%isortho = (cr1%nws <= 6)
-       if (cr1%isortho) then
-          do i = 1, cr1%nws
-             cr1%isortho = cr1%isortho .and. (count(abs(cr1%ivws(:,i)) == 1) == 1)
-          end do
-       endif
+       ncseed%useabr = 2
+       ncseed%nat = 0
+       ncseed%havesym = 0
+       ncseed%findsym = 0
+       ncseed%ismolecule = cr%ismolecule
+       call cr1%struct_new(ncseed)
 
        write (uout,'("+ Delocalization indices")')
        write (uout,'("  Each block gives information about a single atom in the main cell.")')
@@ -2042,7 +2039,7 @@ contains
                       io(m) = m
                       r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
-                      dist(m) = sqrt(d2) * dunit
+                      dist(m) = sqrt(d2) * dunit0(iunit)
                       diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
@@ -2159,7 +2156,7 @@ contains
                          io(m) = m
                          r1 = (xcm(:,j) + (/ic,jc,kc/) - xcm(:,i)) / real(nwan,8)
                          call cr1%shortest(r1,d2)
-                         dist(m) = sqrt(d2) * dunit
+                         dist(m) = sqrt(d2) * dunit0(iunit)
                          diout(m) = dimol(i,j,ic,jc,kc)
                          idat(m) = j
                          ilvec(:,m) = nint(xcm(:,i) + cr1%c2x(r1) * nwan - xcm(:,j))
@@ -2387,6 +2384,7 @@ contains
     use struct_basic, only: cr, crystal
     use struct_writers, only: struct_write_3dmodel
     use graphics, only: graphics_open, graphics_close, graphics_polygon
+    use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: string, uout
     use yt, only: yt_weights, ytdata_clean, ytdata
     character*3, intent(in) :: fmt
@@ -2415,7 +2413,8 @@ contains
     caux%isinit = .true.
     caux%aa = cr%aa / real(n,8)
     caux%bb = cr%bb
-    call caux%set_cryscar()
+    caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
+    caux%car2crys = matinv(caux%crys2car)
     call caux%wigner((/0d0,0d0,0d0/),nvec=caux%nws,vec=caux%ivws,&
        nvert_ws=caux%nvert_ws,nside_ws=caux%nside_ws,iside_ws=caux%iside_ws,&
        vws=caux%vws)

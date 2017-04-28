@@ -93,7 +93,7 @@ contains
 
   subroutine varbas_identify(line0,lp)
     use struct_basic, only: cr
-    use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit, &
+    use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit0, &
        eval_next
     use tools_io, only: lgetword, getword, getline, equal, ferror, &
        faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read
@@ -236,7 +236,7 @@ contains
        x0 = pointlist(:,i)
        x0out = x0
        if (.not.isrec(i)) then
-          if (cr%ismolecule) x0out = (cr%x2c(x0)+cr%molx0) * dunit
+          if (cr%ismolecule) x0out = (cr%x2c(x0)+cr%molx0) * dunit0(iunit)
           idx = identify_cp(x0,eps)
           mm = cr%get_mult(x0)
           if (idx > 0) then
@@ -258,7 +258,7 @@ contains
                 string(" --- not found --- ")
           endif
        else
-          call cr%checkflags(.false.,init0=.true.,recip0=.true.)
+          call cr%checkflags(.false.,recip0=.true.)
           mm = cr%get_mult_reciprocal(x0)
           write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
@@ -285,8 +285,8 @@ contains
        else
           xmin = cr%x2c(xmin)+cr%molx0
           xmax = cr%x2c(xmax)+cr%molx0
-          write(uout,'("+ Cube, x0 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmin(j)*dunit,'f',decimal=8),j=1,3)
-          write(uout,'("+ Cube, x1 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmax(j)*dunit,'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x0 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmin(j)*dunit0(iunit),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmax(j)*dunit0(iunit),'f',decimal=8),j=1,3)
           write(uout,*)
        end if
     end if

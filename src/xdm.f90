@@ -146,7 +146,7 @@ contains
     real*8, parameter :: ecut = 1d-11
 
     ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+    call cr%checkflags(.true.,env0=.true.)
 
     write (uout,'("+ Using: grid fields.")')
     ! initialization and defaults
@@ -1326,7 +1326,7 @@ contains
     real*8, parameter :: ecut = 1d-11
 
     ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+    call cr%checkflags(.true.,env0=.true.)
 
     ! build the environment
     maxc6 = maxval(c6)

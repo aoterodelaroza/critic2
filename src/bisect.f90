@@ -246,7 +246,7 @@ contains
     use navigation, only: gradient
     use fields, only: f, type_grid
     use varbas, only: cp, ncpcel, cpcel
-    use global, only: refden, iunit, iunitname0, dunit
+    use global, only: refden, iunit, iunitname0, dunit0
     use struct_basic, only: cr
     use tools, only: mergesort
     use tools_io, only: uout, string, ferror, faterr
@@ -451,7 +451,7 @@ contains
        if (verbose) then
           !$omp critical (IO)
           write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,"(",I1,")",1X,E14.6,2X,E14.6,1X,"(",I1,") ",I8)') &
-             j,srf%nv,riaprox*dunit,id1,rlim*dunit,raprox*dunit,id2,nstep
+             j,srf%nv,riaprox*dunit0(iunit),id1,rlim*dunit0(iunit),raprox*dunit0(iunit),id2,nstep
           !$omp end critical (IO)
        end if
 
@@ -696,7 +696,7 @@ contains
        minisurf_writebasin, minisurf_writedbasin, minisurf_close
     use fields, only: f, fieldname_to_idx, goodfield
     use varbas, only: ncpcel, cpcel, ncp, cp
-    use global, only: eval_next, refden, iunit, iunitname0, dunit, fileroot
+    use global, only: eval_next, refden, iunit, iunitname0, dunit0, fileroot
     use struct_basic, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, getword, isexpression_or_word,&
        string, uout, ioj_right
@@ -867,7 +867,7 @@ contains
           if (.not.cr%ismolecule) then
              xnuc = cpcel(i)%x
           else
-             xnuc = (cpcel(i)%r+cr%molx0)*dunit
+             xnuc = (cpcel(i)%r+cr%molx0)*dunit0(iunit)
           endif
           write (uout,'(99(A,2X))') string(cpcel(i)%idx,length=5,justify=ioj_right),&
              string(i,length=5,justify=ioj_right), &
@@ -877,7 +877,7 @@ contains
        if (.not.cr%ismolecule) then
           xnuc = cpcel(cpid)%x
        else
-          xnuc = (cpcel(cpid)%r+cr%molx0)*dunit
+          xnuc = (cpcel(cpid)%r+cr%molx0)*dunit0(iunit)
        endif
        write (uout,'(99(A,2X))') string(cpcel(cpid)%idx,length=5,justify=ioj_right),&
           string(cpid,length=5,justify=ioj_right), &
@@ -989,7 +989,7 @@ contains
        minisurf_writebasin, minisurf_writedbasin, minisurf_close
     use struct_basic, only: cr
     use fields, only: fieldname_to_idx, goodfield
-    use global, only: fileroot, eval_next, dunit
+    use global, only: fileroot, eval_next, dunit0, iunit
     use types, only: minisurf
     use tools_io, only: ferror, faterr, lgetword, equal, getword, isexpression_or_word,&
        string, uout
@@ -1027,7 +1027,7 @@ contains
        return
     end if
     if (cr%ismolecule) &
-       x0 = cr%c2x(x0 / dunit - cr%molx0)
+       x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
 
     do while(.true.)
        word = lgetword(line,lp)
@@ -1079,7 +1079,7 @@ contains
              call ferror('bundleplot','bundleplot delta: bad syntax',faterr,line,syntax=.true.)
              return
           end if
-          prec = prec / dunit
+          prec = prec / dunit0(iunit)
        else if (equal(word,'verbose')) then
           verbose = .true.
        else if (equal(word,'root')) then
@@ -1276,7 +1276,7 @@ contains
   subroutine sphereintegrals(line)
     use fields, only: f, integ_prop, nprops
     use varbas, only: ncp, cp
-    use global, only: int_gauleg, eval_next, dunit, int_radquad_errprop, refden,&
+    use global, only: int_gauleg, eval_next, dunit0, int_radquad_errprop, refden,&
        int_radquad_type, int_radquad_nr, int_qags, int_radquad_abserr, &
        int_radquad_relerr, int_qng, int_qag, iunit, iunitname0
     use struct_basic, only: cr
@@ -1321,7 +1321,7 @@ contains
 
     cpid = 0
     nr = 100
-    r0 = 1d-3 / dunit
+    r0 = 1d-3 / dunit0(iunit)
     rend = -1d0
     do while (.true.)
        word = lgetword(line,lp)
@@ -1337,14 +1337,14 @@ contains
              call ferror('sphereintegrals','sphereintegrals: bad R0',faterr,line,syntax=.true.)
              return
           end if
-          r0 = r0 / dunit
+          r0 = r0 / dunit0(iunit)
        else if (equal(word,'rend')) then
           ok= eval_next (rend,line,lp)
           if (.not. ok) then
              call ferror('sphereintegrals','sphereintegrals: bad REND',faterr,line,syntax=.true.)
              return
           end if
-          rend = rend / dunit
+          rend = rend / dunit0(iunit)
        else if (equal(word,'cp')) then
           ok= eval_next (cpid,line,lp)
           if (.not. ok) then
@@ -1475,7 +1475,7 @@ contains
              call ferror('sphereintegrals','unknown method',faterr)
           end if
 
-          r = r * dunit
+          r = r * dunit0(iunit)
           write (uout,'(2X,99(A,2X))') &
              string(r,'e',decimal=6,length=12,justify=4),&
              string(meaneval,length=6,justify=ioj_right),&

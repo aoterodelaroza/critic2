@@ -52,7 +52,8 @@ program critic
   use global, only: fileroot, quiet, refden, eval_next, gradient_mode,&
      int_radquad_errprop_default, int_radquad_errprop, global_init,&
      initial_banner, help_me, config_write, critic_clearvariable,&
-     critic_setvariables,global_set_defaults
+     critic_setvariables,global_set_defaults, iunit, iunit_isdef,&
+     iunit_ang, iunit_bohr
   use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
      fcflags, cc, cflags, ldflags, enable_debug, package
   use graphics, only: graphics_init
@@ -121,9 +122,24 @@ program critic
      if (equal(word,'crystal') .or. equal(word,'molecule')) then
         ! there is a previous crystal structure, clean up...
         if (cr%isinit) call clean_structure()
+
         ! read the crystal enviornment
-        call struct_crystal_input(cr,subline,equal(word,'molecule'),.true.,.true.)
+        call struct_crystal_input(cr,subline,equal(word,'molecule'),.true.)
+
+        ! change default output units
+        if (iunit_isdef) then
+           if (cr%ismolecule) then
+              iunit = iunit_ang
+           else
+              iunit = iunit_bohr
+           end if
+        end if
+
         if (cr%isinit) then
+           ! fill environments, asterisms, nearest neighbors
+           call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
+           ! print some information about the structure
+           call cr%struct_report()
            ! initialize the radial densities
            call grda_init(.true.,.true.,.true.)
            ! set the promolecular density as reference
@@ -131,6 +147,7 @@ program critic
         else
            call cr%init()
         end if
+
      elseif (equal(word,'newcell')) then
         if (.not. cr%isinit) then
            call ferror('critic2','need crystal before newcell',faterr,line,syntax=.true.)

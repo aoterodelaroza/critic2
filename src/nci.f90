@@ -34,7 +34,7 @@ contains
     use fields, only: f, type_grid, type_promol, grd0, grd
     use struct, only: struct_write
     use struct_basic, only: cr
-    use global, only: refden, fileroot, eval_next, dunit, quiet, iunit, iunitname0
+    use global, only: refden, fileroot, eval_next, dunit0, quiet, iunit, iunitname0
     use grid_tools, only: grid_gradrho, grid_hxx
     use grd_atomic, only: agrid
     use grid1_tools, only: grid1_interp
@@ -238,7 +238,7 @@ contains
           end if
           ok = check_no_extra_word(line,lp,'nciplot')
           if (.not.ok) return
-          rthres = rthres / dunit
+          rthres = rthres / dunit0(iunit)
        elseif (equal(word,'increments')) then
           istep = 0
           ok = eval_next(xinc(1),line,lp)
@@ -250,7 +250,7 @@ contains
           end if
           ok = check_no_extra_word(line,lp,'nciplot')
           if (.not.ok) return
-          xinc = xinc / dunit
+          xinc = xinc / dunit0(iunit)
        elseif (equal(word,'nstep')) then
           istep = 1
           ok = eval_next(nstep(1),line,lp)
@@ -293,8 +293,8 @@ contains
                 x0 = cr%x2c(x0)
                 x1 = cr%x2c(x1)
              else
-                x0 = x0 / dunit - cr%molx0
-                x1 = x1 / dunit - cr%molx0
+                x0 = x0 / dunit0(iunit) - cr%molx0
+                x1 = x1 / dunit0(iunit) - cr%molx0
              endif
              ithres = 0
           else
@@ -429,7 +429,7 @@ contains
     write(uout,'("  Cube nodes in each direction: ",3(A,X))') (string(nstep(j)),j=1,3)
     write(uout,'("  Cube steps in each direction: ",3(A,X))') (string(xinc(j),'f',decimal=6),j=1,3)
     write(uout,'("  Cube side lengths in each direction (",A,"): ",3(A,X))') &
-       iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit,'f',decimal=4),j=1,3)
+       iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit0(iunit),'f',decimal=4),j=1,3)
     write(uout,*)
     
     ! allocate logical units and open files

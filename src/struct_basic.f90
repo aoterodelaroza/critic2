@@ -36,6 +36,38 @@ module struct_basic
   public :: search_lattice
   public :: pointgroup_info
   
+  !> Minimal amount of information to generate a crystal
+  type crystalseed
+     ! general
+     logical :: isused = .false. !< Is the seed being used?
+     character(len=128) :: file = "" !< Source file, if available
+     ! atoms
+     integer :: nat = 0 !< Number of atoms
+     integer :: usezname = 0 !< 0 = uninit; 1 = use z; 2 = use name; 3 = use both
+     real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
+     integer, allocatable :: z(:) !< Atomic numbers
+     character*(10), allocatable :: name(:) !< Atomic names
+     ! cell
+     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use crys2car
+     real*8 :: aa(3) !< Cell lengths (bohr)
+     real*8 :: bb(3) !< Cell angles (degrees)
+     real*8 :: crys2car(3,3) !< Crystallographic to cartesian matrix
+     ! symmetry
+     integer :: havesym = .false. !< Have symmetry? 0 = no; 1 = yes
+     integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
+     integer :: neqv = 0 !< Number of symmetry operations
+     integer :: ncv = 0 !< Number ofcentering vectors
+     real*8, allocatable :: cen(:,:) !< Centering vectors
+     real*8, allocatable :: rotm(:,:,:) !< Space group operations
+     ! molecular fields
+     logical :: ismolecule = .false. !< Is this a molecule?
+     logical :: cubic = .false. !< Use a cubic cell for the molecule
+     real*8 :: border = 0d0 !< border of the molecular cell (bohr)
+     logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
+     real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
+  end type crystalseed
+  public :: crystalseed
+
   !> Crystal type
   type crystal
      ! Initialization flags
@@ -63,7 +95,6 @@ module struct_basic
      real*8 :: omega !< unit cell volume
      real*8 :: gtensor(3,3) !< metric tensor (3,3)
      real*8 :: ar(3) !< reciprocal cell lengths
-     real*8 :: br(3) !< cosines of the reciprocal cell angles
      real*8 :: grtensor(3,3) !< reciprocal metric tensor (3,3)
      ! crystallographic/cartesian conversion matrices
      real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
@@ -113,7 +144,6 @@ module struct_basic
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: checkflags => struct_checkflags !< Check the flags for a given crystal
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
-     procedure :: set_cryscar !< Set the crys2car and the car2crys using the cell parameters
      procedure :: x2c !< Convert crystallographic to cartesian
      procedure :: c2x !< Convert cartesian to crystallographic
      procedure :: distance !< Distance between points in crystallographic coordinates
@@ -145,11 +175,11 @@ module struct_basic
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: delaunay_reduction !< Perform the delaunay reduction.
-     procedure :: struct_fill !< Initialize the structure from minimal info
+     procedure :: struct_new !< Initialize the structure from minimal info (passed as arguments)
+     procedure :: struct_fill !< Initialize the structure from minimal info (already in the object)
      procedure :: struct_report !< Write lots of information about the crystal structure to uout
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
      procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
-     procedure :: reduceatoms !< Reduce the non-equivalent atom list using symmetry ops.
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: pmwigner !< Poor man's wigner
   end type crystal
@@ -237,21 +267,18 @@ contains
 
     integer :: i
 
+    ! deallocate all the arrays and reinitialize
+    call c%end()
+
     ! allocate space for atoms
     if (.not.allocated(c%at)) allocate(c%at(mneq0))
     if (.not.allocated(c%atcel)) allocate(c%atcel(mcel0))
     if (.not.allocated(c%atenv)) allocate(c%atenv(menv0))
 
-    ! no atoms
-    c%nneq = 0
-    c%ncel = 0
-    c%nenv = 0
-
     ! nullify metrics
     c%aa = 0d0
     c%bb = 0d0
     c%ar = 0d0
-    c%br = 0d0
     c%omega = 0d0
     c%gtensor = 0d0
     c%grtensor = 0d0
@@ -303,38 +330,31 @@ contains
 
   !> Check that the flags necessary for the operation of critic2 using
   !> the given crystal structure have been set. Several flags are
-  !> available: structure initialized (init), environments available
-  !> (env), symmetry level (isym), wigner-seitz cell calculated (ws),
-  !> asterisms determined (ast), reciprocal cell symmetry
-  !> known (recip), nearest-neighbor information (nn). If
+  !> available: environments available (env), wigner-seitz cell
+  !> calculated (ws), asterisms determined (ast), reciprocal cell
+  !> symmetry known (recip), nearest-neighbor information (nn). If
   !> crash=.true., crash with error if the requested flag is not
   !> set. If crash=.false., take the necessary steps to initialize the
-  !> crystal flags that are .true.
-  !> This routine is thread-safe if crash = .true.
-  subroutine struct_checkflags(c,crash,init0,env0,isym0,ast0,recip0,nn0,ewald0)
+  !> crystal flags that are .true.  This routine is thread-safe if
+  !> crash = .true.
+  subroutine struct_checkflags(c,crash,env0,ast0,recip0,nn0,ewald0)
     use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     logical :: crash
-    logical, intent(in), optional :: init0
     logical, intent(in), optional :: env0
-    integer, intent(in), optional :: isym0
     logical, intent(in), optional :: ast0
     logical, intent(in), optional :: recip0
     logical, intent(in), optional :: nn0
     logical, intent(in), optional :: ewald0
 
-    logical :: init, env, ast, recip, nn, ewald
-    integer :: isym, iast
+    logical :: env, ast, recip, nn, ewald
+    integer :: iast
     character(len=:), allocatable :: reason
     logical :: lflag(8)
 
     ! initialize optional arguments
-    init = .false.
-    if (present(init0)) init = init0
     env = .false.
     if (present(env0)) env = env0
-    isym = 0
-    if (present(isym0)) isym = isym0
     ast = .false.
     if (present(ast0)) ast = ast0
     recip = .false.
@@ -345,9 +365,7 @@ contains
     if (present(ewald0)) ewald = ewald0
 
     lflag = .false.
-    if (init .and. .not.c%isinit) lflag(1) = .true.
     if (env .and. .not.c%isenv) lflag(2) = .true.
-    if (isym > c%havesym) lflag(3) = .true.
     if (ast .and. .not.c%isast) lflag(4) = .true.
     if (recip .and. .not.c%isrecip) lflag(5) = .true.
     if (nn .and. .not.c%isnn) lflag(6) = .true.
@@ -355,9 +373,7 @@ contains
 
     if (any(lflag)) then
        if (crash) then
-          if (lflag(1)) reason = "crystal structure not initialized"
           if (lflag(2)) reason = "atomic environments not determined for this crystal"
-          if (lflag(3)) reason = "not enough symmetry information"
           if (lflag(4)) reason = "molecular connectivity has not been calculated"
           if (lflag(5)) reason = "reciprocal cell metrics and symmetry not determined"
           if (lflag(6)) reason = "nearest-neighbor information not available"
@@ -369,7 +385,7 @@ contains
           else
              iast = 0
           end if
-          call c%struct_fill(lflag(1),lflag(2),isym,iast,lflag(5),lflag(6),lflag(7))
+          call c%struct_fill(lflag(2),iast,lflag(5),lflag(6),lflag(7))
        end if
     end if
 
@@ -382,36 +398,36 @@ contains
     c%isinit = .false.
     if (allocated(c%at)) deallocate(c%at)
     if (allocated(c%atcel)) deallocate(c%atcel)
-    if (allocated(c%atenv)) deallocate(c%atenv)
     if (allocated(c%cen)) deallocate(c%cen)
+    if (allocated(c%nside_ws)) deallocate(c%nside_ws)
+    if (allocated(c%iside_ws)) deallocate(c%iside_ws)
+    if (allocated(c%vws)) deallocate(c%vws)
+    if (allocated(c%atenv)) deallocate(c%atenv)
     if (allocated(c%nstar)) deallocate(c%nstar)
-    c%nneq = 0
-    c%ncel = 0
-    c%nenv = 0
-    c%havesym = 0
-    c%neqv = 0
-    c%neqvg = 0
-    c%ncv = 0
-    c%nws = 0
-    c%nmol = 0
-    c%ismolecule = .false.
+    if (allocated(c%mol)) deallocate(c%mol)
+    if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
     c%isinit = .false.
     c%isenv = .false. 
+    c%havesym = 0
     c%isast = .false. 
     c%isewald = .false. 
     c%isrecip = .false. 
+    c%isnn = .false. 
+    c%file = ""
+    c%nneq = 0
+    c%ncel = 0
+    c%neqv = 0
+    c%neqvg = 0
+    c%ncv = 0
+    c%ismolecule = .false.
+    c%molx0 = 0d0
+    c%molborder = 0d0
+    c%nws = 0
+    c%nvert_ws = 0
+    c%nenv = 0
+    c%nmol = 0
 
   end subroutine struct_end
-
-  !> Fill crys2car and car2crys using aa and bb
-  subroutine set_cryscar(c)
-    use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar
-    class(crystal), intent(inout) :: c
-
-    c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
-    c%car2crys = car2crys_from_cellpar(c%aa,c%bb)
-
-  end subroutine set_cryscar
 
   !> Transform crystallographic to cartesian. This routine is thread-safe.
   pure function x2c(c,xx) 
@@ -1328,7 +1344,7 @@ contains
     logical, allocatable :: fseed(:)
 
     ! find the neighbor stars, if not already done
-    call c%checkflags(.false.,init0=.true.,ast0=.true.)
+    call c%checkflags(.false.,ast0=.true.)
 
     ! unwrap the input fragment
     nseed = fri%nat
@@ -2021,7 +2037,6 @@ contains
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. 
   subroutine newcell(c,x00,t0,verbose0)
-    use global, only: doguess
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
     use param, only: pi, ctsq3
@@ -2031,16 +2046,19 @@ contains
     real*8, intent(in), optional :: t0(3)
     logical, intent(in), optional :: verbose0
 
-    type(crystal) :: nc
+    type(crystalseed) :: ncseed
     logical :: ok, found, verbose
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: r(3,3), g(3,3), x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
-    integer :: nr
+    integer :: nr, nn
     integer :: nlat
     real*8, allocatable :: xlat(:,:)
 
     real*8, parameter :: eps = 1d-6
+
+    if (c%ismolecule) &
+       call ferror('newcell','NEWCELL incompatible with molecules',faterr)
 
     ! initialize
     x0 = x00
@@ -2100,18 +2118,10 @@ contains
     ! inverse matrix
     x0inv = matinv(x0)
 
-    ! build the new crystal cell
-    call nc%init()
-    
     ! metrics of the new cell
     r = matmul(transpose(x0),transpose(c%crys2car))
-    g = matmul(r,transpose(r))
-    do i = 1, 3
-       nc%aa(i) = sqrt(g(i,i))
-    end do
-    nc%bb(1) = acos(g(2,3) / nc%aa(2) / nc%aa(3)) * 180d0 / pi
-    nc%bb(2) = acos(g(1,3) / nc%aa(1) / nc%aa(3)) * 180d0 / pi
-    nc%bb(3) = acos(g(1,2) / nc%aa(1) / nc%aa(2)) * 180d0 / pi
+    ncseed%crys2car = transpose(r)
+    ncseed%useabr = 2
     fvol = abs(det(r)) / c%omega
     if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
        call ferror("newcell","Inconsistent newcell volume",faterr)
@@ -2147,6 +2157,9 @@ contains
     end do
 
     ! build the new atom list
+    ncseed%nat = 0
+    nn = ceiling(c%ncel * abs(det(r)) / c%omega)
+    allocate(ncseed%x(3,nn),ncseed%z(nn),ncseed%name(nn))
     do i = 1, nlat
        do j = 1, c%ncel
           ! candidate atom
@@ -2155,8 +2168,8 @@ contains
 
           ! check if we have it already
           ok = .true.
-          do m = 1, nc%nneq
-             dx = x - nc%at(m)%x
+          do m = 1, ncseed%nat
+             dx = x - ncseed%x(:,m)
              dx = abs(dx - nint(dx))
              if (all(dx < eps)) then
                 ok = .false.
@@ -2165,66 +2178,58 @@ contains
           end do
           if (ok) then
              ! add it to the list
-             nc%nneq = nc%nneq + 1
-             if (nc%nneq > size(nc%at)) &
-                call realloc(nc%at,2*nc%nneq)
-             nc%at(nc%nneq)%x = x
-             nc%at(nc%nneq)%name = c%at(c%atcel(j)%idx)%name
-             nc%at(nc%nneq)%z = c%at(c%atcel(j)%idx)%z
-             nc%at(nc%nneq)%zpsp = c%at(c%atcel(j)%idx)%zpsp
-             nc%at(nc%nneq)%qat = c%at(c%atcel(j)%idx)%qat
-             nc%at(nc%nneq)%rnn2 = c%at(c%atcel(j)%idx)%rnn2
+             ncseed%nat = ncseed%nat + 1
+             if (ncseed%nat > size(ncseed%x,2)) then
+                call realloc(ncseed%x,3,2*ncseed%nat)
+                call realloc(ncseed%name,2*ncseed%nat)
+                call realloc(ncseed%z,2*ncseed%nat)
+             end if
+             ncseed%x(:,ncseed%nat) = x
+             ncseed%name(ncseed%nat) = c%at(c%atcel(j)%idx)%name
+             ncseed%z(ncseed%nat) = c%at(c%atcel(j)%idx)%z 
           end if
        end do
     end do
-    nc%crys2car = transpose(r)
-    nc%car2crys = matinv(nc%crys2car)
-    nc%n2_x2c = ctsq3 / mnorm2(nc%crys2car)
-    nc%n2_c2x = ctsq3 / mnorm2(nc%car2crys)
-    nc%isnn = c%isnn
+    call realloc(ncseed%x,3,ncseed%nat)
+    call realloc(ncseed%name,ncseed%nat)
+    call realloc(ncseed%z,ncseed%nat)
+    ncseed%usezname = 3
 
     if (nr > 0) then
-       if (nc%nneq / c%ncel /= nr) then
+       if (ncseed%nat / c%ncel /= nr) then
           write (uout,*) "c%nneq = ", c%ncel
-          write (uout,*) "nc%nneq = ", nc%nneq
+          write (uout,*) "ncseed%nat = ", ncseed%nat
           write (uout,*) "nr = ", nr
           call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
        end if
     else
-       if (c%ncel / nc%nneq /= -nr) then
+       if (c%ncel / ncseed%nat /= -nr) then
           write (uout,*) "c%nneq = ", c%ncel
-          write (uout,*) "nc%nneq = ", nc%nneq
+          write (uout,*) "ncseed%nat = ", ncseed%nat
           write (uout,*) "nr = ", nr
           call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
        end if
     endif
 
-    ! transfer info from nc to c
-    call c%end()
-    call c%init()
-    c%file = "<derived>"
-    c%aa = nc%aa
-    c%bb = nc%bb
-    c%nneq = nc%nneq
-    call realloc(c%at,c%nneq)
-    c%at = nc%at
-    c%car2crys = nc%car2crys
-    c%crys2car = nc%crys2car
-    c%n2_x2c = nc%n2_x2c
-    c%n2_c2x = nc%n2_c2x
-    c%isnn = nc%isnn
-    call nc%end()
+    ! rest of the seed information
+    ncseed%isused = .true.
+    ncseed%file = "<derived>"
+    ncseed%havesym = .false.
+    ncseed%findsym = -1
+    ncseed%ismolecule = .false.
 
     ! initialize the structure
-    call c%struct_fill(.true.,.true.,doguess,-1,.false.,.false.,.false.)
+    call c%struct_new(ncseed)
+    call c%struct_fill(.true.,-1,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
   end subroutine newcell
 
   !> Transform to the standard cell. If toprim, convert to the
-  !> primitive standard cell. If toorigin and not toprim, move the
-  !> origin to the standard origin as well. If verbose, write
-  !> information about the new crystal.
+  !> primitive standard cell. If verbose, write
+  !> information about the new crystal. If doforce = .true.,
+  !> force the transformation to the primitive even if it does
+  !> not lead to a smaller cell.
   subroutine cell_standard(c,toprim,doforce,verbose)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
@@ -2436,65 +2441,353 @@ contains
 
   end subroutine delaunay_reduction
 
-  !> If init0 is .true., fill the information and initialize a
-  !> crystal object. The basic information needed is:
-  !> * Cell lengths (c%aa)
-  !> * Cell angles (c%bb)
-  !> * c%crys2car and c%car2crys 
-  !> * Non-equivalent atoms:
-  !>   - Number of atoms (c%nneq)
-  !>   - Atomic positions (c%at%x)
-  !>   - Atomic numbers (c%at%z)
-  !>   - Atomic names, (c%at%name)
-  !> * Level of symmetry (c%havesym)
-  !> * Number of symmetry operations (c%neqv)
-  !> * Symmetry operations (c%rotm)
-  !> * Number of centering vectors (c%ncv)
-  !> * Centering vectors (c%cen)
-  !> The symmetry information and centering vectors are initialized
-  !> by default to P1 in the constructor, so that is not strictly
-  !> necessary either. 
-  !> If env, build the atomic environments. If isym > 0, try to
-  !> determine the symmetry to the given level. If ws, determine the
-  !> Wigner-Seitz cell. If iast = 1, determine the molecular
-  !> asterisms; iast = 0, do not determine the asterisms; iast = 1,
-  !> only for small crystals.  If recip, determine the reciprocal cell
-  !> metrics and symmetry.  If nn, determine the nearest-neighbor
-  !> information.
-  subroutine struct_fill(c,init0,env0,isym0,iast0,recip0,lnn0,ewald0)
-    use tools_math, only: mnorm2, matinv
-    use global, only: crsmall
-    use tools_io, only: ferror, faterr, string, zatguess, nameguess
-    use param, only: eyet, rad, ctsq3
+  !> Create a new, complete crystal/molecule from a crystal seed
+  subroutine struct_new(c,seed)
+    use global, only: crsmall, atomeps
+    use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar, matinv, &
+       det, mnorm2
+    use tools_io, only: ferror, faterr, zatguess, string, nameguess
     use types, only: realloc
-
+    use param, only: pi, eyet, ctsq3, maxzat
     class(crystal), intent(inout) :: c
-    integer :: isym0, iast0
-    logical, intent(in) :: init0, env0, recip0, lnn0, ewald0
+    type(crystalseed), intent(in) :: seed
+    
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3)
+    logical :: good, found, hasspg
+    integer :: i, j, iat, io, it
+    integer :: nnew, icpy
+    real*8, allocatable :: atpos(:,:)
+    integer, allocatable :: irotm(:), icenv(:)
+    real*8 :: v1(3), v2(3)
 
-    logical :: init, env, ast, recip, lnn, ewald
-    integer :: isym
-    integer :: i
-    real*8, dimension(3) :: vec
-    logical :: good
-    real*8 :: ss(3), cc(3), root, dist(1)
-    integer :: nneig(1), wat(1)
-    integer :: nreduce
+    if (.not.seed%isused) &
+       call ferror("struct_new","uninitialized seed",faterr)
 
-    real*8, parameter :: eps = 1d-6
+    ! initialize the structure
+    call c%init()
 
-    ! Handle input flag dependencies
-    init = init0
-    env = env0
-    if (isym0 >= 0) then
-       isym = isym0
-    else
-       if (c%nneq > crsmall) then
-          isym = 0
+    ! copy the atomic information
+    c%nneq = seed%nat
+    if (c%nneq > 0) then
+       if (allocated(c%at)) deallocate(c%at)
+       allocate(c%at(c%nneq))
+       if (seed%usezname == 1) then
+          ! use the atomic number
+          do i = 1, c%nneq
+             c%at(i)%z = seed%z(i)
+             if (c%at(i)%z < 0) &
+                call ferror("struct_new","unknown atom with Z: " // string(c%at(i)%z),faterr)
+             c%at(i)%name = nameguess(seed%z(i),.true.)
+             c%at(i)%x = seed%x(:,i)
+          end do
+       elseif (seed%usezname == 2) then
+          ! use the atomic name
+          do i = 1, c%nneq
+             c%at(i)%name = seed%name(i)
+             c%at(i)%z = zatguess(c%at(i)%name)
+             if (c%at(i)%z < 0) &
+                call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
+             c%at(i)%x = seed%x(:,i)
+          end do
+       elseif (seed%usezname == 3) then
+          ! use both the atomic number and the name 
+          do i = 1, c%nneq
+             c%at(i)%name = seed%name(i)
+             c%at(i)%z = seed%z(i)
+             if (c%at(i)%z < 0) &
+                call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
+             c%at(i)%x = seed%x(:,i)
+          end do
        else
-          isym = 1
+          call ferror("struct_new","unknown usezname",faterr)
+       end if
+
+       ! if this is a molecule, calculate the center and encompassing cell
+       if (seed%ismolecule) then
+          xmax = -1d40
+          xmin =  1d40
+          xcm = 0d0
+          do i = 1, seed%nat
+             do j = 1, 3
+                xmax(j) = max(seed%x(j,i)+seed%border,xmax(j))
+                xmin(j) = min(seed%x(j,i)-seed%border,xmin(j))
+             end do
+             xcm = xcm + seed%x(:,i)
+          end do
+          xcm = xcm / seed%nat
+          if (seed%cubic) then
+             xmin = minval(xmin)
+             xmax = maxval(xmax)
+          end if
+       end if
+    else
+       xmax = 1d0
+       xcm = 0.5d0
+       xmin = 0d0
+    end if
+
+    ! basic cell and centering information
+    if (seed%useabr == 0) then
+       if (.not.seed%ismolecule) &
+          call ferror("struct_new","cell data unavailable",faterr)
+       ! this is a molecule, for which no cell has been given
+       c%aa = xmax - xmin
+       c%bb = 90d0
+       c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
+       c%car2crys = matinv(c%crys2car)
+       g = matmul(transpose(c%crys2car),c%crys2car)
+    elseif (seed%useabr == 1) then
+       ! use aa and bb
+       c%aa = seed%aa
+       c%bb = seed%bb
+       c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
+       c%car2crys = matinv(c%crys2car)
+       g = matmul(transpose(c%crys2car),c%crys2car)
+    elseif (seed%useabr == 2) then
+       ! use crys2car
+       c%crys2car = seed%crys2car
+       c%car2crys = matinv(c%crys2car)
+       g = matmul(transpose(c%crys2car),c%crys2car)
+       do i = 1, 3
+          c%aa(i) = sqrt(g(i,i))
+       end do
+       c%bb(1) = acos(g(2,3) / c%aa(2) / c%aa(3)) * 180d0 / pi
+       c%bb(2) = acos(g(1,3) / c%aa(1) / c%aa(3)) * 180d0 / pi
+       c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
+    else
+       call ferror("struct_new","unknown useabr",faterr)
+    end if
+
+    ! transform the atomic coordinates in the case of a molecule, and fill 
+    ! the remaining molecular fields
+    if (seed%ismolecule) then
+       c%ismolecule = seed%ismolecule
+
+       if (seed%useabr == 0) then
+          ! a cell has not been given
+
+          ! center in the cell and convert to crystallographic coordinates
+          do i = 1, c%nneq
+             c%at(i)%x = (c%at(i)%x-xcm+0.5d0*c%aa) / c%aa
+          end do
+
+          ! Keep the (1/2,1/2,1/2) translation applied
+          c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm 
+
+          ! Set up the molecular cell. c%molborder is in fractional coordinates
+          ! and gives the position of the molecular cell in each axis. By default,
+          ! choose the molecular cell as the minimal encompassing cell for the molecule
+          ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell 
+          ! can not exceed the actual unit cell
+          c%molborder = max(seed%border - max(2d0,0.8d0 * seed%border),0d0) / (xmax - xmin)
+       else
+          if (any(abs(c%bb - 90d0) > 1d-3)) &
+             call ferror("struct_new","MOLECULE does not allow non-orthogonal cells",faterr)
+          ! a cell has been given, save the origin
+          if (seed%havex0) then
+             c%molx0 = seed%molx0
+          else
+             c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa 
+          endif
+
+          ! calculate the molecular cell
+          if (c%nneq > 0) then
+             xmin = 1d40
+             do i = 1, c%nneq
+                do j = 1, 3
+                   xmin(j) = min(c%at(i)%x(j),xmin(j))
+                   xmin(j) = min(1d0-max(c%at(i)%x(j),1d0-xmin(j)),xmin(j))
+                end do
+             end do
+          end if
+          c%molborder = max(xmin - max(0.8d0 * xmin,2d0/c%aa),0d0)
        end if
     end if
+
+    ! move the crystallographic coordinates to the main cell, calculate the
+    ! Cartesian coordinates
+    do i = 1, c%nneq
+       c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+       c%at(i)%r = c%x2c(c%at(i)%x)
+    end do
+
+    ! rest of the cell metrics
+    c%gtensor = g
+    c%omega = sqrt(max(det(g),0d0))
+    c%grtensor = matinv(g)
+    do i = 1, 3
+       c%ar(i) = sqrt(c%grtensor(i,i))
+    end do
+    c%n2_x2c = ctsq3 / mnorm2(c%crys2car)
+    c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
+
+    ! calculate the wigner-seitz cell
+    call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
+       nvert_ws=c%nvert_ws,nside_ws=c%nside_ws,iside_ws=c%iside_ws,vws=c%vws)
+    c%isortho = (c%nws <= 6)
+    if (c%isortho) then
+       do i = 1, c%nws
+          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
+       end do
+    endif
+
+    ! copy the symmetry information, if available
+    if (seed%havesym > 0 .and..not.seed%ismolecule) then
+       c%havesym = 1
+       c%neqv = seed%neqv
+       c%ncv = seed%ncv
+       if (allocated(c%cen)) deallocate(c%cen)
+       allocate(c%cen(3,seed%ncv))
+       c%cen = seed%cen(:,1:seed%ncv)
+       c%rotm = 0d0
+       c%rotm(:,:,1:seed%neqv) = seed%rotm(:,:,1:seed%neqv)
+
+       ! permute the symmetry operations to make the identity the first
+       if (c%neqv > 1) then
+          if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
+             good = .false.
+             do i = 1, c%neqv
+                if (all(abs(eyet - c%rotm(:,:,i)) < 1d-12)) then
+                   c%rotm(:,:,i) = c%rotm(:,:,1)
+                   c%rotm(:,:,1) = eyet
+                   good = .true.
+                   exit
+                end if
+             end do
+             if (.not.good) &
+                call ferror('struct_new','identity operation not found',faterr)
+          end if
+       end if
+    else
+       c%havesym = 0
+       c%neqv = 1
+       c%rotm = 0d0
+       c%rotm(:,:,1) = eyet
+       c%ncv = 1
+       if (.not.allocated(c%cen)) allocate(c%cen(3,4))
+       c%cen = 0d0
+    end if
+
+    ! symmetry from spglib
+    hasspg = .false.
+    if (.not.seed%ismolecule .and. seed%havesym == 0 .and. &
+       (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
+       ! symmetry was not available, and I want it
+       call c%spglib_wrap(.true.,.false.)
+       hasspg = .true.
+    end if
+
+    ! eliminate redundant atoms 
+    nnew = 0
+    do i = 1, c%nneq
+       found = .false.
+       if (c%at(i)%z <= maxzat) then ! skip critical points
+          loio: do io = 1, c%neqv
+             do it = 1, c%ncv
+                v1 = matmul(c%rotm(1:3,1:3,io), c%at(i)%x) + c%rotm(:,4,io) + c%cen(:,it)
+                do j = 1, nnew
+                   if (c%at(j)%z > maxzat) cycle ! skip critical points
+                   v2 = c%at(j)%x
+                   if (c%are_lclose(v1,v2,atomeps) .and. c%at(i)%z == c%at(j)%z) then
+                      found = .true.
+                      icpy = j
+                      exit loio
+                   end if
+                end do
+             end do
+          end do loio
+       end if
+       if (.not.found) then
+          nnew = nnew + 1
+          if (nnew > size(c%at)) then
+             call realloc(c%at,2*size(c%at))
+          end if
+          c%at(nnew) = c%at(i)
+       end if
+    end do
+    c%nneq = nnew
+    if (c%nneq > 0) &
+       call realloc(c%at,c%nneq)
+
+    ! generate the complete atom list
+    if (c%nneq > 0) then
+       if (allocated(c%atcel)) deallocate(c%atcel)
+       allocate(c%atcel(c%nneq*c%neqv*c%ncv))
+       if (c%havesym > 0) then
+          allocate(atpos(3,192))
+          allocate(irotm(192))
+          allocate(icenv(192))
+          atpos = 0
+          irotm = 0
+          icenv = 0
+          iat = 0
+          do i = 1, c%nneq
+             call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
+             do j = 1, c%at(i)%mult
+                iat = iat + 1
+                c%atcel(iat)%x = atpos(:,j)
+                c%atcel(iat)%r = c%x2c(atpos(:,j))
+                c%atcel(iat)%idx = i
+                c%atcel(iat)%ir = irotm(j)
+                c%atcel(iat)%ic = icenv(j)
+                c%atcel(iat)%lvec = nint(atpos(:,j) - &
+                   (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
+                   c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
+             end do
+          end do
+          c%ncel = iat
+          if (allocated(atpos)) deallocate(atpos)
+          if (allocated(irotm)) deallocate(irotm)
+          if (allocated(icenv)) deallocate(icenv)
+       else
+          c%ncel = c%nneq
+          do i = 1, c%nneq
+             c%at(i)%mult = 1
+             c%atcel(i)%x = c%at(i)%x
+             c%atcel(i)%r = c%at(i)%r
+             c%atcel(i)%idx = i
+             c%atcel(i)%ir = 1
+             c%atcel(i)%ic = 1
+             c%atcel(i)%lvec = 0
+          end do
+       end if
+       call realloc(c%atcel,c%ncel)
+    else
+       c%ncel = 0
+    end if
+
+    ! symmetry is available, but I still want the space group details
+    if (c%havesym > 0 .and..not.hasspg) &
+       call c%spglib_wrap(.false.,.true.)
+
+    ! the initialization is done - this crystal is ready to use
+    c%file = seed%file
+    c%isinit = .true.
+
+  end subroutine struct_new
+
+  !> This routine fills ancillary information in the crystal structure
+  !> if it is not already available.  If env0, build the atomic
+  !> environments. If iast0 = 1, determine the molecular asterisms;
+  !> iast0 = 0, do not determine the asterisms; iast0 = -1, only for
+  !> small crystals.  If recip0, determine the reciprocal cell metrics
+  !> and symmetry.  If lnn0, determine the nearest-neighbor
+  !> information. If ewald0, calculate the cutoffs for Ewald method.
+  subroutine struct_fill(c,env0,iast0,recip0,lnn0,ewald0)
+    use global, only: crsmall
+
+    class(crystal), intent(inout) :: c
+    integer :: iast0
+    logical, intent(in) :: env0, recip0, lnn0, ewald0
+
+    logical :: env, ast, recip, lnn, ewald
+    integer :: i
+    real*8, dimension(3) :: vec
+    real*8 :: dist(1)
+    integer :: nneig(1), wat(1)
+
+    ! Handle input flag dependencies
+    env = env0
     if (iast0 == 1) then
        ast = .true.
     elseif (iast0 == 0) then
@@ -2509,119 +2802,6 @@ contains
     ! nearest-neighbor shells requires environment
     if (lnn) env = .true.
 
-    ! First initialization pass. 
-    nreduce = 0
-    if (init) then
-       ! permute the symmetry operations to make the identity the first
-       if (c%neqv > 1) then
-          if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
-             good = .false.
-             do i = 1, c%neqv
-                if (all(abs(eyet - c%rotm(:,:,i)) < 1d-12)) then
-                   c%rotm(:,:,i) = c%rotm(:,:,1)
-                   c%rotm(:,:,1) = eyet
-                   good = .true.
-                   exit
-                end if
-             end do
-             if (.not.good) &
-                call ferror('struct_fill','identity op. not found',faterr)
-          end if
-       end if
-
-       ! Check consistency of atomic information in input data. Fill in some
-       ! of the missing information.
-       do i = 1, c%nneq
-          ! Bring non-equivalent atoms into the main unit cell
-          c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
-
-          ! Fill the cartesian coordinates
-          c%at(i)%r = c%x2c(c%at(i)%x)
-
-          ! Name / Z
-          if (c%at(i)%name == "" .and. c%at(i)%z == 0) then
-             call ferror('struct_fill','No name or Z for atom: '//string(i),faterr)
-          else if (c%at(i)%name == "" .or. c%at(i)%z == 0) then
-             if (c%at(i)%z == 0) then
-                c%at(i)%z = zatguess(c%at(i)%name)
-             else
-                c%at(i)%name = nameguess(c%at(i)%z)
-             end if
-          end if
-       end do
-
-       ! Cell metrics: sines, cosines, root
-       ss = sin(c%bb*rad)
-       cc = cos(c%bb*rad)
-       root=sqrt(1d0-cc(1)*cc(1)-cc(2)*cc(2)-cc(3)*cc(3)+2d0*cc(1)*cc(2)*cc(3))
-       if (root < eps) call ferror('struct_fill','zero volume cell',faterr)
-
-       ! Real space metric tensor
-       c%gtensor(1,1) = c%aa(1) * c%aa(1)
-       c%gtensor(1,2) = c%aa(1) * c%aa(2) * cc(3)
-       c%gtensor(2,1) = c%gtensor(1,2)
-       c%gtensor(2,2) = c%aa(2) * c%aa(2)
-       c%gtensor(1,3) = c%aa(1) * c%aa(3) * cc(2)
-       c%gtensor(3,1) = c%gtensor(1,3)
-       c%gtensor(2,3) = c%aa(2) * c%aa(3) * cc(1)
-       c%gtensor(3,2) = c%gtensor(2,3)
-       c%gtensor(3,3) = c%aa(3) * c%aa(3)
-
-       ! Cell volume
-       c%omega = root * c%aa(1) * c%aa(2) * c%aa(3)
-
-       ! Reiprocal cell metrics
-       c%ar(1) = c%aa(2) * c%aa(3) * ss(1) / c%omega
-       c%ar(2) = c%aa(3) * c%aa(1) * ss(2) / c%omega
-       c%ar(3) = c%aa(1) * c%aa(2) * ss(3) / c%omega
-       c%br(1) = (cc(2) * cc(3) - cc(1)) / (ss(2) * ss(3))
-       c%br(2) = (cc(3) * cc(1) - cc(2)) / (ss(3) * ss(1))
-       c%br(3) = (cc(1) * cc(2) - cc(3)) / (ss(1) * ss(2))
-
-       ! Reciprocal space metric tensor
-       c%grtensor(1,1) = c%ar(1) * c%ar(1)
-       c%grtensor(1,2) = c%ar(1) * c%ar(2) * c%br(3)
-       c%grtensor(2,1) = c%grtensor(1,2)
-       c%grtensor(2,2) = c%ar(2) * c%ar(2)
-       c%grtensor(1,3) = c%ar(1) * c%ar(3) * c%br(2)
-       c%grtensor(3,1) = c%grtensor(1,3)
-       c%grtensor(2,3) = c%ar(2) * c%ar(3) * c%br(1)
-       c%grtensor(3,2) = c%grtensor(2,3)
-       c%grtensor(3,3) = c%ar(3) * c%ar(3) 
-
-       ! crys2car and car2crys 2-norms
-       c%n2_x2c = ctsq3 / mnorm2(c%crys2car)
-       c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
-
-       ! calculate the wigner-seitz cell
-       call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
-          nvert_ws=c%nvert_ws,nside_ws=c%nside_ws,iside_ws=c%iside_ws,vws=c%vws)
-       c%isortho = (c%nws <= 6)
-       if (c%isortho) then
-          do i = 1, c%nws
-             c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
-          end do
-       endif
-
-       ! reduce and fill the non-equivalent atom list 
-       call c%reduceatoms()
-
-       ! generate the complete atom list
-       call makeatcel(.false.)
-    end if
-
-    ! Calculate the space-group symmetry operations, and reduce the atom list again
-    if (isym > 0) then
-       call c%spglib_wrap()
-       c%havesym = isym
-       ! update both atom lists
-       call c%reduceatoms()
-       call makeatcel(.true.)
-    end if
-
-    ! the initialization is done 
-    if (init) c%isinit = .true.
-
     ! Build the atomic environments
     if (env) then
        call c%build_env()
@@ -2632,7 +2812,7 @@ contains
     if (recip) then
        ! Reciprocal space point group
        vec = 0d0
-       call lattpg(matinv(c%crys2car),1,vec,c%neqvg,c%rotg)
+       call lattpg(c%car2crys,1,vec,c%neqvg,c%rotg)
        c%isrecip = .true.
     end if
 
@@ -2658,82 +2838,12 @@ contains
        c%isewald = .true.
     end if
 
-  contains
-    subroutine makeatcel(relabel)
-      use global, only: atomeps
-      
-      logical, intent(in) :: relabel
-
-      real*8, allocatable :: atpos(:,:)
-      integer, allocatable :: irotm(:), icenv(:)
-      real*8 :: x(3)
-      integer :: i, j, k, iat
-
-      if (c%havesym > 0) then
-         allocate(atpos(3,192),irotm(192),icenv(192))
-         if (.not.relabel) c%ncel = 0
-         atpos = 0d0
-         irotm = 0
-         icenv = 0
-         do i = 1, c%nneq
-            call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
-            do j = 1, c%at(i)%mult
-               if (.not.relabel) then
-                  c%ncel = c%ncel + 1
-                  if (c%ncel > size(c%atcel)) then
-                     call realloc(c%atcel,2 * size(c%atcel))
-                  end if
-                  iat = c%ncel
-               else
-                  iat = 0
-                  do k = 1, c%ncel
-                     x = c%atcel(k)%x-atpos(:,j)
-                     x = x - nint(x)
-                     if (all(abs(x) < 1d-3)) then
-                        iat = k
-                        exit
-                     end if
-                  end do 
-                  if (iat == 0) &
-                     call ferror("makeatcel","relabeling but atom not found",faterr)
-               end if
-               c%atcel(iat)%x = atpos(:,j)
-               c%atcel(iat)%r = c%x2c(atpos(:,j))
-               c%atcel(iat)%idx = i
-               c%atcel(iat)%ir = irotm(j)
-               c%atcel(iat)%ic = icenv(j)
-               c%atcel(iat)%lvec = nint(atpos(:,j) - &
-                  (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
-                  c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
-            end do
-         end do
-         deallocate(atpos,irotm,icenv)
-         call realloc(c%atcel,c%ncel)
-      else
-         ! No symmetry: simply copy the non-equivalent atom list into
-         ! the cell list
-         if (.not.allocated(c%atcel)) then
-            allocate(c%atcel(c%nneq))
-         else
-            call realloc(c%atcel,c%nneq)
-         end if
-         c%ncel = c%nneq
-         do i = 1, c%nneq
-            c%atcel(i)%x = c%at(i)%x
-            c%atcel(i)%r = c%at(i)%r
-            c%atcel(i)%idx = i
-            c%atcel(i)%ir = 1
-            c%atcel(i)%ic = 1
-            c%atcel(i)%lvec = 0
-         end do
-      end if
-    end subroutine makeatcel
   end subroutine struct_fill
 
   !> Write information about the crystal structure to the output.
   subroutine struct_report(c)
     use fragmentmod, only: fragment_cmass
-    use global, only: iunitname, dunit
+    use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat
@@ -2819,15 +2929,15 @@ contains
        enddo
        write (uout,*)
 
-       write (uout,'("+ Lattice vectors (",A,")")') iunitname
+       write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
        do i = 1, 3
-          write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%crys2car(j,i)*dunit,'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%crys2car(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
        end do
        write (uout,*)
     end if
 
     ! List of atoms in Cartesian coordinates
-    write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname
+    write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
     write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
        string("x",16,ioj_center), string("y",16,ioj_center),&
        string("z",16,ioj_center), string("name",10,ioj_center),&
@@ -2835,7 +2945,7 @@ contains
     do i=1,c%ncel
        write (uout,'(2x,6(A,X))') &
           string(i,3,ioj_center),&
-          (string((c%atcel(i)%r(j)+c%molx0(j))*dunit,'f',length=16,decimal=10,justify=5),j=1,3),&
+          (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
           string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
           string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
     enddo
@@ -2903,17 +3013,17 @@ contains
        end if
 
        write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
-       write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname
+       write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname0(iunit)
        do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j)/dunit,'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
        end do
-       write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname
+       write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname0(iunit)
        do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j)*dunit,'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
        end do
-       write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname
+       write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname0(iunit)
        do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit**2,'f',length=16,decimal=10,justify=5),j=1,3)
+          write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit0(iunit)**2,'f',length=16,decimal=10,justify=5),j=1,3)
        end do
        write (uout,*)
     end if
@@ -2925,7 +3035,7 @@ contains
        write (uout,'("# Id  nat           Center of mass          Discrete? ")')
        do i = 1, c%nmol
           if (c%ismolecule) then
-             xcm = (fragment_cmass(c%mol(i))+c%molx0) * dunit
+             xcm = (fragment_cmass(c%mol(i))+c%molx0) * dunit0(iunit)
           else
              xcm = c%c2x(fragment_cmass(c%mol(i)))
           end if
@@ -2946,7 +3056,7 @@ contains
 
     ! Print out atomic environments and determine the nearest neighbor distances
     if (c%nneq <= natenvmax) then
-       write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname
+       write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname0(iunit)
        write (uout,'("# ",6(A,2X))') &
           string("id",length=4,justify=ioj_center), &
           string("atom",length=5,justify=ioj_center), &
@@ -2969,7 +3079,7 @@ contains
                 write (uout,'(6(2X,A))') &
                    str1, str2, &
                    string(nneig(j),length=5,justify=ioj_center), &
-                   string(dist(j)*dunit,'f',length=12,decimal=7,justify=5), &
+                   string(dist(j)*dunit0(iunit),'f',length=12,decimal=7,justify=5), &
                    string(wat(j),length=4,justify=ioj_center), &
                    string(c%at(wat(j))%name,length=10,justify=ioj_left)
              end if
@@ -2984,14 +3094,14 @@ contains
     end if
 
     ! Determine nn/2 for every atom
-    write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname
+    write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname0(iunit)
     write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
        string("atom",length=5,justify=ioj_center), &
        string("rnn/2",length=12,justify=ioj_center)
     do i = 1, c%nneq
        write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
           string(c%at(i)%name,length=5,justify=ioj_center), &
-          string(c%at(i)%rnn2*dunit,'f',length=12,decimal=7,justify=4)
+          string(c%at(i)%rnn2*dunit0(iunit),'f',length=12,decimal=7,justify=4)
     end do
     write (uout,*)
 
@@ -3002,12 +3112,12 @@ contains
           string("x",length=11,justify=ioj_center),&
           string("y",length=11,justify=ioj_center),&
           string("z",length=11,justify=ioj_center),&
-          string("d ("//iunitname//")",length=14,justify=ioj_center)
+          string("d ("//iunitname0(iunit)//")",length=14,justify=ioj_center)
        do i = 1, c%nvert_ws
           x0 = c%x2c(c%vws(:,i))
           write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
              (string(c%vws(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
-             string(norm(x0)*dunit,'f',length=14,decimal=8,justify=4)
+             string(norm(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
        enddo
        write (uout,*)
 
@@ -3099,8 +3209,10 @@ contains
 
   !> Use the spg library to find information about the space group.
   !> In: cell vectors (crys2car), ncel, atcel(:), at(:) Out: neqv,
-  !> rotm, spg.
-  subroutine spglib_wrap(c)
+  !> rotm, spg. If usenneq is .true., use nneq and at(:) instead of 
+  !> ncel and atcel. If onlyspg is .true., fill only the spg field
+  !> and leave the others unchanged.
+  subroutine spglib_wrap(c,usenneq,onlyspg)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
     use global, only: symprec
@@ -3108,6 +3220,8 @@ contains
     use param, only: maxzat0, eyet, eye
     use types, only: realloc
     class(crystal), intent(inout) :: c
+    logical, intent(in) :: usenneq
+    logical, intent(in) :: onlyspg
 
     real(c_double) :: lattice(3,3)
     real(c_double), allocatable :: x(:,:)
@@ -3122,18 +3236,33 @@ contains
     lattice = transpose(c%crys2car)
     iz = 0
     ntyp = 0
-    nat = c%ncel
-    allocate(x(3,c%ncel),typ(c%ncel))
-    do i = 1, c%ncel
-       x(:,i) = c%atcel(i)%x
-       if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
-          ntyp = ntyp + 1
-          iz(c%at(c%atcel(i)%idx)%z) = ntyp
-          typ(i) = ntyp
-       else
-          typ(i) = iz(c%at(c%atcel(i)%idx)%z)
-       end if
-    end do
+    if (usenneq) then
+       nat = c%nneq
+       allocate(x(3,c%nneq),typ(c%nneq))
+       do i = 1, c%nneq
+          x(:,i) = c%at(i)%x
+          if (iz(c%at(i)%z) == 0) then
+             ntyp = ntyp + 1
+             iz(c%at(i)%z) = ntyp
+             typ(i) = ntyp
+          else
+             typ(i) = iz(c%at(i)%z)
+          end if
+       end do
+    else
+       nat = c%ncel
+       allocate(x(3,c%ncel),typ(c%ncel))
+       do i = 1, c%ncel
+          x(:,i) = c%atcel(i)%x
+          if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
+             ntyp = ntyp + 1
+             iz(c%at(c%atcel(i)%idx)%z) = ntyp
+             typ(i) = ntyp
+          else
+             typ(i) = iz(c%at(c%atcel(i)%idx)%z)
+          end if
+       end do
+    end if
     c%spg = spg_get_dataset(lattice,x,typ,nat,symprec)
     deallocate(x,typ)
 
@@ -3141,6 +3270,8 @@ contains
     error = trim(spg_get_error_message(c%spg%spglib_error))
     if (.not.equal(error,"no error")) &
        call ferror("spglib_wrap","error from spglib: "//string(error),warning)
+
+    if (onlyspg) return
 
     ! unpack spglib's output into pure translations and symops
     c%neqv = 1
@@ -3183,63 +3314,9 @@ contains
        end if
     end do
     call realloc(c%cen,3,c%ncv)
+    c%havesym = 1
 
   end subroutine spglib_wrap
-
-  !> Reduce the non-equivalent list of atomic positions using the
-  !> symmetry operations and eliminate redundant atoms. This routine
-  !> only affects the non-equivalent atom list and sets the
-  !> multiplicity of all atoms.
-  subroutine reduceatoms(c)
-    use tools_io, only: faterr, ferror
-    use global, only: atomeps
-    use param, only: maxzat
-    use types, only: realloc
-    class(crystal), intent(inout) :: c
-
-    integer :: i, j, io, it
-    integer :: nnew, icpy
-    logical :: found
-    real*8  :: v1(3), v2(3)
-
-    ! calculate all the multiplicities and eliminate repeated atoms
-    nnew = 0
-    do i = 1, c%nneq
-       found = .false.
-       if (c%at(i)%z > maxzat) goto 1 ! skip critical points
-       do io = 1, c%neqv
-          do it = 1, c%ncv
-             v1 = matmul(c%rotm(1:3,1:3,io), c%at(i)%x) + c%rotm(:,4,io) + c%cen(:,it)
-             do j = 1, nnew
-                if (c%at(j)%z > maxzat) cycle ! skip critical points
-                v2 = c%at(j)%x
-                if (c%are_lclose(v1,v2,atomeps)) then
-                   if (c%at(i)%z /= c%at(j)%z) then
-                      call ferror('reduceatoms','eq. atoms with /= Z',faterr)
-                   end if
-                   found = .true.
-                   icpy = j
-                   goto 1
-                end if
-             end do
-          end do
-       end do
-1      continue
-       if (.not.found) then
-          nnew = nnew + 1
-          if (nnew > size(c%at)) then
-             call realloc(c%at,2*size(c%at))
-          end if
-          c%at(nnew) = c%at(i)
-          c%at(nnew)%mult = 1
-       else
-          c%at(icpy)%mult = c%at(icpy)%mult + 1
-       end if
-    end do
-    c%nneq = nnew
-    call realloc(c%at,c%nneq)
-
-  end subroutine reduceatoms
 
   !xx! Wigner-Seitz cell tools and cell partition
 

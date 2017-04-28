@@ -70,7 +70,7 @@ contains
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
     use fragmentmod, only: fragment_merge_array, fragment_cmass, fragment_init
     use struct_basic, only: crystal
-    use global, only: dunit
+    use global, only: dunit0, iunit
     use graphics, only: writecml, writexyz, writegjf
     use tools_math, only: norm, nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
@@ -101,7 +101,7 @@ contains
 
     ! calculate the motifs if necessary
     if (onemotif .or. environ) &
-       call c%checkflags(.false.,init0=.true.,ast0=.true.)
+       call c%checkflags(.false.,ast0=.true.)
 
     ! determine the fragments
     if (onemotif) then
@@ -194,7 +194,7 @@ contains
        write (uout,'("# Id nat               Center of mass          idmol     lvec")')
        do i = 1, nmol
           if (c%ismolecule) then
-             xcm = cmlist(:,i) * dunit
+             xcm = cmlist(:,i) * dunit0(iunit)
           else
              xcm = c%c2x(cmlist(:,i))
           end if
@@ -910,9 +910,7 @@ contains
     ! we need symmetry for this
     if (dosym) then
        nc = c
-       if (nc%havesym < 1) &
-          call nc%struct_fill(.false.,.false.,1,0,.false.,.false.,.false.)
-
+       call nc%cell_standard(.false.,.false.,.false.)
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0
        irhomb = 0
@@ -1125,7 +1123,7 @@ contains
     logical :: ok, isat
 
     ! check that we have an environment
-    call c%checkflags(.true.,init0=.true.,env0=.true.)
+    call c%checkflags(.true.,env0=.true.)
 
     lu = fopen_write(file)
     if (.not. dodreiding) then

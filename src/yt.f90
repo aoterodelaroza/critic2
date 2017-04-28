@@ -57,6 +57,7 @@ contains
   subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
     use struct_basic, only: crystal
     use fields, only: fields_fcheck, fields_feval
+    use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use arithmetic, only: eval
     use param, only: vsmall
@@ -119,7 +120,8 @@ contains
     caux%isinit = .true.
     caux%aa = c%aa / real(n,8)
     caux%bb = c%bb
-    call caux%set_cryscar()
+    caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
+    caux%car2crys = matinv(caux%crys2car)
     call caux%wigner((/0d0,0d0,0d0/),nvec=nvec,vec=vec,area0=al)
 
     ! run over grid points in order of decreasing density

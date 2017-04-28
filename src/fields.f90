@@ -265,7 +265,7 @@ contains
     logical :: isfrag, iok
 
     ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+    call cr%checkflags(.true.,env0=.true.)
 
     ! defaults
     dormt = .true.
@@ -2482,7 +2482,7 @@ contains
   !> = show load-time information, isset = show flags for this field.
   subroutine fieldinfo(id,isload,isset)
     use struct_basic
-    use global, only: dunit, iunit, iunitname0
+    use global, only: dunit0, iunit, iunitname0
     use tools_io
     integer, intent(in) :: id
     logical, intent(in) :: isload, isset
@@ -2490,7 +2490,7 @@ contains
     integer :: i, j, k, n(3)
 
     ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+    call cr%checkflags(.true.,env0=.true.)
 
     ! header
     write (uout,'("* Scalar field number: ",A)') string(id)
@@ -2616,7 +2616,7 @@ contains
           do j = 1, f(id)%wan%nbnd
              write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
                 (string(f(id)%wan%center(k,j,i),'f',10,6,4),k=1,3),&
-                string(f(id)%wan%spread(j,i) * dunit,'f',14,8,4)
+                string(f(id)%wan%spread(j,i) * dunit0(iunit),'f',14,8,4)
           end do
        end do
     end if

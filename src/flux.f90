@@ -56,7 +56,7 @@ contains
   subroutine fluxprint()
     use varbas, only: ncpcel, cpcel, cp
     use struct_basic, only: cr
-    use global, only: eval_next, dunit
+    use global, only: eval_next, dunit0, iunit
     use tools_io, only: uout, getline, lgetword, equal, ferror, faterr, uin, &
        ucopy, getword, lower
     use param, only: jmlcol
@@ -154,7 +154,7 @@ contains
           ok = check_no_extra_word()
           if (.not.ok) return
           if (cr%ismolecule) &
-             xpoint = cr%c2x(xpoint / dunit - cr%molx0)
+             xpoint = cr%c2x(xpoint / dunit0(iunit) - cr%molx0)
 
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
              call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line,syntax=.true.)
@@ -705,7 +705,7 @@ contains
   subroutine flx_printpath(rgb0)
     use struct_basic, only: cr
     use graphics, only: graphics_ball
-    use global, only: dunit
+    use global, only: dunit0, iunit
     use tools_io, only: string
     use param, only: bohrtoa
     integer, intent(in) :: rgb0(3)
@@ -740,7 +740,7 @@ contains
           do i = 1,flx_n
              x = flx_x(:,i)
              if (cr%ismolecule) &
-                x = (cr%x2c(x) + cr%molx0) * dunit
+                x = (cr%x2c(x) + cr%molx0) * dunit0(iunit)
              write (luout,'(13(E20.12,X))') x, flx_rho(i),&
                 flx_grad(:,i), flx_h(1,:,i), flx_h(2,:,i), flx_h(3,:,i)
           end do

@@ -79,7 +79,7 @@ contains
     use fields, only: fieldname_to_idx, goodfield, fused, fields_fcheck, &
        fields_feval, fields_propty
     use struct_basic, only: cr
-    use global, only: eval_next, refden, dunit
+    use global, only: eval_next, refden, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, uout, string
@@ -154,7 +154,7 @@ contains
        write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
        write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
     else
-       xp = x0 / dunit - cr%molx0
+       xp = x0 / dunit0(iunit) - cr%molx0
        x0 = cr%c2x(xp)
     endif
     if (imin > -1) then
@@ -176,7 +176,7 @@ contains
     use fields, only: fieldname_to_idx, goodfield, f, fields_feval, fields_fcheck,&
        grd
     use struct_basic, only: cr
-    use global, only: eval_next, refden, dunit
+    use global, only: eval_next, refden, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -297,8 +297,8 @@ contains
        x0 = cr%x2c(x0)
        x1 = cr%x2c(x1)
     else
-       x0 = x0 / dunit - cr%molx0
-       x1 = x1 / dunit - cr%molx0
+       x0 = x0 / dunit0(iunit) - cr%molx0
+       x1 = x1 / dunit0(iunit) - cr%molx0
     endif
     allocate(rhoout(np),lapout(np))
     lapout = 0d0
@@ -357,11 +357,11 @@ contains
     ! write the line to output
     do i = 1, np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
-       dist = norm(xp-x0) * dunit
+       dist = norm(xp-x0) * dunit0(iunit)
        if (.not.cr%ismolecule) then
           xout = cr%c2x(xp)
        else
-          xout = (xp + cr%molx0) * dunit
+          xout = (xp + cr%molx0) * dunit0(iunit)
        end if
        if (nti == 0) then
           write (luout,'(1x,4(f15.10,x),1p,1(e18.10,x),0p)') &
@@ -388,7 +388,7 @@ contains
     use fields, only: fieldname_to_idx, goodfield, f, type_grid, fields_fcheck,&
        fields_feval, writegrid_cube, writegrid_vasp, grd
     use struct_basic, only: cr
-    use global, only: eval_next, dunit, refden, fileroot
+    use global, only: eval_next, dunit0, iunit, refden, fileroot
     use arithmetic, only: eval
     use tools_math, only: norm
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
@@ -430,8 +430,8 @@ contains
 
        ! If it is a molecule, that was Cartesian
        if (cr%ismolecule) then
-          x0 = cr%c2x(x0 / dunit - cr%molx0)
-          x1 = cr%c2x(x1 / dunit - cr%molx0)
+          x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
+          x1 = cr%c2x(x1 / dunit0(iunit) - cr%molx0)
        endif
 
        ! cubic cube
@@ -664,7 +664,7 @@ contains
     use fields, only: fieldname_to_idx, goodfield, f, grd, fields_fcheck, &
        fields_feval
     use struct_basic, only: cr
-    use global, only: eval_next, dunit, refden, fileroot
+    use global, only: eval_next, dunit0, iunit, refden, fileroot
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -700,9 +700,9 @@ contains
        return
     end if
     if (cr%ismolecule) then
-       x0 = cr%c2x(x0 / dunit - cr%molx0)
-       x1 = cr%c2x(x1 / dunit - cr%molx0)
-       x2 = cr%c2x(x2 / dunit - cr%molx0)
+       x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
+       x1 = cr%c2x(x1 / dunit0(iunit) - cr%molx0)
+       x2 = cr%c2x(x2 / dunit0(iunit) - cr%molx0)
     endif
 
     ok = eval_next(nx,line,lp)
@@ -770,8 +770,8 @@ contains
              call ferror('rhoplot_plane','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
-          zx0 = zx0 / dunit
-          zx1 = zx1 / dunit
+          zx0 = zx0 / dunit0(iunit)
+          zx1 = zx1 / dunit0(iunit)
        elseif (equal(word,'extendy')) then
           ok = eval_next(zy0,line,lp)
           ok = ok .and. eval_next(zy1,line,lp)
@@ -779,8 +779,8 @@ contains
              call ferror('rhoplot_plane','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
-          zy0 = zy0 / dunit
-          zy1 = zy1 / dunit
+          zy0 = zy0 / dunit0(iunit)
+          zy1 = zy1 / dunit0(iunit)
        else if (equal(word,'relief')) then
           dorelief = .true.
           zmin = -1d0
@@ -975,7 +975,7 @@ contains
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
           if (cr%ismolecule) then
-             xp = (cr%x2c(xp) + cr%molx0) * dunit
+             xp = (cr%x2c(xp) + cr%molx0) * dunit0(iunit)
           endif
           write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') &
              xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
@@ -1534,7 +1534,7 @@ contains
     use fields, only: f, grd
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
-    use global, only: fileroot, eval_next, dunit, refden, prunedist
+    use global, only: fileroot, eval_next, dunit0, iunit, refden, prunedist
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
@@ -1614,9 +1614,9 @@ contains
              return
           end if
           if (cr%ismolecule) then
-             r0 = cr%c2x(r0 / dunit - cr%molx0)
-             r1 = cr%c2x(r1 / dunit - cr%molx0)
-             r2 = cr%c2x(r2 / dunit - cr%molx0)
+             r0 = cr%c2x(r0 / dunit0(iunit) - cr%molx0)
+             r1 = cr%c2x(r1 / dunit0(iunit) - cr%molx0)
+             r2 = cr%c2x(r2 / dunit0(iunit) - cr%molx0)
           endif
           goodplane = .true.
 
@@ -1634,8 +1634,8 @@ contains
              call ferror('grdvec','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
-          zx0 = zx0 / dunit
-          zx1 = zx1 / dunit
+          zx0 = zx0 / dunit0(iunit)
+          zx1 = zx1 / dunit0(iunit)
        elseif (equal(word,'extendy')) then
           ok = eval_next(zy0,line,lp)
           ok = ok .and. eval_next(zy1,line,lp)
@@ -1643,8 +1643,8 @@ contains
              call ferror('grdvec','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
-          zy0 = zy0 / dunit
-          zy1 = zy1 / dunit
+          zy0 = zy0 / dunit0(iunit)
+          zy1 = zy1 / dunit0(iunit)
        else if (equal(word,'outcp')) then
           ok = eval_next (scalex, line, lp)
           ok = ok .and. eval_next (scaley, line, lp)
@@ -1657,7 +1657,7 @@ contains
 
        else if (equal(word,'hmax')) then
           ok = eval_next (xdum, line, lp)
-          if (ok) RHOP_Hmax = xdum / dunit
+          if (ok) RHOP_Hmax = xdum / dunit0(iunit)
           if (.not. ok) then
              call ferror ('grdvec','Wrong hmax line',faterr,line,syntax=.true.)
              return
@@ -1770,7 +1770,7 @@ contains
              call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
              return
           end if
-          grpx(:,norig) = cr%c2x(grpx(:,norig) / dunit - cr%molx0)
+          grpx(:,norig) = cr%c2x(grpx(:,norig) / dunit0(iunit) - cr%molx0)
           ok = check_no_extra_word()
           if (.not.ok) return
 
@@ -1932,9 +1932,9 @@ contains
        xo1 = r1
        xo2 = r2
     else
-       xo0 = (cr%x2c(r0) + cr%molx0) * dunit
-       xo1 = (cr%x2c(r1) + cr%molx0) * dunit
-       xo2 = (cr%x2c(r2) + cr%molx0) * dunit
+       xo0 = (cr%x2c(r0) + cr%molx0) * dunit0(iunit)
+       xo1 = (cr%x2c(r1) + cr%molx0) * dunit0(iunit)
+       xo2 = (cr%x2c(r2) + cr%molx0) * dunit0(iunit)
     end if
     write (uout,'("  Plane origin: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
     write (uout,'("  Plane x-end:  ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
@@ -2027,7 +2027,7 @@ contains
   subroutine plotvec (r0, r1, r2, autocheck, udat)
     use navigation, only: gradient
     use fields, only: f, grd
-    use global, only: dunit, refden
+    use global, only: dunit0, iunit, refden
     use struct_basic, only: cr
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
@@ -2089,9 +2089,9 @@ contains
        write (uout,'("+ Cartesian coordinates of r1: ",3(A,X))') (string(rp1(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Cartesian coordinates of r2: ",3(A,X))') (string(rp2(j),'f',12,6,ioj_right),j=1,3)
     else
-       xo0 = (cr%x2c(r0) + cr%molx0) * dunit
-       xo1 = (cr%x2c(r1) + cr%molx0) * dunit
-       xo2 = (cr%x2c(r2) + cr%molx0) * dunit
+       xo0 = (cr%x2c(r0) + cr%molx0) * dunit0(iunit)
+       xo1 = (cr%x2c(r1) + cr%molx0) * dunit0(iunit)
+       xo2 = (cr%x2c(r2) + cr%molx0) * dunit0(iunit)
        write (uout,'("+ Coordinates of r0: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Coordinates of r1: ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Coordinates of r2: ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
@@ -2112,7 +2112,7 @@ contains
 
        xtemp = grpx(:,iorig)
        if (cr%ismolecule) &
-          xtemp = (cr%x2c(xtemp) + cr%molx0) * dunit
+          xtemp = (cr%x2c(xtemp) + cr%molx0) * dunit0(iunit)
        write (uout,'(99(A,2X))') string(iorig,length=5,justify=ioj_left), &
           (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
           string(grpatr(iorig),length=3,justify=ioj_right), &
@@ -2165,7 +2165,7 @@ contains
              ntype = -3
           end if
 
-          xtemp = (grpx(:,iorig) + cr%molx0) * dunit
+          xtemp = (grpx(:,iorig) + cr%molx0) * dunit0(iunit)
           
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &
@@ -2274,7 +2274,7 @@ contains
              endif
           endif
 
-          xtemp = (grpx(:,iorig) + cr%molx0) * dunit
+          xtemp = (grpx(:,iorig) + cr%molx0) * dunit0(iunit)
 
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &

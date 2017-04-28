@@ -152,7 +152,7 @@ contains
     use struct_basic, only: cr
     use surface, only: minisurf_init, minisurf_clean, minisurf_spheretriang, minisurf_close
     use fields, only: f, type_grid
-    use global, only: quiet, refden, cp_hdegen, eval_next, dunit, iunit, &
+    use global, only: quiet, refden, cp_hdegen, eval_next, dunit0, iunit, &
        iunitname0, fileroot
     use tools, only: uniqc
     use tools_math, only: norm
@@ -305,8 +305,8 @@ contains
                 return
              end if
              if (cr%ismolecule) then
-                x0clip = cr%c2x(x0clip / dunit - cr%molx0)
-                x1clip = cr%c2x(x1clip / dunit - cr%molx0)
+                x0clip = cr%c2x(x0clip / dunit0(iunit) - cr%molx0)
+                x1clip = cr%c2x(x1clip / dunit0(iunit) - cr%molx0)
              endif
           elseif (equal(word,'sphere')) then
              iclip = 2
@@ -318,8 +318,8 @@ contains
                 call ferror('critic','Wrong AUTO/CLIP/SPHERE values.',faterr,line,syntax=.true.)
                 return
              end if
-             if (cr%ismolecule) x0clip = cr%c2x(x0clip / dunit - cr%molx0)
-             rclip = rclip / dunit
+             if (cr%ismolecule) x0clip = cr%c2x(x0clip / dunit0(iunit) - cr%molx0)
+             rclip = rclip / dunit0(iunit)
           else
              call ferror('critic','Wrong AUTO/CLIP option.',faterr,line,syntax=.true.)
              return
@@ -377,7 +377,7 @@ contains
                    call ferror('autocritic','Wrong AUTO/SEED/X0',faterr,line,syntax=.true.)
                    return
                 end if
-                if (cr%ismolecule) seed(nseed)%x0 = cr%c2x(seed(nseed)%x0 / dunit - cr%molx0)
+                if (cr%ismolecule) seed(nseed)%x0 = cr%c2x(seed(nseed)%x0 / dunit0(iunit) - cr%molx0)
              elseif (equal(word,'x1')) then
                 ok = eval_next(seed(nseed)%x1(1),line,lp)
                 ok = ok.and.eval_next(seed(nseed)%x1(2),line,lp)
@@ -386,7 +386,7 @@ contains
                    call ferror('autocritic','Wrong AUTO/SEED/X1',faterr,line,syntax=.true.)
                    return
                 end if
-                if (cr%ismolecule) seed(nseed)%x1 = cr%c2x(seed(nseed)%x1 / dunit - cr%molx0)
+                if (cr%ismolecule) seed(nseed)%x1 = cr%c2x(seed(nseed)%x1 / dunit0(iunit) - cr%molx0)
                 hadx1 = .true.
              elseif (equal(word,'npts')) then
                 ok = eval_next(seed(nseed)%npts,line,lp)
@@ -418,14 +418,14 @@ contains
                    call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line,syntax=.true.)
                    return
                 end if
-                seed(nseed)%dist = seed(nseed)%dist / dunit
+                seed(nseed)%dist = seed(nseed)%dist / dunit0(iunit)
              elseif (equal(word,'radius')) then
                 ok = eval_next(seed(nseed)%rad,line,lp)
                 if (.not.ok) then
                    call ferror('autocritic','Wrong AUTO/SEED/NPTS',faterr,line,syntax=.true.)
                    return
                 end if
-                seed(nseed)%rad = seed(nseed)%rad / dunit
+                seed(nseed)%rad = seed(nseed)%rad / dunit0(iunit)
              else
                 lp = lpo
                 exit
@@ -604,11 +604,11 @@ contains
     ! write the header to the output 
     write (uout,'("* Automatic determination of CPs")')
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
-       string(CP_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
+       string(CP_eps_cp*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
-       string(NUC_eps_cp*dunit,'e',decimal=3), iunitname0(iunit)
+       string(NUC_eps_cp*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A,X,A)') &
-       string(NUC_eps_cp_H*dunit,'e',decimal=3), iunitname0(iunit)
+       string(NUC_eps_cp_H*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
        string(CP_hdegen,'e',decimal=3)
     if (len_trim(discexpr) > 0) &
@@ -619,11 +619,11 @@ contains
     do i = 1, nseed
        x0 = seed(i)%x0
        x1 = seed(i)%x1
-       r = seed(i)%rad * dunit
-       dist = seed(i)%dist * dunit
+       r = seed(i)%rad * dunit0(iunit)
+       dist = seed(i)%dist * dunit0(iunit)
        if (cr%ismolecule) then
-          x0 = (cr%x2c(x0) + cr%molx0) * dunit
-          x1 = (cr%x2c(x1) + cr%molx0) * dunit
+          x0 = (cr%x2c(x0) + cr%molx0) * dunit0(iunit)
+          x1 = (cr%x2c(x1) + cr%molx0) * dunit0(iunit)
        endif
        str = "  " // string(i,2)
        str = str // string(seed(i)%nseed,7)
@@ -846,7 +846,7 @@ contains
     use navigation, only: gradient, prunepath
     use fields, only: f
     use struct, only: struct_write
-    use struct_basic, only: cr, crystal
+    use struct_basic, only: cr, crystal, crystalseed
     use global, only: eval_next, refden, prunedist
     use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
     use varbas, only: ncpcel, cp, cpcel
@@ -861,6 +861,7 @@ contains
     character(len=:), allocatable :: line2, aux
     logical :: ok
     logical :: agraph
+    type(crystalseed) :: seed
     type(crystal) :: caux
     real*8 :: x(3), xpath(3,mstep)
 
@@ -899,40 +900,37 @@ contains
           end do
           
           ! build the crystal structure containing the crystal points
-          call caux%init()
-          caux%ismolecule = cr%ismolecule
-          caux%aa = cr%aa
-          caux%bb = cr%bb
-          caux%crys2car = cr%crys2car
-          caux%car2crys = cr%car2crys
-          caux%n2_x2c = cr%n2_x2c
-          caux%n2_c2x = cr%n2_c2x
-          call realloc(caux%at,ncpcel)
-          caux%nneq = 0
+          seed%isused = .true.
+          seed%file = cr%file
+          seed%nat = ncpcel
+          allocate(seed%x(3,ncpcel),seed%z(ncpcel),seed%name(ncpcel))
           do i = 1, ncpcel
-             caux%at(i)%x = cpcel(i)%x
-             if (cp(cpcel(i)%idx)%typ == -3) then
-                caux%at(i)%z = 119
-             elseif (cp(cpcel(i)%idx)%typ == -1) then
-                caux%at(i)%z = 120
-             elseif (cp(cpcel(i)%idx)%typ == 1) then
-                caux%at(i)%z = 121
-             elseif (cp(cpcel(i)%idx)%typ == 3) then
-                caux%at(i)%z = 122
-             else
-                call ferror("cpreport","unclassified critical point",faterr)
-             end if
+             seed%x(:,i) = cpcel(i)%x
              if (i <= cr%ncel) then
-                caux%at(i)%z = cr%at(cr%atcel(i)%idx)%z
-                caux%at(i)%name = cr%at(cr%atcel(i)%idx)%name
+                seed%z(i) = cr%at(cr%atcel(i)%idx)%z
+                seed%name(i) = cr%at(cr%atcel(i)%idx)%name
              else
-                caux%at(i)%name = nameguess(caux%at(i)%z)
+                if (cp(cpcel(i)%idx)%typ == -3) then
+                   seed%z(i) = 119
+                elseif (cp(cpcel(i)%idx)%typ == -1) then
+                   seed%z(i) = 120
+                elseif (cp(cpcel(i)%idx)%typ == 1) then
+                   seed%z(i) = 121
+                elseif (cp(cpcel(i)%idx)%typ == 3) then
+                   seed%z(i) = 122
+                else
+                   call ferror("cpreport","unclassified critical point",faterr)
+                end if
+                seed%name(i) = nameguess(seed%z(i))
              end if
           end do
-          caux%nneq = ncpcel
-          caux%havesym = 0
+          seed%usezname = 3
+          seed%useabr = 2
+          seed%crys2car = cr%crys2car
+          seed%havesym = 0
+          seed%findsym = 0
 
-          ! calculate gradient paths
+          ! calculate gradient paths and add them to the seed
           if (agraph) then
              !$omp parallel do private(iup,x,nstep,ier,xpath) schedule(dynamic)
              do i = cr%ncel+1, ncpcel
@@ -963,10 +961,15 @@ contains
              !$omp end parallel do
           end if
 
-          ! fill the rest of the properties
-          call caux%struct_fill(.true.,.false.,0,0,.false.,.false.,.false.)
-          
+          ! molecule information
+          seed%ismolecule = cr%ismolecule
+          seed%cubic = .false.
+          seed%border = 0d0
+          seed%havex0 = .true.
+          seed%molx0 = cr%molx0
+
           ! write the structure to the external file
+          call caux%struct_new(seed)
           call struct_write(caux,line2)
 
           return
@@ -983,22 +986,24 @@ contains
 
       integer :: i, n
       
-      call realloc(caux%at,caux%nneq+nstep)
-      n = caux%nneq
+      call realloc(seed%x,3,seed%nat+nstep)
+      call realloc(seed%z,seed%nat+nstep)
+      call realloc(seed%name,seed%nat+nstep)
+      n = seed%nat
       do i = 1, nstep
          n = n + 1
-         caux%at(n)%x = xpath(:,i)
-         caux%at(n)%z = 123
-         caux%at(n)%name = nameguess(caux%at(n)%z)
+         seed%x(:,n) = xpath(:,i)
+         seed%z(n) = 123
+         seed%name(n) = nameguess(seed%z(n))
       end do
-      caux%nneq = n
+      seed%nat = n
 
     end subroutine addpath
   end subroutine cpreport
 
   !> Calculates the neighbor environment of each non-equivalent CP.
   subroutine critshell(shmax)
-    use global, only: iunit, iunitname0, dunit
+    use global, only: iunit, iunitname0, dunit0
     use struct_basic, only: cr
     use tools_io, only: uout, string, ioj_center
     use varbas, only: ncpcel, cp, cpcel, ncp
@@ -1067,14 +1072,14 @@ contains
              write (uout,'(6(A,X))') &
                 string(i,length=6,justify=ioj_center), namecrit(cp(i)%typind),&
                 string(nneig(i,j),length=5,justify=ioj_center), &
-                string(sqrt(dist2(i,j))*dunit,'f',length=12,decimal=8,justify=3), &
+                string(sqrt(dist2(i,j))*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
                 string(wcp(i,j),length=4,justify=ioj_center), &
                 namecrit(cp(wcp(i,j))%typind)
           else
              if (wcp(i,j) /= 0) then
                 write (uout,'(6X,"...",6(A,X))') &
                    string(nneig(i,j),length=5,justify=ioj_center), &
-                   string(sqrt(dist2(i,j))*dunit,'f',length=12,decimal=8,justify=3), &
+                   string(sqrt(dist2(i,j))*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
                    string(wcp(i,j),length=4,justify=ioj_center), &
                    namecrit(cp(wcp(i,j))%typind)
              end if
@@ -1083,7 +1088,7 @@ contains
     end do
     write (uout,*)
     write (uout,'("* Minimum CP distance is ",A,X,A," between CP# ",A," and ",A)') &
-       string(sqrt(dmin)*dunit,'f',length=12,decimal=7,justify=ioj_center), &
+       string(sqrt(dmin)*dunit0(iunit),'f',length=12,decimal=7,justify=ioj_center), &
        string(iunitname0(iunit)), string(imin), string(wcp(imin,1))
     write (uout,*)
 
@@ -1218,7 +1223,7 @@ contains
     use struct_basic, only: cr
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     use types, only: scalar_value
-    use global, only: iunit, iunitname0, dunit, refden
+    use global, only: iunit, iunitname0, dunit0, refden
     use varbas, only: cp, ncp
     integer :: i, j
     integer :: numclass(0:3), multclass(0:3)
@@ -1281,7 +1286,7 @@ contains
           write (uout,'(2X,A," (3,",A,") ",A,1X,3(A,1X),A,3(1X,A))') &
              string(i,length=4,justify=ioj_left),&
              string(cp(i)%typ,length=2), string(namecrit(ind),length=8,justify=ioj_center),&
-             (string((cp(i)%r(j)+cr%molx0(j))*dunit,'f',length=12,decimal=8,justify=3),j=1,3), &
+             (string((cp(i)%r(j)+cr%molx0(j))*dunit0(iunit),'f',length=12,decimal=8,justify=3),j=1,3), &
              string(cp(i)%name,length=10,justify=ioj_center),&
              string(cp(i)%rho,'e',decimal=8,length=15,justify=4),&
              string(cp(i)%gmod,'e',decimal=8,length=15,justify=4),&
@@ -2007,7 +2012,7 @@ contains
   !> Write to the stdout information about the graph.
   subroutine graph_short_report()
     use tools_io, only: uout, string, ioj_center
-    use global, only: iunit, iunitname0, dunit
+    use global, only: iunit, iunitname0, dunit0
     use varbas, only: ncp, cp
     integer :: i, j, k, maxlen
     character*(20) :: nam(2)
@@ -2051,7 +2056,7 @@ contains
           maxlen = max(10,len_trim(nam(1)),len_trim(nam(2)))
           write (uout,'(7(A,X))') string(i,length=5,justify=ioj_center),&
              string(nam(1),length=maxlen,justify=ioj_center), string(nam(2),length=maxlen,justify=ioj_center),&
-             (string(cp(i)%brdist(j)*dunit,'f',length=10,decimal=4,justify=3),j=1,2), &
+             (string(cp(i)%brdist(j)*dunit0(iunit),'f',length=10,decimal=4,justify=3),j=1,2), &
              string(cp(i)%brdist(1)/cp(i)%brdist(2),'f',length=12,decimal=6,justify=3), &
              string(cp(i)%brang,'f',length=10,decimal=4,justify=3)
        enddo
