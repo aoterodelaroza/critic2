@@ -143,7 +143,7 @@ contains
 
     filename = str_c_to_f(filename0, nc)
 
-    call struct_crystal_input(cr, filename, isMolecule == 1, .true., .true.)
+    call struct_crystal_input(cr, filename, isMolecule == 1, .true.)
     if (cr%isinit) then
        ! initialize the radial densities
        call grda_init(.true.,.true.,.false.)
@@ -237,7 +237,7 @@ contains
   subroutine get_atom_position(index, atomicN, x, y, z) bind (c, name="get_atom_position")
     use struct_basic, only: cr
     use types, only: celatom
-    use global, only: dunit
+    use global, only: dunit0, iunit
 
     integer (kind=c_int), value :: index
     integer(c_int), intent(out) :: atomicN
@@ -247,9 +247,9 @@ contains
 
     atomicN = int(cr%at(cr%atcel(index)%idx)%z, c_int)
 
-    x = real((cr%atcel(index)%r(1)+cr%molx0(1))*dunit,c_double)
-    y = real((cr%atcel(index)%r(2)+cr%molx0(2))*dunit,c_double)
-    z = real((cr%atcel(index)%r(3)+cr%molx0(3))*dunit,c_double)
+    x = real((cr%atcel(index)%r(1)+cr%molx0(1))*dunit0(iunit),c_double)
+    y = real((cr%atcel(index)%r(2)+cr%molx0(2))*dunit0(iunit),c_double)
+    z = real((cr%atcel(index)%r(3)+cr%molx0(3))*dunit0(iunit),c_double)
 
   end subroutine get_atom_position
 
@@ -305,7 +305,7 @@ contains
 
   subroutine get_cp_pos_type(cpIdx, type, x, y, z) bind (c, name="get_cp_pos_type")
     use struct_basic, only: cr
-    use global, only: dunit
+    use global, only: dunit0, iunit
     use varbas, only: cpcel
 
     integer (kind=c_int), value :: cpIdx
@@ -314,9 +314,9 @@ contains
     real(c_double), intent(out) :: y
     real(c_double), intent(out) :: z
 
-    x = (cpcel(cpIdx)%r(1) + cr%molx0(1))*dunit
-    y = (cpcel(cpIdx)%r(2) + cr%molx0(2))*dunit
-    z = (cpcel(cpIdx)%r(3) + cr%molx0(3))*dunit
+    x = (cpcel(cpIdx)%r(1) + cr%molx0(1))*dunit0(iunit)
+    y = (cpcel(cpIdx)%r(2) + cr%molx0(2))*dunit0(iunit)
+    z = (cpcel(cpIdx)%r(3) + cr%molx0(3))*dunit0(iunit)
 
     type = cpcel(cpIdx)%typ
 
