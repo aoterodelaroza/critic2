@@ -520,69 +520,6 @@ Vector3f getCritPointColor(int cpType) {
   return color;
 }
 
-//describes what each atom color is
-//basic color Legend
-void atomLegend_displayColorBoxAndName(int colorNumber, string * colorNames) {
-  Vector3f AtomicNumberColor = getAtomColor(colorNumber);
-  ImVec4 color = ImColor(AtomicNumberColor.x, AtomicNumberColor.y, AtomicNumberColor.z, 1.0);
-  ImGui::ColorButton(color); ImGui::SameLine();
-  ImGui::Text(colorNames[colorNumber].c_str());
-}
-
-/// create a menu describing how atoms are colored
-void atomColorLegend() {
-  bool p_open = false;
-  if (ImGui::CollapsingHeader("atom color legend")) {
-    string * colorNames = new string[101];
-    colorNames[1] = "Hydrogen";
-    colorNames[2] = "Noble Gas";
-    colorNames[3] = "Alkali Metals";
-    colorNames[4] = "Akaline Earth";
-
-    colorNames[6] = "Carbon";
-    colorNames[7] = "Nitrogen";
-    colorNames[8] = "Oxygen";
-    colorNames[9] = "Flourine & Chlorine";
-
-    colorNames[15] = "Potassium";
-    colorNames[16] = "Sulfur";
-
-    colorNames[21] = "transition Metal";
-
-    colorNames[26] = "iron";
-
-    colorNames[35] = "Bromine";
-
-    colorNames[53] = "Iodine";
-
-    colorNames[81] = "titaniam";
-
-    colorNames[100] = "other";
-
-    for (size_t i = 1; i < 5; i++) {
-      atomLegend_displayColorBoxAndName(i, colorNames);
-    }
-    for (size_t i = 6; i < 10; i++) {
-      atomLegend_displayColorBoxAndName(i, colorNames);
-    }
-
-    atomLegend_displayColorBoxAndName(15, colorNames);
-    atomLegend_displayColorBoxAndName(16, colorNames);
-    atomLegend_displayColorBoxAndName(21, colorNames);
-    atomLegend_displayColorBoxAndName(26, colorNames);
-    atomLegend_displayColorBoxAndName(35, colorNames);
-    atomLegend_displayColorBoxAndName(53, colorNames);
-    atomLegend_displayColorBoxAndName(81, colorNames);
-    atomLegend_displayColorBoxAndName(100, colorNames);
-  }
-}
-
-// ///will be used to draw atom number over the atom using imgui window
-// float* getScreenPositionOfVertex(float *vertexLocation) {
-// 	//TODO transfrom from vertex location to screen location
-// 	return NULL;
-// }
-
 /// draw an atom using gl functions
 void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
@@ -859,148 +796,6 @@ void drawSelectedCPStats() {
   }
 }
 
-/// This is the main imgui window describing atoms,bonds,critical points, and additonal information
-void drawMainMenuTree(int screen_w, int screen_h) {
-  ImGui::SetNextWindowSize(ImVec2(300, screen_h),ImGuiSetCond_Always);
-  ImGui::SetNextWindowPos(ImVec2(screen_w-300, 0),ImGuiSetCond_Always);
-  ImGuiWindowFlags flags = 0;
-  //    flags |= ImGuiWindowFlags_AlwaysAutoResize;
-  flags |= ImGuiWindowFlags_NoResize;
-  flags |= ImGuiWindowFlags_NoMove;
-
-  bool p_open = false;
-  ImGui::Begin("Tree View",&p_open, flags);
-  if (ImGui::CollapsingHeader("atoms and bonds")) {
-    int closeOthers = -1;
-    for (size_t x = 0; x < loadedAtomsAmount; x++) {
-      if (ImGui::TreeNode(loadedAtoms[x].atomTreeName.c_str())) {
-	if (loadedAtoms[x].selected == false) {
-	  closeOthers = x;
-	  selectAtom(x);
-	}
-
-	//selection based on atoms bonds
-	for (size_t i = 0; i < bondsAmount; i++) {
-	  if (bonds[i].a1->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-	    string bondName = "bondedTo" + to_string(bonds[i].a2->atomTreePosition);
-	    if (ImGui::TreeNode(bondName.c_str())) {
-	      //select a2
-	      closeOthers = bonds[i].a2->atomTreePosition;
-	      // cout << "going to atom" + to_string(closeOthers) << endl;
-	      ImGui::TreePop();
-	    }
-	  }
-	  else if (bonds[i].a2->atomTreePosition == loadedAtoms[x].atomTreePosition) {
-	    string bondName = "bondedTo" + to_string(bonds[i].a1->atomTreePosition);
-	    if (ImGui::TreeNode(bondName.c_str())) {
-	      //select a1
-	      closeOthers = bonds[i].a1->atomTreePosition;
-	      // cout << "going to atom" + to_string(closeOthers) << endl;
-	      ImGui::TreePop();
-	    }
-	  }
-	}
-
-	ImGui::TreePop();
-      }
-      else {
-	loadedAtoms[x].selected = false;
-      }
-    }
-
-    if (closeOthers != -1) {
-      for (int i = 0; i < loadedAtomsAmount; i++){
-	ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[i].atomTreeName.c_str()), 0); // close all tabs
-      }
-      ImGui::GetStateStorage()->SetInt(ImGui::GetID(loadedAtoms[selectedAtom].atomTreeName.c_str()), 1);
-      closeOthers = -1;
-    }
-
-  }
-  if (loadedCPAmount != 0) {
-    if (ImGui::CollapsingHeader("Critical Points")) {
-      int closeOthers = -1;
-
-      for (size_t i = 0; i < loadedCPAmount; i++) {
-	if (ImGui::TreeNode((loadedCriticalPoints[i].typeName + ":" + to_string(i)).c_str())) { //critical point tree node
-	  if (loadedCriticalPoints[i].selected == false) {
-	    loadedCriticalPoints[i].selected = true;
-	    lookAtCritPoint(i);
-	    closeOthers = i;
-	    selectedCP = i;
-	  }
-	  ImGui::TreePop();
-	}
-	else {
-	  loadedCriticalPoints[i].selected = false;
-	}
-      }
-
-      if (closeOthers != -1) { //only one cp tab should be open at a time
-	for (int i = 0; i < loadedAtomsAmount; i++) {
-	  ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[i].typeName + ":" + to_string(i)).c_str()), 0); // close all tabs
-	}
-	ImGui::GetStateStorage()->SetInt(ImGui::GetID((loadedCriticalPoints[closeOthers].typeName + ":" + to_string(closeOthers)).c_str()), 1); // leave selected tab open
-	closeOthers = -1;
-      }
-    }
-
-    // start of cp info window
-    drawSelectedCPStats();
-
-  }
-  drawSelectedAtomStats();
-  atomColorLegend();
-
-
-  ImGui::End();
-}
-
-///search bar to find atoms by atomic number
-void createAtomSearchBar() {
-  ImGui::SetNextWindowSize(ImVec2(200, 130), ImGuiSetCond_Appearing);
-  ImGui::Begin("Atom Search by atomic #");
-  ImGuiWindowFlags Flags;
-  int atomAtomicNumber = 0;
-  if (ImGui::InputInt("atomic#", &atomAtomicNumber, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) { //search on enter
-    if (atomAtomicNumber > 0 && atomAtomicNumber < loadedAtomsAmount) {
-      selectAtom(atomAtomicNumber);
-    }
-  }
-
-  //checkbox to flash atoms
-  if (ImGui::Checkbox("Selc.find", &flashAtoms)) { //set flashing to defults
-    framesMax = 15; // ~0.5 seconds
-    framesLeft = 0;
-    otherAtomsVisable = true;
-  }
-
-  static ImGuiFs::Dialog fsopenfile;
-
-  ImGui::End();
-}
-
-void createCriticalPointSearchBar() {
-  ImGui::SetNextWindowSize(ImVec2(200, 70), ImGuiSetCond_Appearing);
-  ImGui::Begin("Critical Search by ID #");
-  ImGuiWindowFlags Flags;
-  int criticalpointID = 0;
-  if (ImGui::InputInt("CP_ID#", &criticalpointID, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) { //search on enter
-    if (criticalpointID > 0 && criticalpointID < loadedCPAmount) {
-      selectCriticalPoint(criticalpointID);
-    }
-  }
-
-  //checkbox to flash atoms
-  if (ImGui::Checkbox("Selc.findCP", &flashCP)) { //set flashing to defults
-    framesMaxCP = 15; // ~0.5 seconds
-    framesLeftCP = 0;
-    otherCriticalPointsVisable = true;
-  }
-
-  ImGui::End();
-}
-
 static void showMenuFunctions(){
   if (ImGui::MenuItem("Generate Critical Points")) {
     auto_cp();
@@ -1266,15 +1061,7 @@ int main(int argc, char *argv[])
     if (show_cps){
       drawAllCPs(&p, SphereVB, SphereIB);
     }
-    //color legend
-    // imgui overlays
-    //    		printCamStats();
-    //        ShowAppMainMenuBar();
  
-    drawMainMenuTree(display_w, display_h-5);
-    //drawToolBar(display_w, display_h, &show_bonds, &show_cps, &show_atoms);
-    createAtomSearchBar();
-    createCriticalPointSearchBar();
     ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms, &want_quit);
     if (want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -1315,7 +1102,6 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
     // Clean up previous and initialize the structure
     destructLoadedMolecule();
     destructCriticalPoints();
-    init_struct();
     call_structure(filename, (int)strlen(filename), ismolecule); 
     destructLoadedMolecule();
     destructCriticalPoints();

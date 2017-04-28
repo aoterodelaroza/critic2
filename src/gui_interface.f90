@@ -26,7 +26,6 @@ module gui_interface
 
   public :: critic2_initialize
   public :: critic2_end
-  public :: init_struct
   public :: call_structure
   public :: get_positions
   public :: get_atom_position
@@ -37,6 +36,36 @@ module gui_interface
   public :: num_of_crit_points
   public :: get_cp_pos_type
 
+  ! scene blueprint (also, see escher's representation):
+  ! 
+  ! bounding cube center (3f)
+  ! bounding cube dimensions (3f)
+  ! 
+  ! number of atoms
+  ! name
+  ! selected
+  ! atomic number
+  ! atomic position
+  ! atom tree name
+  ! number of bonds
+  ! neighbor atoms
+  ! atomtreeposition
+  ! 
+  ! number of bonds
+  ! idx atom 1
+  ! idx atom 2
+  ! center
+  ! rotation
+  ! length
+  ! neighcrystalbond
+  ! selected
+  ! 
+  ! critical point
+  ! position
+  ! type
+  ! typename
+  ! selected
+  
 contains
 
   !> Initialize the critic2 library
@@ -100,30 +129,6 @@ contains
     call print_clock()
     call tictac('CRITIC2')
   end subroutine critic2_end
-
-  subroutine init_struct() bind (c,name="init_struct")
-    use fields, only: fields_init, fields_end
-    use varbas, only: varbas_end
-    use grd_atomic, only: grda_end
-    use struct_basic, only: cr
-    use autocp, only: init_cplist
-
-    if (cr%isinit) then
-      call cr%end()
-      ! ...the fields associated to the previous structure
-      call fields_end()
-      ! ...the loaded radial atomic and core densities
-      call grda_end()
-      ! ...the CP list
-      call varbas_end()
-    end if
-
-    call cr%init()
-    call init_cplist(.true.)
-    call fields_init()
-
-  end subroutine init_struct
-
 
   subroutine call_structure(filename0, nc, isMolecule) bind(c,name="call_structure")
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
