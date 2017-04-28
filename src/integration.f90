@@ -96,7 +96,7 @@ contains
        writegrid_cube, grdall
     use grid_tools, only: grid_rhoat, grid_laplacian, grid_gradrho
     use struct_basic, only: cr
-    use global, only: refden, eval_next, dunit, iunit, iunitname0, fileroot
+    use global, only: refden, eval_next, dunit0, iunit, iunitname0, fileroot
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
        string, fclose
     use types, only: field
@@ -164,7 +164,7 @@ contains
              call ferror("intgrid_driver","wrong RATOM keyword",faterr,line,syntax=.true.)
              return
           end if
-          ratom_def = ratom_def / dunit
+          ratom_def = ratom_def / dunit0(iunit)
        elseif (equal(word,"wcube")) then
           dowcube = .true.
        elseif (equal(word,"basins")) then
@@ -707,7 +707,7 @@ contains
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid,&
        writegrid_cube
     use grid_tools, only: get_qe_wnr
-    use struct_basic, only: cr, crystal
+    use struct_basic, only: cr, crystal, crystalseed
     use global, only: refden
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
@@ -738,6 +738,7 @@ contains
     type(ytdata) :: dat
     complex*16, allocatable :: f1(:,:,:), f2(:,:,:)
     logical, allocatable :: lovrlp(:,:,:,:,:,:)
+    type(crystalseed) :: ncseed
     type(crystal) :: nc
     character(len=:), allocatable :: sijfname
 
@@ -885,17 +886,16 @@ contains
           sij(:,:,:,:,ndeloc) = 0d0
 
           ! build the supercell
-          call nc%init()
-          nc%aa = cr%aa * nwan
-          nc%bb = cr%bb
+          ncseed%isused = .true.
           do i = 1, 3
-             nc%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
+             ncseed%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
           end do
-          nc%car2crys = matinv(nc%crys2car)
-          nc%nneq = 0
-          nc%ncel = 0
-          nc%havesym = 0
-          call nc%struct_fill(.true.,.false.,0,0,.false.,.false.,.false.)
+          ncseed%useabr = 2
+          ncseed%nat = 0
+          ncseed%havesym = 0
+          ncseed%findsym = 0
+          ncseed%ismolecule = cr%ismolecule
+          call nc%struct_new(ncseed)
 
           allocate(psic(n(1),n(2),n(3)))
           allocate(f1(f(fid)%n(1)*nwan(1),f(fid)%n(2)*nwan(2),f(fid)%n(3)*nwan(3)))
@@ -1035,7 +1035,7 @@ contains
           sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
 
           ! write the checkpoint
-          if (f(fid)%wan%dochk) then
+          if (f(fid)%wan%sijchk) then
              write (uout,'("+ Writing Sij checkpoint file: ",A)') trim(sijfname)
              lu = fopen_write(sijfname,"unformatted")
              write (lu) f(fid)%n
@@ -1442,9 +1442,10 @@ contains
     use fields, only: integ_prop, itype_v, itype_expr, itype_mpoles, itype_names,&
        nprops
     use struct_basic, only: cr
-    use global, only: iunitname0, iunit, dunit
+    use global, only: iunitname0, iunit, dunit0
     use varbas, only: cp, cpcel
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
+    use fragmentmod, only: fragment_cmass
 
     logical, intent(in) :: pmask(nprops)
     character*(*), intent(in) :: reason(nprops)
@@ -1456,11 +1457,12 @@ contains
     real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
     real*8, intent(in), allocatable, optional :: mpole(:,:,:)
 
-    integer :: i, j, ip, ipmax, iplast
+    integer :: i, j, k, ip, ipmax, iplast, idx
     integer :: fid, nacprop(5)
-    real*8 :: x(3), sump(nprops), xmult
+    real*8 :: x(3), sump(nprops), xmult, xcm(3)
     character(len=:), allocatable :: saux, itaux, label, cini
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
+    integer :: idxmol(2,nattr)
 
     ! List of integrable properties accepted/rejected and why some
     ! were rejected
@@ -1503,6 +1505,18 @@ contains
     end do
     write (uout,*)
 
+    ! key
+    write (uout,'("* Key for the interpretation of table headings")')
+    write (uout,'("# Id = attractor identifier")')
+    write (uout,'("# cp/at = critical point/atom from the complete CP/atom list")')
+    write (uout,'("# (lvec) = lattice translation from CP/atom to the main cell''s representative")')
+    write (uout,'("# ncp/nat = critical point/atom from the non-equivalent CP/atom list")')
+    write (uout,'("# Name = atomic name")')
+    write (uout,'("# Z = atomic number")')
+    write (uout,'("# Position = atomic position")')
+    write (uout,'("# Mol = molecule identifier (see corresponding table above)")')
+    write (uout,*)
+
     ! List of attractors and positions
     write (uout,'("* List of attractors integrated")')
     if (.not.cr%ismolecule) then
@@ -1515,7 +1529,7 @@ contains
        if (.not.cr%ismolecule) then
           x = xattr(:,i)
        else
-          x = (cr%x2c(xattr(:,i)) + cr%molx0) * dunit
+          x = (cr%x2c(xattr(:,i)) + cr%molx0) * dunit0(iunit)
        endif
        write (uout,'(2X,99(A,X))') & 
           string(i,4,ioj_left), scp, sncp, sname, sz, &
@@ -1564,11 +1578,98 @@ contains
              (string(aprop(nacprop(j),i),'e',15,8,4),j=1,ipmax)
        end do
        write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
-       write (uout,'(2X,"Sum                         ",99(A,X))') &
+       write (uout,'(2X,"Sum                           ",99(A,X))') &
           (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
        write (uout,*)
     end do
     
+    ! Molecular properties
+    if (.not.cr%ismolecule .and. all(cr%moldiscrete(1:cr%nmol))) then
+       ! Assign attractors to molecules
+       idxmol = 0
+       do i = 1, nattr
+          jlo: do j = 1, cr%nmol
+             do k = 1, cr%mol(j)%nat
+                if (icp(i) == cr%mol(j)%at(k)%cidx) then
+                   idxmol(1,i) = j
+                   idxmol(2,i) = k
+                   exit jlo
+                end if
+             end do
+          end do jlo
+       end do
+
+       ! List of molecules and associated attractors
+       write (uout,'("* List of molecules integrated")')
+       write (uout,'("+ Id   at (lvec)   nat    Name  Z              Position (cryst.) ")')
+       do i = 1, cr%nmol
+          xcm = cr%c2x(fragment_cmass(cr%mol(i)))
+          ! name the molecule
+          write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), string(cr%mol(i)%nat),&
+             (string(xcm(j),'f',10,6,3),j=1,3)
+
+          ! Atomic composition
+          do j = 1, nattr
+             if (idxmol(1,j) /= i) cycle
+             call assign_strings(j,icp(j),usesym,scp,sncp,sname,smult,sz)
+             x = cr%mol(idxmol(1,j))%at(idxmol(2,j))%x
+             write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') & 
+                string(j,4,ioj_left), scp, (string(cr%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
+                sncp, sname, sz, (string(x(k),'f',12,7,4),k=1,3)
+          end do
+       end do
+       write (uout,*)
+       
+       ! List of integrated properties in the molecules
+       write (uout,'("* Integrated molecular properties")')
+       iplast = 0
+       do ip = 0, (count(pmask)-1)/5
+          ! show only the properties that are active
+          nacprop = 0
+          ipmax = 0
+          do i = iplast+1, nprops
+             if (pmask(i)) then
+                ipmax = ipmax + 1
+                nacprop(ipmax) = i
+             end if
+             if (ipmax == 5) exit
+          end do
+          if (ipmax == 0) exit
+          iplast = nacprop(ipmax)
+
+          ! Table header for this set of properties
+          write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
+          write (uout,'("# Mol ",5(A,X))') &
+             (string(integ_prop(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+
+          ! Table rows
+          do k = 1, cr%nmol+1
+             if (k == cr%nmol+1 .and. all(idxmol > 0)) cycle
+             sump = 0d0
+             do i = 1, nattr
+                if (idxmol(1,i) /= mod(k,cr%nmol+1)) cycle
+                ! add to the sum
+                if (icp(i) > 0 .and. usesym) then
+                   xmult = cp(cpcel(icp(i))%idx)%mult
+                else
+                   xmult = 1
+                endif
+                do j = 1, ipmax
+                   sump(nacprop(j)) = sump(nacprop(j)) + aprop(nacprop(j),i) * xmult
+                end do
+             end do
+             ! table entry
+             if (k < cr%nmol+1) then
+                write (uout,'(2X,99(A,X))') &
+                   string(k,4,ioj_left), (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+             else
+                write (uout,'(2X,99(A,X))') "????", (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+             end if
+          end do
+          write (uout,*) 
+       end do
+    end if
+
   end subroutine int_output
 
   !> Output calculate multipole moments. Inputs: number of attractors
@@ -1763,24 +1864,32 @@ contains
   !> attractors (icp), and the atomic overlap matrix (sij).
   subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
     use fields, only: integ_prop, itype_deloc, f, type_grid, nprops
-    use global, only: iunit, iunitname0, dunit
-    use struct_basic, only: cr, crystal
+    use global, only: iunit, iunitname0, dunit0
+    use fragmentmod, only: fragment_cmass
+    use struct_basic, only: cr, crystal, crystalseed
     use tools, only: qcksort
-    use tools_io, only: uout, string, ioj_left, ioj_right
+    use tools_io, only: uout, string, ioj_left, ioj_right, fopen_read,&
+       fopen_write, fclose
     integer, intent(in) :: natt
     integer, intent(in) :: icp(natt)
     real*8, intent(in) :: xgatt(3,natt)
     complex*16, intent(in), allocatable, optional :: sij(:,:,:,:,:)
 
+    integer :: lu
     integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3)
-    real*8 :: fspin, xnn, xli, r1(3), d2, asum, fatemp
+    real*8 :: fspin, xnn, xli, r1(3), d2, asum, fatemp, raux
     integer, allocatable :: imap(:,:), io(:), ilvec(:,:), idat(:)
     real*8, allocatable :: fa(:,:,:,:)
-    real*8, allocatable :: diout(:), dist(:)
+    real*8, allocatable :: diout(:), dist(:), dimol(:,:,:,:,:), limol(:), namol(:)
+    real*8 :: xcm(3,cr%nmol)
     integer :: imo, jmo, ia, ja, ka, iba
-    integer :: ic, jc, kc, i, j, k, idx(3), is
+    integer :: ic, jc, kc, i, j, k, idx(3), is, lvec1(3), lvec2(3), lvec3(3)
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     type(crystal) :: cr1
+    type(crystalseed) :: ncseed
+    integer :: idxmol(2,natt)
+    logical :: haschk
+    character(len=:), allocatable :: fafname
 
     if (.not.present(sij)) return
     if (.not.allocated(sij)) return
@@ -1797,7 +1906,7 @@ contains
        ndeloc = ndeloc + 1
 
        ! header
-       write (uout,'("+ Integrated property (number ",A,"): ",A/)') string(l), string(integ_prop(l)%prop_name)
+       write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(integ_prop(l)%prop_name)
 
        ! some integers for the run
        nwan = f(fid)%wan%nwan
@@ -1833,29 +1942,51 @@ contains
           end do
        end do
 
-       ! calculate the values of the fa matrix
+       ! calculate the values of the fa matrix or read them from the checkpoint file
+       haschk = .false.
+       fafname = trim(f(fid)%file) // "-fa"
+       if (f(fid)%wan%fachk) &
+          inquire(file=fafname,exist=haschk)
+
        allocate(fa(natt,natt,nlat,nspin))
-       fa = 0d0
-       !$omp parallel do private(fatemp) schedule(dynamic)
-       do i = 1, natt
-          do j = 1, natt
-             do is = 1, nspin
-                do k = 1, nlat
-                   fatemp = 0d0
-                   do imo = 1, nmo
-                      do jmo = 1, nmo
-                         fatemp = fatemp + real(sij(jmo,imo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc),8)
+       if (haschk) then
+          write (uout,'("+ Reading Fa checkpoint file: ",A)') trim(fafname)
+          lu = fopen_read(fafname,"unformatted")
+          read(lu) fa
+          call fclose(lu)
+       else
+          write (uout,'("+ Calculating Fa")')
+          fa = 0d0
+          !$omp parallel do private(fatemp) schedule(dynamic)
+          do i = 1, natt
+             do j = 1, natt
+                do is = 1, nspin
+                   do k = 1, nlat
+                      fatemp = 0d0
+                      do imo = 1, nmo
+                         do jmo = 1, nmo
+                            fatemp = fatemp + real(sij(jmo,imo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc),8)
+                         end do
                       end do
+                      !$omp critical (addfa)
+                      fa(i,j,k,is) = fatemp
+                      !$omp end critical (addfa)
                    end do
-                   !$omp critical (addfa)
-                   fa(i,j,k,is) = fatemp
-                   !$omp end critical (addfa)
                 end do
              end do
           end do
-       end do
-       !$omp end parallel do
+          !$omp end parallel do
+
+          ! write the checkpoint file
+          if (f(fid)%wan%fachk) then
+             write (uout,'("+ Writing Fa checkpoint file: ",A)') trim(fafname)
+             lu = fopen_write(fafname,"unformatted")
+             write(lu) fa
+             call fclose(lu)
+          end if
+       end if
        deallocate(imap)
+       write (uout,*)
        
        ! localization indices
        write (uout,'("+ Localization indices")')
@@ -1870,26 +2001,23 @@ contains
        end do
        write (uout,*)
 
-       ! Prepare the supercell crystal. For c%shortest, we need
-       ! c%isortho, c%car2crys, c%crys2car, c%nws, and c%ivws. The
-       ! last two come from a call to c%wigner.
-       call cr1%init()
+       ! build the supercell
+       ncseed%isused = .true.
        do i = 1, 3
-          cr1%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
-          cr1%car2crys(i,:) = cr%car2crys(i,:) / nwan(i)
+          ncseed%crys2car(:,i) = cr%crys2car(:,i) * nwan(i)
        end do
-       call cr1%wigner((/0d0,0d0,0d0/),nvec=cr1%nws,vec=cr1%ivws)
-       cr1%isortho = (cr1%nws <= 6)
-       if (cr1%isortho) then
-          do i = 1, cr1%nws
-             cr1%isortho = cr1%isortho .and. (count(abs(cr1%ivws(:,i)) == 1) == 1)
-          end do
-       endif
+       ncseed%useabr = 2
+       ncseed%nat = 0
+       ncseed%havesym = 0
+       ncseed%findsym = 0
+       ncseed%ismolecule = cr%ismolecule
+       call cr1%struct_new(ncseed)
 
-       write (uout,'("+ Delocalization indices Each block gives information about a single atom in")')
-       write (uout,'("  the main cell. First line: localization index, next lines: delocaliazation index")')
-       write (uout,'("  with all atoms in the environment, last line: sum of LI + 0.5 * DIs, equal to the")')
-       write (uout,'("  atomic population. Distances are in ",A,".")') iunitname0(iunit)
+       write (uout,'("+ Delocalization indices")')
+       write (uout,'("  Each block gives information about a single atom in the main cell.")')
+       write (uout,'("  First line: localization index. Next lines: delocaliazation index")')
+       write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
+       write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlat),io(natt*nlat),diout(natt*nlat),ilvec(3,natt*nlat),idat(natt*nlat))
        do i = 1, natt
           call assign_strings(i,icp(i),.false.,scp,sncp,sname,smult,sz)
@@ -1911,7 +2039,7 @@ contains
                       io(m) = m
                       r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
-                      dist(m) = sqrt(d2) * dunit
+                      dist(m) = sqrt(d2) * dunit0(iunit)
                       diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
@@ -1942,6 +2070,123 @@ contains
           write (uout,*)
        end do
 
+       ! Integrated molecular LI/DI
+       if (.not.cr%ismolecule .and. all(cr%moldiscrete(1:cr%nmol))) then
+          ! Assign attractors to molecules
+          idxmol = 0
+          do i = 1, natt
+             jlo: do j = 1, cr%nmol
+                do k = 1, cr%mol(j)%nat
+                   if (icp(i) == cr%mol(j)%at(k)%cidx) then
+                      idxmol(1,i) = j
+                      idxmol(2,i) = k
+                      exit jlo
+                   end if
+                end do
+             end do jlo
+          end do
+          
+          ! assign DIs to molecules
+          allocate(dimol(cr%nmol,cr%nmol,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1),limol(cr%nmol),namol(cr%nmol))
+          dimol = 0d0
+          limol = 0d0
+          namol = 0d0
+          do i = 1, natt
+             ia = idxmol(1,i)
+             if (ia == 0) cycle
+             limol(ia) = limol(ia) + sum(abs(fa(i,i,1,:))) * fspin
+             namol(ia) = namol(ia) + sum(abs(fa(i,:,:,:))) * fspin
+             lvec1 = cr%mol(ia)%at(idxmol(2,i))%lvec
+             k = 0
+             m = 0
+             do ic = 0, nwan(1)-1
+                do jc = 0, nwan(2)-1
+                   do kc = 0, nwan(3)-1
+                      k = k + 1
+                      do j = 1, natt
+                         m = m + 1
+                         if (idxmol(1,j) == 0) cycle
+                         if (i == j .and. k == 1) cycle
+                         ja = idxmol(1,j)
+                         if (ja == 0) cycle
+                         lvec2 = cr%mol(ja)%at(idxmol(2,j))%lvec
+                         lvec3 = lvec1 - lvec2 + (/ic,jc,kc/)
+                         lvec3 = modulo(lvec3,nwan)
+                         raux = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
+                         if (ia == ja .and. all(lvec3 == 0)) then
+                            limol(ia) = limol(ia) + 0.5d0 * raux
+                         else
+                            dimol(ia,ja,lvec3(1),lvec3(2),lvec3(3)) = &
+                               dimol(ia,ja,lvec3(1),lvec3(2),lvec3(3)) + raux
+                         endif
+                      end do
+                   end do
+                end do
+             end do
+          end do
+
+          ! localization indices
+          write (uout,'("* Integrated molecular properties")')
+          write (uout,'("+ Localization indices")')
+          write (uout,'("# Mol       LI(A)           N(A)")')
+          do i = 1, cr%nmol
+             write (uout,'(2X,99(A,X))') & 
+                string(i,4,ioj_left), string(limol(i),'f',15,8,4), string(namol(i),'f',12,8,4)
+          end do
+          write (uout,*)
+          
+          ! centers of mass
+          do i = 1, cr%nmol
+             xcm(:,i) = cr%c2x(fragment_cmass(cr%mol(i)))
+          end do
+
+          write (uout,'("+ Delocalization indices")')
+          do i = 1, cr%nmol
+             ! name the molecule
+             write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), string(cr%mol(i)%nat),&
+                (string(xcm(j,i),'f',10,6,3),j=1,3)
+             write (uout,'("# Mol   Latt. vec.    ---- Center of mass (cryst) ----      Distance      LI/DI")')
+
+             m = 0 
+             do ic = 0, nwan(1)-1
+                do jc = 0, nwan(2)-1
+                   do kc = 0, nwan(3)-1
+                      do j = 1, cr%nmol
+                         m = m + 1
+                         io(m) = m
+                         r1 = (xcm(:,j) + (/ic,jc,kc/) - xcm(:,i)) / real(nwan,8)
+                         call cr1%shortest(r1,d2)
+                         dist(m) = sqrt(d2) * dunit0(iunit)
+                         diout(m) = dimol(i,j,ic,jc,kc)
+                         idat(m) = j
+                         ilvec(:,m) = nint(xcm(:,i) + cr1%c2x(r1) * nwan - xcm(:,j))
+                      end do
+                   end do
+                end do
+             end do
+
+             ! sort by increasing distance and output for this molecule
+             call qcksort(dist,io,1,cr%nmol*nlat)
+             asum = 0d0
+             do m = 1, cr%nmol*nlat
+                j = io(m)
+                if (dist(j) < 1d-5) then
+                   write (uout,'(2X,"Localization index",51("."),A)') string(limol(i),'f',12,8,4)
+                   asum = asum + limol(i)
+                else
+                   r1 = xcm(:,idat(j)) + ilvec(:,j)
+                   write (uout,'(2X,99(A,X))') string(idat(j),4,ioj_left), &
+                      (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
+                      string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4)
+                   asum = asum + 0.5d0 * diout(j)
+                end if
+             end do
+             write (uout,'(2X,"Total (atomic population)",44("."),A)') string(asum,'f',12,8,4)
+             write (uout,*)
+          end do
+          deallocate(dimol,limol,namol)
+       end if
+       
        ! clean up
        call cr1%end()
        deallocate(fa,dist,io,diout,ilvec,idat)
@@ -2139,6 +2384,7 @@ contains
     use struct_basic, only: cr, crystal
     use struct_writers, only: struct_write_3dmodel
     use graphics, only: graphics_open, graphics_close, graphics_polygon
+    use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: string, uout
     use yt, only: yt_weights, ytdata_clean, ytdata
     character*3, intent(in) :: fmt
@@ -2167,7 +2413,8 @@ contains
     caux%isinit = .true.
     caux%aa = cr%aa / real(n,8)
     caux%bb = cr%bb
-    call caux%set_cryscar()
+    caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
+    caux%car2crys = matinv(caux%crys2car)
     call caux%wigner((/0d0,0d0,0d0/),nvec=caux%nws,vec=caux%ivws,&
        nvert_ws=caux%nvert_ws,nside_ws=caux%nside_ws,iside_ws=caux%iside_ws,&
        vws=caux%vws)

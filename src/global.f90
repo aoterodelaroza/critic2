@@ -98,18 +98,19 @@ module global
   ! units
   integer :: iunit
   logical :: iunit_isdef
-  character(len=:), allocatable :: iunitname
-  real*8 :: dunit
 
   integer, parameter :: iunit_bohr = 1
   integer, parameter :: iunit_ang = 2
   character*4, parameter :: iunitname0(2) = (/"bohr","ang_"/)
   real*8, parameter :: dunit0(2) = (/1d0,bohrtoa/)
 
+  ! covalent bond factor
+  real*8 :: bondfactor
+
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
-  ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = cen, 2 = full)
+  ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = full)
   integer :: doguess
 
   ! symmetry precision (spglib)
@@ -256,14 +257,15 @@ contains
     refden = 0
     precisecube = .true.
 
+    ! bond factor
+    bondfactor = 1.4d0
+
     ! symmetry
     doguess = -1
     symprec = 1d-4
 
     ! units
     iunit = iunit_bohr
-    iunitname = trim(iunitname0(iunit))
-    dunit = dunit0(iunit)
     iunit_isdef = .true.
 
     ! navigation
@@ -415,6 +417,11 @@ contains
        if (.not.ok) &
           call ferror('critic_setvariables','Wrong symprec',faterr,line,syntax=.true.)
        call check_no_extra_word(ok)
+    elseif (equal(word,'bondfactor')) then
+       ok = isreal(bondfactor,line,lp)
+       if (.not.ok) &
+          call ferror('critic_setvariables','Wrong bondfactor',faterr,line,syntax=.true.)
+       call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)
           word = lgetword(line,lp)
@@ -436,7 +443,7 @@ contains
           else if (equal(word,'maxstep')) then
              ok = isreal(NAV_step,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXSTEP',faterr,line,syntax=.true.)
-             NAV_step = NAV_step / dunit
+             NAV_step = NAV_step / dunit0(iunit)
           else if (equal(word,'maxerr')) then
              ok = isreal(NAV_maxerr,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong ODE_MODE/MAXERR',faterr,line,syntax=.true.)
@@ -452,7 +459,7 @@ contains
     else if (equal(word,'prune_distance')) then
        ok = isreal(prunedist,line,lp)
        if (.not.ok) call ferror('critic_setvariables','Wrong PRUNE_DISTANCE',faterr,line,syntax=.true.)
-       prunedist = prunedist / dunit
+       prunedist = prunedist / dunit0(iunit)
     else if (equal (word,'int_radial')) then
        do while(.true.)
           word = lgetword(line,lp)
@@ -485,7 +492,7 @@ contains
           elseif (equal(word,'prec')) then
              ok = isreal(INT_iasprec,line,lp)
              if (.not.ok) call ferror('critic_setvariables','Wrong INT_RADIAL prec',faterr,line,syntax=.true.)
-             INT_iasprec = INT_iasprec / dunit
+             INT_iasprec = INT_iasprec / dunit0(iunit)
           elseif (len_trim(word) > 0) then
              call ferror('critic_setvariables','Unknown keyword in INT_RADIAL',faterr,line,syntax=.true.)
           else
@@ -526,7 +533,7 @@ contains
        else
           call check_no_extra_word(ok)
        end if
-       stepsize = stepsize / dunit
+       stepsize = stepsize / dunit0(iunit)
     elseif (equal(word,'ode_abserr')) then
        ok = isreal(ode_abserr,line,lp)
        if (.not. ok) then
@@ -730,7 +737,6 @@ contains
              exit
           end if
        end do
-       dunit = dunit0(iunit)
     elseif (equal(word,'standardcube')) then
        precisecube = .false.
        call check_no_extra_word(ok)

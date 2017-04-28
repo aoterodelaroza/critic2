@@ -265,7 +265,7 @@ contains
     logical :: isfrag, iok
 
     ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+    call cr%checkflags(.true.,env0=.true.)
 
     ! defaults
     dormt = .true.
@@ -545,7 +545,8 @@ contains
        file3 = ""
        file4 = ""
        ff%wan%useu = .true.
-       ff%wan%dochk = .true.
+       ff%wan%sijchk = .true.
+       ff%wan%fachk = .true.
        ff%wan%haschk = .false.
        ff%wan%cutoff = -1d0
        do while (.true.)
@@ -554,8 +555,10 @@ contains
           nword = nword + 1
           if (equal(lword,"nou")) then
              ff%wan%useu = .false.
-          elseif (equal(lword,"nochk")) then
-             ff%wan%dochk = .false.
+          elseif (equal(lword,"nosijchk")) then
+             ff%wan%sijchk = .false.
+          elseif (equal(lword,"nofachk")) then
+             ff%wan%fachk = .false.
           elseif (equal(lword,"wancut")) then
              ok = eval_next(ff%wan%cutoff,line,lp)
           elseif (equal(lword,"unkgen")) then
@@ -574,9 +577,9 @@ contains
        end do
 
        if (len_trim(file3) < 1) then
-          call grid_read_unk(file,file2,ff,cr%omega,nou,ff%wan%dochk)
+          call grid_read_unk(file,file2,ff,cr%omega,nou,ff%wan%sijchk)
        else
-          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega,ff%wan%dochk)
+          call grid_read_unkgen(file,file2,file3,file4,ff,cr%omega,ff%wan%sijchk)
        end if
        ff%type = type_grid
        ff%file = trim(file)
@@ -2479,7 +2482,7 @@ contains
   !> = show load-time information, isset = show flags for this field.
   subroutine fieldinfo(id,isload,isset)
     use struct_basic
-    use global, only: dunit, iunit, iunitname0
+    use global, only: dunit0, iunit, iunitname0
     use tools_io
     integer, intent(in) :: id
     logical, intent(in) :: isload, isset
@@ -2487,7 +2490,7 @@ contains
     integer :: i, j, k, n(3)
 
     ! check that we have an environment
-    call cr%checkflags(.true.,init0=.true.,env0=.true.)
+    call cr%checkflags(.true.,env0=.true.)
 
     ! header
     write (uout,'("* Scalar field number: ",A)') string(id)
@@ -2613,7 +2616,7 @@ contains
           do j = 1, f(id)%wan%nbnd
              write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
                 (string(f(id)%wan%center(k,j,i),'f',10,6,4),k=1,3),&
-                string(f(id)%wan%spread(j,i) * dunit,'f',14,8,4)
+                string(f(id)%wan%spread(j,i) * dunit0(iunit),'f',14,8,4)
           end do
        end do
     end if

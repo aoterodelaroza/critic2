@@ -179,57 +179,70 @@ contains
   end subroutine wfn_end
 
   !> Read the molecular geometry from an xyz file
-  subroutine wfn_read_xyz_geometry(file,n,at)
+  subroutine wfn_read_xyz_geometry(file,n,x,z,name)
     use types, only: atom
     use tools_io, only: fopen_read, zatguess, isinteger, ferror, faterr, fclose
     use param, only: bohrtoa
 
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
-    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
 
     character*4 :: atsym
     integer :: lu
     integer :: i, lp
     logical :: ok
 
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+
     ! read the number of atoms
     lu = fopen_read(file)
     read (lu,*) n
     read (lu,*)
-    if (allocated(at)) deallocate(at)
-    allocate(at(n))
+    allocate(x(3,n),z(n),name(n))
 
     do i = 1, n
-       read (lu,*) atsym, at(i)%x
-       at(i)%z = zatguess(atsym)
-       if (at(i)%z <= 0) then
+       read (lu,*) atsym, x(:,i)
+       z(i) = zatguess(atsym)
+       if (z(i) <= 0) then
           ! maybe it's a number
           lp = 1
-          ok = isinteger(at(i)%z,atsym,lp)
+          ok = isinteger(z(i),atsym,lp)
           if (.not.ok) &
              call ferror('wfn_read_xyz_geometry','could not determine atomic number',faterr)
        end if
-       at(i)%name = trim(adjustl(atsym))
-       at(i)%x = at(i)%x / bohrtoa
+       name(i) = trim(adjustl(atsym))
+       x(:,i) = x(:,i) / bohrtoa
     end do
     call fclose(lu)
 
   end subroutine wfn_read_xyz_geometry
 
   !> Read the molecular geometry from a wfn file
-  subroutine wfn_read_wfn_geometry(file,n,at)
+  subroutine wfn_read_wfn_geometry(file,n,x,z,name)
     use types, only: atom
     use tools_io, only: fopen_read, ferror, faterr, zatguess, fclose
 
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
-    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
 
     character*4 :: atsym, orbtyp
     integer :: lu
     integer :: i, i1, i2
     real*8 :: zreal
+
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
 
@@ -238,14 +251,13 @@ contains
     read (lu,101) orbtyp, i1, i2, n
     if (n <= 0) &
        call ferror('wfn_read_wfn_geometry','wrong number of atoms',faterr)
-    if (allocated(at)) deallocate(at)
-    allocate(at(n))
+    allocate(x(3,n),z(n),name(n))
 
     ! read the geometry
     do i = 1, n
-       read(lu,106) atsym, at(i)%x, zreal
-       at(i)%z = zatguess(atsym)
-       at(i)%name = trim(adjustl(atsym))
+       read(lu,106) atsym, x(:,i), zreal
+       z(i) = zatguess(atsym)
+       name(i) = trim(adjustl(atsym))
     end do
 101 format (4X,A4,10X,3(I5,15X))
 106 format(2X,A2,20X,3F12.8,10X,F5.1)
@@ -255,19 +267,24 @@ contains
   end subroutine wfn_read_wfn_geometry
 
   !> Read the molecular geometry from a wfx file
-  subroutine wfn_read_wfx_geometry(file,n,at)
+  subroutine wfn_read_wfx_geometry(file,n,x,z,name)
     use types, only: atom
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, nameguess, fclose
 
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
-    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
 
     integer :: lu
     character(len=:), allocatable :: line, line2
-    integer, allocatable :: iz(:)
-    real*8, allocatable :: x(:,:)
     integer :: i
+
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
 
@@ -282,8 +299,7 @@ contains
     enddo
     if (n == 0) &
        call ferror("wfn_read_wfx_geometry","Number of Nuclei tag not found",faterr)
-    if (allocated(at)) deallocate(at)
-    allocate(at(n),iz(n),x(3,n))
+    allocate(name(n),z(n),x(3,n))
 
     ! read the geometry
     rewind(lu)
@@ -293,40 +309,41 @@ contains
        line = line2
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Atomic Numbers>") then
-             iz = wfx_read_integers(lu,n)
+             z = wfx_read_integers(lu,n)
              do i = 1, n
-                at(i)%z = iz(i)
-                at(i)%name = nameguess(iz(i))
+                name(i) = nameguess(z(i))
              end do
           elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
              x = reshape(wfx_read_reals1(lu,3*n),shape(x))
-             do i = 1, n
-                at(i)%x = x(:,i)
-             end do
           endif
        endif
     enddo
 20  continue
-    deallocate(iz,x)
 
     call fclose(lu)
 
   end subroutine wfn_read_wfx_geometry
 
   !> Read the molecular geometry from a fchk file
-  subroutine wfn_read_fchk_geometry(file,n,at)
+  subroutine wfn_read_fchk_geometry(file,n,x,z,name)
     use types, only: atom
     use tools_io, only: fopen_read, getline_raw, isinteger, ferror, faterr, nameguess, fclose
 
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
-    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
 
     integer :: lu, lp, i, j
     character(len=:), allocatable :: line
     logical :: ok
     real*8, allocatable :: xat(:)
-    integer, allocatable :: zat(:)
+
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
 
@@ -342,11 +359,9 @@ contains
     enddo
     if (n == 0) &
        call ferror("wfn_read_fchk_geometry","error reading number of atoms",faterr)
-    if (allocated(at)) deallocate(at)
-    allocate(at(n))
 
     ! read the geometry
-    allocate(zat(n),xat(3*n))
+    allocate(z(n),x(3,n),name(n),xat(3*n))
     rewind(lu)
     do while (getline_raw(lu,line))
        lp = 45
@@ -356,37 +371,43 @@ contains
           enddo
        elseif (line(1:14) == "Atomic numbers") then
           do i = 0, (n-1)/6
-             read(lu,'(6I12)') (zat(6*i+j),j=1,min(6,n-6*i))
+             read(lu,'(6I12)') (z(6*i+j),j=1,min(6,n-6*i))
           enddo
        endif
     enddo
     do i = 1, n
-       at(i)%x = xat((i-1)*3+1:(i-1)*3+3)
-       at(i)%z = zat(i)
-       at(i)%name = nameguess(zat(i))
+       x(:,i) = xat((i-1)*3+1:(i-1)*3+3)
+       name(i) = nameguess(z(i))
     end do
     
     ! clean up
-    deallocate(xat,zat)
+    deallocate(xat)
     call fclose(lu)
 
   end subroutine wfn_read_fchk_geometry
 
   !> Read the molecular geometry from a molden file (only tested with
   !> new psi4 molden files).
-  subroutine wfn_read_molden_geometry(file,n,at)
+  subroutine wfn_read_molden_geometry(file,n,x,z,name)
     use types, only: atom
     use tools_io, only: fopen_read, lower, getline_raw, lgetword, ferror, faterr, nameguess, fclose
     use param, only: bohrtoa
 
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
-    type(atom), allocatable, intent(out) :: at(:) !< Atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
 
     integer :: lu, lp, idum, i
     character(len=:), allocatable :: line, keyword, word1, word2
     character*(1024) :: fixword
     logical :: ok, isang
+
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
 
@@ -405,8 +426,7 @@ contains
     end do
     if (n == 0) &
        call ferror("wfn_read_molden_geometry","error reading number of atoms",faterr)
-    if (allocated(at)) deallocate(at)
-    allocate(at(n))
+    allocate(x(3,n),z(n),name(n))
 
     ! read the geometry
     rewind(lu)
@@ -425,9 +445,9 @@ contains
     ! read the atomic numbers and positions
     do i = 1, n
        ok = getline_raw(lu,line,.true.)
-       read(line,*) fixword, idum, at(i)%z, at(i)%x
-       if (isang) at(i)%x = at(i)%x / bohrtoa
-       at(i)%name = nameguess(at(i)%z)
+       read(line,*) fixword, idum, z(i), x(:,i)
+       if (isang) x(:,i) = x(:,i) / bohrtoa
+       name(i) = nameguess(z(i))
     end do
 
     call fclose(lu)
