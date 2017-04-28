@@ -123,17 +123,17 @@ program critic
         ! there is a previous crystal structure, clean up...
         if (cr%isinit) call clean_structure()
 
-        ! read the crystal enviornment
-        call struct_crystal_input(cr,subline,equal(word,'molecule'),.true.)
-
-        ! change default output units
+        ! change default input/output units
         if (iunit_isdef) then
-           if (cr%ismolecule) then
+           if (equal(word,'molecule')) then
               iunit = iunit_ang
            else
               iunit = iunit_bohr
            end if
         end if
+
+        ! read the crystal enviornment
+        call struct_crystal_input(cr,subline,equal(word,'molecule'),.true.)
 
         if (cr%isinit) then
            ! fill environments, asterisms, nearest neighbors
