@@ -53,7 +53,7 @@ module struct_basic
      real*8 :: bb(3) !< Cell angles (degrees)
      real*8 :: crys2car(3,3) !< Crystallographic to cartesian matrix
      ! symmetry
-     integer :: havesym = .false. !< Have symmetry? 0 = no; 1 = yes
+     integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
      integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
      integer :: neqv = 0 !< Number of symmetry operations
      integer :: ncv = 0 !< Number ofcentering vectors
@@ -2214,7 +2214,7 @@ contains
     ! rest of the seed information
     ncseed%isused = .true.
     ncseed%file = "<derived>"
-    ncseed%havesym = .false.
+    ncseed%havesym = 0
     ncseed%findsym = -1
     ncseed%ismolecule = .false.
 
