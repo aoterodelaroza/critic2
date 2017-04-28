@@ -57,36 +57,12 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 static const char bondresolution = 2;
 static const char atomresolution = 1;
 
-//
-//  Global Variables and Structs
-//
-///inpute vareables describing the current state of all used key and mouse inputs
-struct {
-  bool LeftMouseButton = 0;
-  bool RightMouseButton = 0;
-  bool MiddleMouseButton = 0;
-  double ScrollYOffset = 0.f;
-  double MPosX = 0.f;
-  double MPosY = 0.f;
-  double lastX = 0.f;
-  double lastY = 0.f;
-  double diffX = 0.f;
-  double diffY = 0.f;
-  bool ShiftKey = 0;
-  bool CtrlKey = 0;
-  bool AltKey = 0;
-} input;
-
-struct {
-  Vector3f center;
-  Vector3f dimensions;
-} boundingCube;
-
-///information about the current state of the camera
+// Current state of the camera
 static CameraInfo cam;
 
-// descriptions of the state of sevral Shader vareables
-struct {
+// Shader and shader variables
+static GLuint lightshader;
+static struct {
   GLuint gWorldLocation;
   GLuint gWVPLocation;
   GLuint vColorLocation;
@@ -94,6 +70,13 @@ struct {
   GLuint lDirectionLocation;
   GLuint fAmbientIntensityLocation;
 } ShaderVarLocations;
+
+// xxxx //
+
+struct {
+  Vector3f center;
+  Vector3f dimensions;
+} boundingCube;
 
 // all information regarding an atom
 struct atom{
@@ -200,9 +183,6 @@ static GLuint LightingShader()
       float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), lDirection)); \n \
       outputColor = vColor; \n \
       }";
-
-  //outputColor = vColor * vec4(lColor * (fAmbientIntensity+fDiffuseIntensity), 1.0);
-  //      outputColor = vColor;
 
   AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
   AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
@@ -1128,15 +1108,14 @@ int main(int argc, char *argv[])
   glGenVertexArrays(1, &VertexArray);
   glBindVertexArray(VertexArray);
 
-  //GLuint trishader = CompileShaders();
-  //gWorldLocation = glGetUniformLocation(trishader, "gWorld");
-  //mColorLocation = glGetUniformLocation(trishader, "mColor");
-  GLuint lightshader = LightingShader();
+  // Shader
+  lightshader = LightingShader();
   ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
   ShaderVarLocations.gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
   ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
   ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
   ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
+  ShaderVarLocations.fAmbientIntensityLocation = glGetUniformLocation(lightshader, "fAmbientIntensity");
  
   //glEnables
   glEnable(GL_DEPTH_TEST);
