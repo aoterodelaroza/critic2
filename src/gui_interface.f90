@@ -19,7 +19,7 @@
 
 !> Interface for the GUI.
 module gui_interface
-  use, intrinsic :: iso_c_binding
+  use c_interface_module
   implicit none
 
   private
@@ -27,29 +27,40 @@ module gui_interface
   public :: critic2_initialize
   public :: critic2_end
   public :: call_structure
+  public :: call_auto
+  public :: update_scene
+
+  ! C-interoperable atom type
+  type, bind(c) :: c_atom
+     character(kind=c_char,len=1) :: name(11) !< Atomic name
+     integer(c_int) :: z !< Atomic number
+     real(c_float) :: r(3) !< Atomic position (Cartesian, bohr)
+  end type c_atom
+
+  ! number of atoms in the scene
+  integer(c_int), bind(c) :: nat
+
+  ! allocatable pointer for atom information (fortran side)
+  type(c_atom), pointer :: at_f(:)
+
+  ! C pointer to atom information
+  type(c_ptr), bind(c) :: at 
+  
+  ! bounding box limits and center
+  real(c_float), bind(c) :: xmin(3)
+  real(c_float), bind(c) :: xmax(3)
+  real(c_float), bind(c) :: xcm(3)
+  real(c_float), bind(c) :: xmaxlen
+
   public :: get_positions
   public :: get_atom_position
   public :: get_num_atoms
   public :: num_of_bonds
   public :: get_atom_bond
-  public :: auto_cp
   public :: num_of_crit_points
   public :: get_cp_pos_type
 
   ! scene blueprint (also, see escher's representation):
-  ! 
-  ! bounding cube center (3f)
-  ! bounding cube dimensions (3f)
-  ! 
-  ! number of atoms
-  ! name
-  ! selected
-  ! atomic number
-  ! atomic position
-  ! atom tree name
-  ! number of bonds
-  ! neighbor atoms
-  ! atomtreeposition
   ! 
   ! number of bonds
   ! idx atom 1
@@ -65,10 +76,13 @@ module gui_interface
   ! type
   ! typename
   ! selected
-  
+  !
+  ! cell
+  ! molecular cell
+
 contains
 
-  !> Initialize the critic2 library
+  !> Initialize critic2.
   subroutine critic2_initialize() bind(c)
     use graphics, only: graphics_init
     use spgs, only: spgs_init
@@ -98,6 +112,7 @@ contains
     call spgs_init()
     call graphics_init()
 
+    ! banner and compilation info; do not copy input
     call initial_banner()
     call config_write(package,version,atarget,adate,f77,fflags,fc,&
        fcflags,cc,cflags,ldflags,enable_debug,datadir)
@@ -105,9 +120,12 @@ contains
     write (uout,*)
     ucopy = -1
 
+    ! clear the scene
+    call clear_scene()
+
   end subroutine critic2_initialize
 
-  !> Terminate the critic2 library
+  !> End of the critic2 run
   subroutine critic2_end() bind(c)
     use fields, only: fields_end
     use struct_basic, only: cr
@@ -130,7 +148,8 @@ contains
     call tictac('CRITIC2')
   end subroutine critic2_end
 
-  subroutine call_structure(filename0, nc, isMolecule) bind(c,name="call_structure")
+  ! Read a new molecule/crystal from an external file
+  subroutine call_structure(filename0, nc, isMolecule) bind(c)
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
        fields_integrable_report
     use grd_atomic, only: grda_init
@@ -186,7 +205,74 @@ contains
     else
        call cr%init()
     end if
+
+    ! update the scene
+    call update_scene()
+
   end subroutine call_structure
+
+  ! Calculate critical points for the current field
+  subroutine call_auto() bind (c)
+    use struct_basic, only: cr
+    use autocp, only: init_cplist, autocritic
+
+    if (cr%isinit) then
+       call autocritic("")
+    end if
+
+  end subroutine call_auto
+
+  ! Update the data in the module variables - makes it available
+  ! to the C++ code
+  subroutine update_scene() bind(c)
+    use struct_basic, only: cr
+    
+    integer :: i, npts
+
+    ! Prepare for bounding box calculation
+    xmin = 1e30
+    xmax = -1e30
+    xcm = 0.
+    xmaxlen = 0.
+    npts = 0
+
+    ! Allocate space for atoms
+    if (associated(at_f)) deallocate(at_f)
+    allocate(at_f(cr%ncel))
+
+    ! For now, just go ahead and represent the whole cell/molecule
+    nat = cr%ncel
+    do i = 1, cr%ncel
+       at_f(i)%z = cr%at(cr%atcel(i)%idx)%z
+       at_f(i)%r = cr%atcel(i)%r
+       call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
+       xmin = min(at_f(i)%r,xmin)
+       xmax = max(at_f(i)%r,xmax)
+       xcm = xcm + at_f(i)%r
+       npts = npts + 1
+    end do
+    at = c_loc(at_f)
+
+    ! wrap up center of the scene and dimensions
+    xcm = xcm / npts
+    xmaxlen = maxval(xmax - xmin)
+
+  end subroutine update_scene
+
+  ! Clear the scene
+  subroutine clear_scene() bind(c)
+
+    ! atoms
+    if (associated(at_f)) deallocate(at_f)
+    nat = 0
+    at = C_NULL_PTR
+    
+    ! bounding box
+    xmin = 0.
+    xmax = 0.
+    xcm = 0. 
+
+  end subroutine clear_scene
 
   function str_c_to_f(strc, nchar) result(strf)
     integer(kind=C_INT), intent(in), value :: nchar
@@ -293,16 +379,6 @@ contains
     end if
 
   end subroutine get_atom_bond
-
-  subroutine auto_cp() bind (c, name="auto_cp")
-    use struct_basic, only: cr
-    use autocp, only: init_cplist, autocritic
-
-    if (cr%isinit) then
-       call autocritic("")
-    end if
-
-  end subroutine auto_cp
 
   subroutine num_of_crit_points(n_critp) bind (c, name="num_of_crit_points")
     use varbas, only: ncpcel

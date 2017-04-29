@@ -48,9 +48,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 // Forward declarations //
-
 static void new_structure_dialog(bool *p_open, int ismolecule);
-static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms);
+static void ShowAppMainMenuBar(bool* show_bonds, bool* show_cps, bool* show_atoms);
 
 // Static GUI variables //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
@@ -73,10 +72,8 @@ static struct {
 
 // xxxx //
 
-struct {
-  Vector3f center;
-  Vector3f dimensions;
-} boundingCube;
+// atom * loadedAtoms;
+// int loadedAtomsAmount = 0; //number of loaded atoms (equal to what would be loadedAtoms.length)
 
 // all information regarding an atom
 struct atom{
@@ -112,8 +109,6 @@ struct criticalPoint {
 bond * bonds;
 criticalPoint * loadedCriticalPoints;
 
-atom * loadedAtoms;
-int loadedAtomsAmount = 0; //number of loaded atoms (equal to what would be loadedAtoms.length)
 int selectedAtom = 0; //atom selected by tree or search bar
 int bondsAmount = 0; //the number of bonds in the structure
 int loadedCPAmount = 0; //the number of critical points in the structure
@@ -218,7 +213,7 @@ void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
 // get mouse scroll
 void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
 {
-  float camZoomFactor = boundingCube.dimensions.Length() * 0.2f;
+  float camZoomFactor = xmaxlen * 0.2f;
   cam.Pos[2] += yoffset * camZoomFactor;
 }
 
@@ -253,12 +248,13 @@ void GenerateBondInfo(bond * b, atom * a1, atom * a2)
 // draw a bond between 2 atoms defined in the bond struct
 void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
 {
+  Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
 
   p->Scale(0.05f, 0.05f, b->length);
 
-  Vector3f pos = b->center - boundingCube.center;
+  Vector3f pos = b->center - center;
   p->Translate(pos.x, pos.y, pos.z);
   p->SetRotationMatrix(b->rotation);
 
@@ -285,12 +281,6 @@ unsigned int numbIndeces;
 
 ///remove refrences to the currently loaded molecule
 void destructLoadedMolecule(){
-  if (loadedAtomsAmount > 0){
-    for (int i=loadedAtomsAmount-1; i>=0; i--){
-      delete loadedAtoms[i].bonds;
-    }
-    loadedAtomsAmount = 0;
-  }
   if (bondsAmount > 0){
     delete bonds;
     bondsAmount = 0;
@@ -305,85 +295,14 @@ void destructCriticalPoints() {
   }
 }
 
-
-/// load atoms using the critic2 external C functions defined in interface.f90
-void loadAtoms() {
-  //fill loadedAtoms array
-  int n;
-  get_num_atoms(&n);
-
-  loadedAtomsAmount = n;
-  loadedAtoms = new atom[loadedAtomsAmount];
-
-  float minX = FLT_MAX;
-  float maxX = -FLT_MAX;
-  float minY = FLT_MAX;
-  float maxY = -FLT_MAX;
-  float minZ = FLT_MAX;
-  float maxZ = -FLT_MAX;
-
-  for (int i=0; i < n; i++) {
-    int atomicN;
-    double x;
-    double y;
-    double z;
-
-    get_atom_position(i+1, &atomicN, &x, &y, &z);
-
-    loadedAtoms[i].atomicNumber = atomicN;
-    loadedAtoms[i].atomPosition = Vector3f(x, y, z);
-
-
-    // calculate boundary and of molecule
-    if (x < minX){
-      minX = x;
-    } else if (x > maxX){
-      maxX = x;
-    }
-    if (y < minY){
-      minY = y;
-    } else if (y > maxY){
-      maxY = y;
-    }
-    if (z < minZ){
-      minZ = z;
-    } else if (z > maxZ){
-      maxZ = z;
-    }
-  }
-
-  //calculate center point of and size of molecule
-  boundingCube.center = Vector3f((minX + maxX)/2, (minY + maxY)/2, (minZ + maxZ)/2);
-  boundingCube.dimensions = Vector3f((maxX - minX), (maxY - minY), (maxZ - minZ));
-
-  //tree names must be constant
-  for (size_t x = 0; x < loadedAtomsAmount; x++) {
-    string nodeName = "";
-    nodeName += "Elem Name: ";
-    nodeName += loadedAtoms[x].name;
-    nodeName += "Atomic #:";
-    nodeName += to_string(loadedAtoms[x].atomicNumber);
-    nodeName += "  ID: ";
-    nodeName += to_string(x);
-    nodeName += "##TreeID = "; //extra info for imgui to find selection
-    nodeName += to_string(x);
-    loadedAtoms[x].atomTreeName = nodeName;
-    loadedAtoms[x].atomTreePosition = x;
-  }
-
-}
-
 /// load bonds using the critic2 external C functions defined in interface.f90
 void loadBonds() {
 
-  for (int i = 0; i < loadedAtomsAmount; i++) {
+  for (int i = 0; i < nat; i++) {
     int nstarN;
 
     num_of_bonds(i+1, &nstarN);
 
-    loadedAtoms[i].numberOfBonds = nstarN;
-    loadedAtoms[i].bonds = new int[nstarN];
-    loadedAtoms[i].neighCrystalBonds = new bool[nstarN];
     bondsAmount += nstarN;
 
     for (int j = 0; j < nstarN; j++) {
@@ -391,18 +310,18 @@ void loadBonds() {
       bool neighCrystal = false;
 
       get_atom_bond(i+1, j+1, &connected_atom, &neighCrystal);
-      loadedAtoms[i].bonds[j] = connected_atom-1;
-      loadedAtoms[i].neighCrystalBonds[j] = neighCrystal;
     }
   }
 
   bonds = new bond[bondsAmount];
   int bondidx = 0;
-  for (int i=0; i<loadedAtomsAmount; i++){
-    int numBonds = loadedAtoms[i].numberOfBonds;
+  for (int i=0; i<nat; i++){
+    // int numBonds = loadedAtoms[i].numberOfBonds;
+    int numBonds = 0;
     for (int j=0; j<numBonds; j++){
-      bonds[bondidx].neighCrystalBond = loadedAtoms[i].neighCrystalBonds[j];
-      GenerateBondInfo(&bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].bonds[j]]);
+      bonds[bondidx].neighCrystalBond = 0;
+      // bonds[bondidx].neighCrystalBond = loadedAtoms[i].neighCrystalBonds[j];
+      // GenerateBondInfo(&bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].bonds[j]]);
       bondidx += 1;
     }
   }
@@ -413,10 +332,10 @@ void loadCriticalPoints() {
   int numCP;
   num_of_crit_points(&numCP);
 
-  loadedCPAmount += (numCP - loadedAtomsAmount);
+  loadedCPAmount += (numCP - nat);
   loadedCriticalPoints = new criticalPoint[loadedCPAmount];
 
-  for (int i = loadedAtomsAmount + 1; i <= numCP; i++) {
+  for (int i = nat + 1; i <= numCP; i++) {
     int cpType;
     double x;
     double y;
@@ -424,16 +343,16 @@ void loadCriticalPoints() {
 
     get_cp_pos_type(i, &cpType, &x, &y, &z);
 
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].cpPosition = Vector3f(x, y, z);
+    loadedCriticalPoints[(i-(nat+1))].cpPosition = Vector3f(x, y, z);
 
-    loadedCriticalPoints[(i-(loadedAtomsAmount+1))].type = cpType;
+    loadedCriticalPoints[(i-(nat+1))].type = cpType;
 
     if (cpType == -1) {
-      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "bond";
+      loadedCriticalPoints[(i-(nat+1))].typeName += "bond";
     } else if (cpType == 1) {
-      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "ring";
+      loadedCriticalPoints[(i-(nat+1))].typeName += "ring";
     } else if (cpType == 3) {
-      loadedCriticalPoints[(i-(loadedAtomsAmount+1))].typeName += "cage";
+      loadedCriticalPoints[(i-(nat+1))].typeName += "cage";
     }
   }
 }
@@ -521,15 +440,17 @@ Vector3f getCritPointColor(int cpType) {
 }
 
 /// draw an atom using gl functions
-void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
+void drawAtomInstance(int id, float posVector[3], Vector3f color,
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
+  Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
+  Vector3f position = Vector3f(posVector[0],posVector[1],posVector[2]);
   //if atom is selected, brighten it
-  if (loadedAtoms[id].selected) {
-    color = color * 1.5;
-  }
+//  if (loadedAtoms[id].selected) {
+//    color = color * 1.5;
+//  }
 
-  float scaleAmount = (float)loadedAtoms[id].atomicNumber;
+  float scaleAmount = (float) at[id].z;
   // float scaleAmount = 3;
   if (scaleAmount < 4.0f) {
     scaleAmount = 0.2f;
@@ -538,7 +459,7 @@ void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
   }
   p->Scale(scaleAmount, scaleAmount, scaleAmount);
 
-  Vector3f pos = posVector - boundingCube.center;
+  Vector3f pos = position - center;
   p->Translate(pos.x, pos.y, pos.z);
   p->Rotate(0.f, 0.f, 0.f);
 
@@ -567,6 +488,7 @@ void drawAtomInstance(int id, Vector3f posVector, Vector3f color,
 /// draw a critical point using gl functions
 void drawCritPointInstance(int identifier, Vector3f posVector, const GLfloat color[4],
 			   Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+  Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
   //selection start
   float inc = 1.f;
   if (loadedCriticalPoints[identifier].selected) { //selection is color based
@@ -578,7 +500,7 @@ void drawCritPointInstance(int identifier, Vector3f posVector, const GLfloat col
 
   float scaleAmount = 0.1f;
   p->Scale(scaleAmount, scaleAmount, scaleAmount);
-  Vector3f pos = posVector - boundingCube.center;
+  Vector3f pos = posVector - center;
   p->Translate(pos.x, pos.y, pos.z);
 
   p->Rotate(0.f, 0.f, 0.f); //no rotation required
@@ -618,26 +540,11 @@ bool otherCriticalPointsVisable = true;
 
 ///draws all atoms in the loadedAtoms struct
 void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-  if (flashAtoms && loadedAtomsAmount > 0) { //flash mode
-    if (framesLeft <= 0) {
-      otherAtomsVisable = !otherAtomsVisable;
-      framesLeft = framesMax;
-    }
-    if (otherAtomsVisable) { //all visible
-      for (size_t x = 0; x < loadedAtomsAmount; x++) {
-	Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
-	drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
-      }
-    } else { // only selected atom visable
-      Vector3f color = getAtomColor(loadedAtoms[selectedAtom].atomicNumber);
-      drawAtomInstance(selectedAtom, loadedAtoms[selectedAtom].atomPosition, color, p, SphereVB, SphereIB);
-    }
-    framesLeft--;
-  } else { // regular drawing
-    for (size_t x = 0; x < loadedAtomsAmount; x++){
-      Vector3f color = getAtomColor(loadedAtoms[x].atomicNumber);
-      drawAtomInstance(x, loadedAtoms[x].atomPosition, color, p, SphereVB, SphereIB);
-    }
+  // printf("Atoms: %d\n",nat);
+  // printf("Drawing: %.10f %.10f %.10f\n",at[x].r[0],at[x].r[1],at[x].r[2]);
+  for (size_t x = 0; x < nat; x++){
+    Vector3f color = getAtomColor(at[x].z);
+    drawAtomInstance(x, at[x].r, color, p, SphereVB, SphereIB);
   }
 }
 
@@ -670,8 +577,8 @@ void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber) {
-  cam.Pos[0] = loadedAtoms[atomNumber].atomPosition.x;
-  cam.Pos[1] = loadedAtoms[atomNumber].atomPosition.y;
+  cam.Pos[0] = at[atomNumber].r[0];
+  cam.Pos[1] = at[atomNumber].r[1];
 }
 
 /// moves cam over crit point (alligned to z axis)
@@ -680,12 +587,10 @@ void lookAtCritPoint(int critPointNum) {
   cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition.y;
 }
 
-
 ///information to display in the stats list
 ///selects an atom focusing the view and displaying additonal info
 ///in the
 void selectAtom(int atomIndex) {
-  loadedAtoms[atomIndex].selected = true;
   lookAtAtom(atomIndex);
   selectedAtom = atomIndex;
 }
@@ -710,13 +615,14 @@ void displayCol(string * displayStats, int numberOfCol) {
 
 void atomBondAmountInfo(string * displayVars, int atomNumber) {
   displayVars[0] = "number of bonds";
-  displayVars[1] = to_string(loadedAtoms[atomNumber].numberOfBonds);
+  // displayVars[1] = to_string(at[atomNumber].numberOfBonds);
+  displayVars[1] = "";
   displayVars[2] = "";
 }
 
 void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
   displayVars[0] = "atomic number";
-  displayVars[1] = to_string(loadedAtoms[atomNumber].atomicNumber);
+  displayVars[1] = to_string(at[atomNumber].z);
   displayVars[2] = "";
 }
 
@@ -733,7 +639,7 @@ void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
    this is A menu bar item and must be called in a window
 */
 void drawSelectedAtomStats() {
-  if (loadedAtomsAmount == 0) {
+  if (nat == 0) {
     return;
   }
   if (ImGui::CollapsingHeader("Selected atom information")) {
@@ -798,7 +704,7 @@ void drawSelectedCPStats() {
 
 static void showMenuFunctions(){
   if (ImGui::MenuItem("Generate Critical Points")) {
-    auto_cp();
+    call_auto();
   }
   if (ImGui::MenuItem("Load Critical Points")) {
     destructCriticalPoints();
@@ -1052,15 +958,15 @@ int main(int argc, char *argv[])
     glEnableVertexAttribArray(0);
  
     // molecule drawing
-    if (show_bonds){
-      drawAllBonds(&p, CylVB, CylIB);
-    }
+    // if (show_bonds){
+    //   drawAllBonds(&p, CylVB, CylIB);
+    // }
     if (show_atoms){
       drawAllAtoms(&p, SphereVB, SphereIB);
     }
-    if (show_cps){
-      drawAllCPs(&p, SphereVB, SphereIB);
-    }
+    // if (show_cps){
+    //   drawAllCPs(&p, SphereVB, SphereIB);
+    // }
  
     ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms, &want_quit);
     if (want_quit)
@@ -1105,7 +1011,6 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
     call_structure(filename, (int)strlen(filename), ismolecule); 
     destructLoadedMolecule();
     destructCriticalPoints();
-    loadAtoms();
     loadBonds();
     firstpass = true;
     *p_open = false;

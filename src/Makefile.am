@@ -15,7 +15,8 @@ libcritic2_a_SOURCES = tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f
 	struct_basic.f90 struct_writers.f90 struct_readers.f90 struct.f90 sympg.f90 spgs.f90 grid1_tools.f90 \
 	global.f90 dftb_private.f90 wfn_private.f90 pi_private.f90 elk_private.f90 wien_private.f90 abinit_private.f90 \
 	tools_system.c tools.f90 arithmetic.F90 hashtype.f90 tools_math.f90 graphics.f90 fragmentmod.f90 tools_io.f90 \
-	types.f90 param.F90 keast.f90 quadpack.f90 cfftnd.f90 config.F90 doqhull.c spglib.f90 gui_interface.f90
+	types.f90 param.F90 keast.f90 quadpack.f90 cfftnd.f90 config.F90 doqhull.c spglib.f90 \
+	gui_interface.f90 c_interface_module.f90
 
 # Library subdirectories
 SUBDIRS = oldlibs ciftbx cubpack qhull spglib
@@ -69,7 +70,7 @@ qtree.$(OBJEXT) fields.$(OBJEXT) : elk_private.$(MODEXT)
 critic2.$(OBJEXT) fields.$(OBJEXT) : ewald.$(MODEXT)
 critic2.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) stm.$(OBJEXT) rhoplot.$(OBJEXT) quadpack.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) gui_interface.$(OBJEXT) flux.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : fields.$(MODEXT)
 critic2.$(OBJEXT) : flux.$(MODEXT)
-struct_writers.$(OBJEXT) struct_basic.$(OBJEXT) nci.$(OBJEXT) : fragmentmod.$(MODEXT)
+struct_writers.$(OBJEXT) struct_basic.$(OBJEXT) nci.$(OBJEXT) integration.$(OBJEXT) : fragmentmod.$(MODEXT)
 critic2.$(OBJEXT) xdm.$(OBJEXT) varbas.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) rhoplot.$(OBJEXT) quadpack.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) gui_interface.$(OBJEXT) grid1_tools.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : global.$(MODEXT)
 critic2.$(OBJEXT) tricks.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) nci.$(OBJEXT) integration.$(OBJEXT) gui_interface.$(OBJEXT) flux.$(OBJEXT) autocp.$(OBJEXT) : graphics.$(MODEXT)
 critic2.$(OBJEXT) xdm.$(OBJEXT) nci.$(OBJEXT) hirshfeld.$(OBJEXT) gui_interface.$(OBJEXT) grid_tools.$(OBJEXT) fields.$(OBJEXT) : grd_atomic.$(MODEXT)
@@ -82,7 +83,7 @@ qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree.$(OBJEXT) : keast.$(MODEXT
 xdm.$(OBJEXT) tricks.$(OBJEXT) : meshmod.$(MODEXT)
 rhoplot.$(OBJEXT) qtree.$(OBJEXT) flux.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : navigation.$(MODEXT)
 critic2.$(OBJEXT) : nci.$(MODEXT)
-critic2.$(OBJEXT) fields.$(OBJEXT) : pi_private.$(MODEXT)
+critic2.$(OBJEXT) gui_interface.$(OBJEXT) fields.$(OBJEXT) : pi_private.$(MODEXT)
 critic2.$(OBJEXT) : qtree.$(MODEXT)
 qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree.$(OBJEXT) : qtree_basic.$(MODEXT)
 qtree_tetrawork.$(OBJEXT) : qtree_gpaths.$(MODEXT)
@@ -101,11 +102,11 @@ qtree_basic.$(OBJEXT) qtree.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : surfac
 struct_basic.$(OBJEXT) : sympg.$(MODEXT)
 yt.$(OBJEXT) struct_basic.$(OBJEXT) integration.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : tools.$(MODEXT)
 critic2.$(OBJEXT) arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) wfn_private.$(OBJEXT) varbas.$(OBJEXT) types.$(OBJEXT) tricks.$(OBJEXT) tools_math.$(OBJEXT) tools.$(OBJEXT) sympg.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) stm.$(OBJEXT) spgs.$(OBJEXT) rhoplot.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) gui_interface.$(OBJEXT) grid_tools.$(OBJEXT) grid1_tools.$(OBJEXT) grd_atomic.$(OBJEXT) graphics.$(OBJEXT) global.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) abinit_private.$(OBJEXT) : tools_io.$(MODEXT)
-arithmetic.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) tricks.$(OBJEXT) sympg.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) rhoplot.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) grid_tools.$(OBJEXT) graphics.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : tools_math.$(MODEXT)
+arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) tricks.$(OBJEXT) sympg.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) rhoplot.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) grid_tools.$(OBJEXT) graphics.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : tools_math.$(MODEXT)
 critic2.$(OBJEXT) : tricks.$(MODEXT)
 arithmetic.$(OBJEXT) yt.$(OBJEXT) xdm.$(OBJEXT) wien_private.$(OBJEXT) wfn_private.$(OBJEXT) varbas.$(OBJEXT) tricks.$(OBJEXT) tools_math.$(OBJEXT) sympg.$(OBJEXT) surface.$(OBJEXT) struct_writers.$(OBJEXT) struct_readers.$(OBJEXT) struct_basic.$(OBJEXT) struct.$(OBJEXT) rhoplot.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) pi_private.$(OBJEXT) nci.$(OBJEXT) navigation.$(OBJEXT) meshmod.$(OBJEXT) integration.$(OBJEXT) hirshfeld.$(OBJEXT) gui_interface.$(OBJEXT) grid_tools.$(OBJEXT) grid1_tools.$(OBJEXT) grd_atomic.$(OBJEXT) graphics.$(OBJEXT) fragmentmod.$(OBJEXT) flux.$(OBJEXT) fields.$(OBJEXT) elk_private.$(OBJEXT) dftb_private.$(OBJEXT) bisect.$(OBJEXT) bader.$(OBJEXT) autocp.$(OBJEXT) : types.$(MODEXT)
 critic2.$(OBJEXT) rhoplot.$(OBJEXT) qtree_utils.$(OBJEXT) qtree_tetrawork.$(OBJEXT) qtree_gpaths.$(OBJEXT) qtree_basic.$(OBJEXT) qtree.$(OBJEXT) navigation.$(OBJEXT) integration.$(OBJEXT) gui_interface.$(OBJEXT) flux.$(OBJEXT) bisect.$(OBJEXT) autocp.$(OBJEXT) : varbas.$(MODEXT)
-critic2.$(OBJEXT) struct_readers.$(OBJEXT) integration.$(OBJEXT) fields.$(OBJEXT) : wfn_private.$(MODEXT)
+critic2.$(OBJEXT) struct_readers.$(OBJEXT) integration.$(OBJEXT) gui_interface.$(OBJEXT) fields.$(OBJEXT) : wfn_private.$(MODEXT)
 qtree.$(OBJEXT) fields.$(OBJEXT) : wien_private.$(MODEXT)
 critic2.$(OBJEXT) : xdm.$(MODEXT)
 tricks.$(OBJEXT) integration.$(OBJEXT) : yt.$(MODEXT)
