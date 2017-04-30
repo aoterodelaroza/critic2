@@ -317,6 +317,7 @@ public:
   const Matrix4f * GetWVPTrans();
 
   void SetRotationMatrix(const Matrix4f _m);
+  void SetRotationMatrix(const float _m[4][4]);
   void SetPostRotationMatrix(const Matrix4f _m);
 
 private:

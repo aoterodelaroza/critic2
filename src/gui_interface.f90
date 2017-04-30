@@ -37,6 +37,17 @@ module gui_interface
      real(c_float) :: r(3) !< Atomic position (Cartesian, bohr)
   end type c_atom
 
+  ! C-interoperable bond type
+  type, bind(c) :: c_bond
+     integer(c_int) :: i1 !< index for the first atom (C-style)
+     integer(c_int) :: i2 !< index for the second atom (C-style)
+     real(c_float) :: r1(3) !< position of the first atom (bohr)
+     real(c_float) :: r2(3) !< position of the second atom (bohr)
+     real(c_float) :: rmid(3) !< position of the bond center (bohr)
+     real(c_float) :: length !< length of the bond (bohr)
+     real(c_float) :: rot(4,4) !< rotation matrix
+  end type c_bond
+
   ! number of atoms in the scene
   integer(c_int), bind(c) :: nat
 
@@ -45,6 +56,15 @@ module gui_interface
 
   ! C pointer to atom information
   type(c_ptr), bind(c) :: at 
+  
+  ! number of bonds in the scene
+  integer(c_int), bind(c) :: nbond
+
+  ! allocatable pointer for bond information (fortran side)
+  type(c_bond), pointer :: bond_f(:)
+
+  ! C pointer to bond information
+  type(c_ptr), bind(c) :: bond
   
   ! bounding box limits and center
   real(c_float), bind(c) :: xmin(3)
@@ -61,15 +81,6 @@ module gui_interface
   public :: get_cp_pos_type
 
   ! scene blueprint (also, see escher's representation):
-  ! 
-  ! number of bonds
-  ! idx atom 1
-  ! idx atom 2
-  ! center
-  ! rotation
-  ! length
-  ! neighcrystalbond
-  ! selected
   ! 
   ! critical point
   ! position
@@ -226,8 +237,11 @@ contains
   ! to the C++ code
   subroutine update_scene() bind(c)
     use struct_basic, only: cr
+    use tools_math, only: norm, cross
     
-    integer :: i, npts
+    integer :: i, j, npts
+    real*8 :: x1(3), x2(3), xd(3), uz(3), normd, u(3), nu
+    real*8 :: ca, sa, rot(4,4)
 
     ! Prepare for bounding box calculation
     xmin = 1e30
@@ -244,14 +258,92 @@ contains
     nat = cr%ncel
     do i = 1, cr%ncel
        at_f(i)%z = cr%at(cr%atcel(i)%idx)%z
-       at_f(i)%r = cr%atcel(i)%r
+       x1 = cr%atcel(i)%r + cr%molx0
+       at_f(i)%r = x1
        call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
-       xmin = min(at_f(i)%r,xmin)
-       xmax = max(at_f(i)%r,xmax)
-       xcm = xcm + at_f(i)%r
+       xmin = min(x1,xmin)
+       xmax = max(x1,xmax)
+       xcm = xcm + x1
        npts = npts + 1
     end do
     at = c_loc(at_f)
+
+    ! Allocate space for bonds. For now, only bonds between atoms in
+    ! the main cell.
+    nbond = 0
+    do i = 1, cr%ncel
+       do j = 1, cr%nstar(i)%ncon
+          if (cr%nstar(i)%idcon(j) > i .and. all(cr%nstar(i)%lcon(:,j) == 0)) then
+             nbond = nbond + 1
+          end if
+       end do
+    end do
+    if (associated(bond_f)) deallocate(bond_f)
+    allocate(bond_f(nbond))
+    nbond = 0
+    do i = 1, cr%ncel
+       do j = 1, cr%nstar(i)%ncon
+          if (cr%nstar(i)%idcon(j) > i .and. all(cr%nstar(i)%lcon(:,j) == 0)) then
+             nbond = nbond + 1
+             bond_f(nbond)%i1 = i-1
+             bond_f(nbond)%i2 = cr%nstar(i)%idcon(j)-1
+             x1 = cr%atcel(i)%r + cr%molx0
+             x2 = cr%atcel(cr%nstar(i)%idcon(j))%r + cr%molx0
+             bond_f(nbond)%r1 = x1
+             bond_f(nbond)%r2 = x2
+             bond_f(nbond)%rmid = 0.5d0 * (x1+x2)
+             xd = x1 - x2
+             normd = norm(xd)
+             bond_f(nbond)%length = normd
+
+             ! calculate the axis and angle to rotate the bond to the z-axis
+             xd = xd / normd
+             uz = (/0d0, 0d0, 1d0/)
+             u = cross(uz,xd)
+             nu = norm(u)
+             if (nu < 1d-8) then
+                if (xd(3) > 0d0) then
+                   ca = 1d0
+                   sa = 0d0
+                   u = (/1d0,0d0,0d0/)
+                else
+                   ca = -1d0
+                   sa = 0d0
+                   u = (/1d0,0d0,0d0/)
+                end if
+             else
+                u = u / nu
+                ca = xd(3)
+                sa = sqrt(1d0 - ca**2)
+             end if
+
+             ! rotation matrix for this transformation
+             rot(1,1) = ca + u(1)*u(1)*(1d0 - ca)
+             rot(2,1) = u(1)*u(2)*(1d0 - ca) - u(3)*sa
+             rot(3,1) = u(1)*u(3)*(1d0 - ca) + u(2)*sa
+             rot(4,1) = 0d0
+
+             rot(1,2) = u(1)*u(2)*(1 - ca) + u(3)*sa
+             rot(2,2) = ca + u(2)*u(2)*(1d0 - ca)
+             rot(3,2) = u(2)*u(3)*(1d0 - ca) - u(1)*sa
+             rot(4,2) = 0d0
+
+             rot(1,3) = u(1)*u(3)*(1d0 - ca) - u(2)*sa
+             rot(2,3) = u(3)*u(2)*(1d0 - ca) + u(1)*sa
+             rot(3,3) = ca + u(3)*u(3)*(1d0 - ca)
+             rot(4,3) = 0d0
+
+             rot(1,4) = 0d0
+             rot(2,4) = 0d0
+             rot(3,4) = 0d0
+             rot(4,4) = 1d0
+
+             ! save the rotation matrix 
+             bond_f(nbond)%rot = rot
+          end if
+       end do
+    end do
+    bond = c_loc(bond_f)
 
     ! wrap up center of the scene and dimensions
     xcm = xcm / npts

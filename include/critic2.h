@@ -11,6 +11,19 @@ struct c_atom {
 int nat;
 struct c_atom *at;
 
+// Bonds
+struct c_bond {
+  int i1;
+  int i2;
+  float r1[3];
+  float r2[3];
+  float rmid[3];
+  float length;
+  float rot[4][4];
+};
+int nbond;
+struct c_bond *bond;
+
 // Bounding box
 float xmin[3];
 float xmax[3];

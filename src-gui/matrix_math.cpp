@@ -299,6 +299,26 @@ void Pipeline::SetRotationMatrix(const Matrix4f _m)
   m_rotate_trans.m[3][3] = _m.m[3][3];
 }
 
+void Pipeline::SetRotationMatrix(const float _m[4][4])
+{
+  m_rotate_trans.m[0][0] = _m[0][0];
+  m_rotate_trans.m[0][1] = _m[0][1];
+  m_rotate_trans.m[0][2] = _m[0][2];
+  m_rotate_trans.m[0][3] = _m[0][3];
+  m_rotate_trans.m[1][0] = _m[1][0];
+  m_rotate_trans.m[1][1] = _m[1][1];
+  m_rotate_trans.m[1][2] = _m[1][2];
+  m_rotate_trans.m[1][3] = _m[1][3];
+  m_rotate_trans.m[2][0] = _m[2][0];
+  m_rotate_trans.m[2][1] = _m[2][1];
+  m_rotate_trans.m[2][2] = _m[2][2];
+  m_rotate_trans.m[2][3] = _m[2][3];
+  m_rotate_trans.m[3][0] = _m[3][0];
+  m_rotate_trans.m[3][1] = _m[3][1];
+  m_rotate_trans.m[3][2] = _m[3][2];
+  m_rotate_trans.m[3][3] = _m[3][3];
+}
+
 void Pipeline::SetPostRotationMatrix(const Matrix4f _m)
 {
   m_post_rotate_trans.m[0][0] = _m.m[0][0];

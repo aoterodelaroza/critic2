@@ -88,16 +88,6 @@ struct atom{
   int atomTreePosition;
 };
 
-// information about a bond
-struct bond{
-  atom * a1;
-  atom * a2;
-  Vector3f center;
-  Matrix4f rotation;
-  float length;
-  bool neighCrystalBond;
-};
-
 /// information about a critical point
 struct criticalPoint {
   Vector3f cpPosition;
@@ -106,11 +96,11 @@ struct criticalPoint {
   bool selected = false;
 };
 
-bond * bonds;
+// bond * bonds;
 criticalPoint * loadedCriticalPoints;
 
 int selectedAtom = 0; //atom selected by tree or search bar
-int bondsAmount = 0; //the number of bonds in the structure
+// int bondsAmount = 0; //the number of bonds in the structure
 int loadedCPAmount = 0; //the number of critical points in the structure
 int selectedCP = 0; //critical point selected by the tree
 
@@ -217,46 +207,15 @@ void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
   cam.Pos[2] += yoffset * camZoomFactor;
 }
 
-// rotate the bonds into place on screen based on the atoms specifiyed
-void GenerateBondInfo(bond * b, atom * a1, atom * a2)
-{
-  b->a1 = a1;
-  b->a2 = a2;
-
-  Vector3f mid = (a1->atomPosition + a2->atomPosition)/2;
-  Vector3f q = a1->atomPosition - a2->atomPosition;
-  float d = q.Length()/2;
-
-  b->length = d;
-  b->center = mid;
-
-  Vector3f n_q = Vector3f(q);
-  n_q.Normalize();
-
-  Vector3f z_axis = Vector3f(0, 0, 1);
-  z_axis.Normalize();
-  Vector3f axis = z_axis.Cross(n_q);
-  axis.Normalize();
-  float angle = acosf(z_axis.Dot(n_q));
-
-  Matrix4f Rot;
-  Rot.InitRotateAxisTransform(axis, angle);
-
-  b->rotation = Rot;
-}
-
 // draw a bond between 2 atoms defined in the bond struct
-void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, bond * b)
+void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, c_bond *b)
 {
-  Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
 
   p->Scale(0.05f, 0.05f, b->length);
-
-  Vector3f pos = b->center - center;
-  p->Translate(pos.x, pos.y, pos.z);
-  p->SetRotationMatrix(b->rotation);
+  p->Translate(b->r2[0]-xcm[0], b->r2[1]-xcm[1], b->r2[2]-xcm[2]);
+  p->SetRotationMatrix(b->rot);
 
   float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
@@ -279,51 +238,11 @@ GLuint atomVB; //atom vertacies
 GLuint atomIB; //atom indecies ~(direction of verts)
 unsigned int numbIndeces;
 
-///remove refrences to the currently loaded molecule
-void destructLoadedMolecule(){
-  if (bondsAmount > 0){
-    delete bonds;
-    bondsAmount = 0;
-  }
-}
-
 ///remove refrences to the currently loaded critical points
 void destructCriticalPoints() {
   if (loadedCPAmount > 0) {
     loadedCriticalPoints = NULL;
     loadedCPAmount = 0;
-  }
-}
-
-/// load bonds using the critic2 external C functions defined in interface.f90
-void loadBonds() {
-
-  for (int i = 0; i < nat; i++) {
-    int nstarN;
-
-    num_of_bonds(i+1, &nstarN);
-
-    bondsAmount += nstarN;
-
-    for (int j = 0; j < nstarN; j++) {
-      int connected_atom;
-      bool neighCrystal = false;
-
-      get_atom_bond(i+1, j+1, &connected_atom, &neighCrystal);
-    }
-  }
-
-  bonds = new bond[bondsAmount];
-  int bondidx = 0;
-  for (int i=0; i<nat; i++){
-    // int numBonds = loadedAtoms[i].numberOfBonds;
-    int numBonds = 0;
-    for (int j=0; j<numBonds; j++){
-      bonds[bondidx].neighCrystalBond = 0;
-      // bonds[bondidx].neighCrystalBond = loadedAtoms[i].neighCrystalBonds[j];
-      // GenerateBondInfo(&bonds[bondidx], &loadedAtoms[i], &loadedAtoms[loadedAtoms[i].bonds[j]]);
-      bondidx += 1;
-    }
   }
 }
 
@@ -360,10 +279,8 @@ void loadCriticalPoints() {
 // iterates though all bonds[] and draws them
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
-  for (int i=0; i< bondsAmount; i++){
-    if (!bonds[i].neighCrystalBond) {
-      DrawBond(p, CylVB, CylIB, &bonds[i]);
-    }
+  for (int i=0; i<nbond; i++){
+    DrawBond(p, CylVB, CylIB, &bond[i]);
   }
 }
 
@@ -757,7 +674,6 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 	if (ImGui::MenuItem("Open recent")) {}
 	ImGui::Separator();
 	if (ImGui::MenuItem("Close","Ctrl+W")) {
-	  destructLoadedMolecule();
 	  destructCriticalPoints();
 	}
 	if (ImGui::MenuItem("Quit","Ctrl+Q")) 
@@ -958,9 +874,9 @@ int main(int argc, char *argv[])
     glEnableVertexAttribArray(0);
  
     // molecule drawing
-    // if (show_bonds){
-    //   drawAllBonds(&p, CylVB, CylIB);
-    // }
+    if (show_bonds){
+      drawAllBonds(&p, CylVB, CylIB);
+    }
     if (show_atoms){
       drawAllAtoms(&p, SphereVB, SphereIB);
     }
@@ -1006,12 +922,9 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
 
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
-    destructLoadedMolecule();
     destructCriticalPoints();
     call_structure(filename, (int)strlen(filename), ismolecule); 
-    destructLoadedMolecule();
     destructCriticalPoints();
-    loadBonds();
     firstpass = true;
     *p_open = false;
   }
