@@ -24,6 +24,15 @@ struct c_bond {
 int nbond;
 struct c_bond *bond;
 
+// Critical points
+struct c_critp {
+  float r[3];
+  int type;
+  char name[11];
+};
+int ncritp;
+struct c_critp *critp;
+
 // Bounding box
 float xmin[3];
 float xmax[3];

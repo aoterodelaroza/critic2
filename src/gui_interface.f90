@@ -48,6 +48,13 @@ module gui_interface
      real(c_float) :: rot(4,4) !< rotation matrix
   end type c_bond
 
+  ! C-interoperable critical point
+  type, bind(c) :: c_critp
+     real(c_float) :: r(3) !< position (bohr)
+     integer(c_int) :: type !< type (-3,-1,1,3)
+     character(kind=c_char,len=1) :: name(11) !< Name
+  end type c_critp
+
   ! number of atoms in the scene
   integer(c_int), bind(c) :: nat
 
@@ -65,6 +72,15 @@ module gui_interface
 
   ! C pointer to bond information
   type(c_ptr), bind(c) :: bond
+  
+  ! number of atoms in the scene
+  integer(c_int), bind(c) :: ncritp
+
+  ! allocatable pointer for atom information (fortran side)
+  type(c_critp), pointer :: critp_f(:)
+
+  ! C pointer to atom information
+  type(c_ptr), bind(c) :: critp
   
   ! bounding box limits and center
   real(c_float), bind(c) :: xmin(3)
@@ -231,11 +247,14 @@ contains
        call autocritic("")
     end if
 
+    call update_scene()
+
   end subroutine call_auto
 
   ! Update the data in the module variables - makes it available
   ! to the C++ code
   subroutine update_scene() bind(c)
+    use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
     use tools_math, only: norm, cross
     
@@ -252,7 +271,7 @@ contains
 
     ! Allocate space for atoms
     if (associated(at_f)) deallocate(at_f)
-    allocate(at_f(cr%ncel))
+    allocate(at_f(max(cr%ncel,1)))
 
     ! For now, just go ahead and represent the whole cell/molecule
     nat = cr%ncel
@@ -279,7 +298,7 @@ contains
        end do
     end do
     if (associated(bond_f)) deallocate(bond_f)
-    allocate(bond_f(nbond))
+    allocate(bond_f(max(nbond,1)))
     nbond = 0
     do i = 1, cr%ncel
        do j = 1, cr%nstar(i)%ncon
@@ -344,6 +363,26 @@ contains
        end do
     end do
     bond = c_loc(bond_f)
+
+    ! Allocate space for critical points
+    ncritp = ncpcel - cr%ncel
+    if (associated(critp_f)) deallocate(critp_f)
+    allocate(critp_f(max(ncritp,1)))
+
+    ! For now, just go ahead and represent the whole cell
+    j = 0
+    do i = cr%ncel+1, ncpcel
+       j = j + 1
+       x1 = cpcel(i)%r + cr%molx0
+       critp_f(j)%r = x1
+       critp_f(j)%type = cpcel(i)%typ
+       call f_c_string(cpcel(i)%name,critp_f(j)%name,11)
+       xmin = min(x1,xmin)
+       xmax = max(x1,xmax)
+       xcm = xcm + x1
+       npts = npts + 1
+    end do
+    critp = c_loc(critp_f)
 
     ! wrap up center of the scene and dimensions
     xcm = xcm / npts

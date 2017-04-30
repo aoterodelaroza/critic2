@@ -96,9 +96,6 @@ struct criticalPoint {
   bool selected = false;
 };
 
-// bond * bonds;
-criticalPoint * loadedCriticalPoints;
-
 int selectedAtom = 0; //atom selected by tree or search bar
 // int bondsAmount = 0; //the number of bonds in the structure
 int loadedCPAmount = 0; //the number of critical points in the structure
@@ -238,44 +235,6 @@ GLuint atomVB; //atom vertacies
 GLuint atomIB; //atom indecies ~(direction of verts)
 unsigned int numbIndeces;
 
-///remove refrences to the currently loaded critical points
-void destructCriticalPoints() {
-  if (loadedCPAmount > 0) {
-    loadedCriticalPoints = NULL;
-    loadedCPAmount = 0;
-  }
-}
-
-/// load critical points using the critic2 external C functions defined in interface.f90
-void loadCriticalPoints() {
-  int numCP;
-  num_of_crit_points(&numCP);
-
-  loadedCPAmount += (numCP - nat);
-  loadedCriticalPoints = new criticalPoint[loadedCPAmount];
-
-  for (int i = nat + 1; i <= numCP; i++) {
-    int cpType;
-    double x;
-    double y;
-    double z;
-
-    get_cp_pos_type(i, &cpType, &x, &y, &z);
-
-    loadedCriticalPoints[(i-(nat+1))].cpPosition = Vector3f(x, y, z);
-
-    loadedCriticalPoints[(i-(nat+1))].type = cpType;
-
-    if (cpType == -1) {
-      loadedCriticalPoints[(i-(nat+1))].typeName += "bond";
-    } else if (cpType == 1) {
-      loadedCriticalPoints[(i-(nat+1))].typeName += "ring";
-    } else if (cpType == 3) {
-      loadedCriticalPoints[(i-(nat+1))].typeName += "cage";
-    }
-  }
-}
-
 // iterates though all bonds[] and draws them
 void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
 {
@@ -346,7 +305,9 @@ Vector3f getAtomColor(int atomicNumber) {
 ///Set critical point color based on type
 Vector3f getCritPointColor(int cpType) {
   Vector3f color;
-  if (cpType == -1) {     // bond cp = yellow
+  if (cpType == -3) { // nuclear cp = blue
+    color = Vector3f(0, 0, 1);
+  } else if (cpType == -1) {     // bond cp = yellow
     color = Vector3f(1, 1, 0);
   } else if (cpType == 1) {   // ring cp = light grey
     color = Vector3f(0.6588, 0.6588, 0.6588);
@@ -403,24 +364,16 @@ void drawAtomInstance(int id, float posVector[3], Vector3f color,
 }
 
 /// draw a critical point using gl functions
-void drawCritPointInstance(int identifier, Vector3f posVector, const GLfloat color[4],
+void drawCritPointInstance(int identifier, float posVector[3], const GLfloat color[4],
 			   Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-  Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
   //selection start
   float inc = 1.f;
-  if (loadedCriticalPoints[identifier].selected) { //selection is color based
-    inc = 1.5f;
-  }
-
   GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
-  //selection end
 
   float scaleAmount = 0.1f;
   p->Scale(scaleAmount, scaleAmount, scaleAmount);
-  Vector3f pos = posVector - center;
-  p->Translate(pos.x, pos.y, pos.z);
-
-  p->Rotate(0.f, 0.f, 0.f); //no rotation required
+  p->Translate(posVector[0]-xcm[0],posVector[1]-xcm[1],posVector[2]-xcm[2]);
+  p->Rotate(0.f, 0.f, 0.f); 
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
   glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
@@ -446,13 +399,13 @@ bool flashAtoms = false; // toggle with selection toggles (in gui)
 //the number of frames the deselected atoms stay invisable
 int framesMax = 15; // ~0.5 seconds
 int framesLeft = 0;
-bool otherAtomsVisable = true;
+bool otherAtomsVisible = true;
 
 
 bool flashCP = false;
 int framesMaxCP = 15;
 int framesLeftCP = 0;
-bool otherCriticalPointsVisable = true;
+bool otherCriticalPointsVisible = true;
 
 
 ///draws all atoms in the loadedAtoms struct
@@ -467,28 +420,9 @@ void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
 ///draws all loaded critical points
 void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-  //cp flashing
-  if (flashCP) {
-    if (framesLeftCP <= 0) {
-      otherCriticalPointsVisable = !otherCriticalPointsVisable;
-      framesLeftCP = framesMaxCP;
-    }
-    if(otherCriticalPointsVisable)
-      for (int x = 0; x < loadedCPAmount; x++) {
-	Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
-	drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
-      }
-    else {
-      Vector3f color = getCritPointColor(loadedCriticalPoints[selectedCP].type);
-      drawCritPointInstance(selectedCP, loadedCriticalPoints[selectedCP].cpPosition, color, p, SphereVB, SphereIB);
-    }
-    framesLeftCP--;
-  }
-  else {
-    for (int x = 0; x < loadedCPAmount; x++) {
-      Vector3f color = getCritPointColor(loadedCriticalPoints[x].type);
-      drawCritPointInstance(x, loadedCriticalPoints[x].cpPosition, color, p, SphereVB, SphereIB);
-    }
+  for (int x = 0; x < ncritp; x++) {
+    Vector3f color = getCritPointColor(critp[x].type);
+    drawCritPointInstance(x, critp[x].r, color, p, SphereVB, SphereIB);
   }
 }
 
@@ -500,8 +434,8 @@ void lookAtAtom(int atomNumber) {
 
 /// moves cam over crit point (alligned to z axis)
 void lookAtCritPoint(int critPointNum) {
-  cam.Pos[0] = loadedCriticalPoints[critPointNum].cpPosition.x;
-  cam.Pos[1] = loadedCriticalPoints[critPointNum].cpPosition.y;
+  cam.Pos[0] = critp[critPointNum].r[0];
+  cam.Pos[1] = critp[critPointNum].r[1];
 }
 
 ///information to display in the stats list
@@ -511,13 +445,6 @@ void selectAtom(int atomIndex) {
   lookAtAtom(atomIndex);
   selectedAtom = atomIndex;
 }
-
-void selectCriticalPoint(int cpIndex) {
-  loadedCriticalPoints[cpIndex].selected = true;
-  lookAtCritPoint(cpIndex);
-  selectedCP = cpIndex;
-}
-
 
 //This methods are used to display additonal information about
 //a perticular critical point or atom
@@ -545,7 +472,7 @@ void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
 
 void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
   displayVars[0] = "critical point Type";
-  displayVars[1] = loadedCriticalPoints[criticalPointIndex].typeName;
+  // displayVars[1] = loadedCriticalPoints[criticalPointIndex].typeName;
   displayVars[2] = "";
 }
 
@@ -623,10 +550,6 @@ static void showMenuFunctions(){
   if (ImGui::MenuItem("Generate Critical Points")) {
     call_auto();
   }
-  if (ImGui::MenuItem("Load Critical Points")) {
-    destructCriticalPoints();
-    loadCriticalPoints();
-  }
 }
 
 static void showMenuVisuals(bool * show_bonds, bool * show_cps, bool * show_atoms) {
@@ -644,7 +567,7 @@ static void showMenuVisuals(bool * show_bonds, bool * show_cps, bool * show_atom
     flashAtoms = !flashAtoms;
     framesMax = 15; // ~0.5 seconds
     framesLeft = 0;
-    otherAtomsVisable = true;
+    otherAtomsVisible = true;
   }
 }
 
@@ -674,7 +597,6 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 	if (ImGui::MenuItem("Open recent")) {}
 	ImGui::Separator();
 	if (ImGui::MenuItem("Close","Ctrl+W")) {
-	  destructCriticalPoints();
 	}
 	if (ImGui::MenuItem("Quit","Ctrl+Q")) 
 	  *want_quit = true;
@@ -880,9 +802,9 @@ int main(int argc, char *argv[])
     if (show_atoms){
       drawAllAtoms(&p, SphereVB, SphereIB);
     }
-    // if (show_cps){
-    //   drawAllCPs(&p, SphereVB, SphereIB);
-    // }
+    if (show_cps){
+      drawAllCPs(&p, SphereVB, SphereIB);
+    }
  
     ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms, &want_quit);
     if (want_quit)
@@ -922,9 +844,7 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
 
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
-    destructCriticalPoints();
     call_structure(filename, (int)strlen(filename), ismolecule); 
-    destructCriticalPoints();
     firstpass = true;
     *p_open = false;
   }
