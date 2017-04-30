@@ -211,90 +211,8 @@ GLuint atomVB; //atom vertacies
 GLuint atomIB; //atom indecies ~(direction of verts)
 unsigned int numbIndeces;
 
-// iterates though all bonds[] and draws them
-void drawAllBonds(Pipeline * p, GLuint CylVB, GLuint CylIB)
-{
-  for (int i=0; i<nbond; i++){
-    DrawBond(p, CylVB, CylIB, &bond[i]);
-  }
-}
-
-/// setting color of meshes based on some input
-///returns the color of an atom based on the atomic number
-///and desired color Intesity (brightness)
-Vector3f getAtomColor(int atomicNumber) {
-  Vector3f color;
-  if (atomicNumber == 1) {     // Hydrogen = white
-    color = Vector3f(1, 1, 1);
-  } else if (atomicNumber == 6) {   // Carbon = black
-    color = Vector3f(0, 0, 0);
-  } else if (atomicNumber == 7) {   // Nitrogen = dark blue
-    color = Vector3f(0, 0, 0.5);
-  } else if (atomicNumber == 8) {   // Oxygen = red
-    color = Vector3f(1, 0, 0);
-  } else if (atomicNumber == 9 || atomicNumber == 17) {   // Fluorine & Chlorine = green
-    color = Vector3f(0, 1, 0);
-  } else if (atomicNumber == 35) {  // Bromine = dark red
-    color = Vector3f(0.5, 0, 0);
-  } else if (atomicNumber == 53) {  // Iodine = dark violet
-    color = Vector3f(0.5, 0, 0.5);
-  } else if (atomicNumber == 2 ||    // noble gases (He, Ne, Ar, Kr, Xe, Rn) = cyan
-	     atomicNumber == 10 ||
-	     atomicNumber == 18 ||
-	     atomicNumber == 36 ||
-	     atomicNumber == 54 ||
-	     atomicNumber == 86) {
-    color = Vector3f(0, 1, 1);
-  } else if (atomicNumber == 15) {  // Potassium = orange
-    color = Vector3f(1, 0.5, 0);
-  } else if (atomicNumber == 16) {  // sulfur = yellow
-    color = Vector3f(1, 1, 0);
-  } else if (atomicNumber == 3 ||   // alkali metals = violet
-             atomicNumber == 11 ||
-             atomicNumber == 19 ||
-             atomicNumber == 37 ||
-             atomicNumber == 55 ||
-             atomicNumber == 87){
-    color = Vector3f(1, 0, 1);
-  } else if (atomicNumber == 4 ||   // alkaline earth metals = dark green
-             atomicNumber == 12 ||
-             atomicNumber == 20 ||
-             atomicNumber == 38 ||
-             atomicNumber == 56 ||
-             atomicNumber == 88){
-    color = Vector3f(0, 0.5, 0);
-  } else if (atomicNumber == 81) {  // titaniam = gray
-    color = Vector3f(0.75, 0.75, 0.75);
-  } else if (atomicNumber == 26) {  // iron = dark orange
-    color = Vector3f(0.75, 0.25, 0);
-  } else if ((atomicNumber >= 21 && atomicNumber <= 30) ||  // transition metals = orange/pink
-             (atomicNumber >= 39 && atomicNumber <= 48) ||
-             (atomicNumber >= 57 && atomicNumber <= 80) ||
-             (atomicNumber >= 89 && atomicNumber <= 112)){
-    color = Vector3f(1, 0.5, 0.3);
-  } else  {   // all other atoms = pink
-    color = Vector3f(1, 0.25, 0.5);
-  }
-  return color;
-}
-
-///Set critical point color based on type
-Vector3f getCritPointColor(int cpType) {
-  Vector3f color;
-  if (cpType == -3) { // nuclear cp = blue
-    color = Vector3f(0, 0, 1);
-  } else if (cpType == -1) {     // bond cp = yellow
-    color = Vector3f(1, 1, 0);
-  } else if (cpType == 1) {   // ring cp = light grey
-    color = Vector3f(0.6588, 0.6588, 0.6588);
-  } else  {   // cage cp = light purple
-    color = Vector3f(0.94, 0.81, 0.99);
-  }
-  return color;
-}
-
 /// draw an atom using gl functions
-void drawAtomInstance(int id, float posVector[3], Vector3f color,
+void drawAtomInstance(int id, float posVector[3], float color[3],
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
   Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
@@ -314,7 +232,7 @@ void drawAtomInstance(int id, float posVector[3], Vector3f color,
   glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&color);
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, color);
   glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
   /*
   //TODO draw atom ID number
@@ -330,12 +248,8 @@ void drawAtomInstance(int id, float posVector[3], Vector3f color,
 }
 
 /// draw a critical point using gl functions
-void drawCritPointInstance(int identifier, float posVector[3], const GLfloat color[4],
+void drawCritPointInstance(int identifier, float posVector[3], float color[3],
 			   Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-  //selection start
-  float inc = 1.f;
-  GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
-
   p->Scale(cpsize, cpsize, cpsize);
   p->Translate(posVector[0]-xcm[0],posVector[1]-xcm[1],posVector[2]-xcm[2]);
   p->Rotate(0.f, 0.f, 0.f); 
@@ -344,7 +258,7 @@ void drawCritPointInstance(int identifier, float posVector[3], const GLfloat col
   glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&n_Color);
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, color);
   glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
   /*
   //TODO draw crit point ID number or type?
@@ -372,24 +286,6 @@ int framesMaxCP = 15;
 int framesLeftCP = 0;
 bool otherCriticalPointsVisible = true;
 
-
-///draws all atoms in the loadedAtoms struct
-void drawAllAtoms(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-  // printf("Atoms: %d\n",nat);
-  // printf("Drawing: %.10f %.10f %.10f\n",at[x].r[0],at[x].r[1],at[x].r[2]);
-  for (size_t x = 0; x < nat; x++){
-    Vector3f color = getAtomColor(at[x].z);
-    drawAtomInstance(x, at[x].r, color, p, SphereVB, SphereIB);
-  }
-}
-
-///draws all loaded critical points
-void drawAllCPs(Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
-  for (int x = 0; x < ncritp; x++) {
-    Vector3f color = getCritPointColor(critp[x].type);
-    drawCritPointInstance(x, critp[x].r, color, p, SphereVB, SphereIB);
-  }
-}
 
 /// moves cam over atom (alligned to z axis)
 void lookAtAtom(int atomNumber) {
@@ -684,13 +580,19 @@ int main(int argc, char *argv[])
  
     // molecule drawing
     if (show_bonds){
-      drawAllBonds(&p, CylVB, CylIB);
+      for (int i=0; i<nbond; i++){
+	DrawBond(&p, CylVB, CylIB, &bond[i]);
+      }
     }
     if (show_atoms){
-      drawAllAtoms(&p, SphereVB, SphereIB);
+      for (size_t x = 0; x < nat; x++){
+	drawAtomInstance(x, at[x].r, at[x].rgb, &p, SphereVB, SphereIB);
+      }
     }
     if (show_cps){
-      drawAllCPs(&p, SphereVB, SphereIB);
+      for (int x = 0; x < ncritp; x++) {
+	drawCritPointInstance(x, critp[x].r, critp[x].rgb, &p, SphereVB, SphereIB);
+      }
     }
  
     ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms, &want_quit);

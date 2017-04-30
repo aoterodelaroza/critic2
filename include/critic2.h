@@ -8,6 +8,7 @@ struct c_atom {
   int z;
   float r[3];
   float rad;
+  float rgb[3];
 };
 int nat;
 struct c_atom *at;
@@ -29,6 +30,7 @@ struct c_bond *bond;
 struct c_critp {
   float r[3];
   int type;
+  float rgb[3];
   char name[11];
 };
 int ncritp;

@@ -36,6 +36,7 @@ module gui_interface
      integer(c_int) :: z !< Atomic number
      real(c_float) :: r(3) !< Atomic position (Cartesian, bohr)
      real(c_float) :: rad !< Atomic radius
+     real(c_float) :: rgb(3) !< Color
   end type c_atom
 
   ! C-interoperable bond type
@@ -53,6 +54,7 @@ module gui_interface
   type, bind(c) :: c_critp
      real(c_float) :: r(3) !< position (bohr)
      integer(c_int) :: type !< type (-3,-1,1,3)
+     real(c_float) :: rgb(3) !< Color
      character(kind=c_char,len=1) :: name(11) !< Name
   end type c_critp
 
@@ -252,7 +254,7 @@ contains
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
     use tools_math, only: norm, cross
-    use param, only: atmcov
+    use param, only: atmcov, jmlcol, maxzat
     
     integer :: i, j, npts, iz
     real*8 :: x1(3), x2(3), xd(3), uz(3), normd, u(3), nu
@@ -281,6 +283,7 @@ contains
        else
           at_f(i)%rad = 2d0*atmcov(iz)
        end if
+       at_f(i)%rgb = real(jmlcol(:,iz),4) / 255.
        call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
        xmin = min(x1,xmin)
        xmax = max(x1,xmax)
@@ -375,9 +378,11 @@ contains
     j = 0
     do i = cr%ncel+1, ncpcel
        j = j + 1
+       iz = maxzat + 1 + cpcel(i)%typind
        x1 = cpcel(i)%r + cr%molx0
        critp_f(j)%r = x1
        critp_f(j)%type = cpcel(i)%typ
+       critp_f(j)%rgb = real(jmlcol(:,iz),4) / 255.
        call f_c_string(cpcel(i)%name,critp_f(j)%name,11)
        xmin = min(x1,xmin)
        xmax = max(x1,xmax)
