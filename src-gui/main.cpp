@@ -56,6 +56,11 @@ static void ShowAppMainMenuBar(bool* show_bonds, bool* show_cps, bool* show_atom
 static const char bondresolution = 2;
 static const char atomresolution = 1;
 
+// Bond thickness and atom/CP size
+static const float bondthickness = 0.05;
+static const float atomsize = 0.5;
+static const float cpsize = 0.2;
+
 // Current state of the camera
 static CameraInfo cam;
 
@@ -71,35 +76,6 @@ static struct {
 } ShaderVarLocations;
 
 // xxxx //
-
-// atom * loadedAtoms;
-// int loadedAtomsAmount = 0; //number of loaded atoms (equal to what would be loadedAtoms.length)
-
-// all information regarding an atom
-struct atom{
-  string name = "";
-  bool selected = false;
-  int atomicNumber;
-  Vector3f atomPosition;
-  string atomTreeName; //must be saved to preserve imgui tree Id's
-  int numberOfBonds;
-  int * bonds;
-  bool * neighCrystalBonds;
-  int atomTreePosition;
-};
-
-/// information about a critical point
-struct criticalPoint {
-  Vector3f cpPosition;
-  int type;
-  string typeName = "";
-  bool selected = false;
-};
-
-int selectedAtom = 0; //atom selected by tree or search bar
-// int bondsAmount = 0; //the number of bonds in the structure
-int loadedCPAmount = 0; //the number of critical points in the structure
-int selectedCP = 0; //critical point selected by the tree
 
 // Standard error print to console
 static void error_callback(int error, const char* description)
@@ -210,7 +186,7 @@ void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, c_bond *b)
   float grey[3] = {.5, .5, .5};
   float white[3] = {1, 1, 1};
 
-  p->Scale(0.05f, 0.05f, b->length);
+  p->Scale(bondthickness, bondthickness, b->length);
   p->Translate(b->r2[0]-xcm[0], b->r2[1]-xcm[1], b->r2[2]-xcm[2]);
   p->SetRotationMatrix(b->rot);
 
@@ -323,19 +299,9 @@ void drawAtomInstance(int id, float posVector[3], Vector3f color,
 
   Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
   Vector3f position = Vector3f(posVector[0],posVector[1],posVector[2]);
-  //if atom is selected, brighten it
-//  if (loadedAtoms[id].selected) {
-//    color = color * 1.5;
-//  }
 
-  float scaleAmount = (float) at[id].z;
-  // float scaleAmount = 3;
-  if (scaleAmount < 4.0f) {
-    scaleAmount = 0.2f;
-  } else {
-    scaleAmount = 0.4f;
-  }
-  p->Scale(scaleAmount, scaleAmount, scaleAmount);
+  float rscal = atomsize * at[id].rad;
+  p->Scale(rscal,rscal,rscal);
 
   Vector3f pos = position - center;
   p->Translate(pos.x, pos.y, pos.z);
@@ -370,8 +336,7 @@ void drawCritPointInstance(int identifier, float posVector[3], const GLfloat col
   float inc = 1.f;
   GLfloat n_Color[] = {color[0] * inc,color[1] * inc,color[2] * inc, color[3]};
 
-  float scaleAmount = 0.1f;
-  p->Scale(scaleAmount, scaleAmount, scaleAmount);
+  p->Scale(cpsize, cpsize, cpsize);
   p->Translate(posVector[0]-xcm[0],posVector[1]-xcm[1],posVector[2]-xcm[2]);
   p->Rotate(0.f, 0.f, 0.f); 
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
@@ -438,14 +403,6 @@ void lookAtCritPoint(int critPointNum) {
   cam.Pos[1] = critp[critPointNum].r[1];
 }
 
-///information to display in the stats list
-///selects an atom focusing the view and displaying additonal info
-///in the
-void selectAtom(int atomIndex) {
-  lookAtAtom(atomIndex);
-  selectedAtom = atomIndex;
-}
-
 //This methods are used to display additonal information about
 //a perticular critical point or atom
 //number of displayVars is currently assumed to be 3
@@ -474,76 +431,6 @@ void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
   displayVars[0] = "critical point Type";
   // displayVars[1] = loadedCriticalPoints[criticalPointIndex].typeName;
   displayVars[2] = "";
-}
-
-
-
-/**
-   display any information about the currently selected atom
-   this is A menu bar item and must be called in a window
-*/
-void drawSelectedAtomStats() {
-  if (nat == 0) {
-    return;
-  }
-  if (ImGui::CollapsingHeader("Selected atom information")) {
-    const int numberOfColumns = 3;
-
-    ImGui::Columns(numberOfColumns, "mycolumns");
-    ImGui::Separator();
-
-    //----column names
-    ImGui::Text("Info Type"); ImGui::NextColumn();
-    ImGui::Text("Value1"); ImGui::NextColumn();
-    ImGui::Text("Value2"); ImGui::NextColumn();
-    //-----
-
-    ImGui::Separator();
-
-    string displayStats[numberOfColumns];
-
-    //loading stats into string array and displaying them
-    atomBondAmountInfo(displayStats, selectedAtom);
-    displayCol(displayStats, numberOfColumns);
-
-    atomAtomicNumberInfo(displayStats, selectedAtom);
-    displayCol(displayStats, numberOfColumns);
-
-    ImGui::Columns(1);
-  }
-
-}
-
-void drawSelectedCPStats() {
-  if (loadedCPAmount == 0 || selectedCP < 0) {
-    return;
-  }
-  if (selectedCP >= loadedCPAmount) {
-    // cout << "error in cp stat display: selected greater than number" << endl;
-    return;
-  }
-
-  bool p_open = false;
-
-  if (ImGui::CollapsingHeader("critical point information")) {
-    const int numberOfColums = 3;
-
-    ImGui::Columns(numberOfColums, "mycolumns");
-    ImGui::Separator();
-    ImGui::Text("Info Type"); ImGui::NextColumn();
-    ImGui::Text("Value1"); ImGui::NextColumn();
-    ImGui::Text("Value2"); ImGui::NextColumn();
-    ImGui::Separator();
-
-    string displayStats[numberOfColums];
-
-    criticalPointTypeInfo(displayStats, selectedCP);
-    displayCol(displayStats, numberOfColums);
-
-    //CP stat 2
-    //displayCol(displayStats, numberOfColums);
-    ImGui::Columns(1);
-  }
 }
 
 static void showMenuFunctions(){

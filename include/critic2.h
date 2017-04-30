@@ -7,6 +7,7 @@ struct c_atom {
   char name[11];
   int z;
   float r[3];
+  float rad;
 };
 int nat;
 struct c_atom *at;

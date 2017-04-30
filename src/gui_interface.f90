@@ -35,6 +35,7 @@ module gui_interface
      character(kind=c_char,len=1) :: name(11) !< Atomic name
      integer(c_int) :: z !< Atomic number
      real(c_float) :: r(3) !< Atomic position (Cartesian, bohr)
+     real(c_float) :: rad !< Atomic radius
   end type c_atom
 
   ! C-interoperable bond type
@@ -98,12 +99,6 @@ module gui_interface
 
   ! scene blueprint (also, see escher's representation):
   ! 
-  ! critical point
-  ! position
-  ! type
-  ! typename
-  ! selected
-  !
   ! cell
   ! molecular cell
 
@@ -257,8 +252,9 @@ contains
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
     use tools_math, only: norm, cross
+    use param, only: atmcov
     
-    integer :: i, j, npts
+    integer :: i, j, npts, iz
     real*8 :: x1(3), x2(3), xd(3), uz(3), normd, u(3), nu
     real*8 :: ca, sa, rot(4,4)
 
@@ -276,9 +272,15 @@ contains
     ! For now, just go ahead and represent the whole cell/molecule
     nat = cr%ncel
     do i = 1, cr%ncel
-       at_f(i)%z = cr%at(cr%atcel(i)%idx)%z
+       iz = cr%at(cr%atcel(i)%idx)%z
+       at_f(i)%z = iz
        x1 = cr%atcel(i)%r + cr%molx0
        at_f(i)%r = x1
+       if (atmcov(iz) > 1) then
+          at_f(i)%rad = atmcov(iz)
+       else
+          at_f(i)%rad = 2d0*atmcov(iz)
+       end if
        call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
        xmin = min(x1,xmin)
        xmax = max(x1,xmax)
