@@ -212,7 +212,7 @@ GLuint atomIB; //atom indecies ~(direction of verts)
 unsigned int numbIndeces;
 
 /// draw an atom using gl functions
-void drawAtomInstance(int id, float posVector[3], float color[3],
+void drawAtom(int id, float posVector[3], float color[3],
                       Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
 
   Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
@@ -248,7 +248,7 @@ void drawAtomInstance(int id, float posVector[3], float color[3],
 }
 
 /// draw a critical point using gl functions
-void drawCritPointInstance(int identifier, float posVector[3], float color[3],
+void drawCritPoint(int identifier, float posVector[3], float color[3],
 			   Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
   p->Scale(cpsize, cpsize, cpsize);
   p->Translate(posVector[0]-xcm[0],posVector[1]-xcm[1],posVector[2]-xcm[2]);
@@ -273,62 +273,6 @@ void drawCritPointInstance(int identifier, float posVector[3], float color[3],
   */
 }
 
-bool flashAtoms = false; // toggle with selection toggles (in gui)
-//selctedAtom from tree selection
-//the number of frames the deselected atoms stay invisable
-int framesMax = 15; // ~0.5 seconds
-int framesLeft = 0;
-bool otherAtomsVisible = true;
-
-
-bool flashCP = false;
-int framesMaxCP = 15;
-int framesLeftCP = 0;
-bool otherCriticalPointsVisible = true;
-
-
-/// moves cam over atom (alligned to z axis)
-void lookAtAtom(int atomNumber) {
-  cam.Pos[0] = at[atomNumber].r[0];
-  cam.Pos[1] = at[atomNumber].r[1];
-}
-
-/// moves cam over crit point (alligned to z axis)
-void lookAtCritPoint(int critPointNum) {
-  cam.Pos[0] = critp[critPointNum].r[0];
-  cam.Pos[1] = critp[critPointNum].r[1];
-}
-
-//This methods are used to display additonal information about
-//a perticular critical point or atom
-//number of displayVars is currently assumed to be 3
-void displayCol(string * displayStats, int numberOfCol) {
-  for (size_t i = 0; i < numberOfCol; i++) {
-    //text is wraped if too large
-    ImGui::TextWrapped(displayStats[i].c_str());
-    ImGui::NextColumn();
-  }
-}
-
-void atomBondAmountInfo(string * displayVars, int atomNumber) {
-  displayVars[0] = "number of bonds";
-  // displayVars[1] = to_string(at[atomNumber].numberOfBonds);
-  displayVars[1] = "";
-  displayVars[2] = "";
-}
-
-void atomAtomicNumberInfo(string * displayVars, int atomNumber) {
-  displayVars[0] = "atomic number";
-  displayVars[1] = to_string(at[atomNumber].z);
-  displayVars[2] = "";
-}
-
-void criticalPointTypeInfo(string * displayVars, int criticalPointIndex) {
-  displayVars[0] = "critical point Type";
-  // displayVars[1] = loadedCriticalPoints[criticalPointIndex].typeName;
-  displayVars[2] = "";
-}
-
 static void showMenuFunctions(){
   if (ImGui::MenuItem("Generate Critical Points")) {
     call_auto();
@@ -344,13 +288,6 @@ static void showMenuVisuals(bool * show_bonds, bool * show_cps, bool * show_atom
   }
   if (ImGui::MenuItem("show/hide Atoms")) {
     *show_atoms = !*show_atoms;
-  }
-
-  if (ImGui::MenuItem("flash current selection")) {
-    flashAtoms = !flashAtoms;
-    framesMax = 15; // ~0.5 seconds
-    framesLeft = 0;
-    otherAtomsVisible = true;
   }
 }
 
@@ -586,12 +523,12 @@ int main(int argc, char *argv[])
     }
     if (show_atoms){
       for (size_t x = 0; x < nat; x++){
-	drawAtomInstance(x, at[x].r, at[x].rgb, &p, SphereVB, SphereIB);
+	drawAtom(x, at[x].r, at[x].rgb, &p, SphereVB, SphereIB);
       }
     }
     if (show_cps){
       for (int x = 0; x < ncritp; x++) {
-	drawCritPointInstance(x, critp[x].r, critp[x].rgb, &p, SphereVB, SphereIB);
+	drawCritPoint(x, critp[x].r, critp[x].rgb, &p, SphereVB, SphereIB);
       }
     }
  
