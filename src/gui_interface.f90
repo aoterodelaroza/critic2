@@ -30,6 +30,17 @@ module gui_interface
   public :: call_auto
   public :: update_scene
 
+  ! C-interoperable stick type
+  type, bind(c) :: c_stick
+     real(c_float) :: r1(3) !< position of the first end (bohr) 
+     real(c_float) :: r2(3) !< position of the second end (bohr)
+     real(c_float) :: rmid(3) !< position of the bond center (bohr)
+     real(c_float) :: length !< length of the bond (bohr)
+     real(c_float) :: thick !< thickness (bohr)
+     real(c_float) :: rgb(3) !< color
+     real(c_float) :: rot(4,4) !< rotation matrix for the stick
+  end type c_stick
+
   ! C-interoperable atom type
   type, bind(c) :: c_atom
      character(kind=c_char,len=1) :: name(11) !< Atomic name
@@ -43,11 +54,7 @@ module gui_interface
   type, bind(c) :: c_bond
      integer(c_int) :: i1 !< index for the first atom (C-style)
      integer(c_int) :: i2 !< index for the second atom (C-style)
-     real(c_float) :: r1(3) !< position of the first atom (bohr)
-     real(c_float) :: r2(3) !< position of the second atom (bohr)
-     real(c_float) :: rmid(3) !< position of the bond center (bohr)
-     real(c_float) :: length !< length of the bond (bohr)
-     real(c_float) :: rot(4,4) !< rotation matrix
+     type(c_stick) :: s !< stick representation of this bond
   end type c_bond
 
   ! C-interoperable critical point
@@ -85,24 +92,16 @@ module gui_interface
   ! C pointer to atom information
   type(c_ptr), bind(c) :: critp
   
+  ! unit cell and lattice vectors
+  logical(c_bool), bind(c) :: usecell
+  real(c_float), bind(c) :: cell_x0(3)
+  real(c_float), bind(c) :: cell_lat(3,3)
+
   ! bounding box limits and center
-  real(c_float), bind(c) :: xmin(3)
-  real(c_float), bind(c) :: xmax(3)
-  real(c_float), bind(c) :: xcm(3)
-  real(c_float), bind(c) :: xmaxlen
-
-  public :: get_positions
-  public :: get_atom_position
-  public :: get_num_atoms
-  public :: num_of_bonds
-  public :: get_atom_bond
-  public :: num_of_crit_points
-  public :: get_cp_pos_type
-
-  ! scene blueprint (also, see escher's representation):
-  ! 
-  ! cell
-  ! molecular cell
+  real(c_float), bind(c) :: box_xmin(3)
+  real(c_float), bind(c) :: box_xmax(3)
+  real(c_float), bind(c) :: box_xcm(3)
+  real(c_float), bind(c) :: box_xmaxlen
 
 contains
 
@@ -173,7 +172,7 @@ contains
   end subroutine critic2_end
 
   ! Read a new molecule/crystal from an external file
-  subroutine call_structure(filename0, nc, isMolecule) bind(c)
+  subroutine call_structure(filename0, isMolecule) bind(c)
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
        fields_integrable_report
     use grd_atomic, only: grda_init
@@ -183,13 +182,11 @@ contains
     use global, only: refden, gradient_mode, INT_radquad_errprop_default, INT_radquad_errprop
     use autocp, only: init_cplist
 
-    character (kind=c_char, len=1), dimension (*), intent (in) :: filename0
-    integer (kind=c_int), value :: nc
+    type(c_ptr), intent(in) :: filename0
     integer (kind=c_int), value :: isMolecule
-
     character(len=:), allocatable :: filename
 
-    filename = str_c_to_f(filename0, nc)
+    filename = c_string_value(filename0)
 
     call struct_crystal_input(cr, filename, isMolecule == 1, .true.)
     if (cr%isinit) then
@@ -256,16 +253,25 @@ contains
     use tools_math, only: norm, cross
     use param, only: atmcov, jmlcol, maxzat
     
-    integer :: i, j, npts, iz
-    real*8 :: x1(3), x2(3), xd(3), uz(3), normd, u(3), nu
-    real*8 :: ca, sa, rot(4,4)
+    integer :: i, j, iz
+    real*8 :: x1(3), x2(3), xcm(3)
 
-    ! Prepare for bounding box calculation
-    xmin = 1e30
-    xmax = -1e30
+    real*8, parameter :: bondthickness = 0.05d0
+    real*8, parameter :: bondcolor(3) = (/0.d0,0.d0,0.d0/)
+
+    ! Calculate the bounding box
+    box_xmin = 1e30
+    box_xmax = -1e30
     xcm = 0.
-    xmaxlen = 0.
-    npts = 0
+    do i = 1, ncpcel
+       x1 = cpcel(i)%r + cr%molx0
+       box_xmin = min(x1,box_xmin)
+       box_xmax = max(x1,box_xmax)
+       xcm = xcm + x1
+    end do
+    xcm = xcm / ncpcel
+    box_xcm = xcm
+    box_xmaxlen = maxval(box_xmax - box_xmin)
 
     ! Allocate space for atoms
     if (associated(at_f)) deallocate(at_f)
@@ -276,8 +282,7 @@ contains
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        at_f(i)%z = iz
-       x1 = cr%atcel(i)%r + cr%molx0
-       at_f(i)%r = x1
+       at_f(i)%r = cr%atcel(i)%r + cr%molx0 - xcm
        if (atmcov(iz) > 1) then
           at_f(i)%rad = atmcov(iz)
        else
@@ -285,10 +290,6 @@ contains
        end if
        at_f(i)%rgb = real(jmlcol(:,iz),4) / 255.
        call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
-       xmin = min(x1,xmin)
-       xmax = max(x1,xmax)
-       xcm = xcm + x1
-       npts = npts + 1
     end do
     at = c_loc(at_f)
 
@@ -311,59 +312,9 @@ contains
              nbond = nbond + 1
              bond_f(nbond)%i1 = i-1
              bond_f(nbond)%i2 = cr%nstar(i)%idcon(j)-1
-             x1 = cr%atcel(i)%r + cr%molx0
-             x2 = cr%atcel(cr%nstar(i)%idcon(j))%r + cr%molx0
-             bond_f(nbond)%r1 = x1
-             bond_f(nbond)%r2 = x2
-             bond_f(nbond)%rmid = 0.5d0 * (x1+x2)
-             xd = x1 - x2
-             normd = norm(xd)
-             bond_f(nbond)%length = normd
-
-             ! calculate the axis and angle to rotate the bond to the z-axis
-             xd = xd / normd
-             uz = (/0d0, 0d0, 1d0/)
-             u = cross(uz,xd)
-             nu = norm(u)
-             if (nu < 1d-8) then
-                if (xd(3) > 0d0) then
-                   ca = 1d0
-                   sa = 0d0
-                   u = (/1d0,0d0,0d0/)
-                else
-                   ca = -1d0
-                   sa = 0d0
-                   u = (/1d0,0d0,0d0/)
-                end if
-             else
-                u = u / nu
-                ca = xd(3)
-                sa = sqrt(1d0 - ca**2)
-             end if
-
-             ! rotation matrix for this transformation
-             rot(1,1) = ca + u(1)*u(1)*(1d0 - ca)
-             rot(2,1) = u(1)*u(2)*(1d0 - ca) - u(3)*sa
-             rot(3,1) = u(1)*u(3)*(1d0 - ca) + u(2)*sa
-             rot(4,1) = 0d0
-
-             rot(1,2) = u(1)*u(2)*(1 - ca) + u(3)*sa
-             rot(2,2) = ca + u(2)*u(2)*(1d0 - ca)
-             rot(3,2) = u(2)*u(3)*(1d0 - ca) - u(1)*sa
-             rot(4,2) = 0d0
-
-             rot(1,3) = u(1)*u(3)*(1d0 - ca) - u(2)*sa
-             rot(2,3) = u(3)*u(2)*(1d0 - ca) + u(1)*sa
-             rot(3,3) = ca + u(3)*u(3)*(1d0 - ca)
-             rot(4,3) = 0d0
-
-             rot(1,4) = 0d0
-             rot(2,4) = 0d0
-             rot(3,4) = 0d0
-             rot(4,4) = 1d0
-
-             ! save the rotation matrix 
-             bond_f(nbond)%rot = rot
+             x1 = cr%atcel(i)%r + cr%molx0 - xcm
+             x2 = cr%atcel(cr%nstar(i)%idcon(j))%r + cr%molx0 - xcm
+             bond_f(nbond)%s = stick_from_endpoints(x1,x2,bondthickness,bondcolor)
           end if
        end do
     end do
@@ -379,21 +330,19 @@ contains
     do i = cr%ncel+1, ncpcel
        j = j + 1
        iz = maxzat + 1 + cpcel(i)%typind
-       x1 = cpcel(i)%r + cr%molx0
-       critp_f(j)%r = x1
+       critp_f(j)%r = cpcel(i)%r + cr%molx0 - xcm
        critp_f(j)%type = cpcel(i)%typ
        critp_f(j)%rgb = real(jmlcol(:,iz),4) / 255.
        call f_c_string(cpcel(i)%name,critp_f(j)%name,11)
-       xmin = min(x1,xmin)
-       xmax = max(x1,xmax)
-       xcm = xcm + x1
-       npts = npts + 1
     end do
     critp = c_loc(critp_f)
 
-    ! wrap up center of the scene and dimensions
-    xcm = xcm / npts
-    xmaxlen = maxval(xmax - xmin)
+    ! unit cell and lattice vectors
+    usecell = .not.cr%ismolecule
+    cell_x0 = cr%molx0
+    do i = 1, 3
+       cell_lat(:,i) = cr%crys2car(:,i)
+    end do
 
   end subroutine update_scene
 
@@ -405,144 +354,90 @@ contains
     nat = 0
     at = C_NULL_PTR
     
+    ! bonds
+    if (associated(bond_f)) deallocate(bond_f)
+    nbond = 0
+    bond = C_NULL_PTR
+    
+    ! critical points
+    if (associated(critp_f)) deallocate(critp_f)
+    ncritp = 0
+    critp = C_NULL_PTR
+    
+    ! cell
+    usecell = .false.
+
     ! bounding box
-    xmin = 0.
-    xmax = 0.
-    xcm = 0. 
+    box_xmin = 0.
+    box_xmax = 0.
+    box_xcm = 0. 
+    box_xmaxlen = 0. 
 
   end subroutine clear_scene
 
-  function str_c_to_f(strc, nchar) result(strf)
-    integer(kind=C_INT), intent(in), value :: nchar
-    character(kind=C_CHAR,len=1), intent(in) :: strc(nchar)
-    character(len=:), allocatable :: strf
+  ! Build a c_stick from the two endpoints, thickness, and rgb
+  function stick_from_endpoints(x1,x2,thick,rgb) result(stick)
+    use tools_math, only: norm, cross
+    real*8, intent(in) :: x1(3), x2(3), thick, rgb(3)
+    type(c_stick) :: stick
+    
+    real*8 :: xd(3), normd, uz(3), u(3), nu, ca, sa
 
-    integer :: i
+    ! points
+    stick%r1 = x1
+    stick%r2 = x2
+    stick%rmid = 0.5d0 * (x1+x2)
+    
+    ! thickness and rgb
+    stick%thick = thick
+    stick%rgb = rgb
 
-    allocate(character(len=nchar) :: strf)
-    do i = 1, nchar
-      strf(i:i) = strc(i)
-    end do
-
-  endfunction str_c_to_f
-
-  subroutine get_positions(n,z,x) bind(c,name="get_positions")
-    use struct_basic, only: cr
-    integer(c_int), intent(out) :: n
-    type(c_ptr), intent(out) :: z
-    type(c_ptr), intent(out) :: x
-    integer(c_int), allocatable, target :: iz(:)
-    real(c_double), allocatable, target :: ix(:,:)
-
-    integer :: i, j
-
-    n = cr%ncel
-
-    allocate(iz(cr%ncel))
-    do i = 1, cr%ncel
-       iz(i) = int(cr%at(cr%atcel(i)%idx)%z,C_INT)
-    end do
-
-    allocate(ix(cr%ncel,3))
-    do i = 1, cr%ncel
-       do j = 1, 3
-          ix(i,j) = real(cr%atcel(i)%r(j),c_double)
-       end do
-    end do
-
-    x = c_loc(ix)
-    z = c_loc(iz)
-
-    deallocate(ix)
-    deallocate(iz)
-
-  end subroutine get_positions
-
-  subroutine get_num_atoms(n) bind (c, name="get_num_atoms")
-    use struct_basic, only: cr
-
-    integer(c_int), intent(out) :: n
-
-    n = cr%ncel
-
-  end subroutine get_num_atoms
-
-  subroutine get_atom_position(index, atomicN, x, y, z) bind (c, name="get_atom_position")
-    use struct_basic, only: cr
-    use types, only: celatom
-    use global, only: dunit0, iunit
-
-    integer (kind=c_int), value :: index
-    integer(c_int), intent(out) :: atomicN
-    real(c_double), intent(out) :: x
-    real(c_double), intent(out) :: y
-    real(c_double), intent(out) :: z
-
-    atomicN = int(cr%at(cr%atcel(index)%idx)%z, c_int)
-
-    x = real((cr%atcel(index)%r(1)+cr%molx0(1))*dunit0(iunit),c_double)
-    y = real((cr%atcel(index)%r(2)+cr%molx0(2))*dunit0(iunit),c_double)
-    z = real((cr%atcel(index)%r(3)+cr%molx0(3))*dunit0(iunit),c_double)
-
-  end subroutine get_atom_position
-
-  subroutine num_of_bonds(n_atom, nstarNum) bind (c, name="num_of_bonds")
-    use struct_basic, only: cr
-    integer (kind=c_int), value :: n_atom
-    integer(c_int), intent(out) :: nstarNum
-
-    call cr%find_asterisms()
-
-    nstarNum = cr%nstar(n_atom)%ncon
-
-  end subroutine num_of_bonds
-
-  subroutine get_atom_bond(n_atom, nstarIdx, connected_atom, neighCrystal) bind (c, name="get_atom_bond")
-    use struct_basic, only: cr
-    integer (kind=c_int), value :: n_atom
-    integer (kind=c_int), value :: nstarIdx
-    integer(c_int), intent(out) :: connected_atom
-    logical (kind=c_bool), intent(out) :: neighCrystal
-
-    integer :: lconTrans(3)
-
-    connected_atom = cr%nstar(n_atom)%idcon(nstarIdx)
-
-    if (.NOT. cr%ismolecule) then
-      lconTrans = cr%nstar(n_atom)%lcon(:, nstarIdx)
-
-      if (lconTrans(1) /= 0 .OR. lconTrans(2) /= 0 .OR. lconTrans(3) /= 0) then
-        neighCrystal = .true.
-      end if
+    ! length
+    xd = x1 - x2
+    normd = norm(xd)
+    xd = xd / normd
+    stick%length = normd
+    
+    ! rotation matrix
+    uz = (/0d0, 0d0, 1d0/)
+    u = cross(uz,xd)
+    nu = norm(u)
+    if (nu < 1d-8) then
+       if (xd(3) > 0d0) then
+          ca = 1d0
+          sa = 0d0
+          u = (/1d0,0d0,0d0/)
+       else
+          ca = -1d0
+          sa = 0d0
+          u = (/1d0,0d0,0d0/)
+       end if
+    else
+       u = u / nu
+       ca = xd(3)
+       sa = sqrt(1d0 - ca**2)
     end if
 
-  end subroutine get_atom_bond
+    stick%rot(1,1) = ca + u(1)*u(1)*(1d0 - ca)
+    stick%rot(2,1) = u(1)*u(2)*(1d0 - ca) - u(3)*sa
+    stick%rot(3,1) = u(1)*u(3)*(1d0 - ca) + u(2)*sa
+    stick%rot(4,1) = 0d0
 
-  subroutine num_of_crit_points(n_critp) bind (c, name="num_of_crit_points")
-    use varbas, only: ncpcel
-    integer(c_int), intent(out) :: n_critp
+    stick%rot(1,2) = u(1)*u(2)*(1 - ca) + u(3)*sa
+    stick%rot(2,2) = ca + u(2)*u(2)*(1d0 - ca)
+    stick%rot(3,2) = u(2)*u(3)*(1d0 - ca) - u(1)*sa
+    stick%rot(4,2) = 0d0
 
-    n_critp = ncpcel
+    stick%rot(1,3) = u(1)*u(3)*(1d0 - ca) - u(2)*sa
+    stick%rot(2,3) = u(3)*u(2)*(1d0 - ca) + u(1)*sa
+    stick%rot(3,3) = ca + u(3)*u(3)*(1d0 - ca)
+    stick%rot(4,3) = 0d0
 
-  end subroutine num_of_crit_points
-
-  subroutine get_cp_pos_type(cpIdx, type, x, y, z) bind (c, name="get_cp_pos_type")
-    use struct_basic, only: cr
-    use global, only: dunit0, iunit
-    use varbas, only: cpcel
-
-    integer (kind=c_int), value :: cpIdx
-    integer(c_int), intent(out) :: type
-    real(c_double), intent(out) :: x
-    real(c_double), intent(out) :: y
-    real(c_double), intent(out) :: z
-
-    x = (cpcel(cpIdx)%r(1) + cr%molx0(1))*dunit0(iunit)
-    y = (cpcel(cpIdx)%r(2) + cr%molx0(2))*dunit0(iunit)
-    z = (cpcel(cpIdx)%r(3) + cr%molx0(3))*dunit0(iunit)
-
-    type = cpcel(cpIdx)%typ
-
-  end subroutine get_cp_pos_type
+    stick%rot(1,4) = 0d0
+    stick%rot(2,4) = 0d0
+    stick%rot(3,4) = 0d0
+    stick%rot(4,4) = 1d0
+             
+  end function stick_from_endpoints
 
 end module gui_interface

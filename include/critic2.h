@@ -2,45 +2,57 @@
 
 //xx// Variables made available through host association in 
 //xx// gui_interface.f90. See gui_interface.f90 for documentation.
+// Sticks
+extern "C" struct c_stick {
+  float r1[3];
+  float r2[3];
+  float rmid[3];
+  float length;
+  float thick;
+  float rgb[3];
+  float rot[4][4];
+};
+
 // Atoms
-struct c_atom {
+extern "C" struct c_atom {
   char name[11];
   int z;
   float r[3];
   float rad;
   float rgb[3];
 };
-int nat;
-struct c_atom *at;
+extern "C" int nat;
+extern "C" struct c_atom *at;
 
 // Bonds
-struct c_bond {
+extern "C" struct c_bond {
   int i1;
   int i2;
-  float r1[3];
-  float r2[3];
-  float rmid[3];
-  float length;
-  float rot[4][4];
+  struct c_stick s;
 };
-int nbond;
-struct c_bond *bond;
+extern "C" int nbond;
+extern "C" struct c_bond *bond;
 
 // Critical points
-struct c_critp {
+extern "C" struct c_critp {
   float r[3];
   int type;
   float rgb[3];
   char name[11];
 };
-int ncritp;
-struct c_critp *critp;
+extern "C" int ncritp;
+extern "C" struct c_critp *critp;
+
+// Unit cell
+extern "C" bool usecell;
+extern "C" float cell_x0[3];
+extern "C" float cell_lat[3][3];
 
 // Bounding box
-float xmin[3];
-float xmax[3];
-float xcm[3];
-float xmaxlen;
+extern "C" float box_xmin[3];
+extern "C" float box_xmax[3];
+extern "C" float box_xcm[3];
+extern "C" float box_xmaxlen;
 
 //xx// Procedures made available in gui_interface.f90
 
@@ -51,7 +63,7 @@ extern "C" void critic2_initialize();
 extern "C" void critic2_end();
 
 // Read a new molecule/crystal from an external file
-extern "C" void call_structure(const char *filename, int size, int isMolecule); 
+extern "C" void call_structure(const char **filename, int isMolecule); 
 
 // Calculate critical points for the current field
 extern "C" void call_auto(); 

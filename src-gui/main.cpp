@@ -49,7 +49,7 @@ using namespace std;
 
 // Forward declarations //
 static void new_structure_dialog(bool *p_open, int ismolecule);
-static void ShowAppMainMenuBar(bool* show_bonds, bool* show_cps, bool* show_atoms);
+static void ShowAppMainMenuBar();
 
 // Static GUI variables //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
@@ -74,6 +74,14 @@ static struct {
   GLuint lDirectionLocation;
   GLuint fAmbientIntensityLocation;
 } ShaderVarLocations;
+
+// Show/hide elements of the interface
+static bool show_bonds = true;
+static bool show_cps = true;
+static bool show_atoms = true;
+
+// Quit flag
+static bool want_quit = false;
 
 // xxxx //
 
@@ -158,52 +166,32 @@ static GLuint LightingShader()
   return ShaderProgram;
 }
 
-/// create a mesh object that can be reused for evrey object that uses the same mesh
-void CreateAndFillBuffers(GLuint * VertexBuffer, GLuint * IndexBuffer,
-                          GLfloat * Vertices, unsigned int * Indices,
-                          unsigned int NumVertices, unsigned int NumIndices)
-{
-  glGenBuffers(1, VertexBuffer);
-  glBindBuffer(GL_ARRAY_BUFFER, *VertexBuffer);
-  glBufferData(GL_ARRAY_BUFFER, NumVertices*sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
-
-  glGenBuffers(1, IndexBuffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *IndexBuffer);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, NumIndices*sizeof(unsigned int), Indices, GL_STATIC_DRAW);
-
-}
-
 // get mouse scroll
 void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
 {
-  float camZoomFactor = xmaxlen * 0.2f;
+  float camZoomFactor = box_xmaxlen * 0.2f;
   cam.Pos[2] += yoffset * camZoomFactor;
 }
 
 // draw a bond between 2 atoms defined in the bond struct
-void DrawBond(Pipeline * p, GLuint CylVB, GLuint CylIB, c_bond *b)
+void drawstick(Pipeline *p, const c_stick *s)
 {
-  float grey[3] = {.5, .5, .5};
-  float white[3] = {1, 1, 1};
+  p->Scale(s->thick, s->thick, s->length);
+  p->Translate(s->r2[0], s->r2[1], s->r2[2]);
+  p->SetRotationMatrix(s->rot);
 
-  p->Scale(bondthickness, bondthickness, b->length);
-  p->Translate(b->r2[0]-xcm[0], b->r2[1]-xcm[1], b->r2[2]-xcm[2]);
-  p->SetRotationMatrix(b->rot);
+  // float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,(const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,(const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&(s->rgb));
+  // glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
+  // glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
+  // glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
 
-  float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&grey);
-  glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
-  glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
-  glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
-
-  glBindBuffer(GL_ARRAY_BUFFER, CylVB);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CylIB);
+  glBindBuffer(GL_ARRAY_BUFFER, bufcylv[bondresolution]);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufcyli[bondresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glDrawElements(GL_TRIANGLES, 240, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 3*ncyli[bondresolution], GL_UNSIGNED_INT, 0);
 }
 
 //global vars for an atom's mesh
@@ -212,28 +200,25 @@ GLuint atomIB; //atom indecies ~(direction of verts)
 unsigned int numbIndeces;
 
 /// draw an atom using gl functions
-void drawAtom(int id, float posVector[3], float color[3],
-                      Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+void drawAtom(int id, float posVector[3], float color[3], Pipeline * p) {
 
-  Vector3f center = Vector3f(xcm[0],xcm[1],xcm[2]);
   Vector3f position = Vector3f(posVector[0],posVector[1],posVector[2]);
 
   float rscal = atomsize * at[id].rad;
   p->Scale(rscal,rscal,rscal);
 
-  Vector3f pos = position - center;
-  p->Translate(pos.x, pos.y, pos.z);
+  p->Translate(position.x, position.y, position.z);
   p->Rotate(0.f, 0.f, 0.f);
 
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
                      (const GLfloat *)p->GetWVPTrans());
   glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
                      (const GLfloat *)p->GetWorldTrans());
-  glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+  glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, color);
-  glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
   /*
   //TODO draw atom ID number
   ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
@@ -249,17 +234,17 @@ void drawAtom(int id, float posVector[3], float color[3],
 
 /// draw a critical point using gl functions
 void drawCritPoint(int identifier, float posVector[3], float color[3],
-			   Pipeline * p, GLuint SphereVB, GLuint SphereIB) {
+			   Pipeline * p){
   p->Scale(cpsize, cpsize, cpsize);
-  p->Translate(posVector[0]-xcm[0],posVector[1]-xcm[1],posVector[2]-xcm[2]);
+  p->Translate(posVector[0],posVector[1],posVector[2]);
   p->Rotate(0.f, 0.f, 0.f); 
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glBindBuffer(GL_ARRAY_BUFFER, SphereVB);
+  glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SphereIB);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, color);
-  glDrawElements(GL_TRIANGLES, 6144, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
   /*
   //TODO draw crit point ID number or type?
   ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
@@ -279,19 +264,19 @@ static void showMenuFunctions(){
   }
 }
 
-static void showMenuVisuals(bool * show_bonds, bool * show_cps, bool * show_atoms) {
+static void showMenuVisuals() {
   if (ImGui::MenuItem("show/hide Bonds")) {
-    *show_bonds = !*show_bonds;
+    show_bonds = !show_bonds;
   }
   if (ImGui::MenuItem("show/hide Crit Pts")) {
-    *show_cps = !*show_cps;
+    show_cps = !show_cps;
   }
   if (ImGui::MenuItem("show/hide Atoms")) {
-    *show_atoms = !*show_atoms;
+    show_atoms = !show_atoms;
   }
 }
 
-static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_atoms, bool * want_quit)
+static void ShowAppMainMenuBar()
 {
   // logical variables for persistent dialogs
   static bool show_new_structure_dialog = false;
@@ -319,7 +304,7 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 	if (ImGui::MenuItem("Close","Ctrl+W")) {
 	}
 	if (ImGui::MenuItem("Quit","Ctrl+Q")) 
-	  *want_quit = true;
+	  want_quit = true;
 	ImGui::EndMenu();
       }
       if (ImGui::BeginMenu("Functions")) {
@@ -327,7 +312,7 @@ static void ShowAppMainMenuBar(bool * show_bonds, bool * show_cps, bool * show_a
 	ImGui::EndMenu();
       }
       if (ImGui::BeginMenu("Visuals")) {
-	showMenuVisuals(show_bonds, show_cps, show_atoms);
+	showMenuVisuals();
 	ImGui::EndMenu();
       }
 
@@ -380,26 +365,13 @@ int main(int argc, char *argv[])
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
 
-  // initialize pipeline
+  // Load meshes
+  CreateAndFillBuffers();
+
+  // Initialize pipeline
   Pipeline p;
 
-  // Load sphere mesh
-  GLuint SphereIB, SphereVB;
-  CreateAndFillBuffers(&SphereVB, &SphereIB, isphv[atomresolution], isphi[atomresolution], 
-		       3*nsphv[atomresolution], 3*nsphi[atomresolution]);
- 
-  // Load cylinder mesh
-  GLuint CylIB, CylVB;
-  CreateAndFillBuffers(&CylVB, &CylIB, icycv[bondresolution], icyci[bondresolution], 
-		       3*ncycv[bondresolution], 3*ncyci[bondresolution]);
- 
- 
   // Imgui static variables
-  static bool show_bonds = true;
-  static bool show_cps = true;
-  static bool show_atoms = true;
-  static bool want_quit = false;
- 
   // input variables;
   // c means for current loop, l means last loop, p means last pressed
   static int cLMB;
@@ -474,12 +446,12 @@ int main(int argc, char *argv[])
     float camPanFactor = fabs(0.00115f * cam.Pos[2]);
     float camRotateFactor = 0.015f;
     if (!io.WantCaptureMouse) {
-      if (cLMB == GLFW_PRESS){
+      if (cRMB == GLFW_PRESS){
 	cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
 	cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
       }
-      if (cRMB == GLFW_PRESS){
-	if (lRMB != GLFW_PRESS){
+      if (cLMB == GLFW_PRESS){
+	if (lLMB != GLFW_PRESS){
 	  pMPosX = cMPosX;
 	  pMPosY = cMPosY;
  
@@ -518,21 +490,21 @@ int main(int argc, char *argv[])
     // molecule drawing
     if (show_bonds){
       for (int i=0; i<nbond; i++){
-	DrawBond(&p, CylVB, CylIB, &bond[i]);
+	drawstick(&p, &(bond[i].s));
       }
     }
     if (show_atoms){
       for (size_t x = 0; x < nat; x++){
-	drawAtom(x, at[x].r, at[x].rgb, &p, SphereVB, SphereIB);
+	drawAtom(x, at[x].r, at[x].rgb, &p);
       }
     }
     if (show_cps){
       for (int x = 0; x < ncritp; x++) {
-	drawCritPoint(x, critp[x].r, critp[x].rgb, &p, SphereVB, SphereIB);
+	drawCritPoint(x, critp[x].r, critp[x].rgb, &p);
       }
     }
  
-    ShowAppMainMenuBar(&show_bonds, &show_cps, &show_atoms, &want_quit);
+    ShowAppMainMenuBar();
     if (want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
  
@@ -570,7 +542,7 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
 
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
-    call_structure(filename, (int)strlen(filename), ismolecule); 
+    call_structure(&filename, ismolecule); 
     firstpass = true;
     *p_open = false;
   }

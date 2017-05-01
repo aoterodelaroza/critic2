@@ -2608,9 +2608,9 @@ unsigned int sphi3[] = {
 };
 
 // Cylinder - level 0 (nbase = 6 in escher's cylindermodel.m)
-unsigned int ncycv0 = 14;
-unsigned int ncyci0 = 24;
-GLfloat cycv0[] = {
+unsigned int ncylv0 = 14;
+unsigned int ncyli0 = 24;
+GLfloat cylv0[] = {
   -0.86602540,  0.50000000,  0.00000000,
   -0.86602540, -0.50000000,  0.00000000,
   -0.00000000, -1.00000000,  0.00000000,
@@ -2626,7 +2626,7 @@ GLfloat cycv0[] = {
    0.00000000,  0.00000000,  0.00000000,
    0.00000000,  0.00000000,  1.00000000,
 };
-unsigned int cyci0[] = {
+unsigned int cyli0[] = {
     12,    0,    1,
     13,    6,    7,
      0,    1,    6,
@@ -2654,9 +2654,9 @@ unsigned int cyci0[] = {
 };
 
 // Cylinder - level 1 (nbase = 12 in escher's cylindermodel.m)
-unsigned int ncycv1 = 26;
-unsigned int ncyci1 = 48;
-GLfloat cycv1[] = {
+unsigned int ncylv1 = 26;
+unsigned int ncyli1 = 48;
+GLfloat cylv1[] = {
   -0.50000000,  0.86602540,  0.00000000,
   -0.86602540,  0.50000000,  0.00000000,
   -1.00000000,  0.00000000,  0.00000000,
@@ -2684,7 +2684,7 @@ GLfloat cycv1[] = {
    0.00000000,  0.00000000,  0.00000000,
    0.00000000,  0.00000000,  1.00000000,
 };
-unsigned int cyci1[] = {
+unsigned int cyli1[] = {
     24,    0,    1,
     25,   12,   13,
      0,    1,   12,
@@ -2736,9 +2736,9 @@ unsigned int cyci1[] = {
 };
 
 // Cylinder - level 2 (nbase = 24 in escher's cylindermodel.m)
-unsigned int ncycv2 = 50;
-unsigned int ncyci2 = 96;
-GLfloat cycv2[] = {
+unsigned int ncylv2 = 50;
+unsigned int ncyli2 = 96;
+GLfloat cylv2[] = {
   -0.25881905,  0.96592583,  0.00000000,
   -0.50000000,  0.86602540,  0.00000000,
   -0.70710678,  0.70710678,  0.00000000,
@@ -2790,7 +2790,7 @@ GLfloat cycv2[] = {
    0.00000000,  0.00000000,  0.00000000,
    0.00000000,  0.00000000,  1.00000000,
 };
-unsigned int cyci2[] = {
+unsigned int cyli2[] = {
     48,    0,    1,
     49,   24,   25,
      0,    1,   24,
@@ -2890,9 +2890,9 @@ unsigned int cyci2[] = {
 };
 
 // Cylinder - level 3 (nbase = 48 in escher's cylindermodel.m)
-unsigned int ncycv3 = 98;
-unsigned int ncyci3 = 192;
-GLfloat cycv3[] = {
+unsigned int ncylv3 = 98;
+unsigned int ncyli3 = 192;
+GLfloat cylv3[] = {
   -0.13052619,  0.99144486,  0.00000000,
   -0.25881905,  0.96592583,  0.00000000,
   -0.38268343,  0.92387953,  0.00000000,
@@ -2992,7 +2992,7 @@ GLfloat cycv3[] = {
    0.00000000,  0.00000000,  0.00000000,
    0.00000000,  0.00000000,  1.00000000,
 };
-unsigned int cyci3[] = {
+unsigned int cyli3[] = {
     96,    0,    1,
     97,   48,   49,
      0,    1,   48,
@@ -3192,7 +3192,31 @@ GLfloat *isphv[4] = {sphv0,sphv1,sphv2,sphv3};
 unsigned int *isphi[4] = {sphi0,sphi1,sphi2,sphi3};
 unsigned int nsphv[] = {12, 42, 162, 642};
 unsigned int nsphi[] = {20, 80, 320, 1280};
-GLfloat *icycv[4] = {cycv0,cycv1,cycv2,cycv3};
-unsigned int *icyci[4] = {cyci0,cyci1,cyci2,cyci3};
-unsigned int ncycv[] = {14, 26, 50, 98};
-unsigned int ncyci[] = {24, 48, 96, 192};
+GLfloat *icylv[4] = {cylv0,cylv1,cylv2,cylv3};
+unsigned int *icyli[4] = {cyli0,cyli1,cyli2,cyli3};
+unsigned int ncylv[] = {14, 26, 50, 98};
+unsigned int ncyli[] = {24, 48, 96, 192};
+
+// Buffer indices
+GLuint bufsphi[4], bufsphv[4];
+GLuint bufcyli[4], bufcylv[4];
+
+// create the sphere and cylinder objects
+void CreateAndFillBuffers()
+{
+  for (int i=0;i<4;i++){
+    glGenBuffers(1, &(bufsphi[i]));
+    glBindBuffer(GL_ARRAY_BUFFER, bufsphi[i]);
+    glBufferData(GL_ARRAY_BUFFER, 3*nsphi[i]*sizeof(unsigned int), isphi[i], GL_STATIC_DRAW);
+    glGenBuffers(1, &(bufsphv[i]));
+    glBindBuffer(GL_ARRAY_BUFFER, bufsphv[i]);
+    glBufferData(GL_ARRAY_BUFFER, 3*nsphv[i]*sizeof(GLfloat), isphv[i], GL_STATIC_DRAW);
+    glGenBuffers(1, &(bufcyli[i]));
+    glBindBuffer(GL_ARRAY_BUFFER, bufcyli[i]);
+    glBufferData(GL_ARRAY_BUFFER, 3*ncyli[i]*sizeof(unsigned int), icyli[i], GL_STATIC_DRAW);
+    glGenBuffers(1, &(bufcylv[i]));
+    glBindBuffer(GL_ARRAY_BUFFER, bufcylv[i]);
+    glBufferData(GL_ARRAY_BUFFER, 3*ncylv[i]*sizeof(GLfloat), icylv[i], GL_STATIC_DRAW);
+  }
+}
+

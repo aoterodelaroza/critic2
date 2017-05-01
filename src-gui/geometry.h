@@ -17,12 +17,20 @@
 
 #include <GL/gl3w.h>
 
+// Function declarations
+void CreateAndFillBuffers();
+
 // Pointers and array sizes for sphere and cylinder models
 extern GLfloat *isphv[4];
 extern unsigned int *isphi[4];
 extern unsigned int nsphv[4];
 extern unsigned int nsphi[4];
-extern GLfloat *icycv[4];
-extern unsigned int *icyci[4];
-extern unsigned int ncycv[4];
-extern unsigned int ncyci[4];
+extern GLfloat *icylv[4];
+extern unsigned int *icyli[4];
+extern unsigned int ncylv[4];
+extern unsigned int ncyli[4];
+
+// Buffer indices
+extern GLuint bufsphi[4], bufsphv[4];
+extern GLuint bufcyli[4], bufcylv[4];
+
