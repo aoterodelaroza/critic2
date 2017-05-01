@@ -41,13 +41,18 @@ module gui_interface
      real(c_float) :: rot(4,4) !< rotation matrix for the stick
   end type c_stick
 
+  ! C-interoperable ball type
+  type, bind(c) :: c_ball
+     real(c_float) :: r(3) !< center position (bohr) 
+     real(c_float) :: rad !< ball radius (bohr) 
+     real(c_float) :: rgb(3) !< Color
+  end type c_ball
+
   ! C-interoperable atom type
   type, bind(c) :: c_atom
      character(kind=c_char,len=1) :: name(11) !< Atomic name
      integer(c_int) :: z !< Atomic number
-     real(c_float) :: r(3) !< Atomic position (Cartesian, bohr)
-     real(c_float) :: rad !< Atomic radius
-     real(c_float) :: rgb(3) !< Color
+     type(c_ball) :: b !< ball representation of this atom
   end type c_atom
 
   ! C-interoperable bond type
@@ -59,10 +64,9 @@ module gui_interface
 
   ! C-interoperable critical point
   type, bind(c) :: c_critp
-     real(c_float) :: r(3) !< position (bohr)
      integer(c_int) :: type !< type (-3,-1,1,3)
-     real(c_float) :: rgb(3) !< Color
      character(kind=c_char,len=1) :: name(11) !< Name
+     type(c_ball) :: b !< ball representation of this CP
   end type c_critp
 
   ! number of atoms in the scene
@@ -93,9 +97,9 @@ module gui_interface
   type(c_ptr), bind(c) :: critp
   
   ! unit cell and lattice vectors
-  logical(c_bool), bind(c) :: usecell
   real(c_float), bind(c) :: cell_x0(3)
   real(c_float), bind(c) :: cell_lat(3,3)
+  type(c_stick), bind(c) :: cell_s(12)
 
   ! bounding box limits and center
   real(c_float), bind(c) :: box_xmin(3)
@@ -258,6 +262,12 @@ contains
 
     real*8, parameter :: bondthickness = 0.05d0
     real*8, parameter :: bondcolor(3) = (/0.d0,0.d0,0.d0/)
+    real*8, parameter :: cpradius = 0.2d0
+    real*8, parameter :: cellcolor(3) = (/1.0d0,0.7d0,0.6d0/)
+    real*8, parameter :: cellxcolor(3) = (/1.0d0,0.0d0,0.0d0/)
+    real*8, parameter :: cellycolor(3) = (/0.0d0,1.0d0,0.0d0/)
+    real*8, parameter :: cellzcolor(3) = (/0.0d0,0.0d0,1.0d0/)
+    real*8, parameter :: cellthick = 0.1d0
 
     ! Calculate the bounding box
     box_xmin = 1e30
@@ -282,13 +292,13 @@ contains
     do i = 1, cr%ncel
        iz = cr%at(cr%atcel(i)%idx)%z
        at_f(i)%z = iz
-       at_f(i)%r = cr%atcel(i)%r + cr%molx0 - xcm
+       at_f(i)%b%r = cr%atcel(i)%r + cr%molx0 - xcm
        if (atmcov(iz) > 1) then
-          at_f(i)%rad = atmcov(iz)
+          at_f(i)%b%rad = atmcov(iz)
        else
-          at_f(i)%rad = 2d0*atmcov(iz)
+          at_f(i)%b%rad = 2d0*atmcov(iz)
        end if
-       at_f(i)%rgb = real(jmlcol(:,iz),4) / 255.
+       at_f(i)%b%rgb = real(jmlcol(:,iz),4) / 255.
        call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
     end do
     at = c_loc(at_f)
@@ -330,19 +340,33 @@ contains
     do i = cr%ncel+1, ncpcel
        j = j + 1
        iz = maxzat + 1 + cpcel(i)%typind
-       critp_f(j)%r = cpcel(i)%r + cr%molx0 - xcm
        critp_f(j)%type = cpcel(i)%typ
-       critp_f(j)%rgb = real(jmlcol(:,iz),4) / 255.
+       critp_f(j)%b%r = cpcel(i)%r + cr%molx0 - xcm
+       critp_f(j)%b%rgb = real(jmlcol(:,iz),4) / 255.
+       critp_f(j)%b%rad = cpradius
        call f_c_string(cpcel(i)%name,critp_f(j)%name,11)
     end do
     critp = c_loc(critp_f)
 
     ! unit cell and lattice vectors
-    usecell = .not.cr%ismolecule
     cell_x0 = cr%molx0
     do i = 1, 3
        cell_lat(:,i) = cr%crys2car(:,i)
     end do
+    x1 = cr%molx0 - xcm
+    x2 = x1 + cr%crys2car(:,1)+cr%crys2car(:,2)+cr%crys2car(:,3)
+    cell_s(1) = stick_from_endpoints(x1,x1+cr%crys2car(:,1),cellthick,cellxcolor)
+    cell_s(2) = stick_from_endpoints(x1,x1+cr%crys2car(:,2),cellthick,cellycolor)
+    cell_s(3) = stick_from_endpoints(x1,x1+cr%crys2car(:,3),cellthick,cellzcolor)
+    cell_s(4) = stick_from_endpoints(x1+cr%crys2car(:,1),x1+cr%crys2car(:,1)+cr%crys2car(:,2),cellthick,cellcolor)
+    cell_s(5) = stick_from_endpoints(x1+cr%crys2car(:,1),x1+cr%crys2car(:,1)+cr%crys2car(:,3),cellthick,cellcolor)
+    cell_s(6) = stick_from_endpoints(x1+cr%crys2car(:,2),x1+cr%crys2car(:,2)+cr%crys2car(:,1),cellthick,cellcolor)
+    cell_s(7) = stick_from_endpoints(x1+cr%crys2car(:,2),x1+cr%crys2car(:,2)+cr%crys2car(:,3),cellthick,cellcolor)
+    cell_s(8) = stick_from_endpoints(x1+cr%crys2car(:,3),x1+cr%crys2car(:,3)+cr%crys2car(:,1),cellthick,cellcolor)
+    cell_s(9) = stick_from_endpoints(x1+cr%crys2car(:,3),x1+cr%crys2car(:,3)+cr%crys2car(:,2),cellthick,cellcolor)
+    cell_s(10) = stick_from_endpoints(x1+cr%crys2car(:,1)+cr%crys2car(:,2),x2,cellthick,cellcolor)
+    cell_s(11) = stick_from_endpoints(x1+cr%crys2car(:,1)+cr%crys2car(:,3),x2,cellthick,cellcolor)
+    cell_s(12) = stick_from_endpoints(x1+cr%crys2car(:,2)+cr%crys2car(:,3),x2,cellthick,cellcolor)
 
   end subroutine update_scene
 
@@ -364,9 +388,6 @@ contains
     ncritp = 0
     critp = C_NULL_PTR
     
-    ! cell
-    usecell = .false.
-
     ! bounding box
     box_xmin = 0.
     box_xmax = 0.

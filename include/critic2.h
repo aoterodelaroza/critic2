@@ -13,13 +13,18 @@ extern "C" struct c_stick {
   float rot[4][4];
 };
 
+// Balls
+extern "C" struct c_ball {
+  float r[3];
+  float rad;
+  float rgb[3];
+};
+
 // Atoms
 extern "C" struct c_atom {
   char name[11];
   int z;
-  float r[3];
-  float rad;
-  float rgb[3];
+  struct c_ball b;
 };
 extern "C" int nat;
 extern "C" struct c_atom *at;
@@ -35,16 +40,15 @@ extern "C" struct c_bond *bond;
 
 // Critical points
 extern "C" struct c_critp {
-  float r[3];
   int type;
-  float rgb[3];
   char name[11];
+  struct c_ball b;
 };
 extern "C" int ncritp;
 extern "C" struct c_critp *critp;
 
 // Unit cell
-extern "C" bool usecell;
+extern "C" struct c_stick cell_s[12];
 extern "C" float cell_x0[3];
 extern "C" float cell_lat[3][3];
 

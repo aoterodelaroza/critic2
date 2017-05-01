@@ -59,7 +59,7 @@ static const char atomresolution = 1;
 // Bond thickness and atom/CP size
 static const float bondthickness = 0.05;
 static const float atomsize = 0.5;
-static const float cpsize = 0.2;
+static const float cpsize = 0.5;
 
 // Current state of the camera
 static CameraInfo cam;
@@ -79,6 +79,7 @@ static struct {
 static bool show_bonds = true;
 static bool show_cps = true;
 static bool show_atoms = true;
+static bool show_cell = true;
 
 // Quit flag
 static bool want_quit = false;
@@ -181,8 +182,8 @@ void drawstick(Pipeline *p, const c_stick *s)
   p->SetRotationMatrix(s->rot);
 
   // float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,(const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,(const GLfloat *)p->GetWorldTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&(s->rgb));
   // glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
   // glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
@@ -194,68 +195,20 @@ void drawstick(Pipeline *p, const c_stick *s)
   glDrawElements(GL_TRIANGLES, 3*ncyli[bondresolution], GL_UNSIGNED_INT, 0);
 }
 
-//global vars for an atom's mesh
-GLuint atomVB; //atom vertacies
-GLuint atomIB; //atom indecies ~(direction of verts)
-unsigned int numbIndeces;
+// Draw a ball, with optional scaling
+void drawball(Pipeline *p, const c_ball *b, float scal = 1.0)
+{
+  p->Scale(b->rad * scal,b->rad * scal,b->rad * scal);
+  p->Translate(b->r[0], b->r[1], b->r[2]);
 
-/// draw an atom using gl functions
-void drawAtom(int id, float posVector[3], float color[3], Pipeline * p) {
-
-  Vector3f position = Vector3f(posVector[0],posVector[1],posVector[2]);
-
-  float rscal = atomsize * at[id].rad;
-  p->Scale(rscal,rscal,rscal);
-
-  p->Translate(position.x, position.y, position.z);
-  p->Rotate(0.f, 0.f, 0.f);
-
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE,
-                     (const GLfloat *)p->GetWorldTrans());
-  glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, color);
-  glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
-  /*
-  //TODO draw atom ID number
-  ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
-  ImGui::SetNextWindowCollapsed(true);
-  //float * winPos;
-  //matrix math to transform posVector to pixel location of an atoms center
-
-  //ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
-  ImGui::Begin(std::to_string(identifyer).c_str(), false);
-  ImGui::End();
-  */
-}
-
-/// draw a critical point using gl functions
-void drawCritPoint(int identifier, float posVector[3], float color[3],
-			   Pipeline * p){
-  p->Scale(cpsize, cpsize, cpsize);
-  p->Translate(posVector[0],posVector[1],posVector[2]);
-  p->Rotate(0.f, 0.f, 0.f); 
   glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
   glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(ShaderVarLocations.vColorLocation, 1, b->rgb);
+
   glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, color);
   glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
-  /*
-  //TODO draw crit point ID number or type?
-  ImGui::SetNextWindowSize(ImVec2(5, 5), ImGuiSetCond_Always);
-  ImGui::SetNextWindowCollapsed(true);
-  //float * winPos;
-  //matrix math to transform posVector to pixel location of an atoms center
-
-  //ImGui::SetNextWindowPos(ImVec2(winPos[0], winPos[1])); //TODO set location of identifying number
-  ImGui::Begin(charConverter(identifyer).c_str(), false);
-  ImGui::End();
-  */
 }
 
 static void showMenuFunctions(){
@@ -265,14 +218,17 @@ static void showMenuFunctions(){
 }
 
 static void showMenuVisuals() {
-  if (ImGui::MenuItem("show/hide Bonds")) {
+  if (ImGui::MenuItem("Toggle bonds")) {
     show_bonds = !show_bonds;
   }
-  if (ImGui::MenuItem("show/hide Crit Pts")) {
+  if (ImGui::MenuItem("Toggle critical points")) {
     show_cps = !show_cps;
   }
-  if (ImGui::MenuItem("show/hide Atoms")) {
+  if (ImGui::MenuItem("Toggle atoms")) {
     show_atoms = !show_atoms;
+  }
+  if (ImGui::MenuItem("Toggle cell")) {
+    show_cell = !show_cell;
   }
 }
 
@@ -429,7 +385,6 @@ int main(int argc, char *argv[])
     }
     lastTime = curTime;
  
- 
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
  
@@ -487,23 +442,28 @@ int main(int argc, char *argv[])
  
     glEnableVertexAttribArray(0);
  
-    // molecule drawing
+    // Draw the scene elements
     if (show_bonds){
       for (int i=0; i<nbond; i++){
 	drawstick(&p, &(bond[i].s));
       }
     }
     if (show_atoms){
-      for (size_t x = 0; x < nat; x++){
-	drawAtom(x, at[x].r, at[x].rgb, &p);
+      for (int i=0; i<nat; i++){
+	drawball(&p, &(at[i].b), atomsize);
       }
     }
     if (show_cps){
-      for (int x = 0; x < ncritp; x++) {
-	drawCritPoint(x, critp[x].r, critp[x].rgb, &p);
+      for (int i=0; i<ncritp; i++) {
+	drawball(&p, &(critp[i].b), cpsize);
       }
     }
- 
+    if (show_cell){
+      for (int i=0; i<12; i++) {
+	drawstick(&p, &(cell_s[i]));
+      }
+    }
+
     ShowAppMainMenuBar();
     if (want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -543,6 +503,7 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
     call_structure(&filename, ismolecule); 
+    show_cell = !ismolecule;
     firstpass = true;
     *p_open = false;
   }
