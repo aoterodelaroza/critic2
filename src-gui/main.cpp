@@ -277,10 +277,42 @@ static void ShowAppMainMenuBar()
     }
 }
 
+// 
+static void new_structure_dialog(bool *p_open, int ismolecule){
+  static ImGuiFs::Dialog fsopenfile;
+  static bool firstpass = true;
+
+  const char* filename = fsopenfile.chooseFileDialog(firstpass,"./",NULL,"bleh");
+  firstpass = false;
+
+  if (fsopenfile.hasUserJustCancelledDialog() || strlen(filename) > 0){
+    // Dialog has been closed - set up for next time and prevent more calls for now
+    firstpass = true;
+    *p_open = false;
+  }
+
+  if (strlen(filename) > 0){
+    // Clean up previous and initialize the structure
+    call_structure(&filename, ismolecule); 
+    show_cell = !ismolecule;
+    firstpass = true;
+    *p_open = false;
+  }
+}
+
 int main(int argc, char *argv[])
 {
   // Initialize the critic2 library
   critic2_initialize();
+
+  // Concatenate the input arguments and pass them to critic2
+  if (argc > 1){
+    string argall = "";
+    for(int i=1;i<argc;i++)
+      argall = argall + argv[i] + " ";
+    call_structure((const char **) &argall, -1);
+    show_cell = !ismolecule;
+  }
 
   // Setup window
   glfwSetErrorCallback(error_callback);
@@ -491,28 +523,5 @@ int main(int argc, char *argv[])
   critic2_end();
 
   return 0;
-}
-
-// 
-static void new_structure_dialog(bool *p_open, int ismolecule){
-  static ImGuiFs::Dialog fsopenfile;
-  static bool firstpass = true;
-
-  const char* filename = fsopenfile.chooseFileDialog(firstpass,"./",NULL,"bleh");
-  firstpass = false;
-
-  if (fsopenfile.hasUserJustCancelledDialog() || strlen(filename) > 0){
-    // Dialog has been closed - set up for next time and prevent more calls for now
-    firstpass = true;
-    *p_open = false;
-  }
-
-  if (strlen(filename) > 0){
-    // Clean up previous and initialize the structure
-    call_structure(&filename, ismolecule); 
-    show_cell = !ismolecule;
-    firstpass = true;
-    *p_open = false;
-  }
 }
 

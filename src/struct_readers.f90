@@ -2628,7 +2628,7 @@ contains
     logical, intent(out) :: ismol
 
     character(len=:), allocatable :: basename, wextdot, wext_
-    logical :: isvasp
+    logical :: isvasp, prob0
 
     basename = file(index(file,dirsep,.true.)+1:)
     wextdot = basename(index(basename,'.',.true.)+1:)

@@ -70,6 +70,9 @@ module gui_interface
      type(c_ball) :: b !< ball representation of this CP
   end type c_critp
 
+  ! whether critic2 thinks this is a crystal or a molecule
+  logical(c_bool), bind(c) :: ismolecule
+
   ! number of atoms in the scene
   integer(c_int), bind(c) :: nat
 
@@ -178,7 +181,7 @@ contains
   end subroutine critic2_end
 
   ! Read a new molecule/crystal from an external file
-  subroutine call_structure(filename0, isMolecule) bind(c)
+  subroutine call_structure(filename0, ismolecule) bind(c)
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
        fields_integrable_report
     use grd_atomic, only: grda_init
@@ -189,12 +192,15 @@ contains
     use autocp, only: init_cplist
 
     type(c_ptr), intent(in) :: filename0
-    integer(c_int), value :: isMolecule
+    integer(c_int), value :: ismolecule
     character(len=:), allocatable :: filename
 
+    integer :: isformat
+
+    ! transform to fortran string
     filename = c_string_value(filename0)
 
-    call struct_crystal_input(cr, filename, isMolecule == 1, .true.)
+    call struct_crystal_input(cr, filename, ismolecule, .true.)
     if (cr%isinit) then
        ! fill environments, asterisms, nearest neighbors
        call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
@@ -268,6 +274,9 @@ contains
     real*8, parameter :: cellycolor(3) = (/0.0d0,1.0d0,0.0d0/)
     real*8, parameter :: cellzcolor(3) = (/0.0d0,0.0d0,1.0d0/)
     real*8, parameter :: cellthick = 0.05d0
+
+    ! crystal or molecule?
+    ismolecule = cr%ismolecule
 
     ! Calculate the bounding box
     box_xmin = 1e30
@@ -375,6 +384,9 @@ contains
   subroutine clear_scene(unload) bind(c)
     use struct_basic, only: cr
     logical(c_bool), intent(in), value :: unload
+
+    ! crystal/molecule
+    ismolecule = .false.
 
     ! atoms
     if (associated(at_f)) deallocate(at_f)

@@ -39,8 +39,12 @@ module struct
 contains
 
   !xx! top-level routines
-  !> Parse the input of the crystal keyword
-  subroutine struct_crystal_input(c,line,mol,allownofile) 
+  !> Parse the input of the crystal keyword (line) and return an
+  !> initialized crystal c. mol0=1, interpret the structure as a
+  !> molecule; mol0=0, a crystal, mol0=-1, guess. If allownofile
+  !> allow the program to read the following input lines to parse
+  !> the crystal/molecule environment.
+  subroutine struct_crystal_input(c,line,mol0,allownofile) 
     use struct_basic, only: isformat_cif, isformat_res,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
@@ -59,9 +63,8 @@ contains
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, lower
     use param, only: maxzat0
-
     character*(*), intent(in) :: line
-    logical, intent(in) :: mol
+    integer, intent(in) :: mol0
     type(crystal), intent(inout) :: c
     logical, intent(in) :: allownofile
 
@@ -70,7 +73,7 @@ contains
     integer :: ntyp, nn, isformat
     character*5 :: ztyp(maxzat0)
     real*8 :: rborder, raux
-    logical :: docube, ok, ismol
+    logical :: docube, ok, ismol, mol
     type(crystalseed) :: seed
 
     ! read and parse
@@ -84,6 +87,18 @@ contains
     ! detect the format for this file
     call struct_detect_format(word,isformat,ismol)
 
+    ! is this a crystal or a molecule?
+    if (mol0 == 1) then
+       mol = .true.
+    elseif (mol0 == 0) then
+       mol = .false.
+    elseif (mol0 == -1) then
+       mol = ismol
+    else
+       call ferror("struct_crystal_input","unknown mol0",faterr)
+    end if
+
+    ! build the seed
     if (isformat == isformat_cif) then
        seed = struct_read_cif(word,word2,mol)
 
@@ -940,7 +955,7 @@ contains
     character(len=:), allocatable :: word, tname, difstr, diftyp
     integer :: doguess0
     integer :: lp, i, j, k, n
-    integer :: ns, imol, isformat
+    integer :: ns, imol, isformat, ismoli
     type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
@@ -1027,8 +1042,10 @@ contains
     write (uout,'("* COMPARE: compare structures")')
     if (ismol) then
        tname = "Molecule"
+       ismoli = 1
     else
        tname = "Crystal"
+       ismoli = 0
     end if
     allocate(c(ns))
     do i = 1, ns
@@ -1037,7 +1054,7 @@ contains
           c(i) = cr
        else
           write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i)) 
-          call struct_crystal_input(c(i),fname(i),ismol,.false.)
+          call struct_crystal_input(c(i),fname(i),ismoli,.false.)
           if (.not.c(i)%isinit) &
              call ferror("struct_compare","could not load crystal structure" // string(fname(i)),faterr)
        end if
