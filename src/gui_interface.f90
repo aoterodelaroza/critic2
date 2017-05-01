@@ -29,6 +29,7 @@ module gui_interface
   public :: call_structure
   public :: call_auto
   public :: update_scene
+  public :: clear_scene
 
   ! C-interoperable stick type
   type, bind(c) :: c_stick
@@ -99,6 +100,7 @@ module gui_interface
   ! unit cell and lattice vectors
   real(c_float), bind(c) :: cell_x0(3)
   real(c_float), bind(c) :: cell_lat(3,3)
+  integer(c_int), bind(c) :: cell_nstick
   type(c_stick), bind(c) :: cell_s(12)
 
   ! bounding box limits and center
@@ -148,7 +150,7 @@ contains
     ucopy = -1
 
     ! clear the scene
-    call clear_scene()
+    call clear_scene(logical(.false.,c_bool))
 
   end subroutine critic2_initialize
 
@@ -187,7 +189,7 @@ contains
     use autocp, only: init_cplist
 
     type(c_ptr), intent(in) :: filename0
-    integer (kind=c_int), value :: isMolecule
+    integer(c_int), value :: isMolecule
     character(len=:), allocatable :: filename
 
     filename = c_string_value(filename0)
@@ -241,10 +243,8 @@ contains
     use struct_basic, only: cr
     use autocp, only: init_cplist, autocritic
 
-    if (cr%isinit) then
-       call autocritic("")
-    end if
-
+    if (.not.cr%isinit) return
+    call autocritic("")
     call update_scene()
 
   end subroutine call_auto
@@ -263,11 +263,11 @@ contains
     real*8, parameter :: bondthickness = 0.05d0
     real*8, parameter :: bondcolor(3) = (/0.d0,0.d0,0.d0/)
     real*8, parameter :: cpradius = 0.2d0
-    real*8, parameter :: cellcolor(3) = (/1.0d0,0.7d0,0.6d0/)
+    real*8, parameter :: cellcolor(3) = (/1.0d0,0.7d0,0.0d0/)
     real*8, parameter :: cellxcolor(3) = (/1.0d0,0.0d0,0.0d0/)
     real*8, parameter :: cellycolor(3) = (/0.0d0,1.0d0,0.0d0/)
     real*8, parameter :: cellzcolor(3) = (/0.0d0,0.0d0,1.0d0/)
-    real*8, parameter :: cellthick = 0.1d0
+    real*8, parameter :: cellthick = 0.05d0
 
     ! Calculate the bounding box
     box_xmin = 1e30
@@ -355,6 +355,7 @@ contains
     end do
     x1 = cr%molx0 - xcm
     x2 = x1 + cr%crys2car(:,1)+cr%crys2car(:,2)+cr%crys2car(:,3)
+    cell_nstick = 12;
     cell_s(1) = stick_from_endpoints(x1,x1+cr%crys2car(:,1),cellthick,cellxcolor)
     cell_s(2) = stick_from_endpoints(x1,x1+cr%crys2car(:,2),cellthick,cellycolor)
     cell_s(3) = stick_from_endpoints(x1,x1+cr%crys2car(:,3),cellthick,cellzcolor)
@@ -370,8 +371,10 @@ contains
 
   end subroutine update_scene
 
-  ! Clear the scene
-  subroutine clear_scene() bind(c)
+  ! Clear the scene and (optionally) unload the crystal structure
+  subroutine clear_scene(unload) bind(c)
+    use struct_basic, only: cr
+    logical(c_bool), intent(in), value :: unload
 
     ! atoms
     if (associated(at_f)) deallocate(at_f)
@@ -388,11 +391,18 @@ contains
     ncritp = 0
     critp = C_NULL_PTR
     
+    ! cell
+    cell_nstick = 0
+
     ! bounding box
     box_xmin = 0.
     box_xmax = 0.
     box_xcm = 0. 
     box_xmaxlen = 0. 
+
+    ! unload the crystal structure
+    if (unload) &
+       call cr%end()
 
   end subroutine clear_scene
 

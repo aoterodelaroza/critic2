@@ -258,6 +258,7 @@ static void ShowAppMainMenuBar()
 	if (ImGui::MenuItem("Open recent")) {}
 	ImGui::Separator();
 	if (ImGui::MenuItem("Close","Ctrl+W")) {
+	  clear_scene(true);
 	}
 	if (ImGui::MenuItem("Quit","Ctrl+Q")) 
 	  want_quit = true;
@@ -388,7 +389,7 @@ int main(int argc, char *argv[])
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
  
-    // Process input
+    // Process mouse input
     ImGuiIO& io = ImGui::GetIO();
     lLMB = cLMB;
     lRMB = cRMB;
@@ -427,6 +428,12 @@ int main(int argc, char *argv[])
       }
     }
  
+    // Process some keyboard input
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
+      want_quit = true;
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
+      clear_scene(true);
+
     // Rendering
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -459,7 +466,7 @@ int main(int argc, char *argv[])
       }
     }
     if (show_cell){
-      for (int i=0; i<12; i++) {
+      for (int i=0; i<cell_nstick; i++) {
 	drawstick(&p, &(cell_s[i]));
       }
     }
