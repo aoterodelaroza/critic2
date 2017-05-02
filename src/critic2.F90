@@ -129,9 +129,6 @@ program critic
            ismoli = 1
         end if
 
-        ! read the crystal enviornment
-        call struct_crystal_input(cr,subline,ismoli,.true.)
-
         ! change default output units
         if (iunit_isdef) then
            if (equal(word,'molecule')) then
@@ -142,7 +139,7 @@ program critic
         end if
 
         ! read the crystal enviornment
-        call struct_crystal_input(cr,subline,equal(word,'molecule'),.true.)
+        call struct_crystal_input(cr,subline,ismoli,.true.)
 
         if (cr%isinit) then
            ! fill environments, asterisms, nearest neighbors
