@@ -245,7 +245,7 @@ static void ShowAppMainMenuBar()
   if (ImGui::BeginMainMenuBar())
     {
       if (ImGui::BeginMenu("File")){
-	if (ImGui::MenuItem("New","Ctrl+N")){}
+	if (ImGui::MenuItem("New","Ctrl+N",false,false)){}
 	if (ImGui::MenuItem("Open crystal","Ctrl+O")){
 	  show_new_structure_dialog = true;
 	  ismolecule = 0;
@@ -254,8 +254,8 @@ static void ShowAppMainMenuBar()
 	  show_new_structure_dialog = true;
 	  ismolecule = 1;
 	}
-	if (ImGui::MenuItem("Open from library","Ctrl+L")) {}
-	if (ImGui::MenuItem("Open recent")) {}
+	if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}
+	if (ImGui::MenuItem("Open recent",NULL,false,false)) {}
 	ImGui::Separator();
 	if (ImGui::MenuItem("Close","Ctrl+W")) {
 	  clear_scene(true);
@@ -264,17 +264,32 @@ static void ShowAppMainMenuBar()
 	  want_quit = true;
 	ImGui::EndMenu();
       }
-      if (ImGui::BeginMenu("Functions")) {
+      if (ImGui::BeginMenu("Calculate")) {
 	showMenuFunctions();
 	ImGui::EndMenu();
       }
-      if (ImGui::BeginMenu("Visuals")) {
+      if (ImGui::BeginMenu("View")) {
 	showMenuVisuals();
 	ImGui::EndMenu();
       }
 
       ImGui::EndMainMenuBar();
     }
+
+  // Process key bindings associated to the menu
+  ImGuiIO& io = ImGui::GetIO();
+  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
+    want_quit = true;
+  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
+    clear_scene(true);
+  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O]){
+    show_new_structure_dialog = true;
+    ismolecule = 0;
+  }
+  if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O]){
+    show_new_structure_dialog = true;
+    ismolecule = 1;
+  }
 }
 
 // 
@@ -294,6 +309,7 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
     call_structure(&filename, ismolecule); 
+    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
     show_cell = !ismolecule;
     firstpass = true;
     *p_open = false;
@@ -304,15 +320,6 @@ int main(int argc, char *argv[])
 {
   // Initialize the critic2 library
   critic2_initialize();
-
-  // Concatenate the input arguments and pass them to critic2
-  if (argc > 1){
-    string argall = "";
-    for(int i=1;i<argc;i++)
-      argall = argall + argv[i] + " ";
-    call_structure((const char **) &argall, -1);
-    show_cell = !ismolecule;
-  }
 
   // Setup window
   glfwSetErrorCallback(error_callback);
@@ -360,6 +367,21 @@ int main(int argc, char *argv[])
   // Initialize pipeline
   Pipeline p;
 
+  // Initial camera position
+  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
+  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
+  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
+ 
+  // Concatenate the input arguments and pass them to critic2
+  if (argc > 1){
+    string argall = "";
+    for(int i=1;i<argc;i++)
+      argall = argall + argv[i] + " ";
+    call_structure((const char **) &argall, -1);
+    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
+    show_cell = !ismolecule;
+  }
+
   // Imgui static variables
   // input variables;
   // c means for current loop, l means last loop, p means last pressed
@@ -374,10 +396,6 @@ int main(int argc, char *argv[])
   static double pMPosX;
   static double pMPosY;
   static double scrollY;
- 
-  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
-  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
-  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
  
   time_t lastTime = time(0);
   time_t curTime = lastTime;
@@ -460,12 +478,6 @@ int main(int argc, char *argv[])
       }
     }
  
-    // Process some keyboard input
-    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
-      want_quit = true;
-    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
-      clear_scene(true);
-
     // Rendering
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -503,10 +515,12 @@ int main(int argc, char *argv[])
       }
     }
 
+    // Menus
     ShowAppMainMenuBar();
     if (want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
  
+    // Render
     glDisableVertexAttribArray(0);
     glUseProgram(lightshader);
  
