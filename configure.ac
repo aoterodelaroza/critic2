@@ -12,11 +12,6 @@ m4_include([config/m4/ax_f90_module_flag.m4])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wno-portability])
 
-# Check the fortran compiler
-AC_PROG_FC([ifort gfortran])
-AC_PROG_F77([ifort gfortran])
-AC_PROG_CC
-
 # windows cross-compilation (system-specific, overrides default compiler choice)
 AC_ARG_ENABLE([win32],
 [  --enable-win32        Use specific compiler and flags for windows cross-compilation (32 bit)],
@@ -52,9 +47,10 @@ AC_ARG_ENABLE([win64],
 esac],[win64=false])
 AM_CONDITIONAL([WIN], [test x$win32 = xtrue -o x$win64 = xtrue])
 
-# some compiler flags I'll need
-AC_PROG_RANLIB
+# Some fortran compiler flags I'll need
 AC_LANG([Fortran])
+AC_PROG_FC([ifort gfortran])
+AC_PROG_F77([ifort gfortran])
 AC_FC_FREEFORM
 AC_FC_LINE_LENGTH([unlimited])
 AX_F90_MODULE_EXTENSION
@@ -64,7 +60,20 @@ FFLAGS+=" $OPENMP_FFLAGS"
 FCFLAGS+=" $OPENMP_FCFLAGS"
 AC_EXEEXT
 
+# C language
+AC_PROG_CC
+
+# C++ language
+AC_PROG_CXX
+
+# header files
+## AC_LANG_PUSH([C])
+## AC_CONFIG_HEADERS([config.h])
+## AC_CHECK_HEADERS([stdio.h string.h stdlib.h GL/gl3w.h])
+## AC_LANG_POP([C])
+
 # check for programs
+AC_PROG_RANLIB
 AC_PROG_AWK(gawk)
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
@@ -86,12 +95,23 @@ if test "${enable_debug}" = "yes"; then
         #FFLAGS+=" -g -CU -C -traceback -fpe0 -debug -fpp -check all -check noarg_temp_created -O0"
 	;;
    esac
-   case $CC in
-   "gcc"|"x86_64-linux-gnu-gcc-6"|"gcc-5"|"gcc-6"|"cc")
-	CFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
-	;;
-   esac
+   dnl case $CC in
+   dnl "gcc"|"x86_64-linux-gnu-gcc-6"|"gcc-5"|"gcc-6"|"cc")
+   dnl 	CFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
+   dnl 	;;
+   dnl esac
+   dnl case $CXX in
+   dnl "g++"|"g++-6"|"x86_64-linux-gnu-g++-6"|"g++-5"|"x86_64-linux-gnu-g++-5")
+   dnl 	CXXFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
+   dnl 	;;
+   dnl esac
 fi
+
+# enable compilation of the gui
+AC_ARG_ENABLE([gui],
+[  --enable-gui        Compile the GUI (very experimental, and library dependencies missing from configure)],
+,,[enable_gui=no])
+AM_CONDITIONAL([GUI], [test "$enable_gui" = yes])
 
 # libxc
 ACX_LIBXC
@@ -125,9 +145,11 @@ AC_SUBST(LIBADD, ${LIBADD})
 AC_MSG_NOTICE([FC        = ${FC}])
 AC_MSG_NOTICE([F77       = ${F77}])
 AC_MSG_NOTICE([CC        = ${CC}])
+AC_MSG_NOTICE([CXX       = ${CXX}])
 AC_MSG_NOTICE([FCFLAGS   = ${FCFLAGS}])
 AC_MSG_NOTICE([FFLAGS    = ${FFLAGS}])
 AC_MSG_NOTICE([CFLAGS    = ${CFLAGS}])
+AC_MSG_NOTICE([CXXFLAGS  = ${CXXFLAGS}])
 AC_MSG_NOTICE([LDFLAGS   = ${LDFLAGS}])
 AC_MSG_NOTICE([LIBS      = ${LIBS}])
 AC_MSG_NOTICE([MODINC    = ${MODINC}])
@@ -137,5 +159,5 @@ AC_MSG_NOTICE([LIBADD    = ${LIBADD}])
 # Final output
 AC_OUTPUT([Makefile src/Makefile src/oldlibs/Makefile src/ciftbx/Makefile src/cubpack/Makefile \
            src/qhull/Makefile src/spglib/Makefile tools/Makefile \
-           src/config.F90 dat/Makefile doc/Makefile tests/Makefile])
+           src/config.F90 src-gui/Makefile dat/Makefile doc/Makefile tests/Makefile])
 

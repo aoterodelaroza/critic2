@@ -72,7 +72,7 @@ program critic
   character(len=:), allocatable :: line
   !
   integer :: level, plevel
-  integer :: i, id, nn
+  integer :: i, id, nn, ismoli
   logical :: ll1, ok
   real*8 :: rdum
   ! real*8 :: xnew(3), xold(3)
@@ -123,7 +123,16 @@ program critic
         ! there is a previous crystal structure, clean up...
         if (cr%isinit) call clean_structure()
 
-        ! change default input/output units
+        if (equal(word,'crystal')) then
+           ismoli = 0
+        else
+           ismoli = 1
+        end if
+
+        ! read the crystal enviornment
+        call struct_crystal_input(cr,subline,ismoli,.true.)
+
+        ! change default output units
         if (iunit_isdef) then
            if (equal(word,'molecule')) then
               iunit = iunit_ang

@@ -74,6 +74,7 @@ contains
     type(scalar_value) :: res
     logical :: defer
 
+    if (.not.cr%isinit) return
     if (allocated(cp)) deallocate(cp)
     if (allocated(cpcel)) deallocate(cpcel)
     
