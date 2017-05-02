@@ -9,6 +9,10 @@ Contributors to the critic2 code:
   The STM module is based on one of Enrico's program, who also
   provided guidance and encouragement.
 
+* Robin Myhr, Isaac Visintainer, and Richard Greaves at the University
+  of British Columbia (Okanagan):
+  Initial version of the graphical interface.
+
 Critic2 contains code from the following sources. The complete
 copyright notice is included in the corresponding files.
 
@@ -116,4 +120,14 @@ copyright notice is included in the corresponding files.
   Giovanni Pizzi, Young-Su Lee, Nicola Marzari, Ivo Souza, and David
   Vanderbilt. Distributed under the GNU/GPL v2.
 
+* The graphical interface (GUI) contains a copy of the Immediate Mode
+  Graphical User interface (ImGui), coded by Omar Cornut with
+  contributions from others (https://github.com/ocornut/imgui).
+
+  The matrix and quaternion manipulation library
+  (src-gui/matrix_math.*) comes from the OGLdev tutorials, by Etay
+  Meiri (http://ogldev.atspace.co.uk/index.html).
+
+  The GUI also uses the font rasterization library of the STB package,
+  by Sean Barrett and others (https://github.com/nothings/stb).
 
