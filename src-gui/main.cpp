@@ -582,6 +582,13 @@ int main(int argc, char *argv[])
     if (want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
  
+    // Dummy window -> arbitrary objects rendered on the screen
+    // ImGui::Begin("",NULL,ImVec2(200.,200.),0.0,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoInputs);
+    // ImDrawList* drawlist = ImGui::GetWindowDrawList();
+    // ImFont *font = ImGui::GetFont();
+    // drawlist->AddText(ImVec2(100.,100.),ImGui::GetColorU32(ImGuiCol_Text),"bleh!");
+    // ImGui::End();
+
     // Render
     glDisableVertexAttribArray(0);
     glUseProgram(lightshader);
