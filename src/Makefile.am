@@ -1,7 +1,6 @@
 # Critic2 targets and sources
 dist_bin_SCRIPTS = 
 bin_PROGRAMS = critic2
-noinst_LIBRARIES=libcritic2.a
 critic2_SOURCES = critic2.F90 tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f90 qtree.f90 qtree_gpaths.f90 \
 	qtree_tetrawork.f90 qtree_utils.f90 ewald.f90 hirshfeld.f90 bisect.f90 integration.f90 surface.f90 flux.f90 \
 	autocp.f90 navigation.f90 nci.f90 rhoplot.f90 meshmod.f90 varbas.f90 fields.f90 grid_tools.f90 grd_atomic.f90 \
@@ -9,7 +8,10 @@ critic2_SOURCES = critic2.F90 tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_
 	global.f90 dftb_private.f90 wfn_private.f90 pi_private.f90 elk_private.f90 wien_private.f90 abinit_private.f90 \
 	tools_system.c tools.f90 arithmetic.F90 hashtype.f90 tools_math.f90 graphics.f90 fragmentmod.f90 tools_io.f90 \
 	types.f90 param.F90 keast.f90 quadpack.f90 cfftnd.f90 config.F90 doqhull.c spglib.f90
-libcritic2_a_SOURCES = tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f90 qtree.f90 qtree_gpaths.f90 \
+
+if GUI
+  noinst_LIBRARIES=libcritic2.a
+  libcritic2_a_SOURCES = tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f90 qtree.f90 qtree_gpaths.f90 \
 	qtree_tetrawork.f90 qtree_utils.f90 ewald.f90 hirshfeld.f90 bisect.f90 integration.f90 surface.f90 flux.f90 \
 	autocp.f90 navigation.f90 nci.f90 rhoplot.f90 meshmod.f90 varbas.f90 fields.f90 grid_tools.f90 grd_atomic.f90 \
 	struct_basic.f90 struct_writers.f90 struct_readers.f90 struct.f90 sympg.f90 spgs.f90 grid1_tools.f90 \
@@ -17,6 +19,7 @@ libcritic2_a_SOURCES = tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f
 	tools_system.c tools.f90 arithmetic.F90 hashtype.f90 tools_math.f90 graphics.f90 fragmentmod.f90 tools_io.f90 \
 	types.f90 param.F90 keast.f90 quadpack.f90 cfftnd.f90 config.F90 doqhull.c spglib.f90 \
 	gui_interface.f90 c_interface_module.f90
+endif
 
 # Library subdirectories
 SUBDIRS = oldlibs ciftbx cubpack qhull spglib
@@ -25,9 +28,6 @@ SUBDIRS = oldlibs ciftbx cubpack qhull spglib
 critic2_LDADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a \
 	spglib/libspglib.a $(LIBADD)
 critic2_DEPENDENCIES=$(critic2_LDADD)
-# libcritic2_a_LIBADD=oldlibs/libmisc.a ciftbx/libciftbx.a cubpack/libcubpack.a \
-# 	spglib/libspglib.a $(LIBADD)
-# libcritic2_a_DEPENDENCIES=$(gcritic2_LIBADD)
 
 # Include the subdirectories with the modules
 AM_FCFLAGS= -I$(top_srcdir)/src/cubpack

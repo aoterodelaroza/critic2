@@ -107,6 +107,12 @@ if test "${enable_debug}" = "yes"; then
    dnl esac
 fi
 
+# enable compilation of the gui
+AC_ARG_ENABLE([gui],
+[  --enable-gui        Compile the GUI (very experimental, and library dependencies missing from configure)],
+,,[enable_gui=no])
+AM_CONDITIONAL([GUI], [test "$enable_gui" = yes])
+
 # libxc
 ACX_LIBXC
 

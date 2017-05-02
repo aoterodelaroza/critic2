@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015 Alberto Otero de la Roza
+Copyright (c) 2017 Alberto Otero de la Roza
 <aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
 Visintainer <x@example.com>, Richard Greaves <x@example.com>, Ángel
 Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
