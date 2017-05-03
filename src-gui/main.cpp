@@ -38,6 +38,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "geometry.h"
 #include "imguifilesystem.h"
 
+#include "guiapps.h"
+
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
 // #endif // WIN32
@@ -252,25 +254,29 @@ static void showMenuVisuals() {
   static float time0 = -1.;
   bool reset = true;
 
-  if (ImGui::MenuItem("Toggle bonds")) {
+  if (ImGui::MenuItem("Toggle bonds","",show_bonds)) {
     show_bonds = !show_bonds;
   }
   AttachTooltip("Toggle show/hide bonds.\n",ttipdelay,&time0,&reset);
 
-  if (ImGui::MenuItem("Toggle critical points")) {
+  if (ImGui::MenuItem("Toggle critical points","",show_cps)) {
     show_cps = !show_cps;
   }
   AttachTooltip("Toggle show/hide critical points.\n",ttipdelay,&time0,&reset);
 
-  if (ImGui::MenuItem("Toggle atoms")) {
+  if (ImGui::MenuItem("Toggle atoms","",show_atoms)) {
     show_atoms = !show_atoms;
   }
   AttachTooltip("Toggle show/hide atoms.\n",ttipdelay,&time0,&reset);
 
-  if (ImGui::MenuItem("Toggle cell")) {
+  if (ImGui::MenuItem("Toggle cell","",show_cell)) {
     show_cell = !show_cell;
   }
   AttachTooltip("Toggle show/hide unit cell.\n",ttipdelay,&time0,&reset);
+
+  if (ImGui::MenuItem("Show structure information","",structureinfo_window_h))
+    structureinfo_window_h = !structureinfo_window_h;
+  AttachTooltip("Show information about the current structure.\n",ttipdelay,&time0,&reset);
 
   if (reset)
     time0 = -1.;
@@ -375,6 +381,7 @@ static void new_structure_dialog(bool *p_open, int ismolecule){
     show_cell = !ismolecule;
     firstpass = true;
     *p_open = false;
+    structureinfo_window_h = true;
   }
 }
 
@@ -395,7 +402,7 @@ int main(int argc, char *argv[])
   glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
 
   // Create the window
-  GLFWwindow* window = glfwCreateWindow(640, 480, "gcritic2", NULL, NULL);
+  GLFWwindow* window = glfwCreateWindow(1024, 768, "gcritic2", NULL, NULL);
   glfwMakeContextCurrent(window);
   gl3wInit();
 
@@ -446,6 +453,7 @@ int main(int argc, char *argv[])
     call_structure((const char **) &argall, -1);
     cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
     show_cell = !ismolecule;
+    structureinfo_window_h = true;
   }
 
   // Imgui static variables
@@ -579,6 +587,9 @@ int main(int argc, char *argv[])
 	drawstick(&p, &(cell_s[i]));
       }
     }
+
+    // Process GUI elment handles
+    guiapps_process_handles();
 
     // Menus
     ShowAppMainMenuBar();

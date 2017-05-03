@@ -20,8 +20,9 @@ extern "C" struct c_ball {
   float rgb[3];
 };
 
-// crystal or molecule
-bool ismolecule;
+// glboal flags
+extern bool isinit;
+extern bool ismolecule;
 
 // atoms
 extern "C" struct c_atom {

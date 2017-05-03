@@ -70,7 +70,8 @@ module gui_interface
      type(c_ball) :: b !< ball representation of this CP
   end type c_critp
 
-  ! whether critic2 thinks this is a crystal or a molecule
+  ! global flags
+  logical(c_bool), bind(c) :: isinit
   logical(c_bool), bind(c) :: ismolecule
 
   ! number of atoms in the scene
@@ -275,7 +276,10 @@ contains
     real*8, parameter :: cellzcolor(3) = (/0.0d0,0.0d0,1.0d0/)
     real*8, parameter :: cellthick = 0.05d0
 
-    ! crystal or molecule?
+    if (.not.cr%isinit) return
+
+    ! global flags
+    isinit = cr%isinit
     ismolecule = cr%ismolecule
 
     ! Calculate the bounding box
@@ -385,7 +389,8 @@ contains
     use struct_basic, only: cr
     logical(c_bool), intent(in), value :: unload
 
-    ! crystal/molecule
+    ! global flags
+    isinit = .false.
     ismolecule = .false.
 
     ! atoms
