@@ -402,6 +402,10 @@ int main(int argc, char *argv[])
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(window, true);
 
+  // Options for imgui
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = NULL;
+
   // Event callbacks
   glfwSetScrollCallback(window, ScrollCallback);
 
@@ -502,7 +506,6 @@ int main(int argc, char *argv[])
     ImGui_ImplGlfwGL3_NewFrame();
  
     // Process mouse input
-    ImGuiIO& io = ImGui::GetIO();
     lLMB = cLMB;
     lRMB = cRMB;
     cLMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
