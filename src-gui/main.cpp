@@ -20,9 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdio.h>
-#include <string>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string>
 #include <math.h>
 #include <time.h>
 
@@ -38,6 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "geometry.h"
 #include "callback.h"
 #include "guiapps.h"
+#include "shader.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
@@ -76,21 +77,6 @@ bool want_quit = false;
 // Current state of the camera
 CameraInfo cam;
 
-// xxxx not processed yet //
-
-// Shader and shader variables
-static GLuint lightshader;
-static struct {
-  GLuint gWorldLocation;
-  GLuint gWVPLocation;
-  GLuint vColorLocation;
-  GLuint lColorLocation;
-  GLuint lDirectionLocation;
-  GLuint fAmbientIntensityLocation;
-} ShaderVarLocations;
-
-// xxxx //
-
 bool IsItemHoveredDelayed(float delay,float *time0,bool *reset)
 {
   float time = ImGui::GetTime();
@@ -114,81 +100,6 @@ static void AttachTooltip(const char* desc, float delay, float *time0, bool *res
     }
 }
 
-// add a shader to the gl program
-static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
-{
-  GLuint ShaderObj = glCreateShader(ShaderType);
-
-  if (ShaderObj == 0) {
-    fprintf(stderr, "Error creating shader type %d\n", ShaderType);
-    exit(0);
-  }
-
-  const GLchar * p[1];
-  p[0] = pShaderText;
-  GLint Lengths[1];
-  Lengths[0] = strlen(pShaderText);
-  glShaderSource(ShaderObj, 1, p, Lengths);
-  glCompileShader(ShaderObj);
-  GLint success;
-  glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    GLchar InfoLog[1024];
-    glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
-    fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
-    exit(1);
-  }
-  glAttachShader(ShaderProgram, ShaderObj);
-}
-
-// create a shader programe based on a shader script
-static GLuint LightingShader()
-{
-
-  GLuint ShaderProgram = glCreateProgram();
-  if (ShaderProgram == 0){
-    exit(1);
-  }
-
-  const char * vs = "#version 330 \n \
-    uniform mat4 gWorld; \n \
-    uniform mat4 gWVP; \n \
-    layout (location = 0) in vec3 inPosition; \n \
-    layout (location = 1) in vec3 inNormal; \n \
-    smooth out vec3 vNormal; \n \
-    void main() { \n \
-      gl_Position = gWVP * vec4(inPosition, 1.0); \n \
-      vNormal = (gWorld * vec4(inNormal, 0.0)).xyz; \n \
-      }";
-
-  const char * fs = "#version 330 \n \
-    smooth in vec3 vNormal; \n \
-    uniform vec4 vColor; \n \
-    out vec4 outputColor; \n \
-    uniform vec3 lColor; \n \
-    uniform vec3 lDirection; \n \
-    uniform float fAmbientIntensity; \n \
-    void main() { \n \
-      float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), lDirection)); \n \
-      outputColor = vColor; \n \
-      }";
-
-  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
-
-  GLint success = 0;
-
-  glLinkProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-  if (success == 0) exit(1);
-
-  glValidateProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-  if (success == 0) exit(1);
-
-  return ShaderProgram;
-}
-
 // draw a bond between 2 atoms defined in the bond struct
 void drawstick(Pipeline *p, const c_stick *s)
 {
@@ -197,12 +108,12 @@ void drawstick(Pipeline *p, const c_stick *s)
   p->SetRotationMatrix(s->rot);
 
   // float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&(s->rgb));
-  // glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
-  // glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
-  // glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
+  glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(vColorLocation, 1, (const GLfloat *)&(s->rgb));
+  // glUniform4fv(lColorLocation, 1, (const GLfloat *)&white);
+  // glUniform4fv(lDirectionLocation, 1, (const GLfloat *)&dir);
+  // glUniform1f(fAmbientIntensityLocation, 0.8);
 
   glBindBuffer(GL_ARRAY_BUFFER, bufcylv[bondresolution]);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufcyli[bondresolution]);
@@ -216,9 +127,9 @@ void drawball(Pipeline *p, const c_ball *b, float scal = 1.0)
   p->Scale(b->rad * scal,b->rad * scal,b->rad * scal);
   p->Translate(b->r[0], b->r[1], b->r[2]);
 
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, b->rgb);
+  glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(vColorLocation, 1, b->rgb);
 
   glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
@@ -366,12 +277,12 @@ int main(int argc, char *argv[])
 
   // Shader
   lightshader = LightingShader();
-  ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
-  ShaderVarLocations.gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
-  ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
-  ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
-  ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
-  ShaderVarLocations.fAmbientIntensityLocation = glGetUniformLocation(lightshader, "fAmbientIntensity");
+  gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
+  gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
+  vColorLocation = glGetUniformLocation(lightshader, "vColor");
+  lColorLocation = glGetUniformLocation(lightshader, "lColor");
+  lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
+  fAmbientIntensityLocation = glGetUniformLocation(lightshader, "fAmbientIntensity");
  
   //glEnables
   glEnable(GL_DEPTH_TEST);
