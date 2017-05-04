@@ -19,11 +19,28 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Handles for the various windows and GUI elements
-extern bool structureinfo_window_h;
-extern int structurenew_window_h;
+#include "matrix_math.h"
 
-// GUI element prototypes
-void guiapps_process_handles();
-void structureinfo_window(bool *p_open);
-void structurenew_window(int *p_open);
+// Bond and atom resolutions (0 = coarse -> 3 = smooth)
+extern const char bondresolution;
+extern const char atomresolution;
+
+// Bond thickness and atom/CP size
+extern const float bondthickness;
+extern const float atomsize;
+extern const float cpsize;
+
+// Tooltipdelay
+extern const float ttipdelay;
+
+// Show/hide elements of the interface
+extern bool show_bonds;
+extern bool show_cps;
+extern bool show_atoms;
+extern bool show_cell;
+
+// Quit flag
+extern bool want_quit;
+
+// Current state of the camera
+extern CameraInfo cam;

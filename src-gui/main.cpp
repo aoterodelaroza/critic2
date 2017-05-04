@@ -36,7 +36,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "matrix_math.h"
 #include "geometry.h"
-#include "imguifilesystem.h"
 
 #include "guiapps.h"
 
@@ -50,24 +49,34 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 // Forward declarations //
-static void new_structure_dialog(bool *p_open, int ismolecule);
 static void ShowAppMainMenuBar();
 
-// Static GUI variables //
+// GUI global variables (main.h) //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
-static const char bondresolution = 2;
-static const char atomresolution = 1;
+const char bondresolution = 2;
+const char atomresolution = 1;
 
 // Bond thickness and atom/CP size
-static const float bondthickness = 0.05;
-static const float atomsize = 0.5;
-static const float cpsize = 0.5;
+const float bondthickness = 0.05;
+const float atomsize = 0.5;
+const float cpsize = 0.5;
 
 // Tooltipdelay
-static const float ttipdelay = 1.5;
+const float ttipdelay = 1.5;
+
+// Show/hide elements of the interface
+bool show_bonds = true;
+bool show_cps = true;
+bool show_atoms = true;
+bool show_cell = true;
+
+// Quit flag
+bool want_quit = false;
 
 // Current state of the camera
-static CameraInfo cam;
+CameraInfo cam;
+
+// xxxx not processed yet //
 
 // Shader and shader variables
 static GLuint lightshader;
@@ -79,15 +88,6 @@ static struct {
   GLuint lDirectionLocation;
   GLuint fAmbientIntensityLocation;
 } ShaderVarLocations;
-
-// Show/hide elements of the interface
-static bool show_bonds = true;
-static bool show_cps = true;
-static bool show_atoms = true;
-static bool show_cell = true;
-
-// Quit flag
-static bool want_quit = false;
 
 // xxxx //
 
@@ -284,13 +284,6 @@ static void showMenuVisuals() {
 
 static void ShowAppMainMenuBar()
 {
-  // logical variables for persistent dialogs
-  static bool show_new_structure_dialog = false;
-  static int ismolecule;
-
-  // persistent dialog calls
-  if (show_new_structure_dialog) new_structure_dialog(&show_new_structure_dialog,ismolecule);
-
   // immediate actions
   if (ImGui::BeginMainMenuBar())
     {
@@ -300,16 +293,12 @@ static void ShowAppMainMenuBar()
 
 	if (ImGui::MenuItem("New","Ctrl+N",false,false)){}
 
-	if (ImGui::MenuItem("Open crystal","Ctrl+O")){
-	  show_new_structure_dialog = true;
-	  ismolecule = 0;
-	}
+	if (ImGui::MenuItem("Open crystal","Ctrl+O"))
+	  structurenew_window_h = 2;
 	AttachTooltip("Read the crystal structure from a file.\n",ttipdelay,&time0,&reset);
 
-	if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O")) {
-	  show_new_structure_dialog = true;
-	  ismolecule = 1;
-	}
+	if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O"))
+	  structurenew_window_h = 1;
 	AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
 
 	if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}
@@ -350,41 +339,13 @@ static void ShowAppMainMenuBar()
     want_quit = true;
   if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
     clear_scene(true);
-  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O]){
-    show_new_structure_dialog = true;
-    ismolecule = 0;
-  }
-  if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O]){
-    show_new_structure_dialog = true;
-    ismolecule = 1;
-  }
+  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O])
+    structurenew_window_h = 2;
+  if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O])
+    structurenew_window_h = 1;
 }
 
 // 
-static void new_structure_dialog(bool *p_open, int ismolecule){
-  static ImGuiFs::Dialog fsopenfile;
-  static bool firstpass = true;
-
-  const char* filename = fsopenfile.chooseFileDialog(firstpass,"./",NULL);
-  firstpass = false;
-
-  if (fsopenfile.hasUserJustCancelledDialog() || strlen(filename) > 0){
-    // Dialog has been closed - set up for next time and prevent more calls for now
-    firstpass = true;
-    *p_open = false;
-  }
-
-  if (strlen(filename) > 0){
-    // Clean up previous and initialize the structure
-    call_structure(&filename, ismolecule); 
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
-    show_cell = !ismolecule;
-    firstpass = true;
-    *p_open = false;
-    structureinfo_window_h = true;
-  }
-}
-
 int main(int argc, char *argv[])
 {
   // Initialize the critic2 library
