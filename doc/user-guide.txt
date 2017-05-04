@@ -2795,13 +2795,11 @@ Usual CRYSTAL/LOAD and MOLECULE/LOAD combinations
 
     CRYSTAL name.cube
     LOAD name.cube
-    ZPSP C 4 H 1 ...
 
   ::
 
     CRYSTAL name.scf.out
     LOAD name.cube
-    ZPSP C 4 H 1 ...
 
   ::
 
@@ -2818,7 +2816,6 @@ Usual CRYSTAL/LOAD and MOLECULE/LOAD combinations
 
     CRYSTAL name.scf.in
     LOAD name.cube
-    ZPSP C 4 H 1 ...
 
 * **Abinit**
 
