@@ -19,30 +19,22 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "imgui.h"
-#include "matrix_math.h"
+#include <stdio.h>
+#include <critic2.h>
+#include <GL/gl3w.h>
+#include <GLFW/glfw3.h>
+#include "main.h"
 
-// Bond and atom resolutions (0 = coarse -> 3 = smooth)
-extern const char bondresolution;
-extern const char atomresolution;
+// On error, pritn to standard error
+void error_callback(int error, const char* description)
+{
+  fprintf(stderr, "Error %d: %s\n", error, description);
+}
 
-// Bond thickness and atom/CP size
-extern const float bondthickness;
-extern const float atomsize;
-extern const float cpsize;
-
-// Tooltipdelay
-extern const float ttipdelay;
-
-// Show/hide elements of the interface
-extern bool show_bonds;
-extern bool show_cps;
-extern bool show_atoms;
-extern bool show_cell;
-
-// Quit flag
-extern bool want_quit;
-
-// Current state of the camera
-extern CameraInfo cam;
+// Mouse scroll callback
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+  float camZoomFactor = box_xmaxlen * 0.2f;
+  cam.Pos[2] += yoffset * camZoomFactor;
+}
 

@@ -36,7 +36,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "matrix_math.h"
 #include "geometry.h"
-
+#include "callback.h"
 #include "guiapps.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
@@ -90,12 +90,6 @@ static struct {
 } ShaderVarLocations;
 
 // xxxx //
-
-// Standard error print to console
-static void error_callback(int error, const char* description)
-{
-  fprintf(stderr, "Error %d: %s\n", error, description);
-}
 
 bool IsItemHoveredDelayed(float delay,float *time0,bool *reset)
 {
@@ -193,13 +187,6 @@ static GLuint LightingShader()
   if (success == 0) exit(1);
 
   return ShaderProgram;
-}
-
-// get mouse scroll
-void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
-{
-  float camZoomFactor = box_xmaxlen * 0.2f;
-  cam.Pos[2] += yoffset * camZoomFactor;
 }
 
 // draw a bond between 2 atoms defined in the bond struct
@@ -351,7 +338,7 @@ int main(int argc, char *argv[])
   // Initialize the critic2 library
   critic2_initialize();
 
-  // Setup window
+  // Create the window and connect callbacks; initialize glfw/gl3w
   glfwSetErrorCallback(error_callback);
   if (!glfwInit())
     return 1;
@@ -361,26 +348,21 @@ int main(int argc, char *argv[])
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_DECORATED, GL_TRUE);
   glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
-
-  // Create the window
   GLFWwindow* window = glfwCreateWindow(1024, 768, "gcritic2", NULL, NULL);
   glfwMakeContextCurrent(window);
   gl3wInit();
 
-  // Setup ImGui binding
+  // Set up ImGui binding
   ImGui_ImplGlfwGL3_Init(window, true);
 
-  // Options for imgui
-  ImGuiIO& io = ImGui::GetIO();
-  io.IniFilename = NULL;
+  // Connect scroll callback
+  glfwSetScrollCallback(window, scroll_callback);
 
-  // Event callbacks
-  glfwSetScrollCallback(window, ScrollCallback);
-
-  //Setup up OpenGL stuff
-  GLuint VertexArray;
-  glGenVertexArrays(1, &VertexArray);
-  glBindVertexArray(VertexArray);
+  // Some default start-up values for imgui
+  ImGui::GetIO().IniFilename = NULL; // no ini file pollution
+  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
+  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
+  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
 
   // Shader
   lightshader = LightingShader();
@@ -400,11 +382,6 @@ int main(int argc, char *argv[])
 
   // Initialize pipeline
   Pipeline p;
-
-  // Initial camera position
-  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
-  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
-  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
  
   // Concatenate the input arguments and pass them to critic2
   if (argc > 1){
@@ -485,7 +462,7 @@ int main(int argc, char *argv[])
  
     float camPanFactor = fabs(0.00115f * cam.Pos[2]);
     float camRotateFactor = 0.015f;
-    if (!io.WantCaptureMouse) {
+    if (!ImGui::GetIO().WantCaptureMouse) {
       if (cRMB == GLFW_PRESS){
 	cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
 	cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
