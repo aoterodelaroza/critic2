@@ -2,7 +2,7 @@
 bin_PROGRAMS = gcritic2
 gcritic2_SOURCES = main.cpp imgui_impl_glfw_gl3.cpp imgui.cpp imgui_draw.cpp \
 	matrix_math.cpp gl3w.c geometry.cpp imguifilesystem.cpp \
-	guiapps.cpp
+	guiapps.cpp callback.cpp shader.cpp
 
 # subdirectories
 SUBDIRS=

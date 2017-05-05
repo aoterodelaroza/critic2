@@ -860,10 +860,10 @@ contains
     use types, only: field, realloc
     use param, only: bohrtoa
 
-    character*(*), intent(in) :: fchk !< Input file (spin up or total)
-    character*(*), intent(in) :: fchkdn !< Input file (spin down)
-    character*(*), intent(in) :: funkgen !< unkgen file (spin up or total)
-    character*(*), intent(in) :: fevc !< unkgen file (spin down)
+    character*(*), intent(in) :: fchk !< Input file (chk file from wannier90)
+    character*(*), intent(in) :: fchkdn !< Input file (chk for the down spin)
+    character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
+    character*(*), intent(in) :: fevc !< unkgen file (evc file from pw2wannier)
     type(field), intent(inout) :: f
     real*8, intent(in) :: omega
     logical, intent(in) :: dochk

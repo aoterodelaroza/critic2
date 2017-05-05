@@ -19,11 +19,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Handles for the various windows and GUI elements
-extern bool structureinfo_window_h;
-extern int structurenew_window_h;
+#include <GL/gl3w.h>
+#include <GLFW/glfw3.h>
 
-// GUI element prototypes
-void guiapps_process_handles();
-void structureinfo_window(bool *p_open);
-void structurenew_window(int *p_open);
+extern GLuint lightshader;
+extern GLuint gWorldLocation;
+extern GLuint gWVPLocation;
+extern GLuint vColorLocation;
+extern GLuint lColorLocation;
+extern GLuint lDirectionLocation;
+extern GLuint fAmbientIntensityLocation;
+
+// prototypes
+void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType);
+GLuint LightingShader();

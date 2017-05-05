@@ -3204,6 +3204,11 @@ GLuint bufcyli[4], bufcylv[4];
 // create the sphere and cylinder objects
 void CreateAndFillBuffers()
 {
+  // setup up OpenGL stuff
+  GLuint VertexArray;
+  glGenVertexArrays(1, &VertexArray);
+  glBindVertexArray(VertexArray);
+
   for (int i=0;i<4;i++){
     glGenBuffers(1, &(bufsphi[i]));
     glBindBuffer(GL_ARRAY_BUFFER, bufsphi[i]);

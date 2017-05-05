@@ -19,11 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Handles for the various windows and GUI elements
-extern bool structureinfo_window_h;
-extern int structurenew_window_h;
+#include <GLFW/glfw3.h>
 
-// GUI element prototypes
-void guiapps_process_handles();
-void structureinfo_window(bool *p_open);
-void structurenew_window(int *p_open);
+void error_callback(int error, const char* description);
+void scroll_callback(GLFWwindow * window, double xoffset, double yoffset);
+

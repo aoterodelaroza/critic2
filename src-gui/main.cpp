@@ -20,9 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdio.h>
-#include <string>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string>
 #include <math.h>
 #include <time.h>
 
@@ -36,9 +36,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "matrix_math.h"
 #include "geometry.h"
-#include "imguifilesystem.h"
-
+#include "callback.h"
 #include "guiapps.h"
+#include "shader.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
@@ -50,52 +50,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 // Forward declarations //
-static void new_structure_dialog(bool *p_open, int ismolecule);
 static void ShowAppMainMenuBar();
 
-// Static GUI variables //
+// GUI global variables (main.h) //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
-static const char bondresolution = 2;
-static const char atomresolution = 1;
+const char bondresolution = 2;
+const char atomresolution = 1;
 
 // Bond thickness and atom/CP size
-static const float bondthickness = 0.05;
-static const float atomsize = 0.5;
-static const float cpsize = 0.5;
+const float bondthickness = 0.05;
+const float atomsize = 0.5;
+const float cpsize = 0.5;
 
 // Tooltipdelay
-static const float ttipdelay = 1.5;
-
-// Current state of the camera
-static CameraInfo cam;
-
-// Shader and shader variables
-static GLuint lightshader;
-static struct {
-  GLuint gWorldLocation;
-  GLuint gWVPLocation;
-  GLuint vColorLocation;
-  GLuint lColorLocation;
-  GLuint lDirectionLocation;
-  GLuint fAmbientIntensityLocation;
-} ShaderVarLocations;
+const float ttipdelay = 1.5;
 
 // Show/hide elements of the interface
-static bool show_bonds = true;
-static bool show_cps = true;
-static bool show_atoms = true;
-static bool show_cell = true;
+bool show_bonds = true;
+bool show_cps = true;
+bool show_atoms = true;
+bool show_cell = true;
 
 // Quit flag
-static bool want_quit = false;
+bool want_quit = false;
 
-// xxxx //
-
-// Standard error print to console
-static void error_callback(int error, const char* description)
-{
-  fprintf(stderr, "Error %d: %s\n", error, description);
-}
+// Current state of the camera
+CameraInfo cam;
 
 bool IsItemHoveredDelayed(float delay,float *time0,bool *reset)
 {
@@ -120,88 +100,6 @@ static void AttachTooltip(const char* desc, float delay, float *time0, bool *res
     }
 }
 
-// add a shader to the gl program
-static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
-{
-  GLuint ShaderObj = glCreateShader(ShaderType);
-
-  if (ShaderObj == 0) {
-    fprintf(stderr, "Error creating shader type %d\n", ShaderType);
-    exit(0);
-  }
-
-  const GLchar * p[1];
-  p[0] = pShaderText;
-  GLint Lengths[1];
-  Lengths[0] = strlen(pShaderText);
-  glShaderSource(ShaderObj, 1, p, Lengths);
-  glCompileShader(ShaderObj);
-  GLint success;
-  glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    GLchar InfoLog[1024];
-    glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
-    fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
-    exit(1);
-  }
-  glAttachShader(ShaderProgram, ShaderObj);
-}
-
-// create a shader programe based on a shader script
-static GLuint LightingShader()
-{
-
-  GLuint ShaderProgram = glCreateProgram();
-  if (ShaderProgram == 0){
-    exit(1);
-  }
-
-  const char * vs = "#version 330 \n \
-    uniform mat4 gWorld; \n \
-    uniform mat4 gWVP; \n \
-    layout (location = 0) in vec3 inPosition; \n \
-    layout (location = 1) in vec3 inNormal; \n \
-    smooth out vec3 vNormal; \n \
-    void main() { \n \
-      gl_Position = gWVP * vec4(inPosition, 1.0); \n \
-      vNormal = (gWorld * vec4(inNormal, 0.0)).xyz; \n \
-      }";
-
-  const char * fs = "#version 330 \n \
-    smooth in vec3 vNormal; \n \
-    uniform vec4 vColor; \n \
-    out vec4 outputColor; \n \
-    uniform vec3 lColor; \n \
-    uniform vec3 lDirection; \n \
-    uniform float fAmbientIntensity; \n \
-    void main() { \n \
-      float fDiffuseIntensity = max(0.0, dot(normalize(vNormal), lDirection)); \n \
-      outputColor = vColor; \n \
-      }";
-
-  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
-
-  GLint success = 0;
-
-  glLinkProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-  if (success == 0) exit(1);
-
-  glValidateProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-  if (success == 0) exit(1);
-
-  return ShaderProgram;
-}
-
-// get mouse scroll
-void ScrollCallback(GLFWwindow * window, double xoffset, double yoffset)
-{
-  float camZoomFactor = box_xmaxlen * 0.2f;
-  cam.Pos[2] += yoffset * camZoomFactor;
-}
-
 // draw a bond between 2 atoms defined in the bond struct
 void drawstick(Pipeline *p, const c_stick *s)
 {
@@ -210,12 +108,12 @@ void drawstick(Pipeline *p, const c_stick *s)
   p->SetRotationMatrix(s->rot);
 
   // float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, (const GLfloat *)&(s->rgb));
-  // glUniform4fv(ShaderVarLocations.lColorLocation, 1, (const GLfloat *)&white);
-  // glUniform4fv(ShaderVarLocations.lDirectionLocation, 1, (const GLfloat *)&dir);
-  // glUniform1f(ShaderVarLocations.fAmbientIntensityLocation, 0.8);
+  glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(vColorLocation, 1, (const GLfloat *)&(s->rgb));
+  // glUniform4fv(lColorLocation, 1, (const GLfloat *)&white);
+  // glUniform4fv(lDirectionLocation, 1, (const GLfloat *)&dir);
+  // glUniform1f(fAmbientIntensityLocation, 0.8);
 
   glBindBuffer(GL_ARRAY_BUFFER, bufcylv[bondresolution]);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufcyli[bondresolution]);
@@ -229,9 +127,9 @@ void drawball(Pipeline *p, const c_ball *b, float scal = 1.0)
   p->Scale(b->rad * scal,b->rad * scal,b->rad * scal);
   p->Translate(b->r[0], b->r[1], b->r[2]);
 
-  glUniformMatrix4fv(ShaderVarLocations.gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(ShaderVarLocations.gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(ShaderVarLocations.vColorLocation, 1, b->rgb);
+  glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
+  glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
+  glUniform4fv(vColorLocation, 1, b->rgb);
 
   glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
@@ -284,13 +182,6 @@ static void showMenuVisuals() {
 
 static void ShowAppMainMenuBar()
 {
-  // logical variables for persistent dialogs
-  static bool show_new_structure_dialog = false;
-  static int ismolecule;
-
-  // persistent dialog calls
-  if (show_new_structure_dialog) new_structure_dialog(&show_new_structure_dialog,ismolecule);
-
   // immediate actions
   if (ImGui::BeginMainMenuBar())
     {
@@ -300,16 +191,12 @@ static void ShowAppMainMenuBar()
 
 	if (ImGui::MenuItem("New","Ctrl+N",false,false)){}
 
-	if (ImGui::MenuItem("Open crystal","Ctrl+O")){
-	  show_new_structure_dialog = true;
-	  ismolecule = 0;
-	}
+	if (ImGui::MenuItem("Open crystal","Ctrl+O"))
+	  structurenew_window_h = 2;
 	AttachTooltip("Read the crystal structure from a file.\n",ttipdelay,&time0,&reset);
 
-	if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O")) {
-	  show_new_structure_dialog = true;
-	  ismolecule = 1;
-	}
+	if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O"))
+	  structurenew_window_h = 1;
 	AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
 
 	if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}
@@ -350,47 +237,19 @@ static void ShowAppMainMenuBar()
     want_quit = true;
   if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
     clear_scene(true);
-  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O]){
-    show_new_structure_dialog = true;
-    ismolecule = 0;
-  }
-  if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O]){
-    show_new_structure_dialog = true;
-    ismolecule = 1;
-  }
+  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O])
+    structurenew_window_h = 2;
+  if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O])
+    structurenew_window_h = 1;
 }
 
 // 
-static void new_structure_dialog(bool *p_open, int ismolecule){
-  static ImGuiFs::Dialog fsopenfile;
-  static bool firstpass = true;
-
-  const char* filename = fsopenfile.chooseFileDialog(firstpass,"./",NULL);
-  firstpass = false;
-
-  if (fsopenfile.hasUserJustCancelledDialog() || strlen(filename) > 0){
-    // Dialog has been closed - set up for next time and prevent more calls for now
-    firstpass = true;
-    *p_open = false;
-  }
-
-  if (strlen(filename) > 0){
-    // Clean up previous and initialize the structure
-    call_structure(&filename, ismolecule); 
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
-    show_cell = !ismolecule;
-    firstpass = true;
-    *p_open = false;
-    structureinfo_window_h = true;
-  }
-}
-
 int main(int argc, char *argv[])
 {
   // Initialize the critic2 library
   critic2_initialize();
 
-  // Setup window
+  // Create the window and connect callbacks; initialize glfw/gl3w
   glfwSetErrorCallback(error_callback);
   if (!glfwInit())
     return 1;
@@ -400,35 +259,30 @@ int main(int argc, char *argv[])
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_DECORATED, GL_TRUE);
   glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
-
-  // Create the window
   GLFWwindow* window = glfwCreateWindow(1024, 768, "gcritic2", NULL, NULL);
   glfwMakeContextCurrent(window);
   gl3wInit();
 
-  // Setup ImGui binding
+  // Set up ImGui binding
   ImGui_ImplGlfwGL3_Init(window, true);
 
-  // Options for imgui
-  ImGuiIO& io = ImGui::GetIO();
-  io.IniFilename = NULL;
+  // Connect scroll callback
+  glfwSetScrollCallback(window, scroll_callback);
 
-  // Event callbacks
-  glfwSetScrollCallback(window, ScrollCallback);
-
-  //Setup up OpenGL stuff
-  GLuint VertexArray;
-  glGenVertexArrays(1, &VertexArray);
-  glBindVertexArray(VertexArray);
+  // Some default start-up values for imgui
+  ImGui::GetIO().IniFilename = NULL; // no ini file pollution
+  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
+  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
+  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
 
   // Shader
   lightshader = LightingShader();
-  ShaderVarLocations.gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
-  ShaderVarLocations.gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
-  ShaderVarLocations.vColorLocation = glGetUniformLocation(lightshader, "vColor");
-  ShaderVarLocations.lColorLocation = glGetUniformLocation(lightshader, "lColor");
-  ShaderVarLocations.lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
-  ShaderVarLocations.fAmbientIntensityLocation = glGetUniformLocation(lightshader, "fAmbientIntensity");
+  gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
+  gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
+  vColorLocation = glGetUniformLocation(lightshader, "vColor");
+  lColorLocation = glGetUniformLocation(lightshader, "lColor");
+  lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
+  fAmbientIntensityLocation = glGetUniformLocation(lightshader, "fAmbientIntensity");
  
   //glEnables
   glEnable(GL_DEPTH_TEST);
@@ -439,11 +293,6 @@ int main(int argc, char *argv[])
 
   // Initialize pipeline
   Pipeline p;
-
-  // Initial camera position
-  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
-  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
-  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
  
   // Concatenate the input arguments and pass them to critic2
   if (argc > 1){
@@ -524,7 +373,7 @@ int main(int argc, char *argv[])
  
     float camPanFactor = fabs(0.00115f * cam.Pos[2]);
     float camRotateFactor = 0.015f;
-    if (!io.WantCaptureMouse) {
+    if (!ImGui::GetIO().WantCaptureMouse) {
       if (cRMB == GLFW_PRESS){
 	cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
 	cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
