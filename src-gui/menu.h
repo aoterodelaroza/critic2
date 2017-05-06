@@ -19,27 +19,4 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "imgui.h"
-#include "matrix_math.h"
-
-// Bond and atom resolutions (0 = coarse -> 3 = smooth)
-extern const char bondresolution;
-extern const char atomresolution;
-
-// Bond thickness and atom/CP size
-extern const float bondthickness;
-extern const float atomsize;
-extern const float cpsize;
-
-// Show/hide elements of the interface
-extern bool show_bonds;
-extern bool show_cps;
-extern bool show_atoms;
-extern bool show_cell;
-
-// Quit flag
-extern bool want_quit;
-
-// Current state of the camera
-extern CameraInfo cam;
-
+void show_menu_bar();

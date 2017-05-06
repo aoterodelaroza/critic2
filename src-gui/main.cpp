@@ -39,6 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "callback.h"
 #include "guiapps.h"
 #include "shader.h"
+#include "menu.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
@@ -49,9 +50,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-// Forward declarations //
-static void ShowAppMainMenuBar();
-
 // GUI global variables (main.h) //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
 const char bondresolution = 2;
@@ -61,9 +59,6 @@ const char atomresolution = 1;
 const float bondthickness = 0.05;
 const float atomsize = 0.5;
 const float cpsize = 0.5;
-
-// Tooltipdelay
-const float ttipdelay = 1.5;
 
 // Show/hide elements of the interface
 bool show_bonds = true;
@@ -76,29 +71,6 @@ bool want_quit = false;
 
 // Current state of the camera
 CameraInfo cam;
-
-bool IsItemHoveredDelayed(float delay,float *time0,bool *reset)
-{
-  float time = ImGui::GetTime();
-  if (ImGui::IsItemHovered()){
-    if (*time0 < 0.)
-      *time0 = time;
-    *reset = false;
-  } 
-  return (*time0 > 0.) && (time > *time0 + delay) && ImGui::IsItemHovered();
-}
-
-static void AttachTooltip(const char* desc, float delay, float *time0, bool *reset)
-{
-  if (IsItemHoveredDelayed(delay,time0,reset))
-    {
-      ImGui::BeginTooltip();
-      ImGui::PushTextWrapPos(450.0f);
-      ImGui::TextUnformatted(desc);
-      ImGui::PopTextWrapPos();
-      ImGui::EndTooltip();
-    }
-}
 
 // draw a bond between 2 atoms defined in the bond struct
 void drawstick(Pipeline *p, const c_stick *s)
@@ -135,112 +107,6 @@ void drawball(Pipeline *p, const c_ball *b, float scal = 1.0)
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
   glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
-}
-
-static void showMenuFunctions(){
-  static float time0 = -1.;
-  bool reset = true;
-  if (ImGui::MenuItem("Generate Critical Points")) {
-    call_auto();
-  }
-  AttachTooltip("Calculate the critical points.\nBleh and Blah!\n",ttipdelay,&time0,&reset);
-  if (reset)
-    time0 = -1.;
-}
-
-static void showMenuVisuals() {
-  static float time0 = -1.;
-  bool reset = true;
-
-  if (ImGui::MenuItem("Toggle bonds","",show_bonds)) {
-    show_bonds = !show_bonds;
-  }
-  AttachTooltip("Toggle show/hide bonds.\n",ttipdelay,&time0,&reset);
-
-  if (ImGui::MenuItem("Toggle critical points","",show_cps)) {
-    show_cps = !show_cps;
-  }
-  AttachTooltip("Toggle show/hide critical points.\n",ttipdelay,&time0,&reset);
-
-  if (ImGui::MenuItem("Toggle atoms","",show_atoms)) {
-    show_atoms = !show_atoms;
-  }
-  AttachTooltip("Toggle show/hide atoms.\n",ttipdelay,&time0,&reset);
-
-  if (ImGui::MenuItem("Toggle cell","",show_cell)) {
-    show_cell = !show_cell;
-  }
-  AttachTooltip("Toggle show/hide unit cell.\n",ttipdelay,&time0,&reset);
-
-  if (ImGui::MenuItem("Show structure information","",structureinfo_window_h))
-    structureinfo_window_h = !structureinfo_window_h;
-  AttachTooltip("Show information about the current structure.\n",ttipdelay,&time0,&reset);
-
-  if (reset)
-    time0 = -1.;
-}
-
-static void ShowAppMainMenuBar()
-{
-  // immediate actions
-  if (ImGui::BeginMainMenuBar())
-    {
-      if (ImGui::BeginMenu("File")){
-	static float time0 = -1.;
-	bool reset = true;
-
-	if (ImGui::MenuItem("New","Ctrl+N",false,false)){}
-
-	if (ImGui::MenuItem("Open crystal","Ctrl+O"))
-	  structurenew_window_h = 2;
-	AttachTooltip("Read the crystal structure from a file.\n",ttipdelay,&time0,&reset);
-
-	if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O"))
-	  structurenew_window_h = 1;
-	AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
-
-	if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}
-
-	if (ImGui::MenuItem("Open recent",NULL,false,false)) {}
-
-	ImGui::Separator();
-
-	if (ImGui::MenuItem("Close","Ctrl+W")) {
-	  clear_scene(true);
-	}
-	AttachTooltip("Clear the current structure.\n",ttipdelay,&time0,&reset);
-
-	if (ImGui::MenuItem("Quit","Ctrl+Q")) 
-	  want_quit = true;
-	AttachTooltip("Quit the program.\n",ttipdelay,&time0,&reset);
-
-	ImGui::EndMenu();
-
-	if (reset)
-	  time0 = -1.;
-      }
-      if (ImGui::BeginMenu("Calculate")) {
-	showMenuFunctions();
-	ImGui::EndMenu();
-      }
-      if (ImGui::BeginMenu("View")) {
-	showMenuVisuals();
-	ImGui::EndMenu();
-      }
-
-      ImGui::EndMainMenuBar();
-    }
-
-  // Process key bindings associated to the menu
-  ImGuiIO& io = ImGui::GetIO();
-  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
-    want_quit = true;
-  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
-    clear_scene(true);
-  if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O])
-    structurenew_window_h = 2;
-  if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O])
-    structurenew_window_h = 1;
 }
 
 // 
@@ -415,7 +281,7 @@ int main(int argc, char *argv[])
  
     glEnableVertexAttribArray(0);
  
-    // Draw the scene elements
+    // draw the scene elements
     if (show_bonds){
       for (int i=0; i<nbond; i++){
 	drawstick(&p, &(bond[i].s));
@@ -437,11 +303,24 @@ int main(int argc, char *argv[])
       }
     }
 
-    // Process GUI elment handles
+    // process GUI elment handles
     guiapps_process_handles();
 
-    // Menus
-    ShowAppMainMenuBar();
+    // menus
+    show_menu_bar();
+
+    // process key bindings
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
+      want_quit = true;
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
+      clear_scene(true);
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O] && !structurenew_window_h)
+      structurenew_window_h = 2;
+    if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O] && !structurenew_window_h)
+      structurenew_window_h = 1;
+
+    // handle quit signal
     if (want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
  
@@ -452,10 +331,9 @@ int main(int argc, char *argv[])
     // drawlist->AddText(ImVec2(100.,100.),ImGui::GetColorU32(ImGuiCol_Text),"bleh!");
     // ImGui::End();
 
-    // Render
+    // render
     glDisableVertexAttribArray(0);
     glUseProgram(lightshader);
- 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     ImGui::Render();
     glfwSwapBuffers(window);
