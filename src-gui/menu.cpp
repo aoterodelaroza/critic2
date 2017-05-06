@@ -19,9 +19,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "main.h"
+#include "imgui.h"
 #include "guiapps.h"
 #include "critic2.h"
+#include "global.h"
 
 // Tooltip delay
 static const float ttipdelay = 1.5;
@@ -30,7 +31,7 @@ static const float ttipdelay = 1.5;
 static bool IsItemHoveredDelayed(float delay,float *time0,bool *reset);
 static void AttachTooltip(const char* desc, float delay, float *time0, bool *reset);
 
-void show_menu_bar(){
+void show_menu_bar(bool *want_quit){
   static float time0 = -1.;
   bool reset = true;
 
@@ -54,7 +55,7 @@ void show_menu_bar(){
       if (ImGui::MenuItem("Close","Ctrl+W")) {clear_scene(true);}
       AttachTooltip("Clear the current structure.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Quit","Ctrl+Q")){want_quit = true;}
+      if (ImGui::MenuItem("Quit","Ctrl+Q")){*want_quit = true;}
       AttachTooltip("Quit the program.\n",ttipdelay,&time0,&reset);
 
       ImGui::EndMenu();
@@ -69,13 +70,13 @@ void show_menu_bar(){
     if (ImGui::BeginMenu("View")) {
       if (ImGui::MenuItem("Toggle bonds","",show_bonds)) {show_bonds = !show_bonds;}
       AttachTooltip("Toggle show/hide bonds.\n",ttipdelay,&time0,&reset);
-
+      
       if (ImGui::MenuItem("Toggle critical points","",show_cps)) {show_cps = !show_cps;}
       AttachTooltip("Toggle show/hide critical points.\n",ttipdelay,&time0,&reset);
-
+      
       if (ImGui::MenuItem("Toggle atoms","",show_atoms)) {show_atoms = !show_atoms;}
       AttachTooltip("Toggle show/hide atoms.\n",ttipdelay,&time0,&reset);
-
+      
       if (ImGui::MenuItem("Toggle cell","",show_cell)) {show_cell = !show_cell;}
       AttachTooltip("Toggle show/hide unit cell.\n",ttipdelay,&time0,&reset);
 

@@ -19,8 +19,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <GLFW/glfw3.h>
-
-void error_callback(int error, const char* description);
-void scroll_callback(GLFWwindow * window, double xoffset, double yoffset);
+// Show/hide elements of the interface
+extern bool show_bonds;
+extern bool show_cps;
+extern bool show_atoms;
+extern bool show_cell;
 

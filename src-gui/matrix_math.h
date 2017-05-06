@@ -15,14 +15,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <GL/gl3w.h>
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
 
 void Normalize(float * v);
 void Cross(const float left[3], const float right[3], float * result);
-void ReadMesh(GLfloat *v, unsigned int* i, const char * v_file, const char * i_file);
 
 struct CameraInfo{
   float Pos[3];

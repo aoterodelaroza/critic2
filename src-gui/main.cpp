@@ -34,12 +34,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "imgui.h"
 #include "imgui_impl_glfw_gl3.h"
 
-#include "matrix_math.h"
 #include "geometry.h"
-#include "callback.h"
 #include "guiapps.h"
 #include "shader.h"
 #include "menu.h"
+#include "draw.h"
+#include "global.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
@@ -50,17 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
-// GUI global variables (main.h) //
-// Bond and atom resolutions (0 = coarse -> 3 = smooth)
-const char bondresolution = 2;
-const char atomresolution = 1;
-
-// Bond thickness and atom/CP size
-const float bondthickness = 0.05;
-const float atomsize = 0.5;
-const float cpsize = 0.5;
-
-// Show/hide elements of the interface
+// Global definitions
 bool show_bonds = true;
 bool show_cps = true;
 bool show_atoms = true;
@@ -69,46 +59,6 @@ bool show_cell = true;
 // Quit flag
 bool want_quit = false;
 
-// Current state of the camera
-CameraInfo cam;
-
-// draw a bond between 2 atoms defined in the bond struct
-void drawstick(Pipeline *p, const c_stick *s)
-{
-  p->Scale(s->thick, s->thick, s->length);
-  p->Translate(s->r2[0], s->r2[1], s->r2[2]);
-  p->SetRotationMatrix(s->rot);
-
-  // float dir[3] = {cam.Target[0], cam.Target[1], cam.Target[2]};
-  glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(vColorLocation, 1, (const GLfloat *)&(s->rgb));
-  // glUniform4fv(lColorLocation, 1, (const GLfloat *)&white);
-  // glUniform4fv(lDirectionLocation, 1, (const GLfloat *)&dir);
-  // glUniform1f(fAmbientIntensityLocation, 0.8);
-
-  glBindBuffer(GL_ARRAY_BUFFER, bufcylv[bondresolution]);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufcyli[bondresolution]);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glDrawElements(GL_TRIANGLES, 3*ncyli[bondresolution], GL_UNSIGNED_INT, 0);
-}
-
-// Draw a ball, with optional scaling
-void drawball(Pipeline *p, const c_ball *b, float scal = 1.0)
-{
-  p->Scale(b->rad * scal,b->rad * scal,b->rad * scal);
-  p->Translate(b->r[0], b->r[1], b->r[2]);
-
-  glUniformMatrix4fv(gWVPLocation, 1, GL_TRUE, (const GLfloat *)p->GetWVPTrans());
-  glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
-  glUniform4fv(vColorLocation, 1, b->rgb);
-
-  glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
-  glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
-}
-
 // 
 int main(int argc, char *argv[])
 {
@@ -116,7 +66,6 @@ int main(int argc, char *argv[])
   critic2_initialize();
 
   // Create the window and connect callbacks; initialize glfw/gl3w
-  glfwSetErrorCallback(error_callback);
   if (!glfwInit())
     return 1;
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -142,13 +91,7 @@ int main(int argc, char *argv[])
   cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
 
   // Shader
-  lightshader = LightingShader();
-  gWorldLocation = glGetUniformLocation(lightshader, "gWorld");
-  gWVPLocation = glGetUniformLocation(lightshader, "gWVP");
-  vColorLocation = glGetUniformLocation(lightshader, "vColor");
-  lColorLocation = glGetUniformLocation(lightshader, "lColor");
-  lDirectionLocation = glGetUniformLocation(lightshader, "lDirection");
-  fAmbientIntensityLocation = glGetUniformLocation(lightshader, "fAmbientIntensity");
+  GLuint lightshader = LightingShader();
  
   //glEnables
   glEnable(GL_DEPTH_TEST);
@@ -282,32 +225,13 @@ int main(int argc, char *argv[])
     glEnableVertexAttribArray(0);
  
     // draw the scene elements
-    if (show_bonds){
-      for (int i=0; i<nbond; i++){
-	drawstick(&p, &(bond[i].s));
-      }
-    }
-    if (show_atoms){
-      for (int i=0; i<nat; i++){
-	drawball(&p, &(at[i].b), atomsize);
-      }
-    }
-    if (show_cps){
-      for (int i=0; i<ncritp; i++) {
-	drawball(&p, &(critp[i].b), cpsize);
-      }
-    }
-    if (show_cell){
-      for (int i=0; i<cell_nstick; i++) {
-	drawstick(&p, &(cell_s[i]));
-      }
-    }
+    draw_all_elements(&p,lightshader,window);
 
     // process GUI elment handles
     guiapps_process_handles();
 
     // menus
-    show_menu_bar();
+    show_menu_bar(&want_quit);
 
     // process key bindings
     ImGuiIO& io = ImGui::GetIO();

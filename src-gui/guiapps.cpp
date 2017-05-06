@@ -20,9 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "imgui.h"
-#include "main.h"
 #include "guiapps.h"
 #include "critic2.h"
+#include "global.h"
+#include "draw.h"
 
 #include "imguifilesystem.h"
 
@@ -112,7 +113,7 @@ void structurenew_window(int *p_open){
     call_structure(&filename, *p_open == 1); 
 
     // Set default camera position, show cell if crystal, etc.
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
+    draw_set_camera_pos(-1.);
     show_cell = (*p_open == 2);
     show_bonds = true;
     show_cps = true;

@@ -22,42 +22,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "shader.h"
 
-GLuint lightshader;
-GLuint gWorldLocation;
-GLuint gWVPLocation;
-GLuint vColorLocation;
-GLuint lColorLocation;
-GLuint lDirectionLocation;
-GLuint fAmbientIntensityLocation;
+#include <GL/gl3w.h>
 
-// Add a shader to the gl program
-void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
-{
-  GLuint ShaderObj = glCreateShader(ShaderType);
-
-  if (ShaderObj == 0) {
-    fprintf(stderr, "Error creating shader type %d\n", ShaderType);
-    exit(1);
-  }
-
-  const GLchar * p[1];
-  p[0] = pShaderText;
-  GLint Lengths[1];
-  Lengths[0] = strlen(pShaderText);
-  glShaderSource(ShaderObj, 1, p, Lengths);
-  glCompileShader(ShaderObj);
-  GLint success;
-  glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    GLchar InfoLog[1024];
-    glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
-    fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
-    exit(1);
-  }
-  glAttachShader(ShaderProgram, ShaderObj);
-}
+static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType);
 
 // Create a shader program based on a shader script
 GLuint LightingShader()
@@ -105,5 +73,32 @@ GLuint LightingShader()
   if (success == 0) exit(1);
 
   return ShaderProgram;
+}
+
+// Add a shader to the gl program
+static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
+{
+  GLuint ShaderObj = glCreateShader(ShaderType);
+
+  if (ShaderObj == 0) {
+    fprintf(stderr, "Error creating shader type %d\n", ShaderType);
+    exit(1);
+  }
+
+  const GLchar * p[1];
+  p[0] = pShaderText;
+  GLint Lengths[1];
+  Lengths[0] = strlen(pShaderText);
+  glShaderSource(ShaderObj, 1, p, Lengths);
+  glCompileShader(ShaderObj);
+  GLint success;
+  glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    GLchar InfoLog[1024];
+    glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
+    fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
+    exit(1);
+  }
+  glAttachShader(ShaderProgram, ShaderObj);
 }
 

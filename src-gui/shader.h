@@ -22,14 +22,5 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 
-extern GLuint lightshader;
-extern GLuint gWorldLocation;
-extern GLuint gWVPLocation;
-extern GLuint vColorLocation;
-extern GLuint lColorLocation;
-extern GLuint lDirectionLocation;
-extern GLuint fAmbientIntensityLocation;
-
 // prototypes
-void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType);
 GLuint LightingShader();
