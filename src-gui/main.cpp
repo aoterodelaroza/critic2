@@ -20,12 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <string>
-#include <math.h>
-#include <time.h>
-
 #include <critic2.h>
 
 #include <GL/gl3w.h>
@@ -86,9 +81,7 @@ int main(int argc, char *argv[])
 
   // Some default start-up values for imgui
   ImGui::GetIO().IniFilename = NULL; // no ini file pollution
-  cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
-  cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
-  cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
+  draw_set_camera_pos(-1.);  
 
   // Shader
   GLuint lightshader = LightingShader();
@@ -109,51 +102,17 @@ int main(int argc, char *argv[])
     for(int i=1;i<argc;i++)
       argall = argall + argv[i] + " ";
     call_structure((const char **) &argall, -1);
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*box_xmaxlen;
+    draw_set_camera_pos(box_xmaxlen);
     show_cell = !ismolecule;
     structureinfo_window_h = true;
   }
 
-  // Imgui static variables
-  // input variables;
-  // c means for current loop, l means last loop, p means last pressed
-  static int cLMB;
-  static int cRMB;
-  static int lLMB;
-  static int lRMB;
-  static double cMPosX;
-  static double cMPosY;
-  static double lMPosX;
-  static double lMPosY;
-  static double pMPosX;
-  static double pMPosY;
-  static double scrollY;
- 
+  // 
   time_t lastTime = time(0);
   time_t curTime = lastTime;
   double frameTime = 35.0;
 
-  Vector3f curRotAxis = Vector3f(0, 0, 0);
-  Vector3f lastRotAxis = Vector3f(0, 0, 0);
-  Vector3f rotAxis = Vector3f(0, 0, 0);
- 
-  static float lastRotAng = 0;
-  static float curRotAng = 0;
-  static float rotAng = 0;
- 
-  static float diffX;
-  static float diffY;
- 
-  Matrix4f lastRot;
-  Matrix4f curRot;
-  Matrix4f rot;
-  lastRot.InitIdentity();
-  curRot.InitIdentity();
-  rot.InitIdentity();
-  bool show_test_window = true;
-  //
-  // Main loop ------------------------------------------------------------------
-  //
+  // main loop
   while (!glfwWindowShouldClose(window)){
     curTime = time(0);
     if ((difftime(lastTime, curTime) < frameTime)) {
@@ -163,52 +122,15 @@ int main(int argc, char *argv[])
       //#if defined(LINUX) || defined(__APPLE__)
       usleep(frameTime - difftime(lastTime, curTime));
       //#endif // LINUX || __APPLE__
- 
- 
     }
     lastTime = curTime;
  
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
  
-    // Process mouse input
-    lLMB = cLMB;
-    lRMB = cRMB;
-    cLMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-    cRMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
-    lMPosX = cMPosX;
-    lMPosY = cMPosY;
-    glfwGetCursorPos(window, &cMPosX, &cMPosY);
- 
-    float camPanFactor = fabs(0.00115f * cam.Pos[2]);
-    float camRotateFactor = 0.015f;
-    if (!ImGui::GetIO().WantCaptureMouse) {
-      if (cRMB == GLFW_PRESS){
-	cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
-	cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
-      }
-      if (cLMB == GLFW_PRESS){
-	if (lLMB != GLFW_PRESS){
-	  pMPosX = cMPosX;
-	  pMPosY = cMPosY;
- 
-	  lastRot = rot;
-	} else {
- 
-	  diffX = (float)(cMPosX - pMPosX);
-	  diffY = (float)(cMPosY - pMPosY);
- 
-	  curRotAxis = Vector3f(diffX, -diffY, 0);
-	  curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
-	  curRotAng = curRotAxis.Length() * camRotateFactor;
-	  curRotAxis.Normalize();
- 
-	  curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
-	  rot = curRot * lastRot;
-	}
-      }
-    }
- 
+    static Matrix4f rot;
+    process_mouse_input(window, &rot);
+
     // Rendering
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);

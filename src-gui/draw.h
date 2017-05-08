@@ -31,3 +31,5 @@ float *draw_get_campos();
 void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window);
 float *draw_get_campos();
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void process_mouse_input(GLFWwindow* window, Matrix4f *rot);
+

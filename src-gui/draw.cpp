@@ -19,6 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "imgui.h"
 #include "draw.h"
 #include "critic2.h"
 #include "geometry.h"
@@ -41,7 +42,7 @@ static void drawstick(Pipeline *p, GLuint shad, const c_stick *s);
 static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal);
 
 // initialize the defaults for the camera
-void draw_set_camera_pos(float maxlen = -1.){
+void draw_set_camera_pos(float maxlen){
   if (maxlen < 0){
     cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
     cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
@@ -128,4 +129,57 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
   float camZoomFactor = box_xmaxlen * 0.2f;
   cam.Pos[2] += yoffset * camZoomFactor;
+}
+
+// process mouse input
+void process_mouse_input(GLFWwindow* window, Matrix4f *rot){
+  static bool firstpass = true;
+
+  // c means for current loop, l means last loop, p means last pressed
+  static int cLMB, cRMB, lLMB, lRMB;
+  static double cMPosX, cMPosY, lMPosX, lMPosY, pMPosX, pMPosY;
+  static Matrix4f lastRot;
+
+  float camPanFactor = fabs(0.00115f * cam.Pos[2]);
+  float camRotateFactor = 0.015f;
+
+  if (!firstpass){
+    lLMB = cLMB;
+    lRMB = cRMB;
+    lMPosX = cMPosX;
+    lMPosY = cMPosY;
+  }
+
+  cLMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+  cRMB = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+  glfwGetCursorPos(window, &cMPosX, &cMPosY);
+
+  if (firstpass){
+    firstpass = false;
+    return;
+  }
+
+  // Process mouse input
+  if (!ImGui::GetIO().WantCaptureMouse) {
+    if (cRMB == GLFW_PRESS){
+      cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
+      cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
+    }
+    if (cLMB == GLFW_PRESS){
+      if (lLMB != GLFW_PRESS){
+	pMPosX = cMPosX;
+	pMPosY = cMPosY;
+	lastRot = *rot;
+      } else {
+	Vector3f curRotAxis = Vector3f((float)(cMPosX-pMPosX), (float)(pMPosY-cMPosY), 0);
+	curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
+	float curRotAng = curRotAxis.Length() * camRotateFactor;
+	curRotAxis.Normalize();
+ 
+	Matrix4f curRot;
+	curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
+	*rot = curRot * lastRot;
+      }
+    }
+  }
 }

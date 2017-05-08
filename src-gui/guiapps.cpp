@@ -113,7 +113,7 @@ void structurenew_window(int *p_open){
     call_structure(&filename, *p_open == 1); 
 
     // Set default camera position, show cell if crystal, etc.
-    draw_set_camera_pos(-1.);
+    draw_set_camera_pos(box_xmaxlen);
     show_cell = (*p_open == 2);
     show_bonds = true;
     show_cps = true;
