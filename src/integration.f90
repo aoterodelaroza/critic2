@@ -711,7 +711,7 @@ contains
     use global, only: refden
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
-       ferror, faterr
+       ferror, faterr, warning
     use tools_math, only: norm, matinv
     use param, only: tpi, img
 
@@ -742,6 +742,10 @@ contains
     type(crystal) :: nc
     character(len=:), allocatable :: sijfname
 
+    ! size of the grid and header
+    n = f(refden)%n
+    write (uout,'("+ Calculating atomic overlap matrices")')
+
     ! run over properties with wannier delocalization indices; allocate sij
     ndeloc = 0
     nspin = 1
@@ -751,6 +755,13 @@ contains
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
        if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
+       if (.not.all(f(fid)%n == n)) then
+          write (uout,'("Warning: inconsistent grids")')
+          write (uout,'(" integrable field: ",3(A,X))') (string(f(fid)%n(j)),j=1,3)
+          write (uout,'(" reference field: ",3(A,X))') (string(n(j)),j=1,3)
+          call ferror('intgrid_deloc_wannier','Inconsistent grids',warning)
+          cycle
+       end if
        ndeloc = ndeloc + 1
        nspin = max(nspin,f(fid)%wan%nspin)
        nbnd = f(fid)%wan%nbnd
@@ -758,10 +769,6 @@ contains
        nmo = max(nmo,nlat * nbnd)
     end do
     if (ndeloc == 0) return
-
-    ! size of the grid and header
-    n = f(refden)%n
-    write (uout,'("+ Calculating atomic overlap matrices")')
 
     ! yt data
     if (imtype == imtype_yt) then
@@ -864,6 +871,7 @@ contains
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
        if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
+       if (.not.all(f(fid)%n == n)) cycle
        ndeloc = ndeloc + 1
 
        sijfname = trim(f(fid)%file) // "-sij"
@@ -1864,7 +1872,7 @@ contains
   !> attractors (icp), and the atomic overlap matrix (sij).
   subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
     use fields, only: integ_prop, itype_deloc, f, type_grid, nprops
-    use global, only: iunit, iunitname0, dunit0
+    use global, only: iunit, iunitname0, dunit0, refden
     use fragmentmod, only: fragment_cmass
     use struct_basic, only: cr, crystal, crystalseed
     use tools, only: qcksort
@@ -1876,7 +1884,7 @@ contains
     complex*16, intent(in), allocatable, optional :: sij(:,:,:,:,:)
 
     integer :: lu
-    integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3)
+    integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3), n(3)
     real*8 :: fspin, xnn, xli, r1(3), d2, asum, fatemp, raux
     integer, allocatable :: imap(:,:), io(:), ilvec(:,:), idat(:)
     real*8, allocatable :: fa(:,:,:,:)
@@ -1896,6 +1904,8 @@ contains
 
     write (uout,'("* Localization and delocalization indices")')
 
+    n = f(refden)%n
+
     ndeloc = 0
     do l = 1, nprops
        ! skip the incorrect properties
@@ -1903,6 +1913,7 @@ contains
        if (.not.integ_prop(l)%itype == itype_deloc) cycle
        fid = integ_prop(l)%fid
        if (f(fid)%type /= type_grid .or..not.f(fid)%iswan) cycle
+       if (.not.all(f(fid)%n == n)) cycle
        ndeloc = ndeloc + 1
 
        ! header
