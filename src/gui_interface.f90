@@ -30,6 +30,7 @@ module gui_interface
   public :: call_auto
   public :: update_scene
   public :: clear_scene
+  public :: get_text_info
 
   ! C-interoperable stick type
   type, bind(c) :: c_stick
@@ -422,6 +423,158 @@ contains
        call cr%end()
 
   end subroutine clear_scene
+
+  function get_text_info(imode) bind(c) result(txt)
+    use struct_basic, only: cr, pointgroup_info, laue_string, holo_string
+    use fragmentmod, only: fragment_cmass
+    use tools_io, only: string, ioj_center, ioj_left
+    use param, only: bohrtoa, maxzat
+    integer(c_int), intent(in), value :: imode
+    type(c_ptr) :: txt
+    
+    character*1, parameter :: nl = new_line('a')
+
+    integer :: i
+    character(len=:), allocatable :: txto, aux
+    character(len=3) :: schpg
+    integer :: holo, laue, nelec, idx
+    character*255 :: strout(cr%neqv)
+    real*8 :: xcm(3), x(3)
+
+    txt = c_null_ptr
+    select case (imode)
+    case(0) ! unselected
+    case(1) ! General (unavailable)
+    case(2) ! General (molecule)
+       nelec = 0
+       do i = 1, cr%nneq
+          if (cr%at(i)%z >= maxzat) cycle
+          nelec = nelec + cr%at(i)%z * cr%at(i)%mult
+       end do
+       txto = &
+          "From: " // string(cr%file) // nl //&
+          "Number of atoms: "  // string(cr%ncel) // nl //&
+          "Number of electrons: " // string(nelec) // nl 
+       txt = f_c_string_dup(txto)
+    case(3) ! General (crystal) 
+       nelec = 0
+       do i = 1, cr%nneq
+          if (cr%at(i)%z >= maxzat) cycle
+          nelec = nelec + cr%at(i)%z * cr%at(i)%mult
+       end do
+       txto = &
+ "From: " // string(cr%file) // nl //&
+ "Lattice parameters (bohr): " // string(cr%aa(1),'f',decimal=4) // " " // string(cr%aa(2),'f',decimal=4) // " " // string(cr%aa(3),'f',decimal=4) // nl //&
+ "Lattice parameters (ang): " // string(cr%aa(1)*bohrtoa,'f',decimal=4) // " " // string(cr%aa(2)*bohrtoa,'f',decimal=4) // " " // string(cr%aa(3)*bohrtoa,'f',decimal=4) // nl //&
+ "Lattice angles: " // string(cr%bb(1),'f',decimal=3) // " " // string(cr%bb(2),'f',decimal=3) // " " // string(cr%bb(3),'f',decimal=3) // nl //&
+ "Atoms in the unit cell: "  // string(cr%ncel) // nl //&
+ "Atoms in the asymmetric unit: " // string(cr%nneq) // nl //&
+ "Z: " // string(cr%ncel/cr%nneq) // nl //&
+ "Atoms in the environment: " // string(cr%nenv) // nl //&
+ "Number of electrons: " // string(nelec) // nl //&
+ "Cell volume (bohr^3): " // string(cr%omega,'f',decimal=3) // nl //&
+ "Cell volume (ang^3): " // string(cr%omega * bohrtoa**3,'f',decimal=3) // nl 
+
+       if (len_trim(cr%spg%choice) > 0) then
+          aux = txto // "Space group (Hermann-Mauguin): " // string(cr%spg%international_symbol) // " (number " // &
+             string(cr%spg%spacegroup_number) // ", setting " // string(cr%spg%choice) // ")" // nl
+       else
+          aux = txto // "Space group (Hermann-Mauguin): " // string(cr%spg%international_symbol) // " (number " //  &
+             string(cr%spg%spacegroup_number) // ")" // nl
+       end if
+       call pointgroup_info(cr%spg%pointgroup_symbol,schpg,holo,laue)
+       txto = aux // "Space group (Hall): " // string(cr%spg%hall_symbol) // " (number " // &
+          string(cr%spg%hall_number) // ")" // nl // &
+          "Point group (Hermann-Mauguin): " // string(cr%spg%pointgroup_symbol) // nl // &
+          "Point group (Schoenflies): " // string(schpg) // nl // &
+          "Holohedry: " // string(holo_string(holo)) // nl // &
+          "Laue class: " // string(laue_string(laue)) // nl // &
+          "Orthogonal? " // string(cr%isortho)
+       txt = f_c_string_dup(txto)
+    case(4) ! Asymmetric unit (crystal)
+       txto = "# nat      x             y             z          name  mult  Z  " // nl
+       do i = 1, cr%nneq
+          aux = txto // "  " // string(i,3,ioj_center) // string(cr%at(i)%x(1),'f',length=14,decimal=10,justify=3) //&
+             string(cr%at(i)%x(2),'f',length=14,decimal=10,justify=3) // string(cr%at(i)%x(3),'f',length=14,decimal=10,justify=3) //&
+             string(cr%at(i)%name,10,ioj_center) // string(cr%at(i)%mult,4,ioj_center) // string(cr%at(i)%z,4,ioj_center) // nl
+          txto = aux
+       end do
+       txt = f_c_string_dup(txto)
+    case(5) ! Unit cell (crystal)
+       txto = "# nat        position (cryst. coords.)            name    Z" // nl
+       do i = 1, cr%ncel
+          idx = cr%atcel(i)%idx
+          aux = txto // "  " // string(i,3,ioj_center) // string(cr%atcel(i)%x(1),'f',length=14,decimal=10,justify=3) //&
+             string(cr%atcel(i)%x(2),'f',length=14,decimal=10,justify=3) // string(cr%atcel(i)%x(3),'f',length=14,decimal=10,justify=3) //&
+             string(cr%at(idx)%name,10,ioj_center) // string(cr%at(idx)%z,4,ioj_center) // nl
+          txto = aux
+       end do
+       txt = f_c_string_dup(txto)
+    case(6) ! Symmetry (crystal) 
+       if (len_trim(cr%spg%choice) > 0) then
+          aux = "Space group (Hermann-Mauguin): " // string(cr%spg%international_symbol) // " (number " // &
+             string(cr%spg%spacegroup_number) // ", setting " // string(cr%spg%choice) // ")" // nl
+       else
+          aux = "Space group (Hermann-Mauguin): " // string(cr%spg%international_symbol) // " (number " //  &
+             string(cr%spg%spacegroup_number) // ")" // nl
+       end if
+       call pointgroup_info(cr%spg%pointgroup_symbol,schpg,holo,laue)
+       txto = aux // "Space group (Hall): " // string(cr%spg%hall_symbol) // " (number " // &
+          string(cr%spg%hall_number) // ")" // nl // &
+          "Point group (Hermann-Mauguin): " // string(cr%spg%pointgroup_symbol) // nl // &
+          "Point group (Schoenflies): " // string(schpg) // nl // &
+          "Holohedry: " // string(holo_string(holo)) // nl // &
+          "Laue class: " // string(laue_string(laue)) // nl
+       aux = txto // "List of symmetry operations (" // string(cr%neqv) // "):" // nl
+       txto = aux
+
+       call cr%struct_report_symxyz(strout)
+       do i = 1, cr%neqv
+          aux = txto // "   " // string(i) // ": " // string(strout(i)) // nl
+          txto = aux
+       enddo
+       aux = txto // "List of centering vectors (" // string(cr%ncv) // "):" // nl
+       txto = aux
+       do i = 1, cr%ncv
+          aux = txto // "   " // string(i) // ": " // string(cr%cen(1,i),'f',length=8,decimal=5) // " " //&
+             string(cr%cen(2,i),'f',length=8,decimal=5) // " " // string(cr%cen(3,i),'f',length=8,decimal=5) // nl
+          txto = aux
+       enddo
+       txt = f_c_string_dup(txto)
+    case(7) ! Fragments (crystal)
+       txto = "# Id nat            Center of mass       Discrete? " // nl
+       do i = 1, cr%nmol
+          xcm = cr%c2x(fragment_cmass(cr%mol(i)))
+          aux = txto // "  " // string(i,3,ioj_left) // " " // string(cr%mol(i)%nat,4,ioj_left) // " " //&
+             string(xcm(1),'f',10,6,3) // " "  // string(xcm(2),'f',10,6,3) // " "  // &
+             string(xcm(3),'f',10,6,3) // " " // string(cr%moldiscrete(i)) // nl
+          txto = aux
+       end do
+       txt = f_c_string_dup(txto)
+    case(8) ! Atoms (molecule)
+       txto = "# nat           position (angstrom)               name    Z" // nl
+       do i = 1, cr%ncel
+          idx = cr%atcel(i)%idx
+          x = (cr%atcel(i)%r + cr%molx0) * bohrtoa
+          aux = txto // "  " // string(i,3,ioj_center) // string(x(1),'f',length=14,decimal=10,justify=3) //&
+             string(x(2),'f',length=14,decimal=10,justify=3) // string(x(3),'f',length=14,decimal=10,justify=3) //&
+             string(cr%at(idx)%name,10,ioj_center) // string(cr%at(idx)%z,4,ioj_center) // nl
+          txto = aux
+       end do
+       txt = f_c_string_dup(txto)
+    case(9) ! Fragments (molecule)
+       txto = "# Id nat            Center of mass       Discrete? " // nl
+       do i = 1, cr%nmol
+          xcm = (fragment_cmass(cr%mol(i))+cr%molx0) * bohrtoa
+          aux = txto // "  " // string(i,3,ioj_left) // " " // string(cr%mol(i)%nat,4,ioj_left) // " " //&
+             string(xcm(1),'f',10,6,3) // " "  // string(xcm(2),'f',10,6,3) // " "  // &
+             string(xcm(3),'f',10,6,3) // " " // string(cr%moldiscrete(i)) // nl
+          txto = aux
+       end do
+       txt = f_c_string_dup(txto)
+    end select
+
+  end function get_text_info
 
   ! Build a c_stick from the two endpoints, thickness, and rgb
   function stick_from_endpoints(x1,x2,thick,rgb) result(stick)

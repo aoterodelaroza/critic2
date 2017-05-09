@@ -19,6 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdlib.h>
+
 #include "imgui.h"
 #include "guiapps.h"
 #include "critic2.h"
@@ -43,14 +45,21 @@ void structureinfo_window(bool *p_open){
   const char *title[] = {"Structure not available###structinfo", "Molecule information###structinfo", "Crystal information###structinfo"};
 
   const int elem_unselected = 0;
-  const int elem_global_unavailable = 1;
-  const int elem_global_molecule = 2;
-  const int elem_global_crystal = 3;
+  const int elem_general_unavailable = 1;
+  const int elem_general_molecule = 2;
+  const int elem_general_crystal = 3;
+  const int asym_unit_crystal = 4;
+  const int unit_cell_crystal = 5;
+  const int symmetry_crystal = 6;
+  const int fragments_crystal = 7;
+  const int atoms_molecule = 8;
+  const int fragments_molecule = 9;
 
-  const int nelems = 4;
-  const int elem_levels[nelems] = {0,0,1,2};
+  const int nelems = 10;
+  const int elem_levels[nelems] = {0,0,1,2,2,2,2,2,1,1};
 
-  const char *elem_title[] = {"", "", "General","General"};
+  const char *elem_title[] = {"", "", "General","General","Asymmetric unit","Unit cell",
+			      "Symmetry","Fragments","Atoms","Fragments"};
 
   // Display different information depending on the type of structure (level)
   int level;
@@ -63,8 +72,8 @@ void structureinfo_window(bool *p_open){
 
   static int selected = 0;
 
-  ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiSetCond_Once);
-  ImGui::SetNextWindowPos(ImVec2(0, 30), ImGuiSetCond_Once);
+  ImGui::SetNextWindowSize(ImVec2(640, 350), ImGuiSetCond_Once);
+  ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiSetCond_Once);
   if (ImGui::Begin(title[level], p_open)){
     ImGui::BeginGroup();
 
@@ -83,10 +92,12 @@ void structureinfo_window(bool *p_open){
     ImGui::BeginChild("right", ImVec2(0, -ImGui::GetItemsLineHeightWithSpacing())); 
     ImGui::Text(elem_title[selected]);
     ImGui::Separator();
-    if (selected == elem_global_molecule)
-      ImGui::TextWrapped("This is a molecule!");
-    else if (selected == elem_global_crystal)
-      ImGui::TextWrapped("This is a crystal!");
+
+    char *text = get_text_info(selected);
+    if (text){
+      ImGui::TextWrapped(text);
+      free(text);
+    }
     ImGui::EndChild();
 
     ImGui::EndGroup();

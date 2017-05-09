@@ -3142,10 +3142,11 @@ contains
 
   !> Write the list of symmetry operations to stdout, using crystallographic
   !> notation (if possible).
-  subroutine struct_report_symxyz(c)
+  subroutine struct_report_symxyz(c,strfin)
     use tools_io, only: uout, string
     use global, only: symprec
     class(crystal), intent(in) :: c
+    character*255, intent(out), optional :: strfin(c%neqv)
 
     real*8, parameter :: rfrac(25) = (/-12d0/12d0,-11d0/12d0,-10d0/12d0,&
        -9d0/12d0,-8d0/12d0,-7d0/12d0,-6d0/12d0,-5d0/12d0,-4d0/12d0,-3d0/12d0,&
@@ -3199,11 +3200,15 @@ contains
        end do
     end do
 
-    write(uout,'("+ List of symmetry operations in crystallographic notation:")')
-    do k = 1, c%neqv
-       write (uout,'(3X,A,": ",A)') string(k), string(strout(k))
-    enddo
-    write (uout,*)
+    if (present(strfin)) then
+       strfin = strout
+    else
+       write(uout,'("+ List of symmetry operations in crystallographic notation:")')
+       do k = 1, c%neqv
+          write (uout,'(3X,A,": ",A)') string(k), string(strout(k))
+       enddo
+       write (uout,*)
+    end if
 
   end subroutine struct_report_symxyz
 

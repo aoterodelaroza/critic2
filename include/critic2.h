@@ -84,3 +84,5 @@ extern "C" void update_scene();
 // clear the scene
 extern "C" void clear_scene(bool unload); 
 
+// get information text about the current structure
+extern "C" char *get_text_info(int imode); 
