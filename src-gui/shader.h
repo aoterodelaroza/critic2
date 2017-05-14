@@ -19,8 +19,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef SHADER_H
+#define SHADER_H
+
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 
 // prototypes
 GLuint LightingShader();
+
+#endif

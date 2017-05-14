@@ -19,9 +19,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
 // Show/hide elements of the interface
 extern bool show_bonds;
 extern bool show_cps;
 extern bool show_atoms;
 extern bool show_cell;
 
+#endif

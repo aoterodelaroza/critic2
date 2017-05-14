@@ -19,6 +19,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef DRAW_H
+#define DRAW_H
+
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include "matrix_math.h"
@@ -33,3 +36,4 @@ float *draw_get_campos();
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void process_mouse_input(GLFWwindow* window, Matrix4f *rot);
 
+#endif

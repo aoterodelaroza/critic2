@@ -1,5 +1,8 @@
 // Public interface for src/gui_interface.f90
 
+#ifndef CRITIC2_H
+#define CRITIC2_H
+
 //xx// Variables made available through host association in 
 //xx// gui_interface.f90. See gui_interface.f90 for documentation.
 // sticks
@@ -86,3 +89,5 @@ extern "C" void clear_scene(bool unload);
 
 // get information text about the current structure
 extern "C" char *get_text_info(int imode); 
+
+#endif

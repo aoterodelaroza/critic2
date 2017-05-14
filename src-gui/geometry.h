@@ -15,6 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#ifndef GEOMETRY_H
+#define GEOMETRY_H
+
 #include <GL/gl3w.h>
 
 // Function declarations
@@ -33,4 +36,6 @@ extern unsigned int ncyli[4];
 // Buffer indices
 extern GLuint bufsphi[4], bufsphv[4];
 extern GLuint bufcyli[4], bufcylv[4];
+
+#endif
 

@@ -19,6 +19,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef GUIAPPS_H
+#define GUIAPPS_H
+
 // Handles for the various windows and GUI elements
 extern bool structureinfo_window_h;
 extern int structurenew_window_h;
@@ -27,3 +30,5 @@ extern int structurenew_window_h;
 void guiapps_process_handles();
 void structureinfo_window(bool *p_open);
 void structurenew_window(int *p_open);
+
+#endif
