@@ -161,10 +161,12 @@ int main(int argc, char *argv[])
       want_quit = true;
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
       clear_scene(true);
-    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O] && !structurenew_window_h)
-      structurenew_window_h = 2;
-    if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O] && !structurenew_window_h)
-      structurenew_window_h = 1;
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_N] && !structurenew_window_h)
+      structurenew_window_h = true;
+    if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O] && !structureopen_window_h)
+      structureopen_window_h = 2;
+    if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O] && !structureopen_window_h)
+      structureopen_window_h = 1;
 
     // handle quit signal
     if (want_quit)

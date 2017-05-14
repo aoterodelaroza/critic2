@@ -38,12 +38,13 @@ void show_menu_bar(bool *want_quit){
   // immediate actions
   if (ImGui::BeginMainMenuBar()){
     if (ImGui::BeginMenu("File")){
-      if (ImGui::MenuItem("New","Ctrl+N",false,false)){}
+      if (ImGui::MenuItem("New","Ctrl+N")){structurenew_window_h = true;}
+      AttachTooltip("Create a structure from scratch.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Open crystal","Ctrl+O")) {structurenew_window_h = 2;}
+      if (ImGui::MenuItem("Open crystal","Ctrl+O")) {structureopen_window_h = 2;}
       AttachTooltip("Read the crystal structure from a file.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O")) {structurenew_window_h = 1;}
+      if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O")) {structureopen_window_h = 1;}
       AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
 
       if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}

@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "imgui.h"
+#include "imgui_impl_glfw_gl3.h"
 #include "draw.h"
 #include "critic2.h"
 #include "geometry.h"
@@ -127,8 +128,10 @@ static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal = 1.0
 // Mouse scroll callback
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-  float camZoomFactor = box_xmaxlen * 0.2f;
-  cam.Pos[2] += yoffset * camZoomFactor;
+  if (!ImGui::GetIO().WantCaptureMouse)
+    cam.Pos[2] += yoffset * box_xmaxlen * 0.2f;
+  else
+    ImGui_ImplGlfwGL3_ScrollCallback(window, xoffset, yoffset);
 }
 
 // process mouse input

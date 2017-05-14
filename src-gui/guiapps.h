@@ -24,11 +24,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // Handles for the various windows and GUI elements
 extern bool structureinfo_window_h;
-extern int structurenew_window_h;
+extern bool structurenew_window_h;
+extern int structureopen_window_h;
 
 // GUI element prototypes
 void guiapps_process_handles();
 void structureinfo_window(bool *p_open);
-void structurenew_window(int *p_open);
+void structurenew_window(bool *p_open);
+void structureopen_window(int *p_open);
 
 #endif
