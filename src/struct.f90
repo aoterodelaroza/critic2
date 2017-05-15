@@ -231,7 +231,7 @@ contains
     end if
 
     ! build the new crystal from the seed
-    call c%struct_new(seed)
+    call c%struct_new(seed,.true.)
 
   end subroutine struct_crystal_input
 

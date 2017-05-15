@@ -2221,7 +2221,7 @@ contains
     ncseed%ismolecule = .false.
 
     ! initialize the structure
-    call c%struct_new(ncseed)
+    call c%struct_new(ncseed,.true.)
     call c%struct_fill(.true.,-1,.false.,.true.,.false.)
     if (verbose) call c%struct_report()
 
@@ -2443,8 +2443,10 @@ contains
 
   end subroutine delaunay_reduction
 
-  !> Create a new, complete crystal/molecule from a crystal seed
-  subroutine struct_new(c,seed)
+  !> Create a new, complete crystal/molecule from a crystal seed. If failed
+  !> and crashfail is true, crash the program. Otherwise, return a crystal
+  !> with c%isinit = false.
+  subroutine struct_new(c,seed,crashfail)
     use global, only: crsmall, atomeps
     use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar, matinv, &
        det, mnorm2
@@ -2453,6 +2455,7 @@ contains
     use param, only: pi, eyet, ctsq3, maxzat
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
+    logical, intent(in) :: crashfail
     
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3)
     logical :: good, found, hasspg
@@ -2462,8 +2465,13 @@ contains
     integer, allocatable :: irotm(:), icenv(:)
     real*8 :: v1(3), v2(3)
 
-    if (.not.seed%isused) &
-       call ferror("struct_new","uninitialized seed",faterr)
+    if (.not.seed%isused) then
+       if (crashfail) then
+          call ferror("struct_new","uninitialized seed",faterr)
+       else
+          return
+       end if
+    end if
 
     ! initialize the structure
     call c%init()
@@ -2477,8 +2485,13 @@ contains
           ! use the atomic number
           do i = 1, c%nneq
              c%at(i)%z = seed%z(i)
-             if (c%at(i)%z < 0) &
-                call ferror("struct_new","unknown atom with Z: " // string(c%at(i)%z),faterr)
+             if (c%at(i)%z < 0) then
+                if (crashfail) then
+                   call ferror("struct_new","unknown atom with Z: " // string(c%at(i)%z),faterr)
+                else
+                   return
+                end if
+             end if
              c%at(i)%name = nameguess(seed%z(i),.true.)
              c%at(i)%x = seed%x(:,i)
           end do
@@ -2487,8 +2500,13 @@ contains
           do i = 1, c%nneq
              c%at(i)%name = seed%name(i)
              c%at(i)%z = zatguess(c%at(i)%name)
-             if (c%at(i)%z < 0) &
-                call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
+             if (c%at(i)%z < 0) then
+                if (crashfail) then
+                   call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
+                else
+                   return
+                end if
+             end if
              c%at(i)%x = seed%x(:,i)
           end do
        elseif (seed%usezname == 3) then
@@ -2496,8 +2514,13 @@ contains
           do i = 1, c%nneq
              c%at(i)%name = seed%name(i)
              c%at(i)%z = seed%z(i)
-             if (c%at(i)%z < 0) &
-                call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
+             if (c%at(i)%z < 0) then
+                if (crashfail) then
+                   call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
+                else
+                   return
+                end if
+             end if
              c%at(i)%x = seed%x(:,i)
           end do
        else
@@ -2530,8 +2553,13 @@ contains
 
     ! basic cell and centering information
     if (seed%useabr == 0) then
-       if (.not.seed%ismolecule) &
-          call ferror("struct_new","cell data unavailable",faterr)
+       if (.not.seed%ismolecule) then
+          if (crashfail) then
+             call ferror("struct_new","cell data unavailable",faterr)
+          else
+             return
+          end if
+       end if
        ! this is a molecule, for which no cell has been given
        c%aa = xmax - xmin
        c%bb = 90d0
@@ -2557,7 +2585,11 @@ contains
        c%bb(2) = acos(g(1,3) / c%aa(1) / c%aa(3)) * 180d0 / pi
        c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
     else
-       call ferror("struct_new","unknown useabr",faterr)
+       if (crashfail) then
+          call ferror("struct_new","unknown useabr",faterr)
+       else
+          return
+       end if
     end if
 
     ! transform the atomic coordinates in the case of a molecule, and fill 
@@ -2583,8 +2615,13 @@ contains
           ! can not exceed the actual unit cell
           c%molborder = max(seed%border - max(2d0,0.8d0 * seed%border),0d0) / (xmax - xmin)
        else
-          if (any(abs(c%bb - 90d0) > 1d-3)) &
-             call ferror("struct_new","MOLECULE does not allow non-orthogonal cells",faterr)
+          if (any(abs(c%bb - 90d0) > 1d-3)) then
+             if (crashfail) then
+                call ferror("struct_new","MOLECULE does not allow non-orthogonal cells",faterr)
+             else
+                return
+             end if
+          end if
           ! a cell has been given, save the origin
           if (seed%havex0) then
              c%molx0 = seed%molx0
@@ -2656,8 +2693,13 @@ contains
                    exit
                 end if
              end do
-             if (.not.good) &
-                call ferror('struct_new','identity operation not found',faterr)
+             if (.not.good) then
+                if (crashfail) then
+                   call ferror('struct_new','identity operation not found',faterr)
+                else
+                   return
+                end if
+             end if
           end if
        end if
     else

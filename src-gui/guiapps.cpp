@@ -34,6 +34,7 @@ Togo. See the license notice in src/spglib/spacegroup.c */
 
 // static function prototypes
 static int spg_choose_menu(int mode);
+static void set_defaults_new_structure(bool ismol);
 
 // Variable definitions
 bool structureinfo_window_h = false;
@@ -660,12 +661,18 @@ void structureinfo_window(bool *p_open){
 void structurenew_window(bool *p_open){
   static struct c_crystalseed useed = {-1};
 
+  // xxxx pass error message strings and codes back with the seed
+  // xxxx use the spg chooser
+  // xxxx make the seed translation routine much safer
+  // xxxx implement preview
+
   static int atunitsc, atunitsm;
   const char *latstr[] = {"Lengths & angles","Lattice vectors"};
   const char *unitstr[] = {"Bohr","Angstrom","Fractional"};
+  static int signalerror = 0;
 
   if (useed.type == -1){
-    useed.molborder = 10.0f;
+    useed.molborder = 10.0f * 0.529177f;
     useed.borunits = 1;
     atunitsc = 2;
     atunitsm = 1;
@@ -675,7 +682,7 @@ void structurenew_window(bool *p_open){
   ImGui::SetNextWindowSizeConstraints(ImVec2(600, 500), ImVec2(FLT_MAX, FLT_MAX)); 
   ImGui::SetNextWindowPos(ImVec2(150, 150), ImGuiSetCond_Once);
   if (ImGui::Begin("New structure", p_open)){
-    ImGui::BeginChild("###appbody", ImVec2(0, -ImGui::GetItemsLineHeightWithSpacing()));
+    ImGui::BeginChild("###appbody", ImVec2(0, -2*ImGui::GetItemsLineHeightWithSpacing()));
     // structure type
     ImGui::RadioButton("Crystal", &useed.type, 1);
     ImGui::SameLine();
@@ -724,31 +731,33 @@ void structurenew_window(bool *p_open){
       ImGui::InputText("###strspg",useed.strspg,IM_ARRAYSIZE(useed.strspg));
       ImGui::PopItemWidth();
       ImGui::SameLine();
-      if (ImGui::Button("Choose it"))
-	ImGui::OpenPopup("choosespg");
-      if (ImGui::BeginPopup("choosespg")){
-	int lspgnum = 0;
-	if (ImGui::BeginMenu("Number")){
-	  lspgnum = spg_choose_menu(0);
-	  ImGui::EndMenu();
-	}
-	if (ImGui::BeginMenu("Hermann-Mauguin")){
-	  lspgnum = spg_choose_menu(1);
-	  ImGui::EndMenu();
-	}
-	if (ImGui::BeginMenu("Hall")){
-	  lspgnum = spg_choose_menu(2);
-	  ImGui::EndMenu();
-	}
-	if (ImGui::BeginMenu("Schoenflies")){
-	  lspgnum = spg_choose_menu(3);
-	  ImGui::EndMenu();
-	}
-	if (lspgnum > 0){
-	  strcpy(useed.strspg,spgtyp[lspgnum].international_full);
-	}
-	ImGui::EndPopup();
-      }
+      if (ImGui::Button("Choose it")){}
+      // xxxx spg chooser xxxx //
+      // if (ImGui::Button("Choose it"))
+      // 	ImGui::OpenPopup("choosespg");
+      // if (ImGui::BeginPopup("choosespg")){
+      // 	int lspgnum = 0;
+      // 	if (ImGui::BeginMenu("Number")){
+      // 	  lspgnum = spg_choose_menu(0);
+      // 	  ImGui::EndMenu();
+      // 	}
+      // 	if (ImGui::BeginMenu("Hermann-Mauguin")){
+      // 	  lspgnum = spg_choose_menu(1);
+      // 	  ImGui::EndMenu();
+      // 	}
+      // 	if (ImGui::BeginMenu("Hall")){
+      // 	  lspgnum = spg_choose_menu(2);
+      // 	  ImGui::EndMenu();
+      // 	}
+      // 	if (ImGui::BeginMenu("Schoenflies")){
+      // 	  lspgnum = spg_choose_menu(3);
+      // 	  ImGui::EndMenu();
+      // 	}
+      // 	if (lspgnum > 0){
+      // 	  strcpy(useed.strspg,spgtyp[lspgnum].international_full);
+      // 	}
+      // 	ImGui::EndPopup();
+      // }
     }
     
     if (useed.type > -1){
@@ -760,6 +769,7 @@ void structurenew_window(bool *p_open){
       if (useed.type == 1){
 	if (useed.achoice == 0){
 	  ImGui::Text(" (Fractional)");
+	  useed.atunits = 2;
 	}
 	else{
 	  ImGui::Combo("###atunits", &atunitsc, unitstr, 3);
@@ -789,18 +799,30 @@ void structurenew_window(bool *p_open){
     }
     ImGui::EndChild();
 
+    // Error message at the end of the window but before the buttons
+    ImGui::BeginChild("###errmsg", ImVec2(0, ImGui::GetItemsLineHeightWithSpacing()));
+    if (signalerror){
+      ImGui::TextColored(ImVec4(1.0f,0.0f,0.0f,1.0f), "Error with code: %d",signalerror);
+    }
+    ImGui::EndChild();
+
     // Buttons at the bottom of the window
-    ImGui::BeginChild("###buttons");
+    ImGui::BeginChild("###buttons", ImVec2(0, ImGui::GetItemsLineHeightWithSpacing()));
     ImGui::PushItemWidth(-140);
     ImGui::SameLine(ImGui::GetWindowContentRegionWidth()-150);
     if (ImGui::Button("Preview")){
       *p_open = false;
     }
+
     ImGui::SameLine();
     if (ImGui::Button("OK")) {
-      new_structure(&useed);
-      *p_open = false;
+      signalerror = new_structure(&useed);
+      if (!signalerror){
+	set_defaults_new_structure(useed.type == 0);
+	*p_open = false;
+      } 
     }
+
     ImGui::SameLine();
     if (ImGui::Button("Cancel")) {
       *p_open = false;
@@ -874,13 +896,7 @@ void structureopen_window(int *p_open){
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
     open_structure(&filename, *p_open == 1); 
-
-    // Set default camera position, show cell if crystal, etc.
-    draw_set_camera_pos(box_xmaxlen);
-    show_cell = (*p_open == 2);
-    show_bonds = true;
-    show_cps = true;
-    show_atoms = true;
+    set_defaults_new_structure(*p_open == 1);
 
     // Close the dialog
     firstpass = true;
@@ -888,3 +904,11 @@ void structureopen_window(int *p_open){
   }
 }
 
+// Reset the flags to their default values for a new structure
+static void set_defaults_new_structure(bool ismol){
+    draw_set_camera_pos(box_xmaxlen);
+    show_cell = !ismol;
+    show_bonds = true;
+    show_cps = true;
+    show_atoms = true;
+}

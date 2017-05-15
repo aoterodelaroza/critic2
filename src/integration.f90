@@ -903,7 +903,7 @@ contains
           ncseed%havesym = 0
           ncseed%findsym = 0
           ncseed%ismolecule = cr%ismolecule
-          call nc%struct_new(ncseed)
+          call nc%struct_new(ncseed,.true.)
 
           allocate(psic(n(1),n(2),n(3)))
           allocate(f1(f(fid)%n(1)*nwan(1),f(fid)%n(2)*nwan(2),f(fid)%n(3)*nwan(3)))
@@ -2022,7 +2022,7 @@ contains
        ncseed%havesym = 0
        ncseed%findsym = 0
        ncseed%ismolecule = cr%ismolecule
-       call cr1%struct_new(ncseed)
+       call cr1%struct_new(ncseed,.true.)
 
        write (uout,'("+ Delocalization indices")')
        write (uout,'("  Each block gives information about a single atom in the main cell.")')

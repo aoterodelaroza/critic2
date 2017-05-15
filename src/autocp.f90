@@ -970,7 +970,7 @@ contains
           seed%molx0 = cr%molx0
 
           ! write the structure to the external file
-          call caux%struct_new(seed)
+          call caux%struct_new(seed,.true.)
           call struct_write(caux,line2)
 
           return

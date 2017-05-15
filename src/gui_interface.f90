@@ -28,6 +28,7 @@ module gui_interface
   public :: critic2_end
   public :: open_structure
   public :: new_structure
+  private :: initialize_structure
   public :: call_auto
   public :: update_scene
   public :: clear_scene
@@ -204,14 +205,8 @@ contains
 
   ! Read a new molecule/crystal from an external file
   subroutine open_structure(filename0, ismolecule) bind(c)
-    use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
-       fields_integrable_report
-    use grd_atomic, only: grda_init
     use struct, only: struct_crystal_input
     use struct_basic, only: cr
-    use tools_io, only: uout, string
-    use global, only: refden, gradient_mode, INT_radquad_errprop_default, INT_radquad_errprop
-    use autocp, only: init_cplist
 
     type(c_ptr), intent(in) :: filename0
     integer(c_int), value :: ismolecule
@@ -222,47 +217,14 @@ contains
     ! transform to fortran string
     filename = c_string_value(filename0)
 
+    ! read the external file name 
     call struct_crystal_input(cr, filename, ismolecule, .true.)
+
+    ! initialize and update the scene
     if (cr%isinit) then
-       ! fill environments, asterisms, nearest neighbors
-       call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
-       ! print some information about the structure
-       call cr%struct_report()
-       ! initialize the radial densities
-       call grda_init(.true.,.true.,.false.)
-       ! header and change refden
-       write (uout,'("* Field number ",A," is now REFERENCE."/)') string(0)
-       refden = 0
-       call init_cplist(.true.)
-       ! define second integrable property as the valence charge.
-       nprops = max(2,nprops)
-       integ_prop(2)%used = .true.
-       integ_prop(2)%itype = itype_fval
-       integ_prop(2)%fid = 0
-       integ_prop(2)%prop_name = "Pop"
-       ! define third integrable property as the valence laplacian.
-       nprops = max(3,nprops)
-       integ_prop(3)%used = .true.
-       integ_prop(3)%itype = itype_lapval
-       integ_prop(3)%fid = 0
-       integ_prop(3)%prop_name = "Lap"
-       ! reset defaults for qtree
-       if (f(refden)%type == type_grid) then
-          gradient_mode = 1
-          if (INT_radquad_errprop_default) INT_radquad_errprop = 2
-       else
-          gradient_mode = 2
-          if (INT_radquad_errprop_default) INT_radquad_errprop = 3
-       end if
-
-       ! report
-       call fields_integrable_report()
-    else
-       call cr%init()
+       call initialize_structure()
+       call update_scene()
     end if
-
-    ! update the scene
-    call update_scene()
 
   end subroutine open_structure
 
@@ -298,13 +260,15 @@ contains
        else
           fseed%useabr = 2
        end if
-    else
+    elseif  (useed%type == 0) then
        ! a molecule
        fseed%ismolecule = .true.
        fseed%cubic = useed%molcubic
        fseed%border = real(useed%molborder,8)
        if (useed%borunits == 1) fseed%border = fseed%border / bohrtoa
        fseed%useabr = 0
+    else
+       return
     end if
 
     ! parse the cell information
@@ -362,7 +326,7 @@ contains
     fseed%usezname = 2
 
     ! atomic unit conversion
-    if (useed%atunits == 0) then
+    if (useed%atunits == 0 .and. .not.fseed%ismolecule) then
        ! bohr
        r = matinv(fseed%crys2car)
        do i = 1, fseed%nat
@@ -370,33 +334,87 @@ contains
        end do
     elseif (useed%atunits == 1) then
        ! angstrom
-       r = matinv(fseed%crys2car)
-       do i = 1, fseed%nat
-          fseed%x(:,i) = matmul(r,fseed%x(:,i) / bohrtoa)
-       end do
+       fseed%x = fseed%x / bohrtoa
+       if (.not.fseed%ismolecule) then
+          r = matinv(fseed%crys2car)
+          do i = 1, fseed%nat
+             fseed%x(:,i) = matmul(r,fseed%x(:,i))
+          end do
+       end if
     end if
-
-    ! xxxx fix spg and crystal structure initialization
 
     ! space group
     call c_f_string(useed%strspg,aux)
-    ! if (len_trim(aux) > 0) then
-    !    call spgs_wrap(fseed,aux,.false.)
-    ! end if
+    if (len_trim(aux) > 0) then
+       call spgs_wrap(fseed,aux,.false.)
+    end if
     if (.not.fseed%ismolecule .and. fseed%havesym == 0) then
        fseed%findsym = 1
     end if
 
     ! build the new crystal structure
-    call cr%struct_new(fseed)
-    call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
-    
-    ! update the scene
-    call update_scene()
+    call cr%struct_new(fseed,.false.)
 
-    new_structure = 0
+    ! initialize and update the scene
+    if (cr%isinit) then
+       call initialize_structure()
+       call update_scene()
+       new_structure = 0
+    else
+       ! could not initialize the current seed
+       new_structure = 2
+    end if
 
   end function new_structure
+
+  ! The cr variable contains a new structure. Use this routine to
+  ! initialize the rest of the modules to prepare it for usage.
+  subroutine initialize_structure()
+    use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
+       fields_integrable_report
+    use grd_atomic, only: grda_init
+    use struct_basic, only: cr
+    use tools_io, only: uout, string
+    use global, only: refden, gradient_mode, INT_radquad_errprop_default, INT_radquad_errprop
+    use autocp, only: init_cplist
+
+    if (.not.cr%isinit) return
+
+    ! fill environments, asterisms, nearest neighbors
+    call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
+    ! print some information about the structure
+    call cr%struct_report()
+    ! initialize the radial densities
+    call grda_init(.true.,.true.,.false.)
+    ! header and change refden
+    write (uout,'("* Field number ",A," is now REFERENCE."/)') string(0)
+    refden = 0
+    call init_cplist(.true.)
+    ! define second integrable property as the valence charge.
+    nprops = max(2,nprops)
+    integ_prop(2)%used = .true.
+    integ_prop(2)%itype = itype_fval
+    integ_prop(2)%fid = 0
+    integ_prop(2)%prop_name = "Pop"
+    ! define third integrable property as the valence laplacian.
+    nprops = max(3,nprops)
+    integ_prop(3)%used = .true.
+    integ_prop(3)%itype = itype_lapval
+    integ_prop(3)%fid = 0
+    integ_prop(3)%prop_name = "Lap"
+    ! reset defaults for qtree
+    if (f(refden)%type == type_grid) then
+       gradient_mode = 1
+       if (INT_radquad_errprop_default) INT_radquad_errprop = 2
+    else
+       gradient_mode = 2
+       if (INT_radquad_errprop_default) INT_radquad_errprop = 3
+    end if
+
+    ! report
+    call fields_integrable_report()
+
+  end subroutine initialize_structure
 
   ! Calculate critical points for the current field
   subroutine call_auto() bind (c)
@@ -447,7 +465,7 @@ contains
     end do
     xcm = xcm / ncpcel
     box_xcm = xcm
-    box_xmaxlen = maxval(box_xmax - box_xmin)
+    box_xmaxlen = max(maxval(box_xmax - box_xmin),1d0)
 
     ! Allocate space for atoms
     if (associated(at_f)) deallocate(at_f)
