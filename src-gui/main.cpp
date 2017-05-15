@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     string argall = "";
     for(int i=1;i<argc;i++)
       argall = argall + argv[i] + " ";
-    call_structure((const char **) &argall, -1);
+    open_structure((const char **) &argall, -1);
     draw_set_camera_pos(box_xmaxlen);
     show_cell = !ismolecule;
     structureinfo_window_h = true;

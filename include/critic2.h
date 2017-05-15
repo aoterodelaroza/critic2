@@ -66,23 +66,43 @@ extern "C" float box_xmax[3];
 extern "C" float box_xcm[3];
 extern "C" float box_xmaxlen;
 
+// crystal seed
+extern "C" struct c_crystalseed {
+  int type; // 0 = molecule, 1 = crystal
+  int achoice; // 0 = aa, 1 = rr
+  char straa[255];
+  char strbb[255];
+  char strrr[255*5];
+  char strat[255*1024];
+  char strspg[255];
+  bool molcubic;
+  float molborder;
+  int borunits;
+  int aaunits;
+  int rrunits;
+  int atunits;
+};
+
 //xx// Procedures made available in gui_interface.f90
 
 // initialize critic2
-extern "C" void critic2_initialize();
+extern "C" void critic2_initialize(void);
 
 // end the critic2 run
-extern "C" void critic2_end();
+extern "C" void critic2_end(void);
 
 // read a new molecule/crystal from an external file
-extern "C" void call_structure(const char **filename, int isMolecule); 
+extern "C" void open_structure(const char **filename, int isMolecule); 
+
+// read a new molecule/crystal from an external file
+extern "C" int new_structure(struct c_crystalseed *useed);
 
 // calculate critical points for the current field
-extern "C" void call_auto(); 
+extern "C" void call_auto(void); 
 
 // update the data in the scene (fortran module variables) to make
 // it available to the GUI 
-extern "C" void update_scene(); 
+extern "C" void update_scene(void); 
 
 // clear the scene
 extern "C" void clear_scene(bool unload); 

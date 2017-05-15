@@ -658,20 +658,18 @@ void structureinfo_window(bool *p_open){
 
 // Create a new structure with user's input
 void structurenew_window(bool *p_open){
-  static int type = -1; // 0 = molecule, 1 = crystal
-  static int achoice;
-  const char* units[] = {"Bohr","Angstrom","Fractional"};
-  static char straa[255], strbb[255], strrr[255*5];
-  static char strat[255*1024] = 
-    "# Each row is an atom:\n"
-    "#   Symbol  x   y   z\n"
-    "# Arithmetic expressions are allowed. # is a comment.\n";
-  static char strspg[255] = "P 1";
-  static int spgnum = 1;
-  static int aaunits = 0, rrunits = 0, atunits = 0, atunitsc = 2, atunitsm = 1;
-  static int borunits = 1;
-  static bool molcubic = false;
-  static float molborder = 10.0f;
+  static struct c_crystalseed useed = {-1};
+
+  static int atunitsc, atunitsm;
+  const char *latstr[] = {"Lengths & angles","Lattice vectors"};
+  const char *unitstr[] = {"Bohr","Angstrom","Fractional"};
+
+  if (useed.type == -1){
+    useed.molborder = 10.0f;
+    useed.borunits = 1;
+    atunitsc = 2;
+    atunitsm = 1;
+  }
 
   ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiSetCond_Once);
   ImGui::SetNextWindowSizeConstraints(ImVec2(600, 500), ImVec2(FLT_MAX, FLT_MAX)); 
@@ -679,31 +677,31 @@ void structurenew_window(bool *p_open){
   if (ImGui::Begin("New structure", p_open)){
     ImGui::BeginChild("###appbody", ImVec2(0, -ImGui::GetItemsLineHeightWithSpacing()));
     // structure type
-    ImGui::RadioButton("Crystal", &type, 1);
+    ImGui::RadioButton("Crystal", &useed.type, 1);
     ImGui::SameLine();
-    ImGui::RadioButton("Molecule", &type, 0);
+    ImGui::RadioButton("Molecule", &useed.type, 0);
 
-    if (type == 1){
+    if (useed.type == 1){
       ImGui::Separator();
       ImGui::Text("Cell");
       ImGui::SameLine();
       ImGui::PushItemWidth(170);
-      ImGui::Combo("###achoice", &achoice, "Lengths & angles\0Lattice vectors", 2);
+      ImGui::Combo("###achoice", &useed.achoice, latstr, 2);
       ImGui::PopItemWidth();
 
-      if (achoice == 0){
+      if (useed.achoice == 0){
 	// Cell lengths and angles
 	ImGui::Text("Lengths");
 	ImGui::SameLine();
-	ImGui::InputText("###straa",straa,IM_ARRAYSIZE(straa));
+	ImGui::InputText("###straa",useed.straa,IM_ARRAYSIZE(useed.straa));
 	ImGui::SameLine();
 	ImGui::PushItemWidth(90);
-	ImGui::Combo("###aaunits", &aaunits, units, 2);
+	ImGui::Combo("###aaunits", &useed.aaunits, unitstr, 2);
 	ImGui::PopItemWidth();
 
 	ImGui::Text("Angles ");
 	ImGui::SameLine();
-	ImGui::InputText("###strbb",strbb,IM_ARRAYSIZE(strbb));
+	ImGui::InputText("###strbb",useed.strbb,IM_ARRAYSIZE(useed.strbb));
 	ImGui::SameLine();
 	ImGui::Text("degrees");
       }
@@ -712,9 +710,9 @@ void structurenew_window(bool *p_open){
 	ImGui::Text("Lattice vectors:");
 	ImGui::SameLine();
 	ImGui::PushItemWidth(90);
-	ImGui::Combo("###rrunits", &rrunits, units, 2);
+	ImGui::Combo("###rrunits", &useed.rrunits, unitstr, 2);
 	ImGui::PopItemWidth();
-	ImGui::InputTextMultiline("###strrr", strrr, IM_ARRAYSIZE(strrr), ImVec2(-1.0f, ImGui::GetTextLineHeight() * 5));
+	ImGui::InputTextMultiline("###strrr", useed.strrr, IM_ARRAYSIZE(useed.strrr), ImVec2(-1.0f, ImGui::GetTextLineHeight() * 5));
 	ImGui::Text("(each vector in a row; arithmetic expressions allowed)");
       }
 
@@ -723,7 +721,7 @@ void structurenew_window(bool *p_open){
       ImGui::Text("Space group: ");
       ImGui::SameLine();
       ImGui::PushItemWidth(120);
-      ImGui::InputText("###strspg",strspg,IM_ARRAYSIZE(strspg));
+      ImGui::InputText("###strspg",useed.strspg,IM_ARRAYSIZE(useed.strspg));
       ImGui::PopItemWidth();
       ImGui::SameLine();
       if (ImGui::Button("Choose it"))
@@ -747,41 +745,46 @@ void structurenew_window(bool *p_open){
 	  ImGui::EndMenu();
 	}
 	if (lspgnum > 0){
-	  spgnum = lspgnum;
-	  strcpy(strspg,spgtyp[spgnum].international_full);
+	  strcpy(useed.strspg,spgtyp[lspgnum].international_full);
 	}
 	ImGui::EndPopup();
       }
     }
     
-    if (type > -1){
+    if (useed.type > -1){
       // Atomic positions
       ImGui::Separator();
       ImGui::Text("Atomic coordinates:");
       ImGui::SameLine();
       ImGui::PushItemWidth(110);
-      if (type == 1){
-	ImGui::Combo("###atunits", &atunitsc, units, 3);
-	atunits = atunitsc;
+      if (useed.type == 1){
+	if (useed.achoice == 0){
+	  ImGui::Text(" (Fractional)");
+	}
+	else{
+	  ImGui::Combo("###atunits", &atunitsc, unitstr, 3);
+	  useed.atunits = atunitsc;
+	}
       }
       else {
-	ImGui::Combo("###atunits", &atunitsm, units, 2);
-	atunits = atunitsm;
+	ImGui::Combo("###atunits", &atunitsm, unitstr, 2);
+	useed.atunits = atunitsm;
       }
       ImGui::PopItemWidth();
-      ImGui::InputTextMultiline("###strat", strat, IM_ARRAYSIZE(strat),
+      ImGui::InputTextMultiline("###strat", useed.strat, IM_ARRAYSIZE(useed.strat),
 				ImVec2(-1.0f, ImGui::GetTextLineHeight() * 10));
+      ImGui::Text("(each atom in a row: symbol x y z; arithmetic expressions allowed)");
     }
 
-    if (type == 0){
-      ImGui::Checkbox("Use a cubic cell", &molcubic);
+    if (useed.type == 0){
+      ImGui::Checkbox("Use a cubic cell", &useed.molcubic);
 
       ImGui::Text("Cell border:");
       ImGui::SameLine();
       ImGui::PushItemWidth(90);
-      ImGui::DragFloat("###bordrag", &molborder, 0.02f, 0.f, FLT_MAX, "%.3f");
+      ImGui::DragFloat("###bordrag", &useed.molborder, 0.02f, 0.f, FLT_MAX, "%.3f");
       ImGui::SameLine();
-      ImGui::Combo("###borunits", &borunits, units, 2);
+      ImGui::Combo("###borunits", &useed.borunits, unitstr, 2);
       ImGui::PopItemWidth();
     }
     ImGui::EndChild();
@@ -795,6 +798,7 @@ void structurenew_window(bool *p_open){
     }
     ImGui::SameLine();
     if (ImGui::Button("OK")) {
+      new_structure(&useed);
       *p_open = false;
     }
     ImGui::SameLine();
@@ -803,9 +807,12 @@ void structurenew_window(bool *p_open){
     }
     ImGui::PopItemWidth();
     ImGui::EndChild();
-    
   }
   ImGui::End();
+
+  // reset the static variables for the next use
+  if (!*p_open)
+    useed = {-1};
 }
 
 // Space group choosing menu ietms (beginmenu and endmenu must be
@@ -866,7 +873,7 @@ void structureopen_window(int *p_open){
 
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
-    call_structure(&filename, *p_open == 1); 
+    open_structure(&filename, *p_open == 1); 
 
     // Set default camera position, show cell if crystal, etc.
     draw_set_camera_pos(box_xmaxlen);

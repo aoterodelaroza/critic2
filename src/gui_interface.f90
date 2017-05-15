@@ -26,11 +26,14 @@ module gui_interface
 
   public :: critic2_initialize
   public :: critic2_end
-  public :: call_structure
+  public :: open_structure
+  public :: new_structure
   public :: call_auto
   public :: update_scene
   public :: clear_scene
   public :: get_text_info
+  private :: stick_from_endpoints
+  private :: denewline
 
   ! C-interoperable stick type
   type, bind(c) :: c_stick
@@ -114,6 +117,23 @@ module gui_interface
   real(c_float), bind(c) :: box_xcm(3)
   real(c_float), bind(c) :: box_xmaxlen
 
+  ! C-interoperable crystal seed
+  type, bind(c) :: c_crystalseed
+     integer(c_int) :: type ! 0 = molecule, 1 = crystal
+     integer(c_int) :: achoice ! 0 = aa, 1 = rr
+     character(kind=c_char,len=1) :: straa(255)
+     character(kind=c_char,len=1) :: strbb(255)
+     character(kind=c_char,len=1) :: strrr(255*5)
+     character(kind=c_char,len=1) :: strat(255*1024)
+     character(kind=c_char,len=1) :: strspg(255)
+     logical(c_bool) :: molcubic
+     real(c_float) :: molborder
+     integer(c_int) :: borunits ! 0 = bohr, 1 = angstrom
+     integer(c_int) :: aaunits ! 0 = bohr, 1 = angstrom
+     integer(c_int) :: rrunits ! 0 = bohr, 1 = angstrom
+     integer(c_int) :: atunits ! 0 = bohr, 1 = angstrom, 2 = fractional
+  end type c_crystalseed
+
 contains
 
   !> Initialize critic2.
@@ -183,7 +203,7 @@ contains
   end subroutine critic2_end
 
   ! Read a new molecule/crystal from an external file
-  subroutine call_structure(filename0, ismolecule) bind(c)
+  subroutine open_structure(filename0, ismolecule) bind(c)
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
        fields_integrable_report
     use grd_atomic, only: grda_init
@@ -244,7 +264,139 @@ contains
     ! update the scene
     call update_scene()
 
-  end subroutine call_structure
+  end subroutine open_structure
+
+  ! Read a new molecule/crystal from an external file
+  function new_structure(useed) bind(c)
+    use struct_basic, only: crystalseed, spgs_wrap, cr
+    use global, only: eval_next
+    use tools_io, only: getword, zatguess
+    use tools_math, only: matinv
+    use types, only: realloc
+    use param, only: bohrtoa
+    type(c_crystalseed), intent(in) :: useed
+    integer(c_int) :: new_structure
+
+    type(crystalseed) :: fseed
+    logical :: ok
+    integer :: lp, i, j
+    character(len=255*1024) :: aux
+    real*8 :: xat(3), r(3,3)
+    character(len=:), allocatable :: atsym
+
+    ! set default return value to "error parsing seed"
+    new_structure = 1
+
+    ! build a crystal seed from the information passed from the GUI
+    fseed%isused = .true.
+    fseed%file = "<gui input>"
+    if (useed%type == 1) then
+       ! a crystal
+       fseed%ismolecule = .false.
+       if (useed%achoice == 0) then
+          fseed%useabr = 1
+       else
+          fseed%useabr = 2
+       end if
+    else
+       ! a molecule
+       fseed%ismolecule = .true.
+       fseed%cubic = useed%molcubic
+       fseed%border = real(useed%molborder,8)
+       if (useed%borunits == 1) fseed%border = fseed%border / bohrtoa
+       fseed%useabr = 0
+    end if
+
+    ! parse the cell information
+    ok = .true.
+    lp = 1
+    if (fseed%useabr == 1) then
+       call c_f_string(useed%straa,aux)
+       do i = 1, 3
+          ok = ok .and. eval_next(fseed%aa(i),aux,lp)
+       end do
+       if (.not.ok) return
+       if (useed%aaunits == 1) fseed%aa = fseed%aa / bohrtoa
+
+       call c_f_string(useed%strbb,aux)
+       lp = 1
+       do i = 1, 3
+          ok = ok .and. eval_next(fseed%bb(i),aux,lp)
+       end do
+       if (.not.ok) return
+    elseif (fseed%useabr == 2) then
+       call c_f_string(useed%strrr,aux)
+       call denewline(aux)
+       do i = 1, 3
+          do j = 1, 3
+             ok = ok .and. eval_next(fseed%crys2car(j,i),aux,lp)
+          end do
+       end do
+       if (.not.ok) return
+       if (useed%rrunits == 1) fseed%crys2car = fseed%crys2car / bohrtoa
+    end if
+
+    ! parse the atoms
+    call c_f_string(useed%strat,aux)
+    call denewline(aux)
+    lp = 1
+    fseed%nat = 0
+    allocate(fseed%x(3,10),fseed%name(10))
+    do while (.true.)
+       atsym = getword(aux,lp)
+       ok = (zatguess(atsym) >= 0)
+       ok = ok .and. eval_next(xat(1),aux,lp)
+       ok = ok .and. eval_next(xat(2),aux,lp)
+       ok = ok .and. eval_next(xat(3),aux,lp)
+       if (.not.ok) exit
+       fseed%nat = fseed%nat + 1
+       if (fseed%nat > size(fseed%x,2)) then
+          call realloc(fseed%x,3,2*fseed%nat)
+          call realloc(fseed%name,2*fseed%nat)
+       end if
+       fseed%x(:,fseed%nat) = xat
+       fseed%name(fseed%nat) = atsym
+    end do
+    call realloc(fseed%x,3,fseed%nat)
+    call realloc(fseed%name,fseed%nat)
+    fseed%usezname = 2
+
+    ! atomic unit conversion
+    if (useed%atunits == 0) then
+       ! bohr
+       r = matinv(fseed%crys2car)
+       do i = 1, fseed%nat
+          fseed%x(:,i) = matmul(r,fseed%x(:,i))
+       end do
+    elseif (useed%atunits == 1) then
+       ! angstrom
+       r = matinv(fseed%crys2car)
+       do i = 1, fseed%nat
+          fseed%x(:,i) = matmul(r,fseed%x(:,i) / bohrtoa)
+       end do
+    end if
+
+    ! xxxx fix spg and crystal structure initialization
+
+    ! space group
+    call c_f_string(useed%strspg,aux)
+    ! if (len_trim(aux) > 0) then
+    !    call spgs_wrap(fseed,aux,.false.)
+    ! end if
+    if (.not.fseed%ismolecule .and. fseed%havesym == 0) then
+       fseed%findsym = 1
+    end if
+
+    ! build the new crystal structure
+    call cr%struct_new(fseed)
+    call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
+    
+    ! update the scene
+    call update_scene()
+
+    new_structure = 0
+
+  end function new_structure
 
   ! Calculate critical points for the current field
   subroutine call_auto() bind (c)
@@ -640,5 +792,17 @@ contains
     stick%rot(4,4) = 1d0
              
   end function stick_from_endpoints
+
+  subroutine denewline(str)
+    character*(*), intent(inout) :: str
+    
+    character*1, parameter :: nl = new_line('a')
+    integer :: i
+
+    do i = 1, len_trim(str)
+       if (str(i:i) == nl) str(i:i) = " "
+    end do
+
+  end subroutine denewline
 
 end module gui_interface

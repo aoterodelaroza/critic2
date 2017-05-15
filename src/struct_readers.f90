@@ -53,13 +53,12 @@ module struct_readers
   public :: struct_detect_format
   public :: is_espresso
   private :: qe_latgen
-  private :: spgs_wrap
 
 contains
 
   !> Parse a crystal environment
   function parse_crystal_env(lu,oksyn) result(seed)
-    use struct_basic, only: crystalseed
+    use struct_basic, only: crystalseed, spgs_wrap
     use global, only: eval_next, dunit0, iunit, iunit_isdef, iunit_bohr
     use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
@@ -650,7 +649,7 @@ contains
   !> Read the structure from a CIF file (uses ciftbx) and returns a 
   !> crystal seed.
   function struct_read_cif(file,dblock,mol) result(seed)
-    use struct_basic, only: crystalseed
+    use struct_basic, only: crystalseed, spgs_wrap
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
     use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc
@@ -2975,28 +2974,5 @@ contains
     end if
 
   end subroutine qe_latgen
-
-  !> Wrapper to the spgs module. Sets the symetry in a crystal seed. 
-  !> (including seed%havesym but not seed%findsym).
-  subroutine spgs_wrap(seed,spg,usespgr)
-    use struct_basic, only: crystalseed
-    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m, spgs_driver
-    type(crystalseed), intent(inout) :: seed
-    character*(*), intent(in) :: spg
-    logical, intent(in) :: usespgr
-
-    call spgs_driver(spg,usespgr)
-    seed%ncv = spgs_ncv
-    if (allocated(seed%cen)) deallocate(seed%cen)
-    allocate(seed%cen(3,seed%ncv))
-    seed%cen(:,1:seed%ncv) = real(spgs_cen(:,1:seed%ncv),8) / 12d0
-    seed%neqv = spgs_n
-    if (allocated(seed%rotm)) deallocate(seed%rotm)
-    allocate(seed%rotm(3,4,spgs_n))
-    seed%rotm = real(spgs_m(:,:,1:spgs_n),8)
-    seed%rotm(:,4,:) = seed%rotm(:,4,:) / 12d0
-    seed%havesym = 1
-
-  end subroutine spgs_wrap
 
 end module struct_readers
