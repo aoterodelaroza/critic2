@@ -22,11 +22,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include "matrix_math.h"
+
 class Settings {
   public:
 
   // global signal for program termination
   bool want_quit;
+
+  // operation modes
+  bool preview_mode;
 
   // show elements in the scene
   bool show_bonds;
@@ -45,6 +50,9 @@ class Settings {
   float cam_pos[3];
   float cam_target[3];
   float cam_up[3];
+
+  // scene rotation
+  Matrix4f rot;
 
   // constructor
   Settings(bool ismolecule, float maxlen);

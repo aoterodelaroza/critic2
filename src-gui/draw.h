@@ -28,6 +28,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void process_mouse_input(GLFWwindow* window, Matrix4f *rot);
+void process_mouse_input(GLFWwindow* window);
 
 #endif

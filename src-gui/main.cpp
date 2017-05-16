@@ -117,8 +117,7 @@ int main(int argc, char *argv[])
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
  
-    static Matrix4f rot;
-    process_mouse_input(window, &rot);
+    process_mouse_input(window);
 
     // Rendering
     int display_w, display_h;
@@ -130,7 +129,7 @@ int main(int argc, char *argv[])
  
     p.SetPersProjInfo(45, display_w, display_h, 1.f, 1000.f);
     p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
-    p.SetPostRotationMatrix(rot);
+    p.SetPostRotationMatrix(settings.rot);
     p.SetCamera(settings.cam_pos,settings.cam_target,settings.cam_up);
  
     glEnableVertexAttribArray(0);

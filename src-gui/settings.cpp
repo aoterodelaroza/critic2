@@ -25,6 +25,7 @@ Settings settings = Settings(false,5.f);
 
 Settings::Settings(bool ismolecule, float maxlen){
   want_quit = false;
+  preview_mode = false;
 
   bondresolution = 2;
   atomresolution = 1;
@@ -43,6 +44,7 @@ void Settings::set_flags_and_cam(bool ismolecule, float maxlen, float maxclen){
     set_cam_pos(maxlen);
   else
     set_cam_pos(maxclen>maxlen?maxclen:maxlen);
+  rot.InitIdentity();
 }
 
 void Settings::set_flags(bool ismolecule){

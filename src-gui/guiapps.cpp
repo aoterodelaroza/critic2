@@ -659,9 +659,13 @@ void structureinfo_window(bool *p_open){
 // Create a new structure with user's input
 void structurenew_window(bool *p_open){
   static struct c_crystalseed useed = {-1};
+  static Settings *settings0;
 
   // xxxx use the spg chooser
-  // xxxx implement preview
+  // xxxx preview state - disable menus, etc
+  // xxxx atoms shown dep. on discrete mol/crys
+  // xxxx delete and esc keybindings
+  // xxxx tidy up the information dialog
 
   static int atunitsc, atunitsm;
   const char *latstr[] = {"Lengths & angles","Lattice vectors"};
@@ -806,28 +810,53 @@ void structurenew_window(bool *p_open){
     ImGui::PushItemWidth(-140);
     ImGui::SameLine(ImGui::GetWindowContentRegionWidth()-150);
     if (ImGui::Button("Preview")){
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("OK")) {
-      if (new_structure(&useed)){
+      if (preview_structure(&useed)){
+	// save a copy of the old settings
+	if (!settings0) {
+	  settings0 = new Settings(ismolecule,box_xmaxlen);
+	  *settings0 = settings;
+	}
+	// settings for the previewed crystal
 	settings.set_flags_and_cam(useed.type == 0,box_xmaxlen,box_xmaxclen);
-	*p_open = false;
+	settings.preview_mode = true;
       } 
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-      *p_open = false;
+    if (ImGui::Button("OK")) {
+      if (new_structure(&useed,false)){
+	if (settings0){
+	  accept_previewed_structure();
+	  delete settings0;
+	  settings0 = NULL;
+	}
+	else{
+	  settings.set_flags_and_cam(useed.type == 0,box_xmaxlen,box_xmaxclen);
+	}
+	*p_open = false;
+	settings.preview_mode = false;
+      } 
     }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) 
+      *p_open = false;
     ImGui::PopItemWidth();
     ImGui::EndChild();
   }
   ImGui::End();
 
   // reset the static variables for the next use
-  if (!*p_open)
+  if (!*p_open){
     useed = {-1};
+    if (settings0){
+      reject_previewed_structure();
+      settings = *settings0;
+      delete settings0;
+      settings0 = NULL;
+      settings.preview_mode = false;
+    }
+  }
 }
 
 // Space group choosing menu ietms (beginmenu and endmenu must be

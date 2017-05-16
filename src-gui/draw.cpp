@@ -109,7 +109,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 // process mouse input
-void process_mouse_input(GLFWwindow* window, Matrix4f *rot){
+void process_mouse_input(GLFWwindow* window){
   static bool firstpass = true;
 
   // c means for current loop, l means last loop, p means last pressed
@@ -146,7 +146,7 @@ void process_mouse_input(GLFWwindow* window, Matrix4f *rot){
       if (lLMB != GLFW_PRESS){
 	pMPosX = cMPosX;
 	pMPosY = cMPosY;
-	lastRot = *rot;
+	lastRot = settings.rot;
       } else {
 	Vector3f curRotAxis = Vector3f((float)(cMPosX-pMPosX), (float)(pMPosY-cMPosY), 0);
 	curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
@@ -155,7 +155,7 @@ void process_mouse_input(GLFWwindow* window, Matrix4f *rot){
  
 	Matrix4f curRot;
 	curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
-	*rot = curRot * lastRot;
+	settings.rot = curRot * lastRot;
       }
     }
   }

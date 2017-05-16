@@ -25,6 +25,7 @@ extern "C" struct c_ball {
 
 // glboal flags
 extern bool isinit;
+extern bool ispreview;
 extern bool ismolecule;
 
 // atoms
@@ -97,8 +98,17 @@ extern "C" void critic2_end(void);
 // read a new molecule/crystal from an external file
 extern "C" void open_structure(const char **filename, int isMolecule); 
 
-// read a new molecule/crystal from an external file
-extern "C" int new_structure(struct c_crystalseed *useed);
+// create a structure from scratch
+extern "C" int new_structure(struct c_crystalseed *useed, bool preview);
+
+// preview a new structure 
+extern "C" int preview_structure(struct c_crystalseed *useed);
+
+// accept the previewed structure
+extern "C" void accept_previewed_structure();
+
+// reject the previewed structure
+extern "C" void reject_previewed_structure();
 
 // calculate critical points for the current field
 extern "C" void call_auto(void); 

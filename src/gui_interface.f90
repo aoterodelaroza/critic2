@@ -19,6 +19,7 @@
 
 !> Interface for the GUI.
 module gui_interface
+  use struct_basic, only: crystal
   use c_interface_module
   implicit none
 
@@ -28,6 +29,9 @@ module gui_interface
   public :: critic2_end
   public :: open_structure
   public :: new_structure
+  public :: preview_structure
+  public :: accept_previewed_structure
+  public :: reject_previewed_structure
   private :: initialize_structure
   public :: call_auto
   public :: update_scene
@@ -35,6 +39,9 @@ module gui_interface
   public :: get_text_info
   private :: stick_from_endpoints
   private :: denewline
+  private :: save_state
+  private :: load_state
+  private :: clear_state
 
   ! C-interoperable stick type
   type, bind(c) :: c_stick
@@ -75,8 +82,29 @@ module gui_interface
      type(c_ball) :: b !< ball representation of this CP
   end type c_critp
 
+  ! C-interoperable crystal seed (for the GUI input)
+  type, bind(c) :: c_crystalseed
+     integer(c_int) :: type ! 0 = molecule, 1 = crystal
+     integer(c_int) :: achoice ! 0 = aa, 1 = rr
+     character(kind=c_char,len=1) :: straa(255)
+     character(kind=c_char,len=1) :: strbb(255)
+     character(kind=c_char,len=1) :: strrr(255*5)
+     character(kind=c_char,len=1) :: strat(255*1024)
+     character(kind=c_char,len=1) :: strspg(255)
+     logical(c_bool) :: molcubic
+     real(c_float) :: molborder
+     integer(c_int) :: borunits ! 0 = bohr, 1 = angstrom
+     integer(c_int) :: aaunits ! 0 = bohr, 1 = angstrom
+     integer(c_int) :: rrunits ! 0 = bohr, 1 = angstrom
+     integer(c_int) :: atunits ! 0 = bohr, 1 = angstrom, 2 = fractional
+     integer(c_int) :: errcode
+     character(kind=c_char,len=1) :: errmsg(255)
+  end type c_crystalseed
+
+  !! Interface to the GUI code !!
   ! global flags
   logical(c_bool), bind(c) :: isinit
+  logical(c_bool), bind(c) :: ispreview
   logical(c_bool), bind(c) :: ismolecule
 
   ! number of atoms in the scene
@@ -119,24 +147,26 @@ module gui_interface
   real(c_float), bind(c) :: box_xmaxlen
   real(c_float), bind(c) :: box_xmaxclen
 
-  ! C-interoperable crystal seed (for the GUI input)
-  type, bind(c) :: c_crystalseed
-     integer(c_int) :: type ! 0 = molecule, 1 = crystal
-     integer(c_int) :: achoice ! 0 = aa, 1 = rr
-     character(kind=c_char,len=1) :: straa(255)
-     character(kind=c_char,len=1) :: strbb(255)
-     character(kind=c_char,len=1) :: strrr(255*5)
-     character(kind=c_char,len=1) :: strat(255*1024)
-     character(kind=c_char,len=1) :: strspg(255)
-     logical(c_bool) :: molcubic
-     real(c_float) :: molborder
-     integer(c_int) :: borunits ! 0 = bohr, 1 = angstrom
-     integer(c_int) :: aaunits ! 0 = bohr, 1 = angstrom
-     integer(c_int) :: rrunits ! 0 = bohr, 1 = angstrom
-     integer(c_int) :: atunits ! 0 = bohr, 1 = angstrom, 2 = fractional
-     integer(c_int) :: errcode
-     character(kind=c_char,len=1) :: errmsg(255)
-  end type c_crystalseed
+  !! Save state (for GUI previews) !!
+  logical :: issaved = .false.
+  logical(c_bool) :: isinit_
+  logical(c_bool) :: ismolecule_
+  integer(c_int) :: nat_
+  type(c_atom), pointer :: at_f_(:)
+  integer(c_int) :: nbond_
+  type(c_bond), pointer :: bond_f_(:)
+  integer(c_int) :: ncritp_
+  type(c_critp), pointer :: critp_f_(:)
+  real(c_float) :: cell_x0_(3)
+  real(c_float) :: cell_lat_(3,3)
+  integer(c_int) :: cell_nstick_
+  type(c_stick) :: cell_s_(12)
+  real(c_float) :: box_xmin_(3)
+  real(c_float) :: box_xmax_(3)
+  real(c_float) :: box_xcm_(3)
+  real(c_float) :: box_xmaxlen_
+  real(c_float) :: box_xmaxclen_
+  type(crystal) :: cr_
 
 contains
 
@@ -225,6 +255,7 @@ contains
 
     ! initialize and update the scene
     if (cr%isinit) then
+       ispreview = .false.
        call initialize_structure()
        call update_scene()
     end if
@@ -232,7 +263,7 @@ contains
   end subroutine open_structure
 
   ! Read a new molecule/crystal from an external file
-  function new_structure(useed) bind(c)
+  function new_structure(useed,preview) bind(c)
     use struct_basic, only: crystalseed, spgs_wrap, cr
     use global, only: eval_next
     use tools_io, only: getword, zatguess
@@ -240,6 +271,7 @@ contains
     use types, only: realloc
     use param, only: bohrtoa
     type(c_crystalseed), intent(inout) :: useed
+    logical(c_bool), value :: preview
     integer(c_int) :: new_structure
 
     type(crystalseed) :: fseed
@@ -406,12 +438,59 @@ contains
 
     ! initialize and update the scene
     if (cr%isinit) then
-       call initialize_structure()
+       ispreview = preview
+       if (.not.preview) then
+          call initialize_structure()
+       else
+          call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
+       end if
        call update_scene()
        new_structure = 1
     end if
 
   end function new_structure
+
+  ! Save the data for the current structure and load an alternative
+  ! structure that may be accepted or not.
+  function preview_structure(useed) bind(c)
+    use struct_basic, only: crystalseed, cr
+    type(c_crystalseed), intent(inout) :: useed
+    integer(c_int) :: preview_structure
+
+    logical :: clearlater
+    integer :: i
+
+    if (.not.issaved) then
+       call save_state()
+       clearlater = .true.
+    else
+       clearlater = .false.
+    end if
+    preview_structure = new_structure(useed,logical(.true.,c_bool))
+    if (preview_structure == 0 .and. clearlater) &
+       call clear_state()
+
+  end function preview_structure
+
+  ! accept the previewed structure 
+  subroutine accept_previewed_structure() bind(c)
+
+    ! clear the save state and properly initialize the structure
+    call clear_state()
+    call initialize_structure()
+    ispreview = .false.
+       
+  end subroutine accept_previewed_structure
+
+  ! reject the previewed structure 
+  subroutine reject_previewed_structure() bind(c)
+    
+    call load_state()
+    call clear_state()
+    ispreview = .false.
+    call update_scene()
+
+  end subroutine reject_previewed_structure
 
   ! The cr variable contains a new structure. Use this routine to
   ! initialize the rest of the modules to prepare it for usage.
@@ -481,7 +560,7 @@ contains
     use tools_math, only: norm, cross
     use param, only: atmcov, jmlcol, maxzat
     
-    integer :: i, j, iz
+    integer :: i, j, iz, nup
     real*8 :: x1(3), x2(3), xcm(3)
 
     real*8, parameter :: bondthickness = 0.05d0
@@ -503,13 +582,23 @@ contains
     box_xmin = 1e30
     box_xmax = -1e30
     xcm = 0.
-    do i = 1, ncpcel
-       x1 = cpcel(i)%r + cr%molx0
-       box_xmin = min(x1,box_xmin)
-       box_xmax = max(x1,box_xmax)
-       xcm = xcm + x1
-    end do
-    xcm = xcm / ncpcel
+    if (.not.ispreview) then
+       do i = 1, ncpcel
+          x1 = cpcel(i)%r + cr%molx0
+          box_xmin = min(x1,box_xmin)
+          box_xmax = max(x1,box_xmax)
+          xcm = xcm + x1
+       end do
+       xcm = xcm / ncpcel
+    else
+       do i = 1, cr%ncel
+          x1 = cr%atcel(i)%r + cr%molx0
+          box_xmin = min(x1,box_xmin)
+          box_xmax = max(x1,box_xmax)
+          xcm = xcm + x1
+       end do
+       xcm = xcm / cr%ncel
+    end if
     box_xcm = xcm
     box_xmaxlen = max(maxval(box_xmax - box_xmin),1d0)
 
@@ -560,23 +649,27 @@ contains
     end do
     bond = c_loc(bond_f)
 
-    ! Allocate space for critical points
-    ncritp = ncpcel - cr%ncel
-    if (associated(critp_f)) deallocate(critp_f)
-    allocate(critp_f(max(ncritp,1)))
-
-    ! For now, just go ahead and represent the whole cell
-    j = 0
-    do i = cr%ncel+1, ncpcel
-       j = j + 1
-       iz = maxzat + 1 + cpcel(i)%typind
-       critp_f(j)%type = cpcel(i)%typ
-       critp_f(j)%b%r = cpcel(i)%r + cr%molx0 - xcm
-       critp_f(j)%b%rgb = real(jmlcol(:,iz),4) / 255.
-       critp_f(j)%b%rad = cpradius
-       call f_c_string(cpcel(i)%name,critp_f(j)%name,11)
-    end do
-    critp = c_loc(critp_f)
+    if (.not.ispreview) then
+       ! Allocate space for critical points
+       ncritp = ncpcel - cr%ncel
+       if (associated(critp_f)) deallocate(critp_f)
+       allocate(critp_f(max(ncritp,1)))
+       
+       ! For now, just go ahead and represent the whole cell
+       j = 0
+       do i = cr%ncel+1, ncpcel
+          j = j + 1
+          iz = maxzat + 1 + cpcel(i)%typind
+          critp_f(j)%type = cpcel(i)%typ
+          critp_f(j)%b%r = cpcel(i)%r + cr%molx0 - xcm
+          critp_f(j)%b%rgb = real(jmlcol(:,iz),4) / 255.
+          critp_f(j)%b%rad = cpradius
+          call f_c_string(cpcel(i)%name,critp_f(j)%name,11)
+       end do
+       critp = c_loc(critp_f)
+    else
+       critp = C_NULL_PTR
+    end if
 
     ! unit cell and lattice vectors
     cell_x0 = cr%molx0
@@ -869,5 +962,81 @@ contains
     end do
 
   end subroutine denewline
+
+  ! put the current scene into the save state
+  subroutine save_state()
+    use struct_basic, only: cr
+
+    if (.not.isinit) return
+    isinit_ = isinit
+    ismolecule_ = ismolecule
+    nat_ = nat
+    if (associated(at_f_)) deallocate(at_f_)
+    allocate(at_f_(size(at_f,1)))
+    at_f_ = at_f
+    nbond_ = nbond
+    if (associated(bond_f_)) deallocate(bond_f_)
+    allocate(bond_f_(size(bond_f,1)))
+    bond_f_ = bond_f
+    ncritp_ = ncritp
+    if (associated(critp_f_)) deallocate(critp_f_)
+    allocate(critp_f_(size(critp_f,1)))
+    critp_f_ = critp_f
+    cell_x0_ = cell_x0
+    cell_lat_ = cell_lat
+    cell_nstick_ = cell_nstick
+    cell_s_ = cell_s
+    box_xmin_ = box_xmin
+    box_xmax_ = box_xmax
+    box_xcm_ = box_xcm
+    box_xmaxlen_ = box_xmaxlen
+    box_xmaxclen_ = box_xmaxclen
+    cr_ = cr
+    issaved = .true.
+
+  end subroutine save_state
+
+  ! load the save state, if available
+  subroutine load_state()
+    use struct_basic, only: cr
+
+    if (issaved) then
+       isinit = isinit_
+       ismolecule = ismolecule_
+       nat = nat_
+       if (associated(at_f)) deallocate(at_f)
+       allocate(at_f(size(at_f_,1)))
+       at_f = at_f_
+       nbond = nbond_
+       if (associated(bond_f)) deallocate(bond_f)
+       allocate(bond_f(size(bond_f_,1)))
+       bond_f = bond_f_
+       ncritp = ncritp_
+       if (associated(critp_f)) deallocate(critp_f)
+       allocate(critp_f(size(critp_f_,1)))
+       critp_f = critp_f_
+       cell_x0 = cell_x0_
+       cell_lat = cell_lat_
+       cell_nstick = cell_nstick_
+       cell_s = cell_s_
+       box_xmin = box_xmin_
+       box_xmax = box_xmax_
+       box_xcm = box_xcm_
+       box_xmaxlen = box_xmaxlen_
+       box_xmaxclen = box_xmaxclen_
+       cr = cr_
+    end if
+
+  end subroutine load_state
+
+  ! clear the save state
+  subroutine clear_state()
+
+    if (associated(at_f_)) deallocate(at_f_)
+    if (associated(bond_f_)) deallocate(bond_f_)
+    if (associated(critp_f_)) deallocate(critp_f_)
+    issaved = .false.
+
+  end subroutine clear_state
 
 end module gui_interface
