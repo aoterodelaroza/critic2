@@ -555,13 +555,19 @@ contains
   ! Update the data in the module variables - makes it available
   ! to the C++ code
   subroutine update_scene() bind(c)
+    use fragmentmod, only: fragment_merge_array
     use varbas, only: ncpcel, cpcel
     use struct_basic, only: cr
     use tools_math, only: norm, cross
+    use types, only: fragment
     use param, only: atmcov, jmlcol, maxzat
     
-    integer :: i, j, iz, nup
+    integer :: i, j, k, iz, nup, ix(3)
     real*8 :: x1(3), x2(3), xcm(3)
+    integer :: nmol, idxi, idxj
+    type(fragment) :: fr
+    type(fragment), allocatable :: fr0(:)
+    logical, allocatable :: isdiscrete(:)
 
     real*8, parameter :: bondthickness = 0.05d0
     real*8, parameter :: bondcolor(3) = (/0.d0,0.d0,0.d0/)
@@ -602,49 +608,70 @@ contains
     box_xcm = xcm
     box_xmaxlen = max(maxval(box_xmax - box_xmin),1d0)
 
+    ! molecules -> whole molecule. crystals -> border and
+    ! molmotif if it is molecular crystal.
+    ix = 1
+    if (cr%ismolecule) then
+       fr = cr%listatoms_cells(ix,.false.)
+    else
+       fr = cr%listatoms_cells(ix,.true.)
+       if (all(cr%moldiscrete(1:cr%nmol))) then
+          call cr%listmolecules(fr,nmol,fr0,isdiscrete)
+          fr = fragment_merge_array(fr0)
+          deallocate(fr0,isdiscrete)
+       end if
+    end if
+
     ! Allocate space for atoms
     if (associated(at_f)) deallocate(at_f)
-    allocate(at_f(max(cr%ncel,1)))
+    allocate(at_f(max(fr%nat,1)))
 
     ! For now, just go ahead and represent the whole cell/molecule
-    nat = cr%ncel
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
+    nat = fr%nat
+    do i = 1, nat
+       iz = cr%at(fr%at(i)%idx)%z
        at_f(i)%z = iz
-       at_f(i)%b%r = cr%atcel(i)%r + cr%molx0 - xcm
+       at_f(i)%b%r = fr%at(i)%r + cr%molx0 - xcm
        if (atmcov(iz) > 1) then
           at_f(i)%b%rad = atmcov(iz)
        else
           at_f(i)%b%rad = 2d0*atmcov(iz)
        end if
        at_f(i)%b%rgb = real(jmlcol(:,iz),4) / 255.
-       call f_c_string(cr%at(cr%atcel(i)%idx)%name,at_f(i)%name,11)
+       call f_c_string(cr%at(fr%at(i)%idx)%name,at_f(i)%name,11)
     end do
     at = c_loc(at_f)
 
     ! Allocate space for bonds. For now, only bonds between atoms in
     ! the main cell.
     nbond = 0
-    do i = 1, cr%ncel
-       do j = 1, cr%nstar(i)%ncon
-          if (cr%nstar(i)%idcon(j) > i .and. all(cr%nstar(i)%lcon(:,j) == 0)) then
-             nbond = nbond + 1
-          end if
+    do i = 1, fr%nat
+       idxi = fr%at(i)%cidx
+       do k = 1, cr%nstar(idxi)%ncon
+          do j = 1, fr%nat
+             idxj = fr%at(j)%cidx
+             if (cr%nstar(idxi)%idcon(k) == idxj .and. all(cr%nstar(idxi)%lcon(:,k) == fr%at(j)%lvec)) &
+                nbond = nbond + 1
+          end do
        end do
     end do
     if (associated(bond_f)) deallocate(bond_f)
     allocate(bond_f(max(nbond,1)))
     nbond = 0
-    do i = 1, cr%ncel
-       do j = 1, cr%nstar(i)%ncon
-          if (cr%nstar(i)%idcon(j) > i .and. all(cr%nstar(i)%lcon(:,j) == 0)) then
-             nbond = nbond + 1
-             bond_f(nbond)%i1 = i-1
-             bond_f(nbond)%i2 = cr%nstar(i)%idcon(j)-1
-             x1 = cr%atcel(i)%r + cr%molx0 - xcm
-             x2 = cr%atcel(cr%nstar(i)%idcon(j))%r + cr%molx0 - xcm
-             bond_f(nbond)%s = stick_from_endpoints(x1,x2,bondthickness,bondcolor)
-          end if
+    do i = 1, fr%nat
+       idxi = fr%at(i)%cidx
+       do k = 1, cr%nstar(idxi)%ncon
+          do j = 1, fr%nat
+             idxj = fr%at(j)%cidx
+             if (cr%nstar(idxi)%idcon(k) == idxj .and. all(fr%at(i)%lvec+cr%nstar(idxi)%lcon(:,k) == fr%at(j)%lvec)) then
+                nbond = nbond + 1
+                bond_f(nbond)%i1 = i-1
+                bond_f(nbond)%i2 = j-1
+                x1 = fr%at(i)%r + cr%molx0 - xcm
+                x2 = fr%at(j)%r + cr%molx0 - xcm
+                bond_f(nbond)%s = stick_from_endpoints(x1,x2,bondthickness,bondcolor)
+             end if
+          end do
        end do
     end do
     bond = c_loc(bond_f)

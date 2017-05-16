@@ -663,9 +663,9 @@ void structurenew_window(bool *p_open){
 
   // xxxx use the spg chooser
   // xxxx preview state - disable menus, etc
-  // xxxx atoms shown dep. on discrete mol/crys
   // xxxx delete and esc keybindings
   // xxxx tidy up the information dialog
+  // xxxx cartesian axes
 
   static int atunitsc, atunitsm;
   const char *latstr[] = {"Lengths & angles","Lattice vectors"};

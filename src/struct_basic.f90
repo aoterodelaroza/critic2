@@ -163,7 +163,7 @@ module struct_basic
      procedure :: build_env !< Build the crystal environment (atenv)
      procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
-     procedure :: listatoms_cells !< List all atoms in n cells (maybe w border and molmotif)
+     procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
      procedure :: pointshell !< Calculate atomic shells around a point
@@ -984,6 +984,7 @@ contains
   subroutine find_asterisms(c)
     use global, only: bondfactor
     use param, only: atmcov, vsmall
+    use types, only: realloc
 
     class(crystal), intent(inout) :: c
 
@@ -1047,10 +1048,13 @@ contains
           end do
        end do
     end if
+    do i = 1, c%ncel
+       call realloc(c%nstar(i)%idcon,c%nstar(i)%ncon)
+       call realloc(c%nstar(i)%lcon,3,c%nstar(i)%ncon)
+    end do
 
   contains
     subroutine addpair(i,j,lvec)
-      use types, only: realloc
       integer :: i, j, lvec(3)
 
       c%nstar(i)%ncon = c%nstar(i)%ncon + 1
