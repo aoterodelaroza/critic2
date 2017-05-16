@@ -93,7 +93,6 @@ int main(int argc, char *argv[])
       argall = argall + argv[i] + " ";
     open_structure((const char **) &argall, -1);
     settings.set_flags_and_cam(ismolecule,box_xmaxlen,box_xmaxclen);
-    structureinfo_window_h = true;
   }
 
   // 

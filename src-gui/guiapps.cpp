@@ -38,7 +38,7 @@ static int spg_choose_menu(int mode);
 // Variable definitions
 bool structureinfo_window_h = false;
 bool structurenew_window_h = false; 
-int structureopen_window_h = 0; // 0 - hidden, 1 - molecule 2 - crystal
+int structureopen_window_h = 0; // 0 - hidden, 1 - molecule, 2 - crystal
 
 // space group types
 static const struct {
