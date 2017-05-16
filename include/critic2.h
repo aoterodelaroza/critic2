@@ -81,6 +81,8 @@ extern "C" struct c_crystalseed {
   int aaunits;
   int rrunits;
   int atunits;
+  int errcode;
+  char errmsg[255];
 };
 
 //xx// Procedures made available in gui_interface.f90

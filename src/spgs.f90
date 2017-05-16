@@ -703,17 +703,19 @@ module spgs
 contains
 
   !> Generate all symmetry information from the space group label
-  subroutine spgs_driver(spgin,usespgr)
-    use tools_io, only: string, lower, ferror, faterr
+  function spgs_driver(spgin,usespgr)
+    use tools_io, only: string, lower
 
     character(len=*), intent(in) :: spgin
     logical, intent(in) :: usespgr
+    logical :: spgs_driver
 
     integer :: i, n, ier
     character(len(spgin)) :: spgin0
     logical :: isblank
 
     ! clean, compact, and lowercase
+    spgs_driver = .true.
     spgin0 = string(spgin)
     spgs_shortspg = ""
     isblank = .false.
@@ -763,8 +765,10 @@ contains
        call spgr(spgs_shortspg,-1,-1,ier)
 
        ! I give up
-       if (ier /= 0) &
-          call ferror('spgs_driver','Unknown space group symbol',faterr,spgin)
+       if (ier /= 0) then
+          spgs_driver = .false.
+          return
+       end if
 
        ! translate to spgs notation
        spgs_longspg = spgs_shortspg
@@ -795,7 +799,7 @@ contains
        call spgs_getlaue()
     end if
 
-  end subroutine spgs_driver
+  end function spgs_driver
 
   subroutine spgs_parse()
     use tools_io, only: faterr, ferror

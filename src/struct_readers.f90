@@ -196,8 +196,7 @@ contains
           useit = equal(word,'spgr')
           word = line(lp:)
           call spgs_wrap(seed,word,useit)
-          goodspg = .true.
-          seed%findsym = 0
+          goodspg = (seed%havesym > 0)
 
        else if (equal(word,'symm')) then
           ! symm <line>

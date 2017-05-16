@@ -118,7 +118,7 @@ module gui_interface
   real(c_float), bind(c) :: box_xcm(3)
   real(c_float), bind(c) :: box_xmaxlen
 
-  ! C-interoperable crystal seed
+  ! C-interoperable crystal seed (for the GUI input)
   type, bind(c) :: c_crystalseed
      integer(c_int) :: type ! 0 = molecule, 1 = crystal
      integer(c_int) :: achoice ! 0 = aa, 1 = rr
@@ -133,6 +133,8 @@ module gui_interface
      integer(c_int) :: aaunits ! 0 = bohr, 1 = angstrom
      integer(c_int) :: rrunits ! 0 = bohr, 1 = angstrom
      integer(c_int) :: atunits ! 0 = bohr, 1 = angstrom, 2 = fractional
+     integer(c_int) :: errcode
+     character(kind=c_char,len=1) :: errmsg(255)
   end type c_crystalseed
 
 contains
@@ -233,21 +235,23 @@ contains
     use struct_basic, only: crystalseed, spgs_wrap, cr
     use global, only: eval_next
     use tools_io, only: getword, zatguess
-    use tools_math, only: matinv
+    use tools_math, only: matinv, det
     use types, only: realloc
     use param, only: bohrtoa
-    type(c_crystalseed), intent(in) :: useed
+    type(c_crystalseed), intent(inout) :: useed
     integer(c_int) :: new_structure
 
     type(crystalseed) :: fseed
     logical :: ok
     integer :: lp, i, j
     character(len=255*1024) :: aux
-    real*8 :: xat(3), r(3,3)
+    real*8 :: xat(3), r(3,3), dd
     character(len=:), allocatable :: atsym
 
-    ! set default return value to "error parsing seed"
-    new_structure = 1
+    ! set default return value
+    new_structure = 0
+    useed%errcode = 0
+    call f_c_string("",useed%errmsg,254)
 
     ! build a crystal seed from the information passed from the GUI
     fseed%isused = .true.
@@ -268,6 +272,8 @@ contains
        if (useed%borunits == 1) fseed%border = fseed%border / bohrtoa
        fseed%useabr = 0
     else
+       useed%errcode = 1
+       call f_c_string("You must choose between molecule and crystal.",useed%errmsg,254)
        return
     end if
 
@@ -275,19 +281,29 @@ contains
     ok = .true.
     lp = 1
     if (fseed%useabr == 1) then
+       fseed%aa = 0d0
        call c_f_string(useed%straa,aux)
        do i = 1, 3
           ok = ok .and. eval_next(fseed%aa(i),aux,lp)
        end do
-       if (.not.ok) return
+       if (.not.ok .or. any(fseed%aa < 1d-10)) then
+          useed%errcode = 2
+          call f_c_string("Incorrect cell lengths.",useed%errmsg,254)
+          return
+       end if
        if (useed%aaunits == 1) fseed%aa = fseed%aa / bohrtoa
 
+       fseed%bb = 0d0
        call c_f_string(useed%strbb,aux)
        lp = 1
        do i = 1, 3
           ok = ok .and. eval_next(fseed%bb(i),aux,lp)
        end do
-       if (.not.ok) return
+       if (.not.ok .or. any(fseed%bb < 1d-10)) then
+          useed%errcode = 3
+          call f_c_string("Incorrect cell angles.",useed%errmsg,254)
+          return
+       end if
     elseif (fseed%useabr == 2) then
        call c_f_string(useed%strrr,aux)
        call denewline(aux)
@@ -296,7 +312,16 @@ contains
              ok = ok .and. eval_next(fseed%crys2car(j,i),aux,lp)
           end do
        end do
-       if (.not.ok) return
+       if (.not.ok) then
+          useed%errcode = 4
+          call f_c_string("Incorrect lattice vectors.",useed%errmsg,254)
+          return
+       end if
+       if (abs(det(fseed%crys2car)) < 1d-6) then
+          useed%errcode = 5
+          call f_c_string("Cell has zero volume.",useed%errmsg,254)
+          return
+       end if
        if (useed%rrunits == 1) fseed%crys2car = fseed%crys2car / bohrtoa
     end if
 
@@ -308,8 +333,16 @@ contains
     allocate(fseed%x(3,10),fseed%name(10))
     do while (.true.)
        atsym = getword(aux,lp)
+       if (len_trim(atsym) == 0) exit
+
        ok = (zatguess(atsym) >= 0)
-       ok = ok .and. eval_next(xat(1),aux,lp)
+       if (.not.ok) then
+          useed%errcode = 6
+          call f_c_string("Unknown atomic symbol: " // trim(atsym) // ".",useed%errmsg,254)
+          return
+       end if
+
+       ok = eval_next(xat(1),aux,lp)
        ok = ok .and. eval_next(xat(2),aux,lp)
        ok = ok .and. eval_next(xat(3),aux,lp)
        if (.not.ok) exit
@@ -324,6 +357,11 @@ contains
     call realloc(fseed%x,3,fseed%nat)
     call realloc(fseed%name,fseed%nat)
     fseed%usezname = 2
+    if (fseed%nat == 0) then
+       useed%errcode = 7
+       call f_c_string("No atoms in the cell.",useed%errmsg,254)
+       return
+    end if
 
     ! atomic unit conversion
     if (useed%atunits == 0 .and. .not.fseed%ismolecule) then
@@ -347,6 +385,11 @@ contains
     call c_f_string(useed%strspg,aux)
     if (len_trim(aux) > 0) then
        call spgs_wrap(fseed,aux,.false.)
+       if (fseed%havesym == 0) then
+          useed%errcode = 8
+          call f_c_string("Incorrect space group.",useed%errmsg,254)
+          return
+       end if
     end if
     if (.not.fseed%ismolecule .and. fseed%havesym == 0) then
        fseed%findsym = 1
@@ -354,15 +397,17 @@ contains
 
     ! build the new crystal structure
     call cr%struct_new(fseed,.false.)
+    if (fseed%nat == 0) then
+       useed%errcode = 9
+       call f_c_string("Could not initialize the crystal.",useed%errmsg,254)
+       return
+    end if
 
     ! initialize and update the scene
     if (cr%isinit) then
        call initialize_structure()
        call update_scene()
-       new_structure = 0
-    else
-       ! could not initialize the current seed
-       new_structure = 2
+       new_structure = 1
     end if
 
   end function new_structure

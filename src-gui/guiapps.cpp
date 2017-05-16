@@ -661,15 +661,12 @@ void structureinfo_window(bool *p_open){
 void structurenew_window(bool *p_open){
   static struct c_crystalseed useed = {-1};
 
-  // xxxx pass error message strings and codes back with the seed
   // xxxx use the spg chooser
-  // xxxx make the seed translation routine much safer
   // xxxx implement preview
 
   static int atunitsc, atunitsm;
   const char *latstr[] = {"Lengths & angles","Lattice vectors"};
   const char *unitstr[] = {"Bohr","Angstrom","Fractional"};
-  static int signalerror = 0;
 
   if (useed.type == -1){
     useed.molborder = 10.0f * 0.529177f;
@@ -801,9 +798,8 @@ void structurenew_window(bool *p_open){
 
     // Error message at the end of the window but before the buttons
     ImGui::BeginChild("###errmsg", ImVec2(0, ImGui::GetItemsLineHeightWithSpacing()));
-    if (signalerror){
-      ImGui::TextColored(ImVec4(1.0f,0.0f,0.0f,1.0f), "Error with code: %d",signalerror);
-    }
+    if (useed.errcode)
+      ImGui::TextColored(ImVec4(1.0f,0.0f,0.0f,1.0f), "Error: %s",useed.errmsg);
     ImGui::EndChild();
 
     // Buttons at the bottom of the window
@@ -811,13 +807,11 @@ void structurenew_window(bool *p_open){
     ImGui::PushItemWidth(-140);
     ImGui::SameLine(ImGui::GetWindowContentRegionWidth()-150);
     if (ImGui::Button("Preview")){
-      *p_open = false;
     }
 
     ImGui::SameLine();
     if (ImGui::Button("OK")) {
-      signalerror = new_structure(&useed);
-      if (!signalerror){
+      if (new_structure(&useed)){
 	set_defaults_new_structure(useed.type == 0);
 	*p_open = false;
       } 
