@@ -648,7 +648,7 @@ contains
     do i = 1, fr%nat
        idxi = fr%at(i)%cidx
        do k = 1, cr%nstar(idxi)%ncon
-          do j = 1, fr%nat
+          do j = i+1, fr%nat
              idxj = fr%at(j)%cidx
              if (cr%nstar(idxi)%idcon(k) == idxj .and. all(fr%at(i)%lvec+cr%nstar(idxi)%lcon(:,k) == fr%at(j)%lvec)) &
                 nbond = nbond + 1
@@ -661,7 +661,7 @@ contains
     do i = 1, fr%nat
        idxi = fr%at(i)%cidx
        do k = 1, cr%nstar(idxi)%ncon
-          do j = 1, fr%nat
+          do j = i+1, fr%nat
              idxj = fr%at(j)%cidx
              if (cr%nstar(idxi)%idcon(k) == idxj .and. all(fr%at(i)%lvec+cr%nstar(idxi)%lcon(:,k) == fr%at(j)%lvec)) then
                 nbond = nbond + 1
