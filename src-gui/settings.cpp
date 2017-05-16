@@ -19,13 +19,50 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GLOBAL_H
-#define GLOBAL_H
+#include "settings.h"
 
-// Show/hide elements of the interface
-extern bool show_bonds;
-extern bool show_cps;
-extern bool show_atoms;
-extern bool show_cell;
+Settings settings = Settings(false,5.f);
 
-#endif
+Settings::Settings(bool ismolecule, float maxlen){
+  want_quit = false;
+
+  bondresolution = 2;
+  atomresolution = 1;
+
+  bondthickness = 0.05;
+  atomsize = 0.5;
+  cpsize = 0.5;
+
+  set_flags(ismolecule);
+  set_cam_pos(maxlen);
+}
+
+void Settings::set_flags_and_cam(bool ismolecule, float maxlen, float maxclen){
+  set_flags(ismolecule);
+  if (ismolecule)
+    set_cam_pos(maxlen);
+  else
+    set_cam_pos(maxclen>maxlen?maxclen:maxlen);
+}
+
+void Settings::set_flags(bool ismolecule){
+  show_bonds = true;
+  show_cps = true;
+  show_atoms = true;
+  show_cell = !ismolecule;
+}
+
+void Settings::set_cam_pos(float maxlen){
+  cam_pos[0] = 0.f;
+  cam_pos[1] = 0.f;
+  cam_pos[2] = -2.f * maxlen;
+
+  cam_target[0] = 0.f;
+  cam_target[1] = 0.f;
+  cam_target[2] = 1.f;
+
+  cam_up[0] = 0.f;
+  cam_up[1] = 1.f;
+  cam_up[2] = 0.f;
+}
+

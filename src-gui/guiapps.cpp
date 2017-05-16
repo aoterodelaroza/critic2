@@ -27,14 +27,13 @@ Togo. See the license notice in src/spglib/spacegroup.c */
 #include "imgui_internal.h"
 #include "guiapps.h"
 #include "critic2.h"
-#include "global.h"
+#include "settings.h"
 #include "draw.h"
 
 #include "imguifilesystem.h"
 
 // static function prototypes
 static int spg_choose_menu(int mode);
-static void set_defaults_new_structure(bool ismol);
 
 // Variable definitions
 bool structureinfo_window_h = false;
@@ -812,7 +811,7 @@ void structurenew_window(bool *p_open){
     ImGui::SameLine();
     if (ImGui::Button("OK")) {
       if (new_structure(&useed)){
-	set_defaults_new_structure(useed.type == 0);
+	settings.set_flags_and_cam(useed.type == 0,box_xmaxlen,box_xmaxclen);
 	*p_open = false;
       } 
     }
@@ -890,7 +889,7 @@ void structureopen_window(int *p_open){
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
     open_structure(&filename, *p_open == 1); 
-    set_defaults_new_structure(*p_open == 1);
+    settings.set_flags_and_cam(*p_open == 1,box_xmaxlen,box_xmaxclen);
 
     // Close the dialog
     firstpass = true;
@@ -898,11 +897,3 @@ void structureopen_window(int *p_open){
   }
 }
 
-// Reset the flags to their default values for a new structure
-static void set_defaults_new_structure(bool ismol){
-    draw_set_camera_pos(box_xmaxlen);
-    show_cell = !ismol;
-    show_bonds = true;
-    show_cps = true;
-    show_atoms = true;
-}

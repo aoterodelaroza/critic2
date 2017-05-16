@@ -26,13 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <GLFW/glfw3.h>
 #include "matrix_math.h"
 
-// Current state of the camera
-extern CameraInfo cam;
-
-void draw_set_camera_pos(float maxlen);
-float *draw_get_campos();
 void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window);
-float *draw_get_campos();
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void process_mouse_input(GLFWwindow* window, Matrix4f *rot);
 

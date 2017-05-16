@@ -117,6 +117,7 @@ module gui_interface
   real(c_float), bind(c) :: box_xmax(3)
   real(c_float), bind(c) :: box_xcm(3)
   real(c_float), bind(c) :: box_xmaxlen
+  real(c_float), bind(c) :: box_xmaxclen
 
   ! C-interoperable crystal seed (for the GUI input)
   type, bind(c) :: c_crystalseed
@@ -597,6 +598,7 @@ contains
     cell_s(10) = stick_from_endpoints(x1+cr%crys2car(:,1)+cr%crys2car(:,2),x2,cellthick,cellcolor)
     cell_s(11) = stick_from_endpoints(x1+cr%crys2car(:,1)+cr%crys2car(:,3),x2,cellthick,cellcolor)
     cell_s(12) = stick_from_endpoints(x1+cr%crys2car(:,2)+cr%crys2car(:,3),x2,cellthick,cellcolor)
+    box_xmaxclen = norm(x2-x1)
 
   end subroutine update_scene
 

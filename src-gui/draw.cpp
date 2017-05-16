@@ -24,60 +24,34 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "draw.h"
 #include "critic2.h"
 #include "geometry.h"
-#include "global.h"
-
-// Current state of the camera
-CameraInfo cam;
+#include "settings.h"
 
 // GUI global variables //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
-static const char bondresolution = 2;
-static const char atomresolution = 1;
-
-// Bond thickness and atom/CP size
-static const float bondthickness = 0.05;
-static const float atomsize = 0.5;
-static const float cpsize = 0.5;
-
 static void drawstick(Pipeline *p, GLuint shad, const c_stick *s);
 static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal);
-
-// initialize the defaults for the camera
-void draw_set_camera_pos(float maxlen){
-  if (maxlen < 0){
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -10.f;
-    cam.Target[0] = 0.f; cam.Target[1] = 0.f; cam.Target[2] = 1.f;
-    cam.Up[0] = 0.f; cam.Up[1] = 1.f; cam.Up[2] = 0.f;
-  } else {
-    cam.Pos[0] = 0.f; cam.Pos[1] = 0.f; cam.Pos[2] = -2.*maxlen;
-  }
-}
-
-float *draw_get_campos(){
-  return cam.Pos;
-}
 
 // draw all the scene elements
 void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window){
 
   glEnableVertexAttribArray(0);
 
-  if (show_bonds){
+  if (settings.show_bonds){
     for (int i=0; i<nbond; i++){
       drawstick(p, shad, &(bond[i].s));
     }
   }
-  if (show_atoms){
+  if (settings.show_atoms){
     for (int i=0; i<nat; i++){
-      drawball(p, shad, &(at[i].b), atomsize);
+      drawball(p, shad, &(at[i].b), settings.atomsize);
     }
   }
-  if (show_cps){
+  if (settings.show_cps){
     for (int i=0; i<ncritp; i++) {
-      drawball(p, shad, &(critp[i].b), cpsize);
+      drawball(p, shad, &(critp[i].b), settings.cpsize);
     }
   }
-  if (show_cell){
+  if (settings.show_cell){
     for (int i=0; i<cell_nstick; i++) {
       drawstick(p, shad, &(cell_s[i]));
     }
@@ -100,10 +74,10 @@ static void drawstick(Pipeline *p, GLuint shad, const c_stick *s){
   glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(vColorLocation, 1, (const GLfloat *)&(s->rgb));
 
-  glBindBuffer(GL_ARRAY_BUFFER, bufcylv[bondresolution]);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufcyli[bondresolution]);
+  glBindBuffer(GL_ARRAY_BUFFER, bufcylv[settings.bondresolution]);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufcyli[settings.bondresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glDrawElements(GL_TRIANGLES, 3*ncyli[bondresolution], GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 3*ncyli[settings.bondresolution], GL_UNSIGNED_INT, 0);
 }
 
 // Draw a ball, with optional scaling
@@ -119,17 +93,17 @@ static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal = 1.0
   glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat *)p->GetWorldTrans());
   glUniform4fv(vColorLocation, 1, b->rgb);
 
-  glBindBuffer(GL_ARRAY_BUFFER, bufsphv[atomresolution]);
+  glBindBuffer(GL_ARRAY_BUFFER, bufsphv[settings.atomresolution]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[atomresolution]);
-  glDrawElements(GL_TRIANGLES, 3*nsphi[atomresolution], GL_UNSIGNED_INT, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufsphi[settings.atomresolution]);
+  glDrawElements(GL_TRIANGLES, 3*nsphi[settings.atomresolution], GL_UNSIGNED_INT, 0);
 }
 
 // Mouse scroll callback
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
   if (!ImGui::GetIO().WantCaptureMouse)
-    cam.Pos[2] += yoffset * box_xmaxlen * 0.2f;
+    settings.cam_pos[2] += yoffset * box_xmaxlen * 0.2f;
   else
     ImGui_ImplGlfwGL3_ScrollCallback(window, xoffset, yoffset);
 }
@@ -143,7 +117,7 @@ void process_mouse_input(GLFWwindow* window, Matrix4f *rot){
   static double cMPosX, cMPosY, lMPosX, lMPosY, pMPosX, pMPosY;
   static Matrix4f lastRot;
 
-  float camPanFactor = fabs(0.00115f * cam.Pos[2]);
+  float camPanFactor = fabs(0.00115f * settings.cam_pos[2]);
   float camRotateFactor = 0.015f;
 
   if (!firstpass){
@@ -165,8 +139,8 @@ void process_mouse_input(GLFWwindow* window, Matrix4f *rot){
   // Process mouse input
   if (!ImGui::GetIO().WantCaptureMouse) {
     if (cRMB == GLFW_PRESS){
-      cam.Pos[0] -= camPanFactor * (cMPosX - lMPosX);
-      cam.Pos[1] += camPanFactor * (cMPosY - lMPosY);
+      settings.cam_pos[0] -= camPanFactor * (cMPosX - lMPosX);
+      settings.cam_pos[1] += camPanFactor * (cMPosY - lMPosY);
     }
     if (cLMB == GLFW_PRESS){
       if (lLMB != GLFW_PRESS){

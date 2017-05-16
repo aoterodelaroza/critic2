@@ -65,6 +65,7 @@ extern "C" float box_xmin[3];
 extern "C" float box_xmax[3];
 extern "C" float box_xcm[3];
 extern "C" float box_xmaxlen;
+extern "C" float box_xmaxclen;
 
 // crystal seed
 extern "C" struct c_crystalseed {

@@ -34,7 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "shader.h"
 #include "menu.h"
 #include "draw.h"
-#include "global.h"
+#include "settings.h"
 
 // #ifdef WIN32 //platform spisific sleep functions
 // #include <synchapi.h>
@@ -44,15 +44,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #endif // LINUX || __APPLE__
 
 using namespace std;
-
-// Global definitions
-bool show_bonds = true;
-bool show_cps = true;
-bool show_atoms = true;
-bool show_cell = true;
-
-// Quit flag
-bool want_quit = false;
 
 // 
 int main(int argc, char *argv[])
@@ -81,7 +72,6 @@ int main(int argc, char *argv[])
 
   // Some default start-up values for imgui
   ImGui::GetIO().IniFilename = NULL; // no ini file pollution
-  draw_set_camera_pos(-1.);  
 
   // Shader
   GLuint lightshader = LightingShader();
@@ -102,8 +92,7 @@ int main(int argc, char *argv[])
     for(int i=1;i<argc;i++)
       argall = argall + argv[i] + " ";
     open_structure((const char **) &argall, -1);
-    draw_set_camera_pos(box_xmaxlen);
-    show_cell = !ismolecule;
+    settings.set_flags_and_cam(ismolecule,box_xmaxlen,box_xmaxclen);
     structureinfo_window_h = true;
   }
 
@@ -142,7 +131,7 @@ int main(int argc, char *argv[])
     p.SetPersProjInfo(45, display_w, display_h, 1.f, 1000.f);
     p.SetOrthoProjInfo(-10.f, 10.f, -10.f, 10.f, -1000.f, 1000.f);
     p.SetPostRotationMatrix(rot);
-    p.SetCamera(cam);
+    p.SetCamera(settings.cam_pos,settings.cam_target,settings.cam_up);
  
     glEnableVertexAttribArray(0);
  
@@ -153,12 +142,12 @@ int main(int argc, char *argv[])
     guiapps_process_handles();
 
     // menus
-    show_menu_bar(&want_quit);
+    show_menu_bar();
 
     // process key bindings
     ImGuiIO& io = ImGui::GetIO();
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
-      want_quit = true;
+      settings.want_quit = true;
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
       clear_scene(true);
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_N] && !structurenew_window_h)
@@ -169,7 +158,7 @@ int main(int argc, char *argv[])
       structureopen_window_h = 1;
 
     // handle quit signal
-    if (want_quit)
+    if (settings.want_quit)
       glfwSetWindowShouldClose(window, GLFW_TRUE);
  
     // Dummy window -> arbitrary objects rendered on the screen

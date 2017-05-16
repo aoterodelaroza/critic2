@@ -19,10 +19,42 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MENU_H
-#define MENU_H
+#ifndef GLOBAL_H
+#define GLOBAL_H
 
-void show_menu_bar();
+class Settings {
+  public:
 
-#endif 
+  // global signal for program termination
+  bool want_quit;
 
+  // show elements in the scene
+  bool show_bonds;
+  bool show_cps;
+  bool show_atoms;
+  bool show_cell;
+
+  // characteristics of the elements in the scene
+  char bondresolution;
+  char atomresolution;
+  float bondthickness;
+  float atomsize;
+  float cpsize;
+
+  // camera position
+  float cam_pos[3];
+  float cam_target[3];
+  float cam_up[3];
+
+  // constructor
+  Settings(bool ismolecule, float maxlen);
+
+  // set the camera position
+  void set_flags_and_cam(bool ismolecule, float maxlen, float maxclen);
+  void set_flags(bool ismolecule);
+  void set_cam_pos(float maxlen);
+};
+
+extern Settings settings;
+
+#endif
