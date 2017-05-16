@@ -136,11 +136,11 @@ int main(int argc, char *argv[])
     // draw the scene elements
     draw_all_elements(&p,lightshader,window);
 
-    // process GUI elment handles
-    guiapps_process_handles();
-
     // menus
     show_menu_bar();
+
+    // process GUI elment handles
+    guiapps_process_handles();
 
     // process key bindings
     ImGuiIO& io = ImGui::GetIO();

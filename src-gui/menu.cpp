@@ -38,13 +38,16 @@ void show_menu_bar(){
   // immediate actions
   if (ImGui::BeginMainMenuBar()){
     if (ImGui::BeginMenu("File")){
-      if (ImGui::MenuItem("New","Ctrl+N")){structurenew_window_h = true;}
+      if (ImGui::MenuItem("New","Ctrl+N",false,!settings.preview_mode))
+	structurenew_window_h = true;
       AttachTooltip("Create a structure from scratch.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Open crystal","Ctrl+O")) {structureopen_window_h = 2;}
+      if (ImGui::MenuItem("Open crystal","Ctrl+O",false,!settings.preview_mode)) 
+	structureopen_window_h = 2;
       AttachTooltip("Read the crystal structure from a file.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O")) {structureopen_window_h = 1;}
+      if (ImGui::MenuItem("Open molecule","Ctrl+Alt+O",false,!settings.preview_mode))
+	structureopen_window_h = 1;
       AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
 
       if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}
@@ -53,7 +56,8 @@ void show_menu_bar(){
 
       ImGui::Separator();
 
-      if (ImGui::MenuItem("Close","Ctrl+W")) {clear_scene(true);}
+      if (ImGui::MenuItem("Close","Ctrl+W",false,!settings.preview_mode)) 
+	clear_scene(true);
       AttachTooltip("Clear the current structure.\n",ttipdelay,&time0,&reset);
 
       if (ImGui::MenuItem("Quit","Ctrl+Q")){settings.want_quit = true;}
@@ -64,7 +68,8 @@ void show_menu_bar(){
 	time0 = -1.;
     }
     if (ImGui::BeginMenu("Calculate")) {
-      if (ImGui::MenuItem("Generate Critical Points")) {call_auto();}
+      if (ImGui::MenuItem("Generate Critical Points",NULL,false,!settings.preview_mode)) 
+	call_auto();
       AttachTooltip("Calculate the critical points.\nBleh and Blah!\n",ttipdelay,&time0,&reset);
       ImGui::EndMenu();
     }

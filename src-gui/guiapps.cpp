@@ -585,9 +585,20 @@ static const struct {
 
 // Process known handles for all windows
 void guiapps_process_handles(){
+  // window handles
   if (structureinfo_window_h) structureinfo_window(&structureinfo_window_h);
   if (structurenew_window_h) structurenew_window(&structurenew_window_h);
   if (structureopen_window_h > 0) structureopen_window(&structureopen_window_h);
+
+  // overlay showing the current mode
+  if (settings.preview_mode){
+    ImGui::SetNextWindowPos(ImVec2(10,30));
+    if (ImGui::Begin("###modeoverlay", NULL, ImVec2(0,0), 0.3f, ImGuiWindowFlags_NoTitleBar|
+		     ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings)){
+      ImGui::TextColored(ImVec4(1.0f,1.0f,0.0f,1.0f),"Preview");
+    }
+    ImGui::End();
+  }
 }
 
 // Open a layout showing the structural information for this 
@@ -662,9 +673,9 @@ void structurenew_window(bool *p_open){
   static Settings *settings0;
 
   // xxxx use the spg chooser
-  // xxxx preview state - disable menus, etc
+  // xxxx h -> o preview segfaults
+  // xxxx mgo 5 bonds?
   // xxxx delete and esc keybindings
-  // xxxx tidy up the information dialog
   // xxxx cartesian axes
 
   static int atunitsc, atunitsm;
@@ -678,8 +689,8 @@ void structurenew_window(bool *p_open){
     atunitsm = 1;
   }
 
-  ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiSetCond_Once);
-  ImGui::SetNextWindowSizeConstraints(ImVec2(600, 500), ImVec2(FLT_MAX, FLT_MAX)); 
+  ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_Once);
+  ImGui::SetNextWindowSizeConstraints(ImVec2(500, 450), ImVec2(FLT_MAX, FLT_MAX)); 
   ImGui::SetNextWindowPos(ImVec2(150, 150), ImGuiSetCond_Once);
   if (ImGui::Begin("New structure", p_open)){
     ImGui::BeginChild("###appbody", ImVec2(0, -2*ImGui::GetItemsLineHeightWithSpacing()));
