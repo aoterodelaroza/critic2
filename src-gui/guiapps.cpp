@@ -677,6 +677,7 @@ void structurenew_window(bool *p_open){
   // xxxx mgo 5 bonds?
   // xxxx delete and esc keybindings
   // xxxx cartesian axes
+  // xxxx molecular cell
 
   static int atunitsc, atunitsm;
   const char *latstr[] = {"Lengths & angles","Lattice vectors"};

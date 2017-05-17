@@ -994,21 +994,26 @@ contains
   subroutine save_state()
     use struct_basic, only: cr
 
-    if (.not.isinit) return
     isinit_ = isinit
     ismolecule_ = ismolecule
     nat_ = nat
     if (associated(at_f_)) deallocate(at_f_)
-    allocate(at_f_(size(at_f,1)))
-    at_f_ = at_f
+    if (associated(at_f)) then
+       allocate(at_f_(size(at_f,1)))
+       at_f_ = at_f
+    end if
     nbond_ = nbond
     if (associated(bond_f_)) deallocate(bond_f_)
-    allocate(bond_f_(size(bond_f,1)))
-    bond_f_ = bond_f
+    if (associated(bond_f)) then
+       allocate(bond_f_(size(bond_f,1)))
+       bond_f_ = bond_f
+    end if
     ncritp_ = ncritp
     if (associated(critp_f_)) deallocate(critp_f_)
-    allocate(critp_f_(size(critp_f,1)))
-    critp_f_ = critp_f
+    if (associated(critp_f)) then
+       allocate(critp_f_(size(critp_f,1)))
+       critp_f_ = critp_f
+    end if
     cell_x0_ = cell_x0
     cell_lat_ = cell_lat
     cell_nstick_ = cell_nstick
@@ -1032,16 +1037,22 @@ contains
        ismolecule = ismolecule_
        nat = nat_
        if (associated(at_f)) deallocate(at_f)
-       allocate(at_f(size(at_f_,1)))
-       at_f = at_f_
+       if (associated(at_f_)) then
+          allocate(at_f(size(at_f_,1)))
+          at_f = at_f_
+       end if
        nbond = nbond_
        if (associated(bond_f)) deallocate(bond_f)
-       allocate(bond_f(size(bond_f_,1)))
-       bond_f = bond_f_
+       if (associated(bond_f_)) then
+          allocate(bond_f(size(bond_f_,1)))
+          bond_f = bond_f_
+       end if
        ncritp = ncritp_
        if (associated(critp_f)) deallocate(critp_f)
-       allocate(critp_f(size(critp_f_,1)))
-       critp_f = critp_f_
+       if (associated(critp_f_)) then
+          allocate(critp_f(size(critp_f_,1)))
+          critp_f = critp_f_
+       end if
        cell_x0 = cell_x0_
        cell_lat = cell_lat_
        cell_nstick = cell_nstick_
