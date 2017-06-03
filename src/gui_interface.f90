@@ -28,6 +28,7 @@ module gui_interface
   public :: critic2_initialize
   public :: critic2_end
   public :: open_structure
+  public :: open_structure_from_library
   public :: new_structure
   public :: preview_structure
   public :: accept_previewed_structure
@@ -151,6 +152,14 @@ module gui_interface
   real(c_float), bind(c) :: box_xmaxlen
   real(c_float), bind(c) :: box_xmaxclen
 
+  ! structures in the library
+  integer(c_int), bind(c) :: nlib_crys
+  integer(c_int), bind(c) :: nlib_mol
+  character(kind=c_char,len=1), pointer :: lib_crys_f(:,:)
+  type(c_ptr), bind(c) :: lib_crys
+  character(kind=c_char,len=1), pointer :: lib_mol_f(:,:)
+  type(c_ptr), bind(c) :: lib_mol
+
   !! Save state (for GUI previews) !!
   logical :: issaved = .false.
   logical(c_bool) :: isinit_
@@ -182,12 +191,16 @@ contains
     use struct_basic, only: cr
     use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
        fcflags, cc, cflags, ldflags, enable_debug, package
-    use global, only: global_init, fileroot, config_write, initial_banner
+    use global, only: global_init, fileroot, config_write, initial_banner, &
+       clib_file, mlib_file
     use tools_io, only: stdargs, ioinit, ucopy, uout, start_clock, &
-       tictac
+       tictac, fopen_read, fclose, lgetword, getline, equal,&
+       getword
     use param, only: param_init
-    character(len=:), allocatable :: optv
-    character(len=:), allocatable :: ghome
+
+    character(len=:), allocatable :: optv, ghome, word, line
+    logical :: lchk
+    integer :: lu, lp, n
 
     ! initialize parameters
     call start_clock()
@@ -211,6 +224,72 @@ contains
     call tictac('CRITIC2')
     write (uout,*)
     ucopy = -1
+
+    ! entries in the crystal library
+    nlib_crys = 0
+    inquire(file=clib_file,exist=lchk)
+    if (lchk) then
+       ! number of entries
+       lu = fopen_read(clib_file,abspath0=.true.)
+       do while (getline(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,'structure')) then
+             word = getword(line,lp)
+             nlib_crys = nlib_crys + 1
+          endif
+       end do
+       rewind(lu)
+
+       ! read the entries
+       if (associated(lib_crys_f)) deallocate(lib_crys_f)
+       allocate(lib_crys_f(255,nlib_crys))
+       n = 0
+       do while (getline(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,'structure')) then
+             word = getword(line,lp)
+             n = n + 1
+             call f_c_string(word,lib_crys_f(:,n))
+          endif
+       end do
+       lib_crys = c_loc(lib_crys_f)
+       call fclose(lu)
+    endif
+
+    ! entries in the molecule library
+    nlib_mol = 0
+    inquire(file=mlib_file,exist=lchk)
+    if (lchk) then
+       ! number of entries
+       lu = fopen_read(mlib_file,abspath0=.true.)
+       do while (getline(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,'structure')) then
+             word = getword(line,lp)
+             nlib_mol = nlib_mol + 1
+          endif
+       end do
+       rewind(lu)
+
+       ! read the entries
+       if (associated(lib_mol_f)) deallocate(lib_mol_f)
+       allocate(lib_mol_f(255,nlib_mol))
+       n = 0
+       do while (getline(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,'structure')) then
+             word = getword(line,lp)
+             n = n + 1
+             call f_c_string(word,lib_mol_f(:,n))
+          endif
+       end do
+       lib_mol = c_loc(lib_mol_f)
+       call fclose(lu)
+    endif
 
     ! clear the scene
     call clear_scene(logical(.false.,c_bool))
@@ -249,8 +328,6 @@ contains
     integer(c_int), value :: ismolecule
     character(len=:), allocatable :: filename
 
-    integer :: isformat
-
     ! transform to fortran string
     filename = c_string_value(filename0)
 
@@ -265,6 +342,42 @@ contains
     end if
 
   end subroutine open_structure
+
+  ! Read a new molecule/crystal from an external file
+  subroutine open_structure_from_library(nstr, ismolecule) bind(c)
+    use struct_readers, only: struct_read_library
+    use struct_basic, only: crystalseed, cr
+    use tools_io, only: ferror, faterr
+
+    integer(c_int), value :: nstr
+    integer(c_int), value :: ismolecule
+    character*255 :: name
+    type(crystalseed) :: seed
+    logical :: oksyn
+
+    ! transform to fortran string
+    if (ismolecule == 0) then
+       call c_f_string(lib_crys_f(:,nstr),name)
+    else
+       call c_f_string(lib_mol_f(:,nstr),name)
+    end if
+
+    ! read the external file name 
+    seed = struct_read_library(name, ismolecule==1, oksyn)
+    if (.not.oksyn) &
+       call ferror("open_structure_from_library","name not found",faterr)
+
+    ! build the crystal structure
+    call cr%struct_new(seed,.false.)
+
+    ! initialize and update the scene
+    if (cr%isinit) then
+       ispreview = .false.
+       call initialize_structure()
+       call update_scene()
+    end if
+
+  end subroutine open_structure_from_library
 
   ! Read a new molecule/crystal from an external file
   function new_structure(useed,preview) bind(c)

@@ -50,7 +50,24 @@ void show_menu_bar(){
 	structureopen_window_h = 1;
       AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Open from library","Ctrl+L",false,false)) {}
+      if (ImGui::BeginMenu("Crystal library")){
+	for (int i = 0; i < nlib_crys; i++){
+	  if (ImGui::MenuItem(lib_crys[i])){
+	    open_structure_from_library(i+1,0);
+	    settings.set_flags_and_cam(false,box_xmaxlen,box_xmaxclen);
+	  }
+	}
+	ImGui::EndMenu();
+      }
+      if (ImGui::BeginMenu("Molecule library")){
+	for (int i = 0; i < nlib_mol; i++){
+	  if (ImGui::MenuItem(lib_mol[i])){
+	    open_structure_from_library(i+1,1);
+	    settings.set_flags_and_cam(true,box_xmaxlen,box_xmaxclen);
+	  }
+	}
+	ImGui::EndMenu();
+      }
 
       if (ImGui::MenuItem("Open recent",NULL,false,false)) {}
 

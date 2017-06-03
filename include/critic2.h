@@ -68,6 +68,12 @@ extern "C" float box_xcm[3];
 extern "C" float box_xmaxlen;
 extern "C" float box_xmaxclen;
 
+// library information
+extern "C" int nlib_crys;
+extern "C" int nlib_mol;
+extern "C" char (*lib_crys)[255];
+extern "C" char (*lib_mol)[255];
+
 // crystal seed
 extern "C" struct c_crystalseed {
   int type; // 0 = molecule, 1 = crystal
@@ -98,6 +104,9 @@ extern "C" void critic2_end(void);
 // read a new molecule/crystal from an external file
 extern "C" void open_structure(const char **filename, int isMolecule); 
 
+// read a new molecule/crystal from the library
+extern "C" void open_structure_from_library(int nstr, int isMolecule); 
+
 // create a structure from scratch
 extern "C" int new_structure(struct c_crystalseed *useed, bool preview);
 
@@ -123,7 +132,7 @@ extern "C" void clear_scene(bool unload);
 // get information text about the current structure
 extern "C" char *get_text_info(int imode); 
 
-// get information text about the current structure
+// get the seed from the loaded structure
 extern "C" struct c_crystalseed  get_seed_from_current_structure(void); 
 
 #endif
