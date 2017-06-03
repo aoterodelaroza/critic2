@@ -1037,7 +1037,8 @@ contains
                    lvec = lvec0 + c%ivws(:,k)
                 endif
                 rvws = matmul(c%crys2car,rvws)
-                if (all(abs(rvws) < d0)) then
+                dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
+                if (all(abs(rvws) < d0+1d-6)) then
                    dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
                    if (dist > vsmall .and. dist < d0) then
                       call addpair(i,j,lvec)

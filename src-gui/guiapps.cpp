@@ -673,7 +673,6 @@ void structurenew_window(bool *p_open){
   static Settings *settings0;
 
   // xxxx use the spg chooser
-  // xxxx h -> o preview segfaults
   // xxxx mgo 5 bonds?
   // xxxx delete and esc keybindings
   // xxxx cartesian axes
@@ -682,6 +681,7 @@ void structurenew_window(bool *p_open){
   static int atunitsc, atunitsm;
   const char *latstr[] = {"Lengths & angles","Lattice vectors"};
   const char *unitstr[] = {"Bohr","Angstrom","Fractional"};
+  bool doclear = false;
 
   if (useed.type == -1){
     useed.molborder = 10.0f * 0.529177f;
@@ -699,6 +699,19 @@ void structurenew_window(bool *p_open){
     ImGui::RadioButton("Crystal", &useed.type, 1);
     ImGui::SameLine();
     ImGui::RadioButton("Molecule", &useed.type, 0);
+    ImGui::SameLine();
+    if (ImGui::Button("Get Current")){
+      useed = get_seed_from_current_structure();
+      if (settings0){
+	reject_previewed_structure();
+	settings = *settings0;
+	delete settings0;
+	settings0 = NULL;
+	settings.preview_mode = false;
+      }
+    }
+    ImGui::SameLine();
+    doclear = ImGui::Button("Clear");
 
     if (useed.type == 1){
       ImGui::Separator();
@@ -859,7 +872,7 @@ void structurenew_window(bool *p_open){
   ImGui::End();
 
   // reset the static variables for the next use
-  if (!*p_open){
+  if (!*p_open || doclear){
     useed = {-1};
     if (settings0){
       reject_previewed_structure();

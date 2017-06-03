@@ -37,11 +37,15 @@ module gui_interface
   public :: update_scene
   public :: clear_scene
   public :: get_text_info
+  public :: get_seed_from_current_structure
   private :: stick_from_endpoints
   private :: denewline
   private :: save_state
   private :: load_state
   private :: clear_state
+
+  ! constants
+  character*1, parameter :: nl = new_line('a')
 
   ! C-interoperable stick type
   type, bind(c) :: c_stick
@@ -913,6 +917,78 @@ contains
 
   end function get_text_info
 
+  function get_seed_from_current_structure() result(useed) bind(c)
+    use struct_basic, only: cr
+    use global, only: rborder_def
+    use tools_io, only: string
+    use param, only: bohrtoa
+    type(c_crystalseed) :: useed
+
+    character(len=:), allocatable :: aux, rr, aa, bb, at
+    integer :: i, j
+
+    if (cr%ismolecule) then
+       useed%type = 0
+    else
+       useed%type = 1
+    end if
+    useed%achoice = 1
+    
+    aa = ""
+    bb = ""
+    rr = ""
+    do i = 1, 3
+       aux = trim(aa) // " " // string(cr%aa(i),'f',15,10)
+       aa = aux
+       aux = trim(bb) // " " // string(cr%bb(i),'f',10,5)
+       bb = aux
+       do j = 1, 3
+          aux = trim(rr) // " " // string(cr%crys2car(i,j),'f',10,5)
+          rr = aux
+       end do
+       aux = rr // nl
+       rr = aux
+    end do
+    call f_c_string(aa,useed%straa)
+    call f_c_string(bb,useed%strbb)
+    call f_c_string(rr,useed%strrr)
+    useed%aaunits = 0
+    useed%rrunits = 0
+    
+    at = ""
+    do i = 1, cr%ncel
+       aux = trim(at) // string(cr%at(cr%atcel(i)%idx)%name,2)
+       at = aux
+       do j = 1, 3
+          if (cr%ismolecule) then
+             aux = trim(at) // " " // string(cr%atcel(i)%r(j)*bohrtoa,'f',15,10)
+          else
+             aux = trim(at) // " " // string(cr%atcel(i)%x(j),'f',15,10)
+          end if
+          at = aux
+       end do
+       aux = trim(at) // nl
+       at = aux
+    end do
+    call f_c_string(at,useed%strat)
+    if (cr%ismolecule) then
+       useed%atunits = 1
+    else
+       useed%atunits = 2
+    end if
+
+    aux = ""
+    call f_c_string(aux,useed%strspg)
+    aux = ""
+    call f_c_string(aux,useed%errmsg)
+
+    useed%molcubic = .false.
+    useed%errcode = 0
+    useed%molborder = rborder_def * bohrtoa
+    useed%borunits = 1
+
+  end function get_seed_from_current_structure
+
   ! Build a c_stick from the two endpoints, thickness, and rgb
   function stick_from_endpoints(x1,x2,thick,rgb) result(stick)
     use tools_math, only: norm, cross
@@ -981,7 +1057,6 @@ contains
   subroutine denewline(str)
     character*(*), intent(inout) :: str
     
-    character*1, parameter :: nl = new_line('a')
     integer :: i
 
     do i = 1, len_trim(str)

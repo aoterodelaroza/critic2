@@ -105,10 +105,10 @@ extern "C" int new_structure(struct c_crystalseed *useed, bool preview);
 extern "C" int preview_structure(struct c_crystalseed *useed);
 
 // accept the previewed structure
-extern "C" void accept_previewed_structure();
+extern "C" void accept_previewed_structure(void);
 
 // reject the previewed structure
-extern "C" void reject_previewed_structure();
+extern "C" void reject_previewed_structure(void);
 
 // calculate critical points for the current field
 extern "C" void call_auto(void); 
@@ -122,5 +122,8 @@ extern "C" void clear_scene(bool unload);
 
 // get information text about the current structure
 extern "C" char *get_text_info(int imode); 
+
+// get information text about the current structure
+extern "C" struct c_crystalseed  get_seed_from_current_structure(void); 
 
 #endif
