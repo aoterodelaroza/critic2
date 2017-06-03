@@ -118,11 +118,18 @@ module struct_basic
      ! wigner-seitz cell 
      integer :: nws !< number of WS neighbors/faces
      integer :: ivws(3,16) !< WS neighbor lattice points
-     logical :: isortho !< is the cell orthogonal?
      integer :: nvert_ws !< number of vertices of the WS cell
      integer, allocatable :: nside_ws(:) !< number of sides of WS faces
      integer, allocatable :: iside_ws(:,:) !< sides of the WS faces
      real*8, allocatable :: vws(:,:) !< vertices of the WS cell
+     logical :: isortho !< is the cell orthogonal?
+     ! rotations and translations for finding shortest vectors
+     real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
+     real*8 :: rdeli(3,3) !< x_cur = x_del * c%rdeli
+     real*8 :: rdeli_x2c(3,3) !< c_cur = x_del * c%rdeli_x2c
+     real*8 :: crys2car_del(3,3) !< crys2car delaunay cell
+     integer :: ivws_del(3,16) !< WS neighbor lattice points (del cell, Cartesian)
+     logical :: isortho_del !< is the reduced cell orthogonal?
 
      !! Initialization level: isenv !!
      ! atomic environment of the cell
@@ -301,6 +308,7 @@ contains
     allocate(c%cen(3,4))
     c%cen = 0d0
     c%isortho = .false.
+    c%isortho_del = .false.
     c%nws = 0
     c%spg%n_atoms = 0
 
@@ -485,7 +493,7 @@ contains
 
   !> Given a point in crystallographic coordinates (x), find the
   !> lattice-translated copy of x with the shortest length. Returns
-  !> the shortest-length vector in cartesian coordinates and 
+  !> the shortest-length vector in Cartesian coordinates and 
   !> the square of the distance. This routine is thread-safe.
   pure subroutine shortest(c,x,dist2)
     class(crystal), intent(in) :: c
@@ -493,25 +501,29 @@ contains
     real*8, intent(out) :: dist2
 
     integer :: i
-    real*8 :: x0(3), rvws(3), dvws
+    real*8 :: xtry(3), dvws, x0(3)
 
-    x = x - nint(x)
     if (c%isortho) then
+       x = x - nint(x)
        x = matmul(c%crys2car,x)
        dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
     else
+       x = matmul(x,c%rdelr)
+       x = x - nint(x)
        x0 = x
-       x = matmul(c%crys2car,x)
+       x = matmul(x,c%rdeli_x2c)
        dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-       do i = 1, c%nws
-          rvws = c%ivws(:,i) + x0
-          rvws = matmul(c%crys2car,rvws)
-          dvws = rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3)
-          if (dvws < dist2) then
-             x = rvws
-             dist2 = dvws
-          endif
-       end do
+       if (.not.c%isortho_del) then
+          do i = 1, c%nws
+             xtry = x0 + c%ivws_del(:,i)
+             xtry = matmul(xtry,c%rdeli_x2c)
+             dvws = xtry(1)*xtry(1)+xtry(2)*xtry(2)+xtry(3)*xtry(3)
+             if (dvws < dist2) then
+                x = xtry
+                dist2 = dvws
+             endif
+          end do
+       end if
     endif
 
   end subroutine shortest
@@ -553,47 +565,12 @@ contains
     real*8, intent(out), optional :: d2
     logical :: are_lclose
 
-    real*8 :: x(3), xa(3), dist2, dbound
-    integer :: i
+    real*8 :: x(3), dist2
 
     are_lclose = .false.
     x = x0 - x1
-    x = x - nint(x)
-    dbound = minval(abs(x)) * c%n2_c2x
-    if (c%isortho .or. c%ismolecule) then
-       if (dbound > eps) return
-       x = matmul(c%crys2car,x)
-       if (any(abs(x) > eps)) return
-       dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-       are_lclose = (dist2 < (eps*eps))
-       goto 999
-    else
-       xa = x
-       if (dbound < eps) then
-          x = matmul(c%crys2car,x)
-          if (.not.any(abs(x) > eps)) then
-             dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-             are_lclose = (dist2 < (eps*eps))
-             if (are_lclose) goto 999
-          end if
-       end if
-       do i = 1, c%nws
-          x = c%ivws(:,i) + xa
-          dbound = minval(abs(x)) * c%n2_c2x
-          if (dbound < eps) then
-             x = matmul(c%crys2car,x)
-             if (.not.any(abs(x) > eps)) then
-                dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-                are_lclose = (dist2 < (eps*eps))
-                if (are_lclose) goto 999
-             end if
-          end if
-       end do
-       are_lclose = .false.
-    end if
-    return
-
-999 continue
+    call c%shortest(x,dist2)
+    are_lclose = (dist2 < (eps*eps))
     if (present(d2) .and. are_lclose) d2 = dist2
 
   end function are_lclose
@@ -2387,16 +2364,23 @@ contains
   !> Return the four Delaunay vectors in crystallographic coordinates
   !> (rmat) cell, see 9.1.8 in ITC. If rmati is given, use the three
   !> vectors (cryst. coords.) as the basis for the reduction. If sco
-  !> is present, use it in output for the scalar products.
-  subroutine delaunay_reduction(c,rmat,rmati,sco)
+  !> is present, use it in output for the scalar products. If rbas is
+  !> present, it contains the three shortest of the seven Delaunay
+  !> lattice vectors that form a cell (useful to transform to one of
+  !> the delaunay reduced cells).
+  subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
+    use tools, only: qcksort
+    use tools_math, only: norm, det
+    use tools_io, only: faterr, ferror
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
     real*8, intent(in), optional :: rmati(3,3)
     real*8, intent(out), optional :: sco(4,4)
+    real*8, intent(out), optional :: rbas(3,3)
     
-    integer :: i, j, k
-    real*8 :: sc(4,4)
-    logical :: again
+    integer :: i, j, k, iord(7)
+    real*8 :: sc(4,4), xstar(3,7), xlen(7), dd
+    logical :: again, ok
 
     real*8, parameter :: eps = 1d-10
 
@@ -2440,11 +2424,46 @@ contains
           again = .false.
        end if
     end do
+
+    if (present(sco)) sco = sc
+
+    if (present(rbas)) then
+       xstar(:,1)  = rmat(:,1)
+       xstar(:,2)  = rmat(:,2)
+       xstar(:,3)  = rmat(:,3)
+       xstar(:,4)  = rmat(:,4)
+       xstar(:,5)  = rmat(:,1)+rmat(:,2)
+       xstar(:,6)  = rmat(:,1)+rmat(:,3)
+       xstar(:,7)  = rmat(:,2)+rmat(:,3)
+       do i = 1, 7
+          xlen(i) = norm(xstar(:,i))
+          iord(i) = i
+       end do
+       call qcksort(xlen,iord,1,7)
+       rbas(:,1) = xstar(:,iord(1))
+       ok = .false.
+       iloop: do i = 2, 7
+          rbas(:,2) = xstar(:,iord(i))
+          do j = i+1, 7
+             rbas(:,3) = xstar(:,iord(j))
+             dd = det(rbas)
+             if (abs(dd) > eps) then
+                ok = .true.
+                exit iloop
+             end if
+          end do
+       end do iloop
+       if (.not.ok) &
+          call ferror("delaunay_reduction","could not find reduced basis",faterr)
+       if (dd < 0d0) rbas = -rbas
+       do i = 1, 4
+          rbas(:,i) = c%c2x(rbas(:,i))
+       end do
+    end if
+
     do i = 1, 4
        rmat(:,i) = c%c2x(rmat(:,i))
     end do
-
-    if (present(sco)) sco = sc
 
   end subroutine delaunay_reduction
 
@@ -2468,7 +2487,7 @@ contains
     integer :: nnew, icpy
     real*8, allocatable :: atpos(:,:)
     integer, allocatable :: irotm(:), icenv(:)
-    real*8 :: v1(3), v2(3)
+    real*8 :: v1(3), v2(3), rdel(3,3), rdel4(3,4)
 
     if (.not.seed%isused) then
        if (crashfail) then
@@ -2668,10 +2687,26 @@ contains
     ! calculate the wigner-seitz cell
     call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
        nvert_ws=c%nvert_ws,nside_ws=c%nside_ws,iside_ws=c%iside_ws,vws=c%vws)
+
+    ! calculate the translations for shortest vector search
+    call c%delaunay_reduction(rdel4,rbas=rdel)
+    c%crys2car_del = matmul(c%crys2car,rdel)
+    c%rdeli = transpose(rdel)
+    c%rdelr = matinv(c%rdeli)
+    c%rdeli_x2c = matmul(c%rdeli,transpose(c%crys2car))
+    do i = 1, c%nws
+       c%ivws_del(:,i) = matmul(c%ivws(:,i),c%rdelr)
+    end do
+
+    ! orthogonality of the cell and the reduced cell
     c%isortho = (c%nws <= 6)
     if (c%isortho) then
+       c%isortho_del = .true.
        do i = 1, c%nws
-          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1)
+          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1) .and.&
+             (count(abs(c%ivws(:,i)) == 0) == 2)
+          c%isortho_del = c%isortho_del .and. (count(abs(c%ivws_del(:,i)) == 1) == 1) .and.&
+             (count(abs(c%ivws_del(:,i)) == 0) == 2)
        end do
     endif
 
@@ -2895,14 +2930,14 @@ contains
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat
+    use param, only: bohrtoa, maxzat, pi
     class(crystal), intent(in) :: c
 
     integer, parameter :: natenvmax = 2000
 
     integer :: i, j, k
     integer :: nelec, holo, laue
-    real*8 :: maxdv, xcm(3), x0(3)
+    real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
     character(len=:), allocatable :: str1, str2
     character(len=3) :: schpg
     integer, allocatable :: nneig(:), wat(:)
@@ -3184,7 +3219,31 @@ contains
              (string(c%ivws(j,i),length=2,justify=ioj_right),j=1,size(c%ivws,1))
        end do
        write (uout,*)
-       write (uout,'("+ Is the cell orthogonal? ",L1/)') c%isortho
+       
+       write (uout,'("+ Lattice vectors for the Delaunay reduced cell (fractional)")')
+       do i = 1, 3
+          write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+             (string(nint(c%rdeli(i,j)),length=2,justify=ioj_right),j=1,3)
+       end do
+
+       do i = 1, 3
+          x0 = c%rdeli(i,:)
+          xred(:,i) = c%x2c(x0)
+          xlen(i) = sqrt(dot_product(xred(:,i),xred(:,i)))
+       end do
+       xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
+       xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
+       xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
+
+       write (uout,'("  Delaunay reduced cell lengths: ",99(A,X))') &
+          (string(xlen(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
+       write (uout,'("  Delaunay reduced cell angles: ",99(A,X))') &
+          (string(xang(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
+       write (uout,*)
+
+       write (uout,'("+ Is the cell orthogonal? ",L1)') c%isortho
+       write (uout,'("+ Is the reduced cell orthogonal? ",L1/)') c%isortho_del
+       write (uout,*)
     end if
 
   end subroutine struct_report

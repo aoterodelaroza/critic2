@@ -20,6 +20,7 @@ TESTS=\
 002_read_newcell.sh 002_read_newcell2.sh 002_read_primitive.sh 002_read_molecule.sh\
 003_wigner_bcc.sh 003_wigner_fcc_nosym1.sh 003_wigner_fcc_nosym2.sh 003_wigner_fcc.sh\
 003_wigner_hcp.sh 003_wigner_sc.sh 003_wigner_hard1.sh 003_wigner_hard2.sh\
+003_hardcell1.sh\
 004_ewald1.sh 004_ewald2.sh\
 005_write_abiconv.sh 005_write_abiprim.sh 005_write_elkconv.sh 005_write_elkprim.sh\
 005_write_escher.sh 005_write_qeconv.sh 005_write_qeprim.sh 005_write_tess.sh\

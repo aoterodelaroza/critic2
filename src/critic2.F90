@@ -75,7 +75,6 @@ program critic
   integer :: i, id, nn, ismoli
   logical :: ll1, ok
   real*8 :: rdum
-  ! real*8 :: xnew(3), xold(3)
 
   ! initialize parameters
   call start_clock()
@@ -701,25 +700,7 @@ program critic
         
      ! temp, for testing
      elseif (equal(word,'temp')) then
-        ! do i = 1, cr%ncel
-        !    write (*,*) "atom ", i
-        !    write (*,*) "neq ", cr%atcel(i)%idx
-        !    write (*,*) "atcel ", cr%atcel(i)%x
-        !    write (*,*) "ir ", cr%atcel(i)%ir
-        !    write (*,*) "ic ", cr%atcel(i)%ic
-        !    write (*,*) "lvec ", cr%atcel(i)%lvec
-        !    write (*,*) "at ", cr%at(cr%atcel(i)%idx)%x
-        !    write (*,*) "rotm1 ", cr%rotm(1,1:4,cr%atcel(i)%ir)
-        !    write (*,*) "rotm2 ", cr%rotm(2,1:4,cr%atcel(i)%ir)
-        !    write (*,*) "rotm3 ", cr%rotm(3,1:4,cr%atcel(i)%ir)
-        !    write (*,*) "cen ", cr%cen(:,cr%atcel(i)%ic)
-        !    write (*,*) "lvec ", cr%atcel(i)%lvec
-        !    xold = cr%atcel(i)%x
-        !    xnew = matmul(cr%rotm(1:3,1:3,cr%atcel(i)%ir),cr%at(cr%atcel(i)%idx)%x) + cr%rotm(:,4,cr%atcel(i)%ir) + cr%cen(:,cr%atcel(i)%ic) + cr%atcel(i)%lvec
-        !    write (*,*) "xold ", xold
-        !    write (*,*) "xnew ", xnew
-        !    write (*,*) "eps ", sum(abs(xold-xnew))
-        ! end do
+        ! 
 
      ! end
      elseif (equal(word,'end')) then
