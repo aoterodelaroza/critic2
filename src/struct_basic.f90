@@ -2456,7 +2456,7 @@ contains
        if (.not.ok) &
           call ferror("delaunay_reduction","could not find reduced basis",faterr)
        if (dd < 0d0) rbas = -rbas
-       do i = 1, 4
+       do i = 1, 3
           rbas(:,i) = c%c2x(rbas(:,i))
        end do
     end if
