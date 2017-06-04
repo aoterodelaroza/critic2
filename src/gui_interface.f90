@@ -1051,6 +1051,11 @@ contains
     character(len=:), allocatable :: aux, rr, aa, bb, at
     integer :: i, j
 
+    if (.not.cr%isinit) then
+       useed%type = -1
+       useed%errcode = 0
+       return
+    end if
     if (cr%ismolecule) then
        useed%type = 0
     else

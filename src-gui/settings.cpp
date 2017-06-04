@@ -25,6 +25,7 @@ Settings settings = Settings(false,5.f);
 
 Settings::Settings(bool ismolecule, float maxlen){
   want_quit = false;
+  close_all_windows = false;
   preview_mode = false;
 
   bondresolution = 2;

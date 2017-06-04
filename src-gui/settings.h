@@ -29,6 +29,7 @@ class Settings {
 
   // global signal for program termination
   bool want_quit;
+  bool close_all_windows;
 
   // operation modes
   bool preview_mode;

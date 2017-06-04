@@ -154,6 +154,8 @@ int main(int argc, char *argv[])
       structureopen_window_h = 2;
     if (io.KeyCtrl && io.KeyAlt && io.KeysDown[GLFW_KEY_O] && !structureopen_window_h)
       structureopen_window_h = 1;
+    if (io.KeysDown[GLFW_KEY_ESCAPE])
+      settings.close_all_windows = true;
 
     // handle quit signal
     if (settings.want_quit)

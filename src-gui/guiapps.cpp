@@ -585,6 +585,16 @@ static const struct {
 
 // Process known handles for all windows
 void guiapps_process_handles(){
+  // close all windows?
+  if (settings.close_all_windows){
+    structureinfo_window_h = false;
+    structurenew_window_h = false;
+    structureopen_window_h = false;
+    if (settings.preview_mode)
+      structurenew_window(&structurenew_window_h);
+    settings.close_all_windows = false;
+  }
+
   // window handles
   if (structureinfo_window_h) structureinfo_window(&structureinfo_window_h);
   if (structurenew_window_h) structurenew_window(&structurenew_window_h);
@@ -672,6 +682,7 @@ void structurenew_window(bool *p_open){
   static struct c_crystalseed useed = {-1};
   static Settings *settings0;
 
+  // xxxx error incorrect space group if empty get current and then molecule
   // xxxx use the spg chooser
   // xxxx mgo 5 bonds?
   // xxxx delete and esc keybindings
@@ -702,7 +713,7 @@ void structurenew_window(bool *p_open){
     ImGui::SameLine();
     if (ImGui::Button("Get Current")){
       useed = get_seed_from_current_structure();
-      if (settings0){
+      if (settings0 && useed.type != -1){
 	reject_previewed_structure();
 	settings = *settings0;
 	delete settings0;
