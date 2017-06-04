@@ -26,6 +26,7 @@ module gui_interface
   private
 
   public :: critic2_initialize
+  private :: critic2_initialize_library
   public :: critic2_end
   public :: open_structure
   public :: open_structure_from_library
@@ -39,6 +40,7 @@ module gui_interface
   public :: clear_scene
   public :: get_text_info
   public :: get_seed_from_current_structure
+  public :: set_library_file
   private :: stick_from_endpoints
   private :: denewline
   private :: save_state
@@ -191,16 +193,12 @@ contains
     use struct_basic, only: cr
     use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
        fcflags, cc, cflags, ldflags, enable_debug, package
-    use global, only: global_init, fileroot, config_write, initial_banner, &
-       clib_file, mlib_file
+    use global, only: global_init, fileroot, config_write, initial_banner
     use tools_io, only: stdargs, ioinit, ucopy, uout, start_clock, &
-       tictac, fopen_read, fclose, lgetword, getline, equal,&
-       getword
+       tictac
     use param, only: param_init
 
-    character(len=:), allocatable :: optv, ghome, word, line
-    logical :: lchk
-    integer :: lu, lp, n
+    character(len=:), allocatable :: optv, ghome
 
     ! initialize parameters
     call start_clock()
@@ -224,6 +222,22 @@ contains
     call tictac('CRITIC2')
     write (uout,*)
     ucopy = -1
+
+    ! initialize libraries
+    call critic2_initialize_library()
+
+    ! clear the scene
+    call clear_scene(logical(.false.,c_bool))
+
+  end subroutine critic2_initialize
+
+  subroutine critic2_initialize_library()
+    use global, only: clib_file, mlib_file
+    use tools_io, only: fopen_read, fclose, lgetword, getline, equal,&
+       getword
+    character(len=:), allocatable :: word, line
+    logical :: lchk
+    integer :: lu, lp, n
 
     ! entries in the crystal library
     nlib_crys = 0
@@ -291,10 +305,7 @@ contains
        call fclose(lu)
     endif
 
-    ! clear the scene
-    call clear_scene(logical(.false.,c_bool))
-
-  end subroutine critic2_initialize
+  end subroutine critic2_initialize_library
 
   !> End of the critic2 run
   subroutine critic2_end() bind(c)
@@ -1101,6 +1112,24 @@ contains
     useed%borunits = 1
 
   end function get_seed_from_current_structure
+
+  subroutine set_library_file(filename0,type) bind(c)
+    use global, only: clib_file, mlib_file
+    type(c_ptr), intent(in) :: filename0
+    integer(c_int), value :: type
+    
+    character(len=:), allocatable :: filename
+
+    ! transform to fortran string
+    filename = c_string_value(filename0)
+    if (type == 1) then
+       clib_file = filename
+    elseif (type == 2) then
+       mlib_file = filename
+    end if
+    call critic2_initialize_library()
+
+  end subroutine set_library_file
 
   ! Build a c_stick from the two endpoints, thickness, and rgb
   function stick_from_endpoints(x1,x2,thick,rgb) result(stick)

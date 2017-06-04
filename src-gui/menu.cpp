@@ -24,6 +24,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "critic2.h"
 #include "settings.h"
 
+#include "imguifilesystem.h"
+
 // Tooltip delay
 static const float ttipdelay = 1.5;
 
@@ -34,6 +36,9 @@ static void AttachTooltip(const char* desc, float delay, float *time0, bool *res
 void show_menu_bar(){
   static float time0 = -1.;
   bool reset = true;
+  static ImGuiFs::Dialog fsopenfile;
+  static bool firstpass = true;
+  static int getfile = 0;
 
   // immediate actions
   if (ImGui::BeginMainMenuBar()){
@@ -50,7 +55,10 @@ void show_menu_bar(){
 	structureopen_window_h = 1;
       AttachTooltip("Read the molecular structure from a file.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::BeginMenu("Crystal library")){
+      if (ImGui::BeginMenu("Crystal library",!settings.preview_mode)){
+	if (ImGui::MenuItem("Choose file"))
+	  getfile = 1;
+	ImGui::Separator();
 	for (int i = 0; i < nlib_crys; i++){
 	  if (ImGui::MenuItem(lib_crys[i])){
 	    open_structure_from_library(i+1,0);
@@ -59,7 +67,10 @@ void show_menu_bar(){
 	}
 	ImGui::EndMenu();
       }
-      if (ImGui::BeginMenu("Molecule library")){
+      if (ImGui::BeginMenu("Molecule library",!settings.preview_mode)){
+	if (ImGui::MenuItem("Choose file"))
+	  getfile = 2;
+	ImGui::Separator();
 	for (int i = 0; i < nlib_mol; i++){
 	  if (ImGui::MenuItem(lib_mol[i])){
 	    open_structure_from_library(i+1,1);
@@ -109,6 +120,21 @@ void show_menu_bar(){
       ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
+  }
+
+  // Library file dialog
+  if (getfile){
+    const char* filename = fsopenfile.chooseFileDialog(firstpass,"./",NULL);
+    firstpass = false;
+    if (fsopenfile.hasUserJustCancelledDialog() && strlen(filename) == 0){
+      firstpass = true;
+      getfile = 0;
+    }
+    if (strlen(filename) > 0){
+      set_library_file(&filename, getfile); 
+      firstpass = true;
+      getfile = 0;
+    }
   }
 
   if (reset)

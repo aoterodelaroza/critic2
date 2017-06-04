@@ -135,4 +135,7 @@ extern "C" char *get_text_info(int imode);
 // get the seed from the loaded structure
 extern "C" struct c_crystalseed  get_seed_from_current_structure(void); 
 
+// set the library file
+extern "C" void set_library_file(const char **filename,int type); 
+
 #endif
