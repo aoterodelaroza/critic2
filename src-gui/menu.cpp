@@ -67,6 +67,8 @@ void show_menu_bar(){
 	}
 	ImGui::EndMenu();
       }
+      AttachTooltip("Read a crystal structure from the library file.\n",ttipdelay,&time0,&reset);
+
       if (ImGui::BeginMenu("Molecule library",!settings.preview_mode)){
 	if (ImGui::MenuItem("Choose file"))
 	  getfile = 2;
@@ -79,8 +81,9 @@ void show_menu_bar(){
 	}
 	ImGui::EndMenu();
       }
+      AttachTooltip("Read a molecular structure from the library file.\n",ttipdelay,&time0,&reset);
 
-      if (ImGui::MenuItem("Open recent",NULL,false,false)) {}
+      if (ImGui::MenuItem("Open recent",NULL,false,false)){}
 
       ImGui::Separator();
 
@@ -116,6 +119,10 @@ void show_menu_bar(){
 
       if (ImGui::MenuItem("Show structure information","",structureinfo_window_h)) {structureinfo_window_h = !structureinfo_window_h;}
       AttachTooltip("Show information about the current structure.\n",ttipdelay,&time0,&reset);
+
+      ImGui::Separator();
+      if (ImGui::MenuItem("Close all windows","ESC")){settings.close_all_windows = true;}
+      AttachTooltip("Close all open windows.\n",ttipdelay,&time0,&reset);
 
       ImGui::EndMenu();
     }
