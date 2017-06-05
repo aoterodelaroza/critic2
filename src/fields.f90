@@ -1014,7 +1014,7 @@ contains
 
     ! get the scalar field properties
     xp = cr%x2c(x0)
-    call grd(f(id),xp,2,res)
+    call grd(f(id),xp,2,res0=res)
 
     ! r and s
     res%hfevec = res%hf
@@ -1044,7 +1044,7 @@ contains
        if (allfields) then
           do i = 0, ubound(f,1)
              if (fused(i) .and. i /= id) then
-                call grd(f(i),xp,2,res2)
+                call grd(f(i),xp,2,res0=res2)
                 write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,2X))') string(i),&
                    string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
                    string(res2%del2f,'e',decimal=9)
@@ -1748,11 +1748,11 @@ contains
 
   end subroutine setfield
 
-  ! Calculate the scalar field f at point v (cartesian) and its
-  ! derivatives up to nder. Return the results in res. If periodic is
-  ! present and false, consider the field is defined in a non-periodic
-  ! system. This routine is thread-safe.
-  recursive subroutine grd(f,v,nder,res,periodic)
+  ! Calculate the scalar field f at point v (Cartesian) and its
+  ! derivatives up to nder. Return the results in res0 or
+  ! res0_noalloc. If periodic is present and false, consider the field
+  ! is defined in a non-periodic system. This routine is thread-safe.
+  recursive subroutine grd(f,v,nder,periodic,res0,res0_noalloc)
     use grd_atomic, only: grda_promolecular
     use grid_tools, only: grinterp
     use struct_basic, only: cr
@@ -1762,20 +1762,22 @@ contains
     use elk_private, only: elk_rho2
     use wien_private, only: wien_rho2
     use arithmetic, only: eval
-    use types, only: scalar_value
+    use types, only: scalar_value, scalar_value_noalloc
     use tools_io, only: ferror, faterr
     use tools_math, only: ndif_jmax, der1i, der2ii, der2ij, norm
     type(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate
-    type(scalar_value), intent(out) :: res !< Output density and related scalar properties at the point
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
+    type(scalar_value), intent(out), optional :: res0 !< Output density and related scalar properties
+    type(scalar_value_noalloc), intent(out), optional :: res0_noalloc !< Output density and related scalar properties (no allocatable components)
 
     real*8 :: wx(3), wc(3), dist, x(3)
     integer :: i, nid, lvec(3), idx(3)
     real*8 :: rho, grad(3), h(3,3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
     logical :: isgrid, iok, per
+    type(scalar_value) :: res
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
@@ -1844,7 +1846,7 @@ contains
        res%fval = res%f
        res%gfmodval = res%gfmod
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-       return
+       goto 999
     end if
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
@@ -1863,7 +1865,7 @@ contains
        if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. & 
           f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
           f%type == type_pi) then 
-          return
+          goto 999
        end if
     end if
     wc = cr%x2c(wx)
@@ -1957,6 +1959,27 @@ contains
     res%gfmod = norm(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
+999 continue
+    if (present(res0)) res0 = res
+    if (present(res0_noalloc)) then
+       res0_noalloc%f = res%f
+       res0_noalloc%fval = res%fval
+       res0_noalloc%gf = res%gf
+       res0_noalloc%hf = res%hf
+       res0_noalloc%gfmod = res%gfmod
+       res0_noalloc%gfmodval = res%gfmodval
+       res0_noalloc%del2f = res%del2f
+       res0_noalloc%del2fval = res%del2fval
+       res0_noalloc%gkin = res%gkin
+       res0_noalloc%stress = res%stress
+       res0_noalloc%vir = res%vir
+       res0_noalloc%hfevec = res%hfevec
+       res0_noalloc%hfeval = res%hfeval
+       res0_noalloc%r = res%r
+       res0_noalloc%s = res%s
+       res0_noalloc%isnuc = res%isnuc
+    end if
+
   end subroutine grd
 
   !> Calculate the value of all integrable properties at the given position
@@ -1991,7 +2014,7 @@ contains
           id = integ_prop(i)%fid
           if (.not.fused(id)) cycle
           if (.not.fdone(id).and.integ_prop(i)%itype /= itype_v) then
-             call grd(f(id),xpos,2,res(id))
+             call grd(f(id),xpos,2,res0=res(id))
              fdone(id) = .true.
           end if
 
@@ -2196,7 +2219,7 @@ contains
        do i = 1, cr%nneq+1
           call system_clock(count=c1,count_rate=rate)
           do j = 1, npts
-             call grd(f(refden),randn(:,j,i),0,res)
+             call grd(f(refden),randn(:,j,i),0,res0=res)
           end do
           call system_clock(count=c2)
           if (i <= cr%nneq) then
@@ -2224,7 +2247,7 @@ contains
        write (uout,'("  Number of points : ",I8)') npts
        call system_clock(count=c1,count_rate=rate)
        do i = 1, npts
-          call grd(f(refden),randn(:,i,1),0,res)
+          call grd(f(refden),randn(:,i,1),0,res0=res)
        end do
        call system_clock(count=c2)
        write (uout,'("  Total wall time : ",F20.6," s ")') real(c2-c1,8) / rate
@@ -2333,11 +2356,11 @@ contains
              dir(3) = 1d0 * cos(phi)
 
              xp = xnuc + (rmt+eps) * dir
-             call grd(f(id),xp,1,res)
+             call grd(f(id),xp,1,res0=res)
              fout = res%f
              gfout = dot_product(res%gf,xp-xnuc) / (rmt+eps)
              xp = xnuc + (rmt-eps) * dir
-             call grd(f(id),xp,1,res)
+             call grd(f(id),xp,1,res0=res)
              fin = res%f
              gfin = dot_product(res%gf,xp-xnuc) / (rmt-eps)
 
@@ -2371,7 +2394,7 @@ contains
                    do i = 0, 1000
                       r = 0.50d0 * rmt + (real(i,8) / 1000) * 4d0 * rmt
                       xp = xnuc + r * dir
-                      call grd(f(id),xp,1,res)
+                      call grd(f(id),xp,1,res0=res)
                       write (luline,'(1p,3(E20.13,X))') r, res%f, dot_product(res%gf,xp-xnuc) / r
                    end do
                    call fclose(luline)
@@ -2660,7 +2683,7 @@ contains
 
     iid = fieldname_to_idx(id)
     if (iid >= 0) then
-       call grd(f(iid),x0,nder,fields_feval,periodic)
+       call grd(f(iid),x0,nder,periodic,res0=fields_feval)
     elseif (trim(id) == "ewald") then
        xp = cr%c2x(x0)
        fields_feval%f = ewald_pot(xp,.false.)

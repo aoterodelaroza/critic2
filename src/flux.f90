@@ -1021,7 +1021,7 @@ contains
     end if
     xini = xbcp
     xbcp = cr%x2c(xbcp)
-    call grd(f(refden),xbcp,2,res)
+    call grd(f(refden),xbcp,2,res0=res)
     evec = res%hf
     call eig(evec,reval)
 

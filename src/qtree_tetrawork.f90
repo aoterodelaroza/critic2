@@ -313,7 +313,7 @@ contains
 
     ! value at point
     xp =cr%x2c(xp)
-    call grd(f(refden),xp,nder,res)
+    call grd(f(refden),xp,nder,res0=res)
     ngrd_term = ngrd_term + 1
     if (savefgr) fgr(idx,base_to) = res%fval
     if (savelapgr) lapgr(idx,base_to) = -res%del2fval
@@ -1352,7 +1352,7 @@ contains
              do j = 1, 3
                 xp = xp + bvec(:,j,base_t) * iv(j,i) * lrest
              end do
-             call grd(f(refden),xp,nder,res)
+             call grd(f(refden),xp,nder,res0=res)
              lf(i) = res%fval
              if (savefgr) then
                 fgr(idx(i),base_to) = res%fval
@@ -1486,11 +1486,11 @@ contains
                 xx = xx + bvec(:,2,base_t) * real(j,8)
                 xx = xx + bvec(:,3,base_t) * real(k,8)
                 if (prop_mode == 1) then
-                   call grd(f(refden),xx,0,res)
+                   call grd(f(refden),xx,0,res0=res)
                    ngrd_int = ngrd_int + 1
                    acum_atprop(ts,2) = acum_atprop(ts,2) + vfac * res%fval
                 else if (prop_mode == 2) then
-                   call grd(f(refden),xx,2,res)
+                   call grd(f(refden),xx,2,res0=res)
                    acum_atprop(ts,2) = acum_atprop(ts,2) + vfac * res%fval
                    acum_atprop(ts,3) = acum_atprop(ts,3) + vfac * res%del2fval
                    ngrd_int = ngrd_int + 1

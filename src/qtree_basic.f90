@@ -589,7 +589,7 @@ contains
              sin(srf%th(i)) * sin(srf%ph(i)),&
              cos(srf%th(i)) /)
           x = xnuc + unit * rbeta
-          call grd(f(refden),x,1,res)
+          call grd(f(refden),x,1,res0=res)
           accept = accept .and. (dot_product(-res%gf/res%gfmod,unit) >= angle) 
           if (.not.accept) then
              rbeta = rbeta * shrink

@@ -48,7 +48,7 @@ contains
     use grid_tools, only: grid_from_array3
     use tools_math, only: select_lebedev, gauleg
     use tools_io, only: string
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value_noalloc, realloc
     use param, only: fh, pi
 
     integer, parameter :: nleb = 770, nr = 50
@@ -60,7 +60,7 @@ contains
     real*8 :: rp(nr), rw(nr), x(3), x0(3), unit(3)
     real*8 :: ff, fs, rsumf, rsums, ssumf, ssums
     real*8 :: d2, atp(cr%ncel), ntot
-    type(scalar_value) :: res, res2
+    type(scalar_value_noalloc) :: res, res2
     ! for yt
     integer :: nbasin, luw
     real*8, allocatable :: xcoord(:,:)
@@ -154,8 +154,8 @@ contains
              rsums = 0d0
              do l = 1, nr
                 x = cr%atcel(j)%r + rp(l) * unit
-                call grd(f(refden),x,2,res)
-                call grd(f(10+i),x,2,res2)
+                call grd(f(refden),x,2,res0_noalloc=res)
+                call grd(f(10+i),x,2,res0_noalloc=res2)
                 ff = res%del2f * res2%f
                 fs = ff * sin(0.5d0*pi*rp(l)/rsph(j))**6
                 rsumf = rsumf + rp(l)**2 * rw(l) * ff

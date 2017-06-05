@@ -22,7 +22,7 @@ module types
   private
   public :: grid1, atom, celatom, anyatom, dftbatom, fragment
   public :: cp_type
-  public :: scalar_value
+  public :: scalar_value, scalar_value_noalloc
   public :: field
   public :: integrable
   public :: pointpropable
@@ -332,6 +332,23 @@ module types
      ! molecular orbital values
      real*8, allocatable :: mo(:)
   end type scalar_value
+
+  !> Result of the evaluation of a scalar field
+  type scalar_value_noalloc
+     ! basic
+     real*8 :: f, fval, gf(3), hf(3,3), gfmod, gfmodval, del2f, del2fval
+     ! kinetic energy density
+     real*8 :: gkin
+     ! schrodinger stress tensor
+     real*8 :: stress(3,3)
+     ! electronic potential energy density, virial field
+     real*8 :: vir
+     ! additional local properties
+     real*8 :: hfevec(3,3), hfeval(3)
+     integer :: r, s
+     ! is it a nuclear position?
+     logical :: isnuc
+  end type scalar_value_noalloc
 
   !> Information about an integrable field
   type integrable

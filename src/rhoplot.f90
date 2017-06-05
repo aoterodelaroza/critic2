@@ -181,13 +181,13 @@ contains
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
     use tools_math, only: norm
-    use types, only: scalar_value
+    use types, only: scalar_value_noalloc
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
     real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xout(3)
     character(len=:), allocatable :: word, outfile, prop, expr
-    type(scalar_value) :: res
+    type(scalar_value_noalloc) :: res
     logical :: ok, iok
     integer :: i
     real*8, allocatable :: rhoout(:), lapout(:)
@@ -308,11 +308,11 @@ contains
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
           if (nti == 0) then
-             call grd(f(id),xp,0,res,.not.cr%ismolecule)
+             call grd(f(id),xp,0,.not.cr%ismolecule,res0_noalloc=res)
           elseif (nti >= 1 .and. nti <= 4) then
-             call grd(f(id),xp,1,res,.not.cr%ismolecule)
+             call grd(f(id),xp,1,.not.cr%ismolecule,res0_noalloc=res)
           else
-             call grd(f(id),xp,2,res,.not.cr%ismolecule)
+             call grd(f(id),xp,2,.not.cr%ismolecule,res0_noalloc=res)
           end if
 
           rhopt = res%f
@@ -393,7 +393,7 @@ contains
     use tools_math, only: norm
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string
-    use types, only: scalar_value, field
+    use types, only: scalar_value_noalloc, field
     use param, only: eye
     character*(*), intent(in) :: line
 
@@ -402,7 +402,7 @@ contains
     real*8 :: rgr, dd(3), xd(3,3)
     integer :: lp2
     character(len=:), allocatable :: word, outfile, prop, expr, wext1
-    type(scalar_value) :: res
+    type(scalar_value_noalloc) :: res
     logical :: ok, iok
     integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
@@ -611,7 +611,7 @@ contains
                    + real(iz,8) * xd(:,3)
 
                 if (.not.useexpr) then
-                   call grd(f(id),xp,2,res,.not.cr%ismolecule)
+                   call grd(f(id),xp,2,.not.cr%ismolecule,res0_noalloc=res)
                    select case(nti)
                    case (0)
                       lappt = res%f
@@ -670,7 +670,7 @@ contains
        isexpression_or_word, fopen_write, uout, string, fclose
     use tools_math, only: norm, plane_scale_extend, assign_ziso, niso_manual,&
        niso_lin, niso_log, niso_atan, niso_bader
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value_noalloc, realloc
     character*(*), intent(in) :: line
 
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
@@ -679,7 +679,7 @@ contains
     real*8 :: sx, sy, zx0, zx1, zy0, zy1, zmin, zmax, rdum
     logical :: docontour, dorelief, docolormap
     character(len=:), allocatable :: word, outfile, root0, expr
-    type(scalar_value) :: res
+    type(scalar_value_noalloc) :: res
     logical :: ok, iok
     integer :: ix, iy, cmopt, nder
     real*8, allocatable :: ff(:,:), ziso(:)
@@ -917,7 +917,7 @@ contains
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
 
           if (id >= 0) then
-             call grd(f(id),xp,nder,res,.not.cr%ismolecule)
+             call grd(f(id),xp,nder,.not.cr%ismolecule,res0_noalloc=res)
              select case(nti)
              case (0)
                 rhopt = res%f
@@ -1539,7 +1539,7 @@ contains
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
        niso_manual, niso_atan, niso_lin, niso_log, niso_bader
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value_noalloc, realloc
     character(len=:), allocatable :: line, word, datafile, rootname
     integer :: lpold, lp, udat, ll, idum, i, j
     integer :: updum, dndum, updum1, dndum1
@@ -1553,7 +1553,7 @@ contains
     real*8 :: ehess(3), x0(3), uu(3), vv(3), lin0, lin1
     logical :: docontour, dograds, goodplane
     integer :: n1, n2, niso, nder
-    type(scalar_value) :: res
+    type(scalar_value_noalloc) :: res
     real*8, allocatable :: ff(:,:), ziso(:)
 
     ! Header
@@ -1792,7 +1792,7 @@ contains
              ok = ok .and. eval_next (newcriticp(2,newncriticp), line, lp)
              ok = ok .and. eval_next (newcriticp(3,newncriticp), line, lp)
              q0 = cr%x2c(newcriticp(:,newncriticp))
-             call grd(f(refden),q0,2,res,.not.cr%ismolecule)
+             call grd(f(refden),q0,2,.not.cr%ismolecule,res0_noalloc=res)
              call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp),0d0)
              q0 = cr%c2x(q0)
 
@@ -1957,7 +1957,7 @@ contains
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-             call grd(f(refden),xp,nder,res,.not.cr%ismolecule)
+             call grd(f(refden),xp,nder,.not.cr%ismolecule,res0_noalloc=res)
              select case(nfi)
              case (0)
                 rhopt = res%f
@@ -2178,7 +2178,7 @@ contains
        else
           ! A (3,-1) or (3,+3) critical point:
           xstart = grpx(:,iorig)
-          call grd(f(refden),xstart,2,res,.not.cr%ismolecule)
+          call grd(f(refden),xstart,2,.not.cr%ismolecule,res0=res)
           call rsindex(res%hf,ehess,nindex,ntype,0d0)
           if (nindex .eq. 3) then
              if (ntype .eq. -1) then
@@ -2420,7 +2420,7 @@ contains
 
        !.Get the properties
        xp = cr%x2c(newcriticp(:,i))
-       call grd(f(refden),xp,2,res,.not.cr%ismolecule)
+       call grd(f(refden),xp,2,.not.cr%ismolecule,res0=res)
        if (res%gfmod > grpcpeps) then
           write (uout,'(2X,"CP ",A," has a large gradient: ",A," -> Rejected!")') &
              string(i), string(res%gfmod,'e',decimal=6)

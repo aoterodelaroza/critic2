@@ -113,7 +113,7 @@ contains
           cp(i)%lap = 0d0
           cp(i)%deferred = .true.
        else
-          call grd(f(refden),cr%at(i)%r,2,res)
+          call grd(f(refden),cr%at(i)%r,2,res0=res)
           cp(i)%rho = res%f
           cp(i)%lap = res%del2f
           cp(i)%deferred = .false.
@@ -1267,7 +1267,7 @@ contains
 
        ! calculate the properties that were deferred, then unflag these CPs
        if (cp(i)%deferred) then
-          call grd(f(refden),cp(i)%r,2,res)
+          call grd(f(refden),cp(i)%r,2,res0=res)
           cp(i)%rho = res%f
           cp(i)%gmod = res%gfmod
           cp(i)%lap = res%del2f
@@ -1749,7 +1749,7 @@ contains
        cp(n)%lap = 0d0
        cp(n)%deferred = .true.
     else
-       call grd(f(refden),cp(n)%r,2,res)
+       call grd(f(refden),cp(n)%r,2,res0=res)
        cp(n)%rho = res%f
        cp(n)%gmod = res%gfmod
        cp(n)%lap = res%del2f
@@ -2077,7 +2077,7 @@ contains
     use navigation, only: gradient
     use struct_basic, only: cr
     use tools_math, only: norm, eig
-    use types, only: scalar_value
+    use types, only: scalar_value_noalloc
     use varbas, only: ncp, cp, ncpcel, cpcel, nearest_cp
     use global, only: refden
     use param, only: pi
@@ -2090,7 +2090,7 @@ contains
     integer :: wcp
     integer :: ier, idir
     logical :: isbcp
-    type(scalar_value) :: res
+    type(scalar_value_noalloc) :: res
     real*8, allocatable :: xdis(:,:,:)
 
     real*8, parameter :: change = 1d-2
@@ -2100,10 +2100,7 @@ contains
     xdis = 0d0
 
     ! run over known non-equivalent cps  
-    ! note: the behavior of openmp 3.0 for user-defined types with allocatable components
-    ! is not defined. Passing "res" as private breaks ifort 14 and 15 (but not earlier
-    ! versions). Hence, wrapgrd.
-    !$omp parallel do private(isbcp,evec,reval,idir,xdtemp,nstep,ier,xx) schedule(dynamic)
+    !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx) schedule(dynamic)
     do i = 1, ncp
        ! BCP/RCP paths
        if (abs(cp(i)%typ) == 1) then
@@ -2111,7 +2108,8 @@ contains
 
           ! diagonalize hessian at the bcp/rcp, calculate starting points
           ! the third component of the hessian is up/down direction
-          evec = wrapgrd(i)
+          call grd(f(refden),cp(i)%r,2,res0_noalloc=res)
+          evec = res%hf
           call eig(evec,reval)
           if (isbcp) then
              xx = evec(:,3)
@@ -2147,7 +2145,7 @@ contains
     do i = 1, ncpcel
        if (abs(cp(cpcel(i)%idx)%typ) == 1) then
           isbcp = (cp(cpcel(i)%idx)%typ == -1)
-          call grd(f(refden),cpcel(i)%r,2,res)
+          call grd(f(refden),cpcel(i)%r,2,res0_noalloc=res)
           evec = res%hf
           call eig(evec,reval)
           if (isbcp) then
@@ -2210,16 +2208,6 @@ contains
 
     deallocate(xdis)
 
-    contains
-      function wrapgrd(i) result(hf)
-        integer, intent(in) :: i
-        real*8 :: hf(3,3)
-        type(scalar_value) :: res
-
-        call grd(f(refden),cp(i)%r,2,res)
-        hf = res%hf
-
-      end function wrapgrd
   end subroutine makegraph
 
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius

@@ -63,7 +63,7 @@ contains
 
     do it = 1, maxit
        ! Evaluate and stop criterion
-       call grd(f(refden),r,2,res)
+       call grd(f(refden),r,2,res0=res)
        if (res%gfmod < gfnormeps) then
           ier = 0
           return
@@ -162,7 +162,7 @@ contains
     xold = 10d0 ! dummy!
 
     ! properties at point
-    call grd(fid,xpoint,2,res)
+    call grd(fid,xpoint,2,res0=res)
 
     do nstep = 1, mstep
        ! tasks in crystallographic
@@ -355,7 +355,7 @@ contains
 
        ! FSAL for BS stepper
        if (NAV_stepper /= NAV_stepper_bs) then
-          call grd(fid,xtemp,2,res)
+          call grd(fid,xtemp,2,res0=res)
        end if
 
        ! poor man's adaptive step size in Euler
@@ -430,7 +430,7 @@ contains
     real*8 :: ak2(3)
 
     xerr = xpoint + h0 * grdt
-    call grd(fid,xerr,2,res)
+    call grd(fid,xerr,2,res0=res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
     xerr = xout - xerr
@@ -453,19 +453,19 @@ contains
     ak1 = grdt
 
     xout = xpoint + h0 * (0.5d0*ak1)
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak2 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (2d0/9d0*ak1 + 1d0/3d0*ak2 + 4d0/9d0*ak3)
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak4 = res%gf / (res%gfmod+VSMALL)
 
     xerr = xpoint + h0 * (7d0/24d0*ak1 + 1d0/4d0*ak2 + 1d0/3d0*ak3 + 1d0/8d0*ak4) - xout
@@ -494,23 +494,23 @@ contains
     
     xout = xpoint + h0*B21*grdt
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B31*grdt+B32*ak2)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B41*grdt+B42*ak2+B43*ak3)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B51*grdt+B52*ak2+B53*ak3+B54*ak4)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B61*grdt+B62*ak2+B63*ak3+B64*ak4+B65*ak5)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(C1*grdt+C3*ak3+C4*ak4+C6*ak6)
     xerr = h0*(DC1*grdt+DC3*ak3+DC4*ak4+DC5*ak5+DC6*ak6)
@@ -546,27 +546,27 @@ contains
 
     xout = xpoint + h0*dp_a(2,1)*grdt
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(3,1)*grdt+dp_a(3,2)*ak2)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(4,1)*grdt+dp_a(4,2)*ak2+dp_a(4,3)*ak3)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(5,1)*grdt+dp_a(5,2)*ak2+dp_a(5,3)*ak3+dp_a(5,4)*ak4)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(6,1)*grdt+dp_a(6,2)*ak2+dp_a(6,3)*ak3+dp_a(6,4)*ak4+dp_a(6,5)*ak5)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_b(1)*grdt+dp_b(2)*ak2+dp_b(3)*ak3+dp_b(4)*ak4+dp_b(5)*ak5+dp_b(6)*ak6)
 
-    call grd(fid,xout,2,res)
+    call grd(fid,xout,2,res0=res)
     ak7 = res%gf / (res%gfmod+VSMALL)
     xerr = h0*(dp_c(1)*grdt+dp_c(2)*ak2+dp_c(3)*ak3+dp_c(4)*ak4+dp_c(5)*ak5+dp_c(6)*ak6+dp_c(7)*ak7)
     xout = xout + xerr

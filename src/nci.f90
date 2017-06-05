@@ -43,11 +43,11 @@ contains
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
     use tools_math, only: eig
-    use types, only: field, scalar_value, fragment, realloc
+    use types, only: field, scalar_value_noalloc, fragment, realloc
     use param, only: pi, vsmall, bohrtoa
 
     type(field) :: fgrho, fxx(3)
-    type(scalar_value) :: res, resg
+    type(scalar_value_noalloc) :: res, resg
     character(len=:), allocatable :: line, word, oname, file
     logical :: ok, ok2
     integer :: lp, istat
@@ -498,11 +498,11 @@ contains
 
                  ! calculate properties at x: rho and rdg
                  if (f(refden)%type == type_grid.and..not.usecore) then
-                    call grd(f(refden),x,0,res)
-                    call grd(fgrho,x,0,resg)
+                    call grd(f(refden),x,0,res0_noalloc=res)
+                    call grd(fgrho,x,0,res0_noalloc=resg)
                     dimgrad = resg%f / (const*max(res%f,vsmall)**fthirds)
                     do l = 1, 3
-                       call grd(fxx(l),x,0,resg)
+                       call grd(fxx(l),x,0,res0_noalloc=resg)
                        ehess(l) = resg%f
                     end do
                     if (count(ehess > 0d0) >= 2) then
@@ -513,7 +513,7 @@ contains
                  else
                     ! strangely enough, eig takes about the same time as counting the signs
                     ! and using sylvester's law of inertia. 
-                    call grd(f(refden),x,2,res)
+                    call grd(f(refden),x,2,res0_noalloc=res)
                     call eig(res%hf,ehess)
                     dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)           
                  end if
