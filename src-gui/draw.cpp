@@ -28,8 +28,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // GUI global variables //
 // Bond and atom resolutions (0 = coarse -> 3 = smooth)
-static void drawstick(Pipeline *p, GLuint shad, const c_stick *s);
-static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal);
+static void drawstick(Pipeline *p, GLuint shad, const c2::c_stick *s);
+static void drawball(Pipeline *p, GLuint shad, const c2::c_ball *b, float scal);
 
 // draw all the scene elements
 void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window){
@@ -37,23 +37,23 @@ void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window){
   glEnableVertexAttribArray(0);
 
   if (settings.show_bonds){
-    for (int i=0; i<nbond; i++){
-      drawstick(p, shad, &(bond[i].s));
+    for (int i=0; i<c2::nbond; i++){
+      drawstick(p, shad, &(c2::bond[i].s));
     }
   }
   if (settings.show_atoms){
-    for (int i=0; i<nat; i++){
-      drawball(p, shad, &(at[i].b), settings.atomsize);
+    for (int i=0; i<c2::nat; i++){
+      drawball(p, shad, &(c2::at[i].b), settings.atomsize);
     }
   }
   if (settings.show_cps){
-    for (int i=0; i<ncritp; i++) {
-      drawball(p, shad, &(critp[i].b), settings.cpsize);
+    for (int i=0; i<c2::ncritp; i++) {
+      drawball(p, shad, &(c2::critp[i].b), settings.cpsize);
     }
   }
   if (settings.show_cell){
-    for (int i=0; i<cell_nstick; i++) {
-      drawstick(p, shad, &(cell_s[i]));
+    for (int i=0; i<c2::cell_nstick; i++) {
+      drawstick(p, shad, &(c2::cell_s[i]));
     }
   }
 
@@ -61,7 +61,7 @@ void draw_all_elements(Pipeline *p, GLuint shad, GLFWwindow* window){
 }
 
 // draw a bond between 2 atoms defined in the bond struct
-static void drawstick(Pipeline *p, GLuint shad, const c_stick *s){
+static void drawstick(Pipeline *p, GLuint shad, const c2::c_stick *s){
   p->Scale(s->thick, s->thick, s->length);
   p->Translate(s->r2[0], s->r2[1], s->r2[2]);
   p->SetRotationMatrix(s->rot);
@@ -81,7 +81,7 @@ static void drawstick(Pipeline *p, GLuint shad, const c_stick *s){
 }
 
 // Draw a ball, with optional scaling
-static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal = 1.0){
+static void drawball(Pipeline *p, GLuint shad, const c2::c_ball *b, float scal = 1.0){
   p->Scale(b->rad * scal,b->rad * scal,b->rad * scal);
   p->Translate(b->r[0], b->r[1], b->r[2]);
 
@@ -103,7 +103,7 @@ static void drawball(Pipeline *p, GLuint shad, const c_ball *b, float scal = 1.0
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
   if (!ImGui::GetIO().WantCaptureMouse)
-    settings.cam_pos[2] += yoffset * box_xmaxlen * 0.2f;
+    settings.cam_pos[2] += yoffset * c2::box_xmaxlen * 0.2f;
   else
     ImGui_ImplGlfwGL3_ScrollCallback(window, xoffset, yoffset);
 }

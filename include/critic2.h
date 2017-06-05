@@ -3,6 +3,8 @@
 #ifndef CRITIC2_H
 #define CRITIC2_H
 
+namespace c2 {
+
 //xx// Variables made available through host association in 
 //xx// gui_interface.f90. See gui_interface.f90 for documentation.
 // sticks
@@ -24,9 +26,9 @@ extern "C" struct c_ball {
 };
 
 // glboal flags
-extern bool isinit;
-extern bool ispreview;
-extern bool ismolecule;
+extern "C" bool isinit;
+extern "C" bool ispreview;
+extern "C" bool ismolecule;
 
 // atoms
 extern "C" struct c_atom {
@@ -140,5 +142,7 @@ extern "C" void set_library_file(const char **filename,int type);
 
 // run a critic2 command
 extern "C" void run_critic2_command(char *command); 
+
+}
 
 #endif

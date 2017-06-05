@@ -638,9 +638,9 @@ void structureinfo_window(bool *p_open){
 
   // Display different information depending on the type of structure (level)
   int level;
-  if (!isinit)
+  if (!c2::isinit)
     level = 0;
-  else if (ismolecule)
+  else if (c2::ismolecule)
     level = 1;
   else
     level = 2;
@@ -668,7 +668,7 @@ void structureinfo_window(bool *p_open){
     ImGui::Text(elem_title[selected]);
     ImGui::Separator();
 
-    char *text = get_text_info(selected);
+    char *text = c2::get_text_info(selected);
     if (text){
       ImGui::TextWrapped(text);
       free(text);
@@ -682,13 +682,12 @@ void structureinfo_window(bool *p_open){
 
 // Create a new structure with user's input
 void structurenew_window(bool *p_open){
-  static struct c_crystalseed useed = {-1};
+  static struct c2::c_crystalseed useed = {-1};
   static Settings *settings0;
 
   // xxxx error incorrect space group if empty get current and then molecule
   // xxxx use the spg chooser
   // xxxx mgo 5 bonds?
-  // xxxx delete and esc keybindings
   // xxxx cartesian axes
   // xxxx molecular cell
 
@@ -715,9 +714,9 @@ void structurenew_window(bool *p_open){
     ImGui::RadioButton("Molecule", &useed.type, 0);
     ImGui::SameLine();
     if (ImGui::Button("Get Current")){
-      useed = get_seed_from_current_structure();
+      useed = c2::get_seed_from_current_structure();
       if (settings0 && useed.type != -1){
-	reject_previewed_structure();
+	c2::reject_previewed_structure();
 	settings = *settings0;
 	delete settings0;
 	settings0 = NULL;
@@ -852,11 +851,11 @@ void structurenew_window(bool *p_open){
       if (preview_structure(&useed)){
 	// save a copy of the old settings
 	if (!settings0) {
-	  settings0 = new Settings(ismolecule,box_xmaxlen);
+	  settings0 = new Settings(c2::ismolecule,c2::box_xmaxlen);
 	  *settings0 = settings;
 	}
 	// settings for the previewed crystal
-	settings.set_flags_and_cam(useed.type == 0,box_xmaxlen,box_xmaxclen);
+	settings.set_flags_and_cam(useed.type == 0,c2::box_xmaxlen,c2::box_xmaxclen);
 	settings.preview_mode = true;
       } 
     }
@@ -865,12 +864,12 @@ void structurenew_window(bool *p_open){
     if (ImGui::Button("OK")) {
       if (new_structure(&useed,false)){
 	if (settings0){
-	  accept_previewed_structure();
+	  c2::accept_previewed_structure();
 	  delete settings0;
 	  settings0 = NULL;
 	}
 	else{
-	  settings.set_flags_and_cam(useed.type == 0,box_xmaxlen,box_xmaxclen);
+	  settings.set_flags_and_cam(useed.type == 0,c2::box_xmaxlen,c2::box_xmaxclen);
 	}
 	*p_open = false;
 	settings.preview_mode = false;
@@ -889,7 +888,7 @@ void structurenew_window(bool *p_open){
   if (!*p_open || doclear){
     useed = {-1};
     if (settings0){
-      reject_previewed_structure();
+      c2::reject_previewed_structure();
       settings = *settings0;
       delete settings0;
       settings0 = NULL;
@@ -956,8 +955,8 @@ void structureopen_window(int *p_open){
 
   if (strlen(filename) > 0){
     // Clean up previous and initialize the structure
-    open_structure(&filename, *p_open == 1); 
-    settings.set_flags_and_cam(*p_open == 1,box_xmaxlen,box_xmaxclen);
+    c2::open_structure(&filename, *p_open == 1); 
+    settings.set_flags_and_cam(*p_open == 1,c2::box_xmaxlen,c2::box_xmaxclen);
 
     // Close the dialog
     firstpass = true;
@@ -977,7 +976,7 @@ void console_window(bool *p_open){
     ImGui::SameLine();
     ImGui::SetKeyboardFocusHere();
     if (ImGui::InputText("###inputconsole", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
-      run_critic2_command(command);
+      c2::run_critic2_command(command);
       command[0] = '\0';
       *p_open = false;
     }

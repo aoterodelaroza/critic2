@@ -59,10 +59,10 @@ void show_menu_bar(){
 	if (ImGui::MenuItem("Choose file"))
 	  getfile = 1;
 	ImGui::Separator();
-	for (int i = 0; i < nlib_crys; i++){
-	  if (ImGui::MenuItem(lib_crys[i])){
-	    open_structure_from_library(i+1,0);
-	    settings.set_flags_and_cam(false,box_xmaxlen,box_xmaxclen);
+	for (int i = 0; i < c2::nlib_crys; i++){
+	  if (ImGui::MenuItem(c2::lib_crys[i])){
+	    c2::open_structure_from_library(i+1,0);
+	    settings.set_flags_and_cam(false,c2::box_xmaxlen,c2::box_xmaxclen);
 	  }
 	}
 	ImGui::EndMenu();
@@ -73,10 +73,10 @@ void show_menu_bar(){
 	if (ImGui::MenuItem("Choose file"))
 	  getfile = 2;
 	ImGui::Separator();
-	for (int i = 0; i < nlib_mol; i++){
-	  if (ImGui::MenuItem(lib_mol[i])){
-	    open_structure_from_library(i+1,1);
-	    settings.set_flags_and_cam(true,box_xmaxlen,box_xmaxclen);
+	for (int i = 0; i < c2::nlib_mol; i++){
+	  if (ImGui::MenuItem(c2::lib_mol[i])){
+	    c2::open_structure_from_library(i+1,1);
+	    settings.set_flags_and_cam(true,c2::box_xmaxlen,c2::box_xmaxclen);
 	  }
 	}
 	ImGui::EndMenu();
@@ -88,7 +88,7 @@ void show_menu_bar(){
       ImGui::Separator();
 
       if (ImGui::MenuItem("Close","Ctrl+W",false,!settings.preview_mode)) 
-	clear_scene(true);
+	c2::clear_scene(true);
       AttachTooltip("Clear the current structure.\n",ttipdelay,&time0,&reset);
 
       if (ImGui::MenuItem("Quit","Ctrl+Q")){settings.want_quit = true;}
@@ -100,7 +100,7 @@ void show_menu_bar(){
     }
     if (ImGui::BeginMenu("Calculate")) {
       if (ImGui::MenuItem("Generate Critical Points",NULL,false,!settings.preview_mode)) 
-	call_auto();
+	c2::call_auto();
       AttachTooltip("Calculate the critical points.\nBleh and Blah!\n",ttipdelay,&time0,&reset);
       ImGui::EndMenu();
     }
@@ -141,7 +141,7 @@ void show_menu_bar(){
       getfile = 0;
     }
     if (strlen(filename) > 0){
-      set_library_file(&filename, getfile); 
+      c2::set_library_file(&filename, getfile); 
       firstpass = true;
       getfile = 0;
     }

@@ -49,7 +49,7 @@ using namespace std;
 int main(int argc, char *argv[])
 {
   // Initialize the critic2 library
-  critic2_initialize();
+  c2::critic2_initialize();
 
   // Create the window and connect callbacks; initialize glfw/gl3w
   if (!glfwInit())
@@ -91,8 +91,8 @@ int main(int argc, char *argv[])
     string argall = "";
     for(int i=1;i<argc;i++)
       argall = argall + argv[i] + " ";
-    open_structure((const char **) &argall, -1);
-    settings.set_flags_and_cam(ismolecule,box_xmaxlen,box_xmaxclen);
+    c2::open_structure((const char **) &argall, -1);
+    settings.set_flags_and_cam(c2::ismolecule,c2::box_xmaxlen,c2::box_xmaxclen);
   }
 
   // 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_Q])
       settings.want_quit = true;
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_W])
-      clear_scene(true);
+      c2::clear_scene(true);
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_N] && !structurenew_window_h)
       structurenew_window_h = true;
     if (io.KeyCtrl && io.KeysDown[GLFW_KEY_O] && !structureopen_window_h)
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
   glfwTerminate();
 
   // Terminate the critic2 run
-  critic2_end();
+  c2::critic2_end();
 
   return 0;
 }
