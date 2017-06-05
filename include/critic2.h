@@ -138,4 +138,7 @@ extern "C" struct c_crystalseed  get_seed_from_current_structure(void);
 // set the library file
 extern "C" void set_library_file(const char **filename,int type); 
 
+// run a critic2 command
+extern "C" void run_critic2_command(char *command); 
+
 #endif

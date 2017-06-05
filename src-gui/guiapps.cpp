@@ -968,11 +968,16 @@ void structureopen_window(int *p_open){
 void console_window(bool *p_open){
   static char command[2048] = "";
 
-  ImGui::SetNextWindowSize(ImVec2(520,600), ImGuiSetCond_FirstUseEver);
-  ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiSetCond_Once);
-  if (ImGui::Begin("",NULL,ImVec2(200.,200.),0.0,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings)){
-    if (ImGui::InputText("Input", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
-      printf("command: %s\n",command);
+  ImGuiIO& io = ImGui::GetIO();
+
+  ImGui::SetNextWindowPos(ImVec2(10,io.DisplaySize.y-2*ImGui::GetTextLineHeightWithSpacing()));
+  ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x,ImGui::GetTextLineHeightWithSpacing()));
+  if (ImGui::Begin("",NULL,ImVec2(0.f,0.f),0.0,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings)){
+    ImGui::Text("Input:");
+    ImGui::SameLine();
+    ImGui::SetKeyboardFocusHere();
+    if (ImGui::InputText("###inputconsole", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
+      run_critic2_command(command);
       command[0] = '\0';
       *p_open = false;
     }
