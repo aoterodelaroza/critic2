@@ -2094,13 +2094,16 @@ contains
     real*8, allocatable :: xdis(:,:,:)
 
     real*8, parameter :: change = 1d-2
-
     integer, parameter :: CP_mstep = 40000
 
     allocate(xdis(3,2,ncp))
+    xdis = 0d0
 
     ! run over known non-equivalent cps  
-    !$omp parallel do private(isbcp,res,evec,reval,idir,xdtemp,nstep,ier,xx) schedule(dynamic)
+    ! note: the behavior of openmp 3.0 for user-defined types with allocatable components
+    ! is not defined. Passing "res" as private breaks ifort 14 and 15 (but not earlier
+    ! versions). Hence, wrapgrd.
+    !$omp parallel do private(isbcp,evec,reval,idir,xdtemp,nstep,ier,xx) schedule(dynamic)
     do i = 1, ncp
        ! BCP/RCP paths
        if (abs(cp(i)%typ) == 1) then
@@ -2108,8 +2111,7 @@ contains
 
           ! diagonalize hessian at the bcp/rcp, calculate starting points
           ! the third component of the hessian is up/down direction
-          call grd(f(refden),cp(i)%r,2,res)
-          evec = res%hf
+          evec = wrapgrd(i)
           call eig(evec,reval)
           if (isbcp) then
              xx = evec(:,3)
@@ -2208,6 +2210,16 @@ contains
 
     deallocate(xdis)
 
+    contains
+      function wrapgrd(i) result(hf)
+        integer, intent(in) :: i
+        real*8 :: hf(3,3)
+        type(scalar_value) :: res
+
+        call grd(f(refden),cp(i)%r,2,res)
+        hf = res%hf
+
+      end function wrapgrd
   end subroutine makegraph
 
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
