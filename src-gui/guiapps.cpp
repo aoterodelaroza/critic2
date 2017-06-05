@@ -39,6 +39,7 @@ static int spg_choose_menu(int mode);
 bool structureinfo_window_h = false;
 bool structurenew_window_h = false; 
 int structureopen_window_h = 0; // 0 - hidden, 1 - molecule, 2 - crystal
+bool console_window_h = false;
 
 // space group types
 static const struct {
@@ -590,6 +591,7 @@ void guiapps_process_handles(){
     structureinfo_window_h = false;
     structurenew_window_h = false;
     structureopen_window_h = false;
+    console_window_h = false;
     if (settings.preview_mode)
       structurenew_window(&structurenew_window_h);
     settings.close_all_windows = false;
@@ -599,6 +601,7 @@ void guiapps_process_handles(){
   if (structureinfo_window_h) structureinfo_window(&structureinfo_window_h);
   if (structurenew_window_h) structurenew_window(&structurenew_window_h);
   if (structureopen_window_h > 0) structureopen_window(&structureopen_window_h);
+  if (console_window_h) console_window(&console_window_h);
 
   // overlay showing the current mode
   if (settings.preview_mode){
@@ -962,3 +965,17 @@ void structureopen_window(int *p_open){
   }
 }
 
+void console_window(bool *p_open){
+  static char command[2048] = "";
+
+  ImGui::SetNextWindowSize(ImVec2(520,600), ImGuiSetCond_FirstUseEver);
+  ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiSetCond_Once);
+  if (ImGui::Begin("",NULL,ImVec2(200.,200.),0.0,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings)){
+    if (ImGui::InputText("Input", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
+      printf("command: %s\n",command);
+      command[0] = '\0';
+      *p_open = false;
+    }
+    ImGui::End();
+  }
+}

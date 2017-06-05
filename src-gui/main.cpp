@@ -156,6 +156,8 @@ int main(int argc, char *argv[])
       structureopen_window_h = 1;
     if (io.KeysDown[GLFW_KEY_ESCAPE])
       settings.close_all_windows = true;
+    if (io.KeysDown[GLFW_KEY_GRAVE_ACCENT])
+      console_window_h = true;
 
     // handle quit signal
     if (settings.want_quit)

@@ -120,6 +120,9 @@ void show_menu_bar(){
       if (ImGui::MenuItem("Show structure information","",structureinfo_window_h)) {structureinfo_window_h = !structureinfo_window_h;}
       AttachTooltip("Show information about the current structure.\n",ttipdelay,&time0,&reset);
 
+      if (ImGui::MenuItem("Console","~",console_window_h)) {console_window_h = !console_window_h;}
+      AttachTooltip("Toggle the critic2 console.\n",ttipdelay,&time0,&reset);
+
       ImGui::Separator();
       if (ImGui::MenuItem("Close all windows","ESC")){settings.close_all_windows = true;}
       AttachTooltip("Close all open windows.\n",ttipdelay,&time0,&reset);
