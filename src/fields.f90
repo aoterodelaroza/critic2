@@ -60,6 +60,9 @@ module fields
   public :: fieldinfo
   public :: fields_fcheck
   public :: fields_feval
+  private :: der1i
+  private :: der2ii
+  private :: der2ij
 
   ! integrable properties
   integer, public :: nprops
@@ -87,6 +90,10 @@ module fields
 
   ! eps to move to the main cell
   real*8, parameter :: flooreps = 1d-4 ! border around unit cell
+
+  ! numerical differentiation
+  real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
+  integer, parameter :: ndif_jmax = 10
 
 contains
 
@@ -1764,7 +1771,7 @@ contains
     use arithmetic, only: eval
     use types, only: scalar_value, scalar_value_noalloc
     use tools_io, only: ferror, faterr
-    use tools_math, only: ndif_jmax, der1i, der2ii, der2ij, norm
+    use tools_math, only: norm
     type(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate
@@ -2667,7 +2674,6 @@ contains
   !> Evaluate the field at a point. Wrapper around grd() to pass it to
   !> the arithmetic module.  This routine is thread-safe.
   recursive function fields_feval(id,nder,x0,periodic)
-    use ewald, only: ewald_pot
     use crystalmod, only: cr
     use types, only: scalar_value
     use param, only: sqpi, pi
@@ -2686,7 +2692,7 @@ contains
        call grd(f(iid),x0,nder,periodic,res0=fields_feval)
     elseif (trim(id) == "ewald") then
        xp = cr%c2x(x0)
-       fields_feval%f = ewald_pot(xp,.false.)
+       fields_feval%f = cr%ewald_pot(xp,.false.)
        fields_feval%fval = fields_feval%f
        fields_feval%gf = 0d0
        fields_feval%gfmod = 0d0
@@ -2717,7 +2723,7 @@ contains
        iid = 0
        xp = cr%c2x(x0)
        call cr%nearest_atom(xp,iid,dist,lvec)
-       fields_feval%f = ewald_pot(xp,.false.) + cr%qsum * cr%eta**2 * pi / cr%omega 
+       fields_feval%f = cr%ewald_pot(xp,.false.) + cr%qsum * cr%eta**2 * pi / cr%omega 
        if (dist < rc .and. dist > 1d-6) then ! correlates with the value in the ewald routine
           u = dist/rc
           fields_feval%f = fields_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 1d0 / dist
@@ -2736,4 +2742,234 @@ contains
 
   end function fields_feval
 
+  !> Function derivative using finite differences and Richardson's
+  !> extrapolation formula. This routine is thread-safe.
+  function der1i (dir, x, h, errcnv, pool, fld, grd0, periodic)
+    use types, only: field
+
+    real*8 :: der1i
+    real*8, intent(in) :: dir(3)
+    real*8, intent(in) :: x(3), h, errcnv
+    real*8, intent(inout) :: pool(-ndif_jmax:ndif_jmax)
+    type(field), intent(inout) :: fld
+    logical, intent(in), optional :: periodic
+    interface
+       function grd0(f,v,periodic)
+         use types
+         type(field), intent(inout) :: f
+         real*8, intent(in) :: v(3)
+         real*8 :: grd0
+         logical, intent(in), optional :: periodic
+       end function grd0
+    end interface
+
+    real*8 :: err
+    real*8 :: ww, hh, erract, n(ndif_jmax,ndif_jmax)
+    real*8 :: f, fp, fm
+    integer :: i, j
+    integer :: nh
+
+    der1i = 0d0
+    nh = 0
+    hh = h
+    if (pool(nh+1) == 0d0) then
+       f = grd0(fld,x+dir*hh,periodic)
+       pool(nh+1) = f
+    else
+       f = pool(nh+1)
+    end if
+    fp = f
+    if (pool(nh+1) == 0d0) then
+       f = grd0(fld,x-dir*hh,periodic)
+       pool(-nh-1) = f
+    else
+       f = pool(-nh-1)
+    end if
+    fm = f
+    n(1,1) = (fp - fm) / (hh+hh)
+
+    err = big
+    do j = 2, ndif_jmax
+       hh = hh / derw
+       nh = nh + 1
+       if (pool(nh+1) == 0d0) then
+          f = grd0(fld,x+dir*hh,periodic)
+          pool(nh+1) = f
+       else
+          f = pool(nh+1) 
+       end if
+       fp = f
+       if (pool(-nh-1) == 0d0) then
+          f = grd0(fld,x-dir*hh,periodic)
+          pool(-nh-1) = f
+       else
+          f = pool(-nh-1) 
+       end if
+       fm = f
+       n(1,j) = (fp - fm) / (hh+hh)
+       ww = derw2
+       do i = 2, j
+          n(i,j) = (ww*n(i-1,j)-n(i-1,j-1))/(ww-1d0)
+          ww = ww * derw2
+          erract = max (abs(n(i,j)-n(i-1,j)), abs(n(i,j)-n(i-1,j-1)))
+          if (erract.le.err) then
+             err = erract
+             der1i = n(i,j)
+          endif
+       enddo
+       if ( abs(n(j,j)-n(j-1,j-1)) .gt. safe*err .or. err .le. errcnv ) return
+    enddo
+
+  end function der1i
+
+  !> Function second derivative using finite differences and
+  !> Richardson's extrapolation formula. This routine is thread-safe.
+  function der2ii (dir, x, h, errcnv, pool, fld, grd0, periodic)
+    use types, only: field
+    real*8 :: der2ii
+    real*8, intent(in) :: dir(3)
+    real*8, intent(in) :: x(3), h, errcnv
+    real*8, intent(inout) :: pool(-ndif_jmax:ndif_jmax)
+    type(field), intent(inout) :: fld
+    logical, intent(in), optional :: periodic
+    interface
+       function grd0(f,v,periodic)
+         use types
+         type(field), intent(inout) :: f
+         real*8, intent(in) :: v(3)
+         real*8 :: grd0
+         logical, intent(in), optional :: periodic
+       end function grd0
+    end interface
+
+    real*8 :: err
+
+    real*8 :: ww, hh, erract, n(ndif_jmax, ndif_jmax)
+    real*8 :: fx, fp, fm, f
+    integer :: i, j
+    integer :: nh
+
+    der2ii = 0d0
+    nh = 0
+    hh = h
+    if (pool(nh) == 0d0) then
+       f = grd0(fld,x,periodic)
+       pool(nh) = f
+    else
+       f = pool(nh)
+    end if
+    fx = 2 * f
+    if (pool(nh-1) == 0d0) then
+       f = grd0(fld,x-dir*(hh+hh),periodic)
+       pool(nh-1) = f
+    else
+       f = pool(nh-1)
+    end if
+    fm = f
+    if (pool(nh+1) == 0d0) then
+       f = grd0(fld,x+dir*(hh+hh),periodic)
+       pool(nh+1) = f
+    else
+       f = pool(nh+1)
+    end if
+    fp = f
+    n(1,1) = (fp - fx + fm) / (4d0*hh*hh)
+    err = big
+    do j = 2, ndif_jmax
+       hh = hh / derw
+       nh = nh + 1
+       if (pool(nh+1) == 0d0) then
+          f = grd0(fld,x-dir*(hh+hh),periodic)
+          pool(nh+1) = f
+       else
+          f = pool(nh+1)
+       end if
+       fm = f
+       if (pool(-nh-1) == 0d0) then
+          f = grd0(fld,x+dir*(hh+hh),periodic)
+          pool(-nh-1) = f
+       else
+          f = pool(-nh-1)
+       end if
+       fp = f
+       n(1,j) = (fp - fx + fm) / (4d0*hh*hh)
+       ww = derw2
+       erract = 0d0
+       do i = 2, j
+          n(i,j) = (ww*n(i-1,j)-n(i-1,j-1))/(ww-1d0)
+          ww = ww * derw2
+          erract = max (abs(n(i,j)-n(i-1,j)), abs(n(i,j)-n(i-1,j-1)))
+          if (erract.le.err) then
+             err = erract
+             der2ii = n(i,j)
+          endif
+       enddo
+       if (erract .gt. safe*err .or. err .le. errcnv) return
+    enddo
+    return
+  end function der2ii
+
+  !> Function mixed second derivative using finite differences and
+  !> Richardson's extrapolation formula. This routine is thread-safe.
+  function der2ij (dir1, dir2, x, h1, h2, errcnv, fld, grd0, periodic)
+    use types, only: field
+    real*8 :: der2ij
+    real*8, intent(in) :: dir1(3), dir2(3)
+    real*8, intent(in) :: x(3), h1, h2, errcnv
+    type(field), intent(inout) :: fld
+    logical, intent(in), optional :: periodic
+    interface
+       function grd0(f,v,periodic)
+         use types
+         type(field), intent(inout) :: f
+         real*8, intent(in) :: v(3)
+         real*8 :: grd0
+         logical, intent(in), optional :: periodic
+       end function grd0
+    end interface
+
+    real*8 :: err, fpp, fmp, fpm, fmm, f
+    real*8 :: hh1, hh2, erract, ww
+    real*8 :: n(ndif_jmax,ndif_jmax)
+    integer :: i, j
+
+    der2ij = 0d0
+    hh1 = h1
+    hh2 = h2
+    f = grd0(fld,x+dir1*hh1+dir2*hh2,periodic)
+    fpp = f
+    f = grd0(fld,x+dir1*hh1-dir2*hh2,periodic)
+    fpm = f
+    f = grd0(fld,x-dir1*hh1+dir2*hh2,periodic)
+    fmp = f
+    f = grd0(fld,x-dir1*hh1-dir2*hh2,periodic)
+    fmm = f
+    n(1,1) = (fpp - fmp - fpm + fmm ) / (4d0*hh1*hh2)
+    err = big
+    do j = 2, ndif_jmax
+       hh1 = hh1 / derw
+       hh2 = hh2 / derw
+       f = grd0(fld,x+dir1*hh1+dir2*hh2,periodic)
+       fpp = f
+       f = grd0(fld,x+dir1*hh1-dir2*hh2,periodic)
+       fpm = f
+       f = grd0(fld,x-dir1*hh1+dir2*hh2,periodic)
+       fmp = f
+       f = grd0(fld,x-dir1*hh1-dir2*hh2,periodic)
+       fmm = f
+       n(1,j) = (fpp - fmp - fpm + fmm) / (4d0*hh1*hh2)
+       ww = derw2
+       do i = 2, j
+          n(i,j) = (ww*n(i-1,j)-n(i-1,j-1))/(ww-1d0)
+          ww = ww * derw2
+          erract = max (abs(n(i,j)-n(i-1,j)), abs(n(i,j)-n(i-1,j-1)))
+          if (erract.le.err) then
+             err = erract
+             der2ij = n(i,j)
+          endif
+       enddo
+       if ( abs(n(j,j)-n(j-1,j-1)) .gt. safe*err .or. err .le. errcnv ) return
+    enddo
+  end function der2ij
+  
 end module fields

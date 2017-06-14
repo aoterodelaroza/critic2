@@ -154,6 +154,8 @@ module crystalmod
      procedure :: powder !< Calculate the powder diffraction pattern
      procedure :: rdf !< Calculate the radial distribution function
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
+     procedure :: ewald_energy !< electrostatic energy (Ewald)
+     procedure :: ewald_pot !< electrostatic potential (Ewald)
 
      ! unit cell transformations
      procedure :: newcell !< Change the unit cell and rebuild the crystal
@@ -2356,7 +2358,6 @@ contains
   subroutine calculate_ewald_cutoffs(c)
     use tools_io, only: ferror, faterr
     use param, only: pi, rad, sqpi, tpi
-
     class(crystal), intent(inout) :: c
 
     real*8, parameter :: sgrow = 1.4d0
@@ -2452,6 +2453,118 @@ contains
     c%lhmax = ceiling(c%aa(ia) / tpi * c%hcut)
 
   end subroutine calculate_ewald_cutoffs
+
+  !> Calculates the Ewald electrostatic energy, using the input charges.
+  function ewald_energy(c) result(ewe)
+    class(crystal), intent(inout) :: c
+    real*8 :: ewe
+
+    real*8 :: x(3)
+    integer :: i
+
+    call c%checkflags(.false.,ewald0=.true.)
+    
+    ewe = 0d0
+    do i = 1, c%nneq
+       x = c%at(i)%x
+       ewe = ewe + c%at(i)%mult * c%at(i)%qat * &
+          c%ewald_pot(x,.true.)
+    end do
+    ewe = ewe / 2d0
+
+  end function ewald_energy
+
+  !> Calculate the Ewald electrostatic potential at an arbitrary
+  !> position x (crystallographic coords.)  If x is the nucleus j,
+  !> return pot - q_j / |r-rj| at rj.
+  function ewald_pot(c,x,isnuc)
+    use param, only: tpi, pi, sqpi
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: x(3)
+    logical, intent(in) :: isnuc
+    real*8 :: ewald_pot
+
+    real*8 :: nuc_cutoff2 = 1d-14
+
+    real*8 :: rcut2, qnuc
+    integer :: i, i1, i2, i3
+    real*8 :: px(3), lvec(3), d2, d, dh
+    real*8 :: sfac_c, sfacp, bbarg
+    real*8 :: sum_real, sum_rec, sum0, sum_back
+
+    !$omp critical (fill_ewald)
+    call c%checkflags(.false.,ewald0=.true.)
+    !$omp end critical (fill_ewald)
+    
+    ! is this a nuclear position? -> get charge
+    qnuc = 0d0
+    if (isnuc) then
+       do i = 1, c%ncel
+          px = c%atcel(i)%x - x
+          d2 = dot_product(px,matmul(c%gtensor,px))
+          if (d2 < nuc_cutoff2) then
+             qnuc = c%at(c%atcel(i)%idx)%qat
+             exit
+          end if
+       end do
+    end if
+
+    ! real space sum
+    rcut2 = c%rcut * c%rcut
+    sum_real = 0
+    do i1 = -c%lrmax(1),c%lrmax(1)
+       do i2 = -c%lrmax(2),c%lrmax(2)
+          do i3 = -c%lrmax(3),c%lrmax(3)
+             lvec = real((/i1,i2,i3/),8)
+             do i = 1,c%ncel
+                px = x - c%atcel(i)%x - lvec
+                d2 = dot_product(px,matmul(c%gtensor,px))
+                if (d2 < 1d-12 .or. d2 > rcut2) cycle
+                d = sqrt(d2) / c%eta
+                sum_real = sum_real + c%at(c%atcel(i)%idx)%qat * erfc(d) / d
+             end do
+          end do
+       end do
+    end do
+    sum_real = sum_real / c%eta
+
+    ! reciprocal space sum
+    sum_rec = 0
+    do i1 = -c%lhmax(1),c%lhmax(1)
+       do i2 = -c%lhmax(2),c%lhmax(2)
+          do i3 = -c%lhmax(3),c%lhmax(3)
+             lvec = tpi * (/i1,i2,i3/)
+             dh = sqrt(dot_product(lvec,matmul(c%grtensor,lvec)))
+             if (dh < 1d-12 .or. dh > c%hcut) cycle
+             bbarg = 0.5d0 * dh * c%eta
+
+             sfac_c = 0
+             do i = 1, c%ncel
+                sfac_c = sfac_c + c%at(c%atcel(i)%idx)%qat * &
+                   cos(dot_product(lvec,x-c%atcel(i)%x))
+             end do
+             sfacp = 2d0 * sfac_c
+
+             sum_rec = sum_rec + sfacp / dh**2 * exp(-bbarg**2)
+          end do
+       end do
+    end do
+    sum_rec = sum_rec * 2d0 * pi / c%omega
+    
+    ! h = 0 term, apply only at the nucleus
+    if (isnuc) then
+       sum0 = - 2d0 * qnuc / sqpi / c%eta
+    else
+       sum0 = 0d0
+    end if
+
+    ! compensating background charge term
+    sum_back = -c%qsum * c%eta**2 * pi / c%omega 
+
+    ! sum up and exit
+    ewald_pot = sum_real + sum_rec + sum0 + sum_back
+
+  end function ewald_pot
 
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal

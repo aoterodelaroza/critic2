@@ -1306,7 +1306,6 @@ contains
     use tricks, only: trick
     use stm, only: stm_driver
     use xdm, only: xdm_driver
-    use ewald, only: ewald_energy
     use hirshfeld, only: hirsh_props_grid
     use qtree, only: qtree_integration, qtree_setsphfactor
     use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
@@ -1764,7 +1763,7 @@ contains
           return
        end if
 
-       call ewald_energy(rdum)
+       rdum = cr%ewald_energy()
        write (uout,'("* Ewald electrostatic energy (Hartree) = ",A/)') &
           string(rdum,'e',decimal=12)
 
