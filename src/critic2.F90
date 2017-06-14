@@ -42,10 +42,10 @@ program critic
      fields_integrable_report
   use varbas, only: varbas_end, varbas_identify
   use grd_atomic, only: grda_init, grda_end
-  use struct, only: struct_crystal_input, struct_newcell, struct_molcell,&
+  use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
      struct_compare, struct_environ, struct_packing, struct_atomlabel
-  use struct_basic, only: cr
+  use crystalmod, only: cr
   use wfn_private, only: wfn_end
   use pi_private, only: pi_end
   use spgs, only: spgs_init

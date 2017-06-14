@@ -18,8 +18,8 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Routines for basic crystallography computations
-module struct_basic
+! Structure class and routines for basic crystallography computations
+module crystalmod
   use spglib, only: SpglibDataset
   use types, only: atom, celatom, neighstar, fragment
   implicit none
@@ -35,41 +35,7 @@ module struct_basic
   ! other crystallography tools that are crystal-independent
   public :: search_lattice
   public :: pointgroup_info
-  ! crystal seed symmetry initialization
-  public :: spgs_wrap
   
-  !> Minimal amount of information to generate a crystal
-  type crystalseed
-     ! general
-     logical :: isused = .false. !< Is the seed being used?
-     character(len=128) :: file = "" !< Source file, if available
-     ! atoms
-     integer :: nat = 0 !< Number of atoms
-     integer :: usezname = 0 !< 0 = uninit; 1 = use z; 2 = use name; 3 = use both
-     real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
-     integer, allocatable :: z(:) !< Atomic numbers
-     character*(10), allocatable :: name(:) !< Atomic names
-     ! cell
-     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use crys2car
-     real*8 :: aa(3) !< Cell lengths (bohr)
-     real*8 :: bb(3) !< Cell angles (degrees)
-     real*8 :: crys2car(3,3) !< Crystallographic to cartesian matrix
-     ! symmetry
-     integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
-     integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
-     integer :: neqv = 0 !< Number of symmetry operations
-     integer :: ncv = 0 !< Number ofcentering vectors
-     real*8, allocatable :: cen(:,:) !< Centering vectors
-     real*8, allocatable :: rotm(:,:,:) !< Space group operations
-     ! molecular fields
-     logical :: ismolecule = .false. !< Is this a molecule?
-     logical :: cubic = .false. !< Use a cubic cell for the molecule
-     real*8 :: border = 0d0 !< border of the molecular cell (bohr)
-     logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
-     real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
-  end type crystalseed
-  public :: crystalseed
-
   !> Crystal type
   type crystal
      ! Initialization flags
@@ -197,27 +163,6 @@ module struct_basic
   ! the current crystal
   type(crystal), target :: cr
   public :: cr
-
-  ! enumeration for structure file format types
-  integer, parameter, public :: isformat_unknown = 0
-  integer, parameter, public :: isformat_cif = 1
-  integer, parameter, public :: isformat_res = 2
-  integer, parameter, public :: isformat_cube = 3
-  integer, parameter, public :: isformat_struct = 4
-  integer, parameter, public :: isformat_abinit = 5
-  integer, parameter, public :: isformat_elk = 6
-  integer, parameter, public :: isformat_qein = 7
-  integer, parameter, public :: isformat_qeout = 8
-  integer, parameter, public :: isformat_crystal = 9
-  integer, parameter, public :: isformat_xyz = 10
-  integer, parameter, public :: isformat_wfn = 11
-  integer, parameter, public :: isformat_wfx = 12
-  integer, parameter, public :: isformat_fchk = 13
-  integer, parameter, public :: isformat_molden = 14
-  integer, parameter, public :: isformat_siesta = 15
-  integer, parameter, public :: isformat_xsf = 16
-  integer, parameter, public :: isformat_gen = 17
-  integer, parameter, public :: isformat_vasp = 18
 
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
@@ -2021,6 +1966,7 @@ contains
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. 
   subroutine newcell(c,x00,t0,verbose0)
+    use crystalseedmod, only: crystalseed
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
     use param, only: pi, ctsq3
@@ -2471,6 +2417,7 @@ contains
   !> and crashfail is true, crash the program. Otherwise, return a crystal
   !> with c%isinit = false.
   subroutine struct_new(c,seed,crashfail)
+    use crystalseedmod, only: crystalseed
     use global, only: crsmall, atomeps
     use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar, matinv, &
        det, mnorm2
@@ -4274,30 +4221,4 @@ contains
 
   end subroutine pointgroup_info
 
-  !> Wrapper to the spgs module. Sets the symetry in a crystal seed. 
-  !> (including seed%havesym but not seed%findsym). If the spg
-  !> was not correct, keep havesym = 0 and do nothing else.
-  subroutine spgs_wrap(seed,spg,usespgr)
-    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m, spgs_driver
-    type(crystalseed), intent(inout) :: seed
-    character*(*), intent(in) :: spg
-    logical, intent(in) :: usespgr
-
-    if (spgs_driver(spg,usespgr)) then
-       seed%ncv = spgs_ncv
-       if (allocated(seed%cen)) deallocate(seed%cen)
-       allocate(seed%cen(3,seed%ncv))
-       seed%cen(:,1:seed%ncv) = real(spgs_cen(:,1:seed%ncv),8) / 12d0
-       seed%neqv = spgs_n
-       if (allocated(seed%rotm)) deallocate(seed%rotm)
-       allocate(seed%rotm(3,4,spgs_n))
-       seed%rotm = real(spgs_m(:,:,1:spgs_n),8)
-       seed%rotm(:,4,:) = seed%rotm(:,4,:) / 12d0
-       seed%havesym = 1
-    else
-       seed%havesym = 0
-    end if
-
-  end subroutine spgs_wrap
-
-end module struct_basic
+end module crystalmod

@@ -66,7 +66,7 @@ contains
     use fields, only: f, type_grid
     use varbas, only: cp, cpcel, ncpcel, nearest_cp
     use global, only: refden
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     integer, intent(in) :: cpid
     real*8, dimension(3), intent(in) :: xin, xfin
@@ -247,7 +247,7 @@ contains
     use fields, only: f, type_grid
     use varbas, only: cp, ncpcel, cpcel
     use global, only: refden, iunit, iunitname0, dunit0
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools, only: mergesort
     use tools_io, only: uout, string, ferror, faterr
     use types, only: minisurf
@@ -493,7 +493,7 @@ contains
     use fields, only: f, type_grid
     use varbas, only: ncp, cp, rbetadef
     use global, only: refden
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_math, only: norm
     use tools_io, only: uout, string, faterr, ferror
     use types, only: minisurf
@@ -697,7 +697,7 @@ contains
     use fields, only: f, fieldname_to_idx, goodfield
     use varbas, only: ncpcel, cpcel, ncp, cp
     use global, only: eval_next, refden, iunit, iunitname0, dunit0, fileroot
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, getword, isexpression_or_word,&
        string, uout, ioj_right
     use types, only: minisurf
@@ -987,7 +987,7 @@ contains
     use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_spheretriang,&
        minisurf_spheresphere, minisurf_write3dmodel,&
        minisurf_writebasin, minisurf_writedbasin, minisurf_close
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use fields, only: fieldname_to_idx, goodfield
     use global, only: fileroot, eval_next, dunit0, iunit
     use types, only: minisurf
@@ -1279,7 +1279,7 @@ contains
     use global, only: int_gauleg, eval_next, dunit0, int_radquad_errprop, refden,&
        int_radquad_type, int_radquad_nr, int_qags, int_radquad_abserr, &
        int_radquad_relerr, int_qng, int_qag, iunit, iunitname0
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, warning, uout, string,&
        ioj_right
     use tools_math, only: good_lebedev
@@ -1498,7 +1498,7 @@ contains
     use varbas, only: cp
     use global, only: int_gauleg, int_iasprec
     use fields, only: integ_prop, nprops
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout
     use types, only: minisurf
 
@@ -1626,7 +1626,7 @@ contains
     use varbas, only: cp
     use fields, only: integ_prop, nprops
     use global, only: int_iasprec, int_gauleg
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout
     use types, only: minisurf
 
@@ -1753,7 +1753,7 @@ contains
     use fields, only: integ_prop, f, nprops
     use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop, refden,&
        fileroot
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
 
@@ -1906,7 +1906,7 @@ contains
     use global, only: refden, int_gauleg, int_radquad_type, int_radquad_nr,&
        int_qags, int_radquad_abserr, int_radquad_relerr, int_qng, int_qag,&
        int_iasprec
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_left
 
     integer, intent(in) :: meth, ntheta, nphi, np, cpid

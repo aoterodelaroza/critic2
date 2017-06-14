@@ -37,7 +37,7 @@ contains
     use fields, only: f, GRD
     use global, only: color_allocate, qtreefac, stepsize, refden, ode_abserr,&
        killext, mpstep
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr, uout
     use types, only: scalar_value
 
@@ -296,7 +296,7 @@ contains
     use fields, only: f, grd
     use global, only: color_allocate, stepsize, refden, ode_abserr,&
        ws_origin, killext
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 
@@ -523,7 +523,7 @@ contains
     use varbas, only: nearest_cp, cpcel
     use fields, only: f, grd
     use global, only: stepsize, refden, ode_abserr, killext, ws_origin
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 

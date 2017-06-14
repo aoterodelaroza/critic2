@@ -55,7 +55,7 @@ contains
   !> are considered equal if they are within a ditsance of ratom
   !> (bohr).
   subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use fields, only: fields_fcheck, fields_feval
     use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch

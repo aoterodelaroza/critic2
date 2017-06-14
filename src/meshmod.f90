@@ -43,7 +43,7 @@ contains
   !> Driver for the generation of a molecular mesh. Uses the global
   !> MESH_type to decide the type and quality of the mesh.
   function genmesh(c) result(mesh)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: mesh_type
     use types, only: molmesh
     type(crystal), intent(inout) :: c
@@ -66,7 +66,7 @@ contains
 
   !> Generate a Becke-style molecular mesh. Only for molecules.
   function genmesh_becke(c) result(mesh)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: ferror, faterr
     use types, only: molmesh
@@ -216,7 +216,7 @@ contains
   !> This mesh is good for periodic systems because the calculation of the 
   !> weights does not involve a double sum over atoms.
   function genmesh_franchini(c,lvl) result(mesh)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: faterr, ferror
     use types, only: molmesh

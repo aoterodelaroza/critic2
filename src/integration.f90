@@ -95,7 +95,7 @@ contains
        itype_fval, itype_f, itype_lapval, itype_lap, itype_gmod, goodfield, nprops,&
        writegrid_cube, grdall
     use grid_tools, only: grid_rhoat, grid_laplacian, grid_gradrho
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, eval_next, dunit0, iunit, iunitname0, fileroot
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
        string, fclose
@@ -456,7 +456,7 @@ contains
   subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
     use yt, only: yt_weights, ytdata, ytdata_clean
     use fields, only: nprops, integ_prop, itype_mpoles, f
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden
     use tools_math, only: tosphere, genrlm_real
 
@@ -577,7 +577,7 @@ contains
     use yt, only: yt_weights
     use wfn_private, only: wfn_rho2
     use fields, only: nprops, integ_prop, itype_deloc, f, type_wfn
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden
     use tools_io, only: fopen_scratch, fclose
 
@@ -707,7 +707,8 @@ contains
     use fields, only: f, integ_prop, nprops, itype_deloc, type_grid,&
        writegrid_cube
     use grid_tools, only: get_qe_wnr
-    use struct_basic, only: cr, crystal, crystalseed
+    use crystalmod, only: cr, crystal
+    use crystalseedmod, only: crystalseed
     use global, only: refden
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
@@ -1449,7 +1450,7 @@ contains
   subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,sij,mpole)
     use fields, only: integ_prop, itype_v, itype_expr, itype_mpoles, itype_names,&
        nprops
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: iunitname0, iunit, dunit0
     use varbas, only: cp, cpcel
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
@@ -1787,7 +1788,7 @@ contains
   subroutine int_output_deloc_wfn(nattr,icp,sij)
     use fields, only: integ_prop, itype_deloc, f, type_wfn, nprops
     use wfn_private, only: wfn_rhf
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_left
     integer, intent(in) :: nattr
     integer, intent(in) :: icp(nattr)
@@ -1874,7 +1875,8 @@ contains
     use fields, only: integ_prop, itype_deloc, f, type_grid, nprops
     use global, only: iunit, iunitname0, dunit0, refden
     use fragmentmod, only: fragment_cmass
-    use struct_basic, only: cr, crystal, crystalseed
+    use crystalmod, only: cr, crystal
+    use crystalseedmod, only: crystalseed
     use tools, only: qcksort
     use tools_io, only: uout, string, ioj_left, ioj_right, fopen_read,&
        fopen_write, fclose
@@ -2214,7 +2216,7 @@ contains
   !> number, if the CP is an atom).
   subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
     use varbas, only: cp, cpcel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: string, ioj_left, ioj_center
     integer, intent(in) :: i
     integer, intent(in) :: icp
@@ -2254,7 +2256,7 @@ contains
   subroutine int_reorder_gridout(c,ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
     use autocp, only: addcp
     use varbas, only: ncpcel, cpcel, nearest_cp
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: ferror, faterr, fopen_scratch, fclose
     use types, only: field, realloc
 
@@ -2392,7 +2394,7 @@ contains
   !> luw: logical unit for YT weights.
   subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
     use global, only: fileroot
-    use struct_basic, only: cr, crystal
+    use crystalmod, only: cr, crystal
     use struct_writers, only: struct_write_3dmodel
     use graphics, only: graphics_open, graphics_close, graphics_polygon
     use tools_math, only: crys2car_from_cellpar, matinv

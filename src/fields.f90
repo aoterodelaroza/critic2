@@ -233,7 +233,7 @@ contains
     use wfn_private, only: wfn_read_wfn, wfn_register_struct, wfn_read_fchk, wfn_read_molden,&
        wfn_read_wfx
     use pi_private, only: pi_read_ion, pi_register_struct, fillinterpol
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use grid_tools, only: mode_tricubic, grid_read_cube, grid_read_abinit, grid_read_siesta,&
        grid_read_vasp, grid_read_qub, grid_read_xsf, grid_read_elk, grid_rhoat, &
        grid_laplacian, grid_gradrho, grid_read_unk, grid_read_unkgen
@@ -994,7 +994,7 @@ contains
   !> Calculates the properties of the scalar field f at point x0 and fills the
   !> blanks.
   subroutine fields_propty(id,x0,res,verbose,allfields)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: cp_hdegen
     use tools_math, only: rsindex
     use tools_io, only: uout, string
@@ -1465,7 +1465,7 @@ contains
   !> unit cell. If x00 is given, use it as the origin of the cube
   !> (in bohr). Otherwise, use the crystal's molx0.
   subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
     use param, only: eye
@@ -1536,7 +1536,7 @@ contains
   !> the grid in 3D array form (g), the filename (file), and whether
   !> to write the whole cube or only the header (onlyheader). 
   subroutine writegrid_vasp(c,g,file,onlyheader)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa, maxzat0
 
@@ -1646,7 +1646,7 @@ contains
   !> the syntax was OK. dormt is true in output if the MT test
   !> discontinuity test needs to be run for elk/wien2k fields.
   subroutine setfield(ff,fid,line,oksyn,dormt)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use grid_tools, only: mode_nearest, mode_tricubic, mode_trilinear, mode_trispline
     use global, only: eval_next
     use tools_io, only: faterr, ferror, string, lgetword, equal, &
@@ -1755,7 +1755,7 @@ contains
   recursive subroutine grd(f,v,nder,periodic,res0,res0_noalloc)
     use grd_atomic, only: grda_promolecular
     use grid_tools, only: grinterp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use dftb_private, only: dftb_rho2
     use wfn_private, only: wfn_rho2
     use pi_private, only: pi_rho2
@@ -2050,7 +2050,7 @@ contains
   recursive function grd0(f,v,periodic)
     use grd_atomic, only: grda_promolecular
     use grid_tools, only: grinterp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use dftb_private, only: dftb_rho2
     use wfn_private, only: wfn_rho2
     use pi_private, only: pi_rho2
@@ -2165,7 +2165,7 @@ contains
   !> Do a benchmark of the speed of the external module in calculating grd and grdall
   !> by using npts random points in the unit cell.
   subroutine benchmark(npts)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden
     use tools_io, only: uout
     use types, only: scalar_value
@@ -2276,7 +2276,7 @@ contains
 
   ! test the muffin tin discontinuity
   subroutine testrmt(id,ilvl)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     ! use global
     use tools_io, only: uout, ferror, warning, string, fopen_write, fclose
     use wien_private, only: wien_rmt_atom
@@ -2504,7 +2504,7 @@ contains
   !> Write information about the field to the standard output.  isload
   !> = show load-time information, isset = show flags for this field.
   subroutine fieldinfo(id,isload,isset)
-    use struct_basic
+    use crystalmod
     use global, only: dunit0, iunit, iunitname0
     use tools_io
     integer, intent(in) :: id
@@ -2668,7 +2668,7 @@ contains
   !> the arithmetic module.  This routine is thread-safe.
   recursive function fields_feval(id,nder,x0,periodic)
     use ewald, only: ewald_pot
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: scalar_value
     use param, only: sqpi, pi
     type(scalar_value) :: fields_feval

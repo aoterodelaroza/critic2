@@ -18,8 +18,8 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Geometry of the crystal: variables and tools.
-module struct
+! Driver routines for structure operations
+module struct_drivers
   implicit none
 
   private
@@ -45,24 +45,18 @@ contains
   !> allow the program to read the following input lines to parse
   !> the crystal/molecule environment.
   subroutine struct_crystal_input(c,line,mol0,allownofile) 
-    use struct_basic, only: isformat_cif, isformat_res,&
+    use crystalmod, only: crystal
+    use param, only: maxzat0, isformat_cif, isformat_res,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
-       isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp,&
-       crystal, crystalseed
-    use struct_readers, only: struct_read_cif, struct_read_res, struct_read_cube,&
-       struct_read_wien, struct_read_wien, struct_read_potcar, struct_read_vasp,&
-       struct_read_abinit, struct_read_elk, struct_read_qeout, struct_read_qein,&
-       struct_read_crystalout,&
-       struct_read_library, struct_read_mol, struct_read_siesta, struct_read_dftbp,&
-       struct_read_xsf, parse_crystal_env, parse_molecule_env, is_espresso, &
-       struct_detect_format
+       isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp
+    use crystalseedmod, only: crystalseed, struct_detect_format, &
+       struct_read_potcar
     use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
        iunitname0, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, lower
-    use param, only: maxzat0
     character*(*), intent(in) :: line
     integer, intent(in) :: mol0
     type(crystal), intent(inout) :: c
@@ -100,16 +94,16 @@ contains
 
     ! build the seed
     if (isformat == isformat_cif) then
-       seed = struct_read_cif(word,word2,mol)
+       call seed%read_cif(word,word2,mol)
 
     elseif (isformat == isformat_res) then
-       seed = struct_read_res(word,mol)
+       call seed%read_res(word,mol)
 
     elseif (isformat == isformat_cube) then
-       seed = struct_read_cube(word,mol)
+       call seed%read_cube(word,mol)
 
     elseif (isformat == isformat_struct) then
-       seed = struct_read_wien(word,mol)
+       call seed%read_wien(word,mol)
 
     elseif (isformat == isformat_vasp) then
        if (index(word2,'POTCAR') > 0) then
@@ -132,24 +126,24 @@ contains
              word2 = getword(line,lp)
           end do
        end if
-       seed = struct_read_vasp(word,ntyp,ztyp,mol)
+       call seed%read_vasp(word,ntyp,ztyp,mol)
 
     elseif (isformat == isformat_abinit) then
-       seed = struct_read_abinit(word,mol)
+       call seed%read_abinit(word,mol)
 
     elseif (isformat == isformat_elk) then
-       seed = struct_read_elk(word,mol)
+       call seed%read_elk(word,mol)
 
     elseif (isformat == isformat_qeout) then
        ok = isinteger(istruct,word2,lp2)
        if (.not.ok) istruct = 0
-       seed = struct_read_qeout(word,mol,istruct)
+       call seed%read_qeout(word,mol,istruct)
 
     elseif (isformat == isformat_crystal) then
-       seed = struct_read_crystalout(word,mol)
+       call seed%read_crystalout(word,mol)
 
     elseif (isformat == isformat_qein) then
-       seed = struct_read_qein(word,mol)
+       call seed%read_qein(word,mol)
 
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
@@ -171,13 +165,13 @@ contains
           word2 = lgetword(line,lp)
        end do
 
-       seed = struct_read_mol(word,isformat,rborder,docube)
+       call seed%read_mol(word,isformat,rborder,docube)
 
     elseif (isformat == isformat_siesta) then
-       seed = struct_read_siesta(word,mol)
+       call seed%read_siesta(word,mol)
 
     elseif (isformat == isformat_xsf) then
-       seed = struct_read_xsf(word,mol)
+       call seed%read_xsf(word,mol)
 
     elseif (isformat == isformat_gen) then
        docube = .false.
@@ -196,10 +190,10 @@ contains
           lp2 = 1
           word2 = lgetword(line,lp)
        end do
-       seed = struct_read_dftbp(word,mol,rborder,docube)
+       call seed%read_dftbp(word,mol,rborder,docube)
 
     else if (equal(lower(word),'library')) then
-       seed = struct_read_library(subline,mol,ok)
+       call seed%read_library(subline,mol,ok)
        if (.not.ok) return
 
     else if (len_trim(word) < 1) then
@@ -209,10 +203,10 @@ contains
        end if
 
        if (.not.mol) then
-          seed = parse_crystal_env(uin,ok)
+          call seed%parse_crystal_env(uin,ok)
           if (.not.ok) return
        else
-          seed = parse_molecule_env(uin,ok)
+          call seed%parse_molecule_env(uin,ok)
           if (.not.ok) return
        endif
     else
@@ -237,7 +231,7 @@ contains
 
   ! use the P1 space group
   subroutine struct_clearsym()
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: atom, realloc
     use tools_io, only: uout
     use param, only: eyet
@@ -274,7 +268,7 @@ contains
   end subroutine struct_clearsym
 
   subroutine struct_charges(line,oksyn)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next
     use tools_io, only: lgetword, equal, ferror, faterr, getword, zatguess
 
@@ -349,7 +343,7 @@ contains
        struct_write_tessel, struct_write_critic, struct_write_cif, struct_write_escher,&
        struct_write_gulp, struct_write_lammps, struct_write_siesta_fdf, struct_write_siesta_in,&
        struct_write_dftbp_hsd, struct_write_dftbp_gen, struct_write_d12
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
        string
@@ -615,7 +609,7 @@ contains
 
   !> Relabel atoms based on user's input
   subroutine struct_atomlabel(c,line)
-    use struct_basic, only: cr, crystal
+    use crystalmod, only: cr, crystal
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: tab, string, nameguess, lower, ioj_center, uout
     type(crystal), intent(inout) :: c
@@ -712,7 +706,7 @@ contains
   !> Calculate the powder diffraction pattern for the current
   !structure.
   subroutine struct_powder(line,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: fileroot, eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, getword, &
        fopen_write, string, ioj_center, string, fclose
@@ -848,7 +842,7 @@ contains
   !> Calculate the radial distribution function for the current
   !> structure.
   subroutine struct_rdf(line,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: fileroot, eval_next
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
        ioj_center, getword, string, fclose
@@ -943,13 +937,14 @@ contains
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   subroutine struct_compare(line)
-    use struct_basic, only: crystal, isformat_unknown, cr
-    use struct_readers, only: struct_detect_format
+    use crystalmod, only: crystal, cr
+    use crystalseedmod, only: struct_detect_format
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
        ioj_left, string
     use types, only: realloc
+    use param, only: isformat_unknown
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, tname, difstr, diftyp
@@ -1012,7 +1007,7 @@ contains
     if (ns < 2) &
        call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr)
 
-    ! determine whether to use crystal or molecule comparison
+    ! determine whether to use crystalmod or molecule comparison
     ismol = .true.
     usedot = .false.
     do i = 1, ns
@@ -1173,7 +1168,7 @@ contains
   !> Calculate the atomic environment of a point or all the 
   !> non-equivalent atoms in the unit cell.
   subroutine struct_environ(line)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
@@ -1354,7 +1349,7 @@ contains
 
   !> Calculate the packing ratio of the crystal.
   subroutine struct_packing(line)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use param, only: atmvdw
@@ -1452,7 +1447,7 @@ contains
 
   !> Build a new crystal from the current crystal by cell transformation
   subroutine struct_newcell(line)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next
     use tools_math, only: matinv
     use tools_io, only: ferror, faterr, lgetword, equal
@@ -1566,7 +1561,7 @@ contains
 
   !> Try to determine the molecular cell from the crystal geometry
   subroutine struct_molcell(line)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: rborder_def, eval_next, dunit0, iunit
     use tools_io, only: ferror, faterr, uout, string
 
@@ -1618,4 +1613,4 @@ contains
     
   end subroutine struct_molcell
 
-end module struct
+end module struct_drivers

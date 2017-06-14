@@ -65,7 +65,7 @@ contains
     use varbas, only: cp, cpcel, ncpcel, rbetadef
     use global, only: refden, atomeps
     use fields, only: f, grd
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: scalar_value
     use varbas, only: ncp
     logical, intent(in), optional :: defer0 !< Defer the use of grd to the report
@@ -150,7 +150,7 @@ contains
     use grid_tools, only: mode_nearest, mode_trilinear
     use graphics, only: graphics_ball, graphics_close
     use struct_writers, only: struct_write_3dmodel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use surface, only: minisurf_init, minisurf_clean, minisurf_spheretriang, minisurf_close
     use fields, only: f, type_grid
     use global, only: quiet, refden, cp_hdegen, eval_next, dunit0, iunit, &
@@ -846,8 +846,9 @@ contains
   subroutine cpreport(line)
     use navigation, only: gradient, prunepath
     use fields, only: f
-    use struct, only: struct_write
-    use struct_basic, only: cr, crystal, crystalseed
+    use struct_drivers, only: struct_write
+    use crystalmod, only: cr, crystal
+    use crystalseedmod, only: crystalseed
     use global, only: eval_next, refden, prunedist
     use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
     use varbas, only: ncpcel, cp, cpcel
@@ -1005,7 +1006,7 @@ contains
   !> Calculates the neighbor environment of each non-equivalent CP.
   subroutine critshell(shmax)
     use global, only: iunit, iunitname0, dunit0
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_center
     use varbas, only: ncpcel, cp, cpcel, ncp
     integer, intent(in) :: shmax
@@ -1221,7 +1222,7 @@ contains
   ! write the short report about the non-equivalent cps
   subroutine cp_short_report()
     use fields, only: f, grd
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     use types, only: scalar_value
     use global, only: iunit, iunitname0, dunit0, refden
@@ -1596,7 +1597,7 @@ contains
   !> output to stdout. this routine directly writes the cp to the cp
   !> list if one is found.
   subroutine seed_from_simplex (simp, dim, nn, xseed)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: realloc
     real*8, intent(in) :: simp(4,3)
     integer, intent(in) :: dim
@@ -1634,7 +1635,7 @@ contains
   !> at the CP.
   subroutine addcp(x0,discexpr,itype,defer0)
     use fields, only: f, fields_fcheck, fields_feval, grd
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use arithmetic, only: eval
     use tools_math, only: norm, rsindex
     use tools_io, only: ferror, faterr, string
@@ -1825,7 +1826,7 @@ contains
 
   ! sort the non-equivalent cp list
   subroutine sortcps()
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools, only: mergesort
     use types, only: cp_type
     use varbas, only: cp, ncp, ncpcel, cpcel
@@ -1910,7 +1911,7 @@ contains
   end subroutine sortcps
 
   subroutine cp_long_report()
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     use varbas, only: ncpcel, cpcel
     integer :: i, j
@@ -1970,7 +1971,7 @@ contains
 
   subroutine cp_vlong_report()
     use fields, only: fields_propty
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string
     use types, only: scalar_value
     use global, only: iunitname0, iunit, refden
@@ -2075,7 +2076,7 @@ contains
   subroutine makegraph()
     use fields, only: f, grd
     use navigation, only: gradient
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_math, only: norm, eig
     use types, only: scalar_value_noalloc
     use varbas, only: ncp, cp, ncpcel, cpcel, nearest_cp
@@ -2213,7 +2214,7 @@ contains
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
   !> rad. 
   subroutine scale_ws(rad,wso,ntetrag,tetrag)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_math, only: norm
     real*8, intent(in) :: rad
     real*8, intent(in) :: wso(3)

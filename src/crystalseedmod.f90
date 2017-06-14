@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza,
+! Copyright (c) 2015 Alberto Otero de la Roza
 ! <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
@@ -18,47 +18,71 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! The struct_read_qein and qe_latgen routines in this module were
-! adapted from
-! Quantum ESPRESSO, version 4.3.2.
-! Copyright (C) 2002-2009 Quantum ESPRESSO group
-! This file is distributed under the terms of the
-! GNU General Public License. See the file `License'
-! in the root directory of the present distribution,
-! or http://www.gnu.org/copyleft/gpl.txt .
+! Crystal seed class. External file readers.
+module crystalseedmod
 
-!> Read the crystal structure from files in several formats
-module struct_readers
-  implicit none
   private
 
-  public :: parse_crystal_env 
-  public :: parse_molecule_env 
-  public :: struct_read_library
-  public :: struct_read_cif 
-  public :: struct_read_res 
-  public :: struct_read_cube 
-  public :: struct_read_wien 
-  public :: struct_read_vasp 
-  public :: struct_read_potcar 
-  public :: struct_read_abinit 
-  public :: struct_read_elk 
-  public :: struct_read_mol 
-  public :: struct_read_qeout 
-  public :: struct_read_qein 
-  public :: struct_read_crystalout 
-  public :: struct_read_siesta 
-  public :: struct_read_dftbp 
-  public :: struct_read_xsf 
+  !> Minimal amount of information to generate a crystal
+  type crystalseed
+     ! general
+     logical :: isused = .false. !< Is the seed being used?
+     character(len=128) :: file = "" !< Source file, if available
+     ! atoms
+     integer :: nat = 0 !< Number of atoms
+     integer :: usezname = 0 !< 0 = uninit; 1 = use z; 2 = use name; 3 = use both
+     real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
+     integer, allocatable :: z(:) !< Atomic numbers
+     character*(10), allocatable :: name(:) !< Atomic names
+     ! cell
+     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use crys2car
+     real*8 :: aa(3) !< Cell lengths (bohr)
+     real*8 :: bb(3) !< Cell angles (degrees)
+     real*8 :: crys2car(3,3) !< Crystallographic to cartesian matrix
+     ! symmetry
+     integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
+     integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
+     integer :: neqv = 0 !< Number of symmetry operations
+     integer :: ncv = 0 !< Number ofcentering vectors
+     real*8, allocatable :: cen(:,:) !< Centering vectors
+     real*8, allocatable :: rotm(:,:,:) !< Space group operations
+     ! molecular fields
+     logical :: ismolecule = .false. !< Is this a molecule?
+     logical :: cubic = .false. !< Use a cubic cell for the molecule
+     real*8 :: border = 0d0 !< border of the molecular cell (bohr)
+     logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
+     real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
+   contains
+     procedure :: parse_crystal_env 
+     procedure :: parse_molecule_env 
+     procedure :: read_library
+     procedure :: read_cif 
+     procedure :: read_res 
+     procedure :: read_cube 
+     procedure :: read_wien 
+     procedure :: read_vasp 
+     procedure :: read_abinit 
+     procedure :: read_elk 
+     procedure :: read_mol 
+     procedure :: read_qeout 
+     procedure :: read_qein 
+     procedure :: read_crystalout 
+     procedure :: read_siesta 
+     procedure :: read_dftbp 
+     procedure :: read_xsf 
+     procedure :: spgs_wrap
+  end type crystalseed
+  public :: crystalseed
+
   public :: struct_detect_format
-  public :: is_espresso
+  public :: struct_read_potcar
+  private :: is_espresso
   private :: qe_latgen
 
 contains
 
   !> Parse a crystal environment
-  function parse_crystal_env(lu,oksyn) result(seed)
-    use struct_basic, only: crystalseed, spgs_wrap
+  subroutine parse_crystal_env(seed,lu,oksyn)
     use global, only: eval_next, dunit0, iunit, iunit_isdef, iunit_bohr
     use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
@@ -67,9 +91,9 @@ contains
     use param, only: bohrtoa, pi
     use types, only: realloc
 
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
     integer, intent(in) :: lu !< Logical unit for input
     logical, intent(out) :: oksyn !< Was there a syntax error?
-    type(crystalseed) :: seed !< Crystal seed output
 
     character(len=:), allocatable :: word, aux, aexp, line
     character*255, allocatable :: sline(:)
@@ -120,7 +144,7 @@ contains
           elseif (equal(word,'bohr').or.equal(word,'au')) then
              isset = .true.
           elseif (len_trim(word) > 0) then
-             call ferror('parse_crystal_input','Unknown extra keyword in CELL',faterr,line,syntax=.true.)
+             call ferror('parse_crystal_env','Unknown extra keyword in CELL',faterr,line,syntax=.true.)
              return
           endif
           if (.not.isset) then
@@ -135,7 +159,7 @@ contains
           ascal = 1d0/dunit0(iunit)
           aux = getword(line,lp)
           if (len_trim(aux) > 0) then
-             call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+             call ferror('parse_crystal_env','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
              return
           end if
 
@@ -158,7 +182,7 @@ contains
                 ! end/endcartesian
                 aux = getword(line,lp)
                 if (len_trim(aux) > 0) then
-                   call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+                   call ferror('parse_crystal_env','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
                    return
                 end if
                 exit
@@ -180,7 +204,7 @@ contains
              end if
              aux = getword(line,lp)
              if (len_trim(aux) > 0) then
-                call ferror('parse_crystal_input','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+                call ferror('parse_crystal_env','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
                 return
              end if
           end do
@@ -256,25 +280,25 @@ contains
 
           seed%z(seed%nat) = zatguess(seed%name(seed%nat))
           if (seed%z(seed%nat) < 0) then
-             call ferror('parse_crystal_input','Unknown atomic symbol in NEQ',faterr,line,syntax=.true.)
+             call ferror('parse_crystal_env','Unknown atomic symbol in NEQ',faterr,line,syntax=.true.)
              return
           end if
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,'ang') .or. equal(word,'angstrom')) then
                 if (.not.seed%useabr /= 2) then
-                   call ferror('struct_parse_input','Need CARTESIAN for angstrom coordinates',faterr,line,syntax=.true.)
+                   call ferror('parse_crystal_env','Need CARTESIAN for angstrom coordinates',faterr,line,syntax=.true.)
                    return
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat) / bohrtoa)
              else if (equal(word,'bohr') .or. equal(word,'au')) then
                 if (.not.seed%useabr /= 2) then
-                   call ferror('struct_parse_input','Need CARTESIAN for bohr coordinates',faterr,line,syntax=.true.)
+                   call ferror('parse_crystal_env','Need CARTESIAN for bohr coordinates',faterr,line,syntax=.true.)
                    return
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat))
              else if (len_trim(word) > 0) then
-                call ferror('parse_crystal_input','Unknown keyword in NEQ',faterr,line,syntax=.true.)
+                call ferror('parse_crystal_env','Unknown keyword in NEQ',faterr,line,syntax=.true.)
                 return
              else
                 exit
@@ -284,15 +308,15 @@ contains
     end do
     aux = getword(line,lp)
     if (len_trim(aux) > 0) then
-       call ferror('parse_crystal_input','Unknown extra keyword in ENDCRYSTAL',faterr,line,syntax=.true.)
+       call ferror('parse_crystal_env','Unknown extra keyword in ENDCRYSTAL',faterr,line,syntax=.true.)
        return
     end if
     if (seed%nat == 0) then
-       call ferror('parse_crystal_input','No atoms in input',faterr,syntax=.true.)
+       call ferror('parse_crystal_env','No atoms in input',faterr,syntax=.true.)
        return
     end if
     if (seed%useabr == 0) then
-       call ferror('parse_crystal_input','No cell information given',faterr,syntax=.true.)
+       call ferror('parse_crystal_env','No cell information given',faterr,syntax=.true.)
        return
     end if
 
@@ -384,20 +408,19 @@ contains
     seed%molx0 = 0d0
     seed%file = "<input>"
 
-  end function parse_crystal_env
+  end subroutine parse_crystal_env
 
   !> Parse a molecule environment
-  function parse_molecule_env(lu,oksyn) result(seed)
+  subroutine parse_molecule_env(seed,lu,oksyn)
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
        string, isinteger, nameguess, getword, zatguess
     use param, only: bohrtoa
     use types, only: realloc
-    use struct_basic, only: crystalseed
 
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
     integer, intent(in) :: lu !< Logical unit for input
     logical, intent(out) :: oksyn !< Was there a syntax error?
-    type(crystalseed) :: seed !< Crystal seed output
 
     character(len=:), allocatable :: word, aux, line
     integer :: lp, lp2, luout, iat, iunit0
@@ -559,19 +582,18 @@ contains
       end if
     end function check_no_extra_word
 
-  end function parse_molecule_env
+  end subroutine parse_molecule_env
 
   !> Read a structure from the critic2 structure library
-  function struct_read_library(line,mol,oksyn) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_library(seed,line,mol,oksyn)
     use global, only: mlib_file, clib_file
     use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
        equal, getword, fclose
 
+    class(crystalseed), intent(inout) :: seed !< Crystal seed result
     character*(*), intent(in) :: line !< Library entry
     logical, intent(in) :: mol !< Is this a molecule?
     logical, intent(out) :: oksyn !< Did this have a syntax error?
-    type(crystalseed) :: seed !< Crystal seed result
 
     character(len=:), allocatable :: word, l2, stru, aux, libfile
     logical :: lchk, found, ok
@@ -582,7 +604,7 @@ contains
     lpo = 1
     stru = lgetword(line,lpo)
     if (len_trim(stru) < 1) then
-       call ferror("struct_read_library","structure label missing in CRYSTAL/MOLECULE LIBRARY",faterr,line,syntax=.true.)
+       call ferror("read_library","structure label missing in CRYSTAL/MOLECULE LIBRARY",faterr,line,syntax=.true.)
        return
     endif
 
@@ -596,7 +618,7 @@ contains
     inquire(file=libfile,exist=lchk)
     if (.not.lchk) then
        write (uout,'("(!) Library file:"/8X,A)') trim(libfile)
-       call ferror("struct_read_library","library file not found!",faterr,syntax=.true.)
+       call ferror("read_library","library file not found!",faterr,syntax=.true.)
        return
     endif
     lu = fopen_read(libfile,abspath0=.true.)
@@ -618,7 +640,7 @@ contains
     end do main
     if (.not.found) then
        write (uout,'("(!) Structure not found in file:"/8X,A)') trim(libfile)
-       call ferror("struct_read_library","structure not found in library!",faterr,syntax=.true.)
+       call ferror("read_library","structure not found in library!",faterr,syntax=.true.)
        call fclose(lu)
        return
     end if
@@ -626,10 +648,10 @@ contains
     ! read the crystal/molecule environment inside
     ok = getline(lu,l2)
     if (mol) then
-       seed = parse_molecule_env(lu,ok)
+       call seed%parse_molecule_env(lu,ok)
        seed%file = "molecular library (" // trim(line) // ")"
     else
-       seed = parse_crystal_env(lu,ok)
+       call seed%parse_crystal_env(lu,ok)
        seed%file = "crystal library (" // trim(line) // ")"
     endif
     call fclose(lu)
@@ -638,17 +660,16 @@ contains
     ! make sure there's no more input
     aux = getword(line,lpo)
     if (len_trim(aux) > 0) then
-       call ferror('struct_read_library','Unknown extra keyword in CRYSTAL/MOLECULE LIBRARY',faterr,line,syntax=.true.)
+       call ferror('read_library','Unknown extra keyword in CRYSTAL/MOLECULE LIBRARY',faterr,line,syntax=.true.)
        return
     end if
     oksyn = .true.
 
-  end function struct_read_library
+  end subroutine read_library
 
   !> Read the structure from a CIF file (uses ciftbx) and returns a 
   !> crystal seed.
-  function struct_read_cif(file,dblock,mol) result(seed)
-    use struct_basic, only: crystalseed, spgs_wrap
+  subroutine read_cif(seed,file,dblock,mol)
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
     use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc
@@ -658,10 +679,10 @@ contains
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
 
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
     logical, intent(in) :: mol !< Is this a molecule? 
-    type(crystalseed) :: seed !< Output crystal seed
 
     character(len=1024) :: dictfile, sym, tok
     character*30 :: atname, spg
@@ -680,17 +701,17 @@ contains
     dictfile = trim(adjustl(critic_home)) // dirsep // 'cif_core.dic'
     fl = dict_(dictfile,'valid')
     if (.not.fl) &
-       call ferror('struct_read_cif','Dictionary file (cif_core.dic) not found. Check CRITIC_HOME',faterr)
+       call ferror('read_cif','Dictionary file (cif_core.dic) not found. Check CRITIC_HOME',faterr)
 
     ! open cif file
     fl = ocif_(file)
     if (.not.fl) &
-       call ferror('struct_read_cif','CIF file not found',faterr,file)
+       call ferror('read_cif','CIF file not found',faterr,file)
 
     ! read data block
     fl = data_(dblock)
     if (.not.fl) &
-       call ferror('struct_read_cif','incorrect named data block',faterr,file)
+       call ferror('read_cif','incorrect named data block',faterr,file)
 
     ! read cell dimensions
     seed%useabr = 1
@@ -698,7 +719,7 @@ contains
     fl = fl .and. numd_('_cell_length_b',seed%aa(2),sigx)
     fl = fl .and. numd_('_cell_length_c',seed%aa(3),sigx)
     if (.not.fl) &
-       call ferror('struct_read_cif','error reading cell lengths',faterr,file)
+       call ferror('read_cif','error reading cell lengths',faterr,file)
     seed%aa = seed%aa / bohrtoa
 
     ! read cell angles
@@ -706,7 +727,7 @@ contains
     fl = fl .and. numd_('_cell_angle_beta',seed%bb(2),sigx)
     fl = fl .and. numd_('_cell_angle_gamma',seed%bb(3),sigx)
     if (.not.fl) &
-       call ferror('struct_read_cif','error reading cell angles',faterr,file)
+       call ferror('read_cif','error reading cell angles',faterr,file)
 
     ! read atomic positions
     seed%nat = 1
@@ -730,7 +751,7 @@ contains
        fl = fl .and. numd_('_atom_site_fract_z',x(3),sigx)
        seed%x(:,seed%nat) = x
        if (.not.fl) &
-          call ferror('struct_read_cif','error reading atomic positions',faterr,file)
+          call ferror('read_cif','error reading atomic positions',faterr,file)
        if (.not.loop_) exit
        seed%nat = seed%nat + 1
     end do
@@ -766,7 +787,7 @@ contains
 
        ! do stuff with sym
        if (.not.(fl1.or.fl2)) &
-          call ferror('struct_read_cif','error reading symmetry xyz elements',faterr,file)
+          call ferror('read_cif','error reading symmetry xyz elements',faterr,file)
 
        ! process the three symmetry elements
        rot0 = 0d0
@@ -775,7 +796,7 @@ contains
           ! extract the next token
           idx = index(sym,",")
           if (idx == 0) &
-             call ferror('struct_read_cif','error reading symmetry operation',faterr,sym)
+             call ferror('read_cif','error reading symmetry operation',faterr,sym)
           tok = sym(1:idx-1)
           sym = sym(idx+1:)
 
@@ -861,7 +882,7 @@ contains
 
        ! oh, well, that's that...
        if (.not.fl) &
-          call ferror('struct_read_cif','error reading symmetry',faterr,file)
+          call ferror('read_cif','error reading symmetry',faterr,file)
 
        ! call spgs and hope for the best
        call spgs_wrap(seed,spg,.false.)
@@ -881,19 +902,18 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_cif
+  end subroutine read_cif
 
   !> Read the structure from a CIF file (uses ciftbx)
-  function struct_read_res(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_res(seed,file,mol)
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, ferror, faterr, zatguess, fclose
     use param, only: eyet, eye, bohrtoa
     use types, only: realloc
+    class(crystalseed) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer :: lu, lp, ilat
     logical :: ok, iscent, iok, havecell
@@ -950,14 +970,14 @@ contains
           ok = ok .and. isreal(seed%bb(2),line,lp)
           ok = ok .and. isreal(seed%bb(3),line,lp)
           if (.not.ok) &
-             call ferror('struct_read_res','Error reading CELL card',faterr)
+             call ferror('read_res','Error reading CELL card',faterr)
           seed%aa = seed%aa / bohrtoa
           havecell = .true.
        elseif (equal(word,"latt")) then
           ! read the centering vectors from the latt card
           ok = isinteger(ilat,line,lp)
           if (.not.ok) &
-             call ferror('struct_read_res','Error reading LATT card',faterr)
+             call ferror('read_res','Error reading LATT card',faterr)
           select case(abs(ilat))
           case(1)
              ! P 
@@ -998,7 +1018,7 @@ contains
              seed%cen(1,2)=0.5d0
              seed%cen(2,2)=0.5d0
           case default
-             call ferror('struct_read_res','Unknown LATT value',faterr)
+             call ferror('read_res','Unknown LATT value',faterr)
           end select
           iscent = (ilat > 0)
        elseif (equal(word,"symm")) then
@@ -1051,7 +1071,7 @@ contains
                 seed%neqv = seed%neqv + 1
                 seed%rotm(:,:,seed%neqv) = rot0
              else
-                call ferror('struct_read_res','Found repeated entry in SYMM',faterr)
+                call ferror('read_res','Found repeated entry in SYMM',faterr)
              endif
           endif
 
@@ -1101,7 +1121,7 @@ contains
           do while (.true.)
              ok = getline_raw(lu,line,.false.)
              if (.not.ok) &
-                call ferror('struct_read_res','Unexpected end of file inside frag block',faterr)
+                call ferror('read_res','Unexpected end of file inside frag block',faterr)
              lp = 1
              word = lgetword(line,lp)
              if (equal(word,"fend")) exit
@@ -1132,7 +1152,7 @@ contains
                 exit
              end if
              if (iz <= 0 .or. iz > ntyp) &
-                call ferror('struct_read_res','Atom type not found in SFAC list',faterr)
+                call ferror('read_res','Atom type not found in SFAC list',faterr)
              seed%z(seed%nat) = ztyp(iz)
              seed%name(seed%nat) = word
 
@@ -1147,11 +1167,11 @@ contains
     call fclose(lu)
 
     if (ntyp == 0) &
-       call ferror('struct_read_res','No sfac information (atomic types) found',faterr)
+       call ferror('read_res','No sfac information (atomic types) found',faterr)
     if (seed%nat == 0) &
-       call ferror('struct_read_res','No atoms found',faterr)
+       call ferror('read_res','No atoms found',faterr)
     if (.not.havecell) &
-       call ferror('struct_read_res','No cell found',faterr)
+       call ferror('read_res','No cell found',faterr)
     seed%usezname = 3 ! use both z and name
     seed%useabr = 1 ! use aa and bb
 
@@ -1165,7 +1185,7 @@ contains
           endif
        end do
        if (.not.ok) &
-          call ferror('struct_read_res','Found improper rotation in SYMM',faterr)
+          call ferror('read_res','Found improper rotation in SYMM',faterr)
        n = seed%neqv
        do i = 1, n
           seed%rotm(1:3,1:3,n+i) = -seed%rotm(1:3,1:3,i) 
@@ -1216,18 +1236,17 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_res
+  end subroutine read_res
 
   !> Read the structure from a gaussian cube file
-  function struct_read_cube(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_cube(seed,file,mol)
     use tools_io, only: fopen_read, uout, fclose
     use tools_math, only: matinv
     use param, only: pi, eye
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
-    type(crystalseed) :: seed
 
     integer :: lu
     integer :: i, nstep(3), nn, iz
@@ -1286,17 +1305,16 @@ contains
     seed%border = 0d0
     seed%file = file
 
-  end function struct_read_cube
+  end subroutine read_cube
 
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
-  function struct_read_wien(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_wien(seed,file,mol)
     use tools_io, only: fopen_read, faterr, ferror, zatguess, fclose
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer :: lut
     integer :: i, j, i1, i2, j1, iat, istart
@@ -1457,21 +1475,20 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_wien
+  end subroutine read_wien
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
-  function struct_read_vasp(file,ntypat,ztypat,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_vasp(seed,file,ntypat,ztypat,mol)
     use types, only: realloc
     use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: detsym, matinv
     use param, only: bohrtoa, pi, maxzat0
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     integer, intent(inout) :: ntypat !< Number of atom types
     character*5, intent(inout) :: ztypat(maxzat0) !< Atomic numbers for the types
     logical, intent(in) :: mol !< Is this a molecule?
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer :: lu, lp, nn, typ
     character(len=:), allocatable :: word, line
@@ -1537,7 +1554,7 @@ contains
        ok = getline_raw(lu,line,.true.)
     else
        if (ztypat(1) == "") then
-          call ferror('struct_read_vasp','Atom types are required for VASP < 5.2 inputs',faterr,file)
+          call ferror('read_vasp','Atom types are required for VASP < 5.2 inputs',faterr,file)
        end if
     end if
 
@@ -1547,7 +1564,7 @@ contains
     allocate(seed%x(3,10),seed%z(10))
     do i = 1, ntypat
        ok = isinteger(nn,line,lp)
-       if (.not.ok) call ferror('struct_read_vasp','Too many atom types in CRYSTAL',faterr,line)
+       if (.not.ok) call ferror('read_vasp','Too many atom types in CRYSTAL',faterr,line)
 
        typ = zatguess(ztypat(i))
        do j = seed%nat+1, seed%nat+nn
@@ -1596,55 +1613,18 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_vasp
-
-  !> Read everything except the grid from a VASP POSCAR, etc. file
-  subroutine struct_read_potcar(file,ntyp,ztyp)
-    use tools_io, only: fopen_read, getline_raw, getword, fclose
-    use param, only: maxzat0
-
-    character*(*), intent(in) :: file !< Input file name
-    integer, intent(out) :: ntyp !< Number of atom types
-    character*5, intent(out) :: ztyp(maxzat0) !< Atomic numbers for the types
-
-    integer :: lu, lp
-    character(len=:), allocatable :: aux1, aatom, line
-    logical :: ok
-
-    ntyp = 0
-
-    ! open
-    lu = fopen_read(file)
-
-    ! read the atoms
-    do while (getline_raw(lu,line))
-       lp = 1
-       aux1 = getword(line,lp)
-       aatom = getword(line,lp)
-       ntyp = ntyp + 1
-       ztyp(ntyp) = aatom(1:2)
-       line = ""
-       do while (.not. (trim(adjustl(line)) == 'End of Dataset'))
-          ok = getline_raw(lu,line,.true.)
-       end do
-    end do
-
-    ! close
-    call fclose(lu)
-
-  end subroutine struct_read_potcar
+  end subroutine read_vasp
 
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
-  function struct_read_abinit(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_abinit(seed,file,mol)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, nameguess, faterr, ferror, fclose
     use abinit_private, only: hdr_type, hdr_io
     use param, only: pi, eye
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer :: lu, fform0
     type(hdr_type) :: hdr
@@ -1687,21 +1667,20 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_abinit
+  end subroutine read_abinit
 
   ! The following code has been adapted from the elk distribution, version 1.3.2
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
-  function struct_read_elk(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_elk(seed,file,mol)
     use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
        zatguess, nameguess, fclose, string
     use tools_math, only: matinv
     use param, only: pi
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< input filename
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Output crystal seed
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, j, lp
@@ -1767,21 +1746,21 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_elk
+  end subroutine read_elk
 
   !> Read the structure from an xyz/wfn/wfx file
-  function struct_read_mol(file,fmt,rborder,docube) result(seed)
+  subroutine read_mol(seed,file,fmt,rborder,docube)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry
-    use struct_basic, only: crystalseed, isformat_xyz, isformat_wfn, isformat_wfx,&
+    use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden
     use tools_io, only: equal
 
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     integer, intent(in) :: fmt !< wfn/wfx/xyz
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer :: i
 
@@ -1815,23 +1794,22 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_mol
+  end subroutine read_mol
 
   !> Read the structure from a quantum espresso output (file) and
   !> return it as a crystal object. If mol, the structure is assumed
   !> to be a molecule.  If istruct is zero, read the last geometry;
   !> otherwise, read geometry number istruct.
-  function struct_read_qeout(file,mol,istruct) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_qeout(seed,file,mol,istruct)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose
     use tools_math, only: matinv
     use param, only: pi, eye, bohrtoa
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     integer, intent(in) :: istruct !< structure number
-    type(crystalseed) :: seed !< Crystal seed output
 
     integer :: lu, nstructs, is0, ideq, i, k
     character(len=:), allocatable :: line
@@ -1857,7 +1835,7 @@ contains
        is0 = nstructs
     else
        if (istruct > nstructs .or. istruct < 0) then
-          call ferror("struct_read_qeout","wrong structure number",faterr)
+          call ferror("read_qeout","wrong structure number",faterr)
        end if
        is0 = istruct
     end if
@@ -1895,7 +1873,7 @@ contains
           r = r * alat ! alat comes before crystal axes
        elseif (index(line,"atomic species   valence    mass     pseudopotential")>0) then
           if (ntyp == 0) &
-             call ferror("struct_read_qeout","number of atomic types unknown",faterr)
+             call ferror("read_qeout","number of atomic types unknown",faterr)
           if (.not.allocated(attyp)) allocate(attyp(ntyp))
           if (.not.allocated(zpsptyp)) then
              allocate(zpsptyp(ntyp))
@@ -1908,7 +1886,7 @@ contains
           end do
        elseif (index(line,"Cartesian axes")>0) then
           if (nat == 0) &
-             call ferror("struct_read_qeout","number of atoms unknown",faterr)
+             call ferror("read_qeout","number of atoms unknown",faterr)
           if (.not.allocated(atn)) allocate(atn(nat))
           if (.not.allocated(x)) allocate(x(3,nat))
           ok = getline_raw(lu,line,.true.)
@@ -1938,7 +1916,7 @@ contains
           r = r * cfac
        elseif (line(1:16) == "ATOMIC_POSITIONS") then
           if (nat == 0) &
-             call ferror("struct_read_qeout","number of atoms unknown",faterr)
+             call ferror("read_qeout","number of atoms unknown",faterr)
           if (.not.allocated(atn)) allocate(atn(nat))
           if (.not.allocated(x)) allocate(x(3,nat))
 
@@ -1989,7 +1967,7 @@ contains
              exit
           end if
        end do
-       if (id == 0) call ferror('struct_read_qeout','atom type not found',faterr)
+       if (id == 0) call ferror('read_qeout','atom type not found',faterr)
        seed%name(i) = attyp(id)
     end do
     seed%usezname = 2
@@ -2010,10 +1988,10 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_qeout
+  end subroutine read_qeout
 
   !> Read the structure from a quantum espresso input
-  function struct_read_qein(file,mol) result(seed)
+  subroutine read_qein(seed,file,mol)
     ! This subroutine has been adapted from parts of the Quantum
     ! ESPRESSO code, version 4.3.2.  
     ! Copyright (C) 2002-2009 Quantum ESPRESSO group
@@ -2021,15 +1999,14 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use struct_basic, only: crystalseed
     use tools_io, only: fopen_read, faterr, ferror, getline_raw, upper, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: pi, bohrtoa, eye
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer, parameter :: dp = selected_real_kind(14,200)
     integer, parameter :: ntypx = 10
@@ -2181,22 +2158,22 @@ contains
 
     ! read the namelists
     read(lu,control,iostat=ios)
-    if (ios/=0) call ferror("struct_read_qein","wrong namelist control",faterr)
+    if (ios/=0) call ferror("read_qein","wrong namelist control",faterr)
     read(lu,system,iostat=ios)
-    if (ios/=0) call ferror("struct_read_qein","wrong namelist system",faterr)
+    if (ios/=0) call ferror("read_qein","wrong namelist system",faterr)
     read(lu,electrons,iostat=ios)
-    if (ios/=0) call ferror("struct_read_qein","wrong namelist electrons",faterr)
+    if (ios/=0) call ferror("read_qein","wrong namelist electrons",faterr)
     if (trim(calculation)=='relax'.or.trim(calculation)=='md'.or.&
        trim(calculation)=='vc-relax'.or.trim(calculation)=='vc-md'.or.&
        trim(calculation)=='cp'.or.trim(calculation)=='vc-cp'.or.&
        trim(calculation)=='smd'.or.trim(calculation)=='cp-wf') then
        read(lu,ions,iostat=ios)
-       if (ios/=0) call ferror("struct_read_qein","wrong namelist ions",faterr)
+       if (ios/=0) call ferror("read_qein","wrong namelist ions",faterr)
     endif
     if (trim(calculation)=='vc-relax'.or.trim(calculation)=='vc-md'.or.&
        trim(calculation)=='vc-cp') then
        read(lu,cell,iostat=ios)
-       if (ios/=0) call ferror("struct_read_qein","wrong namelist ions",faterr)
+       if (ios/=0) call ferror("read_qein","wrong namelist ions",faterr)
     end if
 
     ! allocate space for atoms
@@ -2272,19 +2249,18 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_qein
+  end subroutine read_qein
 
   !> Read the structure from a crystal output
-  function struct_read_crystalout(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_crystalout(seed,file,mol)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose
     use tools_math, only: matinv
     use param, only: pi, eye, bohrtoa
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Output crystal seed
 
     integer :: lu, i
     character(len=:), allocatable :: line
@@ -2312,7 +2288,7 @@ contains
              ok = ok.and.isreal(r(i,2),line,lp)
              ok = ok.and.isreal(r(i,3),line,lp)
              if (.not.ok) &
-                call ferror("struct_read_crystalout","wrong lattice vectors",faterr)
+                call ferror("read_crystalout","wrong lattice vectors",faterr)
           end do
           r = r / bohrtoa
        elseif (index(line,"CARTESIAN COORDINATES - PRIMITIVE CELL") > 0) then
@@ -2341,9 +2317,9 @@ contains
     seed%usezname = 2
 
     if (.not.iscrystal) &
-       call ferror("struct_read_crystalout","only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)",faterr)
+       call ferror("read_crystalout","only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)",faterr)
     if (all(r == 0d0)) &
-       call ferror("struct_read_crystalout","could not find lattice vectors",faterr)
+       call ferror("read_crystalout","could not find lattice vectors",faterr)
 
     ! cell
     seed%crys2car = transpose(r)
@@ -2369,18 +2345,17 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_crystalout
+  end subroutine read_crystalout
 
-  !> Read the structure from a siesta STRUCT_OUT input
-  function struct_read_siesta(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  !> Read the structure from a siesta OUT input
+  subroutine read_siesta(seed,file,mol)
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa, pi, eye
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Crystal seed output
 
     integer :: lu
     real*8 :: r(3,3)
@@ -2421,21 +2396,20 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_siesta
+  end subroutine read_siesta
 
   !> Read the structure from a file in DFTB+ gen format.
-  function struct_read_dftbp(file,mol,rborder,docube) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_dftbp(seed,file,mol,rborder,docube)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
        getword, zatguess, nameguess
     use param, only: bohrtoa, pi, eye
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
-    type(crystalseed) :: seed !< Crystal seed output
 
     integer :: lu
     real*8 :: r(3,3)
@@ -2454,7 +2428,7 @@ contains
     read (line,*) seed%nat, isfrac
     isfrac = lower(isfrac)
     if (.not.(equal(isfrac,"f").or.equal(isfrac,"c").or.equal(isfrac,"s"))) &
-       call ferror('struct_read_dftbp','wrong coordinate selector in gen file',faterr)
+       call ferror('read_dftbp','wrong coordinate selector in gen file',faterr)
 
     ! atom types
     ok = getline(lu,line,.true.)
@@ -2470,7 +2444,7 @@ contains
        word = getword(line,lp)
        iz = zatguess(word)
     end do
-    if (ntypat == 0) call ferror('struct_read_dftbp','no atomic types found',faterr)
+    if (ntypat == 0) call ferror('read_dftbp','no atomic types found',faterr)
 
     ! read atomic positions
     allocate(seed%x(3,seed%nat),seed%z(seed%nat))
@@ -2496,7 +2470,7 @@ contains
        seed%crys2car = transpose(r)
        r = matinv(seed%crys2car)
        if (isfrac == "c") then
-          call ferror('struct_read_dftbp','lattice plus C not supported',faterr)
+          call ferror('read_dftbp','lattice plus C not supported',faterr)
        elseif (isfrac == "s") then
           do i = 1, seed%nat
              seed%x(:,i) = matmul(r,seed%x(:,i))
@@ -2506,7 +2480,7 @@ contains
     else
        ! molecule and no lattice -> set up the origin and the molecular cell
        if (isfrac == "f" .or. isfrac == "s") &
-          call ferror('struct_read_dftbp','S or C coordinates but no lattice vectors',faterr)
+          call ferror('read_dftbp','S or C coordinates but no lattice vectors',faterr)
        seed%useabr = 0
     end if
 
@@ -2523,19 +2497,18 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_dftbp
+  end subroutine read_dftbp
 
   !> Read the structure from an xsf file.
-  function struct_read_xsf(file,mol) result(seed)
-    use struct_basic, only: crystalseed
+  subroutine read_xsf(seed,file,mol)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
        ferror, faterr, zatguess, isinteger, getword, isreal
     use tools_math, only: matinv
     use param, only: bohrtoa, eye, pi
     use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
-    type(crystalseed) :: seed !< Crystal seed output
 
     character(len=:), allocatable :: line, word
     integer :: lu, lp, i, iz
@@ -2575,7 +2548,7 @@ contains
              ok = ok.and.isreal(seed%x(2,i),line,lp)
              ok = ok.and.isreal(seed%x(3,i),line,lp)
              if (.not.ok) &
-                call ferror('struct_read_xsf','wrong position in xsf',faterr)
+                call ferror('read_xsf','wrong position in xsf',faterr)
              seed%x(:,i) = seed%x(:,i) / bohrtoa
           end do
        end if
@@ -2606,14 +2579,14 @@ contains
     seed%molx0 = 0d0
     seed%file = file
 
-  end function struct_read_xsf
+  end subroutine read_xsf
 
   !> Detect the format for the structure-containing file. Normally,
   !> this works by detecting the extension, but the file may be
   !> opened and searched if ambiguity is present. The format and
   !> whether the file contains a molecule or crysatl is returned.
   subroutine struct_detect_format(file,isformat,ismol)
-    use struct_basic, only: isformat_unknown, isformat_cif, isformat_res,&
+    use param, only: isformat_unknown, isformat_cif, isformat_res,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
@@ -2703,6 +2676,42 @@ contains
     endif
 
   end subroutine struct_detect_format
+
+  !> Read everything except the grid from a VASP POSCAR, etc. file
+  subroutine struct_read_potcar(file,ntyp,ztyp)
+    use tools_io, only: fopen_read, getline_raw, getword, fclose
+    use param, only: maxzat0
+
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: ntyp !< Number of atom types
+    character*5, intent(out) :: ztyp(maxzat0) !< Atomic numbers for the types
+
+    integer :: lu, lp
+    character(len=:), allocatable :: aux1, aatom, line
+    logical :: ok
+
+    ntyp = 0
+
+    ! open
+    lu = fopen_read(file)
+
+    ! read the atoms
+    do while (getline_raw(lu,line))
+       lp = 1
+       aux1 = getword(line,lp)
+       aatom = getword(line,lp)
+       ntyp = ntyp + 1
+       ztyp(ntyp) = aatom(1:2)
+       line = ""
+       do while (.not. (trim(adjustl(line)) == 'End of Dataset'))
+          ok = getline_raw(lu,line,.true.)
+       end do
+    end do
+
+    ! close
+    call fclose(lu)
+
+  end subroutine struct_read_potcar
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal or a quantum espresso calculation. To do this,
@@ -2974,4 +2983,30 @@ contains
 
   end subroutine qe_latgen
 
-end module struct_readers
+  !> Wrapper to the spgs module. Sets the symetry in a crystal seed. 
+  !> (including seed%havesym but not seed%findsym). If the spg
+  !> was not correct, keep havesym = 0 and do nothing else.
+  subroutine spgs_wrap(seed,spg,usespgr)
+    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m, spgs_driver
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: spg
+    logical, intent(in) :: usespgr
+
+    if (spgs_driver(spg,usespgr)) then
+       seed%ncv = spgs_ncv
+       if (allocated(seed%cen)) deallocate(seed%cen)
+       allocate(seed%cen(3,seed%ncv))
+       seed%cen(:,1:seed%ncv) = real(spgs_cen(:,1:seed%ncv),8) / 12d0
+       seed%neqv = spgs_n
+       if (allocated(seed%rotm)) deallocate(seed%rotm)
+       allocate(seed%rotm(3,4,spgs_n))
+       seed%rotm = real(spgs_m(:,:,1:spgs_n),8)
+       seed%rotm(:,4,:) = seed%rotm(:,4,:) / 12d0
+       seed%havesym = 1
+    else
+       seed%havesym = 0
+    end if
+
+  end subroutine spgs_wrap
+
+end module crystalseedmod

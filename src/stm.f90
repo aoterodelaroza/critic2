@@ -37,7 +37,7 @@ contains
   
   subroutine stm_driver(line)
     use fields, only: f, type_grid, grd0, fields_typestring
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, eval_next, fileroot
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string,&
        fopen_write, fclose
@@ -355,7 +355,7 @@ contains
   end subroutine stm_driver
 
   subroutine detect_vacuum(ix,rtop)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: faterr, ferror
     integer, intent(out) :: ix
     real*8, intent(out) :: rtop
@@ -417,7 +417,7 @@ contains
   !> The output z is in cartesian.
   function stm_bisect(x,ix,rho0) result(z)
     use fields, only: f, grd0
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden
     use tools_io, only: faterr, ferror
     
@@ -489,7 +489,7 @@ contains
   !> assumed to be locally monotonic along ix. 
   function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
     use fields, only: f, type_grid
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden
     use tools_io, only: ferror, faterr
     

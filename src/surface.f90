@@ -830,7 +830,7 @@ contains
   !> Transform the points in the minisurface s using the symmetry operation op 
   !> and the translation vector tvec.
   subroutine minisurf_transform(s,op,tvec)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: minisurf
     type(minisurf) :: s
     integer, intent(in) :: op
@@ -905,7 +905,7 @@ contains
   subroutine minisurf_writebasin (s,offfile,doprops)
     use global, only: refden
     use fields, only: integ_prop, f, nprops, grd, grdall
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: faterr, ferror, fopen_write, fclose
     use types, only: minisurf, scalar_value
     type(minisurf), intent(inout) :: s

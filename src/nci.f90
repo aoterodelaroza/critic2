@@ -32,8 +32,8 @@ contains
   ! nci plots
   subroutine nciplot()
     use fields, only: f, type_grid, type_promol, grd0, grd
-    use struct, only: struct_write
-    use struct_basic, only: cr
+    use struct_drivers, only: struct_write
+    use crystalmod, only: cr
     use global, only: refden, fileroot, eval_next, dunit0, quiet, iunit, iunitname0
     use grid_tools, only: grid_gradrho, grid_hxx
     use grd_atomic, only: agrid
@@ -715,7 +715,7 @@ contains
    end subroutine nciplot
 
   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: fragment
 
     integer, intent(in) :: lu
@@ -834,7 +834,7 @@ contains
   end function check_no_extra_word
 
   function read_fragment(lu) result(fr)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next
     use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
     use types, only: fragment, realloc

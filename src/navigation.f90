@@ -42,7 +42,7 @@ contains
   subroutine newton (r,gfnormeps,ier)
     use fields, only: f, grd
     use global, only: refden
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_math, only: detsym
     use types, only: scalar_value
 
@@ -101,7 +101,7 @@ contains
     use fields, only: grd
     use varbas, only: ncpcel, cpcel, cp, rbetadef
     use global, only: nav_step, nav_gradeps
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     use types, only: field, scalar_value
     use tools_math, only: eigns
@@ -580,7 +580,7 @@ contains
   !> reduced number of points is returned in n, and the fractional
   !> coordinates in x(:,1:n).
   subroutine prunepath(c,n,x,fprune)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     
     type(crystal), intent(in) :: c
     integer, intent(inout) :: n

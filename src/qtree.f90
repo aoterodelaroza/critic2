@@ -50,7 +50,7 @@ contains
        autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
        integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
        ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
 
@@ -763,7 +763,7 @@ contains
     use global
     use elk_private
     use wien_private
-    use struct_basic
+    use crystalmod
     use tools_io
     
     integer, intent(in) :: lvl
@@ -970,7 +970,7 @@ contains
     use global
     use elk_private
     use wien_private
-    use struct_basic
+    use crystalmod
     use tools_math
     use tools_io
     use types
@@ -1112,7 +1112,7 @@ contains
     use qtree_tetrawork
     use qtree_utils
     use qtree_basic
-    use struct_basic
+    use crystalmod
     use global
     use tools_io
 

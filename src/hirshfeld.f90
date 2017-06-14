@@ -32,7 +32,7 @@ contains
     use grid_tools, only: grid_rhoat
     use grid1_tools, only: grid1_interp
     use fields, only: f, type_grid
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden
     use grd_atomic, only: agrid
     use tools_io, only: ferror, faterr, uout, string, ioj_center

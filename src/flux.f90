@@ -55,7 +55,7 @@ contains
 
   subroutine fluxprint()
     use varbas, only: ncpcel, cpcel, cp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: uout, getline, lgetword, equal, ferror, faterr, uin, &
        ucopy, getword, lower
@@ -470,7 +470,7 @@ contains
   subroutine flx_initialize(nosym,noballs,nocell)
     use varbas, only: ncpcel, cpcel, ncp, cp
     use global, only: fileroot
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use struct_writers, only: struct_write_3dmodel, struct_write_mol
     use tools_io, only: faterr, ferror, uout, fopen_write
 
@@ -703,7 +703,7 @@ contains
 
   !> Print gradient path info to standard output.
   subroutine flx_printpath(rgb0)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use graphics, only: graphics_ball
     use global, only: dunit0, iunit
     use tools_io, only: string
@@ -784,7 +784,7 @@ contains
   !> wrapper for flx_printpath() so that this routine is not used
   !> directly.
   subroutine flx_symprintpath(x,flxsym,rgb)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     integer, intent(in) :: flxsym
     real*8, dimension(3), intent(in) :: x
@@ -860,7 +860,7 @@ contains
   subroutine flx_point(x,iup,flxsym,rgb)
     use navigation, only: gradient, prunepath
     use fields, only: f
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, prunedist
 
     integer, intent(in) :: iup
@@ -900,7 +900,7 @@ contains
     use fields, only: f
     use varbas, only: ncpcel, cpcel
     use global, only: refden, prunedist
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     use param, only: pi
 
@@ -977,7 +977,7 @@ contains
     use navigation, only: gradient, prunepath
     use fields, only: f, grd
     use varbas, only: ncpcel, cpcel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, prunedist
     use tools_math, only: eig
     use tools_io, only: ferror, faterr
@@ -1392,7 +1392,7 @@ contains
   !> output the appropriate ball radius.
   function ball_radius(i,cel)
     use varbas, only: cpcel, cp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use param, only: maxzat
     
     integer, intent(in) :: i

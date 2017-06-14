@@ -78,7 +78,7 @@ contains
   subroutine rhoplot_point(line)
     use fields, only: fieldname_to_idx, goodfield, fused, fields_fcheck, &
        fields_feval, fields_propty
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next, refden, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
@@ -175,7 +175,7 @@ contains
   subroutine rhoplot_line(line)
     use fields, only: fieldname_to_idx, goodfield, f, fields_feval, fields_fcheck,&
        grd
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next, refden, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
@@ -387,7 +387,7 @@ contains
     use grid_tools, only: grid_rhoat
     use fields, only: fieldname_to_idx, goodfield, f, type_grid, fields_fcheck,&
        fields_feval, writegrid_cube, writegrid_vasp, grd
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next, dunit0, iunit, refden, fileroot
     use arithmetic, only: eval
     use tools_math, only: norm
@@ -663,7 +663,7 @@ contains
   subroutine rhoplot_plane(line)
     use fields, only: fieldname_to_idx, goodfield, f, grd, fields_fcheck, &
        fields_feval
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: eval_next, dunit0, iunit, refden, fileroot
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
@@ -1010,7 +1010,7 @@ contains
   !> .gnu). If dolabels, write the labels file. If dognu, write the
   !> gnu file.
   subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
     use tools_math, only: norm, cross, det, matinv
     integer, intent(in) :: nx, ny
@@ -1533,7 +1533,7 @@ contains
   subroutine rhoplot_grdvec()
     use fields, only: f, grd
     use varbas, only: ncpcel, cpcel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: fileroot, eval_next, dunit0, iunit, refden, prunedist
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
@@ -2028,7 +2028,7 @@ contains
     use navigation, only: gradient
     use fields, only: f, grd
     use global, only: dunit0, iunit, refden
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
@@ -2292,7 +2292,7 @@ contains
 
   !> Write the gradient path to the udat logical unit.
   subroutine wrtpath (xflux, nptf, mptf, udat, rp0, r01, r02, cosalfa, sinalfa)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: prunedist
     use param, only: jmlcol
     integer, intent(in) :: mptf
@@ -2365,7 +2365,7 @@ contains
   !> equivalents (within the main cell) lie on the plotting plane.
   subroutine autochk(rp0)
     use fields, only: f, grd
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, cp_hdegen
     use tools_io, only: uout, string, ioj_left, ioj_right, faterr, ferror
     use tools_math, only: rsindex
@@ -2493,7 +2493,7 @@ contains
   !> plane, ready to be read in gnuplot.
   subroutine write_fichlabel(rootname)
     use varbas, only: ncpcel, cpcel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
     character*(*), intent(in) :: rootname

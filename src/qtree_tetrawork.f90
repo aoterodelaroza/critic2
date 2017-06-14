@@ -42,7 +42,7 @@ contains
        cindex, nnuc, tvol, periodic, intcorner_deferred, maxl
     use global, only: color_allocate, plot_mode, plotsticks, minl, integ_mode,&
        checkbeta
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, faterr, ferror
     
     integer, intent(in) :: base_t
@@ -259,7 +259,7 @@ contains
     use varbas, only: nearest_cp, cpcel
     use fields, only: f, grd
     use global, only: color_allocate, refden, qtree_ode_mode, gradient_mode
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, ferror, faterr
     use types, only: scalar_value
 
@@ -675,7 +675,7 @@ contains
     use fields
     use global
     use keast
-    use struct_basic
+    use crystalmod
     use tools_math, only: mixed
     use tools_io
 
@@ -978,7 +978,7 @@ contains
     use varbas
     use fields
     use global
-    use struct_basic
+    use crystalmod
     use tools_math, only: mixed
     use tools_io
 

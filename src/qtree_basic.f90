@@ -237,7 +237,7 @@ contains
   subroutine qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,verbose)
     use fields, only: f, nprops
     use varbas, only: ncp, cp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, minl, prop_mode, integ_scheme, integ_mode, keastnum,&
        qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_use, ws_origin,&
        ws_scale
@@ -517,7 +517,7 @@ contains
   !> Check that the symmetry of the cell and the tetrahedra are consistent.
   subroutine qtree_checksymmetry()
     use global, only: ws_scale
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     real*8 :: sumi
     integer :: i
@@ -710,7 +710,7 @@ contains
   !> Transforms from crystallographic to convex coordinates. If the
   !> point is not inside any known IWST, base_t = 0 is returned.
   subroutine crys2convex(x,base_t,rver)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     real*8, intent(in) :: x(3)
     integer, intent(out) :: base_t
     real*8, intent(out) :: rver(3)
@@ -781,7 +781,7 @@ contains
   !> the origin to use on xp and the distance
   subroutine neargp(xp,base_t,lrot,idx,dist)
     use global, only: ws_origin
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -847,7 +847,7 @@ contains
 
   !> Find the contacts between tetrahedron faces
   subroutine find_tetrah_contacts()
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, ferror, faterr
     integer :: t, f, p, op, c, i, t2, f2, invp, invc, invop
     real*8 :: xface(3,3,4,nt_orig) ! xface(vcoords,vertex,face,tetrah)
@@ -946,7 +946,7 @@ contains
   !> by a rotation (op), a centering translation (c) and a permutation of the 
   !> vertex (p).
   subroutine inverse_operation(p,op,c,invp,invop,invc)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     use param, only: eye
     integer, intent(in) :: p, op, c

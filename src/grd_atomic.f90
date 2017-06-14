@@ -34,7 +34,7 @@ contains
   !> Initialize the atomic density grids for the promolecular densities
   subroutine grda_init(docore,dopro,verbose)
     use grid1_tools, only: grid1_read_db
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_right, ioj_center
     use param, only: maxzat0, maxzat
     logical, intent(in) :: docore, dopro, verbose
@@ -143,7 +143,7 @@ contains
   !> thread-safe.
   subroutine grda_promolecular(x0,f,fp,fpp,nder,iscore,fr,periodic)
     use grid1_tools, only: grid1_interp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use types, only: fragment
     use param, only: maxzat
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.

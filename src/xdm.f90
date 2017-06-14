@@ -117,7 +117,7 @@ contains
   subroutine xdm_grid(line)
     use fields, only: fieldname_to_idx, goodfield, type_grid, getfieldnum, f,&
        taufromelf, fields_unload
-    use struct_basic, only: cr, search_lattice
+    use crystalmod, only: cr, search_lattice
     use grid_tools, only: grid_laplacian, grid_gradrho
     use grd_atomic, only: agrid, grda_promolecular
     use grid1_tools, only: grid1_interp
@@ -782,7 +782,7 @@ contains
   !> Calculate XDM from the information in a QE output
   subroutine xdm_qe()
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     integer :: i, j
     integer :: lu, idx, idx1, idx2
     character(len=:), allocatable :: line, str
@@ -840,7 +840,7 @@ contains
     use meshmod, only: genmesh, fillmesh
     use fields, only: f, type_wfn, type_dftb
     use global, only: refden, mesh_type
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use grd_atomic, only: agrid, grda_promolecular
     use grid1_tools, only: grid1_interp
     use tools_math, only: norm
@@ -1011,7 +1011,7 @@ contains
   subroutine write_cube(file,line1,line2,n,c)
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     character*(*), intent(in) :: file, line1, line2
     integer, intent(in) :: n(3)
     real*8, intent(in) :: c(0:n(1)-1,0:n(2)-1,0:n(3)-1)
@@ -1310,7 +1310,7 @@ contains
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
   subroutine calc_edisp(c6,c8,c10,rvdw)
-    use struct_basic, only: cr, crystal
+    use crystalmod, only: cr, crystal
     use tools_io, only: uout
     ! use param
     real*8, intent(in) :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
@@ -1367,7 +1367,7 @@ contains
   !> (a1, a2, chf). Print out the calculated values. Works for
   !> molecules and crystals.
   subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string
     use param, only: alpha_free
 

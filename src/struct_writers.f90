@@ -69,7 +69,7 @@ contains
   subroutine struct_write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
     use fragmentmod, only: fragment_merge_array, fragment_cmass, fragment_init
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: dunit0, iunit
     use graphics, only: writecml, writexyz, writegjf
     use tools_math, only: norm, nchoosek, comb
@@ -344,7 +344,7 @@ contains
      docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
     use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
     use fragmentmod, only: fragment_merge_array
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_math, only: norm
     use types, only: fragment
     use tools_io, only: equal
@@ -473,7 +473,7 @@ contains
 
   !> Write a quantum espresso input template
   subroutine struct_write_espresso(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, nameguess, lower, fclose
     use param, only: maxzat0, atmass
 
@@ -534,7 +534,7 @@ contains
 
   !> Write a VASP POSCAR template
   subroutine struct_write_vasp(file,c,verbose)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, nameguess, string, uout, fclose
     use param, only: bohrtoa, maxzat0
 
@@ -596,7 +596,7 @@ contains
 
   !> Write an abinit input template
   subroutine struct_write_abinit(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, string, fclose
     use param, only: pi, maxzat0
 
@@ -681,7 +681,7 @@ contains
 
   !> Write an elk input template
   subroutine struct_write_elk(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, nameguess, fclose
     use param, only: maxzat0
     character*(*), intent(in) :: file
@@ -731,7 +731,7 @@ contains
 
   !> Write a Gaussian template input (periodic).
   subroutine struct_write_gaussian(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, string, nameguess, ioj_left, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file
@@ -769,7 +769,7 @@ contains
 
   !> Write a tessel input template
   subroutine struct_write_tessel(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: fileroot
     use tools_io, only: fopen_write, fclose
 
@@ -822,7 +822,7 @@ contains
 
   !> Write a critic2 input template
   subroutine struct_write_critic(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, fclose
 
     character*(*), intent(in) :: file
@@ -846,7 +846,7 @@ contains
 
   !> Write a simple cif file
   subroutine struct_write_cif(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: fileroot
     use tools_io, only: fopen_write, fclose, string, nameguess
     use param, only: bohrtoa
@@ -890,7 +890,7 @@ contains
 
   !> Write a simple cif file
   subroutine struct_write_d12(file,c,dosym)
-    use struct_basic, only: crystal, pointgroup_info, holo_unk, holo_tric,&
+    use crystalmod, only: crystal, pointgroup_info, holo_unk, holo_tric,&
        holo_mono, holo_ortho, holo_tetra, holo_trig, holo_hex, holo_cub
     use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use global, only: symprec
@@ -1007,7 +1007,7 @@ contains
 
   !> Write an escher octave script
   subroutine struct_write_escher(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use global, only: fileroot
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: pi, maxzat0
@@ -1099,7 +1099,7 @@ contains
 
   !> Write a gulp input script
   subroutine struct_write_gulp(file,c,dodreiding)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose
     use tools_math, only: norm
     use param, only: bohrtoa, atmcov, pi
@@ -1246,7 +1246,7 @@ contains
 
   !> Write a lammps data file
   subroutine struct_write_lammps(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, ferror, faterr, fclose
     use tools_math, only: crys2car_from_cellpar
     use param, only: bohrtoa, maxzat0, atmass
@@ -1313,7 +1313,7 @@ contains
 
   !> Write a siesta fdf data file
   subroutine struct_write_siesta_fdf(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, nameguess, lower, fclose
     use param, only: bohrtoa, maxzat0
     character*(*), intent(in) :: file
@@ -1401,7 +1401,7 @@ contains
 
   !> Write a siesta STRUCT_IN data file
   subroutine struct_write_siesta_in(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, uout, nameguess, string, fclose
     use param, only: bohrtoa, maxzat0
 
@@ -1460,7 +1460,7 @@ contains
 
   !> Write a DFTB+ human-friendly structured data format (hsd) file
   subroutine struct_write_dftbp_hsd(file,c)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: maxzat0
 
@@ -1583,7 +1583,7 @@ contains
 
   !> Write a DFTB+ human-friendly gen structure file
   subroutine struct_write_dftbp_gen(file,c,lu0,ltyp0)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use tools_io, only: fopen_write, nameguess, string, fclose
     use param, only: bohrtoa, maxzat0
 

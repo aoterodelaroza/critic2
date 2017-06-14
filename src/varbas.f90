@@ -53,7 +53,7 @@ contains
   !> output, nid represents the id (complete CP list), dist is the
   !> distance. If nozero is used, skip zero distance CPs.
   subroutine nearest_cp(xp,nid,dist,type,idx,nozero)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     real*8, intent(in) :: xp(:)
     integer, intent(out) :: nid
@@ -92,7 +92,7 @@ contains
   end subroutine nearest_cp
 
   subroutine varbas_identify(line0,lp)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit0, &
        eval_next
     use tools_io, only: lgetword, getword, getline, equal, ferror, &
@@ -322,7 +322,7 @@ contains
   !> Identify a CP in the unit cell. Input: cryst coords. Output:
   !> the cell CP index.
   function identify_cp(x0,eps)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     integer :: identify_cp
     real*8, intent(in) :: x0(3)

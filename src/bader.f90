@@ -68,7 +68,7 @@ contains
   !> considered equal if they are within a ditsance of ratom
   !> (bohr).
   subroutine bader_integrate(c,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
-    use struct_basic, only: crystal
+    use crystalmod, only: crystal
     use fields, only: fields_fcheck, fields_feval
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv

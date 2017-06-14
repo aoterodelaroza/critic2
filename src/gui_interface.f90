@@ -19,7 +19,7 @@
 
 !> Interface for the GUI.
 module gui_interface
-  use struct_basic, only: crystal
+  use crystalmod, only: crystal
   use c_interface_module
   implicit none
 
@@ -191,7 +191,7 @@ contains
     use graphics, only: graphics_init
     use spgs, only: spgs_init
     use fields, only: fields_init, fields_end
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
        fcflags, cc, cflags, ldflags, enable_debug, package
     use global, only: global_init, fileroot, config_write, initial_banner
@@ -311,7 +311,7 @@ contains
   !> End of the critic2 run
   subroutine critic2_end() bind(c)
     use fields, only: fields_end
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use pi_private, only: pi_end
     use wfn_private, only: wfn_end
     use varbas, only: varbas_end
@@ -333,8 +333,8 @@ contains
 
   ! Read a new molecule/crystal from an external file
   subroutine open_structure(filename0, ismolecule) bind(c)
-    use struct, only: struct_crystal_input
-    use struct_basic, only: cr
+    use struct_drivers, only: struct_crystal_input
+    use crystalmod, only: cr
 
     type(c_ptr), intent(in) :: filename0
     integer(c_int), value :: ismolecule
@@ -357,8 +357,8 @@ contains
 
   ! Read a new molecule/crystal from an external file
   subroutine open_structure_from_library(nstr, ismolecule) bind(c)
-    use struct_readers, only: struct_read_library
-    use struct_basic, only: crystalseed, cr
+    use crystalmod, only: cr
+    use crystalseedmod, only: crystalseed
     use tools_io, only: ferror, faterr
 
     integer(c_int), value :: nstr
@@ -375,7 +375,7 @@ contains
     end if
 
     ! read the external file name 
-    seed = struct_read_library(name, ismolecule==1, oksyn)
+    call seed%struct_read_library(name, ismolecule==1, oksyn)
     if (.not.oksyn) &
        call ferror("open_structure_from_library","name not found",faterr)
 
@@ -393,7 +393,8 @@ contains
 
   ! Read a new molecule/crystal from an external file
   function new_structure(useed,preview) bind(c)
-    use struct_basic, only: crystalseed, spgs_wrap, cr
+    use crystalmod, only: cr
+    use crystalseedmod, only: crystalseed
     use global, only: eval_next
     use tools_io, only: getword, zatguess
     use tools_math, only: matinv, det
@@ -546,7 +547,7 @@ contains
     ! space group
     call c_f_string(useed%strspg,aux)
     if (len_trim(aux) > 0) then
-       call spgs_wrap(fseed,aux,.false.)
+       call fseed%spgs_wrap(aux,.false.)
        if (fseed%havesym == 0) then
           useed%errcode = 8
           call f_c_string("Incorrect space group.",useed%errmsg,254)
@@ -582,7 +583,8 @@ contains
   ! Save the data for the current structure and load an alternative
   ! structure that may be accepted or not.
   function preview_structure(useed) bind(c)
-    use struct_basic, only: crystalseed, cr
+    use crystalseedmod, only: crystalseed
+    use crystalmod, only: cr
     type(c_crystalseed), intent(inout) :: useed
     integer(c_int) :: preview_structure
 
@@ -627,7 +629,7 @@ contains
     use fields, only: nprops, integ_prop, f, type_grid, itype_fval, itype_lapval,&
        fields_integrable_report
     use grd_atomic, only: grda_init
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: uout, string
     use global, only: refden, gradient_mode, INT_radquad_errprop_default, INT_radquad_errprop
     use autocp, only: init_cplist
@@ -672,7 +674,7 @@ contains
 
   ! Calculate critical points for the current field
   subroutine call_auto() bind (c)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use autocp, only: init_cplist, autocritic
 
     if (.not.cr%isinit) return
@@ -686,7 +688,7 @@ contains
   subroutine update_scene() bind(c)
     use fragmentmod, only: fragment_merge_array
     use varbas, only: ncpcel, cpcel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_math, only: norm, cross
     use types, only: fragment
     use param, only: atmcov, jmlcol, maxzat
@@ -853,7 +855,7 @@ contains
 
   ! Clear the scene and (optionally) unload the crystal structure
   subroutine clear_scene(unload) bind(c)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     logical(c_bool), intent(in), value :: unload
 
     ! global flags
@@ -891,7 +893,7 @@ contains
   end subroutine clear_scene
 
   function get_text_info(imode) bind(c) result(txt)
-    use struct_basic, only: cr, pointgroup_info, laue_string, holo_string
+    use crystalmod, only: cr, pointgroup_info, laue_string, holo_string
     use fragmentmod, only: fragment_cmass
     use tools_io, only: string, ioj_center, ioj_left
     use param, only: bohrtoa, maxzat
@@ -1043,7 +1045,7 @@ contains
   end function get_text_info
 
   function get_seed_from_current_structure() result(useed) bind(c)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: rborder_def
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1215,7 +1217,7 @@ contains
 
   ! put the current scene into the save state
   subroutine save_state()
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     isinit_ = isinit
     ismolecule_ = ismolecule
@@ -1253,7 +1255,7 @@ contains
 
   ! load the save state, if available
   subroutine load_state()
-    use struct_basic, only: cr
+    use crystalmod, only: cr
 
     if (issaved) then
        isinit = isinit_
@@ -1321,10 +1323,10 @@ contains
        fields_integrable_report
     use varbas, only: varbas_end, varbas_identify
     use grd_atomic, only: grda_init, grda_end
-    use struct, only: struct_crystal_input, struct_newcell, struct_molcell,&
+    use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
        struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
        struct_compare, struct_environ, struct_packing, struct_atomlabel
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use wfn_private, only: wfn_end
     use pi_private, only: pi_end
     use spgs, only: spgs_init

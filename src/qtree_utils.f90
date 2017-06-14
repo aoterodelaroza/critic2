@@ -34,7 +34,7 @@ contains
        torig, tvec, lrotm
     use fields, only: f
     use varbas, only: ncp, cp
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use global, only: refden, ws_origin, plot_mode, fileroot, plotsticks
     use tools_io, only: fopen_write, fclose
     use param, only: maxzat0, jmlcol, jmlcol2
@@ -238,7 +238,7 @@ contains
     use qtree_basic, only: ludif, minlen, maxl
     use varbas, only: ncp, cp
     use global, only: gradient_mode, qtree_ode_mode, ws_origin
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use tools_io, only: fopen_write
 
     character*50, intent(in) :: roottess

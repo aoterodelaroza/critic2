@@ -44,7 +44,7 @@ contains
     use fields, only: f, fused, type_grid, grd
     use integration, only: int_reorder_gridout
     use yt, only: yt_integrate, yt_weights
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use grid_tools, only: grid_from_array3
     use tools_math, only: select_lebedev, gauleg
     use tools_io, only: string
@@ -178,7 +178,7 @@ contains
   end subroutine trick_grid_sphere
 
   subroutine trick_stephens_nnm_channel(line)
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use fields, only: f, grd0
     use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
     use global, only: eval_next
@@ -348,7 +348,7 @@ contains
   !> Franchini et al.'s Becke-style mesh
   subroutine trick_cell_integral()
     use fields, only: f
-    use struct_basic, only: cr
+    use crystalmod, only: cr
     use meshmod, only: genmesh, fillmesh
     use global, only: refden
     use types, only: molmesh
