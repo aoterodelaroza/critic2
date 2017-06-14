@@ -149,7 +149,6 @@ contains
     use navigation, only: newton
     use grid_tools, only: mode_nearest, mode_trilinear
     use graphics, only: graphics_ball, graphics_close
-    use struct_writers, only: struct_write_3dmodel
     use crystalmod, only: cr
     use surface, only: minisurf_init, minisurf_clean, minisurf_spheretriang, minisurf_close
     use fields, only: f, type_grid
@@ -750,7 +749,7 @@ contains
     if (cpdebug) then
        str = trim(fileroot) // "_seeds.obj" 
        write (uout,'("+ Writing seeds to file: ",A)') str
-       call struct_write_3dmodel(cr,str,"obj",(/1,1,1/),.true.,.false.,.false.,&
+       call cr%write_3dmodel(str,"obj",(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),lug,lumtl)
        do i = 1, nn
           call graphics_ball("obj",lug,xseed(:,i) + cr%molx0,(/100,100,255/),0.3d0)

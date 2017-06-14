@@ -338,11 +338,6 @@ contains
 
   ! Write the crystal structure to a file
   subroutine struct_write(c,line)
-    use struct_writers, only: struct_write_mol, struct_write_3dmodel, struct_write_gaussian,&
-       struct_write_espresso, struct_write_vasp, struct_write_abinit, struct_write_elk,&
-       struct_write_tessel, struct_write_critic, struct_write_cif, struct_write_escher,&
-       struct_write_gulp, struct_write_lammps, struct_write_siesta_fdf, struct_write_siesta_in,&
-       struct_write_dftbp_hsd, struct_write_dftbp_gen, struct_write_d12
     use crystalmod, only: crystal
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
@@ -463,58 +458,58 @@ contains
        end if
 
        if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-          call struct_write_mol(c,file,wext,ix,doborder,onemotif,molmotif,&
+          call c%write_mol(file,wext,ix,doborder,onemotif,molmotif,&
              environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub)
        else
-          call struct_write_3dmodel(c,file,wext,ix,doborder,onemotif,molmotif,&
+          call c%write_3dmodel(file,wext,ix,doborder,onemotif,molmotif,&
              docell,domolcell,rsph,xsph,rcub,xcub)
        end if
     elseif (equal(wext,'gau')) then
        ! gaussian periodic boundary conditions
        write (uout,'("* WRITE Gaussian file: ",A)') string(file)
-       call struct_write_gaussian(file,c)
+       call c%write_gaussian(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'in')) then
        ! espresso
        write (uout,'("* WRITE espresso file: ",A)') string(file)
-       call struct_write_espresso(file,c)
+       call c%write_espresso(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
-       call struct_write_vasp(file,c,.true.)
+       call c%write_vasp(file,.true.)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'abin')) then
        ! abinit
        write (uout,'("* WRITE abinit file: ",A)') string(file)
-       call struct_write_abinit(file,c)
+       call c%write_abinit(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'elk')) then
        ! elk
        write (uout,'("* WRITE elk file: ",A)') string(file)
-       call struct_write_elk(file,c)
+       call c%write_elk(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'tess')) then
        ! tessel
        write (uout,'("* WRITE tess file: ",A)') string(file)
-       call struct_write_tessel(file,c)
+       call c%write_tessel(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
        ! critic2
        write (uout,'("* WRITE critic2 input file: ",A)') string(file)
-       call struct_write_critic(file,c)
+       call c%write_critic(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'cif')) then
        ! cif
        write (uout,'("* WRITE cif file: ",A)') string(file)
-       call struct_write_cif(file,c)
+       call c%write_cif(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'d12')) then
@@ -532,13 +527,13 @@ contains
           end if
        end do
        write (uout,'("* WRITE crystal file: ",A)') string(file)
-       call struct_write_d12(file,c,dosym)
+       call c%write_d12(file,dosym)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then
        ! escher
        write (uout,'("* WRITE escher file: ",A)') string(file)
-       call struct_write_escher(file,c)
+       call c%write_escher(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'gin')) then
@@ -556,30 +551,30 @@ contains
           end if
        end do
        write (uout,'("* WRITE gulp file: ",A)') string(file)
-       call struct_write_gulp(file,c,dodreiding)
+       call c%write_gulp(file,dodreiding)
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
-       call struct_write_lammps(file,c)
+       call c%write_lammps(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'fdf')) then
        write (uout,'("* WRITE fdf file: ",A)') string(file)
-       call struct_write_siesta_fdf(file,c)
+       call c%write_siesta_fdf(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'struct_in')) then
        write (uout,'("* WRITE STRUCT_IN file: ",A)') string(file)
-       call struct_write_siesta_in(file,c)
+       call c%write_siesta_in(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'hsd')) then
        write (uout,'("* WRITE hsd file: ",A)') string(file)
-       call struct_write_dftbp_hsd(file,c)
+       call c%write_dftbp_hsd(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'gen')) then
        write (uout,'("* WRITE gen file: ",A)') string(file)
-       call struct_write_dftbp_gen(file,c)
+       call c%write_dftbp_gen(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     else

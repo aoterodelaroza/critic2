@@ -471,7 +471,6 @@ contains
     use varbas, only: ncpcel, cpcel, ncp, cp
     use global, only: fileroot
     use crystalmod, only: cr
-    use struct_writers, only: struct_write_3dmodel, struct_write_mol
     use tools_io, only: faterr, ferror, uout, fopen_write
 
     logical, intent(in) :: nosym
@@ -635,13 +634,13 @@ contains
        ! connect and initialize obj/ply/off file 
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call struct_write_3dmodel(cr,outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
+       call cr%write_3dmodel(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout,lumtl)
     elseif (outfmt=="cml") then
        ! connect and initialize cml file 
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call struct_write_mol(cr,outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
+       call cr%write_mol(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
           .false.,0d0,.false.,1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout)
     endif
 

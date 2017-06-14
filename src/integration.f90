@@ -2395,7 +2395,6 @@ contains
   subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
     use global, only: fileroot
     use crystalmod, only: cr, crystal
-    use struct_writers, only: struct_write_3dmodel
     use graphics, only: graphics_open, graphics_close, graphics_polygon
     use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: string, uout
@@ -2438,7 +2437,7 @@ contains
 
     ! write the unit cell
     str = trim(fileroot) // "_basins-cell." // fmt
-    call struct_write_3dmodel(cr,str,fmt,(/1,1,1/),.true.,.false.,.true.,&
+    call cr%write_3dmodel(str,fmt,(/1,1,1/),.true.,.false.,.true.,&
        .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
 
     ! prepare the idg array
