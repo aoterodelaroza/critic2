@@ -4478,6 +4478,7 @@ contains
              end do
           end do
        end do
+       call realloc(fr0,ncm)
        fr = fragment_merge_array(fr0)
        nmol = ncm
     else
@@ -5204,7 +5205,13 @@ contains
 
     ! we need symmetry for this
     if (dosym) then
+       ! This is to address a bug in gfortran 4.9 (and possibly earlier versions)
+       ! regarding assignment of user-defined types with allocatable components. 
+#if (defined(__GFORTRAN__)) && (__GNUC__ < 5)
+       call ferror("write_d12","gfortran 4.x compiler bug prevents using WRITE D12. Use NOSYM.",faterr)
+#else
        nc = c
+#endif
        call nc%cell_standard(.false.,.false.,.false.)
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0

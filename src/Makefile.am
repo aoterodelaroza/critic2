@@ -4,7 +4,7 @@ bin_PROGRAMS = critic2
 critic2_SOURCES = critic2.F90 tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f90 qtree.f90 qtree_gpaths.f90 \
 	qtree_tetrawork.f90 qtree_utils.f90 hirshfeld.f90 bisect.f90 integration.f90 surface.f90 flux.f90 \
 	autocp.f90 navigation.f90 nci.f90 rhoplot.f90 meshmod.f90 varbas.f90 fields.f90 grid_tools.f90 grd_atomic.f90 \
-	crystalmod.f90 struct_drivers.f90 sympg.f90 spgs.f90 grid1_tools.f90 \
+	crystalmod.F90 struct_drivers.f90 sympg.f90 spgs.f90 grid1_tools.f90 \
 	global.f90 dftb_private.f90 wfn_private.f90 pi_private.f90 elk_private.f90 wien_private.f90 abinit_private.f90 \
 	tools_system.c tools.f90 arithmetic.F90 hashtype.f90 tools_math.f90 graphics.f90 fragmentmod.f90 tools_io.f90 \
 	types.f90 param.F90 keast.f90 quadpack.f90 cfftnd.f90 config.F90 doqhull.c spglib.f90 crystalseedmod.f90
@@ -14,7 +14,7 @@ if GUI
   libcritic2_a_SOURCES = tricks.f90 xdm.f90 stm.f90 bader.f90 yt.f90 qtree_basic.f90 qtree.f90 qtree_gpaths.f90 \
 	qtree_tetrawork.f90 qtree_utils.f90 hirshfeld.f90 bisect.f90 integration.f90 surface.f90 flux.f90 \
 	autocp.f90 navigation.f90 nci.f90 rhoplot.f90 meshmod.f90 varbas.f90 fields.f90 grid_tools.f90 grd_atomic.f90 \
-	crystalmod.f90 struct_drivers.f90 sympg.f90 spgs.f90 grid1_tools.f90 \
+	crystalmod.F90 struct_drivers.f90 sympg.f90 spgs.f90 grid1_tools.f90 \
 	global.f90 dftb_private.f90 wfn_private.f90 pi_private.f90 elk_private.f90 wien_private.f90 abinit_private.f90 \
 	tools_system.c tools.f90 arithmetic.F90 hashtype.f90 tools_math.f90 graphics.f90 fragmentmod.f90 tools_io.f90 \
 	types.f90 param.F90 keast.f90 quadpack.f90 cfftnd.f90 config.F90 doqhull.c spglib.f90 \
