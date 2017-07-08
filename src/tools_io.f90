@@ -847,27 +847,31 @@ contains
 
   end function isdigit
 
-  !> Get an integer value from input text. If a valid integer is not
-  !> found, then return .false.
-  function isinteger (ival,line,lp)
+  !> Get an integer value from input text and return it in
+  !> ival. Advance the pointer (lp0) if provided. If lp0 is not
+  !> present, use 1. If a valid integer is not found, returns .false.
+  function isinteger(ival,line,lp0)
     logical :: isinteger
     character*(*), intent(in) :: line !< Input string
-    integer, intent(inout) :: lp !< Pointer to current position on string
+    integer, intent(inout), optional :: lp0 !< Pointer to current position on string
     integer, intent(inout) :: ival !< Integer value read, if not a valid integer is found, it is not modified
 
-    integer :: i, len0
+    integer :: i, len0, lp
     logical :: readit
+
+    lp = 1
+    if (present(lp0)) lp = lp0
 
     isinteger = .false.
     len0 = len(line)
-    if (lp > len0) return
+    if (lp > len0) goto 999
     i = lp
     do while (line(i:i)==" " .or. line(i:i)==tab)
        i=i+1
-       if (i > len0) return
+       if (i > len0) goto 999
     enddo
     if (line(i:i) == '+' .or. line(i:i) == '-') i=i+1
-    if (i > len0) return
+    if (i > len0) goto 999
     if (isdigit(line(i:i))) then 
        do while (isdigit(line(i:i)))
           if (i >= len0) exit
@@ -881,6 +885,9 @@ contains
           isinteger=.true.
        endif
     endif
+
+999 continue
+    if (present(lp0)) lp0 = lp
 
   end function isinteger
 

@@ -1267,7 +1267,8 @@ contains
     end do
 
     seed%crys2car = rmat
-    rmat = matinv(transpose(rmat))
+    rmat = transpose(rmat)
+    rmat = matinv(rmat)
     seed%useabr = 2
 
     ! Atomic positions.
@@ -2215,12 +2216,14 @@ contains
     ! figure it out
     if (ibrav == 0) then
        if (celldm(1) /= 0.D0) r = r * celldm(1)
+       r = transpose(r)
     else
-       call qe_latgen(ibrav,celldm,r(1,:),r(2,:),r(3,:))
+       r = transpose(r)
+       call qe_latgen(ibrav,celldm,r(:,1),r(:,2),r(:,3))
     endif
 
     ! fill the cell metrics
-    seed%crys2car = transpose(r)
+    seed%crys2car = r
     r = matinv(seed%crys2car)
     seed%useabr = 2
 

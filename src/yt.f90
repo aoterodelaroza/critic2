@@ -43,7 +43,7 @@ module yt
 
 contains
 
-  !> Do the YT integration on crystal c and field f. Return the number
+  !> Do the YT integration on system s and field id. Return the number
   !> of basins (nbasin), their coordinates (cryst. coordinates,
   !> xcoord), the integer id that gives the basin for each grid point
   !> (idg) and the logical unit of an open scratch file containing the
@@ -54,16 +54,17 @@ contains
   !> added as attractors at the beginning of the run. Two attractors
   !> are considered equal if they are within a ditsance of ratom
   !> (bohr).
-  subroutine yt_integrate(c,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
+  subroutine yt_integrate(s,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
+    use systemmod, only: system
+    use fieldmod, only: type_grid
     use crystalmod, only: crystal
-    use fields, only: fields_fcheck, fields_feval
     use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use arithmetic, only: eval
     use param, only: vsmall
     use tools, only: qcksort
     use types, only: realloc
-    type(crystal), intent(in) :: c
+    type(system), intent(inout) :: s
     real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
     logical, intent(in) :: atexist
@@ -85,13 +86,18 @@ contains
     real*8 :: dist, dv(3), fval, x(3)
     type(crystal) :: caux
 
+    if (.not.s%isinit) &
+       call ferror("yt_integrate","system not initialized",faterr)
+    if (.not.associated(s%c)) &
+       call ferror("yt_integrate","system does not have crystal",faterr)
+
     ! Pre-allocate atoms as maxima
-    allocate(xcoord(3,c%ncel))
+    allocate(xcoord(3,s%c%ncel))
     xcoord = 0d0
     if (atexist) then
-       nbasin = c%ncel
-       do i = 1, c%ncel
-          xcoord(:,i) = c%atcel(i)%x
+       nbasin = s%c%ncel
+       do i = 1, s%c%ncel
+          xcoord(:,i) = s%c%atcel(i)%x
        end do
     else
        nbasin = 0
@@ -118,8 +124,8 @@ contains
     ! calculate areas*lengths and grid vectors. Use a smaller crystal
     ! where the "lattice" corresponds to the cube grid points.
     caux%isinit = .true.
-    caux%aa = c%aa / real(n,8)
-    caux%bb = c%bb
+    caux%aa = s%c%aa / real(n,8)
+    caux%bb = s%c%bb
     caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
     caux%car2crys = matinv(caux%crys2car)
     call caux%wigner((/0d0,0d0,0d0/),nvec=nvec,vec=vec,area0=al)
@@ -155,7 +161,7 @@ contains
           isassigned = .false.
           if (atexist) then
              nid = 0
-             call c%nearest_atom(dv,nid,dist,lvec)
+             call s%c%nearest_atom(dv,nid,dist,lvec)
              if (dist < ratom) then
                 ibasin(ii) = nid
                 isassigned = .true.
@@ -164,7 +170,7 @@ contains
           ! check if it is a known nnm
           if (.not.isassigned .and. ratom > vsmall) then
              do k = 1, nbasin
-                if (c%are_lclose(dv,xcoord(:,k),ratom)) then
+                if (s%c%are_lclose(dv,xcoord(:,k),ratom)) then
                    ibasin(ii) = k
                    isassigned = .true.
                    exit
@@ -175,8 +181,8 @@ contains
           if (.not.isassigned) then
              ok = .true.
              if (len_trim(discexpr) > 0) then
-                x = c%x2c(dv)
-                fval = eval(discexpr,.false.,ok,x,fields_fcheck,fields_feval)
+                x = s%c%x2c(dv)
+                fval = s%eval(discexpr,.false.,ok,x)
                 if (.not.ok) &
                    call ferror("yt","invalid DISCARD expression",faterr)
                 ok = (abs(fval) < 1d-30)

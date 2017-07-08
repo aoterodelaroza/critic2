@@ -15,15 +15,40 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Tools for the manipulation of 1D grids.
-module grid1_tools
+!> One-dimensional grid class
+module grid1mod
   implicit none
 
   private
 
-  public :: grid1_read_db
-  public :: grid1_interp
-  public :: radial_derivs
+  private :: read_critic
+
+  !> Radial grid type.
+  type grid1
+     logical :: init = .false. !< Is initialized?
+     real*8 :: a !< Logarithmic grid parameter ri = a * exp(b * (i-1))
+     real*8 :: b !< Logarithmic grid parameter ri = a * exp(b * (i-1))
+     real*8 :: rmax !< Max. grid distance
+     real*8 :: rmax2 !< Squared max. grid distance
+     integer :: ngrid !< Number of nodes
+     real*8, allocatable :: r(:) !< Node positions
+     real*8, allocatable :: f(:) !< Grid values, f = 4*pi*r^2*rho
+     real*8, allocatable :: fp(:) !< First derivative of f
+     real*8, allocatable :: fpp(:) !< Second derivative of f 
+     integer :: z 
+     integer :: qat
+   contains
+     procedure :: read_db !< Read a one-dimesional grid from the density tables
+     procedure :: interp !< Interpolate value and derivatives from the grid
+  end type grid1
+  public :: grid1
+
+  ! table of all-electron and core 1d grids
+  type(grid1), target, allocatable, public :: agrid(:)
+  type(grid1), target, allocatable, public :: cgrid(:,:)
+  public :: grid1_register_core
+  public :: grid1_register_ae
+  public :: grid1_clean_grids
 
   ! radial grid derivation formulas
   integer, parameter :: noef(6,3) = reshape((/&
@@ -46,17 +71,26 @@ module grid1_tools
 
 contains
 
+  !> Deallocate arrays and uninitialize
+  subroutine grid1_end(g)
+    class(grid1), intent(inout) :: g
+
+    g%init = .false.
+    if (allocated(g%r)) deallocate(g%r)
+    if (allocated(g%f)) deallocate(g%f)
+    if (allocated(g%fp)) deallocate(g%fp)
+    if (allocated(g%fpp)) deallocate(g%fpp)
+    
+  end subroutine grid1_end
+
   !> Read a density core file from the database.
-  subroutine grid1_read_db(g,z,q,verbose)
-    use types, only: grid1
+  subroutine read_db(g,z,q)
     use global, only: critic_home
     use tools_io, only: nameguess, warning, lower, ferror
     use param, only: dirsep
-
-    type(grid1), intent(out) :: g !< Output radial grid
+    class(grid1), intent(inout) :: g !< Output radial grid
     integer, intent(in) :: z !< Atomic number
     integer, intent(in) :: q !< Atomic pseudopotential charge
-    logical, intent(in) :: verbose !< Write output?
 
     character(len=:), allocatable :: file
 
@@ -67,27 +101,25 @@ contains
 
     ! anions not supported
     if (q < 0) &
-       call ferror('grid1_read_db','Anions not supported: neutral atomic density used instead',warning)
+       call ferror('read_db','Anions not supported: neutral atomic density used instead',warning)
 
     ! do it
-    call grid1_read_critic(g,file,z-q,verbose,.true.)
+    call read_critic(g,file,z-q,.true.)
     g%z = z
     g%qat = q
 
-  end subroutine grid1_read_db
+  end subroutine read_db
 
   !> Read grid in critic format. This format is adapted from the wfc files
   !> of the ld1 program in the quantum espresso distribution. Only n electrons
   !> out of the total Z are used to build the grid.
-  subroutine grid1_read_critic(g,file,n,verbose,abspath)
-    use types, only: grid1, realloc
+  subroutine read_critic(g,file,n,abspath)
+    use types, only: realloc
     use tools_io, only: uout, warning, ferror, fopen_read, string, fclose
     use param, only: pi
-
-    type(grid1), intent(out) :: g !< One-dimensional grid on output
+    class(grid1), intent(inout) :: g !< One-dimensional grid on output
     character*(*), intent(in) :: file !< File with the grid description
     integer, intent(in) :: n !< Number of electrons read
-    logical, intent(in) :: verbose !< Write to output?
     logical, intent(in) :: abspath !< Absolute path?
 
     integer :: i, j, lu, nn
@@ -189,34 +221,33 @@ contains
     ! close the density file
     call fclose(lu)
 
-    ! check the normalization of the density file and output
-    if (verbose) then
-       econf = ""
-       do i = 1, nn
-          econf = econf // string(wfcl(i),2)
-          econf = econf // "(" // string(occ(i)) // ")"
-       end do
+    ! ! check the normalization of the density file and output
+    ! if (verbose) then
+    !    econf = ""
+    !    do i = 1, nn
+    !       econf = econf // string(wfcl(i),2)
+    !       econf = econf // "(" // string(occ(i)) // ")"
+    !    end do
 
-       write (uout,'("+ Read density file: ", A)') string(file)
-       write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
-          string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
-       write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
-          string(g%ngrid), string(g%rmax,'f',decimal=7)
-       write (uout,'("  Integrated charge = ",A)') &
-          string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10)
-       write (uout,'("  El. conf.: ",A)') string(econf)
-    end if
+    !    write (uout,'("+ Read density file: ", A)') string(file)
+    !    write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
+    !       string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
+    !    write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
+    !       string(g%ngrid), string(g%rmax,'f',decimal=7)
+    !    write (uout,'("  Integrated charge = ",A)') &
+    !       string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10)
+    !    write (uout,'("  El. conf.: ",A)') string(econf)
+    ! end if
 
     ! cleanup
     deallocate(rr,wfcin,wfcl,occ)
 
-  end subroutine grid1_read_critic
+  end subroutine read_critic
 
   !> Interpolate the radial grid g at distance r0, and obtain the value,
   !> first derivative and second derivative.
-  subroutine grid1_interp(g,r0,f,fp,fpp)
-    use types, only: grid1
-    type(grid1), intent(in) :: g !< The radial grid.
+  subroutine interp(g,r0,f,fp,fpp)
+    class(grid1), intent(in) :: g !< The radial grid.
     real*8, intent(in) :: r0 !< Value of the radial coordinate.
     real*8, intent(out) :: f !< Interpolated value
     real*8, intent(out) :: fp !< Interpolated first derivative
@@ -265,97 +296,68 @@ contains
        fpp = fpp + g%fpp(ii) * prod
     end do
 
-  end subroutine grid1_interp
+  end subroutine interp
 
-  !> Given the value of a function (rlm) on an exponential grid defined
-  !> by r_i = a * exp((i-1)*b), calculate the interpolated value (rho)
-  !> and the first (rho1) and second (rho2) derivative at the
-  !> distance r0. Does not apply to grid1_interp.
-  subroutine radial_derivs (rlm,rho,rho1,rho2,r0,a,b)
-    real*8, dimension(:), intent(in) :: rlm
-    real*8, intent(out) :: rho, rho1, rho2
-    real*8, intent(in) :: r0
-    real*8, intent(in) :: a, b
-
-    integer :: ir, temp_ir
-    integer :: nr
-    real*8 :: r, rn, rrlm(4,0:2)
-    real*8, dimension(4,4) :: x1dr12
+  !> Read the core density from the internal density tables for atom
+  !> with Z = iz and ZPSP = iq.
+  subroutine grid1_register_core(iz,iq)
+    use param, only: maxzat0, maxzat
+    integer, intent(in) :: iz, iq
+    
     integer :: i, j
-    integer :: ii, jj, ic
-    real*8, dimension(4) :: r1, dr1
-    real*8 :: prod
 
-    nr = size(rlm)
-    rn = a * exp(real(nr-1,8) * b)
-    r = max(r0,a)
-    if (r >= rn) then
-       rho = 0d0
-       rho1 = 0d0
-       rho2 = 0d0
-       return
-    end if
-    ir = min(max(floor(log(r / a) / b + 1),1),nr)
+    if (iz <= 0 .or. iz > maxzat) return
+    if (iq <= 0 .or. iq > iz) return
 
-    ! careful with grid limits.
-    if (ir <= 2) then
-       temp_ir = 2
-    else if (ir >= (nr - 2)) then
-       temp_ir = nr - 2
-    else
-       temp_ir = ir
+    if (.not.allocated(cgrid)) then
+       allocate(cgrid(maxzat0,maxzat0))
+       do i = 1, maxzat0
+          do j = 1, maxzat0
+             cgrid(i,j)%z = 0
+             cgrid(i,j)%qat = 0
+          end do
+       end do
     end if
 
-    rrlm(:,0) = rlm(temp_ir-1:temp_ir+2)
-    x1dr12 = 0d0
-    do i = 1, 4
-       ii = temp_ir - 2 + i
-       if (ii <= 2) then
-          ic = 1
-       else if ( ii >= (nr-2)) then
-          ic = 3
-       else
-          ic = 2
-       end if
+    if (cgrid(iz,iq)%init .and. cgrid(iz,iq)%z == iz .and. &
+       cgrid(iz,iq)%qat == iq) return
+    
+    call cgrid(iz,iq)%read_db(iz,iq)
 
-       rrlm(i,1:2) = 0d0
-       do j = 1, 6
-          jj = ii + noef(j,ic)
-          rrlm(i,1) = rrlm(i,1) + coef1(j,ic) * rlm(jj)
-          rrlm(i,2) = rrlm(i,2) + coef2(j,ic) * rlm(jj)
+  end subroutine grid1_register_core
+    
+  !> Read the all-electron density from the internal density tables
+  !> for atom with Z = iz.
+  subroutine grid1_register_ae(iz)
+    use param, only: maxzat0, maxzat
+    integer, intent(in) :: iz
+    
+    integer :: i
+
+    if (iz <= 0 .or. iz > maxzat) return
+    if (.not.allocated(agrid)) then
+       allocate(agrid(maxzat0))
+       do i = 1, maxzat0
+          agrid(i)%init = .false.
+          agrid(i)%z = 0
+          agrid(i)%qat = 0
        end do
-       rrlm(i,1) = rrlm(i,1) * fac1
-       rrlm(i,2) = rrlm(i,2) * fac2
+    end if
 
-       ! calculate factors and distances
-       r1(i) = a*exp((ii-1)*b)
-       dr1(i) = r - r1(i)
-       do j = 1, i-1
-          x1dr12(i,j) = 1.d0 / (r1(i) - r1(j))
-          x1dr12(j,i) = -x1dr12(i,j)
-       end do
-    end do
+    if (agrid(iz)%init) then
+       if (agrid(iz)%z == iz) return
+    end if
 
-    ! interpolate, lagrange 3rd order, 4 nodes
-    rho = 0.d0
-    rho1 = 0.d0
-    rho2 = 0.d0
-    do i = 1, 4
-       prod = 1.d0
-       do j = 1 ,4
-          if (i == j) then
-             cycle
-          end if
-          prod = prod * dr1(j) * x1dr12(i,j)
-       end do
-       rho = rho + rrlm(i,0) * prod
-       rho1 = rho1 + rrlm(i,1) * prod
-       rho2 = rho2 + rrlm(i,2) * prod
-    end do
+    call agrid(iz)%read_db(iz,0)
 
-    rho2 = rho2 / (b * r)**2 - rho1 / b / r**2
-    rho1 = rho1 / b / r
+  end subroutine grid1_register_ae
+    
+  !> Deallocate the core and all-electron density grid
+  subroutine grid1_clean_grids()
 
-  end subroutine radial_derivs
+    if (allocated(agrid)) deallocate(agrid)
+    if (allocated(cgrid)) deallocate(cgrid)
 
-end module grid1_tools
+  end subroutine grid1_clean_grids
+
+end module grid1mod

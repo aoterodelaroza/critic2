@@ -56,8 +56,8 @@ module bader
 
 contains
 
-  !> Do a grid integration using the BADER method. c is the crystal
-  !> and ff is the field. Return the number of basins (nbasin0), their
+  !> Do a grid integration using the BADER method. s is the system and
+  !> id is the field id. Return the number of basins (nbasin0), their
   !> coordinates (crystallographic corods, xcoord). volnum0 gives the
   !> id of the basin (from 1 to nbasin0) on the lattice. If the
   !> arithmetic expression discexpr is not empty, then apply that
@@ -65,17 +65,16 @@ contains
   !> non-zero, discard the attractor. If atexist is true, then the
   !> code is aware of the presence of atoms, which are added as
   !> attractors at the beginning of the run. Two attractors are
-  !> considered equal if they are within a ditsance of ratom
-  !> (bohr).
-  subroutine bader_integrate(c,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
-    use crystalmod, only: crystal
-    use fields, only: fields_fcheck, fields_feval
+  !> considered equal if they are within a ditsance of ratom (bohr).
+  subroutine bader_integrate(s,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
+    use systemmod, only: system
+    use fieldmod, only: type_grid
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv
     use arithmetic, only: eval
     use param, only: vsmall
     use types, only: realloc
-    type(crystal), intent(in) :: c
+    type(system), intent(inout) :: s
     real*8, intent(in) :: ff(:,:,:)
     character*(*), intent(in) :: discexpr
     logical, intent(in) :: atexist
@@ -87,8 +86,13 @@ contains
     integer :: i, j, k, l, path_volnum, p(3)
     integer :: ptemp(3), ref_itrs, irefine_edge, nid, lvec(3)
     real*8 :: dlat(3), dcar(3), dist, dv(3), x(3), fval
-    integer :: bat(c%ncel)
+    integer :: bat(s%c%ncel)
     logical :: isassigned, ok
+
+    if (.not.s%isinit) &
+       call ferror("bader_integrate","system not initialized",faterr)
+    if (.not.associated(s%c)) &
+       call ferror("bader_integrate","system does not have crystal",faterr)
 
     ! deallocate the arguments and private globals
     if (allocated(volnum0)) deallocate(volnum0)
@@ -97,13 +101,13 @@ contains
     if (allocated(path)) deallocate(path)
 
     ! Pre-allocate atoms as maxima
-    allocate(xcoord(3,c%ncel))
+    allocate(xcoord(3,s%c%ncel))
     xcoord = 0d0
     nbasin = 0
     if (atexist) then
-       nbasin = c%ncel
-       do i = 1, c%ncel
-          xcoord(:,i) = c%atcel(i)%x
+       nbasin = s%c%ncel
+       do i = 1, s%c%ncel
+          xcoord(:,i) = s%c%atcel(i)%x
        end do
     end if
 
@@ -113,7 +117,7 @@ contains
     ! metrics
     do i = 1, 3
        n(i) = size(ff,i)
-       lat2car(:,i) = c%crys2car(:,i) / n(i)
+       lat2car(:,i) = s%c%crys2car(:,i) / n(i)
     end do
     car2lat = matinv(lat2car)
 
@@ -153,7 +157,7 @@ contains
                    isassigned = .false.
                    if (atexist) then
                       nid = 0
-                      call c%nearest_atom(dv,nid,dist,lvec)
+                      call s%c%nearest_atom(dv,nid,dist,lvec)
                       if (dist < ratom) then
                          path_volnum = nid
                          isassigned = .true.
@@ -162,7 +166,7 @@ contains
                    ! check if it is a known nnm
                    if (.not.isassigned .and. ratom > vsmall) then
                       do l = 1, nbasin
-                         if (c%are_lclose(dv,xcoord(:,l),ratom)) then
+                         if (s%c%are_lclose(dv,xcoord(:,l),ratom)) then
                             path_volnum = l
                             isassigned = .true.
                             exit
@@ -173,8 +177,8 @@ contains
                    if (.not.isassigned) then
                       ok = .true.
                       if (len_trim(discexpr) > 0) then
-                         x = c%x2c(dv)
-                         fval = eval(discexpr,.false.,ok,x,fields_fcheck,fields_feval)
+                         x = s%c%x2c(dv)
+                         fval = s%eval(discexpr,.false.,ok,x)
                          if (.not.ok) &
                             call ferror("yt","invalid DISCARD expression",faterr)
                          ok = (abs(fval) < 1d-30)

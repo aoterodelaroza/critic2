@@ -29,40 +29,34 @@ contains
 
   ! calculate hirshfeld charges using a grid
   subroutine hirsh_props_grid()
-    use grid_tools, only: grid_rhoat
-    use grid1_tools, only: grid1_interp
-    use fields, only: f, type_grid
-    use crystalmod, only: cr
-    use global, only: refden
-    use grd_atomic, only: agrid
+    use systemmod, only: sy
+    use grid3mod, only: grid3
+    use grid1mod, only: grid1, agrid
+    use fieldmod, only: type_grid
     use tools_io, only: ferror, faterr, uout, string, ioj_center
-    use types, only: field
 
     integer :: i, j, k
     real*8 :: dist, rrho, rrho1, rrho2, x(3), xdelta(3,3)
     integer :: n(3)
     logical :: doagain
     integer :: ishl, il, ill, ivec(3), iat
-    real*8 :: lvec(3), sum, qtotal, qerr, qat(cr%nneq)
-    type(field) :: hw
+    real*8 :: lvec(3), sum, qtotal, qerr, qat(sy%c%nneq)
+    type(grid3) :: hw
 
-    hw%init = .false.
-    hw%numerical = .false.
-
-    if (f(refden)%type /= type_grid) &
+    if (sy%f(sy%iref)%type /= type_grid) &
        call ferror("hirsh_props_grid","grid hirshfeld only for grid interface",faterr)
 
     write (uout,'("* Hirshfeld atomic charges")')
-    write (uout,'("  Promolecular density grid size: ",3(A,X))') (string(f(refden)%n(j)),j=1,3)
+    write (uout,'("  Promolecular density grid size: ",3(A,X))') (string(sy%f(sy%iref)%grid%n(j)),j=1,3)
 
 
-    n = f(refden)%n
-    call grid_rhoat(f(refden),hw,2)
+    n = sy%f(sy%iref)%grid%n
+    call sy%c%promolecular_grid(hw,n)
 
     do i = 1, 3
        xdelta(:,i) = 0d0
        xdelta(i,i) = 1d0 / real(n(i),8)
-       xdelta(:,i) = cr%x2c(xdelta(:,i))
+       xdelta(:,i) = sy%c%x2c(xdelta(:,i))
     end do
 
     ! parallelize over atoms
@@ -71,7 +65,7 @@ contains
     qat = 0d0
     !$omp parallel do private (doagain,ishl,sum,ill,ivec,lvec,x,dist,rrho,rrho1,rrho2)&
     !$omp schedule(dynamic)
-    do iat = 1, cr%nneq
+    do iat = 1, sy%c%nneq
        doagain = .true.
        ishl = -1
        sum = 0d0
@@ -89,39 +83,39 @@ contains
 
              if (all(abs(ivec) /= ishl)) cycle
 
-             lvec = cr%x2c(real(ivec,8))
+             lvec = sy%c%x2c(real(ivec,8))
 
              do k = 1, n(3)
                 do j = 1, n(2)
                    do i = 1, n(1)
                       x = lvec + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + &
-                         (k-1) * xdelta(:,3) - cr%at(iat)%r
+                         (k-1) * xdelta(:,3) - sy%c%at(iat)%r
                       dist = sqrt(dot_product(x,x))
-                      if (.not.agrid(cr%at(iat)%z)%init) cycle
-                      if (dist > agrid(cr%at(iat)%z)%rmax / 2) cycle
+                      if (.not.agrid(sy%c%at(iat)%z)%init) cycle
+                      if (dist > agrid(sy%c%at(iat)%z)%rmax / 2) cycle
 
                       doagain = .true.
-                      call grid1_interp(agrid(cr%at(iat)%z),dist,rrho,rrho1,rrho2)
-                      sum = sum + rrho / hw%f(i,j,k) * f(refden)%f(i,j,k)
+                      call agrid(sy%c%at(iat)%z)%interp(dist,rrho,rrho1,rrho2)
+                      sum = sum + rrho / hw%f(i,j,k) * sy%f(sy%iref)%grid%f(i,j,k)
                    end do
                 end do
              end do
           end do
        end do
 
-       sum = sum * cr%omega / real(n(1)*n(2)*n(3),8)
+       sum = sum * sy%c%omega / real(n(1)*n(2)*n(3),8)
        !$omp critical (io)
        qat(iat) = sum
-       qtotal = qtotal + sum * cr%at(iat)%mult
-       qerr = qerr + (cr%at(iat)%zpsp-sum) * cr%at(iat)%mult
+       qtotal = qtotal + sum * sy%c%at(iat)%mult
+       qerr = qerr + (sy%f(sy%iref)%zpsp(sy%c%at(iat)%z)-sum) * sy%c%at(iat)%mult
        !$omp end critical (io)
     end do
     !$omp end parallel do
     write (uout,'("# i  Atom Charge")')
-    do iat = 1, cr%nneq
+    do iat = 1, sy%c%nneq
        write (uout,'(3(A,X))') string(iat,length=4,justify=ioj_center), &
-          string(cr%at(iat)%name,length=5,justify=ioj_center), &
-          string(cr%at(iat)%zpsp-qat(iat),'f',length=16,decimal=10,justify=3)
+          string(sy%c%at(iat)%name,length=5,justify=ioj_center), &
+          string(sy%f(sy%iref)%zpsp(sy%c%at(iat)%z)-qat(iat),'f',length=16,decimal=10,justify=3)
     end do
     write (uout,'("# total integrated charge: ",A)') string(qtotal,'e',decimal=10)
     write (uout,'("# error integrated charge: ",A)') string(qerr,'e',decimal=10)

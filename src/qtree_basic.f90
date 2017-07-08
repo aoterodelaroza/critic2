@@ -20,48 +20,63 @@ module qtree_basic
   use global, only: mneq
   implicit none
 
-  public
+  private
+
+  public :: qtree_initialize
+  public :: qtree_checksymmetry
+  public :: qtree_cleanup
+  public :: find_beta_rodriguez
+  public :: map_ode_pointers
+  public :: cindex
+  public :: crys2convex
+  public :: locate_tetrah
+  public :: neargp
+  private :: find_tetrah_contacts
+  private :: inverse_operation
+  public :: get_tlengths
+  private :: presplit_ws
 
   ! logical units for differences and stick tess files
-  integer :: ludif
-  integer :: lustick(0:20)
+  integer, public :: ludif
+  integer, public :: lustick(0:20)
 
   ! nuclear and nonnuclear maxima
-  integer :: nnuc
+  integer, public :: nnuc
 
   ! eps 
-  real*8, parameter :: eps_v_warn = 1d-10        ! volume assert, warn
-  real*8, parameter :: eps_v_periodic = 1d-6     ! volume assert, deact. periodic
-  real*8, parameter :: eps_v_strict = 1d-3       ! volume assert, strict
-  real*8, parameter :: eps_tetrah_contact = 1d-5 ! tetrah contact
-  real*8, parameter :: tetra_eps_strict = 1d-2   ! x in tetrah, strict
-  real*8, parameter :: tetra_eps_warn = 1d-5     ! x in tetrah, warn
-  real*8 :: crys2convex_eps, crys2convex_eps1 
+  real*8, parameter, public :: eps_v_warn = 1d-10        ! volume assert, warn
+  real*8, parameter, public :: eps_v_periodic = 1d-6     ! volume assert, deact. periodic
+  real*8, parameter, public :: eps_v_strict = 1d-3       ! volume assert, strict
+  real*8, parameter, public :: eps_tetrah_contact = 1d-5 ! tetrah contact
+  real*8, parameter, public :: tetra_eps_strict = 1d-2   ! x in tetrah, strict
+  real*8, parameter, public :: tetra_eps_warn = 1d-5     ! x in tetrah, warn
+  real*8, public :: crys2convex_eps, crys2convex_eps1 
 
   ! symmetry operations of the (0,0,0) local group
-  integer :: leqv
-  real*8 :: leqvf
-  real*8 :: lrotm(3,3,48)
+  integer, public :: leqv
+  real*8, public :: leqvf
+  real*8, public :: lrotm(3,3,48)
 
   ! number of initial tetrahedra
-  integer :: nt_orig 
+  integer, public :: nt_orig 
 
   ! origin, edge vectors and volume of the initial tetrahedra (cryst. coords.)
-  real*8, allocatable :: tvol(:), cmat(:,:,:), dmat(:,:,:)
-  real*8, allocatable :: torig(:,:), tvec(:,:,:)
-  real*8, allocatable :: borig(:,:), bvec(:,:,:)
-  integer, allocatable :: tcontact(:,:)
-  integer, parameter :: tcontact_void = 999999
-  real*8 :: maxlen, minlen
-  logical :: periodic
+  real*8, allocatable, public :: tvol(:), cmat(:,:,:), dmat(:,:,:)
+  real*8, allocatable, public :: torig(:,:), tvec(:,:,:)
+  real*8, allocatable, public :: borig(:,:), bvec(:,:,:)
+  integer, allocatable, public :: tcontact(:,:)
+  integer, parameter, public :: tcontact_void = 999999
+  real*8, public :: maxlen
+  real*8, public :: minlen
+  logical, public :: periodic
 
   ! level of recursive subdivision
-  integer :: maxl
+  integer, public :: maxl
 
   ! grd call count
-  integer :: nterm
-  integer :: ngrd_term, ngrd_int
-  integer :: nlocate, nlocate_sloppy
+  integer, public :: nterm
+  integer, public :: ngrd_term, ngrd_int
+  integer, public :: nlocate, nlocate_sloppy
 
   ! recursive algorithm term list
   ! atom ids for the terms.:
@@ -69,33 +84,33 @@ module qtree_basic
   ! -1..-nneq -- the same, but the point is inside the beta-sphere
   ! 0 -- unassigned
   ! mneq+1 -- unknown (it is a non-nuclear CP)
-  integer, parameter :: qtreei = selected_int_kind(2)
-  integer, parameter :: qtreeidx = selected_int_kind(14)
-  integer, parameter :: qtreer = selected_real_kind(14)
-  logical :: savefgr, savelapgr
-  integer :: nder
+  integer, parameter, public :: qtreei = selected_int_kind(2)
+  integer, parameter, public :: qtreeidx = selected_int_kind(14)
+  integer, parameter, public :: qtreer = selected_real_kind(14)
+  logical, public :: savefgr, savelapgr
+  integer, public :: nder
 
   ! integration
-  real*8, allocatable :: atprop(:,:)
-  integer*4 :: korder(10)
-  real*8 :: kxyz(3,45,10), kw(45,10)
-  logical :: intcorner_deferred
+  real*8, allocatable, public :: atprop(:,:)
+  integer*4, public :: korder(10)
+  real*8, public :: kxyz(3,45,10), kw(45,10)
+  logical, public :: intcorner_deferred
 
   ! integration spheres
-  real*8 :: r_betaint(mneq)
-  real*8 :: r_betagp(mneq)
+  real*8, public :: r_betaint(mneq)
+  real*8, public :: r_betagp(mneq)
 
   ! gradient modes, comparison
-  integer :: ndiff
-  integer :: ngrd1, ngrd2
+  integer, public :: ndiff
+  integer, public :: ngrd1, ngrd2
 
   ! gradient integration pointers
-  integer, pointer :: ode_o, ode_o2, ode_type
-  real*8, pointer :: ode_a(:,:)
-  real*8, pointer :: ode_b(:), ode_b2(:)
-  logical :: ode_fsal
-  real*8, parameter :: safety = 0.9d0
-  real*8 :: qinv, q1inv
+  integer, pointer, public :: ode_o, ode_o2, ode_type
+  real*8, pointer, public :: ode_a(:,:)
+  real*8, pointer, public :: ode_b(:), ode_b2(:)
+  logical, public :: ode_fsal
+  real*8, parameter, public :: safety = 0.9d0
+  real*8, public :: qinv, q1inv
 
   ! Butcher tableaus of ODE solvers
   ! c_1 |
@@ -112,66 +127,66 @@ module qtree_basic
   ! The step is calculated with the b (not b2) formula
   !
   !! Euler method 
-  integer, target :: euler_o = 1
-  real*8, target :: euler_c(1) = (/0d0/)
-  real*8, target :: euler_a(1,1) = reshape((/1d0/),shape(euler_a))
-  real*8, target :: euler_b(1) = (/1d0/)
-  integer, target :: euler_type = 0
+  integer, target, public :: euler_o = 1
+  real*8, target, public :: euler_c(1) = (/0d0/)
+  real*8, target, public :: euler_a(1,1) = reshape((/1d0/),shape(euler_a))
+  real*8, target, public :: euler_b(1) = (/1d0/)
+  integer, target, public :: euler_type = 0
   !! Heun's method
-  integer, target :: heun_o = 2
-  real*8, target :: heun_c(2) = (/0d0, 1d0/)
-  real*8, target :: heun_a(2,2) = reshape((/0d0, 1d0,&
+  integer, target, public :: heun_o = 2
+  real*8, target, public :: heun_c(2) = (/0d0, 1d0/)
+  real*8, target, public :: heun_a(2,2) = reshape((/0d0, 1d0,&
      1d0, 0d0/),shape(heun_a))
-  real*8, target :: heun_b(2) = (/0.5d0, 0.5d0/)
-  integer, target :: heun_type = 0
+  real*8, target, public :: heun_b(2) = (/0.5d0, 0.5d0/)
+  integer, target, public :: heun_type = 0
   !! Kutta's method
-  integer, target :: kutta_o = 3
-  real*8, target :: kutta_c(3) = (/0d0, 0.5d0, 1d0/)
-  real*8, target :: kutta_a(3,3) = reshape((/0.0d0, 0.5d0, -1.0d0,&
+  integer, target, public :: kutta_o = 3
+  real*8, target, public :: kutta_c(3) = (/0d0, 0.5d0, 1d0/)
+  real*8, target, public :: kutta_a(3,3) = reshape((/0.0d0, 0.5d0, -1.0d0,&
      0.5d0, 0.0d0,  2.0d0,&
      -1.0d0, 2.0d0,  0.0d0/),shape(kutta_a))
-  real*8, target :: kutta_b(3) = (/1d0/6d0, 2d0/3d0, 1d0/6d0/)
-  integer, target :: kutta_type = 0
+  real*8, target, public :: kutta_b(3) = (/1d0/6d0, 2d0/3d0, 1d0/6d0/)
+  integer, target, public :: kutta_type = 0
   !! RK4 method
-  integer, target :: rk4_o = 4
-  real*8, target :: rk4_c(4) = (/0d0, 0.5d0, 0.5d0, 1d0/)
-  real*8, target :: rk4_a(4,4) = reshape((/0.0d0, 0.5d0, 0.0d0, 0.0d0,&
+  integer, target, public :: rk4_o = 4
+  real*8, target, public :: rk4_c(4) = (/0d0, 0.5d0, 0.5d0, 1d0/)
+  real*8, target, public :: rk4_a(4,4) = reshape((/0.0d0, 0.5d0, 0.0d0, 0.0d0,&
      0.5d0, 0.0d0, 0.5d0, 0.0d0,&
      0.0d0, 0.5d0, 0.0d0, 1.0d0,&
      0.0d0, 0.0d0, 1.0d0, 0.0d0/),shape(rk4_a))
-  real*8, target :: rk4_b(4) = (/1d0/6d0, 1d0/3d0, 1d0/3d0, 1d0/6d0/)
-  integer, target :: rk4_type = 0
+  real*8, target, public :: rk4_b(4) = (/1d0/6d0, 1d0/3d0, 1d0/3d0, 1d0/6d0/)
+  integer, target, public :: rk4_type = 0
   !! Heun-Euler embedded method
   !! 1st order, 2nd order error est., 2 evals
-  integer, target :: heul_o = 2
-  integer, target :: heul_o2 = 1
-  real*8, target :: heul_c(2) = (/0d0, 1d0/)
-  real*8, target :: heul_a(2,2) = reshape((/0d0, 0d0,&
+  integer, target, public :: heul_o = 2
+  integer, target, public :: heul_o2 = 1
+  real*8, target, public :: heul_c(2) = (/0d0, 1d0/)
+  real*8, target, public :: heul_a(2,2) = reshape((/0d0, 0d0,&
      1d0, 0d0/),shape(heul_a))
-  real*8, target :: heul_b2(2) = (/0.5d0, 0.5d0/)
-  real*8, target :: heul_b(2) = (/1.0d0, 0.0d0/) 
-  integer, target :: heul_type = 1
+  real*8, target, public :: heul_b2(2) = (/0.5d0, 0.5d0/)
+  real*8, target, public :: heul_b(2) = (/1.0d0, 0.0d0/) 
+  integer, target, public :: heul_type = 1
   !! Bogacki-Shampine embedded method 
   !! 3th order, 5th order error est., 3(4) evals
   !! Local extrapolation, fsal
-  integer, target :: bs_o = 4
-  integer, target :: bs_o2 = 2
-  real*8, target :: bs_c(4) = (/0d0, 0.5d0, 0.75d0, 1d0/)
-  real*8, target :: bs_a(4,4) = reshape(&
+  integer, target, public :: bs_o = 4
+  integer, target, public :: bs_o2 = 2
+  real*8, target, public :: bs_c(4) = (/0d0, 0.5d0, 0.75d0, 1d0/)
+  real*8, target, public :: bs_a(4,4) = reshape(&
      (/0.0d0,0d0,0d0,0d0,&
      1d0/2d0,        0.0d0,0d0,0d0,&
      0.0d0,          3d0/4d0,     0.0d0,0d0,&
      2d0/9d0,        1d0/3d0,     4d0/9d0,       0.0d0&
      /),shape(bs_a))
-  real*8, target :: bs_b(4) = (/2d0/9d0, 1d0/3d0, 4d0/9d0, 0d0/)
-  real*8, target :: bs_b2(4) = (/7d0/24d0, 1d0/4d0, 1d0/3d0, 1d0/8d0/)
-  integer, target :: bs_type = 1
+  real*8, target, public :: bs_b(4) = (/2d0/9d0, 1d0/3d0, 4d0/9d0, 0d0/)
+  real*8, target, public :: bs_b2(4) = (/7d0/24d0, 1d0/4d0, 1d0/3d0, 1d0/8d0/)
+  integer, target, public :: bs_type = 1
   !! Runge-Kutta-Cash-Karp embedded method 
   !! 4th order, 5th order error est., 6 evals
-  integer, target :: rkck_o = 6
-  integer, target :: rkck_o2 = 4
-  real*8, target :: rkck_c(6) = (/0d0, 1d0/5d0, 3d0/10d0, 3d0/5d0, 1d0, 7d0/8d0/)
-  real*8, target :: rkck_a(6,6) = reshape(&
+  integer, target, public :: rkck_o = 6
+  integer, target, public :: rkck_o2 = 4
+  real*8, target, public :: rkck_c(6) = (/0d0, 1d0/5d0, 3d0/10d0, 3d0/5d0, 1d0, 7d0/8d0/)
+  real*8, target, public :: rkck_a(6,6) = reshape(&
      (/0.0d0,0d0,0d0,0d0,0d0,0d0,&
      1d0/5d0,        0.0d0,0d0,0d0,0d0,0d0,&
      3d0/40d0,       9d0/40d0,    0.0d0,0d0,0d0,0d0,&
@@ -186,10 +201,10 @@ module qtree_basic
   !! Dormand-Prince embedded method 
   !! 4th order, 5th order error est., 6(7) evals
   !! Local extrapolation, fsal
-  integer, target :: dp_o = 7
-  integer, target :: dp_o2 = 4
-  real*8, target :: dp_c(7) = (/0d0, 1d0/5d0, 3d0/10d0, 4d0/5d0, 8d0/9d0, 1d0, 1d0/)
-  real*8, target :: dp_a(7,7) = reshape(&
+  integer, target, public :: dp_o = 7
+  integer, target, public :: dp_o2 = 4
+  real*8, target, public :: dp_c(7) = (/0d0, 1d0/5d0, 3d0/10d0, 4d0/5d0, 8d0/9d0, 1d0, 1d0/)
+  real*8, target, public :: dp_a(7,7) = reshape(&
      (/0.0d0,  0d0,0d0,0d0,0d0,0d0,0d0,&
      1d0/5d0,         0.0d0,0d0,0d0,0d0,0d0,0d0,&
      3d0/40d0,        9d0/40d0,       0.0d0,0d0,0d0,0d0,0d0,&
@@ -198,14 +213,14 @@ module qtree_basic
      9017d0/3168d0,  -355d0/33d0,     46732d0/5247d0,  49d0/176d0,  -5103d0/18656d0, 0d0,0d0,&
      35d0/384d0,      0d0,            500d0/1113d0,    125d0/192d0, -2187d0/6784d0,  11d0/84d0,      0d0&
      /),shape(dp_a))
-  real*8, target :: dp_b2(7) = (/5179d0/57600d0, 0d0, 7571d0/16695d0, 393d0/640d0,&
+  real*8, target, public :: dp_b2(7) = (/5179d0/57600d0, 0d0, 7571d0/16695d0, 393d0/640d0,&
      -92097d0/339200d0, 187d0/2100d0, 1d0/40d0/)
-  real*8, target :: dp_b(7) = (/ 35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
+  real*8, target, public :: dp_b(7) = (/ 35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
      -2187d0/6784d0, 11d0/84d0, 0d0 /)
-  integer, target :: dp_type = 1
+  integer, target, public :: dp_type = 1
 
   ! 3! permutations
-  integer, parameter :: perm3(3,3,6) = reshape((/&
+  integer, parameter, public :: perm3(3,3,6) = reshape((/&
      1, 0, 0,&  ! 1 2 3
      0, 1, 0,&
      0, 0, 1,&
@@ -225,26 +240,19 @@ module qtree_basic
      1, 0, 0,&
      0, 0, 1 /),shape(perm3))
 
-  ! private procedures
-  private :: find_tetrah_contacts
-  private :: inverse_operation
-
 contains
   
   !> Initialize qtree, at level lvl and pre-split level plvl. This routine is called once
   !> at the beginning of the integration, or twice if the beta-sphere sizes are determined
   !> dynamically.
   subroutine qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,verbose)
-    use fields, only: f, nprops
-    use varbas, only: ncp, cp
-    use crystalmod, only: cr
-    use global, only: refden, minl, prop_mode, integ_scheme, integ_mode, keastnum,&
+    use systemmod, only: sy
+    use global, only: minl, prop_mode, integ_scheme, integ_mode, keastnum,&
        qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_use, ws_origin,&
        ws_scale
     use tools_math, only: mixed, cross
     use tools_io, only: ferror, faterr, uout, warning
     use param, only: eye
-
     integer, intent(in) :: lvl, plvl
     logical, intent(in) :: verbose
     integer(qtreei), allocatable, intent(out) :: trm(:,:)
@@ -262,8 +270,8 @@ contains
     ! count non-equivalent maxima (nuclear and non-nuclear)
     ! the list is ordered with maxima first.
     nnuc = 0
-    do i = 1, ncp
-       if (cp(i)%typ == f(refden)%typnuc) nnuc = nnuc + 1
+    do i = 1, sy%f(sy%iref)%ncp
+       if (sy%f(sy%iref)%cp(i)%typ == sy%f(sy%iref)%typnuc) nnuc = nnuc + 1
     end do
 
     ! set the max. level with user input
@@ -345,14 +353,14 @@ contains
     ! Determine local point group
     if (ws_use) then
        ! Build initial tetrahedron list
-       pg = cr%sitesymm(ws_origin,leqv=leqv,lrotm=lrotm)
-       call cr%wigner(ws_origin,ntetrag=ntetrag,tetrag=tetrag) 
+       pg = sy%c%sitesymm(ws_origin,leqv=leqv,lrotm=lrotm)
+       call sy%c%wigner(ws_origin,ntetrag=ntetrag,tetrag=tetrag) 
     else
        ws_scale = -1d0
        ws_origin = 0d0
        leqv = 1
        lrotm(:,:,1) = eye
-       call cr%pmwigner(ntetrag=ntetrag,tetrag=tetrag)
+       call sy%c%pmwigner(ntetrag=ntetrag,tetrag=tetrag)
     end if
     periodic = .true.
        
@@ -382,9 +390,9 @@ contains
        end if
 
        ! vertex in cartesian, maxlen, minlen, volume, handedness
-       xp1 = cr%x2c(tvec(:,1,i))
-       xp2 = cr%x2c(tvec(:,2,i))
-       xp3 = cr%x2c(tvec(:,3,i))
+       xp1 = sy%c%x2c(tvec(:,1,i))
+       xp2 = sy%c%x2c(tvec(:,2,i))
+       xp3 = sy%c%x2c(tvec(:,3,i))
        dist = dot_product(xp1,xp1)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
@@ -425,7 +433,7 @@ contains
        call dgedi(dmat(:,:,i),3,3,iw,xx,r1,1)
 
        ! fill cartesian / 2**maxl vectors
-       borig(:,i) = cr%x2c(torig(:,i))
+       borig(:,i) = sy%c%x2c(torig(:,i))
        bvec(:,1,i) = xp1 
        bvec(:,2,i) = xp2
        bvec(:,3,i) = xp3
@@ -437,9 +445,9 @@ contains
     maxlen = sqrt(maxlen)
     minlen = sqrt(minlen)
     if (ws_scale > 0d0) then
-       vtotal = cr%omega / ws_scale**3 
+       vtotal = sy%c%omega / ws_scale**3 
     else
-       vtotal = cr%omega 
+       vtotal = sy%c%omega 
     end if
     
     if (verbose) then
@@ -454,7 +462,7 @@ contains
           sumi = sumi + tvol(i)
        end do
        write (uout,'("+ Sum of tetrahedra volumes : ",1p,E20.12)') sumi
-       write (uout,'("+ Cell volume               : ",1p,E20.12)') cr%omega / cr%ncv
+       write (uout,'("+ Cell volume               : ",1p,E20.12)') sy%c%omega / sy%c%ncv
        write (uout,*)
        write (uout,'("* END of cell construction.")')
        write (uout,*)
@@ -477,8 +485,8 @@ contains
     end if
 
     ! allocate atomic property arrays
-    allocate(atprop(nnuc+3,Nprops))
-    allocate(acum_atprop(nnuc+3,Nprops))
+    allocate(atprop(nnuc+3,sy%npropi))
+    allocate(acum_atprop(nnuc+3,sy%npropi))
     atprop = 0d0
     acum_atprop = 0d0
 
@@ -516,17 +524,17 @@ contains
 
   !> Check that the symmetry of the cell and the tetrahedra are consistent.
   subroutine qtree_checksymmetry()
+    use systemmod, only: sy
     use global, only: ws_scale
-    use crystalmod, only: cr
 
     real*8 :: sumi
     integer :: i
     real*8 :: vtotal
 
     if (ws_scale > 0d0) then
-       vtotal = cr%omega / ws_scale**3 
+       vtotal = sy%c%omega / ws_scale**3 
     else
-       vtotal = cr%omega 
+       vtotal = sy%c%omega 
     end if
 
     sumi = 0d0
@@ -556,12 +564,10 @@ contains
   !> the gradient at a collection of points is at most 45 degrees from
   !> the radial direction.
   subroutine find_beta_rodriguez(nuc,rbeta)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_close
-    use fields, only: f, grd
-    use varbas, only: cp
-    use global, only: refden
+    use systemmod, only: sy
+    use surface, only: minisurf
     use param, only: pi
-    use types, only: minisurf, scalar_value
+    use types, only: scalar_value
     integer, intent(in) :: nuc
     real*8, intent(inout) :: rbeta
 
@@ -574,12 +580,12 @@ contains
     logical :: accept
     type(scalar_value) :: res
 
-    xnuc = cp(nuc)%x
+    xnuc = sy%f(sy%iref)%cp(nuc)%x
     angle = cos(angdev * pi / 180d0)
 
-    call minisurf_init(srf,100,100)
-    call minisurf_clean(srf)
-    call minisurf_spherecub(srf,xnuc,2)
+    call srf%begin(100,100)
+    call srf%clean()
+    call srf%spherecub(xnuc,2)
     
     accept = .false.
     do while(.not.accept)
@@ -589,7 +595,7 @@ contains
              sin(srf%th(i)) * sin(srf%ph(i)),&
              cos(srf%th(i)) /)
           x = xnuc + unit * rbeta
-          call grd(f(refden),x,1,res0=res)
+          call sy%f(sy%iref)%grd(x,1,res0=res)
           accept = accept .and. (dot_product(-res%gf/res%gfmod,unit) >= angle) 
           if (.not.accept) then
              rbeta = rbeta * shrink
@@ -598,7 +604,7 @@ contains
        end do
     end do
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine find_beta_rodriguez
 
@@ -710,7 +716,7 @@ contains
   !> Transforms from crystallographic to convex coordinates. If the
   !> point is not inside any known IWST, base_t = 0 is returned.
   subroutine crys2convex(x,base_t,rver)
-    use crystalmod, only: cr
+    use systemmod, only: sy
     real*8, intent(in) :: x(3)
     integer, intent(out) :: base_t
     real*8, intent(out) :: rver(3)
@@ -718,7 +724,7 @@ contains
     integer :: i
     real*8 :: xp(3)
 
-    xp = matmul(cr%crys2car(1:3,1:3),x(1:3))
+    xp = matmul(sy%c%crys2car(1:3,1:3),x(1:3))
     base_t = 0
     do i = 1, nt_orig
        rver = matmul(cmat(:,:,i),xp - borig(:,i))
@@ -780,8 +786,8 @@ contains
   !> index, the rotation matrix from the site-symmetry point group of
   !> the origin to use on xp and the distance
   subroutine neargp(xp,base_t,lrot,idx,dist)
+    use systemmod, only: sy
     use global, only: ws_origin
-    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -796,7 +802,7 @@ contains
     l2 = 2**maxl
 
     ! tasks in crystallographic
-    xp = cr%c2x(xp)
+    xp = sy%c%c2x(xp)
 
     ! transform to WS and find base tetrahedron and rotation matrix.
     xnew = matmul(lrotm(:,1:3,lrot),xp-ws_origin) + ws_origin
@@ -847,7 +853,7 @@ contains
 
   !> Find the contacts between tetrahedron faces
   subroutine find_tetrah_contacts()
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use tools_io, only: uout, ferror, faterr
     integer :: t, f, p, op, c, i, t2, f2, invp, invc, invop
     real*8 :: xface(3,3,4,nt_orig) ! xface(vcoords,vertex,face,tetrah)
@@ -893,7 +899,7 @@ contains
                 ! transformed face
                 aux = matmul(lrotm(1:3,1:3,op),xface(:,:,f,t))
                 do i = 1, 3
-                   aux(:,i) = aux(:,i) + cr%cen(:,c)
+                   aux(:,i) = aux(:,i) + sy%c%cen(:,c)
                 end do
                 aux = matmul(aux,perm3(:,:,p))
 
@@ -946,7 +952,7 @@ contains
   !> by a rotation (op), a centering translation (c) and a permutation of the 
   !> vertex (p).
   subroutine inverse_operation(p,op,c,invp,invop,invc)
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use tools_io, only: ferror, faterr
     use param, only: eye
     integer, intent(in) :: p, op, c
@@ -974,8 +980,8 @@ contains
     if (.not.found) call ferror('inverse_operation','could not find matrix inverse operation',faterr)
     ! inverse translation
     found = .false.
-    do invc = 1, cr%ncv
-       xaux = cr%cen(:,c) - cr%cen(:,invc)
+    do invc = 1, sy%c%ncv
+       xaux = sy%c%cen(:,c) - sy%c%cen(:,invc)
        xaux = xaux - nint(xaux)
        if (all(abs(xaux) < eps_tetrah_contact)) then
           found = .true.

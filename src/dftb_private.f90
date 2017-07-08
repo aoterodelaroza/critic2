@@ -17,13 +17,57 @@
 
 ! Interface to DFTB+ wavefunctions.
 module dftb_private
+  use grid1mod, only: grid1
   implicit none
   
   private
+  
+  !> atomic basis set information in dftb fields
+  type dftbatom
+     character*10 :: name  !< name of the atom
+     integer :: z !< atomic number
+     integer :: norb !< number of orbitals
+     integer :: l(4) !< orbital angular momentum
+     real*8 :: occ(4) !< orbital occupations
+     real*8 :: cutoff(4) !< orbital cutoffs
+     integer :: nexp(4) !< number of exponents 
+     real*8 :: eexp(5,4) !< exponents
+     integer :: ncoef(5,4) !< number of coefficients
+     real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
+     type(grid1), allocatable :: orb(:) !< radial component of the orbitals (grid)
+  end type dftbatom
+  
+  type dftbwfn
+     logical :: isreal
+     integer :: nkpt
+     integer :: nspin
+     integer :: nstates
+     integer :: norb
+     real*8, allocatable :: docc(:,:,:)
+     real*8, allocatable :: dkpt(:,:)
+     real*8, allocatable :: evecr(:,:,:)
+     complex*16, allocatable :: evecc(:,:,:,:)
+     integer, allocatable :: ispec(:)
+     integer, allocatable :: idxorb(:)
+     integer :: midxorb
+     integer :: maxnorb
+     integer :: maxlm
+     type(dftbatom), allocatable :: bas(:)
+     ! structural info
+     integer :: nenv
+     real*8, allocatable :: renv(:,:)
+     integer, allocatable :: lenv(:,:)
+     integer, allocatable :: idxenv(:)
+     integer, allocatable :: zenv(:)
+     real*8 :: globalcutoff = 0d0
+   contains
+     procedure :: end => dftb_end
+     procedure :: read => dftb_read
+     procedure :: rho2
+     procedure :: register_struct
+  end type dftbwfn
+  public :: dftbwfn
 
-  public :: dftb_read
-  public :: dftb_rho2
-  public :: dftb_register_struct
   private :: next_logical
   private :: next_integer
   private :: read_kpointsandweights
@@ -33,38 +77,55 @@ module dftb_private
   private :: build_interpolation_grid1
   private :: calculate_rl
 
-  ! private structural info
-  real*8, allocatable :: renv(:,:)
-  integer, allocatable :: lenv(:,:), idxenv(:), zenv(:)
-  integer :: nenv
-  real*8 :: globalcutoff = 0d0
-
   ! minimum distance (bohr)
   real*8, parameter :: mindist = 1d-6
 
 contains
 
+  !> Deallocate data 
+  subroutine dftb_end(f)
+    class(dftbwfn), intent(inout) :: f
+
+    if (allocated(f%docc)) deallocate(f%docc)
+    if (allocated(f%dkpt)) deallocate(f%dkpt)
+    if (allocated(f%evecr)) deallocate(f%evecr)
+    if (allocated(f%evecc)) deallocate(f%evecc)
+    if (allocated(f%ispec)) deallocate(f%ispec)
+    if (allocated(f%idxorb)) deallocate(f%idxorb)
+    if (allocated(f%bas)) deallocate(f%bas)
+    if (allocated(f%renv)) deallocate(f%renv)
+    if (allocated(f%lenv)) deallocate(f%lenv)
+    if (allocated(f%idxenv)) deallocate(f%idxenv)
+    if (allocated(f%zenv)) deallocate(f%zenv)
+
+  end subroutine dftb_end
+
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  subroutine dftb_read(f,filexml,filebin,filehsd,zcel)
-    use types, only: field, dftbatom, realloc
+  subroutine dftb_read(f,filexml,filebin,filehsd,atcel,at0)
+    use types, only: celatom, atom
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
     use param, only: tpi, maxzat0
-    
-    type(field), intent(out) :: f !< Output field
+    class(dftbwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
-    integer, intent(in) :: zcel(:) !< atomic numbers for the atoms in the complete cell (in order)
+    type(celatom), intent(in) :: atcel(:) !< complete atom list
+    type(atom), intent(in) :: at0(:) !< nneq atom list
 
     integer :: lu, i, j, k, idum, n, nat, id
+    integer, allocatable :: zcel(:)
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
     type(dftbatom) :: at
     real*8, allocatable :: dw(:)
 
     ! number of atoms in the cell
-    nat = size(zcel)
+    nat = size(atcel)
+    allocate(zcel(nat))
+    do i = 1, nat
+       zcel(i) = at0(atcel(i)%idx)%z
+    end do
 
     ! detailed.xml, first pass
     lu = fopen_read(filexml)
@@ -143,10 +204,10 @@ contains
     do while(next_hsd_atom(lu,at))
        if (.not.any(zcel == at%z)) cycle
        n = n + 1 
-       if (n > size(f%bas)) call realloc(f%bas,2*n)
+       if (n > size(f%bas)) call realloc_dftbatom(f%bas,2*n)
        f%bas(n) = at
     end do
-    call realloc(f%bas,n)
+    call realloc_dftbatom(f%bas,n)
     call fclose(lu)
 
     ! tie the atomic numbers to the basis types
@@ -183,9 +244,7 @@ contains
     f%maxlm = (f%maxlm+3)*(f%maxlm+3)
 
     call build_interpolation_grid1(f)
-
-    ! finished
-    f%init = .true.
+    deallocate(zcel)
 
   end subroutine dftb_read
 
@@ -194,15 +253,13 @@ contains
   !> output, the density (rho), the gradient (grad), the Hessian (h),
   !> and the G(r) kinetic energy density (gkin).  This routine is
   !> thread-safe.
-  subroutine dftb_rho2(f,xpos,nder,rho,grad,h,gkin)
-    use grid1_tools
-    use tools_math
-    use tools_io
-    use types
-    use param
-
-    type(field), intent(inout) :: f !< Input field
+  subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
+    use tools_math, only: tosphere, genylm, ylmderiv
+    use tools_io, only: ferror, faterr
+    use param, only: img
+    class(dftbwfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
+    logical, intent(in) :: exact !< exact or approximate calculation
     integer, intent(in) :: nder  !< Number of derivatives
     real*8, intent(out) :: rho !< Density
     real*8, intent(out) :: grad(3) !< Gradient
@@ -234,9 +291,9 @@ contains
     phi = 0d0
     phip = 0d0
     phipp = 0d0
-    do ion = 1, nenv
-       xion = xpos - renv(:,ion)
-       it = f%ispec(zenv(ion))
+    do ion = 1, f%nenv
+       xion = xpos - f%renv(:,ion)
+       it = f%ispec(f%zenv(ion))
 
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
@@ -246,7 +303,7 @@ contains
 
        ! write down this atom
        nenvl = nenvl + 1
-       if (nenvl > maxenvl) call ferror('dftb_rho2','local environment exceeded array size',faterr)
+       if (nenvl > maxenvl) call ferror('rho2','local environment exceeded array size',faterr)
        idxion(nenvl) = ion
 
        ! calculate the spherical harmonics contributions for this atom
@@ -258,10 +315,10 @@ contains
        ! calculate the radial contributions for this atom
        do iorb = 1, f%bas(it)%norb
           if (dist > f%bas(it)%cutoff(iorb)) cycle
-          if (f%exact) then
+          if (exact) then
              call calculate_rl(f,it,iorb,dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
           else
-             call grid1_interp(f%bas(it)%orb(iorb),dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+             call f%bas(it)%orb(iorb)%interp(dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
           end if
        end do
 
@@ -298,7 +355,7 @@ contains
        ! calculate the phases
        if (.not.f%isreal) then
           do ik = 1, f%nkpt
-             phase(nenvl,ik) = exp(img * dot_product(lenv(:,ion),f%dkpt(:,ik)))
+             phase(nenvl,ik) = exp(img * dot_product(f%lenv(:,ion),f%dkpt(:,ik)))
           end do
        end if
     end do
@@ -327,10 +384,10 @@ contains
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
-                   it = f%ispec(zenv(ion))
+                   it = f%ispec(f%zenv(ion))
 
                    ! run over atomic orbitals
-                   ixorb0 = f%idxorb(idxenv(ion))
+                   ixorb0 = f%idxorb(f%idxenv(ion))
                    ixorb = ixorb0 - 1
                    do iorb = 1, f%bas(it)%norb
                       ! run over ms for the same l
@@ -386,10 +443,10 @@ contains
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
-                it = f%ispec(zenv(ion))
+                it = f%ispec(f%zenv(ion))
 
                 ! run over atomic orbitals
-                ixorb0 = f%idxorb(idxenv(ion))
+                ixorb0 = f%idxorb(f%idxenv(ion))
                 ixorb = ixorb0 - 1
                 do iorb = 1, f%bas(it)%norb
                    ! run over ms for the same l
@@ -435,70 +492,77 @@ contains
     h(3,2) = h(2,3)
     gkin = 0.50 * gkin
 
-  end subroutine dftb_rho2
+  end subroutine rho2
 
   !> Register structural information. rmat is the crys2car matrix,
   !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
   !> and zenv is the environment information (number, position,
   !> lattice vector, index in the complete list, and atomic number.
-  subroutine dftb_register_struct(rmat,maxcutoff,nenv0,renv0,lenv0,idx0,zenv0)
-    use types
-    use tools_math
-
+  subroutine register_struct(f,rmat,atenv,at)
+    use types, only: celatom, atom
+    use tools_math, only: norm
+    use types, only: realloc
+    class(dftbwfn), intent(inout) :: f
     real*8, intent(in) :: rmat(3,3)
-    real*8, intent(in) :: maxcutoff
-    integer, intent(in) :: nenv0
-    real*8, intent(in) :: renv0(:,:)
-    integer, intent(in) :: lenv0(:,:), idx0(:), zenv0(:)
+    type(celatom), intent(in) :: atenv(:)
+    type(atom), intent(in) :: at(:)
 
+    real*8 :: maxcutoff
     real*8 :: sphmax, x0(3), dist
-    integer :: i
+    integer :: i, j, nenv
+
+    ! calculate the maximum cutoff
+    maxcutoff = -1d0
+    do i = 1, size(f%bas)
+       do j = 1, f%bas(i)%norb
+          maxcutoff = max(maxcutoff,f%bas(i)%cutoff(j))
+       end do
+    end do
 
     ! calculate the sphere radius that encompasses the unit cell
-    if (maxcutoff > globalcutoff) then
+    if (maxcutoff > f%globalcutoff) then
        sphmax = norm(matmul(rmat,(/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
        sphmax = max(sphmax,norm(matmul(rmat,(/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
        sphmax = max(sphmax,norm(matmul(rmat,(/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
        sphmax = max(sphmax,norm(matmul(rmat,(/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
 
-       if (allocated(renv)) deallocate(renv)
-       allocate(renv(3,size(renv0,2)))
-       if (allocated(lenv)) deallocate(lenv)
-       allocate(lenv(3,size(lenv0,2)))
-       if (allocated(idxenv)) deallocate(idxenv)
-       allocate(idxenv(size(idx0)))
-       if (allocated(zenv)) deallocate(zenv)
-       allocate(zenv(size(zenv0)))
+       nenv = size(atenv)
+       if (allocated(f%renv)) deallocate(f%renv)
+       allocate(f%renv(3,nenv))
+       if (allocated(f%lenv)) deallocate(f%lenv)
+       allocate(f%lenv(3,nenv))
+       if (allocated(f%idxenv)) deallocate(f%idxenv)
+       allocate(f%idxenv(nenv))
+       if (allocated(f%zenv)) deallocate(f%zenv)
+       allocate(f%zenv(nenv))
 
        ! save the atomic environment
-       nenv = 0
+       f%nenv = 0
        x0 = matmul(rmat,(/0.5d0,0.5d0,0.5d0/))
-       do i = 1, nenv0
-          dist = norm(renv0(:,i) - x0)
+       do i = 1, nenv
+          dist = norm(atenv(i)%r - x0)
           if (dist <= sphmax+maxcutoff) then
-             nenv = nenv + 1
-             renv(:,nenv) = renv0(:,i)
-             lenv(:,nenv) = lenv0(:,i)
-             idxenv(nenv) = idx0(i)
-             zenv(nenv) = zenv0(i)
+             f%nenv = f%nenv + 1
+             f%renv(:,f%nenv) = atenv(i)%r
+             f%lenv(:,f%nenv) = atenv(i)%lenv
+             f%idxenv(f%nenv) = atenv(i)%cidx
+             f%zenv(f%nenv) = at(atenv(i)%idx)%z
           end if
        end do
-       globalcutoff = maxcutoff
-
-       ! reallocate
-       call realloc(renv,3,nenv)
-       call realloc(lenv,3,nenv)
-       call realloc(idxenv,nenv)
-       call realloc(zenv,nenv)
+       f%globalcutoff = maxcutoff
+       call realloc(f%renv,3,f%nenv)
+       call realloc(f%lenv,3,f%nenv)
+       call realloc(f%idxenv,f%nenv)
+       call realloc(f%zenv,f%nenv)
     end if
 
-  end subroutine dftb_register_struct
+  end subroutine register_struct
 
   !xx! private !xx! 
 
   !> Read the next logical value in xml format.
   function next_logical(lu,line0,key0) result(next)
-    use tools_io
+    use tools_io, only: ferror, faterr, lower, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
     logical :: next
@@ -565,7 +629,7 @@ contains
 
   !> Read the next integer value in xml format.
   function next_integer(lu,line0,key0) result(next)
-    use tools_io
+    use tools_io, only: ferror, faterr, lower, isinteger, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
     integer :: next
@@ -622,7 +686,7 @@ contains
 
   !> Read the kpointsandweights entry from the xml.
   subroutine read_kpointsandweights(lu,kpts,w)
-    use tools_io
+    use tools_io, only: ferror, faterr, getline_raw, lower
     integer, intent(in) :: lu
     real*8, intent(out) :: kpts(:,:)
     real*8, intent(out) :: w(:)
@@ -655,7 +719,7 @@ contains
 
   !> Read the occupations from the xml.
   subroutine read_occupations(lu,occ)
-    use tools_io
+    use tools_io, only: ferror, faterr, getline_raw, lower, string
     integer, intent(in) :: lu
     real*8, intent(out) :: occ(:,:,:)
 
@@ -699,7 +763,7 @@ contains
 
   !> Read a list of n reals from a logical unit.
   function dftb_read_reals1(lu,n) result(x)
-    use tools_io
+    use tools_io, only: getline_raw, isreal, ferror, faterr
     integer, intent(in) :: lu, n
     real*8 :: x(n)
 
@@ -722,7 +786,7 @@ contains
           if (.not.ok .or. line(1:1) == "<") exit
        else
           kk = kk + 1
-          if (kk > n) call ferror("dftb_read_reals1","exceeded size of the array",2)
+          if (kk > n) call ferror("dftb_read_reals1","exceeded size of the array",faterr)
           x(kk) = rdum
        endif
     enddo
@@ -731,8 +795,7 @@ contains
 
   !> Read the next atom from the hsd wfc file.
   function next_hsd_atom(lu,at) result(ok)
-    use tools_io
-    use types
+    use tools_io, only: ferror, faterr, lgetword, equal, getline, isreal, string
     integer, intent(in) :: lu
     type(dftbatom), intent(out) :: at
     logical :: ok
@@ -842,9 +905,8 @@ contains
 
   !> Build the interpolation grids for the radial parts of the orbitals.
   subroutine build_interpolation_grid1(ff)
-    use types
-    use tools_io
-    type(field), intent(inout) :: ff
+    use tools_io, only: ferror, faterr
+    class(dftbwfn), intent(inout) :: ff
 
     integer :: it, iorb, istat, ipt
 
@@ -880,8 +942,7 @@ contains
   !> Calculate the radial part of an orbital and its first and second
   !> derivatives exactly.
   subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
-    use types
-    type(field), intent(in) :: ff
+    class(dftbwfn), intent(in) :: ff
     integer, intent(in) :: it, iorb
     real*8, intent(in) :: r0
     real*8, intent(out) :: f, fp, fpp
@@ -923,5 +984,25 @@ contains
     end do
 
   end subroutine calculate_rl
+
+  !> Adapt the size of an allocatable 1D type(atom) array
+  subroutine realloc_dftbatom(a,nnew)
+    use tools_io, only: ferror, faterr
+    type(dftbatom), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(dftbatom), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_dftbatom','array not allocated',faterr)
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_dftbatom
 
 end module dftb_private

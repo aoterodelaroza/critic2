@@ -30,12 +30,10 @@ contains
   !> Write a .tess file containing the color information on the grid.
   !> Optionally, represent only the outer (visible) balls.
   subroutine small_writetess(roottess,otrm,trm)
-    use qtree_basic, only: qtreei, nt_orig, minlen, maxl, nnuc, leqv, cindex,&
-       torig, tvec, lrotm
-    use fields, only: f
-    use varbas, only: ncp, cp
-    use crystalmod, only: cr
-    use global, only: refden, ws_origin, plot_mode, fileroot, plotsticks
+    use systemmod, only: sy
+    use qtree_basic, only: qtreei, minlen, maxl, nnuc, cindex,&
+       torig, tvec, lrotm, leqv, nt_orig
+    use global, only: ws_origin, plot_mode, fileroot, plotsticks
     use tools_io, only: fopen_write, fclose
     use param, only: maxzat0, jmlcol, jmlcol2
 
@@ -59,8 +57,8 @@ contains
 
     nvr = size(trm,1) * nt_orig
     nballs = nvr
-    do i = 1, ncp
-       if (cp(i)%typ /= f(refden)%typnuc) cycle
+    do i = 1, sy%f(sy%iref)%ncp
+       if (sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc) cycle
        nballs = nballs + 1
     end do
 
@@ -77,37 +75,37 @@ contains
     write (luo,'(X,A)') "crystal"
     write (luo,'(2X,A)') "title qtree integration."
     write (luo,'(2X,A)') "symmatrix seitz"
-    do i = 1, cr%ncv
-       write (luo,'(3X,A,3(F15.12,X))') "cen ",cr%cen(:,i)
+    do i = 1, sy%c%ncv
+       write (luo,'(3X,A,3(F15.12,X))') "cen ",sy%c%cen(:,i)
     end do
     write (luo,'(3X,A)') "#"
-    do i = 1, cr%neqv
-       write (luo,'(3X,3(F5.2,X),F15.12)') cr%rotm(1,:,i)
-       write (luo,'(3X,3(F5.2,X),F15.12)') cr%rotm(2,:,i)
-       write (luo,'(3X,3(F5.2,X),F15.12)') cr%rotm(3,:,i)
+    do i = 1, sy%c%neqv
+       write (luo,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(1,:,i)
+       write (luo,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(2,:,i)
+       write (luo,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(3,:,i)
        write (luo,'(3X,A)') "#"
     end do
     write (luo,'(2X,A)') "endsymmatrix"
-    write (luo,'(2X,A,6(F10.6" "))') "cell", cr%aa, cr%bb
+    write (luo,'(2X,A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
     write (luo,'(2X,A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
     clip0 = (/-0.5d0,-0.5d0,-0.5d0/) + ws_origin
     clip1 = (/0.5d0,0.5d0,0.5d0/) + ws_origin
     write (luo,'(2X,A,6(F10.4,X))') "clippingbox ", clip0, clip1
-    do i = 1, ncp
-       if (i <= cr%nneq) then
-          label = trim(cr%at(i)%name)
+    do i = 1, sy%f(sy%iref)%ncp
+       if (i <= sy%c%nneq) then
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
-       else if (cp(i)%typ == -3) then
+       else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
-       else if (cp(i)%typ == -1)  then
+       else if (sy%f(sy%iref)%cp(i)%typ == -1)  then
           label = "YY"
-       else if (cp(i)%typ == 1) then
+       else if (sy%f(sy%iref)%cp(i)%typ == 1) then
           label = "ZZ"
        else
           label = "XZ"
        end if
        write (luo,'(2X,A,3(F10.6," "),A2,I2.2,a)') &
-          "neq ",cp(i)%x,label,i," 0"
+          "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
     end do
     write (luo,'(X,A)') "endcrystal"
     if (plot_mode == 3 .or. plot_mode == 4 .or. plot_mode == 5) then
@@ -115,20 +113,20 @@ contains
     else
        write (luo,'(X,A,3(F10.4,X))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
     end if
-    do i = 1, ncp
-       if (i <= cr%nneq) then
-          label = trim(cr%at(i)%name)
+    do i = 1, sy%f(sy%iref)%ncp
+       if (i <= sy%c%nneq) then
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
-       else if (cp(i)%typ == -3) then
+       else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
-       else if (cp(i)%typ == -1)  then
+       else if (sy%f(sy%iref)%cp(i)%typ == -1)  then
           label = "YY"
-       else if (cp(i)%typ == 1) then
+       else if (sy%f(sy%iref)%cp(i)%typ == 1) then
           label = "ZZ"
        else
           label = "XZ"
        end if
-       if (i <= cr%nneq) then
+       if (i <= sy%c%nneq) then
           write (luo,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.2"
        else
           write (luo,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.1"
@@ -139,7 +137,7 @@ contains
     diab = minlen / 2**maxl / 3d0
     do i = 1, nnuc+3
        if (i <= nnuc) then
-          zz = cr%at(i)%z
+          zz = sy%c%at(i)%z
        else if (i == nnuc+1) then
           zz = 1
        else
@@ -235,10 +233,9 @@ contains
 
   !> Open and write the header of a tessel input file.
   subroutine open_difftess(roottess)
+    use systemmod, only: sy
     use qtree_basic, only: ludif, minlen, maxl
-    use varbas, only: ncp, cp
     use global, only: gradient_mode, qtree_ode_mode, ws_origin
-    use crystalmod, only: cr
     use tools_io, only: fopen_write
 
     character*50, intent(in) :: roottess
@@ -266,54 +263,54 @@ contains
     write (ludif,'(X,A)') "crystal"
     write (ludif,'(2X,A)') "title qtree integration."
     write (ludif,'(2X,A)') "symmatrix seitz"
-    do i = 1, cr%ncv
-       write (ludif,'(3X,A,3(F15.12,X))') "cen ",cr%cen(:,i)
+    do i = 1, sy%c%ncv
+       write (ludif,'(3X,A,3(F15.12,X))') "cen ",sy%c%cen(:,i)
     end do
     write (ludif,'(3X,A)') "#"
-    do i = 1, cr%neqv
-       write (ludif,'(3X,3(F5.2,X),F15.12)') cr%rotm(1,:,i)
-       write (ludif,'(3X,3(F5.2,X),F15.12)') cr%rotm(2,:,i)
-       write (ludif,'(3X,3(F5.2,X),F15.12)') cr%rotm(3,:,i)
+    do i = 1, sy%c%neqv
+       write (ludif,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(1,:,i)
+       write (ludif,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(2,:,i)
+       write (ludif,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(3,:,i)
        write (ludif,'(3X,A)') "#"
     end do
     write (ludif,'(2X,A)') "endsymmatrix"
-    write (ludif,'(2X,A,6(F10.6" "))') "cell", cr%aa, cr%bb
+    write (ludif,'(2X,A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
     write (ludif,'(2X,A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
     clip0 = (/-0.5d0,-0.5d0,-0.5d0/) + ws_origin
     clip1 = (/0.5d0,0.5d0,0.5d0/) + ws_origin
     write (ludif,'(2X,A,6(F10.4,X))') "clippingbox ", clip0, clip1
-    do i = 1, ncp
-       if (i <= cr%nneq) then
-          label = trim(cr%at(i)%name)
+    do i = 1, sy%f(sy%iref)%ncp
+       if (i <= sy%c%nneq) then
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
-       else if (cp(i)%typ == -3) then
+       else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
-       else if (cp(i)%typ == -1)  then
+       else if (sy%f(sy%iref)%cp(i)%typ == -1)  then
           label = "YY"
-       else if (cp(i)%typ == 1) then
+       else if (sy%f(sy%iref)%cp(i)%typ == 1) then
           label = "ZZ"
        else
           label = "XZ"
        end if
        write (ludif,'(2X,A,3(F10.6," "),A2,I2.2,a)') &
-          "neq ",cp(i)%x,label,i," 0"
+          "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
     end do
     write (ludif,'(X,A)') "endcrystal"
     write (ludif,'(X,A,3(F10.4,X))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
-    do i = 1,ncp
-       if (i <= cr%nneq) then
-          label = trim(cr%at(i)%name)
+    do i = 1, sy%f(sy%iref)%ncp
+       if (i <= sy%c%nneq) then
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
-       else if (cp(i)%typ == -3) then
+       else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
-       else if (cp(i)%typ == -1)  then
+       else if (sy%f(sy%iref)%cp(i)%typ == -1)  then
           label = "YY"
-       else if (cp(i)%typ == 1) then
+       else if (sy%f(sy%iref)%cp(i)%typ == 1) then
           label = "ZZ"
        else
           label = "XZ"
        end if
-       if (i <= cr%nneq) then
+       if (i <= sy%c%nneq) then
           write (ludif,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.2"
        else
           write (ludif,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.1"

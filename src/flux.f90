@@ -54,8 +54,7 @@ module flux
 contains
 
   subroutine fluxprint()
-    use varbas, only: ncpcel, cpcel, cp
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: uout, getline, lgetword, equal, ferror, faterr, uin, &
        ucopy, getword, lower
@@ -153,8 +152,8 @@ contains
           end if
           ok = check_no_extra_word()
           if (.not.ok) return
-          if (cr%ismolecule) &
-             xpoint = cr%c2x(xpoint / dunit0(iunit) - cr%molx0)
+          if (sy%c%ismolecule) &
+             xpoint = sy%c%c2x(xpoint / dunit0(iunit) - sy%c%molx0)
 
           if (iup /= 1 .and. iup /= -1 .and. iup /= 0) then
              call ferror('fluxprint','iup must be +1, 0 or -1',faterr,line,syntax=.true.)
@@ -173,7 +172,7 @@ contains
           end if
        elseif (equal(word,'ncp')) then
           ok=eval_next(cpid,line,lp)
-          if (cpid <= 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= -3)) then
+          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= -3)) then
              call ferror ('fluxprint','ncp identifier not known.',faterr,line,syntax=.true.)
              return
           end if
@@ -210,15 +209,15 @@ contains
           order(norder)%ntheta = ntheta
           order(norder)%nphi = nphi
           order(norder)%lvec = lvecx
-          if (any(rgb < 0).and.cp(cpid)%isnuc) then
-             order(norder)%rgb = jmlcol(:,cr%at(cr%atcel(cpid)%idx)%z)
+          if (any(rgb < 0).and.sy%f(sy%iref)%cp(cpid)%isnuc) then
+             order(norder)%rgb = jmlcol(:,sy%c%at(sy%c%atcel(cpid)%idx)%z)
           else
              order(norder)%rgb = rgb
           end if
 
        elseif (equal(word,'bcp')) then
           ok=eval_next(cpid,line,lp)
-          if (cpid < 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= -1) ) then
+          if (cpid < 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= -1) ) then
              call ferror ('fluxprint','bcp identifier not recognized.',faterr,line,syntax=.true.)
              return
           end if
@@ -283,7 +282,7 @@ contains
 
        elseif (equal(word,'rcp')) then
           ok=eval_next(cpid,line,lp)
-          if (cpid < 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= 1) ) then
+          if (cpid < 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= 1) ) then
              call ferror ('fluxprint','rcp identifier not recognized.',faterr,line,syntax=.true.)
              return
           end if
@@ -346,7 +345,7 @@ contains
 
        elseif (equal(word,'ccp')) then
           ok = eval_next(cpid,line,lp)
-          if (cpid < 0 .or. cpid > ncpcel .or. (cpcel(cpid)%typ /= 3)) then
+          if (cpid < 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= 3)) then
              call ferror ('fluxprint','ccp identifier not recognized.',faterr,line,syntax=.true.)
              return
           end if
@@ -468,9 +467,8 @@ contains
   !> command to the tessel output (optional). If nosym, do not write
   !> the symmetry elements.
   subroutine flx_initialize(nosym,noballs,nocell)
-    use varbas, only: ncpcel, cpcel, ncp, cp
+    use systemmod, only: sy
     use global, only: fileroot
-    use crystalmod, only: cr
     use tools_io, only: faterr, ferror, uout, fopen_write
 
     logical, intent(in) :: nosym
@@ -526,52 +524,52 @@ contains
           write (luout,'(3X,3(F5.2,X),F15.12)') 0d0, 1d0, 0d0, 0d0
           write (luout,'(3X,3(F5.2,X),F15.12)') 0d0, 0d0, 1d0, 0d0
        else
-          do i = 1, cr%ncv
-             write (luout,'(3X,A,3(F15.12,X))') "cen ", cr%cen(:,i)
+          do i = 1, sy%c%ncv
+             write (luout,'(3X,A,3(F15.12,X))') "cen ", sy%c%cen(:,i)
           end do
           write (luout,'(3X,A)') "#"
-          do i = 1, cr%neqv
-             write (luout,'(3X,3(F5.2,X),F15.12)') cr%rotm(1,:,i)
-             write (luout,'(3X,3(F5.2,X),F15.12)') cr%rotm(2,:,i)
-             write (luout,'(3X,3(F5.2,X),F15.12)') cr%rotm(3,:,i)
+          do i = 1, sy%c%neqv
+             write (luout,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(1,:,i)
+             write (luout,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(2,:,i)
+             write (luout,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(3,:,i)
              write (luout,'(3X,A)') "#"
           end do
        end if
        write (luout,'(2X,A)') "endsymmatrix"
-       write (luout,'(2X,A,6(F10.6" "))') "cell", cr%aa, cr%bb
+       write (luout,'(2X,A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
        write (luout,'(2X,A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
        write (luout,'(2X,A,6(F6.3,X))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
        if (nosym) then
-          do i = 1,ncpcel
-             if (cpcel(i)%idx <= cr%nneq) then
-                label = trim(cr%at(cpcel(i)%idx)%name)
+          do i = 1, sy%f(sy%iref)%ncpcel
+             if (sy%f(sy%iref)%cpcel(i)%idx <= sy%c%nneq) then
+                label = trim(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%name)
                 if (label(2:2) == " ") label(2:2) = "_"
-             else if (cpcel(i)%typ == -3) then
+             else if (sy%f(sy%iref)%cpcel(i)%typ == -3) then
                 label = "XX"
-             else if (cpcel(i)%typ == -1)  then
+             else if (sy%f(sy%iref)%cpcel(i)%typ == -1)  then
                 label = "YY"
-             else if (cpcel(i)%typ == 1) then
+             else if (sy%f(sy%iref)%cpcel(i)%typ == 1) then
                 label = "ZZ"
              else
                 label = "XZ"
              end if
-             write (luout,'(2X,A,3(F10.6," "),A2,I4.4,a)') "neq ",cpcel(i)%x,label,i," 0"
+             write (luout,'(2X,A,3(F10.6," "),A2,I4.4,a)') "neq ",sy%f(sy%iref)%cpcel(i)%x,label,i," 0"
           end do
        else
-          do i = 1, ncp
-             if (i <= cr%nneq) then
-                label = trim(cr%at(i)%name)
+          do i = 1, sy%f(sy%iref)%ncp
+             if (i <= sy%c%nneq) then
+                label = trim(sy%c%at(i)%name)
                 if (label(2:2) == " ") label(2:2) = "_"
-             else if (cp(i)%typ == -3) then
+             else if (sy%f(sy%iref)%cp(i)%typ == -3) then
                 label = "XX"
-             else if (cp(i)%typ == -1)  then
+             else if (sy%f(sy%iref)%cp(i)%typ == -1)  then
                 label = "YY"
-             else if (cp(i)%typ == 1) then
+             else if (sy%f(sy%iref)%cp(i)%typ == 1) then
                 label = "ZZ"
              else
                 label = "XZ"
              end if
-             write (luout,'(2X,A,3(F10.6," "),A2,I4.4,a)') "neq ",cp(i)%x,label,i," 0"
+             write (luout,'(2X,A,3(F10.6," "),A2,I4.4,a)') "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
           end do
        end if
        write (luout,'(X,A)') "endcrystal"
@@ -580,15 +578,15 @@ contains
        end if
        if (doballs) then
           if (nosym) then
-             do i = 1,ncpcel
-                if (cpcel(i)%idx <= cr%nneq) then
-                   label = trim(cr%at(cpcel(i)%idx)%name)
+             do i = 1, sy%f(sy%iref)%ncpcel
+                if (sy%f(sy%iref)%cpcel(i)%idx <= sy%c%nneq) then
+                   label = trim(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%name)
                    if (label(2:2) == " ") label(2:2) = "_"
-                else if (cpcel(i)%typ == -3) then
+                else if (sy%f(sy%iref)%cpcel(i)%typ == -3) then
                    label = "XX"
-                else if (cpcel(i)%typ == -1)  then
+                else if (sy%f(sy%iref)%cpcel(i)%typ == -1)  then
                    label = "YY"
-                else if (cpcel(i)%typ == 1) then
+                else if (sy%f(sy%iref)%cpcel(i)%typ == 1) then
                    label = "ZZ"
                 else
                    label = "XZ"
@@ -596,15 +594,15 @@ contains
                 write (luout,'(X,A5,A,I4.4,A,F6.2)') "ball ",label,i," jmol radius", ball_radius(i,.true.)
              end do
           else
-             do i = 1,ncp
-                if (i <= cr%nneq) then
-                   label = trim(cr%at(i)%name)
+             do i = 1, sy%f(sy%iref)%ncp
+                if (i <= sy%c%nneq) then
+                   label = trim(sy%c%at(i)%name)
                    if (label(2:2) == " ") label(2:2) = "_"
-                else if (cp(i)%typ == -3) then
+                else if (sy%f(sy%iref)%cp(i)%typ == -3) then
                    label = "XX"
-                else if (cp(i)%typ == -1)  then
+                else if (sy%f(sy%iref)%cp(i)%typ == -1)  then
                    label = "YY"
-                else if (cp(i)%typ == 1) then
+                else if (sy%f(sy%iref)%cp(i)%typ == 1) then
                    label = "ZZ"
                 else
                    label = "XZ"
@@ -634,13 +632,13 @@ contains
        ! connect and initialize obj/ply/off file 
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call cr%write_3dmodel(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
+       call sy%c%write_3dmodel(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout,lumtl)
     elseif (outfmt=="cml") then
        ! connect and initialize cml file 
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call cr%write_mol(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
+       call sy%c%write_mol(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
           .false.,0d0,.false.,1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout)
     endif
 
@@ -702,7 +700,7 @@ contains
 
   !> Print gradient path info to standard output.
   subroutine flx_printpath(rgb0)
-    use crystalmod, only: cr
+    use systemmod, only : sy
     use graphics, only: graphics_ball
     use global, only: dunit0, iunit
     use tools_io, only: string
@@ -720,12 +718,12 @@ contains
        write (luout,'(A,I2)') "# Iup  : ", flx_iup
        write (luout,'(A,I6)') "# Number of points  : ", flx_n
 
-       if (.not.cr%ismolecule) then
+       if (.not.sy%c%ismolecule) then
           maux = 0d0
-          maux(1:3,1:3) = cr%crys2car
+          maux(1:3,1:3) = sy%c%crys2car
           maux(4,4) = 1d0
           write (luout,'(A/1p,4("#",4E22.14/))') "# Crys2Car : ", ((maux(i,j),j=1,4),i=1,4)
-          maux(1:3,1:3) = cr%car2crys
+          maux(1:3,1:3) = sy%c%car2crys
           write (luout,'(A/1p,4("#",4E22.14/))') "# Car2Crys : ", ((maux(i,j),j=1,4),i=1,4)
           write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
@@ -738,8 +736,8 @@ contains
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
              x = flx_x(:,i)
-             if (cr%ismolecule) &
-                x = (cr%x2c(x) + cr%molx0) * dunit0(iunit)
+             if (sy%c%ismolecule) &
+                x = (sy%c%x2c(x) + sy%c%molx0) * dunit0(iunit)
              write (luout,'(13(E20.12,X))') x, flx_rho(i),&
                 flx_grad(:,i), flx_h(1,:,i), flx_h(2,:,i), flx_h(3,:,i)
           end do
@@ -755,15 +753,15 @@ contains
        write (luout,'(2X,A)') "endcurve"
     elseif (outfmt=="obj" .or. outfmt=="off" .or. outfmt=="ply" .or. outfmt=="cml") then
        do i=1,flx_n
-          x = cr%x2c(flx_x(:,i))
+          x = sy%c%x2c(flx_x(:,i))
           if (outfmt == "obj" .or. outfmt == "off" .or. outfmt == "ply") then
              call graphics_ball(outfmt,luout,x,rgb0,rrad)
           elseif (outfmt == "cml") then
-             if (.not.cr%ismolecule) then
+             if (.not.sy%c%ismolecule) then
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")')&
                    string(i), (trim(string(flx_x(j,i),'f',18,10)),j=1,3)
              else
-                x = x + cr%molx0
+                x = x + sy%c%molx0
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
                    string(i), (trim(string(x(j) * bohrtoa,'f',18,10)),j=1,3)
              end if
@@ -783,8 +781,7 @@ contains
   !> wrapper for flx_printpath() so that this routine is not used
   !> directly.
   subroutine flx_symprintpath(x,flxsym,rgb)
-    use crystalmod, only: cr
-
+    use systemmod, only: sy
     integer, intent(in) :: flxsym
     real*8, dimension(3), intent(in) :: x
     integer, intent(in) :: rgb(3)
@@ -808,7 +805,7 @@ contains
        shsize = shedge**3
        ! reproduce the point using the space group symmetry operations
        tempx = x
-       call cr%symeqv(tempx,mmult,sympos,symrotm,symcenv,eps)
+       call sy%c%symeqv(tempx,mmult,sympos,symrotm,symcenv,eps)
        do j = 1,mmult
           ! apply symmetry operations to the path
           do l = 0, shsize-1
@@ -826,9 +823,9 @@ contains
 
              do k = 1, flx_n
                 flx_x(:,flx_n+k) = flx_x(:,k)
-                flx_x(:,k) = matmul(cr%rotm(:,1:3,symrotm(j)),flx_x(:,k))
-                flx_x(:,k) = flx_x(:,k) + cr%rotm(:,4,symrotm(j))
-                flx_x(:,k) = flx_x(:,k) + cr%cen(:,symcenv(j))
+                flx_x(:,k) = matmul(sy%c%rotm(:,1:3,symrotm(j)),flx_x(:,k))
+                flx_x(:,k) = flx_x(:,k) + sy%c%rotm(:,4,symrotm(j))
+                flx_x(:,k) = flx_x(:,k) + sy%c%cen(:,symcenv(j))
                 flx_x(:,k) = flx_x(:,k) + templvec
 
                 ! return the point to the big cell
@@ -857,10 +854,9 @@ contains
   !> to the unit cell and its boundary; >0 to a shell of flxsym unit
   !> cells.
   subroutine flx_point(x,iup,flxsym,rgb)
-    use navigation, only: gradient, prunepath
-    use fields, only: f
-    use crystalmod, only: cr
-    use global, only: refden, prunedist
+    use systemmod, only: sy
+    use fieldmod, only: prunepath
+    use global, only: prunedist
 
     integer, intent(in) :: iup
     real*8, dimension(3), intent(in) :: x
@@ -871,19 +867,19 @@ contains
     integer :: ier
 
     xini = x
-    tempx = cr%x2c(x)
+    tempx = sy%c%x2c(x)
 
     if (iup /= 0) then
-       call gradient(f(refden),tempx,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,prunedist)
+       call sy%f(sy%iref)%gradient(tempx,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(sy%c,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
     else
-       call gradient(f(refden),tempx,1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,prunedist)
+       call sy%f(sy%iref)%gradient(tempx,1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(sy%c,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
-       tempx = cr%x2c(x)
-       call gradient(f(refden),tempx,-1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,prunedist)
+       tempx = sy%c%x2c(x)
+       call sy%f(sy%iref)%gradient(tempx,-1,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(sy%c,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -895,11 +891,9 @@ contains
   !> apply x symmetry to the unit cell and its boundary; >0 to a shell
   !> of flxsym unit cells.
   subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
-    use navigation, only: gradient, prunepath
-    use fields, only: f
-    use varbas, only: ncpcel, cpcel
-    use global, only: refden, prunedist
-    use crystalmod, only: cr
+    use systemmod, only: sy
+    use fieldmod, only: prunepath
+    use global, only: prunedist
     use tools_io, only: ferror, faterr
     use param, only: pi
 
@@ -916,29 +910,29 @@ contains
     integer :: ier, iup
     real*8, dimension(3) :: xini
 
-    if (id <= 0 .or. id > ncpcel) call ferror('flx_ncp','CP identifier < 0 or > # of CPs',faterr)
+    if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_ncp','CP identifier < 0 or > # of CPs',faterr)
 
-    if (cpcel(id)%typ == -3) then
+    if (sy%f(sy%iref)%cpcel(id)%typ == -3) then
        iup = -1
-    else if (cpcel(id)%typ == 3) then
+    else if (sy%f(sy%iref)%cpcel(id)%typ == 3) then
        iup = +1
     else
        call ferror('flx_ncp','CP is not CCP or NCP',faterr)
     end if
-    xncp = cpcel(id)%x
+    xncp = sy%f(sy%iref)%cpcel(id)%x
     if (present(lvec)) then
        xncp = xncp + real(lvec,8)
     end if
     xini = xncp
-    xncp = cr%x2c(xncp)
+    xncp = sy%c%x2c(xncp)
 
     do i = 1,nphi
        do j = 1,ntheta
           phi = pi * real(i,8) / real(nphi+1,8)
           theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
           xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-          call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,prunedist)
+          call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(sy%c,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
        end do
     end do
@@ -947,14 +941,14 @@ contains
     phi = 0d0
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-    call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-    call prunepath(cr,flx_n,flx_x,prunedist)
+    call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+    call prunepath(sy%c,flx_n,flx_x,prunedist)
     call flx_symprintpath(xini,flxsym,rgb)
     phi = pi
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-    call gradient(f(refden),xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-    call prunepath(cr,flx_n,flx_x,prunedist)
+    call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+    call prunepath(sy%c,flx_n,flx_x,prunedist)
     call flx_symprintpath(xini,flxsym,rgb)
 
   end subroutine flx_ncp
@@ -973,11 +967,9 @@ contains
   !> heuristic method, using information of the partially fluxed
   !> initial points. (h1 and dyn are experimental)
   subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
-    use navigation, only: gradient, prunepath
-    use fields, only: f, grd
-    use varbas, only: ncpcel, cpcel
-    use crystalmod, only: cr
-    use global, only: refden, prunedist
+    use systemmod, only: sy
+    use fieldmod, only: prunepath
+    use global, only: prunedist
     use tools_math, only: eig
     use tools_io, only: ferror, faterr
     use param, only: pi
@@ -1004,23 +996,23 @@ contains
     integer :: ier, ircp
     type(scalar_value) :: res
     
-    if (id <= 0 .or. id > ncpcel) call ferror('flx_bcp','CP identifier < 0 or > # of CPs',faterr)
+    if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_bcp','CP identifier < 0 or > # of CPs',faterr)
 
-    if (cpcel(id)%typ == -1) then
+    if (sy%f(sy%iref)%cpcel(id)%typ == -1) then
        ircp = 1
-    else if (cpcel(id)%typ == 1) then
+    else if (sy%f(sy%iref)%cpcel(id)%typ == 1) then
        ircp = -1
     else
        call ferror('flx_bcp','CP is not BCP or RCP',faterr)
     end if
 
-    xbcp = cpcel(id)%x
+    xbcp = sy%f(sy%iref)%cpcel(id)%x
     if (present(lvec)) then
        xbcp = xbcp + real(lvec,8)
     end if
     xini = xbcp
-    xbcp = cr%x2c(xbcp)
-    call grd(f(refden),xbcp,2,res0=res)
+    xbcp = sy%c%x2c(xbcp)
+    call sy%f(sy%iref)%grd(xbcp,2,res0=res)
     evec = res%hf
     call eig(evec,reval)
 
@@ -1071,12 +1063,12 @@ contains
 
     if (iup == 0 .or. iup == ircp) then
        xpoint = xbcp + change * vup
-       call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,prunedist)
+       call sy%f(sy%iref)%gradient(xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(sy%c,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
        xpoint = xbcp - change * vup
-       call gradient(f(refden),xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-       call prunepath(cr,flx_n,flx_x,prunedist)
+       call sy%f(sy%iref)%gradient(xpoint,ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+       call prunepath(sy%c,flx_n,flx_x,prunedist)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -1090,8 +1082,8 @@ contains
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else if (bcpmethod == "quo") then
@@ -1105,16 +1097,16 @@ contains
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
              angle = angle + pi
              cangle = cos(angle)
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else
@@ -1127,10 +1119,10 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              ! last point before newton -> not converted to the main cell
-             xpoint = cr%x2c(flx_x(:,flx_n-1))
+             xpoint = sy%c%x2c(flx_x(:,flx_n-1))
              r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
           end do
 
@@ -1147,8 +1139,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1156,8 +1148,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = -thetavec(i) + pi
@@ -1165,8 +1157,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1174,8 +1166,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-             call prunepath(cr,flx_n,flx_x,prunedist)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+             call prunepath(sy%c,flx_n,flx_x,prunedist)
              call flx_symprintpath(xini,flxsym,rgb)
 
           end do
@@ -1183,20 +1175,20 @@ contains
           ! Manually do 0, pi/2, pi, 3pi/2
           ! write (uout,'("+ dyn: fluxing special angles.")')
           xpoint = xbcp + change * v1
-          call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,prunedist)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(sy%c,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp + change * v2
-          call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,prunedist)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(sy%c,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v1
-          call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,prunedist)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(sy%c,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v2
-          call gradient(f(refden),xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
-          call prunepath(cr,flx_n,flx_x,prunedist)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,flx_m,ier,2,flx_x,flx_rho,flx_grad,flx_h,up2beta=.false.)
+          call prunepath(sy%c,flx_n,flx_x,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
        end if
        ! write (uout,*)
@@ -1217,8 +1209,7 @@ contains
   !> represented, with a lattice displacement given by the optional
   !> integer lvec vector.
   subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
-    use varbas, only: ncp, cp, cpcel, ncpcel
-
+    use systemmod, only: sy
     integer, intent(in) :: flxsym
     integer, intent(in) :: igraph
     integer, intent(in), optional :: cpid
@@ -1250,10 +1241,10 @@ contains
     ! graphcp case
     if (present(cpid)) then
        ! ncp
-       if (cpcel(cpid)%typ == -3) then
+       if (sy%f(sy%iref)%cpcel(cpid)%typ == -3) then
           ! all the bond paths of the bcp bonded to the ncp
-          do i = 1, ncpcel
-             if (cpcel(i)%typ /= -1) cycle
+          do i = 1, sy%f(sy%iref)%ncpcel
+             if (sy%f(sy%iref)%cpcel(i)%typ /= -1) cycle
              do l = 0, 26
                 ln = l
                 templvec(1) = mod(ln,3) - 1
@@ -1261,18 +1252,20 @@ contains
                 templvec(2) = mod(ln,3) - 1
                 ln = ln / 3
                 templvec(3) = mod(ln,3) - 1
-                if (cpcel(i)%ipath(1) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,1) + templvec) .or. &
-                   cpcel(i)%ipath(2) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,2) + templvec)) then
+                if (sy%f(sy%iref)%cpcel(i)%ipath(1) == cpid.and.&
+                   all(locallvec == sy%f(sy%iref)%cpcel(i)%ilvec(:,1) + templvec) .or. &
+                   sy%f(sy%iref)%cpcel(i)%ipath(2) == cpid.and.&
+                   all(locallvec == sy%f(sy%iref)%cpcel(i)%ilvec(:,2) + templvec)) then
                    call flx_bcp(i,1,1,flxsym,"dyn",templvec,rgb)
                 end if
              end do
           end do
 
        ! ccp
-       else if (cpcel(cpid)%typ == 3) then
+       else if (sy%f(sy%iref)%cpcel(cpid)%typ == 3) then
           ! all the ring paths of the rcp bonded to the ccp
-          do i = 1, ncpcel
-             if (cpcel(i)%typ /= 1) cycle
+          do i = 1, sy%f(sy%iref)%ncpcel
+             if (sy%f(sy%iref)%cpcel(i)%typ /= 1) cycle
              do l = 0, 26
                 ln = l
                 templvec(1) = mod(ln,3) - 1
@@ -1280,8 +1273,10 @@ contains
                 templvec(2) = mod(ln,3) - 1
                 ln = ln / 3
                 templvec(3) = mod(ln,3) - 1
-                if (cpcel(i)%ipath(1) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,1) + templvec) .or. &
-                   cpcel(i)%ipath(2) == cpid .and. all(locallvec == cpcel(i)%ilvec(:,2) + templvec)) then
+                if (sy%f(sy%iref)%cpcel(i)%ipath(1) == cpid .and.&
+                   all(locallvec == sy%f(sy%iref)%cpcel(i)%ilvec(:,1) + templvec).or.&
+                   sy%f(sy%iref)%cpcel(i)%ipath(2) == cpid.and.&
+                   all(locallvec == sy%f(sy%iref)%cpcel(i)%ilvec(:,2) + templvec)) then
                    call flx_bcp(i,-1,1,flxsym,"dyn",templvec,rgb)
                 end if
              end do
@@ -1289,35 +1284,34 @@ contains
           
        ! bcp
        ! bond paths for the bcp
-       else if (cpcel(cpid)%typ == -1) then
+       else if (sy%f(sy%iref)%cpcel(cpid)%typ == -1) then
           call flx_bcp(cpid,1,1,flxsym,"dyn",locallvec,rgb)
 
        ! rcp
        ! ring paths for the rcp
-       else if (cpcel(cpid)%typ == 1) then
+       else if (sy%f(sy%iref)%cpcel(cpid)%typ == 1) then
           call flx_bcp(cpid,-1,1,flxsym,"dyn",locallvec,rgb)
        end if
-
     else
        ! graph case
        localsym = max(flxsym,0)
        m = 0
-       do i = 1, ncp
+       do i = 1, sy%f(sy%iref)%ncp
           if (dobcp) then
              ! compute bcp bond paths
-             if (cp(i)%typ == -1) then
+             if (sy%f(sy%iref)%cp(i)%typ == -1) then
                 call flx_bcp(m+1,1,1,localsym,"dyn",rgb=rgb)
              end if
           end if
 
           ! compute rcp ring paths
           if (dorcp) then
-             if (cp(i)%typ == 1) then
+             if (sy%f(sy%iref)%cp(i)%typ == 1) then
                 call flx_bcp(m+1,-1,1,localsym,"dyn",rgb=rgb)
              end if
           end if
 
-          m = m + cp(i)%mult
+          m = m + sy%f(sy%iref)%cp(i)%mult
        end do
     end if
 
@@ -1332,7 +1326,6 @@ contains
   !> starting angles that samples uniformly a given bcp-IAS.
   subroutine flx_findthetagrid(lx,ly,r0,R,n,thetavec)
     use param, only: pi
-
     real*8, intent(in) :: lx, ly, r0, R
     integer, intent(in) :: n
     real*8, dimension(n), intent(out) :: thetavec
@@ -1390,8 +1383,7 @@ contains
   !> Given the complete or reduced list index of a CP, 
   !> output the appropriate ball radius.
   function ball_radius(i,cel)
-    use varbas, only: cpcel, cp
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use param, only: maxzat
     
     integer, intent(in) :: i
@@ -1402,18 +1394,18 @@ contains
     
     z = 0
     if (cel) then
-       if (cpcel(i)%isnuc) then
+       if (sy%f(sy%iref)%cpcel(i)%isnuc) then
           typ = 0
-          z = cr%at(cr%atcel(i)%idx)%z
+          z = sy%c%at(sy%c%atcel(i)%idx)%z
        else
-          typ = cpcel(i)%typ
+          typ = sy%f(sy%iref)%cpcel(i)%typ
        end if
     else
-       if (cp(i)%isnuc) then
+       if (sy%f(sy%iref)%cp(i)%isnuc) then
           typ = 0
-          z = cr%at(i)%z
+          z = sy%c%at(i)%z
        else
-          typ = cp(i)%typ
+          typ = sy%f(sy%iref)%cp(i)%typ
        end if
     end if
 

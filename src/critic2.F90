@@ -30,33 +30,25 @@ program critic
   use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
   use integration, only: intgrid_driver
   use flux, only: fluxprint
-  use autocp, only: init_cplist, autocritic, cpreport
+  use autocp, only: autocritic, cpreport
   use nci, only: nciplot
   use rhoplot, only: rhoplot_point, rhoplot_line, rhoplot_plane, rhoplot_cube,&
      rhoplot_grdvec
-  use fields, only: fieldname_to_idx, goodfield, f, fused, type_grid, nprops,&
-     integ_prop, itype_fval, itype_lapval, fields_init, fields_end, &
-     fields_load, fields_unload, setfield, fieldinfo, benchmark, &
-     fields_integrable, fields_pointprop, testrmt, listfields, listfieldalias,&
-     fields_integrable_report
-  use varbas, only: varbas_end, varbas_identify
-  use grd_atomic, only: grda_init, grda_end
+  use fieldmod, only: type_grid
   use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
-     struct_clearsym, struct_charges, struct_write, struct_powder, struct_rdf,&
-     struct_compare, struct_environ, struct_packing, struct_atomlabel
-  use crystalmod, only: cr
-  use wfn_private, only: wfn_end
-  use pi_private, only: pi_end
+     struct_clearsym, struct_charges, struct_atomlabel, struct_write,&
+     struct_powder, struct_rdf, struct_environ, struct_packing,&
+     struct_compare, struct_identify
+  use systemmod, only: systemmod_init, systemmod_end, sy
   use spgs, only: spgs_init
-  use global, only: fileroot, quiet, refden, eval_next, gradient_mode,&
-     int_radquad_errprop_default, int_radquad_errprop, global_init,&
-     initial_banner, help_me, config_write, critic_clearvariable,&
-     critic_setvariables,global_set_defaults, iunit, iunit_isdef,&
-     iunit_ang, iunit_bohr
-  use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
-     fcflags, cc, cflags, ldflags, enable_debug, package
+  use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
+     help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
+     critic_clearvariable, critic_setvariables, global_set_defaults
   use graphics, only: graphics_init
   use arithmetic, only: listvariables
+  use grid1mod, only: grid1_clean_grids
+  use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
+     fcflags, cc, cflags, ldflags, enable_debug, package
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
      start_clock, print_clock
@@ -67,11 +59,11 @@ program critic
   character(len=:), allocatable :: optv, ghome
   ! parsing
   integer :: lp, lpold
-  character(len=:), allocatable :: subline, word
-  character(len=:), allocatable :: line
+  character(len=:), allocatable :: subline, word, word2
+  character(len=:), allocatable :: line, errmsg
   !
-  integer :: level, plevel
-  integer :: i, id, nn, ismoli
+  integer :: level, plevel, id
+  integer :: i, nn, ismoli
   logical :: ll1, ok
   real*8 :: rdum
 
@@ -85,10 +77,9 @@ program critic
 
   ! set default values and initialize the rest of the modules
   call global_init(ghome,datadir)
-  call cr%init()
-  call fields_init()
   call spgs_init()
   call graphics_init()
+  call systemmod_init(1)
 
   ! parse global control options
   quiet = (index(optv,"q") /= 0)
@@ -118,127 +109,87 @@ program critic
 
      ! crystal
      if (equal(word,'crystal') .or. equal(word,'molecule')) then
-        ! there is a previous crystal structure, clean up...
-        if (cr%isinit) call clean_structure()
-
         if (equal(word,'crystal')) then
            ismoli = 0
+           if (iunit_isdef) iunit = iunit_bohr
         else
            ismoli = 1
+           if (iunit_isdef) iunit = iunit_ang
         end if
+        call struct_crystal_input(subline,ismoli,.true.,.true.,s0=sy)
 
-        ! change default output units
-        if (iunit_isdef) then
-           if (equal(word,'molecule')) then
-              iunit = iunit_ang
-           else
-              iunit = iunit_bohr
-           end if
-        end if
-
-        ! read the crystal enviornment
-        call struct_crystal_input(cr,subline,ismoli,.true.)
-
-        if (cr%isinit) then
-           ! fill environments, asterisms, nearest neighbors
-           call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
-           ! print some information about the structure
-           call cr%struct_report()
-           ! initialize the radial densities
-           call grda_init(.true.,.true.,.true.)
-           ! set the promolecular density as reference
-           call set_reference(0)
-        else
-           call cr%init()
-        end if
-
+        ! newcell
      elseif (equal(word,'newcell')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before newcell',faterr,line,syntax=.true.)
+        if (.not.sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE/MOLECULE before newcell',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_newcell(subline)
-        ! clean the CP list
-        call varbas_end()
-        ! unload all fields and set the promolecular density as reference
-        call fields_end()
-        call fields_init()
-        call set_reference(0)
-        
-     ! molcell
+        call struct_newcell(sy,subline)
+
+        ! molcell
      elseif (equal(word,'molcell')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before molcell',faterr,line,syntax=.true.)
+        if (.not.sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before molcell',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_molcell(subline)
-        
-     ! clearsym/clearsymm
+        call struct_molcell(sy,subline)
+
+        ! clearsym/clearsymm
      elseif (equal(word,'clearsym') .or. equal(word,'clearsymm')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before clearsym',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before clearsym',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_clearsym() 
+        call struct_clearsym(sy) 
         call check_no_extra_word(ok)
         if (.not.ok) cycle
-        ! clean the CP list
-        call varbas_end()
-        call init_cplist(.true.)
 
-     ! q/qat, zpsp, nocore
+        ! q/qat, zpsp, nocore
      elseif (equal(word,'q') .or. equal(word,'qat') &
         .or. equal(word,'zpsp') .or. equal(word,'nocore')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before q/qat/zpsp/nocore',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before q/qat/zpsp/nocore',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_charges(line,ok)
-        if (ok) then
-           ll1 = equal(word,'zpsp') .or. equal(word,'nocore')
-           call grda_init(ll1,.not.ll1,.true.)
-        end if
+        call struct_charges(sy,line,ok)
 
-     ! atomlabel
+        ! atomlabel
      elseif (equal(word,'atomlabel')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before atomlabel',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before atomlabel',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_atomlabel(cr,subline)
+        call struct_atomlabel(sy,subline)
 
-     ! write
+        ! write
      elseif (equal(word,'write')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before write',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before write',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_write(cr,subline)
+        call struct_write(sy,subline)
 
-     ! load
+        ! load
      elseif (equal(word,'load')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before load',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before load',faterr,line,syntax=.true.)
            cycle
         end if
-        call fields_load(subline,id,ok)
-        if (ok) then
-           if (refden == 0) call set_reference(id)
-        else
-           call fields_unload(id)
-        end if
+        call sy%load_field_string(subline,id,errmsg)
+        if (id < 0 .or. len_trim(errmsg) > 0) &
+           call ferror('load',errmsg,faterr,line,syntax=.true.)
 
-     ! unload
+        ! unload
      elseif (equal(word,'unload')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before unload',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before unload',faterr,line,syntax=.true.)
            cycle
         end if
         lpold = lp
         word = getword(line,lp)
-        nn = fieldname_to_idx(word)
+        nn = sy%fieldname_to_idx(word)
         if (nn >= 0) then
-           if (.not.goodfield(nn)) then
+           if (.not.sy%goodfield(nn)) then
               call ferror('critic2','wrong field in UNLOAD',faterr,line,syntax=.true.)
               cycle
            end if
@@ -246,210 +197,232 @@ program critic
               call ferror('critic2','can not unload the promolecular density',faterr,line,syntax=.true.)
               cycle
            end if
-           call fields_unload(nn)
+           call sy%unload_field(nn)
         else
            lp = lpold
            word = lgetword(line,lp)
            if (equal(word,'all')) then
-              do i = 1, ubound(f,1)
-                 if (fused(i)) call fields_unload(i)
+              do i = 1, ubound(sy%f,1)
+                 call sy%unload_field(i)
               end do
            else
               call ferror('critic2','Unknown keyword in UNLOAD',faterr,line,syntax=.true.)
            endif
         end if
-           
-     ! powder
+
+        ! powder
      elseif (equal(word,'powder')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before powder',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before powder',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_powder(line(lp:),cr)
+        call struct_powder(sy,line(lp:))
 
-     ! rdf
+        ! rdf
      elseif (equal(word,'rdf')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before rdf',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before rdf',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_rdf(line(lp:),cr)
+        call struct_rdf(sy,line(lp:))
 
-     ! compare
+        ! compare
      elseif (equal(word,'compare')) then
-        call struct_compare(line(lp:))
+        call struct_compare(sy,line(lp:))
 
-     ! setfield
+        ! setfield
      elseif (equal(word,'setfield')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before setfield',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before setfield',faterr,line,syntax=.true.)
            cycle
         end if
+        lpold = lp
         word = getword(line,lp)
-        id = fieldname_to_idx(word)
-        if (id < 0) id = refden
-        if (.not.goodfield(id)) then
+        id = sy%fieldname_to_idx(word)
+        if (id < 0) then
+           id = sy%iref
+           lp = lpold
+        end if
+        if (.not.sy%goodfield(id)) then
            call ferror('critic2','wrong field in setfield',faterr,line,syntax=.true.)
            cycle
         end if
-        call setfield(f(id),id,line(lp:),ok)
-        call fieldinfo(id,.false.,.true.)
+        call sy%f(id)%set_options(line(lp:),errmsg)
+        if (len_trim(errmsg) > 0) then
+           call ferror('setfield',errmsg,faterr,line,syntax=.true.)
+           cycle
+        end if
+        write (uout,'("+ Field number ",A)') string(id)
+        call sy%f(id)%printinfo(.false.,.true.)
+        write (uout,*)
 
-     ! reference
+        ! reference
      elseif (equal(word,'reference')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before reference',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before reference',faterr,line,syntax=.true.)
            cycle
         end if
         word = getword(line,lp)
-        id = fieldname_to_idx(word)
+        id = sy%fieldname_to_idx(word)
         if (id < 0) then
            call ferror('critic2','unknown field in REFERENCE',faterr,line,syntax=.true.)
            cycle
         end if
-        if (.not.goodfield(id)) then
+        if (.not.sy%goodfield(id)) then
            call ferror('critic2','REFERENCE: field is not allocated',faterr,line,syntax=.true.)
            cycle
         end if
-        call set_reference(id)
+        call sy%set_reference(id,.false.)
+        write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
+        call sy%report(.false.,.false.,.true.,.false.,.false.,.false.)
         call check_no_extra_word(ok)
 
-     ! point
+        ! point
      elseif (equal(word,'point')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before point',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before point',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_point(subline)
 
-     ! line
+        ! line
      elseif (equal(word,'line')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before line',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before line',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_line(subline)
 
-     ! plane
+        ! plane
      elseif (equal(word,'plane')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before plane',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before plane',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_plane(subline)
 
-     ! cube
+        ! cube
      elseif (equal(word,'cube')) then
-        if (.not. cr%isinit) then 
-           call ferror('critic2','need crystal before cube',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then 
+           call ferror('critic2','need CRYSTAL/MOLECULE before cube',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_cube(subline)
 
-     ! grdvec
+        ! grdvec
      elseif (equal(word,'grdvec')) then
-        if (.not. cr%isinit) then
-           call ferror('critic','need crystal before grdvec',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic','need CRYSTAL/MOLECULE before grdvec',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_grdvec()
 
-     ! nciplot
+        ! nciplot
      elseif (equal(word,'nciplot')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before nciplot',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before nciplot',faterr,line,syntax=.true.)
            cycle
         end if
         call nciplot()
 
-     ! benchmark 
+        ! benchmark 
      elseif (equal(word,'benchmark')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before benchmark',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before benchmark',faterr,line,syntax=.true.)
            cycle
         end if
         ok = eval_next(nn,line,lp)
         if (.not. ok) nn = 10000
         call check_no_extra_word(ok)
         if (.not.ok) cycle
-        call benchmark(nn)
+        call sy%f(sy%iref)%benchmark(nn)
 
-     ! auto
+        ! auto
      elseif (equal(word,'auto')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before auto',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before auto',faterr,line,syntax=.true.)
            cycle
         end if
         call autocritic(subline)
 
-     ! cpreport
+        ! cpreport
      elseif (equal(word,'cpreport')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before cpreport',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before cpreport',faterr,line,syntax=.true.)
            cycle
         end if
         call cpreport(subline)
 
-     ! fluxprint
+        ! fluxprint
      elseif (equal(word,'fluxprint')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before fluxprint',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before fluxprint',faterr,line,syntax=.true.)
            cycle
         end if
         call fluxprint()
 
-     ! integrable
+        ! integrable
      elseif (equal(word,'integrable')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before integrable',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before integrable',faterr,line,syntax=.true.)
            cycle
         end if
-        call fields_integrable(subline)
+        call sy%new_integrable_string(subline,errmsg)
+        if (len_trim(errmsg) == 0) then
+           call sy%report(.false.,.false.,.true.,.false.,.false.,.false.)
+        else
+           call ferror('integrable',errmsg,faterr,line,syntax=.true.)
+        end if
 
-     ! pointprop
+        ! pointprop
      elseif (equal(word,'pointprop')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before pointprop',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before pointprop',faterr,line,syntax=.true.)
            cycle
         end if
-        call fields_pointprop(subline)
+        call sy%new_pointprop_string(subline,errmsg)
+        if (len_trim(errmsg) == 0) then
+           call sy%report(.false.,.false.,.false.,.true.,.false.,.false.)
+        else
+           call ferror('pointprop',errmsg,faterr,line,syntax=.true.)
+        end if
 
-     ! basinplot
+        ! basinplot
      elseif (equal(word,'basinplot')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before basinplot',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before basinplot',faterr,line,syntax=.true.)
            cycle
         end if
         call basinplot(subline)
 
-     ! bundleplot
+        ! bundleplot
      elseif (equal(word,'bundleplot')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before bundleplot',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before bundleplot',faterr,line,syntax=.true.)
            cycle
         end if
         call bundleplot(subline)
 
-     ! sphereintegrals
+        ! sphereintegrals
      elseif (equal(word,'sphereintegrals')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before sphereintegrals',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before sphereintegrals',faterr,line,syntax=.true.)
            cycle
         end if
         call sphereintegrals(subline)
-
-     ! integrals
+        
+        ! integrals
      elseif (equal(word,'integrals')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before integrals',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before integrals',faterr,line,syntax=.true.)
            cycle
         end if
         call integrals(subline)
-
-     ! qtree 
+        
+        ! qtree 
      elseif (equal(word,'qtree')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before qtree',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before qtree',faterr,line,syntax=.true.)
            cycle
         end if
         ok = eval_next(level,line,lp)
@@ -460,47 +433,47 @@ program critic
         if (.not.ok) cycle
         call qtree_integration(level,plevel)
 
-     ! yt
+        ! yt
      elseif (equal(word,'yt')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before yt',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before yt',faterr,line,syntax=.true.)
            cycle
         end if
         call intgrid_driver(line)
 
-     ! bader
+        ! bader
      elseif (equal(word,'bader')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before bader',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before bader',faterr,line,syntax=.true.)
            cycle
         end if
         call intgrid_driver(line)
 
-     ! xdm
+        ! xdm
      elseif (equal(word,'xdm')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before xdm',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before xdm',faterr,line,syntax=.true.)
            cycle
         end if
         call xdm_driver(subline)
 
-     ! stm
+        ! stm
      elseif (equal(word,'stm')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before stm',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before stm',faterr,line,syntax=.true.)
            cycle
         end if
         call stm_driver(line(lp:))
 
-     ! sphfactor
+        ! sphfactor
      elseif (equal(word,'sphfactor')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before sphfactor',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before sphfactor',faterr,line,syntax=.true.)
            cycle
         end if
         call qtree_setsphfactor(subline)
 
-     ! root
+        ! root
      elseif (equal(word,'root')) then
         if (len_trim(line(lp:)) < 1) then
            call ferror('critic2','need a string for root',faterr,line,syntax=.true.)
@@ -508,200 +481,145 @@ program critic
         end if
         fileroot = line(lp:)
 
-     ! hirshfeld
+        ! hirshfeld
      elseif (equal(word,'hirshfeld')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before hirshfeld',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before hirshfeld',faterr,line,syntax=.true.)
            cycle
         end if
         call check_no_extra_word(ok)
         if (.not.ok) cycle
         call hirsh_props_grid()
 
-     ! ewald
+        ! ewald
      elseif (equal(word,'ewald')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before ewald',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before ewald',faterr,line,syntax=.true.)
            cycle
         end if
         call check_no_extra_word(ok)
         if (.not.ok) cycle
-        if (cr%ismolecule) then
+        if (sy%c%ismolecule) then
            call ferror("critic2","EWALD can not be used with molecules",faterr)
            cycle
         end if
 
-        rdum = cr%ewald_energy()
+        rdum = sy%c%ewald_energy()
         write (uout,'("* Ewald electrostatic energy (Hartree) = ",A/)') &
            string(rdum,'e',decimal=12)
 
-     ! environ
+        ! environ
      elseif (equal(word,'environ')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before environ',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before environ',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_environ(line(lp:))
+        call struct_environ(sy,line(lp:))
 
-     ! packing
+        ! packing
      elseif (equal(word,'packing')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before packing',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before packing',faterr,line,syntax=.true.)
            cycle
         end if
-        call struct_packing(line(lp:))
-        
-     ! identify
+        call struct_packing(sy,line(lp:))
+
+        ! identify
      elseif (equal(word,'identify')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before identify',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before identify',faterr,line,syntax=.true.)
            cycle
         end if
-        call varbas_identify(line,lp)
+        call struct_identify(sy,line,lp)
 
-     ! sum
-     elseif (equal(word,'sum')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before sum',faterr,line,syntax=.true.)
+        ! sum/min/max/mean/count
+     elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&
+        equal(word,'mean').or.equal(word,'count')) then
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before sum/min/max/mean/count',faterr,line,syntax=.true.)
            cycle
         end if
-        word = getword(line,lp)
-        id = fieldname_to_idx(word)
-        if (id < 0) id = refden
-        if (.not.goodfield(id)) then
-           call ferror('critic2','SUM: field is not allocated',faterr,line,syntax=.true.)
+        word2 = getword(line,lp)
+        id = sy%fieldname_to_idx(word2)
+        if (id < 0) id = sy%iref
+        if (.not.sy%goodfield(id)) then
+           call ferror('critic2','field is not allocated in sum/min/max/mean/count',faterr,line,syntax=.true.)
            cycle
         end if
-        call check_no_extra_word(ok)
+        if (.not.sy%f(id)%type == type_grid) then
+           call ferror('critic2','field is not a grid',faterr,line,syntax=.true.)
+           cycle
+        end if
+        if (.not.sy%f(id)%grid%init.or..not.allocated(sy%f(id)%grid%f)) then
+           call ferror('critic2','grid is not initialized',faterr,line,syntax=.true.)
+           cycle
+        end if
         if (.not.ok) cycle
-        write (uout,'("SUM(",A,") = ",A/)') string(id), string(sum(f(id)%f),'e',decimal=12)
-
-     ! min
-     elseif (equal(word,'min')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before min',faterr,line,syntax=.true.)
-           cycle
-        end if
-        word = getword(line,lp)
-        id = fieldname_to_idx(word)
-        if (id < 0) id = refden
-        if (.not.goodfield(id)) then
-           call ferror('critic2','MIN: field is not allocated',faterr,line,syntax=.true.)
-           cycle
-        end if
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        write (uout,'("MIN(",A,") = ",A/)') string(id), string(minval(f(id)%f),'e',decimal=12)
-
-     ! max
-     elseif (equal(word,'max')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before max',faterr,line,syntax=.true.)
-           cycle
-        end if
-        word = getword(line,lp)
-        id = fieldname_to_idx(word)
-        if (id < 0) id = refden
-        if (.not.goodfield(id)) then
-           call ferror('critic2','MAX: field is not allocated',faterr,line,syntax=.true.)
-           cycle
-        end if
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        write (uout,'("MAX(",A,") = ",A/)') string(id), string(maxval(f(id)%f),'e',decimal=12)
-
-     ! mean
-     elseif (equal(word,'mean')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before mean',faterr,line,syntax=.true.)
-           cycle
-        end if
-        word = getword(line,lp)
-        id = fieldname_to_idx(word)
-        if (id < 0) id = refden
-        if (.not.goodfield(id)) then
-           call ferror('critic2','MEAN: field is not allocated',faterr,line,syntax=.true.)
-           cycle
-        end if
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        write (uout,'("MEAN(",A,") = ",A/)') string(id),&
-           string(sum(f(id)%f) / (f(id)%n(1)*f(id)%n(2)*f(id)%n(3)),'e',decimal=12)
-
-     ! count
-     elseif (equal(word,'count')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before count',faterr,line,syntax=.true.)
-           cycle
-        end if
-        word = getword(line,lp)
-        id = fieldname_to_idx(word)
-        if (id < 0) id = refden
-        if (.not.goodfield(id)) then
-           call ferror('critic2','COUNT: field is not allocated',faterr,line,syntax=.true.)
-           cycle
+        if (equal(word,"sum")) then
+           write (uout,'("SUM(",A,") = ",A/)') string(id), string(sum(sy%f(id)%grid%f),'e',decimal=12)
+        elseif(equal(word,"min")) then
+           write (uout,'("MIN(",A,") = ",A/)') string(id), string(minval(sy%f(id)%grid%f),'e',decimal=12)
+        elseif(equal(word,"max")) then
+           write (uout,'("MAX(",A,") = ",A/)') string(id), string(maxval(sy%f(id)%grid%f),'e',decimal=12)
+        elseif(equal(word,"mean")) then
+           write (uout,'("MEAN(",A,") = ",A/)') string(id),&
+              string(sum(sy%f(id)%grid%f) / (sy%f(id)%grid%n(1)*sy%f(id)%grid%n(2)*sy%f(id)%grid%n(3)),'e',decimal=12)
+        elseif(equal(word,"count")) then
+           ok = eval_next(rdum,line,lp)
+           if (.not.ok) rdum = 0d0
+           write (uout,'("COUNT(",A," > ",A,") = ",A/)') string(id), &
+              string(rdum,'e',decimal=7), string(count(sy%f(id)%grid%f > rdum))
         end if
 
-        ok = eval_next(rdum,line,lp)
-        if (.not.ok) rdum = 0d0
-
-        if (f(id)%type /= type_grid) then
-           call ferror("count","count can only be used with grids",faterr,line,syntax=.true.)
-           cycle
-        end if
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        write (uout,'("COUNT(",A," > ",A,") = ",A/)') string(id), &
-
-           string(rdum,'e',decimal=7), string(count(f(id)%f > rdum))
-
-     ! testrmt
+        ! testrmt
      elseif (equal(word,'testrmt')) then
-        if (.not. cr%isinit) then
-           call ferror('critic2','need crystal before testrmt',faterr,line,syntax=.true.)
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need CRYSTAL/MOLECULE before testrmt',faterr,line,syntax=.true.)
            cycle
         end if
         call check_no_extra_word(ok)
         if (.not.ok) cycle
-        call testrmt(refden,3)
+        call sy%f(sy%iref)%testrmt(3,errmsg)
+        if (len_trim(errmsg) > 0) &
+           call ferror('testrmt',errmsg,faterr,line,syntax=.true.)
 
-     ! clear
+        ! clear
      elseif (equal(word,'clear')) then
         call critic_clearvariable(line(lp:))
 
-     ! list
+        ! list
      elseif (equal(word,'list')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle
         call listvariables()
-        call listfields()
-        call listfieldalias()
+        call sy%report(.false.,.true.,.true.,.true.,.true.,.false.)
 
-     ! reset
+        ! reset
      elseif (equal(word,'reset')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle
         call critic_clearvariable("all")
         call global_set_defaults()
-        call clean_structure()
+        call sy%end()
+        call sy%init()
 
-     ! run/system
+        ! run/system
      elseif (equal(word,'run') .or. equal(word,'system')) then
         call system(line(lp:))
-        
-     ! echo
+
+        ! echo
      elseif (equal(word,'echo')) then
         write (uout,'(A)') string(line(lp:))
-        
-     ! trick
+
+        ! trick
      elseif (equal(word,'trick')) then
         call trick(line(lp:))
-        
-     ! temp, for testing
-     elseif (equal(word,'temp')) then
-        ! 
 
-     ! end
+        ! temp, for testing
+     elseif (equal(word,'temp')) then
+        write (*,*) "bleh ", sy%f(1)%grd0((/15.0d0,15.1d0,15.2d0/),.true.)
+
+        ! end
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle
@@ -713,13 +631,8 @@ program critic
      endif
   enddo
 
-  ! clean up
-  call pi_end()
-  call wfn_end()
-  call grda_end()
-  call varbas_end()
-  call cr%end()
-  call fields_end()
+  call grid1_clean_grids()
+  call systemmod_end()
 
   if (.not.quiet) then
      write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
@@ -736,61 +649,6 @@ program critic
 #endif
 
 contains
-  !> Set field number id as reference
-  subroutine set_reference(id)
-
-    integer, intent(in) :: id
-
-    ! header and change refden
-    write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
-
-    ! initialize CP list, defer the calculation of nuclei properties to the report
-    if (refden /= id .or. id == 0) then
-       refden = id
-       call init_cplist(.true.)
-    end if
-
-    ! define second integrable property as the valence charge.
-    nprops = max(2,nprops)
-    integ_prop(2)%used = .true.
-    integ_prop(2)%itype = itype_fval
-    integ_prop(2)%fid = id
-    integ_prop(2)%prop_name = "Pop"
-
-    ! define third integrable property as the valence laplacian.
-    nprops = max(3,nprops)
-    integ_prop(3)%used = .true.
-    integ_prop(3)%itype = itype_lapval
-    integ_prop(3)%fid = id
-    integ_prop(3)%prop_name = "Lap"
-
-    ! reset defaults for qtree
-    if (f(refden)%type == type_grid) then
-       gradient_mode = 1
-       if (INT_radquad_errprop_default) INT_radquad_errprop = 2
-    else
-       gradient_mode = 2
-       if (INT_radquad_errprop_default) INT_radquad_errprop = 3
-    end if
-
-    ! report
-    call fields_integrable_report()
-
-  end subroutine set_reference
-
-  !> Cleans the structure and associated data
-  subroutine clean_structure()
-    ! ...the structural data
-    call cr%end()
-    call cr%init()
-    ! ...the fields associated to the previous structure
-    call fields_end()
-    call fields_init()
-    ! ...the loaded radial atomic and core densities
-    call grda_end()
-    ! ...the CP list
-    call varbas_end()
-  end subroutine clean_structure
 
   subroutine check_no_extra_word(ok)
     character(len=:), allocatable :: aux2
@@ -803,5 +661,5 @@ contains
     end if
   end subroutine check_no_extra_word
 
-end program
+end program critic
 

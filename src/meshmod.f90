@@ -26,10 +26,6 @@ module meshmod
   implicit none
 
   private
-  public :: genmesh
-  private :: genmesh_becke
-  private :: genmesh_franchini
-  public :: fillmesh
   private :: rmesh_postg
   private :: z2nr_postg
   private :: z2nr_franchini
@@ -38,41 +34,81 @@ module meshmod
   private :: bhole
   private :: xfuncs
 
+  integer, parameter :: mesh_type_becke = 0
+  integer, parameter :: mesh_type_franchini_small = 1
+  integer, parameter :: mesh_type_franchini_normal = 2
+  integer, parameter :: mesh_type_franchini_good = 3
+  integer, parameter :: mesh_type_franchini_vgood = 4
+  integer, parameter :: mesh_type_franchini_amazing = 5
+  integer, parameter :: mesh_type_default_molecule = mesh_type_becke
+  integer, parameter :: mesh_type_default_crystal = mesh_type_franchini_good
+
+  !> Becke-style mesh for molecular/crystal integration
+  type mesh
+     integer :: n = 0 !< Number of mesh points
+     integer :: type !< Type of mesh
+     real*8, allocatable :: w(:) !< Mesh weights
+     real*8, allocatable :: x(:,:) !< Cartesian coordinates of the mesh points
+     real*8, allocatable :: f(:,:) !< Scalar field values on the mesh
+   contains
+     procedure :: end => endmesh
+     procedure :: gen => genmesh
+     procedure :: gen_becke => genmesh_becke
+     procedure :: gen_franchini => genmesh_franchini
+     procedure :: fill => fillmesh
+  end type mesh
+  public :: mesh
+
 contains
+
+  !> Deallocate and uninitalize
+  subroutine endmesh(m)
+    class(mesh), intent(inout) :: m
+
+    m%n = 0
+    if (allocated(m%w)) deallocate(m%w)
+    if (allocated(m%x)) deallocate(m%x)
+    if (allocated(m%f)) deallocate(m%f)
+
+  end subroutine endmesh
 
   !> Driver for the generation of a molecular mesh. Uses the global
   !> MESH_type to decide the type and quality of the mesh.
-  function genmesh(c) result(mesh)
+  subroutine genmesh(m,c,type)
     use crystalmod, only: crystal
-    use global, only: mesh_type
-    use types, only: molmesh
+    class(mesh), intent(inout) :: m
     type(crystal), intent(inout) :: c
-    type(molmesh) :: mesh
+    integer, intent(in), optional :: type
 
     integer :: tmesh
 
-    tmesh = MESH_type
-    if (.not.c%ismolecule .and. MESH_type == 0) then
-       tmesh = 3
+    if (present(type)) then
+       tmesh = type
+       if (.not.c%ismolecule .and. type == mesh_type_becke) then
+          tmesh = mesh_type_default_crystal
+       end if
+    elseif (c%ismolecule) then
+       tmesh = mesh_type_default_molecule
+    else
+       tmesh = mesh_type_default_crystal
     end if
 
-    if (tmesh == 0) then
-       mesh = genmesh_becke(c)
+    if (tmesh == mesh_type_becke) then
+       call m%gen_becke(c)
     else
-       mesh = genmesh_franchini(c,tmesh)
+       call m%gen_franchini(c,tmesh)
     end if
     
-  end function genmesh
+  end subroutine genmesh
 
   !> Generate a Becke-style molecular mesh. Only for molecules.
-  function genmesh_becke(c) result(mesh)
+  subroutine genmesh_becke(m,c)
     use crystalmod, only: crystal
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: ferror, faterr
-    use types, only: molmesh
     use param, only: fourpi, maxzat
+    class(mesh), intent(inout) :: m
     type(crystal), intent(in) :: c
-    type(molmesh) :: mesh
 
     real*8 :: rr(c%ncel,c%ncel), r, r1, r2, hypr, vp0, vpsum, vpi
     integer :: i, j, k, kk
@@ -82,8 +118,11 @@ contains
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
 
     if (.not.c%ismolecule) &
-       call ferror("genmesh_becke","genmesh_becke can only work with molecules",faterr)
+       call ferror("genmesh_becke","Becke mesh only for molecules",faterr)
     
+    ! reset the arrays
+    call m%end()
+
     ! interatomic distances
     rr = 0d0
     do i = 1, c%ncel
@@ -94,13 +133,13 @@ contains
     enddo
 
     ! allocate space for the mesh
-    mesh%n = 0
+    m%n = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       mesh%n = mesh%n + z2nr_postg(iz) * z2nang_postg(iz)
+       m%n = m%n + z2nr_postg(iz) * z2nang_postg(iz)
     enddo
-    allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
+    allocate(m%w(m%n),m%x(3,m%n),stat=istat)
 
     ! allocate work arrays
     mr = -1
@@ -201,13 +240,13 @@ contains
        do ir = 1, nr
           do il = 1, nang
              kk = kk + 1
-             mesh%w(kk) = meshrl(il,ir,i)
-             mesh%x(:,kk) = meshx(:,il,ir,i)
+             m%w(kk) = meshrl(il,ir,i)
+             m%x(:,kk) = meshx(:,il,ir,i)
           enddo
        enddo
     enddo
 
-  end function genmesh_becke
+  end subroutine genmesh_becke
 
   !> Generate a Becke-style molecular mesh, Franchini weights
   !> J. Comput. Chem. 34 (2013) 1819.
@@ -215,15 +254,14 @@ contains
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   !> This mesh is good for periodic systems because the calculation of the 
   !> weights does not involve a double sum over atoms.
-  function genmesh_franchini(c,lvl) result(mesh)
+  subroutine genmesh_franchini(m,c,lvl)
     use crystalmod, only: crystal
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: faterr, ferror
-    use types, only: molmesh
     use param, only: maxzat, fourpi
+    class(mesh), intent(inout) :: m
     type(crystal), intent(in) :: c
     integer, intent(in) :: lvl
-    type(molmesh) :: mesh
 
     real*8 :: r, r1, vp0, vpsum
     integer :: i, j, kk
@@ -232,14 +270,17 @@ contains
     real*8 :: x(3), fscal, fscal2
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
 
+    ! reset the arrays
+    call m%end()
+
     ! allocate space for the mesh
-    mesh%n = 0
+    m%n = 0
     do i = 1, c%ncel
        iz = c%at(c%atcel(i)%idx)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       mesh%n = mesh%n + z2nr_franchini(iz,lvl) * z2nang_franchini(iz,lvl)
+       m%n = m%n + z2nr_franchini(iz,lvl) * z2nang_franchini(iz,lvl)
     enddo
-    allocate(mesh%w(mesh%n),mesh%x(3,mesh%n),stat=istat)
+    allocate(m%w(m%n),m%x(3,m%n),stat=istat)
 
     ! allocate work arrays
     mr = -1
@@ -330,13 +371,13 @@ contains
        do ir = 1, nr
           do il = 1, nang
              kk = kk + 1
-             mesh%w(kk) = meshrl(il,ir,i)
-             mesh%x(:,kk) = meshx(:,il,ir,i)
+             m%w(kk) = meshrl(il,ir,i)
+             m%x(:,kk) = meshx(:,il,ir,i)
           enddo
        enddo
     enddo
 
-  end function genmesh_franchini
+  end subroutine genmesh_franchini
 
   !> Calculate one or more scalar fields on the molecular mesh (m)
   !> using field f. id and prop are one-dimensional arrays of the same
@@ -345,11 +386,11 @@ contains
   !> If periodic, assume the mesh is for a crystal (calculate the 
   !> properties by moving the points back to the main cell.
   subroutine fillmesh(m,ff,id,prop,periodic)
-    use fields, only: grd
+    use fieldmod, only: field
     use tools_io, only: faterr, ferror
-    use types, only: molmesh, field, scalar_value_noalloc, realloc
+    use types, only: scalar_value_noalloc, realloc
     use param, only: im_rho, im_gradrho, im_gkin, im_b
-    type(molmesh), intent(inout) :: m
+    class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
     integer, intent(in) :: id(:)
     integer, intent(in) :: prop(:)
@@ -364,7 +405,7 @@ contains
 
     if (size(id) /= size(prop)) &
        call ferror("fillmesh","incongruent id and prop arrays",faterr)
-    if (.not.ff%init) &
+    if (.not.ff%isinit) &
        call ferror("fillmesh","field not initialized",faterr)
 
     n = size(id)
@@ -376,7 +417,7 @@ contains
 
     !$omp parallel do private(fval,res,rhos,drho2,d2rho,taup,dsigs,quads)
     do i = 1, m%n
-       call grd(ff,m%x(:,i),2,periodic,res0_noalloc=res)
+       call ff%grd(m%x(:,i),2,periodic,res0_noalloc=res)
        do j = 1, n
           select case(prop(j))
           case(im_rho)

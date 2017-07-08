@@ -22,11 +22,23 @@ module bisect
 
   private 
 
+  private :: lim_surf
+  private :: lim_bundle
+  private :: bisect_msurface
+  private :: bundle_msurface
   public :: basinplot
   public :: bundleplot
+  public :: sphereintegrals_gauleg
+  public :: sphereintegrals_lebedev
   public :: sphereintegrals
-  public :: sphereintegrals_gauleg, sphereintegrals_lebedev
+  private :: integrals_gauleg
+  private :: integrals_lebedev
   public :: integrals
+  private :: integrals_header
+  private :: minisurf_write3dmodel
+  private :: minisurf_writebasin
+  private :: minisurf_writedbasin
+  private :: minisurf_transform
 
   integer, parameter :: maxpointscb(0:7) =  (/ 8, 26, 98, 386, 1538, 6146, 24578, 98306 /)
   integer, parameter :: maxfacescb(0:7) =   (/ 6, 24, 96, 384, 1536, 6144, 24576, 98304 /)
@@ -62,12 +74,8 @@ contains
   !> crystallographic coordinates. The cpid is an index from the non
   !> -equivalent CP list
   subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
-    use navigation, only: gradient
-    use fields, only: f, type_grid
-    use varbas, only: cp, cpcel, ncpcel, nearest_cp
-    use global, only: refden
-    use crystalmod, only: cr
-
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
     integer, intent(in) :: cpid
     real*8, dimension(3), intent(in) :: xin, xfin
     real*8, intent(in) :: delta
@@ -84,7 +92,7 @@ contains
     real*8 :: bsr, bsr2
 
     ! define the close-to-nucleus condition
-    if (f(refden)%type == type_grid) then
+    if (sy%f(sy%iref)%type == type_grid) then
        bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
@@ -98,9 +106,9 @@ contains
     xfin_ = xfin
 
     delta2 = delta * delta
-    xnuc = cr%x2c(cp(cpid)%x)
+    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
 
-    iup = -sign(1,f(refden)%typnuc)
+    iup = -sign(1,sy%f(sy%iref)%typnuc)
 
     ! do bisection between xin and xfin, until they converge within delta
     dist2 = dot_product(xin_-xfin_,xin_-xfin_)
@@ -108,7 +116,7 @@ contains
        xmed = 0.5d0 * (xin_ + xfin_)
 
        xpoint = xmed
-       call gradient(f(refden),xpoint,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+       call sy%f(sy%iref)%gradient(xpoint,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
        tstep = tstep + nstep
 
        if (ier <= 0) then
@@ -127,8 +135,8 @@ contains
        else
           ! error in gradient. Calculate the nearest nucleus
           if (ier > 0) nwarn = nwarn + 1
-          xpoint = cr%c2x(xpoint)
-          call nearest_cp(xpoint,imin,dtemp,f(refden)%typnuc)
+          xpoint = sy%c%c2x(xpoint)
+          call sy%f(sy%iref)%nearest_cp(xpoint,imin,dtemp,sy%f(sy%iref)%typnuc)
           if (dtemp <= bsr) then
              xin_ = xmed
           else
@@ -140,16 +148,17 @@ contains
     xmed = 0.5d0 * (xin_ + xfin_)
 
     ! check if it is on the surface of a beta-sphere 
-    xpoint = cr%c2x(xmed)
+    xpoint = sy%c%c2x(xmed)
 
     ! check if it is inside a beta-sphere
-    do i = 1, ncpcel
-       if (cpcel(i)%typ /= cp(cpid)%typ) cycle
-       xtemp = cpcel(i)%x - xpoint
-       call cr%shortest(xtemp,dtemp)
+    do i = 1, sy%f(sy%iref)%ncpcel
+       if (sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%cp(cpid)%typ) cycle
+       xtemp = sy%f(sy%iref)%cpcel(i)%x - xpoint
+       call sy%c%shortest(xtemp,dtemp)
        dtemp = sqrt(dtemp)
-       if (dtemp <= cp(cpcel(i)%idx)%rbeta ) then
-          cp(cpcel(i)%idx)%rbeta = 0.75d0 * cp(cpcel(i)%idx)%rbeta
+       if (dtemp <= sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta) then
+          sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta = &
+             0.75d0 * sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta
           ! start over again
           goto 1
        end if
@@ -162,11 +171,9 @@ contains
   !> line that connects xin() and xfin(), with precision delta; the
   !> limit is returned in xmed(). All parameters in cartesian
   !> coordinates. nstep is the number of function evaluations.
-  subroutine lim_bundle (xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
-    use navigation, only: gradient
-    use fields, only: f, type_grid
-    use global, only: refden
-    !
+  subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
     real*8, intent(in) :: xup(3), xdn(3)
     real*8, intent(inout) :: xin(3), xfin(3)
     real*8, intent(in) :: delta
@@ -181,7 +188,7 @@ contains
     real*8 :: bsr, bsr2
 
     ! define the close-to-nucleus condition
-    if (f(refden)%type == type_grid) then
+    if (sy%f(sy%iref)%type == type_grid) then
        bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
@@ -200,7 +207,7 @@ contains
        !.alpha limit
        xpoint = xmed
 
-       call gradient(f(refden),xpoint,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+       call sy%f(sy%iref)%gradient(xpoint,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
        tstep = tstep + nstep
        if (ier == 3) then
           inbundle = .false.
@@ -214,7 +221,7 @@ contains
        !.omega limit
        if (inbundle) then
           xpoint = xmed
-          call gradient(f(refden),xpoint,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xpoint,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
           tstep = tstep + nstep
           if (ier == 3) then
              inbundle = .false.
@@ -243,18 +250,15 @@ contains
   !> to the IAS of the CP cpid (non-equivalent CP list). Adaptive
   !> bracketing + bisection.
   subroutine bisect_msurface(srf,cpid,prec,verbose)
-    use navigation, only: gradient
-    use fields, only: f, type_grid
-    use varbas, only: cp, ncpcel, cpcel
-    use global, only: refden, iunit, iunitname0, dunit0
-    use crystalmod, only: cr
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use global, only: iunit, iunitname0, dunit0
+    use surface, only: minisurf
     use tools, only: mergesort
     use tools_io, only: uout, string, ferror, faterr
-    use types, only: minisurf
     use param, only: vbig
-
-    integer, intent(in) :: cpid
     type(minisurf), intent(inout) :: srf
+    integer, intent(in) :: cpid
     real*8, intent(in) :: prec
     logical, intent(in) :: verbose
 
@@ -272,7 +276,7 @@ contains
     real*8 :: bsr, bsr2
 
     ! define the close-to-nucleus condition
-    if (f(refden)%type == type_grid) then
+    if (sy%f(sy%iref)%type == type_grid) then
        bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
@@ -280,22 +284,23 @@ contains
        bsr = bs_rnearnuc
     end if
 
-    iup = -sign(1,f(refden)%typnuc)
+    iup = -sign(1,sy%f(sy%iref)%typnuc)
 
-    xcar = cp(cpid)%x
+    xcar = sy%f(sy%iref)%cp(cpid)%x
     xnuc = xcar
-    xcar = cr%x2c(xcar)
+    xcar = sy%c%x2c(xcar)
 
     ! get the distance to the nearest cp and the nearest cp of the
     ! same type
     rmin = VBIG
     rminsame = VBIG
-    do j = 1, ncpcel
-       xtemp = cpcel(j)%x - xnuc
-       call cr%shortest(xtemp,rr2)
+    do j = 1, sy%f(sy%iref)%ncpcel
+       xtemp = sy%f(sy%iref)%cpcel(j)%x - xnuc
+       call sy%c%shortest(xtemp,rr2)
        if (rr2 < 1d-10) cycle
        if (rr2 < rmin) rmin = rr2
-       if (rr2 < rminsame .and. cpcel(j)%typ == cp(cpid)%typ) rminsame = rr2
+       if (rr2 < rminsame .and. sy%f(sy%iref)%cpcel(j)%typ == sy%f(sy%iref)%cp(cpid)%typ) &
+          rminsame = rr2
     end do
     rmin = sqrt(rmin)
     rminsame = sqrt(rminsame)
@@ -361,7 +366,7 @@ contains
           riaprox = rtry(itry(k))
           xin = xcar + riaprox * unit
           xtemp = xin
-          call gradient(f(refden),xtemp,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
           if (ier == 3) then
              ! started outside molcell
              if (rtry(itry(k)) < rother) rother = rtry(itry(k))
@@ -379,19 +384,19 @@ contains
        end do
 
        ! possible initial radii for outer point
-       rtry(1) = min(cr%aa(1),cr%aa(2),cr%aa(3)) ! very poor
+       rtry(1) = min(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! very poor
        rtry(2) = 0.99d0 * rminsame      ! 99% to nearest same type CP 
        rtry(3) = 0.75d0 * rminsame      ! 75% to nearest same type CP 
        if (idone > 0) then
           rtry(4) = 1.01d0 * rfarmax       ! 101% of the farthest initial point up to now
           rtry(5) = rfarsum / real(idone,8)  ! mean of the out-basin initial points up to now
           rtry(6) = 1.2d0*rzfssum / real(idone,8) ! 120% of the mean of the r_{zfs} up to now
-          rtry(7) = max(cr%aa(1),cr%aa(2),cr%aa(3)) ! really, REALLY poor
+          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! really, REALLY poor
        else
-          rtry(4) = max(cr%aa(1),cr%aa(2),cr%aa(3))  ! VERY poor
-          rtry(5) = max(cr%aa(1),cr%aa(2),cr%aa(3))  
-          rtry(6) = max(cr%aa(1),cr%aa(2),cr%aa(3))  
-          rtry(7) = max(cr%aa(1),cr%aa(2),cr%aa(3))  
+          rtry(4) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  ! VERY poor
+          rtry(5) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
+          rtry(6) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
+          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
        end if
        itry = (/ (k,k=1,ntries) /)       ! sort from smaller to larger
        call mergesort(rtry,itry)
@@ -408,7 +413,7 @@ contains
           end if
           xfin = xcar + raprox * unit
           xtemp = xfin
-          call gradient (f(refden),xtemp,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
           if (ier == 3)  then
              ! started outside molcell
              ! it is in the inner part of the basin: is it better than riaprox?
@@ -489,16 +494,13 @@ contains
   !> Determine the surface representing the primary bundle with seed
   !> srf%n (cartesian) by bisection.
   subroutine bundle_msurface(srf,prec,verbose)
-    use navigation, only: gradient
-    use fields, only: f, type_grid
-    use varbas, only: ncp, cp, rbetadef
-    use global, only: refden
-    use crystalmod, only: cr
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use surface, only: minisurf
+    use global, only: rbetadef
     use tools_math, only: norm
     use tools_io, only: uout, string, faterr, ferror
-    use types, only: minisurf
     use param, only: vbig
-
     type(minisurf), intent(inout) :: srf
     real*8, intent(in) :: prec
     logical, intent(in) :: verbose
@@ -508,11 +510,11 @@ contains
     real*8 :: xtemp(3), xseed(3), xup(3), xdn(3), xin(3), xfin(3)
     real*8 :: xmed(3), unit(3), raprox, riaprox
     logical :: ok
-    real*8 :: oldrbeta(ncp), rmin, rmax
+    real*8 :: oldrbeta(sy%f(sy%iref)%ncp), rmin, rmax
     real*8 :: bsr, bsr2
 
     ! define the close-to-nucleus condition
-    if (f(refden)%type == type_grid) then
+    if (sy%f(sy%iref)%type == type_grid) then
        bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
@@ -520,21 +522,21 @@ contains
        bsr = bs_rnearnuc
     end if
 
-    iup = -sign(1,f(refden)%typnuc)
+    iup = -sign(1,sy%f(sy%iref)%typnuc)
 
     xseed = srf%n
 
     ! beta spheres + primary bundles is not such a good idea.
-    oldrbeta = cp(1:ncp)%rbeta
-    cp(1:ncp)%rbeta = Rbetadef
+    oldrbeta = sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta
+    sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta = Rbetadef
 
     ! alpha-limit
     xtemp = xseed
-    call gradient (f(refden),xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+    call sy%f(sy%iref)%gradient(xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
     xup = xtemp
     ! omega-limit
     xtemp = xseed
-    call gradient (f(refden),xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+    call sy%f(sy%iref)%gradient(xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
     xdn = xtemp
 
     if (verbose) then
@@ -561,12 +563,10 @@ contains
        if (srf%r(i) > 0d0) cycle
 
        ! unitary vector for the direction of the ray
-       unit = (/ sin(srf%th(i)) * cos(srf%ph(i)),&
-          sin(srf%th(i)) * sin(srf%ph(i)),&
-          cos(srf%th(i)) /)
+       unit = (/sin(srf%th(i)) * cos(srf%ph(i)), sin(srf%th(i)) * sin(srf%ph(i)), cos(srf%th(i))/)
 
-       raprox = 0.5d0 * maxval(cr%aa)
-       riaprox = 0.5d0 * maxval(cr%aa)
+       raprox = 0.5d0 * maxval(sy%c%aa)
+       riaprox = 0.5d0 * maxval(sy%c%aa)
 
        ! inner limit, reuse previous steps riaprox
        if (rmin /= VBIG) then
@@ -575,7 +575,7 @@ contains
        ok = .false.
        do while (riaprox > 1d-5)
           xtemp = xseed + riaprox * unit
-          call gradient (f(refden),xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
           if (ier == 3)  then
              ok = .false.
           else
@@ -586,7 +586,7 @@ contains
           if (ok) then
              ! omega-limit
              xtemp = xseed + riaprox * unit
-             call gradient (f(refden),xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
              if (ier == 3)  then
                 ok = .false.
              else
@@ -603,15 +603,15 @@ contains
           end if
        end do
        if (riaprox <= 1d-5) then
-          call ferror ('bundle_msurface','Can not find inner bracket limit.',faterr)
+          call ferror('bundle_msurface','Can not find inner bracket limit.',faterr)
        end if
 
        ! outer limit, reuse previous steps raprox
        if (rmax /= 0d0) raprox = rmax
        ok = .false.
-       do while (raprox < 10d0 * maxval(cr%aa))
+       do while (raprox < 10d0 * maxval(sy%c%aa))
           xtemp = xseed + raprox * unit
-          call gradient (f(refden),xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
           if (ier == 3)  then
              ok = .false.
           else
@@ -622,7 +622,7 @@ contains
           if (.not.ok) then
              ! omega-limit
              xtemp = xseed + raprox * unit
-             call gradient (f(refden),xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
              if (ier == 3)  then
                 ok = .false.
              else
@@ -638,8 +638,8 @@ contains
              raprox = 2d0 * raprox
           end if
        end do
-       if (raprox > 10d0 * maxval(cr%aa)) then
-          call ferror ('bundle_msurface','Can not find outer bracket limit.',faterr)
+       if (raprox > 10d0 * maxval(sy%c%aa)) then
+          call ferror('bundle_msurface','Can not find outer bracket limit.',faterr)
        end if
 
        xin = xseed + riaprox * unit
@@ -676,7 +676,7 @@ contains
     end if
 
     ! Restore the original beta radius
-    cp(1:ncp)%rbeta = oldrbeta
+    sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta = oldrbeta
 
   end subroutine bundle_msurface
 
@@ -691,18 +691,12 @@ contains
   !> number of points along each ray in the dbasin output mode.
   !> cpid is the CP basin (equivalent CP list) to be represented. 
   subroutine basinplot(line)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_spheretriang,&
-       minisurf_spheresphere, minisurf_transform, minisurf_write3dmodel,&
-       minisurf_writebasin, minisurf_writedbasin, minisurf_close
-    use fields, only: f, fieldname_to_idx, goodfield
-    use varbas, only: ncpcel, cpcel, ncp, cp
-    use global, only: eval_next, refden, iunit, iunitname0, dunit0, fileroot
-    use crystalmod, only: cr
+    use systemmod, only: sy
+    use surface, only: minisurf
+    use global, only: eval_next, iunit, iunitname0, dunit0, fileroot
     use tools_io, only: lgetword, equal, ferror, faterr, getword, isexpression_or_word,&
        string, uout, ioj_right
-    use types, only: minisurf
     use param, only: jmlcol
-
     character*(*), intent(in) :: line
 
     integer :: lp, lp2
@@ -714,7 +708,7 @@ contains
     character*(40) :: file
     integer :: cpn
     integer :: m, nf, j
-    logical :: neqdone(ncp), ok, verbose
+    logical :: neqdone(sy%f(sy%iref)%ncp), ok, verbose
     real*8 :: xnuc(3), prec
 
     ! default values
@@ -736,7 +730,7 @@ contains
        if (equal(word,'cube')) then
           method = 'bcb'
           lp2 = lp
-          ok = eval_next (level,line,lp)
+          ok = eval_next(level,line,lp)
           if (.not.ok) then
              level = 3
              lp = lp2
@@ -744,7 +738,7 @@ contains
        else if (equal(word,'triang')) then
           method = 'btr'
           lp2 = lp
-          ok = eval_next (level,line,lp)
+          ok = eval_next(level,line,lp)
           if (.not.ok) then
              level = 3
              lp = lp2
@@ -752,7 +746,7 @@ contains
        else if (equal(word,'sphere')) then
           method = 'bsp'
           lp2 = lp
-          ok = eval_next (ntheta,line,lp)
+          ok = eval_next(ntheta,line,lp)
           ok = ok .and. eval_next(nphi,line,lp)
           if (.not.ok) then
              ntheta = 5
@@ -781,7 +775,7 @@ contains
              call ferror('basinplot','Unknown CP',faterr,line,syntax=.true.)
              return
           else
-             if (cpcel(cpid)%typ /= f(refden)%typnuc) then
+             if (sy%f(sy%iref)%cpcel(cpid)%typ /= sy%f(sy%iref)%typnuc) then
                 call ferror('basinplot','cp: bad CP (bad syntax or type /= nuc.)',faterr,line,syntax=.true.)
                 return
              end if
@@ -797,7 +791,7 @@ contains
        else if (equal(word,'map')) then
           lp2 = lp
           word = getword(line,lp)
-          idum = fieldname_to_idx(word)
+          idum = sy%fieldname_to_idx(word)
           if (idum < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
@@ -806,7 +800,7 @@ contains
                 return
              end if
           else
-             if (.not.goodfield(idum)) then
+             if (.not.sy%goodfield(idum)) then
                 call ferror('basinplot','field not allocated',faterr,line,syntax=.true.)
                 return
              end if
@@ -821,7 +815,7 @@ contains
     end do
 
     if (cpid > 0) then
-       if (cpcel(cpid)%typ /= f(refden)%typnuc) then
+       if (sy%f(sy%iref)%cpcel(cpid)%typ /= sy%f(sy%iref)%typnuc) then
           call ferror('basinplot','selected CP does not have nuc. type',faterr,syntax=.true.)
           return
        end if
@@ -852,7 +846,7 @@ contains
     else 
        write (uout,'("  Output file format: DBASIN with ",A," radial points")') string(npts)
     end if
-    if (.not.cr%ismolecule) then
+    if (.not.sy%c%ismolecule) then
        write (uout,'("+ List of CP basins to be plotted (cryst. coord.): ")') 
     else
        write (uout,'("+ List of CP basins to be plotted (",A,"): ")') iunitname0(iunit)
@@ -860,26 +854,26 @@ contains
     write (uout,'("#  ncp   cp       x             y             z")')
     if (cpid <= 0) then
        neqdone = .false.
-       do i = 1, ncpcel
-          if (cpid == 0 .and. ((cpcel(i)%typ /= f(refden)%typnuc .and. i>cr%nneq) .or.&
-             neqdone(cpcel(i)%idx))) cycle
-          neqdone(cpcel(i)%idx) = .true.
-          if (.not.cr%ismolecule) then
-             xnuc = cpcel(i)%x
+       do i = 1, sy%f(sy%iref)%ncpcel
+          if (cpid == 0 .and. ((sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq) .or.&
+             neqdone(sy%f(sy%iref)%cpcel(i)%idx))) cycle
+          neqdone(sy%f(sy%iref)%cpcel(i)%idx) = .true.
+          if (.not.sy%c%ismolecule) then
+             xnuc = sy%f(sy%iref)%cpcel(i)%x
           else
-             xnuc = (cpcel(i)%r+cr%molx0)*dunit0(iunit)
+             xnuc = (sy%f(sy%iref)%cpcel(i)%r+sy%c%molx0)*dunit0(iunit)
           endif
-          write (uout,'(99(A,2X))') string(cpcel(i)%idx,length=5,justify=ioj_right),&
+          write (uout,'(99(A,2X))') string(sy%f(sy%iref)%cpcel(i)%idx,length=5,justify=ioj_right),&
              string(i,length=5,justify=ioj_right), &
              (string(xnuc(j),'e',length=12,decimal=6,justify=4),j=1,3)
        end do
     else
-       if (.not.cr%ismolecule) then
-          xnuc = cpcel(cpid)%x
+       if (.not.sy%c%ismolecule) then
+          xnuc = sy%f(sy%iref)%cpcel(cpid)%x
        else
-          xnuc = (cpcel(cpid)%r+cr%molx0)*dunit0(iunit)
+          xnuc = (sy%f(sy%iref)%cpcel(cpid)%r+sy%c%molx0)*dunit0(iunit)
        endif
-       write (uout,'(99(A,2X))') string(cpcel(cpid)%idx,length=5,justify=ioj_right),&
+       write (uout,'(99(A,2X))') string(sy%f(sy%iref)%cpcel(cpid)%idx,length=5,justify=ioj_right),&
           string(cpid,length=5,justify=ioj_right), &
           (string(xnuc(j),'e',length=12,decimal=6,justify=4),j=1,3)
     end if
@@ -897,11 +891,11 @@ contains
        nf = 6*nphi*(2**(ntheta-1)-1)+nphi+nphi
     end if
 
-    call minisurf_init(srf,m,nf)
+    call srf%begin(m,nf)
     
     if (cpid <= 0) then
        linmin = 1
-       linmax = ncpcel
+       linmax = sy%f(sy%iref)%ncpcel
     else
        linmin = cpid
        linmax = cpid
@@ -910,25 +904,25 @@ contains
     
     ! run over selected non-eq. CPs, only the same type as nuclei
     do i = linmin, linmax
-       cpn = cpcel(i)%idx
-       if (cpid == 0 .and. ((cpcel(i)%typ /= f(refden)%typnuc .and. cpn>cr%nneq) .or.&
+       cpn = sy%f(sy%iref)%cpcel(i)%idx
+       if (cpid == 0 .and. ((sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%typnuc .and. cpn>sy%c%nneq) .or.&
           neqdone(cpn))) cycle
        neqdone(cpn) = .true.
 
        write (uout,'("  Plotting CP number (cp/ncp): ",A,"/",A)') string(i), string(cpn)
 
        ! clean the surface 
-       call minisurf_clean(srf)
+       call srf%clean()
 
        ! tesselate the unit sphere and set all the rays to unsurfed
-       xnuc = cr%x2c(cp(cpn)%x)
+       xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpn)%x)
 
        if (method == 'bcb') then
-          call minisurf_spherecub(srf,xnuc,level)
+          call srf%spherecub(xnuc,level)
        else if (method == 'btr') then
-          call minisurf_spheretriang(srf,xnuc,level)
+          call srf%spheretriang(xnuc,level)
        else if (method == 'bsp') then
-          call minisurf_spheresphere(srf,xnuc,nphi,ntheta)
+          call srf%spheresphere(xnuc,nphi,ntheta)
        end if
        srf%n = xnuc
        srf%r = -1d0
@@ -938,11 +932,12 @@ contains
 
        ! bisect using the tesselated unit sphere
        call bisect_msurface(srf,cpn,prec,verbose)
-       call minisurf_transform(srf,cpcel(i)%ir,cpcel(i)%lvec+cr%cen(:,cpcel(i)%ic))
+       call minisurf_transform(srf,sy%f(sy%iref)%cpcel(i)%ir,&
+          sy%f(sy%iref)%cpcel(i)%lvec+sy%c%cen(:,sy%f(sy%iref)%cpcel(i)%ic))
 
        ! set the color
-       if (cp(cpn)%isnuc .and. cpn > 0 .and. cpn <= cr%nneq) then
-          iz = cr%at(cpn)%z
+       if (sy%f(sy%iref)%cp(cpn)%isnuc .and. cpn > 0 .and. cpn <= sy%c%nneq) then
+          iz = sy%c%at(cpn)%z
           if (iz > 0) then
              srf%rgb = jmlcol(:,iz)
           endif
@@ -969,7 +964,7 @@ contains
 
     end do
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine basinplot
 
@@ -984,16 +979,11 @@ contains
   !> "dbs", dbasin file. npts is the number of points along each ray
   !> in the dbasin output mode. rootfile is the root of the files written.
   subroutine bundleplot(line)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_spherecub, minisurf_spheretriang,&
-       minisurf_spheresphere, minisurf_write3dmodel,&
-       minisurf_writebasin, minisurf_writedbasin, minisurf_close
-    use crystalmod, only: cr
-    use fields, only: fieldname_to_idx, goodfield
+    use systemmod, only: sy
+    use surface, only: minisurf
     use global, only: fileroot, eval_next, dunit0, iunit
-    use types, only: minisurf
     use tools_io, only: ferror, faterr, lgetword, equal, getword, isexpression_or_word,&
        string, uout
-
     character*(*), intent(in) :: line
 
     character*3 :: method, outputm
@@ -1019,22 +1009,22 @@ contains
 
     ! read input
     lp = 1
-    ok = eval_next (x0(1),line,lp)
-    ok = ok .and. eval_next (x0(2),line,lp)
-    ok = ok .and. eval_next (x0(3),line,lp)
+    ok = eval_next(x0(1),line,lp)
+    ok = ok .and. eval_next(x0(2),line,lp)
+    ok = ok .and. eval_next(x0(3),line,lp)
     if (.not.ok) then
        call ferror ('bundleplot','bundleplot needs an initial point',faterr,syntax=.true.)
        return
     end if
-    if (cr%ismolecule) &
-       x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
+    if (sy%c%ismolecule) &
+       x0 = sy%c%c2x(x0 / dunit0(iunit) - sy%c%molx0)
 
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,'cube')) then
           method = 'bcb'
           lp2 = lp
-          ok = eval_next (level,line,lp)
+          ok = eval_next(level,line,lp)
           if (.not.ok) then
              level = 3
              lp = lp2
@@ -1042,7 +1032,7 @@ contains
        else if (equal(word,'triang')) then
           method = 'btr'
           lp2 = lp
-          ok = eval_next (level,line,lp)
+          ok = eval_next(level,line,lp)
           if (.not.ok) then
              level = 3
              lp = lp2
@@ -1050,7 +1040,7 @@ contains
        else if (equal(word,'sphere')) then
           method = 'bsp'
           lp2 = lp
-          ok = eval_next (ntheta,line,lp)
+          ok = eval_next(ntheta,line,lp)
           ok = ok .and. eval_next(nphi,line,lp)
           if (.not.ok) then
              ntheta = 5
@@ -1087,7 +1077,7 @@ contains
        else if (equal(word,'map')) then
           lp2 = lp
           word = getword(line,lp)
-          idum = fieldname_to_idx(word)
+          idum = sy%fieldname_to_idx(word)
           if (idum < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
@@ -1096,7 +1086,7 @@ contains
                 return
              end if
           else
-             if (.not.goodfield(idum)) then
+             if (.not.sy%goodfield(idum)) then
                 call ferror('bundleplot','field not allocated',faterr,line,syntax=.true.)
                 return
              end if
@@ -1149,20 +1139,20 @@ contains
        nf = 6*nphi*(2**(ntheta-1)-1)+nphi+nphi
     end if
 
-    call minisurf_init(srf,m,nf)
+    call srf%begin(m,nf)
 
     ! clean the surface 
-    call minisurf_clean(srf)
+    call srf%clean()
 
     ! tesselate the unit sphere and set all the rays to unsurfed
-    xorig = cr%x2c(x0)
+    xorig = sy%c%x2c(x0)
 
     if (method == 'bcb') then
-       call minisurf_spherecub(srf,xorig,level)
+       call srf%spherecub(xorig,level)
     else if (method == 'btr') then
-       call minisurf_spheretriang(srf,xorig,level)
+       call srf%spheretriang(xorig,level)
     else if (method == 'bsp') then
-       call minisurf_spheresphere(srf,xorig,nphi,ntheta)
+       call srf%spheresphere(xorig,nphi,ntheta)
     end if
     srf%n = xorig
     srf%r = -1d0
@@ -1191,7 +1181,7 @@ contains
     write (uout,'("+ Written file : ",A)') string(file)
     write (uout,*)
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine bundleplot
 
@@ -1203,24 +1193,23 @@ contains
   !> neval, number of evaluations; meaneval, mean number of
   !> evaluations per ray
   subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_close
+    use systemmod, only: sy
+    use surface, only: minisurf
     use integration, only: gauleg_msetnodes, gauleg_mquad
-    use fields, only: nprops
-    use types, only: minisurf
     
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: ntheta, nphi
-    real*8, intent(out) :: sprop(Nprops) 
+    real*8, intent(out) :: sprop(sy%npropi) 
     real*8, intent(out) :: abserr
     integer, intent(out) :: neval, meaneval
 
     type(minisurf) :: srf
     integer :: m
-    real*8 :: iaserr(Nprops)
+    real*8 :: iaserr(sy%npropi)
 
     m = 3 * ntheta * nphi + 1
-    call minisurf_init(srf,m,0)
-    call minisurf_clean(srf)
+    call srf%begin(m,0)
+    call srf%clean()
     call gauleg_msetnodes(srf,ntheta,nphi)
 
     srf%n = x0
@@ -1228,7 +1217,7 @@ contains
     call gauleg_mquad(srf,ntheta,nphi,0d0,sprop,abserr,neval,iaserr)
     meaneval = ceiling(real(neval,8) / srf%nv)
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine sphereintegrals_gauleg
 
@@ -1240,22 +1229,21 @@ contains
   !> Neval, number of evaluations; meaneval, mean number of
   !> evaluations per ray
   subroutine sphereintegrals_lebedev(x0,rad,nleb,sprop,abserr,neval,meaneval)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_close
+    use systemmod, only: sy
     use integration, only: lebedev_msetnodes, lebedev_mquad
-    use fields, only: nprops
-    use types, only: minisurf
+    use surface, only: minisurf
     
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: nleb
-    real*8, intent(out) :: sprop(Nprops) 
+    real*8, intent(out) :: sprop(sy%npropi) 
     real*8, intent(out) :: abserr
     integer, intent(out) :: neval, meaneval
 
     type(minisurf) :: srf
-    real*8 :: iaserr(Nprops)
+    real*8 :: iaserr(sy%npropi)
 
-    call minisurf_init(srf,nleb,0)
-    call minisurf_clean(srf)
+    call srf%begin(nleb,0)
+    call srf%clean()
     call lebedev_msetnodes(srf,nleb)
 
     srf%n = x0
@@ -1263,7 +1251,7 @@ contains
     call lebedev_mquad(srf,nleb,0d0,sprop,abserr,neval,iaserr)
     meaneval = ceiling(real(neval,8) / srf%nv)
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine sphereintegrals_lebedev
 
@@ -1274,12 +1262,10 @@ contains
   !> of the radial grid. This routine handles the
   !> output and calls the low-level sphereintegrals_*.
   subroutine sphereintegrals(line)
-    use fields, only: f, integ_prop, nprops
-    use varbas, only: ncp, cp
-    use global, only: int_gauleg, eval_next, dunit0, int_radquad_errprop, refden,&
+    use systemmod, only: sy
+    use global, only: int_gauleg, eval_next, dunit0, int_radquad_errprop,&
        int_radquad_type, int_radquad_nr, int_qags, int_radquad_abserr, &
        int_radquad_relerr, int_qng, int_qag, iunit, iunitname0
-    use crystalmod, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, warning, uout, string,&
        ioj_right
     use tools_math, only: good_lebedev
@@ -1291,7 +1277,7 @@ contains
     real*8 :: r0, rend
     integer :: linmin, linmax
     integer :: lp, i, j, n, nn, k
-    real*8 :: sprop(Nprops)
+    real*8 :: sprop(sy%npropi)
     real*8 :: xnuc(3), h, r, abserr
     integer :: neval, meaneval
     logical :: ok
@@ -1326,27 +1312,27 @@ contains
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'nr')) then
-          ok= eval_next (nr,line,lp)
+          ok= eval_next(nr,line,lp)
           if (.not. ok) then
              call ferror('sphereintegrals','sphereintegrals: bad NR',faterr,line,syntax=.true.)
              return
           end if
        else if (equal(word,'r0')) then
-          ok= eval_next (r0,line,lp)
+          ok= eval_next(r0,line,lp)
           if (.not. ok) then
              call ferror('sphereintegrals','sphereintegrals: bad R0',faterr,line,syntax=.true.)
              return
           end if
           r0 = r0 / dunit0(iunit)
        else if (equal(word,'rend')) then
-          ok= eval_next (rend,line,lp)
+          ok= eval_next(rend,line,lp)
           if (.not. ok) then
              call ferror('sphereintegrals','sphereintegrals: bad REND',faterr,line,syntax=.true.)
              return
           end if
           rend = rend / dunit0(iunit)
        else if (equal(word,'cp')) then
-          ok= eval_next (cpid,line,lp)
+          ok= eval_next(cpid,line,lp)
           if (.not. ok) then
              call ferror('sphereintegrals','sphereintegrals: bad CP',faterr,line,syntax=.true.)
              return
@@ -1359,14 +1345,14 @@ contains
        end if
     end do
 
-    if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
-       pname = integ_prop(INT_radquad_errprop)%prop_name
+    if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
+       pname = sy%propi(INT_radquad_errprop)%prop_name
     else
        pname = "max       "
     end if
 
     write (uout,'("* Integration of spheres")')
-    write (uout,'("  Attractor signature: ",A)') string(f(refden)%typnuc)
+    write (uout,'("  Attractor signature: ",A)') string(sy%f(sy%iref)%typnuc)
     !
     write (uout,'("+ ANGULAR integration")')
     if (meth == INT_gauleg) then
@@ -1407,10 +1393,10 @@ contains
        write (uout,'("  R. Piessens, E. deDoncker-Kapenga, C. Uberhuber and D. Kahaner,")')
        write (uout,'("  Quadpack: a subroutine package for automatic integration, Springer-Verlag 1983.")')
     end if
-    if (ncp > 0) then
+    if (sy%f(sy%iref)%ncp > 0) then
        if (cpid <= 0) then
           linmin = 1
-          linmax = ncp
+          linmax = sy%f(sy%iref)%ncp
        else
           linmin = cpid
           linmax = cpid
@@ -1420,7 +1406,7 @@ contains
        write (uout,*)
        if (cpid <= 0) then
           linmin = 1
-          linmax = cr%nneq
+          linmax = sy%c%nneq
        else
           linmin = cpid
           linmax = cpid
@@ -1428,26 +1414,26 @@ contains
     end if
 
     do i = linmin, linmax
-       if ((cp(i)%typ /= f(refden)%typnuc .and. i>cr%nneq)) cycle
+       if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
 
        if (nr > 1) then
           if (rend < 0d0) then
-             h = log(cr%at(i)%rnn2 * abs(rend) / r0) / (nr - 1)
+             h = log(sy%c%at(i)%rnn2 * abs(rend) / r0) / (nr - 1)
           else
              h = log(rend / r0) / (nr - 1)
           end if
        else
           h = 0d0
        end if
-       xnuc = cr%x2c(cp(i)%x)
+       xnuc = sy%c%x2c(sy%f(sy%iref)%cp(i)%x)
 
        write (uout,'("+ Non-equivalent CP : ",A)') string(i)
-       write (uout,'("  CP at: ",3(A,X))') (string(cp(i)%x(j),'e',decimal=4),j=1,3)
+       write (uout,'("  CP at: ",3(A,X))') (string(sy%f(sy%iref)%cp(i)%x(j),'e',decimal=4),j=1,3)
        write (uout,'("  Initial radius (r0,",A,"): ",A)') iunitname0(iunit), &
           string(r0,'e',decimal=6)
        if (rend < 0d0) then
           write (uout,'("  Final radius (rend,",A,"): ",A)') iunitname0(iunit), &
-             string(cr%at(i)%rnn2 * abs(rend),'e',decimal=6)
+             string(sy%c%at(i)%rnn2 * abs(rend),'e',decimal=6)
        else
           write (uout,'("  Final radius (rend,",A,"): ",A)') iunitname0(iunit), string(rend,'e',decimal=6)
        end if
@@ -1460,7 +1446,7 @@ contains
        do n = 1, nr
           if (nr == 1) then
              if (rend < 0d0) then
-                r = cr%at(i)%rnn2 * abs(rend)
+                r = sy%c%at(i)%rnn2 * abs(rend)
              else
                 r = r0
              end if
@@ -1480,7 +1466,7 @@ contains
              string(r,'e',decimal=6,length=12,justify=4),&
              string(meaneval,length=6,justify=ioj_right),&
              string(abserr,'e',decimal=6,length=12,justify=4),&
-             (string(sprop(k),'e',decimal=8,length=14,justify=4),k=1,Nprops)
+             (string(sprop(k),'e',decimal=8,length=14,justify=4),k=1,sy%npropi)
        end do
        write (uout,*)
     end do
@@ -1492,17 +1478,12 @@ contains
   !> and n2 = nphi. If usefiles, read and/or write the .int files
   !> containing the ZFS description for each atom. 
   subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_readint,&
-       minisurf_writeint, minisurf_close
+    use systemmod, only: sy
+    use surface, only: minisurf
     use integration, only: gauleg_msetnodes, gauleg_mquad
-    use varbas, only: cp
     use global, only: int_gauleg, int_iasprec
-    use fields, only: integ_prop, nprops
-    use crystalmod, only: cr
     use tools_io, only: uout
-    use types, only: minisurf
-
-    real*8, intent(out) :: atprop(Nprops)
+    real*8, intent(out) :: atprop(sy%npropi)
     integer, intent(in) :: n1, n2, cpid
     logical, intent(in) :: usefiles
     logical, intent(in) :: verbose
@@ -1514,25 +1495,25 @@ contains
     integer :: ntheta, nphi, m
     integer :: j
     logical :: existfile
-    real*8 :: sprop(Nprops)
-    real*8 :: r_betaint, abserr, iaserr(Nprops)
+    real*8 :: sprop(sy%npropi)
+    real*8 :: r_betaint, abserr, iaserr(sy%npropi)
     integer :: neval, meaneval
     integer :: smin, smax
 
     smin = 1
-    smax = cr%nneq
+    smax = sy%c%nneq
 
     ntheta = n1
     nphi = n2
     m = 3 * ntheta * nphi + 1
-    call minisurf_init(srf,m,0)
-    call minisurf_clean(srf)
+    call srf%begin(m,0)
+    call srf%clean()
     call gauleg_msetnodes(srf,ntheta,nphi)
 
     atprop = 0d0
 
     ! initialize the surface for this atom
-    xnuc = cr%x2c(cp(cpid)%x)
+    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
     srf%n = xnuc
     srf%r = -1d0
 
@@ -1540,7 +1521,7 @@ contains
     if (usefiles .and. allocated(intfile)) then
        inquire(file=intfile(cpid),exist=existfile)
        if (existfile) then
-          call minisurf_readint(srf,ntheta,nphi,INT_gauleg,intfile(cpid),ierr)
+          call srf%readint(ntheta,nphi,INT_gauleg,intfile(cpid),ierr)
           ! The reading was not successful -> bisect
           if (ierr > 0) then
              existfile = .false.
@@ -1578,8 +1559,8 @@ contains
        write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
           "IAS error","Integral (sph.)"
        write (uout,'(2x,42("-"))')
-       do j = 1, Nprops
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,integ_prop(j)%prop_name,0d0,sprop(j)
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
        end do
        write (uout,*)
     end if
@@ -1595,8 +1576,8 @@ contains
        write (uout,'(2xa2,x,a10,x,a12,x,a17)') "id","property",&
           "IAS error","Integral"
        write (uout,'(2x,42("-"))')
-       do j = 1, Nprops
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,integ_prop(j)%prop_name,iaserr(j),atprop(j)
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
        end do
        write (uout,*)
     end if
@@ -1608,10 +1589,10 @@ contains
        ! write the surface
        write (uout,'(" Writing basin in file : ",A)') trim(intfile(cpid))
        write (uout,*)
-       call minisurf_writeint(srf,ntheta,nphi,INT_gauleg,intfile(cpid))
+       call srf%writeint(ntheta,nphi,INT_gauleg,intfile(cpid))
     end if
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine integrals_gauleg
 
@@ -1620,17 +1601,13 @@ contains
   !> usefiles, read and/or write the .int files containing the ZFS
   !> description for each atom.
   subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
-    use surface, only: minisurf_init, minisurf_clean, minisurf_readint, minisurf_writeint,&
-       minisurf_close
+    use systemmod, only: sy
     use integration, only: lebedev_msetnodes, lebedev_mquad
-    use varbas, only: cp
-    use fields, only: integ_prop, nprops
+    use surface, only: minisurf
     use global, only: int_iasprec, int_gauleg
-    use crystalmod, only: cr
     use tools_io, only: uout
-    use types, only: minisurf
 
-    real*8, intent(out) :: atprop(Nprops)
+    real*8, intent(out) :: atprop(sy%npropi)
     integer, intent(in) :: nleb, cpid
     logical, intent(in) :: usefiles
     logical, intent(in) :: verbose
@@ -1641,22 +1618,22 @@ contains
     integer :: ierr
     integer :: j
     logical :: existfile
-    real*8 :: sprop(Nprops)
-    real*8 :: r_betaint, abserr, iaserr(Nprops)
+    real*8 :: sprop(sy%npropi)
+    real*8 :: r_betaint, abserr, iaserr(sy%npropi)
     integer :: neval, meaneval
     integer :: smin, smax
 
     smin = 1
-    smax = cr%nneq
+    smax = sy%c%nneq
 
-    call minisurf_init(srf,nleb,0)
-    call minisurf_clean(srf)
+    call srf%begin(nleb,0)
+    call srf%clean()
     call lebedev_msetnodes(srf,nleb)
 
     atprop = 0d0
 
     ! initialize the surface for this atom
-    xnuc = cr%x2c(cp(cpid)%x)
+    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
     srf%n = xnuc
     srf%r = -1d0
        
@@ -1665,7 +1642,7 @@ contains
        ! Name of the input / output file
        inquire(file=intfile(cpid),exist=existfile)
        if (existfile) then
-          call minisurf_readint(srf,nleb,0,INT_lebedev,intfile(cpid),ierr)
+          call srf%readint(nleb,0,INT_lebedev,intfile(cpid),ierr)
           ! The reading was not successful -> bisect
           if (ierr > 0) then
              existfile = .false.
@@ -1704,8 +1681,8 @@ contains
        write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
           "IAS error","Integral (sph.)"
        write (uout,'(2x,42("-"))')
-       do j = 1, Nprops
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,integ_prop(j)%prop_name,0d0,sprop(j)
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
        end do
        write (uout,*)
     end if
@@ -1721,8 +1698,8 @@ contains
        write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
           "IAS error","Integral (neg.)"
        write (uout,'(2x,42("-"))')
-       do j = 1, Nprops
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,integ_prop(j)%prop_name,iaserr(j),atprop(j)
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
        end do
        write (uout,*)
     end if
@@ -1734,10 +1711,10 @@ contains
        ! write the surface
        write (uout,'(" Writing basin in file : ",A)') trim(intfile(cpid))
        write (uout,*)
-       call minisurf_writeint(srf,nleb,0,INT_lebedev,intfile(cpid))
+       call srf%writeint(nleb,0,INT_lebedev,intfile(cpid))
     end if
 
-    call minisurf_close(srf)
+    call srf%end()
 
   end subroutine integrals_lebedev
 
@@ -1749,11 +1726,9 @@ contains
   !> low-level integrals_*.
   subroutine integrals(line)
     use integration, only: int_output
-    use varbas, only: ncp, cp, ncpcel, cpcel
-    use fields, only: integ_prop, f, nprops
-    use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop, refden,&
+    use systemmod, only: sy
+    use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop,&
        fileroot
-    use crystalmod, only: cr
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
 
@@ -1765,10 +1740,10 @@ contains
     integer :: linmin, linmax
     integer :: i, j, n
     real*8, allocatable :: atprop(:,:)
-    logical :: maskprop(nprops), ok
+    logical :: maskprop(sy%npropi), ok
     character(len=:), allocatable :: aux, word
     character*(10) :: pname
-    character*(30) :: reason(nprops)
+    character*(30) :: reason(sy%npropi)
     integer, allocatable :: icp(:)
     real*8, allocatable :: xattr(:,:)
 
@@ -1800,7 +1775,7 @@ contains
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'cp')) then
-          ok= eval_next (cpid,line,lp)
+          ok= eval_next(cpid,line,lp)
           if (.not. ok) then
              call ferror('integrals','integrals: bad CP',faterr,line,syntax=.true.)
              return
@@ -1819,20 +1794,20 @@ contains
 
     if (.not.quiet) call tictac("Start INTEGRALS")
     maskprop = .true.
-    do i = 1, nprops
+    do i = 1, sy%npropi
        reason(i) = ""
     end do
 
-    if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
-       pname = integ_prop(INT_radquad_errprop)%prop_name
+    if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
+       pname = sy%propi(INT_radquad_errprop)%prop_name
     else
        pname = "max       "
     end if
 
-    if (ncp > 0) then
+    if (sy%f(sy%iref)%ncp > 0) then
        if (cpid <= 0) then
           linmin = 1
-          linmax = ncp
+          linmax = sy%f(sy%iref)%ncp
        else
           linmin = cpid
           linmax = cpid
@@ -1840,7 +1815,7 @@ contains
     else
        if (cpid <= 0) then
           linmin = 1
-          linmax = cr%nneq
+          linmax = sy%c%nneq
        else
           linmin = cpid
           linmax = cpid
@@ -1850,7 +1825,7 @@ contains
     ! allocate space for results
     n = linmax - linmin + 1
     allocate(icp(n),xattr(3,n))
-    allocate(atprop(nprops,n))
+    allocate(atprop(sy%npropi,n))
 
     ! define the int files
     if (usefiles) then
@@ -1865,7 +1840,7 @@ contains
 
     n = 0
     do i = linmin, linmax
-       if ((cp(i)%typ /= f(refden)%typnuc .and. i>cr%nneq)) cycle
+       if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
        n = n + 1
        write (uout,'("+ Integrating CP: ",A)') string(i)
        if (meth == INT_gauleg) then
@@ -1877,10 +1852,10 @@ contains
        end if
 
        ! arrange results for int_output
-       do j = 1, ncpcel
-          if (cpcel(j)%idx == i) then
+       do j = 1, sy%f(sy%iref)%ncpcel
+          if (sy%f(sy%iref)%cpcel(j)%idx == i) then
              icp(n) = j
-             xattr(:,n) = cpcel(j)%x
+             xattr(:,n) = sy%f(sy%iref)%cpcel(j)%x
              exit
           end if
        end do
@@ -1901,12 +1876,10 @@ contains
 
   !> Header output for the integrals subroutine.
   subroutine integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
-    use fields, only: f
-    use varbas, only: ncp, cp
-    use global, only: refden, int_gauleg, int_radquad_type, int_radquad_nr,&
+    use systemmod, only: sy
+    use global, only: int_gauleg, int_radquad_type, int_radquad_nr,&
        int_qags, int_radquad_abserr, int_radquad_relerr, int_qng, int_qag,&
        int_iasprec
-    use crystalmod, only: cr
     use tools_io, only: uout, string, ioj_left
 
     integer, intent(in) :: meth, ntheta, nphi, np, cpid
@@ -1917,8 +1890,8 @@ contains
     integer :: i, linmin, linmax
 
     write (uout,'("* Integration of basin properties by bisection")')       
-    write (uout,'("  Basins of the scalar field: ",A)') string(refden)
-    write (uout,'("  Attractor signature: ",A)') string(f(refden)%typnuc)
+    write (uout,'("  Basins of the scalar field: ",A)') string(sy%iref)
+    write (uout,'("  Attractor signature: ",A)') string(sy%f(sy%iref)%typnuc)
     !
     write (uout,'("+ ANGULAR integration")')       
     if (meth == INT_gauleg) then
@@ -1979,15 +1952,15 @@ contains
           inquire(file=intfile(cpid),exist=existfile)
           write (uout,'(A,A20," (",L1,")")') string(cpid,length=3,justify=ioj_left), trim(intfile(cpid)), existfile
        else
-          if (ncp > 0) then
+          if (sy%f(sy%iref)%ncp > 0) then
              linmin = 1
-             linmax = ncp
+             linmax = sy%f(sy%iref)%ncp
           else
              linmin = 1
-             linmax = cr%nneq
+             linmax = sy%c%nneq
           end if
           do i = linmin, linmax
-             if ((cp(i)%typ /= f(refden)%typnuc .and. i>cr%nneq)) cycle
+             if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
              inquire(file=intfile(i),exist=existfile)
              write (uout,'(A,A20," (",L1,")")') string(i,length=3,justify=ioj_left), trim(intfile(i)), existfile
           end do
@@ -1996,6 +1969,212 @@ contains
     write (uout,*)
 
   end subroutine integrals_header
+
+  !> Write the minisurface s to the OFF file offfile.
+  subroutine minisurf_write3dmodel(s,fmt,file,expr)
+    use systemmod, only: sy
+    use surface, only: minisurf
+    use graphics, only: graphics_open, graphics_surf, graphics_close
+    use tools_io, only: faterr, ferror
+    use types, only: scalar_value
+    type(minisurf), intent(inout) :: s
+    character*3, intent(in) :: fmt
+    character*(*), intent(in) :: file
+    character*(*), intent(in), optional :: expr
+
+    type(scalar_value) :: res
+    integer :: lu1, lu2
+    integer :: i
+    real*8 :: x(3)
+    real*8, allocatable :: fsurf(:)
+    logical :: iok
+
+    if (s%init <= 1) &
+       call ferror ('minisurf_write3dmodel','No face information in minisurf',faterr)
+
+    ! calculate the field value on the basin
+    if (present(expr)) then
+       allocate(fsurf(s%nv))
+       do i = 1, s%nv
+          x(1) = s%n(1) + s%r(i) * sin(s%th(i)) * cos(s%ph(i))
+          x(2) = s%n(2) + s%r(i) * sin(s%th(i)) * sin(s%ph(i))
+          x(3) = s%n(3) + s%r(i) * cos(s%th(i))             
+          call sy%f(sy%iref)%grd(x,0,res0=res)
+          fsurf(i) = sy%eval(expr,.true.,iok,x)
+       end do
+    else
+       allocate(fsurf(3))
+       fsurf = real(s%rgb,8) / 255d0
+    end if
+
+    call graphics_open(fmt,file,lu1,lu2)
+    call graphics_surf(fmt,lu1,s,fsurf)
+    call graphics_close(fmt,lu1,lu2)
+    deallocate(fsurf)
+
+  end subroutine minisurf_write3dmodel
+
+  !> Write the surface s to the BASIN file offfile. Minisurface version.
+  subroutine minisurf_writebasin(s,offfile,doprops)
+    use systemmod, only: sy
+    use surface, only: minisurf
+    use tools_io, only: faterr, ferror, fopen_write, fclose
+    use types, only: scalar_value
+    type(minisurf), intent(inout) :: s
+    character*(*), intent(in) :: offfile
+    logical, intent(in) :: doprops
+
+    integer :: lud
+    integer :: i, j
+    real*8 :: lprop(sy%npropi), x(3), rr
+    type(scalar_value) :: res
+
+    if (s%init <= 1) then
+       call ferror ('minisurf_writebasin','No face information in minisurf',faterr)
+    end if
+
+    ! open BASIN output file:
+    lud = fopen_write(offfile)
+
+    x = sy%c%c2x(s%n)
+    write (lud,'("# POS(cryst) ",3(E22.14,X))') x
+    write (lud,'("# CRYS2CART ")') 
+    rr = 0d0
+    do i = 1, 3
+       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%crys2car(i,1:3), rr
+    end do
+    write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
+    write (lud,'("# CART2CRYS ")') 
+    rr = 0d0
+    do i = 1, 3
+       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%car2crys(i,1:3), rr
+    end do
+    write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
+
+    write (lud,105) s%nv, s%nf, s%nv + s%nf - 2
+    if (doprops) then
+       write (lud,105) sy%npropi + 5
+       write (lud,106) 'f','fval','|gradf|','lapf','lapfval',(sy%propi(i)%prop_name, i=1,sy%npropi)
+    else
+       write (lud,105) 1
+       write (lud,106) 'f'
+    end if
+
+    ! Use the density and plot the properties
+    do i = 1, s%nv
+       x = s%n + (/ s%r(i) * sin(s%th(i)) * cos(s%ph(i)),&
+          s%r(i) * sin(s%th(i)) * sin(s%ph(i)),&
+          s%r(i) * cos(s%th(i)) /)
+       call sy%f(sy%iref)%grd(x,2,res0=res)
+       if (doprops) then
+          call sy%grdall(x,lprop)
+          write (lud,110) x, res%f, res%fval, res%gfmod, res%del2f,&
+             res%del2fval, lprop
+       else
+          write (lud,110) x, res%f
+       end if
+    end do
+
+    do i = 1, s%nf
+       write (lud,115) s%f(i)%nv,(s%f(i)%v(j)-1,j=1,s%f(i)%nv)
+    end do
+
+    call fclose(lud)
+
+105 format (3i7)
+106 format (999(a22,1x))
+110 format (1p,999(e22.15,1x))
+115 format (999(i7))
+
+  end subroutine minisurf_writebasin
+
+  !> Write the minisurface s and scalar field information on the
+  !> basin rays to the DBASIN file offfile.
+  subroutine minisurf_writedbasin(s,npoint,offfile)
+    use systemmod, only: sy
+    use surface, only: minisurf
+    use tools_io, only: ferror, faterr, fopen_write, fclose
+    use types, only: scalar_value
+    type(minisurf), intent(inout) :: s
+    integer, intent(in) :: npoint
+    character*(*), intent(in) :: offfile
+
+    integer :: lud
+    integer :: i, j
+    real*8  :: xxx(3)
+    real*8 :: rdelta
+    real*8, allocatable :: fpoint(:)
+    type(scalar_value) :: res
+
+    if (s%init <= 1) &
+       call ferror ('minisurf_writedbasin','No face information in minisurf',faterr)
+
+    allocate(fpoint(0:npoint))
+
+    lud = fopen_write(offfile)
+
+    write (lud,305) s%nv, s%nf, s%nv + s%nf - 2
+
+    xxx = s%n
+    call sy%f(sy%iref)%grd(xxx,0,res0=res)
+    fpoint(0) = res%f
+    write (lud,306) npoint, s%n(1), s%n(2), s%n(3), res%f
+
+    do i = 1, s%nv
+       rdelta = s%r(i) / npoint
+       do j = 1, npoint
+          xxx(1) = s%n(1) + rdelta * j * sin(s%th(i)) * cos(s%ph(i))
+          xxx(2) = s%n(2) + rdelta * j * sin(s%th(i)) * sin(s%ph(i))
+          xxx(3) = s%n(3) + rdelta * j * cos(s%th(i))             
+          call sy%f(sy%iref)%grd(xxx,0,res0=res)
+          fpoint(j) = res%f
+       end do
+       write (lud,310) xxx, (fpoint(j), j = 1, npoint)
+    end do
+
+    do i = 1, s%nf
+       write (lud,315) s%f(i)%nv, (s%f(i)%v(j)-1,j=1,s%f(i)%nv)
+    end do
+
+    call fclose(lud)
+
+    deallocate(fpoint)
+
+305 format (3i7)
+306 format (i7, 3f12.6, 1p, e14.6)
+310 format (3f12.6, 1p, 10e14.6, (/ (10e14.6)))
+315 format (999(i7))
+
+  end subroutine minisurf_writedbasin
+
+  !> Transform the points in the minisurface s using the symmetry operation op 
+  !> and the translation vector tvec.
+  subroutine minisurf_transform(s,op,tvec)
+    use systemmod, only: sy
+    use surface, only: minisurf
+    type(minisurf) :: s
+    integer, intent(in) :: op
+    real*8, intent(in) :: tvec(3)
+
+    integer :: i
+    real*8 :: x(3), n(3), r
+
+    n = sy%c%x2c(matmul(sy%c%rotm(:,1:3,op),sy%c%c2x(s%n)) + sy%c%rotm(:,4,op) + tvec)
+
+    do i = 1, s%nv
+       x = s%n + (/ s%r(i) * sin(s%th(i)) * cos(s%ph(i)),&
+          s%r(i) * sin(s%th(i)) * sin(s%ph(i)),&
+          s%r(i) * cos(s%th(i)) /)
+       x = sy%c%c2x(x)
+       x = sy%c%x2c(matmul(sy%c%rotm(:,1:3,op),x) + sy%c%rotm(:,4,op) + tvec)
+       x = x - n
+       r = sqrt(dot_product(x,x))
+       s%th(i) = acos(x(3)/r) 
+       s%ph(i) = atan2(x(2),x(1))
+    end do
+    s%n = n
+
+  end subroutine minisurf_transform
 
 end module bisect
 

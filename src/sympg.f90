@@ -100,12 +100,12 @@ contains
   
   !> Check symmetry of nonlinear molecules.
   !> Adapted from TESSEL.
-  subroutine sym3d (rmat, ax, ay, az, atZmol, nmol, verbose)
+  subroutine sym3d (rmat, ax, atZmol, nmol, verbose)
     use tools_io, only: ferror, faterr, uout
 
     real*8, intent(in) :: rmat(3,3)
     integer   :: nmol, atZmol(nmol)
-    real*8    :: ax(nmol), ay(nmol), az(nmol)
+    real*8    :: ax(3,nmol)
     logical, intent(in) :: verbose
 
     integer   :: k, ii, jj, i1, i2, i3, j1, j2, j3, ierror
@@ -116,7 +116,7 @@ contains
 
     !.Classify all atoms into orbits. All atoms in an orbit have the
     !     same atomic number and the same distance to the center of mass:
-    call symorb (ax, ay, az, atZmol, nmol, verbose)
+    call symorb (ax, atZmol, nmol, verbose)
 
     !.The identity is always a sym operator:
     !
@@ -128,7 +128,7 @@ contains
     ! Is the inversion a sym op?
     !
     call symmatfill (xmat, -1d0,0d0,0d0, 0d0,-1d0,0d0, 0d0,0d0,-1d0)
-    if (symopchk(rmat,xmat,ax,ay,az,atZmol,nmol)) call symopadd (xmat)
+    if (symopchk(rmat,xmat,ax,atZmol,nmol)) call symopadd (xmat)
 
     !.Find a linearly independent triplet of atoms.
     ! Try first to find a very good triplet, or use the best available
@@ -141,17 +141,11 @@ contains
     i3 = 0
     dbest = 0d0
     do i1 = 1, nmol
-       xmat(1,1) = ax(i1)
-       xmat(2,1) = ay(i1)
-       xmat(3,1) = az(i1)
+       xmat(:,1) = ax(:,i1)
        do i2 = i1+1, nmol
-          xmat(1,2) = ax(i2)
-          xmat(2,2) = ay(i2)
-          xmat(3,2) = az(i2)
+          xmat(:,2) = ax(:,i2)
           do i3 = i2+1, nmol
-             xmat(1,3) = ax(i3)
-             xmat(2,3) = ay(i3)
-             xmat(3,3) = az(i3)
+             xmat(:,3) = ax(:,i3)
              call syminv (xmat, xv, xdet, ierror)
              if (ierror .eq. 0) then
                 if (abs(xdet) .gt. 1d-1) goto 1001
@@ -168,15 +162,9 @@ contains
     if (ii1 == 0 .or. ii2 == 0 .or. ii3 == 0) then
        call ferror('sym3d','could not find atom triplet',faterr)
     end if
-    xmat(1,1) = ax(ii1)
-    xmat(2,1) = ay(ii1)
-    xmat(3,1) = az(ii1)
-    xmat(1,2) = ax(ii2)
-    xmat(2,2) = ay(ii2)
-    xmat(3,2) = az(ii2)
-    xmat(1,3) = ax(ii3)
-    xmat(2,3) = ay(ii3)
-    xmat(3,3) = az(ii3)
+    xmat(:,1) = ax(:,ii1)
+    xmat(:,2) = ax(:,ii2)
+    xmat(:,3) = ax(:,ii3)
     call syminv (xmat, xv, xdet, ierror)
     if (ierror .ne. 0) then
        call ferror('sym3d','singular triplet matrix',faterr)
@@ -193,22 +181,16 @@ contains
     ntest2 = 0
     do j1 = 1, nmol
        if (orbmol(i1).ne.orbmol(j1)) goto 1002
-       xm(1,1) = ax(j1)
-       xm(2,1) = ay(j1)
-       xm(3,1) = az(j1)
+       xm(:,1) = ax(:,j1)
        do j2 = 1, nmol
           if (orbmol(i2).ne.orbmol(j2)) goto 1003
           if (j1.eq.j2) goto 1003
-          xm(1,2) = ax(j2)
-          xm(2,2) = ay(j2)
-          xm(3,2) = az(j2)
+          xm(:,2) = ax(:,j2)
           do j3 = 1, nmol
              if (orbmol(i3).ne.orbmol(j3)) goto 1004
              if (j1.eq.j3 .or. j2.eq.j3) goto 1004
              ntest1 = ntest1 + 1
-             xm(1,3) = ax(j3)
-             xm(2,3) = ay(j3)
-             xm(3,3) = az(j3)
+             xm(:,3) = ax(:,j3)
              do ii = 1, 3
                 do jj = 1, 3
                    xop(ii,jj) = 0d0
@@ -220,7 +202,7 @@ contains
 
              !.Check if this is a new sym operator:
              !
-             if (symopchk(rmat,xop,ax,ay,az,atZmol,nmol)) then
+             if (symopchk(rmat,xop,ax,atZmol,nmol)) then
                 ntest2 = ntest2 + 1
                 call symopadd (xop)
                 if (TOLdirty) call symclosure(verbose)
@@ -408,11 +390,11 @@ contains
   !> Classify all atoms into orbits. All atoms in an orbit
   !> have the same atomic number and the same distance to the center.
   !> Adapted from TESSEL.
-  subroutine symorb (ax, ay, az, atZmol, nmol, verbose)
+  subroutine symorb (ax, atZmol, nmol, verbose)
     use tools_io, only: uout
     use types, only: realloc
     integer :: nmol, atZmol(nmol)
-    real*8  :: ax(nmol), ay(nmol), az(nmol)
+    real*8  :: ax(3,nmol)
     logical, intent(in) :: verbose
 
     real*8  :: dis2
@@ -440,7 +422,7 @@ contains
     norbit = 0
     molradius = 0d0
     do i = 1, nmol
-       dis2 = sqrt(ax(i)*ax(i) + ay(i)*ay(i) + az(i)*az(i))
+       dis2 = sqrt(ax(1,i)*ax(1,i) + ax(2,i)*ax(2,i) + ax(3,i)*ax(3,i))
        if (dis2 .gt. molradius) molradius = dis2
        iorb = -1
        j = 1
@@ -648,13 +630,13 @@ contains
 
   !> Check if xmat is a sym operator.
   !> Adapted from TESSEL.
-  function symopchk(rmat,xmat,ax,ay,az,atgroup,nmol)
+  function symopchk(rmat,xmat,ax,atgroup,nmol)
     use tools_math
 
     logical :: symopchk
     real*8, intent(in) :: rmat(3,3)
     integer :: nmol, atgroup(nmol)
-    real*8  :: xmat(3,3), ax(nmol), ay(nmol), az(nmol)
+    real*8  :: xmat(3,3), ax(3,nmol)
 
     integer :: i, j, k
     logical :: found
@@ -692,13 +674,13 @@ contains
     !.Transform every atom and check for the symmetric image:
     rmati = matinv(rmat)
     do i = 1, nmol
-       ximg = (/ax(i), ay(i), az(i)/)
+       ximg = ax(:,i)
        ximg = matmul(xmat, ximg)
        found = .false.
        j = 1
        do while (.not.found .and. j.le.nmol)
           if (atgroup(i).eq.atgroup(j)) then
-             xdif = ximg - (/ax(j),ay(j),az(j)/)
+             xdif = ximg - ax(:,j)
              xdif = matmul(xdif, rmati)
              xdif = xdif - nint(xdif)
              xdif = matmul(xdif, rmat)

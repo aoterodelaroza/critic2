@@ -24,10 +24,53 @@ module wien_private
 
   private
 
-  public :: wien_read_clmsum
-  public :: wien_rho2
-  public :: wien_rmt_atom
-  public :: wien_tolap
+  type wienwfn
+     ! field quantities
+     logical :: cnorm = .true.
+     integer, allocatable :: lm(:,:,:)
+     integer, allocatable :: lmmax(:)
+     real*8, allocatable :: slm(:,:,:)
+     real*8, allocatable :: sk(:)
+     real*8, allocatable :: ski(:)
+     real*8, allocatable :: tauk(:)
+     real*8, allocatable :: tauki(:)
+     integer :: lastind
+     integer :: lastniz
+     ! structural
+     logical :: ishlat
+     integer :: nat
+     real*8, allocatable  :: rotloc(:,:,:)
+     real*8, allocatable :: rnot(:)
+     real*8, allocatable :: rmt(:)
+     real*8, allocatable :: dx(:)
+     integer, allocatable :: jri(:)
+     integer, allocatable :: multw(:)
+     real*8 :: br1(3,3)
+     real*8 :: br2(3,3)
+     real*8 :: br3(3,3)
+     logical :: ortho
+     integer :: ndat
+     integer, allocatable :: iatnr(:)
+     real*8, allocatable :: pos(:,:)
+     integer, allocatable :: iop(:)
+     integer :: niord
+     integer, allocatable :: iz(:,:,:)
+     real*8, allocatable :: tau(:,:)
+     integer :: npos 
+     real*8  :: atp(3,343)
+     integer :: nwav
+     real*8, allocatable :: krec(:,:)
+     integer, allocatable :: inst(:)
+     logical :: cmpl
+     real*8 :: a(3)
+   contains
+     procedure :: end => wien_end
+     procedure :: rmt_atom
+     procedure :: read_clmsum
+     procedure :: rho2
+     procedure :: tolap
+  end type wienwfn
+  public :: wienwfn
 
   integer, parameter  :: ncom = 122 !< maximum number of LM pairs
   integer, parameter  :: nrad = 781 !< maximum value of npt
@@ -38,9 +81,9 @@ module wien_private
   integer, parameter :: nnpos = (2*nsa+1)*(2*nsb+1)*(2*nsc+1) !< maximum number of cell origins
 
   ! for readk and sternb
-  integer :: K1(3), NST, ISTG(3,NSYM)
   real*8, allocatable :: taup(:)
   real*8, allocatable :: taupi(:)
+  integer :: K1(3), NST, ISTG(3,NSYM)
 
   ! for wien_read_struct and rotdef
   character*4 :: lattic 
@@ -76,13 +119,38 @@ module wien_private
 
 contains
 
-  ! Given the field f, returns the Rmt of the atom at
-  !  crystallographic position x.
-  function wien_rmt_atom(f,x)
-    use types, only: field
-    type(field), intent(in) :: f
+  subroutine wien_end(f)
+    class(wienwfn), intent(inout) :: f
+    
+    if (allocated(f%lm)) deallocate(f%lm)
+    if (allocated(f%lmmax)) deallocate(f%lmmax)
+    if (allocated(f%slm)) deallocate(f%slm)
+    if (allocated(f%sk)) deallocate(f%sk)
+    if (allocated(f%ski)) deallocate(f%ski)
+    if (allocated(f%tauk)) deallocate(f%tauk)
+    if (allocated(f%tauki)) deallocate(f%tauki)
+    if (allocated(f%rotloc)) deallocate(f%rotloc)
+    if (allocated(f%rnot)) deallocate(f%rnot)
+    if (allocated(f%rmt)) deallocate(f%rmt)
+    if (allocated(f%dx)) deallocate(f%dx)
+    if (allocated(f%jri)) deallocate(f%jri)
+    if (allocated(f%multw)) deallocate(f%multw)
+    if (allocated(f%iatnr)) deallocate(f%iatnr)
+    if (allocated(f%pos)) deallocate(f%pos)
+    if (allocated(f%iop)) deallocate(f%iop)
+    if (allocated(f%iz)) deallocate(f%iz)
+    if (allocated(f%tau)) deallocate(f%tau)
+    if (allocated(f%krec)) deallocate(f%krec)
+    if (allocated(f%inst)) deallocate(f%inst)
+
+  end subroutine wien_end
+
+  ! Given the field f, returns the Rmt of the atom at crystallographic
+  ! position x.
+  function rmt_atom(f,x)
+    class(wienwfn), intent(in) :: f
     real*8, intent(in) :: x(3)
-    real*8 :: wien_rmt_atom
+    real*8 :: rmt_atom
 
     integer :: ipos, iat, ii, jatom
     real*8 :: vt(3), r, v(3)
@@ -105,19 +173,17 @@ contains
     enddo
 11  continue
 
-    wien_rmt_atom = f%rmt(jatom)
+    rmt_atom = f%rmt(jatom)
 
-  end function wien_rmt_atom
+  end function rmt_atom
 
   !> Read the crystal structure from a STRUCT file, with logical unit lut.
   !> Store WIEN2k variables (rmt, etc.) in the module.
-  subroutine wien_read_struct(file,f)
+  subroutine wien_read_struct(f,file)
     use tools_io, only: fopen_read, ferror, faterr, fclose
-    use types, only: field
     use param, only: pi
-
+    class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file
-    type(field), intent(inout) :: f
 
     integer :: lut
     character*80 :: titel
@@ -368,25 +434,22 @@ contains
   end subroutine wien_read_struct
 
   ! Read a clmsum (file) and struct (file2) file and returns the
-  ! wien2k field f. 
-  subroutine wien_read_clmsum(file,file2,f)
-    use types, only: field
+  ! wien2k field f.
+  subroutine read_clmsum(f,file,file2)
     use tools_io, only: fopen_read, fclose
-
+    class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file, file2
-    type(field), intent(inout) :: f
     
     integer :: lu, ntot, i, j
 
     ! load field data from the struct file and save it in f
-    call wien_read_struct(file2,f)
+    call wien_read_struct(f,file2)
 
     ! read the clmsum
     lu = fopen_read(file)
     
-    call readslm(lu,f)
-    call readk(lu,f)
-    f%init = .true.
+    call readslm(f,lu)
+    call readk(f,lu)
     call fclose(lu)
 
     ntot = 0
@@ -396,17 +459,16 @@ contains
        end DO
     end do
 
-  end subroutine wien_read_clmsum
+  end subroutine read_clmsum
 
   !xx! private readers
 
   !> Read the atomic sphere part of a clmsum style file
-  subroutine readslm(lu,f)
+  subroutine readslm(f,lu)
     use tools_io, only: ferror, faterr
-    use types, only: field
     use param, only: sqfp
+    class(wienwfn), intent(inout) :: f
     integer, intent(in) :: lu !< Input logical unit
-    type(field), intent(inout) :: f
 
     integer :: jatom, jrj, l, l1, l2, ll, i
     integer :: mlmmax, mjrj
@@ -471,11 +533,10 @@ contains
   end subroutine readslm
 
   !> Read the plane wave part of a clmsum-style file
-  subroutine readk(lu,f)
-    use types, only: field
+  subroutine readk(f,lu)
     use tools_io, only: faterr, ferror
+    class(wienwfn), intent(inout) :: f
     integer, intent(in) :: lu !< Input logical unit
-    type(field), intent(inout) :: f
 
     integer :: ind, i
     real*8 :: ttmpk, ttmpki
@@ -616,10 +677,9 @@ contains
   end subroutine gbass
 
   subroutine rotdef(f)
-    use types, only: field
     ! new version of rotdef, adapted from rotdef1.f wien2k_08.3
     ! replaces old rotdef (rotdef.f)
-    type(field), intent(inout) :: f
+    class(wienwfn), intent(inout) :: f
 
     real*8 :: toler, one, toler2
     integer :: index, ncount, jatom, index1, m, i, j, i1
@@ -725,9 +785,7 @@ contains
 
   SUBROUTINE GENER(f)
     use tools_io, only: ferror, faterr
-    use types, only: field
-
-    type(field), intent(inout) :: f
+    class(wienwfn), intent(inout) :: f
 
     integer             :: ja, jb, jc
     integer             :: i
@@ -754,9 +812,8 @@ contains
   END SUBROUTINE GENER
 
   SUBROUTINE STERNB(f)
-    use types, only: field
     use param, only: tpi
-    type(field), intent(in) :: f
+    class(wienwfn), intent(in) :: f
     ! generate star of g
     ! taken from wien2k_08.3
     ! replaces old stern.
@@ -967,12 +1024,10 @@ contains
 
   ! Calculate the density and derivatives inside a muffin tin.
   subroutine charge (f,chg,grad,hess,ir,r,jatom,v,natnr)
-    use types, only: field
     use tools_math, only: ylmderiv
     use tools_io, only: uout
     use param, only: c_kub
-
-    type(field), intent(in) :: f
+    class(wienwfn), intent(in) :: f
     real*8, intent(out) :: chg
     real*8, dimension(3), intent(out) :: grad
     real*8, dimension(6), intent(out) :: hess
@@ -1201,7 +1256,6 @@ contains
 
   ! Evaluate the radial density and derivatives
   subroutine radial(f,rlm,rho,rho1,rho2,r,ir,jatom)
-    use types, only: field
     ! note: rlm = clm, but name is changed to avoid collisions with wien.inc
     !.obtain by linear (oops) interpolation radial coefficients
     ! rho, and first and second derivatives rho1,rho2,at requested
@@ -1209,8 +1263,7 @@ contains
     ! rho=rlm/r^2
     ! rho1=d(rlm/r2)/dr
     ! rho2=d2(rlm/r2)/dr2
-
-    type(field), intent(in) :: f
+    class(wienwfn), intent(in) :: f
     real*8, dimension(nrad), intent(in) :: rlm
     real*8, intent(out) :: rho, rho1, rho2
     real*8, intent(in) :: r
@@ -1299,9 +1352,8 @@ contains
 
   ! Calculate the density and derivatives in the interstitial
   subroutine rhoout(f,v,chg,grad,hess)
-    use types, only: field
     use param, only: tpi, tpi2
-    type(field), intent(in) :: f
+    class(wienwfn), intent(in) :: f
     real*8, dimension(3), intent(in) :: v
     real*8, intent(out) :: chg
     real*8, dimension(3), intent(out) :: grad
@@ -1725,9 +1777,8 @@ contains
 
   !> Calculate the density and its derivatives at point v0 This
   !> routine is thread-safe.
-  subroutine wien_rho2(f,v0,rho,grad,h)
-    use types, only: field
-    type(field) :: f
+  subroutine rho2(f,v0,rho,grad,h)
+    class(wienwfn), intent(in) :: f
     real*8, dimension(3), intent(in) :: v0
     real*8, intent(out) :: rho, grad(3), h(3,3)
 
@@ -1958,13 +2009,12 @@ contains
     grad = matmul(f%br1,gradd)
     h = matmul(matmul(f%br1,mhess),transpose(f%br1))
 
-  end subroutine wien_rho2
+  end subroutine rho2
 
   !> Convert a given wien2k scalar field into its laplacian.
-  subroutine wien_tolap(f)
-    use types, only: field
+  subroutine tolap(f)
     use param, only: tpi2
-    type(field), intent(inout) :: f
+    class(wienwfn), intent(inout) :: f
 
     integer :: jatom, lmmx, ilm, ir
     real*8 :: rho, rho1, rho2
@@ -2023,7 +2073,7 @@ contains
        end if
     end do
 
-  end subroutine wien_tolap
+  end subroutine tolap
 
 end module wien_private
 

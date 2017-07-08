@@ -21,13 +21,36 @@ module surface
 
   private
 
-  public :: minisurf_init, minisurf_close, minisurf_clean
-  public :: minisurf_spheresphere, minisurf_spheretriang, minisurf_spherecub
-  public :: minisurf_transform
-  public :: minisurf_write3dmodel
-  public :: minisurf_writebasin
-  public :: minisurf_writedbasin
-  public :: minisurf_writeint, minisurf_readint
+  !> A face on the surface
+  type miniface
+     integer, dimension(4) :: v !< Pointers to vertices
+     integer :: nv !< Number of vertices
+  end type miniface
+
+  !> Surface type
+  type minisurf 
+     integer :: init !< was initialized? 0 no, 1 only v, 2 all
+     integer :: rgb(3) !< optionally used for global color
+     real*8 :: n(3)  !< center on which the surface is based
+     real*8, allocatable :: r(:) !< vertices, r
+     real*8, allocatable :: th(:) !< vertices, theta
+     real*8, allocatable :: ph(:) !< vertices, phi
+     type(miniface), allocatable :: f(:) !< faces
+     integer :: nv !< number of vertex
+     integer :: nf !< number of faces
+     integer :: mv !< maximum number of vertex
+     integer :: mf !< maximum number of faces
+   contains
+     procedure :: begin => minisurf_begin
+     procedure :: end => minisurf_close
+     procedure :: clean => minisurf_clean
+     procedure :: spheresphere
+     procedure :: spheretriang
+     procedure :: spherecub
+     procedure :: writeint
+     procedure :: readint
+  end type minisurf
+  public :: minisurf
 
   integer, parameter :: surf_fpv = 8 !< Maximum faces per vertex
   integer, parameter :: surf_vpf = 4 !< Maximum vertex per face
@@ -35,11 +58,14 @@ module surface
 contains
 
   !> Initialize a minisurface
-  subroutine minisurf_init(s,m,f)
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+  subroutine minisurf_begin(s,m,f)
+    class(minisurf), intent(inout) :: s
     integer, intent(in) :: m, f
     
+    if (allocated(s%r)) deallocate(s%r)
+    if (allocated(s%th)) deallocate(s%th)
+    if (allocated(s%ph)) deallocate(s%ph)
+    if (allocated(s%f)) deallocate(s%f)
     allocate(s%r(m),s%th(m),s%ph(m))
     if (f /= 0) then
        allocate(s%f(f))
@@ -51,24 +77,23 @@ contains
     s%mf = f
     s%rgb = (/128,128,128/)
 
-  end subroutine minisurf_init
+  end subroutine minisurf_begin
 
   !> Destroy a minisurface
   subroutine minisurf_close(s)
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
     
-    deallocate(s%r,s%th,s%ph)
-    if (s%init > 1) deallocate(s%f)
-    
+    if (allocated(s%r)) deallocate(s%r)
+    if (allocated(s%th)) deallocate(s%th)
+    if (allocated(s%ph)) deallocate(s%ph)
+    if (allocated(s%f)) deallocate(s%f)
     s%init = 0
     
   end subroutine minisurf_close
 
   !> Clean the information in the minisurface.
   subroutine minisurf_clean(s)
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
 
     s%n = (/ 0d0, 0d0, 0d0 /)
     s%r = -1d0
@@ -89,11 +114,10 @@ contains
   !> Triangulate the unit sphere using an incremental pole->equator
   !> method to place the points. Analogous to surf_spheresphere,
   !> minisurface version.
-  subroutine minisurf_spheresphere(s,xnuc,ntheta,nphi)
+  subroutine spheresphere(s,xnuc,ntheta,nphi)
     use tools_io, only: ferror, faterr
     use param, only: pi, two, zero
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: ntheta, nphi
     
@@ -101,19 +125,19 @@ contains
     integer :: nvertex, nphiact
     integer :: i, j, nn, npoints, first, second
 
-    call minisurf_clean(s)
+    call s%clean()
     
     ! Fill origin
     s%n = xnuc
 
     s%nv = 2*nphi*(2**ntheta-1)+2
     if (s%nv > s%mv) then
-       call ferror('minisurf_spheresphere','max. number of vertex exceeded',faterr)
+       call ferror('spheresphere','max. number of vertex exceeded',faterr)
     end if
 
     s%nf = 6*nphi*(2**(ntheta-1)-1)+nphi+nphi
     if (s%nf > s%mf) then
-       call ferror('minisurf_spheresphere','maximum number of faces exceeded',faterr)
+       call ferror('spheresphere','maximum number of faces exceeded',faterr)
     end if
     
     nvertex = 1
@@ -268,41 +292,30 @@ contains
        end do
     end if
 
-  end subroutine minisurf_spheresphere
+  end subroutine spheresphere
 
   !> Triangulate the unit sphere by recursively subdividing an
   !> octahedron level times. Minisurface version.
-  subroutine minisurf_spheretriang(s,xnuc,level)
+  subroutine spheretriang(s,xnuc,level)
     use tools_io, only: faterr, ferror, warning, uout
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: level
     
     integer, parameter :: mlevel = 7
 
-    ! nvert                       number of vertex
-    ! nface                       number of faces in each workspace (0,1)
-    ! iface(i,j,k)                vertex number i of face j in workspace k
-    ! isw0, isw1                  switchers between workspaces
-    ! i{xyz}(i)                   integer coordinate for vertex i
-    ! i{123456}                   temp. for new vertex
-    ! ilev                        level iteration counter
-    ! i{xyz}{456}                 temp. for new vertex coordinates
-    ! new                         flag for new vertex
-
-    integer ::   nvert               
-    integer ::   nface(0:1)          
-    integer ::   iface(3,s%mf,0:1)
-    integer ::   ix(s%mv), iy(s%mv), iz(s%mv) 
-    integer ::   i1, i2, i3, i4, i5, i6, ilev
-    integer ::   ix4, iy4, iz4, ix5, iy5, iz5, ix6, iy6, iz6
-    integer ::   isw0, isw1          
-    integer ::   nf1
-    logical ::   new
-    integer ::   i
+    integer :: nvert               
+    integer :: nface(0:1)          
+    integer :: iface(3,s%mf,0:1)
+    integer :: ix(s%mv), iy(s%mv), iz(s%mv) 
+    integer :: i1, i2, i3, i4, i5, i6, ilev
+    integer :: ix4, iy4, iz4, ix5, iy5, iz5, ix6, iy6, iz6
+    integer :: isw0, isw1          
+    integer :: nf1
+    logical :: new
+    integer :: i
     
-    call minisurf_clean(s)
+    call s%clean()
 
     ! Fill origin
     s%n = xnuc
@@ -314,7 +327,7 @@ contains
     !     values to get best precision and efficiency.
     nvert = 6
     if (nvert > s%mv) &
-       call ferror('minisurf_spheretriang','max. number of vertex exceeded',faterr)
+       call ferror('spheretriang','max. number of vertex exceeded',faterr)
     ix(1) =  1024
     iy(1) =     0
     iz(1) =     0
@@ -495,7 +508,7 @@ contains
     ! Save face information
     s%nf = nface(isw1)
     if (s%nf > s%mf) then
-       call ferror('minisurf_spheretriang','maximum number of faces exceeded',faterr)
+       call ferror('spheretriang','maximum number of faces exceeded',faterr)
     end if
     if (s%init > 1) then
        do i=1,s%nf
@@ -507,41 +520,30 @@ contains
        end do
     end if
 
-  end subroutine minisurf_spheretriang
+  end subroutine spheretriang
 
   !> Triangulate the unit sphere by recursively subdividing a cube
   !> level times. Minisurface version.
-  subroutine minisurf_spherecub(s,xnuc,level)
+  subroutine spherecub(s,xnuc,level)
     use tools_io, only: ferror, warning, uout, faterr
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: level
     
     integer, parameter :: mlevel = 7
 
-    ! nvert                       number of vertex
-    ! nface                       number of faces in each workspace (0,1)
-    ! iface(i,j,k)                vertex number i of face j in workspace k
-    ! isw0, isw1                  switchers between workspaces
-    ! i{xyz}(i)                   integer coordinate for vertex i
-    ! i{123456}                   temp. for new vertex
-    ! ilev                        level iteration counter
-    ! i{xyz}{456}                 temp. for new vertex coordinates
-    ! new                         flag for new vertex
-
-    integer ::   nvert               
-    integer ::   nface(0:1)          
-    integer ::   iface(4,s%mf,0:1)
-    integer ::   ix(s%mv), iy(s%mv), iz(s%mv) 
-    integer ::   ix5, iy5, iz5, ix6, iy6, iz6
-    integer ::   ix7, iy7, iz7, ix8, iy8, iz8, ix9, iy9, iz9
-    integer ::   i, i1, i2, i3, i4, i5, i6, i7, i8, i9, ilev
-    integer ::   isw0, isw1          
-    integer ::   nf1
-    logical ::   new
+    integer :: nvert               
+    integer :: nface(0:1)          
+    integer :: iface(4,s%mf,0:1)
+    integer :: ix(s%mv), iy(s%mv), iz(s%mv) 
+    integer :: ix5, iy5, iz5, ix6, iy6, iz6
+    integer :: ix7, iy7, iz7, ix8, iy8, iz8, ix9, iy9, iz9
+    integer :: i, i1, i2, i3, i4, i5, i6, i7, i8, i9, ilev
+    integer :: isw0, isw1          
+    integer :: nf1
+    logical :: new
     
-    call minisurf_clean(s)
+    call s%clean()
 
     ! Fill origin
     s%n = xnuc
@@ -812,7 +814,7 @@ contains
     ! Save face information
     s%nf = nface(isw1)
     if (s%nf > s%mf) then
-       call ferror('minisurf_spherecub','maximum number of faces exceeded',faterr)
+       call ferror('spherecub','maximum number of faces exceeded',faterr)
     end if
     if (s%init > 1) then
        do i=1,s%nf
@@ -825,224 +827,14 @@ contains
        end do
     end if
 
-  end subroutine minisurf_spherecub
-
-  !> Transform the points in the minisurface s using the symmetry operation op 
-  !> and the translation vector tvec.
-  subroutine minisurf_transform(s,op,tvec)
-    use crystalmod, only: cr
-    use types, only: minisurf
-    type(minisurf) :: s
-    integer, intent(in) :: op
-    real*8, intent(in) :: tvec(3)
-
-    integer :: i
-    real*8 :: x(3), n(3), r
-
-    n = cr%x2c(matmul(cr%rotm(:,1:3,op),cr%c2x(s%n)) + cr%rotm(:,4,op) + tvec)
-
-    do i = 1, s%nv
-       x = s%n + (/ s%r(i) * sin(s%th(i)) * cos(s%ph(i)),&
-                    s%r(i) * sin(s%th(i)) * sin(s%ph(i)),&
-                    s%r(i) * cos(s%th(i)) /)
-       x = cr%c2x(x)
-       x = cr%x2c(matmul(cr%rotm(:,1:3,op),x) + cr%rotm(:,4,op) + tvec)
-       x = x - n
-       r = sqrt(dot_product(x,x))
-       s%th(i) = acos(x(3)/r) 
-       s%ph(i) = atan2(x(2),x(1))
-    end do
-    s%n = n
-
-  end subroutine minisurf_transform
-
-  !> Write the minisurface s to the OFF file offfile.
-  subroutine minisurf_write3dmodel(s,fmt,file,expr)
-    use fields, only: f, grd, fields_fcheck, fields_feval
-    use global, only: refden
-    use graphics, only: graphics_open, graphics_surf, graphics_close
-    use arithmetic, only: eval
-    use tools_io, only: faterr, ferror
-    use types, only: minisurf, scalar_value
-    type(minisurf), intent(inout) :: s
-    character*3, intent(in) :: fmt
-    character*(*), intent(in) :: file
-    character*(*), intent(in), optional :: expr
-    
-    type(scalar_value) :: res
-    integer :: lu1, lu2
-    integer :: i
-    real*8 :: x(3)
-    real*8, allocatable :: fsurf(:)
-    logical :: iok
-
-    if (s%init <= 1) &
-       call ferror ('minisurf_write3dmodel','No face information in minisurf',faterr)
-
-    ! calculate the field value on the basin
-    if (present(expr)) then
-       allocate(fsurf(s%nv))
-       do i = 1, s%nv
-          x(1) = s%n(1) + s%r(i) * sin(s%th(i)) * cos(s%ph(i))
-          x(2) = s%n(2) + s%r(i) * sin(s%th(i)) * sin(s%ph(i))
-          x(3) = s%n(3) + s%r(i) * cos(s%th(i))             
-          call grd(f(refden),x,0,res0=res)
-          fsurf(i) = eval(expr,.true.,iok,x,fields_fcheck,fields_feval)
-       end do
-    else
-       allocate(fsurf(3))
-       fsurf = real(s%rgb,8) / 255d0
-    end if
-
-    call graphics_open(fmt,file,lu1,lu2)
-    call graphics_surf(fmt,lu1,s,fsurf)
-    call graphics_close(fmt,lu1,lu2)
-    deallocate(fsurf)
-
-  end subroutine minisurf_write3dmodel
-
-  !> Write the surface s to the BASIN file offfile. Minisurface version.
-  subroutine minisurf_writebasin (s,offfile,doprops)
-    use global, only: refden
-    use fields, only: integ_prop, f, nprops, grd, grdall
-    use crystalmod, only: cr
-    use tools_io, only: faterr, ferror, fopen_write, fclose
-    use types, only: minisurf, scalar_value
-    type(minisurf), intent(inout) :: s
-    character*(*), intent(in) :: offfile
-    logical, intent(in) :: doprops
-    
-    integer :: lud
-    integer :: i, j
-    real*8 :: lprop(Nprops), x(3), rr
-    type(scalar_value) :: res
-
-    if (s%init <= 1) then
-       call ferror ('minisurf_writebasin','No face information in minisurf',faterr)
-    end if
-
-    ! open BASIN output file:
-    lud = fopen_write(offfile)
-
-    x = cr%c2x(s%n)
-    write (lud,'("# POS(cryst) ",3(E22.14,X))') x
-    write (lud,'("# CRYS2CART ")') 
-    rr = 0d0
-    do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') cr%crys2car(i,1:3), rr
-    end do
-    write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
-    write (lud,'("# CART2CRYS ")') 
-    rr = 0d0
-    do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') cr%car2crys(i,1:3), rr
-    end do
-    write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
-
-    write (lud,105) s%nv, s%nf, s%nv + s%nf - 2
-    if (doprops) then
-       write (lud,105) Nprops + 5
-       write (lud,106) 'f','fval','|gradf|','lapf','lapfval',(integ_prop(i)%prop_name, i=1,Nprops)
-    else
-       write (lud,105) 1
-       write (lud,106) 'f'
-    end if
-
-    ! Use the density and plot the properties
-    do i = 1, s%nv
-       x = s%n + (/ s%r(i) * sin(s%th(i)) * cos(s%ph(i)),&
-                    s%r(i) * sin(s%th(i)) * sin(s%ph(i)),&
-                    s%r(i) * cos(s%th(i)) /)
-       call grd(f(refden),x,2,res0=res)
-       if (doprops) then
-          call grdall(x,lprop)
-          write (lud,110) x, res%f, res%fval, res%gfmod, res%del2f,&
-             res%del2fval, lprop
-       else
-          write (lud,110) x, res%f
-       end if
-    end do
-    
-    do i = 1, s%nf
-       write (lud,115) s%f(i)%nv,(s%f(i)%v(j)-1,j=1,s%f(i)%nv)
-    end do
-
-    call fclose(lud)
-
-105 format (3i7)
-106 format (999(a22,1x))
-110 format (1p,999(e22.15,1x))
-115 format (999(i7))
-
-  end subroutine minisurf_writebasin
-
-  !> Write the minisurface s and scalar field information on the
-  !> basin rays to the DBASIN file offfile.
-  subroutine minisurf_writedbasin (s,npoint,offfile)
-    use global, only: refden
-    use fields, only: f, grd
-    use tools_io, only: ferror, faterr, fopen_write, fclose
-    use types, only: minisurf, scalar_value
-    type(minisurf), intent(inout) :: s
-    integer, intent(in) :: npoint
-    character*(*), intent(in) :: offfile
-    
-    integer :: lud
-    integer :: i, j
-    real*8  :: xxx(3)
-    real*8 :: rdelta
-    real*8, allocatable :: fpoint(:)
-    type(scalar_value) :: res
-
-    if (s%init <= 1) then
-       call ferror ('minisurf_writedbasin','No face information in minisurf',faterr)
-    end if
-
-    allocate(fpoint(0:npoint))
-    
-    lud = fopen_write(offfile)
-
-    write (lud,305) s%nv, s%nf, s%nv + s%nf - 2
-
-    xxx = s%n
-    call grd(f(refden),xxx,0,res0=res)
-    fpoint(0) = res%f
-    write (lud,306) npoint, s%n(1), s%n(2), s%n(3), res%f
-
-    do i = 1, s%nv
-       rdelta = s%r(i) / npoint
-       do j = 1, npoint
-          xxx(1) = s%n(1) + rdelta * j * sin(s%th(i)) * cos(s%ph(i))
-          xxx(2) = s%n(2) + rdelta * j * sin(s%th(i)) * sin(s%ph(i))
-          xxx(3) = s%n(3) + rdelta * j * cos(s%th(i))             
-          call grd(f(refden),xxx,0,res0=res)
-          fpoint(j) = res%f
-       end do
-       write (lud,310) xxx, (fpoint(j), j = 1, npoint)
-    end do
-
-    do i = 1, s%nf
-       write (lud,315) s%f(i)%nv, (s%f(i)%v(j)-1,j=1,s%f(i)%nv)
-    end do
-
-    call fclose(lud)
-
-    deallocate(fpoint)
-
-305 format (3i7)
-306 format (i7, 3f12.6, 1p, e14.6)
-310 format (3f12.6, 1p, 10e14.6, (/ (10e14.6)))
-315 format (999(i7))
-
-  end subroutine minisurf_writedbasin
+  end subroutine spherecub
 
   !> Write the radii of the rays of the minisurface s to an INT file.
   !> These files are used to write and read the IAS information
   !> for a particular quadrature method (meth) with n1 / n2 nodes.
-  subroutine minisurf_writeint (s,n1,n2,meth,offfile)
+  subroutine writeint (s,n1,n2,meth,offfile)
     use tools_io, only: fopen_write, fclose
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
     integer, intent(in) :: n1, n2, meth
     character*(*), intent(in) :: offfile
     
@@ -1057,16 +849,15 @@ contains
 
     call fclose(lud)
 
-  end subroutine minisurf_writeint
+  end subroutine writeint
 
   !> Read the IAS radii of the rays in the INT file into the
   !> minisurface s. The method fingerprint (meth, n1, n2) must match
   !> the one contained in the file.
-  subroutine minisurf_readint (s,n1,n2,meth,offfile,ierr)
+  subroutine readint (s,n1,n2,meth,offfile,ierr)
     use global, only: int_gauleg
     use tools_io, only: fopen_read, ferror, warning, string, fclose
-    use types, only: minisurf
-    type(minisurf), intent(inout) :: s
+    class(minisurf), intent(inout) :: s
     integer, intent(in) :: n1, n2, meth
     character*(*), intent(in) :: offfile
     integer, intent(out) :: ierr
@@ -1081,13 +872,13 @@ contains
 
     read (lud,'(I10,x,I10,x,I2)') n1_, n2_, method_
     if (n1 /= n1_ .or. meth /= method_ .or. (meth == INT_gauleg .and. n2 /= n2_)) then
-       call ferror ('minisurf_readint', 'Wrong ntheta, nphi or method',warning,string(offfile)) 
+       call ferror ('readint', 'Wrong ntheta, nphi or method',warning,string(offfile)) 
        ierr = 1
        return
     end if
     read (lud,'(3(E23.15,x))') xn
     if (any(abs(xn - s%n) > 1d-13)) then
-       call ferror ('minisurf_readint', 'Wrong CP position in integrals file',warning,string(offfile)) 
+       call ferror ('readint', 'Wrong CP position in integrals file',warning,string(offfile)) 
        ierr = 1
        return
     end if
@@ -1095,43 +886,7 @@ contains
 
     call fclose(lud)
 
-  end subroutine minisurf_readint
-
-!  !> Write an OFF file from an xyz and face list.
-!  subroutine xyz_writeoff (xyz,nface,face,offfile)
-!    
-!    real*8 :: xyz(3,:)
-!    integer :: nface(:), face(:,:)
-!    character*40, intent(in) :: offfile
-!    
-!    integer :: lud
-!    integer :: nios, i, j, nv, nf
-!    integer :: ipid
-!
-!    ! open OFF output file:
-!    lud=fopen_write(offfile)
-!
-!    nv = size(xyz,2)
-!    nf = size(nface,1)
-!    write (lud,200) 
-!    write (lud,205) nv, nf, nv+nf-2
-!    
-!    do i = 1, nv
-!       write (lud,210) xyz(1:3,i)
-!    end do
-!
-!    do i = 1, nf
-!       write (lud,215) nface(i),(face(j,i)-1,j=1,nface(i))
-!    end do
-!
-!    call fclose(lud)
-!
-!200 format ('OFF')
-!205 format (3(i10,x))
-!210 format (3(e22.14,x))
-!215 format (999(i10,x))
-!
-!  end subroutine xyz_writeoff
+  end subroutine readint
 
 end module surface
 

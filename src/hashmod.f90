@@ -119,7 +119,7 @@ contains
 
   !> Get a value from the hash table, return integer
   function get_hash_i_(self,key,typ) result(val)
-    class(hash), intent(inout) :: self
+    class(hash), intent(in) :: self
     character*(*), intent(in) :: key
     integer, intent(in) :: typ
     integer :: val
@@ -136,7 +136,7 @@ contains
 
   !> Get a value from the hash table, return real*4
   function get_hash_r_(self,key,typ) result(val)
-    class(hash), intent(inout) :: self
+    class(hash), intent(in) :: self
     character*(*), intent(in) :: key
     real*4, intent(in) :: typ
     real*4 :: val
@@ -153,7 +153,7 @@ contains
 
   !> Get a value from the hash table, return string
   function get_hash_s_(self,key,typ) result(val)
-    class(hash), intent(inout) :: self
+    class(hash), intent(in) :: self
     character*(*), intent(in) :: key
     character*(*), intent(in) :: typ
     character(len=:), allocatable :: val
@@ -171,7 +171,7 @@ contains
 
   !> Get a value from the hash table, return real*8
   function get_hash_d_(self,key,typ) result(val)
-    class(hash), intent(inout) :: self
+    class(hash), intent(in) :: self
     character*(*), intent(in) :: key
     real*8, intent(in) :: typ
     real*8 :: val
@@ -204,7 +204,7 @@ contains
 
   !> Check whether the given key exists in the hash
   function iskey_hash(self,key) result(iskey)
-    class(hash), intent(inout) :: self
+    class(hash), intent(in) :: self
     character*(*), intent(in) :: key
     logical :: iskey
 
@@ -330,7 +330,7 @@ contains
 
   !> Get a value from a node or its children
   recursive subroutine get_node(self,key,val)
-    class(node), intent(inout) :: self
+    class(node), intent(in) :: self
     character*(*), intent(in) :: key
     character*1, allocatable, intent(inout) :: val(:)
 
@@ -372,7 +372,7 @@ contains
 
   !> Check whether this node or any of its children is the key
   recursive function iskey_node(self,key) result(iskey)
-    class(node), intent(inout) :: self
+    class(node), intent(in) :: self
     character*(*), intent(in) :: key
     logical :: iskey
 

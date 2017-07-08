@@ -1561,45 +1561,45 @@ charge and pseudopotential charge after CRYSTAL:
 
 ::
 
-  {Q|QAT|ZPSP} {nat1.i|at1.s} q1.r {nat2.i|at2.s} q2.r ...
+  {Q|QAT} at1.s q1.r [at2.s q2.r] ...
+  ZPSP at1.s q1.r [at2.s q2.r] ...
 
-This order changes the atomic charge (Q, QAT) or the pseudopotential
-atomic number (ZPSP) of the non-equivalent atom i1.i, i2.i,... or the
-atom type at1.s, at2.s,.... Real numbers for the charges are
-acceptable but they are internally converted to integers. The meaning
-of these keywords in the NEQ line of the CRYSTAL environment is
-exactly the same.  
+
+This command changes the atomic charge (Q, QAT) or the pseudopotential
+charge (ZPSP) of the atomic species at1.s, at2.s,.... Real numbers for
+the charges and ZPSP are acceptable; the latter are internally
+converted to integers.
 
 Q is used to calculate the point-charge electrostatic energy (using
 Ewald's method, see `Other structural tools (NEWCELL, ENVIRON,
-PACKING, IDENTIFY, EWALD)`_) and, if Q is positive, to build the
-promolecular density using the corresponding cation instead of the
-neutral atom.
+PACKING, IDENTIFY, EWALD)`_).
 
 The role of ZPSP is to augment the fields defined on a grid, a
-procedure called core augmentation. ZPSP is the pseudopotential atomic
-number, that is, the atomic number of the atom minus the number of
+procedure called core augmentation. ZPSP is the pseudopotential
+charge, that is, the atomic number of the atom minus the number of
 electrons represented by the pseudopotential. For instance, ZPSP=2 is
-a usual value for Ba. The normal use of critic2 with grids involves
-loading the valence density or pseudo-density that sometimes needs to
-be augmented to recover an electron density that has maxima at the
-nuclear positions, which is important for certain applications (for
-instance, plotting).  While this procedure is not satisfactory from
-the theoretical point of view, in practice, the valence regions are
-mostly unaffected. Of course, core augmentation needs to be
-deactivated if the field is not the electron density or if the grid
-already contains the core contributions, and it is usually a better
-option to use the full all-electron density from the electronic
-structure code if it is able to reconstruct it. 
+a usual value for Ba. A typical way to use grids in critic2 involves
+loading the valence density or pseudo-density and augmenting it to an
+all-electron density that has maxima at the nuclear positions, which
+is important for certain applications (for instance, plotting).  While
+this procedure is not entirely satisfactory from the theoretical point
+of view, in practice, the valence regions are mostly unaffected. Of
+course, core augmentation needs not be used if the field is not the
+electron density or if the grid already contains the core
+contributions, and it is usually better to use the full all-electron
+density from the electronic structure code, if it is able to generate
+it.
 
 Core augmentation is not activated by default, even if the ZPSP
-keyword is used (see CORE in `Additional LOAD options`_) . In a VASP
-calculation, the value of ZPSP can be found easily in a VASP
-calculation by grepping 'ZVAL' in the POTCAR file. In Quantum
-ESPRESSO, this information is in the UPF file (the "number of valence
-electrons"). In abinit, it can be found in the pseudopotential files.
+keyword is used (see CORE in `Additional LOAD options`_). The use of
+ZPSP as above sets the pseudopotential charges for all current fields;
+particular ZPSP values for certain fields can also be given using
+LOAD. In a VASP calculation, the value of ZPSP can be found easily by
+grepping 'ZVAL' in the POTCAR file. In Quantum ESPRESSO, this
+information is in the UPF file (the "number of valence electrons"). In
+abinit, it can be found in the pseudopotential files.
 
-The keyword NOCORE clears the ZPSP values of all atoms::
+The keyword NOCORE clears the ZPSP values of all atoms in all fields::
 
   NOCORE
 
@@ -2091,12 +2091,12 @@ field formats are supported:
   LOAD COPY id.s [TO id2.s]
   LOAD PROMOLECULAR
   LOAD PROMOLECULAR [FRAGMENT file.xyz]
-  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|
-        ELKGRID|SIESTA|DFTB] file
+  LOAD [WIEN|ELK|PI|CUBE|ABINIT|VASP|VASPCHG|QUB|XSF|ELKGRID|SIESTA|DFTB|
+        WFN|WFX|MOLDEN|FCHK] file
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
-	   [NOTESTMT]
+	   [NOTESTMT] [ZPSP at1.s q1.r...]
   LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.s|GHOST]
   LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} 
           [FRAGMENT file.xyz]
@@ -2313,7 +2313,9 @@ Gaussian wavefunction files can be loaded by passing the wfn or wfx
 file to critic2. This option is normally used in combination with
 MOLECULE on the same file in order to obtain the same structure from
 the isolated molcule. The evaluation of wfn/wfx densities is
-analytical (no grids involved).
+analytical (no grids involved). If your file does not have the wfn/wfx
+extension, you can force this format preceding the file name with the
+WFN/WFX keyword. 
 
 A numerical field modifier can be used with molecular wavefunction
 fields to select a particular molecular orbital in the
@@ -2328,7 +2330,9 @@ Gaussian formatted checkpoint files (fchk)
 Similar to wfn/wfx, these files contain the molecular wavefunction
 information. To be used in combination with MOLECULE. The calculation
 of the density and related properties is analytical. Numerical field
-modifiers can be used to select particular molecular orbitals.
+modifiers can be used to select particular molecular orbitals. If your
+file does not have the fchk extension, you can force this format
+preceding the file name with the FCHK keyword.
 
 Molecular molden-style files (molden)
 +++++++++++++++++++++++++++++++++++++
@@ -2336,7 +2340,9 @@ Molecular molden-style files (molden)
 Similar to wfn/wfx, these files contain the molecular wavefunction
 information. To be used in combination with MOLECULE. The calculation
 of the density and related properties is analytical. Numerical field
-modifiers can be used to select particular molecular orbitals.
+modifiers can be used to select particular molecular orbitals. If your
+file does not have the molden extension, you can force this format
+preceding the file name with the MOLDEN keyword.
 
 At present, only molden files generated by recent (~2016) versions of
 psi4 have been tested. Unfortunately, many quantum chemistry programs
@@ -2492,6 +2498,14 @@ word containing letters and numbers. You can list all available field
 identifiers using the LIST keyword, see `Arithmetic expressions,
 variables, and functions in critic2`_.
 
+::
+
+  ZPSP at1.s q1.r...
+
+Set the pseudopotential charges for this field. Note that setting
+these charges does not activate core augmentation (use CORE as
+well). See `Atomic charge options` for more details.
+
 Field arithmetics
 ~~~~~~~~~~~~~~~~~
 
@@ -2577,7 +2591,7 @@ after it has been loaded using the SETFIELD keyword::
   SETFIELD {id.s} [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] 
      [EXACT|APPROXIMATE] [RHONORM|VNORM] [CORE|NOCORE] 
      [NUMERICAL|ANALYTICAL] [TYPNUC {-3,-1,1,3}] 
-     [NORMALIZE n.r] [{NAME|ID} id.s]
+     [NORMALIZE n.r] [ZPSP at1.s q1.r...]
 
 SETFIELD changes the properties of field with identifier id.s. The
 keywords have the same meaning as in the previous sections.
@@ -6066,8 +6080,7 @@ the determination of the interatomic surface (bohr in crystal,
 angstrom in molecules).
 
 Default: GAULEG, nr.r = 50, aerr.r = 1d0, rerr.r = 1d-12. The default
-errprop is the field value for fields on a grid and the Laplacian for
-the rest. delta.r = 1e-5 bohr.
+errprop is the field value and the Laplacian. delta.r = 1e-5 bohr.
 
 ::
 
@@ -6122,16 +6135,17 @@ auxiliary files written by critic2.
 
 ::
 
-  SUM id.s
-  MAX id.s
-  MIN id.s
-  MEAN id.s
+  SUM [id.s]
+  MAX [id.s]
+  MIN [id.s]
+  MEAN [id.s]
   COUNT id.s eps.r
 
 Using the field on a grid id.s, calculate the sum of the node values
 (SUM), the maximum value (MAX), the minimum (MIN), the average
 (MEAN), or count the number of elements that are greater than eps.r
-(COUNT).
+(COUNT). If no id.s is given in the first four commands, use the
+reference field. 
 
 ::
 

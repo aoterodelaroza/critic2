@@ -15,41 +15,77 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! tools for grids
-module grid_tools
+! Class for 3d grids and related tools.
+module grid3mod
   implicit none
 
   private
 
-  public :: grid_from_array3
-  public :: grid_read_cube
-  public :: grid_read_siesta
-  public :: grid_read_abinit
-  public :: grid_read_vasp
-  public :: grid_read_qub
-  public :: grid_read_xsf
-  public :: grid_read_unk
-  public :: grid_read_unkgen
-  public :: get_qe_wnr
-  public :: grid_read_elk
-  public :: grinterp
   private :: grinterp_nearest
   private :: grinterp_trilinear
   private :: grinterp_trispline
   private :: grinterp_tricubic
   private :: grid_near
   private :: grid_floor
-  public :: init_trispline
-  public :: grid_laplacian
-  public :: grid_gradrho
-  public :: grid_rhoat
-  public :: grid_hxx
+  private :: init_trispline
+  
+  !> Information for wannier functions
+  type wandat
+     integer :: nks !< Number of k-points (lattice vectors)
+     integer :: nwan(3) !< Number of lattice vectors
+     integer :: nbnd !< Number of bands
+     integer :: nspin !< Number of spins
+     logical :: sijchk = .true. !< Save the sij to a checkpoint (chk-sij) file
+     logical :: fachk = .true. !< Save the fa to a checkpoint (chk-fa) file
+     logical :: haschk !< A chk-sij file is currently available
+     logical :: useu = .true. !< Use the U transformation to get MLWF
+     real*8 :: cutoff !< Cutoff for atomic overlaps
+     character*(255) :: fevc !< evc file name
+     real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
+     real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
+     real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
+     integer, allocatable :: ngk(:) !< number of plane-waves for each k-point
+     integer, allocatable :: igk_k(:,:) !< fft reorder
+     integer, allocatable :: nls(:) !< fft reorder
+     complex*16, allocatable :: u(:,:,:) !< u matrix
+  end type wandat
 
-  integer, parameter, public :: mode_nearest = 1 !< interpolation mode: nearest grid node
-  integer, parameter, public :: mode_trilinear = 2 !< interpolation mode: trilinear
-  integer, parameter, public :: mode_trispline = 3 !< interpolation mode: trispline
-  integer, parameter, public :: mode_tricubic = 4 !< interpolation mode: tricubic
-  integer, parameter, public :: mode_default = mode_tricubic
+  !> Three-dimensional grid class
+  type grid3
+     logical :: init = .false. !< is the grid initialized?
+     logical :: iswan = .false. !< does it have wannier info?
+     integer :: mode !< interpolation mode
+     integer :: n(3) !< number of grid points in each direction
+     real*8, allocatable :: f(:,:,:) !< grid values
+     real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
+     type(wandat) :: wan !< Wannier functions and related information
+   contains
+     procedure :: end => grid_end !< deallocate all arrays and uninitialize
+     procedure :: setmode !< set the interpolation mode of a grid
+     procedure :: normalize !< normalize the grid to a given value
+     procedure :: from_array3 !< build a grid3 from a 3d array of real numbers
+     procedure :: read_cube !< grid3 from a Gaussian cube file
+     procedure :: read_siesta !< grid3 from siesta RHO file
+     procedure :: read_abinit !< grid3 from abinit binary file
+     procedure :: read_vasp !< grid3 from VASP file (CHG, CHGCAR, etc.)
+     procedure :: read_qub !< grid3 from aimpac qub format
+     procedure :: read_xsf !< grid3 from xsf (xcrysden) file
+     procedure :: read_unk !< read a UNK file by QE for wannier90 
+     procedure :: read_unkgen !< read a unkgen file created by pw2wannier.x
+     procedure :: read_elk !< grid3 from elk file format
+     procedure :: interp !< interpolate the grid at an arbitrary point
+     procedure :: laplacian !< grid3 as the Laplacian of another grid3
+     procedure :: gradrho !< grid3 as the gradrho of another grid3
+     procedure :: hxx !< grid3 as the Hessian components of another grid3
+     procedure :: get_qe_wnr !< build a Wannier function from the wannier info/files
+  end type grid3
+  public :: grid3
+
+  integer, parameter :: mode_nearest = 1 !< interpolation mode: nearest grid node
+  integer, parameter :: mode_trilinear = 2 !< interpolation mode: trilinear
+  integer, parameter :: mode_trispline = 3 !< interpolation mode: trispline
+  integer, parameter :: mode_tricubic = 4 !< interpolation mode: tricubic
+  integer, parameter :: mode_default = mode_tricubic
 
   ! The 64x64 matrix for tricubic interpolation
   real*8, parameter, private :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
@@ -313,88 +349,139 @@ module grid_tools
 
 contains
 
-  !> Build a grid field from a three-dimensional array
-  subroutine grid_from_array3(g,f)
-    use tools_io, only: ferror, faterr
-    use types, only: field
+  subroutine grid_end(f)
+    class(grid3), intent(inout) :: f
 
+    f%init = .false.
+    f%iswan = .false.
+    if (allocated(f%f)) deallocate(f%f)
+    if (allocated(f%c2)) deallocate(f%c2)
+    if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
+    if (allocated(f%wan%center)) deallocate(f%wan%center)
+    if (allocated(f%wan%spread)) deallocate(f%wan%spread)
+    if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
+    if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
+    if (allocated(f%wan%nls)) deallocate(f%wan%nls)
+    if (allocated(f%wan%u)) deallocate(f%wan%u)
+    
+  end subroutine grid_end
+
+  !> Set the interpolation mode. The possible modes arenearest,
+  !> trilinear, trispline, and tricubic (lowercase).
+  subroutine setmode(f,mode)
+    use tools_io, only: equal, lower
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: mode
+    
+    character(len=:), allocatable :: lmode
+    
+    lmode = lower(mode)
+    if (equal(lmode,'tricubic')) then
+       f%mode = mode_tricubic
+    else if (equal(lmode,'trispline')) then
+       f%mode = mode_trispline
+       if (allocated(f%c2)) deallocate(f%c2)
+    else if (equal(lmode,'trilinear')) then
+       f%mode = mode_trilinear
+    else if (equal(lmode,'nearest')) then
+       f%mode = mode_nearest
+    else if (equal(lmode,'default')) then
+       f%mode = mode_default
+    end if
+
+  end subroutine setmode
+
+  !> Normalize the grid to a given value. omega is the cell volume.
+  subroutine normalize(f,norm,omega)
+    class(grid3), intent(inout) :: f
+    real*8, intent(in) :: norm, omega
+
+    f%f = f%f / (sum(f%f) * omega / real(product(f%n),8)) * norm
+    if (allocated(f%c2)) deallocate(f%c2)
+    
+  end subroutine normalize
+
+  !> Build a grid field from a three-dimensional array
+  subroutine from_array3(f,g)
+    use tools_io, only: ferror, faterr
+    class(grid3), intent(inout) :: f
     real*8, intent(in) :: g(:,:,:)
-    type(field), intent(out) :: f
 
     integer :: istat, n(3)
 
+    call f%end()
     f%init = .true.
+    f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_from_array3','Error allocating grid',faterr)
+       call ferror('from_array3','Error allocating grid',faterr)
     f%f = g
 
-  end subroutine grid_from_array3
+  end subroutine from_array3
 
-  !> Read a grid in gaussian CUBE format
-  subroutine grid_read_cube(file,f)
+  !> Read a grid in Gaussian CUBE format
+  subroutine read_cube(f,file)
     use tools_io, only: fopen_read, ferror, faterr, fclose
-    use types, only: field
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(out) :: f
 
     integer :: luc
     integer :: nat
     integer :: istat, n(3), i, j, k
 
+    call f%end()
     luc = fopen_read(file)
 
     read (luc,*) 
     read (luc,*) 
     read (luc,*,iostat=istat) nat
     if (istat /= 0) &
-       call ferror('grid_read_cube','Error reading nat',faterr,file)
+       call ferror('read_cube','Error reading nat',faterr,file)
     do i = 1, 3
        read (luc,*,iostat=istat) n(i)
        if (istat /= 0) &
-          call ferror('grid_read_cube','Error reading nx, ny, nz',faterr,file)
+          call ferror('read_cube','Error reading nx, ny, nz',faterr,file)
     end do
     do i = 1, nat
        read (luc,*)
     end do
 
     f%init = .true.
+    f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_cube','Error allocating grid',faterr,file)
+       call ferror('read_cube','Error allocating grid',faterr,file)
     read(luc,*,iostat=istat) (((f%f(i,j,k),k=1,n(3)),j=1,n(2)),i=1,n(1))
     if (istat /= 0) &
-       call ferror('grid_read_cube','Error reading grid',faterr,file)
+       call ferror('read_cube','Error reading grid',faterr,file)
 
     call fclose(luc)
 
-  end subroutine grid_read_cube
+  end subroutine read_cube
 
   !> Read a grid in siesta RHO format
-  subroutine grid_read_siesta(file,f)
+  subroutine read_siesta(f,file)
     use tools_io, only: fopen_read, faterr, ferror, fclose
-    use types, only: field
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(out) :: f
 
     integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
     real*8 :: r(3,3)
     real*4, allocatable :: g(:)
 
-    ! open file
-    luc = fopen_read(file,'unformatted')
-
     ! initialize
+    call f%end()
     f%init = .true.
     f%mode = mode_default
+
+    ! open file
+    luc = fopen_read(file,'unformatted')
 
     ! assume unformatted
     read (luc) r
@@ -403,10 +490,10 @@ contains
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_siesta','Error allocating grid',faterr,file)
+       call ferror('read_siesta','Error allocating grid',faterr,file)
     allocate(g(n(1)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_siesta','Error allocating auxiliary grid',faterr,file)
+       call ferror('read_siesta','Error allocating auxiliary grid',faterr,file)
     f%f = 0d0
     do i = 1, nspin
        do iz = 1, n(3)
@@ -420,22 +507,21 @@ contains
 
     call fclose(luc)
 
-  end subroutine grid_read_siesta
+  end subroutine read_siesta
 
   !> Read a grid in abinit format
-  subroutine grid_read_abinit(file,f)
-    use types, only: field
+  subroutine read_abinit(f,file)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use abinit_private, only: hdr_type, hdr_io
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(out) :: f
 
     integer :: luc
     integer :: fform0, istat, n(3)
     type(hdr_type) :: hdr
     real*8, allocatable :: g(:,:,:)
 
+    call f%end()
     luc = fopen_read(file,'unformatted')
 
     ! read the header
@@ -447,32 +533,31 @@ contains
     n = f%n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_abinit','Error allocating grid',faterr,file)
+       call ferror('read_abinit','Error allocating grid',faterr,file)
     allocate(g(n(1),n(2),n(3)))
     read(luc,iostat=istat) g
     f%f = g
     deallocate(g)
     if (istat /= 0) &
-       call ferror('grid_read_abinit','Error reading grid',faterr,file)
+       call ferror('read_abinit','Error reading grid',faterr,file)
 
     call fclose(luc)
 
-  end subroutine grid_read_abinit
+  end subroutine read_abinit
 
   !> Read a grid in VASP format
-  subroutine grid_read_vasp(file,f,omega)
-    use types, only: field
+  subroutine read_vasp(f,file,omega)
     use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(out) :: f
-    real*8, intent(in) :: omega
+    real*8, intent(in) :: omega !< Cell volume
 
     integer :: luc
     integer :: istat, n(3), i, j, k
     character(len=:), allocatable :: line
     logical :: ok
 
+    call f%end()
     luc = fopen_read(file)
 
     do while(.true.)
@@ -482,62 +567,60 @@ contains
 
     read (luc,*,iostat=istat) n
     if (istat /= 0) &
-       call ferror('grid_read_vasp','Error reading nx, ny, nz',faterr,file)
+       call ferror('read_vasp','Error reading nx, ny, nz',faterr,file)
 
     f%init = .true.
     f%mode = mode_default
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_vasp','Error allocating grid',faterr,file)
+       call ferror('read_vasp','Error allocating grid',faterr,file)
     read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     if (istat /= 0) &
-       call ferror('grid_read_vasp','Error reading grid',faterr,file)
+       call ferror('read_vasp','Error reading grid',faterr,file)
     f%f(:,:,:) = f%f(:,:,:) / omega
 
     call fclose(luc)
 
-  end subroutine grid_read_vasp
+  end subroutine read_vasp
 
   !> Read a grid in aimpac qub format
-  subroutine grid_read_qub(file,f)
+  subroutine read_qub(f,file)
     use tools_io, only: fopen_read, ferror, faterr, fclose
-    use types, only: field
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(out) :: f
 
     integer :: luc
     integer :: istat, n(3), i, j, k
 
+    call f%end()
     luc = fopen_read(file)
 
     read (luc,*,iostat=istat) f%n
     if (istat /= 0) &
-       call ferror('grid_read_qub','Error reading n1, n2, n3',faterr,file)
+       call ferror('read_qub','Error reading n1, n2, n3',faterr,file)
 
     f%init = .true.
     f%mode = mode_default
     n = f%n(:)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_qub','Error allocating grid',faterr,file)
+       call ferror('read_qub','Error allocating grid',faterr,file)
     read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     if (istat /= 0) &
-       call ferror('grid_read_qub','Error reading grid',faterr,file)
+       call ferror('read_qub','Error reading grid',faterr,file)
 
     call fclose(luc)
 
-  end subroutine grid_read_qub
+  end subroutine read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  subroutine grid_read_xsf(file,f)
+  subroutine read_xsf(f,file)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose
-    use types, only: field, realloc
-
+    use types, only: realloc
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(inout) :: f
 
     integer :: luc
     integer :: istat, n(3), lp, i, j, k
@@ -545,8 +628,9 @@ contains
     logical :: found, ok
     real*8, dimension(3) :: x0, x1, x2, x3
     real*8 :: pmat(3,3)
-
     real*8, allocatable :: ggloc(:,:,:)
+
+    call f%end()
 
     ! open file for reading
     luc = fopen_read(file)
@@ -561,14 +645,14 @@ contains
           ok = .true.
           read(luc,*,iostat=istat) pmat
           if (istat /= 0) &
-             call ferror('grid_read_xsf','Error PRIMVEC',faterr,file)
+             call ferror('read_xsf','Error PRIMVEC',faterr,file)
        else if (equal(word,'begin_block_datagrid_3d').or.equal(word,'begin_block_datagrid3d'))then
           found = .true.
           exit
        end if
     end do
-    if (.not.found) call ferror('grid_read_xsf','BEGIN_BLOCK_DATAGRID_3D not found',faterr,file)
-    if (.not.ok) call ferror('grid_read_xsf','PRIMVEC not found',faterr,file)
+    if (.not.found) call ferror('read_xsf','BEGIN_BLOCK_DATAGRID_3D not found',faterr,file)
+    if (.not.ok) call ferror('read_xsf','PRIMVEC not found',faterr,file)
 
     found = .false.
     do while (getline_raw(luc,line))
@@ -580,12 +664,12 @@ contains
           exit
        end if
     end do
-    if (.not.found) call ferror('grid_read_xsf','BEGIN_DATAGRID_3D... not found',faterr,file)
+    if (.not.found) call ferror('read_xsf','BEGIN_DATAGRID_3D... not found',faterr,file)
 
     ! grid dimension
     read (luc,*,iostat=istat) n 
     if (istat /= 0) &
-       call ferror('grid_read_xsf','Error reading n1, n2, n3',faterr,file)
+       call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
     f%n = n - 1
 
     ! origin and edge vectors
@@ -595,12 +679,12 @@ contains
     f%mode = mode_default
     allocate(ggloc(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
-       call ferror('grid_read_xsf','Error allocating grid',faterr,file)
+       call ferror('read_xsf','Error allocating grid',faterr,file)
     if (istat /= 0) &
-       call ferror('grid_read_xsf','Error allocating grid',faterr,file)
+       call ferror('read_xsf','Error allocating grid',faterr,file)
     read(luc,*,iostat=istat) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     if (istat /= 0) &
-       call ferror('grid_read_xsf','Error reading grid',faterr,file)
+       call ferror('read_xsf','Error reading grid',faterr,file)
 
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
     f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
@@ -609,7 +693,7 @@ contains
 
     call fclose(luc)
 
-  end subroutine grid_read_xsf
+  end subroutine read_xsf
 
   !> Read the UNK generated by QE for Wannier and the wannier90
   !> checkpoint file. The part that reads the checkpoint file has been
@@ -618,16 +702,15 @@ contains
   !>                Giovanni Pizzi, Young-Su Lee,               
   !>                Nicola Marzari, Ivo Souza, David Vanderbilt 
   !> Distributed under GNU/GPL v2.
-  subroutine grid_read_unk(file,filedn,f,omega,nou,dochk)
+  subroutine read_unk(f,file,filedn,omega,nou,dochk)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
-    use types, only: field, realloc
+    use types, only: realloc
     use param, only: bohrtoa
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file (spin up or total)
     character*(*), intent(in) :: filedn !< Input file (spin down)
-    type(field), intent(inout) :: f
     real*8, intent(in) :: omega
     logical, intent(in) :: nou
     logical, intent(in) :: dochk
@@ -648,6 +731,8 @@ contains
     logical :: have_disentangled
     complex*16, allocatable :: u_matrix(:,:,:)
     complex*16 :: cdum
+
+    call f%end()
 
     ! spin
     if (len_trim(filedn) < 1) then
@@ -695,23 +780,22 @@ contains
        read(luc) nbnd 
        read(luc) jbnd 
        if (jbnd > 0) &
-          call ferror("grid_read_unk","number of excluded bands /= 0",faterr)
+          call ferror("read_unk","number of excluded bands /= 0",faterr)
        read(luc) (idum,i=1,jbnd) 
 
        ! real and reciprocal lattice
        read(luc) ((rlatt(i,j),i=1,3),j=1,3)
        if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-          call ferror("grid_read_unk","wannier and current structure's volumes differ by more than 1%",faterr)
+          call ferror("read_unk","wannier and current structure's volumes differ by more than 1%",faterr)
        read(luc) ((rclatt(i,j),i=1,3),j=1,3)
     
        ! number of k-points
        read(luc) nk 
        read(luc) nk1, nk2, nk3
        if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-          call ferror("grid_read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
+          call ferror("read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
 
        ! k-points
-       if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
        allocate(f%wan%kpt(3,nk))
        read(luc) ((f%wan%kpt(i,j),i=1,3),j=1,nk) 
        do i = 1, nk
@@ -723,20 +807,20 @@ contains
              write (uout,*) f%wan%kpt(:,i)
              write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
              write (uout,*) ik1, ik2, ik3
-             call ferror("grid_read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+             call ferror("read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
           end if
        end do
 
        read(luc) idum ! number of nearest k-point neighbours
        read(luc) jbnd ! number of wannier functions
        if (jbnd /= nbnd) &
-          call ferror("grid_read_unk","number of wannier functions /= number of bands",faterr)
+          call ferror("read_unk","number of wannier functions /= number of bands",faterr)
        
        ! checkpoint positon and disentanglement
        read(luc) chkpt1
        read(luc) have_disentangled
        if (have_disentangled) & 
-          call ferror("grid_read_unk","can not handle disentangled wannier functions",faterr)
+          call ferror("read_unk","can not handle disentangled wannier functions",faterr)
 
        ! u and m matrices
        if (allocated(u_matrix)) deallocate(u_matrix)
@@ -850,23 +934,22 @@ contains
     if (allocated(f%wan%nls)) deallocate(f%wan%nls)
     if (allocated(f%wan%u)) deallocate(f%wan%u)
 
-  end subroutine grid_read_unk
+  end subroutine read_unk
 
-  !> Read unkgen file.
-  subroutine grid_read_unkgen(fchk,fchkdn,funkgen,fevc,f,omega,dochk)
+  !> Read unkgen file created by pw2wannier.x.
+  subroutine read_unkgen(f,fchk,fchkdn,funkgen,fevc,omega,dochk)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, fopen_write, uout
-    use types, only: field, realloc
+    use types, only: realloc
     use param, only: bohrtoa
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fchk !< Input file (chk file from wannier90)
     character*(*), intent(in) :: fchkdn !< Input file (chk for the down spin)
     character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
     character*(*), intent(in) :: fevc !< unkgen file (evc file from pw2wannier)
-    type(field), intent(inout) :: f
-    real*8, intent(in) :: omega
-    logical, intent(in) :: dochk
+    real*8, intent(in) :: omega !< unit cell
+    logical, intent(in) :: dochk !< use checkpoint file
 
     integer :: luc, luw
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -882,6 +965,8 @@ contains
     character(len=20) :: chkpt1
     logical :: have_disentangled, ok1, ok2, haschk
     complex*16 :: cdum
+
+    call f%end()
 
     ! spin
     if (len_trim(fchkdn) < 1) then
@@ -902,7 +987,7 @@ contains
        inquire(file=funkgen,exist=ok1)
        inquire(file=fevc,exist=ok2)
        if (.not.ok1.or..not.ok2) &
-          call ferror("grid_read_unkgen","unkgen/evc and chk-sij files not found",faterr)
+          call ferror("read_unkgen","unkgen/evc and chk-sij files not found",faterr)
     end if
 
     ! read the grid size from the unkgen or the checkpoint
@@ -931,20 +1016,20 @@ contains
        read(luc) nbnd 
        read(luc) jbnd 
        if (jbnd > 0) &
-          call ferror("grid_read_unkgen","number of excluded bands /= 0",faterr)
+          call ferror("read_unkgen","number of excluded bands /= 0",faterr)
        read(luc) (idum,i=1,jbnd) 
 
        ! real and reciprocal lattice
        read(luc) ((rlatt(i,j),i=1,3),j=1,3)
        if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-          call ferror("grid_read_unkgen","wannier and current structure's volumes differ by more than 1%",faterr)
+          call ferror("read_unkgen","wannier and current structure's volumes differ by more than 1%",faterr)
        read(luc) ((rclatt(i,j),i=1,3),j=1,3)
     
        ! number of k-points
        read(luc) nk 
        read(luc) nk1, nk2, nk3
        if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-          call ferror("grid_read_unkgen","no monkhorst-pack grid or inconsistent k-point number",faterr)
+          call ferror("read_unkgen","no monkhorst-pack grid or inconsistent k-point number",faterr)
 
        ! k-points
        if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
@@ -959,20 +1044,20 @@ contains
              write (uout,*) f%wan%kpt(:,i)
              write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
              write (uout,*) ik1, ik2, ik3
-             call ferror("grid_read_unkgen","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+             call ferror("read_unkgen","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
           end if
        end do
 
        read(luc) idum ! number of nearest k-point neighbours
        read(luc) jbnd ! number of wannier functions
        if (jbnd /= nbnd) &
-          call ferror("grid_read_unkgen","number of wannier functions /= number of bands",faterr)
+          call ferror("read_unkgen","number of wannier functions /= number of bands",faterr)
        
        ! checkpoint positon and disentanglement
        read(luc) chkpt1
        read(luc) have_disentangled
        if (have_disentangled) & 
-          call ferror("grid_read_unkgen","can not handle disentangled wannier functions",faterr)
+          call ferror("read_unkgen","can not handle disentangled wannier functions",faterr)
 
        ! u and m matrices
        if (allocated(f%wan%u)) deallocate(f%wan%u)
@@ -1026,11 +1111,11 @@ contains
        luc = fopen_read(funkgen,form="unformatted")
        read (luc) ikk, idum, ibnd, ispin
        if (ikk /= 1 .or. idum /= nk .or. ibnd /= nbnd .or. ispin /= nspin) &
-          call ferror("grid_read_unkgen","inconsistent unkgen",faterr)
+          call ferror("read_unkgen","inconsistent unkgen",faterr)
 
        read (luc) n
        if (any(n /= f%n)) &
-          call ferror("grid_read_unkgen","inconsistent unkgen",faterr)
+          call ferror("read_unkgen","inconsistent unkgen",faterr)
 
        ! allocate and read integer indices
        read(luc) naux
@@ -1088,126 +1173,19 @@ contains
     f%wan%nbnd = nbnd
     f%wan%nspin = nspin
 
-  end subroutine grid_read_unkgen
-
-  !> Build a Wannier function from QEs unk(r) functions in the UNK files.
-  subroutine get_qe_wnr(f,ibnd,ispin,n,nk1,nk2,nk3,kpt,fout)
-    use tools_io, only: string, ferror, faterr, fopen_read, fopen_write,&
-       fclose
-    use types, only: field
-    use param, only: tpi, img
-    type(field), intent(in) :: f
-    integer, intent(in) :: ibnd
-    integer, intent(in) :: ispin
-    integer, intent(in) :: n(3)
-    integer, intent(in) :: nk1, nk2, nk3
-    real*8, intent(in) :: kpt(3,nk1*nk2*nk3)
-    complex*16, intent(out) :: fout(nk1*n(1),nk2*n(2),nk3*n(3))
-
-    integer :: luc, i, j, k
-    integer :: nk, ik, ik1, ik2, ik3, nall(3), naux(3), ikk, nbnd
-    integer :: jbnd, imax(3)
-    complex*16 :: raux(n(1),n(2),n(3)), rseq(n(1)*n(2)*n(3))
-    complex*16 :: raux2(n(1),n(2),n(3)), raux3(n(1),n(2),n(3))
-    character(len=:), allocatable :: fname
-    complex*16 :: tnorm, ph
-    complex*16, allocatable :: evc(:)
-
-    fout = 0d0
-    nk = nk1 * nk2 * nk3
-    nall(1) = n(1) * nk1
-    nall(2) = n(2) * nk2
-    nall(3) = n(3) * nk3
-
-    if (allocated(f%wan%ngk)) then
-       allocate(evc(maxval(f%wan%ngk(1:nk))))
-       luc = fopen_read(f%wan%fevc,form="unformatted")
-       if (ispin == 2) then
-          do ik = 1, nk
-             do jbnd = 1, f%wan%nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-             end do
-          end do
-       end if
-    end if
-
-    ! run over k-points
-    do ik = 1, nk
-       ! phase factor
-       do k = 1, n(3)
-          do j = 1, n(2)
-             do i = 1, n(1)
-                raux2(i,j,k) = exp(tpi*img*(kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
-                   kpt(2,ik)*real(j-1,8)/real(n(2),8)+kpt(3,ik)*real(k-1,8)/real(n(3),8)))
-             end do
-          end do
-       end do
-       
-       if (allocated(f%wan%ngk)) then
-          ! from a unkgen
-          if (f%wan%useu) then
-             rseq = 0d0
-             do jbnd = 1, f%wan%nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = &
-                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) + &
-                   f%wan%u(jbnd,ibnd,ik) * evc(1:f%wan%ngk(ik))
-             end do
-          else
-             rseq = 0d0
-             do jbnd = 1, f%wan%nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-                if (jbnd == ibnd) &
-                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
-             end do
-          end if
-          raux = reshape(rseq,shape(raux))
-          call cfftnd(3,n,+1,raux)
-       else
-          ! from the WNK created using the UNK files
-          fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
-          luc = fopen_read(fname,form="unformatted")
-          read(luc) raux
-          call fclose(luc)
-       end if
-
-       ! add the contribution from this k-point
-       raux2 = raux2 * raux
-       do ikk = 1, nk
-          ik1 = nint(kpt(1,ikk) * nk1)
-          ik2 = nint(kpt(2,ikk) * nk2)
-          ik3 = nint(kpt(3,ikk) * nk3)
-          ph = exp(tpi*img*(kpt(1,ik)*ik1+kpt(2,ik)*ik2+kpt(3,ik)*ik3))
-          fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) = &
-             fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) + &
-             raux2 * ph
-       end do
-    end do
-
-    if (allocated(f%wan%ngk)) then
-       deallocate(evc)
-       call fclose(luc)
-    end if
-
-    ! normalize
-    imax = maxloc(abs(fout))
-    tnorm = fout(imax(1),imax(2),imax(3))
-    tnorm = tnorm / abs(tnorm) * nk
-    fout = fout / tnorm
-
-  end subroutine get_qe_wnr
+  end subroutine read_unkgen
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
-  subroutine grid_read_elk(file,f)
+  subroutine read_elk(f,file)
     use tools_io, only: fopen_read, ferror, faterr, fclose
-    use types, only: field
-
+    class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    type(field), intent(out) :: f
 
     integer :: luc, ios
     integer :: n(3), i, j, k
     real*8 :: dum(3)
+
+    call f%end()
 
     ! open file for reading
     luc = fopen_read(file)
@@ -1215,12 +1193,12 @@ contains
     ! grid dimension
     read (luc,*,iostat=ios) n
     if (ios /= 0) &
-       call ferror('grid_read_elk','Error reading n1, n2, n3',faterr,file)
+       call ferror('read_elk','Error reading n1, n2, n3',faterr,file)
 
     f%n = n
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
-       call ferror('grid_read_elk','Error allocating grid',faterr,file)
+       call ferror('read_elk','Error allocating grid',faterr,file)
     do k = 1, n(3)
        do j = 1, n(2)
           do i = 1, n(1)
@@ -1229,20 +1207,19 @@ contains
        end do
     end do
 
+    call fclose(luc)
+
     n = f%n
     f%init = .true.
     f%mode = mode_default
 
-    call fclose(luc)
-
-  end subroutine grid_read_elk
+  end subroutine read_elk
 
   !> Interpolate the function value, first and second derivative at
   !> point x0 (crystallographic coords.) using the grid g.  This
   !> routine is thread-safe.
-  subroutine grinterp(f,xi,y,yp,ypp) 
-    use types, only: field
-    type(field), intent(inout) :: f !< Grid to interpolate
+  subroutine interp(f,xi,y,yp,ypp) 
+    class(grid3), intent(inout) :: f !< Grid to interpolate
     real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
@@ -1268,11 +1245,7 @@ contains
        call grinterp_tricubic(f,x0,y,yp,ypp)
     end if
 
-    ! ! transform to derivatives wrt cryst coordinates
-    ! yp = matmul(transpose(f%x2c),yp)
-    ! ypp = matmul(matmul(transpose(f%x2c),ypp),f%x2c)
-
-  end subroutine grinterp
+  end subroutine interp
 
   !> Interpolate by giving the value of the grid at the nearest point
   !> (or the would-be nearest, it is nearest only in orthogonal
@@ -1280,8 +1253,7 @@ contains
   !> crystallographic coordinates. y is the interpolated value at xi.
   !> This routine is thread-safe.
   subroutine grinterp_nearest(f,x0,y)
-    use types, only: field
-    type(field), intent(in) :: f !< Input grid
+    class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
 
@@ -1299,8 +1271,7 @@ contains
   !> and yp are the value and gradient at xi.  This routine is
   !> thread-safe.
   subroutine grinterp_trilinear(f,x0,y,yp)
-    use types, only: field
-    type(field), intent(in) :: f !< Input grid
+    class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
@@ -1354,8 +1325,7 @@ contains
   !> yp, and ypp are the value, gradient, and Hessian at xi.  This
   !> routine is thread-safe.
   subroutine grinterp_trispline(f,x0,y,yp,ypp)
-    use types, only: field
-    type(field), intent(inout), target :: f !< Input grid
+    class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
@@ -1628,8 +1598,7 @@ contains
   !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
   !> at xi.  This routine is thread-safe.
   subroutine grinterp_tricubic(f,xi,y,yp,ypp)
-    use types, only: field
-    type(field), intent(inout), target :: f !< Input grid
+    class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
@@ -1797,9 +1766,8 @@ contains
   !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in 
   !> orthogonal grids).
   function grid_near(f,x)
-    use types, only: field
 
-    type(field), intent(in) :: f !< Input grid
+    class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
     integer :: grid_near(3) 
 
@@ -1809,9 +1777,8 @@ contains
 
   !> Floor grid point of a point x in crystallographic coords.
   function grid_floor(f,x)
-    use types, only: field
 
-    type(field), intent(in) :: f !< Input grid
+    class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
     integer :: grid_floor(3)
 
@@ -1822,9 +1789,8 @@ contains
   !> Initialize the grid for the trispline interpolation. This is a
   !> modified version of the corresponding subroutine in abinit.
   subroutine init_trispline(f)
-    use tools_io
-    use types, only: field
-    type(field), intent(inout) :: f !< Input grid
+    use tools_io, only: ferror, faterr
+    class(grid3), intent(inout) :: f !< Input grid
 
     integer :: istat
     integer :: d, nmax, i, i1, i2
@@ -1932,14 +1898,15 @@ contains
   end subroutine init_trispline
 
   !> Given the electron density in the isrho slot, calculate the laplacian 
-  !> in islap using FFT.
-  subroutine grid_laplacian(frho,flap)
+  !> in islap using FFT. x2c is the crystallographic to Cartesian matrix
+  !> for this grid.
+  subroutine laplacian(flap,frho,x2c)
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det
     use param, only: pi
-    use types, only: field
-    type(field), intent(in) :: frho
-    type(field), intent(out) :: flap
+    class(grid3), intent(inout) :: flap
+    type(grid3), intent(in) :: frho
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: n(3), i1, i2, i3
 
@@ -1950,24 +1917,22 @@ contains
     integer, allocatable :: ivg(:,:), igfft(:)
     real*8, allocatable :: vgc(:,:)
 
+    call flap%end()
     if (.not.frho%init) &
        call ferror('grid_laplacian','no density grid',faterr)
 
     ! allocate slot
     n = frho%n    
-    flap = frho
-    flap%usecore = .false.
-
-    ! calculate the c2 coefficients again in the first call
-    if (allocated(flap%c2)) deallocate(flap%c2)
-
+    flap%n = n
+    flap%init = .true.
+    flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
     ! bvec
-    bvec(:,1) = cross(frho%x2c(:,3),frho%x2c(:,2))
-    bvec(:,2) = cross(frho%x2c(:,1),frho%x2c(:,3))
-    bvec(:,3) = cross(frho%x2c(:,2),frho%x2c(:,1))
-    vol = abs(det(frho%x2c))
+    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
+    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
+    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
+    vol = abs(det(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     allocate(ivg(3,ntot))
@@ -2015,20 +1980,22 @@ contains
     end do
 
     call cfftnd(3,n,+1,zaux)
+    allocate(flap%f(n(1),n(2),n(3)))
     flap%f = real(reshape(real(zaux,8),shape(flap%f)),8)
 
     deallocate(igfft,vgc,ivg)
 
-  end subroutine grid_laplacian
+  end subroutine laplacian
 
-  !> Calculate the gradient norm of a scalar field using FFT.
-  subroutine grid_gradrho(frho,fgrho)
+  !> Calculate the gradient norm of a scalar field using FFT. x2c is
+  !> the crystallographic to Cartesian matrix for this grid.
+  subroutine gradrho(fgrho,frho,x2c)
     use tools_io, only: faterr, ferror
     use tools_math, only: det, cross
-    use types, only: field
     use param, only: pi
-    type(field), intent(in) :: frho
-    type(field), intent(out) :: fgrho
+    class(grid3), intent(inout) :: fgrho
+    type(grid3), intent(in) :: frho
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: n(3), i, i1, i2, i3, nr1, nr2, iq1, iq2, n12
     complex*16 :: zaux(frho%n(1)*frho%n(2)*frho%n(3))
@@ -2037,27 +2004,26 @@ contains
     integer :: ig, ntot
     integer :: j1, j2, j3, igfft
 
+    call fgrho%end()
     if (.not.frho%init) &
        call ferror('grid_gradgrho','no density grid',faterr)
 
     ! allocate slot
     n = frho%n    
-    fgrho = frho
-    fgrho%usecore = .false.
-
-    ! calculate the c2 coefficients again in the first call
-    if (allocated(fgrho%c2)) deallocate(fgrho%c2)
-
+    fgrho%n = n
+    fgrho%init = .true.
+    fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
     ! bvec
-    bvec(:,1) = cross(frho%x2c(:,3),frho%x2c(:,2))
-    bvec(:,2) = cross(frho%x2c(:,1),frho%x2c(:,3))
-    bvec(:,3) = cross(frho%x2c(:,2),frho%x2c(:,1))
-    vol = abs(det(frho%x2c))
+    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
+    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
+    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
+    vol = abs(det(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     n12 = n(1)*n(2)
+    allocate(fgrho%f(n(1),n(2),n(3)))
     fgrho%f = 0d0
     do i = 1, 3
        zaux = reshape(frho%f,shape(zaux))
@@ -2096,76 +2062,19 @@ contains
     end do
     fgrho%f = sqrt(fgrho%f)
 
-  end subroutine grid_gradrho
+  end subroutine gradrho
 
   !> Given the electron density in the isrho slot, calculate the
-  !> promolecular density in isrhoat. If a fragment is passed, then
-  !> only the atoms in it contribute. The itype can be 1: Hirshfeld
-  !> weight, 2: rho_promolecular 3: rho_core. frho serves as a
-  !> template; only the frho%n is used except if itype == 1.
-  subroutine grid_rhoat(frho,frhoat,itype,fr)
-    use grd_atomic, only: grda_promolecular
-    use types, only: field, fragment
-    type(field), intent(in) :: frho
-    type(field), intent(inout) :: frhoat
-    integer, intent(in) :: itype ! 1: hirsh weight, 2: rho_promolecular 3: rho_core
-    type(fragment), intent(in), optional :: fr
-
-    integer :: n(3), i, j, k
-    real*8 :: x(3), xdelta(3,3), rdum1(3), rdum2(3,3)
-    real*8 :: rhoat, rhocore, rfin
-
-    n = frho%n    
-    frhoat = frho
-    if (.not.allocated(frhoat%f)) allocate(frhoat%f(n(1),n(2),n(3)))
-    if (allocated(frhoat%c2)) deallocate(frhoat%c2)
-    frhoat%usecore = .false.
-    frhoat%x2c = frho%x2c
-    frhoat%c2x = frho%c2x
-
-    do i = 1, 3
-       xdelta(:,i) = 0d0
-       xdelta(i,i) = 1d0 / real(n(i),8)
-    end do
-
-    !$omp parallel do private(x,rhoat,rhocore,rdum1,rdum2,rfin,k,j,i)
-    do k = 1, n(3)
-       do j = 1, n(2)
-          do i = 1, n(1)
-             x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             x = matmul(frhoat%x2c,x)
-
-             if (itype == 1) then
-                call grda_promolecular(x,rhoat,rdum1,rdum2,0,.false.,fr)
-                call grda_promolecular(x,rhocore,rdum1,rdum2,0,.true.,fr)
-                rfin = (frho%f(i,j,k)+rhocore) / max(rhoat,1d-14)
-             else if (itype == 2) then
-                call grda_promolecular(x,rhoat,rdum1,rdum2,0,.false.,fr)
-                rfin = rhoat
-             else
-                call grda_promolecular(x,rhocore,rdum1,rdum2,0,.true.,fr)
-                rfin = rhocore
-             end if
-             !$omp critical(write)
-             frhoat%f(i,j,k) = rfin
-             !$omp end critical(write)
-          end do
-       end do
-    end do
-    !$omp end parallel do
-
-  end subroutine grid_rhoat
-
-  !> Given the electron density in the isrho slot, calculate the
-  !> diagonal component ix (x=1,y=2,z=3) of the Hessian using FFT.
-  subroutine grid_hxx(frho,fxx,ix)
+  !> diagonal component ix (x=1,y=2,z=3) of the Hessian using FFT. x2c
+  !> is the crystallographic to Cartesian matrix for this grid.
+  subroutine hxx(fxx,frho,ix,x2c)
     use tools_io, only: ferror, faterr
     use tools_math, only: det, cross
     use param, only: pi
-    use types, only: field
-    type(field), intent(in) :: frho
-    type(field), intent(out) :: fxx
+    class(grid3), intent(inout) :: fxx
+    type(grid3), intent(in) :: frho
     integer, intent(in) :: ix
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: n(3), i1, i2, i3
 
@@ -2176,24 +2085,22 @@ contains
     integer, allocatable :: ivg(:,:), igfft(:)
     real*8, allocatable :: vgc(:,:)
 
+    call fxx%end()
     if (.not.frho%init) &
-       call ferror('grid_hxx','no density grid',faterr)
+       call ferror('hxx','no density grid',faterr)
 
     ! allocate slot
     n = frho%n    
-    fxx = frho
-    fxx%usecore = .false.
-
-    ! calculate the c2 coefficients again in the first call
-    if (allocated(fxx%c2)) deallocate(fxx%c2)
-
+    fxx%n = n
+    fxx%init = .true.
+    fxx%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
     ! bvec
-    bvec(:,1) = cross(frho%x2c(:,3),frho%x2c(:,2))
-    bvec(:,2) = cross(frho%x2c(:,1),frho%x2c(:,3))
-    bvec(:,3) = cross(frho%x2c(:,2),frho%x2c(:,1))
-    vol = abs(det(frho%x2c))
+    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
+    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
+    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
+    vol = abs(det(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     allocate(ivg(3,ntot))
@@ -2241,10 +2148,117 @@ contains
     end do
 
     call cfftnd(3,n,+1,zaux)
+    allocate(fxx%f(n(1),n(2),n(3)))
     fxx%f = real(reshape(real(zaux,8),shape(fxx%f)),8)
 
     deallocate(igfft,vgc,ivg)
 
-  end subroutine grid_hxx
+  end subroutine hxx
 
-end module grid_tools
+  !> Build a Wannier function from QEs unk(r) functions in the UNK files.
+  subroutine get_qe_wnr(f,ibnd,ispin,n,nk1,nk2,nk3,kpt,fout)
+    use tools_io, only: string, ferror, faterr, fopen_read, fopen_write,&
+       fclose
+    use param, only: tpi, img
+    class(grid3), intent(in) :: f
+    integer, intent(in) :: ibnd
+    integer, intent(in) :: ispin
+    integer, intent(in) :: n(3)
+    integer, intent(in) :: nk1, nk2, nk3
+    real*8, intent(in) :: kpt(3,nk1*nk2*nk3)
+    complex*16, intent(out) :: fout(nk1*n(1),nk2*n(2),nk3*n(3))
+
+    integer :: luc, i, j, k
+    integer :: nk, ik, ik1, ik2, ik3, nall(3), naux(3), ikk, nbnd
+    integer :: jbnd, imax(3)
+    complex*16 :: raux(n(1),n(2),n(3)), rseq(n(1)*n(2)*n(3))
+    complex*16 :: raux2(n(1),n(2),n(3)), raux3(n(1),n(2),n(3))
+    character(len=:), allocatable :: fname
+    complex*16 :: tnorm, ph
+    complex*16, allocatable :: evc(:)
+
+    fout = 0d0
+    nk = nk1 * nk2 * nk3
+    nall(1) = n(1) * nk1
+    nall(2) = n(2) * nk2
+    nall(3) = n(3) * nk3
+
+    if (allocated(f%wan%ngk)) then
+       allocate(evc(maxval(f%wan%ngk(1:nk))))
+       luc = fopen_read(f%wan%fevc,form="unformatted")
+       if (ispin == 2) then
+          do ik = 1, nk
+             do jbnd = 1, f%wan%nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+             end do
+          end do
+       end if
+    end if
+
+    ! run over k-points
+    do ik = 1, nk
+       ! phase factor
+       do k = 1, n(3)
+          do j = 1, n(2)
+             do i = 1, n(1)
+                raux2(i,j,k) = exp(tpi*img*(kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
+                   kpt(2,ik)*real(j-1,8)/real(n(2),8)+kpt(3,ik)*real(k-1,8)/real(n(3),8)))
+             end do
+          end do
+       end do
+
+       if (allocated(f%wan%ngk)) then
+          ! from a unkgen
+          if (f%wan%useu) then
+             rseq = 0d0
+             do jbnd = 1, f%wan%nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = &
+                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) + &
+                   f%wan%u(jbnd,ibnd,ik) * evc(1:f%wan%ngk(ik))
+             end do
+          else
+             rseq = 0d0
+             do jbnd = 1, f%wan%nbnd
+                read (luc) evc(1:f%wan%ngk(ik))
+                if (jbnd == ibnd) &
+                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
+             end do
+          end if
+          raux = reshape(rseq,shape(raux))
+          call cfftnd(3,n,+1,raux)
+       else
+          ! from the WNK created using the UNK files
+          fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
+          luc = fopen_read(fname,form="unformatted")
+          read(luc) raux
+          call fclose(luc)
+       end if
+
+       ! add the contribution from this k-point
+       raux2 = raux2 * raux
+       do ikk = 1, nk
+          ik1 = nint(kpt(1,ikk) * nk1)
+          ik2 = nint(kpt(2,ikk) * nk2)
+          ik3 = nint(kpt(3,ikk) * nk3)
+          ph = exp(tpi*img*(kpt(1,ik)*ik1+kpt(2,ik)*ik2+kpt(3,ik)*ik3))
+          fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) = &
+             fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) + &
+             raux2 * ph
+       end do
+    end do
+
+    if (allocated(f%wan%ngk)) then
+       deallocate(evc)
+       call fclose(luc)
+    end if
+
+    ! normalize
+    imax = maxloc(abs(fout))
+    tnorm = fout(imax(1),imax(2),imax(3))
+    tnorm = tnorm / abs(tnorm) * nk
+    fout = fout / tnorm
+
+  end subroutine get_qe_wnr
+
+end module grid3mod

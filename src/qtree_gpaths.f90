@@ -29,15 +29,13 @@ contains
   !> Trace a GP, projecting on grid points if the trajectory comes
   !> close enough. xp in cartesian, f, gf and gfmod must be known
   !> output xp is garbage
-  subroutine gradient_qtree (xp,base_t,res,iidx,cpout,ier,usestack,trm,fgr,lapgr)
+  subroutine gradient_qtree(xp,base_t,res,iidx,cpout,ier,usestack,trm,fgr,lapgr)
+    use systemmod, only: sy
     use qtree_basic, only: qtreeidx, qtreei, qtreer, nnuc, maxl, minlen,&
        ode_type, ode_b, ode_o, ode_a, ngrd_term, ode_b2, safety, qinv, q1inv,&
        periodic, r_betagp, r_betaint, ode_fsal, nder, savefgr, savelapgr, neargp
-    use varbas, only: nearest_cp, cpcel
-    use fields, only: f, GRD
-    use global, only: color_allocate, qtreefac, stepsize, refden, ode_abserr,&
+    use global, only: color_allocate, qtreefac, stepsize, ode_abserr,&
        killext, mpstep
-    use crystalmod, only: cr
     use tools_io, only: ferror, faterr, uout
     use types, only: scalar_value
 
@@ -109,7 +107,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call grd(f(refden),xtemp,1,res0=res)
+             call sy%f(sy%iref)%grd(xtemp,1,res0=res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -128,7 +126,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call grd(f(refden),xtemp,1,res0=res)
+                call sy%f(sy%iref)%grd(xtemp,1,res0=res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -226,21 +224,21 @@ contains
        end if
 
        ! tasks in crystallographic
-       xp = cr%c2x(xp)
+       xp = sy%c%c2x(xp)
 
        ! get nearest nuclear CP
-       call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
+       call sy%f(sy%iref)%nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
 
        ! is it inside a beta-sphere?
-       if (dist <= r_betagp(cpcel(nid)%idx)) then
-          xp = cpcel(nid)%x
-          cpout = cpcel(nid)%idx
+       if (dist <= r_betagp(sy%f(sy%iref)%cpcel(nid)%idx)) then
+          xp = sy%f(sy%iref)%cpcel(nid)%x
+          cpout = sy%f(sy%iref)%cpcel(nid)%idx
           if (usestack) then
              if (gridp) then
                 do i = 2, nstack-1
                    trm(istack(i),bstack(i)) = int(cpout,1)
                 end do
-                if (dist <= r_betaint(cpcel(nid)%idx)) then
+                if (dist <= r_betaint(sy%f(sy%iref)%cpcel(nid)%idx)) then
                    trm(istack(nstack),bstack(nstack)) = int(-cpout,1)
                 else
                    trm(istack(nstack),bstack(nstack)) = int(cpout,1)
@@ -256,11 +254,11 @@ contains
        end if
 
        ! tasks in cartesian
-       xp = cr%x2c(xp)
+       xp = sy%c%x2c(xp)
 
        ! accept the new point and recalculate f, if applicable
        if (gridp .or. .not.ode_fsal) then
-          call grd(f(refden),xp,nder,res0=res)
+          call sy%f(sy%iref)%grd(xp,nder,res0=res)
           ngrd_term = ngrd_term + 1
           if (gridp) then
              if (savefgr) fgr(idx,base_to) = res%fval
@@ -271,8 +269,8 @@ contains
     end do
 
     ! ! if (debug > 0) then
-    !    xp = cr%c2x(xp)
-    !    call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
+    !    xp = sy%c%c2x(xp)
+    !    call nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
     !    !$omp critical (IO)
     !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
@@ -288,15 +286,13 @@ contains
 
   !> Trace a GP, checking adjacent grid point colors. xp in cartesian,
   !> f, gf and gfmod must be known output xp is garbage.
-  subroutine gradient_color (xp,base_t,rver,res,cpout,ier,trm)
+  subroutine gradient_color(xp,base_t,rver,res,cpout,ier,trm)
+    use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreeidx, nnuc, maxl, ode_type, ode_b,&
        ode_o, ode_a, ngrd_term, ode_b2, safety, periodic,&
        qinv, q1inv, lrotm, cindex, ode_fsal, r_betagp, crys2convex, locate_tetrah
-    use varbas, only: nearest_cp, cpcel
-    use fields, only: f, grd
-    use global, only: color_allocate, stepsize, refden, ode_abserr,&
+    use global, only: color_allocate, stepsize, ode_abserr,&
        ws_origin, killext
-    use crystalmod, only: cr
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 
@@ -357,7 +353,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call grd(f(refden),xtemp,1,res0=res)
+             call sy%f(sy%iref)%grd(xtemp,1,res0=res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -376,7 +372,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call grd(f(refden),xtemp,1,res0=res)
+                call sy%f(sy%iref)%grd(xtemp,1,res0=res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -408,7 +404,7 @@ contains
        end if
 
        ! tasks in crystallographic
-       xp = cr%c2x(xp)
+       xp = sy%c%c2x(xp)
 
        ! transform to WS and find base tetrahedron and rotation matrix.
        if (docolor) then
@@ -478,29 +474,29 @@ contains
 1      continue
 
        ! get nearest nuclear CP
-       call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
+       call sy%f(sy%iref)%nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
 
        ! is it inside a beta-sphere?
-       if (dist <= r_betagp(cpcel(nid)%idx)) then
-          cpout = cpcel(nid)%idx
+       if (dist <= r_betagp(sy%f(sy%iref)%cpcel(nid)%idx)) then
+          cpout = sy%f(sy%iref)%cpcel(nid)%idx
           ier = 0
           return
        end if
 
        ! tasks in cartesian
-       xp = cr%x2c(xp)
+       xp = sy%c%x2c(xp)
 
        ! grd at point and next step
        if (.not.ode_fsal) then
-          call grd(f(refden),xp,1,res0=res)
+          call sy%f(sy%iref)%grd(xp,1,res0=res)
           ngrd_term = ngrd_term + 1
        end if
 
     end do
 
     ! ! if (debug > 0) then
-    !    xp = cr%c2x(xp)
-    !    call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
+    !    xp = sy%c%c2x(xp)
+    !    call nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
     !    !$omp critical (IO)
     !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
@@ -516,14 +512,12 @@ contains
 
   !> Trace a GP, without approximations. xp in cartesian,
   !> f, gf and gfmod must be known output xp is garbage.
-  subroutine gradient_full (xp,base_t,rver,res,cpout,ier)
+  subroutine gradient_full(xp,base_t,rver,res,cpout,ier)
+    use systemmod, only: sy
     use qtree_basic, only: nnuc, ode_o, ode_a, ode_type, ode_b, ngrd_term,&
        ode_b2, safety, qinv, q1inv, periodic, lrotm, r_betagp, ode_fsal,&
        crys2convex, locate_tetrah
-    use varbas, only: nearest_cp, cpcel
-    use fields, only: f, grd
-    use global, only: stepsize, refden, ode_abserr, killext, ws_origin
-    use crystalmod, only: cr
+    use global, only: stepsize, ode_abserr, killext, ws_origin
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 
@@ -568,7 +562,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call grd(f(refden),xtemp,1,res0=res)
+             call sy%f(sy%iref)%grd(xtemp,1,res0=res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -587,7 +581,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call grd(f(refden),xtemp,1,res0=res)
+                call sy%f(sy%iref)%grd(xtemp,1,res0=res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -618,7 +612,7 @@ contains
        end if
 
        ! tasks in crystallographic
-       xp = cr%c2x(xp)
+       xp = sy%c%c2x(xp)
 
        ! check if it has wandered out of the integration region
        if (killext .and. .not.periodic) then
@@ -635,21 +629,21 @@ contains
        end if
 
        ! get nearest nuclear CP
-       call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
+       call sy%f(sy%iref)%nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
 
        ! is it inside a beta-sphere?
-       if (dist <= r_betagp(cpcel(nid)%idx)) then
-          cpout = cpcel(nid)%idx
+       if (dist <= r_betagp(sy%f(sy%iref)%cpcel(nid)%idx)) then
+          cpout = sy%f(sy%iref)%cpcel(nid)%idx
           ier = 0
           return
        end if
 
        ! tasks in cartesian
-       xp = cr%x2c(xp)
+       xp = sy%c%x2c(xp)
 
        ! grd at point and next step
        if (.not.ode_fsal) then
-          call grd(f(refden),xp,1,res0=res)
+          call sy%f(sy%iref)%grd(xp,1,res0=res)
           ngrd_term = ngrd_term + 1
        end if
 

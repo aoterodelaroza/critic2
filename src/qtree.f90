@@ -22,7 +22,10 @@ module qtree
   
   private
 
-  public :: qtree_integration, qtree_setsphfactor
+  public :: qtree_integration
+  private :: qtree_setsph1
+  private :: qtree_setsph2
+  public :: qtree_setsphfactor
 
   integer, parameter :: INT_spherequad_type = INT_lebedev !< type of angular quadrature
   integer, parameter :: INT_spherequad_ntheta = 30 !< number of nodes in theta (polar)
@@ -33,6 +36,7 @@ contains
 
   !> Main driver for the QTREE integration.
   subroutine qtree_integration(lvl, plvl)
+    use systemmod, only: sy
     use qtree_tetrawork, only: paint_inside_spheres, tetrah_subdivide, integ_corner_sum
     use qtree_utils, only: open_difftess, close_difftess, small_writetess, getkeast
     use qtree_basic, only: qtreeidx, qtreei, qtreer, nterm, ngrd_term, ngrd_int, nlocate,&
@@ -44,13 +48,10 @@ contains
     use CUI, only: cubpack_info
     use keast, only: keast_rule, keast_order_num
     use integration, only: int_output
-    use varbas, only: cp, ncpcel, cpcel
-    use fields, only: integ_prop, nprops
     use global, only: quiet, plot_mode, color_allocate, docontacts, ws_use, setsph_lvl,&
        autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
        integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
        ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
-    use crystalmod, only: cr
     use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
 
@@ -66,11 +67,11 @@ contains
     logical :: ok
     real*8 :: xx(3)
     character*50 :: roottess
-    real*8 :: sphereprop(mneq,Nprops)
+    real*8 :: sphereprop(mneq,sy%npropi)
     real*8 :: abserr
     integer :: neval, meaneval, vin(3), vino(3)
     character(10) :: pname
-    logical :: maskprop(Nprops)
+    logical :: maskprop(sy%npropi)
     real*8 :: xface_orig(3,3), xface_end(3,3), vtotal, memsum
     real*8 :: rface_orig(3,3), rface_end(3,3), face_diff(3)
     integer :: nalloc, ralloc
@@ -82,7 +83,7 @@ contains
     ! for the output
     integer, allocatable :: icp(:)
     real*8, allocatable :: xattr(:,:), outprop(:,:)
-    character*30 :: reason(nprops)
+    character*30 :: reason(sy%npropi)
 
     real*8, parameter :: eps = 1d-6
 
@@ -92,7 +93,7 @@ contains
     write (uout,'("* QTREE integration ")')
     write (uout,'("  Please cite: ")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157."/)')
-    if (cr%ismolecule) then
+    if (sy%c%ismolecule) then
        call ferror("qtree","QTREE only available for crystals",faterr)
     end if
     
@@ -142,20 +143,20 @@ contains
     korder = 0
 
     ! mask for the property output
-    do i = 1, nprops
+    do i = 1, sy%npropi
        reason(i) = ""
     end do
     if (prop_mode == 0) then
        maskprop = .false.
        maskprop(1) = .true.
-       do i = 2, nprops
+       do i = 2, sy%npropi
           reason(i) = "because prop_mode = 0"
        end do
     else if (prop_mode == 1) then
        maskprop = .false.
        maskprop(1) = .true.
        maskprop(2) = .true.
-       do i = 3, nprops
+       do i = 3, sy%npropi
           reason(i) = "because prop_mode = 1"
        end do
     else if (prop_mode == 2) then
@@ -163,7 +164,7 @@ contains
        maskprop(1) = .true.
        maskprop(2) = .true.
        maskprop(3) = .true.
-       do i = 4, nprops
+       do i = 4, sy%npropi
           reason(i) = "because prop_mode = 2"
        end do
     else
@@ -216,11 +217,11 @@ contains
     ! end if
 
     ! Integration spehres
-    if (cr%nneq > size(sphfactor)) then
+    if (sy%c%nneq > size(sphfactor)) then
        call ferror('qtree_integration','too many non-equivalent atoms',faterr)
     end if
-    if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
-       pname = integ_prop(INT_radquad_errprop)%prop_name
+    if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
+       pname = sy%propi(INT_radquad_errprop)%prop_name
     else
        pname = "max       "
     end if
@@ -282,11 +283,11 @@ contains
     ! end do
 
     if (ws_scale > 0d0) then
-       vtotal = cr%omega / ws_scale**3 
+       vtotal = sy%c%omega / ws_scale**3 
     else
-       vtotal = cr%omega 
+       vtotal = sy%c%omega 
     end if
-    write (uout,'("  Volume of the primitive unit cell: ",A)') string(cr%omega,'f',decimal=6)
+    write (uout,'("  Volume of the primitive unit cell: ",A)') string(sy%c%omega,'f',decimal=6)
     write (uout,'("  Volume of the integration region: ",A)') string(vtotal,'f',decimal=6)
     write (uout,'("  Shortest tetrahedron side: ",A)') string(minlen,'f',decimal=6)
     write (uout,'("  Longest tetrahedron side (estimated): ",A)') string(maxlen,'f',decimal=6)
@@ -374,7 +375,7 @@ contains
     ! write (uout,'("* BETA sphere integration")')
     sphereprop = 0d0
     do i = 1, nnuc
-       xx = cr%x2c(cp(i)%x)
+       xx = sy%c%x2c(sy%f(sy%iref)%cp(i)%x)
 
        sphereprop(i,:) = 0d0
        if (all(integ_mode(minl+1:maxl) /= 0) .and. r_betaint(i) > eps) then
@@ -407,9 +408,9 @@ contains
        !    write (uout,'(" Avg. evaluations per ray: ",A)') string(meaneval)
        !    write (uout,'("id    property    Integral (sph.)")')
        !    write (uout,'(35("-"))')
-       !    do j = 1, Nprops
+       !    do j = 1, sy%npropi
        !       write (uout,'(99(A,X))') string(j,length=3,justify=ioj_left),&
-       !          string(integ_prop(j)%prop_name,length=10,justify=ioj_center),&
+       !          string(sy%propi(j)%prop_name,length=10,justify=ioj_center),&
        !          string(sphereprop(i,j),'e',decimal=10,length=18,justify=6)
        !    end do
        ! end if
@@ -584,13 +585,13 @@ contains
              xface_orig = matmul(xface_orig,perm3(:,:,pp)) ! permute before calculating convex coordinates
              rface_orig = matmul(cmat(:,:,tt),xface_orig)
              do i = 1, 3
-                xface_orig(:,i) = cr%c2x(xface_orig(:,i))
+                xface_orig(:,i) = sy%c%c2x(xface_orig(:,i))
                 xface_orig(:,i) = xface_orig(:,i) + torig(:,tt)
                 if (.not.invop) then
                    xface_orig(:,i) = matmul(lrotm(1:3,1:3,opid),xface_orig(:,i))
-                   xface_orig(:,i) = xface_orig(:,i) + cr%cen(:,cid)
+                   xface_orig(:,i) = xface_orig(:,i) + sy%c%cen(:,cid)
                 else
-                   xface_orig(:,i) = xface_orig(:,i) + cr%cen(:,cid)
+                   xface_orig(:,i) = xface_orig(:,i) + sy%c%cen(:,cid)
                    xface_orig(:,i) = matmul(lrotm(1:3,1:3,opid),xface_orig(:,i))
                 end if
              end do
@@ -617,7 +618,7 @@ contains
              rface_end = matmul(cmat(:,:,tto),xface_end)
              
              do i = 1, 3
-                xface_end(:,i) = cr%c2x(xface_end(:,i))
+                xface_end(:,i) = sy%c%c2x(xface_end(:,i))
                 xface_end(:,i) = xface_end(:,i) + torig(:,tto)
              end do
 
@@ -720,20 +721,20 @@ contains
 
     ! scale integrals and sum spheres 
     do i = 1, nnuc
-       atprop(i,:) = atprop(i,:) * leqvf / cp(i)%mult
-       atprop(i,2:Nprops) = atprop(i,2:Nprops) + sphereprop(i,2:Nprops)
+       atprop(i,:) = atprop(i,:) * leqvf / sy%f(sy%iref)%cp(i)%mult
+       atprop(i,2:sy%npropi) = atprop(i,2:sy%npropi) + sphereprop(i,2:sy%npropi)
     end do
 
     ! output the results
-    allocate(icp(nnuc),xattr(3,nnuc),outprop(nprops,nnuc))
+    allocate(icp(nnuc),xattr(3,nnuc),outprop(sy%npropi,nnuc))
     k = 0
     do i = 1, nnuc
        k = k + 1
        outprop(:,k) = atprop(i,:)
-       do j = 1, ncpcel
-          if (cpcel(j)%idx == i) then
+       do j = 1, sy%f(sy%iref)%ncpcel
+          if (sy%f(sy%iref)%cpcel(j)%idx == i) then
              icp(k) = j
-             xattr(:,k) = cpcel(j)%x
+             xattr(:,k) = sy%f(sy%iref)%cpcel(j)%x
              exit
           end if
        end do
@@ -755,16 +756,14 @@ contains
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
   !> by analyzing the system at a smaller level (lvl).
   subroutine qtree_setsph1(lvl,verbose)
-    use qtree_tetrawork
-    use qtree_utils
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use elk_private
-    use wien_private
-    use crystalmod
-    use tools_io
+    use systemmod, only: sy
+    use qtree_tetrawork, only: term_rec
+    use qtree_basic, only: qtreeidx, qtreei, qtreer, torig, tvec, maxlen, nnuc,&
+       nt_orig, r_betagp, tvol, cindex, r_betaint, find_beta_rodriguez, get_tlengths,&
+       qtree_initialize, qtree_checksymmetry, qtree_cleanup
+    use fieldmod, only: type_elk, type_wien
+    use global, only: color_allocate, rbetadef, vcutoff, sphfactor, sphintfactor
+    use tools_io, only: ferror, faterr, uout, string
     
     integer, intent(in) :: lvl
     logical, intent(in) :: verbose
@@ -793,8 +792,8 @@ contains
 
     ! get the nnuc
     nnuc = 0
-    do i = 1, ncp
-       if (cp(i)%typ == f(refden)%typnuc) nnuc = nnuc + 1
+    do i = 1, sy%f(sy%iref)%ncp
+       if (sy%f(sy%iref)%cp(i)%typ == sy%f(sy%iref)%typnuc) nnuc = nnuc + 1
     end do
 
     ! allocate arrays
@@ -804,19 +803,19 @@ contains
     ! Calculate sphere sizes (r_betagp and r_betaint)
     nfrozen = .false.
     do i = 1, nnuc
-       if (i<=cr%nneq .and. f(refden)%type == type_elk) then
-          rmt = elk_rmt_atom(f(refden),cr%at(i)%x)
-       elseif (i<=cr%nneq .and. f(refden)%type == type_wien) then
-          rmt = wien_rmt_atom(f(refden),cr%at(i)%x)
+       if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
+          rmt = sy%f(sy%iref)%elk%rmt_atom(sy%c%at(i)%x)
+       elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
+          rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        else
-          rmt = cr%at(i)%rnn2
+          rmt = sy%c%at(i)%rnn2
        end if
 
-       if (i <= cr%nneq) then
-          rref(i) = cr%at(i)%rnn2
+       if (i <= sy%c%nneq) then
+          rref(i) = sy%c%at(i)%rnn2
        else
-          xx = cp(i)%x
-          call nearest_cp(xx,idum,rref(i),type=f(refden)%typnuc,nozero=.true.)
+          xx = sy%f(sy%iref)%cp(i)%x
+          call sy%f(sy%iref)%nearest_cp(xx,idum,rref(i),type=sy%f(sy%iref)%typnuc,nozero=.true.)
           rref(i) = rref(i) / 2d0
        end if
 
@@ -894,7 +893,7 @@ contains
                       do nid = 1, nnuc
                          if (.not.nucmask(nid)) cycle
                          ! check if this point is inside a shell around the nucleus
-                         call nearest_cp(xx,nid0,dist,idx=nid)
+                         call sy%f(sy%iref)%nearest_cp(xx,nid0,dist,idx=nid)
                          if (dist > r_betagp(nid)-mdist .and. dist < r_betagp(nid)+min(rdist,r_betagp(nid))) then
                             idx = cindex(vin,lvl)
                             trm(idx,tto) = int(term_rec(tt,vin,lvl,trm,fgr,lapgr),1)
@@ -929,8 +928,8 @@ contains
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
           write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(2X,A))') &
-             string(i), string(cr%at(i)%name), string(sphfactor(i),'f',decimal=6), &
-             string(r_betagp(i),'f',decimal=6), string(cr%at(i)%rnn2,'f',decimal=6)
+             string(i), string(sy%c%at(i)%name), string(sphfactor(i),'f',decimal=6), &
+             string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
        end if
     end do
     if (verbose) then
@@ -959,22 +958,14 @@ contains
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
   !> by analyzing the system at a smaller level (lvl).
   subroutine qtree_setsph2(verbose)
-    use qtree_tetrawork
-    use qtree_utils
-    use qtree_basic
-    use varbas
-    use fields
-    use surface
-    use integration
-    use navigation
-    use global
-    use elk_private
-    use wien_private
-    use crystalmod
-    use tools_math
-    use tools_io
-    use types
-    
+    use systemmod, only: sy
+    use surface, only: minisurf
+    use qtree_basic, only: nnuc, r_betagp, r_betaint, find_beta_rodriguez
+    use fieldmod, only: type_elk, type_wien
+    use integration, only: lebedev_msetnodes
+    use global, only: sphfactor, sphintfactor
+    use tools_math, only: norm
+    use tools_io, only: uout, string
     logical, intent(in) :: verbose
 
     type(minisurf) :: srf
@@ -994,8 +985,8 @@ contains
 
     ! get the nnuc
     nnuc = 0
-    do i = 1, ncp
-       if (cp(i)%typ == f(refden)%typnuc) nnuc = nnuc + 1
+    do i = 1, sy%f(sy%iref)%ncp
+       if (sy%f(sy%iref)%cp(i)%typ == sy%f(sy%iref)%typnuc) nnuc = nnuc + 1
     end do
 
     ! allocate arrays
@@ -1004,21 +995,21 @@ contains
     ! Calculate sphere sizes (r_betagp and r_betaint)
     ndo = 0
     do i = 1, nnuc
-       if (i<=cr%nneq .and. f(refden)%type == type_elk) then
-          rmt = elk_rmt_atom(f(refden),cr%at(i)%x)
-       elseif (i<=cr%nneq .and. f(refden)%type == type_wien) then
-          rmt = wien_rmt_atom(f(refden),cr%at(i)%x)
-       elseif (i<=cr%nneq) then
-          rmt = cr%at(i)%rnn2
+       if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
+          rmt = sy%f(sy%iref)%elk%rmt_atom(sy%c%at(i)%x)
+       elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
+          rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
+       elseif (i<=sy%c%nneq) then
+          rmt = sy%c%at(i)%rnn2
        else
           rmt = 1d30
        end if
 
-       if (i <= cr%nneq) then
-          rref = cr%at(i)%rnn2
+       if (i <= sy%c%nneq) then
+          rref = sy%c%at(i)%rnn2
        else
-          xx = cp(i)%x
-          call nearest_cp(xx,idum,rref,type=f(refden)%typnuc,nozero=.true.)
+          xx = sy%f(sy%iref)%cp(i)%x
+          call sy%f(sy%iref)%nearest_cp(xx,idum,rref,type=sy%f(sy%iref)%typnuc,nozero=.true.)
           rref = rref / 2d0
        end if
 
@@ -1036,20 +1027,20 @@ contains
        sphfactor(i) = r_betagp(i) / rref
     end do
 
-    call minisurf_init(srf,nleb,0)
-    call minisurf_clean(srf)
+    call srf%begin(nleb,0)
+    call srf%clean()
     call lebedev_msetnodes(srf,nleb)
     !$omp parallel do &
     !$omp private(i,x0,rref,idum,doagain,j,unit,xx,nstep,ier,dist) &
     !$omp schedule(dynamic)
     do ii = 1, ndo
        i = ido(ii)
-       if (i <= cr%nneq) then
-          x0 = cr%at(i)%r
-          rref = cr%at(i)%rnn2
+       if (i <= sy%c%nneq) then
+          x0 = sy%c%at(i)%r
+          rref = sy%c%at(i)%rnn2
        else
-          x0 = cp(i)%r
-          call nearest_cp(xx,idum,rref,type=f(refden)%typnuc,nozero=.true.)
+          x0 = sy%f(sy%iref)%cp(i)%r
+          call sy%f(sy%iref)%nearest_cp(xx,idum,rref,type=sy%f(sy%iref)%typnuc,nozero=.true.)
           rref = rref / 2d0
        end if
 
@@ -1061,7 +1052,7 @@ contains
                 sin(srf%th(j)) * sin(srf%ph(j)),&
                 cos(srf%th(j)) /)
              xx = x0 + r_betagp(i) * unit
-             call gradient(f(refden),xx,+1,nstep,mstep,ier,0,up2beta=.true.)
+             call sy%f(sy%iref)%gradient(xx,+1,nstep,mstep,ier,0,up2beta=.true.)
              dist = norm(xx - x0)
              if (dist > dthres) then
                 !$omp critical (write)
@@ -1075,7 +1066,7 @@ contains
        end do
     end do
     !$omp end parallel do
-    call minisurf_close(srf)
+    call srf%end()
 
     if (verbose) then
        write (uout,'("* BETA-SPHERE sizes calculation, final radii")')
@@ -1083,10 +1074,10 @@ contains
     do i = 1, nnuc
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
-          if (i <= cr%nneq) then
+          if (i <= sy%c%nneq) then
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,2X))') &
-                string(i), string(cr%at(i)%name), string(sphfactor(i),'f',decimal=6), &
-                string(r_betagp(i),'f',decimal=6), string(cr%at(i)%rnn2,'f',decimal=6)
+                string(i), string(sy%c%at(i)%name), string(sphfactor(i),'f',decimal=6), &
+                string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
           else
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,2X))') &
                 string(i), "nnm", string(sphfactor(i),'f',decimal=6), &
@@ -1109,13 +1100,9 @@ contains
   end subroutine qtree_setsph2
 
   subroutine qtree_setsphfactor(line)
-    use qtree_tetrawork
-    use qtree_utils
-    use qtree_basic
-    use crystalmod
-    use global
-    use tools_io
-
+    use systemmod, only: sy
+    use global, only: sphfactor, eval_next
+    use tools_io, only: ferror, faterr, getword, zatguess
     character*(*), intent(in) :: line
     
     integer :: lp, i, idum, isym
@@ -1132,8 +1119,8 @@ contains
        if (isym == -1 .or..not.ok) &
           call ferror('setvariables','Wrong sphfactor',faterr,line)
 
-       do i = 1, cr%nneq
-          if (cr%at(i)%z == isym) then
+       do i = 1, sy%c%nneq
+          if (sy%c%at(i)%z == isym) then
              sphfactor(i) = rdum
           end if
        end do

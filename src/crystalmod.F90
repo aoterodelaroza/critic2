@@ -21,7 +21,9 @@
 ! Structure class and routines for basic crystallography computations
 module crystalmod
   use spglib, only: SpglibDataset
-  use types, only: atom, celatom, neighstar, fragment
+  use types, only: atom, celatom, neighstar
+  use fragmentmod, only: fragment
+  use param, only: maxzat0
   implicit none
 
   private
@@ -96,6 +98,8 @@ module crystalmod
      real*8 :: crys2car_del(3,3) !< crys2car delaunay cell
      integer :: ivws_del(3,16) !< WS neighbor lattice points (del cell, Cartesian)
      logical :: isortho_del !< is the reduced cell orthogonal?
+     ! core charges
+     integer :: zpsp(maxzat0)
 
      !! Initialization level: isenv !!
      ! atomic environment of the cell
@@ -165,7 +169,7 @@ module crystalmod
      procedure :: delaunay_reduction !< Perform the delaunay reduction.
 
      ! output routines
-     procedure :: struct_report !< Write lots of information about the crystal structure to uout
+     procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
 
      ! symmetry and WS cell
@@ -192,12 +196,16 @@ module crystalmod
      procedure :: write_siesta_in
      procedure :: write_dftbp_hsd
      procedure :: write_dftbp_gen
+
+     ! grid writers
+     procedure :: writegrid_cube
+     procedure :: writegrid_vasp
+
+     ! promolecular and core density calculation
+     procedure :: promolecular
+     procedure :: promolecular_grid
   end type crystal
   public :: crystal
-
-  ! the current crystal
-  type(crystal), target :: cr
-  public :: cr
 
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
@@ -301,13 +309,15 @@ contains
     do i = 1, mneq0
        c%at(i)%name = ""
        c%at(i)%z = 0
-       c%at(i)%zpsp = -1
        c%at(i)%qat = 0d0
        c%at(i)%rnn2 = 0d0
     end do
 
     ! no molecular fragments
     c%nmol = 0
+
+    ! core charges
+    c%zpsp = -1
 
     ! the crystal is not initialized until struct_fill is run
     c%isinit = .false. 
@@ -424,6 +434,7 @@ contains
   !> return a the error status through c%isinit.
   subroutine struct_new(c,seed,crashfail)
     use crystalseedmod, only: crystalseed
+    use grid1mod, only: grid1_register_ae
     use global, only: crsmall, atomeps
     use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar, matinv, &
        det, mnorm2
@@ -797,6 +808,11 @@ contains
     if (c%havesym > 0 .and..not.hasspg) &
        call c%spglib_wrap(.false.,.true.)
 
+    ! load the atomic density grids
+    do i = 1, c%nneq
+       call grid1_register_ae(c%at(i)%z)
+    end do
+
     ! the initialization is done - this crystal is ready to use
     c%file = seed%file
     c%isinit = .true.
@@ -1108,8 +1124,9 @@ contains
 
   end function identify_fragment
 
-  !> Identify a fragment in the unit cell from an external
-  !> xyz file. An instance of a fragment object is returned.
+  !> Identify a fragment in the unit cell from an external xyz
+  !> file. An instance of a fragment object is returned. If any of the
+  !> atoms is not correctly identified, return 0.
   function identify_fragment_from_xyz(c,file) result(fr)
     use tools_io, only: fopen_read, string, ferror, faterr, fclose
     use param, only: bohrtoa
@@ -1135,6 +1152,11 @@ contains
        read(lu,*,err=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
        id = c%identify_atom(x0,.true.)
+       if (id == 0) then
+          fr%nat = 0
+          deallocate(fr%at)
+          return
+       endif
        fr%at(i)%r = x0 
        fr%at(i)%x = c%c2x(x0)
        fr%at(i)%cidx = id
@@ -1624,7 +1646,7 @@ contains
   !> molecular in the system and whether the crystal is extended or
   !> molecular. This routine fills nmol, mol, and moldiscrete.
   subroutine fill_molecular_fragments(c)
-    use fragmentmod, only: fragment_cmass
+    use fragmentmod, only: realloc_fragment
     use tools_io, only: ferror, faterr
     use types, only: realloc
     class(crystal), intent(inout) :: c
@@ -1654,7 +1676,7 @@ contains
        ! increment the fragment counter
        c%nmol = c%nmol + 1
        if (c%nmol > size(c%mol)) then
-          call realloc(c%mol,2*c%nmol)
+          call realloc_fragment(c%mol,2*c%nmol)
           call realloc(c%moldiscrete,2*c%nmol)
           c%moldiscrete(c%nmol:2*c%nmol) = .true.
        end if
@@ -1725,13 +1747,13 @@ contains
           c%mol(c%nmol)%at(j)%z = c%at(c%mol(c%nmol)%at(j)%idx)%z
        end do
     end do
-    call realloc(c%mol,c%nmol)
+    call realloc_fragment(c%mol,c%nmol)
     call realloc(c%moldiscrete,c%nmol)
 
     ! translate all fragments to the main cell
     if (.not.c%ismolecule) then
        do i = 1, c%nmol
-          xcm = fragment_cmass(c%mol(i))
+          xcm = c%mol(i)%cmass()
           newl = floor(c%c2x(xcm))
           do j = 1, c%mol(i)%nat
              c%mol(i)%at(j)%x = c%mol(i)%at(j)%x - newl
@@ -1749,6 +1771,7 @@ contains
   !> and whether the fragments are discrete (not connected to copies
   !> of themselves in a different cell). 
   subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
+    use fragmentmod, only: realloc_fragment
     use types, only: realloc
     class(crystal), intent(inout) :: c
     type(fragment), intent(in) :: fri
@@ -1845,7 +1868,7 @@ contains
        fseed(i) = .true.
        nfrag = nfrag + 1
        if (nfrag > size(fr)) then
-          call realloc(fr,2*nfrag)
+          call realloc_fragment(fr,2*nfrag)
           call realloc(isdiscrete,2*nfrag)
        end if
        allocate(fr(nfrag)%at(nat))
@@ -1869,7 +1892,7 @@ contains
           end do
        end do
     end do
-    call realloc(fr,nfrag)
+    call realloc_fragment(fr,nfrag)
     call realloc(isdiscrete,nfrag)
 
   end subroutine listmolecules
@@ -2755,7 +2778,7 @@ contains
     ! initialize the structure
     call c%struct_new(ncseed,.true.)
     call c%struct_fill(.true.,-1,.false.,.true.,.false.)
-    if (verbose) call c%struct_report()
+    if (verbose) call c%report(.true.,.true.)
 
   end subroutine newcell
 
@@ -3017,14 +3040,16 @@ contains
 
   end subroutine delaunay_reduction
 
-  !> Write information about the crystal structure to the output.
-  subroutine struct_report(c)
-    use fragmentmod, only: fragment_cmass
+  !> Write information about the crystal structure to the output. lcrys = 
+  !> information about the structure. lq = charges.
+  subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi
     class(crystal), intent(in) :: c
+    logical, intent(in) :: lcrys
+    logical, intent(in) :: lq
 
     integer, parameter :: natenvmax = 2000
 
@@ -3036,306 +3061,335 @@ contains
     integer, allocatable :: nneig(:), wat(:)
     real*8, allocatable :: dist(:)
 
-    ! Header
-    if (.not.c%ismolecule) then
-       write (uout,'("* Crystal structure")')
-       write (uout,'("  From: ",A)') string(c%file)
-       write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
-          string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-       write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
-          string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
-       write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
-          string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
-    else
-       write (uout,'("* Molecular structure")')
-       write (uout,'("  From: ",A)') string(c%file)
-       write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
-          string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-       write (uout,'("  Encompassing cell dimensions (ang): ",3(A,2X))') &
-          string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
-    endif
+    if (lcrys) then
+       ! Header
+       if (.not.c%ismolecule) then
+          write (uout,'("* Crystal structure")')
+          write (uout,'("  From: ",A)') string(c%file)
+          write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
+             string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
+          write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
+             string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
+          write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
+             string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
+       else
+          write (uout,'("* Molecular structure")')
+          write (uout,'("  From: ",A)') string(c%file)
+          write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
+             string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
+          write (uout,'("  Encompassing cell dimensions (ang): ",3(A,2X))') &
+             string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
+       endif
 
-    ! Compute unit formula, and z
-    if (.not.c%ismolecule) then
-       maxdv = gcd(c%at(1:c%nneq)%mult,c%nneq)
-       write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
-          (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
-       write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
-       write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
-    else
-       write (uout,'("  Number of atoms: ",A)') string(c%ncel)
-    endif
-    nelec = 0
-    do i = 1, c%nneq
-       if (c%at(i)%z >= maxzat) cycle
-       nelec = nelec + c%at(i)%z * c%at(i)%mult
-    end do
-    write (uout,'("  Number of electrons: ",A/)') string(nelec)
-    
-    ! List of atoms in crystallographic coordinates
-    if (.not.c%ismolecule) then
-       write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
-       write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
-          string("x",14,ioj_center), string("y",14,ioj_center),&
-          string("z",14,ioj_center), string("name",10,ioj_center), &
-          string("mult",4,ioj_center), string("Z",4,ioj_center)
-       do i=1, c%nneq
-          write (uout,'(2x,7(A,X))') &
-             string(i,3,ioj_center),&
-             string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
-             string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
-             string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-             string(c%at(i)%name,10,ioj_center), &
-             string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
-       enddo
-       write (uout,*)
+       ! Compute unit formula, and z
+       if (.not.c%ismolecule) then
+          maxdv = gcd(c%at(1:c%nneq)%mult,c%nneq)
+          write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
+             (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
+          write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
+          write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
+       else
+          write (uout,'("  Number of atoms: ",A)') string(c%ncel)
+       endif
+       nelec = 0
+       do i = 1, c%nneq
+          if (c%at(i)%z >= maxzat) cycle
+          nelec = nelec + c%at(i)%z * c%at(i)%mult
+       end do
+       write (uout,'("  Number of electrons (with zero atomic charge): ",A/)') string(nelec)
 
-       write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
-       write (uout,'("# ",6(A,X))') string("at",3,ioj_center),&
-          string("x",14,ioj_center), string("y",14,ioj_center),&
-          string("z",14,ioj_center), string("name",10,ioj_center),&
+       ! List of atoms in crystallographic coordinates
+       if (.not.c%ismolecule) then
+          write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
+          write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
+             string("x",14,ioj_center), string("y",14,ioj_center),&
+             string("z",14,ioj_center), string("name",10,ioj_center), &
+             string("mult",4,ioj_center), string("Z",4,ioj_center)
+          do i=1, c%nneq
+             write (uout,'(2x,7(A,X))') &
+                string(i,3,ioj_center),&
+                string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
+                string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
+                string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+                string(c%at(i)%name,10,ioj_center), &
+                string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
+          enddo
+          write (uout,*)
+
+          write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
+          write (uout,'("# ",6(A,X))') string("at",3,ioj_center),&
+             string("x",14,ioj_center), string("y",14,ioj_center),&
+             string("z",14,ioj_center), string("name",10,ioj_center),&
+             string("Z",4,ioj_center)
+          do i=1,c%ncel
+             write (uout,'(2x,6(A,X))') &
+                string(i,3,ioj_center),&
+                string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
+                string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
+                string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+                string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
+                string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
+          enddo
+          write (uout,*)
+
+          write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
+          do i = 1, 3
+             write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%crys2car(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+          end do
+          write (uout,*)
+       end if
+
+       ! List of atoms in Cartesian coordinates
+       write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
+       write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
+          string("x",16,ioj_center), string("y",16,ioj_center),&
+          string("z",16,ioj_center), string("name",10,ioj_center),&
           string("Z",4,ioj_center)
        do i=1,c%ncel
           write (uout,'(2x,6(A,X))') &
              string(i,3,ioj_center),&
-             string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
-             string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
-             string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+             (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
              string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
              string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
        enddo
        write (uout,*)
 
-       write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
-       do i = 1, 3
-          write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%crys2car(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
-       end do
-       write (uout,*)
-    end if
-
-    ! List of atoms in Cartesian coordinates
-    write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
-    write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
-       string("x",16,ioj_center), string("y",16,ioj_center),&
-       string("z",16,ioj_center), string("name",10,ioj_center),&
-       string("Z",4,ioj_center)
-    do i=1,c%ncel
-       write (uout,'(2x,6(A,X))') &
-          string(i,3,ioj_center),&
-          (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-          string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
-          string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
-    enddo
-    write (uout,*)
-
-    ! Encompassing region for the molecule
-    if (c%ismolecule) then
-       write (uout,'("+ Limits of the molecular cell (in fractions of the encompassing cell).")')
-       write (uout,'("  The region of the encompassing cell outside the molecular cell is")')
-       write (uout,'("  assumed to represent infinity (no CPs or gradient paths in it).")')
-       write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
-       write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
-       write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
-       write (uout,*)
-    end if
-
-    ! Cell volume
-    if (.not.c%ismolecule) then
-       write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
-       write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
-       write (uout,*)
-    end if
-    
-    ! Write symmetry operations 
-    if (.not.c%ismolecule) then
-       write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
-       do k = 1, c%neqv
-          write (uout,'(2X,"Operation ",A,":")') string(k)
-          write (uout,'(2(4X,4(A,X)/),4X,4(A,X))') ((string(c%rotm(i,j,k),'f',length=9,decimal=6,justify=3), j = 1, 4), i = 1, 3)
-       enddo
-       write (uout,*)
-    
-       call c%struct_report_symxyz()
-
-       write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
-       do k = 1, c%ncv
-          write (uout,'(2X,"Vector ",A,": ",3(A,X))') string(k), &
-             (string(c%cen(i,k),'f',length=9,decimal=6), i = 1, 3)
-       enddo
-       write (uout,*)
-    
-       if (c%havesym > 0) then
-          write(uout,'("+ Crystal symmetry information")')
-          if (c%spg%n_atoms > 0) then
-             if (len_trim(c%spg%choice) > 0) then
-                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,", setting ",A,")")') &
-                   string(c%spg%international_symbol), string(c%spg%spacegroup_number),&
-                   string(c%spg%choice)
-             else
-                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
-                   string(c%spg%international_symbol), string(c%spg%spacegroup_number)
-             end if
-             write(uout,'("  Space group (Hall): ",A, " (number ",A,")")') &
-                string(c%spg%hall_symbol), string(c%spg%hall_number)
-             write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
-
-             call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
-             write(uout,'("  Point group (Schoenflies): ",A)') string(schpg)
-             write(uout,'("  Holohedry: ",A)') string(holo_string(holo))
-             write(uout,'("  Laue class: ",A)') string(laue_string(laue))
-          else
-             write(uout,'("  Unavailable because symmetry read from external file")')
-          end if
+       ! Encompassing region for the molecule
+       if (c%ismolecule) then
+          write (uout,'("+ Limits of the molecular cell (in fractions of the encompassing cell).")')
+          write (uout,'("  The region of the encompassing cell outside the molecular cell is")')
+          write (uout,'("  assumed to represent infinity (no CPs or gradient paths in it).")')
+          write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
+          write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
+          write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
           write (uout,*)
        end if
 
-       write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
-       write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname0(iunit)
-       do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
-       end do
-       write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname0(iunit)
-       do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
-       end do
-       write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname0(iunit)
-       do i = 1, 3
-          write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit0(iunit)**2,'f',length=16,decimal=10,justify=5),j=1,3)
-       end do
-       write (uout,*)
-    end if
+       ! Cell volume
+       if (.not.c%ismolecule) then
+          write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
+          write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
+          write (uout,*)
+       end if
 
-    ! Discrete molecules, if available
-    if (allocated(c%nstar) .and. allocated(c%mol) .and. c%nmol > 0) then
-       write (uout,'("+ List of fragments in the system")')
-       write (uout,'("  Number of fragments: ",A)') string(c%nmol)
-       write (uout,'("# Id  nat           Center of mass          Discrete? ")')
-       do i = 1, c%nmol
-          if (c%ismolecule) then
-             xcm = (fragment_cmass(c%mol(i))+c%molx0) * dunit0(iunit)
-          else
-             xcm = c%c2x(fragment_cmass(c%mol(i)))
-          end if
-          write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
-             (string(xcm(j),'f',10,6,3),j=1,3), string(c%moldiscrete(i))
-       end do
-       if (.not.c%ismolecule .and. all(c%moldiscrete(1:c%nmol))) &
-          write (uout,'(/"+ This is a molecular crystal.")')
-       write (uout,*)
-    end if
+       ! Write symmetry operations 
+       if (.not.c%ismolecule) then
+          write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
+          do k = 1, c%neqv
+             write (uout,'(2X,"Operation ",A,":")') string(k)
+             write (uout,'(2(4X,4(A,X)/),4X,4(A,X))') ((string(c%rotm(i,j,k),'f',length=9,decimal=6,justify=3), j = 1, 4), i = 1, 3)
+          enddo
+          write (uout,*)
 
-    ! Number of atoms in the atomic environment
-    if (.not.c%ismolecule) then
-       write (uout,'("+ Atomic environment of the main cell")')
-       write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
-       write (uout,*)
-    end if
+          call c%struct_report_symxyz()
 
-    ! Print out atomic environments and determine the nearest neighbor distances
-    if (c%nneq <= natenvmax) then
-       write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname0(iunit)
-       write (uout,'("# ",6(A,2X))') &
-          string("id",length=4,justify=ioj_center), &
-          string("atom",length=5,justify=ioj_center), &
-          string("nneig",length=5,justify=ioj_center), &
-          string("distance",length=11,justify=ioj_right), &
-          string("nat",length=4,justify=ioj_center), &
-          string("type",length=10,justify=ioj_left)
-       allocate(nneig(10),wat(10),dist(10))
-       do i = 1, c%nneq
-          call c%pointshell(c%at(i)%x,10,nneig,wat,dist)
-          do j = 1, 10
-             if (j == 1) then
-                str1 = string(i,length=4,justify=ioj_center)
-                str2 = string(c%at(i)%name,length=5,justify=ioj_center)
+          write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
+          do k = 1, c%ncv
+             write (uout,'(2X,"Vector ",A,": ",3(A,X))') string(k), &
+                (string(c%cen(i,k),'f',length=9,decimal=6), i = 1, 3)
+          enddo
+          write (uout,*)
+
+          if (c%havesym > 0) then
+             write(uout,'("+ Crystal symmetry information")')
+             if (c%spg%n_atoms > 0) then
+                if (len_trim(c%spg%choice) > 0) then
+                   write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,", setting ",A,")")') &
+                      string(c%spg%international_symbol), string(c%spg%spacegroup_number),&
+                      string(c%spg%choice)
+                else
+                   write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
+                      string(c%spg%international_symbol), string(c%spg%spacegroup_number)
+                end if
+                write(uout,'("  Space group (Hall): ",A, " (number ",A,")")') &
+                   string(c%spg%hall_symbol), string(c%spg%hall_number)
+                write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
+
+                call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
+                write(uout,'("  Point group (Schoenflies): ",A)') string(schpg)
+                write(uout,'("  Holohedry: ",A)') string(holo_string(holo))
+                write(uout,'("  Laue class: ",A)') string(laue_string(laue))
              else
-                str1 = string("",length=4,justify=ioj_center)
-                str2 = " ... "
+                write(uout,'("  Unavailable because symmetry read from external file")')
              end if
-             if (wat(j) /= 0) then
-                write (uout,'(6(2X,A))') &
-                   str1, str2, &
-                   string(nneig(j),length=5,justify=ioj_center), &
-                   string(dist(j)*dunit0(iunit),'f',length=12,decimal=7,justify=5), &
-                   string(wat(j),length=4,justify=ioj_center), &
-                   string(c%at(wat(j))%name,length=10,justify=ioj_left)
-             end if
+             write (uout,*)
+          end if
+
+          write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
+          write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname0(iunit)
+          do i = 1, 3
+             write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
+          write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname0(iunit)
+          do i = 1, 3
+             write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+          end do
+          write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname0(iunit)
+          do i = 1, 3
+             write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit0(iunit)**2,'f',length=16,decimal=10,justify=5),j=1,3)
+          end do
+          write (uout,*)
+       end if
+
+       ! Discrete molecules, if available
+       if (allocated(c%nstar) .and. allocated(c%mol) .and. c%nmol > 0) then
+          write (uout,'("+ List of fragments in the system")')
+          write (uout,'("  Number of fragments: ",A)') string(c%nmol)
+          write (uout,'("# Id  nat           Center of mass          Discrete? ")')
+          do i = 1, c%nmol
+             if (c%ismolecule) then
+                xcm = (c%mol(i)%cmass()+c%molx0) * dunit0(iunit)
+             else
+                xcm = c%c2x(c%mol(i)%cmass())
+             end if
+             write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
+                (string(xcm(j),'f',10,6,3),j=1,3), string(c%moldiscrete(i))
+          end do
+          if (.not.c%ismolecule .and. all(c%moldiscrete(1:c%nmol))) &
+             write (uout,'(/"+ This is a molecular crystal.")')
+          write (uout,*)
+       end if
+
+       ! Number of atoms in the atomic environment
+       if (.not.c%ismolecule) then
+          write (uout,'("+ Atomic environment of the main cell")')
+          write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
+          write (uout,*)
+       end if
+
+       ! Print out atomic environments and determine the nearest neighbor distances
+       if (c%nneq <= natenvmax) then
+          write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname0(iunit)
+          write (uout,'("# ",6(A,2X))') &
+             string("id",length=4,justify=ioj_center), &
+             string("atom",length=5,justify=ioj_center), &
+             string("nneig",length=5,justify=ioj_center), &
+             string("distance",length=11,justify=ioj_right), &
+             string("nat",length=4,justify=ioj_center), &
+             string("type",length=10,justify=ioj_left)
+          allocate(nneig(10),wat(10),dist(10))
+          do i = 1, c%nneq
+             call c%pointshell(c%at(i)%x,10,nneig,wat,dist)
+             do j = 1, 10
+                if (j == 1) then
+                   str1 = string(i,length=4,justify=ioj_center)
+                   str2 = string(c%at(i)%name,length=5,justify=ioj_center)
+                else
+                   str1 = string("",length=4,justify=ioj_center)
+                   str2 = " ... "
+                end if
+                if (wat(j) /= 0) then
+                   write (uout,'(6(2X,A))') &
+                      str1, str2, &
+                      string(nneig(j),length=5,justify=ioj_center), &
+                      string(dist(j)*dunit0(iunit),'f',length=12,decimal=7,justify=5), &
+                      string(wat(j),length=4,justify=ioj_center), &
+                      string(c%at(wat(j))%name,length=10,justify=ioj_left)
+                end if
+             end do
+          end do
+          write (uout,*)
+          deallocate(nneig,wat,dist)
+       else
+          write (uout,'("+ Atomic environments not written because of the large number ")')
+          write (uout,'("  of non-equivalent atoms (",A," > ",A,"). Please, use the")') string(c%nneq), string(natenvmax)
+          write (uout,'("  ENVIRON keyword to calculate the atomic environments.")')
+       end if
+
+       ! Determine nn/2 for every atom
+       write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname0(iunit)
+       write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
+          string("atom",length=5,justify=ioj_center), &
+          string("rnn/2",length=12,justify=ioj_center)
+       do i = 1, c%nneq
+          write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
+             string(c%at(i)%name,length=5,justify=ioj_center), &
+             string(c%at(i)%rnn2*dunit0(iunit),'f',length=12,decimal=7,justify=4)
        end do
        write (uout,*)
-       deallocate(nneig,wat,dist)
-    else
-       write (uout,'("+ Atomic environments not written because of the large number ")')
-       write (uout,'("  of non-equivalent atoms (",A," > ",A,"). Please, use the")') string(c%nneq), string(natenvmax)
-       write (uout,'("  ENVIRON keyword to calculate the atomic environments.")')
+
+       ! Determine the wigner-seitz cell
+       if (.not.c%ismolecule) then
+          write (uout,'("+ Vertex of the WS cell (cryst. coords.)")')
+          write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
+             string("x",length=11,justify=ioj_center),&
+             string("y",length=11,justify=ioj_center),&
+             string("z",length=11,justify=ioj_center),&
+             string("d ("//iunitname0(iunit)//")",length=14,justify=ioj_center)
+          do i = 1, c%nvert_ws
+             x0 = c%x2c(c%vws(:,i))
+             write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
+                (string(c%vws(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
+                string(norm(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
+          enddo
+          write (uout,*)
+
+          write (uout,'("+ Faces of the WS cell")')
+          write (uout,'("  Number of faces: ",A)') string(c%nws)
+          do i = 1, c%nws
+             write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
+                (string(c%iside_ws(j,i),length=2),j=1,c%nside_ws(i))
+          end do
+          write (uout,*)
+
+          write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
+          do i = 1, c%nws
+             write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+                (string(c%ivws(j,i),length=2,justify=ioj_right),j=1,size(c%ivws,1))
+          end do
+          write (uout,*)
+
+          write (uout,'("+ Lattice vectors for the Delaunay reduced cell (fractional)")')
+          do i = 1, 3
+             write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+                (string(nint(c%rdeli(i,j)),length=2,justify=ioj_right),j=1,3)
+          end do
+
+          do i = 1, 3
+             x0 = c%rdeli(i,:)
+             xred(:,i) = c%x2c(x0)
+             xlen(i) = sqrt(dot_product(xred(:,i),xred(:,i)))
+          end do
+          xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
+          xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
+          xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
+
+          write (uout,'("  Delaunay reduced cell lengths: ",99(A,X))') &
+             (string(xlen(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
+          write (uout,'("  Delaunay reduced cell angles: ",99(A,X))') &
+             (string(xang(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
+          write (uout,*)
+
+          write (uout,'("+ Is the cell orthogonal? ",L1)') c%isortho
+          write (uout,'("+ Is the reduced cell orthogonal? ",L1/)') c%isortho_del
+       end if
     end if
 
-    ! Determine nn/2 for every atom
-    write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname0(iunit)
-    write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
-       string("atom",length=5,justify=ioj_center), &
-       string("rnn/2",length=12,justify=ioj_center)
-    do i = 1, c%nneq
-       write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
-          string(c%at(i)%name,length=5,justify=ioj_center), &
-          string(c%at(i)%rnn2*dunit0(iunit),'f',length=12,decimal=7,justify=4)
-    end do
-    write (uout,*)
-
-    ! Determine the wigner-seitz cell
-    if (.not.c%ismolecule) then
-       write (uout,'("+ Vertex of the WS cell (cryst. coords.)")')
-       write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
-          string("x",length=11,justify=ioj_center),&
-          string("y",length=11,justify=ioj_center),&
-          string("z",length=11,justify=ioj_center),&
-          string("d ("//iunitname0(iunit)//")",length=14,justify=ioj_center)
-       do i = 1, c%nvert_ws
-          x0 = c%x2c(c%vws(:,i))
-          write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
-             (string(c%vws(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
-             string(norm(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
-       enddo
-       write (uout,*)
-
-       write (uout,'("+ Faces of the WS cell")')
-       write (uout,'("  Number of faces: ",A)') string(c%nws)
-       do i = 1, c%nws
-          write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
-             (string(c%iside_ws(j,i),length=2),j=1,c%nside_ws(i))
+    if (lq) then
+       ! density grids and number of electrons
+       write (uout,'("* Atomic charges")')
+       write (uout,'("# ",99(A,2X))') &
+          string("nat",length=3,justify=ioj_right), &
+          string("name",length=5,justify=ioj_center), &
+          string("Z",length=2,justify=ioj_right), &
+          string("Q",length=4,justify=ioj_right), &
+          string("ZPSP",length=4,justify=ioj_right)
+       nelec = 0
+       do i = 1, c%nneq
+          if (c%zpsp(c%at(i)%z) > 0) then
+             str1 = string(c%zpsp(c%at(i)%z))
+          else
+             str1 = "--"
+          end if
+          write (uout,'(99(2X,A))') &
+             string(i,length=3,justify=ioj_right), &
+             string(c%at(i)%name,length=5,justify=ioj_center), &
+             string(c%at(i)%z,length=2,justify=ioj_right), &
+             string(c%at(i)%qat,'f',length=4,decimal=1,justify=ioj_right),&
+             str1
+          nelec = nelec + c%at(i)%mult * c%at(i)%z
        end do
-       write (uout,*)
-
-       write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
-       do i = 1, c%nws
-          write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
-             (string(c%ivws(j,i),length=2,justify=ioj_right),j=1,size(c%ivws,1))
-       end do
-       write (uout,*)
-       
-       write (uout,'("+ Lattice vectors for the Delaunay reduced cell (fractional)")')
-       do i = 1, 3
-          write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
-             (string(nint(c%rdeli(i,j)),length=2,justify=ioj_right),j=1,3)
-       end do
-
-       do i = 1, 3
-          x0 = c%rdeli(i,:)
-          xred(:,i) = c%x2c(x0)
-          xlen(i) = sqrt(dot_product(xred(:,i),xred(:,i)))
-       end do
-       xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
-       xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
-       xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
-
-       write (uout,'("  Delaunay reduced cell lengths: ",99(A,X))') &
-          (string(xlen(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
-       write (uout,'("  Delaunay reduced cell angles: ",99(A,X))') &
-          (string(xang(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
-       write (uout,*)
-
-       write (uout,'("+ Is the cell orthogonal? ",L1)') c%isortho
-       write (uout,'("+ Is the reduced cell orthogonal? ",L1/)') c%isortho_del
+       write (uout,'("+ Number of electrons: ",A)') string(nelec)
        write (uout,*)
     end if
 
@@ -3928,7 +3982,7 @@ contains
     real*8, intent(in) :: lrotm(3,3,48), eps
 
     integer :: i, k, p
-    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), eps2
+    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), eps2, xdum(3)
 
     eps2 = eps*eps
     equiv_tetrah = .false.
@@ -3941,7 +3995,8 @@ contains
        do p = 1, 6
           d1 = perm3(p,r1,t2)
           do k = 0, 3
-             d1(k,:) = c%x2c(d1(k,:))
+             xdum = d1(k,:)
+             d1(k,:) = c%x2c(xdum)
              dist2(k) = dot_product(d1(k,:),d1(k,:))
           end do
           if (all(dist2 < eps2)) then
@@ -4054,7 +4109,7 @@ contains
     atzmol = 1
 
     ! Use symmetry to determine the point group. Default options
-    call sym3d(rmat,ax(1,:),ax(2,:),ax(3,:),atZmol,npos,.false.)
+    call sym3d(rmat,ax,atZmol,npos,.false.)
 
     ! fill the reciprocal space matrices and clean up
     if (present(nn) .and. present(rot)) then
@@ -4382,13 +4437,13 @@ contains
   !> and do not close the file.
   subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
-    use fragmentmod, only: fragment_merge_array, fragment_cmass, fragment_init
     use global, only: dunit0, iunit
     use graphics, only: writecml, writexyz, writegjf
     use tools_math, only: norm, nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
        equal
-    use types, only: fragment, realloc
+    use types, only: realloc
+    use fragmentmod, only: fragment, realloc_fragment
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
@@ -4418,7 +4473,7 @@ contains
 
     ! determine the fragments
     if (onemotif) then
-       fr = fragment_merge_array(c%mol(1:c%nmol))
+       call fr%merge_array(c%mol(1:c%nmol),.false.)
        allocate(fr0(c%nmol))
        fr0 = c%mol
        nmol = c%nmol
@@ -4428,7 +4483,7 @@ contains
        nmol = c%nmol
        fr0 = c%mol
        do i = 1, c%nmol
-          cmlist(:,i) = fragment_cmass(c%mol(i))
+          cmlist(:,i) = c%mol(i)%cmass()
           origmol(i) = i
        end do
        ncm = c%nmol
@@ -4461,7 +4516,7 @@ contains
                          if (ncm > size(cmlist,2)) then
                             call realloc(cmlist,3,2*ncm)
                             call realloc(origmol,2*ncm)
-                            call realloc(fr0,2*ncm)
+                            call realloc_fragment(fr0,2*ncm)
                          end if
                          cmlist(:,ncm) = xcm
                          fr0(ncm) = c%mol(l)
@@ -4478,8 +4533,9 @@ contains
              end do
           end do
        end do
-       call realloc(fr0,ncm)
-       fr = fragment_merge_array(fr0)
+
+       call realloc_fragment(fr0,ncm)
+       call fr%merge_array(fr0,.false.)
        nmol = ncm
     else
        if (rcub > 0) then
@@ -4491,7 +4547,7 @@ contains
        endif
        if (molmotif) then
           call c%listmolecules(fr,nmol,fr0,isdiscrete)
-          fr = fragment_merge_array(fr0)
+          call fr%merge_array(fr0,.false.)
        end if
     end if
 
@@ -4565,7 +4621,7 @@ contains
                    do k = 1, i-1
                       aux = trim(file0) // "_" // string(icomb(k))
                       file0 = aux
-                      fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+                      call fr%append(fr0(icomb(k)))
                    end do
                    aux = trim(file0) // "." // fmt
                    file0 = aux
@@ -4583,11 +4639,11 @@ contains
              do j = 1, ncomb
                 call comb(nmol,i,j,icomb)
                 file0 = wroot 
-                call fragment_init(fr)
+                call fr%init()
                 do k = 1, i
                    aux = trim(file0) // "_" // string(icomb(k))
                    file0 = aux
-                   fr = fragment_merge_array((/fr,fr0(icomb(k))/))
+                   call fr%append(fr0(icomb(k)))
                 end do
                 aux = trim(file0) // "." // fmt
                 file0 = aux
@@ -4657,9 +4713,8 @@ contains
   subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
     use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
-    use fragmentmod, only: fragment_merge_array
     use tools_math, only: norm
-    use types, only: fragment
+    use fragmentmod, only: fragment
     use tools_io, only: equal
     use param, only: maxzat, atmcov, jmlcol
     class(crystal), intent(inout) :: c
@@ -4697,7 +4752,7 @@ contains
 
     ! open and get the atom list
     if (onemotif) then
-       fr = fragment_merge_array(c%mol(1:c%nmol))
+       call fr%merge_array(c%mol(1:c%nmol),.false.)
     else
        if (rcub > 0) then
           fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
@@ -4708,7 +4763,7 @@ contains
        endif
        if (molmotif) then
           call c%listmolecules(fr,nmol,fr0,isdiscrete)
-          fr = fragment_merge_array(fr0)
+          call fr%merge_array(fr0,.false.)
        end if
     end if
 
@@ -5962,5 +6017,304 @@ contains
     if (.not.present(lu0)) call fclose(lu)
 
   end subroutine write_dftbp_gen
+
+  !> Write a grid to a cube file. The input is the crystal (c),
+  !> the grid in 3D array form (g), the filename (file), and whether
+  !> to write the whole cube or only the header (onlyheader). If xd0
+  !> is given, use it as the metric of the cube; otherwise, use the
+  !> unit cell. If x00 is given, use it as the origin of the cube
+  !> (in bohr). Otherwise, use the crystal's molx0.
+  subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
+    use global, only: precisecube
+    use tools_io, only: fopen_write, fclose
+    use param, only: eye
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: g(:,:,:)
+    character*(*), intent(in) :: file
+    logical, intent(in) :: onlyheader
+    real*8, intent(in), optional :: xd0(3,3)
+    real*8, intent(in), optional :: x00(3)
+
+    integer :: n(3), i, ix, iy, iz, lu
+    real*8 :: xd(3,3), x0(3)
+
+    do i = 1, 3
+       n(i) = size(g,i)
+    end do
+    if (present(xd0)) then
+       xd = xd0
+    else
+       xd = eye
+       do i = 1, 3
+          xd(:,i) = c%x2c(xd(:,i))
+          xd(:,i) = xd(:,i) / real(n(i),8)
+       end do
+    endif
+    if (present(x00)) then
+       x0 = x00
+    else
+       x0 = c%molx0
+    endif
+
+    lu = fopen_write(file)
+    write(lu,'("critic2-cube")')
+    write(lu,'("critic2-cube")')
+    if (precisecube) then
+       write(lu,'(I5,1x,3(E22.14,1X))') c%ncel, x0
+       do i = 1, 3
+          write(lu,'(I5,1x,3(E22.14,1X))') n(i), xd(:,i)
+       end do
+       do i = 1, c%ncel
+          write(lu,'(I4,F5.1,3(E22.14,1X))') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+       end do
+    else
+       write(lu,'(I5,3(F12.6))') c%ncel, x0
+       do i = 1, 3
+          write(lu,'(I5,3(F12.6))') n(i), xd(:,i)
+       end do
+       do i = 1, c%ncel
+          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+       end do
+    end if
+    if (.not.onlyheader) then
+       do ix = 1, n(1)
+          do iy = 1, n(2)
+             if (precisecube) then
+                write (lu,'(6(1x,e22.14))') (g(ix,iy,iz),iz=1,n(3))
+             else
+                write (lu,'(1p,6(1x,e12.5))') (g(ix,iy,iz),iz=1,n(3))
+             end if
+          enddo
+       enddo
+    end if
+    call fclose(lu)
+
+  end subroutine writegrid_cube
+
+  !> Write a grid to a VASP CHGCAR file. The input is the crystal (c),
+  !> the grid in 3D array form (g), the filename (file), and whether
+  !> to write the whole cube or only the header (onlyheader). 
+  subroutine writegrid_vasp(c,g,file,onlyheader)
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: bohrtoa, maxzat0
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: g(:,:,:)
+    character*(*), intent(in) :: file
+    logical :: onlyheader
+
+    integer :: n(3), i, j, ix, iy, iz, lu
+    integer :: ntyp(maxzat0)
+    character(len=:), allocatable :: line0
+
+    do i = 1, 3
+       n(i) = size(g,i)
+    end do
+
+    lu = fopen_write(file)
+    write (lu,'("CHGCAR generated by critic2")')
+    write (lu,'("1.0")')
+    do i = 1, 3
+       write (lu,'(1p,3(E22.14,X))') c%crys2car(:,i) * bohrtoa
+    end do
+    ! count number of atoms per type
+    ntyp = 0
+    do i = 1, c%ncel
+       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
+    end do
+    line0 = ""
+    do i = 1, maxzat0
+       if (ntyp(i) > 0) then
+          line0 = line0 // " " // string(nameguess(i,.true.))
+       end if
+    end do
+    write (lu,'(A)') line0
+    line0 = ""
+    do i = 1, maxzat0
+       if (ntyp(i) > 0) then
+          line0 = line0 // " " // string(ntyp(i))
+       end if
+    end do
+    write (lu,'(A)') line0
+    write (lu,'("Direct")')
+    do i = 1, maxzat0
+       if (ntyp(i) > 0) then
+          do j = 1, c%ncel
+             if (c%at(c%atcel(j)%idx)%z /= i) cycle
+             write (lu,'(1p,3(E22.14,X))') c%atcel(j)%x
+          end do
+       end if
+    end do
+    write (lu,*)
+    write (lu,'(3(I5,X))') n
+    if (.not.onlyheader) then
+       write (lu,'(5(1x,e22.14))') (((g(ix,iy,iz)*c%omega,ix=1,n(1)),iy=1,n(2)),iz=1,n(3))
+    end if
+    call fclose(lu)
+
+  end subroutine writegrid_vasp
+
+  !> Calculate the core (if zpsp is present) or promolecular densities
+  !> at a point x0 (Cartesian coords) using atomic radial grids. If a
+  !> fragment is given, then only the atoms in it contribute.  This
+  !> routine is thread-safe.
+  subroutine promolecular(c,x0,f,fp,fpp,nder,zpsp,fr,periodic)
+    use grid1mod, only: cgrid, agrid, grid1
+    use fragmentmod, only: fragment
+    use tools_io, only: ferror, faterr
+    use param, only: maxzat
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: x0(3) !< Point in cryst. coords.
+    real*8, intent(out) :: f !< Density
+    real*8, intent(out) :: fp(3) !< Density gradient
+    real*8, intent(out) :: fpp(3,3) !< Density hessian
+    integer, intent(in) :: nder !< Number of derivatives to calculate
+    integer, intent(in), optional :: zpsp(:) 
+    type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
+    logical, intent(in), optional :: periodic
+
+    integer :: i, j, k, ii, iz
+    real*8 :: xc(3), xx(3), r2, r, rinv1, rinv2
+    real*8 :: rho, rhop, rhopp, rfac, radd
+    integer :: idolist(c%nenv), nido
+    logical :: iscore
+    type(grid1), pointer :: g
+
+    f = 0d0
+    fp = 0d0
+    fpp = 0d0
+    iscore = present(zpsp)
+    if (iscore) then
+       if (all(zpsp <= 0)) return
+    end if
+    if (iscore.and..not.allocated(cgrid)) then
+       call ferror("promolecular","cgrid not allocated",faterr)
+    elseif (.not.iscore.and..not.allocated(agrid)) then
+       call ferror("promolecular","agrid not allocated",faterr)
+    end if
+
+    ! initialize 
+    xc = x0
+    if (present(periodic)) then
+       if (periodic) then
+          xc = c%c2x(x0)
+          xc = xc - floor(xc)
+          xc = c%x2c(xc)
+       end if
+    end if
+
+    ! precompute the list of atoms that contribute
+    if (.not.present(fr)) then
+       nido = 0
+       do i = 1, c%nenv
+          iz = c%at(c%atenv(i)%idx)%z
+          if (iz == 0 .or. iz > maxzat) cycle
+          if (iscore) then
+             if (zpsp(iz) <= 0 .or. iz - zpsp(iz) == 0) cycle
+             g => cgrid(iz,zpsp(iz)) 
+          else
+             g => agrid(iz)
+          end if
+          if (.not.g%init) cycle
+          xx = xc - c%atenv(i)%r
+          r2 = dot_product(xx,xx)
+          if (r2 > g%rmax2) cycle
+          nido = nido + 1
+          idolist(nido) = i
+       end do
+    else
+       nido = fr%nat
+    end if
+
+    ! do the sum
+    do ii = 1, nido
+       if (.not.present(fr)) then
+          i = idolist(ii)
+          iz = c%at(c%atenv(i)%idx)%z
+          if (iscore) then
+             g => cgrid(iz,zpsp(iz))
+          else
+             g => agrid(iz)
+          end if
+          xx = xc - c%atenv(i)%r
+       else
+          if (iscore) then
+             g => cgrid(fr%at(ii)%z,zpsp(fr%at(ii)%z))
+          else
+             g => agrid(fr%at(ii)%z)
+          end if
+          xx = xc - fr%at(ii)%r
+       end if
+
+       r2 = dot_product(xx,xx)
+       r = max(sqrt(r2),g%r(1))
+       r = max(r,1d-14)
+       call g%interp(r,rho,rhop,rhopp)
+       rho = max(rho,0d0)
+
+       f = f + rho
+       if (nder < 1) cycle
+       rinv1 = 1d0 / r
+       fp = fp + rhop * xx * rinv1
+       if (nder < 2) cycle
+       rinv2 = rinv1 * rinv1
+       rfac = (rhopp - rhop * rinv1)
+       do j = 1, 3
+          fpp(j,j) = fpp(j,j) + rhop * rinv1 + rfac * rinv2 * xx(j) * xx(j)
+          do k = 1, j-1
+             radd = rfac * rinv2 * xx(j) * xx(k)
+             fpp(j,k) = fpp(j,k) + radd
+             fpp(k,j) = fpp(k,j) + radd
+          end do
+       end do
+    end do
+
+  end subroutine promolecular
+
+  !> Calculate the core or promolecular densities on a grid with n(:)
+  !> points. If a fragment is given, then only the atoms in it
+  !> contribute.  This routine is thread-safe.
+  subroutine promolecular_grid(c,f,n,zpsp,fr)
+    use grid3mod, only: grid3
+    use grid1mod, only: cgrid, agrid, grid1
+    use fragmentmod, only: fragment
+    use param, only: maxzat
+    class(crystal), intent(in) :: c 
+    type(grid3), intent(out) :: f 
+    integer, intent(in) :: n(3)
+    integer, intent(in), optional :: zpsp(:)  
+    type(fragment), intent(in), optional :: fr
+
+    integer :: i, j, k
+    real*8 :: x(3), xdelta(3,3), rdum1(3), rdum2(3,3), rho
+
+    ! initialize 
+    call f%end()
+    f%init = .true.
+    f%n = n
+    allocate(f%f(n(1),n(2),n(3)))
+
+    do i = 1, 3
+       xdelta(:,i) = 0d0
+       xdelta(i,i) = 1d0 / real(n(i),8)
+    end do
+
+    !$omp parallel do private(x,rho,rdum1,rdum2) schedule(dynamic)
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+             x = c%x2c(x)
+
+             call c%promolecular(x,rho,rdum1,rdum2,0,zpsp,fr,.false.)
+
+             !$omp critical(write)
+             f%f(i,j,k) = rho
+             !$omp end critical(write)
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine promolecular_grid
 
 end module crystalmod

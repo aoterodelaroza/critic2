@@ -29,6 +29,7 @@ module tools_math
   public :: genylm
   public :: tosphere
   public :: ylmderiv
+  public :: radial_derivs
   public :: ep
   public :: gcd
   public :: eig
@@ -484,6 +485,113 @@ contains
     hess(5)=(0d0,1d0)*sqrt2*(dm0+dp0)
 
   end subroutine ylmderiv
+
+  !> Given the value of a function (rlm) on an exponential grid defined
+  !> by r_i = a * exp((i-1)*b), calculate the interpolated value (rho)
+  !> and the first (rho1) and second (rho2) derivative at the
+  !> distance r0. Does not apply to grid1_interp.
+  subroutine radial_derivs (rlm,rho,rho1,rho2,r0,a,b)
+    real*8, dimension(:), intent(in) :: rlm
+    real*8, intent(out) :: rho, rho1, rho2
+    real*8, intent(in) :: r0
+    real*8, intent(in) :: a, b
+    
+    ! radial grid derivation formulas
+    integer, parameter :: noef(6,3) = reshape((/&
+       0,  1,  2,  3,  4,  5,&
+       -2, -1,  0,  1,  2,  3,&
+       -5, -4, -3, -2, -1,  0/),shape(noef)) !< Node offsets for 6-point derivation formulas.
+    real*8, parameter :: coef1(6,3) = reshape((/&
+       -274,  600, -600,  400,  -150,  24,&
+       6,  -60,  -40,  120,   -30,   4,&
+       -24, 150, -400,  600,  -600, 274 /),shape(coef1)) !< Coefficients for first derivative.
+    real*8, parameter :: coef2(6,3) = reshape((/&
+       225, -770,  1070,  -780,   305,   -50,&
+       -5,   80,  -150,    80,    -5,     0,&
+       -50,  305,  -780 ,  1070,  -770,   225/),shape(coef2)) !< Coefficients for second derivative.
+    real*8, parameter :: fac1=1d0/120d0 !< Prefactor for first derivative.
+    real*8, parameter :: fac2=2d0/120d0 !< Prefactor for second derivative.
+
+    integer :: ir, temp_ir
+    integer :: nr
+    real*8 :: r, rn, rrlm(4,0:2)
+    real*8, dimension(4,4) :: x1dr12
+    integer :: i, j
+    integer :: ii, jj, ic
+    real*8, dimension(4) :: r1, dr1
+    real*8 :: prod
+
+    nr = size(rlm)
+    rn = a * exp(real(nr-1,8) * b)
+    r = max(r0,a)
+    if (r >= rn) then
+       rho = 0d0
+       rho1 = 0d0
+       rho2 = 0d0
+       return
+    end if
+    ir = min(max(floor(log(r / a) / b + 1),1),nr)
+
+    ! careful with grid limits.
+    if (ir <= 2) then
+       temp_ir = 2
+    else if (ir >= (nr - 2)) then
+       temp_ir = nr - 2
+    else
+       temp_ir = ir
+    end if
+
+    rrlm(:,0) = rlm(temp_ir-1:temp_ir+2)
+    x1dr12 = 0d0
+    do i = 1, 4
+       ii = temp_ir - 2 + i
+       if (ii <= 2) then
+          ic = 1
+       else if ( ii >= (nr-2)) then
+          ic = 3
+       else
+          ic = 2
+       end if
+
+       rrlm(i,1:2) = 0d0
+       do j = 1, 6
+          jj = ii + noef(j,ic)
+          rrlm(i,1) = rrlm(i,1) + coef1(j,ic) * rlm(jj)
+          rrlm(i,2) = rrlm(i,2) + coef2(j,ic) * rlm(jj)
+       end do
+       rrlm(i,1) = rrlm(i,1) * fac1
+       rrlm(i,2) = rrlm(i,2) * fac2
+
+       ! calculate factors and distances
+       r1(i) = a*exp((ii-1)*b)
+       dr1(i) = r - r1(i)
+       do j = 1, i-1
+          x1dr12(i,j) = 1.d0 / (r1(i) - r1(j))
+          x1dr12(j,i) = -x1dr12(i,j)
+       end do
+    end do
+
+    ! interpolate, lagrange 3rd order, 4 nodes
+    rho = 0.d0
+    rho1 = 0.d0
+    rho2 = 0.d0
+    do i = 1, 4
+       prod = 1.d0
+       do j = 1 ,4
+          if (i == j) then
+             cycle
+          end if
+          prod = prod * dr1(j) * x1dr12(i,j)
+       end do
+       rho = rho + rrlm(i,0) * prod
+       rho1 = rho1 + rrlm(i,1) * prod
+       rho2 = rho2 + rrlm(i,2) * prod
+    end do
+
+    rho2 = rho2 / (b * r)**2 - rho1 / b / r**2
+    rho1 = rho1 / b / r
+
+  end subroutine radial_derivs
 
   !> Compute x**i assuming that the value is:
   !>   (a) x**0 = 1D0  no matter what x is.

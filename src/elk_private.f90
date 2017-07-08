@@ -28,63 +28,107 @@ module elk_private
 
   private
 
-  public :: elk_read_out
-  public :: elk_rho2
-  public :: elk_rmt_atom
-  public :: elk_tolap
+  type elkwfn
+     real*8 :: x2c(3,3)
+     real*8 :: c2x(3,3)
+     integer :: lmaxvr
+     real*8, allocatable :: spr(:,:)
+     real*8, allocatable :: spr_a(:)
+     real*8, allocatable :: spr_b(:)
+     integer, allocatable :: nrmt(:)
+     integer :: ngvec
+     real*8, allocatable :: vgc(:,:) 
+     integer, allocatable :: igfft(:)
+     integer :: ncel0
+     real*8, allocatable :: xcel(:,:)
+     integer, allocatable :: iesp(:)
+     real*8, allocatable :: rhomt(:,:,:)
+     complex*16, allocatable :: rhok(:)
+     real*8, allocatable :: rmt(:)
+     integer :: n(3)
+   contains
+     procedure :: end => elkwfn_end !< Deallocate all data
+     procedure :: rmt_atom !< RMT from the closest atom
+     procedure :: read_out !< Read the elkwfn data from an elk's OUT file
+     procedure :: rho2 !< Calculate the density and derivatives at a point
+     procedure :: tolap !< Convert an elkwfn into its Laplacian
+  end type elkwfn
+  public :: elkwfn
+
+  private :: elk_geometry
+  private :: read_elk_state
+  private :: read_elk_myout
+  private :: sortidx
+  private :: local_nearest_atom
 
   ! private to the module
   integer, parameter :: matom = 100
 
 contains
 
-  function elk_rmt_atom(f,x)
-    use types, only: field
-    type(field), intent(in) :: f
+  subroutine elkwfn_end(f)
+    class(elkwfn), intent(inout) :: f
+
+    if (allocated(f%spr)) deallocate(f%spr)
+    if (allocated(f%spr_a)) deallocate(f%spr_a)
+    if (allocated(f%spr_b)) deallocate(f%spr_b)
+    if (allocated(f%nrmt)) deallocate(f%nrmt)
+    if (allocated(f%vgc)) deallocate(f%vgc)
+    if (allocated(f%igfft)) deallocate(f%igfft)
+    if (allocated(f%xcel)) deallocate(f%xcel)
+    if (allocated(f%iesp)) deallocate(f%iesp)
+    if (allocated(f%rhomt)) deallocate(f%rhomt)
+    if (allocated(f%rhok)) deallocate(f%rhok)
+    if (allocated(f%rmt)) deallocate(f%rmt)
+
+  end subroutine elkwfn_end
+
+  !> Return the rmt for the atom at position x
+  function rmt_atom(f,x)
+    class(elkwfn), intent(in) :: f
     real*8, intent(in) :: x(3)
-    real*8 :: elk_rmt_atom
+    real*8 :: rmt_atom
 
     integer :: nid
     real*8 :: dist
     integer :: lvec(3)
 
     call local_nearest_atom(f,x,nid,dist,lvec)
-    elk_rmt_atom = f%rmt(f%iesp(nid))
+    rmt_atom = f%rmt(f%iesp(nid))
     
-  end function elk_rmt_atom
+  end function rmt_atom
 
-  ! read a scalar field from an OUT file 
-  subroutine elk_read_out(f,file,file2,file3)
-    use types, only: field
-    type(field), intent(inout) :: f
+  !> Read a elkwfn scalar field from an OUT file 
+  subroutine read_out(f,file,file2,file3)
+    class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
     
+    call f%end()
+
     ! geometry data
-    call elk_geometry(file2,f)
+    call elk_geometry(f,file2)
 
     ! state data
-    call read_elk_state(file,f)
-    f%init = .true.
+    call read_elk_state(f,file)
 
     ! read the third file
     if (present(file3)) then
-       call read_elk_myout(file3,f)
+       call read_elk_myout(f,file3)
     end if
 
-  end subroutine elk_read_out
+  end subroutine read_out
 
-  ! The following code has been adapted from the elk distribution, version
-  ! 1.3.2
-  ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
-  ! This file is distributed under the terms of the GNU General Public License.
-  subroutine elk_geometry(filename,f)
+  ! The following code has been adapted from the elk distribution,
+  ! version 1.3.2 Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma
+  ! and C. Ambrosch-Draxl.  This file is distributed under the terms
+  ! of the GNU General Public License.
+  subroutine elk_geometry(f,filename)
     use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, zatguess,&
        fclose
     use tools_math, only: matinv
-    use types, only: field
+    class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
-    type(field), intent(inout) :: f
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, nat, j, lp
@@ -155,15 +199,12 @@ contains
   end subroutine elk_geometry
 
   !xx! private readers
-  subroutine read_elk_state(filename,f)
-    use tools_io
-    use tools_math
-    use grid1_tools
-    use types
+  subroutine read_elk_state(f,filename)
+    use tools_io, only: fopen_read, fclose
+    use tools_math, only: cross, det
     use param, only: pi
-    
+    class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
-    type(field), intent(inout) :: f
 
     integer :: lu, i, j, k, idum
     integer :: vdum(3)
@@ -359,14 +400,10 @@ contains
   end subroutine read_elk_state
 
   !xx! private readers
-  subroutine read_elk_myout(filename,f)
-    use tools_io
-    use tools_math
-    use grid1_tools
-    use types
-    
+  subroutine read_elk_myout(f,filename)
+    use tools_io, only: ferror, faterr, fopen_read, fclose
+    class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
-    type(field), intent(inout) :: f
 
     integer :: lu, i, j
     integer :: lmmaxvr, nrmtmax, natmtot, ngrtot
@@ -413,14 +450,10 @@ contains
 
   !> Calculate the density and its derivatives at a point in the unit
   !> cell vpl (crystallographic).  This routine is thread-safe.
-  subroutine elk_rho2(f,vpl,nder,frho,gfrho,hfrho)
-    use types
-    use grid1_tools, only: radial_derivs
-    use tools_io
-    use tools_math
-
-    ! arguments
-    type(field), intent(in) :: f
+  subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
+    use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
+    use tools_io, only: ferror, faterr
+    class(elkwfn), intent(in) :: f
     real(8), intent(in) :: vpl(3)
     real(8), intent(out) :: frho, gfrho(3), hfrho(3,3)
     integer, intent(in) :: nder
@@ -548,7 +581,7 @@ contains
     gfrho = matmul(transpose(f%x2c),gfrho)
     hfrho = matmul(matmul(transpose(f%x2c),hfrho),f%x2c)
 
-  end subroutine elk_rho2
+  end subroutine rho2
 
   subroutine sortidx(n,a,idx)
     ! !INPUT/OUTPUT PARAMETERS:
@@ -616,48 +649,10 @@ contains
     goto 10
   end subroutine sortidx
 
-  ! calculate the nearest atom
-  subroutine local_nearest_atom(f,xp,nid,dist,lvec)
-    use types
-       
-    type(field), intent(in) :: f
-    real*8, intent(in) :: xp(:)
-    integer, intent(inout) :: nid
-    real*8, intent(out) :: dist
-    integer, intent(out) :: lvec(3)
-  
-    real*8 :: temp(3), d2, d2min
-    integer :: j, i1, i2, i3
-  
-    integer, parameter :: imax = 1
-
-    d2min = 1d30
-    do j= 1, f%ncel0
-       do i1 = -imax, imax
-          do i2 = -imax, imax
-             do i3 = -imax, imax
-                temp = f%xcel(:,j) - xp
-                temp = temp - (nint(temp) + (/i1,i2,i3/))
-                temp = matmul(f%x2c,temp)
-                d2 = dot_product(temp,temp)
-                if (d2 < d2min) then
-                   nid = j
-                   d2min = d2
-                   lvec = nint(f%xcel(:,j) - xp) + (/i1,i2,i3/)
-                end if
-             end do
-          end do
-       end do
-    end do
-    dist = sqrt(d2min)
-  
-  end subroutine local_nearest_atom
-
   !> Convert a given wien2k scalar field into its laplacian.
-  subroutine elk_tolap(f)
-    use types
-    use grid1_tools
-    type(field), intent(inout) :: f
+  subroutine tolap(f)
+    use tools_math, only: radial_derivs
+    class(elkwfn), intent(inout) :: f
 
     integer :: ig, ifg
     real*8 :: krec2, rho, rho1, rho2
@@ -699,7 +694,43 @@ contains
        f%rhok(ifg) = f%rhok(ifg) * krec2
     end do
 
-  end subroutine elk_tolap
+  end subroutine tolap
+
+  !> Calculate the nearest atom based on the structural information
+  !> in elkwfn.
+  subroutine local_nearest_atom(f,xp,nid,dist,lvec)
+    class(elkwfn), intent(in) :: f
+    real*8, intent(in) :: xp(:)
+    integer, intent(inout) :: nid
+    real*8, intent(out) :: dist
+    integer, intent(out) :: lvec(3)
+  
+    real*8 :: temp(3), d2, d2min
+    integer :: j, i1, i2, i3
+  
+    integer, parameter :: imax = 1
+
+    d2min = 1d30
+    do j= 1, f%ncel0
+       do i1 = -imax, imax
+          do i2 = -imax, imax
+             do i3 = -imax, imax
+                temp = f%xcel(:,j) - xp
+                temp = temp - (nint(temp) + (/i1,i2,i3/))
+                temp = matmul(f%x2c,temp)
+                d2 = dot_product(temp,temp)
+                if (d2 < d2min) then
+                   nid = j
+                   d2min = d2
+                   lvec = nint(f%xcel(:,j) - xp) + (/i1,i2,i3/)
+                end if
+             end do
+          end do
+       end do
+    end do
+    dist = sqrt(d2min)
+  
+  end subroutine local_nearest_atom
 
 end module elk_private
 

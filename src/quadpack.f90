@@ -36,7 +36,7 @@ contains
 
   subroutine dqagi(f,unit,xnuc,bound,inf,epsabs,epsrel,result,abserr,neval,&
      ier,limit,lenw,last,iwork,work)
-    use fields, only:Nprops
+    use systemmod, only: sy
 !***begin prologue  dqagi
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -197,15 +197,15 @@ contains
       double precision abserr,bound,epsabs,epsrel,result,work
       integer ier,inf,iwork,last,lenw,limit,lvl,l1,l2,l3,neval
 !
-      dimension iwork(limit),work(lenw), result(Nprops)
+      dimension iwork(limit),work(lenw), result(sy%npropi)
 !
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
@@ -238,7 +238,7 @@ contains
 
   subroutine dqagie(f,unit,xnuc,bound,inf,epsabs,epsrel,limit,result,abserr,&
      neval,ier,alist,blist,rlist,elist,iord,last)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqagie
@@ -398,17 +398,17 @@ contains
          ktmin,last,limit,maxerr,neval,nres,nrmax,numrl2
       logical extrap,noext
 !
-      dimension alist(limit),area(Nprops),area1(Nprops),area2(Nprops),&
-         area12(Nprops),blist(limit),elist(limit),iord(limit),&
-         result(Nprops),res3la(3),reseps(Nprops),rlist(Nprops,limit),rlist2(Nprops,52)
+      dimension alist(limit),area(sy%npropi),area1(sy%npropi),area2(sy%npropi),&
+         area12(sy%npropi),blist(limit),elist(limit),iord(limit),&
+         result(sy%npropi),res3la(3),reseps(sy%npropi),rlist(sy%npropi,limit),rlist2(sy%npropi,52)
 !
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
@@ -706,7 +706,7 @@ contains
   end subroutine dqagie
 
   subroutine dqk15i(f,unit,xnuc,boun,inf,a,b,result,abserr,resabs,resasc)
-    use fields, only:Nprops
+    use systemmod, only: sy
     use global, only:INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk15i
@@ -787,17 +787,17 @@ contains
       integer inf,j
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,7),fv2(Nprops,7),fval1(Nprops),fval2(Nprops),&
-         fc(Nprops),fsum(Nprops),resg(Nprops),resk(Nprops),reskh(Nprops),&
-         result(Nprops),xgk(8),wgk(8),wg(8)
+      dimension fv1(sy%npropi,7),fv2(sy%npropi,7),fval1(sy%npropi),fval2(sy%npropi),&
+         fc(sy%npropi),fsum(sy%npropi),resg(sy%npropi),resk(sy%npropi),reskh(sy%npropi),&
+         result(sy%npropi),xgk(8),wgk(8),wg(8)
 !
 !           the abscissae and weights are supplied for the interval
 !           (-1,1).  because of symmetry only the positive abscissae and
@@ -918,7 +918,7 @@ contains
 
   subroutine dqage(f,unit,xnuc,a,b,epsabs,epsrel,key,limit,result,abserr,&
      neval,ier,alist,blist,rlist,elist,iord,last)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqage
@@ -1076,17 +1076,17 @@ contains
          nrmax
 !
       dimension alist(limit),blist(limit),elist(limit),iord(limit),&
-         rlist(Nprops,limit),&
-         area(Nprops), area1(Nprops), area12(Nprops),&
-         area2(Nprops), result(Nprops)
+         rlist(sy%npropi,limit),&
+         area(sy%npropi), area1(sy%npropi), area12(sy%npropi),&
+         area2(sy%npropi), result(sy%npropi)
 !
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
@@ -1159,7 +1159,7 @@ contains
 !
 !           test on accuracy.
 !
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(result(INT_radquad_errprop))
       else
          m1 = maxval(dabs(result))
@@ -1215,7 +1215,7 @@ contains
         errsum = errsum+erro12-errmax
         area = area+area12-rlist(:,maxerr)
         if(defab1.eq.error1.or.defab2.eq.error2) go to 5
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            m1 = dabs(rlist(INT_radquad_errprop,maxerr)-&
               area12(INT_radquad_errprop))
            m2 = dabs(area12(INT_radquad_errprop))
@@ -1227,7 +1227,7 @@ contains
         if(last.gt.10.and.erro12.gt.errmax) iroff2 = iroff2+1
     5   rlist(:,maxerr) = area1
         rlist(:,last) = area2
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            m1 = dabs(area(INT_radquad_errprop))
         else
            m1 = maxval(dabs(area))
@@ -1291,7 +1291,7 @@ contains
   
   subroutine dqag(f,unit,xnuc,a,b,epsabs,epsrel,key,result,abserr,neval,ier,&
          limit,lenw,last,iwork,work)
-    use fields, only: Nprops
+    use systemmod, only: sy
 !***begin prologue  dqag
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -1440,18 +1440,18 @@ contains
 !***routines called  dqage,xerror
 !***end prologue  dqag
       double precision unit(3), xnuc(3)
-      double precision a,abserr,b,epsabs,epsrel,result(Nprops),work
+      double precision a,abserr,b,epsabs,epsrel,result(sy%npropi),work
       integer ier,iwork,key,last,lenw,limit,lvl,l1,l2,l3,neval
 !
       dimension iwork(limit),work(lenw)
 !
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
@@ -1484,7 +1484,7 @@ contains
 
   subroutine dqagse(f,unit,xnuc,a,b,epsabs,epsrel,limit,result,abserr,neval,&
          ier,alist,blist,rlist,elist,iord,last)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqagse
@@ -1645,18 +1645,18 @@ contains
       logical extrap,noext
 !
       dimension alist(limit),blist(limit),elist(limit),iord(limit),&
-         res3la(Nprops,3),&
-         rlist(Nprops,limit),rlist2(Nprops,52),&
-         area(Nprops), area1(Nprops), area12(Nprops), area2(Nprops),&
-         dres(Nprops), reseps(Nprops), result(Nprops)
+         res3la(sy%npropi,3),&
+         rlist(sy%npropi,limit),rlist2(sy%npropi,52),&
+         area(sy%npropi), area1(sy%npropi), area12(sy%npropi), area2(sy%npropi),&
+         dres(sy%npropi), reseps(sy%npropi), result(sy%npropi)
 !
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
@@ -1743,7 +1743,7 @@ contains
 !           test on accuracy.
 !
       dres = dabs(result)
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          mdres = dres(INT_radquad_errprop)
       else
          mdres = maxval(dres)
@@ -1803,7 +1803,7 @@ contains
         errsum = errsum+erro12-errmax
         area = area+area12-rlist(:,maxerr)
         if(defab1.eq.error1.or.defab2.eq.error2) go to 15
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            m1 = dabs(rlist(INT_radquad_errprop,maxerr)-area12(INT_radquad_errprop))
            m2 = dabs(area12(INT_radquad_errprop))
         else
@@ -1816,7 +1816,7 @@ contains
    10   if(last.gt.10.and.erro12.gt.errmax) iroff3 = iroff3+1
    15   rlist(:,maxerr) = area1
         rlist(:,last) = area2
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            m1 = dabs(area(INT_radquad_errprop))
         else
            m1 = maxval(dabs(area))
@@ -1906,7 +1906,7 @@ contains
         abserr = abseps
         result = reseps
         correc = erlarg
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            m1 = dabs(reseps(INT_radquad_errprop))
         else
            m1 = maxval(dabs(reseps))
@@ -1943,7 +1943,7 @@ contains
       if(abserr.gt.errsum) go to 115
       if(all(area.eq.0.0d+00)) go to 130
       go to 110
-105   if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+105   if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(result(INT_radquad_errprop))
          m2 = dabs(area(INT_radquad_errprop))
       else
@@ -1954,7 +1954,7 @@ contains
 !
 !           test on divergence.
 !
-110   if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+110   if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(result(INT_radquad_errprop))
          m2 = dabs(area(INT_radquad_errprop))
       else
@@ -1979,7 +1979,7 @@ contains
 
   subroutine dqags(f,unit,xnuc,a,b,epsabs,epsrel,result,abserr,neval,ier,&
          limit,lenw,last,iwork,work)
-    use fields, only: Nprops
+    use systemmod, only: sy
 !***begin prologue  dqags
 !***date written   800101   (yymmdd)
 !***revision date  830518   (yymmdd)
@@ -2134,18 +2134,18 @@ contains
 !
 !
       double precision unit(3), xnuc(3)
-      double precision a,abserr,b,epsabs,epsrel,result(Nprops),work
+      double precision a,abserr,b,epsabs,epsrel,result(sy%npropi),work
       integer ier,iwork,last,lenw,limit,lvl,l1,l2,l3,neval
 !
       dimension iwork(limit),work(lenw)
 !
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
@@ -2177,7 +2177,7 @@ contains
   end subroutine dqags
 
   subroutine dqelg(n,epstab,result,abserr,res3la,nres)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 
@@ -2236,11 +2236,11 @@ contains
          oflow,res,result,res3la,ss,tol1,tol2,tol3
       double precision m1, m2, m3, m4
       integer i,ib,ib2,ie,indx,k1,k2,k3,limexp,n,newelm,nres,num
-      dimension delta1(Nprops), delta2(Nprops), delta3(Nprops), &
-         e0(Nprops), e1(Nprops), e2(Nprops), e3(Nprops), &
-         epstab(Nprops,52),&
-         res(Nprops),res3la(Nprops,3),&
-         result(Nprops), ss(Nprops)
+      dimension delta1(sy%npropi), delta2(sy%npropi), delta3(sy%npropi), &
+         e0(sy%npropi), e1(sy%npropi), e2(sy%npropi), e3(sy%npropi), &
+         epstab(sy%npropi,52),&
+         res(sy%npropi),res3la(sy%npropi,3),&
+         result(sy%npropi), ss(sy%npropi)
 !
 !           list of major variables
 !           -----------------------
@@ -2288,7 +2288,7 @@ contains
         e2 = res
         delta2 = e2-e1
         delta3 = e1-e0
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            e1abs = dabs(e1(INT_radquad_errprop))
            err2 = dabs(delta2(INT_radquad_errprop))
            err3 = dabs(delta3(INT_radquad_errprop))
@@ -2317,7 +2317,7 @@ contains
    10   e3 = epstab(:,k1)
         epstab(:,k1) = e1
         delta1 = e1-e3
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            err1 = dabs(delta1(INT_radquad_errprop))
            m1 = dabs(e3(INT_radquad_errprop))
         else
@@ -2334,7 +2334,7 @@ contains
         where(delta2 < VSMALL) delta2 = VSMALL
         where(delta3 < VSMALL) delta3 = VSMALL
         ss = 0.1d+01/delta1+0.1d+01/delta2-0.1d+01/delta3
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            epsinf = dabs(ss(INT_radquad_errprop)*e1(INT_radquad_errprop))
         else
            epsinf = maxval(dabs(ss*e1))
@@ -2356,7 +2356,7 @@ contains
         res = e1+0.1d+01/ss
         epstab(:,k1) = res
         k1 = k1-2
-        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+        if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
            m2 = dabs(res(INT_radquad_errprop)-e2(INT_radquad_errprop))
         else
            m2 = maxval(dabs(res-e2))
@@ -2391,7 +2391,7 @@ contains
 !
 !           compute error estimate
 !
-   90 if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+   90 if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(result(INT_radquad_errprop)-res3la(INT_radquad_errprop,1))
          m2 = dabs(result(INT_radquad_errprop)-res3la(INT_radquad_errprop,2))
          m3 = dabs(result(INT_radquad_errprop)-res3la(INT_radquad_errprop,3))
@@ -2406,7 +2406,7 @@ contains
       res3la(:,1) = res3la(:,2)
       res3la(:,2) = res3la(:,3)
       res3la(:,3) = result
-  100 if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+  100 if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(result(INT_radquad_errprop)-res3la(INT_radquad_errprop,1))
          m2 = dabs(result(INT_radquad_errprop)-res3la(INT_radquad_errprop,2))
          m3 = dabs(result(INT_radquad_errprop)-res3la(INT_radquad_errprop,3))
@@ -2422,7 +2422,7 @@ contains
   end subroutine dqelg
 
   subroutine dqk15(f,unit,xnuc,a,b,result,abserr,resabs,resasc)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk15
@@ -2483,18 +2483,18 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,7),fv2(Nprops,7),wg(4),wgk(8),xgk(8),&
-         fc(Nprops), fsum(Nprops), fval1(Nprops), fval2(Nprops),&
-         resabs2(Nprops), resasc2(Nprops),&
-         resg(Nprops), resk(Nprops), reskh(Nprops), result(Nprops)
+      dimension fv1(sy%npropi,7),fv2(sy%npropi,7),wg(4),wgk(8),xgk(8),&
+         fc(sy%npropi), fsum(sy%npropi), fval1(sy%npropi), fval2(sy%npropi),&
+         resabs2(sy%npropi), resasc2(sy%npropi),&
+         resg(sy%npropi), resk(sy%npropi), reskh(sy%npropi), result(sy%npropi)
 !
 !           the abscissae and weights are given for the interval (-1,1).
 !           because of symmetry only the positive abscissae and their
@@ -2603,7 +2603,7 @@ contains
       result = resk*hlgth
       resabs2 = resabs2*dhlgth
       resasc2 = resasc2*dhlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          resabs = resabs2(INT_radquad_errprop)
          resasc = resasc2(INT_radquad_errprop)
          abserr = dabs((resk(INT_radquad_errprop)-&
@@ -2621,7 +2621,7 @@ contains
   end subroutine dqk15
 
   subroutine dqk21(f,unit,xnuc,a,b,result,abserr,resabs,resasc)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk21
@@ -2682,18 +2682,18 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,10),fv2(Nprops,10),wg(5),wgk(11),xgk(11),&
-         fc(Nprops), fsum(Nprops), fval1(Nprops), fval2(Nprops), &
-         resabs2(Nprops), resasc2(Nprops), resg(Nprops),&
-         resk(Nprops), reskh(Nprops), result(Nprops)
+      dimension fv1(sy%npropi,10),fv2(sy%npropi,10),wg(5),wgk(11),xgk(11),&
+         fc(sy%npropi), fsum(sy%npropi), fval1(sy%npropi), fval2(sy%npropi), &
+         resabs2(sy%npropi), resasc2(sy%npropi), resg(sy%npropi),&
+         resk(sy%npropi), reskh(sy%npropi), result(sy%npropi)
 !
 !           the abscissae and weights are given for the interval (-1,1).
 !           because of symmetry only the positive abscissae and their
@@ -2810,7 +2810,7 @@ contains
       result = resk*hlgth
       resabs2 = resabs2*dhlgth
       resasc2 = resasc2*dhlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          resabs = resabs2(INT_radquad_errprop)
          resasc = resasc2(INT_radquad_errprop)
          abserr = dabs((resk(INT_radquad_errprop)-&
@@ -2828,7 +2828,7 @@ contains
   end subroutine dqk21
 
   subroutine dqk31(f,unit,xnuc,a,b,result,abserr,resabs,resasc)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk31
@@ -2889,18 +2889,18 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,15),fv2(Nprops,15),xgk(16),wgk(16),wg(8),&
-         fc(Nprops), fsum(Nprops), fval1(Nprops), fval2(Nprops), &
-         resabs2(Nprops), resasc2(Nprops), resg(Nprops),&
-         resk(Nprops), reskh(Nprops), result(Nprops)
+      dimension fv1(sy%npropi,15),fv2(sy%npropi,15),xgk(16),wgk(16),wg(8),&
+         fc(sy%npropi), fsum(sy%npropi), fval1(sy%npropi), fval2(sy%npropi), &
+         resabs2(sy%npropi), resasc2(sy%npropi), resg(sy%npropi),&
+         resk(sy%npropi), reskh(sy%npropi), result(sy%npropi)
 !
 !           the abscissae and weights are given for the interval (-1,1).
 !           because of symmetry only the positive abscissae and their
@@ -3026,7 +3026,7 @@ contains
       result = resk*hlgth
       resabs2 = resabs2*dhlgth
       resasc2 = resasc2*dhlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          resabs = resabs2(INT_radquad_errprop)
          resasc = resasc2(INT_radquad_errprop)
          abserr = dabs((resk(INT_radquad_errprop)-&
@@ -3044,7 +3044,7 @@ contains
   end subroutine dqk31
 
   subroutine dqk41(f,unit,xnuc,a,b,result,abserr,resabs,resasc)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk41
@@ -3106,18 +3106,18 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,20),fv2(Nprops,20),xgk(21),wgk(21),wg(10),&
-         fc(Nprops), fsum(Nprops), fval1(Nprops), fval2(Nprops), &
-         resabs2(Nprops), resasc2(Nprops), resg(Nprops),&
-         resk(Nprops), reskh(Nprops), result(Nprops)
+      dimension fv1(sy%npropi,20),fv2(sy%npropi,20),xgk(21),wgk(21),wg(10),&
+         fc(sy%npropi), fsum(sy%npropi), fval1(sy%npropi), fval2(sy%npropi), &
+         resabs2(sy%npropi), resasc2(sy%npropi), resg(sy%npropi),&
+         resk(sy%npropi), reskh(sy%npropi), result(sy%npropi)
 !
 !           the abscissae and weights are given for the interval (-1,1).
 !           because of symmetry only the positive abscissae and their
@@ -3258,7 +3258,7 @@ contains
       result = resk*hlgth
       resabs2 = resabs2*dhlgth
       resasc2 = resasc2*dhlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          resabs = resabs2(INT_radquad_errprop)
          resasc = resasc2(INT_radquad_errprop)
          abserr = dabs((resk(INT_radquad_errprop)-&
@@ -3276,7 +3276,7 @@ contains
   end subroutine dqk41
 
   subroutine dqk51(f,unit,xnuc,a,b,result,abserr,resabs,resasc)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk51
@@ -3337,18 +3337,18 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,25),fv2(Nprops,25),xgk(26),wgk(26),wg(13),&
-         fc(Nprops), fsum(Nprops), fval1(Nprops), fval2(Nprops), &
-         resabs2(Nprops), resasc2(Nprops), resg(Nprops),&
-         resk(Nprops), reskh(Nprops), result(Nprops)
+      dimension fv1(sy%npropi,25),fv2(sy%npropi,25),xgk(26),wgk(26),wg(13),&
+         fc(sy%npropi), fsum(sy%npropi), fval1(sy%npropi), fval2(sy%npropi), &
+         resabs2(sy%npropi), resasc2(sy%npropi), resg(sy%npropi),&
+         resk(sy%npropi), reskh(sy%npropi), result(sy%npropi)
 !
 !           the abscissae and weights are given for the interval (-1,1).
 !           because of symmetry only the positive abscissae and their
@@ -3503,7 +3503,7 @@ contains
       result = resk*hlgth
       resabs2 = resabs2*dhlgth
       resasc2 = resasc2*dhlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          resabs = resabs2(INT_radquad_errprop)
          resasc = resasc2(INT_radquad_errprop)
          abserr = dabs((resk(INT_radquad_errprop)-&
@@ -3521,7 +3521,7 @@ contains
   end subroutine dqk51
 
   subroutine dqk61(f,unit,xnuc,a,b,result,abserr,resabs,resasc)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqk61
@@ -3583,18 +3583,18 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,30),fv2(Nprops,30),xgk(31),wgk(31),wg(15),&
-         fc(Nprops), fsum(Nprops), fval1(Nprops), fval2(Nprops), &
-         resabs2(Nprops), resasc2(Nprops), resg(Nprops),&
-         resk(Nprops), reskh(Nprops), result(Nprops)
+      dimension fv1(sy%npropi,30),fv2(sy%npropi,30),xgk(31),wgk(31),wg(15),&
+         fc(sy%npropi), fsum(sy%npropi), fval1(sy%npropi), fval2(sy%npropi), &
+         resabs2(sy%npropi), resasc2(sy%npropi), resg(sy%npropi),&
+         resk(sy%npropi), reskh(sy%npropi), result(sy%npropi)
 !
 !           the abscissae and weights are given for the
 !           interval (-1,1). because of symmetry only the positive
@@ -3759,7 +3759,7 @@ contains
       result = resk*hlgth
       resabs2 = resabs2*dhlgth
       resasc2 = resasc2*dhlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          resabs = resabs2(INT_radquad_errprop)
          resasc = resasc2(INT_radquad_errprop)
          abserr = dabs((resk(INT_radquad_errprop)-&
@@ -3777,7 +3777,7 @@ contains
   end subroutine dqk61
 
   subroutine dqng(f,unit,xnuc,a,b,epsabs,epsrel,result,abserr,neval,ier)
-    use fields, only: Nprops
+    use systemmod, only: sy
     use global, only: INT_radquad_errprop
     use param, only: d1mach_
 !***begin prologue  dqng
@@ -3865,23 +3865,23 @@ contains
       integer ier,ipx,k,l,neval
       interface
          function f(x,unit,xnuc)
-           use fields, only: Nprops, grdall
+           use systemmod, only: sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
-           real*8 :: f(Nprops)
+           real*8 :: f(sy%npropi)
          end function f
       end interface
 !
-      dimension fv1(Nprops,5),fv2(Nprops,5),fv3(Nprops,5),fv4(Nprops,5),&
-         fval1(Nprops), fval2(Nprops),&
+      dimension fv1(sy%npropi,5),fv2(sy%npropi,5),fv3(sy%npropi,5),fv4(sy%npropi,5),&
+         fval1(sy%npropi), fval2(sy%npropi),&
          x1(5),x2(5),x3(11),x4(22),&
          w10(5),w21a(5),w21b(6),w43a(10),w43b(12),w87a(21),w87b(23),&
-         savfun(Nprops,21),&
-         fcentr(Nprops), fval(Nprops), res10(Nprops), res21(Nprops), &
-         res43(Nprops),&
-         res87(Nprops), resabs(Nprops), resasc(Nprops), reskh(Nprops),&
-         result(Nprops)
+         savfun(sy%npropi,21),&
+         fcentr(sy%npropi), fval(sy%npropi), res10(sy%npropi), res21(sy%npropi), &
+         res43(sy%npropi),&
+         res87(sy%npropi), resabs(sy%npropi), resasc(sy%npropi), reskh(sy%npropi),&
+         result(sy%npropi)
 !
 !           the following data statements contain the
 !           abscissae and weights of the integration rules used.
@@ -3903,7 +3903,7 @@ contains
 !
 ! gauss-kronrod-patterson quadrature coefficients for use in
 ! quadpack routine qng.  these coefficients were calculated with
-! 101 decimal digit arithmetic by l. w. fullerton, bell labs, nov 1981.
+! 101 decimal digit arithmetic by L. W. Fullerton, Bell Labs, Nov 1981.
 !
       data x1    (  1) / 0.973906528517171720077964012084452d0 /
       data x1    (  2) / 0.865063366688984510732096688423493d0 /
@@ -4120,7 +4120,7 @@ contains
         resasc = resasc+w21a(k)*(dabs(fv1(:,k)-reskh)+dabs(fv2(:,k)-reskh)) &
            +w21b(k)*(dabs(fv3(:,k)-reskh)+dabs(fv4(:,k)-reskh))
    20 continue
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(res21(INT_radquad_errprop)-res10(INT_radquad_errprop))
       else
          m1 = maxval(dabs(res21-res10))
@@ -4147,7 +4147,7 @@ contains
 !          test for convergence.
 !
       result = res43*hlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(res43(INT_radquad_errprop)-res21(INT_radquad_errprop))
       else
          m1 = maxval(dabs(res43-res21))
@@ -4167,13 +4167,13 @@ contains
         res87 = res87+w87b(k)*(f(absc+centr,unit,xnuc)+f(centr-absc,unit,xnuc))
    60 continue
       result = res87*hlgth
-      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+      if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = dabs(res87(INT_radquad_errprop)-res43(INT_radquad_errprop))
       else
          m1 = maxval(dabs(res87-res43))
       end if
       abserr = dabs(m1*hlgth)
-   65 if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= Nprops) then
+   65 if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
          m1 = resasc(INT_radquad_errprop)
          m2 = resabs(INT_radquad_errprop)
          m3 = result(INT_radquad_errprop)

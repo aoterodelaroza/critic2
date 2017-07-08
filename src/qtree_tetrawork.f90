@@ -38,11 +38,11 @@ contains
   !> Stack-based recursive subdivision of one IWST with in-line
   !> integration.
   subroutine tetrah_subdivide(base_t,iiv,il,acum_atprop,trm,fgr,lapgr,vgr)
+    use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, lustick, &
        cindex, nnuc, tvol, periodic, intcorner_deferred, maxl
     use global, only: color_allocate, plot_mode, plotsticks, minl, integ_mode,&
        checkbeta
-    use crystalmod, only: cr
     use tools_io, only: uout, faterr, ferror
     
     integer, intent(in) :: base_t
@@ -86,7 +86,7 @@ contains
              do j = 1, 3
                 xp(:,i) = xp(:,i) + bvec(:,j,base_t) * iv(j,i) * lrest
              end do
-             xp(:,i) = cr%c2x(xp)
+             xp(:,i) = sy%c%c2x(xp)
           end do
           do i = 1, 4
              do j = i+1, 4
@@ -252,14 +252,12 @@ contains
 
   !> Determines the color of a given grid point, if it is not known. 
   function term_rec(base_t,iver,l,trm,fgr,lapgr)
+    use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreer, qtreeidx, cindex, maxl,&
        torig, tvec, r_betagp, r_betaint, nder, ngrd_term, savefgr,&
        savelapgr, nterm, ngrd1, ngrd2, ndiff, ludif, map_ode_pointers
     use qtree_gpaths, only: gradient_full, gradient_color, gradient_qtree
-    use varbas, only: nearest_cp, cpcel
-    use fields, only: f, grd
-    use global, only: color_allocate, refden, qtree_ode_mode, gradient_mode
-    use crystalmod, only: cr
+    use global, only: color_allocate, qtree_ode_mode, gradient_mode
     use tools_io, only: uout, ferror, faterr
     use types, only: scalar_value
 
@@ -301,19 +299,19 @@ contains
     xcrys = xp
 
     ! inside a beta-sphere?
-    call nearest_cp(xp,nid,dist,type=f(refden)%typnuc)
-    if (dist <= r_betagp(cpcel(nid)%idx)) then
-       if (dist <= r_betaint(cpcel(nid)%idx)) then
-          term_rec = -cpcel(nid)%idx
+    call sy%f(sy%iref)%nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
+    if (dist <= r_betagp(sy%f(sy%iref)%cpcel(nid)%idx)) then
+       if (dist <= r_betaint(sy%f(sy%iref)%cpcel(nid)%idx)) then
+          term_rec = -sy%f(sy%iref)%cpcel(nid)%idx
        else
-          term_rec = cpcel(nid)%idx
+          term_rec = sy%f(sy%iref)%cpcel(nid)%idx
        end if
        return
     end if
 
     ! value at point
-    xp =cr%x2c(xp)
-    call grd(f(refden),xp,nder,res0=res)
+    xp =sy%c%x2c(xp)
+    call sy%f(sy%iref)%grd(xp,nder,res0=res)
     ngrd_term = ngrd_term + 1
     if (savefgr) fgr(idx,base_to) = res%fval
     if (savelapgr) lapgr(idx,base_to) = -res%del2fval
@@ -466,8 +464,8 @@ contains
 
   !> Paint the interior of a tetrahedral region
   subroutine tetrah_paint(base_t,iv,l,color,trm)
-    use qtree_basic
-    use global
+    use qtree_basic, only: qtreei, qtreeidx, maxl, cindex
+    use global, only: color_allocate
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -575,10 +573,8 @@ contains
   !> Keast integration for a tetrahedron completely contained inside
   !> the region represented by the grid.
   subroutine integ_inner_keast(base_t,iv,l,color,klvl,acum_atprop)
-    use qtree_basic
-    use keast
-    use fields
-    use global
+    use systemmod, only: sy
+    use qtree_basic, only: kxyz, borig, bvec, maxl, ngrd_int, tvol, kw, korder
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -589,7 +585,7 @@ contains
 
     integer :: i, j, lrest, l8
     real*8 :: xp(3)
-    real*8 :: lprop(Nprops)
+    real*8 :: lprop(sy%npropi)
     real*8 :: ccrd(4)
 
     ! volume
@@ -607,9 +603,9 @@ contains
        do j = 1, 3
           xp = xp + bvec(:,j,base_t) * dot_product(ccrd,iv(j,:)*lrest)
        end do
-       call grdall(xp,lprop)
+       call sy%grdall(xp,lprop)
        ngrd_int = ngrd_int + 1
-       acum_atprop(color,2:Nprops) = acum_atprop(color,2:Nprops) + tvol(base_t) / l8 * lprop(2:Nprops) * kw(i,klvl)
+       acum_atprop(color,2:sy%npropi) = acum_atprop(color,2:sy%npropi) + tvol(base_t) / l8 * lprop(2:sy%npropi) * kw(i,klvl)
     end do
 
   end subroutine integ_inner_keast
@@ -617,12 +613,11 @@ contains
   !> Cubpack integration for a tetrahedron completely contained inside
   !> the region represented by the grid.
   subroutine integ_inner_cubpack(base_t,iv,l,color,acum_atprop)
-    use qtree_basic
-    use CUI
-    use varbas
-    use fields
-    use global
-    use tools_io
+    use systemmod, only: sy
+    use qtree_basic, only: borig, bvec, maxl, ngrd_int, tvol
+    use CUI, only: cubatr
+    use global, only: cub_abs, cub_rel, cub_mpts
+    use tools_io, only: ferror, faterr, uout
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -632,7 +627,7 @@ contains
 
     integer :: i, j, lrest, l8
     real*8 :: vert(3,4,1)
-    real*8 :: lprop(2:Nprops), cub_abserr(2:Nprops)
+    real*8 :: lprop(2:sy%npropi), cub_abserr(2:sy%npropi)
     integer :: ier, neval
 
     ! volume
@@ -653,7 +648,7 @@ contains
     ier = 1
     lprop = 0d0
     cub_abserr = 0d0
-    call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+    call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
        IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
     ngrd_int = ngrd_int + neval
     if (ier == 1) then
@@ -663,21 +658,18 @@ contains
     else if (ier > 1) then
        call ferror('integ_inner_cubpack','severe error in cubpack',faterr)
     end if
-    acum_atprop(color,2:Nprops) = acum_atprop(color,2:Nprops) + lprop
+    acum_atprop(color,2:sy%npropi) = acum_atprop(color,2:sy%npropi) + lprop
 
   end subroutine integ_inner_cubpack
 
   !> Keast integration for a tetrahedron on a (external or
   !> internal) interatomic surface
   subroutine integ_border_keast(base_t,iv,l,ts,klvl,acum_atprop)
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use keast
-    use crystalmod
+    use systemmod, only: sy
+    use qtree_basic, only: borig, bvec, kxyz, maxlen, ngrd_int, nnuc, tvol, r_betaint,&
+       kw, korder
     use tools_math, only: mixed
-    use tools_io
+    use tools_io, only: ferror, faterr, uout
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -688,7 +680,7 @@ contains
 
     integer :: i, j, k, l8, unk, its
     real*8 :: xp(3), temp(3)
-    real*8 :: lprop(Nprops), lprop1(Nprops)
+    real*8 :: lprop(sy%npropi), lprop1(sy%npropi)
     integer :: nid
     real*8 :: ccrd(4), dist, xnuc(3), r2
     real*8 :: xvec(3,4), xint(3,4), xdot(4,4), dcoef, den, lvol
@@ -711,19 +703,19 @@ contains
        do i = 1, 3
           xp = xp + bvec(:,i,base_t) * 0.25d0 * sum(iv(i,:))
        end do
-       xp = cr%c2x(xp)
+       xp = sy%c%c2x(xp)
        r2 = 1d30
-       do i=1,ncpcel
-          if (cpcel(i)%idx /= its) cycle
-          temp = cpcel(i)%x - xp
-          call cr%shortest(temp,dist)
+       do i = 1, sy%f(sy%iref)%ncpcel
+          if (sy%f(sy%iref)%cpcel(i)%idx /= its) cycle
+          temp = sy%f(sy%iref)%cpcel(i)%x - xp
+          call sy%c%shortest(temp,dist)
           if (dist < r2) then
              nid = i
              r2 = dist
-             lvec = nint(cpcel(nid)%x - xp - temp)
+             lvec = nint(sy%f(sy%iref)%cpcel(nid)%x - xp - temp)
           end if
        end do
-       xnuc = cr%x2c(cpcel(nid)%x - lvec)
+       xnuc = sy%c%x2c(sy%f(sy%iref)%cpcel(nid)%x - lvec)
        if (abs(sqrt(r2)-r_betaint(its)) > 2d0*maxlen) then
           call ferror('integ_border_keast','unknown xnuc for the tetrahedron',faterr)
        end if
@@ -784,21 +776,21 @@ contains
              do j = 1, 3
                 xp = xp + bvec(:,j,base_t) * dot_product(ccrd,iv(j,:))
              end do
-             call grdall(xp,lprop1)
+             call sy%grdall(xp,lprop1)
              ngrd_int = ngrd_int + 1
-             lprop(2:Nprops) = lprop1(2:Nprops) * tvol(base_t) / l8
+             lprop(2:sy%npropi) = lprop1(2:sy%npropi) * tvol(base_t) / l8
 
              ! substract the tetrahedron inside the sphere
              xp = 0d0
              do j = 1, 4
                 xp = xp + xvec(:,j) * ccrd(j)
              end do
-             call grdall(xp,lprop1)
+             call sy%grdall(xp,lprop1)
              ngrd_int = ngrd_int + 1
-             lprop1(2:Nprops) = lprop1(2:Nprops) * lvol
-             lprop(2:Nprops) = lprop(2:Nprops) - lprop1(2:Nprops)
+             lprop1(2:sy%npropi) = lprop1(2:sy%npropi) * lvol
+             lprop(2:sy%npropi) = lprop(2:sy%npropi) - lprop1(2:sy%npropi)
 
-             acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop(2:Nprops) * kw(i,klvl)
+             acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop(2:sy%npropi) * kw(i,klvl)
           end do
 
        else if (ins == 3) then
@@ -834,9 +826,9 @@ contains
              do j = 1, 4
                 xp = xp + xvec(:,j) * ccrd(j)
              end do
-             call grdall(xp,lprop)
+             call sy%grdall(xp,lprop)
              ngrd_int = ngrd_int + 1
-             acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop(2:Nprops) * lvol * kw(i,klvl)
+             acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop(2:sy%npropi) * lvol * kw(i,klvl)
           end do
 
        else if (ins == 2) then
@@ -891,10 +883,10 @@ contains
              lvol = abs(mixed(xint(:,1)-xvec(:,out1),&
                 xint(:,2)-xvec(:,out1),&
                 xint(:,3)-xvec(:,out1)) / 6d0)
-             call grdall(xp,lprop1)
+             call sy%grdall(xp,lprop1)
              ngrd_int = ngrd_int + 1
-             lprop1(2:Nprops) = lprop1(2:Nprops) * lvol
-             lprop(2:Nprops) = lprop(2:Nprops) + lprop1(2:Nprops)
+             lprop1(2:sy%npropi) = lprop1(2:sy%npropi) * lvol
+             lprop(2:sy%npropi) = lprop(2:sy%npropi) + lprop1(2:sy%npropi)
              ! add out2-3-4-2
              xp = 0d0
              xp = xp + xvec(:,out2) * ccrd(1)
@@ -904,10 +896,10 @@ contains
              lvol = abs(mixed(xint(:,3)-xvec(:,out2),&
                 xint(:,4)-xvec(:,out2),&
                 xint(:,2)-xvec(:,out2)) / 6d0)
-             call grdall(xp,lprop1)
+             call sy%grdall(xp,lprop1)
              ngrd_int = ngrd_int + 1
-             lprop1(2:Nprops) = lprop1(2:Nprops) * lvol
-             lprop(2:Nprops) = lprop(2:Nprops) + lprop1(2:Nprops)
+             lprop1(2:sy%npropi) = lprop1(2:sy%npropi) * lvol
+             lprop(2:sy%npropi) = lprop(2:sy%npropi) + lprop1(2:sy%npropi)
              ! add out1-out2-2-3
              xp = 0d0
              xp = xp + xvec(:,out1) * ccrd(1)
@@ -917,12 +909,12 @@ contains
              lvol = abs(mixed(xvec(:,out2)-xvec(:,out1),&
                 xint(:,2)-xvec(:,out1),&
                 xint(:,3)-xvec(:,out1)) / 6d0)
-             call grdall(xp,lprop1)
+             call sy%grdall(xp,lprop1)
              ngrd_int = ngrd_int + 1
-             lprop1(2:Nprops) = lprop1(2:Nprops) * lvol
-             lprop(2:Nprops) = lprop(2:Nprops) + lprop1(2:Nprops)
+             lprop1(2:sy%npropi) = lprop1(2:sy%npropi) * lvol
+             lprop(2:sy%npropi) = lprop(2:sy%npropi) + lprop1(2:sy%npropi)
 
-             acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop(2:Nprops) * kw(i,klvl)
+             acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop(2:sy%npropi) * kw(i,klvl)
           end do
 
        else
@@ -950,9 +942,9 @@ contains
           do j = 1, 3
              xp = xp + bvec(:,j,base_t) * dot_product(ccrd,iv(j,:))
           end do
-          call grdall(xp,lprop1)
+          call sy%grdall(xp,lprop1)
           ngrd_int = ngrd_int + 1
-          lprop(2:Nprops) = lprop(2:Nprops) + lprop1(2:Nprops) * tvol(base_t) / l8 * kw(i,klvl)
+          lprop(2:sy%npropi) = lprop(2:sy%npropi) + lprop1(2:sy%npropi) * tvol(base_t) / l8 * kw(i,klvl)
        end do
 
        ! assign equally for each vertex sharing the tetrahedron
@@ -973,14 +965,12 @@ contains
   !> Cubpack integration for a tetrahedron on a (external or
   !> internal) interatomic surface
   subroutine integ_border_cubpack(base_t,iv,l,ts,acum_atprop)
-    use qtree_basic
-    use CUI
-    use varbas
-    use fields
-    use global
-    use crystalmod
+    use systemmod, only: sy
+    use qtree_basic, only: borig, bvec, maxlen, ngrd_int, nnuc, tvol, r_betaint
+    use CUI, only: cubatr
+    use global, only: cub_abs, cub_rel, cub_mpts
     use tools_math, only: mixed
-    use tools_io
+    use tools_io, only: ferror, faterr, uout
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -990,7 +980,7 @@ contains
 
     integer :: i, j, k, l8, unk, its
     real*8 :: xp(3), temp(3)
-    real*8 :: lprop(2:Nprops), cub_abserr(2:Nprops)
+    real*8 :: lprop(2:sy%npropi), cub_abserr(2:sy%npropi)
     integer :: ier, nid
     real*8 :: dist, xnuc(3), r2
     real*8 :: xvec(3,4), xint(3,4), xdot(4,4), dcoef, den, lvol
@@ -1013,19 +1003,19 @@ contains
        do i = 1, 3
           xp = xp + bvec(:,i,base_t) * 0.25d0 * sum(iv(i,:))
        end do
-       xp = cr%c2x(xp)
+       xp = sy%c%c2x(xp)
        r2 = 1d30
-       do i=1,ncpcel
-          if (cpcel(i)%idx /= its) cycle
-          temp = cpcel(i)%x - xp
-          call cr%shortest(temp,dist)
+       do i = 1, sy%f(sy%iref)%ncpcel
+          if (sy%f(sy%iref)%cpcel(i)%idx /= its) cycle
+          temp = sy%f(sy%iref)%cpcel(i)%x - xp
+          call sy%c%shortest(temp,dist)
           if (dist < r2) then
              nid = i
              r2 = dist
-             lvec = nint(cpcel(nid)%x - xp - temp)
+             lvec = nint(sy%f(sy%iref)%cpcel(nid)%x - xp - temp)
           end if
        end do
-       xnuc = cr%x2c(cpcel(nid)%x - lvec)
+       xnuc = sy%c%x2c(sy%f(sy%iref)%cpcel(nid)%x - lvec)
        if (abs(sqrt(r2)-r_betaint(its)) > 2d0*maxlen) then
           call ferror('integ_border_keast','unknown xnuc for the tetrahedron',faterr)
        end if
@@ -1085,7 +1075,7 @@ contains
           ier = 1
           lprop = 0d0
           cub_abserr = 0d0
-          call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+          call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
              IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
           ngrd_int = ngrd_int + neval
           if (ier == 1) then
@@ -1095,14 +1085,14 @@ contains
           else if (ier > 1) then
              call ferror('integ_border_cubpack','severe error in cubpack',faterr)
           end if
-          acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop
+          acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop
 
           ! substract the tetrahedron inside the sphere
           vert(:,:,1) = xvec
           ier = 1
           lprop = 0d0
           cub_abserr = 0d0
-          call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+          call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
              IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
           ngrd_int = ngrd_int + neval
           if (ier == 1) then
@@ -1112,7 +1102,7 @@ contains
           else if (ier > 1) then
              call ferror('integ_border_cubpack','severe error in cubpack',faterr)
           end if
-          acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) - lprop
+          acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) - lprop
 
        else if (ins == 3) then
           ! one vertex out of the sphere -> 1 integration.
@@ -1144,7 +1134,7 @@ contains
           ier = 1
           lprop = 0d0
           cub_abserr = 0d0
-          call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+          call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
              IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
           ngrd_int = ngrd_int + neval
           if (ier == 1) then
@@ -1154,7 +1144,7 @@ contains
           else if (ier > 1) then
              call ferror('integ_border_cubpack','severe error in cubpack',faterr)
           end if
-          acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop
+          acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop
 
        else if (ins == 2) then
           ! two vertex out of the sphere -> 1 integration.
@@ -1202,7 +1192,7 @@ contains
           ier = 1
           lprop = 0d0
           cub_abserr = 0d0
-          call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+          call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
              IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
           ngrd_int = ngrd_int + neval
           if (ier == 1) then
@@ -1212,7 +1202,7 @@ contains
           else if (ier > 1) then
              call ferror('integ_border_cubpack','severe error in cubpack',faterr)
           end if
-          acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop
+          acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop
           ! add out2-3-4-2
           vert(:,1,1) = xvec(:,out2)
           vert(:,2,1) = xint(:,3)
@@ -1221,7 +1211,7 @@ contains
           ier = 1
           lprop = 0d0
           cub_abserr = 0d0
-          call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+          call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
              IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
           ngrd_int = ngrd_int + neval
           if (ier == 1) then
@@ -1232,7 +1222,7 @@ contains
              call ferror('integ_border_cubpack','severe error in cubpack',faterr)
           end if
 
-          acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop
+          acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop
           ! add out1-out2-2-3
           vert(:,1,1) = xvec(:,out1)
           vert(:,2,1) = xvec(:,out2)
@@ -1241,7 +1231,7 @@ contains
           ier = 1
           lprop = 0d0
           cub_abserr = 0d0
-          call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+          call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
              IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
           ngrd_int = ngrd_int + neval
           if (ier == 1) then
@@ -1251,7 +1241,7 @@ contains
           else if (ier > 1) then
              call ferror('integ_border_cubpack','severe error in cubpack',faterr)
           end if
-          acum_atprop(its,2:Nprops) = acum_atprop(its,2:Nprops) + lprop
+          acum_atprop(its,2:sy%npropi) = acum_atprop(its,2:sy%npropi) + lprop
 
        else
           !$omp critical (IO)
@@ -1279,7 +1269,7 @@ contains
        ier = 1
        lprop = 0d0
        cub_abserr = 0d0
-       call cubatr(3,Nprops-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
+       call cubatr(3,sy%npropi-1,cubpack_f,1,vert,(/1/),lprop,cub_abserr,&
           IFAIL=ier, EpsAbs=cub_abs, EpsRel=cub_rel, MaxPts=cub_mpts, Neval=neval)
        ngrd_int = ngrd_int + neval
        if (ier == 1) then
@@ -1299,7 +1289,7 @@ contains
           end if
           if (ts(i) == nnuc+1 .or. ts(i) == nnuc+3) cycle
           acum_atprop(ts(i),1) = acum_atprop(ts(i),1) + tvol(base_t) / l8 / (4d0-real(unk,8))
-          acum_atprop(ts(i),2:Nprops) = acum_atprop(ts(i),2:Nprops) + lprop
+          acum_atprop(ts(i),2:sy%npropi) = acum_atprop(ts(i),2:sy%npropi) + lprop
        end do
 
     end if
@@ -1308,12 +1298,12 @@ contains
 
   !> Vertex integration for any tetrahedron.
   subroutine integ_corner(base_t,iv,l,ts,acum_atprop,fgr,lapgr)
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use tools_io
-    use types
+    use systemmod, only: sy
+    use qtree_basic, only: qtreer, qtreeidx, borig, bvec, maxl, nder, ngrd_int, nnuc,&
+       savefgr, savelapgr, cindex, tvol
+    use global, only: color_allocate, prop_mode
+    use tools_io, only: ferror, faterr
+    use types, only: scalar_value
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -1324,7 +1314,7 @@ contains
 
     integer :: unk
     integer :: i, j, lrest, base_to
-    real*8 :: lprop(Nprops), vfac, xp(3), lf(4), llap(4)
+    real*8 :: lprop(sy%npropi), vfac, xp(3), lf(4), llap(4)
     integer(qtreeidx) :: idx(4)
     type(scalar_value) :: res
 
@@ -1352,7 +1342,7 @@ contains
              do j = 1, 3
                 xp = xp + bvec(:,j,base_t) * iv(j,i) * lrest
              end do
-             call grd(f(refden),xp,nder,res0=res)
+             call sy%f(sy%iref)%grd(xp,nder,res0=res)
              lf(i) = res%fval
              if (savefgr) then
                 fgr(idx(i),base_to) = res%fval
@@ -1396,9 +1386,9 @@ contains
              do j = 1, 3
                 xp = xp + bvec(:,j,base_t) * iv(j,i) * lrest
              end do
-             call grdall(xp,lprop)
+             call sy%grdall(xp,lprop)
              ngrd_int = ngrd_int + 1
-             acum_atprop(ts(i),2:Nprops) = acum_atprop(ts(i),2:Nprops) + vfac * lprop(2:Nprops)
+             acum_atprop(ts(i),2:sy%npropi) = acum_atprop(ts(i),2:sy%npropi) + vfac * lprop(2:sy%npropi)
           end if
        end do
     else
@@ -1412,8 +1402,7 @@ contains
   !> is calculated after the tetrahedron painting. Used if the flag
   !> intcorner_deferred is active (all int modes equal to -1 or 11).
   subroutine integ_corner_deferred(base_t,iv,l,ts,vgr)
-    use qtree_basic
-    use tools_io
+    use qtree_basic, only: qtreer, qtreeidx, cindex, nnuc, tvol
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -1439,12 +1428,12 @@ contains
   !> Sum the contribution of each grid to the atomic properties. Executed
   !> after the color assignment.
   subroutine integ_corner_sum(base_t,trm,vgr,acum_atprop)
-    use qtree_basic
-    use varbas
-    use fields
-    use global
-    use tools_io
-    use types
+    use systemmod, only: sy
+    use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, maxl, ngrd_int,&
+       cindex
+    use global, only: color_allocate, prop_mode
+    use tools_io, only: ferror, faterr
+    use types, only: scalar_value
     
     integer, intent(in) :: base_t
     integer(qtreei), intent(inout) :: trm(:,:)
@@ -1452,7 +1441,7 @@ contains
     real*8, intent(inout) :: acum_atprop(:,:)
     
     integer :: i, j, k, l2, vin(3)
-    real*8 :: xx(3), lprop(Nprops), vfac
+    real*8 :: xx(3), lprop(sy%npropi), vfac
     integer :: ts, base_to
     integer(qtreeidx) :: idx
     type(scalar_value) :: res
@@ -1486,18 +1475,18 @@ contains
                 xx = xx + bvec(:,2,base_t) * real(j,8)
                 xx = xx + bvec(:,3,base_t) * real(k,8)
                 if (prop_mode == 1) then
-                   call grd(f(refden),xx,0,res0=res)
+                   call sy%f(sy%iref)%grd(xx,0,res0=res)
                    ngrd_int = ngrd_int + 1
                    acum_atprop(ts,2) = acum_atprop(ts,2) + vfac * res%fval
                 else if (prop_mode == 2) then
-                   call grd(f(refden),xx,2,res0=res)
+                   call sy%f(sy%iref)%grd(xx,2,res0=res)
                    acum_atprop(ts,2) = acum_atprop(ts,2) + vfac * res%fval
                    acum_atprop(ts,3) = acum_atprop(ts,3) + vfac * res%del2fval
                    ngrd_int = ngrd_int + 1
                 else if (prop_mode == 3) then
-                   call grdall(xx,lprop)
+                   call sy%grdall(xx,lprop)
                    ngrd_int = ngrd_int + 1
-                   acum_atprop(ts,2:Nprops) = acum_atprop(ts,2:Nprops) + vfac * lprop(2:Nprops)
+                   acum_atprop(ts,2:sy%npropi) = acum_atprop(ts,2:sy%npropi) + vfac * lprop(2:sy%npropi)
                 else
                    call ferror("integ_corner_sum","wrong integ option",faterr)
                 end if
@@ -1510,10 +1499,9 @@ contains
 
   !> Paint grid points from one IWST that are inside a beta-sphere. 
   subroutine paint_inside_spheres(tt,tto,trm)
-    use qtree_basic
-    use fields
-    use global
-    use varbas
+    use systemmod, only: sy
+    use qtree_basic, only: qtreei, qtreeidx, torig, tvec, maxl, r_betagp, cindex,&
+       r_betaint
 
     integer, intent(in) :: tt, tto
     integer(qtreei), intent(inout) :: trm(:,:)
@@ -1533,14 +1521,14 @@ contains
              xx = xx + tvec(:,1,tt) * real(i,8) / l2
              xx = xx + tvec(:,2,tt) * real(j,8) / l2
              xx = xx + tvec(:,3,tt) * real(k,8) / l2
-             call nearest_cp(xx,nid,dist,type=f(refden)%typnuc)
-             if (dist <= r_betagp(cpcel(nid)%idx)) then
+             call sy%f(sy%iref)%nearest_cp(xx,nid,dist,type=sy%f(sy%iref)%typnuc)
+             if (dist <= r_betagp(sy%f(sy%iref)%cpcel(nid)%idx)) then
                 vin = (/i,j,k/)
                 idx = cindex(vin,maxl)
-                if (dist <= r_betaint(cpcel(nid)%idx)) then
-                   trm(idx,tto) = int(-cpcel(nid)%idx,1)
+                if (dist <= r_betaint(sy%f(sy%iref)%cpcel(nid)%idx)) then
+                   trm(idx,tto) = int(-sy%f(sy%iref)%cpcel(nid)%idx,1)
                 else
-                   trm(idx,tto) = int(cpcel(nid)%idx,1)
+                   trm(idx,tto) = int(sy%f(sy%iref)%cpcel(nid)%idx,1)
                 end if
              end if
           end do
@@ -1551,18 +1539,17 @@ contains
 
   !> Wrapper function for cubpack.
   function cubpack_f(numfun,x) result(value)
-    use qtree_basic
-    use fields
-    use global
-    USE Precision_Model
+    use systemmod, only: sy
+    use precision_model, only: stnd
+
     integer, intent(in) :: numfun
     real(kind=stnd), dimension(:), intent(in) :: x
     real(kind=stnd), dimension(numfun) :: value
 
-    real*8 :: lprop(Nprops)
+    real*8 :: lprop(sy%npropi)
 
-    call grdall(x,lprop)
-    value = lprop(2:Nprops)
+    call sy%grdall(x,lprop)
+    value = lprop(2:sy%npropi)
     
   end function cubpack_f
 

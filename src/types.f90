@@ -20,28 +20,21 @@ module types
   implicit none
 
   private
-  public :: grid1, atom, celatom, anyatom, dftbatom, fragment
+  public :: atom, celatom, anyatom
   public :: cp_type
   public :: scalar_value, scalar_value_noalloc
-  public :: field
   public :: integrable
   public :: pointpropable
-  public :: minisurf
-  public :: miniface
   public :: neighstar
-  public :: molmesh
   public :: realloc
 
   ! overloaded functions
   interface realloc
      module procedure realloc_pointpropable
      module procedure realloc_integrable
-     module procedure realloc_field
      module procedure realloc_atom
      module procedure realloc_celatom
      module procedure realloc_anyatom
-     module procedure realloc_dftbatom
-     module procedure realloc_fragment
      module procedure realloc_cp
      module procedure realloc1l
      module procedure realloc1r
@@ -59,29 +52,12 @@ module types
      module procedure realloc5cmplx8
   end interface
 
-  !> Radial grid type.
-  type grid1
-     logical :: init !< Is initialized?
-     real*8 :: a !< Logarithmic grid parameter ri = a * exp(b * (i-1))
-     real*8 :: b !< Logarithmic grid parameter ri = a * exp(b * (i-1))
-     real*8 :: rmax !< Max. grid distance
-     real*8 :: rmax2 !< Squared max. grid distance
-     integer :: ngrid !< Number of nodes
-     real*8, allocatable :: r(:) !< Node positions
-     real*8, allocatable :: f(:) !< Grid values, f = 4*pi*r^2*rho
-     real*8, allocatable :: fp(:) !< First derivative of f
-     real*8, allocatable :: fpp(:) !< Second derivative of f 
-     integer :: z 
-     integer :: qat
-  end type grid1
-
   !> Non-equivalent atom list type (nneq)
   type atom
      real*8 :: x(3)   !< coordinates (crystallographic)
      real*8 :: r(3)   !< coordinates (cartesian)
      character*(10) :: name = "" !< name
      integer :: z = 0 !< atomic number
-     integer :: zpsp = -1 !< pseudopotential ionic charge (Z-core)
      real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
@@ -108,211 +84,6 @@ module types
      integer :: lvec(3) !< lattice vector to the atom in the complete atom list
      integer :: z !< atomic number
   end type anyatom
-
-  !> Atomic basis set information in dftb fields
-  type dftbatom
-     character*10 :: name  !< name of the atom
-     integer :: z !< atomic number
-     integer :: norb !< number of orbitals
-     integer :: l(4) !< orbital angular momentum
-     real*8 :: occ(4) !< orbital occupations
-     real*8 :: cutoff(4) !< orbital cutoffs
-     integer :: nexp(4) !< number of exponents 
-     real*8 :: eexp(5,4) !< exponents
-     integer :: ncoef(5,4) !< number of coefficients
-     real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
-     type(grid1), allocatable :: orb(:) !< radial component of the orbitals (grid)
-  end type dftbatom
-
-  !> Type for a fragment of the crystal
-  type fragment
-     integer :: nat !< Number of atoms in the fragment
-     type(anyatom), allocatable :: at(:) !< Atoms in the fragment
-  end type fragment
-
-  !> Critical point type
-  type cp_type
-     ! Position and type
-     real*8 :: x(3) !< Position (cryst. coords.)
-     real*8 :: r(3) !< Position (cart. coords.)
-     integer :: typ  !< Type of CP (-3,-1,1,3)
-     integer :: typind !< Same as type, but mapped to (0,1,2,3)
-     integer :: mult !< Multiplicity
-     character*3 :: pg !< Point group symbol
-     character*(10) :: name !< Name
-     logical :: isdeg !< Is it a degenerate CP?
-     logical :: isnuc !< Is it a nucleus?
-     logical :: isnnm !< Is it a non-nuclear attractor/repulsor?
-
-     ! beta-sphere 
-     real*8 :: rbeta !< beta-sphere radius
-
-     ! Properties at the CP
-     real*8 :: rho  !< Density
-     real*8 :: gmod !< Norm of the gradient
-     real*8 :: lap  !< Laplacian
-     logical :: deferred = .true. !< Calculate the rho and lap values later
-
-     ! BCP and RCP ias properties
-     integer :: ipath(2) !< Associated attractor (bcp) or repulsor (rcp), complete list
-     integer :: ilvec(3,2) !< Lattice vector to shift the cp_(ipath) position of the actual attractor
-     real*8 :: brdist(2) !< If b or r, distance to attractor/repulsor
-     real*8 :: brang !< If b or r, angle wrt attractors/repulsors
-     real*8 :: brvec(3) !< If b or r, the eigenvector along the bond (ring) path
-
-     ! In shell-structured scalar fields,
-     integer :: innuc !< associated nucleus 
-     integer :: inshell !< associated shell 
-     real*8 :: dist2nuc !< distance to nucleus
-
-     ! Complete -> reduced CP list index and conversion
-     integer :: idx !< Complete to non-equivalent list index
-     integer :: ir !< Rotation matrix to the neq cp list
-     integer :: ic !< Translation vector to the neq cp list 
-     integer :: lvec(3) !< Lattice vector to the neq cp list 
-  end type cp_type
-
-  !> Information for wannier functions
-  type wandat
-     integer :: nks !< Number of k-points (lattice vectors)
-     integer :: nwan(3) !< Number of lattice vectors
-     integer :: nbnd !< Number of bands
-     integer :: nspin !< Number of spins
-     logical :: sijchk !< Save the sij to a checkpoint (chk-sij) file
-     logical :: fachk !< Save the fa to a checkpoint (chk-fa) file
-     logical :: haschk !< A chk-sij file is currently available
-     logical :: useu !< Use the U transformation to get MLWF
-     real*8 :: cutoff !< Cutoff for atomic overlaps
-     character*(255) :: fevc !< evc file name
-     real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
-     real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
-     real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
-     integer, allocatable :: ngk(:) !< number of plane-waves for each k-point
-     integer, allocatable :: igk_k(:,:) !< fft reorder
-     integer, allocatable :: nls(:) !< fft reorder
-     complex*16, allocatable :: u(:,:,:) !< u matrix
-  end type wandat
-
-  !> Scalar field type
-  type field
-     ! all types/more than one type
-     logical :: init = .false. !< is this field initialized?
-     integer :: type !< field type
-     logical :: usecore = .false. !< augment with core densities
-     logical :: numerical = .false. !< numerical derivatives
-     integer :: n(3) !< grid points for elk and grids
-     integer :: typnuc !< type of nuclei
-     character*(255) :: name = "" !< field name
-     character*(255) :: file = "" !< file name
-     ! grids
-     integer :: mode !< interpolation mode
-     real*8, allocatable :: f(:,:,:) !< grid values
-     real*8, allocatable, dimension(:,:,:,:) :: c2 !< cubic coefficients for spline interpolation
-     real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix
-     real*8 :: x2c(3,3) !< Crystallographic to Cartesian matrix
-     ! wannier functions
-     logical :: iswan
-     type(wandat) :: wan
-     ! wien2k 
-     logical :: cnorm
-     integer, allocatable :: lm(:,:,:)
-     integer, allocatable :: lmmax(:)
-     real*8, allocatable :: slm(:,:,:)
-     real*8, allocatable :: sk(:)
-     real*8, allocatable :: ski(:)
-     real*8, allocatable :: tauk(:)
-     real*8, allocatable :: tauki(:)
-     integer :: lastind, lastniz
-     ! wien2k, structural
-     logical :: ishlat
-     integer :: nat
-     real*8, dimension(:,:,:), allocatable  :: rotloc
-     real*8, dimension(:), allocatable :: rnot 
-     real*8, dimension(:), allocatable :: rmt 
-     real*8, dimension(:), allocatable :: dx
-     integer, dimension(:), allocatable :: jri
-     integer, dimension(:), allocatable :: multw
-     real*8, dimension(3,3) :: br1
-     real*8, dimension(3,3) :: br2
-     real*8, dimension(3,3) :: br3
-     logical :: ortho
-     integer :: ndat
-     integer, dimension(:), allocatable :: iatnr
-     real*8, dimension(:,:), allocatable :: pos 
-     integer, dimension(:), allocatable :: iop 
-     integer :: niord
-     integer, dimension(:,:,:), allocatable :: iz 
-     real*8, dimension(:,:), allocatable :: tau
-     integer :: npos 
-     real*8  :: atp(3,343)
-     integer :: nwav
-     real*8, dimension(:,:), allocatable :: krec
-     integer, dimension(:), allocatable :: inst
-     logical :: cmpl
-     real*8 :: a(3)
-     ! elk
-     real*8, allocatable :: rhomt(:,:,:)
-     complex*16, allocatable :: rhok(:)
-     ! elk, structural
-     ! --> note rmt(:) in wien_structural
-     integer :: lmaxvr
-     real*8, allocatable :: spr(:,:)
-     real*8, allocatable :: spr_a(:)
-     real*8, allocatable :: spr_b(:)
-     integer, allocatable :: nrmt(:)
-     integer :: ngvec
-     real*8, allocatable :: vgc(:,:) 
-     integer, allocatable :: igfft(:)
-     integer :: ncel0
-     real*8, allocatable :: xcel(:,:)
-     integer, allocatable :: iesp(:)
-     ! pi
-     logical :: exact
-     character*(20), allocatable :: piname(:)
-     logical, allocatable :: pi_used(:)
-     integer, allocatable :: nsym(:), naos(:,:), naaos(:,:), nsto(:,:)
-     integer, allocatable :: nasto(:,:), nn(:,:)
-     real*8, allocatable :: z(:,:), xnsto(:,:), c(:,:,:), nelec(:,:)
-     type(grid1), allocatable :: pgrid(:)
-     ! wfn
-     logical :: useecp
-     integer :: nmo, nalpha
-     integer :: npri
-     integer :: wfntyp
-     integer, allocatable :: icenter(:)
-     integer, allocatable :: itype(:)
-     real*8, allocatable :: d2ran(:)
-     real*8, allocatable :: e(:)
-     real*8, allocatable :: occ(:)
-     real*8, allocatable :: cmo(:,:)
-     integer :: nedf
-     integer, allocatable :: icenter_edf(:)
-     integer, allocatable :: itype_edf(:)
-     real*8, allocatable :: e_edf(:)
-     real*8, allocatable :: c_edf(:)
-     ! dftb+
-     logical :: isreal
-     integer :: nkpt
-     integer :: nspin
-     integer :: nstates
-     integer :: norb
-     real*8, allocatable :: docc(:,:,:)
-     real*8, allocatable :: dkpt(:,:)
-     real*8, allocatable :: evecr(:,:,:)
-     complex*16, allocatable :: evecc(:,:,:,:)
-     integer, allocatable :: ispec(:)
-     integer, allocatable :: idxorb(:)
-     integer :: midxorb
-     integer :: maxnorb
-     integer :: maxlm
-     type(dftbatom), allocatable :: bas(:)
-     ! promolecular from fragment
-     type(fragment) :: fr
-     ! ghost field
-     character*(2048) :: expr
-     integer :: nf 
-     integer, allocatable :: fused(:)
-  end type field
 
   !> Result of the evaluation of a scalar field
   type scalar_value
@@ -350,9 +121,43 @@ module types
      logical :: isnuc
   end type scalar_value_noalloc
 
+  !> Critical point type
+  type cp_type
+     ! Position and type
+     real*8 :: x(3) !< Position (cryst. coords.)
+     real*8 :: r(3) !< Position (cart. coords.)
+     integer :: typ  !< Type of CP (-3,-1,1,3)
+     integer :: typind !< Same as type, but mapped to (0,1,2,3)
+     integer :: mult !< Multiplicity
+     character*3 :: pg !< Point group symbol
+     character*(10) :: name !< Name
+     logical :: isdeg !< Is it a degenerate CP?
+     logical :: isnuc !< Is it a nucleus?
+     logical :: isnnm !< Is it a non-nuclear attractor/repulsor?
+
+     ! beta-sphere 
+     real*8 :: rbeta !< beta-sphere radius
+
+     ! Properties at the CP
+     type(scalar_value_noalloc) :: s  !< scalar value - evaluation of the reference field at the CP
+
+     ! BCP and RCP ias properties
+     integer :: ipath(2) !< Associated attractor (bcp) or repulsor (rcp), complete list
+     integer :: ilvec(3,2) !< Lattice vector to shift the cp_(ipath) position of the actual attractor
+     real*8 :: brdist(2) !< If b or r, distance to attractor/repulsor
+     real*8 :: brang !< If b or r, angle wrt attractors/repulsors
+     real*8 :: brvec(3) !< If b or r, the eigenvector along the bond (ring) path
+
+     ! Complete list -> reduced CP list index and conversion
+     integer :: idx !< Complete to non-equivalent list index
+     integer :: ir !< Rotation matrix to the neq cp list
+     integer :: ic !< Translation vector to the neq cp list 
+     integer :: lvec(3) !< Lattice vector to the neq cp list 
+  end type cp_type
+
   !> Information about an integrable field
   type integrable
-     logical :: used
+     logical :: used = .false.
      integer :: itype
      integer :: fid
      character*(10) :: prop_name
@@ -370,38 +175,12 @@ module types
      integer, allocatable :: fused(:)
   end type pointpropable
 
-  !> A face on the surface
-  type miniface
-     integer, dimension(4) :: v !< Pointers to vertices
-     integer :: nv !< Number of vertices
-  end type miniface
-
-  !> Surface type
-  type minisurf 
-     integer :: init !< was initialized? 0 no, 1 only v, 2 all
-     integer :: rgb(3) !< optionally used for global color
-     real*8, dimension(3) :: n  !< center on which the polyhedron is based
-     real*8, dimension(:), allocatable :: r, th, ph !< vertices
-     type(miniface), allocatable :: f(:)
-     integer :: nv !< nv
-     integer :: nf !< number of vertex and faces
-     integer :: mv !< mv
-     integer :: mf !< maximum number of vertex and faces
-  end type minisurf
-
   !> Neighbor star -> to analyze the connectivity in a molecular crystal
   type neighstar
      integer :: ncon = 0 !< number of neighbor for this atom
      integer, allocatable :: idcon(:) !< id (atcel) of the connected atom
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
   end type neighstar
-
-  !> Becke-style molecular mesh for integration
-  type molmesh
-     integer :: n
-     real*8, allocatable :: w(:), x(:,:)
-     real*8, allocatable :: f(:,:)
-  end type molmesh
 
 contains
   
@@ -450,28 +229,6 @@ contains
 
   end subroutine realloc_integrable
 
-  !> Adapt the size of an allocatable 1D type(field) array
-  subroutine realloc_field(a,nnew)
-    use tools_io, only: ferror, faterr
-
-    type(field), intent(inout), allocatable :: a(:)
-    integer, intent(in) :: nnew
-
-    type(field), allocatable :: temp(:)
-    integer :: l1, u1
-
-    if (.not.allocated(a)) &
-       call ferror('realloc_field','array not allocated',faterr)
-    l1 = lbound(a,1)
-    u1 = ubound(a,1)
-    if (u1 == nnew) return
-    allocate(temp(l1:nnew))
-
-    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
-    call move_alloc(temp,a)
-
-  end subroutine realloc_field
-
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_atom(a,nnew)
     use tools_io, only: ferror, faterr
@@ -493,7 +250,6 @@ contains
     do i = nold+1,nnew
        a(i)%name = ""
        a(i)%z = 0
-       a(i)%zpsp = -1
        a(i)%qat = 0d0
        a(i)%rnn2 = 0d0
     end do
@@ -541,48 +297,6 @@ contains
     call move_alloc(temp,a)
 
   end subroutine realloc_anyatom
-
-  !> Adapt the size of an allocatable 1D type(atom) array
-  subroutine realloc_dftbatom(a,nnew)
-    use tools_io, only: ferror, faterr
-
-    type(dftbatom), intent(inout), allocatable :: a(:)
-    integer, intent(in) :: nnew
-
-    type(dftbatom), allocatable :: temp(:)
-    integer :: nold
-
-    if (.not.allocated(a)) &
-       call ferror('realloc_dftbatom','array not allocated',faterr)
-    nold = size(a)
-    if (nold == nnew) return
-    allocate(temp(nnew))
-
-    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
-    call move_alloc(temp,a)
-
-  end subroutine realloc_dftbatom
-
-  !> Adapt the size of an allocatable 1D type(fragment) array
-  subroutine realloc_fragment(a,nnew)
-    use tools_io, only: ferror, faterr
-
-    type(fragment), intent(inout), allocatable :: a(:)
-    integer, intent(in) :: nnew
-
-    type(fragment), allocatable :: temp(:)
-    integer :: nold
-
-    if (.not.allocated(a)) &
-       call ferror('realloc_fragment','array not allocated',faterr)
-    nold = size(a)
-    if (nold == nnew) return
-    allocate(temp(nnew))
-
-    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
-    call move_alloc(temp,a)
-
-  end subroutine realloc_fragment
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_cp(a,nnew)

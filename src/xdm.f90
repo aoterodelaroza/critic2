@@ -115,13 +115,11 @@ contains
 
   !> Calculate XDM using grids.
   subroutine xdm_grid(line)
-    use fields, only: fieldname_to_idx, goodfield, type_grid, getfieldnum, f,&
-       taufromelf, fields_unload
-    use crystalmod, only: cr, search_lattice
-    use grid_tools, only: grid_laplacian, grid_gradrho
-    use grd_atomic, only: agrid, grda_promolecular
-    use grid1_tools, only: grid1_interp
-    use global, only: refden, eval_next, fileroot, cutrad
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use crystalmod, only: search_lattice
+    use grid1mod, only: grid1, agrid
+    use global, only: eval_next, fileroot, cutrad
     use tools_io, only: uout, lgetword, equal, getword, ferror, faterr, string,&
        warning, ioj_right
     use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa
@@ -140,18 +138,18 @@ contains
     real*8, allocatable :: rc(:,:), alpha(:), ml(:,:), avol(:), afree(:)
     integer, allocatable :: lvec(:,:), ityp(:)
     logical :: isdefa, onlyc
-    real*8 :: etotal, sigma(3,3), for(3,cr%ncel), ehadd(6:10)
+    real*8 :: etotal, sigma(3,3), for(3,sy%c%ncel), ehadd(6:10)
     integer :: nclean, iclean(8), upto
 
     real*8, parameter :: ecut = 1d-11
 
     ! check that we have an environment
-    call cr%checkflags(.true.,env0=.true.)
+    call sy%c%checkflags(.true.,env0=.true.)
 
     write (uout,'("+ Using: grid fields.")')
     ! initialization and defaults
     lp = 1
-    irho = refden
+    irho = sy%iref
     itau = -1
     ielf = -1
     ipdens = -1
@@ -172,101 +170,65 @@ contains
        word = lgetword(line,lp)
        if (equal(word,"rho")) then
           word = getword(line,lp)
-          irho = fieldname_to_idx(word)
+          irho = sy%fieldname_to_idx(word)
           if (irho < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(irho)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"tau")) then
           word = getword(line,lp)
-          itau = fieldname_to_idx(word)
+          itau = sy%fieldname_to_idx(word)
           if (itau < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(itau)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"elf")) then
           word = getword(line,lp)
-          ielf = fieldname_to_idx(word)
+          ielf = sy%fieldname_to_idx(word)
           if (ielf < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(ielf)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"pdens")) then
           word = getword(line,lp)
-          ipdens = fieldname_to_idx(word)
+          ipdens = sy%fieldname_to_idx(word)
           if (ipdens < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(ipdens)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"core")) then
           word = getword(line,lp)
-          icor = fieldname_to_idx(word)
+          icor = sy%fieldname_to_idx(word)
           if (icor < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(icor)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"lap")) then
           word = getword(line,lp)
-          ilap = fieldname_to_idx(word)
+          ilap = sy%fieldname_to_idx(word)
           if (ilap < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(ilap)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"grad")) then
           word = getword(line,lp)
-          igrad = fieldname_to_idx(word)
+          igrad = sy%fieldname_to_idx(word)
           if (igrad < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(igrad)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"rhoae")) then
           word = getword(line,lp)
-          irhoae = fieldname_to_idx(word)
+          irhoae = sy%fieldname_to_idx(word)
           if (irhoae < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
              return
           end if
-          if (.not.goodfield(irhoae)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
-             return
-          end if
        elseif (equal(word,"xb")) then
           word = getword(line,lp)
-          ib = fieldname_to_idx(word)
+          ib = sy%fieldname_to_idx(word)
           if (ib < 0) then
              call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
-             return
-          end if
-          if (.not.goodfield(ib)) then
-             call ferror("xdm_driver","rho field not allocated",faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,"xa1")) then
@@ -303,11 +265,12 @@ contains
        end if
     end do
 
-    ! Check that the zpsps are defined
-    if (any(cr%at(:)%zpsp < 0)) then
-       call ferror("xdm_driver","need ZPSP for all atoms for XDM",faterr,line,syntax=.true.)
-       return
-    end if
+    ! xxxx !
+    ! ! Check that the zpsps are defined
+    ! if (any(sy%c%at(:)%zpsp < 0)) then
+    !    call ferror("xdm_driver","need ZPSP for all atoms for XDM",faterr,line,syntax=.true.)
+    !    return
+    ! end if
 
     ! Define damping coefficients
     write (uout,'("+ Damping function parameters")')
@@ -318,47 +281,30 @@ contains
        call ferror("xdm_driver","Using default a1 and a2 parameters",warning)
 
     ! we need at least the density and the b or kinetic energy density or elf
-    if (.not.goodfield(irho,type_grid)) then
-       call ferror("xdm_driver","wrong rho field",faterr,line,syntax=.true.)
-       return
-    end if
-    if (ib > 0) then
-       if (.not.goodfield(ib,type_grid)) then
-          call ferror("xdm_driver","wrong b field",faterr,line,syntax=.true.)
-          return
-       end if
-    elseif (itau > 0) then
-       if (.not.goodfield(itau,type_grid)) then
-          call ferror("xdm_driver","wrong tau field",faterr,line,syntax=.true.)
-          return
-       end if
-    elseif (ielf > 0) then
-       if (.not.goodfield(ielf,type_grid)) then
-          call ferror("xdm_driver","wrong elf field",faterr,line,syntax=.true.)
-          return
-       end if
-       itau = getfieldnum()
+    if (ielf > 0) then
+       itau = sy%getfieldnum()
        write (uout,'("+ Calculating tau from elf and rho")')
        call taufromelf(ielf,irho,itau)
        nclean = nclean + 1
        iclean(nclean) = itau
        write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
-       call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",f(itau)%n,f(itau)%f)
+       call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
     else
        call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
        return
     endif
 
     ! initialize
-    n = f(irho)%n
+    n = sy%f(irho)%grid%n
     ntot = n(1)*n(2)*n(3)
 
     ! allocate the promolecular density
     dopro = .false.
     if (ipdens < 0) then
-       ipdens = getfieldnum()
-       allocate(f(ipdens)%f(n(1),n(2),n(3)))
-       f(ipdens)%n = n
+       ipdens = sy%getfieldnum()
+       if (allocated(sy%f(ipdens)%grid%f)) deallocate(sy%f(ipdens)%grid%f)
+       allocate(sy%f(ipdens)%grid%f(n(1),n(2),n(3)))
+       sy%f(ipdens)%grid%n = n
        dopro = .true.
        nclean = nclean + 1
        iclean(nclean) = ipdens
@@ -367,9 +313,10 @@ contains
     ! allocate the core density (only if we don't have b and rhoae)
     docor = .false.
     if (icor < 0 .and..not.(ib > 0 .and. irhoae > 0)) then
-       icor = getfieldnum()
-       allocate(f(icor)%f(n(1),n(2),n(3)))
-       f(icor)%n = n
+       icor = sy%getfieldnum()
+       if (allocated(sy%f(icor)%grid%f)) deallocate(sy%f(icor)%grid%f)
+       allocate(sy%f(icor)%grid%f(n(1),n(2),n(3)))
+       sy%f(icor)%grid%n = n
        docor = .true.
        nclean = nclean + 1
        iclean(nclean) = icor
@@ -386,13 +333,13 @@ contains
           do j = 1, n(2)
              do i = 1, n(1)
                 x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/)
-                x = cr%x2c(x)
+                x = sy%c%x2c(x)
 
-                if (dopro) call grda_promolecular(x,rhoat,rdum1,rdum2,0,.false.)
-                if (docor) call grda_promolecular(x,rhocore,rdum1,rdum2,0,.true.)
+                if (dopro) call sy%c%promolecular(x,rhoat,rdum1,rdum2,0)
+                if (docor) call sy%c%promolecular(x,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
                 !$omp critical(write)
-                if (dopro) f(ipdens)%f(i,j,k) = rhoat
-                if (docor) f(icor)%f(i,j,k) = rhocore
+                if (dopro) sy%f(ipdens)%grid%f(i,j,k) = rhoat
+                if (docor) sy%f(icor)%grid%f(i,j,k) = rhocore
                 !$omp end critical(write)
              end do
           end do
@@ -400,49 +347,50 @@ contains
        !$omp end parallel do
 
        if (dopro) then
-          f(ipdens)%init = .true.
+          sy%f(ipdens)%grid%init = .true.
           write (uout,'("+ Writing promolecular density to: ",A)') trim(fileroot)//"-pdens.cube"
-          call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,f(ipdens)%f)
+          call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,sy%f(ipdens)%grid%f)
        end if
        if (docor) then
-          f(icor)%init = .true.
+          sy%f(icor)%grid%init = .true.
           write (uout,'("+ Writing core density to: ",A)') trim(fileroot)//"-core.cube"
-          call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,f(icor)%f)
+          call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,sy%f(icor)%grid%f)
        endif
     end if
 
     ! calculate the laplacian and the gradient (if we don't have the b already)
     if (ilap < 0 .and. ib < 0) then
-       ilap = getfieldnum()
+       ilap = sy%getfieldnum()
        write (uout,'("+ Calculating Laplacian of rho")')
-       call grid_laplacian(f(irho),f(ilap))
+       call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%crys2car)
        write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
-       call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,f(ilap)%f)
+       call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = ilap
     endif
     if (igrad < 0 .and. ib < 0) then
-       igrad = getfieldnum()
+       igrad = sy%getfieldnum()
        write (uout,'("+ Calculating gradient of rho")')
-       call grid_gradrho(f(irho),f(igrad))
+       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
        write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
-       call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,f(igrad)%f)
+       call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = igrad
     endif
 
     ! Calculate the exchange-hole dipole moment on the grid if we don't have it
     if (ib < 0) then
-       if (any(f(itau)%n /= n)) &
+       if (any(sy%f(itau)%grid%n /= n)) &
           call ferror("xdm_driver","incongruent sizes of rho and tau",faterr)
-       if (any(f(ilap)%n /= n)) &
+       if (any(sy%f(ilap)%grid%n /= n)) &
           call ferror("xdm_driver","incongruent sizes of rho and lap",faterr)
-       if (any(f(igrad)%n /= n)) &
+       if (any(sy%f(igrad)%grid%n /= n)) &
           call ferror("xdm_driver","incongruent sizes of rho and grad",faterr)
        ! allocate a new field for it
-       ib = getfieldnum()
-       allocate(f(ib)%f(n(1),n(2),n(3)))
-       f(ib)%n = n
+       ib = sy%getfieldnum()
+       if (allocated(sy%f(ib)%grid%f)) deallocate(sy%f(ib)%grid%f)
+       allocate(sy%f(ib)%grid%f(n(1),n(2),n(3)))
+       sy%f(ib)%grid%n = n
        write (uout,'("+ Calculating the BR exchange-hole dipole (b)")')
 
        ! do it
@@ -451,10 +399,10 @@ contains
        do k = 1, n(3)
           do j = 1, n(2)
              do i = 1, n(1)
-                rhos = max(f(irho)%f(i,j,k),1d-14) / 2d0
-                grho = f(igrad)%f(i,j,k) / 2d0
-                lap = f(ilap)%f(i,j,k) / 2d0
-                taus = f(itau)%f(i,j,k) / 2d0
+                rhos = max(sy%f(irho)%grid%f(i,j,k),1d-14) / 2d0
+                grho = sy%f(igrad)%grid%f(i,j,k) / 2d0
+                lap = sy%f(ilap)%grid%f(i,j,k) / 2d0
+                taus = sy%f(itau)%grid%f(i,j,k) / 2d0
 
                 ds = taus - 0.25d0 * grho**2 / rhos
                 qs = 1d0/6d0 * (lap - 2d0 * ds)
@@ -487,7 +435,7 @@ contains
                 end do
 
                 !$omp critical(write)
-                f(ib)%f(i,j,k) = xroot * (exp(-xroot) / (8d0*pi*rhos))**(1d0/3d0)
+                sy%f(ib)%grid%f(i,j,k) = xroot * (exp(-xroot) / (8d0*pi*rhos))**(1d0/3d0)
                 !$omp end critical(write)
              end do
           end do
@@ -495,22 +443,22 @@ contains
        !$omp end parallel do
 
        ! write the cube for b
-       f(ib)%init = .true.
+       sy%f(ib)%grid%init = .true.
        write (uout,'("+ Writing BR exchange-hole dipole (b) to: ",A)') trim(fileroot)//"-b.cube"
-       call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,f(ib)%f)
+       call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,sy%f(ib)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = ib
     else
-       if (any(f(ib)%n /= n)) &
+       if (any(sy%f(ib)%grid%n /= n)) &
           call ferror("xdm_driver","incongruent sizes of rho and b",faterr)
     end if
 
     ! calculate the star of lattice vectors
     rmax = 0d0
-    do i = 1, cr%nneq
-       rmax = max(rmax,cutrad(cr%at(i)%z))
+    do i = 1, sy%c%nneq
+       rmax = max(rmax,cutrad(sy%c%at(i)%z))
     end do
-    call search_lattice(cr%crys2car,rmax,imax,jmax,kmax)
+    call search_lattice(sy%c%crys2car,rmax,imax,jmax,kmax)
     allocate(lvec(3,(2*imax+1)*(2*jmax+1)*(2*kmax+1)))
     nvec = 0
     do i = -imax,imax
@@ -524,17 +472,17 @@ contains
     write (uout,'("+ Star of lattice vector contains: ",I4," (",2(I2,","),I2,")")') nvec,imax,jmax,kmax
 
     ! allocate space for the atomic properties
-    allocate(ml(3,cr%nneq),avol(cr%nneq))
+    allocate(ml(3,sy%c%nneq),avol(sy%c%nneq))
     
     ! check more grid sizes
-    if (any(f(ipdens)%n /= n)) &
+    if (any(sy%f(ipdens)%grid%n /= n)) &
        call ferror("xdm_driver","incongruent sizes of rho and pdens",faterr)
     if (icor > 0) then
-       if (any(f(icor)%n /= n)) &
+       if (any(sy%f(icor)%grid%n /= n)) &
           call ferror("xdm_driver","incongruent sizes of rho and core",faterr)
     endif
     if (irhoae > 0) then
-       if (any(f(irhoae)%n /= n)) &
+       if (any(sy%f(irhoae)%grid%n /= n)) &
           call ferror("xdm_driver","incongruent sizes of rho and rhoae",faterr)
     endif
 
@@ -544,7 +492,7 @@ contains
     write (uout,'("+ Calculating volumes and moments")')
     !$omp parallel do private(x,ri,rhofree,raux1,raux2,rhot,&
     !$omp   wei,db,ri2,db2,i,j,k,l,ll,mll,avoll)
-    do iat = 1, cr%nneq
+    do iat = 1, sy%c%nneq
        mll = 0d0
        avoll = 0d0
        do ll = 1, nvec
@@ -552,15 +500,15 @@ contains
              do j = 1, n(2)
                 do k = 1, n(3)
                    x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/) + lvec(:,ll)
-                   x = cr%x2c(x - cr%at(iat)%x)
-                   if (any(abs(x) > cutrad(cr%at(iat)%z))) cycle
+                   x = sy%c%x2c(x - sy%c%at(iat)%x)
+                   if (any(abs(x) > cutrad(sy%c%at(iat)%z))) cycle
                    ri = sqrt(x(1)*x(1) + x(2)*x(2) + x(3)*x(3))
-                   if (ri > cutrad(cr%at(iat)%z)) cycle
+                   if (ri > cutrad(sy%c%at(iat)%z)) cycle
 
-                   call grid1_interp(agrid(cr%at(iat)%z),ri,rhofree,raux1,raux2)
-                   rhot = f(irho)%f(i,j,k)
-                   wei = rhofree * rhot / max(f(ipdens)%f(i,j,k),1d-14)
-                   db = max(ri-f(ib)%f(i,j,k),0d0)
+                   call agrid(sy%c%at(iat)%z)%interp(ri,rhofree,raux1,raux2)
+                   rhot = sy%f(irho)%grid%f(i,j,k)
+                   wei = rhofree * rhot / max(sy%f(ipdens)%grid%f(i,j,k),1d-14)
+                   db = max(ri-sy%f(ib)%grid%f(i,j,k),0d0)
                    
                    ri2 = 1d0
                    db2 = 1d0
@@ -571,9 +519,9 @@ contains
                    end do
 
                    if (irhoae > 0) then
-                      wei = rhofree * f(irhoae)%f(i,j,k) / max(f(ipdens)%f(i,j,k),1d-14)
+                      wei = rhofree * sy%f(irhoae)%grid%f(i,j,k) / max(sy%f(ipdens)%grid%f(i,j,k),1d-14)
                    else
-                      wei = rhofree * (rhot+f(icor)%f(i,j,k)) / max(f(ipdens)%f(i,j,k),1d-14)
+                      wei = rhofree * (rhot+sy%f(icor)%grid%f(i,j,k)) / max(sy%f(ipdens)%grid%f(i,j,k),1d-14)
                    endif
                    avoll = avoll + wei * ri**3
                 end do ! i
@@ -586,22 +534,22 @@ contains
        !$omp end critical(write)
     end do ! iat
     !$omp end parallel do
-    avol = avol * cr%omega / ntot
-    ml = ml * cr%omega / ntot
+    avol = avol * sy%c%omega / ntot
+    ml = ml * sy%c%omega / ntot
     deallocate(lvec)
 
     ! free volumes and polarizabilities
     write (uout,'("+ Calculating free volumes and polarizabilities")')
-    allocate(ityp(maxzat0),afree(cr%nneq),alpha(cr%nneq))
+    allocate(ityp(maxzat0),afree(sy%c%nneq),alpha(sy%c%nneq))
     ityp = 0
-    do i = 1, cr%nneq
-       if (ityp(cr%at(i)%z) == 0) then
-          afree(i) = free_volume(cr%at(i)%z)
-          ityp(cr%at(i)%z) = i
+    do i = 1, sy%c%nneq
+       if (ityp(sy%c%at(i)%z) == 0) then
+          afree(i) = free_volume(sy%c%at(i)%z)
+          ityp(sy%c%at(i)%z) = i
        else
-          afree(i) = afree(ityp(cr%at(i)%z))
+          afree(i) = afree(ityp(sy%c%at(i)%z))
        endif
-       alpha(i) = min(avol(i) / afree(i),1d0) * alpha_free(cr%at(i)%z)
+       alpha(i) = min(avol(i) / afree(i),1d0) * alpha_free(sy%c%at(i)%z)
     end do
     deallocate(ityp)
 
@@ -610,8 +558,8 @@ contains
     write (uout,'("+ Volumes and moments for non-equivalent atoms")')
     write (uout,'("# All results in atomic units.")')
     write (uout,'("# i          V                 Vfree               M1                 M2                 M3")')
-    do ii = 1, cr%ncel
-       i = cr%atcel(ii)%idx
+    do ii = 1, sy%c%ncel
+       i = sy%c%atcel(ii)%idx
        write (uout,'(99(A,X))') string(ii,length=5,justify=ioj_right), &
           string(avol(i),'e',decimal=10,length=18,justify=5), &
           string(afree(i),'e',decimal=10,length=18,justify=5), &
@@ -625,12 +573,12 @@ contains
     write (uout,'("# All results in atomic units.")')
     write (uout,'("# i   j          C6                 C8                 C10                Rc                Rvdw")')
 
-    allocate(rc(cr%nneq,cr%nneq))
+    allocate(rc(sy%c%nneq,sy%c%nneq))
     maxc6 = -1d0
-    do ii = 1, cr%ncel
-       i = cr%atcel(ii)%idx
+    do ii = 1, sy%c%ncel
+       i = sy%c%atcel(ii)%idx
        do jj = 1, ii
-          j = cr%atcel(jj)%idx
+          j = sy%c%atcel(jj)%idx
           c6 = alpha(i)*alpha(j)*ml(1,i)*ml(1,j) / (ml(1,i)*alpha(j) + ml(1,j)*alpha(i))
           maxc6 = max(c6,maxc6)
           c8 = 3d0/2d0 * (alpha(i)*alpha(j)*(ml(1,i)*ml(2,j)+ml(2,i)*ml(1,j))) /&
@@ -655,8 +603,8 @@ contains
     if (.true.) then 
        write (uout,*)
        write (uout,'("# i   j   k             C9")')
-       do ii = 1, cr%ncel
-          i = cr%atcel(ii)%idx
+       do ii = 1, sy%c%ncel
+          i = sy%c%atcel(ii)%idx
           do j = 1, i
              do k = 1, j
                 c9 = ml(1,i)*ml(1,j)*ml(1,k)*(ml(1,i)/alpha(i)+ml(1,j)/alpha(j)+ml(1,k)/alpha(k)) / &
@@ -683,13 +631,13 @@ contains
     ! set the atomic environment for the sum
     rmax = (maxc6/ecut)**(1d0/6d0)
     rmax2 = rmax*rmax
-    do ii = 1, cr%ncel
-       i = cr%atcel(ii)%idx
+    do ii = 1, sy%c%ncel
+       i = sy%c%atcel(ii)%idx
        eat = 0d0
        sat = 0d0
-       do jj = 1, cr%nenv
-          j = cr%atenv(jj)%idx
-          x = cr%atenv(jj)%r - cr%atcel(ii)%r
+       do jj = 1, sy%c%nenv
+          j = sy%c%atenv(jj)%idx
+          x = sy%c%atenv(jj)%r - sy%c%atcel(ii)%r
           ri2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
           if (ri2 < 1d-15 .or. ri2>rmax2) cycle
           ri = sqrt(ri2)
@@ -737,7 +685,7 @@ contains
        sigma = sigma + sat 
     end do ! ii
     etotal= - 0.5d0 * etotal
-    sigma = - 0.5d0 * sigma / cr%omega
+    sigma = - 0.5d0 * sigma / sy%c%omega
     ehadd = - 0.5d0 * ehadd
      
     write (uout,'("  Evdw = ",A," Hartree, ",A," Ry")') &
@@ -752,7 +700,7 @@ contains
        end if
     end do
 
-    do i = 1, cr%ncel
+    do i = 1, sy%c%ncel
        write (uout,'("  Fvdw (",A,") = ",3(A,X)," Hartree/bohr")') &
           string(i), (string(for(j,i),'e',decimal=10),j=1,3)
        write (uout,'("            = ",3(A,X)," Ry/bohr")') &
@@ -774,28 +722,28 @@ contains
     ! cleanup
     deallocate(rc, alpha, ml)
     do i = 1, nclean
-       call fields_unload(iclean(i))
+       call sy%unload_field(iclean(i))
     end do
 
   end subroutine xdm_grid
 
   !> Calculate XDM from the information in a QE output
   subroutine xdm_qe()
+    use systemmod, only: sy
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose
-    use crystalmod, only: cr
     integer :: i, j
     integer :: lu, idx, idx1, idx2
     character(len=:), allocatable :: line, str
     logical :: ok
     real*8 :: a1, a2
-    real*8 :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
-    real*8 :: rc(cr%ncel,cr%ncel), rvdw(cr%ncel,cr%ncel)
+    real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
+    real*8 :: rc(sy%c%ncel,sy%c%ncel), rvdw(sy%c%ncel,sy%c%ncel)
     
     write (uout,'("* Sum the XDM dispersion energy using a QE output")')
-    write (uout,'("+ Reading coefficients from the file: ",A)') string(cr%file)
+    write (uout,'("+ Reading coefficients from the file: ",A)') string(sy%c%file)
 
-    lu = fopen_read(string(cr%file))
-    call cr%build_env(150d0)
+    lu = fopen_read(string(sy%c%file))
+    call sy%c%build_env(150d0)
 
     main: do while (getline(lu,line))
        ! read the parameters
@@ -812,7 +760,7 @@ contains
        end if
        ! read the dispersion coefficients and the radii
        if (trim(line) == "+ Dispersion coefficients") then
-          do i = 1, cr%ncel
+          do i = 1, sy%c%ncel
              do j = 1, i
                 ok = getline(lu,line)
                 read(line,*) idx1, idx2, c6(i,j), c8(i,j), c10(i,j), rc(i,j), rvdw(i,j)
@@ -837,35 +785,33 @@ contains
 
   !> Calculate XDM in molecules and crystals using the wavefunction.
   subroutine xdm_wfn(a1o,a2o,chf)
-    use meshmod, only: genmesh, fillmesh
-    use fields, only: f, type_wfn, type_dftb
-    use global, only: refden, mesh_type
-    use crystalmod, only: cr
-    use grd_atomic, only: agrid, grda_promolecular
-    use grid1_tools, only: grid1_interp
+    use systemmod, only: sy
+    use meshmod, only: mesh
+    use fieldmod, only: type_wfn, type_dftb
+    use grid1mod, only: grid1, agrid
+    use global, only: mesh_type
     use tools_math, only: norm
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
-    use types, only: molmesh
     use param, only: bohrtoa, im_rho, im_null, im_b
     
     real*8, intent(in) :: a1o, a2o
     real*8, intent(in) :: chf
 
-    type(molmesh) :: m
+    type(mesh) :: m
     integer :: nelec
     integer :: id(7), prop(7), i, j, lu, luh, iz
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
-    real*8 :: mm(3,cr%ncel), v(cr%ncel), dum1(3), dum2(3,3)
-    real*8 :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
-    real*8 :: rvdw(cr%ncel,cr%ncel)
+    real*8 :: mm(3,sy%c%ncel), v(sy%c%ncel), dum1(3), dum2(3,3)
+    real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
+    real*8 :: rvdw(sy%c%ncel,sy%c%ncel)
     
     ! only for wfn or dftb
-    if (f(refden)%type /= type_wfn .and. f(refden)%type /= type_dftb) &
+    if (sy%f(sy%iref)%type /= type_wfn .and. sy%f(sy%iref)%type /= type_dftb) &
        call ferror("xdm_wfn","molecular XDM only for wfn and dftb fields",faterr)
 
     ! only for closed shells
-    if (f(refden)%type == type_wfn) then
-       if (f(refden)%wfntyp /= 0) &
+    if (sy%f(sy%iref)%type == type_wfn) then
+       if (sy%f(sy%iref)%wfn%wfntyp /= 0) &
           call ferror("xdm_wfn","open shell wavefunctions not supported",faterr)
     end if
 
@@ -903,7 +849,7 @@ contains
     endif
 
     ! prepare the mesh
-    m = genmesh(cr)
+    call m%gen(sy%c)
     write (uout,'("mesh size      ",A)') string(m%n)
     if (MESH_type == 0) then
        write (uout,'("mesh type      Becke")')
@@ -929,21 +875,21 @@ contains
     prop(4) = im_b    
 
     ! fill the mesh with those properties
-    call fillmesh(m,f(refden),id,prop,.not.cr%ismolecule)
+    call m%fill(sy%f(sy%iref),id,prop,.not.sy%c%ismolecule)
 
     ! fill the promolecular and the atomic densities
     m%f(:,2:3) = 0d0
     lu = fopen_scratch()
     nelec = 0
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
+    do i = 1, sy%c%ncel
+       iz = sy%c%at(sy%c%atcel(i)%idx)%z
        if (iz < 1) cycle
        nelec = nelec + iz
 
        do j = 1, m%n
-          x = m%x(:,j) - cr%atcel(i)%r
+          x = m%x(:,j) - sy%c%atcel(i)%r
           r = norm(x)
-          call grid1_interp(agrid(iz),r,rho,rhop,rhopp)
+          call agrid(iz)%interp(r,rho,rhop,rhopp)
           m%f(j,2) = m%f(j,2) + rho
           m%f(j,3) = rho
        enddo
@@ -951,9 +897,9 @@ contains
     enddo
 
     ! fill the actual periodic promolecular density
-    if (.not.cr%ismolecule) then
+    if (.not.sy%c%ismolecule) then
        do j = 1, m%n
-          call grda_promolecular(m%x(:,j),rho,dum1,dum2,0,.false.,periodic=.true.)
+          call sy%c%promolecular(m%x(:,j),rho,dum1,dum2,0,periodic=.true.)
           m%f(j,2) = rho
        enddo
     end if
@@ -961,8 +907,8 @@ contains
     ! create the temporary file with the weights
     luh = fopen_scratch()
     rewind(lu)
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
+    do i = 1, sy%c%ncel
+       iz = sy%c%at(sy%c%atcel(i)%idx)%z
        if (iz < 1) cycle
        read (lu) (m%f(j,3),j=1,m%n)
        write (luh) (max(m%f(j,3),1d-40)/max(m%f(j,2),1d-40),j=1,m%n)
@@ -981,14 +927,14 @@ contains
     mm = 0d0
     v = 0d0
     rewind(luh)
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
+    do i = 1, sy%c%ncel
+       iz = sy%c%at(sy%c%atcel(i)%idx)%z
        if (iz < 1) cycle
        read (luh) (m%f(j,2),j=1,m%n)
 
        ! calculate hole dipole and moments
        do j = 1, m%n
-          r = norm(m%x(:,j)-cr%atcel(i)%r)
+          r = norm(m%x(:,j)-sy%c%atcel(i)%r)
           rb = max(0.d0,r-m%f(j,4))
 
           mm(1,i) = mm(1,i) + m%w(j) * m%f(j,2) * m%f(j,1) * (r-rb)**2
@@ -1009,9 +955,9 @@ contains
 
   !> Write the header of a cube file
   subroutine write_cube(file,line1,line2,n,c)
+    use systemmod, only: sy
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
-    use crystalmod, only: cr
     character*(*), intent(in) :: file, line1, line2
     integer, intent(in) :: n(3)
     real*8, intent(in) :: c(0:n(1)-1,0:n(2)-1,0:n(3)-1)
@@ -1025,17 +971,17 @@ contains
     ! cube title and grid dimensions
     write(lu,'(A)') trim(line1)
     write(lu,'(A)') trim(line2)
-    write(lu,'(I5,3(F12.6))') cr%ncel, 0d0, 0d0, 0d0
-    xx = cr%x2c((/1d0,0d0,0d0/))
+    write(lu,'(I5,3(F12.6))') sy%c%ncel, 0d0, 0d0, 0d0
+    xx = sy%c%x2c((/1d0,0d0,0d0/))
     write(lu,'(I5,3(F12.6))') n(1), xx / real(n(1),8)
-    xx = cr%x2c((/0d0,1d0,0d0/))
+    xx = sy%c%x2c((/0d0,1d0,0d0/))
     write(lu,'(I5,3(F12.6))') n(2), xx / real(n(2),8)
-    xx = cr%x2c((/0d0,0d0,1d0/))
+    xx = sy%c%x2c((/0d0,0d0,1d0/))
     write(lu,'(I5,3(F12.6))') n(3), xx / real(n(3),8)
 
     ! write the atoms
-    do i = 1, cr%ncel
-       write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') cr%at(cr%atcel(i)%idx)%z, 0d0, cr%atcel(i)%r
+    do i = 1, sy%c%ncel
+       write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%at(sy%c%atcel(i)%idx)%z, 0d0, sy%c%atcel(i)%r
     end do
 
     ! write the field
@@ -1055,8 +1001,8 @@ contains
   end subroutine write_cube
 
   function free_volume(iz) result(afree)
-    use grd_atomic, only: agrid
-    use grid1_tools, only: grid1_interp
+    use systemmod, only: sy
+    use grid1mod, only: grid1, agrid
     use param, only: pi
     integer, intent(in) :: iz
     real*8 :: afree
@@ -1072,7 +1018,7 @@ contains
        q = h * k
        r = rmid * q / (1d0-q)
        rwei = 4d0*pi*h * r**2 * rmid/(1d0-q)**2
-       call grid1_interp(agrid(iz),r,rhofree,raux1,raux2)
+       call agrid(iz)%interp(r,rhofree,raux1,raux2)
        afree = afree + rhofree * rwei * r**3
     end do
   end function free_volume
@@ -1310,11 +1256,11 @@ contains
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
   subroutine calc_edisp(c6,c8,c10,rvdw)
-    use crystalmod, only: cr, crystal
+    use systemmod, only: sy
+    use crystalmod, only: crystal
     use tools_io, only: uout
-    ! use param
-    real*8, intent(in) :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel), c10(cr%ncel,cr%ncel)
-    real*8, intent(in) :: rvdw(cr%ncel,cr%ncel)
+    real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
+    real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
 
     type(crystal) :: caux
     integer :: i, j, jj, iz
@@ -1326,13 +1272,13 @@ contains
     real*8, parameter :: ecut = 1d-11
 
     ! check that we have an environment
-    call cr%checkflags(.true.,env0=.true.)
+    call sy%c%checkflags(.true.,env0=.true.)
 
     ! build the environment
     maxc6 = maxval(c6)
     rmax = (maxc6/ecut)**(1d0/6d0)
     rmax2 = rmax * rmax
-    caux = cr
+    caux = sy%c
     call caux%build_env(150d0)
 
     ! calculate the energies and derivatives
@@ -1367,31 +1313,31 @@ contains
   !> (a1, a2, chf). Print out the calculated values. Works for
   !> molecules and crystals.
   subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use tools_io, only: uout, string
     use param, only: alpha_free
 
     real*8, intent(in) :: a1, a2, chf
-    real*8, intent(in) :: v(cr%ncel), mm(3,cr%ncel)
-    real*8, intent(out) :: c6(cr%ncel,cr%ncel), c8(cr%ncel,cr%ncel)
-    real*8, intent(out) :: c10(cr%ncel,cr%ncel), rvdw(cr%ncel,cr%ncel)
+    real*8, intent(in) :: v(sy%c%ncel), mm(3,sy%c%ncel)
+    real*8, intent(out) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel)
+    real*8, intent(out) :: c10(sy%c%ncel,sy%c%ncel), rvdw(sy%c%ncel,sy%c%ncel)
 
     integer :: i, j
     integer :: iz
-    real*8 :: atpol(cr%ncel), fac, rc
+    real*8 :: atpol(sy%c%ncel), fac, rc
 
     ! write moments and volumes
     write (uout,'("moments and volumes ")')
     write (uout,'("# i At        <M1^2>             <M2^2>              <M3^2>           Volume              Vfree")')
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
-       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(cr%at(cr%atcel(i)%idx)%name,2),&
+    do i = 1, sy%c%ncel
+       iz = sy%c%at(sy%c%atcel(i)%idx)%z
+       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(sy%c%at(sy%c%atcel(i)%idx)%name,2),&
           (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
     enddo
     write (uout,'("#")')
 
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
+    do i = 1, sy%c%ncel
+       iz = sy%c%at(sy%c%atcel(i)%idx)%z
        if (iz < 1) cycle
        atpol(i) = v(i) * alpha_free(iz) / frevol(iz,chf)
     enddo
@@ -1399,11 +1345,11 @@ contains
     ! coefficients and distances
     write (uout,'("coefficients and distances (a.u.)")')
     write (uout,'("# i  j       dij            C6               C8               C10              Rc           Rvdw")') 
-    do i = 1, cr%ncel
-       iz = cr%at(cr%atcel(i)%idx)%z
+    do i = 1, sy%c%ncel
+       iz = sy%c%at(sy%c%atcel(i)%idx)%z
        if (iz < 1) cycle
-       do j = i, cr%ncel
-          iz = cr%at(cr%atcel(j)%idx)%z
+       do j = i, sy%c%ncel
+          iz = sy%c%at(sy%c%atcel(j)%idx)%z
           if (iz < 1) cycle
           fac = atpol(i)*atpol(j)/(mm(1,i)*atpol(j)+mm(1,j)*atpol(i))
           c6(i,j) = fac*mm(1,i)*mm(1,j)
@@ -1424,5 +1370,50 @@ contains
     write (uout,'("#")')
 
   end subroutine calc_coefs
+
+  !> Calculate the kinetic energy density from the elf
+  subroutine taufromelf(ielf,irho,itau)
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use grid3mod, only: grid3
+    use tools_io, only: ferror, faterr, string, fclose
+    use param, only: pi
+    integer, intent(in) :: ielf, irho, itau
+
+    integer :: igrad
+    real*8, allocatable :: g(:,:,:)
+
+    ! check that the fields are good
+    if (.not.sy%f(ielf)%isinit) &
+       call ferror("taufromelf","wrong elf field",faterr)
+    if (.not.sy%f(ielf)%type == type_grid) &
+       call ferror("taufromelf","wrong elf field",faterr)
+    if (.not.sy%f(irho)%isinit) &
+       call ferror("taufromelf","wrong rho field",faterr)
+    if (.not.sy%f(irho)%type == type_grid) &
+       call ferror("taufromelf","wrong rho field",faterr)
+    if (any(sy%f(ielf)%grid%n /= sy%f(irho)%grid%n)) &
+       call ferror("taufromelf","incongruent sizes of rho and elf",faterr)
+
+    ! copy the elf field for now
+    if (allocated(sy%f(itau)%grid%c2)) deallocate(sy%f(itau)%grid%c2)
+    sy%f(itau) = sy%f(ielf)
+    call sy%fh%put(string(itau),itau)
+    if (allocated(sy%f(itau)%grid%f)) deallocate(sy%f(itau)%grid%f)
+
+    ! allocate a temporary field for the gradient
+    igrad = sy%getfieldnum()
+    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+    
+    allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))
+    g = sqrt(1d0 / max(min(sy%f(ielf)%grid%f,1d0),1d-14) - 1d0)
+    g = g * (3d0/10d0 * (3d0*pi**2)**(2d0/3d0) * max(sy%f(irho)%grid%f,0d0)**(5d0/3d0))
+    g = g + 0.125d0 * sy%f(igrad)%grid%f**2 / sy%f(irho)%grid%f
+    call move_alloc(g,sy%f(itau)%grid%f)
+
+    ! unload the temporary field
+    call sy%unload_field(igrad)
+
+  end subroutine taufromelf
 
 end module xdm

@@ -138,12 +138,14 @@ contains
   !> the expression at x0 considering the field as
   !> non-periodic. Otherwise, evaluate it as if in a periodic system.
   !> This routine is thread-safe.
-  recursive function eval(expr,hardfail,iok,x0,fcheck,feval,periodic)
+  recursive function eval(expr,hardfail,iok,x0,fh,fcheck,feval,periodic)
+    use hashmod, only: hash
     real*8 :: eval
     character(*), intent(in) :: expr
     logical, intent(in) :: hardfail
     logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
+    type(hash), intent(in), optional :: fh
     optional :: fcheck, feval
     logical, intent(in), optional :: periodic
 
@@ -176,7 +178,7 @@ contains
     iok = .false.
     eval = 0d0
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp)
+    ok = tokenize(expr,ntok,toklist,lp,fh)
     if (.not.ok) then
        call dofail(expr(1:lp-1) // " -- " // expr(lp:))
        return
@@ -307,10 +309,12 @@ contains
 
   !> Return field ids from the evaluation of an expression.  This
   !> routine is thread-safe.
-  subroutine fields_in_eval(expr,n,idlist)
+  subroutine fields_in_eval(expr,fh,n,idlist)
+    use hashmod, only: hash
     use tools_io, only: string
     use types, only: realloc
     character(*), intent(in) :: expr
+    type(hash), intent(in) :: fh
     integer, intent(out) :: n
     character*255, allocatable, intent(inout) :: idlist(:)
 
@@ -325,7 +329,7 @@ contains
 
     ! tokenize the expression
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp)
+    ok = tokenize(expr,ntok,toklist,lp,fh)
     if (.not. ok) &
        call die("error evaluating expression: " // string(expr))
 
@@ -346,14 +350,16 @@ contains
   !> tokens for the arithmetic evaluation. Return the tokens in
   !> toklist and the number of tokens in ntok, and advance the string
   !> pointer lpexit.  This routine is thread-safe.
-  function tokenize(expr,ntok,toklist,lpexit) 
+  function tokenize(expr,ntok,toklist,lpexit,fh) 
+    use hashmod, only: hash
     use tools_io, only: lower
-    use param, only: fh, vh
+    use param, only: vh
     logical :: tokenize
     character(*), intent(in) :: expr
     integer, intent(out) :: ntok
     type(token), intent(inout), allocatable :: toklist(:)
     integer, intent(inout) :: lpexit
+    type(hash), intent(in), optional :: fh
 
     integer :: lp, ll
     character(len=:), allocatable :: str
@@ -425,7 +431,8 @@ contains
           lp = lp + 1
           ok = isidentifier(str,expr,lp,fder)
           if (.not.ok) goto 999
-          ok = fh%iskey(trim(str))
+          ok = .false.
+          if (present(fh)) ok = fh%iskey(trim(str))
           if (.not.ok) then
              str = lower(str)
              ok = isspecialfield(trim(str))
@@ -437,6 +444,7 @@ contains
              call addtok(token_field,sval=str,fder=fder)
           else
              ! inside a chemical function
+             if (.not.present(fh)) goto 999
              ok = fh%iskey(trim(str))
              if (.not.ok) goto 999
              call addtok(token_num,fval=fh%get(trim(str),a))
@@ -450,6 +458,7 @@ contains
              call addtok(token_num,fval=vh%get(trim(str),a))
           else
              ! inside a chemical function -> field identifier
+             if (.not.present(fh)) goto 999
              ok = fh%iskey(trim(str))
              if (.not.ok) goto 999
              call addtok(token_num,fval=fh%get(trim(str),a))

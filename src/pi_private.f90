@@ -20,15 +20,43 @@
 
 !> Interface to aiPI (pi7) densities.
 module pi_private
+  use grid1mod, only: grid1
   implicit none
 
   private
 
-  public :: pi_end
-  public :: pi_register_struct
-  public :: pi_read_ion
-  public :: pi_rho2
-  public :: fillinterpol
+  type piwfn
+     ! atomic orbitals
+     character*(20), allocatable :: piname(:)
+     logical, allocatable :: pi_used(:)
+     integer, allocatable :: nsym(:)
+     integer, allocatable :: naos(:,:)
+     integer, allocatable :: naaos(:,:)
+     integer, allocatable :: nsto(:,:)
+     integer, allocatable :: nasto(:,:)
+     integer, allocatable :: nn(:,:)
+     real*8, allocatable :: z(:,:)
+     real*8, allocatable :: xnsto(:,:)
+     real*8, allocatable :: c(:,:,:)
+     real*8, allocatable :: nelec(:,:)
+     type(grid1), allocatable :: pgrid(:)
+     ! structural info
+     real*8, allocatable :: renv(:,:)
+     integer, allocatable :: idxenv(:)
+     integer, allocatable :: zenv(:)
+     integer :: nenv
+   contains
+     procedure :: end => pi_end
+     procedure :: register_struct
+     procedure :: read_ion
+     procedure :: rho2
+     procedure :: fillinterpol
+  end type piwfn
+  public :: piwfn
+
+  private :: buscapar
+  private :: entero
+  private :: rhoex1
 
   ! parameters for PI common info
   integer, parameter :: msa = 4
@@ -40,51 +68,64 @@ module pi_private
   integer, parameter :: mtvex = 30
   integer, parameter :: mdens = 360
 
-  ! private structural info
-  real*8, allocatable :: renv(:,:)
-  integer, allocatable :: idxenv(:), zenv(:)
-  integer :: nenv
 contains
 
   ! Terminate the pi arrays
-  subroutine pi_end()
+  subroutine pi_end(f)
+    class(piwfn), intent(inout) :: f
 
-    if (allocated(renv)) deallocate(renv)
-    if (allocated(idxenv)) deallocate(idxenv)
-    if (allocated(zenv)) deallocate(zenv)
+    if (allocated(f%piname)) deallocate(f%piname)
+    if (allocated(f%pi_used)) deallocate(f%pi_used)
+    if (allocated(f%nsym)) deallocate(f%nsym)
+    if (allocated(f%naos)) deallocate(f%naos)
+    if (allocated(f%naaos)) deallocate(f%naaos)
+    if (allocated(f%nsto)) deallocate(f%nsto)
+    if (allocated(f%nasto)) deallocate(f%nasto)
+    if (allocated(f%nn)) deallocate(f%nn)
+    if (allocated(f%z)) deallocate(f%z)
+    if (allocated(f%xnsto)) deallocate(f%xnsto)
+    if (allocated(f%c)) deallocate(f%c)
+    if (allocated(f%nelec)) deallocate(f%nelec)
+    if (allocated(f%pgrid)) deallocate(f%pgrid)
+    if (allocated(f%renv)) deallocate(f%renv)
+    if (allocated(f%idxenv)) deallocate(f%idxenv)
+    if (allocated(f%zenv)) deallocate(f%zenv)
 
   end subroutine pi_end
 
   !> Register structural information
-  subroutine pi_register_struct(nenv0,renv0,idx0,zenv0)
-
-    integer, intent(in) :: nenv0
-    real*8, intent(in) :: renv0(:,:)
-    integer, intent(in) :: idx0(:), zenv0(:)
-
-    nenv = nenv0
-    if (allocated(renv)) deallocate(renv)
-    allocate(renv(size(renv0,1),size(renv0,2)))
-    renv = renv0
-    if (allocated(idxenv)) deallocate(idxenv)
-    allocate(idxenv(size(idx0)))
-    idxenv = idx0
-    if (allocated(zenv)) deallocate(zenv)
-    allocate(zenv(size(zenv0)))
-    zenv = zenv0
-    nenv = nenv0
+  subroutine register_struct(f,nenv,at,atenv)
+    use types, only: atom, celatom
+    class(piwfn), intent(inout) :: f
+    integer, intent(in) :: nenv
+    type(atom), intent(in) :: at(*)
+    type(celatom), intent(in) :: atenv(nenv)
     
-  end subroutine pi_register_struct
+    integer :: i
+
+    f%nenv = nenv
+    if (allocated(f%renv)) deallocate(f%renv)
+    allocate(f%renv(3,nenv))
+    if (allocated(f%idxenv)) deallocate(f%idxenv)
+    allocate(f%idxenv(nenv))
+    if (allocated(f%zenv)) deallocate(f%zenv)
+    allocate(f%zenv(nenv))
+
+    do i = 1, nenv
+       f%renv(:,i) = atenv(i)%r
+       f%idxenv(i) = atenv(i)%idx
+       f%zenv(i) = at(atenv(i)%idx)%z
+    end do
+    
+  end subroutine register_struct
 
   !> From PI: read an ion description file.
-  subroutine pi_read_ion(fichero,f,ni)
+  subroutine read_ion(f,fichero,ni)
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
-    use types, only: field
     use param, only: fact, zero
-
-    character*(*)  fichero
-    type(field)    f
-    integer        ni
+    class(piwfn), intent(inout) :: f
+    character*(*) :: fichero
+    integer :: ni
 
     ! parameters
     integer, parameter :: mpar=5
@@ -118,10 +159,10 @@ contains
     if (.not.allocated(f%nsto)) allocate(f%nsto(msa,0:mnt))
     if (.not.allocated(f%nasto)) allocate(f%nasto(msa,0:mnt))
     if (.not.allocated(f%nn)) allocate(f%nn(msto,0:mnt))
-    if (.not.allocated(f%nelec)) allocate(f%nelec(maos,0:mnt))
     if (.not.allocated(f%z)) allocate(f%z(msto,0:mnt))
     if (.not.allocated(f%xnsto)) allocate(f%xnsto(msto,0:mnt))
     if (.not.allocated(f%c)) allocate(f%c(mstosym,maos,0:mnt))
+    if (.not.allocated(f%nelec)) allocate(f%nelec(maos,0:mnt))
 
     f%pi_used(ni) = .true.
     f%piname(ni) = fichero
@@ -264,10 +305,10 @@ contains
 999 close (lui)
     stop 'pi(leerion): read error !'
 
-  end subroutine pi_read_ion
+  end subroutine read_ion
 
   !xx! PRIVATE functions and subroutines
-  subroutine buscapar (line,chpar,nchpar,ipar,nipar)
+  subroutine buscapar(line,chpar,nchpar,ipar,nipar)
     
     integer, parameter :: mpar=3
     integer :: ipar(mpar)
@@ -375,9 +416,7 @@ contains
   !> Fills the interpolation grids for ion densities.
   subroutine fillinterpol(f)
     use global, only: cutrad
-    use types, only: field
-
-    type(field), intent(inout) :: f
+    class(piwfn), intent(inout) :: f
 
     real*8, parameter :: az = exp(-6d0)
     real*8, parameter :: b = 0.002
@@ -387,15 +426,16 @@ contains
     real*8 :: crad, rrho, rrho1, rrho2
     logical :: done(mnt)
 
+    if (allocated(f%pgrid)) deallocate(f%pgrid)
     allocate(f%pgrid(mnt))
     done = .false.
-    do ii = 1, nenv
-       i = idxenv(ii)
+    do ii = 1, f%nenv
+       i = f%idxenv(ii)
        if (done(i)) cycle
        done(i) = .true.
 
        ! determine cutoff radius (crad)
-       crad = cutrad(zenv(ii))
+       crad = cutrad(f%zenv(ii))
        call rhoex1(f,i,crad,rrho,rrho1,rrho2)
        do while (rrho > pi_cutdens) 
           crad = crad * 1.05d0
@@ -404,7 +444,7 @@ contains
        
        ! fill some grid info
        f%pgrid(i)%init = .true.
-       f%pgrid(i)%a = az / real(zenv(ii),8)
+       f%pgrid(i)%a = az / real(f%zenv(ii),8)
        f%pgrid(i)%b = b
        f%pgrid(i)%ngrid = ceiling(log(crad/f%pgrid(i)%a) / f%pgrid(i)%b) + 1
        f%pgrid(i)%rmax = f%pgrid(i)%a * exp((f%pgrid(i)%ngrid - 1) * f%pgrid(i)%b)
@@ -422,12 +462,10 @@ contains
   end subroutine fillinterpol
 
   !> Calculates radial density and its radial derivatives for an atom.
-  subroutine rhoex1(f, ni, rion0, rhoval, firstder, secondder)
+  subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
     use tools_math, only: ep
-    use types, only: field
     use param, only: pi, zero, two
-
-    type(field), intent(inout) :: f
+    class(piwfn), intent(in) :: f
     integer, intent(in) :: ni
     real*8, intent(in) :: rion0
     real*8, intent(out) :: rhoval, firstder, secondder
@@ -477,14 +515,12 @@ contains
   !> Determine the density and derivatives at a given target point
   !> (cartesian).  It is possible to use the 'approximate' method, by
   !> interpolating on a grid.  This routine is thread-safe.
-  subroutine pi_rho2 (f,xpos,rho,grad,h)
-    use grid1_tools, only: grid1_interp
+  subroutine rho2(f,xpos,exact,rho,grad,h)
     use tools_math, only: ep, norm
     use param, only: pi, one
-    use types, only: field
-
-    type(field), intent(in) :: f
+    class(piwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
+    logical, intent(in) :: exact
     real*8, intent(out) :: rho, grad(3), h(3,3)
 
     real*8, parameter :: pi4 = 4d0 * pi
@@ -501,20 +537,20 @@ contains
 
     real*8, parameter :: eps0 = 1d-7
 
-    if (f%exact) then
+    if (exact) then
        ! calculate exactly the contribution of each atom
        rho = 0d0
        grad = 0d0
        h = 0d0
        !.....recorre todos los iones de la red
        !
-       do ion= 1, nenv 
+       do ion= 1, f%nenv 
           rhop = 0d0
           rhopp = 0d0
           !
-          xion = xpos(1) - renv(1,ion)
-          yion = xpos(2) - renv(2,ion)
-          zion = xpos(3) - renv(3,ion)
+          xion = xpos(1) - f%renv(1,ion)
+          yion = xpos(2) - f%renv(2,ion)
+          zion = xpos(3) - f%renv(3,ion)
           xxion = (/ xion, yion, zion /)
           rions2 = xion*xion+yion*yion+zion*zion
           rion = sqrt(rions2)
@@ -544,7 +580,7 @@ contains
              return
           endif
           !........Every atomic symmetry
-          ni= idxenv(ion)
+          ni= f%idxenv(ion)
           do l = 1, f%nsym(ni)
              llplus1=l*(l-1)
              !...........every orbital
@@ -592,13 +628,13 @@ contains
        rho = 0d0
        grad = 0d0
        h = 0d0
-       do i = 1, nenv
-          xxion = xpos - renv(:,i)
+       do i = 1, f%nenv
+          xxion = xpos - f%renv(:,i)
           rion = max(norm(xxion),eps0)
           rion1 = 1d0 / rion
           rion2 = rion1 * rion1
-          ni = idxenv(i)
-          call grid1_interp(f%pgrid(ni),rion,tmprho,rhop,rhopp)
+          ni = f%idxenv(i)
+          call f%pgrid(ni)%interp(rion,tmprho,rhop,rhopp)
           rho = rho + tmprho
           grad = grad + rhop * xxion * rion1
           rfac = (rhopp - rhop * rion1)
@@ -616,7 +652,7 @@ contains
        h(3,2) = h(2,3)
     endif
 
-  end subroutine pi_rho2
+  end subroutine rho2
 
 end module pi_private
 

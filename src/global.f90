@@ -37,6 +37,9 @@ module global
   real*8, parameter :: atomeps = 1d-2 !< Minimum distance to consider two atoms different
   real*8, parameter :: atomeps2 = atomeps*atomeps 
 
+  ! Beta-sphere default radius (bohr)
+  real*8, parameter :: rbetadef = 0.1d0
+
   ! Environment variables
   character(len=:), allocatable :: critic_home !< CRITIC_HOME directory (with trailing "/")
   character(len=:), allocatable :: clib_file !< The path to the crystal library file
@@ -119,9 +122,6 @@ module global
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
   integer, parameter :: crsmall = 5000
-
-  ! reference scalar field
-  integer :: refden
 
   ! navigation options
   real*8 :: NAV_step !< gradient path step length (bohr)
@@ -254,7 +254,6 @@ contains
   !> Set the default values for all the global variables
   subroutine global_set_defaults()
 
-    refden = 0
     precisecube = .true.
 
     ! bond factor
@@ -280,7 +279,7 @@ contains
     INT_radquad_nr = 50
     INT_radquad_abserr = 1d0
     INT_radquad_relerr = 1d-12
-    INT_radquad_errprop = 2
+    INT_radquad_errprop = 3
     INT_radquad_errprop_default = .true.
     INT_iasprec = 1d-5
 

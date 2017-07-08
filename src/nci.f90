@@ -31,20 +31,19 @@ contains
 
   ! nci plots
   subroutine nciplot()
-    use fields, only: f, type_grid, type_promol, grd0, grd
+    use systemmod, only: sy
+    use fieldmod, only: field, type_grid, type_promol
     use struct_drivers, only: struct_write
-    use crystalmod, only: cr
-    use global, only: refden, fileroot, eval_next, dunit0, quiet, iunit, iunitname0
-    use grid_tools, only: grid_gradrho, grid_hxx
-    use grd_atomic, only: agrid
-    use grid1_tools, only: grid1_interp
+    use grid1mod, only: agrid
+    use global, only: fileroot, eval_next, dunit0, quiet, iunit, iunitname0
     use graphics, only: writexyz
-    use fragmentmod, only: fragment_merge_array, fragment_init
+    use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
     use tools_math, only: eig
-    use types, only: field, scalar_value_noalloc, fragment, realloc
-    use param, only: pi, vsmall, bohrtoa
+    use types, only: scalar_value_noalloc, realloc
+    use param, only: pi, vsmall, bohrtoa, ifformat_as_grad, ifformat_as_hxx1,&
+       ifformat_as_hxx2, ifformat_as_hxx3
 
     type(field) :: fgrho, fxx(3)
     type(scalar_value_noalloc) :: res, resg
@@ -116,24 +115,20 @@ contains
        
 
     ! default values
-    fgrho%init = .false.
-    fgrho%numerical = .false.
-    fxx(:)%init = .false.
-    fxx(:)%numerical = .false.
-    isden = .not.(refden == 0)
+    isden = .not.(sy%iref == 0)
     rhoparam = 0.95d0
     rhoparam2 = 0.75d0
-    if (cr%ismolecule) then
-       x0 = cr%molborder
-       x1 = 1d0 - cr%molborder
-       x0 = cr%x2c(x0)
-       x1 = cr%x2c(x1)
+    if (sy%c%ismolecule) then
+       x0 = sy%c%molborder
+       x1 = 1d0 - sy%c%molborder
+       x0 = sy%c%x2c(x0)
+       x1 = sy%c%x2c(x1)
        periodic = .false.
     else
        x0 = 0d0
        x1 = 1d0
-       x0 = cr%x2c(x0)
-       x1 = cr%x2c(x1)
+       x0 = sy%c%x2c(x0)
+       x1 = sy%c%x2c(x1)
        periodic = .true.
     end if
     xinc = 0.1d0
@@ -162,7 +157,7 @@ contains
     end if
     rthres = 2.d0
     domolmotif = .false.
-    usecore = f(refden)%usecore .and. any(cr%at(1:cr%nneq)%zpsp /= -1)
+    usecore = sy%f(sy%iref)%usecore .and. any(sy%f(sy%iref)%zpsp /= -1)
     srhorange = (/ -1d30, 1d30 /)
 
     do while(.true.)
@@ -289,12 +284,12 @@ contains
              end if
              ok = check_no_extra_word(line,lp,'nciplot')
              if (.not.ok) return
-             if (.not.cr%ismolecule) then
-                x0 = cr%x2c(x0)
-                x1 = cr%x2c(x1)
+             if (.not.sy%c%ismolecule) then
+                x0 = sy%c%x2c(x0)
+                x1 = sy%c%x2c(x1)
              else
-                x0 = x0 / dunit0(iunit) - cr%molx0
-                x1 = x1 / dunit0(iunit) - cr%molx0
+                x0 = x0 / dunit0(iunit) - sy%c%molx0
+                x1 = x1 / dunit0(iunit) - sy%c%molx0
              endif
              ithres = 0
           else
@@ -306,7 +301,7 @@ contains
                 inquire(file=word,exist=ok2)
                 if (.not.ok2) exit
                 ok = .true.
-                fr0 = cr%identify_fragment_from_xyz(word)
+                fr0 = sy%c%identify_fragment_from_xyz(word)
                 do j = 1, fr0%nat
                    do k = 1, 3
                       x0(k) = min(x0(k),fr0%at(j)%r(k))
@@ -324,12 +319,12 @@ contains
           if (findlimits == -1) findlimits = 1
           if (ithres == -1) ithres = 1
           nfrag = nfrag + 1
-          if (nfrag > size(fr)) call realloc(fr,2*nfrag)
+          if (nfrag > size(fr)) call realloc_fragment(fr,2*nfrag)
           word = getword(line,lp)
           if (equal(word,'')) then
              fr(nfrag) = read_fragment(uin)
           else
-             fr(nfrag) = cr%identify_fragment_from_xyz(word)
+             fr(nfrag) = sy%c%identify_fragment_from_xyz(word)
           endif
 
        elseif (equal(word,'endnciplot').or.equal(word,'end')) then
@@ -341,7 +336,7 @@ contains
           return
        end if
     end do
-    if (nfrag > 0) call realloc(fr,nfrag)
+    if (nfrag > 0) call realloc_fragment(fr,nfrag)
 
     ! header
     write (uout,'("* NCIPLOT: non-covalent interactions")')
@@ -373,8 +368,8 @@ contains
     end if
 
     ! convert to crystallographic coordinates
-    x0 = cr%c2x(x0)
-    x1 = cr%c2x(x1)
+    x0 = sy%c%c2x(x0)
+    x1 = sy%c%c2x(x1)
     x0x = x0
     x1x = x1
 
@@ -384,9 +379,9 @@ contains
        do i = 1, 3
           x1 = 0d0
           x1(i) = 1d0
-          x1 = cr%x2c(x1)
-          if (istep == -1 .and. f(refden)%type == type_grid) then
-             nstep = f(refden)%n
+          x1 = sy%c%x2c(x1)
+          if (istep == -1 .and. sy%f(sy%iref)%type == type_grid) then
+             nstep = sy%f(sy%iref)%grid%n
           elseif (istep == 0 .or. istep == -1) then
              nstep(i) = ceiling(sqrt(dot_product(x1,x1)) / xinc(i))
           end if
@@ -395,8 +390,8 @@ contains
        end do
     else
        ! use the grid step
-       x0 = cr%x2c(x0)
-       x1 = cr%x2c(x1)
+       x0 = sy%c%x2c(x0)
+       x1 = sy%c%x2c(x1)
        if (istep == 0 .or. istep == -1) then
           nstep = ceiling(abs(x1 - x0) / xinc)
        else
@@ -467,7 +462,7 @@ contains
         if (istat /= 0) call ferror('nciplot','could not allocate memory for rhofrag',faterr)
      endif
 
-     if (f(0)%type /= type_promol) then
+     if (sy%f(0)%type /= type_promol) then
         call ferror('nciplot','promolecular density not found',faterr)
      end if
 
@@ -479,11 +474,11 @@ contains
 
      if (.not.lchk) then
         ! Initialize gradrho out of the omp loop
-        if (f(refden)%type == type_grid .and..not.usecore) then
-           call grid_gradrho(f(refden),fgrho)
-           do i = 1, 3
-              call grid_hxx(f(refden),fxx(i),i)
-           end do
+        if (sy%f(sy%iref)%type == type_grid .and..not.usecore) then
+           call fgrho%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_grad)
+           call fxx(1)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx1)
+           call fxx(2)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx2)
+           call fxx(3)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx3)
         endif
 
         ! calculate density, rdg, rhoat
@@ -497,12 +492,12 @@ contains
                  x = x0 + i*xmat(:,1) + j*xmat(:,2) + k*xmat(:,3)
 
                  ! calculate properties at x: rho and rdg
-                 if (f(refden)%type == type_grid.and..not.usecore) then
-                    call grd(f(refden),x,0,res0_noalloc=res)
-                    call grd(fgrho,x,0,res0_noalloc=resg)
+                 if (sy%f(sy%iref)%type == type_grid.and..not.usecore) then
+                    call sy%f(sy%iref)%grd(x,0,res0_noalloc=res)
+                    call fgrho%grd(x,0,res0_noalloc=resg)
                     dimgrad = resg%f / (const*max(res%f,vsmall)**fthirds)
                     do l = 1, 3
-                       call grd(fxx(l),x,0,res0_noalloc=resg)
+                       call fxx(l)%grd(x,0,res0_noalloc=resg)
                        ehess(l) = resg%f
                     end do
                     if (count(ehess > 0d0) >= 2) then
@@ -513,14 +508,14 @@ contains
                  else
                     ! strangely enough, eig takes about the same time as counting the signs
                     ! and using sylvester's law of inertia. 
-                    call grd(f(refden),x,2,res0_noalloc=res)
+                    call sy%f(sy%iref)%grd(x,2,res0_noalloc=res)
                     call eig(res%hf,ehess)
                     dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)           
                  end if
 
                  ! promolecular density
                  if (dopromol) then
-                    rhoatl = grd0(f(0),x)
+                    rhoatl = sy%f(0)%grd0(x)
                  endif
 
                  ! fragments
@@ -534,7 +529,7 @@ contains
                           if (dist > agrid(fr(ifr)%at(iat)%z)%rmax) cycle
                           dist = max(dist,agrid(fr(ifr)%at(iat)%z)%r(1))
                           dist = max(dist,1d-14)
-                          call grid1_interp(agrid(fr(ifr)%at(iat)%z),dist,rrho,rrho1,rrho2)
+                          call agrid(fr(ifr)%at(iat)%z)%interp(dist,rrho,rrho1,rrho2)
                           rrho = max(rrho,0d0)
                           rhofragl(ifr) = rhofragl(ifr) + rrho
                        end do
@@ -591,9 +586,9 @@ contains
            end do
         end do
      end do
-     sumq = sumq * cr%omega / (nstep(1)*nstep(2)*nstep(3))
-     sumqp = sumqp * cr%omega / (nstep(1)*nstep(2)*nstep(3))
-     sumv = sumv * cr%omega / (nstep(1)*nstep(2)*nstep(3))
+     sumq = sumq * sy%c%omega / (nstep(1)*nstep(2)*nstep(3))
+     sumqp = sumqp * sy%c%omega / (nstep(1)*nstep(2)*nstep(3))
+     sumv = sumv * sy%c%omega / (nstep(1)*nstep(2)*nstep(3))
 
      if (rho_void > 0d0) then
         write (uout,'("* Void charge (a.u.): ",A)') string(sumq,'f',decimal=6)
@@ -620,27 +615,27 @@ contains
         if (periodic) then
            file = trim(file) // " border"
            if (domolmotif) file = trim(file) // " molmotif"
-           call struct_write(cr,file)
+           call struct_write(sy,file)
         else
-           call fragment_init(fr0)
-           xx0 = cr%c2x(x0 - rthres_xyz)
-           xx1 = cr%c2x(x1 + rthres_xyz)
+           call fr0%init()
+           xx0 = sy%c%c2x(x0 - rthres_xyz)
+           xx1 = sy%c%c2x(x1 + rthres_xyz)
            do i = floor(xx0(1))-1, ceiling(xx1(1))+1
               do j = floor(xx0(2))-1, ceiling(xx1(2))+1
                  do k = floor(xx0(3))-1, ceiling(xx1(3))+1
-                    do l = 1, cr%ncel
-                       x = cr%atcel(l)%x + real((/i,j,k/),8)
+                    do l = 1, sy%c%ncel
+                       x = sy%c%atcel(l)%x + real((/i,j,k/),8)
                        if (x(1) > xx0(1) .and. x(1) < xx1(1) .and.&
                           x(2) > xx0(2) .and. x(2) < xx1(2) .and.&
                           x(3) > xx0(3) .and. x(3) < xx1(3)) then
                           fr0%nat = fr0%nat + 1
                           if (fr0%nat > size(fr0%at)) call realloc(fr0%at,2*fr0%nat)
                           fr0%at(fr0%nat)%x = x
-                          fr0%at(fr0%nat)%r = cr%x2c(x)
+                          fr0%at(fr0%nat)%r = sy%c%x2c(x)
                           fr0%at(fr0%nat)%cidx = l
-                          fr0%at(fr0%nat)%idx = cr%atcel(l)%idx
+                          fr0%at(fr0%nat)%idx = sy%c%atcel(l)%idx
                           fr0%at(fr0%nat)%lvec = (/i,j,k/)
-                          fr0%at(fr0%nat)%z = cr%at(cr%atcel(l)%idx)%z
+                          fr0%at(fr0%nat)%z = sy%c%at(sy%c%atcel(l)%idx)%z
                        end if
                     end do
                  end do
@@ -649,7 +644,8 @@ contains
            call writexyz(file,fr0)
         end if
      else
-        call writexyz(file,fragment_merge_array(fr(1:nfrag)))
+        call fr0%merge_array(fr(1:nfrag),.false.)
+        call writexyz(file,fr0)
      end if
 
      ! ! write vmd script
@@ -678,8 +674,8 @@ contains
         write (luvmd,'("# Cell")')
         write (luvmd,'("draw color red")')
         do i = 1, 12
-           xx0 = cr%x2c(xlist0(:,i))
-           xx1 = cr%x2c(xlist1(:,i))
+           xx0 = sy%c%x2c(xlist0(:,i))
+           xx1 = sy%c%x2c(xlist1(:,i))
            write (luvmd,'("draw cylinder {",3(F14.4,X),"} {",3(F14.4,X),"} radius 0.05 resolution 20")') &
               xx0 * bohrtoa, xx1 * bohrtoa
         end do
@@ -715,8 +711,8 @@ contains
    end subroutine nciplot
 
   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
-    use crystalmod, only: cr
-    use types, only: fragment
+    use systemmod, only: sy
+    use fragmentmod, only: fragment
 
     integer, intent(in) :: lu
     character*(*), intent(in) :: l1, l2
@@ -735,17 +731,17 @@ contains
     real*8, parameter :: eps = 0.1d0
 
     if (periodic) then
-       nc = cr%ncel
+       nc = sy%c%ncel
     else
        if (nfrag == 0) then
           nc = 0
           nmin = floor(x0x) - 1
           nmax = ceiling(x1x) + 1
-          do i = 1, cr%ncel
+          do i = 1, sy%c%ncel
              do i1 = nmin(1), nmax(1)
                 do i2 = nmin(2), nmax(2)
                    do i3 = nmin(3), nmax(3)
-                      xx = cr%x2c(cr%atcel(i)%x + real((/i1,i2,i3/),8))
+                      xx = sy%c%x2c(sy%c%atcel(i)%x + real((/i1,i2,i3/),8))
                       if (all(xx > x0-eps) .and. all(xx < x1+eps)) then
                          nc = nc + 1
                       end if
@@ -762,7 +758,7 @@ contains
     end if
 
     iszero = (nc == 0)
-    if (iszero) nc = cr%ncel
+    if (iszero) nc = sy%c%ncel
 
     write(lu,*) trim(l1)
     write(lu,*) trim(l2)
@@ -771,19 +767,19 @@ contains
     write(lu,'(I5,3(F12.6))') nstep(2), xmat(:,2)
     write(lu,'(I5,3(F12.6))') nstep(3), xmat(:,3)
     if (periodic .or. iszero) then
-       do i = 1, cr%ncel
-          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') cr%at(cr%atcel(i)%idx)%z, 0d0, cr%atcel(i)%r
+       do i = 1, sy%c%ncel
+          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%at(sy%c%atcel(i)%idx)%z, 0d0, sy%c%atcel(i)%r
        end do
     else
        if (nfrag == 0) then
-          do i = 1, cr%ncel
+          do i = 1, sy%c%ncel
              do i1 = nmin(1), nmax(1)
                 do i2 = nmin(2), nmax(2)
                    do i3 = nmin(3), nmax(3)
-                      xx = cr%x2c(cr%atcel(i)%x + real((/i1,i2,i3/),8))
+                      xx = sy%c%x2c(sy%c%atcel(i)%x + real((/i1,i2,i3/),8))
                       if (all(xx > x0-eps) .and. all(xx < x1+eps)) then
                          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') &
-                            cr%at(cr%atcel(i)%idx)%z, 0d0, xx
+                            sy%c%at(sy%c%atcel(i)%idx)%z, 0d0, xx
                       end if
                    end do
                 end do
@@ -792,7 +788,7 @@ contains
        else
           do i = 1, nfrag
              do j = 1, frag(i)%nat
-                write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') cr%at(frag(i)%at(j)%idx)%z, 0d0, frag(i)%at(j)%r
+                write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%at(frag(i)%at(j)%idx)%z, 0d0, frag(i)%at(j)%r
              end do
           end do
        end if
@@ -834,10 +830,11 @@ contains
   end function check_no_extra_word
 
   function read_fragment(lu) result(fr)
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use global, only: eval_next
     use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
-    use types, only: fragment, realloc
+    use fragmentmod, only: fragment
+    use types, only: realloc
     use param, only: bohrtoa
 
     type(fragment) :: fr
@@ -868,14 +865,14 @@ contains
           ok = ok .and. eval_next(x(2),line,lp)
           ok = ok .and. eval_next(x(3),line,lp)
           if (.not.ok) call ferror('nciplot','bad atom in fragment',faterr)
-          x = x / bohrtoa - cr%molx0
-          id = cr%identify_atom(x,.true.)
+          x = x / bohrtoa - sy%c%molx0
+          id = sy%c%identify_atom(x,.true.)
           fr%at(fr%nat)%r = x
-          fr%at(fr%nat)%x = cr%c2x(x)
+          fr%at(fr%nat)%x = sy%c%c2x(x)
           fr%at(fr%nat)%cidx = id
-          fr%at(fr%nat)%idx = cr%atcel(id)%idx
-          fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - cr%atcel(id)%x)
-          fr%at(fr%nat)%z = cr%at(fr%at(fr%nat)%idx)%z
+          fr%at(fr%nat)%idx = sy%c%atcel(id)%idx
+          fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - sy%c%atcel(id)%x)
+          fr%at(fr%nat)%z = sy%c%at(fr%at(fr%nat)%idx)%z
        else
           exit
        end if

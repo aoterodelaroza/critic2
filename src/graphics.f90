@@ -429,7 +429,7 @@ contains
   !> write an xyz-style file from an array of atomic coordinates.
   subroutine writexyz(file,fr)
     use tools_io, only: fopen_write, nameguess, fclose
-    use types, only: fragment
+    use fragmentmod, only: fragment
     use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
@@ -453,7 +453,7 @@ contains
   subroutine writecml(file,fr,r,luout)
     use tools_math, only: matinv
     use tools_io, only: fopen_write, string, nameguess, fclose
-    use types, only: fragment
+    use fragmentmod, only: fragment
     use param, only: pi, bohrtoa
     character*(*), intent(in) :: file
     type(fragment), intent(in) :: fr
@@ -518,7 +518,7 @@ contains
   !> write an Gaussian-style input file from an array of atomic coordinates.
   subroutine writegjf(file,fr)
     use tools_io, only: fopen_write, string, nameguess, fclose
-    use types, only: fragment
+    use fragmentmod, only: fragment
     use param, only: bohrtoa
 
     character*(*), intent(in) :: file
@@ -661,7 +661,7 @@ contains
   !> lu and format fmt.
   subroutine graphics_surf(fmt,lu,srf,fsurf)
     use tools_io, only: equal
-    use types, only: minisurf
+    use surface, only: minisurf
     character*3, intent(in) :: fmt
     integer, intent(in) :: lu
     type(minisurf), intent(in) :: srf
@@ -896,7 +896,7 @@ contains
   
   !> Write a surface to the obj file
   subroutine obj_surf(luobj,srf,fsurf)
-    use types, only: minisurf
+    use surface, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
     integer, intent(in) :: luobj
@@ -1189,7 +1189,7 @@ contains
   
   !> Write a surface to the ply file
   subroutine ply_surf(luply,srf,fsurf)
-    use types, only: minisurf
+    use surface, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
     integer, intent(in) :: luply
@@ -1449,7 +1449,7 @@ contains
   
   !> Write a surface to the off file
   subroutine off_surf(luoff,srf,fsurf)
-    use types, only: minisurf
+    use surface, only: minisurf
     use tools_io, only: faterr, ferror, string
     use param, only: pi
     integer, intent(in) :: luoff

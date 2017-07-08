@@ -21,7 +21,7 @@ module rhoplot
   implicit none
 
   private
-  
+
   public :: rhoplot_point
   public :: rhoplot_line
   public :: rhoplot_cube
@@ -40,9 +40,6 @@ module rhoplot
   private :: write_fichgnu
 
   ! contour lines common variables.
-  ! npuntos                     number of points in the isoline
-  ! xc, yc                      coordinates of the points
-  ! pic, pjc                    index of nearest grid values.
   integer, parameter :: nptcorte = 20000
   integer :: npuntos
   real*8  :: xc(nptcorte), yc(nptcorte), pic(nptcorte), pjc(nptcorte)
@@ -76,10 +73,8 @@ contains
 
   ! Calculate properties at a point
   subroutine rhoplot_point(line)
-    use fields, only: fieldname_to_idx, goodfield, fused, fields_fcheck, &
-       fields_feval, fields_propty
-    use crystalmod, only: cr
-    use global, only: eval_next, refden, dunit0, iunit
+    use systemmod, only: sy
+    use global, only: eval_next, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, uout, string
@@ -88,8 +83,8 @@ contains
     character*(*), intent(in) :: line
 
     type(scalar_value) :: res
-    logical :: ok, doall, iok
-    integer :: lp, lp2, i, j, imin, imax
+    logical :: ok, iok, doall
+    integer :: lp, lp2, i, j, ifi
     real*8 :: x0(3), xp(3), rdum
     character(len=:), allocatable :: word, expr
 
@@ -104,9 +99,8 @@ contains
     end if
 
     ! read additional options
+    ifi = sy%iref
     doall = .false.
-    imin = refden
-    imax = refden
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'all')) then
@@ -114,8 +108,8 @@ contains
        elseif (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
-          imin = fieldname_to_idx(word)
-          if (imin < 0) then
+          ifi = sy%fieldname_to_idx(word)
+          if (ifi < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) then
@@ -123,12 +117,11 @@ contains
                 return
              end if
           else
-             if (.not.goodfield(imin)) then
+             if (.not.sy%goodfield(ifi)) then
                 call ferror('rhoplot_point','field not allocated',faterr,line,syntax=.true.)
                 return
              end if
           end if
-          imax = imin
        elseif(len_trim(word) < 1) then
           exit
        else
@@ -137,34 +130,20 @@ contains
        end if
     end do
 
-    if (doall) then
-       imin = size(fused)-1
-       imax = 0
-       do i = 0, size(fused)-1
-          if (fused(i)) then
-             imin = min(i,imin)
-             imax = max(i,imax)
-          end if
-       end do
-    end if
-    
     write (uout,'("* POINT ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
-    if (.not.cr%ismolecule) then
-       xp = cr%x2c(x0)
+    if (.not.sy%c%ismolecule) then
+       xp = sy%c%x2c(x0)
        write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
        write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
     else
-       xp = x0 / dunit0(iunit) - cr%molx0
-       x0 = cr%c2x(xp)
+       xp = x0 / dunit0(iunit) - sy%c%molx0
+       x0 = sy%c%c2x(xp)
     endif
-    if (imin > -1) then
-       do i = imin, imax
-          if (.not.goodfield(i)) cycle
-          write (uout,'("+ Field: ",A)') string(i)
-          call fields_propty(i,x0,res,.true.,.false.)
-       end do
+    if (ifi > -1) then
+       write (uout,'("+ Field: ",A)') string(ifi)
+       call sy%propty(ifi,x0,res,.true.,doall)
     else
-       rdum = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
+       rdum = sy%eval(expr,.true.,iok,xp)
        write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)
     endif
     write (uout,*)
@@ -173,10 +152,8 @@ contains
 
   ! Calculate properties on a line
   subroutine rhoplot_line(line)
-    use fields, only: fieldname_to_idx, goodfield, f, fields_feval, fields_fcheck,&
-       grd
-    use crystalmod, only: cr
-    use global, only: eval_next, refden, dunit0, iunit
+    use systemmod, only: sy
+    use global, only: eval_next, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -202,7 +179,7 @@ contains
     ok = ok .and. eval_next(x1(3),line,lp)
     ok = ok .and. eval_next(np,line,lp)
     if (.not. ok) then
-       call ferror('critic','wrong LINE order',faterr,line,syntax=.true.)
+       call ferror('rhoplot_line','wrong syntax in LINE',faterr,line,syntax=.true.)
        return
     end if
 
@@ -212,7 +189,7 @@ contains
     ! read additional options
     nti = 0
     prop = ""
-    id = refden
+    id = sy%iref
     outfile = "" 
     do while (.true.)
        word = lgetword(line,lp)
@@ -225,7 +202,7 @@ contains
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
-          id = fieldname_to_idx(word)
+          id = sy%fieldname_to_idx(word)
           if (id < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
@@ -234,7 +211,7 @@ contains
                 return
              end if
           else
-             if (.not.goodfield(id)) then
+             if (.not.sy%goodfield(id)) then
                 call ferror('rhoplot_line','field not allocated',faterr,line,syntax=.true.)
                 return
              end if
@@ -293,12 +270,12 @@ contains
     write (luout,'("#",1x,4a15,1p,2a20,0p)') "x","y","z","d","f",string(prop)
 
     ! calculate the line
-    if (.not.cr%ismolecule) then
-       x0 = cr%x2c(x0)
-       x1 = cr%x2c(x1)
+    if (.not.sy%c%ismolecule) then
+       x0 = sy%c%x2c(x0)
+       x1 = sy%c%x2c(x1)
     else
-       x0 = x0 / dunit0(iunit) - cr%molx0
-       x1 = x1 / dunit0(iunit) - cr%molx0
+       x0 = x0 / dunit0(iunit) - sy%c%molx0
+       x1 = x1 / dunit0(iunit) - sy%c%molx0
     endif
     allocate(rhoout(np),lapout(np))
     lapout = 0d0
@@ -308,11 +285,11 @@ contains
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
           if (nti == 0) then
-             call grd(f(id),xp,0,.not.cr%ismolecule,res0_noalloc=res)
+             call sy%f(id)%grd(xp,0,.not.sy%c%ismolecule,res0_noalloc=res)
           elseif (nti >= 1 .and. nti <= 4) then
-             call grd(f(id),xp,1,.not.cr%ismolecule,res0_noalloc=res)
+             call sy%f(id)%grd(xp,1,.not.sy%c%ismolecule,res0_noalloc=res)
           else
-             call grd(f(id),xp,2,.not.cr%ismolecule,res0_noalloc=res)
+             call sy%f(id)%grd(xp,2,.not.sy%c%ismolecule,res0_noalloc=res)
           end if
 
           rhopt = res%f
@@ -343,7 +320,7 @@ contains
              lappt = res%del2f
           end select
        else
-          rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
+          rhopt = sy%eval(expr,.true.,iok,xp)
           lappt = rhopt
        end if
 
@@ -358,10 +335,10 @@ contains
     do i = 1, np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        dist = norm(xp-x0) * dunit0(iunit)
-       if (.not.cr%ismolecule) then
-          xout = cr%c2x(xp)
+       if (.not.sy%c%ismolecule) then
+          xout = sy%c%c2x(xp)
        else
-          xout = (xp + cr%molx0) * dunit0(iunit)
+          xout = (xp + sy%c%molx0) * dunit0(iunit)
        end if
        if (nti == 0) then
           write (luout,'(1x,4(f15.10,x),1p,1(e18.10,x),0p)') &
@@ -384,16 +361,15 @@ contains
 
   ! Calculate properties on a 3d cube
   subroutine rhoplot_cube(line)
-    use grid_tools, only: grid_rhoat
-    use fields, only: fieldname_to_idx, goodfield, f, type_grid, fields_fcheck,&
-       fields_feval, writegrid_cube, writegrid_vasp, grd
-    use crystalmod, only: cr
-    use global, only: eval_next, dunit0, iunit, refden, fileroot
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use grid3mod, only: grid3
+    use global, only: eval_next, dunit0, iunit, fileroot
     use arithmetic, only: eval
     use tools_math, only: norm
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string
-    use types, only: scalar_value_noalloc, field
+    use types, only: scalar_value_noalloc
     use param, only: eye
     character*(*), intent(in) :: line
 
@@ -407,7 +383,7 @@ contains
     integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, iscube, doheader
-    type(field) :: faux
+    type(grid3) :: faux
 
     ! read the points
     lp = 1
@@ -429,9 +405,9 @@ contains
        end if
 
        ! If it is a molecule, that was Cartesian
-       if (cr%ismolecule) then
-          x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
-          x1 = cr%c2x(x1 / dunit0(iunit) - cr%molx0)
+       if (sy%c%ismolecule) then
+          x0 = sy%c%c2x(x0 / dunit0(iunit) - sy%c%molx0)
+          x1 = sy%c%c2x(x1 / dunit0(iunit) - sy%c%molx0)
        endif
 
        ! cubic cube
@@ -450,9 +426,9 @@ contains
     endif
 
     ! calculate the distances
-    x0 = cr%x2c(x0)
+    x0 = sy%c%x2c(x0)
     do i = 1, 3
-       xd(:,i) = cr%x2c(xd(:,i))
+       xd(:,i) = sy%c%x2c(xd(:,i))
        dd(i) = norm(xd(:,i))
     end do
 
@@ -480,7 +456,7 @@ contains
     ! read additional options
     nti = 0
     prop = "f"
-    id = refden
+    id = sy%iref
     useexpr = .false.
     iscube = .true.
     outfile = trim(fileroot) // ".cube" 
@@ -497,7 +473,7 @@ contains
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
-          id = fieldname_to_idx(word)
+          id = sy%fieldname_to_idx(word)
           if (id < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
@@ -507,7 +483,7 @@ contains
                 return
              end if
           else
-             if (.not.goodfield(id)) then
+             if (.not.sy%goodfield(id)) then
                 call ferror('rhoplot_cube','field not allocated',faterr,line,syntax=.true.)
                 return
              end if
@@ -561,12 +537,12 @@ contains
     ! step sizes
     if (dogrid) then
        ok = (id > -1)
-       if (ok) ok = ok .and. (f(id)%type == type_grid)
+       if (ok) ok = ok .and. (sy%f(id)%type == type_grid)
        if (.not.ok) then
           call ferror('rhoplot_cube','CUBE GRID can only be used with grid fields',faterr,syntax=.true.)
           return
        end if
-       nn = f(id)%n
+       nn = sy%f(id)%grid%n
     end if
     do i = 1, 3
        xd(:,i) = xd(:,i) / real(nn(i),8)
@@ -576,30 +552,29 @@ contains
     write (uout,'("* CUBE written to file: ",A/)') string(outfile)
     if (doheader) then
        if (iscube) then
-          call writegrid_cube(cr,f(id)%f,outfile,.true.,xd,x0+cr%molx0)
+          call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,xd,x0+sy%c%molx0)
        else
-          call writegrid_vasp(cr,f(id)%f,outfile,.true.)
+          call sy%c%writegrid_vasp(sy%f(id)%grid%f,outfile,.true.)
        endif
        return
     end if
 
     ! calculate properties
     if (dogrid) then
-       if (f(id)%type /= type_grid) then
+       if (sy%f(id)%type /= type_grid) then
           call ferror('rhoplot_cube','grid can be used only with a grid field',faterr,syntax=.true.)
           return
        end if
-       if (f(id)%usecore) then
-          faux = f(id)
-          call grid_rhoat(f(id),faux,3)
-          faux%f = faux%f + f(id)%f
+       if (sy%f(id)%usecore) then
+          call sy%c%promolecular_grid(faux,sy%f(id)%grid%n,sy%f(id)%zpsp)
+          faux%f = faux%f + sy%f(id)%grid%f
        else
-          faux = f(id)
+          faux = sy%f(id)%grid
        end if
        if (iscube) then
-          call writegrid_cube(cr,faux%f,outfile,.false.,xd,x0+cr%molx0)
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,xd,x0+sy%c%molx0)
        else
-          call writegrid_vasp(cr,faux%f,outfile,.false.)
+          call sy%c%writegrid_vasp(faux%f,outfile,.false.)
        end if
     else
        allocate(lf(nn(1),nn(2),nn(3)))
@@ -611,7 +586,7 @@ contains
                    + real(iz,8) * xd(:,3)
 
                 if (.not.useexpr) then
-                   call grd(f(id),xp,2,.not.cr%ismolecule,res0_noalloc=res)
+                   call sy%f(id)%grd(xp,2,.not.sy%c%ismolecule,res0_noalloc=res)
                    select case(nti)
                    case (0)
                       lappt = res%f
@@ -639,7 +614,7 @@ contains
                       lappt = res%del2f
                    end select
                 else
-                   lappt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
+                   lappt = sy%eval(expr,.true.,iok,xp)
                 end if
                 !$omp critical (fieldwrite)
                 lf(ix+1,iy+1,iz+1) = lappt
@@ -650,21 +625,19 @@ contains
        !$omp end parallel do
        ! cube body
        if (iscube) then
-          call writegrid_cube(cr,lf,outfile,.false.,xd,x0+cr%molx0)
+          call sy%c%writegrid_cube(lf,outfile,.false.,xd,x0+sy%c%molx0)
        else
-          call writegrid_vasp(cr,lf,outfile,.false.)
+          call sy%c%writegrid_vasp(lf,outfile,.false.)
        endif
        deallocate(lf)
     end if
-    
+
   end subroutine rhoplot_cube
 
   !> Calculate properties on a plane.
   subroutine rhoplot_plane(line)
-    use fields, only: fieldname_to_idx, goodfield, f, grd, fields_fcheck, &
-       fields_feval
-    use crystalmod, only: cr
-    use global, only: eval_next, dunit0, iunit, refden, fileroot
+    use systemmod, only: sy
+    use global, only: eval_next, dunit0, iunit, fileroot
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -676,7 +649,7 @@ contains
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
     real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt
     real*8 :: uu(3), vv(3), lin0, lin1
-    real*8 :: sx, sy, zx0, zx1, zy0, zy1, zmin, zmax, rdum
+    real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, zmin, zmax, rdum
     logical :: docontour, dorelief, docolormap
     character(len=:), allocatable :: word, outfile, root0, expr
     type(scalar_value_noalloc) :: res
@@ -699,10 +672,10 @@ contains
        call ferror('rhoplot_plane','Wrong PLANE command: x0, x1, x2',faterr,line,syntax=.true.)
        return
     end if
-    if (cr%ismolecule) then
-       x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
-       x1 = cr%c2x(x1 / dunit0(iunit) - cr%molx0)
-       x2 = cr%c2x(x2 / dunit0(iunit) - cr%molx0)
+    if (sy%c%ismolecule) then
+       x0 = sy%c%c2x(x0 / dunit0(iunit) - sy%c%molx0)
+       x1 = sy%c%c2x(x1 / dunit0(iunit) - sy%c%molx0)
+       x2 = sy%c%c2x(x2 / dunit0(iunit) - sy%c%molx0)
     endif
 
     ok = eval_next(nx,line,lp)
@@ -719,8 +692,8 @@ contains
     ! read additional options
     lin0 = 0d0
     lin1 = 1d0
-    sx = 1d0
-    sy = 1d0
+    sx0 = 1d0
+    sy0 = 1d0
     zx0 = 0d0
     zx1 = 0d0
     zy0 = 0d0
@@ -729,7 +702,7 @@ contains
     docontour = .false.
     dorelief = .false.
     docolormap = .false.
-    id = refden
+    id = sy%iref
     outfile = trim(fileroot) // "_plane.dat" 
     do while (.true.)
        word = lgetword(line,lp)
@@ -742,7 +715,7 @@ contains
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
-          id = fieldname_to_idx(word)
+          id = sy%fieldname_to_idx(word)
           if (id < 0) then
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
@@ -751,14 +724,14 @@ contains
                 return
              end if
           else
-             if (.not.goodfield(id)) then
+             if (.not.sy%goodfield(id)) then
                 call ferror('rhoplot_plane','field not allocated',faterr,line,syntax=.true.)
                 return
              end if
           end if
        elseif (equal(word,'scale')) then
-          ok = eval_next(sx,line,lp)
-          ok = ok .and. eval_next(sy,line,lp)
+          ok = eval_next(sx0,line,lp)
+          ok = ok .and. eval_next(sy0,line,lp)
           if (.not. ok) then
              call ferror('rhoplot_plane','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
              return
@@ -826,7 +799,7 @@ contains
              end if
           end if
           if (niso_type == niso_lin .or. niso_type == niso_log .or.&
-              niso_type == niso_atan) then
+             niso_type == niso_atan) then
              ok = eval_next(niso,line,lp)
              if (.not.ok) then
                 call ferror("rhoplot_plane","number of isovalues not found",faterr,line,syntax=.true.)
@@ -892,10 +865,10 @@ contains
 
     ! Transform to Cartesian, extend and scale, and set up the plane
     ! vectors.
-    x0 = cr%x2c(x0)
-    x1 = cr%x2c(x1)
-    x2 = cr%x2c(x2)
-    call plane_scale_extend(x0,x1,x2,sx,sy,zx0,zx1,zy0,zy1)
+    x0 = sy%c%x2c(x0)
+    x1 = sy%c%x2c(x1)
+    x2 = sy%c%x2c(x2)
+    call plane_scale_extend(x0,x1,x2,sx0,sy0,zx0,zx1,zy0,zy1)
     uu = (x1-x0) / real(nx-1,8)
     du = norm(uu)
     vv = (x2-x0) / real(ny-1,8)
@@ -917,7 +890,7 @@ contains
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
 
           if (id >= 0) then
-             call grd(f(id),xp,nder,.not.cr%ismolecule,res0_noalloc=res)
+             call sy%f(id)%grd(xp,nder,.not.sy%c%ismolecule,res0_noalloc=res)
              select case(nti)
              case (0)
                 rhopt = res%f
@@ -945,7 +918,7 @@ contains
                 rhopt = res%del2f
              end select
           else
-             rhopt = eval(expr,.true.,iok,xp,fields_fcheck,fields_feval)
+             rhopt = sy%eval(expr,.true.,iok,xp)
           endif
           !$omp critical (write)
           ff(ix,iy) = rhopt
@@ -966,16 +939,16 @@ contains
     write (luout,'("# Field values (and derivatives) on a plane")')
     write (luout,'("# x y z u v f ")')
 
-    x0 = cr%c2x(x0)
-    x1 = cr%c2x(x1)
-    x2 = cr%c2x(x2)
-    uu = cr%c2x(uu)
-    vv = cr%c2x(vv)
+    x0 = sy%c%c2x(x0)
+    x1 = sy%c%c2x(x1)
+    x2 = sy%c%c2x(x2)
+    uu = sy%c%c2x(uu)
+    vv = sy%c%c2x(vv)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-          if (cr%ismolecule) then
-             xp = (cr%x2c(xp) + cr%molx0) * dunit0(iunit)
+          if (sy%c%ismolecule) then
+             xp = (sy%c%x2c(xp) + sy%c%molx0) * dunit0(iunit)
           endif
           write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') &
              xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
@@ -1010,7 +983,7 @@ contains
   !> .gnu). If dolabels, write the labels file. If dognu, write the
   !> gnu file.
   subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
     use tools_math, only: norm, cross, det, matinv
     integer, intent(in) :: nx, ny
@@ -1043,9 +1016,9 @@ contains
     write (uout,'("* Name of the negative contour lines file: ",a)') string(fichiso1)
 
     ! geometry
-    rp0 = cr%x2c(r0)
-    rp1 = cr%x2c(r1)
-    rp2 = cr%x2c(r2)
+    rp0 = sy%c%x2c(r0)
+    rp1 = sy%c%x2c(r1)
+    rp2 = sy%c%x2c(r2)
     rp01 = rp1 - rp0
     rp02 = rp2 - rp0
     r01 = norm(rp01)
@@ -1105,7 +1078,7 @@ contains
     if (dognu) call write_fichgnu(root0,dolabels,.true.,.false.)
     if (allocated(x)) deallocate(x)
     if (allocated(y)) deallocate(y)
-    
+
   end subroutine contour
 
   !> Write a gnuplot template for the relief plot
@@ -1116,7 +1089,7 @@ contains
 
     character(len=:), allocatable :: file
     integer :: lu
-    
+
     ! file name
     file = trim(rootname) // '-relief.gnu'
 
@@ -1167,7 +1140,7 @@ contains
 
     character(len=:), allocatable :: file
     integer :: lu
-    
+
     ! file name
     file = trim(rootname) // '-colormap.gnu'
 
@@ -1531,10 +1504,8 @@ contains
 
   !> Plot of gradient paths and contours in the style of aimpac's grdvec.
   subroutine rhoplot_grdvec()
-    use fields, only: f, grd
-    use varbas, only: ncpcel, cpcel
-    use crystalmod, only: cr
-    use global, only: fileroot, eval_next, dunit0, iunit, refden, prunedist
+    use systemmod, only: sy
+    use global, only: fileroot, eval_next, dunit0, iunit, prunedist
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
@@ -1549,7 +1520,7 @@ contains
     real*8  :: q0(3), xo0(3), xo1(3), xo2(3)
     integer :: cpid
     integer :: niso_type, nfi, ix, iy
-    real*8 :: sx, sy, zx0, zx1, zy0, zy1, rdum
+    real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, rdum
     real*8 :: ehess(3), x0(3), uu(3), vv(3), lin0, lin1
     logical :: docontour, dograds, goodplane
     integer :: n1, n2, niso, nder
@@ -1579,8 +1550,8 @@ contains
     docontour = .false.
     dograds = .false.
     nfi = 0
-    sx = 1d0
-    sy = 1d0
+    sx0 = 1d0
+    sy0 = 1d0
     zx0 = 0d0
     zx1 = 0d0
     zy0 = 0d0
@@ -1613,16 +1584,16 @@ contains
              call ferror ('grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
              return
           end if
-          if (cr%ismolecule) then
-             r0 = cr%c2x(r0 / dunit0(iunit) - cr%molx0)
-             r1 = cr%c2x(r1 / dunit0(iunit) - cr%molx0)
-             r2 = cr%c2x(r2 / dunit0(iunit) - cr%molx0)
+          if (sy%c%ismolecule) then
+             r0 = sy%c%c2x(r0 / dunit0(iunit) - sy%c%molx0)
+             r1 = sy%c%c2x(r1 / dunit0(iunit) - sy%c%molx0)
+             r2 = sy%c%c2x(r2 / dunit0(iunit) - sy%c%molx0)
           endif
           goodplane = .true.
 
        elseif (equal(word,'scale')) then
-          ok = eval_next(sx,line,lp)
-          ok = ok .and. eval_next(sy,line,lp)
+          ok = eval_next(sx0,line,lp)
+          ok = ok .and. eval_next(sy0,line,lp)
           if (.not. ok) then
              call ferror('grdvec','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
              return
@@ -1664,7 +1635,7 @@ contains
           end if
           ok = check_no_extra_word()
           if (.not.ok) return
-          
+
        else if (equal(word,'cp')) then
           newncriticp = newncriticp + 1
           if (newncriticp .gt. mncritp) then
@@ -1678,12 +1649,12 @@ contains
              call ferror ('grdvec','bad cp option',faterr,line,syntax=.true.)
              return
           end if
-          if (cpid <= 0 .or. cpid > ncpcel) then
+          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
              call ferror ('grdvec','cp not recognized',faterr,line,syntax=.true.)
              return
           end if
-          newcriticp(:,newncriticp) = cpcel(cpid)%x
-          newtypcrit(newncriticp) = cpcel(cpid)%typ
+          newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(cpid)%x
+          newtypcrit(newncriticp) = sy%f(sy%iref)%cpcel(cpid)%typ
           dograds = .true.
           autocheck = .true.
           ok = check_no_extra_word()
@@ -1691,10 +1662,10 @@ contains
 
        else if (equal(word,'cpall')) then
           ! copy cps
-          do i = 1, ncpcel
+          do i = 1, sy%f(sy%iref)%ncpcel
              newncriticp = newncriticp + 1
-             newcriticp(:,newncriticp) = cpcel(i)%x
-             newtypcrit(newncriticp) = cpcel(i)%typ
+             newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(i)%x
+             newtypcrit(newncriticp) = sy%f(sy%iref)%cpcel(i)%typ
           end do
           dograds = .true.
           autocheck = .true.
@@ -1708,11 +1679,11 @@ contains
           if (.not.ok) dndum = 0
 
           ! copy bcps
-          do i = 1, ncpcel
-             if (cpcel(i)%typ == -1) then
+          do i = 1, sy%f(sy%iref)%ncpcel
+             if (sy%f(sy%iref)%cpcel(i)%typ == -1) then
                 newncriticp = newncriticp + 1
-                newcriticp(:,newncriticp) = cpcel(i)%x
-                newtypcrit(newncriticp) = cpcel(i)%typ
+                newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(i)%x
+                newtypcrit(newncriticp) = sy%f(sy%iref)%cpcel(i)%typ
                 cpup(newncriticp) = updum
                 cpdn(newncriticp) = dndum
              end if
@@ -1721,7 +1692,7 @@ contains
           autocheck = .true.
           ok = check_no_extra_word()
           if (.not.ok) return
-          
+
        else if (equal(word,'rbcpall')) then
           ok = eval_next (updum, line, lp)
           if (.not.ok) updum = 2
@@ -1733,17 +1704,17 @@ contains
           if (.not.ok) dndum1 = 2
 
           ! copy rcps and bcps
-          do i = 1, ncpcel
-             if (cpcel(i)%typ == -1) then
+          do i = 1, sy%f(sy%iref)%ncpcel
+             if (sy%f(sy%iref)%cpcel(i)%typ == -1) then
                 newncriticp = newncriticp + 1
-                newcriticp(:,newncriticp) = cpcel(i)%x
-                newtypcrit(newncriticp) = cpcel(i)%typ
+                newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(i)%x
+                newtypcrit(newncriticp) = sy%f(sy%iref)%cpcel(i)%typ
                 cpup(newncriticp) = updum
                 cpdn(newncriticp) = dndum
-             else if (cpcel(i)%typ == 1) then
+             else if (sy%f(sy%iref)%cpcel(i)%typ == 1) then
                 newncriticp = newncriticp + 1
-                newcriticp(:,newncriticp) = cpcel(i)%x
-                newtypcrit(newncriticp) = cpcel(i)%typ
+                newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(i)%x
+                newtypcrit(newncriticp) = sy%f(sy%iref)%cpcel(i)%typ
                 cpup(newncriticp) = updum1
                 cpdn(newncriticp) = dndum1
              end if
@@ -1770,7 +1741,7 @@ contains
              call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
              return
           end if
-          grpx(:,norig) = cr%c2x(grpx(:,norig) / dunit0(iunit) - cr%molx0)
+          grpx(:,norig) = sy%c%c2x(grpx(:,norig) / dunit0(iunit) - sy%c%molx0)
           ok = check_no_extra_word()
           if (.not.ok) return
 
@@ -1791,10 +1762,10 @@ contains
              ok = eval_next (newcriticp(1,newncriticp), line, lp)
              ok = ok .and. eval_next (newcriticp(2,newncriticp), line, lp)
              ok = ok .and. eval_next (newcriticp(3,newncriticp), line, lp)
-             q0 = cr%x2c(newcriticp(:,newncriticp))
-             call grd(f(refden),q0,2,.not.cr%ismolecule,res0_noalloc=res)
+             q0 = sy%c%x2c(newcriticp(:,newncriticp))
+             call sy%f(sy%iref)%grd(q0,2,.not.sy%c%ismolecule,res0_noalloc=res)
              call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp),0d0)
-             q0 = cr%c2x(q0)
+             q0 = sy%c%c2x(q0)
 
              ok = ok .and. getline(uin,line,.true.,ucopy)
              lp = 1
@@ -1806,7 +1777,7 @@ contains
           if (.not.ok) return
 
        elseif (equal(word,'contour')) then
-          
+
           ! pass contours to the gnu file
           docontour = .true.
 
@@ -1914,27 +1885,27 @@ contains
        call ferror ('grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
        return
     end if
-    
+
     ! extend and scale
-    r0 = cr%x2c(r0)
-    r1 = cr%x2c(r1)
-    r2 = cr%x2c(r2)
-    call plane_scale_extend(r0,r1,r2,sx,sy,zx0,zx1,zy0,zy1)
-    r0 = cr%c2x(r0)
-    r1 = cr%c2x(r1)
-    r2 = cr%c2x(r2)
+    r0 = sy%c%x2c(r0)
+    r1 = sy%c%x2c(r1)
+    r2 = sy%c%x2c(r2)
+    call plane_scale_extend(r0,r1,r2,sx0,sy0,zx0,zx1,zy0,zy1)
+    r0 = sy%c%c2x(r0)
+    r1 = sy%c%c2x(r1)
+    r2 = sy%c%c2x(r2)
 
     ! output the plane
     indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
     write (uout,'("* Name of the output data file: ",a)') string(datafile)
-    if (.not.cr%ismolecule) then
+    if (.not.sy%c%ismolecule) then
        xo0 = r0
        xo1 = r1
        xo2 = r2
     else
-       xo0 = (cr%x2c(r0) + cr%molx0) * dunit0(iunit)
-       xo1 = (cr%x2c(r1) + cr%molx0) * dunit0(iunit)
-       xo2 = (cr%x2c(r2) + cr%molx0) * dunit0(iunit)
+       xo0 = (sy%c%x2c(r0) + sy%c%molx0) * dunit0(iunit)
+       xo1 = (sy%c%x2c(r1) + sy%c%molx0) * dunit0(iunit)
+       xo2 = (sy%c%x2c(r2) + sy%c%molx0) * dunit0(iunit)
     end if
     write (uout,'("  Plane origin: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
     write (uout,'("  Plane x-end:  ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
@@ -1943,9 +1914,9 @@ contains
     ! calculate the contour plot
     if (docontour) then
        allocate(ff(n1,n2))
-       x0 = cr%x2c(r0)
-       uu = cr%x2c((r1-r0) / real(n1-1,8))
-       vv = cr%x2c((r2-r0) / real(n2-1,8))
+       x0 = sy%c%x2c(r0)
+       uu = sy%c%x2c((r1-r0) / real(n1-1,8))
+       vv = sy%c%x2c((r2-r0) / real(n2-1,8))
        if (nfi == 0) then
           nder = 0
        else if (nfi >= 1 .and. nfi <= 4) then
@@ -1957,7 +1928,7 @@ contains
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-             call grd(f(refden),xp,nder,.not.cr%ismolecule,res0_noalloc=res)
+             call sy%f(sy%iref)%grd(xp,nder,.not.sy%c%ismolecule,res0_noalloc=res)
              select case(nfi)
              case (0)
                 rhopt = res%f
@@ -1995,14 +1966,14 @@ contains
        if (allocated(ziso)) deallocate(ziso)
        deallocate(ff)
     end if
-       
+
     udat = fopen_write(datafile)
     call plotvec (r0, r1, r2, autocheck, udat)
     call fclose(udat)
 
     ! print labels (plane info is common)
     call write_fichlabel(rootname)
-    
+
     ! print gnuplot (plane info is common)
     call write_fichgnu(rootname,.true.,docontour,dograds)
     write (uout,*)
@@ -2025,10 +1996,8 @@ contains
   !> Plot of the gradient vector field in the plane defined
   !> by the vectors (r1-r0) & (r2-r0).
   subroutine plotvec (r0, r1, r2, autocheck, udat)
-    use navigation, only: gradient
-    use fields, only: f, grd
-    use global, only: dunit0, iunit, refden
-    use crystalmod, only: cr
+    use systemmod, only: sy
+    use global, only: dunit0, iunit
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
@@ -2045,9 +2014,9 @@ contains
     type(scalar_value) :: res
 
     ! plane metrics
-    rp0 = cr%x2c(r0)
-    rp1 = cr%x2c(r1)
-    rp2 = cr%x2c(r2)
+    rp0 = sy%c%x2c(r0)
+    rp1 = sy%c%x2c(r1)
+    rp2 = sy%c%x2c(r2)
     r01 = 0d0
     r02 = 0d0
     r012 = 0d0
@@ -2081,7 +2050,7 @@ contains
     write (uout,'("* Plot of the gradient vector field in the plane:")')
     write (uout,'("    r = r0 + u * (r1 - r0) + v * (r2 - r0)")')
     write (uout,'("  where the parametric coordinates u and v go from 0 to 1.")')
-    if (.not.cr%ismolecule) then
+    if (.not.sy%c%ismolecule) then
        write (uout,'("+ Crystal coordinates of r0: ",3(A,2X))') (string(r0(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Crystal coordinates of r1: ",3(A,2X))') (string(r1(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Crystal coordinates of r2: ",3(A,2X))') (string(r2(j),'f',12,6,ioj_right),j=1,3)
@@ -2089,9 +2058,9 @@ contains
        write (uout,'("+ Cartesian coordinates of r1: ",3(A,X))') (string(rp1(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Cartesian coordinates of r2: ",3(A,X))') (string(rp2(j),'f',12,6,ioj_right),j=1,3)
     else
-       xo0 = (cr%x2c(r0) + cr%molx0) * dunit0(iunit)
-       xo1 = (cr%x2c(r1) + cr%molx0) * dunit0(iunit)
-       xo2 = (cr%x2c(r2) + cr%molx0) * dunit0(iunit)
+       xo0 = (sy%c%x2c(r0) + sy%c%molx0) * dunit0(iunit)
+       xo1 = (sy%c%x2c(r1) + sy%c%molx0) * dunit0(iunit)
+       xo2 = (sy%c%x2c(r2) + sy%c%molx0) * dunit0(iunit)
        write (uout,'("+ Coordinates of r0: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Coordinates of r1: ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
        write (uout,'("+ Coordinates of r2: ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
@@ -2104,15 +2073,15 @@ contains
     write (uout,'("# i       xcrys        ycrys        zcrys    iatr   up down     xplane       yplane")')
     do iorig = 1, norig
        ! calculate in-plane coordinates
-       xtemp = cr%x2c(grpx(:,iorig))
+       xtemp = sy%c%x2c(grpx(:,iorig))
        xtemp = xtemp - rp0
        xtemp = matmul(bmat,xtemp)
        u = xtemp(1)*r01 + xtemp(2)*r02*cosalfa
        v = xtemp(2)*r02*sinalfa
 
        xtemp = grpx(:,iorig)
-       if (cr%ismolecule) &
-          xtemp = (cr%x2c(xtemp) + cr%molx0) * dunit0(iunit)
+       if (sy%c%ismolecule) &
+          xtemp = (sy%c%x2c(xtemp) + sy%c%molx0) * dunit0(iunit)
        write (uout,'(99(A,2X))') string(iorig,length=5,justify=ioj_left), &
           (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
           string(grpatr(iorig),length=3,justify=ioj_right), &
@@ -2121,12 +2090,12 @@ contains
           string(u,'f',decimal=6,length=11,justify=4), string(v,'f',decimal=6,length=11,justify=4)
     enddo
     write (uout,*)
-    
+
     write (uout,'("+ List of gradient paths traced")')
     write (uout,'("# i       xcrys        ycrys        zcrys        type    up down    pts")')
     do iorig = 1, norig
        ntotpts = 0
-       grpx(:,iorig) = cr%x2c(grpx(:,iorig))
+       grpx(:,iorig) = sy%c%x2c(grpx(:,iorig))
 
        if (grpatr(iorig) .eq. 1) then
           ! 3D attraction or repulsion critical points:
@@ -2137,9 +2106,9 @@ contains
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
-             call gradient(f(refden),xstart,+1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+             call sy%f(sy%iref)%gradient(xstart,+1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
              do j = 1, nptf
-                xflux(:,j) = cr%x2c(xflux(:,j))
+                xflux(:,j) = sy%c%x2c(xflux(:,j))
              end do
              call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
@@ -2151,9 +2120,9 @@ contains
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
-             call gradient(f(refden),xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+             call sy%f(sy%iref)%gradient(xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
              do j = 1, nptf
-                xflux(:,j) = cr%x2c(xflux(:,j))
+                xflux(:,j) = sy%c%x2c(xflux(:,j))
              end do
              call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
@@ -2165,8 +2134,8 @@ contains
              ntype = -3
           end if
 
-          xtemp = (grpx(:,iorig) + cr%molx0) * dunit0(iunit)
-          
+          xtemp = (grpx(:,iorig) + sy%c%molx0) * dunit0(iunit)
+
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &
              (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
@@ -2178,7 +2147,7 @@ contains
        else
           ! A (3,-1) or (3,+3) critical point:
           xstart = grpx(:,iorig)
-          call grd(f(refden),xstart,2,.not.cr%ismolecule,res0=res)
+          call sy%f(sy%iref)%grd(xstart,2,.not.sy%c%ismolecule,res0=res)
           call rsindex(res%hf,ehess,nindex,ntype,0d0)
           if (nindex .eq. 3) then
              if (ntype .eq. -1) then
@@ -2222,32 +2191,32 @@ contains
                    ! the plot plane is coincident with the ias tangent plane
                    ! use v2da.
                    xstart = grpx(:,iorig) + grprad2 * v2da
-                   call gradient(f(refden),xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+                   call sy%f(sy%iref)%gradient(xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(:,j) = cr%x2c(xflux(:,j))
+                      xflux(:,j) = sy%c%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * v2da
-                   call gradient(f(refden),xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(:,j) = cr%x2c(xflux(:,j))
+                      xflux(:,j) = sy%c%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                 else
                    xtemp = c1coef * v2da + c2coef * v2db
                    xstart = grpx(:,iorig) + grprad2 * xtemp
-                   call gradient(f(refden),xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(:,j) = cr%x2c(xflux(:,j))
+                      xflux(:,j) = sy%c%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * xtemp
-                   call gradient(f(refden),xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                    do j = 1, nptf
-                      xflux(:,j) = cr%x2c(xflux(:,j))
+                      xflux(:,j) = sy%c%x2c(xflux(:,j))
                    end do
                    call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
@@ -2259,22 +2228,22 @@ contains
                 !.................1D walk:
                 !
                 xstart = grpx(:,iorig) + grprad3 * v1d
-                call gradient(f(refden),xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                 do j = 1, nptf
-                   xflux(:,j) = cr%x2c(xflux(:,j))
+                   xflux(:,j) = sy%c%x2c(xflux(:,j))
                 end do
                 call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                 xstart = grpx(:,iorig) - grprad3 * v1d
-                call gradient(f(refden),xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
+                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
                 do j = 1, nptf
-                   xflux(:,j) = cr%x2c(xflux(:,j))
+                   xflux(:,j) = sy%c%x2c(xflux(:,j))
                 end do
                 call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
                 ntotpts = ntotpts + nptf
              endif
           endif
 
-          xtemp = (grpx(:,iorig) + cr%molx0) * dunit0(iunit)
+          xtemp = (grpx(:,iorig) + sy%c%molx0) * dunit0(iunit)
 
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &
@@ -2292,7 +2261,7 @@ contains
 
   !> Write the gradient path to the udat logical unit.
   subroutine wrtpath (xflux, nptf, mptf, udat, rp0, r01, r02, cosalfa, sinalfa)
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use global, only: prunedist
     use param, only: jmlcol
     integer, intent(in) :: mptf
@@ -2307,18 +2276,18 @@ contains
     logical :: wasblank
 
     ! identify the endpoints
-    x0 = cr%c2x(xflux(:,1))
+    x0 = sy%c%c2x(xflux(:,1))
     nid1 = 0
-    call cr%nearest_atom(x0,nid1,dist1,lvec)
-    x0 = cr%c2x(xflux(:,nptf))
+    call sy%c%nearest_atom(x0,nid1,dist1,lvec)
+    x0 = sy%c%c2x(xflux(:,nptf))
     nid2 = 0
-    call cr%nearest_atom(x0,nid2,dist2,lvec)
+    call sy%c%nearest_atom(x0,nid2,dist2,lvec)
     rgb = (/0,0,0/)
     if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
-       iz = cr%at(cr%atcel(nid1)%idx)%z
+       iz = sy%c%at(sy%c%atcel(nid1)%idx)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     elseif (dist2 < dist1 .and. dist2 < 1.1d0*prunedist) then
-       iz = cr%at(cr%atcel(nid2)%idx)%z
+       iz = sy%c%at(sy%c%atcel(nid2)%idx)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     endif
 
@@ -2364,9 +2333,8 @@ contains
   !> are critical points, remove repeated points, and check which
   !> equivalents (within the main cell) lie on the plotting plane.
   subroutine autochk(rp0)
-    use fields, only: f, grd
-    use crystalmod, only: cr
-    use global, only: refden, cp_hdegen
+    use systemmod, only: sy
+    use global, only: cp_hdegen
     use tools_io, only: uout, string, ioj_left, ioj_right, faterr, ferror
     use tools_math, only: rsindex
     use param, only: one
@@ -2412,15 +2380,15 @@ contains
 
        !.discard repeated points
        do j = i+1, newncriticp
-          if (cr%are_close(newcriticp(:,j),xp,epsf)) then
+          if (sy%c%are_close(newcriticp(:,j),xp,epsf)) then
              write (uout,'(2X,"CP ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
              cycle
           endif
        enddo
 
        !.Get the properties
-       xp = cr%x2c(newcriticp(:,i))
-       call grd(f(refden),xp,2,.not.cr%ismolecule,res0=res)
+       xp = sy%c%x2c(newcriticp(:,i))
+       call sy%f(sy%iref)%grd(xp,2,.not.sy%c%ismolecule,res0=res)
        if (res%gfmod > grpcpeps) then
           write (uout,'(2X,"CP ",A," has a large gradient: ",A," -> Rejected!")') &
              string(i), string(res%gfmod,'e',decimal=6)
@@ -2435,7 +2403,7 @@ contains
        ncopies = 0
        hmin = 1d30
        do l = 1, (inum)**3
-          xp = cr%x2c(newcriticp(:,i) + indcell(:,l))
+          xp = sy%c%x2c(newcriticp(:,i) + indcell(:,l))
 
           !.transform the point to the plotting plane coordinates:
           x0 = xp - rp0
@@ -2447,8 +2415,8 @@ contains
           !.clip if out of the plotting area
           hmin = min(hmin,abs(hh))
           if (uu >= -epsdis+(one-scalex) .and. uu <= scalex+epsdis .and.&
-              vv >= -epsdis+(one-scaley) .and. vv <= scaley+epsdis .and.&
-              abs(hh) <= RHOP_Hmax) then
+             vv >= -epsdis+(one-scaley) .and. vv <= scaley+epsdis .and.&
+             abs(hh) <= RHOP_Hmax) then
              ncopies = ncopies + 1
              if (norig .ge. MORIG) then
                 call ferror('autochk', 'Too many origins. Increase MORIG',faterr,syntax=.true.)
@@ -2492,8 +2460,7 @@ contains
   !> contains the list of critical points contained in the plot
   !> plane, ready to be read in gnuplot.
   subroutine write_fichlabel(rootname)
-    use varbas, only: ncpcel, cpcel
-    use crystalmod, only: cr
+    use systemmod, only: sy
     use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
     character*(*), intent(in) :: rootname
@@ -2530,9 +2497,9 @@ contains
 
     ! write (uout,'("+ CPs accepted/rejected in the plot plane ")')
     ! write (uout,'("A?(cp,lvec)       u               v               h")')
-    do i = 1, ncpcel
+    do i = 1, sy%f(sy%iref)%ncpcel
        do j = 1, (inum)**3
-          xp = cr%x2c(cpcel(i)%x + indcell(:,j))
+          xp = sy%c%x2c(sy%f(sy%iref)%cpcel(i)%x + indcell(:,j))
           xxx = xp(1) - rp0(1)
           yyy = xp(2) - rp0(2)
           zzz = xp(3) - rp0(3)
@@ -2553,7 +2520,7 @@ contains
 
              ! assign cp letter
              ! check if it is a nucleus
-             select case (cpcel(i)%typ)
+             select case (sy%f(sy%iref)%cpcel(i)%typ)
              case (3)
                 cpletter = "c"
              case (1)
@@ -2561,8 +2528,8 @@ contains
              case (-1)
                 cpletter = "b"
              case (-3)
-                if (cpcel(i)%isnuc) then
-                   cpletter = nameguess(cr%at(cpcel(i)%idx)%z,.true.)
+                if (sy%f(sy%iref)%cpcel(i)%isnuc) then
+                   cpletter = nameguess(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%z,.true.)
                 else
                    cpletter = "n"
                 endif
@@ -2589,7 +2556,7 @@ contains
     use tools_io, only: uout, string, fopen_write, string, fclose
     character*(*), intent(in) :: rootname
     logical, intent(in) :: dolabels, docontour, dograds
-    
+
     integer :: lun
     character(len=:), allocatable :: fichgnu, fichlabel, fichiso, fichiso1, fichgrd
     character(len=:), allocatable :: swri
@@ -2634,9 +2601,9 @@ contains
 
     write (lun,'("plot ",A)') swri
     call fclose(lun)
-    
- 18   format (1x,'set xrange [',f7.3,':',f7.3,'] '/                     &
-     &        1x,'set yrange [',f7.3,':',f7.3,']')
+
+18  format (1x,'set xrange [',f7.3,':',f7.3,'] '/                     &
+       &        1x,'set yrange [',f7.3,':',f7.3,']')
 
   end subroutine write_fichgnu
 

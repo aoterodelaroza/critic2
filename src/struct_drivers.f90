@@ -35,6 +35,7 @@ module struct_drivers
   public :: struct_packing
   public :: struct_newcell
   public :: struct_molcell
+  public :: struct_identify
 
 contains
 
@@ -44,7 +45,8 @@ contains
   !> molecule; mol0=0, a crystal, mol0=-1, guess. If allownofile
   !> allow the program to read the following input lines to parse
   !> the crystal/molecule environment.
-  subroutine struct_crystal_input(c,line,mol0,allownofile) 
+  subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
+    use systemmod, only: system
     use crystalmod, only: crystal
     use param, only: maxzat0, isformat_cif, isformat_res,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
@@ -59,8 +61,11 @@ contains
        string, uin, isinteger, lower
     character*(*), intent(in) :: line
     integer, intent(in) :: mol0
-    type(crystal), intent(inout) :: c
     logical, intent(in) :: allownofile
+    logical, intent(in) :: verbose
+    type(system), intent(inout), optional :: s0
+    type(crystal), intent(inout), optional :: cr0
+    type(crystalseed), intent(inout), optional :: seed0
 
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, subline
@@ -224,108 +229,128 @@ contains
        end if
     end if
 
-    ! build the new crystal from the seed
-    call c%struct_new(seed,.true.)
-
+    if (present(s0)) then
+       call s0%new_from_seed(seed)
+       if (verbose) &
+          call s0%report(.true.,.true.,.true.,.true.,.true.,.true.)
+    end if
+    if (present(cr0)) then
+       call cr0%struct_new(seed,.true.)
+       if (verbose) &
+          call cr0%report(.true.,.true.)
+    end if
+    if (present(seed0)) then
+       seed0 = seed
+    end if
+    
   end subroutine struct_crystal_input
 
-  ! use the P1 space group
-  subroutine struct_clearsym()
-    use crystalmod, only: cr
+  !> Clear the symmetry in the system.
+  subroutine struct_clearsym(s)
+    use systemmod, only: system
     use types, only: atom, realloc
     use tools_io, only: uout
     use param, only: eyet
-    type(atom) :: aux(cr%nneq)
-    integer :: i
+    type(system), intent(inout) :: s
 
-    ! nullify the space group
-    cr%havesym = 0
-    cr%neqv = 1
-    cr%rotm(:,:,1) = eyet
-    cr%ncv = 1
-    if (allocated(cr%cen)) deallocate(cr%cen)
-    allocate(cr%cen(3,4))
-    cr%cen = 0d0
-
-    ! convert ncel to nneq
-    aux = cr%at(1:cr%nneq)
-    cr%nneq = cr%ncel
-    call realloc(cr%at,cr%ncel)
-    do i = 1, cr%ncel
-       cr%at(i) = aux(cr%atcel(i)%idx)
-       cr%at(i)%x = cr%atcel(i)%x
-    end do
+    type(atom) :: aux(s%c%nneq)
+    integer :: i, j
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
-    write (uout,'("            The new crystal description follows"/)')
-    cr%isenv = .false.
-    cr%isast = .false.
-    cr%isrecip = .false.
-    cr%isnn = .false.
-    call cr%struct_fill(.true.,-1,.false.,.true.,.false.)
-    call cr%struct_report()
+    write (uout,*)
+
+    ! nullify the space group
+    s%c%havesym = 0
+    s%c%neqv = 1
+    s%c%rotm(:,:,1) = eyet
+    s%c%ncv = 1
+    if (allocated(s%c%cen)) deallocate(s%c%cen)
+    allocate(s%c%cen(3,4))
+    s%c%cen = 0d0
+
+    ! convert ncel to nneq
+    aux = s%c%at(1:s%c%nneq)
+    s%c%nneq = s%c%ncel
+    call realloc(s%c%at,s%c%ncel)
+    do i = 1, s%c%ncel
+       s%c%at(i) = aux(s%c%atcel(i)%idx)
+       s%c%at(i)%x = s%c%atcel(i)%x
+    end do
+
+    ! convert ncpcel to ncel for all fields
+    do i = 1, s%nf
+       if (s%f(i)%isinit) then
+          call realloc(s%f(i)%cp,s%f(i)%ncpcel)
+          do j = 1, s%f(i)%ncpcel
+             s%f(i)%cp(j) = s%f(i)%cpcel(j)
+             s%f(i)%cp(j)%mult = 1
+             s%f(i)%cp(j)%pg = 'C1'
+             s%f(i)%cpcel(j)%pg = 'C1'
+             s%f(i)%cpcel(j)%ir = 1
+             s%f(i)%cpcel(j)%ic = 1
+             s%f(i)%cpcel(j)%lvec = 0
+          end do
+       end if
+    end do
+
+    ! recalculate the environments and asterisms and report
+    s%c%isenv = .false.
+    s%c%isast = .false.
+    s%c%isrecip = .false.
+    s%c%isnn = .false.
+    call s%c%struct_fill(.true.,-1,.false.,.true.,.false.)
+    call s%report(.true.,.true.,.true.,.true.,.true.,.true.)
 
   end subroutine struct_clearsym
 
-  subroutine struct_charges(line,oksyn)
-    use crystalmod, only: cr
+  !> Change the charges and pseudopotential charges in the system.
+  subroutine struct_charges(s,line,oksyn)
+    use systemmod, only: system
+    use grid1mod, only: grid1_register_core
     use global, only: eval_next
     use tools_io, only: lgetword, equal, ferror, faterr, getword, zatguess
-
+    use param, only: maxzat0
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word
-    integer :: lp, lp2, nn, i
+    integer :: lp, lp2, nn, i, j, zpsp0(maxzat0)
     logical :: ok, do1
     real*8 :: xx
 
     oksyn = .false.
     lp = 1
     word = lgetword(line,lp)
+    zpsp0 = -2
     if (equal(word,'q') .or. equal(word,'zpsp') .or. equal(word,'qat')) then
        do1 = equal(word,'zpsp')
        do while (.true.)
-          lp2 = lp
-          ok = eval_next(nn,line,lp)
-          if (ok) then
-             ok = eval_next(xx,line,lp)
-             if (.not.ok) then
-                call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line,syntax=.true.)
-                return
-             end if
-             if (do1) then
-                cr%at(nn)%zpsp = nint(xx)
-             else
-                cr%at(nn)%qat = xx
-             end if
-          else 
-             lp = lp2
-             word = getword(line,lp)
-             if (len_trim(word) < 1) exit
-             nn = zatguess(word)
-             if (nn == -1) then
-                call ferror('struct_charges','Unknown atomic symbol in Q/QAT/ZPSP',faterr,line,syntax=.true.)
-                return
-             end if
-             ok = eval_next(xx,line,lp)
-             if (.not.ok) then
-                call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line,syntax=.true.)
-                return
-             end if
-             do i = 1, cr%nneq
-                if (cr%at(i)%z == nn) then
-                   if (do1) then
-                      cr%at(i)%zpsp = nint(xx)
-                   else
-                      cr%at(i)%qat = xx
-                   end if
-                endif
+          word = getword(line,lp)
+          if (len_trim(word) < 1) exit
+          nn = zatguess(word)
+          if (nn == -1) then
+             call ferror('struct_charges','Unknown atomic symbol in Q/QAT/ZPSP',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = eval_next(xx,line,lp)
+          if (.not.ok) then
+             call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line,syntax=.true.)
+             return
+          end if
+          if (.not.do1) then
+             do i = 1, s%c%nneq
+                if (s%c%at(i)%z == nn) &
+                   s%c%at(i)%qat = xx
              end do
-          endif
+          else
+             zpsp0(nn) = nint(xx)
+             if (nn > 0 .and. zpsp0(nn) > 0) &
+                call grid1_register_core(nn,zpsp0(nn))
+          end if
        end do
     elseif (equal(word,'nocore')) then
-       cr%at(1:cr%nneq)%zpsp = -1
+       zpsp0 = -1
        word = getword(line,lp)
        if (len_trim(word) > 0) then
           call ferror('critic','Unknown extra keyword',faterr,line,syntax=.true.)
@@ -334,15 +359,35 @@ contains
     endif
     oksyn = .true.
 
+    ! fill the crystal zpsp
+    do j = 1, maxzat0
+       if (zpsp0(j) /= -2) &
+          s%c%zpsp(j) = zpsp0(j)
+    end do
+
+    ! fill the current fields zpsp
+    do i = 1, s%nf
+       if (s%f(i)%isinit) then
+          do j = 1, maxzat0
+             if (zpsp0(j) /= -2) &
+                s%f(i)%zpsp(j) = zpsp0(j)
+          end do
+       end if
+    end do
+
+    ! report the charges and zpsp
+    call s%c%report(.false.,.true.)
+    call s%report(.false.,.false.,.false.,.false.,.false.,.true.)
+
   end subroutine struct_charges
 
   ! Write the crystal structure to a file
-  subroutine struct_write(c,line)
-    use crystalmod, only: crystal
+  subroutine struct_write(s,line)
+    use systemmod, only: system
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
        string
-    type(crystal), intent(inout) :: c
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, wext, file, wroot
@@ -411,9 +456,9 @@ contains
              end if
              ! convert units and coordinates
              rsph = rsph / dunit0(iunit)
-             if (c%ismolecule) then
-                xsph = xsph / dunit0(iunit) - c%molx0
-                xsph = c%c2x(xsph)
+             if (s%c%ismolecule) then
+                xsph = xsph / dunit0(iunit) - s%c%molx0
+                xsph = s%c%c2x(xsph)
              endif
           elseif (equal(word,'cube')) then
              ok = eval_next(rcub,line,lp)
@@ -430,9 +475,9 @@ contains
              end if
              ! convert units and coordinates
              rcub = rcub / dunit0(iunit)
-             if (c%ismolecule) then
-                xcub = xcub / dunit0(iunit) - c%molx0
-                xcub = c%c2x(xcub)
+             if (s%c%ismolecule) then
+                xcub = xcub / dunit0(iunit) - s%c%molx0
+                xcub = s%c%c2x(xcub)
              endif
           elseif (eval_next(iaux,word,lp2)) then
              ix(1) = iaux
@@ -458,58 +503,58 @@ contains
        end if
 
        if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-          call c%write_mol(file,wext,ix,doborder,onemotif,molmotif,&
+          call s%c%write_mol(file,wext,ix,doborder,onemotif,molmotif,&
              environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub)
        else
-          call c%write_3dmodel(file,wext,ix,doborder,onemotif,molmotif,&
+          call s%c%write_3dmodel(file,wext,ix,doborder,onemotif,molmotif,&
              docell,domolcell,rsph,xsph,rcub,xcub)
        end if
     elseif (equal(wext,'gau')) then
        ! gaussian periodic boundary conditions
        write (uout,'("* WRITE Gaussian file: ",A)') string(file)
-       call c%write_gaussian(file)
+       call s%c%write_gaussian(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'in')) then
        ! espresso
        write (uout,'("* WRITE espresso file: ",A)') string(file)
-       call c%write_espresso(file)
+       call s%c%write_espresso(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
-       call c%write_vasp(file,.true.)
+       call s%c%write_vasp(file,.true.)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'abin')) then
        ! abinit
        write (uout,'("* WRITE abinit file: ",A)') string(file)
-       call c%write_abinit(file)
+       call s%c%write_abinit(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'elk')) then
        ! elk
        write (uout,'("* WRITE elk file: ",A)') string(file)
-       call c%write_elk(file)
+       call s%c%write_elk(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'tess')) then
        ! tessel
        write (uout,'("* WRITE tess file: ",A)') string(file)
-       call c%write_tessel(file)
+       call s%c%write_tessel(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
        ! critic2
        write (uout,'("* WRITE critic2 input file: ",A)') string(file)
-       call c%write_critic(file)
+       call s%c%write_critic(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'cif')) then
        ! cif
        write (uout,'("* WRITE cif file: ",A)') string(file)
-       call c%write_cif(file)
+       call s%c%write_cif(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'d12')) then
@@ -527,13 +572,13 @@ contains
           end if
        end do
        write (uout,'("* WRITE crystal file: ",A)') string(file)
-       call c%write_d12(file,dosym)
+       call s%c%write_d12(file,dosym)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then
        ! escher
        write (uout,'("* WRITE escher file: ",A)') string(file)
-       call c%write_escher(file)
+       call s%c%write_escher(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'gin')) then
@@ -551,30 +596,30 @@ contains
           end if
        end do
        write (uout,'("* WRITE gulp file: ",A)') string(file)
-       call c%write_gulp(file,dodreiding)
+       call s%c%write_gulp(file,dodreiding)
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
-       call c%write_lammps(file)
+       call s%c%write_lammps(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'fdf')) then
        write (uout,'("* WRITE fdf file: ",A)') string(file)
-       call c%write_siesta_fdf(file)
+       call s%c%write_siesta_fdf(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'struct_in')) then
        write (uout,'("* WRITE STRUCT_IN file: ",A)') string(file)
-       call c%write_siesta_in(file)
+       call s%c%write_siesta_in(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'hsd')) then
        write (uout,'("* WRITE hsd file: ",A)') string(file)
-       call c%write_dftbp_hsd(file)
+       call s%c%write_dftbp_hsd(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'gen')) then
        write (uout,'("* WRITE gen file: ",A)') string(file)
-       call c%write_dftbp_gen(file)
+       call s%c%write_dftbp_gen(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     else
@@ -603,11 +648,11 @@ contains
   end subroutine struct_write
 
   !> Relabel atoms based on user's input
-  subroutine struct_atomlabel(c,line)
-    use crystalmod, only: cr, crystal
+  subroutine struct_atomlabel(s,line)
+    use systemmod, only: system
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: tab, string, nameguess, lower, ioj_center, uout
-    type(crystal), intent(inout) :: c
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: templ, aux, aux2
@@ -624,7 +669,7 @@ contains
     end do
     templ = aux
 
-    do i = 1, cr%nneq
+    do i = 1, s%c%nneq
        aux = templ
        do while(.true.)
           if (index(aux,"%aid") > 0) then
@@ -636,7 +681,7 @@ contains
              ! the index by counting atoms only of this type
              inum = 0
              do j = 1, i
-                if (cr%at(j)%z == cr%at(i)%z) inum = inum + 1
+                if (s%c%at(j)%z == s%c%at(i)%z) inum = inum + 1
              end do
              idx = index(aux,"%id")
              aux2 = aux(1:idx-1) // string(inum) // aux(idx+3:)
@@ -644,40 +689,40 @@ contains
           elseif (index(aux,"%S") > 0) then
              ! the atomic symbol
              idx = index(aux,"%S")
-             aux2 = aux(1:idx-1) // string(nameguess(cr%at(i)%z,.true.)) // aux(idx+2:)
+             aux2 = aux(1:idx-1) // string(nameguess(s%c%at(i)%z,.true.)) // aux(idx+2:)
              aux = aux2
           elseif (index(aux,"%s") > 0) then
              ! the atomic symbol, lowercase
              idx = index(aux,"%s")
-             aux2 = aux(1:idx-1) // string(lower(nameguess(cr%at(i)%z,.true.))) // aux(idx+2:)
+             aux2 = aux(1:idx-1) // string(lower(nameguess(s%c%at(i)%z,.true.))) // aux(idx+2:)
              aux = aux2
           elseif (index(aux,"%l") > 0) then
              ! the original atom label
              idx = index(aux,"%l")
-             aux2 = aux(1:idx-1) // string(cr%at(i)%name) // aux(idx+2:)
+             aux2 = aux(1:idx-1) // string(s%c%at(i)%name) // aux(idx+2:)
              aux = aux2
           else
              exit
           endif
        end do
-       cr%at(i)%name = trim(aux)
+       s%c%at(i)%name = trim(aux)
     end do
     
     ! Write the list of atomic coordinates
-    if (.not.cr%ismolecule) then
+    if (.not.s%c%ismolecule) then
        write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
        write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
           string("x",14,ioj_center), string("y",14,ioj_center),&
           string("z",14,ioj_center), string("name",10,ioj_center), &
           string("mult",4,ioj_center), string("Z",4,ioj_center)
-       do i=1, cr%nneq
+       do i=1, s%c%nneq
           write (uout,'(2x,7(A,X))') &
              string(i,3,ioj_center),&
-             string(cr%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
-             string(cr%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
-             string(cr%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-             string(cr%at(i)%name,10,ioj_center), &
-             string(cr%at(i)%mult,4,ioj_center), string(cr%at(i)%z,4,ioj_center)
+             string(s%c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
+             string(s%c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
+             string(s%c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+             string(s%c%at(i)%name,10,ioj_center), &
+             string(s%c%at(i)%mult,4,ioj_center), string(s%c%at(i)%z,4,ioj_center)
        enddo
        write (uout,*)
     else
@@ -686,12 +731,12 @@ contains
           string("x",16,ioj_center), string("y",16,ioj_center),&
           string("z",16,ioj_center), string("name",10,ioj_center),&
           string("Z",4,ioj_center)
-       do i=1,cr%ncel
+       do i=1,s%c%ncel
           write (uout,'(2x,6(A,X))') &
              string(i,3,ioj_center),&
-             (string((cr%atcel(i)%r(j)+cr%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(cr%at(cr%atcel(i)%idx)%name,10,ioj_center),&
-             string(cr%at(cr%atcel(i)%idx)%z,4,ioj_center)
+             (string((s%c%atcel(i)%r(j)+s%c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
+             string(s%c%at(s%c%atcel(i)%idx)%name,10,ioj_center),&
+             string(s%c%at(s%c%atcel(i)%idx)%z,4,ioj_center)
        enddo
        write (uout,*)
     end if
@@ -700,14 +745,14 @@ contains
 
   !> Calculate the powder diffraction pattern for the current
   !structure.
-  subroutine struct_powder(line,c)
-    use crystalmod, only: crystal
+  subroutine struct_powder(s,line)
+    use systemmod, only: system
     use global, only: fileroot, eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, getword, &
        fopen_write, string, ioj_center, string, fclose
     use param, only: pi
+    type(system), intent(in) :: s
     character*(*), intent(in) :: line
-    type(crystal), intent(in) :: c
 
     integer :: i, lp, lu, np, npts
     real*8 :: th2ini, th2end, lambda, fpol, sigma
@@ -716,7 +761,7 @@ contains
     character(len=:), allocatable :: root, word
     logical :: ok
 
-    if (c%ismolecule) then
+    if (s%c%ismolecule) then
        call ferror("struct_powder","POWDER can not be used with molecules",faterr,syntax=.true.)
        return
     end if
@@ -784,7 +829,7 @@ contains
        end if
     end do
 
-    call c%powder(th2ini,th2end,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
+    call s%c%powder(th2ini,th2end,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
     np = size(th2p)
 
     ! write the data file 
@@ -836,13 +881,13 @@ contains
 
   !> Calculate the radial distribution function for the current
   !> structure.
-  subroutine struct_rdf(line,c)
-    use crystalmod, only: crystal
+  subroutine struct_rdf(s,line)
+    use systemmod, only: system
     use global, only: fileroot, eval_next
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
        ioj_center, getword, string, fclose
+    type(system), intent(in) :: s
     character*(*), intent(in) :: line
-    type(crystal), intent(in) :: c
 
     real*8 :: rend
     character(len=:), allocatable :: root, word
@@ -851,11 +896,8 @@ contains
     real*8, allocatable :: t(:), ih(:)
 
     integer :: lp, lu, i
-    ! integer :: i, lp, lu, np
-    ! real*8 :: th2ini, th2end, lambda, fpol, sigma
-    ! integer, allocatable :: hvecp(:,:)
 
-    if (c%ismolecule) then
+    if (s%c%ismolecule) then
        call ferror("struct_rdf","RDF can not be used with molecules",faterr,syntax=.true.)
        return
     end if
@@ -876,26 +918,26 @@ contains
        if (equal(word,"rend")) then
           ok = eval_next(rend,line,lp)
           if (.not.ok) then
-             call ferror('struct_powder','Incorrect TH2END',faterr,line,syntax=.true.)
+             call ferror('struct_rdf','Incorrect TH2END',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,"npts")) then
           ok = eval_next(npts,line,lp)
           if (.not.ok) then
-             call ferror('struct_powder','Incorrect NPTS',faterr,line,syntax=.true.)
+             call ferror('struct_rdf','Incorrect NPTS',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,"root")) then
           root = getword(line,lp)
        elseif (len_trim(word) > 0) then
-          call ferror('struct_powder','Unknown extra keyword',faterr,line,syntax=.true.)
+          call ferror('struct_rdf','Unknown extra keyword',faterr,line,syntax=.true.)
           return
        else
           exit
        end if
     end do
 
-    call c%rdf(rend,npts,t,ih)
+    call s%c%rdf(rend,npts,t,ih)
 
     ! write the data file 
     lu = fopen_write(trim(root) // ".dat")
@@ -931,8 +973,9 @@ contains
   !> patterns or the radial distribution functions. Uses the
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
-  subroutine struct_compare(line)
-    use crystalmod, only: crystal, cr
+  subroutine struct_compare(s,line)
+    use systemmod, only: system
+    use crystalmod, only: crystal
     use crystalseedmod, only: struct_detect_format
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker
@@ -940,6 +983,7 @@ contains
        ioj_left, string
     use types, only: realloc
     use param, only: isformat_unknown
+    type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, tname, difstr, diftyp
@@ -1023,9 +1067,9 @@ contains
     elseif (imol == 1) then
        ismol = .true.
     end if
-    if (usedot .and. (cr%ismolecule .neqv. ismol)) &
+    if (usedot .and. (s%c%ismolecule .neqv. ismol)) &
        call ferror("struct_compare","current structure (.) incompatible with molecule/crystal in compare",faterr)
-    if (usedot.and..not.cr%isinit) &
+    if (usedot.and..not.s%c%isinit) &
        call ferror('struct_compare','Current structure is not initialized.',faterr)
        
     ! Read the structures and header
@@ -1041,10 +1085,10 @@ contains
     do i = 1, ns
        if (equal(fname(i),".")) then
           write (uout,'("  ",A," ",A,": <current>")') string(tname), string(i,2)
-          c(i) = cr
+          c(i) = s%c
        else
           write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i)) 
-          call struct_crystal_input(c(i),fname(i),ismoli,.false.)
+          call struct_crystal_input(fname(i),ismoli,.false.,.false.,cr0=c(i))
           if (.not.c(i)%isinit) &
              call ferror("struct_compare","could not load crystal structure" // string(fname(i)),faterr)
        end if
@@ -1162,11 +1206,12 @@ contains
 
   !> Calculate the atomic environment of a point or all the 
   !> non-equivalent atoms in the unit cell.
-  subroutine struct_environ(line)
-    use crystalmod, only: cr
+  subroutine struct_environ(s,line)
+    use systemmod, only: system
     use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
+    type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp, lp2
@@ -1210,8 +1255,8 @@ contains
           end if
           doatoms = .false.
           x0in = x0
-          if (cr%ismolecule) &
-             x0 = cr%c2x(x0 / dunit0(iunit) - cr%molx0)
+          if (s%c%ismolecule) &
+             x0 = s%c%c2x(x0 / dunit0(iunit) - s%c%molx0)
        elseif (equal(word,"at")) then
           lp2 = lp
           word = lgetword(line,lp)
@@ -1250,36 +1295,36 @@ contains
     allocate(nneig(nn),wat(nn),dist(nn))
     if (doatoms) then
        write (uout,'("+ Atomic environments")')
-       if (.not.cr%ismolecule) then
+       if (.not.s%c%ismolecule) then
           write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
              iunitname0(iunit)
        else
           write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
              iunitname0(iunit), iunitname0(iunit)
        end if
-       do i = 1, cr%nneq
+       do i = 1, s%c%nneq
           if (iat_mode == iid) then
              if (iat /= i) cycle
           elseif (iat_mode == iznuc) then
-             if (iat /= cr%at(i)%z) cycle
+             if (iat /= s%c%at(i)%z) cycle
           end if
-          call cr%pointshell(cr%at(i)%x,nn,nneig,wat,dist,xenv)
+          call s%c%pointshell(s%c%at(i)%x,nn,nneig,wat,dist,xenv)
           do j = 1, nn
              if (iby_mode == iid) then
                 if (iby /= wat(j)) cycle
              elseif (iby_mode == iznuc) then
-                if (iby /= cr%at(wat(j))%z) cycle
+                if (iby /= s%c%at(wat(j))%z) cycle
              end if
              xout = xenv(:,1,j)
-             if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit0(iunit)
+             if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
              if (j == 1) then
                 write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                   i, cr%at(i)%name, nneig(j), dist(j)*dunit0(iunit), wat(j), &
-                   cr%at(wat(j))%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
+                   i, s%c%at(i)%name, nneig(j), dist(j)*dunit0(iunit), wat(j), &
+                   s%c%at(wat(j))%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
              else
                 if (wat(j) /= 0) then
                    write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                      nneig(j), dist(j)*dunit0(iunit), wat(j), cr%at(wat(j))%name,&
+                      nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%at(wat(j))%name,&
                       (string(xout(k),'f',12,7,ioj_right),k=1,3)
                 end if
              end if
@@ -1287,11 +1332,11 @@ contains
        end do
        write (uout,*)
     else
-       call cr%pointshell(x0,nn,nneig,wat,dist,xenv)
+       call s%c%pointshell(x0,nn,nneig,wat,dist,xenv)
        ! List of atomic environments
        write (uout,'("+ Atomic environments of (",A,",",A,",",A,")")') &
           string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
-       if (.not.cr%ismolecule) then
+       if (.not.s%c%ismolecule) then
           write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
              iunitname0(iunit)
        else
@@ -1302,13 +1347,13 @@ contains
           if (iby_mode == iid) then
              if (iby /= wat(j)) cycle
           elseif (iby_mode == iznuc) then
-             if (iby /= cr%at(wat(j))%z) cycle
+             if (iby /= s%c%at(wat(j))%z) cycle
           end if
           xout = xenv(:,1,j)
-          if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit0(iunit)
+          if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
           if (wat(j) /= 0) then
              write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                nneig(j), dist(j)*dunit0(iunit), wat(j), cr%at(wat(j))%name, &
+                nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%at(wat(j))%name, &
                 (string(xout(k),'f',12,7,ioj_right),k=1,3)
           end if
        end do
@@ -1324,13 +1369,13 @@ contains
           if (iby_mode == iid) then
              if (iby /= wat(j)) cycle
           elseif (iby_mode == iznuc) then
-             if (iby /= cr%at(wat(j))%z) cycle
+             if (iby /= s%c%at(wat(j))%z) cycle
           end if
           do k = 1, nneig(j)
              xout = xenv(:,k,j)
-             if (cr%ismolecule) xout = (cr%x2c(xout)+cr%molx0) * dunit0(iunit)
+             if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
              write (uout,'(6(A,X))') &
-                string(cr%at(wat(j))%name,5,ioj_center), string(wat(j),2),&
+                string(s%c%at(wat(j))%name,5,ioj_center), string(wat(j),2),&
                 (string(xout(l),'f',12,7,ioj_right),l=1,3),&
                 string(dist(j)*dunit0(iunit),'f',12,5,ioj_right)
           end do
@@ -1343,12 +1388,12 @@ contains
   end subroutine struct_environ
 
   !> Calculate the packing ratio of the crystal.
-  subroutine struct_packing(line)
-    use crystalmod, only: cr
+  subroutine struct_packing(s,line)
+    use systemmod, only: system
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use param, only: atmvdw
-
+    type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp
@@ -1359,7 +1404,7 @@ contains
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
 
-    if (cr%ismolecule) then
+    if (s%c%ismolecule) then
        call ferror("critic2","PACKING can not be used with molecules",faterr,syntax=.true.)
        return
     end if
@@ -1392,21 +1437,21 @@ contains
     end do
     
     if (.not.dovdw) then
-       write (uout,'("+ Packing ratio (%): ",A)') string(cr%get_pack_ratio(),'f',10,4)
+       write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
        ! prepare the grid
        write (uout,'("+ Est. precision in the % packing ratio: ",A)') string(prec,'e',10,3)
-       prec = prec * cr%omega / 100d0
+       prec = prec * s%c%omega / 100d0
        write (uout,'("+ Est. precision in the interstitial volume: ",A)') trim(string(prec,'f',100,4))
-       alpha = (prec / cr%omega)**(1d0/3d0)
-       n = ceiling(cr%aa / alpha)
+       alpha = (prec / s%c%omega)**(1d0/3d0)
+       n = ceiling(s%c%aa / alpha)
        write (uout,'("+ Using a volume grid with # of nodes: ",3(A," "))') &
           (string(n(j)),j=1,3)
        
        ! run over all the points in the grid
        ntot = n(1)*n(2)*n(3)
        vout = 0d0
-       dv = cr%omega / ntot
+       dv = s%c%omega / ntot
 
        !$omp parallel do reduction(+:vout) private(ii,iaux,x,found,idx,dist,lvec) schedule(dynamic)
        do i = 0, ntot-1
@@ -1420,10 +1465,10 @@ contains
           x = real(ii,8) / real(n)
 
           found = .false.
-          do j = 1, cr%nneq
+          do j = 1, s%c%nneq
              idx = j
-             call cr%nearest_atom(x,idx,dist,lvec)
-             found = (dist < atmvdw(cr%at(j)%z))
+             call s%c%nearest_atom(x,idx,dist,lvec)
+             found = (dist < atmvdw(s%c%at(j)%z))
              if (found) exit
           end do
           if (.not.found) then
@@ -1433,19 +1478,20 @@ contains
        !$omp end parallel do
        write (uout,'("+ Interstitial volume (outside vdw spheres): ",A)') &
           trim(string(vout,'f',100,4))
-       write (uout,'("+ Cell volume: ",A)') trim(string(cr%omega,'f',100,4))
-       write (uout,'("+ Packing ratio (%): ",A)') string((cr%omega-vout)/cr%omega*100,'f',10,4)
+       write (uout,'("+ Cell volume: ",A)') trim(string(s%c%omega,'f',100,4))
+       write (uout,'("+ Packing ratio (%): ",A)') string((s%c%omega-vout)/s%c%omega*100,'f',10,4)
     end if
     write (uout,*)
 
   end subroutine struct_packing
 
   !> Build a new crystal from the current crystal by cell transformation
-  subroutine struct_newcell(line)
-    use crystalmod, only: cr
+  subroutine struct_newcell(s,line)
+    use systemmod, only: system
     use global, only: eval_next
     use tools_math, only: matinv
     use tools_io, only: ferror, faterr, lgetword, equal
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -1454,7 +1500,7 @@ contains
     real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv
 
-    if (cr%ismolecule) then
+    if (s%c%ismolecule) then
        call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr,syntax=.true.)
        return
     end if
@@ -1488,11 +1534,11 @@ contains
     end do
 
     if (dotyp == 1) then
-       call cr%cell_standard(doprim,doforce,.true.)
+       call s%c%cell_standard(doprim,doforce,.true.)
     elseif (dotyp == 2) then
-       call cr%cell_niggli(.true.)
+       call s%c%cell_niggli(.true.)
     elseif (dotyp == 3) then
-       call cr%cell_delaunay(.true.)
+       call s%c%cell_delaunay(.true.)
     end if
     if (dotyp > 0) return
 
@@ -1550,26 +1596,35 @@ contains
     end do
     if (doinv) x0 = matinv(x0)
 
-    call cr%newcell(x0,t0,.true.)
+    ! transform to the new crystal
+    call s%c%newcell(x0,t0,.true.)
+
+    ! reset all fields and properties to the default
+    call s%reset_fields()
+
+    ! report
+    call s%report(.true.,.true.,.true.,.true.,.true.,.true.)
 
   end subroutine struct_newcell
 
   !> Try to determine the molecular cell from the crystal geometry
-  subroutine struct_molcell(line)
-    use crystalmod, only: cr
+  subroutine struct_molcell(s,line)
+    use systemmod, only: system
     use global, only: rborder_def, eval_next, dunit0, iunit
     use tools_io, only: ferror, faterr, uout, string
 
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
+
     integer :: i, j, lp
     real*8 :: xmin(3), xmax(3), rborder, raux
     logical :: ok
 
-    if (.not.cr%ismolecule) then
-       call ferror('struct_molcell','Use MOLCELL with MOLECULE, not CRYSTAL.',faterr,syntax=.true.)
+    if (.not.s%c%ismolecule) then
+       call ferror('struct_molcell','MOLCELL works with MOLECULE, not CRYSTAL.',faterr,syntax=.true.)
        return
     end if
-    if (any(abs(cr%bb-90d0) > 1d-5)) then
+    if (any(abs(s%c%bb-90d0) > 1d-5)) then
        call ferror('struct_molcell','MOLCELL only allowed for orthogonal cells.',faterr,syntax=.true.)
        return
     end if
@@ -1585,27 +1640,254 @@ contains
     ! find the encompassing cube
     xmin = 1d40
     xmax = -1d30
-    do i = 1, cr%ncel
+    do i = 1, s%c%ncel
        do j = 1, 3
-          xmin(j) = min(xmin(j),cr%at(i)%x(j))
-          xmax(j) = max(xmax(j),cr%at(i)%x(j))
+          xmin(j) = min(xmin(j),s%c%at(i)%x(j))
+          xmax(j) = max(xmax(j),s%c%at(i)%x(j))
        end do
     end do
 
     ! apply the border
     do j = 1, 3
-       xmin(j) = max(xmin(j) - rborder / cr%aa(j),0d0)
-       xmax(j) = min(xmax(j) + rborder / cr%aa(j),1d0)
-       cr%molborder(j) = min(xmin(j),1d0-xmax(j))
+       xmin(j) = max(xmin(j) - rborder / s%c%aa(j),0d0)
+       xmax(j) = min(xmax(j) + rborder / s%c%aa(j),1d0)
+       s%c%molborder(j) = min(xmin(j),1d0-xmax(j))
     end do
 
     ! some output
     write (uout,'("* MOLCELL: set up a molecular cell")')
     write (uout,'("+ Limit of the molecule within the cell (cryst coords):")')
-    write (uout,'("  a axis: ",A," -> ",A)') trim(string(cr%molborder(1),'f',10,4)), trim(string(1d0-cr%molborder(1),'f',10,4))
-    write (uout,'("  b axis: ",A," -> ",A)') trim(string(cr%molborder(2),'f',10,4)), trim(string(1d0-cr%molborder(2),'f',10,4))
-    write (uout,'("  c axis: ",A," -> ",A)') trim(string(cr%molborder(3),'f',10,4)), trim(string(1d0-cr%molborder(3),'f',10,4))
-    
+    write (uout,'("  a axis: ",A," -> ",A)') trim(string(s%c%molborder(1),'f',10,4)), trim(string(1d0-s%c%molborder(1),'f',10,4))
+    write (uout,'("  b axis: ",A," -> ",A)') trim(string(s%c%molborder(2),'f',10,4)), trim(string(1d0-s%c%molborder(2),'f',10,4))
+    write (uout,'("  c axis: ",A," -> ",A)') trim(string(s%c%molborder(3),'f',10,4)), trim(string(1d0-s%c%molborder(3),'f',10,4))
+
   end subroutine struct_molcell
+
+  subroutine struct_identify(s,line0,lp)
+    use systemmod, only: system
+    use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit0, &
+       eval_next
+    use tools_io, only: lgetword, getword, getline, equal, ferror, &
+       faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read
+    use param, only: bohrtoa
+    use types, only: realloc
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line0
+    integer, intent(inout) :: lp
+
+    logical :: ok
+    character(len=:), allocatable :: line, word
+    real*8 :: x0(3), xmin(3), xmax(3), x0out(3)
+    real*8, allocatable :: pointlist(:,:)
+    logical, allocatable :: isrec(:)
+    integer :: i, j, n, idx
+    logical :: found, doenv
+
+    integer :: ldunit, unit, mm
+    integer, parameter :: unit_au = 1
+    integer, parameter :: unit_ang = 2
+    integer, parameter :: unit_x = 3
+    integer, parameter :: unit_rec = 4
+
+    real*8, parameter :: eps = 1d-4
+
+    ! default units
+    if (s%c%ismolecule) then
+       if (iunit == iunit_bohr) then
+          ldunit = unit_au
+       elseif (iunit == iunit_ang) then
+          ldunit = unit_ang
+       end if
+    else
+       ldunit = unit_x
+    endif
+
+    ! parse the first word
+    doenv = .true.
+    word = lgetword(line0,lp)
+    if (equal(word,'angstrom') .or.equal(word,'ang')) then
+       ldunit = unit_ang
+    elseif (equal(word,'bohr') .or.equal(word,'au')) then
+       ldunit = unit_au
+    elseif (equal(word,'cryst')) then
+       ldunit = unit_x
+    elseif (equal(word,'reciprocal')) then
+       ldunit = unit_rec
+    elseif (len_trim(word) > 0) then
+       doenv = .false.
+    endif
+
+    ! read the input coordinates
+    allocate(pointlist(3,10),isrec(10))
+    n = 0
+    if (doenv) then
+       word = lgetword(line0,lp)
+       if (len_trim(word) > 0) then
+          call ferror('struct_identify','Unkwnon extra keyword',faterr,line0,syntax=.true.)
+          return
+       end if
+
+       lp = 1
+       ok = getline(uin,line,ucopy=ucopy)
+       if (ok) then
+          word = lgetword(line,lp)
+       else
+          word = ""
+          lp = 1
+       end if
+       do while (ok.and..not.equal(word,'endidentify').and..not.equal(word,'end'))
+          lp = 1
+          ok = eval_next (x0(1), line, lp)
+          ok = ok .and. eval_next (x0(2), line, lp)
+          ok = ok .and. eval_next (x0(3), line, lp)
+          if (ok) then
+             ! this is a point, parse the last word
+             word = lgetword(line,lp)
+             if (equal(word,'angstrom') .or.equal(word,'ang')) then
+                unit = unit_ang
+             elseif (equal(word,'bohr') .or.equal(word,'au')) then
+                unit = unit_au
+             elseif (equal(word,'cryst')) then
+                unit = unit_x
+             elseif (equal(word,'reciprocal')) then
+                unit = unit_rec
+             else
+                unit = ldunit
+             endif
+
+             if (unit == unit_ang) then
+                x0 = s%c%c2x(x0 / bohrtoa - s%c%molx0)
+             elseif (unit == unit_au) then
+                x0 = s%c%c2x(x0 - s%c%molx0)
+             endif
+             n = n + 1
+             if (n > size(pointlist,2)) then
+                call realloc(pointlist,3,2*n)
+                call realloc(isrec,2*n)
+             end if
+             pointlist(:,n) = x0
+             isrec(n) = (unit == unit_rec)
+          else
+             ! this is an xyz file
+             call readxyz()
+          endif
+
+          ! read next line
+          lp = 1
+          ok = getline(uin,line,ucopy=ucopy) 
+          if (ok) then
+             word = lgetword(line,lp)
+          else
+             line = ""
+             lp = 1
+          end if
+       enddo
+       word = lgetword(line,lp)
+       if (len_trim(word) > 0) then
+          call ferror('struct_identify','Unkwnon extra keyword',faterr,line,syntax=.true.)
+          return
+       end if
+    else
+       call readxyz()
+    endif
+
+    xmin = 1d40
+    xmax = -1d40
+    found = .false.
+    ! identify the atoms
+    write(uout,'("* IDENTIFY: match input coordinates to atoms or CPs in the structure")')
+    if (.not.s%c%ismolecule) then
+       write(uout,'("# (x,y,z) is the position in crystallographic coordinates ")')
+    else
+       write(uout,'("# (x,y,z) is the position in Cartesian coordinates (",A,")")') &
+          iunitname0(iunit)
+    end if
+    write(uout,'("# id        x             y             z     mult name  ncp  cp")')
+
+    do i = 1, n
+       x0 = pointlist(:,i)
+       x0out = x0
+       if (.not.isrec(i)) then
+          if (s%c%ismolecule) x0out = (s%c%x2c(x0)+s%c%molx0) * dunit0(iunit)
+          idx = s%f(s%iref)%identify_cp(x0,eps)
+          mm = s%c%get_mult(x0)
+          if (idx > 0) then
+             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+                string(mm,length=3,justify=ioj_center), &
+                string(s%f(s%iref)%cpcel(idx)%name,length=5,justify=ioj_center), &
+                string(s%f(s%iref)%cpcel(idx)%idx,length=4,justify=ioj_center), &
+                string(idx,length=4,justify=ioj_center)
+             do j = 1, 3
+                xmin(j) = min(xmin(j),x0(j))
+                xmax(j) = max(xmax(j),x0(j))
+                found = .true.
+             end do
+          else
+             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+                string(mm,length=3,justify=ioj_center), &
+                string(" --- not found --- ")
+          endif
+       else
+          call s%c%checkflags(.false.,recip0=.true.)
+          mm = s%c%get_mult_reciprocal(x0)
+          write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+             (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+             string(mm,length=3,justify=ioj_center), &
+             string(" --- not found --- ")
+       endif
+    end do
+    deallocate(pointlist,isrec)
+
+    if (found) then
+       if (.not.s%c%ismolecule) then
+          write(uout,'("#")')
+          write(uout,'("+ Cube, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          xmin = s%c%c2x(s%c%x2c(xmin) - 2)
+          xmax = s%c%c2x(s%c%x2c(xmax) + 2)
+          write(uout,'("+ Cube + 2 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 2 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          xmin = s%c%c2x(s%c%x2c(xmin) - 3)
+          xmax = s%c%c2x(s%c%x2c(xmax) + 3)
+          write(uout,'("+ Cube + 5 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 5 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+       else
+          xmin = s%c%x2c(xmin)+s%c%molx0
+          xmax = s%c%x2c(xmax)+s%c%molx0
+          write(uout,'("+ Cube, x0 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmin(j)*dunit0(iunit),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmax(j)*dunit0(iunit),'f',decimal=8),j=1,3)
+       end if
+    end if
+    write(uout,*)
+
+  contains
+    !> Read an xyz file and add the coordinates to pointlist
+    subroutine readxyz()
+      use types, only: realloc
+      use tools_io, only: fclose
+
+      integer :: lu, nat, i
+      real*8 :: x0(3)
+
+      lu = fopen_read(word)
+      read(lu,*) nat
+      read(lu,*) 
+      do i = 1, nat
+         read(lu,*) word, x0
+         x0 = s%c%c2x(x0 / bohrtoa - s%c%molx0)
+         n = n + 1
+         if (n > size(pointlist,2)) then
+            call realloc(pointlist,3,2*n)
+            call realloc(isrec,2*n)
+         end if
+         pointlist(:,n) = x0
+         isrec(n) = (ldunit == unit_rec)
+      end do
+      call fclose(lu)
+    end subroutine readxyz
+
+  end subroutine struct_identify
 
 end module struct_drivers
