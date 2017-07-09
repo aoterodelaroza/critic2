@@ -49,6 +49,8 @@ module surface
      procedure :: spherecub
      procedure :: writeint
      procedure :: readint
+     procedure :: gauleg_nodes
+     procedure :: lebedev_nodes
   end type minisurf
   public :: minisurf
 
@@ -887,6 +889,78 @@ contains
     call fclose(lud)
 
   end subroutine readint
+
+  !> Sets the angular nodes for the quadrature of a sphere by treating
+  !> ntheta and nphi as 1d Gauss-Legendre quadratures. For a given
+  !> theta (polar angle), the number of phi (azimuthal angle) points
+  !> is int(nphi*abs(sin(theta)))+1, where nphi is provided in the input.
+  !> minisurface version
+  subroutine gauleg_nodes(srf,ntheta,nphi)
+    use param, only: pi
+    use tools_math, only: gauleg
+    class(minisurf), intent(inout) :: srf !< Surface where the node info is placed
+    integer, intent(in) :: ntheta !< Number of phi points
+    integer, intent(in) :: nphi   !< Number of azimuthal points
+
+    integer :: j, k
+    integer :: realnphi
+    ! Nodes and weights
+    real*8, allocatable, dimension(:) :: tpoints
+    real*8, allocatable, dimension(:) :: tweights
+    real*8, allocatable, dimension(:) :: ppoints
+    real*8, allocatable, dimension(:) :: pweights
+
+    allocate(tpoints(ntheta),tweights(ntheta))
+    allocate(ppoints(nphi+1),pweights(nphi+1))
+    ! place the gauss-legendre nodes on the surface
+    call gauleg(0d0,pi,tpoints,tweights,ntheta)
+    srf%nv = 0
+    do j = 1, ntheta
+       realnphi = int(nphi*abs(sin(tpoints(j))))+1
+       call gauleg(0d0,2d0*pi,ppoints,pweights,realnphi)
+       do k = 1, realnphi
+          srf%nv = srf%nv + 1
+          srf%r(srf%nv)  = -1d0
+          srf%th(srf%nv) = tpoints(j)
+          srf%ph(srf%nv) = ppoints(k)
+       end do
+    end do
+
+    deallocate(tpoints,tweights,ppoints,pweights)
+
+  end subroutine gauleg_nodes
+
+  !> Sets the angular nodes for the quadrature of a sphere using
+  !> Lebedev method (see above for references), where npts is the
+  !> number of points, that must be one for which a cubature
+  !> exists (6, 14, 26, 38, 50, 74,
+  !> 86, 110, 146, 170, 194, 230, 266, 302, 350, 434, 590, 770, 974,
+  !> 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890, 4334, 4802,
+  !> 5294, 5810). The (theta,phi) information is written to the surface.
+  !> minisurface version.
+  subroutine lebedev_nodes(srf,npts)
+    use tools_math, only: select_lebedev
+    class(minisurf), intent(inout) :: srf !< Surface where the node info is placed
+    integer, intent(in) :: npts !< Number of quadrature points
+
+    integer :: j
+    ! Nodes and weights
+    real*8 :: xleb(5810)
+    real*8 :: yleb(5810)
+    real*8 :: zleb(5810)
+    real*8 :: wleb(5810)
+
+    call select_lebedev(npts,xleb,yleb,zleb,wleb)
+
+    srf%nv = 0
+    do j = 1, npts
+       srf%nv = srf%nv + 1
+       srf%r(srf%nv)  = -1d0
+       srf%th(srf%nv) = acos(zleb(j))
+       srf%ph(srf%nv) = atan2(yleb(j),xleb(j))
+    end do
+
+  end subroutine lebedev_nodes
 
 end module surface
 

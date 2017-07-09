@@ -1195,7 +1195,7 @@ contains
   subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
     use systemmod, only: sy
     use surface, only: minisurf
-    use integration, only: gauleg_msetnodes, gauleg_mquad
+    use integration, only: gauleg_mquad
     
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: ntheta, nphi
@@ -1210,7 +1210,7 @@ contains
     m = 3 * ntheta * nphi + 1
     call srf%init(m,0)
     call srf%clean()
-    call gauleg_msetnodes(srf,ntheta,nphi)
+    call srf%gauleg_nodes(ntheta,nphi)
 
     srf%n = x0
     srf%r = rad
@@ -1230,7 +1230,7 @@ contains
   !> evaluations per ray
   subroutine sphereintegrals_lebedev(x0,rad,nleb,sprop,abserr,neval,meaneval)
     use systemmod, only: sy
-    use integration, only: lebedev_msetnodes, lebedev_mquad
+    use integration, only: lebedev_mquad
     use surface, only: minisurf
     
     real*8, intent(in) :: x0(3), rad
@@ -1244,7 +1244,7 @@ contains
 
     call srf%init(nleb,0)
     call srf%clean()
-    call lebedev_msetnodes(srf,nleb)
+    call srf%lebedev_nodes(nleb)
 
     srf%n = x0
     srf%r = rad
@@ -1480,7 +1480,7 @@ contains
   subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
     use systemmod, only: sy
     use surface, only: minisurf
-    use integration, only: gauleg_msetnodes, gauleg_mquad
+    use integration, only: gauleg_mquad
     use global, only: int_gauleg, int_iasprec
     use tools_io, only: uout
     real*8, intent(out) :: atprop(sy%npropi)
@@ -1508,7 +1508,7 @@ contains
     m = 3 * ntheta * nphi + 1
     call srf%init(m,0)
     call srf%clean()
-    call gauleg_msetnodes(srf,ntheta,nphi)
+    call srf%gauleg_nodes(ntheta,nphi)
 
     atprop = 0d0
 
@@ -1602,7 +1602,7 @@ contains
   !> description for each atom.
   subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
     use systemmod, only: sy
-    use integration, only: lebedev_msetnodes, lebedev_mquad
+    use integration, only: lebedev_mquad
     use surface, only: minisurf
     use global, only: int_iasprec, int_gauleg
     use tools_io, only: uout
@@ -1628,7 +1628,7 @@ contains
 
     call srf%init(nleb,0)
     call srf%clean()
-    call lebedev_msetnodes(srf,nleb)
+    call srf%lebedev_nodes(nleb)
 
     atprop = 0d0
 

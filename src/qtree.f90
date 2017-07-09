@@ -962,7 +962,6 @@ contains
     use surface, only: minisurf
     use qtree_basic, only: nnuc, r_betagp, r_betaint, find_beta_rodriguez
     use fieldmod, only: type_elk, type_wien
-    use integration, only: lebedev_msetnodes
     use global, only: sphfactor, sphintfactor
     use tools_math, only: norm
     use tools_io, only: uout, string
@@ -1029,7 +1028,7 @@ contains
 
     call srf%init(nleb,0)
     call srf%clean()
-    call lebedev_msetnodes(srf,nleb)
+    call srf%lebedev_nodes(nleb)
     !$omp parallel do &
     !$omp private(i,x0,rref,idum,doagain,j,unit,xx,nstep,ier,dist) &
     !$omp schedule(dynamic)
