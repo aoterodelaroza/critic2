@@ -1200,18 +1200,22 @@ contains
 
   end function fopen_append
 
-  !> Open a file for writing
+  !> Open a scratch file for writing
   function fopen_scratch(form) result(lu)
-    integer :: lu
     character*(*), intent(in), optional :: form
+    integer :: lu
     
     integer :: ios
 
     lu = falloc()
     if (present(form)) then
-       open(unit=lu,status='scratch',form=form,iostat=ios)
+       if (lower(form) == "unformatted") then
+          open(unit=lu,status='scratch',form=form,access="stream",iostat=ios)
+       else
+          open(unit=lu,status='scratch',form=form,iostat=ios)
+       end if
     else
-       open(unit=lu,status='scratch',form="unformatted",iostat=ios)
+       open(unit=lu,status='scratch',form="unformatted",access="stream",iostat=ios)
     end if
     if (ios /= 0) call ferror("fopen_scratch","error opening scratch file",faterr)
 

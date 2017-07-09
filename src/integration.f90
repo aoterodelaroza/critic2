@@ -2372,6 +2372,8 @@ contains
        write (luw2) iio 
        write (luw2) inear
        write (luw2) fnear
+       call flush(luw2)
+       rewind(luw2)
        call fclose(luw)
        luw = luw2
     end if

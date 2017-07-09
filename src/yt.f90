@@ -132,6 +132,12 @@ contains
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))
+    ibasin = 0
+    ihi = 0
+    chi = 0d0
+    nlo = 0
+    inear = 0
+    fnear = 0d0
     do ii = nn, 1, -1
        ! find the number of points with higher density
        nhi = 0
@@ -228,6 +234,7 @@ contains
     write (luw) iio
     write (luw) inear
     write (luw) fnear
+    call flush(luw)
     rewind(luw)
     deallocate(inear,fnear,nlo,g,iio)
 
