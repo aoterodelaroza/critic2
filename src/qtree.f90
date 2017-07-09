@@ -1027,7 +1027,7 @@ contains
        sphfactor(i) = r_betagp(i) / rref
     end do
 
-    call srf%begin(nleb,0)
+    call srf%init(nleb,0)
     call srf%clean()
     call lebedev_msetnodes(srf,nleb)
     !$omp parallel do &

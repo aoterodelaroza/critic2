@@ -443,7 +443,7 @@ contains
        end do
        
        ! fill some grid info
-       f%pgrid(i)%init = .true.
+       f%pgrid(i)%isinit = .true.
        f%pgrid(i)%a = az / real(f%zenv(ii),8)
        f%pgrid(i)%b = b
        f%pgrid(i)%ngrid = ceiling(log(crad/f%pgrid(i)%a) / f%pgrid(i)%b) + 1

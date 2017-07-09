@@ -550,7 +550,7 @@ program critic
            call ferror('critic2','field is not a grid',faterr,line,syntax=.true.)
            cycle
         end if
-        if (.not.sy%f(id)%grid%init.or..not.allocated(sy%f(id)%grid%f)) then
+        if (.not.sy%f(id)%grid%isinit.or..not.allocated(sy%f(id)%grid%f)) then
            call ferror('critic2','grid is not initialized',faterr,line,syntax=.true.)
            cycle
         end if

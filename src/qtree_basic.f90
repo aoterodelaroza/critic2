@@ -583,7 +583,7 @@ contains
     xnuc = sy%f(sy%iref)%cp(nuc)%x
     angle = cos(angdev * pi / 180d0)
 
-    call srf%begin(100,100)
+    call srf%init(100,100)
     call srf%clean()
     call srf%spherecub(xnuc,2)
     

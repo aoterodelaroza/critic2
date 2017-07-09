@@ -918,7 +918,7 @@ contains
        if (istat /= 0) call ferror('build_interpolation_grid1',&
           'could not allocate memory for orbitals',faterr)
        do iorb = 1, ff%bas(it)%norb
-          ff%bas(it)%orb(iorb)%init = .true.
+          ff%bas(it)%orb(iorb)%isinit = .true.
           ff%bas(it)%orb(iorb)%a = mindist
           ff%bas(it)%orb(iorb)%rmax = ff%bas(it)%cutoff(iorb)
           ff%bas(it)%orb(iorb)%rmax2 = ff%bas(it)%orb(iorb)%rmax * ff%bas(it)%orb(iorb)%rmax

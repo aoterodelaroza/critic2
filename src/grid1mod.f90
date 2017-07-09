@@ -25,7 +25,7 @@ module grid1mod
 
   !> Radial grid type.
   type grid1
-     logical :: init = .false. !< Is initialized?
+     logical :: isinit = .false. !< Is initialized?
      real*8 :: a !< Logarithmic grid parameter ri = a * exp(b * (i-1))
      real*8 :: b !< Logarithmic grid parameter ri = a * exp(b * (i-1))
      real*8 :: rmax !< Max. grid distance
@@ -75,7 +75,7 @@ contains
   subroutine grid1_end(g)
     class(grid1), intent(inout) :: g
 
-    g%init = .false.
+    g%isinit = .false.
     if (allocated(g%r)) deallocate(g%r)
     if (allocated(g%f)) deallocate(g%f)
     if (allocated(g%fp)) deallocate(g%fp)
@@ -136,7 +136,7 @@ contains
     if (.not.exist) then
        write (uout,'("File: ",A)') trim(file)
        call ferror("grid1_read_critic","Atomic density file not found",warning)
-       g%init = .false.
+       g%isinit = .false.
        return
     end if
 
@@ -178,7 +178,7 @@ contains
     end do
 
     ! fill grid info
-    g%init = .true.
+    g%isinit = .true.
     g%a = exp(xmin) / zz
     g%b = dx
     g%ngrid = ngrid
@@ -260,7 +260,7 @@ contains
     fp = 0d0
     fpp = 0d0
 
-    if (.not.g%init) return
+    if (.not.g%isinit) return
     if (r0 >= g%rmax) return
 
     ! careful with grid limits.
@@ -319,7 +319,7 @@ contains
        end do
     end if
 
-    if (cgrid(iz,iq)%init .and. cgrid(iz,iq)%z == iz .and. &
+    if (cgrid(iz,iq)%isinit .and. cgrid(iz,iq)%z == iz .and. &
        cgrid(iz,iq)%qat == iq) return
     
     call cgrid(iz,iq)%read_db(iz,iq)
@@ -338,13 +338,13 @@ contains
     if (.not.allocated(agrid)) then
        allocate(agrid(maxzat0))
        do i = 1, maxzat0
-          agrid(i)%init = .false.
+          agrid(i)%isinit = .false.
           agrid(i)%z = 0
           agrid(i)%qat = 0
        end do
     end if
 
-    if (agrid(iz)%init) then
+    if (agrid(iz)%isinit) then
        if (agrid(iz)%z == iz) return
     end if
 

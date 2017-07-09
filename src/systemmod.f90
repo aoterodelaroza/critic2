@@ -526,7 +526,7 @@ contains
           return
        end if
        if (s%f(oid)%type == type_grid) then
-          if (.not.s%f(oid)%grid%init) then
+          if (.not.s%f(oid)%grid%isinit) then
              errmsg = "the grid in source field of LOAD AS LAP/GRAD is not initialized"
              return
           end if
@@ -598,7 +598,7 @@ contains
              errmsg = "field in SIZEOF is not a grid"
              return
           end if
-          if (.not.s%f(oid)%grid%init.or..not.allocated(s%f(oid)%grid%f)) then
+          if (.not.s%f(oid)%grid%isinit.or..not.allocated(s%f(oid)%grid%f)) then
              errmsg = "field in SIZEOF is not initialized"
              return
           end if

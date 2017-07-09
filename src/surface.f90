@@ -29,7 +29,7 @@ module surface
 
   !> Surface type
   type minisurf 
-     integer :: init !< was initialized? 0 no, 1 only v, 2 all
+     integer :: isinit !< was initialized? 0 no, 1 only v, 2 all
      integer :: rgb(3) !< optionally used for global color
      real*8 :: n(3)  !< center on which the surface is based
      real*8, allocatable :: r(:) !< vertices, r
@@ -41,7 +41,7 @@ module surface
      integer :: mv !< maximum number of vertex
      integer :: mf !< maximum number of faces
    contains
-     procedure :: begin => minisurf_begin
+     procedure :: init => minisurf_begin
      procedure :: end => minisurf_close
      procedure :: clean => minisurf_clean
      procedure :: spheresphere
@@ -69,9 +69,9 @@ contains
     allocate(s%r(m),s%th(m),s%ph(m))
     if (f /= 0) then
        allocate(s%f(f))
-       s%init = 2
+       s%isinit = 2
     else
-       s%init = 1
+       s%isinit = 1
     end if
     s%mv = m
     s%mf = f
@@ -87,7 +87,7 @@ contains
     if (allocated(s%th)) deallocate(s%th)
     if (allocated(s%ph)) deallocate(s%ph)
     if (allocated(s%f)) deallocate(s%f)
-    s%init = 0
+    s%isinit = 0
     
   end subroutine minisurf_close
 
@@ -99,7 +99,7 @@ contains
     s%r = -1d0
     s%th = 0d0
     s%ph = 0d0
-    if (s%init > 1) then
+    if (s%isinit > 1) then
        s%f(:)%v(1) = 0
        s%f(:)%v(2) = 0
        s%f(:)%v(3) = 0
@@ -176,7 +176,7 @@ contains
     ! Save face information
     s%nf = 0
     nn = s%nv / 2
-    if (s%init > 1) then
+    if (s%isinit > 1) then
        ! upper and lower cap
        do i = 1, nphi-1
           s%nf = s%nf + 1
@@ -510,7 +510,7 @@ contains
     if (s%nf > s%mf) then
        call ferror('spheretriang','maximum number of faces exceeded',faterr)
     end if
-    if (s%init > 1) then
+    if (s%isinit > 1) then
        do i=1,s%nf
           !! Vertices, id
           s%f(i)%nv   = 3
@@ -816,7 +816,7 @@ contains
     if (s%nf > s%mf) then
        call ferror('spherecub','maximum number of faces exceeded',faterr)
     end if
-    if (s%init > 1) then
+    if (s%isinit > 1) then
        do i=1,s%nf
           !! Vertices, id
           s%f(i)%nv   = 4

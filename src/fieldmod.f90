@@ -609,7 +609,7 @@ contains
           end do
        end do
        !$omp end parallel do
-       f%grid%init = .true.
+       f%grid%isinit = .true.
 
     elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
        seed%iff == ifformat_as_grad.or.seed%iff == ifformat_as_clm.or.&

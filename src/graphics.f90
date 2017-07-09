@@ -908,7 +908,7 @@ contains
     integer :: i, j, imtl
     real*8 :: x(3), maxf, minf, xrgb(3), z
 
-    if (srf%init <= 1) &
+    if (srf%isinit <= 1) &
        call ferror ('obj_surf','No face information in minisurf',faterr)
     if (.not.isopen) &
        call ferror('obj_surf','error: graphics file is not open',faterr)
@@ -1201,7 +1201,7 @@ contains
     integer :: i, j, rgb(3)
     real*8 :: x(3), maxf, minf, xrgb(3), z
     
-    if (srf%init <= 1) &
+    if (srf%isinit <= 1) &
        call ferror ('ply_surf','No face information in minisurf',faterr)
     if (.not.isopen) &
        call ferror('ply_surf','error: graphics file is not open',faterr)
@@ -1462,7 +1462,7 @@ contains
     real*8 :: x(3), z
     real*8 :: xrgb(3), maxf, minf
 
-    if (srf%init <= 1) &
+    if (srf%isinit <= 1) &
        call ferror ('off_surf','No face information in minisurf',faterr)
     if (.not.isopen) &
        call ferror('off_surf','error: graphics file is not open',faterr)

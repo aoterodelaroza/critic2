@@ -891,7 +891,7 @@ contains
        nf = 6*nphi*(2**(ntheta-1)-1)+nphi+nphi
     end if
 
-    call srf%begin(m,nf)
+    call srf%init(m,nf)
     
     if (cpid <= 0) then
        linmin = 1
@@ -1139,7 +1139,7 @@ contains
        nf = 6*nphi*(2**(ntheta-1)-1)+nphi+nphi
     end if
 
-    call srf%begin(m,nf)
+    call srf%init(m,nf)
 
     ! clean the surface 
     call srf%clean()
@@ -1208,7 +1208,7 @@ contains
     real*8 :: iaserr(sy%npropi)
 
     m = 3 * ntheta * nphi + 1
-    call srf%begin(m,0)
+    call srf%init(m,0)
     call srf%clean()
     call gauleg_msetnodes(srf,ntheta,nphi)
 
@@ -1242,7 +1242,7 @@ contains
     type(minisurf) :: srf
     real*8 :: iaserr(sy%npropi)
 
-    call srf%begin(nleb,0)
+    call srf%init(nleb,0)
     call srf%clean()
     call lebedev_msetnodes(srf,nleb)
 
@@ -1506,7 +1506,7 @@ contains
     ntheta = n1
     nphi = n2
     m = 3 * ntheta * nphi + 1
-    call srf%begin(m,0)
+    call srf%init(m,0)
     call srf%clean()
     call gauleg_msetnodes(srf,ntheta,nphi)
 
@@ -1626,7 +1626,7 @@ contains
     smin = 1
     smax = sy%c%nneq
 
-    call srf%begin(nleb,0)
+    call srf%init(nleb,0)
     call srf%clean()
     call lebedev_msetnodes(srf,nleb)
 
@@ -1989,7 +1989,7 @@ contains
     real*8, allocatable :: fsurf(:)
     logical :: iok
 
-    if (s%init <= 1) &
+    if (s%isinit <= 1) &
        call ferror ('minisurf_write3dmodel','No face information in minisurf',faterr)
 
     ! calculate the field value on the basin
@@ -2029,7 +2029,7 @@ contains
     real*8 :: lprop(sy%npropi), x(3), rr
     type(scalar_value) :: res
 
-    if (s%init <= 1) then
+    if (s%isinit <= 1) then
        call ferror ('minisurf_writebasin','No face information in minisurf',faterr)
     end if
 
@@ -2106,7 +2106,7 @@ contains
     real*8, allocatable :: fpoint(:)
     type(scalar_value) :: res
 
-    if (s%init <= 1) &
+    if (s%isinit <= 1) &
        call ferror ('minisurf_writedbasin','No face information in minisurf',faterr)
 
     allocate(fpoint(0:npoint))

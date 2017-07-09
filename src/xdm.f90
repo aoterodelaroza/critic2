@@ -347,12 +347,12 @@ contains
        !$omp end parallel do
 
        if (dopro) then
-          sy%f(ipdens)%grid%init = .true.
+          sy%f(ipdens)%grid%isinit = .true.
           write (uout,'("+ Writing promolecular density to: ",A)') trim(fileroot)//"-pdens.cube"
           call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,sy%f(ipdens)%grid%f)
        end if
        if (docor) then
-          sy%f(icor)%grid%init = .true.
+          sy%f(icor)%grid%isinit = .true.
           write (uout,'("+ Writing core density to: ",A)') trim(fileroot)//"-core.cube"
           call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,sy%f(icor)%grid%f)
        endif
@@ -443,7 +443,7 @@ contains
        !$omp end parallel do
 
        ! write the cube for b
-       sy%f(ib)%grid%init = .true.
+       sy%f(ib)%grid%isinit = .true.
        write (uout,'("+ Writing BR exchange-hole dipole (b) to: ",A)') trim(fileroot)//"-b.cube"
        call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,sy%f(ib)%grid%f)
        nclean = nclean + 1

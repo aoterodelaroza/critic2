@@ -52,7 +52,7 @@ module grid3mod
 
   !> Three-dimensional grid class
   type grid3
-     logical :: init = .false. !< is the grid initialized?
+     logical :: isinit = .false. !< is the grid initialized?
      logical :: iswan = .false. !< does it have wannier info?
      integer :: mode !< interpolation mode
      integer :: n(3) !< number of grid points in each direction
@@ -352,7 +352,7 @@ contains
   subroutine grid_end(f)
     class(grid3), intent(inout) :: f
 
-    f%init = .false.
+    f%isinit = .false.
     f%iswan = .false.
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
@@ -410,7 +410,7 @@ contains
     integer :: istat, n(3)
 
     call f%end()
-    f%init = .true.
+    f%isinit = .true.
     f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
@@ -449,7 +449,7 @@ contains
        read (luc,*)
     end do
 
-    f%init = .true.
+    f%isinit = .true.
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
@@ -477,7 +477,7 @@ contains
 
     ! initialize
     call f%end()
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
 
     ! open file
@@ -527,7 +527,7 @@ contains
     ! read the header
     call hdr_io(fform0,hdr,1,luc)
 
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
     f%n(:) = hdr%ngfft(:)
     n = f%n
@@ -569,7 +569,7 @@ contains
     if (istat /= 0) &
        call ferror('read_vasp','Error reading nx, ny, nz',faterr,file)
 
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -600,7 +600,7 @@ contains
     if (istat /= 0) &
        call ferror('read_qub','Error reading n1, n2, n3',faterr,file)
 
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
     n = f%n(:)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -675,7 +675,7 @@ contains
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
 
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
     allocate(ggloc(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -924,7 +924,7 @@ contains
 
     f%wan%sijchk = dochk
     f%wan%haschk = haschk
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
     f%iswan = .true.
     f%wan%nbnd = nbnd
@@ -1167,7 +1167,7 @@ contains
 
     f%wan%sijchk = dochk
     f%wan%haschk = haschk
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
     f%iswan = .true.
     f%wan%nbnd = nbnd
@@ -1210,7 +1210,7 @@ contains
     call fclose(luc)
 
     n = f%n
-    f%init = .true.
+    f%isinit = .true.
     f%mode = mode_default
 
   end subroutine read_elk
@@ -1918,13 +1918,13 @@ contains
     real*8, allocatable :: vgc(:,:)
 
     call flap%end()
-    if (.not.frho%init) &
+    if (.not.frho%isinit) &
        call ferror('grid_laplacian','no density grid',faterr)
 
     ! allocate slot
     n = frho%n    
     flap%n = n
-    flap%init = .true.
+    flap%isinit = .true.
     flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
@@ -2005,13 +2005,13 @@ contains
     integer :: j1, j2, j3, igfft
 
     call fgrho%end()
-    if (.not.frho%init) &
+    if (.not.frho%isinit) &
        call ferror('grid_gradgrho','no density grid',faterr)
 
     ! allocate slot
     n = frho%n    
     fgrho%n = n
-    fgrho%init = .true.
+    fgrho%isinit = .true.
     fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
@@ -2086,13 +2086,13 @@ contains
     real*8, allocatable :: vgc(:,:)
 
     call fxx%end()
-    if (.not.frho%init) &
+    if (.not.frho%isinit) &
        call ferror('hxx','no density grid',faterr)
 
     ! allocate slot
     n = frho%n    
     fxx%n = n
-    fxx%init = .true.
+    fxx%isinit = .true.
     fxx%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 

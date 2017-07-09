@@ -471,7 +471,7 @@ contains
           m = maxpointstr(seed(i)%depth) + 1
           nf = maxfacestr(seed(i)%depth) + 1
           x0 = sy%c%x2c(seed(i)%x0)
-          call srf%begin(m,nf)
+          call srf%init(m,nf)
           call srf%clean()
           call srf%spheretriang(x0,seed(i)%depth)
 

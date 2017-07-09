@@ -525,7 +525,7 @@ contains
                        do iat = 1, fr(ifr)%nat
                           xd = x - fr(ifr)%at(iat)%r
                           dist = sqrt(dot_product(xd,xd))
-                          if (.not.agrid(fr(ifr)%at(iat)%z)%init) cycle
+                          if (.not.agrid(fr(ifr)%at(iat)%z)%isinit) cycle
                           if (dist > agrid(fr(ifr)%at(iat)%z)%rmax) cycle
                           dist = max(dist,agrid(fr(ifr)%at(iat)%z)%r(1))
                           dist = max(dist,1d-14)

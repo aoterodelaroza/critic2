@@ -6214,7 +6214,7 @@ contains
           else
              g => agrid(iz)
           end if
-          if (.not.g%init) cycle
+          if (.not.g%isinit) cycle
           xx = xc - c%atenv(i)%r
           r2 = dot_product(xx,xx)
           if (r2 > g%rmax2) cycle
@@ -6289,7 +6289,7 @@ contains
 
     ! initialize 
     call f%end()
-    f%init = .true.
+    f%isinit = .true.
     f%n = n
     allocate(f%f(n(1),n(2),n(3)))
 
