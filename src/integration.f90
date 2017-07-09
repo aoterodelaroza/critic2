@@ -2252,11 +2252,10 @@ contains
   !> the weights of the YT. On output, give the identity 
   !> of the attractors (icp) in the complete CP list.
   subroutine int_reorder_gridout(ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
-    use autocp, only: addcp
     use fieldmod, only: field, type_grid
     use tools_io, only: ferror, faterr, fopen_scratch, fclose
     use types, only: realloc
-    type(field), intent(in) :: ff
+    type(field), intent(inout) :: ff
     integer, intent(inout) :: nattr
     real*8, intent(inout), allocatable :: xgatt(:,:)
     integer, intent(inout), allocatable :: idg(:,:,:)
@@ -2326,7 +2325,7 @@ contains
              assigned(j) = nattr
           end if
        end do
-       call addcp(ff%c%x2c(xattr(:,nattr)),"",ff%typnuc)
+       call ff%addcp(ff%c%x2c(xattr(:,nattr)),1d-2,1d-1,2d-1,ff%typnuc)
     end do
     deallocate(xgatt)
 

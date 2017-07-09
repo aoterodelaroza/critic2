@@ -63,6 +63,7 @@ module systemmod
      procedure :: eval => system_eval !< Evaluate an arithmetic expression using the system's fields
      procedure :: propty !< Calculate the properties of a field or all fields at a point
      procedure :: grdall !< Calculate all integrable properties at a point
+     procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
   end type system
   public :: system
 
@@ -1260,5 +1261,39 @@ contains
     end do
 
   end subroutine grdall
+
+  !> Try to add the candidate CP x0 to the CP list of field id. Calls
+  !> addcp from fieldmod.  Checks if the CP is already known, and
+  !> calculates all the relevant information: multiplicity, type,
+  !> shell, assoc. nucleus, etc.  Also, updates the complete CP
+  !> list. Input x0 in Cartesian. If itype is present, assign itype as
+  !> the type of critical bond (-3,-1,1,3).  If discexpr has non-zero
+  !> length, discard the critical point if it gives a non-zero value
+  !> for this expression.
+  subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,itype)
+    use tools_io, only: faterr, ferror
+    class(system), intent(inout) :: s
+    integer, intent(in) :: id
+    real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
+    character*(*), intent(in) :: discexpr !< Discard expression
+    real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
+    real*8, intent(in) :: nuceps !< Discard CPs closer than nuceps from nuclei
+    real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
+    integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
+    
+    real*8 :: fval
+    logical :: ok
+    real*8 :: xp
+
+    if (len_trim(discexpr) > 0) then
+       fval = s%eval(discexpr,.false.,ok,x0)
+       if (.not.ok) &
+          call ferror("addcp","invalid DISCARD expression",faterr)
+       ok = (abs(fval) < 1d-30)
+       if (.not.ok) return
+    end if
+    call s%f(id)%addcp(x0,cpeps,nuceps,nucepsh,itype)
+
+  end subroutine addcp
 
 end module systemmod

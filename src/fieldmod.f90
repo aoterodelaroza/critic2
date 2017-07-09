@@ -127,6 +127,8 @@ module fieldmod
      procedure :: testrmt !< Test for MT discontinuities
      procedure :: benchmark !< Test the speed of field evaluation
      procedure :: newton !< Newton-Raphson search for a CP
+     procedure :: addcp !< Add a new CP to the CP list
+     procedure :: sortcps !< Sort the CP list by field value
      procedure :: gradient !< Calculate a gradient path
   end type field 
   public :: field
@@ -1915,6 +1917,246 @@ contains
     ier = 2
 
   end subroutine newton
+
+  !> Try to add the candidate CP x0 to the CP list. This routine
+  !> checks if it is already known, and calculates all the relevant
+  !> information: multiplicity, type, shell, assoc. nucleus, etc.
+  !> Also, updates the complete CP list. Input x0 in Cartesian. If
+  !> itype is present, assign itype as the type of critical bond
+  !> (-3,-1,1,3).
+  subroutine addcp(f,x0,cpeps,nuceps,nucepsh,itype)
+    use arithmetic, only: eval
+    use tools_math, only: norm, rsindex
+    use tools_io, only: ferror, faterr, string
+    use types, only: scalar_value_noalloc, realloc
+    use global, only: CP_hdegen, rbetadef
+    use types, only: realloc
+    class(field), intent(inout) :: f
+    real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
+    real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
+    real*8, intent(in) :: nuceps !< Discard CPs closer than nuceps from nuclei
+    real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
+    integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
+
+    real*8 :: xc(3), ehess(3), x(3)
+    integer :: nid, lvec(3)
+    real*8 :: dist, fval
+    integer :: n, i, num
+    real*8, allocatable  :: sympos(:,:)
+    integer, allocatable :: symrotm(:), symcenv(:)
+    integer :: r, s
+    integer :: lnuc, lshell
+    character*3 :: namecrit(0:3)
+    character*(1) :: smallnamecrit(0:3)
+    type(scalar_value_noalloc) :: res
+    logical :: ok
+
+    data smallnamecrit   /'n','b','r','c'/
+    data namecrit /'ncp','bcp','rcp','ccp'/
+
+    ! Transform to cryst. and main cell
+    xc = f%c%c2x(x0)
+    xc = xc - floor(xc)
+
+    ! If the scalar field has shells, then determine associated nucleus (lnuc) and shell (lshell).
+    ! valence / core associated shell
+    lnuc = 0
+    lshell = 0
+
+    ! If it's a molecule and the CP is in the border, return
+    if (f%c%ismolecule) then
+       if (xc(1) < f%c%molborder(1) .or. xc(1) > (1d0-f%c%molborder(1)) .or.&
+           xc(2) < f%c%molborder(2) .or. xc(2) > (1d0-f%c%molborder(2)) .or.&
+           xc(3) < f%c%molborder(3) .or. xc(3) > (1d0-f%c%molborder(3))) goto 999
+    endif
+
+    ! distance to other CPs
+    call f%nearest_cp(xc,nid,dist)
+    if (dist < cpeps) then
+       goto 999
+    end if
+
+    ! distance to atoms
+    nid = 0
+    call f%c%nearest_atom(xc,nid,dist,lvec)
+    if (dist < nuceps) then
+       goto 999
+    end if
+
+    ! distance to hydrogens
+    if (f%c%at(f%c%atcel(nid)%idx)%z == 1) then
+       if (dist < nucepsh) then
+          goto 999
+       end if
+    end if
+
+    ! reallocate if more slots are needed for the new cp
+    if (f%ncp >= size(f%cp)) then
+       call realloc(f%cp,2*f%ncp)
+    end if
+
+    ! Write critical point in the list
+    f%ncp = f%ncp + 1
+    n = f%ncp
+
+    f%cp(n)%x = xc
+    f%cp(n)%r = f%c%x2c(xc)
+
+    ! Density info
+    call f%grd(f%cp(n)%r,2,res0_noalloc=res)
+    f%cp(n)%s = res
+
+    ! Symmetry info
+    f%cp(n)%pg = f%c%sitesymm(f%cp(n)%x,cpeps)
+    f%cp(n)%idx = n
+    f%cp(n)%ir = 1
+    f%cp(n)%ic = 1
+    f%cp(n)%lvec = 0
+
+    ! Type of critical point
+    if (.not.present(itype)) then
+       call rsindex(res%hf,ehess,r,s,CP_hdegen)
+       f%cp(n)%isdeg = (r /= 3)
+       f%cp(n)%typ = s
+       f%cp(n)%typind = (s+3)/2
+       f%cp(n)%isnuc = .false.
+       f%cp(n)%isnnm = (s == f%typnuc)
+    else
+       r = 3
+       s = itype
+       f%cp(n)%isdeg = .false.
+       f%cp(n)%typ = itype
+       f%cp(n)%typind = (itype+3)/2
+       f%cp(n)%isnuc = .false.
+       f%cp(n)%isnnm = (itype == f%typnuc)
+    end if
+    
+    ! discard degenerate critical points
+    if (f%cp(n)%isdeg) then
+       f%ncp = f%ncp - 1
+       goto 999
+    end if
+
+    ! Wait until reconstruction to calculate graph properties
+    f%cp(n)%brdist = 0d0
+    f%cp(n)%brang = 0d0
+    f%cp(n)%ipath = 0
+    f%cp(n)%rbeta = Rbetadef
+    f%cp(n)%brvec = 0d0
+
+    ! Name
+    num = count(f%cp(1:n)%typ == s)
+    f%cp(n)%name = smallnamecrit(f%cp(n)%typind) // string(num)
+
+    ! Add positions to the complete CP list
+    call f%c%symeqv(f%cp(n)%x,f%cp(n)%mult,sympos,symrotm,symcenv,cpeps) 
+    do i = 1, f%cp(n)%mult
+       f%ncpcel = f%ncpcel + 1
+       if (f%ncpcel >= size(f%cpcel)) then
+          call realloc(f%cpcel,2*f%ncpcel)
+       end if
+
+       f%cpcel(f%ncpcel) = f%cp(n)
+       f%cpcel(f%ncpcel)%x = sympos(:,i)
+       f%cpcel(f%ncpcel)%r = f%c%x2c(f%cpcel(f%ncpcel)%x)
+       f%cpcel(f%ncpcel)%idx = n
+       f%cpcel(f%ncpcel)%ir = symrotm(i)
+       f%cpcel(f%ncpcel)%ic = symcenv(i)
+       f%cpcel(f%ncpcel)%lvec = nint(f%cpcel(f%ncpcel)%x - &
+          (matmul(f%c%rotm(1:3,1:3,symrotm(i)),f%cp(n)%x) + &
+          f%c%rotm(1:3,4,symrotm(i)) + f%c%cen(:,symcenv(i))))
+    end do
+    deallocate(sympos,symrotm,symcenv)
+999 continue
+
+  end subroutine addcp
+
+  ! Sort the non-equivalent cp list
+  subroutine sortcps(f,cpeps)
+    use tools, only: mergesort
+    use types, only: cp_type
+    class(field), intent(inout) :: f
+    real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
+
+    integer :: i, j, k, iperm(f%ncp), nin, nina
+    integer :: perms, perm(2,f%ncp)
+    integer :: num, mi
+    type(cp_type) :: aux
+    real*8, allocatable :: sympos(:,:)
+    integer, allocatable :: symrotm(:), symcenv(:), iaux(:)
+
+    ! Sort the nneq CP list
+    iperm(1:f%ncp) = (/ (j,j=1,f%ncp) /)
+
+    ! The nuclei are already ordered. 
+    nin = f%c%nneq
+    do i = 0, 3
+       ! First sort by class
+       num = count(f%cp(1:f%ncp)%typind == i)
+       nina = nin + 1
+       do j = 1, num
+          do k = nin+1, f%ncp
+             if (f%cp(k)%typind == i) then
+                aux = f%cp(k)
+                f%cp(k) = f%cp(nin+1)
+                f%cp(nin+1) = aux
+                nin = nin + 1
+                exit
+             end if
+          end do
+       end do
+
+       ! Then sort by density
+       call mergesort(f%cp(nina:nin)%s%f,iperm(nina:nin))
+
+       ! reverse
+       allocate(iaux(nina:nin))
+       iaux = iperm(nina:nin) + nina - 1
+       do j = nina, nin
+          iperm(j) = iaux(nin-j+nina)
+       end do
+       deallocate(iaux)
+    end do
+
+    ! unroll transposition as product of permutations
+    perms = 0
+    do i = 1, f%ncp
+       if (iperm(i) /= i) then
+          do j = i+1, f%ncp
+             if (iperm(j) == i) exit
+          end do
+          perms = perms + 1
+          perm(1,perms) = i
+          perm(2,perms) = j
+          iperm(j) = iperm(i)
+          iperm(i) = i
+       end if
+    end do
+    do i = perms, 1, -1
+       aux = f%cp(perm(1,i))
+       f%cp(perm(1,i)) = f%cp(perm(2,i))
+       f%cp(perm(2,i)) = aux
+    end do
+
+    ! Rewrite the complete CP list
+    f%ncpcel = 0
+    do i = 1, f%ncp
+       call f%c%symeqv(f%cp(i)%x,mi,sympos,symrotm,symcenv,cpeps) 
+       do j = 1, mi
+          f%ncpcel = f%ncpcel + 1
+          f%cpcel(f%ncpcel) = f%cp(i)
+          f%cpcel(f%ncpcel)%x = sympos(:,j)
+          f%cpcel(f%ncpcel)%r = f%c%x2c(f%cpcel(f%ncpcel)%x)
+          f%cpcel(f%ncpcel)%idx = i
+          f%cpcel(f%ncpcel)%ir = symrotm(j)
+          f%cpcel(f%ncpcel)%ic = symcenv(j)
+          f%cpcel(f%ncpcel)%lvec = nint(f%cpcel(f%ncpcel)%x - &
+             (matmul(f%c%rotm(1:3,1:3,symrotm(j)),f%cp(i)%x) + &
+             f%c%rotm(1:3,4,symrotm(j)) + f%c%cen(:,symcenv(j))))
+       end do
+    end do
+
+  end subroutine sortcps
 
   !> Generalized gradient tracing routine. The gp integration starts
   !> at xpoint (Cartesian) with step step (step < 0 for a slow, i.e.,

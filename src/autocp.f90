@@ -31,8 +31,6 @@ module autocp
   private :: barycentric
   private :: barycentric_divide
   private :: seed_from_simplex
-  public :: addcp
-  private :: sortcps
   private :: cp_long_report
   private :: cp_vlong_report
   private :: graph_short_report
@@ -52,13 +50,10 @@ module autocp
   real*8 :: x0clip(3), x1clip(3), rclip
 
   ! variables that control the CP search
-  real*8 :: CP_eps_cp = 1d-2 !< distance to consider two CPs as different (Cartesian).
-  real*8 :: NUC_eps_cp = 1d-1 !< distance to consider a CP as different from a nucleus (Cartesian).
-  real*8 :: NUC_eps_cp_H = 2d-1 !< distance to consider a CP as different from a hydrogen (Cartesian).
   integer :: dograph = 1 !< attempt build the topological graph after CP search. 
 
 contains
-  
+
   !> Automatic search for all the critical points in the crystal unit cell.
   !> Uses the IWS, with barycentric subdivision.
   subroutine autocritic(line)
@@ -113,16 +108,19 @@ contains
     type(seed_), allocatable :: seed(:), saux(:)
     logical :: firstseed, hadx1
     integer :: nn, lug, lumtl, ilag, nphiact, ier, nss
-    real*8 :: x0(3), x1(3), dist, r, theta, phi, delta_phi, delta_theta
+    real*8 :: x0(3), x1(3), dist, r, theta, phi, delta_phi, delta_theta, x(3)
     real*8, allocatable :: xseed(:,:)
     logical, allocatable :: keep(:)
     type(minisurf) :: srf
+    real*8 :: cpeps
+    real*8 :: nuceps
+    real*8 :: nucepsh
 
     if (.not.quiet) then
        call tictac("Start AUTO")
        write (uout,*)
     end if
-    
+
     ! defaults
     dochk = .false.
     gfnormeps = 1d-12
@@ -141,13 +139,13 @@ contains
     hadx1 = .false.
     iclip = 0
     CP_hdegen = 1d-8
-    CP_eps_cp = 1d-2
+    cpeps = 1d-2
     if (sy%f(sy%iref)%type == type_grid) then
-       NUC_eps_cp = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
-       NUC_eps_cp_H = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
+       nuceps = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
+       nucepsh = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
     else
-       NUC_eps_cp = 1d-1
-       NUC_eps_cp_H = 2d-1
+       nuceps = 1d-1
+       nucepsh = 2d-1
     end if
     dograph = 1
 
@@ -167,7 +165,7 @@ contains
              return
           end if
        elseif (equal(word,'cpeps')) then
-          ok = eval_next(CP_eps_cp,line,lp)
+          ok = eval_next(cpeps,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/CPEPS syntax',faterr,line,syntax=.true.)
              return
@@ -179,13 +177,13 @@ contains
              return
           end if
        elseif (equal(word,'nuceps')) then
-          ok = eval_next(NUC_eps_cp,line,lp)
+          ok = eval_next(nuceps,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,'nucepsh')) then
-          ok = eval_next(NUC_eps_cp_H,line,lp)
+          ok = eval_next(nucepsh,line,lp)
           if (.not.ok) then
              call ferror('autocritic','bad AUTO/NUCEPS syntax',faterr,line,syntax=.true.)
              return
@@ -226,7 +224,7 @@ contains
              call ferror('critic','Wrong AUTO/CLIP option.',faterr,line,syntax=.true.)
              return
           end if
-          
+
        else if (equal(word,'seed')) then
           if (firstseed) then
              nseed = 0
@@ -366,7 +364,7 @@ contains
              call barycentric(iniv,seed(i)%depth,nn,xseed)
           enddo
           if (allocated(tetrag)) deallocate(tetrag)
-          
+
        elseif (seed(i)%typ == styp_pair) then
           ! between all pairs of atoms
           do i1 = 1, sy%c%ncel
@@ -395,7 +393,7 @@ contains
                    if (dist > seed(i)%dist) cycle
                    dist = norm(sy%c%atcel(i2)%r - sy%c%atcel(i3)%r)
                    if (dist > seed(i)%dist) cycle
-                   
+
                    nn = nn + 1
                    if (nn > size(xseed,2)) call realloc(xseed,3,2*nn)
                    xseed(:,nn) = 1d0/3d0 * (sy%c%atcel(i1)%x + sy%c%atcel(i2)%x + sy%c%atcel(i3)%x)
@@ -507,11 +505,11 @@ contains
     ! write the header to the output 
     write (uout,'("* Automatic determination of CPs")')
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
-       string(CP_eps_cp*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
+       string(cpeps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
-       string(NUC_eps_cp*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
+       string(nuceps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A,X,A)') &
-       string(NUC_eps_cp_H*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
+       string(nucepsh*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
        string(CP_hdegen,'e',decimal=3)
     if (len_trim(discexpr) > 0) &
@@ -608,14 +606,16 @@ contains
 
     ! clip the cube or the sphere
     if (iclip > 0) then
-       allocate(keep(nn))
-       keep = .true.
+       if (.not.allocated(keep)) then
+          allocate(keep(nn))
+          keep = .true.
+       end if
        if (iclip == 1) then
           ! cube
           do i = 1, nn
              if (xseed(1,i) < x0clip(1).or.xseed(1,i) > x1clip(1).or.&
-                 xseed(2,i) < x0clip(2).or.xseed(2,i) > x1clip(2).or.&
-                 xseed(3,i) < x0clip(3).or.xseed(3,i) > x1clip(3)) &
+                xseed(2,i) < x0clip(2).or.xseed(2,i) > x1clip(2).or.&
+                xseed(3,i) < x0clip(3).or.xseed(3,i) > x1clip(3)) &
                 keep(i) = .false.
           end do
        else
@@ -684,7 +684,30 @@ contains
           end if
           x0 = xseed(:,i)
           call sy%f(sy%iref)%newton(x0,gfnormeps,ier)
-          if (ier <= 0) call addcp(x0,discexpr)
+          if (ier <= 0) then
+             ! Check if it's inside the sphere
+             ok = .true.
+             if (iclip > 0) then
+                x = sy%c%c2x(x0)
+                if (iclip == 1) then
+                   ! cube
+                   ok = .not.(x(1) < x0clip(1).or.x(1) > x1clip(1).or.&
+                      x(2) < x0clip(2).or.x(2) > x1clip(2).or.&
+                      x(3) < x0clip(3).or.x(3) > x1clip(3))
+                else
+                   ! sphere
+                   x = x - x0clip
+                   x = sy%c%x2c(x)
+                   ok = .not.(norm(x) >= rclip) 
+                end if
+             end if
+
+             if (ok) then
+                !$omp critical (addcp)
+                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh)
+                !$omp end critical (addcp)
+             end if
+          end if
        end do
        !$omp end parallel do
 
@@ -702,7 +725,7 @@ contains
 
        ! Sort the cp list, using the value of the reference field
        write (uout,'("+ Sorting the CPs")')
-       call sortcps()
+       call sy%f(sy%iref)%sortcps(cpeps)
     end if
     write (uout,*)
 
@@ -797,7 +820,7 @@ contains
                 exit
              end if
           end do
-          
+
           ! build the crystal structure containing the crystal points
           seed%isused = .true.
           seed%file = sy%c%file
@@ -835,7 +858,7 @@ contains
           if (agraph) then
              !$omp parallel do private(iup,x,nstep,ier,xpath) schedule(dynamic)
              do i = sy%c%ncel+1, sy%f(sy%iref)%ncpcel
-                
+
                 if (sy%f(sy%iref)%typnuc == -3 .and. sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
                    iup = 1
                 else if (sy%f(sy%iref)%typnuc == 3 .and. sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 1) then
@@ -843,7 +866,7 @@ contains
                 else
                    iup = 0
                 end if
-          
+
                 if (iup /= 0) then
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
@@ -887,7 +910,7 @@ contains
       real*8, intent(in) :: xpath(3,nstep)
 
       integer :: i, n
-      
+
       call realloc(seed%x,3,seed%nat+nstep)
       call realloc(seed%z,seed%nat+nstep)
       call realloc(seed%name,seed%nat+nstep)
@@ -994,7 +1017,7 @@ contains
     write (uout,*)
 
   end subroutine critshell
-  
+
   !> Write the CP information to the checkpoint file.
   subroutine writechk()
     use systemmod, only: sy
@@ -1026,7 +1049,7 @@ contains
 
     character(len=:), allocatable :: cpfile
     logical :: existcpfile
-  
+
     cpfile = trim(fileroot) // ".chk_cps" 
 
     inquire(file=cpfile,exist=existcpfile)
@@ -1183,597 +1206,330 @@ contains
 
   end subroutine cp_short_report
 
-   !> Subdivides the initial simplex tetrahedron by iniv. uses the
-   !> common variables nstack, barstack and depstack to store the list
-   !> of simplex where a search is launched. Accumulates the seeds in
-   !> xseed (number of seeds nn).
-   subroutine barycentric(iniv,depthmax,nn,xseed)
-     real*8, dimension(4,3), intent(in) :: iniv
-     integer, intent(in) :: depthmax
-     integer, intent(inout) :: nn
-     real*8, intent(inout), allocatable :: xseed(:,:)
+  !> Subdivides the initial simplex tetrahedron by iniv. uses the
+  !> common variables nstack, barstack and depstack to store the list
+  !> of simplex where a search is launched. Accumulates the seeds in
+  !> xseed (number of seeds nn).
+  subroutine barycentric(iniv,depthmax,nn,xseed)
+    real*8, dimension(4,3), intent(in) :: iniv
+    integer, intent(in) :: depthmax
+    integer, intent(inout) :: nn
+    real*8, intent(inout), allocatable :: xseed(:,:)
 
-     real*8 :: simp(4,3)
-     integer :: i, j, d
-     integer :: isimp(4,3), dim
-     integer :: sizestack
-     real*8 :: denom
-     real*8 :: edge(6,3), zedge(6,3)
-     real*8 :: face(4,2,3), zface(4,3)
-     real*8 :: body(3,3), zbody(3)
+    real*8 :: simp(4,3)
+    integer :: i, j, d
+    integer :: isimp(4,3), dim
+    integer :: sizestack
+    real*8 :: denom
+    real*8 :: edge(6,3), zedge(6,3)
+    real*8 :: face(4,2,3), zface(4,3)
+    real*8 :: body(3,3), zbody(3)
 
-     ! build the edges, faces and body
-     edge(1,:) = iniv(2,:) - iniv(1,:)
-     edge(2,:) = iniv(3,:) - iniv(1,:)
-     edge(3,:) = iniv(4,:) - iniv(1,:)
-     edge(4,:) = iniv(3,:) - iniv(2,:)
-     edge(5,:) = iniv(4,:) - iniv(2,:)
-     edge(6,:) = iniv(4,:) - iniv(3,:)
-     zedge(1,:) = iniv(1,:)
-     zedge(2,:) = iniv(1,:)
-     zedge(3,:) = iniv(1,:)
-     zedge(4,:) = iniv(2,:)
-     zedge(5,:) = iniv(2,:)
-     zedge(6,:) = iniv(3,:)
-     ! faces
-     face(1,1,:) = iniv(2,:) - iniv(1,:)
-     face(1,2,:) = iniv(3,:) - iniv(1,:)
-     face(2,1,:) = iniv(2,:) - iniv(1,:)
-     face(2,2,:) = iniv(4,:) - iniv(1,:)
-     face(3,1,:) = iniv(3,:) - iniv(1,:)
-     face(3,2,:) = iniv(4,:) - iniv(1,:)
-     face(4,1,:) = iniv(3,:) - iniv(2,:)
-     face(4,2,:) = iniv(4,:) - iniv(2,:)
-     zface(1,:) =  iniv(1,:)
-     zface(2,:) =  iniv(1,:)
-     zface(3,:) =  iniv(1,:)
-     zface(4,:) =  iniv(2,:)
-     ! body
-     body(1,:) = iniv(2,:) - iniv(1,:)
-     body(2,:) = iniv(3,:) - iniv(1,:)
-     body(3,:) = iniv(4,:) - iniv(1,:)
-     zbody(:) = iniv(1,:)
+    ! build the edges, faces and body
+    edge(1,:) = iniv(2,:) - iniv(1,:)
+    edge(2,:) = iniv(3,:) - iniv(1,:)
+    edge(3,:) = iniv(4,:) - iniv(1,:)
+    edge(4,:) = iniv(3,:) - iniv(2,:)
+    edge(5,:) = iniv(4,:) - iniv(2,:)
+    edge(6,:) = iniv(4,:) - iniv(3,:)
+    zedge(1,:) = iniv(1,:)
+    zedge(2,:) = iniv(1,:)
+    zedge(3,:) = iniv(1,:)
+    zedge(4,:) = iniv(2,:)
+    zedge(5,:) = iniv(2,:)
+    zedge(6,:) = iniv(3,:)
+    ! faces
+    face(1,1,:) = iniv(2,:) - iniv(1,:)
+    face(1,2,:) = iniv(3,:) - iniv(1,:)
+    face(2,1,:) = iniv(2,:) - iniv(1,:)
+    face(2,2,:) = iniv(4,:) - iniv(1,:)
+    face(3,1,:) = iniv(3,:) - iniv(1,:)
+    face(3,2,:) = iniv(4,:) - iniv(1,:)
+    face(4,1,:) = iniv(3,:) - iniv(2,:)
+    face(4,2,:) = iniv(4,:) - iniv(2,:)
+    zface(1,:) =  iniv(1,:)
+    zface(2,:) =  iniv(1,:)
+    zface(3,:) =  iniv(1,:)
+    zface(4,:) =  iniv(2,:)
+    ! body
+    body(1,:) = iniv(2,:) - iniv(1,:)
+    body(2,:) = iniv(3,:) - iniv(1,:)
+    body(3,:) = iniv(4,:) - iniv(1,:)
+    zbody(:) = iniv(1,:)
 
-     ! allocate and nullify the stack of simplex
-     d = depthmax+1
-     sizestack = (2**d-1) + (6**d-1) / 5 + (24**d-1) / 23
-     allocate(barstack(sizestack,4,3))
-     allocate(depstack(sizestack))
-     barstack = 0 
-     nstack = 0
+    ! allocate and nullify the stack of simplex
+    d = depthmax+1
+    sizestack = (2**d-1) + (6**d-1) / 5 + (24**d-1) / 23
+    allocate(barstack(sizestack,4,3))
+    allocate(depstack(sizestack))
+    barstack = 0 
+    nstack = 0
 
-     ! dim = 1 (vertex of the tetrahedron)
-     simp = 0d0
-     do i = 1, 4
-        simp(1,:) = iniv(i,1:3)
-        call seed_from_simplex(simp,1,nn,xseed)
-     end do
+    ! dim = 1 (vertex of the tetrahedron)
+    simp = 0d0
+    do i = 1, 4
+       simp(1,:) = iniv(i,1:3)
+       call seed_from_simplex(simp,1,nn,xseed)
+    end do
 
-     ! barycentric subdivision
-     isimp(1,:) = (/0,0,0/)
-     isimp(2,:) = (/1,0,0/)
-     isimp(3,:) = (/0,1,0/)
-     isimp(4,:) = (/0,0,1/)
-     do dim = 2, 4
-        call barycentric_divide(dim,isimp(1:dim,1:dim-1),depthmax)
-     end do
+    ! barycentric subdivision
+    isimp(1,:) = (/0,0,0/)
+    isimp(2,:) = (/1,0,0/)
+    isimp(3,:) = (/0,1,0/)
+    isimp(4,:) = (/0,0,1/)
+    do dim = 2, 4
+       call barycentric_divide(dim,isimp(1:dim,1:dim-1),depthmax)
+    end do
 
-     ! search the simplex in the stack
-     do i = 1, nstack
-        dim = count ((/any(barstack(i,:,1) > 0),any(barstack(i,:,2) > 0),any(barstack(i,:,3) > 0)/)) + 1
-        denom = real(bardenom(dim)**(depthmax-depstack(i)),8)
-        if (dim == 2) then
-           ! all 6 edges
-           do j = 1, 6
-              simp(1,:) = zedge(j,:) + barstack(i,1,1) * edge(j,:) / denom
-              simp(2,:) = zedge(j,:) + barstack(i,2,1) * edge(j,:) / denom
-              call seed_from_simplex(simp,dim,nn,xseed)
-           end do
-        else if (dim == 3) then
-           ! all 4 faces
-           do j = 1, 4
-              simp(1,:) = zface(j,:) + (barstack(i,1,1)*face(j,1,:) + barstack(i,1,2)*face(j,2,:)) / denom
-              simp(2,:) = zface(j,:) + (barstack(i,2,1)*face(j,1,:) + barstack(i,2,2)*face(j,2,:)) / denom
-              simp(3,:) = zface(j,:) + (barstack(i,3,1)*face(j,1,:) + barstack(i,3,2)*face(j,2,:)) / denom
-              call seed_from_simplex(simp,dim,nn,xseed)
-           end do
-        else if (dim == 4) then
-           ! the body
-           simp = matmul(barstack(i,:,:),body) / denom
-           do j = 1, 4
-              simp(j,:) = simp(j,:) + zbody
-           end do
-           call seed_from_simplex(simp,dim,nn,xseed)
-        end if
-     end do
+    ! search the simplex in the stack
+    do i = 1, nstack
+       dim = count ((/any(barstack(i,:,1) > 0),any(barstack(i,:,2) > 0),any(barstack(i,:,3) > 0)/)) + 1
+       denom = real(bardenom(dim)**(depthmax-depstack(i)),8)
+       if (dim == 2) then
+          ! all 6 edges
+          do j = 1, 6
+             simp(1,:) = zedge(j,:) + barstack(i,1,1) * edge(j,:) / denom
+             simp(2,:) = zedge(j,:) + barstack(i,2,1) * edge(j,:) / denom
+             call seed_from_simplex(simp,dim,nn,xseed)
+          end do
+       else if (dim == 3) then
+          ! all 4 faces
+          do j = 1, 4
+             simp(1,:) = zface(j,:) + (barstack(i,1,1)*face(j,1,:) + barstack(i,1,2)*face(j,2,:)) / denom
+             simp(2,:) = zface(j,:) + (barstack(i,2,1)*face(j,1,:) + barstack(i,2,2)*face(j,2,:)) / denom
+             simp(3,:) = zface(j,:) + (barstack(i,3,1)*face(j,1,:) + barstack(i,3,2)*face(j,2,:)) / denom
+             call seed_from_simplex(simp,dim,nn,xseed)
+          end do
+       else if (dim == 4) then
+          ! the body
+          simp = matmul(barstack(i,:,:),body) / denom
+          do j = 1, 4
+             simp(j,:) = simp(j,:) + zbody
+          end do
+          call seed_from_simplex(simp,dim,nn,xseed)
+       end if
+    end do
 
-     ! deallocate
-     deallocate(barstack,depstack)
+    ! deallocate
+    deallocate(barstack,depstack)
 
-   end subroutine barycentric
+  end subroutine barycentric
 
-   !> Recursive subdivision of the simplex simp up to some depth. uses
-   !> convex coordinates and integer arithmetic.
-   recursive subroutine barycentric_divide(n,simp,depth)
-     use tools_io, only: ferror, faterr
-     integer, intent(in) :: n
-     integer, intent(in) :: simp(:,:)
-     integer, intent(in) :: depth
+  !> Recursive subdivision of the simplex simp up to some depth. uses
+  !> convex coordinates and integer arithmetic.
+  recursive subroutine barycentric_divide(n,simp,depth)
+    use tools_io, only: ferror, faterr
+    integer, intent(in) :: n
+    integer, intent(in) :: simp(:,:)
+    integer, intent(in) :: depth
 
-     integer :: newsimp(n,n-1)
+    integer :: newsimp(n,n-1)
 
-     if (size(simp,1) /= n .or. size(simp,2) /= n-1) &
-        call ferror("barycentric_divide","inconsistent size of simp",faterr)
+    if (size(simp,1) /= n .or. size(simp,2) /= n-1) &
+       call ferror("barycentric_divide","inconsistent size of simp",faterr)
 
-     ! add this simplex to the stack
-     nstack = nstack + 1
-     barstack(nstack,1:n,1:n-1) = simp(:,:)
-     depstack(nstack) = depth
+    ! add this simplex to the stack
+    nstack = nstack + 1
+    barstack(nstack,1:n,1:n-1) = simp(:,:)
+    depstack(nstack) = depth
 
-     ! subdivide?
-     if (depth == 0) return
+    ! subdivide?
+    if (depth == 0) return
 
-     select case (n)
-     case (2)
-        ! a line
-        newsimp(1,1) = simp(1,1)*2
-        newsimp(2,1) = simp(1,1)+simp(2,1)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,1) = simp(1,1)+simp(2,1)
-        newsimp(2,1) = 2*simp(2,1)
-        call barycentric_divide(n,newsimp,depth-1)
-     case (3)
-        ! a triangle
-        newsimp(1,:) = 6*simp(1,:)
-        newsimp(2,:) = 3*simp(1,:) + 3*simp(2,:)
-        newsimp(3,:) = 2*simp(1,:) + 2*simp(2,:) + 2*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) = 6*simp(1,:)
-        newsimp(2,:) = 3*simp(1,:) + 3*simp(3,:)
-        newsimp(3,:) = 2*simp(1,:) + 2*simp(3,:) + 2*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) = 6*simp(2,:)
-        newsimp(2,:) = 3*simp(2,:) + 3*simp(1,:)
-        newsimp(3,:) = 2*simp(2,:) + 2*simp(1,:) + 2*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) = 6*simp(2,:)
-        newsimp(2,:) = 3*simp(2,:) + 3*simp(3,:)
-        newsimp(3,:) = 2*simp(2,:) + 2*simp(3,:) + 2*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) = 6*simp(3,:)
-        newsimp(2,:) = 3*simp(3,:) + 3*simp(1,:)
-        newsimp(3,:) = 2*simp(3,:) + 2*simp(1,:) + 2*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) = 6*simp(3,:)
-        newsimp(2,:) = 3*simp(3,:) + 3*simp(2,:)
-        newsimp(3,:) = 2*simp(3,:) + 2*simp(2,:) + 2*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-     case (4)
-        ! a tetrahedron
-        newsimp(1,:) =12*simp(1,:)
-        newsimp(2,:) = 6*simp(1,:) + 6*simp(2,:)
-        newsimp(3,:) = 4*simp(1,:) + 4*simp(2,:) + 4*simp(3,:)
-        newsimp(4,:) = 3*simp(1,:) + 3*simp(2,:) + 3*simp(3,:) + 3*simp(4,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(1,:)
-        newsimp(2,:) = 6*simp(1,:) + 6*simp(2,:)
-        newsimp(3,:) = 4*simp(1,:) + 4*simp(2,:) + 4*simp(4,:)
-        newsimp(4,:) = 3*simp(1,:) + 3*simp(2,:) + 3*simp(4,:) + 3*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(1,:)
-        newsimp(2,:) = 6*simp(1,:) + 6*simp(3,:)
-        newsimp(3,:) = 4*simp(1,:) + 4*simp(3,:) + 4*simp(2,:)
-        newsimp(4,:) = 3*simp(1,:) + 3*simp(3,:) + 3*simp(2,:) + 3*simp(4,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(1,:)
-        newsimp(2,:) = 6*simp(1,:) + 6*simp(3,:)
-        newsimp(3,:) = 4*simp(1,:) + 4*simp(3,:) + 4*simp(4,:)
-        newsimp(4,:) = 3*simp(1,:) + 3*simp(3,:) + 3*simp(4,:) + 3*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(1,:)
-        newsimp(2,:) = 6*simp(1,:) + 6*simp(4,:)
-        newsimp(3,:) = 4*simp(1,:) + 4*simp(4,:) + 4*simp(2,:)
-        newsimp(4,:) = 3*simp(1,:) + 3*simp(4,:) + 3*simp(2,:) + 3*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(1,:)
-        newsimp(2,:) = 6*simp(1,:) + 6*simp(4,:)
-        newsimp(3,:) = 4*simp(1,:) + 4*simp(4,:) + 4*simp(3,:)
-        newsimp(4,:) = 3*simp(1,:) + 3*simp(4,:) + 3*simp(3,:) + 3*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(2,:)
-        newsimp(2,:) = 6*simp(2,:) + 6*simp(1,:)
-        newsimp(3,:) = 4*simp(2,:) + 4*simp(1,:) + 4*simp(3,:)
-        newsimp(4,:) = 3*simp(2,:) + 3*simp(1,:) + 3*simp(3,:) + 3*simp(4,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(2,:)
-        newsimp(2,:) = 6*simp(2,:) + 6*simp(1,:)
-        newsimp(3,:) = 4*simp(2,:) + 4*simp(1,:) + 4*simp(4,:)
-        newsimp(4,:) = 3*simp(2,:) + 3*simp(1,:) + 3*simp(4,:) + 3*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(2,:)
-        newsimp(2,:) = 6*simp(2,:) + 6*simp(3,:)
-        newsimp(3,:) = 4*simp(2,:) + 4*simp(3,:) + 4*simp(1,:)
-        newsimp(4,:) = 3*simp(2,:) + 3*simp(3,:) + 3*simp(1,:) + 3*simp(4,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(2,:)
-        newsimp(2,:) = 6*simp(2,:) + 6*simp(3,:)
-        newsimp(3,:) = 4*simp(2,:) + 4*simp(3,:) + 4*simp(4,:)
-        newsimp(4,:) = 3*simp(2,:) + 3*simp(3,:) + 3*simp(4,:) + 3*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(2,:)
-        newsimp(2,:) = 6*simp(2,:) + 6*simp(4,:)
-        newsimp(3,:) = 4*simp(2,:) + 4*simp(4,:) + 4*simp(1,:)
-        newsimp(4,:) = 3*simp(2,:) + 3*simp(4,:) + 3*simp(1,:) + 3*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(2,:)
-        newsimp(2,:) = 6*simp(2,:) + 6*simp(4,:)
-        newsimp(3,:) = 4*simp(2,:) + 4*simp(4,:) + 4*simp(3,:)
-        newsimp(4,:) = 3*simp(2,:) + 3*simp(4,:) + 3*simp(3,:) + 3*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(3,:)
-        newsimp(2,:) = 6*simp(3,:) + 6*simp(1,:)
-        newsimp(3,:) = 4*simp(3,:) + 4*simp(1,:) + 4*simp(2,:)
-        newsimp(4,:) = 3*simp(3,:) + 3*simp(1,:) + 3*simp(2,:) + 3*simp(4,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(3,:)
-        newsimp(2,:) = 6*simp(3,:) + 6*simp(1,:)
-        newsimp(3,:) = 4*simp(3,:) + 4*simp(1,:) + 4*simp(4,:)
-        newsimp(4,:) = 3*simp(3,:) + 3*simp(1,:) + 3*simp(4,:) + 3*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(3,:)
-        newsimp(2,:) = 6*simp(3,:) + 6*simp(2,:)
-        newsimp(3,:) = 4*simp(3,:) + 4*simp(2,:) + 4*simp(1,:)
-        newsimp(4,:) = 3*simp(3,:) + 3*simp(2,:) + 3*simp(1,:) + 3*simp(4,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(3,:)
-        newsimp(2,:) = 6*simp(3,:) + 6*simp(2,:)
-        newsimp(3,:) = 4*simp(3,:) + 4*simp(2,:) + 4*simp(4,:)
-        newsimp(4,:) = 3*simp(3,:) + 3*simp(2,:) + 3*simp(4,:) + 3*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(3,:)
-        newsimp(2,:) = 6*simp(3,:) + 6*simp(4,:)
-        newsimp(3,:) = 4*simp(3,:) + 4*simp(4,:) + 4*simp(1,:)
-        newsimp(4,:) = 3*simp(3,:) + 3*simp(4,:) + 3*simp(1,:) + 3*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(3,:)
-        newsimp(2,:) = 6*simp(3,:) + 6*simp(4,:)
-        newsimp(3,:) = 4*simp(3,:) + 4*simp(4,:) + 4*simp(2,:)
-        newsimp(4,:) = 3*simp(3,:) + 3*simp(4,:) + 3*simp(2,:) + 3*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(4,:)
-        newsimp(2,:) = 6*simp(4,:) + 6*simp(1,:)
-        newsimp(3,:) = 4*simp(4,:) + 4*simp(1,:) + 4*simp(2,:)
-        newsimp(4,:) = 3*simp(4,:) + 3*simp(1,:) + 3*simp(2,:) + 3*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(4,:)
-        newsimp(2,:) = 6*simp(4,:) + 6*simp(1,:)
-        newsimp(3,:) = 4*simp(4,:) + 4*simp(1,:) + 4*simp(3,:)
-        newsimp(4,:) = 3*simp(4,:) + 3*simp(1,:) + 3*simp(3,:) + 3*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(4,:)
-        newsimp(2,:) = 6*simp(4,:) + 6*simp(2,:)
-        newsimp(3,:) = 4*simp(4,:) + 4*simp(2,:) + 4*simp(1,:)
-        newsimp(4,:) = 3*simp(4,:) + 3*simp(2,:) + 3*simp(1,:) + 3*simp(3,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(4,:)
-        newsimp(2,:) = 6*simp(4,:) + 6*simp(2,:)
-        newsimp(3,:) = 4*simp(4,:) + 4*simp(2,:) + 4*simp(3,:)
-        newsimp(4,:) = 3*simp(4,:) + 3*simp(2,:) + 3*simp(3,:) + 3*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(4,:)
-        newsimp(2,:) = 6*simp(4,:) + 6*simp(3,:)
-        newsimp(3,:) = 4*simp(4,:) + 4*simp(3,:) + 4*simp(1,:)
-        newsimp(4,:) = 3*simp(4,:) + 3*simp(3,:) + 3*simp(1,:) + 3*simp(2,:)
-        call barycentric_divide(n,newsimp,depth-1)
-        newsimp(1,:) =12*simp(4,:)
-        newsimp(2,:) = 6*simp(4,:) + 6*simp(3,:)
-        newsimp(3,:) = 4*simp(4,:) + 4*simp(3,:) + 4*simp(2,:)
-        newsimp(4,:) = 3*simp(4,:) + 3*simp(3,:) + 3*simp(2,:) + 3*simp(1,:)
-        call barycentric_divide(n,newsimp,depth-1)
-     end select
+    select case (n)
+    case (2)
+       ! a line
+       newsimp(1,1) = simp(1,1)*2
+       newsimp(2,1) = simp(1,1)+simp(2,1)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,1) = simp(1,1)+simp(2,1)
+       newsimp(2,1) = 2*simp(2,1)
+       call barycentric_divide(n,newsimp,depth-1)
+    case (3)
+       ! a triangle
+       newsimp(1,:) = 6*simp(1,:)
+       newsimp(2,:) = 3*simp(1,:) + 3*simp(2,:)
+       newsimp(3,:) = 2*simp(1,:) + 2*simp(2,:) + 2*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) = 6*simp(1,:)
+       newsimp(2,:) = 3*simp(1,:) + 3*simp(3,:)
+       newsimp(3,:) = 2*simp(1,:) + 2*simp(3,:) + 2*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) = 6*simp(2,:)
+       newsimp(2,:) = 3*simp(2,:) + 3*simp(1,:)
+       newsimp(3,:) = 2*simp(2,:) + 2*simp(1,:) + 2*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) = 6*simp(2,:)
+       newsimp(2,:) = 3*simp(2,:) + 3*simp(3,:)
+       newsimp(3,:) = 2*simp(2,:) + 2*simp(3,:) + 2*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) = 6*simp(3,:)
+       newsimp(2,:) = 3*simp(3,:) + 3*simp(1,:)
+       newsimp(3,:) = 2*simp(3,:) + 2*simp(1,:) + 2*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) = 6*simp(3,:)
+       newsimp(2,:) = 3*simp(3,:) + 3*simp(2,:)
+       newsimp(3,:) = 2*simp(3,:) + 2*simp(2,:) + 2*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+    case (4)
+       ! a tetrahedron
+       newsimp(1,:) =12*simp(1,:)
+       newsimp(2,:) = 6*simp(1,:) + 6*simp(2,:)
+       newsimp(3,:) = 4*simp(1,:) + 4*simp(2,:) + 4*simp(3,:)
+       newsimp(4,:) = 3*simp(1,:) + 3*simp(2,:) + 3*simp(3,:) + 3*simp(4,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(1,:)
+       newsimp(2,:) = 6*simp(1,:) + 6*simp(2,:)
+       newsimp(3,:) = 4*simp(1,:) + 4*simp(2,:) + 4*simp(4,:)
+       newsimp(4,:) = 3*simp(1,:) + 3*simp(2,:) + 3*simp(4,:) + 3*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(1,:)
+       newsimp(2,:) = 6*simp(1,:) + 6*simp(3,:)
+       newsimp(3,:) = 4*simp(1,:) + 4*simp(3,:) + 4*simp(2,:)
+       newsimp(4,:) = 3*simp(1,:) + 3*simp(3,:) + 3*simp(2,:) + 3*simp(4,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(1,:)
+       newsimp(2,:) = 6*simp(1,:) + 6*simp(3,:)
+       newsimp(3,:) = 4*simp(1,:) + 4*simp(3,:) + 4*simp(4,:)
+       newsimp(4,:) = 3*simp(1,:) + 3*simp(3,:) + 3*simp(4,:) + 3*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(1,:)
+       newsimp(2,:) = 6*simp(1,:) + 6*simp(4,:)
+       newsimp(3,:) = 4*simp(1,:) + 4*simp(4,:) + 4*simp(2,:)
+       newsimp(4,:) = 3*simp(1,:) + 3*simp(4,:) + 3*simp(2,:) + 3*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(1,:)
+       newsimp(2,:) = 6*simp(1,:) + 6*simp(4,:)
+       newsimp(3,:) = 4*simp(1,:) + 4*simp(4,:) + 4*simp(3,:)
+       newsimp(4,:) = 3*simp(1,:) + 3*simp(4,:) + 3*simp(3,:) + 3*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(2,:)
+       newsimp(2,:) = 6*simp(2,:) + 6*simp(1,:)
+       newsimp(3,:) = 4*simp(2,:) + 4*simp(1,:) + 4*simp(3,:)
+       newsimp(4,:) = 3*simp(2,:) + 3*simp(1,:) + 3*simp(3,:) + 3*simp(4,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(2,:)
+       newsimp(2,:) = 6*simp(2,:) + 6*simp(1,:)
+       newsimp(3,:) = 4*simp(2,:) + 4*simp(1,:) + 4*simp(4,:)
+       newsimp(4,:) = 3*simp(2,:) + 3*simp(1,:) + 3*simp(4,:) + 3*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(2,:)
+       newsimp(2,:) = 6*simp(2,:) + 6*simp(3,:)
+       newsimp(3,:) = 4*simp(2,:) + 4*simp(3,:) + 4*simp(1,:)
+       newsimp(4,:) = 3*simp(2,:) + 3*simp(3,:) + 3*simp(1,:) + 3*simp(4,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(2,:)
+       newsimp(2,:) = 6*simp(2,:) + 6*simp(3,:)
+       newsimp(3,:) = 4*simp(2,:) + 4*simp(3,:) + 4*simp(4,:)
+       newsimp(4,:) = 3*simp(2,:) + 3*simp(3,:) + 3*simp(4,:) + 3*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(2,:)
+       newsimp(2,:) = 6*simp(2,:) + 6*simp(4,:)
+       newsimp(3,:) = 4*simp(2,:) + 4*simp(4,:) + 4*simp(1,:)
+       newsimp(4,:) = 3*simp(2,:) + 3*simp(4,:) + 3*simp(1,:) + 3*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(2,:)
+       newsimp(2,:) = 6*simp(2,:) + 6*simp(4,:)
+       newsimp(3,:) = 4*simp(2,:) + 4*simp(4,:) + 4*simp(3,:)
+       newsimp(4,:) = 3*simp(2,:) + 3*simp(4,:) + 3*simp(3,:) + 3*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(3,:)
+       newsimp(2,:) = 6*simp(3,:) + 6*simp(1,:)
+       newsimp(3,:) = 4*simp(3,:) + 4*simp(1,:) + 4*simp(2,:)
+       newsimp(4,:) = 3*simp(3,:) + 3*simp(1,:) + 3*simp(2,:) + 3*simp(4,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(3,:)
+       newsimp(2,:) = 6*simp(3,:) + 6*simp(1,:)
+       newsimp(3,:) = 4*simp(3,:) + 4*simp(1,:) + 4*simp(4,:)
+       newsimp(4,:) = 3*simp(3,:) + 3*simp(1,:) + 3*simp(4,:) + 3*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(3,:)
+       newsimp(2,:) = 6*simp(3,:) + 6*simp(2,:)
+       newsimp(3,:) = 4*simp(3,:) + 4*simp(2,:) + 4*simp(1,:)
+       newsimp(4,:) = 3*simp(3,:) + 3*simp(2,:) + 3*simp(1,:) + 3*simp(4,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(3,:)
+       newsimp(2,:) = 6*simp(3,:) + 6*simp(2,:)
+       newsimp(3,:) = 4*simp(3,:) + 4*simp(2,:) + 4*simp(4,:)
+       newsimp(4,:) = 3*simp(3,:) + 3*simp(2,:) + 3*simp(4,:) + 3*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(3,:)
+       newsimp(2,:) = 6*simp(3,:) + 6*simp(4,:)
+       newsimp(3,:) = 4*simp(3,:) + 4*simp(4,:) + 4*simp(1,:)
+       newsimp(4,:) = 3*simp(3,:) + 3*simp(4,:) + 3*simp(1,:) + 3*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(3,:)
+       newsimp(2,:) = 6*simp(3,:) + 6*simp(4,:)
+       newsimp(3,:) = 4*simp(3,:) + 4*simp(4,:) + 4*simp(2,:)
+       newsimp(4,:) = 3*simp(3,:) + 3*simp(4,:) + 3*simp(2,:) + 3*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(4,:)
+       newsimp(2,:) = 6*simp(4,:) + 6*simp(1,:)
+       newsimp(3,:) = 4*simp(4,:) + 4*simp(1,:) + 4*simp(2,:)
+       newsimp(4,:) = 3*simp(4,:) + 3*simp(1,:) + 3*simp(2,:) + 3*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(4,:)
+       newsimp(2,:) = 6*simp(4,:) + 6*simp(1,:)
+       newsimp(3,:) = 4*simp(4,:) + 4*simp(1,:) + 4*simp(3,:)
+       newsimp(4,:) = 3*simp(4,:) + 3*simp(1,:) + 3*simp(3,:) + 3*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(4,:)
+       newsimp(2,:) = 6*simp(4,:) + 6*simp(2,:)
+       newsimp(3,:) = 4*simp(4,:) + 4*simp(2,:) + 4*simp(1,:)
+       newsimp(4,:) = 3*simp(4,:) + 3*simp(2,:) + 3*simp(1,:) + 3*simp(3,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(4,:)
+       newsimp(2,:) = 6*simp(4,:) + 6*simp(2,:)
+       newsimp(3,:) = 4*simp(4,:) + 4*simp(2,:) + 4*simp(3,:)
+       newsimp(4,:) = 3*simp(4,:) + 3*simp(2,:) + 3*simp(3,:) + 3*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(4,:)
+       newsimp(2,:) = 6*simp(4,:) + 6*simp(3,:)
+       newsimp(3,:) = 4*simp(4,:) + 4*simp(3,:) + 4*simp(1,:)
+       newsimp(4,:) = 3*simp(4,:) + 3*simp(3,:) + 3*simp(1,:) + 3*simp(2,:)
+       call barycentric_divide(n,newsimp,depth-1)
+       newsimp(1,:) =12*simp(4,:)
+       newsimp(2,:) = 6*simp(4,:) + 6*simp(3,:)
+       newsimp(3,:) = 4*simp(4,:) + 4*simp(3,:) + 4*simp(2,:)
+       newsimp(4,:) = 3*simp(4,:) + 3*simp(3,:) + 3*simp(2,:) + 3*simp(1,:)
+       call barycentric_divide(n,newsimp,depth-1)
+    end select
 
-   end subroutine barycentric_divide
+  end subroutine barycentric_divide
 
-   !> Using simplex simp(:,:), launch a critical point search. dim is
-   !> the dimension of the search. depth, current depth of the
-   !> barycentric subdivision. id, point number count. mid,
-   !> max. number of seeds. depth, id and mid are only used in the
-   !> output to stdout. this routine directly writes the cp to the cp
-   !> list if one is found.
-   subroutine seed_from_simplex(simp, dim, nn, xseed)
-     use systemmod, only: sy
-     use types, only: realloc
-     real*8, intent(in) :: simp(4,3)
-     integer, intent(in) :: dim
-     integer, intent(inout) :: nn
-     real*8, intent(inout), allocatable :: xseed(:,:)
-
-     integer :: i
-     real*8 :: xc(3), xx(3), xc0(3)
-
-     if (dim == 1) then
-        xc = simp(1,:)
-        xx = sy%c%c2x(xc)
-     else
-        xc = 0d0
-        do i = 1, dim
-           xc = xc + simp(i,:) / real(dim,8)
-        end do
-        xc0 = xc
-        xx = sy%c%c2x(xc)
-     endif
-     nn = nn + 1
-     if (nn > size(xseed,2)) call realloc(xseed,3,2*nn)
-     xseed(:,nn) = xx
-
-   end subroutine seed_from_simplex
-
-  !> Try to add the candidate CP xpoint to the CP list. This routine
-  !> checks if it is already known, and calculates all the relevant
-  !> information: multiplicity, type, shell, assoc. nucleus, etc.
-  !> Also, updates the complete CP list. Input x0 in Cartesian.  If
-  !> discexpr has non-zero length, discard the critical points that
-  !> give a non-zero value for this expression. If itype is present,
-  !> assign itype as the type of critical bond (-3,-1,1,3).
-  subroutine addcp(x0,discexpr,itype)
+  !> Using simplex simp(:,:), launch a critical point search. dim is
+  !> the dimension of the search. depth, current depth of the
+  !> barycentric subdivision. id, point number count. mid,
+  !> max. number of seeds. depth, id and mid are only used in the
+  !> output to stdout. this routine directly writes the cp to the cp
+  !> list if one is found.
+  subroutine seed_from_simplex(simp, dim, nn, xseed)
     use systemmod, only: sy
-    use arithmetic, only: eval
-    use tools_math, only: norm, rsindex
-    use tools_io, only: ferror, faterr, string
-    use types, only: scalar_value_noalloc, realloc
-    use global, only: CP_hdegen, rbetadef
     use types, only: realloc
-    real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
-    character*(*), intent(in) :: discexpr !< Discard expression
-    integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
+    real*8, intent(in) :: simp(4,3)
+    integer, intent(in) :: dim
+    integer, intent(inout) :: nn
+    real*8, intent(inout), allocatable :: xseed(:,:)
 
-    real*8 :: xc(3), xp(3), ehess(3), x(3)
-    integer :: nid, lvec(3)
-    real*8 :: dist, fval
-    integer :: n, i, num
-    real*8, allocatable  :: sympos(:,:)
-    integer, allocatable :: symrotm(:), symcenv(:)
-    integer :: r, s
-    integer :: lnuc, lshell
-    character*3 :: namecrit(0:3)
-    character*(1) :: smallnamecrit(0:3)
-    type(scalar_value_noalloc) :: res
-    logical :: ok
+    integer :: i
+    real*8 :: xc(3), xx(3), xc0(3)
 
-    data smallnamecrit   /'n','b','r','c'/
-    data namecrit /'ncp','bcp','rcp','ccp'/
-
-    ! Transform to cryst. and main cell
-    xp = x0
-    xc = sy%c%c2x(x0)
-    xc = xc - floor(xc)
-
-    ! If the scalar field has shells, then determine associated nucleus (lnuc) and shell (lshell).
-    ! valence / core associated shell
-    lnuc = 0
-    lshell = 0
-
-    ! This part needs to be run in serial to maintain the consistency of the CP list. 
-    !$omp critical (addcp1)
-    ! If it's a molecule and the CP is in the border, return
-    if (sy%c%ismolecule) then
-       if (xc(1) < sy%c%molborder(1) .or. xc(1) > (1d0-sy%c%molborder(1)) .or.&
-           xc(2) < sy%c%molborder(2) .or. xc(2) > (1d0-sy%c%molborder(2)) .or.&
-           xc(3) < sy%c%molborder(3) .or. xc(3) > (1d0-sy%c%molborder(3))) goto 999
-    endif
-
-    ! Check if it's inside the sphere
-    if (iclip > 0) then
-       if (iclip == 1) then
-          ! cube
-          if (x(1) < x0clip(1).or.x(1) > x1clip(1).or.&
-              x(2) < x0clip(2).or.x(2) > x1clip(2).or.&
-              x(3) < x0clip(3).or.x(3) > x1clip(3)) &
-              goto 999
-       else
-          ! sphere
-          x = xc - x0clip
-          x = sy%c%x2c(x)
-          if (norm(x) >= rclip) goto 999
-       end if
-    end if
-
-    ! distance to other CPs
-    call sy%f(sy%iref)%nearest_cp(xc,nid,dist)
-    if (dist < CP_eps_cp) then
-       goto 999
-    end if
-
-    ! distance to atoms
-    nid = 0
-    call sy%c%nearest_atom(xc,nid,dist,lvec)
-    if (dist < NUC_eps_cp) then
-       goto 999
-    end if
-
-    ! distance to hydrogens
-    if (sy%c%at(sy%c%atcel(nid)%idx)%z == 1) then
-       if (dist < NUC_eps_cp_H) then
-          goto 999
-       end if
-    end if
-
-    ! check if it should be discarded
-    if (len_trim(discexpr) > 0) then
-       fval = sy%eval(discexpr,.false.,ok,xp)
-       if (.not.ok) &
-          call ferror("addcp","invalid DISCARD expression",faterr)
-       ok = (abs(fval) < 1d-30)
-       if (.not.ok) goto 999
-    end if
-
-    ! reallocate if more slots are needed for the new cp
-    if (sy%f(sy%iref)%ncp >= size(sy%f(sy%iref)%cp)) then
-       call realloc(sy%f(sy%iref)%cp,2*sy%f(sy%iref)%ncp)
-    end if
-
-    ! Write critical point in the list
-    sy%f(sy%iref)%ncp = sy%f(sy%iref)%ncp + 1
-    n = sy%f(sy%iref)%ncp
-
-    sy%f(sy%iref)%cp(n)%x = xc
-    sy%f(sy%iref)%cp(n)%r = sy%c%x2c(xc)
-
-    ! Density info
-    call sy%f(sy%iref)%grd(sy%f(sy%iref)%cp(n)%r,2,res0_noalloc=res)
-    sy%f(sy%iref)%cp(n)%s = res
-
-    ! Symmetry info
-    sy%f(sy%iref)%cp(n)%pg = sy%c%sitesymm(sy%f(sy%iref)%cp(n)%x,CP_eps_cp)
-    sy%f(sy%iref)%cp(n)%idx = n
-    sy%f(sy%iref)%cp(n)%ir = 1
-    sy%f(sy%iref)%cp(n)%ic = 1
-    sy%f(sy%iref)%cp(n)%lvec = 0
-
-    ! Type of critical point
-    if (.not.present(itype)) then
-       call rsindex(res%hf,ehess,r,s,CP_hdegen)
-       sy%f(sy%iref)%cp(n)%isdeg = (r /= 3)
-       sy%f(sy%iref)%cp(n)%typ = s
-       sy%f(sy%iref)%cp(n)%typind = (s+3)/2
-       sy%f(sy%iref)%cp(n)%isnuc = .false.
-       sy%f(sy%iref)%cp(n)%isnnm = (s == sy%f(sy%iref)%typnuc)
+    if (dim == 1) then
+       xc = simp(1,:)
+       xx = sy%c%c2x(xc)
     else
-       r = 3
-       s = itype
-       sy%f(sy%iref)%cp(n)%isdeg = .false.
-       sy%f(sy%iref)%cp(n)%typ = itype
-       sy%f(sy%iref)%cp(n)%typind = (itype+3)/2
-       sy%f(sy%iref)%cp(n)%isnuc = .false.
-       sy%f(sy%iref)%cp(n)%isnnm = (itype == sy%f(sy%iref)%typnuc)
-    end if
-    
-    ! discard degenerate critical points
-    if (sy%f(sy%iref)%cp(n)%isdeg) then
-       ndegenr = ndegenr + 1
-       sy%f(sy%iref)%ncp = sy%f(sy%iref)%ncp - 1
-       goto 999
-    end if
-
-    ! Wait until reconstruction to calculate graph properties
-    sy%f(sy%iref)%cp(n)%brdist = 0d0
-    sy%f(sy%iref)%cp(n)%brang = 0d0
-    sy%f(sy%iref)%cp(n)%ipath = 0
-    sy%f(sy%iref)%cp(n)%rbeta = Rbetadef
-    sy%f(sy%iref)%cp(n)%brvec = 0d0
-
-    ! Name
-    num = count(sy%f(sy%iref)%cp(1:n)%typ == s)
-    sy%f(sy%iref)%cp(n)%name = smallnamecrit(sy%f(sy%iref)%cp(n)%typind) // string(num)
-
-    ! Add positions to the complete CP list
-    call sy%c%symeqv(sy%f(sy%iref)%cp(n)%x,sy%f(sy%iref)%cp(n)%mult,sympos,symrotm,symcenv,CP_eps_cp) 
-    do i = 1, sy%f(sy%iref)%cp(n)%mult
-       sy%f(sy%iref)%ncpcel = sy%f(sy%iref)%ncpcel + 1
-       if (sy%f(sy%iref)%ncpcel >= size(sy%f(sy%iref)%cpcel)) then
-          call realloc(sy%f(sy%iref)%cpcel,2*sy%f(sy%iref)%ncpcel)
-       end if
-
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel) = sy%f(sy%iref)%cp(n)
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%x = sympos(:,i)
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%r = sy%c%x2c(sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%x)
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%idx = n
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%ir = symrotm(i)
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%ic = symcenv(i)
-       sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%lvec = nint(sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%x - &
-          (matmul(sy%c%rotm(1:3,1:3,symrotm(i)),sy%f(sy%iref)%cp(n)%x) + &
-          sy%c%rotm(1:3,4,symrotm(i)) + sy%c%cen(:,symcenv(i))))
-    end do
-    deallocate(sympos,symrotm,symcenv)
-999 continue
-    !$omp end critical (addcp1)
-
-  end subroutine addcp
-
-  ! sort the non-equivalent cp list
-  subroutine sortcps()
-    use systemmod, only: sy
-    use tools, only: mergesort
-    use types, only: cp_type
-    integer :: i, j, k, iperm(sy%f(sy%iref)%ncp), nin, nina
-    integer :: perms, perm(2,sy%f(sy%iref)%ncp)
-    integer :: num, mi
-    type(cp_type) :: aux
-    real*8, allocatable :: sympos(:,:)
-    integer, allocatable :: symrotm(:), symcenv(:), iaux(:)
-
-    ! Sort the nneq CP list
-    iperm(1:sy%f(sy%iref)%ncp) = (/ (j,j=1,sy%f(sy%iref)%ncp) /)
-
-    ! The nuclei are already ordered. 
-    nin = sy%c%nneq
-    do i = 0, 3
-       ! First sort by class
-       num = count(sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%typind == i)
-       nina = nin + 1
-       do j = 1, num
-          do k = nin+1, sy%f(sy%iref)%ncp
-             if (sy%f(sy%iref)%cp(k)%typind == i) then
-                aux = sy%f(sy%iref)%cp(k)
-                sy%f(sy%iref)%cp(k) = sy%f(sy%iref)%cp(nin+1)
-                sy%f(sy%iref)%cp(nin+1) = aux
-                nin = nin + 1
-                exit
-             end if
-          end do
+       xc = 0d0
+       do i = 1, dim
+          xc = xc + simp(i,:) / real(dim,8)
        end do
+       xc0 = xc
+       xx = sy%c%c2x(xc)
+    endif
+    nn = nn + 1
+    if (nn > size(xseed,2)) call realloc(xseed,3,2*nn)
+    xseed(:,nn) = xx
 
-       ! Then sort by density
-       call mergesort(sy%f(sy%iref)%cp(nina:nin)%s%f,iperm(nina:nin))
-
-       ! reverse
-       allocate(iaux(nina:nin))
-       iaux = iperm(nina:nin) + nina - 1
-       do j = nina, nin
-          iperm(j) = iaux(nin-j+nina)
-       end do
-       deallocate(iaux)
-    end do
-
-    ! unroll transposition as product of permutations
-    perms = 0
-    do i = 1, sy%f(sy%iref)%ncp
-       if (iperm(i) /= i) then
-          do j = i+1, sy%f(sy%iref)%ncp
-             if (iperm(j) == i) exit
-          end do
-          perms = perms + 1
-          perm(1,perms) = i
-          perm(2,perms) = j
-          iperm(j) = iperm(i)
-          iperm(i) = i
-       end if
-    end do
-    do i = perms, 1, -1
-       aux = sy%f(sy%iref)%cp(perm(1,i))
-       sy%f(sy%iref)%cp(perm(1,i)) = sy%f(sy%iref)%cp(perm(2,i))
-       sy%f(sy%iref)%cp(perm(2,i)) = aux
-    end do
-
-    ! Rewrite the complete CP list
-    sy%f(sy%iref)%ncpcel = 0
-    do i = 1, sy%f(sy%iref)%ncp
-       call sy%c%symeqv(sy%f(sy%iref)%cp(i)%x,mi,sympos,symrotm,symcenv,CP_eps_cp) 
-       do j = 1, mi
-          sy%f(sy%iref)%ncpcel = sy%f(sy%iref)%ncpcel + 1
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel) = sy%f(sy%iref)%cp(i)
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%x = sympos(:,j)
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%r = sy%c%x2c(sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%x)
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%idx = i
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%ir = symrotm(j)
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%ic = symcenv(j)
-          sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%lvec = nint(sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel)%x - &
-             (matmul(sy%c%rotm(1:3,1:3,symrotm(j)),sy%f(sy%iref)%cp(i)%x) + &
-             sy%c%rotm(1:3,4,symrotm(j)) + sy%c%cen(:,symcenv(j))))
-       end do
-    end do
-
-  end subroutine sortcps
+  end subroutine seed_from_simplex
 
   subroutine cp_long_report()
     use systemmod, only: sy
@@ -1894,7 +1650,7 @@ contains
           write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators.")') 
           write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-B-r2 (degree)")') &
              string(iunitname0(iunit)), string(iunitname0(iunit))
-             
+
        else
           write (uout,'("* Analysis of system rings")') 
           write (uout,'("# ncp is the ring from the non-equivalent CP list.")') 
