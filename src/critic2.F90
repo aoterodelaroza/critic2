@@ -554,7 +554,6 @@ program critic
            call ferror('critic2','grid is not initialized',faterr,line,syntax=.true.)
            cycle
         end if
-        if (.not.ok) cycle
         if (equal(word,"sum")) then
            write (uout,'("SUM(",A,") = ",A/)') string(id), string(sum(sy%f(id)%grid%f),'e',decimal=12)
         elseif(equal(word,"min")) then
