@@ -33,7 +33,7 @@ load as "$rho*$vloc"
 # Calculate the Hartree energy in Ry, from the Hartree + local option
 # in pp.x, plot_num = 11.
 load ../data/urea_nc.vel.cube id vel
-load as "0.5*$rho*($vel-$vloc)
+load as "0.5*$rho*($vel-$vloc)"
 
 # Calculate the kinetic energy in Ry. The cube comes from a hack of
 # pp.x with plot_num = 22. This hack requires ecutrho = 4 * ecutwfc to

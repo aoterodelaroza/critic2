@@ -15,5 +15,5 @@ load ../data/catio3_ca_1.ion Ca ../data/catio3_ti_2.ion Ti ../data/catio3_o_3.io
 # Make a plot of the atomic basins with the Laplacian mapped on the surface
 # This may take a while, so activate verbose to see the progress. For 
 # expediency, reduce the cube subdivision index from 4 to 3.
-basinplot cube 4 map "$1#l" verbose
+basinplot cube 4 map "$1:l" verbose
 

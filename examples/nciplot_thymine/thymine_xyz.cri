@@ -6,7 +6,7 @@ load ../data/thymine_rho.cube
 write thymine_cell.xyz molmotif
 
 # Write all individual molecules to separate xyz files.
-write thymine_burst.xyz burst
+write thymine_burst.xyz molmotif nmer 1
 
 # Write all molecule pairs to separate xyz files.
-write thymine_pairs.xyz pairs
+write thymine_pairs.xyz molmotif nmer 2

@@ -892,8 +892,7 @@ found by placing 3 seeds between each atom pair.
 A helicene crystal. Given the molecular nature of this system, the
 seeding strategy is changed from the default (a subdivision of the
 Wigner-Seitz celll) to a search over atomic pairs, in a manner similar
-to what is done in molecules. All CPs are found.
-
+to what is done in molecules. Some CPs missing.
 
 * ghost_cps
 ** Source: Gaussian wfn/wfx
