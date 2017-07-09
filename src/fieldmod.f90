@@ -1065,7 +1065,7 @@ contains
 
   !> Function derivative using finite differences and Richardson's
   !> extrapolation formula. This routine is thread-safe.
-  function der1i(f,dir,x,h,errcnv,pool,periodic)
+  recursive function der1i(f,dir,x,h,errcnv,pool,periodic)
     class(field), intent(inout) :: f
     real*8 :: der1i
     real*8, intent(in) :: dir(3)
@@ -1134,7 +1134,7 @@ contains
 
   !> Function second derivative using finite differences and
   !> Richardson's extrapolation formula. This routine is thread-safe.
-  function der2ii(f,dir,x,h,errcnv,pool,periodic)
+  recursive function der2ii(f,dir,x,h,errcnv,pool,periodic)
     class(field), intent(inout) :: f
     real*8 :: der2ii
     real*8, intent(in) :: dir(3)
@@ -1211,7 +1211,7 @@ contains
 
   !> Function mixed second derivative using finite differences and
   !> Richardson's extrapolation formula. This routine is thread-safe.
-  function der2ij(f,dir1,dir2,x,h1,h2,errcnv,periodic)
+  recursive function der2ij(f,dir1,dir2,x,h1,h2,errcnv,periodic)
     class(field), intent(inout) :: f
     real*8 :: der2ij
     real*8, intent(in) :: dir1(3), dir2(3)
