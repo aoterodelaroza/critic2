@@ -607,6 +607,7 @@ contains
        end if
 
        call s%f(id)%field_new(seed,s%c,id,s%fh,field_fcheck,field_feval,field_cube,errmsg)
+
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
           return

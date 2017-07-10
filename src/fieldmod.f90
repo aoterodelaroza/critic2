@@ -375,11 +375,11 @@ contains
        end function cube
     end interface
 
-    character(len=:), allocatable :: ofile
-    integer :: i, j, k, iz, n(3)
+    character(len=:), allocatable :: ofile, sijfname
+    integer :: i, j, k, iz, n(3), luc
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
-    logical :: iok
+    logical :: iok, haschk, ok1, ok2
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -514,6 +514,14 @@ contains
        else
           ofile = seed%file(2)
        end if
+       f%grid%wan%useu = .not.seed%nou
+       f%grid%wan%sijchk = seed%sijchk
+       f%grid%wan%fachk = seed%fachk
+       f%grid%wan%haschk = .false.
+       f%grid%wan%cutoff = seed%wancut
+       f%type = type_grid
+       f%file = seed%file(1)
+
        if (len_trim(seed%unkgen) > 0 .and. len_trim(seed%evc) > 0) then
           call f%grid%read_unkgen(seed%file(1),ofile,seed%unkgen,seed%evc,&
              f%c%omega,seed%sijchk)
@@ -521,13 +529,6 @@ contains
           call f%grid%read_unk(seed%file(1),ofile,f%c%omega,seed%nou,&
              seed%sijchk)
        end if
-       f%grid%wan%useu = .not.seed%nou
-       f%grid%wan%sijchk = seed%sijchk
-       f%grid%wan%fachk = seed%fachk
-       f%grid%wan%haschk = .false.
-       f%grid%wan%cutoff = seed%wancut
-       f%type = type_grid
-       f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
