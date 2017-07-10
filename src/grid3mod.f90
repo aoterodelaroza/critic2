@@ -2158,27 +2158,29 @@ contains
   end subroutine hxx
 
   !> Build a Wannier function from QEs unk(r) functions in the UNK files.
-  subroutine get_qe_wnr(f,ibnd,ispin,n,nk1,nk2,nk3,kpt,fout)
+  subroutine get_qe_wnr(f,ibnd,ispin,fout)
     use tools_io, only: string, ferror, faterr, fopen_read, fopen_write,&
        fclose
     use param, only: tpi, img
     class(grid3), intent(in) :: f
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
-    integer, intent(in) :: n(3)
-    integer, intent(in) :: nk1, nk2, nk3
-    real*8, intent(in) :: kpt(3,nk1*nk2*nk3)
-    complex*16, intent(out) :: fout(nk1*n(1),nk2*n(2),nk3*n(3))
+    complex*16, intent(out) :: fout(f%wan%nwan(1)*f%n(1),f%wan%nwan(2)*f%n(2),f%wan%nwan(3)*f%n(3))
 
-    integer :: luc, i, j, k
+    integer :: luc, i, j, k, nk1, nk2, nk3
     integer :: nk, ik, ik1, ik2, ik3, nall(3), naux(3), ikk, nbnd
     integer :: jbnd, imax(3)
-    complex*16 :: raux(n(1),n(2),n(3)), rseq(n(1)*n(2)*n(3))
-    complex*16 :: raux2(n(1),n(2),n(3)), raux3(n(1),n(2),n(3))
+    complex*16 :: raux(f%n(1),f%n(2),f%n(3)), rseq(f%n(1)*f%n(2)*f%n(3))
+    complex*16 :: raux2(f%n(1),f%n(2),f%n(3)), raux3(f%n(1),f%n(2),f%n(3))
     character(len=:), allocatable :: fname
     complex*16 :: tnorm, ph
     complex*16, allocatable :: evc(:)
+    integer :: n(3)
 
+    n = f%n
+    nk1 = f%wan%nwan(1)
+    nk2 = f%wan%nwan(2)
+    nk3 = f%wan%nwan(3)
     fout = 0d0
     nk = nk1 * nk2 * nk3
     nall(1) = n(1) * nk1
@@ -2203,8 +2205,8 @@ contains
        do k = 1, n(3)
           do j = 1, n(2)
              do i = 1, n(1)
-                raux2(i,j,k) = exp(tpi*img*(kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
-                   kpt(2,ik)*real(j-1,8)/real(n(2),8)+kpt(3,ik)*real(k-1,8)/real(n(3),8)))
+                raux2(i,j,k) = exp(tpi*img*(f%wan%kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
+                   f%wan%kpt(2,ik)*real(j-1,8)/real(n(2),8)+f%wan%kpt(3,ik)*real(k-1,8)/real(n(3),8)))
              end do
           end do
        end do
@@ -2240,10 +2242,10 @@ contains
        ! add the contribution from this k-point
        raux2 = raux2 * raux
        do ikk = 1, nk
-          ik1 = nint(kpt(1,ikk) * nk1)
-          ik2 = nint(kpt(2,ikk) * nk2)
-          ik3 = nint(kpt(3,ikk) * nk3)
-          ph = exp(tpi*img*(kpt(1,ik)*ik1+kpt(2,ik)*ik2+kpt(3,ik)*ik3))
+          ik1 = nint(f%wan%kpt(1,ikk) * nk1)
+          ik2 = nint(f%wan%kpt(2,ikk) * nk2)
+          ik3 = nint(f%wan%kpt(3,ikk) * nk3)
+          ph = exp(tpi*img*(f%wan%kpt(1,ik)*ik1+f%wan%kpt(2,ik)*ik2+f%wan%kpt(3,ik)*ik3))
           fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) = &
              fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) + &
              raux2 * ph
