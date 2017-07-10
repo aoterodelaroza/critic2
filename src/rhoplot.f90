@@ -577,6 +577,7 @@ contains
           call sy%c%writegrid_vasp(faux%f,outfile,.false.)
        end if
     else
+       ok = .false.
        if (useexpr) then
           call faux%new_eval(nn,expr,sy%fh,field_cube)
           ok = faux%isinit
@@ -638,7 +639,7 @@ contains
        else
           call sy%c%writegrid_vasp(lf,outfile,.false.)
        endif
-       deallocate(lf)
+       if (allocated(lf)) deallocate(lf)
     end if
 
   end subroutine rhoplot_cube
