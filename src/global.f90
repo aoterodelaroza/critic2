@@ -284,7 +284,7 @@ contains
     INT_iasprec = 1d-5
 
     ! molecular mesh
-    MESH_type = 2
+    MESH_type = 3
 
     ! qtree
     ! gradient_mode set in critic->set_reference

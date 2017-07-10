@@ -265,13 +265,6 @@ contains
        end if
     end do
 
-    ! xxxx !
-    ! ! Check that the zpsps are defined
-    ! if (any(sy%c%at(:)%zpsp < 0)) then
-    !    call ferror("xdm_driver","need ZPSP for all atoms for XDM",faterr,line,syntax=.true.)
-    !    return
-    ! end if
-
     ! Define damping coefficients
     write (uout,'("+ Damping function parameters")')
     write (uout,'("  a1 = ",A)') string(a1,'f',decimal=6)
@@ -305,6 +298,8 @@ contains
        if (allocated(sy%f(ipdens)%grid%f)) deallocate(sy%f(ipdens)%grid%f)
        allocate(sy%f(ipdens)%grid%f(n(1),n(2),n(3)))
        sy%f(ipdens)%grid%n = n
+       sy%f(ipdens)%grid%f = 0d0
+       sy%f(ipdens)%isinit = .true.
        dopro = .true.
        nclean = nclean + 1
        iclean(nclean) = ipdens
@@ -317,6 +312,8 @@ contains
        if (allocated(sy%f(icor)%grid%f)) deallocate(sy%f(icor)%grid%f)
        allocate(sy%f(icor)%grid%f(n(1),n(2),n(3)))
        sy%f(icor)%grid%n = n
+       sy%f(icor)%grid%f = 0d0
+       sy%f(icor)%isinit = .true.
        docor = .true.
        nclean = nclean + 1
        iclean(nclean) = icor
@@ -363,6 +360,7 @@ contains
        ilap = sy%getfieldnum()
        write (uout,'("+ Calculating Laplacian of rho")')
        call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%crys2car)
+       sy%f(ilap)%isinit = .true.
        write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
        call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
        nclean = nclean + 1
@@ -372,6 +370,7 @@ contains
        igrad = sy%getfieldnum()
        write (uout,'("+ Calculating gradient of rho")')
        call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+       sy%f(igrad)%isinit = .true.
        write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
        call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
        nclean = nclean + 1
@@ -391,6 +390,7 @@ contains
        if (allocated(sy%f(ib)%grid%f)) deallocate(sy%f(ib)%grid%f)
        allocate(sy%f(ib)%grid%f(n(1),n(2),n(3)))
        sy%f(ib)%grid%n = n
+       sy%f(ib)%isinit = .true.
        write (uout,'("+ Calculating the BR exchange-hole dipole (b)")')
 
        ! do it
@@ -849,7 +849,7 @@ contains
     endif
 
     ! prepare the mesh
-    call m%gen(sy%c)
+    call m%gen(sy%c,MESH_type)
     write (uout,'("mesh size      ",A)') string(m%n)
     if (MESH_type == 0) then
        write (uout,'("mesh type      Becke")')
@@ -1400,10 +1400,12 @@ contains
     sy%f(itau) = sy%f(ielf)
     call sy%fh%put(string(itau),itau)
     if (allocated(sy%f(itau)%grid%f)) deallocate(sy%f(itau)%grid%f)
+    sy%f(itau)%isinit = .true.
 
     ! allocate a temporary field for the gradient
     igrad = sy%getfieldnum()
     call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+    sy%f(igrad)%isinit = .true.
     
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))
     g = sqrt(1d0 / max(min(sy%f(ielf)%grid%f,1d0),1d-14) - 1d0)

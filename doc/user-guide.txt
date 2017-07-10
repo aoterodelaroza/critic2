@@ -6103,7 +6103,7 @@ the whole space. For now, they are only used in the XDM module.
   accuracy of the integration.  The values are 1 (small), 2 (normal),
   3 (good), 4(very good), 5 (excellent).
 
-Default: FRANCHINI with lvl = 2 (normal accuracy).
+Default: FRANCHINI with lvl = 3 (good accuracy).
 
 :: 
 

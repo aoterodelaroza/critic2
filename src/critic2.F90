@@ -39,7 +39,7 @@ program critic
      struct_clearsym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_packing,&
      struct_compare, struct_identify
-  use systemmod, only: systemmod_init, systemmod_end, sy, field_cube ! xxxx
+  use systemmod, only: systemmod_init, systemmod_end, sy
   use spgs, only: spgs_init
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -53,7 +53,6 @@ program critic
      ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
      start_clock, print_clock
   use param, only: param_init
-  use grid3mod, only: grid3 ! xxxx
   implicit none
 
   ! command-line arguments
@@ -67,7 +66,6 @@ program critic
   integer :: i, nn, ismoli
   logical :: ll1, ok
   real*8 :: rdum
-  type(grid3) :: aux ! xxxx
 
   ! initialize parameters
   call start_clock()
@@ -618,14 +616,7 @@ program critic
 
         ! temp, for testing
      elseif (equal(word,'temp')) then
-        call aux%new_eval(sy%f(1)%grid%n,"erf($1)+erfc($2)",sy%fh,field_cube)
-        if (aux%isinit) then
-           write (*,*) "bleh ", sum(sy%f(1)%grid%f)
-           write (*,*) "bleh ", sum(sy%f(2)%grid%f)
-           write (*,*) "bleh ", sum(aux%f)
-        else
-           write (*,*) "bleh no init"
-        end if
+        !
 
         ! end
      elseif (equal(word,'end')) then
