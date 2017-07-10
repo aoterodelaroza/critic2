@@ -329,7 +329,7 @@ contains
   !> Load a new field using the given field seed and the crystal
   !> structure pointer. The ID of the field in the system is also
   !> required.
-  subroutine field_new(f,seed,c,id,fh,fcheck,feval,errmsg)
+  subroutine field_new(f,seed,c,id,fh,fcheck,feval,cube,errmsg)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
@@ -364,6 +364,15 @@ contains
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
+       !> Return the grid from field id
+       function cube(n,id,fder,dry,ifail) result(q)
+         character*(*), intent(in) :: id
+         integer, intent(in) :: n(3)
+         character*4, intent(in) :: fder
+         logical, intent(in) :: dry
+         logical, intent(out) :: ifail
+         real*8 :: q(n(1),n(2),n(3))
+       end function cube
     end interface
 
     character(len=:), allocatable :: ofile
@@ -583,33 +592,36 @@ contains
        call f%load_ghost(c,id,"<ghost>",seed%expr,fh,fcheck,feval)
        
     elseif (seed%iff == ifformat_as) then
-       call f%grid%end()
        f%type = type_grid
        f%file = ""
        n = seed%n
-       f%grid%n = n
-       allocate(f%grid%f(n(1),n(2),n(3)))
-       
-       do i = 1, 3
-          xdelta(:,i) = 0d0
-          xdelta(i,i) = 1d0 / real(n(i),8)
-       end do
+       call f%grid%new_eval(n,seed%expr,fh,cube)
+       if (.not.f%grid%isinit) then
+          call f%grid%end()
+          f%grid%n = n
+          allocate(f%grid%f(n(1),n(2),n(3)))
 
-       !$omp parallel do private(x,rho) schedule(dynamic)
-       do k = 1, n(3)
-          do j = 1, n(2)
-             do i = 1, n(1)
-                x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-                x = c%x2c(x)
-                rho = eval(seed%expr,.true.,iok,x,fh,fcheck,feval,.true.)
-                !$omp critical(write)
-                f%grid%f(i,j,k) = rho
-                !$omp end critical(write)
+          do i = 1, 3
+             xdelta(:,i) = 0d0
+             xdelta(i,i) = 1d0 / real(n(i),8)
+          end do
+
+          !$omp parallel do private(x,rho) schedule(dynamic)
+          do k = 1, n(3)
+             do j = 1, n(2)
+                do i = 1, n(1)
+                   x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+                   x = c%x2c(x)
+                   rho = eval(seed%expr,.true.,iok,x,fh,fcheck,feval,.true.)
+                   !$omp critical(write)
+                   f%grid%f(i,j,k) = rho
+                   !$omp end critical(write)
+                end do
              end do
           end do
-       end do
-       !$omp end parallel do
-       f%grid%isinit = .true.
+          !$omp end parallel do
+          f%grid%isinit = .true.
+       end if
 
     elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
        seed%iff == ifformat_as_grad.or.seed%iff == ifformat_as_clm.or.&

@@ -25,16 +25,16 @@ module arithmetic
 
   public :: eval
   public :: fields_in_eval
-  private :: tokenize
+  public :: tokenize
   private :: fieldeval
   private :: isnumber
   private :: isoperator
   private :: isfunction
   private :: isidentifier
-  private :: iprec
-  private :: iassoc
+  public :: iprec
+  public :: iassoc
   private :: pop
-  private :: istype
+  public :: istype
   private :: die
   public :: setvariable
   public :: isvariable
@@ -44,60 +44,60 @@ module arithmetic
   private :: chemfunction
 
   private
-  integer, parameter :: fun_openpar  = 1  !< open parenthesis
-  integer, parameter :: fun_closepar = 2  !< close parenthesis
-  integer, parameter :: fun_uplus    = 3  !< unary +
-  integer, parameter :: fun_uminus   = 4  !< unary -
-  integer, parameter :: fun_abs      = 5  !< abs(.)
-  integer, parameter :: fun_exp      = 6  !< exp(.)
-  integer, parameter :: fun_sqrt     = 7  !< sqrt(.)
-  integer, parameter :: fun_floor    = 8  !< floor(.)
-  integer, parameter :: fun_ceiling  = 9  !< ceiling(.)
-  integer, parameter :: fun_round    = 10 !< round(.)
-  integer, parameter :: fun_log      = 11 !< log(.)
-  integer, parameter :: fun_log10    = 12 !< log10(.)
-  integer, parameter :: fun_sin      = 13 !< sin(.)
-  integer, parameter :: fun_asin     = 14 !< asin(.)
-  integer, parameter :: fun_cos      = 15 !< cos(.)
-  integer, parameter :: fun_acos     = 16 !< acos(.)
-  integer, parameter :: fun_tan      = 17 !< tan(.)
-  integer, parameter :: fun_atan     = 18 !< atan(.)
-  integer, parameter :: fun_atan2    = 19 !< atan2(.)
-  integer, parameter :: fun_sinh     = 20 !< sinh(.)
-  integer, parameter :: fun_cosh     = 21 !< cosh(.)
-  integer, parameter :: fun_erf      = 22 !< erf(.)
-  integer, parameter :: fun_erfc     = 23 !< erfc(.)
-  integer, parameter :: fun_min      = 24 !< min(.)
-  integer, parameter :: fun_max      = 25 !< max(.)
-  integer, parameter :: fun_power    = 26 !< **
-  integer, parameter :: fun_leq      = 27 !< <=
-  integer, parameter :: fun_geq      = 28 !< >=
-  integer, parameter :: fun_equal    = 29 !< ==
-  integer, parameter :: fun_neq      = 30 !< !=
-  integer, parameter :: fun_and      = 31 !< &&
-  integer, parameter :: fun_or       = 32 !< ||
-  integer, parameter :: fun_plus     = 33 !< binary +
-  integer, parameter :: fun_minus    = 34 !< binary -
-  integer, parameter :: fun_prod     = 35 !< *
-  integer, parameter :: fun_div      = 36 !< /
-  integer, parameter :: fun_modulo   = 37 !< %
-  integer, parameter :: fun_great    = 38 !< >
-  integer, parameter :: fun_less     = 39 !< <
-  integer, parameter :: fun_xc       = 40 !< xc(.,...)  (X)
-  integer, parameter :: fun_gtf      = 41 !< Thomas-Fermi kinetic energy density
-  integer, parameter :: fun_vtf      = 42 !< Potential energy density calcd using gtf and the local virial theorem
-  integer, parameter :: fun_htf      = 43 !< Total energy density calcd using gtf and the local virial theorem
-  integer, parameter :: fun_gtf_kir  = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
-  integer, parameter :: fun_vtf_kir  = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter :: fun_htf_kir  = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter :: fun_gkin     = 47 !< Kinetic energy density, G-version (grho * grho)
-  integer, parameter :: fun_kkin     = 48 !< Kinetic energy density, K-version (rho * laprho)
-  integer, parameter :: fun_l        = 49 !< Lagrangian density (-1/4 * laprho)
-  integer, parameter :: fun_elf      = 50 !< Electron localization function (ELF)
-  integer, parameter :: fun_vir      = 51 !< Electronic potential energy density, virial field
-  integer, parameter :: fun_he       = 52 !< Energy density, G + V
-  integer, parameter :: fun_lol      = 53 !< Localized-orbital locator (LOL)
-  integer, parameter :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
+  integer, parameter, public :: fun_openpar  = 1  !< open parenthesis
+  integer, parameter, public :: fun_closepar = 2  !< close parenthesis
+  integer, parameter, public :: fun_uplus    = 3  !< unary +
+  integer, parameter, public :: fun_uminus   = 4  !< unary -
+  integer, parameter, public :: fun_abs      = 5  !< abs(.)
+  integer, parameter, public :: fun_exp      = 6  !< exp(.)
+  integer, parameter, public :: fun_sqrt     = 7  !< sqrt(.)
+  integer, parameter, public :: fun_floor    = 8  !< floor(.)
+  integer, parameter, public :: fun_ceiling  = 9  !< ceiling(.)
+  integer, parameter, public :: fun_round    = 10 !< round(.)
+  integer, parameter, public :: fun_log      = 11 !< log(.)
+  integer, parameter, public :: fun_log10    = 12 !< log10(.)
+  integer, parameter, public :: fun_sin      = 13 !< sin(.)
+  integer, parameter, public :: fun_asin     = 14 !< asin(.)
+  integer, parameter, public :: fun_cos      = 15 !< cos(.)
+  integer, parameter, public :: fun_acos     = 16 !< acos(.)
+  integer, parameter, public :: fun_tan      = 17 !< tan(.)
+  integer, parameter, public :: fun_atan     = 18 !< atan(.)
+  integer, parameter, public :: fun_atan2    = 19 !< atan2(.)
+  integer, parameter, public :: fun_sinh     = 20 !< sinh(.)
+  integer, parameter, public :: fun_cosh     = 21 !< cosh(.)
+  integer, parameter, public :: fun_erf      = 22 !< erf(.)
+  integer, parameter, public :: fun_erfc     = 23 !< erfc(.)
+  integer, parameter, public :: fun_min      = 24 !< min(.)
+  integer, parameter, public :: fun_max      = 25 !< max(.)
+  integer, parameter, public :: fun_power    = 26 !< **
+  integer, parameter, public :: fun_leq      = 27 !< <=
+  integer, parameter, public :: fun_geq      = 28 !< >=
+  integer, parameter, public :: fun_equal    = 29 !< ==
+  integer, parameter, public :: fun_neq      = 30 !< !=
+  integer, parameter, public :: fun_and      = 31 !< &&
+  integer, parameter, public :: fun_or       = 32 !< ||
+  integer, parameter, public :: fun_plus     = 33 !< binary +
+  integer, parameter, public :: fun_minus    = 34 !< binary -
+  integer, parameter, public :: fun_prod     = 35 !< *
+  integer, parameter, public :: fun_div      = 36 !< /
+  integer, parameter, public :: fun_modulo   = 37 !< %
+  integer, parameter, public :: fun_great    = 38 !< >
+  integer, parameter, public :: fun_less     = 39 !< <
+  integer, parameter, public :: fun_xc       = 40 !< xc(.,...)  (X)
+  integer, parameter, public :: fun_gtf      = 41 !< Thomas-Fermi kinetic energy density
+  integer, parameter, public :: fun_vtf      = 42 !< Potential energy density calcd using gtf and the local virial theorem
+  integer, parameter, public :: fun_htf      = 43 !< Total energy density calcd using gtf and the local virial theorem
+  integer, parameter, public :: fun_gtf_kir  = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
+  integer, parameter, public :: fun_vtf_kir  = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
+  integer, parameter, public :: fun_htf_kir  = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
+  integer, parameter, public :: fun_gkin     = 47 !< Kinetic energy density, G-version (grho * grho)
+  integer, parameter, public :: fun_kkin     = 48 !< Kinetic energy density, K-version (rho * laprho)
+  integer, parameter, public :: fun_l        = 49 !< Lagrangian density (-1/4 * laprho)
+  integer, parameter, public :: fun_elf      = 50 !< Electron localization function (ELF)
+  integer, parameter, public :: fun_vir      = 51 !< Electronic potential energy density, virial field
+  integer, parameter, public :: fun_he       = 52 !< Energy density, G + V
+  integer, parameter, public :: fun_lol      = 53 !< Localized-orbital locator (LOL)
+  integer, parameter, public :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
 
 #ifdef HAVE_LIBXC
   integer, parameter :: maxfun = 600
@@ -119,14 +119,15 @@ module arithmetic
      character(len=:), allocatable :: sval
      character*4 :: fder = ""
   end type token
-  integer, parameter :: token_undef = 0
-  integer, parameter :: token_num = 1
-  integer, parameter :: token_fun = 2
-  integer, parameter :: token_op = 3
-  integer, parameter :: token_lpar = 4
-  integer, parameter :: token_rpar = 5
-  integer, parameter :: token_comma = 6
-  integer, parameter :: token_field = 7
+  public :: token
+  integer, parameter, public :: token_undef = 0
+  integer, parameter, public :: token_num = 1
+  integer, parameter, public :: token_fun = 2
+  integer, parameter, public :: token_op = 3
+  integer, parameter, public :: token_lpar = 4
+  integer, parameter, public :: token_rpar = 5
+  integer, parameter, public :: token_comma = 6
+  integer, parameter, public :: token_field = 7
 
 contains
 
@@ -963,7 +964,6 @@ contains
   !> Pop from the stack and operate on the queue.  This routine is
   !> thread-safe.
   subroutine pop(q,nq,s,ns,x0,fcheck,feval,periodic,fail)
-    use tools_math, only: erf, erfc
     use tools_io, only: string
 #ifdef HAVE_LIBXC
     use xc_f90_types_m
@@ -1199,185 +1199,6 @@ contains
       ia = nint(a)
     endfunction tointeger
   end subroutine pop
-
-  !> Pop from the stack and operate on the queue.  This routine is
-  !> thread-safe. Grid version
-  subroutine pop_grid(q,nq,s,ns,fail)
-    use tools_math, only: erf, erfc
-    use tools_io, only: string
-#ifdef HAVE_LIBXC
-    use xc_f90_types_m
-    use libxc_funcs_m
-    use xc_f90_lib_m
-#endif
-
-    real*8, allocatable, intent(inout) :: q(:,:,:,:)
-    integer, intent(inout) :: s(:)
-    integer, intent(inout) :: nq, ns
-    logical, intent(out) :: fail
-
-    integer :: ia
-    integer :: c
-    character*8 :: sia
-#ifdef HAVE_LIBXC
-    real*8 :: rho, grho, lapl, tau, zk
-#endif
-
-    ! pop from the stack
-    fail = .false.
-    if (ns == 0) call die('error in expression')
-    c = s(ns)
-    ns = ns - 1
-
-    ! And apply to the queue
-    if (istype(c,'binary')) then
-       ! a binary operator or function
-       if (nq < 2) call die('error in expression')
-!        a = q(nq-1)
-!        b = q(nq)
-       nq = nq - 1
-       select case(c)
-       case (fun_plus)
-          q(:,:,:,nq) = q(:,:,:,nq) + q(:,:,:,nq+1)
-       case (fun_minus)
-          q(:,:,:,nq) = q(:,:,:,nq) - q(:,:,:,nq+1)
-       case (fun_prod)
-          q(:,:,:,nq) = q(:,:,:,nq) * q(:,:,:,nq+1)
-       case (fun_div)
-          q(:,:,:,nq) = q(:,:,:,nq) / q(:,:,:,nq+1)
-       case (fun_power)
-          q(:,:,:,nq) = q(:,:,:,nq) ** q(:,:,:,nq+1)
-       case (fun_modulo)
-          q(:,:,:,nq) = modulo(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_atan2)
-          q(:,:,:,nq) = atan2(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_min)
-          q(:,:,:,nq) = min(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_max)
-          q(:,:,:,nq) = max(q(:,:,:,nq),q(:,:,:,nq+1))
-       ! case (fun_great)
-       !    if (a > b) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_less)
-       !    if (a < b) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_leq)
-       !    if (a <= b) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_geq)
-       !    if (a >= b) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_equal)
-       !    if (a == b) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_neq)
-       !    if (a /= b) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_and)
-       !    if (.not.(a == 0d0).and..not.(b == 0d0)) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       ! case (fun_or)
-       !    if (.not.(a == 0d0).or..not.(b == 0d0)) then
-       !       q(:,:,:,nq) = 1d0
-       !    else
-       !       q(:,:,:,nq) = 0d0
-       !    endif
-       end select
-    elseif (istype(c,'unary')) then
-       ! a unary operator or function
-       if (nq < 1) call die('error in expression')
-       select case(c)
-       case (fun_uplus)
-          q(:,:,:,nq) = +q(:,:,:,nq)
-       case (fun_uminus)
-          q(:,:,:,nq) = -q(:,:,:,nq)
-       case (fun_abs)
-          q(:,:,:,nq) = abs(q(:,:,:,nq))
-       case (fun_exp)
-          q(:,:,:,nq) = exp(q(:,:,:,nq))
-       case (fun_sqrt)
-          q(:,:,:,nq) = sqrt(q(:,:,:,nq))
-       case (fun_floor)
-          q(:,:,:,nq) = floor(q(:,:,:,nq))
-       case (fun_ceiling)
-          q(:,:,:,nq) = ceiling(q(:,:,:,nq))
-       case (fun_round)
-          q(:,:,:,nq) = nint(q(:,:,:,nq))
-       case (fun_log)
-          q(:,:,:,nq) = log(q(:,:,:,nq))
-       case (fun_log10)
-          q(:,:,:,nq) = log10(q(:,:,:,nq))
-       case (fun_sin)
-          q(:,:,:,nq) = sin(q(:,:,:,nq))
-       case (fun_asin)
-          q(:,:,:,nq) = asin(q(:,:,:,nq))
-       case (fun_cos)
-          q(:,:,:,nq) = cos(q(:,:,:,nq))
-       case (fun_acos)
-          q(:,:,:,nq) = acos(q(:,:,:,nq))
-       case (fun_tan)
-          q(:,:,:,nq) = tan(q(:,:,:,nq))
-       case (fun_atan)
-          q(:,:,:,nq) = atan(q(:,:,:,nq))
-       case (fun_sinh)
-          q(:,:,:,nq) = sinh(q(:,:,:,nq))
-       case (fun_cosh)
-          q(:,:,:,nq) = cosh(q(:,:,:,nq))
-       ! case (fun_erf)
-       !    q(:,:,:,nq) = erf(q(:,:,:,nq))
-       ! case (fun_erfc)
-       !    q(:,:,:,nq) = erfc(q(:,:,:,nq))
-       end select
-!     elseif (istype(c,'chemfunction')) then
-!        ! We need a point and the evaluator
-!        if (.not.present(x0).or..not.present(feval).or..not.present(fcheck)) then
-!           fail = .true.
-!           return
-!        endif
-    
-!        ! Also an integer field identifier as the first argument
-!        ia = tointeger(q(nq))
-!        write (sia,'(I8)') ia
-!        sia = adjustl(sia)
-!        if (.not.fcheck(sia)) &
-!           call die('wrong field ' // string(sia))
-    
-!        ! Use the library of chemical functions
-!        q(nq) = chemfunction(c,sia,x0,feval,periodic)
-    else
-       call die('error in expression')
-    end if
-
-!   contains
-!     function tointeger(a) result(ia)
-!       real*8 :: a
-!       integer :: ia
-
-!       if (a - nint(a) > 1d-13) call die("An integer was required in this expression.")
-!       ia = nint(a)
-!     endfunction tointeger
-  end subroutine pop_grid
 
   !> Return the type of stack element (operator, function, unary,
   !> binary).  This routine is thread-safe.

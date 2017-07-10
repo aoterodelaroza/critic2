@@ -29,6 +29,7 @@ module systemmod
   public :: systemmod_end
   private :: field_fcheck
   private :: field_feval
+  public :: field_cube
 
   type system
      logical :: isinit = .false. !< Is the system initialized?
@@ -605,7 +606,7 @@ contains
           seed%n = s%f(oid)%grid%n
        end if
 
-       call s%f(id)%field_new(seed,s%c,id,s%fh,field_fcheck,field_feval,errmsg)
+       call s%f(id)%field_new(seed,s%c,id,s%fh,field_fcheck,field_feval,field_cube,errmsg)
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
           return
@@ -818,6 +819,45 @@ contains
     end if
 
   end function field_feval
+
+  !> Check that the id is a grid and is a sane field. Wrapper around
+  !> goodfield() to pass it to the arithmetic module.  This routine is
+  !> thread-safe. psy is the pointer to the system.
+  function field_cube(n,id,fder,dry,ifail) result(q)
+    use fieldmod, only: type_grid
+    character*(*), intent(in) :: id
+    integer, intent(in) :: n(3)
+    character*4, intent(in) :: fder
+    logical, intent(in) :: dry
+    logical, intent(out) :: ifail
+    real*8 :: q(n(1),n(2),n(3))
+
+    integer :: iid
+    logical :: isgrid
+
+    ifail = .false.
+    q = 0d0
+    if (.not.associated(sy)) goto 999
+    iid = sy%fieldname_to_idx(id)
+    if (.not.sy%f(iid)%isinit) goto 999
+    isgrid = (sy%f(iid)%type == type_grid)
+    if (isgrid) isgrid = isgrid .and. all(sy%f(iid)%grid%n == n)
+    if (isgrid) isgrid = isgrid .and. (fder == "    " .or. fder=="v   ")
+    if (isgrid) then
+       if (.not.dry) then
+          q = sy%f(iid)%grid%f
+       else
+          q = 0d0
+       end if
+    else
+       goto 999
+    end if
+
+    return
+999 continue
+    ifail = .true.
+    q = 0d0
+  end function field_cube
 
   !> Unload a field given by identifier id.
   subroutine unload_field(s,id)

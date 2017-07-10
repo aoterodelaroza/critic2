@@ -28,6 +28,7 @@ module grid3mod
   private :: grid_near
   private :: grid_floor
   private :: init_trispline
+  private :: pop_grid
   
   !> Information for wannier functions
   type wandat
@@ -78,6 +79,7 @@ module grid3mod
      procedure :: gradrho !< grid3 as the gradrho of another grid3
      procedure :: hxx !< grid3 as the Hessian components of another grid3
      procedure :: get_qe_wnr !< build a Wannier function from the wannier info/files
+     procedure :: new_eval !< grid3 from an arithmetic expression
   end type grid3
   public :: grid3
 
@@ -2260,5 +2262,301 @@ contains
     fout = fout / tnorm
 
   end subroutine get_qe_wnr
+
+  !> Build a 3d grid using an arithmetic expression.
+  subroutine new_eval(f,n,expr,fh,field_cube)
+    use hashmod, only: hash
+    use arithmetic, only: token, tokenize, token_undef, token_num, token_fun,&
+       token_op, token_lpar, token_rpar, token_comma, token_field, iprec, iassoc,&
+       istype, fun_openpar, fun_xc
+    use types, only: realloc
+    class(grid3), intent(inout) :: f
+    integer, intent(in) :: n(3)
+    character(*), intent(in) :: expr
+    type(hash), intent(in) :: fh
+
+    interface
+       function field_cube(n,id,fder,dry,ifail) result(q)
+         character*(*), intent(in) :: id
+         integer, intent(in) :: n(3)
+         character*4, intent(in) :: fder
+         logical, intent(in) :: dry
+         logical, intent(out) :: ifail
+         real*8 :: q(n(1),n(2),n(3))
+       end function field_cube
+    end interface
+
+    integer :: i, ntok, lp
+    integer :: c, s(100)
+    logical :: again, ok, ifail
+    integer :: nq, ns, nder
+    real*8, allocatable :: q(:,:,:,:)
+    type(token), allocatable :: toklist(:)
+
+    call f%end()
+    f%n = n
+    f%mode = mode_default
+    f%isinit = .true.
+
+    ! tokenize the expression in input
+    lp = 1
+    ok = tokenize(expr,ntok,toklist,lp,fh)
+    if (.not.ok) then
+       goto 999
+       return
+    end if
+
+    ! initialize
+    nq = 0
+    ns = 0
+    allocate(q(n(1),n(2),n(3),1))
+
+    ! the grid version of the arithmetic evaluator does not support
+    ! certain types of operators (xc, chemfunction).
+    do i = 1, ntok
+       if (toklist(i)%ival == fun_xc) goto 999
+       if (istype(toklist(i)%ival,'chemfunction')) goto 999
+       if (toklist(i)%type == token_field) then
+          q(:,:,:,1) = field_cube(n,toklist(i)%sval,toklist(i)%fder,.true.,ifail)
+          if (ifail) goto 999
+       end if
+    end do
+
+    ! run over tokens
+    do i = 1, ntok
+       if (toklist(i)%type == token_num) then
+          ! a number
+          nq = nq + 1
+          if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
+          q(:,:,:,nq) = toklist(i)%fval
+       elseif (toklist(i)%type == token_fun) then
+          ! a function
+          ns = ns + 1
+          s(ns) = toklist(i)%ival
+       elseif (toklist(i)%type == token_op) then
+          ! a binary operator
+          c = toklist(i)%ival
+          again = .true.
+          do while (again)
+             again = .false.
+             if (ns > 0) then
+                if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
+                   call pop_grid(q,nq,s,ns,ifail)
+                   if (ifail) goto 999
+                   again = .true.
+                end if
+             end if
+          end do
+          ns = ns + 1
+          s(ns) = c
+       elseif (toklist(i)%type == token_lpar) then
+          ! left parenthesis
+          ns = ns + 1
+          s(ns) = fun_openpar
+       elseif (toklist(i)%type == token_rpar) then
+          ! right parenthesis
+           do while (ns > 0)
+              if (s(ns) == fun_openpar) exit
+              call pop_grid(q,nq,s,ns,ifail)
+              if (ifail) goto 999
+           end do
+           if (ns == 0) goto 999
+           ns = ns - 1
+           ! if the top of the stack is a function, pop it
+           if (ns > 0) then
+              c = s(ns)
+              if (istype(c,'function')) then
+                 call pop_grid(q,nq,s,ns,ifail)
+                 if (ifail) goto 999
+              end if
+           end if
+        elseif (toklist(i)%type == token_comma) then
+           ! a comma
+           do while (ns > 0)
+              if (s(ns) == fun_openpar) exit
+              call pop_grid(q,nq,s,ns,ifail)
+              if (ifail) goto 999
+           end do
+           if (s(ns) /= fun_openpar) goto 999
+        elseif (toklist(i)%type == token_field) then
+           ! a field
+           nq = nq + 1
+           if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
+           q(:,:,:,nq) = field_cube(n,toklist(i)%sval,toklist(i)%fder,.false.,ifail)
+           if (ifail) goto 999
+       else
+          goto 999
+       end if
+    end do
+
+    ! unwind the stack
+    do while (ns > 0)
+       call pop_grid(q,nq,s,ns,ifail)
+       if (ifail) goto 999
+    end do
+    allocate(f%f(n(1),n(2),n(3)))
+    f%f = q(:,:,:,1)
+    if (allocated(q)) deallocate(q)
+
+    return
+999 continue
+    if (allocated(q)) deallocate(q)
+    call f%end()
+
+  end subroutine new_eval
+
+  !> Pop from the stack and operate on the queue.  This routine is
+  !> thread-safe. Grid version
+  subroutine pop_grid(q,nq,s,ns,fail)
+    use arithmetic, only: istype, fun_plus, fun_minus, fun_prod, fun_div,&
+       fun_power, fun_modulo, fun_atan2, fun_min, fun_max, fun_great,&
+       fun_great, fun_less, fun_leq, fun_geq, fun_equal, fun_neq, fun_and,&
+       fun_or, fun_uplus, fun_uminus, fun_abs, fun_exp, fun_sqrt, fun_floor,&
+       fun_ceiling, fun_round, fun_log, fun_log10, fun_sin, fun_asin, fun_cos,&
+       fun_acos, fun_tan, fun_atan, fun_sinh, fun_cosh, fun_erf, fun_erfc,&
+       fun_xc
+
+    real*8, allocatable, intent(inout) :: q(:,:,:,:)
+    integer, intent(inout) :: s(:)
+    integer, intent(inout) :: nq, ns
+    logical, intent(out) :: fail
+
+    integer :: c
+
+    ! pop from the stack
+    fail = .false.
+    if (ns == 0) goto 999
+    c = s(ns)
+    ns = ns - 1
+
+    ! And apply to the queue
+    if (c == fun_xc) then
+       goto 999
+    elseif (istype(c,'binary')) then
+       ! a binary operator or function
+       if (nq < 2) goto 999
+       nq = nq - 1
+       select case(c)
+       case (fun_plus)
+          q(:,:,:,nq) = q(:,:,:,nq) + q(:,:,:,nq+1)
+       case (fun_minus)
+          q(:,:,:,nq) = q(:,:,:,nq) - q(:,:,:,nq+1)
+       case (fun_prod)
+          q(:,:,:,nq) = q(:,:,:,nq) * q(:,:,:,nq+1)
+       case (fun_div)
+          q(:,:,:,nq) = q(:,:,:,nq) / q(:,:,:,nq+1)
+       case (fun_power)
+          q(:,:,:,nq) = q(:,:,:,nq) ** q(:,:,:,nq+1)
+       case (fun_modulo)
+          q(:,:,:,nq) = modulo(q(:,:,:,nq),q(:,:,:,nq+1))
+       case (fun_atan2)
+          q(:,:,:,nq) = atan2(q(:,:,:,nq),q(:,:,:,nq+1))
+       case (fun_min)
+          q(:,:,:,nq) = min(q(:,:,:,nq),q(:,:,:,nq+1))
+       case (fun_max)
+          q(:,:,:,nq) = max(q(:,:,:,nq),q(:,:,:,nq+1))
+       case (fun_great)
+          where (q(:,:,:,nq) > q(:,:,:,nq+1))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_less)
+          where (q(:,:,:,nq) < q(:,:,:,nq+1))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_leq)
+          where (q(:,:,:,nq) <= q(:,:,:,nq+1))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_geq)
+          where (q(:,:,:,nq) >= q(:,:,:,nq+1))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_equal)
+          where (q(:,:,:,nq) == q(:,:,:,nq+1))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_neq)
+          where (q(:,:,:,nq) /= q(:,:,:,nq+1))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_and)
+          where (.not.(q(:,:,:,nq)==0d0).and..not.(q(:,:,:,nq+1)==0d0))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       case (fun_or)
+          where (.not.(q(:,:,:,nq)==0d0).or..not.(q(:,:,:,nq+1)==0d0))
+             q(:,:,:,nq) = 1d0
+          elsewhere
+             q(:,:,:,nq) = 0d0
+          end where
+       end select
+    elseif (istype(c,'unary')) then
+       ! a unary operator or function
+       if (nq < 1) goto 999
+       select case(c)
+       case (fun_uplus)
+          q(:,:,:,nq) = +q(:,:,:,nq)
+       case (fun_uminus)
+          q(:,:,:,nq) = -q(:,:,:,nq)
+       case (fun_abs)
+          q(:,:,:,nq) = abs(q(:,:,:,nq))
+       case (fun_exp)
+          q(:,:,:,nq) = exp(q(:,:,:,nq))
+       case (fun_sqrt)
+          q(:,:,:,nq) = sqrt(q(:,:,:,nq))
+       case (fun_floor)
+          q(:,:,:,nq) = floor(q(:,:,:,nq))
+       case (fun_ceiling)
+          q(:,:,:,nq) = ceiling(q(:,:,:,nq))
+       case (fun_round)
+          q(:,:,:,nq) = nint(q(:,:,:,nq))
+       case (fun_log)
+          q(:,:,:,nq) = log(q(:,:,:,nq))
+       case (fun_log10)
+          q(:,:,:,nq) = log10(q(:,:,:,nq))
+       case (fun_sin)
+          q(:,:,:,nq) = sin(q(:,:,:,nq))
+       case (fun_asin)
+          q(:,:,:,nq) = asin(q(:,:,:,nq))
+       case (fun_cos)
+          q(:,:,:,nq) = cos(q(:,:,:,nq))
+       case (fun_acos)
+          q(:,:,:,nq) = acos(q(:,:,:,nq))
+       case (fun_tan)
+          q(:,:,:,nq) = tan(q(:,:,:,nq))
+       case (fun_atan)
+          q(:,:,:,nq) = atan(q(:,:,:,nq))
+       case (fun_sinh)
+          q(:,:,:,nq) = sinh(q(:,:,:,nq))
+       case (fun_cosh)
+          q(:,:,:,nq) = cosh(q(:,:,:,nq))
+       case (fun_erf)
+          q(:,:,:,nq) = erf(q(:,:,:,nq))
+       case (fun_erfc)
+          q(:,:,:,nq) = erfc(q(:,:,:,nq))
+       end select
+    else
+       goto 999
+    end if
+
+    return
+999 continue
+    fail = .true.
+
+  end subroutine pop_grid
 
 end module grid3mod

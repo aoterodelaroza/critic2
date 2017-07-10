@@ -42,8 +42,6 @@ module tools_math
   public :: detsym
   public :: det
   public :: matinv
-  public :: erf
-  public :: erfc
   public :: plane_scale_extend
   public :: assign_ziso
   public :: comb
@@ -814,103 +812,6 @@ contains
     matinv = transpose(matinv) / det(m)
 
   end function matinv
-
-  !!! erf(x) and erfc(x) shamelessly ripped from quantum espresso.
-  !> Error function
-  !>
-  !> Copyright (C) 2002-2009 Quantum ESPRESSO group
-  !> This file is distributed under the terms of the
-  !> GNU General Public License. See the file `License'
-  !> in the root directory of the present distribution,
-  !> or http://www.gnu.org/copyleft/gpl.txt .
-  !>
-  !> Error function - computed from the rational approximations of
-  !> W. J. Cody, Math. Comp. 22 (1969), pages 631-637.
-  !> for abs(x) le 0.47 erf is calculated directly
-  !> for abs(x) gt 0.47 erf is calculated via erf(x)=1-erfc(x)
-  function erf (x)  
-    real*8, intent(in) :: x !< erf input parameter
-
-    real*8 :: x2, p1 (4), q1 (4)
-    real*8 :: erf
-    data p1 / 2.426679552305318d2, 2.197926161829415d1, &
-       6.996383488619136d0,  -3.560984370181538d-2 /
-    data q1 / 2.150588758698612d2, 9.116490540451490d1, &
-       1.508279763040779d1, 1.000000000000000d0 /
-    !
-    if (abs (x) > 6.0d0) then  
-       !  erf(6)=1-10^(-17) cannot be distinguished from 1
-       erf = sign (1.0d0, x)  
-    else  
-       if (abs (x)  <= 0.47d0) then  
-          x2 = x**2  
-          erf=x *(p1 (1) + x2 * (p1 (2) + x2 * (p1 (3) + x2 * p1 (4) ) ) ) &
-             / (q1 (1) + x2 * (q1 (2) + x2 * (q1 (3) + x2 * q1 (4) ) ) )
-       else  
-          erf = 1.0d0 - erfc (x)  
-       endif
-    endif
-    !
-    return  
-  end function erf
-
-  !!! erf(x) and erfc(x) shamelessly ripped from quantum espresso.
-  !> Complementary error function
-  !>
-  !> Copyright (C) 2002-2009 Quantum ESPRESSO group
-  !> This file is distributed under the terms of the
-  !> GNU General Public License. See the file `License'
-  !> in the root directory of the present distribution,
-  !> or http://www.gnu.org/copyleft/gpl.txt .
-  !>
-  !> erfc(x) = 1-erf(x)  - See comments in erf
-  function erfc (x)  
-    real*8,intent(in) :: x !< erfc function argument
-
-    real*8            :: erfc
-    real*8 :: ax, x2, xm2, p2 (8), q2 (8), p3 (5), q3 (5), pim1
-    data p2 / 3.004592610201616d2,  4.519189537118719d2, &
-       3.393208167343437d2,  1.529892850469404d2, &
-       4.316222722205674d1,  7.211758250883094d0,   &
-       5.641955174789740d-1,-1.368648573827167d-7 /
-    data q2 / 3.004592609569833d2,  7.909509253278980d2, &
-       9.313540948506096d2,  6.389802644656312d2, &
-       2.775854447439876d2,  7.700015293522947d1, &
-       1.278272731962942d1,  1.000000000000000d0 /
-    data p3 /-2.996107077035422d-3,-4.947309106232507d-2, &
-       -2.269565935396869d-1,-2.786613086096478d-1, &
-       -2.231924597341847d-2 /
-    data q3 / 1.062092305284679d-2, 1.913089261078298d-1, &
-       1.051675107067932d0,    1.987332018171353d0,    &
-       1.000000000000000d0 /
-
-    data pim1 / 0.56418958354775629d0 /  
-    ! ( pim1= sqrt(1/pi) )
-    ax = abs (x)  
-    if (ax > 26.0d0) then  
-       !  erfc(26.0)=10^(-296); erfc( 9.0)=10^(-37);
-       erfc = 0.0d0  
-    elseif (ax > 4.0d0) then  
-       x2 = x**2  
-       xm2 = (1.0d0 / ax) **2  
-       erfc = (1.0d0 / ax) * exp ( - x2) * (pim1 + xm2 * (p3 (1) &
-          + xm2 * (p3 (2) + xm2 * (p3 (3) + xm2 * (p3 (4) + xm2 * p3 (5) &
-          ) ) ) ) / (q3 (1) + xm2 * (q3 (2) + xm2 * (q3 (3) + xm2 * &
-          (q3 (4) + xm2 * q3 (5) ) ) ) ) )
-    elseif (ax > 0.47d0) then  
-       x2 = x**2  
-       erfc = exp ( - x2) * (p2 (1) + ax * (p2 (2) + ax * (p2 (3) &
-          + ax * (p2 (4) + ax * (p2 (5) + ax * (p2 (6) + ax * (p2 (7) &
-          + ax * p2 (8) ) ) ) ) ) ) ) / (q2 (1) + ax * (q2 (2) + ax * &
-          (q2 (3) + ax * (q2 (4) + ax * (q2 (5) + ax * (q2 (6) + ax * &
-          (q2 (7) + ax * q2 (8) ) ) ) ) ) ) )
-    else  
-       erfc = 1.0d0 - erf (ax)  
-    endif
-    ! erf(-x)=-erf(x)  =>  erfc(-x) = 2-erfc(x)
-    if (x < 0.0d0) erfc = 2.0d0 - erfc  
-    return  
-  end function erfc
 
   !> Scale or extend the plane defined by points x0, x1, x2 (Cartesian)
   !> with scale factors sxi, syi (default: 1) and extend factors

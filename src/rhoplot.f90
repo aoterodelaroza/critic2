@@ -361,7 +361,7 @@ contains
 
   ! Calculate properties on a 3d cube
   subroutine rhoplot_cube(line)
-    use systemmod, only: sy
+    use systemmod, only: sy, field_cube
     use fieldmod, only: type_grid
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, fileroot
@@ -577,52 +577,61 @@ contains
           call sy%c%writegrid_vasp(faux%f,outfile,.false.)
        end if
     else
+       if (useexpr) then
+          call faux%new_eval(nn,expr,sy%fh,field_cube)
+          ok = faux%isinit
+       end if
        allocate(lf(nn(1),nn(2),nn(3)))
-       !$omp parallel do private (xp,res,lappt) schedule(dynamic)
-       do iz = 0, nn(3)-1
-          do iy = 0, nn(2)-1
-             do ix = 0, nn(1)-1
-                xp = x0 + real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
-                   + real(iz,8) * xd(:,3)
+       if (ok) then
+          lf = faux%f
+          call faux%end()
+       else
+          !$omp parallel do private (xp,res,lappt) schedule(dynamic)
+          do iz = 0, nn(3)-1
+             do iy = 0, nn(2)-1
+                do ix = 0, nn(1)-1
+                   xp = x0 + real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
+                      + real(iz,8) * xd(:,3)
 
-                if (.not.useexpr) then
-                   call sy%f(id)%grd(xp,2,.not.sy%c%ismolecule,res0_noalloc=res)
-                   select case(nti)
-                   case (0)
-                      lappt = res%f
-                   case (1)
-                      lappt = res%gf(1)
-                   case (2)
-                      lappt = res%gf(2)
-                   case (3)
-                      lappt = res%gf(3)
-                   case (4)
-                      lappt = res%gfmod
-                   case (5)
-                      lappt = res%hf(1,1)
-                   case (6)
-                      lappt = res%hf(1,2)
-                   case (7)
-                      lappt = res%hf(1,3)
-                   case (8)
-                      lappt = res%hf(2,2)
-                   case (9)
-                      lappt = res%hf(2,3)
-                   case (10)
-                      lappt = res%hf(3,3)
-                   case (11)
-                      lappt = res%del2f
-                   end select
-                else
-                   lappt = sy%eval(expr,.true.,iok,xp)
-                end if
-                !$omp critical (fieldwrite)
-                lf(ix+1,iy+1,iz+1) = lappt
-                !$omp end critical (fieldwrite)
+                   if (.not.useexpr) then
+                      call sy%f(id)%grd(xp,2,.not.sy%c%ismolecule,res0_noalloc=res)
+                      select case(nti)
+                      case (0)
+                         lappt = res%f
+                      case (1)
+                         lappt = res%gf(1)
+                      case (2)
+                         lappt = res%gf(2)
+                      case (3)
+                         lappt = res%gf(3)
+                      case (4)
+                         lappt = res%gfmod
+                      case (5)
+                         lappt = res%hf(1,1)
+                      case (6)
+                         lappt = res%hf(1,2)
+                      case (7)
+                         lappt = res%hf(1,3)
+                      case (8)
+                         lappt = res%hf(2,2)
+                      case (9)
+                         lappt = res%hf(2,3)
+                      case (10)
+                         lappt = res%hf(3,3)
+                      case (11)
+                         lappt = res%del2f
+                      end select
+                   else
+                      lappt = sy%eval(expr,.true.,iok,xp)
+                   end if
+                   !$omp critical (fieldwrite)
+                   lf(ix+1,iy+1,iz+1) = lappt
+                   !$omp end critical (fieldwrite)
+                end do
              end do
           end do
-       end do
-       !$omp end parallel do
+          !$omp end parallel do
+       end if
        ! cube body
        if (iscube) then
           call sy%c%writegrid_cube(lf,outfile,.false.,xd,x0+sy%c%molx0)
