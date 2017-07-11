@@ -36,6 +36,9 @@ module fragmentmod
      procedure :: append
      procedure :: merge_array
      procedure :: cmass
+     procedure :: writexyz
+     procedure :: writecml
+     procedure :: writegjf
   end type fragment
 
 contains
@@ -189,5 +192,126 @@ contains
     call move_alloc(temp,a)
 
   end subroutine realloc_fragment
+
+  !> write an xyz-style file from an array of atomic coordinates.
+  subroutine writexyz(fr,file)
+    use tools_io, only: fopen_write, nameguess, fclose
+    use param, only: bohrtoa
+    class(fragment), intent(in) :: fr
+    character*(*), intent(in) :: file
+
+    integer :: i, lu
+
+    ! write it
+    lu = fopen_write(file)
+    write (lu,*) fr%nat
+    write (lu,*)
+    do i = 1, fr%nat
+       if (fr%at(i)%z >= 0) then
+          write (lu,*) nameguess(fr%at(i)%z,.true.), fr%at(i)%r * bohrtoa
+       end if
+    end do
+    call fclose(lu)
+
+  end subroutine writexyz
+
+  !> Write a cml file (molecule) from an array of atomic coordinates. 
+  subroutine writecml(fr,file,r,luout)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: pi, bohrtoa
+    class(fragment), intent(in) :: fr
+    character*(*), intent(in) :: file
+    real*8, intent(in), optional :: r(3,3)
+    integer, intent(out), optional :: luout
+
+    integer :: i, j, lu
+    real*8 :: g(3,3), aa(3), bb(3), x(3), ri(3,3)
+
+    ! write it
+    lu = fopen_write(file)
+    write (lu,'("<molecule>")')
+
+    ! crystal structure
+    if (present(r)) then
+       ri = matinv(r)
+       g = matmul(transpose(r),r)
+       do i = 1, 3
+          aa(i) = sqrt(g(i,i)) 
+       end do
+       bb(1) = acos(g(2,3) / aa(2) / aa(3)) * 180d0 / pi
+       bb(2) = acos(g(1,3) / aa(1) / aa(3)) * 180d0 / pi
+       bb(3) = acos(g(1,2) / aa(1) / aa(2)) * 180d0 / pi
+       aa = aa * bohrtoa
+       write (lu,'(" <crystal>")')
+       write (lu,'("  <scalar title=""a"" units=""units:angstrom"">",A,"</scalar>")') string(aa(1),'f',decimal=8)
+       write (lu,'("  <scalar title=""b"" units=""units:angstrom"">",A,"</scalar>")') string(aa(2),'f',decimal=8)
+       write (lu,'("  <scalar title=""c"" units=""units:angstrom"">",A,"</scalar>")') string(aa(3),'f',decimal=8)
+       write (lu,'("  <scalar title=""alpha"" units=""units:degree"">",A,"</scalar>")') string(bb(1),'f',decimal=4)
+       write (lu,'("  <scalar title=""beta"" units=""units:degree"">",A,"</scalar>")') string(bb(2),'f',decimal=4)
+       write (lu,'("  <scalar title=""gamma"" units=""units:degree"">",A,"</scalar>")') string(bb(3),'f',decimal=4)
+       write (lu,'("  <symmetry spaceGroup=""P 1"">")')
+       write (lu,'("   <transform3>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</transform3>")')
+       write (lu,'("  </symmetry>")')
+       write (lu,'(" </crystal>")')
+    end if
+
+    write (lu,'(" <atomArray>")')
+    do i = 1, fr%nat
+       if (fr%at(i)%z >= 0) then
+          if (present(r)) then
+             x = matmul(ri,fr%at(i)%r)
+             write (lu,'("<atom id=""a",A,""" elementType=""",A,""" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")') &
+                string(i), trim(nameguess(fr%at(i)%z,.true.)), (trim(string(x(j),'f',18,10)),j=1,3)
+          else
+             write (lu,'("<atom id=""a",A,""" elementType=""",A,""" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
+                string(i), trim(nameguess(fr%at(i)%z,.true.)), &
+                (trim(string(fr%at(i)%r(j) * bohrtoa,'f',18,10)),j=1,3)
+          end if
+       end if
+    end do
+    if (present(luout)) then
+       luout = lu
+    else
+       write (lu,'(" </atomArray>")')
+       write (lu,'("</molecule>")')
+       call fclose(lu)
+    end if
+
+  end subroutine writecml
+
+  !> write an Gaussian-style input file from an array of atomic coordinates.
+  subroutine writegjf(fr,file)
+    use tools_io, only: fopen_write, string, nameguess, fclose
+    use param, only: bohrtoa
+    class(fragment), intent(in) :: fr
+    character*(*), intent(in) :: file
+
+    character(len=:), allocatable :: aux
+    integer :: i, lu, isum
+
+    aux = file
+
+    ! write it
+    lu = fopen_write(aux)
+    write (lu,'("#p b3lyp sto-3g")')
+    write (lu,'("")')
+    write (lu,'("title")')
+    write (lu,'("")')
+
+    isum = 0
+    do i = 1, fr%nat
+       if (fr%at(i)%z > 0) isum = isum + fr%at(i)%z
+    end do
+    write (lu,'("0 ",A)') string(2*modulo(isum,2)+1)
+    do i = 1, fr%nat
+       if (fr%at(i)%z > 0) then
+          write (lu,*) nameguess(fr%at(i)%z,.true.), fr%at(i)%r * bohrtoa
+       end if
+    end do
+    write (lu,'("")')
+    call fclose(lu)
+
+  end subroutine writegjf
 
 end module fragmentmod

@@ -36,7 +36,6 @@ contains
     use struct_drivers, only: struct_write
     use grid1mod, only: agrid
     use global, only: fileroot, eval_next, dunit0, quiet, iunit, iunitname0
-    use graphics, only: writexyz
     use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
@@ -641,11 +640,11 @@ contains
                  end do
               end do
            end do
-           call writexyz(file,fr0)
+           call fr0%writexyz(file)
         end if
      else
         call fr0%merge_array(fr(1:nfrag),.false.)
-        call writexyz(file,fr0)
+        call fr0%writexyz(file)
      end if
 
      ! ! write vmd script

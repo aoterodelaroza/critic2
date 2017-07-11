@@ -4438,7 +4438,6 @@ contains
   subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
     use global, only: dunit0, iunit
-    use graphics, only: writecml, writexyz, writegjf
     use tools_math, only: norm, nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
        equal
@@ -4662,14 +4661,14 @@ contains
       type(fragment) :: fro
       
       if (equal(fmt,"xyz")) then
-         call writexyz(fileo,fro)
+         call fro%writexyz(fileo)
       elseif (equal(fmt,"gjf")) then
-         call writegjf(fileo,fro)
+         call fro%writegjf(fileo)
       elseif (equal(fmt,"cml")) then
          if (c%ismolecule) then
-            call writecml(fileo,fro,luout=luout)
+            call fro%writecml(fileo,luout=luout)
          else
-            call writecml(fileo,fro,c%crys2car,luout=luout)
+            call fro%writecml(fileo,c%crys2car,luout=luout)
          end if
       else
          call ferror("write_mol","Unknown format",faterr)
