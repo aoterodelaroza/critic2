@@ -269,6 +269,9 @@ contains
                 if (nal > 0) &
                    write (uout,'("  Alias for this field (",A,"):",A)') string(nal), str
              end if
+             if (s%iref == i) then
+                write (uout,'("  This is the REFERENCE field.")') 
+             end if
              write (uout,*)
           end if
        end do
