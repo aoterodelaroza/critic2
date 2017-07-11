@@ -20,14 +20,37 @@ module graphics
   implicit none
   
   private
-  public :: graphics_init
-  public :: graphics_open
-  public :: graphics_close
-  public :: graphics_ball
-  public :: graphics_polygon
-  public :: graphics_stick
-  public :: graphics_surf
-  private :: graphics_checkfmt
+
+  type grhandle
+     integer :: lu = 0 !< Logical unit for the graphics file
+     integer :: lumtl = 0 !< Logical unit for the matierlas file (obj format)
+     integer :: fmt = 0 !< File format
+     character*(255) :: file = "" !< File name
+     integer :: nball = 0 !< Number of balls
+     integer :: nstick = 0 !< Number of sticks
+     integer :: nsurf = 0 !< Number of surfaces
+     integer :: nface = 0 !< Number of faces
+     integer :: nmtl = 0 !< Number of materials
+     integer :: nv = 0 !< Number of vertices
+     integer :: nf = 0 !< Number of faces
+     integer, allocatable :: mtlrgb(:,:) !< Material definitions
+   contains
+     procedure :: open => graphics_open
+     procedure :: close => graphics_close
+     procedure :: ball => graphics_ball
+     procedure :: polygon => graphics_polygon
+     procedure :: stick => graphics_stick
+     procedure :: surf => graphics_surf
+  end type grhandle
+  public :: grhandle
+
+  private :: graphics_init
+  private :: graphics_open
+  private :: graphics_close
+  private :: graphics_ball
+  private :: graphics_polygon
+  private :: graphics_stick
+  private :: graphics_surf
   private :: obj_open
   private :: obj_close
   private :: obj_ball
@@ -49,11 +72,7 @@ module graphics
   private :: off_surf
 
   ! graphics database
-  logical :: isopen
-  integer :: nball, nstick, nsurf, nface
-  integer :: nmtl
-  integer, allocatable :: mtlrgb(:,:)
-  integer :: nv, nf
+  logical :: isinit = .false.
 
   ! icosahedron models
   integer :: nvsph(0:2), nfsph(0:2)
@@ -64,6 +83,12 @@ module graphics
   integer :: nvcyl(0:1), nfcyl(0:1)
   real*8 :: vcyl(3,34,0:1)
   integer :: fcyl(3,64,0:1)
+
+  ! formats
+  integer, parameter :: ifmt_unk = 0
+  integer, parameter :: ifmt_obj = 1
+  integer, parameter :: ifmt_ply = 2
+  integer, parameter :: ifmt_off = 3
 
 contains
 
@@ -412,76 +437,86 @@ contains
        17, 32,  1/),(/3,64/))
 
     ! nullify the graphics database
-    isopen = .false.
-    nball = 0
-    nface = 0
-    nstick = 0
-    nsurf = 0
-    nmtl = 0
-    nv = 0
-    nf = 0
+    isinit = .true.
 
   end subroutine graphics_init
 
   !> Open a graphics file (file) with format fmt. Returns the logical
   !> unit and (in obj files) the mtl file.
-  subroutine graphics_open(fmt,file,lu,lumtl)
-    use tools_io, only: faterr, ferror, equal
+  subroutine graphics_open(g,fmt,file)
+    use tools_io, only: equal, lower
+    class(grhandle), intent(inout) :: g
     character*3, intent(in) :: fmt
     character*(*), intent(in) :: file
-    integer, intent(out) :: lu
-    integer, intent(out), optional :: lumtl
 
-    call graphics_checkfmt(fmt)
-    if (equal(fmt,"obj")) then
-       if (.not.present(lumtl)) &
-          call ferror("graphics_open","mtl LU argument not found",faterr)
-       call obj_open(file,lu,lumtl)
-    elseif (equal(fmt,"ply")) then
-       call ply_open(file,lu)
-    elseif (equal(fmt,"off")) then
-       call off_open(file,lu)
+    character*3 :: fmt0
+
+    if (.not.isinit) then
+       !$omp critical (initgraph)
+       call graphics_init()
+       !$omp end critical (initgraph)
+    end if
+
+    fmt0 = lower(fmt)
+    if (.not.(equal(fmt0,"obj") .or. equal(fmt0,"ply") .or. equal(fmt0,"off"))) &
+       return
+    g%file = adjustl(file)
+
+    if (equal(fmt0,"obj")) then
+       g%fmt = ifmt_obj
+       call obj_open(g)
+    elseif (equal(fmt0,"ply")) then
+       g%fmt = ifmt_ply
+       call ply_open(g)
+    elseif (equal(fmt0,"off")) then
+       g%fmt = ifmt_off
+       call off_open(g)
     end if
 
   end subroutine graphics_open
 
   !> Open a graphics file (lu, lumtl) with format fmt.
-  subroutine graphics_close(fmt,lu,lumtl)
-    use tools_io, only: ferror, faterr, equal
-    character*3, intent(in) :: fmt
-    integer, intent(in) :: lu
-    integer, intent(in), optional :: lumtl
+  subroutine graphics_close(g)
+    use tools_io, only: equal
+    class(grhandle), intent(inout) :: g
 
-    call graphics_checkfmt(fmt)
-    if (equal(fmt,"obj")) then
-       if (.not.present(lumtl)) &
-          call ferror("graphics_close","mtl LU argument not found",faterr)
-       call obj_close(lu,lumtl)
-    elseif (equal(fmt,"ply")) then
-       call ply_close(lu)
-    elseif (equal(fmt,"off")) then
-       call off_close(lu)
+    if (g%fmt == ifmt_obj) then
+       call obj_close(g)
+    elseif (g%fmt == ifmt_ply) then 
+       call ply_close(g)
+    elseif (g%fmt == ifmt_off) then
+       call off_close(g)
     end if
+    g%lu = 0
+    g%lumtl = 0
+    g%fmt = ifmt_unk
+    g%file = ""
+    g%nball = 0
+    g%nface = 0
+    g%nstick = 0
+    g%nsurf = 0
+    g%nmtl = 0
+    g%nv = 0
+    g%nf = 0
+    if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
 
   end subroutine graphics_close
 
-  !> Write a ball to graphics file with LU lu and format fmt.  The
+  !> Write a ball to graphics file with LU lu and format fmt. The
   !> center is at x and the radius is r. rgb is the color.
-  subroutine graphics_ball(fmt,lu,x,rgb,r)
+  subroutine graphics_ball(g,x,rgb,r)
     use tools_io, only: equal
-    character*3, intent(in) :: fmt
-    integer, intent(in) :: lu
+    class(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
-    call graphics_checkfmt(fmt)
-    if (equal(fmt,"obj")) then
-       call obj_ball(lu,x,rgb,r)
-    elseif (equal(fmt,"ply")) then
-       call ply_ball(lu,x,rgb,r)
-    elseif (equal(fmt,"off")) then
-       call off_ball(lu,x,rgb,r)
+    if (g%fmt == ifmt_obj) then
+       call obj_ball(g,x,rgb,r)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_ball(g,x,rgb,r)
+    elseif (g%fmt == ifmt_off) then
+       call off_ball(g,x,rgb,r)
     end if
 
   end subroutine graphics_ball
@@ -489,20 +524,18 @@ contains
   !> Write a polygon to graphics file with LU lu and format fmt.  The
   !> vertices are in x, and are assumed to be consecutive. rgb is the
   !> color.
-  subroutine graphics_polygon(fmt,lu,x,rgb)
+  subroutine graphics_polygon(g,x,rgb)
     use tools_io, only: equal
-    character*3, intent(in) :: fmt
-    integer, intent(in) :: lu
+    class(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
 
-    call graphics_checkfmt(fmt)
-    if (equal(fmt,"obj")) then
-       call obj_polygon(lu,x,rgb)
-    elseif (equal(fmt,"ply")) then
-       call ply_polygon(lu,x,rgb)
-    elseif (equal(fmt,"off")) then
-       call off_polygon(lu,x,rgb)
+    if (g%fmt == ifmt_obj) then
+       call obj_polygon(g,x,rgb)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_polygon(g,x,rgb)
+    elseif (g%fmt == ifmt_off) then
+       call off_polygon(g,x,rgb)
     end if
 
   end subroutine graphics_polygon
@@ -510,144 +543,120 @@ contains
   !> Write a stick to graphics file with LU lu and format fmt.  The
   !> vertices are in x, and are assumed to be consecutive. rgb is the
   !> color.
-  subroutine graphics_stick(fmt,lu,x1,x2,rgb,r)
+  subroutine graphics_stick(g,x1,x2,rgb,r)
     use tools_io, only: equal
-    character*3, intent(in) :: fmt
-    integer, intent(in) :: lu
+    class(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
-    call graphics_checkfmt(fmt)
-    if (equal(fmt,"obj")) then
-       call obj_stick(lu,x1,x2,rgb,r)
-    elseif (equal(fmt,"ply")) then
-       call ply_stick(lu,x1,x2,rgb,r)
-    elseif (equal(fmt,"off")) then
-       call off_stick(lu,x1,x2,rgb,r)
+    if (g%fmt == ifmt_obj) then
+       call obj_stick(g,x1,x2,rgb,r)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_stick(g,x1,x2,rgb,r)
+    elseif (g%fmt == ifmt_off) then
+       call off_stick(g,x1,x2,rgb,r)
     end if
 
   end subroutine graphics_stick
 
   !> Write a surface (srf with colors fsurf) to graphics file with LU
   !> lu and format fmt.
-  subroutine graphics_surf(fmt,lu,srf,fsurf)
+  subroutine graphics_surf(g,srf,fsurf)
     use tools_io, only: equal
     use surface, only: minisurf
-    character*3, intent(in) :: fmt
-    integer, intent(in) :: lu
+    class(grhandle), intent(inout) :: g
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
 
-    call graphics_checkfmt(fmt)
-    if (equal(fmt,"obj")) then
-       call obj_surf(lu,srf,fsurf)
-    elseif (equal(fmt,"ply")) then
-       call ply_surf(lu,srf,fsurf)
-    elseif (equal(fmt,"off")) then
-       call off_surf(lu,srf,fsurf)
+    if (g%fmt == ifmt_obj) then
+       call obj_surf(g,srf,fsurf)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_surf(g,srf,fsurf)
+    elseif (g%fmt == ifmt_off) then
+       call off_surf(g,srf,fsurf)
     end if
 
   end subroutine graphics_surf
 
-  subroutine graphics_checkfmt(fmt) 
-    use tools_io, only: equal, ferror, faterr
-    character*3, intent(in) :: fmt
-
-    if (.not.(equal(fmt,"obj") .or. equal(fmt,"ply") .or. equal(fmt,"off"))) &
-       call ferror("graphics_checkfmt","unknown graphics format "//fmt,faterr)
-
-  end subroutine graphics_checkfmt
-
   !> Open an obj file (and its mtl companion)
-  subroutine obj_open(file,luobj,lumtl)
+  subroutine obj_open(g)
     use tools_io, only: faterr, ferror, fopen_write
-    character*(*), intent(in) :: file
-    integer, intent(out) :: luobj, lumtl
+    type(grhandle), intent(inout) :: g
 
     integer :: idx
-    character*(len(file)) :: filemtl
-
-    if (isopen) &
-       call ferror('obj_open','error opening graphics file: one is already open',faterr)
-    isopen = .true.
+    character(len=:), allocatable :: filemtl, aux
 
     ! open the obj
-    luobj = fopen_write(file)
+    g%lu = fopen_write(g%file)
 
     ! name of the mtl
-    filemtl = file
+    filemtl = g%file
     idx = index(filemtl,'.',.true.)
     if (idx==0) call ferror("obj_open","could not parse file name",faterr)
-    filemtl = trim(filemtl(1:idx-1)) // ".mtl"
+    aux = trim(filemtl(1:idx-1)) // ".mtl"
+    filemtl = aux
 
     ! open the mtl
-    lumtl = fopen_write(filemtl)
+    g%lumtl = fopen_write(filemtl)
 
     ! clear and initialize the mtl database
-    nmtl = 0
-    nball = 0
-    nface = 0
-    nstick = 0
-    nv = 0
-    if (allocated(mtlrgb)) deallocate(mtlrgb)
-    allocate(mtlrgb(3,10))
+    g%nmtl = 0
+    g%nball = 0
+    g%nface = 0
+    g%nstick = 0
+    g%nv = 0
+    if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
+    allocate(g%mtlrgb(3,10))
 
     ! write the obj header
-    write (luobj,'("# OBJ created by critic2")')
-    write (luobj,'("mtllib ",A)') trim(filemtl)
+    write (g%lu,'("# OBJ created by critic2")')
+    write (g%lu,'("mtllib ",A)') trim(filemtl)
 
   end subroutine obj_open
 
   !> Close an obj file (and its mtl companion)
-  subroutine obj_close(luobj,lumtl)
+  subroutine obj_close(g)
     use tools_io, only: ferror, faterr, string, fclose
-    integer, intent(in) :: luobj, lumtl
+    type(grhandle), intent(inout) :: g
 
     integer :: i
 
-    if (.not.isopen) &
-       call ferror('obj_close','error: graphics file is not open',faterr)
-
     ! write the mtl 
-    do i = 1, nmtl
-       write (lumtl,'("newmtl mat",A)') string(i)
-       write (lumtl,'("Ns 96.078")')
-       write (lumtl,'("Ka 0.0 0.0 0.0")')
-       write (lumtl,'("Kd ",3(F12.5,X))') real(mtlrgb(:,i),8)/255d0
-       write (lumtl,'("Ks 0.5 0.5 0.5")')
-       write (lumtl,'("Ni 1.0")')
-       write (lumtl,'("illum 2")')
-       write (lumtl,*)
+    do i = 1, g%nmtl
+       write (g%lumtl,'("newmtl mat",A)') string(i)
+       write (g%lumtl,'("Ns 96.078")')
+       write (g%lumtl,'("Ka 0.0 0.0 0.0")')
+       write (g%lumtl,'("Kd ",3(F12.5,X))') real(g%mtlrgb(:,i),8)/255d0
+       write (g%lumtl,'("Ks 0.5 0.5 0.5")')
+       write (g%lumtl,'("Ni 1.0")')
+       write (g%lumtl,'("illum 2")')
+       write (g%lumtl,*)
     end do
 
     ! clear the mtl database
-    nmtl = 0
-    nball = 0
-    nface = 0
-    nstick = 0
-    nv = 0
-    deallocate(mtlrgb)
+    g%nmtl = 0
+    g%nball = 0
+    g%nface = 0
+    g%nstick = 0
+    g%nv = 0
+    deallocate(g%mtlrgb)
 
     ! close both files
-    call fclose(luobj)
-    call fclose(lumtl)
-    isopen = .false.
+    call fclose(g%lu)
+    call fclose(g%lumtl)
 
   end subroutine obj_close
 
   !> Write a ball to the obj file
-  subroutine obj_ball(luobj,x,rgb,r)
+  subroutine obj_ball(g,x,rgb,r)
     use tools_io, only: ferror, faterr, string
-    integer, intent(in) :: luobj
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
     integer :: imtl, i, lvl
-
-    if (.not.isopen) &
-       call ferror('obj_ball','error: graphics file is not open',faterr)
 
     ! ball detail
     if (r > 0.5) then
@@ -659,69 +668,63 @@ contains
     endif
 
     ! write the ball to the obj
-    nball = nball+1
-    write (luobj,'("o ball_",A)') string(nball)
-    write (luobj,'("s on")')
-    imtl = register_texture(rgb)
-    write (luobj,'("usemtl mat",A)') string(imtl)
+    g%nball = g%nball + 1
+    write (g%lu,'("o ball_",A)') string(g%nball)
+    write (g%lu,'("s on")')
+    imtl = register_texture(g,rgb)
+    write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvsph(lvl)
-       write (luobj,'("v ",3(F20.12,X))') x + r * vsph(:,i,lvl)
+       write (g%lu,'("v ",3(F20.12,X))') x + r * vsph(:,i,lvl)
     end do
     do i = 1, nfsph(lvl)
-       write (luobj,'("f ",3(I10,X))') nv + fsph(:,i,lvl)
+       write (g%lu,'("f ",3(I10,X))') g%nv + fsph(:,i,lvl)
     end do
-    nv = nv + nvsph(lvl)
+    g%nv = g%nv + nvsph(lvl)
 
   end subroutine obj_ball
 
   !> Write a polygon to the obj file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  subroutine obj_polygon(luobj,x,rgb)
+  subroutine obj_polygon(g,x,rgb)
     use tools_io, only: ferror, faterr, string
-    integer, intent(in) :: luobj
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
 
     integer :: imtl, i, n
     character(len=:), allocatable :: str, aux
 
-    if (.not.isopen) &
-       call ferror('obj_polygon','error: graphics file is not open',faterr)
-
     ! write the face to the obj
     n = size(x,2)
-    nface = nface+1
-    write (luobj,'("o face_",A)') string(nface)
-    write (luobj,'("s on")')
-    imtl = register_texture(rgb)
-    write (luobj,'("usemtl mat",A)') string(imtl)
+    g%nface = g%nface + 1
+    write (g%lu,'("o face_",A)') string(g%nface)
+    write (g%lu,'("s on")')
+    imtl = register_texture(g,rgb)
+    write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, n
-       write (luobj,'("v ",3(F20.12,X))') x(:,i)
+       write (g%lu,'("v ",3(F20.12,X))') x(:,i)
     end do
     str = ""
     do i = 1, n
-       aux = str // string(nv+i) // " "
+       aux = str // string(g%nv+i) // " "
        str = aux
     end do
-    write (luobj,'("f ",A)') str
-    nv = nv + n
+    write (g%lu,'("f ",A)') str
+    g%nv = g%nv + n
 
   end subroutine obj_polygon
   
   !> Write a stick to the obj file
-  subroutine obj_stick(luobj,x1,x2,rgb,r)
+  subroutine obj_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, faterr, string
     use tools_math, only: norm, cross
-    integer, intent(in) :: luobj
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
     integer :: imtl, i, lvl
     real*8 :: dist, xd(3), v1(3), v2(3)
-
-    if (.not.isopen) &
-       call ferror('obj_stick','error: graphics file is not open',faterr)
 
     ! stick detail
     if (r > 0.2) then
@@ -750,28 +753,28 @@ contains
     v2 = v2 / norm(v2) * r
 
     ! write the stick to the obj
-    nstick = nstick + 1
-    write (luobj,'("o stick_",A)') string(nstick)
-    write (luobj,'("s on")')
-    imtl = register_texture(rgb)
-    write (luobj,'("usemtl mat",A)') string(imtl)
+    g%nstick = g%nstick + 1
+    write (g%lu,'("o stick_",A)') string(g%nstick)
+    write (g%lu,'("s on")')
+    imtl = register_texture(g,rgb)
+    write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvcyl(lvl)
-       write (luobj,'("v ",3(F20.12,X))') x1+vcyl(1,i,lvl)*v1+&
+       write (g%lu,'("v ",3(F20.12,X))') x1+vcyl(1,i,lvl)*v1+&
           vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd
     end do
     do i = 1, nfcyl(lvl)
-       write (luobj,'("f ",3(I10,X))') nv + fcyl(:,i,lvl)
+       write (g%lu,'("f ",3(I10,X))') g%nv + fcyl(:,i,lvl)
     end do
-    nv = nv + nvcyl(lvl)
+    g%nv = g%nv + nvcyl(lvl)
 
   end subroutine obj_stick
   
   !> Write a surface to the obj file
-  subroutine obj_surf(luobj,srf,fsurf)
+  subroutine obj_surf(g,srf,fsurf)
     use surface, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
-    integer, intent(in) :: luobj
+    type(grhandle), intent(inout) :: g
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
 
@@ -782,8 +785,6 @@ contains
 
     if (srf%isinit <= 1) &
        call ferror ('obj_surf','No face information in minisurf',faterr)
-    if (.not.isopen) &
-       call ferror('obj_surf','error: graphics file is not open',faterr)
 
     ! limits of the color scale
     if (present(fsurf)) then
@@ -796,11 +797,11 @@ contains
     endif
 
     ! write the surface to the obj
-    nsurf = nsurf + 1
-    write (luobj,'("o surf_",A)') string(nsurf)
-    write (luobj,'("s on")')
-    imtl = register_texture(rgb_default)
-    write (luobj,'("usemtl mat",A)') string(imtl)
+    g%nsurf = g%nsurf + 1
+    write (g%lu,'("o surf_",A)') string(g%nsurf)
+    write (g%lu,'("s on")')
+    imtl = register_texture(g,rgb_default)
+    write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, srf%nv
        x = srf%n + (/ srf%r(i) * sin(srf%th(i)) * cos(srf%ph(i)),&
            srf%r(i) * sin(srf%th(i)) * sin(srf%ph(i)),&
@@ -812,84 +813,73 @@ contains
              xrgb(2) = z**3
              xrgb(3) = sin(2*z*pi)
           end if
-          write (luobj,'("v ",3(E20.12,X),3(F8.5,X))') x, xrgb
+          write (g%lu,'("v ",3(E20.12,X),3(F8.5,X))') x, xrgb
        else
-          write (luobj,'("v ",3(E20.12,X))') x
+          write (g%lu,'("v ",3(E20.12,X))') x
        endif
     end do
     do i = 1, srf%nf
-       write (luobj,'("f ",999(I10,X))') &
-          (nv+srf%f(i)%v(j),j=1,srf%f(i)%nv)
+       write (g%lu,'("f ",999(I10,X))') &
+          (g%nv+srf%f(i)%v(j),j=1,srf%f(i)%nv)
     end do
-    nv = nv + srf%nv
+    g%nv = g%nv + srf%nv
 
   end subroutine obj_surf
 
   !> Register a texture using the color triplet.
-  function register_texture(rgb) result(imtl)
+  function register_texture(g,rgb) result(imtl)
     use types, only: realloc
+    type(grhandle), intent(inout) :: g
     integer, intent(in) :: rgb(3)
     integer :: imtl
 
     integer :: i
 
-    do i = 1, nmtl
-       if (all(mtlrgb(:,i)-rgb == 0)) then
+    do i = 1, g%nmtl
+       if (all(g%mtlrgb(:,i)-rgb == 0)) then
           imtl = i
           return
        end if
     end do
-    nmtl = nmtl + 1
-    if (nmtl > size(mtlrgb,2)) call realloc(mtlrgb,3,2*nmtl)
-    mtlrgb(:,nmtl) = rgb
-    imtl = nmtl
+    g%nmtl = g%nmtl + 1
+    if (g%nmtl > size(g%mtlrgb,2)) call realloc(g%mtlrgb,3,2*g%nmtl)
+    g%mtlrgb(:,g%nmtl) = rgb
+    imtl = g%nmtl
 
   end function register_texture
 
   !> Open a ply file
-  subroutine ply_open(file,luply)
+  subroutine ply_open(g)
     use tools_io, only: faterr, ferror, fopen_scratch
-    character*(*), intent(in) :: file
-    integer, intent(out) :: luply
-
-    if (isopen) &
-       call ferror('ply_open','error opening graphics file: one is already open',faterr)
-    isopen = .true.
+    type(grhandle), intent(inout) :: g
 
     ! open the temporary ply file
-    luply = fopen_scratch("formatted")
-
-    ! write the target file name to the scratch file
-    write (luply,'(A)') trim(file)
+    g%lu = fopen_scratch("formatted")
 
     ! clear and initialize the database
-    nv = 0
-    nf = 0
+    g%nv = 0
+    g%nf = 0
 
   end subroutine ply_open
 
   !> Close a ply file 
-  subroutine ply_close(luply)
+  subroutine ply_close(g)
     use tools_io, only: ferror, faterr, getline_raw, fopen_write, string, fclose
-    integer, intent(in) :: luply
+    type(grhandle), intent(inout) :: g
 
     integer :: lu
     character(len=:), allocatable :: file, line
     logical :: ok
 
-    if (.not.isopen) &
-       call ferror('ply_close','error: graphics file is not open',faterr)
-
     ! get the temporary file name from the first line and open
-    rewind(luply)
-    ok = getline_raw(luply,file,.true.)
-    lu = fopen_write(file)
+    rewind(g%lu)
+    lu = fopen_write(g%file)
 
     ! write the header
     write (lu,'("ply ")')
     write (lu,'("format ascii 1.0")')
     write (lu,'("comment PLY created by critic2")')
-    write (lu,'("element vertex ",A)') string(nv)
+    write (lu,'("element vertex ",A)') string(g%nv)
     write (lu,'("property float x")')
     write (lu,'("property float y")')
     write (lu,'("property float z")')
@@ -897,21 +887,21 @@ contains
     write (lu,'("property uchar green")')
     write (lu,'("property uchar blue")')
     write (lu,'("property uchar alpha")')
-    write (lu,'("element face ",A)') string(nf)
+    write (lu,'("element face ",A)') string(g%nf)
     write (lu,'("property list uchar int vertex_indices")')
     write (lu,'("end_header")')
 
     ! transfer the vertices from the scratch file over to the ply file
-    do while(getline_raw(luply,line))
+    do while(getline_raw(g%lu,line))
        if (line(1:1) == "v") then
           write (lu,'(A)') line(2:)
        endif
     end do
 
     ! transfer the faces
-    rewind(luply)
-    ok = getline_raw(luply,file,.true.)
-    do while(getline_raw(luply,line))
+    rewind(g%lu)
+    ok = getline_raw(g%lu,file,.true.)
+    do while(getline_raw(g%lu,line))
        if (line(1:1) == "f") then
           write (lu,'(A)') line(2:)
        endif
@@ -919,27 +909,23 @@ contains
 
     ! close both
     call fclose(lu)
-    call fclose(luply)
-    isopen = .false.
+    call fclose(g%lu)
 
     ! clear the database
-    nv = 0
-    nf = 0
+    g%nv = 0
+    g%nf = 0
     
   end subroutine ply_close
 
   !> Write a ball to the ply file
-  subroutine ply_ball(luply,x,rgb,r)
+  subroutine ply_ball(g,x,rgb,r)
     use tools_io, only: ferror, faterr, string
-    integer, intent(in) :: luply
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
     integer :: i, lvl, iff(3)
-
-    if (.not.isopen) &
-       call ferror('ply_ball','error: graphics file is not open',faterr)
 
     ! ball detail
     if (r > 0.5) then
@@ -952,31 +938,28 @@ contains
     
     ! write the ball to the ply
     do i = 1, nvsph(lvl)
-       write (luply,'("v",3(F20.12,X),3(A,X),"0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x + r * vsph(:,i,lvl), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfsph(lvl)
-       iff = nv + fsph(:,i,lvl) - 1
-       write (luply,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       iff = g%nv + fsph(:,i,lvl) - 1
+       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
-    nv = nv + nvsph(lvl)
-    nf = nf + nfsph(lvl)
+    g%nv = g%nv + nvsph(lvl)
+    g%nf = g%nf + nfsph(lvl)
 
   end subroutine ply_ball
   
   !> Write a polygon to the ply file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  subroutine ply_polygon(luply,x,rgb)
+  subroutine ply_polygon(g,x,rgb)
     use tools_io, only: ferror, faterr, string
-    integer, intent(in) :: luply
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
 
     integer :: i, i1, n
     real*8 :: xcm(3)
-
-    if (.not.isopen) &
-       call ferror('ply_polygon','error: graphics file is not open',faterr)
 
     ! center of the face
     n = size(x,2)
@@ -988,35 +971,32 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (luply,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (luply,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
        i1 = mod(i,n) + 1
-       write (luply,'("f3 ",3(A,X))') string(nv+i-1), string(nv+i1-1), string(nv+n)
+       write (g%lu,'("f3 ",3(A,X))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
     end do
-    nv = nv + n + 1
-    nf = nf + n
+    g%nv = g%nv + n + 1
+    g%nf = g%nf + n
 
   end subroutine ply_polygon
 
   !> Write a stick to the ply file
-  subroutine ply_stick(luply,x1,x2,rgb,r)
+  subroutine ply_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, faterr, string
     use tools_math, only: norm, cross
-    integer, intent(in) :: luply
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
     integer :: i, lvl, iff(3)
     real*8 :: dist, xd(3), v1(3), v2(3)
-
-    if (.not.isopen) &
-       call ferror('ply_stick','error: graphics file is not open',faterr)
 
     ! stick detail
     if (r > 0.2) then
@@ -1046,25 +1026,25 @@ contains
 
     ! write the stick to the ply
     do i = 1, nvcyl(lvl)
-       write (luply,'("v",3(F20.12,X),3(A,X),"0")') &
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfcyl(lvl)
-       iff = nv + fcyl(:,i,lvl) - 1
-       write (luply,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       iff = g%nv + fcyl(:,i,lvl) - 1
+       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
-    nv = nv + nvcyl(lvl)
-    nf = nf + nfcyl(lvl)
+    g%nv = g%nv + nvcyl(lvl)
+    g%nf = g%nf + nfcyl(lvl)
 
   end subroutine ply_stick
   
   !> Write a surface to the ply file
-  subroutine ply_surf(luply,srf,fsurf)
+  subroutine ply_surf(g,srf,fsurf)
     use surface, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
-    integer, intent(in) :: luply
+    type(grhandle), intent(inout) :: g
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
 
@@ -1075,8 +1055,6 @@ contains
     
     if (srf%isinit <= 1) &
        call ferror ('ply_surf','No face information in minisurf',faterr)
-    if (.not.isopen) &
-       call ferror('ply_surf','error: graphics file is not open',faterr)
 
     ! limits of the color scale
     rgb = rgb_default
@@ -1102,72 +1080,60 @@ contains
              rgb = nint(xrgb * 255)
           end if
        endif
-       write (luply,'("v",3(F20.12,X),3(A,X),"0")') x,&
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, srf%nf
-       write (luply,'("f",999(A,X))') string(srf%f(i)%nv),&
-          (string(nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
+       write (g%lu,'("f",999(A,X))') string(srf%f(i)%nv),&
+          (string(g%nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
     end do
-    nv = nv + srf%nv
-    nf = nf + srf%nf
+    g%nv = g%nv + srf%nv
+    g%nf = g%nf + srf%nf
 
   end subroutine ply_surf
 
   !> Open an off file
-  subroutine off_open(file,luoff)
+  subroutine off_open(g)
     use tools_io, only: ferror, faterr, fopen_scratch
-    character*(*), intent(in) :: file
-    integer, intent(out) :: luoff
-
-    if (isopen) &
-       call ferror('off_open','error opening graphics file: one is already open',faterr)
-    isopen = .true.
+    type(grhandle), intent(inout) :: g
 
     ! open the temporary off file
-    luoff = fopen_scratch("formatted")
-
-    ! write the target file name to the scratch file
-    write (luoff,'(A)') trim(file)
+    g%lu = fopen_scratch("formatted")
 
     ! clear and initialize the database
-    nv = 0
-    nf = 0
+    g%nv = 0
+    g%nf = 0
 
   end subroutine off_open
 
   !> Close a off file 
-  subroutine off_close(luoff)
+  subroutine off_close(g)
     use tools_io, only: ferror, faterr, getline_raw, string, fopen_write, fclose
-    integer, intent(in) :: luoff
+    type(grhandle), intent(inout) :: g
 
     integer :: lu
     character(len=:), allocatable :: file, line
     logical :: ok
 
-    if (.not.isopen) &
-       call ferror('off_close','error: graphics file is not open',faterr)
-
     ! get the temporary file name from the first line and open
-    rewind(luoff)
-    ok = getline_raw(luoff,file,.true.)
-    lu = fopen_write(file)
+    rewind(g%lu)
+    lu = fopen_write(g%file)
 
     ! write the header
     write (lu,'("COFF")')
-    write (lu,'(3(A,X))') string(nv), string(nf), string(nv+nf-2)
+    write (lu,'(3(A,X))') string(g%nv), string(g%nf), string(g%nv+g%nf-2)
 
     ! transfer the vertices from the scratch file over to the off file
-    do while(getline_raw(luoff,line))
+    do while(getline_raw(g%lu,line))
        if (line(1:1) == "v") then
           write (lu,'(A)') line(2:)
        endif
     end do
 
     ! transfer the faces
-    rewind(luoff)
-    ok = getline_raw(luoff,file,.true.)
-    do while(getline_raw(luoff,line))
+    rewind(g%lu)
+    ok = getline_raw(g%lu,file,.true.)
+    do while(getline_raw(g%lu,line))
        if (line(1:1) == "f") then
           write (lu,'(A)') line(2:)
        endif
@@ -1175,28 +1141,24 @@ contains
 
     ! close both
     call fclose(lu)
-    call fclose(luoff)
-    isopen = .false.
+    call fclose(g%lu)
 
     ! clear the database
-    nv = 0
-    nf = 0
+    g%nv = 0
+    g%nf = 0
     
   end subroutine off_close
 
   !> Write a ball to the off file
-  subroutine off_ball(luoff,x,rgb,r)
+  subroutine off_ball(g,x,rgb,r)
     use tools_io, only: faterr, ferror, string
-    integer, intent(in) :: luoff
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
 
     integer :: i, lvl, iff(3)
     real*8 :: xrgb(3)
-
-    if (.not.isopen) &
-       call ferror('off_ball','error: graphics file is not open',faterr)
 
     ! ball detail
     if (r > 0.5) then
@@ -1210,31 +1172,28 @@ contains
     ! write the ball to the off
     do i = 1, nvsph(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (luoff,'("v",3(F20.12,X),3(A,X),"0.0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0.0")') x + r * vsph(:,i,lvl), &
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfsph(lvl)
-       iff = nv + fsph(:,i,lvl) - 1
-       write (luoff,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       iff = g%nv + fsph(:,i,lvl) - 1
+       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
-    nv = nv + nvsph(lvl)
-    nf = nf + nfsph(lvl)
+    g%nv = g%nv + nvsph(lvl)
+    g%nf = g%nf + nfsph(lvl)
 
   end subroutine off_ball
   
   !> Write a polygon to the off file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  subroutine off_polygon(luoff,x,rgb)
+  subroutine off_polygon(g,x,rgb)
     use tools_io, only: ferror, faterr, string
-    integer, intent(in) :: luoff
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
 
     integer :: i, i1, n
     real*8 :: xcm(3)
-
-    if (.not.isopen) &
-       call ferror('off_polygon','error: graphics file is not open',faterr)
 
     ! center of the face
     n = size(x,2)
@@ -1246,26 +1205,26 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (luoff,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (luoff,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
        i1 = mod(i,n) + 1
-       write (luoff,'("f3 ",3(A,X))') string(nv+i-1), string(nv+i1-1), string(nv+n)
+       write (g%lu,'("f3 ",3(A,X))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
     end do
-    nv = nv + n + 1
-    nf = nf + n
+    g%nv = g%nv + n + 1
+    g%nf = g%nf + n
 
   end subroutine off_polygon
 
   !> Write a stick to the off file
-  subroutine off_stick(luoff,x1,x2,rgb,r)
+  subroutine off_stick(g,x1,x2,rgb,r)
     use tools_io, only: faterr, ferror, string
     use tools_math, only: norm, cross
-    integer, intent(in) :: luoff
+    type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
@@ -1273,9 +1232,6 @@ contains
     integer :: i, lvl, iff(3)
     real*8 :: dist, xd(3), v1(3), v2(3)
     real*8 :: xrgb(3)
-
-    if (.not.isopen) &
-       call ferror('off_stick','error: graphics file is not open',faterr)
 
     ! stick detail
     if (r > 0.2) then
@@ -1306,25 +1262,25 @@ contains
     ! write the stick to the off
     do i = 1, nvcyl(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (luoff,'("v",3(F20.12,X),3(A,X),"0")') &
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfcyl(lvl)
-       iff = nv + fcyl(:,i,lvl) - 1
-       write (luoff,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       iff = g%nv + fcyl(:,i,lvl) - 1
+       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
-    nv = nv + nvcyl(lvl)
-    nf = nf + nfcyl(lvl)
+    g%nv = g%nv + nvcyl(lvl)
+    g%nf = g%nf + nfcyl(lvl)
 
   end subroutine off_stick
   
   !> Write a surface to the off file
-  subroutine off_surf(luoff,srf,fsurf)
+  subroutine off_surf(g,srf,fsurf)
     use surface, only: minisurf
     use tools_io, only: faterr, ferror, string
     use param, only: pi
-    integer, intent(in) :: luoff
+    type(grhandle), intent(inout) :: g
     type(minisurf), intent(in) :: srf
     real*8, intent(in), optional :: fsurf(:)
 
@@ -1336,8 +1292,6 @@ contains
 
     if (srf%isinit <= 1) &
        call ferror ('off_surf','No face information in minisurf',faterr)
-    if (.not.isopen) &
-       call ferror('off_surf','error: graphics file is not open',faterr)
 
     ! limits of the color scale
     minf = 0d0
@@ -1364,15 +1318,15 @@ contains
              xrgb(3) = sin(2*z*pi)
           endif
        endif
-       write (luoff,'("v",3(F20.12,X),3(A,X),"0")') x,&
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, srf%nf
-       write (luoff,'("f",999(A,X))') string(srf%f(i)%nv),&
-          (string(nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
+       write (g%lu,'("f",999(A,X))') string(srf%f(i)%nv),&
+          (string(g%nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
     end do
-    nv = nv + srf%nv
-    nf = nf + srf%nf
+    g%nv = g%nv + srf%nv
+    g%nf = g%nf + srf%nf
 
   end subroutine off_surf
 

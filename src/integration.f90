@@ -2319,7 +2319,7 @@ contains
     use systemmod, only: sy
     use crystalmod, only: crystal
     use global, only: fileroot
-    use graphics, only: graphics_open, graphics_close, graphics_polygon
+    use graphics, only: grhandle
     use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: string, uout
     character*3, intent(in) :: fmt
@@ -2330,7 +2330,6 @@ contains
     integer, intent(in) :: imtype
     integer, intent(in) :: luw
 
-    integer :: lu, lumtl
     character(len=:), allocatable :: str
     integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3)
     real*8 :: x(3), xd(3), d2
@@ -2338,6 +2337,7 @@ contains
     real*8, allocatable :: xface(:,:), w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
+    type(grhandle) :: gr
 
     integer, parameter :: rgb1(3) = (/128,128,128/)
 
@@ -2384,7 +2384,7 @@ contains
     do i = 1, nattr
        ! name this file
        str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
-       call graphics_open(fmt,str,lu,lumtl)
+       call gr%open(fmt,str)
 
        do i1 = 1, n(1)
           do i2 = 1, n(2)
@@ -2407,7 +2407,7 @@ contains
                          do k = 1, caux%nside_ws(j)
                             xface(:,k) = x + caux%x2c(caux%vws(:,caux%iside_ws(k,j)))
                          end do
-                         call graphics_polygon(fmt,lu,xface,rgb1)
+                         call gr%polygon(xface,rgb1)
                       end if
                    end do
                 end if
@@ -2415,7 +2415,7 @@ contains
           end do
        end do
 
-       call graphics_close(fmt,lu,lumtl)
+       call gr%close()
     end do
 
     deallocate(xface)

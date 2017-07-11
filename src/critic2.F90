@@ -44,7 +44,6 @@ program critic
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
      critic_clearvariable, critic_setvariables, global_set_defaults
-  use graphics, only: graphics_init
   use arithmetic, only: listvariables
   use grid1mod, only: grid1_clean_grids
   use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
@@ -78,7 +77,6 @@ program critic
   ! set default values and initialize the rest of the modules
   call global_init(ghome,datadir)
   call spgs_init()
-  call graphics_init()
   call systemmod_init(1)
 
   ! parse global control options

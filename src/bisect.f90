@@ -1974,7 +1974,7 @@ contains
   subroutine minisurf_write3dmodel(s,fmt,file,expr)
     use systemmod, only: sy
     use surface, only: minisurf
-    use graphics, only: graphics_open, graphics_surf, graphics_close
+    use graphics, only: grhandle
     use tools_io, only: faterr, ferror
     use types, only: scalar_value
     type(minisurf), intent(inout) :: s
@@ -1983,11 +1983,11 @@ contains
     character*(*), intent(in), optional :: expr
 
     type(scalar_value) :: res
-    integer :: lu1, lu2
     integer :: i
     real*8 :: x(3)
     real*8, allocatable :: fsurf(:)
     logical :: iok
+    type(grhandle) :: gr
 
     if (s%isinit <= 1) &
        call ferror ('minisurf_write3dmodel','No face information in minisurf',faterr)
@@ -2007,9 +2007,9 @@ contains
        fsurf = real(s%rgb,8) / 255d0
     end if
 
-    call graphics_open(fmt,file,lu1,lu2)
-    call graphics_surf(fmt,lu1,s,fsurf)
-    call graphics_close(fmt,lu1,lu2)
+    call gr%open(fmt,file)
+    call gr%surf(s,fsurf)
+    call gr%close()
     deallocate(fsurf)
 
   end subroutine minisurf_write3dmodel

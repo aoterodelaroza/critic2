@@ -4702,16 +4702,15 @@ contains
   !> plot. If doborder is .true., add all atoms at the border. If
   !> onemotif is .true., write all molecules in the unit cell. If
   !> molmotif is .true., complete molecules with atoms in adjacent
-  !> cells. If docell, add sticks for the unit cell
-  !> limits. If domolcell, add sticks tfor the molecular cell. If rsph
-  !> (bohr) is positive, then use all atoms in a sphere around xsph
-  !> (cryst.). If rcub (bohr) is positive, use all atoms in a cube
-  !> around xcub (cryst.). If lu0 and lumtl0 are present, then return
-  !> the logical units for the obj and the mtl files and do not close
-  !> the files.
+  !> cells. If docell, add sticks for the unit cell limits. If
+  !> domolcell, add sticks tfor the molecular cell. If rsph (bohr) is
+  !> positive, then use all atoms in a sphere around xsph (cryst.). If
+  !> rcub (bohr) is positive, use all atoms in a cube around xcub
+  !> (cryst.). If gr0 is present, then return the graphics handle and
+  !> do not close the files.
   subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
-     docell,domolcell,rsph,xsph,rcub,xcub,lu0,lumtl0)
-    use graphics, only: graphics_open, graphics_ball, graphics_stick, graphics_close
+     docell,domolcell,rsph,xsph,rcub,xcub,gr0)
+    use graphics, only: grhandle
     use tools_math, only: norm
     use fragmentmod, only: fragment
     use tools_io, only: equal
@@ -4724,15 +4723,15 @@ contains
     logical, intent(in) :: docell, domolcell
     real*8, intent(in) :: rsph, xsph(3)
     real*8, intent(in) :: rcub, xcub(3)
-    integer, intent(out), optional :: lu0, lumtl0
+    type(grhandle), intent(out), optional :: gr0
 
-    integer :: lu, lumtl
     integer :: i, j
     real*8 :: d, xd(3), x0(3), x1(3), rr
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
     integer :: nmol
+    type(grhandle) :: gr
 
     real*8, parameter :: rfac = 1.4d0
     real*8, parameter :: x0cell(3,2,12) = reshape((/&
@@ -4773,8 +4772,7 @@ contains
        end do
     end if
 
-    lumtl = 0
-    call graphics_open(fmt,file,lu,lumtl)
+    call gr%open(fmt,file)
 
     ! add the balls
     do i = 1, fr%nat
@@ -4783,7 +4781,7 @@ contains
        else
           rr = 0.6d0*atmcov(fr%at(i)%z)
        endif
-       call graphics_ball(fmt,lu,fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
+       call gr%ball(fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
     end do
 
     ! add the sticks
@@ -4794,8 +4792,8 @@ contains
           d = norm(xd)
           if (d < (atmcov(fr%at(i)%z) + atmcov(fr%at(j)%z)) * rfac) then
              xd = fr%at(i)%r + 0.5d0 * (fr%at(j)%r - fr%at(i)%r)
-             call graphics_stick(fmt,lu,fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
-             call graphics_stick(fmt,lu,fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
+             call gr%stick(fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
+             call gr%stick(fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
           end if
        end do
     end do
@@ -4805,7 +4803,7 @@ contains
        do i = 1, 12
           x0 = c%x2c(x0cell(:,1,i)) + c%molx0
           x1 = c%x2c(x0cell(:,2,i)) + c%molx0
-          call graphics_stick(fmt,lu,x0,x1,(/255,0,0/),0.03d0)
+          call gr%stick(x0,x1,(/255,0,0/),0.03d0)
        end do
     end if
 
@@ -4822,16 +4820,15 @@ contains
           end do
           x0 = c%x2c(x0) + c%molx0
           x1 = c%x2c(x1) + c%molx0
-          call graphics_stick(fmt,lu,x0,x1,(/0,0,255/),0.03d0)
+          call gr%stick(x0,x1,(/0,0,255/),0.03d0)
        end do
     end if
 
     ! close or give the handles to the calling routine, cleanup
-    if (present(lumtl0) .and. present(lu0)) then
-       lu0 = lu
-       lumtl0 = lumtl
+    if (present(gr0)) then
+       gr0 = gr
     else
-       call graphics_close(fmt,lu,lumtl)
+       call gr%close()
     end if
 
     if (allocated(fr0)) deallocate(fr0)

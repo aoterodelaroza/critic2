@@ -17,6 +17,7 @@
 
 !> Code for the FLUXPRINT environment: 3d plotting.
 module flux
+  use graphics, only: grhandle
   implicit none
 
   private
@@ -43,6 +44,7 @@ module flux
   ! output format
   character*3 :: outfmt
   integer :: luout, lumtl
+  type(grhandle) :: gr
   character(len=:), allocatable :: outfile
 
   ! Gradient path info (cryst.)
@@ -633,7 +635,7 @@ contains
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
        call sy%c%write_3dmodel(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
-          .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout,lumtl)
+          .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),gr)
     elseif (outfmt=="cml") then
        ! connect and initialize cml file 
        outfile = trim(fileroot) // "_flux." // outfmt
@@ -647,7 +649,6 @@ contains
   !> Deallocate memory, end the tessel output and close files.
   subroutine flx_end(molmotif)
     use tools_io, only: fclose
-    use graphics, only: graphics_close
     use global, only: fileroot
 
     logical, intent(in) :: molmotif
@@ -659,7 +660,7 @@ contains
 
     ! close it
     if (outfmt == "obj" .or. outfmt == "ply" .or. outfmt == "off") then
-       call graphics_close(outfmt,luout,lumtl)
+       call gr%close()
     elseif (outfmt == "cml") then
        write (luout,'(" </atomArray>")')
        write (luout,'("</molecule>")')
@@ -701,7 +702,6 @@ contains
   !> Print gradient path info to standard output.
   subroutine flx_printpath(rgb0)
     use systemmod, only : sy
-    use graphics, only: graphics_ball
     use global, only: dunit0, iunit
     use tools_io, only: string
     use param, only: bohrtoa
@@ -755,7 +755,7 @@ contains
        do i=1,flx_n
           x = sy%c%x2c(flx_x(:,i))
           if (outfmt == "obj" .or. outfmt == "off" .or. outfmt == "ply") then
-             call graphics_ball(outfmt,luout,x,rgb0,rrad)
+             call gr%ball(x,rgb0,rrad)
           elseif (outfmt == "cml") then
              if (.not.sy%c%ismolecule) then
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")')&

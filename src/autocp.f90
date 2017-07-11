@@ -59,7 +59,7 @@ contains
   subroutine autocritic(line)
     use systemmod, only: sy
     use fieldmod, only: type_grid
-    use graphics, only: graphics_ball, graphics_close
+    use graphics, only: grhandle
     use surface, only: minisurf
     use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot
     use tools, only: uniqc
@@ -107,7 +107,7 @@ contains
     integer :: m, nf, ntheta, nphi, nr
     type(seed_), allocatable :: seed(:), saux(:)
     logical :: firstseed, hadx1
-    integer :: nn, lug, lumtl, ilag, nphiact, ier, nss
+    integer :: nn, ilag, nphiact, ier, nss
     real*8 :: x0(3), x1(3), dist, r, theta, phi, delta_phi, delta_theta, x(3)
     real*8, allocatable :: xseed(:,:)
     logical, allocatable :: keep(:)
@@ -115,6 +115,7 @@ contains
     real*8 :: cpeps
     real*8 :: nuceps
     real*8 :: nucepsh
+    type(grhandle) :: gr
 
     if (.not.quiet) then
        call tictac("Start AUTO")
@@ -653,11 +654,11 @@ contains
        str = trim(fileroot) // "_seeds.obj" 
        write (uout,'("+ Writing seeds to file: ",A)') str
        call sy%c%write_3dmodel(str,"obj",(/1,1,1/),.true.,.false.,.false.,&
-          .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),lug,lumtl)
+          .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),gr)
        do i = 1, nn
-          call graphics_ball("obj",lug,xseed(:,i) + sy%c%molx0,(/100,100,255/),0.3d0)
+          call gr%ball(xseed(:,i) + sy%c%molx0,(/100,100,255/),0.3d0)
        end do
-       call graphics_close("obj",lug,lumtl)
+       call gr%close()
     endif
 
     ! Initialize the CP search
