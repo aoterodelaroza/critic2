@@ -139,28 +139,34 @@ contains
   !> the expression at x0 considering the field as
   !> non-periodic. Otherwise, evaluate it as if in a periodic system.
   !> This routine is thread-safe.
-  recursive function eval(expr,hardfail,iok,x0,fh,fcheck,feval,periodic)
+  recursive function eval(expr,hardfail,iok,x0,sptr,fh,fcheck,feval,periodic)
+    use iso_c_binding, only: c_ptr
     use hashmod, only: hash
     real*8 :: eval
     character(*), intent(in) :: expr
     logical, intent(in) :: hardfail
     logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
+    type(c_ptr), intent(in), optional :: sptr
     type(hash), intent(in), optional :: fh
     optional :: fcheck, feval
     logical, intent(in), optional :: periodic
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
          logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0,periodic)
+       function feval(sptr,id,nder,x0,periodic)
+         use iso_c_binding, only: c_ptr
          use types, only: scalar_value
          type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
@@ -208,7 +214,7 @@ contains
              again = .false.
              if (ns > 0) then
                 if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
+                   call pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,ifail)
                    if (ifail) then
                       call dofail()
                       return
@@ -227,7 +233,7 @@ contains
           ! right parenthesis
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
+              call pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,ifail)
               if (ifail) then
                  call dofail()
                  return
@@ -242,7 +248,7 @@ contains
            if (ns > 0) then
               c = s(ns)
               if (istype(c,'function')) then
-                 call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
+                 call pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,ifail)
                  if (ifail) then
                     call dofail()
                     return
@@ -253,7 +259,7 @@ contains
            ! a comma
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
+              call pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,ifail)
               if (ifail) then
                  call dofail()
                  return
@@ -267,7 +273,7 @@ contains
            ! a field
            nq = nq + 1
            if (present(x0).and.present(fcheck).and.present(feval)) then
-              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,fcheck,feval,periodic)
+              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,sptr,fcheck,feval,periodic)
            else
               call dofail()
               return
@@ -280,7 +286,7 @@ contains
 
     ! unwind the stack
     do while (ns > 0)
-       call pop(q,nq,s,ns,x0,fcheck,feval,periodic,ifail)
+       call pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,ifail)
        if (ifail) then
           call dofail()
           return
@@ -508,27 +514,33 @@ contains
 
   !> Using the field id and the derivative flag, evaluate to a number.
   !> This routine is thread-safe.
-  recursive function fieldeval(fid,fder,x0,fcheck,feval,periodic)
+  recursive function fieldeval(fid,fder,x0,sptr,fcheck,feval,periodic)
     use tools_io, only: string, isinteger
     use types, only: scalar_value
+    use iso_c_binding, only: c_ptr
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
     character*4, intent(in) :: fder
     real*8, intent(in), optional :: x0(3) !< position
+    type(c_ptr), intent(in), optional :: sptr
     optional :: fcheck, feval
     logical, intent(in), optional :: periodic
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
          logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0,periodic)
+       function feval(sptr,id,nder,x0,periodic)
+         use iso_c_binding, only: c_ptr
          use types, only: scalar_value
          type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
@@ -542,7 +554,7 @@ contains
 
     fieldeval = 0d0
     if (present(x0).and.present(feval).and.present(fcheck)) then
-       if (.not.fcheck(fid).and..not.isspecialfield(fid)) &
+       if (.not.fcheck(sptr,fid).and..not.isspecialfield(fid)) &
           call die('wrong field in expression: ' // string(fid))
        if (fder=="    ".or.fder=="v   ".or.fder=="c   ") then
           nder = 0
@@ -551,7 +563,7 @@ contains
        else
           nder = 2
        end if
-       res = feval(fid,nder,x0,periodic)
+       res = feval(sptr,fid,nder,x0,periodic)
 
        select case (trim(fder))
        case ("")
@@ -963,8 +975,9 @@ contains
 
   !> Pop from the stack and operate on the queue.  This routine is
   !> thread-safe.
-  subroutine pop(q,nq,s,ns,x0,fcheck,feval,periodic,fail)
+  subroutine pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,fail)
     use tools_io, only: string
+    use iso_c_binding, only: c_ptr
 #ifdef HAVE_LIBXC
     use xc_f90_types_m
     use libxc_funcs_m
@@ -975,21 +988,26 @@ contains
     integer, intent(inout) :: s(:)
     integer, intent(inout) :: nq, ns
     real*8, intent(in), optional :: x0(3)
+    type(c_ptr), intent(in), optional :: sptr
     optional :: fcheck, feval
     logical, intent(in), optional :: periodic
     logical, intent(out) :: fail
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
          logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0,periodic)
+       function feval(sptr,id,nder,x0,periodic)
+         use iso_c_binding, only: c_ptr
          use types, only: scalar_value
          type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
@@ -1182,11 +1200,11 @@ contains
        ia = tointeger(q(nq))
        write (sia,'(I8)') ia
        sia = adjustl(sia)
-       if (.not.fcheck(sia)) &
+       if (.not.fcheck(sptr,sia)) &
           call die('wrong field ' // string(sia))
     
        ! Use the library of chemical functions
-       q(nq) = chemfunction(c,sia,x0,feval,periodic)
+       q(nq) = chemfunction(c,sia,x0,sptr,feval,periodic)
     else
        call die('error in expression')
     end if
@@ -1349,20 +1367,24 @@ contains
 
   !> Calculate a chemical function for a given field.  This routine is
   !> thread-safe.
-  function chemfunction(c,sia,x0,feval,periodic) result(q)
+  function chemfunction(c,sia,x0,sptr,feval,periodic) result(q)
     use types, only: scalar_value
     use param, only: pi
+    use iso_c_binding, only: c_ptr
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
     real*8 :: q
     logical, intent(in), optional :: periodic
+    type(c_ptr), intent(in), optional :: sptr
   
     interface
        !> Evaluate the field at a point
-       function feval(id,nder,x0,periodic)
+       function feval(sptr,id,nder,x0,periodic)
          use types, only: scalar_value
+         use iso_c_binding, only: c_ptr
          type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
@@ -1380,18 +1402,18 @@ contains
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
-       res = feval(sia,0,x0,periodic)
+       res = feval(sptr,sia,0,x0,periodic)
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -1403,14 +1425,14 @@ contains
        !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
        ! for more references and its use applied to experimental electron
        ! densities.
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
     case (fun_vtf_kir)
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -1418,27 +1440,27 @@ contains
     case (fun_htf_kir)
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = 0.25d0 * res%del2f - q
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
-       res = feval(sia,1,x0,periodic)
+       res = feval(sptr,sia,1,x0,periodic)
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       res = feval(sia,1,x0,periodic)
+       res = feval(sptr,sia,1,x0,periodic)
        if (res%f < 1d-30) then
           q = 0d0
        else
@@ -1451,24 +1473,24 @@ contains
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
-       res = feval(sia,2,x0,periodic)
+       res = feval(sptr,sia,2,x0,periodic)
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0) 
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f

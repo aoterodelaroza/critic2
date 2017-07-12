@@ -371,6 +371,7 @@ contains
        isexpression_or_word, uout, string
     use types, only: scalar_value_noalloc
     use param, only: eye
+    use iso_c_binding, only: c_loc
     character*(*), intent(in) :: line
 
     integer :: lp, nti, id, nn(3)
@@ -579,7 +580,7 @@ contains
     else
        ok = .false.
        if (useexpr) then
-          call faux%new_eval(nn,expr,sy%fh,field_cube)
+          call faux%new_eval(c_loc(sy),nn,expr,sy%fh,field_cube)
           ok = faux%isinit
        end if
        allocate(lf(nn(1),nn(2),nn(3)))

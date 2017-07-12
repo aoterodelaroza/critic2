@@ -2266,19 +2266,23 @@ contains
   end subroutine get_qe_wnr
 
   !> Build a 3d grid using an arithmetic expression.
-  subroutine new_eval(f,n,expr,fh,field_cube)
+  subroutine new_eval(f,sptr,n,expr,fh,field_cube)
     use hashmod, only: hash
     use arithmetic, only: token, tokenize, token_undef, token_num, token_fun,&
        token_op, token_lpar, token_rpar, token_comma, token_field, iprec, iassoc,&
        istype, fun_openpar, fun_xc
     use types, only: realloc
+    use iso_c_binding, only: c_ptr
     class(grid3), intent(inout) :: f
+    type(c_ptr), intent(in) :: sptr
     integer, intent(in) :: n(3)
     character(*), intent(in) :: expr
     type(hash), intent(in) :: fh
 
     interface
-       function field_cube(n,id,fder,dry,ifail) result(q)
+       function field_cube(sptr,n,id,fder,dry,ifail) result(q)
+         use iso_c_binding, only: c_ptr
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: n(3)
          character*4, intent(in) :: fder
@@ -2319,7 +2323,7 @@ contains
        if (toklist(i)%ival == fun_xc) goto 999
        if (istype(toklist(i)%ival,'chemfunction')) goto 999
        if (toklist(i)%type == token_field) then
-          q(:,:,:,1) = field_cube(n,toklist(i)%sval,toklist(i)%fder,.true.,ifail)
+          q(:,:,:,1) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.true.,ifail)
           if (ifail) goto 999
        end if
     end do
@@ -2384,7 +2388,7 @@ contains
            ! a field
            nq = nq + 1
            if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-           q(:,:,:,nq) = field_cube(n,toklist(i)%sval,toklist(i)%fder,.false.,ifail)
+           q(:,:,:,nq) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.false.,ifail)
            if (ifail) goto 999
        else
           goto 999

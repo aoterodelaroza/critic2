@@ -28,6 +28,7 @@ module fieldmod
   use param, only: maxzat0
   use types, only: cp_type
   use hashmod, only: hash
+  use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
   
   private
@@ -44,15 +45,19 @@ module fieldmod
   ! pointers for the arithmetic module
   interface
      !> Check that the id is a grid and is a sane field
-     function fcheck(id,iout)
+     function fcheck(sptr,id,iout)
+       use iso_c_binding, only: c_ptr
        logical :: fcheck
+       type(c_ptr), intent(in) :: sptr
        character*(*), intent(in) :: id
        integer, intent(out), optional :: iout
      end function fcheck
      !> Evaluate the field at a point
-     function feval(id,nder,x0,periodic)
+     function feval(sptr,id,nder,x0,periodic)
        use types, only: scalar_value
+       use iso_c_binding, only: c_ptr
        type(scalar_value) :: feval
+       type(c_ptr), intent(in) :: sptr
        character*(*), intent(in) :: id
        integer, intent(in) :: nder
        real*8, intent(in) :: x0(3)
@@ -99,6 +104,7 @@ module fieldmod
      ! ghost field
      character*(2048) :: expr
      type(hash), pointer :: fh => null()
+     type(c_ptr) :: sptr = c_null_ptr
      procedure(fcheck), pointer, nopass :: fcheck => null()
      procedure(feval), pointer, nopass :: feval => null()
      ! critical point list
@@ -329,7 +335,7 @@ contains
   !> Load a new field using the given field seed and the crystal
   !> structure pointer. The ID of the field in the system is also
   !> required.
-  subroutine field_new(f,seed,c,id,fh,fcheck,feval,cube,errmsg)
+  subroutine field_new(f,seed,c,id,fh,sptr,fcheck,feval,cube,errmsg)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
@@ -341,31 +347,39 @@ contains
        ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, ifformat_copy,&
        ifformat_promolecular, ifformat_promolecular_fragment
     use hashmod, only: hash
+    use iso_c_binding, only: c_ptr
     class(field), intent(inout) :: f !< Input field
     type(fieldseed), intent(in) :: seed 
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
     type(hash), intent(in) :: fh
+    type(c_ptr), intent(in) :: sptr
     character(len=:), allocatable, intent(out) :: errmsg
 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
          logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0,periodic)
+       function feval(sptr,id,nder,x0,periodic)
          use types, only: scalar_value
+         use iso_c_binding, only: c_ptr
          type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
        !> Return the grid from field id
-       function cube(n,id,fder,dry,ifail) result(q)
+       function cube(sptr,n,id,fder,dry,ifail) result(q)
+         use iso_c_binding, only: c_ptr
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: n(3)
          character*4, intent(in) :: fder
@@ -590,13 +604,13 @@ contains
        f%file = ""
 
     elseif (seed%iff == ifformat_as_ghost) then
-       call f%load_ghost(c,id,"<ghost>",seed%expr,fh,fcheck,feval)
+       call f%load_ghost(c,id,"<ghost>",seed%expr,sptr,fh,fcheck,feval)
        
     elseif (seed%iff == ifformat_as) then
        f%type = type_grid
        f%file = ""
        n = seed%n
-       call f%grid%new_eval(n,seed%expr,fh,cube)
+       call f%grid%new_eval(sptr,n,seed%expr,fh,cube)
        if (.not.f%grid%isinit) then
           call f%grid%end()
           f%grid%n = n
@@ -613,7 +627,7 @@ contains
                 do i = 1, n(1)
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                    x = c%x2c(x)
-                   rho = eval(seed%expr,.true.,iok,x,fh,fcheck,feval,.true.)
+                   rho = eval(seed%expr,.true.,iok,x,sptr,fh,fcheck,feval,.true.)
                    !$omp critical(write)
                    f%grid%f(i,j,k) = rho
                    !$omp end critical(write)
@@ -725,27 +739,33 @@ contains
   end subroutine load_as_fftgrid
 
   !> Load a ghost field.
-  subroutine load_ghost(f,c,id,name,expr,fh,fcheck,feval)
+  subroutine load_ghost(f,c,id,name,expr,sptr,fh,fcheck,feval)
     use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use hashmod, only: hash
+    use iso_c_binding, only: c_ptr
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
     character*(*), intent(in) :: name
     character*(*), intent(in) :: expr
+    type(c_ptr), intent(in) :: sptr
     type(hash), intent(in), target :: fh 
     interface
        !> Check that the id is a grid and is a sane field
-       function fcheck(id,iout)
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
          logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(id,nder,x0,periodic)
+       function feval(sptr,id,nder,x0,periodic)
          use types, only: scalar_value
+         use iso_c_binding, only: c_ptr
          type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
          real*8, intent(in) :: x0(3)
@@ -767,6 +787,7 @@ contains
     f%zpsp = c%zpsp
     f%expr = expr
     f%fh => fh
+    f%sptr = sptr
     f%fcheck => fcheck
     f%feval => feval
     call f%init_cplist()
@@ -945,7 +966,7 @@ contains
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
-       res%f = eval(f%expr,.true.,iok,wc,f%fh,f%fcheck,f%feval,periodic)
+       res%f = eval(f%expr,.true.,iok,wc,f%sptr,f%fh,f%fcheck,f%feval,periodic)
        res%gf = 0d0
        res%hf = 0d0
 
@@ -1065,7 +1086,7 @@ contains
     case(type_promol_frag)
        call f%c%promolecular(wc,rho,grad,h,0,fr=f%fr,periodic=periodic)
     case(type_ghost)
-       rho = eval(f%expr,.true.,iok,wc,f%fh,f%fcheck,f%feval,periodic)
+       rho = eval(f%expr,.true.,iok,wc,f%sptr,f%fh,f%fcheck,f%feval,periodic)
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select

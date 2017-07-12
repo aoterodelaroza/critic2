@@ -435,7 +435,8 @@ contains
     use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_lap, ifformat_as_grad, &
        ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as
-    class(system), intent(inout) :: s
+    use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
+    class(system), intent(inout), target :: s
     character*(*), intent(in) :: line
     integer, intent(out) :: id
     character(len=:), allocatable, intent(out) :: errmsg
@@ -446,6 +447,7 @@ contains
     integer :: ifformat, idx
     character(len=:), allocatable :: str, aux
     character*255, allocatable :: idlist(:)
+    type(system), pointer :: syl
     
     ! is the environment sane?
     id = -1
@@ -609,7 +611,8 @@ contains
           seed%n = s%f(oid)%grid%n
        end if
 
-       call s%f(id)%field_new(seed,s%c,id,s%fh,field_fcheck,field_feval,field_cube,errmsg)
+       syl => s
+       call s%f(id)%field_new(seed,s%c,id,s%fh,c_loc(syl),field_fcheck,field_feval,field_cube,errmsg)
 
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
@@ -738,43 +741,52 @@ contains
   !> Check that the id is a grid and is a sane field. Wrapper around
   !> goodfield() to pass it to the arithmetic module.  This routine is
   !> thread-safe. psy is the pointer to the system.
-  function field_fcheck(id,iout)
+  function field_fcheck(sptr,id,iout)
+    use iso_c_binding, only: c_ptr, c_associated, c_f_pointer
+    type(c_ptr), intent(in) :: sptr
     character*(*), intent(in) :: id
     integer, intent(out), optional :: iout
     logical :: field_fcheck
 
+    type(system), pointer :: syl => null()
     integer :: iid
 
+    call c_f_pointer(sptr,syl)
     field_fcheck = .false.
-    if (.not.associated(sy)) return
-    iid = sy%fieldname_to_idx(id)
-    field_fcheck = sy%goodfield(iid)
+    if (.not.associated(syl)) return
+    iid = syl%fieldname_to_idx(id)
+    field_fcheck = syl%goodfield(iid)
     if (present(iout)) iout = iid
 
   end function field_fcheck
 
   !> Evaluate the field at a point. Wrapper around grd() to pass it to
   !> the arithmetic module.  This routine is thread-safe.
-  recursive function field_feval(id,nder,x0,periodic)
+  recursive function field_feval(sptr,id,nder,x0,periodic)
+    use iso_c_binding, only: c_ptr, c_f_pointer
     use types, only: scalar_value
     use param, only: sqpi, pi
     type(scalar_value) :: field_feval
+    type(c_ptr), intent(in) :: sptr
     character*(*), intent(in) :: id
     integer, intent(in) :: nder
     real*8, intent(in) :: x0(3)
     logical, intent(in), optional :: periodic
 
+    type(system), pointer :: syl
     integer :: iid, lvec(3)
     real*8 :: xp(3), dist, u
     real*8, parameter :: rc = 1.4d0
 
-    if (.not.associated(sy)) return
-    iid = sy%fieldname_to_idx(id)
+    call c_f_pointer(sptr,syl)
+
+    if (.not.associated(syl)) return
+    iid = syl%fieldname_to_idx(id)
     if (iid >= 0) then
-       call sy%f(iid)%grd(x0,nder,periodic,res0=field_feval)
+       call syl%f(iid)%grd(x0,nder,periodic,res0=field_feval)
     elseif (trim(id) == "ewald") then
-       xp = sy%c%c2x(x0)
-       field_feval%f = sy%c%ewald_pot(xp,.false.)
+       xp = syl%c%c2x(x0)
+       field_feval%f = syl%c%ewald_pot(xp,.false.)
        field_feval%fval = field_feval%f
        field_feval%gf = 0d0
        field_feval%gfmod = 0d0
@@ -785,8 +797,8 @@ contains
     elseif (trim(id) == "model1r") then
        ! xxxx
        iid = 0
-       xp = sy%c%c2x(x0)
-       call sy%c%nearest_atom(xp,iid,dist,lvec)
+       xp = syl%c%c2x(x0)
+       call syl%c%nearest_atom(xp,iid,dist,lvec)
        if (dist < rc) then
           u = dist/rc
           field_feval%f = (1 - 10*u**3 + 15*u**4 - 6*u**5) * 21d0 / (5d0 * pi * rc**3)
@@ -803,15 +815,15 @@ contains
     elseif (trim(id) == "model1v") then
        ! xxxx requires the +1 charges
        iid = 0
-       xp = sy%c%c2x(x0)
-       call sy%c%nearest_atom(xp,iid,dist,lvec)
-       field_feval%f = sy%c%ewald_pot(xp,.false.) + sy%c%qsum * sy%c%eta**2 * pi / sy%c%omega 
+       xp = syl%c%c2x(x0)
+       call syl%c%nearest_atom(xp,iid,dist,lvec)
+       field_feval%f = syl%c%ewald_pot(xp,.false.) + syl%c%qsum * syl%c%eta**2 * pi / syl%c%omega 
        if (dist < rc .and. dist > 1d-6) then ! correlates with the value in the ewald routine
           u = dist/rc
           field_feval%f = field_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 1d0 / dist
        elseif (dist <= 1d-6) then
           u = dist/rc
-          field_feval%f = field_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 2d0 / sqpi / sy%c%eta
+          field_feval%f = field_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 2d0 / sqpi / syl%c%eta
        end if
        field_feval%fval = field_feval%f
        field_feval%gf = 0d0
@@ -827,8 +839,10 @@ contains
   !> Check that the id is a grid and is a sane field. Wrapper around
   !> goodfield() to pass it to the arithmetic module.  This routine is
   !> thread-safe. psy is the pointer to the system.
-  function field_cube(n,id,fder,dry,ifail) result(q)
+  function field_cube(sptr,n,id,fder,dry,ifail) result(q)
+    use iso_c_binding, only: c_ptr, c_f_pointer
     use fieldmod, only: type_grid
+    type(c_ptr), intent(in) :: sptr
     character*(*), intent(in) :: id
     integer, intent(in) :: n(3)
     character*4, intent(in) :: fder
@@ -836,20 +850,23 @@ contains
     logical, intent(out) :: ifail
     real*8 :: q(n(1),n(2),n(3))
 
+    type(system), pointer :: syl
     integer :: iid
     logical :: isgrid
 
+    call c_f_pointer(sptr,syl)
+
     ifail = .false.
     q = 0d0
-    if (.not.associated(sy)) goto 999
-    iid = sy%fieldname_to_idx(id)
-    if (.not.sy%f(iid)%isinit) goto 999
-    isgrid = (sy%f(iid)%type == type_grid)
-    if (isgrid) isgrid = isgrid .and. all(sy%f(iid)%grid%n == n)
+    if (.not.associated(syl)) goto 999
+    iid = syl%fieldname_to_idx(id)
+    if (.not.syl%f(iid)%isinit) goto 999
+    isgrid = (syl%f(iid)%type == type_grid)
+    if (isgrid) isgrid = isgrid .and. all(syl%f(iid)%grid%n == n)
     if (isgrid) isgrid = isgrid .and. (fder == "    " .or. fder=="v   ")
     if (isgrid) then
        if (.not.dry) then
-          q = sy%f(iid)%grid%f
+          q = syl%f(iid)%grid%f
        else
           q = 0d0
        end if
@@ -1147,14 +1164,18 @@ contains
   !>x Evaluate an arithmetic expression using the system's fields  
   function system_eval(s,expr,hardfail,iok,x0) 
     use arithmetic, only: eval
-    class(system), intent(inout) :: s
+    use iso_c_binding, only: c_loc
+    class(system), intent(inout), target :: s
     character(*), intent(in) :: expr
     logical, intent(in) :: hardfail
     logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
     real*8 :: system_eval
 
-    system_eval = eval(expr,hardfail,iok,x0,s%fh,field_fcheck,field_feval)
+    type(system), pointer :: syl
+
+    syl => s
+    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl),s%fh,field_fcheck,field_feval)
 
   end function system_eval
 
