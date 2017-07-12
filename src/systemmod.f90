@@ -169,8 +169,8 @@ contains
        end do
        deallocate(s%f)
     end if
-    allocate(s%f(0:0))
-    s%nf = 0
+    allocate(s%f(0:10))
+    s%nf = 10
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
     call s%fh%init()
     call s%fh%put("rho0",0)
@@ -890,7 +890,7 @@ contains
 
     if (.not.s%isinit) return
     if (.not.allocated(s%f)) return
-    if (id < 0 .or. id > s%nf .or. id > ubound(s%f,1)) return
+    if (id < 0 .or. id > s%nf) return
     if (.not.s%f(id)%isinit) return
 
     call s%f(id)%end()
