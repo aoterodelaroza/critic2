@@ -30,7 +30,7 @@ basins of the maxima and integrate quantities in them (Bader's atomic
 charges). In recent versions, however, critic2 has been extended to
 support closely-related operations, such as manipulating and
 interconverting structural formats, perform arithmetic operations on
-scalar fields, calculate related quantities like STM images, claculate
+scalar fields, calculate related quantities like STM images, calculate
 NCI plots, and many, many more.
 
 Within the QTAIM framework, critic2 also provides a host of
@@ -70,7 +70,9 @@ critic2 have been adapted.
 Installation
 ------------
 
-Please, see the README file.
+Please, see the README file. Particularly, note that the development
+version of critic2 uses fairly modern Fortran, and you may need a
+relatively recent Fortran compiler to use it.
 
 Command-line options, usage, and input overview
 -----------------------------------------------
@@ -83,10 +85,10 @@ with extension .cri). The command-line syntax is::
             [file.cri [file.cro]]
 
 If both input and output files are present, the output is redirected
-to file.outcritic. Otherwise, it is written to standard output. If no
-file.cri is present, the input is taken from standard input. The
-input and output extensions (cri and cro) are not mandatory. It is
-also valid to use::
+to file.cro. Otherwise, it is written to standard output. If no
+file.cri is present, the input is taken from standard input. The input
+and output extensions (cri and cro) are not mandatory. This is also
+valid::
 
   #ascii#
   $ critic2 < file.cri > file.cro
@@ -111,8 +113,9 @@ data files. If /path/to/critic2 is given, the data files (wfc, dic,
 etc.) should be in /path/to/critic2/dat.
 
 The input file usually contains a specification of the crystal or
-molecular structure using the CRYSTAL (see `The crystal structure`_ or
-the MOLECULE (see `The molecular structure`_) keywords. For instance::
+molecular structure using the CRYSTAL (see `The crystal structure`_)
+or the MOLECULE (see `The molecular structure`_) keywords. For
+instance::
 
   CRYSTAL file.struct
 
@@ -121,11 +124,11 @@ keyword LOAD. For instance::
 
   LOAD file.clmsum file.struct
 
-Unless otherwise stated, the default distance units in critic2, used
-both in input and output, are atomic units (bohr) for crystals and
-angstrom for molecules. This can be changed using the UNITS keyword
-(see `Input and output units`_). Electron densities are always in
-atomic units (electrons/bohr^3).
+Unless otherwise stated, the default distance units in critic2, both
+in input and output, are atomic units (bohr) for crystals and angstrom
+for molecules. This can be changed using the UNITS keyword (see `Input
+and output units`_). Electron densities are always in atomic units
+(electrons/bohr^3).
 
 After reading the structure and loading the relevant fields, specific
 keywords are used to perform the required tasks. For instance, AUTO
@@ -181,38 +184,38 @@ CRYSTAL.
 
 The critic2 output is mostly self-explanatory, although there are a
 number of key concepts that need to be understood. In the case of
-crystals, the is represented in critic2 by two lists of atoms. The
-**non-equivalent atom list** contains the atoms in the asymmetric
-unit, that is, the minimal list of atoms that generate all the atomic
-positions in the crystal by symmetry. The **cell atom list**,
-equivalently called the **complete atom list**, contains all atoms in
-the current unit cell. The non-equivalent atom list reproduces the
-complete atom list by applying all symmetry operations (except lattice
-translations) known to critic2.
+crystals, the crystal motif is represented in critic2 by two lists of
+atoms. The **non-equivalent atom list** contains the atoms in the
+asymmetric unit, that is, the minimal list of atoms that generate all
+the atomic positions in the crystal by symmetry. The **cell atom
+list**, equivalently called the **complete atom list**, contains all
+atoms in the current unit cell. The non-equivalent atom list
+reproduces the complete atom list by applying all symmetry operations
+(except lattice translations) known to critic2.
 
-Atoms in each of those two lists receive are numbered. The integer
+The atoms in each of those two lists are numbered. The integer
 identifier for an atom in the non-equivalent atom list is symbolized
 in this manual as "nat.i". The integer identifier for an atom in the
-cell atom list is "at.i". The concise syntax.txt file follows the same
-notation. The distinction between atoms from the complete list and
-from the non-equivalent list is irrelevant in the case of molecules,
-because the calculation of symmetry is automatically deactivated (and
-hence both lists are the same).
+complete atom list is "at.i". The concise syntax.txt file follows the
+same notation. The distinction between atoms from the complete list
+and from the non-equivalent list is irrelevant in the case of
+molecules, because symmetry is not used (and hence both lists are the
+same).
 
 In exact parallel to the atomic lists, critic2 also maintains a list
 of non-equivalent critical points (CP) and a complete (or cell) list
-of critical points found for the current reference scalar field. The
-CPs in the non-equivalent list reproduce all the CPs in the complete
-list by symmetry, and both lists are the exactly the same in molecules
-because symmetry is not used. The keyword definitions in this manual
-and in syntax.txt use "ncp.i" for the integer indices in the
-non-equivalent CP list, and "cp.i" for the integer identifiers in the
-complete CP list.
+of critical points found for a given scalar field. The CPs in the
+non-equivalent list reproduce all the CPs in the complete list by
+symmetry, and both lists are the exactly the same in molecules because
+symmetry is not used. The keyword definitions in this manual and in
+syntax.txt use "ncp.i" for the integer indices in the non-equivalent
+CP list, and "cp.i" for the integer identifiers in the complete CP
+list.
 
-Since the atoms are always critical points, the non-equivalent
-(complete) atom list is a subset of the non-equivalent (complete) CP
-list. Critic2 makes sure that the integer identifier for all atoms in
-the atomic lists receive the same identifier in the corresponding CP
+Since in critic2 atoms are considered critical points always, the
+non-equivalent (complete) atom list is a subset of the non-equivalent
+(complete) CP list. Critic2 makes sure that the integer identifier for
+all atoms in the atomic lists are the same as in the corresponding CP
 lists. For instance, if an atom has index nat.i = 2 and at.i = 5, then
 necessarily ncp.i = 2 and cp.i = 5, regardless of how many additional
 critical points have been found for this system.
@@ -244,8 +247,8 @@ of the manual are:
   sum of the in-vacuo atomic densities. This object comes up in a
   number of contexts. For instance, NCIPLOT and HIRSHFELD use it. The
   promolecular density does not require any input from the user other
-  than the crystal structure, and is always available under field
-  identifier $0 (or $rho0).
+  than the crystal or molecular structure, and is always available
+  under field identifier $0 (or $rho0).
 
 * We denote by <root> the root of the input file. That is, the name of
   the file without the extension. If no input file is known (for
@@ -447,7 +450,7 @@ The Cartesian/crystallographic transformation matrices are the
 transformation operations between the vector basis formed by the cell
 vectors (crystallographic coordiantes) and the internal Cartesian axes
 used in critic2 (Cartesian coordinates). The crystallographic to
-cartesian matrix ("crys to car") gives the cell vectors in Cartesian
+Cartesian matrix ("crys to car") gives the cell vectors in Cartesian
 axes. The metric tensor is the transpose of "crys to car" times "crys
 to car", and contains the scalar products between lattice vectors. 
 

@@ -111,10 +111,10 @@ repository, and the **stable** version, in the stable branch. Only
 patches addressing serious bugs will be introduced in the stable
 version; all new development happens in the development version.
 
-The stable version is compilable by all versions of gfortran starting
-at 4.9. All intel fortran compiler versions from 2011 onwards also
-compile the stable code. To download the stable version, click on the
-**release** tag above.
+The stable version is compilable with all versions of gfortran
+starting at 4.9. All intel fortran compiler versions from 2011 onwards
+also compile the stable code. To download the stable version, click on
+the **release** tag above.
 
 The development version can be compiled with gfortran-6 and
 later. Most other compilers will not produce sane code, however. The
@@ -122,21 +122,22 @@ specific issues are:
 
 * gfortran 4.8: allocatable components in user-defined types not
   supported. 
-* gfortran 4.9 through 5.4 (and possible older gfortran-5): errors
-  allocating and deallocating the global field array (sy%f).
+* gfortran 4.9 through 5.4 (and possibly older and newer gfortran-5):
+  errors allocating and deallocating the global field array (sy%f).
 * ifort 12.1: catastrophic internal compiler error. 
 * Newer ifort versions (ifort-14.0.2.144, ifort-15.0.5.233, and
   ifort-15.2): the compilation succeeds, but inexplicable errors
   happen at runtime when the global field array is deallocated in the
   system_end subroutine (similar to gfortran 4.9 to 5.4). The run may
-  also hang if the field array is reallocated (move_alloc bug?)
+  also hang if the field array is reallocated (move_alloc bug?).
 * Other compilers: missing Fortran 95 and 2003 features here and
   there. 
 
 In summary: **Only recent versions of gfortran are guaranteed to work
 with the development version. If you can not use gfortran 6 or newer,
 download the stable version.** I do not think this is because of
-errors in the critic2 code. 
+errors in the critic2 code (though if you do find the reason, please
+let me know).
 
 If a recent compiler is not available, an alternative is to compile
 the program elsewhere with the static linking option:
