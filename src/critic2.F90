@@ -63,7 +63,7 @@ program critic
   !
   integer :: level, plevel, id
   integer :: i, nn, ismoli
-  logical :: ll1, ok
+  logical :: ok
   real*8 :: rdum
 
   ! initialize parameters
@@ -272,7 +272,7 @@ program critic
         end if
         call sy%set_reference(id,.false.)
         write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
-        call sy%report(.false.,.false.,.true.,.false.,.false.,.false.)
+        call sy%report(.false.,.false.,.true.,.false.,.false.,.false.,.true.)
         call check_no_extra_word(ok)
 
         ! point
@@ -367,7 +367,7 @@ program critic
         end if
         call sy%new_integrable_string(subline,errmsg)
         if (len_trim(errmsg) == 0) then
-           call sy%report(.false.,.false.,.true.,.false.,.false.,.false.)
+           call sy%report(.false.,.false.,.true.,.false.,.false.,.false.,.false.)
         else
            call ferror('integrable',errmsg,faterr,line,syntax=.true.)
         end if
@@ -380,7 +380,7 @@ program critic
         end if
         call sy%new_pointprop_string(subline,errmsg)
         if (len_trim(errmsg) == 0) then
-           call sy%report(.false.,.false.,.false.,.true.,.false.,.false.)
+           call sy%report(.false.,.false.,.false.,.true.,.false.,.false.,.false.)
         else
            call ferror('pointprop',errmsg,faterr,line,syntax=.true.)
         end if
@@ -589,7 +589,7 @@ program critic
         call check_no_extra_word(ok)
         if (.not.ok) cycle
         call listvariables()
-        call sy%report(.false.,.true.,.true.,.true.,.true.,.false.)
+        call sy%report(.false.,.true.,.true.,.true.,.true.,.false.,.false.)
 
         ! reset
      elseif (equal(word,'reset')) then

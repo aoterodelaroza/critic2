@@ -232,7 +232,7 @@ contains
     if (present(s0)) then
        call s0%new_from_seed(seed)
        if (verbose) &
-          call s0%report(.true.,.true.,.true.,.true.,.true.,.true.)
+          call s0%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
     end if
     if (present(cr0)) then
        call cr0%struct_new(seed,.true.)
@@ -299,7 +299,7 @@ contains
     s%c%isrecip = .false.
     s%c%isnn = .false.
     call s%c%struct_fill(.true.,-1,.false.,.true.,.false.)
-    call s%report(.true.,.true.,.true.,.true.,.true.,.true.)
+    call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_clearsym
 
@@ -377,7 +377,7 @@ contains
 
     ! report the charges and zpsp
     call s%c%report(.false.,.true.)
-    call s%report(.false.,.false.,.false.,.false.,.false.,.true.)
+    call s%report(.false.,.false.,.false.,.false.,.false.,.true.,.false.)
 
   end subroutine struct_charges
 
@@ -1603,7 +1603,7 @@ contains
     call s%reset_fields()
 
     ! report
-    call s%report(.true.,.true.,.true.,.true.,.true.,.true.)
+    call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_newcell
 

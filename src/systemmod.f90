@@ -29,7 +29,7 @@ module systemmod
   public :: systemmod_end
   private :: field_fcheck
   private :: field_feval
-  public :: field_cube
+  private :: field_cube
 
   type system
      logical :: isinit = .false. !< Is the system initialized?
@@ -43,6 +43,9 @@ module systemmod
      integer :: npropp = 0 !< Number of properties at points
      type(pointpropable), allocatable :: propp(:) !< Properties at points
      type(hash) :: fh !< Hash of function aliases
+     procedure(field_fcheck), nopass, pointer :: fcheck => null() !< Pointer to functions for arithmetics
+     procedure(field_feval), nopass, pointer :: feval => null() !< Pointer to functions for arithmetics
+     procedure(field_cube), nopass, pointer :: cube => null() !< Pointer to functions for arithmetics
    contains
      procedure :: end => system_end !< Terminate a system object
      procedure :: init => system_init !< Allocate space for crystal structure
@@ -149,6 +152,9 @@ contains
     
     call s%end()
     allocate(s%c)
+    s%fcheck => field_fcheck
+    s%feval => field_feval
+    s%cube => field_cube
 
   end subroutine system_init
   
@@ -241,7 +247,8 @@ contains
   !> integrable properties. lpropp = point properties. lalias = list
   !> of alias for the current fields. lzpsp = zpsp, core and
   !> pseudopotential charges.  linteg = integrable properties.
-  subroutine report(s,lcrys,lfield,lpropi,lpropp,lalias,lzpsp)
+  !> lcp = summary of critical points for the reference field.
+  subroutine report(s,lcrys,lfield,lpropi,lpropp,lalias,lzpsp,lcp)
     use tools_io, only: uout, string, ioj_right, ioj_center, ferror, faterr,&
        nameguess
     use param, only: maxzat0
@@ -252,10 +259,12 @@ contains
     logical, intent(in) :: lpropp
     logical, intent(in) :: lalias
     logical, intent(in) :: lzpsp
+    logical, intent(in) :: lcp
 
     integer :: i, j, nal
     character*4 :: sprop, yesno
     character(len=:), allocatable :: aux, str
+    integer :: numclass(0:3), multclass(0:3)
 
     if (lcrys) call s%c%report(.true.,.true.)
     if (lfield) then
@@ -358,6 +367,26 @@ contains
                 yesno, str
           end if
        end do
+       write (uout,*)
+    end if
+
+    if (lcp) then
+       write (uout,'("* Summary of critical points for the reference field")')
+       write (uout,'("  Non-equivalent critical points = ",A)') string(s%f(s%iref)%ncp)
+       write (uout,'("  Cell critical points = ",A)') string(s%f(s%iref)%ncpcel)
+       numclass = 0
+       multclass = 0
+       do i = 1, s%f(s%iref)%ncp
+          numclass(s%f(s%iref)%cp(i)%typind) = numclass(s%f(s%iref)%cp(i)%typind) + 1
+          multclass(s%f(s%iref)%cp(i)%typind) = multclass(s%f(s%iref)%cp(i)%typind) + s%f(s%iref)%cp(i)%mult
+       end do
+       write (uout,'("  Topological class (n|b|r|c): ",4(A,"(",A,") "))') &
+          (string(numclass(i)),string(multclass(i)),i=0,3)
+       if (s%c%ismolecule) then
+          write (uout,'("  Poincare-Hopf sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
+       else
+          write (uout,'("  Morse sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
+       endif
        write (uout,*)
     end if
 
@@ -612,7 +641,7 @@ contains
        end if
 
        syl => s
-       call s%f(id)%field_new(seed,s%c,id,s%fh,c_loc(syl),field_fcheck,field_feval,field_cube,errmsg)
+       call s%f(id)%field_new(seed,s%c,id,s%fh,c_loc(syl),s%fcheck,s%feval,s%cube,errmsg)
 
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
@@ -836,9 +865,8 @@ contains
 
   end function field_feval
 
-  !> Check that the id is a grid and is a sane field. Wrapper around
-  !> goodfield() to pass it to the arithmetic module.  This routine is
-  !> thread-safe. psy is the pointer to the system.
+  !> Check that the field given by id is a grid of size n
+  !> and return the grid, or return ifail = .true..
   function field_cube(sptr,n,id,fder,dry,ifail) result(q)
     use iso_c_binding, only: c_ptr, c_f_pointer
     use fieldmod, only: type_grid
@@ -1175,7 +1203,7 @@ contains
     type(system), pointer :: syl
 
     syl => s
-    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl),s%fh,field_fcheck,field_feval)
+    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl),s%fh,s%fcheck,s%feval)
 
   end function system_eval
 

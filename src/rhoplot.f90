@@ -361,7 +361,7 @@ contains
 
   ! Calculate properties on a 3d cube
   subroutine rhoplot_cube(line)
-    use systemmod, only: sy, field_cube
+    use systemmod, only: sy
     use fieldmod, only: type_grid
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, fileroot
@@ -580,7 +580,7 @@ contains
     else
        ok = .false.
        if (useexpr) then
-          call faux%new_eval(c_loc(sy),nn,expr,sy%fh,field_cube)
+          call faux%new_eval(c_loc(sy),nn,expr,sy%fh,sy%cube)
           ok = faux%isinit
        end if
        allocate(lf(nn(1),nn(2),nn(3)))
