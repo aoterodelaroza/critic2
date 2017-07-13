@@ -104,17 +104,17 @@ ${CRITIC_HOME}/dat/.
 
 Critic2 uses some features from the more modern Fortran standards,
 which may not be available in old compilers. In consequence, not all
-compilers may be able to generate the binary. Two versions of critic2
-are distributed. The *development* version, corresponding to the
-master branch of the repository, and the *stable* version, in the
-stable branch. Only patches addressing serious bugs will be introduced
-in the stable version; all new development happens in the development
-version. 
+compilers may be able to generate the binary and, even if they do, it
+may be broken. Two versions of critic2 are distributed. The
+**development** version, corresponding to the master branch of the
+repository, and the **stable** version, in the stable branch. Only
+patches addressing serious bugs will be introduced in the stable
+version; all new development happens in the development version.
 
 The stable version is compilable by all versions of gfortran starting
 at 4.9. All intel fortran compiler versions from 2011 onwards also
 compile the stable code. To download the stable version, click on the
-*release* tag above.
+**release** tag above.
 
 The development version can be compiled with gfortran-6 and
 later. Most other compilers will not produce sane code, however. The
