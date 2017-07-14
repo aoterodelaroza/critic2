@@ -90,7 +90,7 @@ contains
     use bader, only: bader_integrate
     use yt, only: yt_integrate, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
-       itype_lap, itype_lapval, itype_expr, itype_mpoles, itype_deloc
+       itype_lap, itype_lapval, itype_mpoles, itype_deloc
     use fieldmod, only: type_grid, type_wfn
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, iunitname0, fileroot
@@ -721,9 +721,8 @@ contains
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
-       ferror, faterr, warning
+       ferror, warning
     use tools_math, only: norm, matinv
-    use param, only: tpi, img
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)
@@ -734,14 +733,14 @@ contains
 
     integer :: is, nspin, ndeloc, natt1, lu
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, k, l, m, ibnd1, ibnd2
+    integer :: i, j, l, ibnd1, ibnd2
     integer :: nwan(3), m1, m2, m3
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
     complex*16, allocatable :: psic(:,:,:), psic2(:,:,:)
     complex*16 :: padd
-    real*8 :: x(3), xs(3), d2, d0, rrdum, ridum
+    real*8 :: x(3), xs(3), d2, d0
     logical :: found
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
@@ -1391,7 +1390,7 @@ contains
     real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
     real*8, intent(in), allocatable, optional :: mpole(:,:,:)
 
-    integer :: i, j, k, ip, ipmax, iplast, idx
+    integer :: i, j, k, ip, ipmax, iplast
     integer :: fid, nacprop(5)
     real*8 :: x(3), sump(sy%npropi), xmult, xcm(3)
     character(len=:), allocatable :: saux, itaux, label, cini

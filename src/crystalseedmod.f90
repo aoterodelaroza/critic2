@@ -88,7 +88,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
        getword, lower, isinteger, string, nameguess, zatguess
-    use param, only: bohrtoa, pi
+    use param, only: bohrtoa
     use types, only: realloc
 
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -98,7 +98,7 @@ contains
     character(len=:), allocatable :: word, aux, aexp, line
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2, iunit0
-    real*8 :: gmat(3,3), rmat(3,3), scal, ascal, x(3), xn(3)
+    real*8 :: rmat(3,3), scal, ascal, x(3), xn(3)
     logical :: ok, goodspg, useit
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
     logical :: icodef(3), iok, isset
@@ -1240,9 +1240,8 @@ contains
 
   !> Read the structure from a gaussian cube file
   subroutine read_cube(seed,file,mol)
-    use tools_io, only: fopen_read, uout, fclose
+    use tools_io, only: fopen_read, fclose
     use tools_math, only: matinv
-    use param, only: pi, eye
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
@@ -1311,7 +1310,7 @@ contains
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
   subroutine read_wien(seed,file,mol)
-    use tools_io, only: fopen_read, faterr, ferror, zatguess, fclose
+    use tools_io, only: fopen_read, ferror, zatguess, fclose
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
@@ -1484,7 +1483,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: detsym, matinv
-    use param, only: bohrtoa, pi, maxzat0
+    use param, only: bohrtoa, maxzat0
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     integer, intent(inout) :: ntypat !< Number of atom types
@@ -1619,9 +1618,8 @@ contains
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
   subroutine read_abinit(seed,file,mol)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, nameguess, faterr, ferror, fclose
+    use tools_io, only: fopen_read, nameguess, ferror, fclose
     use abinit_private, only: hdr_type, hdr_io
-    use param, only: pi, eye
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -1677,7 +1675,6 @@ contains
     use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
        zatguess, nameguess, fclose, string
     use tools_math, only: matinv
-    use param, only: pi
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< input filename
@@ -1763,8 +1760,6 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
-    integer :: i
-
     if (fmt == isformat_xyz) then
        ! xyz
        call wfn_read_xyz_geometry(file,seed%nat,seed%x,seed%z,seed%name)
@@ -1805,7 +1800,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose
     use tools_math, only: matinv
-    use param, only: pi, eye, bohrtoa
+    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -2003,7 +1998,7 @@ contains
     use tools_io, only: fopen_read, faterr, ferror, getline_raw, upper, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
-    use param, only: pi, bohrtoa, eye
+    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -2259,7 +2254,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose
     use tools_math, only: matinv
-    use param, only: pi, eye, bohrtoa
+    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -2354,7 +2349,7 @@ contains
   subroutine read_siesta(seed,file,mol)
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
-    use param, only: bohrtoa, pi, eye
+    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -2406,7 +2401,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
        getword, zatguess, nameguess
-    use param, only: bohrtoa, pi, eye
+    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -2507,7 +2502,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
        ferror, faterr, zatguess, isinteger, getword, isreal
     use tools_math, only: matinv
-    use param, only: bohrtoa, eye, pi
+    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -2515,7 +2510,7 @@ contains
 
     character(len=:), allocatable :: line, word
     integer :: lu, lp, i, iz
-    real*8 :: r(3,3), g(3,3)
+    real*8 :: r(3,3)
     logical :: ok
 
     ! open
@@ -2602,7 +2597,7 @@ contains
     logical, intent(out) :: ismol
 
     character(len=:), allocatable :: basename, wextdot, wext_
-    logical :: isvasp, prob0
+    logical :: isvasp
 
     basename = file(index(file,dirsep,.true.)+1:)
     wextdot = basename(index(basename,'.',.true.)+1:)

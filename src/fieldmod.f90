@@ -389,11 +389,11 @@ contains
        end function cube
     end interface
 
-    character(len=:), allocatable :: ofile, sijfname
-    integer :: i, j, k, iz, n(3), luc
+    character(len=:), allocatable :: ofile
+    integer :: i, j, k, iz, n(3)
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
-    logical :: iok, haschk, ok1, ok2
+    logical :: iok
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -1961,7 +1961,7 @@ contains
   subroutine addcp(f,x0,cpeps,nuceps,nucepsh,itype)
     use arithmetic, only: eval
     use tools_math, only: norm, rsindex
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     use types, only: scalar_value_noalloc, realloc
     use global, only: CP_hdegen, rbetadef
     use types, only: realloc
@@ -1972,9 +1972,9 @@ contains
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
 
-    real*8 :: xc(3), ehess(3), x(3)
+    real*8 :: xc(3), ehess(3)
     integer :: nid, lvec(3)
-    real*8 :: dist, fval
+    real*8 :: dist
     integer :: n, i, num
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
@@ -1983,7 +1983,6 @@ contains
     character*3 :: namecrit(0:3)
     character*(1) :: smallnamecrit(0:3)
     type(scalar_value_noalloc) :: res
-    logical :: ok
 
     data smallnamecrit   /'n','b','r','c'/
     data namecrit /'ncp','bcp','rcp','ccp'/

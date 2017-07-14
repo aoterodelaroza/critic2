@@ -55,8 +55,7 @@ contains
        isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp
     use crystalseedmod, only: crystalseed, struct_detect_format, &
        struct_read_potcar
-    use global, only: doguess, iunit_isdef, iunit, iunit_ang, iunit_bohr,&
-       iunitname0, dunit0, rborder_def, eval_next
+    use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, lower
     character*(*), intent(in) :: line
@@ -315,7 +314,7 @@ contains
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word
-    integer :: lp, lp2, nn, i, j, zpsp0(maxzat0)
+    integer :: lp, nn, i, j, zpsp0(maxzat0)
     logical :: ok, do1
     real*8 :: xx
 

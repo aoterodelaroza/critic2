@@ -68,7 +68,6 @@ contains
   !> considered equal if they are within a ditsance of ratom (bohr).
   subroutine bader_integrate(s,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
     use systemmod, only: system
-    use fieldmod, only: type_grid
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv
     use arithmetic, only: eval

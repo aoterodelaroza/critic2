@@ -126,7 +126,6 @@ contains
     integer, allocatable :: occ(:)
     real*8, allocatable :: wfcin(:), rr(:,:)
     character*2, allocatable :: wfcl(:)
-    character(len=:), allocatable :: econf
     real*8 :: xmin, zz, dx, r, r1, r2, r3 ,r4, delta, delta2
     integer :: ngrid, ns, ic
     logical :: exist

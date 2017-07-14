@@ -127,6 +127,7 @@ contains
     character*1, allocatable :: str(:)
     integer :: fh
     
+    val = 0d0
     if (self%len == 0) return
     fh = hashfun(key,self%len)
     call self%root(fh)%get(key,str)
@@ -144,6 +145,7 @@ contains
     character*1, allocatable :: str(:)
     integer :: fh
     
+    val = 0d0
     if (self%len == 0) return
     fh = hashfun(key,self%len)
     call self%root(fh)%get(key,str)
@@ -179,6 +181,7 @@ contains
     character*1, allocatable :: str(:)
     integer :: fh
     
+    val = 0d0
     if (self%len == 0) return
     fh = hashfun(key,self%len)
     call self%root(fh)%get(key,str)

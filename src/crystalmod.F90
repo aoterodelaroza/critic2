@@ -2596,7 +2596,6 @@ contains
     use crystalseedmod, only: crystalseed
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
-    use param, only: pi, ctsq3
     use types, only: realloc
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
@@ -2606,7 +2605,7 @@ contains
     type(crystalseed) :: ncseed
     logical :: ok, found, verbose
     real*8 :: x0(3,3), x0inv(3,3), fvol
-    real*8 :: r(3,3), g(3,3), x(3), dx(3), dd, t(3)
+    real*8 :: r(3,3), x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
     integer :: nr, nn
     integer :: nlat
@@ -6271,9 +6270,8 @@ contains
   !> contribute.  This routine is thread-safe.
   subroutine promolecular_grid(c,f,n,zpsp,fr)
     use grid3mod, only: grid3
-    use grid1mod, only: cgrid, agrid, grid1
+    use grid1mod, only: grid1
     use fragmentmod, only: fragment
-    use param, only: maxzat
     class(crystal), intent(in) :: c 
     type(grid3), intent(out) :: f 
     integer, intent(in) :: n(3)

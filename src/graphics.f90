@@ -617,7 +617,7 @@ contains
 
   !> Close an obj file (and its mtl companion)
   subroutine obj_close(g)
-    use tools_io, only: ferror, faterr, string, fclose
+    use tools_io, only: ferror, string, fclose
     type(grhandle), intent(inout) :: g
 
     integer :: i
@@ -650,7 +650,7 @@ contains
 
   !> Write a ball to the obj file
   subroutine obj_ball(g,x,rgb,r)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
@@ -686,7 +686,7 @@ contains
   !> Write a polygon to the obj file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
   subroutine obj_polygon(g,x,rgb)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
@@ -716,7 +716,7 @@ contains
   
   !> Write a stick to the obj file
   subroutine obj_stick(g,x1,x2,rgb,r)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     use tools_math, only: norm, cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
@@ -850,7 +850,7 @@ contains
 
   !> Open a ply file
   subroutine ply_open(g)
-    use tools_io, only: faterr, ferror, fopen_scratch
+    use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
 
     ! open the temporary ply file
@@ -864,7 +864,7 @@ contains
 
   !> Close a ply file 
   subroutine ply_close(g)
-    use tools_io, only: ferror, faterr, getline_raw, fopen_write, string, fclose
+    use tools_io, only: ferror, getline_raw, fopen_write, string, fclose
     type(grhandle), intent(inout) :: g
 
     integer :: lu
@@ -919,7 +919,7 @@ contains
 
   !> Write a ball to the ply file
   subroutine ply_ball(g,x,rgb,r)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
@@ -953,7 +953,7 @@ contains
   !> Write a polygon to the ply file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
   subroutine ply_polygon(g,x,rgb)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
@@ -988,7 +988,7 @@ contains
 
   !> Write a stick to the ply file
   subroutine ply_stick(g,x1,x2,rgb,r)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     use tools_math, only: norm, cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
@@ -1094,7 +1094,7 @@ contains
 
   !> Open an off file
   subroutine off_open(g)
-    use tools_io, only: ferror, faterr, fopen_scratch
+    use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
 
     ! open the temporary off file
@@ -1108,7 +1108,7 @@ contains
 
   !> Close a off file 
   subroutine off_close(g)
-    use tools_io, only: ferror, faterr, getline_raw, string, fopen_write, fclose
+    use tools_io, only: ferror, getline_raw, string, fopen_write, fclose
     type(grhandle), intent(inout) :: g
 
     integer :: lu
@@ -1151,7 +1151,7 @@ contains
 
   !> Write a ball to the off file
   subroutine off_ball(g,x,rgb,r)
-    use tools_io, only: faterr, ferror, string
+    use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
@@ -1187,7 +1187,7 @@ contains
   !> Write a polygon to the off file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
   subroutine off_polygon(g,x,rgb)
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
@@ -1222,7 +1222,7 @@ contains
 
   !> Write a stick to the off file
   subroutine off_stick(g,x1,x2,rgb,r)
-    use tools_io, only: faterr, ferror, string
+    use tools_io, only: ferror, string
     use tools_math, only: norm, cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)

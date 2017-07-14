@@ -116,7 +116,6 @@ contains
   !> Calculate XDM using grids.
   subroutine xdm_grid(line)
     use systemmod, only: sy
-    use fieldmod, only: type_grid
     use crystalmod, only: search_lattice
     use grid1mod, only: grid1, agrid
     use global, only: eval_next, fileroot, cutrad
@@ -1001,7 +1000,6 @@ contains
   end subroutine write_cube
 
   function free_volume(iz) result(afree)
-    use systemmod, only: sy
     use grid1mod, only: grid1, agrid
     use param, only: pi
     integer, intent(in) :: iz

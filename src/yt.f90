@@ -56,7 +56,6 @@ contains
   !> (bohr).
   subroutine yt_integrate(s,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
     use systemmod, only: system
-    use fieldmod, only: type_grid
     use crystalmod, only: crystal
     use tools_math, only: crys2car_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch

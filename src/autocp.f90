@@ -1149,7 +1149,6 @@ contains
     integer :: numclass(0:3), multclass(0:3)
     character*(8) :: namecrit(0:6)
     integer :: ind
-    type(scalar_value) :: res
 
     data namecrit /'nucleus','bond','ring','cage','degener','nnattr','eff.nuc'/
 

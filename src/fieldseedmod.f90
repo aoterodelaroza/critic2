@@ -89,7 +89,7 @@ contains
   subroutine fieldseed_parse(f,line,withoptions,lp0)
     use global, only: eval_next
     use types, only: realloc
-    use tools_io, only: getword, lower, ferror, faterr, equal, isinteger, zatguess,&
+    use tools_io, only: getword, lower, ferror, equal, isinteger, zatguess,&
        isexpression
     use param, only: dirsep,&
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube, ifformat_abinit,&

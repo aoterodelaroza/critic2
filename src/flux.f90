@@ -43,7 +43,7 @@ module flux
 
   ! output format
   character*3 :: outfmt
-  integer :: luout, lumtl
+  integer :: luout
   type(grhandle) :: gr
   character(len=:), allocatable :: outfile
 

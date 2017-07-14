@@ -961,6 +961,7 @@ contains
     integer :: iassoc
     integer, intent(in) :: c
 
+    iassoc = 0
     if (c == fun_plus .or. c == fun_minus .or. c == fun_prod .or. &
        c == fun_div .or. c == fun_modulo .or. c == fun_or .or. &
        c == fun_and .or. c == fun_equal .or. c == fun_leq .or. &
@@ -1344,6 +1345,7 @@ contains
     do i = 1, nkeys
        key = vh%getkey(i)
        typ = vh%type(key)
+       val = ""
        select case (typ)
        case ("i_")
           typx = "integer"
@@ -1398,6 +1400,7 @@ contains
     ! some common constant
     real*8 :: ctf = 3d0/10d0 * (3d0*pi**2)**(2d0/3d0) ! Thomas-Fermi k.e.d. constant
   
+    q = 0d0
     select case(c)
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas

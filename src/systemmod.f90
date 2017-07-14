@@ -473,7 +473,7 @@ contains
     integer :: i, oid, nal, id1, id2, nn, n(3)
     logical :: ok, isnewref
     type(fieldseed) :: seed
-    integer :: ifformat, idx
+    integer :: idx
     character(len=:), allocatable :: str, aux
     character*255, allocatable :: idlist(:)
     type(system), pointer :: syl
@@ -724,7 +724,6 @@ contains
     use fieldmod, only: realloc_field
     use tools_io, only: string
     class(system), intent(inout) :: s
-    integer :: mf
     logical :: found
 
     id = -1
@@ -806,9 +805,17 @@ contains
     integer :: iid, lvec(3)
     real*8 :: xp(3), dist, u
     real*8, parameter :: rc = 1.4d0
+    
+    field_feval%f = 0d0
+    field_feval%fval = 0d0
+    field_feval%gf = 0d0
+    field_feval%gfmod = 0d0
+    field_feval%gfmodval = 0d0
+    field_feval%hf = 0d0
+    field_feval%del2f = 0d0
+    field_feval%del2fval = 0d0
 
     call c_f_pointer(sptr,syl)
-
     if (.not.associated(syl)) return
     iid = syl%fieldname_to_idx(id)
     if (iid >= 0) then
@@ -817,12 +824,6 @@ contains
        xp = syl%c%c2x(x0)
        field_feval%f = syl%c%ewald_pot(xp,.false.)
        field_feval%fval = field_feval%f
-       field_feval%gf = 0d0
-       field_feval%gfmod = 0d0
-       field_feval%gfmodval = 0d0
-       field_feval%hf = 0d0
-       field_feval%del2f = 0d0
-       field_feval%del2fval = 0d0
     elseif (trim(id) == "model1r") then
        ! xxxx
        iid = 0
@@ -835,12 +836,6 @@ contains
           field_feval%f = 0d0
        end if
        field_feval%fval = field_feval%f
-       field_feval%gf = 0d0
-       field_feval%gfmod = 0d0
-       field_feval%gfmodval = 0d0
-       field_feval%hf = 0d0
-       field_feval%del2f = 0d0
-       field_feval%del2fval = 0d0
     elseif (trim(id) == "model1v") then
        ! xxxx requires the +1 charges
        iid = 0
@@ -855,12 +850,6 @@ contains
           field_feval%f = field_feval%f + (12 - 14*u**2 + 28*u**5 - 30*u**6 + 9*u**7) / (5d0 * rc) - 2d0 / sqpi / syl%c%eta
        end if
        field_feval%fval = field_feval%f
-       field_feval%gf = 0d0
-       field_feval%gfmod = 0d0
-       field_feval%gfmodval = 0d0
-       field_feval%hf = 0d0
-       field_feval%del2f = 0d0
-       field_feval%del2fval = 0d0
     end if
 
   end function field_feval
@@ -1055,7 +1044,7 @@ contains
 
   !> Define fields as point prop from a command string.
   subroutine new_pointprop_string(s,line0,errmsg)
-    use tools_io, only: uout, getword, lower, equal, string
+    use tools_io, only: getword, lower, equal, string
     use arithmetic, only: fields_in_eval
     use types, only: realloc
     class(system), intent(inout) :: s
@@ -1376,7 +1365,6 @@ contains
     
     real*8 :: fval
     logical :: ok
-    real*8 :: xp
 
     if (len_trim(discexpr) > 0) then
        fval = s%eval(discexpr,.false.,ok,x0)

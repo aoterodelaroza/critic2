@@ -84,7 +84,7 @@ contains
 
     type(scalar_value) :: res
     logical :: ok, iok, doall
-    integer :: lp, lp2, i, j, ifi
+    integer :: lp, lp2, j, ifi
     real*8 :: x0(3), xp(3), rdum
     character(len=:), allocatable :: word, expr
 

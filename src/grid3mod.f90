@@ -722,7 +722,7 @@ contains
     integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
     real*8 :: fspin
     integer :: i, j, k, l
-    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:), rseq(:)
+    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:)
     integer :: nk1, nk2, nk3, nk
     character(len=:), allocatable :: fname, oname, sijfname
     logical :: haschk
@@ -953,14 +953,14 @@ contains
     real*8, intent(in) :: omega !< unit cell
     logical, intent(in) :: dochk !< use checkpoint file
 
-    integer :: luc, luw
+    integer :: luc
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
     integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
     real*8 :: fspin
     integer :: i, j, k, l
-    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:), rseq(:), evc(:)
+    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     integer :: nk1, nk2, nk3, nk
-    character(len=:), allocatable :: fname, oname, sijfname
+    character(len=:), allocatable :: sijfname
     ! for the wannier checkpoint (wannier90, 2.0.1)
     character(len=33) :: header
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
@@ -2159,7 +2159,7 @@ contains
 
   !> Build a Wannier function from QEs unk(r) functions in the UNK files.
   subroutine get_qe_wnr(f,ibnd,ispin,fout)
-    use tools_io, only: string, ferror, faterr, fopen_read, fopen_write,&
+    use tools_io, only: string, ferror, fopen_read, fopen_write,&
        fclose
     use param, only: tpi, img
     class(grid3), intent(in) :: f
@@ -2168,10 +2168,10 @@ contains
     complex*16, intent(out) :: fout(f%wan%nwan(1)*f%n(1),f%wan%nwan(2)*f%n(2),f%wan%nwan(3)*f%n(3))
 
     integer :: luc, i, j, k, nk1, nk2, nk3
-    integer :: nk, ik, ik1, ik2, ik3, nall(3), naux(3), ikk, nbnd
+    integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk
     integer :: jbnd, imax(3)
     complex*16 :: raux(f%n(1),f%n(2),f%n(3)), rseq(f%n(1)*f%n(2)*f%n(3))
-    complex*16 :: raux2(f%n(1),f%n(2),f%n(3)), raux3(f%n(1),f%n(2),f%n(3))
+    complex*16 :: raux2(f%n(1),f%n(2),f%n(3))
     character(len=:), allocatable :: fname
     complex*16 :: tnorm, ph
     complex*16, allocatable :: evc(:)
@@ -2268,7 +2268,7 @@ contains
   !> Build a 3d grid using an arithmetic expression.
   subroutine new_eval(f,sptr,n,expr,fh,field_cube)
     use hashmod, only: hash
-    use arithmetic, only: token, tokenize, token_undef, token_num, token_fun,&
+    use arithmetic, only: token, tokenize, token_num, token_fun,&
        token_op, token_lpar, token_rpar, token_comma, token_field, iprec, iassoc,&
        istype, fun_openpar, fun_xc
     use types, only: realloc
@@ -2295,7 +2295,7 @@ contains
     integer :: i, ntok, lp
     integer :: c, s(100)
     logical :: again, ok, ifail
-    integer :: nq, ns, nder
+    integer :: nq, ns
     real*8, allocatable :: q(:,:,:,:)
     type(token), allocatable :: toklist(:)
 
