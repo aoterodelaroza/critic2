@@ -20,13 +20,17 @@ module types
   implicit none
 
   private
-  public :: atom, celatom, anyatom
+  public :: atom
+  public :: celatom
+  public :: anyatom
   public :: cp_type
-  public :: scalar_value, scalar_value_noalloc
+  public :: scalar_value
+  public :: scalar_value_noalloc
   public :: integrable
   public :: pointpropable
   public :: neighstar
   public :: realloc
+  public :: gpathp
 
   ! overloaded functions
   interface realloc
@@ -36,6 +40,7 @@ module types
      module procedure realloc_celatom
      module procedure realloc_anyatom
      module procedure realloc_cp
+     module procedure realloc_gpathp
      module procedure realloc1l
      module procedure realloc1r
      module procedure realloc2r
@@ -182,21 +187,30 @@ module types
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
   end type neighstar
 
+  !> Point along a gradient path 
+  type gpathp
+     integer :: i
+     real*8 :: x(3)
+     real*8 :: r(3)
+     real*8 :: f
+     real*8 :: gf(3)
+     real*8 :: hf(3,3)
+  end type gpathp
+
 contains
   
   !> Adapt the size of an allocatable 1D type(pointpropable) array
   subroutine realloc_pointpropable(a,nnew)
-    use tools_io, only: ferror, faterr
-
     type(pointpropable), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
     type(pointpropable), allocatable :: temp(:)
     integer :: l1, u1
 
-    if (.not.allocated(a)) &
-
-       call ferror('realloc_pointpropable','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     l1 = lbound(a,1)
     u1 = ubound(a,1)
     if (u1 == nnew) return
@@ -209,16 +223,16 @@ contains
 
   !> Adapt the size of an allocatable 1D type(integrable) array
   subroutine realloc_integrable(a,nnew)
-    use tools_io, only: ferror, faterr
-
     type(integrable), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
     type(integrable), allocatable :: temp(:)
     integer :: l1, u1
 
-    if (.not.allocated(a)) &
-       call ferror('realloc_integrable','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     l1 = lbound(a,1)
     u1 = ubound(a,1)
     if (u1 == nnew) return
@@ -231,16 +245,16 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_atom(a,nnew)
-    use tools_io, only: ferror, faterr
-
     type(atom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
     type(atom), allocatable :: temp(:)
     integer :: nold, i
 
-    if (.not.allocated(a)) &
-       call ferror('realloc_atom','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -258,16 +272,16 @@ contains
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   subroutine realloc_celatom(a,nnew)
-    use tools_io, only: ferror, faterr
-
     type(celatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
     type(celatom), allocatable :: temp(:)
     integer :: nold
 
-    if (.not.allocated(a)) &
-       call ferror('realloc_celatom','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -279,16 +293,16 @@ contains
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   subroutine realloc_anyatom(a,nnew)
-    use tools_io, only: ferror, faterr
-
     type(anyatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
     type(anyatom), allocatable :: temp(:)
     integer :: nold
 
-    if (.not.allocated(a)) &
-       call ferror('realloc_anyatom','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -300,16 +314,16 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_cp(a,nnew)
-    use tools_io, only: ferror, faterr
-
     type(cp_type), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
     
     type(cp_type), allocatable :: temp(:)
     integer :: nold
     
-    if (.not.allocated(a)) &
-       call ferror('realloc_atom','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -319,18 +333,39 @@ contains
 
   end subroutine realloc_cp
 
+  !> Adapt the size of an allocatable 1D type(atom) array
+  subroutine realloc_gpathp(a,nnew)
+    type(gpathp), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+    
+    type(gpathp), allocatable :: temp(:)
+    integer :: nold
+    
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+    
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_gpathp
+
   !> Adapt the size of an allocatable 1D logical array
   subroutine realloc1l(a,nnew)
-    use tools_io, only: ferror, faterr
-
     logical, intent(inout), allocatable :: a(:) !< Input array, logical, 1D
     integer, intent(in) :: nnew !< new dimension
     
     logical, allocatable :: temp(:)
     integer :: l1, u1
     
-    if (.not.allocated(a)) &
-       call ferror('realloc1l','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     l1 = lbound(a,1)
     u1 = ubound(a,1)
     if (u1 == nnew) return
@@ -343,16 +378,16 @@ contains
 
   !> Adapt the size of an allocatable 1D real*8 array
   subroutine realloc1r(a,nnew)
-    use tools_io, only: ferror, faterr
-
     real*8, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
     integer, intent(in) :: nnew !< new dimension
     
     real*8, allocatable :: temp(:)
     integer :: nold
     
-    if (.not.allocated(a)) &
-       call ferror('realloc1r','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -364,16 +399,16 @@ contains
 
   !> Adapt the size of an allocatable 2D real*8 array
   subroutine realloc2r(a,n1,n2)
-    use tools_io, only: ferror, faterr
-
     real*8, intent(inout), allocatable :: a(:,:) !< Input array, real*8, 2D
     integer, intent(in) :: n1, n2 !< new dimension
     
     real*8, allocatable :: temp(:,:)
     integer :: nold(2)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc2r','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     if (nold(1) == n1 .and. nold(2) == n2) return
@@ -387,16 +422,16 @@ contains
 
   !> Adapt the size of an allocatable 3D real*8 array
   subroutine realloc3r(a,n1,n2,n3)
-    use tools_io, only: ferror, faterr
-
     real*8, intent(inout), allocatable :: a(:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3 !< new dimension
     
     real*8, allocatable :: temp(:,:,:)
     integer :: nold(3)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc3r','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     nold(3) = size(a,3)
@@ -411,16 +446,16 @@ contains
 
   !> Adapt the size of an allocatable 3D real*8 array
   subroutine realloc4r(a,n1,n2,n3,n4)
-    use tools_io, only: ferror, faterr
-
     real*8, intent(inout), allocatable :: a(:,:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3, n4 !< new dimension
     
     real*8, allocatable :: temp(:,:,:,:)
     integer :: nold(4)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc4r','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3,1:n4))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     nold(3) = size(a,3)
@@ -438,16 +473,16 @@ contains
 
   !> Adapt the size of an allocatable 3D real*8 array
   subroutine realloc5r(a,n1,n2,n3,n4,n5)
-    use tools_io, only: ferror, faterr
-
     real*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
     
     real*8, allocatable :: temp(:,:,:,:,:)
     integer :: nold(5)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc5r','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3,1:n4,1:n5))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     nold(3) = size(a,3)
@@ -466,16 +501,16 @@ contains
 
   !> Adapt the size of an allocatable 1D integer array
   subroutine realloc1i(a,nnew)
-    use tools_io, only: ferror, faterr
-
     integer, intent(inout), allocatable :: a(:) !< Input array, integer, 1D
     integer, intent(in) :: nnew !< New dimension
     
     integer, allocatable :: temp(:)
     integer :: nold
     
-    if (.not.allocated(a)) &
-       call ferror('realloc1i','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -487,16 +522,16 @@ contains
 
   !> Adapt the size of an allocatable 1D real*8 array
   subroutine realloc2i(a,n1,n2)
-    use tools_io, only: ferror, faterr
-
     integer, intent(inout), allocatable :: a(:,:) !< Input array, integer, 2D
     integer, intent(in) :: n1, n2 !< new dimension
     
     integer, allocatable :: temp(:,:)
     integer :: nold(2)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc2i','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     if (nold(1) == n1 .and. nold(2) == n2) return
@@ -510,16 +545,16 @@ contains
 
   !> Adapt the size of an allocatable 1D character array
   subroutine realloc1c(a,nnew)
-    use tools_io, only: ferror, faterr
-
     character*(*), intent(inout), allocatable :: a(:) !< Input array, character, 1D
     integer, intent(in) :: nnew !< New dimension
     
     character*(len(a)), allocatable :: temp(:)
     integer :: nold
     
-    if (.not.allocated(a)) &
-       call ferror('realloc1c','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -531,16 +566,16 @@ contains
 
   !> Adapt the size of an allocatable 1D complex*8 array
   subroutine realloc1cmplx4(a,nnew)
-    use tools_io, only: ferror, faterr
-
     complex*8, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
     integer, intent(in) :: nnew !< new dimension
     
     complex*8, allocatable :: temp(:)
     integer :: nold
     
-    if (.not.allocated(a)) &
-       call ferror('realloc1cmplx4','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -552,16 +587,16 @@ contains
 
   !> Adapt the size of an allocatable 2D complex*8 array
   subroutine realloc2cmplx4(a,n1,n2)
-    use tools_io, only: ferror, faterr
-
     complex*8, intent(inout), allocatable :: a(:,:) !< Input array, real*8, 2D
     integer, intent(in) :: n1, n2 !< new dimension
     
     complex*8, allocatable :: temp(:,:)
     integer :: nold(2)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc2cmplx4','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     if (nold(1) == n1 .and. nold(2) == n2) return
@@ -575,16 +610,16 @@ contains
 
   !> Adapt the size of an allocatable 2D complex*8 array
   subroutine realloc4cmplx4(a,n1,n2,n3,n4)
-    use tools_io, only: ferror, faterr
-
     complex*8, intent(inout), allocatable :: a(:,:,:,:) !< Input array, real*8, 2D
     integer, intent(in) :: n1, n2, n3, n4 !< new dimension
     
     complex*8, allocatable :: temp(:,:,:,:)
     integer :: nold(4), i
     
-    if (.not.allocated(a)) &
-       call ferror('realloc4cmplx4','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3,1:n4))
+       return
+    end if
     do i = 1, 4
        nold(i) = size(a,i)
     end do
@@ -601,16 +636,16 @@ contains
 
   !> Adapt the size of an allocatable 1D complex*16 array
   subroutine realloc1cmplx8(a,nnew)
-    use tools_io, only: ferror, faterr
-
     complex*16, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
     integer, intent(in) :: nnew !< new dimension
     
     complex*16, allocatable :: temp(:)
     integer :: nold
     
-    if (.not.allocated(a)) &
-       call ferror('realloc1cmplx8','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -622,16 +657,16 @@ contains
 
   !> Adapt the size of an allocatable 5D complex*8 array
   subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
-    use tools_io, only: ferror, faterr
-
     complex*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
     
     complex*8, allocatable :: temp(:,:,:,:,:)
     integer :: nold(5)
     
-    if (.not.allocated(a)) &
-       call ferror('realloc5r','array not allocated',faterr)
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3,1:n4,1:n5))
+       return
+    end if
     nold(1) = size(a,1)
     nold(2) = size(a,2)
     nold(3) = size(a,3)
