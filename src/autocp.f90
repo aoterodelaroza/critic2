@@ -769,11 +769,10 @@ contains
   subroutine cpreport(line)
     use systemmod, only: sy, system
     use struct_drivers, only: struct_write
-    use fieldmod, only: prunepath
     use crystalseedmod, only: crystalseed
     use global, only: eval_next, prunedist
     use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
-    use types, only: realloc
+    use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 
     integer, parameter :: mstep = 1000 ! maximum steps for gradient
@@ -786,7 +785,8 @@ contains
     logical :: agraph
     type(crystalseed) :: seed
     type(system) :: syaux
-    real*8 :: x(3), xpath(3,mstep)
+    real*8 :: x(3), plen
+    type(gpathp), allocatable :: xpath(:)
 
     lp = 1
     do while (.true.)
@@ -857,7 +857,7 @@ contains
 
           ! calculate gradient paths and add them to the seed
           if (agraph) then
-             !$omp parallel do private(iup,x,nstep,ier,xpath) schedule(dynamic)
+             !$omp parallel do private(iup,x,nstep,ier,plen) firstprivate(xpath) schedule(dynamic)
              do i = sy%c%ncel+1, sy%f(sy%iref)%ncpcel
 
                 if (sy%f(sy%iref)%typnuc == -3 .and. sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
@@ -870,16 +870,14 @@ contains
 
                 if (iup /= 0) then
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
-                   call sy%f(sy%iref)%gradient(x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(sy%c,nstep,xpath(:,1:nstep),prunedist)
+                   call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist)
                    !$omp critical (add)
-                   call addpath(nstep,xpath(:,1:nstep))
+                   call addpath()
                    !$omp end critical (add)
                    x = sy%f(sy%iref)%cpcel(i)%r - 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
-                   call sy%f(sy%iref)%gradient(x,iup,nstep,mstep,ier,1,xpath,up2beta=.false.)
-                   call prunepath(sy%c,nstep,xpath(:,1:nstep),prunedist)
+                   call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist)
                    !$omp critical (add)
-                   call addpath(nstep,xpath(:,1:nstep))
+                   call addpath()
                    !$omp end critical (add)
                 end if
              end do
@@ -905,20 +903,19 @@ contains
     end do
 
   contains
-    subroutine addpath(nstep,xpath)
+    subroutine addpath()
       use types, only: realloc
-      integer, intent(in) :: nstep
-      real*8, intent(in) :: xpath(3,nstep)
 
-      integer :: i, n
+      integer :: i, n, nstep
 
+      nstep = size(xpath,1)
       call realloc(seed%x,3,seed%nat+nstep)
       call realloc(seed%z,seed%nat+nstep)
       call realloc(seed%name,seed%nat+nstep)
       n = seed%nat
       do i = 1, nstep
          n = n + 1
-         seed%x(:,n) = xpath(:,i)
+         seed%x(:,n) = xpath(i)%x
          seed%z(n) = 123
          seed%name(n) = nameguess(seed%z(n))
       end do
@@ -1702,7 +1699,7 @@ contains
     real*8 :: xdif(3,2), v(3)
     real*8, dimension(3,3) :: evec
     real*8, dimension(3) :: reval
-    real*8 :: dist, xdtemp(3,2), xx(3)
+    real*8 :: dist, xdtemp(3,2), xx(3), plen
     integer :: wcp
     integer :: ier, idir
     logical :: isbcp
@@ -1716,7 +1713,7 @@ contains
     xdis = 0d0
 
     ! run over known non-equivalent cps  
-    !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx) schedule(dynamic)
+    !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen) schedule(dynamic)
     do i = 1, sy%f(sy%iref)%ncp
        ! BCP/RCP paths
        if (abs(sy%f(sy%iref)%cp(i)%typ) == 1) then
@@ -1743,7 +1740,7 @@ contains
              idir = -1
           end if
           do j = 1, 2
-             call sy%f(sy%iref)%gradient(xdtemp(:,j),idir,nstep,cp_mstep,ier,0,up2beta=.true.) 
+             call sy%f(sy%iref)%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen) 
           end do
           !$omp critical (xdis1)
           sy%f(sy%iref)%cp(i)%brvec = xx 

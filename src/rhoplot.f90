@@ -2012,17 +2012,18 @@ contains
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
-    use types, only: scalar_value
+    use types, only: scalar_value, gpathp
     integer, intent(in) :: udat
     logical, intent(in) :: autocheck
     real*8, dimension(3), intent(in) :: r0, r1, r2
 
     integer :: nptf, i, j, iorig, up1d, up2d, ntotpts
-    real*8  :: xflux(3,RHOP_Mstep), xstart(3), phii, u1, v1, u, v
+    real*8  :: xstart(3), phii, u1, v1, u, v
     real*8  :: r012, v1d(3), v2da(3), v2db(3), xo0(3), xo1(3), xo2(3)
-    real*8  :: xtemp(3), c1coef, c2coef, ehess(3)
+    real*8  :: xtemp(3), c1coef, c2coef, ehess(3), plen
     integer :: ier, nindex, ntype
     type(scalar_value) :: res
+    type(gpathp), allocatable :: xpath(:)
 
     ! plane metrics
     rp0 = sy%c%x2c(r0)
@@ -2117,11 +2118,8 @@ contains
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
-             call sy%f(sy%iref)%gradient(xstart,+1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-             do j = 1, nptf
-                xflux(:,j) = sy%c%x2c(xflux(:,j))
-             end do
-             call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+             call sy%f(sy%iref)%gradient(xstart,+1,nptf,ier,.false.,plen,xpath)
+             call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
           enddo
           do i = 1, grpdwn(iorig)
@@ -2131,11 +2129,8 @@ contains
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
-             call sy%f(sy%iref)%gradient(xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-             do j = 1, nptf
-                xflux(:,j) = sy%c%x2c(xflux(:,j))
-             end do
-             call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+             call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath)
+             call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
           enddo
           nindex = 3
@@ -2202,34 +2197,22 @@ contains
                    ! the plot plane is coincident with the ias tangent plane
                    ! use v2da.
                    xstart = grpx(:,iorig) + grprad2 * v2da
-                   call sy%f(sy%iref)%gradient(xstart,-1,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-                   do j = 1, nptf
-                      xflux(:,j) = sy%c%x2c(xflux(:,j))
-                   end do
-                   call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+                   call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath)
+                   call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * v2da
-                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-                   do j = 1, nptf
-                      xflux(:,j) = sy%c%x2c(xflux(:,j))
-                   end do
-                   call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath)
+                   call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                 else
                    xtemp = c1coef * v2da + c2coef * v2db
                    xstart = grpx(:,iorig) + grprad2 * xtemp
-                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-                   do j = 1, nptf
-                      xflux(:,j) = sy%c%x2c(xflux(:,j))
-                   end do
-                   call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath)
+                   call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * xtemp
-                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-                   do j = 1, nptf
-                      xflux(:,j) = sy%c%x2c(xflux(:,j))
-                   end do
-                   call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath)
+                   call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                 end if
 
@@ -2239,17 +2222,11 @@ contains
                 !.................1D walk:
                 !
                 xstart = grpx(:,iorig) + grprad3 * v1d
-                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-                do j = 1, nptf
-                   xflux(:,j) = sy%c%x2c(xflux(:,j))
-                end do
-                call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath)
+                call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                 xstart = grpx(:,iorig) - grprad3 * v1d
-                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,RHOP_Mstep,ier,1,xflux,up2beta=.false.)
-                do j = 1, nptf
-                   xflux(:,j) = sy%c%x2c(xflux(:,j))
-                end do
-                call wrtpath (xflux,nptf,RHOP_Mstep,udat,rp0,r01,r02,cosalfa,sinalfa)
+                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath)
+                call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                 ntotpts = ntotpts + nptf
              endif
           endif
@@ -2271,12 +2248,12 @@ contains
   end subroutine plotvec
 
   !> Write the gradient path to the udat logical unit.
-  subroutine wrtpath (xflux, nptf, mptf, udat, rp0, r01, r02, cosalfa, sinalfa)
+  subroutine wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
     use systemmod, only: sy
     use global, only: prunedist
+    use types, only: gpathp
     use param, only: jmlcol
-    integer, intent(in) :: mptf
-    real*8, dimension(3,mptf), intent(in) :: xflux
+    type(gpathp) :: xpath(*)
     integer, intent(in) :: nptf
     integer, intent(in) :: udat
     real*8, intent(in) :: rp0(3), r01, r02, cosalfa, sinalfa
@@ -2287,10 +2264,10 @@ contains
     logical :: wasblank
 
     ! identify the endpoints
-    x0 = sy%c%c2x(xflux(:,1))
+    x0 = xpath(1)%x
     nid1 = 0
     call sy%c%nearest_atom(x0,nid1,dist1,lvec)
-    x0 = sy%c%c2x(xflux(:,nptf))
+    x0 = xpath(nptf)%x
     nid2 = 0
     call sy%c%nearest_atom(x0,nid2,dist2,lvec)
     rgb = (/0,0,0/)
@@ -2307,9 +2284,9 @@ contains
     wasblank = .true.
     do i = 1, nptf
        !.transform the point to the plotting plane coordinates:
-       xxx = xflux(1,i) - rp0(1)
-       yyy = xflux(2,i) - rp0(2)
-       zzz = xflux(3,i) - rp0(3)
+       xxx = xpath(i)%r(1) - rp0(1)
+       yyy = xpath(i)%r(2) - rp0(2)
+       zzz = xpath(i)%r(3) - rp0(3)
        u = bmat(1,1)*xxx + bmat(1,2)*yyy + bmat(1,3)*zzz
        v = bmat(2,1)*xxx + bmat(2,2)*yyy + bmat(2,3)*zzz
        h = bmat(3,1)*xxx + bmat(3,2)*yyy + bmat(3,3)*zzz
@@ -2321,7 +2298,7 @@ contains
              uort = u*r01 + v*r02*cosalfa
              vort = v*r02*sinalfa
              if (abs(h) < grphcutoff .or. grpproj > 0) then
-                write (udat,200) uort, vort, (xflux(j,i), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+                write (udat,200) uort, vort, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
              end if
           end if
           if (.not.wasblank) write (udat,*)
@@ -2331,7 +2308,7 @@ contains
           uort = u*r01 + v*r02*cosalfa
           vort = v*r02*sinalfa
           if (abs(h) < grphcutoff .or. grpproj > 0) then
-             write (udat,200) uort, vort, (xflux(j,i), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+             write (udat,200) uort, vort, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
           end if
        endif
     enddo

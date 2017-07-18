@@ -969,7 +969,7 @@ contains
 
     type(minisurf) :: srf
     integer :: i, j, idum, ii
-    real*8 :: xx(3), dist
+    real*8 :: xx(3), dist, plen
     real*8 :: rref, x0(3), unit(3), rmt
     integer :: ier
     integer :: ndo, nstep
@@ -1030,7 +1030,7 @@ contains
     call srf%clean()
     call srf%lebedev_nodes(nleb)
     !$omp parallel do &
-    !$omp private(i,x0,rref,idum,doagain,j,unit,xx,nstep,ier,dist) &
+    !$omp private(i,x0,rref,idum,doagain,j,unit,xx,nstep,ier,dist,plen) &
     !$omp schedule(dynamic)
     do ii = 1, ndo
        i = ido(ii)
@@ -1051,7 +1051,7 @@ contains
                 sin(srf%th(j)) * sin(srf%ph(j)),&
                 cos(srf%th(j)) /)
              xx = x0 + r_betagp(i) * unit
-             call sy%f(sy%iref)%gradient(xx,+1,nstep,mstep,ier,0,up2beta=.true.)
+             call sy%f(sy%iref)%gradient(xx,+1,nstep,ier,.true.,plen)
              dist = norm(xx - x0)
              if (dist > dthres) then
                 !$omp critical (write)

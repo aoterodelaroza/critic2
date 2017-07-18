@@ -87,7 +87,7 @@ contains
     real*8, dimension(3) :: xpoint, xnuc
     integer :: nstep, iup
     integer :: i, imin, ier
-    real*8 :: xtemp(3), dtemp
+    real*8 :: xtemp(3), dtemp, plen
     real*8 :: xin_(3), xfin_(3)
     real*8 :: bsr, bsr2
 
@@ -116,7 +116,7 @@ contains
        xmed = 0.5d0 * (xin_ + xfin_)
 
        xpoint = xmed
-       call sy%f(sy%iref)%gradient(xpoint,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+       call sy%f(sy%iref)%gradient(xpoint,iup,nstep,ier,.true.,plen)
        tstep = tstep + nstep
 
        if (ier <= 0) then
@@ -181,7 +181,7 @@ contains
     integer, intent(out) :: tstep
     integer, intent(inout) :: nwarn
 
-    real*8 :: xpoint(3), delta2, rr2
+    real*8 :: xpoint(3), delta2, rr2, plen
     integer :: nstep
     integer :: ier
     logical :: inbundle
@@ -207,7 +207,7 @@ contains
        !.alpha limit
        xpoint = xmed
 
-       call sy%f(sy%iref)%gradient(xpoint,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+       call sy%f(sy%iref)%gradient(xpoint,+1,nstep,ier,.true.,plen)
        tstep = tstep + nstep
        if (ier == 3) then
           inbundle = .false.
@@ -221,7 +221,7 @@ contains
        !.omega limit
        if (inbundle) then
           xpoint = xmed
-          call sy%f(sy%iref)%gradient(xpoint,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xpoint,-1,nstep,ier,.true.,plen)
           tstep = tstep + nstep
           if (ier == 3) then
              inbundle = .false.
@@ -267,7 +267,7 @@ contains
     real*8  :: xin(3), xfin(3), xcar(3), unit(3)
     real*8  :: xmed(3), xnuc(3), xtemp(3)
     real*8  :: rr2, raprox, riaprox, rmin, rminsame
-    real*8  :: rtry(ntries), rother
+    real*8  :: rtry(ntries), rother, plen
     integer :: itry(ntries)
     integer :: iup, nstep, id1, id2
     integer :: j, k, idone
@@ -329,7 +329,7 @@ contains
     nwarn = 0
     nwarn0 = 0
     !$omp parallel do private(unit,raprox,rother,riaprox,rtry,itry,id1,id2,&
-    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn) schedule(guided)
+    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen) schedule(guided)
     do j = 1, srf%nv
        nwarn = 0
        ! skip surfed points
@@ -366,7 +366,7 @@ contains
           riaprox = rtry(itry(k))
           xin = xcar + riaprox * unit
           xtemp = xin
-          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,ier,.true.,plen)
           if (ier == 3) then
              ! started outside molcell
              if (rtry(itry(k)) < rother) rother = rtry(itry(k))
@@ -413,7 +413,7 @@ contains
           end if
           xfin = xcar + raprox * unit
           xtemp = xfin
-          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,ier,.true.,plen)
           if (ier == 3)  then
              ! started outside molcell
              ! it is in the inner part of the basin: is it better than riaprox?
@@ -511,7 +511,7 @@ contains
     real*8 :: xmed(3), unit(3), raprox, riaprox
     logical :: ok
     real*8 :: oldrbeta(sy%f(sy%iref)%ncp), rmin, rmax
-    real*8 :: bsr, bsr2
+    real*8 :: bsr, bsr2, plen
 
     ! define the close-to-nucleus condition
     if (sy%f(sy%iref)%type == type_grid) then
@@ -532,11 +532,11 @@ contains
 
     ! alpha-limit
     xtemp = xseed
-    call sy%f(sy%iref)%gradient(xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+    call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
     xup = xtemp
     ! omega-limit
     xtemp = xseed
-    call sy%f(sy%iref)%gradient(xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+    call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
     xdn = xtemp
 
     if (verbose) then
@@ -556,7 +556,7 @@ contains
     nwarn = 0
     nwarn0 = 0
     !$omp parallel do private(unit,raprox,riaprox,ok,xtemp,nstep,ier,&
-    !$omp  xin,xfin,xmed,nwarn) schedule(guided)
+    !$omp  xin,xfin,xmed,nwarn,plen) schedule(guided)
     do i = 1, srf%nv
        nwarn = 0
        ! skip surfed points
@@ -575,7 +575,7 @@ contains
        ok = .false.
        do while (riaprox > 1d-5)
           xtemp = xseed + riaprox * unit
-          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
           if (ier == 3)  then
              ok = .false.
           else
@@ -586,7 +586,7 @@ contains
           if (ok) then
              ! omega-limit
              xtemp = xseed + riaprox * unit
-             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
              if (ier == 3)  then
                 ok = .false.
              else
@@ -611,7 +611,7 @@ contains
        ok = .false.
        do while (raprox < 10d0 * maxval(sy%c%aa))
           xtemp = xseed + raprox * unit
-          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,BS_mstep,ier,0,up2beta=.true.)
+          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
           if (ier == 3)  then
              ok = .false.
           else
@@ -622,7 +622,7 @@ contains
           if (.not.ok) then
              ! omega-limit
              xtemp = xseed + raprox * unit
-             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,BS_mstep,ier,0,up2beta=.true.)
+             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
              if (ier == 3)  then
                 ok = .false.
              else

@@ -40,7 +40,6 @@ module fieldmod
   private :: stepper_bs
   private :: stepper_rkck
   private :: stepper_dp
-  public :: prunepath
 
   ! pointers for the arithmetic module
   interface
@@ -2192,90 +2191,93 @@ contains
   end subroutine sortcps
 
   !> Generalized gradient tracing routine. The gp integration starts
-  !> at xpoint (Cartesian) with step step (step < 0 for a slow, i.e.,
-  !> 1d-3, start). iup = 1 if the gp is traced up the density, -1 if
-  !> down. mstep = max. number of steps. nstep = actual number of
-  !> steps (output). ier = 0 (correct), 1 (short step), 2 (too many
-  !> iterations), 3 (outside molcell in molecules). extinf = .true.
-  !> fills the ax (position, cryst), arho (density), agrad (gradient),
-  !> ah (hessian) arrays describing the path. up2r (optional), trace
-  !> the gp only up to a certain distance reffered to xref
-  !> (cartesian). up2rho, up to a density. up2beta = .true.  , stop
-  !> when reaching a beta-sphere. upflag = true (output) if ended
-  !> through one of up2r or up2rho.
-  subroutine gradient (fid, xpoint, iup, nstep, mstep, ier, extinf, &
-    ax, arho, agrad, ah, up2r, xref, up2rho, up2beta, upflag)
+  !> at xpoint (Cartesian). iup = 1 if the gp is traced up the
+  !> density, -1 if down. nstep = number of steps (output). ier = 0
+  !> (correct), 1 (short step), 2 (too many iterations), 3 (outside
+  !> molcell in molecules). up2beta = .true., stop when reaching a
+  !> beta-sphere. plen, length of the gradient path. If path is
+  !> present, return the gradient path. If prune is present and true,
+  !> prune the gradient path to have point-to-point distances larger
+  !> than prune
+  subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune)
     use global, only: nav_step, nav_gradeps, rbetadef
     use tools_io, only: ferror, faterr
-    use types, only: scalar_value
-    use tools_math, only: eigns
+    use tools_math, only: eigns, norm
+    use types, only: scalar_value, gpathp, realloc
     class(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
     integer, intent(in) :: iup
     integer, intent(out) :: nstep
-    integer, intent(in) :: mstep
     integer, intent(out) :: ier
-    integer, intent(in) :: extinf
-    real*8, intent(out), dimension(3,mstep), optional :: ax
-    real*8, intent(out), dimension(mstep), optional :: arho
-    real*8, intent(out), dimension(3,mstep), optional :: agrad
-    real*8, intent(out), dimension(3,3,mstep), optional :: ah
-    real*8, intent(in), optional :: up2r, up2rho
-    logical, intent(in), optional :: up2beta
-    real*8, intent(in), dimension(3), optional :: xref
-    logical, intent(out), optional :: upflag
+    logical, intent(in) :: up2beta
+    real*8, intent(out) :: plen
+    type(gpathp), intent(inout), allocatable, optional :: path(:)
+    real*8, intent(in), optional :: prune
 
     real*8, parameter :: minstep = 1d-7
     integer, parameter :: mhist = 5
+    integer, parameter :: mstep = 6000
 
-    integer :: i, j
-    real*8 :: t, h0, hini
+    integer :: i, j, npath
+    real*8 :: h0, hini, plenlast
     real*8 :: dx(3), scalhist(mhist)
-    real*8 :: xlast(3), xlast2(3), len, xold(3), xini(3)
-    real*8 :: sphrad, xnuc(3), cprad, xcp(3), dist2
+    real*8 :: xlast(3), xlast2(3), len, prune0, xcart(3)
+    real*8 :: sphrad, xnuc(3), xnucr(3), cprad, xcp(3), xcpr(3), dist2
     integer :: idnuc, idcp, nhist
     integer :: lvec(3)
-    logical :: ok
+    logical :: ok, incstep
     type(scalar_value) :: res
 
     ! initialization
     ier = 0
-    t = 0d0
     h0 = abs(NAV_step) * iup
     hini = h0
-    xini = fid%c%c2x(xpoint)
     scalhist = 1d0
     nhist = 0
     xlast2 = xpoint
     xlast = xpoint
+    npath = 0
+    plen = 0d0
+    plenlast = 0d0
+    prune0 = -1d0
+    if (present(prune)) prune0 = prune
+    incstep = .false.
 
-    if (present(up2r)) then
-       if (present(xref)) then
-          xlast2 = xref
-          xlast = xref
-       else
-          call ferror ('gradient','up2r but no reference', faterr)
-       end if
-       len = 0d0
+    if (present(path)) then
+       if (allocated(path)) deallocate(path)
+       allocate(path(100))
     end if
-    if (present(upflag)) then
-       upflag = .false.
-    end if
-
-    ! initialize spherical coordinates navigation
-    xold = 10d0 ! dummy!
 
     ! properties at point
     call fid%grd(xpoint,2,res0=res)
 
     do nstep = 1, mstep
-       ! tasks in crystallographic
+       ! point in cartesian and crystallographic. res contains evaluation at
+       ! this point
+       xcart = xpoint
        xpoint = fid%c%c2x(xpoint)
+       plen = plen + norm(xpoint-xlast)
 
-       ! get nearest nucleus
+       ! save to the gradient path
+       if (present(path)) then
+          if (nstep == 1 .or. abs(plen-plenlast) > prune0) then
+             npath = npath + 1
+             if (npath > size(path,1)) call realloc(path,2*npath)
+             path(npath)%i = nstep
+             path(npath)%x = xpoint
+             path(npath)%r = xcart
+             path(npath)%f = res%f
+             path(npath)%gf = res%gf
+             path(npath)%hf = res%hf
+             plenlast = plen
+          end if
+       end if
+
+       ! nearest nucleus
        idnuc = 0
        call fid%c%nearest_atom(xpoint,idnuc,sphrad,lvec)
        xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x - lvec)
+       xnucr = fid%c%atcel(idnuc)%x - lvec
        idnuc = fid%c%atcel(idnuc)%idx
 
        ! get nearest -3 CP (idncp) and +3 CP (idccp), skip hydrogens
@@ -2284,10 +2286,12 @@ contains
           idcp = idnuc
           cprad = sphrad
           xcp = xnuc
+          xcpr = xnucr
        else
           idcp = 0
           cprad = 1d15
           xcp = 0d0
+          xcpr = 0d0
        end if
        if (fid%ncpcel > 0) then
           cprad = cprad * cprad
@@ -2299,6 +2303,7 @@ contains
                 cprad = dist2
                 idcp = fid%cpcel(i)%idx
                 xcp = fid%c%x2c(fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx))
+                xcpr = fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx)
              end if
           end do
           cprad = sqrt(cprad)
@@ -2307,38 +2312,28 @@ contains
        ! is it a nuclear position? 
        ok = .false.
        ! beta-sphere if up2beta is activated
-       if (present(up2beta)) then
-          if (up2beta .and. idcp/=0) then
-             ok = ok .or. (cprad <= fid%cp(idcp)%rbeta)
-          else
-             ok = ok .or. (cprad <= Rbetadef)
-          end if
+       if (up2beta .and. idcp/=0) then
+          ok = ok .or. (cprad <= fid%cp(idcp)%rbeta)
        else
           ok = ok .or. (cprad <= Rbetadef)
        end if
        if (ok) then
+          ! this CP is the last point in the path
+          incstep = .true.
           xpoint = xcp
-          if (extinf > 0) then
-             ax(:,nstep) = fid%c%c2x(xpoint)
-             if (extinf > 1) then
-                arho(nstep) = res%f
-                agrad(:,nstep) =  (/ 0d0, 0d0, 0d0 /)
-                forall (i=1:3, j=1:3) ah(i,j,nstep) = 0d0
-                forall (i=1:3) ah(i,i,nstep) = 1d0
-             end if
-          end if
           ier = 0
-          return
-       end if
-
-       ! save info
-       if (extinf > 0) then
-          ax(:,nstep) = xpoint
-          if (extinf > 1) then
-             arho(nstep) = res%f
-             agrad(:,nstep) = res%gf
-             ah(:,:,nstep) = res%hf
+          if (present(path)) then
+             npath = npath + 1
+             if (npath > size(path,1)) call realloc(path,npath)
+             path(npath)%i = nstep+1
+             path(npath)%x = xcpr
+             path(npath)%r = xcp
+             call fid%grd(xcp,2,res0=res)
+             path(npath)%f = res%f
+             path(npath)%gf = res%gf
+             path(npath)%hf = res%hf
           end if
+          goto 999
        end if
 
        ! is it outside the molcell?
@@ -2347,41 +2342,18 @@ contains
              xpoint(2) < fid%c%molborder(2) .or. xpoint(2) > (1d0-fid%c%molborder(2)) .or.&
              xpoint(3) < fid%c%molborder(3) .or. xpoint(3) > (1d0-fid%c%molborder(3))) then
              ier = 3
-             return
+             goto 999
           end if
        endif
 
        ! tasks in cartesian
        xpoint = fid%c%x2c(xpoint)
 
-       ! is it a cp?
+       ! is it a new CP?
        ok = (res%gfmod < NAV_gradeps)
        if (ok) then
           ier = 0
-          return
-       end if
-
-       ! up 2 rho?
-       if (present(up2rho)) then
-          if (iup == 1 .and. res%f > up2rho .or. iup == -1 .and. res%f < up2rho) then
-             if (present(upflag)) then
-                upflag = .true.
-             end if
-             ier = 0
-             return
-          end if
-       end if
-
-       ! up 2 r?
-       if (present(up2r)) then
-          len = len + sqrt(dot_product(xpoint-xlast,xpoint-xlast))
-          if (len > up2r) then
-             if (present(upflag)) then
-                upflag = .true.
-             end if
-             ier = 0
-             return
-          end if
+          goto 999
        end if
 
        ! take step
@@ -2396,13 +2368,18 @@ contains
        ok = ok .and. .not.(all(scalhist < 0d0))
 
        if (.not.ok .or. abs(h0) < minstep) then
+          xpoint = xlast
           ier = 1
-          return
+          goto 999
        end if
     end do
 
     nstep = mstep
     ier = 2
+
+999 continue
+    if (incstep) nstep = nstep + 1
+    if (present(path)) call realloc(path,npath)
 
   end subroutine gradient
 
@@ -2671,35 +2648,5 @@ contains
     xout = xout + xerr
 
   end subroutine stepper_dp
-
-  !> Prune a gradient path. A gradient path is given by the n points
-  !> in x (fractional coordinates) referred to crystal structure c.
-  !> In output, the number of points in the path is reduced so that
-  !> the distances between adjacent points are at least fprune. The
-  !> reduced number of points is returned in n, and the fractional
-  !> coordinates in x(:,1:n).
-  subroutine prunepath(c,n,x,fprune)
-    use crystalmod, only: crystal
-    type(crystal), intent(in) :: c
-    integer, intent(inout) :: n
-    real*8, intent(inout) :: x(3,n)
-    real*8, intent(in) :: fprune
-
-    integer :: i, nn
-    real*8 :: x0(3)
-
-    ! prune the path
-    x0 = x(:,1)
-    nn = 1
-    do i = 1, n
-       if (.not.c%are_close(x(:,i),x0,fprune)) then
-          nn = nn + 1
-          x(:,nn) = x(:,i)
-          x0 = x(:,i)
-       end if
-    end do
-    n = nn
-
-  end subroutine prunepath
 
 end module fieldmod
