@@ -270,7 +270,7 @@ contains
     ! navigation
     NAV_stepper = NAV_stepper_bs
     NAV_step = 0.3d0
-    NAV_maxerr = 1d-5
+    NAV_maxerr = 1d-4
     NAV_gradeps = 1d-7
     prunedist = 0.1d0
 
