@@ -1099,7 +1099,7 @@ contains
              xpoint = xbcp + change * v
              call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
              ! last point before newton -> not converted to the main cell
-             xpoint = sy%c%x2c(flx_path(flx_n-1)%x)
+             xpoint = sy%c%x2c(flx_path(size(flx_path,1)-1)%x)
              r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
           end do
 
