@@ -855,6 +855,8 @@ contains
 
           ! calculate gradient paths and add them to the seed
           if (agraph) then
+             if (allocated(xpath)) deallocate(xpath)
+             allocate(xpath(1))
              !$omp parallel do private(iup,x,nstep,ier,plen) firstprivate(xpath) schedule(dynamic)
              do i = sy%c%ncel+1, sy%f(sy%iref)%ncpcel
 
@@ -870,12 +872,12 @@ contains
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist)
                    !$omp critical (add)
-                   call addpath()
+                   call addpath(size(xpath,1),xpath)
                    !$omp end critical (add)
                    x = sy%f(sy%iref)%cpcel(i)%r - 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist)
                    !$omp critical (add)
-                   call addpath()
+                   call addpath(size(xpath,1),xpath)
                    !$omp end critical (add)
                 end if
              end do
@@ -901,12 +903,12 @@ contains
     end do
 
   contains
-    subroutine addpath()
+    subroutine addpath(nstep,xpath)
       use types, only: realloc
+      integer, intent(in) :: nstep
+      type(gpathp), intent(in) :: xpath(nstep)
+      integer :: i, n
 
-      integer :: i, n, nstep
-
-      nstep = size(xpath,1)
       call realloc(seed%x,3,seed%nat+nstep)
       call realloc(seed%z,seed%nat+nstep)
       call realloc(seed%name,seed%nat+nstep)
@@ -915,7 +917,7 @@ contains
          n = n + 1
          seed%x(:,n) = xpath(i)%x
          seed%z(n) = 123
-         seed%name(n) = nameguess(seed%z(n))
+         seed%name(n) = "Xz"
       end do
       seed%nat = n
 
