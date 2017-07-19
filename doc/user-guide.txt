@@ -6022,8 +6022,8 @@ methods that provide an error estimate for the predicted steps: BS,
 RKCK, and DP.
 
 This keyword applies to all gradient paths except those in qtree. The
-defaults are BS method with maxstep.r = 0.1 bohr, gradeps.r = 1e-9,
-and maxerr.r = 1e-3.
+defaults are BS method with maxstep.r = 0.3 bohr, gradeps.r = 1e-7,
+and maxerr.r = 1e-5.
 
 ::
 

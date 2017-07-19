@@ -2214,7 +2214,7 @@ contains
     type(gpathp), intent(inout), allocatable, optional :: path(:)
     real*8, intent(in), optional :: prune
 
-    real*8, parameter :: minstep = 1d-7
+    real*8, parameter :: minstep = 1d-12
     integer, parameter :: mhist = 5
     integer, parameter :: mstep = 6000
 
@@ -2228,10 +2228,12 @@ contains
     logical :: ok, incstep
     type(scalar_value) :: res
 
+    real*8, parameter :: hfirst = 0.01d0
+
     ! initialization
     ier = 0
-    h0 = abs(NAV_step) * iup
-    hini = h0
+    hini = abs(NAV_step) * iup
+    h0 = hfirst * iup
     scalhist = 1d0
     nhist = 0
     xlast2 = xpoint
@@ -2256,7 +2258,7 @@ contains
        ! this point
        xcart = xpoint
        xpoint = fid%c%c2x(xpoint)
-       plen = plen + norm(xpoint-xlast)
+       plen = plen + norm(xcart-xlast)
 
        ! save to the gradient path
        if (present(path)) then
@@ -2383,9 +2385,7 @@ contains
 
   end subroutine gradient
 
-  !> Integration using adaptive_stepper step, old scheme. Grow the step if
-  !> the angle of two successive steps is almost 180, shrink if it is
-  !> less than 90 degrees.
+  !> Integration using adaptive_stepper step.
   function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
     use global, only: nav_stepper, nav_stepper_heun, nav_stepper_rkck, nav_stepper_dp,&
        nav_stepper_bs, nav_stepper_euler, nav_maxerr
@@ -2399,7 +2399,7 @@ contains
     real*8, intent(in) :: maxstep, eps
     type(scalar_value), intent(inout) :: res
 
-    integer :: ier, iup
+    integer :: ier
     real*8 :: grdt(3), ogrdt(3)
     real*8 :: xtemp(3), escalar, xerrv(3)
     real*8 :: nerr
@@ -2409,22 +2409,17 @@ contains
 
     adaptive_stepper = .true.
     ier = 1
-    if (h0 > 0) then
-       iup = 1
-    else
-       iup = -1
-    end if
-
     grdt = res%gf / (res%gfmod + VSMALL)
-    ogrdt = grdt
-
     first = .true.
     do while (ier /= 0)
+       ! calculate the new grdt
+       ogrdt = grdt
+
        ! new point
        if (NAV_stepper == NAV_stepper_euler) then
           call stepper_euler1(xpoint,grdt,h0,xtemp)
        else if (NAV_stepper == NAV_stepper_heun) then
-          call stepper_heun(fid,xpoint,grdt,h0,xtemp,xerrv,res)
+          call stepper_heun(fid,xpoint,grdt,h0,xtemp,res)
        else if (NAV_stepper == NAV_stepper_rkck) then
           call stepper_rkck(fid,xpoint,grdt,h0,xtemp,xerrv,res)
        else if (NAV_stepper == NAV_stepper_dp) then
@@ -2437,11 +2432,12 @@ contains
        if (NAV_stepper /= NAV_stepper_bs) then
           call fid%grd(xtemp,2,res0=res)
        end if
+       grdt = res%gf / (res%gfmod + VSMALL)
 
        ! poor man's adaptive step size in Euler
        if (NAV_stepper == NAV_stepper_euler .or. NAV_stepper == NAV_stepper_heun) then
           ! angle with next step
-          escalar = dot_product(ogrdt,res%gf / (res%gfmod+VSMALL))
+          escalar = dot_product(ogrdt,grdt)
 
           ! gradient eps in cartesian
           ok = (res%gfmod < 0.99d0*eps)
@@ -2497,22 +2493,22 @@ contains
   end subroutine stepper_euler1
 
   !> Heun stepper.
-  subroutine stepper_heun(fid,xpoint,grdt,h0,xout,xerr,res)
+  subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
     use types, only: scalar_value
     use param, only: vsmall
     
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
-    real*8, intent(out) :: xout(3), xerr(3)
+    real*8, intent(out) :: xout(3)
     type(scalar_value), intent(inout) :: res
     
     real*8 :: ak2(3)
 
-    xerr = xpoint + h0 * grdt
-    call fid%grd(xerr,2,res0=res)
+    xout = xpoint + h0 * grdt
+
+    call fid%grd(xout,2,res0=res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
-    xerr = xout - xerr
   
   end subroutine stepper_heun
 
@@ -2533,10 +2529,6 @@ contains
     xout = xpoint + h0 * (0.5d0*ak1)
     call fid%grd(xout,2,res0=res)
     ak2 = res%gf / (res%gfmod+VSMALL)
-
-    xout = xpoint + h0 * (0.75d0*ak2)
-    call fid%grd(xout,2,res0=res)
-    ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
     call fid%grd(xout,2,res0=res)

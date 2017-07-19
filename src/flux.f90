@@ -920,6 +920,7 @@ contains
           xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
           call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
           call flx_symprintpath(xini,flxsym,rgb)
+          write (*,*) "xx ", flx_plen, flx_n
        end do
     end do
 
@@ -929,11 +930,13 @@ contains
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
     call flx_symprintpath(xini,flxsym,rgb)
+    write (*,*) "xx ", flx_plen, flx_n
     phi = pi
     theta = 0d0
     xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
     call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
     call flx_symprintpath(xini,flxsym,rgb)
+    write (*,*) "xx ", flx_plen, flx_n
 
   end subroutine flx_ncp
 
