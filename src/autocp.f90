@@ -775,8 +775,6 @@ contains
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 
-    integer, parameter :: mstep = 1000 ! maximum steps for gradient
-
     integer :: lp, n, lp2
     integer :: i, iup, nstep, ier
     character(len=:), allocatable :: word
@@ -1644,9 +1642,11 @@ contains
           write (uout,'("# End-1 and End-2 are the bond path terminator from the non-equivalent")') 
           write (uout,'("#   CP list (index in parentheses).")') 
           write (uout,'("# r1 and r2 are the geometric distances between bond and terminators.")') 
-          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators.")') 
-          write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-B-r2 (degree)")') &
-             string(iunitname0(iunit)), string(iunitname0(iunit))
+          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")') 
+          write (uout,'("# p1 and p2 are the bond path lengths.")') 
+          write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
+             string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
+             string(iunitname0(iunit))
 
        else
           write (uout,'("* Analysis of system rings")') 
@@ -1654,9 +1654,11 @@ contains
           write (uout,'("# End-1 and End-2 are the ring path terminator from the non-equivalent")') 
           write (uout,'("#   CP list (index in parentheses).")') 
           write (uout,'("# r1 and r2 are the geometric distances between ring and terminators.")') 
-          write (uout,'("# r1-B-r2 is the geometric angle between ring and terminators.")') 
-          write (uout,'("# ncp   End-1      End-2    r1(",A,")   r2(",A,")     r1/r2   r1-R-r2 (degree)")') &
-             string(iunitname0(iunit)), string(iunitname0(iunit))
+          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")') 
+          write (uout,'("# p1 and p2 are the ring path lengths.")') 
+          write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
+             string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
+             string(iunitname0(iunit))
        end if
        do i = 1, sy%f(sy%iref)%ncp
           if (sy%f(sy%iref)%cp(i)%typ /= -1 .and. isbcp .or. sy%f(sy%iref)%cp(i)%typ /= 1 .and..not.isbcp) cycle
@@ -1671,12 +1673,13 @@ contains
                    " (" // string(sy%f(sy%iref)%cp(i)%ipath(j)) // ")"
              end if
           end do
-          maxlen = max(10,len_trim(nam(1)),len_trim(nam(2)))
-          write (uout,'(7(A,X))') string(i,length=5,justify=ioj_center),&
+          maxlen = max(8,len_trim(nam(1)),len_trim(nam(2)))
+          write (uout,'(99(A,X))') string(i,length=5,justify=ioj_center),&
              string(nam(1),length=maxlen,justify=ioj_center), string(nam(2),length=maxlen,justify=ioj_center),&
-             (string(sy%f(sy%iref)%cp(i)%brdist(j)*dunit0(iunit),'f',length=10,decimal=4,justify=3),j=1,2), &
-             string(sy%f(sy%iref)%cp(i)%brdist(1)/sy%f(sy%iref)%cp(i)%brdist(2),'f',length=12,decimal=6,justify=3), &
-             string(sy%f(sy%iref)%cp(i)%brang,'f',length=10,decimal=4,justify=3)
+             (string(sy%f(sy%iref)%cp(i)%brdist(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2), &
+             string(sy%f(sy%iref)%cp(i)%brdist(1)/sy%f(sy%iref)%cp(i)%brdist(2),'f',length=8,decimal=4,justify=3), &
+             string(sy%f(sy%iref)%cp(i)%brang,'f',length=7,decimal=2,justify=3),&
+             (string(sy%f(sy%iref)%cp(i)%brpathlen(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2)
        enddo
        write (uout,*)
     end do
@@ -1699,131 +1702,136 @@ contains
     real*8 :: xdif(3,2), v(3)
     real*8, dimension(3,3) :: evec
     real*8, dimension(3) :: reval
-    real*8 :: dist, xdtemp(3,2), xx(3), plen
+    real*8 :: dist, xdtemp(3,2), xx(3), plen(2)
     integer :: wcp
     integer :: ier, idir
     logical :: isbcp
     type(scalar_value_noalloc) :: res
-    real*8, allocatable :: xdis(:,:,:)
+    real*8, allocatable :: xdis(:,:,:), xplen(:,:)
 
     real*8, parameter :: change = 1d-2
-    integer, parameter :: CP_mstep = 40000
 
-    allocate(xdis(3,2,sy%f(sy%iref)%ncp))
-    xdis = 0d0
+    associate(f => sy%f(sy%iref), cr => sy%c)
 
-    ! run over known non-equivalent cps  
-    !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen) schedule(dynamic)
-    do i = 1, sy%f(sy%iref)%ncp
-       ! BCP/RCP paths
-       if (abs(sy%f(sy%iref)%cp(i)%typ) == 1) then
-          isbcp = (sy%f(sy%iref)%cp(i)%typ == -1)
+      allocate(xdis(3,2,f%ncp),xplen(2,f%ncp))
+      xdis = 0d0
+      xplen = 0d0
 
-          ! diagonalize hessian at the bcp/rcp, calculate starting points
-          ! the third component of the hessian is up/down direction
-          call sy%f(sy%iref)%grd(sy%f(sy%iref)%cp(i)%r,2,res0_noalloc=res)
-          evec = res%hf
-          call eig(evec,reval)
-          if (isbcp) then
-             xx = evec(:,3)
-          else
-             xx = evec(:,1)
-          end if
-          xx = xx / norm(xx)
-          xdtemp(:,1) = sy%f(sy%iref)%cp(i)%r + change * xx
-          xdtemp(:,2) = sy%f(sy%iref)%cp(i)%r - change * xx
+      ! run over known non-equivalent cps  
+      !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen) schedule(dynamic)
+      do i = 1, f%ncp
+         ! BCP/RCP paths
+         if (abs(f%cp(i)%typ) == 1) then
+            isbcp = (f%cp(i)%typ == -1)
 
-          ! follow up/down both directions
-          if (isbcp) then
-             idir = 1
-          else
-             idir = -1
-          end if
-          do j = 1, 2
-             call sy%f(sy%iref)%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen) 
-          end do
-          !$omp critical (xdis1)
-          sy%f(sy%iref)%cp(i)%brvec = xx 
-          xdis(:,:,i) = xdtemp
-          !$omp end critical (xdis1)
-       else
-          !$omp critical (xdis2)
-          sy%f(sy%iref)%cp(i)%brvec = 0d0
-          !$omp end critical (xdis2)
-       end if
-    end do
-    !$omp end parallel do
+            ! diagonalize hessian at the bcp/rcp, calculate starting points
+            ! the third component of the hessian is up/down direction
+            call f%grd(f%cp(i)%r,2,res0_noalloc=res)
+            evec = res%hf
+            call eig(evec,reval)
+            if (isbcp) then
+               xx = evec(:,3)
+            else
+               xx = evec(:,1)
+            end if
+            xx = xx / norm(xx)
+            xdtemp(:,1) = f%cp(i)%r + change * xx
+            xdtemp(:,2) = f%cp(i)%r - change * xx
 
-    ! Fill the eigenvectors
-    do i = 1, sy%f(sy%iref)%ncpcel
-       if (abs(sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ) == 1) then
-          isbcp = (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1)
-          call sy%f(sy%iref)%grd(sy%f(sy%iref)%cpcel(i)%r,2,res0_noalloc=res)
-          evec = res%hf
-          call eig(evec,reval)
-          if (isbcp) then
-             xx = evec(:,3)
-          else
-             xx = evec(:,1)
-          end if
-          sy%f(sy%iref)%cpcel(i)%brvec = xx / norm(xx)
-       else
-          sy%f(sy%iref)%cpcel(i)%brvec = 0d0
-       end if
-    end do
+            ! follow up/down both directions
+            if (isbcp) then
+               idir = 1
+            else
+               idir = -1
+            end if
+            do j = 1, 2
+               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j)) 
+            end do
+            !$omp critical (xdis1)
+            f%cp(i)%brvec = xx 
+            xdis(:,:,i) = xdtemp
+            xplen(:,i) = plen
+            !$omp end critical (xdis1)
+         else
+            !$omp critical (xdis2)
+            f%cp(i)%brvec = 0d0
+            !$omp end critical (xdis2)
+         end if
+      end do
+      !$omp end parallel do
 
-    ! run over known non-equivalent cps  
-    do i = 1, sy%f(sy%iref)%ncp
-       ! BCP paths
-       if (abs(sy%f(sy%iref)%cp(i)%typ) == 1) then
-          do j = 1, 2
-             ! save difference vector and distance
-             xdif(:,j) = xdis(:,j,i) - sy%f(sy%iref)%cp(i)%r
-             sy%f(sy%iref)%cp(i)%brdist(j) = sqrt(dot_product(xdif(:,j),xdif(:,j)))
+      ! Fill the eigenvectors
+      do i = 1, f%ncpcel
+         if (abs(f%cp(f%cpcel(i)%idx)%typ) == 1) then
+            isbcp = (f%cp(f%cpcel(i)%idx)%typ == -1)
+            call f%grd(f%cpcel(i)%r,2,res0_noalloc=res)
+            evec = res%hf
+            call eig(evec,reval)
+            if (isbcp) then
+               xx = evec(:,3)
+            else
+               xx = evec(:,1)
+            end if
+            f%cpcel(i)%brvec = xx / norm(xx)
+         else
+            f%cpcel(i)%brvec = 0d0
+         end if
+      end do
 
-             ! check the identity of the cp
-             xdis(:,j,i) = sy%c%c2x(xdis(:,j,i))
-             call sy%f(sy%iref)%nearest_cp(xdis(:,j,i),wcp,dist,type=sy%f(sy%iref)%cp(i)%typ*3)
-             if (wcp /= 0) then
-                sy%f(sy%iref)%cp(i)%ipath(j) = sy%f(sy%iref)%cpcel(wcp)%idx
-             else
-                if (sy%c%ismolecule .and.( &
-                   xdis(1,j,i) < sy%c%molborder(1) .or. xdis(1,j,i) > (1d0-sy%c%molborder(1)) .or.&
-                   xdis(2,j,i) < sy%c%molborder(2) .or. xdis(2,j,i) > (1d0-sy%c%molborder(2)) .or.&
-                   xdis(3,j,i) < sy%c%molborder(3) .or. xdis(3,j,i) > (1d0-sy%c%molborder(3)))) then
-                   sy%f(sy%iref)%cp(i)%ipath(j) = -1
-                else
-                   sy%f(sy%iref)%cp(i)%ilvec(:,j) = 0
-                   do k = 1, sy%f(sy%iref)%ncpcel
-                      if (sy%f(sy%iref)%cpcel(k)%idx /= i) cycle
-                      sy%f(sy%iref)%cpcel(k)%ipath(j) = 0
-                      sy%f(sy%iref)%cpcel(k)%ilvec(:,j) = 0
-                   end do
-                endif
-                cycle
-             end if
+      ! run over known non-equivalent cps  
+      do i = 1, f%ncp
+         ! BCP paths
+         if (abs(f%cp(i)%typ) == 1) then
+            do j = 1, 2
+               ! save difference vector and distance
+               xdif(:,j) = xdis(:,j,i) - f%cp(i)%r
+               f%cp(i)%brdist(j) = sqrt(dot_product(xdif(:,j),xdif(:,j)))
+               f%cp(i)%brpathlen(j) = xplen(j,i)
 
-             ! generate equivalent bond/ring paths
-             do k = 1, sy%f(sy%iref)%ncpcel
-                if (sy%f(sy%iref)%cpcel(k)%idx /= i) cycle
-                v = matmul(sy%c%rotm(1:3,1:3,sy%f(sy%iref)%cpcel(k)%ir),xdis(:,j,i)) + &
-                   sy%c%rotm(:,4,sy%f(sy%iref)%cpcel(k)%ir) + &
-                   sy%c%cen(:,sy%f(sy%iref)%cpcel(k)%ic) + sy%f(sy%iref)%cpcel(k)%lvec
-                call sy%f(sy%iref)%nearest_cp(v,wcp,dist,type=sy%f(sy%iref)%cp(i)%typ*3)
-                sy%f(sy%iref)%cpcel(k)%ipath(j) = wcp
-                sy%f(sy%iref)%cpcel(k)%ilvec(:,j) = nint(v - sy%f(sy%iref)%cpcel(wcp)%x)
-             end do
-          end do
-          sy%f(sy%iref)%cp(i)%brang = dot_product(xdif(:,1),xdif(:,2)) / &
-             (sy%f(sy%iref)%cp(i)%brdist(1)+1d-12) / (sy%f(sy%iref)%cp(i)%brdist(2)+1d-12)
-          if (abs(sy%f(sy%iref)%cp(i)%brang) > 1d0) &
-             sy%f(sy%iref)%cp(i)%brang = sy%f(sy%iref)%cp(i)%brang / abs(sy%f(sy%iref)%cp(i)%brang+1d-12)
-          sy%f(sy%iref)%cp(i)%brang = acos(sy%f(sy%iref)%cp(i)%brang) * 180d0 / pi
-       end if
-    end do
+               ! check the identity of the cp
+               xdis(:,j,i) = cr%c2x(xdis(:,j,i))
+               call f%nearest_cp(xdis(:,j,i),wcp,dist,type=f%cp(i)%typ*3)
+               if (wcp /= 0) then
+                  f%cp(i)%ipath(j) = f%cpcel(wcp)%idx
+               else
+                  if (cr%ismolecule .and.( &
+                     xdis(1,j,i) < cr%molborder(1) .or. xdis(1,j,i) > (1d0-cr%molborder(1)) .or.&
+                     xdis(2,j,i) < cr%molborder(2) .or. xdis(2,j,i) > (1d0-cr%molborder(2)) .or.&
+                     xdis(3,j,i) < cr%molborder(3) .or. xdis(3,j,i) > (1d0-cr%molborder(3)))) then
+                     f%cp(i)%ipath(j) = -1
+                  else
+                     f%cp(i)%ilvec(:,j) = 0
+                     do k = 1, f%ncpcel
+                        if (f%cpcel(k)%idx /= i) cycle
+                        f%cpcel(k)%ipath(j) = 0
+                        f%cpcel(k)%ilvec(:,j) = 0
+                     end do
+                  endif
+                  cycle
+               end if
 
-    deallocate(xdis)
+               ! generate equivalent bond/ring paths
+               do k = 1, f%ncpcel
+                  if (f%cpcel(k)%idx /= i) cycle
+                  v = matmul(cr%rotm(1:3,1:3,f%cpcel(k)%ir),xdis(:,j,i)) + &
+                     cr%rotm(:,4,f%cpcel(k)%ir) + &
+                     cr%cen(:,f%cpcel(k)%ic) + f%cpcel(k)%lvec
+                  call f%nearest_cp(v,wcp,dist,type=f%cp(i)%typ*3)
+                  f%cpcel(k)%ipath(j) = wcp
+                  f%cpcel(k)%ilvec(:,j) = nint(v - f%cpcel(wcp)%x)
+               end do
+            end do
+            f%cp(i)%brang = dot_product(xdif(:,1),xdif(:,2)) / &
+               (f%cp(i)%brdist(1)+1d-12) / (f%cp(i)%brdist(2)+1d-12)
+            if (abs(f%cp(i)%brang) > 1d0) &
+               f%cp(i)%brang = f%cp(i)%brang / abs(f%cp(i)%brang+1d-12)
+            f%cp(i)%brang = acos(f%cp(i)%brang) * 180d0 / pi
+         end if
+      end do
 
+      deallocate(xdis)
+
+    end associate
   end subroutine makegraph
 
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius

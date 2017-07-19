@@ -1555,6 +1555,7 @@ contains
 
        ! properties at the nuclei
        f%cp(i)%brdist = 0d0
+       f%cp(i)%brpathlen = 0d0
        f%cp(i)%brang = 0d0
        call f%grd(f%c%at(i)%r,2,res0_noalloc=f%cp(i)%s)
 
@@ -2071,6 +2072,7 @@ contains
 
     ! Wait until reconstruction to calculate graph properties
     f%cp(n)%brdist = 0d0
+    f%cp(n)%brpathlen = 0d0
     f%cp(n)%brang = 0d0
     f%cp(n)%ipath = 0
     f%cp(n)%rbeta = Rbetadef
