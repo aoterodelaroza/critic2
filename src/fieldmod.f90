@@ -2218,8 +2218,9 @@ contains
 
     real*8, parameter :: minstep = 1d-12
     integer, parameter :: mhist = 5
-    integer, parameter :: mstep = 6000
+    integer, parameter :: mstep0 = 10000
 
+    integer :: mstep
     integer :: i, j, npath
     real*8 :: h0, hini
     real*8 :: dx(3), scalhist(mhist)
@@ -2248,6 +2249,7 @@ contains
        hini = min(hini,1.1d0*prune0)
     end if
     incstep = .false.
+    mstep = nint(mstep0 * abs(hini) / 0.1d0)
 
     if (present(path)) then
        if (allocated(path)) deallocate(path)
@@ -2269,15 +2271,18 @@ contains
           if (nstep == 1) then
              call addtopath(nstep,xcart,xpoint,res)
           else
-             if (norm(xcart-path(npath)%r) > prune0) then
+             dd = norm(xcart - path(npath)%r)
+             if (dd > prune0) then
                 if (prune0 < 0d0) then
                    call addtopath(nstep,xcart,xpoint,res)
                 else
-                   dd = norm(xcart - path(npath)%r)
-                   xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
-                   xxaux = fid%c%c2x(xcaux)
-                   call fid%grd(xcaux,2,res0=resaux)
-                   call addtopath(nstep,xcaux,xxaux,resaux)
+                   do while (dd > prune0) 
+                      xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
+                      xxaux = fid%c%c2x(xcaux)
+                      call fid%grd(xcaux,2,res0=resaux)
+                      call addtopath(nstep,xcaux,xxaux,resaux)
+                      dd = norm(xcart - path(npath)%r)
+                   end do
                 end if
              end if
           end if
