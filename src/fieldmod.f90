@@ -2221,14 +2221,14 @@ contains
     integer, parameter :: mstep = 6000
 
     integer :: i, j, npath
-    real*8 :: h0, hini, plenlast
+    real*8 :: h0, hini
     real*8 :: dx(3), scalhist(mhist)
-    real*8 :: xlast(3), xlast2(3), len, prune0, xcart(3)
+    real*8 :: xlast(3), xlast2(3), dd, prune0, xcart(3), xcaux(3), xxaux(3)
     real*8 :: sphrad, xnuc(3), xnucr(3), cprad, xcp(3), xcpr(3), dist2
     integer :: idnuc, idcp, nhist
     integer :: lvec(3)
     logical :: ok, incstep
-    type(scalar_value) :: res
+    type(scalar_value) :: res, resaux
 
     real*8, parameter :: hfirst = 0.01d0
 
@@ -2242,9 +2242,11 @@ contains
     xlast = xpoint
     npath = 0
     plen = 0d0
-    plenlast = 0d0
     prune0 = -1d0
-    if (present(prune)) prune0 = prune
+    if (present(prune)) then
+       prune0 = prune
+       hini = min(hini,1.1d0*prune0)
+    end if
     incstep = .false.
 
     if (present(path)) then
@@ -2264,16 +2266,20 @@ contains
 
        ! save to the gradient path
        if (present(path)) then
-          if (nstep == 1 .or. abs(plen-plenlast) > prune0) then
-             npath = npath + 1
-             if (npath > size(path,1)) call realloc(path,2*npath)
-             path(npath)%i = nstep
-             path(npath)%x = xpoint
-             path(npath)%r = xcart
-             path(npath)%f = res%f
-             path(npath)%gf = res%gf
-             path(npath)%hf = res%hf
-             plenlast = plen
+          if (nstep == 1) then
+             call addtopath(nstep,xcart,xpoint,res)
+          else
+             if (norm(xcart-path(npath)%r) > prune0) then
+                if (prune0 < 0d0) then
+                   call addtopath(nstep,xcart,xpoint,res)
+                else
+                   dd = norm(xcart - path(npath)%r)
+                   xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
+                   xxaux = fid%c%c2x(xcaux)
+                   call fid%grd(xcaux,2,res0=resaux)
+                   call addtopath(nstep,xcaux,xxaux,resaux)
+                end if
+             end if
           end if
        end if
 
@@ -2322,20 +2328,15 @@ contains
           ok = ok .or. (cprad <= Rbetadef)
        end if
        if (ok) then
-          ! this CP is the last point in the path
+          ! Found a CP as the last point in the path
           incstep = .true.
           xpoint = xcp
           ier = 0
           if (present(path)) then
-             npath = npath + 1
-             if (npath > size(path,1)) call realloc(path,npath)
-             path(npath)%i = nstep+1
-             path(npath)%x = xcpr
-             path(npath)%r = xcp
-             call fid%grd(xcp,2,res0=res)
-             path(npath)%f = res%f
-             path(npath)%gf = res%gf
-             path(npath)%hf = res%hf
+             xcaux = xcp
+             xxaux = xcpr
+             call fid%grd(xcaux,2,res0=resaux)
+             call addtopath(nstep+1,xcaux,xxaux,resaux)
           end if
           goto 999
        end if
@@ -2345,6 +2346,7 @@ contains
           if (xpoint(1) < fid%c%molborder(1) .or. xpoint(1) > (1d0-fid%c%molborder(1)) .or.&
              xpoint(2) < fid%c%molborder(2) .or. xpoint(2) > (1d0-fid%c%molborder(2)) .or.&
              xpoint(3) < fid%c%molborder(3) .or. xpoint(3) > (1d0-fid%c%molborder(3))) then
+             ! The gradient path exited the molecular cell
              ier = 3
              goto 999
           end if
@@ -2353,10 +2355,19 @@ contains
        ! tasks in cartesian
        xpoint = fid%c%x2c(xpoint)
 
-       ! is it a new CP?
+       ! Is it a new CP?
        ok = (res%gfmod < NAV_gradeps)
        if (ok) then
+          ! Found a CP that was not on the list
           ier = 0
+          if (present(path)) then
+             if (path(npath)%i /= nstep) then
+                xcaux = xpoint
+                xxaux = fid%c%c2x(xcaux)
+                call fid%grd(xcaux,2,res0=resaux)
+                call addtopath(nstep,xcaux,xxaux,resaux)
+             end if
+          end if
           goto 999
        end if
 
@@ -2372,6 +2383,7 @@ contains
        ok = ok .and. .not.(all(scalhist < 0d0))
 
        if (.not.ok .or. abs(h0) < minstep) then
+          ! The step is too small and the gradient path is bouncing around
           xpoint = xlast
           ier = 1
           goto 999
@@ -2385,6 +2397,21 @@ contains
     if (incstep) nstep = nstep + 1
     if (present(path)) call realloc(path,npath)
 
+    contains
+      subroutine addtopath(istep,cart,crys,res)
+        integer, intent(in) :: istep
+        real*8, intent(in) :: cart(3),crys(3)
+        type(scalar_value), intent(in) :: res
+        
+        npath = npath + 1
+        if (npath > size(path,1)) call realloc(path,2*npath)
+        path(npath)%i = istep
+        path(npath)%x = crys
+        path(npath)%r = cart
+        path(npath)%f = res%f
+        path(npath)%gf = res%gf
+        path(npath)%hf = res%hf
+      end subroutine addtopath
   end subroutine gradient
 
   !> Integration using adaptive_stepper step.

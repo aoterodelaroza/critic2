@@ -966,12 +966,10 @@ contains
 
     real*8, parameter :: change = 0.1d0
 
-    real*8, dimension (3) :: xbcp, xpoint, xini
+    real*8 :: xbcp(3), xpoint(3), xini(3)
     real*8 :: angle, cangle, sangle
     integer :: i
-    real*8, dimension(3) :: reval
-    real*8, dimension(3,3) :: evec
-    real*8, dimension(3) :: v1, v2, vup, v
+    real*8 :: reval(3), evec(3,3), v1(3), v2(3), vup(3), v(3)
     real*8 :: ev1, ev2
     integer :: n
     real*8 :: R
