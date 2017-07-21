@@ -1539,14 +1539,16 @@ contains
     type(scalar_value_noalloc) :: res
     real*8, allocatable :: ff(:,:), ziso(:)
 
+    real*8, parameter :: startdist = 0.1d0
+
     ! Header
     write (uout,'("* GRDVEC: gradient paths and contours in 2d")')
 
     ! Initialization
     grpcpeps = 1d-2
-    grprad1 = prunedist
-    grprad2 = prunedist
-    grprad3 = prunedist
+    grprad1 = startdist
+    grprad2 = startdist
+    grprad3 = startdist
     grpendpt = 1.0d-6
     grphcutoff = 1.0d-3
     grpproj = 1
@@ -2126,7 +2128,7 @@ contains
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
-             call sy%f(sy%iref)%gradient(xstart,+1,nptf,ier,.false.,plen,xpath,prunedist)
+             call sy%f(sy%iref)%gradient(xstart,+1,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
              nptf = size(xpath,1)
              call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
@@ -2138,7 +2140,7 @@ contains
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
-             call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath,prunedist)
+             call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
              nptf = size(xpath,1)
              call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
              ntotpts = ntotpts + nptf
@@ -2207,24 +2209,24 @@ contains
                    ! the plot plane is coincident with the ias tangent plane
                    ! use v2da.
                    xstart = grpx(:,iorig) + grprad2 * v2da
-                   call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath,prunedist)
+                   call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * v2da
-                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                 else
                    xtemp = c1coef * v2da + c2coef * v2db
                    xstart = grpx(:,iorig) + grprad2 * xtemp
-                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                    xstart = grpx(:,iorig) - grprad2 * xtemp
-                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist)
+                   call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
@@ -2236,11 +2238,11 @@ contains
                 !.................1D walk:
                 !
                 xstart = grpx(:,iorig) + grprad3 * v1d
-                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath,prunedist)
+                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                 nptf = size(xpath,1)
                 call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                 xstart = grpx(:,iorig) - grprad3 * v1d
-                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath,prunedist)
+                call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                 nptf = size(xpath,1)
                 call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                 ntotpts = ntotpts + nptf

@@ -2201,7 +2201,7 @@ contains
   !> present, return the gradient path. If prune is present and true,
   !> prune the gradient path to have point-to-point distances larger
   !> than prune
-  subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune)
+  subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
     use tools_io, only: ferror, faterr
     use tools_math, only: eigns, norm
@@ -2215,6 +2215,7 @@ contains
     real*8, intent(out) :: plen
     type(gpathp), intent(inout), allocatable, optional :: path(:)
     real*8, intent(in), optional :: prune
+    real*8, intent(in), optional :: pathini(3)
 
     real*8, parameter :: minstep = 1d-12
     integer, parameter :: mhist = 5
@@ -2254,6 +2255,12 @@ contains
     if (present(path)) then
        if (allocated(path)) deallocate(path)
        allocate(path(100))
+       if (present(pathini)) then
+          xcaux = pathini
+          xxaux = fid%c%c2x(xcaux)
+          call fid%grd(xcaux,2,res0=resaux)
+          call addtopath(nstep,xcaux,xxaux,resaux)
+       end if
     end if
 
     ! properties at point
@@ -2330,7 +2337,7 @@ contains
        if (up2beta .and. idcp/=0) then
           ok = ok .or. (cprad <= fid%cp(idcp)%rbeta)
        else
-          ok = ok .or. (cprad <= Rbetadef)
+          ok = ok .or. (cprad <= min(Rbetadef,0.5d0*abs(hini)))
        end if
        if (ok) then
           ! Found a CP as the last point in the path

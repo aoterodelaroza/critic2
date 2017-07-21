@@ -6031,9 +6031,9 @@ and maxerr.r = 1e-5.
 
 Prune gradient paths so that only one point is plotted every prune.r
 distance (units: bohr in crystals and angstrom in molecules, default:
-0.1 bohr). This value also controls the distance between the critical
-point and the initial point of the gradient paths originating from it
-in grdvec.
+0.1 bohr). Gradient paths are forced to have steps of length less than
+or equal to prune.r. Therefore, a very small PRUNE_DISTANCE will
+result in slow gradient path tracing.
 
 ::
 

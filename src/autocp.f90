@@ -870,12 +870,12 @@ contains
 
                 if (iup /= 0) then
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
-                   call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist)
+                   call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
                    call addpath(size(xpath,1),xpath)
                    !$omp end critical (add)
                    x = sy%f(sy%iref)%cpcel(i)%r - 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
-                   call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist)
+                   call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
                    call addpath(size(xpath,1),xpath)
                    !$omp end critical (add)
