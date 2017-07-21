@@ -373,7 +373,7 @@ contains
     character*4 :: fder
     logical :: ok, wasop, inchem
     real*8 :: a
-    integer :: c, npar
+    integer :: c, npar, id
 
     ! initialize
     tokenize = .true.
@@ -454,7 +454,8 @@ contains
              if (.not.present(fh)) goto 999
              ok = fh%iskey(trim(str))
              if (.not.ok) goto 999
-             call addtok(token_num,fval=fh%get(trim(str),a))
+             id = fh%get(trim(str),1)
+             call addtok(token_num,fval=real(id,8))
           end if
           wasop = .false.
        elseif (isidentifier(str,expr,lp)) then
@@ -468,7 +469,8 @@ contains
              if (.not.present(fh)) goto 999
              ok = fh%iskey(trim(str))
              if (.not.ok) goto 999
-             call addtok(token_num,fval=fh%get(trim(str),a))
+             id = fh%get(trim(str),1)
+             call addtok(token_num,fval=real(id,8))
           end if
           wasop = .false.
        else
