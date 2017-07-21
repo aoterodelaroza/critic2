@@ -56,7 +56,7 @@ module rhoplot
   real*8  :: r01, r02, a012, sinalfa, cosalfa, cotgalfa
   real*8  :: rp0(3), rp1(3), rp2(3), rp01(3), rp02(3), rpn(4)
   real*8  :: amat(3,3), bmat(3,3)
-  real*8  :: scalex, scaley
+  real*8  :: outcpx, outcpy
   integer :: newncriticp
   integer :: newtypcrit(mncritp)
   real*8  :: newcriticp(3,mncritp)
@@ -1528,6 +1528,7 @@ contains
     real*8  :: xp(3), rhopt
     logical :: doagain, ok, autocheck
     real*8  :: r0(3), r1(3), r2(3), xdum
+    real*8  :: r0out(3), r1out(3), r2out(3)
     real*8  :: q0(3), xo0(3), xo1(3), xo2(3)
     integer :: cpid
     integer :: niso_type, nfi, ix, iy
@@ -1556,8 +1557,8 @@ contains
     newncriticp = 0
     cpup = 0
     cpdn = 0
-    scalex = 1d0
-    scaley = 1d0
+    outcpx = 1d0
+    outcpy = 1d0
     docontour = .false.
     dograds = .false.
     nfi = 0
@@ -1628,8 +1629,8 @@ contains
           zy0 = zy0 / dunit0(iunit)
           zy1 = zy1 / dunit0(iunit)
        else if (equal(word,'outcp')) then
-          ok = eval_next (scalex, line, lp)
-          ok = ok .and. eval_next (scaley, line, lp)
+          ok = eval_next(outcpx, line, lp)
+          ok = ok .and. eval_next(outcpy, line, lp)
           if (.not. ok) then
              call ferror ('grdvec','Bad outcp options',faterr,line,syntax=.true.)
              return
@@ -1901,13 +1902,19 @@ contains
     r0 = sy%c%x2c(r0)
     r1 = sy%c%x2c(r1)
     r2 = sy%c%x2c(r2)
+    r0out = r0
+    r1out = r1
+    r2out = r2
     call plane_scale_extend(r0,r1,r2,sx0,sy0,zx0,zx1,zy0,zy1)
+    call plane_scale_extend(r0out,r1out,r2out,sx0*outcpx,sy0*outcpy,zx0,zx1,zy0,zy1)
     r0 = sy%c%c2x(r0)
     r1 = sy%c%c2x(r1)
     r2 = sy%c%c2x(r2)
+    r0out = sy%c%c2x(r0out)
+    r1out = sy%c%c2x(r1out)
+    r2out = sy%c%c2x(r2out)
 
     ! output the plane
-    indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
     write (uout,'("* Name of the output data file: ",a)') string(datafile)
     if (.not.sy%c%ismolecule) then
        xo0 = r0
@@ -1979,7 +1986,8 @@ contains
     end if
 
     udat = fopen_write(datafile)
-    call plotvec (r0, r1, r2, autocheck, udat)
+    indmax = nint(max(maxval(abs(r0out)),maxval(abs(r1out)),maxval(abs(r2out))))
+    call plotvec(r0,r1,r2,autocheck,udat)
     call fclose(udat)
 
     ! print labels (plane info is common)
@@ -2410,8 +2418,8 @@ contains
 
           !.clip if out of the plotting area
           hmin = min(hmin,abs(hh))
-          if (uu >= -epsdis+(one-scalex) .and. uu <= scalex+epsdis .and.&
-             vv >= -epsdis+(one-scaley) .and. vv <= scaley+epsdis .and.&
+          if (uu >= -epsdis+(one-outcpx) .and. uu <= outcpx+epsdis .and.&
+             vv >= -epsdis+(one-outcpy) .and. vv <= outcpy+epsdis .and.&
              abs(hh) <= RHOP_Hmax) then
              ncopies = ncopies + 1
              if (norig .ge. MORIG) then
