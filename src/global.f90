@@ -134,6 +134,7 @@ module global
   integer, parameter :: NAV_stepper_bs    = 4 !< Bogacki-Shampine embedded 2(3)-order method, (5-1=4 eval, fsal), with error estimate
   integer, parameter :: NAV_stepper_heun  = 5 !< Heun stepper (2 eval), poor-man's adaptive step
   real*8 :: prunedist
+  real*8, parameter :: gcpchange = 0.1d0 !< displacement from bcp/rcp when tracing bond/ring path
 
   ! critical points
   real*8 :: CP_hdegen = 1d-8 !< a CP is degenerate if any Hessian element is less than this value

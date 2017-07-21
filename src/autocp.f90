@@ -770,7 +770,7 @@ contains
     use systemmod, only: sy, system
     use struct_drivers, only: struct_write
     use crystalseedmod, only: crystalseed
-    use global, only: eval_next, prunedist
+    use global, only: eval_next, prunedist, gcpchange
     use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
@@ -869,12 +869,12 @@ contains
                 end if
 
                 if (iup /= 0) then
-                   x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
+                   x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * gcpchange * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
                    call addpath(size(xpath,1),xpath)
                    !$omp end critical (add)
-                   x = sy%f(sy%iref)%cpcel(i)%r - 0.5d0 * prunedist * sy%f(sy%iref)%cpcel(i)%brvec
+                   x = sy%f(sy%iref)%cpcel(i)%r - 0.5d0 * gcpchange * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
                    call addpath(size(xpath,1),xpath)

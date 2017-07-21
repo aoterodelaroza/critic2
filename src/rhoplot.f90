@@ -49,7 +49,6 @@ module rhoplot
   integer, parameter :: mncritp = 1000
   integer :: norig, grpproj
   integer :: grpatr(MORIG), grpup(MORIG), grpdwn(MORIG)
-  real*8  :: grprad1, grprad2, grprad3, grpendpt
   real*8  :: grphcutoff
   real*8  :: grpx(3,MORIG)
   real*8  :: grpcpeps
@@ -1516,7 +1515,7 @@ contains
   !> Plot of gradient paths and contours in the style of aimpac's grdvec.
   subroutine rhoplot_grdvec()
     use systemmod, only: sy
-    use global, only: fileroot, eval_next, dunit0, iunit, prunedist
+    use global, only: fileroot, eval_next, dunit0, iunit, prunedist, gcpchange
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
@@ -1539,17 +1538,11 @@ contains
     type(scalar_value_noalloc) :: res
     real*8, allocatable :: ff(:,:), ziso(:)
 
-    real*8, parameter :: startdist = 0.1d0
-
     ! Header
     write (uout,'("* GRDVEC: gradient paths and contours in 2d")')
 
     ! Initialization
     grpcpeps = 1d-2
-    grprad1 = startdist
-    grprad2 = startdist
-    grprad3 = startdist
-    grpendpt = 1.0d-6
     grphcutoff = 1.0d-3
     grpproj = 1
     rootname = trim(fileroot)
@@ -2018,7 +2011,7 @@ contains
   !> by the vectors (r1-r0) & (r2-r0).
   subroutine plotvec (r0,r1,r2,autocheck,udat)
     use systemmod, only: sy
-    use global, only: dunit0, iunit, prunedist
+    use global, only: dunit0, iunit, prunedist, gcpchange
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
@@ -2123,8 +2116,8 @@ contains
           ! 3D attraction or repulsion critical points:
           do i = 1, grpup(iorig)
              phii = (i-1) * 2d0 * pi / max(grpup(iorig)-1,1)
-             u1 = grprad1 * sin(phii)
-             v1 = grprad1 * cos(phii)
+             u1 = gcpchange * sin(phii)
+             v1 = gcpchange * cos(phii)
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
@@ -2135,8 +2128,8 @@ contains
           enddo
           do i = 1, grpdwn(iorig)
              phii = (i-1) * 2d0 * pi / max(grpdwn(iorig)-1,1)
-             u1 = grprad1 * sin(phii)
-             v1 = grprad1 * cos(phii)
+             u1 = gcpchange * sin(phii)
+             v1 = gcpchange * cos(phii)
              u = (u1 - v1 * cotgalfa) / r01
              v = v1 / (r02 * sinalfa)
              xstart = grpx(:,iorig) + u * rp01 + v * rp02
@@ -2208,24 +2201,24 @@ contains
                 if (abs(c1coef) < 1d-10 .and. abs(c2coef) < 1d-10) then
                    ! the plot plane is coincident with the ias tangent plane
                    ! use v2da.
-                   xstart = grpx(:,iorig) + grprad2 * v2da
+                   xstart = grpx(:,iorig) + gcpchange * v2da
                    call sy%f(sy%iref)%gradient(xstart,-1,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
-                   xstart = grpx(:,iorig) - grprad2 * v2da
+                   xstart = grpx(:,iorig) - gcpchange * v2da
                    call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
                 else
                    xtemp = c1coef * v2da + c2coef * v2db
-                   xstart = grpx(:,iorig) + grprad2 * xtemp
+                   xstart = grpx(:,iorig) + gcpchange * xtemp
                    call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
                    ntotpts = ntotpts + nptf
-                   xstart = grpx(:,iorig) - grprad2 * xtemp
+                   xstart = grpx(:,iorig) - gcpchange * xtemp
                    call sy%f(sy%iref)%gradient(xstart,up2d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                    nptf = size(xpath,1)
                    call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
@@ -2237,11 +2230,11 @@ contains
                 !
                 !.................1D walk:
                 !
-                xstart = grpx(:,iorig) + grprad3 * v1d
+                xstart = grpx(:,iorig) + gcpchange * v1d
                 call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                 nptf = size(xpath,1)
                 call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
-                xstart = grpx(:,iorig) - grprad3 * v1d
+                xstart = grpx(:,iorig) - gcpchange * v1d
                 call sy%f(sy%iref)%gradient(xstart,up1d,nptf,ier,.false.,plen,xpath,prunedist,pathini=grpx(:,iorig))
                 nptf = size(xpath,1)
                 call wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
