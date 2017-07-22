@@ -2194,13 +2194,14 @@ contains
 
   !> Generalized gradient tracing routine. The gp integration starts
   !> at xpoint (Cartesian). iup = 1 if the gp is traced up the
-  !> density, -1 if down. nstep = number of steps (output). ier = 0
-  !> (correct), 1 (short step), 2 (too many iterations), 3 (outside
-  !> molcell in molecules). up2beta = .true., stop when reaching a
-  !> beta-sphere. plen, length of the gradient path. If path is
-  !> present, return the gradient path. If prune is present and true,
-  !> prune the gradient path to have point-to-point distances larger
-  !> than prune
+  !> density, -1 if down. nstep = number of steps (output) in the
+  !> gradient path. ier = 0 (correct), 1 (short step), 2 (too many
+  !> iterations), 3 (outside molcell in molecules). up2beta = .true.,
+  !> stop when reaching a beta-sphere. plen, length of the gradient
+  !> path. If path is present, return the gradient path. If prune is
+  !> present, prune the gradient path to have point-to-point distances
+  !> equal to prune. prune also sets the maximum step size. If pathini is 
+  !> present, initialize the output path with this point (Cartesian).
   subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
     use tools_io, only: ferror, faterr
@@ -2247,10 +2248,10 @@ contains
     prune0 = -1d0
     if (present(prune)) then
        prune0 = prune
-       hini = min(hini,1.1d0*prune0)
+       hini = min(abs(hini),1.1d0*prune0) * iup
     end if
     incstep = .false.
-    mstep = nint(mstep0 * abs(hini) / 0.1d0)
+    mstep = nint(mstep0 * 0.1d0 / abs(hini))
 
     if (present(path)) then
        if (allocated(path)) deallocate(path)
