@@ -22,29 +22,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 
+#include <GL/glu.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include "critic2.h"
 
 using namespace std;
-
-// xxxx //
 
 static void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
-// xxxx //
-
 int main(int argc, char *argv[])
 {
-
-    // Setup window
+    // Initialize
     glfwSetErrorCallback(error_callback);
-    if (!glfwInit())
-        return 1;
+    if (!glfwInit()) exit(EXIT_FAILURE);
+
+    // Set up window
     GLFWwindow* window = glfwCreateWindow(1280, 720, "gcritic2", NULL, NULL);
+    assert(window!=NULL);
     glfwMakeContextCurrent(window);
+
+    // Initialize the critic2 library
+    c2::gui_initialize((void *) window);
 
     // Setup ImGui binding
     ImGui_ImplGlfw_Init(window, true);
@@ -78,24 +81,10 @@ int main(int argc, char *argv[])
             ImGui::End();
         }
 
-        // Rendering
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
+        // Draw the current scene
+	c2::draw_scene();
 
-	// xxxx //
-	glColor3f (1.0, 1.0, 1.0);
-	glBegin(GL_POLYGON);
-	glVertex3f (0.25, 0.25, 0.0);
-	glVertex3f (0.75, 0.25, 0.0);
-	glVertex3f (0.75, 0.75, 0.0);
-	glVertex3f (0.25, 0.75, 0.0);
-	glEnd();
-	glFlush ();
-	// xxxx //
-
+	// Render and swap
         ImGui::Render();
         glfwSwapBuffers(window);
     }

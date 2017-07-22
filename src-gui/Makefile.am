@@ -21,4 +21,4 @@ gcritic2_DEPENDENCIES=$(gcritic2_LDADD)
 
 # Include the header files
 AM_CXXFLAGS=-I$(top_srcdir)/include `pkg-config --cflags glfw3` -Wall -Wformat -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -w -g
-AM_LDFLAGS=-ldl -lgfortran -lgomp -lglfw -lGL
+AM_LDFLAGS=-ldl -lgfortran -lgomp -lglfw -lGLU -lGL
