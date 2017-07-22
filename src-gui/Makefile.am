@@ -1,9 +1,10 @@
 # binary and sources
 bin_PROGRAMS = gcritic2
-gcritic2_SOURCES = main.cpp imgui_impl_glfw_gl3.cpp imgui.cpp imgui_draw.cpp \
-	matrix_math.cpp gl3w.c geometry.cpp imguifilesystem.cpp \
-	guiapps.cpp shader.cpp menu.cpp draw.cpp \
-	settings.cpp 
+# gcritic2_SOURCES = main.cpp imgui_impl_glfw_gl3.cpp imgui.cpp imgui_draw.cpp \
+# 	matrix_math.cpp gl3w.c geometry.cpp imguifilesystem.cpp \
+# 	guiapps.cpp shader.cpp menu.cpp draw.cpp \
+# 	settings.cpp 
+gcritic2_SOURCES = main.cpp imgui.cpp imgui_draw.cpp  imgui_impl_glut.cpp
 
 # subdirectories
 SUBDIRS=
@@ -19,7 +20,8 @@ gcritic2_LDADD=$(top_srcdir)/src/libcritic2.a \
 gcritic2_DEPENDENCIES=$(gcritic2_LDADD)
 
 # Include the header files
-AM_CFLAGS=-I$(top_srcdir)/include
-AM_CXXFLAGS=-I$(top_srcdir)/include `pkg-config --cflags glfw3` -Wall -Wformat -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -w -g
-AM_LDFLAGS=-ldl -lgfortran -lgomp -lglfw -lGL
+## AM_CXXFLAGS=-I$(top_srcdir)/include `pkg-config --cflags glfw3` -Wall -Wformat -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -w -g
+## AM_LDFLAGS=-ldl -lgfortran -lgomp -lglfw -lGL
+AM_CXXFLAGS=-Wall -Wformat -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -w -g
+AM_LDFLAGS=-lgfortran -lgomp -lglut -lGLU -lGL
 

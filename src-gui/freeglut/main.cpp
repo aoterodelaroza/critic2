@@ -1,32 +1,13 @@
-/*
-Copyright (c) 2017 Alberto Otero de la Roza
-<aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
-Visintainer <x@example.com>, Richard Greaves <x@example.com>, Ángel
-Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-<victor@fluor.quimica.uniovi.es>.
+// ImGui - standalone example application for Glut + OpenGL2
+// If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 
-critic2 is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at
-your option) any later version.
-
-critic2 is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-#include "GL/freeglut.h"
+#include "freeglut.h"
 
 #include "imgui.h"
 #include "imgui_impl_glut.h"
 
+#include <iostream>
 using namespace std;
-
-// xxxx //
 
 unsigned int screenWidth = 1280;
 unsigned int screenHeight = 720;
@@ -57,12 +38,12 @@ void drawGUI()
         ImGui::End();
     }
 
-    // // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-    // if (show_test_window)
-    // {
-    //     ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-    //     ImGui::ShowTestWindow(&show_test_window);
-    // }
+    // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
+    if (show_test_window)
+    {
+        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+        ImGui::ShowTestWindow(&show_test_window);
+    }
 
     ImGui::Render();
 }
@@ -201,35 +182,39 @@ void mouseMoveCallback(int x, int y)
     glutPostRedisplay();
 }
 
-// xxxx //
-
-int main(int argc, char *argv[])
+// initialize ogl and imgui
+void init()
 {
-  glutInit(&argc, argv);
-  glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
-  glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_DOUBLE|GLUT_MULTISAMPLE);
+    glClearColor(0.447f, 0.565f, 0.604f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-  glutInitWindowSize(1024, 768);
-  glutCreateWindow("gcritic2");
-
-  // callbacks
-  glutDisplayFunc(drawScene);
-  glutReshapeFunc(reshape);
-  glutKeyboardFunc(keyboardCallback);
-  glutSpecialFunc(KeyboardSpecial);
-  glutMouseFunc(mouseCallback);
-  glutMouseWheelFunc(mouseWheel);
-  glutMotionFunc(mouseDragCallback);
-  glutPassiveMotionFunc(mouseMoveCallback);
-
-  glClearColor(0.447f, 0.565f, 0.604f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
-  ImGui_ImplGLUT_Init();
-
-  glutMainLoop();
-
-  ImGui_ImplGLUT_Shutdown();
-
-  return 0;
+    ImGui_ImplGLUT_Init();
 }
 
+int main(int argc, char **argv)
+{
+    glutInit(&argc, argv);
+    glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE | GLUT_MULTISAMPLE);
+
+    glutInitWindowSize(screenWidth, screenHeight);
+    glutInitWindowPosition(200, 200);
+    glutCreateWindow("imgui FreeGlut Example");
+
+    // callback
+    glutDisplayFunc(drawScene);
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(keyboardCallback);
+    glutSpecialFunc(KeyboardSpecial);
+    glutMouseFunc(mouseCallback);
+    glutMouseWheelFunc(mouseWheel);
+    glutMotionFunc(mouseDragCallback);
+    glutPassiveMotionFunc(mouseMoveCallback);
+
+    init();
+    glutMainLoop();
+
+    ImGui_ImplGLUT_Shutdown();
+
+    return 0;
+}
