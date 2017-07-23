@@ -19,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
 
 #include <GL/glu.h>
 #include <GLFW/glfw3.h>

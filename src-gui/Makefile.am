@@ -1,13 +1,9 @@
 # binary and sources
 bin_PROGRAMS = gcritic2
-# gcritic2_SOURCES = main.cpp imgui_impl_glfw_gl3.cpp imgui.cpp imgui_draw.cpp \
-# 	matrix_math.cpp gl3w.c geometry.cpp imguifilesystem.cpp \
-# 	guiapps.cpp shader.cpp menu.cpp draw.cpp \
-# 	settings.cpp 
-gcritic2_SOURCES = main.cpp imgui.cpp imgui_draw.cpp imgui_impl_glfw.cpp
+gcritic2_SOURCES = main.cpp
 
 # subdirectories
-SUBDIRS=
+SUBDIRS=imgui .
 
 # static libraries
 gcritic2_LDADD=$(top_srcdir)/src/libcritic2.a \
@@ -15,7 +11,8 @@ gcritic2_LDADD=$(top_srcdir)/src/libcritic2.a \
 	$(top_srcdir)/src/ciftbx/libciftbx.a \
 	$(top_srcdir)/src/cubpack/libcubpack.a \
 	$(top_srcdir)/src/spglib/libspglib.a \
-	$(top_srcdir)/src/qhull/libqhull_critic.a
+	$(top_srcdir)/src/qhull/libqhull_critic.a \
+	imgui/imgui.o imgui/imgui_draw.o imgui/imgui_impl_glfw.o
 
 gcritic2_DEPENDENCIES=$(gcritic2_LDADD)
 

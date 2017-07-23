@@ -159,5 +159,6 @@ AC_MSG_NOTICE([LIBADD    = ${LIBADD}])
 # Final output
 AC_OUTPUT([Makefile src/Makefile src/oldlibs/Makefile src/ciftbx/Makefile src/cubpack/Makefile \
            src/qhull/Makefile src/spglib/Makefile tools/Makefile \
-           src/config.F90 src-gui/Makefile dat/Makefile doc/Makefile tests/Makefile])
+           src/config.F90 src-gui/Makefile src-gui/imgui/Makefile dat/Makefile \
+	   doc/Makefile tests/Makefile])
 
