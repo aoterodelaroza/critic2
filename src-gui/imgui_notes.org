@@ -1,3 +1,88 @@
+* dock
+struct DockContext
+	enum Slot_
+	enum EndAction_
+	enum Status_
+	struct Dock
+		Dock()
+		~Dock() { MemFree(label); }
+		ImVec2 getMinSize() const
+		bool isHorizontal() const
+		void setParent(Dock* dock)
+		Dock& getSibling()
+		Dock& getFirstTab()
+		void setActive()
+		bool isContainer() const
+		void setChildrenPosSize(const ImVec2& _pos, const ImVec2& _size)
+		void setPosSize(const ImVec2& _pos, const ImVec2& _size)
+
+		ImU32 id;
+		char* label;
+		Dock* next_tab;
+		Dock* prev_tab;
+		Dock* parent;
+		ImVec2 pos;
+		ImVec2 size;
+		bool active;
+		Status_ status;
+		bool opened;
+
+		Dock* children[2];
+		char location[16];
+		int last_frame;
+		int invalid_frames;
+		bool first;
+
+	ImVector<Dock*> m_docks;
+	ImVec2 m_drag_offset;
+	Dock* m_current = nullptr;
+	int m_last_frame = 0;
+	EndAction_ m_end_action;
+
+	~DockContext() {}
+
+	Dock& getDock(const char* label, bool opened)
+	void putInBackground()
+	void splits()
+	void checkNonexistent()
+	void beginPanel()
+	void endPanel()
+	Dock* getDockAt(const ImVec2& /*pos*/) const
+	static ImRect getDockedRect(const ImRect& rect, Slot_ dock_slot)
+	static ImRect getSlotRect(ImRect parent_rect, Slot_ dock_slot)
+	static ImRect getSlotRectOnBorder(ImRect parent_rect, Slot_ dock_slot)
+	Dock* getRootDock()
+	bool dockSlots(Dock& dock, Dock* dest_dock, const ImRect& rect, bool on_border)
+	void handleDrag(Dock& dock)
+	void fillLocation(Dock& dock)
+	void doUndock(Dock& dock)
+	void drawTabbarListButton(Dock& dock)
+	bool tabbar(Dock& dock, bool close_button)
+	static void setDockPosSize(Dock& dest, Dock& dock, Slot_ dock_slot, Dock& container)
+	void doDock(Dock& dock, Dock* dest, Slot_ dock_slot)
+	void rootDock(const ImVec2& pos, const ImVec2& size)
+	void setDockActive()
+	static Slot_ getSlotFromLocationCode(char code)
+	static char getLocationCode(Dock* dock)
+	void tryDockToStoredLocation(Dock& dock)
+	bool begin(const char* label, bool* opened, ImGuiWindowFlags extra_flags)
+	void end()
+	int getDockIndex(Dock* dock)
+	void save()
+	Dock* getDockByIndex(int idx) { return idx < 0 ? nullptr : m_docks[(int)idx]; }
+	void load()
+
+static DockContext g_dock;
+void Print() 
+void ShutdownDock()
+void RootDock(const ImVec2& pos, const ImVec2& size)
+void SetDockActive()
+bool BeginDock(const char* label, bool* opened, ImGuiWindowFlags extra_flags)
+void EndDock()
+void SaveDock()
+void LoadDock()
+
+
 * Helper functions
 bool ImIsPointInTriangle(const ImVec2& p, const ImVec2& a, const ImVec2& b, const ImVec2& c)
 int ImStricmp(const char* str1, const char* str2)

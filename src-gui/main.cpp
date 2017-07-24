@@ -21,6 +21,7 @@
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_dock.h"
 
 #include <GL/glu.h>
 #include <GLFW/glfw3.h>
@@ -57,14 +58,50 @@ int main(int argc, char *argv[]){
     ImGui_ImplGlfw_NewFrame();
 
     // Draw the GUI
+    int menu_height = 0;
     if (ImGui::BeginMainMenuBar()){
       if (ImGui::BeginMenu("File")){
 	if (ImGui::MenuItem("Quit","Ctrl+Q"))
 	  glfwSetWindowShouldClose(window, GLFW_TRUE);
 	ImGui::EndMenu();
       }
+      // xxxx //
+      menu_height = ImGui::GetWindowSize().y;
       ImGui::EndMainMenuBar();
     }
+
+    static bool show_scene1 = true;
+    static bool show_scene2 = true;
+    static bool show_scene3 = true;
+    static bool show_scene4 = true;
+    static bool show_scene5 = true;
+    static bool show_scene6 = true;
+
+    ImGui::Container("blah");
+    
+    if (show_scene1){
+      ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
+      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      if (ImGui::BeginDock("Info", &show_scene1)){
+	ImGui::Text("Hello!"); 
+	if (ImGui::Button("Button")){}
+      }
+      ImGui::EndDock();
+    }
+    if (show_scene2){
+      ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      if (ImGui::BeginDock("Info2", &show_scene2)){
+	ImGui::Text("Hello2!"); 
+	if (ImGui::Button("Button2")){}
+      }
+      ImGui::EndDock();
+    }
+
+    if (ImGui::Begin("justawindow")){
+      ImGui::Print(); // print docking information
+    }
+    ImGui::EndDock();
 
     // Draw the current scene
     c2::draw_scene();

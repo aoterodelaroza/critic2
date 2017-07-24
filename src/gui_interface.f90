@@ -103,7 +103,7 @@ contains
     call glOrtho(-1.d0,1.d0,-1.d0,1.d0,-1.d0,1.d0)
     call glMatrixMode(GL_MODELVIEW)
     call glLoadIdentity()
-    call glClearColor(0.0,0.0,0.0,0.0)
+    call glClearColor(0.5,0.0,0.0,0.0)
     call glClear(GL_COLOR_BUFFER_BIT)
     pQuadric = gluNewQuadric()
     call assert_non_null(pQuadric,"draw_scene","pQuadric")
