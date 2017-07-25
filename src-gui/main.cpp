@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
     if (show_scene3){
       ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-      if (ImGui::BeginDock("Info3", &show_scene3)){
+      if (ImGui::BeginDock("NoClose1")){
 	ImGui::Text("Hello3!"); 
 	if (ImGui::Button("Button3")){}
       }
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]){
     if (show_scene4){
       ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-      if (ImGui::BeginDock("Info4", &show_scene4)){
+      if (ImGui::BeginDock("NoClose2")){
 	ImGui::Text("Hello4!"); 
 	if (ImGui::Button("Button4")){}
       }

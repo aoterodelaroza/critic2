@@ -137,29 +137,30 @@ void Dock::drawTabBar(){
       draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,hovered ? color_hovered : color);
       draw_list->AddText(pos, text_color, dd->label, text_end);
 
-      SameLine();
-      // if (dock_tab->active && close_button){
-      // } else {
-      char tmp2[20];
-      ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
-      if (Button(tmp2, ImVec2(16, 16))){
-        *(dd->p_open) = false;
-        dderase = dd;
-        if (dd == this->currenttab){
-          if (ddlast)
-            this->currenttab = ddlast;
-          else
-            this->currenttab = nullptr;
-        }
-        continue;
+      // The close button, if this window can be closed
+      if (dd->p_open){
+	SameLine();
+	char tmp2[20];
+	ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
+	if (Button(tmp2, ImVec2(16, 16))){
+	  *(dd->p_open) = false;
+	  dderase = dd;
+	  if (dd == this->currenttab){
+	    if (ddlast)
+	      this->currenttab = ddlast;
+	    else
+	      this->currenttab = nullptr;
+	  }
+	  continue;
+	}
+	SameLine();
+	ImVec2 center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
+	draw_list->AddLine( center + ImVec2(-3.5f, -3.5f), center + ImVec2(3.5f, 3.5f), text_color_disabled);
+	draw_list->AddLine( center + ImVec2(3.5f, -3.5f), center + ImVec2(-3.5f, 3.5f), text_color_disabled);
       }
-
-      SameLine();
-      ImVec2 center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
-      draw_list->AddLine( center + ImVec2(-3.5f, -3.5f), center + ImVec2(3.5f, 3.5f), text_color_disabled);
-      draw_list->AddLine( center + ImVec2(3.5f, -3.5f), center + ImVec2(-3.5f, 3.5f), text_color_disabled);
-      // }
       ddlast = dd;
+
+
     } // dd in this->stack
     ImVec2 cp(this->pos.x, tab_base + line_height);
     draw_list->AddLine(cp, cp + ImVec2(this->size.x, 0), color);
