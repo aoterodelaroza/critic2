@@ -1,3 +1,8 @@
+// handle p_open = NULL by elimnating the close button in the tab
+// complete the drawtabbar implementation
+// improve looks of the drawtabbar
+// floating levels of containers and tabbed windows are screwed
+
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
@@ -9,6 +14,10 @@ static ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
 static ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) {
     return ImVec2(lhs.x-rhs.x, lhs.y-rhs.y);
 }
+ImVec2 operator*(ImVec2 lhs, float rhs) {
+    return ImVec2(lhs.x*rhs, lhs.y*rhs);
+}
+
 using namespace ImGui;
 
 static DockContext g_dock;
@@ -73,11 +82,11 @@ void Dock::drawContainer(){
     }
 
     // Unhide current tab
-    if (!this->hidden && !this->collapsed){
+    if (!this->hidden && !this->collapsed && this->currenttab){
       Dock *dd = this->currenttab;
       float h = 2 * GetTextLineHeightWithSpacing() + GetCurrentWindow()->TitleBarHeight();
       dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_ShowBorders|ImGuiWindowFlags_NoResize|
-	ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
+        ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
       dd->pos = this->pos + ImVec2(0.,h);
       dd->size = this->size - ImVec2(0.,h);
       dd->hidden = false;
@@ -89,17 +98,77 @@ void Dock::drawTabBar(){
   float barheight = 2 * GetTextLineHeightWithSpacing();
 
   SetCursorScreenPos(this->pos + ImVec2(0.,GetCurrentWindow()->TitleBarHeight()));
-  if (BeginChild("tabs", ImVec2(this->size.x,barheight), true)){
+  char tmp[20];
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
+  if (BeginChild(tmp,ImVec2(this->size.x,barheight), true)){
+    ImDrawList* draw_list = GetWindowDrawList();
+    ImU32 color = GetColorU32(ImGuiCol_FrameBg);
+    ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive);
+    ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered);
+    ImU32 text_color = GetColorU32(ImGuiCol_Text);
+    ImU32 text_color_disabled = GetColorU32(ImGuiCol_TextDisabled);
+    float line_height = GetTextLineHeightWithSpacing();
+    float tab_base;
 
     // drawTabbarListButton(dock);
+
+    Dock *dderase = nullptr, *ddlast = nullptr;
     for (auto dd : this->stack) {
-      if (Button(dd->label))
-	this->currenttab = dd;
-      // currenttab and dragging
-      // currenttab and close button
+      SameLine(0, 15);
+      const char* text_end = FindRenderedTextEnd(dd->label);
+      ImVec2 size(CalcTextSize(dd->label, text_end).x, line_height);
+      if (InvisibleButton(dd->label, size))
+        this->currenttab = dd;
+
+      // if (IsItemActive() && IsMouseDragging()){
+      //          m_drag_offset = GetMousePos() - dock_tab->pos;
+      //          doUndock(*dock_tab);
+      //          dock_tab->status = Status_Dragged;
+      // }
+
+      bool hovered = IsItemHovered();
+      ImVec2 pos = GetItemRectMin();
+      size.x += GetStyle().ItemSpacing.x;
+
+      tab_base = pos.y;
+
+      // draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,
+      //                               hovered ? color_hovered : (dock_tab->active ? color_active : color));
+      draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,hovered ? color_hovered : color);
+      draw_list->AddText(pos, text_color, dd->label, text_end);
+
       SameLine();
+      // if (dock_tab->active && close_button){
+      // } else {
+      char tmp2[20];
+      ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
+      if (Button(tmp2, ImVec2(16, 16))){
+        *(dd->p_open) = false;
+        dderase = dd;
+        if (dd == this->currenttab){
+          if (ddlast)
+            this->currenttab = ddlast;
+          else
+            this->currenttab = nullptr;
+        }
+        continue;
+      }
+
+      SameLine();
+      ImVec2 center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
+      draw_list->AddLine( center + ImVec2(-3.5f, -3.5f), center + ImVec2(3.5f, 3.5f), text_color_disabled);
+      draw_list->AddLine( center + ImVec2(3.5f, -3.5f), center + ImVec2(-3.5f, 3.5f), text_color_disabled);
+      // }
+      ddlast = dd;
+    } // dd in this->stack
+    ImVec2 cp(this->pos.x, tab_base + line_height);
+    draw_list->AddLine(cp, cp + ImVec2(this->size.x, 0), color);
+    if (dderase){
+      this->stack.remove(dderase);
+      if (!this->currenttab && this->stack.size() > 0)
+        this->currenttab = this->stack.front();
     }
-  }
+  } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
   EndChild();
 }
 
@@ -133,6 +202,7 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->root = dd;
   dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
+  dd->p_open = p_open;
 
   // Update the status
   ImGuiContext *g = GetCurrentContext();
@@ -195,6 +265,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->flags = flags;
   dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
+  dd->p_open = p_open;
 
   // Update the status
   ImGuiContext *g = GetCurrentContext();

@@ -34,6 +34,7 @@ namespace ImGui{
     Dock *parent = nullptr; // node immediately above current node
     Dock *root = nullptr; // root node of this tree
     ImGuiWindow* window = nullptr; // associated window
+    bool *p_open = nullptr; // the calling routine open window bool
 
     Dock(): pos(0,0), size(-1,-1) {};
     ~Dock(){ MemFree(label);}
