@@ -16,7 +16,7 @@ namespace ImGui{
   struct Dock{
     enum Type_{Type_None,Type_Container,Type_Dock};
     enum Status_{Status_None,Status_Open,Status_Collapsed,Status_Closed,
-		 Status_Dragged,Status_Docked};
+		 Status_Dragged,Status_Docked,Status_Lifted};
     enum Stack_{Stack_None,Stack_Vertical,Stack_Horizontal,Stack_Leaf};
 
     ImU32 id = 0; // id of the window

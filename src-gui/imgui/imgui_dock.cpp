@@ -1,12 +1,17 @@
-// handle p_open = NULL by elimnating the close button in the tab
+// tab does not lift if not active
+// relocate inside the bar tab
 // complete the drawtabbar implementation
-// improve looks of the drawtabbar
+// improve look of the drawtabbar
 // floating levels of containers and tabbed windows are screwed
+// tabbar list too long and scrolling.
+// recover the original flags after lifted; recover the original size after lifted
+// save the previous size when lifting?
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
 #include "imgui_dock.h"
+#include "imgui_impl_glfw.h"
 
 static ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
     return ImVec2(lhs.x+rhs.x, lhs.y+rhs.y);
@@ -91,7 +96,7 @@ void Dock::drawContainer(){
       dd->size = this->size - ImVec2(0.,h);
       dd->hidden = false;
     }
-  }
+  } // if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0);
 }
 
 void Dock::drawTabBar(){
@@ -112,6 +117,7 @@ void Dock::drawTabBar(){
 
     // drawTabbarListButton(dock);
 
+    bool active;
     Dock *dderase = nullptr, *ddlast = nullptr;
     for (auto dd : this->stack) {
       SameLine(0, 15);
@@ -119,26 +125,34 @@ void Dock::drawTabBar(){
       ImVec2 size(CalcTextSize(dd->label, text_end).x, line_height);
       if (InvisibleButton(dd->label, size))
         this->currenttab = dd;
+      active = (dd == this->currenttab);
 
-      // if (IsItemActive() && IsMouseDragging()){
-      //          m_drag_offset = GetMousePos() - dock_tab->pos;
-      //          doUndock(*dock_tab);
-      //          dock_tab->status = Status_Dragged;
-      // }
+      if (active && IsItemActive() && IsMouseDragging()){
+	dderase = dd;
+	dd->status = Dock::Status_Lifted;
+	dd->size = this->size;
+	dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
+	if (dd == this->currenttab){
+	  if (ddlast)
+	    this->currenttab = ddlast;
+	  else
+	    this->currenttab = nullptr;
+	}
+	continue;
+      }
 
-      bool hovered = IsItemHovered();
       ImVec2 pos = GetItemRectMin();
       size.x += GetStyle().ItemSpacing.x;
-
       tab_base = pos.y;
 
-      // draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,
-      //                               hovered ? color_hovered : (dock_tab->active ? color_active : color));
-      draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,hovered ? color_hovered : color);
+      // Rectangle and text for the tab
+      draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,
+			       IsItemHovered() ? color_hovered : (active ? color_active : color));
       draw_list->AddText(pos, text_color, dd->label, text_end);
 
       // The close button, if this window can be closed
       if (dd->p_open){
+	// the close butt itself
 	SameLine();
 	char tmp2[20];
 	ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
@@ -153,6 +167,7 @@ void Dock::drawTabBar(){
 	  }
 	  continue;
 	}
+	// the "x"
 	SameLine();
 	ImVec2 center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
 	draw_list->AddLine( center + ImVec2(-3.5f, -3.5f), center + ImVec2(3.5f, 3.5f), text_color_disabled);
@@ -235,22 +250,34 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   bool collapsed = true;
   ImGuiWindowFlags flags = extra_flags;
 
+  ImGuiContext *g = GetCurrentContext();
   Dock *dd = g_dock.dockht[label];
   if (!dd) {
     dd = g_dock.dockht[label] = new Dock;
     IM_ASSERT(dd);
   }
 
-  if (dd->status == Dock::Status_Docked){
-    // Docked: position, size, and flags controlled by the container
+  if (dd->status == Dock::Status_Docked || dd->status == Dock::Status_Lifted){
+    // Docked or lifted: position and size
     SetNextWindowPos(dd->pos);
     SetNextWindowSize(dd->size);
-    flags = dd->flags;
-    collapsed = dd->hidden;
-    if (dd->hidden){
-      Begin("",nullptr,dd->size,0.0,flags);
-    } else {
-      Begin(label,nullptr,flags);
+    if (dd->status == Dock::Status_Docked) {
+      // Docked: flags and hidden controlled by the container, too
+      flags = dd->flags;
+      collapsed = dd->hidden;
+      if (dd->hidden){
+	Begin("",nullptr,dd->size,0.0,flags);
+      } else {
+	Begin(label,nullptr,flags);
+      }
+    } else { 
+      // Lifted: the window has just been lifted from the container. Go back
+      // to being a normal window with the new position and size; being dragged.
+      collapsed = !Begin(label,p_open,flags);
+      dd->status == Dock::Status_Dragged;
+      g->MovedWindow = dd->window;
+      g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
+      SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
     }
   } else {
     // Floating window
@@ -269,7 +296,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->p_open = p_open;
 
   // Update the status
-  ImGuiContext *g = GetCurrentContext();
   Dock *ddest = g_dock.getContainerAt(GetIO().MousePos);
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
@@ -316,3 +342,4 @@ void ImGui::Print() {
     Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
   }
 }
+
