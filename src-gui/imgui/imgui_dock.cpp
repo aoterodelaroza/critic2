@@ -1,4 +1,3 @@
-// x also lifts
 // double click lifts but does not drag
 // relocate inside the bar tab
 // complete the drawtabbar implementation
@@ -120,6 +119,8 @@ void Dock::drawTabBar(){
 
     bool active;
     Dock *dderase = nullptr, *ddlast = nullptr;
+    char tmp2[20];
+    ImVec2 pos, center;
     for (auto dd : this->stack) {
       SameLine(0, 15);
       const char* text_end = FindRenderedTextEnd(dd->label);
@@ -128,23 +129,10 @@ void Dock::drawTabBar(){
         this->currenttab = dd;
       active = (dd == this->currenttab);
 
-      if (IsItemActive() && IsMouseDragging()){
-	dderase = dd;
-	dd->status = Dock::Status_Lifted;
-	dd->size = this->size;
-	dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
-	if (active){
-	  if (dd == this->currenttab){
-	    if (ddlast)
-	      this->currenttab = ddlast;
-	    else
-	      this->currenttab = nullptr;
-	  }
-	}
-	continue;
-      }
+      if (IsItemActive() && IsMouseDragging())
+	goto lift_this_tab;
 
-      ImVec2 pos = GetItemRectMin();
+      pos = GetItemRectMin();
       size.x += GetStyle().ItemSpacing.x;
       tab_base = pos.y;
 
@@ -157,28 +145,38 @@ void Dock::drawTabBar(){
       if (dd->p_open){
 	// the close butt itself
 	SameLine();
-	char tmp2[20];
 	ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
 	if (Button(tmp2, ImVec2(16, 16))){
 	  *(dd->p_open) = false;
-	  dderase = dd;
-	  if (dd == this->currenttab){
-	    if (ddlast)
-	      this->currenttab = ddlast;
-	    else
-	      this->currenttab = nullptr;
-	  }
-	  continue;
+	  goto erase_this_tab;
 	}
+
+	if (IsItemActive() && IsMouseDragging())
+	  goto lift_this_tab;
+
 	// the "x"
 	SameLine();
-	ImVec2 center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
+	center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
 	draw_list->AddLine( center + ImVec2(-3.5f, -3.5f), center + ImVec2(3.5f, 3.5f), text_color_disabled);
 	draw_list->AddLine( center + ImVec2(3.5f, -3.5f), center + ImVec2(-3.5f, 3.5f), text_color_disabled);
       }
       ddlast = dd;
+      
+      continue;
 
+    lift_this_tab:
+      dd->status = Dock::Status_Lifted;
+      dd->size = this->size;
+      dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
 
+    erase_this_tab:
+      dderase = dd;
+      if (dd == this->currenttab){
+	if (ddlast)
+	  this->currenttab = ddlast;
+	else
+	  this->currenttab = nullptr;
+      }
     } // dd in this->stack
     ImVec2 cp(this->pos.x, tab_base + line_height);
     draw_list->AddLine(cp, cp + ImVec2(this->size.x, 0), color);
