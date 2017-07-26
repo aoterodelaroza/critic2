@@ -23,9 +23,11 @@ namespace ImGui{
     char* label = nullptr; // window label
     ImVec2 pos; // position of the window
     ImVec2 size; // size of the window
+    ImVec2 size_saved; // saved size (before docking)
     ImGuiWindowFlags flags = 0; // flags for the window
     bool hidden = false; // whether a docked window is hidden
     bool collapsed = false; // whether a docked window is collapsed
+    bool collapsed_saved = false; // saved collapsed (before docking)
     Type_ type = Type_None; // type of docking window
     Status_ status = Status_None; // status of the docking window
     Stack_ sttype = Stack_None; // stacking type when docked
@@ -37,7 +39,7 @@ namespace ImGui{
     bool *p_open = nullptr; // the calling routine open window bool
     bool control_window_this_frame = false; // the pos, size, etc. change window's attributes this frame
 
-    Dock(): pos(0,0), size(-1,-1) {};
+    Dock(): pos(0,0), size(-1,-1), size_saved(-1,-1) {};
     ~Dock(){ MemFree(label);}
 
     // Show the drop targets for this window

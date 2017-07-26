@@ -61,9 +61,9 @@ int main(int argc, char *argv[]){
     int menu_height = 0;
     if (ImGui::BeginMainMenuBar()){
       if (ImGui::BeginMenu("File")){
-	if (ImGui::MenuItem("Quit","Ctrl+Q"))
-	  glfwSetWindowShouldClose(window, GLFW_TRUE);
-	ImGui::EndMenu();
+        if (ImGui::MenuItem("Quit","Ctrl+Q"))
+          glfwSetWindowShouldClose(window, GLFW_TRUE);
+        ImGui::EndMenu();
       }
       // xxxx //
       menu_height = ImGui::GetWindowSize().y;
@@ -83,26 +83,26 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("Info",&show_scene1)){
-	ImGui::Text("Hello!"); 
-	if (ImGui::Button("Button")){}
+        ImGui::Text("Hello!");
+        if (ImGui::Button("Button")){}
       }
       ImGui::EndDock();
     }
-    // if (show_scene2){
-    //   ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    //   ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    //   if (ImGui::BeginDock("Info2", &show_scene2)){
-    // 	ImGui::Text("Hello2!"); 
-    // 	if (ImGui::Button("Button2")){}
-    //   }
-    //   ImGui::EndDock();
-    // }
+    if (show_scene2){
+      ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      if (ImGui::BeginDock("Info2", &show_scene2,ImGuiWindowFlags_NoTitleBar)){
+        ImGui::Text("Hello2!");
+        if (ImGui::Button("Button2")){}
+      }
+      ImGui::EndDock();
+    }
     if (show_scene3){
       ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("NoClose1")){
-    	ImGui::Text("Hello3!"); 
-    	if (ImGui::Button("Button3")){}
+        ImGui::Text("Hello3!");
+        if (ImGui::Button("Button3")){}
       }
       ImGui::EndDock();
     }
@@ -110,8 +110,8 @@ int main(int argc, char *argv[]){
     //   ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     //   ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     //   if (ImGui::BeginDock("NoClose2")){
-    // 	ImGui::Text("Hello4!"); 
-    // 	if (ImGui::Button("Button4")){}
+    //  ImGui::Text("Hello4!");
+    //  if (ImGui::Button("Button4")){}
     //   }
     //   ImGui::EndDock();
     // }
@@ -119,8 +119,8 @@ int main(int argc, char *argv[]){
     //   ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     //   ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     //   if (ImGui::BeginDock("Info5", &show_scene5)){
-    // 	ImGui::Text("Hello5!"); 
-    // 	if (ImGui::Button("Button5")){}
+    //  ImGui::Text("Hello5!");
+    //  if (ImGui::Button("Button5")){}
     //   }
     //   ImGui::EndDock();
     // }
