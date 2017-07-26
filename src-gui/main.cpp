@@ -106,24 +106,24 @@ int main(int argc, char *argv[]){
       }
       ImGui::EndDock();
     }
-    // if (show_scene4){
-    //   ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    //   ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    //   if (ImGui::BeginDock("NoClose2")){
-    //  ImGui::Text("Hello4!");
-    //  if (ImGui::Button("Button4")){}
-    //   }
-    //   ImGui::EndDock();
-    // }
-    // if (show_scene5){
-    //   ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    //   ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    //   if (ImGui::BeginDock("Info5", &show_scene5)){
-    //  ImGui::Text("Hello5!");
-    //  if (ImGui::Button("Button5")){}
-    //   }
-    //   ImGui::EndDock();
-    // }
+    if (show_scene4){
+      ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      if (ImGui::BeginDock("NoClose2")){
+     ImGui::Text("Hello4!");
+     if (ImGui::Button("Button4")){}
+      }
+      ImGui::EndDock();
+    }
+    if (show_scene5){
+      ImGui::SetNextWindowPos(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+      if (ImGui::BeginDock("Info5", &show_scene5)){
+     ImGui::Text("Hello5!");
+     if (ImGui::Button("Button5")){}
+      }
+      ImGui::EndDock();
+    }
 
     if (ImGui::Begin("justawindow")){
       ImGui::Print(); // print docking information

@@ -1,7 +1,6 @@
-// relocate inside the bar tab
-// improve look of the drawtabbar
-// floating levels of containers and tabbed windows are screwed
 // tabbar list too long and scrolling.
+// relocate inside the bar tab
+// floating levels of containers and tabbed window focusing 
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -96,76 +95,90 @@ void Dock::drawContainer(){
 }
 
 void Dock::drawTabBar(){
-  float barheight = 2 * GetTextLineHeightWithSpacing();
+  ImGuiContext *g = GetCurrentContext();
+  float barheight = g->FontSize + 6 * g->Style.ItemSpacing.y;
+  float tabheight = g->FontSize + 2 * g->Style.ItemSpacing.y;
+  float crossz = 0.3 * g->FontSize;
 
   SetCursorScreenPos(this->pos + ImVec2(0.,GetCurrentWindow()->TitleBarHeight()));
   char tmp[20];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
   if (BeginChild(tmp,ImVec2(this->size.x,barheight), true)){
     ImDrawList* draw_list = GetWindowDrawList();
+    ImU32 text_color = GetColorU32(ImGuiCol_Text);
+    ImU32 text_color_disabled = GetColorU32(ImGuiCol_TextDisabled);
     ImU32 color = GetColorU32(ImGuiCol_FrameBg);
     ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive);
     ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered);
-    ImU32 text_color = GetColorU32(ImGuiCol_Text);
-    ImU32 text_color_disabled = GetColorU32(ImGuiCol_TextDisabled);
-    float line_height = GetTextLineHeightWithSpacing();
-    float tab_base;
+    SetCursorScreenPos(this->pos + ImVec2(0.,GetCurrentWindow()->TitleBarHeight()));
 
     // drawTabbarListButton(dock);
 
     bool active;
     Dock *dderase = nullptr, *ddlast = nullptr;
     char tmp2[20];
-    ImVec2 pos, center;
+    ImVec2 pos, center, pos0;
+    float cursorx = 0.;
+    bool hovered = false;
     for (auto dd : this->stack) {
-      SameLine(0, 15);
+      SameLine(cursorx, 0.);
       const char* text_end = FindRenderedTextEnd(dd->label);
-      ImVec2 size(CalcTextSize(dd->label, text_end).x, line_height);
+      int tabwidth = CalcTextSize(dd->label, text_end).x + 2 * g->Style.ItemSpacing.x;
+      ImVec2 size(tabwidth, tabheight);
+
+      // main button
       if (InvisibleButton(dd->label, size))
         this->currenttab = dd;
       active = (dd == this->currenttab);
+      pos0 = GetItemRectMin();
 
+      hovered = IsItemHovered();
+      // lift the tab using the main button
       if (IsItemActive() && IsMouseDragging()){
         dd->status = Dock::Status_Dragged;
         goto lift_this_tab;
       }
+      // double click detaches the tab
       if (IsItemActive() && IsMouseDoubleClicked(0)){
         dd->status = Dock::Status_Open;
         goto lift_this_tab;
       }
-
-      pos = GetItemRectMin();
-      size.x += GetStyle().ItemSpacing.x;
-      tab_base = pos.y;
-
-      // Rectangle and text for the tab
-      draw_list->AddRectFilled(pos+ImVec2(-8.0f, 0.0),pos+size,
-                               IsItemHovered() ? color_hovered : (active ? color_active : color));
-      draw_list->AddText(pos, text_color, dd->label, text_end);
+      cursorx += size.x;
+      if (cursorx == size.x) cursorx += g->Style.ItemSpacing.x;
 
       // The close button, if this window can be closed
       if (dd->p_open){
         // the close button itself
-        SameLine();
+        SameLine(cursorx,0.);
         ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
-        if (Button(tmp2, ImVec2(16, 16))){
+	ImVec2 size(tabheight, tabheight);
+	tabwidth = tabwidth + tabheight;
+	if (InvisibleButton(tmp2, size)){
           *(dd->p_open) = false;
           goto erase_this_tab;
         }
+	hovered |= IsItemHovered();
 
+	// tab being lifted using the x
         if (IsItemActive() && IsMouseDragging()){
           dd->status = Dock::Status_Dragged;
           goto lift_this_tab;
         }
-
-        // the "x"
-        SameLine();
-        center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
-        draw_list->AddLine( center + ImVec2(-3.5f, -3.5f), center + ImVec2(3.5f, 3.5f), text_color_disabled);
-        draw_list->AddLine( center + ImVec2(3.5f, -3.5f), center + ImVec2(-3.5f, 3.5f), text_color_disabled);
+	cursorx += size.x;
       }
+      center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
+      cursorx += g->Style.ItemSpacing.x;
+
+      // draw the rectangle and the text
+      draw_list->AddRectFilled(pos0,pos0 + ImVec2(tabwidth,tabheight), hovered? color_hovered: (active? color_active: color));
+      draw_list->AddText(pos0 + g->Style.ItemSpacing, text_color, dd->label, text_end);
+      if (dd->p_open){
+        // draw the "x"
+	draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), text_color_disabled);
+	draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), text_color_disabled);
+      }
+
       ddlast = dd;
-      
       continue;
 
     lift_this_tab:
@@ -183,8 +196,6 @@ void Dock::drawTabBar(){
           this->currenttab = nullptr;
       }
     } // dd in this->stack
-    ImVec2 cp(this->pos.x, tab_base + line_height);
-    draw_list->AddLine(cp, cp + ImVec2(this->size.x, 0), color);
     if (dderase){
       this->stack.remove(dderase);
       if (!this->currenttab && this->stack.size() > 0)
