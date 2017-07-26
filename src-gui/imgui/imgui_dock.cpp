@@ -296,8 +296,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   } else {
     // Floating window
     collapsed = !Begin(label,p_open,flags);
-    dd->size_saved = dd->size;
     dd->collapsed_saved = collapsed;
+    if (!collapsed) dd->size_saved = dd->size;
   }
 
   // Fill the info for this dock
