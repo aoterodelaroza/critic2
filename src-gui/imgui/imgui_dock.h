@@ -35,6 +35,7 @@ namespace ImGui{
     Dock *root = nullptr; // root node of this tree
     ImGuiWindow* window = nullptr; // associated window
     bool *p_open = nullptr; // the calling routine open window bool
+    bool control_window_this_frame = false; // the pos, size, etc. change window's attributes this frame
 
     Dock(): pos(0,0), size(-1,-1) {};
     ~Dock(){ MemFree(label);}

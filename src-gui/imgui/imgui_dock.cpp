@@ -1,4 +1,3 @@
-// double click lifts but does not drag
 // relocate inside the bar tab
 // complete the drawtabbar implementation
 // improve look of the drawtabbar
@@ -129,8 +128,14 @@ void Dock::drawTabBar(){
         this->currenttab = dd;
       active = (dd == this->currenttab);
 
-      if (IsItemActive() && IsMouseDragging())
+      if (IsItemActive() && IsMouseDragging()){
+	dd->status = Dock::Status_Dragged;
 	goto lift_this_tab;
+      }
+      if (IsItemActive() && IsMouseDoubleClicked(0)){
+	dd->status = Dock::Status_Open;
+	goto lift_this_tab;
+      }
 
       pos = GetItemRectMin();
       size.x += GetStyle().ItemSpacing.x;
@@ -151,8 +156,10 @@ void Dock::drawTabBar(){
 	  goto erase_this_tab;
 	}
 
-	if (IsItemActive() && IsMouseDragging())
+	if (IsItemActive() && IsMouseDragging()){
+	  dd->status = Dock::Status_Dragged;
 	  goto lift_this_tab;
+	}
 
 	// the "x"
 	SameLine();
@@ -165,7 +172,7 @@ void Dock::drawTabBar(){
       continue;
 
     lift_this_tab:
-      dd->status = Dock::Status_Lifted;
+      dd->control_window_this_frame = true;
       dd->size = this->size;
       dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
 
@@ -258,8 +265,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     IM_ASSERT(dd);
   }
 
-  if (dd->status == Dock::Status_Docked || dd->status == Dock::Status_Lifted){
-    // Docked or lifted: position and size
+  if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
+    // Docked or lifted: position and size are controlled
     SetNextWindowPos(dd->pos);
     SetNextWindowSize(dd->size);
     if (dd->status == Dock::Status_Docked) {
@@ -271,16 +278,21 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       } else {
 	Begin(label,nullptr,flags);
       }
-    } else { 
-      // Lifted: the window has just been lifted from the container. Go back
-      // to being a normal window with the new position and size; being dragged.
+    } else if (dd->status == Dock::Status_Dragged) { 
+      // the window has just been lifted from a container. Go back to
+      // being a normal window with the new position and size; being
+      // dragged.
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
-      dd->status == Dock::Status_Dragged;
-      g->FocusedWindow = dd->window;
+      FocusWindow(dd->window);
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
       SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
+    } else { 
+      // the window has just been lifted, but not dragging
+      collapsed = !Begin(label,p_open,flags);
+      dd->window = GetCurrentWindow();
+      FocusWindow(dd->window);
     }
   } else {
     // Floating window
@@ -297,6 +309,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
   dd->p_open = p_open;
+  dd->control_window_this_frame = false;
 
   // Update the status
   Dock *ddest = g_dock.getContainerAt(GetIO().MousePos);
