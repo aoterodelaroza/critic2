@@ -1,4 +1,5 @@
-// tab does not lift if not active
+// x also lifts
+// double click lifts but does not drag
 // relocate inside the bar tab
 // complete the drawtabbar implementation
 // improve look of the drawtabbar
@@ -127,16 +128,18 @@ void Dock::drawTabBar(){
         this->currenttab = dd;
       active = (dd == this->currenttab);
 
-      if (active && IsItemActive() && IsMouseDragging()){
+      if (IsItemActive() && IsMouseDragging()){
 	dderase = dd;
 	dd->status = Dock::Status_Lifted;
 	dd->size = this->size;
 	dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
-	if (dd == this->currenttab){
-	  if (ddlast)
-	    this->currenttab = ddlast;
-	  else
-	    this->currenttab = nullptr;
+	if (active){
+	  if (dd == this->currenttab){
+	    if (ddlast)
+	      this->currenttab = ddlast;
+	    else
+	      this->currenttab = nullptr;
+	  }
 	}
 	continue;
       }
@@ -274,7 +277,9 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       // Lifted: the window has just been lifted from the container. Go back
       // to being a normal window with the new position and size; being dragged.
       collapsed = !Begin(label,p_open,flags);
+      dd->window = GetCurrentWindow();
       dd->status == Dock::Status_Dragged;
+      g->FocusedWindow = dd->window;
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
       SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
