@@ -366,9 +366,15 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       ddest->showDropTarget();
   }
 
-  // If this window is docked, put it right on top of its container
+  // If this window is docked, put it right on top of its container.
+  // Transfer any clicks to the underlying container.
   if (dd->status == Dock::Status_Docked && !dd->hidden){
+    // If clicked, transfer the click to the container
     ImGuiContext *g = GetCurrentContext();
+    if (g->HoveredWindow == dd->window && g->IO.MouseClicked[0])
+      FocusWindow(dd->parent->window);
+
+    // Put the docked window right on top of its container
     int ithis = -1, icont = -1;
     for (int i = 0; i < g->Windows.Size; i++){
       if (g->Windows[i] == dd->window)
