@@ -1,7 +1,6 @@
 // tabbar list too long and scrolling.
 // relocate inside the bar tab
 // compact styles ; handle styles 
-// close container?
 // resize the container if there are tabbed windows; problem with the corner
 
 #include "imgui.h"
@@ -259,17 +258,12 @@ void Dock::RaiseCurrentTab(){
 
 //xx// Public interface //xx//
 
-void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/){
 
   bool collapsed = true;
-  // ImGuiWindowFlags flags = extra_flags | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
-  ImGuiWindowFlags flags = extra_flags;
 
   Dock *dd = dockht[label];
-  if (dd){
-    // SetNextWindowPos(dd->pos);
-    // SetNextWindowSize(dd->size);
-  } else {
+  if (!dd){
     dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
   }
@@ -278,6 +272,7 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   if (Begin(label,p_open,flags)){
     collapsed = false;
   }
+  printf("bleh: %d\n",*p_open);
 
   // Fill the info for this dock
   dd->id = ImHash(label,0);
@@ -324,10 +319,9 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   End();
 }
 
-bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/){
 
   bool collapsed;
-  ImGuiWindowFlags flags = extra_flags;
 
   ImGuiContext *g = GetCurrentContext();
   Dock *dd = dockht[label];
@@ -434,17 +428,20 @@ void ImGui::EndDock() {
 }
 
 void ImGui::Print() {
-  // for (auto dock : dockht){
-  //   Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
-  //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-  //   Text("type=%d status=%d\n", dock.second->type, dock.second->status);
-  //   Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
+  for (auto dock : dockht){
+    Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
+    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+    Text("type=%d status=%d\n", dock.second->type, dock.second->status);
+    Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
+    if (dock.second->p_open)
+      Text("p_open=%d\n", *(dock.second->p_open));
+  }
+
+  // ImGuiContext *g = GetCurrentContext();
+  // for (int i = 0; i < g->Windows.Size; i++){
+  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
   // }
 
-  ImGuiContext *g = GetCurrentContext();
-  for (int i = 0; i < g->Windows.Size; i++){
-    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
-  }
   // where is g.hoveredrootwindow set?
   // void ImGui::SetHoveredID(ImGuiID id)
   //    g.HoveredId = id;

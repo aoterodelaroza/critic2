@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
     static bool show_scene5 = true;
     static bool show_scene6 = true;
 
-    ImGui::Container("contain");
+    if (show_scene6) ImGui::Container("contain",&show_scene6);
     
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
