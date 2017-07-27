@@ -6,7 +6,6 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
-#include <unordered_map>
 #include <list>
 
 using namespace std;
@@ -52,19 +51,6 @@ namespace ImGui{
     void drawTabBar();
 
   }; // struct Dock
-
-  struct DockContext{
-    struct LabelHash{
-      size_t operator()(const char *key) const{
-	return (size_t) ImHash((const void *)key,0);
-      };
-    };
-    unordered_map<const char *,Dock*,LabelHash> dockht = {};
-    Dock* m_current = nullptr;
-    DockContext(){};
-    ~DockContext(){};
-    Dock *getContainerAt(const ImVec2& pos);
-  }; // struct DockContext
 
   // Create a container with the given label. If p_open, with a close
   // button.  Extra window flags are passed to the container window.

@@ -11,6 +11,7 @@
 #include "imgui_internal.h"
 #include "imgui_dock.h"
 #include "imgui_impl_glfw.h"
+#include <unordered_map>
 
 static ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
     return ImVec2(lhs.x+rhs.x, lhs.y+rhs.y);
@@ -24,13 +25,20 @@ ImVec2 operator*(ImVec2 lhs, float rhs) {
 
 using namespace ImGui;
 
-static DockContext g_dock;
+// Dock context declarations
+struct LabelHash{
+  size_t operator()(const char *key) const{
+    return (size_t) ImHash((const void *)key,0);
+  };
+};
+static unordered_map<const char *,Dock*,LabelHash> dockht = {}; // global dock hash table
+static Dock *getContainerAt(const ImVec2& pos); // get container at a given position
 
 //xx// DockContext methods //xx//
 
-Dock *DockContext::getContainerAt(const ImVec2& pos){
+static Dock *getContainerAt(const ImVec2& pos){
   Dock *dd;
-  for (auto dpair : this->dockht){
+  for (auto dpair : dockht){
     dd = dpair.second;
     if (dd->type != Dock::Type_Container) continue;
     if (dd->status != Dock::Status_Open) continue;
@@ -217,12 +225,12 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // ImGuiWindowFlags flags = extra_flags | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
   ImGuiWindowFlags flags = extra_flags;
 
-  Dock *dd = g_dock.dockht[label];
+  Dock *dd = dockht[label];
   if (dd){
     // SetNextWindowPos(dd->pos);
     // SetNextWindowSize(dd->size);
   } else {
-    dd = g_dock.dockht[label] = new Dock;
+    dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
   }
 
@@ -273,9 +281,9 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   ImGuiWindowFlags flags = extra_flags;
 
   ImGuiContext *g = GetCurrentContext();
-  Dock *dd = g_dock.dockht[label];
+  Dock *dd = dockht[label];
   if (!dd) {
-    dd = g_dock.dockht[label] = new Dock;
+    dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
   }
 
@@ -329,7 +337,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->control_window_this_frame = false;
 
   // Update the status
-  Dock *ddest = g_dock.getContainerAt(GetIO().MousePos);
+  Dock *ddest = getContainerAt(GetIO().MousePos);
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
@@ -355,7 +363,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   // If dragged and hovering over a container, show the drop rectangles
   if (dd->status == Dock::Status_Dragged){
-    Dock *ddest = g_dock.getContainerAt(GetIO().MousePos);
+    Dock *ddest = getContainerAt(GetIO().MousePos);
     if (ddest)
       ddest->showDropTarget();
   }
@@ -387,7 +395,7 @@ void ImGui::EndDock() {
 }
 
 void ImGui::Print() {
-  for (auto dock : g_dock.dockht){
+  for (auto dock : dockht){
     Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
     Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
     Text("type=%d status=%d\n", dock.second->type, dock.second->status);
