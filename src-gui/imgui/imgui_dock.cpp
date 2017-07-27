@@ -1,8 +1,8 @@
 // tabbar list too long and scrolling.
 // relocate inside the bar tab
-// drag by grabbing inside the window
 // compact styles ; handle styles 
-// flickering of the container when clicking
+// close container?
+// resize the container if there are tabbed windows; problem with the corner
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -210,8 +210,51 @@ void Dock::drawTabBar(){
       if (!this->currenttab && this->stack.size() > 0)
         this->currenttab = this->stack.front();
     }
+
+    // If the tab (but not the buttons) is clicked, transfer to the
+    // container and raise the docked window.
+    if (this->currenttab && !IsAnyItemActive()){
+      if (g->HoveredWindow == GetCurrentWindow())
+	this->SetContainerHoveredMovedActive();
+      this->RaiseCurrentTab();
+    }
+
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
   EndChild();
+}
+
+void Dock::SetContainerHoveredMovedActive(){
+  ImGuiContext *g = GetCurrentContext();
+
+  if (g->IO.MouseClicked[0]){
+    g->HoveredRootWindow = this->currenttab->window;
+    g->HoveredWindow = this->currenttab->window;
+    g->MovedWindow = this->window;
+    g->MovedWindowMoveId = this->window->RootWindow->MoveId;
+    SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
+  }
+}
+
+void Dock::RaiseCurrentTab(){
+  ImGuiContext *g = GetCurrentContext();
+
+  if (this->currenttab){
+    int ithis = -1, icont = -1;
+    for (int i = 0; i < g->Windows.Size; i++){
+      if (g->Windows[i] == this->currenttab->window)
+	ithis = i;
+      if (g->Windows[i] == this->window)
+	icont = i;
+    }
+    if (icont >= 0 && ithis >= 0){
+      g->Windows.erase(g->Windows.begin() + ithis);
+      if (ithis < icont) icont--;
+      if (icont >= g->Windows.size())
+	g->Windows.push_back(this->currenttab->window);
+      else
+	g->Windows.insert(g->Windows.begin() + icont + 1,this->currenttab->window);
+    }
+  }
 }
 
 //xx// Public interface //xx//
@@ -268,6 +311,15 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   // Draw the container elements
   dd->drawContainer();
+
+  // If the container is clicked, set the correct hovered/moved flags 
+  // and place the docked window correctly in the stack.
+  if (dd->currenttab){
+    ImGuiContext *g = GetCurrentContext();
+    if (g->HoveredWindow == dd->window || g->HoveredWindow == dd->currenttab->window)
+      dd->SetContainerHoveredMovedActive();
+    dd->RaiseCurrentTab();
+  }
 
   End();
 }
@@ -368,26 +420,10 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // If this window is docked, put it right on top of its container.
   // Transfer any clicks to the underlying container.
   if (dd->status == Dock::Status_Docked && !dd->hidden){
-    // If clicked, transfer the click to the container
-    ImGuiContext *g = GetCurrentContext();
-    if (g->HoveredWindow == dd->window && g->IO.MouseClicked[0])
-      FocusWindow(dd->parent->window);
-
-    // Put the docked window right on top of its container
-    int ithis = -1, icont = -1;
-    for (int i = 0; i < g->Windows.Size; i++){
-      if (g->Windows[i] == dd->window)
-	ithis = i;
-      if (g->Windows[i] == dd->parent->window)
-	icont = i;
-    }
-    if (icont >= 0 && ithis >= 0){
-      g->Windows.erase(g->Windows.begin() + ithis);
-      if (icont >= g->Windows.size())
-	g->Windows.push_back(dd->window);
-      else
-	g->Windows.insert(g->Windows.begin() + icont + 1,dd->window);
-    }
+    if ((g->HoveredWindow == dd->window || g->HoveredWindow == dd->parent->window) &&
+	IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false))
+      dd->parent->SetContainerHoveredMovedActive();
+    dd->parent->RaiseCurrentTab();
   }
 
   return !collapsed;
@@ -398,12 +434,21 @@ void ImGui::EndDock() {
 }
 
 void ImGui::Print() {
-  for (auto dock : dockht){
-    Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
-    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    Text("type=%d status=%d\n", dock.second->type, dock.second->status);
-    Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
+  // for (auto dock : dockht){
+  //   Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
+  //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+  //   Text("type=%d status=%d\n", dock.second->type, dock.second->status);
+  //   Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
+  // }
+
+  ImGuiContext *g = GetCurrentContext();
+  for (int i = 0; i < g->Windows.Size; i++){
+    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
   }
+  // where is g.hoveredrootwindow set?
+  // void ImGui::SetHoveredID(ImGuiID id)
+  //    g.HoveredId = id;
+  //    g.HoveredIdAllowOverlap = false;
 }
 
 void ImGui::ShutdownDock(){

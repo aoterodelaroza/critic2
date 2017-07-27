@@ -49,6 +49,11 @@ namespace ImGui{
     void drawContainer();
     // Draw the tab bar of a tabbed container
     void drawTabBar();
+    // Set the hovered window, moved window, and active ID for a container/tab pair
+    void SetContainerHoveredMovedActive();
+    // Raise the current displayed tab in a container in the window stack to 
+    // just before the container
+    void RaiseCurrentTab();
 
   }; // struct Dock
 
