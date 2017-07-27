@@ -1,8 +1,8 @@
-// do not Begin hidden windows
 // tabbar list too long and scrolling.
 // relocate inside the bar tab
 // drag by grabbing inside the window
 // compact styles ; handle styles 
+// flickering of the container when clicking
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -84,8 +84,9 @@ void Dock::drawContainer(){
 
     // Hide all tabs
     for (auto dd : this->stack) {
-      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|
-        ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoInputs;
+      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove|
+	ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoCollapse|
+        ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoInputs;
       dd->pos = ImVec2(0.,0.);
       dd->size = ImVec2(0.,0.);
       dd->hidden = true;
@@ -95,8 +96,6 @@ void Dock::drawContainer(){
     if (!this->hidden && !this->collapsed && this->currenttab){
       Dock *dd = this->currenttab;
       float h = 2 * GetTextLineHeightWithSpacing() + GetCurrentWindow()->TitleBarHeight();
-      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_ShowBorders|ImGuiWindowFlags_NoResize|
-        ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
       dd->pos = this->pos + ImVec2(0.,h);
       dd->size = this->size - ImVec2(0.,h);
       dd->hidden = false;
@@ -295,7 +294,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       flags = dd->flags;
       collapsed = dd->hidden;
       if (dd->hidden){
-        Begin("",nullptr,dd->size,0.0,flags);
+	Begin("",nullptr,dd->size,0.0,flags);
       } else {
         Begin(label,nullptr,flags);
       }
