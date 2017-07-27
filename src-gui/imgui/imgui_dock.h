@@ -47,13 +47,17 @@ namespace ImGui{
     void newDock(Dock *dnew);
     // Draw container
     void drawContainer();
+    // Clear all docked windows from a container
+    void clearContainer();
     // Draw the tab bar of a tabbed container
     void drawTabBar();
     // Set the hovered window, moved window, and active ID for a container/tab pair
-    void SetContainerHoveredMovedActive();
+    void SetContainerHoveredMovedActive(bool setid);
     // Raise the current displayed tab in a container in the window stack to 
     // just before the container
     void RaiseCurrentTab();
+    // Get the position of this dock's window in the window stack
+    int getWindowStackPosition();
 
   }; // struct Dock
 

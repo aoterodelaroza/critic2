@@ -84,7 +84,7 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("Info",&show_scene1)){
         ImGui::Text("Hello!");
-        if (ImGui::Button("Button")){}
+        if (ImGui::Button("Button")){printf("Button\n");}
       }
       ImGui::EndDock();
     }
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("Info2", &show_scene2,ImGuiWindowFlags_NoTitleBar)){
         ImGui::Text("Hello2!");
-        if (ImGui::Button("Button2")){}
+        if (ImGui::Button("Button2")){printf("Button2\n");}
       }
       ImGui::EndDock();
     }
@@ -102,7 +102,7 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("NoClose1")){
         ImGui::Text("Hello3!");
-        if (ImGui::Button("Button3")){}
+        if (ImGui::Button("Button3")){printf("Button3\n");}
       }
       ImGui::EndDock();
     }
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("NoClose2")){
      ImGui::Text("Hello4!");
-     if (ImGui::Button("Button4")){}
+     if (ImGui::Button("Button4")){printf("Button4\n");}
       }
       ImGui::EndDock();
     }
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
       if (ImGui::BeginDock("Info5", &show_scene5)){
      ImGui::Text("Hello5!");
-     if (ImGui::Button("Button5")){}
+     if (ImGui::Button("Button5")){printf("Button5\n");}
       }
       ImGui::EndDock();
     }
