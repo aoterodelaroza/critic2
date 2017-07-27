@@ -1,6 +1,10 @@
+// do not Begin hidden windows
 // tabbar list too long and scrolling.
 // relocate inside the bar tab
-// floating levels of containers and tabbed window focusing 
+// drag by grabbing inside the window
+// compact styles ; handle styles 
+// eliminate dockcontext and make g_dock static
+// shutdown function
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -210,7 +214,8 @@ void Dock::drawTabBar(){
 void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
 
   bool collapsed = true;
-  ImGuiWindowFlags flags = extra_flags | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+  // ImGuiWindowFlags flags = extra_flags | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+  ImGuiWindowFlags flags = extra_flags;
 
   Dock *dd = g_dock.dockht[label];
   if (dd){
@@ -353,6 +358,25 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     Dock *ddest = g_dock.getContainerAt(GetIO().MousePos);
     if (ddest)
       ddest->showDropTarget();
+  }
+
+  // If this window is docked, put it right on top of its container
+  if (dd->status == Dock::Status_Docked && !dd->hidden){
+    ImGuiContext *g = GetCurrentContext();
+    int ithis = -1, icont = -1;
+    for (int i = 0; i < g->Windows.Size; i++){
+      if (g->Windows[i] == dd->window)
+	ithis = i;
+      if (g->Windows[i] == dd->parent->window)
+	icont = i;
+    }
+    if (icont >= 0 && ithis >= 0){
+      g->Windows.erase(g->Windows.begin() + ithis);
+      if (icont >= g->Windows.size())
+	g->Windows.push_back(dd->window);
+      else
+	g->Windows.insert(g->Windows.begin() + icont + 1,dd->window);
+    }
   }
 
   return !collapsed;
