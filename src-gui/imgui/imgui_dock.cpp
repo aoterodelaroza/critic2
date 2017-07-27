@@ -1,3 +1,4 @@
+// set the minimum size of the container (problems if container too small)
 // tabbar list too long and scrolling.
 // relocate inside the bar tab
 // compact styles ; handle styles 
@@ -128,6 +129,9 @@ void Dock::drawTabBar(){
   float tabheight = g->FontSize + 2 * g->Style.ItemSpacing.y;
   float crossz = 0.3 * g->FontSize;
 
+  // The tabbar with alpha = 1.0
+  PushStyleVar(ImGuiStyleVar_Alpha, 1.0);
+
   SetCursorScreenPos(this->pos + ImVec2(0.,GetCurrentWindow()->TitleBarHeight()));
   char tmp[20];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
@@ -241,6 +245,7 @@ void Dock::drawTabBar(){
 
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
   EndChild();
+  PopStyleVar();
 }
 
 void Dock::SetContainerHoveredMovedActive(bool setid){
