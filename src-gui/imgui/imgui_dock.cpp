@@ -3,8 +3,6 @@
 // relocate inside the bar tab
 // drag by grabbing inside the window
 // compact styles ; handle styles 
-// eliminate dockcontext and make g_dock static
-// shutdown function
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -401,5 +399,12 @@ void ImGui::Print() {
     Text("type=%d status=%d\n", dock.second->type, dock.second->status);
     Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
   }
+}
+
+void ImGui::ShutdownDock(){
+  for (auto dpair : dockht){
+    if (dpair.second) delete dpair.second;
+  }
+  dockht.clear();
 }
 

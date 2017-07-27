@@ -62,6 +62,9 @@ namespace ImGui{
   bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
   void EndDock();
 
+  // Free the memory occupied by the docks and the dock hash table
+  void ShutdownDock();
+
   // Print information about the current known docks. Debug only.
   void Print();
   

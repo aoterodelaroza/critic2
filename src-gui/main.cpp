@@ -139,6 +139,7 @@ int main(int argc, char *argv[]){
   }
 
   // Cleanup
+  ImGui::ShutdownDock();
   ImGui_ImplGlfw_Shutdown();
   glfwTerminate();
 
