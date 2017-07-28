@@ -488,7 +488,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     if ((g->HoveredWindow == dd->window || g->HoveredWindow == dd->parent->window) &&
 	IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false) &&
 	g->IO.MouseClicked[0]){
-      dd->parent->SetContainerHoveredMovedActive(!IsItemClicked(0));
+      // dd->parent->SetContainerHoveredMovedActive(!IsItemClicked(0));
+      dd->parent->SetContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
     }
     dd->parent->RaiseCurrentTab();
   }
