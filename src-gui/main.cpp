@@ -91,6 +91,25 @@ int main(int argc, char *argv[]){
       if (ImGui::BeginDock("Info",&show_scene1)){
         ImGui::Text("Hello!");
         if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
+	ImGui::SameLine();
+        if (ImGui::Button("Button")){printf("Button\n");}
       }
       ImGui::EndDock();
     }

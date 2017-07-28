@@ -1,4 +1,3 @@
-// set the minimum size of the container (problems if container too small)
 // relocate inside the bar tab
 // resize the container if there are tabbed windows; problem with the corner
 // reorganize methods
@@ -97,7 +96,6 @@ void Dock::drawContainer(){
     // Unhide current tab
     if (!this->hidden && !this->collapsed && this->currenttab){
       Dock *dd = this->currenttab;
-      float h = 2 * GetTextLineHeightWithSpacing() + GetCurrentWindow()->TitleBarHeight();
       dd->pos = this->pos;
       dd->pos.y = posymax;
       dd->size = this->size;
@@ -327,6 +325,16 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     IM_ASSERT(dd);
   }
 
+  // If the container has a window docked, set the minimum size
+  // printf("%f %f\n",dd->window->SizeContents.x,dd->window->SizeContents.y);
+  if (dd->currenttab){
+    ImGuiContext *g = GetCurrentContext();
+    ImVec2 size = dd->currenttab->window->SizeContents + dd->currenttab->window->WindowPadding;
+    size.y += GetTextLineHeightWithSpacing() + dd->currenttab->window->WindowPadding.y +
+      dd->window->TitleBarHeight();
+    SetNextWindowSizeConstraints(size,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+  }
+
   // Render any container widgets in here
   if (Begin(label,p_open,flags)){
     collapsed = false;
@@ -522,7 +530,7 @@ void ImGui::Print() {
 
   for (auto dock : dockht){
     Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
-    // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
     // Text("type=%d status=%d\n", dock.second->type, dock.second->status);
     // Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
     // if (dock.second->p_open)
@@ -530,10 +538,10 @@ void ImGui::Print() {
     // Text("stackpos=%d\n",dock.second->stackpos);
   }
 
-  ImGuiContext *g = GetCurrentContext();
-  for (int i = 0; i < g->Windows.Size; i++){
-    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
-  }
+  // ImGuiContext *g = GetCurrentContext();
+  // for (int i = 0; i < g->Windows.Size; i++){
+  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  // }
 
   // where is g.hoveredrootwindow set?
   // void ImGui::SetHoveredID(ImGuiID id)
