@@ -77,11 +77,13 @@ int main(int argc, char *argv[]){
     static bool show_scene5 = true;
     static bool show_scene6 = true;
 
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.001);
     if (show_scene6) {
       ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_Once);
       ImGui::SetNextWindowSize(ImVec2(500,500),ImGuiSetCond_Once);
       ImGui::Container("contain",&show_scene6,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
     }
+    ImGui::PopStyleVar();
     if (show_scene6) ImGui::Container("contain2",&show_scene6);
     // ImGui::Container("contain3");
 

@@ -2,6 +2,8 @@
 // reorganize methods
 // clearcontainer gives a cascade. some control over the window stack
 // closable button class
+// how to make a container complete opaque?
+// all begins without alpha
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -11,6 +13,7 @@
 #include <unordered_map>
 #include <math.h>
 
+// Helper functions
 static ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
     return ImVec2(lhs.x+rhs.x, lhs.y+rhs.y);
 }
@@ -129,11 +132,12 @@ void Dock::drawTabBar(float *topheight){
   const float crosswidth = 2 * crossz + 6;
   const float maxtabwidth = 100.;
   const float mintabwidth = 2 * crosswidth + 1;
-  const ImU32 text_color = GetColorU32(ImGuiCol_Text);
-  const ImU32 text_color_disabled = GetColorU32(ImGuiCol_TextDisabled);
-  const ImU32 color = GetColorU32(ImGuiCol_FrameBg);
-  const ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive);
-  const ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered);
+  const ImU32 cross_color = GetColorU32(ImGuiCol_Text,2.0/g->Style.Alpha);
+  const ImU32 color = GetColorU32(ImGuiCol_Button,2.0/g->Style.Alpha);
+  const ImU32 color_active = GetColorU32(ImGuiCol_ButtonActive,2.0/g->Style.Alpha);
+  const ImU32 color_hovered = GetColorU32(ImGuiCol_ButtonHovered,2.0/g->Style.Alpha);
+  ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
+  text_color.w = 2.0 / g->Style.Alpha;
 
   // calculate the widths
   float tabwidth_long;
@@ -145,9 +149,9 @@ void Dock::drawTabBar(float *topheight){
   float tabwidth_short = tabwidth_long - crosswidth;
 
   // the tabbar with alpha = 1.0, no spacing in the x
-  PushStyleVar(ImGuiStyleVar_Alpha, 1.0);
   PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0,1.0));
   PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0,0.0));
+  PushStyleColor(ImGuiCol_Text,text_color);
 
   // start placing the tabs
   char tmp[20];
@@ -210,11 +214,7 @@ void Dock::drawTabBar(float *topheight){
           dd->status = Dock::Status_Dragged;
           goto lift_this_tab;
         }
-
-        // draw the "x"
         center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
-        draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), text_color_disabled);
-        draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), text_color_disabled);
       }
       pos1 = GetItemRectMax();
 
@@ -224,6 +224,12 @@ void Dock::drawTabBar(float *topheight){
       draw_list->AddRectFilled(pos0,pos1,hovered?color_hovered:(active?color_active:color));
       draw_list->AddRect(pos0,pos1,color_active,0.0f,~0,1.0f);
       ImGui::RenderTextClipped(pos0,pos1s,dd->label,text_end,&text_size, ImVec2(0.5f,0.5f), &clip_rect);
+
+      // draw the "x"
+      if (dd->p_open && tabwidth_long >= mintabwidth){
+        draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), cross_color);
+        draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), cross_color);
+      }
 
       ddlast = dd;
       continue;
@@ -263,7 +269,7 @@ void Dock::drawTabBar(float *topheight){
   EndChild();
   PopStyleVar();
   PopStyleVar();
-  PopStyleVar();
+  PopStyleColor();
 }
 
 void Dock::SetContainerHoveredMovedActive(bool setid){
