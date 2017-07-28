@@ -22,7 +22,7 @@ namespace ImGui{
     char* label = nullptr; // window label
     ImVec2 pos; // position of the window
     ImVec2 size; // size of the window
-    ImVec2 size_saved; // saved size (before docking)
+    ImVec2 size_saved; // saved size (before docking for dockable window, of the titlebar+tab for container)
     ImGuiWindowFlags flags = 0; // flags for the window
     bool hidden = false; // whether a docked window is hidden
     bool collapsed = false; // whether a docked window is collapsed
@@ -46,11 +46,11 @@ namespace ImGui{
     // Add a new dock to a container
     void newDock(Dock *dnew);
     // Draw container
-    void drawContainer();
+    void drawContainer(float *topheight,bool allowresize);
     // Clear all docked windows from a container
     void clearContainer();
     // Draw the tab bar of a tabbed container
-    void drawTabBar(float *posymax);
+    void drawTabBar(float *topheight);
     // Set the hovered window, moved window, and active ID for a container/tab pair
     void SetContainerHoveredMovedActive(bool setid);
     // Raise the current displayed tab in a container in the window stack to 

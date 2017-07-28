@@ -83,7 +83,7 @@ int main(int argc, char *argv[]){
       ImGui::Container("contain",&show_scene6,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
     }
     if (show_scene6) ImGui::Container("contain2",&show_scene6);
-    ImGui::Container("contain3");
+    // ImGui::Container("contain3");
 
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);

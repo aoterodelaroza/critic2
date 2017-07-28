@@ -1,7 +1,7 @@
 // relocate inside the bar tab
-// resize the container if there are tabbed windows; problem with the corner
 // reorganize methods
 // clearcontainer gives a cascade. some control over the window stack
+// closable button class
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -71,12 +71,12 @@ void Dock::newDock(Dock *dnew){
   }
 }
 
-void Dock::drawContainer(){
+void Dock::drawContainer(float *topheight, bool allowresize){
     
+  *topheight = 0;
   if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0){
     // Draw the tab
-    float posymax = 0.;
-    this->drawTabBar(&posymax);
+    this->drawTabBar(topheight);
 
     // Hide all tabs
     for (auto dd : this->stack) {
@@ -92,12 +92,15 @@ void Dock::drawContainer(){
     if (!this->hidden && !this->collapsed && this->currenttab){
       Dock *dd = this->currenttab;
       dd->pos = this->pos;
-      dd->pos.y = posymax;
+      dd->pos.y += *topheight;
       dd->size = this->size;
-      dd->size.y = this->size.y - (posymax - this->pos.y);
+      dd->size.y = this->size.y - *topheight;
       dd->hidden = false;
-      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-        ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
+      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
+        ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
+	ImGuiWindowFlags_NoBringToFrontOnFocus;
+      if (!allowresize)
+	dd->flags = dd->flags | ImGuiWindowFlags_NoResize;
     }
   } // if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0);
 }
@@ -118,7 +121,7 @@ void Dock::clearContainer(){
   this->stack.clear();
 }
 
-void Dock::drawTabBar(float *posymax){
+void Dock::drawTabBar(float *topheight){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = GetTextLineHeightWithSpacing();
   const float barheight = 2 * GetTextLineHeightWithSpacing();
@@ -256,7 +259,7 @@ void Dock::drawTabBar(float *posymax){
     }
 
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
-  *posymax = GetItemRectMax().y;
+  *topheight = GetItemRectMax().y - this->pos.y;
   EndChild();
   PopStyleVar();
   PopStyleVar();
@@ -312,10 +315,11 @@ int Dock::getWindowStackPosition(){
 
 //xx// Public interface //xx//
 
-void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/){
+void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
 
   bool collapsed = true;
   ImGuiContext *g = GetCurrentContext();
+  ImGuiWindowFlags flags = extra_flags;
 
   Dock *dd = dockht[label];
   if (!dd){
@@ -330,6 +334,7 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     size.y += GetTextLineHeightWithSpacing() + dd->currenttab->window->WindowPadding.y +
       dd->window->TitleBarHeight();
     SetNextWindowSizeConstraints(size,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+    flags = flags | ImGuiWindowFlags_NoResize;
   }
 
   // Render any container widgets in here
@@ -342,6 +347,7 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->label = ImStrdup(label);
   dd->pos = GetWindowPos();
   dd->size = GetWindowSize();
+  dd->size_saved = ImVec2(0.,0.);
   dd->type = Dock::Type_Container;
   dd->root = dd;
   dd->collapsed = collapsed;
@@ -371,7 +377,7 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->clearContainer();
 
   // Draw the container elements
-  dd->drawContainer();
+  dd->drawContainer(&(dd->size_saved.y),!(extra_flags & ImGuiWindowFlags_NoResize));
 
   // If the container is clicked, set the correct hovered/moved flags 
   // and raise container & docked window to the top of the stack.
@@ -476,15 +482,20 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       ddest->showDropTarget();
   }
 
-  // If this window is docked, put it right on top of its container.
-  // Transfer any unhandled clicks to the underlying container.
+  // If this window is docked, 
   if (dd->status == Dock::Status_Docked && !dd->hidden){
+    // Transfer any unhandled clicks to the underlying container.
     if ((g->HoveredWindow == dd->window || g->HoveredWindow == dd->parent->window) &&
         IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false) &&
         g->IO.MouseClicked[0]){
       dd->parent->SetContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
     }
+    // Put it right on top of its container.
     dd->parent->RaiseCurrentTab();
+    // If the resize grip is being used, resize the container too.
+    if (g->ActiveId == dd->window->GetID("#RESIZE")){
+      dd->parent->window->SizeFull = dd->window->Size + dd->parent->size_saved;
+    }
   }
 
   return !collapsed;
