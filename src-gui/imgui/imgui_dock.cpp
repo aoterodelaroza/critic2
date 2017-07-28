@@ -1,28 +1,38 @@
-// relocate inside the bar tab
+/*
+  Copyright (c) 2017 Alberto Otero de la Roza
+  <aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
+  Visintainer <x@example.com>, Richard Greaves <x@example.com>, Ángel
+  Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+  <victor@fluor.quimica.uniovi.es>.
+
+  critic2 is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or (at
+  your option) any later version.
+
+  critic2 is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+// Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
+
+// relocate inside the bar tab; position of the dropping area
 // reorganize methods
 // clearcontainer gives a cascade. some control over the window stack
-// closable button class
-// how to make a container complete opaque?
-// all begins without alpha
+// pass the container as an argument to begindock, to initialize the window as docked.
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
 #include "imgui_dock.h"
+#include "imgui_widgets.h"
 #include "imgui_impl_glfw.h"
 #include <unordered_map>
 #include <math.h>
-
-// Helper functions
-static ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
-    return ImVec2(lhs.x+rhs.x, lhs.y+rhs.y);
-}
-static ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) {
-    return ImVec2(lhs.x-rhs.x, lhs.y-rhs.y);
-}
-ImVec2 operator*(ImVec2 lhs, float rhs) {
-    return ImVec2(lhs.x*rhs, lhs.y*rhs);
-}
 
 using namespace ImGui;
 
@@ -128,14 +138,7 @@ void Dock::drawTabBar(float *topheight){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = GetTextLineHeightWithSpacing();
   const float barheight = 2 * GetTextLineHeightWithSpacing();
-  const float crossz = round(0.3 * g->FontSize);
-  const float crosswidth = 2 * crossz + 6;
   const float maxtabwidth = 100.;
-  const float mintabwidth = 2 * crosswidth + 1;
-  const ImU32 cross_color = GetColorU32(ImGuiCol_Text,2.0/g->Style.Alpha);
-  const ImU32 color = GetColorU32(ImGuiCol_Button,2.0/g->Style.Alpha);
-  const ImU32 color_active = GetColorU32(ImGuiCol_ButtonActive,2.0/g->Style.Alpha);
-  const ImU32 color_hovered = GetColorU32(ImGuiCol_ButtonHovered,2.0/g->Style.Alpha);
   ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
   text_color.w = 2.0 / g->Style.Alpha;
 
@@ -146,7 +149,6 @@ void Dock::drawTabBar(float *topheight){
   } else{
     tabwidth_long = round(this->size.x - 2 * g->Style.ItemSpacing.x) / this->stack.size();
   }
-  float tabwidth_short = tabwidth_long - crosswidth;
 
   // the tabbar with alpha = 1.0, no spacing in the x
   PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0,1.0));
@@ -163,72 +165,29 @@ void Dock::drawTabBar(float *topheight){
     // style.FramePadding.y
     bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
-    char tmp2[20];
     ImVec2 center, pos0, pos1, pos1s, text_size;
     ImRect clip_rect;
     for (auto dd : this->stack) {
-      // size of the main button
-      int tabwidth;
-      if (dd->p_open && tabwidth_long >= mintabwidth)
-        tabwidth = tabwidth_short;
-      else
-        tabwidth = tabwidth_long;
-      ImVec2 size(tabwidth, tabheight);
-
-      // main button
       SameLine();
-      if (InvisibleButton(dd->label, size))
-        this->currenttab = dd;
-      active = (dd == this->currenttab);
-      hovered = IsItemHovered();
-      pos0 = GetItemRectMin();
-      pos1s = GetItemRectMax();
-      const char* text_end = FindRenderedTextEnd(dd->label);
+      bool dragged, dclicked, closeclicked;
+      if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), false,
+       		      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha))
+	this->currenttab = dd;
 
       // lift the tab using the main button
-      if (IsItemActive() && IsMouseDragging()){
+      if (dragged){
         dd->status = Dock::Status_Dragged;
         goto lift_this_tab;
       }
       // double click detaches the tab
-      if (IsItemActive() && IsMouseDoubleClicked(0)){
+      if (dclicked){
         dd->status = Dock::Status_Open;
         goto lift_this_tab;
       }
-
-      // draw the close button, if this window can be closed
-      if (dd->p_open && tabwidth_long >= mintabwidth){
-        // draw the close button itself
-        SameLine();
-        ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
-        ImVec2 size(crosswidth, tabheight);
-        tabwidth = tabwidth + crosswidth;
-        if (InvisibleButton(tmp2, size)){
-          *(dd->p_open) = false;
-          goto erase_this_tab;
-        }
-        hovered |= IsItemHovered();
-
-        // tab being lifted using the x
-        if (IsItemActive() && IsMouseDragging()){
-          dd->status = Dock::Status_Dragged;
-          goto lift_this_tab;
-        }
-        center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
-      }
-      pos1 = GetItemRectMax();
-
-      // rectangle and text
-      text_size = CalcTextSize(dd->label,text_end,true,false);
-      clip_rect = ImRect(pos0,pos1s);
-      draw_list->AddRectFilled(pos0,pos1,hovered?color_hovered:(active?color_active:color));
-      draw_list->AddRect(pos0,pos1,color_active,0.0f,~0,1.0f);
-      ImGui::RenderTextClipped(pos0,pos1s,dd->label,text_end,&text_size, ImVec2(0.5f,0.5f), &clip_rect);
-
-      // draw the "x"
-      if (dd->p_open && tabwidth_long >= mintabwidth){
-        draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), cross_color);
-        draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), cross_color);
+      // closed click kills the tab
+      if (closeclicked){
+	*(dd->p_open) = false;
+	goto erase_this_tab;
       }
 
       ddlast = dd;
