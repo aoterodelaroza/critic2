@@ -67,8 +67,8 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
   if (p_open && size.x >= mintabwidth){
     // draw the close button itself
     SameLine();
-    char tmp2[20];
-    ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"%s__cross__",label);
+    char tmp2[strlen(label)+6];
+    ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"%s__x__",label);
     ImVec2 smallsize(crosswidth, size.y);
 
     // cross button
