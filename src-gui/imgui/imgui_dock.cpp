@@ -51,7 +51,7 @@ static Dock *getContainerAt(const ImVec2& pos){
 void Dock::showDropTarget(){
   SetNextWindowSize(ImVec2(0,0));
   Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
-	ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
+        ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* canvas = GetWindowDrawList();
   canvas->PushClipRectFullScreen();
   ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
@@ -62,13 +62,8 @@ void Dock::showDropTarget(){
 }
 
 void Dock::newDock(Dock *dnew){
-  if (this->sttype == Dock::Stack_None){
+  if (this->sttype == Dock::Stack_None || this->sttype == Dock::Stack_Leaf){
     this->sttype = Dock::Stack_Leaf;
-    this->stack.push_back(dnew);
-    dnew->parent = this;
-    dnew->root = this->root;
-    this->currenttab = dnew;
-  } else if (this->sttype == Dock::Stack_Leaf){
     this->stack.push_back(dnew);
     dnew->parent = this;
     dnew->root = this->root;
@@ -86,7 +81,7 @@ void Dock::drawContainer(){
     // Hide all tabs
     for (auto dd : this->stack) {
       dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoScrollbar|
-	ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoCollapse|
+        ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoCollapse|
         ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoInputs;
       dd->pos = ImVec2(0.,0.);
       dd->size = ImVec2(0.,0.);
@@ -155,9 +150,10 @@ void Dock::drawTabBar(float *posymax){
   char tmp[20];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
   if (BeginChild(tmp,ImVec2(this->size.x,barheight),false)){
-    *posymax = GetItemRectMax().y;
     ImDrawList* draw_list = GetWindowDrawList();
 
+    // label_size.y
+    // style.FramePadding.y
     bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
     char tmp2[20];
@@ -167,9 +163,9 @@ void Dock::drawTabBar(float *posymax){
       // size of the main button
       int tabwidth;
       if (dd->p_open && tabwidth_long >= mintabwidth)
-	tabwidth = tabwidth_short;
+        tabwidth = tabwidth_short;
       else
-	tabwidth = tabwidth_long;
+        tabwidth = tabwidth_long;
       ImVec2 size(tabwidth, tabheight);
 
       // main button
@@ -196,26 +192,26 @@ void Dock::drawTabBar(float *posymax){
       // draw the close button, if this window can be closed
       if (dd->p_open && tabwidth_long >= mintabwidth){
         // draw the close button itself
-	SameLine();
+        SameLine();
         ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
-	ImVec2 size(crosswidth, tabheight);
-	tabwidth = tabwidth + crosswidth;
-	if (InvisibleButton(tmp2, size)){
+        ImVec2 size(crosswidth, tabheight);
+        tabwidth = tabwidth + crosswidth;
+        if (InvisibleButton(tmp2, size)){
           *(dd->p_open) = false;
           goto erase_this_tab;
         }
-	hovered |= IsItemHovered();
+        hovered |= IsItemHovered();
 
-	// tab being lifted using the x
+        // tab being lifted using the x
         if (IsItemActive() && IsMouseDragging()){
           dd->status = Dock::Status_Dragged;
           goto lift_this_tab;
         }
 
         // draw the "x"
-	center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
-      	draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), text_color_disabled);
-      	draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), text_color_disabled);
+        center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
+        draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), text_color_disabled);
+        draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), text_color_disabled);
       }
       pos1 = GetItemRectMax();
 
@@ -255,11 +251,12 @@ void Dock::drawTabBar(float *posymax){
     // the window stack. 
     if (this->currenttab && !IsAnyItemActive()){
       if (g->HoveredWindow == GetCurrentWindow())
-      	this->SetContainerHoveredMovedActive(true);
+        this->SetContainerHoveredMovedActive(true);
       this->RaiseCurrentTab();
     }
 
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
+  *posymax = GetItemRectMax().y;
   EndChild();
   PopStyleVar();
   PopStyleVar();
@@ -286,17 +283,17 @@ void Dock::RaiseCurrentTab(){
     int ithis = -1, icont = -1;
     for (int i = 0; i < g->Windows.Size; i++){
       if (g->Windows[i] == this->currenttab->window)
-	ithis = i;
+        ithis = i;
       if (g->Windows[i] == this->window)
-	icont = i;
+        icont = i;
     }
     if (icont >= 0 && ithis >= 0){
       g->Windows.erase(g->Windows.begin() + ithis);
       if (ithis < icont) icont--;
       if (icont >= g->Windows.size())
-	g->Windows.push_back(this->currenttab->window);
+        g->Windows.push_back(this->currenttab->window);
       else
-	g->Windows.insert(g->Windows.begin() + icont + 1,this->currenttab->window);
+        g->Windows.insert(g->Windows.begin() + icont + 1,this->currenttab->window);
     }
   }
 }
@@ -318,6 +315,7 @@ int Dock::getWindowStackPosition(){
 void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/){
 
   bool collapsed = true;
+  ImGuiContext *g = GetCurrentContext();
 
   Dock *dd = dockht[label];
   if (!dd){
@@ -328,7 +326,6 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // If the container has a window docked, set the minimum size
   // printf("%f %f\n",dd->window->SizeContents.x,dd->window->SizeContents.y);
   if (dd->currenttab){
-    ImGuiContext *g = GetCurrentContext();
     ImVec2 size = dd->currenttab->window->SizeContents + dd->currenttab->window->WindowPadding;
     size.y += GetTextLineHeightWithSpacing() + dd->currenttab->window->WindowPadding.y +
       dd->window->TitleBarHeight();
@@ -352,7 +349,6 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->p_open = p_open;
 
   // Update the status
-  ImGuiContext *g = GetCurrentContext();
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
@@ -371,9 +367,8 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   }
 
   // If the container has just been closed, detach all docked windows
-  if (dd->status == Dock::Status_Closed && !dd->stack.empty()){
+  if (dd->status == Dock::Status_Closed && !dd->stack.empty())
     dd->clearContainer();
-  }
 
   // Draw the container elements
   dd->drawContainer();
@@ -381,7 +376,6 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // If the container is clicked, set the correct hovered/moved flags 
   // and raise container & docked window to the top of the stack.
   if (dd->currenttab){
-    ImGuiContext *g = GetCurrentContext();
     if (g->HoveredWindow == dd->window)
       dd->SetContainerHoveredMovedActive(!IsAnyItemActive());
     dd->RaiseCurrentTab();
@@ -411,7 +405,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       flags = dd->flags;
       collapsed = dd->hidden;
       if (dd->hidden){
-	Begin("",nullptr,dd->size,0.0,flags);
+        Begin("",nullptr,dd->size,0.0,flags);
       } else {
         Begin(label,nullptr,flags);
       }
@@ -486,30 +480,11 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // Transfer any unhandled clicks to the underlying container.
   if (dd->status == Dock::Status_Docked && !dd->hidden){
     if ((g->HoveredWindow == dd->window || g->HoveredWindow == dd->parent->window) &&
-	IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false) &&
-	g->IO.MouseClicked[0]){
-      // dd->parent->SetContainerHoveredMovedActive(!IsItemClicked(0));
+        IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false) &&
+        g->IO.MouseClicked[0]){
       dd->parent->SetContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
     }
     dd->parent->RaiseCurrentTab();
-  }
-
-  if (dd->status == Dock::Status_Docked && !dd->hidden){
-    ImGuiContext *g = GetCurrentContext();
-    int ithis = -1, icont = -1;
-    for (int i = 0; i < g->Windows.Size; i++){
-      if (g->Windows[i] == dd->window)
-	ithis = i;
-      if (g->Windows[i] == dd->parent->window)
-	icont = i;
-    }
-    if (icont >= 0 && ithis >= 0){
-      g->Windows.erase(g->Windows.begin() + ithis);
-      if (icont >= g->Windows.size())
-	g->Windows.push_back(dd->window);
-      else
-	g->Windows.insert(g->Windows.begin() + icont + 1,dd->window);
-    }
   }
 
   return !collapsed;

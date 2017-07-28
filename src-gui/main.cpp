@@ -77,13 +77,13 @@ int main(int argc, char *argv[]){
     static bool show_scene5 = true;
     static bool show_scene6 = true;
 
-    // if (show_scene6) {
-    //   ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_Once);
-    //   ImGui::SetNextWindowSize(ImVec2(500,500),ImGuiSetCond_Once);
-    //   ImGui::Container("contain",&show_scene6,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
-    // }
-    // if (show_scene6) ImGui::Container("contain",&show_scene6);
-    ImGui::Container("contain");
+    if (show_scene6) {
+      ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_Once);
+      ImGui::SetNextWindowSize(ImVec2(500,500),ImGuiSetCond_Once);
+      ImGui::Container("contain",&show_scene6,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
+    }
+    if (show_scene6) ImGui::Container("contain2",&show_scene6);
+    ImGui::Container("contain3");
 
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
@@ -91,24 +91,24 @@ int main(int argc, char *argv[]){
       if (ImGui::BeginDock("Info",&show_scene1)){
         ImGui::Text("Hello!");
         if (ImGui::Button("Button##1")){printf("Button\n");}
-	ImGui::SameLine();
+        ImGui::SameLine();
         if (ImGui::Button("Button##2")){printf("Button\n");}
-	ImGui::SameLine();
+        ImGui::SameLine();
         if (ImGui::Button("Button##3")){printf("Button\n");}
         if (ImGui::Button("Button##4")){printf("Button\n");}
-	ImGui::SameLine();
+        ImGui::SameLine();
         if (ImGui::Button("Button##5")){printf("Button\n");}
-	ImGui::SameLine();
+        ImGui::SameLine();
         if (ImGui::Button("Button##6")){printf("Button\n");}
-	
-	static char command[2048] = "";
-	static char command2[2048] = "";
-	ImGui::Text("Input:");
-	ImGui::SameLine();
-	if (ImGui::InputText("###inputconsole", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
-	}
-	if (ImGui::InputText("###inputconsole2", command2, IM_ARRAYSIZE(command2), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
-	}
+        
+        static char command[2048] = "";
+        static char command2[2048] = "";
+        ImGui::Text("Input:");
+        ImGui::SameLine();
+        if (ImGui::InputText("###inputconsole", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
+        }
+        if (ImGui::InputText("###inputconsole2", command2, IM_ARRAYSIZE(command2), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){
+        }
       }
       ImGui::EndDock();
     }
