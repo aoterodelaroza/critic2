@@ -80,12 +80,10 @@ int main(int argc, char *argv[]){
     // if (show_scene6) {
     //   ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_Once);
     //   ImGui::SetNextWindowSize(ImVec2(500,500),ImGuiSetCond_Once);
-    //   ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.01);
     //   ImGui::Container("contain",&show_scene6,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize);
-    //   ImGui::PopStyleVar();
     // }
-    if (show_scene6) ImGui::Container("contain",&show_scene6);
-    // ImGui::Container("contain");
+    // if (show_scene6) ImGui::Container("contain",&show_scene6);
+    ImGui::Container("contain");
 
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);

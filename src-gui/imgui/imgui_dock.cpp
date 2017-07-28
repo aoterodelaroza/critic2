@@ -1,7 +1,5 @@
 // set the minimum size of the container (problems if container too small)
-// tabbar list too long and scrolling.
 // relocate inside the bar tab
-// compact styles ; handle styles 
 // resize the container if there are tabbed windows; problem with the corner
 // reorganize methods
 // clearcontainer gives a cascade. some control over the window stack
@@ -12,6 +10,7 @@
 #include "imgui_dock.h"
 #include "imgui_impl_glfw.h"
 #include <unordered_map>
+#include <math.h>
 
 static ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
     return ImVec2(lhs.x+rhs.x, lhs.y+rhs.y);
@@ -82,7 +81,8 @@ void Dock::drawContainer(){
     
   if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0){
     // Draw the tab
-    this->drawTabBar();
+    float posymax = 0.;
+    this->drawTabBar(&posymax);
 
     // Hide all tabs
     for (auto dd : this->stack) {
@@ -98,10 +98,12 @@ void Dock::drawContainer(){
     if (!this->hidden && !this->collapsed && this->currenttab){
       Dock *dd = this->currenttab;
       float h = 2 * GetTextLineHeightWithSpacing() + GetCurrentWindow()->TitleBarHeight();
-      dd->pos = this->pos + ImVec2(0.,h);
-      dd->size = this->size - ImVec2(0.,h);
+      dd->pos = this->pos;
+      dd->pos.y = posymax;
+      dd->size = this->size;
+      dd->size.y = this->size.y - (posymax - this->pos.y);
       dd->hidden = false;
-      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_ShowBorders|ImGuiWindowFlags_NoResize|
+      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
     }
   } // if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0);
@@ -123,48 +125,65 @@ void Dock::clearContainer(){
   this->stack.clear();
 }
 
-void Dock::drawTabBar(){
+void Dock::drawTabBar(float *posymax){
   ImGuiContext *g = GetCurrentContext();
-  float barheight = g->FontSize + 6 * g->Style.ItemSpacing.y;
-  float tabheight = g->FontSize + 2 * g->Style.ItemSpacing.y;
-  float crossz = 0.3 * g->FontSize;
+  const float tabheight = GetTextLineHeightWithSpacing();
+  const float barheight = 2 * GetTextLineHeightWithSpacing();
+  const float crossz = round(0.3 * g->FontSize);
+  const float crosswidth = 2 * crossz + 6;
+  const float maxtabwidth = 100.;
+  const float mintabwidth = 2 * crosswidth + 1;
+  const ImU32 text_color = GetColorU32(ImGuiCol_Text);
+  const ImU32 text_color_disabled = GetColorU32(ImGuiCol_TextDisabled);
+  const ImU32 color = GetColorU32(ImGuiCol_FrameBg);
+  const ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive);
+  const ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered);
 
-  // The tabbar with alpha = 1.0
+  // calculate the widths
+  float tabwidth_long;
+  if ((this->size.x - 2 * g->Style.ItemSpacing.x) >= this->stack.size() * maxtabwidth){
+    tabwidth_long = maxtabwidth;
+  } else{
+    tabwidth_long = round(this->size.x - 2 * g->Style.ItemSpacing.x) / this->stack.size();
+  }
+  float tabwidth_short = tabwidth_long - crosswidth;
+
+  // the tabbar with alpha = 1.0, no spacing in the x
   PushStyleVar(ImGuiStyleVar_Alpha, 1.0);
+  PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0,1.0));
+  PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0,0.0));
 
-  SetCursorScreenPos(this->pos + ImVec2(0.,GetCurrentWindow()->TitleBarHeight()));
+  // start placing the tabs
   char tmp[20];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
-  if (BeginChild(tmp,ImVec2(this->size.x,barheight), true)){
+  if (BeginChild(tmp,ImVec2(this->size.x,barheight),false)){
+    *posymax = GetItemRectMax().y;
     ImDrawList* draw_list = GetWindowDrawList();
-    ImU32 text_color = GetColorU32(ImGuiCol_Text);
-    ImU32 text_color_disabled = GetColorU32(ImGuiCol_TextDisabled);
-    ImU32 color = GetColorU32(ImGuiCol_FrameBg);
-    ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive);
-    ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered);
-    SetCursorScreenPos(this->pos + ImVec2(0.,GetCurrentWindow()->TitleBarHeight()));
 
-    // drawTabbarListButton(dock);
-
-    bool active;
+    bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
     char tmp2[20];
-    ImVec2 pos, center, pos0;
-    float cursorx = 0.;
-    bool hovered = false;
+    ImVec2 center, pos0, pos1, pos1s, text_size;
+    ImRect clip_rect;
     for (auto dd : this->stack) {
-      SameLine(cursorx, 0.);
-      const char* text_end = FindRenderedTextEnd(dd->label);
-      int tabwidth = CalcTextSize(dd->label, text_end).x + 2 * g->Style.ItemSpacing.x;
+      // size of the main button
+      int tabwidth;
+      if (dd->p_open && tabwidth_long >= mintabwidth)
+	tabwidth = tabwidth_short;
+      else
+	tabwidth = tabwidth_long;
       ImVec2 size(tabwidth, tabheight);
 
       // main button
+      SameLine();
       if (InvisibleButton(dd->label, size))
         this->currenttab = dd;
       active = (dd == this->currenttab);
-      pos0 = GetItemRectMin();
-
       hovered = IsItemHovered();
+      pos0 = GetItemRectMin();
+      pos1s = GetItemRectMax();
+      const char* text_end = FindRenderedTextEnd(dd->label);
+
       // lift the tab using the main button
       if (IsItemActive() && IsMouseDragging()){
         dd->status = Dock::Status_Dragged;
@@ -175,16 +194,14 @@ void Dock::drawTabBar(){
         dd->status = Dock::Status_Open;
         goto lift_this_tab;
       }
-      cursorx += size.x;
-      if (cursorx == size.x) cursorx += g->Style.ItemSpacing.x;
 
-      // The close button, if this window can be closed
-      if (dd->p_open){
-        // the close button itself
-        SameLine(cursorx,0.);
+      // draw the close button, if this window can be closed
+      if (dd->p_open && tabwidth_long >= mintabwidth){
+        // draw the close button itself
+	SameLine();
         ImFormatString(tmp2,IM_ARRAYSIZE(tmp2),"##%d",(int)dd->id);
-	ImVec2 size(tabheight, tabheight);
-	tabwidth = tabwidth + tabheight;
+	ImVec2 size(crosswidth, tabheight);
+	tabwidth = tabwidth + crosswidth;
 	if (InvisibleButton(tmp2, size)){
           *(dd->p_open) = false;
           goto erase_this_tab;
@@ -196,19 +213,20 @@ void Dock::drawTabBar(){
           dd->status = Dock::Status_Dragged;
           goto lift_this_tab;
         }
-	cursorx += size.x;
-      }
-      center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
-      cursorx += g->Style.ItemSpacing.x;
 
-      // draw the rectangle and the text
-      draw_list->AddRectFilled(pos0,pos0 + ImVec2(tabwidth,tabheight), hovered? color_hovered: (active? color_active: color));
-      draw_list->AddText(pos0 + g->Style.ItemSpacing, text_color, dd->label, text_end);
-      if (dd->p_open){
         // draw the "x"
-	draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), text_color_disabled);
-	draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), text_color_disabled);
+	center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
+      	draw_list->AddLine( center + ImVec2(-crossz, -crossz), center + ImVec2( crossz, crossz), text_color_disabled);
+      	draw_list->AddLine( center + ImVec2( crossz, -crossz), center + ImVec2(-crossz, crossz), text_color_disabled);
       }
+      pos1 = GetItemRectMax();
+
+      // rectangle and text
+      text_size = CalcTextSize(dd->label,text_end,true,false);
+      clip_rect = ImRect(pos0,pos1s);
+      draw_list->AddRectFilled(pos0,pos1,hovered?color_hovered:(active?color_active:color));
+      draw_list->AddRect(pos0,pos1,color_active,0.0f,~0,1.0f);
+      ImGui::RenderTextClipped(pos0,pos1s,dd->label,text_end,&text_size, ImVec2(0.5f,0.5f), &clip_rect);
 
       ddlast = dd;
       continue;
@@ -245,6 +263,8 @@ void Dock::drawTabBar(){
 
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
   EndChild();
+  PopStyleVar();
+  PopStyleVar();
   PopStyleVar();
 }
 

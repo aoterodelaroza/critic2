@@ -50,7 +50,7 @@ namespace ImGui{
     // Clear all docked windows from a container
     void clearContainer();
     // Draw the tab bar of a tabbed container
-    void drawTabBar();
+    void drawTabBar(float *posymax);
     // Set the hovered window, moved window, and active ID for a container/tab pair
     void SetContainerHoveredMovedActive(bool setid);
     // Raise the current displayed tab in a container in the window stack to 
