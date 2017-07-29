@@ -20,10 +20,10 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// reorganize methods
-// clearcontainer gives a cascade. some control over the window stack
 // pass the container as an argument to begindock, to initialize the window as docked.
 // save the settings to a config file
+// bug: when dragging out and leaving empty behind, passing over another window, docks the non-clicked window
+// strange size effect on docking
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -45,7 +45,7 @@ struct LabelHash{
 static unordered_map<const char *,Dock*,LabelHash> dockht = {}; // global dock hash table
 static Dock *getContainerAt(const ImVec2& pos); // get container at a given position
 
-//xx// DockContext methods //xx//
+//xx// Dock context methods //xx//
 
 static Dock *getContainerAt(const ImVec2& pos){
   Dock *dd;
@@ -484,13 +484,11 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     // Dragging
     dd->status = Dock::Status_Dragged;
   } else {
-    if (dd->status == Dock::Status_Dragged && ddest){
-      int ithis = ddest->getNearestTabBorder();
-      if (ddest->stack.empty() || ithis >= 0){
-	// Just stopped dragging and there is a container below
-	dd->status = Dock::Status_Docked;
-	ddest->newDock(dd,ithis);
-      }
+    int ithis = -1;
+    if (dd->status == Dock::Status_Dragged && ddest && (ddest->stack.empty() || (ithis = ddest->getNearestTabBorder()) >= 0)){
+      // Just stopped dragging and there is a container below
+      dd->status = Dock::Status_Docked;
+      ddest->newDock(dd,ithis);
     } else if (dd->status != Dock::Status_Docked){
       // Stationary -> open, closed, or collapsed
       if (!p_open || *p_open){
@@ -553,7 +551,7 @@ void ImGui::Print() {
   for (auto dock : dockht){
     Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
     Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    // Text("type=%d status=%d\n", dock.second->type, dock.second->status);
+    Text("type=%d status=%d\n", dock.second->type, dock.second->status);
     // Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
     // if (dock.second->p_open)
     //   Text("p_open=%d\n", *(dock.second->p_open));
