@@ -22,7 +22,6 @@
 
 // pass the container as an argument to begindock, to initialize the window as docked.
 // save the settings to a config file
-// strange size effect on docking
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -131,11 +130,11 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
     else{
       int n = -1;
       for (auto it = this->stack.begin(); it != this->stack.end(); ++it){
-	n++;
-	if (n == ithis){
-	  this->stack.insert(it,dnew);
-	  break;
-	}
+        n++;
+        if (n == ithis){
+          this->stack.insert(it,dnew);
+          break;
+        }
       }
     }
   }
@@ -168,9 +167,9 @@ void Dock::drawContainer(bool allowresize){
       dd->hidden = false;
       dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
-	ImGuiWindowFlags_NoBringToFrontOnFocus;
+        ImGuiWindowFlags_NoBringToFrontOnFocus;
       if (!allowresize)
-	dd->flags = dd->flags | ImGuiWindowFlags_NoResize;
+        dd->flags = dd->flags | ImGuiWindowFlags_NoResize;
     }
   } // if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0);
 }
@@ -227,8 +226,8 @@ void Dock::drawTabBar(){
       // make the x-button, update the container info
       bool dragged, dclicked, closeclicked;
       if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), false,
-       		      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha))
-	this->currenttab = dd;
+                      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha))
+        this->currenttab = dd;
       this->tabsx.push_back(GetItemRectMax().x-tabwidth_long);
     
       // lift the tab using the main button
@@ -243,8 +242,8 @@ void Dock::drawTabBar(){
       }
       // closed click kills the tab
       if (closeclicked){
-	*(dd->p_open) = false;
-	goto erase_this_tab;
+        *(dd->p_open) = false;
+        goto erase_this_tab;
       }
 
       ddlast = dd;
@@ -355,11 +354,11 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   // If the container has a window docked, set the minimum size
   if (dd->currenttab){
-    ImVec2 size = dd->currenttab->window->SizeContents + dd->currenttab->window->WindowPadding;
-    size.y += GetTextLineHeightWithSpacing() + dd->currenttab->window->WindowPadding.y +
-      dd->window->TitleBarHeight();
-    SetNextWindowSizeConstraints(size,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+    SetNextWindowSizeConstraints(dd->size_saved,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
     flags = flags | ImGuiWindowFlags_NoResize;
+  } else {
+    SetNextWindowSizeConstraints(ImVec2(0.,4*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y)),
+					ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
   }
 
   // Render any container widgets in here
@@ -486,7 +485,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   } else {
     int ithis = -1;
     if (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)) &&
-	(ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){	 
+        (ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){        
       // Just stopped dragging and there is a container below
       dd->status = Dock::Status_Docked;
       ddest->newDock(dd,ithis);
@@ -509,9 +508,9 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   if (dd->status == Dock::Status_Dragged){
     if (ddest){
       if (ddest->stack.empty())
-	ddest->showDropTargetFull();
+        ddest->showDropTargetFull();
       else if (ddest->IsMouseHoveringTabBar())
-	ddest->showDropTargetOnTabBar();
+        ddest->showDropTargetOnTabBar();
     }
   }
 
