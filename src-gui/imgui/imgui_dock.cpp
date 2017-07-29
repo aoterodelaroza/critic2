@@ -21,7 +21,7 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 // pass the container as an argument to begindock, to initialize the window as docked.
-// save the settings to a config file
+// write fps
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW

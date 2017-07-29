@@ -41,8 +41,8 @@ int main(int argc, char *argv[]){
   if (!glfwInit()) exit(EXIT_FAILURE);
 
   // Set up window
-  GLFWwindow* window = glfwCreateWindow(1280, 720, "gcritic2", NULL, NULL);
-  assert(window!=NULL);
+  GLFWwindow* window = glfwCreateWindow(1280, 720, "gcritic2", nullptr, nullptr);
+  assert(window!=nullptr);
   glfwMakeContextCurrent(window);
 
   // Initialize the critic2 library
@@ -50,6 +50,10 @@ int main(int argc, char *argv[]){
 
   // Setup ImGui binding
   ImGui_ImplGlfw_Init(window, true);
+
+  // GUI settings
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
 
   // Main loop
   while (!glfwWindowShouldClose(window)){
