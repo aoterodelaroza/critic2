@@ -63,12 +63,16 @@ namespace ImGui{
     Dock(): pos(0,0), size(-1,-1), size_saved(-1,-1) {};
     ~Dock(){ MemFree(label);}
 
+    // Is the mouse hovering the tab bar of this dock?
+    bool IsMouseHoveringTabBar();
+    // Get the nearest tab border in the tab
+    int getNearestTabBorder();
     // Show the drop targets for this window (full window)
     void showDropTargetFull();
     // Show the drop targets for this window (on the tab bar)
     void showDropTargetOnTabBar();
-    // Add a new dock to a container
-    void newDock(Dock *dnew);
+    // Add a new dock to a container (at position ithis)
+    void newDock(Dock *dnew, int ithis = -1);
     // Draw container
     void drawContainer(bool allowresize);
     // Clear all docked windows from a container

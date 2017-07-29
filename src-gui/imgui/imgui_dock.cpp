@@ -20,7 +20,6 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// relocate inside the bar tab; position of the dropping area
 // reorganize methods
 // clearcontainer gives a cascade. some control over the window stack
 // pass the container as an argument to begindock, to initialize the window as docked.
@@ -62,6 +61,26 @@ static Dock *getContainerAt(const ImVec2& pos){
 
 //xx// Dock methods //xx//
 
+bool Dock::IsMouseHoveringTabBar(){
+  const ImVec2 ytabcushion = ImVec2(0.f,10.);
+  return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushion,this->tabbarrect.Max+ytabcushion);
+}
+
+int Dock::getNearestTabBorder(){
+  if (!this->IsMouseHoveringTabBar()) return -1;
+  int ithis = this->tabsx.size()-1;
+  float xpos = GetMousePos().x;
+  for (int i = 0; i < this->tabsx.size(); i++){
+    if (xpos < this->tabsx[i]){
+      ithis = i;
+      break;
+    }
+  }
+  if (ithis > 0 && (xpos-this->tabsx[ithis-1]) < (this->tabsx[ithis]-xpos))
+    ithis = ithis - 1;
+  return ithis;
+}
+
 void Dock::showDropTargetFull(){
   SetNextWindowSize(ImVec2(0,0));
   Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
@@ -78,16 +97,7 @@ void Dock::showDropTargetFull(){
 void Dock::showDropTargetOnTabBar(){
   const float triside = 10.f;
 
-  int ithis = this->tabsx.size()-1;
-  float xpos = GetMousePos().x;
-  for (int i = 0; i < this->tabsx.size(); i++){
-    if (xpos < this->tabsx[i]){
-      ithis = i;
-      break;
-    }
-  }
-  if (ithis > 0 && (xpos-this->tabsx[ithis-1]) < (this->tabsx[ithis]-xpos))
-    ithis = ithis - 1;
+  int ithis = this->getNearestTabBorder();
 
   SetNextWindowSize(ImVec2(0,0));
   Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
@@ -111,13 +121,24 @@ void Dock::showDropTargetOnTabBar(){
   End();
 }
 
-void Dock::newDock(Dock *dnew){
+void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
   if (this->sttype == Dock::Stack_None || this->sttype == Dock::Stack_Leaf){
     this->sttype = Dock::Stack_Leaf;
-    this->stack.push_back(dnew);
     dnew->parent = this;
     dnew->root = this->root;
     this->currenttab = dnew;
+    if (ithis < 0 || ithis == this->stack.size())
+      this->stack.push_back(dnew);
+    else{
+      int n = -1;
+      for (auto it = this->stack.begin(); it != this->stack.end(); ++it){
+	n++;
+	if (n == ithis){
+	  this->stack.insert(it,dnew);
+	  break;
+	}
+      }
+    }
   }
 }
 
@@ -401,7 +422,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   bool collapsed;
 
   ImGuiContext *g = GetCurrentContext();
-  const ImVec2 ytabcushion = ImVec2(0.f,10.);
 
   Dock *dd = dockht[label];
   if (!dd) {
@@ -465,9 +485,12 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->status = Dock::Status_Dragged;
   } else {
     if (dd->status == Dock::Status_Dragged && ddest){
-      // Just stopped dragging and there is a container below
-      dd->status = Dock::Status_Docked;
-      ddest->newDock(dd);
+      int ithis = ddest->getNearestTabBorder();
+      if (ddest->stack.empty() || ithis >= 0){
+	// Just stopped dragging and there is a container below
+	dd->status = Dock::Status_Docked;
+	ddest->newDock(dd,ithis);
+      }
     } else if (dd->status != Dock::Status_Docked){
       // Stationary -> open, closed, or collapsed
       if (!p_open || *p_open){
@@ -489,9 +512,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     if (ddest){
       if (ddest->stack.empty())
 	ddest->showDropTargetFull();
-      else if (IsMouseHoveringRect(ddest->tabbarrect.Min-ytabcushion,ddest->tabbarrect.Max+ytabcushion)){
+      else if (ddest->IsMouseHoveringTabBar())
 	ddest->showDropTargetOnTabBar();
-      }
     }
   }
 
