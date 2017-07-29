@@ -22,7 +22,6 @@
 
 // pass the container as an argument to begindock, to initialize the window as docked.
 // save the settings to a config file
-// bug: when dragging out and leaving empty behind, passing over another window, docks the non-clicked window
 // strange size effect on docking
 
 #include "imgui.h"
@@ -63,7 +62,7 @@ static Dock *getContainerAt(const ImVec2& pos){
 
 bool Dock::IsMouseHoveringTabBar(){
   const ImVec2 ytabcushion = ImVec2(0.f,10.);
-  return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushion,this->tabbarrect.Max+ytabcushion);
+  return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushion,this->tabbarrect.Max+ytabcushion,false);
 }
 
 int Dock::getNearestTabBorder(){
@@ -479,13 +478,15 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->control_window_this_frame = false;
 
   // Update the status
-  Dock *ddest = getContainerAt(GetIO().MousePos);
+  Dock *ddest;
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
+    ddest = getContainerAt(GetIO().MousePos);
   } else {
     int ithis = -1;
-    if (dd->status == Dock::Status_Dragged && ddest && (ddest->stack.empty() || (ithis = ddest->getNearestTabBorder()) >= 0)){
+    if (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)) &&
+	(ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){	 
       // Just stopped dragging and there is a container below
       dd->status = Dock::Status_Docked;
       ddest->newDock(dd,ithis);
@@ -506,7 +507,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   // If dragged and hovering over a container, show the drop rectangles
   if (dd->status == Dock::Status_Dragged){
-    Dock *ddest = getContainerAt(GetIO().MousePos);
     if (ddest){
       if (ddest->stack.empty())
 	ddest->showDropTargetFull();
@@ -552,10 +552,9 @@ void ImGui::Print() {
     Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
     Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
     Text("type=%d status=%d\n", dock.second->type, dock.second->status);
-    // Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
-    // if (dock.second->p_open)
-    //   Text("p_open=%d\n", *(dock.second->p_open));
-    // Text("stackpos=%d\n",dock.second->stackpos);
+    Text("sttype=%d list_size=%d\n", dock.second->sttype, dock.second->stack.size());
+    if (dock.second->p_open)
+      Text("p_open=%d\n", *(dock.second->p_open));
   }
 
   // ImGuiContext *g = GetCurrentContext();
