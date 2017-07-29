@@ -88,7 +88,7 @@ int main(int argc, char *argv[]){
     // 		       ImGuiWindowFlags_NoBringToFrontOnFocus);
     // }
     // ImGui::PopStyleVar();
-    // if (show_scene6) ImGui::Container("contain2",&show_scene6);
+    if (show_scene6) ImGui::Container("contain2",&show_scene6);
     ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     ImGui::Dock *cont3 = ImGui::Container("contain3");

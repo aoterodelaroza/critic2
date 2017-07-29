@@ -20,8 +20,6 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// pass the container as an argument to begindock, to initialize the window as docked.
-
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
@@ -119,29 +117,29 @@ void Dock::showDropTargetOnTabBar(){
 }
 
 void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
-  if (this->sttype == Dock::Stack_None || this->sttype == Dock::Stack_Leaf){
-    this->sttype = Dock::Stack_Leaf;
-    dnew->parent = this;
-    dnew->root = this->root;
-    this->currenttab = dnew;
-    if (ithis < 0 || ithis == this->stack.size())
-      this->stack.push_back(dnew);
-    else{
-      int n = -1;
-      for (auto it = this->stack.begin(); it != this->stack.end(); ++it){
-        n++;
-        if (n == ithis){
-          this->stack.insert(it,dnew);
-          break;
-        }
+  if (!(this->sttype == Dock::Stack_Leaf)) return;
+
+  dnew->parent = this;
+  dnew->root = this->root;
+  this->currenttab = dnew;
+  if (ithis < 0 || ithis == this->stack.size())
+    this->stack.push_back(dnew);
+  else{
+    int n = -1;
+    for (auto it = this->stack.begin(); it != this->stack.end(); ++it){
+      n++;
+      if (n == ithis){
+	this->stack.insert(it,dnew);
+	break;
       }
     }
   }
 }
 
 void Dock::drawContainer(bool noresize){
+  if (!(this->sttype == Dock::Stack_Leaf)) return;
     
-  if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0){
+  if (this->stack.size() > 0){
     // Draw the tab
     this->drawTabBar();
 
@@ -153,7 +151,7 @@ void Dock::drawContainer(bool noresize){
     if (!this->hidden && !this->collapsed && this->currenttab)
       this->currenttab->showTabWindow(this,noresize);
 
-  } // if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0);
+  } // if (this->stack.size() > 0);
 }
 
 void Dock::clearContainer(){
@@ -359,6 +357,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   if (!dd){
     dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
+    dd->sttype = Dock::Stack_Leaf;
   }
 
   // If the container has a window docked, set the minimum size
@@ -435,6 +434,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   if (!dd) {
     dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
+    dd->sttype = Dock::Stack_None;
 
     // This is the first pass -> if oncedock exists, dock to that container
     if (oncedock){
