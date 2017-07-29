@@ -62,15 +62,14 @@ int main(int argc, char *argv[]){
     ImGui_ImplGlfw_NewFrame();
 
     // Draw the GUI
-    int menu_height = 0;
     if (ImGui::BeginMainMenuBar()){
       if (ImGui::BeginMenu("File")){
         if (ImGui::MenuItem("Quit","Ctrl+Q"))
           glfwSetWindowShouldClose(window, GLFW_TRUE);
         ImGui::EndMenu();
       }
-      // xxxx //
-      menu_height = ImGui::GetWindowSize().y;
+      ImGui::SameLine(0, ImGui::GetWindowSize().x-250.);
+      ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
       ImGui::EndMainMenuBar();
     }
 
