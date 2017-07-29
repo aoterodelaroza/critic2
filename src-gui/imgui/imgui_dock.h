@@ -80,23 +80,29 @@ namespace ImGui{
     // Draw the tab bar of a tabbed container
     void drawTabBar();
     // Set the hovered window, moved window, and active ID for a container/tab pair
-    void SetContainerHoveredMovedActive(bool setid);
+    void setContainerHoveredMovedActive(bool setid);
     // Raise the current displayed tab in a container in the window stack to 
     // just before the container
-    void RaiseCurrentTab();
+    void raiseCurrentTab();
     // Get the position of this dock's window in the window stack
     int getWindowStackPosition();
-
+    // Hide the window corresponding to a docked tab in container dcont
+    void hideTabWindow(Dock *dcont);
+    // Hide the window corresponding to a docked tab in container dcont
+    // If noresize, forbid resizing the shown window.
+    void showTabWindow(Dock *dcont, bool noresize);
+    
   }; // struct Dock
 
   // Create a container with the given label. If p_open, with a close
   // button.  Extra window flags are passed to the container window.
-  void Container(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
+  Dock *Container(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
 
   // Create/end a window that can be docked to a container. If p_open,
-  // with a close button.  Extra window flags are passed to the
-  // container window.
-  bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
+  // with a close button. Extra window flags are passed to the
+  // container window. If a container pointer is passed, dock to that
+  // container in the first pass.
+  bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, Dock *oncedock=nullptr);
   void EndDock();
 
   // Free the memory occupied by the docks and the dock hash table

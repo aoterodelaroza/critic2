@@ -139,37 +139,20 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
   }
 }
 
-void Dock::drawContainer(bool allowresize){
+void Dock::drawContainer(bool noresize){
     
   if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0){
     // Draw the tab
     this->drawTabBar();
 
     // Hide all tabs
-    for (auto dd : this->stack) {
-      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoScrollbar|
-        ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoCollapse|
-        ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoInputs;
-      dd->pos = ImVec2(0.,0.);
-      dd->size = ImVec2(0.,0.);
-      dd->hidden = true;
-    }
+    for (auto dd : this->stack) 
+      dd->hideTabWindow(this);
 
     // Unhide current tab
-    if (!this->hidden && !this->collapsed && this->currenttab){
-      Dock *dd = this->currenttab;
-      float topheight = this->tabbarrect.Max.y - this->pos.y;
-      dd->pos = this->pos;
-      dd->pos.y += topheight;
-      dd->size = this->size;
-      dd->size.y = this->size.y - topheight;
-      dd->hidden = false;
-      dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
-        ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
-        ImGuiWindowFlags_NoBringToFrontOnFocus;
-      if (!allowresize)
-        dd->flags = dd->flags | ImGuiWindowFlags_NoResize;
-    }
+    if (!this->hidden && !this->collapsed && this->currenttab)
+      this->currenttab->showTabWindow(this,noresize);
+
   } // if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0);
 }
 
@@ -274,8 +257,8 @@ void Dock::drawTabBar(){
     // the window stack. 
     if (this->currenttab && !IsAnyItemActive()){
       if (g->HoveredWindow == GetCurrentWindow())
-        this->SetContainerHoveredMovedActive(true);
-      this->RaiseCurrentTab();
+        this->setContainerHoveredMovedActive(true);
+      this->raiseCurrentTab();
     }
 
     // last item in the tabsx
@@ -290,7 +273,7 @@ void Dock::drawTabBar(){
   PopStyleColor();
 }
 
-void Dock::SetContainerHoveredMovedActive(bool setid){
+void Dock::setContainerHoveredMovedActive(bool setid){
   ImGuiContext *g = GetCurrentContext();
 
   if (g->IO.MouseClicked[0]){
@@ -303,7 +286,7 @@ void Dock::SetContainerHoveredMovedActive(bool setid){
   }
 }
 
-void Dock::RaiseCurrentTab(){
+void Dock::raiseCurrentTab(){
   ImGuiContext *g = GetCurrentContext();
 
   if (this->currenttab){
@@ -337,9 +320,36 @@ int Dock::getWindowStackPosition(){
   return iexit;
 }
 
+void Dock::hideTabWindow(Dock *dcont){
+  if (!dcont) return;
+  this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoScrollbar|
+    ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoCollapse|
+    ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoInputs;
+  this->pos = ImVec2(0.,0.);
+  this->size = ImVec2(0.,0.);
+  this->hidden = true;
+}
+
+void Dock::showTabWindow(Dock *dcont, bool noresize){
+  if (!dcont) return;
+
+  float topheight = dcont->tabbarrect.Max.y - dcont->pos.y;
+  this->pos = dcont->pos;
+  this->pos.y += topheight;
+  this->size = dcont->size;
+  this->size.y = dcont->size.y - topheight;
+  this->hidden = false;
+  this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
+    ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
+    ImGuiWindowFlags_NoBringToFrontOnFocus;
+  if (noresize)
+    this->flags = this->flags | ImGuiWindowFlags_NoResize;
+  
+}
+
 //xx// Public interface //xx//
 
-void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
 
   bool collapsed = true;
   ImGuiContext *g = GetCurrentContext();
@@ -372,6 +382,7 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->size = GetWindowSize();
   dd->size_saved = ImVec2(0.,0.);
   dd->type = Dock::Type_Container;
+  dd->flags = extra_flags;
   dd->root = dd;
   dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
@@ -400,30 +411,38 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->clearContainer();
 
   // Draw the container elements
-  dd->drawContainer(!(extra_flags & ImGuiWindowFlags_NoResize));
+  dd->drawContainer(extra_flags & ImGuiWindowFlags_NoResize);
   dd->size_saved.y = dd->tabbarrect.Max.y - dd->pos.y;
 
   // If the container is clicked, set the correct hovered/moved flags 
   // and raise container & docked window to the top of the stack.
   if (dd->currenttab){
     if (g->HoveredWindow == dd->window)
-      dd->SetContainerHoveredMovedActive(!IsAnyItemActive());
-    dd->RaiseCurrentTab();
+      dd->setContainerHoveredMovedActive(!IsAnyItemActive());
+    dd->raiseCurrentTab();
   }
 
   End();
+  return dd;
 }
 
-bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/){
-
+bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/, Dock* oncedock /*=nullptr*/){
   bool collapsed;
-
   ImGuiContext *g = GetCurrentContext();
 
+  // Create the entry in the dock context if it doesn't exist
   Dock *dd = dockht[label];
   if (!dd) {
     dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
+
+    // This is the first pass -> if oncedock exists, dock to that container
+    if (oncedock){
+      oncedock->newDock(dd,-1);
+      dd->status = Dock::Status_Docked;
+      dd->control_window_this_frame = true;
+      dd->showTabWindow(oncedock,dd->flags & ImGuiWindowFlags_NoResize);
+    }
   }
 
   if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
@@ -519,10 +538,10 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     if ((g->HoveredWindow == dd->window || g->HoveredWindow == dd->parent->window) &&
         IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false) &&
         g->IO.MouseClicked[0]){
-      dd->parent->SetContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
+      dd->parent->setContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
     }
     // Put it right on top of its container.
-    dd->parent->RaiseCurrentTab();
+    dd->parent->raiseCurrentTab();
     // If the resize grip is being used, resize the container too.
     if (g->ActiveId == dd->window->GetID("#RESIZE")){
       dd->parent->window->SizeFull = dd->window->Size + dd->parent->size_saved;
