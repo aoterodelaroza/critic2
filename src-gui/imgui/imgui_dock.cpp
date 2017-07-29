@@ -24,6 +24,7 @@
 // reorganize methods
 // clearcontainer gives a cascade. some control over the window stack
 // pass the container as an argument to begindock, to initialize the window as docked.
+// save the settings to a config file
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -61,16 +62,52 @@ static Dock *getContainerAt(const ImVec2& pos){
 
 //xx// Dock methods //xx//
 
-void Dock::showDropTarget(){
+void Dock::showDropTargetFull(){
   SetNextWindowSize(ImVec2(0,0));
   Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
-  ImDrawList* canvas = GetWindowDrawList();
-  canvas->PushClipRectFullScreen();
+  ImDrawList* drawl = GetWindowDrawList();
+  drawl->PushClipRectFullScreen();
   ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
   docked_color = (docked_color & 0x00ffFFFF) | 0x80000000;
-  canvas->AddRectFilled(this->pos, this->pos + this->size, docked_color);
-  canvas->PopClipRect();
+  drawl->AddRectFilled(this->pos, this->pos + this->size, docked_color);
+  drawl->PopClipRect();
+  End();
+}
+
+void Dock::showDropTargetOnTabBar(){
+  const float triside = 10.f;
+
+  int ithis = this->tabsx.size()-1;
+  float xpos = GetMousePos().x;
+  for (int i = 0; i < this->tabsx.size(); i++){
+    if (xpos < this->tabsx[i]){
+      ithis = i;
+      break;
+    }
+  }
+  if (ithis > 0 && (xpos-this->tabsx[ithis-1]) < (this->tabsx[ithis]-xpos))
+    ithis = ithis - 1;
+
+  SetNextWindowSize(ImVec2(0,0));
+  Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
+        ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
+  ImDrawList* drawl = GetWindowDrawList();
+  drawl->PushClipRectFullScreen();
+  ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
+  docked_color = (docked_color & 0x00ffFFFF) | 0x80000000;
+
+  ImVec2 a, b, c;
+  a.x = this->tabsx[ithis]; a.y = this->tabbarrect.Max.y;
+  b.x = a.x + 0.5 * triside; b.y = a.y + triside * sqrt(3.)/2.;
+  c.x = a.x - 0.5 * triside; c.y = b.y;
+  drawl->AddTriangleFilled(a,b,c,docked_color);
+  a.y = this->tabbarrect.Min.y;
+  b.y = a.y - triside * sqrt(3.)/2.;
+  c.y = b.y;
+  drawl->AddTriangleFilled(a,b,c,docked_color);
+
+  drawl->PopClipRect();
   End();
 }
 
@@ -84,12 +121,11 @@ void Dock::newDock(Dock *dnew){
   }
 }
 
-void Dock::drawContainer(float *topheight, bool allowresize){
+void Dock::drawContainer(bool allowresize){
     
-  *topheight = 0;
   if (this->sttype == Dock::Stack_Leaf && this->stack.size() > 0){
     // Draw the tab
-    this->drawTabBar(topheight);
+    this->drawTabBar();
 
     // Hide all tabs
     for (auto dd : this->stack) {
@@ -104,10 +140,11 @@ void Dock::drawContainer(float *topheight, bool allowresize){
     // Unhide current tab
     if (!this->hidden && !this->collapsed && this->currenttab){
       Dock *dd = this->currenttab;
+      float topheight = this->tabbarrect.Max.y - this->pos.y;
       dd->pos = this->pos;
-      dd->pos.y += *topheight;
+      dd->pos.y += topheight;
       dd->size = this->size;
-      dd->size.y = this->size.y - *topheight;
+      dd->size.y = this->size.y - topheight;
       dd->hidden = false;
       dd->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
@@ -134,13 +171,16 @@ void Dock::clearContainer(){
   this->stack.clear();
 }
 
-void Dock::drawTabBar(float *topheight){
+void Dock::drawTabBar(){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = GetTextLineHeightWithSpacing();
   const float barheight = 2 * GetTextLineHeightWithSpacing();
   const float maxtabwidth = 100.;
   ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
   text_color.w = 2.0 / g->Style.Alpha;
+
+  // empty the list of tabs
+  this->tabsx.Size = 0;
 
   // calculate the widths
   float tabwidth_long;
@@ -159,21 +199,18 @@ void Dock::drawTabBar(float *topheight){
   char tmp[20];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
   if (BeginChild(tmp,ImVec2(this->size.x,barheight),false)){
-    ImDrawList* draw_list = GetWindowDrawList();
-
-    // label_size.y
-    // style.FramePadding.y
     bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
     ImVec2 center, pos0, pos1, pos1s, text_size;
-    ImRect clip_rect;
     for (auto dd : this->stack) {
       SameLine();
+      // make the x-button, update the container info
       bool dragged, dclicked, closeclicked;
       if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), false,
        		      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha))
 	this->currenttab = dd;
-
+      this->tabsx.push_back(GetItemRectMax().x-tabwidth_long);
+    
       // lift the tab using the main button
       if (dragged){
         dd->status = Dock::Status_Dragged;
@@ -223,8 +260,12 @@ void Dock::drawTabBar(float *topheight){
       this->RaiseCurrentTab();
     }
 
+    // last item in the tabsx
+    this->tabsx.push_back(GetItemRectMax().x);
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
-  *topheight = GetItemRectMax().y - this->pos.y;
+  this->tabbarrect = GetCurrentWindowRead()->DC.LastItemRect;
+  this->tabbarrect.Min.x = this->pos.x;
+  this->tabbarrect.Max.x = this->pos.x + this->size.x;
   EndChild();
   PopStyleVar();
   PopStyleVar();
@@ -293,7 +334,6 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   }
 
   // If the container has a window docked, set the minimum size
-  // printf("%f %f\n",dd->window->SizeContents.x,dd->window->SizeContents.y);
   if (dd->currenttab){
     ImVec2 size = dd->currenttab->window->SizeContents + dd->currenttab->window->WindowPadding;
     size.y += GetTextLineHeightWithSpacing() + dd->currenttab->window->WindowPadding.y +
@@ -342,7 +382,8 @@ void ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->clearContainer();
 
   // Draw the container elements
-  dd->drawContainer(&(dd->size_saved.y),!(extra_flags & ImGuiWindowFlags_NoResize));
+  dd->drawContainer(!(extra_flags & ImGuiWindowFlags_NoResize));
+  dd->size_saved.y = dd->tabbarrect.Max.y - dd->pos.y;
 
   // If the container is clicked, set the correct hovered/moved flags 
   // and raise container & docked window to the top of the stack.
@@ -360,6 +401,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   bool collapsed;
 
   ImGuiContext *g = GetCurrentContext();
+  const ImVec2 ytabcushion = ImVec2(0.f,10.);
+
   Dock *dd = dockht[label];
   if (!dd) {
     dd = dockht[label] = new Dock;
@@ -443,8 +486,13 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // If dragged and hovering over a container, show the drop rectangles
   if (dd->status == Dock::Status_Dragged){
     Dock *ddest = getContainerAt(GetIO().MousePos);
-    if (ddest)
-      ddest->showDropTarget();
+    if (ddest){
+      if (ddest->stack.empty())
+	ddest->showDropTargetFull();
+      else if (IsMouseHoveringRect(ddest->tabbarrect.Min-ytabcushion,ddest->tabbarrect.Max+ytabcushion)){
+	ddest->showDropTargetOnTabBar();
+      }
+    }
   }
 
   // If this window is docked, 

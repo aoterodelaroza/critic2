@@ -82,18 +82,18 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
   ImVec2 pos1 = GetItemRectMax();
 
   // rectangle and text
-  ImDrawList* draw_list = GetWindowDrawList();
+  ImDrawList* drawl = GetWindowDrawList();
   const char* text_end = FindRenderedTextEnd(label);
   ImVec2 text_size = CalcTextSize(label,text_end,true,false);
   ImRect clip_rect = ImRect(pos0,pos1s);
-  draw_list->AddRectFilled(pos0,pos1,hovered?color_hovered:(activetab?color_active:color));
-  draw_list->AddRect(pos0,pos1,color_active,0.0f,~0,1.0f);
+  drawl->AddRectFilled(pos0,pos1,hovered?color_hovered:(activetab?color_active:color));
+  drawl->AddRect(pos0,pos1,color_active,0.0f,~0,1.0f);
   RenderTextClipped(pos0,pos1s,label,text_end,&text_size, ImVec2(0.5f,0.5f), &clip_rect);
   
   // draw the "x"
   if (p_open && size.x >= mintabwidth){
-    draw_list->AddLine(center+ImVec2(-crossz,-crossz), center+ImVec2(crossz,crossz),IsItemHovered()?cross_color_hovered:cross_color);
-    draw_list->AddLine(center+ImVec2( crossz,-crossz), center+ImVec2(-crossz,crossz),IsItemHovered()?cross_color_hovered:cross_color);
+    drawl->AddLine(center+ImVec2(-crossz,-crossz), center+ImVec2(crossz,crossz),IsItemHovered()?cross_color_hovered:cross_color);
+    drawl->AddLine(center+ImVec2( crossz,-crossz), center+ImVec2(-crossz,crossz),IsItemHovered()?cross_color_hovered:cross_color);
   }
 
   return clicked;

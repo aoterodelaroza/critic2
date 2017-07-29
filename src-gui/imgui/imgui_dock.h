@@ -43,6 +43,8 @@ namespace ImGui{
     ImVec2 pos; // position of the window
     ImVec2 size; // size of the window
     ImVec2 size_saved; // saved size (before docking for dockable window, of the titlebar+tab for container)
+    ImRect tabbarrect = {}; // rectangle for the container tab bar
+    ImVector<float> tabsx = {};
     ImGuiWindowFlags flags = 0; // flags for the window
     bool hidden = false; // whether a docked window is hidden
     bool collapsed = false; // whether a docked window is collapsed
@@ -61,16 +63,18 @@ namespace ImGui{
     Dock(): pos(0,0), size(-1,-1), size_saved(-1,-1) {};
     ~Dock(){ MemFree(label);}
 
-    // Show the drop targets for this window
-    void showDropTarget();
+    // Show the drop targets for this window (full window)
+    void showDropTargetFull();
+    // Show the drop targets for this window (on the tab bar)
+    void showDropTargetOnTabBar();
     // Add a new dock to a container
     void newDock(Dock *dnew);
     // Draw container
-    void drawContainer(float *topheight,bool allowresize);
+    void drawContainer(bool allowresize);
     // Clear all docked windows from a container
     void clearContainer();
     // Draw the tab bar of a tabbed container
-    void drawTabBar(float *topheight);
+    void drawTabBar();
     // Set the hovered window, moved window, and active ID for a container/tab pair
     void SetContainerHoveredMovedActive(bool setid);
     // Raise the current displayed tab in a container in the window stack to 
