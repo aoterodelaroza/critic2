@@ -64,12 +64,17 @@ namespace ImGui{
 
     // Is the mouse hovering the tab bar of this dock?
     bool IsMouseHoveringTabBar();
+    // Is the mouse hovering the drop edges of a container?  Returns
+    // the edge id.
+    int IsMouseHoveringEdge();
     // Get the nearest tab border in the tab
     int getNearestTabBorder();
     // Show the drop targets for this window (full window)
     void showDropTargetFull();
     // Show the drop targets for this window (on the tab bar)
     void showDropTargetOnTabBar();
+    // Show the drop targets on the edge of the container.
+    void showDropTargetEdge(int edge);
     // Add a new dock to a container (at position ithis)
     void newDock(Dock *dnew, int ithis = -1);
     // Draw container

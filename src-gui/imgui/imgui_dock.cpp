@@ -61,6 +61,23 @@ bool Dock::IsMouseHoveringTabBar(){
   return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushion,this->tabbarrect.Max+ytabcushion,false);
 }
 
+int Dock::IsMouseHoveringEdge(){
+  // top, right, bottom, left, topleft, topright, bottomright, bottomleft
+  const ImVec2 x0[8] = {{0.2,0.0}, {0.9,0.2}, {0.2,0.9}, {0.0,0.2}, {0.0,0.0}, {0.8,0.0}, {0.8,0.8}, {0.0,0.8}};
+  const ImVec2 x1[8] = {{0.8,0.1}, {1.0,0.8}, {0.8,1.0}, {0.1,0.8}, {0.2,0.2}, {1.0,0.2}, {1.0,1.0}, {0.2,1.0}};
+
+  ImVec2 xmin, xmax;
+  for (int i=0; i<8; i++){
+    xmin.x = this->pos.x + x0[i].x * this->size.x;
+    xmax.x = this->pos.x + x1[i].x * this->size.x;
+    xmin.y = this->pos.y + x0[i].y * this->size.y;
+    xmax.y = this->pos.y + x1[i].y * this->size.y;
+    if (IsMouseHoveringRect(xmin,xmax))
+      return i+1;
+  }
+  return 0;
+}
+
 int Dock::getNearestTabBorder(){
   if (!this->IsMouseHoveringTabBar()) return -1;
   int ithis = this->tabsx.size()-1;
@@ -114,6 +131,31 @@ void Dock::showDropTargetOnTabBar(){
 
   drawl->PopClipRect();
   End();
+}
+
+void Dock::showDropTargetEdge(int edge){
+  // top, right, bottom, left, topleft, topright, bottomright, bottomleft
+  const ImVec2 x0[8] = {{0.2,0.0}, {0.9,0.2}, {0.2,0.9}, {0.0,0.2}, {0.0,0.0}, {0.8,0.0}, {0.8,0.8}, {0.0,0.8}};
+  const ImVec2 x1[8] = {{0.8,0.1}, {1.0,0.8}, {0.8,1.0}, {0.1,0.8}, {0.2,0.2}, {1.0,0.2}, {1.0,1.0}, {0.2,1.0}};
+
+  if (edge > 0){
+    ImVec2 xmin, xmax;
+    xmin.x = this->pos.x + x0[edge-1].x * this->size.x;
+    xmax.x = this->pos.x + x1[edge-1].x * this->size.x;
+    xmin.y = this->pos.y + x0[edge-1].y * this->size.y;
+    xmax.y = this->pos.y + x1[edge-1].y * this->size.y;
+
+    SetNextWindowSize(ImVec2(0,0));
+    Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
+    	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
+    ImDrawList* drawl = GetWindowDrawList();
+    drawl->PushClipRectFullScreen();
+    ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
+    docked_color = (docked_color & 0x00ffFFFF) | 0x80000000;
+    drawl->AddRectFilled(xmin,xmax,docked_color);
+    drawl->PopClipRect();
+    End();
+  }
 }
 
 void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
@@ -588,6 +630,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
         ddest->showDropTargetFull();
       else if (ddest->IsMouseHoveringTabBar())
         ddest->showDropTargetOnTabBar();
+      else if (ddest->status == Dock::Status_Docked)
+        ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge());
     }
   }
 
