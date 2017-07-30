@@ -184,19 +184,24 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
   if (iedge == 0) return;
 
   Dock *dpar = this->parent;
+  Dock *root = dpar->root;
 
   if (dpar->type == Dock::Type_Root){
     if (iedge == 1 || iedge == 5){
       // new empty container
-      const char* label = "blahbleh";
-      Dock *dcont = dockht[label] = new Dock;
+      char label1[strlen(root->label)+10];
+      (root->nchild)++;
+      ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
+      Dock *dcont = dockht[label1] = new Dock;
       dcont->type = Dock::Type_Container;
-      dcont->id = ImHash(label,0);
-      dcont->label = ImStrdup(label);
+      dcont->id = ImHash(label1,0);
+      dcont->label = ImStrdup(label1);
       dcont->status == Dock::Status_Docked;
       
       // new horizontal root container
-      const char* label2 = "blahbleh2";
+      char label2[strlen(root->label)+10];
+      (root->nchild)++;
+      ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,root->nchild);
       Dock *dhor = dockht[label2] = new Dock;
       dhor->type = Dock::Type_Horizontal;
       dhor->id = ImHash(label2,0);
@@ -261,7 +266,6 @@ void Dock::drawContainer(bool noresize){
 void Dock::drawRootContainer(Dock *root){
   this->root = root;
   if (this->type == Dock::Type_Root){
-    this->nchild = 0;
     for (auto dd : this->stack){
       dd->pos = this->pos;
       dd->size = this->size;
@@ -286,10 +290,7 @@ void Dock::drawRootContainer(Dock *root){
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoInputs|
 	ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
 	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
-    (root->nchild)++;
-    char tmp[strlen(root->label)+6];
-    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s%d",root->label,root->nchild);
-    Begin(tmp,nullptr,this->flags);
+    Begin(this->label,nullptr,this->flags);
     this->window = GetCurrentWindow();
     this->status = Dock::Status_Docked;
     this->drawContainer(true);
@@ -498,12 +499,17 @@ Dock *ImGui::RootContainer(const char* label){
     dd->type = Dock::Type_Root;
     dd->id = ImHash(label,0);
     dd->label = ImStrdup(label);
+    dd->nchild = 0;
 
     // initialize with an empty container
-    char tmp[strlen(label)+2];
-    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s1",label);
+    (dd->nchild)++;
+    char tmp[strlen(label)+10];
+    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",label,dd->nchild);
     Dock *dcont = dockht[tmp] = new Dock;
     dcont->type = Dock::Type_Container;
+    dcont->id = ImHash(tmp,0);
+    dcont->label = ImStrdup(tmp);
+    dcont->status == Dock::Status_Docked;
     dd->stack.push_back(dcont);
   }
 
@@ -534,6 +540,8 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
     dd->type = Dock::Type_Container;
+    dd->id = ImHash(label,0);
+    dd->label = ImStrdup(label);
   }
 
   // If the container has a window docked, set the minimum size
@@ -549,8 +557,6 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   collapsed = !Begin(label,p_open,flags);
 
   // Fill the info for this dock
-  dd->id = ImHash(label,0);
-  dd->label = ImStrdup(label);
   dd->pos = GetWindowPos();
   dd->size = GetWindowSize();
   dd->size_saved = ImVec2(0.,0.);
@@ -609,6 +615,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd = dockht[label] = new Dock;
     IM_ASSERT(dd);
     dd->type = Dock::Type_Dock;
+    dd->id = ImHash(label,0);
+    dd->label = ImStrdup(label);
 
     // This is the first pass -> if oncedock exists, dock to that container
     if (oncedock){
@@ -657,8 +665,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   }
 
   // Fill the info for this dock
-  dd->id = ImHash(label,0);
-  dd->label = ImStrdup(label);
   dd->pos = GetWindowPos();
   dd->size = GetWindowSize();
   dd->type = Dock::Type_Dock;
