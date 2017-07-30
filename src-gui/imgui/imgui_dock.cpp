@@ -57,8 +57,9 @@ static Dock *getContainerAt(const ImVec2& pos){
 //xx// Dock methods //xx//
 
 bool Dock::IsMouseHoveringTabBar(){
-  const ImVec2 ytabcushion = ImVec2(0.f,10.);
-  return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushion,this->tabbarrect.Max+ytabcushion,false);
+  const ImVec2 ytabcushiondn = ImVec2(0.f,10.);
+  const ImVec2 ytabcushionup = ImVec2(0.f,this->status==Dock::Status_Docked?0.:10.);
+  return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushionup,this->tabbarrect.Max+ytabcushiondn,false);
 }
 
 int Dock::IsMouseHoveringEdge(){
@@ -334,7 +335,6 @@ void Dock::drawTabBar(){
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
   this->tabbarrect = GetCurrentWindowRead()->DC.LastItemRect;
   this->tabbarrect.Min.x = this->pos.x;
-  this->tabbarrect.Max.x = this->pos.x + this->size.x;
   EndChild();
   PopStyleVar();
   PopStyleVar();
