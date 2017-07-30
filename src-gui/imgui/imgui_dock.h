@@ -33,10 +33,9 @@ using namespace std;
 namespace ImGui{
 
   struct Dock{
-    enum Type_{Type_None,Type_Container,Type_Dock};
+    enum Type_{Type_None,Type_Root,Type_Container,Type_Dock};
     enum Status_{Status_None,Status_Open,Status_Collapsed,Status_Closed,
-		 Status_Dragged,Status_Docked,Status_Lifted};
-    enum Stack_{Stack_None,Stack_Vertical,Stack_Horizontal,Stack_Leaf};
+		 Status_Dragged,Status_Docked};
 
     ImU32 id = 0; // id of the window
     char* label = nullptr; // window label
@@ -51,7 +50,6 @@ namespace ImGui{
     bool collapsed_saved = false; // saved collapsed (before docking)
     Type_ type = Type_None; // type of docking window
     Status_ status = Status_None; // status of the docking window
-    Stack_ sttype = Stack_None; // stacking type when docked
     list<Dock *> stack = {}; // stack of docks at this level
     Dock *currenttab = nullptr; // currently selected tab
     Dock *parent = nullptr; // node immediately above current node
@@ -75,6 +73,8 @@ namespace ImGui{
     void newDock(Dock *dnew, int ithis = -1);
     // Draw container
     void drawContainer(bool allowresize);
+    // Traverse the tree of a root container and draw all containers in it
+    void drawRootContainer(Dock* root);
     // Clear all docked windows from a container
     void clearContainer();
     // Draw the tab bar of a tabbed container
@@ -93,6 +93,11 @@ namespace ImGui{
     void showTabWindow(Dock *dcont, bool noresize);
     
   }; // struct Dock
+
+  // Create a root container with the given label. If p_open, with a
+  // close button.  Extra window flags are passed to the container
+  // window.
+  Dock *RootContainer(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
 
   // Create a container with the given label. If p_open, with a close
   // button.  Extra window flags are passed to the container window.
