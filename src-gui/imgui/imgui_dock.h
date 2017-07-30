@@ -57,6 +57,7 @@ namespace ImGui{
     ImGuiWindow* window = nullptr; // associated window
     bool *p_open = nullptr; // the calling routine open window bool
     bool control_window_this_frame = false; // the pos, size, etc. change window's attributes this frame
+    int nchild = 0; // number of children (to generate labels)
 
     Dock(): pos(0,0), size(-1,-1), size_saved(-1,-1) {};
     ~Dock(){ MemFree(label);}
@@ -97,7 +98,7 @@ namespace ImGui{
   // Create a root container with the given label. If p_open, with a
   // close button.  Extra window flags are passed to the container
   // window.
-  Dock *RootContainer(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
+  Dock *RootContainer(const char* label);
 
   // Create a container with the given label. If p_open, with a close
   // button.  Extra window flags are passed to the container window.

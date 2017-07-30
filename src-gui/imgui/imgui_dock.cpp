@@ -47,7 +47,7 @@ static Dock *getContainerAt(const ImVec2& pos){
   for (auto dpair : dockht){
     dd = dpair.second;
     if (dd->type != Dock::Type_Container) continue;
-    if (dd->status != Dock::Status_Open) continue;
+    if (dd->status != Dock::Status_Open && dd->status != Dock::Status_Docked) continue;
     if (IsMouseHoveringRect(dd->pos,dd->pos+dd->size,false))
       return dd;
   }
@@ -156,25 +156,26 @@ void Dock::drawContainer(bool noresize){
 
 void Dock::drawRootContainer(Dock *root){
   if (this->type == Dock::Type_Root){
+    this->nchild = 0;
     for (auto dd : this->stack){
-      dd->pos = this->window->Pos;
-      dd->pos.y += this->window->TitleBarHeight();
-      dd->size = this->window->Size;
-      dd->size.y -= this->window->TitleBarHeight();
-      dd->flags = 0;
-      dd->hidden = false;
+      dd->pos = this->pos;
+      dd->size = this->size;
       dd->parent = this;
-      dd->root = root;
       dd->drawRootContainer(root);
     }
   } else if (this->type == Dock::Type_Container) {
     SetNextWindowPos(this->pos);
     SetNextWindowSize(this->size);
-    Begin("",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoInputs|
+    this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoInputs|
 	ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
-	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus);
+	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
+    this->root = root;
+    (root->nchild)++;
+    char tmp[strlen(root->label)+6];
+    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s%d",root->label,root->nchild);
+    Begin(tmp,nullptr,this->flags);
     this->window = GetCurrentWindow();
-    this->status = Dock::Status_Open;
+    this->status = Dock::Status_Docked;
     this->drawContainer(true);
     this->size_saved.y = this->tabbarrect.Max.y - this->pos.y;
     End();
@@ -223,7 +224,7 @@ void Dock::drawTabBar(){
 
   // start placing the tabs
   char tmp[20];
-  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tabs%d",(int)this->id);
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tab%d",(int)this->id);
   if (BeginChild(tmp,ImVec2(this->size.x,barheight),false)){
     bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
@@ -374,12 +375,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
 
 //xx// Public interface //xx//
 
-Dock *ImGui::RootContainer(const char* label, bool* p_open/*=nullptr*/, ImGuiWindowFlags extra_flags/*=0*/){
-
-  bool collapsed = true;
-  ImGuiContext *g = GetCurrentContext();
-  ImGuiWindowFlags flags = extra_flags;
-
+Dock *ImGui::RootContainer(const char* label){
   Dock *dd = dockht[label];
   if (!dd){
     dd = dockht[label] = new Dock;
@@ -396,39 +392,15 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open/*=nullptr*/, ImGuiWin
     dd->stack.push_back(dcont);
   }
 
-  // // If the container has a window docked, set the minimum size
-  // if (dd->currenttab){
-  //   SetNextWindowSizeConstraints(dd->size_saved,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
-  //   flags = flags | ImGuiWindowFlags_NoResize;
-  // } else {
-  //   SetNextWindowSizeConstraints(ImVec2(0.,4*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y)),
-  // 					ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
-  // }
-
-  // Render the rootcontainer window
-  collapsed = !Begin(label,p_open,flags);
-  dd->window = GetCurrentWindow();
-  dd->pos = dd->window->Pos;
-  dd->size = dd->window->Size;
-  dd->flags = flags;
+  // set the properties of the rootcontainer window
+  dd->window = nullptr;
+  dd->pos = ImVec2(50.,50.);
+  dd->size = ImVec2(300.,300.);
+  dd->flags = 0;
   dd->hidden = false;
   dd->root = dd;
-  dd->collapsed = collapsed;
-  dd->p_open = p_open;
+  dd->collapsed = false;
   dd->status = Dock::Status_Open;
-  End();
-
-  // // If the container has just been closed, detach all docked windows
-  // if (dd->status == Dock::Status_Closed && !dd->stack.empty())
-  //   dd->clearContainer();
-
-  // // If the container is clicked, set the correct hovered/moved flags 
-  // // and raise container & docked window to the top of the stack.
-  // if (dd->currenttab){
-  //   if (g->HoveredWindow == dd->window)
-  //     dd->setContainerHoveredMovedActive(!IsAnyItemActive());
-  //   dd->raiseCurrentTab();
-  // }
 
   // Traverse the tree and draw all the containers
   dd->drawRootContainer(dd);
@@ -542,7 +514,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       flags = dd->flags;
       collapsed = dd->hidden;
       if (dd->hidden){
-        Begin("",nullptr,dd->size,0.0,flags);
+        Begin("###hidden",nullptr,dd->size,0.0,flags);
       } else {
         Begin(label,nullptr,flags);
       }

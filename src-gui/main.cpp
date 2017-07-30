@@ -95,15 +95,6 @@ int main(int argc, char *argv[]){
     ImGui::Dock *cont3 = ImGui::RootContainer("contain3");
     // ImGui::Dock *cont3 = ImGui::Container("contain3");
 
-    if (show_scene5){
-      ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
-      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-      if (ImGui::BeginDock("Info5", &show_scene5, 0)){
-	ImGui::Text("Hello5!");
-	if (ImGui::Button("Button5")){printf("Button5\n");}
-      }
-      ImGui::EndDock();
-    }
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
