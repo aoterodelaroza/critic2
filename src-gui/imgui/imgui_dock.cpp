@@ -179,6 +179,67 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
   }
 }
 
+void Dock::newDockRoot(Dock *dnew, int iedge){
+  // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
+  if (iedge == 0) return;
+
+  Dock *dpar = this->parent;
+
+  if (dpar->type == Dock::Type_Root){
+    if (iedge == 1 || iedge == 5){
+      // new empty container
+      const char* label = "blahbleh";
+      Dock *dcont = dockht[label] = new Dock;
+      dcont->type = Dock::Type_Container;
+      dcont->id = ImHash(label,0);
+      dcont->label = ImStrdup(label);
+      dcont->status == Dock::Status_Docked;
+      
+      // new horizontal root container
+      const char* label2 = "blahbleh2";
+      Dock *dhor = dockht[label2] = new Dock;
+      dhor->type = Dock::Type_Horizontal;
+      dhor->id = ImHash(label2,0);
+      dhor->label = ImStrdup(label2);
+      dhor->status == Dock::Status_Docked;
+
+      // build the new horizontal
+      dcont->newDock(dnew);
+      dhor->stack.push_back(dcont);
+      dhor->stack.push_back(this);
+
+      // replace this with the new horizontal container in the parent's stack
+      for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
+	if (*it == this){
+	  dpar->stack.insert(dpar->stack.erase(it),dhor);
+	  break;
+	}
+      }
+    } else if (iedge == 2 || iedge == 6){
+      this->newDock(dnew,-1);
+    } else if (iedge == 3 || iedge == 7){
+      this->newDock(dnew,-1);
+    } else if (iedge == 4 || iedge == 8){
+      this->newDock(dnew,-1);
+    }
+  }
+  // dnew->parent = this;
+  // dnew->root = this->root;
+  // this->currenttab = dnew;
+  // if (ithis < 0 || ithis == this->stack.size())
+  //   this->stack.push_back(dnew);
+  // else{
+  //   int n = -1;
+  //   for (auto it = this->stack.begin(); it != this->stack.end(); ++it){
+  //     n++;
+  //     if (n == ithis){
+  // 	this->stack.insert(it,dnew);
+  // 	break;
+  //     }
+  //   }
+  // }
+}
+
 void Dock::drawContainer(bool noresize){
   if (!(this->type == Dock::Type_Container)) return;
     
@@ -198,11 +259,24 @@ void Dock::drawContainer(bool noresize){
 }
 
 void Dock::drawRootContainer(Dock *root){
+  this->root = root;
   if (this->type == Dock::Type_Root){
     this->nchild = 0;
     for (auto dd : this->stack){
       dd->pos = this->pos;
       dd->size = this->size;
+      dd->parent = this;
+      dd->drawRootContainer(root);
+    }
+  } else if (this->type == Dock::Type_Horizontal) {
+    int n = -1;
+    int ntot = this->stack.size();
+    for (auto dd : this->stack){
+      n++;
+      dd->pos = this->pos;
+      dd->pos.y += (n * this->size.y) / ntot;
+      dd->size = this->size;
+      dd->size.y /= ntot;
       dd->parent = this;
       dd->drawRootContainer(root);
     }
@@ -212,7 +286,6 @@ void Dock::drawRootContainer(Dock *root){
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoInputs|
 	ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
 	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
-    this->root = root;
     (root->nchild)++;
     char tmp[strlen(root->label)+6];
     ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s%d",root->label,root->nchild);
@@ -602,12 +675,15 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->status = Dock::Status_Dragged;
     ddest = getContainerAt(GetIO().MousePos);
   } else {
-    int ithis = -1;
-    if (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)) &&
-        (ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){        
+    int ithis = -1, iedge = 0;
+    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)));
+    if (dropit && (ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){
       // Just stopped dragging and there is a container below
       dd->status = Dock::Status_Docked;
       ddest->newDock(dd,ithis);
+    } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
+      dd->status = Dock::Status_Docked;
+      ddest->newDockRoot(dd,iedge);
     } else if (dd->status != Dock::Status_Docked){
       // Stationary -> open, closed, or collapsed
       if (!p_open || *p_open){
@@ -671,8 +747,7 @@ void ImGui::Print() {
   for (auto dock : dockht){
     Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
     Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    Text("type=%d status=%d\n", dock.second->type, dock.second->status);
-    Text("type=%d list_size=%d\n", dock.second->type, dock.second->stack.size());
+    Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
     if (dock.second->p_open)
       Text("p_open=%d\n", *(dock.second->p_open));
   }

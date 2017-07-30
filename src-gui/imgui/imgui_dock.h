@@ -33,7 +33,7 @@ using namespace std;
 namespace ImGui{
 
   struct Dock{
-    enum Type_{Type_None,Type_Root,Type_Container,Type_Dock};
+    enum Type_{Type_None,Type_Root,Type_Container,Type_Dock,Type_Horizontal};
     enum Status_{Status_None,Status_Open,Status_Collapsed,Status_Closed,
 		 Status_Dragged,Status_Docked};
 
@@ -77,6 +77,8 @@ namespace ImGui{
     void showDropTargetEdge(int edge);
     // Add a new dock to a container (at position ithis)
     void newDock(Dock *dnew, int ithis = -1);
+    // Add a new dock to a docked container (child of rootcontainer)
+    void newDockRoot(Dock *dnew, int iedge);
     // Draw container
     void drawContainer(bool allowresize);
     // Traverse the tree of a root container and draw all containers in it

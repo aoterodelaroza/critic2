@@ -93,6 +93,8 @@ int main(int argc, char *argv[]){
     ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     ImGui::Dock *cont3 = ImGui::RootContainer("contain3");
+    ImGui::SetNextWindowPos(ImVec2(10,400),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,200),ImGuiSetCond_FirstUseEver);
     ImGui::Dock *cont4 = ImGui::Container("contain4");
 
     if (show_scene1){
