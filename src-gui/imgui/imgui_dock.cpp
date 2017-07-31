@@ -308,10 +308,10 @@ void Dock::killContainerMaybe(){
     return;
   Dock *dpar = this->parent;
   if (!dpar) return;
-  if (!(this->stack.empty())) return;
 
-  if (this->type == Dock::Type_Container){
-    // Do not remove the last container from a root container
+  if (this->type == Dock::Type_Container && this->stack.empty()){
+    // An empty container
+    // Do not remove the last container from a root container, even if it's empty
     if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
 
     for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
@@ -322,12 +322,26 @@ void Dock::killContainerMaybe(){
     }
     dockht.erase(string(this->label));
     if (this) delete this;
+    // Try to kill its parent
     dpar->killContainerMaybe();
-  } else if (this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal){
-    // if a horizontal or vertical is empty, turn it into a container
+  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.empty()){
+    // If a horizontal or vertical is empty, turn it into a container
     this->type = Dock::Type_Container;
     // then to try kill it
     this->killContainerMaybe();
+  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
+    // This vertical/horizontal container only has window -> eliminate
+    // it and connect the single window to its parent
+    for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
+      if (*it == this){
+	dpar->stack.insert(dpar->stack.erase(it),this->stack.back());
+	break;
+      }
+    }
+    dockht.erase(string(this->label));
+    if (this) delete this;
+    // Try to kill its parent
+    dpar->killContainerMaybe();
   }
 }
 
