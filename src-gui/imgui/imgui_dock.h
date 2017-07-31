@@ -33,7 +33,8 @@ using namespace std;
 namespace ImGui{
 
   struct Dock{
-    enum Type_{Type_None,Type_Root,Type_Container,Type_Dock,Type_Horizontal};
+    enum Type_{Type_None,Type_Root,Type_Container,Type_Dock,Type_Horizontal,
+	       Type_Vertical};
     enum Status_{Status_None,Status_Open,Status_Collapsed,Status_Closed,
 		 Status_Dragged,Status_Docked};
 
@@ -79,6 +80,17 @@ namespace ImGui{
     void newDock(Dock *dnew, int ithis = -1);
     // Add a new dock to a docked container (child of rootcontainer)
     void newDockRoot(Dock *dnew, int iedge);
+    // Replace this dock (part of a root container tree) with a
+    // horizontal (type==Type_Horizontal) or vertical
+    // (type==Type_Vertical) container. The new container has the
+    // current dock plus dcont (if null, dcont is allocated). The new
+    // container is placed before (before==true) or after (false) the
+    // old one.
+    Dock *OpRoot_ReplaceHV(Type_ type,bool before,Dock *dcont=nullptr);
+    // Add a new container (dcont) to the horizontal/vertical parent
+    // of this dock.  If !dcont, it is allocated. The new container is
+    // placed before (before==true) or after (false) the old one.
+    Dock *OpRoot_AddToHV(bool before,Dock *dcont=nullptr);
     // Draw container
     void drawContainer(bool allowresize);
     // Traverse the tree of a root container and draw all containers in it

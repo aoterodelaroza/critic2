@@ -183,66 +183,106 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
   // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
   if (iedge == 0) return;
 
-  Dock *dpar = this->parent;
-  Dock *root = dpar->root;
-
-  if (dpar->type == Dock::Type_Root){
-    if (iedge == 1 || iedge == 5){
-      // new empty container
-      char label1[strlen(root->label)+10];
-      (root->nchild)++;
-      ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
-      Dock *dcont = dockht[label1] = new Dock;
-      dcont->type = Dock::Type_Container;
-      dcont->id = ImHash(label1,0);
-      dcont->label = ImStrdup(label1);
-      dcont->status == Dock::Status_Docked;
-      
-      // new horizontal root container
-      char label2[strlen(root->label)+10];
-      (root->nchild)++;
-      ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,root->nchild);
-      Dock *dhor = dockht[label2] = new Dock;
-      dhor->type = Dock::Type_Horizontal;
-      dhor->id = ImHash(label2,0);
-      dhor->label = ImStrdup(label2);
-      dhor->status == Dock::Status_Docked;
-
-      // build the new horizontal
-      dcont->newDock(dnew);
-      dhor->stack.push_back(dcont);
-      dhor->stack.push_back(this);
-
-      // replace this with the new horizontal container in the parent's stack
-      for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
-	if (*it == this){
-	  dpar->stack.insert(dpar->stack.erase(it),dhor);
-	  break;
-	}
-      }
-    } else if (iedge == 2 || iedge == 6){
-      this->newDock(dnew,-1);
-    } else if (iedge == 3 || iedge == 7){
-      this->newDock(dnew,-1);
-    } else if (iedge == 4 || iedge == 8){
-      this->newDock(dnew,-1);
+  Dock *dcont;
+  if (this->parent->type == Dock::Type_Root){
+    Type_ type; 
+    if (iedge == 1 || iedge == 5 || iedge == 3 || iedge == 7)
+      type = Dock::Type_Horizontal;
+    else
+      type = Dock::Type_Vertical;
+    dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==5||iedge==4||iedge==8);
+  } else if (this->parent->type == Dock::Type_Horizontal){
+    if (iedge == 1 || iedge == 5 || iedge == 3 || iedge == 7){
+      dcont = this->OpRoot_AddToHV(iedge==1||iedge==5);
+    } else {
+      dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4||iedge==8);
+    }
+  } else if (this->parent->type == Dock::Type_Vertical){
+    if (iedge == 2 || iedge == 6 || iedge == 4 || iedge == 8){
+      dcont = this->OpRoot_AddToHV(iedge==4||iedge==8);
+    } else {
+      dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1||iedge==5);
     }
   }
-  // dnew->parent = this;
-  // dnew->root = this->root;
-  // this->currenttab = dnew;
-  // if (ithis < 0 || ithis == this->stack.size())
-  //   this->stack.push_back(dnew);
-  // else{
-  //   int n = -1;
-  //   for (auto it = this->stack.begin(); it != this->stack.end(); ++it){
-  //     n++;
-  //     if (n == ithis){
-  // 	this->stack.insert(it,dnew);
-  // 	break;
-  //     }
-  //   }
-  // }
+  dcont->newDock(dnew);
+}
+
+Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*/){
+  // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
+  Dock *dpar = this->parent;
+  Dock *root = dpar->root;
+  if (!dcont){
+    // new empty container
+    char label1[strlen(root->label)+10];
+    (root->nchild)++;
+    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
+    dcont = dockht[label1] = new Dock;
+    dcont->type = Dock::Type_Container;
+    dcont->id = ImHash(label1,0);
+    dcont->label = ImStrdup(label1);
+    dcont->status == Dock::Status_Docked;
+  }
+
+  // new horizontal or vertical container
+  char label2[strlen(root->label)+10];
+  (root->nchild)++;
+  ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,root->nchild);
+  Dock *dhv = dockht[label2] = new Dock;
+  dhv->type = type;
+  dhv->id = ImHash(label2,0);
+  dhv->label = ImStrdup(label2);
+  dhv->status == Dock::Status_Docked;
+
+  // build the new horizontal/vertical
+  if (before){
+    dhv->stack.push_back(dcont);
+    dhv->stack.push_back(this);
+  } else {
+    dhv->stack.push_back(this);
+    dhv->stack.push_back(dcont);
+  }
+
+  // replace this with the new horizontal/vertical container in the parent's stack
+  for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
+    if (*it == this){
+      dpar->stack.insert(dpar->stack.erase(it),dhv);
+      break;
+    }
+  }
+
+  // return the new container
+  return dcont;
+}
+
+Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
+  // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
+  Dock *dpar = this->parent;
+  Dock *root = dpar->root;
+  if (!dcont){
+    // new empty container
+    char label1[strlen(root->label)+10];
+    (root->nchild)++;
+    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
+    dcont = dockht[label1] = new Dock;
+    dcont->type = Dock::Type_Container;
+    dcont->id = ImHash(label1,0);
+    dcont->label = ImStrdup(label1);
+    dcont->status == Dock::Status_Docked;
+  }
+
+  // add to the parent's stack
+  for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
+    if (*it == this){
+      if (before)
+	dpar->stack.insert(it,dcont);
+      else
+	dpar->stack.insert(++it,dcont);
+      break;
+    }
+  }
+
+  // return the new container
+  return dcont;
 }
 
 void Dock::drawContainer(bool noresize){
@@ -272,15 +312,21 @@ void Dock::drawRootContainer(Dock *root){
       dd->parent = this;
       dd->drawRootContainer(root);
     }
-  } else if (this->type == Dock::Type_Horizontal) {
+  } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     int n = -1;
     int ntot = this->stack.size();
     for (auto dd : this->stack){
       n++;
       dd->pos = this->pos;
-      dd->pos.y += (n * this->size.y) / ntot;
+      if (this->type == Dock::Type_Horizontal)
+	dd->pos.y += (n * this->size.y) / ntot;
+      else
+	dd->pos.x += (n * this->size.x) / ntot;
       dd->size = this->size;
-      dd->size.y /= ntot;
+      if (this->type == Dock::Type_Horizontal)
+	dd->size.y /= ntot;
+      else
+	dd->size.x /= ntot;
       dd->parent = this;
       dd->drawRootContainer(root);
     }
@@ -501,6 +547,13 @@ Dock *ImGui::RootContainer(const char* label){
     dd->label = ImStrdup(label);
     dd->nchild = 0;
 
+    // Get the size by making an invisible window once
+    Begin(label,nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
+	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
+    dd->pos = GetWindowPos();
+    dd->size = GetWindowSize();
+    End();
+
     // initialize with an empty container
     (dd->nchild)++;
     char tmp[strlen(label)+10];
@@ -515,8 +568,6 @@ Dock *ImGui::RootContainer(const char* label){
 
   // set the properties of the rootcontainer window
   dd->window = nullptr;
-  dd->pos = ImVec2(50.,50.);
-  dd->size = ImVec2(300.,300.);
   dd->flags = 0;
   dd->hidden = false;
   dd->root = dd;
