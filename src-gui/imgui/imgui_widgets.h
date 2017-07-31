@@ -23,9 +23,14 @@
 #ifndef IMGUI_WIDGETS_H
 #define IMGUI_WIDGETS_H
 
+#include "imgui_widgets.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 
 using namespace std;
+
+// Named constants
+const float small_alpha = 1e-15;
 
 // Helper functions
 static inline ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
@@ -39,6 +44,10 @@ static inline ImVec2 operator*(ImVec2 lhs, float rhs) {
 }
 
 namespace ImGui{
+
+  // Sliding bar for root container splits
+  void SlidingBar(ImGuiWindow* window, ImVec2 *pos, ImVec2 size, ImVec2 limits, int direction,
+		  float alpha=-1.f);
 
   // Button with a clickable "X" at the end
   bool ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool buttoncol,

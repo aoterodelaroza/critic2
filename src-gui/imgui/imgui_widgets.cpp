@@ -25,6 +25,20 @@
 
 using namespace ImGui;
 
+void ImGui::SlidingBar(ImGuiWindow* window, ImVec2 *pos, ImVec2 size, ImVec2 limits, int direction,
+		       float alpha/*=-1*/){
+  ImDrawList* dl = window->DrawList;
+  ImGuiContext *g = GetCurrentContext();
+  
+  if (alpha >= 0.f)
+    PushStyleVar(ImGuiStyleVar_Alpha,alpha);
+  dl->PushClipRectFullScreen();
+  dl->AddRectFilled(*pos,*pos+size,GetColorU32(ImGuiCol_Text),g->Style.ScrollbarRounding);
+  dl->PopClipRect();
+  if (alpha >= 0.f)
+    PopStyleVar();
+}
+
 bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool buttoncol,
 			bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
 			float alphamul /*=1.f*/){

@@ -20,7 +20,7 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// bars
+// bar movement
 // clipping in ismousehoveringrect()
 // autoresize of the container - manual and in the public interface
 // figure out what to do with the corners
@@ -34,6 +34,8 @@
 // maybe: rootcontainer with its own window & control of the window stack 
 // replace method in list for... insert/erase
 // problem docking empty containers to a rootcontainer
+// see docking thread in imgui github
+// horizontal and vertical containers have active perpendicular edges
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -425,6 +427,42 @@ void Dock::drawRootContainer(Dock *root){
   }
 }
 
+void Dock::drawRootContainerBars(Dock *root){
+  const float barwidth = 6.;
+
+  this->root = root;
+  if (this->type == Dock::Type_Root){
+    for (auto dd : this->stack)
+      dd->drawRootContainerBars(root);
+  } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
+    int n = -1;
+    int ntot = this->stack.size();
+
+    ImVec2 pos, size, limits;
+    int direction;
+
+    for (auto dd : this->stack){
+      n++;
+      if (n != 0){
+	pos = this->pos;
+	size = this->size;
+	if (this->type == Dock::Type_Horizontal){
+	  pos.y += (n * this->size.y) / ntot - 0.5f * barwidth;
+	  size.y = barwidth;
+	  direction = 2;
+	} else {
+	  pos.x += (n * this->size.x) / ntot - 0.5f * barwidth;
+	  size.x = barwidth;
+	  direction = 1;
+	}
+	limits = ImVec2(pos.x,pos.x+size.x-barwidth);
+	SlidingBar(root->window, &pos, size, limits, direction, 2.0f);
+      }
+      dd->drawRootContainerBars(root);
+    }
+  }
+}
+
 void Dock::clearContainer(){
   const float increment = 50.;
 
@@ -628,13 +666,6 @@ Dock *ImGui::RootContainer(const char* label){
     dd->id = ImHash(label,0);
     dd->nchild = 0;
 
-    // Get the size by making an invisible window once
-    Begin(label,nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
-	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
-    dd->pos = GetWindowPos();
-    dd->size = GetWindowSize();
-    End();
-
     // initialize with an empty container
     char tmp[strlen(label)+15];
     ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",label,++(dd->nchild));
@@ -649,13 +680,27 @@ Dock *ImGui::RootContainer(const char* label){
     dd->stack.push_back(dcont);
   }
 
+  // Making an invisible window
+  PushStyleVar(ImGuiStyleVar_Alpha,small_alpha);
+  Begin(label,nullptr,ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoTitleBar|
+  	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus);
+
   // set the properties of the rootcontainer window
-  dd->window = nullptr;
+  dd->window = GetCurrentWindow();
+  dd->pos = dd->window->Pos;
+  dd->size = dd->window->Size;
   dd->flags = 0;
   dd->hidden = false;
   dd->root = dd;
   dd->collapsed = false;
   dd->status = Dock::Status_Open;
+
+  // Traverse the tree and draw all the bars
+  dd->drawRootContainerBars(dd);
+
+  // End the root container window
+  End();
+  PopStyleVar();
 
   // Traverse the tree and draw all the containers
   dd->drawRootContainer(dd);

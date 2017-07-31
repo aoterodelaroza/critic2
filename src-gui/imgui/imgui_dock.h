@@ -99,6 +99,8 @@ namespace ImGui{
     void drawContainer(bool allowresize);
     // Traverse the tree of a root container and draw all containers in it
     void drawRootContainer(Dock* root);
+    // Traverse the tree of a root container and draw all bars in it
+    void drawRootContainerBars(Dock* root);
     // Clear all docked windows from a container
     void clearContainer();
     // Draw the tab bar of a tabbed container
