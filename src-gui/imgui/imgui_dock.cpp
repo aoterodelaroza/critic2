@@ -20,6 +20,7 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
+// autoresize of the container
 // convert some of the char* in Dock to string
 // figure out what to do with the corners
 // better drop targets (minimum and maximum size?)
@@ -574,7 +575,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
   this->hidden = false;
   this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
     ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
-    ImGuiWindowFlags_NoBringToFrontOnFocus;
+    ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_HorizontalScrollbar;
   if (noresize)
     this->flags = this->flags | ImGuiWindowFlags_NoResize;
   
