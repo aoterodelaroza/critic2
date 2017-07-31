@@ -20,7 +20,9 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// autoresize of the container
+// bars
+// clipping in ismousehoveringrect()
+// autoresize of the container - manual and in the public interface
 // figure out what to do with the corners
 // better drop targets (minimum and maximum size?)
 // deal with the small container size problem
@@ -31,6 +33,7 @@
 // resizable rootcontainer
 // maybe: rootcontainer with its own window & control of the window stack 
 // replace method in list for... insert/erase
+// problem docking empty containers to a rootcontainer
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -364,6 +367,8 @@ void Dock::drawContainer(bool noresize){
 }
 
 void Dock::drawRootContainer(Dock *root){
+  const float barwidth = 8.;
+
   this->root = root;
   if (this->type == Dock::Type_Root){
     for (auto dd : this->stack){
@@ -375,18 +380,33 @@ void Dock::drawRootContainer(Dock *root){
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     int n = -1;
     int ntot = this->stack.size();
+    float width1, width2;
     for (auto dd : this->stack){
       n++;
+      if (n == 0){
+	width1 = 0.f;
+	width2 = 0.5f * barwidth;
+      } else if (n == this->stack.size()-1){
+	width1 = 0.5f * barwidth;
+	width2 = 0.5f * barwidth;
+      } else {
+	width1 = 0.5f * barwidth;
+	width2 = 1.0f * barwidth;
+      }
       dd->pos = this->pos;
       if (this->type == Dock::Type_Horizontal)
-	dd->pos.y += (n * this->size.y) / ntot;
+	dd->pos.y += (n * this->size.y) / ntot + width1;
       else
-	dd->pos.x += (n * this->size.x) / ntot;
+	dd->pos.x += (n * this->size.x) / ntot + width1;
       dd->size = this->size;
-      if (this->type == Dock::Type_Horizontal)
+      if (this->type == Dock::Type_Horizontal){
 	dd->size.y /= ntot;
-      else
+	dd->size.y -= width2;
+      }
+      else{
 	dd->size.x /= ntot;
+	dd->size.x -= width2;
+      }
       dd->parent = this;
       dd->drawRootContainer(root);
     }
