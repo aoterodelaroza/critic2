@@ -21,16 +21,16 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 // autoresize of the container
-// convert some of the char* in Dock to string
 // figure out what to do with the corners
 // better drop targets (minimum and maximum size?)
 // deal with the small container size problem
 // focus the whole rootcontainer on click
 // eliminate a bar by rightclicking on it
-// dock container to rootcontainer
+// take out a container from a rootcontainer
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // resizable rootcontainer
 // maybe: rootcontainer with its own window & control of the window stack 
+// replace method in list for... insert/erase
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -190,28 +190,31 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
   // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
   if (iedge == 0) return;
 
-  Dock *dcont;
+  Dock *dcont = nullptr;
+  if (dnew->type == Dock::Type_Container)
+    dcont = dnew;
   if (this->parent->type == Dock::Type_Root){
     Type_ type; 
     if (iedge == 1 || iedge == 5 || iedge == 3 || iedge == 7)
       type = Dock::Type_Horizontal;
     else
       type = Dock::Type_Vertical;
-    dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==5||iedge==4||iedge==8);
+    dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==5||iedge==4||iedge==8,dcont);
   } else if (this->parent->type == Dock::Type_Horizontal){
     if (iedge == 1 || iedge == 5 || iedge == 3 || iedge == 7){
-      dcont = this->OpRoot_AddToHV(iedge==1||iedge==5);
+      dcont = this->OpRoot_AddToHV(iedge==1||iedge==5,dcont);
     } else {
-      dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4||iedge==8);
+      dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4||iedge==8,dcont);
     }
   } else if (this->parent->type == Dock::Type_Vertical){
     if (iedge == 2 || iedge == 6 || iedge == 4 || iedge == 8){
-      dcont = this->OpRoot_AddToHV(iedge==4||iedge==8);
+      dcont = this->OpRoot_AddToHV(iedge==4||iedge==8,dcont);
     } else {
-      dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1||iedge==5);
+      dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1||iedge==5,dcont);
     }
   }
-  dcont->newDock(dnew);
+  if (dnew->type != Dock::Type_Container)
+    dcont->newDock(dnew);
 }
 
 Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*/){
@@ -656,7 +659,11 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd->id = ImHash(label,0);
   }
 
-  // If the container has a window docked, set the minimum size
+  // If docked, the root container takes care of everything
+  if (dd->status == Dock::Status_Docked) 
+    return dd;
+
+  // If the container has a window docked, set the minimum size.
   if (dd->currenttab){
     SetNextWindowSizeConstraints(dd->size_saved,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
     flags = flags | ImGuiWindowFlags_NoResize;
@@ -680,20 +687,49 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   dd->p_open = p_open;
 
   // Update the status
+  Dock *ddest;
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
+    ddest = getContainerAt(GetIO().MousePos);
   } else {
-    // Stationary -> open, closed, or collapsed
-    if (!p_open || *p_open){
-      if (collapsed){
-        dd->status = Dock::Status_Collapsed;
+    int ithis = -1, iedge = 0;
+    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)));
+    if (dropit && ddest->stack.empty() && ddest->parent && ddest->parent->type == Dock::Type_Root){
+      // drop it into the root container
+      for(auto it = ddest->parent->stack.begin(); it != ddest->parent->stack.end(); it++){ 
+	if (*it == ddest){
+	  ddest->parent->stack.insert(ddest->parent->stack.erase(it),dd);
+	  break;
+	}
       }
-      else{
-        dd->status = Dock::Status_Open;
-      }
+      dd->status = Dock::Status_Docked;
+    } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
+      // drop into the edge
+      dd->status = Dock::Status_Docked;
+      ddest->newDockRoot(dd,iedge);
     } else {
-      dd->status = Dock::Status_Closed;
+      // Stationary -> open, closed, or collapsed
+      if (!p_open || *p_open){
+	if (collapsed){
+	  dd->status = Dock::Status_Collapsed;
+	}
+	else{
+	  dd->status = Dock::Status_Open;
+	}
+      } else {
+	dd->status = Dock::Status_Closed;
+      }
+    }
+  }
+
+  // If dragged and hovering over a container, show the drop rectangles
+  if (dd->status == Dock::Status_Dragged){
+    if (ddest){
+      if (ddest->stack.empty() && ddest->parent && ddest->parent->type == Dock::Type_Root)
+        ddest->showDropTargetFull();
+      else if (ddest->status == Dock::Status_Docked)
+        ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge());
     }
   }
 
@@ -870,7 +906,7 @@ void ImGui::Print() {
   // }
 
   for (auto dock : dockht){
-    Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
+    Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
     Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
     Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
     if (dock.second->p_open)
