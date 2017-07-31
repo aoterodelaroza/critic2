@@ -220,9 +220,8 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   Dock *root = dpar->root;
   if (!dcont){
     // new empty container
-    char label1[strlen(root->label)+10];
-    (root->nchild)++;
-    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
+    char label1[strlen(root->label)+15];
+    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild));
     dcont = new Dock;
     IM_ASSERT(dcont);
     dcont->label = ImStrdup(label1);
@@ -234,9 +233,8 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   }
 
   // new horizontal or vertical container
-  char label2[strlen(root->label)+10];
-  (root->nchild)++;
-  ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,root->nchild);
+  char label2[strlen(root->label)+15];
+  ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,++(root->nchild));
   Dock *dhv = new Dock;
   IM_ASSERT(dhv);
   dhv->label = ImStrdup(label2);
@@ -273,9 +271,8 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
   Dock *root = dpar->root;
   if (!dcont){
     // new empty container
-    char label1[strlen(root->label)+10];
-    (root->nchild)++;
-    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
+    char label1[strlen(root->label)+15];
+    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild));
     dcont = new Dock;
     IM_ASSERT(dcont);
     dcont->label = ImStrdup(label1);
@@ -446,8 +443,8 @@ void Dock::drawTabBar(){
   PushStyleColor(ImGuiCol_Text,text_color);
 
   // start placing the tabs
-  char tmp[20];
-  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"tab%d",(int)this->id);
+  char tmp[strlen(this->label)+15];
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__tab__",this->label);
   if (BeginChild(tmp,ImVec2(this->size.x,barheight),false)){
     bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
@@ -616,9 +613,8 @@ Dock *ImGui::RootContainer(const char* label){
     End();
 
     // initialize with an empty container
-    (dd->nchild)++;
-    char tmp[strlen(label)+10];
-    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",label,dd->nchild);
+    char tmp[strlen(label)+15];
+    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",label,++(dd->nchild));
     Dock *dcont = new Dock;
     IM_ASSERT(dcont);
     dcont->label = ImStrdup(tmp);
