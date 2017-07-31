@@ -20,7 +20,6 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// does not dock to rootcontainer when grabbed from the title
 // convert some of the char* in Dock to string
 // figure out what to do with the corners
 // better drop targets (minimum and maximum size?)
@@ -80,7 +79,7 @@ int Dock::IsMouseHoveringEdge(){
     xmax.x = this->pos.x + x1[i].x * this->size.x;
     xmin.y = this->pos.y + x0[i].y * this->size.y;
     xmax.y = this->pos.y + x1[i].y * this->size.y;
-    if (IsMouseHoveringRect(xmin,xmax))
+    if (IsMouseHoveringRect(xmin,xmax,false))
       return i+1;
   }
   return 0;
