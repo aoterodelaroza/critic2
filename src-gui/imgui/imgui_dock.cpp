@@ -22,8 +22,12 @@
 
 // bar movement
 // clipping in ismousehoveringrect()
+//  printf("visible: %d\n",GetCurrentContext()->HoveredWindow == this->window);
+//  // findhoveredwindow - write own version
+//  // !!isdockhovered!!
+//  make the container window invisible when docked, except the top
+// do not draw the container background when docked.
 // autoresize of the container - manual and in the public interface
-// figure out what to do with the corners
 // better drop targets (minimum and maximum size?)
 // deal with the small container size problem
 // focus the whole rootcontainer on click
@@ -36,6 +40,7 @@
 // problem docking empty containers to a rootcontainer
 // see docking thread in imgui github
 // horizontal and vertical containers have active perpendicular edges
+// use small_alpha to hide more stuff. Also, check Visible.
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -75,12 +80,12 @@ bool Dock::IsMouseHoveringTabBar(){
 }
 
 int Dock::IsMouseHoveringEdge(){
-  // top, right, bottom, left, topleft, topright, bottomright, bottomleft
-  const ImVec2 x0[8] = {{0.2,0.0}, {0.9,0.2}, {0.2,0.9}, {0.0,0.2}, {0.0,0.0}, {0.8,0.0}, {0.8,0.8}, {0.0,0.8}};
-  const ImVec2 x1[8] = {{0.8,0.1}, {1.0,0.8}, {0.8,1.0}, {0.1,0.8}, {0.2,0.2}, {1.0,0.2}, {1.0,1.0}, {0.2,1.0}};
+  // top, right, bottom, left
+  const ImVec2 x0[8] = {{0.2,0.0}, {0.9,0.2}, {0.2,0.9}, {0.0,0.2}};
+  const ImVec2 x1[8] = {{0.8,0.1}, {1.0,0.8}, {0.8,1.0}, {0.1,0.8}};
 
   ImVec2 xmin, xmax;
-  for (int i=0; i<8; i++){
+  for (int i=0; i<4; i++){
     xmin.x = this->pos.x + x0[i].x * this->size.x;
     xmax.x = this->pos.x + x1[i].x * this->size.x;
     xmin.y = this->pos.y + x0[i].y * this->size.y;
@@ -147,9 +152,9 @@ void Dock::showDropTargetOnTabBar(){
 }
 
 void Dock::showDropTargetEdge(int edge){
-  // top, right, bottom, left, topleft, topright, bottomright, bottomleft
-  const ImVec2 x0[8] = {{0.2,0.0}, {0.9,0.2}, {0.2,0.9}, {0.0,0.2}, {0.0,0.0}, {0.8,0.0}, {0.8,0.8}, {0.0,0.8}};
-  const ImVec2 x1[8] = {{0.8,0.1}, {1.0,0.8}, {0.8,1.0}, {0.1,0.8}, {0.2,0.2}, {1.0,0.2}, {1.0,1.0}, {0.2,1.0}};
+  // top, right, bottom, left
+  const ImVec2 x0[4] = {{0.0,0.0}, {0.5,0.0}, {0.0,0.5}, {0.0,0.0}};
+  const ImVec2 x1[4] = {{1.0,0.5}, {1.0,1.0}, {1.0,1.0}, {0.5,1.0}};
 
   if (edge > 0){
     ImVec2 xmin, xmax;
@@ -192,7 +197,7 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
 }
 
 void Dock::newDockRoot(Dock *dnew, int iedge){
-  // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
+  // 1:top, 2:right, 3:bottom, 4:left
   if (iedge == 0) return;
 
   Dock *dcont = nullptr;
@@ -200,22 +205,22 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
     dcont = dnew;
   if (this->parent->type == Dock::Type_Root){
     Type_ type; 
-    if (iedge == 1 || iedge == 5 || iedge == 3 || iedge == 7)
+    if (iedge == 1 || iedge == 3)
       type = Dock::Type_Horizontal;
     else
       type = Dock::Type_Vertical;
-    dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==5||iedge==4||iedge==8,dcont);
+    dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
   } else if (this->parent->type == Dock::Type_Horizontal){
-    if (iedge == 1 || iedge == 5 || iedge == 3 || iedge == 7){
-      dcont = this->OpRoot_AddToHV(iedge==1||iedge==5,dcont);
+    if (iedge == 1 || iedge == 3){
+      dcont = this->OpRoot_AddToHV(iedge==1,dcont);
     } else {
-      dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4||iedge==8,dcont);
+      dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4,dcont);
     }
   } else if (this->parent->type == Dock::Type_Vertical){
-    if (iedge == 2 || iedge == 6 || iedge == 4 || iedge == 8){
-      dcont = this->OpRoot_AddToHV(iedge==4||iedge==8,dcont);
+    if (iedge == 2 || iedge == 4){
+      dcont = this->OpRoot_AddToHV(iedge==4,dcont);
     } else {
-      dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1||iedge==5,dcont);
+      dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1,dcont);
     }
   }
   if (dnew->type != Dock::Type_Container)
