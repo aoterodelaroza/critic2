@@ -20,6 +20,18 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
+// does not dock to rootcontainer when grabbed from the title
+// convert some of the char* in Dock to string
+// figure out what to do with the corners
+// better drop targets (minimum and maximum size?)
+// deal with the small container size problem
+// focus the whole rootcontainer on click
+// eliminate a bar by rightclicking on it
+// dock container to rootcontainer
+// pass container or dock to rootcontainer. build rootcontainer tree from code
+// resizable rootcontainer
+// maybe: rootcontainer with its own window & control of the window stack 
+
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
@@ -32,12 +44,7 @@
 using namespace ImGui;
 
 // Dock context declarations
-struct LabelHash{
-  size_t operator()(const char *key) const{
-    return (size_t) ImHash((const void *)key,0);
-  };
-};
-static unordered_map<const char *,Dock*,LabelHash> dockht = {}; // global dock hash table
+static unordered_map<string,Dock*> dockht = {}; // global dock hash table
 static Dock *getContainerAt(const ImVec2& pos); // get container at a given position
 
 //xx// Dock context methods //xx//
@@ -216,22 +223,28 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     char label1[strlen(root->label)+10];
     (root->nchild)++;
     ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
-    dcont = dockht[label1] = new Dock;
+    dcont = new Dock;
+    IM_ASSERT(dcont);
+    dcont->label = ImStrdup(label1);
+    dockht[string(dcont->label)] = dcont;
     dcont->type = Dock::Type_Container;
     dcont->id = ImHash(label1,0);
-    dcont->label = ImStrdup(label1);
     dcont->status == Dock::Status_Docked;
+    dcont->automatic = true;
   }
 
   // new horizontal or vertical container
   char label2[strlen(root->label)+10];
   (root->nchild)++;
   ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,root->nchild);
-  Dock *dhv = dockht[label2] = new Dock;
+  Dock *dhv = new Dock;
+  IM_ASSERT(dhv);
+  dhv->label = ImStrdup(label2);
+  dockht[string(dhv->label)] = dhv;
   dhv->type = type;
   dhv->id = ImHash(label2,0);
-  dhv->label = ImStrdup(label2);
   dhv->status == Dock::Status_Docked;
+  dhv->automatic = true;
 
   // build the new horizontal/vertical
   if (before){
@@ -263,11 +276,14 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     char label1[strlen(root->label)+10];
     (root->nchild)++;
     ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,root->nchild);
-    dcont = dockht[label1] = new Dock;
+    dcont = new Dock;
+    IM_ASSERT(dcont);
+    dcont->label = ImStrdup(label1);
+    dockht[string(dcont->label)] = dcont;
     dcont->type = Dock::Type_Container;
     dcont->id = ImHash(label1,0);
-    dcont->label = ImStrdup(label1);
     dcont->status == Dock::Status_Docked;
+    dcont->automatic = true;
   }
 
   // add to the parent's stack
@@ -283,6 +299,36 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
 
   // return the new container
   return dcont;
+}
+
+void Dock::killContainerMaybe(){
+  // Only kill containers, horziontals, and verticals that were automatically generated
+  if (!this || (this->type != Dock::Type_Container && this->type != Dock::Type_Horizontal && 
+		this->type != Dock::Type_Vertical) || !(this->automatic))
+    return;
+  Dock *dpar = this->parent;
+  if (!dpar) return;
+  if (!(this->stack.empty())) return;
+
+  if (this->type == Dock::Type_Container){
+    // Do not remove the last container from a root container
+    if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
+
+    for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
+      if (*it == this){
+	dpar->stack.erase(it);
+	break;
+      }
+    }
+    dockht.erase(string(this->label));
+    if (this) delete this;
+    dpar->killContainerMaybe();
+  } else if (this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal){
+    // if a horizontal or vertical is empty, turn it into a container
+    this->type = Dock::Type_Container;
+    // then to try kill it
+    this->killContainerMaybe();
+  }
 }
 
 void Dock::drawContainer(bool noresize){
@@ -538,13 +584,14 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
 //xx// Public interface //xx//
 
 Dock *ImGui::RootContainer(const char* label){
-  Dock *dd = dockht[label];
+  Dock *dd = dockht[string(label)];
   if (!dd){
-    dd = dockht[label] = new Dock;
+    dd = new Dock;
     IM_ASSERT(dd);
+    dd->label = ImStrdup(label);
+    dockht[string(dd->label)] = dd;
     dd->type = Dock::Type_Root;
     dd->id = ImHash(label,0);
-    dd->label = ImStrdup(label);
     dd->nchild = 0;
 
     // Get the size by making an invisible window once
@@ -558,11 +605,14 @@ Dock *ImGui::RootContainer(const char* label){
     (dd->nchild)++;
     char tmp[strlen(label)+10];
     ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",label,dd->nchild);
-    Dock *dcont = dockht[tmp] = new Dock;
+    Dock *dcont = new Dock;
+    IM_ASSERT(dcont);
+    dcont->label = ImStrdup(tmp);
+    dockht[string(dcont->label)] = dcont;
     dcont->type = Dock::Type_Container;
     dcont->id = ImHash(tmp,0);
-    dcont->label = ImStrdup(tmp);
     dcont->status == Dock::Status_Docked;
+    dcont->automatic = true;
     dd->stack.push_back(dcont);
   }
 
@@ -586,13 +636,14 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   ImGuiContext *g = GetCurrentContext();
   ImGuiWindowFlags flags = extra_flags;
 
-  Dock *dd = dockht[label];
+  Dock *dd = dockht[string(label)];
   if (!dd){
-    dd = dockht[label] = new Dock;
+    dd = new Dock;
     IM_ASSERT(dd);
+    dd->label = ImStrdup(label);
+    dockht[string(dd->label)] = dd;
     dd->type = Dock::Type_Container;
     dd->id = ImHash(label,0);
-    dd->label = ImStrdup(label);
   }
 
   // If the container has a window docked, set the minimum size
@@ -661,13 +712,14 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   ImGuiContext *g = GetCurrentContext();
 
   // Create the entry in the dock context if it doesn't exist
-  Dock *dd = dockht[label];
+  Dock *dd = dockht[string(label)];
   if (!dd) {
-    dd = dockht[label] = new Dock;
+    dd = new Dock;
     IM_ASSERT(dd);
+    dd->label = ImStrdup(label);
+    dockht[string(dd->label)] = dd;
     dd->type = Dock::Type_Dock;
     dd->id = ImHash(label,0);
-    dd->label = ImStrdup(label);
 
     // This is the first pass -> if oncedock exists, dock to that container
     if (oncedock){
@@ -675,6 +727,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       dd->status = Dock::Status_Docked;
       dd->control_window_this_frame = true;
       dd->showTabWindow(oncedock,dd->flags & ImGuiWindowFlags_NoResize);
+      dd->parent = oncedock;
     }
   }
 
@@ -702,11 +755,15 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
       SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
+      dd->parent->killContainerMaybe();
+      dd->parent = nullptr;
     } else { 
       // the window has just been lifted, but not dragging
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
       FocusWindow(dd->window);
+      dd->parent->killContainerMaybe();
+      dd->parent = nullptr;
     }
   } else {
     // Floating window
@@ -753,6 +810,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       } else {
         dd->status= Dock::Status_Closed;
       }
+      dd->parent = nullptr;
     }
   }
 
