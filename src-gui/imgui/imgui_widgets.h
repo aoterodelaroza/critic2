@@ -42,6 +42,16 @@ static inline ImVec2 operator-(ImVec2 lhs, ImVec2 rhs) {
 static inline ImVec2 operator*(ImVec2 lhs, float rhs) {
     return ImVec2(lhs.x*rhs, lhs.y*rhs);
 }
+static inline ImVec4 OpaqueColor(ImGuiCol_ color, float newalpha){
+  ImGuiContext *g = ImGui::GetCurrentContext();
+  ImVec4 col = g->Style.Colors[color];
+  col.w = newalpha;
+}
+static inline ImVec4 TransparentColor(ImGuiCol_ color){
+  ImGuiContext *g = ImGui::GetCurrentContext();
+  ImVec4 col = g->Style.Colors[color];
+  col.w = small_alpha;
+}
 
 namespace ImGui{
 

@@ -21,6 +21,11 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 // raisecurrenttab and sethovered use findhoveredcontainer
+// replace method in list for... insert/erase
+// check usage of dockht/dockwin
+//   xx rootcontainer xx
+// problems with docking external containers and then undocking them
+// bring back the rootcontainer title and floating
 // problem with several containers at the same time and rootcontainer
 // problem docking containers to rootcontainers
 // bar movement
@@ -33,11 +38,10 @@
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // resizable rootcontainer
 // maybe: rootcontainer with its own window & control of the window stack 
-// replace method in list for... insert/erase
 // problem docking empty containers to a rootcontainer
+// horizontal and vertical containers have active perpendicular edges?
+//   xx end xx
 // see docking thread in imgui github
-// horizontal and vertical containers have active perpendicular edges
-// use small_alpha to hide more stuff. Also, check Visible.
 
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
@@ -444,11 +448,15 @@ void Dock::drawRootContainer(Dock *root){
       dd->drawRootContainer(root);
     }
   } else if (this->type == Dock::Type_Container) {
+    // Draw the docked container window
+    bool transparentframe = this->currenttab;
     SetNextWindowPos(this->pos);
     SetNextWindowSize(this->size);
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
 	ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
 	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
+    if (transparentframe)
+      PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
     Begin(this->label,nullptr,this->flags);
     this->window = GetCurrentWindow();
     dockwin[this->window] = this;
@@ -457,6 +465,8 @@ void Dock::drawRootContainer(Dock *root){
     this->drawContainer(true);
     this->size_saved.y = this->tabbarrect.Max.y - this->pos.y;
     End();
+    if (transparentframe)
+      PopStyleColor();
   }
 }
 
@@ -777,6 +787,9 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   }
 
   // Render any container widgets in here
+  bool transparentframe = dd->currenttab;
+  if (transparentframe)
+    PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
   collapsed = !Begin(label,p_open,flags);
 
   // Fill the info for this dock
@@ -861,6 +874,9 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   }
 
   End();
+  if (transparentframe)
+    PopStyleColor();
+
   return dd;
 }
 

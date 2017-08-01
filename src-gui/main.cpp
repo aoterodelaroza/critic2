@@ -123,13 +123,13 @@ int main(int argc, char *argv[]){
     // ImGui::PopStyleVar();
     // if (show_scene6) ImGui::Container("contain2",&show_scene6);
 
-    ImGui::SetNextWindowPos(ImVec2(200,500),ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
     ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain");
     ImGui::Container("contain4");
-    // ImGui::Container("contain5");
-    // ImGui::Container("contain6");
-    // ImGui::Container("contain7");
+    ImGui::Container("contain5");
+    ImGui::Container("contain6");
+    ImGui::Container("contain7");
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
@@ -194,8 +194,8 @@ int main(int argc, char *argv[]){
       ImGui::EndDock();
     }
 
-    // ImGui::SetNextWindowPos(ImVec2(700,100),ImGuiSetCond_FirstUseEver);
-    // ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(900,100),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     if (ImGui::Begin("justawindow")){
       ImGui::Print(); // print docking information
     }
