@@ -21,8 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 // raisecurrenttab and sethovered use findhoveredcontainer
-// replace method in list for... insert/erase
-// check usage of dockht/dockwin
 //   xx rootcontainer xx
 // problems with docking external containers and then undocking them
 // bring back the rootcontainer title and floating
@@ -58,6 +56,7 @@ using namespace ImGui;
 static unordered_map<string,Dock*> dockht = {}; // global dock hash table (string key)
 static unordered_map<ImGuiWindow*,Dock*> dockwin = {}; // global dock hash table (window key)
 static Dock *FindHoveredContainer(int type = -1); // find the container hovered by the mouse
+static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta); // place a window relative to another in the window stack
 
 //xx// Dock context methods //xx//
 
@@ -84,6 +83,27 @@ static Dock *FindHoveredDock(int type){
     return dock;
   }
   return nullptr;
+}
+
+static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta){
+  ImGuiContext *g = GetCurrentContext();
+
+  if (!base || !moved) return;
+
+  int ibase = -1, imoved = -1;
+  for (int i = 0; i < g->Windows.Size; i++){
+    if (g->Windows[i] == base)
+      ibase = i;
+    if (g->Windows[i] == moved)
+      imoved = i;
+  }
+  if (ibase < 0 || imoved < 0 || imoved == ibase + idelta) return;
+  g->Windows.erase(g->Windows.begin() + imoved);
+  if (imoved < ibase) ibase--;
+  if (ibase + idelta > g->Windows.size())
+    g->Windows.push_back(moved);
+  else
+    g->Windows.insert(g->Windows.begin() + max(ibase + idelta,0),moved);
 }
 
 //xx// Dock methods //xx//
@@ -611,7 +631,7 @@ void Dock::drawTabBar(){
     if (this->currenttab && !IsAnyItemActive()){
       if (g->HoveredWindow == GetCurrentWindow())
         this->setContainerHoveredMovedActive(true);
-      this->raiseCurrentTab();
+      placeWindow(this->window,this->currenttab->window,+1);
     }
 
     // last item in the tabsx
@@ -635,28 +655,6 @@ void Dock::setContainerHoveredMovedActive(bool setid){
     g->MovedWindowMoveId = this->window->RootWindow->MoveId;
     if (setid)
       SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
-  }
-}
-
-void Dock::raiseCurrentTab(){
-  ImGuiContext *g = GetCurrentContext();
-
-  if (this->currenttab){
-    int ithis = -1, icont = -1;
-    for (int i = 0; i < g->Windows.Size; i++){
-      if (g->Windows[i] == this->currenttab->window)
-        ithis = i;
-      if (g->Windows[i] == this->window)
-        icont = i;
-    }
-    if (icont >= 0 && ithis >= 0){
-      g->Windows.erase(g->Windows.begin() + ithis);
-      if (ithis < icont) icont--;
-      if (icont >= g->Windows.size())
-        g->Windows.push_back(this->currenttab->window);
-      else
-        g->Windows.insert(g->Windows.begin() + icont + 1,this->currenttab->window);
-    }
   }
 }
 
@@ -870,7 +868,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   if (dd->currenttab){
     if (g->HoveredWindow == dd->window)
       dd->setContainerHoveredMovedActive(!IsAnyItemActive());
-    dd->raiseCurrentTab();
+    placeWindow(dd->window,dd->currenttab->window,+1);
   }
 
   End();
@@ -1017,8 +1015,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
         g->IO.MouseClicked[0]){
       dd->parent->setContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
     }
-    // Put it right on top of its container.
-    dd->parent->raiseCurrentTab();
+    // Move the container right under this dock
+    placeWindow(dd->window,dd->parent->window,-1);
     // If the resize grip is being used, resize the container too.
     if (g->ActiveId == dd->window->GetID("#RESIZE")){
       dd->parent->window->SizeFull = dd->window->Size + dd->parent->size_saved;
