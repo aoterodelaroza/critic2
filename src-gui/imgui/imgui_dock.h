@@ -47,6 +47,7 @@ namespace ImGui{
     ImVector<float> tabsx = {};
     ImGuiWindowFlags flags = 0; // flags for the window
     bool hidden = false; // whether a docked window is hidden
+    bool hoverable = true; // whether a window responds to being hovered
     bool collapsed = false; // whether a docked window is collapsed
     bool collapsed_saved = false; // saved collapsed (before docking)
     Type_ type = Type_None; // type of docking window

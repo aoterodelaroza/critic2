@@ -80,6 +80,39 @@ int main(int argc, char *argv[]){
     static bool show_scene5 = true;
     static bool show_scene6 = true;
 
+    // // for hovering checks // //
+    // ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // ImGui::Container("contain1");
+    // ImGui::SetNextWindowPos(ImVec2(250,20),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // ImGui::Container("contain2");
+    // ImGui::SetNextWindowPos(ImVec2(500,20),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // ImGui::Container("contain3");
+    // ImGui::SetNextWindowPos(ImVec2(20,250),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // ImGui::Container("contain4");
+    // ImGui::SetNextWindowPos(ImVec2(250,250),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // ImGui::Container("contain5");
+    // ImGui::SetNextWindowPos(ImVec2(500,250),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // ImGui::Container("contain6");
+    // ImGui::SetNextWindowPos(ImVec2(750,500),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // if (ImGui::BeginDock("dock1")){}
+    // ImGui::EndDock();
+    // ImGui::SetNextWindowPos(ImVec2(750,500),ImGuiSetCond_Once);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+    // if (ImGui::BeginDock("dock2")){}
+    // ImGui::EndDock();
+    // ImGui::SetNextWindowPos(ImVec2(200,500),ImGuiSetCond_FirstUseEver);
+    // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_FirstUseEver);
+    // ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain");
+    // // for hovering checks // //
+
+
     // ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.001);
     // if (show_scene6) {
     //   ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_Once);
@@ -88,15 +121,15 @@ int main(int argc, char *argv[]){
     // 		       ImGuiWindowFlags_NoBringToFrontOnFocus);
     // }
     // ImGui::PopStyleVar();
-    if (show_scene6) ImGui::Container("contain2",&show_scene6);
+    // if (show_scene6) ImGui::Container("contain2",&show_scene6);
 
-    ImGui::SetNextWindowPos(ImVec2(10,20),ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(500,500),ImGuiSetCond_FirstUseEver);
-    ImGui::Dock *cont3 = ImGui::RootContainer("contain3");
-    // ImGui::SetNextWindowPos(ImVec2(10,400),ImGuiSetCond_FirstUseEver);
-    // ImGui::SetNextWindowSize(ImVec2(300,200),ImGuiSetCond_FirstUseEver);
-    // ImGui::Dock *cont4 = ImGui::Container("contain4");
-
+    ImGui::SetNextWindowPos(ImVec2(200,500),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_FirstUseEver);
+    ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain");
+    ImGui::Container("contain4");
+    ImGui::Container("contain5");
+    ImGui::Container("contain6");
+    ImGui::Container("contain7");
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
@@ -161,8 +194,8 @@ int main(int argc, char *argv[]){
       ImGui::EndDock();
     }
 
-    ImGui::SetNextWindowPos(ImVec2(700,100),ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+    // ImGui::SetNextWindowPos(ImVec2(700,100),ImGuiSetCond_FirstUseEver);
+    // ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     if (ImGui::Begin("justawindow")){
       ImGui::Print(); // print docking information
     }

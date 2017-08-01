@@ -20,15 +20,11 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
+// problem with several containers at the same time and rootcontainer
+// problem docking containers to rootcontainers
 // bar movement
-// clipping in ismousehoveringrect()
-//  printf("visible: %d\n",GetCurrentContext()->HoveredWindow == this->window);
-//  // findhoveredwindow - write own version
-//  // !!isdockhovered!!
-//  make the container window invisible when docked, except the top
 // do not draw the container background when docked.
 // autoresize of the container - manual and in the public interface
-// better drop targets (minimum and maximum size?)
 // deal with the small container size problem
 // focus the whole rootcontainer on click
 // eliminate a bar by rightclicking on it
@@ -54,19 +50,33 @@
 using namespace ImGui;
 
 // Dock context declarations
-static unordered_map<string,Dock*> dockht = {}; // global dock hash table
-static Dock *getContainerAt(const ImVec2& pos); // get container at a given position
+static unordered_map<string,Dock*> dockht = {}; // global dock hash table (string key)
+static unordered_map<ImGuiWindow*,Dock*> dockwin = {}; // global dock hash table (window key)
+static Dock *FindHoveredContainer(int type = -1); // find the container hovered by the mouse
 
 //xx// Dock context methods //xx//
 
-static Dock *getContainerAt(const ImVec2& pos){
-  Dock *dd;
-  for (auto dpair : dockht){
-    dd = dpair.second;
-    if (dd->type != Dock::Type_Container) continue;
-    if (dd->status != Dock::Status_Open && dd->status != Dock::Status_Docked) continue;
-    if (IsMouseHoveringRect(dd->pos,dd->pos+dd->size,false))
-      return dd;
+static Dock *FindHoveredDock(int type){
+  ImGuiContext *g = GetCurrentContext();
+  for (int i = g->Windows.Size-1; i >= 0; i--){
+    ImGuiWindow *window = g->Windows[i];
+    if (window->Flags & ImGuiWindowFlags_NoInputs)
+      continue;
+    if (window->Flags & ImGuiWindowFlags_ChildWindow)
+      continue;
+    ImRect bb(window->WindowRectClipped.Min - g->Style.TouchExtraPadding, window->WindowRectClipped.Max + g->Style.TouchExtraPadding);
+    if (!bb.Contains(g->IO.MousePos))
+      continue;
+    Dock *dock = dockwin[window];
+    if (!dock || dock->collapsed)
+      return nullptr;
+    if (!dock->hoverable)
+      continue;
+    if (dock->hidden)
+      continue;
+    if (type >= 0 && dock->type != type)
+      return nullptr;
+    return dock;
   }
   return nullptr;
 }
@@ -81,8 +91,9 @@ bool Dock::IsMouseHoveringTabBar(){
 
 int Dock::IsMouseHoveringEdge(){
   // top, right, bottom, left
-  const ImVec2 x0[8] = {{0.2,0.0}, {0.9,0.2}, {0.2,0.9}, {0.0,0.2}};
-  const ImVec2 x1[8] = {{0.8,0.1}, {1.0,0.8}, {0.8,1.0}, {0.1,0.8}};
+  const ImVec2 x0[8] = {{0.0,0.0}, {0.9,0.0}, {0.0,0.9}, {0.0,0.0}};
+  const ImVec2 x1[8] = {{1.0,0.1}, {1.0,1.0}, {1.0,1.0}, {0.1,1.0}};
+  const float minsize = 20.f;
 
   ImVec2 xmin, xmax;
   for (int i=0; i<4; i++){
@@ -90,6 +101,15 @@ int Dock::IsMouseHoveringEdge(){
     xmax.x = this->pos.x + x1[i].x * this->size.x;
     xmin.y = this->pos.y + x0[i].y * this->size.y;
     xmax.y = this->pos.y + x1[i].y * this->size.y;
+    if (i == 0 && (xmax.y-xmin.y) < minsize)
+      xmax.y = xmin.y + min(minsize,0.5f * this->size.y);
+    else if (i == 2 && (xmax.y-xmin.y) < minsize)
+      xmin.y = xmax.y - min(minsize,0.5f * this->size.y);
+    else if (i == 3 && (xmax.x-xmin.x) < minsize)
+      xmax.x = xmin.x + min(minsize,0.5f * this->size.x);
+    else if (i == 1 && (xmax.x-xmin.x) < minsize)
+      xmin.x = xmax.x - min(minsize,0.5f * this->size.x);
+
     if (IsMouseHoveringRect(xmin,xmax,false))
       return i+1;
   }
@@ -243,6 +263,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     dcont->id = ImHash(label1,0);
     dcont->status == Dock::Status_Docked;
     dcont->automatic = true;
+    dcont->hoverable = true;
   }
 
   // new horizontal or vertical container
@@ -255,6 +276,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   dhv->type = type;
   dhv->id = ImHash(label2,0);
   dhv->status == Dock::Status_Docked;
+  dhv->hoverable = false;
   dhv->automatic = true;
 
   // build the new horizontal/vertical
@@ -293,6 +315,7 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     dcont->type = Dock::Type_Container;
     dcont->id = ImHash(label1,0);
     dcont->status == Dock::Status_Docked;
+    dcont->hoverable = true;
     dcont->automatic = true;
   }
 
@@ -331,6 +354,7 @@ void Dock::killContainerMaybe(){
       }
     }
     dockht.erase(string(this->label));
+    dockwin.erase(this->window);
     if (this) delete this;
     // Try to kill its parent
     dpar->killContainerMaybe();
@@ -349,6 +373,7 @@ void Dock::killContainerMaybe(){
       }
     }
     dockht.erase(string(this->label));
+    dockwin.erase(this->window);
     if (this) delete this;
     // Try to kill its parent
     dpar->killContainerMaybe();
@@ -420,12 +445,14 @@ void Dock::drawRootContainer(Dock *root){
   } else if (this->type == Dock::Type_Container) {
     SetNextWindowPos(this->pos);
     SetNextWindowSize(this->size);
-    this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoInputs|
+    this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
 	ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
 	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
     Begin(this->label,nullptr,this->flags);
     this->window = GetCurrentWindow();
+    dockwin[this->window] = this;
     this->status = Dock::Status_Docked;
+    this->hoverable = true;
     this->drawContainer(true);
     this->size_saved.y = this->tabbarrect.Max.y - this->pos.y;
     End();
@@ -474,6 +501,7 @@ void Dock::clearContainer(){
   ImVec2 pos = this->pos;
   for (auto dd : this->stack) {
     dd->status = Dock::Status_Open;
+    dd->hoverable = true;
     dd->control_window_this_frame = true;
     dd->size = dd->size_saved;
     dd->collapsed = dd->collapsed_saved;
@@ -527,11 +555,13 @@ void Dock::drawTabBar(){
       // lift the tab using the main button
       if (dragged){
         dd->status = Dock::Status_Dragged;
+	dd->hoverable = false;
         goto lift_this_tab;
       }
       // double click detaches the tab
       if (dclicked){
         dd->status = Dock::Status_Open;
+	dd->hoverable = true;
         goto lift_this_tab;
       }
       // closed click kills the tab
@@ -681,6 +711,7 @@ Dock *ImGui::RootContainer(const char* label){
     dcont->type = Dock::Type_Container;
     dcont->id = ImHash(tmp,0);
     dcont->status == Dock::Status_Docked;
+    dcont->hoverable = true;
     dcont->automatic = true;
     dd->stack.push_back(dcont);
   }
@@ -692,6 +723,7 @@ Dock *ImGui::RootContainer(const char* label){
 
   // set the properties of the rootcontainer window
   dd->window = GetCurrentWindow();
+  dockwin[dd->window] = dd;
   dd->pos = dd->window->Pos;
   dd->size = dd->window->Size;
   dd->flags = 0;
@@ -699,6 +731,7 @@ Dock *ImGui::RootContainer(const char* label){
   dd->root = dd;
   dd->collapsed = false;
   dd->status = Dock::Status_Open;
+  dd->hoverable = false;
 
   // Traverse the tree and draw all the bars
   dd->drawRootContainerBars(dd);
@@ -754,6 +787,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   dd->root = dd;
   dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
+  dockwin[dd->window] = dd;
   dd->p_open = p_open;
 
   // Update the status
@@ -761,10 +795,11 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
-    ddest = getContainerAt(GetIO().MousePos);
+    dd->hoverable = false;
+    ddest = FindHoveredDock(Dock::Type_Container);
   } else {
     int ithis = -1, iedge = 0;
-    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)));
+    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
     if (dropit && ddest->stack.empty() && ddest->parent && ddest->parent->type == Dock::Type_Root){
       // drop it into the root container
       for(auto it = ddest->parent->stack.begin(); it != ddest->parent->stack.end(); it++){ 
@@ -774,21 +809,26 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
 	}
       }
       dd->status = Dock::Status_Docked;
+      dd->hoverable = true;
     } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
       // drop into the edge
       dd->status = Dock::Status_Docked;
+      dd->hoverable = true;
       ddest->newDockRoot(dd,iedge);
     } else {
       // Stationary -> open, closed, or collapsed
       if (!p_open || *p_open){
 	if (collapsed){
 	  dd->status = Dock::Status_Collapsed;
+	  dd->hoverable = true;
 	}
 	else{
 	  dd->status = Dock::Status_Open;
+	  dd->hoverable = true;
 	}
       } else {
 	dd->status = Dock::Status_Closed;
+	dd->hoverable = false;
       }
     }
   }
@@ -841,6 +881,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     if (oncedock){
       oncedock->newDock(dd,-1);
       dd->status = Dock::Status_Docked;
+      dd->hoverable = false;
       dd->control_window_this_frame = true;
       dd->showTabWindow(oncedock,dd->flags & ImGuiWindowFlags_NoResize);
       dd->parent = oncedock;
@@ -867,6 +908,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       // dragged.
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
+      dockwin[dd->window] = dd;
       FocusWindow(dd->window);
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
@@ -877,6 +919,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       // the window has just been lifted, but not dragging
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
+      dockwin[dd->window] = dd;
       FocusWindow(dd->window);
       dd->parent->killContainerMaybe();
       dd->parent = nullptr;
@@ -895,6 +938,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->flags = flags;
   dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
+  dockwin[dd->window] = dd;
   dd->p_open = p_open;
   dd->control_window_this_frame = false;
 
@@ -903,28 +947,34 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
-    ddest = getContainerAt(GetIO().MousePos);
+    dd->hoverable = false;
+    ddest = FindHoveredDock(Dock::Type_Container);
   } else {
     int ithis = -1, iedge = 0;
-    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = getContainerAt(GetIO().MousePos)));
+    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
     if (dropit && (ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){
       // Just stopped dragging and there is a container below
       dd->status = Dock::Status_Docked;
+      dd->hoverable = false;
       ddest->newDock(dd,ithis);
     } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
       dd->status = Dock::Status_Docked;
+      dd->hoverable = false;
       ddest->newDockRoot(dd,iedge);
     } else if (dd->status != Dock::Status_Docked){
       // Stationary -> open, closed, or collapsed
       if (!p_open || *p_open){
         if (collapsed){
           dd->status = Dock::Status_Collapsed;
+	  dd->hoverable = true;
         }
         else{
           dd->status = Dock::Status_Open;
+	  dd->hoverable = true;
         }
       } else {
         dd->status= Dock::Status_Closed;
+	dd->hoverable = false;
       }
       dd->parent = nullptr;
     }
@@ -958,6 +1008,13 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     }
   }
 
+  // xxxx //
+  Dock *dtest = FindHoveredDock(Dock::Type_Container);
+  if (dtest)
+    printf("Hovered: %s\n",dtest->label);
+  else
+    printf("None Hovered\n");
+
   return !collapsed;
 }
 
@@ -975,18 +1032,18 @@ void ImGui::Print() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  for (auto dock : dockht){
-    Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
-    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-    if (dock.second->p_open)
-      Text("p_open=%d\n", *(dock.second->p_open));
-  }
-
-  // ImGuiContext *g = GetCurrentContext();
-  // for (int i = 0; i < g->Windows.Size; i++){
-  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  // for (auto dock : dockht){
+  //   Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
+  //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+  //   Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+  //   if (dock.second->p_open)
+  //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
+
+  ImGuiContext *g = GetCurrentContext();
+  for (int i = 0; i < g->Windows.Size; i++){
+    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  }
 
   // where is g.hoveredrootwindow set?
   // void ImGui::SetHoveredID(ImGuiID id)
@@ -999,5 +1056,6 @@ void ImGui::ShutdownDock(){
     if (dpair.second) delete dpair.second;
   }
   dockht.clear();
+  dockwin.clear();
 }
 
