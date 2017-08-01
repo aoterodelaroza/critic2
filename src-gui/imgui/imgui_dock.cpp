@@ -20,6 +20,7 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
+// raisecurrenttab and sethovered use findhoveredcontainer
 // problem with several containers at the same time and rootcontainer
 // problem docking containers to rootcontainers
 // bar movement
@@ -1008,12 +1009,12 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     }
   }
 
-  // xxxx //
-  Dock *dtest = FindHoveredDock(Dock::Type_Container);
-  if (dtest)
-    printf("Hovered: %s\n",dtest->label);
-  else
-    printf("None Hovered\n");
+  // // xxxx //
+  // Dock *dtest = FindHoveredDock(Dock::Type_Container);
+  // if (dtest)
+  //   printf("Hovered: %s\n",dtest->label);
+  // else
+  //   printf("None Hovered\n");
 
   return !collapsed;
 }
