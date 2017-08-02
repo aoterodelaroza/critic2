@@ -96,6 +96,9 @@ namespace ImGui{
     Dock *OpRoot_AddToHV(bool before,Dock *dcont=nullptr);
     // Kill an automatic container if it is empty
     void killContainerMaybe();
+    // Kill a dock. If a parent is given, elminiate it from the stack
+    // if present. If replacement is given, replace it in the stack.
+    void killDock(Dock *parent=nullptr, Dock *replacement=nullptr);
     // Draw container
     void drawContainer(bool allowresize);
     // Traverse the tree of a root container and draw all containers in it

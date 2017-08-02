@@ -39,6 +39,7 @@
 // horizontal and vertical containers have active perpendicular edges?
 //   xx end xx
 // triangles in the tabs; overlap
+// clean up all methods
 // see docking thread in imgui github
 
 #include "imgui.h"
@@ -72,11 +73,11 @@ static Dock *FindHoveredDock(int type){
     if (!bb.Contains(g->IO.MousePos))
       continue;
     Dock *dock = dockwin[window];
-    if (!dock || dock->collapsed)
-      return nullptr;
-    if (!dock->hoverable)
+    if (!dock)
       continue;
-    if (dock->hidden)
+    if (dock->collapsed)
+      return nullptr;
+    if (!dock->hoverable || dock->hidden)
       continue;
     if (type >= 0 && dock->type != type)
       return nullptr;
@@ -371,16 +372,8 @@ void Dock::killContainerMaybe(){
     // An empty container
     // Do not remove the last container from a root container, even if it's empty
     if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
+    this->killDock(dpar);
 
-    for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
-      if (*it == this){
-	dpar->stack.erase(it);
-	break;
-      }
-    }
-    dockht.erase(string(this->label));
-    dockwin.erase(this->window);
-    if (this) delete this;
     // Try to kill its parent
     dpar->killContainerMaybe();
   } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.empty()){
@@ -391,18 +384,28 @@ void Dock::killContainerMaybe(){
   } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
     // This vertical/horizontal container only has window -> eliminate
     // it and connect the single window to its parent
-    for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
-      if (*it == this){
-	dpar->stack.insert(dpar->stack.erase(it),this->stack.back());
-	break;
-      }
-    }
-    dockht.erase(string(this->label));
-    dockwin.erase(this->window);
-    if (this) delete this;
+    this->killDock(dpar,this->stack.back());
+
     // Try to kill its parent
     dpar->killContainerMaybe();
   }
+}
+
+void Dock::killDock(Dock *parent/*=nullptr*/, Dock *replacement/*=nullptr*/){
+  if (parent){
+    for(auto it = parent->stack.begin(); it != parent->stack.end(); it++){ 
+      if (*it == this){
+	if (!replacement)
+	  parent->stack.erase(it);
+	else
+	  parent->stack.insert(parent->stack.erase(it),replacement);
+	break;
+      }
+    }
+  }
+  dockht.erase(string(this->label));
+  dockwin.erase(this->window);
+  if (this) delete this;
 }
 
 void Dock::drawContainer(bool noresize){
@@ -833,13 +836,8 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     int ithis = -1, iedge = 0;
     bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
     if (dropit && ddest->stack.empty() && ddest->parent && ddest->parent->type == Dock::Type_Root){
-      // drop it into the root container
-      for(auto it = ddest->parent->stack.begin(); it != ddest->parent->stack.end(); it++){ 
-	if (*it == ddest){
-	  ddest->parent->stack.insert(ddest->parent->stack.erase(it),dd);
-	  break;
-	}
-      }
+      // drop it into the root container and replace it
+      ddest->killDock(ddest->parent,dd);
       dd->status = Dock::Status_Docked;
       dd->hoverable = true;
     } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
