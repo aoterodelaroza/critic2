@@ -131,10 +131,11 @@ int main(int argc, char *argv[]){
       ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
       ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7);
     }
-    ImGui::Container("contain4");
-    ImGui::Container("contain5");
-    ImGui::Container("contain6");
-    ImGui::Container("contain7");
+    // ImGui::Container("contain4");
+    // ImGui::Container("contain5");
+    // ImGui::Container("contain6");
+    if (show_scene9) ImGui::Container("contain7",&show_scene9);
+
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);

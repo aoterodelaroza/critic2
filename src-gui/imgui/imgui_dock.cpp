@@ -21,9 +21,7 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// correct cascade
 // fixing hovering over debug and over a non-dock window (visible)
-// problem docking non-automatic containers to rootcontainers
 // bar movement
 // autoresize of the container - manual and in the public interface
 // deal with the small container size problem (xxxx minimum size)
@@ -102,6 +100,18 @@ static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta){
     g->Windows.push_back(moved);
   else
     g->Windows.insert(g->Windows.begin() + max(ibase + idelta,0),moved);
+}
+
+static void raiseWindow(ImGuiWindow* win){
+  ImGuiContext *g = GetCurrentContext();
+  if (!win) return;
+
+  for (int i = 0; i < g->Windows.Size; i++)
+    if (g->Windows[i] == win){
+      g->Windows.erase(g->Windows.begin() + i);
+      break;
+    }
+  g->Windows.push_back(win);
 }
 
 //xx// Dock methods //xx//
@@ -631,6 +641,7 @@ void Dock::drawTabBar(){
       dd->size = dd->size_saved;
       dd->collapsed = dd->collapsed_saved;
       dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
+      raiseWindow(dd->window);
 
     erase_this_tab:
       dderase = dd;
@@ -671,6 +682,7 @@ void Dock::clearContainer(){
     dd->collapsed = dd->collapsed_saved;
     dd->pos = pos;
     pos = pos + ImVec2(increment,increment);
+    raiseWindow(dd->window);
   }
   this->currenttab = nullptr;
   this->stack.clear();
@@ -700,6 +712,7 @@ void Dock::clearRootContainer(){
 	dd->collapsed = dd->collapsed_saved;
 	dd->pos = dd->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
 	(this->root->nchild)++;
+	raiseWindow(dd->window);
       }
       this->killDock();
     } else {
@@ -710,6 +723,7 @@ void Dock::clearRootContainer(){
       this->collapsed = this->collapsed_saved;
       this->pos = this->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
       (this->root->nchild)++;
+      raiseWindow(this->window);
     }
   }
 }
@@ -718,25 +732,11 @@ void Dock::focusContainer(){
   ImGuiContext *g = GetCurrentContext();
 
   // Push the container and the docked window to the top of the stack
-  if (this->root){
-    for (int i = 0; i < g->Windows.Size; i++){
-      if (g->Windows[i] == this->root->window)
-	g->Windows.erase(g->Windows.begin() + i);
-    }
-    g->Windows.push_back(this->root->window);
-  }
-  for (int i = 0; i < g->Windows.Size; i++){
-    if (g->Windows[i] == this->window)
-      g->Windows.erase(g->Windows.begin() + i);
-  }
-  g->Windows.push_back(this->window);
-  if (this->currenttab){
-    for (int i = 0; i < g->Windows.Size; i++){
-      if (g->Windows[i] == this->currenttab->window)
-	g->Windows.erase(g->Windows.begin() + i);
-    }
-    g->Windows.push_back(this->currenttab->window);
-  }
+  if (this->root)
+    raiseWindow(this->root->window);
+  raiseWindow(this->window);
+  if (this->currenttab)
+    raiseWindow(this->currenttab->window);
 
   // The docked window becomes focused, if possible. Otherwise, the container
   if (!this->currenttab){
@@ -1048,7 +1048,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
       dockwin[dd->window] = dd;
-      FocusWindow(dd->window);
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
       SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
@@ -1060,7 +1059,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
       dockwin[dd->window] = dd;
-      FocusWindow(dd->window);
       dd->parent->killContainerMaybe();
       dd->parent = nullptr;
       dd->root = nullptr;
@@ -1155,6 +1153,7 @@ void ImGui::EndDock() {
 }
 
 void ImGui::Print() {
+  ImGuiContext *g = GetCurrentContext();
   // for (auto dock : dockht){
   //   Text("key=%s id=%d label=%s\n", dock.first,dock.second->id,dock.second->label);
   //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
@@ -1164,16 +1163,15 @@ void ImGui::Print() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  for (auto dock : dockht){
-    Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
-    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-    if (dock.second->p_open)
-      Text("p_open=%d\n", *(dock.second->p_open));
-    Separator();
-  }
+  // for (auto dock : dockht){
+  //   Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
+  //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+  //   Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+  //   if (dock.second->p_open)
+  //     Text("p_open=%d\n", *(dock.second->p_open));
+  //   Separator();
+  // }
 
-  // ImGuiContext *g = GetCurrentContext();
   // if (g->HoveredWindow)
   //   Text("Hovered: %s\n",g->HoveredWindow->Name);
   // else
@@ -1186,9 +1184,9 @@ void ImGui::Print() {
   //   Text("Mouse clicked!\n");
   // else
   //   Text("Mouse not clicked!\n");
-  // for (int i = 0; i < g->Windows.Size; i++){
-  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
-  // }
+  for (int i = 0; i < g->Windows.Size; i++){
+    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  }
 
 }
 
