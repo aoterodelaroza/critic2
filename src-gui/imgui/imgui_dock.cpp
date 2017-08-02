@@ -21,7 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// window closing (xxxx minimum size)
 // correct cascade
 // fixing hovering over debug and over a non-dock window (visible)
 // problem docking non-automatic containers to rootcontainers
@@ -359,7 +358,7 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
 }
 
 void Dock::OpRoot_FillEmpty(){
-  if (!this->stack.empty()) return;
+  if (!this->stack.empty() || this->type != Dock::Type_Root) return;
 
   char tmp[strlen(this->label)+15];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",this->label,++(this->nchild));
@@ -509,7 +508,7 @@ void Dock::drawRootContainer(Dock *root){
       this->window = GetCurrentWindow();
       dockwin[this->window] = this;
       this->drawContainer(true);
-      this->size_saved.y = this->tabbarrect.Max.y - this->pos.y;
+      this->tabdz = this->tabbarrect.Max.y - this->pos.y;
       End();
       if (transparentframe)
 	PopStyleColor();
@@ -522,11 +521,6 @@ void Dock::drawRootContainer(Dock *root){
       placeWindow(this->root->window,this->window,+1);
       if (this->currenttab)
 	placeWindow(this->window,this->currenttab->window,+1);
-    } else {
-      this->hidden = true;
-      if (this->currenttab)
-	this->currenttab->hidden = true;
-      this->size_saved = ImVec2(0.f,0.f);
     }
   }
 }
@@ -698,15 +692,24 @@ void Dock::clearRootContainer(){
     this->killDock();
   } else if (this->type == Dock::Type_Container) {
     if (this->automatic){
+      for (auto dd : this->stack) {
+	dd->control_window_this_frame = true;
+	dd->status = Dock::Status_Open;
+	dd->hoverable = true;
+	dd->size = dd->size_saved;
+	dd->collapsed = dd->collapsed_saved;
+	dd->pos = dd->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
+	(this->root->nchild)++;
+      }
       this->killDock();
     } else {
+      this->control_window_this_frame = true;
       this->status = Dock::Status_Open;
       this->hoverable = true;
-      this->control_window_this_frame = true;
       this->size = this->size_saved;
       this->collapsed = this->collapsed_saved;
-      this->pos = this->root->pos + ImVec2(this->nchild * increment,this->nchild * increment);
-      (this->nchild)++;
+      this->pos = this->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
+      (this->root->nchild)++;
     }
   }
 }
@@ -820,7 +823,6 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   dd->window = GetCurrentWindow();
   dd->pos = dd->window->Pos + ImVec2(0.f,dd->window->TitleBarHeight());
   dd->size = dd->window->Size - ImVec2(0.f,dd->window->TitleBarHeight());
-  dd->size_saved = ImVec2(0.,0.);
   dd->type = Dock::Type_Root;
   dd->flags = extra_flags;
   dd->root = dd;
@@ -889,9 +891,17 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   if (dd->status == Dock::Status_Docked) 
     return dd;
 
+  // Set the position, size, etc. if it was controlled by a root container
+  if (dd->control_window_this_frame){
+    dd->control_window_this_frame = false;
+    SetNextWindowPos(dd->pos);
+    SetNextWindowSize(dd->size);
+    SetNextWindowCollapsed(dd->collapsed);
+  }
+
   // If the container has a window docked, set the minimum size.
   if (dd->currenttab){
-    SetNextWindowSizeConstraints(dd->size_saved,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+    SetNextWindowSizeConstraints(ImVec2(0.f,dd->tabdz),ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
     flags = flags | ImGuiWindowFlags_NoResize;
   } else {
     SetNextWindowSizeConstraints(ImVec2(0.,4*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y)),
@@ -907,11 +917,12 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   // Fill the info for this dock
   dd->pos = GetWindowPos();
   dd->size = GetWindowSize();
-  dd->size_saved = ImVec2(0.,0.);
   dd->type = Dock::Type_Container;
   dd->flags = extra_flags;
   dd->root = nullptr;
   dd->collapsed = collapsed;
+  dd->collapsed_saved = dd->collapsed;
+  if (!collapsed) dd->size_saved = dd->size;
   dd->window = GetCurrentWindow();
   dockwin[dd->window] = dd;
   dd->p_open = p_open;
@@ -970,7 +981,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
 
   // Draw the container elements
   dd->drawContainer(extra_flags & ImGuiWindowFlags_NoResize);
-  dd->size_saved.y = dd->tabbarrect.Max.y - dd->pos.y;
+  dd->tabdz = dd->tabbarrect.Max.y - dd->pos.y;
 
   // If the container is clicked, set the correct hovered/moved flags
   // and raise container & docked window to the top of the stack.
@@ -1016,6 +1027,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
     // Docked or lifted: position and size are controlled
+    dd->control_window_this_frame = false;
     SetNextWindowPos(dd->pos);
     SetNextWindowSize(dd->size);
     SetNextWindowCollapsed(dd->collapsed);
@@ -1132,7 +1144,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     placeWindow(dd->window,dd->parent->window,-1);
     // If the resize grip is being used, resize the container too.
     if (g->ActiveId == dd->window->GetID("#RESIZE"))
-      dd->parent->window->SizeFull = dd->window->Size + dd->parent->size_saved;
+      dd->parent->window->SizeFull = dd->window->Size + ImVec2(0.f,dd->parent->tabdz);
   }
 
   return !collapsed;
@@ -1152,35 +1164,32 @@ void ImGui::Print() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  // for (auto dock : dockht){
-  //   Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
-  //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-  //   Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-  //   if (dock.second->p_open)
-  //     Text("p_open=%d\n", *(dock.second->p_open));
-  // }
-
-  ImGuiContext *g = GetCurrentContext();
-  if (g->HoveredWindow)
-    Text("Hovered: %s\n",g->HoveredWindow->Name);
-  else
-    Text("Hovered: none\n");
-  if (g->HoveredRootWindow)
-    Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
-  else
-    Text("HoveredRoot: none\n");
-  if (g->IO.MouseClicked[0])
-    Text("Mouse clicked!\n");
-  else
-    Text("Mouse not clicked!\n");
-  for (int i = 0; i < g->Windows.Size; i++){
-    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  for (auto dock : dockht){
+    Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
+    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+    Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+    if (dock.second->p_open)
+      Text("p_open=%d\n", *(dock.second->p_open));
+    Separator();
   }
 
-  // where is g.hoveredrootwindow set?
-  // void ImGui::SetHoveredID(ImGuiID id)
-  //    g.HoveredId = id;
-  //    g.HoveredIdAllowOverlap = false;
+  // ImGuiContext *g = GetCurrentContext();
+  // if (g->HoveredWindow)
+  //   Text("Hovered: %s\n",g->HoveredWindow->Name);
+  // else
+  //   Text("Hovered: none\n");
+  // if (g->HoveredRootWindow)
+  //   Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
+  // else
+  //   Text("HoveredRoot: none\n");
+  // if (g->IO.MouseClicked[0])
+  //   Text("Mouse clicked!\n");
+  // else
+  //   Text("Mouse not clicked!\n");
+  // for (int i = 0; i < g->Windows.Size; i++){
+  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  // }
+
 }
 
 void ImGui::ShutdownDock(){

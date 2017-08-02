@@ -126,9 +126,11 @@ int main(int argc, char *argv[]){
     // ImGui::PopStyleVar();
     // if (show_scene6) ImGui::Container("contain2",&show_scene6);
 
-    ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
-    if (show_scene7) ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7);
+    if (show_scene7) {
+      ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
+      ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
+      ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7);
+    }
     ImGui::Container("contain4");
     ImGui::Container("contain5");
     ImGui::Container("contain6");
