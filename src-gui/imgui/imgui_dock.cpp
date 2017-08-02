@@ -70,10 +70,10 @@ static Dock *FindHoveredDock(int type){
     Dock *dock = dockwin[window];
     if (!dock)
       continue;
-    if (dock->collapsed)
-      return nullptr;
     if (!dock->hoverable || dock->hidden)
       continue;
+    if (dock->collapsed)
+      return nullptr;
     if (type >= 0 && dock->type != type)
       return nullptr;
     return dock;
@@ -499,6 +499,7 @@ void Dock::drawRootContainer(Dock *root){
     // Draw the docked container window
     this->status = Dock::Status_Docked;
     this->hoverable = true;
+    this->collapsed = false;
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
       ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
       ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
@@ -512,6 +513,7 @@ void Dock::drawRootContainer(Dock *root){
 
       SetNextWindowPos(this->pos);
       SetNextWindowSize(this->size);
+      SetNextWindowCollapsed(this->collapsed);
       if (transparentframe)
 	PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
       Begin(this->label,nullptr,this->flags);
