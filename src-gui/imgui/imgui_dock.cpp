@@ -21,7 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// fixing hovering over debug and over a non-dock window (visible)
 // bar movement
 // autoresize of the container - manual and in the public interface
 // deal with the small container size problem (xxxx minimum size)
@@ -69,7 +68,7 @@ static Dock *FindHoveredDock(int type){
       continue;
     Dock *dock = dockwin[window];
     if (!dock)
-      continue;
+      return nullptr;
     if (!dock->hoverable || dock->hidden)
       continue;
     if (dock->collapsed)
