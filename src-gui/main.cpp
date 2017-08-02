@@ -128,7 +128,7 @@ int main(int argc, char *argv[]){
 
     ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
-    if (show_scene7) ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7,0);
+    if (show_scene7) ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7);
     ImGui::Container("contain4");
     ImGui::Container("contain5");
     ImGui::Container("contain6");

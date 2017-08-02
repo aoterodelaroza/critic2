@@ -754,14 +754,14 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   collapsed = !Begin(label,p_open,flags);
 
   // set the properties of the rootcontainer window
-  dd->pos = GetWindowPos();
-  dd->size = GetWindowSize();
+  dd->window = GetCurrentWindow();
+  dd->pos = dd->window->Pos + ImVec2(0.f,dd->window->TitleBarHeight());
+  dd->size = dd->window->Size - ImVec2(0.f,dd->window->TitleBarHeight());
   dd->size_saved = ImVec2(0.,0.);
   dd->type = Dock::Type_Root;
   dd->flags = extra_flags;
   dd->root = dd;
   dd->collapsed = collapsed;
-  dd->window = GetCurrentWindow();
   dockwin[dd->window] = dd;
   dd->p_open = p_open;
   dd->hoverable = false;
@@ -770,21 +770,17 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;
-    dd->hoverable = false;
   } else {
     // Stationary -> open, closed, or collapsed
     if (!p_open || *p_open){
       if (collapsed){
 	dd->status = Dock::Status_Collapsed;
-	dd->hoverable = true;
       }
       else{
 	dd->status = Dock::Status_Open;
-	dd->hoverable = true;
       }
     } else {
       dd->status = Dock::Status_Closed;
-      dd->hoverable = false;
     }
   }
 
@@ -1017,6 +1013,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       dd->hoverable = false;
       ddest->newDock(dd,ithis);
     } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
+      // stopped dragging and there is a root container below
       dd->status = Dock::Status_Docked;
       dd->hoverable = false;
       ddest->newDockRoot(dd,iedge);
