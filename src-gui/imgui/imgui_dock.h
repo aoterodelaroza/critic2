@@ -118,6 +118,8 @@ namespace ImGui{
     // Raise this dock if not nobringonfocus. Otherwise sink only if
     // sink is true.
     void raiseOrSinkDock(bool sink=false);
+    // Raise this dock
+    void raiseDock();
     // focus a Container and maybe move its docked window up
     void focusContainer();
     // Hide the window corresponding to a docked tab in container dcont

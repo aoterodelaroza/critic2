@@ -743,15 +743,35 @@ void Dock::raiseOrSinkDock(bool sink/*=false*/){
     g->Windows.push_back(this->window);
 }
 
+void Dock::raiseDock(){
+  ImGuiContext *g = GetCurrentContext();
+  if (!this->window) return;
+
+  for (int i = 0; i < g->Windows.Size; i++)
+    if (g->Windows[i] == this->window){
+      g->Windows.erase(g->Windows.begin() + i);
+      break;
+    }
+  g->Windows.push_back(this->window);
+}
+
 void Dock::focusContainer(){
   ImGuiContext *g = GetCurrentContext();
 
-  // Push the container and the docked window to the top of the stack
+  bool raise = true;
   if (this->root)
-    this->root->raiseOrSinkDock(true);
-  this->raiseOrSinkDock(true);
-  if (this->currenttab)
-    this->currenttab->raiseOrSinkDock(true);
+    raise = !(this->root->flags & ImGuiWindowFlags_NoBringToFrontOnFocus);
+  else 
+    raise = !(this->flags & ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+  // Push the container and the docked window to the top of the stack
+  if (raise){
+    if (this->root)
+      this->root->raiseDock();
+    this->raiseDock();
+    if (this->currenttab)
+      this->currenttab->raiseDock();
+  }
 
   // The docked window becomes focused, if possible. Otherwise, the container
   if (!this->currenttab){
@@ -1107,7 +1127,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->status = Dock::Status_Dragged;
     dd->hoverable = false;
     ddest = FindHoveredDock(Dock::Type_Container);
-    printf("%p\n",ddest);
   } else {
     int ithis = -1, iedge = 0;
     bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
@@ -1157,8 +1176,12 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       dd->parent->focusContainer();
 
   if (dd->status == Dock::Status_Docked && !dd->hidden){
-    // Move the container right under this dock
-    if (!(dd->parent->flags & ImGuiWindowFlags_NoBringToFrontOnFocus))
+    // Move the container right under this dock or, if either is
+    // noraise, move the dock on top of the container
+    if (dd->parent->flags & ImGuiWindowFlags_NoBringToFrontOnFocus ||
+	dd->flags & ImGuiWindowFlags_NoBringToFrontOnFocus)
+      placeWindow(dd->parent->window,dd->window,+1);
+    else
       placeWindow(dd->window,dd->parent->window,-1);
     // If the resize grip is being used, resize the container too.
     if (g->ActiveId == dd->window->GetID("#RESIZE"))
@@ -1184,30 +1207,32 @@ void ImGui::Print() {
   // }
 
   // for (auto dock : dockht){
-  //   Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
-  //   Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-  //   Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-  //   if (dock.second->p_open)
-  //     Text("p_open=%d\n", *(dock.second->p_open));
+  //   Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
+  // 	 dock.second->flags & ImGuiWindowFlags_NoBringToFrontOnFocus,
+  // 	 dock.second->flags_saved & ImGuiWindowFlags_NoBringToFrontOnFocus);
+  //   // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
+  //   // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+  //   // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+  //   // if (dock.second->p_open)
+  //   //   Text("p_open=%d\n", *(dock.second->p_open));
   //   Separator();
   // }
 
-  // if (g->HoveredWindow)
-  //   Text("Hovered: %s\n",g->HoveredWindow->Name);
-  // else
-  //   Text("Hovered: none\n");
-  // if (g->HoveredRootWindow)
-  //   Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
-  // else
-  //   Text("HoveredRoot: none\n");
-  // if (g->IO.MouseClicked[0])
-  //   Text("Mouse clicked!\n");
-  // else
-  //   Text("Mouse not clicked!\n");
+  if (g->HoveredWindow)
+    Text("Hovered: %s\n",g->HoveredWindow->Name);
+  else
+    Text("Hovered: none\n");
+  if (g->HoveredRootWindow)
+    Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
+  else
+    Text("HoveredRoot: none\n");
+  if (g->IO.MouseClicked[0])
+    Text("Mouse clicked!\n");
+  else
+    Text("Mouse not clicked!\n");
   for (int i = 0; i < g->Windows.Size; i++){
     Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
   }
-
 }
 
 void ImGui::ShutdownDock(){
