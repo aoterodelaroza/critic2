@@ -46,6 +46,7 @@ namespace ImGui{
     ImRect tabbarrect = {}; // rectangle for the container tab bar
     ImVector<float> tabsx = {};
     ImGuiWindowFlags flags = 0; // flags for the window
+    ImGuiWindowFlags flags_saved = 0; // flags for the window (before docking)
     bool hidden = false; // whether a docked window is hidden
     bool hoverable = true; // whether a window responds to being hovered
     bool collapsed = false; // whether a docked window is collapsed
@@ -114,6 +115,9 @@ namespace ImGui{
     void clearContainer();
     // Kill a root container
     void clearRootContainer();
+    // Raise this dock if not nobringonfocus. Otherwise sink only if
+    // sink is true.
+    void raiseOrSinkDock(bool sink=false);
     // focus a Container and maybe move its docked window up
     void focusContainer();
     // Hide the window corresponding to a docked tab in container dcont

@@ -50,7 +50,7 @@ using namespace ImGui;
 // Dock context declarations
 static unordered_map<string,Dock*> dockht = {}; // global dock hash table (string key)
 static unordered_map<ImGuiWindow*,Dock*> dockwin = {}; // global dock hash table (window key)
-static Dock *FindHoveredContainer(int type = -1); // find the container hovered by the mouse
+static Dock *FindHoveredDock(int type = -1); // find the container hovered by the mouse
 static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta); // place a window relative to another in the window stack
 
 //xx// Dock context methods //xx//
@@ -68,13 +68,18 @@ static Dock *FindHoveredDock(int type){
       continue;
     Dock *dock = dockwin[window];
     if (!dock)
-      return nullptr;
+      if (!(window->WasActive)) // this window is not on the screen
+	continue;
+      else
+	return nullptr;
     if (!dock->hoverable || dock->hidden)
       continue;
-    if (dock->collapsed)
+    if (dock->collapsed){
       return nullptr;
-    if (type >= 0 && dock->type != type)
+    }
+    if (type >= 0 && dock->type != type){
       return nullptr;
+    }
     return dock;
   }
   return nullptr;
@@ -99,18 +104,6 @@ static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta){
     g->Windows.push_back(moved);
   else
     g->Windows.insert(g->Windows.begin() + max(ibase + idelta,0),moved);
-}
-
-static void raiseWindow(ImGuiWindow* win){
-  ImGuiContext *g = GetCurrentContext();
-  if (!win) return;
-
-  for (int i = 0; i < g->Windows.Size; i++)
-    if (g->Windows[i] == win){
-      g->Windows.erase(g->Windows.begin() + i);
-      break;
-    }
-  g->Windows.push_back(win);
 }
 
 //xx// Dock methods //xx//
@@ -641,8 +634,9 @@ void Dock::drawTabBar(){
       dd->control_window_this_frame = true;
       dd->size = dd->size_saved;
       dd->collapsed = dd->collapsed_saved;
+      dd->flags = dd->flags_saved;
       dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
-      raiseWindow(dd->window);
+      dd->raiseOrSinkDock(true);
 
     erase_this_tab:
       dderase = dd;
@@ -681,9 +675,10 @@ void Dock::clearContainer(){
     dd->control_window_this_frame = true;
     dd->size = dd->size_saved;
     dd->collapsed = dd->collapsed_saved;
+    dd->flags = dd->flags_saved;
     dd->pos = pos;
     pos = pos + ImVec2(increment,increment);
-    raiseWindow(dd->window);
+    dd->raiseOrSinkDock(true);
   }
   this->currenttab = nullptr;
   this->stack.clear();
@@ -711,9 +706,10 @@ void Dock::clearRootContainer(){
 	dd->hoverable = true;
 	dd->size = dd->size_saved;
 	dd->collapsed = dd->collapsed_saved;
+	dd->flags = dd->flags_saved;
 	dd->pos = dd->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
 	(this->root->nchild)++;
-	raiseWindow(dd->window);
+	dd->raiseOrSinkDock(true);
       }
       this->killDock();
     } else {
@@ -722,11 +718,29 @@ void Dock::clearRootContainer(){
       this->hoverable = true;
       this->size = this->size_saved;
       this->collapsed = this->collapsed_saved;
+      this->flags = this->flags_saved;
       this->pos = this->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
       (this->root->nchild)++;
-      raiseWindow(this->window);
+      this->raiseOrSinkDock(true);
     }
   }
+}
+
+void Dock::raiseOrSinkDock(bool sink/*=false*/){
+  ImGuiContext *g = GetCurrentContext();
+  if (!this->window) return;
+  if ((this->flags & ImGuiWindowFlags_NoBringToFrontOnFocus) && !sink) return;
+
+  for (int i = 0; i < g->Windows.Size; i++)
+    if (g->Windows[i] == this->window){
+      g->Windows.erase(g->Windows.begin() + i);
+      break;
+    }
+  if ((this->flags & ImGuiWindowFlags_NoBringToFrontOnFocus) &&
+      g->Windows.front() != this->window)
+    g->Windows.insert(g->Windows.begin(),this->window);
+  else
+    g->Windows.push_back(this->window);
 }
 
 void Dock::focusContainer(){
@@ -734,10 +748,10 @@ void Dock::focusContainer(){
 
   // Push the container and the docked window to the top of the stack
   if (this->root)
-    raiseWindow(this->root->window);
-  raiseWindow(this->window);
+    this->root->raiseOrSinkDock(true);
+  this->raiseOrSinkDock(true);
   if (this->currenttab)
-    raiseWindow(this->currenttab->window);
+    this->currenttab->raiseOrSinkDock(true);
 
   // The docked window becomes focused, if possible. Otherwise, the container
   if (!this->currenttab){
@@ -858,6 +872,7 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   if (!collapsed)
     dd->drawRootContainerBars(dd);
 
+  // xxxx //
   // If the root container is clicked, focus any
   // if (!dd->stack.empty() && g->IO.MouseClicked[0] && g->HoveredRootWindow == dd->window)
   //   dd->stack.front()->focusContainer();
@@ -920,6 +935,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   dd->size = GetWindowSize();
   dd->type = Dock::Type_Container;
   dd->flags = extra_flags;
+  dd->flags_saved = dd->flags;
   dd->root = nullptr;
   dd->collapsed = collapsed;
   dd->collapsed_saved = dd->collapsed;
@@ -1069,6 +1085,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     collapsed = !Begin(label,p_open,flags);
     dd->collapsed_saved = collapsed;
     if (!collapsed) dd->size_saved = dd->size;
+    dd->flags_saved = flags;
     dd->root = nullptr;
   }
 
@@ -1090,6 +1107,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->status = Dock::Status_Dragged;
     dd->hoverable = false;
     ddest = FindHoveredDock(Dock::Type_Container);
+    printf("%p\n",ddest);
   } else {
     int ithis = -1, iedge = 0;
     bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
@@ -1140,7 +1158,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   if (dd->status == Dock::Status_Docked && !dd->hidden){
     // Move the container right under this dock
-    placeWindow(dd->window,dd->parent->window,-1);
+    if (!(dd->parent->flags & ImGuiWindowFlags_NoBringToFrontOnFocus))
+      placeWindow(dd->window,dd->parent->window,-1);
     // If the resize grip is being used, resize the container too.
     if (g->ActiveId == dd->window->GetID("#RESIZE"))
       dd->parent->window->SizeFull = dd->window->Size + ImVec2(0.f,dd->parent->tabdz);
