@@ -108,11 +108,8 @@ namespace ImGui{
     void drawTabBar();
     // Set the hovered window, moved window, and active ID for a container/tab pair
     void setContainerHoveredMovedActive(bool setid);
-    // Raise the current displayed tab in a container in the window stack to 
-    // just before the container
-    void raiseCurrentTab();
-    // Get the position of this dock's window in the window stack
-    int getWindowStackPosition();
+    // focus a Container and maybe move its docked window up
+    void focusContainer();
     // Hide the window corresponding to a docked tab in container dcont
     void hideTabWindow(Dock *dcont);
     // Hide the window corresponding to a docked tab in container dcont

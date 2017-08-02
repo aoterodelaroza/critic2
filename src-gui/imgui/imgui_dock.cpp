@@ -20,7 +20,6 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// raisecurrenttab and sethovered use findhoveredcontainer
 //   xx rootcontainer xx
 // problems with docking external containers and then undocking them
 // bring back the rootcontainer title and floating
@@ -39,6 +38,7 @@
 // problem docking empty containers to a rootcontainer
 // horizontal and vertical containers have active perpendicular edges?
 //   xx end xx
+// triangles in the tabs; overlap
 // see docking thread in imgui github
 
 #include "imgui.h"
@@ -158,7 +158,7 @@ int Dock::getNearestTabBorder(){
 
 void Dock::showDropTargetFull(){
   SetNextWindowSize(ImVec2(0,0));
-  Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
+  Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
@@ -175,7 +175,7 @@ void Dock::showDropTargetOnTabBar(){
   int ithis = this->getNearestTabBorder();
 
   SetNextWindowSize(ImVec2(0,0));
-  Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
+  Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
@@ -209,7 +209,7 @@ void Dock::showDropTargetEdge(int edge){
     xmax.y = this->pos.y + x1[edge-1].y * this->size.y;
 
     SetNextWindowSize(ImVec2(0,0));
-    Begin("##Overlay",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
+    Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
     	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
     ImDrawList* drawl = GetWindowDrawList();
     drawl->PushClipRectFullScreen();
@@ -550,6 +550,7 @@ void Dock::drawTabBar(){
   const float maxtabwidth = 100.;
   ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
   text_color.w = 2.0 / g->Style.Alpha;
+  bool raise = false;
 
   // empty the list of tabs
   this->tabsx.Size = 0;
@@ -579,8 +580,11 @@ void Dock::drawTabBar(){
       // make the x-button, update the container info
       bool dragged, dclicked, closeclicked;
       if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), false,
-                      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha))
+                      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha)){
         this->currenttab = dd;
+	dd->parent = this;
+	dd->root = this->root;
+      }
       this->tabsx.push_back(GetItemRectMax().x-tabwidth_long);
     
       // lift the tab using the main button
@@ -621,19 +625,11 @@ void Dock::drawTabBar(){
     } // dd in this->stack
     if (dderase){
       this->stack.remove(dderase);
-      if (!this->currenttab && this->stack.size() > 0)
+      if (!this->currenttab && this->stack.size() > 0){
         this->currenttab = this->stack.front();
+	this->currenttab->parent = this;
+      }
     }
-
-    // If the tab (but not the buttons) is clicked, transfer to the
-    // container. Raise the container & docked window to the top of
-    // the window stack. 
-    if (this->currenttab && !IsAnyItemActive()){
-      if (g->HoveredWindow == GetCurrentWindow())
-        this->setContainerHoveredMovedActive(true);
-      placeWindow(this->window,this->currenttab->window,+1);
-    }
-
     // last item in the tabsx
     this->tabsx.push_back(GetItemRectMax().x);
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
@@ -658,16 +654,41 @@ void Dock::setContainerHoveredMovedActive(bool setid){
   }
 }
 
-int Dock::getWindowStackPosition(){
+void Dock::focusContainer(){
   ImGuiContext *g = GetCurrentContext();
 
-  int iexit = -1;
-  for (int i = 0; i < g->Windows.Size; i++)
-    if (g->Windows[i] == this->window){
-      iexit = i;
-      break;
+  // Push the container and the docked window to the top of the stack
+  for (int i = 0; i < g->Windows.Size; i++){
+    if (g->Windows[i] == this->window)
+      g->Windows.erase(g->Windows.begin() + i);
+  }
+  g->Windows.push_back(this->window);
+  if (this->currenttab){
+    for (int i = 0; i < g->Windows.Size; i++){
+      if (g->Windows[i] == this->currenttab->window)
+	g->Windows.erase(g->Windows.begin() + i);
     }
-  return iexit;
+    g->Windows.push_back(this->currenttab->window);
+  }
+
+  // The docked window becomes focused, if possible. Otherwise, the container
+  if (!this->currenttab){
+    g->HoveredRootWindow = this->window;
+    g->HoveredWindow = this->window;
+  } else {
+    g->HoveredRootWindow = this->currenttab->window;
+    g->HoveredWindow = this->currenttab->window;
+    if (g->ActiveIdWindow == this->currenttab->window && !g->ActiveIdIsAlive)
+      ClearActiveID();
+  }
+
+  // The container is being moved
+  if (!IsAnyItemActive() && !IsAnyItemHovered() && g->IO.MouseClicked[0]){
+    g->MovedWindow = this->window;
+    g->MovedWindowMoveId = this->window->RootWindow->MoveId;
+    if (this->currenttab)
+      SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
+  }
 }
 
 void Dock::hideTabWindow(Dock *dcont){
@@ -694,7 +715,6 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
     ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_HorizontalScrollbar;
   if (noresize)
     this->flags = this->flags | ImGuiWindowFlags_NoResize;
-  
 }
 
 //xx// Public interface //xx//
@@ -863,13 +883,14 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   dd->drawContainer(extra_flags & ImGuiWindowFlags_NoResize);
   dd->size_saved.y = dd->tabbarrect.Max.y - dd->pos.y;
 
-  // If the container is clicked, set the correct hovered/moved flags 
+  // If the container is clicked, set the correct hovered/moved flags
   // and raise container & docked window to the top of the stack.
-  if (dd->currenttab){
-    if (g->HoveredWindow == dd->window)
-      dd->setContainerHoveredMovedActive(!IsAnyItemActive());
+  if (dd->currenttab && g->IO.MouseClicked[0] && g->HoveredRootWindow == dd->window)
+      dd->focusContainer();
+
+  // Put the current tab on top of the current window
+  if (dd->currenttab)
     placeWindow(dd->window,dd->currenttab->window,+1);
-  }
 
   End();
   if (transparentframe)
@@ -913,7 +934,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       flags = dd->flags;
       collapsed = dd->hidden;
       if (dd->hidden){
-        Begin("###hidden",nullptr,dd->size,0.0,flags);
+        Begin(label,nullptr,dd->size,0.0,flags);
       } else {
         Begin(label,nullptr,flags);
       }
@@ -991,7 +1012,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
         dd->status= Dock::Status_Closed;
 	dd->hoverable = false;
       }
-      dd->parent = nullptr;
     }
   }
 
@@ -1007,28 +1027,18 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     }
   }
 
-  // If this window is docked, 
+  // If this window is being clicked or dragged, focus the container+dock
+  if (dd->status == Dock::Status_Docked && !dd->hidden)
+    if (g->HoveredWindow == dd->window && g->IO.MouseClicked[0])
+      dd->parent->focusContainer();
+
   if (dd->status == Dock::Status_Docked && !dd->hidden){
-    // Transfer any unhandled clicks to the underlying container.
-    if ((g->HoveredWindow == dd->window || g->HoveredWindow == dd->parent->window) &&
-        IsMouseHoveringRect(dd->window->Pos,dd->window->Pos+dd->window->Size,false) &&
-        g->IO.MouseClicked[0]){
-      dd->parent->setContainerHoveredMovedActive(!(IsMouseClicked(0) && IsAnyItemHovered()));
-    }
     // Move the container right under this dock
     placeWindow(dd->window,dd->parent->window,-1);
     // If the resize grip is being used, resize the container too.
-    if (g->ActiveId == dd->window->GetID("#RESIZE")){
+    if (g->ActiveId == dd->window->GetID("#RESIZE"))
       dd->parent->window->SizeFull = dd->window->Size + dd->parent->size_saved;
-    }
   }
-
-  // // xxxx //
-  // Dock *dtest = FindHoveredDock(Dock::Type_Container);
-  // if (dtest)
-  //   printf("Hovered: %s\n",dtest->label);
-  // else
-  //   printf("None Hovered\n");
 
   return !collapsed;
 }

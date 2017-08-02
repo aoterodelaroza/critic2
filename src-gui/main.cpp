@@ -198,6 +198,8 @@ int main(int argc, char *argv[]){
     ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
     if (ImGui::Begin("justawindow")){
       ImGui::Print(); // print docking information
+      static char command[2048] = "";
+      if (ImGui::InputText("###bleh", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){}
     }
     ImGui::EndDock();
 
