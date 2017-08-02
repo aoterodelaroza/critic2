@@ -21,7 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// problem docking empty containers to a rootcontainer
 // window closing
 // fixing hovering over debug and over a non-dock window (visible)
 // problem docking non-automatic containers to rootcontainers
@@ -894,7 +893,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   } else {
     int ithis = -1, iedge = 0;
     bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
-    if (dropit && ddest->stack.empty() && ddest->parent && ddest->parent->type == Dock::Type_Root){
+    if (dropit && ddest->stack.empty() && ddest->automatic && ddest->parent && ddest->parent->type == Dock::Type_Root){
       // drop it into the root container and replace it
       ddest->killDock(ddest->parent,dd);
       dd->status = Dock::Status_Docked;
@@ -925,7 +924,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   // If dragged and hovering over a container, show the drop rectangles
   if (dd->status == Dock::Status_Dragged){
     if (ddest){
-      if (ddest->stack.empty() && ddest->parent && ddest->parent->type == Dock::Type_Root)
+      if (ddest->stack.empty() && ddest->automatic && ddest->parent && ddest->parent->type == Dock::Type_Root)
         ddest->showDropTargetFull();
       else if (ddest->status == Dock::Status_Docked)
         ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge());
