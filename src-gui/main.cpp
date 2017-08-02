@@ -79,6 +79,9 @@ int main(int argc, char *argv[]){
     static bool show_scene4 = true;
     static bool show_scene5 = true;
     static bool show_scene6 = true;
+    static bool show_scene7 = true;
+    static bool show_scene8 = true;
+    static bool show_scene9 = true;
 
     // // for hovering checks // //
     // ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiSetCond_Once);
@@ -125,7 +128,7 @@ int main(int argc, char *argv[]){
 
     ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
-    ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain");
+    if (show_scene7) ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7,0);
     ImGui::Container("contain4");
     ImGui::Container("contain5");
     ImGui::Container("contain6");

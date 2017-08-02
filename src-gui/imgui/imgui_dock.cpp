@@ -21,7 +21,7 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// problems with docking external containers and then undocking them
+// fixing hovering over debug and over a non-dock window (visible)
 // bring back the rootcontainer title and floating
 // problem with several containers at the same time and rootcontainer
 // problem docking containers to rootcontainers
@@ -37,6 +37,7 @@
 // maybe: rootcontainer with its own window & control of the window stack 
 // problem docking empty containers to a rootcontainer
 // horizontal and vertical containers have active perpendicular edges?
+// undock external containers
 //   xx end xx
 // triangles in the tabs; overlap
 // clean up all methods
@@ -360,35 +361,21 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
   return dcont;
 }
 
-void Dock::killContainerMaybe(){
-  // Only kill containers, horziontals, and verticals that were automatically generated
-  if (!this || (this->type != Dock::Type_Container && this->type != Dock::Type_Horizontal && 
-		this->type != Dock::Type_Vertical) || !(this->automatic))
-    return;
-  Dock *dpar = this->parent;
-  if (!dpar) return;
+void Dock::OpRoot_FillEmpty(){
+  if (!this->stack.empty()) return;
 
-  if (this->type == Dock::Type_Container && this->stack.empty()){
-    // An empty container
-    // Do not remove the last container from a root container, even if it's empty
-    if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
-    this->killDock(dpar);
-
-    // Try to kill its parent
-    dpar->killContainerMaybe();
-  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.empty()){
-    // If a horizontal or vertical is empty, turn it into a container
-    this->type = Dock::Type_Container;
-    // then to try kill it
-    this->killContainerMaybe();
-  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
-    // This vertical/horizontal container only has window -> eliminate
-    // it and connect the single window to its parent
-    this->killDock(dpar,this->stack.back());
-
-    // Try to kill its parent
-    dpar->killContainerMaybe();
-  }
+  char tmp[strlen(this->label)+15];
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",this->label,++(this->nchild));
+  Dock *dcont = new Dock;
+  IM_ASSERT(dcont);
+  dcont->label = ImStrdup(tmp);
+  dockht[string(dcont->label)] = dcont;
+  dcont->type = Dock::Type_Container;
+  dcont->id = ImHash(tmp,0);
+  dcont->status == Dock::Status_Docked;
+  dcont->hoverable = true;
+  dcont->automatic = true;
+  this->stack.push_back(dcont);
 }
 
 void Dock::killDock(Dock *parent/*=nullptr*/, Dock *replacement/*=nullptr*/){
@@ -529,23 +516,6 @@ void Dock::drawRootContainerBars(Dock *root){
   }
 }
 
-void Dock::clearContainer(){
-  const float increment = 50.;
-
-  ImVec2 pos = this->pos;
-  for (auto dd : this->stack) {
-    dd->status = Dock::Status_Open;
-    dd->hoverable = true;
-    dd->control_window_this_frame = true;
-    dd->size = dd->size_saved;
-    dd->collapsed = dd->collapsed_saved;
-    dd->pos = pos;
-    pos = pos + ImVec2(increment,increment);
-  }
-  this->currenttab = nullptr;
-  this->stack.clear();
-}
-
 void Dock::drawTabBar(){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = GetTextLineHeightWithSpacing();
@@ -644,17 +614,21 @@ void Dock::drawTabBar(){
   PopStyleColor();
 }
 
-void Dock::setContainerHoveredMovedActive(bool setid){
-  ImGuiContext *g = GetCurrentContext();
+void Dock::clearContainer(){
+  const float increment = 50.;
 
-  if (g->IO.MouseClicked[0]){
-    g->HoveredRootWindow = this->currenttab->window;
-    g->HoveredWindow = this->currenttab->window;
-    g->MovedWindow = this->window;
-    g->MovedWindowMoveId = this->window->RootWindow->MoveId;
-    if (setid)
-      SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
+  ImVec2 pos = this->pos;
+  for (auto dd : this->stack) {
+    dd->status = Dock::Status_Open;
+    dd->hoverable = true;
+    dd->control_window_this_frame = true;
+    dd->size = dd->size_saved;
+    dd->collapsed = dd->collapsed_saved;
+    dd->pos = pos;
+    pos = pos + ImVec2(increment,increment);
   }
+  this->currenttab = nullptr;
+  this->stack.clear();
 }
 
 void Dock::focusContainer(){
@@ -694,6 +668,37 @@ void Dock::focusContainer(){
   }
 }
 
+void Dock::killContainerMaybe(){
+  // Only kill containers, horziontals, and verticals that were automatically generated
+  if (!this || (this->type != Dock::Type_Container && this->type != Dock::Type_Horizontal && 
+		this->type != Dock::Type_Vertical) || !(this->automatic))
+    return;
+  Dock *dpar = this->parent;
+  if (!dpar) return;
+
+  if (this->type == Dock::Type_Container && this->stack.empty()){
+    // An empty container
+    // Do not remove the last container from a root container, even if it's empty
+    if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
+    this->killDock(dpar);
+
+    // Try to kill its parent
+    dpar->killContainerMaybe();
+  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.empty()){
+    // If a horizontal or vertical is empty, turn it into a container
+    this->type = Dock::Type_Container;
+    // then to try kill it
+    this->killContainerMaybe();
+  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
+    // This vertical/horizontal container only has window -> eliminate
+    // it and connect the single window to its parent
+    this->killDock(dpar,this->stack.back());
+
+    // Try to kill its parent
+    dpar->killContainerMaybe();
+  }
+}
+
 void Dock::hideTabWindow(Dock *dcont){
   if (!dcont) return;
   this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoScrollbar|
@@ -722,7 +727,11 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
 
 //xx// Public interface //xx//
 
-Dock *ImGui::RootContainer(const char* label){
+Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+  bool collapsed;
+  ImGuiContext *g = GetCurrentContext();
+  ImGuiWindowFlags flags = extra_flags;
+
   Dock *dd = dockht[string(label)];
   if (!dd){
     dd = new Dock;
@@ -732,45 +741,61 @@ Dock *ImGui::RootContainer(const char* label){
     dd->type = Dock::Type_Root;
     dd->id = ImHash(label,0);
     dd->nchild = 0;
-
-    // initialize with an empty container
-    char tmp[strlen(label)+15];
-    ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",label,++(dd->nchild));
-    Dock *dcont = new Dock;
-    IM_ASSERT(dcont);
-    dcont->label = ImStrdup(tmp);
-    dockht[string(dcont->label)] = dcont;
-    dcont->type = Dock::Type_Container;
-    dcont->id = ImHash(tmp,0);
-    dcont->status == Dock::Status_Docked;
-    dcont->hoverable = true;
-    dcont->automatic = true;
-    dd->stack.push_back(dcont);
   }
 
+  // Initialize with a container if empty
+  dd->OpRoot_FillEmpty();
+
+  // xxxx // set minimum size? // xxxx //
+
   // Making an invisible window
-  PushStyleVar(ImGuiStyleVar_Alpha,small_alpha);
-  Begin(label,nullptr,ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoTitleBar|
-  	ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus);
+  PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
+  flags = flags | ImGuiWindowFlags_NoResize;
+  collapsed = !Begin(label,p_open,flags);
 
   // set the properties of the rootcontainer window
+  dd->pos = GetWindowPos();
+  dd->size = GetWindowSize();
+  dd->size_saved = ImVec2(0.,0.);
+  dd->type = Dock::Type_Root;
+  dd->flags = extra_flags;
+  dd->root = dd;
+  dd->collapsed = collapsed;
   dd->window = GetCurrentWindow();
   dockwin[dd->window] = dd;
-  dd->pos = dd->window->Pos;
-  dd->size = dd->window->Size;
-  dd->flags = 0;
-  dd->hidden = false;
-  dd->root = dd;
-  dd->collapsed = false;
-  dd->status = Dock::Status_Open;
+  dd->p_open = p_open;
   dd->hoverable = false;
+
+  // Update the status
+  if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
+    // Dragging
+    dd->status = Dock::Status_Dragged;
+    dd->hoverable = false;
+  } else {
+    // Stationary -> open, closed, or collapsed
+    if (!p_open || *p_open){
+      if (collapsed){
+	dd->status = Dock::Status_Collapsed;
+	dd->hoverable = true;
+      }
+      else{
+	dd->status = Dock::Status_Open;
+	dd->hoverable = true;
+      }
+    } else {
+      dd->status = Dock::Status_Closed;
+      dd->hoverable = false;
+    }
+  }
+
+  // xxxx If the root container has just been closed, detach all docked windows
 
   // Traverse the tree and draw all the bars
   dd->drawRootContainerBars(dd);
 
   // End the root container window
   End();
-  PopStyleVar();
+  PopStyleColor();
 
   // Traverse the tree and draw all the containers
   dd->drawRootContainer(dd);

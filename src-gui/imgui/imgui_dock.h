@@ -94,8 +94,8 @@ namespace ImGui{
     // of this dock.  If !dcont, it is allocated. The new container is
     // placed before (before==true) or after (false) the old one.
     Dock *OpRoot_AddToHV(bool before,Dock *dcont=nullptr);
-    // Kill an automatic container if it is empty
-    void killContainerMaybe();
+    // Fill a root container with at least one container
+    void OpRoot_FillEmpty();
     // Kill a dock. If a parent is given, elminiate it from the stack
     // if present. If replacement is given, replace it in the stack.
     void killDock(Dock *parent=nullptr, Dock *replacement=nullptr);
@@ -105,14 +105,14 @@ namespace ImGui{
     void drawRootContainer(Dock* root);
     // Traverse the tree of a root container and draw all bars in it
     void drawRootContainerBars(Dock* root);
-    // Clear all docked windows from a container
-    void clearContainer();
     // Draw the tab bar of a tabbed container
     void drawTabBar();
-    // Set the hovered window, moved window, and active ID for a container/tab pair
-    void setContainerHoveredMovedActive(bool setid);
+    // Clear all docked windows from a container
+    void clearContainer();
     // focus a Container and maybe move its docked window up
     void focusContainer();
+    // Kill an automatic container if it is empty
+    void killContainerMaybe();
     // Hide the window corresponding to a docked tab in container dcont
     void hideTabWindow(Dock *dcont);
     // Hide the window corresponding to a docked tab in container dcont
@@ -124,7 +124,7 @@ namespace ImGui{
   // Create a root container with the given label. If p_open, with a
   // close button.  Extra window flags are passed to the container
   // window.
-  Dock *RootContainer(const char* label);
+  Dock *RootContainer(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
 
   // Create a container with the given label. If p_open, with a close
   // button.  Extra window flags are passed to the container window.
