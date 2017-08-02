@@ -636,7 +636,7 @@ void Dock::drawTabBar(){
       dd->collapsed = dd->collapsed_saved;
       dd->flags = dd->flags_saved;
       dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
-      dd->raiseOrSinkDock(true);
+      dd->raiseOrSinkDock();
 
     erase_this_tab:
       dderase = dd;
@@ -678,7 +678,7 @@ void Dock::clearContainer(){
     dd->flags = dd->flags_saved;
     dd->pos = pos;
     pos = pos + ImVec2(increment,increment);
-    dd->raiseOrSinkDock(true);
+    dd->raiseOrSinkDock();
   }
   this->currenttab = nullptr;
   this->stack.clear();
@@ -709,7 +709,7 @@ void Dock::clearRootContainer(){
 	dd->flags = dd->flags_saved;
 	dd->pos = dd->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
 	(this->root->nchild)++;
-	dd->raiseOrSinkDock(true);
+	dd->raiseOrSinkDock();
       }
       this->killDock();
     } else {
@@ -721,12 +721,12 @@ void Dock::clearRootContainer(){
       this->flags = this->flags_saved;
       this->pos = this->root->pos + ImVec2(this->root->nchild * increment,this->root->nchild * increment);
       (this->root->nchild)++;
-      this->raiseOrSinkDock(true);
+      this->raiseOrSinkDock();
     }
   }
 }
 
-void Dock::raiseOrSinkDock(bool sink/*=false*/){
+void Dock::raiseOrSinkDock(){
   ImGuiContext *g = GetCurrentContext();
   if (!this->window) return;
   if ((this->flags & ImGuiWindowFlags_NoBringToFrontOnFocus) && !sink) return;

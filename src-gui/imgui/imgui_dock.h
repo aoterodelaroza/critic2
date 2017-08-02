@@ -115,9 +115,8 @@ namespace ImGui{
     void clearContainer();
     // Kill a root container
     void clearRootContainer();
-    // Raise this dock if not nobringonfocus. Otherwise sink only if
-    // sink is true.
-    void raiseOrSinkDock(bool sink=false);
+    // Raise this dock, but sink it the dock is nobringtofrontonfocus. 
+    void raiseOrSinkDock();
     // Raise this dock
     void raiseDock();
     // focus a Container and maybe move its docked window up
