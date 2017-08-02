@@ -477,6 +477,11 @@ void Dock::drawRootContainer(Dock *root){
     End();
     if (transparentframe)
       PopStyleColor();
+
+    // rootcontainer -> container -> dock
+    placeWindow(this->root->window,this->window,+1);
+    if (this->currenttab)
+      placeWindow(this->window,this->currenttab->window,+1);
   }
 }
 
