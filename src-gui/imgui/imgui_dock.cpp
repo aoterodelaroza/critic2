@@ -21,17 +21,19 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// window closing
+// window closing (xxxx minimum size)
+// correct cascade
 // fixing hovering over debug and over a non-dock window (visible)
 // problem docking non-automatic containers to rootcontainers
 // bar movement
 // autoresize of the container - manual and in the public interface
-// deal with the small container size problem
+// deal with the small container size problem (xxxx minimum size)
 // eliminate a bar by rightclicking on it
 // undock a container from a rootcontainer
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // resizable rootcontainer
 // horizontal and vertical containers have active perpendicular edges?
+// check behavior of nobringtofocus & maybe modify focuscontainer
 //   xx end xx
 // triangles in the tabs; overlap
 // clean up all methods
@@ -390,6 +392,37 @@ void Dock::killDock(Dock *parent/*=nullptr*/, Dock *replacement/*=nullptr*/){
   if (this) delete this;
 }
 
+void Dock::killContainerMaybe(){
+  // Only kill containers, horziontals, and verticals that were automatically generated
+  if (!this || (this->type != Dock::Type_Container && this->type != Dock::Type_Horizontal && 
+		this->type != Dock::Type_Vertical) || !(this->automatic))
+    return;
+  Dock *dpar = this->parent;
+  if (!dpar) return;
+
+  if (this->type == Dock::Type_Container && this->stack.empty()){
+    // An empty container
+    // Do not remove the last container from a root container, even if it's empty
+    if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
+    this->killDock(dpar);
+
+    // Try to kill its parent
+    dpar->killContainerMaybe();
+  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.empty()){
+    // If a horizontal or vertical is empty, turn it into a container
+    this->type = Dock::Type_Container;
+    // then to try kill it
+    this->killContainerMaybe();
+  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
+    // This vertical/horizontal container only has window -> eliminate
+    // it and connect the single window to its parent
+    this->killDock(dpar,this->stack.back());
+
+    // Try to kill its parent
+    dpar->killContainerMaybe();
+  }
+}
+
 void Dock::drawContainer(bool noresize){
   if (!(this->type == Dock::Type_Container)) return;
     
@@ -649,6 +682,35 @@ void Dock::clearContainer(){
   this->stack.clear();
 }
 
+void Dock::clearRootContainer(){
+  ImGuiContext *g = GetCurrentContext();
+  const float increment = 50.;
+
+  if (this->type == Dock::Type_Root){
+    this->nchild = 0;
+    for (auto dd : this->stack)
+      dd->clearRootContainer();
+    this->nchild = 0;
+    this->stack.clear();
+  } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
+    for (auto dd : this->stack)
+      dd->clearRootContainer();
+    this->killDock();
+  } else if (this->type == Dock::Type_Container) {
+    if (this->automatic){
+      this->killDock();
+    } else {
+      this->status = Dock::Status_Open;
+      this->hoverable = true;
+      this->control_window_this_frame = true;
+      this->size = this->size_saved;
+      this->collapsed = this->collapsed_saved;
+      this->pos = this->root->pos + ImVec2(this->nchild * increment,this->nchild * increment);
+      (this->nchild)++;
+    }
+  }
+}
+
 void Dock::focusContainer(){
   ImGuiContext *g = GetCurrentContext();
 
@@ -697,37 +759,6 @@ void Dock::focusContainer(){
       SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
     else
       SetActiveID(g->MovedWindowMoveId, this->window->RootWindow);
-  }
-}
-
-void Dock::killContainerMaybe(){
-  // Only kill containers, horziontals, and verticals that were automatically generated
-  if (!this || (this->type != Dock::Type_Container && this->type != Dock::Type_Horizontal && 
-		this->type != Dock::Type_Vertical) || !(this->automatic))
-    return;
-  Dock *dpar = this->parent;
-  if (!dpar) return;
-
-  if (this->type == Dock::Type_Container && this->stack.empty()){
-    // An empty container
-    // Do not remove the last container from a root container, even if it's empty
-    if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
-    this->killDock(dpar);
-
-    // Try to kill its parent
-    dpar->killContainerMaybe();
-  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.empty()){
-    // If a horizontal or vertical is empty, turn it into a container
-    this->type = Dock::Type_Container;
-    // then to try kill it
-    this->killContainerMaybe();
-  } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
-    // This vertical/horizontal container only has window -> eliminate
-    // it and connect the single window to its parent
-    this->killDock(dpar,this->stack.back());
-
-    // Try to kill its parent
-    dpar->killContainerMaybe();
   }
 }
 
@@ -816,15 +847,17 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
     }
   }
 
-  // xxxx If the root container has just been closed, detach all docked windows
+  // If the root container has just been closed, detach all docked windows
+  if (dd->status == Dock::Status_Closed)
+    dd->clearRootContainer();
 
   // Traverse the tree and draw all the bars
   if (!collapsed)
     dd->drawRootContainerBars(dd);
 
-  // If the root container is clicked, focus
-  if (dd->currenttab && g->IO.MouseClicked[0] && g->HoveredRootWindow == dd->window)
-    dd->stack.front()->focusContainer();
+  // If the root container is clicked, focus any
+  // if (!dd->stack.empty() && g->IO.MouseClicked[0] && g->HoveredRootWindow == dd->window)
+  //   dd->stack.front()->focusContainer();
 
   // End the root container window
   End();

@@ -99,6 +99,8 @@ namespace ImGui{
     // Kill a dock. If a parent is given, elminiate it from the stack
     // if present. If replacement is given, replace it in the stack.
     void killDock(Dock *parent=nullptr, Dock *replacement=nullptr);
+    // Kill an automatic container if it is empty
+    void killContainerMaybe();
     // Draw container
     void drawContainer(bool allowresize);
     // Traverse the tree of a root container and draw all containers in it
@@ -109,10 +111,10 @@ namespace ImGui{
     void drawTabBar();
     // Clear all docked windows from a container
     void clearContainer();
+    // Kill a root container
+    void clearRootContainer();
     // focus a Container and maybe move its docked window up
     void focusContainer();
-    // Kill an automatic container if it is empty
-    void killContainerMaybe();
     // Hide the window corresponding to a docked tab in container dcont
     void hideTabWindow(Dock *dcont);
     // Hide the window corresponding to a docked tab in container dcont
