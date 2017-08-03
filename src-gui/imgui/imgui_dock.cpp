@@ -29,6 +29,7 @@
 //   the new resize grip accepts the controllable window as the parameter.
 //   xx end xx
 // triangles in the tabs; overlap
+// max and min? math.h header
 // clean up and simplify drawrootcontainer
 // clean up all methods and constants; improve focuscontainer
 // see docking thread in imgui github
@@ -461,9 +462,10 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       dd->drawRootContainer(root,lift,&ncount_);
     }
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
-    int n = -1;
+    float x0, x1;
     int ntot = this->stack.size();
     float width1, width2;
+    int n = -1;
     (*ncount)++;
     for (auto dd : this->stack){
       n++;
@@ -478,18 +480,17 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 	width2 = 1.0f * barwidth;
       }
       dd->pos = this->pos;
-      if (this->type == Dock::Type_Horizontal)
-	dd->pos.y += (n * this->size.y) / ntot + width1;
-      else
-	dd->pos.x += (n * this->size.x) / ntot + width1;
       dd->size = this->size;
       if (this->type == Dock::Type_Horizontal){
-	dd->size.y /= ntot;
-	dd->size.y -= width2;
-      }
-      else{
-	dd->size.x /= ntot;
-	dd->size.x -= width2;
+	x0 = this->pos.y + 0.5f * barwidth;
+	x1 = this->pos.y + this->size.y - 0.5f * barwidth;
+	dd->pos.y = x0 + this->tabsx[n] * (x1 - x0) + width1;
+	dd->size.y = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - width2;
+      } else {
+	x0 = this->pos.x + 0.5f * barwidth;
+	x1 = this->pos.x + this->size.x - 0.5f * barwidth;
+	dd->pos.x = x0 + this->tabsx[n] * (x1 - x0) + width1;
+	dd->size.x = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - width2;
       }
       dd->parent = this;
       dd->drawRootContainer(root,lift,ncount);
@@ -545,7 +546,6 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 
       // Resize grip
       if (g->ActiveId == this->window->GetID("#RESIZE") && !this->currenttab){
-	printf("here! %d %d\n",*ncount,this->root->nchild);
 	if (*ncount == this->root->nchild){
 	  // Transfer the resize to the root container if bottom right dock
 	  const ImVec2 br = this->window->Rect().GetBR();
@@ -569,28 +569,46 @@ void Dock::drawRootContainerBars(Dock *root){
     for (auto dd : this->stack)
       dd->drawRootContainerBars(root);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
-    int n = -1;
     int ntot = this->stack.size();
 
-    ImVec2 pos, size, limits;
-    int direction;
+    // initialize the sliding bar positions, if not already done
+    if (this->tabsx.size() != ntot+1){
+      this->tabsx.resize(ntot+1);
+      for (int i=0;i<ntot;i++)
+	this->tabsx[i] = ((float) i) / ((float) ntot);
+      this->tabsx[ntot] = 1.0f;
+    }
 
+    char tmp[strlen(this->label)+15];
+    float x0, x1;
+    ImVec2 pos, size;
+    int direction;
+    int n = -1;
     for (auto dd : this->stack){
       n++;
       if (n != 0){
 	pos = this->pos;
 	size = this->size;
 	if (this->type == Dock::Type_Horizontal){
-	  pos.y += (n * this->size.y) / ntot - 0.5f * barwidth;
+	  x0 = this->pos.y + 0.5f * barwidth;
+	  x1 = this->pos.y + this->size.y - 0.5f * barwidth;
+	  pos.y = x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth;
 	  size.y = barwidth;
 	  direction = 2;
 	} else {
-	  pos.x += (n * this->size.x) / ntot - 0.5f * barwidth;
+	  x0 = this->pos.x + 0.5f * barwidth;
+	  x1 = this->pos.x + this->size.x - 0.5f * barwidth;
+	  pos.x = x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth;
 	  size.x = barwidth;
 	  direction = 1;
 	}
-	limits = ImVec2(pos.x,pos.x+size.x-barwidth);
-	SlidingBar(root->window, &pos, size, limits, direction, 2.0f);
+	ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__s%d__",this->label,n);
+	SlidingBar(tmp,root->window, &pos, size, x0, x1, direction, 2.0f);
+
+	if (this->type == Dock::Type_Horizontal)
+	  this->tabsx[n] = (pos.y + 0.5f * barwidth - x0) / (x1 - x0);
+	else
+	  this->tabsx[n] = (pos.x + 0.5f * barwidth - x0) / (x1 - x0);
       }
       dd->drawRootContainerBars(root);
     }

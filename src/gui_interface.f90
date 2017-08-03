@@ -104,7 +104,7 @@ contains
     call glMatrixMode(GL_MODELVIEW)
     call glLoadIdentity()
     ! call glClearColor(1.0,1.0,1.0,0.0)
-    call glClearColor(0.0,0.0,0.4,0.0)
+    call glClearColor(0.7,0.4,0.1,0.0)
     call glClear(GL_COLOR_BUFFER_BIT)
     ! pQuadric = gluNewQuadric()
     ! call assert_non_null(pQuadric,"draw_scene","pQuadric")

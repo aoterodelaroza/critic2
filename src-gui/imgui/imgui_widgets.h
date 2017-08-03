@@ -56,8 +56,8 @@ static inline ImVec4 TransparentColor(ImGuiCol_ color){
 namespace ImGui{
 
   // Sliding bar for root container splits
-  void SlidingBar(ImGuiWindow* window, ImVec2 *pos, ImVec2 size, ImVec2 limits, int direction,
-		  float alpha=-1.f);
+  void SlidingBar(const char* label, ImGuiWindow* window, ImVec2 *pos, ImVec2 size, 
+		  float minx, float maxx, int direction, float alpha=-1.f);
 
   // Button with a clickable "X" at the end
   bool ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool buttoncol,

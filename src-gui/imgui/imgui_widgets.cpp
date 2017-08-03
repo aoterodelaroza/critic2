@@ -22,21 +22,42 @@
 #include "imgui_widgets.h"
 #include "imgui.h"
 #include "imgui_internal.h"
+#include <math.h>
 
 using namespace ImGui;
 
-void ImGui::SlidingBar(ImGuiWindow* window, ImVec2 *pos, ImVec2 size, ImVec2 limits, int direction,
-		       float alpha/*=-1*/){
+void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos, 
+		       ImVec2 size, float minx, float maxx, 
+		       int direction, float alpha/*=-1*/){
   ImDrawList* dl = window->DrawList;
   ImGuiContext *g = GetCurrentContext();
+  bool hovered, held;
+  const ImU32 color = GetColorU32(ImGuiCol_FrameBg);
+  const ImU32 colorhovered = GetColorU32(ImGuiCol_TextDisabled);
+  const ImU32 coloractive = GetColorU32(ImGuiCol_Text);
   
+  const ImRect slidingrect(*pos,*pos+size);
+  const ImGuiID slidingid = window->GetID(label);
+  ButtonBehavior(slidingrect, slidingid, &hovered, &held);
+
+  if (held){
+    if (direction == 1)
+      pos->x = fmax(fmin(g->IO.MousePos.x,maxx),minx);
+    else
+      pos->y = fmax(fmin(g->IO.MousePos.y,maxx),minx);
+  }
+
+  // draw the rectangle
   if (alpha >= 0.f)
     PushStyleVar(ImGuiStyleVar_Alpha,alpha);
   dl->PushClipRectFullScreen();
-  dl->AddRectFilled(*pos,*pos+size,GetColorU32(ImGuiCol_Text),g->Style.ScrollbarRounding);
+  dl->AddRectFilled(slidingrect.GetTL(),slidingrect.GetBR(),
+		    held?coloractive:(hovered?colorhovered:color),
+		    g->Style.ScrollbarRounding);
   dl->PopClipRect();
   if (alpha >= 0.f)
     PopStyleVar();
+
 }
 
 bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool buttoncol,
