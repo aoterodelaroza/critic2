@@ -589,7 +589,7 @@ void Dock::drawRootContainerBars(Dock *root){
 	  x1 = this->pos.y + this->size.y;
 	  xmin = x0 + this->tabsx[n-1] * (x1 - x0) + barwidth + minycont;
 	  xmax = x0 + this->tabsx[n+1] * (x1 - x0) - barwidth - minycont;
-	  pos.y = x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth;
+	  pos.y = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
 	  size.y = barwidth;
 	  direction = 2;
 	} else {
@@ -597,17 +597,18 @@ void Dock::drawRootContainerBars(Dock *root){
 	  x1 = this->pos.x + this->size.x;
 	  xmin = x0 + this->tabsx[n-1] * (x1 - x0) + barwidth + minxcont;
 	  xmax = x0 + this->tabsx[n+1] * (x1 - x0) - barwidth - minxcont;
-	  pos.x = x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth;
+	  pos.x = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
 	  size.x = barwidth;
 	  direction = 1;
 	}
 	ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__s%d__",this->label,n);
-	SlidingBar(tmp, root->window, &pos, size, xmin, xmax, direction, 2.0f);
-
-	if (this->type == Dock::Type_Horizontal)
-	  this->tabsx[n] = (pos.y + 0.5f * barwidth - x0) / (x1 - x0);
-	else
-	  this->tabsx[n] = (pos.x + 0.5f * barwidth - x0) / (x1 - x0);
+	if (x1 > x0){
+	  SlidingBar(tmp, root->window, &pos, size, xmin, xmax, direction, 2.0f);
+	  if (this->type == Dock::Type_Horizontal)
+	    this->tabsx[n] = (pos.y + 0.5f * barwidth - x0) / (x1 - x0);
+	  else
+	    this->tabsx[n] = (pos.x + 0.5f * barwidth - x0) / (x1 - x0);
+	}
       }
       dd->drawRootContainerBars(root);
     }
