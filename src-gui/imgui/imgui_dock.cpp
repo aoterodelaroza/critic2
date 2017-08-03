@@ -21,7 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// deal with the small container size problem (xxxx minimum size)
 // bar movement
 // eliminate a bar by rightclicking on it
 // undock a container from a rootcontainer
@@ -502,7 +501,8 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
     (*ncount)++;
     this->status = Dock::Status_Docked;
     this->hoverable = true;
-    this->collapsed = false;
+    this->collapsed = root->collapsed;
+    if (this->currenttab) this->currenttab->hidden = root->collapsed;
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
       ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
       ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
@@ -510,7 +510,7 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
       this->flags |= ImGuiWindowFlags_NoResize;
     else if (this->currenttab){
       this->flags |= ImGuiWindowFlags_NoResize;
-      noresize = false;
+      noresize = !root->collapsed;
     }
       
     // only if the root is not collapsed
