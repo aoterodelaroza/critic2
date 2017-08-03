@@ -21,10 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// bar movement
-// eliminate a bar by rightclicking on it
-// horizontal and vertical containers have active perpendicular edges?
-// initialize the tabsx vector somewhere else
 // resize grip shown if collapsed
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // resize of elements is laggy -> write my own resize grips - different color for lift grip.
@@ -565,15 +561,15 @@ void Dock::drawRootContainerBars(Dock *root){
     for (auto dd : this->stack)
       dd->drawRootContainerBars(root);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
+    // update the vector containing the sliding bar positions
     int ntot = this->stack.size();
-
-    // initialize the sliding bar positions, if not already done
     if (this->tabsx.size() != ntot+1){
       this->tabsx.resize(ntot+1);
       for (int i=0;i<=ntot;i++)
 	this->tabsx[i] = ((float) i) / ((float) ntot);
     }
 
+    // draw all the sliding bars for this container
     char tmp[strlen(this->label)+15];
     float x0, x1, xmin, xmax;
     ImVec2 pos, size;
