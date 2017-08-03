@@ -23,13 +23,16 @@
 //   xx rootcontainer xx
 // bar movement
 // eliminate a bar by rightclicking on it
-// pass container or dock to rootcontainer. build rootcontainer tree from code
 // horizontal and vertical containers have active perpendicular edges?
+// initialize the tabsx vector somewhere else
+// resize grip shown if collapsed
+// pass container or dock to rootcontainer. build rootcontainer tree from code
 // resize of elements is laggy -> write my own resize grips - different color for lift grip.
 //   the new resize grip accepts the controllable window as the parameter.
 //   xx end xx
 // triangles in the tabs; overlap
 // max and min? math.h header
+// clean the window stack
 // clean up and simplify drawrootcontainer
 // clean up all methods and constants; improve focuscontainer
 // see docking thread in imgui github
@@ -469,28 +472,18 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
     (*ncount)++;
     for (auto dd : this->stack){
       n++;
-      if (n == 0){
-	width1 = 0.f;
-	width2 = 0.5f * barwidth;
-      } else if (n == this->stack.size()-1){
-	width1 = 0.5f * barwidth;
-	width2 = 0.5f * barwidth;
-      } else {
-	width1 = 0.5f * barwidth;
-	width2 = 1.0f * barwidth;
-      }
       dd->pos = this->pos;
       dd->size = this->size;
       if (this->type == Dock::Type_Horizontal){
-	x0 = this->pos.y + 0.5f * barwidth;
-	x1 = this->pos.y + this->size.y - 0.5f * barwidth;
-	dd->pos.y = x0 + this->tabsx[n] * (x1 - x0) + width1;
-	dd->size.y = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - width2;
+	x0 = this->pos.y;
+	x1 = this->pos.y + this->size.y;
+	dd->pos.y = x0 + this->tabsx[n] * (x1 - x0) + (n==0?0.f:0.5f * barwidth);
+	dd->size.y = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()?0.5f * barwidth:barwidth);
       } else {
-	x0 = this->pos.x + 0.5f * barwidth;
-	x1 = this->pos.x + this->size.x - 0.5f * barwidth;
-	dd->pos.x = x0 + this->tabsx[n] * (x1 - x0) + width1;
-	dd->size.x = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - width2;
+	x0 = this->pos.x;
+	x1 = this->pos.x + this->size.x;
+	dd->pos.x = x0 + this->tabsx[n] * (x1 - x0) + (n==0?0.f:0.5f * barwidth);
+	dd->size.x = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()?0.5f * barwidth:barwidth);
       }
       dd->parent = this;
       dd->drawRootContainer(root,lift,ncount);
@@ -562,7 +555,10 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 }
 
 void Dock::drawRootContainerBars(Dock *root){
+  ImGuiContext *g = GetCurrentContext();
   const float barwidth = 6.;
+  const float minxcont = 40.;
+  const float minycont = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);;
 
   this->root = root;
   if (this->type == Dock::Type_Root){
@@ -574,13 +570,12 @@ void Dock::drawRootContainerBars(Dock *root){
     // initialize the sliding bar positions, if not already done
     if (this->tabsx.size() != ntot+1){
       this->tabsx.resize(ntot+1);
-      for (int i=0;i<ntot;i++)
+      for (int i=0;i<=ntot;i++)
 	this->tabsx[i] = ((float) i) / ((float) ntot);
-      this->tabsx[ntot] = 1.0f;
     }
 
     char tmp[strlen(this->label)+15];
-    float x0, x1;
+    float x0, x1, xmin, xmax;
     ImVec2 pos, size;
     int direction;
     int n = -1;
@@ -590,20 +585,24 @@ void Dock::drawRootContainerBars(Dock *root){
 	pos = this->pos;
 	size = this->size;
 	if (this->type == Dock::Type_Horizontal){
-	  x0 = this->pos.y + 0.5f * barwidth;
-	  x1 = this->pos.y + this->size.y - 0.5f * barwidth;
+	  x0 = this->pos.y;
+	  x1 = this->pos.y + this->size.y;
+	  xmin = x0 + this->tabsx[n-1] * (x1 - x0) + barwidth + minycont;
+	  xmax = x0 + this->tabsx[n+1] * (x1 - x0) - barwidth - minycont;
 	  pos.y = x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth;
 	  size.y = barwidth;
 	  direction = 2;
 	} else {
-	  x0 = this->pos.x + 0.5f * barwidth;
-	  x1 = this->pos.x + this->size.x - 0.5f * barwidth;
+	  x0 = this->pos.x;
+	  x1 = this->pos.x + this->size.x;
+	  xmin = x0 + this->tabsx[n-1] * (x1 - x0) + barwidth + minxcont;
+	  xmax = x0 + this->tabsx[n+1] * (x1 - x0) - barwidth - minxcont;
 	  pos.x = x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth;
 	  size.x = barwidth;
 	  direction = 1;
 	}
 	ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__s%d__",this->label,n);
-	SlidingBar(tmp,root->window, &pos, size, x0, x1, direction, 2.0f);
+	SlidingBar(tmp, root->window, &pos, size, xmin, xmax, direction, 2.0f);
 
 	if (this->type == Dock::Type_Horizontal)
 	  this->tabsx[n] = (pos.y + 0.5f * barwidth - x0) / (x1 - x0);
@@ -619,6 +618,7 @@ ImVec2 Dock::minRootContainerSize(){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = 6.;
   const float minxcont = 40.;
+  const float minycont = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);;
 
   ImVec2 size = {};
   if (this->type == Dock::Type_Root){
@@ -641,7 +641,7 @@ ImVec2 Dock::minRootContainerSize(){
     }
   } else if (this->type == Dock::Type_Container) {
     size.x = minxcont;
-    size.y = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);
+    size.y = minycont;
   }
   return size;
 }

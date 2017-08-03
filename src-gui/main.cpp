@@ -129,7 +129,7 @@ int main(int argc, char *argv[]){
     if (show_scene7) {
       ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
-      ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7);
+      ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7,ImGuiWindowFlags_NoBringToFrontOnFocus);
     }
     ImGui::Container("contain4");
     ImGui::Container("contain5");
@@ -193,7 +193,7 @@ int main(int argc, char *argv[]){
     if (show_scene5){
       ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-      if (ImGui::BeginDock("Info5", &show_scene5)){
+      if (ImGui::BeginDock("Info5", &show_scene5,ImGuiWindowFlags_NoBringToFrontOnFocus)){
      ImGui::Text("Hello5!");
      if (ImGui::Button("Button5")){printf("Button5\n");}
       }
