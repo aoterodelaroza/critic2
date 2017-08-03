@@ -25,13 +25,12 @@
 // eliminate a bar by rightclicking on it
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // horizontal and vertical containers have active perpendicular edges?
-// autoresize of the container - manual and in the public interface
-// resize of elements is laggy
+// resize of elements is laggy -> write my own resize grips - different color for lift grip.
+//   the new resize grip accepts the controllable window as the parameter.
 //   xx end xx
 // triangles in the tabs; overlap
 // clean up and simplify drawrootcontainer
-// clean up all methods and constants
-// improve focuscontainer
+// clean up all methods and constants; improve focuscontainer
 // see docking thread in imgui github
 
 #include "imgui.h"
