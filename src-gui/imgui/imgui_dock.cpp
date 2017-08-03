@@ -333,7 +333,6 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     // new empty container
     char label1[strlen(root->label)+15];
     ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild_));
-    root->nchild++;
     dcont = new Dock;
     IM_ASSERT(dcont);
     dcont->label = ImStrdup(label1);
@@ -344,6 +343,7 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     dcont->hoverable = true;
     dcont->automatic = true;
   }
+  root->nchild++;
 
   // add to the parent's stack
   for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){ 
@@ -510,7 +510,7 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
       this->flags |= ImGuiWindowFlags_NoResize;
     else if (this->currenttab){
       this->flags |= ImGuiWindowFlags_NoResize;
-      noresize = !root->collapsed;
+      noresize = root->collapsed;
     }
       
     // only if the root is not collapsed
