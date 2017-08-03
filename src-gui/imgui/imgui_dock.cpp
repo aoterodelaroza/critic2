@@ -23,14 +23,14 @@
 //   xx rootcontainer xx
 // bar movement
 // eliminate a bar by rightclicking on it
-// undock a container from a rootcontainer
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // horizontal and vertical containers have active perpendicular edges?
 // autoresize of the container - manual and in the public interface
+// resize of elements is laggy
 //   xx end xx
 // triangles in the tabs; overlap
 // clean up and simplify drawrootcontainer
-// clean up all methods
+// clean up all methods and constants
 // improve focuscontainer
 // see docking thread in imgui github
 
@@ -274,7 +274,6 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
   Dock *dpar = this->parent;
   Dock *root = dpar->root;
-  root->nchild++;
   if (!dcont){
     // new empty container
     char label1[strlen(root->label)+15];
@@ -289,11 +288,11 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     dcont->automatic = true;
     dcont->hoverable = true;
   }
+  root->nchild++;
 
   // new horizontal or vertical container
   char label2[strlen(root->label)+15];
   ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,++(root->nchild_));
-  root->nchild++;
   Dock *dhv = new Dock;
   IM_ASSERT(dhv);
   dhv->label = ImStrdup(label2);
@@ -303,6 +302,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   dhv->status == Dock::Status_Docked;
   dhv->hoverable = false;
   dhv->automatic = true;
+  root->nchild++;
 
   // build the new horizontal/vertical
   if (before){
@@ -448,7 +448,7 @@ void Dock::drawContainer(bool noresize){
   } // if (this->stack.size() > 0);
 }
 
-void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
+void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = 8.;
 
@@ -459,7 +459,7 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
       dd->pos = this->pos;
       dd->size = this->size;
       dd->parent = this;
-      dd->drawRootContainer(root,&ncount_);
+      dd->drawRootContainer(root,lift,&ncount_);
     }
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     int n = -1;
@@ -493,7 +493,7 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
 	dd->size.x -= width2;
       }
       dd->parent = this;
-      dd->drawRootContainer(root,ncount);
+      dd->drawRootContainer(root,lift,ncount);
     }
   } else if (this->type == Dock::Type_Container) {
     // Draw the docked container window
@@ -506,9 +506,10 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
       ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
       ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
-    if (*ncount < this->root->nchild)
-      this->flags |= ImGuiWindowFlags_NoResize;
-    else if (this->currenttab){
+    if (*ncount < this->root->nchild){
+      if (this->currenttab)
+	this->flags |= ImGuiWindowFlags_NoResize;
+    } else if (this->currenttab){
       this->flags |= ImGuiWindowFlags_NoResize;
       noresize = root->collapsed;
     }
@@ -543,15 +544,22 @@ void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
       if (this->currenttab)
 	placeWindow(this->window,this->currenttab->window,+1);
 
-      // Transfer the resize to the root container
+      // Resize grip
       if (g->ActiveId == this->window->GetID("#RESIZE") && !this->currenttab){
-	const ImVec2 br = this->window->Rect().GetBR();
-	const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
-	const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
-	this->root->window->SizeFull = g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - this->root->window->Pos;
-      }
-    }
-  }
+	printf("here! %d %d\n",*ncount,this->root->nchild);
+	if (*ncount == this->root->nchild){
+	  // Transfer the resize to the root container if bottom right dock
+	  const ImVec2 br = this->window->Rect().GetBR();
+	  const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
+	  const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
+	  this->root->window->SizeFull = g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - this->root->window->Pos;
+	} else {
+	  if (IsMouseDragging())
+	    *lift = this;
+	}
+      } // resize
+    } // !(root->collapsed)
+  } // this->type == xx
 }
 
 void Dock::drawRootContainerBars(Dock *root){
@@ -884,6 +892,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
 //xx// Public interface //xx//
 
 Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+  const float barheight = 2 * GetTextLineHeightWithSpacing();
   bool collapsed;
   ImGuiContext *g = GetCurrentContext();
   ImGuiWindowFlags flags = extra_flags;
@@ -948,17 +957,37 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   if (!collapsed)
     dd->drawRootContainerBars(dd);
 
-  // xxxx //
-  // If the root container is clicked, focus any
-  // if (!dd->stack.empty() && g->IO.MouseClicked[0] && g->HoveredRootWindow == dd->window)
-  //   dd->stack.front()->focusContainer();
-
   // End the root container window
   End();
   PopStyleColor();
 
   // Traverse the tree and draw all the containers
-  dd->drawRootContainer(dd);
+  Dock *lift = nullptr;
+  dd->drawRootContainer(dd,&lift);
+
+  // Lift any container?
+  if (lift){
+    for(auto it = lift->parent->stack.begin(); it != lift->parent->stack.end(); it++)
+      if (*it == lift){
+	lift->parent->stack.erase(it);
+	break;
+      }
+    lift->parent->killContainerMaybe();
+    lift->root->nchild--;
+    lift->status = Dock::Status_Dragged;
+    lift->control_window_this_frame = true;
+    lift->size = lift->size_saved;
+    lift->collapsed = lift->collapsed_saved;
+    lift->flags = lift->flags_saved;
+    lift->pos = GetMousePos() - ImVec2(0.5*lift->size.x,barheight);
+    lift->parent = nullptr;
+    lift->root = nullptr;
+    lift->raiseOrSinkDock();
+    ClearActiveID();
+    g->MovedWindow = lift->window;
+    g->MovedWindowMoveId = lift->window->RootWindow->MoveId;
+    SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
+  }
 
   return dd;
 }

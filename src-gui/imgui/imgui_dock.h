@@ -108,7 +108,7 @@ namespace ImGui{
     void drawContainer(bool allowresize);
     // Traverse the tree of a root container and draw all containers
     // in it.  Count is used to identify the last docked window.
-    void drawRootContainer(Dock* root, int *count = nullptr);
+    void drawRootContainer(Dock* root, Dock **lift, int *count = nullptr);
     // Traverse the tree of a root container and draw all bars in it
     void drawRootContainerBars(Dock* root);
     // Traverse the root container tree and find the minimum size
