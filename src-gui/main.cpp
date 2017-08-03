@@ -129,17 +129,17 @@ int main(int argc, char *argv[]){
     if (show_scene7) {
       ImGui::SetNextWindowPos(ImVec2(100,300),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(400,400),ImGuiSetCond_FirstUseEver);
-      ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7,ImGuiWindowFlags_NoBringToFrontOnFocus);
+      ImGui::Dock *cont3 = ImGui::RootContainer("rootcontain",&show_scene7);
     }
     ImGui::Container("contain4");
     ImGui::Container("contain5");
     if (show_scene8) ImGui::Container("contain6",&show_scene8);
-    if (show_scene9) ImGui::Container("contain7",&show_scene9,ImGuiWindowFlags_NoBringToFrontOnFocus);
+    if (show_scene9) ImGui::Container("contain7",&show_scene9);
 
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(500,200),ImGuiSetCond_FirstUseEver);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-      if (ImGui::BeginDock("Info",&show_scene1,ImGuiWindowFlags_NoBringToFrontOnFocus)){
+      if (ImGui::BeginDock("Info",&show_scene1)){
         ImGui::Text("Hello!");
         if (ImGui::Button("Button##1")){printf("Button\n");}
         ImGui::SameLine();

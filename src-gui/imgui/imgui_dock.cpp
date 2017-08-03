@@ -21,17 +21,16 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
+// deal with the small container size problem (xxxx minimum size)
 // bar movement
 // autoresize of the container - manual and in the public interface
-// deal with the small container size problem (xxxx minimum size)
 // eliminate a bar by rightclicking on it
 // undock a container from a rootcontainer
 // pass container or dock to rootcontainer. build rootcontainer tree from code
-// resizable rootcontainer
 // horizontal and vertical containers have active perpendicular edges?
-// check behavior of nobringtofocus & maybe modify focuscontainer
 //   xx end xx
 // triangles in the tabs; overlap
+// clean up and simplify drawrootcontainer
 // clean up all methods
 // improve focuscontainer
 // see docking thread in imgui github
@@ -276,10 +275,11 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
   Dock *dpar = this->parent;
   Dock *root = dpar->root;
+  root->nchild++;
   if (!dcont){
     // new empty container
     char label1[strlen(root->label)+15];
-    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild));
+    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild_));
     dcont = new Dock;
     IM_ASSERT(dcont);
     dcont->label = ImStrdup(label1);
@@ -293,7 +293,8 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
 
   // new horizontal or vertical container
   char label2[strlen(root->label)+15];
-  ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,++(root->nchild));
+  ImFormatString(label2,IM_ARRAYSIZE(label2),"%s__%d__",root->label,++(root->nchild_));
+  root->nchild++;
   Dock *dhv = new Dock;
   IM_ASSERT(dhv);
   dhv->label = ImStrdup(label2);
@@ -332,7 +333,8 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
   if (!dcont){
     // new empty container
     char label1[strlen(root->label)+15];
-    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild));
+    ImFormatString(label1,IM_ARRAYSIZE(label1),"%s__%d__",root->label,++(root->nchild_));
+    root->nchild++;
     dcont = new Dock;
     IM_ASSERT(dcont);
     dcont->label = ImStrdup(label1);
@@ -362,8 +364,9 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
 void Dock::OpRoot_FillEmpty(){
   if (!this->stack.empty() || this->type != Dock::Type_Root) return;
 
+  this->nchild = 1;
   char tmp[strlen(this->label)+15];
-  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",this->label,++(this->nchild));
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__%d__",this->label,++(this->nchild_));
   Dock *dcont = new Dock;
   IM_ASSERT(dcont);
   dcont->label = ImStrdup(tmp);
@@ -373,6 +376,8 @@ void Dock::OpRoot_FillEmpty(){
   dcont->status == Dock::Status_Docked;
   dcont->hoverable = true;
   dcont->automatic = true;
+  dcont->parent = this;
+  dcont->root = this;
   this->stack.push_back(dcont);
 }
 
@@ -405,6 +410,7 @@ void Dock::killContainerMaybe(){
     // An empty container
     // Do not remove the last container from a root container, even if it's empty
     if (dpar->type == Dock::Type_Root && dpar->stack.size() <= 1) return;
+    this->root->nchild--;
     this->killDock(dpar);
 
     // Try to kill its parent
@@ -417,6 +423,7 @@ void Dock::killContainerMaybe(){
   } else if ((this->type == Dock::Type_Vertical || this->type == Dock::Type_Horizontal) && this->stack.size() == 1){
     // This vertical/horizontal container only has window -> eliminate
     // it and connect the single window to its parent
+    this->root->nchild--;
     this->killDock(dpar,this->stack.back());
 
     // Try to kill its parent
@@ -442,22 +449,24 @@ void Dock::drawContainer(bool noresize){
   } // if (this->stack.size() > 0);
 }
 
-void Dock::drawRootContainer(Dock *root){
+void Dock::drawRootContainer(Dock *root, int *ncount/*=nullptr*/){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = 8.;
 
   this->root = root;
   if (this->type == Dock::Type_Root){
+    int ncount_ = 0;
     for (auto dd : this->stack){
       dd->pos = this->pos;
       dd->size = this->size;
       dd->parent = this;
-      dd->drawRootContainer(root);
+      dd->drawRootContainer(root,&ncount_);
     }
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     int n = -1;
     int ntot = this->stack.size();
     float width1, width2;
+    (*ncount)++;
     for (auto dd : this->stack){
       n++;
       if (n == 0){
@@ -485,17 +494,25 @@ void Dock::drawRootContainer(Dock *root){
 	dd->size.x -= width2;
       }
       dd->parent = this;
-      dd->drawRootContainer(root);
+      dd->drawRootContainer(root,ncount);
     }
   } else if (this->type == Dock::Type_Container) {
     // Draw the docked container window
+    bool noresize = true;
+    (*ncount)++;
     this->status = Dock::Status_Docked;
     this->hoverable = true;
     this->collapsed = false;
-    this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
+    this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
       ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
       ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
-
+    if (*ncount < this->root->nchild)
+      this->flags |= ImGuiWindowFlags_NoResize;
+    else if (this->currenttab){
+      this->flags |= ImGuiWindowFlags_NoResize;
+      noresize = false;
+    }
+      
     // only if the root is not collapsed
     if (!root->collapsed){
       bool transparentframe = this->currenttab;
@@ -511,7 +528,7 @@ void Dock::drawRootContainer(Dock *root){
       Begin(this->label,nullptr,this->flags);
       this->window = GetCurrentWindow();
       dockwin[this->window] = this;
-      this->drawContainer(true);
+      this->drawContainer(noresize);
       this->tabdz = this->tabbarrect.Max.y - this->pos.y;
       End();
       if (transparentframe)
@@ -525,6 +542,14 @@ void Dock::drawRootContainer(Dock *root){
       placeWindow(this->root->window,this->window,+1);
       if (this->currenttab)
 	placeWindow(this->window,this->currenttab->window,+1);
+
+      // Transfer the resize to the root container
+      if (g->ActiveId == this->window->GetID("#RESIZE") && !this->currenttab){
+	const ImVec2 br = this->window->Rect().GetBR();
+	const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
+	const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
+	this->root->window->SizeFull = g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - this->root->window->Pos;
+      }
     }
   }
 }
@@ -729,7 +754,6 @@ void Dock::clearRootContainer(){
 void Dock::raiseOrSinkDock(){
   ImGuiContext *g = GetCurrentContext();
   if (!this->window) return;
-  if ((this->flags & ImGuiWindowFlags_NoBringToFrontOnFocus) && !sink) return;
 
   for (int i = 0; i < g->Windows.Size; i++)
     if (g->Windows[i] == this->window){
@@ -841,7 +865,6 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
     dockht[string(dd->label)] = dd;
     dd->type = Dock::Type_Root;
     dd->id = ImHash(label,0);
-    dd->nchild = 0;
   }
 
   // Initialize with a container if empty
@@ -1062,6 +1085,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     }
   }
 
+  ImVec2 sizeprevious = dd->size;
   if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
     // Docked or lifted: position and size are controlled
     dd->control_window_this_frame = false;
@@ -1184,8 +1208,15 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     else
       placeWindow(dd->window,dd->parent->window,-1);
     // If the resize grip is being used, resize the container too.
-    if (g->ActiveId == dd->window->GetID("#RESIZE"))
-      dd->parent->window->SizeFull = dd->window->Size + ImVec2(0.f,dd->parent->tabdz);
+    if (g->ActiveId == dd->window->GetID("#RESIZE")){
+      if (dd->root){
+	const ImVec2 br = dd->window->Rect().GetBR();
+	const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
+	const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
+	dd->root->window->SizeFull = g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - dd->root->window->Pos;
+      } else if (dd->parent)
+	dd->parent->window->SizeFull = dd->window->Size + ImVec2(0.f,dd->parent->tabdz);
+    }
   }
 
   return !collapsed;
@@ -1206,33 +1237,33 @@ void ImGui::Print() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  // for (auto dock : dockht){
-  //   Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
-  // 	 dock.second->flags & ImGuiWindowFlags_NoBringToFrontOnFocus,
-  // 	 dock.second->flags_saved & ImGuiWindowFlags_NoBringToFrontOnFocus);
-  //   // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
-  //   // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-  //   // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-  //   // if (dock.second->p_open)
-  //   //   Text("p_open=%d\n", *(dock.second->p_open));
-  //   Separator();
-  // }
-
-  if (g->HoveredWindow)
-    Text("Hovered: %s\n",g->HoveredWindow->Name);
-  else
-    Text("Hovered: none\n");
-  if (g->HoveredRootWindow)
-    Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
-  else
-    Text("HoveredRoot: none\n");
-  if (g->IO.MouseClicked[0])
-    Text("Mouse clicked!\n");
-  else
-    Text("Mouse not clicked!\n");
-  for (int i = 0; i < g->Windows.Size; i++){
-    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  for (auto dock : dockht){
+    Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
+  	 dock.second->flags & ImGuiWindowFlags_NoResize,
+  	 dock.second->flags_saved & ImGuiWindowFlags_NoResize);
+    // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
+    // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+    // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+    // if (dock.second->p_open)
+    //   Text("p_open=%d\n", *(dock.second->p_open));
+    Separator();
   }
+
+  // if (g->HoveredWindow)
+  //   Text("Hovered: %s\n",g->HoveredWindow->Name);
+  // else
+  //   Text("Hovered: none\n");
+  // if (g->HoveredRootWindow)
+  //   Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
+  // else
+  //   Text("HoveredRoot: none\n");
+  // if (g->IO.MouseClicked[0])
+  //   Text("Mouse clicked!\n");
+  // else
+  //   Text("Mouse not clicked!\n");
+  // for (int i = 0; i < g->Windows.Size; i++){
+  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  // }
 }
 
 void ImGui::ShutdownDock(){
