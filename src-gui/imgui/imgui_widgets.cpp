@@ -133,3 +133,26 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
 
   return clicked;
 }
+
+void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow){
+  ImGuiContext *g = GetCurrentContext();
+//  const ImVec2 br = window->Rect().GetBR();
+//  ImDrawList* dl = window->DrawList;
+  const ImVec2 br = GetCurrentWindow()->Pos + GetCurrentWindow()->Size;
+  ImDrawList* dl = GetWindowDrawList();
+  const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
+  const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
+  const ImGuiID resize_id = window->GetID("#blehblah");
+
+  // button behavior
+  bool hovered, held;
+  ButtonBehavior(resize_rect, resize_id, &hovered, &held, true);
+
+  // resize grip (from imgui.cpp)
+  ImU32 resize_col = GetColorU32(held ? ImGuiCol_ResizeGripActive : hovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip);
+  dl->PathLineTo(br + ImVec2(-resize_corner_size, -window->BorderSize));
+  dl->PathLineTo(br + ImVec2(-window->BorderSize, -resize_corner_size));
+  dl->PathArcToFast(ImVec2(br.x - g->Style.WindowRounding - window->BorderSize, br.y - g->Style.WindowRounding - window->BorderSize), g->Style.WindowRounding, 0, 3);
+  dl->PathFillConvex(resize_col);
+}
+

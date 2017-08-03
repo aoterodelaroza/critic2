@@ -64,5 +64,7 @@ namespace ImGui{
 		   bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
 		   float alpha = 1.f);
 
+  // Resize grip that controls some other window's size
+  void ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow);
 } // namespace ImGui
 #endif

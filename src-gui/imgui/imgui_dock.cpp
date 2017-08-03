@@ -21,13 +21,14 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// pass container or dock to rootcontainer. build rootcontainer tree from code
 // resize of elements is laggy -> write my own resize grips - different color for lift grip.
 //   the new resize grip accepts the controllable window as the parameter.
+// pass container or dock to rootcontainer. build rootcontainer tree from code
 //   xx end xx
 // triangles in the tabs; overlap
 // max and min? math.h header
 // clean the window stack
+// clean up the widgets for publication
 // clean up and simplify drawrootcontainer
 // clean up all methods and constants; improve focuscontainer
 // see docking thread in imgui github
