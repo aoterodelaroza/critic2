@@ -21,7 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// resize grip shown if collapsed
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // resize of elements is laggy -> write my own resize grips - different color for lift grip.
 //   the new resize grip accepts the controllable window as the parameter.
@@ -501,6 +500,8 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
     } else if (this->currenttab){
       this->flags |= ImGuiWindowFlags_NoResize;
       noresize = root->collapsed;
+      if (noresize)
+	this->currenttab->flags |= ImGuiWindowFlags_NoResize;
     }
       
     // only if the root is not collapsed
