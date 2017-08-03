@@ -23,11 +23,11 @@
 //   xx rootcontainer xx
 // deal with the small container size problem (xxxx minimum size)
 // bar movement
-// autoresize of the container - manual and in the public interface
 // eliminate a bar by rightclicking on it
 // undock a container from a rootcontainer
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 // horizontal and vertical containers have active perpendicular edges?
+// autoresize of the container - manual and in the public interface
 //   xx end xx
 // triangles in the tabs; overlap
 // clean up and simplify drawrootcontainer
@@ -590,6 +590,37 @@ void Dock::drawRootContainerBars(Dock *root){
   }
 }
 
+ImVec2 Dock::minRootContainerSize(){
+  ImGuiContext *g = GetCurrentContext();
+  const float barwidth = 6.;
+  const float minxcont = 40.;
+
+  ImVec2 size = {};
+  if (this->type == Dock::Type_Root){
+    for (auto dd : this->stack)
+      size = dd->minRootContainerSize();
+    size = size + ImVec2(0.f,g->FontSize + g->Style.FramePadding.y * 2.0f);
+  } else if (this->type == Dock::Type_Horizontal) {
+    ImVec2 size_ = {};
+    for (auto dd : this->stack){
+      size_ = dd->minRootContainerSize();
+      size.x = max(size_.x,size.x);
+      size.y += size_.y + barwidth;
+    }
+  } else if (this->type == Dock::Type_Vertical) {
+    ImVec2 size_ = {};
+    for (auto dd : this->stack){
+      size_ = dd->minRootContainerSize();
+      size.x += size_.x + barwidth;
+      size.y = max(size_.y,size.y);
+    }
+  } else if (this->type == Dock::Type_Container) {
+    size.x = minxcont;
+    size.y = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);
+  }
+  return size;
+}
+
 void Dock::drawTabBar(){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = GetTextLineHeightWithSpacing();
@@ -870,9 +901,11 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   // Initialize with a container if empty
   dd->OpRoot_FillEmpty();
 
-  // xxxx // set minimum size? // xxxx //
+  // Set the minimum size
+  ImVec2 minsize = dd->minRootContainerSize();
+  SetNextWindowSizeConstraints(minsize,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
 
-  // Making an invisible window
+  // Making an invisible window (always has a container)
   PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
   flags = flags | ImGuiWindowFlags_NoResize;
   collapsed = !Begin(label,p_open,flags);

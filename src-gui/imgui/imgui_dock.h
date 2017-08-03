@@ -111,6 +111,8 @@ namespace ImGui{
     void drawRootContainer(Dock* root, int *count = nullptr);
     // Traverse the tree of a root container and draw all bars in it
     void drawRootContainerBars(Dock* root);
+    // Traverse the root container tree and find the minimum size
+    ImVec2 minRootContainerSize();
     // Draw the tab bar of a tabbed container
     void drawTabBar();
     // Clear all docked windows from a container
