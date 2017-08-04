@@ -493,13 +493,9 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
     this->collapsed = root->collapsed;
     if (this->currenttab) this->currenttab->hidden = root->collapsed;
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
-      ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|
-      ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoBringToFrontOnFocus;
-    if (*ncount < this->root->nchild){
-      if (this->currenttab)
-	this->flags |= ImGuiWindowFlags_NoResize;
-    } else if (this->currenttab){
-      this->flags |= ImGuiWindowFlags_NoResize;
+      ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
+      ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_NoResize;
+    if (this->currenttab){
       noresize = root->collapsed;
       if (noresize)
 	this->currenttab->flags |= ImGuiWindowFlags_NoResize;
@@ -512,13 +508,20 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       if (this->currenttab)
 	this->currenttab->hidden = false;
 
+      // draw the window
       SetNextWindowPos(this->pos);
       SetNextWindowSize(this->size);
       SetNextWindowCollapsed(this->collapsed);
       if (transparentframe)
 	PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
       Begin(this->label,nullptr,this->flags);
+
+      // resize grip controlling the rootcontainer, if this is the bottom-right window
       this->window = GetCurrentWindow();
+      if (*ncount == this->root->nchild)
+	ResizeGripOther(this->label, this->window, this->root->window);
+
+      // write down the rest of the variables and end the window
       dockwin[this->window] = this;
       this->drawContainer(noresize);
       this->tabdz = this->tabbarrect.Max.y - this->pos.y;
@@ -537,13 +540,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 
       // Resize grip
       if (g->ActiveId == this->window->GetID("#RESIZE") && !this->currenttab){
-	if (*ncount == this->root->nchild){
-	  // Transfer the resize to the root container if bottom right dock
-	  const ImVec2 br = this->window->Rect().GetBR();
-	  const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
-	  const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
-	  this->root->window->SizeFull = g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - this->root->window->Pos;
-	} else {
+	if (*ncount != this->root->nchild){
 	  if (IsMouseDragging())
 	    *lift = this;
 	}

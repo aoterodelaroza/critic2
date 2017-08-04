@@ -137,6 +137,7 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
 void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow){
   static bool first = true;
   static ImVec2 size_orig = {};
+  static ImVec2 csize_orig = {};
   ImGuiContext *g = GetCurrentContext();
   const ImVec2 br = window->Rect().GetBR();
   ImDrawList* dl = window->DrawList;
@@ -162,7 +163,10 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
 
   // update the static flags
   if (held){
-    if (first) size_orig = cwindow->SizeFull;
+    if (first) {
+      size_orig = window->SizeFull;
+      csize_orig = cwindow->SizeFull;
+    }
     first = false;
   } else {
     first = true;
@@ -177,7 +181,7 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
     cwindow->SizeFull = size_auto_fit;
     ClearActiveID();
   } else if (held)
-    cwindow->SizeFull = size_orig + (g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - window->Pos) - window->SizeFull;
+    cwindow->SizeFull = csize_orig + (g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - window->Pos) - size_orig;
   cwindow->Size = cwindow->SizeFull;
 
   // resize grip (from imgui.cpp)
