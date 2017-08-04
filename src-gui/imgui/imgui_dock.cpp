@@ -31,6 +31,7 @@
 // clean up all methods and constants; improve focuscontainer
 // top/right/... in a static enum
 // clean up the style
+// smart pointers?
 // see docking thread in imgui github
 
 #include "imgui.h"
@@ -241,17 +242,17 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
   }
 }
 
-void Dock::newDockRoot(Dock *dnew, int iedge){
+Dock *Dock::newDockRoot(Dock *dnew, int iedge){
   // 1:top, 2:right, 3:bottom, 4:left, 5:replace
-  if (iedge == 0) return;
+  if (iedge == 0) return nullptr;
   Dock *dcont = nullptr;
-  dnew->status = Dock::Status_Docked;
-  if (dnew->type == Dock::Type_Container){
+  if (dnew->type == Dock::Type_Container)
     dcont = dnew;
-    dnew->hoverable = true;
-  }
+
   if (this->type == Dock::Type_Root){
-    this->stack.back()->newDockRoot(dcont,iedge);
+    dcont = this->stack.back()->newDockRoot(dnew,iedge);
+  } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical){
+    dcont = this->stack.back()->newDockRoot(dnew,iedge);
   } else {
     if (this->parent->type == Dock::Type_Root){
       Type_ type;
@@ -262,7 +263,13 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
         type = Dock::Type_Vertical;
         dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
       } else {
-        this->killDock(this->parent,dnew);
+        if (this->automatic)
+          if (dnew->type == Type_Container)
+            this->killDock(this->parent,dnew);
+          else
+            dcont = this;
+        else
+          return nullptr;
       }
     } else if (this->parent->type == Dock::Type_Horizontal){
       if (iedge == 1 || iedge == 3){
@@ -277,9 +284,14 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
         dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1,dcont);
       }
     }
+
+    dnew->hoverable = (dnew->type == Dock::Type_Dock);
+    if (dnew->type == Dock::Type_Dock)
+      dcont->newDock(dnew);
   }
-  if (dnew->type != Dock::Type_Container)
-    dcont->newDock(dnew);
+  dnew->status = Dock::Status_Docked;
+  dnew->root = this->root;
+  return dcont;
 }
 
 Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*/){
@@ -333,6 +345,14 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     }
   }
 
+  // rearrange the parent and root variables
+  dhv->root = root;
+  dcont->root = root;
+  this->root = root;
+  dhv->parent = dpar;
+  this->parent = dhv;
+  dcont->parent = dhv;
+
   // return the new container
   return dcont;
 }
@@ -368,6 +388,10 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     }
   }
 
+  // rearrange the parent and root variables
+  dcont->root = root;
+  dcont->parent = dpar;
+
   // return the new container
   return dcont;
 }
@@ -392,18 +416,31 @@ void Dock::OpRoot_FillEmpty(){
   this->stack.push_back(dcont);
 }
 
+void Dock::replaceDock(Dock *replaced, Dock* replacement){
+  for(auto it = this->stack.begin(); it != this->stack.end(); it++){
+    if (*it == replaced){
+      this->stack.insert(this->stack.erase(it),replacement);
+      replacement->parent = this;
+      replacement->root = this->root;
+      replaced->parent = nullptr;
+      replaced->root = nullptr;
+      break;
+    }
+  }
+}
+
 void Dock::killDock(Dock *parent/*=nullptr*/, Dock *replacement/*=nullptr*/){
-  if (parent){
+  if (parent && replacement)
+    parent->replaceDock(this,replacement);
+  else if (parent){
     for(auto it = parent->stack.begin(); it != parent->stack.end(); it++){
       if (*it == this){
-        if (!replacement)
-          parent->stack.erase(it);
-        else
-          parent->stack.insert(parent->stack.erase(it),replacement);
+        parent->stack.erase(it);
         break;
       }
     }
   }
+
   dockht.erase(string(this->label));
   dockwin.erase(this->window);
   if (this) delete this;
@@ -1079,8 +1116,9 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   dd->flags_saved = dd->flags;
   dd->root = nullptr;
   dd->collapsed = collapsed;
-  dd->collapsed_saved = dd->collapsed;
+  dd->pos_saved = dd->pos;
   if (!collapsed) dd->size_saved = dd->size;
+  dd->collapsed_saved = dd->collapsed;
   dd->window = GetCurrentWindow();
   dockwin[dd->window] = dd;
   dd->p_open = p_open;
@@ -1232,6 +1270,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     // Floating window
     collapsed = !Begin(label,p_open,flags);
     dd->collapsed_saved = collapsed;
+    dd->pos_saved = dd->pos;
     if (!collapsed) dd->size_saved = dd->size;
     dd->flags_saved = flags;
     dd->root = nullptr;
@@ -1332,17 +1371,17 @@ void ImGui::Print() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  for (auto dock : dockht){
-    Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
-         dock.second->flags & ImGuiWindowFlags_NoResize,
-         dock.second->flags_saved & ImGuiWindowFlags_NoResize);
-    // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
-    // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-    // if (dock.second->p_open)
-    //   Text("p_open=%d\n", *(dock.second->p_open));
-    Separator();
-  }
+  // for (auto dock : dockht){
+  //   Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
+  //        dock.second->flags & ImGuiWindowFlags_NoResize,
+  //        dock.second->flags_saved & ImGuiWindowFlags_NoResize);
+  //   // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->id,dock.second->label);
+  //   // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+  //   // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+  //   // if (dock.second->p_open)
+  //   //   Text("p_open=%d\n", *(dock.second->p_open));
+  //   Separator();
+  // }
 
   // if (g->HoveredWindow)
   //   Text("Hovered: %s\n",g->HoveredWindow->Name);

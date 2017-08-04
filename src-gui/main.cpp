@@ -150,15 +150,34 @@ int main(int argc, char *argv[]){
       droot = ImGui::RootContainer("rootcontain",&show_scene9);
     }
 
+    ImGui::Dock *dcont3 = ImGui::Container("contain9");
+    ImGui::Dock *dcont4 = ImGui::Container("contain10");
+
+    // if (first){
+    //   first = false;
+    //   dcont1->newDock(d1);
+    //   dcont1->newDock(d2);
+
+    //   dcont2->newDock(d3);
+    //   dcont2->newDock(d4,0);
+
+    //   ImGui::Dock *tmp;
+    //   tmp = droot->newDockRoot(dcont1,5);
+    //   tmp = tmp->newDockRoot(dcont3,1);
+    //   dcont1->newDockRoot(dcont2,2);
+    //   tmp->newDockRoot(dcont4,2);
+    // }
+
     if (first){
       first = false;
-      dcont1->newDock(d1);
-      dcont1->newDock(d2);
-
-      dcont2->newDock(d3);
-      dcont2->newDock(d4,0);
-
-      droot->newDockRoot(dcont2,5);
+      ImGui::Dock *tmp;
+      tmp = droot->newDockRoot(d1,5);
+      tmp = tmp->newDockRoot(d2,1);
+      tmp = tmp->newDockRoot(d3,1);
+      tmp = tmp->newDockRoot(dcont3,3);
+      dcont3->newDock(d4);
+      dcont3->newDock(d5,0);
+      dcont3->newDock(d6,0);
     }
 
     // for testing the resize grip // //

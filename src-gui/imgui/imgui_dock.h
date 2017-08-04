@@ -41,6 +41,7 @@ namespace ImGui{
     ImU32 id = 0; // id of the window
     char* label = nullptr; // window label
     ImVec2 pos; // position of the window
+    ImVec2 pos_saved; // position of the window (before docking)
     ImVec2 size; // size of the window
     ImVec2 size_saved; // saved size (before docking for dockable window)
     ImRect tabbarrect = {}; // rectangle for the container tab bar
@@ -85,7 +86,7 @@ namespace ImGui{
     void newDock(Dock *dnew, int ithis = -1);
     // Add a new dock to a docked container (child of
     // rootcontainer). Return the new container.
-    void newDockRoot(Dock *dnew, int iedge);
+    Dock *newDockRoot(Dock *dnew, int iedge);
     // Replace this dock (part of a root container tree) with a
     // horizontal (type==Type_Horizontal) or vertical
     // (type==Type_Vertical) container. The new container has the
@@ -99,6 +100,8 @@ namespace ImGui{
     Dock *OpRoot_AddToHV(bool before,Dock *dcont=nullptr);
     // Fill a root container with at least one container
     void OpRoot_FillEmpty();
+    // Replace a dock in a container's stack
+    void replaceDock(Dock *replaced, Dock *replacement);
     // Kill a dock. If a parent is given, elminiate it from the stack
     // if present. If replacement is given, replace it in the stack.
     void killDock(Dock *parent=nullptr, Dock *replacement=nullptr);
