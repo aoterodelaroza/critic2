@@ -135,18 +135,50 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
 }
 
 void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow){
+  static bool first = true;
+  static ImVec2 size_orig = {};
   ImGuiContext *g = GetCurrentContext();
-//  const ImVec2 br = window->Rect().GetBR();
-//  ImDrawList* dl = window->DrawList;
-  const ImVec2 br = GetCurrentWindow()->Pos + GetCurrentWindow()->Size;
-  ImDrawList* dl = GetWindowDrawList();
+  const ImVec2 br = window->Rect().GetBR();
+  ImDrawList* dl = window->DrawList;
   const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
   const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
-  const ImGuiID resize_id = window->GetID("#blehblah");
+  char tmp[strlen(label)+15];
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__resize__",label);
+  const ImGuiID resize_id = window->GetID(tmp);
+
+  // Calculate auto-fit size for target window
+  ImVec2 size_auto_fit;
+  size_auto_fit = ImClamp(cwindow->SizeContents + cwindow->WindowPadding, g->Style.WindowMinSize, 
+			  ImMax(g->Style.WindowMinSize, g->IO.DisplaySize - g->Style.DisplaySafeAreaPadding));
+
+  // no clipping; save previous clipping
+  ImRect saverect = window->ClipRect;
+  window->ClipRect = ImVec4(-FLT_MAX,-FLT_MAX,+FLT_MAX,+FLT_MAX);
+  dl->PushClipRectFullScreen();
 
   // button behavior
   bool hovered, held;
-  ButtonBehavior(resize_rect, resize_id, &hovered, &held, true);
+  ButtonBehavior(resize_rect, resize_id, &hovered, &held, ImGuiButtonFlags_FlattenChilds);
+
+  // update the static flags
+  if (held){
+    if (first) size_orig = cwindow->SizeFull;
+    first = false;
+  } else {
+    first = true;
+  }
+
+  // mouse cursor
+  if (hovered || held)
+    g->MouseCursor = ImGuiMouseCursor_ResizeNWSE;
+
+  // apply the size change
+  if (g->HoveredWindow == window && held && g->IO.MouseDoubleClicked[0]){
+    cwindow->SizeFull = size_auto_fit;
+    ClearActiveID();
+  } else if (held)
+    cwindow->SizeFull = size_orig + (g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - window->Pos) - window->SizeFull;
+  cwindow->Size = cwindow->SizeFull;
 
   // resize grip (from imgui.cpp)
   ImU32 resize_col = GetColorU32(held ? ImGuiCol_ResizeGripActive : hovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip);
@@ -154,5 +186,7 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
   dl->PathLineTo(br + ImVec2(-window->BorderSize, -resize_corner_size));
   dl->PathArcToFast(ImVec2(br.x - g->Style.WindowRounding - window->BorderSize, br.y - g->Style.WindowRounding - window->BorderSize), g->Style.WindowRounding, 0, 3);
   dl->PathFillConvex(resize_col);
+  dl->PopClipRect();
+  window->ClipRect = saverect;
 }
 
