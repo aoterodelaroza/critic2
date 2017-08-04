@@ -196,7 +196,7 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
 
 bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   ImGuiContext *g = GetCurrentContext();
-  const ImVec2 br = window->Rect().GetBR();
+  const ImVec2 br = window->Rect().GetBL();
   ImDrawList* dl = window->DrawList;
   const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
   const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);

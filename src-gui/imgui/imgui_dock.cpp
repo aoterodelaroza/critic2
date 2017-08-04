@@ -1179,11 +1179,39 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       }
       dd->root = dd->parent->root;
 
-      if (resize)
+      if (resize){
       	if (dd->root)
       	  ResizeGripOther(dd->label, dd->window, dd->root->window);
 	else
       	  ResizeGripOther(dd->label, dd->window, dd->parent->window);
+      } else if (dd->root && !dd->parent->automatic) {
+	bool liftit = LiftGrip(dd->label, dd->window);
+	if (liftit){
+	  // xxxx //
+	  const float barheight = 2 * GetTextLineHeightWithSpacing();
+	  Dock *lift = dd->parent;
+	  for(auto it = lift->parent->stack.begin(); it != lift->parent->stack.end(); it++)
+	    if (*it == lift){
+	      lift->parent->stack.erase(it);
+	      break;
+	    }
+	  lift->parent->killContainerMaybe();
+	  lift->root->nchild--;
+	  lift->status = Dock::Status_Dragged;
+	  lift->control_window_this_frame = true;
+	  lift->size = lift->size_saved;
+	  lift->collapsed = lift->collapsed_saved;
+	  lift->flags = lift->flags_saved;
+	  lift->pos = GetMousePos() - ImVec2(0.5*lift->size.x,barheight);
+	  lift->parent = nullptr;
+	  lift->root = nullptr;
+	  lift->raiseOrSinkDock();
+	  ClearActiveID();
+	  g->MovedWindow = lift->window;
+	  g->MovedWindowMoveId = lift->window->RootWindow->MoveId;
+	  SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
+	}
+      }
     } else if (dd->status == Dock::Status_Dragged) { 
       // the window has just been lifted from a container. Go back to
       // being a normal window with the new position and size; being
