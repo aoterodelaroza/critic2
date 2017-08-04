@@ -491,12 +491,12 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
     this->status = Dock::Status_Docked;
     this->hoverable = true;
     this->collapsed = root->collapsed;
-    if (this->currenttab) this->currenttab->hidden = root->collapsed;
     this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
       ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
       ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_NoResize;
     if (this->currenttab){
-      noresize = root->collapsed;
+      this->currenttab->hidden = root->collapsed;
+      noresize = root->collapsed || !(*ncount == this->root->nchild);
       if (noresize)
 	this->currenttab->flags |= ImGuiWindowFlags_NoResize;
     }
@@ -518,7 +518,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 
       // resize grip controlling the rootcontainer, if this is the bottom-right window
       this->window = GetCurrentWindow();
-      if (*ncount == this->root->nchild)
+      if (*ncount == this->root->nchild && !this->currenttab)
 	ResizeGripOther(this->label, this->window, this->root->window);
 
       // write down the rest of the variables and end the window
@@ -1169,7 +1169,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     SetNextWindowCollapsed(dd->collapsed);
     if (dd->status == Dock::Status_Docked) {
       // Docked: flags and hidden controlled by the container, too
-      flags = dd->flags;
+      bool resize = !(dd->flags & ImGuiWindowFlags_NoResize) && !dd->hidden && !dd->collapsed;
+      flags = dd->flags | ImGuiWindowFlags_NoResize;
       collapsed = dd->hidden;
       if (dd->hidden){
         Begin(label,nullptr,dd->size,0.0,flags);
@@ -1177,6 +1178,12 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
         Begin(label,nullptr,flags);
       }
       dd->root = dd->parent->root;
+
+      if (resize)
+      	if (dd->root)
+      	  ResizeGripOther(dd->label, dd->window, dd->root->window);
+	else
+      	  ResizeGripOther(dd->label, dd->window, dd->parent->window);
     } else if (dd->status == Dock::Status_Dragged) { 
       // the window has just been lifted from a container. Go back to
       // being a normal window with the new position and size; being
@@ -1282,16 +1289,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       placeWindow(dd->parent->window,dd->window,+1);
     else
       placeWindow(dd->window,dd->parent->window,-1);
-    // If the resize grip is being used, resize the container too.
-    if (g->ActiveId == dd->window->GetID("#RESIZE")){
-      if (dd->root){
-	const ImVec2 br = dd->window->Rect().GetBR();
-	const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
-	const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
-	dd->root->window->SizeFull = g->IO.MousePos - g->ActiveIdClickOffset + resize_rect.GetSize() - dd->root->window->Pos;
-      } else if (dd->parent)
-	dd->parent->window->SizeFull = dd->window->Size + ImVec2(0.f,dd->parent->tabdz);
-    }
   }
 
   return !collapsed;
