@@ -250,28 +250,32 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
     dcont = dnew;
     dnew->hoverable = true;
   }
-  if (this->parent->type == Dock::Type_Root){
-    Type_ type;
-    if (iedge == 1 || iedge == 3){
-      type = Dock::Type_Horizontal;
-      dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
-    } else if (iedge == 2 || iedge == 4){
-      type = Dock::Type_Vertical;
-      dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
-    } else {
-      this->killDock(this->parent,dnew);
-    }
-  } else if (this->parent->type == Dock::Type_Horizontal){
-    if (iedge == 1 || iedge == 3){
-      dcont = this->OpRoot_AddToHV(iedge==1,dcont);
-    } else {
-      dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4,dcont);
-    }
-  } else if (this->parent->type == Dock::Type_Vertical){
-    if (iedge == 2 || iedge == 4){
-      dcont = this->OpRoot_AddToHV(iedge==4,dcont);
-    } else {
-      dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1,dcont);
+  if (this->type == Dock::Type_Root){
+    this->stack.back()->newDockRoot(dcont,iedge);
+  } else {
+    if (this->parent->type == Dock::Type_Root){
+      Type_ type;
+      if (iedge == 1 || iedge == 3){
+        type = Dock::Type_Horizontal;
+        dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
+      } else if (iedge == 2 || iedge == 4){
+        type = Dock::Type_Vertical;
+        dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
+      } else {
+        this->killDock(this->parent,dnew);
+      }
+    } else if (this->parent->type == Dock::Type_Horizontal){
+      if (iedge == 1 || iedge == 3){
+        dcont = this->OpRoot_AddToHV(iedge==1,dcont);
+      } else {
+        dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4,dcont);
+      }
+    } else if (this->parent->type == Dock::Type_Vertical){
+      if (iedge == 2 || iedge == 4){
+        dcont = this->OpRoot_AddToHV(iedge==4,dcont);
+      } else {
+        dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1,dcont);
+      }
     }
   }
   if (dnew->type != Dock::Type_Container)

@@ -152,12 +152,13 @@ int main(int argc, char *argv[]){
 
     if (first){
       first = false;
-      // dcont1->newDock(d1);
-      // dcont1->newDock(d2);
+      dcont1->newDock(d1);
+      dcont1->newDock(d2);
 
-      // dcont2->newDock(d3);
-      // dcont2->newDock(d4,0);
-      // droot->newDockRoot(dcont2,0);
+      dcont2->newDock(d3);
+      dcont2->newDock(d4,0);
+
+      droot->newDockRoot(dcont2,5);
     }
 
     // for testing the resize grip // //
