@@ -132,7 +132,8 @@ namespace ImGui{
     // Hide the window corresponding to a docked tab in container dcont
     // If noresize, forbid resizing the shown window.
     void showTabWindow(Dock *dcont, bool noresize);
-    
+    // Lift a container from a rootcontainer
+    void liftContainer();
   }; // struct Dock
 
   // Create a root container with the given label. If p_open, with a
