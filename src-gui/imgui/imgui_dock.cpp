@@ -1037,9 +1037,12 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd->id = ImHash(label,0);
   }
 
-  // If docked, the root container takes care of everything
-  if (dd->status == Dock::Status_Docked)
+  // If docked, the root container takes care of everything. Clear next window data
+  if (dd->status == Dock::Status_Docked){
+    g->SetNextWindowPosCond = g->SetNextWindowSizeCond = g->SetNextWindowContentSizeCond = g->SetNextWindowCollapsedCond = 0;
+    g->SetNextWindowSizeConstraint = g->SetNextWindowFocus = false;
     return dd;
+  }
 
   // Set the position, size, etc. if it was controlled by a root container
   if (dd->control_window_this_frame){

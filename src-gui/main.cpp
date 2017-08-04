@@ -137,8 +137,8 @@ int main(int argc, char *argv[]){
       ImGui::EndDock();
     }
     if (show_scene7){
-      // ImGui::SetNextWindowPos(ImVec2(200,200),ImGuiSetCond_Once);
-      // ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+      ImGui::SetNextWindowPos(ImVec2(200,200),ImGuiSetCond_Once);
+      ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
       dcont1 = ImGui::Container("contain7",&show_scene7);
     }
     if (show_scene8)
