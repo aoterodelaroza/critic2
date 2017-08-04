@@ -149,7 +149,10 @@ namespace ImGui{
   // with a close button. Extra window flags are passed to the
   // container window. If a container pointer is passed, dock to that
   // container in the first pass.
+  // GetCurrentDock() gives the dock pointer to the current open dock 
+  // (same as GetCurrentWindow(), but for docks).
   bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, Dock *oncedock=nullptr);
+  Dock *GetCurrentDock();
   void EndDock();
 
   // Free the memory occupied by the docks and the dock hash table
