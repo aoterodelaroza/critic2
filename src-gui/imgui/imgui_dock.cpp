@@ -21,8 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 //   xx rootcontainer xx
-// resize of elements is laggy -> write my own resize grips - different color for lift grip.
-//   the new resize grip accepts the controllable window as the parameter.
 // pass container or dock to rootcontainer. build rootcontainer tree from code
 //   xx end xx
 // triangles in the tabs; overlap
@@ -31,6 +29,7 @@
 // clean up the widgets for publication
 // clean up and simplify drawrootcontainer
 // clean up all methods and constants; improve focuscontainer
+// top/right/... in a static enum
 // see docking thread in imgui github
 
 #include "imgui.h"
@@ -270,7 +269,7 @@ void Dock::newDockRoot(Dock *dnew, int iedge){
 }
 
 Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*/){
-  // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
+  // 1:top, 2:right, 3:bottom, 4:left
   Dock *dpar = this->parent;
   Dock *root = dpar->root;
   if (!dcont){
@@ -325,7 +324,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
 }
 
 Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
-  // 1:top, 2:right, 3:bottom, 4:left, 5:topleft, 6:topright, 7:bottomright, 8:bottomleft
+  // 1:top, 2:right, 3:bottom, 4:left
   Dock *dpar = this->parent;
   Dock *root = dpar->root;
   if (!dcont){
