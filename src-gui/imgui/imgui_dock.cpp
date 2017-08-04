@@ -516,10 +516,18 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 	PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
       Begin(this->label,nullptr,this->flags);
 
-      // resize grip controlling the rootcontainer, if this is the bottom-right window
+      // resize grip controlling the rootcontainer, if this is the
+      // bottom-right window; lift grip if it is not.
       this->window = GetCurrentWindow();
-      if (*ncount == this->root->nchild && !this->currenttab)
-	ResizeGripOther(this->label, this->window, this->root->window);
+      if (!this->currenttab){
+	if (*ncount == this->root->nchild)
+	  ResizeGripOther(this->label, this->window, this->root->window);
+	else if (!this->automatic){
+      	  bool liftit = LiftGrip(this->label, this->window);
+	  if (liftit)
+	    *lift = this;
+	}
+      }
 
       // write down the rest of the variables and end the window
       dockwin[this->window] = this;
@@ -537,14 +545,6 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       placeWindow(this->root->window,this->window,+1);
       if (this->currenttab)
 	placeWindow(this->window,this->currenttab->window,+1);
-
-      // Resize grip
-      if (g->ActiveId == this->window->GetID("#RESIZE") && !this->currenttab){
-	if (*ncount != this->root->nchild){
-	  if (IsMouseDragging())
-	    *lift = this;
-	}
-      } // resize
     } // !(root->collapsed)
   } // this->type == xx
 }

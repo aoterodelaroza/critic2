@@ -66,5 +66,7 @@ namespace ImGui{
 
   // Resize grip that controls some other window's size
   void ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow);
+  // Lift grip
+  bool LiftGrip(const char *label, ImGuiWindow* window);
 } // namespace ImGui
 #endif
