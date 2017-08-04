@@ -196,13 +196,13 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
 
 bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   ImGuiContext *g = GetCurrentContext();
-  const ImVec2 br = window->Rect().GetBL();
+  const ImVec2 bl = window->Rect().GetBL();
   ImDrawList* dl = window->DrawList;
-  const float resize_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
-  const ImRect resize_rect(br - ImVec2(resize_corner_size * 0.75f, resize_corner_size * 0.75f), br);
+  const float lift_corner_size = ImMax(g->FontSize * 1.35f, g->Style.WindowRounding + 1.0f + g->FontSize * 0.2f);
+  const ImRect lift_rect(bl - ImVec2(0.f, lift_corner_size * 0.75f), bl + ImVec2(lift_corner_size * 0.75f, 0.f));
   char tmp[strlen(label)+15];
-  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__resize__",label);
-  const ImGuiID resize_id = window->GetID(tmp);
+  ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__lift__",label);
+  const ImGuiID lift_id = window->GetID(tmp);
 
   // no clipping; save previous clipping
   ImRect saverect = window->ClipRect;
@@ -211,14 +211,14 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
 
   // button behavior
   bool hovered, held;
-  ButtonBehavior(resize_rect, resize_id, &hovered, &held, ImGuiButtonFlags_FlattenChilds);
+  ButtonBehavior(lift_rect, lift_id, &hovered, &held, ImGuiButtonFlags_FlattenChilds);
 
-  // resize grip (from imgui.cpp)
-  ImU32 resize_col = GetColorU32(held ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-  dl->PathLineTo(br + ImVec2(-resize_corner_size, -window->BorderSize));
-  dl->PathLineTo(br + ImVec2(-window->BorderSize, -resize_corner_size));
-  dl->PathArcToFast(ImVec2(br.x - g->Style.WindowRounding - window->BorderSize, br.y - g->Style.WindowRounding - window->BorderSize), g->Style.WindowRounding, 0, 3);
-  dl->PathFillConvex(resize_col);
+  // lift grip (from imgui.cpp's resize grip)
+  ImU32 lift_col = GetColorU32(held ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
+  dl->PathLineTo(bl + ImVec2(window->BorderSize, -lift_corner_size));
+  dl->PathLineTo(bl + ImVec2(lift_corner_size, -window->BorderSize));
+  dl->PathArcToFast(ImVec2(bl.x + g->Style.WindowRounding + window->BorderSize, bl.y - g->Style.WindowRounding - window->BorderSize), g->Style.WindowRounding, 3, 6);
+  dl->PathFillConvex(lift_col);
   dl->PopClipRect();
   window->ClipRect = saverect;
   

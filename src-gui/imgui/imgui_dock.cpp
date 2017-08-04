@@ -522,11 +522,9 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       if (!this->currenttab){
 	if (*ncount == this->root->nchild)
 	  ResizeGripOther(this->label, this->window, this->root->window);
-	else if (!this->automatic){
-      	  bool liftit = LiftGrip(this->label, this->window);
-	  if (liftit)
+	if (!this->automatic)
+      	  if (LiftGrip(this->label, this->window))
 	    *lift = this;
-	}
       }
 
       // write down the rest of the variables and end the window
@@ -1184,7 +1182,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       	  ResizeGripOther(dd->label, dd->window, dd->root->window);
 	else
       	  ResizeGripOther(dd->label, dd->window, dd->parent->window);
-      } else if (dd->root && !dd->parent->automatic) {
+      }
+      if (dd->root && !dd->parent->automatic) {
 	bool liftit = LiftGrip(dd->label, dd->window);
 	if (liftit){
 	  // xxxx //
