@@ -31,9 +31,9 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
   ImDrawList* dl = window->DrawList;
   ImGuiContext *g = GetCurrentContext();
   bool hovered, held;
-  const ImU32 color = GetColorU32(ImGuiCol_FrameBg);
-  const ImU32 colorhovered = GetColorU32(ImGuiCol_TextDisabled);
-  const ImU32 coloractive = GetColorU32(ImGuiCol_Text);
+  const ImU32 color = GetColorU32(ImGuiCol_ResizeGrip);
+  const ImU32 coloractive = GetColorU32(ImGuiCol_ResizeGripActive);
+  const ImU32 colorhovered = GetColorU32(ImGuiCol_ResizeGripHovered);
   
   const ImRect slidingrect(*pos,*pos+size);
   const ImGuiID slidingid = window->GetID(label);

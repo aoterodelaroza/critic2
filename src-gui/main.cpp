@@ -110,9 +110,8 @@ int main(int argc, char *argv[]){
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(450,550),ImGuiSetCond_Once);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_Once);
-      if (ImGui::BeginDock("Info1", &show_scene1)){
-        ImGui::Text("Hello1!");
-        if (ImGui::Button("Button1")){printf("Button1\n");}
+      if (ImGui::BeginDock("Style Editor", &show_scene1)){
+        ImGui::ShowStyleEditor();
       }
       d1 = ImGui::GetCurrentDock();
       ImGui::EndDock();

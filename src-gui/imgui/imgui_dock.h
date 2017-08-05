@@ -24,8 +24,8 @@
 
 // This code provides a collection of docking windows and containers
 // for the immediate-mode graphical user interface (ImGui) library
-// (https://github.com/ocornut/imgui). Three components are
-// implemented: 
+// (https://github.com/ocornut/imgui) by Omar Cornut and
+// collaborators. Three components are implemented:
 //
 // 1. Docks - Behave like normal windows, but can attach themselves to
 // containers and root containers.
@@ -217,7 +217,7 @@ namespace ImGui{
     void unDock();
     // Clear all docked windows from a container
     void clearContainer();
-    // Kill a root container
+    // Clear all docked windows from a root container
     void clearRootContainer();
 
     // Kill this automatic container if it is empty. If this

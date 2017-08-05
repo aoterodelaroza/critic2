@@ -22,7 +22,12 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// clean up the styles
+// l. 825, size y constraint on container is wrong
+// rootcontainer size changes when its contents change in size (see style dock), but container does not
+// autoresize -> smart modification of tabsx
+// wrong minimum size -> make it depend on the minimum size of its contained window.
+// when sliding bar is clicked, it moves a little bit
+// adding to a root container does not reset the tabsx
 // examples and new repo
 // see docking thread in imgui github
 
@@ -44,6 +49,13 @@ static unordered_map<ImGuiWindow*,Dock*> dockwin = {}; // global dock hash table
 static Dock *FindHoveredDock(int type = -1); // find the container hovered by the mouse
 static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta); // place a window relative to another in the window stack
 static void killDock(Dock *dd); // erase the dock from the context and delete the object
+static float getTabHeight(); // height of a container tab
+static float getTabMaxWidth(); // maximum widht of a tab
+static float getEdgeWidthx(); // width of the edge drop zone
+static float getEdgeWidthy(); // height of the edge drop zone
+static float getCascadeIncrement(); // window translation in a window cascade
+static float getSlidingBarWidth(); // width of the sliding bars
+static ImVec2 getMinRootContained(); // minimum size of windows docked to a root container
 
 //xx// Dock context methods //xx//
 
@@ -122,11 +134,42 @@ static void killDock(Dock *dd){
   delete dd;
 }
 
+static float getTabHeight(){
+  ImGuiContext *g = GetCurrentContext();
+  return g->FontSize + g->Style.FramePadding.y * 2.0f;
+}
+static float getTabMaxWidth(){
+  ImGuiContext *g = GetCurrentContext();
+  return 100.f * g->FontSize / 13.0f;
+}
+static float getEdgeWidthx(){
+  ImGuiContext *g = GetCurrentContext();
+  return 2.0f * g->Style.WindowPadding.x;
+}
+static float getEdgeWidthy(){
+  ImGuiContext *g = GetCurrentContext();
+  return 2.0f * g->Style.WindowPadding.y;
+}
+static float getCascadeIncrement(){
+  ImGuiContext *g = GetCurrentContext();
+  return g->FontSize + g->Style.FramePadding.y * 4.0f;
+}
+static float getSlidingBarWidth(){
+  ImGuiContext *g = GetCurrentContext();
+  return 0.5f * g->Style.ScrollbarSize;
+}
+static ImVec2 getMinRootContained(){
+  ImGuiContext *g = GetCurrentContext();
+  return ImVec2(g->Style.WindowMinSize.x + getSlidingBarWidth() + 1,
+                g->Style.WindowMinSize.y + getTabHeight() + getSlidingBarWidth() + 1);
+}
+
 //xx// Dock methods //xx//
 
 bool Dock::IsMouseHoveringTabBar(){
-  const ImVec2 ytabcushiondn = ImVec2(0.f,10.);
-  const ImVec2 ytabcushionup = ImVec2(0.f,this->status==Dock::Status_Docked?0.:10.);
+  const float ycush = 0.5 * getTabHeight();
+  const ImVec2 ytabcushiondn = ImVec2(0.f,ycush);
+  const ImVec2 ytabcushionup = ImVec2(0.f,this->status==Dock::Status_Docked?0.:ycush);
   return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushionup,this->tabbarrect.Max+ytabcushiondn,false);
 }
 
@@ -134,7 +177,8 @@ int Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
   const ImVec2 x0[4] = {{0.0,0.0}, {0.9,0.0}, {0.0,0.9}, {0.0,0.0}};
   const ImVec2 x1[4] = {{1.0,0.1}, {1.0,1.0}, {1.0,1.0}, {0.1,1.0}};
-  const float minsize = 20.f;
+  const float minsizex = getEdgeWidthx();
+  const float minsizey = getEdgeWidthy();
 
   ImVec2 xmin, xmax;
   for (int i=0; i<4; i++){
@@ -142,14 +186,14 @@ int Dock::IsMouseHoveringEdge(){
     xmax.x = this->pos.x + x1[i].x * this->size.x;
     xmin.y = this->pos.y + x0[i].y * this->size.y;
     xmax.y = this->pos.y + x1[i].y * this->size.y;
-    if (i == 0 && (xmax.y-xmin.y) < minsize)
-      xmax.y = xmin.y + min(minsize,0.5f * this->size.y);
-    else if (i == 2 && (xmax.y-xmin.y) < minsize)
-      xmin.y = xmax.y - min(minsize,0.5f * this->size.y);
-    else if (i == 3 && (xmax.x-xmin.x) < minsize)
-      xmax.x = xmin.x + min(minsize,0.5f * this->size.x);
-    else if (i == 1 && (xmax.x-xmin.x) < minsize)
-      xmin.x = xmax.x - min(minsize,0.5f * this->size.x);
+    if (i == 0 && (xmax.y-xmin.y) < minsizey)
+      xmax.y = xmin.y + min(minsizey,0.5f * this->size.y);
+    else if (i == 2 && (xmax.y-xmin.y) < minsizey)
+      xmin.y = xmax.y - min(minsizey,0.5f * this->size.y);
+    else if (i == 3 && (xmax.x-xmin.x) < minsizex)
+      xmax.x = xmin.x + min(minsizex,0.5f * this->size.x);
+    else if (i == 1 && (xmax.x-xmin.x) < minsizex)
+      xmin.x = xmax.x - min(minsizex,0.5f * this->size.x);
 
     if (IsMouseHoveringRect(xmin,xmax,false))
       return i+1;
@@ -186,7 +230,8 @@ void Dock::showDropTargetFull(){
 }
 
 void Dock::showDropTargetOnTabBar(){
-  const float triside = 10.f;
+  ImGuiContext *g = GetCurrentContext();
+  const float triside = g->FontSize;
 
   int ithis = this->getNearestTabBorder();
 
@@ -469,7 +514,6 @@ void Dock::focusContainer(){
 }
 
 void Dock::liftContainer(){
-  const float barheight = 2 * GetTextLineHeightWithSpacing();
   ImGuiContext *g = GetCurrentContext();
 
   Dock *dpar = this->parent;
@@ -481,7 +525,7 @@ void Dock::liftContainer(){
   this->unDock();
   this->status = Dock::Status_Dragged;
   this->hoverable = false;
-  this->pos = GetMousePos() - ImVec2(0.5*this->size.x,barheight);
+  this->pos = GetMousePos() - ImVec2(0.5*this->size.x,min(getTabHeight(),0.2f*this->size.y));
   ClearActiveID();
   g->MovedWindow = this->window;
   g->MovedWindowMoveId = this->window->RootWindow->MoveId;
@@ -566,7 +610,7 @@ void Dock::unDock(){
 }
 
 void Dock::clearContainer(){
-  const float increment = 50.;
+  const float increment = getCascadeIncrement();
 
   ImVec2 pos = this->pos;
   for (auto dd : this->stack) {
@@ -579,8 +623,7 @@ void Dock::clearContainer(){
 }
 
 void Dock::clearRootContainer(){
-  ImGuiContext *g = GetCurrentContext();
-  const float increment = 50.;
+  const float increment = getCascadeIncrement();
 
   if (this->type == Dock::Type_Root){
     this->nchild = 0;
@@ -644,9 +687,8 @@ void Dock::killContainerMaybe(){
 
 void Dock::drawTabBar(){
   ImGuiContext *g = GetCurrentContext();
-  const float tabheight = GetTextLineHeightWithSpacing();
-  const float barheight = 2 * GetTextLineHeightWithSpacing();
-  const float maxtabwidth = 100.;
+  const float tabheight = getTabHeight();
+  const float maxtabwidth = getTabMaxWidth();
   ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
   text_color.w = 2.0 / g->Style.Alpha;
   bool raise = false;
@@ -656,10 +698,10 @@ void Dock::drawTabBar(){
 
   // calculate the widths
   float tabwidth_long;
-  if ((this->size.x - 2 * g->Style.ItemSpacing.x) >= this->stack.size() * maxtabwidth)
+  if ((this->size.x - 2 * g->Style.WindowPadding.x) >= this->stack.size() * maxtabwidth)
     tabwidth_long = maxtabwidth;
   else
-    tabwidth_long = round(this->size.x - 2 * g->Style.ItemSpacing.x) / this->stack.size();
+    tabwidth_long = round(this->size.x - 2 * g->Style.WindowPadding.x) / this->stack.size();
 
   // the tabbar with alpha = 1.0, no spacing in the x
   PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0,1.0));
@@ -669,7 +711,7 @@ void Dock::drawTabBar(){
   // start placing the tabs
   char tmp[strlen(this->label)+15];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__tab__",this->label);
-  if (BeginChild(tmp,ImVec2(this->size.x,barheight),false)){
+  if (BeginChild(tmp,ImVec2(this->size.x,0.f),false)){
     bool active = false, hovered = false;
     Dock *dderase = nullptr, *ddlast = nullptr;
     ImVec2 center, pos0, pos1, pos1s, text_size;
@@ -691,13 +733,13 @@ void Dock::drawTabBar(){
         dd->unDock();
         dd->status = Dock::Status_Dragged;
         dd->hoverable = false;
-        dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
+        dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,0.f);
         goto erase_this_tab;
       }
       // double click detaches the tab / place it on top
       if (dclicked){
         dd->unDock();
-        dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
+        dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,0.f);
         g->HoveredRootWindow = dd->window;
         g->HoveredWindow = dd->window;
         goto erase_this_tab;
@@ -784,10 +826,7 @@ void Dock::drawContainer(bool noresize){
 
 ImVec2 Dock::minRootContainerSize(){
   ImGuiContext *g = GetCurrentContext();
-  const float barheight = 2 * GetTextLineHeightWithSpacing();
-  const float barwidth = 6.;
-  const float minxcont = 40.;
-  const float minycont = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);;
+  const float barwidth = getSlidingBarWidth();
 
   ImVec2 size = {};
   if (this->type == Dock::Type_Root){
@@ -809,21 +848,21 @@ ImVec2 Dock::minRootContainerSize(){
       size.y = max(size_.y,size.y);
     }
   } else if (this->type == Dock::Type_Container) {
-    size.x = minxcont;
+    ImVec2 mincont = getMinRootContained();
+    size.x = mincont.x;
     if (this->currenttab)
       size.x = max(size.x,this->currenttab->window->SizeContents.x);
-    size.y = minycont;
+    size.y = mincont.y;
     if (this->currenttab)
-      size.y = max(size.y, this->currenttab->window->SizeContents.y + barheight);
+      size.y = max(size.y, this->currenttab->window->SizeContents.y + this->tabbarrect.GetHeight());
   }
   return size;
 }
 
 void Dock::drawRootContainerBars(Dock *root){
   ImGuiContext *g = GetCurrentContext();
-  const float barwidth = 6.;
-  const float minxcont = 40.;
-  const float minycont = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);;
+  const float barwidth = getSlidingBarWidth();
+  ImVec2 mincont = getMinRootContained();
 
   this->root = root;
   if (this->type == Dock::Type_Root){
@@ -852,16 +891,16 @@ void Dock::drawRootContainerBars(Dock *root){
         if (this->type == Dock::Type_Horizontal){
           x0 = this->pos.y;
           x1 = this->pos.y + this->size.y;
-          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + minycont;
-          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - minycont;
+          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + mincont.y;
+          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - mincont.y;
           pos.y = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
           size.y = barwidth;
           direction = 2;
         } else {
           x0 = this->pos.x;
           x1 = this->pos.x + this->size.x;
-          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + minxcont;
-          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - minxcont;
+          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + mincont.x;
+          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - mincont.x;
           pos.x = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
           size.x = barwidth;
           direction = 1;
@@ -882,7 +921,7 @@ void Dock::drawRootContainerBars(Dock *root){
 
 void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
   ImGuiContext *g = GetCurrentContext();
-  const float barwidth = 8.;
+  const float barwidth = getSlidingBarWidth();
 
   this->root = root;
   if (this->type == Dock::Type_Root){
@@ -985,7 +1024,6 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 //xx// Public interface //xx//
 
 Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
-  const float barheight = 2 * GetTextLineHeightWithSpacing();
   bool collapsed;
   ImGuiContext *g = GetCurrentContext();
   ImGuiWindowFlags flags = extra_flags;
