@@ -54,6 +54,7 @@ namespace ImGui{
     bool collapsed_saved = false; // saved collapsed (before docking)
     ImRect tabbarrect = {}; // rectangle for the container tab bar
     float tabdz = 0.f; // z position for the end of the tab bar (container)
+    ImGuiWindow* tabwin = nullptr; // pointer to the tab window (for cleaning up the window stack)
     ImVector<float> tabsx = {}; // tab positions for container; sliders for h/v-container
     bool hidden = false; // whether a docked window is hidden
     bool hoverable = true; // whether a window responds to being hovered

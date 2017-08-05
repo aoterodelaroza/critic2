@@ -22,7 +22,7 @@
 #include "imgui_widgets.h"
 #include "imgui.h"
 #include "imgui_internal.h"
-#include <math.h>
+#include <algorithm>
 
 using namespace ImGui;
 
@@ -42,9 +42,9 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
 
   if (held){
     if (direction == 1)
-      pos->x = fmax(fmin(g->IO.MousePos.x,maxx),minx);
+      pos->x = max(min(g->IO.MousePos.x,maxx),minx);
     else
-      pos->y = fmax(fmin(g->IO.MousePos.y,maxx),minx);
+      pos->y = max(min(g->IO.MousePos.y,maxx),minx);
   }
 
   // draw the rectangle

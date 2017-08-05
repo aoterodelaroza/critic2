@@ -25,9 +25,6 @@
 // flickering when changing tabs in container
 // problem initial position outside main window
 // border size at the end of a horizontal/vertical container
-// triangles in the tabs; overlap
-// max and min? math.h header
-// clean the window stack
 // clean up the widgets for publication
 // clean up the styles
 // smart pointers?
@@ -40,7 +37,7 @@
 #include "imgui_widgets.h"
 #include "imgui_impl_glfw.h"
 #include <unordered_map>
-#include <math.h>
+#include <algorithm>
 
 using namespace ImGui;
 
@@ -106,9 +103,26 @@ static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta){
 }
 
 static void killDock(Dock *dd){
+  ImGuiContext *g = GetCurrentContext();
+
   dockht.erase(string(dd->label));
-  if (dd->window)
+  if (dd->window){
+    if (dd->automatic){
+      int i = 0;
+      while (i < g->Windows.Size){
+        if (g->Windows[i] == dd->window){
+          g->Windows.erase(g->Windows.begin() + i);
+          continue;
+        }
+        if (dd->tabwin && g->Windows[i] == dd->tabwin){
+          g->Windows.erase(g->Windows.begin() + i);
+          continue;
+        }
+        i++;
+      }
+    }
     dockwin.erase(dd->window);
+  }
   delete dd;
 }
 
@@ -720,6 +734,7 @@ void Dock::drawTabBar(){
   } // BeginChild(tmp, ImVec2(this->size.x,barheight), true)
   this->tabbarrect = GetCurrentWindowRead()->DC.LastItemRect;
   this->tabbarrect.Min.x = this->pos.x;
+  this->tabwin = GetCurrentWindow();
   EndChild();
   PopStyleVar();
   PopStyleVar();
@@ -1353,33 +1368,33 @@ void ImGui::PrintDock__() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  for (auto dock : dockht){
-    Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
-         dock.second->flags & ImGuiWindowFlags_NoResize,
-         dock.second->flags_saved & ImGuiWindowFlags_NoResize);
-    // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->label);
-    // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-    // if (dock.second->p_open)
-    //   Text("p_open=%d\n", *(dock.second->p_open));
-    Separator();
-  }
-
-  // if (g->HoveredWindow)
-  //   Text("Hovered: %s\n",g->HoveredWindow->Name);
-  // else
-  //   Text("Hovered: none\n");
-  // if (g->HoveredRootWindow)
-  //   Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
-  // else
-  //   Text("HoveredRoot: none\n");
-  // if (g->IO.MouseClicked[0])
-  //   Text("Mouse clicked!\n");
-  // else
-  //   Text("Mouse not clicked!\n");
-  // for (int i = 0; i < g->Windows.Size; i++){
-  //   Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  // for (auto dock : dockht){
+  //   Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
+  //        dock.second->flags & ImGuiWindowFlags_NoResize,
+  //        dock.second->flags_saved & ImGuiWindowFlags_NoResize);
+  //   // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->label);
+  //   // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+  //   // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+  //   // if (dock.second->p_open)
+  //   //   Text("p_open=%d\n", *(dock.second->p_open));
+  //   Separator();
   // }
+
+  if (g->HoveredWindow)
+    Text("Hovered: %s\n",g->HoveredWindow->Name);
+  else
+    Text("Hovered: none\n");
+  if (g->HoveredRootWindow)
+    Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
+  else
+    Text("HoveredRoot: none\n");
+  if (g->IO.MouseClicked[0])
+    Text("Mouse clicked!\n");
+  else
+    Text("Mouse not clicked!\n");
+  for (int i = 0; i < g->Windows.Size; i++){
+    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  }
 }
 
 void ImGui::ShutdownDock(){
