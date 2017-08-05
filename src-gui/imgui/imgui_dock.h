@@ -20,6 +20,76 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
+// Original code by vassvik (?) released as public domain.
+
+// This code provides a collection of docking windows and containers
+// for the immediate-mode graphical user interface (ImGui) library
+// (https://github.com/ocornut/imgui). Three components are
+// implemented: 
+//
+// 1. Docks - Behave like normal windows, but can attach themselves to
+// containers and root containers.
+//
+// 2. Containers - Windows that display the contents of docks attached
+// to them. Containers have a tab bar at the top that shows all
+// containers attached. At any time, one tab is active and the rest
+// are hidden. Very similar to how a browser window (e.g. chrome,
+// firefox) works.
+//
+// 3. Root containers - docks and containers can be attached to root
+// container windows. The window space of a root container is split
+// when a new window is added to it, depending on the position at
+// which it is dropped. Containers inside root containers keep track
+// of attached docks, and have an additional "lift grip" by which they
+// can be pulled out of the root container.
+//
+// Besides the attaching/detaching, all three components behave like
+// normal windows - they can be resized, auto-resized, moved,
+// collapsed, and closed. The usual flags (NoResize,
+// NoBringToFrontOnFocus,...) and placement commands
+// (SetNextWindowPos,...) work as well. 
+//
+// The public interface contains the following:
+//
+// - The ImGui::Dock structure: docks, containers, and root containers
+// are instances of this class.
+//
+// - ImGui::RootContainer: create a root container and return a
+// pointer to the new Dock object.
+//
+// - ImGui::Container: create a container and return a pointer to the
+// new Dock object. Neither root containers nor containers need to
+// call an End() function (because no items are allowed inside them).
+//
+// - ImGui::BeginDock and ImGui::EndDock: the equivalent for docks to what
+// ImGui::Begin() and ImGui::End() are for windows. They open and
+// close a dock. If BeginDock returns true, interactive items can be
+// added to the dock. In addition, the argument oncedock allows
+// docking the dock to a container in the first pass. More convoluted
+// ways to attach docks and containers on initialization are possible
+// using the newDock and newDockRoot functions - an example will be
+// provided elsewhere.
+//
+// - ImGui::GetCurrentDock: when used beteween BeginDock and EndDock,
+// returns a pointer to the currently open dock. Otherwise, returns
+// null.
+// 
+// - ImGui::ShutdownDock: deallocates memory for the dock hash
+// table. Should be run once docks are no longer needed, or at the end
+// of the program.
+//
+// Some notes:
+//
+// 1. Call RootContainer before any Container attached to it, and
+// Container before any BeginDock/EndDock attached to it. Doing it the
+// other way around works, but since root containers set the position
+// of containers, and containers of docks, it will result in a lag of
+// one or two frames when moving windows about.
+//
+// 2. Some widgets from imgui_widgets are used, so you will need that
+// file and its header to use docks.
+// 
+// Have fun! -- Alberto
 
 #ifndef IMGUI_DOCK_H
 #define IMGUI_DOCK_H

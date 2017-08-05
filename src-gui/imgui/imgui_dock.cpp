@@ -19,6 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
+// Original code by vassvik (?) released as public domain.
+// See header file (imgui_dock.h) for instructions.
 
 // border size at the end of a horizontal/vertical container
 // root container: some elements lag behind

@@ -20,6 +20,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// Several widgets independent from each other are provided by this
+// file. See below for a description.
+
 #ifndef IMGUI_WIDGETS_H
 #define IMGUI_WIDGETS_H
 

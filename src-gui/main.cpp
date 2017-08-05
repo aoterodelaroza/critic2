@@ -88,6 +88,25 @@ int main(int argc, char *argv[]){
     // // for testing the docking routines for save/load layout // //
     static bool first = true;
     ImGui::Dock *d1, *d2, *d3, *d4, *d5, *d6, *dcont1, *dcont2, *droot;
+
+    if (show_scene9){
+      ImGui::SetNextWindowPos(ImVec2(450,550),ImGuiSetCond_Once);
+      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_Once);
+      droot = ImGui::RootContainer("rootcontain",&show_scene9);
+    }
+
+    if (show_scene7){
+      ImGui::SetNextWindowPos(ImVec2(200,200),ImGuiSetCond_Once);
+      ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
+      dcont1 = ImGui::Container("contain7",&show_scene7);
+    }
+    if (show_scene8)
+      dcont2 = ImGui::Container("contain8",&show_scene8);
+
+    ImGui::Dock *dcont3 = ImGui::Container("contain9");
+    ImGui::Dock *dcont4 = ImGui::Container("contain10");
+
+
     if (show_scene1){
       ImGui::SetNextWindowPos(ImVec2(450,550),ImGuiSetCond_Once);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_Once);
@@ -148,23 +167,6 @@ int main(int argc, char *argv[]){
       d6 = ImGui::GetCurrentDock();
       ImGui::EndDock();
     }
-    if (show_scene7){
-      ImGui::SetNextWindowPos(ImVec2(200,200),ImGuiSetCond_Once);
-      ImGui::SetNextWindowSize(ImVec2(200,200),ImGuiSetCond_Once);
-      dcont1 = ImGui::Container("contain7",&show_scene7);
-    }
-    if (show_scene8)
-      dcont2 = ImGui::Container("contain8",&show_scene8);
-
-    if (show_scene9){
-      ImGui::SetNextWindowPos(ImVec2(450,550),ImGuiSetCond_Once);
-      ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_Once);
-      droot = ImGui::RootContainer("rootcontain",&show_scene9);
-    }
-
-    ImGui::Dock *dcont3 = ImGui::Container("contain9");
-    ImGui::Dock *dcont4 = ImGui::Container("contain10");
-
     // if (first){
     //   first = false;
     //   dcont1->newDock(d1);
