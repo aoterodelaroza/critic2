@@ -21,7 +21,6 @@
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
 // double click sinks the new window.
-// pushing down and right pushes the other tabs
 // flickering when changing tabs in container
 // problem initial position outside main window
 // border size at the end of a horizontal/vertical container
@@ -848,16 +847,16 @@ void Dock::drawRootContainerBars(Dock *root){
         if (this->type == Dock::Type_Horizontal){
           x0 = this->pos.y;
           x1 = this->pos.y + this->size.y;
-          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + barwidth + minycont;
-          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - barwidth - minycont;
+          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + minycont;
+          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - minycont;
           pos.y = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
           size.y = barwidth;
           direction = 2;
         } else {
           x0 = this->pos.x;
           x1 = this->pos.x + this->size.x;
-          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + barwidth + minxcont;
-          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - barwidth - minxcont;
+          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + minxcont;
+          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - minxcont;
           pos.x = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
           size.x = barwidth;
           direction = 1;

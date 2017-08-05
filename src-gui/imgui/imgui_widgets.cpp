@@ -67,7 +67,7 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
   ImU32 color = GetColorU32(ImGuiCol_FrameBg,alphamul);
   ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive,alphamul);
   ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered,alphamul);
-  if (buttoncol){
+  if (scrollbarcol){
     color = GetColorU32(ImGuiCol_ScrollbarGrab,alphamul);
     color_active = GetColorU32(ImGuiCol_ScrollbarGrabActive,alphamul);
     color_hovered = GetColorU32(ImGuiCol_ScrollbarGrabHovered,alphamul);
