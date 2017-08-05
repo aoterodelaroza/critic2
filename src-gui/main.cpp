@@ -195,7 +195,7 @@ int main(int argc, char *argv[]){
     // ImGui::SetNextWindowPos(ImVec2(340.f,40.f),ImGuiSetCond_Once);
     // ImGui::SetNextWindowSize(ImVec2(200.f,200.f),ImGuiSetCond_Once);
     // if (ImGui::Begin("anotherwindow",nullptr,ImGuiWindowFlags_NoResize)){
-    //   ImGui::Print();
+    //   ImGui::PrintDock__();
     //   ImGui::ResizeGripOther("anotherwindow", ImGui::GetCurrentWindow(), cwindow);
     // }
     // ImGui::End();
@@ -308,15 +308,14 @@ int main(int argc, char *argv[]){
     //   ImGui::EndDock();
     // }
 
-    // ImGui::SetNextWindowPos(ImVec2(900,100),ImGuiSetCond_FirstUseEver);
-    // ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
-    // if (ImGui::Begin("justawindow")){
-    //   ImGui::Print(); // print docking information
-    //   static char command[2048] = "";
-    //   if (ImGui::InputText("###bleh", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_AlwaysInsertMode)){}
-    // }
-    // ImGui::EndDock();
     // // for general checks // //
+
+    // // docking info // //
+    ImGui::SetNextWindowPos(ImVec2(900,100),ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_FirstUseEver);
+    if (ImGui::Begin("justawindow")){ImGui::PrintDock__();}
+    ImGui::EndDock();
+    // // docking info // //
 
     // Draw the current scene
     c2::draw_scene();
