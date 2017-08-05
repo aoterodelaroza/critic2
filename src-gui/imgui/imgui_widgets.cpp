@@ -27,8 +27,7 @@
 using namespace ImGui;
 
 void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos, 
-		       ImVec2 size, float minx, float maxx, 
-		       int direction, float alpha/*=-1*/){
+                       ImVec2 size, float minx, float maxx, int direction){
   ImDrawList* dl = window->DrawList;
   ImGuiContext *g = GetCurrentContext();
   bool hovered, held;
@@ -48,21 +47,16 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
   }
 
   // draw the rectangle
-  if (alpha >= 0.f)
-    PushStyleVar(ImGuiStyleVar_Alpha,alpha);
   dl->PushClipRectFullScreen();
   dl->AddRectFilled(slidingrect.GetTL(),slidingrect.GetBR(),
-		    held?coloractive:(hovered?colorhovered:color),
-		    g->Style.ScrollbarRounding);
+                    held?coloractive:(hovered?colorhovered:color),
+                    g->Style.ScrollbarRounding);
   dl->PopClipRect();
-  if (alpha >= 0.f)
-    PopStyleVar();
-
 }
 
-bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool buttoncol,
-			bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
-			float alphamul /*=1.f*/){
+bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool scrollbarcol,
+                        bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
+                        float alphamul /*=1.f*/){
   // lengths and colors
   ImGuiContext *g = GetCurrentContext();
   const float crossz = round(0.3 * g->FontSize);
@@ -74,9 +68,9 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
   ImU32 color_active = GetColorU32(ImGuiCol_FrameBgActive,alphamul);
   ImU32 color_hovered = GetColorU32(ImGuiCol_FrameBgHovered,alphamul);
   if (buttoncol){
-    color = GetColorU32(ImGuiCol_Button,alphamul);
-    color_active = GetColorU32(ImGuiCol_ButtonActive,alphamul);
-    color_hovered = GetColorU32(ImGuiCol_ButtonHovered,alphamul);
+    color = GetColorU32(ImGuiCol_ScrollbarGrab,alphamul);
+    color_active = GetColorU32(ImGuiCol_ScrollbarGrabActive,alphamul);
+    color_hovered = GetColorU32(ImGuiCol_ScrollbarGrabHovered,alphamul);
   }
 
   // size of the main button
@@ -151,7 +145,7 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
   // Calculate auto-fit size for target window
   ImVec2 size_auto_fit;
   size_auto_fit = ImClamp(cwindow->SizeContents + cwindow->WindowPadding, g->Style.WindowMinSize, 
-			  ImMax(g->Style.WindowMinSize, g->IO.DisplaySize - g->Style.DisplaySafeAreaPadding));
+                          ImMax(g->Style.WindowMinSize, g->IO.DisplaySize - g->Style.DisplaySafeAreaPadding));
 
   // no clipping; save previous clipping
   ImRect saverect = window->ClipRect;
@@ -226,4 +220,3 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   
   return held && IsMouseDragging();
 }
-

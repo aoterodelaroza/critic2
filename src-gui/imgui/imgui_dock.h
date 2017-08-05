@@ -35,10 +35,10 @@ namespace ImGui{
   struct Dock{
     // Enum for the type of docking windows
     enum Type_{Type_None,Type_Root,Type_Container,Type_Dock,Type_Horizontal,
-	       Type_Vertical};
+               Type_Vertical};
     // Status of a single dock
     enum Status_{Status_None,Status_Open,Status_Collapsed,Status_Closed,
-		 Status_Dragged,Status_Docked};
+                 Status_Dragged,Status_Docked};
 
     char* label = nullptr; // dock and window label
     ImGuiWindow* window = nullptr; // associated window

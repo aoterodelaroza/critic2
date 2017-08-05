@@ -25,9 +25,8 @@
 // flickering when changing tabs in container
 // problem initial position outside main window
 // border size at the end of a horizontal/vertical container
-// clean up the widgets for publication
+// root container: some elements lag behind
 // clean up the styles
-// smart pointers?
 // see docking thread in imgui github
 
 #include "imgui.h"
@@ -681,7 +680,7 @@ void Dock::drawTabBar(){
       SameLine();
       // make the x-button, update the container info
       bool dragged, dclicked, closeclicked;
-      if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), false,
+      if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), true,
                       dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha)){
         this->currenttab = dd;
         dd->parent = this;
@@ -865,7 +864,7 @@ void Dock::drawRootContainerBars(Dock *root){
         }
         ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__s%d__",this->label,n);
         if (x1 > x0){
-          SlidingBar(tmp, root->window, &pos, size, xmin, xmax, direction, 2.0f);
+          SlidingBar(tmp, root->window, &pos, size, xmin, xmax, direction);
           if (this->type == Dock::Type_Horizontal)
             this->tabsx[n] = (pos.y + 0.5f * barwidth - x0) / (x1 - x0);
           else

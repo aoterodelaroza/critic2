@@ -55,18 +55,32 @@ static inline ImVec4 TransparentColor(ImGuiCol_ color){
 
 namespace ImGui{
 
-  // Sliding bar for root container splits
+  // Sliding bar for splits. label: used to calculate the ID. window:
+  // window containing the bar. pos: position of the top left of the bar on
+  // input and output. size: size of the bar. minx and maxx: minimum and maximum
+  // positions in direction direction (1=x, 2=y).
   void SlidingBar(const char* label, ImGuiWindow* window, ImVec2 *pos, ImVec2 size, 
-		  float minx, float maxx, int direction, float alpha=-1.f);
+                  float minx, float maxx, int direction);
 
-  // Button with a clickable "X" at the end
-  bool ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool buttoncol,
-		   bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
-		   float alpha = 1.f);
+  // Button with a clickable "X" at the end. label: label for the
+  // button (and generates the ID of the main button). size: size of
+  // the button. activetab: whether the button uses the "active" or
+  // "inactive" color. scrollbarcol: if true, use scroll bar grab
+  // colors (otherwise, use framebg colors). p_open whether the "x" is
+  // shown and close status. dragged: on output, true if the button is
+  // being dragged. dclicked: on output, true if the button was double 
+  // clicked. closeclicked: on output, true if the X has been clicked.
+  // alphamul: alpha multiplier for all colors. Returns true if the
+  // main part of the button (not the x) has been clicked.
+  bool ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool scrollbarcol,
+                   bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
+                   float alpha = 1.f);
 
-  // Resize grip that controls some other window's size
+  // A resize grip drawn on window that controls the size of cwindow. 
   void ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow);
-  // Lift grip
+
+  // Lift grip. A grip the with button colors drawn on the bottom left
+  // corner of the window. True if the grip is clicked.
   bool LiftGrip(const char *label, ImGuiWindow* window);
 } // namespace ImGui
 #endif
