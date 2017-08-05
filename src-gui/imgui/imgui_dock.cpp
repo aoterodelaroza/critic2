@@ -784,6 +784,7 @@ void Dock::drawContainer(bool noresize){
 
 ImVec2 Dock::minRootContainerSize(){
   ImGuiContext *g = GetCurrentContext();
+  const float barheight = 2 * GetTextLineHeightWithSpacing();
   const float barwidth = 6.;
   const float minxcont = 40.;
   const float minycont = 4.f*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y);;
@@ -809,7 +810,11 @@ ImVec2 Dock::minRootContainerSize(){
     }
   } else if (this->type == Dock::Type_Container) {
     size.x = minxcont;
+    if (this->currenttab)
+      size.x = max(size.x,this->currenttab->window->SizeContents.x);
     size.y = minycont;
+    if (this->currenttab)
+      size.y = max(size.y, this->currenttab->window->SizeContents.y + barheight);
   }
   return size;
 }
@@ -940,6 +945,8 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       SetNextWindowPos(this->pos);
       SetNextWindowSize(this->size);
       SetNextWindowCollapsed(this->collapsed);
+      if (this->currenttab)
+        SetNextWindowContentSize(this->currenttab->window->SizeContents + ImVec2(0.f,this->tabdz));
       if (transparentframe)
         PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
       Begin(this->label,nullptr,this->flags);
@@ -1072,7 +1079,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd->type = Dock::Type_Container;
   }
 
-  // If docked, the root container takes care of everything. Clear next window data
+  // If docked, the root container takes care of everything. Clear next window data.
   if (dd->status == Dock::Status_Docked){
     g->SetNextWindowPosCond = g->SetNextWindowSizeCond = g->SetNextWindowContentSizeCond = g->SetNextWindowCollapsedCond = 0;
     g->SetNextWindowSizeConstraint = g->SetNextWindowFocus = false;
@@ -1087,9 +1094,10 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     SetNextWindowCollapsed(dd->collapsed);
   }
 
-  // If the container has a window docked, set the minimum size.
+  // If the container has a window docked, set the minimum and the contents size.
   if (dd->currenttab){
     SetNextWindowSizeConstraints(ImVec2(0.f,dd->tabdz),ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+    SetNextWindowContentSize(dd->currenttab->window->SizeContents + ImVec2(0.f,dd->tabdz));
     flags = flags | ImGuiWindowFlags_NoResize;
   } else {
     SetNextWindowSizeConstraints(ImVec2(0.,4*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y)),
