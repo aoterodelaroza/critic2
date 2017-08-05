@@ -20,9 +20,6 @@
 */
 // Rewritten from: git@github.com:vassvik/imgui_docking_minimal.git
 
-// double click sinks the new window.
-// flickering when changing tabs in container
-// problem initial position outside main window
 // border size at the end of a horizontal/vertical container
 // root container: some elements lag behind
 // clean up the styles
@@ -696,10 +693,12 @@ void Dock::drawTabBar(){
         dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
         goto erase_this_tab;
       }
-      // double click detaches the tab
+      // double click detaches the tab / place it on top
       if (dclicked){
         dd->unDock();
         dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,barheight);
+        g->HoveredRootWindow = dd->window;
+        g->HoveredWindow = dd->window;
         goto erase_this_tab;
       }
       // closed click kills the tab
@@ -751,7 +750,7 @@ void Dock::hideTabWindow(){
 void Dock::showTabWindow(Dock *dcont, bool noresize){
   if (!dcont) return;
 
-  float topheight = dcont->tabbarrect.Max.y - dcont->pos.y;
+  float topheight = max(dcont->tabbarrect.Max.y - dcont->pos.y,0.f);
   this->pos = dcont->pos;
   this->pos.y += topheight;
   this->size = dcont->size;
@@ -1219,7 +1218,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   }
   currentdock = dd;
 
-  ImVec2 sizeprevious = dd->size;
   if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
     // Docked or lifted: position and size are controlled
     dd->control_window_this_frame = false;
@@ -1374,33 +1372,31 @@ void ImGui::PrintDock__() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  // for (auto dock : dockht){
-  //   Text("label=%s flag=%d flag_saved=%d\n",dock.second->label,
-  //        dock.second->flags & ImGuiWindowFlags_NoResize,
-  //        dock.second->flags_saved & ImGuiWindowFlags_NoResize);
-  //   // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->label);
-  //   // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-  //   // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-  //   // if (dock.second->p_open)
-  //   //   Text("p_open=%d\n", *(dock.second->p_open));
-  //   Separator();
-  // }
-
-  if (g->HoveredWindow)
-    Text("Hovered: %s\n",g->HoveredWindow->Name);
-  else
-    Text("Hovered: none\n");
-  if (g->HoveredRootWindow)
-    Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
-  else
-    Text("HoveredRoot: none\n");
-  if (g->IO.MouseClicked[0])
-    Text("Mouse clicked!\n");
-  else
-    Text("Mouse not clicked!\n");
-  for (int i = 0; i < g->Windows.Size; i++){
-    Text("%d %s %p\n",i,g->Windows[i]->Name,g->Windows[i]);
+  for (auto dock : dockht){
+    Text("label=%s\n",dock.second->label);
+    // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->label);
+    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+    // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
+    // if (dock.second->p_open)
+    //   Text("p_open=%d\n", *(dock.second->p_open));
+    Separator();
   }
+
+  // if (g->HoveredWindow)
+  //   Text("Hovered: %s\n",g->HoveredWindow->Name);
+  // else
+  //   Text("Hovered: none\n");
+  // if (g->HoveredRootWindow)
+  //   Text("HoveredRoot: %s\n",g->HoveredRootWindow->Name);
+  // else
+  //   Text("HoveredRoot: none\n");
+  // if (g->IO.MouseClicked[0])
+  //   Text("Mouse clicked!\n");
+  // else
+  //   Text("Mouse not clicked!\n");
+  // for (int i = 0; i < g->Windows.Size; i++){
+  //   Text("%d %s %f %f\n",i,g->Windows[i]->Name,g->Windows[i]->Pos.x,g->Windows[i]->Pos.y);
+  // }
 }
 
 void ImGui::ShutdownDock(){
