@@ -22,7 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// border size at the end of a horizontal/vertical container
 // clean up the styles
 // examples and new repo
 // see docking thread in imgui github
@@ -908,12 +907,12 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
         x0 = this->pos.y;
         x1 = this->pos.y + this->size.y;
         dd->pos.y = x0 + this->tabsx[n] * (x1 - x0) + (n==0?0.f:0.5f * barwidth);
-        dd->size.y = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()?0.5f * barwidth:barwidth);
+        dd->size.y = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()-1?0.5f * barwidth:barwidth);
       } else {
         x0 = this->pos.x;
         x1 = this->pos.x + this->size.x;
         dd->pos.x = x0 + this->tabsx[n] * (x1 - x0) + (n==0?0.f:0.5f * barwidth);
-        dd->size.x = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()?0.5f * barwidth:barwidth);
+        dd->size.x = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()-1?0.5f * barwidth:barwidth);
       }
       dd->parent = this;
       dd->drawRootContainer(root,lift,ncount);
