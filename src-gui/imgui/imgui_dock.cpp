@@ -23,8 +23,8 @@
 // See header file (imgui_dock.h) for instructions.
 
 // border size at the end of a horizontal/vertical container
-// root container: some elements lag behind
 // clean up the styles
+// examples and new repo
 // see docking thread in imgui github
 
 #include "imgui.h"
