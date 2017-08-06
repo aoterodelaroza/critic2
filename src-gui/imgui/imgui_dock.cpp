@@ -22,6 +22,7 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
+// closing the tab does not kill the automatic container, even if it's empty
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
 // double click lifts but also collapses
 // double click eliminates a sliding bar
