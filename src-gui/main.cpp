@@ -88,14 +88,8 @@ int main(int argc, char *argv[]){
     PopStyleVar();
 
     // Containers
-    Dock *dtreecont = nullptr, *dinfocont = nullptr, *dviewcont = nullptr;
-    static bool show_treecont = true;
-    static bool show_infocont = true;
+    Dock *dviewcont = nullptr;
     static bool show_viewcont = true;
-    if (show_treecont)
-      dtreecont = ImGui::Container("Container##treecontainer",&show_treecont);
-    if (show_infocont)
-      dinfocont = ImGui::Container("Container##infocontainer",&show_infocont);
     if (show_viewcont)
       dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer);
 
@@ -105,7 +99,7 @@ int main(int argc, char *argv[]){
     static bool show_viewdock = true;
     Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
     if (show_treedock){
-      if (BeginDock("Tree view",&show_treedock,0,0,dtreecont)){
+      if (BeginDock("Tree view",&show_treedock)){
         Text("Tree View!");     
         if (Button("Tree view")){printf("Tree view\n");}
       }
@@ -113,7 +107,7 @@ int main(int argc, char *argv[]){
       EndDock();
     }
     if (show_infodock){
-      if (BeginDock("Info view",&show_infodock,0,0,dinfocont)){
+      if (BeginDock("Info view",&show_infodock)){
         Text("Info View!");     
         if (Button("Info view")){printf("Info view\n");}
       }
@@ -136,15 +130,12 @@ int main(int argc, char *argv[]){
     if (first){
       first = false;
       droot->newDockRoot(dviewcont,5);
-      dviewcont->setDetachedDockSize(200.f,200.f);
 
-      dviewcont->newDockRoot(dtreecont,4);
+      Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
       dviewcont->setSlidingBarPosition(4,0.2f);
-      dtreecont->setDetachedDockSize(200.f,200.f);
 
-      dtreecont->newDockRoot(dinfocont,3);
-      dtreecont->setSlidingBarPosition(3,0.7f);
-      dinfocont->setDetachedDockSize(200.f,200.f);
+      dtmp->newDockRoot(dinfodock,3);
+      dtmp->setSlidingBarPosition(3,0.7f);
 
       dviewdock->setDetachedDockSize(300.f,300.f);
       dtreedock->setDetachedDockSize(300.f,300.f);

@@ -25,6 +25,7 @@
 // resize grip controlled by root and container
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
 // double click lifts but also collapses
+// double click eliminates a sliding bar
 // set up critic2 basic dock structure
 // examples and new repo
 // see docking thread in imgui github
