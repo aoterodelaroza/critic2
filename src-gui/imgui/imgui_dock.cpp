@@ -822,10 +822,12 @@ void Dock::getMinSize(ImVec2 *minsize,ImVec2 *autosize){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
-  ImVec2 size = {};
+  if (minsize) *minsize = {}; 
+  if (autosize) *autosize = {}; 
   if (this->type == Dock::Type_Root){
-    for (auto dd : this->stack)
-      dd->getMinSize(minsize,autosize);
+    this->stack.back()->getMinSize(minsize,autosize);
+    if (autosize && this->window)
+      autosize->y += this->window->TitleBarRect().GetHeight();
   } else if (this->type == Dock::Type_Horizontal) {
     ImVec2 msize_ = {}, asize_ = {};
     for (auto dd : this->stack){
@@ -882,14 +884,26 @@ void Dock::getMinSize(ImVec2 *minsize,ImVec2 *autosize){
   // xxxx // see drawrootcontainerbars below for another use
 }
 
+void Dock::resetRootContainerBars(){
+  if (this->type == Dock::Type_Root){
+    this->stack.back()->resetRootContainerBars();
+  } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
+    for (auto dd : this->stack)
+      dd->resetRootContainerBars();
+
+    int ntot = this->stack.size();
+    for (int i=0;i<=ntot;i++)
+      this->tabsx[i] = ((float) i) / ((float) ntot);
+  }
+}
+
 void Dock::drawRootContainerBars(Dock *root){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
   this->root = root;
   if (this->type == Dock::Type_Root){
-    for (auto dd : this->stack)
-      dd->drawRootContainerBars(root);
+    this->stack.back()->drawRootContainerBars(root);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     // update the vector containing the sliding bar positions
     int ntot = this->stack.size();
@@ -950,12 +964,11 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
   this->root = root;
   if (this->type == Dock::Type_Root){
     int ncount_ = 0;
-    for (auto dd : this->stack){
-      dd->pos = this->pos;
-      dd->size = this->size;
-      dd->parent = this;
-      dd->drawRootContainer(root,lift,&ncount_);
-    }
+    Dock * dd = this->stack.back();
+    dd->pos = this->pos;
+    dd->size = this->size;
+    dd->parent = this;
+    dd->drawRootContainer(root,lift,&ncount_);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     float x0, x1;
     int ntot = this->stack.size();
@@ -1018,8 +1031,12 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       // bottom-right window; lift grip if it is not.
       this->window = GetCurrentWindow();
       if (!this->currenttab){
-        if (*ncount == this->root->nchild)
+        if (*ncount == this->root->nchild){
+          bool dclicked;
           ResizeGripOther(this->label, this->window, this->root->window);
+          if (dclicked)
+            this->root->resetRootContainerBars();
+        }
         if (!this->automatic)
           if (LiftGrip(this->label, this->window))
             *lift = this;
@@ -1300,9 +1317,12 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       dd->root = dd->parent->root;
 
       if (resize){
-        if (dd->root)
-          ResizeGripOther(dd->label, dd->window, dd->root->window);
-        else
+        if (dd->root){
+          bool dclicked;
+          ResizeGripOther(dd->label, dd->window, dd->root->window, &dclicked);
+          if (dclicked)
+            dd->root->resetRootContainerBars();
+        } else
           ResizeGripOther(dd->label, dd->window, dd->parent->window);
       }
       if (dd->root && !dd->parent->automatic)

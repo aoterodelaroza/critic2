@@ -79,8 +79,10 @@ namespace ImGui{
                    bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
                    float alpha = 1.f);
 
-  // A resize grip drawn on window that controls the size of cwindow. 
-  void ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow);
+  // A resize grip drawn on window that controls the size of cwindow.
+  // On output, dclicked is true if double-click (auto-resize)
+  // happened.
+  void ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow, bool *dclicked=nullptr);
 
   // Lift grip. A grip the with button colors drawn on the bottom left
   // corner of the window. True if the grip is clicked.

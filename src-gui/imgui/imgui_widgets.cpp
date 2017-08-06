@@ -128,8 +128,10 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
   return clicked;
 }
 
-void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow){
+void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow* cwindow, bool *dclicked/*=nullptr*/){
   static bool first = true;
+  if (dclicked) *dclicked = false;
+
   static ImVec2 pos_orig = {};
   static ImVec2 size_orig = {};
   static ImVec2 csize_orig = {};
@@ -141,11 +143,6 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
   char tmp[strlen(label)+15];
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__resize__",label);
   const ImGuiID resize_id = window->GetID(tmp);
-
-  // Calculate auto-fit size for target window
-  ImVec2 size_auto_fit;
-  size_auto_fit = ImClamp(cwindow->SizeContents + cwindow->WindowPadding, g->Style.WindowMinSize, 
-                          ImMax(g->Style.WindowMinSize, g->IO.DisplaySize - g->Style.DisplaySafeAreaPadding));
 
   // no clipping; save previous clipping
   ImRect saverect = window->ClipRect;
@@ -174,6 +171,10 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
 
   // apply the size change
   if (g->HoveredWindow == window && held && g->IO.MouseDoubleClicked[0]){
+    if (dclicked) *dclicked = true;
+    ImVec2 size_auto_fit = ImClamp(cwindow->SizeContents + cwindow->WindowPadding, g->Style.WindowMinSize, 
+                            ImMax(g->Style.WindowMinSize, g->IO.DisplaySize - g->Style.DisplaySafeAreaPadding));
+
     cwindow->SizeFull = size_auto_fit;
     ClearActiveID();
   } else if (held)

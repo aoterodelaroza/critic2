@@ -239,6 +239,8 @@ namespace ImGui{
     // Traverse the tree of this root container and return its minimum
     // size based on its contents. Recursive.
     void getMinSize(ImVec2 *minsize, ImVec2 *autosize);
+    // Center all sliding bars in this root container.
+    void resetRootContainerBars();
     // Traverse the tree of this root container and draw all sliding
     // bars in it. Sets the tabsx vector containing the positions of
     // the bars. root is a pointer to the root container. Recursive.
