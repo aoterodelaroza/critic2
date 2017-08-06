@@ -22,7 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// closing the tab does not kill the automatic container, even if it's empty
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
 // double click lifts but also collapses
 // double click eliminates a sliding bar
@@ -696,13 +695,14 @@ void Dock::killContainerMaybe(){
   }
 }
 
-void Dock::drawTabBar(){
+void Dock::drawTabBar(bool *erased/*=nullptr*/){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = getTabHeight();
   const float maxtabwidth = getTabMaxWidth();
   ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
   text_color.w = 2.0 / g->Style.Alpha;
   bool raise = false;
+  Dock *dderase = nullptr;
 
   // empty the list of tabs
   this->tabsx.Size = 0;
@@ -724,7 +724,7 @@ void Dock::drawTabBar(){
   ImFormatString(tmp,IM_ARRAYSIZE(tmp),"%s__tab__",this->label);
   if (BeginChild(tmp,ImVec2(this->size.x,0.f),false)){
     bool active = false, hovered = false;
-    Dock *dderase = nullptr, *ddlast = nullptr;
+    Dock *ddlast = nullptr;
     ImVec2 center, pos0, pos1, pos1s, text_size;
     for (auto dd : this->stack) {
       SameLine();
@@ -790,6 +790,8 @@ void Dock::drawTabBar(){
   PopStyleVar();
   PopStyleVar();
   PopStyleColor();
+
+  if (erased) *erased = (dderase != 0);
 }
 
 void Dock::hideTabWindow(){
@@ -817,12 +819,12 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
     this->flags = this->flags | ImGuiWindowFlags_NoResize;
 }
 
-void Dock::drawContainer(bool noresize){
+void Dock::drawContainer(bool noresize, bool *erased/*=nullptr*/){
   if (!(this->type == Dock::Type_Container)) return;
 
   if (this->stack.size() > 0){
     // Draw the tab
-    this->drawTabBar();
+    this->drawTabBar(erased);
 
     // Hide all tabs
     for (auto dd : this->stack)
@@ -998,7 +1000,7 @@ void Dock::drawRootContainerBars(Dock *root){
   }
 }
 
-void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
+void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount/*=nullptr*/){
   if (!this) return;
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
@@ -1010,7 +1012,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
     dd->pos = this->pos;
     dd->size = this->size;
     dd->parent = this;
-    dd->drawRootContainer(root,lift,&ncount_);
+    dd->drawRootContainer(root,lift,erased,&ncount_);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     float x0, x1;
     int ntot = this->stack.size();
@@ -1033,7 +1035,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
         dd->size.x = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()-1?0.5f * barwidth:barwidth);
       }
       dd->parent = this;
-      dd->drawRootContainer(root,lift,ncount);
+      dd->drawRootContainer(root,lift,erased,ncount);
     }
   } else if (this->type == Dock::Type_Container) {
     // Draw the docked container window
@@ -1085,9 +1087,11 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       }
 
       // write down the rest of the variables and end the window
+      bool berased = false;
       dockwin[this->window] = this;
-      this->drawContainer(noresize);
+      this->drawContainer(noresize,&berased);
       this->tabdz = this->tabbarrect.Max.y - this->pos.y;
+      if (berased) *erased = this;
       End();
       if (transparentframe)
         PopStyleColor();
@@ -1100,6 +1104,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       placeWindow(this->root->window,this->window,+1);
       if (this->currenttab)
         placeWindow(this->window,this->currenttab->window,+1);
+
     } // !(root->collapsed)
   } // this->type == xx
 }
@@ -1185,13 +1190,17 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   PopStyleColor();
 
   // Traverse the tree and draw all the containers
-  Dock *lift = nullptr;
+  Dock *lift = nullptr, *erased = nullptr;
   if (dd->status != Dock::Status_Closed)
-    dd->drawRootContainer(dd,&lift);
+    dd->drawRootContainer(dd,&lift,&erased);
 
   // Lift any container?
   if (dd->status != Dock::Status_Closed && lift)
     lift->liftContainer();
+
+  // Any container has erased tabs?
+  if (dd->status != Dock::Status_Closed && erased)
+    erased->killContainerMaybe();
 
   return dd;
 }

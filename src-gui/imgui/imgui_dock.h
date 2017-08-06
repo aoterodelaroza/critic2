@@ -237,16 +237,18 @@ namespace ImGui{
     // one window, kill it and connect its child to its parent.
     void killContainerMaybe();
 
-    // Draw the tab bar of a container
-    void drawTabBar();
+    // Draw the tab bar of a container. On output, erased is true if a
+    // tab in this container was closed.
+    void drawTabBar(bool *erased=nullptr);
     // Hide this dock docked to a container on an inactive tab.
     void hideTabWindow();
     // Show this dock docked to a container (dcont) on an active
     // tab. If noresize, do not show the resize grip.
     void showTabWindow(Dock *dcont, bool noresize);
     // Draw the contents of a container. If noresize, do not show the
-    // resize grip.
-    void drawContainer(bool noresize);
+    // resize grip. On output, erased is true if a tab in this
+    // container was closed.
+    void drawContainer(bool noresize, bool *erased=nullptr);
 
     // Traverse the tree of this root container and return its minimum
     // size based on its contents. Recursive.
@@ -267,9 +269,10 @@ namespace ImGui{
     // containers in it. Must be called after drawRootContainerBars to
     // have correct sliding bar positions. root is a pointer to the
     // root container. On output, lift contains a pointer to a
-    // container to be lifted or null. count keeps count of the number
-    // of docked windows in the root container. Recursive.
-    void drawRootContainer(Dock* root, Dock **lift, int *count = nullptr);
+    // container to be lifted or null. erased points to the container
+    // where one of the tabs was closed. count keeps count of the
+    // number of docked windows in the root container. Recursive.
+    void drawRootContainer(Dock* root, Dock **lift, Dock **erased, int *count = nullptr);
 
     // Sets the size of this dock/container in its detached
     // state. Useful when a dock/container is immediately attached in
