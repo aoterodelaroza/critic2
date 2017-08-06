@@ -97,8 +97,7 @@ int main(int argc, char *argv[]){
     if (show_infocont)
       dinfocont = ImGui::Container("Container##infocontainer",&show_infocont);
     if (show_viewcont)
-      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,
-                                   Dock::DockFlags_NoLiftContainer);
+      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer);
 
     // Docks
     static bool show_treedock = true;
@@ -106,7 +105,7 @@ int main(int argc, char *argv[]){
     static bool show_viewdock = true;
     Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
     if (show_treedock){
-      if (BeginDock("Tree view",&show_treedock,0,dtreecont)){
+      if (BeginDock("Tree view",&show_treedock,0,0,dtreecont)){
         Text("Tree View!");     
         if (Button("Tree view")){printf("Tree view\n");}
       }
@@ -114,7 +113,7 @@ int main(int argc, char *argv[]){
       EndDock();
     }
     if (show_infodock){
-      if (BeginDock("Info view",&show_infodock,0,dinfocont)){
+      if (BeginDock("Info view",&show_infodock,0,0,dinfocont)){
         Text("Info View!");     
         if (Button("Info view")){printf("Info view\n");}
       }
@@ -122,13 +121,15 @@ int main(int argc, char *argv[]){
       EndDock();
     }
     if (show_viewdock){
-      if (BeginDock("View 1",&show_viewdock,0,dviewcont)){
+      if (BeginDock("View 1",&show_viewdock,0,0,dviewcont)){
         Text("View 1!");     
         if (Button("View 1")){printf("View 1\n");}
       }
       dviewdock = GetCurrentDock();
       EndDock();
     }
+
+    PrintDock__();
 
     // Dock everything in the first pass
     static bool first = true;

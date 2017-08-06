@@ -24,6 +24,7 @@
 
 // resize grip controlled by root and container
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
+// double click lifts but also collapses
 // set up critic2 basic dock structure
 // examples and new repo
 // see docking thread in imgui github
@@ -342,8 +343,9 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     dockht[string(dcont->label)] = dcont;
     dcont->type = Dock::Type_Container;
     dcont->status = Dock::Status_Docked;
-    dcont->automatic = true;
     dcont->hoverable = true;
+    dcont->automatic = true;
+    dcont->dockflags = root->dockflags;
   }
   root->nchild++;
 
@@ -358,6 +360,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   dhv->status = Dock::Status_Docked;
   dhv->hoverable = false;
   dhv->automatic = true;
+  dhv->dockflags = root->dockflags;
   root->nchild++;
 
   // build the new horizontal/vertical
@@ -401,6 +404,7 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     dcont->status = Dock::Status_Docked;
     dcont->hoverable = true;
     dcont->automatic = true;
+    dcont->dockflags = root->dockflags;
   }
   root->nchild++;
 
@@ -440,6 +444,7 @@ void Dock::OpRoot_FillEmpty(){
   dcont->status = Dock::Status_Docked;
   dcont->hoverable = true;
   dcont->automatic = true;
+  dcont->dockflags = this->dockflags;
   dcont->parent = this;
   dcont->root = this;
   this->stack.push_back(dcont);
@@ -1048,7 +1053,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
 
     // only if the root is not collapsed
     if (!root->collapsed){
-      bool transparentframe = this->currenttab;
+      bool transparentframe = this->currenttab || (this->dockflags & Dock::DockFlags_Transparent);
       this->hidden = false;
       if (this->currenttab)
         this->currenttab->hidden = false;
@@ -1106,7 +1111,8 @@ void Dock::setDetachedDockSize(float x, float y){
 
 //xx// Public interface //xx//
 
-Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/,
+                       DockFlags dock_flags/*=0*/){
   bool collapsed;
   ImGuiContext *g = GetCurrentContext();
   ImGuiWindowFlags flags = extra_flags;
@@ -1119,6 +1125,7 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
     dockht[string(dd->label)] = dd;
     dd->type = Dock::Type_Root;
   }
+  dd->dockflags = dock_flags;
 
   // Initialize with a container if empty
   dd->OpRoot_FillEmpty();
@@ -1229,7 +1236,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     flags = flags | ImGuiWindowFlags_NoResize;
 
   // Render any container widgets in here
-  bool transparentframe = dd->currenttab;
+  bool transparentframe = dd->currenttab || (dd->dockflags & Dock::DockFlags_Transparent);
   if (transparentframe)
     PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
   collapsed = !Begin(label,p_open,flags);
@@ -1319,7 +1326,8 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   return dd;
 }
 
-bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/, Dock* oncedock /*=nullptr*/){
+bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags flags /*= 0*/, 
+                       DockFlags dock_flags/*=0*/, Dock* oncedock /*=nullptr*/){
   bool collapsed;
   ImGuiContext *g = GetCurrentContext();
 
@@ -1342,7 +1350,10 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     }
   }
   currentdock = dd;
+  dd->dockflags = dock_flags;
 
+  if (dd->dockflags & Dock::DockFlags_Transparent)
+    PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
   if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
     // Docked or lifted: position and size are controlled
     dd->control_window_this_frame = false;
@@ -1485,8 +1496,10 @@ Dock *ImGui::GetCurrentDock() {
 }
 
 void ImGui::EndDock() {
-  currentdock = nullptr;
   End();
+  if (currentdock->dockflags & Dock::DockFlags_Transparent)
+    PopStyleColor();
+  currentdock = nullptr;
 }
 
 void ImGui::PrintDock__() {
@@ -1501,9 +1514,9 @@ void ImGui::PrintDock__() {
   // }
 
   for (auto dock : dockht){
-    Text("label=%s\n",dock.second->label);
+    Text("label=%s transparent=%d\n",dock.second->label,dock.second->dockflags & Dock::DockFlags_Transparent);
     // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->label);
-    Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
+    // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
     // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
     // if (dock.second->p_open)
     //   Text("p_open=%d\n", *(dock.second->p_open));

@@ -114,6 +114,7 @@ namespace ImGui{
     // Dock flags
     enum DockFlags_{
       DockFlags_NoLiftContainer = 1 << 0, // A container is not allowed to be lifted
+      DockFlags_Transparent = 1 << 1,     // This window is transparent (but still handles inputs)
     };
 
     char* label = nullptr; // dock and window label
@@ -279,26 +280,29 @@ namespace ImGui{
 
   // Create a root container with the given label. If p_open, with a
   // close button (close status as *p_open). Extra window flags are
-  // passed to the container window. Returns a pointer to the root
-  // container dock object. Root containers can hold containers and
-  // docks. 
-  Dock *RootContainer(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
+  // passed to the container window. Dock flags can also be passed
+  // (see above). Returns a pointer to the root container dock
+  // object. Root containers can hold containers and docks.
+  Dock *RootContainer(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, DockFlags dock_flags=0);
 
   // Create a container with the given label. If p_open, with a close
   // button (close status as *p_open). Extra window flags are passed
-  // to the container window. Returns a pointer to the container dock
+  // to the container window. Dock flags can also be passed (see
+  // above). Returns a pointer to the container dock
   // object. Containers contain docks and can be docked to root
-  // containers. 
+  // containers.
   Dock *Container(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, DockFlags dock_flags=0);
 
   // Create/end a dock window. If p_open, with a close button. If
   // p_open, with a close button (close status as *p_open). Extra
-  // window flags are passed to the window.  If a pointer to a
-  // container is passed in oncedock, dock to that container in the
-  // first pass. Returns true if the window is open and accepts items
-  // (same as ImGui's Begin). The EndDock() function needs to be used
-  // after all items have been added.
-  bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, Dock *oncedock=nullptr);
+  // window flags are passed to the window.  Dock flags can also be
+  // passed (see above). If a pointer to a container is passed in
+  // oncedock, dock to that container in the first pass. Returns true
+  // if the window is open and accepts items (same as ImGui's
+  // Begin). The EndDock() function needs to be used after all items
+  // have been added.
+  bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, 
+                  DockFlags dock_flags=0, Dock *oncedock=nullptr);
   void EndDock();
 
   // GetCurrentDock() gives the pointer to the current open dock (same
