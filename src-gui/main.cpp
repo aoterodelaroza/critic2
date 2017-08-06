@@ -90,7 +90,7 @@ int main(int argc, char *argv[]){
     ImGui::Dock *d1, *d2, *d3, *d4, *d5, *d6, *dcont1, *dcont2, *droot;
 
     if (show_scene9){
-      ImGui::SetNextWindowPos(ImVec2(450,550),ImGuiSetCond_Once);
+      ImGui::SetNextWindowPos(ImVec2(450,150),ImGuiSetCond_Once);
       ImGui::SetNextWindowSize(ImVec2(300,300),ImGuiSetCond_Once);
       droot = ImGui::RootContainer("rootcontain",&show_scene9);
     }
@@ -181,17 +181,17 @@ int main(int argc, char *argv[]){
     //   tmp->newDockRoot(dcont4,2);
     // }
 
-    if (first){
-      first = false;
-      ImGui::Dock *tmp;
-      tmp = droot->newDockRoot(d1,5);
-      tmp = tmp->newDockRoot(d2,1);
-      tmp = tmp->newDockRoot(d3,1);
-      tmp = tmp->newDockRoot(dcont3,3);
-      dcont3->newDock(d4);
-      dcont3->newDock(d5,0);
-      dcont3->newDock(d6,0);
-    }
+    // if (first){
+    //   first = false;
+    //   ImGui::Dock *tmp;
+    //   tmp = droot->newDockRoot(d1,5);
+    //   tmp = tmp->newDockRoot(d2,1);
+    //   tmp = tmp->newDockRoot(d3,1);
+    //   tmp = tmp->newDockRoot(dcont3,3);
+    //   dcont3->newDock(d4);
+    //   dcont3->newDock(d5,0);
+    //   dcont3->newDock(d6,0);
+    // }
 
     // for testing the resize grip // //
 

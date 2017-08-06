@@ -22,7 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// starts with lift grab by itself on the left center
 // examples and new repo
 // see docking thread in imgui github
 
@@ -892,6 +891,7 @@ void Dock::resetRootContainerBars(){
 }
 
 void Dock::drawRootContainerBars(Dock *root){
+  if (!this) return;
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
@@ -952,6 +952,7 @@ void Dock::drawRootContainerBars(Dock *root){
 }
 
 void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
+  if (!this) return;
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
@@ -1121,7 +1122,7 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
     dd->clearRootContainer();
 
   // Traverse the tree and draw all the bars
-  if (!collapsed)
+  if (!collapsed && dd->status != Dock::Status_Closed)
     dd->drawRootContainerBars(dd);
 
   // End the root container window
@@ -1130,10 +1131,11 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
 
   // Traverse the tree and draw all the containers
   Dock *lift = nullptr;
-  dd->drawRootContainer(dd,&lift);
+  if (dd->status != Dock::Status_Closed)
+    dd->drawRootContainer(dd,&lift);
 
   // Lift any container?
-  if (lift)
+  if (dd->status != Dock::Status_Closed && lift)
     lift->liftContainer();
 
   return dd;
