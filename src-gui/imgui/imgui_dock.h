@@ -126,6 +126,7 @@ namespace ImGui{
     float tabdz = 0.f; // z position for the end of the tab bar (container)
     ImGuiWindow* tabwin = nullptr; // pointer to the tab window (for cleaning up the window stack)
     ImVector<float> tabsx = {}; // tab positions for container; sliders for h/v-container
+    ImVector<bool> tabsfixed = {}; // whether a slider is fixed.
     bool hidden = false; // whether a docked window is hidden
     bool hoverable = true; // whether a window responds to being hovered
     list<Dock *> stack = {}; // stack of docks at this level
@@ -159,6 +160,9 @@ namespace ImGui{
     // id for the edge (1:top, 2:right, 3:bottom, 4:left).
     void showDropTargetEdge(int edge);
 
+    // Find the integer index of dock dthis in the stack of this
+    // container or h/v-container.
+    int OpStack_Find(Dock *dthis);
     // Insert the dock dnew in the stack of this at position ithis (or 
     // at the back if ithis == -1.
     void OpStack_Insert(Dock *dnew, int ithis=-1);
@@ -241,6 +245,12 @@ namespace ImGui{
     void getMinSize(ImVec2 *minsize, ImVec2 *autosize);
     // Center all sliding bars in this root container.
     void resetRootContainerBars();
+    // Sets the position of a sliding bar. The sliding bar is on edge
+    // iedge (1:top, 2:right, 3:bottom, 4:left) of this container,
+    // which is docked to a root container. xpos is the position of
+    // the bar given as a fraction of the window size (between 0 and
+    // 1).
+    void setSlidingBarPosition(int iedge, float xpos);
     // Traverse the tree of this root container and draw all sliding
     // bars in it. Sets the tabsx vector containing the positions of
     // the bars. root is a pointer to the root container. Recursive.

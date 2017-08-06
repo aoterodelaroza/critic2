@@ -22,6 +22,13 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
+// xxxx //
+// setnextslidingbarpos fix next bar pos
+// resize grip controlled by root and container
+// no lift option (eliminates the lift grip)
+// segfault with resizegrip other first window
+// save initial window options if docked
+// set up critic2 basic dock structure
 // examples and new repo
 // see docking thread in imgui github
 
@@ -270,6 +277,16 @@ void Dock::showDropTargetEdge(int edge){
   }
 }
 
+int Dock::OpStack_Find(Dock *dthis){
+  int n = -1;
+  for (auto dd : this->stack) {
+    n++;
+    if (dd == dthis)
+      return n;
+  }
+  return -1;
+}
+
 void Dock::OpStack_Insert(Dock *dnew, int ithis /*=-1*/){
   if (ithis < 0 || ithis >= this->stack.size())
     this->stack.push_back(dnew);
@@ -355,6 +372,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     dhv->stack.push_back(this);
     dhv->stack.push_back(dcont);
   }
+  dhv->resetRootContainerBars();
 
   // replace this with the new horizontal/vertical container in the parent's stack
   dpar->OpStack_Replace(this,dhv,false);
@@ -400,6 +418,9 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
       break;
     }
   }
+
+  // reset the parent's sliding bar positions
+  dpar->resetRootContainerBars();
 
   // rearrange the parent and root variables
   dcont->root = root;
@@ -885,8 +906,34 @@ void Dock::resetRootContainerBars(){
       dd->resetRootContainerBars();
 
     int ntot = this->stack.size();
+    if (this->tabsx.size() != ntot+1)
+      this->tabsx.resize(ntot+1);
     for (int i=0;i<=ntot;i++)
       this->tabsx[i] = ((float) i) / ((float) ntot);
+  }
+}
+
+void Dock::setSlidingBarPosition(int iedge,float xpos){
+  // 1:top, 2:right, 3:bottom, 4:left
+  if (!this->parent) return;
+  if (this->parent->type == Type_Horizontal && (iedge == 2 || iedge == 4)) return;
+  if (this->parent->type == Type_Vertical && (iedge == 1 || iedge == 3)) return;
+  if (iedge < 1 || iedge > 4 || xpos < 0.f || xpos > 1.f) return;
+
+  int id = this->parent->OpStack_Find(this);
+  int ntot = this->parent->stack.size();
+  if (id == -1) return;
+
+  if (iedge == 1 || iedge == 3){
+    if (iedge == 1 && id > 0 && id < ntot)
+      this->parent->tabsx[id] = xpos;
+    else if (iedge == 3 && id+1 > 0 && id+1 < ntot)
+      this->parent->tabsx[id+1] = xpos;
+  } else if (iedge == 2 || iedge == 4){
+    if (iedge == 4 && id > 0 && id < ntot)
+      this->parent->tabsx[id] = xpos;
+    else if (iedge == 2 && id+1 > 0 && id+1 < ntot)
+      this->parent->tabsx[id+1] = xpos;
   }
 }
 
@@ -901,11 +948,9 @@ void Dock::drawRootContainerBars(Dock *root){
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     // update the vector containing the sliding bar positions
     int ntot = this->stack.size();
-    if (this->tabsx.size() != ntot+1){
-      this->tabsx.resize(ntot+1);
+    if (this->tabsx.size() != ntot+1)
       for (int i=0;i<=ntot;i++)
         this->tabsx[i] = ((float) i) / ((float) ntot);
-    }
 
     // draw all the sliding bars for this container
     char tmp[strlen(this->label)+15];
@@ -1025,7 +1070,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       // resize grip controlling the rootcontainer, if this is the
       // bottom-right window; lift grip if it is not.
       this->window = GetCurrentWindow();
-      if (!this->currenttab){
+      if (!this->currenttab && this->window){
         if (*ncount == this->root->nchild){
           bool dclicked;
           ResizeGripOther(this->label, this->window, this->root->window);
@@ -1312,13 +1357,13 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       }
       dd->root = dd->parent->root;
 
-      if (resize){
+      if (resize && dd->window){
         if (dd->root){
           bool dclicked;
           ResizeGripOther(dd->label, dd->window, dd->root->window, &dclicked);
           if (dclicked)
             dd->root->resetRootContainerBars();
-        } else
+        } else 
           ResizeGripOther(dd->label, dd->window, dd->parent->window);
       }
       if (dd->root && !dd->parent->automatic)
