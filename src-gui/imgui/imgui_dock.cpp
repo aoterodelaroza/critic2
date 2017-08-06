@@ -23,7 +23,6 @@
 // See header file (imgui_dock.h) for instructions.
 
 // resize grip controlled by root and container
-// save initial window options if docked
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
 // set up critic2 basic dock structure
 // examples and new repo
@@ -1097,6 +1096,12 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
         placeWindow(this->window,this->currenttab->window,+1);
     } // !(root->collapsed)
   } // this->type == xx
+}
+
+void Dock::setDetachedDockSize(float x, float y){
+  if (!this) return;
+  this->size_saved.x = x;
+  this->size_saved.y = y;
 }
 
 //xx// Public interface //xx//

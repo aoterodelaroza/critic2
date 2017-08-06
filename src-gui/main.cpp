@@ -104,11 +104,13 @@ int main(int argc, char *argv[]){
     static bool show_treedock = true;
     static bool show_infodock = true;
     static bool show_viewdock = true;
+    Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
     if (show_treedock){
       if (BeginDock("Tree view",&show_treedock,0,dtreecont)){
         Text("Tree View!");     
         if (Button("Tree view")){printf("Tree view\n");}
       }
+      dtreedock = GetCurrentDock();
       EndDock();
     }
     if (show_infodock){
@@ -116,6 +118,7 @@ int main(int argc, char *argv[]){
         Text("Info View!");     
         if (Button("Info view")){printf("Info view\n");}
       }
+      dinfodock = GetCurrentDock();
       EndDock();
     }
     if (show_viewdock){
@@ -123,6 +126,7 @@ int main(int argc, char *argv[]){
         Text("View 1!");     
         if (Button("View 1")){printf("View 1\n");}
       }
+      dviewdock = GetCurrentDock();
       EndDock();
     }
 
@@ -131,10 +135,19 @@ int main(int argc, char *argv[]){
     if (first){
       first = false;
       droot->newDockRoot(dviewcont,5);
+      dviewcont->setDetachedDockSize(200.f,200.f);
+
       dviewcont->newDockRoot(dtreecont,4);
       dviewcont->setSlidingBarPosition(4,0.2f);
+      dtreecont->setDetachedDockSize(200.f,200.f);
+
       dtreecont->newDockRoot(dinfocont,3);
       dtreecont->setSlidingBarPosition(3,0.7f);
+      dinfocont->setDetachedDockSize(200.f,200.f);
+
+      dviewdock->setDetachedDockSize(300.f,300.f);
+      dtreedock->setDetachedDockSize(300.f,300.f);
+      dinfodock->setDetachedDockSize(300.f,300.f);
     }
 
     // Draw the current scene

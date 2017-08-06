@@ -269,6 +269,12 @@ namespace ImGui{
     // container to be lifted or null. count keeps count of the number
     // of docked windows in the root container. Recursive.
     void drawRootContainer(Dock* root, Dock **lift, int *count = nullptr);
+
+    // Sets the size of this dock/container in its detached
+    // state. Useful when a dock/container is immediately attached in
+    // the first pass and does not have the chance to save this
+    // variable from the created window.
+    void setDetachedDockSize(float x, float y);
   }; // struct Dock
 
   // Create a root container with the given label. If p_open, with a
