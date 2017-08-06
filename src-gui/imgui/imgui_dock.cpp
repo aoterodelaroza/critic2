@@ -22,7 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// resize grip controlled by root and container
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
 // double click lifts but also collapses
 // double click eliminates a sliding bar
@@ -1073,7 +1072,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       // bottom-right window; lift grip if it is not.
       this->window = GetCurrentWindow();
       if (!this->currenttab && this->window){
-        if (*ncount == this->root->nchild){
+        if (*ncount == this->root->nchild && !(this->root->flags & ImGuiWindowFlags_NoResize)){
           bool dclicked;
           ResizeGripOther(this->label, this->window, this->root->window);
           if (dclicked)
@@ -1363,7 +1362,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     SetNextWindowCollapsed(dd->collapsed);
     if (dd->status == Dock::Status_Docked) {
       // Docked: flags and hidden controlled by the container, too
-      bool resize = !(dd->flags & ImGuiWindowFlags_NoResize) && !dd->hidden && !dd->collapsed;
       flags = dd->flags | ImGuiWindowFlags_NoResize;
       collapsed = dd->hidden;
       if (dd->hidden){
@@ -1373,13 +1371,13 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       }
       dd->root = dd->parent->root;
 
-      if (resize && dd->window){
-        if (dd->root){
+      if (dd->window && !dd->hidden && !dd->collapsed){
+        if (dd->root && dd->root->window && !(dd->root->flags & ImGuiWindowFlags_NoResize)){
           bool dclicked;
           ResizeGripOther(dd->label, dd->window, dd->root->window, &dclicked);
           if (dclicked)
             dd->root->resetRootContainerBars();
-        } else 
+        } else if (dd->parent && dd->parent->window && !(dd->parent->flags & ImGuiWindowFlags_NoResize))
           ResizeGripOther(dd->label, dd->window, dd->parent->window);
       }
       if (dd->root && !dd->parent->automatic && !(dd->parent->dockflags & Dock::DockFlags_NoLiftContainer))
