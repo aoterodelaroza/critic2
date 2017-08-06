@@ -23,8 +23,6 @@
 // See header file (imgui_dock.h) for instructions.
 
 // problem with the lift grip being strange if a tab is lifted and put somewhere else
-// double click lifts but also collapses
-// double click eliminates a sliding bar
 // set up critic2 basic dock structure
 // examples and new repo
 // see docking thread in imgui github
@@ -753,6 +751,7 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
         dd->pos = GetMousePos() - ImVec2(0.5*dd->size.x,0.f);
         g->HoveredRootWindow = dd->window;
         g->HoveredWindow = dd->window;
+        g->IO.MouseDoubleClicked[0] = false; // prevent following docks from seeing this double click
         goto erase_this_tab;
       }
       // closed click kills the tab
