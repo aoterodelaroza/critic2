@@ -22,7 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// problem with the lift grip being strange if a tab is lifted and put somewhere else
 // set up critic2 basic dock structure
 // examples and new repo
 // see docking thread in imgui github
@@ -1376,18 +1375,24 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       }
       dd->root = dd->parent->root;
 
+      // lift and resize grips
       if (dd->window && !dd->hidden && !dd->collapsed){
-        if (dd->root && dd->root->window && !(dd->root->flags & ImGuiWindowFlags_NoResize)){
-          bool dclicked;
-          ResizeGripOther(dd->label, dd->window, dd->root->window, &dclicked);
-          if (dclicked)
-            dd->root->resetRootContainerBars();
-        } else if (dd->parent && dd->parent->window && !(dd->parent->flags & ImGuiWindowFlags_NoResize))
+        if (dd->root && dd->root->window){
+          // for the root window
+          if (!(dd->root->flags & ImGuiWindowFlags_NoResize)){
+            bool dclicked;
+            ResizeGripOther(dd->label, dd->window, dd->root->window, &dclicked);
+            if (dclicked)
+              dd->root->resetRootContainerBars();
+          }
+          if (!dd->parent->automatic && !(dd->parent->dockflags & Dock::DockFlags_NoLiftContainer) && 
+              LiftGrip(dd->label, dd->window))
+              dd->parent->liftContainer();
+        } else if (dd->parent && dd->parent->window && !(dd->parent->flags & ImGuiWindowFlags_NoResize)){
+          // for the parent container
           ResizeGripOther(dd->label, dd->window, dd->parent->window);
+        }
       }
-      if (dd->root && !dd->parent->automatic && !(dd->parent->dockflags & Dock::DockFlags_NoLiftContainer))
-        if (LiftGrip(dd->label, dd->window))
-          dd->parent->liftContainer();
     } else if (dd->status == Dock::Status_Dragged) {
       // the window has just been lifted from a container. Go back to
       // being a normal window with the new position and size; being

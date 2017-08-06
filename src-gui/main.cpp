@@ -90,8 +90,10 @@ int main(int argc, char *argv[]){
     // Containers
     Dock *dviewcont = nullptr;
     static bool show_viewcont = true;
+    // if (show_viewcont)
+    //   dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
     if (show_viewcont)
-      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
+      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_Transparent);
 
     // Docks
     static bool show_treedock = true;
