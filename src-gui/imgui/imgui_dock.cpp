@@ -22,10 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// set up critic2 basic dock structure
-// examples and new repo
-// see docking thread in imgui github
-
 #include "imgui.h"
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
