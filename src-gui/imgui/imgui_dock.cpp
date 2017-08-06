@@ -718,9 +718,9 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
     for (auto dd : this->stack) {
       SameLine();
       // make the x-button, update the container info
-      bool dragged, dclicked, closeclicked;
+      bool dragged, dclicked;
       if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), true,
-                      dd->p_open, &dragged, &dclicked, &closeclicked, 2.f/g->Style.Alpha)){
+                      dd->p_open, &dragged, &dclicked, 2.f/g->Style.Alpha)){
         this->currenttab = dd;
         dd->parent = this;
         dd->root = this->root;
@@ -746,10 +746,8 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
         goto erase_this_tab;
       }
       // closed click kills the tab
-      if (closeclicked){
-        *(dd->p_open) = false;
+      if (!*(dd->p_open))
         goto erase_this_tab;
-      }
 
       ddlast = dd;
       continue;

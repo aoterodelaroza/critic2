@@ -76,8 +76,7 @@ namespace ImGui{
   // alphamul: alpha multiplier for all colors. Returns true if the
   // main part of the button (not the x) has been clicked.
   bool ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool scrollbarcol,
-                   bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
-                   float alpha = 1.f);
+                   bool *p_open, bool *dragged, bool *dclicked, float alpha = 1.f);
 
   // A resize grip drawn on window that controls the size of cwindow.
   // On output, dclicked is true if double-click (auto-resize)

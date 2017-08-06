@@ -55,8 +55,7 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
 }
 
 bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool scrollbarcol,
-                        bool *p_open, bool *dragged, bool *dclicked, bool *closeclicked, 
-                        float alphamul /*=1.f*/){
+                        bool *p_open, bool *dragged, bool *dclicked, float alphamul /*=1.f*/){
   // lengths and colors
   ImGuiContext *g = GetCurrentContext();
   const float crossz = round(0.3 * g->FontSize);
@@ -89,7 +88,6 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
   // set the output flags for the main button
   *dragged = IsItemActive() && IsMouseDragging();
   *dclicked = IsItemActive() && IsMouseDoubleClicked(0);
-  *closeclicked = false;
   
   // draw the close button, if this window can be closed
   ImVec2 center;
@@ -101,10 +99,10 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab, b
     ImVec2 smallsize(crosswidth, size.y);
 
     // cross button
-    *closeclicked = (InvisibleButton(tmp2, smallsize));
+    *p_open = !(InvisibleButton(tmp2, smallsize));
 
     // update output flags and variables for drawing
-    *dragged = *dragged | (!*closeclicked && IsItemActive() && IsMouseDragging());
+    *dragged = *dragged | (p_open && IsItemActive() && IsMouseDragging());
     hovered |= IsItemHovered();
     center = ((GetItemRectMin() + GetItemRectMax()) * 0.5f);
   }
