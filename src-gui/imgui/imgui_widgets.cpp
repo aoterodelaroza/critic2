@@ -41,9 +41,9 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
 
   if (held){
     if (direction == 1)
-      pos->x = max(min(g->IO.MousePos.x,maxx),minx);
+      pos->x = max(min(g->IO.MousePos.x - 0.5f * size.x,maxx),minx);
     else
-      pos->y = max(min(g->IO.MousePos.y,maxx),minx);
+      pos->y = max(min(g->IO.MousePos.y - 0.5f * size.y,maxx),minx);
   }
 
   // draw the rectangle

@@ -22,11 +22,6 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// l. 825, size y constraint on container is wrong
-// rootcontainer size changes when its contents change in size (see style dock), but container does not autoresize -> smart modification of tabsx
-// wrong minimum size -> make it depend on the minimum size of its contained window.
-// when sliding bar is clicked, it moves a little bit
-// adding to a root container does not reset the tabsx
 // starts with lift grab by itself on the left center
 // examples and new repo
 // see docking thread in imgui github
@@ -881,7 +876,6 @@ void Dock::getMinSize(ImVec2 *minsize,ImVec2 *autosize){
     if (autosize)
       *autosize = ImMax(g->Style.WindowMinSize + g->Style.WindowPadding,this->window->SizeContents);
   }
-  // xxxx // see drawrootcontainerbars below for another use
 }
 
 void Dock::resetRootContainerBars(){
