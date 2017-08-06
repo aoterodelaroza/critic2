@@ -80,8 +80,8 @@ int main(int argc, char *argv[]){
     // Root container
     PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
     float menubarh = g->FontBaseSize + g->Style.FramePadding.y * 2.0f;
-    SetNextWindowPos(ImVec2(0.,menubarh),ImGuiSetCond_Once);
-    SetNextWindowSize(ImVec2(g->IO.DisplaySize.x,g->IO.DisplaySize.y-menubarh),ImGuiSetCond_Once);
+    SetNextWindowPos(ImVec2(0.,menubarh));
+    SetNextWindowSize(ImVec2(g->IO.DisplaySize.x,g->IO.DisplaySize.y-menubarh));
     Dock *droot = RootContainer("critic2root",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
                                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings|
                                 ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -97,27 +97,34 @@ int main(int argc, char *argv[]){
     if (show_infocont)
       dinfocont = ImGui::Container("Container##infocontainer",&show_infocont);
     if (show_viewcont)
-      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont);
+      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,
+                                   Dock::DockFlags_NoLiftContainer);
 
     // Docks
     static bool show_treedock = true;
     static bool show_infodock = true;
     static bool show_viewdock = true;
-    if (BeginDock("Tree view",&show_treedock,0,dtreecont)){
-      Text("Tree View!");     
-      if (Button("Tree view")){printf("Tree view\n");}
+    if (show_treedock){
+      if (BeginDock("Tree view",&show_treedock,0,dtreecont)){
+        Text("Tree View!");     
+        if (Button("Tree view")){printf("Tree view\n");}
+      }
+      EndDock();
     }
-    EndDock();
-    if (BeginDock("Info view",&show_infodock,0,dinfocont)){
-      Text("Info View!");     
-      if (Button("Info view")){printf("Info view\n");}
+    if (show_infodock){
+      if (BeginDock("Info view",&show_infodock,0,dinfocont)){
+        Text("Info View!");     
+        if (Button("Info view")){printf("Info view\n");}
+      }
+      EndDock();
     }
-    EndDock();
-    if (BeginDock("View 1",&show_viewdock,0,dviewcont)){
-      Text("View 1!");     
-      if (Button("View 1")){printf("View 1\n");}
+    if (show_viewdock){
+      if (BeginDock("View 1",&show_viewdock,0,dviewcont)){
+        Text("View 1!");     
+        if (Button("View 1")){printf("View 1\n");}
+      }
+      EndDock();
     }
-    EndDock();
 
     // Dock everything in the first pass
     static bool first = true;
@@ -125,7 +132,7 @@ int main(int argc, char *argv[]){
       first = false;
       droot->newDockRoot(dviewcont,5);
       dviewcont->newDockRoot(dtreecont,4);
-      dviewcont->setSlidingBarPosition(4,0.3f);
+      dviewcont->setSlidingBarPosition(4,0.2f);
       dtreecont->newDockRoot(dinfocont,3);
       dtreecont->setSlidingBarPosition(3,0.7f);
     }

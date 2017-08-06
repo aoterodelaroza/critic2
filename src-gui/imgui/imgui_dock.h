@@ -102,6 +102,8 @@ using namespace std;
 
 namespace ImGui{
 
+  typedef int DockFlags;
+
   struct Dock{
     // Enum for the type of docking windows
     enum Type_{Type_None,Type_Root,Type_Container,Type_Dock,Type_Horizontal,
@@ -109,6 +111,10 @@ namespace ImGui{
     // Status of a single dock
     enum Status_{Status_None,Status_Open,Status_Collapsed,Status_Closed,
                  Status_Dragged,Status_Docked};
+    // Dock flags
+    enum DockFlags_{
+      DockFlags_NoLiftContainer = 1 << 0, // A container is not allowed to be lifted
+    };
 
     char* label = nullptr; // dock and window label
     ImGuiWindow* window = nullptr; // associated window
@@ -120,6 +126,7 @@ namespace ImGui{
     ImVec2 size_saved = {}; // saved size (before docking for dockable window)
     ImGuiWindowFlags flags = 0; // flags for the window
     ImGuiWindowFlags flags_saved = 0; // flags for the window (before docking)
+    DockFlags dockflags = 0; // flags for this dock
     bool collapsed = false; // whether a docked window is collapsed
     bool collapsed_saved = false; // saved collapsed (before docking)
     ImRect tabbarrect = {}; // rectangle for the container tab bar
@@ -276,7 +283,7 @@ namespace ImGui{
   // to the container window. Returns a pointer to the container dock
   // object. Containers contain docks and can be docked to root
   // containers. 
-  Dock *Container(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0);
+  Dock *Container(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, DockFlags dock_flags=0);
 
   // Create/end a dock window. If p_open, with a close button. If
   // p_open, with a close button (close status as *p_open). Extra

@@ -22,12 +22,9 @@
 // Original code by vassvik (?) released as public domain.
 // See header file (imgui_dock.h) for instructions.
 
-// xxxx //
-// setnextslidingbarpos fix next bar pos
 // resize grip controlled by root and container
-// no lift option (eliminates the lift grip)
-// segfault with resizegrip other first window
 // save initial window options if docked
+// problem with the lift grip being strange if a tab is lifted and put somewhere else
 // set up critic2 basic dock structure
 // examples and new repo
 // see docking thread in imgui github
@@ -1078,7 +1075,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
             this->root->resetRootContainerBars();
         }
         if (!this->automatic)
-          if (LiftGrip(this->label, this->window))
+          if (!(this->dockflags & Dock::DockFlags_NoLiftContainer) && LiftGrip(this->label, this->window))
             *lift = this;
       }
 
@@ -1186,7 +1183,8 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   return dd;
 }
 
-Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/){
+Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/,
+                       DockFlags dock_flags/*=0*/){
 
   bool collapsed = true;
   ImGuiContext *g = GetCurrentContext();
@@ -1200,6 +1198,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dockht[string(dd->label)] = dd;
     dd->type = Dock::Type_Container;
   }
+  dd->dockflags = dock_flags;
 
   // If docked, the root container takes care of everything. Clear next window data.
   if (dd->status == Dock::Status_Docked){
@@ -1366,7 +1365,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
         } else 
           ResizeGripOther(dd->label, dd->window, dd->parent->window);
       }
-      if (dd->root && !dd->parent->automatic)
+      if (dd->root && !dd->parent->automatic && !(dd->parent->dockflags & Dock::DockFlags_NoLiftContainer))
         if (LiftGrip(dd->label, dd->window))
           dd->parent->liftContainer();
     } else if (dd->status == Dock::Status_Dragged) {
