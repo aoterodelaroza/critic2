@@ -746,7 +746,7 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
         goto erase_this_tab;
       }
       // closed click kills the tab
-      if (!*(dd->p_open))
+      if (dd->p_open && !*(dd->p_open))
         goto erase_this_tab;
 
       ddlast = dd;
