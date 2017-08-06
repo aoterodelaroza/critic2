@@ -23,11 +23,11 @@
 // See header file (imgui_dock.h) for instructions.
 
 // l. 825, size y constraint on container is wrong
-// rootcontainer size changes when its contents change in size (see style dock), but container does not
-// autoresize -> smart modification of tabsx
+// rootcontainer size changes when its contents change in size (see style dock), but container does not autoresize -> smart modification of tabsx
 // wrong minimum size -> make it depend on the minimum size of its contained window.
 // when sliding bar is clicked, it moves a little bit
 // adding to a root container does not reset the tabsx
+// starts with lift grab by itself on the left center
 // examples and new repo
 // see docking thread in imgui github
 
@@ -55,7 +55,6 @@ static float getEdgeWidthx(); // width of the edge drop zone
 static float getEdgeWidthy(); // height of the edge drop zone
 static float getCascadeIncrement(); // window translation in a window cascade
 static float getSlidingBarWidth(); // width of the sliding bars
-static ImVec2 getMinRootContained(); // minimum size of windows docked to a root container
 
 //xx// Dock context methods //xx//
 
@@ -157,11 +156,6 @@ static float getCascadeIncrement(){
 static float getSlidingBarWidth(){
   ImGuiContext *g = GetCurrentContext();
   return 0.5f * g->Style.ScrollbarSize;
-}
-static ImVec2 getMinRootContained(){
-  ImGuiContext *g = GetCurrentContext();
-  return ImVec2(g->Style.WindowMinSize.x + getSlidingBarWidth() + 1,
-                g->Style.WindowMinSize.y + getTabHeight() + getSlidingBarWidth() + 1);
 }
 
 //xx// Dock methods //xx//
@@ -824,45 +818,73 @@ void Dock::drawContainer(bool noresize){
   } // if (this->stack.size() > 0);
 }
 
-ImVec2 Dock::minRootContainerSize(){
+void Dock::getMinSize(ImVec2 *minsize,ImVec2 *autosize){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
   ImVec2 size = {};
   if (this->type == Dock::Type_Root){
     for (auto dd : this->stack)
-      size = dd->minRootContainerSize();
-    size = size + ImVec2(0.f,g->FontSize + g->Style.FramePadding.y * 2.0f);
+      dd->getMinSize(minsize,autosize);
   } else if (this->type == Dock::Type_Horizontal) {
-    ImVec2 size_ = {};
+    ImVec2 msize_ = {}, asize_ = {};
     for (auto dd : this->stack){
-      size_ = dd->minRootContainerSize();
-      size.x = max(size_.x,size.x);
-      size.y += size_.y + barwidth;
+      dd->getMinSize(&msize_,&asize_);
+      if (minsize){
+        minsize->x = max(msize_.x,minsize->x);
+        minsize->y += msize_.y;
+      }
+      if (autosize){
+        autosize->x = max(asize_.x,autosize->x);
+        autosize->y += asize_.y;
+      }
     }
+    if (minsize)
+      minsize->y += barwidth * (this->stack.size()-1);
+    if (autosize)
+      autosize->y += barwidth * (this->stack.size()-1);
   } else if (this->type == Dock::Type_Vertical) {
-    ImVec2 size_ = {};
+    ImVec2 msize_ = {}, asize_ = {};
     for (auto dd : this->stack){
-      size_ = dd->minRootContainerSize();
-      size.x += size_.x + barwidth;
-      size.y = max(size_.y,size.y);
+      dd->getMinSize(&msize_,&asize_);
+      if (minsize){
+        minsize->x += msize_.x;
+        minsize->y = max(msize_.y,minsize->y);
+      }
+      if (autosize){
+        autosize->x += asize_.x;
+        autosize->y = max(asize_.y,autosize->y);
+      }
     }
+    if (minsize)
+      minsize->x += barwidth * (this->stack.size()-1);
+    if (autosize)
+      autosize->x += barwidth * (this->stack.size()-1);
   } else if (this->type == Dock::Type_Container) {
-    ImVec2 mincont = getMinRootContained();
-    size.x = mincont.x;
-    if (this->currenttab)
-      size.x = max(size.x,this->currenttab->window->SizeContents.x);
-    size.y = mincont.y;
-    if (this->currenttab)
-      size.y = max(size.y, this->currenttab->window->SizeContents.y + this->tabbarrect.GetHeight());
+    if (minsize)
+      *minsize = g->Style.WindowMinSize;
+    if (autosize)
+      *autosize = g->Style.WindowMinSize + g->Style.WindowPadding;
+    if (this->currenttab){
+      if (minsize)
+        minsize->y += this->tabdz;
+      if (autosize){
+        autosize->x = max(autosize->x,this->currenttab->window->SizeContents.x);
+        autosize->y = max(autosize->y,this->currenttab->window->SizeContents.y) + this->tabdz;
+      }
+    }
+  } else if (this->type == Dock::Type_Dock) {
+    if (minsize)
+      *minsize = g->Style.WindowMinSize;
+    if (autosize)
+      *autosize = ImMax(g->Style.WindowMinSize + g->Style.WindowPadding,this->window->SizeContents);
   }
-  return size;
+  // xxxx // see drawrootcontainerbars below for another use
 }
 
 void Dock::drawRootContainerBars(Dock *root){
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
-  ImVec2 mincont = getMinRootContained();
 
   this->root = root;
   if (this->type == Dock::Type_Root){
@@ -880,27 +902,29 @@ void Dock::drawRootContainerBars(Dock *root){
     // draw all the sliding bars for this container
     char tmp[strlen(this->label)+15];
     float x0, x1, xmin, xmax;
-    ImVec2 pos, size;
+    ImVec2 pos, size, mincont = {}, mincontprev;
     int direction;
     int n = -1;
     for (auto dd : this->stack){
       n++;
+      mincontprev = mincont;
+      dd->getMinSize(&mincont,nullptr);
       if (n != 0){
         pos = this->pos;
         size = this->size;
         if (this->type == Dock::Type_Horizontal){
-          x0 = this->pos.y;
+          x0 = this->pos.y + (this->window?this->window->TitleBarRect().GetHeight():0.f);
           x1 = this->pos.y + this->size.y;
-          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + mincont.y;
-          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - mincont.y;
+          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + (n>1?0.5f * barwidth:0.f) + mincontprev.y;
+          xmax = max(xmin,x0 + this->tabsx[n+1] * (x1 - x0) - (n<this->stack.size()-1?0.5f * barwidth:0.f) - 1.0f * barwidth - mincont.y);
           pos.y = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
           size.y = barwidth;
           direction = 2;
         } else {
           x0 = this->pos.x;
           x1 = this->pos.x + this->size.x;
-          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + 0.5f * barwidth + mincont.x;
-          xmax = x0 + this->tabsx[n+1] * (x1 - x0) - 1.5f * barwidth - mincont.x;
+          xmin = x0 + this->tabsx[n-1] * (x1 - x0) + (n>1?0.5f * barwidth:0.f) + mincontprev.x;
+          xmax = max(xmin,x0 + this->tabsx[n+1] * (x1 - x0) - (n<this->stack.size()-1?0.5f * barwidth:0.f) - 1.0f * barwidth - mincont.x);
           pos.x = min(xmax,max(xmin,x0 + this->tabsx[n] * (x1 - x0) - 0.5f * barwidth));
           size.x = barwidth;
           direction = 1;
@@ -943,7 +967,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, int *ncount/*=nullptr*/){
       dd->pos = this->pos;
       dd->size = this->size;
       if (this->type == Dock::Type_Horizontal){
-        x0 = this->pos.y;
+        x0 = this->pos.y + (this->window?this->window->TitleBarRect().GetHeight():0.f);
         x1 = this->pos.y + this->size.y;
         dd->pos.y = x0 + this->tabsx[n] * (x1 - x0) + (n==0?0.f:0.5f * barwidth);
         dd->size.y = (this->tabsx[n+1]-this->tabsx[n]) * (x1 - x0) - (n==0 || n==this->stack.size()-1?0.5f * barwidth:barwidth);
@@ -1041,8 +1065,10 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   dd->OpRoot_FillEmpty();
 
   // Set the minimum size
-  ImVec2 minsize = dd->minRootContainerSize();
+  ImVec2 minsize, autosize;
+  dd->getMinSize(&minsize, &autosize);
   SetNextWindowSizeConstraints(minsize,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+  SetNextWindowContentSize(autosize);
 
   // Making an invisible window (always has a container)
   PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
@@ -1132,15 +1158,13 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     SetNextWindowCollapsed(dd->collapsed);
   }
 
-  // If the container has a window docked, set the minimum and the contents size.
-  if (dd->currenttab){
-    SetNextWindowSizeConstraints(ImVec2(0.f,dd->tabdz),ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
-    SetNextWindowContentSize(dd->currenttab->window->SizeContents + ImVec2(0.f,dd->tabdz));
+  // Set the minimum and the contents size.
+  ImVec2 minsize, autosize;
+  dd->getMinSize(&minsize,&autosize);
+  SetNextWindowSizeConstraints(minsize,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
+  SetNextWindowContentSize(autosize);
+  if (dd->currenttab)
     flags = flags | ImGuiWindowFlags_NoResize;
-  } else {
-    SetNextWindowSizeConstraints(ImVec2(0.,4*(GetTextLineHeightWithSpacing()+g->Style.ItemSpacing.y)),
-                                        ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
-  }
 
   // Render any container widgets in here
   bool transparentframe = dd->currenttab;
