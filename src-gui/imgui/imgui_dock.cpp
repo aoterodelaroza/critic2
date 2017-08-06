@@ -165,28 +165,24 @@ bool Dock::IsMouseHoveringTabBar(){
 
 int Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
-  const ImVec2 x0[4] = {{0.0,0.0}, {0.9,0.0}, {0.0,0.9}, {0.0,0.0}};
-  const ImVec2 x1[4] = {{1.0,0.1}, {1.0,1.0}, {1.0,1.0}, {0.1,1.0}};
   const float minsizex = getEdgeWidthx();
   const float minsizey = getEdgeWidthy();
 
   ImVec2 xmin, xmax;
-  for (int i=0; i<4; i++){
-    xmin.x = this->pos.x + x0[i].x * this->size.x;
-    xmax.x = this->pos.x + x1[i].x * this->size.x;
-    xmin.y = this->pos.y + x0[i].y * this->size.y;
-    xmax.y = this->pos.y + x1[i].y * this->size.y;
-    if (i == 0 && (xmax.y-xmin.y) < minsizey)
-      xmax.y = xmin.y + min(minsizey,0.5f * this->size.y);
-    else if (i == 2 && (xmax.y-xmin.y) < minsizey)
-      xmin.y = xmax.y - min(minsizey,0.5f * this->size.y);
-    else if (i == 3 && (xmax.x-xmin.x) < minsizex)
-      xmax.x = xmin.x + min(minsizex,0.5f * this->size.x);
-    else if (i == 1 && (xmax.x-xmin.x) < minsizex)
-      xmin.x = xmax.x - min(minsizex,0.5f * this->size.x);
+  for (int i=1; i<5; i++){
+    xmin = this->pos;
+    xmax = this->pos + this->size;
+    if (i == 1)
+      xmax.y = xmin.y + minsizey;
+    else if (i == 3)
+      xmin.y = xmax.y - minsizey;
+    else if (i == 4)
+      xmax.x = xmin.x + minsizex;
+    else if (i == 2)
+      xmin.x = xmax.x - minsizex;
 
     if (IsMouseHoveringRect(xmin,xmax,false))
-      return i+1;
+      return i;
   }
   return 0;
 }
