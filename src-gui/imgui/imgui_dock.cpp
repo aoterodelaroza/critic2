@@ -1040,6 +1040,8 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount
       noresize = root->collapsed || !(*ncount == this->root->nchild);
       if (noresize)
         this->currenttab->flags |= ImGuiWindowFlags_NoResize;
+      else
+        this->currenttab->flags &= ~ImGuiWindowFlags_NoResize;
     }
 
     // only if the root is not collapsed
@@ -1372,8 +1374,11 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       // lift and resize grips
       if (dd->window && !dd->hidden && !dd->collapsed){
         if (dd->root && dd->root->window){
-          // for the root window
-          if (!(dd->root->flags & ImGuiWindowFlags_NoResize)){
+          // For the root window. This dock can be resized if the root
+          // can be resized and the dd->flags is not
+          // noresize. dd->flags is set by the docked container based
+          // on the nchild.
+          if (!(dd->root->flags & ImGuiWindowFlags_NoResize) && !(dd->flags & ImGuiWindowFlags_NoResize)){
             bool dclicked;
             ResizeGripOther(dd->label, dd->window, dd->root->window, &dclicked);
             if (dclicked)
