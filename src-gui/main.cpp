@@ -90,10 +90,8 @@ int main(int argc, char *argv[]){
     // Containers
     Dock *dviewcont = nullptr;
     static bool show_viewcont = true;
-    // if (show_viewcont)
-    //   dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
     if (show_viewcont)
-      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_Transparent);
+      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
 
     // Docks
     static bool show_treedock = true;
@@ -124,6 +122,15 @@ int main(int argc, char *argv[]){
       dviewdock = GetCurrentDock();
       EndDock();
     }
+    if (BeginDock("Style Editor"))
+      ShowStyleEditor();
+    Dock *dstyle = GetCurrentDock();
+    EndDock();
+
+    if (BeginDock("User Guide"))
+      ShowUserGuide();
+    Dock *dtest = GetCurrentDock();
+    EndDock();
 
     PrintDock__();
 
@@ -139,9 +146,14 @@ int main(int argc, char *argv[]){
       dtmp->newDockRoot(dinfodock,3);
       dtmp->setSlidingBarPosition(3,0.7f);
 
+      dtmp->newDock(dstyle,-1);
+      dviewcont->newDock(dtest,-1);
+
       dviewdock->setDetachedDockSize(300.f,300.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
       dinfodock->setDetachedDockSize(300.f,300.f);
+      dstyle->setDetachedDockSize(500.f,500.f);
+      dtest->setDetachedDockSize(500.f,500.f);
     }
 
     // Draw the current scene
