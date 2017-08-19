@@ -34,6 +34,10 @@
 using namespace std;
 using namespace ImGui;
 
+// xxxx //
+GLuint LightingShader();
+// xxxx //
+
 static void error_callback(int error, const char* description){
   fprintf(stderr, "Error %d: %s\n", error, description);
 }
@@ -58,6 +62,42 @@ int main(int argc, char *argv[]){
 
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
+
+  // xxxx //
+  GLuint shaderProgram = LightingShader();
+
+  float vertices[] = {
+    -1.0f, -1.0f, 0.0f,
+    1.0f, -1.0f, 0.0f, 
+    0.0f,  1.0f, 0.0f  
+  }; 
+
+  unsigned int VBO, VAO;
+  glGenVertexArrays(1, &VAO);
+  glGenBuffers(1, &VBO);
+  glBindVertexArray(VAO);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0); 
+  glBindVertexArray(0); 
+
+  unsigned int fbo;
+  glGenFramebuffers(1, &fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  unsigned int texture;
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    exit(EXIT_FAILURE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  // xxxx //
 
   // GUI settings
   ImGuiIO& io = GetIO();
@@ -97,7 +137,7 @@ int main(int argc, char *argv[]){
     Dock *dviewcont = nullptr;
     static bool show_viewcont = true;
     if (show_viewcont)
-      dviewcont = ImGui::Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
+      dviewcont = Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
 
     // Docks
     static bool show_treedock = true;
@@ -120,7 +160,27 @@ int main(int argc, char *argv[]){
       EndDock();
     }
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
-      c2::draw_scene();
+      ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+      glEnable(GL_DEPTH_TEST); 
+      glClearColor(1.0f, 0.1f, 0.1f,1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glUseProgram(shaderProgram);
+      glBindVertexArray(VAO); 
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+      glEnable(GL_DEPTH_TEST); 
+      glViewport(0.,0.,win->Size.x,win->Size.y);
+      glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImVec2 pos = GetCursorScreenPos();
+      // GetWindowDrawList()->AddImage((void *) texture,ImVec2(GetItemRectMin().x + pos.x,GetItemRectMin().y + pos.y),
+      // 				    ImVec2(pos.x + 100, pos.y + 100), ImVec2(0, 1), ImVec2(1, 0));
+      GetWindowDrawList()->AddImage((void *) texture,win->Pos,win->Pos+win->Size, ImVec2(0, 1), ImVec2(1, 0));
+
+      // c2::draw_scene();
+
     }
     dviewdock = GetCurrentDock();
     EndDock();
@@ -150,6 +210,9 @@ int main(int argc, char *argv[]){
     glfwSwapBuffers(rootwin);
   }
 
+  // xxxx //
+  glDeleteFramebuffers(1, &fbo); 
+
   // Cleanup
   ShutdownDock();
   ImGui_ImplGlfwGL3_Shutdown();
@@ -158,3 +221,70 @@ int main(int argc, char *argv[]){
   return 0;
 }
 
+// xxxx ///
+
+// Add a shader to the gl program
+static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
+{
+  GLuint ShaderObj = glCreateShader(ShaderType);
+
+  if (ShaderObj == 0) {
+    fprintf(stderr, "Error creating shader type %d\n", ShaderType);
+    exit(1);
+  }
+
+  const GLchar * p[1];
+  p[0] = pShaderText;
+  GLint Lengths[1];
+  Lengths[0] = strlen(pShaderText);
+  glShaderSource(ShaderObj, 1, p, Lengths);
+  glCompileShader(ShaderObj);
+  GLint success;
+  glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    GLchar InfoLog[1024];
+    glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
+    fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
+    exit(1);
+  }
+  glAttachShader(ShaderProgram, ShaderObj);
+}
+
+// Create a shader program based on a shader script
+GLuint LightingShader()
+{
+
+  GLuint ShaderProgram = glCreateProgram();
+  if (ShaderProgram == 0){
+    exit(1);
+  }
+
+  const char *vs = "#version 330 core\n"
+    "layout (location = 0) in vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
+  const char *fs = "#version 330 core\n"
+    "out vec4 FragColor;\n"
+    "void main()\n"
+    "{\n"
+    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+    "}\n\0";
+
+  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
+  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
+
+  GLint success = 0;
+
+  glLinkProgram(ShaderProgram);
+  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
+  if (success == 0) exit(1);
+
+  glValidateProgram(ShaderProgram);
+  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
+  if (success == 0) exit(1);
+
+  return ShaderProgram;
+}
+// xxxx //
