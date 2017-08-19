@@ -27,7 +27,7 @@
 #include "imgui_internal.h"
 #include "imgui_dock.h"
 #include "imgui_widgets.h"
-#include "imgui_impl_glfw.h"
+#include "imgui_impl_glfw_gl3.h"
 #include <unordered_map>
 #include <algorithm>
 

@@ -12,8 +12,9 @@ gcritic2_LDADD=$(top_srcdir)/src/libcritic2.a \
 	$(top_srcdir)/src/cubpack/libcubpack.a \
 	$(top_srcdir)/src/spglib/libspglib.a \
 	$(top_srcdir)/src/qhull/libqhull_critic.a \
-	imgui/imgui.o imgui/imgui_draw.o imgui/imgui_impl_glfw.o \
-	imgui/imgui_demo.o imgui/imgui_dock.o imgui/imgui_widgets.o
+	imgui/imgui.o imgui/imgui_draw.o imgui/imgui_impl_glfw_gl3.o \
+	imgui/imgui_demo.o imgui/imgui_dock.o imgui/imgui_widgets.o \
+	imgui/gl3w.o
 
 gcritic2_DEPENDENCIES=$(gcritic2_LDADD)
 

@@ -19,13 +19,14 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "imgui/gl3w.h"
+#include <GLFW/glfw3.h>
+
 #include "imgui/imgui.h"
-#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_glfw_gl3.h"
 #include "imgui/imgui_dock.h"
 #include "imgui/imgui_widgets.h"
 
-#include <GL/glu.h>
-#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "critic2.h"
@@ -41,17 +42,22 @@ int main(int argc, char *argv[]){
   // Initialize
   glfwSetErrorCallback(error_callback);
   if (!glfwInit()) exit(EXIT_FAILURE);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   // Set up window
   GLFWwindow* rootwin = glfwCreateWindow(1280, 720, "gcritic2", nullptr, nullptr);
   assert(rootwin!=nullptr);
   glfwMakeContextCurrent(rootwin);
+  gl3wInit();
 
   // Initialize the critic2 library
   c2::gui_initialize((void *) rootwin);
 
   // Setup ImGui binding
-  ImGui_ImplGlfw_Init(rootwin, true);
+  ImGui_ImplGlfwGL3_Init(rootwin, true);
 
   // GUI settings
   ImGuiIO& io = GetIO();
@@ -61,7 +67,7 @@ int main(int argc, char *argv[]){
   while (!glfwWindowShouldClose(rootwin)){
     // New frame
     glfwPollEvents();
-    ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
 
     // Draw a basic example of the GUI
@@ -96,7 +102,6 @@ int main(int argc, char *argv[]){
     // Docks
     static bool show_treedock = true;
     static bool show_infodock = true;
-    static bool show_viewdock = true;
     Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
     if (show_treedock){
       if (BeginDock("Tree view",&show_treedock)){
@@ -114,25 +119,11 @@ int main(int argc, char *argv[]){
       dinfodock = GetCurrentDock();
       EndDock();
     }
-    if (show_viewdock){
-      if (BeginDock("View 1",&show_viewdock,0,0,dviewcont)){
-        Text("View 1!");     
-        if (Button("View 1")){printf("View 1\n");}
-      }
-      dviewdock = GetCurrentDock();
-      EndDock();
+    if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
+      c2::draw_scene();
     }
-    if (BeginDock("Style Editor"))
-      ShowStyleEditor();
-    Dock *dstyle = GetCurrentDock();
+    dviewdock = GetCurrentDock();
     EndDock();
-
-    if (BeginDock("User Guide"))
-      ShowUserGuide();
-    Dock *dtest = GetCurrentDock();
-    EndDock();
-
-    PrintDock__();
 
     // Dock everything in the first pass
     static bool first = true;
@@ -146,18 +137,13 @@ int main(int argc, char *argv[]){
       dtmp->newDockRoot(dinfodock,3);
       dtmp->setSlidingBarPosition(3,0.7f);
 
-      dtmp->newDock(dstyle,-1);
-      dviewcont->newDock(dtest,-1);
 
       dviewdock->setDetachedDockSize(300.f,300.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
       dinfodock->setDetachedDockSize(300.f,300.f);
-      dstyle->setDetachedDockSize(500.f,500.f);
-      dtest->setDetachedDockSize(500.f,500.f);
     }
 
     // Draw the current scene
-    c2::draw_scene();
 
     // Render and swap
     Render();
@@ -166,7 +152,7 @@ int main(int argc, char *argv[]){
 
   // Cleanup
   ShutdownDock();
-  ImGui_ImplGlfw_Shutdown();
+  ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();
 
   return 0;
