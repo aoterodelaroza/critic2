@@ -36,6 +36,7 @@ using namespace ImGui;
 
 // xxxx //
 GLuint LightingShader();
+const ImVec2 texsize = ImVec2(4096.f,4096.f);
 // xxxx //
 
 static void error_callback(int error, const char* description){
@@ -89,7 +90,7 @@ int main(int argc, char *argv[]){
   unsigned int texture;
   glGenTextures(1, &texture);
   glBindTexture(GL_TEXTURE_2D, texture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texsize.x, texsize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
@@ -159,6 +160,8 @@ int main(int argc, char *argv[]){
       dinfodock = GetCurrentDock();
       EndDock();
     }
+
+    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
       ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
       glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -171,19 +174,22 @@ int main(int argc, char *argv[]){
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
       glEnable(GL_DEPTH_TEST); 
-      glViewport(0.,0.,win->Size.x,win->Size.y);
+      glViewport(0.,0.,texsize.x,texsize.y);
       glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
       ImVec2 pos = GetCursorScreenPos();
-      // GetWindowDrawList()->AddImage((void *) texture,ImVec2(GetItemRectMin().x + pos.x,GetItemRectMin().y + pos.y),
-      // 				    ImVec2(pos.x + 100, pos.y + 100), ImVec2(0, 1), ImVec2(1, 0));
-      GetWindowDrawList()->AddImage((void *) texture,win->Pos,win->Pos+win->Size, ImVec2(0, 1), ImVec2(1, 0));
-
+      GetWindowDrawList()->AddImage((void *) texture,win->Pos + ImVec2(0.f,win->TitleBarHeight()),
+				    win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()), 
+				    ImVec2(0, 1), ImVec2(1, 0));
       // c2::draw_scene();
-
     }
     dviewdock = GetCurrentDock();
     EndDock();
+    PopStyleVar();
+
+    // Begin("Style Editor");
+    // ShowStyleEditor(); 
+    // End();
 
     // Dock everything in the first pass
     static bool first = true;
