@@ -30,13 +30,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "critic2.h"
+#include "shader.h"
 
 using namespace std;
 using namespace ImGui;
 
 // xxxx //
-GLuint LightingShader();
-const ImVec2 texsize = ImVec2(4096.f,4096.f);
+const ImVec2 texsize = ImVec2(1024.f,1024.f);
 // xxxx //
 
 static void error_callback(int error, const char* description){
@@ -64,8 +64,11 @@ int main(int argc, char *argv[]){
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
 
+  // shader
+  Shader shader = {};
+  shader.use();
+
   // xxxx //
-  GLuint shaderProgram = LightingShader();
 
   float vertices[] = {
     -1.0f, -1.0f, 0.0f,
@@ -110,6 +113,10 @@ int main(int argc, char *argv[]){
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
+
+    // Background
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     // Draw a basic example of the GUI
     // Main menu bar
@@ -165,18 +172,14 @@ int main(int argc, char *argv[]){
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
       ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
       glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+      glViewport(0.,0.,texsize.x,texsize.y);
       glEnable(GL_DEPTH_TEST); 
       glClearColor(1.0f, 0.1f, 0.1f,1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      glUseProgram(shaderProgram);
       glBindVertexArray(VAO); 
       glDrawArrays(GL_TRIANGLES, 0, 3);
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-      glEnable(GL_DEPTH_TEST); 
-      glViewport(0.,0.,texsize.x,texsize.y);
-      glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
       ImVec2 pos = GetCursorScreenPos();
       GetWindowDrawList()->AddImage((void *) texture,win->Pos + ImVec2(0.f,win->TitleBarHeight()),
 				    win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()), 
@@ -227,70 +230,3 @@ int main(int argc, char *argv[]){
   return 0;
 }
 
-// xxxx ///
-
-// Add a shader to the gl program
-static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
-{
-  GLuint ShaderObj = glCreateShader(ShaderType);
-
-  if (ShaderObj == 0) {
-    fprintf(stderr, "Error creating shader type %d\n", ShaderType);
-    exit(1);
-  }
-
-  const GLchar * p[1];
-  p[0] = pShaderText;
-  GLint Lengths[1];
-  Lengths[0] = strlen(pShaderText);
-  glShaderSource(ShaderObj, 1, p, Lengths);
-  glCompileShader(ShaderObj);
-  GLint success;
-  glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    GLchar InfoLog[1024];
-    glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
-    fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
-    exit(1);
-  }
-  glAttachShader(ShaderProgram, ShaderObj);
-}
-
-// Create a shader program based on a shader script
-GLuint LightingShader()
-{
-
-  GLuint ShaderProgram = glCreateProgram();
-  if (ShaderProgram == 0){
-    exit(1);
-  }
-
-  const char *vs = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
-  const char *fs = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-    "}\n\0";
-
-  AddShader(ShaderProgram, vs, GL_VERTEX_SHADER);
-  AddShader(ShaderProgram, fs, GL_FRAGMENT_SHADER);
-
-  GLint success = 0;
-
-  glLinkProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-  if (success == 0) exit(1);
-
-  glValidateProgram(ShaderProgram);
-  glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &success);
-  if (success == 0) exit(1);
-
-  return ShaderProgram;
-}
-// xxxx //
