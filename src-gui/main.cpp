@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include "critic2.h"
 #include "shader.h"
+#include "shapes.h"
 
 using namespace std;
 using namespace ImGui;
@@ -64,9 +65,16 @@ int main(int argc, char *argv[]){
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
 
-  // shader
+  // GUI settings
+  ImGuiIO& io = GetIO();
+  io.IniFilename = nullptr;
+
+  // Shader
   Shader shader = {};
   shader.use();
+
+  // Vertex and element buffers (shapes.h)
+  CreateAndFillBuffers();
 
   // xxxx //
 
@@ -102,10 +110,6 @@ int main(int argc, char *argv[]){
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   // xxxx //
-
-  // GUI settings
-  ImGuiIO& io = GetIO();
-  io.IniFilename = nullptr;
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
@@ -218,6 +222,8 @@ int main(int argc, char *argv[]){
     Render();
     glfwSwapBuffers(rootwin);
   }
+
+  DeleteBuffers();
 
   // xxxx //
   glDeleteFramebuffers(1, &fbo); 
