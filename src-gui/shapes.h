@@ -19,13 +19,11 @@
 #ifndef SHAPES_H
 #define SHAPES_H
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
 // public vertex buffer and attribute objects
 GLuint sphereVAO[1], sphereVBO[1], sphereEBO[1];
+const GLuint spherenv[1] = {36};
 GLuint cylVAO[1], cylVBO[1], cylEBO[1];
+const GLuint cylnv[1] = {42};
 
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;

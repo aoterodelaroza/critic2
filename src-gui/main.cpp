@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include "critic2.h"
 #include "shader.h"
+#include "camera.h"
 #include "shapes.h"
 
 using namespace std;
@@ -69,9 +70,10 @@ int main(int argc, char *argv[]){
   ImGuiIO& io = GetIO();
   io.IniFilename = nullptr;
 
-  // Shader
+  // Shader and opengl settings
   Shader shader = {};
   shader.use();
+  glEnable(GL_DEPTH_TEST); 
 
   // Vertex and element buffers (shapes.h)
   CreateAndFillBuffers();
@@ -177,11 +179,12 @@ int main(int argc, char *argv[]){
       ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
       glBindFramebuffer(GL_FRAMEBUFFER, fbo);
       glViewport(0.,0.,texsize.x,texsize.y);
-      glEnable(GL_DEPTH_TEST); 
       glClearColor(1.0f, 0.1f, 0.1f,1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glBindVertexArray(VAO); 
       glDrawArrays(GL_TRIANGLES, 0, 3);
+      // glBindVertexArray(sphereVAO[0]); 
+      // glDrawArrays(GL_TRIANGLES, 0, spherenv[0]);
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
       ImVec2 pos = GetCursorScreenPos();
