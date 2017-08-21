@@ -19,8 +19,13 @@
 #ifndef SHAPES_H
 #define SHAPES_H
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 // public vertex buffer and attribute objects
 GLuint sphereVAO[1], sphereVBO[1], sphereEBO[1];
+GLuint cylVAO[1], cylVBO[1], cylEBO[1];
 
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;
@@ -45,27 +50,73 @@ static GLfloat icov[] = {
 };
 
 // icosehedron faces
-static int icoi[] = {
-  1,4,0,
-  4,9,0,
-  4,5,9,
-  8,5,4,
-  1,8,4,
-  1,10,8,
-  10,3,8,
-  8,3,5,
-  3,2,5,
-  3,7,2,
-  3,10,7,
-  10,6,7,
-  6,11,7,
-  6,0,11,
-  6,1,0,
-  10,1,6,
-  11,0,9,
-  2,11,9,
-  5,2,9,
-  11,2,7
+static GLuint icoi[] = {
+  1,  4,  0,
+  4,  9,  0,
+  4,  5,  9,
+  8,  5,  4,
+  1,  8,  4,
+  1, 10,  8,
+  10, 3,  8,
+  8,  3,  5,
+  3,  2,  5,
+  3,  7,  2,
+  3, 10,  7,
+  10, 6,  7,
+  6, 11,  7,
+  6,  0, 11,
+  6,  1,  0,
+  10, 1,  6,
+  11, 0,  9,
+  2, 11,  9,
+  5,  2,  9,
+  11, 2,  7
+};
+
+// hexagonal prism vertices
+static GLfloat hpv[] = {
+  -0.86602540,  0.50000000,  0.00000000,
+  -0.86602540, -0.50000000,  0.00000000,
+  -0.00000000, -1.00000000,  0.00000000,
+   0.86602540, -0.50000000,  0.00000000,
+   0.86602540,  0.50000000,  0.00000000,
+   0.00000000,  1.00000000,  0.00000000,
+  -0.86602540,  0.50000000,  1.00000000,
+  -0.86602540, -0.50000000,  1.00000000,
+  -0.00000000, -1.00000000,  1.00000000,
+   0.86602540, -0.50000000,  1.00000000,
+   0.86602540,  0.50000000,  1.00000000,
+   0.00000000,  1.00000000,  1.00000000,
+   0.00000000,  0.00000000,  0.00000000,
+   0.00000000,  0.00000000,  1.00000000,
+};
+
+// hexagonal prism faces
+static GLuint hpi[] = {
+  12,  0,  1,
+  13,  6,  7,
+   0,  1,  6,
+   7,  6,  1,
+  12,  1,  2,
+  13,  7,  8,
+   1,  2,  7,
+   8,  7,  2,
+  12,  2,  3,
+  13,  8,  9,
+   2,  3,  8,
+   9,  8,  3,
+  12,  3,  4,
+  13,  9, 10,
+   3,  4,  9,
+  10,  9,  4,
+  12,  4,  5,
+  13, 10, 11,
+   4,  5, 10,
+  11, 10,  5,
+  12,  5,  0,
+  13, 11,  6,
+   5,  0, 11,
+   6, 11,  0
 };
 
 // create the buffers for the sphere and cylinder objects
@@ -74,6 +125,9 @@ void CreateAndFillBuffers(){
   glGenVertexArrays(1, sphereVAO);
   glGenBuffers(1, sphereVBO);
   glGenBuffers(1, sphereEBO);
+  glGenVertexArrays(1, cylVAO);
+  glGenBuffers(1, cylVBO);
+  glGenBuffers(1, cylEBO);
 
   glBindVertexArray(sphereVAO[0]);
 
@@ -81,6 +135,21 @@ void CreateAndFillBuffers(){
   glBufferData(GL_ARRAY_BUFFER, sizeof(icov), icov, GL_STATIC_DRAW);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereEBO[0]);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icoi), icoi, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  glBindVertexArray(cylVAO[0]);
+
+  glBindBuffer(GL_ARRAY_BUFFER, cylVBO[0]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(icov), icov, GL_STATIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[0]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icoi), icoi, GL_STATIC_DRAW);
 
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
