@@ -354,6 +354,7 @@ contains
   subroutine grid_end(f)
     class(grid3), intent(inout) :: f
 
+    f%mode = mode_default
     f%isinit = .false.
     f%iswan = .false.
     if (allocated(f%f)) deallocate(f%f)
