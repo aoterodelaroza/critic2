@@ -91,8 +91,8 @@ if test "${enable_debug}" = "yes"; then
 	#FFLAGS+=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
 	;;
    "ifort")
-        FCFLAGS+=" -g -C -traceback -fpe0 -debug -fpp -check all -check noarg_temp_created -O0"
-        #FFLAGS+=" -g -C -traceback -fpe0 -debug -fpp -check all -check noarg_temp_created -O0"
+        FCFLAGS+=" -g -C -traceback -debug -fpp -check all -check noarg_temp_created -O0"
+        #FFLAGS+=" -g -C -traceback -debug -fpp -check all -check noarg_temp_created -O0"
 	;;
    esac
    dnl case $CC in
