@@ -3690,9 +3690,9 @@ contains
     ! write the file with the star vertices
     lu = fopen_write(file1,abspath0=.true.)
     write (lu,'("3"/I4)') n+1
-    write (lu,'(3(F20.12,X))') 0d0,0d0,0d0
+    write (lu,'(3(E24.14,X))') 0d0,0d0,0d0
     do i = 1, n
-       write (lu,'(3(F20.12,X))') xstar(:,i)
+       write (lu,'(3(E24.14,X))') xstar(:,i)
     end do
     call fclose(lu)
     deallocate(xstar)

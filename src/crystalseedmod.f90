@@ -2151,6 +2151,7 @@ contains
 
     ! open
     lu = fopen_read(file)
+    r = 0d0
 
     ! read the namelists
     read(lu,control,iostat=ios)
@@ -2776,6 +2777,9 @@ contains
 
     if (celldm(1) <= 0.d0) call ferror('qe_latgen','wrong celldm(1)',faterr)
 
+    a1 = 0d0
+    a2 = 0d0
+    a3 = 0d0
     ! index of bravais lattice supplied
     if (ibrav == 1) then
        ! simple cubic lattice
