@@ -48,6 +48,8 @@ void doqhull(char *file1, char *file2, char *file3, int *ithr){
   qh_check_output();
   qh_produce_output();
   qh_freeqhull(True);
+  int curlong, totlong;
+  qh_memfreeshort (&curlong, &totlong);
 
   fclose(fin);
   fclose(fout);
