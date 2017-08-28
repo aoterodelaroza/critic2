@@ -78,6 +78,14 @@ int main(int argc, char *argv[]){
   // Vertex and element buffers (shapes.h)
   CreateAndFillBuffers();
 
+  // Concatenate the input arguments and pass them to critic2
+  if (argc > 1){
+    string argall = "";
+    for(int i=1;i<argc;i++)
+      argall = argall + argv[i] + " ";
+    c2::open_file((const char **) &argall, -1);
+  }
+
   // xxxx //
   float vertices[] = {
     -1.0f, -1.0f, 0.0f,
@@ -175,22 +183,14 @@ int main(int argc, char *argv[]){
 
     PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
-      ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
       glBindFramebuffer(GL_FRAMEBUFFER, fbo);
       glViewport(0.,0.,texsize.x,texsize.y);
-      glClearColor(1.0f, 0.1f, 0.1f,1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      glBindVertexArray(VAO); 
-      glDrawArrays(GL_TRIANGLES, 0, 3);
-      // glBindVertexArray(sphereVAO[0]); 
-      // glDrawArrays(GL_TRIANGLES, 0, spherenv[0]);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-      ImVec2 pos = GetCursorScreenPos();
+      c2::draw_scene(1);
+      ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
       GetWindowDrawList()->AddImage((void *) texture,win->Pos + ImVec2(0.f,win->TitleBarHeight()),
 				    win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()), 
 				    ImVec2(0, 1), ImVec2(1, 0));
-      // c2::draw_scene();
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     dviewdock = GetCurrentDock();
     EndDock();

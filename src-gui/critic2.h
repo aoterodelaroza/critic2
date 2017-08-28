@@ -5,7 +5,8 @@
 
 namespace c2 {
   extern "C" void gui_initialize(void *);
-  extern "C" void draw_scene();
+  extern "C" void open_file(const char **filename, int ismolecule); 
+  extern "C" void draw_scene(int isc);
   extern "C" void gui_end();
 }
 

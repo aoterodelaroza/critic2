@@ -19,7 +19,9 @@
 
 !> Interface for the critic2 GUI.
 module gui_interface
-  use iso_c_binding, only: c_ptr, c_null_ptr
+  use systemmod, only: system
+  use crystalseedmod, only: crystalseed
+  use iso_c_binding, only: c_ptr, c_null_ptr, c_float
   implicit none
 
   private
@@ -27,8 +29,18 @@ module gui_interface
   !xx! private to this module
   type(c_ptr) :: window = c_null_ptr
 
+  type scene
+     integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
+     type(crystalseed) :: seed
+     type(system) :: sy
+     real(c_float) :: bgcol(4)
+  end type scene
+  integer :: nsc = 0
+  type(scene), allocatable :: sc(:)
+
   !xx! public interface
   public :: gui_initialize
+  public :: open_file
   public :: draw_scene
   public :: gui_end
 
@@ -43,7 +55,7 @@ contains
        fcflags, cc, cflags, ldflags, enable_debug, package
     use global, only: global_init, config_write, initial_banner
     use tools_io, only: ioinit, ucopy, uout, start_clock, &
-       tictac, interactive, uin
+       tictac, interactive, uin, filepath
     use param, only: param_init
 
     type(c_ptr), intent(in), value :: window_
@@ -61,6 +73,7 @@ contains
     uin = input_unit
     uout = output_unit
     interactive = .false.
+    filepath = "."
 
     ! set default values and initialize the rest of the modules
     call global_init("",datadir)
@@ -75,16 +88,64 @@ contains
     write (uout,*)
     ucopy = -1
 
+    ! allocate the initial scene
+    if (allocated(sc)) deallocate(sc)
+    allocate(sc(1))
+    nsc = 0
+
   end subroutine gui_initialize
 
-  subroutine draw_scene() bind(c)
+  !> Open one or more scenes from all files in the line. ismolecule: 0
+  !> = crystal, 1 = molecule, -1 = critic2 decides.
+  subroutine open_file(line0,ismolecule) bind(c)
+    use c_interface_module, only: c_string_value
+    use iso_c_binding, only: c_int
+    use crystalseedmod, only: read_seeds_from_file, crystalseed
+    type(c_ptr), intent(in) :: line0
+    integer(c_int), value :: ismolecule
+
+    integer :: lp
+    character(len=:), allocatable :: line
+    integer :: i, nseed
+    type(crystalseed), allocatable :: seed(:)
+
+    ! transform to fortran string
+    line = c_string_value(line0)
+    
+    ! read all seeds from the line
+    lp = 1
+    call read_seeds_from_file(line,lp,ismolecule,nseed,seed)
+    
+    if (nseed > 0) then
+       nsc = 1
+       sc(1)%seed = seed(1)
+       sc(1)%isinit = 2
+       call sc(1)%sy%new_from_seed(sc(1)%seed)
+       call sc(1)%sy%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+       sc(1)%bgcol(1:3) = 0._c_float
+       sc(1)%bgcol(4) = 1._c_float
+    end if
+
+  end subroutine open_file
+
+  subroutine draw_scene(isc) bind(c)
+    use iso_c_binding, only: c_int
     use gui_glfw
     use gui_glu
-    use gui_gl !xxxx! put the only back when done
+    use gui_gl
+    integer(c_int), value, intent(in) :: isc
 
     type(c_ptr) :: pQuadric
     integer(c_int) :: w, h
 
+    call glClearColor(sc(isc)%bgcol(1),sc(isc)%bgcol(2),sc(isc)%bgcol(3),sc(isc)%bgcol(4))
+    call glClear(or(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+
+    ! glBindVertexArray(VAO); 
+    ! glDrawArrays(GL_TRIANGLES, 0, 3);
+    ! // glBindVertexArray(sphereVAO[0]); 
+    ! // glDrawArrays(GL_TRIANGLES, 0, spherenv[0]);
+    
     ! call glClearColor(0.7,0.4,0.1,0.0)
     ! call glMatrixMode(GL_PROJECTION)
     ! call glLoadIdentity()
@@ -119,8 +180,14 @@ contains
     use grid1mod, only: grid1_clean_grids
     use tools_io, only: print_clock, tictac, ncomms, nwarns, uout, string
 
+    ! deallocate scene
+    if (allocated(sc)) deallocate(sc)
+    nsc = 0
+
+    ! kill atomic grids
     call grid1_clean_grids()
     
+    ! final message
     write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
        string(nwarns), string(ncomms)
     call print_clock()

@@ -76,6 +76,7 @@ module crystalseedmod
 
   public :: struct_detect_format
   public :: struct_read_potcar
+  public :: read_seeds_from_file
   private :: is_espresso
   private :: qe_latgen
 
@@ -2711,6 +2712,42 @@ contains
     call fclose(lu)
 
   end subroutine struct_read_potcar
+
+  !> Read all seeds from a file read from line. Advance the line
+  !> pointer lp.
+  subroutine read_seeds_from_file(line,lp,mol0,nseed,seed)
+    use tools_io, only: getword
+    use param, only: isformat_cube
+    character*(*), intent(in) :: line
+    integer, intent(inout) :: lp
+    integer, intent(in) :: mol0
+    integer, intent(out) :: nseed
+    type(crystalseed), allocatable, intent(inout) :: seed(:)
+    
+    character(len=:), allocatable :: file
+    integer :: isformat
+    logical :: ismol, mol
+
+    nseed = 0
+    if (allocated(seed)) deallocate(seed)
+    allocate(seed(1))
+
+    file = getword(line,lp)
+    call struct_detect_format(file,isformat,ismol)
+    if (mol0 == 1) then
+       mol = .true.
+    elseif (mol0 == 0) then
+       mol = .false.
+    elseif (mol0 == -1) then
+       mol = ismol
+    end if
+
+    if (isformat == isformat_cube) then
+       nseed = 1
+       call seed(1)%read_cube(file,mol)
+    end if
+
+  end subroutine read_seeds_from_file
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal or a quantum espresso calculation. To do this,
