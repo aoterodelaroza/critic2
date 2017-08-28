@@ -60,7 +60,7 @@ int main(int argc, char *argv[]){
   glfwMakeContextCurrent(rootwin);
   gl3wInit();
 
-  // Initialize the critic2 library
+  // Initialize critic2
   c2::gui_initialize((void *) rootwin);
 
   // Setup ImGui binding
@@ -79,7 +79,6 @@ int main(int argc, char *argv[]){
   CreateAndFillBuffers();
 
   // xxxx //
-
   float vertices[] = {
     -1.0f, -1.0f, 0.0f,
     1.0f, -1.0f, 0.0f, 
@@ -230,6 +229,9 @@ int main(int argc, char *argv[]){
 
   // xxxx //
   glDeleteFramebuffers(1, &fbo); 
+
+  // Terminate critic2
+  c2::gui_end();
 
   // Cleanup
   ShutdownDock();

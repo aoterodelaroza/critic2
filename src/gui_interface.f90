@@ -24,10 +24,13 @@ module gui_interface
 
   private
 
+  !xx! private to this module
+  type(c_ptr) :: window = c_null_ptr
+
+  !xx! public interface
   public :: gui_initialize
   public :: draw_scene
-
-  type(c_ptr) :: window = c_null_ptr
+  public :: gui_end
 
 contains
 
@@ -111,6 +114,19 @@ contains
     ! call glFlush()
     
   end subroutine draw_scene
+
+  subroutine gui_end() bind(c)
+    use grid1mod, only: grid1_clean_grids
+    use tools_io, only: print_clock, tictac, ncomms, nwarns, uout, string
+
+    call grid1_clean_grids()
+    
+    write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
+       string(nwarns), string(ncomms)
+    call print_clock()
+    call tictac('CRITIC2')
+    
+  end subroutine gui_end
 
   subroutine assert_non_null(ptr,routine,ptrname)
     use iso_c_binding, only: c_associated
