@@ -291,6 +291,7 @@ contains
        do i = 1, nfile
           f%file(i) = file
           inquire(file=f%file(i),exist=ok)
+          ok = ok .and. (len_trim(file) > 0)
           if (.not.ok) then
              if (nofoundexit .or. i == 1) then
                 call f%end()
