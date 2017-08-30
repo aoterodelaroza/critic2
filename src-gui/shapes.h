@@ -20,10 +20,16 @@
 #define SHAPES_H
 
 // public vertex buffer and attribute objects
+GLuint FBO;
+GLuint FBOtex;
 GLuint sphereVAO[1], sphereVBO[1], sphereEBO[1];
 const GLuint spherenv[1] = {36};
 GLuint cylVAO[1], cylVBO[1], cylEBO[1];
 const GLuint cylnv[1] = {42};
+
+// Texture size
+const float FBO_tex_x = 1024.f;
+const float FBO_tex_y = 1024.f;
 
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;
@@ -156,6 +162,19 @@ void CreateAndFillBuffers(){
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  glGenFramebuffers(1, &FBO);
+  glGenTextures(1, &FBOtex);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+  glBindTexture(GL_TEXTURE_2D, FBOtex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, FBO_tex_x, FBO_tex_y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex, 0); 
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    exit(EXIT_FAILURE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 // delete the buffers for the sphere and cylinder objects
@@ -163,5 +182,7 @@ void DeleteBuffers(){
   glDeleteVertexArrays(1, sphereVAO);
   glDeleteBuffers(1, sphereVBO);
   glDeleteBuffers(1, sphereEBO);
+  glDeleteTextures(1, &FBOtex);
+  glDeleteFramebuffers(1, &FBO); 
 }
 #endif

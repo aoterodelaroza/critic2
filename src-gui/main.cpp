@@ -37,10 +37,6 @@
 using namespace std;
 using namespace ImGui;
 
-// xxxx //
-const ImVec2 texsize = ImVec2(1024.f,1024.f);
-// xxxx //
-
 static void error_callback(int error, const char* description){
   fprintf(stderr, "Error %d: %s\n", error, description);
 }
@@ -75,7 +71,7 @@ int main(int argc, char *argv[]){
   shader.use();
   glEnable(GL_DEPTH_TEST); 
 
-  // Vertex and element buffers (shapes.h)
+  // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
 
   // Concatenate the input arguments and pass them to critic2
@@ -85,40 +81,6 @@ int main(int argc, char *argv[]){
       argall = argall + argv[i] + " ";
     c2::open_file((const char **) &argall, -1);
   }
-
-  // xxxx //
-  float vertices[] = {
-    -1.0f, -1.0f, 0.0f,
-    1.0f, -1.0f, 0.0f, 
-    0.0f,  1.0f, 0.0f  
-  }; 
-
-  unsigned int VBO, VAO;
-  glGenVertexArrays(1, &VAO);
-  glGenBuffers(1, &VBO);
-  glBindVertexArray(VAO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0); 
-  glBindVertexArray(0); 
-
-  unsigned int fbo;
-  glGenFramebuffers(1, &fbo);
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-  unsigned int texture;
-  glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texsize.x, texsize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0); 
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    exit(EXIT_FAILURE);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-  // xxxx //
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
@@ -131,7 +93,6 @@ int main(int argc, char *argv[]){
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Draw a basic example of the GUI
     // Main menu bar
     if (BeginMainMenuBar()){
       if (BeginMenu("File")){
@@ -160,7 +121,7 @@ int main(int argc, char *argv[]){
     if (show_viewcont)
       dviewcont = Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
 
-    // Docks
+    // Some docks
     static bool show_treedock = true;
     static bool show_infodock = true;
     Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
@@ -181,13 +142,14 @@ int main(int argc, char *argv[]){
       EndDock();
     }
 
+    // Main view
     PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
-      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-      glViewport(0.,0.,texsize.x,texsize.y);
+      glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+      glViewport(0.,0.,FBO_tex_x,FBO_tex_y);
       c2::draw_scene(1);
-      ImGuiWindow *win = GetCurrentWindow(); // win->Pos win->Pos+Size
-      GetWindowDrawList()->AddImage((void *) texture,win->Pos + ImVec2(0.f,win->TitleBarHeight()),
+      ImGuiWindow *win = GetCurrentWindow(); 
+      GetWindowDrawList()->AddImage((void *) FBOtex,win->Pos + ImVec2(0.f,win->TitleBarHeight()),
 				    win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()), 
 				    ImVec2(0, 1), ImVec2(1, 0));
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -196,6 +158,7 @@ int main(int argc, char *argv[]){
     EndDock();
     PopStyleVar();
 
+    // Style editor
     // Begin("Style Editor");
     // ShowStyleEditor(); 
     // End();
@@ -218,22 +181,14 @@ int main(int argc, char *argv[]){
       dinfodock->setDetachedDockSize(300.f,300.f);
     }
 
-    // Draw the current scene
-
     // Render and swap
     Render();
     glfwSwapBuffers(rootwin);
   }
 
-  DeleteBuffers();
-
-  // xxxx //
-  glDeleteFramebuffers(1, &fbo); 
-
-  // Terminate critic2
-  c2::gui_end();
-
   // Cleanup
+  c2::gui_end();
+  DeleteBuffers();
   ShutdownDock();
   ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();
