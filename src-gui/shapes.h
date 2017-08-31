@@ -23,7 +23,7 @@
 GLuint FBO;
 GLuint FBOtex;
 GLuint sphereVAO[1], sphereVBO[1], sphereEBO[1];
-const GLuint spherenv[1] = {36};
+const GLuint spherenel[1] = {20*3};
 GLuint cylVAO[1], cylVBO[1], cylEBO[1];
 const GLuint cylnv[1] = {42};
 

@@ -21,28 +21,46 @@
 module gui_interface
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
-  use iso_c_binding, only: c_ptr, c_null_ptr, c_float
+  use iso_c_binding, only: c_ptr, c_null_ptr, c_float, c_char, c_int
   implicit none
 
   private
 
+  !xx! interoperable types
+  ! C-interoperable atom type
+  type, bind(c) :: c_atom
+     character(kind=c_char,len=1) :: label(11) !< Label
+     integer(c_int) :: z !< atomic number
+     real(c_float) :: r(3) !< center position (bohr) 
+     real(c_float) :: rad !< ball radius (bohr) 
+     real(c_float) :: rgb(4) !< color (0 to 1)
+  end type c_atom
+
   !xx! private to this module
-  type(c_ptr) :: window = c_null_ptr
+  type(c_ptr) :: window = c_null_ptr ! window pointer
 
   type scene
      integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
-     type(crystalseed) :: seed
-     type(system) :: sy
-     real(c_float) :: bgcol(4)
+     type(crystalseed) :: seed ! crystal seed for this scene
+     type(system) :: sy ! system for this scene
+     real(c_float) :: center(3) ! center of the scene (bohr)
+     integer :: nat ! number of atoms
+     type(c_atom), allocatable :: at(:) ! atoms
   end type scene
   integer :: nsc = 0
-  type(scene), allocatable :: sc(:)
+  type(scene), allocatable, target :: sc(:)
 
   !xx! public interface
+  ! routines
   public :: gui_initialize
   public :: open_file
-  public :: draw_scene
+  public :: set_scene_pointers
   public :: gui_end
+
+  ! pointers to the current scene
+  integer(c_int), bind(c) :: nat
+  real(c_float), bind(c) :: center(3)
+  type(c_ptr), bind(c) :: at
 
 contains
 
@@ -98,15 +116,16 @@ contains
   !> Open one or more scenes from all files in the line. ismolecule: 0
   !> = crystal, 1 = molecule, -1 = critic2 decides.
   subroutine open_file(line0,ismolecule) bind(c)
-    use c_interface_module, only: c_string_value
+    use c_interface_module, only: c_string_value, f_c_string
     use iso_c_binding, only: c_int
     use crystalseedmod, only: read_seeds_from_file, crystalseed
+    use param, only: pi, atmcov, jmlcol
     type(c_ptr), intent(in) :: line0
     integer(c_int), value :: ismolecule
 
     integer :: lp
     character(len=:), allocatable :: line
-    integer :: i, nseed
+    integer :: i, idx, iz, nseed
     type(crystalseed), allocatable :: seed(:)
 
     ! transform to fortran string
@@ -122,59 +141,47 @@ contains
        sc(1)%isinit = 2
        call sc(1)%sy%new_from_seed(sc(1)%seed)
        call sc(1)%sy%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
-       sc(1)%bgcol(1:3) = 0._c_float
-       sc(1)%bgcol(4) = 1._c_float
+       sc(1)%nat = sc(1)%sy%c%ncel
+       if (allocated(sc(1)%at)) deallocate(sc(1)%at)
+       allocate(sc(1)%at(sc(1)%nat))
+
+       sc(1)%center = 0d0
+       do i = 1, sc(1)%nat
+          idx = sc(1)%sy%c%atcel(i)%idx
+          iz = sc(1)%sy%c%at(idx)%z
+          sc(1)%at(i)%r = sc(1)%sy%c%atcel(i)%r
+          sc(1)%at(i)%z = iz
+          call f_c_string(sc(1)%sy%c%at(idx)%name,sc(1)%at(i)%label,11)
+          if (atmcov(iz) > 1) then
+             sc(1)%at(i)%rad = atmcov(iz)
+          else
+             sc(1)%at(i)%rad = 2.*atmcov(iz)
+          end if
+          sc(1)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
+          sc(1)%at(i)%rgb(4) = 1.0
+          sc(1)%center = sc(1)%center + sc(1)%at(i)%r
+       end do
+       sc(1)%center = sc(1)%center / sc(1)%nat
     end if
 
   end subroutine open_file
 
-  subroutine draw_scene(isc) bind(c)
-    use iso_c_binding, only: c_int
+  subroutine set_scene_pointers(isc) bind(c)
+    use iso_c_binding, only: c_loc
     use gui_glfw
     use gui_glu
     use gui_gl
     integer(c_int), value, intent(in) :: isc
 
-    type(c_ptr) :: pQuadric
-    integer(c_int) :: w, h
+    nat = 0
+    center = 0._c_float
+    if (isc < 0 .or. isc > nsc) return
 
-    call glClearColor(sc(isc)%bgcol(1),sc(isc)%bgcol(2),sc(isc)%bgcol(3),sc(isc)%bgcol(4))
-    call glClear(or(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+    nat = sc(isc)%nat
+    at = c_loc(sc(isc)%at)
+    center = sc(isc)%center
 
-    ! glBindVertexArray(VAO); 
-    ! glDrawArrays(GL_TRIANGLES, 0, 3);
-    ! // glBindVertexArray(sphereVAO[0]); 
-    ! // glDrawArrays(GL_TRIANGLES, 0, spherenv[0]);
-    
-    ! call glClearColor(0.7,0.4,0.1,0.0)
-    ! call glMatrixMode(GL_PROJECTION)
-    ! call glLoadIdentity()
-    ! call glOrtho(0.d0,1.d0,0.d0,1.d0,-1.d0,1.d0)
-    ! call glClear(GL_COLOR_BUFFER_BIT)
-    ! call glColor3f(1.0,1.0,1.0)
-    ! call glBegin(GL_POLYGON)
-    ! call glVertex3f(0.25,0.25,0.0)
-    ! call glVertex3f(0.75,0.25,0.0)
-    ! call glVertex3f(0.75,0.75,0.0)
-    ! call glVertex3f(0.25,0.75,0.0)
-    ! call glEnd()
-    ! call glFlush()
-
-    ! call glfwGetFramebufferSize(window,w,h)
-    ! call glViewport(0,0,w,h)
-    ! call glMatrixMode(GL_PROJECTION)
-    ! call glLoadIdentity()
-    ! call glOrtho(-1.d0,1.d0,-1.d0,1.d0,-1.d0,1.d0)
-    ! call glMatrixMode(GL_MODELVIEW)
-    ! call glLoadIdentity()
-    ! call glClearColor(0.7,0.4,0.1,0.0)
-    ! call glClear(GL_COLOR_BUFFER_BIT)
-    ! pQuadric = gluNewQuadric()
-    ! call assert_non_null(pQuadric,"draw_scene","pQuadric")
-    ! call gluSphere(pQuadric,1.5d0,32,8)
-    ! call glFlush()
-    
-  end subroutine draw_scene
+  end subroutine set_scene_pointers
 
   subroutine gui_end() bind(c)
     use grid1mod, only: grid1_clean_grids
