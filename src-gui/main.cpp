@@ -71,6 +71,9 @@ int main(int argc, char *argv[]){
   shader.use();
   glEnable(GL_DEPTH_TEST); 
 
+  // Camera
+  Camera camera;
+
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
 
@@ -155,15 +158,10 @@ int main(int argc, char *argv[]){
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       float fov = 45.f;
-      glm::mat4 projection = glm::perspective(glm::radians(fov), 1.0f, 0.1f, 100.0f);
+      glm::mat4 projection = camera.GetProjectionMatrix();
       glUniformMatrix4fv(glGetUniformLocation(shader.id, "projection"), 1, GL_FALSE, &projection[0][0]);
     
-      glm::mat4 view;
-      glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  20.0f);
-      glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-      glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
-      glm::vec3 lookAt      = glm::vec3(c2::center[0],c2::center[1],c2::center[2]);
-      view = glm::lookAt(cameraPos, lookAt, cameraUp);
+      glm::mat4 view = camera.GetViewMatrix();
       glUniformMatrix4fv(glGetUniformLocation(shader.id, "view"), 1, GL_FALSE, &view[0][0]);
     
       glBindVertexArray(sphereVAO[0]);
