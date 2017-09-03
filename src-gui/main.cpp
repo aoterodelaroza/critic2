@@ -73,7 +73,7 @@ int main(int argc, char *argv[]){
   glEnable(GL_DEPTH_TEST); 
 
   // Camera
-  Camera camera;
+  Camera camera(0.f,0.f,20.f, 0.f,1.f,0.f, 4.f,4.f,4.f);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
@@ -179,11 +179,8 @@ int main(int argc, char *argv[]){
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
       MouseState mstate;
-      if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover){
-	// handle mouse interaction
-	// printf("hovered, lclick %d rclick %d mclick %d ldrag %d rdrag %d dlclick %d scroll %f\n",mstate.lclick,mstate.rclick,
-	//        mstate.mclick,mstate.ldrag,mstate.rdrag,mstate.ldclick,mstate.scroll);
-      }
+      if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover)
+	camera.processMouseEvents(&mstate);
     }
     dviewdock = GetCurrentDock();
     EndDock();

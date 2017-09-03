@@ -8,22 +8,27 @@
 #include "imgui/gl3w.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "imgui/mouse.h"
 
 using namespace glm;
 
 // An abstract camera class that processes input and calculates the corresponding Eular Angles, Vectors and Matrices for use in OpenGL
 class Camera
 {
+private:
+  MouseState pmstate; // mouse state for the previous frame
+  vec2 posdrag; // saved position for drag offset
 public:
-  vec3 Position = vec3(0.0f, 0.0f, 20.0f); // camera position
-  vec3 Up = vec3(0.0f, 1.0f, 0.0f); // camera up direction
-  vec3 LookAt = vec3(0.0f, 0.0f, 0.0f); // camera look at position
-  bool isortho = true; // true = orthographic; false = perspective
+  vec3 Position; // camera position
+  vec3 Up; // camera up direction (normal)
+  vec3 LookAt; // camera look at position
+  bool isortho = false; // true = orthographic; false = perspective
   float fov = 45.f; // field of view for perspective
   float orthoa = 10.f; // half the side of the ortho square
   float depth = 100.f; // depth of vision
-
-  Camera(){}
+  float mousesens_pan = 0.02; // Mouse pan sensitivity
+  float mousesens_rot = 0.02; // Mouse rotate sensitivity
+  float mousesens_zoom = 0.2; // Mouse zoom sensitivity
 
   Camera(vec3 position,vec3 up,vec3 lookat){
     Position = position;
@@ -49,5 +54,7 @@ public:
     else
       return perspective(radians(fov),1.0f,0.1f,depth);
   }
+
+  void processMouseEvents(MouseState *m);
 };
 #endif

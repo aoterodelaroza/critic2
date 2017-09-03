@@ -234,6 +234,7 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   if (!ItemAdd(bb, &id))
       return false;
 
+  ImGuiContext* g = GetCurrentContext();
   bool held;
   bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
   win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(0, 1),ImVec2(1, 0));
@@ -243,7 +244,8 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   mstate->ldclick = IsItemActive() && IsMouseDoubleClicked(0);
   mstate->ldrag = IsItemActive() && IsMouseDragging(0);
   mstate->rdrag = mstate->hover && IsMouseDragging(1);
-  mstate->scroll = GetCurrentContext()->IO.MouseWheel;
+  mstate->scroll = g->IO.MouseWheel;
+  mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
 
   return true;
 }
