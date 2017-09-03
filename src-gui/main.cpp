@@ -33,6 +33,7 @@
 #include "shader.h"
 #include "camera.h"
 #include "shapes.h"
+#include "imgui/mouse.h"
 
 using namespace std;
 using namespace ImGui;
@@ -175,12 +176,14 @@ int main(int argc, char *argv[]){
 	glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, &model[0][0]);
 	glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
       }
-
-      ImGuiWindow *win = GetCurrentWindow(); 
-      GetWindowDrawList()->AddImage((void *) FBOtex,win->Pos + ImVec2(0.f,win->TitleBarHeight()),
-				    win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()), 
-				    ImVec2(0, 1), ImVec2(1, 0));
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+      MouseState mstate;
+      if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover){
+	// handle mouse interaction
+	// printf("hovered, lclick %d rclick %d mclick %d ldrag %d rdrag %d dlclick %d scroll %f\n",mstate.lclick,mstate.rclick,
+	//        mstate.mclick,mstate.ldrag,mstate.rdrag,mstate.ldclick,mstate.scroll);
+      }
     }
     dviewdock = GetCurrentDock();
     EndDock();

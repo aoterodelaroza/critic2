@@ -23,6 +23,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
+#include "mouse.h"
 
 using namespace ImGui;
 
@@ -218,4 +219,31 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   window->ClipRect = saverect;
   
   return held && IsMouseDragging();
+}
+
+bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
+  ImGuiWindow *win = GetCurrentWindow(); 
+  if (win->SkipItems)
+    return false;
+
+  PushID((void *)texture);
+  const ImGuiID id = win->GetID("#imageinteractive");
+  PopID();
+
+  const ImRect bb(win->Pos + ImVec2(0.f,win->TitleBarHeight()),win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()));
+  if (!ItemAdd(bb, &id))
+      return false;
+
+  bool held;
+  bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
+  win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(0, 1),ImVec2(1, 0));
+  mstate->lclick = IsItemActive() && IsMouseClicked(0);
+  mstate->mclick = mstate->hover && IsMouseClicked(2);
+  mstate->rclick = mstate->hover && IsMouseClicked(1);
+  mstate->ldclick = IsItemActive() && IsMouseDoubleClicked(0);
+  mstate->ldrag = IsItemActive() && IsMouseDragging(0);
+  mstate->rdrag = mstate->hover && IsMouseDragging(1);
+  mstate->scroll = GetCurrentContext()->IO.MouseWheel;
+
+  return true;
 }

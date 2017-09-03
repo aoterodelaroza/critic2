@@ -29,6 +29,7 @@
 #include "imgui_widgets.h"
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "mouse.h"
 
 using namespace std;
 
@@ -86,5 +87,8 @@ namespace ImGui{
   // Lift grip. A grip the with button colors drawn on the bottom left
   // corner of the window. True if the grip is clicked.
   bool LiftGrip(const char *label, ImGuiWindow* window);
+
+  // xxxx //
+  bool ImageInteractive(ImTextureID texture, MouseState *mstate);
 } // namespace ImGui
 #endif
