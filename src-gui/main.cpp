@@ -73,7 +73,7 @@ int main(int argc, char *argv[]){
   glEnable(GL_DEPTH_TEST); 
 
   // Camera
-  Camera camera(0.f,0.f,20.f, 0.f,1.f,0.f, 0.f,0.f,0.f);
+  Camera camera(0.f,0.f,20.f, 0.f,10.f,0.f, 0.f,1.f,0.f);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
@@ -151,6 +151,7 @@ int main(int argc, char *argv[]){
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
       // set the pointers to the current scene
       c2::set_scene_pointers(1);
+      camera.srad = c2::scenerad;
 
       glBindFramebuffer(GL_FRAMEBUFFER, FBO);
       glViewport(0.,0.,FBO_tex_x,FBO_tex_y);
@@ -158,12 +159,7 @@ int main(int argc, char *argv[]){
       glClearColor(0.f,0.f,0.f,1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      float fov = 45.f;
-      glm::mat4 projection = camera.GetProjectionMatrix();
-      glUniformMatrix4fv(glGetUniformLocation(shader.id, "projection"), 1, GL_FALSE, &projection[0][0]);
-    
-      glm::mat4 view = camera.GetViewMatrix();
-      glUniformMatrix4fv(glGetUniformLocation(shader.id, "view"), 1, GL_FALSE, &view[0][0]);
+      camera.applyMatrices(shader.id);
     
       glBindVertexArray(sphereVAO[0]);
       for (int i=1;i<c2::nat;i++){

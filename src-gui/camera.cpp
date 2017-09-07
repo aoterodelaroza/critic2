@@ -19,6 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "imgui/gl3w.h"
+#include <GLFW/glfw3.h>
 #include "camera.h"
 #include <stdio.h>
 
@@ -31,20 +33,42 @@ void Camera::processMouseEvents(MouseState *m){
   }
 
   // save mouse positions for possible drag
-  if ((m->rclick || m->lclick) && !(m->ldrag || m->rdrag))
+  if ((m->rclick || m->lclick) && !(m->ldrag || m->rdrag)){
     posdrag = m->pos;
-
-  if (m->rdrag){
-    vec3 Right = normalize(cross(LookAt-Position,Up));
-    vec2 offset = mousesens_pan * (m->pos - pmstate.pos);
-    LookAt += - offset[0] * Right + offset[1] * Up;
-    Position += - offset[0] * Right + offset[1] * Up;
+    viewdrag = view;
   }
 
-  // zoom in and out (requires using box_xmaxlen to scale)
-  if (abs(m->scroll) > 1e-6)
-    Position += normalize(LookAt-Position) * m->scroll * mousesens_zoom;
+  // rotation with the left button
+  if (m->ldrag){
+    vec3 vr = row(view,0);
+    vec3 vu = row(view,1);
+    vec2 offset = (m->pos - pmstate.pos);
+    vec3 axis = offset[0] * vu - offset[1] * vr;
+    float angle = length(axis) * mousesens_rot * srad;
+    axis = normalize(axis);
+    view = rotate(viewdrag,angle,axis);
+  }
 
+  // translation with right mouse button
+  if (m->rdrag){
+    vec3 vr = row(view,0);
+    vec3 vu = row(view,1);
+    vec2 offset = mousesens_pan * srad * (m->pos - pmstate.pos);
+    view = translate(view,offset[0] * vr - offset[1] * vu);
+  }
+
+  // zoom by scrolling
+  if (abs(m->scroll) > 1e-6){
+    vec3 dir = row(view,2);
+    view = translate(view,m->scroll * srad * mousesens_zoom * dir);
+  }
+
+  // save into the previous mouse state
   pmstate = *m;
+}
+
+void Camera::applyMatrices(GLuint shader_id){
+  glUniformMatrix4fv(glGetUniformLocation(shader_id, "projection"), 1, GL_FALSE, &projection[0][0]);
+  glUniformMatrix4fv(glGetUniformLocation(shader_id, "view"), 1, GL_FALSE, &view[0][0]);
 }
 

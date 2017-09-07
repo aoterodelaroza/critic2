@@ -8,7 +8,9 @@
 #include "imgui/gl3w.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
 #include "imgui/mouse.h"
+#include "settings.h"
 
 using namespace glm;
 
@@ -16,45 +18,38 @@ using namespace glm;
 class Camera
 {
 private:
+  mat4 view; // view matrix
+  mat4 projection; // projection matrix
   MouseState pmstate; // mouse state for the previous frame
   vec2 posdrag; // saved position for drag offset
+  mat4 viewdrag; // saved view matrix for drag offset
 public:
-  vec3 Position; // camera position
-  vec3 Up; // camera up direction (normal)
-  vec3 LookAt; // camera look at position
   bool isortho = false; // true = orthographic; false = perspective
   float fov = 45.f; // field of view for perspective
   float orthoa = 10.f; // half the side of the ortho square
   float depth = 100.f; // depth of vision
-  float mousesens_pan = 0.02; // Mouse pan sensitivity
-  float mousesens_rot = 0.02; // Mouse rotate sensitivity
-  float mousesens_zoom = 0.2; // Mouse zoom sensitivity
+  float srad = 0.f; // scene radius
 
-  Camera(vec3 position,vec3 up,vec3 lookat){
-    Position = position;
-    Up = up;
-    LookAt = lookat;
+  Camera(vec3 position,vec3 lookat,vec3 up){
+    view = lookAt(position, lookat, up);
+    if (isortho)
+      projection = ortho(-orthoa,orthoa,-orthoa,orthoa,0.1f,depth);
+    else
+      projection = perspective(radians(fov),1.0f,0.1f,depth);
   }
 
   Camera(float posX, float posY, float posZ, 
-	 float upX, float upY, float upZ, 
-	 float laX, float laY, float laZ){
-    Position = vec3(posX, posY, posZ);
-    Up = normalize(vec3(upX, upY, upZ));
-    LookAt = vec3(laX, laY, laZ);
-  }
-
-  mat4 GetViewMatrix(){
-    return lookAt(Position, LookAt, Up);
-  }
-
-  mat4 GetProjectionMatrix(){
+	 float laX, float laY, float laZ,
+	 float upX, float upY, float upZ){
+    view = lookAt(vec3(posX, posY, posZ), vec3(laX, laY, laZ), 
+		  vec3(upX, upY, upZ));
     if (isortho)
-      return ortho(-orthoa,orthoa,-orthoa,orthoa,0.1f,depth);
+      projection = ortho(-orthoa,orthoa,-orthoa,orthoa,0.1f,depth);
     else
-      return perspective(radians(fov),1.0f,0.1f,depth);
+      projection = perspective(radians(fov),1.0f,0.1f,depth);
   }
 
   void processMouseEvents(MouseState *m);
+  void applyMatrices(GLuint shader_id);
 };
 #endif
