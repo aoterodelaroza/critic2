@@ -22,7 +22,7 @@ namespace c2 {
   // pointers to the current scene
   extern "C" int nat;
   extern "C" struct c_atom *at;
-  extern "C" float center[3];
+  extern "C" float scenerad;
 }
 
 #endif

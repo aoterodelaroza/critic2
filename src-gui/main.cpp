@@ -73,7 +73,7 @@ int main(int argc, char *argv[]){
   glEnable(GL_DEPTH_TEST); 
 
   // Camera
-  Camera camera(0.f,0.f,20.f, 0.f,1.f,0.f, 4.f,4.f,4.f);
+  Camera camera(0.f,0.f,20.f, 0.f,1.f,0.f, 0.f,0.f,0.f);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();

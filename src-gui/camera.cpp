@@ -37,8 +37,8 @@ void Camera::processMouseEvents(MouseState *m){
   if (m->rdrag){
     vec3 Right = normalize(cross(LookAt-Position,Up));
     vec2 offset = mousesens_pan * (m->pos - pmstate.pos);
-    LookAt += offset[0] * Right - offset[1] * Up;
-    Position += offset[0] * Right - offset[1] * Up;
+    LookAt += - offset[0] * Right + offset[1] * Up;
+    Position += - offset[0] * Right + offset[1] * Up;
   }
 
   // zoom in and out (requires using box_xmaxlen to scale)

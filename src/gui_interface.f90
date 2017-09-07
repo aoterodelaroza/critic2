@@ -43,9 +43,10 @@ module gui_interface
      integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
      type(crystalseed) :: seed ! crystal seed for this scene
      type(system) :: sy ! system for this scene
-     real(c_float) :: center(3) ! center of the scene (bohr)
-     integer :: nat ! number of atoms
+     real*8 :: center(3) ! center of the scene (bohr)
+     integer(c_int) :: nat ! number of atoms
      type(c_atom), allocatable :: at(:) ! atoms
+     real(c_float) :: srad ! radius of the encompassing sphere
   end type scene
   integer :: nsc = 0
   type(scene), allocatable, target :: sc(:)
@@ -59,8 +60,8 @@ module gui_interface
 
   ! pointers to the current scene
   integer(c_int), bind(c) :: nat
-  real(c_float), bind(c) :: center(3)
   type(c_ptr), bind(c) :: at
+  real(c_float), bind(c) :: scenerad
 
 contains
 
@@ -127,6 +128,7 @@ contains
     character(len=:), allocatable :: line
     integer :: i, idx, iz, nseed
     type(crystalseed), allocatable :: seed(:)
+    real(c_float) :: xmax(3)
 
     ! transform to fortran string
     line = c_string_value(line0)
@@ -136,16 +138,18 @@ contains
     call read_seeds_from_file(line,lp,ismolecule,nseed,seed)
     
     if (nseed > 0) then
+       ! initialize the system from the first seed
        nsc = 1
        sc(1)%seed = seed(1)
        sc(1)%isinit = 2
        call sc(1)%sy%new_from_seed(sc(1)%seed)
        call sc(1)%sy%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+       sc(1)%center = 0d0
+
+       ! build the atoms
        sc(1)%nat = sc(1)%sy%c%ncel
        if (allocated(sc(1)%at)) deallocate(sc(1)%at)
        allocate(sc(1)%at(sc(1)%nat))
-
-       sc(1)%center = 0d0
        do i = 1, sc(1)%nat
           idx = sc(1)%sy%c%atcel(i)%idx
           iz = sc(1)%sy%c%at(idx)%z
@@ -161,7 +165,15 @@ contains
           sc(1)%at(i)%rgb(4) = 1.0
           sc(1)%center = sc(1)%center + sc(1)%at(i)%r
        end do
+
+       ! translate to the center of mass
+       xmax = 0._c_float
        sc(1)%center = sc(1)%center / sc(1)%nat
+       do i = 1, sc(1)%nat
+          sc(1)%at(i)%r = sc(1)%at(i)%r - sc(1)%center
+          xmax = max(abs(sc(1)%at(i)%r),xmax)
+       end do
+       sc(1)%srad = sqrt(dot_product(xmax,xmax))
     end if
 
   end subroutine open_file
@@ -174,12 +186,11 @@ contains
     integer(c_int), value, intent(in) :: isc
 
     nat = 0
-    center = 0._c_float
     if (isc < 0 .or. isc > nsc) return
 
     nat = sc(isc)%nat
     at = c_loc(sc(isc)%at)
-    center = sc(isc)%center
+    scenerad = sc(isc)%srad
 
   end subroutine set_scene_pointers
 
