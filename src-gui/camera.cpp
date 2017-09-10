@@ -62,6 +62,8 @@ void Camera::processMouseEvents(MouseState *m){
   if (abs(m->scroll) > 1e-6){
     vec3 dir = row(view,2);
     view = translate(view,m->scroll * srad * mousesens_zoom * dir);
+    zoom -= mousesens_zoom * m->scroll;
+    setProjection();
   }
 
   // save into the previous mouse state

@@ -82,7 +82,9 @@ int main(int argc, char *argv[]){
   }
 
   // Camera
-  Camera camera(0.f,0.f,-4.0f*c2::scenerad, 0.f,0.f,0.f, 0.f,1.f,0.f);
+  Camera camera(0.f,0.f,4.0f*c2::scenerad, 0.f,0.f,0.f, 0.f,1.f,0.f);
+  camera.srad = c2::scenerad;
+  camera.setProjection();
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();

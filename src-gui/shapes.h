@@ -19,6 +19,8 @@
 #ifndef SHAPES_H
 #define SHAPES_H
 
+#include "settings.h"
+
 // public vertex buffer and attribute objects
 GLuint FBO;
 GLuint FBOtex;
@@ -26,10 +28,6 @@ GLuint sphereVAO[1], sphereVBO[1], sphereEBO[1];
 const GLuint spherenel[1] = {20*3};
 GLuint cylVAO[1], cylVBO[1], cylEBO[1];
 const GLuint cylnv[1] = {42};
-
-// Texture size
-const float FBO_tex_x = 1024.f;
-const float FBO_tex_y = 1024.f;
 
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;
