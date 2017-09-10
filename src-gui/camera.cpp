@@ -40,13 +40,14 @@ void Camera::processMouseEvents(MouseState *m){
 
   // rotation with the left button
   if (m->ldrag){
-    vec3 vr = row(view,0);
-    vec3 vu = row(view,1);
-    vec2 offset = (m->pos - pmstate.pos);
-    vec3 axis = offset[0] * vu - offset[1] * vr;
-    float angle = length(axis) * mousesens_rot * srad;
-    axis = normalize(axis);
-    view = rotate(viewdrag,angle,axis);
+    // float arc = length(m->pos - pmstate.pos);
+    // printf("%f\n",arc);
+    // vec3 axis = vec3(m->pos.x - pmstate.pos.x,m->pos.y - pmstate.pos.y,0.f);
+    // axis = cross(axis,vec3(0.f,0.f,1.f));
+    // float angle = length(axis) * mousesens_rot * srad;
+    // axis = normalize(axis);
+    // mat4 rot = rotate(angle,axis);
+    // view = rot * viewdrag;
   }
 
   // translation with right mouse button
@@ -54,7 +55,7 @@ void Camera::processMouseEvents(MouseState *m){
     vec3 vr = row(view,0);
     vec3 vu = row(view,1);
     vec2 offset = mousesens_pan * srad * (m->pos - pmstate.pos);
-    view = translate(view,offset[0] * vr - offset[1] * vu);
+    view = translate(view,offset[0] * vr + offset[1] * vu);
   }
 
   // zoom by scrolling

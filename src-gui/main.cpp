@@ -72,19 +72,20 @@ int main(int argc, char *argv[]){
   shader.use();
   glEnable(GL_DEPTH_TEST); 
 
-  // Camera
-  Camera camera(0.f,0.f,20.f, 0.f,10.f,0.f, 0.f,1.f,0.f);
-
-  // Create and fill vertex, element, and frame buffers (shapes.h)
-  CreateAndFillBuffers();
-
   // Concatenate the input arguments and pass them to critic2
   if (argc > 1){
     string argall = "";
     for(int i=1;i<argc;i++)
       argall = argall + argv[i] + " ";
     c2::open_file((const char **) &argall, -1);
+    c2::set_scene_pointers(1);
   }
+
+  // Camera
+  Camera camera(0.f,0.f,-4.0f*c2::scenerad, 0.f,0.f,0.f, 0.f,1.f,0.f);
+
+  // Create and fill vertex, element, and frame buffers (shapes.h)
+  CreateAndFillBuffers();
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){

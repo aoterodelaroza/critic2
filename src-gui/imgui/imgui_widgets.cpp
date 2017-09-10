@@ -234,10 +234,16 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   if (!ItemAdd(bb, &id))
       return false;
 
+  float x = win->Size.x;
+  float y = win->Size.y - win->TitleBarHeight();
+  float rx = 0.5f * x/fmax(x,y);
+  float ry = 0.5f * y/fmax(x,y);
+  float ul = 0.5f - rx, uu = 0.5f - ry, ur = 0.5f + rx, ud = 0.5f + ry;
+
   ImGuiContext* g = GetCurrentContext();
   bool held;
   bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
-  win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(0, 1),ImVec2(1, 0));
+  win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(ul, uu),ImVec2(ur, ud));
   mstate->lclick = IsItemActive() && IsMouseClicked(0);
   mstate->mclick = mstate->hover && IsMouseClicked(2);
   mstate->rclick = mstate->hover && IsMouseClicked(1);
