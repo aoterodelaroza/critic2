@@ -2324,16 +2324,19 @@ contains
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges.
-  subroutine rdf(c,rend,npts,t,ih)
+  subroutine rdf(c,rend,sigma,npts,t,ih)
     use tools_math, only: norm
     class(crystal), intent(in) :: c
     real*8, intent(in) :: rend
+    real*8, intent(in) :: sigma
     integer, intent(in) :: npts
     real*8, allocatable, intent(inout) :: t(:)
     real*8, allocatable, intent(inout) :: ih(:)
 
     integer :: i, j, ibin
-    real*8 :: d, hfac
+    real*8 :: d, hfac, int, sigma2
+
+    sigma2 = sigma * sigma
 
     ! prepare the grid limits
     if (allocated(t)) deallocate(t)
@@ -2351,27 +2354,25 @@ contains
        do i = 1, c%nneq
           do j = 1, c%nenv
              d = norm(c%at(i)%r - c%atenv(j)%r)
-             if (d < 1d-10) cycle
-             ibin = nint(d * hfac) + 1
-             if (ibin <= 0 .or. ibin > npts) cycle
-             ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
+             if (d < 1d-10 .or. d > rend) cycle
+             int = sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
+             ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
           end do
        end do
+       do i = 2, npts
+          ih(i) = ih(i) / t(i)**2
+       end do
+       ih = ih / c%nneq
     else
        do i = 1, c%nneq
           do j = 1, c%ncel
              d = norm(c%at(i)%r - c%atcel(j)%r)
-             if (d < 1d-10) cycle
-             ibin = nint(d * hfac) + 1
-             if (ibin <= 0 .or. ibin > npts) cycle
-             ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atcel(j)%idx)%z,8))
+             if (d < 1d-10 .or. d > rend) cycle
+             int = sqrt(real(c%at(i)%z * c%at(c%atcel(j)%idx)%z,8))
+             ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
           end do
        end do
     endif
-    do i = 2, npts
-       ih(i) = ih(i) / t(i)
-    end do
-    ih = ih / c%nneq
 
   end subroutine rdf
 

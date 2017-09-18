@@ -895,11 +895,13 @@ contains
     real*8, allocatable :: t(:), ih(:)
 
     integer :: lp, lu, i
+    real*8 :: sigma
 
     ! default values
     rend = 25d0
     root = trim(fileroot) // "_rdf"
     npts = 10001
+    sigma = 0.05d0
 
     ! header
     write (uout,'("* RDF: radial distribution function")')
@@ -912,7 +914,13 @@ contains
        if (equal(word,"rend")) then
           ok = eval_next(rend,line,lp)
           if (.not.ok) then
-             call ferror('struct_rdf','Incorrect TH2END',faterr,line,syntax=.true.)
+             call ferror('struct_rdf','Incorrect REND',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"sigma")) then
+          ok = eval_next(sigma,line,lp)
+          if (.not.ok) then
+             call ferror('struct_rdf','Incorrect SIGMA',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,"npts")) then
@@ -931,7 +939,7 @@ contains
        end if
     end do
 
-    call s%c%rdf(rend,npts,t,ih)
+    call s%c%rdf(rend,sigma,npts,t,ih)
 
     ! write the data file 
     lu = fopen_write(trim(root) // ".dat")
@@ -985,7 +993,7 @@ contains
     integer :: lp, i, j, k, n
     integer :: ns, imol, isformat, ismoli
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend
+    real*8 :: tini, tend, nor, h, xend, sigma
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
     integer, allocatable :: hvecp(:,:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
@@ -993,7 +1001,7 @@ contains
     logical :: dopowder, ismol, laux, sorted
     character*1024, allocatable :: fname(:)
 
-    real*8, parameter :: sigma0 = 0.2d0
+    real*8, parameter :: sigma0 = 0.05d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
@@ -1008,7 +1016,8 @@ contains
     dopowder = .true.
     xend = -1d0
     allocate(fname(1))
-    sorted = .false.
+    sorted = .true.
+    sigma = sigma0
 
     ! read the input options
     doguess = 0
@@ -1021,10 +1030,17 @@ contains
              call ferror('struct_compare','incorrect TH2END',faterr,syntax=.true.)
              return
           end if
+       elseif (equal(word,'sigma')) then
+          ok = eval_next(sigma,line,lp)
+          if (.not.ok) then
+             call ferror('struct_compare','incorrect SIGMA',faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'powder')) then
           dopowder = .true.
        elseif (equal(word,'rdf')) then
           dopowder = .false.
+          sorted = .false.
        elseif (equal(word,'molecule')) then
           imol = 1
        elseif (equal(word,'crystal')) then
@@ -1102,6 +1118,7 @@ contains
        else
           difstr = "DIFF"
           write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+          dopowder = .false.
           if (xend < 0d0) xend = rend0
        end if
     else
@@ -1127,7 +1144,7 @@ contains
        do i = 1, ns
           ! calculate the powder diffraction pattern
           if (dopowder) then
-             call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma0,t,ih,th2p,ip,hvecp)
+             call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
 
              ! normalize the integral of abs(ih)
              tini = ih(1)**2
@@ -1135,7 +1152,7 @@ contains
              nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
              iha(:,i) = ih / sqrt(nor)
           else
-             call c(i)%rdf(xend,npts,t,ih)
+             call c(i)%rdf(xend,sigma,npts,t,ih)
              iha(:,i) = ih
           end if
        end do

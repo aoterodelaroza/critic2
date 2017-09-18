@@ -5564,14 +5564,15 @@ Radial distribution function (RDF)
 
 ::
 
-  RDF [REND t2e.r] [NPTS npts.i] [ROOT root.s]
+  RDF [REND t2e.r] [SIGMA sigma.r] [NPTS npts.i] [ROOT root.s]
 
 Generate the radial distribution function (RDF) for the current
 structure. The definition is similar to the one found in Willighagen
 et al., Acta Cryst. B 61 (2005) 29, but where the atomic charges are
 replaced by the square root of the atomic number. The RDF is plotted
 up to a maximum distance t2e.r bohr (default: 25 bohr) using npts.i
-points in that interval (default: 10001).  Two files are generated:
+points in that interval (default: 10001). Gaussian broadening is used
+with sigma equal to sigma.r (default: 0.05). Two files are generated:
 <root>_rdf.dat, containing the rdf versus distance data, and
 <root>_rdf.gnu, the gnuplot script to plot it. The name of these files
 can be changed using the ROOT keyword.
@@ -5581,14 +5582,15 @@ Compare crystal structures (COMPARE)
 
 ::
 
-  COMPARE [MOLECULE|CRYSTAL] [SORTED|UNSORTED] [XEND xend.r] [POWDER|RDF] 
+  COMPARE [MOLECULE|CRYSTAL] [SORTED|UNSORTED] [XEND xend.r] 
+          [SIGMA sigma.r] [POWDER|RDF] 
           {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 
 Compare two or more structures. If the structures are crystals, find
 the measure of similarity (DIFF) based on either their radial
 distribution functions (RDF keyword) or their powder diffraction
 patterns (POWDER). If they are molecules, all atoms may come in the
-same order (SORTED) or not (UNSORTED). If they do, find the
+same order (SORTED, default) or not (UNSORTED). If they do, find the
 translation and rotation that brings the two molecules into closest
 agreement and report the root-mean-square (RMS) of the atomic
 positions. If the atoms are unsorted, compare the molecules using the
@@ -5601,8 +5603,9 @@ measure is calculated using the cross-correlation functions defined in
 de Gelder et al., J. Comput. Chem., 22 (2001) 273, using the triangle
 weight. Powder diffraction patterns are calculated from 2theta = 5 up
 to xend.r (default: 50). Radial distribution functions are calculated
-from zero up to xend.r bohr (default: 25 bohr). These RDF defaults
-also apply to unsorted molecules.
+from zero up to xend.r bohr (default: 25 bohr). SIGMA is the Gaussian
+broadening parameter for the powder diffraction or RDF peaks.  The RDF
+defaults also apply to comparison of unsorted molecules.
 
 In sorted molecules, the root mean square (RMS) of the atomic
 positions is reported (the units are angstrom, unless changed with the
