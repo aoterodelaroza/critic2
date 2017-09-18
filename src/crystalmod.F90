@@ -2335,21 +2335,6 @@ contains
     integer :: i, j, ibin
     real*8 :: d, hfac
 
-    ! integer :: i, ii, np, hcell, h, k, l, iz, idx
-    ! real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
-    ! real*8 :: smax, dh2, dh, dh3, sthlam, cterm, sterm
-    ! real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
-    ! real*8 :: ipmax, ihmax
-    ! integer :: hmax
-    ! integer, allocatable :: multp(:)
-    ! integer, allocatable :: io(:)
-    ! real*8, allocatable :: th2p_(:), ip_(:)
-    ! integer, allocatable :: hvecp_(:,:)
-
-    ! integer, parameter :: mp = 20
-    ! real*8, parameter :: ieps = 1d-5
-    ! real*8, parameter :: theps = 1d-5
-
     ! prepare the grid limits
     if (allocated(t)) deallocate(t)
     if (allocated(ih)) deallocate(ih)
@@ -2362,14 +2347,25 @@ contains
     ! calculate the radial distribution function for the crystal
     ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%nenv sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
     hfac = (npts-1) / rend
-    do i = 1, c%nneq
-       do j = 1, c%nenv
-          d = norm(c%at(i)%r - c%atenv(j)%r)
-          ibin = nint(d * hfac) + 1
-          if (ibin <= 0 .or. ibin > npts) cycle
-          ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
+    if (.not.c%ismolecule) then
+       do i = 1, c%nneq
+          do j = 1, c%nenv
+             d = norm(c%at(i)%r - c%atenv(j)%r)
+             ibin = nint(d * hfac) + 1
+             if (ibin <= 0 .or. ibin > npts) cycle
+             ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
+          end do
        end do
-    end do
+    else
+       do i = 1, c%nneq
+          do j = 1, c%ncel
+             d = norm(c%at(i)%r - c%atcel(j)%r)
+             ibin = nint(d * hfac) + 1
+             if (ibin <= 0 .or. ibin > npts) cycle
+             ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atcel(j)%idx)%z,8))
+          end do
+       end do
+    endif
     do i = 2, npts
        ih(i) = ih(i) / t(i)
     end do

@@ -5581,15 +5581,18 @@ Compare crystal structures (COMPARE)
 
 ::
 
-  COMPARE [MOLECULE|CRYSTAL] [XEND xend.r] [POWDER|RDF] 
+  COMPARE [MOLECULE|CRYSTAL] [SORTED|UNSORTED] [XEND xend.r] [POWDER|RDF] 
           {.|file1.s} {.|file2.s} [{.|file3.s} ...]
 
 Compare two or more structures. If the structures are crystals, find
 the measure of similarity (DIFF) based on either their radial
 distribution functions (RDF keyword) or their powder diffraction
-patterns (POWDER). If they are molecules, find the translation and
-rotation that brings the two molecules into closest agreement and
-report the root-mean-square (RMS) of the atomic positions.
+patterns (POWDER). If they are molecules, all atoms may come in the
+same order (SORTED) or not (UNSORTED). If they do, find the
+translation and rotation that brings the two molecules into closest
+agreement and report the root-mean-square (RMS) of the atomic
+positions. If the atoms are unsorted, compare the molecules using the
+radial distribution functions.
 
 In crystals, the default is to use the powder diffraction
 patterns. Two crystal structures are exactly equal if DIFF =
@@ -5598,15 +5601,16 @@ measure is calculated using the cross-correlation functions defined in
 de Gelder et al., J. Comput. Chem., 22 (2001) 273, using the triangle
 weight. Powder diffraction patterns are calculated from 2theta = 5 up
 to xend.r (default: 50). Radial distribution functions are calculated
-from zero up to xend.r bohr (default: 25 bohr).
+from zero up to xend.r bohr (default: 25 bohr). These RDF defaults
+also apply to unsorted molecules.
 
-In molecules, the root mean square (RMS) of the atomic positions is
-reported (the units are angstrom, unless changed with the UNITS
-keyword). The molecular rotation is calculated using Walker et al.'s
-quaternion algorithm (Walker et al., CVGIP-Imag. Understan. 54 (1991)
-358). For the comparison to work correctly, it is necessary that the
-two molecules have the same number of atoms and that the atoms are in
-the same sequence.
+In sorted molecules, the root mean square (RMS) of the atomic
+positions is reported (the units are angstrom, unless changed with the
+UNITS keyword). The molecular rotation is calculated using Walker et
+al.'s quaternion algorithm (Walker et al., CVGIP-Imag. Understan. 54
+(1991) 358). For the comparison to work correctly, it is necessary
+that the two molecules have the same number of atoms and that the
+atoms are in the same sequence.
 
 Whether the molecular or the crystal comparison is used depends on the
 file formats passed to COMPARE. If the MOLECULE/CRYSTAL keyword is

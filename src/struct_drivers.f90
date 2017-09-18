@@ -995,7 +995,7 @@ contains
     integer, allocatable :: hvecp(:,:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
     logical :: ok, usedot
-    logical :: dopowder, ismol, laux
+    logical :: dopowder, ismol, laux, sorted
     character*1024, allocatable :: fname(:)
 
     real*8, parameter :: sigma0 = 0.2d0
@@ -1013,6 +1013,7 @@ contains
     dopowder = .true.
     xend = -1d0
     allocate(fname(1))
+    sorted = .false.
 
     ! read the input options
     doguess = 0
@@ -1033,6 +1034,10 @@ contains
           imol = 1
        elseif (equal(word,'crystal')) then
           imol = 0
+       elseif (equal(word,'sorted')) then
+          sorted = .true.
+       elseif (equal(word,'unsorted')) then
+          sorted = .false.
        elseif (len_trim(word) > 0) then
           ns = ns + 1
           if (ns > size(fname)) &
@@ -1096,8 +1101,14 @@ contains
     ! rest of the header and default variables
     if (ismol) then
        diftyp = "Molecule"
-       difstr = "RMS"
-       write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
+       if (sorted) then
+          difstr = "RMS"
+          write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
+       else
+          difstr = "DIFF"
+          write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+          if (xend < 0d0) xend = rend0
+       end if
     else
        diftyp = "Crystal"
        difstr = "DIFF"
@@ -1115,7 +1126,7 @@ contains
     allocate(diff(ns,ns))
     diff = 1d0
 
-    if (.not.ismol) then
+    if (.not.ismol .or. (ismol.and..not.sorted)) then
        ! crystals
        allocate(iha(10001,ns))
        do i = 1, ns
