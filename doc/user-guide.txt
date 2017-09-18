@@ -5567,14 +5567,14 @@ Radial distribution function (RDF)
   RDF [REND t2e.r] [NPTS npts.i] [ROOT root.s]
 
 Generate the radial distribution function (RDF) for the current
-crystal structure. The definition is similar to the one found in
-Willighagen et al., Acta Cryst. B 61 (2005) 29, but where the atomic
-charges are replaced by the square root of the atomic number. The RDF
-is plotted up to a maximum distance t2e.r bohr (default: 25 bohr)
-using npts.i points in that interval (default: 10001).  Two files are
-generated: <root>_rdf.dat, containing the rdf versus distance data,
-and <root>_rdf.gnu, the gnuplot script to plot it. The name of these
-files can be changed using the ROOT keyword.
+structure. The definition is similar to the one found in Willighagen
+et al., Acta Cryst. B 61 (2005) 29, but where the atomic charges are
+replaced by the square root of the atomic number. The RDF is plotted
+up to a maximum distance t2e.r bohr (default: 25 bohr) using npts.i
+points in that interval (default: 10001).  Two files are generated:
+<root>_rdf.dat, containing the rdf versus distance data, and
+<root>_rdf.gnu, the gnuplot script to plot it. The name of these files
+can be changed using the ROOT keyword.
 
 Compare crystal structures (COMPARE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -896,11 +896,6 @@ contains
 
     integer :: lp, lu, i
 
-    if (s%c%ismolecule) then
-       call ferror("struct_rdf","RDF can not be used with molecules",faterr,syntax=.true.)
-       return
-    end if
-
     ! default values
     rend = 25d0
     root = trim(fileroot) // "_rdf"

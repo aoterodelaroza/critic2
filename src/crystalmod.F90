@@ -2351,6 +2351,7 @@ contains
        do i = 1, c%nneq
           do j = 1, c%nenv
              d = norm(c%at(i)%r - c%atenv(j)%r)
+             if (d < 1d-10) cycle
              ibin = nint(d * hfac) + 1
              if (ibin <= 0 .or. ibin > npts) cycle
              ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
@@ -2360,6 +2361,7 @@ contains
        do i = 1, c%nneq
           do j = 1, c%ncel
              d = norm(c%at(i)%r - c%atcel(j)%r)
+             if (d < 1d-10) cycle
              ibin = nint(d * hfac) + 1
              if (ibin <= 0 .or. ibin > npts) cycle
              ih(ibin) = ih(ibin) + sqrt(real(c%at(i)%z * c%at(c%atcel(j)%idx)%z,8))
