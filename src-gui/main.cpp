@@ -26,14 +26,14 @@
 #include "imgui/imgui_impl_glfw_gl3.h"
 #include "imgui/imgui_dock.h"
 #include "imgui/imgui_widgets.h"
+#include "imgui/mouse.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "critic2.h"
 #include "shader.h"
-#include "camera.h"
 #include "shapes.h"
-#include "imgui/mouse.h"
+#include "matrix_math.h"
 
 using namespace std;
 using namespace ImGui;
@@ -81,10 +81,16 @@ int main(int argc, char *argv[]){
     c2::set_scene_pointers(1);
   }
 
-  // Camera
-  Camera camera(0.f,0.f,4.0f*c2::scenerad, 0.f,0.f,0.f, 0.f,1.f,0.f);
-  camera.srad = c2::scenerad;
-  camera.setProjection();
+  // Initialize camera pipeline (ortho deactivated in matrix_math.cpp)
+  Pipeline p;
+  p.SetPersProjInfo(45, FBO_tex_x, FBO_tex_y, 0.1f, 1000.f);
+  float pos[3] = {0.f,0.f,-4.0f*c2::scenerad};
+  float target[3] = {0.f,0.f,1.f};
+  float up[3] = {0.f,1.f,0.f};
+  Matrix4f rot;
+  rot.InitIdentity();
+  p.SetPostRotationMatrix(rot);
+  p.SetCamera(pos, target, up);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
@@ -154,32 +160,31 @@ int main(int argc, char *argv[]){
     if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
       // set the pointers to the current scene
       c2::set_scene_pointers(1);
-      camera.srad = c2::scenerad;
 
       glBindFramebuffer(GL_FRAMEBUFFER, FBO);
       glViewport(0.,0.,FBO_tex_x,FBO_tex_y);
 
       glClearColor(0.f,0.f,0.f,1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-      camera.applyMatrices(shader.id);
-    
+      
       glBindVertexArray(sphereVAO[0]);
+
       for (int i=1;i<c2::nat;i++){
-	glm::vec4 objcolor = glm::vec4(c2::at[i].rgb[0],c2::at[i].rgb[1],c2::at[i].rgb[2],c2::at[i].rgb[3]);
-	glUniform4fv(glGetUniformLocation(shader.id, "ObjColor"), 1, &objcolor[0]);
-    
-	glm::mat4 model;
-	glm::vec3 trans = {c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]};
-	model = glm::translate(model, trans);
-	glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, &model[0][0]);
-	glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
+      	p.Scale(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad);
+      	p.Translate(-c2::at[i].r[0],-c2::at[i].r[1],-c2::at[i].r[2]);
+	glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
+      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_TRUE, (const GLfloat *)p.GetWorldTrans());
+      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "view"), 1, GL_TRUE, (const GLfloat *)p.GetViewTrans());
+      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "projection"), 1, GL_TRUE, (const GLfloat *)p.GetProjTrans());
+       	glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
       }
+
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
       MouseState mstate;
-      if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover)
-	camera.processMouseEvents(&mstate);
+      if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover){
+	// camera.processMouseEvents(&mstate);
+      }
     }
     dviewdock = GetCurrentDock();
     EndDock();
