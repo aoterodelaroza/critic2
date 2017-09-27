@@ -158,28 +158,21 @@ contains
           sc(1)%at(i)%z = iz
           call f_c_string(sc(1)%sy%c%at(idx)%name,sc(1)%at(i)%label,11)
           if (atmcov(iz) > 1) then
-             sc(1)%at(i)%rad = atmcov(iz)
+             sc(1)%at(i)%rad = 0.7*atmcov(iz)
           else
-             sc(1)%at(i)%rad = 2.*atmcov(iz)
+             sc(1)%at(i)%rad = 1.5*atmcov(iz)
           end if
           sc(1)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
           sc(1)%at(i)%rgb(4) = 1.0
           sc(1)%center = sc(1)%center + sc(1)%at(i)%r
        end do
+       sc(1)%center = sc(1)%center / sc(1)%nat
 
        ! translate to the center of mass
        xmax = 0._c_float
-       sc(1)%center = sc(1)%center / sc(1)%nat
        do i = 1, sc(1)%nat
           sc(1)%at(i)%r = sc(1)%at(i)%r - sc(1)%center
           xmax = max(abs(sc(1)%at(i)%r),xmax)
-          ! xxxx !
-          if (i == sc(1)%nat) then
-             sc(1)%at(i)%r = 0.
-             sc(1)%at(i)%rgb = 0.0
-             sc(1)%at(i)%rgb(2) = 1.0
-             sc(1)%at(i)%rgb(4) = 1.0
-          end if
        end do
        sc(1)%srad = sqrt(dot_product(xmax,xmax))
     end if

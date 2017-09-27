@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <settings.h>
+#include <imgui/mouse.h>
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
@@ -89,8 +91,6 @@ struct Vector3f
     Ret.z = z - Right.z;
     return Ret;
   }
-
-
 
   inline Vector3f operator*(float Right) const
   {
@@ -229,31 +229,17 @@ public:
   void InitOrthoProjTransform(const OrthoProjInfo& p);
 };
 
-class Camera
-{
-public:
-  Camera();
-  Camera(const float Pos[3], const float Target[3], const float Up[3]);
-  bool OnKeyboard(int key);
-  const float * GetPos();
-  const float * GetTarget();
-  const float * GetUp();
-
-private:
-  float m_pos[3];
-  float m_target[3];
-  float m_up[3];
-
-};
-
 class Pipeline
 {
 public:
-  Pipeline(){
+  Pipeline(float scenerad){
     m_scale[0] = 1.f; m_scale[1] = 1.f, m_scale[2] = 1.f;
     m_pos[0] = 0.f; m_pos[1] = 0.f, m_pos[2] = 0.f;
     m_rotate[0] = 0.f; m_rotate[1] = 0.f, m_rotate[2] = 0.f;
     m_post_rotate[0] = 0.f; m_post_rotate[1] = 0.f, m_post_rotate[2] = 0.f;
+    m_scenerad = scenerad;
+    SetCamera(0.f,0.f,-4.0f*scenerad, 0.f,0.f,1.f, 0.f,1.f,0.f);
+    SetPersProjInfo(zfov, FBO_tex_x, FBO_tex_y, znear, zfar);
   }
 
   void Scale(float x, float y, float z){
@@ -284,10 +270,20 @@ public:
     memcpy(&m_camera.Up, Up, sizeof(float)*3);
   }
 
+  void SetCamera(float px,float py,float pz,float tx,float ty,float tz,float ux,float uy,float uz){
+    m_camera.Pos[0] = px; m_camera.Pos[1] = py; m_camera.Pos[2] = pz;
+    m_camera.Target[0] = tx; m_camera.Target[1] = ty; m_camera.Target[2] = tz;
+    m_camera.Up[0] = ux; m_camera.Up[1] = uy; m_camera.Up[2] = uz;
+  }
+
   void SetCamera(CameraInfo cam){
     memcpy(&m_camera.Pos, cam.Pos, sizeof(float)*3);
     memcpy(&m_camera.Target, cam.Target, sizeof(float)*3);
     memcpy(&m_camera.Up, cam.Up, sizeof(float)*3);
+  }
+
+  void SetScenerad(float scenerad){
+    m_scenerad = scenerad;
   }
 
   void SetPersProjInfo(float FOV, float Width, float Height, float zNear, float zFar){
@@ -326,7 +322,10 @@ public:
   void SetRotationMatrix(const float _m[4][4]);
   void SetPostRotationMatrix(const Matrix4f _m);
 
+  void ProcessMouseEvents(MouseState *mstate);
+
 private:
+  float m_scenerad;
   float m_scale[3];
   float m_pos[3];
   float m_rotate[3];

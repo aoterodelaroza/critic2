@@ -336,6 +336,51 @@ void Pipeline::SetPostRotationMatrix(const Matrix4f _m)
   m_post_rotate_trans.m[3][3] = _m.m[3][3];
 }
 
+void Pipeline::ProcessMouseEvents(MouseState *mstate){
+  static glm::vec2 mpos0 = {};
+  static glm::vec2 cpos0 = {};
+  static Matrix4f rot0;
+  // bool hover   = false;
+  // bool lclick  = false;
+  // bool mclick  = false;
+  // bool rclick  = false;
+  // bool ldrag   = false;
+  // bool rdrag   = false;
+  // bool ldclick = false;
+  // float scroll = 0.f;
+  // glm::vec2 pos = {0.f,0.f};
+  
+  // scroll
+  if (abs(mstate->scroll) > 1e-5){
+    m_camera.Pos[2] += mstate->scroll * mousesens_zoom * m_scenerad;
+  }
+
+  // drag
+  if (mstate->rclick){ 
+    mpos0 = mstate->pos;
+    cpos0 = {m_camera.Pos[0],m_camera.Pos[1]};
+  } else if (mstate->rdrag){
+    glm::vec2 dx = mstate->pos - mpos0;
+    m_camera.Pos[0] = cpos0.x - mousesens_pan * m_scenerad * dx.x;
+    m_camera.Pos[1] = cpos0.y - mousesens_pan * m_scenerad * dx.y;
+  }
+
+  // rotate
+  if (mstate->lclick){ 
+    mpos0 = mstate->pos;
+    rot0 = m_post_rotate_trans;
+  } else if (mstate->ldrag) {
+    Vector3f curRotAxis = Vector3f((float)(mstate->pos.x-mpos0.x), (float)(mstate->pos.y-mpos0.y), 0);
+    curRotAxis = curRotAxis.Cross(Vector3f(0, 0, 1));
+    float curRotAng = curRotAxis.Length() * mousesens_rot * m_scenerad;
+    curRotAxis.Normalize();
+ 
+    Matrix4f curRot;
+    curRot.InitRotateAxisTransform(curRotAxis, curRotAng);
+    m_post_rotate_trans = curRot * rot0;
+  }
+}
+
 const Matrix4f * Pipeline::GetProjTrans(){
   m_ProjTransformation.InitPersProjTransform(m_projInfo);
 //  m_ProjTransformation.InitOrthoProjTransform(m_orthoInfo);

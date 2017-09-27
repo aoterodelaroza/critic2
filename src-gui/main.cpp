@@ -82,15 +82,7 @@ int main(int argc, char *argv[]){
   }
 
   // Initialize camera pipeline (ortho deactivated in matrix_math.cpp)
-  Pipeline p;
-  p.SetPersProjInfo(45, FBO_tex_x, FBO_tex_y, 0.1f, 1000.f);
-  float pos[3] = {0.f,0.f,-4.0f*c2::scenerad};
-  float target[3] = {0.f,0.f,1.f};
-  float up[3] = {0.f,1.f,0.f};
-  Matrix4f rot;
-  rot.InitIdentity();
-  p.SetPostRotationMatrix(rot);
-  p.SetCamera(pos, target, up);
+  Pipeline p = Pipeline(c2::scenerad);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
@@ -137,7 +129,9 @@ int main(int argc, char *argv[]){
     // Some docks
     static bool show_treedock = true;
     static bool show_infodock = true;
-    Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
+    static bool show_styledock = true;
+    Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr,
+      *dstyledock = nullptr;
     if (show_treedock){
       if (BeginDock("Tree view",&show_treedock)){
         Text("Tree View!");     
@@ -157,7 +151,7 @@ int main(int argc, char *argv[]){
 
     // Main view
     PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
-    if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer,dviewcont)){
+    if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer)){
       // set the pointers to the current scene
       c2::set_scene_pointers(1);
 
@@ -169,7 +163,7 @@ int main(int argc, char *argv[]){
       
       glBindVertexArray(sphereVAO[0]);
 
-      for (int i=1;i<c2::nat;i++){
+      for (int i=0;i<c2::nat;i++){
       	p.Scale(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad);
       	p.Translate(-c2::at[i].r[0],-c2::at[i].r[1],-c2::at[i].r[2]);
 	glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
@@ -183,23 +177,27 @@ int main(int argc, char *argv[]){
 
       MouseState mstate;
       if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover){
-	// camera.processMouseEvents(&mstate);
+	p.ProcessMouseEvents(&mstate);
       }
     }
     dviewdock = GetCurrentDock();
     EndDock();
     PopStyleVar();
 
-    // Style editor
-    // Begin("Style Editor");
-    // ShowStyleEditor(); 
-    // End();
+    if (show_styledock){
+      if (BeginDock("Style Editor",&show_styledock))
+	ShowStyleEditor(); 
+      dstyledock = GetCurrentDock();
+      EndDock();
+    }
 
     // Dock everything in the first pass
     static bool first = true;
     if (first){
       first = false;
-      droot->newDockRoot(dviewcont,5);
+      droot->newDockRoot(dviewcont,-1);
+      dviewcont->newDock(dstyledock);
+      dviewcont->newDock(dviewdock);
 
       Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
       dviewcont->setSlidingBarPosition(4,0.2f);
@@ -207,10 +205,10 @@ int main(int argc, char *argv[]){
       dtmp->newDockRoot(dinfodock,3);
       dtmp->setSlidingBarPosition(3,0.7f);
 
-
       dviewdock->setDetachedDockSize(300.f,300.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
       dinfodock->setDetachedDockSize(300.f,300.f);
+      dstyledock->setDetachedDockSize(300.f,300.f);
     }
 
     // Render and swap
