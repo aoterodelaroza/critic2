@@ -33,7 +33,7 @@
 #include "critic2.h"
 #include "shader.h"
 #include "shapes.h"
-#include "matrix_math.h"
+#include "camera.h"
 
 using namespace std;
 using namespace ImGui;
@@ -81,8 +81,8 @@ int main(int argc, char *argv[]){
     c2::set_scene_pointers(1);
   }
 
-  // Initialize camera pipeline (ortho deactivated in matrix_math.cpp)
-  Pipeline p = Pipeline(c2::scenerad);
+  // Initialize camera pipeline (ortho deactivated in camera.cpp)
+  Camera p = Camera(c2::scenerad);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();

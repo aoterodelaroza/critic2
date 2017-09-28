@@ -1,4 +1,24 @@
 /*
+  Copyright (c) 2017 Alberto Otero de la Roza
+  <aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
+  Visintainer <x@example.com>, Richard Greaves <x@example.com>, Ángel
+  Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+  <victor@fluor.quimica.uniovi.es>.
+
+  critic2 is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or (at
+  your option) any later version.
+
+  critic2 is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/*
 Copyright 2010 Etay Meiri
 
 This program is free software: you can redistribute it and/or modify
@@ -26,10 +46,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 
-class Pipeline
+using namespace std;
+using namespace glm;
+
+class Camera
 {
 public:
-  Pipeline(float scenerad){
+  Camera(float scenerad){
     m_scale[0] = 1.f; m_scale[1] = 1.f, m_scale[2] = 1.f;
     m_pos[0] = 0.f; m_pos[1] = 0.f, m_pos[2] = 0.f;
     m_rotate[0] = 0.f; m_rotate[1] = 0.f, m_rotate[2] = 0.f;
@@ -76,9 +99,9 @@ public:
     ortho_zFar = f;
   }
 
-  const glm::mat4 * GetProjTrans();
-  const glm::mat4 * GetViewTrans();
-  const glm::mat4 * GetWorldTrans();
+  const mat4 * GetProjTrans();
+  const mat4 * GetViewTrans();
+  const mat4 * GetWorldTrans();
 
   void ProcessMouseEvents(MouseState *mstate);
 
@@ -87,13 +110,13 @@ private:
   float m_scale[3];
   float m_pos[3];
   float m_rotate[3];
-  glm::mat4 m_rotate_trans;
+  mat4 m_rotate_trans;
   float m_post_rotate[3];
-  glm::mat4 m_post_rotate_trans;
+  mat4 m_post_rotate_trans;
 
-  glm::vec2 mpos0;
-  glm::vec2 cpos0;
-  glm::mat4 rot0;
+  vec2 mpos0;
+  vec2 cpos0;
+  mat4 rot0;
 
   float pers_FOV;
   float pers_Width;
@@ -111,9 +134,9 @@ private:
   float m_camera_target[3];
   float m_camera_up[3];
 
-  glm::mat4 m_ProjTransformation;
-  glm::mat4 m_Vtransformation;
-  glm::mat4 m_Wtransformation;
+  mat4 m_ProjTransformation;
+  mat4 m_Vtransformation;
+  mat4 m_Wtransformation;
 };
 
 #endif
