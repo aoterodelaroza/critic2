@@ -111,7 +111,7 @@ contains
     if (allocated(sc)) deallocate(sc)
     allocate(sc(1))
     nsc = 0
-    scenerad = 20._c_float
+    scenerad = 10._c_float
 
   end subroutine gui_initialize
 
@@ -174,7 +174,7 @@ contains
           sc(1)%at(i)%r = sc(1)%at(i)%r - sc(1)%center
           xmax = max(abs(sc(1)%at(i)%r),xmax)
        end do
-       sc(1)%srad = sqrt(dot_product(xmax,xmax))
+       sc(1)%srad = max(sqrt(dot_product(xmax,xmax)),10._c_float)
     end if
 
   end subroutine open_file

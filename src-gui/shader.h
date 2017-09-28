@@ -24,7 +24,7 @@ public:
       "uniform mat4 projection; \n"
       "layout (location = 0) in vec3 inPosition; \n"
       "void main() { \n"
-      "  gl_Position = projection * view * model * vec4(inPosition, 1.0); \n"
+      "  gl_Position = vec4(inPosition, 1.0) * model * view * projection; \n"
       "}";    
 
 //      "gl_Position = gWVP * vec4(inPosition, 1.0); \n"
