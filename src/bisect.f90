@@ -944,6 +944,7 @@ contains
        endif
 
        ! output surface
+       srf%n = xnuc + sy%c%molx0
        file = trim(fileroot) // "-" // string(i)
        if (outputm == 'off' .or. outputm == 'ply' .or. outputm == 'obj') then
           file = trim(file) // '.' // trim(outputm)
@@ -1163,6 +1164,7 @@ contains
     call bundle_msurface(srf,prec,verbose)
 
     ! output surface
+    srf%n = xorig + sy%c%molx0
     file = surfile
     if (outputm == 'off' .or. outputm == 'ply' .or. outputm == 'obj') then
        file = trim(file) // '.' // trim(outputm)
