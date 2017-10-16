@@ -72,6 +72,8 @@ contains
        call xdm_grid(line(lp:))
     elseif (equal(word,"qe")) then
        call xdm_qe()
+    elseif (equal(word,"excitation")) then
+       call xdm_excitation(line(lp:))
     else
        lp = 1
        ok = eval_next(a1,line,lp)
@@ -782,6 +784,128 @@ contains
 
   end subroutine xdm_qe
 
+  !> Calculate XDM from the information in a QE output
+  subroutine xdm_excitation(line0)
+    use systemmod, only: sy
+    use tools_io, only: ferror, faterr, uin, uout, ucopy, getline, isreal,&
+       equal, lgetword, getword, string
+    use param, only: bohrtoa
+    character*(*), intent(inout) :: line0
+
+    integer :: i, j, inow, iat, lp
+    character(len=:), allocatable :: line, word, file
+    logical :: ok
+    real*8 :: a1, a2, e0, e1
+    real*8 :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1), mm(3,sy%c%ncel,0:1)
+    logical :: haveit(sy%c%ncel,0:1)
+    integer :: lvec(3,sy%c%ncel,0:1)
+    
+    write (uout,'("* XDM dispersion for ground and excited states in a crystal")')
+
+    lp = 1
+    ok = isreal(a1,line0,lp)
+    ok = ok .and. isreal(a2,line0,lp)
+    if (.not.ok) &
+       call ferror("xdm_excitation","wrong a1 or a2 in XDM EXCITATION",faterr)
+    a2 = a2 / bohrtoa
+    
+    ! read the inputs
+    haveit = .false.
+    v = 0d0
+    vfree = 0d0
+    mm = 0d0
+    inow = 0
+    lvec = 0
+    do while(.true.)
+       ok = getline(uin,line,ucopy=ucopy)
+       if (.not.ok) &
+          call ferror("xdm_excitation","unexpected end of input in XDM EXCITATION",faterr)
+       lp = 1
+       word = lgetword(line,lp)
+
+       if (equal(word,"end").or.equal(word,"endxdm")) then
+          exit
+       else if (equal(word,"ground")) then
+          file = getword(line,lp)
+          call xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,0)
+       else if (equal(word,"excitation")) then
+          file = getword(line,lp)
+          call xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,1)
+       else
+          call ferror("xdm_excitation","unknown keyword in XDM EXCITATION",faterr)
+       end if
+    end do
+
+    ! check we have all the atoms
+    do i = 1, sy%c%ncel
+       if (.not.haveit(i,0)) &
+          call ferror("xdm_excitation","atom missing in ground state",faterr)
+       if (.not.haveit(i,1)) then
+          v(i,1) = v(i,0)
+          vfree(i,1) = vfree(i,0)
+          mm(:,i,1) = mm(:,i,0)
+       end if
+    end do
+
+    e0 = calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,0,0)
+    e1 = calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,0,1)
+    write (uout,'("ground state  = ",A," Ha, ",A," Ry")') string(e0,'e',20,12), string(2d0*e0,'e',20,12)
+    write (uout,'("excited state = ",A," Ha, ",A," Ry")') string(e1,'e',20,12), string(2d0*e1,'e',20,12)
+    write (uout,'("difference    = ",A," Ha, ",A," Ry")') string((e1-e0),'e',20,12), string(2d0*(e1-e0),'e',20,12)
+    write (uout,*)
+
+  end subroutine xdm_excitation
+
+  subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
+    use systemmod, only: sy
+    use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, getword,&
+       ferror, faterr
+    character*(*), intent(in) :: file
+    logical, intent(inout) :: haveit(sy%c%ncel,0:1)
+    real*8, intent(inout) :: v(sy%c%ncel,0:1)
+    real*8, intent(inout) :: vfree(sy%c%ncel,0:1)
+    real*8, intent(inout) :: mm(3,sy%c%ncel,0:1)
+    integer, intent(inout) :: lvec(3,sy%c%ncel,0:1)
+    integer, intent(in) :: inow
+    
+    logical :: ok
+    integer :: lu, i, nat, lp, id, idx, idmap(sy%c%ncel)
+    character(len=:), allocatable :: line, w1, w2
+    character*2 :: atsym
+    real*8 :: x(3)
+
+    idmap = 0
+    lu = fopen_read(file)
+    do while (getline_raw(lu,line))
+       lp = 1
+       w1 = getword(line,lp)
+       w2 = getword(line,lp)
+       if (equal(w1,"natoms")) then
+          lp = 7
+          ok = isinteger(nat,line,lp)
+       elseif (equal(w1,"#") .and. equal(w2,"n")) then
+          do i = 1, nat
+             read (lu,*) id, atsym, x(1:3)
+             idx = sy%c%identify_atom(x,.true.)
+             if (idx == 0) &
+                call ferror("xdm_excitation_readpostg","atom not found",faterr)
+             idmap(i) = idx
+             haveit(idx,inow) = .true.
+             lvec(:,idx,inow) = nint(sy%c%c2x(x) - sy%c%atcel(idx)%x)
+          end do
+       elseif (equal(w1,"moments")) then
+          ok = getline_raw(lu,line)
+          do i = 1, nat
+             if (idmap(i) == 0) &
+                call ferror("xdm_excitation_readpostg","atom not found in moments",faterr)
+             read (lu,*) id, atsym, mm(1:3,idmap(i),inow), v(idmap(i),inow), vfree(idmap(i),inow)
+          end do
+       end if
+    end do
+    call fclose(lu)
+
+  end subroutine xdm_excitation_readpostg
+
   !> Calculate XDM in molecules and crystals using the wavefunction.
   subroutine xdm_wfn(a1o,a2o,chf)
     use systemmod, only: sy
@@ -1305,6 +1429,103 @@ contains
     write (uout,'("#"/)')
 
   end subroutine calc_edisp
+
+  !> Calculate the dispersion energy using moments and volumes
+  !> for a given molecular motif.
+  function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
+    use systemmod, only: sy
+    use crystalmod, only: crystal
+    use tools_io, only: uout
+    use param, only: maxzat0, alpha_free
+    real*8, intent(in) :: a1, a2
+    real*8, intent(in) :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1)
+    real*8, intent(in) :: mm(3,sy%c%ncel,0:1)
+    integer, intent(in) :: lvec(3,sy%c%ncel,0:1)
+    integer, intent(in) :: i0, i1
+    real*8 :: calc_edisp_from_mv
+
+    type(crystal) :: caux
+    real*8 :: d, d2
+    real*8 :: xij(3), x0(3)
+    real*8 :: e, alpha0, alpha1, ml0(3), ml1(3)
+    integer :: ii, jj, i, j, k, iz
+    real*8 :: rmax, rmax2, maxc6, c6, c8, c10, rc, rvdw
+    real*8, allocatable :: alpha(:,:)
+
+    real*8, parameter :: ecut = 1d-11
+
+    ! check that we have an environment
+    call sy%c%checkflags(.true.,env0=.true.)
+
+    ! free volumes and polarizabilities
+    allocate(alpha(sy%c%ncel,0:1))
+    do j = 0, 1
+       do i = 1, sy%c%ncel
+          iz = sy%c%at(sy%c%atcel(i)%idx)%z
+          alpha(i,j) = min(v(i,j) / vfree(i,j),1d0) * alpha_free(iz)
+       end do
+    end do
+
+    maxc6 = -1d0
+    do k = 0, 1
+       do i = 1, sy%c%ncel
+          do j = 1, i
+             c6 = alpha(i,k)*alpha(j,k)*mm(1,i,k)*mm(1,j,k) / (mm(1,i,k)*alpha(j,k) + mm(1,j,k)*alpha(i,k))
+             maxc6 = max(c6,maxc6)
+          end do
+       end do
+    end do
+
+    ! build the environment
+    rmax = (maxc6/ecut)**(1d0/6d0)
+    rmax2 = rmax * rmax
+    caux = sy%c
+    call caux%build_env(150d0)
+
+    ! calculate the energies and derivatives
+    e = 0d0
+    do i = 1, caux%ncel
+       iz = caux%at(caux%atcel(i)%idx)%z
+       if (iz < 1) cycle
+       x0 = caux%x2c(caux%atcel(i)%x + lvec(:,i,i1))
+       alpha1 = alpha(i,i1)
+       ml1 = mm(:,i,i1)
+
+       do jj = 1, caux%nenv
+          j = caux%atenv(jj)%cidx
+          iz = caux%at(caux%atenv(jj)%idx)%z
+          if (iz < 1) cycle
+
+          xij = caux%atenv(jj)%r - x0
+          d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
+          if (d2 < 1d-15 .or. d2>rmax2) cycle
+          d = sqrt(d2)
+
+          if (all(caux%atenv(jj)%lenv == lvec(:,j,i1))) then
+             alpha0 = alpha(j,i1)
+             ml0 = mm(:,j,i1)
+          else
+             alpha0 = alpha(j,i0)
+             ml0 = mm(:,j,i0)
+          end if
+
+          c6 = alpha1*alpha0*ml1(1)*ml0(1) / (ml1(1)*alpha0 + ml0(1)*alpha1)
+          c8 = 3d0/2d0 * (alpha1*alpha0*(ml1(1)*ml0(2)+ml1(2)*ml0(1))) /&
+             (ml1(1)*alpha0+ml0(1)*alpha1)
+          c10 = 2 * alpha1*alpha0 * (ml1(1)*ml0(3) + ml1(3)*ml0(1)) /&
+             (ml1(1)*alpha0 + ml0(1)*alpha1) + 21d0/5d0 * alpha1*alpha0*&
+             ml1(2)*ml0(2) / (alpha0*ml1(1)+alpha1*ml0(1))
+        
+          rc = (sqrt(c8/c6) + sqrt(c10/c8) + (c10/c6)**(0.25d0)) / 3
+          rvdw = a1 * rc + a2
+
+          e = e - c6 / (rvdw**6 + d**6) - c8 / (rvdw**8 + d**8) - c10 / (rvdw**10 + d**10)
+       end do
+    end do
+    calc_edisp_from_mv = 0.5d0 * e
+    deallocate(alpha)
+
+  end function calc_edisp_from_mv
 
   !> Calculate and the coefficients and van der Waals radii using the
   !> volumes and moments (v, mm) and the damping function parameters
