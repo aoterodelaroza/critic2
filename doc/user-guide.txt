@@ -2283,7 +2283,8 @@ aiPI ion files (ion)
 
 For aiPI inputs, several ion files are necessary. The ion files can be
 associated to atoms either by using their non-equivalent atom number
-(nat1.i) or their atomic symbol (at1.s). 
+(nat1.i) or the same atomic name as used in the crystal structure
+specification (at1.s). 
 
 DFTB+ files (xml file and others)
 +++++++++++++++++++++++++++++++++

@@ -32,7 +32,7 @@ module fieldseedmod
      character*255 :: errmsg = "" !< Error message
      integer :: nfile = 0 !< Number of external files provided
      character*255, allocatable :: file(:) !< External scalar field file names
-     integer, allocatable :: piat(:) !< pi atomic numbers (>0 = Z, <0 = cell atomic number)
+     character*10, allocatable :: piat(:) !< pi atomic symbols
      integer :: n(3) !< grid size for load as
      integer :: clm1, clm2 !< clm fields for add and sub
      character*255 :: ids = "" !< sizeof for load as promolecular/core; id.s for lap/grad; id1.s in clm
@@ -306,17 +306,7 @@ contains
              end if
           end if
           if (savemid) then
-             word = getword(line,lp)
-             if (isinteger(ival,word)) then
-                f%piat(i) = -abs(ival)
-             else
-                f%piat(i) = zatguess(word)
-                if (f%piat(i) < 0) then
-                   call f%end()
-                   f%errmsg = "PI load - unknown atomic symbol: " // trim(word)
-                   return
-                end if
-             end if
+             f%piat(i) = getword(line,lp)
           end if
           if (i < nfile) &
              call read_next_as_file()

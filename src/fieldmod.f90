@@ -338,6 +338,7 @@ contains
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
+    use tools_io, only: equal, isinteger
     use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
        ifformat_cube, ifformat_abinit, ifformat_vasp, ifformat_vaspchg, ifformat_qub,&
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb, ifformat_chk,&
@@ -389,10 +390,10 @@ contains
     end interface
 
     character(len=:), allocatable :: ofile
-    integer :: i, j, k, iz, n(3)
+    integer :: i, j, k, iz, n(3), ithis
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
-    logical :: iok
+    logical :: iok, found
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -443,22 +444,26 @@ contains
     elseif (seed%iff == ifformat_pi) then
        call f%pi%end()
        do i = 1, seed%nfile
-          if (seed%piat(i) > 0) then
-             iz = seed%piat(i)
-          else
-             iz = abs(seed%piat(i))
-             if (iz < 1 .or. iz > c%nneq) then
-                errmsg = "invalid non-equivalent atom number in pi load"
-                call f%end()
-                return
-             end if
-             iz = f%c%at(iz)%z
-          endif
-          do j = 1, f%c%nneq
-             if (iz == f%c%at(j)%z) &
+          iok = isinteger(ithis,seed%piat(i))
+          found = .false.
+          do j = 1, c%nneq
+             if (equal(seed%piat(i),c%at(j)%name)) then
                 call f%pi%read_ion(seed%file(i),j)
+                found = .true.
+             else if (iok) then
+                if (ithis == j) then
+                   call f%pi%read_ion(seed%file(i),j)
+                   found = .true.
+                end if
+             end if
           end do
+          if (.not.found) then
+             errmsg = "unknown atom for pi ion file: " // trim(seed%file(i))
+             call f%end()
+             return
+          end if
        end do
+
        call f%pi%register_struct(f%c%nenv,f%c%at,f%c%atenv(1:f%c%nenv))
        call f%pi%fillinterpol()
        f%type = type_pi
@@ -1363,7 +1368,8 @@ contains
   !> show flags for this field.
   subroutine printinfo(f,isload,isset)
     use global, only: dunit0, iunit, iunitname0
-    use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess
+    use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
+       ioj_right
     use param, only: maxzat0
     class(field), intent(in) :: f
     logical, intent(in) :: isload
@@ -1432,6 +1438,20 @@ contains
        if (isset) then
           write (uout,'("  Exact calculation? ",L)') f%exact
        end if
+       write (uout,'("  List of atoms and associated ion files")')
+       do i = 1, f%c%nneq
+          if (f%pi%pi_used(i)) then
+             str = f%pi%piname(i)
+          else
+             str = "<not used>"
+          end if
+          write (uout,'(99(2X,A))') &
+             string(i,length=3,justify=ioj_right), &
+             string(f%c%at(i)%name,length=5,justify=ioj_center), &
+             string(f%c%at(i)%z,length=2,justify=ioj_right), &
+             trim(str)
+       end do
+       
     elseif (f%type == type_wfn) then
        if (isload) then
           write (uout,'("  Number of MOs: ",A)') string(f%wfn%nmo)
