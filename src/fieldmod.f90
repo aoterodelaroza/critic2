@@ -1439,6 +1439,7 @@ contains
           write (uout,'("  Exact calculation? ",L)') f%exact
        end if
        write (uout,'("  List of atoms and associated ion files")')
+       write (uout,'("# nat  name    Z  ion file")')
        do i = 1, f%c%nneq
           if (f%pi%pi_used(i)) then
              str = f%pi%piname(i)
