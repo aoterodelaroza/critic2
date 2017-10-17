@@ -629,7 +629,7 @@ program critic
   enddo
 
   call grid1_clean_grids()
-  call systemmod_end()
+  ! call systemmod_end() ! older ifort compilers have trouble deallocating sy
 
   if (.not.quiet) then
      write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
