@@ -150,7 +150,7 @@ In summary: **Only recent versions of gfortran and intel fortran are
 guaranteed to work with the development version. If you can not use
 gfortran 6 or newer or ifort 16.x or newer, download the stable
 version.** I do not think this is because of errors in the critic2
-code (though if you that it is, please let me know).
+code (though if you find that it is, please let me know).
 
 If a recent compiler is not available, an alternative is to compile
 the program elsewhere with the static linking option:
