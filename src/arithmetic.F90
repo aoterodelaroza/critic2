@@ -1399,8 +1399,8 @@ contains
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0
   
-    ! some common constant
-    real*8 :: ctf = 3d0/10d0 * (3d0*pi**2)**(2d0/3d0) ! Thomas-Fermi k.e.d. constant
+    ! a constant
+    real*8 :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
   
     q = 0d0
     select case(c)

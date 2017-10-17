@@ -4171,7 +4171,7 @@ contains
   end subroutine ortho
 
   subroutine sgerrs (sgp, ierr, lpt)
-      character*(30)    sgp
+      character*(*)     sgp
       integer           ierr, lpt
 
       integer           ier

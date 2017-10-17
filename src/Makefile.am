@@ -2,7 +2,7 @@
 dist_bin_SCRIPTS = 
 bin_PROGRAMS = critic2
 critic2_SOURCES = critic2.F90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
-	spglib.f90 keast.f90 param.F90 tools_io.f90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
+	spglib.f90 keast.f90 param.F90 tools_io.F90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
 	fragmentmod.f90 grid1mod.f90 arithmetic.F90 global.f90 tools_math.f90 sympg.f90 grid3mod.f90 \
 	elk_private.f90 wien_private.f90 pi_private.f90 wfn_private.f90 dftb_private.f90 \
 	fieldmod.f90 surface.f90 graphics.f90 crystalseedmod.f90 crystalmod.F90 doqhull.c meshmod.f90\
@@ -15,7 +15,7 @@ if GUI
   noinst_LIBRARIES=libcritic2.a
   libcritic2_a_SOURCES = gui_interface.f90 gui_gl.f90 gui_glu.f90 gui_glfw.f90\
 	c_interface_module.f90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
-	spglib.f90 keast.f90 param.F90 tools_io.f90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
+	spglib.f90 keast.f90 param.F90 tools_io.F90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
 	fragmentmod.f90 grid1mod.f90 arithmetic.F90 global.f90 tools_math.f90 sympg.f90 grid3mod.f90 \
 	elk_private.f90 wien_private.f90 pi_private.f90 wfn_private.f90 dftb_private.f90 \
 	fieldmod.f90 surface.f90 graphics.f90 crystalseedmod.f90 crystalmod.F90 doqhull.c meshmod.f90\
