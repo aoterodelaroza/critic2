@@ -5,21 +5,20 @@ Critic2 is a program for the manipulation and analysis of structures
 and chemical information in molecules and periodic solids. Critic2 can
 be used to read and transform between file formats, and to perform
 operations on molecular and crystal structures. In addition, critic2
-can read multiple scalar fields, three-dimensional functions that take
-a value at each point in space, such as the density, the spin density,
-the ELF, etc. This program provides tools to analyze and manipulate
-the information in these fields. An important part of critic2 is the
-topological anaylisis of real-space scalar fields, which includes the
-implementation of Bader's atoms in molecules theory: critical point
-search, basin integration, basin plotting, etc. Other related
-techniques, such as non-covalent interaction plots (NCIplots), are
-also implemented. Although the electron density is the usual field
-critic2 works with, any other field (ELF, molecular electrostatic
-potential,...) can be analyzed using the same techniques. Hence, it is
-possible to compute, for instance, the charges inside the basins of
-ELF, or the gradient paths of the molecular electrostatic
-potential. New scalar fields can be computed using critic2's powerful
-arithmetic expressions.
+can read, analyze, and manipulate multiple scalar fields,
+three-dimensional functions that take a value at each point in space,
+such as the electron density, the spin density, the ELF, etc. An
+important part of critic2 is the topological anaylisis of real-space
+scalar fields, which includes the implementation of Bader's atoms in
+molecules theory: critical point search, basin integration, basin
+plotting, etc. Other related techniques, such as non-covalent
+interaction plots (NCIplots), are also implemented. Although the
+electron density is the usual field critic2 works with, any other
+field (ELF, molecular electrostatic potential,...) can be analyzed
+using the same techniques. Hence, it is possible to compute, for
+instance, the charges inside the basins of ELF, or the gradient paths
+of the molecular electrostatic potential. New scalar fields can be
+computed using critic2's powerful arithmetic expressions.
 
 Critic2 is designed to provide an abstraction layer on top of the
 underlying electronic structure calculation. Different electronic
@@ -117,27 +116,41 @@ also compile the stable code. To download the stable version, click on
 the **release** tag above.
 
 The development version can be compiled with gfortran-6 and
-later. Most other compilers will not produce sane code, however. The
-specific issues are:
+later. Most other compilers have issues. This is the list of compilers
+tested:
 
-* gfortran 4.8: allocatable components in user-defined types not
-  supported. 
+* gfortran 4.8: critic2 can not be compiled with this version because
+  allocatable components in user-defined types are not supported.
 * gfortran 4.9 through 5.4 (and possibly older and newer gfortran-5):
-  errors allocating and deallocating the global field array (sy%f).
-* ifort 12.1: catastrophic internal compiler error. 
-* Newer ifort versions (ifort-14.0.2.144, ifort-15.0.5.233, and
-  ifort-15.2): the compilation succeeds, but inexplicable errors
-  happen at runtime when the global field array is deallocated in the
-  system_end subroutine (similar to gfortran 4.9 to 5.4). The run may
-  also hang if the field array is reallocated (move_alloc bug?).
-* Other compilers: missing Fortran 95 and 2003 features here and
-  there. 
+  the code compiles correctly but there are errors allocating and
+  deallocating the global field array (sy%f) and other complex
+  user-defined types. The program is usable, but problems will arise
+  if more than one crystal structure or more than 10 scalar fields are
+  loaded.
+* gfortran 6.x and gfortran 7.x: no errors.
+* ifort 12.1: catastrophic internal compiler error of unknown origin. 
+* ifort-14.0.2.144, ifort-15.0.5.233, and ifort-15.2: the compilation
+  succeeds, but inexplicable errors happen at runtime when the global
+  field array is deallocated in the system_end subroutine. The run may
+  also hang if the field array is reallocated (move_alloc
+  bug?). Similarly to early versions of gfortran, the program is
+  usable, but errors will occur if several crystal structures are
+  loaded.
+* ifort 16.0.4 and ifort 17.0.1: they gives less problems than earlier
+  versions of ifort but occasional errors still occur when loading and
+  unloading very many crystal structures in sequence. For ifort
+  17.0.1, the trispline interpolation in grids does not work.
+* Portland Group Fortran compiler (pgfortran), vresion 17.3. There are
+  two important compiler problems: i) passing subroutines and
+  functions whose interface includes multidimensional arrays as
+  arguments or function results does not work, and ii) internal
+  compiler error when compiling meshmod.f90.
 
-In summary: **Only recent versions of gfortran are guaranteed to work
-with the development version. If you can not use gfortran 6 or newer,
-download the stable version.** I do not think this is because of
-errors in the critic2 code (though if you do find the reason, please
-let me know).
+In summary: **Only recent versions of gfortran and intel fortran are
+guaranteed to work with the development version. If you can not use
+gfortran 6 or newer or ifort 16.x or newer, download the stable
+version.** I do not think this is because of errors in the critic2
+code (though if you that it is, please let me know).
 
 If a recent compiler is not available, an alternative is to compile
 the program elsewhere with the static linking option:
