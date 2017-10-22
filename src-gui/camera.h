@@ -53,10 +53,6 @@ class Camera
 {
 public:
   Camera(float scenerad){
-    m_scale[0] = 1.f; m_scale[1] = 1.f, m_scale[2] = 1.f;
-    m_pos[0] = 0.f; m_pos[1] = 0.f, m_pos[2] = 0.f;
-    m_rotate[0] = 0.f; m_rotate[1] = 0.f, m_rotate[2] = 0.f;
-    m_post_rotate[0] = 0.f; m_post_rotate[1] = 0.f, m_post_rotate[2] = 0.f;
     m_scenerad = scenerad;
     SetCamera(0.f,0.f,-4.0f*scenerad, 0.f,0.f,1.f, 0.f,1.f,0.f);
     pers_FOV = zfov;
@@ -64,14 +60,8 @@ public:
     pers_Height = FBO_tex_y;
     pers_zNear = znear;
     pers_zFar = zfar;
-  }
-
-  void Scale(float x, float y, float z){
-    m_scale[0] = x; m_scale[1] = y; m_scale[2] = z;
-  }
-
-  void Translate(float x, float y, float z){
-    m_pos[0] = x; m_pos[1] = y; m_pos[2] = z;
+    UpdateProjection();
+    UpdateView();
   }
 
   void SetCamera(float Pos[3], float Target[3], float Up[3]){
@@ -99,20 +89,16 @@ public:
     ortho_zFar = f;
   }
 
-  const mat4 * GetProjTrans();
-  const mat4 * GetViewTrans();
-  const mat4 * GetWorldTrans();
+  void UpdateProjection();
+  void UpdateView();
 
   void ProcessMouseEvents(MouseState *mstate);
 
+  mat4 m_projection;
+  mat4 m_view;
+  mat4 m_world;
 private:
   float m_scenerad;
-  float m_scale[3];
-  float m_pos[3];
-  float m_rotate[3];
-  mat4 m_rotate_trans;
-  float m_post_rotate[3];
-  mat4 m_post_rotate_trans;
 
   vec2 mpos0;
   vec2 cpos0;
@@ -133,10 +119,6 @@ private:
   float m_camera_pos[3];
   float m_camera_target[3];
   float m_camera_up[3];
-
-  mat4 m_ProjTransformation;
-  mat4 m_Vtransformation;
-  mat4 m_Wtransformation;
 };
 
 #endif

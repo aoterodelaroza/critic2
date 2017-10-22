@@ -163,13 +163,16 @@ int main(int argc, char *argv[]){
       
       glBindVertexArray(sphereVAO[0]);
 
+      glUniformMatrix4fv(glGetUniformLocation(shader.id, "world"), 1, GL_TRUE, value_ptr(p.m_world));
+      glUniformMatrix4fv(glGetUniformLocation(shader.id, "view"), 1, GL_TRUE, value_ptr(p.m_view));
+      glUniformMatrix4fv(glGetUniformLocation(shader.id, "projection"), 1, GL_TRUE, value_ptr(p.m_projection));
       for (int i=0;i<c2::nat;i++){
-      	p.Scale(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad);
-      	p.Translate(-c2::at[i].r[0],-c2::at[i].r[1],-c2::at[i].r[2]);
+	mat4 m_model;
+	m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
+	m_model = translate(m_model,vec3(-c2::at[i].r[0],-c2::at[i].r[1],-c2::at[i].r[2]));
+
 	glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
-      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_TRUE, (const GLfloat *)p.GetWorldTrans());
-      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "view"), 1, GL_TRUE, (const GLfloat *)p.GetViewTrans());
-      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "projection"), 1, GL_TRUE, (const GLfloat *)p.GetProjTrans());
+      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_TRUE, value_ptr(m_model));
        	glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
       }
 

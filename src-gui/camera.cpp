@@ -48,6 +48,7 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
   if (abs(mstate->scroll) > 1e-5){
     m_camera_pos[2] += mstate->scroll * mousesens_zoom * m_scenerad;
     m_camera_pos[2] = fmin(m_camera_pos[2],-znear);
+    UpdateView();
   }
 
   // drag
@@ -58,12 +59,13 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
     vec2 dx = mstate->pos - mpos0;
     m_camera_pos[0] = cpos0.x + mousesens_pan * m_scenerad * dx.x;
     m_camera_pos[1] = cpos0.y - mousesens_pan * m_scenerad * dx.y;
+    UpdateView();
   }
 
   // rotate
   if (mstate->lclick){ 
     mpos0 = mstate->pos;
-    rot0 = m_post_rotate_trans;
+    rot0 = m_world;
   } else if (mstate->ldrag) {
     vec3 curRotAxis = vec3((float)(mpos0.x-mstate->pos.x), (float)(mstate->pos.y-mpos0.y), 0.f);
     curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
@@ -71,36 +73,20 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
     curRotAxis = normalize(curRotAxis);
  
     mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
-    m_post_rotate_trans = curRot * rot0;
+    m_world = curRot * rot0;
   }
 }
 
-const mat4 * Camera::GetProjTrans(){
+void Camera::UpdateProjection(){
 
-  m_ProjTransformation = infinitePerspective(pers_FOV,pers_Width/pers_Height,pers_zNear);
-  // m_ProjTransformation = ortho(-10.f,10.f,-10.f,10.f,0.1f,1000.f);
-
-  return &m_ProjTransformation;
+  m_projection = infinitePerspective(pers_FOV,pers_Width/pers_Height,pers_zNear);
+  // m_projection = ortho(-10.f,10.f,-10.f,10.f,0.1f,1000.f);
 }
 
-const mat4 * Camera::GetViewTrans(){
+void Camera::UpdateView(){
   vec3 pos = vec3(m_camera_pos[0],m_camera_pos[1],m_camera_pos[2]);
   vec3 target = pos + vec3(m_camera_target[0],m_camera_target[1],m_camera_target[2]);
   vec3 up = vec3(m_camera_up[0],m_camera_up[1],m_camera_up[2]);
 
-  m_Vtransformation = lookAt(pos,target,up);
-
-  return &m_Vtransformation;
-}
-
-const mat4 * Camera::GetWorldTrans(){
-  mat4 scale_;
-  scale_ = scale(scale_,vec3(m_scale[0],m_scale[1],m_scale[2]));
-
-  mat4 translate_;
-  translate_ = translate(translate_,vec3(m_pos[0],m_pos[1],m_pos[2]));
-
-  m_Wtransformation = m_post_rotate_trans * translate_ * m_rotate_trans * scale_;
-
-  return &m_Wtransformation;
+  m_view = lookAt(pos,target,up);
 }
