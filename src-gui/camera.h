@@ -54,7 +54,7 @@ class Camera
 public:
   Camera(float scenerad){
     m_scenerad = scenerad;
-    SetCamera(0.f,0.f,-4.0f*scenerad, 0.f,0.f,1.f, 0.f,1.f,0.f);
+    SetCamera(0.f,0.f,-4.0f*scenerad, 0.f,0.f,1.f, 1.f,0.f,0.f);
     pers_FOV = zfov;
     pers_Width = FBO_tex_x;
     pers_Height = FBO_tex_y;

@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   // Set up window
-  GLFWwindow* rootwin = glfwCreateWindow(1280, 720, "gcritic2", nullptr, nullptr);
+  GLFWwindow* rootwin = glfwCreateWindow(850, 720, "gcritic2", nullptr, nullptr);
   assert(rootwin!=nullptr);
   glfwMakeContextCurrent(rootwin);
   gl3wInit();
@@ -163,11 +163,10 @@ int main(int argc, char *argv[]){
       
       glBindVertexArray(sphereVAO[0]);
 
-      // projection * view * world * model
       glUniformMatrix4fv(glGetUniformLocation(shader.id, "wvp"), 1, GL_FALSE, value_ptr(p.m_wvp));
       for (int i=0;i<c2::nat;i++){
 	mat4 m_model;
-	m_model = translate(m_model,vec3(-c2::at[i].r[0],-c2::at[i].r[1],-c2::at[i].r[2]));
+	m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
 	m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
 
 	glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
@@ -180,20 +179,18 @@ int main(int argc, char *argv[]){
 	p.ProcessMouseEvents(&mstate);
       }
 
-      // glm::vec4 vndc = {mstate.ndpos.x,mstate.ndpos.y,0.f,1.f};
+      glm::vec4 vndc = {mstate.ndpos.x,mstate.ndpos.y,0.f,1.f};
 
-      // float rgb[3] = {0.f,1.f,0.f};
-      // glm::vec4 vndc = {22.f,22.0f,0.f,1.f};
-      // mat4 m_model;
-      // m_model = translate(m_model,vec3(-vndc.x,-vndc.y,-vndc.z));
-      // glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)rgb);
-      // glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, value_ptr(m_model));
-      // glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
+      vndc = {0.f,0.0f,0.f,1.f};
+      float rgb[3] = {0.f,1.f,0.f};
+      mat4 m_model;
+      m_model = translate(m_model,vec3(vndc.x,vndc.y,vndc.z));
+      glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)rgb);
+      glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, value_ptr(m_model));
+      glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
+      glm::vec4 outpos = p.m_wvp * m_model * vndc;
 
-      // vndc = {22.f,22.0f,0.f,1.f};
-      // glm::vec4 outpos = p.m_wvp * vndc;
-
-      // printf("out: %f %f %f %f\n",outpos.x/outpos.w,outpos.y/outpos.w,outpos.z/outpos.w,1.0f);
+      printf("out: %f %f %f\n",outpos.x/outpos.w,outpos.y/outpos.w,outpos.z/outpos.w);
 
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }

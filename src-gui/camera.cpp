@@ -55,11 +55,11 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
   // drag
   if (mstate->rclick){ 
     mpos0 = mstate->pos;
-    cpos0 = {m_camera_pos[0],m_camera_pos[1]};
+    cpos0 = {m_camera_pos[1],m_camera_pos[0]};
   } else if (mstate->rdrag){
     vec2 dx = mstate->pos - mpos0;
-    m_camera_pos[0] = cpos0.x + mousesens_pan * m_scenerad * dx.x;
-    m_camera_pos[1] = cpos0.y - mousesens_pan * m_scenerad * dx.y;
+    m_camera_pos[0] = cpos0.y + mousesens_pan * m_scenerad * dx.y;
+    m_camera_pos[1] = cpos0.x - mousesens_pan * m_scenerad * dx.x;
     UpdateView();
     UpdateWVP();
   }
@@ -69,7 +69,7 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
     mpos0 = mstate->pos;
     rot0 = m_world;
   } else if (mstate->ldrag) {
-    vec3 curRotAxis = vec3((float)(mpos0.x-mstate->pos.x), (float)(mstate->pos.y-mpos0.y), 0.f);
+    vec3 curRotAxis = vec3((float)(mpos0.y-mstate->pos.y), (float)(mstate->pos.x-mpos0.x), 0.f);
     curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
     float curRotAng = length(curRotAxis) * mousesens_rot * m_scenerad;
     curRotAxis = normalize(curRotAxis);
