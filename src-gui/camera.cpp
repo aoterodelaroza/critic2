@@ -49,6 +49,7 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
     m_camera_pos[2] += mstate->scroll * mousesens_zoom * m_scenerad;
     m_camera_pos[2] = fmin(m_camera_pos[2],-znear);
     UpdateView();
+    UpdateWVP();
   }
 
   // drag
@@ -60,6 +61,7 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
     m_camera_pos[0] = cpos0.x + mousesens_pan * m_scenerad * dx.x;
     m_camera_pos[1] = cpos0.y - mousesens_pan * m_scenerad * dx.y;
     UpdateView();
+    UpdateWVP();
   }
 
   // rotate
@@ -74,6 +76,7 @@ void Camera::ProcessMouseEvents(MouseState *mstate){
  
     mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
     m_world = curRot * rot0;
+    UpdateWVP();
   }
 }
 
@@ -89,4 +92,8 @@ void Camera::UpdateView(){
   vec3 up = vec3(m_camera_up[0],m_camera_up[1],m_camera_up[2]);
 
   m_view = lookAt(pos,target,up);
+}
+
+void Camera::UpdateWVP(){
+  m_wvp = m_projection * m_view * m_world;
 }

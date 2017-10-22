@@ -62,6 +62,7 @@ public:
     pers_zFar = zfar;
     UpdateProjection();
     UpdateView();
+    UpdateWVP();
   }
 
   void SetCamera(float Pos[3], float Target[3], float Up[3]){
@@ -91,12 +92,14 @@ public:
 
   void UpdateProjection();
   void UpdateView();
+  void UpdateWVP();
 
   void ProcessMouseEvents(MouseState *mstate);
 
   mat4 m_projection;
   mat4 m_view;
   mat4 m_world;
+  mat4 m_wvp;
 private:
   float m_scenerad;
 

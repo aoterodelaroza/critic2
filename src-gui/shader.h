@@ -20,12 +20,10 @@ public:
     const char *vs = 
       "#version 330 core\n"
       "uniform mat4 model; \n"
-      "uniform mat4 world; \n"
-      "uniform mat4 view; \n"
-      "uniform mat4 projection; \n"
+      "uniform mat4 wvp; \n"
       "layout (location = 0) in vec3 inPosition; \n"
       "void main() { \n"
-      "  gl_Position = vec4(inPosition, 1.0) * model * world * view * projection; \n"
+      "  gl_Position = wvp * model * vec4(inPosition, 1.0); \n"
       "}";    
 
     const char *fs = 
