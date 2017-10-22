@@ -27,8 +27,6 @@ public:
       "  gl_Position = vec4(inPosition, 1.0) * model * view * projection; \n"
       "}";    
 
-//      "gl_Position = gWVP * vec4(inPosition, 1.0); \n"
-	
     const char *fs = 
       "#version 330 core\n"
       "uniform vec4 vColor; \n"

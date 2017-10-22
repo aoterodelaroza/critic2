@@ -20,5 +20,6 @@ struct MouseState
   bool ldclick = false;
   float scroll = 0.f;
   glm::vec2 pos = {0.f,0.f};
+  glm::vec2 ndpos = {0.f,0.f};
 };
 #endif

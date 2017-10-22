@@ -236,22 +236,30 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
 
   float x = win->Size.x;
   float y = win->Size.y - win->TitleBarHeight();
-  float rx = 0.5f * x/fmax(x,y);
-  float ry = 0.5f * y/fmax(x,y);
-  float ul = 0.5f - rx, uu = 0.5f - ry, ur = 0.5f + rx, ud = 0.5f + ry;
+  float rx = 0.5f * (1.f - x/fmax(x,y));
+  float ry = 0.5f * (1.f - y/fmax(x,y));
 
   ImGuiContext* g = GetCurrentContext();
   bool held;
   bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
-  win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(ul, uu),ImVec2(ur, ud));
+  win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(rx, ry),ImVec2(1.f - rx, 1.f - ry));
   mstate->lclick = IsItemActive() && IsMouseClicked(0);
   mstate->mclick = mstate->hover && IsMouseClicked(2);
   mstate->rclick = mstate->hover && IsMouseClicked(1);
   mstate->ldclick = IsItemActive() && IsMouseDoubleClicked(0);
   mstate->ldrag = IsItemActive() && IsMouseDragging(0);
   mstate->rdrag = mstate->hover && IsMouseDragging(1);
-  mstate->scroll = g->IO.MouseWheel;
-  mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
-
+  printf("rx/ry: %f %f\n",rx,ry);
+  if (mstate->hover){
+    mstate->scroll = g->IO.MouseWheel;
+    mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
+    // calculate mouse position in normalized device coordinates, bl: (-1,-1) ur: (+1,+1)
+    mstate->ndpos.x = (2.f * (mstate->pos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 1.f) * (1.f - 2.f * rx);
+    mstate->ndpos.y = (1.f - 2.f * (mstate->pos.y - bb.Min.y) / (bb.Max.y - bb.Min.y)) * (1.f - 2.f * ry);
+  } else {
+    mstate->scroll = 0.f;
+    mstate->pos = {0.f,0.f};
+    mstate->ndpos = {0.f,0.f};
+  }
   return true;
 }
