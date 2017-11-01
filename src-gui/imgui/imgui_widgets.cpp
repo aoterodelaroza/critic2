@@ -248,6 +248,7 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   mstate->rclick = mstate->hover && IsMouseClicked(1);
   mstate->ldclick = IsItemActive() && IsMouseDoubleClicked(0);
   mstate->ldrag = IsItemActive() && IsMouseDragging(0);
+  mstate->ldown = IsItemActive() && g->IO.MouseDown[0];
   mstate->rdrag = mstate->hover && IsMouseDragging(1);
   if (mstate->hover){
     mstate->scroll = g->IO.MouseWheel;

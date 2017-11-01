@@ -34,6 +34,7 @@
 #include "shader.h"
 #include "shapes.h"
 #include "camera.h"
+#include "view.h"
 
 using namespace std;
 using namespace ImGui;
@@ -78,14 +79,13 @@ int main(int argc, char *argv[]){
     for(int i=1;i<argc;i++)
       argall = argall + argv[i] + " ";
     c2::open_file((const char **) &argall, -1);
-    c2::set_scene_pointers(1);
   }
-
-  // Initialize camera pipeline (ortho deactivated in camera.cpp)
-  Camera p = Camera(c2::scenerad);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
+
+  // Create the main view 
+  CreateView("Main view",&shader,1);
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
@@ -149,54 +149,8 @@ int main(int argc, char *argv[]){
       EndDock();
     }
 
-    // Main view
-    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
-    if (BeginDock("Main view",nullptr,0,Dock::DockFlags_NoLiftContainer)){
-      // set the pointers to the current scene
-      c2::set_scene_pointers(1);
-
-      glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-      glViewport(0.,0.,FBO_tex_x,FBO_tex_y);
-
-      glClearColor(0.f,0.f,0.f,1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      
-      glBindVertexArray(sphereVAO[0]);
-
-      glUniformMatrix4fv(glGetUniformLocation(shader.id, "wvp"), 1, GL_FALSE, value_ptr(p.m_wvp));
-      for (int i=0;i<c2::nat;i++){
-	mat4 m_model;
-	m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
-	m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
-
-	glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
-      	glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, value_ptr(m_model));
-       	glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
-      }
-
-      MouseState mstate;
-      if (ImageInteractive((void *) FBOtex,&mstate) && mstate.hover){
-	p.ProcessMouseEvents(&mstate);
-      }
-
-      glm::vec4 vndc = {mstate.ndpos.x,mstate.ndpos.y,0.f,1.f};
-
-      vndc = {0.f,0.0f,0.f,1.f};
-      float rgb[3] = {0.f,1.f,0.f};
-      mat4 m_model;
-      m_model = translate(m_model,vec3(vndc.x,vndc.y,vndc.z));
-      glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)rgb);
-      glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, value_ptr(m_model));
-      glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
-      glm::vec4 outpos = p.m_wvp * m_model * vndc;
-
-      printf("out: %f %f %f\n",outpos.x/outpos.w,outpos.y/outpos.w,outpos.z/outpos.w);
-
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-    dviewdock = GetCurrentDock();
-    EndDock();
-    PopStyleVar();
+    // Draw all views
+    DrawAllViews();
 
     if (show_styledock){
       if (BeginDock("Style Editor",&show_styledock))
@@ -211,7 +165,6 @@ int main(int argc, char *argv[]){
       first = false;
       droot->newDockRoot(dviewcont,-1);
       dviewcont->newDock(dstyledock);
-      dviewcont->newDock(dviewdock);
 
       Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
       dviewcont->setSlidingBarPosition(4,0.2f);
@@ -219,7 +172,6 @@ int main(int argc, char *argv[]){
       dtmp->newDockRoot(dinfodock,3);
       dtmp->setSlidingBarPosition(3,0.7f);
 
-      dviewdock->setDetachedDockSize(300.f,300.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
       dinfodock->setDetachedDockSize(300.f,300.f);
       dstyledock->setDetachedDockSize(300.f,300.f);

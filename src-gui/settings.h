@@ -9,6 +9,12 @@
 const float FBO_tex_x = 1024.f;
 const float FBO_tex_y = 1024.f;
 
+// Background color for views
+const float bgrgb[4] = {0.0f,0.0f,0.0f,1.0f};
+
+// atom & bond resolution
+const int isphres = 0;
+
 // Mouse constants
 const float mousesens_pan = 0.005f; // Mouse pan sensitivity
 const float mousesens_rot = 0.001f; // Mouse rotate sensitivity

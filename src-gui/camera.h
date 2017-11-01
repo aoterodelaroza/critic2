@@ -65,20 +65,35 @@ public:
     UpdateWVP();
   }
 
+  Camera(){
+    pers_FOV = zfov;
+    pers_Width = FBO_tex_x;
+    pers_Height = FBO_tex_y;
+    pers_zNear = znear;
+    pers_zFar = zfar;
+  }
+
+  void SetSceneRad(float scenerad){
+    m_scenerad = scenerad;
+    SetCamera(0.f,0.f,-4.0f*scenerad, 0.f,0.f,1.f, 1.f,0.f,0.f);
+  }
+
   void SetCamera(float Pos[3], float Target[3], float Up[3]){
     memcpy(&m_camera_pos, Pos, sizeof(float)*3);
     memcpy(&m_camera_target, Target, sizeof(float)*3);
     memcpy(&m_camera_up, Up, sizeof(float)*3);
+    UpdateProjection();
+    UpdateView();
+    UpdateWVP();
   }
 
   void SetCamera(float px,float py,float pz,float tx,float ty,float tz,float ux,float uy,float uz){
     m_camera_pos[0] = px; m_camera_pos[1] = py; m_camera_pos[2] = pz;
     m_camera_target[0] = tx; m_camera_target[1] = ty; m_camera_target[2] = tz;
     m_camera_up[0] = ux; m_camera_up[1] = uy; m_camera_up[2] = uz;
-  }
-
-  void SetScenerad(float scenerad){
-    m_scenerad = scenerad;
+    UpdateProjection();
+    UpdateView();
+    UpdateWVP();
   }
 
   void SetOrthoProjInfo(float l, float r, float b, float t, float n, float f){
@@ -100,6 +115,10 @@ public:
   mat4 m_view;
   mat4 m_world;
   mat4 m_wvp;
+
+  float m_camera_pos[3];
+  float m_camera_target[3];
+  float m_camera_up[3];
 private:
   float m_scenerad;
 
@@ -119,9 +138,6 @@ private:
   float ortho_zNear;
   float ortho_zFar;
 
-  float m_camera_pos[3];
-  float m_camera_target[3];
-  float m_camera_up[3];
 };
 
 #endif
