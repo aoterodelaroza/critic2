@@ -23,25 +23,45 @@
 #define VIEW_H
 
 #include "imgui/imgui_dock.h"
-#include "camera.h"
 #include "imgui/mouse.h"
 #include "shader.h"
 #include "imgui/gl3w.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/glm.hpp>
+
 using namespace std;
+using namespace glm;
 
 struct View
 {
+  // view methods
   void Draw();
   void Update();
   void Delete();
+  bool processMouseEvents();
 
+  // camera methods
+  void updateMProjection();
+  void updateMView();
+  void updateMWVP();
+
+  // camera matrices and vectors
+  vec3 v_pos; // position vector
+  vec3 v_front; // front vector
+  vec3 v_up; // up vector
+  mat4 m_projection; // projection
+  mat4 m_view; // view
+  mat4 m_world; // world
+  mat4 m_wvp; // projection * view * world
+
+  // assoicated objects
   GLuint FBO; // framebuffer object
   GLuint FBOtex; // framebuffer object texture
   Shader *shader; // pointer to the current shader
   char *title; // title
   int iscene; // integer identifier of the associated scene
-  Camera *cam = nullptr; // camera 
   MouseState *mstate = nullptr; // mouse
   ImGui::Dock *dock; // dock
 };

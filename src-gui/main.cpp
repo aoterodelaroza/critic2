@@ -33,7 +33,6 @@
 #include "critic2.h"
 #include "shader.h"
 #include "shapes.h"
-#include "camera.h"
 #include "view.h"
 
 using namespace std;

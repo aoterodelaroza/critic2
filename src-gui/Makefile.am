@@ -1,6 +1,6 @@
 # binary and sources
 bin_PROGRAMS = gcritic2
-gcritic2_SOURCES = main.cpp camera.cpp view.cpp shapes.cpp
+gcritic2_SOURCES = main.cpp view.cpp shapes.cpp
 
 # subdirectories
 SUBDIRS=imgui .

@@ -57,14 +57,27 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
     exit(EXIT_FAILURE);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+  // initialize the camera vectors
+  aview->v_pos    = {0.f,0.f,-10.f};
+  aview->v_front  = {0.f,0.f,1.f};
+  aview->v_up     = {1.f,0.f,0.f};
+
+  // new mouse state
+  aview->mstate = new MouseState;
+
   if (iscene > 0){
-    // initialize the camera
+    // set the camera to fit the scene size
     c2::set_scene_pointers(iscene);
-    aview->cam = new Camera();
-    aview->mstate = new MouseState;
-    aview->cam->SetSceneRad(c2::scenerad);
-    aview->Update();
+    aview->v_pos = {0.f,0.f,-4.f*c2::scenerad};
   }
+
+  // initialize the camera matrices
+  aview->updateMProjection();  
+  aview->updateMView();
+  aview->updateMWVP();
+
+  // plot the scene to the texture
+  aview->Update();
 
   // add the view to the list
   viewlist.push_back(aview);
@@ -86,12 +99,11 @@ void View::Draw(){
     // set the pointers to the current scene
     c2::set_scene_pointers(this->iscene);
 
-    // this->Update();
-
     glBindFramebuffer(GL_FRAMEBUFFER, this->FBO);
-    if (ImageInteractive((void *) this->FBOtex,this->mstate) && this->mstate->hover){
-      // p.ProcessMouseEvents(&mstate);
-    }
+    if (ImageInteractive((void *) this->FBOtex,this->mstate) && this->mstate->hover)
+      if (processMouseEvents())
+        this->Update();
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // // mouse to world coordinates
@@ -146,7 +158,7 @@ void View::Update(){
     c2::set_scene_pointers(this->iscene);
     glBindVertexArray(sphereVAO[isphres]);
 
-    glUniformMatrix4fv(glGetUniformLocation(this->shader->id, "wvp"), 1, GL_FALSE, value_ptr(this->cam->m_wvp));
+    glUniformMatrix4fv(glGetUniformLocation(this->shader->id, "wvp"), 1, GL_FALSE, value_ptr(this->m_wvp));
     for (int i=0;i<c2::nat;i++){
       mat4 m_model;
       m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
@@ -167,10 +179,67 @@ void View::Delete(){
       glDeleteFramebuffers(1, &this->FBO); 
       if (this->mstate)
 	delete this->mstate;
-      if (this->cam)
-	delete this->cam;
       viewlist.erase(it);
       break;
     }
   }
 }
+
+bool View::processMouseEvents(){
+  c2::set_scene_pointers(iscene);
+
+  bool updateview = false, updatewvp = false;
+
+  // mouse scroll = zoom
+  if (abs(mstate->scroll) > 1e-5){
+    v_pos[2] += mstate->scroll * mousesens_zoom * c2::scenerad;
+    v_pos[2] = fmin(v_pos[2],-znear);
+    updateview = true;
+    updatewvp = true;
+  }
+
+  // // drag
+  // if (mstate->rclick){ 
+  //   mpos0 = mstate->pos;
+  //   cpos0 = {m_camera_pos[1],m_camera_pos[0]};
+  // } else if (mstate->rdrag){
+  //   vec2 dx = mstate->pos - mpos0;
+  //   m_camera_pos[0] = cpos0.y + mousesens_pan * m_scenerad * dx.y;
+  //   m_camera_pos[1] = cpos0.x - mousesens_pan * m_scenerad * dx.x;
+  //   UpdateView();
+  //   UpdateWVP();
+  // }
+
+  // // rotate
+  // if (mstate->lclick){ 
+  //   mpos0 = mstate->pos;
+  //   rot0 = m_world;
+  // } else if (mstate->ldrag) {
+  //   vec3 curRotAxis = vec3((float)(mpos0.y-mstate->pos.y), (float)(mstate->pos.x-mpos0.x), 0.f);
+  //   curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
+  //   float curRotAng = length(curRotAxis) * mousesens_rot * m_scenerad;
+  //   curRotAxis = normalize(curRotAxis);
+ 
+  //   mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
+  //   m_world = curRot * rot0;
+  //   UpdateWVP();
+  // }
+
+  if (updateview)
+    updateMView();
+  if (updateview || updatewvp)
+    updateMWVP();
+
+  return updateview || updatewvp;
+}
+
+void View::updateMProjection(){
+  m_projection = infinitePerspective(zfov,FBO_tex_x/FBO_tex_y,znear);
+}
+void View::updateMView(){
+  m_view = lookAt(v_pos,v_pos+v_front,v_up);
+}
+void View::updateMWVP(){
+  m_wvp = m_projection * m_view * m_world;
+}
+
