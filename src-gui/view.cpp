@@ -187,10 +187,11 @@ void View::Delete(){
 bool View::processMouseEvents(){
   c2::set_scene_pointers(iscene);
 
+  const float eps = 1e-8;
   bool updateview = false, updatewvp = false;
 
   // mouse scroll = zoom
-  if (mstate->hover && abs(mstate->scroll) > 1e-5){
+  if (mstate->hover && abs(mstate->scroll) > eps){
     v_pos[2] += mstate->scroll * mousesens_zoom * c2::scenerad;
     v_pos[2] = fmin(v_pos[2],-znear);
     updateview = true;
@@ -202,8 +203,7 @@ bool View::processMouseEvents(){
     mpos0 = mstate->pos;
     cpos0 = {v_pos[1],v_pos[0]};
     rlock = true;
-  } 
-  if (rlock){
+  } else if (rlock){
     if (mstate->rdown){
       vec2 dx = mstate->pos - mpos0;
       v_pos[1] = cpos0.x - mousesens_pan * c2::scenerad * dx.x;
@@ -220,17 +220,19 @@ bool View::processMouseEvents(){
     mpos0 = mstate->pos;
     crot0 = m_world;
     llock = true;
-  }
-  if (llock){
+  } else if (llock) {
     if (mstate->ldown){
       vec3 curRotAxis = vec3((float)(mpos0.y-mstate->pos.y), (float)(mstate->pos.x-mpos0.x), 0.f);
-      curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
-      float curRotAng = length(curRotAxis) * mousesens_rot * c2::scenerad;
-      curRotAxis = normalize(curRotAxis);
+      float lcur = length(curRotAxis);
+      if (lcur > eps){
+	curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
+	float curRotAng = length(curRotAxis) * mousesens_rot * c2::scenerad;
+	curRotAxis = normalize(curRotAxis);
  
-      mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
-      m_world = curRot * crot0;
-      updatewvp = true;
+	mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
+	m_world = curRot * crot0;
+	updatewvp = true;
+      }
     } else { 
       llock = false;
     }
