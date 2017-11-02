@@ -1,0 +1,34 @@
+    // // mouse to world coordinates
+    // if (mstate->hover && mstate->ldown){
+    //   glm::vec4 vndc = {0.f,0.f,0.f,1.f};
+    //   vndc = cam->m_wvp * vndc;
+    //   vndc.x = mstate->ndpos.x * vndc.w;
+    //   vndc.y = mstate->ndpos.y * vndc.w;
+    //   vndc = inverse(cam->m_wvp) * vndc;
+    //   vndc /= vndc.w;
+    //   float rgb[3] = {0.f,1.f,0.f};
+    //   mat4 m_model;
+    //   m_model = translate(m_model,vec3(vndc.x,vndc.y,vndc.z));
+    //   glUniform4fv(glGetUniformLocation(shader->id, "vColor"), 1, (const GLfloat *)rgb);
+    //   glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
+    //   glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
+    // }
+    
+    // // world to mouse coordinates
+    // glm::vec4 vndc = {10.f,10.0f,10.f,1.f};
+    // printf("ball1: %f %f %f\n",vndc.x,vndc.y,vndc.z);
+    // float rgb[3] = {0.f,1.f,0.f};
+    // mat4 m_model;
+    // m_model = translate(m_model,vec3(vndc.x,vndc.y,vndc.z));
+    // glUniform4fv(glGetUniformLocation(shader.id, "vColor"), 1, (const GLfloat *)rgb);
+    // glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, value_ptr(m_model));
+    // glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
+    
+    // glm::vec4 outpos = p.m_wvp * vndc;
+    // outpos /= outpos.w;
+
+    // printf("screen1 : %f %f %f %f\n",outpos.x,outpos.y,outpos.z,outpos.w);
+
+
+  dock->setDetachedDockSize(300.f,300.f);
+  dviewcont->newDock(dviewdock);
