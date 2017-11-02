@@ -13,9 +13,11 @@ struct MouseState
 {
   bool hover   = false;
   bool lclick  = false;
-  bool ldown  = false;
+  bool ldown   = false;
   bool mclick  = false;
+  bool mdown   = false;
   bool rclick  = false;
+  bool rdown   = false;
   bool ldrag   = false;
   bool rdrag   = false;
   bool ldclick = false;

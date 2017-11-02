@@ -247,18 +247,23 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   mstate->mclick = mstate->hover && IsMouseClicked(2);
   mstate->rclick = mstate->hover && IsMouseClicked(1);
   mstate->ldclick = IsItemActive() && IsMouseDoubleClicked(0);
+
   mstate->ldrag = IsItemActive() && IsMouseDragging(0);
-  mstate->ldown = IsItemActive() && g->IO.MouseDown[0];
   mstate->rdrag = mstate->hover && IsMouseDragging(1);
+
+  mstate->ldown = g->IO.MouseDown[0];
+  mstate->rdown = g->IO.MouseDown[1];
+  mstate->mdown = g->IO.MouseDown[2];
+
+  mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
+
+  mstate->scroll = g->IO.MouseWheel;
+
   if (mstate->hover){
-    mstate->scroll = g->IO.MouseWheel;
-    mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
     // calculate mouse position in normalized device coordinates, bl: (-1,-1) ur: (+1,+1)
     mstate->ndpos.x = (2.f * (mstate->pos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 1.f) * (1.f - 2.f * rx);
     mstate->ndpos.y = (1.f - 2.f * (mstate->pos.y - bb.Min.y) / (bb.Max.y - bb.Min.y)) * (1.f - 2.f * ry);
   } else {
-    mstate->scroll = 0.f;
-    mstate->pos = {0.f,0.f};
     mstate->ndpos = {0.f,0.f};
   }
   return true;

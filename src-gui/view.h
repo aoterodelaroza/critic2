@@ -56,6 +56,13 @@ struct View
   mat4 m_world; // world
   mat4 m_wvp; // projection * view * world
 
+  // saved states
+  bool rlock = false; // rmb is dragging
+  bool llock = false; // lmb is dragging
+  vec2 mpos0; // saved mouse position
+  vec2 cpos0; // saved camera position
+  mat4 crot0; // saved camera rotation
+
   // assoicated objects
   GLuint FBO; // framebuffer object
   GLuint FBOtex; // framebuffer object texture

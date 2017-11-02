@@ -95,30 +95,31 @@ void View::Draw(){
   // xxxx //
   SetNextWindowSize(ImVec2(300.f,300.f));
   // xxxx //
-  if (BeginDock("Main view") && this->iscene > 0){
+  if (BeginDock("Main view") && iscene > 0){
     // set the pointers to the current scene
-    c2::set_scene_pointers(this->iscene);
+    c2::set_scene_pointers(iscene);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, this->FBO);
-    if (ImageInteractive((void *) this->FBOtex,this->mstate) && this->mstate->hover)
-      if (processMouseEvents())
-        this->Update();
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    ImageInteractive((void *) FBOtex,mstate);
+
+    if (processMouseEvents())
+      Update();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // // mouse to world coordinates
-    // if (this->mstate->hover && this->mstate->ldown){
+    // if (mstate->hover && mstate->ldown){
     //   glm::vec4 vndc = {0.f,0.f,0.f,1.f};
-    //   vndc = this->cam->m_wvp * vndc;
-    //   vndc.x = this->mstate->ndpos.x * vndc.w;
-    //   vndc.y = this->mstate->ndpos.y * vndc.w;
-    //   vndc = inverse(this->cam->m_wvp) * vndc;
+    //   vndc = cam->m_wvp * vndc;
+    //   vndc.x = mstate->ndpos.x * vndc.w;
+    //   vndc.y = mstate->ndpos.y * vndc.w;
+    //   vndc = inverse(cam->m_wvp) * vndc;
     //   vndc /= vndc.w;
     //   float rgb[3] = {0.f,1.f,0.f};
     //   mat4 m_model;
     //   m_model = translate(m_model,vec3(vndc.x,vndc.y,vndc.z));
-    //   glUniform4fv(glGetUniformLocation(this->shader->id, "vColor"), 1, (const GLfloat *)rgb);
-    //   glUniformMatrix4fv(glGetUniformLocation(this->shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
+    //   glUniform4fv(glGetUniformLocation(shader->id, "vColor"), 1, (const GLfloat *)rgb);
+    //   glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
     //   glDrawElements(GL_TRIANGLES, spherenel[0], GL_UNSIGNED_INT, 0);
     // }
     
@@ -137,7 +138,7 @@ void View::Draw(){
 
     // printf("screen1 : %f %f %f %f\n",outpos.x,outpos.y,outpos.z,outpos.w);
   }
-  this->dock = GetCurrentDock();
+  dock = GetCurrentDock();
   EndDock();
   PopStyleColor();
   PopStyleVar();
@@ -148,24 +149,24 @@ void View::Draw(){
 
 void View::Update(){
 
-  glBindFramebuffer(GL_FRAMEBUFFER, this->FBO);
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
   glViewport(0.,0.,FBO_tex_x,FBO_tex_y);
 
   glClearColor(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       
-  if (this->iscene > 0){
-    c2::set_scene_pointers(this->iscene);
+  if (iscene > 0){
+    c2::set_scene_pointers(iscene);
     glBindVertexArray(sphereVAO[isphres]);
 
-    glUniformMatrix4fv(glGetUniformLocation(this->shader->id, "wvp"), 1, GL_FALSE, value_ptr(this->m_wvp));
+    glUniformMatrix4fv(glGetUniformLocation(shader->id, "wvp"), 1, GL_FALSE, value_ptr(m_wvp));
     for (int i=0;i<c2::nat;i++){
       mat4 m_model;
       m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
       m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
 
-      glUniform4fv(glGetUniformLocation(this->shader->id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
-      glUniformMatrix4fv(glGetUniformLocation(this->shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
+      glUniform4fv(glGetUniformLocation(shader->id, "vColor"), 1, (const GLfloat *)c2::at[i].rgb);
+      glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
       glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
     }
   }
@@ -175,10 +176,10 @@ void View::Update(){
 void View::Delete(){
   for (auto it = viewlist.begin(); it != viewlist.end(); it++) {
     if (*it == this){
-      glDeleteTextures(1, &this->FBOtex);
-      glDeleteFramebuffers(1, &this->FBO); 
-      if (this->mstate)
-	delete this->mstate;
+      glDeleteTextures(1, &FBOtex);
+      glDeleteFramebuffers(1, &FBO); 
+      if (mstate)
+	delete mstate;
       viewlist.erase(it);
       break;
     }
@@ -191,39 +192,51 @@ bool View::processMouseEvents(){
   bool updateview = false, updatewvp = false;
 
   // mouse scroll = zoom
-  if (abs(mstate->scroll) > 1e-5){
+  if (mstate->hover && abs(mstate->scroll) > 1e-5){
     v_pos[2] += mstate->scroll * mousesens_zoom * c2::scenerad;
     v_pos[2] = fmin(v_pos[2],-znear);
     updateview = true;
     updatewvp = true;
   }
 
-  // // drag
-  // if (mstate->rclick){ 
-  //   mpos0 = mstate->pos;
-  //   cpos0 = {m_camera_pos[1],m_camera_pos[0]};
-  // } else if (mstate->rdrag){
-  //   vec2 dx = mstate->pos - mpos0;
-  //   m_camera_pos[0] = cpos0.y + mousesens_pan * m_scenerad * dx.y;
-  //   m_camera_pos[1] = cpos0.x - mousesens_pan * m_scenerad * dx.x;
-  //   UpdateView();
-  //   UpdateWVP();
-  // }
+  // drag
+  if (mstate->hover && mstate->rclick){ 
+    mpos0 = mstate->pos;
+    cpos0 = {v_pos[1],v_pos[0]};
+    rlock = true;
+  } 
+  if (rlock){
+    if (mstate->rdown){
+      vec2 dx = mstate->pos - mpos0;
+      v_pos[1] = cpos0.x - mousesens_pan * c2::scenerad * dx.x;
+      v_pos[0] = cpos0.y + mousesens_pan * c2::scenerad * dx.y;
+      updateview = true;
+      updatewvp = true;
+    } else {
+      rlock = false;
+    }
+  }
 
-  // // rotate
-  // if (mstate->lclick){ 
-  //   mpos0 = mstate->pos;
-  //   rot0 = m_world;
-  // } else if (mstate->ldrag) {
-  //   vec3 curRotAxis = vec3((float)(mpos0.y-mstate->pos.y), (float)(mstate->pos.x-mpos0.x), 0.f);
-  //   curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
-  //   float curRotAng = length(curRotAxis) * mousesens_rot * m_scenerad;
-  //   curRotAxis = normalize(curRotAxis);
+  // rotate
+  if (mstate->hover && mstate->lclick){
+    mpos0 = mstate->pos;
+    crot0 = m_world;
+    llock = true;
+  }
+  if (llock){
+    if (mstate->ldown){
+      vec3 curRotAxis = vec3((float)(mpos0.y-mstate->pos.y), (float)(mstate->pos.x-mpos0.x), 0.f);
+      curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
+      float curRotAng = length(curRotAxis) * mousesens_rot * c2::scenerad;
+      curRotAxis = normalize(curRotAxis);
  
-  //   mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
-  //   m_world = curRot * rot0;
-  //   UpdateWVP();
-  // }
+      mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
+      m_world = curRot * crot0;
+      updatewvp = true;
+    } else { 
+      llock = false;
+    }
+  }
 
   if (updateview)
     updateMView();
