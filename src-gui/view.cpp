@@ -92,9 +92,7 @@ void View::Draw(){
   ImGuiContext *g = GetCurrentContext();
   PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
-  // xxxx //
-  SetNextWindowSize(ImVec2(300.f,300.f));
-  // xxxx //
+  SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
   if (BeginDock("Main view") && iscene > 0){
     // set the pointers to the current scene
     c2::set_scene_pointers(iscene);
