@@ -2322,11 +2322,10 @@ extension, you can force this format preceding the file name with the
 WFN/WFX keyword. 
 
 A numerical field modifier can be used with molecular wavefunction
-fields to select a particular molecular orbital in the
-wavefunction. Thus, if a wfn/wfx file is loaded in field 1, then
-"$1:4" selects the value of molecular orbital number for. See
-`Arithmetic expressions, variables, and functions in critic2`_ for
-other field modifiers.
+fields to select a particular molecular orbital. Thus, if a wfn/wfx
+file is loaded in field 1, then "$1:4" selects the value of molecular
+orbital number 4. See `Arithmetic expressions, variables, and
+functions in critic2`_ for other field modifiers.
 
 Gaussian formatted checkpoint files (fchk)
 ++++++++++++++++++++++++++++++++++++++++++
