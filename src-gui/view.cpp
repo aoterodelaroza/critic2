@@ -206,7 +206,7 @@ bool View::processMouseEvents(){
 }
 
 void View::updateMProjection(){
-  m_projection = infinitePerspective(zfov,FBO_tex_x/FBO_tex_y,znear);
+  m_projection = infinitePerspective(radians(zfov),FBO_tex_x/FBO_tex_y,znear);
 }
 void View::updateMView(){
   m_view = lookAt(v_pos,v_pos+v_front,v_up);
