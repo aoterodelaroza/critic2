@@ -58,9 +58,9 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   // initialize the camera vectors
-  aview->v_pos    = {0.f,0.f,-10.f};
-  aview->v_front  = {0.f,0.f,1.f};
-  aview->v_up     = {1.f,0.f,0.f};
+  aview->v_pos    = {0.f,0.f,10.f};
+  aview->v_front  = {0.f,0.f,-1.f};
+  aview->v_up     = {0.f,1.f,0.f};
 
   // new mouse state
   aview->mstate = new MouseState;
@@ -68,7 +68,7 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   if (iscene > 0){
     // set the camera to fit the scene size
     c2::set_scene_pointers(iscene);
-    aview->v_pos = {0.f,0.f,-4.f*c2::scenerad};
+    aview->v_pos = {0.f,0.f,4.f*c2::scenerad};
   }
 
   // initialize the camera matrices
@@ -116,9 +116,10 @@ void View::Update(){
     c2::set_scene_pointers(iscene);
     glBindVertexArray(sphereVAO[isphres]);
 
+    // scene
     glUniformMatrix4fv(glGetUniformLocation(shader->id, "wvp"), 1, GL_FALSE, value_ptr(m_wvp));
     for (int i=0;i<c2::nat;i++){
-      mat4 m_model;
+      mat4 m_model = mat4(1.0f);
       m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
       m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
 
@@ -126,6 +127,30 @@ void View::Update(){
       glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
       glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
     }
+    // coordinate axes
+    mat4 m_model = mat4(1.0f);
+    vec3 rgb = vec3(1.f,0.f,0.f);
+    m_model = translate(m_model,vec3(c2::scenerad*1.2,0.f,0.f));
+    m_model = scale(m_model,vec3(1.f,1.f,1.f));
+    glUniform4fv(glGetUniformLocation(shader->id, "vColor"), 1, value_ptr(rgb));
+    glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
+    glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
+
+    m_model = mat4(1.0f);
+    rgb = vec3(0.f,1.f,0.f);
+    m_model = translate(m_model,vec3(0.f,c2::scenerad*1.2,0.f));
+    m_model = scale(m_model,vec3(1.f,1.f,1.f));
+    glUniform4fv(glGetUniformLocation(shader->id, "vColor"), 1, value_ptr(rgb));
+    glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
+    glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
+
+    m_model = mat4(1.0f);
+    rgb = vec3(0.f,0.f,1.f);
+    m_model = translate(m_model,vec3(0.f,0.f,c2::scenerad*1.2));
+    m_model = scale(m_model,vec3(1.f,1.f,1.f));
+    glUniform4fv(glGetUniformLocation(shader->id, "vColor"), 1, value_ptr(rgb));
+    glUniformMatrix4fv(glGetUniformLocation(shader->id, "model"), 1, GL_FALSE, value_ptr(m_model));
+    glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -151,8 +176,9 @@ bool View::processMouseEvents(){
 
   // mouse scroll = zoom
   if (mstate->hover && abs(mstate->scroll) > eps){
-    v_pos[2] += mstate->scroll * mousesens_zoom * c2::scenerad;
-    v_pos[2] = fmin(v_pos[2],-znear);
+    // scroll up > 0 ; scroll down < 0
+    v_pos[2] -= mstate->scroll * mousesens_zoom * c2::scenerad;
+    v_pos[2] = fmax(v_pos[2],znear);
     updateview = true;
     updatewvp = true;
   }
@@ -160,13 +186,14 @@ bool View::processMouseEvents(){
   // drag
   if (mstate->hover && mstate->rclick){ 
     mpos0 = mstate->pos;
-    cpos0 = {v_pos[1],v_pos[0]};
+    cpos0 = {v_pos[0],v_pos[1]};
     rlock = true;
   } else if (rlock){
     if (mstate->rdown){
       vec2 dx = mstate->pos - mpos0;
-      v_pos[1] = cpos0.x - mousesens_pan * c2::scenerad * dx.x;
-      v_pos[0] = cpos0.y + mousesens_pan * c2::scenerad * dx.y;
+      // mouse coordinates: top left is (0,0) and bottom right is (w,h)
+      v_pos[0] = cpos0.x - mousesens_pan * v_pos[2] * dx.x;
+      v_pos[1] = cpos0.y + mousesens_pan * v_pos[2] * dx.y;
       updateview = true;
       updatewvp = true;
     } else {
@@ -181,14 +208,14 @@ bool View::processMouseEvents(){
     llock = true;
   } else if (llock) {
     if (mstate->ldown){
-      vec3 curRotAxis = vec3((float)(mpos0.y-mstate->pos.y), (float)(mstate->pos.x-mpos0.x), 0.f);
+      vec3 curRotAxis = vec3(-mstate->pos.x+mpos0.x, mstate->pos.y-mpos0.y, 0.f);
       float lcur = length(curRotAxis);
       if (lcur > eps){
 	curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
 	float curRotAng = length(curRotAxis) * mousesens_rot * c2::scenerad;
 	curRotAxis = normalize(curRotAxis);
  
-	mat4 curRot = rotate(mat4(),curRotAng,vec3(curRotAxis.x,curRotAxis.y,curRotAxis.z));
+	mat4 curRot = rotate(mat4(1.0f),curRotAng,curRotAxis);
 	m_world = curRot * crot0;
 	updatewvp = true;
       }

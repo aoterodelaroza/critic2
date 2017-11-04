@@ -243,12 +243,12 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   bool held;
   bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
   win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(rx, 1.f - ry),ImVec2(1.f - rx, ry));
-  mstate->lclick = IsItemActive() && IsMouseClicked(0);
+  mstate->lclick = mstate->hover && IsMouseClicked(0);
   mstate->mclick = mstate->hover && IsMouseClicked(2);
   mstate->rclick = mstate->hover && IsMouseClicked(1);
-  mstate->ldclick = IsItemActive() && IsMouseDoubleClicked(0);
+  mstate->ldclick = mstate->hover && IsMouseDoubleClicked(0);
 
-  mstate->ldrag = IsItemActive() && IsMouseDragging(0);
+  mstate->ldrag = mstate->hover && IsMouseDragging(0);
   mstate->rdrag = mstate->hover && IsMouseDragging(1);
 
   mstate->ldown = g->IO.MouseDown[0];
@@ -256,7 +256,7 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   mstate->mdown = g->IO.MouseDown[2];
 
   mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
-
+  
   mstate->scroll = g->IO.MouseWheel;
 
   if (mstate->hover){
@@ -266,5 +266,4 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   } else {
     mstate->ndpos = {0.f,0.f};
   }
-  return true;
 }
