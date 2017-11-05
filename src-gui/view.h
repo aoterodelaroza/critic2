@@ -43,29 +43,30 @@ struct View
   bool processMouseEvents();
 
   // camera methods
-  void updateMProjection();
-  void updateMView();
-  void updateMWVP();
+  void updateProjection();
+  void updateView();
+  void updateWorld();
+  float getDepth(vec2 ndpos);
 
   // camera matrices and vectors
-  vec3 v_pos; // position vector
-  vec3 v_front; // front vector
-  vec3 v_up; // up vector
-  mat4 m_projection; // projection
-  mat4 m_view; // view
-  mat4 m_world; // world
-  mat4 m_wvp; // projection * view * world
+  vec3 v_pos = {}; // position vector
+  vec3 v_front = {}; // front vector
+  vec3 v_up = {}; // up vector
+  mat4 m_projection = mat4(1.0); // projection
+  mat4 m_view = mat4(1.0); // view
+  mat4 m_world = mat4(1.0); // world
 
   // saved states
   bool rlock = false; // rmb is dragging
   bool llock = false; // lmb is dragging
-  vec2 mpos0; // saved mouse position
-  vec2 cpos0; // saved camera position
+  vec3 mpos0; // saved mouse position in screen coords (0 -> 1024)
+  vec3 cpos0; // saved camera position in world coords
   mat4 crot0; // saved camera rotation
 
   // assoicated objects
   GLuint FBO; // framebuffer object
   GLuint FBOtex; // framebuffer object texture
+  GLuint FBOdepth; // framebuffer object depth buffer
   Shader *shader; // pointer to the current shader
   char *title; // title
   int iscene; // integer identifier of the associated scene

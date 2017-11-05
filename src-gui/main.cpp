@@ -70,7 +70,7 @@ int main(int argc, char *argv[]){
   // Shader and opengl settings
   Shader shader = {};
   shader.use();
-  glEnable(GL_DEPTH_TEST); 
+  glEnable(GL_DEPTH_TEST);
 
   // Concatenate the input arguments and pass them to critic2
   if (argc > 1){
