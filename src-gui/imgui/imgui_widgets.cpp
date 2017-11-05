@@ -236,8 +236,10 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
 
   float x = win->Size.x;
   float y = win->Size.y - win->TitleBarHeight();
-  float rx = 0.5f * (1.f - x/fmax(x,y));
-  float ry = 0.5f * (1.f - y/fmax(x,y));
+  float xratio = x/fmax(x,y);
+  float yratio = y/fmax(x,y);
+  float rx = 0.5f * (1.f - xratio);
+  float ry = 0.5f * (1.f - yratio);
 
   ImGuiContext* g = GetCurrentContext();
   bool held;
@@ -259,11 +261,7 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   
   mstate->scroll = g->IO.MouseWheel;
 
-  if (mstate->hover){
-    // calculate mouse position in normalized device coordinates, bl: (-1,-1) ur: (+1,+1)
-    mstate->ndpos.x = (2.f * (mstate->pos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 1.f) * (1.f - 2.f * rx);
-    mstate->ndpos.y = (1.f - 2.f * (mstate->pos.y - bb.Min.y) / (bb.Max.y - bb.Min.y)) * (1.f - 2.f * ry);
-  } else {
-    mstate->ndpos = {0.f,0.f};
-  }
+  // mouse position in screen coords for the texture, bl: (0,0) ur: (1,1)
+  mstate->ndpos.x = ((mstate->pos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 0.5f) * xratio + 0.5f;
+  mstate->ndpos.y = 0.5f - ((mstate->pos.y - bb.Min.y) / (bb.Max.y - bb.Min.y) - 0.5f) * yratio;
 }
