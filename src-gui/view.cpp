@@ -238,7 +238,7 @@ bool View::processMouseEvents(){
       if (length(axis) > 1e-10f){
         vec2 mpos = {mstate->ndpos.x-mpos0.x,mstate->ndpos.y-mpos0.y};
         float ang = 2.0f * length(mpos) * mousesens_rot;
-        m_world = rotate(crot0,ang,axis);
+        m_world = rotate(mat4(1.0f),ang,axis) * crot0;
         updateworld = true;
       }
     } else { 
