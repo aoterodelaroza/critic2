@@ -186,7 +186,7 @@ bool View::processMouseEvents(){
   c2::set_scene_pointers(iscene);
 
   const float eps = 1e-8;
-  bool updateview = false, updateworld = false;
+  bool updateview = false, updateworld = false, updateprojection = false;
 
   // mouse scroll = zoom
   if (mstate->hover && abs(mstate->scroll) > eps){
@@ -195,7 +195,7 @@ bool View::processMouseEvents(){
     if (length(v_pos) < min_zoom)
       v_pos = v_pos / length(v_pos) * min_zoom;
     if (isortho)
-      updateProjection();
+      updateprojection = true;
     updateview = true;
   }
 
@@ -227,20 +227,18 @@ bool View::processMouseEvents(){
 
   // rotate
   if (mstate->hover && mstate->lclick){
-    mpos0 = {mstate->pos.x,mstate->pos.y,0.f};
+    mpos0 = {mstate->ndpos.x,mstate->ndpos.y,0.f};
+    cpos0 = sphereProject(mstate->ndpos);
     crot0 = m_world;
     llock = true;
   } else if (llock) {
     if (mstate->ldown){
-      vec3 curRotAxis = vec3(-mstate->pos.x+mpos0.x, mstate->pos.y-mpos0.y, 0.f);
-      float lcur = length(curRotAxis);
-      if (lcur > eps){
-	curRotAxis = cross(curRotAxis,vec3(0, 0, 1));
-	float curRotAng = length(curRotAxis) * mousesens_rot * c2::scenerad;
-	curRotAxis = normalize(curRotAxis);
- 
-	mat4 curRot = rotate(mat4(1.0f),curRotAng,curRotAxis);
-	m_world = curRot * crot0;
+      vec3 cpos = sphereProject(mstate->ndpos);
+      vec3 axis = cross(cpos0,cpos);
+      if (length(axis) > 1e-10f){
+        vec2 mpos = {mstate->ndpos.x-mpos0.x,mstate->ndpos.y-mpos0.y};
+        float ang = 2.0f * length(mpos) * mousesens_rot;
+        m_world = rotate(crot0,ang,axis);
         updateworld = true;
       }
     } else { 
@@ -252,8 +250,10 @@ bool View::processMouseEvents(){
     updateWorld();
   if (updateview)
     updateView();
+  if (updateprojection)
+    updateProjection();
 
-  return updateview || updateworld;
+  return updateview || updateworld || updateprojection;
 }
 
 void View::updateProjection(){
@@ -263,13 +263,14 @@ void View::updateProjection(){
   } else {
     m_projection = infinitePerspective(radians(zfov),FBO_tex_x/FBO_tex_y,znear);
   }
-
   shader->setMat4("projection",value_ptr(m_projection));
 }
+
 void View::updateView(){
   m_view = lookAt(v_pos,v_pos+v_front,v_up);
   shader->setMat4("view",value_ptr(m_view));
 }
+
 void View::updateWorld(){
   shader->setMat4("world",value_ptr(m_world));
 }
@@ -281,3 +282,11 @@ float View::getDepth(vec2 ndpos){
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
 }
+
+vec3 View::sphereProject(vec2 ndpos){
+  vec2 xs = {(clamp(mstate->ndpos.x,0.f,1.f)-0.5f) * FBO_tex_x, (clamp(mstate->ndpos.y,0.f,1.f)-0.5f) * FBO_tex_y};
+  float a = 2.0f * fmin(length(xs),0.5f*FBO_tex_x) / FBO_tex_x;
+  float b = atan2f(xs.y,xs.x);
+  return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
+}
+

@@ -47,6 +47,7 @@ struct View
   void updateView();
   void updateWorld();
   float getDepth(vec2 ndpos);
+  vec3 sphereProject(vec2 ndpos);
 
   // camera matrices and vectors
   bool isortho = false; // is ortho or perspective?

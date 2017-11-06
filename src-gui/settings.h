@@ -16,7 +16,7 @@ const float bgrgb[4] = {0.0f,0.0f,0.0f,1.0f};
 const int isphres = 0;
 
 // Mouse constants
-const float mousesens_rot = 0.001f; // Mouse rotate sensitivity
+const float mousesens_rot = 2.0f; // Mouse rotate sensitivity
 const float mousesens_zoom = 0.15f; // Mouse zoom sensitivity
 const float zfov = 45.f; // fov for the perspective
 const float znear = 0.1f; // znear for the camera

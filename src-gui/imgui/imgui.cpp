@@ -1,3 +1,8 @@
+// Alberto's LIST OF CHANGES to imgui //
+// (search for xxaorxx) //
+// 1. Do not set the mouse position to -9999 if both values are negative.
+
+
 // dear imgui, v1.51 WIP
 // (main code and documentation)
 
@@ -2168,8 +2173,10 @@ void ImGui::NewFrame()
     g.RenderDrawData.CmdListsCount = g.RenderDrawData.TotalVtxCount = g.RenderDrawData.TotalIdxCount = 0;
 
     // Update inputs state
-    if (g.IO.MousePos.x < 0 && g.IO.MousePos.y < 0)
-        g.IO.MousePos = ImVec2(-9999.0f, -9999.0f);
+    // xxaorxx //
+    // if (g.IO.MousePos.x < 0 && g.IO.MousePos.y < 0)
+    //     g.IO.MousePos = ImVec2(-9999.0f, -9999.0f);
+    // xxaorxx //
     if ((g.IO.MousePos.x < 0 && g.IO.MousePos.y < 0) || (g.IO.MousePosPrev.x < 0 && g.IO.MousePosPrev.y < 0))   // if mouse just appeared or disappeared (negative coordinate) we cancel out movement in MouseDelta
         g.IO.MouseDelta = ImVec2(0.0f, 0.0f);
     else
