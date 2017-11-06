@@ -135,9 +135,11 @@ void View::Update(){
       mat4 m_model = mat4(1.0f);
       m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
       m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
+      mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
 
       shader->setVec4("vColor",(const GLfloat *)c2::at[i].rgb);
       shader->setMat4("model",value_ptr(m_model));
+      shader->setMat3("normrot",value_ptr(m_normrot));
       glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
     }
     // coordinate axes
@@ -173,6 +175,7 @@ void View::Delete(){
   for (auto it = viewlist.begin(); it != viewlist.end(); it++) {
     if (*it == this){
       glDeleteTextures(1, &FBOtex);
+      glDeleteRenderbuffers(1, &FBOdepth);
       glDeleteFramebuffers(1, &FBO); 
       if (mstate)
 	delete mstate;

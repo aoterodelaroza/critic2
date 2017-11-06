@@ -24,10 +24,10 @@ GLuint sphereVAO[1];
 GLuint sphereVBO[1];
 GLuint sphereEBO[1];
 const GLuint spherenel[1] = {20*3};
-GLuint cylVAO[1];
-GLuint cylVBO[1];
-GLuint cylEBO[1];
-const GLuint cylnv[1] = {42};
+// GLuint cylVAO[1];
+// GLuint cylVBO[1];
+// GLuint cylEBO[1];
+// const GLuint cylnv[1] = {42};
 
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;
@@ -37,18 +37,18 @@ static float zico = 1/rad0;
 
 // icosahedron  vertices
 static GLfloat icov[] = {
-  -xico,   0.0,  zico,
-   xico,   0.0,  zico,
-  -xico,   0.0, -zico,
-   xico,   0.0, -zico,
-    0.0,  zico,  xico,
-    0.0,  zico, -xico,
-    0.0, -zico,  xico,
-    0.0, -zico, -xico,
-   zico,  xico,   0.0,
-  -zico,  xico,   0.0,
-   zico, -xico,   0.0,
-  -zico, -xico,   0.0
+  -xico,   0.0,  zico,  -xico,   0.0,  zico,
+   xico,   0.0,  zico,   xico,   0.0,  zico,
+  -xico,   0.0, -zico,  -xico,   0.0, -zico,
+   xico,   0.0, -zico,   xico,   0.0, -zico,
+    0.0,  zico,  xico,    0.0,  zico,  xico,
+    0.0,  zico, -xico,    0.0,  zico, -xico,
+    0.0, -zico,  xico,    0.0, -zico,  xico,
+    0.0, -zico, -xico,    0.0, -zico, -xico,
+   zico,  xico,   0.0,   zico,  xico,   0.0,
+  -zico,  xico,   0.0,  -zico,  xico,   0.0,
+   zico, -xico,   0.0,   zico, -xico,   0.0,
+  -zico, -xico,   0.0,  -zico, -xico,   0.0,
 };
 
 // icosehedron faces
@@ -127,9 +127,9 @@ void CreateAndFillBuffers(){
   glGenVertexArrays(1, sphereVAO);
   glGenBuffers(1, sphereVBO);
   glGenBuffers(1, sphereEBO);
-  glGenVertexArrays(1, cylVAO);
-  glGenBuffers(1, cylVBO);
-  glGenBuffers(1, cylEBO);
+  // glGenVertexArrays(1, cylVAO);
+  // glGenBuffers(1, cylVBO);
+  // glGenBuffers(1, cylEBO);
 
   glBindVertexArray(sphereVAO[0]);
 
@@ -139,27 +139,29 @@ void CreateAndFillBuffers(){
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereEBO[0]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icoi), icoi, GL_STATIC_DRAW);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  glBindVertexArray(cylVAO[0]);
+  // glBindVertexArray(cylVAO[0]);
 
-  glBindBuffer(GL_ARRAY_BUFFER, cylVBO[0]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(icov), icov, GL_STATIC_DRAW);
+  // glBindBuffer(GL_ARRAY_BUFFER, cylVBO[0]);
+  // glBufferData(GL_ARRAY_BUFFER, //thisiswrong// sizeof(icov), icov, GL_STATIC_DRAW);
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[0]);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icoi), icoi, GL_STATIC_DRAW);
+  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[0]);
+  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icoi), icoi, GL_STATIC_DRAW);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0);
+  // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  // glEnableVertexAttribArray(0);
 
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  // glBindBuffer(GL_ARRAY_BUFFER, 0);
+  // glBindVertexArray(0);
+  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 // delete the buffers for the sphere and cylinder objects

@@ -5,9 +5,12 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <glm/glm.hpp>
 #include "imgui/gl3w.h"
 #include <iostream>
+#include "settings.h"
+
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/glm.hpp>
 
 using namespace std;
 using namespace glm;
@@ -28,19 +31,45 @@ public:
         "uniform mat4 projection;                                                   \n"
         "uniform mat4 view;                                                         \n"
         "uniform mat4 world;                                                        \n"
+	"uniform mat3 normrot;                                                      \n"
+	"                                                                           \n"
         "layout (location = 0) in vec3 inPosition;                                  \n"
+        "layout (location = 1) in vec3 inNormal;                                    \n"
+	"                                                                           \n"
+	"out vec3 Normal;                                                           \n"
+	"out vec4 fragPos;                                                          \n"
+	"                                                                           \n"
         "void main() {                                                              \n"
-        "  gl_Position = projection * view * world * model * vec4(inPosition, 1.0); \n"
+        "  fragPos = view * world * model * vec4(inPosition, 1.0);                  \n"
+        "  gl_Position = projection * fragPos;                                      \n"
+	"  Normal = normrot * inNormal;                                             \n"
         "}\n"
       };
 
     const char *fs[] =  
       {
-        "#version 330 core     \n"
-        "uniform vec4 vColor;  \n"
-        "out vec4 outputColor; \n"
-        "void main() {         \n"
-        "outputColor = vColor; \n"
+        "#version 330 core                                                          \n"
+        "                                                                           \n"
+        "uniform vec4 vColor;                                                       \n"
+	"uniform vec3 lightPos;                                                     \n"
+	"uniform vec3 lightColor;                                                   \n"
+        "uniform float ambient;                                                     \n"
+        "uniform float diffuse;                                                     \n"
+        "uniform float specular;                                                    \n"
+        "uniform int shininess;                                                     \n"
+        "                                                                           \n"
+	"in vec3 Normal;                                                            \n"
+	"in vec4 fragPos;                                                           \n"
+        "                                                                           \n"
+        "out vec4 outputColor;                                                      \n"
+        "                                                                           \n"
+        "void main() {                                                              \n"
+        "  vec3 viewdir = normalize(-vec3(fragPos));                                \n"
+        "  vec3 lightdir = normalize(lightPos - vec3(fragPos));                     \n"
+        "  vec3 reflectdir = reflect(-lightdir,Normal);                             \n"
+        "  float diff = diffuse * max(dot(Normal,lightdir),0.f);                    \n"
+        "  float spec = specular * pow(max(dot(viewdir,reflectdir),0.0f),32);       \n"
+        "  outputColor = vec4((ambient + diff + spec) * lightColor,1.0f) * vColor;  \n"
         "}\n"
       };
 
@@ -61,22 +90,42 @@ public:
     checkCompileErrors(id, "PROGRAM");
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+    // set the global variables
+    glUseProgram(id); 
+    setVec3("lightPos",value_ptr(lightPos));
+    setVec3("lightColor",value_ptr(lightColor));
+    setFloat("ambient",ambient);
+    setFloat("diffuse",diffuse);
+    setFloat("specular",specular);
+    setInt("shininess",shininess);
   }
 
-  void use(){ 
+  void use() const{ 
     glUseProgram(id); 
   }
 
+  void setMat3(const char *name, const GLfloat * value) const{
+    glUniformMatrix3fv(glGetUniformLocation(id,name), 1, GL_FALSE, value);
+  }
   void setMat4(const char *name, const GLfloat * value) const{
     glUniformMatrix4fv(glGetUniformLocation(id,name), 1, GL_FALSE, value);
+  }
+  void setVec3(const char *name, const GLfloat * value) const{
+    glUniform3fv(glGetUniformLocation(id,name), 1, value);
   }
   void setVec4(const char *name, const GLfloat * value) const{
     glUniform4fv(glGetUniformLocation(id,name), 1, value);
   }
+  void setInt(const char *name, int value) const{ 
+    glUniform1i(glGetUniformLocation(id,name), value); 
+  }
+  void setFloat(const char *name, float value) const{ 
+    glUniform1f(glGetUniformLocation(id,name), value); 
+  }
 
 private:
   // utility function for checking shader compilation/linking errors.
-  void checkCompileErrors(unsigned int shader, string type){
+  void checkCompileErrors(unsigned int shader, string type) const{
     int success;
     char infoLog[1024];
     if (type != "PROGRAM"){
@@ -84,12 +133,14 @@ private:
       if (!success){
 	glGetShaderInfoLog(shader, 1024, NULL, infoLog);
 	cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << endl << infoLog << endl;
+	exit(EXIT_FAILURE);
       }
     } else {
       glGetProgramiv(shader, GL_LINK_STATUS, &success);
       if (!success){
 	glGetProgramInfoLog(shader, 1024, NULL, infoLog);
 	cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << endl << infoLog << endl;
+	exit(EXIT_FAILURE);
       }
     }
   }
