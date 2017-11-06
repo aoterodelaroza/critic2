@@ -37,7 +37,7 @@ using namespace std;
 static list<View*> viewlist;
 
 // The viewport vector
-const vec4 viewport = {0.f,0.f,FBO_tex_x,FBO_tex_y};
+const vec4 viewport = {0.f,0.f,FBO_tex_a,FBO_tex_a};
 
 void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   View *aview = new View;
@@ -50,7 +50,7 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   // texture
   glGenTextures(1, &aview->FBOtex);
   glBindTexture(GL_TEXTURE_2D, aview->FBOtex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_x, FBO_tex_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_a, FBO_tex_a, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
   glBindTexture(GL_TEXTURE_2D, 0);
@@ -58,7 +58,7 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   // render buffer
   glGenRenderbuffers(1, &aview->FBOdepth);
   glBindRenderbuffer(GL_RENDERBUFFER, aview->FBOdepth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_x, FBO_tex_y);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_a, FBO_tex_a);
   glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
   // frame buffer
@@ -121,7 +121,7 @@ void View::Draw(){
 void View::Update(){
 
   glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-  glViewport(0.,0.,FBO_tex_x,FBO_tex_y);
+  glViewport(0.,0.,FBO_tex_a,FBO_tex_a);
 
   glClearColor(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -203,17 +203,17 @@ bool View::processMouseEvents(){
   if (mstate->hover && mstate->rclick){ 
     float depth = getDepth(mstate->ndpos);
     if (depth < 1.0){
-      mpos0 = {mstate->ndpos.x*FBO_tex_x,mstate->ndpos.y*FBO_tex_y,depth};
+      mpos0 = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,depth};
     }else{
       vec3 origin = {0.f,0.f,0.f};
       origin = project(origin,m_view,m_projection,viewport);
-      mpos0 = {mstate->ndpos.x*FBO_tex_x,mstate->ndpos.y*FBO_tex_y,origin.z};
+      mpos0 = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,origin.z};
     }
     cpos0 = {v_pos[0],v_pos[1],0.f};
     rlock = true;
   } else if (rlock){
     if (mstate->rdown){
-      vec3 vnew = {mstate->ndpos.x*FBO_tex_x,mstate->ndpos.y*FBO_tex_y,mpos0.z};
+      vec3 vnew = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,mpos0.z};
       vec3 vold = mpos0;
       vnew = unProject(vnew,m_view,m_projection,viewport);
       vold = unProject(vold,m_view,m_projection,viewport);
@@ -261,7 +261,7 @@ void View::updateProjection(){
     float hw2 = tan(0.5f*zfov) * v_pos[2];
     m_projection = ortho(-hw2,hw2,-hw2,hw2,znear,1000.f);
   } else {
-    m_projection = infinitePerspective(radians(zfov),FBO_tex_x/FBO_tex_y,znear);
+    m_projection = infinitePerspective(radians(zfov),1.0f,znear);
   }
   shader->setMat4("projection",value_ptr(m_projection));
 }
@@ -278,14 +278,14 @@ void View::updateWorld(){
 float View::getDepth(vec2 ndpos){
     float depth;
     glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-    glReadPixels(mstate->ndpos.x*FBO_tex_x,mstate->ndpos.y*FBO_tex_y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+    glReadPixels(mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
 }
 
 vec3 View::sphereProject(vec2 ndpos){
-  vec2 xs = {(clamp(mstate->ndpos.x,0.f,1.f)-0.5f) * FBO_tex_x, (clamp(mstate->ndpos.y,0.f,1.f)-0.5f) * FBO_tex_y};
-  float a = 2.0f * fmin(length(xs),0.5f*FBO_tex_x) / FBO_tex_x;
+  vec2 xs = {(clamp(mstate->ndpos.x,0.f,1.f)-0.5f), (clamp(mstate->ndpos.y,0.f,1.f)-0.5f)};
+  float a = 2.0f * fmin(length(xs),0.5f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
 }

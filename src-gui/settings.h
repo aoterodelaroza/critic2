@@ -5,9 +5,8 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-// Framebuffer texture size
-const float FBO_tex_x = 1024.f;
-const float FBO_tex_y = 1024.f;
+// Framebuffer texture square side length
+const float FBO_tex_a = 1024.f;
 
 // Background color for views
 const float bgrgb[4] = {0.0f,0.0f,0.0f,1.0f};
