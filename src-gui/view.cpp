@@ -190,9 +190,12 @@ bool View::processMouseEvents(){
 
   // mouse scroll = zoom
   if (mstate->hover && abs(mstate->scroll) > eps){
-    // scroll up > 0 ; scroll down < 0
-    v_pos[2] -= mstate->scroll * mousesens_zoom * c2::scenerad;
-    v_pos[2] = fmax(v_pos[2],znear);
+    float ratio = fmin(mousesens_zoom * mstate->scroll,0.5f);
+    v_pos = v_pos - ratio * v_pos;
+    if (length(v_pos) < min_zoom)
+      v_pos = v_pos / length(v_pos) * min_zoom;
+    if (isortho)
+      updateProjection();
     updateview = true;
   }
 
@@ -254,8 +257,13 @@ bool View::processMouseEvents(){
 }
 
 void View::updateProjection(){
-  m_projection = infinitePerspective(radians(zfov),FBO_tex_x/FBO_tex_y,znear);
-  // m_projection = ortho(-10.f,10.f,-10.f,10.f,znear,1000.f);
+  if (isortho){
+    float hw2 = tan(0.5f*zfov) * v_pos[2];
+    m_projection = ortho(-hw2,hw2,-hw2,hw2,znear,1000.f);
+  } else {
+    m_projection = infinitePerspective(radians(zfov),FBO_tex_x/FBO_tex_y,znear);
+  }
+
   shader->setMat4("projection",value_ptr(m_projection));
 }
 void View::updateView(){

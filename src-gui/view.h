@@ -49,6 +49,7 @@ struct View
   float getDepth(vec2 ndpos);
 
   // camera matrices and vectors
+  bool isortho = false; // is ortho or perspective?
   vec3 v_pos = {}; // position vector
   vec3 v_front = {}; // front vector
   vec3 v_up = {}; // up vector
