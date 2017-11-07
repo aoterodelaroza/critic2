@@ -196,7 +196,7 @@ bool View::processMouseEvents(){
   bool updateview = false, updateworld = false, updateprojection = false;
 
   // mouse scroll = zoom
-  if (mstate->hover && abs(mstate->scroll) > eps){
+  if (mstate->hover && abs(mstate->scroll) > eps && !rlock){
     float ratio = fmin(mousesens_zoom * mstate->scroll,0.5f);
     v_pos = v_pos - ratio * v_pos;
     if (length(v_pos) < min_zoom)
@@ -207,7 +207,7 @@ bool View::processMouseEvents(){
   }
 
   // drag
-  if (mstate->hover && mstate->rclick){ 
+  if (mstate->hover && mstate->rclick && !llock){ 
     float depth = getDepth(mstate->ndpos);
     if (depth < 1.0){
       mpos0 = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,depth};
@@ -218,7 +218,7 @@ bool View::processMouseEvents(){
     }
     cpos0 = {v_pos[0],v_pos[1],0.f};
     rlock = true;
-  } else if (rlock){
+  } else if (rlock) {
     if (mstate->rdown){
       vec3 vnew = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,mpos0.z};
       vec3 vold = mpos0;
@@ -233,7 +233,7 @@ bool View::processMouseEvents(){
   }
 
   // rotate
-  if (mstate->hover && mstate->lclick){
+  if (mstate->hover && mstate->lclick && !rlock){
     mpos0 = {mstate->ndpos.x,mstate->ndpos.y,0.f};
     cpos0 = sphereProject(mstate->ndpos);
     crot0 = m_world;
