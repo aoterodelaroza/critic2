@@ -42,7 +42,7 @@ public:
         "void main() {                                                              \n"
         "  fragPos = view * world * model * vec4(inPosition, 1.0);                  \n"
         "  gl_Position = projection * fragPos;                                      \n"
-	"  Normal = normrot * inNormal;                                             \n"
+	"  Normal = normalize(normrot * inNormal);                                  \n"
         "}\n"
       };
 
