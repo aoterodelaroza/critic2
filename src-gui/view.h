@@ -26,6 +26,7 @@
 #include "imgui/mouse.h"
 #include "shader.h"
 #include "imgui/gl3w.h"
+#include "settings.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -41,6 +42,7 @@ struct View
   void Update();
   void Delete();
   bool processMouseEvents();
+  bool updateTexSize();
 
   // camera methods
   void updateProjection();
@@ -67,9 +69,10 @@ struct View
   mat4 crot0; // saved camera rotation
 
   // assoicated objects
-  GLuint FBO; // framebuffer object
-  GLuint FBOtex; // framebuffer object texture
-  GLuint FBOdepth; // framebuffer object depth buffer
+  int icurtex = -1; // current texture in use
+  GLuint FBO[nmaxtex]; // framebuffer object
+  GLuint FBOtex[nmaxtex]; // framebuffer object textures
+  GLuint FBOdepth[nmaxtex]; // framebuffer object depth buffers
   Shader *shader; // pointer to the current shader
   char *title; // title
   int iscene; // integer identifier of the associated scene

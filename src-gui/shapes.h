@@ -25,8 +25,6 @@
 extern GLuint sphereVAO[];
 extern const GLuint spherenel[];
 extern GLuint cylVAO[];
-extern GLuint cylVBO[];
-extern GLuint cylEBO[];
 extern const GLuint cylnv[];
 
 // shape functions

@@ -29,7 +29,6 @@ GLuint sphereVAO[nmaxsph];
 GLuint sphereVBO;
 GLuint sphereEBO[nmaxsph];
 const GLuint spherenve[nmaxsph]    = {     12,  42, 162,  642};
-const GLuint spherenveadd[nmaxsph+1] = {0, 12,  42, 162,  642};
 const GLuint spherenel[nmaxsph]    = {     20,  80, 320, 1280};
 const GLuint sphereneladd[nmaxsph+1] = {0, 20, 100, 420, 1700};
 // GLuint cylVAO[1];
@@ -143,16 +142,6 @@ void CreateAndFillBuffers(){
   for (int i = 1; i < nmaxsph; i++){
     map<pair<int,int>,int> edgev = {};
 
-    // calculate the norm, sqrt(0.5 * (1 + v1 * v2))
-    float anorm;
-    {
-      int i1 = 6 * icoi[3*sphereneladd[i-1]+0];
-      int i2 = 6 * icoi[3*sphereneladd[i-1]+1];
-      anorm = sqrtf(0.5f * (1.f + icov[i1+0]*icov[i2+0] + icov[i1+1]*icov[i2+1] + 
-                            icov[i1+2]*icov[i2+2]));
-      anorm = 0.5f / anorm;
-    }
-
     int n = spherenve[i-1] - 1;
     int nface = sphereneladd[i]-1;
     for (int j = sphereneladd[i-1]; j < sphereneladd[i]; j++){
@@ -166,25 +155,25 @@ void CreateAndFillBuffers(){
         nk1 = edgev[make_pair(k1,k2)];
       } else {
         edgev[make_pair(k1,k2)] = edgev[make_pair(k2,k1)] = nk1 = ++n;
-        icov[6*n+0] = icov[6*n+3] = anorm * (icov[6*k1+0] + icov[6*k2+0]);
-        icov[6*n+1] = icov[6*n+4] = anorm * (icov[6*k1+1] + icov[6*k2+1]);
-        icov[6*n+2] = icov[6*n+5] = anorm * (icov[6*k1+2] + icov[6*k2+2]);
+        icov[6*n+0] = icov[6*n+3] = 0.5f * (icov[6*k1+0] + icov[6*k2+0]);
+        icov[6*n+1] = icov[6*n+4] = 0.5f * (icov[6*k1+1] + icov[6*k2+1]);
+        icov[6*n+2] = icov[6*n+5] = 0.5f * (icov[6*k1+2] + icov[6*k2+2]);
       }
       if (edgev[make_pair(k1,k3)]){
         nk2 = edgev[make_pair(k1,k3)];
       } else {
         edgev[make_pair(k1,k3)] = edgev[make_pair(k3,k1)] = nk2 = ++n;
-        icov[6*n+0] = icov[6*n+3] = anorm * (icov[6*k1+0] + icov[6*k3+0]);
-        icov[6*n+1] = icov[6*n+4] = anorm * (icov[6*k1+1] + icov[6*k3+1]);
-        icov[6*n+2] = icov[6*n+5] = anorm * (icov[6*k1+2] + icov[6*k3+2]);
+        icov[6*n+0] = icov[6*n+3] = 0.5f * (icov[6*k1+0] + icov[6*k3+0]);
+        icov[6*n+1] = icov[6*n+4] = 0.5f * (icov[6*k1+1] + icov[6*k3+1]);
+        icov[6*n+2] = icov[6*n+5] = 0.5f * (icov[6*k1+2] + icov[6*k3+2]);
       }
       if (edgev[make_pair(k2,k3)]){
         nk3 = edgev[make_pair(k2,k3)];
       } else {
         edgev[make_pair(k2,k3)] = edgev[make_pair(k3,k2)] = nk3 = ++n;
-        icov[6*n+0] = icov[6*n+3] = anorm * (icov[6*k2+0] + icov[6*k3+0]);
-        icov[6*n+1] = icov[6*n+4] = anorm * (icov[6*k2+1] + icov[6*k3+1]);
-        icov[6*n+2] = icov[6*n+5] = anorm * (icov[6*k2+2] + icov[6*k3+2]);
+        icov[6*n+0] = icov[6*n+3] = 0.5f * (icov[6*k2+0] + icov[6*k3+0]);
+        icov[6*n+1] = icov[6*n+4] = 0.5f * (icov[6*k2+1] + icov[6*k3+1]);
+        icov[6*n+2] = icov[6*n+5] = 0.5f * (icov[6*k2+2] + icov[6*k3+2]);
       }
 
       // create the new faces
@@ -196,6 +185,13 @@ void CreateAndFillBuffers(){
       icoi[3*nface+0] = nk1; icoi[3*nface+1] = k2;  icoi[3*nface+2] = nk3; 
       nface++;
       icoi[3*nface+0] = nk2; icoi[3*nface+1] = nk3; icoi[3*nface+2] = k3; 
+    }
+
+    for (int j = spherenve[i-1]; j < spherenve[i]; j++){
+      float anorm = sqrtf(icov[6*j+0]*icov[6*j+0]+icov[6*j+1]*icov[6*j+1]+icov[6*j+2]*icov[6*j+2]);
+      icov[6*j+0] = icov[6*j+3] = icov[6*j+0] / anorm;
+      icov[6*j+1] = icov[6*j+4] = icov[6*j+1] / anorm;
+      icov[6*j+2] = icov[6*j+5] = icov[6*j+2] / anorm;
     }
   }
 

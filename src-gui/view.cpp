@@ -25,7 +25,6 @@
 #include "imgui/imgui_widgets.h"
 #include "imgui/mouse.h"
 
-#include "settings.h"
 #include "shapes.h"
 #include "view.h"
 #include "critic2.h"
@@ -36,9 +35,6 @@ using namespace std;
 // A linked list for all current views.
 static list<View*> viewlist;
 
-// The viewport vector
-const vec4 viewport = {0.f,0.f,FBO_tex_a,FBO_tex_a};
-
 void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   View *aview = new View;
 
@@ -47,29 +43,32 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
   aview->title = title;
   aview->shader = shader;
 
-  // texture
-  glGenTextures(1, &aview->FBOtex);
-  glBindTexture(GL_TEXTURE_2D, aview->FBOtex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_a, FBO_tex_a, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
-  glBindTexture(GL_TEXTURE_2D, 0);
+  // preparation of the textures
+  glGenTextures(nmaxtex, aview->FBOtex);
+  glGenRenderbuffers(nmaxtex, aview->FBOdepth);
+  glGenFramebuffers(nmaxtex, aview->FBO);
+  for (int i=0; i<nmaxtex; i++){
+    // create the texture
+    glBindTexture(GL_TEXTURE_2D, aview->FBOtex[i]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_a[i], FBO_tex_a[i], 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-  // render buffer
-  glGenRenderbuffers(1, &aview->FBOdepth);
-  glBindRenderbuffer(GL_RENDERBUFFER, aview->FBOdepth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_a, FBO_tex_a);
-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    // render buffer
+    glBindRenderbuffer(GL_RENDERBUFFER, aview->FBOdepth[i]);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_a[i], FBO_tex_a[i]);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-  // frame buffer
-  glGenFramebuffers(1, &aview->FBO);
-  glBindFramebuffer(GL_FRAMEBUFFER, aview->FBO);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, aview->FBOtex, 0); 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, aview->FBOdepth);
+    // frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, aview->FBO[i]);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, aview->FBOtex[i], 0); 
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, aview->FBOdepth[i]);
 
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    exit(EXIT_FAILURE);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+      exit(EXIT_FAILURE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
 
   // initialize the camera vectors
   aview->v_pos    = {0.f,0.f,10.f};
@@ -108,8 +107,8 @@ void View::Draw(){
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
   SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
   if (BeginDock("Main view") && iscene > 0){
-    ImageInteractive((void *) FBOtex,mstate);
-    if (processMouseEvents())
+    ImageInteractive((void *) FBOtex[icurtex],mstate);
+    if (processMouseEvents() || updateTexSize())
       Update();
   }
   dock = GetCurrentDock();
@@ -120,8 +119,10 @@ void View::Draw(){
 
 void View::Update(){
 
-  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-  glViewport(0.,0.,FBO_tex_a,FBO_tex_a);
+  if (icurtex < 0)
+    updateTexSize();
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
+  glViewport(0.,0.,FBO_tex_a[icurtex],FBO_tex_a[icurtex]);
 
   glClearColor(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -178,9 +179,9 @@ void View::Update(){
 void View::Delete(){
   for (auto it = viewlist.begin(); it != viewlist.end(); it++) {
     if (*it == this){
-      glDeleteTextures(1, &FBOtex);
-      glDeleteRenderbuffers(1, &FBOdepth);
-      glDeleteFramebuffers(1, &FBO); 
+      glDeleteTextures(nmaxtex, FBOtex);
+      glDeleteRenderbuffers(nmaxtex, FBOdepth);
+      glDeleteFramebuffers(nmaxtex, FBO);
       if (mstate)
 	delete mstate;
       viewlist.erase(it);
@@ -210,18 +211,20 @@ bool View::processMouseEvents(){
   if (mstate->hover && mstate->rclick && !llock){ 
     float depth = getDepth(mstate->ndpos);
     if (depth < 1.0){
-      mpos0 = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,depth};
+      mpos0 = {mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex],depth};
     }else{
       vec3 origin = {0.f,0.f,0.f};
+      const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
       origin = project(origin,m_view,m_projection,viewport);
-      mpos0 = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,origin.z};
+      mpos0 = {mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex],origin.z};
     }
     cpos0 = {v_pos[0],v_pos[1],0.f};
     rlock = true;
   } else if (rlock) {
     if (mstate->rdown){
-      vec3 vnew = {mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a,mpos0.z};
+      vec3 vnew = {mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex],mpos0.z};
       vec3 vold = mpos0;
+      const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
       vnew = unProject(vnew,m_view,m_projection,viewport);
       vold = unProject(vold,m_view,m_projection,viewport);
       v_pos.x = cpos0.x - (vnew.x - vold.x);
@@ -263,6 +266,17 @@ bool View::processMouseEvents(){
   return updateview || updateworld || updateprojection;
 }
 
+bool View::updateTexSize(){
+  float amax = (dock? fmax(dock->size.x,dock->size.y) : 200.f);
+  int iold = icurtex;
+  for (int i = 0; i < nmaxtex; i++){
+    icurtex = i;
+    if (FBO_tex_a[i] > amax)
+      break;
+  }
+  return !(iold == icurtex);
+}
+
 void View::updateProjection(){
   if (isortho){
     float hw2 = tan(0.5f*zfov) * v_pos[2];
@@ -284,8 +298,8 @@ void View::updateWorld(){
 
 float View::getDepth(vec2 ndpos){
     float depth;
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-    glReadPixels(mstate->ndpos.x*FBO_tex_a,mstate->ndpos.y*FBO_tex_a, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
+    glReadPixels(mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
 }
