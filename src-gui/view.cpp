@@ -97,8 +97,9 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
 }
 
 void DrawAllViews(){
-  for (auto iv : viewlist)
+  for (auto iv : viewlist){
     iv->Draw();
+  }
 }
 
 void View::Draw(){
@@ -106,7 +107,7 @@ void View::Draw(){
   PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
   SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
-  if (BeginDock("Main view") && iscene > 0){
+  if (BeginDock(title) && iscene > 0){
     ImageInteractive((void *) FBOtex[icurtex],mstate);
     if (processMouseEvents() || updateTexSize())
       Update();
