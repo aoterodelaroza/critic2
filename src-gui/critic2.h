@@ -13,6 +13,15 @@ namespace c2 {
     float rgb[4];
   };
 
+  // bond type
+  extern "C" struct c_bond {
+    float r1[3];
+    float r2[3];
+    float rgb1[4];
+    float rgb2[4];
+    float rad;
+  };
+
   // routines
   extern "C" void gui_initialize(void *);
   extern "C" void open_file(const char **filename, int ismolecule); 
@@ -22,6 +31,8 @@ namespace c2 {
   // pointers to the current scene
   extern "C" int nat;
   extern "C" struct c_atom *at;
+  extern "C" int nbond;
+  extern "C" struct c_bond *bond;
   extern "C" float scenerad;
 }
 

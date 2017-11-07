@@ -36,6 +36,15 @@ module gui_interface
      real(c_float) :: rgb(4) !< color (0 to 1)
   end type c_atom
 
+  ! C-interoperable bond type
+  type, bind(c) :: c_bond
+     real(c_float) :: r1(3) !< first end position (bohr)
+     real(c_float) :: r2(3) !< second end position (bohr)
+     real(c_float) :: rgb1(4) !< color of first half (0 to 1)
+     real(c_float) :: rgb2(4) !< color of second half (0 to 1)
+     real(c_float) :: rad !< stick radius (bohr) 
+  end type c_bond
+
   !xx! private to this module
   type(c_ptr) :: window = c_null_ptr ! window pointer
 
@@ -46,6 +55,8 @@ module gui_interface
      real*8 :: center(3) ! center of the scene (bohr)
      integer(c_int) :: nat ! number of atoms
      type(c_atom), allocatable :: at(:) ! atoms
+     integer(c_int) :: nbond ! number of bonds
+     type(c_bond), allocatable :: bond(:) ! bonds
      real(c_float) :: srad ! radius of the encompassing sphere
   end type scene
   integer :: nsc = 0
@@ -61,6 +72,8 @@ module gui_interface
   ! pointers to the current scene
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
+  integer(c_int), bind(c) :: nbond
+  type(c_ptr), bind(c) :: bond
   real(c_float), bind(c) :: scenerad
 
 contains
@@ -121,15 +134,17 @@ contains
     use c_interface_module, only: c_string_value, f_c_string
     use iso_c_binding, only: c_int
     use crystalseedmod, only: read_seeds_from_file, crystalseed
+    use tools_math, only: norm
     use param, only: pi, atmcov, jmlcol
     type(c_ptr), intent(in) :: line0
     integer(c_int), value :: ismolecule
 
     integer :: lp
     character(len=:), allocatable :: line
-    integer :: i, idx, iz, nseed
+    integer :: i, j, idx, iz, nseed, n, idx1, idx2, iz1, iz2
     type(crystalseed), allocatable :: seed(:)
     real(c_float) :: xmax(3)
+    real*8 :: dist
 
     ! transform to fortran string
     line = c_string_value(line0)
@@ -168,6 +183,40 @@ contains
        end do
        sc(1)%center = sc(1)%center / sc(1)%nat
 
+       ! first pass to count the bonds - the dumb way
+       call sc(1)%sy%c%checkflags(.false.,ast0=.true.)
+       sc(1)%nbond = 0
+       do i = 1, sc(1)%sy%c%ncel
+          do j = 1, sc(1)%sy%c%nstar(i)%ncon
+             if (all(sc(1)%sy%c%nstar(i)%lcon == 0)) then
+                sc(1)%nbond = sc(1)%nbond + 1
+             end if
+          end do
+       end do
+
+       ! build the bonds - the dumb way
+       allocate(sc(1)%bond(sc(1)%nbond))
+       n = 0
+       do i = 1, sc(1)%sy%c%ncel
+          do j = 1, sc(1)%sy%c%nstar(i)%ncon
+             if (all(sc(1)%sy%c%nstar(i)%lcon == 0)) then
+                n = n + 1
+                idx1 = i
+                idx2 = sc(1)%sy%c%nstar(i)%idcon(j)
+                if (idx2 < i) cycle
+                sc(1)%bond(n)%r1 = sc(1)%sy%c%atcel(idx1)%r
+                sc(1)%bond(n)%r2 = sc(1)%sy%c%atcel(idx2)%r
+                iz1 = sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx1)%idx)%z
+                iz2 = sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx2)%idx)%z
+                sc(1)%bond(n)%rgb1(1:3) = real(jmlcol(:,iz1),4) / 255.
+                sc(1)%bond(n)%rgb1(4) = 1.0
+                sc(1)%bond(n)%rgb2(1:3) = real(jmlcol(:,iz2),4) / 255.
+                sc(1)%bond(n)%rgb2(4) = 1.0
+                sc(1)%bond(n)%rad = 0.2
+             end if
+          end do
+       end do
+
        ! translate to the center of mass
        xmax = 0._c_float
        do i = 1, sc(1)%nat
@@ -191,6 +240,8 @@ contains
 
     nat = sc(isc)%nat
     at = c_loc(sc(isc)%at)
+    nbond = sc(isc)%nbond
+    bond = c_loc(sc(isc)%bond)
     scenerad = sc(isc)%srad
 
   end subroutine set_scene_pointers

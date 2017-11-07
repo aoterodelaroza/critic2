@@ -25,7 +25,7 @@
 extern GLuint sphereVAO[];
 extern const GLuint spherenel[];
 extern GLuint cylVAO[];
-extern const GLuint cylnv[];
+extern const GLuint cylnel[];
 
 // shape functions
 void CreateAndFillBuffers();

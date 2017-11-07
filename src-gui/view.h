@@ -73,11 +73,11 @@ struct View
   GLuint FBO[nmaxtex]; // framebuffer object
   GLuint FBOtex[nmaxtex]; // framebuffer object textures
   GLuint FBOdepth[nmaxtex]; // framebuffer object depth buffers
-  Shader *shader; // pointer to the current shader
+  Shader *shader = nullptr; // pointer to the current shader
   char *title; // title
-  int iscene; // integer identifier of the associated scene
+  int iscene = -1; // integer identifier of the associated scene
   MouseState *mstate = nullptr; // mouse
-  ImGui::Dock *dock; // dock
+  ImGui::Dock *dock = nullptr; // dock
 };
   
 // Create a new view linked to scene iscene (0 for no scene).

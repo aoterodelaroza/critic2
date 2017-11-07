@@ -31,10 +31,13 @@ GLuint sphereEBO[nmaxsph];
 const GLuint spherenve[nmaxsph]    = {     12,  42, 162,  642};
 const GLuint spherenel[nmaxsph]    = {     20,  80, 320, 1280};
 const GLuint sphereneladd[nmaxsph+1] = {0, 20, 100, 420, 1700};
-// GLuint cylVAO[1];
-// GLuint cylVBO[1];
-// GLuint cylEBO[1];
-// const GLuint cylnv[1] = {42};
+const int nmaxcyl = 1;
+GLuint cylVAO[nmaxcyl];
+GLuint cylVBO;
+GLuint cylEBO[nmaxcyl];
+const GLuint cylnve[nmaxcyl]    = {     14};
+const GLuint cylnel[nmaxcyl]    = {     24};
+const GLuint cylneladd[nmaxcyl+1] = {0, 24};
 
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;
@@ -85,25 +88,27 @@ static GLuint icoi0[] = {
 };
 
 // hexagonal prism vertices
-static GLfloat hpv[] = {
-  -0.86602540,  0.50000000,  0.00000000,
-  -0.86602540, -0.50000000,  0.00000000,
-  -0.00000000, -1.00000000,  0.00000000,
-   0.86602540, -0.50000000,  0.00000000,
-   0.86602540,  0.50000000,  0.00000000,
-   0.00000000,  1.00000000,  0.00000000,
-  -0.86602540,  0.50000000,  1.00000000,
-  -0.86602540, -0.50000000,  1.00000000,
-  -0.00000000, -1.00000000,  1.00000000,
-   0.86602540, -0.50000000,  1.00000000,
-   0.86602540,  0.50000000,  1.00000000,
-   0.00000000,  1.00000000,  1.00000000,
-   0.00000000,  0.00000000,  0.00000000,
-   0.00000000,  0.00000000,  1.00000000,
+static GLfloat *cylv;
+static GLfloat cylv0[] = {
+  -0.86602540,  0.50000000,  0.00000000,  -0.86602540,  0.50000000,  0.00000000,
+  -0.86602540, -0.50000000,  0.00000000,  -0.86602540, -0.50000000,  0.00000000,
+  -0.00000000, -1.00000000,  0.00000000,  -0.00000000, -1.00000000,  0.00000000,
+   0.86602540, -0.50000000,  0.00000000,   0.86602540, -0.50000000,  0.00000000,
+   0.86602540,  0.50000000,  0.00000000,   0.86602540,  0.50000000,  0.00000000,
+   0.00000000,  1.00000000,  0.00000000,   0.00000000,  1.00000000,  0.00000000,
+  -0.86602540,  0.50000000,  1.00000000,  -0.86602540,  0.50000000,  1.00000000,
+  -0.86602540, -0.50000000,  1.00000000,  -0.86602540, -0.50000000,  1.00000000,
+  -0.00000000, -1.00000000,  1.00000000,  -0.00000000, -1.00000000,  1.00000000,
+   0.86602540, -0.50000000,  1.00000000,   0.86602540, -0.50000000,  1.00000000,
+   0.86602540,  0.50000000,  1.00000000,   0.86602540,  0.50000000,  1.00000000,
+   0.00000000,  1.00000000,  1.00000000,   0.00000000,  1.00000000,  1.00000000,
+   0.00000000,  0.00000000,  0.00000000,   0.00000000,  0.00000000,  0.00000000,
+   0.00000000,  0.00000000,  1.00000000,   0.00000000,  0.00000000,  1.00000000,
 };
 
 // hexagonal prism faces
-static GLuint hpi[] = {
+static GLuint *cyli;
+static GLuint cyli0[] = {
   12,  0,  1,
   13,  6,  7,
    0,  1,  6,
@@ -187,6 +192,7 @@ void CreateAndFillBuffers(){
       icoi[3*nface+0] = nk2; icoi[3*nface+1] = nk3; icoi[3*nface+2] = k3; 
     }
 
+    // normalize the vertices
     for (int j = spherenve[i-1]; j < spherenve[i]; j++){
       float anorm = sqrtf(icov[6*j+0]*icov[6*j+0]+icov[6*j+1]*icov[6*j+1]+icov[6*j+2]*icov[6*j+2]);
       icov[6*j+0] = icov[6*j+3] = icov[6*j+0] / anorm;
@@ -195,7 +201,7 @@ void CreateAndFillBuffers(){
     }
   }
 
-  // setup up OpenGL stuff
+  // build the buffers for the spheres
   glGenVertexArrays(nmaxsph, sphereVAO);
   glGenBuffers(1, &sphereVBO);
   glGenBuffers(nmaxsph, sphereEBO);
@@ -219,30 +225,48 @@ void CreateAndFillBuffers(){
   glBindVertexArray(0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  // glGenVertexArrays(1, cylVAO);
-  // glGenBuffers(1, cylVBO);
-  // glGenBuffers(1, cylEBO);
-  // glBindVertexArray(cylVAO[0]);
+  // allocate space for the icospheres and copy the icosahedron as the first icosphere
+  cylv = new GLfloat [6*cylnve[nmaxcyl-1]];
+  cyli = new GLuint [3*cylneladd[nmaxcyl]];
+  memcpy(cylv,cylv0,sizeof(cylv0));
+  memcpy(cyli,cyli0,sizeof(cyli0));
 
-  // glBindBuffer(GL_ARRAY_BUFFER, cylVBO[0]);
-  // glBufferData(GL_ARRAY_BUFFER, //thisiswrong// sizeof(icov), icov, GL_STATIC_DRAW);
+  // xxxx //
 
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[0]);
-  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icoi), icoi, GL_STATIC_DRAW);
+  // build the buffers for the cylinders
+  glGenVertexArrays(nmaxcyl, cylVAO);
+  glGenBuffers(1, &cylVBO);
+  glGenBuffers(nmaxcyl, cylEBO);
 
-  // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  // glEnableVertexAttribArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, cylVBO);
+  glBufferData(GL_ARRAY_BUFFER, 6 * cylnve[nmaxcyl-1] * sizeof(GLfloat), cylv, GL_STATIC_DRAW);
 
-  // glBindBuffer(GL_ARRAY_BUFFER, 0);
-  // glBindVertexArray(0);
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  for (int i=0;i<nmaxcyl;i++){
+    glBindVertexArray(cylVAO[i]);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[i]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * cylnel[i] * sizeof(GLuint), &(icoi[3*cylneladd[i]]), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  
 }
 
 // delete the buffers for the sphere and cylinder objects
 void DeleteBuffers(){
-  glDeleteVertexArrays(1, sphereVAO);
+  glDeleteVertexArrays(nmaxsph, sphereVAO);
   glDeleteBuffers(1, &sphereVBO);
-  glDeleteBuffers(1, sphereEBO);
+  glDeleteBuffers(nmaxsph, sphereEBO);
+  glDeleteVertexArrays(nmaxcyl, cylVAO);
+  glDeleteBuffers(1, &cylVBO);
+  glDeleteBuffers(nmaxcyl, cylEBO);
   delete icoi;
   delete icov;
 }

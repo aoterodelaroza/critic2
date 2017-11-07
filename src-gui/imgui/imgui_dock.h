@@ -123,7 +123,7 @@ namespace ImGui{
     Status_ status = Status_None; // status of the docking window
     ImVec2 pos = {}; // position of the window
     ImVec2 pos_saved = {}; // position of the window (before docking)
-    ImVec2 size = {}; // size of the window
+    ImVec2 size = {-1.f,-1.f}; // size of the window
     ImVec2 size_saved = {}; // saved size (before docking for dockable window)
     ImGuiWindowFlags flags = 0; // flags for the window
     ImGuiWindowFlags flags_saved = 0; // flags for the window (before docking)
