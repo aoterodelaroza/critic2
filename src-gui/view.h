@@ -50,6 +50,7 @@ struct View
   vec3 sphereProject(vec2 ndpos);
 
   // camera matrices and vectors
+  bool iswire = false; // use wire
   bool isortho = false; // is ortho or perspective?
   vec3 v_pos = {}; // position vector
   vec3 v_front = {}; // front vector

@@ -68,7 +68,7 @@ public:
         "  vec3 lightdir = normalize(lightPos - vec3(fragPos));                     \n"
         "  vec3 reflectdir = reflect(-lightdir,Normal);                             \n"
         "  float diff = diffuse * max(dot(Normal,lightdir),0.f);                    \n"
-        "  float spec = specular * pow(max(dot(viewdir,reflectdir),0.0f),32);       \n"
+        "  float spec = specular * pow(max(dot(viewdir,reflectdir),0.0f),shininess);\n"
         "  outputColor = vec4((ambient + diff + spec) * lightColor,1.0f) * vColor;  \n"
         "}\n"
       };

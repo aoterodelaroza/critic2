@@ -5,24 +5,27 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <glm/glm.hpp>
 
 // Framebuffer texture square side length
-const float FBO_tex_a = 1024.f;
+const float FBO_tex_a = 2048.f;
 
 // Background color for views
 const float bgrgb[4] = {0.0f,0.0f,0.0f,1.0f};
 
 // Light parameters
-const glm::vec3 lightPos = {0.f,2.f,0.f};
+const glm::vec3 lightPos = {20.f,20.f,0.f};
 const glm::vec3 lightColor = {1.f,1.f,1.f};
-const float ambient = 0.2f;
-const float diffuse = 0.7f;
-const float specular = 0.0f;
+const float ambient = 0.3f;
+const float diffuse = 0.6f;
+const float specular = 0.1f;
 const int shininess = 4;
 
-// atom & bond resolution
-const int isphres = 0;
+// atom & bond resolution 0 -> nmaxsph-1
+const int isphres = 3;
 
 // Mouse constants
 const float mousesens_rot = 2.0f; // Mouse rotate sensitivity

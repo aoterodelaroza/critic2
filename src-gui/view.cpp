@@ -125,7 +125,9 @@ void View::Update(){
 
   glClearColor(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      
+  if (iswire)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
   if (iscene > 0){
     c2::set_scene_pointers(iscene);
     glBindVertexArray(sphereVAO[isphres]);
@@ -140,7 +142,7 @@ void View::Update(){
       shader->setVec4("vColor",(const GLfloat *)c2::at[i].rgb);
       shader->setMat4("model",value_ptr(m_model));
       shader->setMat3("normrot",value_ptr(m_normrot));
-      glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
+      glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
     }
     // coordinate axes
     mat4 m_model = mat4(1.0f);
@@ -149,7 +151,7 @@ void View::Update(){
     m_model = scale(m_model,vec3(1.f,1.f,1.f));
     shader->setVec4("vColor",value_ptr(rgb));
     shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
 
     m_model = mat4(1.0f);
     rgb = vec3(0.f,1.f,0.f);
@@ -157,7 +159,7 @@ void View::Update(){
     m_model = scale(m_model,vec3(1.f,1.f,1.f));
     shader->setVec4("vColor",value_ptr(rgb));
     shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
 
     m_model = mat4(1.0f);
     rgb = vec3(0.f,0.f,1.f);
@@ -165,10 +167,12 @@ void View::Update(){
     m_model = scale(m_model,vec3(1.f,1.f,1.f));
     shader->setVec4("vColor",value_ptr(rgb));
     shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, spherenel[isphres], GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  if (iswire)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 void View::Delete(){

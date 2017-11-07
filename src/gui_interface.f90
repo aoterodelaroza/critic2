@@ -121,7 +121,7 @@ contains
     use c_interface_module, only: c_string_value, f_c_string
     use iso_c_binding, only: c_int
     use crystalseedmod, only: read_seeds_from_file, crystalseed
-    use param, only: pi, atmcov, jmlcol
+    use param, only: pi, atmcov, jmlcol2
     type(c_ptr), intent(in) :: line0
     integer(c_int), value :: ismolecule
 
@@ -162,7 +162,7 @@ contains
           else
              sc(1)%at(i)%rad = 1.5*atmcov(iz)
           end if
-          sc(1)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
+          sc(1)%at(i)%rgb(1:3) = real(jmlcol2(:,iz),4) / 255.
           sc(1)%at(i)%rgb(4) = 1.0
           sc(1)%center = sc(1)%center + sc(1)%at(i)%r
        end do

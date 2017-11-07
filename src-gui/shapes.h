@@ -22,14 +22,12 @@
 #include "imgui/gl3w.h"
 
 // public vertex buffer and attribute objects
-extern GLuint sphereVAO[1];
-extern GLuint sphereVBO[1];
-extern GLuint sphereEBO[1];
-extern const GLuint spherenel[1];
-extern GLuint cylVAO[1];
-extern GLuint cylVBO[1];
-extern GLuint cylEBO[1];
-extern const GLuint cylnv[1];
+extern GLuint sphereVAO[];
+extern const GLuint spherenel[];
+extern GLuint cylVAO[];
+extern GLuint cylVBO[];
+extern GLuint cylEBO[];
+extern const GLuint cylnv[];
 
 // shape functions
 void CreateAndFillBuffers();
