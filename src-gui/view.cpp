@@ -132,19 +132,32 @@ void View::Update(){
 
   if (iscene > 0){
     c2::set_scene_pointers(iscene);
-    glBindVertexArray(sphereVAO[isphres]);
 
-    // scene atoms
-    for (int i=0;i<c2::nat;i++){
+    // // scene atoms
+    // glBindVertexArray(sphVAO[isphres]);
+    // for (int i=0;i<c2::nat;i++){
+    //   mat4 m_model = mat4(1.0f);
+    //   m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
+    //   m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
+    //   mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
+
+    //   shader->setVec4("vColor",(const GLfloat *)c2::at[i].rgb);
+    //   shader->setMat4("model",value_ptr(m_model));
+    //   shader->setMat3("normrot",value_ptr(m_normrot));
+    //   glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
+    // }
+
+    {
+      glBindVertexArray(cylVAO[icylres]);
       mat4 m_model = mat4(1.0f);
-      m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
-      m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
+      m_model = translate(m_model,vec3(1.f,2.f,3.f));
+      m_model = scale(m_model,vec3(1.f,1.f,2.f));
       mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
 
-      shader->setVec4("vColor",(const GLfloat *)c2::at[i].rgb);
+      shader->setVec4("vColor",(const GLfloat *)c2::at[1].rgb);
       shader->setMat4("model",value_ptr(m_model));
       shader->setMat3("normrot",value_ptr(m_normrot));
-      glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
+       glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
     }
 
     // // scene bonds
@@ -169,30 +182,30 @@ void View::Update(){
     //   glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
     // }
 
-    // coordinate axes
-    mat4 m_model = mat4(1.0f);
-    vec3 rgb = vec3(1.f,0.f,0.f);
-    m_model = translate(m_model,vec3(c2::scenerad*1.2,0.f,0.f));
-    m_model = scale(m_model,vec3(1.f,1.f,1.f));
-    shader->setVec4("vColor",value_ptr(rgb));
-    shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
+    // // coordinate axes
+    // mat4 m_model = mat4(1.0f);
+    // vec3 rgb = vec3(1.f,0.f,0.f);
+    // m_model = translate(m_model,vec3(c2::scenerad*1.2,0.f,0.f));
+    // m_model = scale(m_model,vec3(1.f,1.f,1.f));
+    // shader->setVec4("vColor",value_ptr(rgb));
+    // shader->setMat4("model",value_ptr(m_model));
+    // glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
 
-    m_model = mat4(1.0f);
-    rgb = vec3(0.f,1.f,0.f);
-    m_model = translate(m_model,vec3(0.f,c2::scenerad*1.2,0.f));
-    m_model = scale(m_model,vec3(1.f,1.f,1.f));
-    shader->setVec4("vColor",value_ptr(rgb));
-    shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
+    // m_model = mat4(1.0f);
+    // rgb = vec3(0.f,1.f,0.f);
+    // m_model = translate(m_model,vec3(0.f,c2::scenerad*1.2,0.f));
+    // m_model = scale(m_model,vec3(1.f,1.f,1.f));
+    // shader->setVec4("vColor",value_ptr(rgb));
+    // shader->setMat4("model",value_ptr(m_model));
+    // glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
 
-    m_model = mat4(1.0f);
-    rgb = vec3(0.f,0.f,1.f);
-    m_model = translate(m_model,vec3(0.f,0.f,c2::scenerad*1.2));
-    m_model = scale(m_model,vec3(1.f,1.f,1.f));
-    shader->setVec4("vColor",value_ptr(rgb));
-    shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, 3*spherenel[isphres], GL_UNSIGNED_INT, 0);
+    // m_model = mat4(1.0f);
+    // rgb = vec3(0.f,0.f,1.f);
+    // m_model = translate(m_model,vec3(0.f,0.f,c2::scenerad*1.2));
+    // m_model = scale(m_model,vec3(1.f,1.f,1.f));
+    // shader->setVec4("vColor",value_ptr(rgb));
+    // shader->setMat4("model",value_ptr(m_model));
+    // glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);

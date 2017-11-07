@@ -22,8 +22,8 @@
 #include "imgui/gl3w.h"
 
 // public vertex buffer and attribute objects
-extern GLuint sphereVAO[];
-extern const GLuint spherenel[];
+extern GLuint sphVAO[];
+extern const GLuint sphnel[];
 extern GLuint cylVAO[];
 extern const GLuint cylnel[];
 
