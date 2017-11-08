@@ -26,7 +26,7 @@ const float specular = 0.6f;
 const int shininess = 8;
 
 // atom & bond resolution: 0 -> nmaxsph-1,nmaxcyl-1
-const int isphres = 3;
+const int isphres = 2;
 const int icylres = 0;
 
 // Mouse constants

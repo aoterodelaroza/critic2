@@ -223,6 +223,12 @@ contains
           sc(1)%at(i)%r = sc(1)%at(i)%r - sc(1)%center
           xmax = max(abs(sc(1)%at(i)%r),xmax)
        end do
+       do i = 1, sc(1)%nbond
+          sc(1)%bond(i)%r1 = sc(1)%bond(i)%r1 - sc(1)%center
+          sc(1)%bond(i)%r2 = sc(1)%bond(i)%r2 - sc(1)%center
+          xmax = max(abs(sc(1)%bond(i)%r1),xmax)
+          xmax = max(abs(sc(1)%bond(i)%r2),xmax)
+       end do
        sc(1)%srad = max(sqrt(dot_product(xmax,xmax)),10._c_float)
     end if
 
