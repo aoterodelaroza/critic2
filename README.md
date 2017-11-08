@@ -140,7 +140,7 @@ tested:
   versions of ifort but occasional errors still occur when loading and
   unloading very many crystal structures in sequence. For ifort
   17.0.1, the trispline interpolation in grids does not work.
-* Portland Group Fortran compiler (pgfortran), vresion 17.3. There are
+* Portland Group Fortran compiler (pgfortran), version 17.3. There are
   two important compiler problems: i) passing subroutines and
   functions whose interface includes multidimensional arrays as
   arguments or function results does not work, and ii) internal
