@@ -30,6 +30,7 @@
 #include "imgui_impl_glfw_gl3.h"
 #include <unordered_map>
 #include <algorithm>
+#include <string>
 
 using namespace ImGui;
 
