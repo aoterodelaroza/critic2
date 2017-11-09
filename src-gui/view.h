@@ -52,6 +52,10 @@ struct View
   float getDepth(vec2 ndpos);
   vec3 sphereProject(vec2 ndpos);
 
+  // draw shapes
+  void drawSphere(float r0[3],float rad,float rgb[4]);
+  void drawCylinder(float r1[3],float r2[3],float rad,float rgb[4]);
+
   // camera matrices and vectors
   bool iswire = false; // use wire
   bool isortho = false; // is ortho or perspective?

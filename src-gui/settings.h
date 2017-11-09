@@ -10,6 +10,10 @@
 
 #include <glm/glm.hpp>
 
+// constants
+#define PI 3.14159265358979323846
+#define AUTOANG 0.52917720859
+
 // Framebuffer texture square side length
 const int nmaxtex = 9;
 const float FBO_tex_a[nmaxtex] = {256.f,362.f,512.f,724.f,1024.f,1448.f,2048.f,2896.f,4096.f};
@@ -28,6 +32,9 @@ const int shininess = 8;
 // atom & bond resolution: 0 -> nmaxsph-1,nmaxcyl-1
 const int isphres = 2;
 const int icylres = 0;
+
+// Grid and Cartesian axes
+const float radgrid = 0.02;
 
 // Mouse constants
 const float mousesens_rot = 2.0f; // Mouse rotate sensitivity

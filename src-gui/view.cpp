@@ -135,71 +135,49 @@ void View::Update(){
 
     // scene atoms
     glBindVertexArray(sphVAO[isphres]);
-    for (int i=0;i<c2::nat;i++){
-      mat4 m_model = mat4(1.0f);
-      m_model = translate(m_model,vec3(c2::at[i].r[0],c2::at[i].r[1],c2::at[i].r[2]));
-      m_model = scale(m_model,vec3(c2::at[i].rad,c2::at[i].rad,c2::at[i].rad));
-      mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
-
-      shader->setVec4("vColor",(const GLfloat *)c2::at[i].rgb);
-      shader->setMat4("model",value_ptr(m_model));
-      shader->setMat3("normrot",value_ptr(m_normrot));
-      glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
-    }
+    for (int i=0;i<c2::nat;i++)
+      drawSphere(c2::at[i].r,c2::at[i].rad,c2::at[i].rgb);
 
     // scene bonds
     glBindVertexArray(cylVAO[icylres]);
     for (int i=0;i<c2::nbond;i++){
-      vec3 x1 = {c2::bond[i].r1[0],c2::bond[i].r1[1],c2::bond[i].r1[2]};
-      vec3 x2 = {c2::bond[i].r2[0],c2::bond[i].r2[1],c2::bond[i].r2[2]};
-      vec3 xmid = 0.5f * (x1 + x2);
-      vec3 xdif = x2 - x1;
-      float blen = length(xdif);
-
-      mat4 m_model0 = mat4(1.0f);
-      m_model0 = translate(m_model0,xmid);
-      m_model0 = m_model0 * orientation(xdif/blen,vec3(0.f,0.f,1.f));
-      m_model0 = scale(m_model0,vec3(c2::bond[i].rad,c2::bond[i].rad,0.5f * blen));
-      mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model0)));
-      shader->setMat3("normrot",value_ptr(m_normrot));
-
-
-      mat4 m_model = translate(mat4(1.0f),-0.25f*xdif) * m_model0;
-      shader->setVec4("vColor",(const GLfloat *)c2::bond[i].rgb1);
-      shader->setMat4("model",value_ptr(m_model));
-      glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
-
-      m_model = translate(mat4(1.0f),0.25f*xdif) * m_model0;
-      shader->setVec4("vColor",(const GLfloat *)c2::bond[i].rgb2);
-      shader->setMat4("model",value_ptr(m_model));
-      glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
+      float rgb[4] = {0.5f,0.f,0.f,1.f};
+      drawCylinder(c2::bond[i].r1,c2::bond[i].r2,c2::bond[i].rad,rgb);
     }
 
-    // coordinate axes
-    glBindVertexArray(sphVAO[isphres]);
-    mat4 m_model = mat4(1.0f);
-    vec3 rgb = vec3(1.f,0.f,0.f);
-    m_model = translate(m_model,vec3(c2::scenerad*1.2,0.f,0.f));
-    m_model = scale(m_model,vec3(1.f,1.f,1.f));
-    shader->setVec4("vColor",value_ptr(rgb));
-    shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
-
-    m_model = mat4(1.0f);
-    rgb = vec3(0.f,1.f,0.f);
-    m_model = translate(m_model,vec3(0.f,c2::scenerad*1.2,0.f));
-    m_model = scale(m_model,vec3(1.f,1.f,1.f));
-    shader->setVec4("vColor",value_ptr(rgb));
-    shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
-
-    m_model = mat4(1.0f);
-    rgb = vec3(0.f,0.f,1.f);
-    m_model = translate(m_model,vec3(0.f,0.f,c2::scenerad*1.2));
-    m_model = scale(m_model,vec3(1.f,1.f,1.f));
-    shader->setVec4("vColor",value_ptr(rgb));
-    shader->setMat4("model",value_ptr(m_model));
-    glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
+    // grid and Cartesian axes
+    int nmaxgrid = (int) (ceil(c2::scenerad * AUTOANG)+1e-5);
+    float r1[3] = {};
+    float r2[3] = {};
+    float rgb[4] = {1.f,1.f,1.f,1.f};
+    rgb[0] = 1.f; rgb[1] = 0.f; rgb[2] = 0.f;
+    r1[1] = 0.f; r1[0] = -nmaxgrid/AUTOANG;
+    r2[1] = 0.f; r2[0] =  nmaxgrid/AUTOANG;
+    drawCylinder(r1,r2,radgrid,rgb);
+    rgb[0] = 0.f; rgb[1] = 1.f; rgb[2] = 0.f;
+    r1[0] = 0.f; r1[1] = -nmaxgrid/AUTOANG;
+    r2[0] = 0.f; r2[1] =  nmaxgrid/AUTOANG;
+    drawCylinder(r1,r2,radgrid,rgb);
+    rgb[0] = 0.f; rgb[1] = 0.f; rgb[2] = 1.f;
+    r1[1] = 0.f; r1[2] = -nmaxgrid/AUTOANG;
+    r2[1] = 0.f; r2[2] =  nmaxgrid/AUTOANG;
+    drawCylinder(r1,r2,radgrid,rgb);
+    for (int i = 1; i <= nmaxgrid; i++){
+      r1[2] = 0.f; r2[2] = 0.f;
+      rgb[0] = 1.f; rgb[1] = 1.f; rgb[2] = 1.f; rgb[3] = 1.f; 
+      r1[0] = i/AUTOANG; r1[1] = -nmaxgrid/AUTOANG;
+      r2[0] = i/AUTOANG; r2[1] =  nmaxgrid/AUTOANG;
+      drawCylinder(r1,r2,radgrid,rgb);
+      r1[0] = -i/AUTOANG; r1[1] = -nmaxgrid/AUTOANG;
+      r2[0] = -i/AUTOANG; r2[1] =  nmaxgrid/AUTOANG;
+      drawCylinder(r1,r2,radgrid,rgb);
+      r1[1] =  i/AUTOANG; r1[0] = -nmaxgrid/AUTOANG;
+      r2[1] =  i/AUTOANG; r2[0] =  nmaxgrid/AUTOANG;
+      drawCylinder(r1,r2,radgrid,rgb);
+      r1[1] = -i/AUTOANG; r1[0] = -nmaxgrid/AUTOANG;
+      r2[1] = -i/AUTOANG; r2[0] =  nmaxgrid/AUTOANG;
+      drawCylinder(r1,r2,radgrid,rgb);
+    }
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -340,5 +318,35 @@ vec3 View::sphereProject(vec2 ndpos){
   float a = 2.0f * fmin(length(xs),0.5f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
+}
+
+void View::drawSphere(float r0[3],float rad,float rgb[4]){
+  mat4 m_model = mat4(1.0f);
+  m_model = translate(m_model,vec3(r0[0],r0[1],r0[2]));
+  m_model = scale(m_model,vec3(rad,rad,rad));
+  mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
+
+  shader->setVec4("vColor",(const GLfloat *)rgb);
+  shader->setMat4("model",value_ptr(m_model));
+  shader->setMat3("normrot",value_ptr(m_normrot));
+  glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
+}
+
+void View::drawCylinder(float r1[3],float r2[3],float rad,float rgb[4]){
+  vec3 x1 = {r1[0],r1[1],r1[2]};
+  vec3 x2 = {r2[0],r2[1],r2[2]};
+  vec3 xmid = 0.5f * (x1 + x2);
+  vec3 xdif = x2 - x1;
+  float blen = length(xdif);
+  
+  mat4 m_model = mat4(1.0f);
+  m_model = translate(m_model,xmid);
+  m_model = m_model * orientation(xdif/blen,vec3(0.f,0.f,1.f));
+  m_model = scale(m_model,vec3(rad,rad,blen));
+  mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
+  shader->setMat3("normrot",value_ptr(m_normrot));
+  shader->setVec4("vColor",(const GLfloat *)rgb);
+  shader->setMat4("model",value_ptr(m_model));
+  glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
 }
 
