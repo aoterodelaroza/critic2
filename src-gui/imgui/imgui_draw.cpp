@@ -17,6 +17,11 @@
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include "imgui_internal.h"
 
+// font awesome fonts from http://fontawesome.io/
+// IconFontCppHeaders by Juliette Foucaut https://github.com/juliettef/IconFontCppHeaders
+#include "IconsFontAwesome.h"
+#include "fonts_additional.inl"
+
 #include <stdio.h>      // vsnprintf, sscanf, printf
 #if !defined(alloca)
 #ifdef _WIN32
@@ -1196,7 +1201,7 @@ static void         Decode85(const unsigned char* src, unsigned char* dst)
     }
 }
 
-// Load embedded ProggyClean.ttf at size 13, disable oversampling
+// Load embedded ProggyClean.ttf at size 14, disable oversampling
 ImFont* ImFontAtlas::AddFontDefault(const ImFontConfig* font_cfg_template)
 {
     ImFontConfig font_cfg = font_cfg_template ? *font_cfg_template : ImFontConfig();
@@ -1205,10 +1210,15 @@ ImFont* ImFontAtlas::AddFontDefault(const ImFontConfig* font_cfg_template)
         font_cfg.OversampleH = font_cfg.OversampleV = 1;
         font_cfg.PixelSnapH = true;
     }
-    if (font_cfg.Name[0] == '\0') strcpy(font_cfg.Name, "ProggyClean.ttf, 13px");
+    if (font_cfg.Name[0] == '\0') strcpy(font_cfg.Name, "ProggyClean.ttf, 14px");
 
     const char* ttf_compressed_base85 = GetDefaultCompressedFontDataTTFBase85();
-    ImFont* font = AddFontFromMemoryCompressedBase85TTF(ttf_compressed_base85, 13.0f, &font_cfg, GetGlyphRangesDefault());
+    ImFont* font = AddFontFromMemoryCompressedBase85TTF(ttf_compressed_base85, 14.0f, &font_cfg, GetGlyphRangesDefault());
+
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    ImFontConfig icons_config; icons_config.MergeMode = true; icons_config.PixelSnapH = true;
+    AddFontFromMemoryCompressedBase85TTF(FontAwesome_compressed_data_base85, 16.0f, &icons_config, icons_ranges);
+
     return font;
 }
 
@@ -2415,3 +2425,4 @@ static const char* GetDefaultCompressedFontDataTTFBase85()
 {
     return proggy_clean_ttf_compressed_data_base85;
 }
+

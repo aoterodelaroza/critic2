@@ -21,6 +21,7 @@
 
 #include <list>
 
+#include "imgui/IconsFontAwesome.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_widgets.h"
 #include "imgui/mouse.h"
@@ -104,18 +105,20 @@ void DrawAllViews(){
 
 void View::Draw(){
   ImGuiContext *g = GetCurrentContext();
-  PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0,g->Style.WindowPadding.y));
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
   SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
-  if (BeginDock(title) && iscene > 0){
-    ImageInteractive((void *) FBOtex[icurtex],mstate);
-    if (processMouseEvents() || updateTexSize())
-      Update();
+  if (BeginDock(title)){
+    Text( ICON_FA_FILE "  The toolbar goes here." ); 
+
+    if (iscene > 0){
+      ImageInteractive((void *) FBOtex[icurtex],mstate);
+      if (processMouseEvents() || updateTexSize())
+	Update();
+    }
   }
   dock = GetCurrentDock();
   EndDock();
   PopStyleColor();
-  PopStyleVar();
 }
 
 void View::Update(){

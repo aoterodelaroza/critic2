@@ -225,12 +225,13 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   ImGuiWindow *win = GetCurrentWindow(); 
   if (win->SkipItems)
     return false;
+  ImGuiContext *g = GetCurrentContext();
 
   PushID((void *)texture);
   const ImGuiID id = win->GetID("#imageinteractive");
   PopID();
 
-  const ImRect bb(win->Pos + ImVec2(0.f,win->TitleBarHeight()),win->Pos + win->Size - ImVec2(0.f,win->TitleBarHeight()));
+  const ImRect bb(win->DC.CursorPos, win->DC.CursorPos + win->ContentsRegionRect.Max - (win->DC.CursorPos - win->Pos + ImVec2(1.f,1.f)));
   if (!ItemAdd(bb, &id))
       return false;
 
@@ -241,7 +242,6 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   float rx = 0.5f * (1.f - xratio);
   float ry = 0.5f * (1.f - yratio);
 
-  ImGuiContext* g = GetCurrentContext();
   bool held;
   bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
   win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(rx, 1.f - ry),ImVec2(1.f - rx, ry));

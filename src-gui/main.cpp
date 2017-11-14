@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
 
-  // GUI settings
+  // GUI settings, merge icons from font awesome
   ImGuiIO& io = GetIO();
   io.IniFilename = nullptr;
 
