@@ -1,3 +1,9 @@
+// -*-c++-*-
+
+#pragma once
+#define ICON_MIN_FA 0xf000
+#define ICON_MAX_FA 0xf2e0
+
 // File: 'fontawesome-webfont.ttf' (165548 bytes)
 // Exported using binary_to_compressed_c.cpp
 static const char FontAwesome_compressed_data_base85[155710+1] =

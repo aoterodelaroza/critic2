@@ -90,5 +90,8 @@ namespace ImGui{
 
   // xxxx //
   bool ImageInteractive(ImTextureID texture, MouseState *mstate);
+
+  // xxxx //
+  bool InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held);
 } // namespace ImGui
 #endif

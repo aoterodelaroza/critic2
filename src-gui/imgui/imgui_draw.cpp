@@ -19,8 +19,7 @@
 
 // font awesome fonts from http://fontawesome.io/
 // IconFontCppHeaders by Juliette Foucaut https://github.com/juliettef/IconFontCppHeaders
-#include "IconsFontAwesome.h"
-#include "fonts_additional.inl"
+#include "fontawesome.h"
 
 #include <stdio.h>      // vsnprintf, sscanf, printf
 #if !defined(alloca)
@@ -1217,7 +1216,7 @@ ImFont* ImFontAtlas::AddFontDefault(const ImFontConfig* font_cfg_template)
 
     static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
     ImFontConfig icons_config; icons_config.MergeMode = true; icons_config.PixelSnapH = true;
-    AddFontFromMemoryCompressedBase85TTF(FontAwesome_compressed_data_base85, 16.0f, &icons_config, icons_ranges);
+    AddFontFromMemoryCompressedBase85TTF(FontAwesome_compressed_data_base85, 14.0f, &icons_config, icons_ranges);
 
     return font;
 }

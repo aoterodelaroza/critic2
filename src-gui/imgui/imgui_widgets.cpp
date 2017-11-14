@@ -265,3 +265,20 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   mstate->ndpos.x = ((mstate->pos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 0.5f) * xratio + 0.5f;
   mstate->ndpos.y = 0.5f - ((mstate->pos.y - bb.Min.y) / (bb.Max.y - bb.Min.y) - 0.5f) * yratio;
 }
+
+bool ImGui::InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held){
+    ImGuiWindow* window = GetCurrentWindow();
+    if (window->SkipItems)
+        return false;
+
+    const ImGuiID id = window->GetID(str_id);
+    ImVec2 size = CalcItemSize(size_arg, 0.0f, 0.0f);
+    const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
+    ItemSize(bb);
+    if (!ItemAdd(bb, &id))
+        return false;
+
+    bool pressed = ButtonBehavior(bb, id, hovered, held);
+
+    return pressed;
+}

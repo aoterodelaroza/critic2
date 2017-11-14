@@ -21,7 +21,7 @@
 
 #include <list>
 
-#include "imgui/IconsFontAwesome.h"
+#include "imgui/fontawesome_glyphs.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_widgets.h"
 #include "imgui/mouse.h"
@@ -105,20 +105,99 @@ void DrawAllViews(){
 
 void View::Draw(){
   ImGuiContext *g = GetCurrentContext();
-  PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
-  SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
-  if (BeginDock(title)){
-    Text( ICON_FA_FILE "  The toolbar goes here." ); 
 
+  // Variables for associated dialogs
+  static bool drawprefs = false;
+
+  // The dock window
+  SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
+  PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
+  if (BeginDock(title)){
+    // save cursor position at the top left
+    ImVec2 cpos = GetCursorPos();
+
+    // variables for the buttons
+    static bool hovered[3] = {false,false,false};
+    static bool held[3] = {false,false,false};
+    bool pressed[3];
+    bool usegray[3];
+    char *buttonchar[3] = {ICON_FA_COG,ICON_FA_ARROWS_ALT,ICON_FA_PENCIL};
+    ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
+    ImColor heldcolor = ImColor(0.6471f,0.8549f,0.1255f);
+    ImColor hovercolor = ImColor(0.8549f,0.6471f,0.1255f);
+    ImColor graycolor = ImColor(0.5f,0.5f,0.5f);
+
+    // Interactive part of the buttons; save variables for later
+    PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
+    PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f,0.f));
+    PushFont(fonticon);
+    for (int i = 0; i < 3; i++){
+      PushID(buttonchar[i]);
+      SameLine();
+      pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
+      PopID();
+    }
+    PopFont();
+    PopStyleVar(2);
+
+    // Overlay the image and process mouse events
+    SetCursorPos(cpos);
     if (iscene > 0){
       ImageInteractive((void *) FBOtex[icurtex],mstate);
       if (processMouseEvents() || updateTexSize())
 	Update();
     }
+
+    // process button interactions
+    usegray[0] = false;
+    usegray[1] = usegray[2] = true;
+    if (pressed[0]) drawprefs = true;
+    if (pressed[1]) mousebehavior = MB_Navigate;
+    if (pressed[2]) mousebehavior = MB_Write;
+    if (mousebehavior == MB_Navigate)
+      usegray[1] = false;
+    else if (mousebehavior == MB_Write)
+      usegray[2] = false;
+
+    // Render the buttons on top of the image
+    SetCursorPos(cpos);
+    PushStyleColor(ImGuiCol_Button, ImColor(0, 0, 0, 0));
+    PushStyleColor(ImGuiCol_ButtonHovered, ImColor(0, 0, 0, 0));
+    PushStyleColor(ImGuiCol_ButtonActive, ImColor(0, 0, 0, 0));
+    PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
+    PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f,0.f));
+    PushFont(fonticon);
+    for (int i = 0; i < 3; i++){
+      PushID(buttonchar[i]);
+      if (held[i])
+	PushStyleColor(ImGuiCol_Text, heldcolor);
+      else if (hovered[i])
+	PushStyleColor(ImGuiCol_Text, hovercolor);
+      else if (usegray[i])
+	PushStyleColor(ImGuiCol_Text, graycolor);
+      Button(buttonchar[i],buttonsize);
+      if (held[i] || hovered[i] || usegray[i])
+	PopStyleColor();
+      SameLine();
+      PopID();
+    }
+    PopFont();
+    PopStyleVar(2);
+    PopStyleColor(3);
   }
   dock = GetCurrentDock();
   EndDock();
   PopStyleColor();
+
+  // Preferences dialog
+  if (drawprefs){
+    char prefstr[strlen(title) + 15];
+    ImFormatString(prefstr,IM_ARRAYSIZE(prefstr),"Prefrences (%s)",title);
+    if (BeginDock(prefstr,&drawprefs)){
+      Text("Blah!");
+    }
+    EndDock();
+  }
 }
 
 void View::Update(){

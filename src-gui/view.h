@@ -38,6 +38,9 @@ using namespace glm;
 
 struct View
 {
+  // mouse behavior enum
+  enum MouseBehavior_{MB_Navigate,MB_Write};
+
   // view methods
   void Draw();
   void Update();
@@ -67,13 +70,14 @@ struct View
   mat4 m_world = mat4(1.0); // world
 
   // saved states
+  MouseBehavior_ mousebehavior = MB_Navigate; // mouse behavior
   bool rlock = false; // rmb is dragging
   bool llock = false; // lmb is dragging
   vec3 mpos0; // saved mouse position in screen coords (0 -> 1024)
   vec3 cpos0; // saved camera position in world coords
   mat4 crot0; // saved camera rotation
 
-  // assoicated objects
+  // associated objects
   int icurtex = -1; // current texture in use
   GLuint FBO[nmaxtex]; // framebuffer object
   GLuint FBOtex[nmaxtex]; // framebuffer object textures

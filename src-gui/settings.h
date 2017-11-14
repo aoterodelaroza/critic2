@@ -9,10 +9,16 @@
 #include <stdlib.h>
 
 #include <glm/glm.hpp>
+#include "imgui/imgui.h"
 
 // constants
 #define PI 3.14159265358979323846
 #define AUTOANG 0.52917720859
+
+// Fonts (defined in main.cpp)
+extern ImFont* fontdefault;
+extern ImFont* fonticon;
+const float fonticon_size = 24.0f;
 
 // Framebuffer texture square side length
 const int nmaxtex = 9;
