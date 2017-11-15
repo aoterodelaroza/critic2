@@ -39,7 +39,7 @@ using namespace glm;
 struct View
 {
   // mouse behavior enum
-  enum MouseBehavior_{MB_Navigate,MB_Write};
+  enum MouseBehavior_{MB_Navigation,MB_Pointer,MB_Angle,MB_Ruler,MB_Builder,MB_Alignment};
 
   // view methods
   void Draw();
@@ -70,7 +70,7 @@ struct View
   mat4 m_world = mat4(1.0); // world
 
   // saved states
-  MouseBehavior_ mousebehavior = MB_Navigate; // mouse behavior
+  MouseBehavior_ mousebehavior = MB_Navigation; // mouse behavior
   bool rlock = false; // rmb is dragging
   bool llock = false; // lmb is dragging
   vec3 mpos0; // saved mouse position in screen coords (0 -> 1024)

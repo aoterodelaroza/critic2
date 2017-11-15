@@ -117,13 +117,18 @@ void View::Draw(){
     ImVec2 cpos = GetCursorPos();
 
     // variables for the buttons
-    static bool hovered[3] = {false,false,false};
-    static bool held[3] = {false,false,false};
-    bool pressed[3];
-    bool usegray[3];
-    char *buttonchar[3] = {ICON_FA_COG,ICON_FA_ARROWS_ALT,ICON_FA_PENCIL};
+    const int nicon = 11;
+    const int ihfill = 6;
+    static bool hovered[nicon] = {};
+    static bool held[nicon] = {};
+    bool pressed[nicon] = {};
+    bool usegray[nicon] = {};
+    char *buttonchar[nicon] = {ICON_FA_ARROWS,ICON_FA_MOUSE_POINTER,
+			       ICON_FA_COMPASS_ANGLE,ICON_FA_RULER,ICON_FA_PENCIL,
+			       ICON_FA_ALIGNMENT,ICON_FA_COG,ICON_FA_TAG,
+			       ICON_FA_FLOPPY_O,ICON_FA_QUESTION,ICON_FA_TIMES};
     ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
-    ImColor heldcolor = ImColor(0.6471f,0.8549f,0.1255f);
+    ImColor heldcolor = ImColor(0.7216f,0.5254,0.04314f);
     ImColor hovercolor = ImColor(0.8549f,0.6471f,0.1255f);
     ImColor graycolor = ImColor(0.5f,0.5f,0.5f);
 
@@ -131,7 +136,12 @@ void View::Draw(){
     PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
     PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f,0.f));
     PushFont(fonticon);
-    for (int i = 0; i < 3; i++){
+    for (int i = 0; i < nicon; i++){
+      if (i == ihfill){
+	SameLine(); Dummy(ImVec2(0.25f*fonticon_size,0.f));
+	SameLine(); Text(ICON_FA_ELLIPSIS_V); SameLine();
+	SameLine(); Dummy(ImVec2(0.25f*fonticon_size,0.f));
+      }
       PushID(buttonchar[i]);
       SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
@@ -148,16 +158,29 @@ void View::Draw(){
 	Update();
     }
 
+    // 0: ICON_FA_ARROWS
+    // 1: ICON_FA_MOUSE_POINTER,
+    // 2: ICON_FA_COMPASS_ANGLE
+    // 3: ICON_FA_RULER
+    // 4: ICON_FA_PENCIL,
+    // 5: ICON_FA_ALIGNMENT
+    // 6: ICON_FA_COG
+    // 7: ICON_FA_TAG,
+    // 8: ICON_FA_FLOPPY_O
+    // 9: ICON_FA_QUESTION ok
+    // 10: ICON_FA_TIMES
+    // xx: ellipsis_v
+
     // process button interactions
-    usegray[0] = false;
-    usegray[1] = usegray[2] = true;
-    if (pressed[0]) drawprefs = true;
-    if (pressed[1]) mousebehavior = MB_Navigate;
-    if (pressed[2]) mousebehavior = MB_Write;
-    if (mousebehavior == MB_Navigate)
-      usegray[1] = false;
-    else if (mousebehavior == MB_Write)
-      usegray[2] = false;
+    usegray[0] = usegray[1] = usegray[2] = usegray[3] = usegray[4] = usegray[5] = true;
+    if (pressed[0]) mousebehavior = MB_Navigation;
+    if (pressed[1]) mousebehavior = MB_Pointer;
+    if (pressed[2]) mousebehavior = MB_Angle;
+    if (pressed[3]) mousebehavior = MB_Ruler;
+    if (pressed[4]) mousebehavior = MB_Builder;
+    if (pressed[5]) mousebehavior = MB_Alignment;
+    if (pressed[6]) drawprefs = true;
+    usegray[mousebehavior] = false;
 
     // Render the buttons on top of the image
     SetCursorPos(cpos);
@@ -167,7 +190,12 @@ void View::Draw(){
     PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
     PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f,0.f));
     PushFont(fonticon);
-    for (int i = 0; i < 3; i++){
+    for (int i = 0; i < nicon; i++){
+      if (i == ihfill){
+	Dummy(ImVec2(0.25f*fonticon_size,0.f)); SameLine();
+	Text(ICON_FA_ELLIPSIS_V); SameLine();
+	Dummy(ImVec2(0.25f*fonticon_size,0.f)); SameLine();
+      }
       PushID(buttonchar[i]);
       if (held[i])
 	PushStyleColor(ImGuiCol_Text, heldcolor);
