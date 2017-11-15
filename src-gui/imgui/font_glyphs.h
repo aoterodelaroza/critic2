@@ -13,6 +13,9 @@
 
 #define ICON_MIN_FA 0xf000
 #define ICON_MAX_FA 0xf2e0
+#define ICON_MIN_SM 0x0021
+#define ICON_MAX_SM 0x002c
+
 #define ICON_FA_GLASS u8"\uf000"
 #define ICON_FA_MUSIC u8"\uf001"
 #define ICON_FA_SEARCH u8"\uf002"
@@ -692,3 +695,16 @@
 #define ICON_FA_SUPERPOWERS u8"\uf2dd"
 #define ICON_FA_WPEXPLORER u8"\uf2de"
 #define ICON_FA_MEETUP u8"\uf2e0"
+
+#define ICON_SM_ARROWS "!"
+#define ICON_SM_MOUSE_POINTER "\""
+#define ICON_SM_COMPASS_ANGLE "#"
+#define ICON_SM_RULER "$"
+#define ICON_SM_PENCIL "%"
+#define ICON_SM_ALIGNMENT "&"
+#define ICON_SM_COG "'"
+#define ICON_SM_TAG "("
+#define ICON_SM_FLOPPY_O ")"
+#define ICON_SM_QUESTION "*"
+#define ICON_SM_TIMES "+"
+#define ICON_SM_VBAR ","

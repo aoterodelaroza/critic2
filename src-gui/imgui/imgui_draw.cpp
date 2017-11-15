@@ -19,7 +19,7 @@
 
 // font awesome fonts from http://fontawesome.io/
 // IconFontCppHeaders by Juliette Foucaut https://github.com/juliettef/IconFontCppHeaders
-#include "fontawesome.h"
+#include "additional_fonts.h"
 
 #include <stdio.h>      // vsnprintf, sscanf, printf
 #if !defined(alloca)

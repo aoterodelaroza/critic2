@@ -21,7 +21,7 @@
 
 #include <list>
 
-#include "imgui/fontawesome_glyphs.h"
+#include "imgui/font_glyphs.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_widgets.h"
 #include "imgui/mouse.h"
@@ -123,10 +123,10 @@ void View::Draw(){
     static bool held[nicon] = {};
     bool pressed[nicon] = {};
     bool usegray[nicon] = {};
-    char *buttonchar[nicon] = {ICON_FA_ARROWS,ICON_FA_MOUSE_POINTER,
-			       ICON_FA_COMPASS_ANGLE,ICON_FA_RULER,ICON_FA_PENCIL,
-			       ICON_FA_ALIGNMENT,ICON_FA_COG,ICON_FA_TAG,
-			       ICON_FA_FLOPPY_O,ICON_FA_QUESTION,ICON_FA_TIMES};
+    char *buttonchar[nicon] = {ICON_SM_ARROWS,ICON_SM_MOUSE_POINTER,
+			       ICON_SM_COMPASS_ANGLE,ICON_SM_RULER,ICON_SM_PENCIL,
+			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
+			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
     ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
     ImColor heldcolor = ImColor(0.7216f,0.5254,0.04314f);
     ImColor hovercolor = ImColor(0.8549f,0.6471f,0.1255f);
@@ -139,7 +139,7 @@ void View::Draw(){
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
 	SameLine(); Dummy(ImVec2(0.25f*fonticon_size,0.f));
-	SameLine(); Text(ICON_FA_ELLIPSIS_V); SameLine();
+	SameLine(); Text(ICON_SM_VBAR);
 	SameLine(); Dummy(ImVec2(0.25f*fonticon_size,0.f));
       }
       PushID(buttonchar[i]);
@@ -158,18 +158,18 @@ void View::Draw(){
 	Update();
     }
 
-    // 0: ICON_FA_ARROWS
-    // 1: ICON_FA_MOUSE_POINTER,
-    // 2: ICON_FA_COMPASS_ANGLE
-    // 3: ICON_FA_RULER
-    // 4: ICON_FA_PENCIL,
-    // 5: ICON_FA_ALIGNMENT
-    // 6: ICON_FA_COG
-    // 7: ICON_FA_TAG,
-    // 8: ICON_FA_FLOPPY_O
-    // 9: ICON_FA_QUESTION ok
-    // 10: ICON_FA_TIMES
-    // xx: ellipsis_v
+    // 0: ICON_SM_ARROWS
+    // 1: ICON_SM_MOUSE_POINTER,
+    // 2: ICON_SM_COMPASS_ANGLE
+    // 3: ICON_SM_RULER
+    // 4: ICON_SM_PENCIL,
+    // 5: ICON_SM_ALIGNMENT
+    // 6: ICON_SM_COG
+    // 7: ICON_SM_TAG,
+    // 8: ICON_SM_FLOPPY_O
+    // 9: ICON_SM_QUESTION ok
+    // 10: ICON_SM_TIMES
+    // xx: ICON_SM_VBAR
 
     // process button interactions
     usegray[0] = usegray[1] = usegray[2] = usegray[3] = usegray[4] = usegray[5] = true;
@@ -193,7 +193,7 @@ void View::Draw(){
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
 	Dummy(ImVec2(0.25f*fonticon_size,0.f)); SameLine();
-	Text(ICON_FA_ELLIPSIS_V); SameLine();
+	Text(ICON_SM_VBAR); SameLine();
 	Dummy(ImVec2(0.25f*fonticon_size,0.f)); SameLine();
       }
       PushID(buttonchar[i]);

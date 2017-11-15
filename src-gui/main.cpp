@@ -27,8 +27,8 @@
 #include "imgui/imgui_dock.h"
 #include "imgui/imgui_widgets.h"
 #include "imgui/mouse.h"
-#include "imgui/fontawesome.h"
-#include "imgui/fontawesome_glyphs.h"
+#include "imgui/additional_fonts.h"
+#include "imgui/font_glyphs.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,12 +73,12 @@ int main(int argc, char *argv[]){
   io.IniFilename = nullptr;
 
   // Load a larger version of the fontawesome font for icons
-  static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+  static const ImWchar icons_ranges[] = { ICON_MIN_SM, ICON_MAX_SM, 0 };
   ImFontConfig icons_config; 
   icons_config.MergeMode = false; 
   icons_config.PixelSnapH = true;
   fontdefault = io.Fonts->AddFontDefault();
-  fonticon = io.Fonts->AddFontFromMemoryCompressedBase85TTF(FontAwesome_compressed_data_base85, fonticon_size, &icons_config, icons_ranges);
+  fonticon = io.Fonts->AddFontFromMemoryCompressedBase85TTF(smallicons_compressed_data_base85, fonticon_size, &icons_config, icons_ranges);
 
   // Shader and opengl settings
   Shader shader = {};
