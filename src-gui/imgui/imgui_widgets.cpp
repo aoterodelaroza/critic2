@@ -221,7 +221,7 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   return held && IsMouseDragging();
 }
 
-bool ImGui::ImageInteractive(ImTextureID texture, bool *hover, ImVec2 *ndpos){
+bool ImGui::ImageInteractive(ImTextureID texture, bool *hover, ImRect *vrect){
   ImGuiWindow *win = GetCurrentWindow(); 
   if (win->SkipItems)
     return false;
@@ -231,24 +231,22 @@ bool ImGui::ImageInteractive(ImTextureID texture, bool *hover, ImVec2 *ndpos){
   const ImGuiID id = win->GetID("#imageinteractive");
   PopID();
 
-  const ImRect bb(win->DC.CursorPos, win->DC.CursorPos + win->ContentsRegionRect.Max - (win->DC.CursorPos - win->Pos + ImVec2(1.f,1.f)));
-  if (!ItemAdd(bb, &id))
+  vrect->Min = win->DC.CursorPos;
+  vrect->Max = win->DC.CursorPos + win->ContentsRegionRect.Max - (win->DC.CursorPos - win->Pos + ImVec2(1.f,1.f));
+
+  if (!ItemAdd(*vrect, &id))
       return false;
 
-  float x = win->Size.x;
-  float y = win->Size.y - win->TitleBarHeight();
+  float x = vrect->Max.x - vrect->Min.x;
+  float y = vrect->Max.y - vrect->Min.y;
   float xratio = x/fmax(x,y);
   float yratio = y/fmax(x,y);
   float rx = 0.5f * (1.f - xratio);
   float ry = 0.5f * (1.f - yratio);
 
   bool held;
-  bool pressed = ButtonBehavior(bb, id, hover, &held);
-  win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(rx, 1.f - ry),ImVec2(1.f - rx, ry));
-
-  // mouse position in screen coords for the texture, bl: (0,0) ur: (1,1)
-  ndpos->x = ((g->IO.MousePos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 0.5f) * xratio + 0.5f;
-  ndpos->y = 0.5f - ((g->IO.MousePos.y - bb.Min.y) / (bb.Max.y - bb.Min.y) - 0.5f) * yratio;
+  bool pressed = ButtonBehavior(*vrect, id, hover, &held);
+  win->DrawList->AddImage(texture,vrect->Min,vrect->Max,ImVec2(rx, 1.f - ry),ImVec2(1.f - rx, ry));
 }
 
 bool ImGui::InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held){

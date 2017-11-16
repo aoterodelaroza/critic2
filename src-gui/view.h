@@ -45,16 +45,24 @@ struct View
   void Draw();
   void Update();
   void Delete();
-  bool processMouseEvents(bool hover, ImVec2 ndpos);
-  bool navigate(bool hover, ImVec2 ndpos);
+  bool processMouseEvents(bool hover);
+  bool navigate(bool hover);
   bool updateTexSize();
 
   // camera methods
   void updateProjection();
   void updateView();
   void updateWorld();
-  float getDepth(ImVec2 ndpos);
-  vec3 sphereProject(ImVec2 ndpos);
+  float getDepth(vec2 ntexpos);
+  vec3 sphereProject(vec2 ntexpos);
+
+  // projection and unprojection
+  void pos_to_ntexpos(vec2 &pos); // screen to normalized texture position
+  void ntexpos_to_pos(vec2 &pos); // normalized texture to screen position
+  void pos_to_texpos(vec2 &pos); // screen to texture position
+  void texpos_to_pos(vec2 &pos); // texture to screen position
+  void texpos_to_ntexpos(vec2 &pos); // texture to normalized texture position
+  void ntexpos_to_texpos(vec2 &pos); // normalized texture to texture position
 
   // draw shapes
   void drawSphere(float r0[3],float rad,float rgb[4]);
@@ -62,7 +70,7 @@ struct View
 
   // camera matrices and vectors
   bool iswire = false; // use wire
-  bool isortho = false; // is ortho or perspective?
+  bool isortho = true; // is ortho or perspective?
   vec3 v_pos = {}; // position vector
   vec3 v_front = {}; // front vector
   vec3 v_up = {}; // up vector
@@ -87,6 +95,7 @@ struct View
   char *title; // title
   int iscene = -1; // integer identifier of the associated scene
   ImGui::Dock *dock = nullptr; // dock
+  ImRect vrect; // rectangle for the current view
 };
   
 // Create a new view linked to scene iscene (0 for no scene).

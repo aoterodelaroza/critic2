@@ -150,13 +150,19 @@ void View::Draw(){
     PopFont();
     PopStyleVar(2);
 
-    // Overlay the image and process mouse events
+    // Overlay the image 
     bool hover = false;
-    ImVec2 ndpos = {};
     SetCursorPos(cpos);
     if (iscene > 0){
-      ImageInteractive((void *) FBOtex[icurtex],&hover,&ndpos);
-      if (processMouseEvents(hover,ndpos) || updateTexSize())
+      ImageInteractive((void *) FBOtex[icurtex],&hover,&vrect);
+    } else {
+      hover = false;
+      vrect = dock->window->Rect();
+    }
+
+    // process mouse events
+    if (iscene > 0){
+      if (processMouseEvents(hover) || updateTexSize())
 	Update();
     }
 
@@ -309,9 +315,9 @@ void View::Delete(){
   }
 }
 
-bool View::processMouseEvents(bool hover, ImVec2 ndpos){
+bool View::processMouseEvents(bool hover){
   if (mousebehavior == MB_Navigation)
-    return navigate(hover,ndpos);
+    return navigate(hover);
   else if (mousebehavior == MB_Pointer)
     return false;
   else if (mousebehavior == MB_Angle)
@@ -324,10 +330,16 @@ bool View::processMouseEvents(bool hover, ImVec2 ndpos){
     return false;
 }
 
-bool View::navigate(bool hover, ImVec2 ndpos){
+bool View::navigate(bool hover){
   const float eps = 1e-8;
   const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
   bool updateview = false, updateworld = false, updateprojection = false;
+
+  // calculate the texture coordinates
+  vec2 texpos = mstate.pos;
+  pos_to_texpos(texpos);
+  vec2 ntexpos = texpos;
+  texpos_to_ntexpos(ntexpos);
 
   // mouse scroll = zoom
   if (hover && abs(mstate.scroll) > eps && !rlock){
@@ -342,19 +354,19 @@ bool View::navigate(bool hover, ImVec2 ndpos){
 
   // drag
   if (hover && mstate.rclick && !llock){ 
-    float depth = getDepth(ndpos);
+    float depth = getDepth(texpos);
     if (depth < 1.0){
-      mpos0 = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],depth};
+      mpos0 = {texpos.x,texpos.y,depth};
     }else{
       vec3 origin = {0.f,0.f,0.f};
       origin = project(origin,m_view,m_projection,viewport);
-      mpos0 = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],origin.z};
+      mpos0 = {texpos.x,texpos.y,origin.z};
     }
     cpos0 = {v_pos[0],v_pos[1],0.f};
     rlock = true;
   } else if (rlock) {
     if (mstate.rdown){
-      vec3 vnew = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],mpos0.z};
+      vec3 vnew = {texpos.x,texpos.y,mpos0.z};
       vec3 vold = mpos0;
       vnew = unProject(vnew,m_view,m_projection,viewport);
       vold = unProject(vold,m_view,m_projection,viewport);
@@ -368,16 +380,16 @@ bool View::navigate(bool hover, ImVec2 ndpos){
 
   // rotate
   if (hover && mstate.lclick && !rlock){
-    mpos0 = {ndpos.x,ndpos.y,0.f};
-    cpos0 = sphereProject(ndpos);
+    mpos0 = {ntexpos.x, ntexpos.y, 0.f};
+    cpos0 = sphereProject(ntexpos);
     crot0 = m_world;
     llock = true;
   } else if (llock) {
     if (mstate.ldown){
-      vec3 cpos = sphereProject(ndpos);
+      vec3 cpos = sphereProject(ntexpos);
       vec3 axis = cross(cpos0,cpos);
       if (length(axis) > 1e-10f){
-        vec2 mpos = {ndpos.x-mpos0.x,ndpos.y-mpos0.y};
+        vec2 mpos = {ntexpos.x-mpos0.x, ntexpos.y-mpos0.y};
         float ang = 2.0f * length(mpos) * mousesens_rot;
         m_world = rotate(mat4(1.0f),ang,axis) * crot0;
         updateworld = true;
@@ -428,19 +440,57 @@ void View::updateWorld(){
   shader->setMat4("world",value_ptr(m_world));
 }
 
-float View::getDepth(ImVec2 ndpos){
+float View::getDepth(vec2 ntexpos){
     float depth;
     glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
-    glReadPixels(ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+    glReadPixels(ntexpos.x*FBO_tex_a[icurtex],ntexpos.y*FBO_tex_a[icurtex], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
 }
 
-vec3 View::sphereProject(ImVec2 ndpos){
-  vec2 xs = {(clamp(ndpos.x,0.f,1.f)-0.5f), (clamp(ndpos.y,0.f,1.f)-0.5f)};
+vec3 View::sphereProject(vec2 ntexpos){
+  vec2 xs = {(clamp(ntexpos.x,0.f,1.f)-0.5f), (clamp(ntexpos.y,0.f,1.f)-0.5f)};
   float a = 2.0f * fmin(length(xs),0.5f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
+}
+
+void View::pos_to_ntexpos(vec2 &pos){
+  float x = vrect.Max.x - vrect.Min.x;
+  float y = vrect.Max.y - vrect.Min.y;
+  float xratio = x/fmax(x,y);
+  float yratio = y/fmax(x,y);
+  
+  pos.x = ((pos.x - vrect.Min.x) / x - 0.5f) * xratio + 0.5f;
+  pos.y = 0.5f - ((pos.y - vrect.Min.y) / y - 0.5f) * yratio;
+}
+
+void View::ntexpos_to_pos(vec2 &pos){
+  float x = vrect.Max.x - vrect.Min.x;
+  float y = vrect.Max.y - vrect.Min.y;
+  float xratio1 = fmax(x,y)/x;
+  float yratio1 = fmax(x,y)/y;
+  
+  pos.x = vrect.Min.x + x * (0.5f + xratio1 * (pos.x - 0.5f));
+  pos.y = vrect.Min.y + y * (0.5f + yratio1 * (0.5f - pos.y));
+}
+
+void View::pos_to_texpos(vec2 &pos){
+  pos_to_ntexpos(pos);
+  pos *= FBO_tex_a[icurtex];
+}
+
+void View::texpos_to_pos(vec2 &pos){
+  pos /= FBO_tex_a[icurtex];
+  ntexpos_to_pos(pos);
+}
+
+void View::texpos_to_ntexpos(vec2 &pos){
+  pos /= FBO_tex_a[icurtex];
+}
+
+void View::ntexpos_to_texpos(vec2 &pos){
+  pos *= FBO_tex_a[icurtex];
 }
 
 void View::drawSphere(float r0[3],float rad,float rgb[4]){

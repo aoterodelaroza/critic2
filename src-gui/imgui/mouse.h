@@ -13,7 +13,6 @@
 // mouse when it is hovering a certain window region.
 struct MouseState
 {
-  bool hover   = false;
   bool lclick  = false;
   bool ldown   = false;
   bool mclick  = false;
@@ -25,12 +24,10 @@ struct MouseState
   bool ldclick = false;
   float scroll = 0.f;
   glm::vec2 pos = {0.f,0.f};
-  glm::vec2 ndpos = {0.f,0.f};
 
   void Fill(){
     ImGuiContext *g = ImGui::GetCurrentContext();
 
-    hover = false;
     lclick = ImGui::IsMouseClicked(0);
     mclick = ImGui::IsMouseClicked(2);
     rclick = ImGui::IsMouseClicked(1);
@@ -44,7 +41,6 @@ struct MouseState
     mdown = g->IO.MouseDown[2];
 
     pos = {g->IO.MousePos.x,g->IO.MousePos.y};
-    ndpos = {0.f,0.f};
   
     scroll = g->IO.MouseWheel;
   }
