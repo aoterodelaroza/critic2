@@ -455,6 +455,10 @@ vec3 View::sphereProject(vec2 ntexpos){
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
 }
 
+vec4 View::cam_world_coords(){
+  return inverse(m_world) * vec4(v_pos,1.0f);
+}
+
 void View::pos_to_ntexpos(vec2 &pos){
   float x = vrect.Max.x - vrect.Min.x;
   float y = vrect.Max.y - vrect.Min.y;
@@ -491,6 +495,12 @@ void View::texpos_to_ntexpos(vec2 &pos){
 
 void View::ntexpos_to_texpos(vec2 &pos){
   pos *= FBO_tex_a[icurtex];
+}
+
+vec2 View::world_to_texpos(vec3 pos){
+  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  vec3 pos3 = project(pos,m_view,m_projection,viewport);
+  return vec2(pos3);
 }
 
 void View::drawSphere(float r0[3],float rad,float rgb[4]){

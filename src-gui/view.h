@@ -55,6 +55,7 @@ struct View
   void updateWorld();
   float getDepth(vec2 ntexpos);
   vec3 sphereProject(vec2 ntexpos);
+  vec4 cam_world_coords();
 
   // projection and unprojection
   void pos_to_ntexpos(vec2 &pos); // screen to normalized texture position
@@ -63,6 +64,7 @@ struct View
   void texpos_to_pos(vec2 &pos); // texture to screen position
   void texpos_to_ntexpos(vec2 &pos); // texture to normalized texture position
   void ntexpos_to_texpos(vec2 &pos); // normalized texture to texture position
+  vec2 world_to_texpos(vec3 pos); // world to texture position
 
   // draw shapes
   void drawSphere(float r0[3],float rad,float rgb[4]);
