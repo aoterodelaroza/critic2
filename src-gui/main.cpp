@@ -37,8 +37,12 @@
 #include "shapes.h"
 #include "view.h"
 
+// Global variables: fonts (see settings.h)
 ImFont* fontdefault = nullptr;
 ImFont* fonticon = nullptr;
+
+// Global variables: mouse state (see settings.h)
+MouseState mstate = {};
 
 using namespace std;
 using namespace ImGui;
@@ -105,6 +109,9 @@ int main(int argc, char *argv[]){
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
+
+    // Fill the mouse state with imgui values
+    mstate.Fill();
 
     // Background
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);

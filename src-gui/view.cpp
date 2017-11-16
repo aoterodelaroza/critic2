@@ -26,9 +26,10 @@
 #include "imgui/imgui_widgets.h"
 #include "imgui/mouse.h"
 
+#include "critic2.h"
 #include "shapes.h"
 #include "view.h"
-#include "critic2.h"
+#include "settings.h"
 
 using namespace ImGui;
 using namespace std;
@@ -75,9 +76,6 @@ View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
   aview->v_pos    = {0.f,0.f,10.f};
   aview->v_front  = {0.f,0.f,-1.f};
   aview->v_up     = {0.f,1.f,0.f};
-
-  // new mouse state
-  aview->mstate = new MouseState;
 
   if (iscene > 0){
     // set the camera to fit the scene size
@@ -153,10 +151,12 @@ void View::Draw(){
     PopStyleVar(2);
 
     // Overlay the image and process mouse events
+    bool hover = false;
+    ImVec2 ndpos = {};
     SetCursorPos(cpos);
     if (iscene > 0){
-      ImageInteractive((void *) FBOtex[icurtex],mstate);
-      if (processMouseEvents() || updateTexSize())
+      ImageInteractive((void *) FBOtex[icurtex],&hover,&ndpos);
+      if (processMouseEvents(hover,ndpos) || updateTexSize())
 	Update();
     }
 
@@ -303,23 +303,34 @@ void View::Delete(){
       glDeleteTextures(nmaxtex, FBOtex);
       glDeleteRenderbuffers(nmaxtex, FBOdepth);
       glDeleteFramebuffers(nmaxtex, FBO);
-      if (mstate)
-	delete mstate;
       viewlist.erase(it);
       break;
     }
   }
 }
 
-bool View::processMouseEvents(){
-  c2::set_scene_pointers(iscene);
+bool View::processMouseEvents(bool hover, ImVec2 ndpos){
+  if (mousebehavior == MB_Navigation)
+    return navigate(hover,ndpos);
+  else if (mousebehavior == MB_Pointer)
+    return false;
+  else if (mousebehavior == MB_Angle)
+    return false;
+  else if (mousebehavior == MB_Ruler)
+    return false;
+  else if (mousebehavior == MB_Builder)
+    return false;
+  else if (mousebehavior == MB_Alignment)
+    return false;
+}
 
+bool View::navigate(bool hover, ImVec2 ndpos){
   const float eps = 1e-8;
   bool updateview = false, updateworld = false, updateprojection = false;
 
   // mouse scroll = zoom
-  if (mstate->hover && abs(mstate->scroll) > eps && !rlock){
-    float ratio = fmin(mousesens_zoom * mstate->scroll,0.5f);
+  if (hover && abs(mstate.scroll) > eps && !rlock){
+    float ratio = fmin(mousesens_zoom * mstate.scroll,0.5f);
     v_pos = v_pos - ratio * v_pos;
     if (length(v_pos) < min_zoom)
       v_pos = v_pos / length(v_pos) * min_zoom;
@@ -329,21 +340,21 @@ bool View::processMouseEvents(){
   }
 
   // drag
-  if (mstate->hover && mstate->rclick && !llock){ 
-    float depth = getDepth(mstate->ndpos);
+  if (hover && mstate.rclick && !llock){ 
+    float depth = getDepth(ndpos);
     if (depth < 1.0){
-      mpos0 = {mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex],depth};
+      mpos0 = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],depth};
     }else{
       vec3 origin = {0.f,0.f,0.f};
       const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
       origin = project(origin,m_view,m_projection,viewport);
-      mpos0 = {mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex],origin.z};
+      mpos0 = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],origin.z};
     }
     cpos0 = {v_pos[0],v_pos[1],0.f};
     rlock = true;
   } else if (rlock) {
-    if (mstate->rdown){
-      vec3 vnew = {mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex],mpos0.z};
+    if (mstate.rdown){
+      vec3 vnew = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],mpos0.z};
       vec3 vold = mpos0;
       const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
       vnew = unProject(vnew,m_view,m_projection,viewport);
@@ -357,17 +368,17 @@ bool View::processMouseEvents(){
   }
 
   // rotate
-  if (mstate->hover && mstate->lclick && !rlock){
-    mpos0 = {mstate->ndpos.x,mstate->ndpos.y,0.f};
-    cpos0 = sphereProject(mstate->ndpos);
+  if (hover && mstate.lclick && !rlock){
+    mpos0 = {ndpos.x,ndpos.y,0.f};
+    cpos0 = sphereProject(ndpos);
     crot0 = m_world;
     llock = true;
   } else if (llock) {
-    if (mstate->ldown){
-      vec3 cpos = sphereProject(mstate->ndpos);
+    if (mstate.ldown){
+      vec3 cpos = sphereProject(ndpos);
       vec3 axis = cross(cpos0,cpos);
       if (length(axis) > 1e-10f){
-        vec2 mpos = {mstate->ndpos.x-mpos0.x,mstate->ndpos.y-mpos0.y};
+        vec2 mpos = {ndpos.x-mpos0.x,ndpos.y-mpos0.y};
         float ang = 2.0f * length(mpos) * mousesens_rot;
         m_world = rotate(mat4(1.0f),ang,axis) * crot0;
         updateworld = true;
@@ -384,8 +395,9 @@ bool View::processMouseEvents(){
   if (updateprojection)
     updateProjection();
 
-  return updateview || updateworld || updateprojection;
+  return updateworld || updateview || updateprojection;
 }
+
 
 bool View::updateTexSize(){
   float amax = ((dock && dock->size.x > 0.f && dock->size.y > 0.f)? fmax(dock->size.x,dock->size.y) : 200.f);
@@ -417,16 +429,16 @@ void View::updateWorld(){
   shader->setMat4("world",value_ptr(m_world));
 }
 
-float View::getDepth(vec2 ndpos){
+float View::getDepth(ImVec2 ndpos){
     float depth;
     glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
-    glReadPixels(mstate->ndpos.x*FBO_tex_a[icurtex],mstate->ndpos.y*FBO_tex_a[icurtex], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+    glReadPixels(ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
 }
 
-vec3 View::sphereProject(vec2 ndpos){
-  vec2 xs = {(clamp(mstate->ndpos.x,0.f,1.f)-0.5f), (clamp(mstate->ndpos.y,0.f,1.f)-0.5f)};
+vec3 View::sphereProject(ImVec2 ndpos){
+  vec2 xs = {(clamp(ndpos.x,0.f,1.f)-0.5f), (clamp(ndpos.y,0.f,1.f)-0.5f)};
   float a = 2.0f * fmin(length(xs),0.5f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));

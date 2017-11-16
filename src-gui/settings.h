@@ -10,6 +10,7 @@
 
 #include <glm/glm.hpp>
 #include "imgui/imgui.h"
+#include "imgui/mouse.h"
 
 // constants
 #define PI 3.14159265358979323846
@@ -19,6 +20,9 @@
 extern ImFont* fontdefault;
 extern ImFont* fonticon;
 const float fonticon_size = 24.0f;
+
+// Mouse state
+extern MouseState mstate;
 
 // Framebuffer texture square side length
 const int nmaxtex = 9;

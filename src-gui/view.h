@@ -45,15 +45,16 @@ struct View
   void Draw();
   void Update();
   void Delete();
-  bool processMouseEvents();
+  bool processMouseEvents(bool hover, ImVec2 ndpos);
+  bool navigate(bool hover, ImVec2 ndpos);
   bool updateTexSize();
 
   // camera methods
   void updateProjection();
   void updateView();
   void updateWorld();
-  float getDepth(vec2 ndpos);
-  vec3 sphereProject(vec2 ndpos);
+  float getDepth(ImVec2 ndpos);
+  vec3 sphereProject(ImVec2 ndpos);
 
   // draw shapes
   void drawSphere(float r0[3],float rad,float rgb[4]);
@@ -85,7 +86,6 @@ struct View
   Shader *shader = nullptr; // pointer to the current shader
   char *title; // title
   int iscene = -1; // integer identifier of the associated scene
-  MouseState *mstate = nullptr; // mouse
   ImGui::Dock *dock = nullptr; // dock
 };
   

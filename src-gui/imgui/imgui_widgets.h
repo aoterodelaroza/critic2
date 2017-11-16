@@ -89,7 +89,7 @@ namespace ImGui{
   bool LiftGrip(const char *label, ImGuiWindow* window);
 
   // xxxx //
-  bool ImageInteractive(ImTextureID texture, MouseState *mstate);
+  bool ImageInteractive(ImTextureID texture, bool *hover, ImVec2 *ndpos);
 
   // xxxx //
   bool InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held);

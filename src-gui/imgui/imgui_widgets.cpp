@@ -221,7 +221,7 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   return held && IsMouseDragging();
 }
 
-bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
+bool ImGui::ImageInteractive(ImTextureID texture, bool *hover, ImVec2 *ndpos){
   ImGuiWindow *win = GetCurrentWindow(); 
   if (win->SkipItems)
     return false;
@@ -243,27 +243,12 @@ bool ImGui::ImageInteractive(ImTextureID texture, MouseState *mstate){
   float ry = 0.5f * (1.f - yratio);
 
   bool held;
-  bool pressed = ButtonBehavior(bb, id, &(mstate->hover), &held);
+  bool pressed = ButtonBehavior(bb, id, hover, &held);
   win->DrawList->AddImage(texture,bb.Min,bb.Max,ImVec2(rx, 1.f - ry),ImVec2(1.f - rx, ry));
-  mstate->lclick = mstate->hover && IsMouseClicked(0);
-  mstate->mclick = mstate->hover && IsMouseClicked(2);
-  mstate->rclick = mstate->hover && IsMouseClicked(1);
-  mstate->ldclick = mstate->hover && IsMouseDoubleClicked(0);
-
-  mstate->ldrag = mstate->hover && IsMouseDragging(0);
-  mstate->rdrag = mstate->hover && IsMouseDragging(1);
-
-  mstate->ldown = g->IO.MouseDown[0];
-  mstate->rdown = g->IO.MouseDown[1];
-  mstate->mdown = g->IO.MouseDown[2];
-
-  mstate->pos = {g->IO.MousePos.x,g->IO.MousePos.y};
-  
-  mstate->scroll = g->IO.MouseWheel;
 
   // mouse position in screen coords for the texture, bl: (0,0) ur: (1,1)
-  mstate->ndpos.x = ((mstate->pos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 0.5f) * xratio + 0.5f;
-  mstate->ndpos.y = 0.5f - ((mstate->pos.y - bb.Min.y) / (bb.Max.y - bb.Min.y) - 0.5f) * yratio;
+  ndpos->x = ((g->IO.MousePos.x - bb.Min.x) / (bb.Max.x - bb.Min.x) - 0.5f) * xratio + 0.5f;
+  ndpos->y = 0.5f - ((g->IO.MousePos.y - bb.Min.y) / (bb.Max.y - bb.Min.y) - 0.5f) * yratio;
 }
 
 bool ImGui::InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held){
