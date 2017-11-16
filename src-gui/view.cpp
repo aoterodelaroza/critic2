@@ -326,6 +326,7 @@ bool View::processMouseEvents(bool hover, ImVec2 ndpos){
 
 bool View::navigate(bool hover, ImVec2 ndpos){
   const float eps = 1e-8;
+  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
   bool updateview = false, updateworld = false, updateprojection = false;
 
   // mouse scroll = zoom
@@ -346,7 +347,6 @@ bool View::navigate(bool hover, ImVec2 ndpos){
       mpos0 = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],depth};
     }else{
       vec3 origin = {0.f,0.f,0.f};
-      const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
       origin = project(origin,m_view,m_projection,viewport);
       mpos0 = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],origin.z};
     }
@@ -356,7 +356,6 @@ bool View::navigate(bool hover, ImVec2 ndpos){
     if (mstate.rdown){
       vec3 vnew = {ndpos.x*FBO_tex_a[icurtex],ndpos.y*FBO_tex_a[icurtex],mpos0.z};
       vec3 vold = mpos0;
-      const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
       vnew = unProject(vnew,m_view,m_projection,viewport);
       vold = unProject(vold,m_view,m_projection,viewport);
       v_pos.x = cpos0.x - (vnew.x - vold.x);
