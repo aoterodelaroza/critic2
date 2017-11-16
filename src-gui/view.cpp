@@ -36,7 +36,7 @@ using namespace std;
 // A linked list for all current views.
 static list<View*> viewlist;
 
-void CreateView(char *title, Shader *shader, int iscene/*=0*/){
+View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
   View *aview = new View;
 
   // save the scene id and set the pointers to that scene
@@ -95,6 +95,8 @@ void CreateView(char *title, Shader *shader, int iscene/*=0*/){
 
   // add the view to the list
   viewlist.push_back(aview);
+
+  return aview;
 }
 
 void DrawAllViews(){

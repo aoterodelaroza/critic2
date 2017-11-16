@@ -97,7 +97,7 @@ int main(int argc, char *argv[]){
   CreateAndFillBuffers();
 
   // Create the main view 
-  CreateView("Main view",&shader,1);
+  View *mainview = CreateView("Main view",&shader,1);
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
@@ -177,6 +177,7 @@ int main(int argc, char *argv[]){
       first = false;
       droot->newDockRoot(dviewcont,-1);
       dviewcont->newDock(dstyledock);
+      dviewcont->newDock(mainview->dock);
 
       Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
       dviewcont->setSlidingBarPosition(4,0.2f);

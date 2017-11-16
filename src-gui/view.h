@@ -90,7 +90,7 @@ struct View
 };
   
 // Create a new view linked to scene iscene (0 for no scene).
-void CreateView(char *title, Shader *shader, int iscene = 0);
+View *CreateView(char *title, Shader *shader, int iscene = 0);
 
 // Draw all available views
 void DrawAllViews();
