@@ -53,26 +53,31 @@ struct View
   void updateProjection();
   void updateView();
   void updateWorld();
-  float getDepth(vec2 ntexpos);
+  float getDepth(vec2 texpos);
   vec3 sphereProject(vec2 ntexpos);
   vec4 cam_world_coords();
 
-  // projection and unprojection
-  void pos_to_ntexpos(vec2 &pos); // screen to normalized texture position
-  void ntexpos_to_pos(vec2 &pos); // normalized texture to screen position
-  void pos_to_texpos(vec2 &pos); // screen to texture position
-  void texpos_to_pos(vec2 &pos); // texture to screen position
-  void texpos_to_ntexpos(vec2 &pos); // texture to normalized texture position
-  void ntexpos_to_texpos(vec2 &pos); // normalized texture to texture position
-  vec2 world_to_texpos(vec3 pos); // world to texture position
-
+  // coordinate transformations
+  // pos: mouse coordinates
+  // texpos: texture coordinates (bl:0,0 | ur:texsize.x,texsize.y)
+  // ntexpos: normalized texture coordinates (bl:-1,-1 | ur:1,1)
+  // world: world (scene) coordinates
+  void pos_to_ntexpos(vec2 &pos); 
+  void ntexpos_to_pos(vec2 &pos);
+  void pos_to_texpos(vec2 &pos);
+  void texpos_to_pos(vec2 &pos);
+  void texpos_to_ntexpos(vec2 &pos);
+  void ntexpos_to_texpos(vec2 &pos);
+  vec2 world_to_texpos(vec3 pos);
+  vec3 texpos_to_world(vec2 pos, float dist=-1.f); // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
+  
   // draw shapes
   void drawSphere(float r0[3],float rad,float rgb[4]);
   void drawCylinder(float r1[3],float r2[3],float rad,float rgb[4]);
 
   // camera matrices and vectors
   bool iswire = false; // use wire
-  bool isortho = true; // is ortho or perspective?
+  bool isortho = false; // is ortho or perspective?
   vec3 v_pos = {}; // position vector
   vec3 v_front = {}; // front vector
   vec3 v_up = {}; // up vector

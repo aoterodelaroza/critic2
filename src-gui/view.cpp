@@ -440,16 +440,16 @@ void View::updateWorld(){
   shader->setMat4("world",value_ptr(m_world));
 }
 
-float View::getDepth(vec2 ntexpos){
+float View::getDepth(vec2 texpos){
     float depth;
     glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
-    glReadPixels(ntexpos.x*FBO_tex_a[icurtex],ntexpos.y*FBO_tex_a[icurtex], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+    glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
 }
 
 vec3 View::sphereProject(vec2 ntexpos){
-  vec2 xs = {(clamp(ntexpos.x,0.f,1.f)-0.5f), (clamp(ntexpos.y,0.f,1.f)-0.5f)};
+  vec2 xs = {0.5f * clamp(ntexpos.x,-1.f,1.f), 0.5f*clamp(ntexpos.y,-1.f,1.f)};
   float a = 2.0f * fmin(length(xs),0.5f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
@@ -462,45 +462,69 @@ vec4 View::cam_world_coords(){
 void View::pos_to_ntexpos(vec2 &pos){
   float x = vrect.Max.x - vrect.Min.x;
   float y = vrect.Max.y - vrect.Min.y;
-  float xratio = x/fmax(x,y);
-  float yratio = y/fmax(x,y);
+  float xratio = 2.f * x / fmax(x,y);
+  float yratio = 2.f * y / fmax(x,y);
   
-  pos.x = ((pos.x - vrect.Min.x) / x - 0.5f) * xratio + 0.5f;
-  pos.y = 0.5f - ((pos.y - vrect.Min.y) / y - 0.5f) * yratio;
+  pos.x = ((pos.x - vrect.Min.x) / x - 0.5f) * xratio;
+  pos.y = (0.5f - (pos.y - vrect.Min.y) / y) * yratio;
 }
 
 void View::ntexpos_to_pos(vec2 &pos){
   float x = vrect.Max.x - vrect.Min.x;
   float y = vrect.Max.y - vrect.Min.y;
-  float xratio1 = fmax(x,y)/x;
-  float yratio1 = fmax(x,y)/y;
+  float xratio1 = 0.5f * fmax(x,y) / x;
+  float yratio1 = 0.5f * fmax(x,y) / y;
   
-  pos.x = vrect.Min.x + x * (0.5f + xratio1 * (pos.x - 0.5f));
-  pos.y = vrect.Min.y + y * (0.5f + yratio1 * (0.5f - pos.y));
+  pos.x = vrect.Min.x + x * (0.5f + xratio1 * pos.x);
+  pos.y = vrect.Min.y + y * (0.5f - yratio1 * pos.y);
 }
 
 void View::pos_to_texpos(vec2 &pos){
   pos_to_ntexpos(pos);
-  pos *= FBO_tex_a[icurtex];
+  ntexpos_to_texpos(pos);
 }
 
 void View::texpos_to_pos(vec2 &pos){
-  pos /= FBO_tex_a[icurtex];
+  texpos_to_ntexpos(pos);
   ntexpos_to_pos(pos);
 }
 
 void View::texpos_to_ntexpos(vec2 &pos){
-  pos /= FBO_tex_a[icurtex];
+  pos = (pos / FBO_tex_a[icurtex]) * 2.f - 1.f;
 }
 
 void View::ntexpos_to_texpos(vec2 &pos){
-  pos *= FBO_tex_a[icurtex];
+  pos = (0.5f * pos + 0.5f) * FBO_tex_a[icurtex];
 }
 
 vec2 View::world_to_texpos(vec3 pos){
   const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
-  vec3 pos3 = project(pos,m_view,m_projection,viewport);
+  vec3 pos3 = project(pos,m_view * m_world,m_projection,viewport);
   return vec2(pos3);
+}
+
+// dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
+vec3 View::texpos_to_world(vec2 pos, float dist/*=-1.f*/){
+  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  vec3 wpos = {};
+  if (dist < 0.f){
+    // Set the point on the plane parallel to the z-plane that passes through
+    // the origin of the scene
+    wpos = project(wpos,m_view * m_world,m_projection,viewport);
+    wpos.x = pos.x; wpos.y = pos.y;
+    wpos = unProject(wpos,m_view * m_world,m_projection,viewport);
+  } else if (dist == 0.f) {
+    // Set the point on the near plane
+    wpos.x = pos.x; wpos.y = pos.y;
+    wpos = unProject(wpos,m_view * m_world,m_projection,viewport);
+  } else {
+    // Set the point at a distance dist from the camera
+    vec3 origpos = texpos_to_world(pos,-1.f);
+    vec3 nearpos = texpos_to_world(pos,0.f);
+    vec3 dir = normalize(origpos - nearpos);
+    wpos = nearpos + fmax(dist - znear,0.f) * dir;
+  }
+  return wpos;
 }
 
 void View::drawSphere(float r0[3],float rad,float rgb[4]){
