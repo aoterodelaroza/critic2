@@ -403,29 +403,20 @@ contains
     integer :: nn, j, val
     character(len=:), allocatable :: key, aux
 
-    nal = 0
-    str = ""
+    nal = 1
+    str = " $" // string(id) // ","
     nn = s%fh%keys()
-    if (nn > 0) then
-       nal = 0
-       do j = 1, nn
-          key = s%fh%getkey(j)
-          val = s%fh%get(key,0)
-          if (val == id) nal = nal + 1
-       end do
-       if (nal > 0) then
-          do j = 1, nn
-             key = s%fh%getkey(j)
-             val = s%fh%get(key,0)
-             if (val == id) then
-                aux = trim(str) // " $" // string(key) // ","
-                str = aux
-             end if
-          end do
-          aux = str(1:len_trim(str)-1)
-          str = trim(aux)
+    do j = 1, nn
+       key = s%fh%getkey(j)
+       val = s%fh%get(key,0)
+       if (val == id) then
+          nal = nal + 1
+          aux = trim(str) // " $" // string(key) // ","
+          str = aux
        end if
-    end if
+    end do
+    aux = str(1:len_trim(str)-1)
+    str = trim(aux)
     
   end subroutine aliasstring
 
