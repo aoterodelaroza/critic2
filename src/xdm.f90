@@ -1617,7 +1617,6 @@ contains
     ! copy the elf field for now
     if (allocated(sy%f(itau)%grid%c2)) deallocate(sy%f(itau)%grid%c2)
     sy%f(itau) = sy%f(ielf)
-    call sy%fh%put(string(itau),itau)
     if (allocated(sy%f(itau)%grid%f)) deallocate(sy%f(itau)%grid%f)
     sy%f(itau)%isinit = .true.
 

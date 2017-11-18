@@ -359,7 +359,7 @@ contains
   !> pointer lpexit.  This routine is thread-safe.
   function tokenize(expr,ntok,toklist,lpexit,fh) 
     use hashmod, only: hash
-    use tools_io, only: lower
+    use tools_io, only: lower, isinteger
     use param, only: vh
     logical :: tokenize
     character(*), intent(in) :: expr
@@ -373,7 +373,7 @@ contains
     character*4 :: fder
     logical :: ok, wasop, inchem
     real*8 :: a
-    integer :: c, npar, id
+    integer :: c, npar, id, lp2
 
     ! initialize
     tokenize = .true.
@@ -439,8 +439,14 @@ contains
           ok = isidentifier(str,expr,lp,fder)
           if (.not.ok) goto 999
           ok = .false.
-          if (present(fh)) ok = fh%iskey(trim(str))
+
+          ! an integer or a known key
+          lp2 = 1
+          ok = isinteger(id,str,lp2)
+          if (present(fh)) ok = ok .or. fh%iskey(trim(str))
+
           if (.not.ok) then
+             ! a special field
              str = lower(str)
              ok = isspecialfield(trim(str))
              if (.not.ok) goto 999

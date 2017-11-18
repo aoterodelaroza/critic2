@@ -90,7 +90,6 @@ contains
   !      call yt_weights(luw=luw,idb=i,w=w)
   !      call grid_from_array3(w,f(10+i))
   !      fused(10+i) = .true.
-  !      call fh%put(string(10+i),10+i)
   !      f(10+i)%type = type_grid
   !   end do
   !   close(luw)
@@ -107,7 +106,6 @@ contains
   !   ! field 4 will contain the smooth grid
   !   f(4) = f(3)
   !   fused(4) = .true.
-  !   call fh%put("4",4)
 
   !   ! smooth out the regions inside the spheres
   !   write (*,*) "Calculating the smooth grid"

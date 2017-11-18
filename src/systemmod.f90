@@ -180,7 +180,6 @@ contains
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
     call s%fh%init()
     call s%fh%put("rho0",0)
-    call s%fh%put("0",0)
     call s%f(0)%init_cplist
     call s%set_reference(0,.false.)
     s%refset = .false.
@@ -656,7 +655,6 @@ contains
     end if
 
     ! add to the field hash
-    call s%fh%put(string(id),id)
     if (len_trim(seed%fid) > 0) &
        call s%fh%put(trim(seed%fid),id)
 
@@ -766,7 +764,6 @@ contains
     end if
     if (s%f(id1)%isinit) call s%f(id1)%end()
     s%f(id1) = s%f(id0)
-    call s%fh%put(string(id1),id1)
     s%f(id1)%id = id1
     call s%f(id1)%init_cplist
 
