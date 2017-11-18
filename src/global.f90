@@ -373,7 +373,7 @@ contains
     character*(*), intent(in) :: ldflags, enable_debug, datadir
     logical :: lchk
 
-    write (uout,'("+ ",A,", commit ",A,"")') package, version
+    write (uout,'("+ ",A," (development), commit ",A,"")') package, version
     write (uout,'(" compile host: ",A)') atarget
     write (uout,'(" compile date: ",A)') adate
     write (uout,'("    using f77: ",A," ",A)') f77, fflags
