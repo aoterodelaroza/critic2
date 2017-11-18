@@ -344,8 +344,8 @@ contains
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb, ifformat_chk,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
-       ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, ifformat_copy,&
-       ifformat_promolecular, ifformat_promolecular_fragment
+       ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
+       ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
     class(field), intent(inout) :: f !< Input field
@@ -643,8 +643,8 @@ contains
        end if
 
     elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
-       seed%iff == ifformat_as_grad.or.seed%iff == ifformat_as_clm.or.&
-       seed%iff == ifformat_as_clm_sub) then
+       seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_grad .or. &
+       seed%iff == ifformat_as_clm .or. seed%iff == ifformat_as_clm_sub) then
        errmsg = "error in file format for field_new"
        call f%end()
        return
@@ -700,19 +700,25 @@ contains
   end subroutine load_promolecular
 
   !> Load field as a transformation of the 3d grid given in g. ityp:
-  !> type of transformation to perform (uses the ifformat
-  !> flags). Available: Laplacian and gradient.
-  subroutine load_as_fftgrid(f,c,id,name,g,ityp)
+  !> type of transformation to perform (uses the ifformat_as_* flags
+  !> in param.F90). 
+  subroutine load_as_fftgrid(f,c,id,name,g,ityp,isry_)
     use grid3mod, only: grid3
     use fragmentmod, only: fragment
-    use param, only: ifformat_as_lap, ifformat_as_grad, ifformat_as_hxx1,&
-       ifformat_as_hxx2, ifformat_as_hxx3
+    use param, only: ifformat_as_lap, ifformat_as_grad, ifformat_as_pot,&
+       ifformat_as_hxx1, ifformat_as_hxx2, ifformat_as_hxx3
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
     character*(*), intent(in) :: name
     type(grid3), intent(in) :: g
     integer, intent(in) :: ityp
+    logical, intent(in), optional :: isry_
+
+    logical :: isry
+
+    isry = .false.
+    if (present(isry_)) isry = isry_
 
     if (.not.c%isinit) return
     call f%end()
@@ -724,6 +730,8 @@ contains
        call f%grid%laplacian(g,c%crys2car)
     elseif (ityp == ifformat_as_grad) then
        call f%grid%gradrho(g,c%crys2car)
+    elseif (ityp == ifformat_as_pot) then
+       call f%grid%pot(g,c%crys2car,isry)
     elseif (ityp == ifformat_as_hxx1) then
        call f%grid%hxx(g,1,c%crys2car)
     elseif (ityp == ifformat_as_hxx2) then

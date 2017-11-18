@@ -150,6 +150,7 @@ expression.r # prints the value of the expression to the output.
   LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.s}
   LOAD AS LAP id.s
   LOAD AS GRAD id.s
+  LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
 
 xxxx

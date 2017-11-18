@@ -34,6 +34,7 @@ module fieldseedmod
      character*255, allocatable :: file(:) !< External scalar field file names
      character*10, allocatable :: piat(:) !< pi atomic symbols
      integer :: n(3) !< grid size for load as
+     logical :: isry = .false. !< use rydberg units in LOAD AS POT
      integer :: clm1, clm2 !< clm fields for add and sub
      character*255 :: ids = "" !< sizeof for load as promolecular/core; id.s for lap/grad; id1.s in clm
      character*255 :: ids2 = "" !< id2.s in clm
@@ -67,6 +68,7 @@ contains
     if (allocated(f%file)) deallocate(f%file)
     if (allocated(f%piat)) deallocate(f%piat)
     f%n = 0
+    f%isry = .false.
     f%ids = ""
     f%ids2 = ""
     f%expr = ""
@@ -96,8 +98,8 @@ contains
        ifformat_vasp, ifformat_vaspchg, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_chk, ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
-       ifformat_as_grad, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, ifformat_promolecular,&
-       ifformat_promolecular_fragment, ifformat_as_ghost
+       ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
+       ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
     logical, intent(in) :: withoptions
@@ -370,11 +372,13 @@ contains
                 return
              end if
           end if
-       elseif (equal(lword,"lap") .or. equal(lword,"grad")) then
+       elseif (equal(lword,"lap") .or. equal(lword,"grad") .or. equal(lword,"pot")) then
           if (equal(lword,"lap")) then
              f%iff = ifformat_as_lap
-          else
+          elseif (equal(lword,"grad")) then
              f%iff = ifformat_as_grad
+          else
+             f%iff = ifformat_as_pot
           end if
           call read_next_as_word()
           if (len_trim(word) < 1) then
@@ -383,6 +387,15 @@ contains
              return
           end if
           f%ids = word
+          if (f%iff == ifformat_as_pot) then
+             call read_next_as_word()
+             if (equal(lword,"ry") .or. equal(lword,"rydberg")) then
+                f%isry = .true.
+             else
+                call backtrack()
+             end if
+          end if
+
        elseif (equal(lword,"clm")) then
           call read_next_as_word()
           if (equal(lword,"add")) then
