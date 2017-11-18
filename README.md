@@ -113,7 +113,7 @@ version; all new development happens in the development version.
 The stable version is compilable with all versions of gfortran
 starting at 4.9. All intel fortran compiler versions from 2011 onwards
 also compile the stable code. To download the stable version, click on
-the **release** tag above.
+the **Branch:** button above and select **stable**.
 
 The development version can be compiled with gfortran-6 and
 later. Most other compilers have issues. This is the list of compilers
