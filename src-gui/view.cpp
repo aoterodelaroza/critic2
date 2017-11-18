@@ -354,22 +354,19 @@ bool View::navigate(bool hover){
 
   // drag
   if (hover && mstate.rclick && !llock){ 
-    float depth = getDepth(texpos);
+    float depth = texpos_viewdepth(texpos);
     if (depth < 1.0){
       mpos0 = {texpos.x,texpos.y,depth};
     }else{
-      vec3 origin = {0.f,0.f,0.f};
-      origin = project(origin,m_view,m_projection,viewport);
-      mpos0 = {texpos.x,texpos.y,origin.z};
+      mpos0 = {texpos.x,texpos.y,0.f};
+      view_to_texpos({0.f,0.f,0.f},&mpos0.z);
     }
     cpos0 = {v_pos[0],v_pos[1],0.f};
     rlock = true;
   } else if (rlock) {
     if (mstate.rdown){
-      vec3 vnew = {texpos.x,texpos.y,mpos0.z};
-      vec3 vold = mpos0;
-      vnew = unProject(vnew,m_view,m_projection,viewport);
-      vold = unProject(vold,m_view,m_projection,viewport);
+      vec3 vnew = texpos_to_view(texpos,mpos0.z);
+      vec3 vold = texpos_to_view(vec2(mpos0),mpos0.z);
       v_pos.x = cpos0.x - (vnew.x - vold.x);
       v_pos.y = cpos0.y - (vnew.y - vold.y);
       updateview = true;
@@ -440,12 +437,13 @@ void View::updateWorld(){
   shader->setMat4("world",value_ptr(m_world));
 }
 
-float View::getDepth(vec2 texpos){
-    float depth;
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
-    glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    return depth;
+vec3 View::cam_world_coords(){
+  vec4 pos4 = inverse(m_world) * vec4(v_pos,1.0f);
+  return vec3(pos4.x/pos4.w,pos4.y/pos4.w,pos4.z/pos4.w);
+}
+
+vec3 View::cam_view_coords(){
+  return v_pos;
 }
 
 vec3 View::sphereProject(vec2 ntexpos){
@@ -453,10 +451,6 @@ vec3 View::sphereProject(vec2 ntexpos){
   float a = 2.0f * fmin(length(xs),0.5f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
-}
-
-vec4 View::cam_world_coords(){
-  return inverse(m_world) * vec4(v_pos,1.0f);
 }
 
 void View::pos_to_ntexpos(vec2 &pos){
@@ -525,6 +519,28 @@ vec3 View::texpos_to_world(vec2 pos, float dist/*=-1.f*/){
     wpos = nearpos + fmax(dist - znear,0.f) * dir;
   }
   return wpos;
+}
+
+vec2 View::view_to_texpos(vec3 pos, float *depth){
+  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  vec3 pos3 = project(pos,m_view,m_projection,viewport);
+  *depth = pos3.z;
+  return vec2(pos3);
+}
+
+vec3 View::texpos_to_view(vec2 pos, float depth){
+  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  vec3 wpos = {pos.x,pos.y,depth};
+  wpos = unProject(wpos,m_view,m_projection,viewport);
+  return wpos;
+}
+
+float View::texpos_viewdepth(vec2 texpos){
+    float depth;
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
+    glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return depth;
 }
 
 void View::drawSphere(float r0[3],float rad,float rgb[4]){
