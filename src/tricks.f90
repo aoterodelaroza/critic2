@@ -30,7 +30,6 @@ contains
   subroutine trick(line0)
     character*(*), intent(in) :: line0
 
-    ! call trick_recalculate_xdm()
     ! call trick_grid_sphere()
     ! call trick_stephens_nnm_channel(line0)
     ! call trick_cell_integral()

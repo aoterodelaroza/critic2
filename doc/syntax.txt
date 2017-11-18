@@ -355,6 +355,7 @@ xxxx
 * STM [CURRENT [curr.r]|HEIGHT [hei.r]] [TOP top.r] 
       [{CELL|CELLS} nx.i ny.i] [NPTS n1.i n2.i] 
       [LINE x0.r y0.r x1.r y1.r npts.i] 
+* MOLCALC [NELEC]
 * BENCHMARK nn.i
 * SUM [id.s]
 * MIN [id.s]

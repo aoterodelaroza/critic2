@@ -5780,7 +5780,7 @@ Calculate the electrostatic energy of the lattice of point charges
 using Ewald's method. The atomic charges are defined using the Q
 keyword.
 
-Scanning Tunneling Microscope plots (STM)
+Scanning Tunneling Microscopy plots (STM)
 -----------------------------------------
 
 ::
@@ -5857,6 +5857,18 @@ guidance kindly provided by Enrico Benassi (see THANKS).
 
 Miscellaneous commands
 ----------------------
+
+Molecular integrals (MOLCALC)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+  MOLCALC [NELEC]
+
+This keyword allows the calculation of molecular quantities using
+molecular wavefunction (wfn/wfx/fchk/molden) fields. For now, only the
+NELEC keyword is implemented, which integrates the number of electrons
+using a Becke-style grid.
 
 Hirshfeld charges (HIRSHFELD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -6594,7 +6606,7 @@ SPHEREINTEGRALS
 
 STM
   Make scanning tunneling microscopy plots. `Scanning Tunneling
-  Microscope plots (STM)`_.
+  Microscopy plots (STM)`_.
 
 SUM
   Sum of the values of a field defined on a grid. See `Control

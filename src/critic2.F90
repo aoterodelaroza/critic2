@@ -23,6 +23,7 @@
 !                                     
 program critic
   use tricks, only: trick
+  use molcalc, only: molcalc_driver
   use stm, only: stm_driver
   use xdm, only: xdm_driver
   use hirshfeld, only: hirsh_props_grid
@@ -119,7 +120,7 @@ program critic
         ! newcell
      elseif (equal(word,'newcell')) then
         if (.not.sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE/MOLECULE before newcell',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE/MOLECULE before NEWCELL',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_newcell(sy,subline)
@@ -127,7 +128,7 @@ program critic
         ! molcell
      elseif (equal(word,'molcell')) then
         if (.not.sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before molcell',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before MOLCELL',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_molcell(sy,subline)
@@ -135,7 +136,7 @@ program critic
         ! clearsym/clearsymm
      elseif (equal(word,'clearsym') .or. equal(word,'clearsymm')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before clearsym',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before CLEARSYM',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_clearsym(sy) 
@@ -146,7 +147,7 @@ program critic
      elseif (equal(word,'q') .or. equal(word,'qat') &
         .or. equal(word,'zpsp') .or. equal(word,'nocore')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before q/qat/zpsp/nocore',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before Q/QAT/ZPSP/NOCORE',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_charges(sy,line,ok)
@@ -154,7 +155,7 @@ program critic
         ! atomlabel
      elseif (equal(word,'atomlabel')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before atomlabel',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before ATOMLABEL',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_atomlabel(sy,subline)
@@ -162,7 +163,7 @@ program critic
         ! write
      elseif (equal(word,'write')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before write',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before WRITE',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_write(sy,subline)
@@ -170,7 +171,7 @@ program critic
         ! load
      elseif (equal(word,'load')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before load',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before LOAD',faterr,line,syntax=.true.)
            cycle
         end if
         call sy%load_field_string(subline,id,errmsg)
@@ -180,7 +181,7 @@ program critic
         ! unload
      elseif (equal(word,'unload')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before unload',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before UNLOAD',faterr,line,syntax=.true.)
            cycle
         end if
         lpold = lp
@@ -211,7 +212,7 @@ program critic
         ! powder
      elseif (equal(word,'powder')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before powder',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before POWDER',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_powder(sy,line(lp:))
@@ -219,7 +220,7 @@ program critic
         ! rdf
      elseif (equal(word,'rdf')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before rdf',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before RDF',faterr,line,syntax=.true.)
            cycle
         end if
         call struct_rdf(sy,line(lp:))
@@ -231,7 +232,7 @@ program critic
         ! setfield
      elseif (equal(word,'setfield')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before setfield',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before SETFIELD',faterr,line,syntax=.true.)
            cycle
         end if
         lpold = lp
@@ -257,7 +258,7 @@ program critic
         ! reference
      elseif (equal(word,'reference')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before reference',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before REFERENCE',faterr,line,syntax=.true.)
            cycle
         end if
         word = getword(line,lp)
@@ -278,7 +279,7 @@ program critic
         ! point
      elseif (equal(word,'point')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before point',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before POINT',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_point(subline)
@@ -286,7 +287,7 @@ program critic
         ! line
      elseif (equal(word,'line')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before line',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before LINE',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_line(subline)
@@ -294,7 +295,7 @@ program critic
         ! plane
      elseif (equal(word,'plane')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before plane',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before PLANE',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_plane(subline)
@@ -302,7 +303,7 @@ program critic
         ! cube
      elseif (equal(word,'cube')) then
         if (.not. sy%c%isinit) then 
-           call ferror('critic2','need CRYSTAL/MOLECULE before cube',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before CUBE',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_cube(subline)
@@ -310,7 +311,7 @@ program critic
         ! grdvec
      elseif (equal(word,'grdvec')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic','need CRYSTAL/MOLECULE before grdvec',faterr,line,syntax=.true.)
+           call ferror('critic','need CRYSTAL/MOLECULE before GRDVEC',faterr,line,syntax=.true.)
            cycle
         end if
         call rhoplot_grdvec()
@@ -318,7 +319,7 @@ program critic
         ! nciplot
      elseif (equal(word,'nciplot')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before nciplot',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before NCIPLOT',faterr,line,syntax=.true.)
            cycle
         end if
         call nciplot()
@@ -326,7 +327,7 @@ program critic
         ! benchmark 
      elseif (equal(word,'benchmark')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before benchmark',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before BENCHMARK',faterr,line,syntax=.true.)
            cycle
         end if
         ok = eval_next(nn,line,lp)
@@ -338,7 +339,7 @@ program critic
         ! auto
      elseif (equal(word,'auto')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before auto',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before AUTO',faterr,line,syntax=.true.)
            cycle
         end if
         call autocritic(subline)
@@ -346,7 +347,7 @@ program critic
         ! cpreport
      elseif (equal(word,'cpreport')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before cpreport',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before CPREPORT',faterr,line,syntax=.true.)
            cycle
         end if
         call cpreport(subline)
@@ -354,7 +355,7 @@ program critic
         ! fluxprint
      elseif (equal(word,'fluxprint')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before fluxprint',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before FLUXPRINT',faterr,line,syntax=.true.)
            cycle
         end if
         call fluxprint()
@@ -362,7 +363,7 @@ program critic
         ! integrable
      elseif (equal(word,'integrable')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before integrable',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before INTEGRABLE',faterr,line,syntax=.true.)
            cycle
         end if
         call sy%new_integrable_string(subline,errmsg)
@@ -375,7 +376,7 @@ program critic
         ! pointprop
      elseif (equal(word,'pointprop')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before pointprop',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before POINTPROP',faterr,line,syntax=.true.)
            cycle
         end if
         call sy%new_pointprop_string(subline,errmsg)
@@ -388,7 +389,7 @@ program critic
         ! basinplot
      elseif (equal(word,'basinplot')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before basinplot',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before BASINPLOT',faterr,line,syntax=.true.)
            cycle
         end if
         call basinplot(subline)
@@ -396,7 +397,7 @@ program critic
         ! bundleplot
      elseif (equal(word,'bundleplot')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before bundleplot',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before BUNDLEPLOT',faterr,line,syntax=.true.)
            cycle
         end if
         call bundleplot(subline)
@@ -404,7 +405,7 @@ program critic
         ! sphereintegrals
      elseif (equal(word,'sphereintegrals')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before sphereintegrals',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before SPHEREINTEGRALS',faterr,line,syntax=.true.)
            cycle
         end if
         call sphereintegrals(subline)
@@ -412,7 +413,7 @@ program critic
         ! integrals
      elseif (equal(word,'integrals')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before integrals',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before INTEGRALS',faterr,line,syntax=.true.)
            cycle
         end if
         call integrals(subline)
@@ -420,7 +421,7 @@ program critic
         ! qtree 
      elseif (equal(word,'qtree')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before qtree',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before QTREE',faterr,line,syntax=.true.)
            cycle
         end if
         ok = eval_next(level,line,lp)
@@ -434,7 +435,7 @@ program critic
         ! yt
      elseif (equal(word,'yt')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before yt',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before YT',faterr,line,syntax=.true.)
            cycle
         end if
         call intgrid_driver(line)
@@ -442,7 +443,7 @@ program critic
         ! bader
      elseif (equal(word,'bader')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before bader',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before BADER',faterr,line,syntax=.true.)
            cycle
         end if
         call intgrid_driver(line)
@@ -450,7 +451,7 @@ program critic
         ! xdm
      elseif (equal(word,'xdm')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before xdm',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before XDM',faterr,line,syntax=.true.)
            cycle
         end if
         call xdm_driver(subline)
@@ -458,15 +459,27 @@ program critic
         ! stm
      elseif (equal(word,'stm')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before stm',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before STM',faterr,line,syntax=.true.)
            cycle
         end if
         call stm_driver(line(lp:))
 
+        ! molcalc
+     elseif (equal(word,'molcalc')) then
+        if (.not. sy%c%isinit) then
+           call ferror('critic2','need MOLECULE before MOLCALC',faterr,line,syntax=.true.)
+           cycle
+        end if
+        if (.not.sy%c%ismolecule) then
+           call ferror("critic2","MOLCALC can not be used with crystals",faterr)
+           cycle
+        end if
+        call molcalc_driver(line(lp:))
+
         ! sphfactor
      elseif (equal(word,'sphfactor')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before sphfactor',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before SPHFACTOR',faterr,line,syntax=.true.)
            cycle
         end if
         call qtree_setsphfactor(subline)
@@ -482,7 +495,7 @@ program critic
         ! hirshfeld
      elseif (equal(word,'hirshfeld')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before hirshfeld',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before HIRSHFELD',faterr,line,syntax=.true.)
            cycle
         end if
         call check_no_extra_word(ok)
@@ -492,7 +505,7 @@ program critic
         ! ewald
      elseif (equal(word,'ewald')) then
         if (.not. sy%c%isinit) then
-           call ferror('critic2','need CRYSTAL/MOLECULE before ewald',faterr,line,syntax=.true.)
+           call ferror('critic2','need CRYSTAL/MOLECULE before EWALD',faterr,line,syntax=.true.)
            cycle
         end if
         call check_no_extra_word(ok)

@@ -4,7 +4,7 @@
 !> Ross M. Dickson <ross.dickson@dal.ca>, Hartmut Schmider <hs7@post.queensu.ca>,
 !> and Axel D. Becke <axel.becke@dal.ca>
 
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2009-2017 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
@@ -1077,7 +1077,7 @@ contains
   !> tested.
   subroutine read_molden(f,file)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, lgetword, &
-       isinteger, isreal, fclose
+       isinteger, isreal, fclose, uout
     use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
@@ -1201,7 +1201,9 @@ contains
                 read (line,*) word, rdum
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) &
-                   call ferror('read_molden','can not do fractional occupations with molden',faterr)
+                   write (uout,'("Fractional occupations are not supported yet for molden files.")')
+                   write (uout,'("If you need this, e-mail the critic2 developer.")')
+                   call ferror('read_molden','Can not do fractional occupations with molden',faterr)
                 if (idum == 1 .or. idum == 2) then
                    nelec = nelec + idum
                    if (isalpha) then
@@ -1300,7 +1302,9 @@ contains
           else if (lower(trim(word)) == "p") then
              ishlt(ni) = 1
           else if (lower(trim(word)) == "sp") then
-             call ferror("read_molden","can't handle SP in gamess format",faterr)
+             write (uout,'("SP shells are not supported yet for molden files.")')
+             write (uout,'("If you need this, e-mail the critic2 developer.")')
+             call ferror("read_molden","can't handle SP in molden format",faterr)
           else if (lower(trim(word)) == "d") then
              if (is5d) then
                 ishlt(ni) = -2
@@ -1320,6 +1324,8 @@ contains
                 ishlt(ni) = 4
              end if
           else
+             write (uout,'("Shells with angular momentum higher than g are not supported yet for molden files.")')
+             write (uout,'("If you need this, e-mail the critic2 developer.")')
              call ferror("read_molden","basis set type >g not supported in molden files",faterr)
           endif
           ok = getline_raw(luwfn,line,.false.)
