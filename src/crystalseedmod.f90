@@ -1251,6 +1251,7 @@ contains
     integer :: lu
     integer :: i, nstep(3), nn, iz
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
+    logical :: ismo
 
     lu = fopen_read(file)
 
@@ -1260,6 +1261,8 @@ contains
 
     ! number of atoms and unit cell
     read (lu,*) seed%nat, x0
+    ismo = (seed%nat < 0)
+    seed%nat = abs(seed%nat)
 
     do i = 1, 3
        read (lu,*) nstep(i), rmat(:,i)

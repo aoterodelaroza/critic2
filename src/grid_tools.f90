@@ -345,12 +345,16 @@ contains
     integer :: luc
     integer :: nat
     integer :: istat, n(3), i, j, k
+    logical :: ismo
 
     luc = fopen_read(file)
 
     read (luc,*) 
     read (luc,*) 
     read (luc,*,iostat=istat) nat
+    ismo = (nat < 0)
+    nat = abs(nat)
+
     if (istat /= 0) &
        call ferror('grid_read_cube','Error reading nat',faterr,file)
     do i = 1, 3
@@ -361,6 +365,8 @@ contains
     do i = 1, nat
        read (luc,*)
     end do
+    if (ismo) &
+       read (luc,*)
 
     f%init = .true.
     f%mode = mode_default
