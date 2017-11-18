@@ -254,46 +254,45 @@ void View::Update(){
     // scene atoms
     glBindVertexArray(sphVAO[isphres]);
     for (int i=0;i<c2::nat;i++)
-      drawSphere(c2::at[i].r,c2::at[i].rad,c2::at[i].rgb);
+      drawSphere(make_vec3(c2::at[i].r),c2::at[i].rad,make_vec4(c2::at[i].rgb));
 
     // scene bonds
     glBindVertexArray(cylVAO[icylres]);
     for (int i=0;i<c2::nbond;i++){
       float rgb[4] = {0.5f,0.f,0.f,1.f};
-      drawCylinder(c2::bond[i].r1,c2::bond[i].r2,c2::bond[i].rad,rgb);
+      drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb));
     }
 
     // grid and Cartesian axes
     int nmaxgrid = (int) (ceil(c2::scenerad * AUTOANG)+1e-5);
-    float r1[3] = {};
-    float r2[3] = {};
-    float rgb[4] = {1.f,1.f,1.f,1.f};
-    rgb[0] = 1.f; rgb[1] = 0.f; rgb[2] = 0.f;
-    r1[1] = 0.f; r1[0] = -nmaxgrid/AUTOANG;
-    r2[1] = 0.f; r2[0] =  nmaxgrid/AUTOANG;
+    vec3 r1 = {}, r2 = {};
+    vec4 rgb = {1.f,1.f,1.f,1.f};
+    rgb.x = 1.f; rgb.y = 0.f; rgb.z = 0.f;
+    r1.y = 0.f; r1.x = -nmaxgrid/AUTOANG;
+    r2.y = 0.f; r2.x =  nmaxgrid/AUTOANG;
     drawCylinder(r1,r2,radgrid,rgb);
-    rgb[0] = 0.f; rgb[1] = 1.f; rgb[2] = 0.f;
-    r1[0] = 0.f; r1[1] = -nmaxgrid/AUTOANG;
-    r2[0] = 0.f; r2[1] =  nmaxgrid/AUTOANG;
+    rgb.x = 0.f; rgb.y = 1.f; rgb.z = 0.f;
+    r1.x = 0.f; r1.y = -nmaxgrid/AUTOANG;
+    r2.x = 0.f; r2.y =  nmaxgrid/AUTOANG;
     drawCylinder(r1,r2,radgrid,rgb);
-    rgb[0] = 0.f; rgb[1] = 0.f; rgb[2] = 1.f;
-    r1[1] = 0.f; r1[2] = -nmaxgrid/AUTOANG;
-    r2[1] = 0.f; r2[2] =  nmaxgrid/AUTOANG;
+    rgb.x = 0.f; rgb.y = 0.f; rgb.z = 1.f;
+    r1.y = 0.f; r1.z = -nmaxgrid/AUTOANG;
+    r2.y = 0.f; r2.z =  nmaxgrid/AUTOANG;
     drawCylinder(r1,r2,radgrid,rgb);
     for (int i = 1; i <= nmaxgrid; i++){
-      r1[2] = 0.f; r2[2] = 0.f;
-      rgb[0] = 1.f; rgb[1] = 1.f; rgb[2] = 1.f; rgb[3] = 1.f; 
-      r1[0] = i/AUTOANG; r1[1] = -nmaxgrid/AUTOANG;
-      r2[0] = i/AUTOANG; r2[1] =  nmaxgrid/AUTOANG;
+      r1.z = 0.f; r2.z = 0.f;
+      rgb.x = 1.f; rgb.y = 1.f; rgb.z = 1.f; rgb.w = 1.f; 
+      r1.x = i/AUTOANG; r1.y = -nmaxgrid/AUTOANG;
+      r2.x = i/AUTOANG; r2.y =  nmaxgrid/AUTOANG;
       drawCylinder(r1,r2,radgrid,rgb);
-      r1[0] = -i/AUTOANG; r1[1] = -nmaxgrid/AUTOANG;
-      r2[0] = -i/AUTOANG; r2[1] =  nmaxgrid/AUTOANG;
+      r1.x = -i/AUTOANG; r1.y = -nmaxgrid/AUTOANG;
+      r2.x = -i/AUTOANG; r2.y =  nmaxgrid/AUTOANG;
       drawCylinder(r1,r2,radgrid,rgb);
-      r1[1] =  i/AUTOANG; r1[0] = -nmaxgrid/AUTOANG;
-      r2[1] =  i/AUTOANG; r2[0] =  nmaxgrid/AUTOANG;
+      r1.y =  i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
+      r2.y =  i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
       drawCylinder(r1,r2,radgrid,rgb);
-      r1[1] = -i/AUTOANG; r1[0] = -nmaxgrid/AUTOANG;
-      r2[1] = -i/AUTOANG; r2[0] =  nmaxgrid/AUTOANG;
+      r1.y = -i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
+      r2.y = -i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
       drawCylinder(r1,r2,radgrid,rgb);
     }
   }
@@ -543,23 +542,21 @@ float View::texpos_viewdepth(vec2 texpos){
     return depth;
 }
 
-void View::drawSphere(float r0[3],float rad,float rgb[4]){
+void View::drawSphere(vec3 r0, float rad, vec4 rgb){
   mat4 m_model = mat4(1.0f);
-  m_model = translate(m_model,vec3(r0[0],r0[1],r0[2]));
+  m_model = translate(m_model,r0);
   m_model = scale(m_model,vec3(rad,rad,rad));
   mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
 
-  shader->setVec4("vColor",(const GLfloat *)rgb);
+  shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
   shader->setMat3("normrot",value_ptr(m_normrot));
   glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
 }
 
-void View::drawCylinder(float r1[3],float r2[3],float rad,float rgb[4]){
-  vec3 x1 = {r1[0],r1[1],r1[2]};
-  vec3 x2 = {r2[0],r2[1],r2[2]};
-  vec3 xmid = 0.5f * (x1 + x2);
-  vec3 xdif = x2 - x1;
+void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb){
+  vec3 xmid = 0.5f * (r1 + r2);
+  vec3 xdif = r2 - r1;
   float blen = length(xdif);
   
   mat4 m_model = mat4(1.0f);
@@ -568,7 +565,7 @@ void View::drawCylinder(float r1[3],float r2[3],float rad,float rgb[4]){
   m_model = scale(m_model,vec3(rad,rad,blen));
   mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
   shader->setMat3("normrot",value_ptr(m_normrot));
-  shader->setVec4("vColor",(const GLfloat *)rgb);
+  shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
   glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
 }

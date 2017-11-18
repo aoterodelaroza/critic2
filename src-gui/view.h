@@ -77,8 +77,8 @@ struct View
   float texpos_viewdepth(vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
   
   // draw shapes
-  void drawSphere(float r0[3],float rad,float rgb[4]);
-  void drawCylinder(float r1[3],float r2[3],float rad,float rgb[4]);
+  void drawSphere(vec3 r0, float rad, vec4 rgb);
+  void drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb);
 
   // camera matrices and vectors
   bool iswire = false; // use wire
