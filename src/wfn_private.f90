@@ -28,32 +28,35 @@ module wfn_private
   private
 
   type molwfn
-     logical :: useecp
-     integer :: nmo, nalpha
-     integer :: npri
-     integer :: wfntyp
-     integer, allocatable :: icenter(:)
-     integer, allocatable :: itype(:)
-     real*8, allocatable :: d2ran(:)
-     real*8, allocatable :: e(:)
-     real*8, allocatable :: occ(:)
-     real*8, allocatable :: cmo(:,:)
-     integer :: nedf
-     integer, allocatable :: icenter_edf(:)
-     integer, allocatable :: itype_edf(:)
-     real*8, allocatable :: e_edf(:)
-     real*8, allocatable :: c_edf(:)
+     logical :: useecp !< this wavefunction comes from a calc with ECPs
+     integer :: nmo !< number of molecular orbitals
+     integer :: nalpha !< number of alpha electrons (zero if spin-polarized)
+     integer :: npri !< number of primitives
+     integer :: wfntyp !< type of wavefunction (rhf, uhf, fractional occ)
+     logical :: issto !< are the primitives GTOs or STOs?
+     integer :: ixmaxsto(4) !< maximum exponent for x, y, z, and r in STOs
+     integer, allocatable :: icenter(:) !< primitive center
+     integer, allocatable :: itype(:) !< primitive type (see li(:,:) array)
+     real*8, allocatable :: d2ran(:) !< maximum d^2 to discard the primitive
+     real*8, allocatable :: e(:) !< primitive exponents
+     real*8, allocatable :: occ(:) !< MO occupation numbers
+     real*8, allocatable :: cmo(:,:) !< MO coefficients
+     integer :: nedf !< number of EDFs (electron density functions - core density for ECPs)
+     integer, allocatable :: icenter_edf(:) !< EDF centers
+     integer, allocatable :: itype_edf(:) !< EDF types
+     real*8, allocatable :: e_edf(:) !< EDF exponents
+     real*8, allocatable :: c_edf(:) !< EDF coefficients
      ! atomic positions, internal copy
-     integer :: nat
-     real*8, allocatable :: xat(:,:)
+     integer :: nat !< number of atoms
+     real*8, allocatable :: xat(:,:) !< atomic coordinates (Cartesian, bohr)
    contains
-     procedure :: end => wfn_end
-     procedure :: read_wfn
-     procedure :: read_wfx
-     procedure :: read_fchk
-     procedure :: read_molden
-     procedure :: register_struct
-     procedure :: rho2
+     procedure :: end => wfn_end !< deallocate all arrays in wfn object
+     procedure :: read_wfn !< read wavefunction from a Gaussian wfn file
+     procedure :: read_wfx !< read wavefunction from a Gaussian wfx file
+     procedure :: read_fchk !< read wavefunction from a Gaussian formatted checkpoint file
+     procedure :: read_molden !< read wavefunction from a molden file
+     procedure :: register_struct !< pass the atomic number and positions to the object
+     procedure :: rho2 !< calculate the density, derivatives, and other properties
   end type molwfn
   public :: molwfn
 
@@ -522,6 +525,7 @@ contains
     character*8 :: dum1
 
     f%useecp = .false.
+    f%issto = .false.
 
     ! read number of atoms, primitives, orbitals
     luwfn = fopen_read(file)
@@ -627,6 +631,7 @@ contains
     character(len=:), allocatable :: line, line2
 
     f%useecp = .false.
+    f%issto = .false.
 
     ! first pass
     luwfn = fopen_read(file)
@@ -773,6 +778,7 @@ contains
 
     ! no ecps for now
     f%useecp = .false.
+    f%issto = .false.
 
     ! first pass: dimensions
     luwfn = fopen_read(file)
@@ -1144,6 +1150,7 @@ contains
 
     ! initialize
     f%useecp = .false.
+    f%issto = .false.
     is5d = .false.
     is7f = .false.
     is9g = .false.
@@ -1260,8 +1267,15 @@ contains
        if (.not.ok) exit
     end do
     
-    if (isgto.and.issto) &
+    if (isgto.and.issto) then
        call ferror('read_molden','Both [GTO] and [STO] blocks are present',faterr)
+    else if (.not.isgto.and..not.issto) then
+       call ferror('read_molden','No [GTO] or [STO] blocks present',faterr)
+    else if (isgto) then
+       f%issto = .false.
+    else
+       f%issto = .true.
+    end if
 
     ! type of wavefunction -> number of MOs
     if (f%wfntyp == wfn_uhf) then
@@ -1380,11 +1394,16 @@ contains
        end do
 
        ! Basis set specification 
+       f%ixmaxsto = 0
        do i = 1, ncshel
           ok = getline_raw(luwfn,line,.true.)
           ishlpri(i) = 1
           read(line,*) ishlat(i), ix, iy, iz, ir, exppri(i), ccontr(i)
           ishlt(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
+          f%ixmaxsto(1) = max(f%ixmaxsto(1),ix)
+          f%ixmaxsto(2) = max(f%ixmaxsto(2),iy)
+          f%ixmaxsto(3) = max(f%ixmaxsto(3),iz)
+          f%ixmaxsto(4) = max(f%ixmaxsto(4),ir)
        end do
 
        ! Number of "primitives" and basis functions equal to number of STOs
@@ -1467,33 +1486,42 @@ contains
     ! deallocate the temporary motemp
     allocate(mocoef(f%nmo,nbascar),stat=istat)
     if (istat /= 0) call ferror('read_molden','alloc. memory for mocoef',faterr)
-    nc = 0
-    ns = 0
-    do j = 1, ncshel
-       nsph = nshlt(ishlt(j))
-       ncar = nshlt(abs(ishlt(j)))
-       if (nsph == ncar) then
+    if (isgto) then
+       nc = 0
+       ns = 0
+       do j = 1, ncshel
+          nsph = nshlt(ishlt(j))
+          ncar = nshlt(abs(ishlt(j)))
+          if (nsph == ncar) then
+             do i = 1, f%nmo
+                mocoef(i,nc+1:nc+ncar) = motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph)
+             end do
+          elseif (ishlt(j) == -2) then
+             do i = 1, f%nmo
+                mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),dsphcar)
+             end do
+          elseif (ishlt(j) == -3) then
+             do i = 1, f%nmo
+                mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),fsphcar)
+             end do
+          elseif (ishlt(j) == -4) then
+             do i = 1, f%nmo
+                mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),gsphcar)
+             end do
+          else
+             call ferror('read_molden','h and higher primitives not supported in molden format',faterr)
+          endif
+          ns = ns + nsph
+          nc = nc + ncar
+       end do
+    else
+       ! STOs: just copy the molecular orbital coefficients
+       do j = 1, ncshel
           do i = 1, f%nmo
-             mocoef(i,nc+1:nc+ncar) = motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph)
+             mocoef(i,j) = motemp((i-1)*ncshel+j)
           end do
-       elseif (ishlt(j) == -2) then
-          do i = 1, f%nmo
-             mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),dsphcar)
-          end do
-       elseif (ishlt(j) == -3) then
-          do i = 1, f%nmo
-             mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),fsphcar)
-          end do
-       elseif (ishlt(j) == -4) then
-          do i = 1, f%nmo
-             mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),gsphcar)
-          end do
-       else
-          call ferror('read_molden','h and higher primitives not supported in molden format',faterr)
-       endif
-       ns = ns + nsph
-       nc = nc + ncar
-    end do
+       end do
+    end if
     deallocate(motemp)
 
     ! from this point on, only Cartesians
@@ -1510,59 +1538,76 @@ contains
     if (istat /= 0) call ferror('read_molden','could not allocate memory for coeffs',faterr)
 
     ! normalize the primitive coefficients without the angular part
-    allocate(cnorm(maxval(ishlpri)))
-    nm = 0
-    nn = 0
-    do i = 1, ncshel
-       do j = jshl0(ishlt(i)), jshl1(ishlt(i))
-          ityp = typtrans(j)
-          
-          ! primitive coefficients normalized
-          do k = 1, ishlpri(i)
-             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
-          end do
+    if (isgto) then
+       allocate(cnorm(maxval(ishlpri)))
+       nm = 0
+       nn = 0
+       do i = 1, ncshel
+          do j = jshl0(ishlt(i)), jshl1(ishlt(i))
+             ityp = typtrans(j)
 
-          ! normalization constant for the basis function
-          norm = 0d0
-          do k1 = 1, ishlpri(i)
-             do k2 = 1, ishlpri(i)
-                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
+             ! primitive coefficients normalized
+             do k = 1, ishlpri(i)
+                cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
+             end do
+
+             ! normalization constant for the basis function
+             norm = 0d0
+             do k1 = 1, ishlpri(i)
+                do k2 = 1, ishlpri(i)
+                   norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
+                end do
+             end do
+             cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
+             norm = 1d0 / sqrt(norm * cons)
+
+             ! calculate and assign the normalized primitive coefficients
+             do k = 1, ishlpri(i)
+                nn = nn + 1
+                cpri(nn) = cnorm(k) * norm
              end do
           end do
-          cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
-          norm = 1d0 / sqrt(norm * cons)
-
-          ! calculate and assign the normalized primitive coefficients
-          do k = 1, ishlpri(i)
-             nn = nn + 1
-             cpri(nn) = cnorm(k) * norm
-          end do
+          nm = nm + ishlpri(i)
        end do
-       nm = nm + ishlpri(i)
-    end do
-    deallocate(cnorm)
+       deallocate(cnorm)
 
-    ! build the wavefunction coefficients for the primitives
-    nn = 0
-    nm = 0
-    nl = 0
-    do i = 1, ncshel
-       do j = jshl0(ishlt(i)), jshl1(ishlt(i))
-          ityp = typtrans(j)
-          nl = nl + 1
-          do k = 1, ishlpri(i)
-             nn = nn + 1
-             f%icenter(nn) = ishlat(i)
-             f%itype(nn) = ityp
-             f%e(nn) = exppri(nm+k)
-             f%cmo(:,nn) = cpri(nn) * mocoef(:,nl)
+       ! build the wavefunction coefficients for the primitives
+       nn = 0
+       nm = 0
+       nl = 0
+       do i = 1, ncshel
+          do j = jshl0(ishlt(i)), jshl1(ishlt(i))
+             ityp = typtrans(j)
+             nl = nl + 1
+             do k = 1, ishlpri(i)
+                nn = nn + 1
+                f%icenter(nn) = ishlat(i)
+                f%itype(nn) = ityp
+                f%e(nn) = exppri(nm+k)
+                f%cmo(:,nn) = cpri(nn) * mocoef(:,nl)
+             end do
           end do
+          nm = nm + ishlpri(i)
        end do
-       nm = nm + ishlpri(i)
-    end do
 
-    ! calculate the range of each primitive (in distance^2)
-    call calculate_d2ran(f)
+       ! calculate the range of each primitive (in distance^2)
+       call calculate_d2ran(f)
+
+    else
+       cpri = ccontr
+
+       ! build the wavefunction coefficients for the primitives
+       do i = 1, ncshel
+          f%icenter(i) = ishlat(i)
+          f%itype(i) = ishlt(i)
+          f%e(i) = exppri(i)
+          f%cmo(:,i) = cpri(i) * mocoef(:,i)
+       end do
+
+       ! calculate the range of each primitive (in distance^2)
+       call calculate_d2ran(f)
+       f%d2ran = 40d0
+    end if
 
     ! clean up and exit
     deallocate(ishlt,ishlpri,ishlat)
@@ -1693,14 +1738,15 @@ contains
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
     
-    real*8 :: al, ex, xl(3,0:2), xl2
-    integer :: ipri, iat, ityp, l(3), ix, i
-    integer :: imo
+    real*8 :: al, ex, xl(3,0:2), xl2, xx(4)
+    integer :: ipri, iat, ityp, l(3), ix, iy, iz, ir, i, j
+    integer :: imo, imind(4), imaxd(4)
     real*8 :: chi(f%npri,imax(nder))
     real*8 :: phi(f%nmo,imax(nder))
     logical :: ldopri(f%npri)
-    real*8 :: dd(3,f%nat), d2(f%nat)
-    real*8 :: hh(6), aocc
+    real*8 :: dd(3,f%nat), d2(f%nat), fprod(-2:2,-2:2,-2:2,-4:0)
+    real*8 :: hh(6), aocc, f0r
+    real*8, allocatable :: dx(:,:,:)
     
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
@@ -1714,83 +1760,233 @@ contains
        1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
        3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
 
-    ! calculate distances
-    do iat = 1, f%nat
-       dd(:,iat) = xpos - f%xat(:,iat)
-       d2(iat) = dd(1,iat)*dd(1,iat)+dd(2,iat)*dd(2,iat)+dd(3,iat)*dd(3,iat)
-    enddo
 
-    ! primitive and derivatives 
-    ldopri = .true.
-    do ipri = 1, f%npri
-       if (d2(f%icenter(ipri)) > f%d2ran(ipri)) then
-          ldopri(ipri) = .false.
-          cycle
-       end if
-       ityp = f%itype(ipri)
-       iat = f%icenter(ipri)
-       al = f%e(ipri)
-       ex = exp(-al * d2(iat))
+    if (f%issto) then
+       !! STO wavefunction !!
 
-       l = li(1:3,ityp)
-       do ix = 1, 3
-          if (l(ix) == 0) then
-             xl(ix,0) = 1d0
-             xl(ix,1) = 0d0
-             xl(ix,2) = 0d0
-          else if (l(ix) == 1) then
-             xl(ix,0) = dd(ix,iat)
-             xl(ix,1) = 1d0
-             xl(ix,2) = 0d0
-          else if (l(ix) == 2) then
-             xl(ix,0) = dd(ix,iat) * dd(ix,iat)
-             xl(ix,1) = 2d0 * dd(ix,iat)
-             xl(ix,2) = 2d0
-          else if (l(ix) == 3) then
-             xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
-             xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
-             xl(ix,2) = 6d0 * dd(ix,iat)
-          else if (l(ix) == 4) then
-             xl2 = dd(ix,iat) * dd(ix,iat)
-             xl(ix,0) = xl2 * xl2
-             xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
-             xl(ix,2) = 12d0 * xl2
-          else if (l(ix) == 5) then
-             xl2 = dd(ix,iat) * dd(ix,iat)
-             xl(ix,0) = xl2 * xl2 * dd(ix,iat)
-             xl(ix,1) = 5d0 * xl2 * xl2
-             xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
-          else
-             call ferror('wfn_rho2','power of L not supported',faterr)
-          end if
-       end do
+       ! calculate factors for the derivatives
+       imind = nder
+       imind(4) = 2*nder
+       imaxd = f%ixmaxsto + nder
 
-       chi(ipri,1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
-       if (nder > 0) then
-          chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
-          chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
-          chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
-          if (nder > 1) then
-             chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
-             chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
-             chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
-             chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
-             chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
-             chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
-          endif
-       endif
-    enddo ! ipri = 1, npri
+       ! calculate distances and their powers
+       allocate(dx(4,-maxval(imind):maxval(imaxd),f%nat))
+       dx = 1d0
+       do iat = 1, f%nat
+          xx(1:3) = xpos - f%xat(:,iat)
+          xx(4) = sqrt(xx(1)*xx(1)+xx(2)*xx(2)+xx(3)*xx(3))
+          dx(:,1,iat) = xx
+          ! positive powers
+          do i = 1, 4
+             do j = 2, imaxd(i)
+                dx(i,j,iat) = dx(i,j-1,iat) * dx(i,1,iat)
+             end do
+          end do
+          ! negative powers
+          do i = 1, 4
+             do j = 1, imind(i)
+                dx(i,-j,iat) = dx(i,-j+1,iat) / dx(i,1,iat)
+             end do
+          end do
+       enddo
 
-    ! build the MO values at the point
-    phi = 0d0
-    do ix = 1, imax(nder)
+       ! build the MO values at the point
+       phi = 0d0
        do ipri = 1, f%npri
-          if (.not.ldopri(ipri)) cycle
+          if (dx(4,1,f%icenter(ipri)) > f%d2ran(ipri)) cycle
           do imo = 1, f%nmo
-             phi(imo,ix) = phi(imo,ix) + f%cmo(imo,ipri)*chi(ipri,ix)
+             ! unpack the exponents
+             ityp = f%itype(ipri)
+             ix = modulo(ityp,100)
+             ityp = ityp / 100
+             iy = modulo(ityp,100)
+             ityp = ityp / 100
+             iz = modulo(ityp,100)
+             ir = ityp / 100
+
+             ! calculate the exponentials
+             iat = f%icenter(ipri)
+             al = f%e(ipri)
+             ex = exp(-al * dx(4,1,iat))
+
+             ! MO = 1
+             f0r = f%cmo(imo,ipri) * dx(1,ix,iat) * dx(2,iy,iat) * dx(3,iz,iat) * dx(4,ir,iat) * ex
+             phi(imo,1) = phi(imo,1) + f0r
+             if (nder > 0) then
+                ! x=2, y=3, z=4
+                fprod(0,0,0,0) = f0r
+                fprod(-1,0,0,0) = f0r * dx(1,-1,iat)
+                fprod(0,-1,0,0) = f0r * dx(2,-1,iat)
+                fprod(0,0,-1,0) = f0r * dx(3,-1,iat)
+                fprod(1,0,0,0) = f0r * dx(1,1,iat)
+                fprod(0,1,0,0) = f0r * dx(2,1,iat)
+                fprod(0,0,1,0) = f0r * dx(3,1,iat)
+                fprod(1,0,0,-1) = fprod(1,0,0,0) * dx(4,-1,iat)
+                fprod(0,1,0,-1) = fprod(0,1,0,0) * dx(4,-1,iat)
+                fprod(0,0,1,-1) = fprod(0,0,1,0) * dx(4,-1,iat)
+                fprod(1,0,0,-2) = fprod(1,0,0,-1) * dx(4,-1,iat)
+                fprod(0,1,0,-2) = fprod(0,1,0,-1) * dx(4,-1,iat)
+                fprod(0,0,1,-2) = fprod(0,0,1,-1) * dx(4,-1,iat)
+                phi(imo,2) = phi(imo,2) + ix * fprod(-1,0,0,0) + ir * fprod(1,0,0,-2) - al * fprod(1,0,0,-1)
+                phi(imo,3) = phi(imo,3) + iy * fprod(0,-1,0,0) + ir * fprod(0,1,0,-2) - al * fprod(0,1,0,-1)
+                phi(imo,4) = phi(imo,4) + iz * fprod(0,0,-1,0) + ir * fprod(0,0,1,-2) - al * fprod(0,0,1,-1)
+
+                if (nder > 1) then
+                   ! xx=5, yy=6, zz=7
+                   fprod(0,0,0,-1) = fprod(0,0,0,0)  * dx(4,-1,iat)
+                   fprod(0,0,0,-2) = fprod(0,0,0,-1) * dx(4,-1,iat)
+                   fprod(-2,0,0,0) = fprod(-1,0,0,0) * dx(1,-1,iat)
+                   fprod(0,-2,0,0) = fprod(0,-1,0,0) * dx(2,-1,iat)
+                   fprod(0,0,-2,0) = fprod(0,0,-1,0) * dx(3,-1,iat)
+                   fprod(2,0,0,-2) = fprod(1,0,0,-2) * dx(1,1,iat)
+                   fprod(0,2,0,-2) = fprod(0,1,0,-2) * dx(2,1,iat)
+                   fprod(0,0,2,-2) = fprod(0,0,1,-2) * dx(3,1,iat)
+                   fprod(2,0,0,-3) = fprod(2,0,0,-2) * dx(4,-1,iat)
+                   fprod(0,2,0,-3) = fprod(0,2,0,-2) * dx(4,-1,iat)
+                   fprod(0,0,2,-3) = fprod(0,0,2,-2) * dx(4,-1,iat)
+                   fprod(2,0,0,-4) = fprod(2,0,0,-3) * dx(4,-1,iat)
+                   fprod(0,2,0,-4) = fprod(0,2,0,-3) * dx(4,-1,iat)
+                   fprod(0,0,2,-4) = fprod(0,0,2,-3) * dx(4,-1,iat)
+                   phi(imo,5) = phi(imo,5) + ix * (ix-1) * fprod(-2,0,0,0) + ir * (2*ix+1) * fprod(0,0,0,-2) - &
+                      al * ((2*ix+1) * fprod(0,0,0,-1) + (2*ir-1) * fprod(2,0,0,-3)) + al*al * fprod(2,0,0,-2) + &
+                      ir * (ir-2) * fprod(2,0,0,-4)
+                   phi(imo,6) = phi(imo,6) + iy * (iy-1) * fprod(0,-2,0,0) + ir * (2*iy+1) * fprod(0,0,0,-2) - &
+                      al * ((2*iy+1) * fprod(0,0,0,-1) + (2*ir-1) * fprod(0,2,0,-3)) + al*al * fprod(0,2,0,-2) + &
+                      ir * (ir-2) * fprod(0,2,0,-4)
+                   phi(imo,7) = phi(imo,7) + iz * (iz-1) * fprod(0,0,-2,0) + ir * (2*iz+1) * fprod(0,0,0,-2) - &
+                      al * ((2*iz+1) * fprod(0,0,0,-1) + (2*ir-1) * fprod(0,0,2,-3)) + al*al * fprod(0,0,2,-2) + &
+                      ir * (ir-2) * fprod(0,0,2,-4)
+
+                   ! xy=8, xz=9, yz=10
+                   fprod(-1,-1,0,0) = fprod(-1,0,0,0) * dx(2,-1,iat)
+                   fprod(0,-1,-1,0) = fprod(0,-1,0,0) * dx(3,-1,iat)
+                   fprod(-1,0,-1,0) = fprod(0,0,-1,0) * dx(1,-1,iat)
+
+                   fprod(1,-1,0,-1) = fprod(1,0,0,-1) * dx(2,-1,iat)
+                   fprod(1,0,-1,-1) = fprod(1,0,0,-1) * dx(3,-1,iat)
+                   fprod(-1,1,0,-1) = fprod(0,1,0,-1) * dx(1,-1,iat)
+                   fprod(0,1,-1,-1) = fprod(0,1,0,-1) * dx(3,-1,iat)
+                   fprod(-1,0,1,-1) = fprod(0,0,1,-1) * dx(1,-1,iat)
+                   fprod(0,-1,1,-1) = fprod(0,0,1,-1) * dx(2,-1,iat)
+
+                   fprod(1,-1,0,-2) = fprod(1,-1,0,-1) * dx(4,-1,iat)
+                   fprod(1,0,-1,-2) = fprod(1,0,-1,-1) * dx(4,-1,iat)
+                   fprod(-1,1,0,-2) = fprod(-1,1,0,-1) * dx(4,-1,iat)
+                   fprod(0,1,-1,-2) = fprod(0,1,-1,-1) * dx(4,-1,iat)
+                   fprod(-1,0,1,-2) = fprod(-1,0,1,-1) * dx(4,-1,iat)
+                   fprod(0,-1,1,-2) = fprod(0,-1,1,-1) * dx(4,-1,iat)
+                   
+                   fprod(1,1,0,-2) = fprod(1,0,0,-2) * dx(2,1,iat)
+                   fprod(0,1,1,-2) = fprod(0,1,0,-2) * dx(3,1,iat)
+                   fprod(1,0,1,-2) = fprod(0,0,1,-2) * dx(1,1,iat)
+                   fprod(1,1,0,-3) = fprod(1,1,0,-2) * dx(4,-1,iat)
+                   fprod(0,1,1,-3) = fprod(0,1,1,-2) * dx(4,-1,iat)
+                   fprod(1,0,1,-3) = fprod(1,0,1,-2) * dx(4,-1,iat)
+                   fprod(1,1,0,-4) = fprod(1,1,0,-3) * dx(4,-1,iat)
+                   fprod(0,1,1,-4) = fprod(0,1,1,-3) * dx(4,-1,iat)
+                   fprod(1,0,1,-4) = fprod(1,0,1,-3) * dx(4,-1,iat)
+
+                   phi(imo,8) = phi(imo,8) + ix * iy * fprod(-1,-1,0,0) + &
+                      ir * (ix * fprod(-1,1,0,-2) + iy * fprod(1,-1,0,-2)) - &
+                      al * (ix * fprod(-1,1,0,-1) + iy * fprod(1,-1,0,-1)) - &
+                      al * (2*ir-1) * fprod(1,1,0,-3) + ir * (ir-2) * fprod(1,1,0,-4) + &
+                      al * al * fprod(1,1,0,-2)
+                   phi(imo,9) = phi(imo,9) + ix * iz * fprod(-1,0,-1,0) + &
+                      ir * (ix * fprod(-1,0,1,-2) + iz * fprod(1,0,-1,-2)) - &
+                      al * (ix * fprod(-1,0,1,-1) + iz * fprod(1,0,-1,-1)) - &
+                      al * (2*ir-1) * fprod(1,0,1,-3) + ir * (ir-2) * fprod(1,0,1,-4) + &
+                      al * al * fprod(1,0,1,-2)
+                   phi(imo,10) = phi(imo,10) + iz * iy * fprod(-1,0,-1,0) + &
+                      ir * (iz * fprod(0,1,-1,-2) + iy * fprod(0,-1,1,-2)) - &
+                      al * (iz * fprod(0,1,-1,-1) + iy * fprod(0,-1,1,-1)) - &
+                      al * (2*ir-1) * fprod(0,1,1,-3) + ir * (ir-2) * fprod(0,1,1,-4) + &
+                      al * al * fprod(0,1,1,-2)
+                endif
+             endif
           enddo
        enddo
-    enddo
+       deallocate(dx)
+    else
+       !! GTO wavefunction !!
+
+       ! calculate distances
+       do iat = 1, f%nat
+          dd(:,iat) = xpos - f%xat(:,iat)
+          d2(iat) = dd(1,iat)*dd(1,iat)+dd(2,iat)*dd(2,iat)+dd(3,iat)*dd(3,iat)
+       enddo
+
+       ! primitive values and their derivatives
+       ldopri = .true.
+       do ipri = 1, f%npri
+          if (d2(f%icenter(ipri)) > f%d2ran(ipri)) then
+             ldopri(ipri) = .false.
+             cycle
+          end if
+          ityp = f%itype(ipri)
+          iat = f%icenter(ipri)
+          al = f%e(ipri)
+          ex = exp(-al * d2(iat))
+
+          l = li(1:3,ityp)
+          do ix = 1, 3
+             if (l(ix) == 0) then
+                xl(ix,0) = 1d0
+                xl(ix,1) = 0d0
+                xl(ix,2) = 0d0
+             else if (l(ix) == 1) then
+                xl(ix,0) = dd(ix,iat)
+                xl(ix,1) = 1d0
+                xl(ix,2) = 0d0
+             else if (l(ix) == 2) then
+                xl(ix,0) = dd(ix,iat) * dd(ix,iat)
+                xl(ix,1) = 2d0 * dd(ix,iat)
+                xl(ix,2) = 2d0
+             else if (l(ix) == 3) then
+                xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
+                xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
+                xl(ix,2) = 6d0 * dd(ix,iat)
+             else if (l(ix) == 4) then
+                xl2 = dd(ix,iat) * dd(ix,iat)
+                xl(ix,0) = xl2 * xl2
+                xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
+                xl(ix,2) = 12d0 * xl2
+             else if (l(ix) == 5) then
+                xl2 = dd(ix,iat) * dd(ix,iat)
+                xl(ix,0) = xl2 * xl2 * dd(ix,iat)
+                xl(ix,1) = 5d0 * xl2 * xl2
+                xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
+             else
+                call ferror('wfn_rho2','power of L not supported',faterr)
+             end if
+          end do
+
+          chi(ipri,1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
+          if (nder > 0) then
+             chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
+             chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
+             chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+             if (nder > 1) then
+                chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
+                chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
+                chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
+                chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
+                chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
+                chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
+             endif
+          endif
+       enddo ! ipri = 1, npri
+
+       ! build the MO values at the point
+       phi = 0d0
+       do ix = 1, imax(nder)
+          do ipri = 1, f%npri
+             if (.not.ldopri(ipri)) cycle
+             do imo = 1, f%nmo
+                phi(imo,ix) = phi(imo,ix) + f%cmo(imo,ipri)*chi(ipri,ix)
+             enddo
+          enddo
+       enddo
+    end if
 
     ! contribution to the density, etc.
     rho = 0d0
