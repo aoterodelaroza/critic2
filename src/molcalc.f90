@@ -67,16 +67,9 @@ contains
     use tools_io, only: string, uout
     use param, only: im_rho
     
-  !   use fields, only: f
-  !   use crystalmod, only: cr
-  !   use global, only: refden
-  !   use types, only: molmesh
-  !   use tools_io, only: uout, string
-
     type(mesh) :: m
     integer :: prop(1), id(1)
 
-    !   write (uout,'("* Trick: cell integral")')
     call m%gen(sy%c)
 
     write (uout,'("+ Molecular integrals")')

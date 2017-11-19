@@ -1083,20 +1083,24 @@ contains
     character*(*), intent(in) :: file !< Input file
 
     character(len=:), allocatable :: line, keyword, word, word1, word2
-    logical :: is5d, is7f, is9g, isalpha, ok
+    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto
     integer :: luwfn, istat, ityp
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, ncshel, nshel, nbascar, nbassph
-    integer :: idum, lp, lnmoa, lnmob, lnmo
+    integer :: idum, lp, lnmoa, lnmob, lnmo, ix, iy, iz, ir
     real*8 :: rdum, norm, cons
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:)
     real*8, allocatable :: exppri(:), ccontr(:), motemp(:), cpri(:), mocoef(:,:), cnorm(:)
 
     ! guide to the variables in this routine:
-    !   ncshel = number of contraction shells (# of blocks in [GTO])
+    !   issto and isgto = whether the wavefunction is given in GTOs or STOs.
+    !                     Both can not be true at the same time.
+    !
+    !   ncshel = for a [GTO] file, number of contraction shells
     !     -> ishlt(icshel) = angular momentum for this shell (s=0,p=1,d=2,dsph=-2,etc.)
     !     -> ishlpri(icshel) = number of primitives in this shell
     !     -> ishlat(icshel) = atom index where this shell is based
+    !   For [STO] file, number of STO basis functions
     !
     !   nshel = number of primitives (not counting the angular parts)
     !     -> exppri(ishel) = primitive exponent
@@ -1147,6 +1151,8 @@ contains
     nat = 0
     f%wfntyp = -1
     line = ""
+    issto = .false.
+    isgto = .false.
 
     ! parse the molden file, first pass -> read dimensions prior to allocation
     do while(next_keyword())
@@ -1160,6 +1166,7 @@ contains
           end do
        elseif (trim(keyword) == "gto") then
           ! read the number of shells and primitives
+          isgto = .true.
           ncshel = 0
           nshel = 0
           if (nat == 0) call ferror("read_molden","gto found but no atoms",faterr)
@@ -1178,6 +1185,17 @@ contains
                 if (.not.ok) exit
              end do
              if (.not.ok) exit
+          end do
+       elseif (trim(keyword) == "sto") then
+          ! read the number of shells and primitives
+          issto = .true.
+          ncshel = 0
+          if (nat == 0) call ferror("read_molden","sto found but no atoms",faterr)
+          do while (.true.)
+             ok = getline_raw(luwfn,line,.true.)
+             if (.not.ok) exit
+             if (index(lower(line),"[") > 0) exit
+             ncshel = ncshel + 1
           end do
        elseif (trim(keyword) == "mo") then
           ! read the number of MOs, number of electrons, and number of alpha electrons
@@ -1242,6 +1260,9 @@ contains
        if (.not.ok) exit
     end do
     
+    if (isgto.and.issto) &
+       call ferror('read_molden','Both [GTO] and [STO] blocks are present',faterr)
+
     ! type of wavefunction -> number of MOs
     if (f%wfntyp == wfn_uhf) then
        f%nmo = nelec
@@ -1253,10 +1274,6 @@ contains
     ! allocate stuff
     allocate(f%occ(f%nmo),stat=istat)
     if (istat /= 0) call ferror('read_molden','alloc. memory for occ',faterr)
-    allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
-    if (istat /= 0) call ferror('read_molden','alloc. memory for shell types',faterr)
-    allocate(exppri(nshel),ccontr(nshel),stat=istat)
-    if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
 
     ! type of wavefunction -> occupations
     if (f%wfntyp == wfn_uhf) then
@@ -1268,92 +1285,124 @@ contains
     ! second pass
     rewind(luwfn)
 
-    ! Basis set specification 
-    do while(getline_raw(luwfn,line,.true.))
-       if (trim(lower(line)) == "[gto]") exit
-    end do
-    ni = 0
-    nj = 0
-    do i = 1, nat
-       ok = getline_raw(luwfn,line,.true.)
-       ok = getline_raw(luwfn,line,.true.)
-       ! atomic blocks are separated by blank lines
-       do while (len_trim(line) > 0)
-          ni = ni + 1
+    if (isgto) then
+       !! GTO wavefunction !!
+       allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
+       if (istat /= 0) call ferror('read_molden','alloc. memory for shell types',faterr)
+       allocate(exppri(nshel),ccontr(nshel),stat=istat)
+       if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
 
-          ! header -> l, npri, ???
-          lp = 1
-          word = lgetword(line,lp)
-          ok = ok .and. isinteger(idum,line,lp)
-          if (.not.ok) &
-             call ferror("read_molden","error reading gto block",faterr)
-
-          ! read exponents and coefficients
-          do j = 1, idum
-             nj = nj + 1
-             ok = getline_raw(luwfn,line,.true.)
-             read(line,*) exppri(nj), ccontr(nj)
-          end do
-
-          ! assign atomic centers, number of primitives, and shell types.
-          ishlat(ni) = i
-          ishlpri(ni) = idum
-          if (lower(trim(word)) == "s") then
-             ishlt(ni) = 0
-          else if (lower(trim(word)) == "p") then
-             ishlt(ni) = 1
-          else if (lower(trim(word)) == "sp") then
-             write (uout,'("SP shells are not supported yet for molden files.")')
-             write (uout,'("If you need this, e-mail the critic2 developer.")')
-             call ferror("read_molden","can't handle SP in molden format",faterr)
-          else if (lower(trim(word)) == "d") then
-             if (is5d) then
-                ishlt(ni) = -2
-             else
-                ishlt(ni) = 2
-             end if
-          else if (lower(trim(word)) == "f") then
-             if (is7f) then
-                ishlt(ni) = -3
-             else
-                ishlt(ni) = 3
-             end if
-          else if (lower(trim(word)) == "g") then
-             if (is9g) then
-                ishlt(ni) = -4
-             else
-                ishlt(ni) = 4
-             end if
-          else
-             write (uout,'("Shells with angular momentum higher than g are not supported yet for molden files.")')
-             write (uout,'("If you need this, e-mail the critic2 developer.")')
-             call ferror("read_molden","basis set type >g not supported in molden files",faterr)
-          endif
-          ok = getline_raw(luwfn,line,.false.)
-          if (.not.ok) exit
+       ! Basis set specification 
+       do while(getline_raw(luwfn,line,.true.))
+          if (trim(lower(line)) == "[gto]") exit
        end do
-    end do
-       
-    ! Count the number of primitives and basis functions
-    f%npri = 0
-    nbascar = 0
-    nbassph = 0
-    do i = 1, ncshel
-       ityp = ishlt(i)
-       nbascar = nbascar + nshlt(abs(ityp))
-       nbassph = nbassph + nshlt(ityp)
-       f%npri = f%npri + nshlt(abs(ityp)) * ishlpri(i)
-    enddo
+       ni = 0
+       nj = 0
+       do i = 1, nat
+          ok = getline_raw(luwfn,line,.true.)
+          ok = getline_raw(luwfn,line,.true.)
+          ! atomic blocks are separated by blank lines
+          do while (len_trim(line) > 0)
+             ni = ni + 1
+
+             ! header -> l, npri, ???
+             lp = 1
+             word = lgetword(line,lp)
+             ok = ok .and. isinteger(idum,line,lp)
+             if (.not.ok) &
+                call ferror("read_molden","error reading gto block",faterr)
+
+             ! read exponents and coefficients
+             do j = 1, idum
+                nj = nj + 1
+                ok = getline_raw(luwfn,line,.true.)
+                read(line,*) exppri(nj), ccontr(nj)
+             end do
+
+             ! assign atomic centers, number of primitives, and shell types.
+             ishlat(ni) = i
+             ishlpri(ni) = idum
+             if (lower(trim(word)) == "s") then
+                ishlt(ni) = 0
+             else if (lower(trim(word)) == "p") then
+                ishlt(ni) = 1
+             else if (lower(trim(word)) == "sp") then
+                write (uout,'("SP shells are not supported yet for molden files.")')
+                write (uout,'("If you need this, e-mail the critic2 developer.")')
+                call ferror("read_molden","can't handle SP in molden format",faterr)
+             else if (lower(trim(word)) == "d") then
+                if (is5d) then
+                   ishlt(ni) = -2
+                else
+                   ishlt(ni) = 2
+                end if
+             else if (lower(trim(word)) == "f") then
+                if (is7f) then
+                   ishlt(ni) = -3
+                else
+                   ishlt(ni) = 3
+                end if
+             else if (lower(trim(word)) == "g") then
+                if (is9g) then
+                   ishlt(ni) = -4
+                else
+                   ishlt(ni) = 4
+                end if
+             else
+                write (uout,'("Shells with angular momentum higher than g are not supported yet for molden files.")')
+                write (uout,'("If you need this, e-mail the critic2 developer.")')
+                call ferror("read_molden","basis set type >g not supported in molden files",faterr)
+             endif
+             ok = getline_raw(luwfn,line,.false.)
+             if (.not.ok) exit
+          end do
+       end do
+
+       ! Count the number of primitives and basis functions
+       f%npri = 0
+       nbascar = 0
+       nbassph = 0
+       do i = 1, ncshel
+          ityp = ishlt(i)
+          nbascar = nbascar + nshlt(abs(ityp))
+          nbassph = nbassph + nshlt(ityp)
+          f%npri = f%npri + nshlt(abs(ityp)) * ishlpri(i)
+       enddo
+    else
+       !! STO wavefunction !!
+       allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
+       if (istat /= 0) call ferror('read_molden','alloc. memory for shell types',faterr)
+       allocate(exppri(ncshel),ccontr(ncshel),stat=istat)
+       if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
+
+       do while(getline_raw(luwfn,line,.true.))
+          if (trim(lower(line)) == "[sto]") exit
+       end do
+
+       ! Basis set specification 
+       do i = 1, ncshel
+          ok = getline_raw(luwfn,line,.true.)
+          ishlpri(i) = 1
+          read(line,*) ishlat(i), ix, iy, iz, ir, exppri(i), ccontr(i)
+          ishlt(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
+       end do
+
+       ! Number of "primitives" and basis functions equal to number of STOs
+       f%npri = ncshel
+       nbascar = ncshel
+       nbassph = ncshel
+    end if
 
     ! Allocate space to read the the molecular orbital information
     allocate(motemp(nbassph*f%nmo),stat=istat)
     if (istat /= 0) call ferror('read_molden','alloc. memory for MO coefs',faterr)
+    motemp = 0d0
 
     ! advance to the MO coefficients
     do while(getline_raw(luwfn,line,.true.))
        if (trim(lower(line)) == "[mo]") exit
     end do
-    
+
     ! read the MO coefficients
     lnmoa = 0
     lnmob = nalpha
@@ -1390,8 +1439,11 @@ contains
                 lnmo = lnmo + 1
              endif
 
-             do j = 1, nbassph
-                read(luwfn,*,end=99) idum, motemp((lnmo-1)*nbassph+j)
+             do while (.true.)
+                ok = getline_raw(luwfn,line,.false.)
+                if (index(lower(line),"sym=") > 0) exit
+                read(line,*,end=99) idum, rdum
+                motemp((lnmo-1)*nbassph+idum) = rdum
              end do
           end if
        end if

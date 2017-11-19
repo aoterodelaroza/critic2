@@ -5858,17 +5858,17 @@ guidance kindly provided by Enrico Benassi (see THANKS).
 Miscellaneous commands
 ----------------------
 
-Molecular integrals (MOLCALC)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Molecular calculations (MOLCALC)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
   MOLCALC [NELEC]
 
-This keyword allows the calculation of molecular quantities using
-molecular wavefunction (wfn/wfx/fchk/molden) fields. For now, only the
-NELEC keyword is implemented, which integrates the number of electrons
-using a Becke-style grid.
+This keyword allows the calculation of molecular quantities, mostly
+using molecular wavefunction (wfn/wfx/fchk/molden) fields. For now,
+only the NELEC keyword is implemented, which integrates the number of
+electrons using a Becke-style grid.
 
 Hirshfeld charges (HIRSHFELD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
