@@ -1200,10 +1200,11 @@ contains
                 word = ""
                 read (line,*) word, rdum
                 idum = nint(rdum)
-                if (abs(rdum-idum) > 1d-6) &
+                if (abs(rdum-idum) > 1d-6) then
                    write (uout,'("Fractional occupations are not supported yet for molden files.")')
                    write (uout,'("If you need this, e-mail the critic2 developer.")')
                    call ferror('read_molden','Can not do fractional occupations with molden',faterr)
+                end if
                 if (idum == 1 .or. idum == 2) then
                    nelec = nelec + idum
                    if (isalpha) then
