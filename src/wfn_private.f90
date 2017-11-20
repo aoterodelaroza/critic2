@@ -1742,12 +1742,13 @@ contains
     integer :: ipri, iat, ityp, l(3), ix, iy, iz, ir, i, j
     integer :: imo, imind(4), imaxd(4)
     real*8 :: chi(f%npri,imax(nder))
-    real*8 :: phi(f%nmo,imax(nder))
-    logical :: ldopri(f%npri)
+    real*8 :: phi(f%nmo,imax(nder)), dden
+    logical :: ldopri(f%npri), isclose
     real*8 :: dd(3,f%nat), d2(f%nat), fprod(-2:2,-2:2,-2:2,-4:0)
     real*8 :: hh(6), aocc, f0r
     real*8, allocatable :: dx(:,:,:)
     
+    real*8, parameter :: stoeps = 1d-12 !< points closer to a nucleus than stoeps get zero derivatives of STO wavefunction
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
        1,0,0, 0,1,0, 0,0,1, & ! p
@@ -1770,6 +1771,7 @@ contains
        imaxd = f%ixmaxsto + nder
 
        ! calculate distances and their powers
+       isclose = .false.
        allocate(dx(4,-maxval(imind):maxval(imaxd),f%nat))
        dx = 1d0
        do iat = 1, f%nat
@@ -1782,10 +1784,15 @@ contains
                 dx(i,j,iat) = dx(i,j-1,iat) * dx(i,1,iat)
              end do
           end do
+          if (xx(4) < stoeps) then
+             isclose = .true.
+             cycle
+          end if
           ! negative powers
           do i = 1, 4
              do j = 1, imind(i)
-                dx(i,-j,iat) = dx(i,-j+1,iat) / dx(i,1,iat)
+                dden = sign(max(abs(dx(i,-j+1,iat)),stoeps),dx(i,-j+1,iat))
+                dx(i,-j,iat) = dx(i,-j+1,iat) / dden
              end do
           end do
        enddo
@@ -1812,7 +1819,7 @@ contains
              ! MO = 1
              f0r = f%cmo(imo,ipri) * dx(1,ix,iat) * dx(2,iy,iat) * dx(3,iz,iat) * dx(4,ir,iat) * ex
              phi(imo,1) = phi(imo,1) + f0r
-             if (nder > 0) then
+             if (nder > 0 .and. .not.isclose) then
                 ! x=2, y=3, z=4
                 fprod(0,0,0,0) = f0r
                 fprod(-1,0,0,0) = f0r * dx(1,-1,iat)
@@ -1896,7 +1903,7 @@ contains
                       al * (ix * fprod(-1,0,1,-1) + iz * fprod(1,0,-1,-1)) - &
                       al * (2*ir-1) * fprod(1,0,1,-3) + ir * (ir-2) * fprod(1,0,1,-4) + &
                       al * al * fprod(1,0,1,-2)
-                   phi(imo,10) = phi(imo,10) + iz * iy * fprod(-1,0,-1,0) + &
+                   phi(imo,10) = phi(imo,10) + iz * iy * fprod(0,-1,-1,0) + &
                       ir * (iz * fprod(0,1,-1,-2) + iy * fprod(0,-1,1,-2)) - &
                       al * (iz * fprod(0,1,-1,-1) + iy * fprod(0,-1,1,-1)) - &
                       al * (2*ir-1) * fprod(0,1,1,-3) + ir * (ir-2) * fprod(0,1,1,-4) + &
