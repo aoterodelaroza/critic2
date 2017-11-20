@@ -37,7 +37,7 @@ module wfn_private
      integer :: ixmaxsto(4) !< maximum exponent for x, y, z, and r in STOs
      integer, allocatable :: icenter(:) !< primitive center
      integer, allocatable :: itype(:) !< primitive type (see li(:,:) array)
-     real*8, allocatable :: d2ran(:) !< maximum d^2 to discard the primitive
+     real*8, allocatable :: d2ran(:) !< maximum d^2 (GTO) or d (STO) to discard the primitive
      real*8, allocatable :: e(:) !< primitive exponents
      real*8, allocatable :: occ(:) !< MO occupation numbers
      real*8, allocatable :: cmo(:,:) !< MO coefficients
@@ -1106,7 +1106,6 @@ contains
     !     -> ishlt(icshel) = angular momentum for this shell (s=0,p=1,d=2,dsph=-2,etc.)
     !     -> ishlpri(icshel) = number of primitives in this shell
     !     -> ishlat(icshel) = atom index where this shell is based
-    !   For [STO] file, number of STO basis functions
     !
     !   nshel = number of primitives (not counting the angular parts)
     !     -> exppri(ishel) = primitive exponent
@@ -1196,13 +1195,13 @@ contains
        elseif (trim(keyword) == "sto") then
           ! read the number of shells and primitives
           issto = .true.
-          ncshel = 0
+          f%npri = 0
           if (nat == 0) call ferror("read_molden","sto found but no atoms",faterr)
           do while (.true.)
              ok = getline_raw(luwfn,line,.true.)
              if (.not.ok) exit
              if (index(lower(line),"[") > 0) exit
-             ncshel = ncshel + 1
+             f%npri = f%npri + 1
           end do
        elseif (trim(keyword) == "mo") then
           ! read the number of MOs, number of electrons, and number of alpha electrons
@@ -1384,9 +1383,9 @@ contains
        enddo
     else
        !! STO wavefunction !!
-       allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
+       allocate(f%itype(f%npri),f%icenter(f%npri),stat=istat)
        if (istat /= 0) call ferror('read_molden','alloc. memory for shell types',faterr)
-       allocate(exppri(ncshel),ccontr(ncshel),stat=istat)
+       allocate(f%e(f%npri),ccontr(f%npri),stat=istat)
        if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
 
        do while(getline_raw(luwfn,line,.true.))
@@ -1395,21 +1394,16 @@ contains
 
        ! Basis set specification 
        f%ixmaxsto = 0
-       do i = 1, ncshel
+       do i = 1, f%npri
           ok = getline_raw(luwfn,line,.true.)
-          ishlpri(i) = 1
-          read(line,*) ishlat(i), ix, iy, iz, ir, exppri(i), ccontr(i)
-          ishlt(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
+          read(line,*) f%icenter(i), ix, iy, iz, ir, f%e(i), ccontr(i)
+          f%itype(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
           f%ixmaxsto(1) = max(f%ixmaxsto(1),ix)
           f%ixmaxsto(2) = max(f%ixmaxsto(2),iy)
           f%ixmaxsto(3) = max(f%ixmaxsto(3),iz)
           f%ixmaxsto(4) = max(f%ixmaxsto(4),ir)
        end do
-
-       ! Number of "primitives" and basis functions equal to number of STOs
-       f%npri = ncshel
-       nbascar = ncshel
-       nbassph = ncshel
+       nbassph = f%npri ! for the allocation
     end if
 
     ! Allocate space to read the the molecular orbital information
@@ -1482,6 +1476,27 @@ contains
           call ferror('read_molden','inconsistent number of MOs (total) in the second pass',faterr)
     endif
 
+    ! STOs: build the MO coefficients and exit
+    if (issto) then
+       allocate(f%cmo(f%nmo,f%npri),stat=istat)
+       if (istat /= 0) call ferror('read_molden','could not allocate memory for coeffs',faterr)
+
+       ! STOs: just copy the molecular orbital coefficients
+       do j = 1, f%npri
+          do i = 1, f%nmo
+             f%cmo(i,j) = ccontr(j) * motemp((i-1)*f%npri+j)
+          end do
+       end do
+       deallocate(motemp,ccontr)
+
+       ! calculate the range of each primitive (in distance^2)
+       call calculate_d2ran(f)
+       f%d2ran = 40d0
+
+       return
+    end if
+
+    !! From this point onward, only GTO wavefunctions !!
     ! convert spherical basis functions to Cartesian and build the mocoef
     ! deallocate the temporary motemp
     allocate(mocoef(f%nmo,nbascar),stat=istat)
@@ -1514,13 +1529,6 @@ contains
           ns = ns + nsph
           nc = nc + ncar
        end do
-    else
-       ! STOs: just copy the molecular orbital coefficients
-       do j = 1, ncshel
-          do i = 1, f%nmo
-             mocoef(i,j) = motemp((i-1)*ncshel+j)
-          end do
-       end do
     end if
     deallocate(motemp)
 
@@ -1538,76 +1546,59 @@ contains
     if (istat /= 0) call ferror('read_molden','could not allocate memory for coeffs',faterr)
 
     ! normalize the primitive coefficients without the angular part
-    if (isgto) then
-       allocate(cnorm(maxval(ishlpri)))
-       nm = 0
-       nn = 0
-       do i = 1, ncshel
-          do j = jshl0(ishlt(i)), jshl1(ishlt(i))
-             ityp = typtrans(j)
+    allocate(cnorm(maxval(ishlpri)))
+    nm = 0
+    nn = 0
+    do i = 1, ncshel
+       do j = jshl0(ishlt(i)), jshl1(ishlt(i))
+          ityp = typtrans(j)
 
-             ! primitive coefficients normalized
-             do k = 1, ishlpri(i)
-                cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
-             end do
+          ! primitive coefficients normalized
+          do k = 1, ishlpri(i)
+             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
+          end do
 
-             ! normalization constant for the basis function
-             norm = 0d0
-             do k1 = 1, ishlpri(i)
-                do k2 = 1, ishlpri(i)
-                   norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
-                end do
-             end do
-             cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
-             norm = 1d0 / sqrt(norm * cons)
-
-             ! calculate and assign the normalized primitive coefficients
-             do k = 1, ishlpri(i)
-                nn = nn + 1
-                cpri(nn) = cnorm(k) * norm
+          ! normalization constant for the basis function
+          norm = 0d0
+          do k1 = 1, ishlpri(i)
+             do k2 = 1, ishlpri(i)
+                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
              end do
           end do
-          nm = nm + ishlpri(i)
-       end do
-       deallocate(cnorm)
+          cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
+          norm = 1d0 / sqrt(norm * cons)
 
-       ! build the wavefunction coefficients for the primitives
-       nn = 0
-       nm = 0
-       nl = 0
-       do i = 1, ncshel
-          do j = jshl0(ishlt(i)), jshl1(ishlt(i))
-             ityp = typtrans(j)
-             nl = nl + 1
-             do k = 1, ishlpri(i)
-                nn = nn + 1
-                f%icenter(nn) = ishlat(i)
-                f%itype(nn) = ityp
-                f%e(nn) = exppri(nm+k)
-                f%cmo(:,nn) = cpri(nn) * mocoef(:,nl)
-             end do
+          ! calculate and assign the normalized primitive coefficients
+          do k = 1, ishlpri(i)
+             nn = nn + 1
+             cpri(nn) = cnorm(k) * norm
           end do
-          nm = nm + ishlpri(i)
        end do
+       nm = nm + ishlpri(i)
+    end do
+    deallocate(cnorm)
 
-       ! calculate the range of each primitive (in distance^2)
-       call calculate_d2ran(f)
-
-    else
-       cpri = ccontr
-
-       ! build the wavefunction coefficients for the primitives
-       do i = 1, ncshel
-          f%icenter(i) = ishlat(i)
-          f%itype(i) = ishlt(i)
-          f%e(i) = exppri(i)
-          f%cmo(:,i) = cpri(i) * mocoef(:,i)
+    ! build the wavefunction coefficients for the primitives
+    nn = 0
+    nm = 0
+    nl = 0
+    do i = 1, ncshel
+       do j = jshl0(ishlt(i)), jshl1(ishlt(i))
+          ityp = typtrans(j)
+          nl = nl + 1
+          do k = 1, ishlpri(i)
+             nn = nn + 1
+             f%icenter(nn) = ishlat(i)
+             f%itype(nn) = ityp
+             f%e(nn) = exppri(nm+k)
+             f%cmo(:,nn) = cpri(nn) * mocoef(:,nl)
+          end do
        end do
+       nm = nm + ishlpri(i)
+    end do
 
-       ! calculate the range of each primitive (in distance^2)
-       call calculate_d2ran(f)
-       f%d2ran = 40d0
-    end if
+    ! calculate the range of each primitive (in distance^2)
+    call calculate_d2ran(f)
 
     ! clean up and exit
     deallocate(ishlt,ishlpri,ishlat)
