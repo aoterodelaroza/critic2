@@ -1098,11 +1098,11 @@ contains
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:)
     real*8, allocatable :: exppri(:), ccontr(:), motemp(:), cpri(:), mocoef(:,:), cnorm(:)
 
-    ! guide to the variables in this routine:
+    ! Guide to the variables in this routine:
     !   issto and isgto = whether the wavefunction is given in GTOs or STOs.
     !                     Both can not be true at the same time.
     !
-    !   ncshel = for a [GTO] file, number of contraction shells
+    !   ncshel = number of contraction shells
     !     -> ishlt(icshel) = angular momentum for this shell (s=0,p=1,d=2,dsph=-2,etc.)
     !     -> ishlpri(icshel) = number of primitives in this shell
     !     -> ishlat(icshel) = atom index where this shell is based
@@ -1127,6 +1127,9 @@ contains
     !   m%charge = charge
     !   m%mult = multiplicity
     ! 
+    ! For STOs, ncshel = nshel = m%npri = number of basis functions.
+    ! The ishlt has a special meaning - the exponents for x, y, z, and r
+    ! are packed with a 100 stride factor.
 
     ! translation between primitive ordering molden -> critic2
     !           1   2 3 4    5  6  7  8  9 10    11  12  13  14  15  16  17  18  19  20
@@ -1491,7 +1494,6 @@ contains
 
        ! calculate the range of each primitive (in distance^2)
        call calculate_d2ran(f)
-       f%d2ran = 40d0
 
        return
     end if
