@@ -72,6 +72,7 @@ struct View
   void ntexpos_to_texpos(vec2 &pos);
   vec2 world_to_texpos(vec3 pos);
   vec3 texpos_to_world(vec2 pos, float dist=-1.f); // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
+  vec2 world_to_ntexpos(vec3 pos);
   vec2 view_to_texpos(vec3 pos, float *depth); // returns depth in the second argument
   vec3 texpos_to_view(vec2 pos, float depth); 
   float texpos_viewdepth(vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found

@@ -446,8 +446,9 @@ vec3 View::cam_view_coords(){
 }
 
 vec3 View::sphereProject(vec2 ntexpos){
-  vec2 xs = {0.5f * clamp(ntexpos.x,-1.f,1.f), 0.5f*clamp(ntexpos.y,-1.f,1.f)};
-  float a = 2.0f * fmin(length(xs),0.5f);
+  vec2 pos0 = world_to_ntexpos(vec3(0.f,0.f,0.f));
+  vec2 xs = {clamp(ntexpos.x-pos0.x,-1.f,1.f), clamp(ntexpos.y-pos0.y,-1.f,1.f)};
+  float a = fmin(length(xs),1.0f);
   float b = atan2f(xs.y,xs.x);
   return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
 }
@@ -518,6 +519,12 @@ vec3 View::texpos_to_world(vec2 pos, float dist/*=-1.f*/){
     wpos = nearpos + fmax(dist - znear,0.f) * dir;
   }
   return wpos;
+}
+
+vec2 View::world_to_ntexpos(vec3 pos){
+  vec2 pos2 = world_to_texpos(pos);
+  texpos_to_ntexpos(pos2);
+  return pos2;
 }
 
 vec2 View::view_to_texpos(vec3 pos, float *depth){
