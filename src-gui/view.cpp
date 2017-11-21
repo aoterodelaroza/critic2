@@ -340,6 +340,14 @@ bool View::navigate(bool hover){
   vec2 ntexpos = texpos;
   texpos_to_ntexpos(ntexpos);
 
+  // center on double left click
+  if (hover && mstate.ldclick){
+    v_pos = {0.f,0.f,4.f*c2::scenerad};
+    m_world = mat4(1.0f);
+    updateview = true;
+    updateworld = true;
+  }
+
   // mouse scroll = zoom
   if (hover && abs(mstate.scroll) > eps && !rlock){
     float ratio = fmin(mousesens_zoom * mstate.scroll,0.5f);
