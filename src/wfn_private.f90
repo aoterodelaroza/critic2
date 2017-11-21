@@ -1784,7 +1784,7 @@ contains
           ! negative powers
           do i = 1, 4
              do j = 1, imind(i)
-                dden = sign(max(abs(dx(i,-j+1,iat)),stoeps),dx(i,-j+1,iat))
+                dden = sign(max(abs(dx(i,1,iat)),stoeps),dx(i,1,iat))
                 dx(i,-j,iat) = dx(i,-j+1,iat) / dden
              end do
           end do
