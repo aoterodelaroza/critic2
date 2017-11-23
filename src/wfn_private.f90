@@ -1732,16 +1732,17 @@ contains
     integer, parameter :: imax(0:2) = (/1,4,10/)
     
     real*8 :: al, ex, xl(3,0:2), xl2, xx(4)
-    integer :: ipri, iat, ityp, l(3), ix, iy, iz, ir, i, j
-    integer :: imo, imind(4), imaxd(4)
+    integer :: ipri, iat, ityp, l(3), i, j, ixx(4)
+    integer :: imo, imind(4), ix
     real*8 :: chi(f%npri,imax(nder))
     real*8 :: phi(f%nmo,imax(nder)), dden
     logical :: ldopri(f%npri), isclose
-    real*8 :: dd(3,f%nat), d2(f%nat), fprod(-2:2,-2:2,-2:2,-4:0)
-    real*8 :: hh(6), aocc, f0r
+    real*8 :: dd(3,f%nat), d2(f%nat), fprod(-2:0,-2:0,-2:0)
+    real*8 :: hh(6), aocc, f0r, f1r, f2r
     real*8, allocatable :: dx(:,:,:)
+    real*8 :: xfac(-2:2,3), xratio(3)
     
-    real*8, parameter :: stoeps = 1d-12 !< points closer to a nucleus than stoeps get zero derivatives of STO wavefunction
+    real*8, parameter :: stoeps = 1d-40
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
        1,0,0, 0,1,0, 0,0,1, & ! p
@@ -1758,34 +1759,18 @@ contains
     if (f%issto) then
        !! STO wavefunction !!
 
-       ! calculate factors for the derivatives
-       imind = nder
-       imind(4) = 2*nder
-       imaxd = f%ixmaxsto + nder
-
        ! calculate distances and their powers
-       isclose = .false.
-       allocate(dx(4,-maxval(imind):maxval(imaxd),f%nat))
+       allocate(dx(4,-2:maxval(f%ixmaxsto),f%nat))
        dx = 1d0
+       dx(:,-2:-1,:) = 0d0
        do iat = 1, f%nat
           xx(1:3) = xpos - f%xat(:,iat)
           xx(4) = sqrt(xx(1)*xx(1)+xx(2)*xx(2)+xx(3)*xx(3))
           dx(:,1,iat) = xx
           ! positive powers
           do i = 1, 4
-             do j = 2, imaxd(i)
-                dx(i,j,iat) = dx(i,j-1,iat) * dx(i,1,iat)
-             end do
-          end do
-          if (xx(4) < stoeps) then
-             isclose = .true.
-             cycle
-          end if
-          ! negative powers
-          do i = 1, 4
-             do j = 1, imind(i)
-                dden = sign(max(abs(dx(i,1,iat)),stoeps),dx(i,1,iat))
-                dx(i,-j,iat) = dx(i,-j+1,iat) / dden
+             do j = 2, f%ixmaxsto(i)
+                dx(i,j,iat) = dx(i,j-1,iat) * xx(i)
              end do
           end do
        enddo
@@ -1797,12 +1782,12 @@ contains
           do imo = 1, f%nmo
              ! unpack the exponents
              ityp = f%itype(ipri)
-             ix = modulo(ityp,100)
+             ixx(1) = modulo(ityp,100)
              ityp = ityp / 100
-             iy = modulo(ityp,100)
+             ixx(2) = modulo(ityp,100)
              ityp = ityp / 100
-             iz = modulo(ityp,100)
-             ir = ityp / 100
+             ixx(3) = modulo(ityp,100)
+             ixx(4) = ityp / 100
 
              ! calculate the exponentials
              iat = f%icenter(ipri)
@@ -1810,97 +1795,60 @@ contains
              ex = exp(-al * dx(4,1,iat))
 
              ! MO = 1
-             f0r = f%cmo(imo,ipri) * dx(1,ix,iat) * dx(2,iy,iat) * dx(3,iz,iat) * dx(4,ir,iat) * ex
-             phi(imo,1) = phi(imo,1) + f0r
+             fprod = 0d0
+             f0r = f%cmo(imo,ipri) * dx(4,ixx(4),iat) * ex
+             fprod(0,0,0) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
+             phi(imo,1) = phi(imo,1) + fprod(0,0,0) * f0r 
              if (nder > 0 .and. .not.isclose) then
-                ! x=2, y=3, z=4
-                fprod(0,0,0,0) = f0r
-                fprod(-1,0,0,0) = f0r * dx(1,-1,iat)
-                fprod(0,-1,0,0) = f0r * dx(2,-1,iat)
-                fprod(0,0,-1,0) = f0r * dx(3,-1,iat)
-                fprod(1,0,0,0) = f0r * dx(1,1,iat)
-                fprod(0,1,0,0) = f0r * dx(2,1,iat)
-                fprod(0,0,1,0) = f0r * dx(3,1,iat)
-                fprod(1,0,0,-1) = fprod(1,0,0,0) * dx(4,-1,iat)
-                fprod(0,1,0,-1) = fprod(0,1,0,0) * dx(4,-1,iat)
-                fprod(0,0,1,-1) = fprod(0,0,1,0) * dx(4,-1,iat)
-                fprod(1,0,0,-2) = fprod(1,0,0,-1) * dx(4,-1,iat)
-                fprod(0,1,0,-2) = fprod(0,1,0,-1) * dx(4,-1,iat)
-                fprod(0,0,1,-2) = fprod(0,0,1,-1) * dx(4,-1,iat)
-                phi(imo,2) = phi(imo,2) + ix * fprod(-1,0,0,0) + ir * fprod(1,0,0,-2) - al * fprod(1,0,0,-1)
-                phi(imo,3) = phi(imo,3) + iy * fprod(0,-1,0,0) + ir * fprod(0,1,0,-2) - al * fprod(0,1,0,-1)
-                phi(imo,4) = phi(imo,4) + iz * fprod(0,0,-1,0) + ir * fprod(0,0,1,-2) - al * fprod(0,0,1,-1)
+                fprod(-1,0,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
+                fprod(0,-1,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
+                fprod(0,0,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
+                f1r = (-al * dx(4,ixx(4),iat) + ixx(4) * dx(4,ixx(4)-1,iat)) * f%cmo(imo,ipri) * ex
+
+                do i = 1, 3
+                   xratio(i) = dx(i,1,iat) / max(dx(4,1,iat),stoeps)
+                end do
+                phi(imo,2) = phi(imo,2) + ixx(1) * fprod(-1,0,0) * f0r + xratio(1) * fprod(0,0,0) * f1r
+                phi(imo,3) = phi(imo,3) + ixx(2) * fprod(0,-1,0) * f0r + xratio(2) * fprod(0,0,0) * f1r
+                phi(imo,4) = phi(imo,4) + ixx(3) * fprod(0,0,-1) * f0r + xratio(3) * fprod(0,0,0) * f1r
 
                 if (nder > 1) then
+                   f2r = (al * al * dx(4,ixx(4),iat) - 2d0 * al * ixx(4) * dx(4,ixx(4)-1,iat) &
+                      + ixx(4) * (ixx(4)-1) * dx(4,ixx(4)-2,iat)) * f%cmo(imo,ipri) * ex
+                   fprod(-2,0,0) = dx(1,ixx(1)-2,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
+                   fprod(0,-2,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-2,iat) * dx(3,ixx(3),iat)
+                   fprod(0,0,-2) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-2,iat)
+                   fprod(-1,-1,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
+                   fprod(-1,0,-1) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
+                   fprod(0,-1,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3)-1,iat)
+
                    ! xx=5, yy=6, zz=7
-                   fprod(0,0,0,-1) = fprod(0,0,0,0)  * dx(4,-1,iat)
-                   fprod(0,0,0,-2) = fprod(0,0,0,-1) * dx(4,-1,iat)
-                   fprod(-2,0,0,0) = fprod(-1,0,0,0) * dx(1,-1,iat)
-                   fprod(0,-2,0,0) = fprod(0,-1,0,0) * dx(2,-1,iat)
-                   fprod(0,0,-2,0) = fprod(0,0,-1,0) * dx(3,-1,iat)
-                   fprod(2,0,0,-2) = fprod(1,0,0,-2) * dx(1,1,iat)
-                   fprod(0,2,0,-2) = fprod(0,1,0,-2) * dx(2,1,iat)
-                   fprod(0,0,2,-2) = fprod(0,0,1,-2) * dx(3,1,iat)
-                   fprod(2,0,0,-3) = fprod(2,0,0,-2) * dx(4,-1,iat)
-                   fprod(0,2,0,-3) = fprod(0,2,0,-2) * dx(4,-1,iat)
-                   fprod(0,0,2,-3) = fprod(0,0,2,-2) * dx(4,-1,iat)
-                   fprod(2,0,0,-4) = fprod(2,0,0,-3) * dx(4,-1,iat)
-                   fprod(0,2,0,-4) = fprod(0,2,0,-3) * dx(4,-1,iat)
-                   fprod(0,0,2,-4) = fprod(0,0,2,-3) * dx(4,-1,iat)
-                   phi(imo,5) = phi(imo,5) + ix * (ix-1) * fprod(-2,0,0,0) + ir * (2*ix+1) * fprod(0,0,0,-2) - &
-                      al * ((2*ix+1) * fprod(0,0,0,-1) + (2*ir-1) * fprod(2,0,0,-3)) + al*al * fprod(2,0,0,-2) + &
-                      ir * (ir-2) * fprod(2,0,0,-4)
-                   phi(imo,6) = phi(imo,6) + iy * (iy-1) * fprod(0,-2,0,0) + ir * (2*iy+1) * fprod(0,0,0,-2) - &
-                      al * ((2*iy+1) * fprod(0,0,0,-1) + (2*ir-1) * fprod(0,2,0,-3)) + al*al * fprod(0,2,0,-2) + &
-                      ir * (ir-2) * fprod(0,2,0,-4)
-                   phi(imo,7) = phi(imo,7) + iz * (iz-1) * fprod(0,0,-2,0) + ir * (2*iz+1) * fprod(0,0,0,-2) - &
-                      al * ((2*iz+1) * fprod(0,0,0,-1) + (2*ir-1) * fprod(0,0,2,-3)) + al*al * fprod(0,0,2,-2) + &
-                      ir * (ir-2) * fprod(0,0,2,-4)
+                   phi(imo,5) = phi(imo,5) + ixx(1) * (ixx(1)-1) * fprod(-2,0,0) * f0r &
+                      + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r & 
+                      + (1 - xratio(1)*xratio(1)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
+                      + fprod(0,0,0) * xratio(1)*xratio(1) * f2r
+                   phi(imo,6) = phi(imo,6) + ixx(2) * (ixx(2)-1) * fprod(0,-2,0) * f0r &
+                      + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r & 
+                      + (1 - xratio(2)*xratio(2)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
+                      + fprod(0,0,0) * xratio(2)*xratio(2) * f2r
+                   phi(imo,7) = phi(imo,7) + ixx(3) * (ixx(3)-1) * fprod(0,0,-2) * f0r &
+                      + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r & 
+                      + (1 - xratio(3)*xratio(3)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
+                      + fprod(0,0,0) * xratio(3)*xratio(3) * f2r
 
                    ! xy=8, xz=9, yz=10
-                   fprod(-1,-1,0,0) = fprod(-1,0,0,0) * dx(2,-1,iat)
-                   fprod(0,-1,-1,0) = fprod(0,-1,0,0) * dx(3,-1,iat)
-                   fprod(-1,0,-1,0) = fprod(0,0,-1,0) * dx(1,-1,iat)
-
-                   fprod(1,-1,0,-1) = fprod(1,0,0,-1) * dx(2,-1,iat)
-                   fprod(1,0,-1,-1) = fprod(1,0,0,-1) * dx(3,-1,iat)
-                   fprod(-1,1,0,-1) = fprod(0,1,0,-1) * dx(1,-1,iat)
-                   fprod(0,1,-1,-1) = fprod(0,1,0,-1) * dx(3,-1,iat)
-                   fprod(-1,0,1,-1) = fprod(0,0,1,-1) * dx(1,-1,iat)
-                   fprod(0,-1,1,-1) = fprod(0,0,1,-1) * dx(2,-1,iat)
-
-                   fprod(1,-1,0,-2) = fprod(1,-1,0,-1) * dx(4,-1,iat)
-                   fprod(1,0,-1,-2) = fprod(1,0,-1,-1) * dx(4,-1,iat)
-                   fprod(-1,1,0,-2) = fprod(-1,1,0,-1) * dx(4,-1,iat)
-                   fprod(0,1,-1,-2) = fprod(0,1,-1,-1) * dx(4,-1,iat)
-                   fprod(-1,0,1,-2) = fprod(-1,0,1,-1) * dx(4,-1,iat)
-                   fprod(0,-1,1,-2) = fprod(0,-1,1,-1) * dx(4,-1,iat)
-                   
-                   fprod(1,1,0,-2) = fprod(1,0,0,-2) * dx(2,1,iat)
-                   fprod(0,1,1,-2) = fprod(0,1,0,-2) * dx(3,1,iat)
-                   fprod(1,0,1,-2) = fprod(0,0,1,-2) * dx(1,1,iat)
-                   fprod(1,1,0,-3) = fprod(1,1,0,-2) * dx(4,-1,iat)
-                   fprod(0,1,1,-3) = fprod(0,1,1,-2) * dx(4,-1,iat)
-                   fprod(1,0,1,-3) = fprod(1,0,1,-2) * dx(4,-1,iat)
-                   fprod(1,1,0,-4) = fprod(1,1,0,-3) * dx(4,-1,iat)
-                   fprod(0,1,1,-4) = fprod(0,1,1,-3) * dx(4,-1,iat)
-                   fprod(1,0,1,-4) = fprod(1,0,1,-3) * dx(4,-1,iat)
-
-                   phi(imo,8) = phi(imo,8) + ix * iy * fprod(-1,-1,0,0) + &
-                      ir * (ix * fprod(-1,1,0,-2) + iy * fprod(1,-1,0,-2)) - &
-                      al * (ix * fprod(-1,1,0,-1) + iy * fprod(1,-1,0,-1)) - &
-                      al * (2*ir-1) * fprod(1,1,0,-3) + ir * (ir-2) * fprod(1,1,0,-4) + &
-                      al * al * fprod(1,1,0,-2)
-                   phi(imo,9) = phi(imo,9) + ix * iz * fprod(-1,0,-1,0) + &
-                      ir * (ix * fprod(-1,0,1,-2) + iz * fprod(1,0,-1,-2)) - &
-                      al * (ix * fprod(-1,0,1,-1) + iz * fprod(1,0,-1,-1)) - &
-                      al * (2*ir-1) * fprod(1,0,1,-3) + ir * (ir-2) * fprod(1,0,1,-4) + &
-                      al * al * fprod(1,0,1,-2)
-                   phi(imo,10) = phi(imo,10) + iz * iy * fprod(0,-1,-1,0) + &
-                      ir * (iz * fprod(0,1,-1,-2) + iy * fprod(0,-1,1,-2)) - &
-                      al * (iz * fprod(0,1,-1,-1) + iy * fprod(0,-1,1,-1)) - &
-                      al * (2*ir-1) * fprod(0,1,1,-3) + ir * (ir-2) * fprod(0,1,1,-4) + &
-                      al * al * fprod(0,1,1,-2)
+                   phi(imo,8) = phi(imo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
+                      + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
+                      + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
+                      + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / dx(4,1,iat))
+                   phi(imo,9) = phi(imo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
+                      + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
+                      + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
+                      + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / dx(4,1,iat))
+                   phi(imo,10) = phi(imo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
+                      + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
+                      + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
+                      + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / dx(4,1,iat))
                 endif
              endif
           enddo
