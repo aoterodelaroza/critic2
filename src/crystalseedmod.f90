@@ -287,13 +287,13 @@ contains
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,'ang') .or. equal(word,'angstrom')) then
-                if (.not.seed%useabr /= 2) then
+                if (seed%useabr /= 2) then
                    call ferror('parse_crystal_env','Need CARTESIAN for angstrom coordinates',faterr,line,syntax=.true.)
                    return
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat) / bohrtoa)
              else if (equal(word,'bohr') .or. equal(word,'au')) then
-                if (.not.seed%useabr /= 2) then
+                if (seed%useabr /= 2) then
                    call ferror('parse_crystal_env','Need CARTESIAN for bohr coordinates',faterr,line,syntax=.true.)
                    return
                 end if
