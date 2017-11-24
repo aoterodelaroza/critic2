@@ -51,6 +51,8 @@ contains
        word = lgetword(line,lp)
        if (equal(word,"nelec")) then
           call molcalc_nelec()
+       elseif (equal(word,"peach")) then
+          call molcalc_peach()
        elseif (len_trim(word) > 0) then
           call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
           return
@@ -95,5 +97,14 @@ contains
     write (uout,'("+ Number of electrons (NELEC) = ",A/)') string(sum(m%f(:,1) * m%w),'f',14,8)
 
   end subroutine molcalc_nelec
+
+  subroutine molcalc_peach()
+    use tools_io, only: ferror, faterr
+#ifdef HAVE_CINT
+    write (*,*) "bleh!"
+#else
+    call ferror("molcalc_peach","PEACH requires the CINT library",faterr)
+#endif
+  end subroutine molcalc_peach
 
 end module molcalc

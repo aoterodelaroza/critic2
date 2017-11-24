@@ -118,9 +118,9 @@ ACX_LIBXC
 
 # qhull
 AC_ARG_WITH([qhull_inc],
- [AS_HELP_STRING([--with-qhull-inc],[location of the qhull includes.])])
+ [AS_HELP_STRING([--with-qhull-inc],[Location of the qhull includes.])])
 AC_ARG_WITH([qhull_lib],
- [AS_HELP_STRING([--with-qhull-lib],[location of the qhull library.])])
+ [AS_HELP_STRING([--with-qhull-lib],[Location of the qhull library.])])
 
 if test "${with_qhull_inc}" != "" && test "${with_qhull_lib}" != ""; then
   CFLAGS+=" -I${with_qhull_inc}"
@@ -129,6 +129,19 @@ else
   ## use the internal qhull    
   CFLAGS+=" -Iqhull/"
   LIBADD+=" qhull/libqhull_critic.a"
+fi
+
+# libcint
+AC_ARG_WITH([cint-shared],[AS_HELP_STRING([--with-cint-shared],[Location of the cint shared library.])])
+if test "${with_cint_shared}" != ""; then
+  LDFLAGS+=" -L${with_cint_shared} -lcint"   
+  AC_DEFINE(HAVE_CINT, 1, [Defined if you have the CINT library.])
+else
+  AC_ARG_WITH([cint-static],[AS_HELP_STRING([--with-cint-static],[Location of the cint static library.])])
+  if test "${with_cint_static}" != ""; then
+    LIBADD+="${with_cint_static}/libcint.a"   
+    AC_DEFINE(HAVE_CINT, 1, [Defined if you have the CINT library.])
+  fi
 fi
 
 # more variables

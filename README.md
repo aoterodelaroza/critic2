@@ -162,12 +162,16 @@ compiler by changing the FC and F77 flags before configure:
 
     FC=gfortran F77=gfortran ./configure ...
 
-## Compiling and using libxc
+## Compiling and using external libraries
 
-Critic2 can be compiled with libxc support. Libxc is a library that
-implements exchange-correlation energies and potentials. It is used in
-critic2 to calculate exchange and correlation energy densities via the
-xc() function in arithmetic expressions. 
+Critic2 can be compiled with [libxc](http://octopus-code.org/wiki/Libxc) and
+[libcint](https://github.com/sunqm/libcint) support. Libxc is a
+library that implements the calculatio nof exchange-correlation
+energies and potentials for a number of different functionals. It is
+used in critic2 to calculate exchange and correlation energy densities
+via the xc() function in arithmetic expressions. See 'Use of LIBXC in
+arithmetic expressions' in the user's guide for instructions on how to
+use libxc in critic2. 
 
 To compile critic2 with libxc support, two --with-libxc options must
 be passed to configure:
@@ -175,10 +179,24 @@ be passed to configure:
     ./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
 
 Here the /opt/libxc directory is the target for the libxc installation
-(use --prefix=/opt/libxc when you configure libxc). Make sure that you
-use the same compiler for libxc and for critic2; otherwise the library
-will not be linked. See 'Use of LIBXC in arithmetic expressions' in
-the user's guide for instructions on how to use libxc in critic2.
+(use --prefix=/opt/libxc when you configure libxc). 
+
+libcint is a library for molecular integrals between GTOs. It is used
+for testing and in some options to the MOLCALC keyword. To compile
+critic2 with libcint support, do either of these two:
+
+    ./configure --with-cint-shared=/opt/libcint/build 
+    ./configure --with-cint-static=/opt/libcint/build/
+
+The first will use the libcint.so file in that directory and
+dynamically link to it. The libcint.so path needs to be available when
+critic2 is executed through the LD_LIBRARY_PATH environment
+variable. The second option will include a copy of the static
+libcint.a library into the critic2 binary, located in the indicated
+path. 
+
+Make sure that you use the same compiler for the libraries and for
+critic2; otherwise the compilation will fail.
 
 ## Using critic2
 
