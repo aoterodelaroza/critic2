@@ -609,8 +609,8 @@ contains
     end do
     read(luwfn,*) dum1
  
-    ! figure out charge and multiplicity
-    ! 0 - closed, 1 - open
+    ! determine the type of wavefunction
+    ! 0 - restricted, 1 - unrestricted, 2 - fractional
     if (isfrac) then
        f%wfntyp = wfn_frac
        f%nalpha = 0
@@ -643,8 +643,9 @@ contains
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
 
-    integer :: luwfn, mult, ncore, istat, i
+    integer :: luwfn, ncore, istat, i, num1, num2, ioc
     character(len=:), allocatable :: line, line2
+    logical :: isfrac
 
     f%useecp = .false.
     f%issto = .false.
@@ -654,7 +655,6 @@ contains
     ! first pass
     luwfn = fopen_read(file)
     f%nmoocc = 0
-    mult = 0
     ncore = 0
     f%npri = 0
     f%nedf = 0
@@ -664,8 +664,6 @@ contains
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*) f%nmoocc
              f%nmoall = f%nmoocc
-          elseif (trim(line) == "<Electronic Spin Multiplicity>") then
-             read (luwfn,*) mult
           elseif (trim(line) == "<Number of Core Electrons>") then
              read (luwfn,*) ncore
           elseif (trim(line) == "<Number of Primitives>") then
@@ -677,7 +675,6 @@ contains
     enddo
     
     if (f%nmoocc == 0) call ferror("read_wfx","Number of Occupied Molecular Orbitals tag not found",faterr)
-    if (mult == 0) call ferror("read_wfx","Electronic Spin Multiplicity tag not found",faterr)
     if (f%npri == 0) call ferror("read_wfx","Number of Primitives tag not found",faterr)
     if (ncore > 0) f%useecp = .true.
 
@@ -742,14 +739,29 @@ contains
     enddo
 20  continue
 
-    ! wavefuntion type
-    if (mult == 1) then
+    ! wavefunction type
+    isfrac = .false.
+    num1 = 0
+    num2 = 0
+    do i = 1, f%nmoocc
+       ioc = nint(f%occ(i))
+       if (abs(ioc-f%occ(i)) > 1d-10) then
+          isfrac = .true.
+       else if (ioc == 1) then
+          num1 = num1 + 1
+       else if (ioc == 2) then
+          num2 = num2 + 1
+       endif
+    end do
+    if (isfrac) then
+       f%wfntyp = wfn_frac
+    else if (num1 == 0) then
        f%wfntyp = wfn_rhf
-       f%nalpha = f%nmoocc
-    else
+    else if (num2 == 0) then
        f%wfntyp = wfn_uhf
-       f%nalpha = (f%nmoocc - mult + 1) / 2
-    end if
+    else
+       call ferror("read_wfx","restricted-open wfx files not supported",faterr)
+    endif
     
     ! calculate the range of each primitive (in distance^2)
     call calculate_d2ran(f)
