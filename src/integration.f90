@@ -619,7 +619,7 @@ contains
 
     ! allocate output sij
     if (allocated(sij)) deallocate(sij)
-    allocate(sij(sy%f(fid)%wfn%nmo,sy%f(fid)%wfn%nmo,natt,1,ndeloc))
+    allocate(sij(sy%f(fid)%wfn%nmoocc,sy%f(fid)%wfn%nmoocc,natt,1,ndeloc))
 
     ! size of the grid
     n = sy%f(sy%iref)%grid%n
@@ -640,7 +640,7 @@ contains
        ndeloc = ndeloc + 1
 
        ! calculate the overlap matrix
-       allocate(xmo(sy%f(fid)%wfn%nmo))
+       allocate(xmo(sy%f(fid)%wfn%nmoocc))
        sij(:,:,:,:,ndeloc) = 0d0
        xmo = 0d0
        if (imtype == imtype_bader) then
@@ -651,8 +651,8 @@ contains
                    x = sy%c%x2c(real((/i-1,j-1,k-1/),8) / n)
                    call sy%f(fid)%wfn%rho2(x,0,rho,auxg,auxh,gkin,vir,stress,xmo)
                    ix = idg(i,j,k)
-                   do i1 = 1, sy%f(fid)%wfn%nmo
-                      do i2 = i1, sy%f(fid)%wfn%nmo
+                   do i1 = 1, sy%f(fid)%wfn%nmoocc
+                      do i2 = i1, sy%f(fid)%wfn%nmoocc
                          !$omp critical (sijwrite)
                          sij(i1,i2,ix,1,ndeloc) = sij(i1,i2,ix,1,ndeloc) + xmo(i1) * xmo(i2)
                          !$omp end critical (sijwrite)
@@ -684,8 +684,8 @@ contains
                 do j = 1, n(2)
                    do k = 1, n(3)
                       read(lumo) xmo
-                      do i1 = 1, sy%f(fid)%wfn%nmo
-                         do i2 = i1, sy%f(fid)%wfn%nmo
+                      do i1 = 1, sy%f(fid)%wfn%nmoocc
+                         do i2 = i1, sy%f(fid)%wfn%nmoocc
                             sij(i1,i2,m,1,ndeloc) = sij(i1,i2,m,1,ndeloc) + xmo(i1) * xmo(i2) * w(i,j,k)
                          end do
                       end do
@@ -700,8 +700,8 @@ contains
        ! symmetrize and scale
        sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) * sy%c%omega / ntot
        do ix = 1, natt
-          do i1 = 1, sy%f(fid)%wfn%nmo
-             do i2 = i1, sy%f(fid)%wfn%nmo
+          do i1 = 1, sy%f(fid)%wfn%nmoocc
+             do i2 = i1, sy%f(fid)%wfn%nmoocc
                 sij(i2,i1,ix,1,ndeloc) = sij(i1,i2,ix,1,ndeloc)
              end do
           end do

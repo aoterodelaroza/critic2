@@ -41,6 +41,7 @@ module fieldseedmod
      character*255 :: expr = "" !< expression in load as
      character*2048 :: elseopt = "" !< options to be handled elsewhere
      logical :: testrmt = .true. !< whether to test rmt in wien/elk fields
+     logical :: readvirtual = .false. !< Read the virtual orbitals
      character*255 :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
      logical :: sijchk = .true. !< wannier option sijchk
@@ -74,6 +75,7 @@ contains
     f%expr = ""
     f%elseopt = ""
     f%testrmt = .true.
+    f%readvirtual = .false.
     f%fid = ""
     f%nou = .false.
     f%sijchk = .true.
@@ -557,6 +559,9 @@ contains
        elseif (equal(lword,'notestmt')) then
           ! do not test rmt in wien/elk fields
           f%testrmt = .false.
+       elseif (equal(lword,'readvirtual')) then
+          ! do not test rmt in wien/elk fields
+          f%readvirtual = .true.
        elseif (equal(lword,'name').or.equal(lword,'id')) then
           ! name/id of the field
           f%fid = getword(line,lp)

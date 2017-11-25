@@ -564,14 +564,14 @@ contains
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1))
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual)
        call f%wfn%register_struct(f%c%ncel,f%c%atcel)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1))
+       call f%wfn%read_molden(seed%file(1),seed%readvirtual)
        call f%wfn%register_struct(f%c%ncel,f%c%atcel)
        f%type = type_wfn
        f%file = trim(seed%file(1))
@@ -1375,6 +1375,7 @@ contains
   !> isload is true, show load-time information. If isset is true,
   !> show flags for this field.
   subroutine printinfo(f,isload,isset)
+    use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac
     use global, only: dunit0, iunit, iunitname0
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
        ioj_right
@@ -1463,9 +1464,14 @@ contains
        
     elseif (f%type == type_wfn) then
        if (isload) then
-          write (uout,'("  Number of MOs: ",A)') string(f%wfn%nmo)
+          write (uout,'("  Number of MOs (total): ",A)') string(f%wfn%nmoall)
+          write (uout,'("  Number of MOs (occupied): ",A)') string(f%wfn%nmoocc)
           write (uout,'("  Number of primitives: ",A)') string(f%wfn%npri)
           write (uout,'("  Wavefunction type (0=closed,1=open,2=frac): ",A)') string(f%wfn%wfntyp)
+          if (f%wfn%wfntyp == wfn_uhf) then
+             write (uout,'("  Number of alpha electrons: ",A)') string(f%wfn%nalpha)
+             write (uout,'("  Number of beta electrons: ",A)') string(f%wfn%nmoocc - f%wfn%nalpha)
+          end if
           write (uout,'("  Number of EDFs: ",A)') string(f%wfn%nedf)
        end if
     elseif (f%type == type_dftb) then
