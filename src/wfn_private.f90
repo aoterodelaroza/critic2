@@ -29,14 +29,26 @@ module wfn_private
 
   ! Molecular wavefunction type
   ! Order of the orbitals:
+  ! Restricted wavefunctions (wfntyp = wfn_rhf):
+  !
+  !     alpha and beta           alpha and beta
+  ! | ..................... | ..................... |
+  ! 1                     nmoocc                  nmoall
+  !
+  ! Unrestricted wavefunctions (wfntyp = wfn_uhf):
   !
   !     alpha       beta        alpha       beta
   ! | ......... | ......... | ......... | ......... |
   ! 1         nalpha      nmoocc     nmoocc+      nmoall
   !                                nalpha_virt
   ! 
-  ! The part of the array past nmoocc is not present if hasvirtual = .false.
-  ! or if the wavefunction has fractional occupations.
+  ! Fractional wavefunctions (wfntyp = wfn_frac): 
+  ! 
+  ! | ............................................. |
+  ! 1                                         nmoall = nmoocc
+  ! 
+  ! In rhf and uhf wavefunctions, the virtual orbitals (nmoocc to
+  ! nmoall) are only available if hasvirtual = .true.
   type molwfn
      logical :: useecp !< this wavefunction comes from a calc with ECPs
      integer :: nmoall !< number of molecular orbitals (occupied and virtual)

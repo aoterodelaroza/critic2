@@ -71,8 +71,8 @@ expression.r # prints the value of the expression to the output.
 * MOLECULE file.xyz [border.r] [CUBIC|CUBE]
   MOLECULE file.wfn [border.r] [CUBIC|CUBE]
   MOLECULE file.wfx [border.r] [CUBIC|CUBE]
-  MOLECULE file.fchk [border.r] [CUBIC|CUBE]
-  MOLECULE file.molden [border.r] [CUBIC|CUBE]
+  MOLECULE file.fchk [border.r] [CUBIC|CUBE] [READVIRTUAL]
+  MOLECULE file.molden [border.r] [CUBIC|CUBE] [READVIRTUAL]
   MOLECULE file.gen [border.r] [CUBIC|CUBE]
   MOLECULE file.cube
   MOLECULE file.cif
