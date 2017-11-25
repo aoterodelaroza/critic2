@@ -76,5 +76,6 @@ TESTS=\
 031_libxc1.sh\
 032_stm1.sh 032_stm2.sh\
 033_molcell1.sh\
-034_packing.sh
+034_packing.sh\
+035_molcalc.sh
 
