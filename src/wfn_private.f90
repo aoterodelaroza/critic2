@@ -617,9 +617,11 @@ contains
     else if (num1 == 0) then
        f%wfntyp = wfn_rhf
        f%nalpha = nalpha
+       f%nalpha_virt = 0
     else if (num2 == 0) then
        f%wfntyp = wfn_uhf
        f%nalpha = nalpha
+       f%nalpha_virt = 0
     else
        call ferror("read_wfn","restricted-open wfn files not supported",faterr)
     endif
@@ -870,11 +872,13 @@ contains
        nmoread = f%nmoocc
        namoread = f%nalpha
        f%hasvirtual = .false.
+       f%nmoall = nmoread
+       f%nalpha_virt = 0
     else
        f%hasvirtual = (f%nmoall /= f%nmoocc)
+       f%nmoall = nmoread
+       f%nalpha_virt = nmoalla - nalpha
     end if
-    f%nmoall = nmoread
-    f%nalpha_virt = nmoalla - nalpha
 
     ! allocate sutff
     allocate(f%occ(f%nmoocc),stat=istat)
@@ -1281,7 +1285,7 @@ contains
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) then
                    write (uout,'("Fractional occupations are not supported yet for molden files.")')
-                   write (uout,'("If you need this, e-mail the critic2 developer.")')
+                   write (uout,'("If you need this, please e-mail the critic2 developer.")')
                    call ferror('read_molden','Can not do fractional occupations with molden',faterr)
                 end if
                 if (idum == 1 .or. idum == 2) then

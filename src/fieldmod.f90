@@ -1464,14 +1464,27 @@ contains
        
     elseif (f%type == type_wfn) then
        if (isload) then
-          write (uout,'("  Number of MOs (total): ",A)') string(f%wfn%nmoall)
-          write (uout,'("  Number of MOs (occupied): ",A)') string(f%wfn%nmoocc)
-          write (uout,'("  Number of primitives: ",A)') string(f%wfn%npri)
-          write (uout,'("  Wavefunction type (0=closed,1=open,2=frac): ",A)') string(f%wfn%wfntyp)
-          if (f%wfn%wfntyp == wfn_uhf) then
-             write (uout,'("  Number of alpha electrons: ",A)') string(f%wfn%nalpha)
-             write (uout,'("  Number of beta electrons: ",A)') string(f%wfn%nmoocc - f%wfn%nalpha)
+          if (f%wfn%issto) then
+             str = "(STO)"
+          else
+             str = "(GTO)"
           end if
+          if (f%wfn%wfntyp == wfn_rhf) then
+             write (uout,'("  Wavefunction type: restricted")')
+             write (uout,'("  Number of MOs (total): ",A)') string(f%wfn%nmoall)
+             write (uout,'("  Number of MOs (occupied): ",A)') string(f%wfn%nmoocc)
+          elseif (f%wfn%wfntyp == wfn_uhf) then
+             write (uout,'("  Wavefunction type: unrestricted")')
+             write (uout,'("  Number of MOs (total): ",A," (alpha=",A,",beta=",A,")")') &
+                string(f%wfn%nmoall), string(f%wfn%nalpha+f%wfn%nalpha_virt), string(f%wfn%nmoall-(f%wfn%nalpha+f%wfn%nalpha_virt))
+             write (uout,'("  Number of MOs (occupied): ",A," (alpha=",A,",beta=",A,")")') &
+                string(f%wfn%nmoocc), string(f%wfn%nalpha), string(f%wfn%nmoocc-f%wfn%nalpha)
+          elseif (f%wfn%wfntyp == wfn_frac) then
+             write (uout,'("  Wavefunction type: fractional occupation")') 
+             write (uout,'("  Number of MOs: ",A)') string(f%wfn%nmoocc)
+             write (uout,'("  Number of electrons: ",A)') string(nint(sum(f%wfn%occ(1:f%wfn%nmoocc))))
+          end if
+          write (uout,'("  Number of primitives ",A,": ",A)') str, string(f%wfn%npri)
           write (uout,'("  Number of EDFs: ",A)') string(f%wfn%nedf)
        end if
     elseif (f%type == type_dftb) then
