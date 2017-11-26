@@ -82,6 +82,9 @@ module wfn_private
      procedure :: read_molden !< read wavefunction from a molden file
      procedure :: register_struct !< pass the atomic number and positions to the object
      procedure :: rho2 !< calculate the density, derivatives, and other properties
+     procedure :: calculate_mo !< calculate the MO values at a point (driver)
+     procedure :: calculate_mo_sto !< calculate the MO values at a point (STO version)
+     procedure :: calculate_mo_gto !< calculate the MO values at a point (GTO version)
   end type molwfn
   public :: molwfn
 
@@ -1810,17 +1813,13 @@ contains
     real*8, allocatable, intent(out), optional :: xmo(:) !< Values of the MO
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
-    
-    real*8 :: al, ex, xl(3,0:2), xl2, xx(4)
-    integer :: ipri, iat, ityp, l(3), i, j, ixx(4)
-    integer :: imo, imind(4), ix
-    real*8 :: chi(f%npri,imax(nder))
-    real*8 :: phi(f%nmoocc,imax(nder)), dden
-    logical :: ldopri(f%npri), isclose
-    real*8 :: dd(3,f%nat), d2(f%nat), fprod(-2:0,-2:0,-2:0)
-    real*8 :: hh(6), aocc, f0r, f1r, f2r
-    real*8, allocatable :: dx(:,:,:)
-    real*8 :: xfac(-2:2,3), xratio(3)
+
+    real*8 :: al, ex, xl(3,0:2), xl2
+    integer :: iat, ityp, i, imo1, l(3)
+    integer :: imo, ix
+    real*8 :: phi(1:f%nmoocc,imax(nder))
+    real*8 :: dd(3,f%nat), d2(f%nat)
+    real*8 :: hh(6), aocc
     
     real*8, parameter :: stoeps = 1d-40
     integer, parameter :: li(3,56) = reshape((/&
@@ -1835,188 +1834,23 @@ contains
        1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
        3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
 
-
+    ! calculate the MO values and derivatives at the point
     if (f%issto) then
-       !! STO wavefunction !!
-
-       ! calculate distances and their powers
-       allocate(dx(4,-2:maxval(f%ixmaxsto),f%nat))
-       dx = 1d0
-       dx(:,-2:-1,:) = 0d0
-       do iat = 1, f%nat
-          xx(1:3) = xpos - f%xat(:,iat)
-          xx(4) = sqrt(xx(1)*xx(1)+xx(2)*xx(2)+xx(3)*xx(3))
-          dx(:,1,iat) = xx
-          ! positive powers
-          do i = 1, 4
-             do j = 2, f%ixmaxsto(i)
-                dx(i,j,iat) = dx(i,j-1,iat) * xx(i)
-             end do
-          end do
-       enddo
-
-       ! build the MO values at the point
-       phi = 0d0
-       do ipri = 1, f%npri
-          if (dx(4,1,f%icenter(ipri)) > f%d2ran(ipri)) cycle
-          do imo = 1, f%nmoocc
-             ! unpack the exponents
-             ityp = f%itype(ipri)
-             ixx(1) = modulo(ityp,100)
-             ityp = ityp / 100
-             ixx(2) = modulo(ityp,100)
-             ityp = ityp / 100
-             ixx(3) = modulo(ityp,100)
-             ixx(4) = ityp / 100
-
-             ! calculate the exponentials
-             iat = f%icenter(ipri)
-             al = f%e(ipri)
-             ex = exp(-al * dx(4,1,iat))
-
-             ! MO = 1
-             fprod = 0d0
-             f0r = f%cmo(imo,ipri) * dx(4,ixx(4),iat) * ex
-             fprod(0,0,0) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
-             phi(imo,1) = phi(imo,1) + fprod(0,0,0) * f0r 
-             if (nder > 0 .and. .not.isclose) then
-                fprod(-1,0,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
-                fprod(0,-1,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
-                fprod(0,0,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
-                f1r = (-al * dx(4,ixx(4),iat) + ixx(4) * dx(4,ixx(4)-1,iat)) * f%cmo(imo,ipri) * ex
-
-                do i = 1, 3
-                   xratio(i) = dx(i,1,iat) / max(dx(4,1,iat),stoeps)
-                end do
-                phi(imo,2) = phi(imo,2) + ixx(1) * fprod(-1,0,0) * f0r + xratio(1) * fprod(0,0,0) * f1r
-                phi(imo,3) = phi(imo,3) + ixx(2) * fprod(0,-1,0) * f0r + xratio(2) * fprod(0,0,0) * f1r
-                phi(imo,4) = phi(imo,4) + ixx(3) * fprod(0,0,-1) * f0r + xratio(3) * fprod(0,0,0) * f1r
-
-                if (nder > 1) then
-                   f2r = (al * al * dx(4,ixx(4),iat) - 2d0 * al * ixx(4) * dx(4,ixx(4)-1,iat) &
-                      + ixx(4) * (ixx(4)-1) * dx(4,ixx(4)-2,iat)) * f%cmo(imo,ipri) * ex
-                   fprod(-2,0,0) = dx(1,ixx(1)-2,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
-                   fprod(0,-2,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-2,iat) * dx(3,ixx(3),iat)
-                   fprod(0,0,-2) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-2,iat)
-                   fprod(-1,-1,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
-                   fprod(-1,0,-1) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
-                   fprod(0,-1,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3)-1,iat)
-
-                   ! xx=5, yy=6, zz=7
-                   phi(imo,5) = phi(imo,5) + ixx(1) * (ixx(1)-1) * fprod(-2,0,0) * f0r &
-                      + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r & 
-                      + (1 - xratio(1)*xratio(1)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
-                      + fprod(0,0,0) * xratio(1)*xratio(1) * f2r
-                   phi(imo,6) = phi(imo,6) + ixx(2) * (ixx(2)-1) * fprod(0,-2,0) * f0r &
-                      + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r & 
-                      + (1 - xratio(2)*xratio(2)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
-                      + fprod(0,0,0) * xratio(2)*xratio(2) * f2r
-                   phi(imo,7) = phi(imo,7) + ixx(3) * (ixx(3)-1) * fprod(0,0,-2) * f0r &
-                      + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r & 
-                      + (1 - xratio(3)*xratio(3)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
-                      + fprod(0,0,0) * xratio(3)*xratio(3) * f2r
-
-                   ! xy=8, xz=9, yz=10
-                   phi(imo,8) = phi(imo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
-                      + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
-                      + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
-                      + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / dx(4,1,iat))
-                   phi(imo,9) = phi(imo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
-                      + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
-                      + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
-                      + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / dx(4,1,iat))
-                   phi(imo,10) = phi(imo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
-                      + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
-                      + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
-                      + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / dx(4,1,iat))
-                endif
-             endif
-          enddo
-       enddo
-       deallocate(dx)
+       call f%calculate_mo_sto(xpos,phi,1,1,f%nmoocc,nder)
     else
-       !! GTO wavefunction !!
-
-       ! calculate distances
-       do iat = 1, f%nat
-          dd(:,iat) = xpos - f%xat(:,iat)
-          d2(iat) = dd(1,iat)*dd(1,iat)+dd(2,iat)*dd(2,iat)+dd(3,iat)*dd(3,iat)
-       enddo
-
-       ! primitive values and their derivatives
-       ldopri = .true.
-       do ipri = 1, f%npri
-          if (d2(f%icenter(ipri)) > f%d2ran(ipri)) then
-             ldopri(ipri) = .false.
-             cycle
-          end if
-          ityp = f%itype(ipri)
-          iat = f%icenter(ipri)
-          al = f%e(ipri)
-          ex = exp(-al * d2(iat))
-
-          l = li(1:3,ityp)
-          do ix = 1, 3
-             if (l(ix) == 0) then
-                xl(ix,0) = 1d0
-                xl(ix,1) = 0d0
-                xl(ix,2) = 0d0
-             else if (l(ix) == 1) then
-                xl(ix,0) = dd(ix,iat)
-                xl(ix,1) = 1d0
-                xl(ix,2) = 0d0
-             else if (l(ix) == 2) then
-                xl(ix,0) = dd(ix,iat) * dd(ix,iat)
-                xl(ix,1) = 2d0 * dd(ix,iat)
-                xl(ix,2) = 2d0
-             else if (l(ix) == 3) then
-                xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
-                xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
-                xl(ix,2) = 6d0 * dd(ix,iat)
-             else if (l(ix) == 4) then
-                xl2 = dd(ix,iat) * dd(ix,iat)
-                xl(ix,0) = xl2 * xl2
-                xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
-                xl(ix,2) = 12d0 * xl2
-             else if (l(ix) == 5) then
-                xl2 = dd(ix,iat) * dd(ix,iat)
-                xl(ix,0) = xl2 * xl2 * dd(ix,iat)
-                xl(ix,1) = 5d0 * xl2 * xl2
-                xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
-             else
-                call ferror('wfn_rho2','power of L not supported',faterr)
-             end if
-          end do
-
-          chi(ipri,1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
-          if (nder > 0) then
-             chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
-             chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
-             chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
-             if (nder > 1) then
-                chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
-                chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
-                chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
-                chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
-                chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
-                chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
-             endif
-          endif
-       enddo ! ipri = 1, npri
-
-       ! build the MO values at the point
-       phi = 0d0
-       do ix = 1, imax(nder)
-          do ipri = 1, f%npri
-             if (.not.ldopri(ipri)) cycle
-             do imo = 1, f%nmoocc
-                phi(imo,ix) = phi(imo,ix) + f%cmo(imo,ipri)*chi(ipri,ix)
-             enddo
-          enddo
-       enddo
+       call f%calculate_mo_gto(xpos,phi,1,1,f%nmoocc,nder)
     end if
 
-    ! contribution to the density, etc.
+    ! save the MO values
+    if (present(xmo)) then
+       if (allocated(xmo)) then
+          if (size(xmo) /= imo1) deallocate(xmo)
+       end if
+       if (.not.allocated(xmo)) allocate(xmo(imo1))
+       xmo(1:imo1) = phi(1:imo1,1)
+    end if
+
+    ! calculate the density, etc.
     rho = 0d0
     grad = 0d0
     hh = 0d0
@@ -2050,7 +1884,7 @@ contains
     gkin = 0.5d0 * gkin
     vir = stress(1,1)+stress(2,2)+stress(3,3)
 
-    ! core contribution to the density
+    ! core contribution to the density and its derivatives
     if (f%nedf > 0) then
        do i = 1, f%nedf
           ityp = f%itype_edf(i)
@@ -2108,15 +1942,6 @@ contains
        end do
     end if
 
-    ! save the MO values
-    if (present(xmo)) then
-       if (allocated(xmo)) then
-          if (size(xmo) /= f%nmoocc) deallocate(xmo)
-       end if
-       if (.not.allocated(xmo)) allocate(xmo(f%nmoocc))
-       xmo(1:f%nmoocc) = phi(1:f%nmoocc,1)
-    end if
-
     ! re-order the hessian
     do i = 1, 3
        h(i,i) = hh(i)
@@ -2129,6 +1954,253 @@ contains
     h(3,2) = h(2,3)
 
   end subroutine rho2
+
+  !> Calculate the MO values at position xpos (Cartesian).
+  subroutine calculate_mo(f,xpos,phi,philb,imo0,imo1,nder)
+    class(molwfn), intent(in) :: f !< Input field
+    real*8, intent(in) :: xpos(3) !< Position in Cartesian
+    real*8, intent(inout) :: phi(:,:) !< array for the final values
+    integer, intent(in) :: philb !< lower bound for phi
+    integer, intent(in) :: imo0 !< first MO
+    integer, intent(in) :: imo1 !< last MO
+    integer, intent(in) :: nder !< number of derivatives
+    
+    if (f%issto) then
+       ! STO wavefunction
+       call f%calculate_mo_sto(xpos,phi,philb,imo0,imo1,nder)
+    else
+       ! GTO wavefunction
+       call f%calculate_mo_gto(xpos,phi,philb,imo0,imo1,nder)
+    end if
+
+  end subroutine calculate_mo
+
+  !> Calculate the MO values at position xpos (Cartesian). STO version.
+  subroutine calculate_mo_sto(f,xpos,phi,philb,imo0,imo1,nder)
+    class(molwfn), intent(in) :: f !< Input field
+    real*8, intent(in) :: xpos(3) !< Position in Cartesian
+    real*8, intent(inout) :: phi(:,:) !< array for the final values
+    integer, intent(in) :: philb !< lower bound for phi
+    integer, intent(in) :: imo0 !< first MO
+    integer, intent(in) :: imo1 !< last MO
+    integer, intent(in) :: nder !< number of derivatives
+
+    integer :: i, j
+    real*8 :: xx(4), al, ex, xratio(3)
+    real*8 :: dx(4,-2:maxval(f%ixmaxsto),f%nat)
+    integer :: ipri, imo, phimo, ityp, ixx(4), iat
+    real*8 :: fprod(-2:0,-2:0,-2:0), f0r, f1r, f2r
+
+    real*8, parameter :: stoeps = 1d-40
+
+    ! calculate distances and their powers
+    dx = 1d0
+    dx(:,-2:-1,:) = 0d0
+    do iat = 1, f%nat
+       xx(1:3) = xpos - f%xat(:,iat)
+       xx(4) = sqrt(xx(1)*xx(1)+xx(2)*xx(2)+xx(3)*xx(3))
+       dx(:,1,iat) = xx
+       ! positive powers
+       do i = 1, 4
+          do j = 2, f%ixmaxsto(i)
+             dx(i,j,iat) = dx(i,j-1,iat) * xx(i)
+          end do
+       end do
+    enddo
+
+    ! build the MO values at the point
+    phi = 0d0
+    do ipri = 1, f%npri
+       if (dx(4,1,f%icenter(ipri)) > f%d2ran(ipri)) cycle
+       do imo = imo0, imo1
+          phimo = imo - philb + 1
+
+          ! unpack the exponents
+          ityp = f%itype(ipri)
+          ixx(1) = modulo(ityp,100)
+          ityp = ityp / 100
+          ixx(2) = modulo(ityp,100)
+          ityp = ityp / 100
+          ixx(3) = modulo(ityp,100)
+          ixx(4) = ityp / 100
+
+          ! calculate the exponentials
+          iat = f%icenter(ipri)
+          al = f%e(ipri)
+          ex = exp(-al * dx(4,1,iat))
+
+          ! MO value
+          fprod = 0d0
+          f0r = f%cmo(imo,ipri) * dx(4,ixx(4),iat) * ex
+          fprod(0,0,0) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
+          phi(phimo,1) = phi(phimo,1) + fprod(0,0,0) * f0r 
+          if (nder > 0) then
+             fprod(-1,0,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
+             fprod(0,-1,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
+             fprod(0,0,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
+             f1r = (-al * dx(4,ixx(4),iat) + ixx(4) * dx(4,ixx(4)-1,iat)) * f%cmo(imo,ipri) * ex
+
+             xratio(:) = dx(1:3,1,iat) / max(dx(4,1,iat),stoeps)
+             phi(phimo,2) = phi(phimo,2) + ixx(1) * fprod(-1,0,0) * f0r + xratio(1) * fprod(0,0,0) * f1r
+             phi(phimo,3) = phi(phimo,3) + ixx(2) * fprod(0,-1,0) * f0r + xratio(2) * fprod(0,0,0) * f1r
+             phi(phimo,4) = phi(phimo,4) + ixx(3) * fprod(0,0,-1) * f0r + xratio(3) * fprod(0,0,0) * f1r
+
+             if (nder > 1) then
+                f2r = (al * al * dx(4,ixx(4),iat) - 2d0 * al * ixx(4) * dx(4,ixx(4)-1,iat) &
+                   + ixx(4) * (ixx(4)-1) * dx(4,ixx(4)-2,iat)) * f%cmo(imo,ipri) * ex
+                fprod(-2,0,0) = dx(1,ixx(1)-2,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
+                fprod(0,-2,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-2,iat) * dx(3,ixx(3),iat)
+                fprod(0,0,-2) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-2,iat)
+                fprod(-1,-1,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
+                fprod(-1,0,-1) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
+                fprod(0,-1,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3)-1,iat)
+
+                ! xx=5, yy=6, zz=7
+                phi(phimo,5) = phi(phimo,5) + ixx(1) * (ixx(1)-1) * fprod(-2,0,0) * f0r &
+                   + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r & 
+                   + (1 - xratio(1)*xratio(1)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
+                   + fprod(0,0,0) * xratio(1)*xratio(1) * f2r
+                phi(phimo,6) = phi(phimo,6) + ixx(2) * (ixx(2)-1) * fprod(0,-2,0) * f0r &
+                   + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r & 
+                   + (1 - xratio(2)*xratio(2)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
+                   + fprod(0,0,0) * xratio(2)*xratio(2) * f2r
+                phi(phimo,7) = phi(phimo,7) + ixx(3) * (ixx(3)-1) * fprod(0,0,-2) * f0r &
+                   + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r & 
+                   + (1 - xratio(3)*xratio(3)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
+                   + fprod(0,0,0) * xratio(3)*xratio(3) * f2r
+
+                ! xy=8, xz=9, yz=10
+                phi(phimo,8) = phi(phimo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
+                   + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
+                   + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
+                   + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / dx(4,1,iat))
+                phi(phimo,9) = phi(phimo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
+                   + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
+                   + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
+                   + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / dx(4,1,iat))
+                phi(phimo,10) = phi(phimo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
+                   + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
+                   + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
+                   + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / dx(4,1,iat))
+             endif
+          endif
+       enddo
+    enddo
+    
+  end subroutine calculate_mo_sto
+
+  !> Calculate the MO values at position xpos (Cartesian). GTO version.
+  subroutine calculate_mo_gto(f,xpos,phi,philb,imo0,imo1,nder)
+    use tools_io, only: ferror, faterr
+    class(molwfn), intent(in) :: f !< Input field
+    real*8, intent(in) :: xpos(3) !< Position in Cartesian
+    real*8, intent(inout) :: phi(:,:) !< array for the final values
+    integer, intent(in) :: philb !< lower bound for phi
+    integer, intent(in) :: imo0 !< first MO
+    integer, intent(in) :: imo1 !< last MO
+    integer, intent(in) :: nder !< number of derivatives
+
+    integer, parameter :: imax(0:2) = (/1,4,10/)
+
+    integer :: l(3)
+    integer :: iat, ityp, ipri, imo, ix, phimo
+    real*8 :: dd(3,f%nat), d2(f%nat), al, ex, xl(3,0:2), xl2
+    logical :: ldopri(f%npri)
+    real*8 :: chi(f%npri,imax(nder))
+    
+    ! real*8, parameter :: stoeps = 1d-40
+    integer, parameter :: li(3,56) = reshape((/&
+       0,0,0, & ! s
+       1,0,0, 0,1,0, 0,0,1, & ! p
+       2,0,0, 0,2,0, 0,0,2, 1,1,0, 1,0,1, 0,1,1, & !d
+       3,0,0, 0,3,0, 0,0,3, 2,1,0, 2,0,1, 0,2,1, &
+       1,2,0, 1,0,2, 0,1,2, 1,1,1,& ! f
+       4,0,0, 0,4,0, 0,0,4, 3,1,0, 3,0,1, 1,3,0, 0,3,1, 1,0,3,&
+       0,1,3, 2,2,0, 2,0,2, 0,2,2, 2,1,1, 1,2,1, 1,1,2,& ! g
+       0,0,5, 0,1,4, 0,2,3, 0,3,2, 0,4,1, 0,5,0, 1,0,4, 1,1,3,&
+       1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
+       3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
+
+    ! calculate distances
+    do iat = 1, f%nat
+       dd(:,iat) = xpos - f%xat(:,iat)
+       d2(iat) = dd(1,iat)*dd(1,iat)+dd(2,iat)*dd(2,iat)+dd(3,iat)*dd(3,iat)
+    enddo
+
+    ! primitive values and their derivatives
+    ldopri = .true.
+    do ipri = 1, f%npri
+       if (d2(f%icenter(ipri)) > f%d2ran(ipri)) then
+          ldopri(ipri) = .false.
+          cycle
+       end if
+       ityp = f%itype(ipri)
+       iat = f%icenter(ipri)
+       al = f%e(ipri)
+       ex = exp(-al * d2(iat))
+       
+       l = li(1:3,ityp)
+       do ix = 1, 3
+          if (l(ix) == 0) then
+             xl(ix,0) = 1d0
+             xl(ix,1) = 0d0
+             xl(ix,2) = 0d0
+          else if (l(ix) == 1) then
+             xl(ix,0) = dd(ix,iat)
+             xl(ix,1) = 1d0
+             xl(ix,2) = 0d0
+          else if (l(ix) == 2) then
+             xl(ix,0) = dd(ix,iat) * dd(ix,iat)
+             xl(ix,1) = 2d0 * dd(ix,iat)
+             xl(ix,2) = 2d0
+          else if (l(ix) == 3) then
+             xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
+             xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
+             xl(ix,2) = 6d0 * dd(ix,iat)
+          else if (l(ix) == 4) then
+             xl2 = dd(ix,iat) * dd(ix,iat)
+             xl(ix,0) = xl2 * xl2
+             xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
+             xl(ix,2) = 12d0 * xl2
+          else if (l(ix) == 5) then
+             xl2 = dd(ix,iat) * dd(ix,iat)
+             xl(ix,0) = xl2 * xl2 * dd(ix,iat)
+             xl(ix,1) = 5d0 * xl2 * xl2
+             xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
+          else
+             call ferror('wfn_rho2','power of L not supported',faterr)
+          end if
+       end do
+
+       chi(ipri,1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
+       if (nder > 0) then
+          chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
+          chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
+          chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+          if (nder > 1) then
+             chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
+             chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
+             chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
+             chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
+             chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
+             chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
+          endif
+       endif
+    enddo ! ipri = 1, npri
+
+    ! build the MO values at the point
+    phi = 0d0
+    do ix = 1, imax(nder)
+       do ipri = 1, f%npri
+          if (.not.ldopri(ipri)) cycle
+          do imo = imo0, imo1
+             phimo = imo - philb + 1
+             phi(phimo,ix) = phi(phimo,ix) + f%cmo(imo,ipri)*chi(ipri,ix)
+          enddo
+       enddo
+    enddo
+    
+  end subroutine calculate_mo_gto
 
   !> Read a list of n integers from a logical unit
   function wfx_read_integers(lu,n) result(x)
