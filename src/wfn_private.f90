@@ -1815,7 +1815,7 @@ contains
     integer, parameter :: imax(0:2) = (/1,4,10/)
 
     real*8 :: al, ex, xl(3,0:2), xl2
-    integer :: iat, ityp, i, imo1, l(3)
+    integer :: iat, ityp, i, l(3)
     integer :: imo, ix
     real*8 :: phi(1:f%nmoocc,imax(nder))
     real*8 :: dd(3,f%nat), d2(f%nat)
@@ -1844,10 +1844,10 @@ contains
     ! save the MO values
     if (present(xmo)) then
        if (allocated(xmo)) then
-          if (size(xmo) /= imo1) deallocate(xmo)
+          if (size(xmo) /= f%nmoocc) deallocate(xmo)
        end if
-       if (.not.allocated(xmo)) allocate(xmo(imo1))
-       xmo(1:imo1) = phi(1:imo1,1)
+       if (.not.allocated(xmo)) allocate(xmo(f%nmoocc))
+       xmo(1:f%nmoocc) = phi(1:f%nmoocc,1)
     end if
 
     ! calculate the density, etc.
