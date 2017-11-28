@@ -78,12 +78,12 @@ struct View
   float texpos_viewdepth(vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
   
   // draw shapes
-  void drawSphere(vec3 r0, float rad, vec4 rgb);
-  void drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb);
+  void drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend);
+  void drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb, int res, bool blend);
 
   // camera matrices and vectors
   bool iswire = false; // use wire
-  bool isortho = false; // is ortho or perspective?
+  bool isortho = true; // is ortho or perspective?
   vec3 v_pos = {}; // position vector
   vec3 v_front = {}; // front vector
   vec3 v_up = {}; // up vector

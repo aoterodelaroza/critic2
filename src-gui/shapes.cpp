@@ -25,6 +25,18 @@
 
 using namespace std;
 
+// Some constants
+static float tau = (1.0 + sqrt(5))/2.0;
+static float rad0 = sqrt(3 - tau);
+static float xico = (tau-1)/rad0;
+static float zico = 1/rad0;
+
+static float cylr = cosf(30.f * PI / 180.f);
+static float cylnorm = sqrtf(0.5f + cylr * cylr);
+static float cylrn = cylr / cylnorm;
+static float halfn = 0.5f / cylnorm;
+static float halfn2 = 2 * halfn;
+
 // global variables
 const int nmaxsph = 4;
 GLuint sphVAO[nmaxsph];
@@ -40,12 +52,6 @@ GLuint cylEBO[nmaxcyl];
 const GLuint cylnve[nmaxcyl]    = {     14};
 const GLuint cylnel[nmaxcyl]    = {     24};
 const GLuint cylneladd[nmaxcyl+1] = {0, 24};
-
-// Some constants
-static float tau = (1.0 + sqrt(5))/2.0;
-static float rad0 = sqrt(3 - tau);
-static float xico = (tau-1)/rad0;
-static float zico = 1/rad0;
 
 // icosahedron  vertices
 static GLfloat *sphv;
@@ -67,34 +73,29 @@ static const GLfloat sphv0[] = {
 // icosehedron faces
 static GLuint *sphi;
 static GLuint sphi0[] = {
-  1,  4,  0,
-  4,  9,  0,
-  4,  5,  9,
-  8,  5,  4,
-  1,  8,  4,
-  1, 10,  8,
-  10, 3,  8,
-  8,  3,  5,
-  3,  2,  5,
-  3,  7,  2,
-  3, 10,  7,
-  10, 6,  7,
-  6, 11,  7,
-  6,  0, 11,
-  6,  1,  0,
-  10, 1,  6,
-  11, 0,  9,
-  2, 11,  9,
-  5,  2,  9,
-  11, 2,  7
+  0, 1,  4,
+  0, 4,  9,
+  9, 4,  5,
+  4, 8,  5,
+  4, 1,  8,
+  8, 1, 10,
+  8, 10, 3,
+  5, 8,  3,
+  5, 3,  2,
+  2, 3,  7,
+  7, 3, 10,
+  7, 10, 6,
+  7, 6, 11,
+ 11, 6,  0,
+  0, 6,  1,
+  6, 10, 1,
+  9, 11, 0,
+  9, 2, 11,
+  9, 5,  2,
+  7, 11, 2,
 };
 
 // cylinder vertices (hexagonal prism)
-static float cylr = cosf(30.f * PI / 180.f);
-static float cylnorm = sqrtf(0.5f + cylr * cylr);
-static float cylrn = cylr / cylnorm;
-static float halfn = 0.5f / cylnorm;
-static float halfn2 = 2 * halfn;
 static GLfloat *cylv;
 static GLfloat cylv0[] = {
     0.0,  0.0, -0.5,     0.0,     0.0,   -1.0,
@@ -116,30 +117,30 @@ static GLfloat cylv0[] = {
 // hexagonal prism faces
 static GLuint *cyli;
 static GLuint cyli0[] = {
-  0,  2,  1,
-  0,  3,  2,
-  0,  4,  3,
-  0,  5,  4,
-  0,  6,  5,
-  0,  1,  6,
-  7,  8,  9,
-  7,  9, 10,
-  7, 10, 11,
-  7, 11, 12,
-  7, 12, 13,
-  7, 13,  8,
-  1,  2,  8,
-  2,  9,  8,
-  2,  3,  9,
-  3, 10,  9,
-  3,  4, 10,
-  4, 11, 10,
-  4,  5, 11,
-  5, 12, 11,
-  5,  6, 12,
-  6, 13, 12,
-  6,  1, 13,
-  1,  8, 13,
+  0,  1,   2,
+  0,  2,   3,
+  0,  3,   4,
+  0,  4,   5,
+  0,  5,   6,
+  0,  6,   1,
+  7,  9,   8,
+  7, 10,   9,
+  7, 11,  10,
+  7, 12,  11,
+  7, 13,  12,
+  7,  8,  13, 
+  1,  8,   2, 
+  2,  8,   9,
+  2,  9,   3,
+  3,  9,  10,
+  3, 10,   4,
+  4, 10,  11,
+  4, 11,   5,
+  5, 11,  12,
+  5, 12,   6,
+  6, 12,  13,
+  6, 13,   1,
+  1, 13,   8,
 };
 
 // create the buffers for the sphere and cylinder objects
@@ -237,6 +238,14 @@ void CreateAndFillBuffers(){
   cyli = new GLuint [3*cylneladd[nmaxcyl]];
   memcpy(cylv,cylv0,sizeof(cylv0));
   memcpy(cyli,cyli0,sizeof(cyli0));
+
+  // normalize cylinder vertices
+  for (int j = 0; j < cylnve[0]; j++){
+    float anorm = sqrtf(cylv[6*j+0]*cylv[6*j+0]+cylv[6*j+1]*cylv[6*j+1]+cylv[6*j+2]*cylv[6*j+2]);
+    cylv[6*j+3] = cylv[6*j+0] / anorm;
+    cylv[6*j+4] = cylv[6*j+1] / anorm;
+    cylv[6*j+5] = cylv[6*j+2] / anorm;
+  }
 
   // build the buffers for the cylinders
   glGenVertexArrays(nmaxcyl, cylVAO);

@@ -88,6 +88,7 @@ int main(int argc, char *argv[]){
   Shader shader = {};
   shader.use();
   glEnable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
 
   // Concatenate the input arguments and pass them to critic2
   if (argc > 1){

@@ -252,15 +252,13 @@ void View::Update(){
     c2::set_scene_pointers(iscene);
 
     // scene atoms
-    glBindVertexArray(sphVAO[isphres]);
     for (int i=0;i<c2::nat;i++)
-      drawSphere(make_vec3(c2::at[i].r),c2::at[i].rad,make_vec4(c2::at[i].rgb));
+      drawSphere(make_vec3(c2::at[i].r),c2::at[i].rad,make_vec4(c2::at[i].rgb),isphres,false);
 
     // scene bonds
-    glBindVertexArray(cylVAO[icylres]);
     for (int i=0;i<c2::nbond;i++){
       float rgb[4] = {0.5f,0.f,0.f,1.f};
-      drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb));
+      drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb),icylres,false);
     }
 
     // grid and Cartesian axes
@@ -270,31 +268,31 @@ void View::Update(){
     rgb.x = 1.f; rgb.y = 0.f; rgb.z = 0.f;
     r1.y = 0.f; r1.x = -nmaxgrid/AUTOANG;
     r2.y = 0.f; r2.x =  nmaxgrid/AUTOANG;
-    drawCylinder(r1,r2,radgrid,rgb);
+    drawCylinder(r1,r2,radgrid,rgb,0,false);
     rgb.x = 0.f; rgb.y = 1.f; rgb.z = 0.f;
     r1.x = 0.f; r1.y = -nmaxgrid/AUTOANG;
     r2.x = 0.f; r2.y =  nmaxgrid/AUTOANG;
-    drawCylinder(r1,r2,radgrid,rgb);
+    drawCylinder(r1,r2,radgrid,rgb,0,false);
     rgb.x = 0.f; rgb.y = 0.f; rgb.z = 1.f;
     r1.y = 0.f; r1.z = -nmaxgrid/AUTOANG;
     r2.y = 0.f; r2.z =  nmaxgrid/AUTOANG;
-    drawCylinder(r1,r2,radgrid,rgb);
-    for (int i = 1; i <= nmaxgrid; i++){
-      r1.z = 0.f; r2.z = 0.f;
-      rgb.x = 1.f; rgb.y = 1.f; rgb.z = 1.f; rgb.w = 1.f; 
-      r1.x = i/AUTOANG; r1.y = -nmaxgrid/AUTOANG;
-      r2.x = i/AUTOANG; r2.y =  nmaxgrid/AUTOANG;
-      drawCylinder(r1,r2,radgrid,rgb);
-      r1.x = -i/AUTOANG; r1.y = -nmaxgrid/AUTOANG;
-      r2.x = -i/AUTOANG; r2.y =  nmaxgrid/AUTOANG;
-      drawCylinder(r1,r2,radgrid,rgb);
-      r1.y =  i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
-      r2.y =  i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
-      drawCylinder(r1,r2,radgrid,rgb);
-      r1.y = -i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
-      r2.y = -i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
-      drawCylinder(r1,r2,radgrid,rgb);
-    }
+    drawCylinder(r1,r2,radgrid,rgb,0,false);
+    // for (int i = 1; i <= nmaxgrid; i++){
+    //   r1.z = 0.f; r2.z = 0.f;
+    //   rgb.x = 1.f; rgb.y = 1.f; rgb.z = 1.f; rgb.w = 1.f; 
+    //   r1.x = i/AUTOANG; r1.y = -nmaxgrid/AUTOANG;
+    //   r2.x = i/AUTOANG; r2.y =  nmaxgrid/AUTOANG;
+    //   drawCylinder(r1,r2,radgrid,rgb);
+    //   r1.x = -i/AUTOANG; r1.y = -nmaxgrid/AUTOANG;
+    //   r2.x = -i/AUTOANG; r2.y =  nmaxgrid/AUTOANG;
+    //   drawCylinder(r1,r2,radgrid,rgb);
+    //   r1.y =  i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
+    //   r2.y =  i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
+    //   drawCylinder(r1,r2,radgrid,rgb);
+    //   r1.y = -i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
+    //   r2.y = -i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
+    //   drawCylinder(r1,r2,radgrid,rgb);
+    // }
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -339,14 +337,6 @@ bool View::navigate(bool hover){
   pos_to_texpos(texpos);
   vec2 ntexpos = texpos;
   texpos_to_ntexpos(ntexpos);
-
-  // center on double left click
-  if (hover && mstate.ldclick){
-    v_pos = {0.f,0.f,4.f*c2::scenerad};
-    m_world = mat4(1.0f);
-    updateview = true;
-    updateworld = true;
-  }
 
   // mouse scroll = zoom
   if (hover && abs(mstate.scroll) > eps && !rlock){
@@ -557,7 +547,14 @@ float View::texpos_viewdepth(vec2 texpos){
     return depth;
 }
 
-void View::drawSphere(vec3 r0, float rad, vec4 rgb){
+void View::drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend){
+  if (blend){
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(0);
+  }
+  glBindVertexArray(sphVAO[res]);
+
   mat4 m_model = mat4(1.0f);
   m_model = translate(m_model,r0);
   m_model = scale(m_model,vec3(rad,rad,rad));
@@ -566,10 +563,20 @@ void View::drawSphere(vec3 r0, float rad, vec4 rgb){
   shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
   shader->setMat3("normrot",value_ptr(m_normrot));
-  glDrawElements(GL_TRIANGLES, 3*sphnel[isphres], GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 3*sphnel[res], GL_UNSIGNED_INT, 0);
+  if (blend){
+    glDisable(GL_BLEND);
+    glDepthMask(1);
+  }
 }
 
-void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb){
+void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb, int res, bool blend){
+  if (blend){
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(0);
+  }
+  glBindVertexArray(cylVAO[res]);
   vec3 xmid = 0.5f * (r1 + r2);
   vec3 xdif = r2 - r1;
   float blen = length(xdif);
@@ -583,5 +590,9 @@ void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb){
   shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
   glDrawElements(GL_TRIANGLES, 3*cylnel[icylres], GL_UNSIGNED_INT, 0);
+  if (blend){
+    glDisable(GL_BLEND);
+    glDepthMask(1);
+  }
 }
 
