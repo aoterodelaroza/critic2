@@ -995,7 +995,7 @@ contains
     prop(4) = im_b    
 
     ! fill the mesh with those properties
-    call m%fill(sy%f(sy%iref),prop,.not.sy%c%ismolecule)
+    call m%fill(sy%f(sy%iref),prop(1:4),.not.sy%c%ismolecule)
 
     ! fill the promolecular and the atomic densities
     m%f(:,2:3) = 0d0
