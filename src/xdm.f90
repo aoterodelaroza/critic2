@@ -922,7 +922,7 @@ contains
 
     type(mesh) :: m
     integer :: nelec
-    integer :: id(7), prop(7), i, j, lu, luh, iz
+    integer :: prop(7), i, j, lu, luh, iz
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: mm(3,sy%c%ncel), v(sy%c%ncel), dum1(3), dum2(3,3)
     real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
@@ -989,16 +989,13 @@ contains
     end if
 
     ! properties to calculate 
-    do i = 1, 6
-       id(i) = i
-    end do
     prop(1) = im_rho
     prop(2) = im_null ! for promolecular / hirshfeld weights
     prop(3) = im_null ! for the atomic density contribution
     prop(4) = im_b    
 
     ! fill the mesh with those properties
-    call m%fill(sy%f(sy%iref),id,prop,.not.sy%c%ismolecule)
+    call m%fill(sy%f(sy%iref),prop,.not.sy%c%ismolecule)
 
     ! fill the promolecular and the atomic densities
     m%f(:,2:3) = 0d0

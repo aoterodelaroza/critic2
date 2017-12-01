@@ -5902,11 +5902,30 @@ Molecular calculations (MOLCALC)
 ::
 
   MOLCALC [NELEC]
+  MOLCALC PEACH
+    mo1a [->] mo1r k1
+    mo2a [->] mo2r k2
+    [...]
+  ENDMOLCALC/END
 
 This keyword allows the calculation of molecular quantities, mostly
-using molecular wavefunction (wfn/wfx/fchk/molden) fields. For now,
-only the NELEC keyword is implemented, which integrates the number of
-electrons using a Becke-style grid.
+using molecular wavefunction (wfn/wfx/fchk/molden) fields and
+Becke-style grids.
+
+The NELEC keyword integrates the number of electrons. This is useful
+for debugging purposes.
+
+The PEACH keyword calculates the index for the characterization of
+electronic excitations based on orbital overlap defined as uppercase
+lambda in Peach et al., J. Chem. Phys. 128 (2008) 044118. Small values
+(close to zero) correspond to little orbital overlap and Rydberg
+excitations. Large values (close to one) are caused by high orbital
+overlap and correspond to local excitations. Charge transfer
+excitations can have both high or low PEACH value. Each line gives the
+initial (mo1a) and final (mo1r) molecular orbital and the oscillator
+strength (k1) for each component of the excitation. If Gaussian is
+used, copying and pasting the output of the TD keyword is
+recommended. 
 
 Hirshfeld charges (HIRSHFELD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

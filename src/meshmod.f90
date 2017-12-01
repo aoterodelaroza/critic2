@@ -380,53 +380,66 @@ contains
   end subroutine genmesh_franchini
 
   !> Calculate one or more scalar fields on the molecular mesh (m)
-  !> using field f. id and prop are one-dimensional arrays of the same
-  !> size. id contains the index in the mesh scalar field array and
-  !> prop is the integer label for the property (param module).
-  !> If periodic, assume the mesh is for a crystal (calculate the 
-  !> properties by moving the points back to the main cell.
-  subroutine fillmesh(m,ff,id,prop,periodic)
+  !> using field f. prop is a one-dimensional array containing an
+  !> integer label for the property (param module).  If prop is 100+n,
+  !> then calculate molecular orbital number n (only for if ff is a
+  !> molecular wavefunction).  If periodic, assume the mesh is for a
+  !> crystal (calculate the properties by moving the points back to
+  !> the main cell.
+  subroutine fillmesh(m,ff,prop,periodic)
     use fieldmod, only: field
     use tools_io, only: faterr, ferror
     use types, only: scalar_value, realloc
     use param, only: im_rho, im_gradrho, im_gkin, im_b
     class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
-    integer, intent(in) :: id(:)
     integer, intent(in) :: prop(:)
     logical, intent(in) :: periodic
     
     real*8, parameter :: bsmall = 1d-10
 
     type(scalar_value) :: res
-    integer :: i, j, n
+    integer :: i, j, n, nder
     real*8 :: rhos, drho2, d2rho, taup, dsigs, quads
     real*8 :: fval
+    character*10 :: fder
 
-    if (size(id) /= size(prop)) &
-       call ferror("fillmesh","incongruent id and prop arrays",faterr)
     if (.not.ff%isinit) &
        call ferror("fillmesh","field not initialized",faterr)
 
-    n = size(id)
+    n = size(prop)
     if (allocated(m%f)) then
        if (size(m%f,2) /= n) call realloc(m%f,m%n,n)
     else
        allocate(m%f(m%n,n))
     end if
 
+    ! calcualte the maximum derivative
+    nder = -1
+    do j = 1, n
+       select case(prop(j))
+       case(im_rho)
+          nder = max(nder,0)
+       case(im_gradrho,im_gkin)
+          nder = max(nder,1)
+       case(im_b)
+          nder = max(nder,2)
+       end select
+    end do
+
     !$omp parallel do private(fval,res,rhos,drho2,d2rho,taup,dsigs,quads)
     do i = 1, m%n
-       call ff%grd(m%x(:,i),2,res,periodic=periodic)
+       if (nder >= 0) then
+          call ff%grd(m%x(:,i),nder,res,periodic=periodic)
+       end if
        do j = 1, n
-          select case(prop(j))
-          case(im_rho)
+          if (prop(j) == im_rho) then
              fval = res%f
-          case(im_gradrho)
+          else if (prop(j) == im_gradrho) then
              fval = res%gfmod
-          case(im_gkin)
+          else if (prop(j) == im_gkin) then
              fval = res%gkin
-          case(im_b)
+          else if (prop(j) == im_b) then
              if (res%f > bsmall) then
                 rhos = 0.5d0 * res%fval
                 drho2 = 0.25d0 * res%gfmodval * res%gfmodval
@@ -436,9 +449,11 @@ contains
                 quads = (d2rho - 2d0 * dsigs) / 6d0
                 call bhole(rhos,quads,1d0,fval)
              endif
-          case default
-             fval = 0d0
-          end select
+          else if (prop(j) > 100) then
+             write (fder,'(I10)') prop(j) - 100
+             call ff%grd(m%x(:,i),-1,res,fder=fder,periodic=periodic)
+             fval = res%fspc
+          end if
           !$omp critical (save)
           m%f(i,j) = fval
           !$omp end critical (save)

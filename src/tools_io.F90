@@ -856,9 +856,9 @@ contains
   !> present, use 1. If a valid integer is not found, returns .false.
   function isinteger(ival,line,lp0)
     logical :: isinteger
+    integer, intent(inout) :: ival !< Integer value read, if not a valid integer is found, it is not modified
     character*(*), intent(in) :: line !< Input string
     integer, intent(inout), optional :: lp0 !< Pointer to current position on string
-    integer, intent(inout) :: ival !< Integer value read, if not a valid integer is found, it is not modified
 
     integer :: i, len0, lp
     logical :: readit
@@ -897,13 +897,13 @@ contains
 
   !> Get a real number from line and sets rval to it. If a valid real
   !> number is not found, isreal returns .false. and rval is not changed. 
-  function isreal (rval, line, lp)
-    character*(*), intent(in) :: line !< Input string
-    integer, intent(inout) :: lp !< Pointer to current position on string
+  function isreal(rval, line, lp0)
     real*8, intent(out) :: rval !< Real value read
+    character*(*), intent(in) :: line !< Input string
+    integer, intent(inout), optional :: lp0 !< Pointer to current position on string
     logical :: isreal
 
-    integer :: len0
+    integer :: len0, lp
     logical :: matched
 
     character(*), parameter :: exponents = 'eEdDqQ+-'
@@ -912,6 +912,9 @@ contains
     integer :: i
 
     ! initialize
+    lp = 1
+    if (present(lp0)) lp = lp0
+
     isreal = .false.
     len0 = len(line)
     if (lp > len0) return

@@ -15,9 +15,6 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! This module is based on the code kindly provided by Enrico Benassi,
-! Scuola Normale Superiore di Pisa, Italy <ebenassi3@gmail.com>
-
 ! Calculations using molecular wavefunctions.
 module molcalc
   implicit none
@@ -26,6 +23,12 @@ module molcalc
 
   public :: molcalc_driver
   private :: molcalc_nelec
+
+! #ifdef HAVE_CINT
+!     write (*,*) "bleh!"
+! #else
+!     call ferror("molcalc_peach","PEACH requires the CINT library",faterr)
+! #endif
 
 contains
 
@@ -70,7 +73,7 @@ contains
     use param, only: im_rho
     
     type(mesh) :: m
-    integer :: prop(1), id(1)
+    integer :: prop(1)
 
     call m%gen(sy%c)
 
@@ -90,21 +93,104 @@ contains
        write (uout,'(2X,"mesh type      Franchini (excellent)")')
     end if
 
-    id(1) = 1
     prop(1) = im_rho
-    call m%fill(sy%f(sy%iref),id,prop,.false.)
+    call m%fill(sy%f(sy%iref),prop,.false.)
 
     write (uout,'("+ Number of electrons (NELEC) = ",A/)') string(sum(m%f(:,1) * m%w),'f',14,8)
 
   end subroutine molcalc_nelec
 
   subroutine molcalc_peach()
-    use tools_io, only: ferror, faterr
-#ifdef HAVE_CINT
-    write (*,*) "bleh!"
-#else
-    call ferror("molcalc_peach","PEACH requires the CINT library",faterr)
-#endif
+    use systemmod, only: sy
+    use meshmod, only: mesh
+    use fieldmod, only: type_wfn
+    use tools_io, only: ferror, faterr, getline, uin, ucopy, string, isinteger, isreal,&
+       lgetword, equal, uout
+    use types, only: realloc
+    use param, only: im_rho
+
+    type(mesh) :: m
+    integer :: i, n, lp
+    logical :: ok
+    real*8 :: lam, dden, oia
+    character(len=:), allocatable :: line, word
+    integer, allocatable :: imo1(:), imo2(:), prop(:)
+    real*8, allocatable :: kk(:)
+
+    if (.not.sy%c%ismolecule) then
+       call ferror("molcalc_driver","MOLCALC can not be used with crystals",faterr,syntax=.true.)
+       return
+    end if
+    if (sy%f(sy%iref)%type /= type_wfn) then
+       call ferror("molcalc_driver","PEACH can be used with molecular wavefunctions only",faterr,syntax=.true.)
+       return
+    end if
+
+    write (uout,'("  Measure of overlap between orbitals in an excitation. ")')
+    write (uout,'("  Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118.")')
+    allocate(imo1(10),imo2(10),kk(10))
+    n = 0
+    do while (getline(uin,line,ucopy=ucopy))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,'endmolcalc').or.equal(word,'end')) then
+          exit
+       end if
+       n = n + 1
+       if (n > ubound(imo1,1)) then
+          call realloc(imo1,2*n)
+          call realloc(imo2,2*n)
+          call realloc(kk,2*n)
+       end if
+
+       ! first orbital
+       ok = isinteger(imo1(n),word)
+       if (.not.ok) goto 999
+
+       ! second orbital
+       word = lgetword(line,lp)
+       if (equal(word,"->")) &
+          word = lgetword(line,lp)
+       ok = isinteger(imo2(n),word)
+       if (.not.ok) goto 999
+
+       ! coefficient
+       word = lgetword(line,lp)
+       ok = isreal(kk(n),word)
+       if (.not.ok) goto 999
+    enddo
+    if (n == 0) then
+       call ferror("molcalc_driver","No MOs in PEACH",faterr,syntax=.true.)
+       return
+    end if
+
+    ! generate and fill the mesh
+    call m%gen(sy%c)
+    allocate(prop(2*n))
+    do i = 1, n
+       prop(i) = 100 + imo1(i)
+       prop(n+i) = 100 + imo2(i)
+    end do
+    call m%fill(sy%f(sy%iref),prop,.false.)
+    deallocate(prop)
+
+    lam = 0d0
+    dden = 0d0
+    do i = 1, n
+       oia = sum(abs(m%f(:,i)) * abs(m%f(:,n+i)) * m%w)
+       lam = lam + kk(i) * kk(i) * oia
+       dden = dden + kk(i) * kk(i)
+    end do
+    lam = lam / dden
+
+    write (uout,'("+ PEACH = ",A)') string(lam,'f',8,3)
+    write (uout,*)
+
+    deallocate(imo1,imo2,kk)
+    return
+999 continue
+    call ferror("molcalc_peach","error reading line: " // string(line),faterr)
+
   end subroutine molcalc_peach
 
 end module molcalc
