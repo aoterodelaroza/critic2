@@ -192,6 +192,7 @@ contains
   end subroutine molcalc_peach
 
   subroutine molcalc_integral()
+    use tools_io, only: ferror, faterr
 #ifdef HAVE_CINT
 
     write (*,*) "bleh!"
