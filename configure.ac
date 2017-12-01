@@ -139,7 +139,7 @@ if test "${with_cint_shared}" != ""; then
 else
   AC_ARG_WITH([cint-static],[AS_HELP_STRING([--with-cint-static],[Location of the cint static library.])])
   if test "${with_cint_static}" != ""; then
-    LIBADD+="${with_cint_static}/libcint.a"   
+    LIBADD+=" ${with_cint_static}/libcint.a"   
     AC_DEFINE(HAVE_CINT, 1, [Defined if you have the CINT library.])
   fi
 fi

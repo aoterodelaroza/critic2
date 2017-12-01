@@ -23,12 +23,8 @@ module molcalc
 
   public :: molcalc_driver
   private :: molcalc_nelec
-
-! #ifdef HAVE_CINT
-!     write (*,*) "bleh!"
-! #else
-!     call ferror("molcalc_peach","PEACH requires the CINT library",faterr)
-! #endif
+  private :: molcalc_peach
+  private :: molcalc_integral
 
 contains
 
@@ -56,6 +52,8 @@ contains
           call molcalc_nelec()
        elseif (equal(word,"peach")) then
           call molcalc_peach()
+       elseif (equal(word,"integral")) then
+          call molcalc_integral()
        elseif (len_trim(word) > 0) then
           call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
           return
@@ -192,5 +190,15 @@ contains
     call ferror("molcalc_peach","error reading line: " // string(line),faterr)
 
   end subroutine molcalc_peach
+
+  subroutine molcalc_integral()
+#ifdef HAVE_CINT
+
+    write (*,*) "bleh!"
+
+#else
+    call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
+#endif
+  end subroutine molcalc_integral
 
 end module molcalc
