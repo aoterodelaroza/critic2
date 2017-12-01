@@ -427,7 +427,7 @@ contains
        end select
     end do
 
-    !$omp parallel do private(fval,res,rhos,drho2,d2rho,taup,dsigs,quads)
+    !$omp parallel do private(fval,res,fder,rhos,drho2,d2rho,taup,dsigs,quads)
     do i = 1, m%n
        if (nder >= 0) then
           call ff%grd(m%x(:,i),nder,res,periodic=periodic)
