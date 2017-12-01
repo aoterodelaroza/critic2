@@ -5925,7 +5925,9 @@ excitations can have both high or low PEACH value. Each line gives the
 initial (mo1a) and final (mo1r) molecular orbital and the oscillator
 strength (k1) for each component of the excitation. If Gaussian is
 used, copying and pasting the output of the TD keyword is
-recommended. 
+recommended. Using the PEACH keyword requires the virtual orbitals,
+which in turn requires using a fchk or molden file format with the
+READVIRTUAL keyword (see `Loading a field (LOAD)`_).
 
 Hirshfeld charges (HIRSHFELD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
