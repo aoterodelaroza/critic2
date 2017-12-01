@@ -983,7 +983,7 @@ contains
 
 10  continue
     read (line(lp:i-1),*) rval
-    lp = i
+    lp0 = i
     isreal = .true.
 
   end function isreal
