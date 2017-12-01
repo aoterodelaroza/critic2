@@ -25,7 +25,6 @@ module types
   public :: anyatom
   public :: cp_type
   public :: scalar_value
-  public :: scalar_value_noalloc
   public :: integrable
   public :: pointpropable
   public :: neighstar
@@ -105,26 +104,9 @@ module types
      integer :: r, s
      ! is it a nuclear position?
      logical :: isnuc
-     ! molecular orbital values
-     real*8, allocatable :: mo(:)
+     ! specialized return field (molecular orbital values, etc.)
+     real*8 :: fspc
   end type scalar_value
-
-  !> Result of the evaluation of a scalar field
-  type scalar_value_noalloc
-     ! basic
-     real*8 :: f, fval, gf(3), hf(3,3), gfmod, gfmodval, del2f, del2fval
-     ! kinetic energy density
-     real*8 :: gkin
-     ! schrodinger stress tensor
-     real*8 :: stress(3,3)
-     ! electronic potential energy density, virial field
-     real*8 :: vir
-     ! additional local properties
-     real*8 :: hfevec(3,3), hfeval(3)
-     integer :: r, s
-     ! is it a nuclear position?
-     logical :: isnuc
-  end type scalar_value_noalloc
 
   !> Critical point type
   type cp_type
@@ -144,7 +126,7 @@ module types
      real*8 :: rbeta !< beta-sphere radius
 
      ! Properties at the CP
-     type(scalar_value_noalloc) :: s  !< scalar value - evaluation of the reference field at the CP
+     type(scalar_value) :: s  !< scalar value - evaluation of the reference field at the CP
 
      ! BCP and RCP ias properties
      integer :: ipath(2) !< Associated attractor (bcp) or repulsor (rcp), complete list

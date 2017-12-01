@@ -117,7 +117,7 @@ module arithmetic
      real*8 :: fval = 0d0
      integer :: ival = 0
      character(len=:), allocatable :: sval
-     character*4 :: fder = ""
+     character*10 :: fder = ""
   end type token
   public :: token
   integer, parameter, public :: token_undef = 0
@@ -162,13 +162,14 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(sptr,id,nder,x0,periodic)
+       function feval(sptr,id,nder,fder,x0,periodic)
          use iso_c_binding, only: c_ptr
          use types, only: scalar_value
          type(scalar_value) :: feval
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
@@ -370,7 +371,7 @@ contains
 
     integer :: lp, ll
     character(len=:), allocatable :: str
-    character*4 :: fder
+    character*10 :: fder
     logical :: ok, wasop, inchem
     real*8 :: a
     integer :: c, npar, id, lp2
@@ -497,7 +498,7 @@ contains
       integer, intent(in), optional :: ival
       real*8, intent(in), optional :: fval
       character*(*), intent(in), optional :: sval
-      character*4, intent(in), optional :: fder
+      character*(*), intent(in), optional :: fder
 
       type(token), allocatable :: auxtoklist(:)
 
@@ -520,15 +521,17 @@ contains
     end subroutine addtok
   end function tokenize
 
-  !> Using the field id and the derivative flag, evaluate to a number.
-  !> This routine is thread-safe.
+  !> Evaluate field with identifier fid and field flag fder at 
+  !> point x0. sptr is the system C pointer. fcheck checks whether
+  !> the field is sane. feval is the evaluation function. If periodic
+  !> is true, evaluate the field under pbc.
   recursive function fieldeval(fid,fder,x0,sptr,fcheck,feval,periodic)
-    use tools_io, only: string, isinteger
+    use tools_io, only: string, isinteger, lower
     use types, only: scalar_value
     use iso_c_binding, only: c_ptr
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
-    character*4, intent(in) :: fder
+    character*(*), intent(in) :: fder
     real*8, intent(in), optional :: x0(3) !< position
     type(c_ptr), intent(in), optional :: sptr
     optional :: fcheck, feval
@@ -544,13 +547,14 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(sptr,id,nder,x0,periodic)
+       function feval(sptr,id,nder,fder,x0,periodic)
          use iso_c_binding, only: c_ptr
          use types, only: scalar_value
          type(scalar_value) :: feval
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
@@ -559,21 +563,27 @@ contains
     integer :: nder, ider, lp
     type(scalar_value) :: res
     logical :: ok
+    character*10 :: fderl
 
     fieldeval = 0d0
     if (present(x0).and.present(feval).and.present(fcheck)) then
        if (.not.fcheck(sptr,fid).and..not.isspecialfield(fid)) &
           call die('wrong field in expression: ' // string(fid))
-       if (fder=="    ".or.fder=="v   ".or.fder=="c   ") then
+       fderl = lower(fder)
+       select case (trim(fderl))
+       case ("","v","c")
           nder = 0
-       elseif (fder=="x   ".or.fder=="y   ".or.fder=="z   ".or.fder=="g   ") then
+       case ("x","y","z","g")
           nder = 1
-       else
+       case ("xx","xy","xz","yx","yy","yz","zx","zy","zz","l","lv","lc")
           nder = 2
-       end if
-       res = feval(sptr,fid,nder,x0,periodic)
+       case default
+          ! let feval interpret fder - field-specific (e.g. a MO)
+          nder = -1
+       end select
+       res = feval(sptr,fid,nder,fder,x0,periodic)
 
-       select case (trim(fder))
+       select case (trim(fderl))
        case ("")
           fieldeval = res%f
        case ("v")
@@ -607,13 +617,7 @@ contains
        case ("g")
           fieldeval = res%gfmod
        case default
-          lp = 1
-          ok = isinteger(ider,fder,lp)
-          if (.not.ok) &
-             call die("unknown field specifier: " // string(fder))
-          if (.not.allocated(res%mo)) &
-             call die("Molecular orbitals unavailable for this field ")
-          fieldeval = res%mo(ider)
+          fieldeval = res%fspc
        end select
     else
        call die('evaluating field ' // string(fid) // ' without point')
@@ -889,7 +893,7 @@ contains
     character(len=:), allocatable, intent(out) :: id
     character*(*), intent(in) :: expr
     integer, intent(inout) :: lp
-    character*4, intent(out), optional :: fder
+    character*(*), intent(out), optional :: fder
 
     character*(len(expr)) :: word
     integer :: lpo, i, ll
@@ -1012,13 +1016,14 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(sptr,id,nder,x0,periodic)
+       function feval(sptr,id,nder,fder,x0,periodic)
          use iso_c_binding, only: c_ptr
          use types, only: scalar_value
          type(scalar_value) :: feval
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
@@ -1390,13 +1395,14 @@ contains
   
     interface
        !> Evaluate the field at a point
-       function feval(sptr,id,nder,x0,periodic)
+       function feval(sptr,id,nder,fder,x0,periodic)
          use types, only: scalar_value
          use iso_c_binding, only: c_ptr
          type(scalar_value) :: feval
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
@@ -1413,18 +1419,18 @@ contains
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
-       res = feval(sptr,sia,0,x0,periodic)
+       res = feval(sptr,sia,0,"",x0,periodic)
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -1436,14 +1442,14 @@ contains
        !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
        ! for more references and its use applied to experimental electron
        ! densities.
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
     case (fun_vtf_kir)
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -1451,27 +1457,27 @@ contains
     case (fun_htf_kir)
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = 0.25d0 * res%del2f - q
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
-       res = feval(sptr,sia,1,x0,periodic)
+       res = feval(sptr,sia,1,"",x0,periodic)
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       res = feval(sptr,sia,1,x0,periodic)
+       res = feval(sptr,sia,1,"",x0,periodic)
        if (res%f < 1d-30) then
           q = 0d0
        else
@@ -1484,24 +1490,24 @@ contains
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
-       res = feval(sptr,sia,2,x0,periodic)
+       res = feval(sptr,sia,2,"",x0,periodic)
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0) 
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f

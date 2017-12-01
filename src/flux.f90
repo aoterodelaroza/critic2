@@ -993,7 +993,7 @@ contains
     end if
     xini = xbcp
     xbcp = sy%c%x2c(xbcp)
-    call sy%f(sy%iref)%grd(xbcp,2,res0=res)
+    call sy%f(sy%iref)%grd(xbcp,2,res)
     evec = res%hf
     call eig(evec,reval)
 

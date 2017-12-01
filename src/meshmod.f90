@@ -388,7 +388,7 @@ contains
   subroutine fillmesh(m,ff,id,prop,periodic)
     use fieldmod, only: field
     use tools_io, only: faterr, ferror
-    use types, only: scalar_value_noalloc, realloc
+    use types, only: scalar_value, realloc
     use param, only: im_rho, im_gradrho, im_gkin, im_b
     class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
@@ -398,7 +398,7 @@ contains
     
     real*8, parameter :: bsmall = 1d-10
 
-    type(scalar_value_noalloc) :: res
+    type(scalar_value) :: res
     integer :: i, j, n
     real*8 :: rhos, drho2, d2rho, taup, dsigs, quads
     real*8 :: fval
@@ -417,7 +417,7 @@ contains
 
     !$omp parallel do private(fval,res,rhos,drho2,d2rho,taup,dsigs,quads)
     do i = 1, m%n
-       call ff%grd(m%x(:,i),2,periodic,res0_noalloc=res)
+       call ff%grd(m%x(:,i),2,res,periodic=periodic)
        do j = 1, n
           select case(prop(j))
           case(im_rho)

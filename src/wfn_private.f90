@@ -1955,23 +1955,103 @@ contains
 
   end subroutine rho2
 
-  !> Calculate the MO values at position xpos (Cartesian).
-  subroutine calculate_mo(f,xpos,phi,philb,imo0,imo1,nder)
+  !> Calculate a particular MO values at position xpos (Cartesian) and
+  !> returns it in phi. fder is the selector for the MO.
+  subroutine calculate_mo(f,xpos,phi,fder)
+    use tools_io, only: lower, isinteger, ferror, faterr, string
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
-    real*8, intent(inout) :: phi(:,:) !< array for the final values
-    integer, intent(in) :: philb !< lower bound for phi
-    integer, intent(in) :: imo0 !< first MO
-    integer, intent(in) :: imo1 !< last MO
-    integer, intent(in) :: nder !< number of derivatives
+    real*8, intent(out) :: phi !< MO value
+    character*(*), intent(in) :: fder !< lower bound for phi
     
+    integer :: imo, lp
+    logical :: ok
+    real*8 :: phi_(1,1)
+    character*10 :: fderl
+
+    imo = 0
+    lp = 1
+    ok = isinteger(imo,fder,lp)
+    if (.not.ok) then
+       fderl = lower(fder)
+       select case (trim(fderl))
+       case("homo")
+          if (f%wfntyp /= wfn_rhf) &
+             call ferror("calculate_mo","HOMO can only be used with RHF wavefunctions",faterr)
+          imo = f%nmoocc
+       case("lumo")
+          if (f%wfntyp /= wfn_rhf) &
+             call ferror("calculate_mo","LUMO can only be used with RHF wavefunctions",faterr)
+          if (.not.f%hasvirtual) &
+             call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
+          imo = f%nmoocc + 1
+       case("ahomo")
+          if (f%wfntyp /= wfn_uhf) &
+             call ferror("calculate_mo","AHOMO can only be used with RHF wavefunctions",faterr)
+          imo = f%nalpha
+       case("alumo")
+          if (f%wfntyp /= wfn_uhf) &
+             call ferror("calculate_mo","ALUMO can only be used with RHF wavefunctions",faterr)
+          if (.not.f%hasvirtual) &
+             call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
+          imo = f%nmoocc + 1
+       case("bhomo")
+          if (f%wfntyp /= wfn_uhf) &
+             call ferror("calculate_mo","BHOMO can only be used with RHF wavefunctions",faterr)
+          imo = f%nmoocc
+       case("blumo")
+          if (f%wfntyp /= wfn_uhf) &
+             call ferror("calculate_mo","BLUMO can only be used with RHF wavefunctions",faterr)
+          if (.not.f%hasvirtual) &
+             call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
+          imo = f%nmoocc + f%nalpha_virt + 1
+       case default
+          if (fderl(1:1) == "a") then
+             if (f%wfntyp /= wfn_uhf) &
+                call ferror("calculate_mo","A<n> can only be used with UHF wavefunctions",faterr)
+             lp = 2
+             ok = isinteger(imo,fder,lp)
+             if (.not.ok) goto 999
+             if (imo > f%nalpha) then
+                if (imo > f%nalpha + f%nalpha_virt) then
+                   imo = -1
+                else
+                   imo = f%nmoocc + (imo - f%nalpha)
+                end if
+             end if
+          elseif (fderl(1:1) == "b") then
+             if (f%wfntyp /= wfn_uhf) &
+                call ferror("calculate_mo","B<n> can only be used with UHF wavefunctions",faterr)
+             lp = 2
+             ok = isinteger(imo,fder,lp)
+             if (.not.ok) goto 999
+             if (imo > f%nmoocc - f%nalpha) then
+                imo = f%nalpha + f%nalpha_virt + imo
+                if (imo > f%nmoall) &
+                   imo = -1
+             else
+                imo = f%nalpha + imo
+             end if
+          else
+             goto 999
+          end if
+       end select
+    end if
+    if (imo < 1 .or. imo > f%nmoall) &
+       call ferror("calculate_mo","Invalid molecular orbital",faterr)
+
     if (f%issto) then
        ! STO wavefunction
-       call f%calculate_mo_sto(xpos,phi,philb,imo0,imo1,nder)
+       call f%calculate_mo_sto(xpos,phi_,imo,imo,imo,0)
     else
        ! GTO wavefunction
-       call f%calculate_mo_gto(xpos,phi,philb,imo0,imo1,nder)
+       call f%calculate_mo_gto(xpos,phi_,imo,imo,imo,0)
     end if
+    phi = phi_(1,1)
+
+    return
+999 continue
+    call ferror("calculate_mo","Invalid MO identifier: " // string(fder),faterr)
 
   end subroutine calculate_mo
 

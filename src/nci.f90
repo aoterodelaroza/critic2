@@ -40,12 +40,12 @@ contains
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
     use tools_math, only: eig
-    use types, only: scalar_value_noalloc, realloc
+    use types, only: scalar_value, realloc
     use param, only: pi, vsmall, bohrtoa, ifformat_as_grad, ifformat_as_hxx1,&
        ifformat_as_hxx2, ifformat_as_hxx3
 
     type(field) :: fgrho, fxx(3)
-    type(scalar_value_noalloc) :: res, resg
+    type(scalar_value) :: res, resg
     character(len=:), allocatable :: line, word, oname, file
     logical :: ok, ok2
     integer :: lp, istat
@@ -492,11 +492,11 @@ contains
 
                  ! calculate properties at x: rho and rdg
                  if (sy%f(sy%iref)%type == type_grid.and..not.usecore) then
-                    call sy%f(sy%iref)%grd(x,0,res0_noalloc=res)
-                    call fgrho%grd(x,0,res0_noalloc=resg)
+                    call sy%f(sy%iref)%grd(x,0,res)
+                    call fgrho%grd(x,0,resg)
                     dimgrad = resg%f / (const*max(res%f,vsmall)**fthirds)
                     do l = 1, 3
-                       call fxx(l)%grd(x,0,res0_noalloc=resg)
+                       call fxx(l)%grd(x,0,resg)
                        ehess(l) = resg%f
                     end do
                     if (count(ehess > 0d0) >= 2) then
@@ -507,7 +507,7 @@ contains
                  else
                     ! strangely enough, eig takes about the same time as counting the signs
                     ! and using sylvester's law of inertia. 
-                    call sy%f(sy%iref)%grd(x,2,res0_noalloc=res)
+                    call sy%f(sy%iref)%grd(x,2,res)
                     call eig(res%hf,ehess)
                     dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)           
                  end if

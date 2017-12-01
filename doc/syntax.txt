@@ -13,12 +13,21 @@
 ## v - valence-only value of the field
 ## c - core-only value of the field
 ## x, y, z: first derivatives.
-## xx, xy, xz, yy, yz, zz: second derivatives.
+## xx, xy, yx, xz, zx, yy, yz, zy, zz: second derivatives.
 ## g: norm of the gradient.
 ## l: Laplacian.
 ## lv: valence Laplacian.
 ## lc: core Laplacian.
-## <number>: in molecular wavefunctions, value of a particular MO.
+## In molecular wavefunctions:
+##   <n>: value of MO number <n>.
+##   HOMO: highest-occupied molecular orbital (RHF).
+##   LUMO: lowest-unoccupied molecular orbital (RHF).
+##   A<n>: alpha MO number <n>.
+##   B<n>: beta MO number <n>.
+##   AHOMO: alpha highest-occupied molecular orbital (UHF).
+##   ALUMO: alpha lowest-unoccupied molecular orbital (UHF).
+##   BHOMO: beta highest-occupied molecular orbital (UHF).
+##   BLUMO: beta lowest-unoccupied molecular orbital (UHF).
 
 ## In non-quiet mode (no -q argument), a copy of each input line
 ## is written to the output after a '%%' prefix.

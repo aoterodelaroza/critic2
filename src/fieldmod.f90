@@ -52,13 +52,14 @@ module fieldmod
        integer, intent(out), optional :: iout
      end function fcheck
      !> Evaluate the field at a point
-     function feval(sptr,id,nder,x0,periodic)
+     function feval(sptr,id,nder,fder,x0,periodic)
        use types, only: scalar_value
        use iso_c_binding, only: c_ptr
        type(scalar_value) :: feval
        type(c_ptr), intent(in) :: sptr
        character*(*), intent(in) :: id
        integer, intent(in) :: nder
+       character*(*), intent(in) :: fder
        real*8, intent(in) :: x0(3)
        logical, intent(in), optional :: periodic
      end function feval
@@ -366,13 +367,14 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(sptr,id,nder,x0,periodic)
+       function feval(sptr,id,nder,fder,x0,periodic)
          use types, only: scalar_value
          use iso_c_binding, only: c_ptr
          type(scalar_value) :: feval
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
@@ -382,7 +384,7 @@ contains
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: n(3)
-         character*4, intent(in) :: fder
+         character*(*), intent(in) :: fder
          logical, intent(in) :: dry
          logical, intent(out) :: ifail
          real*8 :: q(n(1),n(2),n(3))
@@ -773,13 +775,14 @@ contains
          integer, intent(out), optional :: iout
        end function fcheck
        !> Evaluate the field at a point
-       function feval(sptr,id,nder,x0,periodic)
+       function feval(sptr,id,nder,fder,x0,periodic)
          use types, only: scalar_value
          use iso_c_binding, only: c_ptr
          type(scalar_value) :: feval
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
          real*8, intent(in) :: x0(3)
          logical, intent(in), optional :: periodic
        end function feval
@@ -807,28 +810,26 @@ contains
   end subroutine load_ghost
 
   !> Calculate the scalar field f at point v (Cartesian) and its
-  !> derivatives up to nder. Return the results in res0 or
-  !> res0_noalloc. If periodic is present and false, consider the
-  !> field is defined in a non-periodic system. This routine is
-  !> thread-safe.
-  recursive subroutine grd(f,v,nder,periodic,res0,res0_noalloc)
+  !> derivatives up to nder. Return the results in res0. If periodic
+  !> is present and false, consider the field is defined in a
+  !> non-periodic system. This routine is thread-safe.
+  recursive subroutine grd(f,v,nder,res,fder,periodic)
     use arithmetic, only: eval
-    use types, only: scalar_value, scalar_value_noalloc
+    use types, only: scalar_value
     use tools_io, only: ferror, faterr
     use tools_math, only: norm
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
-    integer, intent(in) :: nder !< Number of derivatives to calculate
+    integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
+    type(scalar_value), intent(out) :: res !< Output density and related scalar properties
+    character*(*), intent(in), optional :: fder !< modifier for the special field
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
-    type(scalar_value), intent(out), optional :: res0 !< Output density and related scalar properties
-    type(scalar_value_noalloc), intent(out), optional :: res0_noalloc !< Output density and related scalar properties (no allocatable components)
 
     real*8 :: wx(3), wc(3), dist, x(3)
     integer :: i, nid, lvec(3), idx(3)
     real*8 :: rho, grad(3), h(3,3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
     logical :: isgrid, iok, per
-    type(scalar_value) :: res
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
@@ -847,7 +848,12 @@ contains
     res%gkin = 0d0
     res%vir = 0d0
     res%stress = 0d0
+    res%fspc = 0d0
     res%isnuc = .false.
+
+    ! check consistency
+    if (nder < 0 .and. f%type /= type_wfn) &
+       call ferror("grd","MO values can only be calculated for molecular wavefunctions",faterr)
 
     ! initialize flags
     if (present(periodic)) then
@@ -858,7 +864,7 @@ contains
 
     ! numerical derivatives
     res%isnuc = .false.
-    if (f%numerical) then
+    if (f%numerical .and. nder >= 0) then
        fzero = grd0(f,v,periodic)
        res%f = fzero
        res%gf = 0d0
@@ -897,7 +903,7 @@ contains
        res%fval = res%f
        res%gfmodval = res%gfmod
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-       goto 999
+       return
     end if
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
@@ -916,7 +922,7 @@ contains
        if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. & 
           f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
           f%type == type_pi) then 
-          goto 999
+          return
        end if
     end if
     wc = f%c%x2c(wx)
@@ -958,7 +964,12 @@ contains
        ! all work done in Cartesians in a finite environment.
 
     case(type_wfn)
-       call f%wfn%rho2(wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress,res%mo)
+       if (nder >= 0) then
+          call f%wfn%rho2(wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
+       else
+          call f%wfn%calculate_mo(wc,res%fspc,fder)
+          return
+       end if
        ! transformation not needed because all work done in Cartesians
        ! in a finite environment. wfn assumes the crystal structure
        ! resulting from load xyz/wfn/wfx (molecule at the center of 
@@ -1009,27 +1020,6 @@ contains
     end if
     res%gfmod = norm(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-
-999 continue
-    if (present(res0)) res0 = res
-    if (present(res0_noalloc)) then
-       res0_noalloc%f = res%f
-       res0_noalloc%fval = res%fval
-       res0_noalloc%gf = res%gf
-       res0_noalloc%hf = res%hf
-       res0_noalloc%gfmod = res%gfmod
-       res0_noalloc%gfmodval = res%gfmodval
-       res0_noalloc%del2f = res%del2f
-       res0_noalloc%del2fval = res%del2fval
-       res0_noalloc%gkin = res%gkin
-       res0_noalloc%stress = res%stress
-       res0_noalloc%vir = res%vir
-       res0_noalloc%hfevec = res%hfevec
-       res0_noalloc%hfeval = res%hfeval
-       res0_noalloc%r = res%r
-       res0_noalloc%s = res%s
-       res0_noalloc%isnuc = res%isnuc
-    end if
 
   end subroutine grd
 
@@ -1605,7 +1595,7 @@ contains
        f%cp(i)%brdist = 0d0
        f%cp(i)%brpathlen = 0d0
        f%cp(i)%brang = 0d0
-       call f%grd(f%c%at(i)%r,2,res0_noalloc=f%cp(i)%s)
+       call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
 
        ! calculate the point group symbol
        f%cp(i)%pg = f%c%sitesymm(f%cp(i)%x,atomeps)
@@ -1778,11 +1768,11 @@ contains
              dir(3) = 1d0 * cos(phi)
 
              xp = xnuc + (rmt+eps) * dir
-             call f%grd(xp,1,res0=res)
+             call f%grd(xp,1,res)
              fout = res%f
              gfout = dot_product(res%gf,xp-xnuc) / (rmt+eps)
              xp = xnuc + (rmt-eps) * dir
-             call f%grd(xp,1,res0=res)
+             call f%grd(xp,1,res)
              fin = res%f
              gfin = dot_product(res%gf,xp-xnuc) / (rmt-eps)
 
@@ -1816,7 +1806,7 @@ contains
                    do i = 0, 1000
                       r = 0.50d0 * rmt + (real(i,8) / 1000) * 4d0 * rmt
                       xp = xnuc + r * dir
-                      call f%grd(xp,1,res0=res)
+                      call f%grd(xp,1,res)
                       write (luline,'(1p,3(E20.13,X))') r, res%f, dot_product(res%gf,xp-xnuc) / r
                    end do
                    call fclose(luline)
@@ -1917,7 +1907,7 @@ contains
        do i = 1, f%c%nneq+1
           call system_clock(count=c1,count_rate=rate)
           do j = 1, npts
-             call f%grd(randn(:,j,i),0,res0=res)
+             call f%grd(randn(:,j,i),0,res)
           end do
           call system_clock(count=c2)
           if (i <= f%c%nneq) then
@@ -1945,7 +1935,7 @@ contains
        write (uout,'("  Number of points : ",A)') string(npts)
        call system_clock(count=c1,count_rate=rate)
        do i = 1, npts
-          call f%grd(randn(:,i,1),0,res0=res)
+          call f%grd(randn(:,i,1),0,res)
        end do
        call system_clock(count=c2)
        write (uout,'("  Total wall time : ",A)') trim(string(real(c2-c1,8) / rate,'f',12,6)) // " s"
@@ -1964,7 +1954,7 @@ contains
   !> (success), 1 (singular Hessian), and 2 (too many iterations).
   subroutine newton(f,r,gfnormeps,ier)
     use tools_math, only: detsym
-    use types, only: scalar_value_noalloc
+    use types, only: scalar_value
     class(field), intent(inout) :: f
     real*8, dimension(3), intent(inout) :: r
     integer, intent(out) :: ier
@@ -1973,13 +1963,13 @@ contains
     real*8 :: r1(3), xx(3), er
     integer :: iw(3)
     integer :: it
-    type(scalar_value_noalloc) :: res
+    type(scalar_value) :: res
 
     integer, parameter :: maxit = 200
 
     do it = 1, maxit
        ! Evaluate and stop criterion
-       call f%grd(r,2,res0_noalloc=res)
+       call f%grd(r,2,res)
        if (res%gfmod < gfnormeps) then
           ier = 0
           return
@@ -2010,7 +2000,7 @@ contains
     use arithmetic, only: eval
     use tools_math, only: norm, rsindex
     use tools_io, only: ferror, string
-    use types, only: scalar_value_noalloc, realloc
+    use types, only: scalar_value, realloc
     use global, only: CP_hdegen, rbetadef
     use types, only: realloc
     class(field), intent(inout) :: f
@@ -2030,7 +2020,7 @@ contains
     integer :: lnuc, lshell
     character*3 :: namecrit(0:3)
     character*(1) :: smallnamecrit(0:3)
-    type(scalar_value_noalloc) :: res
+    type(scalar_value) :: res
 
     data smallnamecrit   /'n','b','r','c'/
     data namecrit /'ncp','bcp','rcp','ccp'/
@@ -2084,7 +2074,7 @@ contains
     f%cp(n)%r = f%c%x2c(xc)
 
     ! Density info
-    call f%grd(f%cp(n)%r,2,res0_noalloc=res)
+    call f%grd(f%cp(n)%r,2,res)
     f%cp(n)%s = res
 
     ! Symmetry info
@@ -2252,7 +2242,6 @@ contains
   !> present, initialize the output path with this point (Cartesian).
   subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
-    use tools_io, only: ferror, faterr
     use tools_math, only: eigns, norm
     use types, only: scalar_value, gpathp, realloc
     class(field), intent(inout) :: fid
@@ -2271,7 +2260,7 @@ contains
     integer, parameter :: mstep0 = 10000
 
     integer :: mstep
-    integer :: i, j, npath
+    integer :: i, npath
     real*8 :: h0, hini
     real*8 :: dx(3), scalhist(mhist)
     real*8 :: xlast(3), xlast2(3), dd, prune0, xcart(3), xcaux(3), xxaux(3)
@@ -2307,13 +2296,13 @@ contains
        if (present(pathini)) then
           xcaux = pathini
           xxaux = fid%c%c2x(xcaux)
-          call fid%grd(xcaux,2,res0=resaux)
+          call fid%grd(xcaux,2,resaux)
           call addtopath(nstep,xcaux,xxaux,resaux)
        end if
     end if
 
     ! properties at point
-    call fid%grd(xpoint,2,res0=res)
+    call fid%grd(xpoint,2,res)
 
     do nstep = 1, mstep
        ! point in cartesian and crystallographic. res contains evaluation at
@@ -2335,7 +2324,7 @@ contains
                    do while (dd > prune0) 
                       xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
                       xxaux = fid%c%c2x(xcaux)
-                      call fid%grd(xcaux,2,res0=resaux)
+                      call fid%grd(xcaux,2,resaux)
                       call addtopath(nstep,xcaux,xxaux,resaux)
                       dd = norm(xcart - path(npath)%r)
                    end do
@@ -2396,7 +2385,7 @@ contains
           if (present(path)) then
              xcaux = xcp
              xxaux = xcpr
-             call fid%grd(xcaux,2,res0=resaux)
+             call fid%grd(xcaux,2,resaux)
              call addtopath(nstep+1,xcaux,xxaux,resaux)
           end if
           goto 999
@@ -2425,7 +2414,7 @@ contains
              if (path(npath)%i /= nstep) then
                 xcaux = xpoint
                 xxaux = fid%c%c2x(xcaux)
-                call fid%grd(xcaux,2,res0=resaux)
+                call fid%grd(xcaux,2,resaux)
                 call addtopath(nstep,xcaux,xxaux,resaux)
              end if
           end if
@@ -2520,7 +2509,7 @@ contains
 
        ! FSAL for BS stepper
        if (NAV_stepper /= NAV_stepper_bs) then
-          call fid%grd(xtemp,2,res0=res)
+          call fid%grd(xtemp,2,res)
        end if
        grdt = res%gf / (res%gfmod + VSMALL)
 
@@ -2596,7 +2585,7 @@ contains
 
     xout = xpoint + h0 * grdt
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
   
@@ -2617,15 +2606,15 @@ contains
     ak1 = grdt
 
     xout = xpoint + h0 * (0.5d0*ak1)
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (2d0/9d0*ak1 + 1d0/3d0*ak2 + 4d0/9d0*ak3)
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
 
     xerr = xpoint + h0 * (7d0/24d0*ak1 + 1d0/4d0*ak2 + 1d0/3d0*ak3 + 1d0/8d0*ak4) - xout
@@ -2653,23 +2642,23 @@ contains
     
     xout = xpoint + h0*B21*grdt
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B31*grdt+B32*ak2)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B41*grdt+B42*ak2+B43*ak3)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B51*grdt+B52*ak2+B53*ak3+B54*ak4)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B61*grdt+B62*ak2+B63*ak3+B64*ak4+B65*ak5)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(C1*grdt+C3*ak3+C4*ak4+C6*ak6)
     xerr = h0*(DC1*grdt+DC3*ak3+DC4*ak4+DC5*ak5+DC6*ak6)
@@ -2704,27 +2693,27 @@ contains
 
     xout = xpoint + h0*dp_a(2,1)*grdt
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(3,1)*grdt+dp_a(3,2)*ak2)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(4,1)*grdt+dp_a(4,2)*ak2+dp_a(4,3)*ak3)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(5,1)*grdt+dp_a(5,2)*ak2+dp_a(5,3)*ak3+dp_a(5,4)*ak4)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(6,1)*grdt+dp_a(6,2)*ak2+dp_a(6,3)*ak3+dp_a(6,4)*ak4+dp_a(6,5)*ak5)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_b(1)*grdt+dp_b(2)*ak2+dp_b(3)*ak3+dp_b(4)*ak4+dp_b(5)*ak5+dp_b(6)*ak6)
 
-    call fid%grd(xout,2,res0=res)
+    call fid%grd(xout,2,res)
     ak7 = res%gf / (res%gfmod+VSMALL)
     xerr = h0*(dp_c(1)*grdt+dp_c(2)*ak2+dp_c(3)*ak3+dp_c(4)*ak4+dp_c(5)*ak5+dp_c(6)*ak6+dp_c(7)*ak7)
     xout = xout + xerr

@@ -784,7 +784,7 @@ contains
 
   !> Evaluate the field at a point. Wrapper around grd() to pass it to
   !> the arithmetic module.  This routine is thread-safe.
-  recursive function field_feval(sptr,id,nder,x0,periodic)
+  recursive function field_feval(sptr,id,nder,fder,x0,periodic)
     use iso_c_binding, only: c_ptr, c_f_pointer
     use types, only: scalar_value
     use param, only: sqpi, pi
@@ -792,6 +792,7 @@ contains
     type(c_ptr), intent(in) :: sptr
     character*(*), intent(in) :: id
     integer, intent(in) :: nder
+    character*(*), intent(in) :: fder
     real*8, intent(in) :: x0(3)
     logical, intent(in), optional :: periodic
 
@@ -808,12 +809,13 @@ contains
     field_feval%hf = 0d0
     field_feval%del2f = 0d0
     field_feval%del2fval = 0d0
+    field_feval%fspc = 0d0
 
     call c_f_pointer(sptr,syl)
     if (.not.associated(syl)) return
     iid = syl%fieldname_to_idx(id)
     if (iid >= 0) then
-       call syl%f(iid)%grd(x0,nder,periodic,res0=field_feval)
+       call syl%f(iid)%grd(x0,nder,field_feval,fder=fder,periodic=periodic)
     elseif (trim(id) == "ewald") then
        xp = syl%c%c2x(x0)
        field_feval%f = syl%c%ewald_pot(xp,.false.)
@@ -856,7 +858,7 @@ contains
     type(c_ptr), intent(in) :: sptr
     character*(*), intent(in) :: id
     integer, intent(in) :: n(3)
-    character*4, intent(in) :: fder
+    character*(*), intent(in) :: fder
     logical, intent(in) :: dry
     logical, intent(out) :: ifail
     real*8 :: q(n(1),n(2),n(3))
@@ -874,7 +876,7 @@ contains
     if (.not.syl%f(iid)%isinit) goto 999
     isgrid = (syl%f(iid)%type == type_grid)
     if (isgrid) isgrid = isgrid .and. all(syl%f(iid)%grid%n == n)
-    if (isgrid) isgrid = isgrid .and. (fder == "    " .or. fder=="v   ")
+    if (isgrid) isgrid = isgrid .and. (trim(fder) == "" .or. trim(fder)=="v")
     if (isgrid) then
        if (.not.dry) then
           q = syl%f(iid)%grid%f
@@ -1217,7 +1219,7 @@ contains
 
     ! get the scalar field properties
     xp = s%c%x2c(x0)
-    call s%f(id)%grd(xp,2,res0=res)
+    call s%f(id)%grd(xp,2,res)
 
     ! r and s
     res%hfevec = res%hf
@@ -1268,7 +1270,7 @@ contains
        if (allfields) then
           do i = 0, s%nf
              if (s%goodfield(i) .and. i/=id) then
-                call s%f(i)%grd(xp,2,res0=res2)
+                call s%f(i)%grd(xp,2,res2)
                 write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,2X))') string(i),&
                    string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
                    string(res2%del2f,'e',decimal=9)
@@ -1309,7 +1311,7 @@ contains
           id = s%propi(i)%fid
           if (.not.s%goodfield(id)) cycle
           if (.not.fdone(id).and.s%propi(i)%itype /= itype_v) then
-             call s%f(id)%grd(xpos,2,res0=res(id))
+             call s%f(id)%grd(xpos,2,res(id))
              fdone(id) = .true.
           end if
 

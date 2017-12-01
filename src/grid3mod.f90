@@ -2395,7 +2395,7 @@ contains
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
          integer, intent(in) :: n(3)
-         character*4, intent(in) :: fder
+         character*(*), intent(in) :: fder
          logical, intent(in) :: dry
          logical, intent(out) :: ifail
          real*8 :: q(n(1),n(2),n(3))

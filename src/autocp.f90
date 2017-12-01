@@ -1697,7 +1697,7 @@ contains
   subroutine makegraph()
     use systemmod, only: sy
     use tools_math, only: norm, eig
-    use types, only: scalar_value_noalloc
+    use types, only: scalar_value
     use param, only: pi
     integer :: i, j, k
     integer :: nstep
@@ -1708,7 +1708,7 @@ contains
     integer :: wcp
     integer :: ier, idir
     logical :: isbcp
-    type(scalar_value_noalloc) :: res
+    type(scalar_value) :: res
     real*8, allocatable :: xdis(:,:,:), xplen(:,:)
 
     real*8, parameter :: change = 1d-2
@@ -1728,7 +1728,7 @@ contains
 
             ! diagonalize hessian at the bcp/rcp, calculate starting points
             ! the third component of the hessian is up/down direction
-            call f%grd(f%cp(i)%r,2,res0_noalloc=res)
+            call f%grd(f%cp(i)%r,2,res)
             evec = res%hf
             call eig(evec,reval)
             if (isbcp) then
@@ -1766,7 +1766,7 @@ contains
       do i = 1, f%ncpcel
          if (abs(f%cp(f%cpcel(i)%idx)%typ) == 1) then
             isbcp = (f%cp(f%cpcel(i)%idx)%typ == -1)
-            call f%grd(f%cpcel(i)%r,2,res0_noalloc=res)
+            call f%grd(f%cpcel(i)%r,2,res)
             evec = res%hf
             call eig(evec,reval)
             if (isbcp) then

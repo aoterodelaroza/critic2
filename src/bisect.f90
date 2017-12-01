@@ -2001,7 +2001,7 @@ contains
           x(1) = s%n(1) + s%r(i) * sin(s%th(i)) * cos(s%ph(i))
           x(2) = s%n(2) + s%r(i) * sin(s%th(i)) * sin(s%ph(i))
           x(3) = s%n(3) + s%r(i) * cos(s%th(i))             
-          call sy%f(sy%iref)%grd(x,0,res0=res)
+          call sy%f(sy%iref)%grd(x,0,res)
           fsurf(i) = sy%eval(expr,.true.,iok,x)
        end do
     else
@@ -2067,7 +2067,7 @@ contains
        x = s%n + (/ s%r(i) * sin(s%th(i)) * cos(s%ph(i)),&
           s%r(i) * sin(s%th(i)) * sin(s%ph(i)),&
           s%r(i) * cos(s%th(i)) /)
-       call sy%f(sy%iref)%grd(x,2,res0=res)
+       call sy%f(sy%iref)%grd(x,2,res)
        if (doprops) then
           call sy%grdall(x,lprop)
           write (lud,110) x, res%f, res%fval, res%gfmod, res%del2f,&
@@ -2118,7 +2118,7 @@ contains
     write (lud,305) s%nv, s%nf, s%nv + s%nf - 2
 
     xxx = s%n
-    call sy%f(sy%iref)%grd(xxx,0,res0=res)
+    call sy%f(sy%iref)%grd(xxx,0,res)
     fpoint(0) = res%f
     write (lud,306) npoint, s%n(1), s%n(2), s%n(3), res%f
 
@@ -2128,7 +2128,7 @@ contains
           xxx(1) = s%n(1) + rdelta * j * sin(s%th(i)) * cos(s%ph(i))
           xxx(2) = s%n(2) + rdelta * j * sin(s%th(i)) * sin(s%ph(i))
           xxx(3) = s%n(3) + rdelta * j * cos(s%th(i))             
-          call sy%f(sy%iref)%grd(xxx,0,res0=res)
+          call sy%f(sy%iref)%grd(xxx,0,res)
           fpoint(j) = res%f
        end do
        write (lud,310) xxx, (fpoint(j), j = 1, npoint)

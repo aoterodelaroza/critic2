@@ -107,7 +107,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call sy%f(sy%iref)%grd(xtemp,1,res0=res)
+             call sy%f(sy%iref)%grd(xtemp,1,res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -126,7 +126,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call sy%f(sy%iref)%grd(xtemp,1,res0=res)
+                call sy%f(sy%iref)%grd(xtemp,1,res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -258,7 +258,7 @@ contains
 
        ! accept the new point and recalculate f, if applicable
        if (gridp .or. .not.ode_fsal) then
-          call sy%f(sy%iref)%grd(xp,nder,res0=res)
+          call sy%f(sy%iref)%grd(xp,nder,res)
           ngrd_term = ngrd_term + 1
           if (gridp) then
              if (savefgr) fgr(idx,base_to) = res%fval
@@ -353,7 +353,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call sy%f(sy%iref)%grd(xtemp,1,res0=res)
+             call sy%f(sy%iref)%grd(xtemp,1,res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -372,7 +372,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call sy%f(sy%iref)%grd(xtemp,1,res0=res)
+                call sy%f(sy%iref)%grd(xtemp,1,res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -488,7 +488,7 @@ contains
 
        ! grd at point and next step
        if (.not.ode_fsal) then
-          call sy%f(sy%iref)%grd(xp,1,res0=res)
+          call sy%f(sy%iref)%grd(xp,1,res)
           ngrd_term = ngrd_term + 1
        end if
 
@@ -562,7 +562,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call sy%f(sy%iref)%grd(xtemp,1,res0=res)
+             call sy%f(sy%iref)%grd(xtemp,1,res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -581,7 +581,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call sy%f(sy%iref)%grd(xtemp,1,res0=res)
+                call sy%f(sy%iref)%grd(xtemp,1,res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -643,7 +643,7 @@ contains
 
        ! grd at point and next step
        if (.not.ode_fsal) then
-          call sy%f(sy%iref)%grd(xp,1,res0=res)
+          call sy%f(sy%iref)%grd(xp,1,res)
           ngrd_term = ngrd_term + 1
        end if
 
