@@ -162,6 +162,7 @@ void View::Draw(){
 
     // process mouse events
     if (iscene > 0){
+      c2::set_scene_pointers(iscene);
       if (processMouseEvents(hover) || updateTexSize())
 	Update();
     }
@@ -249,8 +250,6 @@ void View::Update(){
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   if (iscene > 0){
-    c2::set_scene_pointers(iscene);
-
     // scene atoms
     for (int i=0;i<c2::nat;i++)
       drawSphere(make_vec3(c2::at[i].r),c2::at[i].rad,make_vec4(c2::at[i].rgb),isphres,false);
@@ -339,7 +338,7 @@ void View::Delete(){
 
 bool View::processMouseEvents(bool hover){
   if (mousebehavior == MB_Navigation)
-    return navigate(hover);
+    return Navigate(hover);
   else if (mousebehavior == MB_Pointer)
     return false;
   else if (mousebehavior == MB_Angle)
@@ -352,7 +351,7 @@ bool View::processMouseEvents(bool hover){
     return false;
 }
 
-bool View::navigate(bool hover){
+bool View::Navigate(bool hover){
   const float eps = 1e-8;
   const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
   bool updateview = false, updateworld = false, updateprojection = false;
@@ -394,7 +393,7 @@ bool View::navigate(bool hover){
     } else {
       rlock = false;
     }
-    updatenone = true;
+    // updatenone = true; // only if we draw some guiding element
   }
 
   // rotate
@@ -419,7 +418,25 @@ bool View::navigate(bool hover){
     } else { 
       llock = false;
     }
-    updatenone = true;
+    // updatenone = true; // only if we draw some guiding element
+  }
+
+  // double click
+  if (hover && mstate.ldclick){
+    if (iscene > 0)
+      v_pos = {0.f,0.f,4.f*c2::scenerad};
+    else
+      v_pos = {0.f,0.f,10.f};
+    v_front = {0.f,0.f,-1.f};
+    v_up    = {0.f,1.f,0.f};
+    m_world = mat4(1.0f);
+    crot0_l = mat4(1.0f);
+    llock = false;
+    rlock = false;
+    if (isortho)
+      updateprojection = true;
+    updateview = true;
+    updateworld = true;
   }
 
   if (updateworld)

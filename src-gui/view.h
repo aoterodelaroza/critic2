@@ -47,7 +47,7 @@ struct View
   void Update();
   void Delete();
   bool processMouseEvents(bool hover);
-  bool navigate(bool hover);
+  bool Navigate(bool hover);
   bool updateTexSize();
 
   // camera methods
