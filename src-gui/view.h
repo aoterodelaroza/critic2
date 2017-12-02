@@ -56,7 +56,6 @@ struct View
   void updateWorld();
   vec3 cam_world_coords();
   vec3 cam_view_coords();
-  vec3 sphereProject(vec2 ntexpos);
 
   // coordinate transformations
   // pos: mouse coordinates
@@ -73,6 +72,7 @@ struct View
   vec2 world_to_texpos(vec3 pos);
   vec3 texpos_to_world(vec2 pos, float dist=-1.f); // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
   vec2 world_to_ntexpos(vec3 pos);
+  vec3 ntexpos_to_world(vec2 pos, float dist=-1.f);  // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
   vec2 view_to_texpos(vec3 pos, float *depth); // returns depth in the second argument
   vec3 texpos_to_view(vec2 pos, float depth); 
   float texpos_viewdepth(vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
@@ -83,7 +83,7 @@ struct View
 
   // camera matrices and vectors
   bool iswire = false; // use wire
-  bool isortho = true; // is ortho or perspective?
+  bool isortho = false; // is ortho or perspective?
   vec3 v_pos = {}; // position vector
   vec3 v_front = {}; // front vector
   vec3 v_up = {}; // up vector
@@ -91,13 +91,16 @@ struct View
   mat4 m_view = mat4(1.0); // view
   mat4 m_world = mat4(1.0); // world
 
-  // saved states
+  // saved states for the mouse interaction
   MouseBehavior_ mousebehavior = MB_Navigation; // mouse behavior
-  bool rlock = false; // rmb is dragging
+  bool rlock = false; // dragging
+  vec3 mpos0_r; // saved mouse position (for dragging)
+  vec3 cpos0_r; // saved camera position in view coords (for dragging)
+
   bool llock = false; // lmb is dragging
-  vec3 mpos0; // saved mouse position in screen coords (0 -> 1024)
-  vec3 cpos0; // saved camera position in world coords
-  mat4 crot0; // saved camera rotation
+  vec3 mpos0_l; // saved mouse position (for rotating)
+  vec3 cpos0_l; // saved camera position in view coords (for rotating)
+  mat4 crot0_l; // saved world matrix (for rotating)
 
   // associated objects
   int icurtex = -1; // current texture in use

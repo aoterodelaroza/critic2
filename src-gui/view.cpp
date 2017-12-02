@@ -262,21 +262,21 @@ void View::Update(){
     }
 
     // grid and Cartesian axes
-    int nmaxgrid = (int) (ceil(c2::scenerad * AUTOANG)+1e-5);
-    vec3 r1 = {}, r2 = {};
-    vec4 rgb = {1.f,1.f,1.f,1.f};
-    rgb.x = 1.f; rgb.y = 0.f; rgb.z = 0.f;
-    r1.y = 0.f; r1.x = -nmaxgrid/AUTOANG;
-    r2.y = 0.f; r2.x =  nmaxgrid/AUTOANG;
-    drawCylinder(r1,r2,radgrid,rgb,0,false);
-    rgb.x = 0.f; rgb.y = 1.f; rgb.z = 0.f;
-    r1.x = 0.f; r1.y = -nmaxgrid/AUTOANG;
-    r2.x = 0.f; r2.y =  nmaxgrid/AUTOANG;
-    drawCylinder(r1,r2,radgrid,rgb,0,false);
-    rgb.x = 0.f; rgb.y = 0.f; rgb.z = 1.f;
-    r1.y = 0.f; r1.z = -nmaxgrid/AUTOANG;
-    r2.y = 0.f; r2.z =  nmaxgrid/AUTOANG;
-    drawCylinder(r1,r2,radgrid,rgb,0,false);
+    // int nmaxgrid = (int) (ceil(c2::scenerad * AUTOANG)+1e-5);
+    // vec3 r1 = {}, r2 = {};
+    // vec4 rgb = {1.f,1.f,1.f,1.f};
+    // rgb.x = 1.f; rgb.y = 0.f; rgb.z = 0.f;
+    // r1.y = 0.f; r1.x = -nmaxgrid/AUTOANG;
+    // r2.y = 0.f; r2.x =  nmaxgrid/AUTOANG;
+    // drawCylinder(r1,r2,radgrid,rgb,0,false);
+    // rgb.x = 0.f; rgb.y = 1.f; rgb.z = 0.f;
+    // r1.x = 0.f; r1.y = -nmaxgrid/AUTOANG;
+    // r2.x = 0.f; r2.y =  nmaxgrid/AUTOANG;
+    // drawCylinder(r1,r2,radgrid,rgb,0,false);
+    // rgb.x = 0.f; rgb.y = 0.f; rgb.z = 1.f;
+    // r1.y = 0.f; r1.z = -nmaxgrid/AUTOANG;
+    // r2.y = 0.f; r2.z =  nmaxgrid/AUTOANG;
+    // drawCylinder(r1,r2,radgrid,rgb,0,false);
     // for (int i = 1; i <= nmaxgrid; i++){
     //   r1.z = 0.f; r2.z = 0.f;
     //   rgb.x = 1.f; rgb.y = 1.f; rgb.z = 1.f; rgb.w = 1.f; 
@@ -292,6 +292,31 @@ void View::Update(){
     //   r1.y = -i/AUTOANG; r1.x = -nmaxgrid/AUTOANG;
     //   r2.y = -i/AUTOANG; r2.x =  nmaxgrid/AUTOANG;
     //   drawCylinder(r1,r2,radgrid,rgb);
+    // }
+
+    // rotation sphere
+    // if (llock){
+    //   vec3 v0;
+    //   float rad0 = 0.25f * v_pos[2];
+    //   float rad1;
+    //   vec4 rgb;
+    //   vec3 uvec = vec3(0.f,0.f,1.f);
+
+    //   v0 = inverse(mat3(m_world)) * uvec;
+    //   v0 = v0 * rad0;
+    //   rgb = {0.6f,0.2f,0.8f,0.8f};
+    //   rad1 = 0.05f * rad0;
+    //   drawSphere(v0,rad1,rgb,3,false);
+
+    //   v0 = inverse(mat3(crot0_l)) * uvec;
+    //   v0 = v0 * rad0;
+    //   rgb = {1.0f,0.8f,0.0f,0.8f};
+    //   rad1 = 0.05f * rad0;
+    //   drawSphere(v0,rad1,rgb,3,false);
+
+    //   v0 = vec3(0.f,0.f,0.f);
+    //   rgb = {1.0f,1.0f,1.0f,0.4f};
+    //   drawSphere(v0,rad0,rgb,3,true);
     // }
   }
 
@@ -331,15 +356,14 @@ bool View::navigate(bool hover){
   const float eps = 1e-8;
   const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
   bool updateview = false, updateworld = false, updateprojection = false;
+  bool updatenone = false;
 
   // calculate the texture coordinates
   vec2 texpos = mstate.pos;
   pos_to_texpos(texpos);
-  vec2 ntexpos = texpos;
-  texpos_to_ntexpos(ntexpos);
 
   // mouse scroll = zoom
-  if (hover && abs(mstate.scroll) > eps && !rlock){
+  if (hover && abs(mstate.scroll) > eps && !rlock && !llock){
     float ratio = fmin(mousesens_zoom * mstate.scroll,0.5f);
     v_pos = v_pos - ratio * v_pos;
     if (length(v_pos) < min_zoom)
@@ -353,44 +377,49 @@ bool View::navigate(bool hover){
   if (hover && mstate.rclick && !llock){ 
     float depth = texpos_viewdepth(texpos);
     if (depth < 1.0){
-      mpos0 = {texpos.x,texpos.y,depth};
+      mpos0_r = {texpos.x,texpos.y,depth};
     }else{
-      mpos0 = {texpos.x,texpos.y,0.f};
-      view_to_texpos({0.f,0.f,0.f},&mpos0.z);
+      mpos0_r = {texpos.x,texpos.y,0.f};
+      view_to_texpos({0.f,0.f,0.f},&mpos0_r.z);
     }
-    cpos0 = {v_pos[0],v_pos[1],0.f};
+    cpos0_r = {v_pos[0],v_pos[1],0.f};
     rlock = true;
   } else if (rlock) {
     if (mstate.rdown){
-      vec3 vnew = texpos_to_view(texpos,mpos0.z);
-      vec3 vold = texpos_to_view(vec2(mpos0),mpos0.z);
-      v_pos.x = cpos0.x - (vnew.x - vold.x);
-      v_pos.y = cpos0.y - (vnew.y - vold.y);
+      vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
+      vec3 vold = texpos_to_view(vec2(mpos0_r),mpos0_r.z);
+      v_pos.x = cpos0_r.x - (vnew.x - vold.x);
+      v_pos.y = cpos0_r.y - (vnew.y - vold.y);
       updateview = true;
     } else {
       rlock = false;
     }
+    updatenone = true;
   }
 
   // rotate
   if (hover && mstate.lclick && !rlock){
-    mpos0 = {ntexpos.x, ntexpos.y, 0.f};
-    cpos0 = sphereProject(ntexpos);
-    crot0 = m_world;
+    mpos0_l = {texpos.x, texpos.y, 0.f};
+    view_to_texpos({0.f,0.f,0.f},&mpos0_l.z);
+    cpos0_l = texpos_to_view(texpos,mpos0_l.z);
+    crot0_l = m_world;
     llock = true;
   } else if (llock) {
     if (mstate.ldown){
-      vec3 cpos = sphereProject(ntexpos);
-      vec3 axis = cross(cpos0,cpos);
-      if (length(axis) > 1e-10f){
-        vec2 mpos = {ntexpos.x-mpos0.x, ntexpos.y-mpos0.y};
-        float ang = 2.0f * length(mpos) * mousesens_rot;
-        m_world = rotate(mat4(1.0f),ang,axis) * crot0;
-        updateworld = true;
+      vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
+      vec3 axis = cross(vec3(0.f,0.f,1.f),cpos1-cpos0_l);
+      float lax = length(axis);
+      if (lax > 1e-10f){
+	axis = inverse(mat3(crot0_l)) * normalize(axis);
+	vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
+	float ang = 2.0f * length(mpos) * mousesens_rot / FBO_tex_a[icurtex];
+	m_world = rotate(crot0_l,ang,axis);
+	updateworld = true;
       }
     } else { 
       llock = false;
     }
+    updatenone = true;
   }
 
   if (updateworld)
@@ -400,7 +429,7 @@ bool View::navigate(bool hover){
   if (updateprojection)
     updateProjection();
 
-  return updateworld || updateview || updateprojection;
+  return updateworld || updateview || updateprojection || updatenone;
 }
 
 
@@ -441,14 +470,6 @@ vec3 View::cam_world_coords(){
 
 vec3 View::cam_view_coords(){
   return v_pos;
-}
-
-vec3 View::sphereProject(vec2 ntexpos){
-  vec2 pos0 = world_to_ntexpos(vec3(0.f,0.f,0.f));
-  vec2 xs = {clamp(ntexpos.x-pos0.x,-1.f,1.f), clamp(ntexpos.y-pos0.y,-1.f,1.f)};
-  float a = fmin(length(xs),1.0f);
-  float b = atan2f(xs.y,xs.x);
-  return vec3(cosf(b) * sinf(a), sinf(b) * sinf(a), cosf(a));
 }
 
 void View::pos_to_ntexpos(vec2 &pos){
@@ -525,6 +546,12 @@ vec2 View::world_to_ntexpos(vec3 pos){
   return pos2;
 }
 
+// dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
+vec3 View::ntexpos_to_world(vec2 pos, float dist/*=-1.f*/){
+  ntexpos_to_texpos(pos);
+  return texpos_to_world(pos,dist);
+}
+
 vec2 View::view_to_texpos(vec3 pos, float *depth){
   const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
   vec3 pos3 = project(pos,m_view,m_projection,viewport);
@@ -550,6 +577,7 @@ float View::texpos_viewdepth(vec2 texpos){
 void View::drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend){
   if (blend){
     glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(0);
   }
@@ -566,6 +594,7 @@ void View::drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend){
   glDrawElements(GL_TRIANGLES, 3*sphnel[res], GL_UNSIGNED_INT, 0);
   if (blend){
     glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
     glDepthMask(1);
   }
 }
