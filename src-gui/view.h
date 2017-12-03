@@ -24,7 +24,6 @@
 #define VIEW_H
 
 #include "imgui/imgui_dock.h"
-#include "imgui/mouse.h"
 #include "shader.h"
 #include "imgui/gl3w.h"
 #include "settings.h"
@@ -107,14 +106,17 @@ struct View
   vec3 cpos0_l; // saved camera position in view coords (for rotating)
   mat4 crot0_l; // saved world matrix (for rotating)
 
+  bool slock = false; // scroll dragging
+  float mpos0_s; // mouse y position (for scrolling using keys)
+
   bool updatescene = false; // update the scene next pass
 
   // associated objects
   GLuint FBO; // framebuffer object
   GLuint FBOtex; // framebuffer object textures
   GLuint FBOdepth; // framebuffer object depth buffers
-  float FBO_atex; // side of the texture
-  float FBO_a; // side of the texture square used for rendering
+  float FBO_atex; // side of the texture (pixels)
+  float FBO_a; // side of the texture square used for rendering (pixels)
   Shader *shader = nullptr; // pointer to the current shader
   char *title; // title
   int iscene = -1; // integer identifier of the associated scene

@@ -26,7 +26,6 @@
 #include "imgui/imgui_impl_glfw_gl3.h"
 #include "imgui/imgui_dock.h"
 #include "imgui/imgui_widgets.h"
-#include "imgui/mouse.h"
 #include "imgui/additional_fonts.h"
 #include "imgui/font_glyphs.h"
 
@@ -41,9 +40,6 @@
 // Global variables: fonts (see settings.h)
 ImFont* fontdefault = nullptr;
 ImFont* fonticon = nullptr;
-
-// Global variables: mouse state (see settings.h)
-MouseState mstate = {};
 
 using namespace std;
 using namespace ImGui;
@@ -65,7 +61,7 @@ int main(int argc, char *argv[]){
   glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
 
   // Initialize default keybindings and callbacks
-  RegisterDefaultKeyBindings();
+  RegisterDefaultBindings();
   RegisterCallback(BIND_QUIT,(void *) quit_callback,(void *) rootwin);
 
   // Initialize critic2
@@ -116,9 +112,6 @@ int main(int argc, char *argv[]){
     // process callback for keyboard events
     ProcessCallbacks();
 
-    // Fill the mouse state with imgui values
-    mstate.Fill();
-
     // Background
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -126,7 +119,7 @@ int main(int argc, char *argv[]){
     // Main menu bar
     if (BeginMainMenuBar()){
       if (BeginMenu("File")){
-        if (MenuItem("Quit",EventKeyName(BIND_QUIT).c_str()))
+        if (MenuItem("Quit",BindKeyName(BIND_QUIT).c_str()))
 	  glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
         EndMenu();
       }

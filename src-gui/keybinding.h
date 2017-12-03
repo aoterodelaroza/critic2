@@ -28,18 +28,41 @@
 
 using namespace std;
 
+// No key
 #define NOKEY 0
 #define NOMOD 0x0000
 
-#define BIND_QUIT 0
-#define BIND_MAX 1 // number of BIND actions
+// Mouse interactions as special keys
+#define GLFW_MOUSE_LEFT           GLFW_KEY_LAST+1
+#define GLFW_MOUSE_LEFT_DOUBLE    GLFW_KEY_LAST+2
+#define GLFW_MOUSE_RIGHT          GLFW_KEY_LAST+3
+#define GLFW_MOUSE_RIGHT_DOUBLE   GLFW_KEY_LAST+4
+#define GLFW_MOUSE_MIDDLE         GLFW_KEY_LAST+5
+#define GLFW_MOUSE_MIDDLE_DOUBLE  GLFW_KEY_LAST+6
+#define GLFW_MOUSE_BUTTON3        GLFW_KEY_LAST+7
+#define GLFW_MOUSE_BUTTON3_DOUBLE GLFW_KEY_LAST+8
+#define GLFW_MOUSE_BUTTON4        GLFW_KEY_LAST+9
+#define GLFW_MOUSE_BUTTON4_DOUBLE GLFW_KEY_LAST+10
+#define GLFW_MOUSE_SCROLL         GLFW_KEY_LAST+11
 
-void RegisterDefaultKeyBindings();
+#define BIND_QUIT          0 // Quit the program
+#define BIND_NAV_ROTATE    1 // Rotate the camera (navigation)
+#define BIND_NAV_TRANSLATE 2 // Camera pan (navigation)
+#define BIND_NAV_ZOOM      3 // Camera zoom (navigation)
+#define BIND_NAV_RESET     4 // Reset the view (navigation)
+#define BIND_MAX           5 // Total number of BIND actions
+
+// key binds accessible to other files (to check for scroll)
+extern int keybind[BIND_MAX]; // bind -> key
+
+void RegisterDefaultBindings();
 
 void RegisterCallback(int event,void *callback,void *data);
 
 void ProcessCallbacks();
 
-string EventKeyName(int event);
+bool IsBindEvent(int bind,bool held);
+
+string BindKeyName(int event);
 
 #endif

@@ -20,16 +20,17 @@
 */
 
 #include <list>
+#include <algorithm>
 
 #include "imgui/font_glyphs.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_widgets.h"
-#include "imgui/mouse.h"
 
 #include "critic2.h"
 #include "shapes.h"
 #include "view.h"
 #include "settings.h"
+#include "keybinding.h"
 
 using namespace ImGui;
 using namespace std;
@@ -279,22 +280,44 @@ bool View::Navigate(bool hover){
   bool updatenone = false;
 
   // calculate the texture coordinates
-  vec2 texpos = mstate.pos;
+  ImGuiContext *g = GetCurrentContext();
+  vec2 mousepos = {g->IO.MousePos.x,g->IO.MousePos.y};
+  vec2 texpos = mousepos;
   pos_to_texpos(texpos);
 
-  // mouse scroll = zoom
-  if (hover && abs(mstate.scroll) > eps && !rlock && !llock){
-    float ratio = fmin(mousesens_zoom * mstate.scroll,0.5f);
+  // Zoom the view. There are two behaviors: mouse scroll and hold key
+  // and translate the mouse.
+  float ratio = 0.f;
+  if (hover && IsBindEvent(BIND_NAV_ZOOM,false) && !rlock && !llock){
+    if (keybind[BIND_NAV_ZOOM] == GLFW_MOUSE_SCROLL){
+      ratio = mousesens_zoom * g->IO.MouseWheel;
+    } else {
+      mpos0_s = mousepos.y;
+      slock = true;
+    }
+  } else if (slock) {
+    if (IsBindEvent(BIND_NAV_ZOOM,true)){
+      ratio = mousesens_zoom * (mpos0_s-mousepos.y) * (10.f / FBO_a); // 10/a to make it adimensional
+      mpos0_s = mousepos.y;
+    } else {
+      slock = false;
+    }
+    // updatenone = true; // only if we draw some guiding element
+  }
+  if (ratio != 0.f){
+    ratio = clamp(ratio,-0.999f,0.999f);
     v_pos = v_pos - ratio * v_pos;
     if (length(v_pos) < min_zoom)
       v_pos = v_pos / length(v_pos) * min_zoom;
+    if (length(v_pos) > max_zoom * c2::scenerad)
+      v_pos = v_pos / length(v_pos) * (max_zoom * c2::scenerad);
     if (isortho)
       updateprojection = true;
     updateview = true;
   }
 
   // drag
-  if (hover && mstate.rclick && !llock){ 
+  if (hover && IsBindEvent(BIND_NAV_TRANSLATE,false) && !llock && !slock){ 
     float depth = texpos_viewdepth(texpos);
     if (depth < 1.0){
       mpos0_r = {texpos.x,texpos.y,depth};
@@ -304,15 +327,15 @@ bool View::Navigate(bool hover){
     }
     cpos0_r = {v_pos[0],v_pos[1],0.f};
     rlock = true;
-    mposlast = mstate.pos;
+    mposlast = mousepos;
   } else if (rlock) {
-    if (mstate.rdown){
-      if (mstate.pos.x != mposlast.x || mstate.pos.y != mposlast.y){
+    if (IsBindEvent(BIND_NAV_TRANSLATE,true)){
+      if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
 	vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
 	vec3 vold = texpos_to_view(vec2(mpos0_r),mpos0_r.z);
 	v_pos.x = cpos0_r.x - (vnew.x - vold.x);
 	v_pos.y = cpos0_r.y - (vnew.y - vold.y);
-	mposlast = mstate.pos;
+	mposlast = mousepos;
 	updateview = true;
       }
     } else {
@@ -322,16 +345,16 @@ bool View::Navigate(bool hover){
   }
 
   // rotate
-  if (hover && mstate.lclick && !rlock){
+  if (hover && IsBindEvent(BIND_NAV_ROTATE,false) && !rlock && !slock){
     mpos0_l = {texpos.x, texpos.y, 0.f};
     view_to_texpos({0.f,0.f,0.f},&mpos0_l.z);
     cpos0_l = texpos_to_view(texpos,mpos0_l.z);
     crot0_l = m_world;
     llock = true;
-    mposlast = mstate.pos;
+    mposlast = mousepos;
   } else if (llock) {
-    if (mstate.ldown){
-      if (mstate.pos.x != mposlast.x || mstate.pos.y != mposlast.y){
+    if (IsBindEvent(BIND_NAV_ROTATE,true)){
+      if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
 	vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
 	vec3 axis = cross(vec3(0.f,0.f,1.f),cpos1-cpos0_l);
 	float lax = length(axis);
@@ -342,7 +365,7 @@ bool View::Navigate(bool hover){
 	  m_world = rotate(crot0_l,ang,axis);
 	  updateworld = true;
 	}
-	mposlast = mstate.pos;
+	mposlast = mousepos;
       }
     } else { 
       llock = false;
@@ -351,7 +374,7 @@ bool View::Navigate(bool hover){
   }
 
   // double click
-  if (hover && mstate.ldclick){
+  if (hover && IsBindEvent(BIND_NAV_RESET,false)){
     if (iscene > 0)
       v_pos = {0.f,0.f,4.f*c2::scenerad};
     else

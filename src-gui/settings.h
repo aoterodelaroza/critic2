@@ -10,7 +10,6 @@
 
 #include <glm/glm.hpp>
 #include "imgui/imgui.h"
-#include "imgui/mouse.h"
 
 // constants
 #define PI 3.14159265358979323846
@@ -20,9 +19,6 @@
 extern ImFont* fontdefault;
 extern ImFont* fonticon;
 const float fonticon_size = 24.0f;
-
-// Mouse state
-extern MouseState mstate;
 
 // Framebuffer texture default side length
 const float FBO_tex_a = 1024.f;
@@ -51,7 +47,8 @@ const float mousesens_zoom = 0.15f; // Mouse zoom sensitivity
 const float zfov = 45.f; // fov for the perspective
 const float znear = 0.1f; // znear for the camera
 const float zfar = 1000.f; // zfar for the camera
-const float min_zoom = 1.f; // minimum distance to origin (zoom)
+const float min_zoom = 1.f; // minimum distance to origin (zoom, bohr)
+const float max_zoom = 100.f; // maximum distance to origin (zoom, scenerad)
 
 // Tooltip delay
 const float tooltip_delay = 1.5f; // in seconds
