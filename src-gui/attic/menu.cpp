@@ -26,13 +26,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "imguifilesystem.h"
 
-// Tooltip delay
-static const float ttipdelay = 1.5;
-
-
-static bool IsItemHoveredDelayed(float delay,float *time0,bool *reset);
-static void AttachTooltip(const char* desc, float delay, float *time0, bool *reset);
-
 void show_menu_bar(){
   static float time0 = -1.;
   bool reset = true;
@@ -149,28 +142,5 @@ void show_menu_bar(){
 
   if (reset)
     time0 = -1.;
-}
-
-static bool IsItemHoveredDelayed(float delay,float *time0,bool *reset)
-{
-  float time = ImGui::GetTime();
-  if (ImGui::IsItemHovered()){
-    if (*time0 < 0.)
-      *time0 = time;
-    *reset = false;
-  } 
-  return (*time0 > 0.) && (time > *time0 + delay) && ImGui::IsItemHovered();
-}
-
-static void AttachTooltip(const char* desc, float delay, float *time0, bool *reset)
-{
-  if (IsItemHoveredDelayed(delay,time0,reset))
-    {
-      ImGui::BeginTooltip();
-      ImGui::PushTextWrapPos(450.0f);
-      ImGui::TextUnformatted(desc);
-      ImGui::PopTextWrapPos();
-      ImGui::EndTooltip();
-    }
 }
 

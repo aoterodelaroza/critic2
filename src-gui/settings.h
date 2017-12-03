@@ -39,7 +39,7 @@ const float diffuse = 0.4f;
 const float specular = 0.6f;
 const int shininess = 8;
 
-// atom & bond resolution: 0 -> nmaxsph-1,nmaxcyl-1
+// Atom & bond resolution: 0 -> nmaxsph-1,nmaxcyl-1
 const int isphres = 2;
 const int icylres = 0;
 
@@ -53,6 +53,10 @@ const float zfov = 45.f; // fov for the perspective
 const float znear = 0.1f; // znear for the camera
 const float zfar = 1000.f; // zfar for the camera
 const float min_zoom = 1.f; // minimum distance to origin (zoom)
+
+// Tooltip delay
+const float tooltip_delay = 1.5f; // in seconds
+const float tooltip_maxwidth = 450.f; // in pixels
 
 #endif SETTINGS_H
 

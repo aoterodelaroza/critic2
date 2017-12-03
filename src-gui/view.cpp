@@ -145,6 +145,10 @@ void View::Draw(){
       PushID(buttonchar[i]);
       SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
+      // xxxx //
+      char bleh[20];
+      sprintf(bleh,"tooltip: %d",i);
+      AttachTooltip(bleh,tooltip_delay,tooltip_maxwidth,fontdefault);
       PopID();
     }
     PopFont();

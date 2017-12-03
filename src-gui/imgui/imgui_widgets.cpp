@@ -22,10 +22,46 @@
 #include "imgui_widgets.h"
 #include "imgui.h"
 #include "imgui_internal.h"
-#include <algorithm>
 #include "mouse.h"
 
+#include <algorithm>
+#include <unordered_map>
+
 using namespace ImGui;
+
+// Tooltip variables and behavior //
+// Variables:
+// - tooltip_shownid: ID for the tooltip element shown.
+// - tooltip_hoveredid: ID for the tooltip element hovered last frame.
+// - tooltip_thisframe: saves the current frame to detect when
+//   AttachTooltip is called for the first time.
+// - tooltip_washovered: set to true if any AttachTooltip element
+//   has been hovered in the last frame.
+// - tooltip_time: the last time when no item was hovered.
+// - tooltip_lastactive - the last time when a tooltip was shown.
+// How it works:
+// The tooltip is shown if:
+// - The mouse hovers over a single tooltip element for longer than
+//   delay, which is passed as a function argument.
+// - The mouse hovers over a tooltip element and it was already
+//   showing a tooltip from a different element. In this case,
+//   there is no delay.
+// - The mouse hovers over a tooltip element, then hovers none for a
+//   period of time less than delay, then overs over a new tooltip
+//   element. In this case, the delay is calculated as the difference
+//   between the time the mouse hovered over the new tooltip element
+//   (tooltip_time) and the time the mouse left the previous tooltip
+//   element (tooltip_lastactive), with a maximum equal to
+//   delay. Thus, the delay is equal to the time the mouse spent
+//   outside any tooltip elment.
+static ImGuiID tooltip_shownid = 0;
+static ImGuiID tooltip_hoveredid = 0;
+static int tooltip_thisframe = -1;
+static bool tooltip_washovered = false;
+static float tooltip_time = 0.f;
+static float tooltip_lastactive = 0.f;
+
+// Function definitions //
 
 void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos, 
                        ImVec2 size, float minx, float maxx, int direction){
@@ -264,4 +300,48 @@ bool ImGui::InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* 
     bool pressed = ButtonBehavior(bb, id, hovered, held);
 
     return pressed;
+}
+
+void ImGui::AttachTooltip(const char* desc, float delay, float maxwidth, ImFont* font){
+  ImGuiContext *g = GetCurrentContext();
+  ImGuiID id = g->CurrentWindow->DC.LastItemId;
+  float time = GetTime();
+  int thisframe = GetFrameCount();
+
+  if (thisframe != tooltip_thisframe){
+    // run once every frame, in the first call
+    if (!tooltip_washovered){
+      tooltip_time = time;
+      tooltip_shownid = 0;
+      tooltip_hoveredid = 0;
+    }
+    tooltip_thisframe = thisframe;
+    tooltip_washovered = false;
+  }
+
+  if (g->HoveredId == id){
+    // If no tooltip is being shown and the mouse moves from one tooltip element
+    // to another, this is the same as if it moved from a zone without any
+    // tooltip elements.
+    if (id != tooltip_hoveredid && tooltip_shownid == 0)
+      tooltip_time = time;
+
+    if (tooltip_lastactive != 0.f)
+      delay = fmin(delay,fmax(tooltip_time - tooltip_lastactive,0.f));
+
+    tooltip_washovered = true;
+    tooltip_hoveredid = id;
+
+    if (time - tooltip_time > delay){
+      tooltip_shownid = id;
+      tooltip_lastactive = time;
+      BeginTooltip();
+      PushTextWrapPos(maxwidth);
+      PushFont(font);
+      TextUnformatted(desc);
+      PopFont();
+      PopTextWrapPos();
+      EndTooltip();
+    }
+  }
 }
