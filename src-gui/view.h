@@ -97,6 +97,7 @@ struct View
 
   // saved states for the mouse interaction
   MouseBehavior_ mousebehavior = MB_Navigation; // mouse behavior
+  vec2 mposlast; // last mouse position
   bool rlock = false; // dragging
   vec3 mpos0_r; // saved mouse position (for dragging)
   vec3 cpos0_r; // saved camera position in view coords (for dragging)
