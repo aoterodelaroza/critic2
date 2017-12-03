@@ -48,6 +48,10 @@ struct View
   void Delete();
   bool processMouseEvents(bool hover);
   bool Navigate(bool hover);
+
+  // texture methods
+  void createTex(float atex);
+  void deleteTex();
   bool updateTexSize();
 
   // camera methods
@@ -102,11 +106,13 @@ struct View
   vec3 cpos0_l; // saved camera position in view coords (for rotating)
   mat4 crot0_l; // saved world matrix (for rotating)
 
+  bool updatescene = false; // update the scene next pass
+
   // associated objects
-  int icurtex = -1; // current texture in use
   GLuint FBO; // framebuffer object
   GLuint FBOtex; // framebuffer object textures
   GLuint FBOdepth; // framebuffer object depth buffers
+  float FBO_atex; // side of the texture
   float FBO_a; // side of the texture square used for rendering
   Shader *shader = nullptr; // pointer to the current shader
   char *title; // title

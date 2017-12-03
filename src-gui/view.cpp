@@ -45,31 +45,8 @@ View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
   aview->title = title;
   aview->shader = shader;
 
-  // preparation of the textures
-  glGenTextures(1, &(aview->FBOtex));
-  glGenRenderbuffers(1, &(aview->FBOdepth));
-  glGenFramebuffers(1, &(aview->FBO));
-
   // create the texture
-  glBindTexture(GL_TEXTURE_2D, aview->FBOtex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_a, FBO_tex_a, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
-  glBindTexture(GL_TEXTURE_2D, 0);
-
-  // render buffer
-  glBindRenderbuffer(GL_RENDERBUFFER, aview->FBOdepth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_a, FBO_tex_a);
-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-  // frame buffer
-  glBindFramebuffer(GL_FRAMEBUFFER, aview->FBO);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, aview->FBOtex, 0); 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, aview->FBOdepth);
-
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    exit(EXIT_FAILURE);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  aview->createTex(FBO_tex_a);
 
   // initialize the camera vectors
   aview->v_pos    = {0.f,0.f,10.f};
@@ -163,35 +140,32 @@ void View::Draw(){
     PopFont();
     PopStyleVar(2);
 
-    // Overlay the image 
+    // Set the scene pointers
+    if (iscene > 0)
+      c2::set_scene_pointers(iscene);
+
+    // Maybe we need to change the texture sizes
+    updatescene = updateTexSize() || updatescene;
+
+    // Update the scene
+    if (updatescene){
+      Update();
+      updatescene = false;
+    }
+
+    // Overlay the image
     bool hover = false;
     SetCursorPos(cpos);
     if (iscene > 0){
-      ImageInteractive((void *) FBOtex,FBO_a/FBO_tex_a,&hover,&vrect);
+      ImageInteractive((void *) FBOtex,FBO_a/FBO_atex,&hover,&vrect);
     } else {
       hover = false;
       vrect = dock->window->Rect();
     }
 
-    // process mouse events
-    if (iscene > 0){
-      c2::set_scene_pointers(iscene);
-      if (processMouseEvents(hover) || updateTexSize())
-	Update();
-    }
-
-    // 0: ICON_SM_ARROWS
-    // 1: ICON_SM_MOUSE_POINTER,
-    // 2: ICON_SM_COMPASS_ANGLE
-    // 3: ICON_SM_RULER
-    // 4: ICON_SM_PENCIL,
-    // 5: ICON_SM_ALIGNMENT
-    // 6: ICON_SM_COG
-    // 7: ICON_SM_TAG,
-    // 8: ICON_SM_FLOPPY_O
-    // 9: ICON_SM_QUESTION ok
-    // 10: ICON_SM_TIMES
-    // xx: ICON_SM_VBAR
+    // Process mouse events
+    if (iscene > 0)
+      updatescene = processMouseEvents(hover) || updatescene;
 
     // process button interactions
     usegray[0] = usegray[1] = usegray[2] = usegray[3] = usegray[4] = usegray[5] = true;
@@ -252,8 +226,7 @@ void View::Draw(){
 
 void View::Update(){
 
-  if (icurtex < 0)
-    updateTexSize();
+  printf("redrawing...\n");
   glBindFramebuffer(GL_FRAMEBUFFER, FBO);
   glViewport(0.,0.,FBO_a,FBO_a);
 
@@ -340,9 +313,7 @@ void View::Update(){
 void View::Delete(){
   for (auto it = viewlist.begin(); it != viewlist.end(); it++) {
     if (*it == this){
-      glDeleteTextures(1, &FBOtex);
-      glDeleteRenderbuffers(1, &FBOdepth);
-      glDeleteFramebuffers(1, &FBO);
+      deleteTex();
       viewlist.erase(it);
       break;
     }
@@ -462,14 +433,55 @@ bool View::Navigate(bool hover){
   return updateworld || updateview || updateprojection || updatenone;
 }
 
+void View::createTex(float atex){
+  glGenTextures(1, &(FBOtex));
+  glGenRenderbuffers(1, &(FBOdepth));
+  glGenFramebuffers(1, &(FBO));
+
+  // texture
+  glBindTexture(GL_TEXTURE_2D, FBOtex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+  glBindTexture(GL_TEXTURE_2D, 0);
+
+  // render buffer
+  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex);
+  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+  // frame buffer
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex, 0); 
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    exit(EXIT_FAILURE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  FBO_atex = atex;
+}
+
+void View::deleteTex(){
+  glDeleteTextures(1, &FBOtex);
+  glDeleteRenderbuffers(1, &FBOdepth);
+  glDeleteFramebuffers(1, &FBO);
+}
 
 bool View::updateTexSize(){
   float amax = ((dock && dock->size.x > 0.f && dock->size.y > 0.f)? fmax(dock->size.x,dock->size.y) : 200.f);
+  bool redraw = false;
+
+  if (amax >= FBO_atex){
+    deleteTex();
+    createTex(ceil(1.5f * amax));
+    redraw = true;
+  }
+
   if (FBO_a != amax){
     FBO_a = amax;
-    return true;
+    redraw = true;
   }
-  return false;
+  return redraw;
 }
 
 void View::updateProjection(){
