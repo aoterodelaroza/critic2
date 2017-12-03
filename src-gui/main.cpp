@@ -186,6 +186,7 @@ int main(int argc, char *argv[]){
       droot->newDockRoot(dviewcont,-1);
       dviewcont->newDock(dstyledock);
       dviewcont->newDock(mainview->dock);
+      mainview->dock->size_saved = ImVec2(320.f,320.f);
 
       Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
       dviewcont->setSlidingBarPosition(4,0.2f);

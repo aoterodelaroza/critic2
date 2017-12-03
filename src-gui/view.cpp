@@ -84,9 +84,6 @@ void View::Draw(){
 
   // Variables for associated dialogs
   static bool drawprefs = false;
-
-  // The dock window
-  SetNextWindowSize(ImVec2(300.f,300.f),ImGuiSetCond_Once);
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
   if (BeginDock(title)){
     // save cursor position at the top left
