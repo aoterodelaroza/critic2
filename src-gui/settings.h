@@ -25,8 +25,7 @@ const float fonticon_size = 24.0f;
 extern MouseState mstate;
 
 // Framebuffer texture square side length
-const int nmaxtex = 9;
-const float FBO_tex_a[nmaxtex] = {256.f,362.f,512.f,724.f,1024.f,1448.f,2048.f,2896.f,4096.f};
+const float FBO_tex_a = 4096.f;
 
 // Background color for views
 const float bgrgb[4] = {0.0f,0.0f,0.0f,1.0f};

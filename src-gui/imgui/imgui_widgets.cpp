@@ -257,7 +257,7 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
   return held && IsMouseDragging();
 }
 
-bool ImGui::ImageInteractive(ImTextureID texture, bool *hover, ImRect *vrect){
+bool ImGui::ImageInteractive(ImTextureID texture, float a, bool *hover, ImRect *vrect){
   ImGuiWindow *win = GetCurrentWindow(); 
   if (win->SkipItems)
     return false;
@@ -277,12 +277,12 @@ bool ImGui::ImageInteractive(ImTextureID texture, bool *hover, ImRect *vrect){
   float y = vrect->Max.y - vrect->Min.y;
   float xratio = x/fmax(x,y);
   float yratio = y/fmax(x,y);
-  float rx = 0.5f * (1.f - xratio);
-  float ry = 0.5f * (1.f - yratio);
+  float rx = 0.5f * (1.f - xratio) * a;
+  float ry = 0.5f * (1.f - yratio) * a;
 
   bool held;
   bool pressed = ButtonBehavior(*vrect, id, hover, &held);
-  win->DrawList->AddImage(texture,vrect->Min,vrect->Max,ImVec2(rx, 1.f - ry),ImVec2(1.f - rx, ry));
+  win->DrawList->AddImage(texture,vrect->Min,vrect->Max,ImVec2(rx, a - ry),ImVec2(a - rx, ry));
 }
 
 bool ImGui::InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held){

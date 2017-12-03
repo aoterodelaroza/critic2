@@ -46,31 +46,30 @@ View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
   aview->shader = shader;
 
   // preparation of the textures
-  glGenTextures(nmaxtex, aview->FBOtex);
-  glGenRenderbuffers(nmaxtex, aview->FBOdepth);
-  glGenFramebuffers(nmaxtex, aview->FBO);
-  for (int i=0; i<nmaxtex; i++){
-    // create the texture
-    glBindTexture(GL_TEXTURE_2D, aview->FBOtex[i]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_a[i], FBO_tex_a[i], 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
-    glBindTexture(GL_TEXTURE_2D, 0);
+  glGenTextures(1, &(aview->FBOtex));
+  glGenRenderbuffers(1, &(aview->FBOdepth));
+  glGenFramebuffers(1, &(aview->FBO));
 
-    // render buffer
-    glBindRenderbuffer(GL_RENDERBUFFER, aview->FBOdepth[i]);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_a[i], FBO_tex_a[i]);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+  // create the texture
+  glBindTexture(GL_TEXTURE_2D, aview->FBOtex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FBO_tex_a, FBO_tex_a, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+  glBindTexture(GL_TEXTURE_2D, 0);
 
-    // frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, aview->FBO[i]);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, aview->FBOtex[i], 0); 
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, aview->FBOdepth[i]);
+  // render buffer
+  glBindRenderbuffer(GL_RENDERBUFFER, aview->FBOdepth);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, FBO_tex_a, FBO_tex_a);
+  glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-      exit(EXIT_FAILURE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  }
+  // frame buffer
+  glBindFramebuffer(GL_FRAMEBUFFER, aview->FBO);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, aview->FBOtex, 0); 
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, aview->FBOdepth);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    exit(EXIT_FAILURE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   // initialize the camera vectors
   aview->v_pos    = {0.f,0.f,10.f};
@@ -168,7 +167,7 @@ void View::Draw(){
     bool hover = false;
     SetCursorPos(cpos);
     if (iscene > 0){
-      ImageInteractive((void *) FBOtex[icurtex],&hover,&vrect);
+      ImageInteractive((void *) FBOtex,FBO_a/FBO_tex_a,&hover,&vrect);
     } else {
       hover = false;
       vrect = dock->window->Rect();
@@ -255,8 +254,8 @@ void View::Update(){
 
   if (icurtex < 0)
     updateTexSize();
-  glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
-  glViewport(0.,0.,FBO_tex_a[icurtex],FBO_tex_a[icurtex]);
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+  glViewport(0.,0.,FBO_a,FBO_a);
 
   glClearColor(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -341,9 +340,9 @@ void View::Update(){
 void View::Delete(){
   for (auto it = viewlist.begin(); it != viewlist.end(); it++) {
     if (*it == this){
-      glDeleteTextures(nmaxtex, FBOtex);
-      glDeleteRenderbuffers(nmaxtex, FBOdepth);
-      glDeleteFramebuffers(nmaxtex, FBO);
+      glDeleteTextures(1, &FBOtex);
+      glDeleteRenderbuffers(1, &FBOdepth);
+      glDeleteFramebuffers(1, &FBO);
       viewlist.erase(it);
       break;
     }
@@ -367,7 +366,7 @@ bool View::processMouseEvents(bool hover){
 
 bool View::Navigate(bool hover){
   const float eps = 1e-8;
-  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
   bool updateview = false, updateworld = false, updateprojection = false;
   bool updatenone = false;
 
@@ -425,7 +424,7 @@ bool View::Navigate(bool hover){
       if (lax > 1e-10f){
 	axis = inverse(mat3(crot0_l)) * normalize(axis);
 	vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
-	float ang = 2.0f * length(mpos) * mousesens_rot / FBO_tex_a[icurtex];
+	float ang = 2.0f * length(mpos) * mousesens_rot / FBO_a;
 	m_world = rotate(crot0_l,ang,axis);
 	updateworld = true;
       }
@@ -466,13 +465,11 @@ bool View::Navigate(bool hover){
 
 bool View::updateTexSize(){
   float amax = ((dock && dock->size.x > 0.f && dock->size.y > 0.f)? fmax(dock->size.x,dock->size.y) : 200.f);
-  int iold = icurtex;
-  for (int i = 0; i < nmaxtex; i++){
-    icurtex = i;
-    if (FBO_tex_a[i] > amax)
-      break;
+  if (FBO_a != amax){
+    FBO_a = amax;
+    return true;
   }
-  return !(iold == icurtex);
+  return false;
 }
 
 void View::updateProjection(){
@@ -534,22 +531,22 @@ void View::texpos_to_pos(vec2 &pos){
 }
 
 void View::texpos_to_ntexpos(vec2 &pos){
-  pos = (pos / FBO_tex_a[icurtex]) * 2.f - 1.f;
+  pos = (pos / FBO_a) * 2.f - 1.f;
 }
 
 void View::ntexpos_to_texpos(vec2 &pos){
-  pos = (0.5f * pos + 0.5f) * FBO_tex_a[icurtex];
+  pos = (0.5f * pos + 0.5f) * FBO_a;
 }
 
 vec2 View::world_to_texpos(vec3 pos){
-  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
   vec3 pos3 = project(pos,m_view * m_world,m_projection,viewport);
   return vec2(pos3);
 }
 
 // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
 vec3 View::texpos_to_world(vec2 pos, float dist/*=-1.f*/){
-  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
   vec3 wpos = {};
   if (dist < 0.f){
     // Set the point on the plane parallel to the z-plane that passes through
@@ -584,14 +581,14 @@ vec3 View::ntexpos_to_world(vec2 pos, float dist/*=-1.f*/){
 }
 
 vec2 View::view_to_texpos(vec3 pos, float *depth){
-  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
   vec3 pos3 = project(pos,m_view,m_projection,viewport);
   *depth = pos3.z;
   return vec2(pos3);
 }
 
 vec3 View::texpos_to_view(vec2 pos, float depth){
-  const vec4 viewport = {0.f,0.f,FBO_tex_a[icurtex],FBO_tex_a[icurtex]};
+  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
   vec3 wpos = {pos.x,pos.y,depth};
   wpos = unProject(wpos,m_view,m_projection,viewport);
   return wpos;
@@ -599,7 +596,7 @@ vec3 View::texpos_to_view(vec2 pos, float depth){
 
 float View::texpos_viewdepth(vec2 texpos){
     float depth;
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO[icurtex]);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
     glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;

@@ -104,9 +104,10 @@ struct View
 
   // associated objects
   int icurtex = -1; // current texture in use
-  GLuint FBO[nmaxtex]; // framebuffer object
-  GLuint FBOtex[nmaxtex]; // framebuffer object textures
-  GLuint FBOdepth[nmaxtex]; // framebuffer object depth buffers
+  GLuint FBO; // framebuffer object
+  GLuint FBOtex; // framebuffer object textures
+  GLuint FBOdepth; // framebuffer object depth buffers
+  float FBO_a; // side of the texture square used for rendering
   Shader *shader = nullptr; // pointer to the current shader
   char *title; // title
   int iscene = -1; // integer identifier of the associated scene
