@@ -127,6 +127,19 @@ void View::Draw(){
 			       ICON_SM_COMPASS_ANGLE,ICON_SM_RULER,ICON_SM_PENCIL,
 			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
 			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
+    char *buttontip[nicon] = {
+      "Navigate\n\nLeft: Rotate\nRight: Translate\nMouse wheel: Zoom\nDouble click: Reset the view",
+      "Select atoms and bonds",
+      "Manipulate angles",
+      "Measure",
+      "Build",
+      "Align",
+      "Preferences",
+      "Atom labels",
+      "Save",
+      "Query",
+      "Close",
+    };
     ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
     ImColor heldcolor = ImColor(0.7216f,0.5254,0.04314f);
     ImColor hovercolor = ImColor(0.8549f,0.6471f,0.1255f);
@@ -145,10 +158,7 @@ void View::Draw(){
       PushID(buttonchar[i]);
       SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
-      // xxxx //
-      char bleh[20];
-      sprintf(bleh,"tooltip: %d",i);
-      AttachTooltip(bleh,tooltip_delay,tooltip_maxwidth,fontdefault);
+      AttachTooltip(buttontip[i],tooltip_delay,tooltip_maxwidth,fontdefault);
       PopID();
     }
     PopFont();
