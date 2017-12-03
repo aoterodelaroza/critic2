@@ -36,6 +36,7 @@
 #include "shader.h"
 #include "shapes.h"
 #include "view.h"
+#include "keybinding.h"
 
 // Global variables: fonts (see settings.h)
 ImFont* fontdefault = nullptr;
@@ -46,10 +47,6 @@ MouseState mstate = {};
 
 using namespace std;
 using namespace ImGui;
-
-static void error_callback(int error, const char* description){
-  fprintf(stderr, "Error %d: %s\n", error, description);
-}
 
 int main(int argc, char *argv[]){
   // Initialize
@@ -65,6 +62,11 @@ int main(int argc, char *argv[]){
   assert(rootwin!=nullptr);
   glfwMakeContextCurrent(rootwin);
   gl3wInit();
+  glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
+
+  // Initialize default keybindings and callbacks
+  RegisterDefaultKeyBindings();
+  RegisterCallback(BIND_QUIT,(void *) quit_callback,(void *) rootwin);
 
   // Initialize critic2
   c2::gui_initialize((void *) rootwin);
@@ -111,6 +113,9 @@ int main(int argc, char *argv[]){
     ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
 
+    // process callback for keyboard events
+    ProcessCallbacks();
+
     // Fill the mouse state with imgui values
     mstate.Fill();
 
@@ -121,8 +126,8 @@ int main(int argc, char *argv[]){
     // Main menu bar
     if (BeginMainMenuBar()){
       if (BeginMenu("File")){
-        if (MenuItem("Quit","Ctrl+Q"))
-          glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
+        if (MenuItem("Quit",EventKeyName(BIND_QUIT).c_str()))
+	  glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
         EndMenu();
       }
       SameLine(0, GetWindowSize().x-250.);

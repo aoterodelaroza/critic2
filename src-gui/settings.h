@@ -25,7 +25,7 @@ const float fonticon_size = 24.0f;
 extern MouseState mstate;
 
 // Framebuffer texture default side length
- const float FBO_tex_a = 1024.f;
+const float FBO_tex_a = 1024.f;
 
 // Background color for views
 const float bgrgb[4] = {0.0f,0.0f,0.0f,1.0f};
@@ -56,6 +56,10 @@ const float min_zoom = 1.f; // minimum distance to origin (zoom)
 // Tooltip delay
 const float tooltip_delay = 1.5f; // in seconds
 const float tooltip_maxwidth = 450.f; // in pixels
+
+// Callbacks
+void error_callback(int error, const char* description);
+void quit_callback(void *win);
 
 #endif SETTINGS_H
 
