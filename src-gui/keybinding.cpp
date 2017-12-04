@@ -66,12 +66,13 @@ void RegisterDefaultBindings(){
 }
 
 bool IsBindEvent(int bind, bool held){
+  ImGuiIO& io = GetIO();
   int key = keybind[bind];
   int mod = modbind[bind];
 
   if (key == NOKEY || !IsModPressed(mod))
     return false;
-  else if (key <= GLFW_KEY_LAST)
+  else if (key <= GLFW_KEY_LAST && !io.WantCaptureKeyboard && !io.WantTextInput)
     if (!held)
       return IsKeyPressed(key,false);
     else
