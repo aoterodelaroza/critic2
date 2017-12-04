@@ -99,9 +99,9 @@ void View::Draw(){
 			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
 			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
     ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
-    ImColor heldcolor = ImColor(0.7216f,0.5254,0.04314f);
-    ImColor hovercolor = ImColor(0.8549f,0.6471f,0.1255f);
-    ImColor graycolor = ImColor(0.5f,0.5f,0.5f);
+    ImVec4 heldcolor = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
+    ImVec4 hovercolor = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
+    ImVec4 graycolor = ImVec4(0.5f,0.5f,0.5f,1.0f);
 
     // Interactive part of the buttons; save variables for later
     PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
@@ -163,9 +163,9 @@ void View::Draw(){
 
     // Render the buttons on top of the image
     SetCursorPos(cpos);
-    PushStyleColor(ImGuiCol_Button, ImColor(0, 0, 0, 0));
-    PushStyleColor(ImGuiCol_ButtonHovered, ImColor(0, 0, 0, 0));
-    PushStyleColor(ImGuiCol_ButtonActive, ImColor(0, 0, 0, 0));
+    PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
+    PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
     PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
     PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f,0.f));
     PushFont(fonticon);

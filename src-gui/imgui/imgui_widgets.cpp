@@ -217,9 +217,9 @@ void ImGui::ResizeGripOther(const char *label, ImGuiWindow* window, ImGuiWindow*
 
   // resize grip (from imgui.cpp)
   ImU32 resize_col = GetColorU32(held ? ImGuiCol_ResizeGripActive : hovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip);
-  dl->PathLineTo(br + ImVec2(-resize_corner_size, -window->BorderSize));
-  dl->PathLineTo(br + ImVec2(-window->BorderSize, -resize_corner_size));
-  dl->PathArcToFast(ImVec2(br.x - g->Style.WindowRounding - window->BorderSize, br.y - g->Style.WindowRounding - window->BorderSize), g->Style.WindowRounding, 0, 3);
+  dl->PathLineTo(br + ImVec2(-resize_corner_size, -window->WindowBorderSize));
+  dl->PathLineTo(br + ImVec2(-window->WindowBorderSize, -resize_corner_size));
+  dl->PathArcToFast(ImVec2(br.x - g->Style.WindowRounding - window->WindowBorderSize, br.y - g->Style.WindowRounding - window->WindowBorderSize), g->Style.WindowRounding, 0, 3);
   dl->PathFillConvex(resize_col);
   dl->PopClipRect();
   window->ClipRect = saverect;
@@ -246,9 +246,9 @@ bool ImGui::LiftGrip(const char *label, ImGuiWindow* window){
 
   // lift grip (from imgui.cpp's resize grip)
   ImU32 lift_col = GetColorU32(held ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-  dl->PathLineTo(bl + ImVec2(window->BorderSize, -lift_corner_size));
-  dl->PathLineTo(bl + ImVec2(lift_corner_size, -window->BorderSize));
-  dl->PathArcToFast(ImVec2(bl.x + g->Style.WindowRounding + window->BorderSize, bl.y - g->Style.WindowRounding - window->BorderSize), g->Style.WindowRounding, 3, 6);
+  dl->PathLineTo(bl + ImVec2(window->WindowBorderSize, -lift_corner_size));
+  dl->PathLineTo(bl + ImVec2(lift_corner_size, -window->WindowBorderSize));
+  dl->PathArcToFast(ImVec2(bl.x + g->Style.WindowRounding + window->WindowBorderSize, bl.y - g->Style.WindowRounding - window->WindowBorderSize), g->Style.WindowRounding, 3, 6);
   dl->PathFillConvex(lift_col);
   dl->PopClipRect();
   window->ClipRect = saverect;
@@ -269,7 +269,7 @@ bool ImGui::ImageInteractive(ImTextureID texture, float a, bool *hover, ImRect *
   vrect->Min = win->DC.CursorPos;
   vrect->Max = win->DC.CursorPos + win->ContentsRegionRect.Max - (win->DC.CursorPos - win->Pos + ImVec2(1.f,1.f));
 
-  if (!ItemAdd(*vrect, &id))
+  if (!ItemAdd(*vrect, id))
       return false;
 
   float x = vrect->Max.x - vrect->Min.x;
@@ -293,7 +293,7 @@ bool ImGui::InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* 
     ImVec2 size = CalcItemSize(size_arg, 0.0f, 0.0f);
     const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
     ItemSize(bb);
-    if (!ItemAdd(bb, &id))
+    if (!ItemAdd(bb, id))
         return false;
 
     bool pressed = ButtonBehavior(bb, id, hovered, held);

@@ -94,6 +94,7 @@ static void DialogPreferences(bool *p_open){
     if (BeginDock("Preferences",p_open)){
       // Filter box
       ImGuiTextFilter Filter;
+      AlignTextToFramePadding();
       Text("Filter");
       SameLine();
       Filter.Draw("",-1.f);

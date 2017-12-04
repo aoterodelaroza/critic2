@@ -500,16 +500,16 @@ void Dock::focusContainer(){
   // The container (or the root container, if available) is being moved
   if (!IsAnyItemActive() && !IsAnyItemHovered() && g->IO.MouseClicked[0]){
     if (this->root){
-      g->MovedWindow = this->root->window;
-      g->MovedWindowMoveId = this->root->window->RootWindow->MoveId;
+      g->MovingWindow = this->root->window;
+      g->MovingWindowMoveId = this->root->window->RootWindow->MoveId;
     } else {
-      g->MovedWindow = this->window;
-      g->MovedWindowMoveId = this->window->RootWindow->MoveId;
+      g->MovingWindow = this->window;
+      g->MovingWindowMoveId = this->window->RootWindow->MoveId;
     }
     if (this->currenttab)
-      SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
+      SetActiveID(g->MovingWindowMoveId, this->currenttab->window->RootWindow);
     else
-      SetActiveID(g->MovedWindowMoveId, this->window->RootWindow);
+      SetActiveID(g->MovingWindowMoveId, this->window->RootWindow);
   }
 }
 
@@ -527,12 +527,12 @@ void Dock::liftContainer(){
   this->hoverable = false;
   this->pos = GetMousePos() - ImVec2(0.5*this->size.x,min(getTabHeight(),0.2f*this->size.y));
   ClearActiveID();
-  g->MovedWindow = this->window;
-  g->MovedWindowMoveId = this->window->RootWindow->MoveId;
+  g->MovingWindow = this->window;
+  g->MovingWindowMoveId = this->window->RootWindow->MoveId;
   if (this->currenttab)
-    SetActiveID(g->MovedWindowMoveId, this->currenttab->window->RootWindow);
+    SetActiveID(g->MovingWindowMoveId, this->currenttab->window->RootWindow);
   else
-    SetActiveID(g->MovedWindowMoveId, this->window->RootWindow);
+    SetActiveID(g->MovingWindowMoveId, this->window->RootWindow);
 }
 
 void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
@@ -1433,9 +1433,9 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
       dockwin[dd->window] = dd;
-      g->MovedWindow = dd->window;
-      g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
-      SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
+      g->MovingWindow = dd->window;
+      g->MovingWindowMoveId = dd->window->RootWindow->MoveId;
+      SetActiveID(g->MovingWindowMoveId, dd->window->RootWindow);
       dd->parent = nullptr;
       dd->root = nullptr;
     } else {
