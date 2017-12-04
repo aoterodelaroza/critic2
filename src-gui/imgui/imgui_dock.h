@@ -239,7 +239,7 @@ namespace ImGui{
 
     // Draw the tab bar of a container. On output, erased is true if a
     // tab in this container was closed.
-    void drawTabBar(bool *erased=nullptr);
+    void drawTabBar(Dock **erased=nullptr);
     // Hide this dock docked to a container on an inactive tab.
     void hideTabWindow();
     // Show this dock docked to a container (dcont) on an active
@@ -248,7 +248,7 @@ namespace ImGui{
     // Draw the contents of a container. If noresize, do not show the
     // resize grip. On output, erased is true if a tab in this
     // container was closed.
-    void drawContainer(bool noresize, bool *erased=nullptr);
+    void drawContainer(bool noresize, Dock **erased=nullptr);
 
     // Traverse the tree of this root container and return its minimum
     // size based on its contents. Recursive.
@@ -285,7 +285,7 @@ namespace ImGui{
     // not enough if the window is docked, because the container has to
     // be modified, too. Therefore, CloseDock() should always be used
     // when setting p_open = false.
-    void CloseDock();
+    void closeDock();
   }; // struct Dock
 
   // Create a root container with the given label. If p_open, with a
@@ -310,7 +310,7 @@ namespace ImGui{
   // oncedock, dock to that container in the first pass. Returns true
   // if the window is open and accepts items (same as ImGui's
   // Begin). The EndDock() function needs to be used after all items
-  // have been added. See CloseDock() note above for how to set
+  // have been added. See closeDock() note above for how to set
   // p_open externally to close a dock.
   bool BeginDock(const char* label, bool* p_open=nullptr, ImGuiWindowFlags extra_flags=0, 
                   DockFlags dock_flags=0, Dock *oncedock=nullptr);

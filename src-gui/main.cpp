@@ -206,6 +206,9 @@ int main(int argc, char *argv[]){
       dstyledock->setDetachedDockSize(300.f,300.f);
     }
 
+    // xxxx for debugging the dock system xxxx //
+    // PrintDock__();
+
     // Render and swap
     Render();
     glfwSwapBuffers(rootwin);

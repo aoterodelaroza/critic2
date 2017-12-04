@@ -71,7 +71,7 @@ void CloseAllDialogs(){
   for (int i = 0; i < DLG_LAST; i++){
     dlgopen[i] = false;
     if (dlgdock[i])
-      dlgdock[i]->CloseDock();
+      dlgdock[i]->closeDock();
   }
   dlglastopen = DLG_LAST;
 }
@@ -80,7 +80,7 @@ void CloseLastDialog(){
   if (dlglastopen != DLG_LAST){
     dlgopen[dlglastopen] = false;
     if (dlgdock[dlglastopen])
-      dlgdock[dlglastopen]->CloseDock();
+      dlgdock[dlglastopen]->closeDock();
   }
   dlglastopen = DLG_LAST;
 }

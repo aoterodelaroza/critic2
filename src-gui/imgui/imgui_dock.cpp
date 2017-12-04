@@ -604,7 +604,7 @@ void Dock::unDock(){
   this->collapsed = this->collapsed_saved;
   this->flags = this->flags_saved;
   this->pos = this->pos_saved;
-  // this->parent = nullptr; // keep the parent around for killContainerMaybe in BeginDock
+  this->parent = nullptr;
   this->root = nullptr;
   this->raiseOrSinkDock();
 }
@@ -685,7 +685,7 @@ void Dock::killContainerMaybe(){
   }
 }
 
-void Dock::drawTabBar(bool *erased/*=nullptr*/){
+void Dock::drawTabBar(Dock **erased/*=nullptr*/){
   ImGuiContext *g = GetCurrentContext();
   const float tabheight = getTabHeight();
   const float maxtabwidth = getTabMaxWidth();
@@ -747,8 +747,11 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
         goto erase_this_tab;
       }
       // closed click kills the tab
-      if (dd->p_open && !*(dd->p_open))
+      if (dd->p_open && !*(dd->p_open)){
+	dd->unDock();
+	dd->status = Dock::Status_Closed;
         goto erase_this_tab;
+      }
 
       ddlast = dd;
       continue;
@@ -768,7 +771,6 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
         this->currenttab = this->stack.front();
         this->currenttab->parent = this;
       }
-      dderase->CloseDock();
     }
     // last item in the tabsx
     this->tabsx.push_back(GetItemRectMax().x);
@@ -781,7 +783,7 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
   PopStyleVar();
   PopStyleColor();
 
-  if (erased) *erased = (dderase != 0);
+  if (erased && dderase) *erased = this;
 }
 
 void Dock::hideTabWindow(){
@@ -809,7 +811,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
     this->flags = this->flags | ImGuiWindowFlags_NoResize;
 }
 
-void Dock::drawContainer(bool noresize, bool *erased/*=nullptr*/){
+void Dock::drawContainer(bool noresize, Dock **erased/*=nullptr*/){
   if (!(this->type == Dock::Type_Container)) return;
 
   if (this->stack.size() > 0){
@@ -1079,11 +1081,9 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount
       }
 
       // write down the rest of the variables and end the window
-      bool berased = false;
       dockwin[this->window] = this;
-      this->drawContainer(noresize,&berased);
+      this->drawContainer(noresize,erased);
       this->tabdz = this->tabbarrect.Max.y - this->pos.y;
-      if (berased) *erased = this;
       End();
       if (transparentframe)
         PopStyleColor();
@@ -1107,21 +1107,29 @@ void Dock::setDetachedDockSize(float x, float y){
   this->size_saved.y = y;
 }
 
-void Dock::CloseDock() {
+void Dock::closeDock() {
   if (this->status == Dock::Status_Docked){
     Dock *dpar = this->parent;
     this->unDock();
     if (dpar){
+      Dock *ddlast = nullptr;
+      for (auto dd : dpar->stack) {
+	if (dd == this)
+	  break;
+	ddlast = dd;
+      }
       dpar->stack.remove(this);
       if (dpar->currenttab == this){
       	if (dpar->stack.size())
-      	  dpar->currenttab = dpar->stack.front();
+	  if (ddlast)
+	    dpar->currenttab = ddlast;
+	  else
+	    dpar->currenttab = dpar->stack.front();
       	else
       	  dpar->currenttab = nullptr;
       }
       dpar->killContainerMaybe();
     }
-    this->parent = nullptr;
     this->status = Dock::Status_Closed;
   }
 }
@@ -1204,6 +1212,10 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   Dock *lift = nullptr, *erased = nullptr;
   if (dd->status != Dock::Status_Closed)
     dd->drawRootContainer(dd,&lift,&erased);
+
+  // Clean up automatic containers
+  if (erased)
+    erased->killContainerMaybe();
 
   // Lift any container?
   if (dd->status != Dock::Status_Closed && lift)
@@ -1324,7 +1336,8 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd->clearContainer();
 
   // Draw the container elements
-  dd->drawContainer(extra_flags & ImGuiWindowFlags_NoResize);
+  Dock *erased;
+  dd->drawContainer(extra_flags & ImGuiWindowFlags_NoResize,&erased);
   dd->tabdz = dd->tabbarrect.Max.y - dd->pos.y;
 
   // If the container is clicked, set the correct hovered/moved flags
@@ -1339,6 +1352,10 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   End();
   if (transparentframe)
     PopStyleColor();
+
+  // Try to kill the container if a tab has just been erased
+  if (erased)
+    erased->killContainerMaybe();
 
   return dd;
 }
@@ -1419,8 +1436,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
       SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
-      if (dd->parent)
-	dd->parent->killContainerMaybe();
       dd->parent = nullptr;
       dd->root = nullptr;
     } else {
@@ -1428,8 +1443,6 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
       dockwin[dd->window] = dd;
-      if (dd->parent)
-	dd->parent->killContainerMaybe();
       dd->parent = nullptr;
       dd->root = nullptr;
     }
@@ -1541,12 +1554,7 @@ void ImGui::PrintDock__() {
   // }
 
   for (auto dock : dockht){
-    Text("label=%s transparent=%d\n",dock.second->label,dock.second->dockflags & Dock::DockFlags_Transparent);
-    // Text("key=%s id=%d label=%s\n", dock.first.c_str(),dock.second->label);
-    // Text("pos=(%f,%f) size=(%f,%f)\n",dock.second->pos.x,dock.second->pos.y,dock.second->size.x,dock.second->size.y);
-    // Text("type=%d status=%d list_size=%d\n", dock.second->type, dock.second->status, dock.second->stack.size());
-    // if (dock.second->p_open)
-    //   Text("p_open=%d\n", *(dock.second->p_open));
+    Text("label=%s id=%p parent=%p\n",dock.second->label,dock.second,dock.second->parent);
     Separator();
   }
 
