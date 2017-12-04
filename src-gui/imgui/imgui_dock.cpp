@@ -1209,10 +1209,6 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
   if (dd->status != Dock::Status_Closed && lift)
     lift->liftContainer();
 
-  // Any container has erased tabs?
-  // if (dd->status != Dock::Status_Closed && erased)
-  // erased->killContainerMaybe();
-
   return dd;
 }
 

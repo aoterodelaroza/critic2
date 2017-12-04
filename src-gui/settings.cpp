@@ -30,6 +30,3 @@ void error_callback(int error, const char* description){
   fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
-void quit_callback(void *win){
-  glfwSetWindowShouldClose((GLFWwindow*) win, GLFW_TRUE);
-}

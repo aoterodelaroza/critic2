@@ -63,7 +63,6 @@ int main(int argc, char *argv[]){
 
   // Initialize default keybindings and callbacks
   RegisterDefaultBindings();
-  RegisterCallback(BIND_QUIT,(void *) quit_callback,(void *) rootwin);
 
   // Initialize critic2
   c2::gui_initialize((void *) rootwin);
@@ -110,12 +109,13 @@ int main(int argc, char *argv[]){
     ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
 
+    // Quit key binding
+    if (IsBindEvent(BIND_QUIT,false))
+      glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
+
     // Background
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-
-    // process callback for keyboard events
-    ProcessCallbacks();
 
     // Main menu bar
     if (BeginMainMenuBar()){
@@ -205,9 +205,6 @@ int main(int argc, char *argv[]){
       dinfodock->setDetachedDockSize(300.f,300.f);
       dstyledock->setDetachedDockSize(300.f,300.f);
     }
-
-    // xxxx //
-    PrintDock__();
 
     // Render and swap
     Render();

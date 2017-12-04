@@ -56,10 +56,6 @@ const float tooltip_maxwidth = 450.f; // in pixels
 
 // Callbacks
 void error_callback(int error, const char* description);
-void quit_callback(void *win);
-
-// Dialogs
-void DialogPreferences(bool *p_open);
 
 #endif SETTINGS_H
 

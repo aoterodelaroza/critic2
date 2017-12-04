@@ -29,8 +29,6 @@ using namespace ImGui;
 
 static int modbind[BIND_MAX]; // bind -> mod
 int keybind[BIND_MAX]; // bind -> key
-static void *eventbind[BIND_MAX]; // bind -> event
-static void *databind[BIND_MAX]; // bind -> data
 static map<pair<int,int>,int> keymap = {}; // [key,mod] -> bind
 
 static bool IsModPressed(int mod){
@@ -46,8 +44,6 @@ void RegisterDefaultBindings(){
   for (int i = 0; i < BIND_MAX; i++){
     modbind[i] = NOMOD;
     keybind[i] = NOKEY;
-    eventbind[i] = nullptr;
-    databind[i] = nullptr;
   }
 
   // Default keybindings
@@ -66,21 +62,6 @@ void RegisterDefaultBindings(){
   for (int i = 0; i < BIND_MAX; i++){
     if (keybind[i] != NOKEY && keybind[i] <= GLFW_KEY_LAST)
       keymap[make_pair(keybind[i],modbind[i])] = i;
-  }
-}
-
-void RegisterCallback(int bind,void *callback,void *data){
-  eventbind[bind] = callback;
-  databind[bind] = data;
-}
-
-void ProcessCallbacks(){
-  ImGuiIO& io = GetIO();
-
-  for (auto it=keymap.begin(); it != keymap.end(); it++){
-    if (eventbind[it->second] && IsKeyPressed(it->first.first,false) && IsModPressed(it->first.second)){
-      ((void (*)(void *)) eventbind[it->second])(databind[it->second]);
-    }
   }
 }
 
