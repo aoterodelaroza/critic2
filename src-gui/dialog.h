@@ -1,3 +1,4 @@
+// -*- c++ -*-
 /*
   Copyright (c) 2017 Alberto Otero de la Roza
   <aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
@@ -19,17 +20,21 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "settings.h"
-#include <GLFW/glfw3.h>
+#ifndef DIALOG_H
+#define DIALOG_H
 
-using namespace ImGui;
+// List of known one-only dialogs
+enum Dialog_{
+  DLG_Preferences,
+  DLG_LAST,
+};
 
-// Some global callbacks //
+void OpenDialog(Dialog_ dialog);
 
-void error_callback(int error, const char* description){
-  fprintf(stderr, "Error %d: %s\n", error, description);
-}
+void DialogDispatch();
 
-void quit_callback(void *win){
-  glfwSetWindowShouldClose((GLFWwindow*) win, GLFW_TRUE);
-}
+void CloseAllDialogs();
+
+void CloseLastDialog();
+
+#endif

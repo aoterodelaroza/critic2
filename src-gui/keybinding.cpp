@@ -53,6 +53,8 @@ void RegisterDefaultBindings(){
   // Default keybindings
   keybind[BIND_QUIT] = GLFW_KEY_Q;
   modbind[BIND_QUIT] = GLFW_MOD_CONTROL;
+  keybind[BIND_CLOSE_LAST_DIALOG] = GLFW_KEY_ESCAPE;
+  keybind[BIND_CLOSE_ALL_DIALOGS] = GLFW_KEY_DELETE;
 
   // Default mouse bindings
   keybind[BIND_NAV_ROTATE] = GLFW_MOUSE_LEFT;

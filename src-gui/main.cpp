@@ -35,6 +35,7 @@
 #include "shader.h"
 #include "shapes.h"
 #include "view.h"
+#include "dialog.h"
 #include "keybinding.h"
 
 // Global variables: fonts (see settings.h)
@@ -109,18 +110,23 @@ int main(int argc, char *argv[]){
     ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
 
-    // process callback for keyboard events
-    ProcessCallbacks();
-
     // Background
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // process callback for keyboard events
+    ProcessCallbacks();
 
     // Main menu bar
     if (BeginMainMenuBar()){
       if (BeginMenu("File")){
         if (MenuItem("Quit",BindKeyName(BIND_QUIT).c_str()))
 	  glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
+        EndMenu();
+      }
+      if (BeginMenu("Edit")){
+        if (MenuItem("Preferences..."))
+	  OpenDialog(DLG_Preferences);
         EndMenu();
       }
       SameLine(0, GetWindowSize().x-250.);
@@ -177,6 +183,9 @@ int main(int argc, char *argv[]){
       EndDock();
     }
 
+    // Menu dialog dispatch
+    DialogDispatch();
+
     // Dock everything in the first pass
     static bool first = true;
     if (first){
@@ -184,7 +193,6 @@ int main(int argc, char *argv[]){
       droot->newDockRoot(dviewcont,-1);
       dviewcont->newDock(dstyledock);
       dviewcont->newDock(mainview->dock);
-      mainview->dock->size_saved = ImVec2(320.f,320.f);
 
       Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
       dviewcont->setSlidingBarPosition(4,0.2f);
@@ -192,10 +200,14 @@ int main(int argc, char *argv[]){
       dtmp->newDockRoot(dinfodock,3);
       dtmp->setSlidingBarPosition(3,0.7f);
 
+      mainview->dock->setDetachedDockSize(320.f,320.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
       dinfodock->setDetachedDockSize(300.f,300.f);
       dstyledock->setDetachedDockSize(300.f,300.f);
     }
+
+    // xxxx //
+    PrintDock__();
 
     // Render and swap
     Render();

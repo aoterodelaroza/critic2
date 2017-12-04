@@ -43,12 +43,14 @@
 #define GLFW_MOUSE_BUTTON4_DOUBLE GLFW_KEY_LAST+10
 #define GLFW_MOUSE_SCROLL         GLFW_KEY_LAST+11
 
-#define BIND_QUIT          0 // Quit the program
-#define BIND_NAV_ROTATE    1 // Rotate the camera (navigation)
-#define BIND_NAV_TRANSLATE 2 // Camera pan (navigation)
-#define BIND_NAV_ZOOM      3 // Camera zoom (navigation)
-#define BIND_NAV_RESET     4 // Reset the view (navigation)
-#define BIND_MAX           5 // Total number of BIND actions
+#define BIND_QUIT              0 // Quit the program
+#define BIND_CLOSE_LAST_DIALOG 1 // Closes the last window
+#define BIND_CLOSE_ALL_DIALOGS 2 // Closes all windows
+#define BIND_NAV_ROTATE        3 // Rotate the camera (navigation)
+#define BIND_NAV_TRANSLATE     4 // Camera pan (navigation)
+#define BIND_NAV_ZOOM          5 // Camera zoom (navigation)
+#define BIND_NAV_RESET         6 // Reset the view (navigation)
+#define BIND_MAX               7 // Total number of BIND actions
 
 // key binds accessible to other files (to check for scroll)
 extern int keybind[BIND_MAX]; // bind -> key

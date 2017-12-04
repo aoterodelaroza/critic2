@@ -768,6 +768,7 @@ void Dock::drawTabBar(bool *erased/*=nullptr*/){
         this->currenttab = this->stack.front();
         this->currenttab->parent = this;
       }
+      dderase->CloseDock();
     }
     // last item in the tabsx
     this->tabsx.push_back(GetItemRectMax().x);
@@ -1106,6 +1107,25 @@ void Dock::setDetachedDockSize(float x, float y){
   this->size_saved.y = y;
 }
 
+void Dock::CloseDock() {
+  if (this->status == Dock::Status_Docked){
+    Dock *dpar = this->parent;
+    this->unDock();
+    if (dpar){
+      dpar->stack.remove(this);
+      if (dpar->currenttab == this){
+      	if (dpar->stack.size())
+      	  dpar->currenttab = dpar->stack.front();
+      	else
+      	  dpar->currenttab = nullptr;
+      }
+      dpar->killContainerMaybe();
+    }
+    this->parent = nullptr;
+    this->status = Dock::Status_Closed;
+  }
+}
+
 //xx// Public interface //xx//
 
 Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowFlags extra_flags /*= 0*/,
@@ -1190,8 +1210,8 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
     lift->liftContainer();
 
   // Any container has erased tabs?
-  if (dd->status != Dock::Status_Closed && erased)
-    erased->killContainerMaybe();
+  // if (dd->status != Dock::Status_Closed && erased)
+  // erased->killContainerMaybe();
 
   return dd;
 }
@@ -1403,7 +1423,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       g->MovedWindow = dd->window;
       g->MovedWindowMoveId = dd->window->RootWindow->MoveId;
       SetActiveID(g->MovedWindowMoveId, dd->window->RootWindow);
-      dd->parent->killContainerMaybe();
+      if (dd->parent)
+	dd->parent->killContainerMaybe();
       dd->parent = nullptr;
       dd->root = nullptr;
     } else {
@@ -1411,7 +1432,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       collapsed = !Begin(label,p_open,flags);
       dd->window = GetCurrentWindow();
       dockwin[dd->window] = dd;
-      dd->parent->killContainerMaybe();
+      if (dd->parent)
+	dd->parent->killContainerMaybe();
       dd->parent = nullptr;
       dd->root = nullptr;
     }
