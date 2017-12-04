@@ -51,6 +51,7 @@ struct View
   bool updateTexSize();
 
   // camera methods
+  void resetView();
   void updateProjection();
   void updateView();
   void updateWorld();

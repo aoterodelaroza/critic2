@@ -77,16 +77,12 @@ View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
   // create the texture
   aview->createTex(FBO_tex_a);
 
-  // initialize the camera vectors
-  aview->v_pos    = {0.f,0.f,10.f};
-  aview->v_front  = {0.f,0.f,-1.f};
-  aview->v_up     = {0.f,1.f,0.f};
-
-  if (iscene > 0){
-    // set the camera to fit the scene size
+  // scene pointers
+  if (iscene > 0)
     c2::set_scene_pointers(iscene);
-    aview->v_pos = {0.f,0.f,4.f*c2::scenerad};
-  }
+
+  // initialize the camera vectors
+  aview->resetView();
 
   // initialize the camera matrices
   aview->updateProjection();  
@@ -256,6 +252,10 @@ void View::Update(){
       float rgb[4] = {0.5f,0.f,0.f,1.f};
       drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb),icylres,false);
     }
+
+    vec3 v0 = vec3(0.f,0.f,0.f);
+    vec4 rgb = {1.0f,1.0f,1.0f,0.4f};
+    drawSphere(v0,c2::scenerad,rgb,3,true);
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -390,16 +390,7 @@ bool View::Navigate(bool hover){
 
   // double click
   if (hover && IsBindEvent(BIND_NAV_RESET,false)){
-    if (iscene > 0)
-      v_pos = {0.f,0.f,4.f*c2::scenerad};
-    else
-      v_pos = {0.f,0.f,10.f};
-    v_front = {0.f,0.f,-1.f};
-    v_up    = {0.f,1.f,0.f};
-    m_world = mat4(1.0f);
-    crot0_l = mat4(1.0f);
-    llock = false;
-    rlock = false;
+    resetView();
     if (isortho)
       updateprojection = true;
     updateview = true;
@@ -467,9 +458,22 @@ bool View::updateTexSize(){
   return redraw;
 }
 
+void View::resetView(){
+  v_front  = {0.f,0.f,-1.f};
+  v_up     = {0.f,1.f,0.f};
+  if (iscene > 0)
+    v_pos[2] = 1.25f * c2::scenerad / (tan(0.5f*radians(zfov)));
+  else
+    v_pos = {0.f,0.f,10.f};
+  m_world = mat4(1.0f);
+  crot0_l = mat4(1.0f);
+  llock = false;
+  rlock = false;
+}
+
 void View::updateProjection(){
   if (isortho){
-    float hw2 = tan(0.5f*zfov) * v_pos[2];
+    float hw2 = tan(0.5f*radians(zfov)) * v_pos[2];
     m_projection = ortho(-hw2,hw2,-hw2,hw2,znear,1000.f);
   } else {
     m_projection = infinitePerspective(radians(zfov),1.0f,znear);
