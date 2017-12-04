@@ -26,8 +26,6 @@
 #include <GLFW/glfw3.h>
 #include <string>
 
-using namespace std;
-
 // No key
 #define NOKEY 0
 #define NOMOD 0x0000
@@ -63,6 +61,6 @@ void ProcessCallbacks();
 
 bool IsBindEvent(int bind,bool held);
 
-string BindKeyName(int event);
+std::string BindKeyName(int event);
 
 #endif

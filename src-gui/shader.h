@@ -12,9 +12,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 
-using namespace std;
-using namespace glm;
-
 class Shader{
 public:
   GLuint id;

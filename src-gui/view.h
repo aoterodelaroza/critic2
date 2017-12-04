@@ -33,9 +33,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 
-using namespace std;
-using namespace glm;
-
 struct View
 {
   // mouse behavior enum
@@ -57,8 +54,8 @@ struct View
   void updateProjection();
   void updateView();
   void updateWorld();
-  vec3 cam_world_coords();
-  vec3 cam_view_coords();
+  glm::vec3 cam_world_coords();
+  glm::vec3 cam_view_coords();
 
   // coordinate transformations
   // pos: mouse coordinates
@@ -66,45 +63,45 @@ struct View
   // ntexpos: normalized texture coordinates (bl:-1,-1 | ur:1,1)
   // world: world (scene) coordinates
   // view: view (camera) coordinates
-  void pos_to_ntexpos(vec2 &pos); 
-  void ntexpos_to_pos(vec2 &pos);
-  void pos_to_texpos(vec2 &pos);
-  void texpos_to_pos(vec2 &pos);
-  void texpos_to_ntexpos(vec2 &pos);
-  void ntexpos_to_texpos(vec2 &pos);
-  vec2 world_to_texpos(vec3 pos);
-  vec3 texpos_to_world(vec2 pos, float dist=-1.f); // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
-  vec2 world_to_ntexpos(vec3 pos);
-  vec3 ntexpos_to_world(vec2 pos, float dist=-1.f);  // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
-  vec2 view_to_texpos(vec3 pos, float *depth); // returns depth in the second argument
-  vec3 texpos_to_view(vec2 pos, float depth); 
-  float texpos_viewdepth(vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
+  void pos_to_ntexpos(glm::vec2 &pos); 
+  void ntexpos_to_pos(glm::vec2 &pos);
+  void pos_to_texpos(glm::vec2 &pos);
+  void texpos_to_pos(glm::vec2 &pos);
+  void texpos_to_ntexpos(glm::vec2 &pos);
+  void ntexpos_to_texpos(glm::vec2 &pos);
+  glm::vec2 world_to_texpos(glm::vec3 pos);
+  glm::vec3 texpos_to_world(glm::vec2 pos, float dist=-1.f); // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
+  glm::vec2 world_to_ntexpos(glm::vec3 pos);
+  glm::vec3 ntexpos_to_world(glm::vec2 pos, float dist=-1.f);  // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
+  glm::vec2 view_to_texpos(glm::vec3 pos, float *depth); // returns depth in the second argument
+  glm::vec3 texpos_to_view(glm::vec2 pos, float depth); 
+  float texpos_viewdepth(glm::vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
   
   // draw shapes
-  void drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend);
-  void drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb, int res, bool blend);
+  void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
+  void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
 
   // camera matrices and vectors
   bool iswire = false; // use wire
   bool isortho = false; // is ortho or perspective?
-  vec3 v_pos = {}; // position vector
-  vec3 v_front = {}; // front vector
-  vec3 v_up = {}; // up vector
-  mat4 m_projection = mat4(1.0); // projection
-  mat4 m_view = mat4(1.0); // view
-  mat4 m_world = mat4(1.0); // world
+  glm::vec3 v_pos = {}; // position vector
+  glm::vec3 v_front = {}; // front vector
+  glm::vec3 v_up = {}; // up vector
+  glm::mat4 m_projection = glm::mat4(1.0); // projection
+  glm::mat4 m_view = glm::mat4(1.0); // view
+  glm::mat4 m_world = glm::mat4(1.0); // world
 
   // saved states for the mouse interaction
   MouseBehavior_ mousebehavior = MB_Navigation; // mouse behavior
-  vec2 mposlast; // last mouse position
+  glm::vec2 mposlast; // last mouse position
   bool rlock = false; // dragging
-  vec3 mpos0_r; // saved mouse position (for dragging)
-  vec3 cpos0_r; // saved camera position in view coords (for dragging)
+  glm::vec3 mpos0_r; // saved mouse position (for dragging)
+  glm::vec3 cpos0_r; // saved camera position in view coords (for dragging)
 
   bool llock = false; // lmb is dragging
-  vec3 mpos0_l; // saved mouse position (for rotating)
-  vec3 cpos0_l; // saved camera position in view coords (for rotating)
-  mat4 crot0_l; // saved world matrix (for rotating)
+  glm::vec3 mpos0_l; // saved mouse position (for rotating)
+  glm::vec3 cpos0_l; // saved camera position in view coords (for rotating)
+  glm::mat4 crot0_l; // saved world matrix (for rotating)
 
   bool slock = false; // scroll dragging
   float mpos0_s; // mouse y position (for scrolling using keys)

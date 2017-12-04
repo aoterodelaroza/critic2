@@ -33,6 +33,14 @@ static void *eventbind[BIND_MAX]; // bind -> event
 static void *databind[BIND_MAX]; // bind -> data
 static map<pair<int,int>,int> keymap = {}; // [key,mod] -> bind
 
+static bool IsModPressed(int mod){
+  ImGuiIO& io = GetIO();
+  return (!(mod & GLFW_MOD_SHIFT) != io.KeyShift) &&
+         (!(mod & GLFW_MOD_CONTROL) != io.KeyCtrl) &&
+         (!(mod & GLFW_MOD_ALT) != io.KeyAlt) &&
+	 (!(mod & GLFW_MOD_SUPER) != io.KeySuper);
+}
+
 void RegisterDefaultBindings(){
   // Initialize to no keys and null callbacks
   for (int i = 0; i < BIND_MAX; i++){
@@ -68,12 +76,7 @@ void ProcessCallbacks(){
   ImGuiIO& io = GetIO();
 
   for (auto it=keymap.begin(); it != keymap.end(); it++){
-    if (eventbind[it->second] &&
-	IsKeyPressed(it->first.first,false) && 
-	(!(it->first.second & GLFW_MOD_SHIFT) != io.KeyShift) &&
-	(!(it->first.second & GLFW_MOD_CONTROL) != io.KeyCtrl) &&
-	(!(it->first.second & GLFW_MOD_ALT) != io.KeyAlt) &&
-	(!(it->first.second & GLFW_MOD_SUPER) != io.KeySuper)){
+    if (eventbind[it->second] && IsKeyPressed(it->first.first,false) && IsModPressed(it->first.second)){
       ((void (*)(void *)) eventbind[it->second])(databind[it->second]);
     }
   }
@@ -81,8 +84,9 @@ void ProcessCallbacks(){
 
 bool IsBindEvent(int bind, bool held){
   int key = keybind[bind];
+  int mod = modbind[bind];
 
-  if (key == NOKEY)
+  if (key == NOKEY || !IsModPressed(mod))
     return false;
   else if (key <= GLFW_KEY_LAST)
     if (!held)
@@ -134,9 +138,26 @@ bool IsBindEvent(int bind, bool held){
 string BindKeyName(int bind){
   string ckey = "";
   if (keybind[bind] > 0){
-    ckey = string(glfwGetKeyName(keybind[bind],0));
-    for (int i = 0; i < ckey.length(); i++)
-      ckey[i] = toupper(ckey[i]);
+    const char *key = glfwGetKeyName(keybind[bind],0);
+    if (key){
+      ckey = string(key);
+      for (int i = 0; i < ckey.length(); i++)
+	ckey[i] = toupper(ckey[i]);
+    } else {
+      switch(keybind[bind]){
+      case GLFW_MOUSE_LEFT: ckey = "Left Click"; break;
+      case GLFW_MOUSE_LEFT_DOUBLE: ckey = "Double Click"; break;
+      case GLFW_MOUSE_RIGHT: ckey = "Right Click"; break;
+      case GLFW_MOUSE_RIGHT_DOUBLE: ckey = "Double Right Click"; break;
+      case GLFW_MOUSE_MIDDLE: ckey = "Middle Click"; break;
+      case GLFW_MOUSE_MIDDLE_DOUBLE: ckey = "Double Middle Click"; break;
+      case GLFW_MOUSE_BUTTON3: ckey = "Button3 Click"; break;
+      case GLFW_MOUSE_BUTTON3_DOUBLE: ckey = "Double Button3 Click"; break;
+      case GLFW_MOUSE_BUTTON4: ckey = "Button4 Click"; break;
+      case GLFW_MOUSE_BUTTON4_DOUBLE: ckey = "Double Button4 Click"; break;
+      case GLFW_MOUSE_SCROLL: ckey = "Mouse Wheel"; break;
+      }
+    }
   }
 
   return string((modbind[bind] & GLFW_MOD_SHIFT)?"Shift+":"") +

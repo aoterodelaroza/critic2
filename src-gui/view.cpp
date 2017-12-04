@@ -21,6 +21,7 @@
 
 #include <list>
 #include <algorithm>
+#include <sstream>
 
 #include "imgui/font_glyphs.h"
 #include "imgui/imgui.h"
@@ -34,9 +35,36 @@
 
 using namespace ImGui;
 using namespace std;
+using namespace glm;
 
 // A linked list for all current views.
 static list<View*> viewlist;
+
+// Create a tooltip label
+static string view_tooltip_label(int id){
+  stringstream str;
+  
+  switch(id){
+  case 0:
+    str << "Navigate\n\n" 
+	<< BindKeyName(BIND_NAV_ROTATE) << ": Rotate\n"
+        << BindKeyName(BIND_NAV_TRANSLATE) << ": Translate\n"
+	<< BindKeyName(BIND_NAV_ZOOM) << ": Zoom\n"
+	<< BindKeyName(BIND_NAV_RESET) << ": Reset the view";
+    break;
+  case 1:  str << "Select atoms and bonds"; break;
+  case 2:  str << "Manipulate angles"; break;
+  case 3:  str << "Measure"; break;
+  case 4:  str << "Build"; break;
+  case 5:  str << "Align"; break;
+  case 6:  str << "Preferences"; break;
+  case 7:  str << "Atom labels"; break;
+  case 8:  str << "Save"; break;
+  case 9:  str << "Query"; break;
+  case 10: str << "Close"; break;
+  };
+  return str.str();
+}
 
 View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
   View *aview = new View;
@@ -101,19 +129,6 @@ void View::Draw(){
 			       ICON_SM_COMPASS_ANGLE,ICON_SM_RULER,ICON_SM_PENCIL,
 			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
 			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
-    char *buttontip[nicon] = {
-      "Navigate\n\nLeft: Rotate\nRight: Translate\nMouse wheel: Zoom\nDouble click: Reset the view",
-      "Select atoms and bonds",
-      "Manipulate angles",
-      "Measure",
-      "Build",
-      "Align",
-      "Preferences",
-      "Atom labels",
-      "Save",
-      "Query",
-      "Close",
-    };
     ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
     ImColor heldcolor = ImColor(0.7216f,0.5254,0.04314f);
     ImColor hovercolor = ImColor(0.8549f,0.6471f,0.1255f);
@@ -132,7 +147,7 @@ void View::Draw(){
       PushID(buttonchar[i]);
       SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
-      AttachTooltip(buttontip[i],tooltip_delay,tooltip_maxwidth,fontdefault);
+      AttachTooltip(view_tooltip_label(i).c_str(),tooltip_delay,tooltip_maxwidth,fontdefault);
       PopID();
     }
     PopFont();
