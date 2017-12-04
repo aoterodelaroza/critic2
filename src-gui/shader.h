@@ -5,9 +5,10 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include "imgui/gl3w.h"
 #include <iostream>
-#include "settings.h"
+#include <string>
+
+#include "imgui/gl3w.h"
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
@@ -89,12 +90,6 @@ public:
     glDeleteShader(fragment);
     // set the global variables
     glUseProgram(id); 
-    setVec3("lightPos",value_ptr(lightPos));
-    setVec3("lightColor",value_ptr(lightColor));
-    setFloat("ambient",ambient);
-    setFloat("diffuse",diffuse);
-    setFloat("specular",specular);
-    setInt("shininess",shininess);
   }
 
   void use() const{ 
@@ -122,21 +117,21 @@ public:
 
 private:
   // utility function for checking shader compilation/linking errors.
-  void checkCompileErrors(unsigned int shader, string type) const{
+  void checkCompileErrors(unsigned int shader, std::string type) const{
     int success;
     char infoLog[1024];
     if (type != "PROGRAM"){
       glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
       if (!success){
 	glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-	cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << endl << infoLog << endl;
+	std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << std::endl << infoLog << std::endl;
 	exit(EXIT_FAILURE);
       }
     } else {
       glGetProgramiv(shader, GL_LINK_STATUS, &success);
       if (!success){
 	glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-	cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << endl << infoLog << endl;
+	std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << std::endl << infoLog << std::endl;
 	exit(EXIT_FAILURE);
       }
     }

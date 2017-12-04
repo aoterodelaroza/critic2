@@ -24,7 +24,6 @@
 #define VIEW_H
 
 #include "imgui/imgui_dock.h"
-#include "shader.h"
 #include "imgui/gl3w.h"
 #include "settings.h"
 
@@ -39,6 +38,7 @@ struct View
   enum MouseBehavior_{MB_Navigation,MB_Pointer,MB_Angle,MB_Ruler,MB_Builder,MB_Alignment};
 
   // view methods
+  void SetDefaults();
   void Draw();
   void Update();
   void Delete();
@@ -82,6 +82,13 @@ struct View
   void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
   void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
 
+  // view settings
+  float resetd; // reset distance (scenerad)
+  float zfov; // field of view angle (degrees)
+  float bgrgb[4]; // background color
+  int isphres; // atom resolution
+  int icylres; // bond resolution
+
   // camera matrices and vectors
   bool iswire = false; // use wire
   bool isortho = false; // is ortho or perspective?
@@ -115,7 +122,6 @@ struct View
   GLuint FBOdepth; // framebuffer object depth buffers
   float FBO_atex; // side of the texture (pixels)
   float FBO_a; // side of the texture square used for rendering (pixels)
-  Shader *shader = nullptr; // pointer to the current shader
   char *title; // title
   int iscene = -1; // integer identifier of the associated scene
   ImGui::Dock *dock = nullptr; // dock
@@ -123,9 +129,15 @@ struct View
 };
   
 // Create a new view linked to scene iscene (0 for no scene).
-View *CreateView(char *title, Shader *shader, int iscene = 0);
+View *CreateView(char *title, int iscene = 0);
 
 // Draw all available views
 void DrawAllViews();
+
+// Force-update all views
+void ForceUpdateAllViews();
+
+// Set all views settings to default value 
+void SetDefaultAllViews();
 
 #endif

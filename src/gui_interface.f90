@@ -188,7 +188,10 @@ contains
        sc(1)%nbond = 0
        do i = 1, sc(1)%sy%c%ncel
           do j = 1, sc(1)%sy%c%nstar(i)%ncon
-             if (all(sc(1)%sy%c%nstar(i)%lcon == 0)) then
+             if (all(sc(1)%sy%c%nstar(i)%lcon(:,j) == 0)) then
+                idx1 = i
+                idx2 = sc(1)%sy%c%nstar(i)%idcon(j)
+                if (idx2 < i) cycle
                 sc(1)%nbond = sc(1)%nbond + 1
              end if
           end do
@@ -199,11 +202,11 @@ contains
        n = 0
        do i = 1, sc(1)%sy%c%ncel
           do j = 1, sc(1)%sy%c%nstar(i)%ncon
-             if (all(sc(1)%sy%c%nstar(i)%lcon == 0)) then
-                n = n + 1
+             if (all(sc(1)%sy%c%nstar(i)%lcon(:,j) == 0)) then
                 idx1 = i
                 idx2 = sc(1)%sy%c%nstar(i)%idcon(j)
                 if (idx2 < i) cycle
+                n = n + 1
                 sc(1)%bond(n)%r1 = sc(1)%sy%c%atcel(idx1)%r
                 sc(1)%bond(n)%r2 = sc(1)%sy%c%atcel(idx2)%r
                 iz1 = sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx1)%idx)%z
@@ -229,7 +232,7 @@ contains
           xmax = max(abs(sc(1)%bond(i)%r1),xmax)
           xmax = max(abs(sc(1)%bond(i)%r2),xmax)
        end do
-       sc(1)%srad = max(sqrt(dot_product(xmax,xmax)),10._c_float)
+       sc(1)%srad = max(sqrt(dot_product(xmax,xmax)),0.1_c_float)
     end if
 
   end subroutine open_file

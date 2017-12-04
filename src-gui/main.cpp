@@ -61,14 +61,15 @@ int main(int argc, char *argv[]){
   gl3wInit();
   glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
 
-  // Initialize default keybindings and callbacks
-  RegisterDefaultBindings();
-
-  // Initialize critic2
+   // Initialize critic2
   c2::gui_initialize((void *) rootwin);
 
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
+
+  // Initialize default settings and keybindings
+  DefaultSettings();
+  RegisterDefaultBindings();
 
   // GUI settings, merge icons from font awesome
   ImGuiIO& io = GetIO();
@@ -79,12 +80,11 @@ int main(int argc, char *argv[]){
   ImFontConfig icons_config; 
   icons_config.MergeMode = false; 
   icons_config.PixelSnapH = true;
+  icons_config.OversampleH = icons_config.OversampleV = 4;
   fontdefault = io.Fonts->AddFontDefault();
   fonticon = io.Fonts->AddFontFromMemoryCompressedBase85TTF(smallicons_compressed_data_base85, fonticon_size, &icons_config, icons_ranges);
 
   // Shader and opengl settings
-  Shader shader = {};
-  shader.use();
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
 
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
   CreateAndFillBuffers();
 
   // Create the main view 
-  View *mainview = CreateView("Main view",&shader,1);
+  View *mainview = CreateView("Main view",1);
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
@@ -215,6 +215,7 @@ int main(int argc, char *argv[]){
   c2::gui_end();
   DeleteBuffers();
   ShutdownDock();
+  delete shader;
   ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();
 

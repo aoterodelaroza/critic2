@@ -19,8 +19,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dialog.h"
 #include "imgui/imgui_dock.h"
+
+#include "dialog.h"
+#include "view.h"
+#include "settings.h"
 #include "keybinding.h"
 
 using namespace ImGui;
@@ -116,7 +119,97 @@ static void DialogPreferences(bool *p_open){
       BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()));
       Text(catname[catid]);
       Separator();
-      
+      if (catid == 0){
+	// General
+	if (TreeNode("Tooltips")){
+	  Checkbox("Enable tooltips", &tooltip_enabled);
+	  PushItemWidth(40); DragFloat("Tooltip delay (s)", &tooltip_delay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
+	  PushItemWidth(40); DragFloat("Tooltip maximum width (pixel)", &tooltip_maxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
+	  TreePop();
+	}
+      } else if (catid == 1){
+	// Views
+	if (TreeNode("Lighting")){
+	  // Views -> Lighting
+	  bool changed = false, anychanged = false;
+	  PushItemWidth(40 * 3); 
+	  changed |= DragFloat3("Light position", &(view_lightpos[0]), 0.1f, -FLT_MAX, FLT_MAX, "%.1f", 1.0f); 
+	  if (changed)
+	    shader->setVec3("lightPos",value_ptr(view_lightpos));
+	  anychanged |= changed;
+	  
+	  PushItemWidth(40 * 3); 
+	  changed |= DragFloat3("Light color", &(view_lightcolor[0]), 0.01f, 0.0, 1.0f, "%.2f", 1.0f); 
+	  if (changed)
+	    shader->setVec3("lightColor",value_ptr(view_lightcolor));
+	  anychanged |= changed;
+
+	  changed = false;
+	  PushItemWidth(40); 
+	  changed |= DragFloat("Ambient light intensity", &view_ambient, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
+	  if (changed)
+	    shader->setFloat("ambient",view_ambient);
+	  anychanged |= changed;
+
+	  changed = false;
+	  PushItemWidth(40); 
+	  changed |= DragFloat("Diffuse light intensity", &view_diffuse, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
+	  if (changed)
+	    shader->setFloat("diffuse",view_diffuse);
+	  anychanged |= changed;
+
+	  changed = false;
+	  PushItemWidth(40); 
+	  changed |= DragFloat("Specular light intensity", &view_specular, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
+	  if (changed)
+	    shader->setFloat("specular",view_specular);
+	  anychanged |= changed;
+
+	  changed = false;
+	  PushItemWidth(40); 
+	  changed |= DragInt("Light shininess", &view_shininess, 1.0f, 0.0f, FLT_MAX, "%.2f"); 
+	  if (changed)
+	    shader->setInt("shininess",view_shininess);
+	  anychanged |= changed;
+
+	  if (anychanged)
+	    ForceUpdateAllViews();
+	  TreePop();
+	}
+	if (TreeNode("Mouse sensitivity")){
+	  PushItemWidth(40); 
+	  DragFloat("Rotation mouse sensitivity", &view_mousesens_rot, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
+	  PushItemWidth(40); 
+	  DragFloat("Zoom mouse sensitivity", &view_mousesens_zoom, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
+	  TreePop();
+	}
+	if (TreeNode("Per-view settings (to be moved)")){
+	  bool changed = false;
+	  changed |= Checkbox("Wireframe rendering", &view_wireframe);
+	  changed |= Checkbox("Orthgonal projection", &view_orthogonal);
+	  PushItemWidth(40); 
+	  changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
+	  PushItemWidth(40); 
+	  changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.05f, 0.0f, FLT_MAX, "%.2f", 1.0f); 
+	  PushItemWidth(4*40); 
+	  changed |= DragFloat4("Background color", view_bgrgb, 0.01f, 0.0, 1.0f, "%.2f", 1.0f); 
+	  PushItemWidth(4*40); 
+	  changed |= DragInt("Atom resolution", &view_isphres, 1.0f, 0.0f, 3.0f, "%.2f"); 
+	  PushItemWidth(4*40); 
+	  changed |= DragInt("Bond resolution", &view_icylres, 0.0f, 0.0f, 0.0f, "%.2f"); 
+	  view_icylres = 0;
+
+	  if (changed)
+	    SetDefaultAllViews();
+	  TreePop();
+	}
+      } else if (catid == 2){
+	// Key bindings
+      } else if (catid == 3){
+	// Interface
+      } else if (catid == 4){
+	// Fonts
+      }
       EndChild();
 
       // Line at the bottom

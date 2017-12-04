@@ -66,42 +66,15 @@ static string view_tooltip_label(int id){
   return str.str();
 }
 
-View *CreateView(char *title, Shader *shader, int iscene/*=0*/){
-  View *aview = new View;
-
-  // save the scene id and set the pointers to that scene
-  aview->iscene = iscene;
-  aview->title = title;
-  aview->shader = shader;
-
-  // create the texture
-  aview->createTex(FBO_tex_a);
-
-  // scene pointers
-  if (iscene > 0)
-    c2::set_scene_pointers(iscene);
-
-  // initialize the camera vectors
-  aview->resetView();
-
-  // initialize the camera matrices
-  aview->updateProjection();  
-  aview->updateView();
-  aview->updateWorld();
-
-  // plot the scene to the texture
-  aview->Update();
-
-  // add the view to the list
-  viewlist.push_back(aview);
-
-  return aview;
-}
-
-void DrawAllViews(){
-  for (auto iv : viewlist){
-    iv->Draw();
-  }
+void View::SetDefaults(){
+  iswire = view_wireframe;
+  isortho = view_orthogonal;
+  zfov = view_fov;
+  resetd = view_resetdistance; 
+  for (int i=0; i<4; i++)
+    bgrgb[i] = view_bgrgb[i];
+  isphres = view_isphres;
+  icylres = view_icylres;
 }
 
 void View::Draw(){
@@ -143,7 +116,8 @@ void View::Draw(){
       PushID(buttonchar[i]);
       SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
-      AttachTooltip(view_tooltip_label(i).c_str(),tooltip_delay,tooltip_maxwidth,fontdefault);
+      if (tooltip_enabled)
+	AttachTooltip(view_tooltip_label(i).c_str(),tooltip_delay,tooltip_maxwidth,fontdefault);
       PopID();
     }
     PopFont();
@@ -253,9 +227,10 @@ void View::Update(){
       drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb),icylres,false);
     }
 
-    vec3 v0 = vec3(0.f,0.f,0.f);
-    vec4 rgb = {1.0f,1.0f,1.0f,0.4f};
-    drawSphere(v0,c2::scenerad,rgb,3,true);
+    // // the scenerad spehre, for testing
+    // vec3 v0 = vec3(0.f,0.f,0.f);
+    // vec4 rgb = {1.0f,1.0f,1.0f,0.4f};
+    // drawSphere(v0,c2::scenerad,rgb,3,true);
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -305,14 +280,15 @@ bool View::Navigate(bool hover){
   float ratio = 0.f;
   if (hover && IsBindEvent(BIND_NAV_ZOOM,false) && !rlock && !llock){
     if (keybind[BIND_NAV_ZOOM] == GLFW_MOUSE_SCROLL){
-      ratio = mousesens_zoom * g->IO.MouseWheel;
+      ratio = mousesens_zoom0 * view_mousesens_zoom * g->IO.MouseWheel;
     } else {
       mpos0_s = mousepos.y;
       slock = true;
     }
   } else if (slock) {
     if (IsBindEvent(BIND_NAV_ZOOM,true)){
-      ratio = mousesens_zoom * (mpos0_s-mousepos.y) * (10.f / FBO_a); // 10/a to make it adimensional
+      // 10/a to make it adimensional
+      ratio = mousesens_zoom0 * view_mousesens_zoom * (mpos0_s-mousepos.y) * (10.f / FBO_a); 
       mpos0_s = mousepos.y;
     } else {
       slock = false;
@@ -376,7 +352,7 @@ bool View::Navigate(bool hover){
 	if (lax > 1e-10f){
 	  axis = inverse(mat3(crot0_l)) * normalize(axis);
 	  vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
-	  float ang = 2.0f * length(mpos) * mousesens_rot / FBO_a;
+	  float ang = 2.0f * length(mpos) * mousesens_rot0 * view_mousesens_rot / FBO_a;
 	  m_world = rotate(crot0_l,ang,axis);
 	  updateworld = true;
 	}
@@ -462,7 +438,7 @@ void View::resetView(){
   v_front  = {0.f,0.f,-1.f};
   v_up     = {0.f,1.f,0.f};
   if (iscene > 0)
-    v_pos[2] = 1.25f * c2::scenerad / (tan(0.5f*radians(zfov)));
+    v_pos[2] = resetd * c2::scenerad / (tan(0.5f*radians(zfov)));
   else
     v_pos = {0.f,0.f,10.f};
   m_world = mat4(1.0f);
@@ -649,6 +625,60 @@ void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb, int res, bool ble
   if (blend){
     glDisable(GL_BLEND);
     glDepthMask(1);
+  }
+}
+
+View *CreateView(char *title, int iscene/*=0*/){
+  View *aview = new View;
+
+  // save the scene id and set the pointers to that scene
+  aview->iscene = iscene;
+  aview->title = title;
+
+  // set default settings
+  aview->SetDefaults();
+
+  // create the texture
+  aview->createTex(FBO_tex_a);
+
+  // scene pointers
+  if (iscene > 0)
+    c2::set_scene_pointers(iscene);
+
+  // initialize the camera vectors
+  aview->resetView();
+
+  // initialize the camera matrices
+  aview->updateProjection();  
+  aview->updateView();
+  aview->updateWorld();
+
+  // plot the scene to the texture
+  aview->Update();
+
+  // add the view to the list
+  viewlist.push_back(aview);
+
+  return aview;
+}
+
+void DrawAllViews(){
+  for (auto iv : viewlist){
+    iv->Draw();
+  }
+}
+
+void ForceUpdateAllViews(){
+  for (auto iv : viewlist){
+    iv->updatescene = true;
+  }
+}
+
+void SetDefaultAllViews(){
+  for (auto iv : viewlist){
+    iv->SetDefaults();
+    iv->updateProjection();
+    iv->updatescene = true;
   }
 }
 
