@@ -22,7 +22,9 @@ extern Shader *shader;
 // Fonts (defined in main.cpp)
 extern ImFont* fontdefault;
 extern ImFont* fonticon;
-const float fonticon_size = 24.0f;
+extern const float fontsizebake;
+extern const float fontsizeicon;
+extern float fontsize;
 
 // Framebuffer texture default side length
 const float FBO_tex_a = 1024.f;

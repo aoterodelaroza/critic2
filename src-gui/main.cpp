@@ -26,8 +26,6 @@
 #include "imgui/imgui_impl_glfw_gl3.h"
 #include "imgui/imgui_dock.h"
 #include "imgui/imgui_widgets.h"
-#include "imgui/additional_fonts.h"
-#include "imgui/font_glyphs.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,10 +35,6 @@
 #include "view.h"
 #include "dialog.h"
 #include "keybinding.h"
-
-// Global variables: fonts (see settings.h)
-ImFont* fontdefault = nullptr;
-ImFont* fonticon = nullptr;
 
 using namespace std;
 using namespace ImGui;
@@ -74,15 +68,6 @@ int main(int argc, char *argv[]){
   // GUI settings, merge icons from font awesome
   ImGuiIO& io = GetIO();
   io.IniFilename = nullptr;
-
-  // Load a larger version of the fontawesome font for icons
-  static const ImWchar icons_ranges[] = { ICON_MIN_SM, ICON_MAX_SM, 0 };
-  ImFontConfig icons_config; 
-  icons_config.MergeMode = false; 
-  icons_config.PixelSnapH = true;
-  icons_config.OversampleH = icons_config.OversampleV = 4;
-  fontdefault = io.Fonts->AddFontDefault();
-  fonticon = io.Fonts->AddFontFromMemoryCompressedBase85TTF(smallicons_compressed_data_base85, fonticon_size, &icons_config, icons_ranges);
 
   // Shader and opengl settings
   glEnable(GL_DEPTH_TEST);

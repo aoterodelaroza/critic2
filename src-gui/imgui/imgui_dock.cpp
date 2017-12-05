@@ -654,7 +654,7 @@ void Dock::clearRootContainer(){
 
 void Dock::killContainerMaybe(){
   // Only kill containers, horziontals, and verticals that were automatically generated
-  if (!this || !(this->root) || !(this->automatic) || 
+  if (!this || !(this->automatic) || !(this->root) || 
       (this->type != Dock::Type_Container && this->type != Dock::Type_Horizontal && this->type != Dock::Type_Vertical))
     return;
   Dock *dpar = this->parent;
@@ -783,7 +783,11 @@ void Dock::drawTabBar(Dock **erased/*=nullptr*/){
   PopStyleVar();
   PopStyleColor();
 
-  if (erased && dderase) *erased = this;
+  if (erased) 
+    if (dderase)
+      *erased = this;
+    else
+      *erased = nullptr;
 }
 
 void Dock::hideTabWindow(){
@@ -814,6 +818,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
 void Dock::drawContainer(bool noresize, Dock **erased/*=nullptr*/){
   if (!(this->type == Dock::Type_Container)) return;
 
+  if (erased) *erased = nullptr;
   if (this->stack.size() > 0){
     // Draw the tab
     this->drawTabBar(erased);
@@ -997,6 +1002,7 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
+  if (erased) *erased = nullptr;
   this->root = root;
   if (this->type == Dock::Type_Root){
     int ncount_ = 0;
@@ -1336,7 +1342,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd->clearContainer();
 
   // Draw the container elements
-  Dock *erased;
+  Dock *erased = nullptr;
   dd->drawContainer(extra_flags & ImGuiWindowFlags_NoResize,&erased);
   dd->tabdz = dd->tabbarrect.Max.y - dd->pos.y;
 
@@ -1355,7 +1361,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
 
   // Try to kill the container if a tab has just been erased
   if (erased)
-    erased->killContainerMaybe();
+    dd->killContainerMaybe();
 
   return dd;
 }

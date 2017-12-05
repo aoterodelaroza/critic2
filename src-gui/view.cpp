@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include "imgui/font_glyphs.h"
+#include "imgui/icon_glyphs.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_widgets.h"
 
@@ -98,7 +98,7 @@ void View::Draw(){
 			       ICON_SM_COMPASS_ANGLE,ICON_SM_RULER,ICON_SM_PENCIL,
 			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
 			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
-    ImVec2 buttonsize = ImVec2(fonticon_size+1,fonticon_size+1);
+    ImVec2 buttonsize = ImVec2(fontsizeicon+1,fontsizeicon+1);
     ImVec4 heldcolor = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
     ImVec4 hovercolor = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
     ImVec4 graycolor = ImVec4(0.5f,0.5f,0.5f,1.0f);
@@ -109,9 +109,9 @@ void View::Draw(){
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
-	SameLine(); Dummy(ImVec2(0.25f*fonticon_size,0.f));
+	SameLine(); Dummy(ImVec2(0.25f*fontsizeicon,0.f));
 	SameLine(); Text(ICON_SM_VBAR);
-	SameLine(); Dummy(ImVec2(0.25f*fonticon_size,0.f));
+	SameLine(); Dummy(ImVec2(0.25f*fontsizeicon,0.f));
       }
       PushID(buttonchar[i]);
       SameLine();
@@ -171,9 +171,9 @@ void View::Draw(){
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
-	Dummy(ImVec2(0.25f*fonticon_size,0.f)); SameLine();
+	Dummy(ImVec2(0.25f*fontsizeicon,0.f)); SameLine();
 	Text(ICON_SM_VBAR); SameLine();
-	Dummy(ImVec2(0.25f*fonticon_size,0.f)); SameLine();
+	Dummy(ImVec2(0.25f*fontsizeicon,0.f)); SameLine();
       }
       PushID(buttonchar[i]);
       if (held[i])
