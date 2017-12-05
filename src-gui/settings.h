@@ -26,6 +26,11 @@ extern const float fontsizebake;
 extern const float fontsizeicon;
 extern float fontsize;
 
+// Color picker options
+const int coloreditflags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | 
+  ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_PickerHueBar | 
+  ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_RGB;
+
 // Framebuffer texture default side length
 const float FBO_tex_a = 1024.f;
 

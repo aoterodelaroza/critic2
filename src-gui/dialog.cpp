@@ -117,6 +117,11 @@ static void DialogPreferences(bool *p_open){
       EndChild();
       SameLine();
 
+      // xxxx tocheck xxxx //
+      // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.50f);
+      // sliderfloat, sliderint, etc.
+      // xxxx tocheck xxxx //
+      
       // Right panel
       BeginGroup();
       BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()));
@@ -213,6 +218,62 @@ static void DialogPreferences(bool *p_open){
 	// Key bindings
       } else if (catid == 3){
 	// Interface
+	ImGuiStyle& style = GetStyle();
+	if (TreeNode("Colors")){
+	  static bool sadv = false;
+	  Checkbox("Show advanced color options", &sadv);
+	  Separator();
+
+	  // Interface -> Colors
+	  ColorEdit4("Text", (float*)&style.Colors[ImGuiCol_Text], coloreditflags);
+	  if (sadv) ColorEdit4("Text (Disabled)", (float*)&style.Colors[ImGuiCol_TextDisabled], coloreditflags);
+	  if (sadv) ColorEdit4("Text (Selected background)", (float*)&style.Colors[ImGuiCol_TextSelectedBg], coloreditflags);
+	  ColorEdit4("Window background", (float*)&style.Colors[ImGuiCol_WindowBg], coloreditflags);
+	  if (sadv) ColorEdit4("Child window background", (float*)&style.Colors[ImGuiCol_ChildBg], coloreditflags);
+	  if (sadv) ColorEdit4("Popup background", (float*)&style.Colors[ImGuiCol_PopupBg], coloreditflags);
+	  if (sadv) ColorEdit4("Item frame", (float*)&style.Colors[ImGuiCol_FrameBg], coloreditflags);
+	  if (sadv) ColorEdit4("Item frame (Hovered)", (float*)&style.Colors[ImGuiCol_FrameBgHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Item frame (Active)", (float*)&style.Colors[ImGuiCol_FrameBgActive], coloreditflags);
+	  if (sadv) ColorEdit4("Item header", (float*)&style.Colors[ImGuiCol_Header], coloreditflags);
+	  if (sadv) ColorEdit4("Item header (Hovered)", (float*)&style.Colors[ImGuiCol_HeaderHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Item header (Active)", (float*)&style.Colors[ImGuiCol_HeaderActive], coloreditflags);
+	  ColorEdit4("Button", (float*)&style.Colors[ImGuiCol_Button], coloreditflags);
+	  ColorEdit4("Button (Hovered)", (float*)&style.Colors[ImGuiCol_ButtonHovered], coloreditflags);
+	  ColorEdit4("Button (Pressed)", (float*)&style.Colors[ImGuiCol_ButtonActive], coloreditflags);
+	  ColorEdit4("Close button", (float*)&style.Colors[ImGuiCol_CloseButton], coloreditflags);
+	  ColorEdit4("Close button (Hovered)", (float*)&style.Colors[ImGuiCol_CloseButtonHovered], coloreditflags);
+	  ColorEdit4("Close button (Pressed)", (float*)&style.Colors[ImGuiCol_CloseButtonActive], coloreditflags);
+	  ColorEdit4("Window title", (float*)&style.Colors[ImGuiCol_TitleBg], coloreditflags);
+	  ColorEdit4("Window title (Focused)", (float*)&style.Colors[ImGuiCol_TitleBgActive], coloreditflags);
+	  ColorEdit4("Window title (Collapsed)", (float*)&style.Colors[ImGuiCol_TitleBgCollapsed], coloreditflags);
+	  if (sadv) ColorEdit4("Resize grip", (float*)&style.Colors[ImGuiCol_ResizeGrip], coloreditflags);
+	  if (sadv) ColorEdit4("Resize grip (Hovered)", (float*)&style.Colors[ImGuiCol_ResizeGripHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Resize grip (Grabbed)", (float*)&style.Colors[ImGuiCol_ResizeGripActive], coloreditflags);
+	  ColorEdit4("Menu Bar", (float*)&style.Colors[ImGuiCol_MenuBarBg], coloreditflags);
+	  if (sadv) ColorEdit4("Window border", (float*)&style.Colors[ImGuiCol_Border], coloreditflags);
+	  if (sadv) ColorEdit4("Window border shadow", (float*)&style.Colors[ImGuiCol_BorderShadow], coloreditflags);
+	  if (sadv) ColorEdit4("Scroll bar background", (float*)&style.Colors[ImGuiCol_ScrollbarBg], coloreditflags);
+	  if (sadv) ColorEdit4("Scroll bar grab item", (float*)&style.Colors[ImGuiCol_ScrollbarGrab], coloreditflags);
+	  if (sadv) ColorEdit4("Scroll bar grab item (Hovered)", (float*)&style.Colors[ImGuiCol_ScrollbarGrabHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Scroll bar grab item (Grabbed)", (float*)&style.Colors[ImGuiCol_ScrollbarGrabActive], coloreditflags);
+	  if (sadv) ColorEdit4("Check mark", (float*)&style.Colors[ImGuiCol_CheckMark], coloreditflags);
+	  if (sadv) ColorEdit4("Slider grab item", (float*)&style.Colors[ImGuiCol_SliderGrab], coloreditflags);
+	  if (sadv) ColorEdit4("Slider grab item (Grabbed)", (float*)&style.Colors[ImGuiCol_SliderGrabActive], coloreditflags);
+	  if (sadv) ColorEdit4("Separator", (float*)&style.Colors[ImGuiCol_Separator], coloreditflags);
+	  if (sadv) ColorEdit4("Separator (Hovered)", (float*)&style.Colors[ImGuiCol_SeparatorHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Separator (Active)", (float*)&style.Colors[ImGuiCol_SeparatorActive], coloreditflags);
+	  if (sadv) ColorEdit4("Plot lines", (float*)&style.Colors[ImGuiCol_PlotLines], coloreditflags);
+	  if (sadv) ColorEdit4("Plot lines (Hovered)", (float*)&style.Colors[ImGuiCol_PlotLinesHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Histogram", (float*)&style.Colors[ImGuiCol_PlotHistogram], coloreditflags);
+	  if (sadv) ColorEdit4("Histogram (Hovered)", (float*)&style.Colors[ImGuiCol_PlotHistogramHovered], coloreditflags);
+	  if (sadv) ColorEdit4("Modal window darkening", (float*)&style.Colors[ImGuiCol_ModalWindowDarkening], coloreditflags);
+	  TreePop();
+	}
+	if (TreeNode("Settings")){
+	  // Interface -> Settings
+	  TreePop();
+	}
+
       } else if (catid == 4){
 	// Fonts
 	ImGuiIO& io = GetIO();

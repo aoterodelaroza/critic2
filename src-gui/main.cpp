@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
   DefaultSettings();
   RegisterDefaultBindings();
 
-  // GUI settings, merge icons from font awesome
+  // ImGui settings
   ImGuiIO& io = GetIO();
   io.IniFilename = nullptr;
 
@@ -192,7 +192,7 @@ int main(int argc, char *argv[]){
     }
 
     // xxxx for imgui testing xxxx //
-    // ShowTestWindow();
+    ShowTestWindow();
 
     // xxxx for debugging the dock system xxxx //
     // PrintDock__();
