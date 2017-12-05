@@ -89,6 +89,8 @@ void CloseLastDialog(){
 
 // Preferences dialog //
 static void DialogPreferences(bool *p_open){
+  const float itemwidth = 50;
+
   if (*p_open){
     SetNextWindowSize(ImVec2(500, 440), ImGuiSetCond_FirstUseEver);
     if (BeginDock("Preferences",p_open)){
@@ -116,7 +118,6 @@ static void DialogPreferences(bool *p_open){
       SameLine();
 
       // Right panel
-      PushItemWidth(40); 
       BeginGroup();
       BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()));
       Text(catname[catid]);
@@ -124,28 +125,31 @@ static void DialogPreferences(bool *p_open){
       if (catid == 0){
 	// General
 	if (TreeNode("Tooltips")){
+	  PushItemWidth(itemwidth);
 	  Checkbox("Enable tooltips", &tooltip_enabled);
 	  DragFloat("Tooltip delay (s)", &tooltip_delay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
 	  DragFloat("Tooltip maximum width (pixel)", &tooltip_maxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
+	  PopItemWidth();
 	  TreePop();
 	}
       } else if (catid == 1){
 	// Views
 	if (TreeNode("Lighting")){
 	  // Views -> Lighting
+	  PushItemWidth(3 * itemwidth);
 	  bool changed = false, anychanged = false;
 	  changed |= DragFloat3("Light position", &(view_lightpos[0]), 0.1f, -FLT_MAX, FLT_MAX, "%.1f", 1.0f); 
 	  if (changed)
 	    shader->setVec3("lightPos",value_ptr(view_lightpos));
 	  anychanged |= changed;
 	  
-	  PushItemWidth(40 * 3); 
 	  changed |= DragFloat3("Light color", &(view_lightcolor[0]), 0.01f, 0.0, 1.0f, "%.2f", 1.0f); 
 	  if (changed)
 	    shader->setVec3("lightColor",value_ptr(view_lightcolor));
 	  anychanged |= changed;
 	  PopItemWidth();
 
+	  PushItemWidth(itemwidth);
 	  changed = false;
 	  changed |= DragFloat("Ambient light intensity", &view_ambient, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
 	  if (changed)
@@ -169,28 +173,37 @@ static void DialogPreferences(bool *p_open){
 	  if (changed)
 	    shader->setInt("shininess",view_shininess);
 	  anychanged |= changed;
+	  PopItemWidth();
 
 	  if (anychanged)
 	    ForceUpdateAllViews();
 	  TreePop();
 	}
 	if (TreeNode("Mouse sensitivity")){
+	  PushItemWidth(itemwidth);
 	  DragFloat("Rotation mouse sensitivity", &view_mousesens_rot, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
 	  DragFloat("Zoom mouse sensitivity", &view_mousesens_zoom, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
+	  PopItemWidth();
 	  TreePop();
 	}
 	if (TreeNode("Per-view settings (to be moved)")){
 	  bool changed = false;
+	  PushItemWidth(itemwidth);
 	  changed |= Checkbox("Wireframe rendering", &view_wireframe);
 	  changed |= Checkbox("Orthgonal projection", &view_orthogonal);
 	  changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
 	  changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.05f, 0.0f, FLT_MAX, "%.2f", 1.0f); 
-	  PushItemWidth(4*40); 
+	  PopItemWidth();
+	  
+	  PushItemWidth(4*itemwidth); 
 	  changed |= DragFloat4("Background color", view_bgrgb, 0.01f, 0.0, 1.0f, "%.2f", 1.0f); 
+	  PopItemWidth();
+
+	  PushItemWidth(itemwidth); 
 	  changed |= DragInt("Atom resolution", &view_isphres, 1.0f, 0.0f, 3.0f, "%.2f"); 
 	  changed |= DragInt("Bond resolution", &view_icylres, 0.0f, 0.0f, 0.0f, "%.2f"); 
+	  PopItemWidth();
 	  view_icylres = 0;
-	  PopItemWidth(); 
 
 	  if (changed)
 	    SetDefaultAllViews();
@@ -204,8 +217,9 @@ static void DialogPreferences(bool *p_open){
 	// Fonts
 	ImGuiIO& io = GetIO();
 
-	PushItemWidth(80); 
+	PushItemWidth(1.5*itemwidth); 
 	DragFloat("Font Size (pixel)", &fontsize, 0.1f, 9.0f, fontsizebake, "%.1f");
+	PopItemWidth(); 
 
 	BeginChild("fontselector",ImVec2(0.f,0.f),true);
 	static int selected = 0;
@@ -235,7 +249,6 @@ static void DialogPreferences(bool *p_open){
       }
       EndChild();
       EndGroup();
-      PopItemWidth(); 
 
       // if (Filter.IsActive()){
       // 	const char* buf_begin = Buf.begin();
