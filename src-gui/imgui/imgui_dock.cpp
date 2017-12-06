@@ -783,8 +783,6 @@ void Dock::drawTabBar(Dock **erased/*=nullptr*/){
   if (erased) 
     if (dderase)
       *erased = this;
-    else
-      *erased = nullptr;
 }
 
 void Dock::hideTabWindow(){
@@ -815,7 +813,6 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
 void Dock::drawContainer(bool noresize, Dock **erased/*=nullptr*/){
   if (!(this->type == Dock::Type_Container)) return;
 
-  if (erased) *erased = nullptr;
   if (this->stack.size() > 0){
     // Draw the tab
     this->drawTabBar(erased);
@@ -999,7 +996,6 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount
   ImGuiContext *g = GetCurrentContext();
   const float barwidth = getSlidingBarWidth();
 
-  if (erased) *erased = nullptr;
   this->root = root;
   if (this->type == Dock::Type_Root){
     int ncount_ = 0;
