@@ -204,8 +204,7 @@ void Dock::showDropTargetFull(){
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
-  ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
-  docked_color = (docked_color & 0x00ffFFFF) | 0x80000000;
+  ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
   drawl->AddRectFilled(this->pos, this->pos + this->size, docked_color);
   drawl->PopClipRect();
   End();
@@ -222,8 +221,7 @@ void Dock::showDropTargetOnTabBar(){
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
-  ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
-  docked_color = (docked_color & 0x00ffFFFF) | 0x80000000;
+  ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
 
   ImVec2 a, b, c;
   a.x = this->tabsx[ithis]; a.y = this->tabbarrect.Max.y;
@@ -256,8 +254,7 @@ void Dock::showDropTargetEdge(int edge){
           ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
     ImDrawList* drawl = GetWindowDrawList();
     drawl->PushClipRectFullScreen();
-    ImU32 docked_color = GetColorU32(ImGuiCol_FrameBg);
-    docked_color = (docked_color & 0x00ffFFFF) | 0x80000000;
+    ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
     drawl->AddRectFilled(xmin,xmax,docked_color);
     drawl->PopClipRect();
     End();
