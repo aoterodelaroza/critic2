@@ -32,9 +32,6 @@
 
 using namespace std;
 
-// Named constants
-const float small_alpha = 1e-15;
-
 // Helper functions
 static inline ImVec2 operator+(ImVec2 lhs, ImVec2 rhs) {
     return ImVec2(lhs.x+rhs.x, lhs.y+rhs.y);
@@ -51,13 +48,43 @@ static inline ImVec4 OpaqueColor(ImGuiCol_ color, float newalpha){
   col.w = newalpha;
 }
 static inline ImVec4 TransparentColor(ImGuiCol_ color){
+  const float small_alpha = 1e-15;
   ImGuiContext *g = ImGui::GetCurrentContext();
   ImVec4 col = g->Style.Colors[color];
   col.w = small_alpha;
 }
 
-namespace ImGui{
+// Colors for the widgets
+enum ImGuiColWidgets_ {
+  ImGuiColWidgets_Slidingbar,
+  ImGuiColWidgets_SlidingbarHovered,
+  ImGuiColWidgets_SlidingbarActive,
+  ImGuiColWidgets_Tab,
+  ImGuiColWidgets_TabHovered,
+  ImGuiColWidgets_TabPressed,
+  ImGuiColWidgets_TabActive,
+  ImGuiColWidgets_TabXFg,
+  ImGuiColWidgets_TabXFgHovered,
+  ImGuiColWidgets_TabXFgActive,
+  ImGuiColWidgets_TabXBg,
+  ImGuiColWidgets_TabXBgHovered,
+  ImGuiColWidgets_TabXBgActive,
+  ImGuiColWidgets_LiftGrip,
+  ImGuiColWidgets_LiftGripHovered,
+  ImGuiColWidgets_LiftGripActive,
+  ImGuiColWidgets_COUNT,
+};
 
+// Style for the widgets
+struct ImGuiStyleWidgets_ {
+  ImVec4 Colors[ImGuiColWidgets_COUNT];
+
+  ImGuiStyleWidgets_();
+};
+extern ImGuiStyleWidgets_ ImGuiStyleWidgets;
+
+// Widgets added to ImGui
+namespace ImGui{
   // Sliding bar for splits. label: used to calculate the ID. window:
   // window containing the bar. pos: position of the top left of the bar on
   // input and output. size: size of the bar. minx and maxx: minimum and maximum
@@ -75,7 +102,7 @@ namespace ImGui{
   // clicked. closeclicked: on output, true if the X has been clicked.
   // alphamul: alpha multiplier for all colors. Returns true if the
   // main part of the button (not the x) has been clicked.
-  bool ButtonWithX(const char* label, const ImVec2& size, bool activetab, bool scrollbarcol,
+  bool ButtonWithX(const char* label, const ImVec2& size, bool activetab,
                    bool *p_open, bool *dragged, bool *dclicked, float alpha = 1.f);
 
   // A resize grip drawn on window that controls the size of cwindow.
@@ -95,4 +122,6 @@ namespace ImGui{
 
   void AttachTooltip(const char* desc, float delay, float maxwidth, ImFont* font);
 } // namespace ImGui
+
 #endif
+

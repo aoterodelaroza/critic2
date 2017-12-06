@@ -720,7 +720,7 @@ void Dock::drawTabBar(Dock **erased/*=nullptr*/){
       SameLine();
       // make the x-button, update the container info
       bool dragged, dclicked;
-      if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab), true,
+      if (ButtonWithX(dd->label, ImVec2(tabwidth_long, tabheight), (dd == this->currenttab),
                       dd->p_open, &dragged, &dclicked, 2.f/g->Style.Alpha)){
         this->currenttab = dd;
         dd->parent = this;
