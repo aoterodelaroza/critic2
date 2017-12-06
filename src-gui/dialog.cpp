@@ -286,6 +286,46 @@ static void DialogPreferences(bool *p_open){
 	}
 	if (TreeNode("Settings")){
 	  // Interface -> Settings
+	  Text("Borders");
+	  Separator();
+	  bool border = (style.WindowBorderSize > 0.0f);
+	  if (Checkbox("WindowBorder", &border))
+	    style.WindowBorderSize = border ? 1.0f : 0.0f;
+	  border = (style.FrameBorderSize > 0.0f);
+	  if (Checkbox("FrameBorder", &border))
+	    style.FrameBorderSize = border ? 1.0f : 0.0f;
+	  border = (style.PopupBorderSize > 0.0f);
+	  if (Checkbox("PopupBorder", &border))
+	    style.PopupBorderSize = border ? 1.0f : 0.0f;
+	  border = (style.ChildBorderSize > 0.0f);
+	  if (Checkbox("ChildBorder", &border))
+	    style.ChildBorderSize = border ? 1.0f : 0.0f;
+
+	  Text("Element size and positioning");
+	  Separator();
+	  SliderFloat2("WindowPadding", (float*)&style.WindowPadding, 0.0f, 20.0f, "%.0f");
+	  SliderFloat("PopupRounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
+	  SliderFloat2("FramePadding", (float*)&style.FramePadding, 0.0f, 20.0f, "%.0f");
+	  SliderFloat2("ItemSpacing", (float*)&style.ItemSpacing, 0.0f, 20.0f, "%.0f");
+	  SliderFloat2("ItemInnerSpacing", (float*)&style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
+	  SliderFloat2("TouchExtraPadding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
+	  SliderFloat("IndentSpacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
+	  SliderFloat("ScrollbarSize", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
+	  SliderFloat("GrabMinSize", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
+
+	  Text("Rounding");
+	  Separator();
+	  SliderFloat("WindowRounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
+	  SliderFloat("ChildRounding", &style.ChildRounding, 0.0f, 16.0f, "%.0f");
+	  if (SliderFloat("FrameRounding", &style.FrameRounding, 0.0f, 12.0f, "%.0f"))
+	    style.GrabRounding = style.FrameRounding;
+	  SliderFloat("ScrollbarRounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
+	  SliderFloat("GrabRounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
+
+	  Text("Alignment");
+	  Separator();
+	  SliderFloat2("WindowTitleAlign", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
+	  SliderFloat2("ButtonTextAlign", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
 	  TreePop();
 	}
 
