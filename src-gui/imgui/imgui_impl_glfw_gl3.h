@@ -23,3 +23,6 @@ IMGUI_API void        ImGui_ImplGlfwGL3_MouseButtonCallback(GLFWwindow* window, 
 IMGUI_API void        ImGui_ImplGlfwGL3_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 IMGUI_API void        ImGui_ImplGlfwGL3_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 IMGUI_API void        ImGui_ImplGlfwGL3_CharCallback(GLFWwindow* window, unsigned int c);
+
+IMGUI_API void        ImGui_ImplGlfwGL3_ResetKeyMouseEvents();
+IMGUI_API void        ImGui_ImplGlfwGL3_GetKeyMouseEvents(int *mouse, int *key, int *mod, float *scroll);

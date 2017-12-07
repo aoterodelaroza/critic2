@@ -90,6 +90,7 @@ int main(int argc, char *argv[]){
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
     // New frame
+    ImGui_ImplGlfwGL3_ResetKeyMouseEvents();
     glfwPollEvents();
     ImGui_ImplGlfwGL3_NewFrame();
     ImGuiContext *g = GetCurrentContext();
@@ -139,8 +140,7 @@ int main(int argc, char *argv[]){
     static bool show_treedock = true;
     static bool show_infodock = true;
     static bool show_styledock = true;
-    Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr,
-      *dstyledock = nullptr;
+    Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
     if (show_treedock){
       if (BeginDock("Tree view",&show_treedock)){
         Text("Tree View!");     
@@ -161,13 +161,6 @@ int main(int argc, char *argv[]){
     // Draw all views
     DrawAllViews();
 
-    if (show_styledock){
-      if (BeginDock("Style Editor",&show_styledock))
-	ShowStyleEditor(); 
-      dstyledock = GetCurrentDock();
-      EndDock();
-    }
-
     // Menu dialog dispatch
     DialogDispatch();
 
@@ -176,7 +169,6 @@ int main(int argc, char *argv[]){
     if (first){
       first = false;
       droot->newDockRoot(dviewcont,-1);
-      dviewcont->newDock(dstyledock);
       dviewcont->newDock(mainview->dock);
 
       Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
@@ -188,11 +180,10 @@ int main(int argc, char *argv[]){
       mainview->dock->setDetachedDockSize(320.f,320.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
       dinfodock->setDetachedDockSize(300.f,300.f);
-      dstyledock->setDetachedDockSize(300.f,300.f);
     }
 
     // xxxx for imgui testing xxxx //
-    // ShowTestWindow();
+    ShowTestWindow();
 
     // xxxx for debugging the dock system xxxx //
     // PrintDock__();

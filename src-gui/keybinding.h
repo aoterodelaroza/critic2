@@ -24,7 +24,9 @@
 #define KEYBINDING_H
 
 #include <GLFW/glfw3.h>
+
 #include <string>
+#include <map>
 
 // No key
 #define NOKEY 0
@@ -52,8 +54,12 @@
 #define BIND_NAV_RESET         6 // Reset the view (navigation)
 #define BIND_MAX               7 // Total number of BIND actions
 
+extern const char *BindNames[7];
+
 // key binds accessible to other files (to check for scroll)
+extern int modbind[BIND_MAX]; // bind -> key
 extern int keybind[BIND_MAX]; // bind -> key
+extern std::map<std::pair<int,int>,int> keymap; // [key,mod] -> bind
 
 void RegisterDefaultBindings();
 
@@ -64,5 +70,11 @@ void ProcessCallbacks();
 bool IsBindEvent(int bind,bool held);
 
 std::string BindKeyName(int event);
+
+void SetBind(int bind, int key, int mod);
+
+void SetBindEventLevel(int level=0);
+
+bool SetBindFromUserInput(int level);
 
 #endif

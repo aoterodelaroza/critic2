@@ -22,14 +22,28 @@
 #include "keybinding.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
-#include <map>
+#include "imgui/imgui_impl_glfw_gl3.h"
 
 using namespace std;
 using namespace ImGui;
 
-static int modbind[BIND_MAX]; // bind -> mod
+// Processing level for bind events. Right now: 0 = all, 1 =
+// none. More to be added in the future.
+static int bindevent_level = 0;
+
+int modbind[BIND_MAX]; // bind -> mod
 int keybind[BIND_MAX]; // bind -> key
-static map<pair<int,int>,int> keymap = {}; // [key,mod] -> bind
+map<pair<int,int>,int> keymap = {}; // [key,mod] -> bind
+
+const char *BindNames[7] = {
+  "Quit",
+  "Close last dialog",
+  "Close all dialogs",
+  "Camera rotate",
+  "Camera pan",
+  "Camera zoom",
+  "Camera reset",
+};
 
 static bool IsModPressed(int mod){
   ImGuiIO& io = GetIO();
@@ -47,25 +61,21 @@ void RegisterDefaultBindings(){
   }
 
   // Default keybindings
-  keybind[BIND_QUIT] = GLFW_KEY_Q;
-  modbind[BIND_QUIT] = GLFW_MOD_CONTROL;
-  keybind[BIND_CLOSE_LAST_DIALOG] = GLFW_KEY_ESCAPE;
-  keybind[BIND_CLOSE_ALL_DIALOGS] = GLFW_KEY_DELETE;
+  SetBind(BIND_QUIT,GLFW_KEY_Q,GLFW_MOD_CONTROL);
+  SetBind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
+  SetBind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
 
   // Default mouse bindings
-  keybind[BIND_NAV_ROTATE] = GLFW_MOUSE_LEFT;
-  keybind[BIND_NAV_TRANSLATE] = GLFW_MOUSE_RIGHT;
-  keybind[BIND_NAV_ZOOM] = GLFW_MOUSE_SCROLL;
-  keybind[BIND_NAV_RESET] = GLFW_MOUSE_LEFT_DOUBLE;
-
-  // Fill the keymap
-  for (int i = 0; i < BIND_MAX; i++){
-    if (keybind[i] != NOKEY && keybind[i] <= GLFW_KEY_LAST)
-      keymap[make_pair(keybind[i],modbind[i])] = i;
-  }
+  SetBind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
+  SetBind(BIND_NAV_TRANSLATE,GLFW_MOUSE_RIGHT,NOMOD);
+  SetBind(BIND_NAV_ZOOM,GLFW_MOUSE_SCROLL,NOMOD);
+  SetBind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
 }
 
 bool IsBindEvent(int bind, bool held){
+  if (bindevent_level > 0)
+    return false;
+
   ImGuiIO& io = GetIO();
   int key = keybind[bind];
   int mod = modbind[bind];
@@ -129,16 +139,82 @@ string BindKeyName(int bind){
 	ckey[i] = toupper(ckey[i]);
     } else {
       switch(keybind[bind]){
-      case GLFW_MOUSE_LEFT: ckey = "Left Click"; break;
-      case GLFW_MOUSE_LEFT_DOUBLE: ckey = "Double Click"; break;
-      case GLFW_MOUSE_RIGHT: ckey = "Right Click"; break;
-      case GLFW_MOUSE_RIGHT_DOUBLE: ckey = "Double Right Click"; break;
-      case GLFW_MOUSE_MIDDLE: ckey = "Middle Click"; break;
-      case GLFW_MOUSE_MIDDLE_DOUBLE: ckey = "Double Middle Click"; break;
-      case GLFW_MOUSE_BUTTON3: ckey = "Button3 Click"; break;
-      case GLFW_MOUSE_BUTTON3_DOUBLE: ckey = "Double Button3 Click"; break;
-      case GLFW_MOUSE_BUTTON4: ckey = "Button4 Click"; break;
-      case GLFW_MOUSE_BUTTON4_DOUBLE: ckey = "Double Button4 Click"; break;
+      case GLFW_KEY_SPACE: ckey = "Space"; break;
+      case GLFW_KEY_WORLD_1: ckey = "World key 1"; break;
+      case GLFW_KEY_WORLD_2: ckey = "World key 2"; break;
+      case GLFW_KEY_ESCAPE: ckey = "Escape"; break;
+      case GLFW_KEY_ENTER: ckey = "Enter"; break;
+      case GLFW_KEY_TAB: ckey = "Tab"; break;
+      case GLFW_KEY_BACKSPACE: ckey = "Backspace"; break;
+      case GLFW_KEY_INSERT: ckey = "Insert"; break;
+      case GLFW_KEY_DELETE: ckey = "Delete"; break;
+      case GLFW_KEY_RIGHT: ckey = "Right"; break;
+      case GLFW_KEY_LEFT: ckey = "Left"; break;
+      case GLFW_KEY_DOWN: ckey = "Down"; break;
+      case GLFW_KEY_UP: ckey = "Up"; break;
+      case GLFW_KEY_PAGE_UP: ckey = "Page Up"; break;
+      case GLFW_KEY_PAGE_DOWN: ckey = "Page Down"; break;
+      case GLFW_KEY_HOME: ckey = "Home"; break;
+      case GLFW_KEY_END: ckey = "End"; break;
+      case GLFW_KEY_CAPS_LOCK: ckey = "Caps Lock"; break;
+      case GLFW_KEY_SCROLL_LOCK: ckey = "Scroll Lock"; break;
+      case GLFW_KEY_NUM_LOCK: ckey = "Num Lock"; break;
+      case GLFW_KEY_PRINT_SCREEN: ckey = "Print Screen"; break;
+      case GLFW_KEY_PAUSE: ckey = "Pause"; break;
+      case GLFW_KEY_F1: ckey = "F1"; break;
+      case GLFW_KEY_F2: ckey = "F2"; break;
+      case GLFW_KEY_F3: ckey = "F3"; break;
+      case GLFW_KEY_F4: ckey = "F4"; break;
+      case GLFW_KEY_F5: ckey = "F5"; break;
+      case GLFW_KEY_F6: ckey = "F6"; break;
+      case GLFW_KEY_F7: ckey = "F7"; break;
+      case GLFW_KEY_F8: ckey = "F8"; break;
+      case GLFW_KEY_F9: ckey = "F9"; break;
+      case GLFW_KEY_F10: ckey = "F10"; break;
+      case GLFW_KEY_F11: ckey = "F11"; break;
+      case GLFW_KEY_F12: ckey = "F12"; break;
+      case GLFW_KEY_F13: ckey = "F13"; break;
+      case GLFW_KEY_F14: ckey = "F14"; break;
+      case GLFW_KEY_F15: ckey = "F15"; break;
+      case GLFW_KEY_F16: ckey = "F16"; break;
+      case GLFW_KEY_F17: ckey = "F17"; break;
+      case GLFW_KEY_F18: ckey = "F18"; break;
+      case GLFW_KEY_F19: ckey = "F19"; break;
+      case GLFW_KEY_F20: ckey = "F20"; break;
+      case GLFW_KEY_F21: ckey = "F21"; break;
+      case GLFW_KEY_F22: ckey = "F22"; break;
+      case GLFW_KEY_F23: ckey = "F23"; break;
+      case GLFW_KEY_F24: ckey = "F24"; break;
+      case GLFW_KEY_F25: ckey = "F25"; break;
+      case GLFW_KEY_KP_0: ckey = "Numpad 0"; break;
+      case GLFW_KEY_KP_1: ckey = "Numpad 1"; break;
+      case GLFW_KEY_KP_2: ckey = "Numpad 2"; break;
+      case GLFW_KEY_KP_3: ckey = "Numpad 3"; break;
+      case GLFW_KEY_KP_4: ckey = "Numpad 4"; break;
+      case GLFW_KEY_KP_5: ckey = "Numpad 5"; break;
+      case GLFW_KEY_KP_6: ckey = "Numpad 6"; break;
+      case GLFW_KEY_KP_7: ckey = "Numpad 7"; break;
+      case GLFW_KEY_KP_8: ckey = "Numpad 8"; break;
+      case GLFW_KEY_KP_9: ckey = "Numpad 9"; break;
+      case GLFW_KEY_KP_DECIMAL: ckey = "Numpad ."; break;
+      case GLFW_KEY_KP_DIVIDE: ckey = "Numpad /"; break;
+      case GLFW_KEY_KP_MULTIPLY: ckey = "Numpad *"; break;
+      case GLFW_KEY_KP_SUBTRACT: ckey = "Numpad -"; break;
+      case GLFW_KEY_KP_ADD: ckey = "Numpad +"; break;
+      case GLFW_KEY_KP_ENTER: ckey = "Numpad Enter"; break;
+      case GLFW_KEY_KP_EQUAL: ckey = "Numpad ="; break;
+      case GLFW_KEY_MENU: ckey = "Menu"; break;
+
+      case GLFW_MOUSE_LEFT: ckey = "Left Mouse"; break;
+      case GLFW_MOUSE_LEFT_DOUBLE: ckey = "Double Left Mouse"; break;
+      case GLFW_MOUSE_RIGHT: ckey = "Right Mouse"; break;
+      case GLFW_MOUSE_RIGHT_DOUBLE: ckey = "Double Right Mouse"; break;
+      case GLFW_MOUSE_MIDDLE: ckey = "Middle Mouse"; break;
+      case GLFW_MOUSE_MIDDLE_DOUBLE: ckey = "Double Middle Mouse"; break;
+      case GLFW_MOUSE_BUTTON3: ckey = "Button3 Mouse"; break;
+      case GLFW_MOUSE_BUTTON3_DOUBLE: ckey = "Double Button3 Mouse"; break;
+      case GLFW_MOUSE_BUTTON4: ckey = "Button4 Mouse"; break;
+      case GLFW_MOUSE_BUTTON4_DOUBLE: ckey = "Double Button4 Mouse"; break;
       case GLFW_MOUSE_SCROLL: ckey = "Mouse Wheel"; break;
       }
     }
@@ -151,3 +227,66 @@ string BindKeyName(int bind){
     ckey;
 }
 
+void SetBind(int bind, int key, int mod){
+  // erase the old bind
+  int oldkey = keybind[bind];
+  int oldmod = modbind[bind];
+  if (keymap.find(make_pair(oldkey,oldmod)) != keymap.end())
+    keymap.erase(make_pair(oldkey,oldmod));
+
+  // unbind the previous owner of this key
+  if (keymap.find(make_pair(key,mod)) != keymap.end()) {
+    int oldbind = keymap[make_pair(key,mod)];
+    modbind[oldbind] = NOMOD;
+    keybind[oldbind] = NOKEY;
+  }
+
+  // make the new bind
+  keybind[bind] = key;
+  modbind[bind] = mod;
+  keymap[make_pair(keybind[bind],modbind[bind])] = bind;
+}
+
+void SetBindEventLevel(int level/*=0*/){
+  bindevent_level = level;
+}
+
+bool SetBindFromUserInput(int bind){
+  int mouse, key, mod, newkey;
+  float scroll;
+  bool changed = true;
+
+  ImGui_ImplGlfwGL3_GetKeyMouseEvents(&mouse, &key, &mod, &scroll);
+
+  if (scroll != 0.f){
+    newkey = GLFW_MOUSE_SCROLL;
+  } else if (mouse >= 0) {
+    switch (mouse){
+    case GLFW_MOUSE_BUTTON_LEFT:
+      newkey = GLFW_MOUSE_LEFT; break;
+    case GLFW_MOUSE_BUTTON_RIGHT:
+      newkey = GLFW_MOUSE_RIGHT; break;
+    case GLFW_MOUSE_BUTTON_MIDDLE:
+      newkey = GLFW_MOUSE_MIDDLE; break;
+    case GLFW_MOUSE_BUTTON_4:
+      newkey = GLFW_MOUSE_BUTTON3; break;
+    case GLFW_MOUSE_BUTTON_5:
+      newkey = GLFW_MOUSE_BUTTON4; break;
+    default: 
+      changed = false;
+    }
+  } else if (key != NOKEY && 
+	     key != GLFW_KEY_LEFT_SHIFT && key != GLFW_KEY_RIGHT_SHIFT &&
+	     key != GLFW_KEY_LEFT_CONTROL && key != GLFW_KEY_RIGHT_CONTROL &&
+	     key != GLFW_KEY_LEFT_ALT && key != GLFW_KEY_RIGHT_ALT &&
+	     key != GLFW_KEY_LEFT_SUPER && key != GLFW_KEY_RIGHT_SUPER){
+    newkey = key;
+  } else {
+    changed = false;
+  }
+
+  if (changed)
+    SetBind(bind,newkey,mod);
+
+  return changed;
+}

@@ -118,11 +118,6 @@ static void DialogPreferences(bool *p_open){
       EndChild();
       SameLine();
 
-      // xxxx tocheck xxxx //
-      // ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.50f);
-      // sliderfloat, sliderint, etc.
-      // xxxx tocheck xxxx //
-      
       // Right panel
       BeginGroup();
       BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()));
@@ -216,7 +211,65 @@ static void DialogPreferences(bool *p_open){
 	  TreePop();
 	}
       } else if (catid == 2){
+	static int getbind = -1;
+	TextDisabled("(Right-click on the button to toggle double-click)");
+
 	// Key bindings
+	Columns(2,"keybindingcolumns",false);
+	for (int i = 0; i < BIND_MAX; i++){
+	  string result = BindKeyName(i);
+	  Text(BindNames[i]); 
+	  NextColumn();
+	  if (Button(result.c_str()))
+	    getbind = i;
+	  if (IsMouseClicked(1) && IsItemHovered()){
+	    int newkey;
+	    switch (keybind[i]){
+	    case GLFW_MOUSE_LEFT: 
+	      newkey = GLFW_MOUSE_LEFT_DOUBLE; break;
+	    case GLFW_MOUSE_LEFT_DOUBLE: 
+	      newkey = GLFW_MOUSE_LEFT; break;
+	    case GLFW_MOUSE_RIGHT: 
+	      newkey = GLFW_MOUSE_RIGHT_DOUBLE; break;
+	    case GLFW_MOUSE_RIGHT_DOUBLE: 
+	      newkey = GLFW_MOUSE_RIGHT; break;
+	    case GLFW_MOUSE_MIDDLE: 
+	      newkey = GLFW_MOUSE_MIDDLE_DOUBLE; break;
+	    case GLFW_MOUSE_MIDDLE_DOUBLE: 
+	      newkey = GLFW_MOUSE_MIDDLE; break;
+	    case GLFW_MOUSE_BUTTON3: 
+	      newkey = GLFW_MOUSE_BUTTON3_DOUBLE; break;
+	    case GLFW_MOUSE_BUTTON3_DOUBLE: 
+	      newkey = GLFW_MOUSE_BUTTON3; break;
+	    case GLFW_MOUSE_BUTTON4: 
+	      newkey = GLFW_MOUSE_BUTTON4_DOUBLE; break;
+	    case GLFW_MOUSE_BUTTON4_DOUBLE: 
+	      newkey = GLFW_MOUSE_BUTTON4; break;
+	    default:
+	      newkey = NOKEY;
+	    }
+	    if (newkey)
+	      SetBind(i,newkey,modbind[i]);
+	  }
+	  NextColumn();
+	}
+	Columns(1);
+
+	if (getbind != -1){
+	  SetBindEventLevel(1);
+	  OpenPopup("Choosekey");
+	  if (BeginPopupModal("Choosekey", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar |
+			      ImGuiWindowFlags_NoMove)){
+	    Text("Please press a key or mouse button.");
+	    if (SetBindFromUserInput(getbind)){
+	      getbind = -1;
+	      SetBindEventLevel();
+	      CloseCurrentPopup(); 
+	    }
+	    EndPopup();
+	  }
+	}
+
       } else if (catid == 3){
 	// Interface
 	ImGuiStyle& style = GetStyle();

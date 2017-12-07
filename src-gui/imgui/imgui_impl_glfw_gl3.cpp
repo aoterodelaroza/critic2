@@ -1,9 +1,19 @@
+// Alberto's list of changes:
+// Store the mouse/keypress events for the current frame in a
+// variable. This prevents having to loop over the keysdown array.
+// ----
+//
 // ImGui GLFW binding with OpenGL3 + shaders
-// In this binding, ImTextureID is used to store an OpenGL 'GLuint' texture identifier. Read the FAQ about ImTextureID in imgui.cpp.
+// In this binding, ImTextureID is used to store an OpenGL 'GLuint'
+// texture identifier. Read the FAQ about ImTextureID in imgui.cpp. 
 
-// You can copy and use unmodified imgui_impl_* files in your project. See main.cpp for an example of using this.
-// If you use this binding you'll need to call 4 functions: ImGui_ImplXXXX_Init(), ImGui_ImplXXXX_NewFrame(), ImGui::Render() and ImGui_ImplXXXX_Shutdown().
-// If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
+// You can copy and use unmodified imgui_impl_* files in your
+// project. See main.cpp for an example of using this. 
+// If you use this binding you'll need to call 4 functions:
+// ImGui_ImplXXXX_Init(), ImGui_ImplXXXX_NewFrame(), ImGui::Render()
+// and ImGui_ImplXXXX_Shutdown(). 
+// If you are new to ImGui, see examples/README.txt and documentation
+// at the top of imgui.cpp. 
 // https://github.com/ocornut/imgui
 
 #include "imgui.h"
@@ -18,6 +28,12 @@
 #define GLFW_EXPOSE_NATIVE_WGL
 #include <GLFW/glfw3native.h>
 #endif
+
+// Current frame's key/mouse events
+static int mouseevent = -1;
+static int keyevent = 0;
+static int modevent = 0;
+static float scrollevent = 0.f;
 
 // Data
 static GLFWwindow*  g_Window = NULL;
@@ -145,18 +161,23 @@ void ImGui_ImplGlfwGL3_MouseButtonCallback(GLFWwindow*, int button, int action, 
 {
     if (action == GLFW_PRESS && button >= 0 && button < 3)
         g_MousePressed[button] = true;
+    if (action == GLFW_PRESS)
+	mouseevent = button;
 }
 
 void ImGui_ImplGlfwGL3_ScrollCallback(GLFWwindow*, double /*xoffset*/, double yoffset)
 {
     g_MouseWheel += (float)yoffset; // Use fractional mouse wheel, 1.0 unit 5 lines.
+    scrollevent = (float) yoffset;
 }
 
 void ImGui_ImplGlfwGL3_KeyCallback(GLFWwindow*, int key, int, int action, int mods)
 {
     ImGuiIO& io = ImGui::GetIO();
-    if (action == GLFW_PRESS)
+    if (action == GLFW_PRESS){
         io.KeysDown[key] = true;
+	keyevent = key;
+    }
     if (action == GLFW_RELEASE)
         io.KeysDown[key] = false;
 
@@ -165,6 +186,8 @@ void ImGui_ImplGlfwGL3_KeyCallback(GLFWwindow*, int key, int, int action, int mo
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
+    modevent = (io.KeyCtrl?GLFW_MOD_CONTROL:0x0000) | (io.KeyShift?GLFW_MOD_SHIFT:0x0000) | 
+      (io.KeyAlt?GLFW_MOD_ALT:0x0000) | (io.KeySuper?GLFW_MOD_SUPER:0x0000);
 }
 
 void ImGui_ImplGlfwGL3_CharCallback(GLFWwindow*, unsigned int c)
@@ -400,4 +423,18 @@ void ImGui_ImplGlfwGL3_NewFrame()
 
     // Start the frame
     ImGui::NewFrame();
+}
+
+void ImGui_ImplGlfwGL3_GetKeyMouseEvents(int *mouse, int *key, int *mod, float *scroll){
+  *mouse = mouseevent;
+  *key = keyevent;
+  *mod = modevent;
+  *scroll = scrollevent;
+}
+
+void ImGui_ImplGlfwGL3_ResetKeyMouseEvents(){
+  mouseevent = -1;
+  keyevent = 0;
+  modevent = 0;
+  scrollevent = 0.f;
 }
