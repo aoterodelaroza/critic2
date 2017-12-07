@@ -281,11 +281,15 @@ void SetBindEventLevel(int level/*=0*/){
 }
 
 bool SetBindFromUserInput(int bind){
-  int mouse, key, mod, newkey;
+  int mouse, key, newkey;
   float scroll;
   bool changed = true;
 
-  ImGui_ImplGlfwGL3_GetKeyMouseEvents(&mouse, &key, &mod, &scroll);
+  ImGui_ImplGlfwGL3_GetKeyMouseEvents(&mouse, &key, &scroll);
+
+  ImGuiIO& io = GetIO();
+  int mod = (io.KeyCtrl?GLFW_MOD_CONTROL:0x0000) | (io.KeyShift?GLFW_MOD_SHIFT:0x0000) | 
+    (io.KeyAlt?GLFW_MOD_ALT:0x0000) | (io.KeySuper?GLFW_MOD_SUPER:0x0000);
 
   if (scroll != 0.f){
     newkey = GLFW_MOUSE_SCROLL;

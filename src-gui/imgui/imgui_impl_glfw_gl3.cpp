@@ -32,7 +32,6 @@
 // Current frame's key/mouse events
 static int mouseevent = -1;
 static int keyevent = 0;
-static int modevent = 0;
 static float scrollevent = 0.f;
 
 // Data
@@ -186,8 +185,6 @@ void ImGui_ImplGlfwGL3_KeyCallback(GLFWwindow*, int key, int, int action, int mo
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-    modevent = (io.KeyCtrl?GLFW_MOD_CONTROL:0x0000) | (io.KeyShift?GLFW_MOD_SHIFT:0x0000) | 
-      (io.KeyAlt?GLFW_MOD_ALT:0x0000) | (io.KeySuper?GLFW_MOD_SUPER:0x0000);
 }
 
 void ImGui_ImplGlfwGL3_CharCallback(GLFWwindow*, unsigned int c)
@@ -425,16 +422,14 @@ void ImGui_ImplGlfwGL3_NewFrame()
     ImGui::NewFrame();
 }
 
-void ImGui_ImplGlfwGL3_GetKeyMouseEvents(int *mouse, int *key, int *mod, float *scroll){
+void ImGui_ImplGlfwGL3_GetKeyMouseEvents(int *mouse, int *key, float *scroll){
   *mouse = mouseevent;
   *key = keyevent;
-  *mod = modevent;
   *scroll = scrollevent;
 }
 
 void ImGui_ImplGlfwGL3_ResetKeyMouseEvents(){
   mouseevent = -1;
   keyevent = 0;
-  modevent = 0;
   scrollevent = 0.f;
 }
