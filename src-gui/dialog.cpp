@@ -283,6 +283,14 @@ static void DialogPreferences(bool *p_open){
 	if (TreeNode("Colors")){
 	  static bool sadv = false;
 	  Checkbox("Show advanced color options", &sadv);
+	  static int style_idx = 0;
+	  if (Combo("Color theme", &style_idx, "Classic\0Dark\0Light\0")){
+	    switch (style_idx){
+	      case 0: UIStyleColorsClassic(); break;
+	      case 1: UIStyleColorsDark(); break;
+	      case 2: UIStyleColorsLight(); break;
+	    }
+	  }
 	  Separator();
 
 	  // Interface -> Colors

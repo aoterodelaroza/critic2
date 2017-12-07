@@ -81,6 +81,9 @@ extern float tooltip_maxwidth;
 
 // Default settings
 void DefaultSettings();
+void UIStyleColorsClassic();
+void UIStyleColorsDark();
+void UIStyleColorsLight();
 
 // Callbacks
 void error_callback(int error, const char* description);
