@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
 
   // Initialize default settings and keybindings
   DefaultSettings();
-  RegisterDefaultBindings();
+  SetDefaultKeyBindings();
 
   // ImGui settings
   ImGuiIO& io = GetIO();

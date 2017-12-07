@@ -31,8 +31,10 @@ using namespace ImGui;
 ImFont* fontdefault = nullptr;
 ImFont* fonticon = nullptr;
 const float fontsizebake = 36.0f;
-const float fontsizeicon = 24.0f;
-float fontsize = 14.0f;
+static const float fontsizeicon_default = 24.0f;
+static const float fontsize_default = 14.0f;
+float fontsize = fontsize_default;
+float fontsizeicon = fontsizeicon_default;
 
 // UI style
 ImGuiStyleUI_ ImGuiStyleUI;
@@ -70,6 +72,39 @@ ImGuiStyleUI_::ImGuiStyleUI_(){
 }
 
 void DefaultSettings(){
+  static bool firstpass = true;
+
+  // default UI settings
+  ImGuiStyle& style = GetStyle();
+  style.Alpha                   = 1.0f;
+  style.WindowPadding           = ImVec2(8,8);
+  style.WindowRounding          = 7.0f;
+  style.WindowBorderSize        = 0.0f;
+  style.WindowMinSize           = ImVec2(32,32);
+  style.WindowTitleAlign        = ImVec2(0.0f,0.5f);
+  style.ChildRounding           = 0.0f;
+  style.ChildBorderSize         = 1.0f;
+  style.PopupRounding           = 0.0f;
+  style.PopupBorderSize         = 1.0f;
+  style.FramePadding            = ImVec2(4,3);
+  style.FrameRounding           = 0.0f;
+  style.FrameBorderSize         = 0.0f;
+  style.ItemSpacing             = ImVec2(8,4);
+  style.ItemInnerSpacing        = ImVec2(4,4);
+  style.TouchExtraPadding       = ImVec2(0,0);
+  style.IndentSpacing           = 21.0f;
+  style.ColumnsMinSpacing       = 6.0f;
+  style.ScrollbarSize           = 16.0f;
+  style.ScrollbarRounding       = 9.0f;
+  style.GrabMinSize             = 10.0f;
+  style.GrabRounding            = 0.0f;
+  style.ButtonTextAlign         = ImVec2(0.5f,0.5f);
+  style.DisplayWindowPadding    = ImVec2(22,22);
+  style.DisplaySafeAreaPadding  = ImVec2(4,4);
+  style.AntiAliasedLines        = true;
+  style.AntiAliasedShapes       = true;
+  style.CurveTessellationTol    = 1.25f;
+
   // default colors
   UIStyleColorsClassic();
 
@@ -98,8 +133,10 @@ void DefaultSettings(){
   tooltip_maxwidth = 450.f; // maxwidth of the tooltip
 
   // set up shader and fill uniforms
-  shader = new Shader();
-  shader->use();
+  if (firstpass){
+    shader = new Shader();
+    shader->use();
+  }
   shader->setVec3("lightPos",value_ptr(view_lightpos));
   shader->setVec3("lightColor",value_ptr(view_lightcolor));
   shader->setFloat("ambient",view_ambient);
@@ -107,45 +144,51 @@ void DefaultSettings(){
   shader->setFloat("specular",view_specular);
   shader->setInt("shininess",view_shininess);
 
-  // load standard fonts
-  // const ImWchar* ImFontAtlas::GetGlyphRangesDefault()
   ImGuiIO& io = GetIO();
-  ImFontConfig fntconfig; 
-  fntconfig.MergeMode = false; 
-  fntconfig.PixelSnapH = true;
-  fntconfig.OversampleH = fntconfig.OversampleV = 4;
-  fntconfig.MergeMode = false;
-  fntconfig.SizePixels = fontsizebake;
+  if (firstpass){
+    // load standard fonts
+    // const ImWchar* ImFontAtlas::GetGlyphRangesDefault()
+    ImFontConfig fntconfig; 
+    fntconfig.MergeMode = false; 
+    fntconfig.PixelSnapH = true;
+    fntconfig.OversampleH = fntconfig.OversampleV = 4;
+    fntconfig.MergeMode = false;
+    fntconfig.SizePixels = fontsizebake;
 
-  static const ImWchar ranges[] = { 0x0020, 0x00FF, 0 }; // basic latin + latin supplement
-  static const ImWchar rangesicon[] = { 0x0021, 0x002c, 0 }; // icons
+    static const ImWchar ranges[] = { 0x0020, 0x00FF, 0 }; // basic latin + latin supplement
+    static const ImWchar rangesicon[] = { 0x0021, 0x002c, 0 }; // icons
 
-  // Bake the first font - always the icons.
-  strcpy(fntconfig.Name, "Icons");
-  fonticon = io.Fonts->AddFontFromMemoryCompressedBase85TTF(smallicons_data_base85, fontsizebake, &fntconfig, rangesicon);
+    // Bake the first font - always the icons.
+    strcpy(fntconfig.Name, "Icons");
+    fonticon = io.Fonts->AddFontFromMemoryCompressedBase85TTF(smallicons_data_base85, fontsizebake, &fntconfig, rangesicon);
 
-  // Bake the rest of the fonts
-  strcpy(fntconfig.Name, "Proggy Clean");
-  io.Fonts->AddFontFromMemoryCompressedBase85TTF(proggyclean_data_base85, fontsizebake, &fntconfig, ranges);
-  strcpy(fntconfig.Name, "Cousine Regular");
-  io.Fonts->AddFontFromMemoryCompressedBase85TTF(cousine_data_base85, fontsizebake, &fntconfig, ranges);
-  strcpy(fntconfig.Name, "Droid Sans");
-  io.Fonts->AddFontFromMemoryCompressedBase85TTF(droidsans_data_base85, fontsizebake, &fntconfig, ranges);
-  strcpy(fntconfig.Name, "Karla Regular");
-  io.Fonts->AddFontFromMemoryCompressedBase85TTF(karla_data_base85, fontsizebake, &fntconfig, ranges);
-  strcpy(fntconfig.Name, "Proggy Tiny");
-  io.Fonts->AddFontFromMemoryCompressedBase85TTF(proggytiny_data_base85, fontsizebake, &fntconfig, ranges);
-  strcpy(fntconfig.Name, "Roboto Medium");
-  io.Fonts->AddFontFromMemoryCompressedBase85TTF(roboto_data_base85, fontsizebake, &fntconfig, ranges);
+    // Bake the rest of the fonts
+    strcpy(fntconfig.Name, "Proggy Clean");
+    io.Fonts->AddFontFromMemoryCompressedBase85TTF(proggyclean_data_base85, fontsizebake, &fntconfig, ranges);
+    strcpy(fntconfig.Name, "Cousine Regular");
+    io.Fonts->AddFontFromMemoryCompressedBase85TTF(cousine_data_base85, fontsizebake, &fntconfig, ranges);
+    strcpy(fntconfig.Name, "Droid Sans");
+    io.Fonts->AddFontFromMemoryCompressedBase85TTF(droidsans_data_base85, fontsizebake, &fntconfig, ranges);
+    strcpy(fntconfig.Name, "Karla Regular");
+    io.Fonts->AddFontFromMemoryCompressedBase85TTF(karla_data_base85, fontsizebake, &fntconfig, ranges);
+    strcpy(fntconfig.Name, "Proggy Tiny");
+    io.Fonts->AddFontFromMemoryCompressedBase85TTF(proggytiny_data_base85, fontsizebake, &fntconfig, ranges);
+    strcpy(fntconfig.Name, "Roboto Medium");
+    io.Fonts->AddFontFromMemoryCompressedBase85TTF(roboto_data_base85, fontsizebake, &fntconfig, ranges);
+  }
 
   // set the defualt sizes
+  fontsize = fontsize_default;
+  fontsizeicon = fontsizeicon_default;
   io.Fonts->Fonts[0]->Scale = fontsizeicon / fontsizebake;
   for (int i = 1; i < io.Fonts->Fonts.Size; i++)
-    io.Fonts->Fonts[i]->Scale = fontsize / fontsizebake;
+    io.Fonts->Fonts[i]->Scale = fontsize_default / fontsizebake;
     
   // set the default font
   fontdefault = io.Fonts->Fonts[1];
   io.FontDefault = fontdefault;
+
+  firstpass = false;
 }
 
 // classic colors style

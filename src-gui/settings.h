@@ -38,7 +38,7 @@ extern Shader *shader;
 extern ImFont* fontdefault;
 extern ImFont* fonticon;
 extern const float fontsizebake;
-extern const float fontsizeicon;
+extern float fontsizeicon;
 extern float fontsize;
 
 // Color picker options

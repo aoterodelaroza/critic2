@@ -62,7 +62,7 @@ extern int modbind[BIND_MAX]; // bind -> key
 extern int keybind[BIND_MAX]; // bind -> key
 extern std::map<std::tuple<int,int,int>,int> keymap; // [key,mod,group] -> bind
 
-void RegisterDefaultBindings();
+void SetDefaultKeyBindings();
 
 void RegisterCallback(int event,void *callback,void *data);
 

@@ -66,7 +66,7 @@ static bool IsModPressed(int mod){
 	 (!(mod & GLFW_MOD_SUPER) != io.KeySuper);
 }
 
-void RegisterDefaultBindings(){
+void SetDefaultKeyBindings(){
   // Initialize to no keys and null callbacks
   for (int i = 0; i < BIND_MAX; i++){
     modbind[i] = NOMOD;

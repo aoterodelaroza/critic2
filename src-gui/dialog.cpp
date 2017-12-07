@@ -91,12 +91,12 @@ void CloseLastDialog(){
 // Preferences dialog //
 static void DialogPreferences(bool *p_open){
   const float itemwidth = 50;
+  static ImGuiTextFilter filter;
 
   if (*p_open){
     SetNextWindowSize(ImVec2(500, 440), ImGuiSetCond_FirstUseEver);
     if (BeginDock("Preferences",p_open)){
       // Filter box
-      ImGuiTextFilter filter;
       AlignTextToFramePadding();
       Text("Filter");
       SameLine();
@@ -123,9 +123,10 @@ static void DialogPreferences(bool *p_open){
       BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()-GetCurrentContext()->Style.ItemSpacing.y));
       bool setexpcol = false, expcol = false;
       AlignTextToFramePadding();
-      Text(catname[catid]); SameLine();
-      VerticalSeparator();
+      Text(catname[catid]); 
       if (catid != 2){
+	SameLine();
+	VerticalSeparator();
 	SameLine();
 	if (Button("Expand")){
 	  setexpcol = true; 
@@ -546,9 +547,20 @@ static void DialogPreferences(bool *p_open){
 
       // Line at the bottom
       BeginChild("buttons");
-      if (Button("Reset")){
-	// to default, to file
+      if (Button("Reset"))
+	OpenPopup("resetpopup");
+      if (BeginPopup("resetpopup")){
+	if (Selectable("Reset to configuration file")){
+	  // TBA
+	}
+	if (Selectable("Reset to defaults")){
+	  DefaultSettings();
+	  SetDefaultAllViews();
+	  SetDefaultKeyBindings();
+	}
+	EndPopup();
       }
+
       SameLine();
       if (Button("Save")){
 	// to file
@@ -559,24 +571,10 @@ static void DialogPreferences(bool *p_open){
       }
       EndChild();
       EndGroup();
-
-      // if (Filter.IsActive()){
-      // 	const char* buf_begin = Buf.begin();
-      // 	const char* line = buf_begin;
-      // 	for (int line_no = 0; line != NULL; line_no++)
-      // 	  {
-      // 	    const char* line_end = (line_no < LineOffsets.Size) ? buf_begin + LineOffsets[line_no] : NULL;
-      // 	    if (Filter.PassFilter(line, line_end))
-      // 	      TextUnformatted(line, line_end);
-      // 	    line = line_end && line_end[1] ? line_end + 1 : NULL;
-      // 	  }
-      // }
-      // else{
-      // 	TextUnformatted(Buf.begin());
-      // }
-
     }
     dlgdock[DLG_Preferences] = GetCurrentDock();
     EndDock();
-  }
+  } 
+  if (!(*p_open))
+    filter.Clear();
 }
