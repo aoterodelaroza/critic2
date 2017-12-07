@@ -218,10 +218,17 @@ static void DialogPreferences(bool *p_open){
 	Columns(2,"keybindingcolumns",false);
 	for (int i = 0; i < BIND_MAX; i++){
 	  string result = BindKeyName(i);
+	  if (result.length() == 0)
+	    result = "<not bound>";
 	  Text(BindNames[i]); 
 	  NextColumn();
-	  if (Button(result.c_str()))
+
+	  PushID(i);
+	  if (Button(result.c_str())){
 	    getbind = i;
+	  }
+	  PopID();
+
 	  if (IsMouseClicked(1) && IsItemHovered()){
 	    int newkey;
 	    switch (keybind[i]){

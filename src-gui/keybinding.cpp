@@ -33,9 +33,9 @@ static int bindevent_level = 0;
 
 int modbind[BIND_MAX]; // bind -> mod
 int keybind[BIND_MAX]; // bind -> key
-map<pair<int,int>,int> keymap = {}; // [key,mod] -> bind
+map<tuple<int,int,int>,int> keymap = {}; // [key,mod] -> bind
 
-const char *BindNames[7] = {
+const char *BindNames[BIND_MAX] = {
   "Quit",
   "Close last dialog",
   "Close all dialogs",
@@ -44,6 +44,19 @@ const char *BindNames[7] = {
   "Camera zoom",
   "Camera reset",
 };
+
+// Groups are for using key+mod combinations in different
+// contexts. The group = 0 is global.
+const int BindGroups[BIND_MAX] = {
+  0, // quit
+  0, // close last dialog
+  0, // close all dialogs
+  1, // rotate camera (navigation)
+  1, // pan camera (navigation)
+  1, // zoom camera (navigation)
+  1, // reset camera (navigation)
+};
+static const int nbindgroups = 2;
 
 static bool IsModPressed(int mod){
   ImGuiIO& io = GetIO();
@@ -227,24 +240,40 @@ string BindKeyName(int bind){
     ckey;
 }
 
-void SetBind(int bind, int key, int mod){
-  // erase the old bind
-  int oldkey = keybind[bind];
-  int oldmod = modbind[bind];
-  if (keymap.find(make_pair(oldkey,oldmod)) != keymap.end())
-    keymap.erase(make_pair(oldkey,oldmod));
-
-  // unbind the previous owner of this key
-  if (keymap.find(make_pair(key,mod)) != keymap.end()) {
-    int oldbind = keymap[make_pair(key,mod)];
+static void EraseBind_(int key,int mod,int group){
+  if (keymap.find(make_tuple(key,mod,group)) != keymap.end()) {
+    int oldbind = keymap[make_tuple(key,mod,group)];
     modbind[oldbind] = NOMOD;
     keybind[oldbind] = NOKEY;
+    keymap.erase(make_tuple(key,mod,group));
+  }
+}
+
+void SetBind(int bind, int key, int mod){
+  int group = BindGroups[bind];
+
+  // erase the key+mod combination for this bind from the keymap
+  int oldkey = keybind[bind];
+  int oldmod = modbind[bind];
+  if (keymap.find(make_tuple(oldkey,oldmod,group)) != keymap.end())
+    keymap.erase(make_tuple(oldkey,oldmod,group));
+
+  // unbind the previous owner of this key+mod combination in this group...
+  EraseBind_(key,mod,group);
+
+  if (group == 0){
+    // ...and in all other groups
+    for (int i = 1; i < nbindgroups ; i++)
+      EraseBind_(key,mod,i);
+  } else {
+    // ...and in the 0-group
+    EraseBind_(key,mod,0);
   }
 
   // make the new bind
   keybind[bind] = key;
   modbind[bind] = mod;
-  keymap[make_pair(keybind[bind],modbind[bind])] = bind;
+  keymap[make_tuple(key,mod,group)] = bind;
 }
 
 void SetBindEventLevel(int level/*=0*/){

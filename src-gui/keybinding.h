@@ -54,12 +54,13 @@
 #define BIND_NAV_RESET         6 // Reset the view (navigation)
 #define BIND_MAX               7 // Total number of BIND actions
 
-extern const char *BindNames[7];
+extern const char *BindNames[BIND_MAX];
+extern const int BindGroups[BIND_MAX];
 
 // key binds accessible to other files (to check for scroll)
 extern int modbind[BIND_MAX]; // bind -> key
 extern int keybind[BIND_MAX]; // bind -> key
-extern std::map<std::pair<int,int>,int> keymap; // [key,mod] -> bind
+extern std::map<std::tuple<int,int,int>,int> keymap; // [key,mod,group] -> bind
 
 void RegisterDefaultBindings();
 
