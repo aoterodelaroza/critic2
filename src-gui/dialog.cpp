@@ -121,10 +121,26 @@ static void DialogPreferences(bool *p_open){
       // Right panel
       BeginGroup();
       BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()));
-      Text(catname[catid]);
+      bool setexpcol = false, expcol = false;
+      AlignTextToFramePadding();
+      Text(catname[catid]); SameLine();
+      VerticalSeparator();
+      if (catid != 2){
+	SameLine();
+	if (Button("Expand")){
+	  setexpcol = true; 
+	  expcol = true;
+	}
+	SameLine();
+	if (Button("Collapse")){
+	  setexpcol = true; 
+	  expcol = false;
+	}
+      }
       Separator();
       if (catid == 0){
 	// General
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Tooltips")){
 	  PushItemWidth(itemwidth);
 	  Checkbox("Enable tooltips", &tooltip_enabled);
@@ -135,6 +151,7 @@ static void DialogPreferences(bool *p_open){
 	}
       } else if (catid == 1){
 	// Views
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Lighting")){
 	  // Views -> Lighting
 	  PushItemWidth(3 * itemwidth);
@@ -180,6 +197,7 @@ static void DialogPreferences(bool *p_open){
 	    ForceUpdateAllViews();
 	  TreePop();
 	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Mouse sensitivity")){
 	  PushItemWidth(itemwidth);
 	  DragFloat("Rotation mouse sensitivity", &view_mousesens_rot, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
@@ -187,6 +205,7 @@ static void DialogPreferences(bool *p_open){
 	  PopItemWidth();
 	  TreePop();
 	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Per-view settings (to be moved)")){
 	  bool changed = false;
 	  PushItemWidth(itemwidth);
@@ -280,6 +299,7 @@ static void DialogPreferences(bool *p_open){
       } else if (catid == 3){
 	// Interface
 	ImGuiStyle& style = GetStyle();
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Colors")){
 	  static bool sadv = false;
 	  Checkbox("Show advanced color options", &sadv);
@@ -356,6 +376,7 @@ static void DialogPreferences(bool *p_open){
           if (sadv) ColorEdit4("View icon (Inactive)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive]), coloreditflags);
 	  TreePop();
 	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Settings")){
 	  // Interface -> Settings
 	  Text("Borders");
