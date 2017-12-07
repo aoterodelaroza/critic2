@@ -16,6 +16,21 @@
 #define PI 3.14159265358979323846
 #define AUTOANG 0.52917720859
 
+// UI style
+enum ImGuiColUI_ {
+  ImGuiColUI_ViewIcon,
+  ImGuiColUI_ViewIconHovered,
+  ImGuiColUI_ViewIconActive,
+  ImGuiColUI_ViewIconInactive,
+  ImGuiColUI_COUNT,
+};
+struct ImGuiStyleUI_ {
+  ImVec4 Colors[ImGuiColUI_COUNT];
+
+  ImGuiStyleUI_();
+};
+extern ImGuiStyleUI_ ImGuiStyleUI;
+
 // Shader
 extern Shader *shader;
 

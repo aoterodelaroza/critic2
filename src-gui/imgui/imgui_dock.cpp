@@ -805,7 +805,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
   this->hidden = false;
   this->flags = ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|
     ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|
-    ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_HorizontalScrollbar;
+    ImGuiWindowFlags_NoBringToFrontOnFocus;
   if (noresize)
     this->flags = this->flags | ImGuiWindowFlags_NoResize;
 }

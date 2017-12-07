@@ -33,6 +33,9 @@ const float fontsizebake = 36.0f;
 const float fontsizeicon = 24.0f;
 float fontsize = 14.0f;
 
+// UI style
+ImGuiStyleUI_ ImGuiStyleUI;
+
 // Shader
 Shader *shader;
 
@@ -57,6 +60,13 @@ float view_mousesens_zoom; // mouse zoom sensitivity (scale factor)
 bool tooltip_enabled; // enabled tooltips
 float tooltip_delay; // delay in seconds
 float tooltip_maxwidth; // maxwidth of the tooltip
+
+ImGuiStyleUI_::ImGuiStyleUI_(){
+  Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+  Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
+  Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
+  Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
+}
 
 void DefaultSettings(){
   // views

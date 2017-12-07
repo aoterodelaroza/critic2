@@ -99,9 +99,10 @@ void View::Draw(){
 			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
 			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
     ImVec2 buttonsize = ImVec2(fontsizeicon+1,fontsizeicon+1);
-    ImVec4 heldcolor = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
-    ImVec4 hovercolor = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
-    ImVec4 graycolor = ImVec4(0.5f,0.5f,0.5f,1.0f);
+    ImVec4 color = ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon];
+    ImVec4 heldcolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive];
+    ImVec4 hovercolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered];
+    ImVec4 graycolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive];
 
     // Interactive part of the buttons; save variables for later
     PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
@@ -182,9 +183,10 @@ void View::Draw(){
 	PushStyleColor(ImGuiCol_Text, hovercolor);
       else if (usegray[i])
 	PushStyleColor(ImGuiCol_Text, graycolor);
+      else
+	PushStyleColor(ImGuiCol_Text, color);
       Button(buttonchar[i],buttonsize);
-      if (held[i] || hovered[i] || usegray[i])
-	PopStyleColor();
+      PopStyleColor();
       SameLine();
       PopID();
     }
