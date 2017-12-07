@@ -71,7 +71,7 @@ contains
     if (equal(word,"grid")) then
        call xdm_grid(line(lp:))
     elseif (equal(word,"qe")) then
-       call xdm_qe()
+       call xdm_qe(line(lp:))
     elseif (equal(word,"excitation")) then
        call xdm_excitation(line(lp:))
     else
@@ -729,19 +729,99 @@ contains
   end subroutine xdm_grid
 
   !> Calculate XDM from the information in a QE output
-  subroutine xdm_qe()
+  subroutine xdm_qe(line0)
     use systemmod, only: sy
-    use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose
+    use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
+       lgetword, isinteger, equal
+    use types, only: realloc
+
+    character*(*), intent(inout) :: line0
+
     integer :: i, j
-    integer :: lu, idx, idx1, idx2
-    character(len=:), allocatable :: line, str
-    logical :: ok
+    integer :: lu, lp, lp2, idx, idx1, idx2, idum
+    character(len=:), allocatable :: line, str, word, aux
+    logical :: ok, inbetween
     real*8 :: a1, a2
     real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
     real*8 :: rc(sy%c%ncel,sy%c%ncel), rvdw(sy%c%ncel,sy%c%ncel)
+    integer :: nfrom, nto
+    integer, allocatable :: ifrom(:), ito(:)
+    logical, allocatable :: lfrom(:), lto(:)
     
+    ! parse the options
+    allocate(ifrom(10),ito(10))
+    lp = 1
+    inbetween = .false.
+    nfrom = 0
+    nto = 0
+    do while(.true.)
+       word = lgetword(line0,lp)
+       if (equal(word,"between")) then
+          inbetween = .true.
+          do while (isinteger(idum,line0,lp))
+             nfrom = nfrom + 1
+             if (nfrom > size(ifrom,1)) call realloc(ifrom,2*nfrom)
+             ifrom(nfrom) = idum
+          end do
+          if (nfrom == 0) &
+             call ferror("xdm_qe","No atoms found after BETWEEN keyword",faterr,line0,syntax=.true.)
+       else if (equal(word,"and")) then
+          if (.not.inbetween) &
+             call ferror("xdm_qe","AND found but missing BETWEEN",faterr,line0,syntax=.true.)
+          do while (isinteger(idum,line0,lp))
+             nto = nto + 1
+             if (nto > size(ito,1)) call realloc(ito,2*nto)
+             ito(nto) = idum
+          end do
+          if (nto == 0) &
+             call ferror("xdm_qe","No atoms found after AND keyword",faterr,line0,syntax=.true.)
+       elseif (len_trim(word) > 0) then
+          call ferror("xdm_qe","Unknown extra keyword: " // trim(word),faterr,line0,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+    if (nto > 0) call realloc(ito,nto)
+    if (nfrom > 0) call realloc(ifrom,nfrom)
+    if (nto > 0 .and. nfrom == 0) &
+       call ferror("xdm_qe","AND found but missing BETWEEN",faterr,line0,syntax=.true.)
+    if (nfrom > 0 .and. nto == 0) &
+       call ferror("xdm_qe","BETWEEN found but missing AND",faterr,line0,syntax=.true.)
+
+    ! allocate the from and to atoms
+    allocate(lto(sy%c%ncel),lfrom(sy%c%ncel))
+    if (nto == 0 .and. nfrom == 0) then
+       lto = .true.
+       lfrom = .true.
+    else
+       lto = .false.
+       lfrom = .false.
+       do i = 1, nto
+          lto(ito(i)) = .true.
+       end do
+       do i = 1, nfrom
+          lfrom(ifrom(i)) = .true.
+       end do
+    end if
+
     write (uout,'("* Sum the XDM dispersion energy using a QE output")')
     write (uout,'("+ Reading coefficients from the file: ",A)') string(sy%c%file)
+    if (nto > 0 .or. nfrom > 0) then
+       str = "  Between atoms: "
+       do i = 1, nfrom
+          aux = str // string(ifrom(i)) // " "
+          str = aux
+       end do
+       write (uout,'(A)') trim(str)
+       str = "  And atoms: "
+       do i = 1, nto
+          aux = str // string(ito(i)) // " "
+          str = aux
+       end do
+       write (uout,'(A)') trim(str)
+    end if
+    deallocate(ito,ifrom)
 
     lu = fopen_read(string(sy%c%file))
     call sy%c%build_env(150d0)
@@ -768,6 +848,11 @@ contains
                 if (idx1 /= i .or. idx2 /= j) then
                    call ferror("trick","read indices do not match",faterr)
                 end if
+                if (.not.(lto(i) .and. lfrom(j) .or. lto(j) .and. lfrom(i))) then
+                   c6(i,j) = 0d0
+                   c8(i,j) = 0d0
+                   c10(i,j) = 0d0
+                end if
                 c6(j,i) = c6(i,j)
                 c8(j,i) = c8(i,j)
                 c10(j,i) = c10(i,j)
@@ -778,6 +863,7 @@ contains
        end if
     end do main
     call fclose(lu)
+    deallocate(lto,lfrom)
 
     ! calculate and print out the energy
     call calc_edisp(c6,c8,c10,rvdw)
