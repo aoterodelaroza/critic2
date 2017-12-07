@@ -82,6 +82,7 @@ ImGuiStyleWidgets_::ImGuiStyleWidgets_(){
   Colors[ImGuiColWidgets_LiftGripHovered]   = ImVec4(0.80f, 0.40f, 0.20f, 1.00f);
   Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
+  Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.60f, 0.60f, 0.60f, 0.39f);
 };
 
 // Function definitions //

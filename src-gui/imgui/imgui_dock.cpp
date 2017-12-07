@@ -200,12 +200,14 @@ int Dock::getNearestTabBorder(){
 
 void Dock::showDropTargetFull(){
   SetNextWindowSize(ImVec2(0,0));
+  ImU32 color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
+  ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
+
   Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
-  ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
-  drawl->AddRectFilled(this->pos, this->pos + this->size, docked_color);
+  drawl->AddRectFilled(this->pos, this->pos + this->size, color);
   drawl->PopClipRect();
   End();
 }
@@ -1467,7 +1469,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   dd->control_window_this_frame = false;
 
   // Update the status
-  Dock *ddest;
+  Dock *ddest = nullptr;
   if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
     // Dragging
     dd->status = Dock::Status_Dragged;

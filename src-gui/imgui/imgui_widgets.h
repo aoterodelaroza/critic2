@@ -73,6 +73,7 @@ enum ImGuiColWidgets_ {
   ImGuiColWidgets_LiftGripHovered,
   ImGuiColWidgets_LiftGripActive,
   ImGuiColWidgets_DropTarget,
+  ImGuiColWidgets_DropTargetActive,
   ImGuiColWidgets_COUNT,
 };
 

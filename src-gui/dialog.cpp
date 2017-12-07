@@ -448,6 +448,8 @@ static void DialogPreferences(bool *p_open){
 	    ColorEdit4("Tab close button background (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive]), coloreditflags);
 	  if (filter.PassFilter("Drop target"))
 	    ColorEdit4("Drop target", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]), coloreditflags);
+	  if (filter.PassFilter("Drop target (Active)"))
+	    ColorEdit4("Drop target (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]), coloreditflags);
 	  if (filter.PassFilter("View icon"))
 	    ColorEdit4("View icon", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]), coloreditflags);
 	  if (filter.PassFilter("View icon (Hovered)"))
