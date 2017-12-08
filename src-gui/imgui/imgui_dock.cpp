@@ -161,26 +161,50 @@ bool Dock::IsMouseHoveringTabBar(){
 
 int Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
-  const float minsizex = getEdgeWidthx();
-  const float minsizey = getEdgeWidthy();
-
   ImVec2 xmin, xmax;
-  for (int i=1; i<5; i++){
-    xmin = this->pos;
-    xmax = this->pos + this->size;
-    if (i == 1)
-      xmax.y = xmin.y + minsizey;
-    else if (i == 3)
-      xmin.y = xmax.y - minsizey;
-    else if (i == 4)
-      xmax.x = xmin.x + minsizex;
-    else if (i == 2)
-      xmin.x = xmax.x - minsizex;
+  ImVec2 pos0 = this->pos;
+  pos0.y += this->window->TitleBarHeight();
+  ImVec2 size = this->size;
+  size.y -= this->window->TitleBarHeight();
+  float aside = fmax(fmax(0.2f * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy());
 
-    if (IsMouseHoveringRect(xmin,xmax,false))
-      return i;
-  }
+  xmin = pos0;
+  xmax.x = pos0.x + size.x;
+  xmax.y = xmin.y + aside;
+  if (IsMouseHoveringRect(xmin,xmax,false))
+    return 1;
+  xmax = pos0 + size;
+  xmin.x = xmax.x - aside;
+  xmin.y = pos0.y;
+  if (IsMouseHoveringRect(xmin,xmax,false))
+    return 2;
+  xmax = pos0 + size;
+  xmin.x = pos0.x;
+  xmin.y = xmax.y - aside;
+  if (IsMouseHoveringRect(xmin,xmax,false))
+    return 3;
+  xmin = pos0;
+  xmax.x = xmin.x + aside;
+  xmax.y = pos0.y + size.y;
+  if (IsMouseHoveringRect(xmin,xmax,false))
+    return 4;
+
   return 0;
+}
+
+bool Dock::IsMouseHoveringFull(){
+  ImVec2 a, b;
+  ImVec2 pos0 = this->pos;
+  pos0.y += this->window->TitleBarHeight();
+  ImVec2 size = this->size;
+  size.y -= this->window->TitleBarHeight();
+  float aside = 0.4f * fmin(size.x,size.y);
+  if (aside < 75.f)
+    aside = 0.6f * fmin(size.x,size.y);
+  a.x = pos0.x + 0.5f * size.x - 0.5f * aside;
+  a.y = pos0.y + 0.5f * size.y - 0.5f * aside;
+  b = a + ImVec2(aside,aside);
+  return IsMouseHoveringRect(a,b,false);
 }
 
 int Dock::getNearestTabBorder(){
@@ -202,12 +226,28 @@ void Dock::showDropTargetFull(){
   SetNextWindowSize(ImVec2(0,0));
   ImU32 color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
   ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
+  ImVec2 pos0 = this->pos;
+  pos0.y += this->window->TitleBarHeight();
+  ImVec2 size = this->size;
+  size.y -= this->window->TitleBarHeight();
 
   Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
-  drawl->AddRectFilled(this->pos, this->pos + this->size, color);
+
+  ImVec2 a, b;
+  float aside = 0.4f * fmin(size.x,size.y);
+  if (aside < 75.f)
+    aside = 0.6f * fmin(size.x,size.y);
+  a.x = pos0.x + 0.5f * size.x - 0.5f * aside;
+  a.y = pos0.y + 0.5f * size.y - 0.5f * aside;
+  b = a + ImVec2(aside,aside);
+
+  if (IsMouseHoveringRect(a,b,false))
+    drawl->AddRectFilled(a, b, coloractive);
+  else
+    drawl->AddRectFilled(a, b, color);
   drawl->PopClipRect();
   End();
 }
@@ -239,27 +279,50 @@ void Dock::showDropTargetOnTabBar(){
   End();
 }
 
-void Dock::showDropTargetEdge(int edge){
+void Dock::showDropTargetEdge(int edge, bool active){
   // 1:top, 2:right, 3:bottom, 4:left
-  const ImVec2 x0[4] = {{0.0,0.0}, {0.5,0.0}, {0.0,0.5}, {0.0,0.0}};
-  const ImVec2 x1[4] = {{1.0,0.5}, {1.0,1.0}, {1.0,1.0}, {0.5,1.0}};
+  ImU32 color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
+  ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
 
   if (edge > 0){
     ImVec2 xmin, xmax;
-    xmin.x = this->pos.x + x0[edge-1].x * this->size.x;
-    xmax.x = this->pos.x + x1[edge-1].x * this->size.x;
-    xmin.y = this->pos.y + x0[edge-1].y * this->size.y;
-    xmax.y = this->pos.y + x1[edge-1].y * this->size.y;
+    ImVec2 pos0 = this->pos;
+    pos0.y += this->window->TitleBarHeight();
+    ImVec2 size = this->size;
+    size.y -= this->window->TitleBarHeight();
+    float aside = fmax(fmax(0.2f * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy());
+    if (edge == 1) {
+      xmin = pos0;
+      xmax.x = pos0.x + size.x;
+      xmax.y = xmin.y + aside;
+    } else if (edge == 2) { 
+      xmax = pos0 + size;
+      xmin.x = xmax.x - aside;
+      xmin.y = pos0.y;
+    } else if (edge == 3) { 
+      xmax = pos0 + size;
+      xmin.x = pos0.x;
+      xmin.y = xmax.y - aside;
+    } else if (edge == 4) { 
+      xmin = pos0;
+      xmax.x = xmin.x + aside;
+      xmax.y = pos0.y + size.y;
+    }
 
     SetNextWindowSize(ImVec2(0,0));
     Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
-          ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
+	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
     ImDrawList* drawl = GetWindowDrawList();
     drawl->PushClipRectFullScreen();
-    ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
-    drawl->AddRectFilled(xmin,xmax,docked_color);
+    drawl->AddRectFilled(xmin,xmax,active?coloractive:color);
     drawl->PopClipRect();
     End();
+  }
+
+  if (active){
+    for (int i = 1; i < 5; i++)
+      if (edge != i)
+	this->showDropTargetEdge(i,false);
   }
 }
 
@@ -1298,7 +1361,8 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   } else {
     int ithis = -1, iedge = 0;
     bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
-    if (dropit && ddest->stack.empty() && ddest->automatic && ddest->parent && ddest->parent->type == Dock::Type_Root){
+    if (dropit && ddest->stack.empty() && ddest->automatic && ddest->parent && 
+	ddest->IsMouseHoveringFull() && ddest->parent->type == Dock::Type_Root){
       // drop it into the root container and replace it
       ddest->newDockRoot(dd,5);
     } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
@@ -1327,8 +1391,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     if (ddest){
       if (ddest->stack.empty() && ddest->automatic && ddest->parent && ddest->parent->type == Dock::Type_Root)
         ddest->showDropTargetFull();
-      else if (ddest->status == Dock::Status_Docked)
-        ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge());
+      ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
     }
   }
 
@@ -1478,7 +1541,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   } else {
     int ithis = -1, iedge = 0;
     bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
-    if (dropit && (ddest->stack.empty() || ((ithis = ddest->getNearestTabBorder()) >= 0))){
+    if (dropit && (ddest->stack.empty() && ddest->IsMouseHoveringFull() || ((ithis = ddest->getNearestTabBorder()) >= 0))){
       // Just stopped dragging and there is a container below
       ddest->newDock(dd,ithis);
     } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
@@ -1505,12 +1568,15 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   // If dragged and hovering over a container, show the drop rectangles
   if (dd->status == Dock::Status_Dragged){
     if (ddest){
-      if (ddest->stack.empty())
+      if (ddest->stack.empty()){
         ddest->showDropTargetFull();
-      else if (ddest->IsMouseHoveringTabBar())
+	if (ddest->status == Dock::Status_Docked && !(ddest->automatic))
+	  ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
+      } else if (ddest->IsMouseHoveringTabBar()) {
         ddest->showDropTargetOnTabBar();
-      else if (ddest->status == Dock::Status_Docked)
-        ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge());
+      } else if (ddest->status == Dock::Status_Docked) {
+        ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
+      }
     }
   }
 

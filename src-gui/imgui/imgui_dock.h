@@ -155,6 +155,9 @@ namespace ImGui{
     // Is the mouse hovering the drop edges of a container? (no rectangle clipping)
     // Returns the edge id.
     int IsMouseHoveringEdge();
+    // Returns true if the mouse is hovering the drop target when the container
+    // is empty. (no rectangle clipping)
+    bool IsMouseHoveringFull();
     // Get the nearest tab border in the tab when hovering a
     // container. Returns the tab number or -1 if the tab bar is not
     // hovered or there are no tabs.
@@ -166,7 +169,7 @@ namespace ImGui{
     void showDropTargetOnTabBar();
     // Show the drop targets on the edge of the container. edge is the
     // id for the edge (1:top, 2:right, 3:bottom, 4:left).
-    void showDropTargetEdge(int edge);
+    void showDropTargetEdge(int edge, bool active);
 
     // Find the integer index of dock dthis in the stack of this
     // container or h/v-container.
