@@ -359,7 +359,7 @@ xxxx
 * XDM GRID [RHO irho.s] [TAU itau.s] [ELF ielf.s] [PDENS ipdens.s] 
       [COR icor.s] [LAP ilap.s] [GRAD igrad.s] [RHOAE irhoae.s]
       [XB ib.s] [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]
-  XDM QE
+  XDM QE [BETWEEN at1.i at1.i ... AND at1.i at2.i ...]
   XDM a1.r a2.r chf.s
 * STM [CURRENT [curr.r]|HEIGHT [hei.r]] [TOP top.r] 
       [{CELL|CELLS} nx.i ny.i] [NPTS n1.i n2.i] 
