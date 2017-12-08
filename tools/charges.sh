@@ -22,14 +22,14 @@ if [ ! $(which $CRITIC2) ] ; then
 fi
 
 dry=""
-nnm="nonnm"
+nnm=""
 OPTSTRING=${@}
 OPTIND=1
 while getopts "dn" opt
 do
 	case $opt in
 	    d)  dry="1" ;;
-	    n)  nnm=""  ;;
+	    n)  nnm="nnm";;
 	    ?)
 		echo -e $usage
 		exit 0
