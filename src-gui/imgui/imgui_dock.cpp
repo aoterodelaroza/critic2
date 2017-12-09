@@ -243,11 +243,11 @@ void Dock::showDropTargetFull(){
   a.x = pos0.x + 0.5f * size.x - 0.5f * aside;
   a.y = pos0.y + 0.5f * size.y - 0.5f * aside;
   b = a + ImVec2(aside,aside);
-
+  
   if (IsMouseHoveringRect(a,b,false))
-    drawl->AddRectFilled(a, b, coloractive);
+    drawl->AddRectFilled(a, b, coloractive, GetStyle().WindowRounding);
   else
-    drawl->AddRectFilled(a, b, color);
+    drawl->AddRectFilled(a, b, color, GetStyle().WindowRounding);
   drawl->PopClipRect();
   End();
 }
@@ -283,38 +283,62 @@ void Dock::showDropTargetEdge(int edge, bool active){
   // 1:top, 2:right, 3:bottom, 4:left
   ImU32 color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
   ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
+  const float dx = 4.f;
+  const float minedge = 40.f;
 
   if (edge > 0){
-    ImVec2 xmin, xmax;
+    ImGuiContext *g = GetCurrentContext();
     ImVec2 pos0 = this->pos;
     pos0.y += this->window->TitleBarHeight();
     ImVec2 size = this->size;
     size.y -= this->window->TitleBarHeight();
-    float aside = fmax(fmax(0.2f * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy());
+    float aside = fmin(fmax(fmax(0.2f * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy()),minedge);
+    ImVec2 p0, p1, p2, p3, xmin, xmax;
     if (edge == 1) {
       xmin = pos0;
-      xmax.x = pos0.x + size.x;
+      xmin.x += dx;
+      xmax.x = pos0.x + size.x - dx;
       xmax.y = xmin.y + aside;
+      p0 = xmin;
+      p1 = {xmin.x + aside, xmax.y};
+      p2 = {xmax.x - aside, xmax.y};
+      p3 = {xmax.x, xmin.y};
     } else if (edge == 2) { 
+      xmin.x = pos0.x + size.x - aside;
+      xmin.y = pos0.y + dx;
       xmax = pos0 + size;
-      xmin.x = xmax.x - aside;
-      xmin.y = pos0.y;
+      xmax.y -= dx;
+      p0 = {xmax.x,xmin.y};
+      p1 = {xmin.x,xmin.y + aside};
+      p2 = {xmin.x,xmax.y - aside};
+      p3 = xmax;
     } else if (edge == 3) { 
       xmax = pos0 + size;
-      xmin.x = pos0.x;
+      xmax.x -= dx;
+      xmin.x = pos0.x + dx;
       xmin.y = xmax.y - aside;
+      p0 = {xmin.x,xmax.y};
+      p1 = {xmin.x + aside,xmin.y};
+      p2 = {xmax.x - aside,xmin.y};
+      p3 = xmax;
     } else if (edge == 4) { 
       xmin = pos0;
+      xmin.y += dx;
       xmax.x = xmin.x + aside;
-      xmax.y = pos0.y + size.y;
+      xmax.y = pos0.y + size.y - dx;
+      p0 = xmin;
+      p1 = {xmax.x, xmin.y + aside};
+      p2 = {xmax.x, xmax.y - aside};
+      p3 = {xmin.x,xmax.y};
     }
 
     SetNextWindowSize(ImVec2(0,0));
     Begin("##Drop",nullptr,ImGuiWindowFlags_Tooltip|ImGuiWindowFlags_NoTitleBar|
-	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
+    	  ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
     ImDrawList* drawl = GetWindowDrawList();
     drawl->PushClipRectFullScreen();
-    drawl->AddRectFilled(xmin,xmax,active?coloractive:color);
+    ImVec2 pts[4] = {p0, p1, p2, p3};
+    drawl->AddConvexPolyFilled(pts, 4, active?coloractive:color, g->Style.AntiAliasedShapes);
     drawl->PopClipRect();
     End();
   }
