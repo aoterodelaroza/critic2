@@ -143,6 +143,9 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab,
                         bool *p_open, bool *dragged, bool *dclicked, float alphamul /*=1.f*/){
   // lengths and colors
   ImGuiContext *g = GetCurrentContext();
+  const float tabrounding = 7.0f;
+  const bool plotborder = false;
+  const ImU32 colorborder = GetColorU32(g->Style.Colors[ImGuiCol_Border]);
   const float crossz = round(0.3 * g->FontSize);
   const float crosswidth = 2 * crossz * 1.75f + 6;
   const float mintabwidth = 2 * crosswidth + 1;
@@ -206,9 +209,10 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab,
   drawl->AddRectFilled(pos0,pos1,activetab? color_active:
                        pressed? color_pressed:
                        hovered? color_hovered:
-                       color);
+                       color,tabrounding,ImDrawCornerFlags_TopLeft|ImDrawCornerFlags_TopRight);
 
-  drawl->AddRect(pos0,pos1,color_active,0.0f,~0,1.0f);
+  if (plotborder)
+    drawl->AddRect(pos0,pos1,colorborder,tabrounding,ImDrawCornerFlags_TopLeft|ImDrawCornerFlags_TopRight,1.0f);
   RenderTextClipped(pos0,pos1s,label,text_end,&text_size, ImVec2(0.5f,0.5f), &clip_rect);
   
   // draw the "x"
