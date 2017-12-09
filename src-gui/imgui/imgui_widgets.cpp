@@ -87,6 +87,30 @@ ImGuiStyleWidgets_::ImGuiStyleWidgets_(){
 
 // Function definitions //
 
+bool ImGui::IsMouseHoveringConvexPoly(const ImVec2* points, const int num_points){
+    ImGuiContext& g = *GImGui;
+
+    float p0[num_points][2];
+    
+    // differences
+    for (int i = 0; i < num_points; i++){
+      p0[i][0] = points[i].x - g.IO.MousePos.x;
+      p0[i][1] = points[i].y - g.IO.MousePos.y;
+    }
+
+    // first sign
+    float a0 = p0[0][0] * p0[num_points-1][1] - p0[num_points-1][0] * p0[0][1];
+
+    // compare to all other signs
+    for (int i = 0; i < num_points-1; i++){
+      float a = p0[i+1][0] * p0[i][1] - p0[i][0] * p0[i+1][1];
+      if (a * a0 < 0) 
+	return false;
+    }
+
+    return true;
+}
+
 void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos, 
                        ImVec2 size, float minx, float maxx, int direction){
   ImDrawList* dl = window->DrawList;

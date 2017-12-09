@@ -161,32 +161,62 @@ bool Dock::IsMouseHoveringTabBar(){
 
 int Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
-  ImVec2 xmin, xmax;
+  const float dx = 4.f;
+  const float minedge = 40.f;
+
+  ImVec2 xmin, xmax, pts[4];
   ImVec2 pos0 = this->pos;
   pos0.y += this->window->TitleBarHeight();
   ImVec2 size = this->size;
   size.y -= this->window->TitleBarHeight();
-  float aside = fmax(fmax(0.2f * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy());
+  float aside = fmin(fmax(fmax(0.2f * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy()),minedge);
 
+  // 1: top
   xmin = pos0;
-  xmax.x = pos0.x + size.x;
+  xmin.x += dx;
+  xmax.x = pos0.x + size.x - dx;
   xmax.y = xmin.y + aside;
-  if (IsMouseHoveringRect(xmin,xmax,false))
+  pts[0] = xmin;
+  pts[1] = {xmin.x + aside, xmax.y};
+  pts[2] = {xmax.x - aside, xmax.y};
+  pts[3] = {xmax.x, xmin.y};
+  if (IsMouseHoveringConvexPoly(pts,4))
     return 1;
+
+  // 2: right
+  xmin.x = pos0.x + size.x - aside;
+  xmin.y = pos0.y + dx;
   xmax = pos0 + size;
-  xmin.x = xmax.x - aside;
-  xmin.y = pos0.y;
-  if (IsMouseHoveringRect(xmin,xmax,false))
+  xmax.y -= dx;
+  pts[0] = {xmax.x,xmin.y};
+  pts[1] = {xmin.x,xmin.y + aside};
+  pts[2] = {xmin.x,xmax.y - aside};
+  pts[3] = xmax;
+  if (IsMouseHoveringConvexPoly(pts,4))
     return 2;
+
+  // 3: bottom
   xmax = pos0 + size;
-  xmin.x = pos0.x;
+  xmax.x -= dx;
+  xmin.x = pos0.x + dx;
   xmin.y = xmax.y - aside;
-  if (IsMouseHoveringRect(xmin,xmax,false))
+  pts[0] = {xmin.x,xmax.y};
+  pts[1] = {xmin.x + aside,xmin.y};
+  pts[2] = {xmax.x - aside,xmin.y};
+  pts[3] = xmax;
+  if (IsMouseHoveringConvexPoly(pts,4))
     return 3;
+
+  // 4: left
   xmin = pos0;
+  xmin.y += dx;
   xmax.x = xmin.x + aside;
-  xmax.y = pos0.y + size.y;
-  if (IsMouseHoveringRect(xmin,xmax,false))
+  xmax.y = pos0.y + size.y - dx;
+  pts[0] = xmin;
+  pts[1] = {xmax.x, xmin.y + aside};
+  pts[2] = {xmax.x, xmax.y - aside};
+  pts[3] = {xmin.x,xmax.y};
+  if (IsMouseHoveringConvexPoly(pts,4))
     return 4;
 
   return 0;

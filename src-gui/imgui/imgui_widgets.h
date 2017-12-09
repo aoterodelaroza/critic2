@@ -87,6 +87,10 @@ extern ImGuiStyleWidgets_ ImGuiStyleWidgets;
 
 // Widgets added to ImGui
 namespace ImGui{
+  // Returns true if mouse is hovering the inside of a convex
+  // polygon.
+  bool IsMouseHoveringConvexPoly(const ImVec2* points, const int num_points);
+
   // Sliding bar for splits. label: used to calculate the ID. window:
   // window containing the bar. pos: position of the top left of the bar on
   // input and output. size: size of the bar. minx and maxx: minimum and maximum
