@@ -104,7 +104,7 @@ bool ImGui::IsMouseHoveringConvexPoly(const ImVec2* points, const int num_points
     // compare to all other signs
     for (int i = 0; i < num_points-1; i++){
       float a = p0[i+1][0] * p0[i][1] - p0[i][0] * p0[i+1][1];
-      if (a * a0 < 0) 
+      if (a * a0 < 0.f) 
 	return false;
     }
 

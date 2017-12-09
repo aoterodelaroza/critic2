@@ -293,17 +293,22 @@ void Dock::showDropTargetOnTabBar(){
         ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize);
   ImDrawList* drawl = GetWindowDrawList();
   drawl->PushClipRectFullScreen();
-  ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
+  ImU32 docked_color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
 
   ImVec2 a, b, c;
-  a.x = this->tabsx[ithis]; a.y = this->tabbarrect.Max.y;
-  b.x = a.x + 0.5 * triside; b.y = a.y + triside * sqrt(3.)/2.;
-  c.x = a.x - 0.5 * triside; c.y = b.y;
-  drawl->AddTriangleFilled(a,b,c,docked_color);
-  a.y = this->tabbarrect.Min.y;
-  b.y = a.y - triside * sqrt(3.)/2.;
-  c.y = b.y;
-  drawl->AddTriangleFilled(a,b,c,docked_color);
+  // a.x = this->tabsx[ithis]; a.y = this->tabbarrect.Max.y;
+  // b.x = a.x + 0.5 * triside; b.y = a.y + triside * sqrt(3.)/2.;
+  // c.x = a.x - 0.5 * triside; c.y = b.y;
+  // drawl->AddTriangleFilled(a,b,c,docked_color);
+  // a.y = this->tabbarrect.Min.y;
+  // b.y = a.y - triside * sqrt(3.)/2.;
+  // c.y = b.y;
+  // drawl->AddTriangleFilled(a,b,c,docked_color);
+  a.x = this->tabsx[ithis] - 0.5 * triside;
+  a.y = this->tabbarrect.Min.y - 0.5 * triside;
+  b.x = this->tabsx[ithis] + 0.5 * triside;
+  b.y = this->tabbarrect.Max.y + 0.5 * triside;
+  drawl->AddRectFilled(a,b,docked_color);
 
   drawl->PopClipRect();
   End();
