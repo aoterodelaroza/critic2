@@ -22,8 +22,10 @@
 #include "imgui/gl3w.h"
 
 // public vertex buffer and attribute objects
+const int nmaxsph = 4;
 extern GLuint sphVAO[];
 extern const GLuint sphnel[];
+const int nmaxcyl = 1;
 extern GLuint cylVAO[];
 extern const GLuint cylnel[];
 

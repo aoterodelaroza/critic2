@@ -38,14 +38,12 @@ static float halfn = 0.5f / cylnorm;
 static float halfn2 = 2 * halfn;
 
 // global variables
-const int nmaxsph = 4;
 GLuint sphVAO[nmaxsph];
 GLuint sphVBO;
 GLuint sphEBO[nmaxsph];
 const GLuint sphnve[nmaxsph]    = {     12,  42, 162,  642};
 const GLuint sphnel[nmaxsph]    = {     20,  80, 320, 1280};
 const GLuint sphneladd[nmaxsph+1] = {0, 20, 100, 420, 1700};
-const int nmaxcyl = 1;
 GLuint cylVAO[nmaxcyl];
 GLuint cylVBO;
 GLuint cylEBO[nmaxcyl];

@@ -26,6 +26,7 @@
 #include "view.h"
 #include "settings.h"
 #include "keybinding.h"
+#include "shapes.h"
 
 using namespace ImGui;
 
@@ -90,8 +91,11 @@ void CloseLastDialog(){
 
 // Preferences dialog //
 static void DialogPreferences(bool *p_open){
-  const float itemwidth = 50;
+  ImGuiContext *g = GetCurrentContext();
+  float itemwidth = 4.f * g->FontSize;
   static ImGuiTextFilter filter;
+  const float wleft = 150.f;
+  const float wright = 400.f;
 
   if (*p_open){
     SetNextWindowSize(ImVec2(500, 440), ImGuiSetCond_FirstUseEver);
@@ -110,7 +114,7 @@ static void DialogPreferences(bool *p_open){
 
       // Left panel
       static int catid = 0;
-      BeginChild("leftpanel", ImVec2(150, 0), true);
+      BeginChild("leftpanel", ImVec2(wleft, 0), true);
       for (int i=0; i < ncat; i++){
 	if (Selectable(catname[i], catid == i))
 	  catid = i;
@@ -120,7 +124,7 @@ static void DialogPreferences(bool *p_open){
 
       // Right panel
       BeginGroup();
-      BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()-GetCurrentContext()->Style.ItemSpacing.y));
+      BeginChild("rightpanel", ImVec2(0,-GetItemsLineHeightWithSpacing()-g->Style.ItemSpacing.y));
       bool setexpcol = false, expcol = false;
       AlignTextToFramePadding();
       Text(catname[catid]); 
@@ -158,16 +162,16 @@ static void DialogPreferences(bool *p_open){
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Lighting")){
 	  // Views -> Lighting
-	  PushItemWidth(3 * itemwidth);
+	  PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
 	  bool changed = false, anychanged = false;
 	  if (filter.PassFilter("Light position"))
-	    changed |= DragFloat3("Light position", &(view_lightpos[0]), 0.1f, -FLT_MAX, FLT_MAX, "%.1f", 1.0f); 
+	    changed |= DragFloat3("Light position", &(view_lightpos[0]), 0.5f, -FLT_MAX, FLT_MAX, "%.1f", 1.0f); 
 	  if (changed)
 	    shader->setVec3("lightPos",value_ptr(view_lightpos));
 	  anychanged |= changed;
 	  
 	  if (filter.PassFilter("Light color"))
-	    changed |= DragFloat3("Light color", &(view_lightcolor[0]), 0.01f, 0.0, 1.0f, "%.2f", 1.0f); 
+	    changed |= DragFloat3("Light color", &(view_lightcolor[0]), 0.002f, 0.0, 1.0f, "%.3f", 1.0f); 
 	  if (changed)
 	    shader->setVec3("lightColor",value_ptr(view_lightcolor));
 	  anychanged |= changed;
@@ -176,28 +180,28 @@ static void DialogPreferences(bool *p_open){
 	  PushItemWidth(itemwidth);
 	  changed = false;
 	  if (filter.PassFilter("Ambient light intensity"))
-	    changed |= DragFloat("Ambient light intensity", &view_ambient, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
+	    changed |= DragFloat("Ambient light intensity", &view_ambient, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f); 
 	  if (changed)
 	    shader->setFloat("ambient",view_ambient);
 	  anychanged |= changed;
 
 	  changed = false;
 	  if (filter.PassFilter("Diffuse light intensity"))
-	    changed |= DragFloat("Diffuse light intensity", &view_diffuse, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
+	    changed |= DragFloat("Diffuse light intensity", &view_diffuse, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f); 
 	  if (changed)
 	    shader->setFloat("diffuse",view_diffuse);
 	  anychanged |= changed;
 
 	  changed = false;
 	  if (filter.PassFilter("Specular light intensity"))
-	    changed |= DragFloat("Specular light intensity", &view_specular, 0.01f, 0.0f, 1.0f, "%.2f", 1.0f); 
+	    changed |= DragFloat("Specular light intensity", &view_specular, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f); 
 	  if (changed)
 	    shader->setFloat("specular",view_specular);
 	  anychanged |= changed;
 
 	  changed = false;
 	  if (filter.PassFilter("Light shininess"))
-	    changed |= DragInt("Light shininess", &view_shininess, 1.0f, 0.0f, FLT_MAX, "%.2f"); 
+	    changed |= DragInt("Light shininess", &view_shininess, 1.0f, 0.0f, 256.f, "%.0f"); 
 	  if (changed)
 	    shader->setInt("shininess",view_shininess);
 	  anychanged |= changed;
@@ -211,9 +215,9 @@ static void DialogPreferences(bool *p_open){
 	if (TreeNode("Mouse sensitivity")){
 	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Rotation mouse sensitivity"))
-	    DragFloat("Rotation mouse sensitivity", &view_mousesens_rot, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
+	    DragFloat("Rotation mouse sensitivity", &view_mousesens_rot, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
 	  if (filter.PassFilter("Zoom mouse sensitivity"))
-	    DragFloat("Zoom mouse sensitivity", &view_mousesens_zoom, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f); 
+	    DragFloat("Zoom mouse sensitivity", &view_mousesens_zoom, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
 	  PopItemWidth();
 	  TreePop();
 	}
@@ -228,21 +232,20 @@ static void DialogPreferences(bool *p_open){
 	  if (filter.PassFilter("Field of view (degrees)"))
 	    changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
 	  if (filter.PassFilter("Reset distance (scene radius)"))
-	    changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.05f, 0.0f, FLT_MAX, "%.2f", 1.0f); 
+	    changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
 	  PopItemWidth();
 	  
-	  PushItemWidth(4*itemwidth); 
+	  PushItemWidth(4 * itemwidth + 3.f * g->Style.ItemInnerSpacing.x);
 	  if (filter.PassFilter("Background color"))
-	    changed |= DragFloat4("Background color", view_bgrgb, 0.01f, 0.0, 1.0f, "%.2f", 1.0f); 
+	    changed |= DragFloat4("Background color", view_bgrgb, 0.002f, 0.0, 1.0f, "%.3f", 1.0f); 
 	  PopItemWidth();
 
 	  PushItemWidth(itemwidth); 
 	  if (filter.PassFilter("Atom resolution"))
-	    changed |= DragInt("Atom resolution", &view_isphres, 1.0f, 0.0f, 3.0f, "%.2f"); 
+	    changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
 	  if (filter.PassFilter("Bond resolution"))
-	    changed |= DragInt("Bond resolution", &view_icylres, 0.0f, 0.0f, 0.0f, "%.2f"); 
+	    changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
 	  PopItemWidth();
-	  view_icylres = 0;
 
 	  if (changed)
 	    SetDefaultAllViews();
@@ -253,6 +256,7 @@ static void DialogPreferences(bool *p_open){
 	TextDisabled("(Right-click on the button to toggle double-click)");
 
 	// Key bindings
+	BeginChild("keybindselector",ImVec2(wright,0.f),false);
 	Columns(2,"keybindingcolumns",false);
 	for (int i = 0; i < BIND_MAX; i++){
 	  if (!filter.PassFilter(BindNames[i]))
@@ -301,6 +305,7 @@ static void DialogPreferences(bool *p_open){
 	  NextColumn();
 	}
 	Columns(1);
+	EndChild();
 
 	// popup to read a key
 	if (getbind != -1){
@@ -324,8 +329,9 @@ static void DialogPreferences(bool *p_open){
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Colors")){
 	  static int style_idx = 0;
+	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
 	  if (filter.PassFilter("Color theme")){
-	    if (Combo("Color theme", &style_idx, "Classic\0Dark\0Light\0")){
+	    if (Combo("Color theme", &style_idx, "Classic\0Dark\0Light\0"),3){
 	      switch (style_idx){
 	      case 0: UIStyleColorsClassic(); break;
 	      case 1: UIStyleColorsDark(); break;
@@ -460,6 +466,7 @@ static void DialogPreferences(bool *p_open){
 	    ColorEdit4("View icon (Grabbed)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]), coloreditflags);
 	  if (filter.PassFilter("View icon (Inactive)"))
 	    ColorEdit4("View icon (Inactive)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive]), coloreditflags);
+	  PopItemWidth(); 
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
@@ -468,84 +475,90 @@ static void DialogPreferences(bool *p_open){
 	  Text("Borders");
 	  Separator();
 	  bool border = (style.WindowBorderSize > 0.0f);
-	  if (filter.PassFilter("WindowBorder") && Checkbox("WindowBorder", &border))
+	  if (filter.PassFilter("Window borders") && Checkbox("Window borders", &border))
 	    style.WindowBorderSize = border ? 1.0f : 0.0f;
 	  border = (style.FrameBorderSize > 0.0f);
-	  if (filter.PassFilter("FrameBorder") && Checkbox("FrameBorder", &border))
+	  if (filter.PassFilter("Frame borders") && Checkbox("Frame borders", &border))
 	    style.FrameBorderSize = border ? 1.0f : 0.0f;
 	  border = (ImGuiStyleWidgets.TabBorderSize > 0.0f);
-	  if (filter.PassFilter("TabBorder") && Checkbox("TabBorder", &border))
+	  if (filter.PassFilter("Tab borders") && Checkbox("Tab borders", &border))
 	    ImGuiStyleWidgets.TabBorderSize = border ? 1.0f : 0.0f;
 	  border = (style.PopupBorderSize > 0.0f);
-	  if (filter.PassFilter("PopupBorder") && Checkbox("PopupBorder", &border))
+	  if (filter.PassFilter("Popup borders") && Checkbox("Popup borders", &border))
 	    style.PopupBorderSize = border ? 1.0f : 0.0f;
 	  border = (style.ChildBorderSize > 0.0f);
-	  if (filter.PassFilter("ChildBorder") && Checkbox("ChildBorder", &border))
-	    style.ChildBorderSize = border ? 1.0f : 0.0f;
 
 	  Text("Element size and positioning");
 	  Separator();
-	  if (filter.PassFilter("WindowPadding"))
-	    SliderFloat2("WindowPadding", (float*)&style.WindowPadding, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("PopupRounding"))
-	    SliderFloat("PopupRounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
-	  if (filter.PassFilter("FramePadding"))
-	    SliderFloat2("FramePadding", (float*)&style.FramePadding, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("ItemSpacing"))
-	    SliderFloat2("ItemSpacing", (float*)&style.ItemSpacing, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("ItemInnerSpacing"))
-	    SliderFloat2("ItemInnerSpacing", (float*)&style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("TouchExtraPadding"))
-	    SliderFloat2("TouchExtraPadding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
-	  if (filter.PassFilter("IndentSpacing"))
-	    SliderFloat("IndentSpacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
-	  if (filter.PassFilter("ScrollbarSize"))
-	    SliderFloat("ScrollbarSize", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("SlidingBarWidth"))
-	    SliderFloat("SlidingBarWidth", &ImGuiStyleWidgets.SlidingBarWidth, 1.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("GrabMinSize"))
-	    SliderFloat("GrabMinSize", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("TabHeight"))
-	    SliderFloat("TabHeight", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
-	  if (filter.PassFilter("TabMaxWidth"))
-	    SliderFloat("TabMaxWidth", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
-	  if (filter.PassFilter("CascadeIncrement"))
-	    SliderFloat("CascadeIncrement", &ImGuiStyleWidgets.CascadeIncrement, 10.0f, 100.0f, "%.0f");
+	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
+	  if (filter.PassFilter("Window padding"))
+	    SliderFloat2("Window padding", (float*)&style.WindowPadding, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Frame padding"))
+	    SliderFloat2("Frame padding", (float*)&style.FramePadding, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Item spacing"))
+	    SliderFloat2("Item spacing", (float*)&style.ItemSpacing, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Item inner spacing"))
+	    SliderFloat2("Item inner spacing", (float*)&style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Touch extra padding"))
+	    SliderFloat2("Touch extra padding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
+	  PopItemWidth();
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Indent spacing"))
+	    SliderFloat("Indent spacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
+	  if (filter.PassFilter("Scroll bar width"))
+	    SliderFloat("Scroll bar width", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Sliding bar width"))
+	    SliderFloat("Sliding bar width", &ImGuiStyleWidgets.SlidingBarWidth, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Grab size"))
+	    SliderFloat("Grab size", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Tab height"))
+	    SliderFloat("Tab height", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
+	  if (filter.PassFilter("Tab maximum width"))
+	    SliderFloat("Tab maximum width", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
+	  PopItemWidth();
 
 	  Text("Rounding");
 	  Separator();
-	  if (filter.PassFilter("WindowRounding"))
-	    SliderFloat("WindowRounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
-	  if (filter.PassFilter("ChildRounding"))
-	    SliderFloat("ChildRounding", &style.ChildRounding, 0.0f, 16.0f, "%.0f");
-	  if (filter.PassFilter("FrameRounding") && SliderFloat("FrameRounding", &style.FrameRounding, 0.0f, 12.0f, "%.0f"))
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Window rounding"))
+	    SliderFloat("Window rounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
+	  if (filter.PassFilter("Child window rounding"))
+	    SliderFloat("Child window rounding", &style.ChildRounding, 0.0f, 16.0f, "%.0f");
+	  if (filter.PassFilter("Frame rounding") && SliderFloat("Frame rounding", &style.FrameRounding, 0.0f, 12.0f, "%.0f"))
 	    style.GrabRounding = style.FrameRounding;
-	  if (filter.PassFilter("ScrollbarRounding"))
-	    SliderFloat("ScrollbarRounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
-	  if (filter.PassFilter("GrabRounding"))
-	    SliderFloat("GrabRounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
-	  if (filter.PassFilter("TabRounding"))
-	    SliderFloat("TabRounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
+	  if (filter.PassFilter("Scroll bar rounding"))
+	    SliderFloat("Scroll bar rounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
+	  if (filter.PassFilter("Grab rounding"))
+	    SliderFloat("Grab rounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
+	  if (filter.PassFilter("Tab rounding"))
+	    SliderFloat("Tab rounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
+	  if (filter.PassFilter("Popup rounding"))
+	    SliderFloat("Popup rounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
+	  PopItemWidth();
 
 	  Text("Alignment");
 	  Separator();
-	  if (filter.PassFilter("WindowTitleAlign"))
-	    SliderFloat2("WindowTitleAlign", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
-	  if (filter.PassFilter("ButtonTextAlign"))
-	    SliderFloat2("ButtonTextAlign", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
+	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
+	  if (filter.PassFilter("Window title alignment"))
+	    SliderFloat2("Window title alignment", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
+	  if (filter.PassFilter("Button text alignment"))
+	    SliderFloat2("Button text alignment", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
+	  PopItemWidth();
 
 	  Text("Drop targets");
 	  Separator();
-	  if (filter.PassFilter("DropTargetLooseness"))
-	    SliderFloat("DropTargetLooseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
-	  if (filter.PassFilter("DropTargetMinsizeEdge"))
-	    SliderFloat("DropTargetMinsizeEdge", &ImGuiStyleWidgets.DropTargetMinsizeEdge, 0.0f, 150.0f, "%.0f");
-	  if (filter.PassFilter("DropTargetMaxsizeEdge"))
-	    SliderFloat("DropTargetMaxsizeEdge", &ImGuiStyleWidgets.DropTargetMaxsizeEdge, 0.0f, 150.0f, "%.0f");
-	  if (filter.PassFilter("DropTargetEdgeFraction"))
-	    SliderFloat("DropTargetEdgeFraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
-	  if (filter.PassFilter("DropTargetFullFraction"))
-	    SliderFloat("DropTargetFullFraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Drop target looseness"))
+	    SliderFloat("Drop target looseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
+	  if (filter.PassFilter("Drop target minimum size"))
+	    SliderFloat("Drop target minimum size", &ImGuiStyleWidgets.DropTargetMinsizeEdge, 0.0f, 150.0f, "%.0f");
+	  if (filter.PassFilter("Drop target maximum size"))
+	    SliderFloat("Drop target maximum size", &ImGuiStyleWidgets.DropTargetMaxsizeEdge, 0.0f, 150.0f, "%.0f");
+	  if (filter.PassFilter("Drop target edge fraction"))
+	    SliderFloat("Drop target edge fraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
+	  if (filter.PassFilter("Drop target body fraction"))
+	    SliderFloat("Drop target body fraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
+	  PopItemWidth();
 	  TreePop();
 	}
       } else if (catid == 4){
