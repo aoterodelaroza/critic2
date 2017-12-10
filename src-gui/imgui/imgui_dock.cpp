@@ -1256,7 +1256,7 @@ Dock *ImGui::RootContainer(const char* label, bool* p_open /*=nullptr*/, ImGuiWi
 
   // Making an invisible window (always has a container)
   PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
-  flags = flags | ImGuiWindowFlags_NoResize;
+  flags = flags | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar;
   collapsed = !Begin(label,p_open,flags);
 
   // set the properties of the rootcontainer window
@@ -1355,7 +1355,7 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   SetNextWindowSizeConstraints(minsize,ImVec2(FLT_MAX,FLT_MAX),nullptr,nullptr);
   SetNextWindowContentSize(autosize);
   if (dd->currenttab)
-    flags = flags | ImGuiWindowFlags_NoResize;
+    flags = flags | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar;
 
   // Render any container widgets in here
   bool transparentframe = dd->currenttab || (dd->dockflags & Dock::DockFlags_Transparent);
@@ -1568,7 +1568,16 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
 
   // Update the status
   Dock *ddest = nullptr;
-  if (g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0]){
+
+  // is the window being dragged directly?
+  bool isdragged = g->ActiveId == GetCurrentWindow()->MoveId && g->IO.MouseDown[0];
+
+  // ... or maybe it is grabbed from a child window?
+  if (!isdragged && g->IO.MouseDown[0] && g->MovingWindow && 
+      g->MovingWindow->Flags & ImGuiWindowFlags_ChildWindow && g->MovingWindow->RootWindow)
+    isdragged = (g->MovingWindow->RootWindow == GetCurrentWindow());
+
+  if (isdragged){
     // Dragging
     dd->status = Dock::Status_Dragged;
     dd->hoverable = false;
@@ -1658,8 +1667,22 @@ void ImGui::PrintDock__() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
+  Text("activeid: %d\n",g->ActiveId);
+  Text("activeidwindow: %p movingwindow: %p\n",g->ActiveIdWindow,g->MovingWindow);
+  if (g->ActiveIdWindow){
+    Text("ischild: %d\n",g->ActiveIdWindow->Flags & ImGuiWindowFlags_ChildWindow);
+    Text("rootwindow: %p\n",g->ActiveIdWindow->RootWindow);
+  }
+  if (g->MovingWindow){
+    Text("ischild: %d\n",g->MovingWindow->Flags & ImGuiWindowFlags_ChildWindow);
+    Text("rootwindow: %p\n",g->MovingWindow->RootWindow);
+  }
+  Separator();
   for (auto dock : dockht){
-    Text("label=%s id=%p parent=%p\n",dock.second->label,dock.second,dock.second->parent);
+    Text("label=%s id=%p type=%d status=%d\n",dock.second->label,
+	 dock.second,dock.second->type,dock.second->status);
+    if (dock.second->window)
+      Text("moveid=%d\n",dock.second->window->MoveId);
     Separator();
   }
 
