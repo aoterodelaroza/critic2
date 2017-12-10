@@ -1482,6 +1482,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   currentdock = dd;
   dd->dockflags = dock_flags;
 
+  dd->noborder = false;
   if (dd->dockflags & Dock::DockFlags_Transparent)
     PushStyleColor(ImGuiCol_WindowBg,TransparentColor(ImGuiCol_WindowBg));
   if (dd->status == Dock::Status_Docked || dd->control_window_this_frame){
@@ -1495,6 +1496,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
       flags = dd->flags | ImGuiWindowFlags_NoResize;
       collapsed = dd->hidden;
       if (dd->hidden){
+	dd->noborder = true;
+	PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         Begin(label,nullptr,dd->size,0.0,flags);
       } else {
         Begin(label,nullptr,flags);
@@ -1639,6 +1642,8 @@ void ImGui::EndDock() {
   End();
   if (currentdock->dockflags & Dock::DockFlags_Transparent)
     PopStyleColor();
+  if (currentdock->noborder)
+    PopStyleVar();
   currentdock = nullptr;
 }
 
