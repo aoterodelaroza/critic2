@@ -41,12 +41,6 @@ static unordered_map<ImGuiWindow*,Dock*> dockwin = {}; // global dock hash table
 static Dock *FindHoveredDock(int type = -1); // find the container hovered by the mouse
 static void placeWindow(ImGuiWindow* base,ImGuiWindow* moved,int idelta); // place a window relative to another in the window stack
 static void killDock(Dock *dd); // erase the dock from the context and delete the object
-static float getTabHeight(); // height of a container tab
-static float getTabMaxWidth(); // maximum widht of a tab
-static float getEdgeWidthx(); // width of the edge drop zone
-static float getEdgeWidthy(); // height of the edge drop zone
-static float getCascadeIncrement(); // window translation in a window cascade
-static float getSlidingBarWidth(); // width of the sliding bars
 
 //xx// Dock context methods //xx//
 
@@ -125,35 +119,10 @@ static void killDock(Dock *dd){
   delete dd;
 }
 
-static float getTabHeight(){
-  ImGuiContext *g = GetCurrentContext();
-  return g->FontSize + g->Style.FramePadding.y * 2.0f;
-}
-static float getTabMaxWidth(){
-  ImGuiContext *g = GetCurrentContext();
-  return 100.f * g->FontSize / 13.0f;
-}
-static float getEdgeWidthx(){
-  ImGuiContext *g = GetCurrentContext();
-  return 2.0f * g->Style.WindowPadding.x;
-}
-static float getEdgeWidthy(){
-  ImGuiContext *g = GetCurrentContext();
-  return 2.0f * g->Style.WindowPadding.y;
-}
-static float getCascadeIncrement(){
-  ImGuiContext *g = GetCurrentContext();
-  return g->FontSize + g->Style.FramePadding.y * 4.0f;
-}
-static float getSlidingBarWidth(){
-  ImGuiContext *g = GetCurrentContext();
-  return 0.5f * g->Style.ScrollbarSize;
-}
-
 //xx// Dock methods //xx//
 
 bool Dock::IsMouseHoveringTabBar(){
-  const float ycush = 0.5 * getTabHeight();
+  const float ycush = 0.5 * ImGuiStyleWidgets.TabHeight;
   const ImVec2 ytabcushiondn = ImVec2(0.f,ycush);
   const ImVec2 ytabcushionup = ImVec2(0.f,this->status==Dock::Status_Docked?0.:ycush);
   return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushionup,this->tabbarrect.Max+ytabcushiondn,false);
@@ -161,16 +130,17 @@ bool Dock::IsMouseHoveringTabBar(){
 
 int Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
-  const float dx = 4.f;
-  const float minedge = 40.f;
-  const float edgefraction = 0.1f;
+  const float dx = ImGuiStyleWidgets.DropTargetLooseness;
+  const float minedge = ImGuiStyleWidgets.DropTargetMinsizeEdge;
+  const float edgefraction = ImGuiStyleWidgets.DropTargetEdgeFraction;
 
   ImVec2 xmin, xmax, pts[4];
   ImVec2 pos0 = this->pos;
   pos0.y += this->window->TitleBarHeight();
   ImVec2 size = this->size;
   size.y -= this->window->TitleBarHeight();
-  float aside = fmin(fmax(fmax(edgefraction * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy()),minedge);
+  float aside = fmin(fmax(fmax(edgefraction * fmin(size.x,size.y),ImGuiStyleWidgets.EdgeWidth.x),
+			  ImGuiStyleWidgets.EdgeWidth.y),minedge);
 
   // 1: top
   xmin = pos0;
@@ -229,9 +199,7 @@ bool Dock::IsMouseHoveringFull(){
   pos0.y += this->window->TitleBarHeight();
   ImVec2 size = this->size;
   size.y -= this->window->TitleBarHeight();
-  float aside = 0.4f * fmin(size.x,size.y);
-  if (aside < 75.f)
-    aside = 0.6f * fmin(size.x,size.y);
+  float aside = ImGuiStyleWidgets.DropTargetFullFraction * fmin(size.x,size.y);
   a.x = pos0.x + 0.5f * size.x - 0.5f * aside;
   a.y = pos0.y + 0.5f * size.y - 0.5f * aside;
   b = a + ImVec2(aside,aside);
@@ -268,9 +236,7 @@ void Dock::showDropTargetFull(){
   drawl->PushClipRectFullScreen();
 
   ImVec2 a, b;
-  float aside = 0.4f * fmin(size.x,size.y);
-  if (aside < 75.f)
-    aside = 0.6f * fmin(size.x,size.y);
+  float aside = ImGuiStyleWidgets.DropTargetFullFraction * fmin(size.x,size.y);
   a.x = pos0.x + 0.5f * size.x - 0.5f * aside;
   a.y = pos0.y + 0.5f * size.y - 0.5f * aside;
   b = a + ImVec2(aside,aside);
@@ -319,9 +285,9 @@ void Dock::showDropTargetEdge(int edge, bool active){
   // 1:top, 2:right, 3:bottom, 4:left
   ImU32 color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
   ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
-  const float dx = 4.f;
-  const float minedge = 40.f;
-  const float edgefraction = 0.1f;
+  const float dx = ImGuiStyleWidgets.DropTargetLooseness;
+  const float minedge = ImGuiStyleWidgets.DropTargetMinsizeEdge;
+  const float edgefraction = ImGuiStyleWidgets.DropTargetEdgeFraction;
 
   if (edge > 0){
     ImGuiContext *g = GetCurrentContext();
@@ -329,7 +295,8 @@ void Dock::showDropTargetEdge(int edge, bool active){
     pos0.y += this->window->TitleBarHeight();
     ImVec2 size = this->size;
     size.y -= this->window->TitleBarHeight();
-    float aside = fmin(fmax(fmax(edgefraction * fmin(size.x,size.y),getEdgeWidthx()),getEdgeWidthy()),minedge);
+    float aside = fmin(fmax(fmax(edgefraction * fmin(size.x,size.y),ImGuiStyleWidgets.EdgeWidth.x),
+			    ImGuiStyleWidgets.EdgeWidth.y),minedge);
     ImVec2 p0, p1, p2, p3, xmin, xmax;
     if (edge == 1) {
       xmin = pos0;
@@ -648,7 +615,7 @@ void Dock::liftContainer(){
   this->unDock();
   this->status = Dock::Status_Dragged;
   this->hoverable = false;
-  this->pos = GetMousePos() - ImVec2(0.5*this->size.x,min(getTabHeight(),0.2f*this->size.y));
+  this->pos = GetMousePos() - ImVec2(0.5*this->size.x,min(ImGuiStyleWidgets.TabHeight,0.2f*this->size.y));
   ClearActiveID();
   g->MovingWindow = this->window;
   g->MovingWindowMoveId = this->window->RootWindow->MoveId;
@@ -733,7 +700,7 @@ void Dock::unDock(){
 }
 
 void Dock::clearContainer(){
-  const float increment = getCascadeIncrement();
+  const float increment = ImGuiStyleWidgets.CascadeIncrement;
 
   ImVec2 pos = this->pos;
   for (auto dd : this->stack) {
@@ -746,7 +713,7 @@ void Dock::clearContainer(){
 }
 
 void Dock::clearRootContainer(){
-  const float increment = getCascadeIncrement();
+  const float increment = ImGuiStyleWidgets.CascadeIncrement;
 
   if (this->type == Dock::Type_Root){
     this->nchild = 0;
@@ -810,8 +777,8 @@ void Dock::killContainerMaybe(){
 
 void Dock::drawTabBar(Dock **erased/*=nullptr*/){
   ImGuiContext *g = GetCurrentContext();
-  const float tabheight = getTabHeight();
-  const float maxtabwidth = getTabMaxWidth();
+  const float tabheight = ImGuiStyleWidgets.TabHeight;
+  const float maxtabwidth = ImGuiStyleWidgets.TabMaxWidth;
   ImVec4 text_color = g->Style.Colors[ImGuiCol_Text];
   text_color.w = 2.0 / g->Style.Alpha;
   bool raise = false;
@@ -956,7 +923,7 @@ void Dock::drawContainer(bool noresize, Dock **erased/*=nullptr*/){
 
 void Dock::getMinSize(ImVec2 *minsize,ImVec2 *autosize){
   ImGuiContext *g = GetCurrentContext();
-  const float barwidth = getSlidingBarWidth();
+  const float barwidth = ImGuiStyleWidgets.SlidingBarWidth;
 
   if (minsize) *minsize = {}; 
   if (autosize) *autosize = {}; 
@@ -1061,7 +1028,7 @@ void Dock::setSlidingBarPosition(int iedge,float xpos){
 void Dock::drawRootContainerBars(Dock *root){
   if (!this) return;
   ImGuiContext *g = GetCurrentContext();
-  const float barwidth = getSlidingBarWidth();
+  const float barwidth = ImGuiStyleWidgets.SlidingBarWidth;
 
   this->root = root;
   if (this->type == Dock::Type_Root){
@@ -1120,7 +1087,7 @@ void Dock::drawRootContainerBars(Dock *root){
 void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount/*=nullptr*/){
   if (!this) return;
   ImGuiContext *g = GetCurrentContext();
-  const float barwidth = getSlidingBarWidth();
+  const float barwidth = ImGuiStyleWidgets.SlidingBarWidth;
 
   this->root = root;
   if (this->type == Dock::Type_Root){

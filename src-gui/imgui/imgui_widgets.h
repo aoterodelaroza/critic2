@@ -69,6 +69,7 @@ enum ImGuiColWidgets_ {
   ImGuiColWidgets_TabXBg,
   ImGuiColWidgets_TabXBgHovered,
   ImGuiColWidgets_TabXBgActive,
+  ImGuiColWidgets_TabBorder,
   ImGuiColWidgets_LiftGrip,
   ImGuiColWidgets_LiftGripHovered,
   ImGuiColWidgets_LiftGripActive,
@@ -80,7 +81,19 @@ enum ImGuiColWidgets_ {
 // Style for the widgets
 struct ImGuiStyleWidgets_ {
   ImVec4 Colors[ImGuiColWidgets_COUNT];
+  float TabRounding;
+  float TabBorderSize;
+  float DropTargetLooseness;
+  float DropTargetMinsizeEdge;
+  float DropTargetEdgeFraction;
+  float DropTargetFullFraction;
+  float TabHeight;
+  float TabMaxWidth;
+  ImVec2 EdgeWidth;
+  float CascadeIncrement;
+  float SlidingBarWidth;
 
+  // gettabheight gettabwidth getslidingbarwidth ...
   ImGuiStyleWidgets_();
 };
 extern ImGuiStyleWidgets_ ImGuiStyleWidgets;

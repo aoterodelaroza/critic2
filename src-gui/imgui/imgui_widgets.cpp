@@ -65,6 +65,7 @@ ImGuiStyleWidgets_ ImGuiStyleWidgets;
 
 // Constructor for the style struct //
 ImGuiStyleWidgets_::ImGuiStyleWidgets_(){
+  // colors
   Colors[ImGuiColWidgets_Slidingbar]        = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
   Colors[ImGuiColWidgets_SlidingbarHovered] = ImVec4(0.60f, 0.60f, 0.70f, 1.00f);
   Colors[ImGuiColWidgets_SlidingbarActive]  = ImVec4(0.70f, 0.70f, 0.90f, 1.00f);
@@ -78,11 +79,25 @@ ImGuiStyleWidgets_::ImGuiStyleWidgets_(){
   Colors[ImGuiColWidgets_TabXBg]            = ImVec4(0.80f, 0.20f, 0.00f, 0.00f);
   Colors[ImGuiColWidgets_TabXBgHovered]     = ImVec4(0.80f, 0.20f, 0.00f, 1.00f);
   Colors[ImGuiColWidgets_TabXBgActive]      = ImVec4(0.60f, 0.20f, 0.00f, 1.00f);
+  Colors[ImGuiColWidgets_TabBorder]         = ImVec4(0.50f, 0.50f, 0.50f, 0.50f);
   Colors[ImGuiColWidgets_LiftGrip]          = ImVec4(0.60f, 0.20f, 0.00f, 1.00f);
   Colors[ImGuiColWidgets_LiftGripHovered]   = ImVec4(0.80f, 0.40f, 0.20f, 1.00f);
   Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.43f);
   Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
+
+  // style vars
+  TabRounding = 7.0f;
+  TabBorderSize = 0.0f;
+  DropTargetLooseness = 4.0f;
+  DropTargetMinsizeEdge = 40.f;
+  DropTargetEdgeFraction = 0.1f;
+  DropTargetFullFraction = 0.4f;
+  TabHeight = 19.0f;
+  TabMaxWidth = 100.f;
+  EdgeWidth = {8.f,8.f};
+  CascadeIncrement = 25.f;
+  SlidingBarWidth = 4.f;
 };
 
 // Function definitions //
@@ -141,13 +156,9 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
 
 bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab,
                         bool *p_open, bool *dragged, bool *dclicked, float alphamul /*=1.f*/){
-  // lengths and colors
   ImGuiContext *g = GetCurrentContext();
-  const float tabrounding = 7.0f;
-  const bool plotborder = false;
-  const ImU32 colorborder = GetColorU32(g->Style.Colors[ImGuiCol_Border]);
   const float crossz = round(0.3 * g->FontSize);
-  const float crosswidth = 2 * crossz * 1.75f + 6;
+  const float crosswidth = 3.5f * crossz + 6;
   const float mintabwidth = 2 * crosswidth + 1;
 
   const ImU32 colorxfg = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg]);
@@ -209,10 +220,11 @@ bool ImGui::ButtonWithX(const char* label, const ImVec2& size, bool activetab,
   drawl->AddRectFilled(pos0,pos1,activetab? color_active:
                        pressed? color_pressed:
                        hovered? color_hovered:
-                       color,tabrounding,ImDrawCornerFlags_TopLeft|ImDrawCornerFlags_TopRight);
+                       color,ImGuiStyleWidgets.TabRounding,ImDrawCornerFlags_TopLeft|ImDrawCornerFlags_TopRight);
 
-  if (plotborder)
-    drawl->AddRect(pos0,pos1,colorborder,tabrounding,ImDrawCornerFlags_TopLeft|ImDrawCornerFlags_TopRight,1.0f);
+  if (ImGuiStyleWidgets.TabBorderSize > 0.0f)
+    drawl->AddRect(pos0,pos1,GetColorU32(g->Style.Colors[ImGuiColWidgets_TabBorder]),
+		   ImGuiStyleWidgets.TabRounding,ImDrawCornerFlags_TopLeft|ImDrawCornerFlags_TopRight,1.0f);
   RenderTextClipped(pos0,pos1s,label,text_end,&text_size, ImVec2(0.5f,0.5f), &clip_rect);
   
   // draw the "x"
