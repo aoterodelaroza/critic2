@@ -90,12 +90,12 @@ ImGuiStyleWidgets_::ImGuiStyleWidgets_(){
   TabRounding = 7.0f;
   TabBorderSize = 0.0f;
   DropTargetLooseness = 4.0f;
-  DropTargetMinsizeEdge = 40.f;
+  DropTargetMinsizeEdge = 30.f;
+  DropTargetMaxsizeEdge = 90.f;
   DropTargetEdgeFraction = 0.1f;
   DropTargetFullFraction = 0.4f;
   TabHeight = 19.0f;
   TabMaxWidth = 100.f;
-  EdgeWidth = {8.f,8.f};
   CascadeIncrement = 25.f;
   SlidingBarWidth = 4.f;
 };

@@ -473,6 +473,9 @@ static void DialogPreferences(bool *p_open){
 	  border = (style.FrameBorderSize > 0.0f);
 	  if (filter.PassFilter("FrameBorder") && Checkbox("FrameBorder", &border))
 	    style.FrameBorderSize = border ? 1.0f : 0.0f;
+	  border = (ImGuiStyleWidgets.TabBorderSize > 0.0f);
+	  if (filter.PassFilter("TabBorder") && Checkbox("TabBorder", &border))
+	    ImGuiStyleWidgets.TabBorderSize = border ? 1.0f : 0.0f;
 	  border = (style.PopupBorderSize > 0.0f);
 	  if (filter.PassFilter("PopupBorder") && Checkbox("PopupBorder", &border))
 	    style.PopupBorderSize = border ? 1.0f : 0.0f;
@@ -498,8 +501,16 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat("IndentSpacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
 	  if (filter.PassFilter("ScrollbarSize"))
 	    SliderFloat("ScrollbarSize", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("SlidingBarWidth"))
+	    SliderFloat("SlidingBarWidth", &ImGuiStyleWidgets.SlidingBarWidth, 1.0f, 20.0f, "%.0f");
 	  if (filter.PassFilter("GrabMinSize"))
 	    SliderFloat("GrabMinSize", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("TabHeight"))
+	    SliderFloat("TabHeight", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
+	  if (filter.PassFilter("TabMaxWidth"))
+	    SliderFloat("TabMaxWidth", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
+	  if (filter.PassFilter("CascadeIncrement"))
+	    SliderFloat("CascadeIncrement", &ImGuiStyleWidgets.CascadeIncrement, 10.0f, 100.0f, "%.0f");
 
 	  Text("Rounding");
 	  Separator();
@@ -513,6 +524,8 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat("ScrollbarRounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
 	  if (filter.PassFilter("GrabRounding"))
 	    SliderFloat("GrabRounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
+	  if (filter.PassFilter("TabRounding"))
+	    SliderFloat("TabRounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
 
 	  Text("Alignment");
 	  Separator();
@@ -520,9 +533,21 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat2("WindowTitleAlign", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
 	  if (filter.PassFilter("ButtonTextAlign"))
 	    SliderFloat2("ButtonTextAlign", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
+
+	  Text("Drop targets");
+	  Separator();
+	  if (filter.PassFilter("DropTargetLooseness"))
+	    SliderFloat("DropTargetLooseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
+	  if (filter.PassFilter("DropTargetMinsizeEdge"))
+	    SliderFloat("DropTargetMinsizeEdge", &ImGuiStyleWidgets.DropTargetMinsizeEdge, 0.0f, 150.0f, "%.0f");
+	  if (filter.PassFilter("DropTargetMaxsizeEdge"))
+	    SliderFloat("DropTargetMaxsizeEdge", &ImGuiStyleWidgets.DropTargetMaxsizeEdge, 0.0f, 150.0f, "%.0f");
+	  if (filter.PassFilter("DropTargetEdgeFraction"))
+	    SliderFloat("DropTargetEdgeFraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
+	  if (filter.PassFilter("DropTargetFullFraction"))
+	    SliderFloat("DropTargetFullFraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
 	  TreePop();
 	}
-
       } else if (catid == 4){
 	// Fonts
 	ImGuiIO& io = GetIO();

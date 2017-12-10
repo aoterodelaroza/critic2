@@ -85,11 +85,11 @@ struct ImGuiStyleWidgets_ {
   float TabBorderSize;
   float DropTargetLooseness;
   float DropTargetMinsizeEdge;
+  float DropTargetMaxsizeEdge;
   float DropTargetEdgeFraction;
   float DropTargetFullFraction;
   float TabHeight;
   float TabMaxWidth;
-  ImVec2 EdgeWidth;
   float CascadeIncrement;
   float SlidingBarWidth;
 

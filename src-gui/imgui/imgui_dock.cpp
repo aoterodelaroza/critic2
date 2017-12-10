@@ -132,6 +132,7 @@ int Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
   const float dx = ImGuiStyleWidgets.DropTargetLooseness;
   const float minedge = ImGuiStyleWidgets.DropTargetMinsizeEdge;
+  const float maxedge = ImGuiStyleWidgets.DropTargetMaxsizeEdge;
   const float edgefraction = ImGuiStyleWidgets.DropTargetEdgeFraction;
 
   ImVec2 xmin, xmax, pts[4];
@@ -139,8 +140,7 @@ int Dock::IsMouseHoveringEdge(){
   pos0.y += this->window->TitleBarHeight();
   ImVec2 size = this->size;
   size.y -= this->window->TitleBarHeight();
-  float aside = fmin(fmax(fmax(edgefraction * fmin(size.x,size.y),ImGuiStyleWidgets.EdgeWidth.x),
-			  ImGuiStyleWidgets.EdgeWidth.y),minedge);
+  float aside = fmin(fmax(edgefraction * fmin(size.x,size.y),maxedge),minedge);
 
   // 1: top
   xmin = pos0;
@@ -287,6 +287,7 @@ void Dock::showDropTargetEdge(int edge, bool active){
   ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
   const float dx = ImGuiStyleWidgets.DropTargetLooseness;
   const float minedge = ImGuiStyleWidgets.DropTargetMinsizeEdge;
+  const float maxedge = ImGuiStyleWidgets.DropTargetMaxsizeEdge;
   const float edgefraction = ImGuiStyleWidgets.DropTargetEdgeFraction;
 
   if (edge > 0){
@@ -295,8 +296,8 @@ void Dock::showDropTargetEdge(int edge, bool active){
     pos0.y += this->window->TitleBarHeight();
     ImVec2 size = this->size;
     size.y -= this->window->TitleBarHeight();
-    float aside = fmin(fmax(fmax(edgefraction * fmin(size.x,size.y),ImGuiStyleWidgets.EdgeWidth.x),
-			    ImGuiStyleWidgets.EdgeWidth.y),minedge);
+    float aside = fmin(fmax(edgefraction * fmin(size.x,size.y),maxedge),minedge);
+
     ImVec2 p0, p1, p2, p3, xmin, xmax;
     if (edge == 1) {
       xmin = pos0;
