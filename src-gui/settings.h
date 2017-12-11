@@ -32,8 +32,34 @@ struct ImGuiStyleUI_ {
 
   float MessageWidth;
   float MessageExpire;
+  float FontSizeIcon;
+  float FontSize;
+  bool TooltipEnabled;
+  float TooltipDelay;
+  float TooltipMaxwidth;
 
-  ImGuiStyleUI_();
+  void DefaultStyle(){
+    MessageWidth = 300.f;
+    MessageExpire = 5.f;
+    FontSizeIcon = 24.0f;
+    FontSize = 14.0f;
+    TooltipEnabled = true;
+    TooltipDelay = 1.5f;
+    TooltipMaxwidth = 450.f;
+  }
+  void DefaultColors(){
+    Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
+    Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
+    Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
+    Colors[ImGuiColUI_MessageInfo] = ImVec4(0.0f,1.0f,0.0f,0.4f);
+    Colors[ImGuiColUI_MessageWarning] = ImVec4(1.0f,1.0f,0.0f,0.4f);
+    Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
+  }
+  ImGuiStyleUI_(){
+    DefaultStyle();
+    DefaultColors();
+  };
 };
 extern ImGuiStyleUI_ ImGuiStyleUI;
 
@@ -44,8 +70,6 @@ extern Shader *shader;
 extern ImFont* fontdefault;
 extern ImFont* fonticon;
 extern const float fontsizebake;
-extern float fontsizeicon;
-extern float fontsize;
 
 // Color picker options
 const int coloreditflags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar | 
@@ -80,16 +104,14 @@ extern float view_mousesens_rot;
 const float mousesens_zoom0 = 0.15f;
 extern float view_mousesens_zoom;
 
-// Tooltips
-extern bool tooltip_enabled;
-extern float tooltip_delay;
-extern float tooltip_maxwidth;
-
 // Default settings
 void DefaultSettings();
 void UIStyleColorsClassic();
 void UIStyleColorsDark();
 void UIStyleColorsLight();
+
+// xxxx 
+void outputconf();
 
 // Callbacks
 void error_callback(int error, const char* description);

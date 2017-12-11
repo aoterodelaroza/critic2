@@ -98,7 +98,7 @@ void View::Draw(){
 			       ICON_SM_COMPASS_ANGLE,ICON_SM_RULER,ICON_SM_PENCIL,
 			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
 			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
-    ImVec2 buttonsize = ImVec2(fontsizeicon+1,fontsizeicon+1);
+    ImVec2 buttonsize = ImVec2(ImGuiStyleUI.FontSizeIcon + 1,ImGuiStyleUI.FontSizeIcon + 1);
     ImVec4 color = ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon];
     ImVec4 heldcolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive];
     ImVec4 hovercolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered];
@@ -110,15 +110,15 @@ void View::Draw(){
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
-	SameLine(); Dummy(ImVec2(0.25f*fontsizeicon,0.f));
+	SameLine(); Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f));
 	SameLine(); Text(ICON_SM_VBAR);
-	SameLine(); Dummy(ImVec2(0.25f*fontsizeicon,0.f));
+	SameLine(); Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f));
       }
       PushID(buttonchar[i]);
       SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
-      if (tooltip_enabled)
-	AttachTooltip(view_tooltip_label(i).c_str(),tooltip_delay,tooltip_maxwidth,fontdefault);
+      if (ImGuiStyleUI.TooltipEnabled)
+	AttachTooltip(view_tooltip_label(i).c_str(),ImGuiStyleUI.TooltipDelay,ImGuiStyleUI.TooltipMaxwidth,fontdefault);
       PopID();
     }
     PopFont();
@@ -172,9 +172,9 @@ void View::Draw(){
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
-	Dummy(ImVec2(0.25f*fontsizeicon,0.f)); SameLine();
+	Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f)); SameLine();
 	Text(ICON_SM_VBAR); SameLine();
-	Dummy(ImVec2(0.25f*fontsizeicon,0.f)); SameLine();
+	Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f)); SameLine();
       }
       PushID(buttonchar[i]);
       if (held[i])

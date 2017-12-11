@@ -68,7 +68,7 @@ void MessageDispatch(){
     ImVec2 size1 = CalcTextSize(ICON_SM_INFO,NULL,false,messagewidth);
     PopFont();
     ImVec2 size2 = CalcTextSize((*it)->message,NULL,false,messagewidth - size1.x - g->Style.ItemSpacing.x);
-    ImVec2 size = {messagewidth,max(size2.y + 0.5f * (fontsizeicon - fontsize),size1.y) + 2.f * g->Style.WindowPadding.y};
+    ImVec2 size = {messagewidth,max(size2.y + 0.5f * (ImGuiStyleUI.FontSizeIcon - ImGuiStyleUI.FontSize),size1.y) + 2.f * g->Style.WindowPadding.y};
     ImVec2 pos = {g->IO.DisplaySize.x - messagewidth - 2.f*g->Style.ItemSpacing.x,
 		  lasty - 2.f*g->Style.ItemSpacing.y - size.y};
     SetNextWindowPos(pos);
@@ -90,7 +90,7 @@ void MessageDispatch(){
     SameLine();
     PopFont();
 
-    GetCurrentWindow()->DC.CurrentLineTextBaseOffset = 0.5f * (fontsizeicon - fontsize);
+    GetCurrentWindow()->DC.CurrentLineTextBaseOffset = 0.5f * (ImGuiStyleUI.FontSizeIcon - ImGuiStyleUI.FontSize);
     TextWrapped((*it)->message);
     bool toerase = IsWindowHovered() && (IsMouseClicked(0) || IsMouseClicked(1));
     End();

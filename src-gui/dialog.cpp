@@ -149,11 +149,11 @@ static void DialogPreferences(bool *p_open){
 	if (TreeNode("Tooltips")){
 	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Enable tooltips"))
-	    Checkbox("Enable tooltips", &tooltip_enabled);
+	    Checkbox("Enable tooltips", &ImGuiStyleUI.TooltipEnabled);
 	  if (filter.PassFilter("Tooltip delay (s)"))
-	    DragFloat("Tooltip delay (s)", &tooltip_delay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
+	    DragFloat("Tooltip delay (s)", &ImGuiStyleUI.TooltipDelay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
 	  if (filter.PassFilter("Tooltip maximum width (pixel)"))
-	    DragFloat("Tooltip maximum width (pixel)", &tooltip_maxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
+	    DragFloat("Tooltip maximum width (pixel)", &ImGuiStyleUI.TooltipMaxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
 	  PopItemWidth();
 	  TreePop();
 	}
@@ -581,7 +581,7 @@ static void DialogPreferences(bool *p_open){
 	ImGuiIO& io = GetIO();
 
 	PushItemWidth(1.5*itemwidth); 
-	DragFloat("Font Size (pixel)", &fontsize, 0.1f, 9.0f, fontsizebake, "%.1f");
+	DragFloat("Font Size (pixel)", &ImGuiStyleUI.FontSize, 0.1f, 9.0f, fontsizebake, "%.1f");
 	PopItemWidth(); 
 
 	BeginChild("fontselector",ImVec2(0.f,0.f),true);
@@ -595,7 +595,7 @@ static void DialogPreferences(bool *p_open){
 	    selected = i;
 	  }
 	  PopFont();
-	  io.Fonts->Fonts[i]->Scale = fontsize / fontsizebake;
+	  io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;
 	}
 	EndChild();
       }

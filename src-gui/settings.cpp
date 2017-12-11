@@ -24,17 +24,15 @@
 
 #include "imgui/additional_fonts.h"
 #include "imgui/imgui_widgets.h"
+#include "json/json.hpp"
 
 using namespace ImGui;
+using json = nlohmann::json;
 
 // Global variables: fonts (see settings.h)
 ImFont* fontdefault = nullptr;
 ImFont* fonticon = nullptr;
 const float fontsizebake = 36.0f;
-static const float fontsizeicon_default = 24.0f;
-static const float fontsize_default = 14.0f;
-float fontsize = fontsize_default;
-float fontsizeicon = fontsizeicon_default;
 
 // UI style
 ImGuiStyleUI_ ImGuiStyleUI;
@@ -58,23 +56,6 @@ int view_isphres; // resolution of the atom spheres
 int view_icylres; // resolution of the bond cylinders
 float view_mousesens_rot; // mouse rotation sensitivity (scale factor)
 float view_mousesens_zoom; // mouse zoom sensitivity (scale factor)
-
-// Tooltips
-bool tooltip_enabled; // enabled tooltips
-float tooltip_delay; // delay in seconds
-float tooltip_maxwidth; // maxwidth of the tooltip
-
-ImGuiStyleUI_::ImGuiStyleUI_(){
-  Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-  Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
-  Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
-  Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
-  Colors[ImGuiColUI_MessageInfo] = ImVec4(0.0f,1.0f,0.0f,0.4f);
-  Colors[ImGuiColUI_MessageWarning] = ImVec4(1.0f,1.0f,0.0f,0.4f);
-  Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
-  MessageWidth = 300.f;
-  MessageExpire = 5.f;
-}
 
 void DefaultSettings(){
   static bool firstpass = true;
@@ -114,27 +95,18 @@ void DefaultSettings(){
   style.CurveTessellationTol    = 1.25f;
 
   // default widget settings (imgui_widget.h)
-  ImGuiStyleWidgets.TabRounding = 7.0f;
-  ImGuiStyleWidgets.TabBorderSize = 0.0f;
-  ImGuiStyleWidgets.DropTargetLooseness = 4.0f;
-  ImGuiStyleWidgets.DropTargetMinsizeEdge = 30.f;
-  ImGuiStyleWidgets.DropTargetMaxsizeEdge = 90.f;
-  ImGuiStyleWidgets.DropTargetEdgeFraction = 0.1f;
-  ImGuiStyleWidgets.DropTargetFullFraction = 0.4f;
-  ImGuiStyleWidgets.TabHeight = 19.0f;
-  ImGuiStyleWidgets.TabMaxWidth = 100.f;
-  ImGuiStyleWidgets.CascadeIncrement = 25.f;
-  ImGuiStyleWidgets.SlidingBarWidth = 4.f;
+  ImGuiStyleWidgets.DefaultColors();
+  ImGuiStyleWidgets.DefaultStyle();
 
   // default UI settings (settings.h)
-  ImGuiStyleUI.MessageWidth = 300.f;
-  ImGuiStyleUI.MessageExpire = 5.f;
+  ImGuiStyleUI.DefaultColors();
+  ImGuiStyleUI.DefaultStyle();
 
   // default view settings (settings.h)
   view_wireframe = false;
   view_orthogonal = false;
   view_fov = 45.0f;
-  view_resetdistance = 1.3f; 
+  view_resetdistance = 1.3f;
   view_bgrgb[0] = view_bgrgb[1] = view_bgrgb[2] = 0.f;
   view_bgrgb[3] = 1.0f;
   view_lightpos[0] = view_lightpos[1] = 20.f;
@@ -148,11 +120,6 @@ void DefaultSettings(){
   view_icylres = 0;
   view_mousesens_rot = 1.0f;
   view_mousesens_zoom = 1.0f;
-
-  // tooltips (settings.h)
-  tooltip_enabled = true; // enabled tooltips
-  tooltip_delay = 1.5f; // delay in seconds
-  tooltip_maxwidth = 450.f; // maxwidth of the tooltip
 
   // set up shader and fill uniforms
   if (firstpass){
@@ -170,8 +137,8 @@ void DefaultSettings(){
   if (firstpass){
     // load standard fonts
     // const ImWchar* ImFontAtlas::GetGlyphRangesDefault()
-    ImFontConfig fntconfig; 
-    fntconfig.MergeMode = false; 
+    ImFontConfig fntconfig;
+    fntconfig.MergeMode = false;
     fntconfig.PixelSnapH = true;
     fntconfig.OversampleH = fntconfig.OversampleV = 4;
     fntconfig.MergeMode = false;
@@ -200,12 +167,10 @@ void DefaultSettings(){
   }
 
   // set the defualt sizes
-  fontsize = fontsize_default;
-  fontsizeicon = fontsizeicon_default;
-  io.Fonts->Fonts[0]->Scale = fontsizeicon / fontsizebake;
+  io.Fonts->Fonts[0]->Scale = ImGuiStyleUI.FontSizeIcon / fontsizebake;
   for (int i = 1; i < io.Fonts->Fonts.Size; i++)
-    io.Fonts->Fonts[i]->Scale = fontsize_default / fontsizebake;
-    
+    io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;
+
   // set the default font
   fontdefault = io.Fonts->Fonts[1];
   io.FontDefault = fontdefault;
@@ -432,9 +397,150 @@ void UIStyleColorsLight(){
   ImGuiStyleUI.Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
 }
 
+// JSON input and output //
+
+void to_json(json& j, const ImVec4& p) {
+  j = json{p.x, p.y, p.z, p.w};
+}
+void to_json(json& j, const ImVec2& p) {
+  j = json{p.x, p.y};
+}
+
+void JSON_outputconf(){
+  json j;
+
+  // UI colors (settings.h)
+  j["Color_ViewIcon"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon];
+  j["Color_ViewIconHovered"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered];
+  j["Color_ViewIconActive"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive];
+  j["Color_ViewIconInactive"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive];
+  j["Color_MessageInfo"] = ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo];
+  j["Color_MessageWarning"] = ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning];
+  j["Color_MessageError"] = ImGuiStyleUI.Colors[ImGuiColUI_MessageError];
+
+  // UI styles (settings.h)
+  j["MessageWidth"] = ImGuiStyleUI.MessageWidth;
+  j["MessageExpire"] = ImGuiStyleUI.MessageExpire;
+  j["FontSizeIcon"] = ImGuiStyleUI.FontSizeIcon;
+  j["FontSize"] = ImGuiStyleUI.FontSize;
+  j["TooltipEnabled"] = ImGuiStyleUI.TooltipEnabled;
+  j["TooltipDelay"] = ImGuiStyleUI.TooltipDelay;
+  j["TooltipMaxwidth"] = ImGuiStyleUI.TooltipMaxwidth;
+
+  // Widget colors (imgui_widgets.h)
+  j["Color_Slidingbar"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar];
+  j["Color_SlidingbarHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarHovered];
+  j["Color_SlidingbarActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarActive];
+  j["Color_Tab"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_Tab];
+  j["Color_TabHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabHovered];
+  j["Color_TabPressed"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabPressed];
+  j["Color_TabActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabActive];
+  j["Color_TabXFg"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg];
+  j["Color_TabXFgHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgHovered];
+  j["Color_TabXFgActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgActive];
+  j["Color_TabXBg"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBg];
+  j["Color_TabXBgHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgHovered];
+  j["Color_TabXBgActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive];
+  j["Color_TabBorder"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabBorder];
+  j["Color_LiftGrip"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGrip];
+  j["Color_LiftGripHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripHovered];
+  j["Color_LiftGripActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive];
+  j["Color_DropTarget"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget];
+  j["Color_DropTargetActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive];
+
+  // Widget styles (imgui_widgets.h)
+  j["TabRounding"] = ImGuiStyleWidgets.TabRounding;
+  j["TabBorderSize"] = ImGuiStyleWidgets.TabBorderSize;
+  j["DropTargetLooseness"] = ImGuiStyleWidgets.DropTargetLooseness;
+  j["DropTargetMinsizeEdge"] = ImGuiStyleWidgets.DropTargetMinsizeEdge;
+  j["DropTargetMaxsizeEdge"] = ImGuiStyleWidgets.DropTargetMaxsizeEdge;
+  j["DropTargetEdgeFraction"] = ImGuiStyleWidgets.DropTargetEdgeFraction;
+  j["DropTargetFullFraction"] = ImGuiStyleWidgets.DropTargetFullFraction;
+  j["TabHeight"] = ImGuiStyleWidgets.TabHeight;
+  j["TabMaxWidth"] = ImGuiStyleWidgets.TabMaxWidth;
+  j["CascadeIncrement"] = ImGuiStyleWidgets.CascadeIncrement;
+  j["SlidingBarWidth"] = ImGuiStyleWidgets.SlidingBarWidth;
+
+  // imgui colors
+  ImGuiStyle& style = GetStyle();
+  j["Text"] = style.Colors[ImGuiCol_Text];
+  j["TextDisabled"] = style.Colors[ImGuiCol_TextDisabled];
+  j["WindowBg"] = style.Colors[ImGuiCol_WindowBg];
+  j["ChildBg"] = style.Colors[ImGuiCol_ChildBg];
+  j["PopupBg"] = style.Colors[ImGuiCol_PopupBg];
+  j["Border"] = style.Colors[ImGuiCol_Border];
+  j["BorderShadow"] = style.Colors[ImGuiCol_BorderShadow];
+  j["FrameBg"] = style.Colors[ImGuiCol_FrameBg];
+  j["FrameBgHovered"] = style.Colors[ImGuiCol_FrameBgHovered];
+  j["FrameBgActive"] = style.Colors[ImGuiCol_FrameBgActive];
+  j["TitleBg"] = style.Colors[ImGuiCol_TitleBg];
+  j["TitleBgActive"] = style.Colors[ImGuiCol_TitleBgActive];
+  j["TitleBgCollapsed"] = style.Colors[ImGuiCol_TitleBgCollapsed];
+  j["MenuBarBg"] = style.Colors[ImGuiCol_MenuBarBg];
+  j["ScrollbarBg"] = style.Colors[ImGuiCol_ScrollbarBg];
+  j["ScrollbarGrab"] = style.Colors[ImGuiCol_ScrollbarGrab];
+  j["ScrollbarGrabHovered"] = style.Colors[ImGuiCol_ScrollbarGrabHovered];
+  j["ScrollbarGrabActive"] = style.Colors[ImGuiCol_ScrollbarGrabActive];
+  j["CheckMark"] = style.Colors[ImGuiCol_CheckMark];
+  j["SliderGrab"] = style.Colors[ImGuiCol_SliderGrab];
+  j["SliderGrabActive"] = style.Colors[ImGuiCol_SliderGrabActive];
+  j["Button"] = style.Colors[ImGuiCol_Button];
+  j["ButtonHovered"] = style.Colors[ImGuiCol_ButtonHovered];
+  j["ButtonActive"] = style.Colors[ImGuiCol_ButtonActive];
+  j["Header"] = style.Colors[ImGuiCol_Header];
+  j["HeaderHovered"] = style.Colors[ImGuiCol_HeaderHovered];
+  j["HeaderActive"] = style.Colors[ImGuiCol_HeaderActive];
+  j["Separator"] = style.Colors[ImGuiCol_Separator];
+  j["SeparatorHovered"] = style.Colors[ImGuiCol_SeparatorHovered];
+  j["SeparatorActive"] = style.Colors[ImGuiCol_SeparatorActive];
+  j["ResizeGrip"] = style.Colors[ImGuiCol_ResizeGrip];
+  j["ResizeGripHovered"] = style.Colors[ImGuiCol_ResizeGripHovered];
+  j["ResizeGripActive"] = style.Colors[ImGuiCol_ResizeGripActive];
+  j["CloseButton"] = style.Colors[ImGuiCol_CloseButton];
+  j["CloseButtonHovered"] = style.Colors[ImGuiCol_CloseButtonHovered];
+  j["CloseButtonActive"] = style.Colors[ImGuiCol_CloseButtonActive];
+  j["PlotLines"] = style.Colors[ImGuiCol_PlotLines];
+  j["PlotLinesHovered"] = style.Colors[ImGuiCol_PlotLinesHovered];
+  j["PlotHistogram"] = style.Colors[ImGuiCol_PlotHistogram];
+  j["PlotHistogramHovered"] = style.Colors[ImGuiCol_PlotHistogramHovered];
+  j["TextSelectedBg"] = style.Colors[ImGuiCol_TextSelectedBg];
+  j["ModalWindowDarkening"] = style.Colors[ImGuiCol_ModalWindowDarkening];
+
+  // imgui styles
+  j["Alpha"] = style.Alpha;
+  j["WindowPadding"] = style.WindowPadding;
+  j["WindowRounding"] = style.WindowRounding;
+  j["WindowBorderSize"] = style.WindowBorderSize;
+  j["WindowMinSize"] = style.WindowMinSize;
+  j["WindowTitleAlign"] = style.WindowTitleAlign;
+  j["ChildRounding"] = style.ChildRounding;
+  j["ChildBorderSize"] = style.ChildBorderSize;
+  j["PopupRounding"] = style.PopupRounding;
+  j["PopupBorderSize"] = style.PopupBorderSize;
+  j["FramePadding"] = style.FramePadding;
+  j["FrameRounding"] = style.FrameRounding;
+  j["FrameBorderSize"] = style.FrameBorderSize;
+  j["ItemSpacing"] = style.ItemSpacing;
+  j["ItemInnerSpacing"] = style.ItemInnerSpacing;
+  j["TouchExtraPadding"] = style.TouchExtraPadding;
+  j["IndentSpacing"] = style.IndentSpacing;
+  j["ColumnsMinSpacing"] = style.ColumnsMinSpacing;
+  j["ScrollbarSize"] = style.ScrollbarSize;
+  j["ScrollbarRounding"] = style.ScrollbarRounding;
+  j["GrabMinSize"] = style.GrabMinSize;
+  j["GrabRounding"] = style.GrabRounding;
+  j["ButtonTextAlign"] = style.ButtonTextAlign;
+  j["DisplayWindowPadding"] = style.DisplayWindowPadding;
+  j["DisplaySafeAreaPadding"] = style.DisplaySafeAreaPadding;
+  j["AntiAliasedLines"] = style.AntiAliasedLines;
+  j["AntiAliasedShapes"] = style.AntiAliasedShapes;
+  j["CurveTessellationTol"] = style.CurveTessellationTol;
+
+  cout << setw(4) << j << endl;
+}
+
 // Some global callbacks //
 
 void error_callback(int error, const char* description){
   fprintf(stderr, "Error %d: %s\n", error, description);
 }
-

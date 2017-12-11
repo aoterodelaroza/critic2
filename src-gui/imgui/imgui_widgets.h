@@ -93,8 +93,47 @@ struct ImGuiStyleWidgets_ {
   float CascadeIncrement;
   float SlidingBarWidth;
 
+  void DefaultStyle(){
+    TabRounding = 7.0f;
+    TabBorderSize = 0.0f;
+    DropTargetLooseness = 4.0f;
+    DropTargetMinsizeEdge = 30.f;
+    DropTargetMaxsizeEdge = 90.f;
+    DropTargetEdgeFraction = 0.1f;
+    DropTargetFullFraction = 0.4f;
+    TabHeight = 19.0f;
+    TabMaxWidth = 100.f;
+    CascadeIncrement = 25.f;
+    SlidingBarWidth = 4.f;
+  }
+
+  void DefaultColors(){
+    Colors[ImGuiColWidgets_Slidingbar]        = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    Colors[ImGuiColWidgets_SlidingbarHovered] = ImVec4(0.60f, 0.60f, 0.70f, 1.00f);
+    Colors[ImGuiColWidgets_SlidingbarActive]  = ImVec4(0.70f, 0.70f, 0.90f, 1.00f);
+    Colors[ImGuiColWidgets_Tab]               = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+    Colors[ImGuiColWidgets_TabHovered]        = ImVec4(0.45f, 0.45f, 0.90f, 1.00f);
+    Colors[ImGuiColWidgets_TabPressed]        = ImVec4(0.46f, 0.54f, 0.80f, 1.00f);
+    Colors[ImGuiColWidgets_TabActive]         = ImVec4(0.53f, 0.53f, 0.87f, 1.00f);
+    Colors[ImGuiColWidgets_TabXFg]            = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    Colors[ImGuiColWidgets_TabXFgHovered]     = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    Colors[ImGuiColWidgets_TabXFgActive]      = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    Colors[ImGuiColWidgets_TabXBg]            = ImVec4(0.80f, 0.20f, 0.00f, 0.00f);
+    Colors[ImGuiColWidgets_TabXBgHovered]     = ImVec4(0.80f, 0.20f, 0.00f, 1.00f);
+    Colors[ImGuiColWidgets_TabXBgActive]      = ImVec4(0.60f, 0.20f, 0.00f, 1.00f);
+    Colors[ImGuiColWidgets_TabBorder]         = ImVec4(0.50f, 0.50f, 0.50f, 0.50f);
+    Colors[ImGuiColWidgets_LiftGrip]          = ImVec4(0.60f, 0.20f, 0.00f, 1.00f);
+    Colors[ImGuiColWidgets_LiftGripHovered]   = ImVec4(0.80f, 0.40f, 0.20f, 1.00f);
+    Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
+    Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.43f);
+    Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
+  }
+
   // gettabheight gettabwidth getslidingbarwidth ...
-  ImGuiStyleWidgets_();
+  ImGuiStyleWidgets_(){
+    DefaultStyle();
+    DefaultColors();
+  };
 };
 extern ImGuiStyleWidgets_ ImGuiStyleWidgets;
 
