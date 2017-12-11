@@ -34,6 +34,7 @@
 #include "shapes.h"
 #include "view.h"
 #include "dialog.h"
+#include "message.h"
 #include "keybinding.h"
 
 using namespace std;
@@ -163,6 +164,9 @@ int main(int argc, char *argv[]){
 
     // Menu dialog dispatch
     DialogDispatch();
+
+    // Message dispatch
+    MessageDispatch();
 
     // Dock everything in the first pass
     static bool first = true;

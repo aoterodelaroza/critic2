@@ -22,10 +22,16 @@ enum ImGuiColUI_ {
   ImGuiColUI_ViewIconHovered,
   ImGuiColUI_ViewIconActive,
   ImGuiColUI_ViewIconInactive,
+  ImGuiColUI_MessageInfo,
+  ImGuiColUI_MessageWarning,
+  ImGuiColUI_MessageError,
   ImGuiColUI_COUNT,
 };
 struct ImGuiStyleUI_ {
   ImVec4 Colors[ImGuiColUI_COUNT];
+
+  float MessageWidth;
+  float MessageExpire;
 
   ImGuiStyleUI_();
 };

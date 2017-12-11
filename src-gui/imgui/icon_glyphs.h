@@ -23,3 +23,6 @@
 #define ICON_SM_QUESTION "*"
 #define ICON_SM_TIMES "+"
 #define ICON_SM_VBAR ","
+#define ICON_SM_INFO "-"
+#define ICON_SM_WARN "."
+#define ICON_SM_ERROR "/"

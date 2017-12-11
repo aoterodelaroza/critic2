@@ -1,6 +1,6 @@
 # binary and sources
 bin_PROGRAMS = gcritic2
-gcritic2_SOURCES = main.cpp view.cpp shapes.cpp keybinding.cpp settings.cpp dialog.cpp
+gcritic2_SOURCES = main.cpp view.cpp shapes.cpp keybinding.cpp settings.cpp dialog.cpp message.cpp
 
 # subdirectories
 SUBDIRS=imgui .

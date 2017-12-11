@@ -69,6 +69,11 @@ ImGuiStyleUI_::ImGuiStyleUI_(){
   Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
   Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
+  Colors[ImGuiColUI_MessageInfo] = ImVec4(0.0f,1.0f,0.0f,0.4f);
+  Colors[ImGuiColUI_MessageWarning] = ImVec4(1.0f,1.0f,0.0f,0.4f);
+  Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
+  MessageWidth = 300.f;
+  MessageExpire = 5.f;
 }
 
 void DefaultSettings(){
@@ -156,7 +161,7 @@ void DefaultSettings(){
     fntconfig.SizePixels = fontsizebake;
 
     static const ImWchar ranges[] = { 0x0020, 0x00FF, 0 }; // basic latin + latin supplement
-    static const ImWchar rangesicon[] = { 0x0021, 0x002c, 0 }; // icons
+    static const ImWchar rangesicon[] = { ICON_MIN_SM, ICON_MAX_SM, 0 }; // icons
 
     // Bake the first font - always the icons.
     strcpy(fntconfig.Name, "Icons");

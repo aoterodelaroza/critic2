@@ -466,6 +466,12 @@ static void DialogPreferences(bool *p_open){
 	    ColorEdit4("View icon (Grabbed)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]), coloreditflags);
 	  if (filter.PassFilter("View icon (Inactive)"))
 	    ColorEdit4("View icon (Inactive)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive]), coloreditflags);
+	  if (filter.PassFilter("Message (Info)"))
+	    ColorEdit4("Message (Info)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo]), coloreditflags);
+	  if (filter.PassFilter("Message (Warning)"))
+	    ColorEdit4("Message (Warning)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning]), coloreditflags);
+	  if (filter.PassFilter("Message (Error)"))
+	    ColorEdit4("Message (Error)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageError]), coloreditflags);
 	  PopItemWidth(); 
 	  TreePop();
 	}
@@ -558,6 +564,15 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat("Drop target edge fraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
 	  if (filter.PassFilter("Drop target body fraction"))
 	    SliderFloat("Drop target body fraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
+	  PopItemWidth();
+
+	  Text("Messages");
+	  Separator();
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Message width"))
+	    DragFloat("Message width", &ImGuiStyleUI.MessageWidth, 1.f, 1.0, FLT_MAX, "%.0f", 1.0f); 
+	  if (filter.PassFilter("Message expiration time (s)"))
+	    DragFloat("Message expiration time (s)", &ImGuiStyleUI.MessageExpire, 0.2f, 0.0, 60.0, "%.1f", 1.0f); 
 	  PopItemWidth();
 	  TreePop();
 	}
