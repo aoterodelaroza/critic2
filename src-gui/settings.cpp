@@ -79,7 +79,10 @@ ImGuiStyleUI_::ImGuiStyleUI_(){
 void DefaultSettings(){
   static bool firstpass = true;
 
-  // default UI settings
+  // default colors
+  UIStyleColorsClassic();
+
+  // default ImGui settings (imgui.h)
   ImGuiStyle& style = GetStyle();
   style.Alpha                   = 1.0f;
   style.WindowPadding           = ImVec2(8,8);
@@ -110,10 +113,24 @@ void DefaultSettings(){
   style.AntiAliasedShapes       = true;
   style.CurveTessellationTol    = 1.25f;
 
-  // default colors
-  UIStyleColorsClassic();
+  // default widget settings (imgui_widget.h)
+  ImGuiStyleWidgets.TabRounding = 7.0f;
+  ImGuiStyleWidgets.TabBorderSize = 0.0f;
+  ImGuiStyleWidgets.DropTargetLooseness = 4.0f;
+  ImGuiStyleWidgets.DropTargetMinsizeEdge = 30.f;
+  ImGuiStyleWidgets.DropTargetMaxsizeEdge = 90.f;
+  ImGuiStyleWidgets.DropTargetEdgeFraction = 0.1f;
+  ImGuiStyleWidgets.DropTargetFullFraction = 0.4f;
+  ImGuiStyleWidgets.TabHeight = 19.0f;
+  ImGuiStyleWidgets.TabMaxWidth = 100.f;
+  ImGuiStyleWidgets.CascadeIncrement = 25.f;
+  ImGuiStyleWidgets.SlidingBarWidth = 4.f;
 
-  // views
+  // default UI settings (settings.h)
+  ImGuiStyleUI.MessageWidth = 300.f;
+  ImGuiStyleUI.MessageExpire = 5.f;
+
+  // default view settings (settings.h)
   view_wireframe = false;
   view_orthogonal = false;
   view_fov = 45.0f;
@@ -132,7 +149,7 @@ void DefaultSettings(){
   view_mousesens_rot = 1.0f;
   view_mousesens_zoom = 1.0f;
 
-  // tooltips
+  // tooltips (settings.h)
   tooltip_enabled = true; // enabled tooltips
   tooltip_delay = 1.5f; // delay in seconds
   tooltip_maxwidth = 450.f; // maxwidth of the tooltip
@@ -259,10 +276,14 @@ void UIStyleColorsClassic(){
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripHovered]   = ImVec4(0.80f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
+  ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo] = ImVec4(0.0f,1.0f,0.0f,0.4f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning] = ImVec4(1.0f,1.0f,0.0f,0.4f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
 }
 
 // dark colors style
@@ -328,10 +349,14 @@ void UIStyleColorsDark(){
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripHovered]   = ImVec4(0.80f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
+  ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo] = ImVec4(0.0f,1.0f,0.0f,0.4f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning] = ImVec4(1.0f,1.0f,0.0f,0.4f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
 }
 
 // light colors style
@@ -397,10 +422,14 @@ void UIStyleColorsLight(){
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripHovered]   = ImVec4(0.80f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
+  ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive] = ImVec4(0.5f,0.5f,0.5f,1.0f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo] = ImVec4(0.0f,1.0f,0.0f,0.4f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning] = ImVec4(1.0f,1.0f,0.0f,0.4f);
+  ImGuiStyleUI.Colors[ImGuiColUI_MessageError] = ImVec4(1.0f,0.0f,0.0f,0.4f);
 }
 
 // Some global callbacks //
