@@ -128,7 +128,7 @@ bool Dock::IsMouseHoveringTabBar(){
   return !this->stack.empty() && IsMouseHoveringRect(this->tabbarrect.Min-ytabcushionup,this->tabbarrect.Max+ytabcushiondn,false);
 }
 
-int Dock::IsMouseHoveringEdge(){
+Dock::Drop_ Dock::IsMouseHoveringEdge(){
   // 1:top, 2:right, 3:bottom, 4:left
   const float dx = ImGuiStyleWidgets.DropTargetLooseness;
   const float minedge = ImGuiStyleWidgets.DropTargetMinsizeEdge;
@@ -152,7 +152,7 @@ int Dock::IsMouseHoveringEdge(){
   pts[2] = {xmax.x - aside, xmax.y};
   pts[3] = {xmax.x, xmin.y};
   if (IsMouseHoveringConvexPoly(pts,4))
-    return 1;
+    return Drop_Top;
 
   // 2: right
   xmin.x = pos0.x + size.x - aside;
@@ -164,7 +164,7 @@ int Dock::IsMouseHoveringEdge(){
   pts[2] = {xmin.x,xmax.y - aside};
   pts[3] = xmax;
   if (IsMouseHoveringConvexPoly(pts,4))
-    return 2;
+    return Drop_Right;
 
   // 3: bottom
   xmax = pos0 + size;
@@ -176,7 +176,7 @@ int Dock::IsMouseHoveringEdge(){
   pts[2] = {xmax.x - aside,xmin.y};
   pts[3] = xmax;
   if (IsMouseHoveringConvexPoly(pts,4))
-    return 3;
+    return Drop_Bottom;
 
   // 4: left
   xmin = pos0;
@@ -188,9 +188,9 @@ int Dock::IsMouseHoveringEdge(){
   pts[2] = {xmax.x, xmax.y - aside};
   pts[3] = {xmin.x,xmax.y};
   if (IsMouseHoveringConvexPoly(pts,4))
-    return 4;
+    return Drop_Left;
 
-  return 0;
+  return Drop_None;
 }
 
 bool Dock::IsMouseHoveringFull(){
@@ -281,7 +281,7 @@ void Dock::showDropTargetOnTabBar(){
   End();
 }
 
-void Dock::showDropTargetEdge(int edge, bool active){
+void Dock::showDropTargetEdge(Drop_ edge, bool active){
   // 1:top, 2:right, 3:bottom, 4:left
   ImU32 color = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]);
   ImU32 coloractive = GetColorU32(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]);
@@ -299,7 +299,7 @@ void Dock::showDropTargetEdge(int edge, bool active){
     float aside = fmin(fmax(edgefraction * fmin(size.x,size.y),maxedge),minedge);
 
     ImVec2 p0, p1, p2, p3, xmin, xmax;
-    if (edge == 1) {
+    if (edge == Drop_Top) {
       xmin = pos0;
       xmin.x += dx;
       xmax.x = pos0.x + size.x - dx;
@@ -308,7 +308,7 @@ void Dock::showDropTargetEdge(int edge, bool active){
       p1 = {xmin.x + aside, xmax.y};
       p2 = {xmax.x - aside, xmax.y};
       p3 = {xmax.x, xmin.y};
-    } else if (edge == 2) { 
+    } else if (edge == Drop_Right) { 
       xmin.x = pos0.x + size.x - aside;
       xmin.y = pos0.y + dx;
       xmax = pos0 + size;
@@ -317,7 +317,7 @@ void Dock::showDropTargetEdge(int edge, bool active){
       p1 = {xmin.x,xmin.y + aside};
       p2 = {xmin.x,xmax.y - aside};
       p3 = xmax;
-    } else if (edge == 3) { 
+    } else if (edge == Drop_Bottom) { 
       xmax = pos0 + size;
       xmax.x -= dx;
       xmin.x = pos0.x + dx;
@@ -326,7 +326,7 @@ void Dock::showDropTargetEdge(int edge, bool active){
       p1 = {xmin.x + aside,xmin.y};
       p2 = {xmax.x - aside,xmin.y};
       p3 = xmax;
-    } else if (edge == 4) { 
+    } else if (edge == Drop_Left) { 
       xmin = pos0;
       xmin.y += dx;
       xmax.x = xmin.x + aside;
@@ -350,8 +350,8 @@ void Dock::showDropTargetEdge(int edge, bool active){
 
   if (active){
     for (int i = 1; i < 5; i++)
-      if (edge != i)
-	this->showDropTargetEdge(i,false);
+      if (edge != (Drop_) i)
+	this->showDropTargetEdge((Drop_) i,false);
   }
 }
 
@@ -635,9 +635,9 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
   this->OpStack_Insert(dnew,ithis);
 }
 
-Dock *Dock::newDockRoot(Dock *dnew, int iedge){
+Dock *Dock::newDockRoot(Dock *dnew, Drop_ iedge){
   // 1:top, 2:right, 3:bottom, 4:left
-  if (iedge == 0) return nullptr;
+  if (iedge == Drop_None) return nullptr;
   Dock *dcont = nullptr;
   if (dnew->type == Dock::Type_Container)
     dcont = dnew;
@@ -649,12 +649,12 @@ Dock *Dock::newDockRoot(Dock *dnew, int iedge){
   } else {
     if (this->parent->type == Dock::Type_Root){
       Type_ type;
-      if (iedge == 1 || iedge == 3){
+      if (iedge == Drop_Top || iedge == Drop_Bottom){
         type = Dock::Type_Horizontal;
-        dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
-      } else if (iedge == 2 || iedge == 4){
+        dcont = this->OpRoot_ReplaceHV(type,iedge==Drop_Top||iedge==Drop_Left,dcont);
+      } else if (iedge == Drop_Right || iedge == Drop_Left){
         type = Dock::Type_Vertical;
-        dcont = this->OpRoot_ReplaceHV(type,iedge==1||iedge==4,dcont);
+        dcont = this->OpRoot_ReplaceHV(type,iedge==Drop_Top||iedge==Drop_Left,dcont);
       } else {
         if (this->automatic)
           if (dnew->type == Type_Container)
@@ -665,16 +665,16 @@ Dock *Dock::newDockRoot(Dock *dnew, int iedge){
           return nullptr;
       }
     } else if (this->parent->type == Dock::Type_Horizontal){
-      if (iedge == 1 || iedge == 3){
-        dcont = this->OpRoot_AddToHV(iedge==1,dcont);
+      if (iedge == Drop_Top || iedge == Drop_Bottom){
+        dcont = this->OpRoot_AddToHV(iedge==Drop_Top,dcont);
       } else {
-        dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==4,dcont);
+        dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==Drop_Left,dcont);
       }
     } else if (this->parent->type == Dock::Type_Vertical){
-      if (iedge == 2 || iedge == 4){
-        dcont = this->OpRoot_AddToHV(iedge==4,dcont);
+      if (iedge == Drop_Right || iedge == Drop_Left){
+        dcont = this->OpRoot_AddToHV(iedge==Drop_Left,dcont);
       } else {
-        dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==1,dcont);
+        dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==Drop_Top,dcont);
       }
     }
 
@@ -1002,26 +1002,26 @@ void Dock::resetRootContainerBars(){
   }
 }
 
-void Dock::setSlidingBarPosition(int iedge,float xpos){
+void Dock::setSlidingBarPosition(Drop_ iedge,float xpos){
   // 1:top, 2:right, 3:bottom, 4:left
   if (!this->parent) return;
-  if (this->parent->type == Type_Horizontal && (iedge == 2 || iedge == 4)) return;
-  if (this->parent->type == Type_Vertical && (iedge == 1 || iedge == 3)) return;
-  if (iedge < 1 || iedge > 4 || xpos < 0.f || xpos > 1.f) return;
+  if (this->parent->type == Type_Horizontal && (iedge == Drop_Right || iedge == Drop_Left)) return;
+  if (this->parent->type == Type_Vertical && (iedge == Drop_Top || iedge == Drop_Bottom)) return;
+  if (iedge == Drop_None || iedge == Drop_Tab || xpos < 0.f || xpos > 1.f) return;
 
   int id = this->parent->OpStack_Find(this);
   int ntot = this->parent->stack.size();
   if (id == -1) return;
 
-  if (iedge == 1 || iedge == 3){
-    if (iedge == 1 && id > 0 && id < ntot)
+  if (iedge == Drop_Top || iedge == Drop_Bottom){
+    if (iedge == Drop_Top && id > 0 && id < ntot)
       this->parent->tabsx[id] = xpos;
-    else if (iedge == 3 && id+1 > 0 && id+1 < ntot)
+    else if (iedge == Drop_Bottom && id+1 > 0 && id+1 < ntot)
       this->parent->tabsx[id+1] = xpos;
-  } else if (iedge == 2 || iedge == 4){
-    if (iedge == 4 && id > 0 && id < ntot)
+  } else if (iedge == Drop_Right || iedge == Drop_Left){
+    if (iedge == Drop_Left && id > 0 && id < ntot)
       this->parent->tabsx[id] = xpos;
-    else if (iedge == 2 && id+1 > 0 && id+1 < ntot)
+    else if (iedge == Drop_Right && id+1 > 0 && id+1 < ntot)
       this->parent->tabsx[id+1] = xpos;
   }
 }
@@ -1388,12 +1388,13 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     dd->hoverable = false;
     ddest = FindHoveredDock(Dock::Type_Container);
   } else {
-    int ithis = -1, iedge = 0;
+    int ithis = -1;
+    Dock::Drop_ iedge = Dock::Drop_None;
     bool dropit = dd->showingdrops && (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
     if (dropit && ddest->stack.empty() && ddest->automatic && ddest->parent && 
 	ddest->IsMouseHoveringFull() && ddest->parent->type == Dock::Type_Root){
       // drop it into the root container and replace it
-      ddest->newDockRoot(dd,5);
+      ddest->newDockRoot(dd,Dock::Drop_Tab);
     } else if (dropit && ddest->status == Dock::Status_Docked && 
 	       !(ddest->automatic && ddest->stack.empty()) &&
 	       ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
@@ -1586,7 +1587,8 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     dd->hoverable = false;
     ddest = FindHoveredDock(Dock::Type_Container);
   } else {
-    int ithis = -1, iedge = 0;
+    int ithis = -1;
+    Dock::Drop_ iedge = Dock::Drop_None;
     bool dropit = dd->showingdrops && dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container));
     if (dropit && (ddest->stack.empty() && ddest->IsMouseHoveringFull() || ((ithis = ddest->getNearestTabBorder()) >= 0))){
       // Just stopped dragging and there is a container below

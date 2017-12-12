@@ -105,6 +105,8 @@ namespace ImGui{
   typedef int DockFlags;
 
   struct Dock{
+    enum Drop_ {Drop_None, Drop_Top, Drop_Right, Drop_Bottom, Drop_Left, Drop_Tab};
+
     // Enum for the type of docking windows
     enum Type_{Type_None,Type_Root,Type_Container,Type_Dock,Type_Horizontal,
                Type_Vertical};
@@ -156,7 +158,7 @@ namespace ImGui{
     bool IsMouseHoveringTabBar();
     // Is the mouse hovering the drop edges of a container? (no rectangle clipping)
     // Returns the edge id.
-    int IsMouseHoveringEdge();
+    Drop_ IsMouseHoveringEdge();
     // Returns true if the mouse is hovering the drop target when the container
     // is empty. (no rectangle clipping)
     bool IsMouseHoveringFull();
@@ -171,7 +173,7 @@ namespace ImGui{
     void showDropTargetOnTabBar();
     // Show the drop targets on the edge of the container. edge is the
     // id for the edge (1:top, 2:right, 3:bottom, 4:left).
-    void showDropTargetEdge(int edge, bool active);
+    void showDropTargetEdge(Drop_ edge, bool active);
 
     // Find the integer index of dock dthis in the stack of this
     // container or h/v-container.
@@ -226,7 +228,7 @@ namespace ImGui{
     // 2:right, 3:bottom, 4:left). edge = 5 is used to add to or
     // replace an automatic container in an empty root container.
     // Returns the new container.
-    Dock *newDockRoot(Dock *dnew, int iedge);
+    Dock *newDockRoot(Dock *dnew, Drop_ iedge);
 
     // Undock a container, restore its position, size, etc. flags, and
     // place it at the top or the bottom of the window stack. The
@@ -265,7 +267,7 @@ namespace ImGui{
     // which is docked to a root container. xpos is the position of
     // the bar given as a fraction of the window size (between 0 and
     // 1).
-    void setSlidingBarPosition(int iedge, float xpos);
+    void setSlidingBarPosition(Drop_ iedge, float xpos);
     // Traverse the tree of this root container and draw all sliding
     // bars in it. Sets the tabsx vector containing the positions of
     // the bars. root is a pointer to the root container. Recursive.

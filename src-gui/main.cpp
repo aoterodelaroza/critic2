@@ -177,14 +177,14 @@ int main(int argc, char *argv[]){
     static bool first = true;
     if (first){
       first = false;
-      droot->newDockRoot(dviewcont,-1);
+      droot->newDockRoot(dviewcont,Dock::Drop_Tab);
       dviewcont->newDock(mainview->dock);
 
-      Dock *dtmp = dviewcont->newDockRoot(dtreedock,4);
-      dviewcont->setSlidingBarPosition(4,0.2f);
+      Dock *dtmp = dviewcont->newDockRoot(dtreedock,Dock::Drop_Left);
+      dviewcont->setSlidingBarPosition(Dock::Drop_Left,0.2f);
 
-      dtmp->newDockRoot(dinfodock,3);
-      dtmp->setSlidingBarPosition(3,0.7f);
+      dtmp->newDockRoot(dinfodock,Dock::Drop_Bottom);
+      dtmp->setSlidingBarPosition(Dock::Drop_Bottom,0.7f);
 
       mainview->dock->setDetachedDockSize(320.f,320.f);
       dtreedock->setDetachedDockSize(300.f,300.f);
