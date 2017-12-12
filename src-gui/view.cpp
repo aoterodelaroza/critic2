@@ -439,10 +439,8 @@ bool View::updateTexSize(){
 void View::resetView(){
   v_front  = {0.f,0.f,-1.f};
   v_up     = {0.f,1.f,0.f};
-  if (iscene > 0)
-    v_pos[2] = resetd * c2::scenerad / (tan(0.5f*radians(zfov)));
-  else
-    v_pos = {0.f,0.f,10.f};
+  v_pos[0] = v_pos[1] = 0.f;
+  v_pos[2] = iscene > 0? resetd * c2::scenerad / (tan(0.5f*radians(zfov))):10.f;
   m_world = mat4(1.0f);
   crot0_l = mat4(1.0f);
   llock = false;
