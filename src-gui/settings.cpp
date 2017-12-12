@@ -663,7 +663,11 @@ bool ReadConfigurationFile(string file){
     return false;
 
   json j;
-  fi >> j;
+  try {
+    fi >> j;
+  } catch(json::parse_error) {
+    return false;
+  }
 
   for (int i = 0;;i++){
     if (!confvar[i].name)
