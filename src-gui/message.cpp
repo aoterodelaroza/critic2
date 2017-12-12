@@ -49,18 +49,25 @@ void MessageDispatch(){
   int n = 0;
   auto it = mlist.begin();
   while (it != mlist.end()){
-    if ((*it) && (time - (*it)->time > ImGuiStyleUI.MessageExpire)){
+    float dt = time - (*it)->time;
+    if ((*it) && (dt > ImGuiStyleUI.MessageExpire)){
       delete (*it);
       mlist.erase(it++);
       continue;
     }
 
+    ImVec4 color;
     if ((*it)->type == Message_Info)
-      PushStyleColor(ImGuiCol_WindowBg,GetColorU32(ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo]));
+      color = ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo];
     else if ((*it)->type == Message_Warning)
-      PushStyleColor(ImGuiCol_WindowBg,GetColorU32(ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning]));
+      color = ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning];
     else if ((*it)->type == Message_Error)
-      PushStyleColor(ImGuiCol_WindowBg,GetColorU32(ImGuiStyleUI.Colors[ImGuiColUI_MessageError]));
+      color = ImGuiStyleUI.Colors[ImGuiColUI_MessageError];
+    float alphaf = 1.0f;
+    if (dt > 0.75f * ImGuiStyleUI.MessageExpire)
+      alphaf = 1.f - (dt - 0.75f * ImGuiStyleUI.MessageExpire) / (0.25f * ImGuiStyleUI.MessageExpire);
+    color.w *= alphaf;
+    PushStyleColor(ImGuiCol_WindowBg,GetColorU32(color));
 
     ++n;
     PushFont(fonticon);
@@ -95,7 +102,7 @@ void MessageDispatch(){
     bool toerase = IsWindowHovered() && (IsMouseClicked(0) || IsMouseClicked(1));
     End();
 
-    PopStyleColor();
+    PopStyleColor(1);
     lasty = pos.y;
     if (toerase){
       delete (*it);
