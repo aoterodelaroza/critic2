@@ -1389,12 +1389,14 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
     ddest = FindHoveredDock(Dock::Type_Container);
   } else {
     int ithis = -1, iedge = 0;
-    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
+    bool dropit = dd->showingdrops && (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
     if (dropit && ddest->stack.empty() && ddest->automatic && ddest->parent && 
 	ddest->IsMouseHoveringFull() && ddest->parent->type == Dock::Type_Root){
       // drop it into the root container and replace it
       ddest->newDockRoot(dd,5);
-    } else if (dropit && ddest->status == Dock::Status_Docked && ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
+    } else if (dropit && ddest->status == Dock::Status_Docked && 
+	       !(ddest->automatic && ddest->stack.empty()) &&
+	       ((iedge = ddest->IsMouseHoveringEdge()) > 0)){
       // drop into the edge
       ddest->newDockRoot(dd,iedge);
     } else {
@@ -1416,10 +1418,11 @@ Dock *ImGui::Container(const char* label, bool* p_open /*=nullptr*/, ImGuiWindow
   }
 
   // If dragged and hovering over a container, show the drop rectangles
-  if (dd->status == Dock::Status_Dragged){
-    if (ddest && ddest->parent && (ddest->parent->type == Dock::Type_Root || 
-				   ddest->parent->type == Dock::Type_Horizontal || 
-				   ddest->parent->type == Dock::Type_Vertical)){
+  dd->showingdrops = dd->status == Dock::Status_Dragged && IsMouseDragging();
+  if (dd->showingdrops&& ddest){
+    if (ddest->parent && (ddest->parent->type == Dock::Type_Root || 
+			  ddest->parent->type == Dock::Type_Horizontal || 
+			  ddest->parent->type == Dock::Type_Vertical)){
       if (ddest->stack.empty() && ddest->automatic)
         ddest->showDropTargetFull();
       else
@@ -1584,7 +1587,7 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
     ddest = FindHoveredDock(Dock::Type_Container);
   } else {
     int ithis = -1, iedge = 0;
-    bool dropit = (dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container)));
+    bool dropit = dd->showingdrops && dd->status == Dock::Status_Dragged && (ddest = FindHoveredDock(Dock::Type_Container));
     if (dropit && (ddest->stack.empty() && ddest->IsMouseHoveringFull() || ((ithis = ddest->getNearestTabBorder()) >= 0))){
       // Just stopped dragging and there is a container below
       ddest->newDock(dd,ithis);
@@ -1611,17 +1614,16 @@ bool ImGui::BeginDock(const char* label, bool* p_open /*=nullptr*/, ImGuiWindowF
   }
 
   // If dragged and hovering over a container, show the drop rectangles
-  if (dd->status == Dock::Status_Dragged){
-    if (ddest){
-      if (ddest->stack.empty()){
-        ddest->showDropTargetFull();
-	if (ddest->status == Dock::Status_Docked && !(ddest->automatic))
-	  ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
-      } else if (ddest->IsMouseHoveringTabBar()) {
-        ddest->showDropTargetOnTabBar();
-      } else if (ddest->status == Dock::Status_Docked) {
-        ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
-      }
+  dd->showingdrops = dd->status == Dock::Status_Dragged && IsMouseDragging();
+  if (dd->showingdrops && ddest){
+    if (ddest->stack.empty()){
+      ddest->showDropTargetFull();
+      if (ddest->status == Dock::Status_Docked && !(ddest->automatic))
+	ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
+    } else if (ddest->IsMouseHoveringTabBar()) {
+      ddest->showDropTargetOnTabBar();
+    } else if (ddest->status == Dock::Status_Docked) {
+      ddest->showDropTargetEdge(ddest->IsMouseHoveringEdge(),true);
     }
   }
 

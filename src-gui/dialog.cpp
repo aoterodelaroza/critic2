@@ -223,7 +223,7 @@ static void DialogPreferences(bool *p_open){
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
-	if (TreeNode("Per-view settings (to be moved)")){
+	if (TreeNode("Scene settings")){
 	  bool changed = false;
 	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Wireframe rendering"))

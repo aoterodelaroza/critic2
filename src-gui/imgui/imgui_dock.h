@@ -137,6 +137,7 @@ namespace ImGui{
     ImVector<bool> tabsfixed = {}; // whether a slider is fixed.
     bool hidden = false; // whether a docked window is hidden
     bool noborder = false; // flag if we pushed to have no border
+    bool showingdrops = false; // true if we are showing the drop targets for this dock
     bool hoverable = true; // whether a window responds to being hovered
     list<Dock *> stack = {}; // stack of docks at this level
     Dock *currenttab = nullptr; // currently selected tab (container)
