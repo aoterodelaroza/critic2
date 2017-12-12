@@ -20,6 +20,7 @@
 */
 
 #include "settings.h"
+#include "keybinding.h"
 #include <GLFW/glfw3.h>
 
 #include "imgui/additional_fonts.h"
@@ -197,6 +198,22 @@ static confvar_ confvar[] = {
   {"AntiAliasedLines",&GImGui->Style.AntiAliasedLines,Type_Bool},
   {"AntiAliasedShapes",&GImGui->Style.AntiAliasedShapes,Type_Bool},
   {"CurveTessellationTol",&GImGui->Style.CurveTessellationTol,Type_Float},
+
+  // keybinding
+  {"Bind_QUIT_mod",&modbind[BIND_QUIT],Type_Int},
+  {"Bind_QUIT_key",&keybind[BIND_QUIT],Type_Int},
+  {"Bind_CLOSE_LAST_DIALOG_mod",&modbind[BIND_CLOSE_LAST_DIALOG],Type_Int},
+  {"Bind_CLOSE_LAST_DIALOG_key",&keybind[BIND_CLOSE_LAST_DIALOG],Type_Int},
+  {"Bind_CLOSE_ALL_DIALOGS_mod",&modbind[BIND_CLOSE_ALL_DIALOGS],Type_Int},
+  {"Bind_CLOSE_ALL_DIALOGS_key",&keybind[BIND_CLOSE_ALL_DIALOGS],Type_Int},
+  {"Bind_NAV_ROTATE_mod",&modbind[BIND_NAV_ROTATE],Type_Int},
+  {"Bind_NAV_ROTATE_key",&keybind[BIND_NAV_ROTATE],Type_Int},
+  {"Bind_NAV_TRANSLATE_mod",&modbind[BIND_NAV_TRANSLATE],Type_Int},
+  {"Bind_NAV_TRANSLATE_key",&keybind[BIND_NAV_TRANSLATE],Type_Int},
+  {"Bind_NAV_ZOOM_mod",&modbind[BIND_NAV_ZOOM],Type_Int},
+  {"Bind_NAV_ZOOM_key",&keybind[BIND_NAV_ZOOM],Type_Int},
+  {"Bind_NAV_RESET_mod",&modbind[BIND_NAV_RESET],Type_Int},
+  {"Bind_NAV_RESET_key",&keybind[BIND_NAV_RESET],Type_Int},
 
   // sentinel
   {nullptr,nullptr,Type_None},
