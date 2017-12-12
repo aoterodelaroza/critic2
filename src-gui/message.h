@@ -36,7 +36,7 @@ struct Message {
   char* message = nullptr; // message
 };
 
-void NewMessage(MessageType_ type,char *text);
+void NewMessage(MessageType_ type,const char *text);
 
 void MessageDispatch();
 

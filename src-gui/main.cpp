@@ -62,13 +62,17 @@ int main(int argc, char *argv[]){
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
 
-  // Initialize default settings and keybindings
+  // ImGui settings, default settings and keybindings
+  ImGuiIO& io = GetIO();
+  io.IniFilename = nullptr;
   DefaultSettings();
   SetDefaultKeyBindings();
 
-  // ImGui settings
-  ImGuiIO& io = GetIO();
-  io.IniFilename = nullptr;
+  // Find and read configuration file
+  if (!FindConfigurationFile())
+    NewMessage(Message_Error,"Could not open configuration file. Using defaults.");
+  else if (!ReadConfigurationFile(conffile))
+    NewMessage(Message_Error,"Could not read configuration file. Using defaults.");
 
   // Shader and opengl settings
   glEnable(GL_DEPTH_TEST);

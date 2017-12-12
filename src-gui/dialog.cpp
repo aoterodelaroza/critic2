@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "keybinding.h"
 #include "shapes.h"
+#include "message.h"
 
 using namespace ImGui;
 
@@ -607,8 +608,13 @@ static void DialogPreferences(bool *p_open){
       if (Button("Reset"))
 	OpenPopup("resetpopup");
       if (BeginPopup("resetpopup")){
-	if (Selectable("Reset to configuration file")){
-	  // TBA
+	if (Selectable("Reset to config file")){
+	  if (!ReadConfigurationFile(conffile)){
+	    NewMessage(Message_Error,"Could not read configuration file.");
+	  } else {
+	    string message = "Configuration loaded from file:\n" + conffile;
+	    NewMessage(Message_Info,message.c_str());
+	  }
 	}
 	if (Selectable("Reset to defaults")){
 	  DefaultSettings();
@@ -619,9 +625,13 @@ static void DialogPreferences(bool *p_open){
       }
 
       SameLine();
-      if (Button("Save")){
-	// to file
-      }
+      if (Button("Save"))
+	if (!WriteConfigurationFile(conffile))
+	  NewMessage(Message_Error,"Could not write configuration file.");
+	else{
+	  string message = "Configuration saved to file:\n" + conffile;
+	  NewMessage(Message_Info,message.c_str());
+	}
       SameLine();
       if (Button("OK")){
 	*p_open = false;

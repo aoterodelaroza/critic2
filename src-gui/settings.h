@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 
 #include <glm/glm.hpp>
 #include "imgui/imgui.h"
@@ -39,7 +40,7 @@ struct ImGuiStyleUI_ {
   float TooltipMaxwidth;
 
   void DefaultStyle(){
-    MessageWidth = 300.f;
+    MessageWidth = 400.f;
     MessageExpire = 5.f;
     FontSizeIcon = 24.0f;
     FontSize = 14.0f;
@@ -104,14 +105,19 @@ extern float view_mousesens_rot;
 const float mousesens_zoom0 = 0.15f;
 extern float view_mousesens_zoom;
 
+// Configuration file
+extern std::string conffile;
+
 // Default settings
 void DefaultSettings();
 void UIStyleColorsClassic();
 void UIStyleColorsDark();
 void UIStyleColorsLight();
 
-// xxxx 
-void outputconf();
+// Configuration file
+bool FindConfigurationFile();
+bool WriteConfigurationFile(std::string file);
+bool ReadConfigurationFile(std::string file);
 
 // Callbacks
 void error_callback(int error, const char* description);

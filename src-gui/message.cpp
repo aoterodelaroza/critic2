@@ -32,7 +32,7 @@ using namespace ImGui;
 
 static list<Message*> mlist = {};
 
-void NewMessage(MessageType_ type,char *text){
+void NewMessage(MessageType_ type,const char *text){
   Message *m = new Message;
 
   m->time = GetTime();
