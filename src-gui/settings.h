@@ -19,6 +19,7 @@
 
 // UI style
 enum ImGuiColUI_ {
+  ImGuiColUI_BackDrop,
   ImGuiColUI_ViewIcon,
   ImGuiColUI_ViewIconHovered,
   ImGuiColUI_ViewIconActive,
@@ -49,6 +50,7 @@ struct ImGuiStyleUI_ {
     TooltipMaxwidth = 450.f;
   }
   void DefaultColors(){
+    Colors[ImGuiColUI_BackDrop]         = ImVec4(0.20f, 0.30f, 0.30f, 1.00f);
     Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
     Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
     Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);

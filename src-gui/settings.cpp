@@ -66,6 +66,142 @@ float view_mousesens_zoom; // mouse zoom sensitivity (scale factor)
 // configuration file name
 string conffile = "";
 
+// List of configuration variables and types
+enum vartype_ {Type_None,Type_Bool,Type_Int,Type_Float,Type_ImVec2,Type_ImVec4};
+
+struct confvar_ {
+  char *name;
+  void *variable;
+  vartype_ vartype;
+};
+static confvar_ confvar[] = {
+  // UI colors (settings.h)
+  {"Color_BackDrop",&ImGuiStyleUI.Colors[ImGuiColUI_BackDrop],Type_ImVec4},
+  {"Color_ViewIcon",&ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon],Type_ImVec4},
+  {"Color_ViewIconHovered",&ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered],Type_ImVec4},
+  {"Color_ViewIconActive",&ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive],Type_ImVec4},
+  {"Color_ViewIconInactive",&ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive],Type_ImVec4},
+  {"Color_MessageInfo",&ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo],Type_ImVec4},
+  {"Color_MessageWarning",&ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning],Type_ImVec4},
+  {"Color_MessageError",&ImGuiStyleUI.Colors[ImGuiColUI_MessageError],Type_ImVec4},
+
+  // UI styles (settings.h)
+  {"MessageWidth",&ImGuiStyleUI.MessageWidth,Type_Float},
+  {"MessageExpire",&ImGuiStyleUI.MessageExpire,Type_Float},
+  {"FontSizeIcon",&ImGuiStyleUI.FontSizeIcon,Type_Float},
+  {"FontSize",&ImGuiStyleUI.FontSize,Type_Float},
+  {"TooltipEnabled",&ImGuiStyleUI.TooltipEnabled,Type_Bool},
+  {"TooltipDelay",&ImGuiStyleUI.TooltipDelay,Type_Float},
+  {"TooltipMaxwidth",&ImGuiStyleUI.TooltipMaxwidth,Type_Float},
+
+  // Widget colors (imgui_widgets.h)
+  {"Color_Slidingbar",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar],Type_ImVec4},
+  {"Color_SlidingbarHovered",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarHovered],Type_ImVec4},
+  {"Color_SlidingbarActive",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarActive],Type_ImVec4},
+  {"Color_Tab",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_Tab],Type_ImVec4},
+  {"Color_TabHovered",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabHovered],Type_ImVec4},
+  {"Color_TabPressed",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabPressed],Type_ImVec4},
+  {"Color_TabActive",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabActive],Type_ImVec4},
+  {"Color_TabXFg",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg],Type_ImVec4},
+  {"Color_TabXFgHovered",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgHovered],Type_ImVec4},
+  {"Color_TabXFgActive",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgActive],Type_ImVec4},
+  {"Color_TabXBg",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBg],Type_ImVec4},
+  {"Color_TabXBgHovered",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgHovered],Type_ImVec4},
+  {"Color_TabXBgActive",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive],Type_ImVec4},
+  {"Color_TabBorder",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabBorder],Type_ImVec4},
+  {"Color_DropTarget",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget],Type_ImVec4},
+  {"Color_DropTargetActive",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive],Type_ImVec4},
+
+  // Widget styles (imgui_widgets.h)
+  {"TabRounding",&ImGuiStyleWidgets.TabRounding,Type_Float},
+  {"TabBorderSize",&ImGuiStyleWidgets.TabBorderSize,Type_Float},
+  {"DropTargetLooseness",&ImGuiStyleWidgets.DropTargetLooseness,Type_Float},
+  {"DropTargetMinsizeEdge",&ImGuiStyleWidgets.DropTargetMinsizeEdge,Type_Float},
+  {"DropTargetMaxsizeEdge",&ImGuiStyleWidgets.DropTargetMaxsizeEdge,Type_Float},
+  {"DropTargetEdgeFraction",&ImGuiStyleWidgets.DropTargetEdgeFraction,Type_Float},
+  {"DropTargetFullFraction",&ImGuiStyleWidgets.DropTargetFullFraction,Type_Float},
+  {"TabHeight",&ImGuiStyleWidgets.TabHeight,Type_Float},
+  {"TabMaxWidth",&ImGuiStyleWidgets.TabMaxWidth,Type_Float},
+  {"SlidingBarWidth",&ImGuiStyleWidgets.SlidingBarWidth,Type_Float},
+
+  // imgui colors (imgui.h)
+  {"Color_Text",&GImGui->Style.Colors[ImGuiCol_Text],Type_ImVec4},
+  {"Color_TextDisabled",&GImGui->Style.Colors[ImGuiCol_TextDisabled],Type_ImVec4},
+  {"Color_WindowBg",&GImGui->Style.Colors[ImGuiCol_WindowBg],Type_ImVec4},
+  {"Color_ChildBg",&GImGui->Style.Colors[ImGuiCol_ChildBg],Type_ImVec4},
+  {"Color_PopupBg",&GImGui->Style.Colors[ImGuiCol_PopupBg],Type_ImVec4},
+  {"Color_Border",&GImGui->Style.Colors[ImGuiCol_Border],Type_ImVec4},
+  {"Color_BorderShadow",&GImGui->Style.Colors[ImGuiCol_BorderShadow],Type_ImVec4},
+  {"Color_FrameBg",&GImGui->Style.Colors[ImGuiCol_FrameBg],Type_ImVec4},
+  {"Color_FrameBgHovered",&GImGui->Style.Colors[ImGuiCol_FrameBgHovered],Type_ImVec4},
+  {"Color_FrameBgActive",&GImGui->Style.Colors[ImGuiCol_FrameBgActive],Type_ImVec4},
+  {"Color_TitleBg",&GImGui->Style.Colors[ImGuiCol_TitleBg],Type_ImVec4},
+  {"Color_TitleBgActive",&GImGui->Style.Colors[ImGuiCol_TitleBgActive],Type_ImVec4},
+  {"Color_TitleBgCollapsed",&GImGui->Style.Colors[ImGuiCol_TitleBgCollapsed],Type_ImVec4},
+  {"Color_MenuBarBg",&GImGui->Style.Colors[ImGuiCol_MenuBarBg],Type_ImVec4},
+  {"Color_ScrollbarBg",&GImGui->Style.Colors[ImGuiCol_ScrollbarBg],Type_ImVec4},
+  {"Color_ScrollbarGrab",&GImGui->Style.Colors[ImGuiCol_ScrollbarGrab],Type_ImVec4},
+  {"Color_ScrollbarGrabHovered",&GImGui->Style.Colors[ImGuiCol_ScrollbarGrabHovered],Type_ImVec4},
+  {"Color_ScrollbarGrabActive",&GImGui->Style.Colors[ImGuiCol_ScrollbarGrabActive],Type_ImVec4},
+  {"Color_CheckMark",&GImGui->Style.Colors[ImGuiCol_CheckMark],Type_ImVec4},
+  {"Color_SliderGrab",&GImGui->Style.Colors[ImGuiCol_SliderGrab],Type_ImVec4},
+  {"Color_SliderGrabActive",&GImGui->Style.Colors[ImGuiCol_SliderGrabActive],Type_ImVec4},
+  {"Color_Button",&GImGui->Style.Colors[ImGuiCol_Button],Type_ImVec4},
+  {"Color_ButtonHovered",&GImGui->Style.Colors[ImGuiCol_ButtonHovered],Type_ImVec4},
+  {"Color_ButtonActive",&GImGui->Style.Colors[ImGuiCol_ButtonActive],Type_ImVec4},
+  {"Color_Header",&GImGui->Style.Colors[ImGuiCol_Header],Type_ImVec4},
+  {"Color_HeaderHovered",&GImGui->Style.Colors[ImGuiCol_HeaderHovered],Type_ImVec4},
+  {"Color_HeaderActive",&GImGui->Style.Colors[ImGuiCol_HeaderActive],Type_ImVec4},
+  {"Color_Separator",&GImGui->Style.Colors[ImGuiCol_Separator],Type_ImVec4},
+  {"Color_SeparatorHovered",&GImGui->Style.Colors[ImGuiCol_SeparatorHovered],Type_ImVec4},
+  {"Color_SeparatorActive",&GImGui->Style.Colors[ImGuiCol_SeparatorActive],Type_ImVec4},
+  {"Color_ResizeGrip",&GImGui->Style.Colors[ImGuiCol_ResizeGrip],Type_ImVec4},
+  {"Color_ResizeGripHovered",&GImGui->Style.Colors[ImGuiCol_ResizeGripHovered],Type_ImVec4},
+  {"Color_ResizeGripActive",&GImGui->Style.Colors[ImGuiCol_ResizeGripActive],Type_ImVec4},
+  {"Color_CloseButton",&GImGui->Style.Colors[ImGuiCol_CloseButton],Type_ImVec4},
+  {"Color_CloseButtonHovered",&GImGui->Style.Colors[ImGuiCol_CloseButtonHovered],Type_ImVec4},
+  {"Color_CloseButtonActive",&GImGui->Style.Colors[ImGuiCol_CloseButtonActive],Type_ImVec4},
+  {"Color_PlotLines",&GImGui->Style.Colors[ImGuiCol_PlotLines],Type_ImVec4},
+  {"Color_PlotLinesHovered",&GImGui->Style.Colors[ImGuiCol_PlotLinesHovered],Type_ImVec4},
+  {"Color_PlotHistogram",&GImGui->Style.Colors[ImGuiCol_PlotHistogram],Type_ImVec4},
+  {"Color_PlotHistogramHovered",&GImGui->Style.Colors[ImGuiCol_PlotHistogramHovered],Type_ImVec4},
+  {"Color_TextSelectedBg",&GImGui->Style.Colors[ImGuiCol_TextSelectedBg],Type_ImVec4},
+  {"Color_ModalWindowDarkening",&GImGui->Style.Colors[ImGuiCol_ModalWindowDarkening],Type_ImVec4},
+
+  // imgui styles
+  {"Alpha",&GImGui->Style.Alpha,Type_Float},
+  {"WindowPadding",&GImGui->Style.WindowPadding,Type_ImVec2},
+  {"WindowRounding",&GImGui->Style.WindowRounding,Type_Float},
+  {"WindowBorderSize",&GImGui->Style.WindowBorderSize,Type_Float},
+  {"WindowMinSize",&GImGui->Style.WindowMinSize,Type_ImVec2},
+  {"WindowTitleAlign",&GImGui->Style.WindowTitleAlign,Type_ImVec2},
+  {"ChildRounding",&GImGui->Style.ChildRounding,Type_Float},
+  {"ChildBorderSize",&GImGui->Style.ChildBorderSize,Type_Float},
+  {"PopupRounding",&GImGui->Style.PopupRounding,Type_Float},
+  {"PopupBorderSize",&GImGui->Style.PopupBorderSize,Type_Float},
+  {"FramePadding",&GImGui->Style.FramePadding,Type_ImVec2},
+  {"FrameRounding",&GImGui->Style.FrameRounding,Type_Float},
+  {"FrameBorderSize",&GImGui->Style.FrameBorderSize,Type_Float},
+  {"ItemSpacing",&GImGui->Style.ItemSpacing,Type_ImVec2},
+  {"ItemInnerSpacing",&GImGui->Style.ItemInnerSpacing,Type_ImVec2},
+  {"TouchExtraPadding",&GImGui->Style.TouchExtraPadding,Type_ImVec2},
+  {"IndentSpacing",&GImGui->Style.IndentSpacing,Type_Float},
+  {"ColumnsMinSpacing",&GImGui->Style.ColumnsMinSpacing,Type_Float},
+  {"ScrollbarSize",&GImGui->Style.ScrollbarSize,Type_Float},
+  {"ScrollbarRounding",&GImGui->Style.ScrollbarRounding,Type_Float},
+  {"GrabMinSize",&GImGui->Style.GrabMinSize,Type_Float},
+  {"GrabRounding",&GImGui->Style.GrabRounding,Type_Float},
+  {"ButtonTextAlign",&GImGui->Style.ButtonTextAlign,Type_ImVec2},
+  {"DisplayWindowPadding",&GImGui->Style.DisplayWindowPadding,Type_ImVec2},
+  {"DisplaySafeAreaPadding",&GImGui->Style.DisplaySafeAreaPadding,Type_ImVec2},
+  {"AntiAliasedLines",&GImGui->Style.AntiAliasedLines,Type_Bool},
+  {"AntiAliasedShapes",&GImGui->Style.AntiAliasedShapes,Type_Bool},
+  {"CurveTessellationTol",&GImGui->Style.CurveTessellationTol,Type_Float},
+
+  // sentinel
+  {nullptr,nullptr,Type_None},
+};
+
 void DefaultSettings(){
   static bool firstpass = true;
 
@@ -115,7 +251,7 @@ void DefaultSettings(){
   view_wireframe = false;
   view_orthogonal = false;
   view_fov = 45.0f;
-  view_resetdistance = 1.3f;
+  view_resetdistance = 1.5f;
   view_bgrgb[0] = view_bgrgb[1] = view_bgrgb[2] = 0.f;
   view_bgrgb[3] = 1.0f;
   view_lightpos[0] = view_lightpos[1] = 20.f;
@@ -251,6 +387,7 @@ void UIStyleColorsClassic(){
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
+  ImGuiStyleUI.Colors[ImGuiColUI_BackDrop]         = ImVec4(0.20f, 0.30f, 0.30f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
@@ -324,6 +461,7 @@ void UIStyleColorsDark(){
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
+  ImGuiStyleUI.Colors[ImGuiColUI_BackDrop]         = ImVec4(0.20f, 0.30f, 0.30f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
@@ -397,6 +535,7 @@ void UIStyleColorsLight(){
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_LiftGripActive]    = ImVec4(1.00f, 0.40f, 0.20f, 1.00f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]        = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
   ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]  = ImVec4(0.80f, 0.80f, 0.80f, 0.80f);
+  ImGuiStyleUI.Colors[ImGuiColUI_BackDrop]         = ImVec4(0.20f, 0.30f, 0.30f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]         = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]  = ImVec4(0.8549f,0.6471f,0.1255f,1.0f);
   ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]   = ImVec4(0.7216f,0.5254,0.04314f,1.0f);
@@ -493,128 +632,22 @@ bool WriteConfigurationFile(string file){
 
   json j;
 
-  // UI colors (settings.h)
-  j["Color_ViewIcon"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon];
-  j["Color_ViewIconHovered"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered];
-  j["Color_ViewIconActive"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive];
-  j["Color_ViewIconInactive"] = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive];
-  j["Color_MessageInfo"] = ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo];
-  j["Color_MessageWarning"] = ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning];
-  j["Color_MessageError"] = ImGuiStyleUI.Colors[ImGuiColUI_MessageError];
-
-  // UI styles (settings.h)
-  j["MessageWidth"] = ImGuiStyleUI.MessageWidth;
-  j["MessageExpire"] = ImGuiStyleUI.MessageExpire;
-  j["FontSizeIcon"] = ImGuiStyleUI.FontSizeIcon;
-  j["FontSize"] = ImGuiStyleUI.FontSize;
-  j["TooltipEnabled"] = ImGuiStyleUI.TooltipEnabled;
-  j["TooltipDelay"] = ImGuiStyleUI.TooltipDelay;
-  j["TooltipMaxwidth"] = ImGuiStyleUI.TooltipMaxwidth;
-
-  // Widget colors (imgui_widgets.h)
-  j["Color_Slidingbar"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar];
-  j["Color_SlidingbarHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarHovered];
-  j["Color_SlidingbarActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarActive];
-  j["Color_Tab"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_Tab];
-  j["Color_TabHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabHovered];
-  j["Color_TabPressed"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabPressed];
-  j["Color_TabActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabActive];
-  j["Color_TabXFg"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg];
-  j["Color_TabXFgHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgHovered];
-  j["Color_TabXFgActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgActive];
-  j["Color_TabXBg"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBg];
-  j["Color_TabXBgHovered"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgHovered];
-  j["Color_TabXBgActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive];
-  j["Color_TabBorder"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabBorder];
-  j["Color_DropTarget"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget];
-  j["Color_DropTargetActive"] = ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive];
-
-  // Widget styles (imgui_widgets.h)
-  j["TabRounding"] = ImGuiStyleWidgets.TabRounding;
-  j["TabBorderSize"] = ImGuiStyleWidgets.TabBorderSize;
-  j["DropTargetLooseness"] = ImGuiStyleWidgets.DropTargetLooseness;
-  j["DropTargetMinsizeEdge"] = ImGuiStyleWidgets.DropTargetMinsizeEdge;
-  j["DropTargetMaxsizeEdge"] = ImGuiStyleWidgets.DropTargetMaxsizeEdge;
-  j["DropTargetEdgeFraction"] = ImGuiStyleWidgets.DropTargetEdgeFraction;
-  j["DropTargetFullFraction"] = ImGuiStyleWidgets.DropTargetFullFraction;
-  j["TabHeight"] = ImGuiStyleWidgets.TabHeight;
-  j["TabMaxWidth"] = ImGuiStyleWidgets.TabMaxWidth;
-  j["SlidingBarWidth"] = ImGuiStyleWidgets.SlidingBarWidth;
-
-  // imgui colors
-  ImGuiStyle& style = GetStyle();
-  j["Color_Text"] = style.Colors[ImGuiCol_Text];
-  j["Color_TextDisabled"] = style.Colors[ImGuiCol_TextDisabled];
-  j["Color_WindowBg"] = style.Colors[ImGuiCol_WindowBg];
-  j["Color_ChildBg"] = style.Colors[ImGuiCol_ChildBg];
-  j["Color_PopupBg"] = style.Colors[ImGuiCol_PopupBg];
-  j["Color_Border"] = style.Colors[ImGuiCol_Border];
-  j["Color_BorderShadow"] = style.Colors[ImGuiCol_BorderShadow];
-  j["Color_FrameBg"] = style.Colors[ImGuiCol_FrameBg];
-  j["Color_FrameBgHovered"] = style.Colors[ImGuiCol_FrameBgHovered];
-  j["Color_FrameBgActive"] = style.Colors[ImGuiCol_FrameBgActive];
-  j["Color_TitleBg"] = style.Colors[ImGuiCol_TitleBg];
-  j["Color_TitleBgActive"] = style.Colors[ImGuiCol_TitleBgActive];
-  j["Color_TitleBgCollapsed"] = style.Colors[ImGuiCol_TitleBgCollapsed];
-  j["Color_MenuBarBg"] = style.Colors[ImGuiCol_MenuBarBg];
-  j["Color_ScrollbarBg"] = style.Colors[ImGuiCol_ScrollbarBg];
-  j["Color_ScrollbarGrab"] = style.Colors[ImGuiCol_ScrollbarGrab];
-  j["Color_ScrollbarGrabHovered"] = style.Colors[ImGuiCol_ScrollbarGrabHovered];
-  j["Color_ScrollbarGrabActive"] = style.Colors[ImGuiCol_ScrollbarGrabActive];
-  j["Color_CheckMark"] = style.Colors[ImGuiCol_CheckMark];
-  j["Color_SliderGrab"] = style.Colors[ImGuiCol_SliderGrab];
-  j["Color_SliderGrabActive"] = style.Colors[ImGuiCol_SliderGrabActive];
-  j["Color_Button"] = style.Colors[ImGuiCol_Button];
-  j["Color_ButtonHovered"] = style.Colors[ImGuiCol_ButtonHovered];
-  j["Color_ButtonActive"] = style.Colors[ImGuiCol_ButtonActive];
-  j["Color_Header"] = style.Colors[ImGuiCol_Header];
-  j["Color_HeaderHovered"] = style.Colors[ImGuiCol_HeaderHovered];
-  j["Color_HeaderActive"] = style.Colors[ImGuiCol_HeaderActive];
-  j["Color_Separator"] = style.Colors[ImGuiCol_Separator];
-  j["Color_SeparatorHovered"] = style.Colors[ImGuiCol_SeparatorHovered];
-  j["Color_SeparatorActive"] = style.Colors[ImGuiCol_SeparatorActive];
-  j["Color_ResizeGrip"] = style.Colors[ImGuiCol_ResizeGrip];
-  j["Color_ResizeGripHovered"] = style.Colors[ImGuiCol_ResizeGripHovered];
-  j["Color_ResizeGripActive"] = style.Colors[ImGuiCol_ResizeGripActive];
-  j["Color_CloseButton"] = style.Colors[ImGuiCol_CloseButton];
-  j["Color_CloseButtonHovered"] = style.Colors[ImGuiCol_CloseButtonHovered];
-  j["Color_CloseButtonActive"] = style.Colors[ImGuiCol_CloseButtonActive];
-  j["Color_PlotLines"] = style.Colors[ImGuiCol_PlotLines];
-  j["Color_PlotLinesHovered"] = style.Colors[ImGuiCol_PlotLinesHovered];
-  j["Color_PlotHistogram"] = style.Colors[ImGuiCol_PlotHistogram];
-  j["Color_PlotHistogramHovered"] = style.Colors[ImGuiCol_PlotHistogramHovered];
-  j["Color_TextSelectedBg"] = style.Colors[ImGuiCol_TextSelectedBg];
-  j["Color_ModalWindowDarkening"] = style.Colors[ImGuiCol_ModalWindowDarkening];
-
-  // imgui styles
-  j["Alpha"] = style.Alpha;
-  j["WindowPadding"] = style.WindowPadding;
-  j["WindowRounding"] = style.WindowRounding;
-  j["WindowBorderSize"] = style.WindowBorderSize;
-  j["WindowMinSize"] = style.WindowMinSize;
-  j["WindowTitleAlign"] = style.WindowTitleAlign;
-  j["ChildRounding"] = style.ChildRounding;
-  j["ChildBorderSize"] = style.ChildBorderSize;
-  j["PopupRounding"] = style.PopupRounding;
-  j["PopupBorderSize"] = style.PopupBorderSize;
-  j["FramePadding"] = style.FramePadding;
-  j["FrameRounding"] = style.FrameRounding;
-  j["FrameBorderSize"] = style.FrameBorderSize;
-  j["ItemSpacing"] = style.ItemSpacing;
-  j["ItemInnerSpacing"] = style.ItemInnerSpacing;
-  j["TouchExtraPadding"] = style.TouchExtraPadding;
-  j["IndentSpacing"] = style.IndentSpacing;
-  j["ColumnsMinSpacing"] = style.ColumnsMinSpacing;
-  j["ScrollbarSize"] = style.ScrollbarSize;
-  j["ScrollbarRounding"] = style.ScrollbarRounding;
-  j["GrabMinSize"] = style.GrabMinSize;
-  j["GrabRounding"] = style.GrabRounding;
-  j["ButtonTextAlign"] = style.ButtonTextAlign;
-  j["DisplayWindowPadding"] = style.DisplayWindowPadding;
-  j["DisplaySafeAreaPadding"] = style.DisplaySafeAreaPadding;
-  j["AntiAliasedLines"] = style.AntiAliasedLines;
-  j["AntiAliasedShapes"] = style.AntiAliasedShapes;
-  j["CurveTessellationTol"] = style.CurveTessellationTol;
+  for (int i = 0;;i++){
+    if (!confvar[i].name)
+      break;
+    switch(confvar[i].vartype){
+    case Type_Bool:
+      j[confvar[i].name] = *((bool *) confvar[i].variable); break;
+    case Type_Int:
+      j[confvar[i].name] = *((int *) confvar[i].variable); break;
+    case Type_Float:
+      j[confvar[i].name] = *((float *) confvar[i].variable); break;
+    case Type_ImVec2:
+      j[confvar[i].name] = *((ImVec2 *) confvar[i].variable); break;
+    case Type_ImVec4:
+      j[confvar[i].name] = *((ImVec4 *) confvar[i].variable); break;
+    }
+  }
 
   if (!fo.is_open())
     return false;
@@ -632,128 +665,22 @@ bool ReadConfigurationFile(string file){
   json j;
   fi >> j;
 
-  // UI colors (settings.h)
-  ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon] = j["Color_ViewIcon"].get<ImVec4>();
-  ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered] = j["Color_ViewIconHovered"].get<ImVec4>();
-  ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive] = j["Color_ViewIconActive"].get<ImVec4>();
-  ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive] = j["Color_ViewIconInactive"].get<ImVec4>();
-  ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo] = j["Color_MessageInfo"].get<ImVec4>();
-  ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning] = j["Color_MessageWarning"].get<ImVec4>();
-  ImGuiStyleUI.Colors[ImGuiColUI_MessageError] = j["Color_MessageError"].get<ImVec4>();
-
-  // UI styles (settings.h)
-  ImGuiStyleUI.MessageWidth = j["MessageWidth"].get<float>();
-  ImGuiStyleUI.MessageExpire = j["MessageExpire"].get<float>();
-  ImGuiStyleUI.FontSizeIcon = j["FontSizeIcon"].get<float>();
-  ImGuiStyleUI.FontSize = j["FontSize"].get<float>();
-  ImGuiStyleUI.TooltipEnabled = j["TooltipEnabled"].get<bool>();
-  ImGuiStyleUI.TooltipDelay = j["TooltipDelay"].get<float>();
-  ImGuiStyleUI.TooltipMaxwidth = j["TooltipMaxwidth"].get<float>();
-
-  // Widget colors (imgui_widgets.h)
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar] = j["Color_Slidingbar"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarHovered] = j["Color_SlidingbarHovered"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarActive] = j["Color_SlidingbarActive"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_Tab] = j["Color_Tab"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabHovered] = j["Color_TabHovered"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabPressed] = j["Color_TabPressed"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabActive] = j["Color_TabActive"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg] = j["Color_TabXFg"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgHovered] = j["Color_TabXFgHovered"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgActive] = j["Color_TabXFgActive"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBg] = j["Color_TabXBg"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgHovered] = j["Color_TabXBgHovered"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive] = j["Color_TabXBgActive"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabBorder] = j["Color_TabBorder"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget] = j["Color_DropTarget"].get<ImVec4>();
-  ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive] = j["Color_DropTargetActive"].get<ImVec4>();
-
-  // Widget styles (imgui_widgets.h)
-  ImGuiStyleWidgets.TabRounding = j["TabRounding"].get<float>();
-  ImGuiStyleWidgets.TabBorderSize = j["TabBorderSize"].get<float>();
-  ImGuiStyleWidgets.DropTargetLooseness = j["DropTargetLooseness"].get<float>();
-  ImGuiStyleWidgets.DropTargetMinsizeEdge = j["DropTargetMinsizeEdge"].get<float>();
-  ImGuiStyleWidgets.DropTargetMaxsizeEdge = j["DropTargetMaxsizeEdge"].get<float>();
-  ImGuiStyleWidgets.DropTargetEdgeFraction = j["DropTargetEdgeFraction"].get<float>();
-  ImGuiStyleWidgets.DropTargetFullFraction = j["DropTargetFullFraction"].get<float>();
-  ImGuiStyleWidgets.TabHeight = j["TabHeight"].get<float>();
-  ImGuiStyleWidgets.TabMaxWidth = j["TabMaxWidth"].get<float>();
-  ImGuiStyleWidgets.SlidingBarWidth = j["SlidingBarWidth"].get<float>();
-
-  // imgui colors
-  ImGuiStyle& style = GetStyle();
-  style.Colors[ImGuiCol_Text] = j["Color_Text"].get<ImVec4>();
-  style.Colors[ImGuiCol_TextDisabled] = j["Color_TextDisabled"].get<ImVec4>();
-  style.Colors[ImGuiCol_WindowBg] = j["Color_WindowBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_ChildBg] = j["Color_ChildBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_PopupBg] = j["Color_PopupBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_Border] = j["Color_Border"].get<ImVec4>();
-  style.Colors[ImGuiCol_BorderShadow] = j["Color_BorderShadow"].get<ImVec4>();
-  style.Colors[ImGuiCol_FrameBg] = j["Color_FrameBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_FrameBgHovered] = j["Color_FrameBgHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_FrameBgActive] = j["Color_FrameBgActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_TitleBg] = j["Color_TitleBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_TitleBgActive] = j["Color_TitleBgActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_TitleBgCollapsed] = j["Color_TitleBgCollapsed"].get<ImVec4>();
-  style.Colors[ImGuiCol_MenuBarBg] = j["Color_MenuBarBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_ScrollbarBg] = j["Color_ScrollbarBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_ScrollbarGrab] = j["Color_ScrollbarGrab"].get<ImVec4>();
-  style.Colors[ImGuiCol_ScrollbarGrabHovered] = j["Color_ScrollbarGrabHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_ScrollbarGrabActive] = j["Color_ScrollbarGrabActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_CheckMark] = j["Color_CheckMark"].get<ImVec4>();
-  style.Colors[ImGuiCol_SliderGrab] = j["Color_SliderGrab"].get<ImVec4>();
-  style.Colors[ImGuiCol_SliderGrabActive] = j["Color_SliderGrabActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_Button] = j["Color_Button"].get<ImVec4>();
-  style.Colors[ImGuiCol_ButtonHovered] = j["Color_ButtonHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_ButtonActive] = j["Color_ButtonActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_Header] = j["Color_Header"].get<ImVec4>();
-  style.Colors[ImGuiCol_HeaderHovered] = j["Color_HeaderHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_HeaderActive] = j["Color_HeaderActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_Separator] = j["Color_Separator"].get<ImVec4>();
-  style.Colors[ImGuiCol_SeparatorHovered] = j["Color_SeparatorHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_SeparatorActive] = j["Color_SeparatorActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_ResizeGrip] = j["Color_ResizeGrip"].get<ImVec4>();
-  style.Colors[ImGuiCol_ResizeGripHovered] = j["Color_ResizeGripHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_ResizeGripActive] = j["Color_ResizeGripActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_CloseButton] = j["Color_CloseButton"].get<ImVec4>();
-  style.Colors[ImGuiCol_CloseButtonHovered] = j["Color_CloseButtonHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_CloseButtonActive] = j["Color_CloseButtonActive"].get<ImVec4>();
-  style.Colors[ImGuiCol_PlotLines] = j["Color_PlotLines"].get<ImVec4>();
-  style.Colors[ImGuiCol_PlotLinesHovered] = j["Color_PlotLinesHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_PlotHistogram] = j["Color_PlotHistogram"].get<ImVec4>();
-  style.Colors[ImGuiCol_PlotHistogramHovered] = j["Color_PlotHistogramHovered"].get<ImVec4>();
-  style.Colors[ImGuiCol_TextSelectedBg] = j["Color_TextSelectedBg"].get<ImVec4>();
-  style.Colors[ImGuiCol_ModalWindowDarkening] = j["Color_ModalWindowDarkening"].get<ImVec4>();
-
-  // imgui styles
-  style.Alpha = j["Alpha"].get<float>();
-  style.WindowPadding = j["WindowPadding"].get<ImVec2>();
-  style.WindowRounding = j["WindowRounding"].get<float>();
-  style.WindowBorderSize = j["WindowBorderSize"].get<float>();
-  style.WindowMinSize = j["WindowMinSize"].get<ImVec2>();
-  style.WindowTitleAlign = j["WindowTitleAlign"].get<ImVec2>();
-  style.ChildRounding = j["ChildRounding"].get<float>();
-  style.ChildBorderSize = j["ChildBorderSize"].get<float>();
-  style.PopupRounding = j["PopupRounding"].get<float>();
-  style.PopupBorderSize = j["PopupBorderSize"].get<float>();
-  style.FramePadding = j["FramePadding"].get<ImVec2>();
-  style.FrameRounding = j["FrameRounding"].get<float>();
-  style.FrameBorderSize = j["FrameBorderSize"].get<float>();
-  style.ItemSpacing = j["ItemSpacing"].get<ImVec2>();
-  style.ItemInnerSpacing = j["ItemInnerSpacing"].get<ImVec2>();
-  style.TouchExtraPadding = j["TouchExtraPadding"].get<ImVec2>();
-  style.IndentSpacing = j["IndentSpacing"].get<float>();
-  style.ColumnsMinSpacing = j["ColumnsMinSpacing"].get<float>();
-  style.ScrollbarSize = j["ScrollbarSize"].get<float>();
-  style.ScrollbarRounding = j["ScrollbarRounding"].get<float>();
-  style.GrabMinSize = j["GrabMinSize"].get<float>();
-  style.GrabRounding = j["GrabRounding"].get<float>();
-  style.ButtonTextAlign = j["ButtonTextAlign"].get<ImVec2>();
-  style.DisplayWindowPadding = j["DisplayWindowPadding"].get<ImVec2>();
-  style.DisplaySafeAreaPadding = j["DisplaySafeAreaPadding"].get<ImVec2>();
-  style.AntiAliasedLines = j["AntiAliasedLines"].get<bool>();
-  style.AntiAliasedShapes = j["AntiAliasedShapes"].get<bool>();
-  style.CurveTessellationTol = j["CurveTessellationTol"].get<float>();
+  for (int i = 0;;i++){
+    if (!confvar[i].name)
+      break;
+    switch(confvar[i].vartype){
+    case Type_Bool:
+      if (j.count(confvar[i].name) != 0) *((bool *) confvar[i].variable) = j[confvar[i].name].get<bool>(); break;
+    case Type_Int:
+      if (j.count(confvar[i].name) != 0) *((int *) confvar[i].variable) = j[confvar[i].name].get<int>(); break;
+    case Type_Float:
+      if (j.count(confvar[i].name) != 0) *((float *) confvar[i].variable) = j[confvar[i].name].get<float>(); break;
+    case Type_ImVec2:
+      if (j.count(confvar[i].name) != 0) *((ImVec2 *) confvar[i].variable) = j[confvar[i].name].get<ImVec2>(); break;
+    case Type_ImVec4:
+      if (j.count(confvar[i].name) != 0) *((ImVec4 *) confvar[i].variable) = j[confvar[i].name].get<ImVec4>(); break;
+    }
+  }
 
   fi.close();
   return true;

@@ -330,13 +330,16 @@ static void DialogPreferences(bool *p_open){
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Colors")){
 	  static int style_idx = 0;
+	  int ostyle_idx = style_idx;
 	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
 	  if (filter.PassFilter("Color theme")){
 	    if (Combo("Color theme", &style_idx, "Classic\0Dark\0Light\0"),3){
-	      switch (style_idx){
-	      case 0: UIStyleColorsClassic(); break;
-	      case 1: UIStyleColorsDark(); break;
-	      case 2: UIStyleColorsLight(); break;
+	      if (style_idx != ostyle_idx){
+		switch (style_idx){
+		case 0: UIStyleColorsClassic(); break;
+		case 1: UIStyleColorsDark(); break;
+		case 2: UIStyleColorsLight(); break;
+		}
 	      }
 	    }
 	  }
@@ -344,11 +347,13 @@ static void DialogPreferences(bool *p_open){
 
 	  // Interface -> Colors
 	  if (filter.PassFilter("Text"))
-	    ColorEdit4("Text", (float*)&style.Colors[ImGuiCol_Text], coloreditflags);
+	    ColorEdit4("Text", (float*)&(style.Colors[ImGuiCol_Text]), coloreditflags);
 	  if (filter.PassFilter("Text (Disabled)"))
 	    ColorEdit4("Text (Disabled)", (float*)&style.Colors[ImGuiCol_TextDisabled], coloreditflags);
 	  if (filter.PassFilter("Text (Selected background)"))
 	    ColorEdit4("Text (Selected background)", (float*)&style.Colors[ImGuiCol_TextSelectedBg], coloreditflags);
+	  if (filter.PassFilter("Backdrop"))
+	    ColorEdit4("Backdrop", (float*)&ImGuiStyleUI.Colors[ImGuiColUI_BackDrop], coloreditflags);
 	  if (filter.PassFilter("Window background"))
 	    ColorEdit4("Window background", (float*)&style.Colors[ImGuiCol_WindowBg], coloreditflags);
 	  if (filter.PassFilter("Child window background"))

@@ -105,7 +105,8 @@ int main(int argc, char *argv[]){
       glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
 
     // Background
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    ImVec4 colorbd = ImGuiStyleUI.Colors[ImGuiColUI_BackDrop];
+    glClearColor(colorbd.x,colorbd.y,colorbd.z,colorbd.w);
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Main menu bar
