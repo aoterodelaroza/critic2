@@ -26,6 +26,7 @@
 // List of known one-only dialogs
 enum Dialog_{
   DLG_Preferences,
+  DLG_Tree,
   DLG_LAST,
 };
 

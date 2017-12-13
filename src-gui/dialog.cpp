@@ -33,13 +33,15 @@ using namespace ImGui;
 
 // Declarations for the dialog static functions (defined below)
 static void DialogPreferences(bool *p_open);
+static void DialogTree(bool *p_open);
 
 // Dialog variables
-static bool dlgopen[DLG_LAST] = {false};
+static bool dlgopen[DLG_LAST] = {false,false};
 static void (*dlgfun[DLG_LAST])(bool *) = {
   DialogPreferences,
+  DialogTree,
 };
-static Dock *dlgdock[DLG_LAST] = {nullptr};
+static Dock *dlgdock[DLG_LAST] = {nullptr,nullptr};
 static Dialog_ dlglastopen = DLG_LAST;
 
 void OpenDialog(Dialog_ dialog){
@@ -649,4 +651,16 @@ static void DialogPreferences(bool *p_open){
   } 
   if (!(*p_open))
     filter.Clear();
+}
+
+static void DialogTree(bool *p_open){
+  if (*p_open){
+    SetNextWindowSize(ImVec2(500, 440), ImGuiSetCond_FirstUseEver);
+    if (BeginDock("Tree",p_open)){
+      Text("Tree View!");     
+      if (Button("Tree view")){printf("Tree view\n");}
+    }
+    dlgdock[DLG_Tree] = GetCurrentDock();
+    EndDock();
+  }
 }

@@ -91,6 +91,7 @@ int main(int argc, char *argv[]){
 
   // Create the main view 
   View *mainview = CreateView("Main view",1);
+  OpenDialog(DLG_Tree);
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
@@ -136,34 +137,6 @@ int main(int argc, char *argv[]){
                                 ImGuiWindowFlags_NoBringToFrontOnFocus);
     PopStyleVar();
 
-    // Containers
-    Dock *dviewcont = nullptr;
-    static bool show_viewcont = true;
-    if (show_viewcont)
-      dviewcont = Container("Container##viewcontainer",&show_viewcont,0,Dock::DockFlags_NoLiftContainer | Dock::DockFlags_Transparent);
-
-    // Some docks
-    static bool show_treedock = true;
-    static bool show_infodock = true;
-    static bool show_styledock = true;
-    Dock *dtreedock = nullptr, *dinfodock = nullptr, *dviewdock = nullptr;
-    if (show_treedock){
-      if (BeginDock("Tree view",&show_treedock)){
-        Text("Tree View!");     
-        if (Button("Tree view")){printf("Tree view\n");}
-      }
-      dtreedock = GetCurrentDock();
-      EndDock();
-    }
-    if (show_infodock){
-      if (BeginDock("Info view",&show_infodock)){
-        Text("Info View!");     
-        if (Button("Info view")){printf("Info view\n");}
-      }
-      dinfodock = GetCurrentDock();
-      EndDock();
-    }
-
     // Draw all views
     DrawAllViews();
 
@@ -177,18 +150,7 @@ int main(int argc, char *argv[]){
     static bool first = true;
     if (first){
       first = false;
-      droot->newDockRoot(dviewcont,Dock::Drop_Tab);
-      dviewcont->newDock(mainview->dock);
-
-      Dock *dtmp = dviewcont->newDockRoot(dtreedock,Dock::Drop_Left);
-      dviewcont->setSlidingBarPosition(Dock::Drop_Left,0.2f);
-
-      dtmp->newDockRoot(dinfodock,Dock::Drop_Bottom);
-      dtmp->setSlidingBarPosition(Dock::Drop_Bottom,0.7f);
-
-      mainview->dock->setDetachedDockSize(320.f,320.f);
-      dtreedock->setDetachedDockSize(300.f,300.f);
-      dinfodock->setDetachedDockSize(300.f,300.f);
+      droot->newDockRoot(mainview->dock,Dock::Drop_Tab);
     }
 
     // xxxx for imgui testing xxxx //
