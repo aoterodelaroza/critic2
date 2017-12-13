@@ -23,12 +23,15 @@
 #ifndef DIALOG_H
 #define DIALOG_H
 
+#include "imgui/imgui_dock.h"
+
 // List of known one-only dialogs
 enum Dialog_{
   DLG_Preferences,
   DLG_Tree,
   DLG_LAST,
 };
+extern ImGui::Dock *dlgdock[DLG_LAST];
 
 void OpenDialog(Dialog_ dialog);
 

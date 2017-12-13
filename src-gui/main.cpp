@@ -150,7 +150,9 @@ int main(int argc, char *argv[]){
     static bool first = true;
     if (first){
       first = false;
-      droot->newDockRoot(mainview->dock,Dock::Drop_Tab);
+      Dock *dcont= droot->newDockRoot(mainview->dock,Dock::Drop_Tab);
+      dcont->newDockRoot(dlgdock[DLG_Tree],Dock::Drop_Left);
+      dcont->setSlidingBarPosition(Dock::Drop_Left,0.2f);
     }
 
     // xxxx for imgui testing xxxx //
