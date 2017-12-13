@@ -97,8 +97,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <list>
-
-using namespace std;
+#include <string>
 
 namespace ImGui{
 
@@ -141,7 +140,7 @@ namespace ImGui{
     bool noborder = false; // flag if we pushed to have no border
     bool showingdrops = false; // true if we are showing the drop targets for this dock
     bool hoverable = true; // whether a window responds to being hovered
-    list<Dock *> stack = {}; // stack of docks at this level
+    std::list<Dock *> stack = {}; // stack of docks at this level
     Dock *currenttab = nullptr; // currently selected tab (container)
     Dock *parent = nullptr; // immediate dock to which this is dock
     Dock *root = nullptr; // root container to which this is docked

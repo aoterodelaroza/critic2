@@ -161,9 +161,14 @@ int main(int argc, char *argv[]){
     // // xxxx for debugging the dock system xxxx //
     // PrintDock__();
 
-    // // xxxx for testing //
-    // RootContainer("test rootcontainer");
-    // Container("test container");
+    // xxxx for testing //
+    RootContainer("test rootcontainer");
+    Container("test container");
+
+    // // xxxx //
+    // if (IsBindEvent(BIND_QUIT,false)){
+    //   WriteLayout(droot);
+    // }
 
     // Render and swap
     Render();

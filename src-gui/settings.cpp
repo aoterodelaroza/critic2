@@ -25,6 +25,7 @@
 
 #include "imgui/additional_fonts.h"
 #include "imgui/imgui_widgets.h"
+#include "imgui/imgui_dock.h"
 #include "json/json.hpp"
 
 #include <unistd.h>
@@ -640,6 +641,23 @@ static void from_json(const json& j, ImVec4& p) {
 static void from_json(const json& j, ImVec2& p) {
   p.x = j[0];
   p.y = j[1];
+}
+namespace ImGui{
+  static void to_json(json& j, const Dock& p) {
+    j["label"] = p.label;
+    int n = 0;
+    for (auto dd: p.stack){
+      ++n;
+      j[to_string(n)] = *dd;
+    }
+  }
+}
+
+void WriteLayout(Dock* root){
+  json j;
+  
+  j["root"] = (*root);
+  cout << setw(4) << j << endl;
 }
 
 bool WriteConfigurationFile(string file){

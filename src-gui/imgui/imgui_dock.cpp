@@ -490,7 +490,9 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
   root->nchild++;
 
   // add to the parent's stack
+  int n = 0;
   for(auto it = dpar->stack.begin(); it != dpar->stack.end(); it++){
+    ++n;
     if (*it == this){
       if (before)
         dpar->stack.insert(it,dcont);
@@ -500,8 +502,16 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     }
   }
 
-  // reset the parent's sliding bar positions
-  dpar->resetRootContainerBars();
+  // the new tab splits the old tab in half
+  int m = -1;
+  for (auto it = dpar->tabsx.begin(); it != dpar->tabsx.end(); it++){
+    m++;
+    if (n == m){
+      dpar->tabsx.insert(it,-1.f);
+      dpar->tabsx[n] = 0.5f * (dpar->tabsx[n-1] + dpar->tabsx[n+1]);
+      break;
+    }
+  }
 
   // rearrange the parent and root variables
   dcont->root = root;

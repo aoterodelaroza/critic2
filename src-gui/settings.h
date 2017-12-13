@@ -10,7 +10,10 @@
 #include <string>
 
 #include <glm/glm.hpp>
+
 #include "imgui/imgui.h"
+#include "imgui/imgui_dock.h"
+
 #include "shader.h"
 
 // constants
@@ -118,6 +121,7 @@ void UIStyleColorsLight();
 
 // Configuration file
 bool FindConfigurationFile();
+void WriteLayout(ImGui::Dock* root);
 bool WriteConfigurationFile(std::string file);
 bool ReadConfigurationFile(std::string file);
 
