@@ -333,14 +333,15 @@ static void DialogPreferences(bool *p_open){
 	if (TreeNode("Colors")){
 	  static int style_idx = 0;
 	  int ostyle_idx = style_idx;
-	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
+	  PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
 	  if (filter.PassFilter("Color theme")){
-	    if (Combo("Color theme", &style_idx, "Classic\0Dark\0Light\0"),3){
+	    if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0"),4){
 	      if (style_idx != ostyle_idx){
 		switch (style_idx){
-		case 0: UIStyleColorsClassic(); break;
-		case 1: UIStyleColorsDark(); break;
-		case 2: UIStyleColorsLight(); break;
+		case 0: UIStyleColorsMutantOrange(); break;
+		case 1: UIStyleColorsClassic(); break;
+		case 2: UIStyleColorsDark(); break;
+		case 3: UIStyleColorsLight(); break;
 		}
 	      }
 	    }
