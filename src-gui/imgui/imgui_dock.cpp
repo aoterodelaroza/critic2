@@ -1241,6 +1241,12 @@ void Dock::setDetachedDockSize(float x, float y){
   this->size_saved.y = y;
 }
 
+void Dock::setDetachedDockPosition(float x, float y){
+  if (!this) return;
+  this->pos_saved.x = x;
+  this->pos_saved.y = y;
+}
+
 void Dock::closeDock() {
   if (this->status == Dock::Status_Docked){
     Dock *dpar = this->parent;

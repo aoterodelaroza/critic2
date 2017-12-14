@@ -116,7 +116,7 @@ int main(int argc, char *argv[]){
     PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
     float menubarh = g->FontBaseSize + g->Style.FramePadding.y * 2.0f;
     SetNextWindowPos(ImVec2(0.,menubarh));
-    SetNextWindowSize(ImVec2(g->IO.DisplaySize.x,g->IO.DisplaySize.y-menubarh));
+    SetNextWindowSize(ImVec2(io.DisplaySize.x,io.DisplaySize.y-menubarh));
     Dock *droot = RootContainer("critic2root",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
                                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings|
                                 ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -134,10 +134,16 @@ int main(int argc, char *argv[]){
     // Message dispatch
     MessageDispatch();
 
-    // Dock everything in the first pass
+    // Dock everything in the first pass and set default sizes
     static bool first = true;
     if (first){
       first = false;
+
+      // default size and position of the detached main view
+      mainview->dock->setDetachedDockPosition(0.25f*io.DisplaySize.x,0.25f*io.DisplaySize.y);
+      mainview->dock->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+
+      // attach the main view and the tree to the root
       Dock *dcont= droot->newDockRoot(mainview->dock,Dock::Drop_Tab);
       dcont->newDockRoot(dlgdock[DLG_Tree],Dock::Drop_Left);
       dcont->setSlidingBarPosition(Dock::Drop_Left,0.2f);

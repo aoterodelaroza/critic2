@@ -107,6 +107,7 @@ void CloseLastDialog(){
 // Preferences dialog //
 static void DialogPreferences(bool *p_open){
   ImGuiContext *g = GetCurrentContext();
+  ImGuiIO& io = GetIO();
   ImGuiStyle& style = GetStyle();
   float itemwidth = 4.f * g->FontSize;
   static ImGuiTextFilter filter;
@@ -114,7 +115,9 @@ static void DialogPreferences(bool *p_open){
   const float wright = 400.f;
 
   if (*p_open){
-    SetNextWindowSize(ImVec2(500, 440), ImGuiSetCond_FirstUseEver);
+    static bool first = true;
+    SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
+
     if (BeginDock("Preferences",p_open)){
       // Filter box
       AlignTextToFramePadding();
@@ -611,8 +614,6 @@ static void DialogPreferences(bool *p_open){
 	PopItemWidth(); 
       } else if (catid == 4){
 	// Fonts
-	ImGuiIO& io = GetIO();
-
 	PushItemWidth(1.5*itemwidth); 
 	float size = ImGuiStyleUI.FontSize;
 	DragFloat("Font size (pixel)", &size, 0.1f, 9.0f, fontsizebake, "%.1f");
@@ -674,7 +675,12 @@ static void DialogPreferences(bool *p_open){
       EndChild();
       EndGroup();
     }
+
     dlgdock[DLG_Preferences] = GetCurrentDock();
+    if (first){
+      dlgdock[DLG_Preferences]->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+      first = false;
+    }
     EndDock();
   } 
   if (!(*p_open))
@@ -682,13 +688,21 @@ static void DialogPreferences(bool *p_open){
 }
 
 static void DialogTree(bool *p_open){
+  ImGuiIO& io = GetIO();
   if (*p_open){
-    SetNextWindowSize(ImVec2(500, 440), ImGuiSetCond_FirstUseEver);
+    static bool first = true;
+    SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
+
     if (BeginDock("Tree",p_open)){
       Text("Tree View!");     
       if (Button("Tree view")){printf("Tree view\n");}
     }
+
     dlgdock[DLG_Tree] = GetCurrentDock();
+    if (first){
+      dlgdock[DLG_Tree]->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+      first = false;
+    }
     EndDock();
   }
 }

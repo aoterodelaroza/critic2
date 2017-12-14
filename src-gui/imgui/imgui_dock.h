@@ -280,6 +280,12 @@ namespace ImGui{
     // number of docked windows in the root container. Recursive.
     void drawRootContainer(Dock* root, Dock **lift, Dock **erased, int *count = nullptr);
 
+    // Sets the position of this dock/container in its detached
+    // state. Useful when a dock/container is immediately attached in
+    // the first pass and does not have the chance to save this
+    // variable from the created window.
+    void setDetachedDockPosition(float x, float y);
+
     // Sets the size of this dock/container in its detached
     // state. Useful when a dock/container is immediately attached in
     // the first pass and does not have the chance to save this
