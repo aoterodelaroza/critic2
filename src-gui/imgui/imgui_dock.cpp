@@ -398,7 +398,9 @@ void Dock::OpStack_Replace(Dock *replaced, Dock* replacement, bool erase){
 }
 
 void Dock::OpStack_Remove(Dock *dd, bool erase){
+  int n = 0;
   for(auto it = this->stack.begin(); it != this->stack.end(); it++){
+    ++n;
     if (*it == dd){
       this->stack.erase(it);
       dd->parent = nullptr;
@@ -406,6 +408,22 @@ void Dock::OpStack_Remove(Dock *dd, bool erase){
       break;
     }
   }
+
+  // erase the sliding bar
+  int m = -1;
+  for (auto it = this->tabsx.begin(); it != this->tabsx.end(); it++){
+    ++m;
+    if (m == 0 || m == tabsx.size()-1)
+      continue;
+    if ((dd->splithint == 1 && m == n) || 
+	(dd->splithint == -1 && m == n-1) ||
+	(dd->splithint == 0 && (m == n-1 || m == n))){
+      this->tabsx.erase(it);
+      break;
+    }
+  }
+
+  // kill the dock
   if (erase)
     killDock(dd);
 }
@@ -509,6 +527,8 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     if (n == m){
       dpar->tabsx.insert(it,-1.f);
       dpar->tabsx[n] = 0.5f * (dpar->tabsx[n-1] + dpar->tabsx[n+1]);
+      dcont->splithint = (before?1:-1);
+      this->splithint = - dcont->splithint;
       break;
     }
   }
@@ -1009,6 +1029,8 @@ void Dock::resetRootContainerBars(){
       this->tabsx.resize(ntot+1);
     for (int i=0;i<=ntot;i++)
       this->tabsx[i] = ((float) i) / ((float) ntot);
+    for (auto it = this->stack.begin(); it != this->stack.end(); ++it)
+      (*it)->splithint = 0;
   }
 }
 
@@ -1045,11 +1067,11 @@ void Dock::drawRootContainerBars(Dock *root){
   if (this->type == Dock::Type_Root){
     this->stack.back()->drawRootContainerBars(root);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
-    // update the vector containing the sliding bar positions
-    int ntot = this->stack.size();
-    if (this->tabsx.size() != ntot+1)
-      for (int i=0;i<=ntot;i++)
-        this->tabsx[i] = ((float) i) / ((float) ntot);
+    // // update the vector containing the sliding bar positions
+    // int ntot = this->stack.size();
+    // if (this->tabsx.size() != ntot+1)
+    //   for (int i=0;i<=ntot;i++)
+    //     this->tabsx[i] = ((float) i) / ((float) ntot);
 
     // draw all the sliding bars for this container
     char tmp[strlen(this->label)+15];
@@ -1110,7 +1132,6 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount
     dd->drawRootContainer(root,lift,erased,&ncount_);
   } else if (this->type == Dock::Type_Horizontal || this->type == Dock::Type_Vertical) {
     float x0, x1;
-    int ntot = this->stack.size();
     float width1, width2;
     int n = -1;
     (*ncount)++;

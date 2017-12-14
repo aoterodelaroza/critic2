@@ -135,7 +135,7 @@ namespace ImGui{
     float tabdz = 0.f; // z position for the end of the tab bar (container)
     ImGuiWindow* tabwin = nullptr; // pointer to the tab window (for cleaning up the window stack)
     ImVector<float> tabsx = {}; // tab positions for container; sliders for h/v-container
-    ImVector<bool> tabsfixed = {}; // whether a slider is fixed.
+    int splithint = 0; // hint to tell which bar should be removed when lifted (0 = any, +1 right/up, -1 left/down)
     bool hidden = false; // whether a docked window is hidden
     bool noborder = false; // flag if we pushed to have no border
     bool showingdrops = false; // true if we are showing the drop targets for this dock
