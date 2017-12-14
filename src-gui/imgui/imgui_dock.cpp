@@ -423,6 +423,18 @@ void Dock::OpStack_Remove(Dock *dd, bool erase){
     }
   }
 
+  // reset the split hint for the tab on the other side
+  if (dd->splithint != 0){
+    int m = 0;
+    for(auto it = this->stack.begin(); it != this->stack.end(); it++){
+      ++m;
+      if ((n == m && dd->splithint == 1) || (n-1 == m && dd->splithint == -1)){
+	(*it)->splithint = 0;
+	break;
+      }
+    }
+  }
+
   // kill the dock
   if (erase)
     killDock(dd);
