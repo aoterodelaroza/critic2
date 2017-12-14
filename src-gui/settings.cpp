@@ -40,7 +40,7 @@ using json = nlohmann::json;
 // Global variables: font pointers and bake size (see settings.h)
 ImFont* fontdefault = nullptr;
 ImFont* fonticon = nullptr;
-const float fontsizebake = 36.0f;
+const float fontsizebake = 48.0f;
 
 // UI style
 ImGuiStyleUI_ ImGuiStyleUI;
@@ -96,6 +96,7 @@ static confvar_ confvar[] = {
   {"TooltipEnabled",&ImGuiStyleUI.TooltipEnabled,Type_Bool},
   {"TooltipDelay",&ImGuiStyleUI.TooltipDelay,Type_Float},
   {"TooltipMaxwidth",&ImGuiStyleUI.TooltipMaxwidth,Type_Float},
+  {"UIScaleFactor",&ImGuiStyleUI.UIScaleFactor,Type_Float},
 
   // Widget colors (imgui_widgets.h)
   {"Color_Slidingbar",&ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar],Type_ImVec4},
@@ -328,16 +329,72 @@ void DefaultSettings(){
     io.Fonts->AddFontFromMemoryCompressedBase85TTF(roboto_data_base85, fontsizebake, &fntconfig, ranges);
   }
 
-  // set the defualt sizes
-  io.Fonts->Fonts[0]->Scale = ImGuiStyleUI.FontSizeIcon / fontsizebake;
-  for (int i = 1; i < io.Fonts->Fonts.Size; i++)
-    io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;
-
-  // set the default font
-  fontdefault = io.Fonts->Fonts[ImGuiStyleUI.FontSelected];
-  io.FontDefault = fontdefault;
+  // set the defualt fonts and sizes
+  SetUIFont(ImGuiStyleUI.FontSelected,ImGuiStyleUI.FontSize,ImGuiStyleUI.FontSizeIcon);
 
   firstpass = false;
+}
+
+void ScaleUI(float scale){
+  ImGuiIO& io = GetIO();
+
+  ImGuiStyleUI.MessageWidth *= scale;
+  ImGuiStyleUI.FontSizeIcon *= scale;
+  ImGuiStyleUI.FontSize *= scale;
+  SetUIFont(-1,ImGuiStyleUI.FontSize,ImGuiStyleUI.FontSizeIcon);
+  ImGuiStyleUI.TooltipMaxwidth *= scale;
+  ImGuiStyleWidgets.TabRounding *= scale;
+  ImGuiStyleWidgets.DropTargetLooseness *= scale;
+  ImGuiStyleWidgets.DropTargetMinsizeEdge *= scale;
+  ImGuiStyleWidgets.DropTargetMaxsizeEdge *= scale;
+  ImGuiStyleWidgets.TabHeight *= scale;
+  ImGuiStyleWidgets.TabMaxWidth *= scale;
+  ImGuiStyleWidgets.SlidingBarWidth *= scale;
+  GImGui->Style.WindowPadding.x *= scale;
+  GImGui->Style.WindowPadding.y *= scale;
+  GImGui->Style.WindowRounding *= scale;
+  GImGui->Style.WindowMinSize.x *= scale;
+  GImGui->Style.WindowMinSize.y *= scale;
+  GImGui->Style.ChildRounding *= scale;
+  GImGui->Style.PopupRounding *= scale;
+  GImGui->Style.FramePadding.x *= scale;
+  GImGui->Style.FramePadding.y *= scale;
+  GImGui->Style.FrameRounding *= scale;
+  GImGui->Style.ItemSpacing.x *= scale;
+  GImGui->Style.ItemSpacing.y *= scale;
+  GImGui->Style.ItemInnerSpacing.x *= scale;
+  GImGui->Style.ItemInnerSpacing.y *= scale;
+  GImGui->Style.TouchExtraPadding.x *= scale;
+  GImGui->Style.TouchExtraPadding.y *= scale;
+  GImGui->Style.IndentSpacing *= scale;
+  GImGui->Style.ColumnsMinSpacing *= scale;
+  GImGui->Style.ScrollbarSize *= scale;
+  GImGui->Style.ScrollbarRounding *= scale;
+  GImGui->Style.GrabMinSize *= scale;
+  GImGui->Style.GrabRounding *= scale;
+  GImGui->Style.DisplayWindowPadding.x *= scale;
+  GImGui->Style.DisplayWindowPadding.y *= scale;
+  GImGui->Style.DisplaySafeAreaPadding.x *= scale;
+  GImGui->Style.DisplaySafeAreaPadding.y *= scale;
+}
+
+void SetUIFont(int ifont/*=-1*/,float size/*=-1.f*/,float sizeicon/*=-1.f*/){
+  ImGuiIO& io = GetIO();
+
+  if (ifont != -1){
+    ImGuiStyleUI.FontSelected = ifont;
+    fontdefault = io.Fonts->Fonts[ImGuiStyleUI.FontSelected];
+    io.FontDefault = fontdefault;
+  }
+  if (size > 0.f){
+    ImGuiStyleUI.FontSize = size;
+    for (int i = 1; i < io.Fonts->Fonts.Size; i++)
+      io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;
+  }
+  if (sizeicon > 0.f){
+    ImGuiStyleUI.FontSizeIcon = sizeicon;
+    io.Fonts->Fonts[0]->Scale = ImGuiStyleUI.FontSizeIcon / fontsizebake;
+  }
 }
 
 // classic colors style
@@ -797,10 +854,8 @@ bool ReadConfigurationFile(string file){
 
   fi.close();
 
-  // Set the default font
-  ImGuiIO& io = GetIO();
-  fontdefault = io.Fonts->Fonts[ImGuiStyleUI.FontSelected];
-  io.FontDefault = fontdefault;
+  // Set the default font just read
+  SetUIFont(ImGuiStyleUI.FontSelected,ImGuiStyleUI.FontSize,ImGuiStyleUI.FontSizeIcon);
 
   return true;
 }

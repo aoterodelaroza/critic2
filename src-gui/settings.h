@@ -43,6 +43,7 @@ struct ImGuiStyleUI_ {
   bool TooltipEnabled;
   float TooltipDelay;
   float TooltipMaxwidth;
+  float UIScaleFactor;
 
   void DefaultStyle(){
     MessageWidth = 400.f;
@@ -53,6 +54,7 @@ struct ImGuiStyleUI_ {
     TooltipEnabled = true;
     TooltipDelay = 1.5f;
     TooltipMaxwidth = 450.f;
+    UIScaleFactor = 1.0f;
   }
   void DefaultColors(){
     Colors[ImGuiColUI_BackDrop]         = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
@@ -117,6 +119,8 @@ extern std::string conffile;
 
 // Default settings
 void DefaultSettings();
+void ScaleUI(float scale);
+void SetUIFont(int ifont=-1,float size=-1.f,float sizeicon=-1.f);
 void UIStyleColorsMutantOrange();
 void UIStyleColorsClassic();
 void UIStyleColorsDark();

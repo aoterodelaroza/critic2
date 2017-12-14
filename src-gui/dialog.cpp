@@ -150,6 +150,19 @@ static void DialogPreferences(bool *p_open){
       if (catid == 0){
 	// Interface
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("High DPI")){
+	  PushItemWidth(itemwidth);
+	  float oscale = ImGuiStyleUI.UIScaleFactor;
+	  if (filter.PassFilter("Global UI scale factor"))
+	    DragFloat("Global UI scale factor", &ImGuiStyleUI.UIScaleFactor, 0.01f, 0.25f, 5.0f, "%.1f", 1.0f);
+	  PopItemWidth();
+	  if (ImGuiStyleUI.UIScaleFactor != oscale){
+	    ScaleUI(ImGuiStyleUI.UIScaleFactor / oscale);
+	    oscale = ImGuiStyleUI.UIScaleFactor;
+	  }
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Tooltips")){
 	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Enable tooltips"))
@@ -589,20 +602,24 @@ static void DialogPreferences(bool *p_open){
 	ImGuiIO& io = GetIO();
 
 	PushItemWidth(1.5*itemwidth); 
-	DragFloat("Font Size (pixel)", &ImGuiStyleUI.FontSize, 0.1f, 9.0f, fontsizebake, "%.1f");
+	float size = ImGuiStyleUI.FontSize;
+	DragFloat("Font size (pixel)", &size, 0.1f, 9.0f, fontsizebake, "%.1f");
+	if (size != ImGuiStyleUI.FontSize)
+	  SetUIFont(-1,size,-1.f);
+
+	size = ImGuiStyleUI.FontSizeIcon;
+	DragFloat("View icon size (pixel)", &size, 0.1f, 9.0f, fontsizebake, "%.1f");
 	PopItemWidth(); 
+	if (size != ImGuiStyleUI.FontSizeIcon)
+	  SetUIFont(-1,-1.f,size);
 
 	BeginChild("fontselector",ImVec2(0.f,0.f),true);
 	for (int i = 1; i < io.Fonts->Fonts.Size; i++){ // first font is always the icons
 	  ImFont* font = io.Fonts->Fonts[i];
 	  PushFont(font);
-	  if (Selectable(font->ConfigData?font->ConfigData[0].Name:"",ImGuiStyleUI.FontSelected == i)){
-	    fontdefault = io.Fonts->Fonts[i];
-	    io.FontDefault = fontdefault;
-	    ImGuiStyleUI.FontSelected = i;
-	  }
+	  if (Selectable(font->ConfigData?font->ConfigData[0].Name:"",ImGuiStyleUI.FontSelected == i))
+	    SetUIFont(i,-1.f,-1.f);
 	  PopFont();
-	  io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;
 	}
 	EndChild();
       }
