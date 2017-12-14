@@ -1084,7 +1084,7 @@ void Dock::drawRootContainerBars(Dock *root){
     // if (this->tabsx.size() != ntot+1)
     //   for (int i=0;i<=ntot;i++)
     //     this->tabsx[i] = ((float) i) / ((float) ntot);
-
+      
     // draw all the sliding bars for this container
     char tmp[strlen(this->label)+15];
     float x0, x1, xmin, xmax;

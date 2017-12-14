@@ -162,8 +162,8 @@ int main(int argc, char *argv[]){
     // PrintDock__();
 
     // xxxx for testing //
-    RootContainer("test rootcontainer");
-    Container("test container");
+    // RootContainer("test rootcontainer");
+    // Container("test container");
 
     // // xxxx //
     // if (IsBindEvent(BIND_QUIT,false)){

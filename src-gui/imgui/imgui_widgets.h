@@ -97,8 +97,8 @@ struct ImGuiStyleWidgets_ {
     TabRounding = 7.0f;
     TabBorderSize = 0.0f;
     DropTargetLooseness = 4.0f;
-    DropTargetMinsizeEdge = 30.f;
-    DropTargetMaxsizeEdge = 90.f;
+    DropTargetMinsizeEdge = 20.f;
+    DropTargetMaxsizeEdge = 20.f;
     DropTargetEdgeFraction = 0.1f;
     DropTargetFullFraction = 0.4f;
     TabHeight = 19.0f;
