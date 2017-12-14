@@ -438,7 +438,7 @@ void Dock::OpStack_Remove(Dock *dd, bool erase){
     killDock(dd);
 }
 
-Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*/){
+Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*/,ImVec2 weight/*={1.f,1.f}*/){
   // 1:top, 2:right, 3:bottom, 4:left
   Dock *dpar = this->parent;
   Dock *root = dpar->root;
@@ -455,6 +455,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     dcont->hoverable = true;
     dcont->automatic = true;
     dcont->dockflags = root->dockflags;
+    dcont->splitweight = weight;
   }
   root->nchild++;
 
@@ -480,7 +481,25 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
     dhv->stack.push_back(this);
     dhv->stack.push_back(dcont);
   }
-  dhv->resetRootContainerBars();
+
+  // set the ratio based on the weights
+  float ratio;
+  if (before)
+    if (type == Dock::Type_Vertical)
+      ratio = dcont->splitweight.x / (this->splitweight.x+dcont->splitweight.x);
+    else
+      ratio = dcont->splitweight.y / (this->splitweight.y+dcont->splitweight.y);
+  else
+    if (type == Dock::Type_Vertical)
+      ratio = this->splitweight.x / (this->splitweight.x+dcont->splitweight.x);
+    else
+      ratio = this->splitweight.y / (this->splitweight.y+dcont->splitweight.y);
+
+  // fill the sliding bar positions
+  dhv->tabsx.clear();
+  dhv->tabsx.push_back(0.0f);
+  dhv->tabsx.push_back(ratio);
+  dhv->tabsx.push_back(1.0f);
 
   // replace this with the new horizontal/vertical container in the parent's stack
   dpar->OpStack_Replace(this,dhv,false);
@@ -497,7 +516,7 @@ Dock *Dock::OpRoot_ReplaceHV(Dock::Type_ type,bool before,Dock *dcont/*=nullptr*
   return dcont;
 }
 
-Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
+Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/,ImVec2 weight/*={1.f,1.f}*/){
   // 1:top, 2:right, 3:bottom, 4:left
   Dock *dpar = this->parent;
   Dock *root = dpar->root;
@@ -514,6 +533,7 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     dcont->hoverable = true;
     dcont->automatic = true;
     dcont->dockflags = root->dockflags;
+    dcont->splitweight = weight;
   }
   root->nchild++;
 
@@ -536,7 +556,19 @@ Dock *Dock::OpRoot_AddToHV(bool before,Dock *dcont/*=nullptr*/){
     m++;
     if (n == m){
       dpar->tabsx.insert(it,-1.f);
-      dpar->tabsx[n] = 0.5f * (dpar->tabsx[n-1] + dpar->tabsx[n+1]);
+      float ratio;
+      if (before)
+	if (dpar->type == Dock::Type_Vertical)
+	  ratio = dcont->splitweight.x / (this->splitweight.x+dcont->splitweight.x);
+	else
+	  ratio = dcont->splitweight.y / (this->splitweight.y+dcont->splitweight.y);
+      else
+	if (dpar->type == Dock::Type_Vertical)
+	  ratio = this->splitweight.x / (this->splitweight.x+dcont->splitweight.x);
+	else
+	  ratio = this->splitweight.y / (this->splitweight.y+dcont->splitweight.y);
+
+      dpar->tabsx[n] = dpar->tabsx[n-1] + ratio * (dpar->tabsx[n+1] - dpar->tabsx[n-1]);
       dcont->splithint = (before?1:-1);
       this->splithint = - dcont->splithint;
       break;
@@ -672,6 +704,7 @@ void Dock::newDock(Dock *dnew, int ithis /*=-1*/){
   dnew->status = Dock::Status_Docked;
   dnew->hoverable = false;
   this->currenttab = dnew;
+  this->splitweight = dnew->splitweight;
   this->OpStack_Insert(dnew,ithis);
 }
 
@@ -691,10 +724,10 @@ Dock *Dock::newDockRoot(Dock *dnew, Drop_ iedge){
       Type_ type;
       if (iedge == Drop_Top || iedge == Drop_Bottom){
         type = Dock::Type_Horizontal;
-        dcont = this->OpRoot_ReplaceHV(type,iedge==Drop_Top||iedge==Drop_Left,dcont);
+        dcont = this->OpRoot_ReplaceHV(type,iedge==Drop_Top||iedge==Drop_Left,dcont,dnew->splitweight);
       } else if (iedge == Drop_Right || iedge == Drop_Left){
         type = Dock::Type_Vertical;
-        dcont = this->OpRoot_ReplaceHV(type,iedge==Drop_Top||iedge==Drop_Left,dcont);
+        dcont = this->OpRoot_ReplaceHV(type,iedge==Drop_Top||iedge==Drop_Left,dcont,dnew->splitweight);
       } else {
         if (this->automatic)
           if (dnew->type == Type_Container)
@@ -706,15 +739,15 @@ Dock *Dock::newDockRoot(Dock *dnew, Drop_ iedge){
       }
     } else if (this->parent->type == Dock::Type_Horizontal){
       if (iedge == Drop_Top || iedge == Drop_Bottom){
-        dcont = this->OpRoot_AddToHV(iedge==Drop_Top,dcont);
+        dcont = this->OpRoot_AddToHV(iedge==Drop_Top,dcont,dnew->splitweight);
       } else {
-        dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==Drop_Left,dcont);
+        dcont = this->OpRoot_ReplaceHV(Dock::Type_Vertical,iedge==Drop_Left,dcont,dnew->splitweight);
       }
     } else if (this->parent->type == Dock::Type_Vertical){
       if (iedge == Drop_Right || iedge == Drop_Left){
-        dcont = this->OpRoot_AddToHV(iedge==Drop_Left,dcont);
+        dcont = this->OpRoot_AddToHV(iedge==Drop_Left,dcont,dnew->splitweight);
       } else {
-        dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==Drop_Top,dcont);
+        dcont = this->OpRoot_ReplaceHV(Dock::Type_Horizontal,iedge==Drop_Top,dcont,dnew->splitweight);
       }
     }
 
@@ -942,6 +975,7 @@ void Dock::showTabWindow(Dock *dcont, bool noresize){
     ImGuiWindowFlags_NoBringToFrontOnFocus;
   if (noresize)
     this->flags = this->flags | ImGuiWindowFlags_NoResize;
+  dcont->splitweight = this->splitweight;
 }
 
 void Dock::drawContainer(bool noresize, Dock **erased/*=nullptr*/){
@@ -959,7 +993,9 @@ void Dock::drawContainer(bool noresize, Dock **erased/*=nullptr*/){
     if (!this->hidden && !this->collapsed && this->currenttab)
       this->currenttab->showTabWindow(this,noresize);
 
-  } // if (this->stack.size() > 0);
+  } else {
+    this->splitweight = {1.f,1.f};
+  }
 }
 
 void Dock::getMinSize(ImVec2 *minsize,ImVec2 *autosize){
@@ -1235,16 +1271,18 @@ void Dock::drawRootContainer(Dock *root, Dock **lift, Dock **erased, int *ncount
   } // this->type == xx
 }
 
+void Dock::setDetachedDockPosition(float x, float y){
+  this->pos_saved.x = x;
+  this->pos_saved.y = y;
+}
+
 void Dock::setDetachedDockSize(float x, float y){
-  if (!this) return;
   this->size_saved.x = x;
   this->size_saved.y = y;
 }
 
-void Dock::setDetachedDockPosition(float x, float y){
-  if (!this) return;
-  this->pos_saved.x = x;
-  this->pos_saved.y = y;
+void Dock::setSplitWeight(float wx, float wy){
+  this->splitweight = {wx,wy};
 }
 
 void Dock::closeDock() {

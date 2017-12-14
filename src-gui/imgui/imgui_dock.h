@@ -136,6 +136,7 @@ namespace ImGui{
     ImGuiWindow* tabwin = nullptr; // pointer to the tab window (for cleaning up the window stack)
     ImVector<float> tabsx = {}; // tab positions for container; sliders for h/v-container
     int splithint = 0; // hint to tell which bar should be removed when lifted (0 = any, +1 right/up, -1 left/down)
+    ImVec2 splitweight = {1.f,1.f}; // relative weight of this dock - used to set the initial position of the bar in a h-v split
     bool hidden = false; // whether a docked window is hidden
     bool noborder = false; // flag if we pushed to have no border
     bool showingdrops = false; // true if we are showing the drop targets for this dock
@@ -192,13 +193,16 @@ namespace ImGui{
     // (type==Type_Vertical) container. The new container has the
     // current dock plus container dcont (if null, a new dcont is
     // allocated). The new container is placed before (before==true)
-    // or after (false) the old one. Returns the new container.
-    Dock *OpRoot_ReplaceHV(Type_ type,bool before,Dock *dcont=nullptr);
+    // or after (false) the old one and the split uses weight for the
+    // splitweight of the new container if dcont=null. Returns the new
+    // container.
+    Dock *OpRoot_ReplaceHV(Type_ type,bool before,Dock *dcont=nullptr,ImVec2 weight={1.f,1.f});
     // Add a new container (dcont) to the horizontal/vertical parent
     // of this dock.  If !dcont, a new container is allocated. The new
     // container is placed before (before==true) or after (false) the
-    // old one, and is returned by this function.
-    Dock *OpRoot_AddToHV(bool before,Dock *dcont=nullptr);
+    // old one, and is returned by this function. The split uses
+    // weight for the splitweight of the new container if dcont=null.
+    Dock *OpRoot_AddToHV(bool before,Dock *dcont=nullptr,ImVec2 weight={1.f,1.f});
     // Fill an empty root container with at least one empty automatic
     // container. 
     void OpRoot_FillEmpty();
@@ -291,6 +295,9 @@ namespace ImGui{
     // the first pass and does not have the chance to save this
     // variable from the created window.
     void setDetachedDockSize(float x, float y);
+
+    // Set the h-v split weight for this dock.
+    void setSplitWeight(float wx,float wy);
 
     // Close a dock window. This function is used to kill a dock
     // externally. Unlike normal ImGui windows, making p_open false is

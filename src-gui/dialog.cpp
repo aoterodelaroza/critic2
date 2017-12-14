@@ -37,12 +37,17 @@ static void DialogTree(bool *p_open);
 
 // Dialog variables
 bool dlgopen[DLG_LAST] = {false,false};
+Dock *dlgdock[DLG_LAST] = {nullptr,nullptr};
+static Dialog_ dlglastopen = DLG_LAST;
+
 static void (*dlgfun[DLG_LAST])(bool *) = {
   DialogPreferences,
   DialogTree,
 };
-Dock *dlgdock[DLG_LAST] = {nullptr,nullptr};
-static Dialog_ dlglastopen = DLG_LAST;
+static const float dlgsplitweight[][2] = {
+  {2.f,2.f},
+  {1.f,4.f},
+};
 
 void OpenDialog(Dialog_ dialog){
   if (!dlgopen[dialog])
@@ -679,6 +684,7 @@ static void DialogPreferences(bool *p_open){
     dlgdock[DLG_Preferences] = GetCurrentDock();
     if (first){
       dlgdock[DLG_Preferences]->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+      dlgdock[DLG_Preferences]->setSplitWeight(dlgsplitweight[DLG_Preferences][0],dlgsplitweight[DLG_Preferences][1]);
       first = false;
     }
     EndDock();
@@ -701,6 +707,7 @@ static void DialogTree(bool *p_open){
     dlgdock[DLG_Tree] = GetCurrentDock();
     if (first){
       dlgdock[DLG_Tree]->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+      dlgdock[DLG_Tree]->setSplitWeight(dlgsplitweight[DLG_Tree][0],dlgsplitweight[DLG_Tree][1]);
       first = false;
     }
     EndDock();

@@ -142,11 +142,11 @@ int main(int argc, char *argv[]){
       // default size and position of the detached main view
       mainview->dock->setDetachedDockPosition(0.25f*io.DisplaySize.x,0.25f*io.DisplaySize.y);
       mainview->dock->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+      mainview->dock->setSplitWeight(4.f,4.f);
 
       // attach the main view and the tree to the root
       Dock *dcont= droot->newDockRoot(mainview->dock,Dock::Drop_Tab);
       dcont->newDockRoot(dlgdock[DLG_Tree],Dock::Drop_Left);
-      dcont->setSlidingBarPosition(Dock::Drop_Left,0.2f);
     }
 
     // xxxx for imgui testing xxxx //
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]){
     // xxxx for debugging the dock system xxxx //
     // PrintDock__();
 
-    // xxxx for testing //
+    // // xxxx for testing //
     // RootContainer("test rootcontainer");
     // Container("test container");
 
