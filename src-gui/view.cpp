@@ -57,11 +57,8 @@ static string view_tooltip_label(int id){
   case 3:  str << "Measure"; break;
   case 4:  str << "Build"; break;
   case 5:  str << "Align"; break;
-  case 6:  str << "Preferences"; break;
-  case 7:  str << "Atom labels"; break;
-  case 8:  str << "Save"; break;
-  case 9:  str << "Query"; break;
-  case 10: str << "Close"; break;
+  case 6:  str << "Query"; break;
+  case 7:  str << "Preferences"; break;
   };
   return str.str();
 }
@@ -81,28 +78,29 @@ void View::Draw(){
   ImGuiContext *g = GetCurrentContext();
 
   // Variables for associated dialogs
-  static bool drawprefs = false;
+  bool drawprefs = false;
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
   if (BeginDock(title)){
     // save cursor position at the top left
     ImVec2 cpos = GetCursorPos();
 
     // variables for the buttons
-    const int nicon = 11;
-    const int ihfill = 6;
+    const int nicon = 8;
+    const int ihfill = 7;
     static bool hovered[nicon] = {};
     static bool held[nicon] = {};
     bool pressed[nicon] = {};
     bool usegray[nicon] = {};
     char *buttonchar[nicon] = {ICON_SM_ARROWS,ICON_SM_MOUSE_POINTER,
 			       ICON_SM_COMPASS_ANGLE,ICON_SM_RULER,ICON_SM_PENCIL,
-			       ICON_SM_ALIGNMENT,ICON_SM_COG,ICON_SM_TAG,
-			       ICON_SM_FLOPPY_O,ICON_SM_QUESTION,ICON_SM_TIMES};
+			       ICON_SM_ALIGNMENT,ICON_SM_QUESTION,
+			       ICON_SM_COG};
     ImVec2 buttonsize = ImVec2(ImGuiStyleUI.FontSizeIcon + 1,ImGuiStyleUI.FontSizeIcon + 1);
     ImVec4 color = ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon];
     ImVec4 heldcolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive];
     ImVec4 hovercolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered];
     ImVec4 graycolor = ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive];
+    float fpad = 0.f;
 
     // Interactive part of the buttons; save variables for later
     PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f,0.f));
@@ -110,15 +108,14 @@ void View::Draw(){
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
-	SameLine(); Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f));
-	SameLine(); Text(ICON_SM_VBAR);
-	SameLine(); Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f));
+	fpad = GetContentRegionAvailWidth()-ImGuiStyleUI.FontSizeIcon;
+	SameLine(0, fpad);
       }
       PushID(buttonchar[i]);
-      SameLine();
       pressed[i] = InvisibleButtonEx(buttonchar[i],buttonsize,&hovered[i],&held[i]); 
       if (ImGuiStyleUI.TooltipEnabled)
 	AttachTooltip(view_tooltip_label(i).c_str(),ImGuiStyleUI.TooltipDelay,ImGuiStyleUI.TooltipMaxwidth,fontdefault);
+      SameLine();
       PopID();
     }
     PopFont();
@@ -152,14 +149,15 @@ void View::Draw(){
       updatescene = processMouseEvents(hover) || updatescene;
 
     // process button interactions
-    usegray[0] = usegray[1] = usegray[2] = usegray[3] = usegray[4] = usegray[5] = true;
+    usegray[0] = usegray[1] = usegray[2] = usegray[3] = usegray[4] = usegray[5] = usegray[6] = true;
     if (pressed[0]) mousebehavior = MB_Navigation;
     if (pressed[1]) mousebehavior = MB_Pointer;
     if (pressed[2]) mousebehavior = MB_Angle;
     if (pressed[3]) mousebehavior = MB_Ruler;
     if (pressed[4]) mousebehavior = MB_Builder;
     if (pressed[5]) mousebehavior = MB_Alignment;
-    if (pressed[6]) drawprefs = true;
+    if (pressed[6]) mousebehavior = MB_Query;
+    if (pressed[7]) drawprefs = true;
     usegray[mousebehavior] = false;
 
     // Render the buttons on top of the image
@@ -171,11 +169,8 @@ void View::Draw(){
     PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f,0.f));
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
-      if (i == ihfill){
-	Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f)); SameLine();
-	Text(ICON_SM_VBAR); SameLine();
-	Dummy(ImVec2(0.25f*ImGuiStyleUI.FontSizeIcon,0.f)); SameLine();
-      }
+      if (i == ihfill)
+	SameLine(0, fpad);
       PushID(buttonchar[i]);
       if (held[i])
 	PushStyleColor(ImGuiCol_Text, heldcolor);
@@ -199,13 +194,32 @@ void View::Draw(){
   PopStyleColor();
 
   // Preferences dialog
-  if (drawprefs){
-    char prefstr[strlen(title) + 15];
-    ImFormatString(prefstr,IM_ARRAYSIZE(prefstr),"Prefrences (%s)",title);
-    if (BeginDock(prefstr,&drawprefs)){
-      Text("Blah!");
-    }
-    EndDock();
+  if (drawprefs)
+    ImGui::OpenPopup("prefview");
+  if (BeginPopup("prefview")){
+    bool changed = false;
+    float itemwidth = 4.f * g->FontSize;
+    PushItemWidth(itemwidth);
+    changed |= Checkbox("Wireframe rendering", &view_wireframe);
+    changed |= Checkbox("Orthgonal projection", &view_orthogonal);
+    if (!view_orthogonal)
+      changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
+    changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
+    PopItemWidth();
+	  
+    PushItemWidth(4 * itemwidth + 3.f * g->Style.ItemInnerSpacing.x);
+    changed |= DragFloat4("Background color", view_bgrgb, 0.002f, 0.0, 1.0f, "%.3f", 1.0f); 
+    PopItemWidth();
+
+    PushItemWidth(itemwidth); 
+    changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
+    changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
+    PopItemWidth();
+    
+    // For now...
+    if (changed)
+      SetDefaultAllViews();
+    EndPopup();
   }
 }
 
@@ -260,6 +274,8 @@ bool View::processMouseEvents(bool hover){
   else if (mousebehavior == MB_Ruler)
     return false;
   else if (mousebehavior == MB_Builder)
+    return false;
+  else if (mousebehavior == MB_Query)
     return false;
   else if (mousebehavior == MB_Alignment)
     return false;

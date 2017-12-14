@@ -35,7 +35,8 @@
 struct View
 {
   // mouse behavior enum
-  enum MouseBehavior_{MB_Navigation,MB_Pointer,MB_Angle,MB_Ruler,MB_Builder,MB_Alignment};
+  enum MouseBehavior_{MB_Navigation,MB_Pointer,MB_Angle,MB_Ruler,
+		      MB_Builder,MB_Alignment,MB_Query};
 
   // view methods
   void SetDefaults();
