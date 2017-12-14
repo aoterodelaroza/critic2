@@ -1,4 +1,3 @@
-// -*- c++ -*-
 /*
   Copyright (c) 2017 Alberto Otero de la Roza
   <aoterodelaroza@gmail.com>, Robin Myhr <x@example.com>, Isaac
@@ -20,27 +19,36 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef DIALOG_H
-#define DIALOG_H
+#include "menu.h"
+#include "keybinding.h"
+#include "dialog.h"
 
-#include "imgui/imgui_dock.h"
+#include "imgui/imgui.h"
 
-// List of known one-only dialogs
-enum Dialog_{
-  DLG_Preferences,
-  DLG_Tree,
-  DLG_LAST,
-};
-extern bool dlgopen[DLG_LAST];
-extern ImGui::Dock *dlgdock[DLG_LAST];
+using namespace ImGui;
 
-void OpenDialog(Dialog_ dialog);
-void ToggleDialog(Dialog_ dialog);
-
-void DialogDispatch();
-
-void CloseAllDialogs();
-
-void CloseLastDialog();
-
-#endif
+void ShowMenu(GLFWwindow* rootwin){
+  
+  if (BeginMainMenuBar()){
+    if (BeginMenu("File")){
+      if (MenuItem("Quit",BindKeyName(BIND_QUIT).c_str()))
+	glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
+      EndMenu();
+    }
+    if (BeginMenu("Edit")){
+      if (MenuItem("Preferences..."))
+	OpenDialog(DLG_Preferences);
+      EndMenu();
+    }
+    if (BeginMenu("View")){
+      if (MenuItem("Tree",NULL,dlgopen[DLG_Tree]))
+	ToggleDialog(DLG_Tree);
+      if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
+	ToggleDialog(DLG_Preferences);
+      EndMenu();
+    }
+    SameLine(0, GetContentRegionAvailWidth()-180.);
+    Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GetIO().Framerate, GetIO().Framerate);
+  }
+  EndMainMenuBar();
+}

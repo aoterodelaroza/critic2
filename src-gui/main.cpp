@@ -36,6 +36,7 @@
 #include "dialog.h"
 #include "message.h"
 #include "keybinding.h"
+#include "menu.h"
 
 using namespace std;
 using namespace ImGui;
@@ -110,23 +111,6 @@ int main(int argc, char *argv[]){
     glClearColor(colorbd.x,colorbd.y,colorbd.z,colorbd.w);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Main menu bar
-    if (BeginMainMenuBar()){
-      if (BeginMenu("File")){
-        if (MenuItem("Quit",BindKeyName(BIND_QUIT).c_str()))
-	  glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
-        EndMenu();
-      }
-      if (BeginMenu("Edit")){
-        if (MenuItem("Preferences..."))
-	  OpenDialog(DLG_Preferences);
-        EndMenu();
-      }
-      SameLine(0, GetWindowSize().x-250.);
-      Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GetIO().Framerate, GetIO().Framerate);
-    }
-    EndMainMenuBar();
-
     // Root container
     PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
     float menubarh = g->FontBaseSize + g->Style.FramePadding.y * 2.0f;
@@ -136,6 +120,9 @@ int main(int argc, char *argv[]){
                                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings|
                                 ImGuiWindowFlags_NoBringToFrontOnFocus);
     PopStyleVar();
+
+    // Main menu bar
+    ShowMenu(rootwin);
 
     // Draw all views
     DrawAllViews();

@@ -36,7 +36,7 @@ static void DialogPreferences(bool *p_open);
 static void DialogTree(bool *p_open);
 
 // Dialog variables
-static bool dlgopen[DLG_LAST] = {false,false};
+bool dlgopen[DLG_LAST] = {false,false};
 static void (*dlgfun[DLG_LAST])(bool *) = {
   DialogPreferences,
   DialogTree,
@@ -56,6 +56,18 @@ void OpenDialog(Dialog_ dialog){
     }
   }
   dlglastopen = dialog;
+}
+void ToggleDialog(Dialog_ dialog){
+  if (!dlgopen[dialog]){
+    dlgopen[dialog] = true;
+    dlglastopen = dialog;
+  } else {
+    dlgopen[dialog] = false;
+    if (dlgdock[dialog])
+      dlgdock[dialog]->closeDock();
+    if (dlglastopen == dialog)
+      dlglastopen = DLG_LAST;
+  }
 }
 
 void DialogDispatch(){

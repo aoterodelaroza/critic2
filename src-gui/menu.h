@@ -20,27 +20,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef DIALOG_H
-#define DIALOG_H
+#ifndef MENU_H
+#define MENU_H
 
-#include "imgui/imgui_dock.h"
+#include <GLFW/glfw3.h>
 
-// List of known one-only dialogs
-enum Dialog_{
-  DLG_Preferences,
-  DLG_Tree,
-  DLG_LAST,
-};
-extern bool dlgopen[DLG_LAST];
-extern ImGui::Dock *dlgdock[DLG_LAST];
-
-void OpenDialog(Dialog_ dialog);
-void ToggleDialog(Dialog_ dialog);
-
-void DialogDispatch();
-
-void CloseAllDialogs();
-
-void CloseLastDialog();
+void ShowMenu(GLFWwindow* rootwin);
 
 #endif
