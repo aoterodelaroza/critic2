@@ -95,6 +95,7 @@ void CloseLastDialog(){
 // Preferences dialog //
 static void DialogPreferences(bool *p_open){
   ImGuiContext *g = GetCurrentContext();
+  ImGuiStyle& style = GetStyle();
   float itemwidth = 4.f * g->FontSize;
   static ImGuiTextFilter filter;
   const float wleft = 150.f;
@@ -112,7 +113,7 @@ static void DialogPreferences(bool *p_open){
       // Selectable categories
       const int ncat = 5;
       char *catname[ncat] = {
-	"General","Views","Key bindings","Interface","Fonts"
+	"Interface","Views","Key bindings","Colors","Fonts"
       };
 
       // Left panel
@@ -131,7 +132,7 @@ static void DialogPreferences(bool *p_open){
       bool setexpcol = false, expcol = false;
       AlignTextToFramePadding();
       Text(catname[catid]); 
-      if (catid != 2){
+      if (catid == 0 || catid == 1){
 	SameLine();
 	VerticalSeparator();
 	SameLine();
@@ -147,7 +148,7 @@ static void DialogPreferences(bool *p_open){
       }
       Separator();
       if (catid == 0){
-	// General
+	// Interface
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Tooltips")){
 	  PushItemWidth(itemwidth);
@@ -157,6 +158,110 @@ static void DialogPreferences(bool *p_open){
 	    DragFloat("Tooltip delay (s)", &ImGuiStyleUI.TooltipDelay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
 	  if (filter.PassFilter("Tooltip maximum width (pixel)"))
 	    DragFloat("Tooltip maximum width (pixel)", &ImGuiStyleUI.TooltipMaxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
+	  PopItemWidth();
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("Drop targets")){
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Drop target looseness"))
+	    SliderFloat("Drop target looseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
+	  if (filter.PassFilter("Drop target minimum size"))
+	    SliderFloat("Drop target minimum size", &ImGuiStyleWidgets.DropTargetMinsizeEdge, 0.0f, 150.0f, "%.0f");
+	  if (filter.PassFilter("Drop target maximum size"))
+	    SliderFloat("Drop target maximum size", &ImGuiStyleWidgets.DropTargetMaxsizeEdge, 0.0f, 150.0f, "%.0f");
+	  if (filter.PassFilter("Drop target edge fraction"))
+	    SliderFloat("Drop target edge fraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
+	  if (filter.PassFilter("Drop target body fraction"))
+	    SliderFloat("Drop target body fraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
+	  PopItemWidth();
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("Messages")){
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Message width"))
+	    DragFloat("Message width", &ImGuiStyleUI.MessageWidth, 1.f, 1.0, FLT_MAX, "%.0f", 1.0f); 
+	  if (filter.PassFilter("Message expiration time (s)"))
+	    DragFloat("Message expiration time (s)", &ImGuiStyleUI.MessageExpire, 0.2f, 0.0, 60.0, "%.1f", 1.0f); 
+	  PopItemWidth();
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("Borders")){
+	  // Interface -> Settings
+	  bool border = (style.WindowBorderSize > 0.0f);
+	  if (filter.PassFilter("Window borders") && Checkbox("Window borders", &border))
+	    style.WindowBorderSize = border ? 1.0f : 0.0f;
+	  border = (style.FrameBorderSize > 0.0f);
+	  if (filter.PassFilter("Frame borders") && Checkbox("Frame borders", &border))
+	    style.FrameBorderSize = border ? 1.0f : 0.0f;
+	  border = (ImGuiStyleWidgets.TabBorderSize > 0.0f);
+	  if (filter.PassFilter("Tab borders") && Checkbox("Tab borders", &border))
+	    ImGuiStyleWidgets.TabBorderSize = border ? 1.0f : 0.0f;
+	  border = (style.PopupBorderSize > 0.0f);
+	  if (filter.PassFilter("Popup borders") && Checkbox("Popup borders", &border))
+	    style.PopupBorderSize = border ? 1.0f : 0.0f;
+	  border = (style.ChildBorderSize > 0.0f);
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("Element size and positioning")){
+	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
+	  if (filter.PassFilter("Window padding"))
+	    SliderFloat2("Window padding", (float*)&style.WindowPadding, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Frame padding"))
+	    SliderFloat2("Frame padding", (float*)&style.FramePadding, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Item spacing"))
+	    SliderFloat2("Item spacing", (float*)&style.ItemSpacing, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Item inner spacing"))
+	    SliderFloat2("Item inner spacing", (float*)&style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Touch extra padding"))
+	    SliderFloat2("Touch extra padding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
+	  PopItemWidth();
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Indent spacing"))
+	    SliderFloat("Indent spacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
+	  if (filter.PassFilter("Scroll bar width"))
+	    SliderFloat("Scroll bar width", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Sliding bar width"))
+	    SliderFloat("Sliding bar width", &ImGuiStyleWidgets.SlidingBarWidth, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Grab size"))
+	    SliderFloat("Grab size", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
+	  if (filter.PassFilter("Tab height"))
+	    SliderFloat("Tab height", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
+	  if (filter.PassFilter("Tab maximum width"))
+	    SliderFloat("Tab maximum width", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
+	  PopItemWidth();
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("Rounding")){
+	  PushItemWidth(itemwidth);
+	  if (filter.PassFilter("Window rounding"))
+	    SliderFloat("Window rounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
+	  if (filter.PassFilter("Child window rounding"))
+	    SliderFloat("Child window rounding", &style.ChildRounding, 0.0f, 16.0f, "%.0f");
+	  if (filter.PassFilter("Frame rounding") && SliderFloat("Frame rounding", &style.FrameRounding, 0.0f, 12.0f, "%.0f"))
+	    style.GrabRounding = style.FrameRounding;
+	  if (filter.PassFilter("Scroll bar rounding"))
+	    SliderFloat("Scroll bar rounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
+	  if (filter.PassFilter("Grab rounding"))
+	    SliderFloat("Grab rounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
+	  if (filter.PassFilter("Tab rounding"))
+	    SliderFloat("Tab rounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
+	  if (filter.PassFilter("Popup rounding"))
+	    SliderFloat("Popup rounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
+	  PopItemWidth();
+	  TreePop();
+	}
+	if (setexpcol) SetNextTreeNodeOpen(expcol);
+	if (TreeNode("Alignment")){
+	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
+	  if (filter.PassFilter("Window title alignment"))
+	    SliderFloat2("Window title alignment", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
+	  if (filter.PassFilter("Button text alignment"))
+	    SliderFloat2("Button text alignment", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
 	  PopItemWidth();
 	  TreePop();
 	}
@@ -327,264 +432,158 @@ static void DialogPreferences(bool *p_open){
 	}
 
       } else if (catid == 3){
-	// Interface
-	ImGuiStyle& style = GetStyle();
-	if (setexpcol) SetNextTreeNodeOpen(expcol);
-	if (TreeNode("Colors")){
-	  static int style_idx = 0;
-	  int ostyle_idx = style_idx;
-	  PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
-	  if (filter.PassFilter("Color theme")){
-	    if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0"),4){
-	      if (style_idx != ostyle_idx){
-		switch (style_idx){
-		case 0: UIStyleColorsMutantOrange(); break;
-		case 1: UIStyleColorsClassic(); break;
-		case 2: UIStyleColorsDark(); break;
-		case 3: UIStyleColorsLight(); break;
-		}
+	// Colors
+	static int style_idx = 0;
+	int ostyle_idx = style_idx;
+	PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
+	if (filter.PassFilter("Color theme")){
+	  if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0"),4){
+	    if (style_idx != ostyle_idx){
+	      switch (style_idx){
+	      case 0: UIStyleColorsMutantOrange(); break;
+	      case 1: UIStyleColorsClassic(); break;
+	      case 2: UIStyleColorsDark(); break;
+	      case 3: UIStyleColorsLight(); break;
 	      }
 	    }
 	  }
-	  Separator();
-
-	  // Interface -> Colors
-	  if (filter.PassFilter("Text"))
-	    ColorEdit4("Text", (float*)&(style.Colors[ImGuiCol_Text]), coloreditflags);
-	  if (filter.PassFilter("Text (Disabled)"))
-	    ColorEdit4("Text (Disabled)", (float*)&style.Colors[ImGuiCol_TextDisabled], coloreditflags);
-	  if (filter.PassFilter("Text (Selected background)"))
-	    ColorEdit4("Text (Selected background)", (float*)&style.Colors[ImGuiCol_TextSelectedBg], coloreditflags);
-	  if (filter.PassFilter("Backdrop"))
-	    ColorEdit4("Backdrop", (float*)&ImGuiStyleUI.Colors[ImGuiColUI_BackDrop], coloreditflags);
-	  if (filter.PassFilter("Window background"))
-	    ColorEdit4("Window background", (float*)&style.Colors[ImGuiCol_WindowBg], coloreditflags);
-	  if (filter.PassFilter("Child window background"))
-	    ColorEdit4("Child window background", (float*)&style.Colors[ImGuiCol_ChildBg], coloreditflags);
-	  if (filter.PassFilter("Popup background"))
-	    ColorEdit4("Popup background", (float*)&style.Colors[ImGuiCol_PopupBg], coloreditflags);
-	  if (filter.PassFilter("Item frame"))
-	    ColorEdit4("Item frame", (float*)&style.Colors[ImGuiCol_FrameBg], coloreditflags);
-	  if (filter.PassFilter("Item frame (Hovered)"))
-	    ColorEdit4("Item frame (Hovered)", (float*)&style.Colors[ImGuiCol_FrameBgHovered], coloreditflags);
-	  if (filter.PassFilter("Item frame (Active)"))
-	    ColorEdit4("Item frame (Active)", (float*)&style.Colors[ImGuiCol_FrameBgActive], coloreditflags);
-	  if (filter.PassFilter("Item header"))
-	    ColorEdit4("Item header", (float*)&style.Colors[ImGuiCol_Header], coloreditflags);
-	  if (filter.PassFilter("Item header (Hovered)"))
-	    ColorEdit4("Item header (Hovered)", (float*)&style.Colors[ImGuiCol_HeaderHovered], coloreditflags);
-	  if (filter.PassFilter("Item header (Active)"))
-	    ColorEdit4("Item header (Active)", (float*)&style.Colors[ImGuiCol_HeaderActive], coloreditflags);
-	  if (filter.PassFilter("Button"))
-	    ColorEdit4("Button", (float*)&style.Colors[ImGuiCol_Button], coloreditflags);
-	  if (filter.PassFilter("Button (Hovered)"))
-	    ColorEdit4("Button (Hovered)", (float*)&style.Colors[ImGuiCol_ButtonHovered], coloreditflags);
-	  if (filter.PassFilter("Button (Pressed)"))
-	    ColorEdit4("Button (Pressed)", (float*)&style.Colors[ImGuiCol_ButtonActive], coloreditflags);
-	  if (filter.PassFilter("Close button"))
-	    ColorEdit4("Close button", (float*)&style.Colors[ImGuiCol_CloseButton], coloreditflags);
-	  if (filter.PassFilter("Close button (Hovered)"))
-	    ColorEdit4("Close button (Hovered)", (float*)&style.Colors[ImGuiCol_CloseButtonHovered], coloreditflags);
-	  if (filter.PassFilter("Close button (Pressed)"))
-	    ColorEdit4("Close button (Pressed)", (float*)&style.Colors[ImGuiCol_CloseButtonActive], coloreditflags);
-	  if (filter.PassFilter("Window title"))
-	    ColorEdit4("Window title", (float*)&style.Colors[ImGuiCol_TitleBg], coloreditflags);
-	  if (filter.PassFilter("Window title (Focused)"))
-	    ColorEdit4("Window title (Focused)", (float*)&style.Colors[ImGuiCol_TitleBgActive], coloreditflags);
-	  if (filter.PassFilter("Window title (Collapsed)"))
-	    ColorEdit4("Window title (Collapsed)", (float*)&style.Colors[ImGuiCol_TitleBgCollapsed], coloreditflags);
-	  if (filter.PassFilter("Resize grip"))
-	    ColorEdit4("Resize grip", (float*)&style.Colors[ImGuiCol_ResizeGrip], coloreditflags);
-	  if (filter.PassFilter("Resize grip (Hovered)"))
-	    ColorEdit4("Resize grip (Hovered)", (float*)&style.Colors[ImGuiCol_ResizeGripHovered], coloreditflags);
-	  if (filter.PassFilter("Resize grip (Grabbed)"))
-	    ColorEdit4("Resize grip (Grabbed)", (float*)&style.Colors[ImGuiCol_ResizeGripActive], coloreditflags);
-	  if (filter.PassFilter("Menu Bar"))
-	    ColorEdit4("Menu Bar", (float*)&style.Colors[ImGuiCol_MenuBarBg], coloreditflags);
-	  if (filter.PassFilter("Window border"))
-	    ColorEdit4("Window border", (float*)&style.Colors[ImGuiCol_Border], coloreditflags);
-	  if (filter.PassFilter("Window border shadow"))
-	    ColorEdit4("Window border shadow", (float*)&style.Colors[ImGuiCol_BorderShadow], coloreditflags);
-	  if (filter.PassFilter("Scroll bar background"))
-	    ColorEdit4("Scroll bar background", (float*)&style.Colors[ImGuiCol_ScrollbarBg], coloreditflags);
-	  if (filter.PassFilter("Scroll bar grab item"))
-	    ColorEdit4("Scroll bar grab item", (float*)&style.Colors[ImGuiCol_ScrollbarGrab], coloreditflags);
-	  if (filter.PassFilter("Scroll bar grab item (Hovered)"))
-	    ColorEdit4("Scroll bar grab item (Hovered)", (float*)&style.Colors[ImGuiCol_ScrollbarGrabHovered], coloreditflags);
-	  if (filter.PassFilter("Scroll bar grab item (Grabbed)"))
-	    ColorEdit4("Scroll bar grab item (Grabbed)", (float*)&style.Colors[ImGuiCol_ScrollbarGrabActive], coloreditflags);
-	  if (filter.PassFilter("Check mark"))
-	    ColorEdit4("Check mark", (float*)&style.Colors[ImGuiCol_CheckMark], coloreditflags);
-	  if (filter.PassFilter("Slider grab item"))
-	    ColorEdit4("Slider grab item", (float*)&style.Colors[ImGuiCol_SliderGrab], coloreditflags);
-	  if (filter.PassFilter("Slider grab item (Grabbed)"))
-	    ColorEdit4("Slider grab item (Grabbed)", (float*)&style.Colors[ImGuiCol_SliderGrabActive], coloreditflags);
-	  if (filter.PassFilter("Separator"))
-	    ColorEdit4("Separator", (float*)&style.Colors[ImGuiCol_Separator], coloreditflags);
-	  if (filter.PassFilter("Separator (Hovered)"))
-	    ColorEdit4("Separator (Hovered)", (float*)&style.Colors[ImGuiCol_SeparatorHovered], coloreditflags);
-	  if (filter.PassFilter("Separator (Active)"))
-	    ColorEdit4("Separator (Active)", (float*)&style.Colors[ImGuiCol_SeparatorActive], coloreditflags);
-	  if (filter.PassFilter("Plot lines"))
-	    ColorEdit4("Plot lines", (float*)&style.Colors[ImGuiCol_PlotLines], coloreditflags);
-	  if (filter.PassFilter("Plot lines (Hovered)"))
-	    ColorEdit4("Plot lines (Hovered)", (float*)&style.Colors[ImGuiCol_PlotLinesHovered], coloreditflags);
-	  if (filter.PassFilter("Histogram"))
-	    ColorEdit4("Histogram", (float*)&style.Colors[ImGuiCol_PlotHistogram], coloreditflags);
-	  if (filter.PassFilter("Histogram (Hovered)"))
-	    ColorEdit4("Histogram (Hovered)", (float*)&style.Colors[ImGuiCol_PlotHistogramHovered], coloreditflags);
-	  if (filter.PassFilter("Modal window darkening"))
-	    ColorEdit4("Modal window darkening", (float*)&style.Colors[ImGuiCol_ModalWindowDarkening], coloreditflags);
-	  if (filter.PassFilter("Sliding bar"))
-	    ColorEdit4("Sliding bar", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar]), coloreditflags);
-	  if (filter.PassFilter("Sliding bar (Hovered)"))
-	    ColorEdit4("Sliding bar (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarHovered]), coloreditflags);
-	  if (filter.PassFilter("Sliding bar (Grabbed)"))
-	    ColorEdit4("Sliding bar (Grabbed)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarActive]), coloreditflags);
-	  if (filter.PassFilter("Tab"))
-	    ColorEdit4("Tab", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_Tab]), coloreditflags);
-	  if (filter.PassFilter("Tab (Hovered)"))
-	    ColorEdit4("Tab (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabHovered]), coloreditflags);
-	  if (filter.PassFilter("Tab (Pressed)"))
-	    ColorEdit4("Tab (Pressed)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabPressed]), coloreditflags);
-	  if (filter.PassFilter("Tab (Active)"))
-	    ColorEdit4("Tab (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabActive]), coloreditflags);
-	  if (filter.PassFilter("Tab close button foreground"))
-	    ColorEdit4("Tab close button foreground", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg]), coloreditflags);
-	  if (filter.PassFilter("Tab close button foreground (Hovered)"))
-	    ColorEdit4("Tab close button foreground (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgHovered]), coloreditflags);
-	  if (filter.PassFilter("Tab close button foreground (Active)"))
-	    ColorEdit4("Tab close button foreground (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgActive]), coloreditflags);
-	  if (filter.PassFilter("Tab close button background"))
-	    ColorEdit4("Tab close button background", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBg]), coloreditflags);
-	  if (filter.PassFilter("Tab close button background (Hovered)"))
-	    ColorEdit4("Tab close button background (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgHovered]), coloreditflags);
-	  if (filter.PassFilter("Tab close button background (Active)"))
-	    ColorEdit4("Tab close button background (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive]), coloreditflags);
-	  if (filter.PassFilter("Tab border"))
-	    ColorEdit4("Tab border", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabBorder]), coloreditflags);
-	  if (filter.PassFilter("Drop target"))
-	    ColorEdit4("Drop target", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]), coloreditflags);
-	  if (filter.PassFilter("Drop target (Active)"))
-	    ColorEdit4("Drop target (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]), coloreditflags);
-	  if (filter.PassFilter("View icon"))
-	    ColorEdit4("View icon", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]), coloreditflags);
-	  if (filter.PassFilter("View icon (Hovered)"))
-	    ColorEdit4("View icon (Hovered)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]), coloreditflags);
-	  if (filter.PassFilter("View icon (Grabbed)"))
-	    ColorEdit4("View icon (Grabbed)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]), coloreditflags);
-	  if (filter.PassFilter("View icon (Inactive)"))
-	    ColorEdit4("View icon (Inactive)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive]), coloreditflags);
-	  if (filter.PassFilter("Message (Info)"))
-	    ColorEdit4("Message (Info)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo]), coloreditflags);
-	  if (filter.PassFilter("Message (Warning)"))
-	    ColorEdit4("Message (Warning)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning]), coloreditflags);
-	  if (filter.PassFilter("Message (Error)"))
-	    ColorEdit4("Message (Error)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageError]), coloreditflags);
-	  PopItemWidth(); 
-	  TreePop();
 	}
-	if (setexpcol) SetNextTreeNodeOpen(expcol);
-	if (TreeNode("Settings")){
-	  // Interface -> Settings
-	  Text("Borders");
-	  Separator();
-	  bool border = (style.WindowBorderSize > 0.0f);
-	  if (filter.PassFilter("Window borders") && Checkbox("Window borders", &border))
-	    style.WindowBorderSize = border ? 1.0f : 0.0f;
-	  border = (style.FrameBorderSize > 0.0f);
-	  if (filter.PassFilter("Frame borders") && Checkbox("Frame borders", &border))
-	    style.FrameBorderSize = border ? 1.0f : 0.0f;
-	  border = (ImGuiStyleWidgets.TabBorderSize > 0.0f);
-	  if (filter.PassFilter("Tab borders") && Checkbox("Tab borders", &border))
-	    ImGuiStyleWidgets.TabBorderSize = border ? 1.0f : 0.0f;
-	  border = (style.PopupBorderSize > 0.0f);
-	  if (filter.PassFilter("Popup borders") && Checkbox("Popup borders", &border))
-	    style.PopupBorderSize = border ? 1.0f : 0.0f;
-	  border = (style.ChildBorderSize > 0.0f);
+	Separator();
 
-	  Text("Element size and positioning");
-	  Separator();
-	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
-	  if (filter.PassFilter("Window padding"))
-	    SliderFloat2("Window padding", (float*)&style.WindowPadding, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Frame padding"))
-	    SliderFloat2("Frame padding", (float*)&style.FramePadding, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Item spacing"))
-	    SliderFloat2("Item spacing", (float*)&style.ItemSpacing, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Item inner spacing"))
-	    SliderFloat2("Item inner spacing", (float*)&style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Touch extra padding"))
-	    SliderFloat2("Touch extra padding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
-	  PopItemWidth();
-	  PushItemWidth(itemwidth);
-	  if (filter.PassFilter("Indent spacing"))
-	    SliderFloat("Indent spacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
-	  if (filter.PassFilter("Scroll bar width"))
-	    SliderFloat("Scroll bar width", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Sliding bar width"))
-	    SliderFloat("Sliding bar width", &ImGuiStyleWidgets.SlidingBarWidth, 1.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Grab size"))
-	    SliderFloat("Grab size", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
-	  if (filter.PassFilter("Tab height"))
-	    SliderFloat("Tab height", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
-	  if (filter.PassFilter("Tab maximum width"))
-	    SliderFloat("Tab maximum width", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
-	  PopItemWidth();
-
-	  Text("Rounding");
-	  Separator();
-	  PushItemWidth(itemwidth);
-	  if (filter.PassFilter("Window rounding"))
-	    SliderFloat("Window rounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
-	  if (filter.PassFilter("Child window rounding"))
-	    SliderFloat("Child window rounding", &style.ChildRounding, 0.0f, 16.0f, "%.0f");
-	  if (filter.PassFilter("Frame rounding") && SliderFloat("Frame rounding", &style.FrameRounding, 0.0f, 12.0f, "%.0f"))
-	    style.GrabRounding = style.FrameRounding;
-	  if (filter.PassFilter("Scroll bar rounding"))
-	    SliderFloat("Scroll bar rounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
-	  if (filter.PassFilter("Grab rounding"))
-	    SliderFloat("Grab rounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
-	  if (filter.PassFilter("Tab rounding"))
-	    SliderFloat("Tab rounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
-	  if (filter.PassFilter("Popup rounding"))
-	    SliderFloat("Popup rounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
-	  PopItemWidth();
-
-	  Text("Alignment");
-	  Separator();
-	  PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
-	  if (filter.PassFilter("Window title alignment"))
-	    SliderFloat2("Window title alignment", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
-	  if (filter.PassFilter("Button text alignment"))
-	    SliderFloat2("Button text alignment", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
-	  PopItemWidth();
-
-	  Text("Drop targets");
-	  Separator();
-	  PushItemWidth(itemwidth);
-	  if (filter.PassFilter("Drop target looseness"))
-	    SliderFloat("Drop target looseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
-	  if (filter.PassFilter("Drop target minimum size"))
-	    SliderFloat("Drop target minimum size", &ImGuiStyleWidgets.DropTargetMinsizeEdge, 0.0f, 150.0f, "%.0f");
-	  if (filter.PassFilter("Drop target maximum size"))
-	    SliderFloat("Drop target maximum size", &ImGuiStyleWidgets.DropTargetMaxsizeEdge, 0.0f, 150.0f, "%.0f");
-	  if (filter.PassFilter("Drop target edge fraction"))
-	    SliderFloat("Drop target edge fraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
-	  if (filter.PassFilter("Drop target body fraction"))
-	    SliderFloat("Drop target body fraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
-	  PopItemWidth();
-
-	  Text("Messages");
-	  Separator();
-	  PushItemWidth(itemwidth);
-	  if (filter.PassFilter("Message width"))
-	    DragFloat("Message width", &ImGuiStyleUI.MessageWidth, 1.f, 1.0, FLT_MAX, "%.0f", 1.0f); 
-	  if (filter.PassFilter("Message expiration time (s)"))
-	    DragFloat("Message expiration time (s)", &ImGuiStyleUI.MessageExpire, 0.2f, 0.0, 60.0, "%.1f", 1.0f); 
-	  PopItemWidth();
-	  TreePop();
-	}
+	// Interface -> Colors
+	if (filter.PassFilter("Text"))
+	  ColorEdit4("Text", (float*)&(style.Colors[ImGuiCol_Text]), coloreditflags);
+	if (filter.PassFilter("Text (Disabled)"))
+	  ColorEdit4("Text (Disabled)", (float*)&style.Colors[ImGuiCol_TextDisabled], coloreditflags);
+	if (filter.PassFilter("Text (Selected background)"))
+	  ColorEdit4("Text (Selected background)", (float*)&style.Colors[ImGuiCol_TextSelectedBg], coloreditflags);
+	if (filter.PassFilter("Backdrop"))
+	  ColorEdit4("Backdrop", (float*)&ImGuiStyleUI.Colors[ImGuiColUI_BackDrop], coloreditflags);
+	if (filter.PassFilter("Window background"))
+	  ColorEdit4("Window background", (float*)&style.Colors[ImGuiCol_WindowBg], coloreditflags);
+	if (filter.PassFilter("Child window background"))
+	  ColorEdit4("Child window background", (float*)&style.Colors[ImGuiCol_ChildBg], coloreditflags);
+	if (filter.PassFilter("Popup background"))
+	  ColorEdit4("Popup background", (float*)&style.Colors[ImGuiCol_PopupBg], coloreditflags);
+	if (filter.PassFilter("Item frame"))
+	  ColorEdit4("Item frame", (float*)&style.Colors[ImGuiCol_FrameBg], coloreditflags);
+	if (filter.PassFilter("Item frame (Hovered)"))
+	  ColorEdit4("Item frame (Hovered)", (float*)&style.Colors[ImGuiCol_FrameBgHovered], coloreditflags);
+	if (filter.PassFilter("Item frame (Active)"))
+	  ColorEdit4("Item frame (Active)", (float*)&style.Colors[ImGuiCol_FrameBgActive], coloreditflags);
+	if (filter.PassFilter("Item header"))
+	  ColorEdit4("Item header", (float*)&style.Colors[ImGuiCol_Header], coloreditflags);
+	if (filter.PassFilter("Item header (Hovered)"))
+	  ColorEdit4("Item header (Hovered)", (float*)&style.Colors[ImGuiCol_HeaderHovered], coloreditflags);
+	if (filter.PassFilter("Item header (Active)"))
+	  ColorEdit4("Item header (Active)", (float*)&style.Colors[ImGuiCol_HeaderActive], coloreditflags);
+	if (filter.PassFilter("Button"))
+	  ColorEdit4("Button", (float*)&style.Colors[ImGuiCol_Button], coloreditflags);
+	if (filter.PassFilter("Button (Hovered)"))
+	  ColorEdit4("Button (Hovered)", (float*)&style.Colors[ImGuiCol_ButtonHovered], coloreditflags);
+	if (filter.PassFilter("Button (Pressed)"))
+	  ColorEdit4("Button (Pressed)", (float*)&style.Colors[ImGuiCol_ButtonActive], coloreditflags);
+	if (filter.PassFilter("Close button"))
+	  ColorEdit4("Close button", (float*)&style.Colors[ImGuiCol_CloseButton], coloreditflags);
+	if (filter.PassFilter("Close button (Hovered)"))
+	  ColorEdit4("Close button (Hovered)", (float*)&style.Colors[ImGuiCol_CloseButtonHovered], coloreditflags);
+	if (filter.PassFilter("Close button (Pressed)"))
+	  ColorEdit4("Close button (Pressed)", (float*)&style.Colors[ImGuiCol_CloseButtonActive], coloreditflags);
+	if (filter.PassFilter("Window title"))
+	  ColorEdit4("Window title", (float*)&style.Colors[ImGuiCol_TitleBg], coloreditflags);
+	if (filter.PassFilter("Window title (Focused)"))
+	  ColorEdit4("Window title (Focused)", (float*)&style.Colors[ImGuiCol_TitleBgActive], coloreditflags);
+	if (filter.PassFilter("Window title (Collapsed)"))
+	  ColorEdit4("Window title (Collapsed)", (float*)&style.Colors[ImGuiCol_TitleBgCollapsed], coloreditflags);
+	if (filter.PassFilter("Resize grip"))
+	  ColorEdit4("Resize grip", (float*)&style.Colors[ImGuiCol_ResizeGrip], coloreditflags);
+	if (filter.PassFilter("Resize grip (Hovered)"))
+	  ColorEdit4("Resize grip (Hovered)", (float*)&style.Colors[ImGuiCol_ResizeGripHovered], coloreditflags);
+	if (filter.PassFilter("Resize grip (Grabbed)"))
+	  ColorEdit4("Resize grip (Grabbed)", (float*)&style.Colors[ImGuiCol_ResizeGripActive], coloreditflags);
+	if (filter.PassFilter("Menu Bar"))
+	  ColorEdit4("Menu Bar", (float*)&style.Colors[ImGuiCol_MenuBarBg], coloreditflags);
+	if (filter.PassFilter("Window border"))
+	  ColorEdit4("Window border", (float*)&style.Colors[ImGuiCol_Border], coloreditflags);
+	if (filter.PassFilter("Window border shadow"))
+	  ColorEdit4("Window border shadow", (float*)&style.Colors[ImGuiCol_BorderShadow], coloreditflags);
+	if (filter.PassFilter("Scroll bar background"))
+	  ColorEdit4("Scroll bar background", (float*)&style.Colors[ImGuiCol_ScrollbarBg], coloreditflags);
+	if (filter.PassFilter("Scroll bar grab item"))
+	  ColorEdit4("Scroll bar grab item", (float*)&style.Colors[ImGuiCol_ScrollbarGrab], coloreditflags);
+	if (filter.PassFilter("Scroll bar grab item (Hovered)"))
+	  ColorEdit4("Scroll bar grab item (Hovered)", (float*)&style.Colors[ImGuiCol_ScrollbarGrabHovered], coloreditflags);
+	if (filter.PassFilter("Scroll bar grab item (Grabbed)"))
+	  ColorEdit4("Scroll bar grab item (Grabbed)", (float*)&style.Colors[ImGuiCol_ScrollbarGrabActive], coloreditflags);
+	if (filter.PassFilter("Check mark"))
+	  ColorEdit4("Check mark", (float*)&style.Colors[ImGuiCol_CheckMark], coloreditflags);
+	if (filter.PassFilter("Slider grab item"))
+	  ColorEdit4("Slider grab item", (float*)&style.Colors[ImGuiCol_SliderGrab], coloreditflags);
+	if (filter.PassFilter("Slider grab item (Grabbed)"))
+	  ColorEdit4("Slider grab item (Grabbed)", (float*)&style.Colors[ImGuiCol_SliderGrabActive], coloreditflags);
+	if (filter.PassFilter("Separator"))
+	  ColorEdit4("Separator", (float*)&style.Colors[ImGuiCol_Separator], coloreditflags);
+	if (filter.PassFilter("Separator (Hovered)"))
+	  ColorEdit4("Separator (Hovered)", (float*)&style.Colors[ImGuiCol_SeparatorHovered], coloreditflags);
+	if (filter.PassFilter("Separator (Active)"))
+	  ColorEdit4("Separator (Active)", (float*)&style.Colors[ImGuiCol_SeparatorActive], coloreditflags);
+	if (filter.PassFilter("Plot lines"))
+	  ColorEdit4("Plot lines", (float*)&style.Colors[ImGuiCol_PlotLines], coloreditflags);
+	if (filter.PassFilter("Plot lines (Hovered)"))
+	  ColorEdit4("Plot lines (Hovered)", (float*)&style.Colors[ImGuiCol_PlotLinesHovered], coloreditflags);
+	if (filter.PassFilter("Histogram"))
+	  ColorEdit4("Histogram", (float*)&style.Colors[ImGuiCol_PlotHistogram], coloreditflags);
+	if (filter.PassFilter("Histogram (Hovered)"))
+	  ColorEdit4("Histogram (Hovered)", (float*)&style.Colors[ImGuiCol_PlotHistogramHovered], coloreditflags);
+	if (filter.PassFilter("Modal window darkening"))
+	  ColorEdit4("Modal window darkening", (float*)&style.Colors[ImGuiCol_ModalWindowDarkening], coloreditflags);
+	if (filter.PassFilter("Sliding bar"))
+	  ColorEdit4("Sliding bar", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_Slidingbar]), coloreditflags);
+	if (filter.PassFilter("Sliding bar (Hovered)"))
+	  ColorEdit4("Sliding bar (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarHovered]), coloreditflags);
+	if (filter.PassFilter("Sliding bar (Grabbed)"))
+	  ColorEdit4("Sliding bar (Grabbed)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_SlidingbarActive]), coloreditflags);
+	if (filter.PassFilter("Tab"))
+	  ColorEdit4("Tab", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_Tab]), coloreditflags);
+	if (filter.PassFilter("Tab (Hovered)"))
+	  ColorEdit4("Tab (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabHovered]), coloreditflags);
+	if (filter.PassFilter("Tab (Pressed)"))
+	  ColorEdit4("Tab (Pressed)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabPressed]), coloreditflags);
+	if (filter.PassFilter("Tab (Active)"))
+	  ColorEdit4("Tab (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabActive]), coloreditflags);
+	if (filter.PassFilter("Tab close button foreground"))
+	  ColorEdit4("Tab close button foreground", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFg]), coloreditflags);
+	if (filter.PassFilter("Tab close button foreground (Hovered)"))
+	  ColorEdit4("Tab close button foreground (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgHovered]), coloreditflags);
+	if (filter.PassFilter("Tab close button foreground (Active)"))
+	  ColorEdit4("Tab close button foreground (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXFgActive]), coloreditflags);
+	if (filter.PassFilter("Tab close button background"))
+	  ColorEdit4("Tab close button background", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBg]), coloreditflags);
+	if (filter.PassFilter("Tab close button background (Hovered)"))
+	  ColorEdit4("Tab close button background (Hovered)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgHovered]), coloreditflags);
+	if (filter.PassFilter("Tab close button background (Active)"))
+	  ColorEdit4("Tab close button background (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabXBgActive]), coloreditflags);
+	if (filter.PassFilter("Tab border"))
+	  ColorEdit4("Tab border", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_TabBorder]), coloreditflags);
+	if (filter.PassFilter("Drop target"))
+	  ColorEdit4("Drop target", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTarget]), coloreditflags);
+	if (filter.PassFilter("Drop target (Active)"))
+	  ColorEdit4("Drop target (Active)", (float*)&(ImGuiStyleWidgets.Colors[ImGuiColWidgets_DropTargetActive]), coloreditflags);
+	if (filter.PassFilter("View icon"))
+	  ColorEdit4("View icon", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIcon]), coloreditflags);
+	if (filter.PassFilter("View icon (Hovered)"))
+	  ColorEdit4("View icon (Hovered)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconHovered]), coloreditflags);
+	if (filter.PassFilter("View icon (Grabbed)"))
+	  ColorEdit4("View icon (Grabbed)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconActive]), coloreditflags);
+	if (filter.PassFilter("View icon (Inactive)"))
+	  ColorEdit4("View icon (Inactive)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_ViewIconInactive]), coloreditflags);
+	if (filter.PassFilter("Message (Info)"))
+	  ColorEdit4("Message (Info)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageInfo]), coloreditflags);
+	if (filter.PassFilter("Message (Warning)"))
+	  ColorEdit4("Message (Warning)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning]), coloreditflags);
+	if (filter.PassFilter("Message (Error)"))
+	  ColorEdit4("Message (Error)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageError]), coloreditflags);
+	PopItemWidth(); 
       } else if (catid == 4){
 	// Fonts
 	ImGuiIO& io = GetIO();
@@ -594,14 +593,13 @@ static void DialogPreferences(bool *p_open){
 	PopItemWidth(); 
 
 	BeginChild("fontselector",ImVec2(0.f,0.f),true);
-	static int selected = 0;
 	for (int i = 1; i < io.Fonts->Fonts.Size; i++){ // first font is always the icons
 	  ImFont* font = io.Fonts->Fonts[i];
 	  PushFont(font);
-	  if (Selectable(font->ConfigData?font->ConfigData[0].Name:"", selected == i)){
+	  if (Selectable(font->ConfigData?font->ConfigData[0].Name:"",ImGuiStyleUI.FontSelected == i)){
 	    fontdefault = io.Fonts->Fonts[i];
 	    io.FontDefault = fontdefault;
-	    selected = i;
+	    ImGuiStyleUI.FontSelected = i;
 	  }
 	  PopFont();
 	  io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;

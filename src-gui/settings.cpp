@@ -92,6 +92,7 @@ static confvar_ confvar[] = {
   {"MessageExpire",&ImGuiStyleUI.MessageExpire,Type_Float},
   {"FontSizeIcon",&ImGuiStyleUI.FontSizeIcon,Type_Float},
   {"FontSize",&ImGuiStyleUI.FontSize,Type_Float},
+  {"FontSelected",&ImGuiStyleUI.FontSelected,Type_Int},
   {"TooltipEnabled",&ImGuiStyleUI.TooltipEnabled,Type_Bool},
   {"TooltipDelay",&ImGuiStyleUI.TooltipDelay,Type_Float},
   {"TooltipMaxwidth",&ImGuiStyleUI.TooltipMaxwidth,Type_Float},
@@ -333,7 +334,7 @@ void DefaultSettings(){
     io.Fonts->Fonts[i]->Scale = ImGuiStyleUI.FontSize / fontsizebake;
 
   // set the default font
-  fontdefault = io.Fonts->Fonts[1];
+  fontdefault = io.Fonts->Fonts[ImGuiStyleUI.FontSelected];
   io.FontDefault = fontdefault;
 
   firstpass = false;
@@ -795,6 +796,12 @@ bool ReadConfigurationFile(string file){
   }
 
   fi.close();
+
+  // Set the default font
+  ImGuiIO& io = GetIO();
+  fontdefault = io.Fonts->Fonts[ImGuiStyleUI.FontSelected];
+  io.FontDefault = fontdefault;
+
   return true;
 }
 

@@ -39,6 +39,7 @@ struct ImGuiStyleUI_ {
   float MessageExpire;
   float FontSizeIcon;
   float FontSize;
+  int FontSelected;
   bool TooltipEnabled;
   float TooltipDelay;
   float TooltipMaxwidth;
@@ -48,6 +49,7 @@ struct ImGuiStyleUI_ {
     MessageExpire = 5.f;
     FontSizeIcon = 24.0f;
     FontSize = 14.0f;
+    FontSelected = 1;
     TooltipEnabled = true;
     TooltipDelay = 1.5f;
     TooltipMaxwidth = 450.f;
