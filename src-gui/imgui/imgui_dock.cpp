@@ -61,14 +61,12 @@ static Dock *FindHoveredDock(int type){
         continue;
       else
         return nullptr;
-    if (!dock->hoverable || dock->hidden)
+    if (!dock->hoverable || dock->hidden || dock->status == Dock::Status_Closed)
       continue;
-    if (dock->collapsed){
+    if (dock->collapsed)
       return nullptr;
-    }
-    if (type >= 0 && dock->type != type){
+    if (type >= 0 && dock->type != type)
       return nullptr;
-    }
     return dock;
   }
   return nullptr;
@@ -1714,22 +1712,22 @@ void ImGui::PrintDock__() {
   //     Text("p_open=%d\n", *(dock.second->p_open));
   // }
 
-  Text("activeid: %d\n",g->ActiveId);
-  Text("activeidwindow: %p movingwindow: %p\n",g->ActiveIdWindow,g->MovingWindow);
-  if (g->ActiveIdWindow){
-    Text("ischild: %d\n",g->ActiveIdWindow->Flags & ImGuiWindowFlags_ChildWindow);
-    Text("rootwindow: %p\n",g->ActiveIdWindow->RootWindow);
-  }
-  if (g->MovingWindow){
-    Text("ischild: %d\n",g->MovingWindow->Flags & ImGuiWindowFlags_ChildWindow);
-    Text("rootwindow: %p\n",g->MovingWindow->RootWindow);
-  }
-  Separator();
+  // Text("activeid: %d\n",g->ActiveId);
+  // Text("activeidwindow: %p movingwindow: %p\n",g->ActiveIdWindow,g->MovingWindow);
+  // if (g->ActiveIdWindow){
+  //   Text("ischild: %d\n",g->ActiveIdWindow->Flags & ImGuiWindowFlags_ChildWindow);
+  //   Text("rootwindow: %p\n",g->ActiveIdWindow->RootWindow);
+  // }
+  // if (g->MovingWindow){
+  //   Text("ischild: %d\n",g->MovingWindow->Flags & ImGuiWindowFlags_ChildWindow);
+  //   Text("rootwindow: %p\n",g->MovingWindow->RootWindow);
+  // }
+  // Separator();
   for (auto dock : dockht){
     Text("label=%s id=%p type=%d status=%d\n",dock.second->label,
 	 dock.second,dock.second->type,dock.second->status);
-    if (dock.second->window)
-      Text("moveid=%d\n",dock.second->window->MoveId);
+    // if (dock.second->window)
+    //   Text("moveid=%d\n",dock.second->window->MoveId);
     Separator();
   }
 
