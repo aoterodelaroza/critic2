@@ -66,6 +66,7 @@ int main(int argc, char *argv[]){
   // ImGui settings, default settings and keybindings
   ImGuiIO& io = GetIO();
   io.IniFilename = nullptr;
+  // io.MouseDrawCursor = true; // can't get anything other than the arrow otherwise
   DefaultSettings();
   SetDefaultKeyBindings();
 

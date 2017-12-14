@@ -102,6 +102,13 @@ void ImGui::SlidingBar(const char *label, ImGuiWindow* window, ImVec2 *pos,
   const ImGuiID slidingid = window->GetID(label);
   ButtonBehavior(slidingrect, slidingid, &hovered, &held);
 
+  if (hovered || held){
+    if (direction == 1)
+      SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    else
+      SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+  }
+
   if (held){
     if (direction == 1)
       pos->x = max(min(g->IO.MousePos.x - 0.5f * size.x,maxx),minx);

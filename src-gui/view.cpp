@@ -338,6 +338,7 @@ bool View::Navigate(bool hover){
     rlock = true;
     mposlast = mousepos;
   } else if (rlock) {
+    SetMouseCursor(ImGuiMouseCursor_Move);
     if (IsBindEvent(BIND_NAV_TRANSLATE,true)){
       if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
 	vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
@@ -362,6 +363,7 @@ bool View::Navigate(bool hover){
     llock = true;
     mposlast = mousepos;
   } else if (llock) {
+    SetMouseCursor(ImGuiMouseCursor_Move);
     if (IsBindEvent(BIND_NAV_ROTATE,true)){
       if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
 	vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);

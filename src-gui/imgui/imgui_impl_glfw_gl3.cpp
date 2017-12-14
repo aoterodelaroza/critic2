@@ -19,6 +19,9 @@
 #include "imgui.h"
 #include "imgui_impl_glfw_gl3.h"
 
+// xxxx
+#include <stdio.h>
+
 // GL3W/GLFW
 #include "gl3w.h"
 #include <GLFW/glfw3.h>
@@ -44,6 +47,14 @@ static int          g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
 static int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
 static int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
 static unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
+
+// Standard mouse cursors
+GLFWcursor* cursor_arrow = nullptr;
+GLFWcursor* cursor_ibeam = nullptr;
+GLFWcursor* cursor_crosshair = nullptr;
+GLFWcursor* cursor_hand = nullptr;
+GLFWcursor* cursor_hresize = nullptr;
+GLFWcursor* cursor_vresize = nullptr;
 
 // This is the main rendering function that you have to implement and provide to ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
 // If text or lines are blurry when integrating ImGui in your engine:
@@ -364,12 +375,26 @@ bool    ImGui_ImplGlfwGL3_Init(GLFWwindow* window, bool install_callbacks)
         glfwSetCharCallback(window, ImGui_ImplGlfwGL3_CharCallback);
     }
 
+    // standard mouse cursors
+    cursor_arrow = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    cursor_ibeam = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    cursor_crosshair = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+    cursor_hand = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    cursor_hresize = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+    cursor_vresize = glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+
     return true;
 }
 
 void ImGui_ImplGlfwGL3_Shutdown()
 {
     ImGui_ImplGlfwGL3_InvalidateDeviceObjects();
+    glfwDestroyCursor(cursor_arrow);
+    glfwDestroyCursor(cursor_ibeam);
+    glfwDestroyCursor(cursor_crosshair);
+    glfwDestroyCursor(cursor_hand);
+    glfwDestroyCursor(cursor_hresize);
+    glfwDestroyCursor(cursor_vresize);
     ImGui::Shutdown();
 }
 
@@ -417,6 +442,24 @@ void ImGui_ImplGlfwGL3_NewFrame()
 
     // Hide OS mouse cursor if ImGui is drawing it
     glfwSetInputMode(g_Window, GLFW_CURSOR, io.MouseDrawCursor ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
+    
+    // Set the mouse cursor
+    switch (ImGui::GetMouseCursor()){
+    case ImGuiMouseCursor_TextInput:
+      glfwSetCursor(g_Window, cursor_ibeam); break;
+    case ImGuiMouseCursor_Move:
+      glfwSetCursor(g_Window, cursor_hand); break;
+    case ImGuiMouseCursor_ResizeNS:
+      glfwSetCursor(g_Window, cursor_vresize); break;
+    case ImGuiMouseCursor_ResizeEW:
+      glfwSetCursor(g_Window, cursor_hresize); break;
+    case ImGuiMouseCursor_ResizeNESW:
+    case ImGuiMouseCursor_ResizeNWSE:
+      glfwSetCursor(g_Window, cursor_crosshair); break;
+    case ImGuiMouseCursor_Arrow:
+    default:
+      glfwSetCursor(g_Window, cursor_arrow);
+    }
 
     // Start the frame
     ImGui::NewFrame();
