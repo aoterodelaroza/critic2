@@ -76,6 +76,7 @@ void View::SetDefaults(){
 
 void View::Draw(){
   ImGuiContext *g = GetCurrentContext();
+  ImGuiIO& io = GetIO();
 
   // Variables for associated dialogs
   bool drawprefs = false;
@@ -108,7 +109,7 @@ void View::Draw(){
     PushFont(fonticon);
     for (int i = 0; i < nicon; i++){
       if (i == ihfill){
-	fpad = GetContentRegionAvailWidth()-ImGuiStyleUI.FontSizeIcon;
+	fpad = GetContentRegionAvailWidth()-ImGuiStyleUI.FontSizeIcon-1;
 	SameLine(0, fpad);
       }
       PushID(buttonchar[i]);
@@ -188,6 +189,10 @@ void View::Draw(){
     PopFont();
     PopStyleVar(2);
     PopStyleColor(3);
+
+    // Set a reasonable content size for the window
+    NewLine();
+    Dummy(ImVec2(0.4f*io.DisplaySize.x,0.4f*io.DisplaySize.y));
   }
   dock = GetCurrentDock();
   EndDock();
