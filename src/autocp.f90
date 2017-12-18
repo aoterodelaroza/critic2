@@ -823,31 +823,40 @@ contains
           ! build the crystal structure containing the crystal points
           seed%isused = .true.
           seed%file = sy%c%file
+          seed%nspc = sy%c%nspc+5
+          allocate(seed%spc(seed%nspc))
+          seed%spc(1:sy%c%nspc) = sy%c%spc(1:sy%c%nspc)
+          seed%spc(sy%c%nspc+1)%z = 119
+          seed%spc(sy%c%nspc+2)%z = 120
+          seed%spc(sy%c%nspc+3)%z = 121
+          seed%spc(sy%c%nspc+4)%z = 122
+          seed%spc(sy%c%nspc+5)%z = 123
+          seed%spc(sy%c%nspc+1)%name = "Xn"
+          seed%spc(sy%c%nspc+2)%name = "Xb"
+          seed%spc(sy%c%nspc+3)%name = "Xr"
+          seed%spc(sy%c%nspc+4)%name = "Xc"
+          seed%spc(sy%c%nspc+5)%name = "Xz"
+
           seed%nat = sy%f(sy%iref)%ncpcel
-          allocate(seed%x(3,sy%f(sy%iref)%ncpcel))
-          allocate(seed%z(sy%f(sy%iref)%ncpcel))
-          allocate(seed%name(sy%f(sy%iref)%ncpcel))
+          allocate(seed%x(3,sy%f(sy%iref)%ncpcel),seed%is(sy%f(sy%iref)%ncpcel))
           do i = 1, sy%f(sy%iref)%ncpcel
              seed%x(:,i) = sy%f(sy%iref)%cpcel(i)%x
              if (i <= sy%c%ncel) then
-                seed%z(i) = sy%c%at(sy%c%atcel(i)%idx)%z
-                seed%name(i) = sy%c%at(sy%c%atcel(i)%idx)%name
+                seed%is(i) = sy%c%atcel(i)%is
              else
                 if (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -3) then
-                   seed%z(i) = 119
+                   seed%is(i) = sy%c%nspc+1
                 elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
-                   seed%z(i) = 120
+                   seed%is(i) = sy%c%nspc+2
                 elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 1) then
-                   seed%z(i) = 121
+                   seed%is(i) = sy%c%nspc+3
                 elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 3) then
-                   seed%z(i) = 122
+                   seed%is(i) = sy%c%nspc+4
                 else
                    call ferror("cpreport","unclassified critical point",faterr)
                 end if
-                seed%name(i) = nameguess(seed%z(i))
              end if
           end do
-          seed%usezname = 3
           seed%useabr = 2
           seed%crys2car = sy%c%crys2car
           seed%havesym = 0
@@ -910,18 +919,17 @@ contains
       integer :: i, n
 
       call realloc(seed%x,3,seed%nat+nstep)
-      call realloc(seed%z,seed%nat+nstep)
-      call realloc(seed%name,seed%nat+nstep)
+      call realloc(seed%is,seed%nat+nstep)
       n = seed%nat
       do i = 1, nstep
          n = n + 1
          seed%x(:,n) = xpath(i)%x
-         seed%z(n) = 123
-         seed%name(n) = "Xz"
+         seed%is(n) = sy%c%nspc+5
       end do
       seed%nat = n
 
     end subroutine addpath
+
   end subroutine cpreport
 
   !> Calculates the neighbor environment of each non-equivalent CP.

@@ -210,7 +210,7 @@ contains
           order(norder)%nphi = nphi
           order(norder)%lvec = lvecx
           if (any(rgb < 0).and.sy%f(sy%iref)%cp(cpid)%isnuc) then
-             order(norder)%rgb = jmlcol(:,sy%c%at(sy%c%atcel(cpid)%idx)%z)
+             order(norder)%rgb = jmlcol(:,sy%c%spc(sy%c%at(sy%c%atcel(cpid)%idx)%is)%z)
           else
              order(norder)%rgb = rgb
           end if
@@ -536,7 +536,7 @@ contains
        if (nosym) then
           do i = 1, sy%f(sy%iref)%ncpcel
              if (sy%f(sy%iref)%cpcel(i)%idx <= sy%c%nneq) then
-                label = trim(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%name)
+                label = trim(sy%c%spc(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%is)%name)
                 if (label(2:2) == " ") label(2:2) = "_"
              else if (sy%f(sy%iref)%cpcel(i)%typ == -3) then
                 label = "XX"
@@ -552,7 +552,7 @@ contains
        else
           do i = 1, sy%f(sy%iref)%ncp
              if (i <= sy%c%nneq) then
-                label = trim(sy%c%at(i)%name)
+                label = trim(sy%c%spc(sy%c%at(i)%is)%name)
                 if (label(2:2) == " ") label(2:2) = "_"
              else if (sy%f(sy%iref)%cp(i)%typ == -3) then
                 label = "XX"
@@ -574,7 +574,7 @@ contains
           if (nosym) then
              do i = 1, sy%f(sy%iref)%ncpcel
                 if (sy%f(sy%iref)%cpcel(i)%idx <= sy%c%nneq) then
-                   label = trim(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%name)
+                   label = trim(sy%c%spc(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%is)%name)
                    if (label(2:2) == " ") label(2:2) = "_"
                 else if (sy%f(sy%iref)%cpcel(i)%typ == -3) then
                    label = "XX"
@@ -590,7 +590,7 @@ contains
           else
              do i = 1, sy%f(sy%iref)%ncp
                 if (i <= sy%c%nneq) then
-                   label = trim(sy%c%at(i)%name)
+                   label = trim(sy%c%spc(sy%c%at(i)%is)%name)
                    if (label(2:2) == " ") label(2:2) = "_"
                 else if (sy%f(sy%iref)%cp(i)%typ == -3) then
                    label = "XX"
@@ -1363,14 +1363,14 @@ contains
     if (cel) then
        if (sy%f(sy%iref)%cpcel(i)%isnuc) then
           typ = 0
-          z = sy%c%at(sy%c%atcel(i)%idx)%z
+          z = sy%c%spc(sy%c%at(sy%c%atcel(i)%idx)%is)%z
        else
           typ = sy%f(sy%iref)%cpcel(i)%typ
        end if
     else
        if (sy%f(sy%iref)%cp(i)%isnuc) then
           typ = 0
-          z = sy%c%at(i)%z
+          z = sy%c%spc(sy%c%at(i)%is)%z
        else
           typ = sy%f(sy%iref)%cp(i)%typ
        end if

@@ -928,7 +928,7 @@ contains
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
           write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(2X,A))') &
-             string(i), string(sy%c%at(i)%name), string(sphfactor(i),'f',decimal=6), &
+             string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
              string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
        end if
     end do
@@ -1075,7 +1075,7 @@ contains
        if (verbose) then
           if (i <= sy%c%nneq) then
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,2X))') &
-                string(i), string(sy%c%at(i)%name), string(sphfactor(i),'f',decimal=6), &
+                string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
                 string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
           else
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,2X))') &
@@ -1119,7 +1119,7 @@ contains
           call ferror('setvariables','Wrong sphfactor',faterr,line)
 
        do i = 1, sy%c%nneq
-          if (sy%c%at(i)%z == isym) then
+          if (sy%c%spc(sy%c%at(i)%is)%z == isym) then
              sphfactor(i) = rdum
           end if
        end do

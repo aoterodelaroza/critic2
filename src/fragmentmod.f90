@@ -20,7 +20,7 @@
 
 ! Fragment class.
 module fragmentmod
-  use types, only: anyatom
+  use types, only: anyatom, species
   implicit none
 
   private
@@ -31,6 +31,8 @@ module fragmentmod
   type fragment
      integer :: nat !< Number of atoms in the fragment
      type(anyatom), allocatable :: at(:) !< Atoms in the fragment
+     integer :: nspc !< Number of species in the fragment
+     type(species), allocatable :: spc(:) !< Species in the fragment
    contains
      procedure :: init => fragment_init
      procedure :: append
@@ -48,15 +50,19 @@ contains
     class(fragment), intent(inout) :: fr
     
     if (allocated(fr%at)) deallocate(fr%at)
+    if (allocated(fr%spc)) deallocate(fr%spc)
     allocate(fr%at(1))
     fr%nat = 0
+    allocate(fr%spc(1))
+    fr%nspc = 0
     
   end subroutine fragment_init
 
   !> Merge two or more fragments, delete repeated atoms. If fr already
-  !> has a fragment, then add to it if add = .true. (default:
-  !> .true.).
+  !> has a fragment, then add to it if add = .true. (default: .true.).
+  !> Assumes all fragments have the same atomic species.
   subroutine merge_array(fr,fra,add) 
+    use tools_io, only: equal, ferror, faterr
     use types, only: realloc
     class(fragment), intent(inout) :: fr
     type(fragment), intent(in) :: fra(:)
@@ -66,7 +72,7 @@ contains
 
     integer :: i, j, k, nat0, nat1
     real*8 :: x(3)
-    logical :: found, add0
+    logical :: found, add0, ok
     
     add0 = .true.
     if (present(add)) add0 = add
@@ -79,9 +85,22 @@ contains
        if (allocated(fr%at)) deallocate(fr%at)
        allocate(fr%at(nat0))
        fr%nat = 0
+       if (allocated(fr%spc)) deallocate(fr%spc)
+       allocate(fr%spc(fra(1)%nspc))
+       fr%nspc = fra(1)%nspc
+       fr%spc = fra(1)%spc
     end if
 
     do i = 1, size(fra)
+       ok = (fra(i)%nspc == fr%nspc)
+       if (ok) then
+          do j = 1, fr%nspc
+             ok = ok .and. equal(fr%spc(j)%name,fra(i)%spc(j)%name) .and. (fr%spc(j)%z == fra(i)%spc(j)%z)
+          end do
+       end if
+       if (.not.ok) &
+          call ferror("merge_array","inconsistent atomic species",faterr)
+
        nat0 = fr%nat
        nat1 = fr%nat + fra(i)%nat
        if (nat1 > size(fr%at)) call realloc(fr%at,2*nat1)
@@ -105,6 +124,7 @@ contains
 
   !> Append a fragment to the current fragment, delete repeated atoms.  
   subroutine append(fr,fra) 
+    use tools_io, only: ferror, faterr, equal
     use types, only: realloc
     class(fragment), intent(inout) :: fr
     class(fragment), intent(in) :: fra
@@ -113,13 +133,25 @@ contains
 
     integer :: j, k, nat0, nat1
     real*8 :: x(3)
-    logical :: found
+    logical :: found, ok
     
     if (.not.allocated(fr%at)) then
        allocate(fr%at(fra%nat))
+       allocate(fr%spc(fra%nspc))
+       fr%nspc = fra%nspc
+       fr%spc = fra%spc
     else
        call realloc(fr%at,fr%nat+fra%nat)
     end if
+
+    ok = (fra%nspc == fr%nspc)
+    if (ok) then
+       do j = 1, fr%nspc
+          ok = ok .and. equal(fr%spc(j)%name,fra%spc(j)%name) .and. (fr%spc(j)%z == fra%spc(j)%z)
+       end do
+    end if
+    if (.not.ok) &
+       call ferror("append","inconsistent atomic species",faterr)
 
     nat0 = fr%nat
     nat1 = fr%nat + fra%nat
@@ -160,8 +192,8 @@ contains
     sum = 0d0
     if (weight) then
        do i = 1, fr%nat
-          x = x + atmass(fr%at(i)%z) * fr%at(i)%r
-          sum = sum + atmass(fr%at(i)%z)
+          x = x + atmass(fr%spc(fr%at(i)%is)%z) * fr%at(i)%r
+          sum = sum + atmass(fr%spc(fr%at(i)%is)%z)
        end do
     else
        do i = 1, fr%nat
@@ -207,8 +239,8 @@ contains
     write (lu,*) fr%nat
     write (lu,*)
     do i = 1, fr%nat
-       if (fr%at(i)%z >= 0) then
-          write (lu,*) nameguess(fr%at(i)%z,.true.), fr%at(i)%r * bohrtoa
+       if (fr%spc(fr%at(i)%is)%z >= 0) then
+          write (lu,*) nameguess(fr%spc(fr%at(i)%is)%z,.true.), fr%at(i)%r * bohrtoa
        end if
     end do
     call fclose(lu)
@@ -225,7 +257,7 @@ contains
     real*8, intent(in), optional :: r(3,3)
     integer, intent(out), optional :: luout
 
-    integer :: i, j, lu
+    integer :: i, j, lu, iz
     real*8 :: g(3,3), aa(3), bb(3), x(3), ri(3,3)
 
     ! write it
@@ -258,14 +290,15 @@ contains
 
     write (lu,'(" <atomArray>")')
     do i = 1, fr%nat
-       if (fr%at(i)%z >= 0) then
+       iz = fr%spc(fr%at(i)%is)%z
+       if (iz >= 0) then
           if (present(r)) then
              x = matmul(ri,fr%at(i)%r)
              write (lu,'("<atom id=""a",A,""" elementType=""",A,""" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")') &
-                string(i), trim(nameguess(fr%at(i)%z,.true.)), (trim(string(x(j),'f',18,10)),j=1,3)
+                string(i), trim(nameguess(iz,.true.)), (trim(string(x(j),'f',18,10)),j=1,3)
           else
              write (lu,'("<atom id=""a",A,""" elementType=""",A,""" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
-                string(i), trim(nameguess(fr%at(i)%z,.true.)), &
+                string(i), trim(nameguess(iz,.true.)), &
                 (trim(string(fr%at(i)%r(j) * bohrtoa,'f',18,10)),j=1,3)
           end if
        end if
@@ -288,7 +321,7 @@ contains
     character*(*), intent(in) :: file
 
     character(len=:), allocatable :: aux
-    integer :: i, lu, isum
+    integer :: i, lu, isum, iz
 
     aux = file
 
@@ -301,12 +334,14 @@ contains
 
     isum = 0
     do i = 1, fr%nat
-       if (fr%at(i)%z > 0) isum = isum + fr%at(i)%z
+       iz = fr%spc(fr%at(i)%is)%z
+       if (iz > 0) isum = isum + iz
     end do
     write (lu,'("0 ",A)') string(2*modulo(isum,2)+1)
     do i = 1, fr%nat
-       if (fr%at(i)%z > 0) then
-          write (lu,*) nameguess(fr%at(i)%z,.true.), fr%at(i)%r * bohrtoa
+       iz = fr%spc(fr%at(i)%is)%z
+       if (iz > 0) then
+          write (lu,*) nameguess(iz,.true.), fr%at(i)%r * bohrtoa
        end if
     end do
     write (lu,'("")')

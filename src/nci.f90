@@ -56,7 +56,7 @@ contains
     real*8 :: ehess(3), dimgrad, dist, rrho, rrho1, rrho2
     real*8 :: sumq, sumqp, sumv, rdum1, rdum2
     logical :: onlyneg, lchk, inter, isden
-    integer :: findlimits, ithres, istep
+    integer :: findlimits, ithres, istep, iz
     logical :: periodic, usecore
     ! molmotif
     logical :: domolmotif
@@ -524,11 +524,12 @@ contains
                        do iat = 1, fr(ifr)%nat
                           xd = x - fr(ifr)%at(iat)%r
                           dist = sqrt(dot_product(xd,xd))
-                          if (.not.agrid(fr(ifr)%at(iat)%z)%isinit) cycle
-                          if (dist > agrid(fr(ifr)%at(iat)%z)%rmax) cycle
-                          dist = max(dist,agrid(fr(ifr)%at(iat)%z)%r(1))
+                          iz = fr(ifr)%spc(fr(ifr)%at(iat)%is)%z
+                          if (.not.agrid(iz)%isinit) cycle
+                          if (dist > agrid(iz)%rmax) cycle
+                          dist = max(dist,agrid(iz)%r(1))
                           dist = max(dist,1d-14)
-                          call agrid(fr(ifr)%at(iat)%z)%interp(dist,rrho,rrho1,rrho2)
+                          call agrid(iz)%interp(dist,rrho,rrho1,rrho2)
                           rrho = max(rrho,0d0)
                           rhofragl(ifr) = rhofragl(ifr) + rrho
                        end do
@@ -617,6 +618,10 @@ contains
            call struct_write(sy,file)
         else
            call fr0%init()
+           fr0%nspc = sy%c%nspc
+           call realloc(fr0%spc,fr0%nspc)
+           fr0%spc = sy%c%spc
+
            xx0 = sy%c%c2x(x0 - rthres_xyz)
            xx1 = sy%c%c2x(x1 + rthres_xyz)
            do i = floor(xx0(1))-1, ceiling(xx1(1))+1
@@ -634,12 +639,13 @@ contains
                           fr0%at(fr0%nat)%cidx = l
                           fr0%at(fr0%nat)%idx = sy%c%atcel(l)%idx
                           fr0%at(fr0%nat)%lvec = (/i,j,k/)
-                          fr0%at(fr0%nat)%z = sy%c%at(sy%c%atcel(l)%idx)%z
+                          fr0%at(fr0%nat)%is = sy%c%atcel(l)%is
                        end if
                     end do
                  end do
               end do
            end do
+           call realloc(fr0%at,fr0%nat)
            call fr0%writexyz(file)
         end if
      else
@@ -767,7 +773,7 @@ contains
     write(lu,'(I5,3(F12.6))') nstep(3), xmat(:,3)
     if (periodic .or. iszero) then
        do i = 1, sy%c%ncel
-          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%at(sy%c%atcel(i)%idx)%z, 0d0, sy%c%atcel(i)%r
+          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%spc(sy%c%atcel(i)%is)%z, 0d0, sy%c%atcel(i)%r
        end do
     else
        if (nfrag == 0) then
@@ -778,7 +784,7 @@ contains
                       xx = sy%c%x2c(sy%c%atcel(i)%x + real((/i1,i2,i3/),8))
                       if (all(xx > x0-eps) .and. all(xx < x1+eps)) then
                          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') &
-                            sy%c%at(sy%c%atcel(i)%idx)%z, 0d0, xx
+                            sy%c%spc(sy%c%atcel(i)%is)%z, 0d0, xx
                       end if
                    end do
                 end do
@@ -787,7 +793,7 @@ contains
        else
           do i = 1, nfrag
              do j = 1, frag(i)%nat
-                write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%at(frag(i)%at(j)%idx)%z, 0d0, frag(i)%at(j)%r
+                write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%spc(frag(i)%at(j)%is)%z, 0d0, frag(i)%at(j)%r
              end do
           end do
        end if
@@ -846,6 +852,9 @@ contains
 
     fr%nat = 0
     allocate(fr%at(10))
+    fr%nspc = sy%c%nspc
+    allocate(fr%spc(fr%nspc))
+    fr%spc = sy%c%spc
 
     ! create a fragment from input
     do while (.true.)
@@ -871,7 +880,7 @@ contains
           fr%at(fr%nat)%cidx = id
           fr%at(fr%nat)%idx = sy%c%atcel(id)%idx
           fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - sy%c%atcel(id)%x)
-          fr%at(fr%nat)%z = sy%c%at(fr%at(fr%nat)%idx)%z
+          fr%at(fr%nat)%is = sy%c%atcel(id)%is
        else
           exit
        end if

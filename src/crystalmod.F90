@@ -21,7 +21,7 @@
 ! Structure class and routines for basic crystallography computations
 module crystalmod
   use spglib, only: SpglibDataset
-  use types, only: atom, celatom, neighstar
+  use types, only: atom, celatom, neighstar, species
   use fragmentmod, only: fragment
   use param, only: maxzat0
   implicit none
@@ -53,6 +53,9 @@ module crystalmod
      character(len=128) :: file
 
      !! Initialization level: isinit !!
+     ! species list
+     integer :: nspc = 0 !< Number of species
+     type(species), allocatable :: spc(:) !< Species
      ! non-equivalent atoms list
      integer :: nneq = 0 !< Number of non-equivalent atoms
      type(atom), allocatable :: at(:) !< Non-equivalent atom array
@@ -220,6 +223,7 @@ module crystalmod
   integer, parameter :: sigma=9 !< identifier for sym. operations
 
   ! array initialization values
+  integer, parameter :: mspc0 = 4
   integer, parameter :: mneq0 = 4
   integer, parameter :: mcel0 = 10
   integer, parameter :: menv0 = 100
@@ -268,9 +272,14 @@ contains
     call c%end()
 
     ! allocate space for atoms
+    if (.not.allocated(c%spc)) allocate(c%spc(mspc0))
     if (.not.allocated(c%at)) allocate(c%at(mneq0))
     if (.not.allocated(c%atcel)) allocate(c%atcel(mcel0))
     if (.not.allocated(c%atenv)) allocate(c%atenv(menv0))
+    c%nspc = 0
+    c%nneq = 0
+    c%ncel = 0
+    c%nenv = 0
 
     ! nullify metrics
     c%aa = 0d0
@@ -305,11 +314,15 @@ contains
     c%molx0 = 0d0
     c%molborder = 0d0
 
+    ! initialize species
+    do i = 1, mspc0
+       c%spc(i)%name = ""
+       c%spc(i)%z = 0
+       c%spc(i)%qat = 0d0
+    end do
+
     ! initialize atoms
     do i = 1, mneq0
-       c%at(i)%name = ""
-       c%at(i)%z = 0
-       c%at(i)%qat = 0d0
        c%at(i)%rnn2 = 0d0
     end do
 
@@ -396,6 +409,7 @@ contains
     class(crystal), intent(inout) :: c
 
     c%isinit = .false.
+    if (allocated(c%spc)) deallocate(c%spc)
     if (allocated(c%at)) deallocate(c%at)
     if (allocated(c%atcel)) deallocate(c%atcel)
     if (allocated(c%cen)) deallocate(c%cen)
@@ -414,6 +428,7 @@ contains
     c%isrecip = .false. 
     c%isnn = .false. 
     c%file = ""
+    c%nspc = 0
     c%nneq = 0
     c%ncel = 0
     c%neqv = 0
@@ -438,7 +453,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar, matinv, &
        det, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string, nameguess
+    use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
     use param, only: pi, eyet, ctsq3, maxzat
     class(crystal), intent(inout) :: c
@@ -465,55 +480,18 @@ contains
     call c%init()
 
     ! copy the atomic information
+    c%nspc = seed%nspc
     c%nneq = seed%nat
     if (c%nneq > 0) then
        if (allocated(c%at)) deallocate(c%at)
        allocate(c%at(c%nneq))
-       if (seed%usezname == 1) then
-          ! use the atomic number
-          do i = 1, c%nneq
-             c%at(i)%z = seed%z(i)
-             if (c%at(i)%z < 0) then
-                if (crashfail) then
-                   call ferror("struct_new","unknown atom with Z: " // string(c%at(i)%z),faterr)
-                else
-                   return
-                end if
-             end if
-             c%at(i)%name = nameguess(seed%z(i),.true.)
-             c%at(i)%x = seed%x(:,i)
-          end do
-       elseif (seed%usezname == 2) then
-          ! use the atomic name
-          do i = 1, c%nneq
-             c%at(i)%name = seed%name(i)
-             c%at(i)%z = zatguess(c%at(i)%name)
-             if (c%at(i)%z < 0) then
-                if (crashfail) then
-                   call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
-                else
-                   return
-                end if
-             end if
-             c%at(i)%x = seed%x(:,i)
-          end do
-       elseif (seed%usezname == 3) then
-          ! use both the atomic number and the name 
-          do i = 1, c%nneq
-             c%at(i)%name = seed%name(i)
-             c%at(i)%z = seed%z(i)
-             if (c%at(i)%z < 0) then
-                if (crashfail) then
-                   call ferror("struct_new","unknown atom: " // string(c%at(i)%name),faterr)
-                else
-                   return
-                end if
-             end if
-             c%at(i)%x = seed%x(:,i)
-          end do
-       else
-          call ferror("struct_new","unknown usezname",faterr)
-       end if
+       if (allocated(c%spc)) deallocate(c%spc)
+       allocate(c%spc(c%nspc))
+       c%spc = seed%spc(1:seed%nspc)
+       do i = 1, c%nneq
+          c%at(i)%x = seed%x(:,i)
+          c%at(i)%is = seed%is(i)
+       end do
 
        ! if this is a molecule, calculate the center and encompassing cell
        if (seed%ismolecule) then
@@ -729,14 +707,14 @@ contains
     nnew = 0
     do i = 1, c%nneq
        found = .false.
-       if (c%at(i)%z <= maxzat) then ! skip critical points
+       if (c%spc(c%at(i)%is)%z <= maxzat) then ! skip critical points
           loio: do io = 1, c%neqv
              do it = 1, c%ncv
                 v1 = matmul(c%rotm(1:3,1:3,io), c%at(i)%x) + c%rotm(:,4,io) + c%cen(:,it)
                 do j = 1, nnew
-                   if (c%at(j)%z > maxzat) cycle ! skip critical points
+                   if (c%spc(c%at(j)%is)%z > maxzat) cycle ! skip critical points
                    v2 = c%at(j)%x
-                   if (c%are_lclose(v1,v2,atomeps) .and. c%at(i)%z == c%at(j)%z) then
+                   if (c%are_lclose(v1,v2,atomeps) .and. c%at(i)%is == c%at(j)%is) then
                       found = .true.
                       icpy = j
                       exit loio
@@ -781,6 +759,7 @@ contains
                 c%atcel(iat)%lvec = nint(atpos(:,j) - &
                    (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
                    c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
+                c%atcel(iat)%is = c%at(i)%is
              end do
           end do
           c%ncel = iat
@@ -797,6 +776,7 @@ contains
              c%atcel(i)%ir = 1
              c%atcel(i)%ic = 1
              c%atcel(i)%lvec = 0
+             c%atcel(i)%is = c%at(i)%is
           end do
        end if
        call realloc(c%atcel,c%ncel)
@@ -809,8 +789,8 @@ contains
        call c%spglib_wrap(.false.,.true.)
 
     ! load the atomic density grids
-    do i = 1, c%nneq
-       call grid1_register_ae(c%at(i)%z)
+    do i = 1, c%nspc
+       call grid1_register_ae(c%spc(i)%z)
     end do
 
     ! the initialization is done - this crystal is ready to use
@@ -1111,6 +1091,9 @@ contains
 
     fr%nat = nat
     allocate(fr%at(nat))
+    fr%nspc = c%nspc
+    allocate(fr%spc(c%nspc))
+    fr%spc = c%spc
     do i = 1, nat
        id = identify_atom(c,x0(:,i),.true.)
        fr%at(i)%r = x0(:,i)
@@ -1118,7 +1101,7 @@ contains
        fr%at(i)%cidx = id
        fr%at(i)%idx = c%atcel(id)%idx
        fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(id)%x)
-       fr%at(i)%z = c%at(fr%at(i)%idx)%z
+       fr%at(i)%is = c%atcel(id)%is
     end do
     call realloc(fr%at,fr%nat)
 
@@ -1147,6 +1130,9 @@ contains
     
     fr%nat = nat
     allocate(fr%at(nat))
+    fr%nspc = c%nspc
+    allocate(fr%spc(fr%nspc))
+    fr%spc = c%spc
     do i = 1, nat
        word = ""
        read(lu,*,err=999) word, x0
@@ -1155,6 +1141,8 @@ contains
        if (id == 0) then
           fr%nat = 0
           deallocate(fr%at)
+          fr%nspc = 0
+          deallocate(fr%spc)
           return
        endif
        fr%at(i)%r = x0 
@@ -1162,7 +1150,7 @@ contains
        fr%at(i)%cidx = id
        fr%at(i)%idx = c%atcel(id)%idx
        fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(id)%x)
-       fr%at(i)%z = c%at(fr%at(i)%idx)%z
+       fr%at(i)%is = c%atcel(id)%is
     end do
     call fclose(lu)
     call realloc(fr%at,fr%nat)
@@ -1361,6 +1349,7 @@ contains
           c%atenv(m)%ic = c%atcel(m)%ic
           c%atenv(m)%lvec = c%atcel(m)%lvec + l
           c%atenv(m)%lenv = l
+          c%atenv(m)%is = c%atcel(m)%is
        end do
        return
     endif
@@ -1375,7 +1364,7 @@ contains
     else
        dmax = 0d0
        do i = 1, c%nneq
-          if (c%at(i)%z > 0) dmax = max(dmax,cutrad(c%at(i)%z))
+          if (c%spc(c%at(i)%is)%z > 0) dmax = max(dmax,cutrad(c%spc(c%at(i)%is)%z))
        end do
     end if
     c%dmax0_env = dmax
@@ -1407,6 +1396,7 @@ contains
                 c%atenv(c%nenv)%ic = c%atcel(m)%ic
                 c%atenv(c%nenv)%lvec = c%atcel(m)%lvec + l
                 c%atenv(c%nenv)%lenv = l
+                c%atenv(c%nenv)%is = c%atcel(m)%is
              enddo  !m
           enddo  !k
        enddo  !j
@@ -1444,7 +1434,7 @@ contains
        lvec = 0
        do i = 1, c%ncel
           do j = i+1, c%ncel
-             d0 = bondfactor * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
+             d0 = bondfactor * (atmcov(c%spc(c%atcel(i)%is)%z)+atmcov(c%spc(c%atcel(j)%is)%z))
              ! use the Cartesian directly
              x0 = c%atcel(j)%r - c%atcel(i)%r
              if (any(abs(x0) > d0)) cycle
@@ -1463,7 +1453,7 @@ contains
              x0 = c%atcel(j)%x - c%atcel(i)%x
              lvec0 = nint(x0)
              x0 = x0 - lvec0
-             d0 = bondfactor * (atmcov(c%at(c%atcel(i)%idx)%z)+atmcov(c%at(c%atcel(j)%idx)%z))
+             d0 = bondfactor * (atmcov(c%spc(c%atcel(i)%is)%z)+atmcov(c%spc(c%atcel(j)%is)%z))
 
              do k = 0, c%nws
                 if (k == 0) then
@@ -1521,6 +1511,9 @@ contains
     integer :: ix, iy, iz, i
     logical :: if1
 
+    fr%nspc = c%nspc
+    allocate(fr%spc(c%nspc))
+    fr%spc(1:fr%nspc) = c%spc(1:c%nspc)
     allocate(fr%at(1))
     fr%nat = 0
 
@@ -1537,7 +1530,7 @@ contains
                 fr%at(fr%nat)%cidx = i
                 fr%at(fr%nat)%idx = c%atcel(i)%idx
                 fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                fr%at(fr%nat)%z = c%at(c%atcel(i)%idx)%z
+                fr%at(fr%nat)%is = c%atcel(i)%is
              end do
           end do
        end do
@@ -1566,7 +1559,7 @@ contains
                       fr%at(fr%nat)%cidx = i
                       fr%at(fr%nat)%idx = c%atcel(i)%idx
                       fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                      fr%at(fr%nat)%z = c%at(c%atcel(i)%idx)%z
+                      fr%at(fr%nat)%is = c%atcel(i)%is
                       cycle
                    end if
                 end do
@@ -1600,6 +1593,9 @@ contains
 
     allocate(fr%at(1))
     fr%nat = 0
+    allocate(fr%spc(c%nspc))
+    fr%nspc = c%nspc
+    fr%spc = c%spc
 
     ! all atoms in a sphere
     doagain = .true.
@@ -1631,7 +1627,7 @@ contains
                    fr%at(fr%nat)%cidx = i
                    fr%at(fr%nat)%idx = c%atcel(i)%idx
                    fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                   fr%at(fr%nat)%z = c%at(c%atcel(i)%idx)%z
+                   fr%at(fr%nat)%is = c%atcel(i)%is
                    doagain = .true.
                 end do
              end do
@@ -1736,6 +1732,8 @@ contains
        
        ! add this fragment to the list
        used(i) = .true.
+       allocate(c%mol(c%nmol)%spc(c%nspc))
+       c%mol(c%nmol)%spc = c%spc(1:c%nspc)
        allocate(c%mol(c%nmol)%at(nat))
        c%mol(c%nmol)%nat = nat
        do j = 1, nat
@@ -1744,7 +1742,7 @@ contains
           c%mol(c%nmol)%at(j)%cidx = id(j)
           c%mol(c%nmol)%at(j)%idx = c%atcel(id(j))%idx
           c%mol(c%nmol)%at(j)%lvec = lvec(:,j)
-          c%mol(c%nmol)%at(j)%z = c%at(c%mol(c%nmol)%at(j)%idx)%z
+          c%mol(c%nmol)%at(j)%is = c%atcel(id(j))%is
        end do
     end do
     call realloc_fragment(c%mol,c%nmol)
@@ -1871,16 +1869,20 @@ contains
           call realloc_fragment(fr,2*nfrag)
           call realloc(isdiscrete,2*nfrag)
        end if
-       allocate(fr(nfrag)%at(nat))
-       isdiscrete(nfrag) = ldist
        fr(nfrag)%nat = nat
+       allocate(fr(nfrag)%at(nat))
+       if (allocated(fr(nfrag)%spc)) deallocate(fr(nfrag)%spc)
+       fr(nfrag)%nspc = c%nspc
+       allocate(fr(nfrag)%spc(c%nspc))
+       fr(nfrag)%spc = c%spc
+       isdiscrete(nfrag) = ldist
        do j = 1, nat
           fr(nfrag)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
           fr(nfrag)%at(j)%r = c%x2c(fr(nfrag)%at(j)%x)
           fr(nfrag)%at(j)%cidx = id(j)
           fr(nfrag)%at(j)%idx = c%atcel(id(j))%idx
           fr(nfrag)%at(j)%lvec = lvec(:,j) 
-          fr(nfrag)%at(j)%z = c%at(fr(nfrag)%at(j)%idx)%z
+          fr(nfrag)%at(j)%is = c%atcel(id(j))%is
        end do
 
        ! run over all atoms in the new fragment and mark those atoms in the seed
@@ -2208,7 +2210,7 @@ contains
                 cterm = 0d0
                 sterm = 0d0
                 do i = 1, c%ncel
-                   iz = c%at(c%atcel(i)%idx)%z
+                   iz = c%spc(c%atcel(i)%is)%z
                    if (iz < 1 .or. iz > size(cscatt,2)) &
                       call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
                    as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
@@ -2355,7 +2357,7 @@ contains
           do j = 1, c%nenv
              d = norm(c%at(i)%r - c%atenv(j)%r)
              if (d < 1d-10 .or. d > rend) cycle
-             int = sqrt(real(c%at(i)%z * c%at(c%atenv(j)%idx)%z,8))
+             int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atenv(j)%is)%z,8))
              ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
           end do
        end do
@@ -2368,7 +2370,7 @@ contains
           do j = 1, c%ncel
              d = norm(c%at(i)%r - c%atcel(j)%r)
              if (d < 1d-10 .or. d > rend) cycle
-             int = sqrt(real(c%at(i)%z * c%at(c%atcel(j)%idx)%z,8))
+             int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atcel(j)%is)%z,8))
              ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
           end do
        end do
@@ -2389,7 +2391,7 @@ contains
     integer :: i
     real*8 :: aux, q2sum
     integer :: ia, ib, ic
-    real*8 :: alrmax(3)
+    real*8 :: alrmax(3), qq
     real*8 :: rcut1, rcut2, err_real
     real*8 :: hcut1, hcut2, err_rec
 
@@ -2397,10 +2399,11 @@ contains
     c%qsum = 0d0
     q2sum = 0d0
     do i = 1, c%nneq
-       if (abs(c%at(i)%qat) < 1d-6) &
+       qq = c%spc(c%at(i)%is)%qat
+       if (abs(qq) < 1d-6) &
           call ferror('ewald_energy','Some of the charges are 0',faterr)
-       c%qsum = c%qsum + real(c%at(i)%mult * c%at(i)%qat,8)
-       q2sum = q2sum + real(c%at(i)%mult * c%at(i)%qat**2,8)
+       c%qsum = c%qsum + real(c%at(i)%mult * qq,8)
+       q2sum = q2sum + real(c%at(i)%mult * qq**2,8)
     end do
 
     ! determine shortest vector in real space
@@ -2489,7 +2492,7 @@ contains
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
-       ewe = ewe + c%at(i)%mult * c%at(i)%qat * &
+       ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * &
           c%ewald_pot(x,.true.)
     end do
     ewe = ewe / 2d0
@@ -2525,7 +2528,7 @@ contains
           px = c%atcel(i)%x - x
           d2 = dot_product(px,matmul(c%gtensor,px))
           if (d2 < nuc_cutoff2) then
-             qnuc = c%at(c%atcel(i)%idx)%qat
+             qnuc = c%spc(c%atcel(i)%is)%qat
              exit
           end if
        end do
@@ -2543,7 +2546,7 @@ contains
                 d2 = dot_product(px,matmul(c%gtensor,px))
                 if (d2 < 1d-12 .or. d2 > rcut2) cycle
                 d = sqrt(d2) / c%eta
-                sum_real = sum_real + c%at(c%atcel(i)%idx)%qat * erfc(d) / d
+                sum_real = sum_real + c%spc(c%atcel(i)%is)%qat * erfc(d) / d
              end do
           end do
        end do
@@ -2562,7 +2565,7 @@ contains
 
              sfac_c = 0
              do i = 1, c%ncel
-                sfac_c = sfac_c + c%at(c%atcel(i)%idx)%qat * &
+                sfac_c = sfac_c + c%spc(c%atcel(i)%is)%qat * &
                    cos(dot_product(lvec,x-c%atcel(i)%x))
              end do
              sfacp = 2d0 * sfac_c
@@ -2711,10 +2714,15 @@ contains
        end do
     end do
 
+    ! species list
+    allocate(ncseed%spc(c%nspc))
+    ncseed%nspc = c%nspc
+    ncseed%spc = c%spc
+
     ! build the new atom list
     ncseed%nat = 0
     nn = ceiling(c%ncel * abs(det(r)) / c%omega)
-    allocate(ncseed%x(3,nn),ncseed%z(nn),ncseed%name(nn))
+    allocate(ncseed%x(3,nn),ncseed%is(nn))
     do i = 1, nlat
        do j = 1, c%ncel
           ! candidate atom
@@ -2736,19 +2744,15 @@ contains
              ncseed%nat = ncseed%nat + 1
              if (ncseed%nat > size(ncseed%x,2)) then
                 call realloc(ncseed%x,3,2*ncseed%nat)
-                call realloc(ncseed%name,2*ncseed%nat)
-                call realloc(ncseed%z,2*ncseed%nat)
+                call realloc(ncseed%is,2*ncseed%nat)
              end if
              ncseed%x(:,ncseed%nat) = x
-             ncseed%name(ncseed%nat) = c%at(c%atcel(j)%idx)%name
-             ncseed%z(ncseed%nat) = c%at(c%atcel(j)%idx)%z 
+             ncseed%is(ncseed%nat) = c%atcel(j)%is
           end if
        end do
     end do
     call realloc(ncseed%x,3,ncseed%nat)
-    call realloc(ncseed%name,ncseed%nat)
-    call realloc(ncseed%z,ncseed%nat)
-    ncseed%usezname = 3
+    call realloc(ncseed%is,ncseed%nat)
 
     if (nr > 0) then
        if (ncseed%nat / c%ncel /= nr) then
@@ -2803,63 +2807,63 @@ contains
     integer, allocatable :: types(:)
     real*8 :: rmat(3,3), t(3)
 
-    ! ignore molecules
-    if (c%ismolecule) return
+    ! ! ignore molecules
+    ! if (c%ismolecule) return
 
-    ! use spglib transformation to the standard cell
-    rmat = transpose(c%crys2car)
-    iz = 0
-    ntyp = 0
-    nat = c%ncel
-    allocate(x(3,c%ncel),types(c%ncel))
-    do i = 1, c%ncel
-       x(:,i) = c%atcel(i)%x
-       if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
-          ntyp = ntyp + 1
-          iz(c%at(c%atcel(i)%idx)%z) = ntyp
-          types(i) = ntyp
-       else
-          types(i) = iz(c%at(c%atcel(i)%idx)%z)
-       end if
-    end do
+    ! ! use spglib transformation to the standard cell
+    ! rmat = transpose(c%crys2car)
+    ! iz = 0
+    ! ntyp = 0
+    ! nat = c%ncel
+    ! allocate(x(3,c%ncel),types(c%ncel))
+    ! do i = 1, c%ncel
+    !    x(:,i) = c%atcel(i)%x
+    !    if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
+    !       ntyp = ntyp + 1
+    !       iz(c%at(c%atcel(i)%idx)%z) = ntyp
+    !       types(i) = ntyp
+    !    else
+    !       types(i) = iz(c%at(c%atcel(i)%idx)%z)
+    !    end if
+    ! end do
 
-    if (toprim) then
-       id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
-       if (id == 0) &
-          call ferror("cell_standard","could not find primitive cell",faterr)
-       rmat = transpose(rmat)
-       do i = 1, 3
-          rmat(:,i) = c%c2x(rmat(:,i))
-       end do
-    else
-       id = spg_standardize_cell(rmat,x,types,nat,0,1,symprec)
-       if (id == 0) &
-          call ferror("cell_standard","could not find standard cell",faterr)
-       rmat = transpose(rmat)
-       do i = 1, 3
-          rmat(:,i) = c%c2x(rmat(:,i))
-       end do
-    end if
+    ! if (toprim) then
+    !    id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
+    !    if (id == 0) &
+    !       call ferror("cell_standard","could not find primitive cell",faterr)
+    !    rmat = transpose(rmat)
+    !    do i = 1, 3
+    !       rmat(:,i) = c%c2x(rmat(:,i))
+    !    end do
+    ! else
+    !    id = spg_standardize_cell(rmat,x,types,nat,0,1,symprec)
+    !    if (id == 0) &
+    !       call ferror("cell_standard","could not find standard cell",faterr)
+    !    rmat = transpose(rmat)
+    !    do i = 1, 3
+    !       rmat(:,i) = c%c2x(rmat(:,i))
+    !    end do
+    ! end if
 
-    ! flip the cell?
-    if (det(rmat) < 0d0) rmat = -rmat
+    ! ! flip the cell?
+    ! if (det(rmat) < 0d0) rmat = -rmat
 
-    ! if a primitive is wanted but det is not less than 1, do not make the change
-    if (all(abs(rmat - eye) < symprec)) then
-       if (verbose) &
-          write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
-       return
-    end if
-    if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
-       if (verbose) &
-          write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
-       return
-    end if
+    ! ! if a primitive is wanted but det is not less than 1, do not make the change
+    ! if (all(abs(rmat - eye) < symprec)) then
+    !    if (verbose) &
+    !       write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
+    !    return
+    ! end if
+    ! if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
+    !    if (verbose) &
+    !       write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
+    !    return
+    ! end if
 
-    ! transform -> use the origin shift
-    t = -matmul(c%spg%origin_shift,rmat)
-    ! rmat = transpose(matinv(c%spg%transformation_matrix))
-    call c%newcell(rmat,t,verbose)
+    ! ! transform -> use the origin shift
+    ! t = -matmul(c%spg%origin_shift,rmat)
+    ! ! rmat = transpose(matinv(c%spg%transformation_matrix))
+    ! call c%newcell(rmat,t,verbose)
 
   end subroutine cell_standard
 
@@ -3051,7 +3055,7 @@ contains
 
     integer, parameter :: natenvmax = 2000
 
-    integer :: i, j, k
+    integer :: i, j, k, iz, is
     integer :: nelec, holo, laue
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
     character(len=:), allocatable :: str1, str2
@@ -3083,7 +3087,7 @@ contains
        if (.not.c%ismolecule) then
           maxdv = gcd(c%at(1:c%nneq)%mult,c%nneq)
           write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
-             (string(c%at(i)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
+             (string(c%spc(c%at(i)%is)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
           write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
           write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
        else
@@ -3091,8 +3095,9 @@ contains
        endif
        nelec = 0
        do i = 1, c%nneq
-          if (c%at(i)%z >= maxzat) cycle
-          nelec = nelec + c%at(i)%z * c%at(i)%mult
+          iz = c%spc(c%at(i)%is)%z
+          if (iz >= maxzat) cycle
+          nelec = nelec + iz * c%at(i)%mult
        end do
        write (uout,'("  Number of electrons (with zero atomic charge): ",A/)') string(nelec)
 
@@ -3104,13 +3109,14 @@ contains
              string("z",14,ioj_center), string("name",10,ioj_center), &
              string("mult",4,ioj_center), string("Z",4,ioj_center)
           do i=1, c%nneq
+             is = c%at(i)%is
              write (uout,'(2x,7(A,X))') &
                 string(i,3,ioj_center),&
                 string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
                 string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(c%at(i)%name,10,ioj_center), &
-                string(c%at(i)%mult,4,ioj_center), string(c%at(i)%z,4,ioj_center)
+                string(c%spc(is)%name,10,ioj_center), &
+                string(c%at(i)%mult,4,ioj_center), string(c%spc(is)%z,4,ioj_center)
           enddo
           write (uout,*)
 
@@ -3120,13 +3126,14 @@ contains
              string("z",14,ioj_center), string("name",10,ioj_center),&
              string("Z",4,ioj_center)
           do i=1,c%ncel
+             is = c%atcel(i)%is
              write (uout,'(2x,6(A,X))') &
                 string(i,3,ioj_center),&
                 string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
-                string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
+                string(c%spc(is)%name,10,ioj_center),&
+                string(c%spc(is)%z,4,ioj_center)
           enddo
           write (uout,*)
 
@@ -3144,11 +3151,12 @@ contains
           string("z",16,ioj_center), string("name",10,ioj_center),&
           string("Z",4,ioj_center)
        do i=1,c%ncel
+          is = c%atcel(i)%is
           write (uout,'(2x,6(A,X))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(c%at(c%atcel(i)%idx)%name,10,ioj_center),&
-             string(c%at(c%atcel(i)%idx)%z,4,ioj_center)
+             string(c%spc(is)%name,10,ioj_center),&
+             string(c%spc(is)%z,4,ioj_center)
        enddo
        write (uout,*)
 
@@ -3271,7 +3279,7 @@ contains
              do j = 1, 10
                 if (j == 1) then
                    str1 = string(i,length=4,justify=ioj_center)
-                   str2 = string(c%at(i)%name,length=5,justify=ioj_center)
+                   str2 = string(c%spc(c%at(i)%is)%name,length=5,justify=ioj_center)
                 else
                    str1 = string("",length=4,justify=ioj_center)
                    str2 = " ... "
@@ -3282,7 +3290,7 @@ contains
                       string(nneig(j),length=5,justify=ioj_center), &
                       string(dist(j)*dunit0(iunit),'f',length=12,decimal=7,justify=5), &
                       string(wat(j),length=4,justify=ioj_center), &
-                      string(c%at(wat(j))%name,length=10,justify=ioj_left)
+                      string(c%spc(c%at(wat(j))%is)%name,length=10,justify=ioj_left)
                 end if
              end do
           end do
@@ -3301,7 +3309,7 @@ contains
           string("rnn/2",length=12,justify=ioj_center)
        do i = 1, c%nneq
           write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
-             string(c%at(i)%name,length=5,justify=ioj_center), &
+             string(c%spc(c%at(i)%is)%name,length=5,justify=ioj_center), &
              string(c%at(i)%rnn2*dunit0(iunit),'f',length=12,decimal=7,justify=4)
        end do
        write (uout,*)
@@ -3374,18 +3382,19 @@ contains
           string("ZPSP",length=4,justify=ioj_right)
        nelec = 0
        do i = 1, c%nneq
-          if (c%zpsp(c%at(i)%z) > 0) then
-             str1 = string(c%zpsp(c%at(i)%z))
+          is = c%at(i)%is
+          if (c%zpsp(c%spc(is)%z) > 0) then
+             str1 = string(c%zpsp(c%spc(is)%z))
           else
              str1 = "--"
           end if
           write (uout,'(99(2X,A))') &
              string(i,length=3,justify=ioj_right), &
-             string(c%at(i)%name,length=5,justify=ioj_center), &
-             string(c%at(i)%z,length=2,justify=ioj_right), &
-             string(c%at(i)%qat,'f',length=4,decimal=1,justify=ioj_right),&
+             string(c%spc(is)%name,length=5,justify=ioj_center), &
+             string(c%spc(is)%z,length=2,justify=ioj_right), &
+             string(c%spc(is)%qat,'f',length=4,decimal=1,justify=ioj_right),&
              str1
-          nelec = nelec + c%at(i)%mult * c%at(i)%z
+          nelec = nelec + c%at(i)%mult * c%spc(is)%z
        end do
        write (uout,'("+ Number of electrons: ",A)') string(nelec)
        write (uout,*)
@@ -3496,29 +3505,19 @@ contains
     ntyp = 0
     if (usenneq) then
        nat = c%nneq
+       ntyp = c%nspc
        allocate(x(3,c%nneq),typ(c%nneq))
        do i = 1, c%nneq
           x(:,i) = c%at(i)%x
-          if (iz(c%at(i)%z) == 0) then
-             ntyp = ntyp + 1
-             iz(c%at(i)%z) = ntyp
-             typ(i) = ntyp
-          else
-             typ(i) = iz(c%at(i)%z)
-          end if
+          typ(i) = c%at(i)%is
        end do
     else
        nat = c%ncel
+       ntyp = c%nspc
        allocate(x(3,c%ncel),typ(c%ncel))
        do i = 1, c%ncel
           x(:,i) = c%atcel(i)%x
-          if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
-             ntyp = ntyp + 1
-             iz(c%at(c%atcel(i)%idx)%z) = ntyp
-             typ(i) = ntyp
-          else
-             typ(i) = iz(c%at(c%atcel(i)%idx)%z)
-          end if
+          typ(i) = c%atcel(i)%is
        end do
     end if
     c%spg = spg_get_dataset(lattice,x,typ,nat,symprec)
@@ -4774,24 +4773,24 @@ contains
 
     ! add the balls
     do i = 1, fr%nat
-       if (fr%at(i)%z > maxzat) then
+       if (fr%spc(fr%at(i)%is)%z > maxzat) then
           rr = 0.21d0
        else
-          rr = 0.6d0*atmcov(fr%at(i)%z)
+          rr = 0.6d0*atmcov(fr%spc(fr%at(i)%is)%z)
        endif
-       call gr%ball(fr%at(i)%r,JMLcol(:,fr%at(i)%z),rr)
+       call gr%ball(fr%at(i)%r,JMLcol(:,fr%spc(fr%at(i)%is)%z),rr)
     end do
 
     ! add the sticks
     do i = 1, fr%nat
        do j = i+1, fr%nat
-          if (fr%at(i)%z > maxzat .or. fr%at(j)%z > maxzat) cycle
+          if (fr%spc(fr%at(i)%is)%z > maxzat .or. fr%spc(fr%at(j)%is)%z > maxzat) cycle
           xd = fr%at(i)%r - fr%at(j)%r
           d = norm(xd)
-          if (d < (atmcov(fr%at(i)%z) + atmcov(fr%at(j)%z)) * rfac) then
+          if (d < (atmcov(fr%spc(fr%at(i)%is)%z) + atmcov(fr%spc(fr%at(j)%is)%z)) * rfac) then
              xd = fr%at(i)%r + 0.5d0 * (fr%at(j)%r - fr%at(i)%r)
-             call gr%stick(fr%at(i)%r,xd,JMLcol(:,fr%at(i)%z),0.05d0)
-             call gr%stick(fr%at(j)%r,xd,JMLcol(:,fr%at(j)%z),0.05d0)
+             call gr%stick(fr%at(i)%r,xd,JMLcol(:,fr%spc(fr%at(i)%is)%z),0.05d0)
+             call gr%stick(fr%at(j)%r,xd,JMLcol(:,fr%spc(fr%at(j)%is)%z),0.05d0)
           end if
        end do
     end do
@@ -4835,21 +4834,13 @@ contains
 
   !> Write a quantum espresso input template
   subroutine write_espresso(c,file)
-    use tools_io, only: fopen_write, nameguess, lower, fclose
+    use tools_io, only: fopen_write, lower, fclose
     use param, only: maxzat0, atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    character(len=:), allocatable :: lbl1
-    integer :: i, lu
-    logical :: ztyp(maxzat0)
-
-    ztyp = .false.
-    do i = 1, c%nneq
-       if (c%at(i)%z > 0 .and. c%at(i)%z <= maxzat0) then
-          ztyp(c%at(i)%z) = .true.
-       end if
-    end do
+    integer :: i, j, lu
+    logical :: used
 
     lu = fopen_write(file)
     write (lu,'("&control")')
@@ -4862,7 +4853,7 @@ contains
     write (lu,'(" ibrav=0,")')
     write (lu,'(" celldm(1)=1.0,")')
     write (lu,'(" nat=",I6,",")') c%ncel
-    write (lu,'(" ntyp=",I3,",")') count(ztyp)
+    write (lu,'(" ntyp=",I3,",")') c%nspc
     write (lu,'(" ecutwfc=60.0,")')
     write (lu,'(" ecutrho=600.0,")')
     write (lu,'(" xdm=.true.,")')
@@ -4873,15 +4864,12 @@ contains
     write (lu,'("&ions"/"/")')
     write (lu,'("&cell"/"/")')
     write (lu,'("ATOMIC_SPECIES")')
-    do i = 1, size(ztyp)
-       if (ztyp(i)) then
-          lbl1 = lower(nameguess(i,.true.))
-          write (lu,'(A2,X,F12.6,X,A,".UPF")') lbl1(1:2), atmass(i), trim(lbl1)
-       end if
+    do i = 1, c%nspc
+       write (lu,'(A,X,F12.6,X,A,".UPF")') trim(c%spc(i)%name), atmass(c%spc(i)%z), trim(c%spc(i)%name)
     end do
     write (lu,'(/"ATOMIC_POSITIONS crystal")')
     do i = 1, c%ncel
-       write (lu,'(A2,3(X,F13.8,X))') lower(nameguess(c%at(c%atcel(i)%idx)%z,.true.)), c%atcel(i)%x
+       write (lu,'(A,3(X,F13.8,X))') trim(c%spc(c%atcel(i)%is)%name), c%atcel(i)%x
     end do
     write (lu,'(/"K_POINTS automatic"/"2 2 2 1 1 1"/)')
     write (lu,'("CELL_PARAMETERS cubic")')
@@ -4894,21 +4882,14 @@ contains
 
   !> Write a VASP POSCAR template
   subroutine write_vasp(c,file,verbose)
-    use tools_io, only: fopen_write, nameguess, string, uout, fclose
+    use tools_io, only: fopen_write, string, uout, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: lbl1
-    integer :: i, j, lu
-    integer :: ntyp(maxzat0)
-
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
+    character(len=:), allocatable :: lbl1, aux
+    integer :: i, j, lu, ntyp
 
     ! Cell
     lu = fopen_write(file)
@@ -4920,32 +4901,26 @@ contains
 
     ! Number of atoms per type and Direct
     lbl1 = ""
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          lbl1 = lbl1 // " " // string(ntyp(i))
-       end if
+    do i = 1, c%nspc
+       ntyp = 0
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) ntyp = ntyp + 1
+       end do
+       aux = lbl1 // " " // string(ntyp)
+       lbl1 = aux
     end do
     write (lu,'(A)') lbl1
     write (lu,'("Direct")')
 
     ! Atomic positions
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          do j = 1, c%ncel
-             if (c%at(c%atcel(j)%idx)%z == i) then
-                write (lu,'(3(F13.8,X))') c%atcel(j)%x
-             end if
-          end do
-       end if
+    do i = 1, c%nspc
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) then
+             write (lu,'(3(F13.8,X))') c%atcel(j)%x
+          end if
+       end do
     end do
     call fclose(lu)
-
-    lbl1 = ""
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          lbl1 = lbl1 // " " // string(nameguess(i,.true.))
-       end if
-    end do
 
     if (verbose) &
        write (uout,'("+ Atom type sequence: ",A)') lbl1
@@ -4959,16 +4934,10 @@ contains
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    character(len=:), allocatable :: lbl1
-    integer :: ntyp(maxzat0), iz
+    character(len=:), allocatable :: lbl1, aux
+    integer :: iz, ntyp
     real*8 :: aap(3), bbp(3), gpq(3,3)
     integer :: i, j, lu
-
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
 
     ! Find the lengths and angles of the cell
     gpq = matmul(transpose(c%crys2car),c%crys2car)
@@ -4983,31 +4952,31 @@ contains
     lu = fopen_write(file)
     write (lu,'("acell ",3(F14.10,X))') aap
     write (lu,'("angdeg ",3(F14.10,X))') bbp
-    write (lu,'("ntypat ",I3)') count(ntyp > 0)
+    write (lu,'("ntypat ",I3)') c%nspc
 
     lbl1 = ""
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          lbl1 = lbl1 // " " // string(i)
-       end if
+    do i = 1, c%nspc
+       aux = lbl1 // " " // string(c%spc(i)%z)
+       lbl1 = aux
     end do
     write (lu,'("znucl ",A)') lbl1
     write (lu,'("natom ",I5)') c%ncel
 
     lbl1 = ""
-    iz = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          iz = iz + 1
-          lbl1 = lbl1 // " " // string(ntyp(i)) // "*" // string(iz)
-       end if
+    do i = 1, c%nspc
+       ntyp = 0
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) ntyp = ntyp + 1
+       end do
+       aux = lbl1 // " " // string(ntyp) // "*" // string(i)
+       lbl1 = aux
     end do
     write (lu,'("typat ",A)') lbl1
 
     write (lu,'("xred ")')
-    do i = 1, size(ntyp)
+    do i = 1, c%nspc
        do j = 1, c%ncel
-          if (c%at(c%atcel(j)%idx)%z == i) then
+          if (c%atcel(j)%is == i) then
              write (lu,'(X,3(F15.10,X))') c%atcel(j)%x
           end if
        end do
@@ -5037,19 +5006,13 @@ contains
 
   !> Write an elk input template
   subroutine write_elk(c,file)
-    use tools_io, only: fopen_write, nameguess, fclose
+    use tools_io, only: fopen_write, fclose
     use param, only: maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    integer :: ntyp(maxzat0)
+    integer :: ntyp
     integer :: i, j, lu
-
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
 
     ! Write input
     lu = fopen_write(file)
@@ -5064,17 +5027,19 @@ contains
     write (lu,'("sppath"/,"''./''"/)')
 
     write (lu,'("atoms")')
-    write (lu,'(2X,I4)') count(ntyp > 0)
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          write (lu,'(2X,"''",A,".in''")') trim(nameguess(i,.true.))
-          write (lu,'(2X,I3)') ntyp(i)
-          do j = 1, c%ncel
-             if (c%at(c%atcel(j)%idx)%z == i) then
-                write (lu,'(2X,3(F14.10,X),"0.0 0.0 0.0")') c%atcel(j)%x
-             end if
-          end do
-       end if
+    write (lu,'(2X,I4)') c%nspc
+    do i = 1, c%nspc
+       write (lu,'(2X,"''",A,".in''")') trim(c%spc(i)%name)
+       ntyp = 0
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) ntyp = ntyp + 1
+       end do
+       write (lu,'(2X,I3)') ntyp
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) then
+             write (lu,'(2X,3(F14.10,X),"0.0 0.0 0.0")') c%atcel(j)%x
+          end if
+       end do
     end do
     write (lu,*)
 
@@ -5108,7 +5073,7 @@ contains
     write (lu,*) 
     write (lu,'("0 1")') 
     do i = 1, c%ncel
-       write (lu,'(99(A,X))') string(nameguess(c%at(c%atcel(i)%idx)%z,.true.),2,ioj_left),&
+       write (lu,'(99(A,X))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.),2,ioj_left),&
           (string(c%atcel(i)%r(j)*bohrtoa,'f',14,8,ioj_left),j=1,3)
     end do
     do i = 1, 3
@@ -5155,7 +5120,7 @@ contains
     write (lu,'(5X,"crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30")')
     write (lu,'(5X,A,6(F6.3,X))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
     do i = 1, c%nneq
-       write (lu,'(5X,"neq ",3(F12.8," "),A10)') c%at(i)%x,trim(c%at(i)%name)
+       write (lu,'(5X,"neq ",3(F12.8," "),A10)') c%at(i)%x, trim(c%spc(c%at(i)%is)%name)
     end do
     write (lu,'("  endcrystal")')
     write (lu,'(A)') "  unitcell radius 0.01 rgb 1.0 0.5 0.5 many"
@@ -5186,7 +5151,7 @@ contains
     write (lu,'("  cell ",3(F15.11,X),3(F9.5,X))') c%aa, c%bb
     do i = 1, c%ncel
        write (lu,'("  neq ",3(F12.8," "),A10)') c%atcel(i)%x,&
-          trim(c%at(c%atcel(i)%idx)%name)
+          trim(c%spc(c%atcel(i)%is)%name)
     end do
     write (lu,'("endcrystal")')
     write (lu,'("end")')
@@ -5228,9 +5193,9 @@ contains
     write (lu,'("_atom_site_fract_y")');
     write (lu,'("_atom_site_fract_z")');
     do i = 1, c%ncel
-       iz = c%atcel(i)%idx
-       write (lu,'(A5,X,A3,X,3(F20.14,X))') c%at(iz)%name, &
-          nameguess(c%at(iz)%z,.true.), c%atcel(i)%x
+       iz = c%atcel(i)%is
+       write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, &
+          nameguess(c%spc(iz)%z,.true.), c%atcel(i)%x
     end do
     call fclose(lu)
 
@@ -5256,11 +5221,7 @@ contains
     if (dosym) then
        ! This is to address a bug in gfortran 4.9 (and possibly earlier versions)
        ! regarding assignment of user-defined types with allocatable components. 
-#if (defined(__GFORTRAN__)) && (__GNUC__ < 5)
-       call ferror("write_d12","gfortran 4.x compiler bug prevents using WRITE D12. Use NOSYM.",faterr)
-#else
        nc = c
-#endif
        call nc%cell_standard(.false.,.false.,.false.)
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0
@@ -5331,12 +5292,12 @@ contains
     if (dosym) then
        write (lu,'(A)') string(nc%nneq)
        do i = 1, nc%nneq
-          write (lu,'(4(A,X))') string(nc%at(i)%z), (string(nc%at(i)%x(j),'f',15,8),j=1,3)
+          write (lu,'(4(A,X))') string(nc%spc(nc%at(i)%is)%z), (string(nc%at(i)%x(j),'f',15,8),j=1,3)
        end do
     else
        write (lu,'(A)') string(c%ncel)
        do i = 1, c%ncel
-          write (lu,'(4(A,X))') string(c%at(c%atcel(i)%idx)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
+          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
        end do
     end if
     write (lu,'("SETPRINT")')
@@ -5359,29 +5320,24 @@ contains
   !> Write an escher octave script
   subroutine write_escher(c,file)
     use global, only: fileroot
-    use tools_io, only: fopen_write, string, nameguess, fclose
+    use tools_io, only: fopen_write, string, fclose
     use param, only: pi, maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    character(len=:), allocatable :: lbl1
+    character(len=:), allocatable :: lbl1, aux
     integer :: lu, i, j, n
-    integer :: ntyp(maxzat0)
+    integer :: ntyp
 
     lu = fopen_write(file)
 
     ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
-
     write (lu,'("cr = struct();")')
     write (lu,'("cr.name = """,A,""";")') trim(adjustl(fileroot))
     write (lu,'("cr.a = [",1p,3(E22.14,X),"];")') c%aa
     write (lu,'("cr.b = [",1p,3(E22.14,X),"];")') c%bb * pi / 180d0
     write (lu,'("cr.nat = ",I6,";")') c%ncel
-    write (lu,'("cr.ntyp = ",I6,";")') count(ntyp > 0)
+    write (lu,'("cr.ntyp = ",I6,";")') c%nspc
     write (lu,'("cr.r = [")')
     do i = 1, 3
        write (lu,'(2X,1p,3(E22.14,X))') c%crys2car(:,i)
@@ -5395,50 +5351,40 @@ contains
     write (lu,'("cr.omega = ",1p,E22.14,";")') c%omega
 
     lbl1 = "cr.ztyp = ["
-    n = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          lbl1 = lbl1 // " " // string(i)
-       end if
+    do i = 1, c%nspc
+       aux = lbl1 // " " // string(c%spc(i)%z)
+       lbl1 = aux
     end do
-    lbl1 = lbl1 // "];"
+    aux = lbl1 // "];"
+    lbl1 = aux
     write (lu,'(A)') lbl1
 
     lbl1 = "cr.attyp = {"
-    n = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          n = n + 1
-          if (n > 1) lbl1 = lbl1 // ","
-          lbl1 = lbl1 // '"' // string(nameguess(i,.true.)) // '"'
+    do i = 1, c%nspc
+       if (i > 1) then
+          aux = lbl1 // ","
+          lbl1 = aux
        end if
+       aux = lbl1 // '"' // string(c%spc(i)%name) // '"'
+       lbl1 = aux
     end do
-    lbl1 = lbl1 // "};"
+    aux = lbl1 // "};"
+    lbl1 = aux
     write (lu,'(A)') lbl1
 
     lbl1 = "cr.typ = ["
-    n = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          n = n + 1
-          do j = 1, ntyp(i)
-             lbl1 = lbl1 // " " // string(n)
-          end do
-       end if
+    do i = 1, c%ncel
+       aux = lbl1 // " " // string(c%atcel(i)%is)
+       lbl1 = aux
     end do
-    lbl1 = lbl1 // "];"
+    aux = lbl1 // "];"
+    lbl1 = aux
     write (lu,'(A)') lbl1
 
     write (lu,'("cr.x = [")')
     n = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          do j = 1, c%ncel
-             if (c%at(c%atcel(j)%idx)%z == i) then
-                write (lu,'(2X,1p,3(E22.14,X))') c%atcel(j)%x
-             endif
-          end do
-       end if
+    do i = 1, c%ncel
+       write (lu,'(2X,1p,3(E22.14,X))') c%atcel(i)%x
     end do
     write (lu,'("  ];")')
 
@@ -5478,7 +5424,7 @@ contains
        write (lu,'("cell ",3(F13.9,X),3(F10.5,X))') c%aa * bohrtoa, c%bb
        write (lu,'("fractional")')
        do i = 1, c%ncel
-          write (lu,'(A5,X,3(F15.9,X))') trim(c%at(c%atcel(i)%idx)%name),&
+          write (lu,'(A5,X,3(F15.9,X))') trim(c%spc(c%atcel(i)%is)%name),&
              c%atcel(i)%x
        end do
     else
@@ -5486,11 +5432,11 @@ contains
        nneigh = 0
        nhb = 0
        do i = 1, c%nneq
-          iz = c%at(i)%z
+          iz = c%spc(c%at(i)%is)%z
           n = 0
           ! determine covalent bonds
           do j = 1, c%nenv
-             jz = c%at(c%atenv(j)%idx)%z
+             jz = c%spc(c%atenv(j)%is)%z
              d = sqrt(dot_product(c%atenv(j)%r-c%at(i)%r,c%atenv(j)%r-c%at(i)%r))
              if (d < 1d-10) cycle
              if (d < (atmcov(iz) + atmcov(jz)) * rfac) then
@@ -5520,7 +5466,7 @@ contains
           if (iz == 1) then
              n = 0
              do j = 1, c%nenv
-                jz = c%at(c%atenv(j)%idx)%z
+                jz = c%spc(c%atenv(j)%is)%z
                 ! only with N, O, and S
                 if (jz==7 .or. jz==8 .or. jz==9 .or. jz==16 .or. jz==17 .or. jz==35 .or. jz==53) then
                    d = sqrt(dot_product(c%atenv(j)%r-c%at(i)%r,c%atenv(j)%r-c%at(i)%r))
@@ -5532,7 +5478,7 @@ contains
                          x1 = c%atenv(ineigh(k,i))%r - c%at(i)%r
                          x2 = c%atenv(j)%r - c%at(i)%r
                          ang = abs(acos(dot_product(x1,x2) / norm(x1) / norm(x2)) * 180d0 / pi)
-                         kz = c%at(c%atenv(ineigh(k,i))%idx)%z
+                         kz = c%spc(c%atenv(ineigh(k,i))%is)%z
                          isat = (kz==7 .or. kz==8 .or. kz==9 .or. kz==16 .or. kz==17 .or. kz==35 .or. kz==53)
                          if (ang < 145d0 .or..not.isat) then
                             ok = .false.
@@ -5557,7 +5503,7 @@ contains
        write (lu,'("fractional")')
        do i = 1, c%ncel
           idx = c%atcel(i)%idx
-          iz = c%at(idx)%z
+          iz = c%spc(c%at(idx)%is)%z
           ang = avgang(idx)
           ! the first two letters is the atomic symbol
           lbl = adjustl(nameguess(iz))
@@ -5600,21 +5546,15 @@ contains
     character*(*), intent(in) :: file
 
     integer :: i, j, k, l
-    integer :: ntyp(maxzat0), lu
+    integer :: ntyp, lu
     real*8 :: rnew(3,3)
 
     lu = fopen_write(file)
 
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
-
     ! header
     write (lu,'("LAMMPS data file created by critic2. (experimental)",/)')
     write (lu,'(I9," atoms")') c%ncel
-    write (lu,'(I9," atom types")') count(ntyp > 0)
+    write (lu,'(I9," atom types")') c%nspc
     write (lu,*)
 
     ! metrics of the cell --> this needs more testing
@@ -5630,25 +5570,18 @@ contains
     write (lu,*)
 
     write (lu,'("Masses"/)')
-    j = 0
-    do i = 1, maxzat0
-       if (ntyp(i) > 0) then
-          j = j + 1
-          write (lu,'(I3,X,F10.4)') j, atmass(i)
-       end if
+    do i = 1, c%nspc
+       write (lu,'(I3,X,F10.4)') i, atmass(c%spc(i)%z)
     end do
     write (lu,*)
 
     write (lu,'("Atoms"/)')
-    k = 0
     l = 0
-    do i = 1, maxzat0
-       if (ntyp(i) == 0) cycle
-       k = k + 1
+    do i = 1, c%nspc
        do j = 1, c%ncel
-          if (c%at(c%atcel(j)%idx)%z /= i) cycle
+          if (c%atcel(j)%is /= i) cycle
           l = l + 1
-          write (lu,'(I7,X,I3,X,F4.1,3(F15.8,X))') l, k, 0d0, c%atcel(j)%r*bohrtoa
+          write (lu,'(I7,X,I3,X,F4.1,3(F15.8,X))') l, i, 0d0, c%atcel(j)%r*bohrtoa
        end do
     end do
 
@@ -5664,16 +5597,9 @@ contains
     character*(*), intent(in) :: file
 
     integer :: i, j, k
-    integer :: ntyp(maxzat0), lu, nspecies
+    integer :: lu
 
     lu = fopen_write(file)
-
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
-    nspecies = count(ntyp > 0)
 
     ! header
     write (lu,'("# fdf file created by critic2.",/)')
@@ -5681,15 +5607,11 @@ contains
     write (lu,'("SystemLabel crystal")') 
     write (lu,*)
 
-    write (lu,'("NumberOfSpecies ",I3)') nspecies
+    write (lu,'("NumberOfSpecies ",I3)') c%nspc
     write (lu,'("NumberOfAtoms ", I6)') c%ncel
     write (lu,'("%block Chemical_Species_Label")') 
-    j = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          j = j + 1
-          write (lu,'(I3,I3,X,A2)') j, i, lower(nameguess(i,.true.))
-       end if
+    do i = 1, c%nspc
+       write (lu,'(I3,I3,X,A2)') i, c%spc(i)%z, lower(nameguess(c%spc(i)%z,.true.))
     end do
     write (lu,'("%endblock Chemical_Species_Label")') 
     write (lu,*)
@@ -5700,16 +5622,11 @@ contains
     write (lu,'("%endblock LatticeParameters")')
     write (lu,'("AtomicCoordinatesFormat Fractional")')
     write (lu,'("%block AtomicCoordinatesAndAtomicSpecies")')
-    k = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          k = k + 1
-          do j = 1, c%ncel
-             if (c%at(c%atcel(j)%idx)%z == i) then
-                write (lu,'(3(F18.12,X),I3)') c%atcel(j)%x, k
-             endif
-          end do
-       end if
+    do i = 1, c%nspc
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) &
+             write (lu,'(3(F18.12,X),I3)') c%atcel(j)%x, i
+       end do
     end do
     write (lu,'("%endblock AtomicCoordinatesAndAtomicSpecies")')
     write (lu,*)
@@ -5752,16 +5669,9 @@ contains
 
     integer :: lu
     real*8 :: r(3,3)
-    integer :: i, j, k, ntyp(maxzat0), nspecies
+    integer :: i, j, k
 
     lu = fopen_write(file)
-
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
-    nspecies = count(ntyp > 0)
 
     ! lattice vectors
     r = transpose(c%crys2car) * bohrtoa
@@ -5772,28 +5682,20 @@ contains
     ! atoms
     write (lu,*) c%ncel
     j = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          j = j + 1
-          do k = 1, c%ncel
-             if (c%at(c%atcel(k)%idx)%z == i) then
-                write (lu,'(I3,X,I3,X,3(F20.12,X))') j, i, c%atcel(k)%x
-             end if
-          end do
-       end if
+    do i = 1, c%nspc
+       do k = 1, c%ncel
+          if (c%atcel(k)%is == i) &
+             write (lu,'(I3,X,I3,X,3(F20.12,X))') i, c%spc(i)%z, c%atcel(k)%x
+       end do
     end do
 
     call fclose(lu)
 
     ! Write the chemical species block to standard output
     write (uout,'("%block Chemical_Species_Label")') 
-    j = 0
-    do i = 1, size(ntyp)
-       if (ntyp(i) > 0) then
-          j = j + 1
-          write (uout,'(3(2X,A))') string(j), string(i), &
-             string(nameguess(i,.true.))
-       end if
+    do i = 1, c%nspc
+       write (uout,'(3(2X,A))') string(i), string(c%spc(i)%z), &
+          string(nameguess(c%spc(i)%z,.true.))
     end do
     write (uout,'("%endblock Chemical_Species_Label")') 
     write (uout,*)
@@ -5806,8 +5708,6 @@ contains
     use param, only: maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
-
-    logical :: ltyp(maxzat0)
 
     real*8, parameter :: hderiv(maxzat0) = (/&
      -0.1857d0,      0.d0,      0.d0,    0.d0,      0.d0, -0.1492d0,& ! 1:6   (H-C)
@@ -5859,7 +5759,7 @@ contains
 
     lu = fopen_write(file)
     write (lu,'("Geometry = GenFormat {")')
-    call c%write_dftbp_gen(file,lu,ltyp)
+    call c%write_dftbp_gen(file,lu)
     write(lu,'("}")')
     write(lu,'("")')
     write(lu,'("Driver = ConjugateGradient {")')
@@ -5876,11 +5776,9 @@ contains
     write(lu,'("  SCCTolerance = 1e-7")')
     write(lu,'("  MaxSCCIterations = 125")')
     write(lu,'("  MaxAngularMomentum = {")')
-    do i = 1, size(ltyp)
-       if (ltyp(i)) then
-          write (lu,'(4X,A," = ",A)') string(nameguess(i,.true.)), &
-             string(maxang(i))
-       end if
+    do i = 1, c%nspc
+       write (lu,'(4X,A," = ",A)') string(nameguess(c%spc(i)%z,.true.)), &
+          string(maxang(c%spc(i)%z))
     end do
     write(lu,'("  }")')
     write(lu,'("  SlaterKosterFiles = Type2FileNames {")')
@@ -5900,11 +5798,9 @@ contains
     write(lu,'("  DampXH = Yes")')
     write(lu,'("  DampXHExponent = 4.2")')
     write(lu,'("  HubbardDerivs {")')
-    do i = 1, size(ltyp)
-       if (ltyp(i)) then
-          write (lu,'(4X,A," = ",A)') string(nameguess(i,.true.)), &
-             string(hderiv(i),'f',decimal=4)
-       end if
+    do i = 1, c%nspc
+       write (lu,'(4X,A," = ",A)') string(nameguess(c%spc(i)%z,.true.)), &
+          string(hderiv(c%spc(i)%z),'f',decimal=4)
     end do
     write(lu,'("  }")')
     write(lu,'("}")')
@@ -5922,26 +5818,16 @@ contains
   end subroutine write_dftbp_hsd
 
   !> Write a DFTB+ human-friendly gen structure file
-  subroutine write_dftbp_gen(c,file,lu0,ltyp0)
+  subroutine write_dftbp_gen(c,file,lu0)
     use tools_io, only: fopen_write, nameguess, string, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in), optional :: lu0
-    logical, intent(out), optional :: ltyp0(maxzat0)
 
-    integer :: lu, nspecies, n, nt, i, j, k
-    logical :: ltyp(maxzat0)
+    integer :: lu, n, nt, i, j, k
     real*8 :: r(3,3)
-    character(len=:), allocatable :: strtyp
-
-    ! count atoms types
-    ltyp = .false.
-    do i = 1, c%ncel
-       ltyp(c%at(c%atcel(i)%idx)%z) = .true.
-    end do
-    nspecies = count(ltyp)
-    if (present(ltyp0)) ltyp0 = ltyp
+    character(len=:), allocatable :: strtyp, aux
 
     ! open file
     if (present(lu0)) then
@@ -5952,31 +5838,23 @@ contains
 
     ! atom types
     strtyp = ""
-    do i = 1, size(ltyp)
-       if (ltyp(i)) then
-          strtyp = strtyp // " " // string(nameguess(i,.true.))
-       end if
+    do i = 1, c%nspc
+       aux = strtyp // " " // string(nameguess(c%spc(i)%z,.true.))
+       strtyp = aux
     end do
 
     if (c%ismolecule) then
        ! molecule
        write (lu,'(A," C")') string(c%ncel)
        write (lu,'(A)') strtyp
-
+       
        ! Cartesian coordinates
-       n = 0
-       nt = 0
-       do i = 1, size(ltyp)
-          if (ltyp(i)) then
-             nt = nt + 1
-             do k = 1, c%ncel
-                if (c%at(c%atcel(k)%idx)%z == i) then
-                   n = n + 1
-                   write (lu,'(99(A,X))') string(n), string(nt), &
-                      (string(c%atcel(k)%r(j)*bohrtoa,'f',20,12),j=1,3)
-                end if
-             end do
-          end if
+       do i = 1, c%nspc
+          do k = 1, c%ncel
+             if (c%atcel(k)%is == i) &
+                write (lu,'(99(A,X))') string(k), string(i), &
+                (string(c%atcel(k)%r(j)*bohrtoa,'f',20,12),j=1,3)
+          end do
        end do
     else
        ! crystal
@@ -5984,19 +5862,12 @@ contains
        write (lu,'(A)') strtyp
 
        ! fractional coordinates
-       n = 0
-       nt = 0
-       do i = 1, size(ltyp)
-          if (ltyp(i)) then
-             nt = nt + 1
-             do k = 1, c%ncel
-                if (c%at(c%atcel(k)%idx)%z == i) then
-                   n = n + 1
-                   write (lu,'(99(A,X))') string(n), string(nt), &
-                      (string(c%atcel(k)%x(j),'f',20,12),j=1,3)
-                end if
-             end do
-          end if
+       do i = 1, c%nspc
+          do k = 1, c%ncel
+             if (c%atcel(k)%is == i) &
+                write (lu,'(99(A,X))') string(k), string(i), &
+                (string(c%atcel(k)%x(j),'f',20,12),j=1,3)
+          end do
        end do
 
        ! lattice vectors
@@ -6059,7 +5930,7 @@ contains
           write(lu,'(I5,1x,3(E22.14,1X))') n(i), xd(:,i)
        end do
        do i = 1, c%ncel
-          write(lu,'(I4,F5.1,3(E22.14,1X))') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+          write(lu,'(I4,F5.1,3(E22.14,1X))') c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
        end do
     else
        write(lu,'(I5,3(F12.6))') c%ncel, x0
@@ -6067,7 +5938,7 @@ contains
           write(lu,'(I5,3(F12.6))') n(i), xd(:,i)
        end do
        do i = 1, c%ncel
-          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%at(c%atcel(i)%idx)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
        end do
     end if
     if (.not.onlyheader) then
@@ -6096,9 +5967,8 @@ contains
     character*(*), intent(in) :: file
     logical :: onlyheader
 
-    integer :: n(3), i, j, ix, iy, iz, lu
-    integer :: ntyp(maxzat0)
-    character(len=:), allocatable :: line0
+    integer :: n(3), i, j, ix, iy, iz, lu, ntyp
+    character(len=:), allocatable :: line0, aux
 
     do i = 1, 3
        n(i) = size(g,i)
@@ -6110,33 +5980,19 @@ contains
     do i = 1, 3
        write (lu,'(1p,3(E22.14,X))') c%crys2car(:,i) * bohrtoa
     end do
-    ! count number of atoms per type
-    ntyp = 0
-    do i = 1, c%ncel
-       ntyp(c%at(c%atcel(i)%idx)%z) = ntyp(c%at(c%atcel(i)%idx)%z) + 1
-    end do
+
     line0 = ""
-    do i = 1, maxzat0
-       if (ntyp(i) > 0) then
-          line0 = line0 // " " // string(nameguess(i,.true.))
-       end if
-    end do
-    write (lu,'(A)') line0
-    line0 = ""
-    do i = 1, maxzat0
-       if (ntyp(i) > 0) then
-          line0 = line0 // " " // string(ntyp(i))
-       end if
+    do i = 1, c%nspc
+       aux = line0 // " " // string(nameguess(c%spc(i)%z,.true.))
+       line0 = aux
     end do
     write (lu,'(A)') line0
     write (lu,'("Direct")')
-    do i = 1, maxzat0
-       if (ntyp(i) > 0) then
-          do j = 1, c%ncel
-             if (c%at(c%atcel(j)%idx)%z /= i) cycle
-             write (lu,'(1p,3(E22.14,X))') c%atcel(j)%x
-          end do
-       end if
+    do i = 1, c%nspc
+       do j = 1, c%ncel
+          if (c%atcel(j)%is == i) cycle
+          write (lu,'(1p,3(E22.14,X))') c%atcel(j)%x
+       end do
     end do
     write (lu,*)
     write (lu,'(3(I5,X))') n
@@ -6200,7 +6056,7 @@ contains
     if (.not.present(fr)) then
        nido = 0
        do i = 1, c%nenv
-          iz = c%at(c%atenv(i)%idx)%z
+          iz = c%spc(c%atenv(i)%is)%z
           if (iz == 0 .or. iz > maxzat) cycle
           if (iscore) then
              if (zpsp(iz) <= 0 .or. iz - zpsp(iz) == 0) cycle
@@ -6223,7 +6079,7 @@ contains
     do ii = 1, nido
        if (.not.present(fr)) then
           i = idolist(ii)
-          iz = c%at(c%atenv(i)%idx)%z
+          iz = c%spc(c%atenv(i)%is)%z
           if (iscore) then
              g => cgrid(iz,zpsp(iz))
           else
@@ -6231,10 +6087,11 @@ contains
           end if
           xx = xc - c%atenv(i)%r
        else
+          iz = fr%spc(fr%at(ii)%is)%z
           if (iscore) then
-             g => cgrid(fr%at(ii)%z,zpsp(fr%at(ii)%z))
+             g => cgrid(iz,zpsp(iz))
           else
-             g => agrid(fr%at(ii)%z)
+             g => agrid(iz)
           end if
           xx = xc - fr%at(ii)%r
        end if

@@ -449,7 +449,7 @@ contains
           iok = isinteger(ithis,seed%piat(i))
           found = .false.
           do j = 1, c%nneq
-             if (equal(seed%piat(i),c%at(j)%name)) then
+             if (equal(seed%piat(i),c%spc(c%at(j)%is)%name)) then
                 call f%pi%read_ion(seed%file(i),j)
                 found = .true.
              else if (iok) then
@@ -466,7 +466,7 @@ contains
           end if
        end do
 
-       call f%pi%register_struct(f%c%nenv,f%c%at,f%c%atenv(1:f%c%nenv))
+       call f%pi%register_struct(f%c%nenv,f%c%spc,f%c%atenv(1:f%c%nenv))
        call f%pi%fillinterpol()
        f%type = type_pi
        f%file = "<pi ion files>"
@@ -521,8 +521,8 @@ contains
 
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
-       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%at(1:f%c%nneq))
-       call f%dftb%register_struct(f%c%crys2car,f%c%atenv(1:f%c%nenv),f%c%at(1:f%c%nneq))
+       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
+       call f%dftb%register_struct(f%c%crys2car,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -1447,8 +1447,8 @@ contains
           end if
           write (uout,'(99(2X,A))') &
              string(i,length=3,justify=ioj_right), &
-             string(f%c%at(i)%name,length=5,justify=ioj_center), &
-             string(f%c%at(i)%z,length=2,justify=ioj_right), &
+             string(f%c%spc(f%c%at(i)%is)%name,length=5,justify=ioj_center), &
+             string(f%c%spc(f%c%at(i)%is)%z,length=2,justify=ioj_right), &
              trim(str)
        end do
        
@@ -1588,7 +1588,7 @@ contains
        f%cp(i)%ir = 1
        f%cp(i)%ic = 1
        f%cp(i)%lvec = 0
-       f%cp(i)%name = f%c%at(i)%name
+       f%cp(i)%name = f%c%spc(f%c%at(i)%is)%name
        f%cp(i)%rbeta = rbetadef
 
        ! properties at the nuclei
@@ -2055,7 +2055,7 @@ contains
     end if
 
     ! distance to hydrogens
-    if (f%c%at(f%c%atcel(nid)%idx)%z == 1) then
+    if (f%c%spc(f%c%atcel(nid)%is)%z == 1) then
        if (dist < nucepsh) then
           goto 999
        end if
@@ -2342,7 +2342,7 @@ contains
 
        ! get nearest -3 CP (idncp) and +3 CP (idccp), skip hydrogens
        if ((fid%typnuc==-3 .and. iup==1 .or. fid%typnuc==3 .and. iup==-1) .and.&
-          fid%c%at(idnuc)%z /= 1) then
+          fid%c%spc(fid%c%at(idnuc)%is)%z /= 1) then
           idcp = idnuc
           cprad = sphrad
           xcp = xnuc

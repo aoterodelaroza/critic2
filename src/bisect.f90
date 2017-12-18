@@ -937,7 +937,7 @@ contains
 
        ! set the color
        if (sy%f(sy%iref)%cp(cpn)%isnuc .and. cpn > 0 .and. cpn <= sy%c%nneq) then
-          iz = sy%c%at(cpn)%z
+          iz = sy%c%spc(sy%c%at(cpn)%is)%z
           if (iz > 0) then
              srf%rgb = jmlcol(:,iz)
           endif

@@ -135,7 +135,7 @@ contains
     ! allocate space for the mesh
     m%n = 0
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        m%n = m%n + z2nr_postg(iz) * z2nang_postg(iz)
     enddo
@@ -145,7 +145,7 @@ contains
     mr = -1
     mang = -1
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang_postg(iz))
        mr = max(mr,z2nr_postg(iz))
@@ -162,7 +162,7 @@ contains
     !$omp parallel do private(nr,nang,ir,r,il,x,j,k,r1,r2,hypr,&
     !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
 
        ! radial mesh
@@ -181,10 +181,10 @@ contains
           do il = 1, nang
              x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
              do j = 2, c%ncel
-                iz = c%at(c%atcel(j)%idx)%z 
+                iz = c%spc(c%atcel(j)%is)%z 
                 if (iz < 1 .or. iz > maxzat) cycle
                 do k = 1, j-1
-                   iz2 = c%at(c%atcel(k)%idx)%z 
+                   iz2 = c%spc(c%atcel(k)%is)%z 
                    if (iz2 < 1 .or. iz2 > maxzat) cycle
                    r1 = sqrt((x(1)-c%atcel(j)%r(1))**2+(x(2)-c%atcel(j)%r(2))**2+(x(3)-c%atcel(j)%r(3))**2)
                    r2 = sqrt((x(1)-c%atcel(k)%r(1))**2+(x(2)-c%atcel(k)%r(2))**2+(x(3)-c%atcel(k)%r(3))**2)
@@ -202,12 +202,12 @@ contains
              vp0 = 1d0
              vpsum = 0d0
              do j = 1, c%ncel
-                iz = c%at(c%atcel(j)%idx)%z 
+                iz = c%spc(c%atcel(j)%is)%z 
                 if (iz < 1 .or. iz > maxzat) cycle
                 vp0=vp0*cutoff(i,j)
                 vpi=1d0
                 do k = 1, c%ncel
-                   iz2 = c%at(c%atcel(k)%idx)%z 
+                   iz2 = c%spc(c%atcel(k)%is)%z 
                    if (iz2 < 1 .or. iz2 > maxzat) cycle
                    vpi = vpi * cutoff(j,k)
                 enddo
@@ -233,7 +233,7 @@ contains
     ! fill the 3d mesh
     kk = 0
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        nr = z2nr_postg(iz)
        nang = z2nang_postg(iz)
@@ -276,7 +276,7 @@ contains
     ! allocate space for the mesh
     m%n = 0
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        m%n = m%n + z2nr_franchini(iz,lvl) * z2nang_franchini(iz,lvl)
     enddo
@@ -286,7 +286,7 @@ contains
     mr = -1
     mang = -1
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang_franchini(iz,lvl))
        mr = max(mr,z2nr_franchini(iz,lvl))
@@ -303,7 +303,7 @@ contains
     !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1) &
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) then
           cycle
        elseif (iz == 1) then
@@ -332,7 +332,7 @@ contains
 
              vpsum = 0d0
              do j = 1, c%nenv
-                iz2 = c%at(c%atenv(j)%idx)%z 
+                iz2 = c%spc(c%atenv(j)%is)%z 
                 if (iz2 < 1 .or. iz2 > maxzat) then
                    cycle
                 elseif (iz2 == 1) then
@@ -364,7 +364,7 @@ contains
     ! fill the 3d mesh
     kk = 0
     do i = 1, c%ncel
-       iz = c%at(c%atcel(i)%idx)%z 
+       iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        nr = z2nr_franchini(iz,lvl)
        nang = z2nang_franchini(iz,lvl)

@@ -29,6 +29,7 @@ module tools_io
   private :: string_char
   private :: string_logical
   public :: equal
+  public :: equali
   public :: getline
   public :: getline_raw
   public :: nameguess
@@ -523,14 +524,22 @@ contains
   end function string_logical
 
   !> Compare two strings for equality.
-  logical function equal (s,t)
-    
+  logical function equal(s,t)
     character*(*), intent(in) :: s !< First string
     character*(*), intent(in) :: t !< Second string
 
     equal = string(s) == string(t)
 
   end function equal
+
+  !> Compare two strings for equality (case insensitive).
+  logical function equali(s,t)
+    character*(*), intent(in) :: s !< First string
+    character*(*), intent(in) :: t !< Second string
+
+    equali = lower(string(s)) == lower(string(t))
+
+  end function equali
 
   !> Read a line from logical unit u, and return true if read was
   !> successful. Continuation with "\", skip blank lines and comments.

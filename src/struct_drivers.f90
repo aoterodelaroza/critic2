@@ -53,11 +53,11 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp
-    use crystalseedmod, only: crystalseed, struct_detect_format, &
-       struct_read_potcar
+    use crystalseedmod, only: crystalseed, struct_detect_format
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, lower
+    use types, only: realloc
     character*(*), intent(in) :: line
     integer, intent(in) :: mol0
     logical, intent(in) :: allownofile
@@ -68,8 +68,7 @@ contains
 
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, subline
-    integer :: ntyp, nn, isformat
-    character*5 :: ztyp(maxzat0)
+    integer :: nn, isformat
     real*8 :: rborder, raux
     logical :: docube, ok, ismol, mol
     type(crystalseed) :: seed
@@ -110,16 +109,19 @@ contains
        call seed%read_wien(word,mol)
 
     elseif (isformat == isformat_vasp) then
+       seed%nspc = 0
        if (index(word2,'POTCAR') > 0) then
-          call struct_read_potcar(word2,ntyp,ztyp)
+          call seed%read_potcar(word2)
        else
-          ntyp = 0
-          ztyp = ""
+          allocate(seed%spc(2))
           do while(.true.)
              nn = zatguess(word2)
              if (nn >= 0) then
-                ntyp = ntyp + 1
-                ztyp(ntyp) = string(word2)
+                seed%nspc = seed%nspc + 1
+                if (seed%nspc > size(seed%spc,1)) &
+                   call realloc(seed%spc,2*seed%nspc)
+                seed%spc(seed%nspc)%name = string(word2)
+                seed%spc(seed%nspc)%z = zatguess(word2)
              else
                 if (len_trim(word2) > 0) then
                    call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line,syntax=.true.)
@@ -130,7 +132,7 @@ contains
              word2 = getword(line,lp)
           end do
        end if
-       call seed%read_vasp(word,ntyp,ztyp,mol)
+       call seed%read_vasp(word,mol)
 
     elseif (isformat == isformat_abinit) then
        call seed%read_abinit(word,mol)
@@ -274,6 +276,7 @@ contains
     do i = 1, s%c%ncel
        s%c%at(i) = aux(s%c%atcel(i)%idx)
        s%c%at(i)%x = s%c%atcel(i)%x
+       s%c%at(i)%is = s%c%atcel(i)%is
     end do
 
     ! convert ncpcel to ncel for all fields
@@ -338,9 +341,9 @@ contains
              return
           end if
           if (.not.do1) then
-             do i = 1, s%c%nneq
-                if (s%c%at(i)%z == nn) &
-                   s%c%at(i)%qat = xx
+             do i = 1, s%c%nspc
+                if (s%c%spc(i)%z == nn) &
+                   s%c%spc(i)%qat = xx
              end do
           else
              zpsp0(nn) = nint(xx)
@@ -650,14 +653,23 @@ contains
   subroutine struct_atomlabel(s,line)
     use systemmod, only: system
     use global, only: iunitname0, dunit0, iunit
-    use tools_io, only: tab, string, nameguess, lower, ioj_center, uout
+    use tools_io, only: tab, string, nameguess, lower, ioj_center, uout, equal
+    use types, only: species, realloc
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: templ, aux, aux2
 
-    integer :: i, j, inum, idx
+    integer :: i, j, inum, idx, iz, jz
+    integer :: nspc
+    integer, allocatable :: is(:)
+    type(species), allocatable :: spc(:)
+    logical :: found
     
+    nspc = 0
+    allocate(spc(1))
+    allocate(is(s%c%nneq))
+
     ! clean up the input label and build the template
     templ = trim(adjustl(line))
     aux = ""
@@ -669,44 +681,83 @@ contains
     templ = aux
 
     do i = 1, s%c%nneq
-       aux = templ
+       iz = s%c%spc(s%c%at(i)%is)%z
+       aux = trim(templ)
        do while(.true.)
           if (index(aux,"%aid") > 0) then
              ! the absolute index for this atom
              idx = index(aux,"%aid")
              aux2 = aux(1:idx-1) // string(i) // aux(idx+4:)
-             aux = aux2
+             aux = trim(aux2)
           elseif (index(aux,"%id") > 0) then
              ! the index by counting atoms only of this type
              inum = 0
              do j = 1, i
-                if (s%c%at(j)%z == s%c%at(i)%z) inum = inum + 1
+                if (s%c%spc(s%c%at(j)%is)%z == iz) inum = inum + 1
              end do
              idx = index(aux,"%id")
              aux2 = aux(1:idx-1) // string(inum) // aux(idx+3:)
-             aux = aux2
+             aux = trim(aux2)
           elseif (index(aux,"%S") > 0) then
              ! the atomic symbol
              idx = index(aux,"%S")
-             aux2 = aux(1:idx-1) // string(nameguess(s%c%at(i)%z,.true.)) // aux(idx+2:)
-             aux = aux2
+             aux2 = aux(1:idx-1) // string(nameguess(iz,.true.)) // aux(idx+2:)
+             aux = trim(aux2)
           elseif (index(aux,"%s") > 0) then
              ! the atomic symbol, lowercase
              idx = index(aux,"%s")
-             aux2 = aux(1:idx-1) // string(lower(nameguess(s%c%at(i)%z,.true.))) // aux(idx+2:)
-             aux = aux2
+             aux2 = aux(1:idx-1) // string(lower(nameguess(iz,.true.))) // aux(idx+2:)
+             aux = trim(aux2)
           elseif (index(aux,"%l") > 0) then
              ! the original atom label
              idx = index(aux,"%l")
-             aux2 = aux(1:idx-1) // string(s%c%at(i)%name) // aux(idx+2:)
-             aux = aux2
+             aux2 = aux(1:idx-1) // string(s%c%spc(s%c%at(i)%is)%name) // aux(idx+2:)
+             aux = trim(aux2)
           else
              exit
           endif
        end do
-       s%c%at(i)%name = trim(aux)
+
+       found = .false.
+       do j = 1, nspc
+          if (equal(aux,spc(j)%name) .and. s%c%spc(s%c%at(i)%is)%z == spc(j)%z) then
+             found = .true.
+             is(i) = j
+             exit
+          end if
+       end do
+
+       if (.not.found) then
+          nspc = nspc + 1
+          if (nspc > size(spc,1)) &
+             call realloc(spc,2*nspc)
+          spc(nspc)%name = trim(aux)
+          spc(nspc)%z = s%c%spc(s%c%at(i)%is)%z
+          spc(nspc)%qat = s%c%spc(s%c%at(i)%is)%qat
+          is(i) = nspc
+       end if
     end do
+    call realloc(spc,nspc)
     
+    s%c%nspc = nspc
+    if (allocated(s%c%spc)) deallocate(s%c%spc)
+    allocate(s%c%spc(s%c%nspc))
+    s%c%spc = spc
+    do i = 1, s%c%nneq
+       s%c%at(i)%is = is(i)
+    end do
+    if (allocated(s%c%atcel)) then
+       do i = 1, s%c%ncel
+          s%c%atcel(i)%is = s%c%at(s%c%atcel(i)%idx)%is
+       end do
+    end if
+    if (allocated(s%c%atenv)) then
+       do i = 1, s%c%nenv
+          s%c%atenv(i)%is = s%c%at(s%c%atenv(i)%idx)%is
+       end do
+    end if
+    deallocate(is)
+
     ! Write the list of atomic coordinates
     if (.not.s%c%ismolecule) then
        write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
@@ -720,8 +771,9 @@ contains
              string(s%c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
              string(s%c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
              string(s%c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-             string(s%c%at(i)%name,10,ioj_center), &
-             string(s%c%at(i)%mult,4,ioj_center), string(s%c%at(i)%z,4,ioj_center)
+             string(s%c%spc(s%c%at(i)%is)%name,10,ioj_center), &
+             string(s%c%at(i)%mult,4,ioj_center), &
+             string(s%c%spc(s%c%at(i)%is)%z,4,ioj_center)
        enddo
        write (uout,*)
     else
@@ -734,8 +786,8 @@ contains
           write (uout,'(2x,6(A,X))') &
              string(i,3,ioj_center),&
              (string((s%c%atcel(i)%r(j)+s%c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(s%c%at(s%c%atcel(i)%idx)%name,10,ioj_center),&
-             string(s%c%at(s%c%atcel(i)%idx)%z,4,ioj_center)
+             string(s%c%spc(s%c%atcel(i)%is)%name,10,ioj_center),&
+             string(s%c%spc(s%c%atcel(i)%is)%z,4,ioj_center)
        enddo
        write (uout,*)
     end if
@@ -1328,25 +1380,25 @@ contains
           if (iat_mode == iid) then
              if (iat /= i) cycle
           elseif (iat_mode == iznuc) then
-             if (iat /= s%c%at(i)%z) cycle
+             if (iat /= s%c%spc(s%c%at(i)%is)%z) cycle
           end if
           call s%c%pointshell(s%c%at(i)%x,nn,nneig,wat,dist,xenv)
           do j = 1, nn
              if (iby_mode == iid) then
                 if (iby /= wat(j)) cycle
              elseif (iby_mode == iznuc) then
-                if (iby /= s%c%at(wat(j))%z) cycle
+                if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
              end if
              xout = xenv(:,1,j)
              if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
              if (j == 1) then
                 write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                   i, s%c%at(i)%name, nneig(j), dist(j)*dunit0(iunit), wat(j), &
-                   s%c%at(wat(j))%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
+                   i, s%c%spc(s%c%at(i)%is)%name, nneig(j), dist(j)*dunit0(iunit), wat(j), &
+                   s%c%spc(s%c%at(wat(j))%is)%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
              else
                 if (wat(j) /= 0) then
                    write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                      nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%at(wat(j))%name,&
+                      nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%spc(s%c%at(wat(j))%is)%name,&
                       (string(xout(k),'f',12,7,ioj_right),k=1,3)
                 end if
              end if
@@ -1369,13 +1421,13 @@ contains
           if (iby_mode == iid) then
              if (iby /= wat(j)) cycle
           elseif (iby_mode == iznuc) then
-             if (iby /= s%c%at(wat(j))%z) cycle
+             if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
           end if
           xout = xenv(:,1,j)
           if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
           if (wat(j) /= 0) then
              write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%at(wat(j))%name, &
+                nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%spc(s%c%at(wat(j))%is)%name, &
                 (string(xout(k),'f',12,7,ioj_right),k=1,3)
           end if
        end do
@@ -1391,13 +1443,13 @@ contains
           if (iby_mode == iid) then
              if (iby /= wat(j)) cycle
           elseif (iby_mode == iznuc) then
-             if (iby /= s%c%at(wat(j))%z) cycle
+             if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
           end if
           do k = 1, nneig(j)
              xout = xenv(:,k,j)
              if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
              write (uout,'(6(A,X))') &
-                string(s%c%at(wat(j))%name,5,ioj_center), string(wat(j),2),&
+                string(s%c%spc(s%c%at(wat(j))%is)%name,5,ioj_center), string(wat(j),2),&
                 (string(xout(l),'f',12,7,ioj_right),l=1,3),&
                 string(dist(j)*dunit0(iunit),'f',12,5,ioj_right)
           end do
@@ -1490,7 +1542,7 @@ contains
           do j = 1, s%c%nneq
              idx = j
              call s%c%nearest_atom(x,idx,dist,lvec)
-             found = (dist < atmvdw(s%c%at(j)%z))
+             found = (dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
              if (found) exit
           end do
           if (.not.found) then

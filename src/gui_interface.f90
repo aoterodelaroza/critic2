@@ -141,7 +141,7 @@ contains
 
     integer :: lp
     character(len=:), allocatable :: line
-    integer :: i, j, idx, iz, nseed, n, idx1, idx2, iz1, iz2
+    integer :: i, j, idx, iz, nseed, n, idx1, idx2, iz1, iz2, is
     type(crystalseed), allocatable :: seed(:)
     real(c_float) :: xmax(3)
     real*8 :: dist
@@ -167,11 +167,12 @@ contains
        if (allocated(sc(1)%at)) deallocate(sc(1)%at)
        allocate(sc(1)%at(sc(1)%nat))
        do i = 1, sc(1)%nat
+          is = sc(1)%sy%c%atcel(i)%is
           idx = sc(1)%sy%c%atcel(i)%idx
-          iz = sc(1)%sy%c%at(idx)%z
+          iz = sc(1)%sy%c%spc(is)%z
           sc(1)%at(i)%r = sc(1)%sy%c%atcel(i)%r
           sc(1)%at(i)%z = iz
-          call f_c_string(sc(1)%sy%c%at(idx)%name,sc(1)%at(i)%label,11)
+          call f_c_string(sc(1)%sy%c%spc(is)%name,sc(1)%at(i)%label,11)
           if (atmcov(iz) > 1) then
              sc(1)%at(i)%rad = 0.7*atmcov(iz)
           else
@@ -209,8 +210,8 @@ contains
                 n = n + 1
                 sc(1)%bond(n)%r1 = sc(1)%sy%c%atcel(idx1)%r
                 sc(1)%bond(n)%r2 = sc(1)%sy%c%atcel(idx2)%r
-                iz1 = sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx1)%idx)%z
-                iz2 = sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx2)%idx)%z
+                iz1 = sc(1)%sy%c%spc(sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx1)%idx)%is)%z
+                iz2 = sc(1)%sy%c%spc(sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx2)%idx)%is)%z
                 sc(1)%bond(n)%rgb1(1:3) = real(jmlcol(:,iz1),4) / 255.
                 sc(1)%bond(n)%rgb1(4) = 1.0
                 sc(1)%bond(n)%rgb2(1:3) = real(jmlcol(:,iz2),4) / 255.
@@ -239,9 +240,6 @@ contains
 
   subroutine set_scene_pointers(isc) bind(c)
     use iso_c_binding, only: c_loc
-    use gui_glfw
-    use gui_glu
-    use gui_gl
     integer(c_int), value, intent(in) :: isc
 
     nat = 0

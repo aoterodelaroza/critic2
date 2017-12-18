@@ -457,7 +457,7 @@ contains
     ! calculate the star of lattice vectors
     rmax = 0d0
     do i = 1, sy%c%nneq
-       rmax = max(rmax,cutrad(sy%c%at(i)%z))
+       rmax = max(rmax,cutrad(sy%c%spc(sy%c%at(i)%is)%z))
     end do
     call search_lattice(sy%c%crys2car,rmax,imax,jmax,kmax)
     allocate(lvec(3,(2*imax+1)*(2*jmax+1)*(2*kmax+1)))
@@ -502,11 +502,11 @@ contains
                 do k = 1, n(3)
                    x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/) + lvec(:,ll)
                    x = sy%c%x2c(x - sy%c%at(iat)%x)
-                   if (any(abs(x) > cutrad(sy%c%at(iat)%z))) cycle
+                   if (any(abs(x) > cutrad(sy%c%spc(sy%c%at(iat)%is)%z))) cycle
                    ri = sqrt(x(1)*x(1) + x(2)*x(2) + x(3)*x(3))
-                   if (ri > cutrad(sy%c%at(iat)%z)) cycle
+                   if (ri > cutrad(sy%c%spc(sy%c%at(iat)%is)%z)) cycle
 
-                   call agrid(sy%c%at(iat)%z)%interp(ri,rhofree,raux1,raux2)
+                   call agrid(sy%c%spc(sy%c%at(iat)%is)%z)%interp(ri,rhofree,raux1,raux2)
                    rhot = sy%f(irho)%grid%f(i,j,k)
                    wei = rhofree * rhot / max(sy%f(ipdens)%grid%f(i,j,k),1d-14)
                    db = max(ri-sy%f(ib)%grid%f(i,j,k),0d0)
@@ -544,13 +544,13 @@ contains
     allocate(ityp(maxzat0),afree(sy%c%nneq),alpha(sy%c%nneq))
     ityp = 0
     do i = 1, sy%c%nneq
-       if (ityp(sy%c%at(i)%z) == 0) then
-          afree(i) = free_volume(sy%c%at(i)%z)
-          ityp(sy%c%at(i)%z) = i
+       if (ityp(sy%c%spc(sy%c%at(i)%is)%z) == 0) then
+          afree(i) = free_volume(sy%c%spc(sy%c%at(i)%is)%z)
+          ityp(sy%c%spc(sy%c%at(i)%is)%z) = i
        else
-          afree(i) = afree(ityp(sy%c%at(i)%z))
+          afree(i) = afree(ityp(sy%c%spc(sy%c%at(i)%is)%z))
        endif
-       alpha(i) = min(avol(i) / afree(i),1d0) * alpha_free(sy%c%at(i)%z)
+       alpha(i) = min(avol(i) / afree(i),1d0) * alpha_free(sy%c%spc(sy%c%at(i)%is)%z)
     end do
     deallocate(ityp)
 
@@ -1088,7 +1088,7 @@ contains
     lu = fopen_scratch()
     nelec = 0
     do i = 1, sy%c%ncel
-       iz = sy%c%at(sy%c%atcel(i)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
        nelec = nelec + iz
 
@@ -1114,7 +1114,7 @@ contains
     luh = fopen_scratch()
     rewind(lu)
     do i = 1, sy%c%ncel
-       iz = sy%c%at(sy%c%atcel(i)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
        read (lu) (m%f(j,3),j=1,m%n)
        write (luh) (max(m%f(j,3),1d-40)/max(m%f(j,2),1d-40),j=1,m%n)
@@ -1134,7 +1134,7 @@ contains
     v = 0d0
     rewind(luh)
     do i = 1, sy%c%ncel
-       iz = sy%c%at(sy%c%atcel(i)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
        read (luh) (m%f(j,2),j=1,m%n)
 
@@ -1187,7 +1187,7 @@ contains
 
     ! write the atoms
     do i = 1, sy%c%ncel
-       write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%at(sy%c%atcel(i)%idx)%z, 0d0, sy%c%atcel(i)%r
+       write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%spc(sy%c%atcel(i)%is)%z, 0d0, sy%c%atcel(i)%r
     end do
 
     ! write the field
@@ -1489,11 +1489,11 @@ contains
     ! calculate the energies and derivatives
     e = 0d0
     do i = 1, caux%ncel
-       iz = caux%at(caux%atcel(i)%idx)%z
+       iz = caux%spc(caux%atcel(i)%is)%z
        if (iz < 1) cycle
        do jj = 1, caux%nenv
           j = caux%atenv(jj)%cidx
-          iz = caux%at(caux%atenv(jj)%idx)%z
+          iz = caux%spc(caux%atenv(jj)%is)%z
           if (iz < 1) cycle
           xij = caux%atenv(jj)%r-caux%atcel(i)%r
           d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
@@ -1544,7 +1544,7 @@ contains
     allocate(alpha(sy%c%ncel,0:1))
     do j = 0, 1
        do i = 1, sy%c%ncel
-          iz = sy%c%at(sy%c%atcel(i)%idx)%z
+          iz = sy%c%spc(sy%c%atcel(i)%is)%z
           alpha(i,j) = min(v(i,j) / vfree(i,j),1d0) * alpha_free(iz)
        end do
     end do
@@ -1568,7 +1568,7 @@ contains
     ! calculate the energies and derivatives
     e = 0d0
     do i = 1, caux%ncel
-       iz = caux%at(caux%atcel(i)%idx)%z
+       iz = caux%spc(caux%atcel(i)%is)%z
        if (iz < 1) cycle
        x0 = caux%x2c(caux%atcel(i)%x + lvec(:,i,i1))
        alpha1 = alpha(i,i1)
@@ -1576,7 +1576,7 @@ contains
 
        do jj = 1, caux%nenv
           j = caux%atenv(jj)%cidx
-          iz = caux%at(caux%atenv(jj)%idx)%z
+          iz = caux%spc(caux%atenv(jj)%is)%z
           if (iz < 1) cycle
 
           xij = caux%atenv(jj)%r - x0
@@ -1632,14 +1632,14 @@ contains
     write (uout,'("moments and volumes ")')
     write (uout,'("# i At        <M1^2>             <M2^2>              <M3^2>           Volume              Vfree")')
     do i = 1, sy%c%ncel
-       iz = sy%c%at(sy%c%atcel(i)%idx)%z
-       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(sy%c%at(sy%c%atcel(i)%idx)%name,2),&
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
+       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
           (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
     enddo
     write (uout,'("#")')
 
     do i = 1, sy%c%ncel
-       iz = sy%c%at(sy%c%atcel(i)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
        atpol(i) = v(i) * alpha_free(iz) / frevol(iz,chf)
     enddo
@@ -1648,10 +1648,10 @@ contains
     write (uout,'("coefficients and distances (a.u.)")')
     write (uout,'("# i  j       dij            C6               C8               C10              Rc           Rvdw")') 
     do i = 1, sy%c%ncel
-       iz = sy%c%at(sy%c%atcel(i)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
        do j = i, sy%c%ncel
-          iz = sy%c%at(sy%c%atcel(j)%idx)%z
+          iz = sy%c%spc(sy%c%atcel(j)%is)%z
           if (iz < 1) cycle
           fac = atpol(i)*atpol(j)/(mm(1,i)*atpol(j)+mm(1,j)*atpol(i))
           c6(i,j) = fac*mm(1,i)*mm(1,j)

@@ -91,11 +91,11 @@ contains
                       x = lvec + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + &
                          (k-1) * xdelta(:,3) - sy%c%at(iat)%r
                       dist = sqrt(dot_product(x,x))
-                      if (.not.agrid(sy%c%at(iat)%z)%isinit) cycle
-                      if (dist > agrid(sy%c%at(iat)%z)%rmax / 2) cycle
+                      if (.not.agrid(sy%c%spc(sy%c%at(iat)%is)%z)%isinit) cycle
+                      if (dist > agrid(sy%c%spc(sy%c%at(iat)%is)%z)%rmax / 2) cycle
 
                       doagain = .true.
-                      call agrid(sy%c%at(iat)%z)%interp(dist,rrho,rrho1,rrho2)
+                      call agrid(sy%c%spc(sy%c%at(iat)%is)%z)%interp(dist,rrho,rrho1,rrho2)
                       sum = sum + rrho / hw%f(i,j,k) * sy%f(sy%iref)%grid%f(i,j,k)
                    end do
                 end do
@@ -107,15 +107,15 @@ contains
        !$omp critical (io)
        qat(iat) = sum
        qtotal = qtotal + sum * sy%c%at(iat)%mult
-       qerr = qerr + (sy%f(sy%iref)%zpsp(sy%c%at(iat)%z)-sum) * sy%c%at(iat)%mult
+       qerr = qerr + (sy%f(sy%iref)%zpsp(sy%c%spc(sy%c%at(iat)%is)%z)-sum) * sy%c%at(iat)%mult
        !$omp end critical (io)
     end do
     !$omp end parallel do
     write (uout,'("# i  Atom Charge")')
     do iat = 1, sy%c%nneq
        write (uout,'(3(A,X))') string(iat,length=4,justify=ioj_center), &
-          string(sy%c%at(iat)%name,length=5,justify=ioj_center), &
-          string(sy%f(sy%iref)%zpsp(sy%c%at(iat)%z)-qat(iat),'f',length=16,decimal=10,justify=3)
+          string(sy%c%spc(sy%c%at(iat)%is)%name,length=5,justify=ioj_center), &
+          string(sy%f(sy%iref)%zpsp(sy%c%spc(sy%c%at(iat)%is)%z)-qat(iat),'f',length=16,decimal=10,justify=3)
     end do
     write (uout,'("# total integrated charge: ",A)') string(qtotal,'e',decimal=10)
     write (uout,'("# error integrated charge: ",A)') string(qerr,'e',decimal=10)

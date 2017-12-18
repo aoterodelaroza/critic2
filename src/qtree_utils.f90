@@ -93,7 +93,7 @@ contains
     write (luo,'(2X,A,6(F10.4,X))') "clippingbox ", clip0, clip1
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%at(i)%name)
+          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
@@ -115,7 +115,7 @@ contains
     end if
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%at(i)%name)
+          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
@@ -137,7 +137,7 @@ contains
     diab = minlen / 2**maxl / 3d0
     do i = 1, nnuc+3
        if (i <= nnuc) then
-          zz = sy%c%at(i)%z
+          zz = sy%c%spc(sy%c%at(i)%is)%z
        else if (i == nnuc+1) then
           zz = 1
        else
@@ -281,7 +281,7 @@ contains
     write (ludif,'(2X,A,6(F10.4,X))') "clippingbox ", clip0, clip1
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%at(i)%name)
+          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
@@ -299,7 +299,7 @@ contains
     write (ludif,'(X,A,3(F10.4,X))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%at(i)%name)
+          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"

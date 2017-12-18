@@ -20,6 +20,7 @@ module types
   implicit none
 
   private
+  public :: species
   public :: atom
   public :: celatom
   public :: anyatom
@@ -35,6 +36,7 @@ module types
   interface realloc
      module procedure realloc_pointpropable
      module procedure realloc_integrable
+     module procedure realloc_species
      module procedure realloc_atom
      module procedure realloc_celatom
      module procedure realloc_anyatom
@@ -56,25 +58,31 @@ module types
      module procedure realloc5cmplx8
   end interface
 
+  !> Atomic species
+  type species
+     character*(10) :: name = "" !< name
+     integer :: z = 0 !< atomic number
+     real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
+  end type species
+
   !> Non-equivalent atom list type (nneq)
   type atom
      real*8 :: x(3)   !< coordinates (crystallographic)
      real*8 :: r(3)   !< coordinates (cartesian)
-     character*(10) :: name = "" !< name
-     integer :: z = 0 !< atomic number
-     real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
+     integer :: is = 0 !< species
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
   end type atom
   
   !> Equivalent atom list (type)
   type celatom
-     real*8 :: x(3) !< coordinates (crystallographic)
-     real*8 :: r(3) !< coordinates (cartesian)
-     integer :: idx !< corresponding atom from the non-equivalent atom list
+     real*8 :: x(3)  !< coordinates (crystallographic)
+     real*8 :: r(3)  !< coordinates (cartesian)
+     integer :: is   !< species
+     integer :: idx  !< corresponding atom from the non-equivalent atom list
      integer :: cidx !< corresponding equivalent atom from the complete atom list
-     integer :: ir  !< rotation matrix to the representative equivalent atom
-     integer :: ic  !< translation vector to the representative equivalent atom
+     integer :: ir   !< rotation matrix to the representative equivalent atom
+     integer :: ic   !< translation vector to the representative equivalent atom
      integer :: lvec(3) !< lattice vector to the representative equivalent atom
      integer :: lenv(3) !< lattice vector to the main cell atom (for environments)
   end type celatom
@@ -83,10 +91,10 @@ module types
   type anyatom
      real*8 :: x(3) !< coordinates (crystallographic)
      real*8 :: r(3) !< coordinates (cartesian)
+     integer :: is   !< species
      integer :: idx !< corresponding atom from the non-equivalent atom list
      integer :: cidx !< corresponding atom from the complete atom list
      integer :: lvec(3) !< lattice vector to the atom in the complete atom list
-     integer :: z !< atomic number
   end type anyatom
 
   !> Result of the evaluation of a scalar field
@@ -226,6 +234,32 @@ contains
 
   end subroutine realloc_integrable
 
+  !> Adapt the size of an allocatable 1D type(species) array
+  subroutine realloc_species(a,nnew)
+    type(species), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(species), allocatable :: temp(:)
+    integer :: nold, i
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+    do i = nold+1,nnew
+       a(i)%name = ""
+       a(i)%z = 0
+       a(i)%qat = 0d0
+    end do
+
+  end subroutine realloc_species
+
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_atom(a,nnew)
     type(atom), intent(inout), allocatable :: a(:)
@@ -244,12 +278,6 @@ contains
 
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
     call move_alloc(temp,a)
-    do i = nold+1,nnew
-       a(i)%name = ""
-       a(i)%z = 0
-       a(i)%qat = 0d0
-       a(i)%rnn2 = 0d0
-    end do
 
   end subroutine realloc_atom
 

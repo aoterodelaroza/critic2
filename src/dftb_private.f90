@@ -102,8 +102,8 @@ contains
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  subroutine dftb_read(f,filexml,filebin,filehsd,atcel,at0)
-    use types, only: celatom, atom
+  subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
+    use types, only: celatom, atom, species
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
     use param, only: tpi, maxzat0
     class(dftbwfn), intent(inout) :: f !< Output field
@@ -111,7 +111,7 @@ contains
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
     type(celatom), intent(in) :: atcel(:) !< complete atom list
-    type(atom), intent(in) :: at0(:) !< nneq atom list
+    type(species), intent(in) :: spc(:) !< species list
 
     integer :: lu, i, j, k, idum, n, nat, id
     integer, allocatable :: zcel(:)
@@ -124,7 +124,7 @@ contains
     nat = size(atcel)
     allocate(zcel(nat))
     do i = 1, nat
-       zcel(i) = at0(atcel(i)%idx)%z
+       zcel(i) = spc(atcel(i)%is)%z
     end do
 
     ! detailed.xml, first pass
@@ -498,14 +498,14 @@ contains
   !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
   !> and zenv is the environment information (number, position,
   !> lattice vector, index in the complete list, and atomic number.
-  subroutine register_struct(f,rmat,atenv,at)
-    use types, only: celatom, atom
+  subroutine register_struct(f,rmat,atenv,spc)
+    use types, only: celatom, atom, species
     use tools_math, only: norm
     use types, only: realloc
     class(dftbwfn), intent(inout) :: f
     real*8, intent(in) :: rmat(3,3)
     type(celatom), intent(in) :: atenv(:)
-    type(atom), intent(in) :: at(:)
+    type(species), intent(in) :: spc(:)
 
     real*8 :: maxcutoff
     real*8 :: sphmax, x0(3), dist
@@ -546,7 +546,7 @@ contains
              f%renv(:,f%nenv) = atenv(i)%r
              f%lenv(:,f%nenv) = atenv(i)%lenv
              f%idxenv(f%nenv) = atenv(i)%cidx
-             f%zenv(f%nenv) = at(atenv(i)%idx)%z
+             f%zenv(f%nenv) = spc(atenv(i)%is)%z
           end if
        end do
        f%globalcutoff = maxcutoff

@@ -2154,7 +2154,7 @@ contains
        sname = string(sy%f(sy%iref)%cp(idx)%name,6,ioj_center)
        smult = string(sy%f(sy%iref)%cp(idx)%mult,4,ioj_center)
        if (sy%f(sy%iref)%cp(idx)%isnuc) then
-          sz = string(sy%c%at(idx)%z,2,ioj_left)
+          sz = string(sy%c%spc(sy%c%at(idx)%is)%z,2,ioj_left)
        else
           sz = "--"
        endif

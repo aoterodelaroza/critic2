@@ -94,11 +94,11 @@ contains
   end subroutine pi_end
 
   !> Register structural information
-  subroutine register_struct(f,nenv,at,atenv)
-    use types, only: atom, celatom
+  subroutine register_struct(f,nenv,spc,atenv)
+    use types, only: atom, celatom, species
     class(piwfn), intent(inout) :: f
     integer, intent(in) :: nenv
-    type(atom), intent(in) :: at(*)
+    type(species), intent(in) :: spc(*)
     type(celatom), intent(in) :: atenv(nenv)
     
     integer :: i
@@ -114,7 +114,7 @@ contains
     do i = 1, nenv
        f%renv(:,i) = atenv(i)%r
        f%idxenv(i) = atenv(i)%idx
-       f%zenv(i) = at(atenv(i)%idx)%z
+       f%zenv(i) = spc(atenv(i)%is)%z
     end do
     
   end subroutine register_struct

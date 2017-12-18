@@ -2283,10 +2283,10 @@ contains
     call sy%c%nearest_atom(x0,nid2,dist2,lvec)
     rgb = (/0,0,0/)
     if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
-       iz = sy%c%at(sy%c%atcel(nid1)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(nid1)%is)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     elseif (dist2 < dist1 .and. dist2 < 1.1d0*prunedist) then
-       iz = sy%c%at(sy%c%atcel(nid2)%idx)%z
+       iz = sy%c%spc(sy%c%atcel(nid2)%is)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     endif
 
@@ -2528,7 +2528,7 @@ contains
                 cpletter = "b"
              case (-3)
                 if (sy%f(sy%iref)%cpcel(i)%isnuc) then
-                   cpletter = nameguess(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%z,.true.)
+                   cpletter = nameguess(sy%c%spc(sy%c%at(sy%f(sy%iref)%cpcel(i)%idx)%is)%z,.true.)
                 else
                    cpletter = "n"
                 endif

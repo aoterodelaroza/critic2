@@ -5573,7 +5573,7 @@ template are:
 * %aid : the index for the atom in the non-equivalent atom list. 
 
 * %id : the index for the atom in the non-equivalent atom list,
-   counting only the atoms with the same atomic number.
+   counting only the atoms of the same type.
 
 * %S : the atomic symbol, derived from the current atomic number.
 
