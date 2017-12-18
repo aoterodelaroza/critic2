@@ -13,7 +13,7 @@ critic2_SOURCES = critic2.F90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
 
 if GUI
   noinst_LIBRARIES=libcritic2.a
-  libcritic2_a_SOURCES = gui_interface.f90 gui_gl.f90 gui_glu.f90 gui_glfw.f90\
+  libcritic2_a_SOURCES = gui_interface.f90\
 	c_interface_module.f90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
 	spglib.f90 keast.f90 param.F90 tools_io.F90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
 	fragmentmod.f90 grid1mod.f90 arithmetic.F90 global.f90 tools_math.f90 sympg.f90 grid3mod.f90 \
