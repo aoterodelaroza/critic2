@@ -277,15 +277,35 @@ void View::Update(){
       drawCylinder(v0,vx,cellthick,ucellrgbx,icylres,false);
       drawCylinder(v0,vy,cellthick,ucellrgby,icylres,false);
       drawCylinder(v0,vz,cellthick,ucellrgbz,icylres,false);
-      drawCylinder(vx,vx+vy,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vx,vx+vz,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vy,vy+vx,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vy,vy+vz,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vz,vz+vx,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vz,vz+vy,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vx+vy,vx+vy+vz,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vx+vz,vx+vy+vz,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(vy+vz,vx+vy+vz,cellthick,ucellrgbo,icylres,false);
+      for (int ix=0; ix<ncell[0]; ix++){
+	for (int iy=0; iy<ncell[1]; iy++){
+	  for (int iz=0; iz<ncell[2]; iz++){
+	    vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
+
+	    if (ix == 0 && iy == 0 && iz > 0)
+	      drawCylinder(v0+lvec,vz+lvec,cellthick,ucellrgbo,icylres,false);
+	    if (ix == 0 && iz == 0 && iy > 0)
+	      drawCylinder(v0+lvec,vy+lvec,cellthick,ucellrgbo,icylres,false);
+	    if (iy == 0 && iz == 0 && ix > 0)
+	      drawCylinder(v0+lvec,vx+lvec,cellthick,ucellrgbo,icylres,false);
+	    if (iz == 0) { 
+	      drawCylinder(vx+lvec,vx+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	      drawCylinder(vy+lvec,vy+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	    }
+	    if (ix == 0){
+	      drawCylinder(vy+lvec,vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	      drawCylinder(vz+lvec,vz+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	    }
+	    if (iy == 0){
+	      drawCylinder(vx+lvec,vx+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	      drawCylinder(vz+lvec,vz+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	    }
+	    drawCylinder(vx+vy+lvec,vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	    drawCylinder(vx+vz+lvec,vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	    drawCylinder(vy+vz+lvec,vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	  }
+	}
+      }
     }
 
     // // the scenerad spehre, for testing
