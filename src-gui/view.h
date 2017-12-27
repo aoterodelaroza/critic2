@@ -83,6 +83,10 @@ struct View
   void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
   void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
 
+  // draw settings
+  bool isucell; // draw the unit cell?
+  int ncell[3]; // number of unit cells in each direction
+
   // view settings
   float resetd; // reset distance (scenerad)
   float zfov; // field of view angle (degrees)

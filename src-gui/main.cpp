@@ -58,7 +58,7 @@ int main(int argc, char *argv[]){
   glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
 
    // Initialize critic2
-  c2::gui_initialize((void *) rootwin);
+  c2::gui_initialize();
 
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);

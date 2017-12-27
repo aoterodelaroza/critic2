@@ -72,6 +72,8 @@ void View::SetDefaults(){
     bgrgb[i] = view_bgrgb[i];
   isphres = view_isphres;
   icylres = view_icylres;
+  ncell[0] = ncell[1] = ncell[2] = 1;
+  isucell = (iscene > 0 && !c2::ismolecule)?true:false;
 }
 
 void View::Draw(){
@@ -205,6 +207,8 @@ void View::Draw(){
     bool changed = false;
     float itemwidth = 4.f * g->FontSize;
     PushItemWidth(itemwidth);
+    updatescene |= Checkbox("Unit cell", &isucell);
+    Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
     changed |= Checkbox("Orthgonal projection", &view_orthogonal);
     if (!view_orthogonal)
@@ -239,13 +243,40 @@ void View::Update(){
 
   if (iscene > 0){
     // scene atoms
-    for (int i=0;i<c2::nat;i++)
+    for (int i=0;i<c2::nat;i++){
       drawSphere(make_vec3(c2::at[i].r),c2::at[i].rad,make_vec4(c2::at[i].rgb),isphres,false);
+    }
 
     // scene bonds
     for (int i=0;i<c2::nbond;i++){
       float rgb[4] = {0.5f,0.f,0.f,1.f};
       drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb),icylres,false);
+    }
+
+    // unit cell
+    if (isucell){
+      const float cellthick = 0.05f;
+      const vec4 ucellrgbx = {1.f,0.f,0.f,1.f};
+      const vec4 ucellrgby = {0.f,1.f,0.f,1.f};
+      const vec4 ucellrgbz = {0.f,0.f,1.f,1.f};
+      const vec4 ucellrgbo = {0.5f,0.5f,0.5f,1.f};
+
+      vec3 v000 = {0.f,0.f,0.f};
+      vec3 v100 = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
+      vec3 v010 = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
+      vec3 v001 = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
+      drawCylinder(v000,v100,cellthick,ucellrgbx,icylres,false);
+      drawCylinder(v000,v010,cellthick,ucellrgby,icylres,false);
+      drawCylinder(v000,v001,cellthick,ucellrgbz,icylres,false);
+      drawCylinder(v100,v100+v010,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v100,v100+v001,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v010,v010+v100,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v010,v010+v001,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v001,v001+v100,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v001,v001+v010,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v100+v010,v100+v010+v001,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v100+v001,v100+v010+v001,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v010+v001,v100+v010+v001,cellthick,ucellrgbo,icylres,false);
     }
 
     // // the scenerad spehre, for testing
@@ -658,15 +689,15 @@ View *CreateView(char *title, int iscene/*=0*/){
   aview->iscene = iscene;
   aview->title = title;
 
-  // set default settings
-  aview->SetDefaults();
-
   // create the texture
   aview->createTex(FBO_tex_a);
 
   // scene pointers
   if (iscene > 0)
     c2::set_scene_pointers(iscene);
+
+  // set default settings
+  aview->SetDefaults();
 
   // initialize the camera vectors
   aview->resetView();

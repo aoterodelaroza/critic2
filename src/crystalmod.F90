@@ -85,7 +85,7 @@ module crystalmod
      ! variables for molecular systems
      logical :: ismolecule = .false. !< is it a molecule?
      real*8 :: molx0(3) !< centering vector for the molecule
-     real*8 :: molborder(3) !< border length (cryst coords)
+     real*8 :: molborder(3) !< molecular cell border (cryst coords)
      ! wigner-seitz cell 
      integer :: nws !< number of WS neighbors/faces
      integer :: ivws(3,16) !< WS neighbor lattice points
