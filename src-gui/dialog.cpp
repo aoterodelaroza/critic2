@@ -312,7 +312,7 @@ static void DialogPreferences(bool *p_open){
 	  anychanged |= changed;
 	  
 	  if (filter.PassFilter("Light color"))
-	    changed |= DragFloat3("Light color", &(view_lightcolor[0]), 0.002f, 0.0, 1.0f, "%.3f", 1.0f); 
+	    changed |= ColorEdit3("Light color", &(view_lightcolor[0]), coloreditflags);
 	  if (changed)
 	    shader->setVec3("lightColor",value_ptr(view_lightcolor));
 	  anychanged |= changed;
@@ -374,14 +374,8 @@ static void DialogPreferences(bool *p_open){
 	    changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
 	  if (filter.PassFilter("Reset distance (scene radius)"))
 	    changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
-	  PopItemWidth();
-	  
-	  PushItemWidth(4 * itemwidth + 3.f * g->Style.ItemInnerSpacing.x);
 	  if (filter.PassFilter("Background color"))
-	    changed |= DragFloat4("Background color", view_bgrgb, 0.002f, 0.0, 1.0f, "%.3f", 1.0f); 
-	  PopItemWidth();
-
-	  PushItemWidth(itemwidth); 
+	    changed |= ColorEdit4("Background color", view_bgrgb, coloreditflags);
 	  if (filter.PassFilter("Atom resolution"))
 	    changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
 	  if (filter.PassFilter("Bond resolution"))

@@ -214,13 +214,7 @@ void View::Draw(){
     if (!view_orthogonal)
       changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
     changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
-    PopItemWidth();
-	  
-    PushItemWidth(4 * itemwidth + 3.f * g->Style.ItemInnerSpacing.x);
-    changed |= DragFloat4("Background color", view_bgrgb, 0.002f, 0.0, 1.0f, "%.3f", 1.0f); 
-    PopItemWidth();
-
-    PushItemWidth(itemwidth); 
+    changed |= ColorEdit4("Background color", view_bgrgb, coloreditflags);
     changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
     changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
     PopItemWidth();
