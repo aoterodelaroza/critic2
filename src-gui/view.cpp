@@ -205,9 +205,15 @@ void View::Draw(){
     ImGui::OpenPopup("prefview");
   if (BeginPopup("prefview")){
     bool changed = false;
-    float itemwidth = 4.f * g->FontSize;
-    PushItemWidth(itemwidth);
+    float itemwidth = 5.f * g->FontSize;
     updatescene |= Checkbox("Unit cell", &isucell);
+    PushItemWidth(itemwidth);
+    Text("Unit cell repetition:");
+    Indent();
+    updatescene |= InputInt("a axis", &ncell[0]);
+    updatescene |= InputInt("b axis", &ncell[1]);
+    updatescene |= InputInt("c axis", &ncell[2]);
+    Unindent();
     Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
     changed |= Checkbox("Orthgonal projection", &view_orthogonal);
@@ -236,9 +242,22 @@ void View::Update(){
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   if (iscene > 0){
+    vec3 v0 = {0.f,0.f,0.f};
+    vec3 vx = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
+    vec3 vy = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
+    vec3 vz = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
+
     // scene atoms
     for (int i=0;i<c2::nat;i++){
-      drawSphere(make_vec3(c2::at[i].r),c2::at[i].rad,make_vec4(c2::at[i].rgb),isphres,false);
+      vec3 r0 = make_vec3(c2::at[i].r);
+      vec4 rgb = make_vec4(c2::at[i].rgb);
+      for (int ix=0; ix<ncell[0]; ix++){
+	for (int iy=0; iy<ncell[1]; iy++){
+	  for (int iz=0; iz<ncell[2]; iz++){
+	    drawSphere(r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz,c2::at[i].rad,rgb,isphres,false);
+	  }
+	}
+      }
     }
 
     // scene bonds
@@ -255,22 +274,18 @@ void View::Update(){
       const vec4 ucellrgbz = {0.f,0.f,1.f,1.f};
       const vec4 ucellrgbo = {0.5f,0.5f,0.5f,1.f};
 
-      vec3 v000 = {0.f,0.f,0.f};
-      vec3 v100 = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
-      vec3 v010 = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
-      vec3 v001 = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
-      drawCylinder(v000,v100,cellthick,ucellrgbx,icylres,false);
-      drawCylinder(v000,v010,cellthick,ucellrgby,icylres,false);
-      drawCylinder(v000,v001,cellthick,ucellrgbz,icylres,false);
-      drawCylinder(v100,v100+v010,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v100,v100+v001,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v010,v010+v100,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v010,v010+v001,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v001,v001+v100,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v001,v001+v010,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v100+v010,v100+v010+v001,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v100+v001,v100+v010+v001,cellthick,ucellrgbo,icylres,false);
-      drawCylinder(v010+v001,v100+v010+v001,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(v0,vx,cellthick,ucellrgbx,icylres,false);
+      drawCylinder(v0,vy,cellthick,ucellrgby,icylres,false);
+      drawCylinder(v0,vz,cellthick,ucellrgbz,icylres,false);
+      drawCylinder(vx,vx+vy,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vx,vx+vz,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vy,vy+vx,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vy,vy+vz,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vz,vz+vx,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vz,vz+vy,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vx+vy,vx+vy+vz,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vx+vz,vx+vy+vz,cellthick,ucellrgbo,icylres,false);
+      drawCylinder(vy+vz,vx+vy+vz,cellthick,ucellrgbo,icylres,false);
     }
 
     // // the scenerad spehre, for testing
