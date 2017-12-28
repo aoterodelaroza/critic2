@@ -162,7 +162,7 @@ module types
      real*8 :: x0(3)
   end type integrable
 
-  !> Information about an point-property field
+  !> Information about a point-property field
   type pointpropable
      character*(10) :: name
      character*(2048) :: expr

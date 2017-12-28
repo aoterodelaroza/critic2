@@ -41,6 +41,9 @@ module gui_interface
      integer(c_int) :: ifrag !< which fragment this atom belongs to
      real(c_float) :: rad !< ball radius (bohr) 
      real(c_float) :: rgb(4) !< color (0 to 1)
+     ! integer(c_int) :: ncon !< number of neighbors
+     ! integer(c_int), allocatable :: idcon(:) !< id (cidx) of the connected atom
+     ! integer(c_int), allocatable :: lcon(:,:) !< lattice vector of the connected atom
   end type c_atom
 
   ! C-interoperable bond type
@@ -66,6 +69,7 @@ module gui_interface
      type(c_bond), allocatable :: bond(:) ! bonds
 
      integer(c_int) :: nmol ! number of fragments
+     integer(c_int), allocatable :: moldiscrete(:) ! is fragment discrete?
 
      real(c_float) :: avec(3,3) ! lattice vectors
      real(c_float) :: molx0(3) ! molecule centering translation
@@ -89,6 +93,7 @@ module gui_interface
   type(c_ptr), bind(c) :: bond
 
   integer(c_int), bind(c) :: nmol
+  type(c_ptr), bind(c) :: moldiscrete
 
   type(c_ptr), bind(c) :: avec(3)
   integer(c_int), bind(c) :: ismolecule
@@ -206,11 +211,17 @@ contains
 
        ! build the fragment info
        sc(1)%nmol = sc(1)%sy%c%nmol
+       allocate(sc(1)%moldiscrete(sc(1)%nmol))
        do i = 1, sc(1)%sy%c%nmol
+          if (sc(1)%sy%c%moldiscrete(i)) then
+             sc(1)%moldiscrete(i) = 1
+          else
+             sc(1)%moldiscrete(i) = 0
+          end if
           do j = 1, sc(1)%sy%c%mol(i)%nat
              idx = sc(1)%sy%c%mol(i)%at(j)%cidx
              sc(1)%at(idx)%flvec = sc(1)%sy%c%mol(i)%at(j)%lvec
-             sc(1)%at(idx)%ifrag = i
+             sc(1)%at(idx)%ifrag = i-1
           end do
        end do
 
@@ -285,6 +296,7 @@ contains
     bond = c_loc(sc(isc)%bond)
 
     nmol = sc(isc)%nmol
+    moldiscrete = c_loc(sc(isc)%moldiscrete)
 
     avec(1) = c_loc(sc(isc)%avec(1,1))
     avec(2) = c_loc(sc(isc)%avec(1,2))

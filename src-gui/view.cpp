@@ -216,7 +216,7 @@ void View::Draw(){
     updatescene |= InputInt("b axis", &ncell[1]);
     updatescene |= InputInt("c axis", &ncell[2]);
     Unindent();
-    updatescene |= Checkbox("Cell border atoms", &isborder);
+    updatescene |= Checkbox("Crystal packing", &isborder);
     updatescene |= Checkbox("Molecular motif", &ismotif);
     Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
@@ -253,42 +253,44 @@ void View::Update(){
     vec3 vy = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
     vec3 vz = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
 
-    int imin[3], imax[3];
+    // prepare the lattice vector limits for each atom
+    int imin[c2::nat][3], imax[c2::nat][3];
     int iminf[c2::nmol][3] = {}, imaxf[c2::nmol][3] = {};
     for (int i=0; i<c2::nat; i++){
       for (int j=0; j<3; j++){
-	iminf[c2::at[i].ifrag-1][j] = std::min(iminf[c2::at[i].ifrag-1][j],-c2::at[i].flvec[j]);
-	imaxf[c2::at[i].ifrag-1][j] = std::max(imaxf[c2::at[i].ifrag-1][j],-c2::at[i].flvec[j]);
+	iminf[c2::at[i].ifrag][j] = std::min(iminf[c2::at[i].ifrag][j],-c2::at[i].flvec[j]);
+	imaxf[c2::at[i].ifrag][j] = std::max(imaxf[c2::at[i].ifrag][j],-c2::at[i].flvec[j]);
       }
     }
-
+    for (int i=0;i<c2::nat;i++){
+      for (int j=0; j<3; j++){
+	imin[i][j] = 0;
+	imax[i][j] = ncell[j];
+	if (isborder){
+	  if (ismotif && c2::moldiscrete[c2::at[i].ifrag]){
+	    imin[i][j] = iminf[c2::at[i].ifrag][j];
+	    imax[i][j] = ncell[j] + imaxf[c2::at[i].ifrag][j];
+	  } else {
+	    if (c2::at[i].x[j] < rthr)
+	      imax[i][j] = ncell[j] + 1;
+	    else if (c2::at[i].x[j] > 1.f - rthr)
+	      imin[i][j] = -1;
+	  }
+	}
+	if (ismotif && c2::moldiscrete[c2::at[i].ifrag]){
+	  imin[i][j] = imin[i][j] + c2::at[i].flvec[j];
+	  imax[i][j] = imax[i][j] + c2::at[i].flvec[j];
+	}
+      }
+    }
     // scene atoms
     for (int i=0;i<c2::nat;i++){
       vec3 r0 = make_vec3(c2::at[i].r);
-      if (ismotif)
-	r0 = r0 + (float) c2::at[i].flvec[0] * vx + (float) c2::at[i].flvec[1] * vy + (float) c2::at[i].flvec[2] * vz;
       vec4 rgb = make_vec4(c2::at[i].rgb);
 
-      // apply the border and molmotif conditions
-      for (int j=0; j<3; j++){
-	imin[j] = 0;
-	imax[j] = ncell[j];
-	if (isborder){
-	  if (!ismotif){
-	    if (c2::at[i].x[j] < rthr)
-	      imax[j] = ncell[j] + 1;
-	    else if (c2::at[i].x[j] > 1.f - rthr)
-	      imin[j] = -1;
-	  } else {
-	    imin[j] = iminf[c2::at[i].ifrag-1][j];
-	    imax[j] = ncell[j] + imaxf[c2::at[i].ifrag-1][j];
-	  }
-	}
-      }
-
-      for (int ix=imin[0]; ix<imax[0]; ix++){
-	for (int iy=imin[1]; iy<imax[1]; iy++){
-	  for (int iz=imin[2]; iz<imax[2]; iz++){
+      for (int ix=imin[i][0]; ix<imax[i][0]; ix++){
+	for (int iy=imin[i][1]; iy<imax[i][1]; iy++){
+	  for (int iz=imin[i][2]; iz<imax[i][2]; iz++){
 	    drawSphere(r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz,c2::at[i].rad,rgb,isphres,false);
 	  }
 	}
