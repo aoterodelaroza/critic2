@@ -85,6 +85,8 @@ struct View
 
   // draw settings
   bool isucell; // draw the unit cell?
+  bool isborder; // draw the atoms on the border?
+  bool ismotif; // draw the molecular motif
   int ncell[3]; // number of unit cells in each direction
 
   // view settings

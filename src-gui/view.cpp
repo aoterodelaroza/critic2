@@ -74,6 +74,8 @@ void View::SetDefaults(){
   icylres = view_icylres;
   ncell[0] = ncell[1] = ncell[2] = 1;
   isucell = (iscene > 0 && !c2::ismolecule)?true:false;
+  isborder = true;
+  ismotif = true;
 }
 
 void View::Draw(){
@@ -214,6 +216,8 @@ void View::Draw(){
     updatescene |= InputInt("b axis", &ncell[1]);
     updatescene |= InputInt("c axis", &ncell[2]);
     Unindent();
+    updatescene |= Checkbox("Cell border atoms", &isborder);
+    updatescene |= Checkbox("Molecular motif", &ismotif);
     Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
     changed |= Checkbox("Orthgonal projection", &view_orthogonal);
@@ -242,18 +246,49 @@ void View::Update(){
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   if (iscene > 0){
+    const float rthr = 0.01f;
+
     vec3 v0 = {0.f,0.f,0.f};
     vec3 vx = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
     vec3 vy = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
     vec3 vz = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
 
+    int imin[3], imax[3];
+    int iminf[c2::nmol][3] = {}, imaxf[c2::nmol][3] = {};
+    for (int i=0; i<c2::nat; i++){
+      for (int j=0; j<3; j++){
+	iminf[c2::at[i].ifrag-1][j] = std::min(iminf[c2::at[i].ifrag-1][j],-c2::at[i].flvec[j]);
+	imaxf[c2::at[i].ifrag-1][j] = std::max(imaxf[c2::at[i].ifrag-1][j],-c2::at[i].flvec[j]);
+      }
+    }
+
     // scene atoms
     for (int i=0;i<c2::nat;i++){
       vec3 r0 = make_vec3(c2::at[i].r);
+      if (ismotif)
+	r0 = r0 + (float) c2::at[i].flvec[0] * vx + (float) c2::at[i].flvec[1] * vy + (float) c2::at[i].flvec[2] * vz;
       vec4 rgb = make_vec4(c2::at[i].rgb);
-      for (int ix=0; ix<ncell[0]; ix++){
-	for (int iy=0; iy<ncell[1]; iy++){
-	  for (int iz=0; iz<ncell[2]; iz++){
+
+      // apply the border and molmotif conditions
+      for (int j=0; j<3; j++){
+	imin[j] = 0;
+	imax[j] = ncell[j];
+	if (isborder){
+	  if (!ismotif){
+	    if (c2::at[i].x[j] < rthr)
+	      imax[j] = ncell[j] + 1;
+	    else if (c2::at[i].x[j] > 1.f - rthr)
+	      imin[j] = -1;
+	  } else {
+	    imin[j] = iminf[c2::at[i].ifrag-1][j];
+	    imax[j] = ncell[j] + imaxf[c2::at[i].ifrag-1][j];
+	  }
+	}
+      }
+
+      for (int ix=imin[0]; ix<imax[0]; ix++){
+	for (int iy=imin[1]; iy<imax[1]; iy++){
+	  for (int iz=imin[2]; iz<imax[2]; iz++){
 	    drawSphere(r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz,c2::at[i].rad,rgb,isphres,false);
 	  }
 	}

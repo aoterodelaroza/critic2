@@ -42,6 +42,8 @@ namespace c2 {
   extern "C" int nbond;
   extern "C" struct c_bond *bond;
 
+  extern "C" int nmol;
+
   extern "C" float *avec[3];
   extern "C" int ismolecule;
   extern "C" float *molx0;

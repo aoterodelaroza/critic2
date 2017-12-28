@@ -65,6 +65,8 @@ module gui_interface
      integer(c_int) :: nbond ! number of bonds
      type(c_bond), allocatable :: bond(:) ! bonds
 
+     integer(c_int) :: nmol ! number of fragments
+
      real(c_float) :: avec(3,3) ! lattice vectors
      real(c_float) :: molx0(3) ! molecule centering translation
      real(c_float) :: molborder(3) ! molecular cell
@@ -85,6 +87,8 @@ module gui_interface
   type(c_ptr), bind(c) :: at
   integer(c_int), bind(c) :: nbond
   type(c_ptr), bind(c) :: bond
+
+  integer(c_int), bind(c) :: nmol
 
   type(c_ptr), bind(c) :: avec(3)
   integer(c_int), bind(c) :: ismolecule
@@ -201,6 +205,7 @@ contains
        end do
 
        ! build the fragment info
+       sc(1)%nmol = sc(1)%sy%c%nmol
        do i = 1, sc(1)%sy%c%nmol
           do j = 1, sc(1)%sy%c%mol(i)%nat
              idx = sc(1)%sy%c%mol(i)%at(j)%cidx
@@ -278,6 +283,8 @@ contains
     at = c_loc(sc(isc)%at)
     nbond = sc(isc)%nbond
     bond = c_loc(sc(isc)%bond)
+
+    nmol = sc(isc)%nmol
 
     avec(1) = c_loc(sc(isc)%avec(1,1))
     avec(2) = c_loc(sc(isc)%avec(1,2))
