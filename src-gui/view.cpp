@@ -747,10 +747,14 @@ void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb, int res, bool ble
   vec3 xmid = 0.5f * (r1 + r2);
   vec3 xdif = r2 - r1;
   float blen = length(xdif);
+  xdif = xdif/blen;
+  vec3 up = {0.f,0.f,1.f};
+  vec3 crs = cross(up,xdif);
   
   mat4 m_model = mat4(1.0f);
   m_model = translate(m_model,xmid);
-  m_model = m_model * orientation(xdif/blen,vec3(0.f,0.f,1.f));
+  if (length(crs) > 1.e-12)
+    m_model = m_model * rotate(acos(dot(xdif,up)),crs);
   m_model = scale(m_model,vec3(rad,rad,blen));
   mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
   shader->setMat3("normrot",value_ptr(m_normrot));
