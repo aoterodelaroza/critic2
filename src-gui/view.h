@@ -93,7 +93,11 @@ struct View
   float resetd; // reset distance (scenerad)
   float zfov; // field of view angle (degrees)
   float bgrgb[4]; // background color
+  bool show_atoms; // show atoms?
+  float scale_atoms; // global scale atoms
   int isphres; // atom resolution
+  bool show_bonds; // show bonds?
+  float scale_bonds; // global scale bonds
   int icylres; // bond resolution
 
   // camera matrices and vectors

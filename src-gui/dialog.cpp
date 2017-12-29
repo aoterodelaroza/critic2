@@ -376,8 +376,12 @@ static void DialogPreferences(bool *p_open){
 	    changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
 	  if (filter.PassFilter("Background color"))
 	    changed |= ColorEdit4("Background color", view_bgrgb, coloreditflags);
+	  if (filter.PassFilter("Show atoms"))
+	    changed |= Checkbox("Show atoms", &view_show_atoms);
 	  if (filter.PassFilter("Atom resolution"))
 	    changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
+	  if (filter.PassFilter("Show bonds"))
+	    changed |= Checkbox("Show bonds", &view_show_bonds);
 	  if (filter.PassFilter("Bond resolution"))
 	    changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
 	  PopItemWidth();

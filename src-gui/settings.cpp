@@ -60,7 +60,11 @@ float view_ambient; // ambient light intensity
 float view_diffuse; // diffuse light intensity
 float view_specular; // specular light intensity
 int view_shininess; // light shininess
+bool view_show_atoms; // show atoms?
+float view_scale_atoms; // global scale atoms
 int view_isphres; // resolution of the atom spheres
+bool view_show_bonds; // show bonds?
+float view_scale_bonds; // global scale bonds
 int view_icylres; // resolution of the bond cylinders
 float view_mousesens_rot; // mouse rotation sensitivity (scale factor)
 float view_mousesens_zoom; // mouse zoom sensitivity (scale factor)
@@ -117,7 +121,11 @@ static confvar_ confvar[] = {
   {"ViewDiffuse",&view_diffuse,Type_Float},
   {"ViewSpecular",&view_specular,Type_Float},
   {"ViewShininess",&view_shininess,Type_Int},
+  {"ViewShowAtoms",&view_show_atoms,Type_Bool},
+  {"ViewScaleAtoms",&view_scale_atoms,Type_Float},
   {"ViewIsphres",&view_isphres,Type_Int},
+  {"ViewShowBonds",&view_show_bonds,Type_Bool},
+  {"ViewScaleBonds",&view_scale_bonds,Type_Float},
   {"ViewIcylres",&view_icylres,Type_Int},
   {"ViewMousesensRot",&view_mousesens_rot,Type_Float},
   {"ViewMousesensZoom",&view_mousesens_zoom,Type_Float},
@@ -303,7 +311,11 @@ void DefaultSettings(){
   view_diffuse = 0.4f;
   view_specular = 0.6f;
   view_shininess = 8;
+  view_show_atoms = true;
+  view_scale_atoms = 1.0f;
   view_isphres = 2;
+  view_show_bonds = true;
+  view_scale_bonds = 1.0f;
   view_icylres = 0;
   view_mousesens_rot = 1.0f;
   view_mousesens_zoom = 1.0f;

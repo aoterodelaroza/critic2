@@ -70,7 +70,11 @@ void View::SetDefaults(){
   resetd = view_resetdistance; 
   for (int i=0; i<4; i++)
     bgrgb[i] = view_bgrgb[i];
+  show_atoms = view_show_atoms;
+  scale_atoms = view_scale_atoms;
   isphres = view_isphres;
+  show_bonds = view_show_bonds;
+  scale_bonds = view_scale_bonds;
   icylres = view_icylres;
   ncell[0] = ncell[1] = ncell[2] = 1;
   isucell = (iscene > 0 && !c2::ismolecule)?true:false;
@@ -221,12 +225,27 @@ void View::Draw(){
     Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
     changed |= Checkbox("Orthgonal projection", &view_orthogonal);
-    if (!view_orthogonal)
+    if (!view_orthogonal){
+      Indent();
       changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
+      Unindent();
+    }
     changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
     changed |= ColorEdit4("Background color", view_bgrgb, coloreditflags);
-    changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
-    changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
+    changed |= Checkbox("Show atoms", &view_show_atoms);
+    if (view_show_atoms){
+      Indent();
+      changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
+      changed |= DragFloat("Atom size", &view_scale_atoms, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+      Unindent();
+    }
+    changed |= Checkbox("Show bonds", &view_show_bonds);
+    if (view_show_bonds){
+      Indent();
+      changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
+      changed |= DragFloat("Bond size", &view_scale_bonds, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+      Unindent();
+    }
     PopItemWidth();
     
     // For now...
@@ -296,8 +315,10 @@ void View::Update(){
 	for (int iy=imin[i][1]; iy<imax[i][1]; iy++){
 	  for (int iz=imin[i][2]; iz<imax[i][2]; iz++){
 	    vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
-	    drawSphere(x0,c2::at[i].rad,rgb,isphres,false);
+	    if (show_atoms)
+	      drawSphere(x0,scale_atoms * c2::at[i].rad,rgb,isphres,false);
 
+	    if (!show_bonds) continue;
 	    for (int j=0;j<c2::at[i].ncon;j++){
 	      int ineigh = idcon_[i][j];
 	      int ixn = ix + lcon_[i][j][0];
@@ -310,7 +331,7 @@ void View::Update(){
 		x1 = x0 + 0.5f * (x1 - x0);
 
 		const float rad = 0.2f;
-		drawCylinder(x0,x1,rad,rgb,icylres,false);
+		drawCylinder(x0,x1,scale_bonds * rad,rgb,icylres,false);
 	      }
 	    }
 	  }
@@ -821,7 +842,11 @@ void SetDefaultAllViews(){
     iv->resetd = view_resetdistance; 
     for (int i=0; i<4; i++)
       iv->bgrgb[i] = view_bgrgb[i];
+    iv->show_atoms = view_show_atoms;
+    iv->scale_atoms = view_scale_atoms;
     iv->isphres = view_isphres;
+    iv->show_bonds = view_show_bonds;
+    iv->scale_bonds = view_scale_bonds;
     iv->icylres = view_icylres;
 
     iv->updateProjection();
