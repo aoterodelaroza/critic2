@@ -219,6 +219,8 @@ void View::Draw(){
     updatescene |= InputInt("a axis", &ncell[0]);
     updatescene |= InputInt("b axis", &ncell[1]);
     updatescene |= InputInt("c axis", &ncell[2]);
+    for (int i=0; i<3; i++)
+      ncell[i] = std::max(1,ncell[i]);
     Unindent();
     updatescene |= Checkbox("Crystal packing", &isborder);
     updatescene |= Checkbox("Molecular motif", &ismotif);
