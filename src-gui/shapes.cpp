@@ -23,8 +23,6 @@
 
 # define PI 3.14159265358979323846
 
-using namespace std;
-
 // Some constants
 static float tau = (1.0 + sqrt(5))/2.0;
 static float rad0 = sqrt(3 - tau);
@@ -151,7 +149,7 @@ void CreateAndFillBuffers(){
 
   // recursive subdivision for the other icospheres
   for (int i = 1; i < nmaxsph; i++){
-    map<pair<int,int>,int> edgev = {};
+    std::map<std::pair<int,int>,int> edgev = {};
 
     int n = sphnve[i-1] - 1;
     int nface = sphneladd[i]-1;
@@ -162,26 +160,26 @@ void CreateAndFillBuffers(){
       int nk1, nk2, nk3;
 
       // create the new vertices
-      if (edgev[make_pair(k1,k2)]){
-        nk1 = edgev[make_pair(k1,k2)];
+      if (edgev[std::make_pair(k1,k2)]){
+        nk1 = edgev[std::make_pair(k1,k2)];
       } else {
-        edgev[make_pair(k1,k2)] = edgev[make_pair(k2,k1)] = nk1 = ++n;
+        edgev[std::make_pair(k1,k2)] = edgev[std::make_pair(k2,k1)] = nk1 = ++n;
         sphv[6*n+0] = sphv[6*n+3] = 0.5f * (sphv[6*k1+0] + sphv[6*k2+0]);
         sphv[6*n+1] = sphv[6*n+4] = 0.5f * (sphv[6*k1+1] + sphv[6*k2+1]);
         sphv[6*n+2] = sphv[6*n+5] = 0.5f * (sphv[6*k1+2] + sphv[6*k2+2]);
       }
-      if (edgev[make_pair(k1,k3)]){
-        nk2 = edgev[make_pair(k1,k3)];
+      if (edgev[std::make_pair(k1,k3)]){
+        nk2 = edgev[std::make_pair(k1,k3)];
       } else {
-        edgev[make_pair(k1,k3)] = edgev[make_pair(k3,k1)] = nk2 = ++n;
+        edgev[std::make_pair(k1,k3)] = edgev[std::make_pair(k3,k1)] = nk2 = ++n;
         sphv[6*n+0] = sphv[6*n+3] = 0.5f * (sphv[6*k1+0] + sphv[6*k3+0]);
         sphv[6*n+1] = sphv[6*n+4] = 0.5f * (sphv[6*k1+1] + sphv[6*k3+1]);
         sphv[6*n+2] = sphv[6*n+5] = 0.5f * (sphv[6*k1+2] + sphv[6*k3+2]);
       }
-      if (edgev[make_pair(k2,k3)]){
-        nk3 = edgev[make_pair(k2,k3)];
+      if (edgev[std::make_pair(k2,k3)]){
+        nk3 = edgev[std::make_pair(k2,k3)];
       } else {
-        edgev[make_pair(k2,k3)] = edgev[make_pair(k3,k2)] = nk3 = ++n;
+        edgev[std::make_pair(k2,k3)] = edgev[std::make_pair(k3,k2)] = nk3 = ++n;
         sphv[6*n+0] = sphv[6*n+3] = 0.5f * (sphv[6*k2+0] + sphv[6*k3+0]);
         sphv[6*n+1] = sphv[6*n+4] = 0.5f * (sphv[6*k2+1] + sphv[6*k3+1]);
         sphv[6*n+2] = sphv[6*n+5] = 0.5f * (sphv[6*k2+2] + sphv[6*k3+2]);

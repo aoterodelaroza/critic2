@@ -24,7 +24,6 @@
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_glfw_gl3.h"
 
-using namespace std;
 using namespace ImGui;
 
 // Processing level for bind events. Right now: 0 = all, 1 =
@@ -33,7 +32,7 @@ static int bindevent_level = 0;
 
 int modbind[BIND_MAX]; // bind -> mod
 int keybind[BIND_MAX]; // bind -> key
-map<tuple<int,int,int>,int> keymap = {}; // [key,mod] -> bind
+std::map<std::tuple<int,int,int>,int> keymap = {}; // [key,mod] -> bind
 
 const char *BindNames[BIND_MAX] = {
   "Quit",
@@ -142,12 +141,12 @@ bool IsBindEvent(int bind, bool held){
   }
 }
 
-string BindKeyName(int bind){
-  string ckey = "";
+std::string BindKeyName(int bind){
+  std::string ckey = "";
   if (keybind[bind] > 0){
     const char *key = glfwGetKeyName(keybind[bind],0);
     if (key){
-      ckey = string(key);
+      ckey = std::string(key);
       for (int i = 0; i < ckey.length(); i++)
 	ckey[i] = toupper(ckey[i]);
     } else {
@@ -233,19 +232,19 @@ string BindKeyName(int bind){
     }
   }
 
-  return string((modbind[bind] & GLFW_MOD_SHIFT)?"Shift+":"") +
-    string((modbind[bind] & GLFW_MOD_CONTROL)?"Ctrl+":"") +
-    string((modbind[bind] & GLFW_MOD_ALT)?"Alt+":"") +
-    string((modbind[bind] & GLFW_MOD_SUPER)?"Super+":"") + 
+  return std::string((modbind[bind] & GLFW_MOD_SHIFT)?"Shift+":"") +
+    std::string((modbind[bind] & GLFW_MOD_CONTROL)?"Ctrl+":"") +
+    std::string((modbind[bind] & GLFW_MOD_ALT)?"Alt+":"") +
+    std::string((modbind[bind] & GLFW_MOD_SUPER)?"Super+":"") + 
     ckey;
 }
 
 static void EraseBind_(int key,int mod,int group){
-  if (keymap.find(make_tuple(key,mod,group)) != keymap.end()) {
-    int oldbind = keymap[make_tuple(key,mod,group)];
+  if (keymap.find(std::make_tuple(key,mod,group)) != keymap.end()) {
+    int oldbind = keymap[std::make_tuple(key,mod,group)];
     modbind[oldbind] = NOMOD;
     keybind[oldbind] = NOKEY;
-    keymap.erase(make_tuple(key,mod,group));
+    keymap.erase(std::make_tuple(key,mod,group));
   }
 }
 
@@ -255,8 +254,8 @@ void SetBind(int bind, int key, int mod){
   // erase the key+mod combination for this bind from the keymap
   int oldkey = keybind[bind];
   int oldmod = modbind[bind];
-  if (keymap.find(make_tuple(oldkey,oldmod,group)) != keymap.end())
-    keymap.erase(make_tuple(oldkey,oldmod,group));
+  if (keymap.find(std::make_tuple(oldkey,oldmod,group)) != keymap.end())
+    keymap.erase(std::make_tuple(oldkey,oldmod,group));
 
   // unbind the previous owner of this key+mod combination in this group...
   EraseBind_(key,mod,group);
@@ -273,7 +272,7 @@ void SetBind(int bind, int key, int mod){
   // make the new bind
   keybind[bind] = key;
   modbind[bind] = mod;
-  keymap[make_tuple(key,mod,group)] = bind;
+  keymap[std::make_tuple(key,mod,group)] = bind;
 }
 
 void SetBindEventLevel(int level/*=0*/){

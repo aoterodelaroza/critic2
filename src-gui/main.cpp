@@ -38,7 +38,6 @@
 #include "keybinding.h"
 #include "menu.h"
 
-using namespace std;
 using namespace ImGui;
 
 int main(int argc, char *argv[]){

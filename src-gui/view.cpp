@@ -34,8 +34,6 @@
 #include "keybinding.h"
 
 using namespace ImGui;
-using namespace std;
-using namespace glm;
 
 // A linked list for all current views.
 static list<View*> viewlist;
@@ -269,10 +267,10 @@ void View::Update(){
   if (iscene > 0){
     const float rthr = 0.01f;
 
-    vec3 v0 = {0.f,0.f,0.f};
-    vec3 vx = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
-    vec3 vy = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
-    vec3 vz = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
+    glm::vec3 v0 = {0.f,0.f,0.f};
+    glm::vec3 vx = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
+    glm::vec3 vy = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
+    glm::vec3 vz = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
 
     // prepare the lattice vector limits for each atom
     int imin[c2::nat][3], imax[c2::nat][3];
@@ -310,13 +308,13 @@ void View::Update(){
     int (*lcon_)[c2::mncon][3] = (int (*)[c2::mncon][3]) c2::lcon;
 
     for (int i=0;i<c2::nat;i++){
-      vec3 r0 = make_vec3(c2::at[i].r);
-      vec4 rgb = make_vec4(c2::at[i].rgb);
+      glm::vec3 r0 = glm::make_vec3(c2::at[i].r);
+      glm::vec4 rgb = glm::make_vec4(c2::at[i].rgb);
 
       for (int ix=imin[i][0]; ix<imax[i][0]; ix++){
 	for (int iy=imin[i][1]; iy<imax[i][1]; iy++){
 	  for (int iz=imin[i][2]; iz<imax[i][2]; iz++){
-	    vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
+	    glm::vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
 	    if (show_atoms)
 	      drawSphere(x0,scale_atoms * c2::at[i].rad,rgb,isphres,false);
 
@@ -329,7 +327,7 @@ void View::Update(){
 	      if (ixn >= imin[ineigh][0] && ixn < imax[ineigh][0] && 
 		  iyn >= imin[ineigh][1] && iyn < imax[ineigh][1] && 
 		  izn >= imin[ineigh][2] && izn < imax[ineigh][2]){
-		vec3 x1 = make_vec3(c2::at[ineigh].r) + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
+		glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
 		x1 = x0 + 0.5f * (x1 - x0);
 
 		const float rad = 0.2f;
@@ -344,10 +342,10 @@ void View::Update(){
     // unit cell
     if (isucell){
       const float cellthick = 0.05f;
-      const vec4 ucellrgbx = {1.f,0.f,0.f,1.f};
-      const vec4 ucellrgby = {0.f,1.f,0.f,1.f};
-      const vec4 ucellrgbz = {0.f,0.f,1.f,1.f};
-      const vec4 ucellrgbo = {0.5f,0.5f,0.5f,1.f};
+      const glm::vec4 ucellrgbx = {1.f,0.f,0.f,1.f};
+      const glm::vec4 ucellrgby = {0.f,1.f,0.f,1.f};
+      const glm::vec4 ucellrgbz = {0.f,0.f,1.f,1.f};
+      const glm::vec4 ucellrgbo = {0.5f,0.5f,0.5f,1.f};
 
       drawCylinder(v0,vx,cellthick,ucellrgbx,icylres,false);
       drawCylinder(v0,vy,cellthick,ucellrgby,icylres,false);
@@ -355,7 +353,7 @@ void View::Update(){
       for (int ix=0; ix<ncell[0]; ix++){
 	for (int iy=0; iy<ncell[1]; iy++){
 	  for (int iz=0; iz<ncell[2]; iz++){
-	    vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
+	    glm::vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
 
 	    if (ix == 0 && iy == 0 && iz > 0)
 	      drawCylinder(v0+lvec,vz+lvec,cellthick,ucellrgbo,icylres,false);
@@ -423,14 +421,14 @@ bool View::processMouseEvents(bool hover){
 
 bool View::Navigate(bool hover){
   const float eps = 1e-8;
-  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
   bool updateview = false, updateworld = false, updateprojection = false;
   bool updatenone = false;
 
   // calculate the texture coordinates
   ImGuiContext *g = GetCurrentContext();
-  vec2 mousepos = {g->IO.MousePos.x,g->IO.MousePos.y};
-  vec2 texpos = mousepos;
+  glm::vec2 mousepos = {g->IO.MousePos.x,g->IO.MousePos.y};
+  glm::vec2 texpos = mousepos;
   pos_to_texpos(texpos);
 
   // Zoom the view. There are two behaviors: mouse scroll and hold key
@@ -454,12 +452,12 @@ bool View::Navigate(bool hover){
     // updatenone = true; // only if we draw some guiding element
   }
   if (ratio != 0.f){
-    ratio = clamp(ratio,-0.999f,0.999f);
+    ratio = glm::clamp(ratio,-0.999f,0.999f);
     v_pos = v_pos - ratio * v_pos;
-    if (length(v_pos) < min_zoom)
-      v_pos = v_pos / length(v_pos) * min_zoom;
-    if (length(v_pos) > max_zoom * c2::scenerad)
-      v_pos = v_pos / length(v_pos) * (max_zoom * c2::scenerad);
+    if (glm::length(v_pos) < min_zoom)
+      v_pos = v_pos / glm::length(v_pos) * min_zoom;
+    if (glm::length(v_pos) > max_zoom * c2::scenerad)
+      v_pos = v_pos / glm::length(v_pos) * (max_zoom * c2::scenerad);
     if (isortho)
       updateprojection = true;
     updateview = true;
@@ -481,8 +479,8 @@ bool View::Navigate(bool hover){
     SetMouseCursor(ImGuiMouseCursor_Move);
     if (IsBindEvent(BIND_NAV_TRANSLATE,true)){
       if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
-	vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
-	vec3 vold = texpos_to_view(vec2(mpos0_r),mpos0_r.z);
+	glm::vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
+	glm::vec3 vold = texpos_to_view(glm::vec2(mpos0_r),mpos0_r.z);
 	v_pos.x = cpos0_r.x - (vnew.x - vold.x);
 	v_pos.y = cpos0_r.y - (vnew.y - vold.y);
 	mposlast = mousepos;
@@ -506,14 +504,14 @@ bool View::Navigate(bool hover){
     SetMouseCursor(ImGuiMouseCursor_Move);
     if (IsBindEvent(BIND_NAV_ROTATE,true)){
       if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
-	vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
-	vec3 axis = cross(vec3(0.f,0.f,1.f),cpos1-cpos0_l);
-	float lax = length(axis);
+	glm::vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
+	glm::vec3 axis = glm::cross(glm::vec3(0.f,0.f,1.f),cpos1-cpos0_l);
+	float lax = glm::length(axis);
 	if (lax > 1e-10f){
-	  axis = inverse(mat3(crot0_l)) * normalize(axis);
-	  vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
-	  float ang = 2.0f * length(mpos) * mousesens_rot0 * view_mousesens_rot / FBO_a;
-	  m_world = rotate(crot0_l,ang,axis);
+	  axis = glm::inverse(glm::mat3(crot0_l)) * glm::normalize(axis);
+	  glm::vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
+	  float ang = 2.0f * glm::length(mpos) * mousesens_rot0 * view_mousesens_rot / FBO_a;
+	  m_world = glm::rotate(crot0_l,ang,axis);
 	  updateworld = true;
 	}
 	mposlast = mousepos;
@@ -598,19 +596,19 @@ void View::resetView(){
   v_front  = {0.f,0.f,-1.f};
   v_up     = {0.f,1.f,0.f};
   v_pos[0] = v_pos[1] = 0.f;
-  v_pos[2] = iscene > 0? resetd * c2::scenerad / (tan(0.5f*radians(zfov))):10.f;
-  m_world = mat4(1.0f);
-  crot0_l = mat4(1.0f);
+  v_pos[2] = iscene > 0? resetd * c2::scenerad / (tan(0.5f*glm::radians(zfov))):10.f;
+  m_world = glm::mat4(1.0f);
+  crot0_l = glm::mat4(1.0f);
   llock = false;
   rlock = false;
 }
 
 void View::updateProjection(){
   if (isortho){
-    float hw2 = tan(0.5f*radians(zfov)) * v_pos[2];
-    m_projection = ortho(-hw2,hw2,-hw2,hw2,znear,1000.f);
+    float hw2 = tan(0.5f*glm::radians(zfov)) * v_pos[2];
+    m_projection = glm::ortho(-hw2,hw2,-hw2,hw2,znear,1000.f);
   } else {
-    m_projection = infinitePerspective(radians(zfov),1.0f,znear);
+    m_projection = glm::infinitePerspective(glm::radians(zfov),1.0f,znear);
   }
   shader->setMat4("projection",value_ptr(m_projection));
 }
@@ -624,16 +622,16 @@ void View::updateWorld(){
   shader->setMat4("world",value_ptr(m_world));
 }
 
-vec3 View::cam_world_coords(){
-  vec4 pos4 = inverse(m_world) * vec4(v_pos,1.0f);
-  return vec3(pos4.x/pos4.w,pos4.y/pos4.w,pos4.z/pos4.w);
+glm::vec3 View::cam_world_coords(){
+  glm::vec4 pos4 = glm::inverse(m_world) * glm::vec4(v_pos,1.0f);
+  return glm::vec3(pos4.x/pos4.w,pos4.y/pos4.w,pos4.z/pos4.w);
 }
 
-vec3 View::cam_view_coords(){
+glm::vec3 View::cam_view_coords(){
   return v_pos;
 }
 
-void View::pos_to_ntexpos(vec2 &pos){
+void View::pos_to_ntexpos(glm::vec2 &pos){
   float x = vrect.Max.x - vrect.Min.x;
   float y = vrect.Max.y - vrect.Min.y;
   float xratio = 2.f * x / fmax(x,y);
@@ -643,7 +641,7 @@ void View::pos_to_ntexpos(vec2 &pos){
   pos.y = (0.5f - (pos.y - vrect.Min.y) / y) * yratio;
 }
 
-void View::ntexpos_to_pos(vec2 &pos){
+void View::ntexpos_to_pos(glm::vec2 &pos){
   float x = vrect.Max.x - vrect.Min.x;
   float y = vrect.Max.y - vrect.Min.y;
   float xratio1 = 0.5f * fmax(x,y) / x;
@@ -653,34 +651,34 @@ void View::ntexpos_to_pos(vec2 &pos){
   pos.y = vrect.Min.y + y * (0.5f - yratio1 * pos.y);
 }
 
-void View::pos_to_texpos(vec2 &pos){
+void View::pos_to_texpos(glm::vec2 &pos){
   pos_to_ntexpos(pos);
   ntexpos_to_texpos(pos);
 }
 
-void View::texpos_to_pos(vec2 &pos){
+void View::texpos_to_pos(glm::vec2 &pos){
   texpos_to_ntexpos(pos);
   ntexpos_to_pos(pos);
 }
 
-void View::texpos_to_ntexpos(vec2 &pos){
+void View::texpos_to_ntexpos(glm::vec2 &pos){
   pos = (pos / FBO_a) * 2.f - 1.f;
 }
 
-void View::ntexpos_to_texpos(vec2 &pos){
+void View::ntexpos_to_texpos(glm::vec2 &pos){
   pos = (0.5f * pos + 0.5f) * FBO_a;
 }
 
-vec2 View::world_to_texpos(vec3 pos){
-  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
-  vec3 pos3 = project(pos,m_view * m_world,m_projection,viewport);
-  return vec2(pos3);
+glm::vec2 View::world_to_texpos(glm::vec3 pos){
+  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  glm::vec3 pos3 = project(pos,m_view * m_world,m_projection,viewport);
+  return glm::vec2(pos3);
 }
 
 // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
-vec3 View::texpos_to_world(vec2 pos, float dist/*=-1.f*/){
-  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
-  vec3 wpos = {};
+glm::vec3 View::texpos_to_world(glm::vec2 pos, float dist/*=-1.f*/){
+  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  glm::vec3 wpos = {};
   if (dist < 0.f){
     // Set the point on the plane parallel to the z-plane that passes through
     // the origin of the scene
@@ -693,41 +691,41 @@ vec3 View::texpos_to_world(vec2 pos, float dist/*=-1.f*/){
     wpos = unProject(wpos,m_view * m_world,m_projection,viewport);
   } else {
     // Set the point at a distance dist from the camera
-    vec3 origpos = texpos_to_world(pos,-1.f);
-    vec3 nearpos = texpos_to_world(pos,0.f);
-    vec3 dir = normalize(origpos - nearpos);
+    glm::vec3 origpos = texpos_to_world(pos,-1.f);
+    glm::vec3 nearpos = texpos_to_world(pos,0.f);
+    glm::vec3 dir = glm::normalize(origpos - nearpos);
     wpos = nearpos + fmax(dist - znear,0.f) * dir;
   }
   return wpos;
 }
 
-vec2 View::world_to_ntexpos(vec3 pos){
-  vec2 pos2 = world_to_texpos(pos);
+glm::vec2 View::world_to_ntexpos(glm::vec3 pos){
+  glm::vec2 pos2 = world_to_texpos(pos);
   texpos_to_ntexpos(pos2);
   return pos2;
 }
 
 // dist=0, znear; dist<0, scene origin plane; dist>0, distance from camera
-vec3 View::ntexpos_to_world(vec2 pos, float dist/*=-1.f*/){
+glm::vec3 View::ntexpos_to_world(glm::vec2 pos, float dist/*=-1.f*/){
   ntexpos_to_texpos(pos);
   return texpos_to_world(pos,dist);
 }
 
-vec2 View::view_to_texpos(vec3 pos, float *depth){
-  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
-  vec3 pos3 = project(pos,m_view,m_projection,viewport);
+glm::vec2 View::view_to_texpos(glm::vec3 pos, float *depth){
+  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  glm::vec3 pos3 = project(pos,m_view,m_projection,viewport);
   *depth = pos3.z;
-  return vec2(pos3);
+  return glm::vec2(pos3);
 }
 
-vec3 View::texpos_to_view(vec2 pos, float depth){
-  const vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
-  vec3 wpos = {pos.x,pos.y,depth};
+glm::vec3 View::texpos_to_view(glm::vec2 pos, float depth){
+  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  glm::vec3 wpos = {pos.x,pos.y,depth};
   wpos = unProject(wpos,m_view,m_projection,viewport);
   return wpos;
 }
 
-float View::texpos_viewdepth(vec2 texpos){
+float View::texpos_viewdepth(glm::vec2 texpos){
     float depth;
     glBindFramebuffer(GL_FRAMEBUFFER, FBO);
     glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
@@ -735,7 +733,7 @@ float View::texpos_viewdepth(vec2 texpos){
     return depth;
 }
 
-void View::drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend){
+void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend){
   if (blend){
     glEnable(GL_BLEND);
     glEnable(GL_CULL_FACE);
@@ -744,10 +742,10 @@ void View::drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend){
   }
   glBindVertexArray(sphVAO[res]);
 
-  mat4 m_model = mat4(1.0f);
-  m_model = translate(m_model,r0);
-  m_model = scale(m_model,vec3(rad,rad,rad));
-  mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
+  glm::mat4 m_model = glm::mat4(1.0f);
+  m_model = glm::translate(m_model,r0);
+  m_model = glm::scale(m_model,glm::vec3(rad,rad,rad));
+  glm::mat3 m_normrot = glm::transpose(glm::inverse(glm::mat3(m_view) * glm::mat3(m_world) * glm::mat3(m_model)));
 
   shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
@@ -760,26 +758,26 @@ void View::drawSphere(vec3 r0, float rad, vec4 rgb, int res, bool blend){
   }
 }
 
-void View::drawCylinder(vec3 r1, vec3 r2, float rad, vec4 rgb, int res, bool blend){
+void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend){
   if (blend){
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(0);
   }
   glBindVertexArray(cylVAO[res]);
-  vec3 xmid = 0.5f * (r1 + r2);
-  vec3 xdif = r2 - r1;
-  float blen = length(xdif);
+  glm::vec3 xmid = 0.5f * (r1 + r2);
+  glm::vec3 xdif = r2 - r1;
+  float blen = glm::length(xdif);
   xdif = xdif/blen;
-  vec3 up = {0.f,0.f,1.f};
-  vec3 crs = cross(up,xdif);
+  glm::vec3 up = {0.f,0.f,1.f};
+  glm::vec3 crs = glm::cross(up,xdif);
   
-  mat4 m_model = mat4(1.0f);
-  m_model = translate(m_model,xmid);
-  if (length(crs) > 1.e-12)
-    m_model = m_model * rotate(acos(dot(xdif,up)),crs);
-  m_model = scale(m_model,vec3(rad,rad,blen));
-  mat3 m_normrot = transpose(inverse(mat3(m_view) * mat3(m_world) * mat3(m_model)));
+  glm::mat4 m_model = glm::mat4(1.0f);
+  m_model = glm::translate(m_model,xmid);
+  if (glm::length(crs) > 1.e-12)
+    m_model = m_model * glm::rotate(acos(dot(xdif,up)),crs);
+  m_model = glm::scale(m_model,glm::vec3(rad,rad,blen));
+  glm::mat3 m_normrot = glm::transpose(glm::inverse(glm::mat3(m_view) * glm::mat3(m_world) * glm::mat3(m_model)));
   shader->setMat3("normrot",value_ptr(m_normrot));
   shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
