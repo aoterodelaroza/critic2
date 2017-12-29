@@ -815,7 +815,15 @@ void ForceUpdateAllViews(){
 
 void SetDefaultAllViews(){
   for (auto iv : viewlist){
-    iv->SetDefaults();
+    iv->iswire = view_wireframe;
+    iv->isortho = view_orthogonal;
+    iv->zfov = view_fov;
+    iv->resetd = view_resetdistance; 
+    for (int i=0; i<4; i++)
+      iv->bgrgb[i] = view_bgrgb[i];
+    iv->isphres = view_isphres;
+    iv->icylres = view_icylres;
+
     iv->updateProjection();
     iv->updatescene = true;
   }
