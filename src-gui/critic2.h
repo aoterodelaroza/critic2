@@ -17,15 +17,7 @@ namespace c2 {
     int ifrag;
     float rad;
     float rgb[4];
-  };
-
-  // bond type
-  extern "C" struct c_bond {
-    float r1[3];
-    float r2[3];
-    float rgb1[4];
-    float rgb2[4];
-    float rad;
+    int ncon;
   };
 
   // routines
@@ -39,8 +31,10 @@ namespace c2 {
 
   extern "C" int nat;
   extern "C" struct c_atom *at;
-  extern "C" int nbond;
-  extern "C" struct c_bond *bond;
+
+  extern "C" int mncon;
+  extern "C" int *idcon;
+  extern "C" int *lcon;
 
   extern "C" int nmol;
   extern "C" int *moldiscrete;

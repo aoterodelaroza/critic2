@@ -283,7 +283,11 @@ void View::Update(){
 	}
       }
     }
-    // scene atoms
+
+    // scene atoms and bonds
+    int (*idcon_)[c2::mncon] = (int (*)[c2::mncon]) c2::idcon;
+    int (*lcon_)[c2::mncon][3] = (int (*)[c2::mncon][3]) c2::lcon;
+
     for (int i=0;i<c2::nat;i++){
       vec3 r0 = make_vec3(c2::at[i].r);
       vec4 rgb = make_vec4(c2::at[i].rgb);
@@ -291,16 +295,27 @@ void View::Update(){
       for (int ix=imin[i][0]; ix<imax[i][0]; ix++){
 	for (int iy=imin[i][1]; iy<imax[i][1]; iy++){
 	  for (int iz=imin[i][2]; iz<imax[i][2]; iz++){
-	    drawSphere(r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz,c2::at[i].rad,rgb,isphres,false);
+	    vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
+	    drawSphere(x0,c2::at[i].rad,rgb,isphres,false);
+
+	    for (int j=0;j<c2::at[i].ncon;j++){
+	      int ineigh = idcon_[i][j];
+	      int ixn = ix + lcon_[i][j][0];
+	      int iyn = iy + lcon_[i][j][1];
+	      int izn = iz + lcon_[i][j][2];
+	      if (ixn >= imin[ineigh][0] && ixn < imax[ineigh][0] && 
+		  iyn >= imin[ineigh][1] && iyn < imax[ineigh][1] && 
+		  izn >= imin[ineigh][2] && izn < imax[ineigh][2]){
+		vec3 x1 = make_vec3(c2::at[ineigh].r) + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
+		x1 = x0 + 0.5f * (x1 - x0);
+
+		const float rad = 0.2f;
+		drawCylinder(x0,x1,rad,rgb,icylres,false);
+	      }
+	    }
 	  }
 	}
       }
-    }
-
-    // scene bonds
-    for (int i=0;i<c2::nbond;i++){
-      float rgb[4] = {0.5f,0.f,0.f,1.f};
-      drawCylinder(make_vec3(c2::bond[i].r1),make_vec3(c2::bond[i].r2),c2::bond[i].rad,make_vec4(rgb),icylres,false);
     }
 
     // unit cell

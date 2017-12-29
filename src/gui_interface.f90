@@ -41,19 +41,8 @@ module gui_interface
      integer(c_int) :: ifrag !< which fragment this atom belongs to
      real(c_float) :: rad !< ball radius (bohr) 
      real(c_float) :: rgb(4) !< color (0 to 1)
-     ! integer(c_int) :: ncon !< number of neighbors
-     ! integer(c_int), allocatable :: idcon(:) !< id (cidx) of the connected atom
-     ! integer(c_int), allocatable :: lcon(:,:) !< lattice vector of the connected atom
+     integer(c_int) :: ncon !< number of neighbors
   end type c_atom
-
-  ! C-interoperable bond type
-  type, bind(c) :: c_bond
-     real(c_float) :: r1(3) !< first end position (bohr)
-     real(c_float) :: r2(3) !< second end position (bohr)
-     real(c_float) :: rgb1(4) !< color of first half (0 to 1)
-     real(c_float) :: rgb2(4) !< color of second half (0 to 1)
-     real(c_float) :: rad !< stick radius (bohr) 
-  end type c_bond
 
   type scene
      integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
@@ -65,8 +54,9 @@ module gui_interface
      logical(c_bool) :: ismolecule ! is this a molecule?
      integer(c_int) :: nat ! number of atoms
      type(c_atom), allocatable :: at(:) ! atoms
-     integer(c_int) :: nbond ! number of bonds
-     type(c_bond), allocatable :: bond(:) ! bonds
+
+     integer(c_int), allocatable :: idcon(:,:) !< id (cidx) of the connected atom
+     integer(c_int), allocatable :: lcon(:,:,:) !< lattice vector of the connected atom
 
      integer(c_int) :: nmol ! number of fragments
      integer(c_int), allocatable :: moldiscrete(:) ! is fragment discrete?
@@ -89,8 +79,10 @@ module gui_interface
   real(c_float), bind(c) :: scenerad
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
-  integer(c_int), bind(c) :: nbond
-  type(c_ptr), bind(c) :: bond
+
+  integer(c_int), bind(c) :: mncon
+  type(c_ptr), bind(c) :: idcon
+  type(c_ptr), bind(c) :: lcon
 
   integer(c_int), bind(c) :: nmol
   type(c_ptr), bind(c) :: moldiscrete
@@ -166,6 +158,7 @@ contains
     type(crystalseed), allocatable :: seed(:)
     real(c_float) :: xmin(3), xmax(3)
     real*8 :: dist
+    integer :: mncon_
 
     ! transform to fortran string
     line = c_string_value(line0)
@@ -184,6 +177,7 @@ contains
        sc(1)%center = 0d0
 
        ! build the atom list
+       mncon_ = 0
        sc(1)%nat = sc(1)%sy%c%ncel
        if (allocated(sc(1)%at)) deallocate(sc(1)%at)
        allocate(sc(1)%at(sc(1)%nat))
@@ -199,6 +193,8 @@ contains
           sc(1)%at(i)%cidx = i
           sc(1)%at(i)%z = iz
           call f_c_string(sc(1)%sy%c%spc(is)%name,sc(1)%at(i)%name,11)
+          sc(1)%at(i)%ncon = sc(1)%sy%c%nstar(i)%ncon
+          mncon_ = max(mncon_,sc(1)%at(i)%ncon)
 
           if (atmcov(iz) > 1) then
              sc(1)%at(i)%rad = 0.7*atmcov(iz)
@@ -225,45 +221,19 @@ contains
           end do
        end do
 
-       sc(1)%nbond = 0
-       ! ! first pass to count the bonds - the dumb way
-       ! call sc(1)%sy%c%checkflags(.false.,ast0=.true.)
-       ! sc(1)%nbond = 0
-       ! do i = 1, sc(1)%sy%c%ncel
-       !    do j = 1, sc(1)%sy%c%nstar(i)%ncon
-       !       if (all(sc(1)%sy%c%nstar(i)%lcon(:,j) == 0)) then
-       !          idx1 = i
-       !          idx2 = sc(1)%sy%c%nstar(i)%idcon(j)
-       !          if (idx2 < i) cycle
-       !          sc(1)%nbond = sc(1)%nbond + 1
-       !       end if
-       !    end do
-       ! end do
+       ! build the neighbor info
+       allocate(sc(1)%idcon(mncon_,sc(1)%nat))
+       allocate(sc(1)%lcon(3,mncon_,sc(1)%nat))
+       sc(1)%idcon = 0
+       sc(1)%lcon = 0
+       do i = 1, sc(1)%nat
+          do j = 1, sc(1)%at(i)%ncon
+             sc(1)%idcon(j,i) = sc(1)%sy%c%nstar(i)%idcon(j)-1
+             sc(1)%lcon(:,j,i) = sc(1)%sy%c%nstar(i)%lcon(:,j)
+          end do
+       end do
 
-       ! ! build the bonds - the dumb way
-       ! allocate(sc(1)%bond(sc(1)%nbond))
-       ! n = 0
-       ! do i = 1, sc(1)%sy%c%ncel
-       !    do j = 1, sc(1)%sy%c%nstar(i)%ncon
-       !       if (all(sc(1)%sy%c%nstar(i)%lcon(:,j) == 0)) then
-       !          idx1 = i
-       !          idx2 = sc(1)%sy%c%nstar(i)%idcon(j)
-       !          if (idx2 < i) cycle
-       !          n = n + 1
-       !          sc(1)%bond(n)%r1 = sc(1)%sy%c%atcel(idx1)%r
-       !          sc(1)%bond(n)%r2 = sc(1)%sy%c%atcel(idx2)%r
-       !          iz1 = sc(1)%sy%c%spc(sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx1)%idx)%is)%z
-       !          iz2 = sc(1)%sy%c%spc(sc(1)%sy%c%at(sc(1)%sy%c%atcel(idx2)%idx)%is)%z
-       !          sc(1)%bond(n)%rgb1(1:3) = real(jmlcol(:,iz1),4) / 255.
-       !          sc(1)%bond(n)%rgb1(4) = 1.0
-       !          sc(1)%bond(n)%rgb2(1:3) = real(jmlcol(:,iz2),4) / 255.
-       !          sc(1)%bond(n)%rgb2(4) = 1.0
-       !          sc(1)%bond(n)%rad = 0.2
-       !       end if
-       !    end do
-       ! end do
-
-       ! translate to the center of mass
+       ! calcualte the scene radius
        xmin = 0._c_float
        xmax = 0._c_float
        do i = 1, sc(1)%nat
@@ -292,8 +262,10 @@ contains
 
     nat = sc(isc)%nat
     at = c_loc(sc(isc)%at)
-    nbond = sc(isc)%nbond
-    bond = c_loc(sc(isc)%bond)
+
+    mncon = size(sc(isc)%idcon,1)
+    idcon = c_loc(sc(isc)%idcon)
+    lcon = c_loc(sc(isc)%lcon)
 
     nmol = sc(isc)%nmol
     moldiscrete = c_loc(sc(isc)%moldiscrete)
