@@ -27,6 +27,7 @@ namespace c2 {
   extern "C" void gui_end();
 
   // pointers to the current scene
+  extern "C" int isinit;
   extern "C" float scenerad;
 
   extern "C" int nat;

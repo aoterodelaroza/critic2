@@ -2881,8 +2881,10 @@ contains
   !> Read all seeds from a file read from line. Advance the line
   !> pointer lp.
   subroutine read_seeds_from_file(line,lp,mol0,nseed,seed)
-    use tools_io, only: getword
-    use param, only: isformat_cube
+    use global, only: rborder_def
+    use tools_io, only: getword, equali
+    use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
+       isformat_fchk, isformat_molden
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
     integer, intent(in) :: mol0
@@ -2890,26 +2892,46 @@ contains
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     
     character(len=:), allocatable :: file
-    integer :: isformat
+    integer :: isformat, mol0_
     logical :: ismol, mol
 
+    mol0_ = mol0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
     allocate(seed(1))
 
     file = getword(line,lp)
+    if (equali(file,"-c")) then
+       mol0_ = 0
+       file = getword(line,lp)
+    elseif (equali(file,"-m")) then
+       mol0_ = 1
+       file = getword(line,lp)
+    elseif (equali(file,"-h")) then
+       write (*,*) " gcritic2 [-c|-m|] file1 [-c|-m|] file2..."
+       write (*,*) "-c file : read file as a crystal"
+       write (*,*) "-m file : read file as a molecule"
+       write (*,*) "   file : let critic2 decide"
+       write (*,*) "I need to write this xxxx"
+       stop 1
+    end if
     call struct_detect_format(file,isformat,ismol)
-    if (mol0 == 1) then
+    if (mol0_ == 1) then
        mol = .true.
-    elseif (mol0 == 0) then
+    elseif (mol0_ == 0) then
        mol = .false.
-    elseif (mol0 == -1) then
+    elseif (mol0_ == -1) then
        mol = ismol
     end if
 
     if (isformat == isformat_cube) then
        nseed = 1
        call seed(1)%read_cube(file,mol)
+    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
+       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
+       isformat == isformat_molden) then
+       nseed = 1
+       call seed(1)%read_mol(file,isformat,rborder_def,.false.)
     end if
 
   end subroutine read_seeds_from_file

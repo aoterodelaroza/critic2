@@ -76,6 +76,7 @@ module gui_interface
   public :: gui_end
 
   ! pointers to the current scene
+  integer(c_int), bind(c) :: isinit 
   real(c_float), bind(c) :: scenerad
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
@@ -137,6 +138,7 @@ contains
     if (allocated(sc)) deallocate(sc)
     allocate(sc(1))
     nsc = 0
+    isinit = 0
     scenerad = 10._c_float
 
   end subroutine gui_initialize
@@ -256,8 +258,10 @@ contains
     integer(c_int), value, intent(in) :: isc
 
     nat = 0
+    isinit = 0
     if (isc < 0 .or. isc > nsc) return
 
+    isinit = sc(isc)%isinit
     scenerad = sc(isc)%srad
 
     nat = sc(isc)%nat

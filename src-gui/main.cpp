@@ -41,6 +41,17 @@
 using namespace ImGui;
 
 int main(int argc, char *argv[]){
+  // Initialize critic2
+  c2::gui_initialize();
+
+  // Concatenate the input arguments and pass them to critic2
+  if (argc > 1){
+    string argall = "";
+    for(int i=1;i<argc;i++)
+      argall = argall + argv[i] + " ";
+    c2::open_file((const char **) &argall, -1);
+  }
+
   // Initialize
   glfwSetErrorCallback(error_callback);
   if (!glfwInit()) exit(EXIT_FAILURE);
@@ -55,9 +66,6 @@ int main(int argc, char *argv[]){
   glfwMakeContextCurrent(rootwin);
   gl3wInit();
   glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
-
-   // Initialize critic2
-  c2::gui_initialize();
 
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
@@ -78,14 +86,6 @@ int main(int argc, char *argv[]){
   // Shader and opengl settings
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
-
-  // Concatenate the input arguments and pass them to critic2
-  if (argc > 1){
-    string argall = "";
-    for(int i=1;i<argc;i++)
-      argall = argall + argv[i] + " ";
-    c2::open_file((const char **) &argall, -1);
-  }
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();

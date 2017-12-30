@@ -82,9 +82,11 @@ struct View
   // draw shapes
   void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
   void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
+  void drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors);
 
   // draw settings
   bool isucell; // draw the unit cell?
+  bool ismolcell; // draw the molecular cell?
   bool isborder; // draw the atoms on the border?
   bool ismotif; // draw the molecular motif
   int ncell[3]; // number of unit cells in each direction

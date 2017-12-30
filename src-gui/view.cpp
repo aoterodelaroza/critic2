@@ -75,9 +75,15 @@ void View::SetDefaults(){
   scale_bonds = view_scale_bonds;
   icylres = view_icylres;
   ncell[0] = ncell[1] = ncell[2] = 1;
-  isucell = (iscene > 0 && !c2::ismolecule)?true:false;
-  isborder = true;
-  ismotif = true;
+  isucell = false;
+  isborder = false;
+  ismotif = false;
+  ismolcell = false;
+  if (iscene > 0 && !c2::ismolecule){
+    isucell = true;
+    isborder = true;
+    ismotif = true;
+  }
 }
 
 void View::Draw(){
@@ -211,17 +217,21 @@ void View::Draw(){
     bool changed = false;
     float itemwidth = 5.f * g->FontSize;
     updatescene |= Checkbox("Unit cell", &isucell);
+    if (iscene > 0 && c2::ismolecule)
+      updatescene |= Checkbox("Molecular cell", &ismolcell);
     PushItemWidth(itemwidth);
-    Text("Unit cell repetition:");
-    Indent();
-    updatescene |= InputInt("a axis", &ncell[0]);
-    updatescene |= InputInt("b axis", &ncell[1]);
-    updatescene |= InputInt("c axis", &ncell[2]);
-    for (int i=0; i<3; i++)
-      ncell[i] = std::max(1,ncell[i]);
-    Unindent();
-    updatescene |= Checkbox("Crystal packing", &isborder);
-    updatescene |= Checkbox("Molecular motif", &ismotif);
+    if (iscene > 0 && !c2::ismolecule){
+      Text("Unit cell repetition:");
+      Indent();
+      updatescene |= InputInt("a axis", &ncell[0]);
+      updatescene |= InputInt("b axis", &ncell[1]);
+      updatescene |= InputInt("c axis", &ncell[2]);
+      for (int i=0; i<3; i++)
+	ncell[i] = std::max(1,ncell[i]);
+      Unindent();
+      updatescene |= Checkbox("Crystal packing", &isborder);
+      updatescene |= Checkbox("Molecular motif", &ismotif);
+    }
     Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
     changed |= Checkbox("Orthgonal projection", &view_orthogonal);
@@ -264,7 +274,7 @@ void View::Update(){
   if (iswire)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-  if (iscene > 0){
+  if (iscene > 0 && c2::isinit == 2){
     const float rthr = 0.01f;
 
     glm::vec3 v0 = {0.f,0.f,0.f};
@@ -340,45 +350,14 @@ void View::Update(){
     }
 
     // unit cell
-    if (isucell){
-      const float cellthick = 0.05f;
-      const glm::vec4 ucellrgbx = {1.f,0.f,0.f,1.f};
-      const glm::vec4 ucellrgby = {0.f,1.f,0.f,1.f};
-      const glm::vec4 ucellrgbz = {0.f,0.f,1.f,1.f};
-      const glm::vec4 ucellrgbo = {0.5f,0.5f,0.5f,1.f};
-
-      drawCylinder(v0,vx,cellthick,ucellrgbx,icylres,false);
-      drawCylinder(v0,vy,cellthick,ucellrgby,icylres,false);
-      drawCylinder(v0,vz,cellthick,ucellrgbz,icylres,false);
-      for (int ix=0; ix<ncell[0]; ix++){
-	for (int iy=0; iy<ncell[1]; iy++){
-	  for (int iz=0; iz<ncell[2]; iz++){
-	    glm::vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
-
-	    if (ix == 0 && iy == 0 && iz > 0)
-	      drawCylinder(v0+lvec,vz+lvec,cellthick,ucellrgbo,icylres,false);
-	    if (ix == 0 && iz == 0 && iy > 0)
-	      drawCylinder(v0+lvec,vy+lvec,cellthick,ucellrgbo,icylres,false);
-	    if (iy == 0 && iz == 0 && ix > 0)
-	      drawCylinder(v0+lvec,vx+lvec,cellthick,ucellrgbo,icylres,false);
-	    if (iz == 0) { 
-	      drawCylinder(vx+lvec,vx+vy+lvec,cellthick,ucellrgbo,icylres,false);
-	      drawCylinder(vy+lvec,vy+vx+lvec,cellthick,ucellrgbo,icylres,false);
-	    }
-	    if (ix == 0){
-	      drawCylinder(vy+lvec,vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	      drawCylinder(vz+lvec,vz+vy+lvec,cellthick,ucellrgbo,icylres,false);
-	    }
-	    if (iy == 0){
-	      drawCylinder(vx+lvec,vx+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	      drawCylinder(vz+lvec,vz+vx+lvec,cellthick,ucellrgbo,icylres,false);
-	    }
-	    drawCylinder(vx+vy+lvec,vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	    drawCylinder(vx+vz+lvec,vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	    drawCylinder(vy+vz+lvec,vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	  }
-	}
-      }
+    if (isucell)
+      drawUnitCell(v0,vx,vy,vz,true);
+    if (ismolcell){
+      glm::vec3 v0_ = v0 + c2::molborder[0] * vx + c2::molborder[1] * vy + c2::molborder[2] * vz;
+      glm::vec3 vx_ = vx * (1.f - 2.f * c2::molborder[0]);
+      glm::vec3 vy_ = vy * (1.f - 2.f * c2::molborder[1]);
+      glm::vec3 vz_ = vz * (1.f - 2.f * c2::molborder[2]);
+      drawUnitCell(v0_,vx_,vy_,vz_,false);
     }
 
     // // the scenerad spehre, for testing
@@ -785,6 +764,54 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
   if (blend){
     glDisable(GL_BLEND);
     glDepthMask(1);
+  }
+}
+
+void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors){
+  const float cellthick = 0.05f;
+  glm::vec4 ucellrgbx, ucellrgby, ucellrgbz, ucellrgbo;
+  if (colors){
+    ucellrgbx = {1.f,0.f,0.f,1.f};
+    ucellrgby = {0.f,1.f,0.f,1.f};
+    ucellrgbz = {0.f,0.f,1.f,1.f};
+  } else {
+    ucellrgbx = {0.5f,0.5f,0.5f,1.f};
+    ucellrgby = {0.5f,0.5f,0.5f,1.f};
+    ucellrgbz = {0.5f,0.5f,0.5f,1.f};
+  }
+  ucellrgbo = {0.5f,0.5f,0.5f,1.f};
+  
+  drawCylinder(v0,v0+vx,cellthick,ucellrgbx,icylres,false);
+  drawCylinder(v0,v0+vy,cellthick,ucellrgby,icylres,false);
+  drawCylinder(v0,v0+vz,cellthick,ucellrgbz,icylres,false);
+  for (int ix=0; ix<ncell[0]; ix++){
+    for (int iy=0; iy<ncell[1]; iy++){
+      for (int iz=0; iz<ncell[2]; iz++){
+	glm::vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
+
+	if (ix == 0 && iy == 0 && iz > 0)
+	  drawCylinder(v0+lvec,v0+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	if (ix == 0 && iz == 0 && iy > 0)
+	  drawCylinder(v0+lvec,v0+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	if (iy == 0 && iz == 0 && ix > 0)
+	  drawCylinder(v0+lvec,v0+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	if (iz == 0) { 
+	  drawCylinder(v0+vx+lvec,v0+vx+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+vy+lvec,v0+vy+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	}
+	if (ix == 0){
+	  drawCylinder(v0+vy+lvec,v0+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+vz+lvec,v0+vz+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	}
+	if (iy == 0){
+	  drawCylinder(v0+vx+lvec,v0+vx+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+vz+lvec,v0+vz+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	}
+	drawCylinder(v0+vx+vy+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	drawCylinder(v0+vx+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	drawCylinder(v0+vy+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+      }
+    }
   }
 }
 
