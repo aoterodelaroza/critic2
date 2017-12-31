@@ -2100,8 +2100,8 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use tools_io, only: fopen_read, faterr, ferror, getline_raw, upper, getword,&
-       equal, zatguess, fclose, lgetword
+    use tools_io, only: fopen_read, faterr, ferror, getline_raw, lower, getword,&
+       equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
     use types, only: realloc
@@ -2287,9 +2287,9 @@ contains
     ! read the cards
     havecell = .false.
     do while (getline_raw(lu,line))
-       line = upper(line)
+       line = lower(line)
        lp = 1
-       word = lgetword(line,lp)
+       word = getword(line,lp)
        if (equal(word,'atomic_species')) then
           do i = 1, ntyp
              read (lu,*) seed%spc(i)%name
@@ -2881,10 +2881,12 @@ contains
   !> Read all seeds from a file read from line. Advance the line
   !> pointer lp.
   subroutine read_seeds_from_file(line,lp,mol0,nseed,seed)
-    use global, only: rborder_def
+    use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
-       isformat_fchk, isformat_molden
+       isformat_fchk, isformat_molden, isformat_abinit, isformat_cif,&
+       isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
+       isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
     integer, intent(in) :: mol0
@@ -2924,14 +2926,50 @@ contains
        mol = ismol
     end if
 
-    if (isformat == isformat_cube) then
-       nseed = 1
+    ! for now, read only one seed always
+    nseed = 1
+    if (isformat == isformat_cif) then
+       call seed(1)%read_cif(file," ",mol)
+    elseif (isformat == isformat_res) then
+       call seed(1)%read_res(file,mol)
+    else if (isformat == isformat_cube) then
        call seed(1)%read_cube(file,mol)
+    elseif (isformat == isformat_struct) then
+       call seed(1)%read_wien(file,mol)
+    elseif (isformat == isformat_vasp) then
+       write (*,*) "not implemented yet"
+       write (*,*) "a decision needs to be made re atom types"
+       stop 1
+    elseif (isformat == isformat_abinit) then
+       call seed(1)%read_abinit(file,mol)
+    elseif (isformat == isformat_elk) then
+       call seed(1)%read_elk(file,mol)
+    elseif (isformat == isformat_qeout) then
+       call seed(1)%read_qeout(file,mol,0)
+    elseif (isformat == isformat_crystal) then
+       call seed(1)%read_crystalout(file,mol)
+    elseif (isformat == isformat_qein) then
+       call seed(1)%read_qein(file,mol)
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden) then
-       nseed = 1
        call seed(1)%read_mol(file,isformat,rborder_def,.false.)
+    elseif (isformat == isformat_siesta) then
+       call seed(1)%read_siesta(file,mol)
+    elseif (isformat == isformat_xsf) then
+       call seed(1)%read_xsf(file,mol)
+    elseif (isformat == isformat_gen) then
+       call seed(1)%read_dftbp(file,mol,rborder_def,.false.)
+    end if
+
+    ! handle the doguess option
+    if (.not.seed(1)%ismolecule) then
+       if (doguess == 0) then
+          seed(1)%havesym = 0
+          seed(1)%findsym = 0
+       elseif (doguess == 1 .and. seed(1)%havesym == 0) then
+          seed(1)%findsym = 1
+       end if
     end if
 
   end subroutine read_seeds_from_file
