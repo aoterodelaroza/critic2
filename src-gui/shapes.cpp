@@ -43,11 +43,12 @@ const GLuint sphnve[nmaxsph]    = {     12,  42, 162,  642};
 const GLuint sphnel[nmaxsph]    = {     20,  80, 320, 1280};
 const GLuint sphneladd[nmaxsph+1] = {0, 20, 100, 420, 1700};
 GLuint cylVAO[nmaxcyl];
-GLuint cylVBO;
+GLuint cylVBO[nmaxcyl];
 GLuint cylEBO[nmaxcyl];
-const GLuint cylnve[nmaxcyl]    = {     14};
-const GLuint cylnel[nmaxcyl]    = {     24};
-const GLuint cylneladd[nmaxcyl+1] = {0, 24};
+const GLuint cylnve[nmaxcyl]      =    {14, 26, 38};
+const GLuint cylnveadd[nmaxcyl+1] = {0, 14, 40, 78};
+const GLuint cylnel[nmaxcyl]      =    {24, 48, 72};
+const GLuint cylneladd[nmaxcyl+1] = {0, 24, 72, 144};
 
 // icosahedron  vertices
 static GLfloat *sphv;
@@ -229,29 +230,76 @@ void CreateAndFillBuffers(){
   glBindVertexArray(0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  // allocate space for the icospheres and copy the icosahedron as the first icosphere
-  cylv = new GLfloat [6*cylnve[nmaxcyl-1]];
+  // allocate space for the cylinders
+  cylv = new GLfloat [6*cylnveadd[nmaxcyl]];
   cyli = new GLuint [3*cylneladd[nmaxcyl]];
   memcpy(cylv,cylv0,sizeof(cylv0));
   memcpy(cyli,cyli0,sizeof(cyli0));
 
-  // normalize cylinder vertices
-  for (int j = 0; j < cylnve[0]; j++){
-    float anorm = sqrtf(cylv[6*j+0]*cylv[6*j+0]+cylv[6*j+1]*cylv[6*j+1]+cylv[6*j+2]*cylv[6*j+2]);
-    cylv[6*j+3] = cylv[6*j+0] / anorm;
-    cylv[6*j+4] = cylv[6*j+1] / anorm;
-    cylv[6*j+5] = cylv[6*j+2] / anorm;
+  // create the vertices, normals, and faces
+  for (int ncyl = 0; ncyl < nmaxcyl; ncyl++){
+    int n = cylnveadd[ncyl]-1;
+    int npt = (cylnve[ncyl]-2)/2;
+    
+    n++;
+    cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = -0.5f;
+    cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = -1.0f;
+    n++;
+    cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = 0.5f;
+    cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = 1.0f;
+
+    
+    float half = 0.5f;
+    for (int j=0;j<2;j++){
+      half = -half;
+      for (int i=0;i<npt;i++){
+	float angle = ((float) i) / ((float) npt) * 2.f * PI;
+	float ca = cos(angle), sa = sin(angle);
+	n++;
+	cylv[6*n+0] = 0.5f * ca; cylv[6*n+1] = 0.5f * sa; cylv[6*n+2] = half;
+	cylv[6*n+3] = ca; cylv[6*n+4] = sa; cylv[6*n+5] = 0.f;
+      }
+    }
+
+    int nface = cylneladd[ncyl]-1;
+    int shift1 = 2;
+    int shift2 = 2+npt;
+    for (int i=0; i<npt; i++){
+      nface++;
+      cyli[3*nface+0] = 0;
+      cyli[3*nface+1] = (i+1)%npt+shift1;
+      cyli[3*nface+2] = i+shift1;
+    }
+    for (int i=0; i<npt; i++){
+      nface++;
+      cyli[3*nface+0] = 1;
+      cyli[3*nface+1] = i+shift2;
+      cyli[3*nface+2] = (i+1)%npt+shift2;
+    }
+    for (int i=0; i<npt; i++){
+      nface++;
+      cyli[3*nface+0] = i+shift1;
+      cyli[3*nface+1] = (i+1)%npt+shift1;
+      cyli[3*nface+2] = (i+1)%npt+shift2;
+    }
+    for (int i=0; i<npt; i++){
+      nface++;
+      cyli[3*nface+0] = i+shift1;
+      cyli[3*nface+1] = (i+1)%npt+shift2;
+      cyli[3*nface+2] = i+shift2;
+    }
   }
+
 
   // build the buffers for the cylinders
   glGenVertexArrays(nmaxcyl, cylVAO);
-  glGenBuffers(1, &cylVBO);
+  glGenBuffers(nmaxcyl, cylVBO);
   glGenBuffers(nmaxcyl, cylEBO);
 
-  glBindBuffer(GL_ARRAY_BUFFER, cylVBO);
-  glBufferData(GL_ARRAY_BUFFER, 6 * cylnve[nmaxcyl-1] * sizeof(GLfloat), cylv, GL_STATIC_DRAW);
-
   for (int i=0;i<nmaxcyl;i++){
+    glBindBuffer(GL_ARRAY_BUFFER, cylVBO[i]);
+    glBufferData(GL_ARRAY_BUFFER, 6 * cylnve[i] * sizeof(GLfloat), &(cylv[6*cylnveadd[i]]), GL_STATIC_DRAW);
+
     glBindVertexArray(cylVAO[i]);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[i]);
@@ -275,7 +323,7 @@ void DeleteBuffers(){
   glDeleteBuffers(1, &sphVBO);
   glDeleteBuffers(nmaxsph, sphEBO);
   glDeleteVertexArrays(nmaxcyl, cylVAO);
-  glDeleteBuffers(1, &cylVBO);
+  glDeleteBuffers(nmaxcyl, cylVBO);
   glDeleteBuffers(nmaxcyl, cylEBO);
   delete sphi;
   delete sphv;

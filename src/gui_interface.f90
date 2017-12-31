@@ -235,7 +235,7 @@ contains
           end do
        end do
 
-       ! calcualte the scene radius
+       ! calculate the scene radius
        xmin = 0._c_float
        xmax = 0._c_float
        do i = 1, sc(1)%nat

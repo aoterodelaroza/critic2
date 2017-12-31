@@ -316,7 +316,7 @@ void DefaultSettings(){
   view_isphres = 2;
   view_show_bonds = true;
   view_scale_bonds = 1.0f;
-  view_icylres = 0;
+  view_icylres = 1;
   view_mousesens_rot = 1.0f;
   view_mousesens_zoom = 1.0f;
 

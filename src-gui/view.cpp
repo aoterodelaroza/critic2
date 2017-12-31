@@ -338,15 +338,17 @@ void View::Update(){
 	      int ixn = ix + lcon_[i][j][0];
 	      int iyn = iy + lcon_[i][j][1];
 	      int izn = iz + lcon_[i][j][2];
-	      if (ixn >= imin[ineigh][0] && ixn < imax[ineigh][0] && 
-		  iyn >= imin[ineigh][1] && iyn < imax[ineigh][1] && 
-		  izn >= imin[ineigh][2] && izn < imax[ineigh][2]){
-		glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) - center + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
-		x1 = x0 + 0.5f * (x1 - x0);
+	      if (ineigh < i || ineigh == i && (ixn < ix || ixn == ix && (iyn < iy || iyn == iy && izn < iz))) continue;
+	      if (ixn < imin[ineigh][0] || ixn >= imax[ineigh][0] || iyn < imin[ineigh][1] || iyn >= imax[ineigh][1] ||
+		  izn < imin[ineigh][2] || izn >= imax[ineigh][2]) continue;
 
-		const float rad = 0.2f;
-		drawCylinder(x0,x1,scale_bonds * rad,rgb,icylres,false);
-	      }
+	      glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) - center + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
+	      glm::vec3 xmid = x0 + 0.5f * (x1 - x0);
+	      glm::vec4 rgbn = glm::make_vec4(c2::at[ineigh].rgb);
+
+	      const float rad = 0.2f;
+	      drawCylinder(x0,xmid,scale_bonds * rad,rgb,icylres,false);
+	      drawCylinder(xmid,x1,scale_bonds * rad,rgbn,icylres,false);
 	    }
 	  }
 	}

@@ -25,7 +25,7 @@
 const int nmaxsph = 4;
 extern GLuint sphVAO[];
 extern const GLuint sphnel[];
-const int nmaxcyl = 1;
+const int nmaxcyl = 3;
 extern GLuint cylVAO[];
 extern const GLuint cylnel[];
 
