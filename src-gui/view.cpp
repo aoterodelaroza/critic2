@@ -313,12 +313,16 @@ void View::Update(){
       }
     }
 
+    // calculate the center of the scene (right now: center of the middle cell)
+    glm::vec3 center = v0 + 0.5f * ((float) ncell[0] * vx + (float) ncell[1] * vy + (float) ncell[2] * vz);
+    v0 = v0 - center;
+
     // scene atoms and bonds
     int (*idcon_)[c2::mncon] = (int (*)[c2::mncon]) c2::idcon;
     int (*lcon_)[c2::mncon][3] = (int (*)[c2::mncon][3]) c2::lcon;
 
     for (int i=0;i<c2::nat;i++){
-      glm::vec3 r0 = glm::make_vec3(c2::at[i].r);
+      glm::vec3 r0 = glm::make_vec3(c2::at[i].r) - center;
       glm::vec4 rgb = glm::make_vec4(c2::at[i].rgb);
 
       for (int ix=imin[i][0]; ix<imax[i][0]; ix++){
@@ -337,7 +341,7 @@ void View::Update(){
 	      if (ixn >= imin[ineigh][0] && ixn < imax[ineigh][0] && 
 		  iyn >= imin[ineigh][1] && iyn < imax[ineigh][1] && 
 		  izn >= imin[ineigh][2] && izn < imax[ineigh][2]){
-		glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
+		glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) - center + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
 		x1 = x0 + 0.5f * (x1 - x0);
 
 		const float rad = 0.2f;
