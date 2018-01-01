@@ -130,9 +130,13 @@ struct View
   bool updatescene = false; // update the scene next pass
 
   // associated objects
-  GLuint FBO; // framebuffer object
-  GLuint FBOtex; // framebuffer object textures
-  GLuint FBOdepth; // framebuffer object depth buffers
+  GLuint FBO; // framebuffer object (multisample)
+  GLuint FBOtex; // framebuffer object (multisample) texture
+  GLuint FBOdepth; // framebuffer object (multisample) depth buffer
+  GLuint FBO0; // framebuffer object
+  GLuint FBOtex0; // framebuffer object textures
+  GLuint FBOdepth0; // framebuffer object depth buffers
+
   float FBO_atex; // side of the texture (pixels)
   float FBO_a; // side of the texture square used for rendering (pixels)
   char *title; // title

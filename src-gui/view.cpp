@@ -151,7 +151,7 @@ void View::Draw(){
     bool hover = false;
     SetCursorPos(cpos);
     if (iscene > 0){
-      ImageInteractive((void *) FBOtex,FBO_a/FBO_atex,&hover,&vrect);
+      ImageInteractive((void *) FBOtex0,FBO_a/FBO_atex,&hover,&vrect);
     } else {
       hover = false;
       vrect = dock->window->Rect();
@@ -266,6 +266,7 @@ void View::Draw(){
 }
 
 void View::Update(){
+  glEnable(GL_MULTISAMPLE);
   glBindFramebuffer(GL_FRAMEBUFFER, FBO);
   glViewport(0.,0.,FBO_a,FBO_a);
 
@@ -374,9 +375,17 @@ void View::Update(){
     // drawSphere(v0,c2::scenerad,rgb,3,true);
   }
 
+  glDisable(GL_MULTISAMPLE);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO0);
+  glBlitFramebuffer(0, 0, FBO_atex, FBO_atex, 0, 0, FBO_atex, FBO_atex, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   if (iswire)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
 }
 
 void View::Delete(){
@@ -529,30 +538,60 @@ bool View::Navigate(bool hover){
 }
 
 void View::createTex(float atex){
+  const int nsample = 4;
+
+  // Create the multisampling FBO and buffers
   glGenTextures(1, &(FBOtex));
   glGenRenderbuffers(1, &(FBOdepth));
   glGenFramebuffers(1, &(FBO));
 
   // texture
-  glBindTexture(GL_TEXTURE_2D, FBOtex);
+  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, FBOtex);
+  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA, atex, atex, GL_TRUE);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+  // render buffer
+  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth);
+  glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT, atex, atex);
+  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+  // frame buffer
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FBOtex, 0); 
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    exit(EXIT_FAILURE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  // non-multisampled FBO and buffers
+  glGenTextures(1, &(FBOtex0));
+  glGenRenderbuffers(1, &(FBOdepth0));
+  glGenFramebuffers(1, &(FBO0));
+
+  // texture
+  glBindTexture(GL_TEXTURE_2D, FBOtex0);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
   glBindTexture(GL_TEXTURE_2D, 0);
 
   // render buffer
-  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth);
+  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth0);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex);
   glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
+  
   // frame buffer
-  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex, 0); 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth);
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex0, 0); 
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth0);
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     exit(EXIT_FAILURE);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
   FBO_atex = atex;
 }
 
@@ -560,6 +599,9 @@ void View::deleteTex(){
   glDeleteTextures(1, &FBOtex);
   glDeleteRenderbuffers(1, &FBOdepth);
   glDeleteFramebuffers(1, &FBO);
+  glDeleteTextures(1, &FBOtex0);
+  glDeleteRenderbuffers(1, &FBOdepth0);
+  glDeleteFramebuffers(1, &FBO0);
 }
 
 bool View::updateTexSize(){
@@ -714,7 +756,7 @@ glm::vec3 View::texpos_to_view(glm::vec2 pos, float depth){
 
 float View::texpos_viewdepth(glm::vec2 texpos){
     float depth;
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO0);
     glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
@@ -776,7 +818,7 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
 }
 
 void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors){
-  const float cellthick = 0.05f;
+  const float cellthick = 0.1f;
   glm::vec4 ucellrgbx, ucellrgby, ucellrgbz, ucellrgbo;
   if (colors){
     ucellrgbx = {1.f,0.f,0.f,1.f};
@@ -789,35 +831,35 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
   }
   ucellrgbo = {1.0f,1.0f,1.0f,1.f};
   
-  drawCylinder(v0,v0+vx,cellthick,ucellrgbx,icylres,false);
-  drawCylinder(v0,v0+vy,cellthick,ucellrgby,icylres,false);
-  drawCylinder(v0,v0+vz,cellthick,ucellrgbz,icylres,false);
+  drawCylinder(v0,v0+vx,cellthick,ucellrgbx,0,false);
+  drawCylinder(v0,v0+vy,cellthick,ucellrgby,0,false);
+  drawCylinder(v0,v0+vz,cellthick,ucellrgbz,0,false);
   for (int ix=0; ix<ncell[0]; ix++){
     for (int iy=0; iy<ncell[1]; iy++){
       for (int iz=0; iz<ncell[2]; iz++){
 	glm::vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
 
 	if (ix == 0 && iy == 0 && iz > 0)
-	  drawCylinder(v0+lvec,v0+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+lvec,v0+vz+lvec,cellthick,ucellrgbo,0,false);
 	if (ix == 0 && iz == 0 && iy > 0)
-	  drawCylinder(v0+lvec,v0+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+lvec,v0+vy+lvec,cellthick,ucellrgbo,0,false);
 	if (iy == 0 && iz == 0 && ix > 0)
-	  drawCylinder(v0+lvec,v0+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+lvec,v0+vx+lvec,cellthick,ucellrgbo,0,false);
 	if (iz == 0) { 
-	  drawCylinder(v0+vx+lvec,v0+vx+vy+lvec,cellthick,ucellrgbo,icylres,false);
-	  drawCylinder(v0+vy+lvec,v0+vy+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+vx+lvec,v0+vx+vy+lvec,cellthick,ucellrgbo,0,false);
+	  drawCylinder(v0+vy+lvec,v0+vy+vx+lvec,cellthick,ucellrgbo,0,false);
 	}
 	if (ix == 0){
-	  drawCylinder(v0+vy+lvec,v0+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	  drawCylinder(v0+vz+lvec,v0+vz+vy+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+vy+lvec,v0+vy+vz+lvec,cellthick,ucellrgbo,0,false);
+	  drawCylinder(v0+vz+lvec,v0+vz+vy+lvec,cellthick,ucellrgbo,0,false);
 	}
 	if (iy == 0){
-	  drawCylinder(v0+vx+lvec,v0+vx+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	  drawCylinder(v0+vz+lvec,v0+vz+vx+lvec,cellthick,ucellrgbo,icylres,false);
+	  drawCylinder(v0+vx+lvec,v0+vx+vz+lvec,cellthick,ucellrgbo,0,false);
+	  drawCylinder(v0+vz+lvec,v0+vz+vx+lvec,cellthick,ucellrgbo,0,false);
 	}
-	drawCylinder(v0+vx+vy+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	drawCylinder(v0+vx+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
-	drawCylinder(v0+vy+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,icylres,false);
+	drawCylinder(v0+vx+vy+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0,false);
+	drawCylinder(v0+vx+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0,false);
+	drawCylinder(v0+vy+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0,false);
       }
     }
   }
