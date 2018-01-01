@@ -275,6 +275,7 @@ void View::Update(){
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   if (iscene > 0 && c2::isinit == 2){
+    shader->setInt("uselighting",1);
     const float rthr = 0.01f;
 
     glm::vec3 v0 = {0.f,0.f,0.f};
@@ -356,6 +357,7 @@ void View::Update(){
     }
 
     // unit cell
+    shader->setInt("uselighting",0);
     if (isucell)
       drawUnitCell(v0,vx,vy,vz,true);
     if (ismolcell){
@@ -785,7 +787,7 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
     ucellrgby = {0.5f,0.5f,0.5f,1.f};
     ucellrgbz = {0.5f,0.5f,0.5f,1.f};
   }
-  ucellrgbo = {0.5f,0.5f,0.5f,1.f};
+  ucellrgbo = {1.0f,1.0f,1.0f,1.f};
   
   drawCylinder(v0,v0+vx,cellthick,ucellrgbx,icylres,false);
   drawCylinder(v0,v0+vy,cellthick,ucellrgby,icylres,false);
