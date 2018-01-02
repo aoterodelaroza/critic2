@@ -125,11 +125,12 @@ int main(int argc, char *argv[]){
     // Main menu bar
     ShowMenu(rootwin);
 
+    // Menu dialog dispatch (before views so it picks up the popup
+    // when esc is pressed - fix this later).
+    DialogDispatch();
+
     // Draw all views
     DrawAllViews();
-
-    // Menu dialog dispatch
-    DialogDispatch();
 
     // Message dispatch
     MessageDispatch();

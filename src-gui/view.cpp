@@ -274,6 +274,8 @@ void View::Draw(){
     // For now...
     if (changed)
       SetDefaultAllViews();
+    if (IsMouseClicked(1) || IsBindEvent(BIND_CLOSE_LAST_DIALOG,false))
+      CloseCurrentPopup();
     EndPopup();
   }
 }

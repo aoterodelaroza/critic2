@@ -76,8 +76,10 @@ void ToggleDialog(Dialog_ dialog){
 }
 
 void DialogDispatch(){
+  ImGuiContext *g = GetCurrentContext();
+
   // Detect the close-all and close-one
-  if (IsBindEvent(BIND_CLOSE_LAST_DIALOG,false))
+  if (IsBindEvent(BIND_CLOSE_LAST_DIALOG,false) && g->OpenPopupStack.empty())
     CloseLastDialog();
   if (IsBindEvent(BIND_CLOSE_ALL_DIALOGS,false))
     CloseAllDialogs();
