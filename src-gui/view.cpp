@@ -48,7 +48,13 @@ static string view_tooltip_label(int id){
 	<< BindKeyName(BIND_NAV_ROTATE) << ": Rotate\n"
         << BindKeyName(BIND_NAV_TRANSLATE) << ": Translate\n"
 	<< BindKeyName(BIND_NAV_ZOOM) << ": Zoom\n"
-	<< BindKeyName(BIND_NAV_RESET) << ": Reset the view";
+	<< BindKeyName(BIND_NAV_RESET) << ": Reset the view\n"
+	<< BindKeyName(BIND_VIEW_ALIGN_A_AXIS) << "/"
+	<< BindKeyName(BIND_VIEW_ALIGN_B_AXIS) << "/"
+	<< BindKeyName(BIND_VIEW_ALIGN_C_AXIS) << ": Align to crystallographic axes\n"
+	<< BindKeyName(BIND_VIEW_ALIGN_X_AXIS) << "/"
+	<< BindKeyName(BIND_VIEW_ALIGN_Y_AXIS) << "/"
+	<< BindKeyName(BIND_VIEW_ALIGN_Z_AXIS) << ": Align to Cartesian axes";
     break;
   case 1:  str << "Select atoms and bonds"; break;
   case 2:  str << "Manipulate angles"; break;
@@ -437,20 +443,38 @@ void View::Delete(){
 }
 
 bool View::processMouseEvents(bool hover){
+  bool outb = false;
+
+  // common to all modes
+  if (hover && IsBindEvent(BIND_VIEW_ALIGN_A_AXIS,false))
+    outb |= alignViewAxis(1);
+  else if (hover && IsBindEvent(BIND_VIEW_ALIGN_B_AXIS,false))
+    outb |= alignViewAxis(2);
+  else if (hover && IsBindEvent(BIND_VIEW_ALIGN_C_AXIS,false))
+    outb |= alignViewAxis(3);
+  else if (hover && IsBindEvent(BIND_VIEW_ALIGN_X_AXIS,false))
+    outb |= alignViewAxis(-1);
+  else if (hover && IsBindEvent(BIND_VIEW_ALIGN_Y_AXIS,false))
+    outb |= alignViewAxis(-2);
+  else if (hover && IsBindEvent(BIND_VIEW_ALIGN_Z_AXIS,false))
+    outb |= alignViewAxis(-3);
+
+  // process keybindings specific to each mode
   if (mousebehavior == MB_Navigation)
-    return Navigate(hover);
+    outb |= Navigate(hover);
   else if (mousebehavior == MB_Pointer)
-    return false;
+    outb |= false;
   else if (mousebehavior == MB_Angle)
-    return false;
+    outb |= false;
   else if (mousebehavior == MB_Ruler)
-    return false;
+    outb |= false;
   else if (mousebehavior == MB_Builder)
-    return false;
+    outb |= false;
   else if (mousebehavior == MB_Query)
-    return false;
+    outb |= false;
   else if (mousebehavior == MB_Alignment)
-    return false;
+    outb |= false;
+  return outb;
 }
 
 bool View::Navigate(bool hover){
@@ -659,9 +683,9 @@ bool View::updateTexSize(){
 }
 
 // Align the view with a given scene axis. a,b,c = 1,2,3 and x,y,z =
-// -1,-2,-3.
-void View::alignViewAxis(int iaxis){
-  if (iscene == 0 || c2::isinit < 2) return;
+// -1,-2,-3. Returns true if the view was updated.
+bool View::alignViewAxis(int iaxis){
+  if (iscene == 0 || c2::isinit < 2) return false;
 
   glm::vec3 oaxis = {0.f,0.f,1.f};
   glm::vec3 naxis;
@@ -685,7 +709,7 @@ void View::alignViewAxis(int iaxis){
   case -3: // z
     naxis = {0.f,0.f,1.0f}; break;
   default:
-    return;
+    return false;
   }
   glm::vec3 raxis = glm::cross(oaxis,naxis);
   float angle = std::asin(glm::length(raxis));
@@ -700,6 +724,7 @@ void View::alignViewAxis(int iaxis){
   updateView();
   if (isortho)
     updateProjection();
+  return true;
 }
 
 void View::resetView(){

@@ -53,7 +53,7 @@ struct View
 
   // camera methods
   void resetView();
-  void alignViewAxis(int iaxis);
+  bool alignViewAxis(int iaxis);
   void updateProjection();
   void updateView();
   void updateWorld();

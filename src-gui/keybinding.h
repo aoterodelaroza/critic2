@@ -45,14 +45,20 @@
 #define GLFW_MOUSE_BUTTON4_DOUBLE GLFW_KEY_LAST+10
 #define GLFW_MOUSE_SCROLL         GLFW_KEY_LAST+11
 
-#define BIND_QUIT              0 // Quit the program
-#define BIND_CLOSE_LAST_DIALOG 1 // Closes the last window
-#define BIND_CLOSE_ALL_DIALOGS 2 // Closes all windows
-#define BIND_NAV_ROTATE        3 // Rotate the camera (navigation)
-#define BIND_NAV_TRANSLATE     4 // Camera pan (navigation)
-#define BIND_NAV_ZOOM          5 // Camera zoom (navigation)
-#define BIND_NAV_RESET         6 // Reset the view (navigation)
-#define BIND_MAX               7 // Total number of BIND actions
+#define BIND_QUIT              0  // Quit the program
+#define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
+#define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
+#define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
+#define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis
+#define BIND_VIEW_ALIGN_C_AXIS 5  // Align view with a axis
+#define BIND_VIEW_ALIGN_X_AXIS 6  // Align view with a axis
+#define BIND_VIEW_ALIGN_Y_AXIS 7  // Align view with a axis
+#define BIND_VIEW_ALIGN_Z_AXIS 8  // Align view with a axis
+#define BIND_NAV_ROTATE        9  // Rotate the camera (navigation)
+#define BIND_NAV_TRANSLATE     10 // Camera pan (navigation)
+#define BIND_NAV_ZOOM          11 // Camera zoom (navigation)
+#define BIND_NAV_RESET         12 // Reset the view (navigation)
+#define BIND_MAX               13 // Total number of BIND actions
 
 extern const char *BindNames[BIND_MAX];
 extern const int BindGroups[BIND_MAX];

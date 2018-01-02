@@ -38,6 +38,12 @@ const char *BindNames[BIND_MAX] = {
   "Quit",
   "Close last dialog",
   "Close all dialogs",
+  "Align view with a axis",
+  "Align view with b axis",
+  "Align view with c axis",
+  "Align view with x axis",
+  "Align view with y axis",
+  "Align view with z axis",
   "Camera rotate",
   "Camera pan",
   "Camera zoom",
@@ -50,6 +56,12 @@ const int BindGroups[BIND_MAX] = {
   0, // quit
   0, // close last dialog
   0, // close all dialogs
+  1, // align view with a axis
+  1, // align view with b axis
+  1, // align view with c axis
+  1, // align view with x axis
+  1, // align view with y axis
+  1, // align view with z axis
   1, // rotate camera (navigation)
   1, // pan camera (navigation)
   1, // zoom camera (navigation)
@@ -76,6 +88,13 @@ void SetDefaultKeyBindings(){
   SetBind(BIND_QUIT,GLFW_KEY_Q,GLFW_MOD_CONTROL);
   SetBind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
   SetBind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
+
+  SetBind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
+  SetBind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
+  SetBind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
+  SetBind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
+  SetBind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
+  SetBind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
 
   // Default mouse bindings
   SetBind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
