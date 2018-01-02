@@ -33,6 +33,7 @@ enum Dialog_{
 };
 extern bool dlgopen[DLG_LAST];
 extern ImGui::Dock *dlgdock[DLG_LAST];
+extern Dialog_ dlglastopen;
 
 void OpenDialog(Dialog_ dialog);
 void ToggleDialog(Dialog_ dialog);

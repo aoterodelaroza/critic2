@@ -93,6 +93,7 @@ int main(int argc, char *argv[]){
   // Create the main view 
   View *mainview = CreateView("Main view",1);
   OpenDialog(DLG_Tree);
+  dlglastopen = DLG_LAST;
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){

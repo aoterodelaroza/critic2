@@ -38,7 +38,7 @@ static void DialogTree(bool *p_open);
 // Dialog variables
 bool dlgopen[DLG_LAST] = {false,false};
 Dock *dlgdock[DLG_LAST] = {nullptr,nullptr};
-static Dialog_ dlglastopen = DLG_LAST;
+Dialog_ dlglastopen = DLG_LAST;
 
 static void (*dlgfun[DLG_LAST])(bool *) = {
   DialogPreferences,
