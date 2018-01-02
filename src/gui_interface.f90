@@ -236,12 +236,17 @@ contains
        end do
 
        ! calculate the scene radius
-       xmin = 0._c_float
-       xmax = 0._c_float
-       do i = 1, sc(1)%nat
-          xmax = max(abs(sc(1)%at(i)%r),xmax)
-          xmin = min(abs(sc(1)%at(i)%r),xmin)
-       end do
+       if (sc(1)%nat > 0) then
+          xmin = sc(1)%at(1)%r
+          xmax = sc(1)%at(1)%r
+          do i = 2, sc(1)%nat
+             xmax = max(sc(1)%at(i)%r,xmax)
+             xmin = min(sc(1)%at(i)%r,xmin)
+          end do
+       else
+          xmin = 0._c_float
+          xmax = 0._c_float
+       end if
        sc(1)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),0.1_c_float)
 
        ! lattice vectors

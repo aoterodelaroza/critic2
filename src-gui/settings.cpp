@@ -301,7 +301,7 @@ void DefaultSettings(){
   view_wireframe = false;
   view_orthogonal = false;
   view_fov = 45.0f;
-  view_resetdistance = 1.5f;
+  view_resetdistance = 1.1f;
   view_bgrgb[0] = view_bgrgb[1] = view_bgrgb[2] = 0.f;
   view_bgrgb[3] = 1.0f;
   view_lightpos[0] = view_lightpos[1] = 20.f;

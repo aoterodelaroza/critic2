@@ -639,7 +639,8 @@ void View::resetView(){
   v_front  = {0.f,0.f,-1.f};
   v_up     = {0.f,1.f,0.f};
   v_pos[0] = v_pos[1] = 0.f;
-  v_pos[2] = iscene > 0? resetd * c2::scenerad / (tan(0.5f*glm::radians(zfov))):10.f;
+  float scaledsrad = c2::scenerad * std::sqrt(std::max(ncell[0],std::max(ncell[1],ncell[2])));
+  v_pos[2] = iscene > 0? resetd * scaledsrad / (tan(0.5f*glm::radians(zfov))):10.f;
   m_world = glm::mat4(1.0f);
   llock = false;
   rlock = false;
