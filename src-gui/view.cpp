@@ -220,30 +220,53 @@ void View::Draw(){
     if (iscene > 0 && c2::ismolecule)
       updatescene |= Checkbox("Molecular cell", &ismolcell);
     PushItemWidth(itemwidth);
-    if (iscene > 0 && !c2::ismolecule){
-      AlignTextToFramePadding();
-      Text("Number of cells:");
-      SameLine();
-      if (Button("Reset")){
-	updatescene = true;
-	ncell[0] = ncell[1] = ncell[2] = 1;
+    if (iscene > 0){
+      if (!c2::ismolecule){
+	AlignTextToFramePadding();
+	Text("Number of cells:");
+	SameLine();
+	if (Button("Reset")){
+	  updatescene = true;
+	  ncell[0] = ncell[1] = ncell[2] = 1;
+	}
+	Indent();
+	AlignTextToFramePadding();
+	Text("a:"); SameLine(0.f,0.f);
+	updatescene |= InputInt("##aaxis", &ncell[0]);
+	SameLine();
+	Text("b:"); SameLine(0.f,0.f);
+	updatescene |= InputInt("##baxis", &ncell[1]);
+	SameLine();
+	Text("c:"); SameLine(0.f,0.f);
+	updatescene |= InputInt("##caxis", &ncell[2]);
+	for (int i=0; i<3; i++)
+	  ncell[i] = std::max(1,ncell[i]);
+	Unindent();
       }
-      Indent();
-      AlignTextToFramePadding();
-      Text("a:"); SameLine(0.f,0.f);
-      updatescene |= InputInt("##aaxis", &ncell[0]);
-      SameLine();
-      Text("b:"); SameLine(0.f,0.f);
-      updatescene |= InputInt("##baxis", &ncell[1]);
-      SameLine();
-      Text("c:"); SameLine(0.f,0.f);
-      updatescene |= InputInt("##caxis", &ncell[2]);
 
-      for (int i=0; i<3; i++)
-	ncell[i] = std::max(1,ncell[i]);
+      Text("View/Axis Alignment:");
+      Indent();
+      int ialign = 0;
+      const float aside = g->FontSize + g->Style.FramePadding.y * 2.0f;
+      const ImVec2 siz = {aside,aside};
+      if (!c2::ismolecule){
+	if (Button("a",siz)) ialign = 1; SameLine();
+	if (Button("b",siz)) ialign = 2; SameLine();
+	if (Button("c",siz)) ialign = 3; SameLine();
+      }
+      if (Button("x",siz)) ialign = -1; SameLine();
+      if (Button("y",siz)) ialign = -2; SameLine();
+      if (Button("z",siz)) ialign = -3;
       Unindent();
-      updatescene |= Checkbox("Crystal packing", &isborder);
-      updatescene |= Checkbox("Molecular motif", &ismotif);
+      if (ialign != 0){
+	alignViewAxis(ialign);
+	updatescene = true;
+      }
+
+      if (!c2::ismolecule){
+	updatescene |= Checkbox("Crystal packing", &isborder);
+	updatescene |= Checkbox("Molecular motif", &ismotif);
+      }
     }
     Separator();
     changed |= Checkbox("Wireframe rendering", &view_wireframe);
@@ -633,6 +656,50 @@ bool View::updateTexSize(){
     redraw = true;
   }
   return redraw;
+}
+
+// Align the view with a given scene axis. a,b,c = 1,2,3 and x,y,z =
+// -1,-2,-3.
+void View::alignViewAxis(int iaxis){
+  if (iscene == 0 || c2::isinit < 2) return;
+
+  glm::vec3 oaxis = {0.f,0.f,1.f};
+  glm::vec3 naxis;
+  switch(iaxis){
+  case 1: // a
+    naxis = {c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]};
+    naxis = glm::normalize(naxis);
+    break;
+  case 2: // b
+    naxis = {c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]};
+    naxis = glm::normalize(naxis);
+    break;
+  case 3: // c
+    naxis = {c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]};
+    naxis = glm::normalize(naxis);
+    break;
+  case -1: // x
+    naxis = {1.0f,0.f,0.f}; break;
+  case -2: // y
+    naxis = {0.f,1.0f,0.f}; break;
+  case -3: // z
+    naxis = {0.f,0.f,1.0f}; break;
+  default:
+    return;
+  }
+  glm::vec3 raxis = glm::cross(oaxis,naxis);
+  float angle = std::asin(glm::length(raxis));
+  resetView();
+  if (angle < 1e-10f){
+    m_world = glm::mat4(1.0f);
+  } else {
+    raxis = glm::normalize(raxis);
+    m_world = glm::rotate(-angle,raxis);
+  }
+  updateWorld();
+  updateView();
+  if (isortho)
+    updateProjection();
 }
 
 void View::resetView(){
