@@ -493,24 +493,23 @@ bool View::Navigate(bool hover){
     mpos0_l = {texpos.x, texpos.y, 0.f};
     view_to_texpos({0.f,0.f,0.f},&mpos0_l.z);
     cpos0_l = texpos_to_view(texpos,mpos0_l.z);
-    crot0_l = m_world;
     llock = true;
-    mposlast = mousepos;
   } else if (llock) {
     SetMouseCursor(ImGuiMouseCursor_Move);
     if (IsBindEvent(BIND_NAV_ROTATE,true)){
-      if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
+      if (texpos.x != mpos0_l.x || texpos.y != mpos0_l.y){
 	glm::vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
 	glm::vec3 axis = glm::cross(glm::vec3(0.f,0.f,1.f),cpos1-cpos0_l);
 	float lax = glm::length(axis);
 	if (lax > 1e-10f){
-	  axis = glm::inverse(glm::mat3(crot0_l)) * glm::normalize(axis);
+	  axis = glm::inverse(glm::mat3(m_world)) * glm::normalize(axis);
 	  glm::vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
 	  float ang = 2.0f * glm::length(mpos) * mousesens_rot0 * view_mousesens_rot / FBO_a;
-	  m_world = glm::rotate(crot0_l,ang,axis);
+	  m_world = glm::rotate(m_world,ang,axis);
 	  updateworld = true;
 	}
-	mposlast = mousepos;
+	mpos0_l = {texpos.x, texpos.y, 0.f};
+	cpos0_l = texpos_to_view(texpos,mpos0_l.z);
       }
     } else { 
       llock = false;
@@ -627,7 +626,6 @@ void View::resetView(){
   v_pos[0] = v_pos[1] = 0.f;
   v_pos[2] = iscene > 0? resetd * c2::scenerad / (tan(0.5f*glm::radians(zfov))):10.f;
   m_world = glm::mat4(1.0f);
-  crot0_l = glm::mat4(1.0f);
   llock = false;
   rlock = false;
 }

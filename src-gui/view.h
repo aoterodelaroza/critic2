@@ -122,7 +122,6 @@ struct View
   bool llock = false; // lmb is dragging
   glm::vec3 mpos0_l; // saved mouse position (for rotating)
   glm::vec3 cpos0_l; // saved camera position in view coords (for rotating)
-  glm::mat4 crot0_l; // saved world matrix (for rotating)
 
   bool slock = false; // scroll dragging
   float mpos0_s; // mouse y position (for scrolling using keys)
