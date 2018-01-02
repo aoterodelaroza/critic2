@@ -221,11 +221,24 @@ void View::Draw(){
       updatescene |= Checkbox("Molecular cell", &ismolcell);
     PushItemWidth(itemwidth);
     if (iscene > 0 && !c2::ismolecule){
-      Text("Unit cell repetition:");
+      AlignTextToFramePadding();
+      Text("Number of cells:");
+      SameLine();
+      if (Button("Reset")){
+	updatescene = true;
+	ncell[0] = ncell[1] = ncell[2] = 1;
+      }
       Indent();
-      updatescene |= InputInt("a axis", &ncell[0]);
-      updatescene |= InputInt("b axis", &ncell[1]);
-      updatescene |= InputInt("c axis", &ncell[2]);
+      AlignTextToFramePadding();
+      Text("a:"); SameLine(0.f,0.f);
+      updatescene |= InputInt("##aaxis", &ncell[0]);
+      SameLine();
+      Text("b:"); SameLine(0.f,0.f);
+      updatescene |= InputInt("##baxis", &ncell[1]);
+      SameLine();
+      Text("c:"); SameLine(0.f,0.f);
+      updatescene |= InputInt("##caxis", &ncell[2]);
+
       for (int i=0; i<3; i++)
 	ncell[i] = std::max(1,ncell[i]);
       Unindent();

@@ -1,4 +1,7 @@
 // This version of imgui was copied on December 4th, 2017.
+// Changes:
+// * InputScalarEx: step_ptr minus button before message.
+
 // -- Alberto
 
 // dear imgui, v1.53 WIP
@@ -8757,17 +8760,24 @@ bool ImGui::InputScalarEx(const char* label, ImGuiDataType data_type, void* data
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
     const ImVec2 label_size = CalcTextSize(label, NULL, true);
+    bool value_changed = false;
 
     BeginGroup();
     PushID(label);
     const ImVec2 button_sz = ImVec2(SmallSquareSize(), SmallSquareSize());
-    if (step_ptr)
+    if (step_ptr){
+        if (ButtonEx("-", button_sz, ImGuiButtonFlags_Repeat | ImGuiButtonFlags_DontClosePopups))
+        {
+            DataTypeApplyOp(data_type, '-', data_ptr, g.IO.KeyCtrl && step_fast_ptr ? step_fast_ptr : step_ptr);
+            value_changed = true;
+        }
+        SameLine(0, style.ItemInnerSpacing.x);
         PushItemWidth(ImMax(1.0f, CalcItemWidth() - (button_sz.x + style.ItemInnerSpacing.x)*2));
+    }
 
     char buf[64];
     DataTypeFormatString(data_type, data_ptr, scalar_format, buf, IM_ARRAYSIZE(buf));
 
-    bool value_changed = false;
     if (!(extra_flags & ImGuiInputTextFlags_CharsHexadecimal))
         extra_flags |= ImGuiInputTextFlags_CharsDecimal;
     extra_flags |= ImGuiInputTextFlags_AutoSelectAll;
@@ -8778,12 +8788,6 @@ bool ImGui::InputScalarEx(const char* label, ImGuiDataType data_type, void* data
     if (step_ptr)
     {
         PopItemWidth();
-        SameLine(0, style.ItemInnerSpacing.x);
-        if (ButtonEx("-", button_sz, ImGuiButtonFlags_Repeat | ImGuiButtonFlags_DontClosePopups))
-        {
-            DataTypeApplyOp(data_type, '-', data_ptr, g.IO.KeyCtrl && step_fast_ptr ? step_fast_ptr : step_ptr);
-            value_changed = true;
-        }
         SameLine(0, style.ItemInnerSpacing.x);
         if (ButtonEx("+", button_sz, ImGuiButtonFlags_Repeat | ImGuiButtonFlags_DontClosePopups))
         {

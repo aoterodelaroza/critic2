@@ -178,7 +178,9 @@ namespace ImGui{
   // xxxx //
   bool InvisibleButtonEx(const char* str_id, const ImVec2& size_arg, bool* hovered, bool *held);
 
+  // xxxx //
   void AttachTooltip(const char* desc, float delay, float maxwidth, ImFont* font);
+
 } // namespace ImGui
 
 #endif
