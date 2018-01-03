@@ -114,13 +114,14 @@ int main(int argc, char *argv[]){
 
     // Root container
     PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     float menubarh = g->FontBaseSize + g->Style.FramePadding.y * 2.0f;
     SetNextWindowPos(ImVec2(0.,menubarh));
     SetNextWindowSize(ImVec2(io.DisplaySize.x,io.DisplaySize.y-menubarh));
     Dock *droot = RootContainer("critic2root",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
                                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoSavedSettings|
                                 ImGuiWindowFlags_NoBringToFrontOnFocus);
-    PopStyleVar();
+    PopStyleVar(2);
 
     // Main menu bar
     ShowMenu(rootwin);
