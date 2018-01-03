@@ -1,6 +1,7 @@
 // This version of imgui was copied on December 4th, 2017.
 // Changes:
 // * InputScalarEx: step_ptr minus button before message.
+// * Lots of changes to imgui_impl_glfw_gl3.cpp 
 
 // -- Alberto
 
