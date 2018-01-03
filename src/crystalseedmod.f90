@@ -1989,7 +1989,9 @@ contains
           do i = 1, seed%nspc
              ok = getline_raw(lu,line,.true.)
              read (line,*) seed%spc(i)%name, qaux
-             seed%spc(i)%z = nint(qaux)
+             seed%spc(i)%z = zatguess(seed%spc(i)%name)
+             if (seed%spc(i)%z < 0) &
+                call ferror("read_qeout","unknown atomic symbol: "//trim(seed%spc(i)%name),faterr)
           end do
        elseif (index(line,"Cartesian axes")>0) then
           if (seed%nat == 0) &
