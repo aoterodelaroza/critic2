@@ -27,8 +27,6 @@
 #include "imgui/imgui_dock.h"
 #include "imgui/imgui_widgets.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "critic2.h"
 #include "shader.h"
 #include "shapes.h"
@@ -38,18 +36,41 @@
 #include "keybinding.h"
 #include "menu.h"
 
+#include <string>
+#include <stdio.h>
+#include <stdlib.h>
+
 using namespace ImGui;
 
 int main(int argc, char *argv[]){
   // Initialize critic2
   c2::gui_initialize();
 
-  // Concatenate the input arguments and pass them to critic2
+  // Parse the command line
   if (argc > 1){
-    string argall = "";
-    for(int i=1;i<argc;i++)
-      argall = argall + argv[i] + " ";
-    c2::open_file((const char **) &argall, -1);
+    int mol;
+    for(int i=1; i<argc; i++){
+      if (!strcmp(argv[i],"-c")){
+	mol = 0;
+      } else if (!strcmp(argv[i],"-m")) {
+	mol = 1;
+      } else if (!strcmp(argv[i],"-h")) {
+	printf(" gcritic2 [-c|-m|] file1 [-c|-m|] file2...\n");
+	printf("-c file : read file as a crystal\n");
+	printf("-m file : read file as a molecule\n");
+	printf("   file : let critic2 decide\n");
+	printf("I need to write this xxxx\n");
+	exit(0);
+      } else {
+	if (!c2::open_file((const char **) &(argv[i]), mol)){
+	  std::string message = "Could not open file:\n" + string(argv[i]);
+	  NewMessage(Message_Error,message.c_str());
+	}
+	mol = -1;
+      }
+    }
+    if (c2::nsc > 0)
+      c2::scene_initialize(1);
   }
 
   // Initialize

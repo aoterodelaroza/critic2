@@ -2880,22 +2880,19 @@ contains
 
   end subroutine read_potcar
 
-  !> Read all seeds from a file read from line. Advance the line
-  !> pointer lp.
-  subroutine read_seeds_from_file(line,lp,mol0,nseed,seed)
+  !> Read all seeds from a file.
+  subroutine read_seeds_from_file(file,mol0,nseed,seed)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_abinit, isformat_cif,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf
-    character*(*), intent(in) :: line
-    integer, intent(inout) :: lp
+    character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     
-    character(len=:), allocatable :: file
     integer :: isformat, mol0_
     logical :: ismol, mol
 
@@ -2904,21 +2901,6 @@ contains
     if (allocated(seed)) deallocate(seed)
     allocate(seed(1))
 
-    file = getword(line,lp)
-    if (equali(file,"-c")) then
-       mol0_ = 0
-       file = getword(line,lp)
-    elseif (equali(file,"-m")) then
-       mol0_ = 1
-       file = getword(line,lp)
-    elseif (equali(file,"-h")) then
-       write (*,*) " gcritic2 [-c|-m|] file1 [-c|-m|] file2..."
-       write (*,*) "-c file : read file as a crystal"
-       write (*,*) "-m file : read file as a molecule"
-       write (*,*) "   file : let critic2 decide"
-       write (*,*) "I need to write this xxxx"
-       stop 1
-    end if
     call struct_detect_format(file,isformat,ismol)
     if (mol0_ == 1) then
        mol = .true.

@@ -28,6 +28,7 @@ module gui_interface
   private
 
   !xx! interoperable types
+
   ! C-interoperable atom type
   type, bind(c) :: c_atom
      real(c_float) :: x(3) !< atom position (crystallographic) 
@@ -44,7 +45,10 @@ module gui_interface
      integer(c_int) :: ncon !< number of neighbors
   end type c_atom
 
+  ! Scene type - holds all the information to render one scene.
   type scene
+     integer :: idfile !< id of the file that generated this scene
+     character(kind=c_char,len=1) :: file(512) !< name of the file
      integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
      type(crystalseed) :: seed ! crystal seed for this scene
      type(system) :: sy ! system for this scene
@@ -65,15 +69,19 @@ module gui_interface
      real(c_float) :: molx0(3) ! molecule centering translation
      real(c_float) :: molborder(3) ! molecular cell
   end type scene
-  integer :: nsc = 0
+
+  integer, bind(c) :: nsc = 0
   type(scene), allocatable, target :: sc(:)
+  integer :: ilastfile = 0
 
   !xx! public interface
   ! routines
   public :: gui_initialize
   public :: open_file
+  public :: scene_initialize
   public :: set_scene_pointers
   public :: gui_end
+  private :: realloc_scene
 
   ! pointers to the current scene
   integer(c_int), bind(c) :: isinit 
@@ -145,118 +153,143 @@ contains
 
   !> Open one or more scenes from all files in the line. ismolecule: 0
   !> = crystal, 1 = molecule, -1 = critic2 decides.
-  subroutine open_file(line0,ismolecule) bind(c)
-    use c_interface_module, only: c_string_value, f_c_string
-    use iso_c_binding, only: c_int
+  function open_file(file0,ismolecule) bind(c)
+    use c_interface_module, only: c_string_value
     use crystalseedmod, only: read_seeds_from_file, crystalseed
-    use tools_math, only: norm
-    use param, only: pi, atmcov, jmlcol
-    type(c_ptr), intent(in) :: line0
+    type(c_ptr), intent(in) :: file0
     integer(c_int), value :: ismolecule
+    integer(c_int) :: open_file
 
-    integer :: lp
-    character(len=:), allocatable :: line
-    integer :: i, j, idx, iz, nseed, n, idx1, idx2, iz1, iz2, is
+    character(len=:), allocatable :: file
+    integer :: iseed, nseed
     type(crystalseed), allocatable :: seed(:)
+
+    ! transform to fortran string
+    file = c_string_value(file0)
+    
+    ! read all seeds from the line
+    call read_seeds_from_file(file,ismolecule,nseed,seed)
+    
+    if (nseed > 0) then
+       ilastfile = ilastfile + 1
+
+       if (nsc + nseed > size(sc,1)) &
+          call realloc_scene(sc,nsc+nseed)
+
+       do iseed = 1, nseed
+          ! initialize the system from the first seed
+          nsc = nsc + 1
+          sc(nsc)%idfile = ilastfile
+          sc(nsc)%file = trim(file)
+          sc(nsc)%seed = seed(iseed)
+          sc(nsc)%isinit = 1
+       end do
+       open_file = 1
+    else
+       open_file = 0
+    end if
+
+  end function open_file
+
+  subroutine scene_initialize(isc) bind(c)
+    use c_interface_module, only: f_c_string
+    use param, only: pi, atmcov, jmlcol
+    integer(c_int), value, intent(in) :: isc
+
+    integer :: i, j, idx, iz, n, idx1, idx2, iz1, iz2, is
     real(c_float) :: xmin(3), xmax(3)
     real*8 :: dist
     integer :: mncon_
 
-    ! transform to fortran string
-    line = c_string_value(line0)
-    
-    ! read all seeds from the line
-    lp = 1
-    call read_seeds_from_file(line,lp,ismolecule,nseed,seed)
-    
-    if (nseed > 0) then
-       ! initialize the system from the first seed
-       nsc = 1
-       sc(1)%seed = seed(1)
-       sc(1)%isinit = 2
-       call sc(1)%sy%new_from_seed(sc(1)%seed)
-       call sc(1)%sy%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
-       sc(1)%center = 0d0
+    if (isc > nsc .or. isc < 1) return
+    if (sc(isc)%isinit == 0 .or. sc(isc)%isinit == 2) return
 
-       ! build the atom list
-       mncon_ = 0
-       sc(1)%nat = sc(1)%sy%c%ncel
-       if (allocated(sc(1)%at)) deallocate(sc(1)%at)
-       allocate(sc(1)%at(sc(1)%nat))
-       do i = 1, sc(1)%nat
-          is = sc(1)%sy%c%atcel(i)%is
-          idx = sc(1)%sy%c%atcel(i)%idx
-          iz = sc(1)%sy%c%spc(is)%z
+    sc(isc)%isinit = 2
+    call sc(isc)%sy%new_from_seed(sc(isc)%seed)
+    call sc(isc)%sy%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    sc(isc)%center = 0d0
 
-          sc(1)%at(i)%x = sc(1)%sy%c%atcel(i)%x
-          sc(1)%at(i)%r = sc(1)%sy%c%atcel(i)%r
-          sc(1)%at(i)%is = is
-          sc(1)%at(i)%idx = idx
-          sc(1)%at(i)%cidx = i
-          sc(1)%at(i)%z = iz
-          call f_c_string(sc(1)%sy%c%spc(is)%name,sc(1)%at(i)%name,11)
-          sc(1)%at(i)%ncon = sc(1)%sy%c%nstar(i)%ncon
-          mncon_ = max(mncon_,sc(1)%at(i)%ncon)
+    ! build the atom list
+    mncon_ = 0
+    sc(isc)%nat = sc(isc)%sy%c%ncel
+    if (allocated(sc(isc)%at)) deallocate(sc(isc)%at)
+    allocate(sc(isc)%at(sc(isc)%nat))
+    do i = 1, sc(isc)%nat
+       is = sc(isc)%sy%c%atcel(i)%is
+       idx = sc(isc)%sy%c%atcel(i)%idx
+       iz = sc(isc)%sy%c%spc(is)%z
 
-          if (atmcov(iz) > 1) then
-             sc(1)%at(i)%rad = 0.7*atmcov(iz)
-          else
-             sc(1)%at(i)%rad = 1.5*atmcov(iz)
-          end if
-          sc(1)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
-          sc(1)%at(i)%rgb(4) = 1.0
-       end do
+       sc(isc)%at(i)%x = sc(isc)%sy%c%atcel(i)%x
+       sc(isc)%at(i)%r = sc(isc)%sy%c%atcel(i)%r
+       sc(isc)%at(i)%is = is
+       sc(isc)%at(i)%idx = idx
+       sc(isc)%at(i)%cidx = i
+       sc(isc)%at(i)%z = iz
+       call f_c_string(sc(isc)%sy%c%spc(is)%name,sc(isc)%at(i)%name,11)
+       sc(isc)%at(i)%ncon = sc(isc)%sy%c%nstar(i)%ncon
+       mncon_ = max(mncon_,sc(isc)%at(i)%ncon)
 
-       ! build the fragment info
-       sc(1)%nmol = sc(1)%sy%c%nmol
-       allocate(sc(1)%moldiscrete(sc(1)%nmol))
-       do i = 1, sc(1)%sy%c%nmol
-          if (sc(1)%sy%c%moldiscrete(i)) then
-             sc(1)%moldiscrete(i) = 1
-          else
-             sc(1)%moldiscrete(i) = 0
-          end if
-          do j = 1, sc(1)%sy%c%mol(i)%nat
-             idx = sc(1)%sy%c%mol(i)%at(j)%cidx
-             sc(1)%at(idx)%flvec = sc(1)%sy%c%mol(i)%at(j)%lvec
-             sc(1)%at(idx)%ifrag = i-1
-          end do
-       end do
-
-       ! build the neighbor info
-       allocate(sc(1)%idcon(mncon_,sc(1)%nat))
-       allocate(sc(1)%lcon(3,mncon_,sc(1)%nat))
-       sc(1)%idcon = 0
-       sc(1)%lcon = 0
-       do i = 1, sc(1)%nat
-          do j = 1, sc(1)%at(i)%ncon
-             sc(1)%idcon(j,i) = sc(1)%sy%c%nstar(i)%idcon(j)-1
-             sc(1)%lcon(:,j,i) = sc(1)%sy%c%nstar(i)%lcon(:,j)
-          end do
-       end do
-
-       ! calculate the scene radius
-       if (sc(1)%nat > 0) then
-          xmin = sc(1)%at(1)%r
-          xmax = sc(1)%at(1)%r
-          do i = 2, sc(1)%nat
-             xmax = max(sc(1)%at(i)%r,xmax)
-             xmin = min(sc(1)%at(i)%r,xmin)
-          end do
+       if (atmcov(iz) > 1) then
+          sc(isc)%at(i)%rad = 0.7*atmcov(iz)
        else
-          xmin = 0._c_float
-          xmax = 0._c_float
+          sc(isc)%at(i)%rad = 1.5*atmcov(iz)
        end if
-       sc(1)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),0.1_c_float)
+       sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
+       sc(isc)%at(i)%rgb(4) = 1.0
+    end do
 
-       ! lattice vectors
-       sc(1)%avec = sc(1)%sy%c%crys2car
-       sc(1)%ismolecule = sc(1)%sy%c%ismolecule
-       sc(1)%molx0 = sc(1)%sy%c%molx0
-       sc(1)%molborder = sc(1)%sy%c%molborder
+    ! build the fragment info
+    sc(isc)%nmol = sc(isc)%sy%c%nmol
+    if (allocated(sc(isc)%moldiscrete)) deallocate(sc(isc)%moldiscrete)
+    allocate(sc(isc)%moldiscrete(sc(isc)%nmol))
+    do i = 1, sc(isc)%sy%c%nmol
+       if (sc(isc)%sy%c%moldiscrete(i)) then
+          sc(isc)%moldiscrete(i) = 1
+       else
+          sc(isc)%moldiscrete(i) = 0
+       end if
+       do j = 1, sc(isc)%sy%c%mol(i)%nat
+          idx = sc(isc)%sy%c%mol(i)%at(j)%cidx
+          sc(isc)%at(idx)%flvec = sc(isc)%sy%c%mol(i)%at(j)%lvec
+          sc(isc)%at(idx)%ifrag = i-1
+       end do
+    end do
+
+    ! build the neighbor info
+    if (allocated(sc(isc)%idcon)) deallocate(sc(isc)%idcon)
+    if (allocated(sc(isc)%lcon)) deallocate(sc(isc)%lcon)
+    allocate(sc(isc)%idcon(mncon_,sc(isc)%nat))
+    allocate(sc(isc)%lcon(3,mncon_,sc(isc)%nat))
+    sc(isc)%idcon = 0
+    sc(isc)%lcon = 0
+    do i = 1, sc(isc)%nat
+       do j = 1, sc(isc)%at(i)%ncon
+          sc(isc)%idcon(j,i) = sc(isc)%sy%c%nstar(i)%idcon(j)-1
+          sc(isc)%lcon(:,j,i) = sc(isc)%sy%c%nstar(i)%lcon(:,j)
+       end do
+    end do
+
+    ! calculate the scene radius
+    if (sc(isc)%nat > 0) then
+       xmin = sc(isc)%at(1)%r
+       xmax = sc(isc)%at(1)%r
+       do i = 2, sc(isc)%nat
+          xmax = max(sc(isc)%at(i)%r,xmax)
+          xmin = min(sc(isc)%at(i)%r,xmin)
+       end do
+    else
+       xmin = 0._c_float
+       xmax = 0._c_float
     end if
+    sc(isc)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),0.1_c_float)
 
-  end subroutine open_file
+    ! lattice vectors
+    sc(isc)%avec = sc(isc)%sy%c%crys2car
+    sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
+    sc(isc)%molx0 = sc(isc)%sy%c%molx0
+    sc(isc)%molborder = sc(isc)%sy%c%molborder
+
+  end subroutine scene_initialize
 
   subroutine set_scene_pointers(isc) bind(c)
     use iso_c_binding, only: c_loc
@@ -310,5 +343,27 @@ contains
     call tictac('CRITIC2')
     
   end subroutine gui_end
+
+  !> Adapt the size of an allocatable 1D type(scene) array
+  subroutine realloc_scene(a,nnew)
+    type(scene), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(scene), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_scene
 
 end module gui_interface

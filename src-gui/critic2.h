@@ -22,9 +22,13 @@ namespace c2 {
 
   // routines
   extern "C" void gui_initialize();
-  extern "C" void open_file(const char **filename, int ismolecule); 
+  extern "C" int open_file(const char **filename, int ismolecule); 
+  extern "C" void scene_initialize(int isc); 
   extern "C" void set_scene_pointers(int isc);
   extern "C" void gui_end();
+
+  // number of scenes
+  extern "C" int nsc;
 
   // pointers to the current scene
   extern "C" int isinit;
