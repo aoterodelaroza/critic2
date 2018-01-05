@@ -316,11 +316,11 @@ void View::Update(){
 
   glClearColor(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  if (iswire)
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
   if (iscene > 0 && c2::isinit == 2){
     shader->setInt("uselighting",1);
+    if (iswire)
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     const float rthr = 0.01f;
 
     glm::vec3 v0 = {0.f,0.f,0.f};
@@ -401,6 +401,9 @@ void View::Update(){
       }
     }
 
+    if (iswire)
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     // unit cell
     shader->setInt("uselighting",0);
     if (isucell)
@@ -427,9 +430,6 @@ void View::Update(){
   glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  if (iswire)
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
 }
 
 void View::Delete(){
