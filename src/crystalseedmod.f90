@@ -2260,6 +2260,7 @@ contains
     ! open
     lu = fopen_read(file)
     r = 0d0
+    calculation = ""
 
     ! read the namelists
     read(lu,control,iostat=ios)
