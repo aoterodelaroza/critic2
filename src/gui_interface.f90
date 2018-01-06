@@ -49,6 +49,7 @@ module gui_interface
   type scene
      integer :: idfile !< id of the file that generated this scene
      character(kind=c_char,len=1) :: file(512) !< name of the file
+     character(kind=c_char,len=1) :: name(512) !< name of the scene
      integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
      type(crystalseed) :: seed ! crystal seed for this scene
      type(system) :: sy ! system for this scene
@@ -56,6 +57,10 @@ module gui_interface
      real(c_float) :: srad ! radius of the encompassing sphere
 
      logical(c_bool) :: ismolecule ! is this a molecule?
+
+     integer(c_int) :: nf ! number of fields
+     character(kind=c_char,len=1), allocatable :: fieldname(:,:) !< name of the fields
+
      integer(c_int) :: nat ! number of atoms
      type(c_atom), allocatable :: at(:) ! atoms
 
@@ -88,8 +93,12 @@ module gui_interface
   integer(c_int), bind(c) :: isinit 
   integer(c_int), bind(c) :: idfile
   type(c_ptr), bind(c) :: file
+  type(c_ptr), bind(c) :: name
 
   real(c_float), bind(c) :: scenerad
+
+  integer(c_int), bind(c) :: nf
+  type(c_ptr), bind(c) :: fieldname
 
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
@@ -187,7 +196,8 @@ contains
           ! initialize the system from the first seed
           nsc = nsc + 1
           sc(nsc)%idfile = ilastfile
-          call f_c_string(trim(file),sc(nsc)%file)
+          call f_c_string(trim(seed(iseed)%file),sc(nsc)%file)
+          call f_c_string(trim(seed(iseed)%name),sc(nsc)%name)
           sc(nsc)%seed = seed(iseed)
           sc(nsc)%isinit = 1
        end do
@@ -243,6 +253,15 @@ contains
        end if
        sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
        sc(isc)%at(i)%rgb(4) = 1.0
+    end do
+
+    ! build the fields info
+    sc(isc)%nf = sc(isc)%sy%nf
+
+    if (allocated(sc(isc)%fieldname)) deallocate(sc(isc)%fieldname)
+    allocate(sc(isc)%fieldname(255,0:sc(isc)%nf))
+    do i = 0, sc(isc)%nf
+       call f_c_string(sc(isc)%sy%f(i)%name,sc(isc)%fieldname(:,i),255)
     end do
 
     ! build the fragment info
@@ -309,8 +328,12 @@ contains
     isinit = sc(isc)%isinit
     idfile = sc(isc)%idfile
     file = c_loc(sc(isc)%file)
+    name = c_loc(sc(isc)%name)
 
     scenerad = sc(isc)%srad
+
+    nf = sc(isc)%nf
+    fieldname = c_loc(sc(isc)%fieldname)
 
     nat = sc(isc)%nat
     at = c_loc(sc(isc)%at)

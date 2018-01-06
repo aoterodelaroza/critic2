@@ -29,47 +29,100 @@
 
 using namespace ImGui;
 
-// 
-// struct sscene{
-//   int id;
-// };
-// struct sfile{
-//   std::string filename;
-//   std::list<sscene> sc;
-// };
-// static std::list<sfile> tree = {};
+struct sfield{
+  int id;
+  std::string name;
+};
+struct sscene{
+  int id;
+  std::string name;
+  int nf = -1;
+  sfield *field = nullptr;
+};
+struct sfile{
+  std::string file;
+  std::string path;
+  std::list<sscene *> sc = {};
+};
 
-static int nfiles = 0;
-static std::string *files = nullptr;
-static std::string *paths = nullptr;
+static int nsf = 0;
+static sfile *sf = nullptr;
+
+void DeleteTreeData(){
+  nsf = 0;
+  if (sf){
+    for (int i=0; i<nsf; i++){
+      for (auto it = sf[i].sc.begin(); it != sf[i].sc.end(); it++){
+	if ((*it)->field)
+	  delete [] (*it)->field;
+	delete *it;
+      }
+      sf[i].sc.clear();
+    }
+    delete [] sf;
+    sf = nullptr;
+  }
+}
 
 void UpdateTreeData(){
-  nfiles = 0;
-  if (files) delete files;
-  if (paths) delete paths;
+  DeleteTreeData();
 
-  nfiles = c2::nfiles;
-  files = new std::string[nfiles];
-  paths = new std::string[nfiles];
+  nsf = c2::nfiles;
+  sf = new sfile[nsf];
 
   for (int isc=0; isc<c2::nsc; isc++){
     c2::set_scene_pointers(isc+1);
+    int id = c2::idfile-1;
     if (c2::isinit > 0){
-      paths[c2::idfile-1] = files[c2::idfile-1] = std::string(c2::file);
-      const size_t ll = files[c2::idfile-1].find_last_of("\\/");
+      // add the scene to the list of scenes
+      sf[id].file = sf[id].path = std::string(c2::file);
+      const size_t ll = sf[id].file.find_last_of("\\/");
       if (std::string::npos != ll)
-       	files[c2::idfile-1].erase(0, ll + 1);
+       	sf[id].file.erase(0,ll+1);
       if (std::string::npos != 0)
-	paths[c2::idfile-1].erase(ll + 1,std::string::npos);
+	sf[id].path.erase(ll+1,std::string::npos);
+
+      // add the scene to the list of scenes
+      sscene *sc = new sscene;
+      sc->id = isc;
+      sc->name = c2::name;
+
+      if (c2::isinit > 1){
+	sc->nf = c2::nf;
+	char (*fname)[255] = (char (*)[255]) c2::fieldname;
+	sc->field = new sfield[sc->nf+1];
+	for (int iff = 0; iff <= sc->nf; iff++){
+	  sc->field[iff].id = iff;
+	  sc->field[iff].name = std::string(fname[iff]);
+	}
+      } else {
+	sc->nf = -1;
+	sc->field = nullptr;
+      }
+      sf[id].sc.push_back(sc);
     }
   }
 }
 
 void ShowTree(){
-  for (int i=0; i<c2::nfiles; i++){
-    
-    if (TreeNodeEx((void*)(intptr_t)i,0,files[i].c_str())){
-      Text("Blah!");
+  int n = 0;
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick|ImGuiTreeNodeFlags_DefaultOpen;
+  for (int i=0; i<nsf; i++){
+    n++;
+    if (TreeNodeEx((void*)(intptr_t)n,flags,sf[i].file.c_str())){
+      for (auto it = sf[i].sc.begin(); it != sf[i].sc.end(); it++){
+	n++;
+	if (TreeNodeEx((void*)(intptr_t)n,flags,(*it)->name.c_str())){
+	  for (int iff=0; iff <= (*it)->nf; iff++){
+	    n++;
+	    std::string str = std::to_string(iff) + ":" + (*it)->field[iff].name;
+	    if (TreeNodeEx((void*)(intptr_t)n,flags|ImGuiTreeNodeFlags_Leaf,str.c_str())){
+	      TreePop();
+	    }
+	  }
+	  TreePop();
+	}
+      }
       TreePop();
     }
   }

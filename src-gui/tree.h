@@ -23,6 +23,7 @@
 #ifndef TREE_H
 #define TREE_H
 
+void DeleteTreeData();
 void UpdateTreeData();
 void ShowTree();
 

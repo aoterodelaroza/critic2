@@ -29,7 +29,8 @@ module crystalseedmod
   type crystalseed
      ! general
      logical :: isused = .false. !< Is the seed being used?
-     character(len=128) :: file = "" !< Source file, if available
+     character(len=512) :: file = "" !< Source file, if available
+     character(len=512) :: name = "" !< Source file, if available
      ! atoms
      integer :: nat = 0 !< Number of atoms
      real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
@@ -423,6 +424,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = "<input>"
+    seed%name = "<input>"
 
   end subroutine parse_crystal_env
 
@@ -593,6 +595,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = "<input>"
+    seed%name = "<input>"
 
   contains
     function check_no_extra_word()
@@ -675,9 +678,11 @@ contains
     if (mol) then
        call seed%parse_molecule_env(lu,ok)
        seed%file = "molecular library (" // trim(line) // ")"
+       seed%name = "molecular library (" // trim(line) // ")"
     else
        call seed%parse_crystal_env(lu,ok)
        seed%file = "crystal library (" // trim(line) // ")"
+       seed%name = "crystal library (" // trim(line) // ")"
     endif
     call fclose(lu)
     if (.not.ok) return
@@ -946,6 +951,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_cif
 
@@ -1275,6 +1281,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_res
 
@@ -1363,6 +1370,7 @@ contains
     seed%cubic = .false.
     seed%border = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_cube
 
@@ -1548,6 +1556,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_wien
 
@@ -1684,6 +1693,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_vasp
 
@@ -1744,6 +1754,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_abinit
 
@@ -1825,6 +1836,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_elk
 
@@ -1897,6 +1909,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_mol
 
@@ -2090,6 +2103,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_qeout
 
@@ -2371,6 +2385,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_qein
 
@@ -2483,6 +2498,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_crystalout
 
@@ -2540,6 +2556,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_siesta
 
@@ -2640,6 +2657,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_dftbp
 
@@ -2740,6 +2758,7 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
+    seed%name = file
 
   end subroutine read_xsf
 

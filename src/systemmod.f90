@@ -176,7 +176,7 @@ contains
        deallocate(s%f)
     end if
     allocate(s%f(0:10))
-    s%nf = 10
+    s%nf = 0
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
     call s%fh%init()
     call s%fh%put("rho0",0)

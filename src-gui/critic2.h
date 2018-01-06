@@ -35,8 +35,12 @@ namespace c2 {
   extern "C" int isinit;
   extern "C" int idfile;
   extern "C" char *file;
+  extern "C" char *name;
 
   extern "C" float scenerad;
+
+  extern "C" int nf;
+  extern "C" char *fieldname;
 
   extern "C" int nat;
   extern "C" struct c_atom *at;
