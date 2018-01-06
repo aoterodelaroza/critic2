@@ -27,11 +27,15 @@ namespace c2 {
   extern "C" void set_scene_pointers(int isc);
   extern "C" void gui_end();
 
-  // number of scenes
+  // number of scenes and files
   extern "C" int nsc;
+  extern "C" int nfiles;
 
   // pointers to the current scene
   extern "C" int isinit;
+  extern "C" int idfile;
+  extern "C" char *file;
+
   extern "C" float scenerad;
 
   extern "C" int nat;

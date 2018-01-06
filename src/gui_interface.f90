@@ -22,7 +22,7 @@ module gui_interface
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
   use iso_c_binding, only: c_ptr, c_null_ptr, c_float, c_char, c_int,&
-     c_bool
+     c_bool, c_null_char
   implicit none
 
   private
@@ -70,6 +70,7 @@ module gui_interface
      real(c_float) :: molborder(3) ! molecular cell
   end type scene
 
+  integer, bind(c) :: nfiles = 0
   integer, bind(c) :: nsc = 0
   type(scene), allocatable, target :: sc(:)
   integer :: ilastfile = 0
@@ -85,7 +86,11 @@ module gui_interface
 
   ! pointers to the current scene
   integer(c_int), bind(c) :: isinit 
+  integer(c_int), bind(c) :: idfile
+  type(c_ptr), bind(c) :: file
+
   real(c_float), bind(c) :: scenerad
+
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
 
@@ -147,6 +152,7 @@ contains
     allocate(sc(1))
     nsc = 0
     isinit = 0
+    idfile = 0
     scenerad = 10._c_float
 
   end subroutine gui_initialize
@@ -154,7 +160,7 @@ contains
   !> Open one or more scenes from all files in the line. ismolecule: 0
   !> = crystal, 1 = molecule, -1 = critic2 decides.
   function open_file(file0,ismolecule) bind(c)
-    use c_interface_module, only: c_string_value
+    use c_interface_module, only: c_string_value, f_c_string
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     type(c_ptr), intent(in) :: file0
     integer(c_int), value :: ismolecule
@@ -171,6 +177,7 @@ contains
     call read_seeds_from_file(file,ismolecule,nseed,seed)
     
     if (nseed > 0) then
+       nfiles = nfiles + 1
        ilastfile = ilastfile + 1
 
        if (nsc + nseed > size(sc,1)) &
@@ -180,7 +187,7 @@ contains
           ! initialize the system from the first seed
           nsc = nsc + 1
           sc(nsc)%idfile = ilastfile
-          sc(nsc)%file = trim(file)
+          call f_c_string(trim(file),sc(nsc)%file)
           sc(nsc)%seed = seed(iseed)
           sc(nsc)%isinit = 1
        end do
@@ -300,6 +307,9 @@ contains
     if (isc < 0 .or. isc > nsc) return
 
     isinit = sc(isc)%isinit
+    idfile = sc(isc)%idfile
+    file = c_loc(sc(isc)%file)
+
     scenerad = sc(isc)%srad
 
     nat = sc(isc)%nat
@@ -308,7 +318,7 @@ contains
     mncon = size(sc(isc)%idcon,1)
     idcon = c_loc(sc(isc)%idcon)
     lcon = c_loc(sc(isc)%lcon)
-
+    
     nmol = sc(isc)%nmol
     moldiscrete = c_loc(sc(isc)%moldiscrete)
 
@@ -332,6 +342,7 @@ contains
     ! deallocate scene
     if (allocated(sc)) deallocate(sc)
     nsc = 0
+    nfiles = 0
 
     ! kill atomic grids
     call grid1_clean_grids()

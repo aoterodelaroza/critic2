@@ -36,7 +36,7 @@
 using namespace ImGui;
 
 // A linked list for all current views.
-static list<View*> viewlist;
+static std::list<View*> viewlist;
 
 // Create a tooltip label
 static string view_tooltip_label(int id){

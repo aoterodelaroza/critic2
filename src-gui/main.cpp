@@ -35,6 +35,7 @@
 #include "message.h"
 #include "keybinding.h"
 #include "menu.h"
+#include "tree.h"
 
 #include <string>
 #include <stdio.h>
@@ -71,6 +72,7 @@ int main(int argc, char *argv[]){
     }
     if (c2::nsc > 0)
       c2::scene_initialize(1);
+    UpdateTreeData();
   }
 
   // Initialize
@@ -173,7 +175,7 @@ int main(int argc, char *argv[]){
     }
 
     // xxxx for imgui testing xxxx //
-    // ShowTestWindow();
+    ShowTestWindow();
 
     // xxxx for debugging the dock system xxxx //
     // PrintDock__();

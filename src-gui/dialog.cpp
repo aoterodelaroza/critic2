@@ -28,6 +28,7 @@
 #include "keybinding.h"
 #include "shapes.h"
 #include "message.h"
+#include "tree.h"
 
 using namespace ImGui;
 
@@ -700,8 +701,7 @@ static void DialogTree(bool *p_open){
     SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
 
     if (BeginDock("Tree",p_open)){
-      Text("Tree View!");     
-      if (Button("Tree view")){printf("Tree view\n");}
+      ShowTree();
     }
 
     dlgdock[DLG_Tree] = GetCurrentDock();
