@@ -38,6 +38,7 @@ struct sscene{
   int id;
   std::string name;
   int nf = -1;
+  int iref;
   sfield *field = nullptr;
 };
 struct sfile{
@@ -106,6 +107,7 @@ void UpdateTreeData(int isc0/*=-1*/){
 
       if (c2::isinit > 1){
 	sc->nf = c2::nf;
+	sc->iref = c2::iref;
 	char (*fname)[255] = (char (*)[255]) c2::fieldname;
 	if (!sc->field)
 	  delete [] sc->field;
@@ -130,24 +132,30 @@ void ShowTree(){
     n++;
     if (CollapsingHeader(sf[i].file.c_str(),ImGuiTreeNodeFlags_DefaultOpen)){
       for (auto it = sf[i].sc.begin(); it != sf[i].sc.end(); it++){
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick;
+	ImGuiTreeNodeFlags fl1 = ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick;
 	if ((*it)->id == mainview->iscene)
-	  flags |= ImGuiTreeNodeFlags_Selected|ImGuiTreeNodeFlags_DefaultOpen;
+	  fl1 |= ImGuiTreeNodeFlags_Selected|ImGuiTreeNodeFlags_DefaultOpen;
 	n++;
 
 	//Unindent(GetTreeNodeToLabelSpacing());
-	bool node_open = TreeNodeEx((void*)(intptr_t)n,flags,(*it)->name.c_str());
-	if (ImGui::IsItemClicked()){
+	bool node_open = TreeNodeEx((void*)(intptr_t)n,fl1,(*it)->name.c_str());
+	if (IsItemClicked()){
 	  mainview->changeScene((*it)->id);
 	  UpdateTreeData((*it)->id);
 	}
 
 	if (node_open){
 	  for (int iff=0; iff <= (*it)->nf; iff++){
+	    ImGuiTreeNodeFlags fl2 = ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet|ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	    if ((*it)->iref == iff)
+	      fl2 |= ImGuiTreeNodeFlags_Selected;
+
 	    n++;
 	    std::string str = std::to_string(iff) + ":" + (*it)->field[iff].name;
-	    if (TreeNodeEx((void*)(intptr_t)n,ImGuiTreeNodeFlags_Leaf,str.c_str())){
-	      TreePop();
+	    TreeNodeEx((void*)(intptr_t)n,fl2,str.c_str());
+	    if (IsItemClicked()){
+	      c2::scene_set_reference_field((*it)->id,iff);
+	      UpdateTreeData((*it)->id);
 	    }
 	  }
 	  TreePop();

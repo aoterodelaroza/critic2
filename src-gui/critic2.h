@@ -25,6 +25,7 @@ namespace c2 {
   extern "C" int open_file(const char **filename, int ismolecule); 
   extern "C" void scene_initialize(int isc); 
   extern "C" void set_scene_pointers(int isc);
+  extern "C" void scene_set_reference_field(int isc,int iref);
   extern "C" void gui_end();
 
   // number of scenes and files
@@ -40,6 +41,7 @@ namespace c2 {
   extern "C" float scenerad;
 
   extern "C" int nf;
+  extern "C" int iref;
   extern "C" char *fieldname;
 
   extern "C" int nat;

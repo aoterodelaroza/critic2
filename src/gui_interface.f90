@@ -88,6 +88,7 @@ module gui_interface
   public :: open_file
   public :: scene_initialize
   public :: set_scene_pointers
+  public :: scene_set_reference_field
   public :: gui_end
   private :: realloc_scene
 
@@ -100,6 +101,7 @@ module gui_interface
   real(c_float), bind(c) :: scenerad
 
   integer(c_int), bind(c) :: nf
+  integer(c_int), bind(c) :: iref
   type(c_ptr), bind(c) :: fieldname
 
   integer(c_int), bind(c) :: nat
@@ -339,7 +341,7 @@ contains
 
     nat = 0
     isinit = 0
-    if (isc < 0 .or. isc > nsc) return
+    if (isc < 1 .or. isc > nsc) return
 
     isinit = sc(isc)%isinit
     idfile = sc(isc)%idfile
@@ -349,6 +351,7 @@ contains
     scenerad = sc(isc)%srad
 
     nf = sc(isc)%nf
+    iref = sc(isc)%sy%iref
     fieldname = c_loc(sc(isc)%fieldname)
 
     nat = sc(isc)%nat
@@ -374,6 +377,19 @@ contains
 
   end subroutine set_scene_pointers
 
+  !> Change the reference field for the system in scene isc.
+  subroutine scene_set_reference_field(isc, iref) bind(c)
+    integer, intent(in), value :: isc
+    integer, intent(in), value :: iref
+
+    if (isc < 1 .or. isc > nsc) return
+    if (.not.sc(isc)%sy%goodfield(iref)) return
+    call sc(isc)%sy%set_reference(iref,.false.)
+    call sc(isc)%sy%report(.false.,.false.,.true.,.false.,.false.,.false.,.true.)
+
+  end subroutine scene_set_reference_field
+
+  !> Clean up the GUI data structures.
   subroutine gui_end() bind(c)
     use grid1mod, only: grid1_clean_grids
     use tools_io, only: print_clock, tictac, ncomms, nwarns, uout, string
