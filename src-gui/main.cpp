@@ -114,7 +114,7 @@ int main(int argc, char *argv[]){
   CreateAndFillBuffers();
 
   // Create the main view 
-  View *mainview = CreateView("Main view",1);
+  mainview = CreateView("Main view",1);
   OpenDialog(DLG_Tree);
   dlglastopen = DLG_LAST;
 

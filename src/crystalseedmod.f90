@@ -2900,8 +2900,10 @@ contains
 
   end subroutine read_potcar
 
-  !> Read all seeds from a file.
-  subroutine read_seeds_from_file(file,mol0,nseed,seed)
+  !> Read all seeds from a file. If iafield is present, then
+  !> return the seed number for which the file can be read as a 
+  !> field (or 0 if none).
+  subroutine read_seeds_from_file(file,mol0,nseed,seed,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
@@ -2912,11 +2914,13 @@ contains
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
+    integer, intent(out), optional :: iafield
     
-    integer :: isformat, mol0_
+    integer :: isformat, mol0_, iafield_
     logical :: ismol, mol
 
     mol0_ = mol0
+    iafield_ = 0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
     allocate(seed(1))
@@ -2938,6 +2942,7 @@ contains
        call seed(1)%read_res(file,mol)
     else if (isformat == isformat_cube) then
        call seed(1)%read_cube(file,mol)
+       iafield_ = nseed
     elseif (isformat == isformat_struct) then
        call seed(1)%read_wien(file,mol)
     elseif (isformat == isformat_vasp) then
@@ -2946,6 +2951,7 @@ contains
        stop 1
     elseif (isformat == isformat_abinit) then
        call seed(1)%read_abinit(file,mol)
+       iafield_ = nseed
     elseif (isformat == isformat_elk) then
        call seed(1)%read_elk(file,mol)
     elseif (isformat == isformat_qeout) then
@@ -2962,6 +2968,7 @@ contains
        call seed(1)%read_siesta(file,mol)
     elseif (isformat == isformat_xsf) then
        call seed(1)%read_xsf(file,mol)
+       iafield_ = nseed
     elseif (isformat == isformat_gen) then
        call seed(1)%read_dftbp(file,mol,rborder_def,.false.)
     end if
@@ -2975,6 +2982,10 @@ contains
           seed(1)%findsym = 1
        end if
     end if
+
+    ! output
+    if (present(iafield)) &
+       iafield = iafield_
 
   end subroutine read_seeds_from_file
 

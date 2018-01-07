@@ -51,6 +51,8 @@ module gui_interface
      character(kind=c_char,len=1) :: file(512) !< name of the file
      character(kind=c_char,len=1) :: name(512) !< name of the scene
      integer :: isinit = 0 ! 0 = not init; 1 = seed; 2 = full
+     logical :: readasfield = .false. ! if true, read a field from this file when initializing
+
      type(crystalseed) :: seed ! crystal seed for this scene
      type(system) :: sy ! system for this scene
      real*8 :: center(3) ! center of the scene (bohr)
@@ -176,14 +178,14 @@ contains
     integer(c_int) :: open_file
 
     character(len=:), allocatable :: file
-    integer :: iseed, nseed
+    integer :: iseed, nseed, iafield
     type(crystalseed), allocatable :: seed(:)
 
     ! transform to fortran string
     file = c_string_value(file0)
     
     ! read all seeds from the line
-    call read_seeds_from_file(file,ismolecule,nseed,seed)
+    call read_seeds_from_file(file,ismolecule,nseed,seed,iafield)
     
     if (nseed > 0) then
        nfiles = nfiles + 1
@@ -191,6 +193,9 @@ contains
 
        if (nsc + nseed > size(sc,1)) &
           call realloc_scene(sc,nsc+nseed)
+
+       if (iafield > 0) &
+          sc(nsc+iafield)%readasfield  = .true.
 
        do iseed = 1, nseed
           ! initialize the system from the first seed
@@ -216,13 +221,24 @@ contains
     integer :: i, j, idx, iz, n, idx1, idx2, iz1, iz2, is
     real(c_float) :: xmin(3), xmax(3)
     real*8 :: dist
-    integer :: mncon_
+    integer :: mncon_, id
+    character(len=:), allocatable :: line, errmsg
 
     if (isc > nsc .or. isc < 1) return
     if (sc(isc)%isinit == 0 .or. sc(isc)%isinit == 2) return
 
+    ! initialize the system
     sc(isc)%isinit = 2
     call sc(isc)%sy%new_from_seed(sc(isc)%seed)
+
+    ! load any field
+    if (sc(isc)%readasfield) then
+       call sc(isc)%sy%load_field_string(sc(isc)%seed%file,id,errmsg)
+       sc(isc)%sy%f(id)%file = sc(isc)%seed%file
+       sc(isc)%sy%f(id)%name = sc(isc)%seed%file
+    end if
+
+    ! report
     call sc(isc)%sy%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
     sc(isc)%center = 0d0
 

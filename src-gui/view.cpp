@@ -35,6 +35,9 @@
 
 using namespace ImGui;
 
+// Main view
+View *mainview;
+
 // A linked list for all current views.
 static std::list<View*> viewlist;
 
@@ -89,6 +92,30 @@ void View::SetDefaults(){
     isucell = true;
     isborder = true;
     ismotif = true;
+  }
+}
+
+void View::changeScene(int isc){
+  if (isc > 0 && isc <= c2::nsc && isc != iscene){
+    iscene = isc;
+    c2::scene_initialize(isc);
+
+    c2::set_scene_pointers(isc);
+    ncell[0] = ncell[1] = ncell[2] = 1;
+    isucell = false;
+    isborder = false;
+    ismotif = false;
+    ismolcell = false;
+    if (iscene > 0 && !c2::ismolecule){
+      isucell = true;
+      isborder = true;
+      ismotif = true;
+    }
+    resetView();
+    updateProjection();  
+    updateView();
+    updateWorld();
+    updatescene = true;
   }
 }
 
@@ -975,15 +1002,16 @@ View *CreateView(char *title, int iscene/*=0*/){
   View *aview = new View;
 
   // save the scene id and set the pointers to that scene
-  aview->iscene = iscene;
   aview->title = title;
 
   // create the texture
   aview->createTex(FBO_tex_a);
 
   // scene pointers
-  if (iscene > 0)
+  if (iscene > 0){
+    aview->changeScene(iscene);
     c2::set_scene_pointers(iscene);
+  }
 
   // set default settings
   aview->SetDefaults();

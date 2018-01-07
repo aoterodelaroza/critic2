@@ -15,6 +15,7 @@
 #include "imgui/imgui_dock.h"
 
 #include "shader.h"
+#include "view.h"
 
 // constants
 #define PI 3.14159265358979323846

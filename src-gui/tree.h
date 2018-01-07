@@ -24,7 +24,7 @@
 #define TREE_H
 
 void DeleteTreeData();
-void UpdateTreeData();
+void UpdateTreeData(int isc0=-1);
 void ShowTree();
 
 #endif

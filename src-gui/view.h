@@ -40,6 +40,7 @@ struct View
 
   // view methods
   void SetDefaults();
+  void changeScene(int isc);
   void Draw();
   void Update();
   void Delete();
@@ -156,5 +157,8 @@ void ForceUpdateAllViews();
 
 // Set all views settings to default value 
 void SetDefaultAllViews();
+
+// Main view
+extern View *mainview;
 
 #endif

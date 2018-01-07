@@ -25,6 +25,7 @@
 #include "imgui/imgui.h"
 
 #include "tree.h"
+#include "view.h"
 #include "critic2.h"
 
 using namespace ImGui;
@@ -64,13 +65,16 @@ void DeleteTreeData(){
   }
 }
 
-void UpdateTreeData(){
-  DeleteTreeData();
-
-  nsf = c2::nfiles;
-  sf = new sfile[nsf];
+void UpdateTreeData(int isc0/*=-1*/){
+  if (isc0 <= 0){
+    DeleteTreeData();
+    nsf = c2::nfiles;
+    sf = new sfile[nsf];
+  }
 
   for (int isc=0; isc<c2::nsc; isc++){
+    if (isc0 > 0 && isc+1 != isc0) 
+      continue;
     c2::set_scene_pointers(isc+1);
     int id = c2::idfile-1;
     if (c2::isinit > 0){
@@ -82,14 +86,29 @@ void UpdateTreeData(){
       if (std::string::npos != 0)
 	sf[id].path.erase(ll+1,std::string::npos);
 
-      // add the scene to the list of scenes
-      sscene *sc = new sscene;
-      sc->id = isc;
+      sscene *sc = nullptr;
+      if (isc0 > 0){
+	for (auto it = sf[id].sc.begin(); it != sf[id].sc.end(); it++){
+	  if ((*it)->id == isc0){
+	    sc = *it;
+	    break;
+	  }
+	}
+      } else 
+	sc = new sscene;
+      if (!sc){
+	printf("Error: could not find the scene\n");
+	exit(1);
+      }
+
+      sc->id = isc+1;
       sc->name = c2::name;
 
       if (c2::isinit > 1){
 	sc->nf = c2::nf;
 	char (*fname)[255] = (char (*)[255]) c2::fieldname;
+	if (!sc->field)
+	  delete [] sc->field;
 	sc->field = new sfield[sc->nf+1];
 	for (int iff = 0; iff <= sc->nf; iff++){
 	  sc->field[iff].id = iff;
@@ -99,31 +118,41 @@ void UpdateTreeData(){
 	sc->nf = -1;
 	sc->field = nullptr;
       }
-      sf[id].sc.push_back(sc);
+      if (isc0 <= 0)
+	sf[id].sc.push_back(sc);
     }
   }
 }
 
 void ShowTree(){
   int n = 0;
-  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick|ImGuiTreeNodeFlags_DefaultOpen;
   for (int i=0; i<nsf; i++){
     n++;
-    if (TreeNodeEx((void*)(intptr_t)n,flags,sf[i].file.c_str())){
+    if (CollapsingHeader(sf[i].file.c_str(),ImGuiTreeNodeFlags_DefaultOpen)){
       for (auto it = sf[i].sc.begin(); it != sf[i].sc.end(); it++){
+	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick;
+	if ((*it)->id == mainview->iscene)
+	  flags |= ImGuiTreeNodeFlags_Selected|ImGuiTreeNodeFlags_DefaultOpen;
 	n++;
-	if (TreeNodeEx((void*)(intptr_t)n,flags,(*it)->name.c_str())){
+
+	//Unindent(GetTreeNodeToLabelSpacing());
+	bool node_open = TreeNodeEx((void*)(intptr_t)n,flags,(*it)->name.c_str());
+	if (ImGui::IsItemClicked()){
+	  mainview->changeScene((*it)->id);
+	  UpdateTreeData((*it)->id);
+	}
+
+	if (node_open){
 	  for (int iff=0; iff <= (*it)->nf; iff++){
 	    n++;
 	    std::string str = std::to_string(iff) + ":" + (*it)->field[iff].name;
-	    if (TreeNodeEx((void*)(intptr_t)n,flags|ImGuiTreeNodeFlags_Leaf,str.c_str())){
+	    if (TreeNodeEx((void*)(intptr_t)n,ImGuiTreeNodeFlags_Leaf,str.c_str())){
 	      TreePop();
 	    }
 	  }
 	  TreePop();
 	}
       }
-      TreePop();
     }
   }
 }
