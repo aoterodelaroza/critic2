@@ -79,8 +79,11 @@ module crystalseedmod
   end type crystalseed
   public :: crystalseed
 
+  public :: realloc_crystalseed
   public :: struct_detect_format
   public :: read_seeds_from_file
+  public :: read_all_cif 
+  private :: read_cif_items
   private :: is_espresso
   private :: qe_latgen
 
@@ -738,205 +741,13 @@ contains
     if (.not.fl) &
        call ferror('read_cif','CIF file not found',faterr,file)
 
-    ! read data block
+    ! move to the beginning of the data block
     fl = data_(dblock)
     if (.not.fl) &
        call ferror('read_cif','incorrect named data block',faterr,file)
 
-    ! read cell dimensions
-    seed%useabr = 1
-    fl = numd_('_cell_length_a',seed%aa(1),sigx)
-    fl = fl .and. numd_('_cell_length_b',seed%aa(2),sigx)
-    fl = fl .and. numd_('_cell_length_c',seed%aa(3),sigx)
-    if (.not.fl) &
-       call ferror('read_cif','error reading cell lengths',faterr,file)
-    seed%aa = seed%aa / bohrtoa
-
-    ! read cell angles
-    fl = numd_('_cell_angle_alpha',seed%bb(1),sigx)
-    fl = fl .and. numd_('_cell_angle_beta',seed%bb(2),sigx)
-    fl = fl .and. numd_('_cell_angle_gamma',seed%bb(3),sigx)
-    if (.not.fl) &
-       call ferror('read_cif','error reading cell angles',faterr,file)
-
-    ! read atomic positions
-    seed%nat = 1
-    seed%nspc = 0
-    allocate(seed%spc(1))
-    allocate(seed%x(3,10),seed%is(10))
-    do while(.true.)
-       if (seed%nat > size(seed%is)) then
-          call realloc(seed%is,2*seed%nat)
-          call realloc(seed%x,3,2*seed%nat)
-       end if
-       atname = ""
-       fl = char_('_atom_site_type_symbol',atname)
-       if (.not.fl) &
-          fl = char_('_atom_site_label',atname)
-       iznum = zatguess(atname)
-       if (iznum < 0) &
-          call ferror('read_cif','unknown atomic symbol: '//trim(atname),faterr,file)
-
-       found = .false.
-       do i = 1, seed%nspc
-          if (seed%spc(i)%z == iznum) then
-             it = i
-             found = .true.
-             exit
-          end if
-       end do
-       if (.not.found) then
-          seed%nspc = seed%nspc + 1
-          if (seed%nspc > size(seed%spc,1)) &
-             call realloc(seed%spc,2*seed%nspc)
-          seed%spc(seed%nspc)%z = iznum
-          seed%spc(seed%nspc)%name = nameguess(iznum)
-          it = seed%nspc
-       end if
-       seed%is(seed%nat) = it
-
-       fl = fl .and. numd_('_atom_site_fract_x',x(1),sigx)
-       fl = fl .and. numd_('_atom_site_fract_y',x(2),sigx)
-       fl = fl .and. numd_('_atom_site_fract_z',x(3),sigx)
-       seed%x(:,seed%nat) = x
-       if (.not.fl) &
-          call ferror('read_cif','error reading atomic positions',faterr,file)
-       if (.not.loop_) exit
-       seed%nat = seed%nat + 1
-    end do
-    call realloc(seed%spc,seed%nspc)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%x,3,seed%nat)
-
-    ! save the old value of x, y, and z variables
-    ix = isvariable("x",xo)
-    iy = isvariable("y",yo)
-    iz = isvariable("z",zo)
-
-    ! use the symmetry information from _symmetry_equiv_pos_as_xyz
-    found = .false.
-    fl1 = .false.
-    fl2 = .false.
-    seed%neqv = 0
-    seed%ncv = 1
-    if (.not.allocated(seed%cen)) allocate(seed%cen(3,4))
-    seed%cen(:,1) = 0d0
-    if (.not.allocated(seed%rotm)) allocate(seed%rotm(3,4,48))
-    seed%rotm = 0d0
-    seed%rotm(:,:,1) = eyet
-    do while(.true.)
-       if (.not.found) then
-          fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
-          if (.not.fl1) fl2 = char_('_space_group_symop_operation_xyz',sym)
-          if (.not.(fl1.or.fl2)) exit
-          found = .true.
-       else
-          if (fl1) fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
-          if (fl2) fl2 = char_('_space_group_symop_operation_xyz',sym)
-       endif
-
-       ! do stuff with sym
-       if (.not.(fl1.or.fl2)) &
-          call ferror('read_cif','error reading symmetry xyz elements',faterr,file)
-
-       ! process the three symmetry elements
-       rot0 = 0d0
-       sym = trim(adjustl(lower(sym))) // ","
-       do i = 1, 3
-          ! extract the next token
-          idx = index(sym,",")
-          if (idx == 0) &
-             call ferror('read_cif','error reading symmetry operation',faterr,sym)
-          tok = sym(1:idx-1)
-          sym = sym(idx+1:)
-
-          ! the translation component
-          do j = 1, 3
-             call setvariable(ico(j),0d0)
-          end do
-          rot0(i,4) = eval(tok,.true.,iok)
-
-          ! the x-, y-, z- components
-          do j = 1, 3
-             call setvariable(ico(j),1d0)
-             rot0(i,j) = eval(tok,.true.,iok) - rot0(i,4)
-             call setvariable(ico(j),0d0)
-          enddo
-       enddo
-
-       ! now we have a rot0
-       if (all(abs(eyet - rot0) < 1d-12)) then
-          ! the identity
-          seed%neqv = seed%neqv + 1
-          if (seed%neqv > size(seed%rotm,3)) &
-             call realloc(seed%rotm,3,4,2*seed%neqv)
-          seed%rotm(:,:,seed%neqv) = rot0
-       elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
-          ! a non-zero pure translation
-          ! check if I have it already
-          ok = .true.
-          do i = 1, seed%ncv
-             if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
-                ok = .false.
-                exit
-             endif
-          end do
-          if (ok) then
-             seed%ncv = seed%ncv + 1
-             if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
-             seed%cen(:,seed%ncv) = rot0(:,4)
-          endif
-       else
-          ! a rotation, with some pure translation in it
-          ! check if I have this rotation matrix already
-          ok = .true.
-          do i = 1, seed%neqv
-             if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
-                ok = .false.
-                exit
-             endif
-          end do
-          if (ok) then
-             seed%neqv = seed%neqv + 1
-             seed%rotm(:,:,seed%neqv) = rot0
-          endif
-       endif
-       ! exit the loop
-       if (.not.loop_) exit
-    end do
-
-    seed%havesym = 1
-    seed%findsym = 0
-    if (seed%neqv == 0) then
-       seed%neqv = 1
-       seed%rotm(:,:,1) = eyet
-       seed%rotm = 0d0
-       seed%havesym = 0
-       seed%findsym = -1
-    end if
-    call realloc(seed%rotm,3,4,seed%neqv)
-    call realloc(seed%cen,3,seed%ncv)
-
-    ! restore the old values of x, y, and z
-    if (ix) call setvariable("x",xo)
-    if (iy) call setvariable("y",yo)
-    if (iz) call setvariable("z",zo)
-
-    ! read and process spg information
-    if (.not.found) then
-       ! the "official" Hermann-Mauginn symbol from the dictionary: many cif files don't have one
-       fl = char_('_symmetry_space_group_name_H-M',spg)
-
-       ! the "alternative" symbol... the core dictionary says I shouldn't be using this
-       if (.not.fl) fl = char_('_space_group_name_H-M_alt',spg)
-
-       ! oh, well, that's that...
-       if (.not.fl) &
-          call ferror('read_cif','error reading symmetry',faterr,file)
-
-       ! call spgs and hope for the best
-       call spgs_wrap(seed,spg,.false.)
-    endif
+    ! read all the items
+    call read_cif_items(seed,mol)
 
     ! clean up
     call purge_()
@@ -944,14 +755,12 @@ contains
     call fdealloc(luscr)
 
     ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
     seed%file = file
-    seed%name = file
+    if (len_trim(dblock) > 0) then
+       seed%name = trim(dblock)
+    else
+       seed%name = file
+    end if
 
   end subroutine read_cif
 
@@ -2762,6 +2571,28 @@ contains
 
   end subroutine read_xsf
 
+  !> Adapt the size of an allocatable 1D type(crystalseed) array
+  subroutine realloc_crystalseed(a,nnew)
+    use tools_io, only: ferror, faterr
+
+    type(crystalseed), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(crystalseed), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_crystalseed','array not allocated',faterr)
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_crystalseed
+
   !> Detect the format for the structure-containing file. Normally,
   !> this works by detecting the extension, but the file may be
   !> opened and searched if ambiguity is present. The format and
@@ -2916,14 +2747,13 @@ contains
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     integer, intent(out), optional :: iafield
     
-    integer :: isformat, mol0_, iafield_
+    integer :: isformat, mol0_, iafield_, i
     logical :: ismol, mol
 
     mol0_ = mol0
     iafield_ = 0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
-    allocate(seed(1))
 
     call struct_detect_format(file,isformat,ismol)
     if (mol0_ == 1) then
@@ -2934,60 +2764,381 @@ contains
        mol = ismol
     end if
 
-    ! for now, read only one seed always
-    nseed = 1
+    ! read all available seeds in the file
     if (isformat == isformat_cif) then
-       call seed(1)%read_cif(file," ",mol)
+       call read_all_cif(nseed,seed,file,mol)
     elseif (isformat == isformat_res) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_res(file,mol)
     else if (isformat == isformat_cube) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_cube(file,mol)
        iafield_ = nseed
     elseif (isformat == isformat_struct) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_wien(file,mol)
     elseif (isformat == isformat_vasp) then
+       nseed = 1
+       allocate(seed(1))
        write (*,*) "not implemented yet"
        write (*,*) "a decision needs to be made re atom types"
        stop 1
     elseif (isformat == isformat_abinit) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_abinit(file,mol)
        iafield_ = nseed
     elseif (isformat == isformat_elk) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_elk(file,mol)
     elseif (isformat == isformat_qeout) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_qeout(file,mol,0)
     elseif (isformat == isformat_crystal) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_crystalout(file,mol)
     elseif (isformat == isformat_qein) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_qein(file,mol)
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_mol(file,isformat,rborder_def,.false.)
     elseif (isformat == isformat_siesta) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_siesta(file,mol)
     elseif (isformat == isformat_xsf) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_xsf(file,mol)
        iafield_ = nseed
     elseif (isformat == isformat_gen) then
+       nseed = 1
+       allocate(seed(1))
        call seed(1)%read_dftbp(file,mol,rborder_def,.false.)
     end if
 
     ! handle the doguess option
-    if (.not.seed(1)%ismolecule) then
-       if (doguess == 0) then
-          seed(1)%havesym = 0
-          seed(1)%findsym = 0
-       elseif (doguess == 1 .and. seed(1)%havesym == 0) then
-          seed(1)%findsym = 1
+    do i = 1, nseed
+       if (.not.seed(i)%ismolecule) then
+          if (doguess == 0) then
+             seed(i)%havesym = 0
+             seed(i)%findsym = 0
+          elseif (doguess == 1 .and. seed(i)%havesym == 0) then
+             seed(i)%findsym = 1
+          end if
        end if
-    end if
+    end do
 
     ! output
     if (present(iafield)) &
        iafield = iafield_
 
   end subroutine read_seeds_from_file
+
+  !> Read all structures from a CIF file (uses ciftbx) and returns all
+  !> crystal seeds.
+  subroutine read_all_cif(nseed,seed,file,mol)
+    use arithmetic, only: eval, isvariable, setvariable
+    use global, only: critic_home
+    use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
+    use param, only: dirsep, bohrtoa, eye, eyet
+    use types, only: realloc
+
+    include 'ciftbx/ciftbx.cmv'
+    include 'ciftbx/ciftbx.cmf'
+
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule? 
+
+    character(len=1024) :: dictfile, sym, tok
+    character*30 :: atname, spg
+    real*8 :: x(3)
+    real*8 :: sigx, rot0(3,4), xo, yo, zo
+    logical :: fl, fl1, fl2, found, ok, ix, iy, iz, iok
+    integer :: i, j, ludum, luscr, idx, it, iznum
+
+    character*(1), parameter :: ico(3) = (/"x","y","z"/)
+
+    ludum = falloc()
+    luscr = falloc()
+    fl = init_(ludum, uout, luscr, uout)
+
+    ! open dictionary
+    dictfile = trim(adjustl(critic_home)) // dirsep // 'cif_core.dic'
+    fl = dict_(dictfile,'valid')
+    if (.not.fl) &
+       call ferror('read_all_cif','Dictionary file (cif_core.dic) not found. Check CRITIC_HOME',faterr)
+
+    ! open cif file
+    fl = ocif_(file)
+    if (.not.fl) &
+       call ferror('read_all_cif','CIF file not found',faterr,file)
+
+    nseed = 0
+    if (allocated(seed)) deallocate(seed)
+    allocate(seed(1))
+    ! read data blocks
+    do while (data_(" "))
+       nseed = nseed + 1
+       if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
+
+       seed(nseed)%file = file
+       seed(nseed)%name = file
+
+       call read_cif_items(seed(nseed),mol)
+    end do
+    call realloc_crystalseed(seed,nseed)       
+
+    ! clean up
+    call purge_()
+    call fdealloc(ludum)
+    call fdealloc(luscr)
+
+  end subroutine read_all_cif
+
+  !> Read all items in a cif file when the cursor has already been
+  !> moved to the corresponding data block. Fills seed.
+  subroutine read_cif_items(seed,mol)
+    use arithmetic, only: eval, isvariable, setvariable
+    use param, only: bohrtoa
+    use tools_io, only: ferror, faterr, lower, zatguess, nameguess
+    use param, only: bohrtoa, eye, eyet
+    use types, only: realloc
+
+    include 'ciftbx/ciftbx.cmv'
+    include 'ciftbx/ciftbx.cmf'
+
+    type(crystalseed), intent(inout) :: seed
+    logical, intent(in) :: mol
+
+    character(len=1024) :: sym, tok
+    character*30 :: atname, spg
+    integer :: i, j, it, iznum, idx
+    logical :: found, fl, ix, iy, iz, fl1, fl2, ok, iok
+    real*8 :: sigx, rot0(3,4), x(3), xo, yo, zo
+
+    character*(1), parameter :: ico(3) = (/"x","y","z"/)
+
+    if (len_trim(bloc_) > 0) &
+       seed%name = trim(bloc_)
+
+    ! read cell dimensions
+    seed%useabr = 1
+    fl = numd_('_cell_length_a',seed%aa(1),sigx)
+    fl = fl .and. numd_('_cell_length_b',seed%aa(2),sigx)
+    fl = fl .and. numd_('_cell_length_c',seed%aa(3),sigx)
+    if (.not.fl) &
+       call ferror('read_all_cif','error reading cell lengths',faterr)
+    seed%aa = seed%aa / bohrtoa
+    
+    ! read cell angles
+    fl = numd_('_cell_angle_alpha',seed%bb(1),sigx)
+    fl = fl .and. numd_('_cell_angle_beta',seed%bb(2),sigx)
+    fl = fl .and. numd_('_cell_angle_gamma',seed%bb(3),sigx)
+    if (.not.fl) &
+       call ferror('read_all_cif','error reading cell angles',faterr)
+    
+    ! read atomic positions
+    seed%nat = 1
+    seed%nspc = 0
+    allocate(seed%spc(1))
+    allocate(seed%x(3,10),seed%is(10))
+    do while(.true.)
+       if (seed%nat > size(seed%is)) then
+          call realloc(seed%is,2*seed%nat)
+          call realloc(seed%x,3,2*seed%nat)
+       end if
+       atname = ""
+       fl = char_('_atom_site_type_symbol',atname)
+       if (.not.fl) &
+          fl = char_('_atom_site_label',atname)
+       iznum = zatguess(atname)
+       if (iznum < 0) &
+          call ferror('read_all_cif','unknown atomic symbol: '//trim(atname),faterr)
+    
+       found = .false.
+       do i = 1, seed%nspc
+          if (seed%spc(i)%z == iznum) then
+             it = i
+             found = .true.
+             exit
+          end if
+       end do
+       if (.not.found) then
+          seed%nspc = seed%nspc + 1
+          if (seed%nspc > size(seed%spc,1)) &
+             call realloc(seed%spc,2*seed%nspc)
+          seed%spc(seed%nspc)%z = iznum
+          seed%spc(seed%nspc)%name = nameguess(iznum)
+          it = seed%nspc
+       end if
+       seed%is(seed%nat) = it
+    
+       fl = fl .and. numd_('_atom_site_fract_x',x(1),sigx)
+       fl = fl .and. numd_('_atom_site_fract_y',x(2),sigx)
+       fl = fl .and. numd_('_atom_site_fract_z',x(3),sigx)
+       seed%x(:,seed%nat) = x
+       if (.not.fl) &
+          call ferror('read_all_cif','error reading atomic positions',faterr)
+       if (.not.loop_) exit
+       seed%nat = seed%nat + 1
+    end do
+    call realloc(seed%spc,seed%nspc)
+    call realloc(seed%is,seed%nat)
+    call realloc(seed%x,3,seed%nat)
+    
+    ! save the old value of x, y, and z variables
+    ix = isvariable("x",xo)
+    iy = isvariable("y",yo)
+    iz = isvariable("z",zo)
+    
+    ! use the symmetry information from _symmetry_equiv_pos_as_xyz
+    found = .false.
+    fl1 = .false.
+    fl2 = .false.
+    seed%neqv = 0
+    seed%ncv = 1
+    if (.not.allocated(seed%cen)) allocate(seed%cen(3,4))
+    seed%cen(:,1) = 0d0
+    if (.not.allocated(seed%rotm)) allocate(seed%rotm(3,4,48))
+    seed%rotm = 0d0
+    seed%rotm(:,:,1) = eyet
+    do while(.true.)
+       if (.not.found) then
+          fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
+          if (.not.fl1) fl2 = char_('_space_group_symop_operation_xyz',sym)
+          if (.not.(fl1.or.fl2)) exit
+          found = .true.
+       else
+          if (fl1) fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
+          if (fl2) fl2 = char_('_space_group_symop_operation_xyz',sym)
+       endif
+    
+       ! do stuff with sym
+       if (.not.(fl1.or.fl2)) &
+          call ferror('read_all_cif','error reading symmetry xyz elements',faterr)
+    
+       ! process the three symmetry elements
+       rot0 = 0d0
+       sym = trim(adjustl(lower(sym))) // ","
+       do i = 1, 3
+          ! extract the next token
+          idx = index(sym,",")
+          if (idx == 0) &
+             call ferror('read_all_cif','error reading symmetry operation',faterr,sym)
+          tok = sym(1:idx-1)
+          sym = sym(idx+1:)
+    
+          ! the translation component
+          do j = 1, 3
+             call setvariable(ico(j),0d0)
+          end do
+          rot0(i,4) = eval(tok,.true.,iok)
+    
+          ! the x-, y-, z- components
+          do j = 1, 3
+             call setvariable(ico(j),1d0)
+             rot0(i,j) = eval(tok,.true.,iok) - rot0(i,4)
+             call setvariable(ico(j),0d0)
+          enddo
+       enddo
+    
+       ! now we have a rot0
+       if (all(abs(eyet - rot0) < 1d-12)) then
+          ! the identity
+          seed%neqv = seed%neqv + 1
+          if (seed%neqv > size(seed%rotm,3)) &
+             call realloc(seed%rotm,3,4,2*seed%neqv)
+          seed%rotm(:,:,seed%neqv) = rot0
+       elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
+          ! a non-zero pure translation
+          ! check if I have it already
+          ok = .true.
+          do i = 1, seed%ncv
+             if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
+                ok = .false.
+                exit
+             endif
+          end do
+          if (ok) then
+             seed%ncv = seed%ncv + 1
+             if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
+             seed%cen(:,seed%ncv) = rot0(:,4)
+          endif
+       else
+          ! a rotation, with some pure translation in it
+          ! check if I have this rotation matrix already
+          ok = .true.
+          do i = 1, seed%neqv
+             if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
+                ok = .false.
+                exit
+             endif
+          end do
+          if (ok) then
+             seed%neqv = seed%neqv + 1
+             seed%rotm(:,:,seed%neqv) = rot0
+          endif
+       endif
+       ! exit the loop
+       if (.not.loop_) exit
+    end do
+    
+    seed%havesym = 1
+    seed%findsym = 0
+    if (seed%neqv == 0) then
+       seed%neqv = 1
+       seed%rotm(:,:,1) = eyet
+       seed%rotm = 0d0
+       seed%havesym = 0
+       seed%findsym = -1
+    end if
+    call realloc(seed%rotm,3,4,seed%neqv)
+    call realloc(seed%cen,3,seed%ncv)
+       
+    ! restore the old values of x, y, and z
+    if (ix) call setvariable("x",xo)
+    if (iy) call setvariable("y",yo)
+    if (iz) call setvariable("z",zo)
+       
+    ! read and process spg information
+    if (.not.found) then
+       ! the "official" Hermann-Mauginn symbol from the dictionary: many cif files don't have one
+       fl = char_('_symmetry_space_group_name_H-M',spg)
+
+       ! the "alternative" symbol... the core dictionary says I shouldn't be using this
+       if (.not.fl) fl = char_('_space_group_name_H-M_alt',spg)
+
+       ! oh, well, that's that...
+       if (.not.fl) &
+          call ferror('read_all_cif','error reading symmetry',faterr)
+
+       ! call spgs and hope for the best
+       call spgs_wrap(seed,spg,.false.)
+    endif
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    
+  end subroutine read_cif_items
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal or a quantum espresso calculation. To do this,

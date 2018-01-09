@@ -124,10 +124,6 @@ copyright notice is included in the corresponding files.
   Graphical User interface (ImGui), coded by Omar Cornut with
   contributions from others (https://github.com/ocornut/imgui).
 
-  The matrix and quaternion manipulation library
-  (src-gui/matrix_math.*) comes from the OGLdev tutorials, by Etay
-  Meiri (http://ogldev.atspace.co.uk/index.html).
-
   The GUI also uses the font rasterization library of the STB package,
   by Sean Barrett and others (https://github.com/nothings/stb).
 
