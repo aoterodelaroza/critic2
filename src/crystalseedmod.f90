@@ -789,6 +789,10 @@ contains
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
+    ! file and seed name
+    seed%file = file
+    seed%name = file
+
     ! initialize symmetry
     iscent = .false.
     seed%ncv = 1
@@ -818,7 +822,9 @@ contains
        if (.not.ok) exit
        lp = 1
        word = lgetword(line,lp)
-       if (equal(word,"cell")) then
+       if (equal(word,"titl")) then
+          seed%name = trim(line(lp:))
+       elseif (equal(word,"cell")) then
           ! read the cell parameters from the cell card
           ok = isreal(raux,line,lp)
           ok = ok .and. isreal(seed%aa(1),line,lp)
@@ -1089,14 +1095,12 @@ contains
     seed%border = 0d0
     seed%havex0 = .false.
     seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
 
   end subroutine read_res
 
   !> Read the structure from a gaussian cube file
   subroutine read_cube(seed,file,mol)
-    use tools_io, only: fopen_read, fclose, nameguess
+    use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed
@@ -1106,12 +1110,22 @@ contains
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
-    logical :: ismo, found
+    logical :: ismo, found, ok
+    character(len=:), allocatable :: line
 
     lu = fopen_read(file)
 
+    ! the name of the seed is the first line
+    ok = getline_raw(lu,line,.false.)
+    if (.not.ok) return
+    seed%file = file
+    if (len_trim(line) > 0) then
+       seed%name = line
+    else
+       seed%name = file
+    end if
+
     ! ignore the title lines
-    read (lu,*)
     read (lu,*)
 
     ! number of atoms and unit cell
@@ -1178,8 +1192,6 @@ contains
     seed%isused = .true.
     seed%cubic = .false.
     seed%border = 0d0
-    seed%file = file
-    seed%name = file
 
   end subroutine read_cube
 
@@ -1201,6 +1213,9 @@ contains
     character*10 :: aname
     logical :: readall
 
+    ! seed file
+    seed%file = file
+
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file)
     READ(lut,102) TITEL
@@ -1221,6 +1236,8 @@ contains
     ! second pass -> actually process the information
     rewind(lut)
     READ(lut,102) TITEL
+    seed%name = trim(TITEL)
+
     READ(lut,103) LATTIC, seed%nat, cform
 102 FORMAT(A80)
 103 FORMAT(A4,23X,I3,1x,a4,/,4X,4X) ! new
@@ -1364,13 +1381,14 @@ contains
     seed%border = 0d0
     seed%havex0 = .false.
     seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
 
   end subroutine read_wien
 
   !> Read everything except the grid from a VASP POSCAR, etc. file
-  subroutine read_vasp(seed,file,mol)
+  !> If hastypes is present, it is equal to .true. if the file
+  !> could be read successfully or .false. if the atomic types
+  !> are missing.
+  subroutine read_vasp(seed,file,mol,hastypes)
     use types, only: realloc
     use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
        getword, zatguess, string, isinteger, nameguess, fclose
@@ -1379,6 +1397,7 @@ contains
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
+    logical, intent(out), optional :: hastypes
 
     integer :: lu, lp, nn
     character(len=:), allocatable :: word, line
@@ -1449,9 +1468,17 @@ contains
        call realloc(seed%spc,seed%nspc)
        ok = getline_raw(lu,line,.true.)
     else
-       if (seed%nspc == 0) &
-          call ferror('read_vasp','Atom types are required for VASP < 5.2 inputs',faterr,file)
+       if (seed%nspc == 0) then
+          if (present(hastypes)) then
+             hastypes = .false.
+             return
+          else
+             call ferror('read_vasp','Atom types are required for VASP < 5.2 inputs',faterr,file)
+          end if
+       end if
     end if
+    if (present(hastypes)) &
+       hastypes = .true.
 
     ! read number of atoms of each type
     lp = 1
@@ -2740,15 +2767,16 @@ contains
     use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_abinit, isformat_cif,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
-       isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf
+       isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     integer, intent(out), optional :: iafield
     
+    character(len=:), allocatable :: path, ofile
     integer :: isformat, mol0_, iafield_, i
-    logical :: ismol, mol
+    logical :: ismol, mol, hastypes
 
     mol0_ = mol0
     iafield_ = 0
@@ -2783,9 +2811,22 @@ contains
     elseif (isformat == isformat_vasp) then
        nseed = 1
        allocate(seed(1))
-       write (*,*) "not implemented yet"
-       write (*,*) "a decision needs to be made re atom types"
-       stop 1
+
+       ! try to read the types from the file directly
+       write (*,*) "bleh1"
+       call seed(1)%read_vasp(file,mol,hastypes)
+
+       write (*,*) "bleh2"
+       if (.not.hastypes) then
+          ! see if we can locate a POTCAR in the same path
+          path = file(1:index(file,dirsep,.true.))
+          if (len_trim(path) < 1) &
+             path = "."
+          ofile = trim(path) // "/POTCAR"
+          call seed(1)%read_potcar(ofile)
+          write (*,*) "bleh3"
+          call seed(1)%read_vasp(file,mol)
+       end if
     elseif (isformat == isformat_abinit) then
        nseed = 1
        allocate(seed(1))
