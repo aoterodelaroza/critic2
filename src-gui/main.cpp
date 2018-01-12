@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
 
   // Parse the command line
   if (argc > 1){
-    int mol;
+    int mol = -1;
     for(int i=1; i<argc; i++){
       if (!strcmp(argv[i],"-c")){
 	mol = 0;

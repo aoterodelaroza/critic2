@@ -2399,7 +2399,7 @@ contains
   end subroutine read_siesta
 
   !> Read the structure from a file in DFTB+ gen format.
-  subroutine read_dftbp(seed,file,mol,rborder,docube)
+  subroutine read_dftbp(seed,file,molout,rborder,docube)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
        getword, zatguess, nameguess
@@ -2407,7 +2407,7 @@ contains
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< is this a molecule?
+    logical, intent(out) :: molout !< returns true if a molecule is read, false if crystal
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
@@ -2476,11 +2476,13 @@ contains
           end do
        end if
        seed%useabr = 2
+       molout = .false.
     else
        ! molecule and no lattice -> set up the origin and the molecular cell
        if (isfrac == "f" .or. isfrac == "s") &
           call ferror('read_dftbp','S or C coordinates but no lattice vectors',faterr)
        seed%useabr = 0
+       molout = .true.
     end if
 
     ! no symmetry
@@ -2489,7 +2491,7 @@ contains
 
     ! rest of the seed information
     seed%isused = .true.
-    seed%ismolecule = mol
+    seed%ismolecule = molout
     seed%cubic = docube
     seed%border = rborder
     seed%havex0 = .false.
@@ -2626,7 +2628,9 @@ contains
   !> this works by detecting the extension, but the file may be
   !> opened and searched if ambiguity is present. The format and
   !> whether the file contains a molecule or crysatl is returned.
-  subroutine struct_detect_format(file,isformat,ismol)
+  !> If alsofield is present, then return .true. if the file also
+  !> contains a scalar field.
+  subroutine struct_detect_format(file,isformat,ismol,alsofield)
     use param, only: isformat_unknown, isformat_cif, isformat_res,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
@@ -2638,16 +2642,18 @@ contains
     character*(*), intent(in) :: file
     integer, intent(out) :: isformat
     logical, intent(out) :: ismol
+    logical, intent(out), optional :: alsofield
 
     character(len=:), allocatable :: basename, wextdot, wext_
-    logical :: isvasp
+    logical :: isvasp, alsofield_
 
+    alsofield_ = .false.
     basename = file(index(file,dirsep,.true.)+1:)
     wextdot = basename(index(basename,'.',.true.)+1:)
     wext_ = basename(index(basename,'_',.true.)+1:)
-    isvasp = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CONTCAR') > 0) .or. &
-       (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
-       (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
+    isvasp = (index(basename,'CONTCAR') > 0) .or. &
+       (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0).or.&
+       (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0).or.&
        (index(basename,'AECCAR2') > 0) .or. (index(basename,'POSCAR') > 0)
 
     if (equal(wextdot,'cif')) then
@@ -2659,6 +2665,7 @@ contains
     elseif (equal(wextdot,'cube')) then
        isformat = isformat_cube
        ismol = .false.
+       alsofield_ = .true.
     elseif (equal(wextdot,'struct')) then
        isformat = isformat_struct
        ismol = .false.
@@ -2670,6 +2677,7 @@ contains
        equal(wextdot,'KDEN').or.equal(wext_,'KDEN').or.equal(wextdot,'PAWDEN').or.equal(wext_,'PAWDEN')) then
        isformat = isformat_abinit
        ismol = .false.
+       alsofield_ = .true.
     elseif (equal(wextdot,'OUT')) then
        isformat = isformat_elk
        ismol = .false.
@@ -2690,31 +2698,40 @@ contains
     elseif (equal(wextdot,'wfn')) then
        isformat = isformat_wfn
        ismol = .true.
+       alsofield_ = .true.
     elseif (equal(wextdot,'wfx')) then
        isformat = isformat_wfx
        ismol = .true.
+       alsofield_ = .true.
     elseif (equal(wextdot,'fchk')) then
        isformat = isformat_fchk
        ismol = .true.
+       alsofield_ = .true.
     elseif (equal(wextdot,'molden')) then
        isformat = isformat_molden
        ismol = .true.
+       alsofield_ = .true.
     elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
        isformat = isformat_siesta
        ismol = .false.
     elseif (equal(wextdot,'xsf')) then
        isformat = isformat_xsf
        ismol = .false.
+       alsofield_ = .true.
     elseif (equal(wextdot,'gen')) then
        isformat = isformat_gen
        ismol = .false.
     elseif (isvasp) then
        isformat = isformat_vasp
        ismol = .false.
+       alsofield_ = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
+          (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
+          (index(basename,'AECCAR2') > 0)
     else
        isformat = isformat_unknown
        ismol = .false.
     endif
+    if (present(alsofield)) alsofield = alsofield_
 
   end subroutine struct_detect_format
 
@@ -2778,14 +2795,14 @@ contains
     
     character(len=:), allocatable :: path, ofile
     integer :: isformat, mol0_, iafield_, i
-    logical :: ismol, mol, hastypes
+    logical :: ismol, mol, hastypes, alsofield
 
     mol0_ = mol0
     iafield_ = 0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
 
-    call struct_detect_format(file,isformat,ismol)
+    call struct_detect_format(file,isformat,ismol,alsofield)
     if (mol0_ == 1) then
        mol = .true.
     elseif (mol0_ == 0) then
@@ -2805,7 +2822,6 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_cube(file,mol)
-       iafield_ = nseed
     elseif (isformat == isformat_struct) then
        nseed = 1
        allocate(seed(1))
@@ -2830,7 +2846,6 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_abinit(file,mol)
-       iafield_ = nseed
     elseif (isformat == isformat_elk) then
        nseed = 1
        allocate(seed(1))
@@ -2859,11 +2874,15 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_xsf(file,mol)
-       iafield_ = nseed
     elseif (isformat == isformat_gen) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_dftbp(file,mol,rborder_def,.false.)
+       call seed(1)%read_dftbp(file,ismol,rborder_def,.false.)
+       if (mol0_ == -1) then
+          seed(1)%ismolecule = ismol
+       else
+          seed(1)%ismolecule = mol
+       end if
     end if
 
     ! handle the doguess option
@@ -2879,8 +2898,8 @@ contains
     end do
 
     ! output
-    if (present(iafield)) &
-       iafield = iafield_
+    if (present(iafield) .and. alsofield) &
+       iafield = 1
 
   end subroutine read_seeds_from_file
 

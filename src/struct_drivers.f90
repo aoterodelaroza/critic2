@@ -196,7 +196,12 @@ contains
           lp2 = 1
           word2 = lgetword(line,lp)
        end do
-       call seed%read_dftbp(word,mol,rborder,docube)
+       call seed%read_dftbp(word,ismol,rborder,docube)
+       if (mol0 == -1) then
+          mol = ismol
+       else 
+          seed%ismolecule = mol
+       end if
 
     else if (equal(lower(word),'library')) then
        call seed%read_library(subline,mol,ok)
