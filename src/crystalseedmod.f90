@@ -83,6 +83,7 @@ module crystalseedmod
   public :: struct_detect_format
   public :: read_seeds_from_file
   public :: read_all_cif 
+  public :: read_all_qeout
   private :: read_cif_items
   private :: is_espresso
   private :: qe_latgen
@@ -1471,6 +1472,7 @@ contains
        if (seed%nspc == 0) then
           if (present(hastypes)) then
              hastypes = .false.
+             call fclose(lu)
              return
           else
              call ferror('read_vasp','Atom types are required for VASP < 5.2 inputs',faterr,file)
@@ -2813,10 +2815,8 @@ contains
        allocate(seed(1))
 
        ! try to read the types from the file directly
-       write (*,*) "bleh1"
        call seed(1)%read_vasp(file,mol,hastypes)
 
-       write (*,*) "bleh2"
        if (.not.hastypes) then
           ! see if we can locate a POTCAR in the same path
           path = file(1:index(file,dirsep,.true.))
@@ -2824,7 +2824,6 @@ contains
              path = "."
           ofile = trim(path) // "/POTCAR"
           call seed(1)%read_potcar(ofile)
-          write (*,*) "bleh3"
           call seed(1)%read_vasp(file,mol)
        end if
     elseif (isformat == isformat_abinit) then
@@ -2837,9 +2836,7 @@ contains
        allocate(seed(1))
        call seed(1)%read_elk(file,mol)
     elseif (isformat == isformat_qeout) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_qeout(file,mol,0)
+       call read_all_qeout(nseed,seed,file,mol)
     elseif (isformat == isformat_crystal) then
        nseed = 1
        allocate(seed(1))
@@ -2949,6 +2946,205 @@ contains
     call fdealloc(luscr)
 
   end subroutine read_all_cif
+
+  !> Read all structures from a QE outupt. Returns all crystal seeds.
+  subroutine read_all_qeout(nseed,seed,file,mol)
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+       zatguess, fclose, equali
+    use tools_math, only: matinv
+    use param, only: bohrtoa
+    use types, only: realloc
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule? 
+
+    integer :: lu, ideq, i, j, k, is0
+    character(len=:), allocatable :: line
+    character*10 :: atn
+    integer :: id, idum
+    real*8 :: alat, r(3,3), qaux, rfac, cfac
+    logical :: ok
+    logical, allocatable :: tox(:)
+
+    lu = fopen_read(file)
+
+    ! first pass: read the number of structures
+    nseed = 0
+    do while (getline_raw(lu,line))
+       if (index(line,"Self-consistent Calculation") > 0) then
+          nseed = nseed + 1
+       end if
+    end do
+    if (nseed == 0) return
+    if (allocated(seed)) deallocate(seed)
+    allocate(seed(nseed+1))
+    do i = 1, nseed
+       seed(i)%nspc = 0
+       seed(i)%nat = 0
+    end do
+    allocate(tox(nseed))
+    tox = .false.
+    alat = 1d0
+
+    ! rewind and read all the structures
+    rewind(lu)
+    is0 = 1
+    do while (getline_raw(lu,line))
+       ideq = index(line,"=") + 1
+
+       ! Count the structures
+       if (index(line,"Self-consistent Calculation") > 0) then
+          is0 = is0 + 1
+          if (is0 > nseed) exit
+
+       elseif (index(line,"lattice parameter (alat)") > 0) then
+          ok = isreal(alat,line,ideq)
+
+       elseif (index(line,"number of atoms/cell") > 0 .and. seed(1)%nat == 0) then
+          ok = isinteger(seed(1)%nat,line,ideq)
+          do i = 1, nseed
+             seed(i)%nat = seed(1)%nat
+             allocate(seed(i)%x(3,seed(i)%nat),seed(i)%is(seed(i)%nat))
+             seed(i)%is = 0
+          end do
+
+       elseif (index(line,"number of atomic types") > 0 .and. seed(1)%nspc == 0) then
+          ok = isinteger(seed(1)%nspc,line,ideq)
+          do i = 1, nseed
+             seed(i)%nspc = seed(1)%nspc
+             allocate(seed(i)%spc(seed(i)%nspc))
+          end do
+
+       elseif (index(line,"atomic species   valence    mass     pseudopotential")>0 .and. is0 == 1) then
+          do i = 1, seed(1)%nspc
+             ok = getline_raw(lu,line,.true.)
+             read (line,*) seed(1)%spc(i)%name, qaux
+             seed(1)%spc(i)%z = zatguess(seed(1)%spc(i)%name)
+             if (seed(1)%spc(i)%z < 0) &
+                call ferror("read_qeout","unknown atomic symbol: "//trim(seed(1)%spc(i)%name),faterr)
+          end do
+          do j = 2, nseed
+             do i = 1, seed(1)%nspc
+                seed(j)%spc(i)%name = seed(1)%spc(i)%name
+                seed(j)%spc(i)%z = seed(1)%spc(i)%z
+             end do
+          end do
+
+       elseif (index(line,"crystal axes:") > 0) then
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             ideq = index(line,"(",.true.) + 1
+             ok = isreal(r(i,1),line,ideq)
+             ok = ok.and.isreal(r(i,2),line,ideq)
+             ok = ok.and.isreal(r(i,3),line,ideq)
+          end do
+          r = r * alat ! alat comes before crystal axes
+          seed(is0)%crys2car = transpose(r)
+          if (is0 == 1) then
+             do i = 1, nseed
+                seed(i)%crys2car = seed(1)%crys2car
+             end do
+          end if
+
+       elseif (index(line,"Cartesian axes")>0) then
+          ok = getline_raw(lu,line,.true.)
+          ok = getline_raw(lu,line,.true.)
+          seed(is0)%is = 0
+          do i = 1, seed(is0)%nat
+             ok = getline_raw(lu,line,.true.)
+             read(line,*) idum, atn
+             line = line(index(line,"(",.true.)+1:)
+             read(line,*) seed(is0)%x(:,i)
+             do j = 1, seed(is0)%nspc
+                if (equali(seed(is0)%spc(j)%name,atn)) then
+                   seed(is0)%is(i) = j
+                   exit
+                end if
+             end do
+             if (seed(is0)%is(i) == 0) &
+                call ferror("read_qeout","unknown atom type: "//atn,faterr)
+          end do
+          tox(is0) = .true.
+
+       elseif (line(1:15) == "CELL_PARAMETERS") then
+          if (index(line,"angstrom") > 0) then
+             cfac = 1d0 / bohrtoa 
+          elseif (index(line,"alat") > 0) then
+             cfac = alat
+          elseif (index(line,"bohr") > 0) then
+             cfac = 1d0
+          end if
+          do i = 1, 3
+             ok = getline_raw(lu,line,.true.)
+             ideq = 1
+             ok = isreal(r(i,1),line,ideq)
+             ok = ok.and.isreal(r(i,2),line,ideq)
+             ok = ok.and.isreal(r(i,3),line,ideq)
+          end do
+          r = r * cfac
+          seed(is0)%crys2car = transpose(r)
+
+       elseif (line(1:16) == "ATOMIC_POSITIONS") then
+          if (index(line,"angstrom") > 0) then
+             tox(is0) = .true.
+             rfac = 1d0 / bohrtoa 
+          elseif (index(line,"alat") > 0) then
+             tox(is0) = .true.
+             rfac = alat
+          elseif (index(line,"bohr") > 0) then
+             tox(is0) = .true.
+             rfac = 1d0
+          elseif (index(line,"crystal") > 0) then
+             tox(is0) = .false.
+             rfac = 1d0
+          end if
+          seed(is0)%is = 0
+          do i = 1, seed(is0)%nat
+             ok = getline_raw(lu,line,.true.)
+             read(line,*) atn, seed(is0)%x(:,i)
+             do j = 1, seed(is0)%nspc
+                if (equali(seed(is0)%spc(j)%name,atn)) then
+                   seed(is0)%is(i) = j
+                   exit
+                end if
+             end do
+             if (seed(is0)%is(i) == 0) &
+                call ferror("read_qeout","unknown atom type: "//atn,faterr)
+          end do
+          seed(is0)%x = seed(is0)%x * rfac
+       end if
+    end do
+    call fclose(lu)
+
+    ! transform atomic positions and complete the seeds
+    do j = 1, nseed
+       seed(j)%useabr = 2
+       r = matinv(seed(j)%crys2car)
+
+       do i = 1, seed(j)%nat
+          if (tox(j)) then
+             seed(j)%x(:,i) = matmul(r,seed(j)%x(:,i))
+          end if
+          seed(j)%x(:,i) = seed(j)%x(:,i) - floor(seed(j)%x(:,i))
+       end do
+       ! no symmetry
+       seed(j)%havesym = 0
+       seed(j)%findsym = -1
+
+       ! rest of the seed information
+       seed(j)%isused = .true.
+       seed(j)%ismolecule = mol
+       seed(j)%cubic = .false.
+       seed(j)%border = 0d0
+       seed(j)%havex0 = .false.
+       seed(j)%molx0 = 0d0
+       seed(j)%file = file
+       seed(j)%name = file
+    end do
+    call realloc_crystalseed(seed,nseed)
+
+  end subroutine read_all_qeout
 
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.
