@@ -1,25 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
-! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
-!
-! critic2 is free software: you can redistribute it and/or modify
-! it under the terms of the GNU General Public License as published by
-! the Free Software Foundation, either version 3 of the License, or (at
-! your option) any later version.
-! 
-! critic2 is distributed in the hope that it will be useful,
-! but WITHOUT ANY WARRANTY; without even the implied warranty of
-! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-! GNU General Public License for more details.
-! 
-! You should have received a copy of the GNU General Public License
-! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-module config
-  use param, only: dirsep
-  implicit none
-
-  public
+submodule (config) proc
 
   character(len=*), parameter :: package = "@PACKAGE@"
 #ifdef COMMIT
@@ -48,4 +27,44 @@ module config
   character(len=*), parameter :: datadir = "."
 #endif
 
-end module config
+contains
+
+  !> Return the config string corresponding to the input id.
+  function getstring(id) result(str)
+    integer, intent(in) :: id
+    character(len=:), allocatable :: str
+
+    select case(id)
+    case(istring_package)
+       str = package
+    case(istring_version)
+       str = version
+    case(istring_f77)
+       str = f77
+    case(istring_fc)
+       str = fc
+    case(istring_cc)
+       str = cc
+    case(istring_fflags)
+       str = fflags
+    case(istring_fcflags)
+       str = fcflags
+    case(istring_cflags)
+       str = cflags
+    case(istring_ldflags)
+       str = ldflags
+    case(istring_atarget)
+       str = atarget
+    case(istring_adate)
+       str = adate
+    case(istring_enabledebug)
+       str = enable_debug
+    case(istring_revision)
+       str = revision
+    case(istring_datadir)
+       str = datadir
+    end select
+
+  end function getstring
+  
+end submodule proc

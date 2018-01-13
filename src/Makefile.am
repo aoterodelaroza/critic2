@@ -2,7 +2,7 @@
 dist_bin_SCRIPTS = 
 bin_PROGRAMS = critic2
 critic2_SOURCES = critic2.F90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
-	spglib.f90 keast.f90 param.F90 tools_io.F90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
+	spglib.f90 keast.f90 param.F90 tools_io.F90 config.f90 tools.f90 spgs.f90 tools_system.c types.f90 \
 	fragmentmod.f90 grid1mod.f90 arithmetic.F90 global.f90 tools_math.f90 sympg.f90 grid3mod.f90 \
 	elk_private.f90 wien_private.f90 pi_private.f90 wfn_private.f90 dftb_private.f90 \
 	fieldmod.f90 surface.f90 graphics.f90 crystalseedmod.f90 crystalmod.f90 doqhull.c meshmod.f90\
@@ -10,13 +10,13 @@ critic2_SOURCES = critic2.F90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
 	rhoplot.f90 nci.f90 autocp.f90 flux.f90 bader.f90 yt.f90 integration.f90 bisect.f90 quadpack.f90\
 	qtree_basic.f90 qtree.f90 qtree_gpaths.f90 qtree_tetrawork.f90 qtree_utils.f90 xdm.f90 stm.f90\
 	molcalc.F90 hirshfeld.f90 tricks.f90 \
-	crystalseedmod@proc.f90 crystalmod@proc.f90
+	config@proc.F90 crystalseedmod@proc.f90 crystalmod@proc.f90
 
 if GUI
   noinst_LIBRARIES=libcritic2.a
   libcritic2_a_SOURCES = gui_interface.f90\
 	c_interface_module.f90 hashmod.f90 abinit_private.f90 cfftnd.f90 \
-	spglib.f90 keast.f90 param.F90 tools_io.F90 config.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
+	spglib.f90 keast.f90 param.F90 tools_io.F90 config.f90 tools.f90 spgs.f90 tools_system.c types.f90 \
 	fragmentmod.f90 grid1mod.f90 arithmetic.F90 global.f90 tools_math.f90 sympg.f90 grid3mod.f90 \
 	elk_private.f90 wien_private.f90 pi_private.f90 wfn_private.f90 dftb_private.f90 \
 	fieldmod.f90 surface.f90 graphics.f90 crystalseedmod.f90 crystalmod.f90 doqhull.c meshmod.f90\
@@ -24,7 +24,7 @@ if GUI
 	rhoplot.f90 nci.f90 autocp.f90 flux.f90 bader.f90 yt.f90 integration.f90 bisect.f90 quadpack.f90\
 	qtree_basic.f90 qtree.f90 qtree_gpaths.f90 qtree_tetrawork.f90 qtree_utils.f90 xdm.f90 stm.f90\
 	molcalc.F90 hirshfeld.f90 tricks.f90\
-	crystalseedmod@proc.f90 crystalmod@proc.f90
+	config@proc.F90 crystalseedmod@proc.f90 crystalmod@proc.f90
 endif
 
 # Library subdirectories
@@ -72,7 +72,7 @@ mostlyclean-local:
 	$(AM_V_PPFC)$(PPFCCOMPILE) -c -o $(@:.smod=.o) $<
 
 # Always recompile the config file to get the compilation details right
-config.$(OBJEXT) : .FORCE
+config@proc.o : .FORCE
 
 .FORCE: 
 
@@ -82,6 +82,7 @@ critic2.o critic2.mod : autocp.mod
 integration.o integration.mod : bader.mod
 critic2.o critic2.mod qtree.o qtree.mod : bisect.mod
 gui_interface.o gui_interface.mod : c_interface_module.mod
+critic2.o critic2.mod gui_interface.o gui_interface.mod global.o global.mod : config.mod
 yt.o yt.mod xdm.o xdm.mod systemmod.o systemmod.mod struct_drivers.o struct_drivers.mod meshmod.o meshmod.mod integration.o integration.mod fieldmod.o fieldmod.mod : crystalmod.mod
 systemmod.o systemmod.mod struct_drivers.o struct_drivers.mod integration.o integration.mod gui_interface.o gui_interface.mod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod autocp.o autocp.mod : crystalseedmod.mod
 fieldmod.o fieldmod.mod : dftb_private.mod
@@ -124,7 +125,6 @@ fieldmod.o fieldmod.mod : wien_private.mod
 critic2.o critic2.mod : xdm.mod
 integration.o integration.mod : yt.mod
 critic2.o critic2.mod yt.o yt.mod systemmod.o systemmod.mod rhoplot.o rhoplot.mod grid3mod.o grid3mod.mod global.o global.mod fieldmod.o fieldmod.mod crystalseedmod@proc.o crystalseedmod@proc.smod bader.o bader.mod : arithmetic.mod
-critic2.o critic2.mod gui_interface.o gui_interface.mod : config.mod
 critic2.o critic2.mod : molcalc.mod
-tools_io.o tools_io.mod molcalc.o molcalc.mod critic2.o critic2.mod config.o config.mod arithmetic.o arithmetic.mod yt.o yt.mod xdm.o xdm.mod wien_private.o wien_private.mod wfn_private.o wfn_private.mod tools_math.o tools_math.mod systemmod.o systemmod.mod sympg.o sympg.mod surface.o surface.mod struct_drivers.o struct_drivers.mod stm.o stm.mod spgs.o spgs.mod rhoplot.o rhoplot.mod quadpack.o quadpack.mod qtree_utils.o qtree_utils.mod qtree_basic.o qtree_basic.mod pi_private.o pi_private.mod nci.o nci.mod meshmod.o meshmod.mod integration.o integration.mod gui_interface.o gui_interface.mod grid3mod.o grid3mod.mod grid1mod.o grid1mod.mod graphics.o graphics.mod global.o global.mod fragmentmod.o fragmentmod.mod flux.o flux.mod fieldseedmod.o fieldseedmod.mod fieldmod.o fieldmod.mod elk_private.o elk_private.mod dftb_private.o dftb_private.mod crystalseedmod@proc.o crystalseedmod@proc.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod bisect.o bisect.mod bader.o bader.mod autocp.o autocp.mod : param.mod
+tools_io.o tools_io.mod molcalc.o molcalc.mod critic2.o critic2.mod arithmetic.o arithmetic.mod yt.o yt.mod xdm.o xdm.mod wien_private.o wien_private.mod wfn_private.o wfn_private.mod tools_math.o tools_math.mod systemmod.o systemmod.mod sympg.o sympg.mod surface.o surface.mod struct_drivers.o struct_drivers.mod stm.o stm.mod spgs.o spgs.mod rhoplot.o rhoplot.mod quadpack.o quadpack.mod qtree_utils.o qtree_utils.mod qtree_basic.o qtree_basic.mod pi_private.o pi_private.mod nci.o nci.mod meshmod.o meshmod.mod integration.o integration.mod gui_interface.o gui_interface.mod grid3mod.o grid3mod.mod grid1mod.o grid1mod.mod graphics.o graphics.mod global.o global.mod fragmentmod.o fragmentmod.mod flux.o flux.mod fieldseedmod.o fieldseedmod.mod fieldmod.o fieldmod.mod elk_private.o elk_private.mod dftb_private.o dftb_private.mod crystalseedmod@proc.o crystalseedmod@proc.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod config.o config.mod bisect.o bisect.mod bader.o bader.mod autocp.o autocp.mod : param.mod
 molcalc.o molcalc.mod critic2.o critic2.mod arithmetic.o arithmetic.mod yt.o yt.mod xdm.o xdm.mod wien_private.o wien_private.mod wfn_private.o wfn_private.mod tools_math.o tools_math.mod tools.o tools.mod systemmod.o systemmod.mod sympg.o sympg.mod surface.o surface.mod struct_drivers.o struct_drivers.mod stm.o stm.mod spgs.o spgs.mod rhoplot.o rhoplot.mod qtree_utils.o qtree_utils.mod qtree_tetrawork.o qtree_tetrawork.mod qtree_gpaths.o qtree_gpaths.mod qtree_basic.o qtree_basic.mod qtree.o qtree.mod pi_private.o pi_private.mod nci.o nci.mod meshmod.o meshmod.mod integration.o integration.mod hirshfeld.o hirshfeld.mod gui_interface.o gui_interface.mod grid3mod.o grid3mod.mod grid1mod.o grid1mod.mod graphics.o graphics.mod global.o global.mod fragmentmod.o fragmentmod.mod flux.o flux.mod fieldseedmod.o fieldseedmod.mod fieldmod.o fieldmod.mod elk_private.o elk_private.mod dftb_private.o dftb_private.mod crystalseedmod@proc.o crystalseedmod@proc.smod crystalmod@proc.o crystalmod@proc.smod bisect.o bisect.mod bader.o bader.mod autocp.o autocp.mod abinit_private.o abinit_private.mod : tools_io.mod

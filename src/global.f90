@@ -364,24 +364,25 @@ contains
   end subroutine help_me
 
   !> Print out the compilation details and the hardwired paths
-  subroutine config_write(package,version,atarget,adate,f77,fflags,fc,&
-     fcflags,cc,cflags,ldflags,enable_debug,datadir)
+  subroutine config_write()
+    use config, only: getstring, istring_package, istring_version,&
+       istring_f77, istring_fc, istring_cc, istring_fflags,&
+       istring_fcflags, istring_cflags, istring_ldflags,&
+       istring_atarget, istring_adate, istring_enabledebug,&
+       istring_revision, istring_datadir
     use param, only: dirsep
     use tools_io, only: uout
-    character*(*), intent(in) :: package, version, atarget, adate
-    character*(*), intent(in) :: f77, fflags, fc, fcflags, cc, cflags
-    character*(*), intent(in) :: ldflags, enable_debug, datadir
     logical :: lchk
 
-    write (uout,'("+ ",A," (development), commit ",A,"")') package, version
-    write (uout,'(" compile host: ",A)') atarget
-    write (uout,'(" compile date: ",A)') adate
-    write (uout,'("    using f77: ",A," ",A)') f77, fflags
-    write (uout,'("          f90: ",A," ",A)') fc, fcflags
-    write (uout,'("            c: ",A," ",A)') cc, cflags
-    write (uout,'("      ldflags: ",A)') ldflags
-    write (uout,'("       debug?: ",A)') enable_debug
-    write (uout,'(" compiled dat: ",A)') datadir
+    write (uout,'("+ ",A," (development), commit ",A,"")') getstring(istring_package), getstring(istring_version)
+    write (uout,'(" compile host: ",A)') getstring(istring_atarget)
+    write (uout,'(" compile date: ",A)') getstring(istring_adate)
+    write (uout,'("    using f77: ",A," ",A)') getstring(istring_f77), getstring(istring_fflags)
+    write (uout,'("          f90: ",A," ",A)') getstring(istring_fc), getstring(istring_fcflags)
+    write (uout,'("            c: ",A," ",A)') getstring(istring_cc), getstring(istring_cflags)
+    write (uout,'("      ldflags: ",A)') getstring(istring_ldflags)
+    write (uout,'("       debug?: ",A)') getstring(istring_enabledebug)
+    write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)
     write (uout,'("      datadir: ",A)') trim(critic_home)
     inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
     write (uout,'("     dic file: ",A)') trim(critic_home)// dirsep // "cif_core.dic"

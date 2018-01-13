@@ -47,8 +47,7 @@ program critic
      critic_clearvariable, critic_setvariables, global_set_defaults
   use arithmetic, only: listvariables
   use grid1mod, only: grid1_clean_grids
-  use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
-     fcflags, cc, cflags, ldflags, enable_debug, package
+  use config, only: getstring, istring_datadir
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
      start_clock, print_clock
@@ -76,7 +75,7 @@ program critic
   call stdargs(optv,ghome,fileroot)
 
   ! set default values and initialize the rest of the modules
-  call global_init(ghome,datadir)
+  call global_init(ghome,getstring(istring_datadir))
   call spgs_init()
   call systemmod_init(1)
 
@@ -91,8 +90,7 @@ program critic
   ! header, interface, date
   if (.not.quiet) then
      call initial_banner()
-     call config_write(package,version,atarget,adate,f77,fflags,fc,&
-        fcflags,cc,cflags,ldflags,enable_debug,datadir)
+     call config_write()
      call tictac('CRITIC2')
      write (uout,*)
      ucopy = uout

@@ -126,8 +126,7 @@ contains
     use iso_fortran_env, only: input_unit, output_unit
     use systemmod, only: systemmod_init
     use spgs, only: spgs_init
-    use config, only: datadir, version, atarget, adate, f77, fflags, fc, &
-       fcflags, cc, cflags, ldflags, enable_debug, package
+    use config, only: getstring, istring_datadir
     use global, only: global_init, config_write, initial_banner, crsmall
     use tools_io, only: ioinit, ucopy, uout, start_clock, &
        tictac, interactive, uin, filepath
@@ -145,7 +144,7 @@ contains
     filepath = "."
 
     ! set default values and initialize the rest of the modules
-    call global_init("",datadir)
+    call global_init("",getstring(istring_datadir))
     call spgs_init()
     call systemmod_init(1)
 
@@ -154,8 +153,7 @@ contains
 
     ! banner and compilation info; do not copy input
     call initial_banner()
-    call config_write(package,version,atarget,adate,f77,fflags,fc,&
-       fcflags,cc,cflags,ldflags,enable_debug,datadir)
+    call config_write()
     call tictac('CRITIC2')
     write (uout,*)
     ucopy = -1
