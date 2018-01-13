@@ -4605,7 +4605,7 @@ contains
     write (lu,'("&cell"/"/")')
     write (lu,'("ATOMIC_SPECIES")')
     do i = 1, c%nspc
-       write (lu,'(A,X,F12.6,X,A,".UPF")') trim(c%spc(i)%name), atmass(c%spc(i)%z), trim(c%spc(i)%name)
+       write (lu,'(A,X,F12.6,X,A,".UPF")') trim(c%spc(i)%name), atmass(c%spc(i)%z), trim(lower(c%spc(i)%name))
     end do
     write (lu,'(/"ATOMIC_POSITIONS crystal")')
     do i = 1, c%ncel
