@@ -1,268 +1,10 @@
-! Copyright (c) 2015 Alberto Otero de la Roza
-! <aoterodelaroza@gmail.com>,
-! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>.
-!
-! critic2 is free software: you can redistribute it and/or modify
-! it under the terms of the GNU General Public License as published by
-! the Free Software Foundation, either version 3 of the License, or
-! (at
-! your option) any later version.
-!
-! critic2 is distributed in the hope that it will be useful,
-! but WITHOUT ANY WARRANTY; without even the implied warranty of
-! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-! GNU General Public License for more details.
-!
-! You should have received a copy of the GNU General Public License
-! along with this program.  If not, see
-! <http://www.gnu.org/licenses/>.
-
-! Structure class and routines for basic crystallography computations
-module crystalmod
-  use spglib, only: SpglibDataset
-  use types, only: atom, celatom, neighstar, species
-  use fragmentmod, only: fragment
-  use param, only: maxzat0
-  implicit none
-
-  private
-
-  ! private to this module
-  private :: lattpg
-  private :: typeop
-  ! private for wigner-seitz routines
-  private :: equiv_tetrah
-  private :: perm3
-  ! other crystallography tools that are crystal-independent
-  public :: search_lattice
-  public :: pointgroup_info
-  
-  !> Crystal type
-  type crystal
-     ! Initialization flags
-     logical :: isinit = .false. !< has the crystal structure been initialized?
-     logical :: isenv = .false. !< were the atomic environments determined?
-     integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
-     logical :: isast = .false. !< have the molecular asterisms and connectivity been calculated?
-     logical :: isewald = .false. !< do we have the data for ewald's sum?
-     logical :: isrecip = .false. !< symmetry information about the reciprocal cell
-     logical :: isnn = .false. !< information about the nearest neighbors
-
-     ! file name for the occasional critic2 trick
-     character(len=128) :: file
-
-     !! Initialization level: isinit !!
-     ! species list
-     integer :: nspc = 0 !< Number of species
-     type(species), allocatable :: spc(:) !< Species
-     ! non-equivalent atoms list
-     integer :: nneq = 0 !< Number of non-equivalent atoms
-     type(atom), allocatable :: at(:) !< Non-equivalent atom array
-     ! complete atoms list
-     integer :: ncel = 0 !< Number of atoms in the main cell
-     type(celatom), allocatable :: atcel(:) !< List of atoms in the main cell
-     ! cell and lattice metrics
-     real*8 :: aa(3) !< cell lengths (bohr)
-     real*8 :: bb(3) !< cell angles (degrees)
-     real*8 :: omega !< unit cell volume
-     real*8 :: gtensor(3,3) !< metric tensor (3,3)
-     real*8 :: ar(3) !< reciprocal cell lengths
-     real*8 :: grtensor(3,3) !< reciprocal metric tensor (3,3)
-     ! crystallographic/cartesian conversion matrices
-     real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
-     real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
-     real*8 :: n2_x2c !< sqrt(3)/norm-2 of the crystallographic to cartesian matrix
-     real*8 :: n2_c2x !< sqrt(3)/norm-2 of the cartesian to crystallographic matrix
-     ! space-group symmetry
-     type(SpglibDataset) :: spg !< spglib's symmetry dataset
-     integer :: neqv !< number of symmetry operations
-     integer :: neqvg !< number of symmetry operations, reciprocal space
-     integer :: ncv  !< number of centering vectors
-     real*8, allocatable :: cen(:,:) !< centering vectors
-     real*8 :: rotm(3,4,48) !< symmetry operations
-     real*8 :: rotg(3,3,48) !< symmetry operations, reciprocal space
-     ! variables for molecular systems
-     logical :: ismolecule = .false. !< is it a molecule?
-     real*8 :: molx0(3) !< centering vector for the molecule
-     real*8 :: molborder(3) !< molecular cell border (cryst coords)
-     ! wigner-seitz cell 
-     integer :: nws !< number of WS neighbors/faces
-     integer :: ivws(3,16) !< WS neighbor lattice points
-     integer :: nvert_ws !< number of vertices of the WS cell
-     integer, allocatable :: nside_ws(:) !< number of sides of WS faces
-     integer, allocatable :: iside_ws(:,:) !< sides of the WS faces
-     real*8, allocatable :: vws(:,:) !< vertices of the WS cell
-     logical :: isortho !< is the cell orthogonal?
-     ! rotations and translations for finding shortest vectors
-     real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
-     real*8 :: rdeli(3,3) !< x_cur = x_del * c%rdeli
-     real*8 :: rdeli_x2c(3,3) !< c_cur = x_del * c%rdeli_x2c
-     real*8 :: crys2car_del(3,3) !< crys2car delaunay cell
-     integer :: ivws_del(3,16) !< WS neighbor lattice points (del cell, Cartesian)
-     logical :: isortho_del !< is the reduced cell orthogonal?
-     ! core charges
-     integer :: zpsp(maxzat0)
-
-     !! Initialization level: isenv !!
-     ! atomic environment of the cell
-     integer :: nenv = 0 !< Environment around the main cell
-     real*8 :: dmax0_env !< Maximum environment distance
-     type(celatom), allocatable :: atenv(:) !< Atoms around the main cell
-
-     !! Initialization level: isast !!
-     ! asterisms
-     type(neighstar), allocatable :: nstar(:) !< Neighbor stars
-     integer :: nmol = 0 !< Number of molecules in the unit cell
-     type(fragment), allocatable :: mol(:) !< Molecular fragments
-     logical, allocatable :: moldiscrete(:) !< Is the crystal extended or molecular?
-
-     !! Initialization level: isewald !!
-     ! ewald data
-     real*8 :: rcut, hcut, eta, qsum
-     integer :: lrmax(3), lhmax(3)
-
-   contains
-     ! construction, destruction, initialization
-     procedure :: init => struct_init !< Allocate arrays and nullify variables
-     procedure :: checkflags !< Check the flags for a given crystal
-     procedure :: end => struct_end !< Deallocate arrays and nullify variables
-     procedure :: struct_new !< Initialize the structure from a crystal seed
-     procedure :: struct_fill !< Initialize the structure from minimal info (already in the object)
-
-     ! basic crystallographic operations
-     procedure :: x2c !< Convert crystallographic to cartesian
-     procedure :: c2x !< Convert cartesian to crystallographic
-     procedure :: distance !< Distance between points in crystallographic coordinates
-     procedure :: eql_distance !< Shortest distance between lattice-translated vectors
-     procedure :: shortest !< Gives the lattice-translated vector with shortest length
-     procedure :: are_close !< True if a vector is at a distance less than eps of another
-     procedure :: are_lclose !< True if a vector is at a distance less than eps of all latice translations of another
-     procedure :: nearest_atom !< Calculate the atom nearest to a given point
-     procedure :: identify_atom !< Identify an atom in the unit cell
-     procedure :: identify_fragment !< Build an atomic fragment of the crystal
-     procedure :: identify_fragment_from_xyz !< Build a crystal fragment from an xyz file
-     procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
-     procedure :: get_mult !< Multiplicity of a point
-     procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
-
-     ! molecular environments and neighbors
-     procedure :: build_env !< Build the crystal environment (atenv)
-     procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
-     procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
-     procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
-     procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
-     procedure :: listmolecules !< List all molecules in the crystal
-     procedure :: pointshell !< Calculate atomic shells around a point
-     procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
-     procedure :: get_pack_ratio !< Calculate the packing ratio
-
-     ! complex operations
-     procedure :: powder !< Calculate the powder diffraction pattern
-     procedure :: rdf !< Calculate the radial distribution function
-     procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
-     procedure :: ewald_energy !< electrostatic energy (Ewald)
-     procedure :: ewald_pot !< electrostatic potential (Ewald)
-
-     ! unit cell transformations
-     procedure :: newcell !< Change the unit cell and rebuild the crystal
-     procedure :: cell_standard !< Transform the the standard cell (possibly primitive)
-     procedure :: cell_niggli !< Transform to the Niggli primitive cell
-     procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
-     procedure :: delaunay_reduction !< Perform the delaunay reduction.
-
-     ! output routines
-     procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
-     procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
-
-     ! symmetry and WS cell
-     procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
-     procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
-     procedure :: pmwigner !< Poor man's wigner
-
-     ! structure writers
-     procedure :: write_mol
-     procedure :: write_3dmodel
-     procedure :: write_espresso
-     procedure :: write_vasp
-     procedure :: write_abinit
-     procedure :: write_elk
-     procedure :: write_gaussian
-     procedure :: write_tessel
-     procedure :: write_critic
-     procedure :: write_cif
-     procedure :: write_d12
-     procedure :: write_escher
-     procedure :: write_gulp
-     procedure :: write_lammps
-     procedure :: write_siesta_fdf
-     procedure :: write_siesta_in
-     procedure :: write_dftbp_hsd
-     procedure :: write_dftbp_gen
-
-     ! grid writers
-     procedure :: writegrid_cube
-     procedure :: writegrid_vasp
-
-     ! promolecular and core density calculation
-     procedure :: promolecular
-     procedure :: promolecular_grid
-  end type crystal
-  public :: crystal
-
-  ! symmetry operation symbols
-  integer, parameter :: ident=0 !< identifier for sym. operations
-  integer, parameter :: inv=1 !< identifier for sym. operations
-  integer, parameter :: c2=2 !< identifier for sym. operations
-  integer, parameter :: c3=3 !< identifier for sym. operations
-  integer, parameter :: c4=4 !< identifier for sym. operations
-  integer, parameter :: c6=5 !< identifier for sym. operations
-  integer, parameter :: s3=6 !< identifier for sym. operations
-  integer, parameter :: s4=7 !< identifier for sym. operations
-  integer, parameter :: s6=8 !< identifier for sym. operations
-  integer, parameter :: sigma=9 !< identifier for sym. operations
-
-  ! array initialization values
-  integer, parameter :: mspc0 = 4
-  integer, parameter :: mneq0 = 4
-  integer, parameter :: mcel0 = 10
-  integer, parameter :: menv0 = 100
-
-  ! holohedry identifier
-  integer, parameter, public :: holo_unk = 0 ! unknown
-  integer, parameter, public :: holo_tric = 1 ! triclinic
-  integer, parameter, public :: holo_mono = 2 ! monoclinic
-  integer, parameter, public :: holo_ortho = 3 ! orthorhombic
-  integer, parameter, public :: holo_tetra = 4 ! tetragonal
-  integer, parameter, public :: holo_trig = 5 ! trigonal
-  integer, parameter, public :: holo_hex = 6 ! hexagonal
-  integer, parameter, public :: holo_cub = 7 ! cubic
-  character(len=12), parameter, public :: holo_string(0:7) = (/ &
-     "unknown     ","triclinic   ","monoclinic  ","orthorhombic",&
-     "tetragonal  ","trigonal    ","hexagonal   ","cubic       "/)
-
-  ! Laue class identifier
-  integer, parameter, public :: laue_unk = 0 ! unknown
-  integer, parameter, public :: laue_1 = 1 ! -1
-  integer, parameter, public :: laue_2m = 2 ! 2/m
-  integer, parameter, public :: laue_mmm = 3 ! mmm
-  integer, parameter, public :: laue_4m = 4 ! 4/m
-  integer, parameter, public :: laue_4mmm = 5 ! 4/mmm
-  integer, parameter, public :: laue_3 = 6 ! -3
-  integer, parameter, public :: laue_3m = 7 ! -3m
-  integer, parameter, public :: laue_6m = 8 ! 6/m
-  integer, parameter, public :: laue_6mmm = 9 ! 6/mmm
-  integer, parameter, public :: laue_m3 = 10 ! m-3
-  integer, parameter, public :: laue_m3m = 11 ! m-3m
-  character(len=12), parameter, public :: laue_string(0:11) = (/ &
-     "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
-     "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
+submodule (crystalmod) proc
 
 contains
 
   !xx! crystal class methods
   !> Initialize the struct arrays
-  subroutine struct_init(c)
+  module subroutine struct_init(c)
     use param, only: eyet, eye
     class(crystal), intent(inout) :: c
 
@@ -350,7 +92,7 @@ contains
   !> set. If crash=.false., take the necessary steps to initialize the
   !> crystal flags that are .true.  This routine is thread-safe if
   !> crash = .true.
-  subroutine checkflags(c,crash,env0,ast0,recip0,nn0,ewald0)
+  module subroutine checkflags(c,crash,env0,ast0,recip0,nn0,ewald0)
     use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     logical :: crash
@@ -405,7 +147,7 @@ contains
   end subroutine checkflags
 
   !> Terminate allocated arrays
-  subroutine struct_end(c)
+  module subroutine struct_end(c)
     class(crystal), intent(inout) :: c
 
     c%isinit = .false.
@@ -447,7 +189,7 @@ contains
   !> Create a new, complete crystal/molecule from a crystal seed. If
   !> failed and crashfail is true, crash the program. Otherwise,
   !> return a the error status through c%isinit.
-  subroutine struct_new(c,seed,crashfail)
+  module subroutine struct_new(c,seed,crashfail)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, atomeps
@@ -806,7 +548,7 @@ contains
   !> small crystals.  If recip0, determine the reciprocal cell metrics
   !> and symmetry.  If lnn0, determine the nearest-neighbor
   !> information. If ewald0, calculate the cutoffs for Ewald method.
-  subroutine struct_fill(c,env0,iast0,recip0,lnn0,ewald0)
+  module subroutine struct_fill(c,env0,iast0,recip0,lnn0,ewald0)
     use global, only: crsmall
 
     class(crystal), intent(inout) :: c
@@ -815,7 +557,7 @@ contains
 
     logical :: env, ast, recip, lnn, ewald
     integer :: i
-    real*8, dimension(3) :: vec
+    real*8 :: vec(3)
     real*8 :: dist(1)
     integer :: nneig(1), wat(1)
 
@@ -874,20 +616,20 @@ contains
   end subroutine struct_fill
 
   !> Transform crystallographic to cartesian. This routine is thread-safe.
-  pure function x2c(c,xx) 
+  pure module function x2c(c,xx) 
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xx(3) 
-    real*8 :: x2c(3)
+    ! real*8 :: x2c(3)
 
     x2c = matmul(c%crys2car,xx)
 
   end function x2c
 
   !> Transform cartesian to crystallographic. This routine is thread-safe. 
-  pure function c2x(c,xx)
+  pure module function c2x(c,xx)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
-    real*8 :: c2x(3)
+    ! real*8 :: c2x(3)
 
     c2x = matmul(c%car2crys,xx)
 
@@ -895,10 +637,10 @@ contains
 
   !> Compute the distance between points in crystallographic.  This
   !> routine is thread-safe.
-  pure function distance(c,x1,x2)
+  pure module function distance(c,x1,x2)
     class(crystal), intent(in) :: c !< Input crystal
-    real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
-    real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
+    real*8, intent(in) :: x1(3) !< First point in cryst. coordinates
+    real*8, intent(in) :: x2(3) !< Second point in cryst. coordinates
     real*8 :: distance
 
     real*8 :: xd(3)
@@ -911,10 +653,10 @@ contains
   !> Compute the shortest distance between a point x1 and all
   !> lattice translations of another point x2. Input points in cryst.
   !> coordinates. This routine is thread-safe.
-  pure function eql_distance(c,x1,x2)
+  pure module function eql_distance(c,x1,x2)
     class(crystal), intent(in) :: c !< Input crystal
-    real*8, intent(in), dimension(3) :: x1 !< First point in cryst. coordinates
-    real*8, intent(in), dimension(3) :: x2 !< Second point in cryst. coordinates
+    real*8, intent(in) :: x1(3) !< First point in cryst. coordinates
+    real*8, intent(in) :: x2(3) !< Second point in cryst. coordinates
     real*8 :: eql_distance
 
     real*8 :: xd(3), dist2
@@ -929,7 +671,7 @@ contains
   !> lattice-translated copy of x with the shortest length. Returns
   !> the shortest-length vector in Cartesian coordinates and 
   !> the square of the distance. This routine is thread-safe.
-  pure subroutine shortest(c,x,dist2)
+  pure module subroutine shortest(c,x,dist2)
     class(crystal), intent(in) :: c
     real*8, intent(inout) :: x(3)
     real*8, intent(out) :: dist2
@@ -966,7 +708,7 @@ contains
   !> than eps. Logical veresion of c%distance(). If d2 is present and
   !> are_close is .true., return the square of the distance in that
   !> argument.  This routine is thread-safe.
-  function are_close(c,x0,x1,eps,d2)
+  module function are_close(c,x0,x1,eps,d2)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
@@ -992,7 +734,7 @@ contains
   !> coords. Logical version of c%ldistance(). If d2 is present and
   !> are_close is .true., return the square of the distance in that
   !> argument. This routine is thread-safe.
-  function are_lclose(c,x0,x1,eps,d2)
+  module function are_lclose(c,x0,x1,eps,d2)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
@@ -1015,7 +757,7 @@ contains
   !> complete list id (atcel). dist is the distance and lvec the
   !> lattice vector required to transform atcel(nid)%x to the nearest
   !> position. This routine is thread-safe.
-  subroutine nearest_atom(c,xp,nid,dist,lvec)
+  module subroutine nearest_atom(c,xp,nid,dist,lvec)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xp(:)
     integer, intent(inout) :: nid
@@ -1045,7 +787,7 @@ contains
   !> the non-equivalent atom index (default if lncel is false) or the
   !> complete atom index (if lncel is true). This routine is
   !> thread-safe.
-  function identify_atom(c,x0,lncel0)
+  module function identify_atom(c,x0,lncel0)
     use tools_io, only: ferror, faterr
     
     class(crystal), intent(in) :: c
@@ -1080,7 +822,7 @@ contains
 
   !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
   !> A fragment object. This routine is thread-safe.
-  function identify_fragment(c,nat,x0) result(fr)
+  module function identify_fragment(c,nat,x0) result(fr)
     use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: nat
@@ -1110,7 +852,7 @@ contains
   !> Identify a fragment in the unit cell from an external xyz
   !> file. An instance of a fragment object is returned. If any of the
   !> atoms is not correctly identified, return 0.
-  function identify_fragment_from_xyz(c,file) result(fr)
+  module function identify_fragment_from_xyz(c,file) result(fr)
     use tools_io, only: fopen_read, string, ferror, faterr, fclose
     use param, only: bohrtoa
     use types, only: realloc
@@ -1168,10 +910,10 @@ contains
   !> responsible for the transformation of xp into the corresponding
   !> vec. eps is the minimum distance to consider two points
   !> equivalent (in bohr). vec, irotm, icenv, and eps0 are optional. 
-  subroutine symeqv(c,xp0,mmult,vec,irotm,icenv,eps0)
+  module subroutine symeqv(c,xp0,mmult,vec,irotm,icenv,eps0)
     use types, only: realloc
     class(crystal), intent(in) :: c !< Input crystal
-    real*8, dimension(3), intent(in) :: xp0 !< input position (crystallographic)
+    real*8, intent(in) :: xp0(3) !< input position (crystallographic)
     integer, intent(out) :: mmult !< multiplicity
     real*8, allocatable, intent(inout), optional :: vec(:,:) !< sym-eq positions (crystallographic)
     integer, allocatable, intent(inout), optional :: irotm(:) !< index of the operation
@@ -1265,7 +1007,7 @@ contains
   end subroutine symeqv
 
   !> Calculate the multiplicity of the point x0 (cryst. coord.)
-  function get_mult(c,x0) result (mult)
+  module function get_mult(c,x0) result (mult)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
     integer :: mult
@@ -1276,7 +1018,7 @@ contains
 
   !> Calculate the multiplicity of the point x0 in reciprocal space
   !> (fractional coordinates). 
-  function get_mult_reciprocal(c,x0) result (mult)
+  module function get_mult_reciprocal(c,x0) result (mult)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
     integer :: mult
@@ -1319,7 +1061,7 @@ contains
   !> to the unit cell's density. Used in the structure initialization.
   !> If dmax is given, use that number as an estimate of how many cells
   !> should be included in the search for atoms. 
-  subroutine build_env(c,dmax0)
+  module subroutine build_env(c,dmax0)
     use tools_math, only: norm
     use global, only: cutrad
     use types, only: realloc
@@ -1408,7 +1150,7 @@ contains
 
   !> Find asterisms. For every atom in the unit cell, find the atoms in the 
   !> main cell or adjacent cells that are connected to it. 
-  subroutine find_asterisms(c)
+  module subroutine find_asterisms(c)
     use global, only: bondfactor
     use param, only: atmcov, vsmall
     use types, only: realloc
@@ -1498,7 +1240,7 @@ contains
 
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
-  function listatoms_cells(c,nx,doborder) result(fr)
+  module function listatoms_cells(c,nx,doborder) result(fr)
     use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: nx(3)
@@ -1575,7 +1317,7 @@ contains
   !> (cryst.)  or a cube of side rcub and center xcub (cryst.). Return
   !> the list of atomic positions (Cartesian) in x, the atomic numbers
   !> in z and the number of atoms in nat. 
-  function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
+  module function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
     use tools_io, only: ferror, faterr
     use types, only: realloc
     class(crystal), intent(in) :: c
@@ -1641,7 +1383,7 @@ contains
   !> Using the calculated asterisms for each atom determine the
   !> molecular in the system and whether the crystal is extended or
   !> molecular. This routine fills nmol, mol, and moldiscrete.
-  subroutine fill_molecular_fragments(c)
+  module subroutine fill_molecular_fragments(c)
     use fragmentmod, only: realloc_fragment
     use tools_io, only: ferror, faterr
     use types, only: realloc
@@ -1768,7 +1510,7 @@ contains
   !> the number of fragment (nfrag), the fragments themselves (fr),
   !> and whether the fragments are discrete (not connected to copies
   !> of themselves in a different cell). 
-  subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
+  module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
     use fragmentmod, only: realloc_fragment
     use types, only: realloc
     class(crystal), intent(inout) :: c
@@ -1904,7 +1646,7 @@ contains
   !> each shell in nneig, the non-equivalent atom index in wat,
   !> and the distance in dist. If the argument xenv is present,
   !> return the position of a representative atom from each shell.
-  subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
+  module subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
     use global, only: atomeps, atomeps2
     use types, only: realloc
     class(crystal), intent(in) :: c
@@ -1977,7 +1719,7 @@ contains
   !> Returns the site symmetry group symbol (sitesymm), the
   !> number of operations in this group (leqv) and the rotation
   !> operations (lrotm)
-  function sitesymm(c,x0,eps0,leqv,lrotm)
+  module function sitesymm(c,x0,eps0,leqv,lrotm)
     use tools_io, only: string
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in) :: x0(3) !< Input point in cryst. coords.
@@ -2099,10 +1841,10 @@ contains
   !> Calculate the packing ratio (in %) using the nearest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance
   !> to its nearest neighbor.
-  function get_pack_ratio(c) result (px)
+  module function get_pack_ratio(c) result (px)
     use param, only: pi
     class(crystal), intent(inout) :: c
-    real*8 :: px
+    ! real*8 :: px
     
     integer :: i
 
@@ -2125,7 +1867,7 @@ contains
   !> 2*theta grid, th2p is the 2*theta for the located maxima, ip is
   !> the list of maxima itensities, and hvecp is the reciprocal
   !> lattice vector corresponding to the peaks.
-  subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
+  module subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
      sigma,t,ih,th2p,ip,hvecp)
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
@@ -2326,7 +2068,7 @@ contains
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges.
-  subroutine rdf(c,rend,sigma,npts,t,ih)
+  module subroutine rdf(c,rend,sigma,npts,t,ih)
     use tools_math, only: norm
     class(crystal), intent(in) :: c
     real*8, intent(in) :: rend
@@ -2379,7 +2121,7 @@ contains
   end subroutine rdf
 
   !> Calculate real and reciprocal space sum cutoffs
-  subroutine calculate_ewald_cutoffs(c)
+  module subroutine calculate_ewald_cutoffs(c)
     use tools_io, only: ferror, faterr
     use param, only: pi, rad, sqpi, tpi
     class(crystal), intent(inout) :: c
@@ -2480,9 +2222,9 @@ contains
   end subroutine calculate_ewald_cutoffs
 
   !> Calculates the Ewald electrostatic energy, using the input charges.
-  function ewald_energy(c) result(ewe)
+  module function ewald_energy(c) result(ewe)
     class(crystal), intent(inout) :: c
-    real*8 :: ewe
+    ! real*8 :: ewe
 
     real*8 :: x(3)
     integer :: i
@@ -2502,7 +2244,7 @@ contains
   !> Calculate the Ewald electrostatic potential at an arbitrary
   !> position x (crystallographic coords.)  If x is the nucleus j,
   !> return pot - q_j / |r-rj| at rj.
-  function ewald_pot(c,x,isnuc)
+  module function ewald_pot(c,x,isnuc)
     use param, only: tpi, pi, sqpi
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x(3)
@@ -2594,7 +2336,7 @@ contains
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. 
-  subroutine newcell(c,x00,t0,verbose0)
+  module subroutine newcell(c,x00,t0,verbose0)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
@@ -2789,7 +2531,7 @@ contains
   !> information about the new crystal. If doforce = .true.,
   !> force the transformation to the primitive even if it does
   !> not lead to a smaller cell.
-  subroutine cell_standard(c,toprim,doforce,verbose)
+  module subroutine cell_standard(c,toprim,doforce,verbose)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
     use global, only: symprec
@@ -2869,7 +2611,7 @@ contains
 
   !> Transform to the Niggli cell. If verbose, write information
   !> about the new crystal.
-  subroutine cell_niggli(c,verbose)
+  module subroutine cell_niggli(c,verbose)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
@@ -2903,7 +2645,7 @@ contains
 
   !> Transform to the Delaunay cell. If verbose, write information
   !> about the new crystal.
-  subroutine cell_delaunay(c,verbose)
+  module subroutine cell_delaunay(c,verbose)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
@@ -2943,7 +2685,7 @@ contains
   !> present, it contains the three shortest of the seven Delaunay
   !> lattice vectors that form a cell (useful to transform to one of
   !> the delaunay reduced cells).
-  subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
+  module subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
     use tools, only: qcksort
     use tools_math, only: norm, det
     use tools_io, only: faterr, ferror
@@ -3044,7 +2786,7 @@ contains
 
   !> Write information about the crystal structure to the output. lcrys = 
   !> information about the structure. lq = charges.
-  subroutine struct_report(c,lcrys,lq)
+  module subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd, norm
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
@@ -3404,7 +3146,7 @@ contains
 
   !> Write the list of symmetry operations to stdout, using crystallographic
   !> notation (if possible).
-  subroutine struct_report_symxyz(c,strfin)
+  module subroutine struct_report_symxyz(c,strfin)
     use tools_io, only: uout, string
     use global, only: symprec
     class(crystal), intent(in) :: c
@@ -3479,7 +3221,7 @@ contains
   !> rotm, spg. If usenneq is .true., use nneq and at(:) instead of 
   !> ncel and atcel. If onlyspg is .true., fill only the spg field
   !> and leave the others unchanged.
-  subroutine spglib_wrap(c,usenneq,onlyspg)
+  module subroutine spglib_wrap(c,usenneq,onlyspg)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
     use global, only: symprec
@@ -3578,7 +3320,7 @@ contains
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
-  subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
+  module subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
      nvert_ws,nside_ws,iside_ws,vws)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
     use global, only: fileroot
@@ -3587,14 +3329,6 @@ contains
        ferror, faterr, fclose
     use param, only: dirsep
     use types, only: realloc
-
-    interface
-       subroutine doqhull(fin,fvert,fface,ithr) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
-         character(kind=c_char) :: fin(*), fvert(*), fface(*)
-         integer(kind=c_int) :: ithr
-       end subroutine doqhull
-    end interface
 
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xorigin(3) !< Origin of the WS cell
@@ -3607,6 +3341,14 @@ contains
     integer, allocatable, intent(inout), optional :: nside_ws(:) !< number of sides of WS faces
     integer, allocatable, intent(inout), optional :: iside_ws(:,:) !< sides of the WS faces
     real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell
+
+    interface
+       subroutine doqhull(fin,fvert,fface,ithr) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
+         character(kind=c_char) :: fin(*), fvert(*), fface(*)
+         integer(kind=c_int) :: ithr
+       end subroutine doqhull
+    end interface
 
     ! three WS vertices are collinear if det < -eps
     real*8, parameter :: eps_wspesca = 1d-5 !< Criterion for tetrahedra equivalence
@@ -3918,7 +3660,7 @@ contains
   end subroutine wigner
 
   !> Partition the unit cell in tetrahedra.
-  subroutine pmwigner(c,ntetrag,tetrag)
+  module subroutine pmwigner(c,ntetrag,tetrag)
     use tools_math, only: mixed
     class(crystal), intent(in) :: c !< the crystal structure
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
@@ -3969,8 +3711,7 @@ contains
   !xx! Private for wigner
 
   !> Private for wigner. Determines if two tetrahedra are equivalent.
-  function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
-
+  module function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
     logical :: equiv_tetrah
     type(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
@@ -4006,9 +3747,8 @@ contains
   end function equiv_tetrah
 
   !> Private for equiv_tetrah, wigner. 3! permutations.
-  function perm3(p,r,t)
-
-    real*8 :: perm3(0:3,3)
+  module function perm3(p,r,t)
+    ! real*8 :: perm3(0:3,3)
     integer, intent(in) :: p
     real*8, intent(in) :: r(0:3,3), t(0:3,3)
 
@@ -4052,7 +3792,7 @@ contains
   !> uout. ncen and xcen are the centering vectors for the lattice in
   !> crystallographic coordinates. nn and rot, if present, receive the
   !> symmetry operations for the lattice.
-  subroutine lattpg(rmat,ncen,xcen,nn,rot)
+  module subroutine lattpg(rmat,ncen,xcen,nn,rot)
     use sympg, only: nopsym, opsym, sym3d
     use tools_math, only: matinv
     use types, only: realloc
@@ -4123,7 +3863,7 @@ contains
   !> order to be sure that the main cell is surrounded by a shell at
   !> least rmax thick. x2r is the cryst-to-car matrix for the
   !> lattice. The heuristic method has been adapted from gulp.
-  subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
+  module subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
     use param, only: pi
 
     real*8, intent(in) :: x2r(3,3), rmax
@@ -4162,7 +3902,7 @@ contains
   !> type (the type of operation: ident, c2, c3,...)  and vec (the
   !> direction of the axis or the normal to the plane, 0 for a point
   !> symmetry element). Used in the structure initialization.
-  subroutine typeop(rot,type,vec,order)
+  module subroutine typeop(rot,type,vec,order)
     use tools_math, only: norm, eigns
     use tools_io, only: ferror, faterr
     use param, only: tpi, eye
@@ -4276,7 +4016,7 @@ contains
   !> Get the holohedry and the Laue class from the Hermann-Mauguin
   !> point group label. Adapted from spglib, takes spglib HM point
   !> group labels.
-  subroutine pointgroup_info(hmpg,schpg,holo,laue)
+  module subroutine pointgroup_info(hmpg,schpg,holo,laue)
     use tools_io, only: equal
     character*(*), intent(in) :: hmpg
     character(len=3), intent(out) :: schpg
@@ -4432,7 +4172,7 @@ contains
   !> rcub (bohr) is positive, use all atoms in a cube around xcub
   !> (cryst.). If luout is present, return the LU in that argument
   !> and do not close the file.
-  subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
+  module subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
     use global, only: dunit0, iunit
     use tools_math, only: norm, nchoosek, comb
@@ -4705,7 +4445,7 @@ contains
   !> rcub (bohr) is positive, use all atoms in a cube around xcub
   !> (cryst.). If gr0 is present, then return the graphics handle and
   !> do not close the files.
-  subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
+  module subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,gr0)
     use graphics, only: grhandle
     use tools_math, only: norm
@@ -4833,7 +4573,7 @@ contains
   end subroutine write_3dmodel
 
   !> Write a quantum espresso input template
-  subroutine write_espresso(c,file)
+  module subroutine write_espresso(c,file)
     use tools_io, only: fopen_write, lower, fclose
     use param, only: maxzat0, atmass
     class(crystal), intent(in) :: c
@@ -4881,7 +4621,7 @@ contains
   end subroutine write_espresso
 
   !> Write a VASP POSCAR template
-  subroutine write_vasp(c,file,verbose)
+  module subroutine write_vasp(c,file,verbose)
     use tools_io, only: fopen_write, string, uout, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
@@ -4928,7 +4668,7 @@ contains
   end subroutine write_vasp
 
   !> Write an abinit input template
-  subroutine write_abinit(c,file)
+  module subroutine write_abinit(c,file)
     use tools_io, only: fopen_write, string, fclose
     use param, only: pi, maxzat0
     class(crystal), intent(in) :: c
@@ -5005,7 +4745,7 @@ contains
   end subroutine write_abinit
 
   !> Write an elk input template
-  subroutine write_elk(c,file)
+  module subroutine write_elk(c,file)
     use tools_io, only: fopen_write, fclose
     use param, only: maxzat0
     class(crystal), intent(in) :: c
@@ -5050,7 +4790,7 @@ contains
   end subroutine write_elk
 
   !> Write a Gaussian template input (periodic).
-  subroutine write_gaussian(c,file)
+  module subroutine write_gaussian(c,file)
     use tools_io, only: fopen_write, string, nameguess, ioj_left, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
@@ -5087,7 +4827,7 @@ contains
   end subroutine write_gaussian
 
   !> Write a tessel input template
-  subroutine write_tessel(c,file)
+  module subroutine write_tessel(c,file)
     use global, only: fileroot
     use tools_io, only: fopen_write, fclose
     class(crystal), intent(in) :: c
@@ -5138,7 +4878,7 @@ contains
   end subroutine write_tessel
 
   !> Write a critic2 input template
-  subroutine write_critic(c,file)
+  module subroutine write_critic(c,file)
     use tools_io, only: fopen_write, fclose
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -5160,7 +4900,7 @@ contains
   end subroutine write_critic
 
   !> Write a simple cif file
-  subroutine write_cif(c,file)
+  module subroutine write_cif(c,file)
     use global, only: fileroot
     use tools_io, only: fopen_write, fclose, string, nameguess
     use param, only: bohrtoa
@@ -5202,7 +4942,7 @@ contains
   end subroutine write_cif
 
   !> Write a simple cif file
-  subroutine write_d12(c,file,dosym)
+  module subroutine write_d12(c,file,dosym)
     use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use global, only: symprec
     use param, only: bohrtoa, pi
@@ -5318,7 +5058,7 @@ contains
   end subroutine write_d12
 
   !> Write an escher octave script
-  subroutine write_escher(c,file)
+  module subroutine write_escher(c,file)
     use global, only: fileroot
     use tools_io, only: fopen_write, string, fclose
     use param, only: pi, maxzat0
@@ -5393,7 +5133,7 @@ contains
   end subroutine write_escher
 
   !> Write a gulp input script
-  subroutine write_gulp(c,file,dodreiding)
+  module subroutine write_gulp(c,file,dodreiding)
     use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose
     use tools_math, only: norm
     use param, only: bohrtoa, atmcov, pi
@@ -5538,7 +5278,7 @@ contains
   end subroutine write_gulp
 
   !> Write a lammps data file
-  subroutine write_lammps(c,file)
+  module subroutine write_lammps(c,file)
     use tools_io, only: fopen_write, ferror, faterr, fclose
     use tools_math, only: crys2car_from_cellpar
     use param, only: bohrtoa, maxzat0, atmass
@@ -5590,7 +5330,7 @@ contains
   end subroutine write_lammps
 
   !> Write a siesta fdf data file
-  subroutine write_siesta_fdf(c,file)
+  module subroutine write_siesta_fdf(c,file)
     use tools_io, only: fopen_write, nameguess, lower, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
@@ -5661,7 +5401,7 @@ contains
   end subroutine write_siesta_fdf
 
   !> Write a siesta STRUCT_IN data file
-  subroutine write_siesta_in(c,file)
+  module subroutine write_siesta_in(c,file)
     use tools_io, only: fopen_write, uout, nameguess, string, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
@@ -5703,7 +5443,7 @@ contains
   end subroutine write_siesta_in
 
   !> Write a DFTB+ human-friendly structured data format (hsd) file
-  subroutine write_dftbp_hsd(c,file)
+  module subroutine write_dftbp_hsd(c,file)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: maxzat0
     class(crystal), intent(in) :: c
@@ -5818,7 +5558,7 @@ contains
   end subroutine write_dftbp_hsd
 
   !> Write a DFTB+ human-friendly gen structure file
-  subroutine write_dftbp_gen(c,file,lu0)
+  module subroutine write_dftbp_gen(c,file,lu0)
     use tools_io, only: fopen_write, nameguess, string, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
@@ -5889,7 +5629,7 @@ contains
   !> is given, use it as the metric of the cube; otherwise, use the
   !> unit cell. If x00 is given, use it as the origin of the cube
   !> (in bohr). Otherwise, use the crystal's molx0.
-  subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
+  module subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
     use param, only: eye
@@ -5959,7 +5699,7 @@ contains
   !> Write a grid to a VASP CHGCAR file. The input is the crystal (c),
   !> the grid in 3D array form (g), the filename (file), and whether
   !> to write the whole cube or only the header (onlyheader). 
-  subroutine writegrid_vasp(c,g,file,onlyheader)
+  module subroutine writegrid_vasp(c,g,file,onlyheader)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa, maxzat0
     class(crystal), intent(in) :: c
@@ -6007,7 +5747,7 @@ contains
   !> at a point x0 (Cartesian coords) using atomic radial grids. If a
   !> fragment is given, then only the atoms in it contribute.  This
   !> routine is thread-safe.
-  subroutine promolecular(c,x0,f,fp,fpp,nder,zpsp,fr,periodic)
+  module subroutine promolecular(c,x0,f,fp,fpp,nder,zpsp,fr,periodic)
     use grid1mod, only: cgrid, agrid, grid1
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
@@ -6124,7 +5864,7 @@ contains
   !> Calculate the core or promolecular densities on a grid with n(:)
   !> points. If a fragment is given, then only the atoms in it
   !> contribute.  This routine is thread-safe.
-  subroutine promolecular_grid(c,f,n,zpsp,fr)
+  module subroutine promolecular_grid(c,f,n,zpsp,fr)
     use grid3mod, only: grid3
     use grid1mod, only: grid1
     use fragmentmod, only: fragment
@@ -6167,4 +5907,4 @@ contains
 
   end subroutine promolecular_grid
 
-end module crystalmod
+end submodule proc

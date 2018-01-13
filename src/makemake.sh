@@ -16,6 +16,16 @@ gawk '
 }
 /^( |\t)*module( |\t)*[^ \t\n]*( |\t)*$/{
     ismodule[fs] = 1
+    issubmodule[f[fs]] = 0
+}
+/^( |\t)*submodule( |\t)*/{
+    ismodule[fs] = 1
+    issubmodule[f[fs]] = 1
+    gsub(/^.*\(/,"")
+    gsub(/\).*$/,"")
+    split($0,a,",")
+    for (i in a)
+        hassubmodule[a[i]] = 1
 }
 /^( |\t)*use( |\t)*[^ \t\n]*/{
     nm = tolower($2)
@@ -33,9 +43,16 @@ gawk '
 END{
     for (i=1;i<=fs;i++){
         if (ismodule[i] && uses[tolower(f[i])]){
-            str = sprintf(": %s.$(MODEXT)",f[i])
-            for (j=1;j<=uses[tolower(f[i])];j++)
-                str = sprintf("%s.$(OBJEXT) %s",use[f[i],j],str)
+            str = sprintf(": %s.mod",f[i])
+            for (j=1;j<=uses[tolower(f[i])];j++){
+	    	nm = use[f[i],j]
+		if (issubmodule[nm])
+                   str = sprintf("%s.o %s.smod %s",nm,nm,str)
+		else if (hassubmodule[nm])
+                   str = sprintf("%s.o %s.mod %s.smod %s",nm,nm,nm,str)
+                else
+                   str = sprintf("%s.o %s.mod %s",nm,nm,str)
+	    }
             print str 
         }
     }

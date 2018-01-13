@@ -1,6 +1,7 @@
 # object, module, library files
 *.o
 *.mod
+*.smod
 *.a
 
 # binaries
