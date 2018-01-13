@@ -286,15 +286,15 @@ module crystalmod
        integer :: iast0
        logical, intent(in) :: env0, recip0, lnn0, ewald0
      end subroutine struct_fill
-     pure module function x2c(c,xx) 
+     pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xx(3) 
-       real*8 :: x2c(3)
+       real*8 :: res(3)
      end function x2c
-     pure module function c2x(c,xx)
+     pure module function c2x(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in)  :: xx(3)
-       real*8 :: c2x(3)
+       real*8 :: res(3)
      end function c2x
      pure module function distance(c,x1,x2)
        class(crystal), intent(in) :: c
@@ -521,10 +521,10 @@ module crystalmod
        integer, intent(in) :: leqv
        real*8, intent(in) :: lrotm(3,3,48), eps
      end function equiv_tetrah
-     module function perm3(p,r,t)
-       real*8 :: perm3(0:3,3)
+     module function perm3(p,r,t) result (res)
        integer, intent(in) :: p
        real*8, intent(in) :: r(0:3,3), t(0:3,3)
+       real*8 :: res(0:3,3)
      end function perm3
      module subroutine lattpg(rmat,ncen,xcen,nn,rot)
        real*8, intent(in) :: rmat(3,3)

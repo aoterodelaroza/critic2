@@ -616,22 +616,22 @@ contains
   end subroutine struct_fill
 
   !> Transform crystallographic to cartesian. This routine is thread-safe.
-  pure module function x2c(c,xx) 
+  pure module function x2c(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xx(3) 
-    ! real*8 :: x2c(3)
+    real*8 :: res(3)
 
-    x2c = matmul(c%crys2car,xx)
+    res = matmul(c%crys2car,xx)
 
   end function x2c
 
   !> Transform cartesian to crystallographic. This routine is thread-safe. 
-  pure module function c2x(c,xx)
+  pure module function c2x(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
-    ! real*8 :: c2x(3)
+    real*8 :: res(3)
 
-    c2x = matmul(c%car2crys,xx)
+    res = matmul(c%car2crys,xx)
 
   end function c2x
 
@@ -3747,42 +3747,42 @@ contains
   end function equiv_tetrah
 
   !> Private for equiv_tetrah, wigner. 3! permutations.
-  module function perm3(p,r,t)
-    ! real*8 :: perm3(0:3,3)
+  module function perm3(p,r,t) result(res)
     integer, intent(in) :: p
     real*8, intent(in) :: r(0:3,3), t(0:3,3)
+    real*8 :: res(0:3,3)
 
     select case(p)
     case(1)
-       perm3(0,:) = r(0,:) - t(0,:)
-       perm3(1,:) = r(1,:) - t(1,:)
-       perm3(2,:) = r(2,:) - t(2,:)
-       perm3(3,:) = r(3,:) - t(3,:)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(1,:)
+       res(2,:) = r(2,:) - t(2,:)
+       res(3,:) = r(3,:) - t(3,:)
     case(2)
-       perm3(0,:) = r(0,:) - t(0,:)
-       perm3(1,:) = r(1,:) - t(1,:)
-       perm3(2,:) = r(2,:) - t(3,:)
-       perm3(3,:) = r(3,:) - t(2,:)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(1,:)
+       res(2,:) = r(2,:) - t(3,:)
+       res(3,:) = r(3,:) - t(2,:)
     case(3)
-       perm3(0,:) = r(0,:) - t(0,:)
-       perm3(1,:) = r(1,:) - t(2,:)
-       perm3(2,:) = r(2,:) - t(1,:)
-       perm3(3,:) = r(3,:) - t(3,:)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(2,:)
+       res(2,:) = r(2,:) - t(1,:)
+       res(3,:) = r(3,:) - t(3,:)
     case(4)
-       perm3(0,:) = r(0,:) - t(0,:)
-       perm3(1,:) = r(1,:) - t(2,:)
-       perm3(2,:) = r(2,:) - t(3,:)
-       perm3(3,:) = r(3,:) - t(1,:)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(2,:)
+       res(2,:) = r(2,:) - t(3,:)
+       res(3,:) = r(3,:) - t(1,:)
     case(5)
-       perm3(0,:) = r(0,:) - t(0,:)
-       perm3(1,:) = r(1,:) - t(3,:)
-       perm3(2,:) = r(2,:) - t(1,:)
-       perm3(3,:) = r(3,:) - t(2,:)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(3,:)
+       res(2,:) = r(2,:) - t(1,:)
+       res(3,:) = r(3,:) - t(2,:)
     case(6)
-       perm3(0,:) = r(0,:) - t(0,:)
-       perm3(1,:) = r(1,:) - t(3,:)
-       perm3(2,:) = r(2,:) - t(2,:)
-       perm3(3,:) = r(3,:) - t(1,:)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(3,:)
+       res(2,:) = r(2,:) - t(2,:)
+       res(3,:) = r(3,:) - t(1,:)
     end select
 
   end function perm3
