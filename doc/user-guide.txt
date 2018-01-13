@@ -5534,14 +5534,15 @@ all atoms in the crystal.
 
 Some advice regarding the execution of NCIPLOT:
 
-* If the density is given on a grid, it is usually much faster and the
-  result is much better if core-augmentation (ZPSP) is *not* used. The
+* If the density is given on a grid, it is usually much faster if
+  core-augmentation (ZPSP and the CORE field option) is not used. The
   reason is that if the core augmentation is not present, the reduced
   density gradient and the Hessian components can be calculated by
   Fourier transform (which is smoother) and it is not necessary to sum
-  over neighboring atoms. The NCI regions are in the interstitial,
-  where the density is mostly correct anyway, and the plots are only
-  qualitative.
+  over neighboring atoms. However, not using the core augmentation can
+  sometimes result in noisy Hessian components, which may result in
+  alternate blue/red domains (because of a spurious change of sign
+  caused by numerical inaccuracies).
 
 * Likewise, any option that activates the calculation of the
   promolecular density (VOID or FRAGMENT) is going to be expensive
@@ -5549,11 +5550,11 @@ Some advice regarding the execution of NCIPLOT:
   is recommended to calculate the promolecular density once for a
   certain grid, then use the checkpoint file.
 
-* Some programs (most notably VMD) have problems dealing with
-  non-orthogonal cells. There's little critic2 can do about this, as
-  the cube files on output are correctly written. Using FRAGMENT or
-  CUBE in critic2 so that a orthogonal piece of the crystal is
-  represented may help.
+* Some programs (most notably older versions of VMD) have problems
+  dealing with non-orthogonal cells. There's little critic2 can do
+  about this - the cube files on output hav been examined and they
+  seem to be correctly written. Using FRAGMENT or CUBE in critic2 so
+  that a orthogonal piece of the crystal is represented may help.
 
 Structural tools
 ----------------
