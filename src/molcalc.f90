@@ -15,17 +15,27 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! hirshfeld integration
-module hirshfeld
+! Calculations using molecular wavefunctions.
+module molcalc
   implicit none
 
   private
 
-  public :: hirsh_props_grid
-
+  public :: molcalc_driver
+  private :: molcalc_nelec
+  private :: molcalc_peach
+  private :: molcalc_integral
+  
   interface
-     module subroutine hirsh_props_grid()
-     end subroutine hirsh_props_grid
+     module subroutine molcalc_driver(line)
+       character*(*), intent(inout) :: line
+     end subroutine molcalc_driver
+     module subroutine molcalc_nelec()
+     end subroutine molcalc_nelec
+     module subroutine molcalc_peach()
+     end subroutine molcalc_peach
+     module subroutine molcalc_integral()
+     end subroutine molcalc_integral
   end interface
 
-end module hirshfeld
+end module molcalc

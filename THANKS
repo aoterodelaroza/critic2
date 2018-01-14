@@ -127,3 +127,9 @@ copyright notice is included in the corresponding files.
   The GUI also uses the font rasterization library of the STB package,
   by Sean Barrett and others (https://github.com/nothings/stb).
 
+* The C interface module (by Joseph M. Krahn) provides Fortran
+  versions of basic functions from the C library and some other
+  wrappers around the intrinsic iso_c_binding module. It comes from
+  the Fortran wiki
+  (http://fortranwiki.org/fortran/show/c_interface_module). 
+

@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
@@ -15,24 +15,15 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Calculations using molecular wavefunctions.
-module molcalc
+submodule (molcalc) proc
   implicit none
-
-  private
-
-  public :: molcalc_driver
-  private :: molcalc_nelec
-  private :: molcalc_peach
-  private :: molcalc_integral
 
 contains
 
   !> Driver for molecular calculations
-  subroutine molcalc_driver(line)
+  module subroutine molcalc_driver(line)
     use systemmod, only: sy
     use tools_io, only: ferror, faterr, uout, lgetword, equal
-
     character*(*), intent(inout) :: line
 
     character(len=:), allocatable :: word
@@ -64,7 +55,7 @@ contains
 
   end subroutine molcalc_driver
 
-  subroutine molcalc_nelec()
+  module subroutine molcalc_nelec()
     use systemmod, only: sy
     use meshmod, only: mesh
     use tools_io, only: string, uout
@@ -98,7 +89,7 @@ contains
 
   end subroutine molcalc_nelec
 
-  subroutine molcalc_peach()
+  module subroutine molcalc_peach()
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn
@@ -191,7 +182,7 @@ contains
 
   end subroutine molcalc_peach
 
-  subroutine molcalc_integral()
+  module subroutine molcalc_integral()
     use tools_io, only: ferror, faterr
 #ifdef HAVE_CINT
 
@@ -202,4 +193,4 @@ contains
 #endif
   end subroutine molcalc_integral
 
-end module molcalc
+end submodule proc
