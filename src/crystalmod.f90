@@ -418,6 +418,7 @@ module crystalmod
      end function sitesymm
      module function get_pack_ratio(c) result (px)
        class(crystal), intent(inout) :: c
+       real*8 :: px
      end function get_pack_ratio
      module subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
         sigma,t,ih,th2p,ip,hvecp)
@@ -446,6 +447,7 @@ module crystalmod
      end subroutine calculate_ewald_cutoffs
      module function ewald_energy(c) result(ewe)
        class(crystal), intent(inout) :: c
+       real*8 :: ewe
      end function ewald_energy
      module function ewald_pot(c,x,isnuc)
        class(crystal), intent(inout) :: c

@@ -16,6 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 submodule (crystalmod) proc
+  implicit none
 
 contains
 
@@ -1858,10 +1859,10 @@ contains
   !> Calculate the packing ratio (in %) using the nearest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance
   !> to its nearest neighbor.
-  module function get_pack_ratio(c) result (px)
+  module function get_pack_ratio(c) result(px)
     use param, only: pi
     class(crystal), intent(inout) :: c
-    ! real*8 :: px
+    real*8 :: px
     
     integer :: i
 
@@ -2241,7 +2242,7 @@ contains
   !> Calculates the Ewald electrostatic energy, using the input charges.
   module function ewald_energy(c) result(ewe)
     class(crystal), intent(inout) :: c
-    ! real*8 :: ewe
+    real*8 :: ewe
 
     real*8 :: x(3)
     integer :: i
