@@ -569,6 +569,7 @@ contains
   !> Read a binary operator or return false and leave lp unchanged
   !> This routine is thread-safe.
   module function isoperator(c,expr,lp)
+    use param, only: ampersand
     logical :: isoperator
     character*(*), intent(in) :: expr
     integer, intent(inout) :: lp
@@ -587,7 +588,7 @@ contains
        ok2 = expr(lp:lp+1) == '**'.or.expr(lp:lp+1) == '=='.or.&
              expr(lp:lp+1) == '<='.or.expr(lp:lp+1) == '>='.or.&
              expr(lp:lp+1) == '!='.or.expr(lp:lp+1) == '||'.or.&
-             expr(lp:lp+1) == '&&'
+             expr(lp:lp+1) == ampersand//ampersand
     else
        ok2 = .false.
     endif
@@ -609,7 +610,7 @@ contains
           elseif (expr(lp:lp+1) == "!=") then
              c = fun_neq
              lp = lp + 1
-          elseif (expr(lp:lp+1) == "&&") then
+          elseif (expr(lp:lp+1) == ampersand//ampersand) then
              c = fun_and
              lp = lp + 1
           elseif (expr(lp:lp+1) == "||") then

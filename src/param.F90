@@ -565,6 +565,7 @@ module param
 #else
   character*1, parameter :: dirsep = "/"
 #endif
+  character*1, parameter :: ampersand = "&" ! ifort doesn't like the "&&" string
 
   ! the symbols list
   type(hash) :: vh ! variables hash
