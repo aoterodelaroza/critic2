@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
@@ -15,95 +15,22 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Standalone library for I/O and error handling. Heavily modified
-! from previous code (pi). 
-module tools_io
+submodule (tools_io) proc
   implicit none
 
-  public
-  public :: string
-  private :: string_int4
-  private :: string_int8
-  private :: string_real8
-  private :: string_real4
-  private :: string_char
-  private :: string_logical
-  public :: equal
-  public :: equali
-  public :: getline
-  public :: getline_raw
-  public :: nameguess
-  public :: zatguess
-  public :: upper
-  public :: lower
-  public :: getword
-  public :: lgetword
-  public :: isletter
-  public :: isdigit
-  public :: isinteger
-  public :: isreal
-  public :: isexpression
-  public :: isexpression_or_word
-  public :: isassignment
-  public :: ioinit
-  public :: fopen_read
-  public :: fopen_write
-  public :: fopen_append
-  public :: fopen_scratch
-  public :: fclose
-  public :: falloc
-  public :: fdealloc
-  public :: ferror
-  public :: tictac
-
-  ! Justification parameters
-  integer, parameter :: ioj_left = -1
-  integer, parameter :: ioj_right = -2
-  integer, parameter :: ioj_center = -3
-  integer, parameter :: ioj_atpoint = -4
-
-  ! General string-building routine
-  interface string
-     module procedure string_int4
-     module procedure string_int8
-     module procedure string_real8
-     module procedure string_real4
-     module procedure string_char
-     module procedure string_logical
-  end interface string
-
-  ! character parameters
-  character*(1), parameter :: tab = char(9) !< tab char (ascii 9)
-
   ! string parameters
-  integer, parameter, private :: maxlen = 255 !< maximum length of a number
-
-  ! main input and output, logical unit allocation
-  integer :: uin !< main input lu
-  integer :: uout !< main output lu
-  integer :: ucopy !< logical unit where the copy of the input is written
-  logical, private :: alloc(0:100) !< allocation flag array
-  character(len=:), allocatable :: filepath !< relative path to find related files
-  logical :: interactive !< is this an interactive sesion?
-
-  ! error system
-  integer, parameter :: faterr = -1 !< fatal error flag
-  integer, parameter :: warning = 1 !< warning flag
-  integer, parameter :: noerr = 0 !< info flag
-  integer :: nwarns = 0 !< Number of warnings
-  integer :: ncomms = 0 !< Number of comments
+  integer, parameter :: maxlen = 255 !< maximum length of a number
 
   ! clock
-  integer*8, private :: stime0
-  real, private :: ctime0
+  integer*8 :: stime0
+  real :: ctime0
 
 contains
 
   !> Connect input files to units with standard defaults.
-  subroutine stdargs(optv,ghome,uroot)
+  module subroutine stdargs(optv,ghome,uroot)
     use iso_fortran_env, only: input_unit, output_unit
     use param, only: dirsep
-    
     character(len=:), allocatable, intent(out) :: optv !< Dash-options passed to the program
     character(len=:), allocatable, intent(out) :: ghome !< critic_home passed with -r
     character(len=:), allocatable, intent(out) :: uroot !< file root for the run
@@ -178,7 +105,7 @@ contains
   !> right). pad0, pad the full length with zeros. padspace, pad with
   !> this number of spaces. If padspace > 0, pad in the left, if < 0,
   !> in the right.
-  function string_int4(a,length,justify,pad0,padspace) result(s)
+  module function string_int4(a,length,justify,pad0,padspace) result(s)
     character(len=:), allocatable :: s
     integer*4, intent(in) :: a
     integer, intent(in), optional :: length
@@ -262,7 +189,7 @@ contains
   !> right). pad0, pad the full length with zeros. padspace, pad with
   !> this number of spaces. If padspace > 0, pad in the left, if < 0,
   !> in the right.
-  function string_int8(a,length,justify,pad0,padspace) result(s)
+  module function string_int8(a,length,justify,pad0,padspace) result(s)
     character(len=:), allocatable :: s
     integer*8, intent(in) :: a
     integer, intent(in), optional :: length
@@ -346,7 +273,7 @@ contains
   !> then align the point to that character. padspace, pad with this
   !> number of spaces. If padspace > 0, pad in the left, if < 0, in the
   !> right.
-  function string_real8(a,desc,length,decimal,justify,padspace) result(s)
+  module function string_real8(a,desc,length,decimal,justify,padspace) result(s)
     character(len=:), allocatable :: s
     real*8, intent(in) :: a
     character*1, intent(in) :: desc
@@ -439,7 +366,7 @@ contains
   end function string_real8
 
   !> Use the real*8 routine for real*4.
-  function string_real4(a,desc,length,decimal,justify,padspace) result(s)
+  module function string_real4(a,desc,length,decimal,justify,padspace) result(s)
     character(len=:), allocatable :: s
     real*4, intent(in) :: a
     character*1, intent(in) :: desc
@@ -458,7 +385,7 @@ contains
   !> the justification of the integer in the field (left, center, and
   !> right). padspace, pad with this number of spaces. If padspace > 0,
   !> pad in the left, if < 0, in the right.
-  function string_char(a,length,justify,padspace) result(s)
+  module function string_char(a,length,justify,padspace) result(s)
     character(len=:), allocatable :: s
     character(len=*), intent(in) :: a
     integer, intent(in), optional :: length
@@ -511,7 +438,7 @@ contains
 
   !> Build a string from a logical value. Returns "Yes"
   !> if input is true or "No" if it is false.
-  function string_logical(a) result(s)
+  module function string_logical(a) result(s)
     character(len=:), allocatable :: s
     logical, intent(in) :: a
 
@@ -524,18 +451,20 @@ contains
   end function string_logical
 
   !> Compare two strings for equality.
-  logical function equal(s,t)
+  module function equal(s,t)
     character*(*), intent(in) :: s !< First string
     character*(*), intent(in) :: t !< Second string
+    logical :: equal
 
     equal = string(s) == string(t)
 
   end function equal
 
   !> Compare two strings for equality (case insensitive).
-  logical function equali(s,t)
+  module function equali(s,t)
     character*(*), intent(in) :: s !< First string
     character*(*), intent(in) :: t !< Second string
+    logical :: equali
 
     equali = lower(string(s)) == lower(string(t))
 
@@ -546,7 +475,7 @@ contains
   !> If eofstop is true, raise error on EOF. If ucopy (integer) exists,
   !> write a copy of the output line to that logical unit, preceded
   !> by a prefix.
-  function getline(u,oline,eofstop,ucopy)
+  module function getline(u,oline,eofstop,ucopy)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
     logical, intent(in), optional :: eofstop
@@ -637,11 +566,11 @@ contains
   !> Read a line from logical unit u, and return true if read was
   !> successful. Don't process it to remove comments, etc.  If eofstop
   !> is true, raise error on EOF.
-  function getline_raw(u,line,eofstop) result(ok)
-    logical :: ok
+  module function getline_raw(u,line,eofstop) result(ok)
     integer, intent(in) :: u
     character(len=:), allocatable, intent(out) :: line
     logical, intent(in), optional :: eofstop
+    logical :: ok
 
     integer, parameter :: blocksize = 128
 
@@ -670,7 +599,7 @@ contains
   !> returned if the atom is not recognized.  A valid atomic name is
   !> made of one or two letters corresponding to a legal atomic symbol
   !> followed by any other additional characters.
-  function zatguess(atname)
+  module function zatguess(atname)
     use param, only: maxzat0
     integer :: zatguess !< Ouptut atomic number
     character*(*), intent(in) :: atname !< Input atomic symbol (case insensitive)
@@ -727,9 +656,8 @@ contains
   !> chemical symbol of the atom, or XX if it is not in range.
   !> If nounderscore is true, use blanks instead of underscores to pad
   !> the symbol.
-  function nameguess (zat,nounderscore)
+  module function nameguess (zat,nounderscore)
     use param, only: maxzat0
-    
     integer, intent(in) :: zat !< Input atomic number
     logical, intent(in), optional :: nounderscore !< Use blanks instead of underscore to fill
     character*(2) :: nameguess !< Output atomic symbol 
@@ -764,7 +692,7 @@ contains
   end function nameguess
 
   !> Convert a string to uppercase, portable.
-  function upper(a)
+  module function upper(a)
     character*(*), intent(in) :: a
     character*(len(a)) :: upper
 
@@ -782,7 +710,7 @@ contains
   end function upper
 
   !> Convert a string to lowercase, portable.
-  function lower(a)
+  module function lower(a)
     character*(*), intent(in) :: a
     character*(len(a)) :: lower
 
@@ -801,15 +729,15 @@ contains
 
   !> Get next word from line at lp. If successful, increase lp. A word
   !> is defined as any sequence on nonblanks.
-  function getword(line,lp)
-    character(len=:), allocatable :: getword !< Word read
+  module function getword(line,lp) result(word)
     character*(*), intent(in) :: line !< Input line
     integer, intent(inout) :: lp !< Pointer to position on input line, updated after reading.
+    character(len=:), allocatable :: word !< Word read
 
     integer :: len0, wp, i
 
     len0 = len(line)
-    getword = ""
+    word = ""
     if (lp > len0) return
 
     i = lp
@@ -822,24 +750,24 @@ contains
     do while (i<len0 .and. line(i:i)/=" ")
        i = i+1
     enddo
-    getword = line(wp:i)
+    word = line(wp:i)
     lp = i+1
 
   end function getword
 
   ! Same as getword, but convert to lowercase
-  function lgetword (line,lp)
+  module function lgetword (line,lp) result(word)
     character*(*), intent(in) :: line !< Input line
     integer, intent(inout) :: lp !< Pointer to position on input line, updated after reading.
-    character(len=:), allocatable :: lgetword
+    character(len=:), allocatable :: word
 
-    lgetword = getword(line,lp)
-    if (len_trim(lgetword) > 0) lgetword = lower(lgetword)
+    word = getword(line,lp)
+    if (len_trim(word) > 0) word = lower(word)
 
   endfunction lgetword
 
   !> True if the input is a letter.
-  function isletter(a)
+  module function isletter(a)
     character*(1), intent(in) :: a
     logical :: isletter
 
@@ -850,7 +778,7 @@ contains
   end function isletter
 
   !> True if the input is a digit.
-  function isdigit(a)
+  module function isdigit(a)
     character*(1), intent(in) :: a
     logical :: isdigit
 
@@ -863,7 +791,7 @@ contains
   !> Get an integer value from input text and return it in
   !> ival. Advance the pointer (lp0) if provided. If lp0 is not
   !> present, use 1. If a valid integer is not found, returns .false.
-  function isinteger(ival,line,lp0)
+  module function isinteger(ival,line,lp0)
     logical :: isinteger
     integer, intent(inout) :: ival !< Integer value read, if not a valid integer is found, it is not modified
     character*(*), intent(in) :: line !< Input string
@@ -906,7 +834,7 @@ contains
 
   !> Get a real number from line and sets rval to it. If a valid real
   !> number is not found, isreal returns .false. and rval is not changed. 
-  function isreal(rval, line, lp0)
+  module function isreal(rval, line, lp0)
     real*8, intent(out) :: rval !< Real value read
     character*(*), intent(in) :: line !< Input string
     integer, intent(inout), optional :: lp0 !< Pointer to current position on string
@@ -1000,8 +928,7 @@ contains
   !> Get a expression from the line. Expressions start with " or '.
   !> If the read fails, then lp0 is unchanged, and isexpression is
   !> false.
-  function isexpression(word, line, lp0)
-
+  module function isexpression(word, line, lp0)
     character(len=:), allocatable, intent(out) :: word !< Expression read
     character*(*), intent(in) :: line !< Input line
     integer, intent(inout) :: lp0 !< Pointer to position on input line, updated after reading.
@@ -1038,8 +965,7 @@ contains
 
   !> Get a expression from line. Expressions start with " or '. If no
   !> expression is available, then get the next word.
-  function isexpression_or_word(word, line, lp0)
-
+  module function isexpression_or_word(word, line, lp0)
     character(len=:), allocatable, intent(out) :: word !< Word/expression read
     character*(*), intent(in) :: line !< Input line
     integer, intent(inout) :: lp0 !< Pointer to position on input line, updated after reading.
@@ -1063,9 +989,8 @@ contains
   end function isexpression_or_word
 
   !> Read an assignment from the input line
-  function isassignment(var, expr, line)
+  module function isassignment(var, expr, line)
     use param, only: constlist, funclist
-
     character*(*), intent(in) :: line !< Input line
     character(len=:), allocatable, intent(out) :: var !< Output variable name (left hand side)
     character(len=:), allocatable, intent(out) :: expr !< Output expression (right hand side)
@@ -1118,7 +1043,7 @@ contains
 
   !> Initialize file system and connect standard units. 
   !> Use this before falloc and fdealloc.
-  subroutine ioinit ()
+  module subroutine ioinit ()
     use iso_fortran_env, only: error_unit, input_unit, output_unit
 
     alloc = .false.
@@ -1131,7 +1056,7 @@ contains
   !> Open a file for reading. The argument form controls the
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
-  function fopen_read(file,form,abspath0) result(lu)
+  module function fopen_read(file,form,abspath0) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
@@ -1161,7 +1086,7 @@ contains
   !> Open a file for reading. The argument form controls the
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
-  function fopen_write(file,form,abspath0) result(lu)
+  module function fopen_write(file,form,abspath0) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
@@ -1189,7 +1114,7 @@ contains
   end function fopen_write
 
   !> Open a file for appending
-  function fopen_append(file,form,abspath0) result(lu)
+  module function fopen_append(file,form,abspath0) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
@@ -1217,7 +1142,7 @@ contains
   end function fopen_append
 
   !> Open a scratch file for writing
-  function fopen_scratch(form) result(lu)
+  module function fopen_scratch(form) result(lu)
     character*(*), intent(in), optional :: form
     integer :: lu
     
@@ -1238,7 +1163,7 @@ contains
   end function fopen_scratch
 
   !> Close a file
-  subroutine fclose(lu)
+  module subroutine fclose(lu)
     integer, intent(in) :: lu
 
     close(lu)
@@ -1247,7 +1172,7 @@ contains
   end subroutine fclose
 
   !> Allocate a logical unit
-  function falloc()
+  module function falloc()
     integer :: falloc
 
     do falloc = 1, size(alloc)
@@ -1260,7 +1185,7 @@ contains
   end function falloc
 
   !> Deallocate a logical unit
-  subroutine fdealloc(u)
+  module subroutine fdealloc(u)
     integer, intent(in) :: u !< LU to deallocate
 
     if (u < 0 .or. u > size(alloc)) &
@@ -1271,8 +1196,7 @@ contains
 
   !> Send an error message 'message' to stdout, coming from routine
   !> 'routine'. errortype is the error code (see mod_param.f90).
-  subroutine ferror(routine,message,errortype,inputline,syntax)
-
+  module subroutine ferror(routine,message,errortype,inputline,syntax)
     character*(*), intent(in) :: routine !< Routine calling the error
     character*(*), intent(in) :: message !< The message
     integer, intent(in) :: errortype !< Fatal, warning or info
@@ -1316,8 +1240,7 @@ contains
 
   !> Interface to the timer routines of different computers. Returns
   !> machine seconds at the calling time. (private)
-  subroutine tictac(mesg)
-
+  module subroutine tictac(mesg)
     character*(*), intent(in) :: mesg !< Prefix message
     integer :: values(8)
     
@@ -1338,13 +1261,15 @@ contains
   end subroutine tictac
 
   !> Start the clock
-  subroutine start_clock()
+  module subroutine start_clock()
+
     call system_clock(stime0)
     call cpu_time(ctime0)
+
   end subroutine start_clock
   
   !> Print the elapsed time to output
-  subroutine print_clock()
+  module subroutine print_clock()
     
     integer*8 :: irate, imax
     real :: ctime
@@ -1364,7 +1289,7 @@ contains
 
   !> Seconds to days/hours/minutes/seconds format. x(1): seconds,
   !> x(2): minutes, x(3): hours, x(4): days.
-  subroutine sectotime(s,x0,s0)
+  module subroutine sectotime(s,x0,s0)
     real, intent(in) :: s
     integer, intent(out), optional :: x0(4)
     character(len=:), allocatable, optional :: s0
@@ -1402,4 +1327,4 @@ contains
 
   end subroutine sectotime
 
-end module tools_io
+end submodule proc
