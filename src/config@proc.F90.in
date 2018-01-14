@@ -48,7 +48,7 @@ submodule (config) proc
 contains
 
   !> Return the config string corresponding to the input id.
-  function getstring(id) result(str)
+  module function getstring(id) result(str)
     integer, intent(in) :: id
     character(len=:), allocatable :: str
 
