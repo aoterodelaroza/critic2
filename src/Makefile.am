@@ -7,7 +7,7 @@ critic2_SOURCES = critic2.F90 cfftnd.f90 \
 	wien_private.f90 wfn_private.f90 \
 	doqhull.c \
 	systemmod.f90 \
-	yt.f90 integration.f90 quadpack.f90\
+	yt.f90 quadpack.f90\
 	xdm.f90 \
 	tricks.f90 \
 	abinit_private.f90 abinit_private@proc.f90 \
@@ -30,6 +30,7 @@ critic2_SOURCES = critic2.F90 cfftnd.f90 \
 	grid3mod.f90 grid3mod@proc.f90 \
 	hashmod.f90 hashmod@proc.f90 \
 	hirshfeld.f90 hirshfeld@proc.f90 \
+	integration.f90 integration@proc.f90 \
 	meshmod.f90 meshmod@proc.f90 \
 	molcalc.f90 molcalc@proc.F90 \
 	nci.f90 nci@proc.f90 \
@@ -49,7 +50,7 @@ if GUI
   libcritic2_a_SOURCES = gui_interface.f90 c_interface_module.f90 cfftnd.f90 \
 	spglib.f90 keast.f90 param.F90 tools_io.F90 tools.f90 spgs.f90 tools_system.c types.f90 \
 	tools_math.f90 sympg.f90 wien_private.f90 wfn_private.f90 \
-	doqhull.c systemmod.f90 yt.f90 integration.f90 quadpack.f90\
+	doqhull.c systemmod.f90 yt.f90 quadpack.f90\
 	xdm.f90 tricks.f90 \
 	abinit_private.f90 abinit_private@proc.f90 \
 	autocp.f90 autocp@proc.f90 \
@@ -71,6 +72,7 @@ if GUI
 	grid3mod.f90 grid3mod@proc.f90 \
 	hashmod.f90 hashmod@proc.f90 \
 	hirshfeld.f90 hirshfeld@proc.f90 \
+	integration.f90 integration@proc.f90 \
 	meshmod.f90 meshmod@proc.f90 \
 	molcalc.f90 molcalc@proc.F90 \
 	nci.f90 nci@proc.f90 \
