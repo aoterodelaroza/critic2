@@ -2562,68 +2562,61 @@ contains
     logical, intent(in) :: verbose
     
     integer :: ntyp, nat
-    integer :: i, iz(maxzat0), id
+    integer :: i, id
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types(:)
     real*8 :: rmat(3,3), t(3)
 
-    ! ! ignore molecules
-    ! if (c%ismolecule) return
+    ! ignore molecules
+    if (c%ismolecule) return
 
-    ! ! use spglib transformation to the standard cell
-    ! rmat = transpose(c%crys2car)
-    ! iz = 0
-    ! ntyp = 0
-    ! nat = c%ncel
-    ! allocate(x(3,c%ncel),types(c%ncel))
-    ! do i = 1, c%ncel
-    !    x(:,i) = c%atcel(i)%x
-    !    if (iz(c%at(c%atcel(i)%idx)%z) == 0) then
-    !       ntyp = ntyp + 1
-    !       iz(c%at(c%atcel(i)%idx)%z) = ntyp
-    !       types(i) = ntyp
-    !    else
-    !       types(i) = iz(c%at(c%atcel(i)%idx)%z)
-    !    end if
-    ! end do
+    ! use spglib transformation to the standard cell
+    rmat = transpose(c%crys2car)
+    nat = c%ncel
+    ntyp = c%nspc
+    allocate(x(3,c%ncel),types(c%ncel))
+    do i = 1, c%ncel
+       x(:,i) = c%atcel(i)%x
+       types(i) = c%atcel(i)%is
+    end do
 
-    ! if (toprim) then
-    !    id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
-    !    if (id == 0) &
-    !       call ferror("cell_standard","could not find primitive cell",faterr)
-    !    rmat = transpose(rmat)
-    !    do i = 1, 3
-    !       rmat(:,i) = c%c2x(rmat(:,i))
-    !    end do
-    ! else
-    !    id = spg_standardize_cell(rmat,x,types,nat,0,1,symprec)
-    !    if (id == 0) &
-    !       call ferror("cell_standard","could not find standard cell",faterr)
-    !    rmat = transpose(rmat)
-    !    do i = 1, 3
-    !       rmat(:,i) = c%c2x(rmat(:,i))
-    !    end do
-    ! end if
+    if (toprim) then
+       id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
+       if (id == 0) &
+          call ferror("cell_standard","could not find primitive cell",faterr)
+       rmat = transpose(rmat)
+       do i = 1, 3
+          rmat(:,i) = c%c2x(rmat(:,i))
+       end do
+    else
+       id = spg_standardize_cell(rmat,x,types,nat,0,1,symprec)
+       if (id == 0) &
+          call ferror("cell_standard","could not find standard cell",faterr)
+       rmat = transpose(rmat)
+       do i = 1, 3
+          rmat(:,i) = c%c2x(rmat(:,i))
+       end do
+    end if
 
-    ! ! flip the cell?
-    ! if (det(rmat) < 0d0) rmat = -rmat
+    ! flip the cell?
+    if (det(rmat) < 0d0) rmat = -rmat
 
-    ! ! if a primitive is wanted but det is not less than 1, do not make the change
-    ! if (all(abs(rmat - eye) < symprec)) then
-    !    if (verbose) &
-    !       write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
-    !    return
-    ! end if
-    ! if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
-    !    if (verbose) &
-    !       write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
-    !    return
-    ! end if
+    ! if a primitive is wanted but det is not less than 1, do not make the change
+    if (all(abs(rmat - eye) < symprec)) then
+       if (verbose) &
+          write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
+       return
+    end if
+    if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
+       if (verbose) &
+          write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
+       return
+    end if
 
-    ! ! transform -> use the origin shift
-    ! t = -matmul(c%spg%origin_shift,rmat)
-    ! ! rmat = transpose(matinv(c%spg%transformation_matrix))
-    ! call c%newcell(rmat,t,verbose)
+    ! transform -> use the origin shift
+    t = -matmul(c%spg%origin_shift,rmat)
+    ! rmat = transpose(matinv(c%spg%transformation_matrix))
+    call c%newcell(rmat,t,verbose)
 
   end subroutine cell_standard
 
