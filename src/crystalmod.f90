@@ -681,6 +681,4 @@ module crystalmod
      end subroutine promolecular_grid
   end interface
 
-contains
-
 end module crystalmod

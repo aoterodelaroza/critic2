@@ -204,6 +204,399 @@ contains
 
   end subroutine field_set_options
 
+  !> Load a new field using the given field seed and the crystal
+  !> structure pointer. The ID of the field in the system is also
+  !> required.
+  module subroutine field_new(f,seed,c,id,fh,sptr,fcheck,feval,cube,errmsg)
+    use types, only: realloc
+    use fieldseedmod, only: fieldseed
+    use arithmetic, only: eval
+    use tools_io, only: equal, isinteger
+    use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
+       ifformat_cube, ifformat_abinit, ifformat_vasp, ifformat_vaspchg, ifformat_qub,&
+       ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb, ifformat_chk,&
+       ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
+       ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
+       ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
+       ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
+    use hashmod, only: hash
+    use iso_c_binding, only: c_ptr
+    class(field), intent(inout) :: f !< Input field
+    type(fieldseed), intent(in) :: seed 
+    type(crystal), intent(in), target :: c
+    integer, intent(in) :: id
+    type(hash), intent(in) :: fh
+    type(c_ptr), intent(in) :: sptr
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
+         logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(sptr,id,nder,fder,x0,periodic)
+         use types, only: scalar_value
+         use iso_c_binding, only: c_ptr
+         type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
+         real*8, intent(in) :: x0(3)
+         logical, intent(in), optional :: periodic
+       end function feval
+       !> Return the grid from field id
+       real*8 function cube(sptr,n,id,fder,dry,ifail)
+         use iso_c_binding, only: c_ptr
+         type(c_ptr), intent(in) :: sptr
+         character*(*), intent(in) :: id
+         integer, intent(in) :: n(3)
+         character*(*), intent(in) :: fder
+         logical, intent(in) :: dry
+         logical, intent(out) :: ifail
+         dimension cube(n(1),n(2),n(3))
+       end function cube
+    end interface
+
+    character(len=:), allocatable :: ofile
+    integer :: i, j, k, iz, n(3), ithis
+    type(fragment) :: fr
+    real*8 :: xdelta(3,3), x(3), rho
+    logical :: iok, found
+
+    errmsg = ""
+    if (.not.c%isinit) then
+       errmsg = "crystal not initialized"
+       return
+    end if
+    call f%end()
+    f%c => c
+    f%id = id
+    f%name = adjustl(trim(seed%fid))
+
+    ! set the default field flags
+    call f%set_default_options()
+
+    ! inherit the pseudopotential charges from the crystal
+    f%zpsp = c%zpsp
+
+    ! interpret the seed and load the field
+    if (seed%iff == ifformat_unknown) then
+       errmsg = "unknown seed format"
+       call f%end()
+       return
+
+    elseif (seed%iff == ifformat_wien) then
+       call f%wien%end()
+       call f%wien%read_clmsum(seed%file(1),seed%file(2))
+       f%type = type_wien
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_elk) then
+       if (seed%nfile == 1) then
+          call f%grid%end()
+          call f%grid%read_elk(seed%file(1))
+          f%type = type_grid
+          f%file = seed%file(1)
+       elseif (seed%nfile == 2) then
+          call f%elk%end()
+          call f%elk%read_out(seed%file(1),seed%file(2))
+          f%type = type_elk
+          f%file = seed%file(1)
+       else
+          call f%elk%end()
+          call f%elk%read_out(seed%file(1),seed%file(2),seed%file(3))
+          f%type = type_elk
+          f%file = seed%file(3)
+       endif
+
+    elseif (seed%iff == ifformat_pi) then
+       call f%pi%end()
+       do i = 1, seed%nfile
+          iok = isinteger(ithis,seed%piat(i))
+          found = .false.
+          do j = 1, c%nneq
+             if (equal(seed%piat(i),c%spc(c%at(j)%is)%name)) then
+                call f%pi%read_ion(seed%file(i),j)
+                found = .true.
+             else if (iok) then
+                if (ithis == j) then
+                   call f%pi%read_ion(seed%file(i),j)
+                   found = .true.
+                end if
+             end if
+          end do
+          if (.not.found) then
+             errmsg = "unknown atom for pi ion file: " // trim(seed%file(i))
+             call f%end()
+             return
+          end if
+       end do
+
+       call f%pi%register_struct(f%c%nenv,f%c%spc,f%c%atenv(1:f%c%nenv))
+       call f%pi%fillinterpol()
+       f%type = type_pi
+       f%file = "<pi ion files>"
+
+    elseif (seed%iff == ifformat_cube) then
+       call f%grid%end()
+       call f%grid%read_cube(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_abinit) then
+       call f%grid%end()
+       call f%grid%read_abinit(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_vasp) then
+       call f%grid%end()
+       call f%grid%read_vasp(seed%file(1),f%c%omega)
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_vaspchg) then
+       call f%grid%end()
+       call f%grid%read_vasp(seed%file(1),1d0)
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_qub) then
+       call f%grid%end()
+       call f%grid%read_qub(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_xsf) then
+       call f%grid%end()
+       call f%grid%read_xsf(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_elkgrid) then
+       call f%grid%end()
+       call f%grid%read_elk(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_siestagrid) then
+       call f%grid%end()
+       call f%grid%read_siesta(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_dftb) then
+       call f%dftb%end()
+       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
+       call f%dftb%register_struct(f%c%crys2car,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
+       f%type = type_dftb
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_chk) then
+       call f%grid%end()
+
+       if (seed%nfile == 1) then
+          ofile = ""
+       else
+          ofile = seed%file(2)
+       end if
+       f%grid%wan%useu = .not.seed%nou
+       f%grid%wan%sijchk = seed%sijchk
+       f%grid%wan%fachk = seed%fachk
+       f%grid%wan%haschk = .false.
+       f%grid%wan%cutoff = seed%wancut
+       f%type = type_grid
+       f%file = seed%file(1)
+
+       if (len_trim(seed%unkgen) > 0 .and. len_trim(seed%evc) > 0) then
+          call f%grid%read_unkgen(seed%file(1),ofile,seed%unkgen,seed%evc,&
+             f%c%omega,seed%sijchk)
+       else
+          call f%grid%read_unk(seed%file(1),ofile,f%c%omega,seed%nou,&
+             seed%sijchk)
+       end if
+
+    elseif (seed%iff == ifformat_wfn) then
+       call f%wfn%end()
+       call f%wfn%read_wfn(seed%file(1))
+       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       f%type = type_wfn
+       f%file = trim(seed%file(1))
+
+    elseif (seed%iff == ifformat_wfx) then
+       call f%wfn%end()
+       call f%wfn%read_wfx(seed%file(1))
+       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       f%type = type_wfn
+       f%file = trim(seed%file(1))
+
+    elseif (seed%iff == ifformat_fchk) then
+       call f%wfn%end()
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual)
+       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       f%type = type_wfn
+       f%file = trim(seed%file(1))
+
+    elseif (seed%iff == ifformat_molden) then
+       call f%wfn%end()
+       call f%wfn%read_molden(seed%file(1),seed%readvirtual)
+       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       f%type = type_wfn
+       f%file = trim(seed%file(1))
+
+    elseif (seed%iff == ifformat_promolecular) then
+       call f%load_promolecular(f%c,id,"<promolecular>")
+
+    elseif (seed%iff == ifformat_promolecular_fragment) then
+       fr = f%c%identify_fragment_from_xyz(seed%file(1))
+       if (fr%nat == 0) then
+          errmsg = "fragment contains unknown atoms"
+          call f%end()
+          return
+       end if
+       call f%load_promolecular(f%c,id,trim(seed%file(1)),fr)
+
+    elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
+       if (seed%iff == ifformat_as_promolecular) then
+          if (seed%nfile > 0) then
+             fr = c%identify_fragment_from_xyz(seed%file(1))
+             if (fr%nat == 0) then
+                errmsg = "zero atoms in the fragment"
+                call f%end()
+                return
+             end if
+             call c%promolecular_grid(f%grid,seed%n,fr=fr)
+          else
+             call c%promolecular_grid(f%grid,seed%n)
+          end if
+       else
+          call c%promolecular_grid(f%grid,seed%n,zpsp=c%zpsp)
+       end if
+       f%type = type_grid
+       f%file = ""
+
+    elseif (seed%iff == ifformat_as_ghost) then
+       call f%load_ghost(c,id,"<ghost>",seed%expr,sptr,fh,fcheck,feval)
+
+    elseif (seed%iff == ifformat_as) then
+       f%type = type_grid
+       f%file = ""
+       n = seed%n
+       call f%grid%new_eval(sptr,n,seed%expr,fh,cube)
+       if (.not.f%grid%isinit) then
+          call f%grid%end()
+          f%grid%n = n
+          allocate(f%grid%f(n(1),n(2),n(3)))
+
+          do i = 1, 3
+             xdelta(:,i) = 0d0
+             xdelta(i,i) = 1d0 / real(n(i),8)
+          end do
+
+          !$omp parallel do private(x,rho) schedule(dynamic)
+          do k = 1, n(3)
+             do j = 1, n(2)
+                do i = 1, n(1)
+                   x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+                   x = c%x2c(x)
+                   rho = eval(seed%expr,.true.,iok,x,sptr,fh,fcheck,feval,.true.)
+                   !$omp critical(write)
+                   f%grid%f(i,j,k) = rho
+                   !$omp end critical(write)
+                end do
+             end do
+          end do
+          !$omp end parallel do
+          f%grid%isinit = .true.
+       end if
+
+    elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
+       seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_grad .or. &
+       seed%iff == ifformat_as_clm .or. seed%iff == ifformat_as_clm_sub) then
+       errmsg = "error in file format for field_new"
+       call f%end()
+       return
+    else
+       errmsg = "unknown seed format"
+       call f%end()
+       return
+    end if
+
+    ! set the rest of the variables passed with the field
+    call f%set_options(seed%elseopt,errmsg)
+    if (len_trim(errmsg) > 0) then
+       call f%end()
+       return
+    end if
+
+    f%isinit = .true.
+    call f%init_cplist()
+
+  end subroutine field_new
+
+  !> Load a ghost field.
+  module subroutine load_ghost(f,c,id,name,expr,sptr,fh,fcheck,feval)
+    use grid3mod, only: grid3
+    use fragmentmod, only: fragment
+    use hashmod, only: hash
+    use iso_c_binding, only: c_ptr
+    class(field), intent(inout) :: f !< Input/output field
+    type(crystal), intent(in), target :: c
+    integer, intent(in) :: id
+    character*(*), intent(in) :: name
+    character*(*), intent(in) :: expr
+    type(c_ptr), intent(in) :: sptr
+    type(hash), intent(in), target :: fh 
+    interface
+       !> Check that the id is a grid and is a sane field
+       function fcheck(sptr,id,iout)
+         use iso_c_binding, only: c_ptr
+         logical :: fcheck
+         type(c_ptr), intent(in) :: sptr
+         character*(*), intent(in) :: id
+         integer, intent(out), optional :: iout
+       end function fcheck
+       !> Evaluate the field at a point
+       function feval(sptr,id,nder,fder,x0,periodic)
+         use types, only: scalar_value
+         use iso_c_binding, only: c_ptr
+         type(scalar_value) :: feval
+         type(c_ptr), intent(in) :: sptr
+         character*(*), intent(in) :: id
+         integer, intent(in) :: nder
+         character*(*), intent(in) :: fder
+         real*8, intent(in) :: x0(3)
+         logical, intent(in), optional :: periodic
+       end function feval
+    end interface
+
+    if (.not.c%isinit) return
+    call f%end()
+    f%c => c
+    f%id = id
+    f%isinit = .true.
+    f%type = type_ghost
+    f%usecore = .false. 
+    f%numerical = .true. 
+    f%exact = .false. 
+    f%name = adjustl(name)
+    f%file = ""
+    f%zpsp = c%zpsp
+    f%expr = expr
+    f%fh => fh
+    f%sptr = sptr
+    f%fcheck => fcheck
+    f%feval => feval
+    call f%init_cplist()
+
+  end subroutine load_ghost
+
   !> Load a promolecular density field using the given crystal
   !> structure. The ID and name of the field are also set using
   !> the provided arguments.

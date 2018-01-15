@@ -17,6 +17,8 @@
 
 ! Class for 3d grids and related tools.
 module grid3mod
+  use hashmod, only: hash
+  use iso_c_binding, only: c_ptr
   implicit none
 
   private
@@ -351,6 +353,25 @@ module grid3mod
     /),shape(c))
 
   interface
+     module subroutine new_eval(f,sptr,n,expr,fh,field_cube)
+       class(grid3), intent(inout) :: f
+       type(c_ptr), intent(in) :: sptr
+       integer, intent(in) :: n(3)
+       character(*), intent(in) :: expr
+       type(hash), intent(in) :: fh
+       interface
+          real*8 function field_cube(sptr,n,id,fder,dry,ifail)
+            import c_ptr
+            type(c_ptr), intent(in) :: sptr
+            character*(*), intent(in) :: id
+            integer, intent(in) :: n(3)
+            character*(*), intent(in) :: fder
+            logical, intent(in) :: dry
+            logical, intent(out) :: ifail
+            dimension field_cube(n(1),n(2),n(3))
+          end function field_cube
+       end interface
+     end subroutine new_eval
      module subroutine grid_end(f)
        class(grid3), intent(inout) :: f
      end subroutine grid_end
@@ -494,152 +515,5 @@ module grid3mod
        logical, intent(out) :: fail
      end subroutine pop_grid
   end interface
-
-contains
-
-  !> Build a 3d grid using an arithmetic expression.
-  subroutine new_eval(f,sptr,n,expr,fh,field_cube)
-    use hashmod, only: hash
-    use arithmetic, only: token, tokenize, token_num, token_fun,&
-       token_op, token_lpar, token_rpar, token_comma, token_field, iprec, iassoc,&
-       istype, fun_openpar, fun_xc
-    use types, only: realloc
-    use iso_c_binding, only: c_ptr
-    class(grid3), intent(inout) :: f
-    type(c_ptr), intent(in) :: sptr
-    integer, intent(in) :: n(3)
-    character(*), intent(in) :: expr
-    type(hash), intent(in) :: fh
-    interface
-       function field_cube(sptr,n,id,fder,dry,ifail) result(q)
-         use iso_c_binding, only: c_ptr
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(in) :: n(3)
-         character*(*), intent(in) :: fder
-         logical, intent(in) :: dry
-         logical, intent(out) :: ifail
-         real*8 :: q(n(1),n(2),n(3))
-       end function field_cube
-    end interface
-
-    integer :: i, ntok, lp
-    integer :: c, s(100)
-    logical :: again, ok, ifail
-    integer :: nq, ns
-    real*8, allocatable :: q(:,:,:,:)
-    type(token), allocatable :: toklist(:)
-
-    call f%end()
-    f%n = n
-    f%mode = mode_default
-    f%isinit = .true.
-
-    ! tokenize the expression in input
-    lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,fh)
-    if (.not.ok) then
-       goto 999
-       return
-    end if
-
-    ! initialize
-    nq = 0
-    ns = 0
-    allocate(q(n(1),n(2),n(3),1))
-
-    ! the grid version of the arithmetic evaluator does not support
-    ! certain types of operators (xc, chemfunction).
-    do i = 1, ntok
-       if (toklist(i)%ival == fun_xc) goto 999
-       if (istype(toklist(i)%ival,'chemfunction')) goto 999
-       if (toklist(i)%type == token_field) then
-          q(:,:,:,1) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.true.,ifail)
-          if (ifail) goto 999
-       end if
-    end do
-
-    ! run over tokens
-    do i = 1, ntok
-       if (toklist(i)%type == token_num) then
-          ! a number
-          nq = nq + 1
-          if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-          q(:,:,:,nq) = toklist(i)%fval
-       elseif (toklist(i)%type == token_fun) then
-          ! a function
-          ns = ns + 1
-          s(ns) = toklist(i)%ival
-       elseif (toklist(i)%type == token_op) then
-          ! a binary operator
-          c = toklist(i)%ival
-          again = .true.
-          do while (again)
-             again = .false.
-             if (ns > 0) then
-                if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop_grid(q,nq,s,ns,ifail)
-                   if (ifail) goto 999
-                   again = .true.
-                end if
-             end if
-          end do
-          ns = ns + 1
-          s(ns) = c
-       elseif (toklist(i)%type == token_lpar) then
-          ! left parenthesis
-          ns = ns + 1
-          s(ns) = fun_openpar
-       elseif (toklist(i)%type == token_rpar) then
-          ! right parenthesis
-           do while (ns > 0)
-              if (s(ns) == fun_openpar) exit
-              call pop_grid(q,nq,s,ns,ifail)
-              if (ifail) goto 999
-           end do
-           if (ns == 0) goto 999
-           ns = ns - 1
-           ! if the top of the stack is a function, pop it
-           if (ns > 0) then
-              c = s(ns)
-              if (istype(c,'function')) then
-                 call pop_grid(q,nq,s,ns,ifail)
-                 if (ifail) goto 999
-              end if
-           end if
-        elseif (toklist(i)%type == token_comma) then
-           ! a comma
-           do while (ns > 0)
-              if (s(ns) == fun_openpar) exit
-              call pop_grid(q,nq,s,ns,ifail)
-              if (ifail) goto 999
-           end do
-           if (s(ns) /= fun_openpar) goto 999
-        elseif (toklist(i)%type == token_field) then
-           ! a field
-           nq = nq + 1
-           if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-           q(:,:,:,nq) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.false.,ifail)
-           if (ifail) goto 999
-       else
-          goto 999
-       end if
-    end do
-
-    ! unwind the stack
-    do while (ns > 0)
-       call pop_grid(q,nq,s,ns,ifail)
-       if (ifail) goto 999
-    end do
-    allocate(f%f(n(1),n(2),n(3)))
-    f%f = q(:,:,:,1)
-    if (allocated(q)) deallocate(q)
-
-    return
-999 continue
-    if (allocated(q)) deallocate(q)
-    call f%end()
-
-  end subroutine new_eval
 
 end module grid3mod
