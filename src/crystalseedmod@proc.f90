@@ -1535,7 +1535,7 @@ contains
     logical, intent(in) :: mol !< is this a molecule?
 
     character(len=:), allocatable :: line, atname
-    integer :: lu, i, zat, j, lp
+    integer :: lu, i, zat, j, lp, idx
     integer :: natoms
     logical :: ok
 
@@ -1570,7 +1570,13 @@ contains
        zat = zatguess(atname)
        if (zat == -1) call ferror('read_elk_geometry','Species file name must start with an atomic symbol',faterr,file)
        seed%spc(i)%z = zat
-       seed%spc(i)%name = trim(atname)
+
+       idx = index(atname,".in",.true.)
+       if (idx > 1) then
+          seed%spc(i)%name = trim(atname(1:idx-1))
+       else
+          seed%spc(i)%name = trim(atname)
+       end if
 
        read(lu,*) natoms
        do j = 1, natoms
