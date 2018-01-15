@@ -36,6 +36,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 module bader
+  use systemmod, only: system
   implicit none
 
   private
@@ -44,7 +45,6 @@ module bader
   
   interface
      module subroutine bader_integrate(s,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        real*8, intent(in) :: ff(:,:,:)
        character*(*), intent(in) :: discexpr
@@ -55,13 +55,11 @@ module bader
        integer, allocatable, intent(inout) :: volnum0(:,:,:)
      end subroutine bader_integrate
      module subroutine refine_edge(f,irefine_edge,ref_itrs)
-       use tools_io, only: faterr, ferror
        real*8, intent(in) :: f(:,:,:)
        integer, intent(inout) :: irefine_edge
        integer, intent(inout) :: ref_itrs
      end subroutine refine_edge
      module subroutine max_neargrid(f,p)
-       use types, only: realloc
        real*8, intent(in) :: f(:,:,:)
        integer, dimension(3), intent(inout) :: p
      end subroutine max_neargrid

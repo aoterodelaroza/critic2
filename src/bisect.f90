@@ -17,6 +17,8 @@
 
 !> Integration and plotting of basins through bisection.
 module bisect
+  use surface, only: minisurf
+  use systemmod, only: sy
   implicit none
 
   private 
@@ -57,14 +59,12 @@ module bisect
        integer, intent(inout) :: nwarn
      end subroutine lim_bundle
      module subroutine bisect_msurface(srf,cpid,prec,verbose)
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: srf
        integer, intent(in) :: cpid
        real*8, intent(in) :: prec
        logical, intent(in) :: verbose
      end subroutine bisect_msurface
      module subroutine bundle_msurface(srf,prec,verbose)
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: srf
        real*8, intent(in) :: prec
        logical, intent(in) :: verbose
@@ -76,7 +76,6 @@ module bisect
        character*(*), intent(in) :: line
      end subroutine bundleplot
      module subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
-       use systemmod, only: sy
        real*8, intent(in) :: x0(3), rad
        integer, intent(in) :: ntheta, nphi
        real*8, intent(out) :: sprop(sy%npropi) 
@@ -84,7 +83,6 @@ module bisect
        integer, intent(out) :: neval, meaneval
      end subroutine sphereintegrals_gauleg
      module subroutine sphereintegrals_lebedev(x0,rad,nleb,sprop,abserr,neval,meaneval)
-       use systemmod, only: sy
        real*8, intent(in) :: x0(3), rad
        integer, intent(in) :: nleb
        real*8, intent(out) :: sprop(sy%npropi) 
@@ -95,14 +93,12 @@ module bisect
        character*(*), intent(in) :: line
      end subroutine sphereintegrals
      module subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
-       use systemmod, only: sy
        real*8, intent(out) :: atprop(sy%npropi)
        integer, intent(in) :: n1, n2, cpid
        logical, intent(in) :: usefiles
        logical, intent(in) :: verbose
      end subroutine integrals_gauleg
      module subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
-       use systemmod, only: sy
        real*8, intent(out) :: atprop(sy%npropi)
        integer, intent(in) :: nleb, cpid
        logical, intent(in) :: usefiles
@@ -117,26 +113,22 @@ module bisect
        character(10), intent(in) :: pname
      end subroutine integrals_header
      module subroutine minisurf_write3dmodel(s,fmt,file,expr)
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: s
        character*3, intent(in) :: fmt
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: expr
      end subroutine minisurf_write3dmodel
      module subroutine minisurf_writebasin(s,offfile,doprops)
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: s
        character*(*), intent(in) :: offfile
        logical, intent(in) :: doprops
      end subroutine minisurf_writebasin
      module subroutine minisurf_writedbasin(s,npoint,offfile)
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: s
        integer, intent(in) :: npoint
        character*(*), intent(in) :: offfile
      end subroutine minisurf_writedbasin
      module subroutine minisurf_transform(s,op,tvec)
-       use surface, only: minisurf
        type(minisurf) :: s
        integer, intent(in) :: op
        real*8, intent(in) :: tvec(3)

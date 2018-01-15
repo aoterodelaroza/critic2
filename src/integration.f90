@@ -57,6 +57,9 @@
 
 !> Quadrature schemes and integration-related tools.
 module integration
+  use fieldmod, only: field
+  use surface, only: minisurf
+  use systemmod, only: sy
   implicit none
 
   private
@@ -111,7 +114,6 @@ module integration
        complex*16, allocatable, intent(inout) :: sij(:,:,:,:,:)
      end subroutine intgrid_deloc_wannier
      module subroutine int_radialquad(x,theta,phi,r0,rend,lprop,abserr,neval,iaserr,ierr)
-       use systemmod, only: sy
        real*8, intent(in) :: x(3)  !< The center of the basin (cartesian coords)
        real*8, intent(in) :: theta !< Polar angle of the ray
        real*8, intent(in) :: phi   !< Azimuthal angle or the ray
@@ -124,8 +126,6 @@ module integration
        integer, intent(out) :: ierr
      end subroutine int_radialquad
      module subroutine gauleg_mquad(srf,ntheta,nphi,rbeta,lprop,abserr,neval,iaserr)
-       use systemmod, only: sy
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: srf !< Surface representing the basin
        integer, intent(in) :: ntheta !< Number of polar points
        integer, intent(in) :: nphi   !< Number of azimuthal points
@@ -136,8 +136,6 @@ module integration
        real*8, intent(out) :: iaserr(sy%npropi) !< Integrated IAS precision error
      end subroutine gauleg_mquad
      module subroutine lebedev_mquad(srf,npts,rbeta,lprop,abserr,neval,iaserr)
-       use systemmod, only: sy
-       use surface, only: minisurf
        type(minisurf), intent(inout) :: srf !< Surface representing the basin
        integer, intent(in) :: npts   !< Number of points
        real*8, intent(in) :: rbeta   !< Beta-spehre radius
@@ -147,14 +145,12 @@ module integration
        real*8, intent(out) :: iaserr(sy%npropi) !< Integrated IAS precision error
      end subroutine lebedev_mquad
      module function quadpack_f(x,unit,xnuc) result(res)
-       use systemmod, only: sy
        real*8, intent(in) :: x
        real*8, intent(in) :: unit(3)
        real*8, intent(in) :: xnuc(3)
        real*8 :: res(sy%npropi)
      end function quadpack_f
      module subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,sij,mpole)
-       use systemmod, only: sy
        logical, intent(in) :: pmask(sy%npropi)
        character*(*), intent(in) :: reason(sy%npropi)
        integer, intent(in) :: nattr
@@ -188,7 +184,6 @@ module integration
        character(len=:), allocatable, intent(out) :: sncp, scp, sname, sz, smult
      end subroutine assign_strings
      module subroutine int_reorder_gridout(ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
-       use fieldmod, only: field
        type(field), intent(inout) :: ff
        integer, intent(inout) :: nattr
        real*8, intent(inout), allocatable :: xgatt(:,:)

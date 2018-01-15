@@ -20,6 +20,7 @@
 !    Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.
 ! for details on the algorithm.
 module yt
+  use systemmod, only: system
   implicit none
 
   private
@@ -43,7 +44,6 @@ module yt
   
   interface
      module subroutine yt_integrate(s,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        real*8, intent(in) :: ff(:,:,:)
        character*(*), intent(in) :: discexpr

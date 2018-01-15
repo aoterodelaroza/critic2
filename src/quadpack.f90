@@ -201,7 +201,7 @@ contains
 !
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -404,7 +404,7 @@ contains
 !
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -787,7 +787,7 @@ contains
       integer inf,j
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -1082,7 +1082,7 @@ contains
 !
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -1447,7 +1447,7 @@ contains
 !
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -1652,7 +1652,7 @@ contains
 !
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2141,7 +2141,7 @@ contains
 !
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2483,7 +2483,7 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2682,7 +2682,7 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -2889,7 +2889,7 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3106,7 +3106,7 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3337,7 +3337,7 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3583,7 +3583,7 @@ contains
       integer j,jtw,jtwm1
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)
@@ -3865,7 +3865,7 @@ contains
       integer ier,ipx,k,l,neval
       interface
          function f(x,unit,xnuc)
-           use systemmod, only: sy
+           import sy
            real*8, intent(in) :: x
            real*8, intent(in) :: unit(3)
            real*8, intent(in) :: xnuc(3)

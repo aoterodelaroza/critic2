@@ -19,6 +19,7 @@
 ! energy (and derivatives) using the exchange-hole dipole moment
 ! (XDM) model.
 module xdm
+  use systemmod, only: sy
   implicit none
 
   private
@@ -47,7 +48,6 @@ module xdm
        character*(*), intent(inout) :: line0
      end subroutine xdm_excitation
      module subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
-       use systemmod, only: sy
        character*(*), intent(in) :: file
        logical, intent(inout) :: haveit(sy%c%ncel,0:1)
        real*8, intent(inout) :: v(sy%c%ncel,0:1)
@@ -75,12 +75,10 @@ module xdm
        real*8 :: frevol
      endfunction frevol
      module subroutine calc_edisp(c6,c8,c10,rvdw)
-       use systemmod, only: sy
        real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
        real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
      end subroutine calc_edisp
      module function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
-       use systemmod, only: sy
        real*8, intent(in) :: a1, a2
        real*8, intent(in) :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1)
        real*8, intent(in) :: mm(3,sy%c%ncel,0:1)
@@ -89,7 +87,6 @@ module xdm
        real*8 :: calc_edisp_from_mv
      end function calc_edisp_from_mv
      module subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
-       use systemmod, only: sy
        real*8, intent(in) :: a1, a2, chf
        real*8, intent(in) :: v(sy%c%ncel), mm(3,sy%c%ncel)
        real*8, intent(out) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel)

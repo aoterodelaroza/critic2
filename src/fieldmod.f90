@@ -26,7 +26,7 @@ module fieldmod
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
   use param, only: maxzat0
-  use types, only: cp_type
+  use types, only: cp_type, scalar_value, gpathp
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
@@ -45,7 +45,7 @@ module fieldmod
   interface
      !> Check that the id is a grid and is a sane field
      function fcheck(sptr,id,iout)
-       use iso_c_binding, only: c_ptr
+       import c_ptr
        logical :: fcheck
        type(c_ptr), intent(in) :: sptr
        character*(*), intent(in) :: id
@@ -53,8 +53,7 @@ module fieldmod
      end function fcheck
      !> Evaluate the field at a point
      function feval(sptr,id,nder,fder,x0,periodic)
-       use types, only: scalar_value
-       use iso_c_binding, only: c_ptr
+       import c_ptr, scalar_value
        type(scalar_value) :: feval
        type(c_ptr), intent(in) :: sptr
        character*(*), intent(in) :: id
@@ -163,7 +162,6 @@ module fieldmod
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine field_set_options
      module subroutine load_promolecular(f,c,id,name,fr)
-       use fragmentmod, only: fragment
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
@@ -171,7 +169,6 @@ module fieldmod
        type(fragment), intent(in), optional :: fr
      end subroutine load_promolecular
      module subroutine load_as_fftgrid(f,c,id,name,g,ityp,isry_)
-       use grid3mod, only: grid3
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
@@ -181,7 +178,6 @@ module fieldmod
        logical, intent(in), optional :: isry_
      end subroutine load_as_fftgrid
      recursive module subroutine grd(f,v,nder,res,fder,periodic)
-       use types, only: scalar_value
        class(field), intent(inout) :: f
        real*8, intent(in) :: v(3)
        integer, intent(in) :: nder
@@ -219,7 +215,6 @@ module fieldmod
        logical, intent(in), optional :: periodic
      end function der2ij
      module function typestring(f,short) result(s)
-       use tools_io, only: faterr, ferror
        class(field), intent(in) :: f
        character(len=:), allocatable :: s
        logical, intent(in) :: short
@@ -275,7 +270,6 @@ module fieldmod
        real*8, intent(in) :: cpeps
      end subroutine sortcps
      module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
-       use types, only: gpathp
        class(field), intent(inout) :: fid
        real*8, dimension(3), intent(inout) :: xpoint
        integer, intent(in) :: iup
@@ -288,7 +282,6 @@ module fieldmod
        real*8, intent(in), optional :: pathini(3)
      end subroutine gradient
      module function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
-       use types, only: scalar_value
        logical :: adaptive_stepper
        type(field), intent(inout) :: fid
        real*8, intent(inout) :: xpoint(3)
@@ -301,28 +294,24 @@ module fieldmod
        real*8, intent(out) :: xout(3)
      end subroutine stepper_euler1
      module subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
-       use types, only: scalar_value
        type(field), intent(inout) :: fid
        real*8, intent(in) :: xpoint(3), h0, grdt(3)
        real*8, intent(out) :: xout(3)
        type(scalar_value), intent(inout) :: res
      end subroutine stepper_heun
      module subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
-       use types, only: scalar_value
        type(field), intent(inout) :: fid
        real*8, intent(in) :: xpoint(3), h0, grdt(3)
        real*8, intent(out) :: xout(3), xerr(3)
        type(scalar_value), intent(inout) :: res
      end subroutine stepper_bs
      module subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
-       use types, only: scalar_value
        type(field), intent(inout) :: fid
        real*8, intent(in) :: xpoint(3), grdt(3), h0
        real*8, intent(out) :: xout(3), xerr(3)
        type(scalar_value), intent(inout) :: res
      end subroutine stepper_rkck
      module subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
-       use types, only: scalar_value
        type(field), intent(inout) :: fid
        real*8, intent(in) :: xpoint(3), grdt(3), h0
        real*8, intent(out) :: xout(3), xerr(3)

@@ -16,6 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
 module nci
+  use fragmentmod, only: fragment
   implicit none
 
   private
@@ -31,7 +32,6 @@ module nci
      module subroutine nciplot()
      end subroutine nciplot
      module subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
-       use fragmentmod, only: fragment
        integer, intent(in) :: lu
        character*(*), intent(in) :: l1, l2
        logical, intent(in) :: periodic
@@ -53,7 +53,6 @@ module nci
        logical :: check_no_extra_word
      end function check_no_extra_word
      module function read_fragment(lu) result(fr)
-       use fragmentmod, only: fragment
        type(fragment) :: fr
        integer, intent(in) :: lu
      end function read_fragment

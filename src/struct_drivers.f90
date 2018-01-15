@@ -20,6 +20,9 @@
 
 ! Driver routines for structure operations
 module struct_drivers
+  use systemmod, only: system
+  use crystalmod, only: crystal
+  use crystalseedmod, only: crystalseed
   implicit none
 
   private
@@ -39,9 +42,6 @@ module struct_drivers
   
   interface
      module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
-       use systemmod, only: system
-       use crystalmod, only: crystal
-       use crystalseedmod, only: crystalseed
        character*(*), intent(in) :: line
        integer, intent(in) :: mol0
        logical, intent(in) :: allownofile
@@ -51,62 +51,50 @@ module struct_drivers
        type(crystalseed), intent(inout), optional :: seed0
      end subroutine struct_crystal_input
      module subroutine struct_clearsym(s)
-       use systemmod, only: system
        type(system), intent(inout) :: s
      end subroutine struct_clearsym
      module subroutine struct_charges(s,line,oksyn)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
        logical, intent(out) :: oksyn
      end subroutine struct_charges
      module subroutine struct_write(s,line)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_write
      module subroutine struct_atomlabel(s,line)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_atomlabel
      module subroutine struct_powder(s,line)
-       use systemmod, only: system
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_powder
      module subroutine struct_rdf(s,line)
-       use systemmod, only: system
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_rdf
      module subroutine struct_compare(s,line)
-       use systemmod, only: system
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_compare
      module subroutine struct_environ(s,line)
-       use systemmod, only: system
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_environ
      module subroutine struct_packing(s,line)
-       use systemmod, only: system
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_packing
      module subroutine struct_newcell(s,line)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_newcell
      module subroutine struct_molcell(s,line)
-       use systemmod, only: system
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_molcell
      module subroutine struct_identify(s,line0,lp)
-       use systemmod, only: system
        type(system), intent(in) :: s
        character*(*), intent(in) :: line0
        integer, intent(inout) :: lp

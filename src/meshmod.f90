@@ -23,6 +23,8 @@
 ! Ross M. Dickson <ross.dickson@dal.ca>, Hartmut Schmider
 ! <hs7@post.queensu.ca>, and Axel D. Becke <axel.becke@dal.ca>
 module meshmod
+  use fieldmod, only: field
+  use crystalmod, only: crystal
   implicit none
 
   private
@@ -55,24 +57,20 @@ module meshmod
        class(mesh), intent(inout) :: m
      end subroutine endmesh
      module subroutine genmesh(m,c,type)
-       use crystalmod, only: crystal
        class(mesh), intent(inout) :: m
        type(crystal), intent(inout) :: c
        integer, intent(in), optional :: type
      end subroutine genmesh
      module subroutine genmesh_becke(m,c)
-       use crystalmod, only: crystal
        class(mesh), intent(inout) :: m
        type(crystal), intent(in) :: c
      end subroutine genmesh_becke
      module subroutine genmesh_franchini(m,c,lvl)
-       use crystalmod, only: crystal
        class(mesh), intent(inout) :: m
        type(crystal), intent(in) :: c
        integer, intent(in) :: lvl
      end subroutine genmesh_franchini
      module subroutine fillmesh(m,ff,prop,periodic)
-       use fieldmod, only: field
        class(mesh), intent(inout) :: m
        type(field), intent(inout) :: ff
        integer, intent(in) :: prop(:)
