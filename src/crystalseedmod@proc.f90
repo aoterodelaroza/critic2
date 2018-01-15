@@ -326,6 +326,7 @@ contains
                    call realloc(seed%is,2*seed%nat)
                 end if
                 seed%is(seed%nat) = seed%is(j)
+                seed%x(:,seed%nat) = x
              endif
           end do
        end do
