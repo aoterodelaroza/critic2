@@ -172,15 +172,14 @@ module fieldmod
        character(len=:), allocatable, intent(out) :: errmsg
        interface
           function fcheck(sptr,id,iout)
-            use iso_c_binding, only: c_ptr
+            import c_ptr
             logical :: fcheck
             type(c_ptr), intent(in) :: sptr
             character*(*), intent(in) :: id
             integer, intent(out), optional :: iout
           end function fcheck
           function feval(sptr,id,nder,fder,x0,periodic)
-            use types, only: scalar_value
-            use iso_c_binding, only: c_ptr
+            import c_ptr, scalar_value
             type(scalar_value) :: feval
             type(c_ptr), intent(in) :: sptr
             character*(*), intent(in) :: id
@@ -190,7 +189,7 @@ module fieldmod
             logical, intent(in), optional :: periodic
           end function feval
           real*8 function cube(sptr,n,id,fder,dry,ifail)
-            use iso_c_binding, only: c_ptr
+            import c_ptr
             type(c_ptr), intent(in) :: sptr
             character*(*), intent(in) :: id
             integer, intent(in) :: n(3)
@@ -202,10 +201,6 @@ module fieldmod
        end interface
      end subroutine field_new
      module subroutine load_ghost(f,c,id,name,expr,sptr,fh,fcheck,feval)
-       use grid3mod, only: grid3
-       use fragmentmod, only: fragment
-       use hashmod, only: hash
-       use iso_c_binding, only: c_ptr
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
@@ -215,15 +210,14 @@ module fieldmod
        type(hash), intent(in), target :: fh 
        interface
           function fcheck(sptr,id,iout)
-            use iso_c_binding, only: c_ptr
+            import c_ptr
             logical :: fcheck
             type(c_ptr), intent(in) :: sptr
             character*(*), intent(in) :: id
             integer, intent(out), optional :: iout
           end function fcheck
           function feval(sptr,id,nder,fder,x0,periodic)
-            use types, only: scalar_value
-            use iso_c_binding, only: c_ptr
+            import c_ptr, scalar_value
             type(scalar_value) :: feval
             type(c_ptr), intent(in) :: sptr
             character*(*), intent(in) :: id
