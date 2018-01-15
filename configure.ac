@@ -4,9 +4,7 @@ AC_INIT(critic2,m4_esyscmd_s([./tools/version.sh]),[aoterodelaroza@gmail.com])
 AC_CONFIG_AUX_DIR([config/gnu])
 AC_CONFIG_MACRO_DIR([config/m4])
 # These are necessary for older versions of autotools
-m4_include([config/m4/ax_f90_module_extension.m4])
 m4_include([config/m4/libxc.m4])
-m4_include([config/m4/ax_f90_module_flag.m4])
 
 # Initialize automake
 AC_CANONICAL_TARGET
@@ -53,8 +51,6 @@ AC_PROG_FC([ifort gfortran])
 AC_PROG_F77([ifort gfortran])
 AC_FC_FREEFORM
 AC_FC_LINE_LENGTH([unlimited])
-AX_F90_MODULE_EXTENSION
-AX_F90_MODULE_FLAG
 AC_OPENMP
 FFLAGS+=" $OPENMP_FFLAGS"
 FCFLAGS+=" $OPENMP_FCFLAGS"
@@ -150,8 +146,6 @@ _date=$(date)
 AC_SUBST(DEBUG, ${enable_debug})
 AC_SUBST(TARGET, ${_os})
 AC_SUBST(DATE, ${_date})
-AC_SUBST(MODEXT, ${ax_cv_f90_modext})
-AC_SUBST(MODINC, ${ax_cv_f90_modflag})
 AC_SUBST(LIBADD, ${LIBADD})
 
 # Messages
@@ -165,8 +159,6 @@ AC_MSG_NOTICE([CFLAGS    = ${CFLAGS}])
 AC_MSG_NOTICE([CXXFLAGS  = ${CXXFLAGS}])
 AC_MSG_NOTICE([LDFLAGS   = ${LDFLAGS}])
 AC_MSG_NOTICE([LIBS      = ${LIBS}])
-AC_MSG_NOTICE([MODINC    = ${MODINC}])
-AC_MSG_NOTICE([MODEXT    = ${MODEXT}])
 AC_MSG_NOTICE([LIBADD    = ${LIBADD}])
 
 # Final output
