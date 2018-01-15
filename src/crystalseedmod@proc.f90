@@ -637,7 +637,7 @@ contains
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
     use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
-    use param, only: dirsep, bohrtoa, eye, eyet
+    use param, only: dirsep
     use types, only: realloc
 
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -648,14 +648,9 @@ contains
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
 
-    character(len=1024) :: dictfile, sym, tok
-    character*30 :: atname, spg
-    real*8 :: x(3)
-    real*8 :: sigx, rot0(3,4), xo, yo, zo
-    logical :: fl, fl1, fl2, found, ok, ix, iy, iz, iok
-    integer :: i, j, ludum, luscr, idx, it, iznum
-
-    character*(1), parameter :: ico(3) = (/"x","y","z"/)
+    character(len=1024) :: dictfile
+    logical :: fl
+    integer :: ludum, luscr
 
     ludum = falloc()
     luscr = falloc()
@@ -1041,7 +1036,7 @@ contains
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
-    logical :: ismo, found, ok
+    logical :: ismo, ok
     character(len=:), allocatable :: line
 
     lu = fopen_read(file)
@@ -1324,7 +1319,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: detsym, matinv
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1541,7 +1536,6 @@ contains
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, j, lp
     integer :: natoms
-    integer :: nspecies
     logical :: ok
 
     lu = fopen_read(file)
@@ -1623,7 +1617,6 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
 
-    real*8, allocatable :: x(:,:)
     integer, allocatable :: z(:)
     character*(10), allocatable :: name(:) !< Atomic names
     integer :: i, j, it
@@ -1696,10 +1689,10 @@ contains
     logical, intent(in) :: mol !< is this a molecule?
     integer, intent(in) :: istruct !< structure number
 
-    integer :: lu, nstructs, is0, ideq, i, j, k
+    integer :: lu, nstructs, is0, ideq, i, j
     character(len=:), allocatable :: line
     character*10 :: atn
-    integer :: ibrav, id, idum
+    integer :: ibrav, idum
     real*8 :: alat, r(3,3), qaux, rfac, cfac
     logical :: ok, tox
 
@@ -1796,6 +1789,7 @@ contains
           end do
           tox = .true.
        elseif (line(1:15) == "CELL_PARAMETERS") then
+          cfac = 1d0
           if (index(line,"angstrom") > 0) then
              cfac = 1d0 / bohrtoa 
           elseif (index(line,"alat") > 0) then
@@ -1815,6 +1809,7 @@ contains
           if (seed%nat == 0) &
              call ferror("read_qeout","number of atoms unknown",faterr)
 
+          rfac = 1d0
           if (index(line,"angstrom") > 0) then
              tox = .true.
              rfac = 1d0 / bohrtoa 
@@ -2071,6 +2066,7 @@ contains
 
     ! read the cards
     havecell = .false.
+    iunit = icrystal
     do while (getline_raw(lu,line))
        line = lower(line)
        lp = 1
@@ -2332,7 +2328,7 @@ contains
   module subroutine read_dftbp(seed,file,molout,rborder,docube)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
-       getword, zatguess, nameguess
+       getword, zatguess, nameguess, fclose
     use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -2414,6 +2410,7 @@ contains
        seed%useabr = 0
        molout = .true.
     end if
+    call fclose(lu)
 
     ! no symmetry
     seed%havesym = 0
@@ -2668,7 +2665,6 @@ contains
   !> Read the species into the seed from a VASP POTCAR file.
   module subroutine read_potcar(seed,file)
     use tools_io, only: fopen_read, getline_raw, getword, fclose, zatguess
-    use param, only: maxzat0
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -2843,7 +2839,7 @@ contains
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
     use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
-    use param, only: dirsep, bohrtoa, eye, eyet
+    use param, only: dirsep
     use types, only: realloc
 
     include 'ciftbx/ciftbx.cmv'
@@ -2854,14 +2850,9 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
 
-    character(len=1024) :: dictfile, sym, tok
-    character*30 :: atname, spg
-    real*8 :: x(3)
-    real*8 :: sigx, rot0(3,4), xo, yo, zo
-    logical :: fl, fl1, fl2, found, ok, ix, iy, iz, iok
-    integer :: i, j, ludum, luscr, idx, it, iznum
-
-    character*(1), parameter :: ico(3) = (/"x","y","z"/)
+    character(len=1024) :: dictfile
+    logical :: fl
+    integer :: ludum, luscr
 
     ludum = falloc()
     luscr = falloc()
@@ -2912,10 +2903,10 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
 
-    integer :: lu, ideq, i, j, k, is0
+    integer :: lu, ideq, i, j, is0
     character(len=:), allocatable :: line
     character*10 :: atn
-    integer :: id, idum
+    integer :: idum
     real*8 :: alat, r(3,3), qaux, rfac, cfac
     logical :: ok
     logical, allocatable :: tox(:)
@@ -3021,6 +3012,7 @@ contains
           tox(is0) = .true.
 
        elseif (line(1:15) == "CELL_PARAMETERS") then
+          cfac = 1d0
           if (index(line,"angstrom") > 0) then
              cfac = 1d0 / bohrtoa 
           elseif (index(line,"alat") > 0) then
@@ -3039,6 +3031,7 @@ contains
           seed(is0)%crys2car = transpose(r)
 
        elseif (line(1:16) == "ATOMIC_POSITIONS") then
+          rfac = 1d0
           if (index(line,"angstrom") > 0) then
              tox(is0) = .true.
              rfac = 1d0 / bohrtoa 
