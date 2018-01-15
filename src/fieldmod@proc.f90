@@ -264,7 +264,7 @@ contains
     end interface
 
     character(len=:), allocatable :: ofile
-    integer :: i, j, k, iz, n(3), ithis
+    integer :: i, j, k, n(3), ithis
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
     logical :: iok, found

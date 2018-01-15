@@ -180,7 +180,9 @@ contains
     localsgamm = sin(gammatemp*pi/180d0)
 
     !.calculate br1, br2, ortho, centering vectors
-    !
+    f%br1 = 0d0
+    f%br2 = 0d0
+    f%br3 = 0d0
     IF(LATTIC(1:1).EQ.'S'.OR.LATTIC(1:1).EQ.'P') THEN
        cosg1=(localcgamm-localcalph*localcbeta)/(localsalph*localsbeta)
        gamma0=acos(cosg1)
