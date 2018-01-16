@@ -29,6 +29,7 @@
 #include "shapes.h"
 #include "message.h"
 #include "tree.h"
+#include "critic2.h"
 
 using namespace ImGui;
 
@@ -725,7 +726,25 @@ static void DialogStructInfo(bool *p_open){
     SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
 
     if (BeginDock("Structural Information",p_open)){
-      // fill me //
+      c2::set_scene_pointers(mainview->iscene);
+      Text("Current scene: %d\n",mainview->iscene);
+      Text("Is init?: %d\n",c2::isinit);
+      Text("Current file: %d\n",c2::idfile);
+      Text("File name: %s\n",c2::file);
+      Text("Scene name: %s\n",c2::name);
+      Text("Scene radius: %.2f\n",c2::scenerad);
+      Separator();
+      Text("Number of fields: %d\n",c2::nf);
+      Text("Reference field: %d\n",c2::iref);
+      Text("Field name: %s\n",c2::fieldname);
+      Separator();
+      Text("Number of atoms: %d\n",c2::nat);
+      Text("Number of molecules: %d\n",c2::nmol);
+      Text("Is molecular crystal: %d\n",c2::ismolecule);
+      Text("Cell vectors:\n");
+      Text("  %.10f %.10f %.10f\n",c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]);
+      Text("  %.10f %.10f %.10f\n",c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]);
+      Text("  %.10f %.10f %.10f\n",c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]);
     }
     dlgdock[DLG_StructInfo] = GetCurrentDock();
     if (first){
