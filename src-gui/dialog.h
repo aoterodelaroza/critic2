@@ -29,6 +29,7 @@
 enum Dialog_{
   DLG_Preferences,
   DLG_Tree,
+  DLG_StructInfo,
   DLG_LAST,
 };
 extern bool dlgopen[DLG_LAST];

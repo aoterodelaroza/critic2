@@ -45,6 +45,8 @@ void ShowMenu(GLFWwindow* rootwin){
 	ToggleDialog(DLG_Tree);
       if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
 	ToggleDialog(DLG_Preferences);
+      if (MenuItem("Structural Information",NULL,dlgopen[DLG_StructInfo]))
+	ToggleDialog(DLG_StructInfo);
       EndMenu();
     }
     SameLine(0, GetContentRegionAvailWidth()-180.);

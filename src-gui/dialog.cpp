@@ -35,6 +35,7 @@ using namespace ImGui;
 // Declarations for the dialog static functions (defined below)
 static void DialogPreferences(bool *p_open);
 static void DialogTree(bool *p_open);
+static void DialogStructInfo(bool *p_open);
 
 // Dialog variables
 bool dlgopen[DLG_LAST] = {false,false};
@@ -44,10 +45,12 @@ Dialog_ dlglastopen = DLG_LAST;
 static void (*dlgfun[DLG_LAST])(bool *) = {
   DialogPreferences,
   DialogTree,
+  DialogStructInfo,
 };
-static const float dlgsplitweight[][2] = {
+static const float dlgsplitweight[][3] = {
   {2.f,2.f},
   {1.f,4.f},
+  {2.f,2.f},
 };
 
 void OpenDialog(Dialog_ dialog){
@@ -708,6 +711,26 @@ static void DialogTree(bool *p_open){
     if (first){
       dlgdock[DLG_Tree]->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
       dlgdock[DLG_Tree]->setSplitWeight(dlgsplitweight[DLG_Tree][0],dlgsplitweight[DLG_Tree][1]);
+      first = false;
+    }
+    EndDock();
+  }
+}
+
+// Strutural Info dialog //
+static void DialogStructInfo(bool *p_open){
+  ImGuiIO& io = GetIO();
+  if (*p_open){
+    static bool first = true;
+    SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
+
+    if (BeginDock("Structural Information",p_open)){
+      // fill me //
+    }
+    dlgdock[DLG_StructInfo] = GetCurrentDock();
+    if (first){
+      dlgdock[DLG_StructInfo]->setDetachedDockSize(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y);
+      dlgdock[DLG_StructInfo]->setSplitWeight(dlgsplitweight[DLG_StructInfo][0],dlgsplitweight[DLG_StructInfo][1]);
       first = false;
     }
     EndDock();
