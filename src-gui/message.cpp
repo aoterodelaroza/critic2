@@ -67,7 +67,7 @@ void MessageDispatch(){
       alphaf = 1.f - (dt - 0.75f * ImGuiStyleUI.MessageExpire) / (0.25f * ImGuiStyleUI.MessageExpire);
     color.w *= alphaf;
     PushStyleColor(ImGuiCol_WindowBg,GetColorU32(color));
-
+    
     ++n;
     PushFont(fonticon);
     float messagewidth = ImGuiStyleUI.MessageWidth;
@@ -79,6 +79,7 @@ void MessageDispatch(){
 		  lasty - 2.f*g->Style.ItemSpacing.y - size.y};
     SetNextWindowPos(pos);
     SetNextWindowSize(size);
+    PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.0f);
 
     char tmp[20];
     ImFormatString(tmp,IM_ARRAYSIZE(tmp),"##message__%d__",n);
@@ -102,6 +103,7 @@ void MessageDispatch(){
     End();
 
     PopStyleColor(1);
+    PopStyleVar(1);
     lasty = pos.y;
     if (toerase){
       delete (*it);

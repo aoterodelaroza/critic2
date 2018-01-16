@@ -75,6 +75,7 @@ module gui_interface
      real(c_float) :: avec(3,3) ! lattice vectors
      real(c_float) :: molx0(3) ! molecule centering translation
      real(c_float) :: molborder(3) ! molecular cell
+
   end type scene
 
   integer, bind(c) :: nfiles = 0
