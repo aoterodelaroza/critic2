@@ -64,7 +64,7 @@ int main(int argc, char *argv[]){
 	exit(0);
       } else {
 	if (!c2::open_file((const char **) &(argv[i]), mol)){
-	  std::string message = "Could not open file:\n" + string(argv[i]);
+	  std::string message = "Could not open file: " + string(argv[i]) +"\nReason: " + c2::errmsg;
 	  NewMessage(Message_Error,message.c_str());
 	}
 	mol = -1;

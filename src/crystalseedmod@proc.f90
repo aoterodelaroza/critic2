@@ -2713,28 +2713,41 @@ contains
   !> Read all seeds from a file. If iafield is present, then
   !> return the seed number for which the file can be read as a 
   !> field (or 0 if none).
-  module subroutine read_seeds_from_file(file,mol0,nseed,seed,iafield)
+  module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_abinit, isformat_cif,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
-       isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, dirsep
+       isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
+       isformat_unknown, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
+    character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(out), optional :: iafield
     
     character(len=:), allocatable :: path, ofile
     integer :: isformat, mol0_, i
-    logical :: ismol, mol, hastypes, alsofield
+    logical :: ismol, mol, hastypes, alsofield, ok
 
+    errmsg = ""
     mol0_ = mol0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
 
+    inquire(file=file,exist=ok)
+    if (.not.ok) then
+       errmsg = "File not found."
+       return
+    end if
+
     call struct_detect_format(file,isformat,ismol,alsofield)
+    if (isformat == isformat_unknown) then
+       errmsg = "Unknown file format/extension."
+       return
+    end if
     if (mol0_ == 1) then
        mol = .true.
     elseif (mol0_ == 0) then

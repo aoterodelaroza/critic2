@@ -197,11 +197,12 @@ module crystalseedmod
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
      end subroutine read_potcar
-     module subroutine read_seeds_from_file(file,mol0,nseed,seed,iafield)
+     module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
        character*(*), intent(in) :: file
        integer, intent(in) :: mol0
        integer, intent(out) :: nseed
        type(crystalseed), allocatable, intent(inout) :: seed(:)
+       character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(out), optional :: iafield
      end subroutine read_seeds_from_file
      module subroutine read_all_cif(nseed,seed,file,mol)

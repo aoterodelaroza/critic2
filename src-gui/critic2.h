@@ -31,6 +31,7 @@ namespace c2 {
   // number of scenes and files
   extern "C" int nsc;
   extern "C" int nfiles;
+  extern "C" char *errmsg;
 
   // pointers to the current scene
   extern "C" int isinit;

@@ -187,7 +187,8 @@ void View::Draw(){
       ImageInteractive((void *) FBOtex0,FBO_a/FBO_atex,&hover,&vrect);
     } else {
       hover = false;
-      vrect = dock->window->Rect();
+      if (dock && dock->window)
+	vrect = dock->window->Rect();
     }
 
     // Process mouse events

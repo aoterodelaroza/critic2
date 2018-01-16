@@ -82,6 +82,9 @@ module gui_interface
   type(scene), allocatable, target :: sc(:)
   integer :: ilastfile = 0
 
+  character(kind=c_char,len=1), target :: errmsg_c(512)
+  type(c_ptr), bind(c) :: errmsg
+
   !xx! public interface
   ! routines
   public :: gui_initialize
@@ -171,6 +174,7 @@ contains
   !> Open one or more scenes from all files in the line. ismolecule: 0
   !> = crystal, 1 = molecule, -1 = critic2 decides.
   function open_file(file0,ismolecule) bind(c)
+    use iso_c_binding, only: c_loc
     use c_interface_module, only: c_string_value, f_c_string
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     type(c_ptr), intent(in) :: file0
@@ -180,12 +184,13 @@ contains
     character(len=:), allocatable :: file
     integer :: iseed, nseed, iafield
     type(crystalseed), allocatable :: seed(:)
+    character(len=:), allocatable :: errmsg_
 
     ! transform to fortran string
     file = c_string_value(file0)
     
     ! read all seeds from the line
-    call read_seeds_from_file(file,ismolecule,nseed,seed,iafield)
+    call read_seeds_from_file(file,ismolecule,nseed,seed,errmsg_,iafield)
     
     if (nseed > 0) then
        nfiles = nfiles + 1
@@ -209,6 +214,8 @@ contains
        open_file = 1
     else
        open_file = 0
+       call f_c_string(errmsg_,errmsg_c,512)
+       errmsg = c_loc(errmsg_c)
     end if
 
   end function open_file
