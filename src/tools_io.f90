@@ -241,20 +241,23 @@ module tools_io
        logical, intent(in), optional :: errstop
        integer :: lu
      end function fopen_read
-     module function fopen_write(file,form,abspath0) result(lu)
+     module function fopen_write(file,form,abspath0,errstop) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
+       logical, intent(in), optional :: errstop
        integer :: lu
      end function fopen_write
-     module function fopen_append(file,form,abspath0) result(lu)
+     module function fopen_append(file,form,abspath0,errstop) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
+       logical, intent(in), optional :: errstop
        integer :: lu
      end function fopen_append
-     module function fopen_scratch(form) result(lu)
+     module function fopen_scratch(form,errstop) result(lu)
        character*(*), intent(in), optional :: form
+       logical, intent(in), optional :: errstop
        integer :: lu
      end function fopen_scratch
      module subroutine fclose(lu)
