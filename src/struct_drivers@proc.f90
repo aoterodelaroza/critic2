@@ -116,9 +116,9 @@ contains
           end do
        end if
        if (len_trim(errmsg) == 0) then
-          errmsg = "Atom types not found (use POTCAR or give atom types after structure file)"
-          if (seed%nspc /= 0) &
-             call seed%read_vasp(word,mol,hastypes,errmsg)
+          call seed%read_vasp(word,mol,hastypes,errmsg)
+          if (len_trim(errmsg) == 0 .and..not.hastypes) &
+             errmsg = "Atom types not found (use POTCAR or give atom types after structure file)"
        end if
 
     elseif (isformat == isformat_abinit) then

@@ -358,7 +358,7 @@ contains
     use fieldmod, only: field
     use tools_io, only: faterr, ferror
     use types, only: scalar_value, realloc
-    use param, only: im_rho, im_gradrho, im_gkin, im_b
+    use param, only: im_volume, im_rho, im_gradrho, im_gkin, im_b
     class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
     integer, intent(in) :: prop(:)
@@ -386,6 +386,8 @@ contains
     nder = -1
     do j = 1, n
        select case(prop(j))
+       case(im_volume)
+          nder = -1
        case(im_rho)
           nder = max(nder,0)
        case(im_gradrho,im_gkin)
@@ -401,7 +403,9 @@ contains
           call ff%grd(m%x(:,i),nder,res,periodic=periodic)
        end if
        do j = 1, n
-          if (prop(j) == im_rho) then
+          if (prop(j) == im_volume) then
+             fval = 1d0
+          else if (prop(j) == im_rho) then
              fval = res%f
           else if (prop(j) == im_gradrho) then
              fval = res%gfmod

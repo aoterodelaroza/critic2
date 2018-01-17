@@ -400,10 +400,6 @@ program critic
      elseif (equal(word,'molcalc')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        if (.not.sy%c%ismolecule) then
-           call ferror("critic2","MOLCALC can not be used with crystals",faterr)
-           cycle
-        end if
         call molcalc_driver(line(lp:))
 
         ! sphfactor

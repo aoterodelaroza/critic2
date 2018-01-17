@@ -29,12 +29,7 @@ contains
     character(len=:), allocatable :: word
     integer :: lp
 
-    if (.not.sy%c%ismolecule) then
-       call ferror("molcalc_driver","MOLCALC can not be used with crystals",faterr,syntax=.true.)
-       return
-    end if
-
-    write (uout,'("* MOLCALC: calculations using molecular wavefunctions ")')
+    write (uout,'("* MOLCALC: calculations using molecular meshes and wavefunctions ")')
 
     lp = 1
     do while(.true.)
@@ -59,14 +54,14 @@ contains
     use systemmod, only: sy
     use meshmod, only: mesh
     use tools_io, only: string, uout
-    use param, only: im_rho
+    use param, only: im_volume, im_rho
     
     type(mesh) :: m
-    integer :: prop(1)
+    integer :: prop(2)
 
     call m%gen(sy%c)
 
-    write (uout,'("+ Molecular integrals")')
+    write (uout,'("+ Molecular integrals (NELEC)")')
     write (uout,'(2X,"mesh size      ",A)') string(m%n)
     if (m%type == 0) then
        write (uout,'(2X,"mesh type      Becke")')
@@ -82,10 +77,13 @@ contains
        write (uout,'(2X,"mesh type      Franchini (excellent)")')
     end if
 
-    prop(1) = im_rho
-    call m%fill(sy%f(sy%iref),prop,.false.)
+    prop(1) = im_volume
+    prop(2) = im_rho
+    call m%fill(sy%f(sy%iref),prop,.not.sy%c%ismolecule)
 
-    write (uout,'("+ Number of electrons (NELEC) = ",A/)') string(sum(m%f(:,1) * m%w),'f',14,8)
+    write (uout,'("+ Volume (bohr^3) = ",A)') string(sum(m%f(:,1) * m%w),'f',14,8)
+    write (uout,'("+ Number of electrons = ",A)') string(sum(m%f(:,2) * m%w),'f',14,8)
+    write (uout,*)
 
   end subroutine molcalc_nelec
 

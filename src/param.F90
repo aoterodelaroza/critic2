@@ -108,12 +108,13 @@ module param
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields. 
-  integer, parameter :: ims = 4    ! number of items in this enumerate
+  integer, parameter :: ims = 5    ! number of items in this enumerate
   integer, parameter :: im_null = 0 ! the void property
-  integer, parameter :: im_rho = 1 ! the electron density (rho)
-  integer, parameter :: im_gradrho = 2  ! gradient of the electron density
-  integer, parameter :: im_gkin = 3  ! kinetic energy density (gradrho * gradrho)
-  integer, parameter :: im_b = 4  ! exchange-hole dipole 
+  integer, parameter :: im_volume = 1 ! volume (1)
+  integer, parameter :: im_rho = 2 ! the electron density (rho)
+  integer, parameter :: im_gradrho = 3  ! gradient of the electron density
+  integer, parameter :: im_gkin = 4  ! kinetic energy density (gradrho * gradrho)
+  integer, parameter :: im_b = 5  ! exchange-hole dipole 
 
   ! Enumerate for field formats
   integer, parameter, public :: ifformat_unknown = 0
