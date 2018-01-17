@@ -119,15 +119,17 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_shelx
-     module subroutine read_cube(seed,file,mol)
+     module subroutine read_cube(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cube
-     module subroutine read_wien(seed,file,mol)
+     module subroutine read_wien(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_wien
      module subroutine read_vasp(seed,file,mol,hastypes)
        class(crystalseed), intent(inout) :: seed

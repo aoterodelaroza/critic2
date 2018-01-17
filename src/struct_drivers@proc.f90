@@ -86,10 +86,10 @@ contains
        call seed%read_shelx(word,mol,errmsg)
 
     elseif (isformat == isformat_cube) then
-       call seed%read_cube(word,mol)
+       call seed%read_cube(word,mol,errmsg)
 
     elseif (isformat == isformat_struct) then
-       call seed%read_wien(word,mol)
+       call seed%read_wien(word,mol,errmsg)
 
     elseif (isformat == isformat_vasp) then
        seed%nspc = 0

@@ -1091,13 +1091,14 @@ contains
   end subroutine read_shelx
 
   !> Read the structure from a gaussian cube file
-  module subroutine read_cube(seed,file,mol)
+  module subroutine read_cube(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it
@@ -1105,11 +1106,12 @@ contains
     logical :: ismo, ok
     character(len=:), allocatable :: line
 
+    errmsg = "Error reading file."
     lu = fopen_read(file)
 
     ! the name of the seed is the first line
     ok = getline_raw(lu,line,.false.)
-    if (.not.ok) return
+    if (.not.ok) goto 999
     seed%file = file
     if (len_trim(line) > 0) then
        seed%name = line
@@ -1118,15 +1120,15 @@ contains
     end if
 
     ! ignore the title lines
-    read (lu,*)
+    read (lu,*,err=999)
 
     ! number of atoms and unit cell
-    read (lu,*) seed%nat, x0
+    read (lu,*,err=999) seed%nat, x0
     ismo = (seed%nat < 0)
     seed%nat = abs(seed%nat)
 
     do i = 1, 3
-       read (lu,*) nstep(i), rmat(:,i)
+       read (lu,*,err=999) nstep(i), rmat(:,i)
        rmat(:,i) = rmat(:,i) * nstep(i)
     end do
 
@@ -1141,7 +1143,7 @@ contains
     nn = seed%nat
     seed%nat = 0
     do i = 1, nn
-       read (lu,*) iz, rdum, rx
+       read (lu,*,err=999) iz, rdum, rx
        if (iz > 0) then
           seed%nat = seed%nat + 1
           rx = matmul(rx - x0,rmat)
@@ -1169,6 +1171,9 @@ contains
        call realloc(seed%is,seed%nat)
     end if
     call realloc(seed%spc,seed%nspc)
+
+    errmsg = ""
+999 continue
     call fclose(lu)
 
     ! no symmetry
@@ -1189,12 +1194,13 @@ contains
 
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
-  module subroutine read_wien(seed,file,mol)
+  module subroutine read_wien(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, ferror, zatguess, fclose, equal, equali
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lut
     integer :: i, j, i1, i2, j1, iat, iat0, istart, it
@@ -1206,31 +1212,32 @@ contains
     logical :: readall
 
     ! seed file
+    errmsg = "Error reading file."
     seed%file = file
 
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file)
-    READ(lut,102) TITEL
-    READ(lut,103) LATTIC, seed%nat, cform
-    READ(lut,100) seed%aa(1:3), seed%bb(1:3)
+    READ(lut,102,err=999) TITEL
+    READ(lut,103,err=999) LATTIC, seed%nat, cform
+    READ(lut,100,err=999) seed%aa(1:3), seed%bb(1:3)
     DO JATOM=1,seed%nat
-       READ(lut,1012) iatnr,pos,MULTW
+       READ(lut,1012,err=999) iatnr,pos,MULTW
        DO MU=1,MULTW-1
-          READ(lut,1013) iatnr, pos
+          READ(lut,1013,err=999) iatnr, pos
        end DO
-       READ(lut,113) ANAME,JRI,RNOT,RMT,Znuc
-       READ(lut,1051) ((mat(I1,J1),I1=1,3),J1=1,3)
+       READ(lut,113,err=999) ANAME,JRI,RNOT,RMT,Znuc
+       READ(lut,1051,err=999) ((mat(I1,J1),I1=1,3),J1=1,3)
     end DO
-    READ(lut,114) seed%neqv
+    READ(lut,114,err=999) seed%neqv
 
     readall = (seed%neqv <= 0)
 
     ! second pass -> actually process the information
     rewind(lut)
-    READ(lut,102) TITEL
+    READ(lut,102,err=999) TITEL
     seed%name = trim(TITEL)
 
-    READ(lut,103) LATTIC, seed%nat, cform
+    READ(lut,103,err=999) LATTIC, seed%nat, cform
 102 FORMAT(A80)
 103 FORMAT(A4,23X,I3,1x,a4,/,4X,4X) ! new
 
@@ -1269,10 +1276,11 @@ contains
        seed%cen(1,2)=0.5d0
        seed%cen(3,2)=0.5d0
     ELSE
-       STOP 'LATTIC NOT DEFINED'
+       errmsg = "Unknown lattice."
+       goto 999
     END IF
 
-    READ(lut,100) seed%aa(1:3), seed%bb(1:3)
+    READ(lut,100,err=999) seed%aa(1:3), seed%bb(1:3)
 100 FORMAT(6F10.5)
     if(seed%bb(3) == 0.d0) seed%bb(3)=90.d0
     seed%useabr = 1
@@ -1288,7 +1296,7 @@ contains
           call realloc(seed%x,3,2*iat)
           call realloc(seed%is,2*iat)
        end if
-       READ(lut,1012) iatnr,seed%x(:,iat),MULTW
+       READ(lut,1012,err=999) iatnr,seed%x(:,iat),MULTW
 
        istart = iat
        if (readall) then
@@ -1298,15 +1306,15 @@ contains
                 call realloc(seed%x,3,2*iat)
                 call realloc(seed%is,2*iat)
              end if
-             READ(lut,1013) iatnr, seed%x(:,iat)
+             READ(lut,1013,err=999) iatnr, seed%x(:,iat)
           end DO
        else
           DO MU=1,MULTW-1
-             READ(lut,1013) iatnr, pos
+             READ(lut,1013,err=999) iatnr, pos
           end DO
        end if
 
-       READ(lut,113) ANAME,JRI,RNOT,RMT,Znuc
+       READ(lut,113,err=999) ANAME,JRI,RNOT,RMT,Znuc
        aname = adjustl(aname)
        it = 0
        do i = 1, seed%nspc
@@ -1326,7 +1334,7 @@ contains
        do i = iat0+1, iat
           seed%is(i) = it
        end do
-       READ(lut,1051) ((mat(I1,J1),I1=1,3),J1=1,3)
+       READ(lut,1051,err=999) ((mat(I1,J1),I1=1,3),J1=1,3)
     end DO
 113 FORMAT(A10,5X,I5,5X,F10.5,5X,F10.5,5X,F5.2)
 1012 FORMAT(4X,I4,4X,F10.7,3X,F10.7,3X,F10.7,/15X,I2) ! new
@@ -1338,13 +1346,13 @@ contains
     call realloc(seed%spc,seed%nspc)
 
     !.read number of symmetry operations, sym. operations
-    READ(lut,114) seed%neqv
+    READ(lut,114,err=999) seed%neqv
 114 FORMAT(I4)
 
     if (seed%neqv > 0) then
        allocate(seed%rotm(3,4,seed%neqv))
        do i=1, seed%neqv
-          read(lut,115) ((iz(i1,i2),i1=1,3),tau(i2),i2=1,3)
+          read(lut,115,err=999) ((iz(i1,i2),i1=1,3),tau(i2),i2=1,3)
           do j=1,3
              seed%rotm(:,j,i)=dble(iz(j,:))
           enddo
@@ -1354,9 +1362,6 @@ contains
 
 115 FORMAT(3(3I2,F10.5,/))
 
-    ! clean up
-    call fclose(lut)
-
     ! symmetry
     if (seed%neqv > 0) then
        seed%havesym = 1
@@ -1365,6 +1370,12 @@ contains
        seed%havesym = 0
        seed%findsym = -1
     end if
+
+    errmsg = ""
+999 continue
+
+    ! clean up
+    call fclose(lut)
 
     ! rest of the seed information
     seed%isused = .true.
@@ -2832,11 +2843,11 @@ contains
     else if (isformat == isformat_cube) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_cube(file,mol)
+       call seed(1)%read_cube(file,mol,errmsg)
     elseif (isformat == isformat_struct) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_wien(file,mol)
+       call seed(1)%read_wien(file,mol,errmsg)
     elseif (isformat == isformat_vasp) then
        nseed = 1
        allocate(seed(1))

@@ -196,7 +196,7 @@ contains
     
     ! read all seeds from the line
     call read_seeds_from_file(file,ismolecule,nseed,seed,errmsg_,iafield)
-    
+
     if (nseed > 0) then
        nfiles = nfiles + 1
        ilastfile = ilastfile + 1
