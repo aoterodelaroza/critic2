@@ -837,6 +837,8 @@ C
          dirdev=devdir
          errdev=deverr
 
+         cifemsg_ = ""
+         cifelin_ = 0
          recn_=0
          precn_=0
          plcat = ' '
@@ -1206,7 +1208,10 @@ C....... Open and store the dictionary
 C
          dict_=.true.
          if(fname.eq.' ')            goto 500
-         if(nname.gt.0) call tbxxerr(' Dict_ must precede ocif_')
+         if(nname.gt.0) then
+            call tbxxerr(' Dict_ must precede ocif_')
+            return
+         endif
          dict_=ocif_(fname)
          if(.not.dict_)              goto 500
          dictfl='yes'
@@ -1357,6 +1362,7 @@ C
      *         dcname,dcchain,NUMDICT,ndcname,dchash,NUMHASH,mycat)
              if(mycat.eq.0) then
                call tbxxerr(' Dictionary category names > NUMDICT ')
+               return
              endif
              if (mycat.eq.nmycat) then
                ccatkey(mycat) = 0
@@ -1406,6 +1412,7 @@ C
              if(charnp_('_xml_mapping.target',xmtarg,lxmtarg)) then
                if (xmnxlat.ge.XMLDEFS) then
                  call tbxxerr(' XML translations > XMLDEFS')
+                 return
                else
                  xmnxlat=xmnxlat+1
                  xmlate(xmnxlat)=xmtarg(1:lxmtarg)
@@ -1456,13 +1463,16 @@ C
                    go to 230
                  else
                    call tbxxerr(' XML dictionary logic error')
+                   return
                  endif
                endif
              else
                call tbxxerr(' XML target missing')
+               return
              endif
            else
              call tbxxerr(' XML token_type missing')
+             return
            endif
          else
            xmtoken = bname(1:lbname)
@@ -1471,6 +1481,7 @@ C
              if(charnp_('_xml_mapping.target',xmtarg,lxmtarg)) then
                if (xmnxlat.ge.XMLDEFS) then
                  call tbxxerr(' XML translations > XMLDEFS')
+                 return
                else
                  xmnxlat=xmnxlat+1
                  xmlate(xmnxlat)=xmtarg(1:lxmtarg)
@@ -1519,9 +1530,11 @@ C
                endif
                if(loop_) then
                  call tbxxerr(' XML dictionary logic error')
+                 return
                endif
              else
                call tbxxerr(' XML target missing')
+               return
              endif
            endif
          endif
@@ -1750,6 +1763,7 @@ C
            if (kdup .lt. 0) then
              call tbxxerr(' Duplicate name in dictionary '//
      *       dictag(ifind)(1:lastnb(dictag(ifind))))
+             return
            endif
            if (kdup .gt.0) go to 254
            dicnam(ifind)=char(0)
@@ -1775,6 +1789,7 @@ C
      *         dcname,dcchain,NUMDICT,ndcname,dchash,NUMHASH,mycat)
                if(mycat.eq.0) then
                  call tbxxerr(' Dictionary category names > NUMDICT ')
+                 return
                endif
                if(mycat.eq.nmycat) ccatkey(mycat)=0
              endif
@@ -1834,6 +1849,7 @@ Cdbg *       //bloc_(1:max(1,lastnb(bloc_))))
      *         dcname,dcchain,NUMDICT,ndcname,dchash,NUMHASH,mycat)
                if(mycat.eq.0) then
                  call tbxxerr(' Dictionary category names > NUMDICT ')
+                 return
                endif
                if (mycat.eq.nmycat) then
                  ccatkey(mycat) = 0
@@ -2037,7 +2053,10 @@ C
            endif
            if(baname.ne.' ') then
              if (tbxxnewd(baname(1:lbaname),iafind)) then
-             if(iafind.eq.0) call tbxxerr(' CIFdic names > NUMDICT')
+             if(iafind.eq.0) then
+                call tbxxerr(' CIFdic names > NUMDICT')
+                return
+             endif
                dictag(iafind)    =batag
                aroot(iafind)     =aroot(ifind)
                if(aroot(iafind).eq.0) aroot(iafind)=ifind
@@ -2194,7 +2213,10 @@ C
          call hash_store(xxxtemp,
      *     dicnam,dicchain,
      *     NUMDICT,ndict,dichash,NUMHASH,ick)
-         if(ick.eq.0) call tbxxerr(' CIFdic names > NUMDICT')
+         if(ick.eq.0) then
+            call tbxxerr(' CIFdic names > NUMDICT')
+            return
+         endif
          if(ick .eq. jck+1) then
            dictag(ick) = xname(1:ilen)
            dictyp(ick) = ' '
@@ -2789,7 +2811,10 @@ C
          depth_=0
          jchar=MAXBUF
          lastch=0
-         if(line_.gt.MAXBUF) call tbxxerr(' Input line_ value > MAXBUF')
+         if(line_.gt.MAXBUF) then
+            call tbxxerr(' Input line_ value > MAXBUF')
+            return
+         endif
          if(nrecd.ne.0 .and. (.not.append_)) then
            close(dirdev)
            nrecd=0
@@ -3070,22 +3095,28 @@ C
          if(text_.or.depth_.gt.0)      goto 110
          goto 120
 110      call getstr
-         if (type_.eq.'fini')
-     *      call tbxxerr(' Unexpected termination of file')
+         if (type_.eq.'fini') then
+            call tbxxerr(' Unexpected termination of file')
+            return
+         endif
          if (text_.or.depth_.gt.0)     goto 100
          goto 100
 120      continue
          if(type_.eq.'save') then
            if(long_.lt.6) then
-             if(.not.save_)
-     *         call tbxxerr(
-     *           ' Save frame terminator found out of context ')
+             if(.not.save_) then
+                call tbxxerr(
+     *               ' Save frame terminator found out of context ')
+                return
+             endif
              wasave=.true.
              save_=.false.
              goto 100
            else
-             if(save_)
-     *         call tbxxerr(' Prior save frame not terminated ')
+             if(save_) then
+                call tbxxerr(' Prior save frame not terminated ')
+                return
+             endif
              save_=.true.
              if(name.eq.' ')          goto 150
              call tbxxnlc(ydname,strg_(6:long_))
@@ -3158,6 +3189,7 @@ CDBG     WRITE(6,*) ltype,type_,loop_,nitem,ndata,idata,iname,nname
          call tbxxerr(
      *     ' Illegal tag/value construction: tag followed by '
      *     //type_)    
+         return
 C
 C        The prior type was not a name (not a tag)
 201      if(ltype.ne.'valu')                goto 204
@@ -3180,6 +3212,7 @@ C
          call tbxxerr(
      *     ' Illegal tag/value construction: value followed by '
      *     //type_)
+         return
 C
 C        The prior item was a tag and this is a value
 C
@@ -3210,7 +3243,10 @@ C        loopni(loopct) -- number of items in a row
 C        loopnp(loopct) -- number of rows
 C
          npakt=idata/nitem
-         if(npakt*nitem.ne.idata) call tbxxerr(' Item miscount in loop')
+         if(npakt*nitem.ne.idata) then
+            call tbxxerr(' Item miscount in loop')
+            return
+         endif
          loopni(loopct)=nitem
          loopnp(loopct)=npakt
          nitem=0
@@ -3229,8 +3265,10 @@ C
          loop_=.true.
 CDBG     print *,' in data_ loop_ set, type_', type_
          loopct=loopct+1
-         if(loopct.gt.NUMLOOP) call tbxxerr(
-     *     ' Number of loop_s > NUMLOOP')
+         if(loopct.gt.NUMLOOP) then
+            call tbxxerr(' Number of loop_s > NUMLOOP')
+            return
+         endif
          loorec(loopct)=irecd
          loopos(loopct)=jchar-long_
          if(quote_.ne.' ') then
@@ -3254,13 +3292,18 @@ CDBG     print *,' in data_ loop_ set, type_', type_
 C
 C....... This is the data item; store char position and length
 C
-220      if(loop_ .and. nitem.eq.0)
-     *   call tbxxerr(' Illegal tag/value construction')
+220      if(loop_ .and. nitem.eq.0) then
+            call tbxxerr(' Illegal tag/value construction')
+            return
+         endif
          loop_=.false.
 C
          i=nname
          if(nitem.gt.0) i=i-nitem+mod(idata,nitem)+1
-         if(i.lt.1) call tbxxerr(' Illegal tag/value construction')
+         if(i.lt.1) then
+            call tbxxerr(' Illegal tag/value construction')
+            return
+         endif
          if(dtype(i).ne.'test')       goto 223
          if(dictfl.eq.'yes')          goto 223
          if(tcheck.eq.'no ')          goto 223
@@ -3306,7 +3349,10 @@ CDBG     print *,' text field detected at 230 '
          if(nloop(ndata).eq.0.and.depth_.eq.0) dchar(ndata)=0
          if(nloop(ndata).eq.0.and.depth_.eq.0) iloop(ndata)=long_
 240      call getstr
-         if(type_.eq.'fini') call tbxxerr(' Unexpected end of data')
+         if(type_.eq.'fini') then
+            call tbxxerr(' Unexpected end of data')
+            return
+         endif
          if (type_.ne.'text'.or..not.text_) then
            if (depth_.eq.0)            goto 200
            goto 260
@@ -3319,7 +3365,10 @@ C
          
 260      call getstr
          if(depth_.eq.0) goto 200
-         if(type_.eq.'fini') call tbxxerr(' Unexpected end of data')
+         if(type_.eq.'fini') then
+            call tbxxerr(' Unexpected end of data')
+            return
+         endif
          if(type_.eq.'text') goto 240
          goto 260
 C
@@ -3356,8 +3405,10 @@ CDBG *     print *,' ***>>>>> data_ name: ',temp(1:ltemp)
            enddo
            xchar(j)=itpos
          endif
-         if(j.eq.0)
-     *     call tbxxerr(' Number of data names > NUMBLOCK')
+         if(j.eq.0) then
+            call tbxxerr(' Number of data names > NUMBLOCK')
+            return
+         endif
          if(k.ne.0) then
            ltemp = lastnb(dicnam(k))
            temp(1:ltemp) = dicnam(k)(1:ltemp)
@@ -3412,13 +3463,17 @@ C
              ipj=ncname
              call hash_store(ctemp(1:lctemp),
      *         cname,cchain,NUMBLOCK,ncname,chash,NUMHASH,j)
-             if (j.eq.0)
-     *         call tbxxerr(' Number of categories > NUMBLOCK ')
+             if (j.eq.0) then
+                call tbxxerr(' Number of categories > NUMBLOCK ')
+                return
+             endif
              cindex(nname) = -j
              if (ndcname.gt.0.and.j.eq.ipj+1.and.vcheck.eq.'yes'
-     *         .and.catchk.eq.'yes')
-     *         call tbxxwarn(' Category '//
+     *         .and.catchk.eq.'yes') then
+               call tbxxwarn(' Category '//
      *         ctemp(1:lctemp)//' first implicitly defined in cif ')
+               return
+            endif
            endif
          endif
 C
@@ -3428,8 +3483,10 @@ C
          if (nitem.eq.0) fcatnum=cindex(nname)
          if(.not.loop_)               goto 200
          nitem=nitem+1
-         if(nitem.gt.NUMITEM)
-     *     call tbxxerr(' Items per loop packet > NUMITEM')
+         if(nitem.gt.NUMITEM) then
+            call tbxxerr(' Items per loop packet > NUMITEM')
+            return
+         endif
          nloop(nname)=loopct
          iloop(nname)=nitem
          if (fcatnum.ne.cindex(nname)) then
@@ -3561,7 +3618,10 @@ C
          jrecd=irecd
          loop_=.false.
          loopct=0
-         if(ndata.ne.nname) call tbxxerr(' Syntax construction error')
+         if(ndata.ne.nname) then
+            call tbxxerr(' Syntax construction error')
+            return
+         endif
 C
 Cdbg     WRITE(6,'(a)')
 Cdbg *   ' data name                       type recd char loop leng'
@@ -3863,6 +3923,7 @@ CDBG     print *,' Entering find ', name, type
              return
            endif
            call tbxxerr(' Call to find_ with invalid arguments')
+           return
          endif
          if(name.eq.' ') then
            go to 200
@@ -5127,7 +5188,10 @@ CDBG     if(jchar.lt.0) write(6,'(7H loopch,i5)') jchar
            looprd(iitem)= srecd
          end if
 260        call getstr
-           if (type_.eq.'fini') call tbxxerr(' Unexpected end of data')
+           if (type_.eq.'fini') then
+              call tbxxerr(' Unexpected end of data')
+              return
+           endif
            if (text_.or.depth_ .gt. 0) goto 260
          end if
          goto 250
@@ -6399,6 +6463,7 @@ C
      *   .or.(buffer(i:i).eq.'['.and.rdbkt_)) then
          if (depth_ .ge. MAXDEPTH) then
            call tbxxerr(' Stack overflow, increase MAXDEPTH')
+           return
          end if
          depth_=depth_+1
 CDBG   print *,' increasing depth ',depth_, recn_, 
@@ -6510,6 +6575,7 @@ C.....  Span { delimited table
 3375    continue
        if (depth_ .ge. MAXDEPTH) then
          call tbxxerr(' Stack overflow, increase MAXDEPTH')
+         return
        end if
        depth_=depth_+1
 CDBG   print *,' increasing depth ',depth_, recn_, 
@@ -6854,9 +6920,10 @@ C
 C >>>>>> Write error message and exit.
 C
          subroutine tbxxerr(mess)
+         include  'ciftbx.sys'
          character*(*) mess
-         call tbxxcmsg('error',mess)
-         stop
+         cifemsg_ = mess
+         cifelin_ = irecd
          end
 C
 C
@@ -9051,6 +9118,7 @@ C
              endif
            enddo
            call tbxxerr(' Internal error in tbxxpnum')
+           return
 C
 C          Scan the rest of the string shifting the
 C          decimal point to get an integer
@@ -9241,6 +9309,7 @@ C
              endif
            enddo
            call tbxxerr(' Internal error in tbxxpnum')
+           return
 C
 C          Scan the rest of the string shifting the
 C          decimal point to get a number with exponent 0,

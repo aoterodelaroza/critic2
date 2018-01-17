@@ -106,11 +106,12 @@ module crystalseedmod
        logical, intent(in) :: mol
        logical, intent(out) :: oksyn
      end subroutine read_library
-     module subroutine read_cif(seed,file,dblock,mol)
+     module subroutine read_cif(seed,file,dblock,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        character*(*), intent(in) :: dblock
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cif
      module subroutine read_res(seed,file,mol)
        class(crystalseed) :: seed
@@ -205,11 +206,12 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(out), optional :: iafield
      end subroutine read_seeds_from_file
-     module subroutine read_all_cif(nseed,seed,file,mol)
+     module subroutine read_all_cif(nseed,seed,file,mol,errmsg)
        integer, intent(out) :: nseed
        type(crystalseed), intent(inout), allocatable :: seed(:)
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_all_cif
      module subroutine read_all_qeout(nseed,seed,file,mol)
        integer, intent(out) :: nseed
@@ -217,9 +219,10 @@ module crystalseedmod
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
      end subroutine read_all_qeout
-     module subroutine read_cif_items(seed,mol)
+     module subroutine read_cif_items(seed,mol,errmsg)
        type(crystalseed), intent(inout) :: seed
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cif_items
      module function is_espresso(file)
        logical :: is_espresso

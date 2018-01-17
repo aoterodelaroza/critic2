@@ -53,6 +53,7 @@ contains
     real*8 :: rborder, raux
     logical :: docube, ok, ismol, mol
     type(crystalseed) :: seed
+    character(len=:), allocatable :: errmsg
 
     ! read and parse
     lp=1
@@ -77,8 +78,9 @@ contains
     end if
 
     ! build the seed
+    errmsg = ""
     if (isformat == isformat_cif) then
-       call seed%read_cif(word,word2,mol)
+       call seed%read_cif(word,word2,mol,errmsg)
 
     elseif (isformat == isformat_res) then
        call seed%read_res(word,mol)
@@ -204,6 +206,9 @@ contains
     else
        call ferror('struct_crystal_input','unrecognized file format',faterr,line,syntax=.true.)
        return
+    end if
+    if (len_trim(errmsg) > 0) then
+       call ferror('struct_crystal_input',errmsg,faterr,line)
     end if
 
     ! handle the doguess option

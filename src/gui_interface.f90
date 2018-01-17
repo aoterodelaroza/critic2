@@ -97,6 +97,9 @@ module gui_interface
   private :: realloc_scene
 
   ! pointers to the current scene
+  integer(c_int) :: icursc = -1
+  logical :: scupdated = .false.
+
   integer(c_int), bind(c) :: isinit 
   integer(c_int), bind(c) :: idfile
   type(c_ptr), bind(c) :: file
@@ -169,6 +172,7 @@ contains
     isinit = 0
     idfile = 0
     scenerad = 10._c_float
+    scupdated = .true.
 
   end subroutine gui_initialize
 
@@ -211,6 +215,7 @@ contains
           call f_c_string(trim(seed(iseed)%name),sc(nsc)%name)
           sc(nsc)%seed = seed(iseed)
           sc(nsc)%isinit = 1
+          if (nsc == icursc) scupdated = .true.
        end do
        open_file = 1
     else
@@ -339,11 +344,15 @@ contains
     sc(isc)%molx0 = sc(isc)%sy%c%molx0
     sc(isc)%molborder = sc(isc)%sy%c%molborder
 
+    ! this scene has been updated
+    if (isc == icursc) scupdated = .true.
+
   end subroutine scene_initialize
 
   subroutine set_scene_pointers(isc) bind(c)
     use iso_c_binding, only: c_loc
     integer(c_int), value, intent(in) :: isc
+    if (isc == icursc .and..not.scupdated) return
 
     nat = 0
     isinit = 0
@@ -380,6 +389,8 @@ contains
     end if
     molx0 = c_loc(sc(isc)%molx0)
     molborder = c_loc(sc(isc)%molborder)
+    icursc = isc
+    scupdated = .false.
 
   end subroutine set_scene_pointers
 
@@ -392,6 +403,7 @@ contains
     if (.not.sc(isc)%sy%goodfield(iref)) return
     call sc(isc)%sy%set_reference(iref,.false.)
     call sc(isc)%sy%report(.false.,.false.,.true.,.false.,.false.,.false.,.true.)
+    if (isc == icursc) scupdated = .true.
 
   end subroutine scene_set_reference_field
 

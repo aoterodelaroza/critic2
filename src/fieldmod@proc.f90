@@ -1735,14 +1735,15 @@ contains
     class(field), intent(inout) :: f
     integer, intent(in) :: npts
 
-    integer :: wpts(f%c%nneq+1)
     integer :: i, j
     real*8 :: x(3), aux(3), dist
     integer :: c1, c2, rate
     real*8, allocatable :: randn(:,:,:)
     type(scalar_value) :: res
     logical :: inrmt
+    integer, allocatable :: wpts(:)
 
+    allocate(wpts(f%c%nneq+1))
     write (uout,'("* Benchmark of the field ")')
     write (uout,'("* Field : ",A)') string(f%id)
 
@@ -1818,6 +1819,7 @@ contains
        deallocate(randn)
 
     end if
+    deallocate(wpts)
 
   end subroutine benchmark
 

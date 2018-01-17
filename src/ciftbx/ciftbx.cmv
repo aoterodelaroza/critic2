@@ -161,15 +161,20 @@
          character type_*4
 !                                 List, array, tuple or table item type
          character ttype_*4
-!
+!                                 Error message
+         character cifemsg_*(NUMCHAR)
+!                                 Error line
+         integer cifelin_
+!                                 Data category
          common/tbuc/ strg_,bloc_,file_,type_,ttype_,dictype_,diccat_,  &
-     &      dicname_,dicpname_,dicver_,tagname_,quote_,pquote_,tbxver_
+     &      dicname_,dicpname_,dicver_,tagname_,quote_,pquote_,tbxver_, &
+     &      cifemsg_
 !
          common/tbui/ depth_,index_,list_,long_,longf_,line_,esdlim_,   &
      &      recn_,precn_,posnam_,posval_,posdec_,posend_,               &
      &      pposnam_,pposval_,pposdec_,pposend_,                        &
      &      recbeg_,recend_,esddig_,pdepth_,pesddig_,pfold_,            &
-     &      posdelim_,pposdelim_
+     &      posdelim_,pposdelim_, cifelin_
 !
          common/tbul/ loop_,text_,align_,save_,saveo_,aliaso_,alias_,   &
      &      tabl_,tabx_,ptabx_,nblank_,nblanko_,glob_,globo_,decp_,     &

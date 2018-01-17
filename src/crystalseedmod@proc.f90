@@ -634,7 +634,7 @@ contains
 
   !> Read the structure from a CIF file (uses ciftbx) and returns a 
   !> crystal seed.
-  module subroutine read_cif(seed,file,dblock,mol)
+  module subroutine read_cif(seed,file,dblock,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
     use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
@@ -645,6 +645,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
     logical, intent(in) :: mol !< Is this a molecule? 
+    character(len=:), allocatable, intent(out) :: errmsg
 
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
@@ -653,28 +654,41 @@ contains
     logical :: fl
     integer :: ludum, luscr
 
+    errmsg = ""
     ludum = falloc()
     luscr = falloc()
     fl = init_(ludum, uout, luscr, uout)
+    if (.not.checkcifop()) goto 999
 
     ! open dictionary
     dictfile = trim(adjustl(critic_home)) // dirsep // 'cif_core.dic'
     fl = dict_(dictfile,'valid')
-    if (.not.fl) &
-       call ferror('read_cif','Dictionary file (cif_core.dic) not found. Check CRITIC_HOME',faterr)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "Dictionary file (cif_core.dic) not found. Check CRITIC_HOME"
+       goto 999
+    end if
 
     ! open cif file
     fl = ocif_(file)
-    if (.not.fl) &
-       call ferror('read_cif','CIF file not found',faterr,file)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "CIF file not found: " // trim(file)
+       goto 999
+    end if
 
     ! move to the beginning of the data block
     fl = data_(dblock)
-    if (.not.fl) &
-       call ferror('read_cif','incorrect named data block',faterr,file)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "incorrect named data block: " // trim(dblock)
+       goto 999
+    end if
 
     ! read all the items
-    call read_cif_items(seed,mol)
+    call read_cif_items(seed,mol,errmsg)
+
+999 continue
 
     ! clean up
     call purge_()
@@ -689,6 +703,17 @@ contains
        seed%name = file
     end if
 
+  contains
+    function checkcifop()
+      use tools_io, only: string
+      logical :: checkcifop
+      checkcifop = (cifelin_ == 0)
+      if (checkcifop) then
+         errmsg = ""
+      else
+         errmsg = trim(cifemsg_) // " (Line: " // string(cifelin_) // ")"
+      end if
+    end function checkcifop
   end subroutine read_cif
 
   !> Read the structure from a CIF file (uses ciftbx)
@@ -2733,6 +2758,7 @@ contains
     logical :: ismol, mol, hastypes, alsofield, ok
 
     errmsg = ""
+    alsofield = .false.
     mol0_ = mol0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
@@ -2740,13 +2766,13 @@ contains
     inquire(file=file,exist=ok)
     if (.not.ok) then
        errmsg = "File not found."
-       return
+       goto 999
     end if
 
     call struct_detect_format(file,isformat,ismol,alsofield)
     if (isformat == isformat_unknown) then
        errmsg = "Unknown file format/extension."
-       return
+       goto 999
     end if
     if (mol0_ == 1) then
        mol = .true.
@@ -2758,7 +2784,7 @@ contains
 
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
-       call read_all_cif(nseed,seed,file,mol)
+       call read_all_cif(nseed,seed,file,mol,errmsg)
     elseif (isformat == isformat_res) then
        nseed = 1
        allocate(seed(1))
@@ -2830,6 +2856,8 @@ contains
        end if
     end if
 
+999 continue
+
     ! handle the doguess option
     do i = 1, nseed
        if (.not.seed(i)%ismolecule) then
@@ -2855,7 +2883,7 @@ contains
 
   !> Read all structures from a CIF file (uses ciftbx) and returns all
   !> crystal seeds.
-  module subroutine read_all_cif(nseed,seed,file,mol)
+  module subroutine read_all_cif(nseed,seed,file,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
     use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
@@ -2869,28 +2897,37 @@ contains
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
+    character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=1024) :: dictfile
     logical :: fl
     integer :: ludum, luscr
 
+    errmsg = ""
+    nseed = 0
+    if (allocated(seed)) deallocate(seed)
     ludum = falloc()
     luscr = falloc()
     fl = init_(ludum, uout, luscr, uout)
+    if (.not.checkcifop()) goto 999
 
     ! open dictionary
     dictfile = trim(adjustl(critic_home)) // dirsep // 'cif_core.dic'
     fl = dict_(dictfile,'valid')
-    if (.not.fl) &
-       call ferror('read_all_cif','Dictionary file (cif_core.dic) not found. Check CRITIC_HOME',faterr)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "Dictionary file (cif_core.dic) not found."
+       goto 999
+    end if
 
     ! open cif file
     fl = ocif_(file)
-    if (.not.fl) &
-       call ferror('read_all_cif','CIF file not found',faterr,file)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "File not found."
+       goto 999
+    end if
 
-    nseed = 0
-    if (allocated(seed)) deallocate(seed)
     allocate(seed(1))
     ! read data blocks
     do while (data_(" "))
@@ -2900,15 +2937,33 @@ contains
        seed(nseed)%file = file
        seed(nseed)%name = file
 
-       call read_cif_items(seed(nseed),mol)
+       call read_cif_items(seed(nseed),mol,errmsg)
+       if (len_trim(errmsg) > 0) then
+          if (allocated(seed)) deallocate(seed)
+          nseed = 0
+          goto 999
+       end if
     end do
     call realloc_crystalseed(seed,nseed)       
+
+999 continue
 
     ! clean up
     call purge_()
     call fdealloc(ludum)
     call fdealloc(luscr)
 
+  contains
+    function checkcifop()
+      use tools_io, only: string
+      logical :: checkcifop
+      checkcifop = (cifelin_ == 0)
+      if (checkcifop) then
+         errmsg = ""
+      else
+         errmsg = trim(cifemsg_) // " (Line: " // string(cifelin_) // ")"
+      end if
+    end function checkcifop
   end subroutine read_all_cif
 
   !> Read all structures from a QE outupt. Returns all crystal seeds.
@@ -3114,7 +3169,7 @@ contains
 
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.
-  module subroutine read_cif_items(seed,mol)
+  module subroutine read_cif_items(seed,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use param, only: bohrtoa
     use tools_io, only: ferror, faterr, lower, zatguess, nameguess
@@ -3126,6 +3181,7 @@ contains
 
     type(crystalseed), intent(inout) :: seed
     logical, intent(in) :: mol
+    character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=1024) :: sym, tok
     character*30 :: atname, spg
@@ -3135,24 +3191,39 @@ contains
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
+    ix = .false.
+    iy = .false.
+    iz = .false.
+    errmsg = ""
+
     if (len_trim(bloc_) > 0) &
        seed%name = trim(bloc_)
 
     ! read cell dimensions
     seed%useabr = 1
     fl = numd_('_cell_length_a',seed%aa(1),sigx)
+    if (.not.checkcifop()) goto 999
     fl = fl .and. numd_('_cell_length_b',seed%aa(2),sigx)
+    if (.not.checkcifop()) goto 999
     fl = fl .and. numd_('_cell_length_c',seed%aa(3),sigx)
-    if (.not.fl) &
-       call ferror('read_all_cif','error reading cell lengths',faterr)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "Error readinig cell lengths."
+       return
+    end if
     seed%aa = seed%aa / bohrtoa
     
     ! read cell angles
     fl = numd_('_cell_angle_alpha',seed%bb(1),sigx)
+    if (.not.checkcifop()) goto 999
     fl = fl .and. numd_('_cell_angle_beta',seed%bb(2),sigx)
+    if (.not.checkcifop()) goto 999
     fl = fl .and. numd_('_cell_angle_gamma',seed%bb(3),sigx)
-    if (.not.fl) &
-       call ferror('read_all_cif','error reading cell angles',faterr)
+    if (.not.checkcifop()) goto 999
+    if (.not.fl) then
+       errmsg = "Error readinig cell angles."
+       return
+    end if
     
     ! read atomic positions
     seed%nat = 1
@@ -3166,11 +3237,16 @@ contains
        end if
        atname = ""
        fl = char_('_atom_site_type_symbol',atname)
-       if (.not.fl) &
+       if (.not.checkcifop()) goto 999
+       if (.not.fl) then
           fl = char_('_atom_site_label',atname)
+          if (.not.checkcifop()) goto 999
+       end if
        iznum = zatguess(atname)
-       if (iznum < 0) &
-          call ferror('read_all_cif','unknown atomic symbol: '//trim(atname),faterr)
+       if (iznum < 0) then
+          errmsg = "Unknown atomic symbol: "//trim(atname)//"."
+          return
+       end if
     
        found = .false.
        do i = 1, seed%nspc
@@ -3191,11 +3267,16 @@ contains
        seed%is(seed%nat) = it
     
        fl = fl .and. numd_('_atom_site_fract_x',x(1),sigx)
+       if (.not.checkcifop()) goto 999
        fl = fl .and. numd_('_atom_site_fract_y',x(2),sigx)
+       if (.not.checkcifop()) goto 999
        fl = fl .and. numd_('_atom_site_fract_z',x(3),sigx)
+       if (.not.checkcifop()) goto 999
        seed%x(:,seed%nat) = x
-       if (.not.fl) &
-          call ferror('read_all_cif','error reading atomic positions',faterr)
+       if (.not.fl) then
+          errmsg = "Error reading atomic positions."
+          return
+       end if
        if (.not.loop_) exit
        seed%nat = seed%nat + 1
     end do
@@ -3222,26 +3303,40 @@ contains
     do while(.true.)
        if (.not.found) then
           fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
-          if (.not.fl1) fl2 = char_('_space_group_symop_operation_xyz',sym)
+          if (.not.checkcifop()) goto 999
+          if (.not.fl1) then
+             fl2 = char_('_space_group_symop_operation_xyz',sym)
+             if (.not.checkcifop()) goto 999
+          end if
           if (.not.(fl1.or.fl2)) exit
           found = .true.
        else
-          if (fl1) fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
-          if (fl2) fl2 = char_('_space_group_symop_operation_xyz',sym)
+          if (fl1) then
+             fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
+             if (.not.checkcifop()) goto 999
+          end if
+          if (fl2) then
+             fl2 = char_('_space_group_symop_operation_xyz',sym)
+             if (.not.checkcifop()) goto 999
+          end if
        endif
     
        ! do stuff with sym
-       if (.not.(fl1.or.fl2)) &
-          call ferror('read_all_cif','error reading symmetry xyz elements',faterr)
-    
+       if (.not.(fl1.or.fl2)) then
+          errmsg = "Error reading symmetry xyz elements."
+          goto 999
+       end if
+
        ! process the three symmetry elements
        rot0 = 0d0
        sym = trim(adjustl(lower(sym))) // ","
        do i = 1, 3
           ! extract the next token
           idx = index(sym,",")
-          if (idx == 0) &
-             call ferror('read_all_cif','error reading symmetry operation',faterr,sym)
+          if (idx == 0) then
+             errmsg = "Error reading symmetry operation."
+             goto 999
+          end if
           tok = sym(1:idx-1)
           sym = sym(idx+1:)
     
@@ -3249,12 +3344,20 @@ contains
           do j = 1, 3
              call setvariable(ico(j),0d0)
           end do
-          rot0(i,4) = eval(tok,.true.,iok)
+          rot0(i,4) = eval(tok,.false.,iok)
+          if (.not.iok) then
+             errmsg = "Error evaluating expression: " // trim(tok)
+             goto 999
+          end if
     
           ! the x-, y-, z- components
           do j = 1, 3
              call setvariable(ico(j),1d0)
-             rot0(i,j) = eval(tok,.true.,iok) - rot0(i,4)
+             rot0(i,j) = eval(tok,.false.,iok) - rot0(i,4)
+             if (.not.iok) then
+                errmsg = "Error evaluating expression: " // trim(tok)
+                goto 999
+             end if
              call setvariable(ico(j),0d0)
           enddo
        enddo
@@ -3312,22 +3415,21 @@ contains
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
        
-    ! restore the old values of x, y, and z
-    if (ix) call setvariable("x",xo)
-    if (iy) call setvariable("y",yo)
-    if (iz) call setvariable("z",zo)
-       
     ! read and process spg information
     if (.not.found) then
        ! the "official" Hermann-Mauginn symbol from the dictionary: many cif files don't have one
        fl = char_('_symmetry_space_group_name_H-M',spg)
+       if (.not.checkcifop()) goto 999
 
        ! the "alternative" symbol... the core dictionary says I shouldn't be using this
        if (.not.fl) fl = char_('_space_group_name_H-M_alt',spg)
+       if (.not.checkcifop()) goto 999
 
        ! oh, well, that's that...
-       if (.not.fl) &
-          call ferror('read_all_cif','error reading symmetry',faterr)
+       if (.not.fl) then
+          errmsg = "Error reading symmetry."
+          goto 999
+       end if
 
        ! call spgs and hope for the best
        call spgs_wrap(seed,spg,.false.)
@@ -3341,6 +3443,24 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
     
+999 continue
+
+    ! restore the old values of x, y, and z
+    if (ix) call setvariable("x",xo)
+    if (iy) call setvariable("y",yo)
+    if (iz) call setvariable("z",zo)
+       
+  contains
+    function checkcifop()
+      use tools_io, only: string
+      logical :: checkcifop
+      checkcifop = (cifelin_ == 0)
+      if (checkcifop) then
+         errmsg = ""
+      else
+         errmsg = trim(cifemsg_) // " (Line: " // string(cifelin_) // ")"
+      end if
+    end function checkcifop
   end subroutine read_cif_items
 
   !> Determine whether a given output file (.scf.out or .out) comes
