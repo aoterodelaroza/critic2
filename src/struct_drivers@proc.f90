@@ -51,7 +51,7 @@ contains
     character(len=:), allocatable :: word, word2, subline
     integer :: nn, isformat
     real*8 :: rborder, raux
-    logical :: docube, ok, ismol, mol
+    logical :: docube, ok, ismol, mol, hastypes
     type(crystalseed) :: seed
     character(len=:), allocatable :: errmsg
 
@@ -94,7 +94,7 @@ contains
     elseif (isformat == isformat_vasp) then
        seed%nspc = 0
        if (index(word2,'POTCAR') > 0) then
-          call seed%read_potcar(word2)
+          call seed%read_potcar(word2,errmsg)
        else
           allocate(seed%spc(2))
           do while(.true.)
@@ -115,7 +115,11 @@ contains
              word2 = getword(line,lp)
           end do
        end if
-       call seed%read_vasp(word,mol)
+       if (len_trim(errmsg) == 0) then
+          errmsg = "Atom types not found (use POTCAR or give atom types after structure file)"
+          if (seed%nspc /= 0) &
+             call seed%read_vasp(word,mol,hastypes,errmsg)
+       end if
 
     elseif (isformat == isformat_abinit) then
        call seed%read_abinit(word,mol)
@@ -208,7 +212,8 @@ contains
        return
     end if
     if (len_trim(errmsg) > 0) then
-       call ferror('struct_crystal_input',errmsg,faterr,line)
+       call ferror('struct_crystal_input',errmsg,faterr,line,syntax=.true.)
+       return
     end if
 
     ! handle the doguess option

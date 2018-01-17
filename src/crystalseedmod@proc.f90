@@ -1391,16 +1391,17 @@ contains
   !> If hastypes is present, it is equal to .true. if the file
   !> could be read successfully or .false. if the atomic types
   !> are missing.
-  module subroutine read_vasp(seed,file,mol,hastypes)
+  module subroutine read_vasp(seed,file,mol,hastypes,errmsg)
     use types, only: realloc
-    use tools_io, only: fopen_read, getline_raw, isreal, ferror, faterr, &
+    use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: detsym, matinv
     use param, only: bohrtoa
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
-    logical, intent(out), optional :: hastypes
+    logical, intent(out) :: hastypes
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, lp, nn
     character(len=:), allocatable :: word, line
@@ -1412,6 +1413,8 @@ contains
     real*8 :: omegaa
 
     ! open
+    errmsg = "Error reading file."
+    hastypes = .true.
     lu = fopen_read(file)
 
     ! read the title and the scale line
@@ -1446,13 +1449,17 @@ contains
     rprim = rprim / bohrtoa
     gprim = matmul(transpose(rprim),rprim)
     omegaa = sqrt(detsym(gprim))
-    if (omegaa < 0d0) call ferror('readvasp','negative cell volume',faterr,file)
+    if (omegaa < 0d0) then
+       errmsg = "Negative cell volume."
+       goto 999
+    end if
     seed%crys2car = rprim
     rprim = matinv(rprim)
     seed%useabr = 2
 
     ! For versions >= 5.2, a line indicating the atom types appears here
-    ok = getline_raw(lu,line,.true.)
+    ok = getline_raw(lu,line,.false.)
+    if (.not.ok) goto 999
     lp = 1
     word = getword(line,lp)
     if (zatguess(word) >= 0) then
@@ -1470,19 +1477,15 @@ contains
        end do
        call realloc(seed%spc,seed%nspc)
        ok = getline_raw(lu,line,.true.)
+       if (.not.ok) goto 999
     else
        if (seed%nspc == 0) then
-          if (present(hastypes)) then
-             hastypes = .false.
-             call fclose(lu)
-             return
-          else
-             call ferror('read_vasp','Atom types are required for VASP < 5.2 inputs',faterr,file)
-          end if
+          errmsg = ""
+          hastypes = .false.
+          goto 999
        end if
     end if
-    if (present(hastypes)) &
-       hastypes = .true.
+    hastypes = .true.
 
     ! read number of atoms of each type
     lp = 1
@@ -1490,7 +1493,10 @@ contains
     allocate(seed%is(10))
     do i = 1, seed%nspc
        ok = isinteger(nn,line,lp)
-       if (.not.ok) call ferror('read_vasp','Too many atom types in CRYSTAL',faterr,line)
+       if (.not.ok) then
+          errmsg = "Too many atom types"
+          goto 999
+       end if
        do j = seed%nat+1, seed%nat+nn
           if (j > size(seed%is)) &
              call realloc(seed%is,2*(seed%nat+nn))
@@ -1501,11 +1507,19 @@ contains
     allocate(seed%x(3,seed%nat))
     call realloc(seed%is,seed%nat)
 
+    ! check there are no more atoms in this line
+    nn = -1 
+    ok = isinteger(nn,line,lp)
+    if (ok .and. nn /= -1) then
+       errmsg = "Too few atom types"
+       goto 999
+    end if
+
     ! Read atomic positions (cryst. coords.)
-    read(lu,*) line
+    read(lu,*,err=999) line
     line = adjustl(line)
     if (line(1:1) == 's' .or. line(1:1) == 'S') then
-       read(lu,*) line
+       read(lu,*,err=999) line
        line = adjustl(line)
     endif
     iscar = .false.
@@ -1515,10 +1529,13 @@ contains
        iscar = .true.
     endif
     do i = 1, seed%nat
-       read(lu,*) seed%x(:,i)
+       read(lu,*,err=999) seed%x(:,i)
        if (iscar) &
           seed%x(:,i) = matmul(rprim,seed%x(:,i) / bohrtoa)
     enddo
+
+    errmsg = ""
+999 continue
     call fclose(lu)
 
     ! symmetry
@@ -2746,22 +2763,28 @@ contains
   end subroutine struct_detect_format
 
   !> Read the species into the seed from a VASP POTCAR file.
-  module subroutine read_potcar(seed,file)
+  module subroutine read_potcar(seed,file,errmsg)
     use tools_io, only: fopen_read, getline_raw, getword, fclose, zatguess
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, lp
     character(len=:), allocatable :: aux1, aatom, line
     logical :: ok
 
+    errmsg = ""
     seed%nspc = 0
     if (allocated(seed%spc)) deallocate(seed%spc)
     allocate(seed%spc(2))
 
     ! open
-    lu = fopen_read(file)
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "POTCAR file not found."
+       return
+    end if
 
     ! read the atoms
     do while (getline_raw(lu,line))
@@ -2776,7 +2799,12 @@ contains
        seed%spc(seed%nspc)%z = zatguess(aatom)
        line = ""
        do while (.not. (trim(adjustl(line)) == 'End of Dataset'))
-          ok = getline_raw(lu,line,.true.)
+          ok = getline_raw(lu,line,.false.)
+          if (.not.ok) then
+             errmsg = "Unexpected termination of POTCAR file."
+             call fclose(lu)
+             return
+          end if
        end do
     end do
     call realloc(seed%spc,seed%nspc)
@@ -2853,16 +2881,22 @@ contains
        allocate(seed(1))
 
        ! try to read the types from the file directly
-       call seed(1)%read_vasp(file,mol,hastypes)
+       call seed(1)%read_vasp(file,mol,hastypes,errmsg)
 
-       if (.not.hastypes) then
+       if (len_trim(errmsg) == 0 .and. .not.hastypes) then
           ! see if we can locate a POTCAR in the same path
           path = file(1:index(file,dirsep,.true.))
           if (len_trim(path) < 1) &
              path = "."
           ofile = trim(path) // "/POTCAR"
-          call seed(1)%read_potcar(ofile)
-          call seed(1)%read_vasp(file,mol)
+          call seed(1)%read_potcar(ofile,errmsg)
+          if (len_trim(errmsg) == 0) then
+             if (seed(1)%nspc > 0) then
+                call seed(1)%read_vasp(file,mol,hastypes,errmsg)
+             else
+                errmsg = "No atoms found in POTCAR."
+             end if
+          end if
        end if
     elseif (isformat == isformat_abinit) then
        nseed = 1

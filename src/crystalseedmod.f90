@@ -131,11 +131,12 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_wien
-     module subroutine read_vasp(seed,file,mol,hastypes)
+     module subroutine read_vasp(seed,file,mol,hastypes,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
-       logical, intent(out), optional :: hastypes
+       logical, intent(out) :: hastypes
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_vasp
      module subroutine read_abinit(seed,file,mol)
        class(crystalseed), intent(inout) :: seed
@@ -197,9 +198,10 @@ module crystalseedmod
        logical, intent(out) :: ismol
        logical, intent(out), optional :: alsofield
      end subroutine struct_detect_format
-     module subroutine read_potcar(seed,file)
+     module subroutine read_potcar(seed,file,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_potcar
      module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
        character*(*), intent(in) :: file

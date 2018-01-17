@@ -234,10 +234,11 @@ module tools_io
      end function isassignment
      module subroutine ioinit ()
      end subroutine ioinit
-     module function fopen_read(file,form,abspath0) result(lu)
+     module function fopen_read(file,form,abspath0,errstop) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
+       logical, intent(in), optional :: errstop
        integer :: lu
      end function fopen_read
      module function fopen_write(file,form,abspath0) result(lu)
