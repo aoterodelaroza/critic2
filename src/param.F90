@@ -88,7 +88,7 @@ module param
   ! Enumerate for structure formats
   integer, parameter, public :: isformat_unknown = 0
   integer, parameter, public :: isformat_cif = 1
-  integer, parameter, public :: isformat_res = 2
+  integer, parameter, public :: isformat_shelx = 2
   integer, parameter, public :: isformat_cube = 3
   integer, parameter, public :: isformat_struct = 4
   integer, parameter, public :: isformat_abinit = 5

@@ -47,6 +47,7 @@ expression.r # prints the value of the expression to the output.
 * CRYSTAL/MOLECULE # molecule..endmolecule can be used to input a molecule.
   CRYSTAL file.cif [datablock.s]
   CRYSTAL file.res
+  CRYSTAL file.ins
   CRYSTAL file.cube
   CRYSTAL file.struct
   CRYSTAL [file.]{POSCAR,CONTCAR,CHGCAR,CHG,ELFCAR,AECCAR0,AECCAR2} [at1.s at2.s ...|POTCAR]

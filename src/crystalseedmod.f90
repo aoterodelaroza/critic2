@@ -61,7 +61,7 @@ module crystalseedmod
      procedure :: parse_molecule_env 
      procedure :: read_library
      procedure :: read_cif 
-     procedure :: read_res 
+     procedure :: read_shelx 
      procedure :: read_cube 
      procedure :: read_wien 
      procedure :: read_vasp 
@@ -113,11 +113,12 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cif
-     module subroutine read_res(seed,file,mol)
+     module subroutine read_shelx(seed,file,mol,errmsg)
        class(crystalseed) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
-     end subroutine read_res
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_shelx
      module subroutine read_cube(seed,file,mol)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

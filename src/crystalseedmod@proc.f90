@@ -717,7 +717,7 @@ contains
   end subroutine read_cif
 
   !> Read the structure from a CIF file (uses ciftbx)
-  module subroutine read_res(seed,file,mol)
+  module subroutine read_shelx(seed,file,mol,errmsg)
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, ferror, faterr, zatguess, fclose
@@ -726,6 +726,7 @@ contains
     class(crystalseed) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, lp, ilat
     logical :: ok, iscent, iok, havecell
@@ -744,6 +745,10 @@ contains
     ! file and seed name
     seed%file = file
     seed%name = file
+    errmsg = ""
+    iix = .false.
+    iiy = .false.
+    iiz = .false.
 
     ! initialize symmetry
     iscent = .false.
@@ -755,6 +760,9 @@ contains
     seed%rotm = 0d0
     seed%rotm(:,:,seed%neqv) = eyet
     havecell = .false.
+    seed%nat = 0
+    if (.not.allocated(seed%x)) allocate(seed%x(3,10))
+    if (.not.allocated(seed%is)) allocate(seed%is(10))
 
     ! centering vectors may come in symm. If that happens, 
     ! replicate the atoms and let LATT determine the global 
@@ -770,10 +778,11 @@ contains
 
     lu = fopen_read(file)
     do while (.true.)
-       ok = getline_raw(lu,line,.false.)
+       ok = getline_local()
        if (.not.ok) exit
        lp = 1
        word = lgetword(line,lp)
+       if (len_trim(word) > 4) word = word(1:4)
        if (equal(word,"titl")) then
           seed%name = trim(line(lp:))
        elseif (equal(word,"cell")) then
@@ -785,15 +794,19 @@ contains
           ok = ok .and. isreal(seed%bb(1),line,lp)
           ok = ok .and. isreal(seed%bb(2),line,lp)
           ok = ok .and. isreal(seed%bb(3),line,lp)
-          if (.not.ok) &
-             call ferror('read_res','Error reading CELL card',faterr)
+          if (.not.ok) then
+             errmsg = "Error reading CELL card."
+             goto 999
+          end if
           seed%aa = seed%aa / bohrtoa
           havecell = .true.
        elseif (equal(word,"latt")) then
           ! read the centering vectors from the latt card
           ok = isinteger(ilat,line,lp)
-          if (.not.ok) &
-             call ferror('read_res','Error reading LATT card',faterr)
+          if (.not.ok) then
+             errmsg = "Error reading LATT card."
+             goto 999
+          end if
           select case(abs(ilat))
           case(1)
              ! P 
@@ -834,7 +847,8 @@ contains
              seed%cen(1,2)=0.5d0
              seed%cen(2,2)=0.5d0
           case default
-             call ferror('read_res','Unknown LATT value',faterr)
+             errmsg = "Unknown LATT value."
+             goto 999
           end select
           iscent = (ilat > 0)
        elseif (equal(word,"symm")) then
@@ -887,7 +901,8 @@ contains
                 seed%neqv = seed%neqv + 1
                 seed%rotm(:,:,seed%neqv) = rot0
              else
-                call ferror('read_res','Found repeated entry in SYMM',faterr)
+                errmsg = "Found repeated entry in SYMM."
+                goto 999
              endif
           endif
 
@@ -920,9 +935,11 @@ contains
           equal(word,"eadp").or.equal(word,"eqiv").or.equal(word,"exti").or.&
           equal(word,"exyz").or.equal(word,"flat").or.equal(word,"fmap").or.&
           equal(word,"free").or.equal(word,"fvar").or.equal(word,"grid").or.&
-          equal(word,"hfix").or.equal(word,"hklf").or.equal(word,"htab").or.&
+          equal(word,"hfix").or.equal(word,"hklf").or.equal(word,"hope").or.&
+          equal(word,"htab").or.&
           equal(word,"isor").or.equal(word,"laue").or.equal(word,"list").or.&
-          equal(word,"l.s.").or.equal(word,"merg").or.equal(word,"more").or.&
+          equal(word,"l.s.").or.equal(word,"merg").or.equal(word,"mole").or.&
+          equal(word,"more").or.&
           equal(word,"move").or.equal(word,"mpla").or.equal(word,"ncsy").or.&
           equal(word,"neut").or.equal(word,"omit").or.equal(word,"part").or.&
           equal(word,"plan").or.equal(word,"prig").or.equal(word,"rem").or.&
@@ -930,7 +947,8 @@ contains
           equal(word,"sadi").or.equal(word,"same").or.equal(word,"shel").or.&
           equal(word,"simu").or.equal(word,"size").or.equal(word,"spec").or.&
           equal(word,"stir").or.equal(word,"sump").or.equal(word,"swat").or.&
-          equal(word,"temp").or.equal(word,"titl").or.equal(word,"twin").or.&
+          equal(word,"temp").or.equal(word,"time").or.&
+          equal(word,"titl").or.equal(word,"twin").or.&
           equal(word,"twst").or.equal(word,"wght").or.equal(word,"wigl").or.&
           equal(word,"wpdb").or.equal(word,"xnpd").or.equal(word,"zerr")) then
           cycle
@@ -938,9 +956,11 @@ contains
           ! also ignore the frag...fend blocks
        elseif (equal(word,"frag")) then
           do while (.true.)
-             ok = getline_raw(lu,line,.false.)
-             if (.not.ok) &
-                call ferror('read_res','Unexpected end of file inside frag block',faterr)
+             ok = getline_local()
+             if (.not.ok) then
+                errmsg = "Unexpected end of file inside frag block."
+                goto 999
+             end if
              lp = 1
              word = lgetword(line,lp)
              if (equal(word,"fend")) exit
@@ -949,45 +969,44 @@ contains
           ! end of the input
           exit
        else
-          ! check if this is an atom
-          seed%nat = 0
-          if (.not.allocated(seed%x)) allocate(seed%x(3,10))
-          if (.not.allocated(seed%is)) allocate(seed%is(10))
-          do while(.true.)
-             if (equal(word,"end")) exit
-             seed%nat = seed%nat + 1
-             if (seed%nat > size(seed%is)) then
-                call realloc(seed%x,3,2*seed%nat)
-                call realloc(seed%is,2*seed%nat)
-             end if
-             ok = isinteger(iz,line,lp)
-             ok = ok .and. isreal(seed%x(1,seed%nat),line,lp)
-             ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
-             ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
-             if (.not.ok) then
-                seed%nat = seed%nat - 1
-                exit
-             end if
-             if (iz < 1 .or. iz > seed%nspc) &
-                call ferror('read_res','Atom type not found in SFAC list',faterr)
-             seed%is(seed%nat) = iz
+          ! maybe this is an atom, but if we can not tell, it could be a new or very old keyword 
+          iz = zatguess(word)
+          if (iz < 0) cycle
 
-             ok = getline_raw(lu,line,.false.)
-             if (.not.ok) exit
-             lp = 1
-             word = lgetword(line,lp)
-          end do
-          exit
+          ! check if this is an atom
+          seed%nat = seed%nat + 1
+          if (seed%nat > size(seed%is)) then
+             call realloc(seed%x,3,2*seed%nat)
+             call realloc(seed%is,2*seed%nat)
+          end if
+          ok = isinteger(iz,line,lp)
+          ok = ok .and. isreal(seed%x(1,seed%nat),line,lp)
+          ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
+          ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+          if (.not.ok) then
+             seed%nat = seed%nat - 1
+             continue
+          end if
+          if (iz < 1 .or. iz > seed%nspc) then
+             errmsg = "Atom type not found in SFAC list."
+             goto 999
+          end if
+          seed%is(seed%nat) = iz
        end if
     end do
-    call fclose(lu)
 
-    if (seed%nspc == 0) &
-       call ferror('read_res','No sfac information (atomic types) found',faterr)
-    if (seed%nat == 0) &
-       call ferror('read_res','No atoms found',faterr)
-    if (.not.havecell) &
-       call ferror('read_res','No cell found',faterr)
+    if (seed%nspc == 0) then
+       errmsg = "No SFAC information (atomic types) found."
+       goto 999
+    end if
+    if (seed%nat == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+    if (.not.havecell) then
+       errmsg = "No cell found."
+       goto 999
+    end if
     seed%useabr = 1 ! use aa and bb
 
     if (iscent) then
@@ -999,8 +1018,10 @@ contains
              exit
           endif
        end do
-       if (.not.ok) &
-          call ferror('read_res','Found improper rotation in SYMM',faterr)
+       if (.not.ok) then
+          errmsg = "Found improper rotation in SYMM."
+          goto 999
+       end if
        n = seed%neqv
        do i = 1, n
           seed%rotm(1:3,1:3,n+i) = -seed%rotm(1:3,1:3,i) 
@@ -1029,16 +1050,19 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
 
-    ! restore the old values of x, y, and z
-    if (iix) call setvariable("x",xo)
-    if (iiy) call setvariable("y",yo)
-    if (iiz) call setvariable("z",zo)
-
     ! use the symmetry in this file
     seed%havesym = 1
     seed%findsym = 0
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
+
+999 continue
+    call fclose(lu)
+
+    ! restore the old values of x, y, and z
+    if (iix) call setvariable("x",xo)
+    if (iiy) call setvariable("y",yo)
+    if (iiz) call setvariable("z",zo)
 
     ! rest of the seed information
     seed%isused = .true.
@@ -1048,7 +1072,23 @@ contains
     seed%havex0 = .false.
     seed%molx0 = 0d0
 
-  end subroutine read_res
+  contains
+    function getline_local() result(ok_)
+      logical :: ok_
+      integer :: idx
+      character(len=:), allocatable :: aux
+
+      ok_ = getline_raw(lu,line,.false.)
+      if (.not.ok_) return
+      idx = index(line,"=",.true.)
+      do while (idx == len_trim(line))
+         ok_ = getline_raw(lu,aux,.false.)
+         line = line(1:idx-1) // trim(aux)
+         if (.not.ok_) return
+         idx = index(line,"=",.true.)
+      end do
+    end function getline_local
+  end subroutine read_shelx
 
   !> Read the structure from a gaussian cube file
   module subroutine read_cube(seed,file,mol)
@@ -2590,7 +2630,7 @@ contains
   !> If alsofield is present, then return .true. if the file also
   !> contains a scalar field.
   module subroutine struct_detect_format(file,isformat,ismol,alsofield)
-    use param, only: isformat_unknown, isformat_cif, isformat_res,&
+    use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
@@ -2618,8 +2658,8 @@ contains
     if (equal(wextdot,'cif')) then
        isformat = isformat_cif
        ismol = .false.
-    elseif (equal(wextdot,'res')) then
-       isformat = isformat_res
+    elseif (equal(wextdot,'res').or.equal(wextdot,'ins')) then
+       isformat = isformat_shelx
        ismol = .false.
     elseif (equal(wextdot,'cube')) then
        isformat = isformat_cube
@@ -2744,7 +2784,7 @@ contains
     use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_abinit, isformat_cif,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
-       isformat_res, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
+       isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_unknown, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -2785,10 +2825,10 @@ contains
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
        call read_all_cif(nseed,seed,file,mol,errmsg)
-    elseif (isformat == isformat_res) then
+    elseif (isformat == isformat_shelx) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_res(file,mol)
+       call seed(1)%read_shelx(file,mol,errmsg)
     else if (isformat == isformat_cube) then
        nseed = 1
        allocate(seed(1))
@@ -2857,6 +2897,10 @@ contains
     end if
 
 999 continue
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
 
     ! handle the doguess option
     do i = 1, nseed

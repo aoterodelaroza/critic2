@@ -1125,6 +1125,7 @@ Loading a crystal structure (CRYSTAL)
 
   CRYSTAL file.cif [datablock.s]
   CRYSTAL file.res
+  CRYSTAL file.ins
   CRYSTAL file.cube
   CRYSTAL file.struct
   CRYSTAL [file.]{POSCAR,CONTCAR,CHGCAR,CHG,ELFCAR,AECCAR0,
@@ -1281,12 +1282,14 @@ specified with the optional argument datablock.s. For instance, to
 read the data_shelx block, use datablock.s = "shelx". If datablock.s
 is not present, then the first block is read.
 
-SHELX res files (res)
-+++++++++++++++++++++
+SHELX res and ins files (res, ins)
+++++++++++++++++++++++++++++++++++
 
-RES files are generated and used by SHELXL, a program for the
-interpretation of experimental X-ray diffraction data. The RES file
-format specification can be found in the SHELXL webpage.
+RES and INS files are generated and used by SHELX (and derivatives), a
+program for the interpretation of experimental single-crystal X-ray
+and neutron diffraction data. The INS (input) and RES (output) file
+format specifications are almost identical, and can be found in the
+SHELXL website. 
 
 Abinit (DEN, PAWDEN, ELF, LDEN, etc.)
 +++++++++++++++++++++++++++++++++++++
