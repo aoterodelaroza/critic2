@@ -130,7 +130,7 @@ contains
     elseif (isformat == isformat_qeout) then
        ok = isinteger(istruct,word2,lp2)
        if (.not.ok) istruct = 0
-       call seed%read_qeout(word,mol,istruct)
+       call seed%read_qeout(word,mol,istruct,errmsg)
 
     elseif (isformat == isformat_crystal) then
        call seed%read_crystalout(word,mol)

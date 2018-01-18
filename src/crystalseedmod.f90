@@ -157,11 +157,12 @@ module crystalseedmod
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
      end subroutine read_mol
-     module subroutine read_qeout(seed,file,mol,istruct)
+     module subroutine read_qeout(seed,file,mol,istruct,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        integer, intent(in) :: istruct
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_qeout
      module subroutine read_qein(seed,file,mol)
        class(crystalseed), intent(inout) :: seed

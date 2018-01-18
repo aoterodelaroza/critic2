@@ -1806,7 +1806,7 @@ contains
   !> return it as a crystal object. If mol, the structure is assumed
   !> to be a molecule.  If istruct is zero, read the last geometry;
   !> otherwise, read geometry number istruct.
-  module subroutine read_qeout(seed,file,mol,istruct)
+  module subroutine read_qeout(seed,file,mol,istruct,errmsg)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
        zatguess, fclose, equali
     use tools_math, only: matinv
@@ -1816,6 +1816,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     integer, intent(in) :: istruct !< structure number
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, nstructs, is0, ideq, i, j
     character(len=:), allocatable :: line
@@ -1824,7 +1825,13 @@ contains
     real*8 :: alat, r(3,3), qaux, rfac, cfac
     logical :: ok, tox
 
-    lu = fopen_read(file)
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file"
 
     ! first pass: read the number of structures
     nstructs = 0
@@ -1839,7 +1846,8 @@ contains
        is0 = nstructs
     else
        if (istruct > nstructs .or. istruct < 0) then
-          call ferror("read_qeout","wrong structure number",faterr)
+          errmsg = "Wrong structure number."
+          goto 999
        end if
        is0 = istruct
     end if
@@ -1871,14 +1879,17 @@ contains
        elseif (index(line,"number of atomic types") > 0) then
           ok = isinteger(seed%nspc,line,ideq)
           if (allocated(seed%spc)) then
-             if (seed%nspc /= size(seed%spc,1)) &
-                call ferror("read_qeout","inconsistent number of atoms",faterr)
+             if (seed%nspc /= size(seed%spc,1)) then
+                errmsg = "Inconsistent number of atoms."
+                goto 999
+             end if
           else
              allocate(seed%spc(seed%nspc))
           end if
        elseif (index(line,"crystal axes:") > 0) then
           do i = 1, 3
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              ideq = index(line,"(",.true.) + 1
              ok = isreal(r(i,1),line,ideq)
              ok = ok.and.isreal(r(i,2),line,ideq)
@@ -1886,34 +1897,46 @@ contains
           end do
           r = r * alat ! alat comes before crystal axes
        elseif (index(line,"atomic species   valence    mass     pseudopotential")>0) then
-          if (seed%nspc == 0) &
-             call ferror("read_qeout","number of atomic types unknown",faterr)
+          if (seed%nspc == 0) then
+             errmsg = "Number of atomic types unknown."
+             goto 999
+          end if
           do i = 1, seed%nspc
-             ok = getline_raw(lu,line,.true.)
-             read (line,*) seed%spc(i)%name, qaux
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read (line,*,err=999) seed%spc(i)%name, qaux
              seed%spc(i)%z = zatguess(seed%spc(i)%name)
-             if (seed%spc(i)%z < 0) &
-                call ferror("read_qeout","unknown atomic symbol: "//trim(seed%spc(i)%name),faterr)
+             if (seed%spc(i)%z < 0) then
+                errmsg = "Unknown atomic symbol: "//trim(seed%spc(i)%name)//"."
+                goto 999
+             end if
           end do
        elseif (index(line,"Cartesian axes")>0) then
-          if (seed%nat == 0) &
-             call ferror("read_qeout","number of atoms unknown",faterr)
-          ok = getline_raw(lu,line,.true.)
-          ok = getline_raw(lu,line,.true.)
+          if (seed%nat == 0) then
+             errmsg = "Number of atoms unknown."
+             goto 999
+          end if
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
           seed%is = 0
           do i = 1, seed%nat
-             ok = getline_raw(lu,line,.true.)
-             read(line,*) idum, atn
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read(line,*,err=999) idum, atn
              line = line(index(line,"(",.true.)+1:)
-             read(line,*) seed%x(:,i)
+             read(line,*,err=999) seed%x(:,i)
              do j = 1, seed%nspc
                 if (equali(seed%spc(j)%name,atn)) then
                    seed%is(i) = j
                    exit
                 end if
              end do
-             if (seed%is(i) == 0) &
-                call ferror("read_qeout","unknown atom type: "//atn,faterr)
+             if (seed%is(i) == 0) then
+                errmsg = "Unknown atom type: "//atn//"."
+                goto 999
+             end if
           end do
           tox = .true.
        elseif (line(1:15) == "CELL_PARAMETERS") then
@@ -1926,16 +1949,20 @@ contains
              cfac = 1d0
           end if
           do i = 1, 3
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              ideq = 1
              ok = isreal(r(i,1),line,ideq)
              ok = ok.and.isreal(r(i,2),line,ideq)
              ok = ok.and.isreal(r(i,3),line,ideq)
+             if (.not.ok) goto 999
           end do
           r = r * cfac
        elseif (line(1:16) == "ATOMIC_POSITIONS") then
-          if (seed%nat == 0) &
-             call ferror("read_qeout","number of atoms unknown",faterr)
+          if (seed%nat == 0) then
+             errmsg = "Number of atoms unknown."
+             goto 999
+          end if
 
           rfac = 1d0
           if (index(line,"angstrom") > 0) then
@@ -1953,21 +1980,23 @@ contains
           end if
           seed%is = 0
           do i = 1, seed%nat
-             ok = getline_raw(lu,line,.true.)
-             read(line,*) atn, seed%x(:,i)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read(line,*,err=999) atn, seed%x(:,i)
              do j = 1, seed%nspc
                 if (equali(seed%spc(j)%name,atn)) then
                    seed%is(i) = j
                    exit
                 end if
              end do
-             if (seed%is(i) == 0) &
-                call ferror("read_qeout","unknown atom type: "//atn,faterr)
+             if (seed%is(i) == 0) then
+                errmsg = "Unknown atom type: "//atn//"."
+                goto 999
+             end if
           end do
           seed%x = seed%x * rfac
        end if
     end do
-    call fclose(lu)
 
     ! cell
     seed%crys2car = transpose(r)
@@ -1981,6 +2010,10 @@ contains
        end if
        seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
     end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
     ! no symmetry
     seed%havesym = 0
