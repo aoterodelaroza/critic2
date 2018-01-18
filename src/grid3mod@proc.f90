@@ -339,6 +339,7 @@ contains
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
 
+    character(len=:), allocatable :: errmsg
     integer :: luc
     integer :: fform0, istat, n(3)
     type(hdr_type) :: hdr
@@ -348,7 +349,9 @@ contains
     luc = fopen_read(file,'unformatted')
 
     ! read the header
-    call hdr_io(fform0,hdr,1,luc)
+    call hdr_io(fform0,hdr,1,luc,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('read_abinit',errmsg,faterr,file)
 
     f%isinit = .true.
     f%mode = mode_default

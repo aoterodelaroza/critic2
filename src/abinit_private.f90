@@ -188,31 +188,42 @@ module abinit_private
   end type hdr_type_2
 
   interface
-     module subroutine hdr_io(fform,hdr,rdwr,unitfi)
+     module subroutine hdr_io(fform,hdr,rdwr,unitfi,errmsg)
        integer, intent(inout) :: fform
        integer, intent(in) :: rdwr,unitfi
        type(hdr_type), intent(inout) :: hdr
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine hdr_io
-     module subroutine hdr_io_1(fform,hdr,unitfi)
+     module subroutine hdr_io_1(fform,hdr,unitfi,errmsg)
        integer,intent(inout) :: fform
        integer,intent(in) :: unitfi
        type(hdr_type_1),intent(inout) :: hdr
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine hdr_io_1
-     module subroutine rhoij_alloc(cplex,nlmn,nspden,nsppol,pawrhoij,typat)
+     module subroutine rhoij_alloc(cplex,nlmn,nspden,nsppol,pawrhoij,typat,errmsg)
        integer,intent(in) :: cplex,nspden,nsppol
        integer,intent(in) :: nlmn(:),typat(:)
        type(pawrhoij_type),intent(inout) :: pawrhoij(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine rhoij_alloc
-     module subroutine hdr_io_2(fform,hdr,unit)
+     module subroutine hdr_io_2(fform,hdr,unit,errmsg)
        integer, intent(out) :: fform
        integer, intent(in) :: unit
        type(hdr_type_2), intent(out) :: hdr
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine hdr_io_2
-     module subroutine pawrhoij_alloc(pawrhoij,cplex,nspden,nspinor,nsppol,typat,lmnsize)
+     module subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
+       type(pawrhoij_type),intent(inout) :: pawrhoij(:)
+       integer,intent(in) :: unitfi,headform,nspden_in,nspinor_in,nsppol_in
+       integer,intent(in) :: typat(:),nlmn_type(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine pawrhoij_io
+     module subroutine pawrhoij_alloc(pawrhoij,cplex,nspden,nspinor,nsppol,typat,lmnsize,errmsg)
        integer,intent(in) :: cplex,nspden,nspinor,nsppol
        integer,intent(in) :: typat(:)
        integer,target,intent(in) :: lmnsize(:)
        type(pawrhoij_type),intent(inout) :: pawrhoij(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine pawrhoij_alloc
   end interface
 

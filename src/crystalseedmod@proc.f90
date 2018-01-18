@@ -1555,7 +1555,7 @@ contains
   end subroutine read_vasp
 
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
-  module subroutine read_abinit(seed,file,mol)
+  module subroutine read_abinit(seed,file,mol,errmsg)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, nameguess, ferror, fclose
     use abinit_private, only: hdr_type, hdr_io
@@ -1563,17 +1563,23 @@ contains
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, fform0
     type(hdr_type) :: hdr
     integer :: i, iz
     real*8 :: rmat(3,3)
 
-    lu = fopen_read(file,"unformatted")
+    errmsg = ""
+    lu = fopen_read(file,"unformatted",errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
 
     ! read the header of the DEN file
-    call hdr_io(fform0,hdr,1,lu)
-    call fclose(lu)
+    call hdr_io(fform0,hdr,1,lu,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     ! cell parameters
     rmat = hdr%rprimd(:,:)
@@ -1596,6 +1602,10 @@ contains
        seed%x(:,i) = hdr%xred(:,i)
        seed%is(i) = hdr%typat(i)
     end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
     ! abinit has symmetry in hdr%nsym/hdr%symrel, but there is no
     ! distinction between pure centering and rotation operations, and
@@ -2901,7 +2911,7 @@ contains
     elseif (isformat == isformat_abinit) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_abinit(file,mol)
+       call seed(1)%read_abinit(file,mol,errmsg)
     elseif (isformat == isformat_elk) then
        nseed = 1
        allocate(seed(1))

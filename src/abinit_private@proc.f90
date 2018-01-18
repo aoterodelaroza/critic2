@@ -30,33 +30,36 @@ submodule (abinit_private) proc
 contains
   
   ! Driver to choose which version of hdr_io to use.
-  module subroutine hdr_io(fform,hdr,rdwr,unitfi)
-    use tools_io, only: ferror, faterr, uout
+  module subroutine hdr_io(fform,hdr,rdwr,unitfi,errmsg)
+    use tools_io, only: ferror, faterr, uout, string
     integer, intent(inout) :: fform
     integer, intent(in) :: rdwr,unitfi
     type(hdr_type), intent(inout) :: hdr
+    character(len=:), allocatable, intent(out) :: errmsg
 
     type(hdr_type_1) :: hdr_1
     type(hdr_type_2) :: hdr_2
 
+    errmsg = ""
     ! read the headform
     if (rdwr /= 1 .and. rdwr /= 5) then
-       call ferror("hdr_io","only read operations allowed in abinit files",faterr)
+       errmsg = "Only read operations allowed in abinit files."
+       return
     end if
     if (rdwr == 1) then
        rewind(unitfi)
     end if
 
-    call hdr_io_1(fform,hdr_1,unitfi)
+    call hdr_io_1(fform,hdr_1,unitfi,errmsg)
     if (headform_1 /= 0) then
        rewind(unitfi)
-       call hdr_io_2(fform,hdr_2,unitfi)
+       call hdr_io_2(fform,hdr_2,unitfi,errmsg)
        if (headform_2 /= 0) then
-          write (uout,'("Can not handle headform: ",I3)') headform_2
-          write (uout,'("The version of abinit you are using is not supported by critic2.")') 
-          write (uout,'("Please, e-mail the critic2 developer this message and the version")') 
-          write (uout,'("of abinit you are using.")') 
-          call ferror("hdr_io","unknown abinit headform",faterr)
+          errmsg = "Can not handle headform: " // string(headform_2) // &
+             ". The version of abinit you are using is not supported &
+             &by critic2. Please, e-mail the critic2 developer this &
+             &message and the version of abinit you are using." 
+          return
        end if
        if (allocated(hdr%xred)) deallocate(hdr%xred)
        if (allocated(hdr%znucltypat)) deallocate(hdr%znucltypat)
@@ -98,7 +101,8 @@ contains
   ! or http://www.gnu.org/copyleft/gpl.txt .
   
   !> The hdr_io subroutine from abinit.
-  module subroutine hdr_io_1(fform,hdr,unitfi)
+  module subroutine hdr_io_1(fform,hdr,unitfi,errmsg)
+    use tools_io, only: string
     !! This subroutine deals with the I/O of the hdr_type
     !! structured variables (read/write/echo).
     !! According to the value of rdwr, it reads the header
@@ -171,6 +175,7 @@ contains
     integer,intent(inout) :: fform
     integer,intent(in) :: unitfi
     type(hdr_type_1),intent(inout) :: hdr
+    character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
     integer :: bantot,bsize,cplex,headform,iatom,ierr,ii,ikpt,ipsp,ispden,isym
@@ -181,6 +186,7 @@ contains
     integer, allocatable :: ibuffer(:),nsel44(:,:),nsel56(:)
     real(dp) :: acell(3)
     real(dp), allocatable :: buffer(:)
+    character(len=:), allocatable :: errmsg2
 
     ! *************************************************************************
     
@@ -191,6 +197,7 @@ contains
     if (ierr /=0) then
        fform=0
        headform = -1
+       errmsg = "Error reading file."
        return   ! This is to allow treatment of old epsm1 format
     end if
 
@@ -248,9 +255,10 @@ contains
     hdr%tphysel=0d0
     hdr%tsmear=0d0
 
+    errmsg = "Error reading file."
     if(headform==22)then
 
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, nsppol, nsym, ntypat,&
           acell, hdr%ecut_eff, hdr%rprimd
        npsp=ntypat
@@ -258,7 +266,7 @@ contains
     else if(headform==23)then
 
        !   Compared to v2.2, add nspden, nspinor, occopt
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, ntypat, hdr%occopt,&
           acell, hdr%ecut_eff, hdr%rprimd
        npsp=ntypat
@@ -266,28 +274,28 @@ contains
     else if(headform==34)then
 
        !   Compared to v2.3, subtract acell, and add npsp
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt,&
           hdr%ecut_eff, hdr%rprimd
 
     else if(headform==40)then
 
        !   Compared to v3.4, add ecut, ecutsm, tphysel, tsmear
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt,&
           hdr%ecut, hdr%ecutsm, hdr%ecut_eff, hdr%rprimd, hdr%tphysel, hdr%tsmear
 
     else if(headform==41)then
 
        !   Compared to v4.0, add pertcase and qptn(3)
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%ecut, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd, hdr%tphysel, hdr%tsmear
 
     else if(headform==42)then
 
        !   Compared to v4.1, add stmbias
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%ecut, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
           hdr%stmbias, hdr%tphysel, hdr%tsmear
@@ -295,7 +303,7 @@ contains
     else if(headform>=44 .and. headform<57)then
 
        !   Compared to v4.2, add usepaw and ecutdg
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%usepaw, hdr%ecut, hdr%ecutdg, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
           hdr%stmbias, hdr%tphysel, hdr%tsmear
@@ -303,7 +311,7 @@ contains
     else if(headform>=57)then
 
        !   Compared to v4.4, add usewvl
-       read(unitfi) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%usepaw, hdr%ecut, hdr%ecutdg, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
           hdr%stmbias, hdr%tphysel, hdr%tsmear, hdr%usewvl
@@ -319,15 +327,8 @@ contains
     hdr%ntypat =ntypat
 
     if(hdr%ecutsm>tol6 .and. headform<44 .and. .not.(fform==51.or.fform==52.or.fform==101.or.fform==102))then
-       write(message, '(4a,es16.6,9a)' ) ch10,&
-          ' hdr_io : ERROR -',ch10,&
-          '  The value of ecutsm is',hdr%ecutsm,', while the file has been produced prior to v4.4 .',ch10,&
-          '  The definition of the smearing function has changed, so that you are not allowed',ch10,&
-          '  to restart from a old wavefunction file. By contrast, you can restart from an old',ch10,&
-          '  potential or density file, and perform a self-consistent cycle with a new ABINIT version.',ch10,&
-          '  Action : produce a density or potential file using the old version of ABINIT, and restart from it.'
-       write (*,*) message
-       stop 1
+       errmsg = "The value of ecutsm is "//string(hdr%ecutsm,'f',8,2)//", while the file has been produced prior to v4.4 ."
+       return
     end if
 
     !DEBUG
@@ -374,14 +375,14 @@ contains
     if(headform==22 .and. (fform==1 .or. fform==51 .or. fform==101))then
 
        !   This is very old (pre-2.0) format !
-       read(unitfi) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
+       read(unitfi,err=999) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:)
 
     else if(headform==22 .or. headform==23 .or. headform==34)then
 
        !   Compared to pre v2.0, add istwfk
-       read(unitfi) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
+       read(unitfi,err=999) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%istwfk(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:)
 
@@ -389,7 +390,7 @@ contains
 
        !   Compared to pre v4.0, add so_psp and symafm, and switch istwfk
 
-       read(unitfi)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
+       read(unitfi,err=999)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
           hdr%so_psp(:), hdr%symafm(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:)
@@ -397,7 +398,7 @@ contains
     else if(headform>=50)then
 
        !   Compared to pre v5.0, add wtk
-       read(unitfi)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
+       read(unitfi,err=999)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
           hdr%so_psp(:), hdr%symafm(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:), hdr%wtk(:)
@@ -413,7 +414,7 @@ contains
     if(headform==22)then
 
        do ipsp=1,npsp
-          read(unitfi) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspdat(ipsp), hdr%pspcod(ipsp), &
              hdr%pspxc(ipsp), lmax, lloc, mmax
        end do
@@ -422,7 +423,7 @@ contains
 
        !  Compared to 2.2, add pspso
        do ipsp=1,npsp
-          read(unitfi) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
              hdr%pspcod(ipsp), hdr%pspxc(ipsp), lmax, lloc, mmax
        end do
@@ -432,7 +433,7 @@ contains
 
        !  Compared to 2.3, suppress lmax, lloc, mmax
        do ipsp=1,npsp
-          read(unitfi) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
              hdr%pspcod(ipsp), hdr%pspxc(ipsp)
        end do
@@ -441,7 +442,7 @@ contains
 
        !  Compared to 4.2, add lmn_size
        do ipsp=1,npsp
-          read(unitfi) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
              hdr%pspcod(ipsp), hdr%pspxc(ipsp), hdr%lmn_size(ipsp)
        end do
@@ -454,9 +455,9 @@ contains
     hdr%fermie=0d0
 
     if(headform==22)then
-       read(unitfi) hdr%residm, hdr%xred(:,:), hdr%etot
+       read(unitfi,err=999) hdr%residm, hdr%xred(:,:), hdr%etot
     else if(headform==23 .or. headform==34 .or. headform>=40)then
-       read(unitfi) hdr%residm, hdr%xred(:,:), hdr%etot, hdr%fermie
+       read(unitfi,err=999) hdr%residm, hdr%xred(:,:), hdr%etot, hdr%fermie
     end if
 
     !DEBUG
@@ -467,16 +468,19 @@ contains
     ! Reading the Rhoij tab if the PAW method was used  -----------------------
     if (hdr%usepaw==1) then
 
-
        if ((headform>=44).and.(headform<56)) then
           allocate(nsel44(hdr%nspden,hdr%natom))
-          read(unitfi) ((nsel44(ispden,iatom),ispden=1,hdr%nspden),iatom=1,hdr%natom)
-          call rhoij_alloc(1,hdr%lmn_size,hdr%nspden,hdr%nsppol,hdr%pawrhoij,hdr%typat)
+          read(unitfi,err=999) ((nsel44(ispden,iatom),ispden=1,hdr%nspden),iatom=1,hdr%natom)
+          call rhoij_alloc(1,hdr%lmn_size,hdr%nspden,hdr%nsppol,hdr%pawrhoij,hdr%typat,errmsg2)
+          if (len_trim(errmsg2) > 0) then
+             errmsg = errmsg2
+             goto 999
+          end if
           do iatom=1,hdr%natom
              hdr%pawrhoij(iatom)%nrhoijsel=nsel44(1,iatom)
           end do
           bsize=sum(nsel44);allocate(ibuffer(bsize),buffer(bsize));ii=0
-          read(unitfi) ibuffer(:),buffer(:)
+          read(unitfi,err=999) ibuffer(:),buffer(:)
           do iatom=1,hdr%natom
              nselect=nsel44(1,iatom)
              hdr%pawrhoij(iatom)%rhoijselect(1:nselect)=ibuffer(ii+1:ii+nselect)
@@ -490,18 +494,22 @@ contains
        else if (headform>=56) then
           allocate(nsel56(hdr%natom))
           if (headform==56) then
-             read(unitfi) (nsel56(iatom),iatom=1,hdr%natom),cplex
+             read(unitfi,err=999) (nsel56(iatom),iatom=1,hdr%natom),cplex
              nspden=hdr%nspden
           else
-             read(unitfi) (nsel56(iatom),iatom=1,hdr%natom),cplex,nspden
+             read(unitfi,err=999) (nsel56(iatom),iatom=1,hdr%natom),cplex,nspden
           end if
-          call rhoij_alloc(cplex,hdr%lmn_size,nspden,hdr%nsppol,hdr%pawrhoij,hdr%typat)
+          call rhoij_alloc(cplex,hdr%lmn_size,nspden,hdr%nsppol,hdr%pawrhoij,hdr%typat,errmsg2)
+          if (len_trim(errmsg2) > 0) then
+             errmsg = errmsg2
+             goto 999
+          end if
           do iatom=1,hdr%natom
              hdr%pawrhoij(iatom)%nrhoijsel=nsel56(iatom)
           end do
           bsize=sum(nsel56);allocate(ibuffer(bsize),buffer(bsize*nspden*cplex))
           ii=0;jj=0
-          read(unitfi) ibuffer(:),buffer(:)
+          read(unitfi,err=999) ibuffer(:),buffer(:)
           do iatom=1,hdr%natom
              nselect=nsel56(iatom)
              hdr%pawrhoij(iatom)%rhoijselect(1:nselect)=ibuffer(ii+1:ii+nselect)
@@ -513,13 +521,15 @@ contains
           end do
           deallocate(ibuffer,buffer,nsel56)
        end if
-
     end if
+
+    errmsg = ""
+999 continue
 
   end subroutine hdr_io_1
 
   !> The rhoij_alloc subroutine from abinit.
-  module subroutine rhoij_alloc(cplex,nlmn,nspden,nsppol,pawrhoij,typat)
+  module subroutine rhoij_alloc(cplex,nlmn,nspden,nsppol,pawrhoij,typat,errmsg)
     !! NAME
     !! rhoij_alloc
     !!
@@ -551,6 +561,7 @@ contains
     !arrays
     integer,intent(in) :: nlmn(:),typat(:)
     type(pawrhoij_type),intent(inout) :: pawrhoij(:)
+    character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
     !scalars
@@ -558,8 +569,12 @@ contains
 
     ! *************************************************************************
 
+    errmsg = ""
     nrhoij=size(pawrhoij);nn1=size(nlmn);nn2=size(typat)
-    if (nrhoij/=nn2.or.maxval(typat)>nn1) stop "Error in rhoij_alloc: wrong sizes ! "
+    if (nrhoij/=nn2.or.maxval(typat)>nn1) then
+       errmsg = "Error in rhoij_alloc: wrong sizes ! "
+       return
+    end if
 
     do irhoij=1,nrhoij
 
@@ -586,32 +601,36 @@ contains
 
   end subroutine rhoij_alloc
 
-  module subroutine hdr_io_2(fform,hdr,unit)
+  module subroutine hdr_io_2(fform,hdr,unit,errmsg)
     use tools_io, only: ferror, faterr
     implicit none
     integer, intent(out) :: fform
     integer, intent(in) :: unit
     type(hdr_type_2), intent(out) :: hdr
+    character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
     integer :: ipsp
-    character(len=500) :: msg,errmsg
+    character(len=500) :: msg,errmsgl
     real(dp),allocatable :: occ3d(:,:,:)
     integer :: ii,band,ikpt,spin
+    character(len=:), allocatable :: errmsg2
 
     !*************************************************************************
 
+    errmsg = "Error reading file."
     ! Reading the first record of the file ------------------------------------
     ! fform is not a record of hdr_type
-    read(unit, err=10, iomsg=errmsg) hdr%codvsn,hdr%headform,fform
+    read(unit, err=10, iomsg=errmsgl) hdr%codvsn,hdr%headform,fform
 
     if (hdr%headform < 80) then
        headform_2 = hdr%headform
+       errmsg = ""
        return
     end if
 
     !Reading the second record of the file ------------------------------------
-    read(unit, err=10, iomsg=errmsg) &
+    read(unit, err=10, iomsg=errmsgl) &
        hdr%bantot, hdr%date, hdr%intxc, hdr%ixc, hdr%natom, hdr%ngfft(1:3),&
        hdr%nkpt, hdr%nspden, hdr%nspinor, hdr%nsppol, hdr%nsym, hdr%npsp, hdr%ntypat, hdr%occopt, hdr%pertcase,&
        hdr%usepaw, hdr%ecut, hdr%ecutdg, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
@@ -655,7 +674,7 @@ contains
     ! read 3d matrix with stride and transfer to (stupid) 1d hdr%occ in packed form.
     allocate(occ3d(hdr%mband,hdr%nkpt,hdr%nsppol))
 
-    read(unit, err=10, iomsg=errmsg) &
+    read(unit, err=10, iomsg=errmsgl) &
        hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
        hdr%so_psp(:), hdr%symafm(:), hdr%symrel(:,:,:), &
        hdr%typat(:), hdr%kptns(:,:), occ3d, &
@@ -673,32 +692,33 @@ contains
     deallocate(occ3d)
 
     ! Reading the final record of the header  ---------------------------------
-    read(unit, err=10, iomsg=errmsg) hdr%residm, hdr%xred(:,:), hdr%etot, hdr%fermie, hdr%amu(:)
+    read(unit, err=10, iomsg=errmsgl) hdr%residm, hdr%xred(:,:), hdr%etot, hdr%fermie, hdr%amu(:)
 
-    read(unit, err=10, iomsg=errmsg)&
+    read(unit, err=10, iomsg=errmsgl)&
        hdr%kptopt,hdr%pawcpxocc,hdr%nelect,hdr%charge,hdr%icoulomb,&
        hdr%kptrlatt,hdr%kptrlatt_orig, hdr%shiftk_orig,hdr%shiftk
 
     ! Reading the records with psp information ---------------------------------
     do ipsp=1,hdr%npsp
-       read(unit, err=10, iomsg=errmsg) &
+       read(unit, err=10, iomsg=errmsgl) &
           hdr%title(ipsp), hdr%znuclpsp(ipsp), hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
           hdr%pspcod(ipsp), hdr%pspxc(ipsp), hdr%lmn_size(ipsp), hdr%md5_pseudos(ipsp)
     end do
 
     if (hdr%usepaw==1) then ! Reading the Rhoij tab if the PAW method was used.
-       call pawrhoij_io(hdr%pawrhoij,unit,hdr%nsppol,hdr%nspinor,hdr%nspden,hdr%lmn_size,hdr%typat,hdr%headform)
+       call pawrhoij_io(hdr%pawrhoij,unit,hdr%nsppol,hdr%nspinor,hdr%nspden,hdr%lmn_size,hdr%typat,hdr%headform,errmsg2)
+       if (len_trim(errmsg2) > 0) then
+          errmsg = errmsg2
+          goto 10
+       end if
     end if
 
-    return
-
-    ! Handle IO-error: write warning and let the caller handle the exception.
+    errmsg = ""
 10  continue
-    call ferror("hdr_io_2","error reading abinit file",faterr)
 
   end subroutine hdr_io_2
 
-  subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform)
+  module subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
     implicit none
     !Arguments ------------------------------------
     !scalars
@@ -706,6 +726,7 @@ contains
     !arrays
     integer,intent(in) :: typat(:),nlmn_type(:)
     type(pawrhoij_type),intent(inout) :: pawrhoij(:)
+    character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
     !scalars
@@ -719,10 +740,13 @@ contains
     !arrays
     integer,allocatable :: ibuffer(:),nsel44(:,:),nsel56(:)
     real(dp), allocatable :: buffer(:)
+    character(len=:), allocatable :: errmsg2
 
     ! *************************************************************************
 
-    my_natom=SIZE(pawrhoij);if (my_natom==0) return
+    errmsg = "Error reading file."
+    my_natom=SIZE(pawrhoij)
+    if (my_natom==0) goto 999
     my_nspden=nspden_in
     natom=size(typat)
     paral_atom=(my_natom/=natom)
@@ -733,15 +757,19 @@ contains
 
     if ((headform>=44).and.(headform<56)) then
        allocate(nsel44(nspden_in,natom))
-       read(unitfi  ) ((nsel44(ispden,iatom),ispden=1,nspden_in),iatom=1,natom)
-       call pawrhoij_alloc(pawrhoij,1,nspden_in,nspinor_in,nsppol_in,typat,nlmn_type)
+       read(unitfi,err=999) ((nsel44(ispden,iatom),ispden=1,nspden_in),iatom=1,natom)
+       call pawrhoij_alloc(pawrhoij,1,nspden_in,nspinor_in,nsppol_in,typat,nlmn_type,errmsg2)
+       if (len_trim(errmsg2) > 0) then
+          errmsg = errmsg2
+          goto 999
+       end if
        do iatom=1,natom
           pawrhoij(iatom)%nrhoijsel=nsel44(1,iatom)
        end do
        bsize=sum(nsel44)
        allocate(ibuffer(bsize))
        allocate(buffer(bsize))
-       read(unitfi  ) ibuffer(:),buffer(:)
+       read(unitfi,err=999) ibuffer(:),buffer(:)
        ii=0
        do iatom=1,natom
           nselect=nsel44(1,iatom)
@@ -757,18 +785,22 @@ contains
     else if (headform>=56) then
        allocate(nsel56(natom))
        if (headform==56) then
-          read(unitfi  ) (nsel56(iatom),iatom=1,natom),my_cplex
+          read(unitfi,err=999) (nsel56(iatom),iatom=1,natom),my_cplex
        else
-          read(unitfi  ) (nsel56(iatom),iatom=1,natom),my_cplex,my_nspden
+          read(unitfi,err=999) (nsel56(iatom),iatom=1,natom),my_cplex,my_nspden
        end if
-       call pawrhoij_alloc(pawrhoij,my_cplex,my_nspden,nspinor_in,nsppol_in,typat,nlmn_type)
+       call pawrhoij_alloc(pawrhoij,my_cplex,my_nspden,nspinor_in,nsppol_in,typat,nlmn_type,errmsg2)
+       if (len_trim(errmsg2) > 0) then
+          errmsg = errmsg2
+          goto 999
+       end if
        do iatom=1,natom
           pawrhoij(iatom)%nrhoijsel=nsel56(iatom)
        end do
        bsize=sum(nsel56)
        allocate(ibuffer(bsize))
        allocate(buffer(bsize*my_nspden*my_cplex))
-       read(unitfi  ) ibuffer(:),buffer(:)
+       read(unitfi,err=999) ibuffer(:),buffer(:)
        ii=0;jj=0
        do iatom=1,natom
           nselect=nsel56(iatom)
@@ -784,18 +816,18 @@ contains
        deallocate(nsel56)
     end if
 
+    errmsg = ""
+999 continue
+
   end subroutine pawrhoij_io
 
-  module subroutine pawrhoij_alloc(pawrhoij,cplex,nspden,nspinor,nsppol,typat,lmnsize)
+  module subroutine pawrhoij_alloc(pawrhoij,cplex,nspden,nspinor,nsppol,typat,lmnsize,errmsg)
     implicit none
-
-    !Arguments ------------------------------------
-    !scalars
     integer,intent(in) :: cplex,nspden,nspinor,nsppol
-    !arrays
     integer,intent(in) :: typat(:)
     integer,target,intent(in) :: lmnsize(:)
     type(pawrhoij_type),intent(inout) :: pawrhoij(:)
+    character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
     !scalars
@@ -803,20 +835,19 @@ contains
     logical :: has_rhoijp
     character(len=500) :: msg
 
+    errmsg = ""
     nrhoij=size(pawrhoij)
     natom=size(typat)
     if (nrhoij>natom) then
-       msg=' wrong sizes (1) !'
-       write (*,*) msg
-       stop 1
+       errmsg = "Error reading file (wrong sizes 1)."
+       return
     end if
 
     !Select lmn_size for each atom type
     nn1=size(lmnsize)
     if (maxval(typat)>nn1) then
-       msg=' wrong sizes (3) !'
-       write (*,*) msg
-       stop 1
+       errmsg = "Error reading file (wrong sizes 3)."
+       return
     end if
 
     if (nrhoij>0) then

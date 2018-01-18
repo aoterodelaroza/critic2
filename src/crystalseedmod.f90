@@ -138,10 +138,11 @@ module crystalseedmod
        logical, intent(out) :: hastypes
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_vasp
-     module subroutine read_abinit(seed,file,mol)
+     module subroutine read_abinit(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_abinit
      module subroutine read_elk(seed,file,mol)
        class(crystalseed), intent(inout) :: seed

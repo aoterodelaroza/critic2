@@ -122,7 +122,7 @@ contains
        end if
 
     elseif (isformat == isformat_abinit) then
-       call seed%read_abinit(word,mol)
+       call seed%read_abinit(word,mol,errmsg)
 
     elseif (isformat == isformat_elk) then
        call seed%read_elk(word,mol)
