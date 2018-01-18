@@ -169,10 +169,11 @@ module crystalseedmod
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
      end subroutine read_qein
-     module subroutine read_crystalout(seed,file,mol)
+     module subroutine read_crystalout(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_crystalout
      module subroutine read_siesta(seed,file,mol)
        class(crystalseed), intent(inout) :: seed

@@ -649,7 +649,7 @@ contains
 
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
-
+    
     character(len=1024) :: dictfile
     logical :: fl
     integer :: ludum, luscr
@@ -2315,8 +2315,8 @@ contains
   end subroutine read_qein
 
   !> Read the structure from a crystal output
-  module subroutine read_crystalout(seed,file,mol)
-    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+  module subroutine read_crystalout(seed,file,mol,errmsg)
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2324,6 +2324,7 @@ contains
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, i, j
     character(len=:), allocatable :: line
@@ -2332,8 +2333,14 @@ contains
     logical :: ok, iscrystal
     character*(10) :: ats
 
-    lu = fopen_read(file)
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
 
+    errmsg = "Error reading file."
     r = 0d0
     iscrystal = .false.
     allocate(seed%x(3,10),seed%is(10),seed%spc(2))
@@ -2345,32 +2352,38 @@ contains
        if (index(line,"CRYSTAL CALCULATION") > 0) then
           iscrystal = .true.
        elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
-          ok = getline_raw(lu,line,.true.)
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
           do i = 1, 3
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              lp = 1
              ok = isreal(r(i,1),line,lp)
              ok = ok.and.isreal(r(i,2),line,lp)
              ok = ok.and.isreal(r(i,3),line,lp)
-             if (.not.ok) &
-                call ferror("read_crystalout","wrong lattice vectors",faterr)
+             if (.not.ok) then
+                errmsg = "Wrong lattice vectors."
+                goto 999
+             end if
           end do
           r = r / bohrtoa
        elseif (index(line,"CARTESIAN COORDINATES - PRIMITIVE CELL") > 0) then
           do i = 1, 3
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
           end do
           line = ""
           seed%nat = 0
           do while (.true.)
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              if (len_trim(line) < 1) exit
              seed%nat = seed%nat + 1
              if (seed%nat > size(seed%x,2)) then
                 call realloc(seed%x,3,2*seed%nat)
                 call realloc(seed%is,2*seed%nat)
              end if
-             read (line,*) idum, iz, ats, x
+             read (line,*,err=999) idum, iz, ats, x
              seed%x(:,seed%nat) = x / bohrtoa
              seed%is(seed%nat) = 0
              do j = 1, seed%nspc
@@ -2393,12 +2406,15 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
-    call fclose(lu)
 
-    if (.not.iscrystal) &
-       call ferror("read_crystalout","only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)",faterr)
-    if (all(r == 0d0)) &
-       call ferror("read_crystalout","could not find lattice vectors",faterr)
+    if (.not.iscrystal) then
+       errmsg = "Only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)."
+       goto 999
+    end if
+    if (all(r == 0d0)) then
+       errmsg = "Could not find lattice vectors."
+       goto 999
+    end if
 
     ! cell
     seed%crys2car = transpose(r)
@@ -2410,6 +2426,10 @@ contains
        seed%x(:,i) = matmul(r,seed%x(:,i))
        seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
     end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
     ! no symmetry
     seed%havesym = 0
@@ -2972,7 +2992,7 @@ contains
     elseif (isformat == isformat_crystal) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_crystalout(file,mol)
+       call seed(1)%read_crystalout(file,mol,errmsg)
     elseif (isformat == isformat_qein) then
        nseed = 1
        allocate(seed(1))

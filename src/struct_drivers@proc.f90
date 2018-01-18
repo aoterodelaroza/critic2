@@ -133,7 +133,7 @@ contains
        call seed%read_qeout(word,mol,istruct,errmsg)
 
     elseif (isformat == isformat_crystal) then
-       call seed%read_crystalout(word,mol)
+       call seed%read_crystalout(word,mol,errmsg)
 
     elseif (isformat == isformat_qein) then
        call seed%read_qein(word,mol)
