@@ -1628,7 +1628,7 @@ contains
   ! The following code has been adapted from the elk distribution, version 1.3.2
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
-  module subroutine read_elk(seed,file,mol)
+  module subroutine read_elk(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
        zatguess, nameguess, fclose, string
     use tools_math, only: matinv
@@ -1636,34 +1636,46 @@ contains
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< input filename
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, j, lp, idx
     integer :: natoms
     logical :: ok
 
-    lu = fopen_read(file)
+    errmsg = "Error reading file."
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
 
     ! ignore the 'scale' stuff
     do i = 1, 14
-       read(lu,*)
+       read(lu,*,err=999)
     end do
 
-    read(lu,'(3G18.10)') seed%crys2car(:,1)
-    read(lu,'(3G18.10)') seed%crys2car(:,2)
-    read(lu,'(3G18.10)') seed%crys2car(:,3)
+    read(lu,'(3G18.10)',err=999) seed%crys2car(:,1)
+    read(lu,'(3G18.10)',err=999) seed%crys2car(:,2)
+    read(lu,'(3G18.10)',err=999) seed%crys2car(:,3)
     seed%useabr = 2
 
+    ok = getline_raw(lu,line,.false.)
+    if (.not.ok) goto 999
     ok = getline_raw(lu,line,.true.)
-    ok = getline_raw(lu,line,.true.)
-    if (equal(line,'molecule')) call ferror('read_elk_geometry','Isolated molecules not supported',faterr,line)
+    if (.not.ok) goto 999
+    if (equal(line,'molecule')) then
+       errmsg = "Isolated molecules not supported."
+       goto 999
+    end if
 
     seed%nat = 0
     allocate(seed%x(3,10),seed%is(10))
-    read(lu,'(I4)') seed%nspc
+    read(lu,'(I4)',err=999) seed%nspc
     allocate(seed%spc(seed%nspc))
     do i = 1, seed%nspc
-       ok = getline_raw(lu,line,.true.)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) goto 999
        lp = 1
        atname = getword(line,lp)
        do j = 1, len(atname)
@@ -1671,7 +1683,10 @@ contains
           if (atname(j:j) == '"') atname(j:j) = " "
        end do
        zat = zatguess(atname)
-       if (zat == -1) call ferror('read_elk_geometry','Species file name must start with an atomic symbol',faterr,file)
+       if (zat == -1) then
+          errmsg = "Species file name must start with an atomic symbol"
+          goto 999
+       end if
        seed%spc(i)%z = zat
 
        idx = index(atname,".in",.true.)
@@ -1681,19 +1696,22 @@ contains
           seed%spc(i)%name = trim(atname)
        end if
 
-       read(lu,*) natoms
+       read(lu,*,err=999) natoms
        do j = 1, natoms
           seed%nat = seed%nat + 1
           if (seed%nat > size(seed%x,2)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
           end if
-          read(lu,*) seed%x(:,seed%nat)
+          read(lu,*,err=999) seed%x(:,seed%nat)
           seed%is(seed%nat) = i
        end do
     end do
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+
+    errmsg = ""
+999 continue
     call fclose(lu)
 
     ! symmetry
@@ -2915,7 +2933,7 @@ contains
     elseif (isformat == isformat_elk) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_elk(file,mol)
+       call seed(1)%read_elk(file,mol,errmsg)
     elseif (isformat == isformat_qeout) then
        call read_all_qeout(nseed,seed,file,mol)
     elseif (isformat == isformat_crystal) then

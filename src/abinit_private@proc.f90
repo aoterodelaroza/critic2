@@ -27,11 +27,17 @@
 submodule (abinit_private) proc
   implicit none
 
+  ! headform for fail-to-read situation
+  integer :: headform_1, headform_2
+
+  ! private subroutines:
+  ! subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
+
 contains
   
   ! Driver to choose which version of hdr_io to use.
   module subroutine hdr_io(fform,hdr,rdwr,unitfi,errmsg)
-    use tools_io, only: ferror, faterr, uout, string
+    use tools_io, only: uout, string
     integer, intent(inout) :: fform
     integer, intent(in) :: rdwr,unitfi
     type(hdr_type), intent(inout) :: hdr
@@ -155,7 +161,7 @@ contains
     !!      rdem1,rdkss,testepsm1,testlda,uderiv,vtorho3,wrem1
     !!
     !! CHILDREN
-    !!      leave_new,rhoij_alloc,wrtout
+    !!      leave_new,wrtout
     !!
     !! SOURCE
 
@@ -178,16 +184,13 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
-    integer :: bantot,bsize,cplex,headform,iatom,ierr,ii,ikpt,ipsp,ispden,isym
-    integer :: jj,lloc,lmax,mmax,natinc,natom,nkpt,npsp,nselect,nspden,nsppol
+    integer :: bantot,bsize,cplex,headform,iatom,ierr,ipsp,ispden
+    integer :: lloc,lmax,mmax,natom,nkpt,npsp,nspden,nsppol
     integer :: nsym,ntypat
-    character(len=500) :: message
     character(len=6) :: codvsn
     integer, allocatable :: ibuffer(:),nsel44(:,:),nsel56(:)
     real(dp) :: acell(3)
     real(dp), allocatable :: buffer(:)
-    character(len=:), allocatable :: errmsg2
-
     ! *************************************************************************
     
     headform_1 = 0
@@ -467,30 +470,13 @@ contains
 
     ! Reading the Rhoij tab if the PAW method was used  -----------------------
     if (hdr%usepaw==1) then
-
        if ((headform>=44).and.(headform<56)) then
           allocate(nsel44(hdr%nspden,hdr%natom))
           read(unitfi,err=999) ((nsel44(ispden,iatom),ispden=1,hdr%nspden),iatom=1,hdr%natom)
-          call rhoij_alloc(1,hdr%lmn_size,hdr%nspden,hdr%nsppol,hdr%pawrhoij,hdr%typat,errmsg2)
-          if (len_trim(errmsg2) > 0) then
-             errmsg = errmsg2
-             goto 999
-          end if
-          do iatom=1,hdr%natom
-             hdr%pawrhoij(iatom)%nrhoijsel=nsel44(1,iatom)
-          end do
-          bsize=sum(nsel44);allocate(ibuffer(bsize),buffer(bsize));ii=0
+          bsize=sum(nsel44)
+          allocate(ibuffer(bsize),buffer(bsize));
           read(unitfi,err=999) ibuffer(:),buffer(:)
-          do iatom=1,hdr%natom
-             nselect=nsel44(1,iatom)
-             hdr%pawrhoij(iatom)%rhoijselect(1:nselect)=ibuffer(ii+1:ii+nselect)
-             do ispden=1,hdr%nspden
-                hdr%pawrhoij(iatom)%rhoijp(1:nselect,ispden)=buffer(ii+1:ii+nselect)
-                ii=ii+nselect
-             end do
-          end do
           deallocate(ibuffer,buffer,nsel44)
-
        else if (headform>=56) then
           allocate(nsel56(hdr%natom))
           if (headform==56) then
@@ -499,26 +485,9 @@ contains
           else
              read(unitfi,err=999) (nsel56(iatom),iatom=1,hdr%natom),cplex,nspden
           end if
-          call rhoij_alloc(cplex,hdr%lmn_size,nspden,hdr%nsppol,hdr%pawrhoij,hdr%typat,errmsg2)
-          if (len_trim(errmsg2) > 0) then
-             errmsg = errmsg2
-             goto 999
-          end if
-          do iatom=1,hdr%natom
-             hdr%pawrhoij(iatom)%nrhoijsel=nsel56(iatom)
-          end do
-          bsize=sum(nsel56);allocate(ibuffer(bsize),buffer(bsize*nspden*cplex))
-          ii=0;jj=0
+          bsize=sum(nsel56)
+          allocate(ibuffer(bsize),buffer(bsize*nspden*cplex))
           read(unitfi,err=999) ibuffer(:),buffer(:)
-          do iatom=1,hdr%natom
-             nselect=nsel56(iatom)
-             hdr%pawrhoij(iatom)%rhoijselect(1:nselect)=ibuffer(ii+1:ii+nselect)
-             ii=ii+nselect
-             do ispden=1,nspden
-                hdr%pawrhoij(iatom)%rhoijp(1:cplex*nselect,ispden)=buffer(jj+1:jj+cplex*nselect)
-                jj=jj+cplex*nselect
-             end do
-          end do
           deallocate(ibuffer,buffer,nsel56)
        end if
     end if
@@ -528,81 +497,7 @@ contains
 
   end subroutine hdr_io_1
 
-  !> The rhoij_alloc subroutine from abinit.
-  module subroutine rhoij_alloc(cplex,nlmn,nspden,nsppol,pawrhoij,typat,errmsg)
-    !! NAME
-    !! rhoij_alloc
-    !!
-    !! FUNCTION
-    !! Initialize and allocate a pawrhoij datastructure
-    !!
-    !! COPYRIGHT
-    !! Copyright (C) 2007-2009 ABINIT group (MT)
-    !! This file is distributed under the terms of the
-    !! GNU General Public License, see ~ABINIT/Infos/copyright
-    !! or http://www.gnu.org/copyleft/gpl.txt .
-    !!
-    !! INPUTS
-    !! cplex=1 if rhoij is REAL,2 if COMPLEX
-    !! nlmn(:)=array of (l,m,n) sizes for rhoij
-    !! nspden=number of spin-components for rhoij
-    !! nsppol=number of independant spin-components for rhoij
-    !! typat(:)=types of atoms
-    !! ngrhoij=number of gradients to be allocated (OPTIONAL, default=0)
-    !! nlmnmix=number of rhoij elements to be mixed during SCF cycle (OPTIONAL, default=0)
-    !! use_rhoij_=1 if pawrhoij(:)%rhoij_ has to be allocated (OPTIONAL, default=0)
-    !!
-    !! SIDE EFFECTS
-    !! pawrhoij(:)<type(pawrhoij_type)>= rhoij datastructure
-
-    !Arguments ------------------------------------
-    !scalars
-    integer,intent(in) :: cplex,nspden,nsppol
-    !arrays
-    integer,intent(in) :: nlmn(:),typat(:)
-    type(pawrhoij_type),intent(inout) :: pawrhoij(:)
-    character(len=:), allocatable, intent(out) :: errmsg
-
-    !Local variables-------------------------------
-    !scalars
-    integer :: irhoij,itypat,lmn2_size,nn1,nn2,nrhoij
-
-    ! *************************************************************************
-
-    errmsg = ""
-    nrhoij=size(pawrhoij);nn1=size(nlmn);nn2=size(typat)
-    if (nrhoij/=nn2.or.maxval(typat)>nn1) then
-       errmsg = "Error in rhoij_alloc: wrong sizes ! "
-       return
-    end if
-
-    do irhoij=1,nrhoij
-
-       itypat=typat(irhoij)
-       lmn2_size=nlmn(itypat)*(nlmn(itypat)+1)/2
-
-       ! Scalars initializations
-       pawrhoij(irhoij)%cplex=cplex
-       pawrhoij(irhoij)%lmn_size=nlmn(itypat)
-       pawrhoij(irhoij)%lmn2_size=lmn2_size
-       pawrhoij(irhoij)%nspden=nspden
-       pawrhoij(irhoij)%nsppol=nsppol
-       pawrhoij(irhoij)%nrhoijsel=0
-       pawrhoij(irhoij)%lmnmix_sz=0
-
-       ! Mandatory pointers allocations
-       allocate(pawrhoij(irhoij)%rhoijselect(lmn2_size))
-       allocate(pawrhoij(irhoij)%rhoijp(cplex*lmn2_size,nspden))
-
-       ! Intializations to zero (to avoid overflow)
-       pawrhoij(irhoij)%rhoijselect(:)=0
-       pawrhoij(irhoij)%rhoijp(:,:)=0d0
-    end do
-
-  end subroutine rhoij_alloc
-
   module subroutine hdr_io_2(fform,hdr,unit,errmsg)
-    use tools_io, only: ferror, faterr
     implicit none
     integer, intent(out) :: fform
     integer, intent(in) :: unit
@@ -611,7 +506,7 @@ contains
 
     !Local variables-------------------------------
     integer :: ipsp
-    character(len=500) :: msg,errmsgl
+    character(len=500) :: errmsgl
     real(dp),allocatable :: occ3d(:,:,:)
     integer :: ii,band,ikpt,spin
     character(len=:), allocatable :: errmsg2
@@ -718,6 +613,8 @@ contains
 
   end subroutine hdr_io_2
 
+  !xx! private subroutines
+
   module subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
     implicit none
     !Arguments ------------------------------------
@@ -730,17 +627,11 @@ contains
 
     !Local variables-------------------------------
     !scalars
-    integer,parameter :: fort_formatted=1,fort_binary=2,netcdf_io=3
-    integer :: cplex,i1,i2,iatom,iatom_tot,natom,ispden,bsize,ii,jj,lmn2_size
-    integer :: nselect,my_cplex,my_natinc,my_natom,my_nspden,ngrhoijmx,size_rhoij2
-    integer :: iomode,ncid,natom_id,cplex_id,nspden_id,nsel56_id,buffer_id,ibuffer_id,ncerr
-    integer :: bsize_id,bufsize_id
-    logical :: paral_atom
-    character(len=500) :: msg
+    integer :: iatom,natom,ispden,bsize
+    integer :: my_cplex,my_natom,my_nspden
     !arrays
     integer,allocatable :: ibuffer(:),nsel44(:,:),nsel56(:)
     real(dp), allocatable :: buffer(:)
-    character(len=:), allocatable :: errmsg2
 
     ! *************************************************************************
 
@@ -749,39 +640,15 @@ contains
     if (my_natom==0) goto 999
     my_nspden=nspden_in
     natom=size(typat)
-    paral_atom=(my_natom/=natom)
 
-    iomode = fort_binary
-
-    ncid = unitfi
 
     if ((headform>=44).and.(headform<56)) then
        allocate(nsel44(nspden_in,natom))
        read(unitfi,err=999) ((nsel44(ispden,iatom),ispden=1,nspden_in),iatom=1,natom)
-       call pawrhoij_alloc(pawrhoij,1,nspden_in,nspinor_in,nsppol_in,typat,nlmn_type,errmsg2)
-       if (len_trim(errmsg2) > 0) then
-          errmsg = errmsg2
-          goto 999
-       end if
-       do iatom=1,natom
-          pawrhoij(iatom)%nrhoijsel=nsel44(1,iatom)
-       end do
        bsize=sum(nsel44)
-       allocate(ibuffer(bsize))
-       allocate(buffer(bsize))
+       allocate(ibuffer(bsize),buffer(bsize))
        read(unitfi,err=999) ibuffer(:),buffer(:)
-       ii=0
-       do iatom=1,natom
-          nselect=nsel44(1,iatom)
-          pawrhoij(iatom)%rhoijselect(1:nselect)=ibuffer(ii+1:ii+nselect)
-          do ispden=1,nspden_in
-             pawrhoij(iatom)%rhoijp(1:nselect,ispden)=buffer(ii+1:ii+nselect)
-             ii=ii+nselect
-          end do
-       end do
-       deallocate(ibuffer)
-       deallocate(buffer)
-       deallocate(nsel44)
+       deallocate(ibuffer,buffer,nsel44)
     else if (headform>=56) then
        allocate(nsel56(natom))
        if (headform==56) then
@@ -789,100 +656,15 @@ contains
        else
           read(unitfi,err=999) (nsel56(iatom),iatom=1,natom),my_cplex,my_nspden
        end if
-       call pawrhoij_alloc(pawrhoij,my_cplex,my_nspden,nspinor_in,nsppol_in,typat,nlmn_type,errmsg2)
-       if (len_trim(errmsg2) > 0) then
-          errmsg = errmsg2
-          goto 999
-       end if
-       do iatom=1,natom
-          pawrhoij(iatom)%nrhoijsel=nsel56(iatom)
-       end do
        bsize=sum(nsel56)
-       allocate(ibuffer(bsize))
-       allocate(buffer(bsize*my_nspden*my_cplex))
+       allocate(ibuffer(bsize),buffer(bsize*my_nspden*my_cplex))
        read(unitfi,err=999) ibuffer(:),buffer(:)
-       ii=0;jj=0
-       do iatom=1,natom
-          nselect=nsel56(iatom)
-          pawrhoij(iatom)%rhoijselect(1:nselect)=ibuffer(ii+1:ii+nselect)
-          ii=ii+nselect
-          do ispden=1,my_nspden
-             pawrhoij(iatom)%rhoijp(1:my_cplex*nselect,ispden)=buffer(jj+1:jj+my_cplex*nselect)
-             jj=jj+my_cplex*nselect
-          end do
-       end do
-       deallocate(ibuffer)
-       deallocate(buffer)
-       deallocate(nsel56)
+       deallocate(ibuffer,buffer,nsel56)
     end if
 
     errmsg = ""
 999 continue
 
   end subroutine pawrhoij_io
-
-  module subroutine pawrhoij_alloc(pawrhoij,cplex,nspden,nspinor,nsppol,typat,lmnsize,errmsg)
-    implicit none
-    integer,intent(in) :: cplex,nspden,nspinor,nsppol
-    integer,intent(in) :: typat(:)
-    integer,target,intent(in) :: lmnsize(:)
-    type(pawrhoij_type),intent(inout) :: pawrhoij(:)
-    character(len=:), allocatable, intent(out) :: errmsg
-
-    !Local variables-------------------------------
-    !scalars
-    integer :: irhoij,irhoij_,itypat,lmn2_size,my_comm_atom,nn1,natom,nrhoij
-    logical :: has_rhoijp
-    character(len=500) :: msg
-
-    errmsg = ""
-    nrhoij=size(pawrhoij)
-    natom=size(typat)
-    if (nrhoij>natom) then
-       errmsg = "Error reading file (wrong sizes 1)."
-       return
-    end if
-
-    !Select lmn_size for each atom type
-    nn1=size(lmnsize)
-    if (maxval(typat)>nn1) then
-       errmsg = "Error reading file (wrong sizes 3)."
-       return
-    end if
-
-    if (nrhoij>0) then
-       do irhoij=1,nrhoij
-          irhoij_=irhoij
-          itypat=typat(irhoij_)
-
-          lmn2_size=lmnsize(itypat)*(lmnsize(itypat)+1)/2
-
-          !    Scalars initializations
-          pawrhoij(irhoij)%cplex=cplex
-          pawrhoij(irhoij)%itypat=itypat
-          pawrhoij(irhoij)%lmn_size=lmnsize(itypat)
-          pawrhoij(irhoij)%lmn2_size=lmn2_size
-          pawrhoij(irhoij)%nspden=nspden
-          pawrhoij(irhoij)%nspinor=nspinor
-          pawrhoij(irhoij)%nsppol=nsppol
-          pawrhoij(irhoij)%nrhoijsel=0
-          pawrhoij(irhoij)%lmnmix_sz=0
-          pawrhoij(irhoij)%ngrhoij=0
-          pawrhoij(irhoij)%use_rhoij_=0
-          pawrhoij(irhoij)%use_rhoijres=0
-
-          !    Arrays allocations
-          has_rhoijp=.true.
-          if (has_rhoijp) then
-             pawrhoij(irhoij)%use_rhoijp=1
-             allocate(pawrhoij(irhoij)%rhoijselect(lmn2_size))
-             allocate(pawrhoij(irhoij)%rhoijp(cplex*lmn2_size,nspden))
-             pawrhoij(irhoij)%rhoijselect(:)=0
-             pawrhoij(irhoij)%rhoijp(:,:) = 0
-          end if
-       end do
-    end if
-
-  end subroutine pawrhoij_alloc
 
 end submodule proc
