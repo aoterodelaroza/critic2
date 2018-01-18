@@ -2968,7 +2968,7 @@ contains
        allocate(seed(1))
        call seed(1)%read_elk(file,mol,errmsg)
     elseif (isformat == isformat_qeout) then
-       call read_all_qeout(nseed,seed,file,mol)
+       call read_all_qeout(nseed,seed,file,mol,errmsg)
     elseif (isformat == isformat_crystal) then
        nseed = 1
        allocate(seed(1))
@@ -3117,124 +3117,148 @@ contains
   end subroutine read_all_cif
 
   !> Read all structures from a QE outupt. Returns all crystal seeds.
-  module subroutine read_all_qeout(nseed,seed,file,mol)
+  module subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
-       zatguess, fclose, equali
+       zatguess, fclose, equali, string
     use tools_math, only: matinv
     use param, only: bohrtoa
-    use types, only: realloc
+    use types, only: realloc, species
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, ideq, i, j, is0
     character(len=:), allocatable :: line
-    character*10 :: atn
+    character*10 :: atn, sdum
+    character*40 :: sene
     integer :: idum
     real*8 :: alat, r(3,3), qaux, rfac, cfac
-    logical :: ok
-    logical, allocatable :: tox(:)
-
-    lu = fopen_read(file)
+    logical :: ok, tox
+    ! interim copy of seed info
+    integer :: nat, nspc
+    real*8, allocatable :: x(:,:)
+    integer, allocatable :: is(:)
+    type(species), allocatable :: spc(:) !< Species
+    real*8 :: crys2car(3,3)
+    logical :: hasx, hasis, hasspc, hasr
+    
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "File not found."
+       return
+    end if
 
     ! first pass: read the number of structures
     nseed = 0
     do while (getline_raw(lu,line))
-       if (index(line,"Self-consistent Calculation") > 0) then
+       if (index(line,"!") == 1) then
           nseed = nseed + 1
        end if
     end do
-    if (nseed == 0) return
+    if (nseed == 0) then
+       errmsg = "No valid structures found."
+       goto 999
+    end if
     if (allocated(seed)) deallocate(seed)
-    allocate(seed(nseed+1))
+    if (nseed > 1) then
+       nseed = nseed + 1
+       is0 = 1
+    else
+       nseed = 1
+       is0 = 0
+    end if
+    allocate(seed(nseed))
     do i = 1, nseed
        seed(i)%nspc = 0
        seed(i)%nat = 0
     end do
-    allocate(tox(nseed))
-    tox = .false.
     alat = 1d0
 
     ! rewind and read all the structures
     rewind(lu)
-    is0 = 1
+    errmsg = "Error reading file."
+    nat = 0
+    nspc = 0
+    tox = .false.
+    hasx = .false.
+    hasis = .false.
+    hasspc = .false.
+    hasr = .false.
     do while (getline_raw(lu,line))
        ideq = index(line,"=") + 1
 
        ! Count the structures
-       if (index(line,"Self-consistent Calculation") > 0) then
-          is0 = is0 + 1
-          if (is0 > nseed) exit
-
-       elseif (index(line,"lattice parameter (alat)") > 0) then
+       if (index(line,"lattice parameter (alat)") > 0) then
           ok = isreal(alat,line,ideq)
 
-       elseif (index(line,"number of atoms/cell") > 0 .and. seed(1)%nat == 0) then
-          ok = isinteger(seed(1)%nat,line,ideq)
-          do i = 1, nseed
-             seed(i)%nat = seed(1)%nat
-             allocate(seed(i)%x(3,seed(i)%nat),seed(i)%is(seed(i)%nat))
-             seed(i)%is = 0
-          end do
+       elseif (index(line,"number of atoms/cell") > 0) then
+          ok = isinteger(nat,line,ideq)
+          if (allocated(x)) deallocate(x)
+          if (allocated(is)) deallocate(is)
+          allocate(x(3,nat),is(nat))
 
-       elseif (index(line,"number of atomic types") > 0 .and. seed(1)%nspc == 0) then
-          ok = isinteger(seed(1)%nspc,line,ideq)
-          do i = 1, nseed
-             seed(i)%nspc = seed(1)%nspc
-             allocate(seed(i)%spc(seed(i)%nspc))
-          end do
+       elseif (index(line,"number of atomic types") > 0) then
+          ok = isinteger(nspc,line,ideq)
+          if (allocated(spc)) deallocate(spc)
+          allocate(spc(nspc))
 
-       elseif (index(line,"atomic species   valence    mass     pseudopotential")>0 .and. is0 == 1) then
-          do i = 1, seed(1)%nspc
-             ok = getline_raw(lu,line,.true.)
-             read (line,*) seed(1)%spc(i)%name, qaux
-             seed(1)%spc(i)%z = zatguess(seed(1)%spc(i)%name)
-             if (seed(1)%spc(i)%z < 0) &
-                call ferror("read_qeout","unknown atomic symbol: "//trim(seed(1)%spc(i)%name),faterr)
+       elseif (index(line,"atomic species   valence    mass     pseudopotential")>0) then
+          do i = 1, nspc
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read (line,*,err=999) spc(i)%name, qaux
+             spc(i)%z = zatguess(spc(i)%name)
+             if (spc(i)%z < 0) then
+                errmsg = "Unknown atomic symbol: "//trim(spc(i)%name)//"."
+                goto 999
+             end if
           end do
-          do j = 2, nseed
-             do i = 1, seed(1)%nspc
-                seed(j)%spc(i)%name = seed(1)%spc(i)%name
-                seed(j)%spc(i)%z = seed(1)%spc(i)%z
-             end do
-          end do
+          hasspc = .true.
 
        elseif (index(line,"crystal axes:") > 0) then
           do i = 1, 3
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              ideq = index(line,"(",.true.) + 1
              ok = isreal(r(i,1),line,ideq)
              ok = ok.and.isreal(r(i,2),line,ideq)
              ok = ok.and.isreal(r(i,3),line,ideq)
+             if (.not.ok) goto 999
           end do
           r = r * alat ! alat comes before crystal axes
-          seed(is0)%crys2car = transpose(r)
-          if (is0 == 1) then
-             do i = 1, nseed
-                seed(i)%crys2car = seed(1)%crys2car
-             end do
-          end if
+          crys2car = transpose(r)
+          tox = .false.
+          hasr = .true.
 
        elseif (index(line,"Cartesian axes")>0) then
-          ok = getline_raw(lu,line,.true.)
-          ok = getline_raw(lu,line,.true.)
-          seed(is0)%is = 0
-          do i = 1, seed(is0)%nat
-             ok = getline_raw(lu,line,.true.)
-             read(line,*) idum, atn
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+          is = 0
+          do i = 1, nat
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read(line,*,err=999) idum, atn
              line = line(index(line,"(",.true.)+1:)
-             read(line,*) seed(is0)%x(:,i)
-             do j = 1, seed(is0)%nspc
-                if (equali(seed(is0)%spc(j)%name,atn)) then
-                   seed(is0)%is(i) = j
+             read(line,*,err=999) x(:,i)
+             do j = 1, nspc
+                if (equali(spc(j)%name,atn)) then
+                   is(i) = j
                    exit
                 end if
              end do
-             if (seed(is0)%is(i) == 0) &
-                call ferror("read_qeout","unknown atom type: "//atn,faterr)
+             if (is(i) == 0) then
+                errmsg = "Unknown atom type: "//atn
+                goto 999
+             end if
           end do
-          tox(is0) = .true.
+          tox = .true.
+          hasx = .true.
+          hasis = .true.
 
        elseif (line(1:15) == "CELL_PARAMETERS") then
           cfac = 1d0
@@ -3246,74 +3270,115 @@ contains
              cfac = 1d0
           end if
           do i = 1, 3
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              ideq = 1
              ok = isreal(r(i,1),line,ideq)
              ok = ok.and.isreal(r(i,2),line,ideq)
              ok = ok.and.isreal(r(i,3),line,ideq)
+             if (.not.ok) goto 999
           end do
           r = r * cfac
-          seed(is0)%crys2car = transpose(r)
+          crys2car = transpose(r)
+          hasr = .true.
 
        elseif (line(1:16) == "ATOMIC_POSITIONS") then
           rfac = 1d0
           if (index(line,"angstrom") > 0) then
-             tox(is0) = .true.
+             tox = .true.
              rfac = 1d0 / bohrtoa 
           elseif (index(line,"alat") > 0) then
-             tox(is0) = .true.
+             tox = .true.
              rfac = alat
           elseif (index(line,"bohr") > 0) then
-             tox(is0) = .true.
+             tox = .true.
              rfac = 1d0
           elseif (index(line,"crystal") > 0) then
-             tox(is0) = .false.
+             tox = .false.
              rfac = 1d0
           end if
-          seed(is0)%is = 0
-          do i = 1, seed(is0)%nat
-             ok = getline_raw(lu,line,.true.)
-             read(line,*) atn, seed(is0)%x(:,i)
-             do j = 1, seed(is0)%nspc
-                if (equali(seed(is0)%spc(j)%name,atn)) then
-                   seed(is0)%is(i) = j
+          is = 0
+          do i = 1, nat
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read(line,*,err=999) atn, x(:,i)
+             do j = 1, nspc
+                if (equali(spc(j)%name,atn)) then
+                   is(i) = j
                    exit
                 end if
              end do
-             if (seed(is0)%is(i) == 0) &
-                call ferror("read_qeout","unknown atom type: "//atn,faterr)
+             if (is(i) == 0) then
+                errmsg = "Unknown atom type: "//atn
+                goto 999
+             end if
           end do
-          seed(is0)%x = seed(is0)%x * rfac
+          x = x * rfac
+          hasx = .true.
+       else if (index(line,"!") == 1) then
+          if (.not.hasx .or. nat == 0) then
+             errmsg = "Missing atomic positions."
+             goto 999
+          end if
+          if (.not.hasis) then
+             errmsg = "Missing atomic types."
+             goto 999
+          end if
+          if (.not.hasspc .or. nspc == 0) then
+             errmsg = "Missing atomic species."
+             goto 999
+          end if
+          if (.not.hasr) then
+             errmsg = "Missing cell dimensions."
+             goto 999
+          end if
+          is0 = is0 + 1
+          hasx = .false.
+
+          seed(is0)%nat = nat
+          seed(is0)%nspc = nspc
+          seed(is0)%spc = spc
+          seed(is0)%x = x
+          seed(is0)%is = is
+          seed(is0)%crys2car = crys2car
+
+          seed(is0)%useabr = 2
+          r = matinv(seed(is0)%crys2car)
+          do i = 1, seed(is0)%nat
+             if (tox) then
+                seed(is0)%x(:,i) = matmul(r,seed(is0)%x(:,i))
+             end if
+             seed(is0)%x(:,i) = seed(is0)%x(:,i) - floor(seed(is0)%x(:,i))
+          end do
+
+          seed(is0)%havesym = 0
+          seed(is0)%findsym = -1
+          seed(is0)%isused = .true.
+          seed(is0)%ismolecule = mol
+          seed(is0)%cubic = .false.
+          seed(is0)%border = 0d0
+          seed(is0)%havex0 = .false.
+          seed(is0)%molx0 = 0d0
+          seed(is0)%file = file
+
+          read (line,*,err=999) sdum, sdum, sdum, sdum, sene
+          seed(is0)%name = string(adjustl(sene)) // " Ry"
        end if
     end do
+
+    if (nseed > 1) then
+       seed(1) = seed(nseed)
+       seed(1)%name = "(final) " // trim(seed(1)%name)
+       seed(2)%name = "(initial) " // trim(seed(2)%name)
+    end if
+
+    errmsg = ""
+999 continue
     call fclose(lu)
-
-    ! transform atomic positions and complete the seeds
-    do j = 1, nseed
-       seed(j)%useabr = 2
-       r = matinv(seed(j)%crys2car)
-
-       do i = 1, seed(j)%nat
-          if (tox(j)) then
-             seed(j)%x(:,i) = matmul(r,seed(j)%x(:,i))
-          end if
-          seed(j)%x(:,i) = seed(j)%x(:,i) - floor(seed(j)%x(:,i))
-       end do
-       ! no symmetry
-       seed(j)%havesym = 0
-       seed(j)%findsym = -1
-
-       ! rest of the seed information
-       seed(j)%isused = .true.
-       seed(j)%ismolecule = mol
-       seed(j)%cubic = .false.
-       seed(j)%border = 0d0
-       seed(j)%havex0 = .false.
-       seed(j)%molx0 = 0d0
-       seed(j)%file = file
-       seed(j)%name = file
-    end do
-    call realloc_crystalseed(seed,nseed)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
 
   end subroutine read_all_qeout
 
