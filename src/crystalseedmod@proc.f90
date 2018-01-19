@@ -1583,7 +1583,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,"unformatted",errstop=.false.)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file."
        return
     end if
 
@@ -1656,7 +1656,7 @@ contains
     errmsg = "Error reading file."
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file."
        return
     end if
 
@@ -1853,7 +1853,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file."
        return
     end if
     errmsg = "Error reading file"
@@ -2225,7 +2225,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file."
        return
     end if
     r = 0d0
@@ -2400,7 +2400,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file."
        return
     end if
 
@@ -2512,7 +2512,7 @@ contains
   end subroutine read_crystalout
 
   !> Read the structure from a siesta OUT input
-  module subroutine read_siesta(seed,file,mol)
+  module subroutine read_siesta(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2520,26 +2520,33 @@ contains
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
     real*8 :: r(3,3)
     integer :: i, idum
 
+    errmsg = ""
     ! open
-    lu = fopen_read(file)
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
 
     ! the lattice vectors
     do i = 1, 3
-       read (lu,*) r(i,:)
+       read (lu,*,err=999) r(i,:)
     end do
     r = r / bohrtoa
 
     ! the atoms
     seed%nspc = 0
-    read (lu,*) seed%nat
+    read (lu,*,err=999) seed%nat
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(2))
     do i = 1, seed%nat
-       read (lu,*) seed%is(i), idum, seed%x(:,i)
+       read (lu,*,err=999) seed%is(i), idum, seed%x(:,i)
        if (idum > size(seed%spc,1)) &
           call realloc(seed%spc,2*idum)
        seed%nspc = max(seed%nspc,seed%is(i))
@@ -2547,11 +2554,14 @@ contains
        seed%spc(seed%is(i))%name = nameguess(idum)
     end do
     call realloc(seed%spc,seed%nspc)
-    call fclose(lu)
 
     ! fill the cell metrics
     seed%crys2car = transpose(r)
     seed%useabr = 2
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
     ! no symmetry
     seed%havesym = 0
@@ -2927,7 +2937,7 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "POTCAR file not found."
+       errmsg = "Error opening POTCAR file."
        return
     end if
 
@@ -2989,7 +2999,7 @@ contains
 
     inquire(file=file,exist=ok)
     if (.not.ok) then
-       errmsg = "File not found."
+       errmsg = "Error opening file."
        goto 999
     end if
 
@@ -3069,7 +3079,7 @@ contains
     elseif (isformat == isformat_siesta) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_siesta(file,mol)
+       call seed(1)%read_siesta(file,mol,errmsg)
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
@@ -3157,7 +3167,7 @@ contains
     fl = ocif_(file)
     if (.not.checkcifop()) goto 999
     if (.not.fl) then
-       errmsg = "File not found."
+       errmsg = "Error opening file."
        goto 999
     end if
 
@@ -3230,7 +3240,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "File not found."
+       errmsg = "Error opening file."
        return
     end if
 
@@ -3496,7 +3506,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "File not found."
+       errmsg = "Error opening file."
        return
     end if
 
@@ -3700,7 +3710,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
-       errmsg = "File not found."
+       errmsg = "Error opening file."
        return
     end if
 

@@ -171,10 +171,11 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_crystalout
-     module subroutine read_siesta(seed,file,mol)
+     module subroutine read_siesta(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_siesta
      module subroutine read_dftbp(seed,file,molout,rborder,docube)
        class(crystalseed), intent(inout) :: seed

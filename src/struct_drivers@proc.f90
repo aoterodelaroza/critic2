@@ -160,7 +160,7 @@ contains
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
     elseif (isformat == isformat_siesta) then
-       call seed%read_siesta(word,mol)
+       call seed%read_siesta(word,mol,errmsg)
 
     elseif (isformat == isformat_xsf) then
        call seed%read_xsf(word,mol)
