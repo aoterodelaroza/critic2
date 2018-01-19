@@ -18,6 +18,12 @@
 submodule (wfn_private) proc
   implicit none
 
+  !xx! private procedures
+  ! function gnorm(type,a) result(N)
+  ! function wfx_read_integers(lu,n,errmsg) result(x)
+  ! function wfx_read_reals1(lu,n,errmsg) result(x)
+  ! subroutine calculate_d2ran(f)
+
   ! double factorials minus one
   integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/) 
 
@@ -1726,65 +1732,6 @@ contains
     
   end subroutine register_struct
 
-  !> Calculate the normalization factor of a primitive of a given type
-  !> with exponent a.
-  module function gnorm(type,a) result(N)
-    use tools_io, only: ferror, faterr
-    use param, only: pi
-    integer, intent(in) :: type
-    real*8, intent(in) :: a
-    real*8 :: N
-
-    if (type == 1) then
-       ! 1
-       ! x
-       N = 2**(3d0/4d0) * a**(3d0/4d0) / pi**(3d0/4d0)
-    else if (type >= 2 .and. type <= 4) then
-       ! 2 3 4
-       ! x y z
-       N = 2**(7d0/4d0) * a**(5d0/4d0) / pi**(3d0/4d0)
-    else if (type >= 5 .and. type <= 7) then
-       ! 5  6  7
-       ! xx yy zz
-       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
-    else if (type >= 8 .and. type <= 10) then
-       ! 7  8  9
-       ! xy xz yz
-       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) 
-    else if (type >= 11 .and. type <= 13) then
-       ! 11  12  13
-       ! xxx yyy zzz
-       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
-    else if (type >= 14 .and. type <= 19) then
-       ! 14  15  16  17  18  19  
-       ! xyy xxy xxz xzz yzz yyz 
-       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
-    else if (type == 20) then
-       ! 20
-       ! xyz
-       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0)
-    else if (type >= 21 .and. type <= 23) then
-       ! 21   22   23   
-       ! xxxx yyyy zzzz 
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(35d0)
-    else if (type >= 24 .and. type <= 29) then
-       ! 24   25   26   27   28   29  
-       ! xxxy xxxz xyyy yyyz xzzz yzzz
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(5d0)
-    else if (type >= 30 .and. type <= 32) then
-       ! 30   31   32  
-       ! xxyy xxzz yyzz
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) * sqrt(3d0)
-    else if (type >= 33 .and. type <= 35) then
-       ! 33   34   35   
-       ! xxyz xyyz xyzz 
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0)
-    else
-       call ferror("gnorm","fixme: primitive type not supported",faterr)
-    endif
-
-  endfunction gnorm
-
   !> Determine the density and derivatives at a given target point.
   !> xpos is in cartesian coordiantes and assume that the molecule has
   !> been displaced to the center of a big cube. Same transformation
@@ -2272,8 +2219,67 @@ contains
     
   end subroutine calculate_mo_gto
 
+  !xx! private procedures
+  !> Calculate the normalization factor of a primitive of a given type
+  !> with exponent a.
+  function gnorm(type,a) result(N)
+    use tools_io, only: ferror, faterr
+    use param, only: pi
+    integer, intent(in) :: type
+    real*8, intent(in) :: a
+    real*8 :: N
+
+    if (type == 1) then
+       ! 1
+       ! x
+       N = 2**(3d0/4d0) * a**(3d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 2 .and. type <= 4) then
+       ! 2 3 4
+       ! x y z
+       N = 2**(7d0/4d0) * a**(5d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 5 .and. type <= 7) then
+       ! 5  6  7
+       ! xx yy zz
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
+    else if (type >= 8 .and. type <= 10) then
+       ! 7  8  9
+       ! xy xz yz
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) 
+    else if (type >= 11 .and. type <= 13) then
+       ! 11  12  13
+       ! xxx yyy zzz
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
+    else if (type >= 14 .and. type <= 19) then
+       ! 14  15  16  17  18  19  
+       ! xyy xxy xxz xzz yzz yyz 
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
+    else if (type == 20) then
+       ! 20
+       ! xyz
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 21 .and. type <= 23) then
+       ! 21   22   23   
+       ! xxxx yyyy zzzz 
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(35d0)
+    else if (type >= 24 .and. type <= 29) then
+       ! 24   25   26   27   28   29  
+       ! xxxy xxxz xyyy yyyz xzzz yzzz
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(5d0)
+    else if (type >= 30 .and. type <= 32) then
+       ! 30   31   32  
+       ! xxyy xxzz yyzz
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) * sqrt(3d0)
+    else if (type >= 33 .and. type <= 35) then
+       ! 33   34   35   
+       ! xxyz xyyz xyzz 
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0)
+    else
+       call ferror("gnorm","fixme: primitive type not supported",faterr)
+    endif
+  endfunction gnorm
+
   !> Read a list of n integers from a logical unit
-  module function wfx_read_integers(lu,n,errmsg) result(x)
+  function wfx_read_integers(lu,n,errmsg) result(x)
     use tools_io, only: getline_raw, isinteger, ferror, faterr
     integer, intent(in) :: lu, n
     character(len=:), allocatable, intent(out), optional :: errmsg
@@ -2313,7 +2319,7 @@ contains
   end function wfx_read_integers
 
   !> Read a list of n reals from a logical unit
-  module function wfx_read_reals1(lu,n,errmsg) result(x)
+  function wfx_read_reals1(lu,n,errmsg) result(x)
     use tools_io, only: getline_raw, isreal, ferror, faterr
     integer, intent(in) :: lu, n
     character(len=:), allocatable, intent(out), optional :: errmsg
@@ -2354,7 +2360,7 @@ contains
   end function wfx_read_reals1
 
   !> Calculate the distance range of each primitive
-  module subroutine calculate_d2ran(f)
+  subroutine calculate_d2ran(f)
     use tools_io, only: ferror, faterr
     class(molwfn), intent(inout) :: f
 

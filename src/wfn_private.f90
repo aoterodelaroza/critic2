@@ -93,9 +93,6 @@ module wfn_private
   public :: wfn_read_wfx_geometry
   public :: wfn_read_fchk_geometry
   public :: wfn_read_molden_geometry
-  private :: gnorm
-  public :: wfx_read_integers
-  public :: wfx_read_reals1
 
   ! wfn type identifier
   integer, parameter, public :: wfn_rhf = 0
@@ -170,11 +167,6 @@ module wfn_private
        integer, intent(in) :: ncel
        type(celatom), intent(in) :: atcel(:)
      end subroutine register_struct
-     module function gnorm(type,a) result(N)
-       integer, intent(in) :: type
-       real*8, intent(in) :: a
-       real*8 :: N
-     endfunction gnorm
      module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
        use tools_io, only: ferror, faterr
        class(molwfn), intent(in) :: f
@@ -212,19 +204,6 @@ module wfn_private
        integer, intent(in) :: imo1
        integer, intent(in) :: nder
      end subroutine calculate_mo_gto
-     module function wfx_read_integers(lu,n,errmsg) result(x)
-       integer, intent(in) :: lu, n
-       character(len=:), allocatable, intent(out), optional :: errmsg
-       integer :: x(n)
-     end function wfx_read_integers
-     module function wfx_read_reals1(lu,n,errmsg) result(x)
-       integer, intent(in) :: lu, n
-       character(len=:), allocatable, intent(out), optional :: errmsg
-       real*8 :: x(n)
-     end function wfx_read_reals1
-     module subroutine calculate_d2ran(f)
-       class(molwfn), intent(inout) :: f
-     end subroutine calculate_d2ran
   end interface
 
 end module wfn_private
