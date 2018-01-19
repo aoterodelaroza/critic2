@@ -787,6 +787,14 @@ contains
     iiz = isvariable("z",zo)
 
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       if (iix) call setvariable("x",xo)
+       if (iiy) call setvariable("y",yo)
+       if (iiz) call setvariable("z",zo)
+       return
+    end if
+
     do while (.true.)
        ok = getline_local()
        if (.not.ok) exit
@@ -1118,6 +1126,10 @@ contains
 
     errmsg = "Error reading file."
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
 
     ! the name of the seed is the first line
     ok = getline_raw(lu,line,.false.)
@@ -1227,6 +1239,11 @@ contains
 
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file)
+    if (lut < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+
     READ(lut,102,err=999) TITEL
     READ(lut,103,err=999) LATTIC, seed%nat, cform
     READ(lut,100,err=999) seed%aa(1:3), seed%bb(1:3)
@@ -1426,6 +1443,10 @@ contains
     errmsg = "Error reading file."
     hastypes = .true.
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
 
     ! read the title and the scale line
     ok = getline_raw(lu,line,.true.)
@@ -2684,7 +2705,7 @@ contains
   end subroutine read_dftbp
 
   !> Read the structure from an xsf file.
-  module subroutine read_xsf(seed,file,mol)
+  module subroutine read_xsf(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
        ferror, faterr, zatguess, isinteger, getword, isreal
     use tools_math, only: matinv
@@ -2693,6 +2714,7 @@ contains
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=:), allocatable :: line, word, name
     integer :: lu, lp, i, j, iz, it
@@ -2700,25 +2722,32 @@ contains
     logical :: ok
 
     ! open
+    errmsg = ""
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
 
+    errmsg = "Error reading file."
     do while (.true.)
-       ok = getline_raw(lu,line,.false.)
+       ok = getline_raw(lu,line)
        if (.not.ok) exit
        lp = 1
        word = lgetword(line,lp)
        if (equal(word,"primvec")) then
           do i = 1, 3
-             read (lu,*) r(i,:)
+             read (lu,*,err=999) r(i,:)
           end do
           r = r / bohrtoa
        elseif (equal(word,"primcoord")) then
-          read (lu,*) seed%nat
+          read (lu,*,err=999) seed%nat
           allocate(seed%x(3,seed%nat),seed%is(seed%nat))
           seed%nspc = 0
           allocate(seed%spc(2))
           do i = 1, seed%nat
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              lp = 1
              ok = isinteger(iz,line,lp)
              if (ok) then
@@ -2732,8 +2761,10 @@ contains
              ok = isreal(seed%x(1,i),line,lp)
              ok = ok.and.isreal(seed%x(2,i),line,lp)
              ok = ok.and.isreal(seed%x(3,i),line,lp)
-             if (.not.ok) &
-                call ferror('read_xsf','wrong position in xsf',faterr)
+             if (.not.ok) then
+                errmsg = 'Wrong atomic position.'
+                goto 999
+             end if
              seed%x(:,i) = seed%x(:,i) / bohrtoa
 
              it = 0
@@ -2756,7 +2787,14 @@ contains
        end if
     end do
     call realloc(seed%spc,seed%nspc)
-    call fclose(lu)
+    if (seed%nat == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+    if (seed%nspc == 0) then
+       errmsg = "No atomic species found."
+       goto 999
+    end if
 
     ! fill the cell metrics
     seed%crys2car = transpose(r)
@@ -2767,6 +2805,10 @@ contains
     do i = 1, seed%nat
        seed%x(:,i) = matmul(r,seed%x(:,i))
     end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
     ! symmetry
     seed%havesym = 0
@@ -3083,7 +3125,7 @@ contains
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_xsf(file,mol)
+       call seed(1)%read_xsf(file,mol,errmsg)
     elseif (isformat == isformat_gen) then
        nseed = 1
        allocate(seed(1))
@@ -4116,6 +4158,7 @@ contains
 
     is_espresso = .false.
     lu = fopen_read(file)
+    if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))
        lp = 1

@@ -184,10 +184,11 @@ module crystalseedmod
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
      end subroutine read_dftbp
-     module subroutine read_xsf(seed,file,mol)
+     module subroutine read_xsf(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_xsf
      module subroutine realloc_crystalseed(a,nnew)
        type(crystalseed), intent(inout), allocatable :: a(:)
