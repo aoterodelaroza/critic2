@@ -22,6 +22,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_cif(nseed,seed,file,mol,errmsg)
   ! subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
   ! subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
+  ! subroutine read_all_xyz(nseed,seed,file,errmsg)
   ! subroutine read_cif_items(seed,mol,errmsg)
   ! function is_espresso(file)
   ! subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
@@ -658,7 +659,7 @@ contains
 
     include 'ciftbx/ciftbx.cmv'
     include 'ciftbx/ciftbx.cmf'
-    
+
     character(len=1024) :: dictfile
     logical :: fl
     integer :: ludum, luscr
@@ -2271,7 +2272,7 @@ contains
              end if
              seed%spc(i)%z = zatguess(seed%spc(i)%name)
           end do
-          
+
        else if (equal(word,'atomic_positions')) then
           word = getword(line,lp)
           if (equal(word,"crystal")) then
@@ -2709,7 +2710,7 @@ contains
              if (.not.ok) &
                 call ferror('read_xsf','wrong position in xsf',faterr)
              seed%x(:,i) = seed%x(:,i) / bohrtoa
-             
+
              it = 0
              do j = 1, seed%nspc
                 if (seed%spc(j)%z == iz) then
@@ -2960,7 +2961,7 @@ contains
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(out), optional :: iafield
-    
+
     character(len=:), allocatable :: path, ofile
     integer :: isformat, mol0_, i
     logical :: ismol, mol, hastypes, alsofield, ok
@@ -3043,6 +3044,8 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_qein(file,mol,errmsg)
+    elseif (isformat == isformat_xyz) then
+       call read_all_xyz(nseed,seed,file,errmsg)
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden) then
@@ -3209,7 +3212,7 @@ contains
     type(species), allocatable :: spc(:) !< Species
     real*8 :: crys2car(3,3)
     logical :: hasx, hasis, hasspc, hasr
-    
+
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
@@ -3475,77 +3478,77 @@ contains
     type(species), allocatable :: spc(:)
     real*8 :: aa(3), bb(3)
     logical :: hasx, hasr, hasab, hastrans
-    
-     errmsg = ""
-     lu = fopen_read(file,errstop=.false.)
-     if (lu < 0) then
-        errmsg = "File not found."
-        return
-     end if
 
-     ! first pass: read opt status and number of structures
-     nseed = 0
-     if (allocated(seed)) deallocate(seed)
-     do while (getline_raw(lu,line))
-        if (index(line,"COORDINATE AND CELL OPTIMIZATION - POINT") > 0) then
-           nseed = nseed + 1
-        end if
-     end do
-     if (nseed == 0) then
-        ! This is a single-point calculation. Use the one-reader.
-        call fclose(lu)
-        nseed = 1
-        allocate(seed(nseed))
-        call seed(1)%read_crystalout(file,mol,errmsg)
-        return
-     end if
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "File not found."
+       return
+    end if
 
-     nseed = nseed + 1
-     is0 = 1
-     allocate(seed(nseed))
-     do i = 1, nseed
-        seed(i)%nspc = 0
-        seed(i)%nat = 0
-     end do
-     allocate(spc(10))
+    ! first pass: read opt status and number of structures
+    nseed = 0
+    if (allocated(seed)) deallocate(seed)
+    do while (getline_raw(lu,line))
+       if (index(line,"COORDINATE AND CELL OPTIMIZATION - POINT") > 0) then
+          nseed = nseed + 1
+       end if
+    end do
+    if (nseed == 0) then
+       ! This is a single-point calculation. Use the one-reader.
+       call fclose(lu)
+       nseed = 1
+       allocate(seed(nseed))
+       call seed(1)%read_crystalout(file,mol,errmsg)
+       return
+    end if
 
-     ! rewind and read all the structures
-     rewind(lu)
-     errmsg = "Error reading file."
-     isz = 0
-     nat = 0
-     nspc = 0
-     hasx = .false.
-     hasr = .false.
-     hasab = .false.
-     hastrans = .false.
-     do while (getline_raw(lu,line))
+    nseed = nseed + 1
+    is0 = 1
+    allocate(seed(nseed))
+    do i = 1, nseed
+       seed(i)%nspc = 0
+       seed(i)%nat = 0
+    end do
+    allocate(spc(10))
 
-        if (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
-           if (hastrans) cycle
-           ok = getline_raw(lu,line)
-           if (.not.ok) goto 999
-           do i = 1, 3
-              ok = getline_raw(lu,line)
-              if (.not.ok) goto 999
-              read (line,*,err=999) r(i,:)
-           end do
-           r = transpose(r) / bohrtoa
-           hasr = .true.
-           if (.not.hasab) then
-              errmsg = "Invalid cell dimensions"
-              goto 999
-           end if
+    ! rewind and read all the structures
+    rewind(lu)
+    errmsg = "Error reading file."
+    isz = 0
+    nat = 0
+    nspc = 0
+    hasx = .false.
+    hasr = .false.
+    hasab = .false.
+    hastrans = .false.
+    do while (getline_raw(lu,line))
 
-           rtrans = crys2car_from_cellpar(aa,bb)
-           rtrans = matinv(rtrans) * r
-           dd = abs(det(rtrans))
-           if (abs(dd - 1d0) > 1d-10) then
-              errmsg = "Invalid transformation matrix"
-              goto 999
-           end if
-           hastrans = .true.
-           hasr = .true.
+       if (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
+          if (hastrans) cycle
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+          do i = 1, 3
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read (line,*,err=999) r(i,:)
+          end do
+          r = transpose(r) / bohrtoa
+          hasr = .true.
+          if (.not.hasab) then
+             errmsg = "Invalid cell dimensions"
+             goto 999
+          end if
+
+          rtrans = crys2car_from_cellpar(aa,bb)
+          rtrans = matinv(rtrans) * r
+          dd = abs(det(rtrans))
+          if (abs(dd - 1d0) > 1d-10) then
+             errmsg = "Invalid transformation matrix"
+             goto 999
+          end if
+          hastrans = .true.
+          hasr = .true.
 
        elseif (index(line,"LATTICE PARAMETERS (ANGSTROMS AND DEGREES)") > 0) then
           ok = getline_raw(lu,line)
@@ -3560,106 +3563,224 @@ contains
           end if
           hasab = .true.
 
-        elseif (index(line,"ATOMS IN THE UNIT CELL") > 0) then
-           if (nat == 0) then
-              read (line,*,err=999) (sdum,i=1,12), nat
-              if (allocated(x)) deallocate(x)
-              if (allocated(is)) deallocate(is)
-              allocate(x(3,nat),is(nat))
-           end if
-           ok = getline_raw(lu,line)
-           ok = ok.and.getline_raw(lu,line)
-           if (.not.ok) goto 999
+       elseif (index(line,"ATOMS IN THE UNIT CELL") > 0) then
+          if (nat == 0) then
+             read (line,*,err=999) (sdum,i=1,12), nat
+             if (allocated(x)) deallocate(x)
+             if (allocated(is)) deallocate(is)
+             allocate(x(3,nat),is(nat))
+          end if
+          ok = getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          if (.not.ok) goto 999
 
-           do i = 1, nat
-              ok = getline_raw(lu,line)
-              if (.not.ok) goto 999
-              read (line,*,err=999) idum, sdum, iz, atn, x(:,i)
+          do i = 1, nat
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read (line,*,err=999) idum, sdum, iz, atn, x(:,i)
 
-              iz = mod(iz,200)
-              if (isz(iz) == 0) then
-                 nspc = nspc + 1
-                 if (nspc > size(spc,1)) &
-                    call realloc(spc,2*nspc)
-                 spc(nspc)%name = trim(adjustl(atn))
-                 spc(nspc)%z = iz
-                 spc(nspc)%qat = 0d0
-                 isz(iz) = nspc
-              end if
-              is(i) = isz(iz)
-           end do
-           hasx = .true.
+             iz = mod(iz,200)
+             if (isz(iz) == 0) then
+                nspc = nspc + 1
+                if (nspc > size(spc,1)) &
+                   call realloc(spc,2*nspc)
+                spc(nspc)%name = trim(adjustl(atn))
+                spc(nspc)%z = iz
+                spc(nspc)%qat = 0d0
+                isz(iz) = nspc
+             end if
+             is(i) = isz(iz)
+          end do
+          hasx = .true.
 
-        else if (index(line,"TOTAL ENERGY(") > 0) then
-           if (.not.hasx .or. nat == 0) then
-              errmsg = "Missing atomic positions."
-              goto 999
-           end if
-           if (nspc == 0) then
-              errmsg = "Missing atomic species."
-              goto 999
-           end if
-           if (.not.hasr.or..not.hasab) then
-              errmsg = "Missing cell dimensions."
-              goto 999
-           end if
-           if (.not.hastrans) then
-              errmsg = "Missing cell transformation."
-              goto 999
-           end if
+       else if (index(line,"TOTAL ENERGY(") > 0) then
+          if (.not.hasx .or. nat == 0) then
+             errmsg = "Missing atomic positions."
+             goto 999
+          end if
+          if (nspc == 0) then
+             errmsg = "Missing atomic species."
+             goto 999
+          end if
+          if (.not.hasr.or..not.hasab) then
+             errmsg = "Missing cell dimensions."
+             goto 999
+          end if
+          if (.not.hastrans) then
+             errmsg = "Missing cell transformation."
+             goto 999
+          end if
 
-           do i = 1, 3
-              idx = index(line,")")
-              if (idx == 0) goto 999
-              line = line(idx+1:)
-           end do
-           read (line,*,err=999) sene
-           is0 = is0 + 1
-           hasr = .false.
-           hasab = .false.
-           hasx = .false.
+          do i = 1, 3
+             idx = index(line,")")
+             if (idx == 0) goto 999
+             line = line(idx+1:)
+          end do
+          read (line,*,err=999) sene
+          is0 = is0 + 1
+          hasr = .false.
+          hasab = .false.
+          hasx = .false.
 
-           seed(is0)%crys2car = r
-           r = matinv(r)
-           seed(is0)%useabr = 2
+          seed(is0)%crys2car = r
+          r = matinv(r)
+          seed(is0)%useabr = 2
 
-           seed(is0)%nat = nat
-           seed(is0)%nspc = nspc
-           seed(is0)%spc = spc
-           allocate(seed(is0)%x(size(x,1),size(x,2)))
-           do i = 1, nat
-              seed(is0)%x(:,i) = matmul(r,x(:,i) * aa)
-              seed(is0)%x(:,i) = seed(is0)%x(:,i) - floor(seed(is0)%x(:,i))
-           end do
-           seed(is0)%is = is
+          seed(is0)%nat = nat
+          seed(is0)%nspc = nspc
+          seed(is0)%spc = spc
+          allocate(seed(is0)%x(size(x,1),size(x,2)))
+          do i = 1, nat
+             seed(is0)%x(:,i) = matmul(r,x(:,i) * aa)
+             seed(is0)%x(:,i) = seed(is0)%x(:,i) - floor(seed(is0)%x(:,i))
+          end do
+          seed(is0)%is = is
 
-           seed(is0)%havesym = 0
-           seed(is0)%findsym = -1
-           seed(is0)%isused = .true.
-           seed(is0)%ismolecule = mol
-           seed(is0)%cubic = .false.
-           seed(is0)%border = 0d0
-           seed(is0)%havex0 = .false.
-           seed(is0)%molx0 = 0d0
-           seed(is0)%file = file
-           read (sene,*,err=999) rdum
-           seed(is0)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ha"
-        end if
-     end do
+          seed(is0)%havesym = 0
+          seed(is0)%findsym = -1
+          seed(is0)%isused = .true.
+          seed(is0)%ismolecule = mol
+          seed(is0)%cubic = .false.
+          seed(is0)%border = 0d0
+          seed(is0)%havex0 = .false.
+          seed(is0)%molx0 = 0d0
+          seed(is0)%file = file
+          read (sene,*,err=999) rdum
+          seed(is0)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ha"
+       end if
+    end do
 
-     seed(1) = seed(nseed)
-     seed(1)%name = "(final) " // trim(seed(1)%name)
-     seed(2)%name = "(initial) " // trim(seed(2)%name)
+    seed(1) = seed(nseed)
+    seed(1)%name = "(final) " // trim(seed(1)%name)
+    seed(2)%name = "(initial) " // trim(seed(2)%name)
 
-     errmsg = ""
- 999 continue
-     call fclose(lu)
-     if (len_trim(errmsg) > 0) then
-        nseed = 0
-        if (allocated(seed)) deallocate(seed)
-     end if
+    errmsg = ""
+999 continue
+    call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
 
   end subroutine read_all_crystalout
+
+  !> Read all structures from an xyz file. Returns all crystal seeds.
+  subroutine read_all_xyz(nseed,seed,file,errmsg)
+    use global, only: rborder_def
+    use hashmod, only: hash
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
+       isinteger, string, nameguess
+    use types, only: realloc
+    use param, only: maxzat, bohrtoa
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file !< Input file name
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, nat, i, iz
+    logical :: ok
+    character(len=:), allocatable :: line, latn
+    character*10 :: atn
+    type(hash) :: usen
+
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "File not found."
+       return
+    end if
+
+    ! first run, count the number of structures
+    errmsg = "Error reading file."
+    nseed = 0
+    do while (getline_raw(lu,line))
+       if (len_trim(line) == 0) cycle
+       read (line,*,err=999) nat
+       ok = getline_raw(lu,line)
+       if (.not.ok) goto 999
+       do i = 1, nat
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+       end do
+       nseed = nseed + 1
+    end do
+
+    if (allocated(seed)) deallocate (seed)
+    allocate(seed(nseed))
+    rewind(lu)
+    nseed = 0
+    do while (getline_raw(lu,line))
+       if (len_trim(line) == 0) cycle
+       nseed = nseed + 1
+       call usen%init()
+       read (line,*,err=999) nat
+       seed(nseed)%nat = nat
+
+       ok = getline_raw(lu,line)
+       if (.not.ok) goto 999
+       seed(nseed)%file = file
+       if (len_trim(line) > 0) then
+          seed(nseed)%name = trim(adjustl(line))
+       else
+          seed(nseed)%name = seed(nseed)%file
+       end if
+
+       seed(nseed)%nspc = 0
+       allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10))
+       do i = 1, nat
+          read (lu,*,err=999) atn, seed(nseed)%x(:,i)
+
+          ok = isinteger(iz,atn)
+          if (ok) then
+             if (iz < 0 .or. iz > maxzat) then
+                errmsg = "Invalid atomic number: "//string(iz)//"."
+                goto 999
+             end if
+             atn = nameguess(iz,.true.)
+          else
+             iz = zatguess(atn)
+             if (iz < 0) then
+                errmsg = "Unknown atomic symbol: "//trim(atn)//"."
+                goto 999
+             end if
+          end if
+
+          latn = lower(trim(atn))
+          if (usen%iskey(latn)) then
+             seed(nseed)%is(i) = usen%get(latn,1)
+          else
+             seed(nseed)%nspc = seed(nseed)%nspc + 1
+             if (seed(nseed)%nspc > size(seed(nseed)%spc,1)) &
+                call realloc(seed(nseed)%spc,2*seed(nseed)%nspc)
+             seed(nseed)%spc(seed(nseed)%nspc)%name = trim(atn)
+             seed(nseed)%spc(seed(nseed)%nspc)%z = iz
+             seed(nseed)%spc(seed(nseed)%nspc)%qat = 0d0
+             call usen%put(latn,seed(nseed)%nspc)
+             seed(nseed)%is(i) = seed(nseed)%nspc
+          end if
+       end do
+       call realloc(seed(nseed)%spc,seed(nseed)%nspc)
+       seed(nseed)%x = seed(nseed)%x / bohrtoa
+       seed(nseed)%useabr = 0
+       seed(nseed)%havesym = 0
+       seed(nseed)%findsym = -1
+       seed(nseed)%isused = .true.
+       seed(nseed)%ismolecule = .true.
+       seed(nseed)%cubic = .false.
+       seed(nseed)%border = rborder_def
+       seed(nseed)%havex0 = .false.
+       seed(nseed)%molx0 = 0d0
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
+
+  end subroutine read_all_xyz
 
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.
@@ -3706,7 +3827,7 @@ contains
        return
     end if
     seed%aa = seed%aa / bohrtoa
-    
+
     ! read cell angles
     fl = numd_('_cell_angle_alpha',seed%bb(1),sigx)
     if (.not.checkcifop()) goto 999
@@ -3718,7 +3839,7 @@ contains
        errmsg = "Error readinig cell angles."
        return
     end if
-    
+
     ! read atomic positions
     seed%nat = 1
     seed%nspc = 0
@@ -3741,7 +3862,7 @@ contains
           errmsg = "Unknown atomic symbol: "//trim(atname)//"."
           return
        end if
-    
+
        found = .false.
        do i = 1, seed%nspc
           if (seed%spc(i)%z == iznum) then
@@ -3759,7 +3880,7 @@ contains
           it = seed%nspc
        end if
        seed%is(seed%nat) = it
-    
+
        fl = fl .and. numd_('_atom_site_fract_x',x(1),sigx)
        if (.not.checkcifop()) goto 999
        fl = fl .and. numd_('_atom_site_fract_y',x(2),sigx)
@@ -3777,12 +3898,12 @@ contains
     call realloc(seed%spc,seed%nspc)
     call realloc(seed%is,seed%nat)
     call realloc(seed%x,3,seed%nat)
-    
+
     ! save the old value of x, y, and z variables
     ix = isvariable("x",xo)
     iy = isvariable("y",yo)
     iz = isvariable("z",zo)
-    
+
     ! use the symmetry information from _symmetry_equiv_pos_as_xyz
     found = .false.
     fl1 = .false.
@@ -3814,7 +3935,7 @@ contains
              if (.not.checkcifop()) goto 999
           end if
        endif
-    
+
        ! do stuff with sym
        if (.not.(fl1.or.fl2)) then
           errmsg = "Error reading symmetry xyz elements."
@@ -3833,7 +3954,7 @@ contains
           end if
           tok = sym(1:idx-1)
           sym = sym(idx+1:)
-    
+
           ! the translation component
           do j = 1, 3
              call setvariable(ico(j),0d0)
@@ -3843,7 +3964,7 @@ contains
              errmsg = "Error evaluating expression: " // trim(tok)
              goto 999
           end if
-    
+
           ! the x-, y-, z- components
           do j = 1, 3
              call setvariable(ico(j),1d0)
@@ -3855,7 +3976,7 @@ contains
              call setvariable(ico(j),0d0)
           enddo
        enddo
-    
+
        ! now we have a rot0
        if (all(abs(eyet - rot0) < 1d-12)) then
           ! the identity
@@ -3896,7 +4017,7 @@ contains
        ! exit the loop
        if (.not.loop_) exit
     end do
-    
+
     seed%havesym = 1
     seed%findsym = 0
     if (seed%neqv == 0) then
@@ -3908,7 +4029,7 @@ contains
     end if
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
-       
+
     ! read and process spg information
     if (.not.found) then
        ! the "official" Hermann-Mauginn symbol from the dictionary: many cif files don't have one
@@ -3936,14 +4057,14 @@ contains
     seed%border = 0d0
     seed%havex0 = .false.
     seed%molx0 = 0d0
-    
+
 999 continue
 
     ! restore the old values of x, y, and z
     if (ix) call setvariable("x",xo)
     if (iy) call setvariable("y",yo)
     if (iz) call setvariable("z",zo)
-       
+
   contains
     function checkcifop()
       use tools_io, only: string
