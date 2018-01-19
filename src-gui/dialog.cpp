@@ -745,6 +745,11 @@ static void DialogStructInfo(bool *p_open){
       Text("  %.10f %.10f %.10f\n",c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]);
       Text("  %.10f %.10f %.10f\n",c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]);
       Text("  %.10f %.10f %.10f\n",c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]);
+      float a = std::sqrt(c2::avec[0][0]*c2::avec[0][0]+c2::avec[0][1]*c2::avec[0][1]+c2::avec[0][2]*c2::avec[0][2]);
+      float b = std::sqrt(c2::avec[1][0]*c2::avec[1][0]+c2::avec[1][1]*c2::avec[1][1]+c2::avec[1][2]*c2::avec[1][2]);
+      float c = std::sqrt(c2::avec[2][0]*c2::avec[2][0]+c2::avec[2][1]*c2::avec[2][1]+c2::avec[2][2]*c2::avec[2][2]);
+      Text("Cell lengths (bohr): %.10f %.10f %.10f\n",a,b,c);
+      Text("Cell lengths (ang): %.10f %.10f %.10f\n",a*0.529177,b*0.529177,c*0.529177);
     }
     dlgdock[DLG_StructInfo] = GetCurrentDock();
     if (first){

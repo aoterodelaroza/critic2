@@ -2990,9 +2990,7 @@ contains
     elseif (isformat == isformat_qeout) then
        call read_all_qeout(nseed,seed,file,mol,errmsg)
     elseif (isformat == isformat_crystal) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_crystalout(file,mol,errmsg)
+       call read_all_crystalout(nseed,seed,file,mol,errmsg)
     elseif (isformat == isformat_qein) then
        nseed = 1
        allocate(seed(1))
@@ -3154,7 +3152,7 @@ contains
     character*10 :: atn, sdum
     character*40 :: sene
     integer :: idum
-    real*8 :: alat, r(3,3), qaux, rfac, cfac
+    real*8 :: alat, r(3,3), qaux, rfac, cfac, rdum
     logical :: ok, tox
     ! interim copy of seed info
     integer :: nat, nspc
@@ -3382,7 +3380,8 @@ contains
           seed(is0)%file = file
 
           read (line,*,err=999) sdum, sdum, sdum, sdum, sene
-          seed(is0)%name = string(adjustl(sene)) // " Ry"
+          read (sene,*,err=999) rdum
+          seed(is0)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ry"
        end if
     end do
 
@@ -3401,6 +3400,219 @@ contains
     end if
 
   end subroutine read_all_qeout
+
+  !> Read all structures from a QE outupt. Returns all crystal seeds.
+  module subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
+    use tools_math, only: crys2car_from_cellpar, matinv, det
+    use tools_io, only: fopen_read, fclose, getline_raw, string
+    use types, only: realloc
+    use param, only: maxzat0, bohrtoa
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule? 
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    logical :: isopt
+    integer :: lu, i, j, is0
+    character(len=:), allocatable :: line
+    character*10 :: sdum, atn
+    character*40 :: sene
+    integer :: idum, iz, isz(maxzat0), idx
+    real*8 :: rdum, r(3,3), rtrans(3,3), dd
+    logical :: ok
+    ! interim copy of seed info
+    integer :: nat, nspc
+    real*8, allocatable :: x(:,:)
+    integer, allocatable :: is(:)
+    type(species), allocatable :: spc(:)
+    real*8 :: aa(3), bb(3)
+    logical :: hasx, hasr, hasab, hastrans
+    
+     errmsg = ""
+     lu = fopen_read(file,errstop=.false.)
+     if (lu < 0) then
+        errmsg = "File not found."
+        return
+     end if
+
+     ! first pass: read opt status and number of structures
+     nseed = 0
+     if (allocated(seed)) deallocate(seed)
+     do while (getline_raw(lu,line))
+        if (index(line,"COORDINATE AND CELL OPTIMIZATION - POINT") > 0) then
+           nseed = nseed + 1
+        end if
+     end do
+     if (nseed == 0) then
+        ! This is a single-point calculation. Use the one-reader.
+        call fclose(lu)
+        nseed = 1
+        allocate(seed(nseed))
+        call seed(1)%read_crystalout(file,mol,errmsg)
+        return
+     end if
+
+     nseed = nseed + 1
+     is0 = 1
+     allocate(seed(nseed))
+     do i = 1, nseed
+        seed(i)%nspc = 0
+        seed(i)%nat = 0
+     end do
+     allocate(spc(10))
+
+     ! rewind and read all the structures
+     rewind(lu)
+     errmsg = "Error reading file."
+     isz = 0
+     nat = 0
+     nspc = 0
+     hasx = .false.
+     hasr = .false.
+     hasab = .false.
+     hastrans = .false.
+     do while (getline_raw(lu,line))
+
+        if (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
+           if (hastrans) cycle
+           ok = getline_raw(lu,line)
+           if (.not.ok) goto 999
+           do i = 1, 3
+              ok = getline_raw(lu,line)
+              if (.not.ok) goto 999
+              read (line,*,err=999) r(i,:)
+           end do
+           r = transpose(r) / bohrtoa
+           hasr = .true.
+           if (.not.hasab) then
+              errmsg = "Invalid cell dimensions"
+              goto 999
+           end if
+
+           rtrans = crys2car_from_cellpar(aa,bb)
+           rtrans = matinv(rtrans) * r
+           dd = abs(det(rtrans))
+           if (abs(dd - 1d0) > 1d-10) then
+              errmsg = "Invalid transformation matrix"
+              goto 999
+           end if
+           hastrans = .true.
+           hasr = .true.
+
+       elseif (index(line,"LATTICE PARAMETERS (ANGSTROMS AND DEGREES)") > 0) then
+          ok = getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          if (.not.ok) goto 999
+          read (line,*,err=999) aa, bb
+          aa = aa / bohrtoa
+          if (hastrans) then
+             r = crys2car_from_cellpar(aa,bb) * rtrans
+             hasr = .true.
+          end if
+          hasab = .true.
+
+        elseif (index(line,"ATOMS IN THE UNIT CELL") > 0) then
+           if (nat == 0) then
+              read (line,*,err=999) (sdum,i=1,12), nat
+              if (allocated(x)) deallocate(x)
+              if (allocated(is)) deallocate(is)
+              allocate(x(3,nat),is(nat))
+           end if
+           ok = getline_raw(lu,line)
+           ok = ok.and.getline_raw(lu,line)
+           if (.not.ok) goto 999
+
+           do i = 1, nat
+              ok = getline_raw(lu,line)
+              if (.not.ok) goto 999
+              read (line,*,err=999) idum, sdum, iz, atn, x(:,i)
+
+              iz = mod(iz,200)
+              if (isz(iz) == 0) then
+                 nspc = nspc + 1
+                 if (nspc > size(spc,1)) &
+                    call realloc(spc,2*nspc)
+                 spc(nspc)%name = trim(adjustl(atn))
+                 spc(nspc)%z = iz
+                 spc(nspc)%qat = 0d0
+                 isz(iz) = nspc
+              end if
+              is(i) = isz(iz)
+           end do
+           hasx = .true.
+
+        else if (index(line,"TOTAL ENERGY(") > 0) then
+           if (.not.hasx .or. nat == 0) then
+              errmsg = "Missing atomic positions."
+              goto 999
+           end if
+           if (nspc == 0) then
+              errmsg = "Missing atomic species."
+              goto 999
+           end if
+           if (.not.hasr.or..not.hasab) then
+              errmsg = "Missing cell dimensions."
+              goto 999
+           end if
+           if (.not.hastrans) then
+              errmsg = "Missing cell transformation."
+              goto 999
+           end if
+
+           do i = 1, 3
+              idx = index(line,")")
+              if (idx == 0) goto 999
+              line = line(idx+1:)
+           end do
+           read (line,*,err=999) sene
+           is0 = is0 + 1
+           hasr = .false.
+           hasab = .false.
+           hasx = .false.
+
+           seed(is0)%crys2car = r
+           r = matinv(r)
+           seed(is0)%useabr = 2
+
+           seed(is0)%nat = nat
+           seed(is0)%nspc = nspc
+           seed(is0)%spc = spc
+           allocate(seed(is0)%x(size(x,1),size(x,2)))
+           do i = 1, nat
+              seed(is0)%x(:,i) = matmul(r,x(:,i) * aa)
+              seed(is0)%x(:,i) = seed(is0)%x(:,i) - floor(seed(is0)%x(:,i))
+           end do
+           seed(is0)%is = is
+
+           seed(is0)%havesym = 0
+           seed(is0)%findsym = -1
+           seed(is0)%isused = .true.
+           seed(is0)%ismolecule = mol
+           seed(is0)%cubic = .false.
+           seed(is0)%border = 0d0
+           seed(is0)%havex0 = .false.
+           seed(is0)%molx0 = 0d0
+           seed(is0)%file = file
+           read (sene,*,err=999) rdum
+           seed(is0)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ha"
+        end if
+     end do
+
+     seed(1) = seed(nseed)
+     seed(1)%name = "(final) " // trim(seed(1)%name)
+     seed(2)%name = "(initial) " // trim(seed(2)%name)
+
+     errmsg = ""
+ 999 continue
+     call fclose(lu)
+     if (len_trim(errmsg) > 0) then
+        nseed = 0
+        if (allocated(seed)) deallocate(seed)
+     end if
+
+  end subroutine read_all_crystalout
 
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.

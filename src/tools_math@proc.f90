@@ -62,7 +62,7 @@ contains
 
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
-  !> metric tensor.
+  !> metric tensor. Input angles in degrees.
   module function crys2car_from_cellpar(aal,bbl) result(mat)
     use tools_io, only: ferror, faterr
 

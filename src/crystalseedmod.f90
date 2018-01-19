@@ -84,6 +84,7 @@ module crystalseedmod
   public :: read_seeds_from_file
   public :: read_all_cif 
   public :: read_all_qeout
+  public :: read_all_crystalout
   private :: read_cif_items
   private :: is_espresso
   private :: qe_latgen
@@ -229,6 +230,13 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_all_qeout
+     module subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
+       integer, intent(out) :: nseed
+       type(crystalseed), intent(inout), allocatable :: seed(:)
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_all_crystalout
      module subroutine read_cif_items(seed,mol,errmsg)
        type(crystalseed), intent(inout) :: seed
        logical, intent(in) :: mol
