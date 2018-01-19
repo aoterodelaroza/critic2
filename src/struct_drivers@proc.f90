@@ -136,7 +136,7 @@ contains
        call seed%read_crystalout(word,mol,errmsg)
 
     elseif (isformat == isformat_qein) then
-       call seed%read_qein(word,mol)
+       call seed%read_qein(word,mol,errmsg)
 
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&

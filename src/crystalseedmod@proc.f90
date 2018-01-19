@@ -18,6 +18,15 @@
 submodule (crystalseedmod) proc
   implicit none
 
+  !xx! private subroutines
+  ! subroutine read_all_cif(nseed,seed,file,mol,errmsg)
+  ! subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
+  ! subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
+  ! subroutine read_cif_items(seed,mol,errmsg)
+  ! function is_espresso(file)
+  ! subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
+  ! subroutine spgs_wrap(seed,spg,usespgr)
+
 contains
 
   !> Parse a crystal environment
@@ -637,7 +646,7 @@ contains
   module subroutine read_cif(seed,file,dblock,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
-    use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
+    use tools_io, only: falloc, uout, lower, zatguess, fdealloc, nameguess
     use param, only: dirsep
     use types, only: realloc
 
@@ -720,7 +729,7 @@ contains
   module subroutine read_shelx(seed,file,mol,errmsg)
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
-       lower, ferror, faterr, zatguess, fclose
+       lower, zatguess, fclose
     use param, only: eyet, eye, bohrtoa
     use types, only: realloc
     class(crystalseed) :: seed !< Output crystal seed
@@ -1629,7 +1638,7 @@ contains
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
   module subroutine read_elk(seed,file,mol,errmsg)
-    use tools_io, only: fopen_read, getline_raw, equal, faterr, ferror, getword,&
+    use tools_io, only: fopen_read, getline_raw, equal, getword,&
        zatguess, nameguess, fclose, string
     use tools_math, only: matinv
     use types, only: realloc
@@ -1807,7 +1816,7 @@ contains
   !> to be a molecule.  If istruct is zero, read the last geometry;
   !> otherwise, read geometry number istruct.
   module subroutine read_qeout(seed,file,mol,istruct,errmsg)
-    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2032,7 +2041,7 @@ contains
   end subroutine read_qeout
 
   !> Read the structure from a quantum espresso input
-  module subroutine read_qein(seed,file,mol)
+  module subroutine read_qein(seed,file,mol,errmsg)
     ! This subroutine has been adapted from parts of the Quantum
     ! ESPRESSO code, version 4.3.2.  
     ! Copyright (C) 2002-2009 Quantum ESPRESSO group
@@ -2040,7 +2049,7 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use tools_io, only: fopen_read, faterr, ferror, getline_raw, lower, getword,&
+    use tools_io, only: fopen_read, getline_raw, lower, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2048,6 +2057,7 @@ contains
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer, parameter :: dp = selected_real_kind(14,200)
     integer, parameter :: ntypx = 10
@@ -2196,28 +2206,48 @@ contains
     integer, parameter :: ialat = 4
 
     ! open
-    lu = fopen_read(file)
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
     r = 0d0
     calculation = ""
 
     ! read the namelists
     read(lu,control,iostat=ios)
-    if (ios/=0) call ferror("read_qein","wrong namelist control",faterr)
+    if (ios /= 0) then
+       errmsg = "Wrong namelist control."
+       goto 999
+    end if
     read(lu,system,iostat=ios)
-    if (ios/=0) call ferror("read_qein","wrong namelist system",faterr)
+    if (ios/=0) then
+       errmsg = "Wrong namelist system."
+       goto 999
+    end if
     read(lu,electrons,iostat=ios)
-    if (ios/=0) call ferror("read_qein","wrong namelist electrons",faterr)
+    if (ios/=0) then
+       errmsg = "Wrong namelist electrons."
+       goto 999
+    end if
     if (trim(calculation)=='relax'.or.trim(calculation)=='md'.or.&
        trim(calculation)=='vc-relax'.or.trim(calculation)=='vc-md'.or.&
        trim(calculation)=='cp'.or.trim(calculation)=='vc-cp'.or.&
        trim(calculation)=='smd'.or.trim(calculation)=='cp-wf') then
        read(lu,ions,iostat=ios)
-       if (ios/=0) call ferror("read_qein","wrong namelist ions",faterr)
+       if (ios/=0) then
+          errmsg = "Wrong namelist ions."
+          goto 999
+       end if
     endif
     if (trim(calculation)=='vc-relax'.or.trim(calculation)=='vc-md'.or.&
        trim(calculation)=='vc-cp') then
        read(lu,cell,iostat=ios)
-       if (ios/=0) call ferror("read_qein","wrong namelist ions",faterr)
+       if (ios/=0) then
+          errmsg = "Wrong namelist ions."
+          goto 999
+       end if
     end if
 
     ! allocate space for atoms
@@ -2234,7 +2264,11 @@ contains
        word = getword(line,lp)
        if (equal(word,'atomic_species')) then
           do i = 1, ntyp
-             read (lu,*) seed%spc(i)%name
+             read (lu,*,iostat=ios) seed%spc(i)%name
+             if (ios/=0) then
+                errmsg = "Error reading atomic species."
+                goto 999
+             end if
              seed%spc(i)%z = zatguess(seed%spc(i)%name)
           end do
           
@@ -2252,7 +2286,11 @@ contains
              iunit = ialat
           end if
           do i = 1, nat
-             read (lu,*) atm, seed%x(:,i)
+             read (lu,*,iostat=ios) atm, seed%x(:,i)
+             if (ios/=0) then
+                errmsg = "Error reading atomic positions."
+                goto 999
+             end if
              seed%is(i) = 0
              do j = 1, seed%nspc
                 if (equal(seed%spc(j)%name,atm)) then
@@ -2260,17 +2298,22 @@ contains
                    exit
                 end if
              end do
-             if (seed%is(i) == 0) &
-                call ferror("read_qein","could not find atomic species: "//atm,faterr)
+             if (seed%is(i) == 0) then
+                errmsg = "Could not find atomic species "//trim(atm)//"."
+                goto 999
+             end if
           end do
        elseif (equal(word,'cell_parameters')) then
           havecell = .true.
           do i = 1, 3
-             read (lu,*) (r(i,j),j=1,3)
+             read (lu,*,iostat=ios) (r(i,j),j=1,3)
+             if (ios/=0) then
+                errmsg = "Error reading cell parameters."
+                goto 999
+             end if
           end do
        endif
     end do
-    call fclose(lu)
 
     ! figure it out
     if (ibrav == 0) then
@@ -2278,7 +2321,8 @@ contains
        r = transpose(r)
     else
        r = transpose(r)
-       call qe_latgen(ibrav,celldm,r(:,1),r(:,2),r(:,3))
+       call qe_latgen(ibrav,celldm,r(:,1),r(:,2),r(:,3),errmsg)
+       if (len_trim(errmsg) > 0) goto 999
     endif
 
     ! fill the cell metrics
@@ -2297,6 +2341,10 @@ contains
        endif
        seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
     end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
     ! symmetry
     seed%havesym = 0
@@ -2994,7 +3042,7 @@ contains
     elseif (isformat == isformat_qein) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_qein(file,mol)
+       call seed(1)%read_qein(file,mol,errmsg)
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden) then
@@ -3051,10 +3099,10 @@ contains
 
   !> Read all structures from a CIF file (uses ciftbx) and returns all
   !> crystal seeds.
-  module subroutine read_all_cif(nseed,seed,file,mol,errmsg)
+  subroutine read_all_cif(nseed,seed,file,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
-    use tools_io, only: falloc, uout, lower, zatguess, ferror, faterr, fdealloc, nameguess
+    use tools_io, only: falloc, uout, lower, zatguess, fdealloc, nameguess
     use param, only: dirsep
     use types, only: realloc
 
@@ -3135,8 +3183,8 @@ contains
   end subroutine read_all_cif
 
   !> Read all structures from a QE outupt. Returns all crystal seeds.
-  module subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
-    use tools_io, only: fopen_read, getline_raw, isinteger, isreal, ferror, faterr,&
+  subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -3402,7 +3450,7 @@ contains
   end subroutine read_all_qeout
 
   !> Read all structures from a QE outupt. Returns all crystal seeds.
-  module subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
+  subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
     use tools_math, only: crys2car_from_cellpar, matinv, det
     use tools_io, only: fopen_read, fclose, getline_raw, string
     use types, only: realloc
@@ -3413,8 +3461,7 @@ contains
     logical, intent(in) :: mol !< Is this a molecule? 
     character(len=:), allocatable, intent(out) :: errmsg
 
-    logical :: isopt
-    integer :: lu, i, j, is0
+    integer :: lu, i, is0
     character(len=:), allocatable :: line
     character*10 :: sdum, atn
     character*40 :: sene
@@ -3616,10 +3663,10 @@ contains
 
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.
-  module subroutine read_cif_items(seed,mol,errmsg)
+  subroutine read_cif_items(seed,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use param, only: bohrtoa
-    use tools_io, only: ferror, faterr, lower, zatguess, nameguess
+    use tools_io, only: lower, zatguess, nameguess
     use param, only: bohrtoa, eye, eyet
     use types, only: realloc
 
@@ -3913,7 +3960,7 @@ contains
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal or a quantum espresso calculation. To do this,
   !> try to find the "Program PWSCF" line in the output header.
-  module function is_espresso(file)
+  function is_espresso(file)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
 
     logical :: is_espresso
@@ -3937,7 +3984,7 @@ contains
   end function is_espresso
 
   !> From QE, generate the lattice from the ibrav
-  module subroutine qe_latgen(ibrav,celldm,a1,a2,a3)
+  subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
     ! This subroutine has been adapted from parts of the Quantum
     ! ESPRESSO code, version 4.3.2.  
     ! Copyright (C) 2002-2009 Quantum ESPRESSO group
@@ -3945,7 +3992,6 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use tools_io, only: ferror, faterr
     !-----------------------------------------------------------------------
     !     sets up the crystallographic vectors a1, a2, and a3.
     !
@@ -3968,12 +4014,36 @@ contains
     integer, intent(in) :: ibrav
     real(DP), intent(inout) :: celldm(6)
     real(DP), intent(out) :: a1(3), a2(3), a3(3)
+    character(len=:), allocatable, intent(out) :: errmsg
 
     real(DP), parameter:: sr2 = 1.414213562373d0, sr3 = 1.732050807569d0
     integer :: ir
     real(DP) :: term, cbya, term1, term2, singam, sen
 
-    if (celldm(1) <= 0.d0) call ferror('qe_latgen','wrong celldm(1)',faterr)
+    errmsg = ""
+    if (celldm(1) <= 0.d0) then
+       errmsg = 'Wrong celldm(1).'
+    elseif (celldm(2) <= 0.d0 .and. (ibrav == 8 .or. ibrav == 9 .or.&
+       ibrav == 10 .or. ibrav == 11 .or. ibrav == 12 .or.&
+       ibrav == -12 .or. ibrav == 13 .or. ibrav == 14)) then
+       errmsg = 'Wrong celldm(2).'
+    elseif (celldm(3) <= 0.d0 .and. (ibrav == 4 .or. ibrav == 6 .or.&
+       ibrav == 7 .or. ibrav == 8 .or. ibrav == 9 .or. ibrav == 10 .or.&
+       ibrav == 11 .or. ibrav == 12 .or. ibrav == -12 .or.&
+       ibrav == 13 .or. ibrav == 14)) then
+       errmsg = 'Wrong celldm(3).'
+    else if ((celldm(4) <= -0.5d0 .or. celldm(4) >= 1) .and.&
+       (ibrav == 5 .or. ibrav == -5)) then
+       errmsg = 'Wrong celldm(4).'
+    else if (celldm(4) >= 1.d0 .and. (ibrav == 12 .or. ibrav == 13 .or.&
+       ibrav == 14)) then
+       errmsg = 'Wrong celldm(4).'
+    else if (celldm(5) >= 1.d0 .and. (ibrav == -12 .or. ibrav == 14)) then
+       errmsg = 'Wrong celldm(5).'
+    else if (celldm(6) >= 1.d0 .and. (ibrav == 14)) then
+       errmsg = 'Wrong celldm(6).'
+    end if
+    if (len_trim(errmsg) > 0) return
 
     a1 = 0d0
     a2 = 0d0
@@ -4009,8 +4079,6 @@ contains
        !
     else if (ibrav == 4) then
        ! hexagonal lattice
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        cbya=celldm(3)
        a1(1)=celldm(1)
        a2(1)=-celldm(1)/2.d0
@@ -4019,9 +4087,6 @@ contains
        !
     else if (ibrav == 5) then
        ! trigonal lattice, threefold axis along c (001)
-       if (celldm (4) <= -0.5d0 .or. celldm (4) >= 1) &
-          call ferror('qe_latgen','wrong celldm(4)',faterr)
-       !
        term1=sqrt(1.d0+2.d0*celldm(4))
        term2=sqrt(1.d0-celldm(4))
        a2(2)=sr2*celldm(1)*term2/sr3
@@ -4035,9 +4100,6 @@ contains
        !
     else if (ibrav ==-5) then
        ! trigonal lattice, threefold axis along (111)
-       if (celldm (4) <= -0.5d0 .or. celldm (4) >= 1) &
-          call ferror('qe_latgen','wrong celldm(4)',faterr)
-       !
        term1 = sqrt(1.0_dp + 2.0_dp*celldm(4))
        term2 = sqrt(1.0_dp - celldm(4))
        a1(1) = celldm(1)*(term1-2.0_dp*term2)/3.0_dp
@@ -4051,8 +4113,6 @@ contains
        a3(3) = a1(1)
     else if (ibrav == 6) then
        ! tetragonal lattice
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        cbya=celldm(3)
        a1(1)=celldm(1)
        a2(2)=celldm(1)
@@ -4060,8 +4120,6 @@ contains
        !
     else if (ibrav == 7) then
        ! body centered tetragonal lattice
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        cbya=celldm(3)
        a2(1)=celldm(1)/2.d0
        a2(2)=a2(1)
@@ -4075,18 +4133,12 @@ contains
        !
     else if (ibrav == 8) then
        ! Simple orthorhombic lattice
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        a1(1)=celldm(1)
        a2(2)=celldm(1)*celldm(2)
        a3(3)=celldm(1)*celldm(3)
        !
     else if (ibrav == 9) then
        ! One face centered orthorhombic lattice
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        a1(1) = 0.5d0 * celldm(1)
        a1(2) = a1(1) * celldm(2)
        a2(1) = - a1(1)
@@ -4095,9 +4147,6 @@ contains
        !
     else if (ibrav == 10) then
        ! All face centered orthorhombic lattice
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        a2(1) = 0.5d0 * celldm(1)
        a2(2) = a2(1) * celldm(2)
        a1(1) = a2(1)
@@ -4107,9 +4156,6 @@ contains
        !
     else if (ibrav == 11) then
        ! Body centered orthorhombic lattice
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       !
        a1(1) = 0.5d0 * celldm(1)
        a1(2) = a1(1) * celldm(2)
        a1(3) = a1(1) * celldm(3)
@@ -4122,10 +4168,6 @@ contains
        !
     else if (ibrav == 12) then
        ! Simple monoclinic lattice, unique (i.e. orthogonal to a) axis: c
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       if (abs(celldm(4))>=1.d0) call ferror('qe_latgen','wrong celldm(4)',faterr)
-       !
        sen=sqrt(1.d0-celldm(4)**2)
        a1(1)=celldm(1)
        a2(1)=celldm(1)*celldm(2)*celldm(4)
@@ -4134,10 +4176,6 @@ contains
        !
     else if (ibrav ==-12) then
        ! Simple monoclinic lattice, unique axis: b (more common)
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       if (abs(celldm(5))>=1.d0) call ferror('qe_latgen','wrong celldm(5)',faterr)
-       !
        sen=sqrt(1.d0-celldm(5)**2)
        a1(1)=celldm(1)
        a2(2)=celldm(1)*celldm(2)
@@ -4146,10 +4184,6 @@ contains
        !
     else if (ibrav == 13) then
        ! One face centered monoclinic lattice
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       if (abs(celldm(4))>=1.d0) call ferror('qe_latgen','wrong celldm(4)',faterr)
-       !
        sen = sqrt( 1.d0 - celldm(4) ** 2 )
        a1(1) = 0.5d0 * celldm(1) 
        a1(3) =-a1(1) * celldm(3)
@@ -4160,15 +4194,12 @@ contains
        !
     else if (ibrav == 14) then
        ! Triclinic lattice
-       if (celldm (2) <= 0.d0) call ferror('qe_latgen','wrong celldm(2)',faterr)
-       if (celldm (3) <= 0.d0) call ferror('qe_latgen','wrong celldm(3)',faterr)
-       if (abs(celldm(4))>=1.d0) call ferror('qe_latgen','wrong celldm(4)',faterr)
-       if (abs(celldm(5))>=1.d0) call ferror('qe_latgen','wrong celldm(5)',faterr)
-       if (abs(celldm(6))>=1.d0) call ferror('qe_latgen','wrong celldm(6)',faterr)
-       !
        singam=sqrt(1.d0-celldm(6)**2)
        term= (1.d0+2.d0*celldm(4)*celldm(5)*celldm(6)-celldm(4)**2-celldm(5)**2-celldm(6)**2)
-       if (term < 0.d0) call ferror('qe_latgen','celldm do not make sense, check your data',faterr)
+       if (term < 0.d0) then
+          errmsg = 'Celldm do not make sense, check your data.'
+          return
+       end if
        term= sqrt(term/(1.d0-celldm(6)**2))
        a1(1)=celldm(1)
        a2(1)=celldm(1)*celldm(2)*celldm(6)
@@ -4178,7 +4209,7 @@ contains
        a3(3)=celldm(1)*celldm(3)*term
        !
     else
-       call ferror('qe_latgen','nonexistent bravais lattice',faterr)
+       errmsg = 'Nonexistent bravais lattice.'
     end if
 
   end subroutine qe_latgen
@@ -4186,7 +4217,7 @@ contains
   !> Wrapper to the spgs module. Sets the symetry in a crystal seed. 
   !> (including seed%havesym but not seed%findsym). If the spg
   !> was not correct, keep havesym = 0 and do nothing else.
-  module subroutine spgs_wrap(seed,spg,usespgr)
+  subroutine spgs_wrap(seed,spg,usespgr)
     use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m, spgs_driver
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: spg

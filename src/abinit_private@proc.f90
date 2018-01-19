@@ -30,7 +30,7 @@ submodule (abinit_private) proc
   ! headform for fail-to-read situation
   integer :: headform_1, headform_2
 
-  ! private subroutines:
+  !xx! private subroutines
   ! subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
 
 contains

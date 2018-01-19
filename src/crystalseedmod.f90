@@ -75,19 +75,12 @@ module crystalseedmod
      procedure :: read_siesta 
      procedure :: read_dftbp 
      procedure :: read_xsf 
-     procedure :: spgs_wrap
   end type crystalseed
   public :: crystalseed
 
   public :: realloc_crystalseed
   public :: struct_detect_format
   public :: read_seeds_from_file
-  public :: read_all_cif 
-  public :: read_all_qeout
-  public :: read_all_crystalout
-  private :: read_cif_items
-  private :: is_espresso
-  private :: qe_latgen
 
   ! module procedure interfaces
   interface
@@ -165,10 +158,11 @@ module crystalseedmod
        integer, intent(in) :: istruct
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_qeout
-     module subroutine read_qein(seed,file,mol)
+     module subroutine read_qein(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_qein
      module subroutine read_crystalout(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
@@ -216,47 +210,6 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(out), optional :: iafield
      end subroutine read_seeds_from_file
-     module subroutine read_all_cif(nseed,seed,file,mol,errmsg)
-       integer, intent(out) :: nseed
-       type(crystalseed), intent(inout), allocatable :: seed(:)
-       character*(*), intent(in) :: file
-       logical, intent(in) :: mol
-       character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine read_all_cif
-     module subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
-       integer, intent(out) :: nseed
-       type(crystalseed), intent(inout), allocatable :: seed(:)
-       character*(*), intent(in) :: file
-       logical, intent(in) :: mol
-       character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine read_all_qeout
-     module subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
-       integer, intent(out) :: nseed
-       type(crystalseed), intent(inout), allocatable :: seed(:)
-       character*(*), intent(in) :: file
-       logical, intent(in) :: mol
-       character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine read_all_crystalout
-     module subroutine read_cif_items(seed,mol,errmsg)
-       type(crystalseed), intent(inout) :: seed
-       logical, intent(in) :: mol
-       character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine read_cif_items
-     module function is_espresso(file)
-       logical :: is_espresso
-       character*(*), intent(in) :: file
-     end function is_espresso
-     module subroutine qe_latgen(ibrav,celldm,a1,a2,a3)
-       integer, parameter :: dp = selected_real_kind(14,200)
-       integer, intent(in) :: ibrav
-       real(DP), intent(inout) :: celldm(6)
-       real(DP), intent(out) :: a1(3), a2(3), a3(3)
-     end subroutine qe_latgen
-     module subroutine spgs_wrap(seed,spg,usespgr)
-       class(crystalseed), intent(inout) :: seed
-       character*(*), intent(in) :: spg
-       logical, intent(in) :: usespgr
-     end subroutine spgs_wrap
   end interface
 
 end module crystalseedmod

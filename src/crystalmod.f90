@@ -40,7 +40,7 @@ module crystalmod
      logical :: isnn = .false. !< information about the nearest neighbors
 
      ! file name for the occasional critic2 trick
-     character(len=128) :: file
+     character(len=512) :: file
 
      !! Initialization level: isinit !!
      ! species list

@@ -78,8 +78,8 @@ module gui_interface
 
   end type scene
 
-  integer, bind(c) :: nfiles = 0
-  integer, bind(c) :: nsc = 0
+  integer(c_int), bind(c) :: nfiles = 0
+  integer(c_int), bind(c) :: nsc = 0
   type(scene), allocatable, target :: sc(:)
   integer :: ilastfile = 0
 

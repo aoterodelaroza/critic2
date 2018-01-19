@@ -397,7 +397,7 @@ contains
     c%rdelr = matinv(c%rdeli)
     c%rdeli_x2c = matmul(c%rdeli,transpose(c%crys2car))
     do i = 1, c%nws
-       c%ivws_del(:,i) = matmul(c%ivws(:,i),c%rdelr)
+       c%ivws_del(:,i) = nint(matmul(c%ivws(:,i),c%rdelr))
     end do
 
     ! orthogonality of the cell and the reduced cell
@@ -2095,7 +2095,7 @@ contains
     real*8, allocatable, intent(inout) :: t(:)
     real*8, allocatable, intent(inout) :: ih(:)
 
-    integer :: i, j, ibin
+    integer :: i, j
     real*8 :: d, hfac, int, sigma2
 
     sigma2 = sigma * sigma
@@ -2555,7 +2555,7 @@ contains
     use global, only: symprec
     use tools_math, only: det, matinv
     use tools_io, only: ferror, faterr, uout
-    use param, only: maxzat0, eye
+    use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: toprim
     logical, intent(in) :: doforce
@@ -4586,12 +4586,11 @@ contains
   !> Write a quantum espresso input template
   module subroutine write_espresso(c,file)
     use tools_io, only: fopen_write, lower, fclose
-    use param, only: maxzat0, atmass
+    use param, only: atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    integer :: i, j, lu
-    logical :: used
+    integer :: i, lu
 
     lu = fopen_write(file)
     write (lu,'("&control")')
@@ -4634,7 +4633,7 @@ contains
   !> Write a VASP POSCAR template
   module subroutine write_vasp(c,file,verbose)
     use tools_io, only: fopen_write, string, uout, fclose
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: verbose
@@ -4681,12 +4680,12 @@ contains
   !> Write an abinit input template
   module subroutine write_abinit(c,file)
     use tools_io, only: fopen_write, string, fclose
-    use param, only: pi, maxzat0
+    use param, only: pi
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
     character(len=:), allocatable :: lbl1, aux
-    integer :: iz, ntyp
+    integer :: ntyp
     real*8 :: aap(3), bbp(3), gpq(3,3)
     integer :: i, j, lu
 
@@ -4758,7 +4757,6 @@ contains
   !> Write an elk input template
   module subroutine write_elk(c,file)
     use tools_io, only: fopen_write, fclose
-    use param, only: maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
@@ -5072,13 +5070,12 @@ contains
   module subroutine write_escher(c,file)
     use global, only: fileroot
     use tools_io, only: fopen_write, string, fclose
-    use param, only: pi, maxzat0
+    use param, only: pi
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
     character(len=:), allocatable :: lbl1, aux
-    integer :: lu, i, j, n
-    integer :: ntyp
+    integer :: lu, i, n
 
     lu = fopen_write(file)
 
@@ -5292,12 +5289,12 @@ contains
   module subroutine write_lammps(c,file)
     use tools_io, only: fopen_write, ferror, faterr, fclose
     use tools_math, only: crys2car_from_cellpar
-    use param, only: bohrtoa, maxzat0, atmass
+    use param, only: bohrtoa, atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    integer :: i, j, k, l
-    integer :: ntyp, lu
+    integer :: i, j, l
+    integer :: lu
     real*8 :: rnew(3,3)
 
     lu = fopen_write(file)
@@ -5343,11 +5340,11 @@ contains
   !> Write a siesta fdf data file
   module subroutine write_siesta_fdf(c,file)
     use tools_io, only: fopen_write, nameguess, lower, fclose
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    integer :: i, j, k
+    integer :: i, j
     integer :: lu
 
     lu = fopen_write(file)
@@ -5414,7 +5411,7 @@ contains
   !> Write a siesta STRUCT_IN data file
   module subroutine write_siesta_in(c,file)
     use tools_io, only: fopen_write, uout, nameguess, string, fclose
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
@@ -5571,12 +5568,12 @@ contains
   !> Write a DFTB+ human-friendly gen structure file
   module subroutine write_dftbp_gen(c,file,lu0)
     use tools_io, only: fopen_write, nameguess, string, fclose
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in), optional :: lu0
 
-    integer :: lu, n, nt, i, j, k
+    integer :: lu, i, j, k
     real*8 :: r(3,3)
     character(len=:), allocatable :: strtyp, aux
 
@@ -5712,13 +5709,13 @@ contains
   !> to write the whole cube or only the header (onlyheader). 
   module subroutine writegrid_vasp(c,g,file,onlyheader)
     use tools_io, only: fopen_write, string, nameguess, fclose
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa
     class(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
     character*(*), intent(in) :: file
     logical :: onlyheader
 
-    integer :: n(3), i, j, ix, iy, iz, lu, ntyp
+    integer :: n(3), i, j, ix, iy, iz, lu
     character(len=:), allocatable :: line0, aux
 
     do i = 1, 3
