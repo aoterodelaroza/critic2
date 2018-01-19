@@ -156,7 +156,7 @@ contains
   end subroutine wfn_end
 
   !> Read the molecular geometry from an xyz file
-  module subroutine wfn_read_xyz_geometry(file,n,x,z,name)
+  module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
     use tools_io, only: fopen_read, zatguess, isinteger, ferror, faterr, fclose
     use param, only: bohrtoa
@@ -165,12 +165,14 @@ contains
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
 
     character*4 :: atsym
     integer :: lu
     integer :: i, lp
     logical :: ok
 
+    errmsg = ""
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
@@ -178,29 +180,40 @@ contains
 
     ! read the number of atoms
     lu = fopen_read(file)
-    read (lu,*) n
-    read (lu,*)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    read (lu,*,err=999) n
+    read (lu,*,err=999)
     allocate(x(3,n),z(n),name(n))
 
     do i = 1, n
-       read (lu,*) atsym, x(:,i)
+       read (lu,*,err=999) atsym, x(:,i)
        z(i) = zatguess(atsym)
        if (z(i) <= 0) then
           ! maybe it's a number
           lp = 1
           ok = isinteger(z(i),atsym,lp)
-          if (.not.ok) &
-             call ferror('wfn_read_xyz_geometry','could not determine atomic number',faterr)
+          if (.not.ok) then
+             errmsg = "Unknown atom: "//trim(atsym)//"."
+             goto 999
+          end if
        end if
        name(i) = trim(adjustl(atsym))
        x(:,i) = x(:,i) / bohrtoa
     end do
+
+    errmsg = ""
+999 continue    
     call fclose(lu)
 
   end subroutine wfn_read_xyz_geometry
 
   !> Read the molecular geometry from a wfn file
-  module subroutine wfn_read_wfn_geometry(file,n,x,z,name)
+  module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
     use tools_io, only: fopen_read, ferror, faterr, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
@@ -208,41 +221,56 @@ contains
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
 
     character*4 :: atsym, orbtyp
     integer :: lu
     integer :: i, i1, i2
     real*8 :: zreal
 
+    errmsg = ""
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
 
     ! read the number of atoms
-    read (lu,*)
-    read (lu,101) orbtyp, i1, i2, n
-    if (n <= 0) &
-       call ferror('wfn_read_wfn_geometry','wrong number of atoms',faterr)
+    read (lu,*,err=999)
+    read (lu,101,err=999) orbtyp, i1, i2, n
+    if (n <= 0) then
+       errmsg = "Wrong number of atoms"
+       goto 999
+    end if
     allocate(x(3,n),z(n),name(n))
 
     ! read the geometry
     do i = 1, n
-       read(lu,106) atsym, x(:,i), zreal
+       read(lu,106,err=999) atsym, x(:,i), zreal
        z(i) = zatguess(atsym)
+       if (z(i) < 0) then
+          errmsg = "Unknown atom: "//trim(atsym)//"."
+          goto 999
+       end if
        name(i) = trim(adjustl(atsym))
     end do
 101 format (4X,A4,10X,3(I5,15X))
 106 format(2X,A2,20X,3F12.8,10X,F5.1)
 
+    errmsg = ""
+999 continue
     call fclose(lu)
 
   end subroutine wfn_read_wfn_geometry
 
   !> Read the molecular geometry from a wfx file
-  module subroutine wfn_read_wfx_geometry(file,n,x,z,name)
+  module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
@@ -250,20 +278,28 @@ contains
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
-    character(len=:), allocatable :: line, line2
+    character(len=:), allocatable :: line, line2, errmsg2
     integer :: i
+    logical :: ok
 
+    errmsg = ""
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
 
+    errmsg = "Error reading file."
     ! read the number of atoms
-    do while (getline_raw(lu,line,.true.))
+    do while (getline_raw(lu,line))
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Number of Nuclei>") then
              read (lu,*) n
@@ -271,35 +307,45 @@ contains
           endif
        endif
     enddo
-    if (n == 0) &
-       call ferror("wfn_read_wfx_geometry","Number of Nuclei tag not found",faterr)
+    if (n == 0) then
+       errmsg = "Number of Nuclei tag not found."
+       goto 20
+    end if
     allocate(name(n),z(n),x(3,n))
 
     ! read the geometry
     rewind(lu)
-    do while (.true.)
-       read(lu,'(A)',end=20) line
+    do while (getline_raw(lu,line))
        line2 = adjustl(line)
        line = line2
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Atomic Numbers>") then
-             z = wfx_read_integers(lu,n)
+             z = wfx_read_integers(lu,n,errmsg2)
+             if (len_trim(errmsg2) > 0) then
+                errmsg = errmsg2
+                goto 20
+             end if
              do i = 1, n
                 name(i) = nameguess(z(i))
              end do
           elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
-             x = reshape(wfx_read_reals1(lu,3*n),shape(x))
+             x = reshape(wfx_read_reals1(lu,3*n,errmsg2),shape(x))
+             if (len_trim(errmsg2) > 0) then
+                errmsg = errmsg2
+                goto 20
+             end if
           endif
        endif
     enddo
-20  continue
 
+    errmsg = ""
+20  continue
     call fclose(lu)
 
   end subroutine wfn_read_wfx_geometry
 
   !> Read the molecular geometry from a fchk file
-  module subroutine wfn_read_fchk_geometry(file,n,x,z,name)
+  module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
     use tools_io, only: fopen_read, getline_raw, isinteger, ferror, faterr, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
@@ -307,31 +353,43 @@ contains
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, lp, i, j
     character(len=:), allocatable :: line
     logical :: ok
     real*8, allocatable :: xat(:)
 
+    errmsg = ""
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
 
     ! read the number of atoms
     n = 0
-    do while (getline_raw(lu,line,.true.))
+    do while (getline_raw(lu,line))
        lp = 45
        if (line(1:15) == "Number of atoms") then
           ok = isinteger(n,line,lp)
-          if (.not.ok) call ferror('wfn_read_fchk_geometry','could not read number of atoms',faterr)
+          if (.not.ok) then
+             errmsg = "Could not read number of atoms."
+             goto 999
+          end if
           exit
        endif
     enddo
-    if (n == 0) &
-       call ferror("wfn_read_fchk_geometry","error reading number of atoms",faterr)
+    if (n == 0) then
+       errmsg = "Error reading number of atoms."
+       goto 999
+    end if
 
     ! read the geometry
     allocate(z(n),x(3,n),name(n),xat(3*n))
@@ -340,11 +398,11 @@ contains
        lp = 45
        if (line(1:29) == "Current cartesian coordinates") then
           do i = 0, (3*n-1)/5
-             read(lu,'(5E16.8)') (xat(5*i+j),j=1,min(5,3*n-5*i))
+             read(lu,'(5E16.8)',err=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
           enddo
        elseif (line(1:14) == "Atomic numbers") then
           do i = 0, (n-1)/6
-             read(lu,'(6I12)') (z(6*i+j),j=1,min(6,n-6*i))
+             read(lu,'(6I12)',err=999) (z(6*i+j),j=1,min(6,n-6*i))
           enddo
        endif
     enddo
@@ -355,13 +413,16 @@ contains
     
     ! clean up
     deallocate(xat)
+
+    errmsg = ""
+999 continue
     call fclose(lu)
 
   end subroutine wfn_read_fchk_geometry
 
   !> Read the molecular geometry from a molden file (only tested with
   !> new psi4 molden files).
-  module subroutine wfn_read_molden_geometry(file,n,x,z,name)
+  module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
     use tools_io, only: fopen_read, lower, getline_raw, lgetword, ferror, faterr, nameguess, fclose
     use param, only: bohrtoa
@@ -370,18 +431,25 @@ contains
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, lp, idum, i
     character(len=:), allocatable :: line, keyword, word1, word2
     character*(1024) :: fixword
     logical :: ok, isang
 
+    errmsg = ""
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
     lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
 
     ! read the number of atoms
     n = 0
@@ -391,13 +459,16 @@ contains
           ok = getline_raw(lu,line,.true.)
           do while(index(lower(line),"[") == 0 .and. len(trim(line)) > 0)
              n = n + 1
-             ok = getline_raw(lu,line,.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
           end do
           exit
        end if
     end do
-    if (n == 0) &
-       call ferror("wfn_read_molden_geometry","error reading number of atoms",faterr)
+    if (n == 0) then
+       errmsg = "Error reading number of atoms."
+       goto 999
+    end if
     allocate(x(3,n),z(n),name(n))
 
     ! read the geometry
@@ -405,8 +476,10 @@ contains
     do while(next_keyword())
        if (trim(lower(keyword)) == "atoms") exit
     end do
-    if (len_trim(keyword) == 0) &
-       call ferror("wfn_read_molden_geometry","error reading geometry",faterr)
+    if (len_trim(keyword) == 0) then
+       errmsg = "Error reading geometry."
+       goto 999
+    end if
 
     ! geometry header -> detect the units for the geometry
     lp = 1
@@ -416,12 +489,15 @@ contains
 
     ! read the atomic numbers and positions
     do i = 1, n
-       ok = getline_raw(lu,line,.true.)
-       read(line,*) fixword, idum, z(i), x(:,i)
+       ok = getline_raw(lu,line)
+       if (.not.ok) goto 999
+       read(line,*,err=999) fixword, idum, z(i), x(:,i)
        if (isang) x(:,i) = x(:,i) / bohrtoa
        name(i) = nameguess(z(i))
     end do
 
+    errmsg = ""
+999 continue
     call fclose(lu)
 
   contains
@@ -466,6 +542,7 @@ contains
     f%useecp = .false.
     f%issto = .false.
     f%hasvirtual = .false.
+    f%nedf = 0
 
     ! read number of atoms, primitives, orbitals
     luwfn = fopen_read(file)
@@ -739,6 +816,7 @@ contains
     ! no ecps for now
     f%useecp = .false.
     f%issto = .false.
+    f%nedf = 0
 
     ! first pass: dimensions
     luwfn = fopen_read(file)
@@ -1140,6 +1218,7 @@ contains
     line = ""
     issto = .false.
     isgto = .false.
+    f%nedf = 0
 
     ! parse the molden file, first pass -> read dimensions prior to allocation
     do while(next_keyword())
@@ -2194,18 +2273,22 @@ contains
   end subroutine calculate_mo_gto
 
   !> Read a list of n integers from a logical unit
-  module function wfx_read_integers(lu,n) result(x)
+  module function wfx_read_integers(lu,n,errmsg) result(x)
     use tools_io, only: getline_raw, isinteger, ferror, faterr
     integer, intent(in) :: lu, n
+    character(len=:), allocatable, intent(out), optional :: errmsg
     integer :: x(n)
 
     integer :: kk, lp, idum
     character(len=:), allocatable :: line
     logical :: ok
 
+    if (present(errmsg)) &
+       errmsg = "Error reading file."
     kk = 0
     lp = 1
-    ok = getline_raw(lu,line,.true.)
+    ok = getline_raw(lu,line)
+    if (.not.ok) return
     do while(.true.)
        if (.not.isinteger(idum,line,lp)) then
           lp = 1
@@ -2213,17 +2296,27 @@ contains
           if (.not.ok .or. line(1:2) == "</") exit
        else
           kk = kk + 1
-          if (kk > n) call ferror("wfx_read_integers","exceeded size of the array",faterr)
+          if (kk > n) then
+             if (present(errmsg)) then
+                errmsg = "Exceeded size of the array reading integers"
+                return
+             else
+                call ferror("wfx_read_integers","Exceeded size of the array reading integers",faterr)
+             end if
+          end if
           x(kk) = idum
        endif
     enddo
+    if (present(errmsg)) &
+       errmsg = ""
 
   end function wfx_read_integers
 
   !> Read a list of n reals from a logical unit
-  module function wfx_read_reals1(lu,n) result(x)
+  module function wfx_read_reals1(lu,n,errmsg) result(x)
     use tools_io, only: getline_raw, isreal, ferror, faterr
     integer, intent(in) :: lu, n
+    character(len=:), allocatable, intent(out), optional :: errmsg
     real*8 :: x(n)
 
     integer :: kk, lp
@@ -2231,9 +2324,12 @@ contains
     character(len=:), allocatable :: line
     logical :: ok
 
+    if (present(errmsg)) &
+       errmsg = "Error reading file."
     kk = 0
     lp = 1
-    ok = getline_raw(lu,line,.true.)
+    ok = getline_raw(lu,line)
+    if (.not.ok) return
     do while(.true.)
        if (.not.isreal(rdum,line,lp)) then
           lp = 1
@@ -2241,10 +2337,19 @@ contains
           if (.not.ok .or. line(1:1) == "<") exit
        else
           kk = kk + 1
-          if (kk > n) call ferror("wfx_read_reals1","exceeded size of the array",faterr)
+          if (kk > n) then
+             if (present(errmsg)) then
+                errmsg = "Exceeded size of the array reading integers"
+                return
+             else
+                call ferror("wfx_read_integers","Exceeded size of the array reading reals",faterr)
+             end if
+          end if
           x(kk) = rdum
        endif
     enddo
+    if (present(errmsg)) &
+       errmsg = ""
 
   end function wfx_read_reals1
 

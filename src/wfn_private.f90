@@ -106,40 +106,45 @@ module wfn_private
      module subroutine wfn_end(f)
        class(molwfn), intent(inout) :: f
      end subroutine wfn_end
-     module subroutine wfn_read_xyz_geometry(file,n,x,z,name)
+     module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine wfn_read_xyz_geometry
-     module subroutine wfn_read_wfn_geometry(file,n,x,z,name)
+     module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine wfn_read_wfn_geometry
-     module subroutine wfn_read_wfx_geometry(file,n,x,z,name)
+     module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine wfn_read_wfx_geometry
-     module subroutine wfn_read_fchk_geometry(file,n,x,z,name)
+     module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine wfn_read_fchk_geometry
-     module subroutine wfn_read_molden_geometry(file,n,x,z,name)
+     module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine wfn_read_molden_geometry
      module subroutine read_wfn(f,file)
        class(molwfn), intent(inout) :: f
@@ -207,12 +212,14 @@ module wfn_private
        integer, intent(in) :: imo1
        integer, intent(in) :: nder
      end subroutine calculate_mo_gto
-     module function wfx_read_integers(lu,n) result(x)
+     module function wfx_read_integers(lu,n,errmsg) result(x)
        integer, intent(in) :: lu, n
+       character(len=:), allocatable, intent(out), optional :: errmsg
        integer :: x(n)
      end function wfx_read_integers
-     module function wfx_read_reals1(lu,n) result(x)
+     module function wfx_read_reals1(lu,n,errmsg) result(x)
        integer, intent(in) :: lu, n
+       character(len=:), allocatable, intent(out), optional :: errmsg
        real*8 :: x(n)
      end function wfx_read_reals1
      module subroutine calculate_d2ran(f)

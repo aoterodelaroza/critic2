@@ -157,8 +157,7 @@ contains
           lp2 = 1
           word2 = lgetword(line,lp)
        end do
-
-       call seed%read_mol(word,isformat,rborder,docube)
+       call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
     elseif (isformat == isformat_siesta) then
        call seed%read_siesta(word,mol)

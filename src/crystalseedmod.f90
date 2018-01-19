@@ -144,12 +144,13 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_elk
-     module subroutine read_mol(seed,file,fmt,rborder,docube)
+     module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        integer, intent(in) :: fmt
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_mol
      module subroutine read_qeout(seed,file,mol,istruct,errmsg)
        class(crystalseed), intent(inout) :: seed

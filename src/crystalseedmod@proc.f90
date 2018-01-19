@@ -1741,7 +1741,7 @@ contains
   end subroutine read_elk
 
   !> Read the structure from an xyz/wfn/wfx file
-  module subroutine read_mol(seed,file,fmt,rborder,docube)
+  module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
@@ -1754,30 +1754,33 @@ contains
     integer, intent(in) :: fmt !< wfn/wfx/xyz
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer, allocatable :: z(:)
     character*(10), allocatable :: name(:) !< Atomic names
     integer :: i, j, it
 
+    errmsg = ""
     if (fmt == isformat_xyz) then
        ! xyz
-       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,name)
+       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,name,errmsg)
     elseif (fmt == isformat_wfn) then
        ! wfn
-       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,name)
+       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,name,errmsg)
     elseif (fmt == isformat_wfx) then
        ! wfx
-       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,name)
+       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,name,errmsg)
     elseif (fmt == isformat_fchk) then
        ! fchk
-       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name)
+       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name,errmsg)
     elseif (fmt == isformat_molden) then
        ! molden (psi4)
-       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,name)
+       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,name,errmsg)
     end if
     seed%useabr = 0
     seed%havesym = 0
     seed%findsym = -1
+    if (len_trim(errmsg) > 0) goto 999
 
     seed%nspc = 0
     allocate(seed%is(seed%nat),seed%spc(2))
@@ -1799,7 +1802,19 @@ contains
        end if
        seed%is(i) = it
     end do
+    if (seed%nspc == 0) then
+       errmsg = "No atomic species found."
+       goto 999
+    end if
+    if (seed%nat == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+    call realloc(seed%spc,seed%nspc)
 
+    errmsg = ""
+999 continue
+    
     ! rest of the seed information
     seed%isused = .true.
     seed%ismolecule = .true.
@@ -3046,12 +3061,11 @@ contains
        call seed(1)%read_qein(file,mol,errmsg)
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg)
-    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
-       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
-       isformat == isformat_molden) then
+    elseif (isformat == isformat_wfn.or.isformat == isformat_wfx.or.&
+       isformat == isformat_fchk.or.isformat == isformat_molden) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_mol(file,isformat,rborder_def,.false.)
+       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_siesta) then
        nseed = 1
        allocate(seed(1))
