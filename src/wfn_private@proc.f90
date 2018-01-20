@@ -164,7 +164,7 @@ contains
   !> Read the molecular geometry from an xyz file
   module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
-    use tools_io, only: fopen_read, zatguess, isinteger, ferror, faterr, fclose
+    use tools_io, only: fopen_read, zatguess, isinteger, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -221,7 +221,7 @@ contains
   !> Read the molecular geometry from a wfn file
   module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
-    use tools_io, only: fopen_read, ferror, faterr, zatguess, fclose
+    use tools_io, only: fopen_read, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -278,7 +278,7 @@ contains
   !> Read the molecular geometry from a wfx file
   module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
-    use tools_io, only: fopen_read, getline_raw, ferror, faterr, nameguess, fclose
+    use tools_io, only: fopen_read, getline_raw, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -289,7 +289,6 @@ contains
     integer :: lu
     character(len=:), allocatable :: line, line2, errmsg2
     integer :: i
-    logical :: ok
 
     errmsg = ""
     ! deallocate
@@ -353,7 +352,7 @@ contains
   !> Read the molecular geometry from a fchk file
   module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
-    use tools_io, only: fopen_read, getline_raw, isinteger, ferror, faterr, nameguess, fclose
+    use tools_io, only: fopen_read, getline_raw, isinteger, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -430,7 +429,7 @@ contains
   !> new psi4 molden files).
   module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
-    use tools_io, only: fopen_read, lower, getline_raw, lgetword, ferror, faterr, nameguess, fclose
+    use tools_io, only: fopen_read, lower, getline_raw, lgetword, nameguess, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -1150,7 +1149,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
 
-    character(len=:), allocatable :: line, keyword, word, word1, word2
+    character(len=:), allocatable :: line, keyword, word, word1
     logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc
     integer :: luwfn, istat, ityp
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
@@ -1758,7 +1757,6 @@ contains
     real*8 :: dd(3,f%nat), d2(f%nat)
     real*8 :: hh(6), aocc
     
-    real*8, parameter :: stoeps = 1d-40
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
        1,0,0, 0,1,0, 0,0,1, & ! p

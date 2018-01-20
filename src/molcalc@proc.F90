@@ -22,7 +22,6 @@ contains
 
   !> Driver for molecular calculations
   module subroutine molcalc_driver(line)
-    use systemmod, only: sy
     use tools_io, only: ferror, faterr, uout, lgetword, equal
     character*(*), intent(inout) :: line
 
@@ -94,7 +93,6 @@ contains
     use tools_io, only: ferror, faterr, getline, uin, ucopy, string, isinteger, isreal,&
        lgetword, equal, uout
     use types, only: realloc
-    use param, only: im_rho
 
     type(mesh) :: m
     integer :: i, n, lp

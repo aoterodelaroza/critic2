@@ -70,7 +70,7 @@ contains
     integer, intent(inout), optional :: lp0
     
     character(len=:), allocatable :: file, lfile, extdot, extund, word, lword
-    integer :: lp, nfile, i, lpo, lpo2, ival
+    integer :: lp, nfile, i, lpo, lpo2
     logical :: ok, nofoundexit, savemid
     
     lp = 1

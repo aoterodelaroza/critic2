@@ -17,17 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <string.h>
 #include <unistd.h>
-
-// Returns a temporary file name and the length of the string
-char *tmpnam_wrap(size_t *len){
-  char *str;
-  str = tmpnam(NULL);
-  *len = strlen(str);
-  return(str);
-}
 
 // Delete a file 
 void unlink_wrap(const char *file){

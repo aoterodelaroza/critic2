@@ -243,9 +243,8 @@ contains
        end function feval
     end interface
 
-    integer :: nder, ider, lp
+    integer :: nder
     type(scalar_value) :: res
-    logical :: ok
     character*10 :: fderl
 
     fieldeval = 0d0
@@ -558,7 +557,6 @@ contains
   !> thread-safe.
   module function chemfunction(c,sia,x0,sptr,feval,periodic) result(q)
     use types, only: scalar_value
-    use param, only: pi
     use iso_c_binding, only: c_ptr
     integer, intent(in) :: c
     character*(*), intent(in) :: sia

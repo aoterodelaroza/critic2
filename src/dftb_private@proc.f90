@@ -356,15 +356,15 @@ contains
                 end do
 
                 ! accumulate properties
-                rho = rho + (conjg(xmo)*xmo) * f%docc(istate,ik,is)
-                grad = grad + (conjg(xmop)*xmo+conjg(xmo)*xmop) * f%docc(istate,ik,is)
-                h(1,1) = h(1,1) + (conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1)) * f%docc(istate,ik,is)
-                h(1,2) = h(1,2) + (conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2)) * f%docc(istate,ik,is)
-                h(1,3) = h(1,3) + (conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3)) * f%docc(istate,ik,is)
-                h(2,2) = h(2,2) + (conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4)) * f%docc(istate,ik,is)
-                h(2,3) = h(2,3) + (conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5)) * f%docc(istate,ik,is)
-                h(3,3) = h(3,3) + (conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6)) * f%docc(istate,ik,is)
-                gkin = gkin + (conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3)) * f%docc(istate,ik,is)
+                rho = rho + real(conjg(xmo)*xmo,8) * f%docc(istate,ik,is)
+                grad = grad + real(conjg(xmop)*xmo+conjg(xmo)*xmop,8) * f%docc(istate,ik,is)
+                h(1,1) = h(1,1) + real(conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1),8) * f%docc(istate,ik,is)
+                h(1,2) = h(1,2) + real(conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2),8) * f%docc(istate,ik,is)
+                h(1,3) = h(1,3) + real(conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3),8) * f%docc(istate,ik,is)
+                h(2,2) = h(2,2) + real(conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4),8) * f%docc(istate,ik,is)
+                h(2,3) = h(2,3) + real(conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5),8) * f%docc(istate,ik,is)
+                h(3,3) = h(3,3) + real(conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6),8) * f%docc(istate,ik,is)
+                gkin = gkin + real(conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3),8) * f%docc(istate,ik,is)
              end do ! states
           end do ! k-points
        end do ! spins

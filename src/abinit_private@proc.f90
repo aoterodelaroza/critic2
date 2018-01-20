@@ -37,7 +37,7 @@ contains
   
   ! Driver to choose which version of hdr_io to use.
   module subroutine hdr_io(fform,hdr,rdwr,unitfi,errmsg)
-    use tools_io, only: uout, string
+    use tools_io, only: string
     integer, intent(inout) :: fform
     integer, intent(in) :: rdwr,unitfi
     type(hdr_type), intent(inout) :: hdr

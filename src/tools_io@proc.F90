@@ -25,6 +25,9 @@ submodule (tools_io) proc
   integer*8 :: stime0
   real :: ctime0
 
+  ! logical unit allocation
+  logical :: alloc(0:100) !< allocation flag array
+
 contains
 
   !> Connect input files to units with standard defaults.
@@ -585,7 +588,7 @@ contains
     ok = .true.
     do while(.true.)
        read(u,'(A)',advance="no",iostat=ios,size=nread) aux
-       line = line // aux
+       line = line(1:len(line)) // aux
        ok = .not.is_iostat_end(ios)
        if (is_iostat_eor(ios) .or. is_iostat_end(ios)) exit
     end do

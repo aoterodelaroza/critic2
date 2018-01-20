@@ -228,14 +228,13 @@ contains
 
   subroutine scene_initialize(isc) bind(c)
     use c_interface_module, only: f_c_string
-    use param, only: pi, atmcov, jmlcol
+    use param, only: atmcov, jmlcol
     integer(c_int), value, intent(in) :: isc
 
-    integer :: i, j, idx, iz, n, idx1, idx2, iz1, iz2, is
+    integer :: i, j, idx, iz, is
     real(c_float) :: xmin(3), xmax(3)
-    real*8 :: dist
     integer :: mncon_, id
-    character(len=:), allocatable :: line, errmsg
+    character(len=:), allocatable :: errmsg
 
     if (isc > nsc .or. isc < 1) return
     if (sc(isc)%isinit == 0 .or. sc(isc)%isinit == 2) return
@@ -265,8 +264,8 @@ contains
        idx = sc(isc)%sy%c%atcel(i)%idx
        iz = sc(isc)%sy%c%spc(is)%z
 
-       sc(isc)%at(i)%x = sc(isc)%sy%c%atcel(i)%x
-       sc(isc)%at(i)%r = sc(isc)%sy%c%atcel(i)%r
+       sc(isc)%at(i)%x = real(sc(isc)%sy%c%atcel(i)%x,c_float)
+       sc(isc)%at(i)%r = real(sc(isc)%sy%c%atcel(i)%r,c_float)
        sc(isc)%at(i)%is = is
        sc(isc)%at(i)%idx = idx
        sc(isc)%at(i)%cidx = i
@@ -276,9 +275,9 @@ contains
        mncon_ = max(mncon_,sc(isc)%at(i)%ncon)
 
        if (atmcov(iz) > 1) then
-          sc(isc)%at(i)%rad = 0.7*atmcov(iz)
+          sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
        else
-          sc(isc)%at(i)%rad = 1.5*atmcov(iz)
+          sc(isc)%at(i)%rad = real(1.5d0*atmcov(iz),c_float)
        end if
        sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
        sc(isc)%at(i)%rgb(4) = 1.0
@@ -339,10 +338,10 @@ contains
     sc(isc)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),0.1_c_float)
 
     ! lattice vectors
-    sc(isc)%avec = sc(isc)%sy%c%crys2car
+    sc(isc)%avec = real(sc(isc)%sy%c%crys2car,c_float)
     sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
-    sc(isc)%molx0 = sc(isc)%sy%c%molx0
-    sc(isc)%molborder = sc(isc)%sy%c%molborder
+    sc(isc)%molx0 = real(sc(isc)%sy%c%molx0,c_float)
+    sc(isc)%molborder = real(sc(isc)%sy%c%molborder,c_float)
 
     ! this scene has been updated
     if (isc == icursc) scupdated = .true.
@@ -396,8 +395,8 @@ contains
 
   !> Change the reference field for the system in scene isc.
   subroutine scene_set_reference_field(isc, iref) bind(c)
-    integer, intent(in), value :: isc
-    integer, intent(in), value :: iref
+    integer(c_int), intent(in), value :: isc
+    integer(c_int), intent(in), value :: iref
 
     if (isc < 1 .or. isc > nsc) return
     if (.not.sc(isc)%sy%goodfield(iref)) return

@@ -18,6 +18,113 @@
 submodule (qtree_basic) proc
   implicit none
 
+  ! Butcher tableaus of ODE solvers
+  ! c_1 |
+  ! c_2 | a_21
+  ! c_3 | a_31  a_32
+  ! ... | ...   ...
+  ! c_o | a_o1  a_o2  ...  a_oo-1
+  !------------------------------
+  !     | b_1   b_2        b_o
+  !
+  ! k_i = f(t_n+c_i*h, y_n+ a_i1 * h * k_1+...+ a_ii-1 * h * k_i-1)
+  ! y_n+1 = y_n + h * sum_i=1..o (  b_i * k_i )
+  !
+  ! The step is calculated with the b (not b2) formula
+  !
+  !! Euler method 
+  integer, target :: euler_o = 1
+  real*8, target :: euler_c(1) = (/0d0/)
+  real*8, target :: euler_a(1,1) = reshape((/1d0/),shape(euler_a))
+  real*8, target :: euler_b(1) = (/1d0/)
+  integer, target :: euler_type = 0
+  !! Heun's method
+  integer, target :: heun_o = 2
+  real*8, target :: heun_c(2) = (/0d0, 1d0/)
+  real*8, target :: heun_a(2,2) = reshape((/0d0, 1d0,&
+     1d0, 0d0/),shape(heun_a))
+  real*8, target :: heun_b(2) = (/0.5d0, 0.5d0/)
+  integer, target :: heun_type = 0
+  !! Kutta's method
+  integer, target :: kutta_o = 3
+  real*8, target :: kutta_c(3) = (/0d0, 0.5d0, 1d0/)
+  real*8, target :: kutta_a(3,3) = reshape((/0.0d0, 0.5d0, -1.0d0,&
+     0.5d0, 0.0d0,  2.0d0,&
+     -1.0d0, 2.0d0,  0.0d0/),shape(kutta_a))
+  real*8, target :: kutta_b(3) = (/1d0/6d0, 2d0/3d0, 1d0/6d0/)
+  integer, target :: kutta_type = 0
+  !! RK4 method
+  integer, target :: rk4_o = 4
+  real*8, target :: rk4_c(4) = (/0d0, 0.5d0, 0.5d0, 1d0/)
+  real*8, target :: rk4_a(4,4) = reshape((/0.0d0, 0.5d0, 0.0d0, 0.0d0,&
+     0.5d0, 0.0d0, 0.5d0, 0.0d0,&
+     0.0d0, 0.5d0, 0.0d0, 1.0d0,&
+     0.0d0, 0.0d0, 1.0d0, 0.0d0/),shape(rk4_a))
+  real*8, target :: rk4_b(4) = (/1d0/6d0, 1d0/3d0, 1d0/3d0, 1d0/6d0/)
+  integer, target :: rk4_type = 0
+  !! Heun-Euler embedded method
+  !! 1st order, 2nd order error est., 2 evals
+  integer, target :: heul_o = 2
+  integer, target :: heul_o2 = 1
+  real*8, target :: heul_c(2) = (/0d0, 1d0/)
+  real*8, target :: heul_a(2,2) = reshape((/0d0, 0d0,&
+     1d0, 0d0/),shape(heul_a))
+  real*8, target :: heul_b2(2) = (/0.5d0, 0.5d0/)
+  real*8, target :: heul_b(2) = (/1.0d0, 0.0d0/) 
+  integer, target :: heul_type = 1
+  !! Bogacki-Shampine embedded method 
+  !! 3th order, 5th order error est., 3(4) evals
+  !! Local extrapolation, fsal
+  integer, target :: bs_o = 4
+  integer, target :: bs_o2 = 2
+  real*8, target :: bs_c(4) = (/0d0, 0.5d0, 0.75d0, 1d0/)
+  real*8, target :: bs_a(4,4) = reshape(&
+     (/0.0d0,0d0,0d0,0d0,&
+     1d0/2d0,        0.0d0,0d0,0d0,&
+     0.0d0,          3d0/4d0,     0.0d0,0d0,&
+     2d0/9d0,        1d0/3d0,     4d0/9d0,       0.0d0&
+     /),shape(bs_a))
+  real*8, target :: bs_b(4) = (/2d0/9d0, 1d0/3d0, 4d0/9d0, 0d0/)
+  real*8, target :: bs_b2(4) = (/7d0/24d0, 1d0/4d0, 1d0/3d0, 1d0/8d0/)
+  integer, target :: bs_type = 1
+  !! Runge-Kutta-Cash-Karp embedded method 
+  !! 4th order, 5th order error est., 6 evals
+  integer, target :: rkck_o = 6
+  integer, target :: rkck_o2 = 4
+  real*8, target :: rkck_c(6) = (/0d0, 1d0/5d0, 3d0/10d0, 3d0/5d0, 1d0, 7d0/8d0/)
+  real*8, target :: rkck_a(6,6) = reshape(&
+     (/0.0d0,0d0,0d0,0d0,0d0,0d0,&
+     1d0/5d0,        0.0d0,0d0,0d0,0d0,0d0,&
+     3d0/40d0,       9d0/40d0,    0.0d0,0d0,0d0,0d0,&
+     3d0/10d0,      -9d0/10d0,    6d0/5d0,       0.0d0,0d0,0d0,&
+     -11d0/54d0,      5d0/2d0,    -70d0/27d0,     35d0/27d0,        0.0d0,0d0,&
+     1631d0/55296d0, 175d0/512d0, 575d0/13824d0, 44275d0/110592d0, 253d0/4096d0, 0.0d0&
+     /),shape(rkck_a))
+  real*8, target :: rkck_b(6) = (/2825d0/27648d0, 0d0, 18575d0/48384d0, 13525d0/55296d0,&
+     277d0/14336d0, 1d0/4d0 /)
+  real*8, target :: rkck_b2(6) = (/ 37d0/378d0, 0d0, 250d0/621d0, 125d0/594d0, 0d0, 512d0/1771d0 /)
+  integer, target :: rkck_type = 1
+  !! Dormand-Prince embedded method 
+  !! 4th order, 5th order error est., 6(7) evals
+  !! Local extrapolation, fsal
+  integer, target :: dp_o = 7
+  integer, target :: dp_o2 = 4
+  real*8, target :: dp_c(7) = (/0d0, 1d0/5d0, 3d0/10d0, 4d0/5d0, 8d0/9d0, 1d0, 1d0/)
+  real*8, target :: dp_a(7,7) = reshape(&
+     (/0.0d0,  0d0,0d0,0d0,0d0,0d0,0d0,&
+     1d0/5d0,         0.0d0,0d0,0d0,0d0,0d0,0d0,&
+     3d0/40d0,        9d0/40d0,       0.0d0,0d0,0d0,0d0,0d0,&
+     44d0/45d0,      -56d0/15d0,      32d0/9d0,        0d0,0d0,0d0,0d0,&
+     19372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0,  0d0,0d0,0d0,&
+     9017d0/3168d0,  -355d0/33d0,     46732d0/5247d0,  49d0/176d0,  -5103d0/18656d0, 0d0,0d0,&
+     35d0/384d0,      0d0,            500d0/1113d0,    125d0/192d0, -2187d0/6784d0,  11d0/84d0,      0d0&
+     /),shape(dp_a))
+  real*8, target :: dp_b2(7) = (/5179d0/57600d0, 0d0, 7571d0/16695d0, 393d0/640d0,&
+     -92097d0/339200d0, 187d0/2100d0, 1d0/40d0/)
+  real*8, target :: dp_b(7) = (/ 35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
+     -2187d0/6784d0, 11d0/84d0, 0d0 /)
+  integer, target :: dp_type = 1
+
 contains
 
   !> Initialize qtree, at level lvl and pre-split level plvl. This routine is called once

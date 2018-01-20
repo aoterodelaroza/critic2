@@ -79,7 +79,6 @@ module tools_io
   integer :: uin !< main input lu
   integer :: uout !< main output lu
   integer :: ucopy !< logical unit where the copy of the input is written
-  logical, private :: alloc(0:100) !< allocation flag array
   character(len=:), allocatable :: filepath !< relative path to find related files
   logical :: interactive !< is this an interactive sesion?
 

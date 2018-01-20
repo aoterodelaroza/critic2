@@ -89,8 +89,8 @@ module fieldmod
      logical :: numerical = .false. !< numerical derivatives
      logical :: exact = .false. !< exact or approximate calc
      integer :: typnuc = -3 !< type of nuclei
-     character*(255) :: name = "" !< field name
-     character*(255) :: file = "" !< file name
+     character*(512) :: name = "" !< field name
+     character*(512) :: file = "" !< file name
      ! scalar field types
      type(elkwfn) :: elk
      type(wienwfn) :: wien

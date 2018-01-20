@@ -29,7 +29,7 @@ contains
   module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use param, only: maxzat0, isformat_cif, isformat_shelx,&
+    use param, only: isformat_cif, isformat_shelx,&
        isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
@@ -640,7 +640,7 @@ contains
 
     character(len=:), allocatable :: templ, aux, aux2
 
-    integer :: i, j, inum, idx, iz, jz
+    integer :: i, j, inum, idx, iz
     integer :: nspc
     integer, allocatable :: is(:)
     type(species), allocatable :: spc(:)

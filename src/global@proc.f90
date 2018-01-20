@@ -197,11 +197,11 @@ contains
 
   !> Print out the compilation details and the hardwired paths
   module subroutine config_write()
-    use config, only: getstring, istring_package, istring_version,&
+    use config, only: getstring, istring_package,&
        istring_f77, istring_fc, istring_cc, istring_fflags,&
        istring_fcflags, istring_cflags, istring_ldflags,&
        istring_atarget, istring_adate, istring_enabledebug,&
-       istring_revision, istring_datadir
+       istring_revision, istring_datadir, istring_version
     use param, only: dirsep
     use tools_io, only: uout
     logical :: lchk

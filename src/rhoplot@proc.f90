@@ -1494,7 +1494,7 @@ contains
   !> Plot of gradient paths and contours in the style of aimpac's grdvec.
   module subroutine rhoplot_grdvec()
     use systemmod, only: sy
-    use global, only: fileroot, eval_next, dunit0, iunit, prunedist, gcpchange
+    use global, only: fileroot, eval_next, dunit0, iunit
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
@@ -2568,10 +2568,10 @@ contains
     ! contours
     swri = ""
     if (docontour) then
-       swri = swri // """" // string(fichiso) // """ with lines ls 2"
+       swri = trim(swri) // """" // string(fichiso) // """ with lines ls 2"
        if (isneg) &
-          swri = swri // ", """ // string(fichiso1) // """ with lines ls 3"
-       if (dograds) swri = swri // ", "
+          swri = trim(swri) // ", """ // string(fichiso1) // """ with lines ls 3"
+       if (dograds) swri = trim(swri) // ", "
     end if
     if (dograds) then
        swri = swri // """" // string(fichgrd) // """ u 1:2:6 with lines ls 1"

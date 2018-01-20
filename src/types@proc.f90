@@ -96,7 +96,7 @@ contains
     integer, intent(in) :: nnew
 
     type(atom), allocatable :: temp(:)
-    integer :: nold, i
+    integer :: nold
 
     if (.not.allocated(a)) then
        allocate(a(1:nnew))

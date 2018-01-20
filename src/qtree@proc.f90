@@ -970,7 +970,6 @@ contains
     real*8, parameter :: initial_f = 1.0d0
     real*8, parameter :: shrink = 0.95d0
     integer, parameter :: nleb = 38
-    integer, parameter :: mstep = 6000
     real*8, parameter :: dthres = 0.5d0
 
     ! get the nnuc

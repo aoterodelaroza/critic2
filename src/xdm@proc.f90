@@ -723,7 +723,7 @@ contains
     character*(*), intent(inout) :: line0
 
     integer :: i, j
-    integer :: lu, lp, lp2, idx, idx1, idx2, idum
+    integer :: lu, lp, idx, idx1, idx2, idum
     character(len=:), allocatable :: line, str, word, aux
     logical :: ok, inbetween
     real*8 :: a1, a2
@@ -863,7 +863,7 @@ contains
     use param, only: bohrtoa
     character*(*), intent(inout) :: line0
 
-    integer :: i, j, inow, iat, lp
+    integer :: i, inow, lp
     character(len=:), allocatable :: line, word, file
     logical :: ok
     real*8 :: a1, a2, e0, e1
@@ -1503,8 +1503,7 @@ contains
   module function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
     use systemmod, only: sy
     use crystalmod, only: crystal
-    use tools_io, only: uout
-    use param, only: maxzat0, alpha_free
+    use param, only: alpha_free
     real*8, intent(in) :: a1, a2
     real*8, intent(in) :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1)
     real*8, intent(in) :: mm(3,sy%c%ncel,0:1)
@@ -1516,7 +1515,7 @@ contains
     real*8 :: d, d2
     real*8 :: xij(3), x0(3)
     real*8 :: e, alpha0, alpha1, ml0(3), ml1(3)
-    integer :: ii, jj, i, j, k, iz
+    integer :: jj, i, j, k, iz
     real*8 :: rmax, rmax2, maxc6, c6, c8, c10, rc, rvdw
     real*8, allocatable :: alpha(:,:)
 

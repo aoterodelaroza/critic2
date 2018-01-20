@@ -727,7 +727,7 @@ contains
                 write(luw) raux2
                 call fclose(luw)
 
-                f%f = f%f + conjg(raux2) * raux2
+                f%f = f%f + real(conjg(raux2) * raux2,8)
              end do
 
              ! close the unk file
@@ -977,7 +977,7 @@ contains
                 rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
                 raux = reshape(rseq,shape(raux))
                 call cfftnd(3,n,+1,raux)
-                f%f = f%f + conjg(raux) * raux
+                f%f = f%f + real(conjg(raux) * raux,8)
              end do
           end do
        end do

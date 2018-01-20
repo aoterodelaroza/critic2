@@ -34,7 +34,6 @@ contains
     use types, only: scalar_value, realloc
     use param, only: pi, vsmall, bohrtoa, ifformat_as_grad, ifformat_as_hxx1,&
        ifformat_as_hxx2, ifformat_as_hxx3
-
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: res, resg
     character(len=:), allocatable :: line, word, oname, file

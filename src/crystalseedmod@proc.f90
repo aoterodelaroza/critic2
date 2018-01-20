@@ -2603,7 +2603,7 @@ contains
   !> Read the structure from a file in DFTB+ gen format.
   module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
+    use tools_io, only: fopen_read, getline, lower, equal, &
        getword, zatguess, nameguess, fclose
     use param, only: bohrtoa
     use types, only: realloc
@@ -2727,11 +2727,10 @@ contains
 
   !> Read the structure from an xsf file.
   module subroutine read_xsf(seed,file,rborder,docube,errmsg)
-    use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
-       ferror, faterr, zatguess, isinteger, getword, isreal, lower, string
+       zatguess, isinteger, getword, isreal, lower, string
     use tools_math, only: matinv
-    use param, only: bohrtoa, maxzat
+    use param, only: bohrtoa
     use types, only: realloc
     use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -2946,6 +2945,7 @@ contains
     integer :: lu, nat, ios
     character*1 :: isfrac
 
+    if (present(alsofield)) alsofield = .false.
     alsofield_ = .false.
     basename = file(index(file,dirsep,.true.)+1:)
     wextdot = basename(index(basename,'.',.true.)+1:)
@@ -3017,25 +3017,24 @@ contains
        isformat = isformat_xsf
        ismol = .false.
        lu = fopen_read(file,errstop=.false.)
-       if (lu >= 0) then
-          do while (getline(lu,line))
-             if (len_trim(line) > 0) exit
-          end do
-          if (equali(line,"atoms")) then
-             ismol = .true.
-          else
-             ismol = .false.
-          end if
-          if (present(alsofield)) then
-             do while (getline(lu,line))
-                if (equali(line,"begin_block_datagrid_3d")) then
-                   alsofield_ = .true.
-                   exit
-                end if
-             end do
-          end if
-          call fclose(lu)
+       if (lu < 0) goto 999
+       do while (getline(lu,line))
+          if (len_trim(line) > 0) exit
+       end do
+       if (equali(line,"atoms")) then
+          ismol = .true.
+       else
+          ismol = .false.
        end if
+       if (present(alsofield)) then
+          do while (getline(lu,line))
+             if (equali(line,"begin_block_datagrid_3d")) then
+                alsofield_ = .true.
+                exit
+             end if
+          end do
+       end if
+       call fclose(lu)
        if (.not.present(alsofield)) &
           alsofield_ = .not.ismol
     elseif (equal(wextdot,'gen')) then
@@ -3044,21 +3043,19 @@ contains
        ! determine whether it is a molecule or crystal
        ismol = .false.
        lu = fopen_read(file,errstop=.false.)
-       if (lu >= 0) then
-          do while (getline_raw(lu,line))
-             if (len_trim(line) > 0) exit
-          end do
-          read (line,*,iostat=ios) nat, isfrac
-          if (ios /= 0) then
-             isfrac = lower(isfrac)
-             if (equal(isfrac,"c")) then
-                ismol = .true.
-             else
-                ismol = .false.
-             end if
-          end if
-          call fclose(lu)
+       if (lu < 0) goto 999
+       do while (getline_raw(lu,line))
+          if (len_trim(line) > 0) exit
+       end do
+       read (line,*,iostat=ios) nat, isfrac
+       if (ios /= 0) goto 999
+       isfrac = lower(isfrac)
+       if (equal(isfrac,"c")) then
+          ismol = .true.
+       else
+          ismol = .false.
        end if
+       call fclose(lu)
     elseif (isvasp) then
        isformat = isformat_vasp
        ismol = .false.
@@ -3066,10 +3063,14 @@ contains
           (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
           (index(basename,'AECCAR2') > 0)
     else
-       isformat = isformat_unknown
-       ismol = .false.
+       goto 999
     endif
     if (present(alsofield)) alsofield = alsofield_
+
+    return
+999 continue
+    isformat = isformat_unknown
+    ismol = .false.
 
   end subroutine struct_detect_format
 
