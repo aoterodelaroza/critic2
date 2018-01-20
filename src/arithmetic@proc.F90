@@ -1412,9 +1412,7 @@ contains
     character*(*), intent(in) :: fid
     logical :: isspecialfield
 
-    ! xxxx model1r and model1v are a hack
-    isspecialfield = (trim(fid) == "ewald" .or. trim(fid) == "model1r" .or.&
-       trim(fid) == "model1v") 
+    isspecialfield = (trim(fid) == "ewald")
     
   end function isspecialfield
 
