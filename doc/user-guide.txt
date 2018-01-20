@@ -1316,8 +1316,9 @@ Xcrysden (xsf)
 ++++++++++++++
 
 Xcrysden generates scalar field files with extension xsf, which also
-contain the crystal structure. The PRIMVEC and PRIMCOORD cards are
-read - everything else is ignored.
+contain the crystal structure. If the xsf contains a crystal
+structure, the PRIMVEC and PRIMCOORD cards are read - everything else
+is ignored.
 
 DFTB+ (gen)
 +++++++++++
