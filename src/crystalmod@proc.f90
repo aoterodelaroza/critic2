@@ -289,6 +289,7 @@ contains
        ! this is a molecule, for which no cell has been given
        c%aa = xmax - xmin
        c%bb = 90d0
+
        c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
        c%car2crys = matinv(c%crys2car)
        g = matmul(transpose(c%crys2car),c%crys2car)

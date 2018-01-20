@@ -76,6 +76,24 @@ contains
     else
        call ferror("struct_crystal_input","unknown mol0",faterr)
     end if
+    if (ismol) then
+       docube = .false.
+       rborder = rborder_def 
+       do while(.true.)
+          if (equal(word2,'cubic').or.equal(word2,'cube')) then
+             docube = .true.
+          elseif (eval_next(raux,word2,lp2)) then
+             rborder = raux / dunit0(iunit)
+          elseif (len_trim(word2) > 1) then
+             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
+          else
+             exit
+          end if
+          lp2 = 1
+          word2 = lgetword(line,lp)
+       end do
+    end if
 
     ! build the seed
     errmsg = ""
@@ -141,53 +159,20 @@ contains
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden) then
-       docube = .false.
-       rborder = rborder_def 
-       do while(.true.)
-          if (equal(word2,'cubic').or.equal(word2,'cube')) then
-             docube = .true.
-          elseif (eval_next(raux,word2,lp2)) then
-             rborder = raux / dunit0(iunit)
-          elseif (len_trim(word2) > 1) then
-             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
-          else
-             exit
-          end if
-          lp2 = 1
-          word2 = lgetword(line,lp)
-       end do
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
     elseif (isformat == isformat_siesta) then
        call seed%read_siesta(word,mol,errmsg)
 
     elseif (isformat == isformat_xsf) then
-       call seed%read_xsf(word,mol,errmsg)
+       call seed%read_xsf(word,rborder,docube,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
 
     elseif (isformat == isformat_gen) then
-       docube = .false.
-       rborder = rborder_def
-       do while(.true.)
-          if (equal(word2,'cubic').or.equal(word2,'cube')) then
-             docube = .true.
-          elseif (eval_next(raux,word2,lp2)) then
-             rborder = raux / dunit0(iunit)
-          elseif (len_trim(word2) > 1) then
-             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
-          else
-             exit
-          end if
-          lp2 = 1
-          word2 = lgetword(line,lp)
-       end do
-       call seed%read_dftbp(word,ismol,rborder,docube)
-       if (mol0 == -1) then
-          mol = ismol
-       else 
+       call seed%read_dftbp(word,rborder,docube,errmsg)
+       if (mol0 /= -1) &
           seed%ismolecule = mol
-       end if
 
     else if (equal(lower(word),'library')) then
        call seed%read_library(subline,mol,ok)

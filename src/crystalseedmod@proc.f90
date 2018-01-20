@@ -2601,7 +2601,7 @@ contains
   end subroutine read_siesta
 
   !> Read the structure from a file in DFTB+ gen format.
-  module subroutine read_dftbp(seed,file,molout,rborder,docube)
+  module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, ferror, faterr, &
        getword, zatguess, nameguess, fclose
@@ -2609,32 +2609,43 @@ contains
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
-    logical, intent(out) :: molout !< returns true if a molecule is read, false if crystal
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
     real*8 :: r(3,3)
     integer :: i, iz, idum, lp
-    logical :: ok
+    logical :: ok, molout
     character*1 :: isfrac
     character(len=:), allocatable :: line, word
 
     ! open
-    lu = fopen_read(file)
+    molout = .false.
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
 
     ! number of atoms and type of coordinates
-    ok = getline(lu,line,.true.)
-    read (line,*) seed%nat, isfrac
+    ok = getline(lu,line)
+    if (.not.ok) goto 999
+    read (line,*,err=999) seed%nat, isfrac
     isfrac = lower(isfrac)
-    if (.not.(equal(isfrac,"f").or.equal(isfrac,"c").or.equal(isfrac,"s"))) &
-       call ferror('read_dftbp','wrong coordinate selector in gen file',faterr)
+    if (.not.(equal(isfrac,"f").or.equal(isfrac,"c").or.equal(isfrac,"s"))) then
+       errmsg = 'Wrong coordinate selector.'
+       goto 999
+    end if
     allocate(seed%x(3,seed%nat),seed%is(seed%nat))
 
     ! atom types
     seed%nspc = 0
     allocate(seed%spc(2))
-    ok = getline(lu,line,.true.)
+    ok = getline(lu,line)
+    if (.not.ok) goto 999
     lp = 1
     word = getword(line,lp)
     iz = zatguess(word)
@@ -2647,19 +2658,23 @@ contains
        word = getword(line,lp)
        iz = zatguess(word)
     end do
-    if (seed%nspc == 0) call ferror('read_dftbp','no atomic types found',faterr)
+    if (seed%nspc == 0) then
+       errmsg = 'No atomic types found.'
+       goto 999
+    end if
     call realloc(seed%spc,seed%nspc)
 
     ! read atomic positions
     do i = 1, seed%nat
-       ok = getline(lu,line,.true.)
-       read (line,*) idum, seed%is(i), seed%x(:,i)
+       ok = getline(lu,line)
+       if (.not.ok) goto 999
+       read (line,*,err=999) idum, seed%is(i), seed%x(:,i)
        if (isfrac /= "f") &
           seed%x(:,i) = seed%x(:,i) / bohrtoa
     end do
 
     ! read lattice vectors, if they exist
-    ok = getline(lu,line,.false.)
+    ok = getline(lu,line)
     if (ok) then
        do i = 1, 3
           ok = getline(lu,line,.true.)
@@ -2671,7 +2686,8 @@ contains
        seed%crys2car = transpose(r)
        r = matinv(seed%crys2car)
        if (isfrac == "c") then
-          call ferror('read_dftbp','lattice plus C not supported',faterr)
+          errmsg = 'Lattice plus C not supported.'
+          goto 999
        elseif (isfrac == "s") then
           do i = 1, seed%nat
              seed%x(:,i) = matmul(r,seed%x(:,i))
@@ -2681,11 +2697,16 @@ contains
        molout = .false.
     else
        ! molecule and no lattice -> set up the origin and the molecular cell
-       if (isfrac == "f" .or. isfrac == "s") &
-          call ferror('read_dftbp','S or C coordinates but no lattice vectors',faterr)
+       if (isfrac == "f" .or. isfrac == "s") then
+          errmsg = 'S or F coordinates but no lattice vectors.'
+          goto 999
+       end if
        seed%useabr = 0
        molout = .true.
     end if
+
+    errmsg = ""
+999 continue
     call fclose(lu)
 
     ! no symmetry
@@ -2705,23 +2726,29 @@ contains
   end subroutine read_dftbp
 
   !> Read the structure from an xsf file.
-  module subroutine read_xsf(seed,file,mol,errmsg)
+  module subroutine read_xsf(seed,file,rborder,docube,errmsg)
+    use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
-       ferror, faterr, zatguess, isinteger, getword, isreal
+       ferror, faterr, zatguess, isinteger, getword, isreal, lower, string
     use tools_math, only: matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, maxzat
     use types, only: realloc
+    use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< is this a molecule?
+    real*8, intent(in) :: rborder !< user-defined border in bohr
+    logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=:), allocatable :: line, word, name
+    character*10 :: atn, latn
     integer :: lu, lp, i, j, iz, it
-    real*8 :: r(3,3)
-    logical :: ok
+    real*8 :: r(3,3), x(3)
+    logical :: ok, ismol
+    type(hash) :: usen
 
     ! open
+    ismol = .false.
     errmsg = ""
     lu = fopen_read(file)
     if (lu < 0) then
@@ -2740,6 +2767,7 @@ contains
              read (lu,*,err=999) r(i,:)
           end do
           r = r / bohrtoa
+          ismol = .false.
        elseif (equal(word,"primcoord")) then
           read (lu,*,err=999) seed%nat
           allocate(seed%x(3,seed%nat),seed%is(seed%nat))
@@ -2784,6 +2812,47 @@ contains
              end if
              seed%is(i) = it
           end do
+          ismol = .false.
+       elseif (equal(word,"atoms")) then
+          ismol = .true.
+          call usen%init()
+          seed%nat = 0
+          seed%nspc = 0
+          allocate(seed%x(3,10),seed%spc(5),seed%is(10))
+          do while (getline_raw(lu,line))
+             if (len_trim(line) == 0) exit
+             
+             read (line,*,err=999) atn, x
+             seed%nat = seed%nat + 1
+             if (seed%nat > size(seed%x,2)) then
+                call realloc(seed%x,3,2*seed%nat)
+                call realloc(seed%is,2*seed%nat)
+             end if
+             seed%x(:,seed%nat) = x / bohrtoa
+
+             iz = zatguess(atn)
+             if (iz < 0) then
+                errmsg = "Unknown atomic symbol: "//trim(atn)//"."
+                goto 999
+             end if
+
+             latn = lower(atn)
+             if (usen%iskey(latn)) then
+                seed%is(seed%nat) = usen%get(latn,1)
+             else
+                seed%nspc = seed%nspc + 1
+                if (seed%nspc > size(seed%spc,1)) &
+                   call realloc(seed%spc,2*seed%nspc)
+                seed%spc(seed%nspc)%name = trim(atn)
+                seed%spc(seed%nspc)%z = iz
+                seed%spc(seed%nspc)%qat = 0d0
+                call usen%put(latn,seed%nspc)
+                seed%is(seed%nat) = seed%nspc
+             end if
+          end do
+          call realloc(seed%x,3,seed%nat)
+          call realloc(seed%is,seed%nat)
+          call realloc(seed%spc,seed%nspc)
        end if
     end do
     call realloc(seed%spc,seed%nspc)
@@ -2796,15 +2865,19 @@ contains
        goto 999
     end if
 
-    ! fill the cell metrics
-    seed%crys2car = transpose(r)
-    r = matinv(seed%crys2car)
-    seed%useabr = 2
-
-    ! convert atoms to crystallographic
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(r,seed%x(:,i))
-    end do
+    if (.not.ismol) then
+       ! fill the cell metrics
+       seed%crys2car = transpose(r)
+       r = matinv(seed%crys2car)
+       seed%useabr = 2
+       
+       ! convert atoms to crystallographic
+       do i = 1, seed%nat
+          seed%x(:,i) = matmul(r,seed%x(:,i))
+       end do
+    else
+       seed%useabr = 0
+    end if
 
     errmsg = ""
 999 continue
@@ -2816,9 +2889,9 @@ contains
 
     ! rest of the seed information
     seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
+    seed%ismolecule = ismol
+    seed%cubic = docube
+    seed%border = rborder
     seed%havex0 = .false.
     seed%molx0 = 0d0
     seed%file = file
@@ -2860,16 +2933,18 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_siesta, isformat_xsf, isformat_gen, isformat_vasp
-    use tools_io, only: equal
+    use tools_io, only: equal, fopen_read, fclose, lower, getline,&
+       getline_raw, equali
     use param, only: dirsep
-
     character*(*), intent(in) :: file
     integer, intent(out) :: isformat
     logical, intent(out) :: ismol
     logical, intent(out), optional :: alsofield
 
-    character(len=:), allocatable :: basename, wextdot, wext_
+    character(len=:), allocatable :: basename, wextdot, wext_, line
     logical :: isvasp, alsofield_
+    integer :: lu, nat, ios
+    character*1 :: isfrac
 
     alsofield_ = .false.
     basename = file(index(file,dirsep,.true.)+1:)
@@ -2941,10 +3016,49 @@ contains
     elseif (equal(wextdot,'xsf')) then
        isformat = isformat_xsf
        ismol = .false.
-       alsofield_ = .true.
+       lu = fopen_read(file,errstop=.false.)
+       if (lu >= 0) then
+          do while (getline(lu,line))
+             if (len_trim(line) > 0) exit
+          end do
+          if (equali(line,"atoms")) then
+             ismol = .true.
+          else
+             ismol = .false.
+          end if
+          if (present(alsofield)) then
+             do while (getline(lu,line))
+                if (equali(line,"begin_block_datagrid_3d")) then
+                   alsofield_ = .true.
+                   exit
+                end if
+             end do
+          end if
+          call fclose(lu)
+       end if
+       if (.not.present(alsofield)) &
+          alsofield_ = .not.ismol
     elseif (equal(wextdot,'gen')) then
        isformat = isformat_gen
+
+       ! determine whether it is a molecule or crystal
        ismol = .false.
+       lu = fopen_read(file,errstop=.false.)
+       if (lu >= 0) then
+          do while (getline_raw(lu,line))
+             if (len_trim(line) > 0) exit
+          end do
+          read (line,*,iostat=ios) nat, isfrac
+          if (ios /= 0) then
+             isfrac = lower(isfrac)
+             if (equal(isfrac,"c")) then
+                ismol = .true.
+             else
+                ismol = .false.
+             end if
+          end if
+          call fclose(lu)
+       end if
     elseif (isvasp) then
        isformat = isformat_vasp
        ismol = .false.
@@ -3125,16 +3239,15 @@ contains
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_xsf(file,mol,errmsg)
+       call seed(1)%read_xsf(file,rborder_def,.false.,errmsg)
+       if (mol0 /= -1) &
+          seed(1)%ismolecule = mol
     elseif (isformat == isformat_gen) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_dftbp(file,ismol,rborder_def,.false.)
-       if (mol0_ == -1) then
-          seed(1)%ismolecule = ismol
-       else
+       call seed(1)%read_dftbp(file,rborder_def,.false.,errmsg)
+       if (mol0 /= -1) &
           seed(1)%ismolecule = mol
-       end if
     end if
 
 999 continue

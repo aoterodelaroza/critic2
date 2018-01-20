@@ -177,17 +177,18 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_siesta
-     module subroutine read_dftbp(seed,file,molout,rborder,docube)
+     module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
-       logical, intent(out) :: molout
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_dftbp
-     module subroutine read_xsf(seed,file,mol,errmsg)
+     module subroutine read_xsf(seed,file,rborder,docube,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
-       logical, intent(in) :: mol
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_xsf
      module subroutine realloc_crystalseed(a,nnew)
