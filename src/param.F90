@@ -101,10 +101,11 @@ module param
   integer, parameter, public :: isformat_wfx = 12
   integer, parameter, public :: isformat_fchk = 13
   integer, parameter, public :: isformat_molden = 14
-  integer, parameter, public :: isformat_siesta = 15
-  integer, parameter, public :: isformat_xsf = 16
-  integer, parameter, public :: isformat_gen = 17
-  integer, parameter, public :: isformat_vasp = 18
+  integer, parameter, public :: isformat_gaussian = 15
+  integer, parameter, public :: isformat_siesta = 16
+  integer, parameter, public :: isformat_xsf = 17
+  integer, parameter, public :: isformat_gen = 18
+  integer, parameter, public :: isformat_vasp = 19
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields. 

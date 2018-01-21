@@ -93,6 +93,7 @@ module wfn_private
   public :: wfn_read_wfx_geometry
   public :: wfn_read_fchk_geometry
   public :: wfn_read_molden_geometry
+  public :: wfn_read_log_geometry
 
   ! wfn type identifier
   integer, parameter, public :: wfn_rhf = 0
@@ -143,6 +144,14 @@ module wfn_private
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine wfn_read_molden_geometry
+     module subroutine wfn_read_log_geometry(file,n,x,z,name,errmsg)
+       character*(*), intent(in) :: file
+       integer, intent(out) :: n
+       real*8, allocatable, intent(inout) :: x(:,:)
+       integer, allocatable, intent(inout) :: z(:)
+       character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine wfn_read_log_geometry
      module subroutine read_wfn(f,file)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file

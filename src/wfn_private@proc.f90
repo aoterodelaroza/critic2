@@ -530,6 +530,78 @@ contains
 
   end subroutine wfn_read_molden_geometry
 
+  !> Read the molecular geometry from a Gaussian output file (.log).
+  module subroutine wfn_read_log_geometry(file,n,x,z,name,errmsg)
+    use tools_io, only: fopen_read, getline_raw, fclose, nameguess
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, idum
+    character(len=:), allocatable :: line
+    logical :: ok, reloc
+
+    errmsg = ""
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+ 
+    lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+ 
+    n = 0
+    allocate(x(3,10),z(10),name(10))
+    do while (getline_raw(lu,line))
+       reloc = .false.
+       if (index(line,"Input orientation:") > 0) then
+          ok = getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          if (.not.ok) goto 999
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (index(line,"---------") > 0) exit
+             n = n + 1
+             if (n > size(z,1)) then
+                call realloc(x,3,2*n)
+                call realloc(z,2*n)
+                call realloc(name,2*n)
+                reloc = .true.
+             end if
+             read (line,*,err=999) idum, z(n), idum, x(:,n)
+             name(n) = nameguess(z(n),.true.)
+          end do
+          if (reloc) then
+             call realloc(x,3,n)
+             call realloc(z,n)
+             call realloc(name,n)
+          end if
+       end if
+    end do
+    if (n == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+    x = x / bohrtoa
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+  end subroutine wfn_read_log_geometry
+
   !> Read the wavefunction from a wfn file
   module subroutine read_wfn(f,file)
     use tools_io, only: fopen_read, zatguess, ferror, faterr, fclose
