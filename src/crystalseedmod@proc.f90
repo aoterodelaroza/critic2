@@ -23,6 +23,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
   ! subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
   ! subroutine read_all_xyz(nseed,seed,file,errmsg)
+  ! subroutine read_all_log(nseed,seed,file,errmsg)
   ! subroutine read_cif_items(seed,mol,errmsg)
   ! function is_espresso(file)
   ! subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
@@ -3238,9 +3239,10 @@ contains
        call seed(1)%read_qein(file,mol,errmsg)
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg)
+    elseif (isformat == isformat_gaussian) then
+       call read_all_log(nseed,seed,file,errmsg)
     elseif (isformat == isformat_wfn.or.isformat == isformat_wfx.or.&
-       isformat == isformat_fchk.or.isformat == isformat_molden.or.&
-       isformat == isformat_gaussian) then
+       isformat == isformat_fchk.or.isformat == isformat_molden) then
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)
@@ -3881,7 +3883,6 @@ contains
        return
     end if
 
-    ! first run, count the number of structures
     errmsg = "Error reading file."
     nseed = 0
     do while (getline_raw(lu,line))
@@ -3972,6 +3973,144 @@ contains
     end if
 
   end subroutine read_all_xyz
+
+  !> Read all structures from a Gaussian output (log) file. Returns
+  !> all crystal seeds.
+  subroutine read_all_log(nseed,seed,file,errmsg)
+    use global, only: rborder_def
+    use tools_io, only: fopen_read, fclose, getline_raw, nameguess
+    use types, only: species
+    use param, only: maxzat, bohrtoa
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file !< Input file name
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    character(len=:), allocatable :: line
+    character*64 :: word
+    integer :: lu, nat, idum, iz, nspc, i
+    integer :: usez(0:maxzat), idx, in
+    logical :: ok, laste
+    type(species), allocatable :: spc(:)
+
+    errmsg = ""
+
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    ! count the number of seeds, atoms, and build the species
+    nat = 0
+    nseed = 0
+    do while (getline_raw(lu,line))
+       if (index(line,"Input orientation:") > 0) then
+          nseed = nseed + 1
+
+          if (nat == 0) then
+             usez = 0
+             ok = getline_raw(lu,line)
+             ok = ok .and. getline_raw(lu,line)
+             ok = ok .and. getline_raw(lu,line)
+             ok = ok .and. getline_raw(lu,line)
+             if (.not.ok) goto 999
+             do while (.true.)
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (index(line,"---------") > 0) exit
+                nat = nat + 1
+                read(line,*,err=999) idum, iz
+                usez(iz) = 1
+             end do
+          end if
+       end if
+    end do
+    if (nat == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+
+    ! build the species
+    nspc = count(usez > 0)
+    if (nspc == 0) then
+       errmsg = "No species found."
+       goto 999
+    end if
+    allocate(spc(nspc))
+    nspc = 0
+    do i = 0, maxzat
+       if (usez(i) > 0) then
+          nspc = nspc + 1
+          spc(nspc)%z = i
+          spc(nspc)%name = nameguess(i,.true.)
+          spc(nspc)%qat = 0d0
+          usez(i) = nspc
+       end if
+    end do
+
+    if (allocated(seed)) deallocate(seed)
+    allocate(seed(nseed))
+    rewind(lu)
+    in = 1
+    do while (getline_raw(lu,line))
+       if (index(line,"Input orientation:") > 0) then
+          in = mod(in,nseed) + 1
+          seed%nat = nat
+          allocate(seed(in)%x(3,nat),seed(in)%is(nat))
+
+          ok = getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          if (.not.ok) goto 999
+
+          do i = 1, nat
+             read (lu,*,err=999) idum, iz, idum, seed(in)%x(:,i)
+             seed(in)%is(i) = usez(iz)
+          end do
+
+          seed(in)%x = seed(in)%x / bohrtoa
+          seed(in)%isused = .true.
+          seed(in)%file = file
+          seed(in)%name = file
+          seed(in)%nspc = nspc
+          seed(in)%spc = spc
+          seed(in)%useabr = 0
+          seed(in)%havesym = 0
+          seed(in)%findsym = -1
+          seed(in)%isused = .true.
+          seed(in)%ismolecule = .true.
+          seed(in)%cubic = .false.
+          seed(in)%border = rborder_def
+          seed(in)%havex0 = .false.
+          seed(in)%molx0 = 0d0
+          laste = .false.
+       elseif (index(line,"SCF Done") > 0) then
+          idx = index(line,"=")
+          if (idx > 0) then
+             line = line(idx+1:)
+             read (line,*) word
+             seed(in)%name = trim(adjustl(word))
+          end if
+          laste = .true.
+       end if
+    end do
+    if (.not.laste) then
+       seed(1)%name = "(final) " // trim(seed(nseed)%name)
+       seed(2)%name = "(initial) " // trim(seed(2)%name)
+    end if
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
+
+  end subroutine read_all_log
 
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.
