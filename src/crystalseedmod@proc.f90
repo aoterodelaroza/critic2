@@ -3518,6 +3518,8 @@ contains
                 goto 999
              end if
           end do
+          ! this is Cartesian in alat units
+          x = x * alat
           tox = .true.
           hasx = .true.
           hasis = .true.
