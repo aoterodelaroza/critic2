@@ -23,19 +23,6 @@ module autocp
 
   public :: autocritic
   public :: cpreport
-  private :: critshell
-  private :: writechk
-  private :: readchk
-  private :: atomic_connect_report
-  private :: cp_short_report
-  private :: barycentric
-  private :: barycentric_divide
-  private :: seed_from_simplex
-  private :: cp_long_report
-  private :: cp_vlong_report
-  private :: graph_short_report
-  private :: makegraph
-  private :: scale_ws
   
   interface
      module subroutine autocritic(line)
@@ -44,48 +31,6 @@ module autocp
      module subroutine cpreport(line)
        character*(*), intent(in) :: line
      end subroutine cpreport
-     module subroutine critshell(shmax)
-       integer, intent(in) :: shmax
-     end subroutine critshell
-     module subroutine writechk()
-     end subroutine writechk
-     module subroutine readchk()
-     end subroutine readchk
-     module subroutine atomic_connect_report()
-     end subroutine atomic_connect_report
-     module subroutine cp_short_report()
-     end subroutine cp_short_report
-     module subroutine barycentric(iniv,depthmax,nn,xseed)
-       real*8, dimension(4,3), intent(in) :: iniv
-       integer, intent(in) :: depthmax
-       integer, intent(inout) :: nn
-       real*8, intent(inout), allocatable :: xseed(:,:)
-     end subroutine barycentric
-     recursive module subroutine barycentric_divide(n,simp,depth)
-       integer, intent(in) :: n
-       integer, intent(in) :: simp(:,:)
-       integer, intent(in) :: depth
-     end subroutine barycentric_divide
-     module subroutine seed_from_simplex(simp, dim, nn, xseed)
-       real*8, intent(in) :: simp(4,3)
-       integer, intent(in) :: dim
-       integer, intent(inout) :: nn
-       real*8, intent(inout), allocatable :: xseed(:,:)
-     end subroutine seed_from_simplex
-     module subroutine cp_long_report()
-     end subroutine cp_long_report
-     module subroutine cp_vlong_report()
-     end subroutine cp_vlong_report
-     module subroutine graph_short_report()
-     end subroutine graph_short_report
-     module subroutine makegraph()
-     end subroutine makegraph
-     module subroutine scale_ws(rad,wso,ntetrag,tetrag)
-       real*8, intent(in) :: rad
-       real*8, intent(in) :: wso(3)
-       integer, intent(inout) :: ntetrag
-       real*8, intent(inout) :: tetrag(:,:,:)
-     end subroutine scale_ws
   end interface
 
 end module autocp

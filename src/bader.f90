@@ -54,59 +54,6 @@ module bader
        real*8, allocatable, intent(inout) :: xcoord(:,:)
        integer, allocatable, intent(inout) :: volnum0(:,:,:)
      end subroutine bader_integrate
-     module subroutine refine_edge(f,irefine_edge,ref_itrs)
-       real*8, intent(in) :: f(:,:,:)
-       integer, intent(inout) :: irefine_edge
-       integer, intent(inout) :: ref_itrs
-     end subroutine refine_edge
-     module subroutine max_neargrid(f,p)
-       real*8, intent(in) :: f(:,:,:)
-       integer, dimension(3), intent(inout) :: p
-     end subroutine max_neargrid
-     module subroutine step_neargrid(f,p)
-       real*8, intent(in) :: f(:,:,:)
-       integer, intent(inout) :: p(3)
-     end subroutine step_neargrid
-     module subroutine step_ongrid(f,p)
-       real*8, intent(in) :: f(:,:,:)
-       integer, intent(inout) :: p(3)
-     end subroutine step_ongrid
-     module function rho_grad_dir(f,p) result(res)
-       real*8, intent(in) :: f(:,:,:)
-       integer, intent(in) :: p(3)
-       real*8 :: res(3)
-     end function rho_grad_dir
-     module function is_max(f,p)
-       real*8, intent(in) :: f(:,:,:)
-       integer, intent(in) :: p(3)
-       logical :: is_max
-     end function is_max
-     module subroutine pbc(p)
-       integer, intent(inout) :: p(3)
-     end subroutine pbc
-     module function rho_val(ff,p1,p2,p3)
-       real*8, intent(in) :: ff(:,:,:)
-       integer, intent(in) :: p1, p2, p3
-       real*8 :: rho_val
-     end function rho_val
-     module function volnum_val(p1,p2,p3)
-       integer, intent(in) :: p1, p2, p3
-       integer :: volnum_val
-     end function volnum_val
-     module subroutine assign_surrounding_pts(p)
-       integer, intent(in) :: p(3)
-       integer :: pt(3)
-     end subroutine assign_surrounding_pts
-     module subroutine known_volnum_ongrid(p)
-       integer, intent(in) :: p(3)
-     end subroutine known_volnum_ongrid
-     module function is_vol_edge(p)
-       logical :: is_vol_edge
-       integer, intent(in) :: p(3)
-     end function is_vol_edge
-     module subroutine reassign_volnum_ongrid2(p)
-       integer, intent(in) :: p(3)
-     end subroutine reassign_volnum_ongrid2
   end interface
 
 end module bader

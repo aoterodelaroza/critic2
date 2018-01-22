@@ -18,6 +18,17 @@
 submodule (dftb_private) proc
   implicit none
 
+  !xx! private procedures
+  ! function next_logical(lu,line0,key0) result(next)
+  ! function next_integer(lu,line0,key0) result(next)
+  ! subroutine read_kpointsandweights(lu,kpts,w)
+  ! subroutine read_occupations(lu,occ)
+  ! function dftb_read_reals1(lu,n) result(x)
+  ! function next_hsd_atom(lu,at) result(ok)
+  ! subroutine build_interpolation_grid1(ff)
+  ! subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
+  ! subroutine realloc_dftbatom(a,nnew)
+  
   ! minimum distance (bohr)
   real*8, parameter :: mindist = 1d-6
 
@@ -499,10 +510,10 @@ contains
 
   end subroutine register_struct
 
-  !xx! private !xx! 
+  !xx! private procedures
 
   !> Read the next logical value in xml format.
-  module function next_logical(lu,line0,key0) result(next)
+  function next_logical(lu,line0,key0) result(next)
     use tools_io, only: ferror, faterr, lower, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
@@ -569,7 +580,7 @@ contains
   end function next_logical
 
   !> Read the next integer value in xml format.
-  module function next_integer(lu,line0,key0) result(next)
+  function next_integer(lu,line0,key0) result(next)
     use tools_io, only: ferror, faterr, lower, isinteger, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
@@ -626,7 +637,7 @@ contains
   end function next_integer
 
   !> Read the kpointsandweights entry from the xml.
-  module subroutine read_kpointsandweights(lu,kpts,w)
+  subroutine read_kpointsandweights(lu,kpts,w)
     use tools_io, only: ferror, faterr, getline_raw, lower
     integer, intent(in) :: lu
     real*8, intent(out) :: kpts(:,:)
@@ -659,7 +670,7 @@ contains
   end subroutine read_kpointsandweights
 
   !> Read the occupations from the xml.
-  module subroutine read_occupations(lu,occ)
+  subroutine read_occupations(lu,occ)
     use tools_io, only: ferror, faterr, getline_raw, lower, string
     integer, intent(in) :: lu
     real*8, intent(out) :: occ(:,:,:)
@@ -703,7 +714,7 @@ contains
   end subroutine read_occupations
 
   !> Read a list of n reals from a logical unit.
-  module function dftb_read_reals1(lu,n) result(x)
+  function dftb_read_reals1(lu,n) result(x)
     use tools_io, only: getline_raw, isreal, ferror, faterr
     integer, intent(in) :: lu, n
     real*8 :: x(n)
@@ -735,7 +746,7 @@ contains
   endfunction dftb_read_reals1
 
   !> Read the next atom from the hsd wfc file.
-  module function next_hsd_atom(lu,at) result(ok)
+  function next_hsd_atom(lu,at) result(ok)
     use tools_io, only: ferror, faterr, lgetword, equal, getline, isreal, string
     integer, intent(in) :: lu
     type(dftbatom), intent(out) :: at
@@ -845,7 +856,7 @@ contains
   end function next_hsd_atom
 
   !> Build the interpolation grids for the radial parts of the orbitals.
-  module subroutine build_interpolation_grid1(ff)
+  subroutine build_interpolation_grid1(ff)
     use tools_io, only: ferror, faterr
     class(dftbwfn), intent(inout) :: ff
 
@@ -882,7 +893,7 @@ contains
 
   !> Calculate the radial part of an orbital and its first and second
   !> derivatives exactly.
-  module subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
+  subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
     class(dftbwfn), intent(in) :: ff
     integer, intent(in) :: it, iorb
     real*8, intent(in) :: r0
@@ -927,7 +938,7 @@ contains
   end subroutine calculate_rl
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_dftbatom(a,nnew)
+  subroutine realloc_dftbatom(a,nnew)
     use tools_io, only: ferror, faterr
     type(dftbatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew

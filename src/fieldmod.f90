@@ -35,12 +35,6 @@ module fieldmod
   private
 
   public :: realloc_field
-  private :: adaptive_stepper
-  private :: stepper_euler1
-  private :: stepper_heun
-  private :: stepper_bs
-  private :: stepper_rkck
-  private :: stepper_dp
 
   ! pointers for the arithmetic module
   interface
@@ -139,13 +133,8 @@ module fieldmod
   end type field 
   public :: field
 
-  ! eps to move to the main cell
-  real*8, parameter :: flooreps = 1d-4 ! border around unit cell
-
-  ! numerical differentiation parameters
-  real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
   integer, parameter :: ndif_jmax = 10
-  
+
   interface
      module subroutine realloc_field(a,nnew)
        type(field), intent(inout), allocatable :: a(:)
@@ -348,42 +337,6 @@ module fieldmod
        real*8, intent(in), optional :: prune
        real*8, intent(in), optional :: pathini(3)
      end subroutine gradient
-     module function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
-       logical :: adaptive_stepper
-       type(field), intent(inout) :: fid
-       real*8, intent(inout) :: xpoint(3)
-       real*8, intent(inout) :: h0
-       real*8, intent(in) :: maxstep, eps
-       type(scalar_value), intent(inout) :: res
-     end function adaptive_stepper
-     module subroutine stepper_euler1(xpoint,grdt,h0,xout)
-       real*8, intent(in) :: xpoint(3), h0, grdt(3)
-       real*8, intent(out) :: xout(3)
-     end subroutine stepper_euler1
-     module subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
-       type(field), intent(inout) :: fid
-       real*8, intent(in) :: xpoint(3), h0, grdt(3)
-       real*8, intent(out) :: xout(3)
-       type(scalar_value), intent(inout) :: res
-     end subroutine stepper_heun
-     module subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
-       type(field), intent(inout) :: fid
-       real*8, intent(in) :: xpoint(3), h0, grdt(3)
-       real*8, intent(out) :: xout(3), xerr(3)
-       type(scalar_value), intent(inout) :: res
-     end subroutine stepper_bs
-     module subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
-       type(field), intent(inout) :: fid
-       real*8, intent(in) :: xpoint(3), grdt(3), h0
-       real*8, intent(out) :: xout(3), xerr(3)
-       type(scalar_value), intent(inout) :: res
-     end subroutine stepper_rkck
-     module subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
-       type(field), intent(inout) :: fid
-       real*8, intent(in) :: xpoint(3), grdt(3), h0
-       real*8, intent(out) :: xout(3), xerr(3)
-       type(scalar_value), intent(inout) :: res
-     end subroutine stepper_dp
   end interface
   
 end module fieldmod

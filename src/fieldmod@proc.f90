@@ -18,6 +18,20 @@
 submodule (fieldmod) proc
   implicit none
 
+  !xx! private procedures
+  ! function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
+  ! subroutine stepper_euler1(xpoint,grdt,h0,xout)
+  ! subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
+  ! subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
+  ! subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
+  ! subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
+
+  ! eps to move to the main cell
+  real*8, parameter :: flooreps = 1d-4 ! border around unit cell
+
+  ! numerical differentiation parameters
+  real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
+  
 contains
 
   !> Adapt the size of an allocatable 1D type(field) array
@@ -2338,8 +2352,10 @@ contains
     end subroutine addtopath
   end subroutine gradient
 
+  !xx! private procedures
+
   !> Integration using adaptive_stepper step.
-  module function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
+  function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
     use global, only: nav_stepper, nav_stepper_heun, nav_stepper_rkck, nav_stepper_dp,&
        nav_stepper_bs, nav_stepper_euler, nav_maxerr
     use tools_math, only: norm
@@ -2436,7 +2452,7 @@ contains
   end function adaptive_stepper
 
   !> Euler stepper.
-  module subroutine stepper_euler1(xpoint,grdt,h0,xout)
+  subroutine stepper_euler1(xpoint,grdt,h0,xout)
     
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3)
@@ -2446,7 +2462,7 @@ contains
   end subroutine stepper_euler1
 
   !> Heun stepper.
-  module subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
+  subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
     use types, only: scalar_value
     use param, only: vsmall
     
@@ -2466,7 +2482,7 @@ contains
   end subroutine stepper_heun
 
   !> Bogacki-Shampine embedded 2(3) method, fsal
-  module subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
+  subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
     use types, only: scalar_value
     use param, only: vsmall
     
@@ -2496,7 +2512,7 @@ contains
   end subroutine stepper_bs
 
   !> Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation.
-  module subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
+  subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
     use types, only: scalar_value
     use param, only: vsmall
     
@@ -2540,7 +2556,7 @@ contains
   end subroutine stepper_rkck
 
   !> Doermand-Prince embedded 4(5)-order, local extrapolation.
-  module subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
+  subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
     use types, only: scalar_value
     use param, only: vsmall
     

@@ -68,15 +68,6 @@ module dftb_private
   end type dftbwfn
   public :: dftbwfn
 
-  private :: next_logical
-  private :: next_integer
-  private :: read_kpointsandweights
-  private :: read_occupations
-  private :: dftb_read_reals1
-  private :: next_hsd_atom
-  private :: build_interpolation_grid1
-  private :: calculate_rl
-  
   interface
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
@@ -107,47 +98,6 @@ module dftb_private
        type(celatom), intent(in) :: atenv(:)
        type(species), intent(in) :: spc(:)
      end subroutine register_struct
-     module function next_logical(lu,line0,key0) result(next)
-       integer, intent(in) :: lu
-       character*(*), intent(in) :: line0, key0
-       logical :: next
-     end function next_logical
-     module function next_integer(lu,line0,key0) result(next)
-       integer, intent(in) :: lu
-       character*(*), intent(in) :: line0, key0
-       integer :: next
-     end function next_integer
-     module subroutine read_kpointsandweights(lu,kpts,w)
-       integer, intent(in) :: lu
-       real*8, intent(out) :: kpts(:,:)
-       real*8, intent(out) :: w(:)
-     end subroutine read_kpointsandweights
-     module subroutine read_occupations(lu,occ)
-       integer, intent(in) :: lu
-       real*8, intent(out) :: occ(:,:,:)
-     end subroutine read_occupations
-     module function dftb_read_reals1(lu,n) result(x)
-       integer, intent(in) :: lu, n
-       real*8 :: x(n)
-     endfunction dftb_read_reals1
-     module function next_hsd_atom(lu,at) result(ok)
-       integer, intent(in) :: lu
-       type(dftbatom), intent(out) :: at
-       logical :: ok
-     end function next_hsd_atom
-     module subroutine build_interpolation_grid1(ff)
-       class(dftbwfn), intent(inout) :: ff
-     end subroutine build_interpolation_grid1
-     module subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
-       class(dftbwfn), intent(in) :: ff
-       integer, intent(in) :: it, iorb
-       real*8, intent(in) :: r0
-       real*8, intent(out) :: f, fp, fpp
-     end subroutine calculate_rl
-     module subroutine realloc_dftbatom(a,nnew)
-       type(dftbatom), intent(inout), allocatable :: a(:)
-       integer, intent(in) :: nnew
-     end subroutine realloc_dftbatom
   end interface
 
 end module dftb_private

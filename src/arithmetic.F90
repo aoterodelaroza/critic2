@@ -29,22 +29,14 @@ module arithmetic
   public :: eval
   public :: fields_in_eval
   public :: tokenize
-  private :: fieldeval
-  private :: isnumber
-  private :: isoperator
-  private :: isfunction
-  private :: isidentifier
   public :: iprec
   public :: iassoc
-  private :: pop
   public :: istype
-  private :: die
   public :: setvariable
   public :: isvariable
   public :: clearvariable
   public :: clearallvariables
   public :: listvariables
-  private :: chemfunction
 
   private
   integer, parameter, public :: fun_openpar  = 1  !< open parenthesis
@@ -164,83 +156,6 @@ module arithmetic
           end function feval
        end interface
      end function eval
-     recursive module function fieldeval(fid,fder,x0,sptr,fcheck,feval,periodic)
-       real*8 :: fieldeval
-       character*(*), intent(in) :: fid
-       character*(*), intent(in) :: fder
-       real*8, intent(in), optional :: x0(3) !< position
-       type(c_ptr), intent(in), optional :: sptr
-       optional :: fcheck, feval
-       logical, intent(in), optional :: periodic
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-       end interface
-     end function fieldeval
-     module subroutine pop(q,nq,s,ns,x0,sptr,fcheck,feval,periodic,fail)
-       real*8, intent(inout) :: q(:)
-       integer, intent(inout) :: s(:)
-       integer, intent(inout) :: nq, ns
-       real*8, intent(in), optional :: x0(3)
-       type(c_ptr), intent(in), optional :: sptr
-       optional :: fcheck, feval
-       logical, intent(in), optional :: periodic
-       logical, intent(out) :: fail
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-       end interface
-     end subroutine pop
-     module function chemfunction(c,sia,x0,sptr,feval,periodic) result(q)
-       integer, intent(in) :: c
-       character*(*), intent(in) :: sia
-       real*8, intent(in) :: x0(3)
-       real*8 :: q
-       logical, intent(in), optional :: periodic
-       type(c_ptr), intent(in), optional :: sptr
-       interface
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-       end interface
-     end function chemfunction
      module subroutine fields_in_eval(expr,fh,n,idlist)
        character(*), intent(in) :: expr
        type(hash), intent(in) :: fh
@@ -255,32 +170,6 @@ module arithmetic
        integer, intent(inout) :: lpexit
        type(hash), intent(in), optional :: fh
      end function tokenize
-     module function isnumber(rval,expr,lp)
-       logical :: isnumber
-       character*(*), intent(in) :: expr
-       integer, intent(inout) :: lp
-       real*8, intent(out) :: rval
-     end function isnumber
-     module function isoperator(c,expr,lp)
-       logical :: isoperator
-       character*(*), intent(in) :: expr
-       integer, intent(inout) :: lp
-       integer, intent(out) :: c
-     end function isoperator
-     module function isfunction(c,expr,lp,wasop)
-       logical :: isfunction
-       character*(*), intent(in) :: expr
-       integer, intent(inout) :: lp
-       integer, intent(out) :: c
-       logical, intent(in) :: wasop
-     end function isfunction
-     module function isidentifier(id,expr,lp,fder)
-       logical :: isidentifier
-       character(len=:), allocatable, intent(out) :: id
-       character*(*), intent(in) :: expr
-       integer, intent(inout) :: lp
-       character*(*), intent(out), optional :: fder
-     end function isidentifier
      module function iprec(c)
        integer :: iprec
        integer, intent(in) :: c
@@ -294,10 +183,6 @@ module arithmetic
        character*(*), intent(in) :: type
        logical :: istype
      endfunction istype
-     module subroutine die(msg,msg2)
-       character*(*), intent(in) :: msg
-       character*(*), intent(in), optional :: msg2
-     end subroutine die
      module subroutine setvariable(ikey,ival)
        character*(*), intent(in) :: ikey
        real*8, intent(in) :: ival
@@ -314,10 +199,6 @@ module arithmetic
      end subroutine clearallvariables
      module subroutine listvariables()
      end subroutine listvariables
-     module function isspecialfield(fid)
-       character*(*), intent(in) :: fid
-       logical :: isspecialfield
-     end function isspecialfield
   end interface
 
 end module arithmetic

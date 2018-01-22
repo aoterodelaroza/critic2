@@ -20,6 +20,18 @@ submodule (flux) proc
   use types, only: gpathp
   implicit none
 
+  !xx! private procedures
+  ! subroutine flx_end(molmotif)
+  ! subroutine flx_initialize(nosym,noballs,nocell)
+  ! subroutine flx_printpath(rgb0)
+  ! subroutine flx_symprintpath(x,flxsym,rgb)
+  ! subroutine flx_point(x,iup,flxsym,rgb)
+  ! subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
+  ! subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
+  ! subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
+  ! subroutine flx_findthetagrid(lx,ly,r0,R,n,thetavec)
+  ! function ball_radius(i,cel)
+
   logical :: flx_init = .false. !< is fluxprint initialized?
 
   ! General info
@@ -445,13 +457,62 @@ contains
 
   end subroutine fluxprint
 
+  !xx! private procedures
+
+  !> Deallocate memory, end the tessel output and close files.
+  subroutine flx_end(molmotif)
+    use tools_io, only: fclose
+    use global, only: fileroot
+
+    logical, intent(in) :: molmotif
+
+    if (.not.flx_init) return
+
+    ! Nullify variables
+    flx_init = .false.
+
+    ! close it
+    if (outfmt == "obj" .or. outfmt == "ply" .or. outfmt == "off") then
+       call gr%close()
+    elseif (outfmt == "cml") then
+       write (luout,'(" </atomArray>")')
+       write (luout,'("</molecule>")')
+       call fclose(luout)
+    elseif (outfmt == "tss") then
+       ! End tessel output
+       write (luout,'(X,A)') "endfreehand"
+       ! print formats
+       if (molmotif) then
+          write (luout,'(X,"molmotif allmaincell")') 
+       end if
+       write (luout,'(X,"vrml ",A,".wrl")') trim(adjustl(fileroot))
+       write (luout,'(X,"# povray ",A,".pov")') trim(adjustl(fileroot))
+
+       ! endmolecule
+       write (luout,'(A)') "endmolecule"
+
+       ! end tasks
+       write (luout,'("# run povray -d +ft +I",A,".pov +O",A,".tga +W2000 +H2000 +A")') &
+          trim(adjustl(fileroot)), trim(adjustl(fileroot))
+       write (luout,'("# run convert ",A,".tga -bordercolor white -border 1x1 -trim +repage ",A,".png")') &
+          trim(adjustl(fileroot)), trim(adjustl(fileroot))
+       write (luout,'("# run rm -f ",A,".tga")') trim(adjustl(fileroot))
+       write (luout,'("reset")')
+       write (luout,'("end")')
+       call fclose(luout)
+    elseif (outfmt == "txt") then
+       call fclose(luout)
+    end if
+
+  end subroutine flx_end
+
   !> Initialize the module, allocate memory for a gradient
   !> path. prune, plot gradient path, one point each prune distance
   !> step along the path. If noballs, do not write the BALL commands
   !> to the tessel output (optional). If nocell, do not write the CELL
   !> command to the tessel output (optional). If nosym, do not write
   !> the symmetry elements.
-  module subroutine flx_initialize(nosym,noballs,nocell)
+  subroutine flx_initialize(nosym,noballs,nocell)
     use systemmod, only: sy
     use global, only: fileroot
     use tools_io, only: faterr, ferror, uout, fopen_write
@@ -623,55 +684,8 @@ contains
 
   end subroutine flx_initialize
 
-  !> Deallocate memory, end the tessel output and close files.
-  module subroutine flx_end(molmotif)
-    use tools_io, only: fclose
-    use global, only: fileroot
-
-    logical, intent(in) :: molmotif
-
-    if (.not.flx_init) return
-
-    ! Nullify variables
-    flx_init = .false.
-
-    ! close it
-    if (outfmt == "obj" .or. outfmt == "ply" .or. outfmt == "off") then
-       call gr%close()
-    elseif (outfmt == "cml") then
-       write (luout,'(" </atomArray>")')
-       write (luout,'("</molecule>")')
-       call fclose(luout)
-    elseif (outfmt == "tss") then
-       ! End tessel output
-       write (luout,'(X,A)') "endfreehand"
-       ! print formats
-       if (molmotif) then
-          write (luout,'(X,"molmotif allmaincell")') 
-       end if
-       write (luout,'(X,"vrml ",A,".wrl")') trim(adjustl(fileroot))
-       write (luout,'(X,"# povray ",A,".pov")') trim(adjustl(fileroot))
-
-       ! endmolecule
-       write (luout,'(A)') "endmolecule"
-
-       ! end tasks
-       write (luout,'("# run povray -d +ft +I",A,".pov +O",A,".tga +W2000 +H2000 +A")') &
-          trim(adjustl(fileroot)), trim(adjustl(fileroot))
-       write (luout,'("# run convert ",A,".tga -bordercolor white -border 1x1 -trim +repage ",A,".png")') &
-          trim(adjustl(fileroot)), trim(adjustl(fileroot))
-       write (luout,'("# run rm -f ",A,".tga")') trim(adjustl(fileroot))
-       write (luout,'("reset")')
-       write (luout,'("end")')
-       call fclose(luout)
-    elseif (outfmt == "txt") then
-       call fclose(luout)
-    end if
-
-  end subroutine flx_end
-
   !> Print gradient path info to standard output.
-  module subroutine flx_printpath(rgb0)
+  subroutine flx_printpath(rgb0)
     use systemmod, only : sy
     use global, only: dunit0, iunit
     use tools_io, only: string
@@ -751,7 +765,7 @@ contains
   !> contained in flxsym shells of unit cells.  flx_symprintpath is a
   !> wrapper for flx_printpath() so that this routine is not used
   !> directly.
-  module subroutine flx_symprintpath(x,flxsym,rgb)
+  subroutine flx_symprintpath(x,flxsym,rgb)
     use systemmod, only: sy
     use types, only: realloc
     integer, intent(in) :: flxsym
@@ -830,7 +844,7 @@ contains
   !> direction. flxsym = -1, ignore symmetry ; 0, apply x symmetry
   !> to the unit cell and its boundary; >0 to a shell of flxsym unit
   !> cells.
-  module subroutine flx_point(x,iup,flxsym,rgb)
+  subroutine flx_point(x,iup,flxsym,rgb)
     use systemmod, only: sy
     use global, only: prunedist
 
@@ -863,7 +877,7 @@ contains
   !> lvec to the position of the cp. flxsym = -1, ignore symmetry ; 0,
   !> apply x symmetry to the unit cell and its boundary; >0 to a shell
   !> of flxsym unit cells.
-  module subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
+  subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
     use systemmod, only: sy
     use global, only: prunedist
     use tools_io, only: ferror, faterr
@@ -935,7 +949,7 @@ contains
   !> good approximation to a grid. "h1 " (heuristic 1), experimental
   !> heuristic method, using information of the partially fluxed
   !> initial points. (h1 and dyn are experimental)
-  module subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
+  subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
     use systemmod, only: sy
     use global, only: prunedist
     use tools_math, only: eig
@@ -1160,7 +1174,7 @@ contains
   !> cpid is present, the lines and paths associated to that cp are
   !> represented, with a lattice displacement given by the optional
   !> integer lvec vector.
-  module subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
+  subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
     use systemmod, only: sy
     integer, intent(in) :: flxsym
     integer, intent(in) :: igraph
@@ -1276,7 +1290,7 @@ contains
   !> the points (r0,thetavec) using the electron density gradient
   !> flux. Always R > r0. This routine is used to determine a set of
   !> starting angles that samples uniformly a given bcp-IAS.
-  module subroutine flx_findthetagrid(lx,ly,r0,R,n,thetavec)
+  subroutine flx_findthetagrid(lx,ly,r0,R,n,thetavec)
     use param, only: pi
     real*8, intent(in) :: lx, ly, r0, R
     integer, intent(in) :: n
@@ -1334,7 +1348,7 @@ contains
 
   !> Given the complete or reduced list index of a CP, 
   !> output the appropriate ball radius.
-  module function ball_radius(i,cel)
+  function ball_radius(i,cel)
     use systemmod, only: sy
     use param, only: maxzat
     

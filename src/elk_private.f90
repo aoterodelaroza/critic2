@@ -55,12 +55,6 @@ module elk_private
   end type elkwfn
   public :: elkwfn
 
-  private :: elk_geometry
-  private :: read_elk_state
-  private :: read_elk_myout
-  private :: sortidx
-  private :: local_nearest_atom
-  
   interface
      module subroutine elkwfn_end(f)
        class(elkwfn), intent(inout) :: f
@@ -75,39 +69,15 @@ module elk_private
        character*(*), intent(in) :: file, file2
        character*(*), intent(in), optional :: file3
      end subroutine read_out
-     module subroutine elk_geometry(f,filename)
-       class(elkwfn), intent(inout) :: f
-       character*(*), intent(in) :: filename
-     end subroutine elk_geometry
-     module subroutine read_elk_state(f,filename)
-       class(elkwfn), intent(inout) :: f
-       character*(*), intent(in) :: filename
-     end subroutine read_elk_state
-     module subroutine read_elk_myout(f,filename)
-       class(elkwfn), intent(inout) :: f
-       character*(*), intent(in) :: filename
-     end subroutine read_elk_myout
      module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
        class(elkwfn), intent(in) :: f
        real(8), intent(in) :: vpl(3)
        real(8), intent(out) :: frho, gfrho(3), hfrho(3,3)
        integer, intent(in) :: nder
      end subroutine rho2
-     module subroutine sortidx(n,a,idx)
-       integer, intent(in) :: n
-       real(8), intent(in) :: a(n)
-       integer, intent(out) :: idx(n)
-     end subroutine sortidx
      module subroutine tolap(f)
        class(elkwfn), intent(inout) :: f
      end subroutine tolap
-     module subroutine local_nearest_atom(f,xp,nid,dist,lvec)
-       class(elkwfn), intent(in) :: f
-       real*8, intent(in) :: xp(:)
-       integer, intent(inout) :: nid
-       real*8, intent(out) :: dist
-       integer, intent(out) :: lvec(3)
-     end subroutine local_nearest_atom
   end interface
 
 end module elk_private

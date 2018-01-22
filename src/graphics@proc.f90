@@ -18,6 +18,8 @@
 submodule (graphics) proc
   implicit none
 
+  !xx! private procedure
+
   ! graphics database
   logical :: isinit = .false.
 

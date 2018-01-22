@@ -19,6 +19,19 @@ submodule (bisect) proc
   use global, only: INT_lebedev
   implicit none
 
+  !xx! private procedures
+  ! subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
+  ! subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
+  ! subroutine bisect_msurface(srf,cpid,prec,verbose)
+  ! subroutine bundle_msurface(srf,prec,verbose)
+  ! subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
+  ! subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
+  ! subroutine integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
+  ! subroutine minisurf_write3dmodel(s,fmt,file,expr)
+  ! subroutine minisurf_writebasin(s,offfile,doprops)
+  ! subroutine minisurf_writedbasin(s,npoint,offfile)
+  ! subroutine minisurf_transform(s,op,tvec)
+
   integer, parameter :: maxpointscb(0:7) =  (/ 8, 26, 98, 386, 1538, 6146, 24578, 98306 /)
   integer, parameter :: maxfacescb(0:7) =   (/ 6, 24, 96, 384, 1536, 6144, 24576, 98304 /)
   integer, parameter :: maxpointstr(0:7) =  (/ 6, 18,  66, 258, 1026, 4098, 16386, 66003  /)
@@ -44,620 +57,6 @@ submodule (bisect) proc
   integer, parameter :: bs_spherequad_nleb = 170
 
 contains
-
-  !> Determine the limit of the zero flux surface. xnuc are the
-  !> coordinates of the cp generating the atomic basin. xin, xfin the
-  !> lower and upper bounds for the radial coordinate. delta, the
-  !> precision of the surface determination.  xmed is the final point
-  !> on the IAS. All xnuc, xin, xfin and xmed are given in
-  !> crystallographic coordinates. The cpid is an index from the non
-  !> -equivalent CP list
-  module subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
-    use systemmod, only: sy
-    use fieldmod, only: type_grid
-    integer, intent(in) :: cpid
-    real*8, dimension(3), intent(in) :: xin, xfin
-    real*8, intent(in) :: delta
-    real*8, dimension(3), intent(out) :: xmed
-    integer, intent(out) :: tstep
-    integer, intent(inout) :: nwarn
-
-    real*8 :: dist2, delta2
-    real*8, dimension(3) :: xpoint, xnuc
-    integer :: nstep, iup
-    integer :: i, imin, ier
-    real*8 :: xtemp(3), dtemp, plen
-    real*8 :: xin_(3), xfin_(3)
-    real*8 :: bsr, bsr2
-
-    ! define the close-to-nucleus condition
-    if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
-       bsr = bs_rnearnuc_grid
-    else
-       bsr2 = bs_rnearnuc2
-       bsr = bs_rnearnuc
-    end if
-
-    tstep = 0
-1   continue
-    xin_ = xin
-    xfin_ = xfin
-
-    delta2 = delta * delta
-    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
-
-    iup = -sign(1,sy%f(sy%iref)%typnuc)
-
-    ! do bisection between xin and xfin, until they converge within delta
-    dist2 = dot_product(xin_-xfin_,xin_-xfin_)
-    do while (dist2 > delta2)
-       xmed = 0.5d0 * (xin_ + xfin_)
-
-       xpoint = xmed
-       call sy%f(sy%iref)%gradient(xpoint,iup,nstep,ier,.true.,plen)
-       tstep = tstep + nstep
-
-       if (ier <= 0) then
-          ! normal gradient termination
-          xpoint = xpoint - xnuc
-
-          dist2 = dot_product(xpoint,xpoint)
-          if (dist2 <= bsr2) then
-             xin_ = xmed
-          else
-             xfin_ = xmed
-          endif
-       elseif (ier == 3) then
-          ! the gradient started at infinity (molecule)
-          xfin_ = xmed
-       else
-          ! error in gradient. Calculate the nearest nucleus
-          if (ier > 0) nwarn = nwarn + 1
-          xpoint = sy%c%c2x(xpoint)
-          call sy%f(sy%iref)%nearest_cp(xpoint,imin,dtemp,sy%f(sy%iref)%typnuc)
-          if (dtemp <= bsr) then
-             xin_ = xmed
-          else
-             xfin_ = xmed
-          endif
-       end if
-       dist2 = dot_product(xin_-xfin_,xin_-xfin_)
-    enddo
-    xmed = 0.5d0 * (xin_ + xfin_)
-
-    ! check if it is on the surface of a beta-sphere 
-    xpoint = sy%c%c2x(xmed)
-
-    ! check if it is inside a beta-sphere
-    do i = 1, sy%f(sy%iref)%ncpcel
-       if (sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%cp(cpid)%typ) cycle
-       xtemp = sy%f(sy%iref)%cpcel(i)%x - xpoint
-       call sy%c%shortest(xtemp,dtemp)
-       dtemp = sqrt(dtemp)
-       if (dtemp <= sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta) then
-          sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta = &
-             0.75d0 * sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta
-          ! start over again
-          goto 1
-       end if
-    end do
-
-  end subroutine lim_surf
-
-  !> Determine by bisection the limit of the primary bundle around
-  !> x0() with up-limit in xup(), dn-limit in xdn(), along the
-  !> line that connects xin() and xfin(), with precision delta; the
-  !> limit is returned in xmed(). All parameters in cartesian
-  !> coordinates. nstep is the number of function evaluations.
-  module subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
-    use systemmod, only: sy
-    use fieldmod, only: type_grid
-    real*8, intent(in) :: xup(3), xdn(3)
-    real*8, intent(inout) :: xin(3), xfin(3)
-    real*8, intent(in) :: delta
-    real*8, intent(out) :: xmed(3)
-    integer, intent(out) :: tstep
-    integer, intent(inout) :: nwarn
-
-    real*8 :: xpoint(3), delta2, rr2, plen
-    integer :: nstep
-    integer :: ier
-    logical :: inbundle
-    real*8 :: bsr, bsr2
-
-    ! define the close-to-nucleus condition
-    if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
-       bsr = bs_rnearnuc_grid
-    else
-       bsr2 = bs_rnearnuc2
-       bsr = bs_rnearnuc
-    end if
-
-    tstep = 0
-    delta2 = delta * delta
-
-    do while (dot_product(xin-xfin,xin-xfin) >= delta2)
-
-       !.take mean value, test if interior
-       xmed = 0.5d0*(xin+xfin)
-
-       !.alpha limit
-       xpoint = xmed
-
-       call sy%f(sy%iref)%gradient(xpoint,+1,nstep,ier,.true.,plen)
-       tstep = tstep + nstep
-       if (ier == 3) then
-          inbundle = .false.
-       else 
-          if (ier > 0) nwarn = nwarn + 1
-          xpoint = xpoint - xup
-          rr2 = dot_product(xpoint,xpoint)
-          inbundle = (rr2 <= bsr2)
-       endif
-
-       !.omega limit
-       if (inbundle) then
-          xpoint = xmed
-          call sy%f(sy%iref)%gradient(xpoint,-1,nstep,ier,.true.,plen)
-          tstep = tstep + nstep
-          if (ier == 3) then
-             inbundle = .false.
-          else
-             if (ier > 0) nwarn = nwarn + 1
-             xpoint = xpoint - xdn
-             rr2 = dot_product(xpoint,xpoint)
-             inbundle = inbundle .and. (rr2 <= bsr2)
-          endif
-       endif
-
-       !.bipartition
-       if (inbundle) then
-          xin = xmed
-       else
-          xfin = xmed
-       endif
-    enddo
-
-    !.Final value
-    xmed = 0.5d0 * (xin+xfin)
-    !
-  end subroutine lim_bundle
-
-  !> The rays contained in the input minisurface srf are lim_surfed up
-  !> to the IAS of the CP cpid (non-equivalent CP list). Adaptive
-  !> bracketing + bisection.
-  module subroutine bisect_msurface(srf,cpid,prec,verbose)
-    use systemmod, only: sy
-    use fieldmod, only: type_grid
-    use global, only: iunit, iunitname0, dunit0
-    use surface, only: minisurf
-    use tools, only: mergesort
-    use tools_io, only: uout, string, ferror, faterr
-    use param, only: vbig
-    type(minisurf), intent(inout) :: srf
-    integer, intent(in) :: cpid
-    real*8, intent(in) :: prec
-    logical, intent(in) :: verbose
-
-    integer, parameter :: ntries = 7
-
-    real*8  :: xin(3), xfin(3), xcar(3), unit(3)
-    real*8  :: xmed(3), xnuc(3), xtemp(3)
-    real*8  :: rr2, raprox, riaprox, rmin, rminsame
-    real*8  :: rtry(ntries), rother, plen
-    integer :: itry(ntries)
-    integer :: iup, nstep, id1, id2
-    integer :: j, k, idone
-    real*8  :: rnearsum, rfarsum, rzfssum, rnearmin, rfarmax, rlim
-    integer :: ier, nwarn, nwarn0
-    real*8 :: bsr, bsr2
-
-    ! define the close-to-nucleus condition
-    if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
-       bsr = bs_rnearnuc_grid
-    else
-       bsr2 = bs_rnearnuc2
-       bsr = bs_rnearnuc
-    end if
-
-    iup = -sign(1,sy%f(sy%iref)%typnuc)
-
-    xcar = sy%f(sy%iref)%cp(cpid)%x
-    xnuc = xcar
-    xcar = sy%c%x2c(xcar)
-
-    ! get the distance to the nearest cp and the nearest cp of the
-    ! same type
-    rmin = VBIG
-    rminsame = VBIG
-    do j = 1, sy%f(sy%iref)%ncpcel
-       xtemp = sy%f(sy%iref)%cpcel(j)%x - xnuc
-       call sy%c%shortest(xtemp,rr2)
-       if (rr2 < 1d-10) cycle
-       if (rr2 < rmin) rmin = rr2
-       if (rr2 < rminsame .and. sy%f(sy%iref)%cpcel(j)%typ == sy%f(sy%iref)%cp(cpid)%typ) &
-          rminsame = rr2
-    end do
-    rmin = sqrt(rmin)
-    rminsame = sqrt(rminsame)
-    rnearsum = 0d0
-    rfarsum = 0d0
-    rzfssum = 0d0
-    rnearmin = VBIG
-    rfarmax = 0d0
-
-    if (verbose) then
-       write (uout,'("+ Starting bisection ")')
-       write (uout,'("  CP (non-equivalent) : ",I4)') cpid
-       write (uout,'("  GP tracing maximum num. of steps : ",I6)') BS_mstep
-       write (uout,*)
-       write (uout,'(A)') "r0_{near} ids: (0)One r0_{far}  (1)2d-5    (2)0.9*(rminCP)      (3)0.99*(rminCP) "
-       write (uout,'(A)') "               (4)0.9*(last r_{zfs}) (5)0.99* min(r_{near}) (6) mean(r_{near}) "
-       write (uout,'(A)') "               (7) 0.8*mean(r_{zfs})"
-       write (uout,'(A)') "r0_{far} ids : (0)One r0_{near} (1)min(aa) (2)0.99*(rminCPsame) (3)0.75*(rminCPsame) "
-       write (uout,'(A)') "               (4)1.1*(last r_{zfs}) (5)1.01* max(r_{far})  (6) mean(r_{far}) "
-       write (uout,'(A)') "               (7) 1.2*mean(r_{zfs})"
-       write (uout,'("Units: ",A)') string(iunitname0(iunit))
-       write (uout,'("* (",A5,"/",A5,") ",4(A12,2X))') "nray","total","r0_{near}","r_{ZFS}","r0_{far}","nsteps"
-    end if
-
-    idone = 0
-    nwarn = 0
-    nwarn0 = 0
-    !$omp parallel do private(unit,raprox,rother,riaprox,rtry,itry,id1,id2,&
-    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen) schedule(guided)
-    do j = 1, srf%nv
-       nwarn = 0
-       ! skip surfed points
-       if (srf%r(j) > 0d0) cycle
-
-       ! unitary vector for the direction of the ray
-       unit = (/ sin(srf%th(j)) * cos(srf%ph(j)),&
-                 sin(srf%th(j)) * sin(srf%ph(j)),&
-                 cos(srf%th(j)) /)
-
-       ! initialize bracket
-       raprox = VBIG
-       rother = VBIG
-       riaprox = 0d0
-       ! possible initial radii for inner point
-       rtry(1) = 2d-5                   ! very poor
-       rtry(2) = 0.9d0 * rmin           ! 90% to nearest CP
-       rtry(3) = 0.99d0 * rmin          ! 99% to nearest CP
-       if (idone > 0) then
-          rtry(4) = 0.99d0 * rnearmin      ! 99% of the nearest initial point up to now
-          rtry(5) = rnearsum / real(idone,8) ! mean of the in-basin initial points up to now
-          rtry(6) = 0.8d0*rzfssum / real(idone,8) ! 80% of the mean of the r_{zfs} up to now
-          rtry(7) = 0d0  ! really REALLY poor
-       else
-          rtry(4) = 0d0                 ! VERY poor
-          rtry(5) = 0d0
-          rtry(6) = 0d0
-          rtry(7) = 0d0
-       end if
-       itry = (/ (k,k=1,ntries) /)           ! sort from smaller to larger
-       call mergesort(rtry,itry)
-       id1 = 0
-       do k = ntries,1,-1                    ! find best initial point
-          riaprox = rtry(itry(k))
-          xin = xcar + riaprox * unit
-          xtemp = xin
-          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,ier,.true.,plen)
-          if (ier == 3) then
-             ! started outside molcell
-             if (rtry(itry(k)) < rother) rother = rtry(itry(k))
-          else
-             if (ier > 0) nwarn = nwarn + 1
-             xtemp = xtemp - xcar
-             rr2 = dot_product(xtemp,xtemp)
-             if (rr2 <= bsr2) then
-                id1 = itry(k)
-                exit
-             else
-                if (rtry(itry(k)) < rother) rother = rtry(itry(k))
-             end if
-          endif
-       end do
-
-       ! possible initial radii for outer point
-       rtry(1) = min(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! very poor
-       rtry(2) = 0.99d0 * rminsame      ! 99% to nearest same type CP 
-       rtry(3) = 0.75d0 * rminsame      ! 75% to nearest same type CP 
-       if (idone > 0) then
-          rtry(4) = 1.01d0 * rfarmax       ! 101% of the farthest initial point up to now
-          rtry(5) = rfarsum / real(idone,8)  ! mean of the out-basin initial points up to now
-          rtry(6) = 1.2d0*rzfssum / real(idone,8) ! 120% of the mean of the r_{zfs} up to now
-          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! really, REALLY poor
-       else
-          rtry(4) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  ! VERY poor
-          rtry(5) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
-          rtry(6) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
-          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
-       end if
-       itry = (/ (k,k=1,ntries) /)       ! sort from smaller to larger
-       call mergesort(rtry,itry)
-       id2 = 0
-       raprox = rother
-       do k = 1,ntries                   ! find best initial point
-          ! If I already have a bracket, the try must be better than a bisection step. 
-          ! Note that raprox is initialized to VBIG, so in case I do not have a bracket, 
-          ! all the rtrys are tested
-          raprox = rtry(itry(k))
-          if (raprox > (rother+riaprox) / 2d0 .or. raprox < riaprox) then
-             raprox = rother
-             cycle  
-          end if
-          xfin = xcar + raprox * unit
-          xtemp = xfin
-          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,ier,.true.,plen)
-          if (ier == 3)  then
-             ! started outside molcell
-             ! it is in the inner part of the basin: is it better than riaprox?
-             if (raprox > riaprox) then
-                id1 = 0
-                riaprox = raprox
-             end if
-             ! default to rother
-             raprox = rother
-          else
-             if (ier > 0) nwarn = nwarn + 1
-             xtemp = xtemp - xcar
-             rr2 = dot_product(xtemp,xtemp)
-             if (rr2 > bsr2) then
-                id2 = itry(k)
-                exit
-             else
-                ! it is in the inner part of the basin: is it better than riaprox?
-                if (raprox > riaprox) then
-                   id1 = 0
-                   riaprox = raprox
-                end if
-                ! default to rother
-                raprox = rother
-             end if
-          end if
-       end do
-
-       ! Use final riaprox and raprox
-       if (raprox == VBIG .or. riaprox == 0d0) then
-          call ferror('bisect_msurface','Can not find ray limits.',faterr)
-       else
-          xin = xcar + riaprox * unit
-          xfin = xcar + raprox * unit
-       end if
-
-       call lim_surf(cpid,xin,xfin,prec,xmed,nstep,nwarn)
-       xmed = xmed - xcar
-       rlim = sqrt(dot_product(xmed,xmed))
-       if (verbose) then
-          !$omp critical (IO)
-          write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,"(",I1,")",1X,E14.6,2X,E14.6,1X,"(",I1,") ",I8)') &
-             j,srf%nv,riaprox*dunit0(iunit),id1,rlim*dunit0(iunit),raprox*dunit0(iunit),id2,nstep
-          !$omp end critical (IO)
-       end if
-
-       ! accumulate 
-       !$omp ATOMIC
-       nwarn0 = nwarn0 + nwarn
-       !$omp ATOMIC
-       rnearsum = rnearsum + riaprox
-       !$omp ATOMIC
-       rfarsum = rfarsum + raprox
-       !$omp ATOMIC
-       rzfssum = rzfssum + rlim
-       !$omp ATOMIC
-       rnearmin = min(rnearmin,riaprox)
-       !$omp ATOMIC
-       rfarmax = max(rfarmax,raprox)
-       !$omp ATOMIC
-       idone = idone + 1
-       !$omp critical (srfwrite)
-       srf%r(j) = rlim
-       !$omp end critical (srfwrite)
-    enddo
-    !$omp end parallel do
-
-    if (verbose) then
-       if (nwarn0 > 0) then
-          write (uout,'("+ nwarns = ",I8)') nwarn0
-          ! call ferror('bisect_msurface',"Some gradient paths were not terminated",warning)
-       end if
-       write (uout,'(A/)') "+ End of bisection "
-    end if
-
-  end subroutine bisect_msurface
-
-  !> Determine the surface representing the primary bundle with seed
-  !> srf%n (cartesian) by bisection.
-  module subroutine bundle_msurface(srf,prec,verbose)
-    use systemmod, only: sy
-    use fieldmod, only: type_grid
-    use surface, only: minisurf
-    use global, only: rbetadef
-    use tools_math, only: norm
-    use tools_io, only: uout, string, faterr, ferror
-    use param, only: vbig
-    type(minisurf), intent(inout) :: srf
-    real*8, intent(in) :: prec
-    logical, intent(in) :: verbose
-
-    integer :: i, j, nwarn, nwarn0
-    integer :: nstep, iup, ier
-    real*8 :: xtemp(3), xseed(3), xup(3), xdn(3), xin(3), xfin(3)
-    real*8 :: xmed(3), unit(3), raprox, riaprox
-    logical :: ok
-    real*8 :: oldrbeta(sy%f(sy%iref)%ncp), rmin, rmax
-    real*8 :: bsr, bsr2, plen
-
-    ! define the close-to-nucleus condition
-    if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
-       bsr = bs_rnearnuc_grid
-    else
-       bsr2 = bs_rnearnuc2
-       bsr = bs_rnearnuc
-    end if
-
-    iup = -sign(1,sy%f(sy%iref)%typnuc)
-
-    xseed = srf%n
-
-    ! beta spheres + primary bundles is not such a good idea.
-    oldrbeta = sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta
-    sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta = Rbetadef
-
-    ! alpha-limit
-    xtemp = xseed
-    call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
-    xup = xtemp
-    ! omega-limit
-    xtemp = xseed
-    call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
-    xdn = xtemp
-
-    if (verbose) then
-       write (uout,'("+ Starting bisection (primary bundle)")')
-       write (uout,'("  Seed (cartesian coords.) : ",3(A,X))') (string(xseed(j),'e',decimal=6),j=1,3)
-       write (uout,'("  Seed up-limit (omega) : ",3(A,X))') (string(xup(j),'e',decimal=6),j=1,3)
-       write (uout,'("  Seed dn-limit (alpha) : ",3(A,X))') (string(xdn(j),'e',decimal=6),j=1,3)
-       write (uout,'("  GP tracing maximum num. of steps : ",A)') string(BS_mstep)
-       write (uout,*)
-       write (uout,'("  (",A5,"/",A5,") ",A12,1X,A12,2X,A12,1X,A8)') &
-          "nray","mray","r_inner","r_ias","r_outer","nstep"
-       write (uout,'(64("-"))') 
-    end if
-
-    rmin = VBIG
-    rmax = 0d0
-    nwarn = 0
-    nwarn0 = 0
-    !$omp parallel do private(unit,raprox,riaprox,ok,xtemp,nstep,ier,&
-    !$omp  xin,xfin,xmed,nwarn,plen) schedule(guided)
-    do i = 1, srf%nv
-       nwarn = 0
-       ! skip surfed points
-       if (srf%r(i) > 0d0) cycle
-
-       ! unitary vector for the direction of the ray
-       unit = (/sin(srf%th(i)) * cos(srf%ph(i)), sin(srf%th(i)) * sin(srf%ph(i)), cos(srf%th(i))/)
-
-       raprox = 0.5d0 * maxval(sy%c%aa)
-       riaprox = 0.5d0 * maxval(sy%c%aa)
-
-       ! inner limit, reuse previous steps riaprox
-       if (rmin /= VBIG) then
-          riaprox = rmin
-       end if
-       ok = .false.
-       do while (riaprox > 1d-5)
-          xtemp = xseed + riaprox * unit
-          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
-          if (ier == 3)  then
-             ok = .false.
-          else
-             if (ier > 0) nwarn = nwarn + 1
-             xtemp = xtemp - xup
-             ok = (dot_product(xtemp,xtemp) <= bsr2)
-          end if
-          if (ok) then
-             ! omega-limit
-             xtemp = xseed + riaprox * unit
-             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
-             if (ier == 3)  then
-                ok = .false.
-             else
-                if (ier > 0) nwarn = nwarn + 1
-                xtemp = xtemp - xdn
-                ok = ok .and. (dot_product(xtemp,xtemp) <= bsr2)
-             end if
-          end if
-          if (ok) then
-             exit
-          else
-             raprox = riaprox
-             riaprox = 0.5d0 * riaprox
-          end if
-       end do
-       if (riaprox <= 1d-5) then
-          call ferror('bundle_msurface','Can not find inner bracket limit.',faterr)
-       end if
-
-       ! outer limit, reuse previous steps raprox
-       if (rmax /= 0d0) raprox = rmax
-       ok = .false.
-       do while (raprox < 10d0 * maxval(sy%c%aa))
-          xtemp = xseed + raprox * unit
-          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
-          if (ier == 3)  then
-             ok = .false.
-          else
-             if (ier > 0) nwarn = nwarn + 1
-             xtemp = xtemp - xup
-             ok = (dot_product(xtemp,xtemp) > bsr2)
-          endif
-          if (.not.ok) then
-             ! omega-limit
-             xtemp = xseed + raprox * unit
-             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
-             if (ier == 3)  then
-                ok = .false.
-             else
-                if (ier > 0) nwarn = nwarn + 1
-                xtemp = xtemp - xdn
-                ok = ok .or. (dot_product(xtemp,xtemp) > bsr2)
-             end if
-          end if
-          if (ok) then
-             exit
-          else
-             if (raprox > riaprox) riaprox = raprox
-             raprox = 2d0 * raprox
-          end if
-       end do
-       if (raprox > 10d0 * maxval(sy%c%aa)) then
-          call ferror('bundle_msurface','Can not find outer bracket limit.',faterr)
-       end if
-
-       xin = xseed + riaprox * unit
-       xfin = xseed + raprox * unit
-
-       call lim_bundle(xup,xdn,xin,xfin,prec,xmed,nstep,nwarn)
-
-       xmed = xmed - xseed
-
-       !$omp ATOMIC
-       nwarn0 = nwarn0 + nwarn
-       !$omp ATOMIC
-       rmin = min(rmin,riaprox)
-       !$omp ATOMIC
-       rmax = max(rmax,raprox)
-       !$omp critical (srfwrite)
-       srf%r(i) = norm(xmed)
-       !$omp end critical (srfwrite)
-       if (verbose) then
-          !$omp critical (IO)
-          write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,E14.6,2X,E14.6,1X,I8)') &
-             i,srf%nv,riaprox,srf%r(i),raprox,nstep
-          !$omp end critical (IO)
-       end if
-    enddo
-    !$omp end parallel do
-
-    if (nwarn0 > 0) then
-       write (uout,'("* nwarns = ",A)') string(nwarn0)
-       ! call ferror('bundle_msurface',"Some gradient paths were not terminated",warning)
-    end if
-    if (verbose) then
-       write (uout,'(A/)') "+ End of bisection "
-    end if
-
-    ! Restore the original beta radius
-    sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta = oldrbeta
-
-  end subroutine bundle_msurface
 
   !> Generalized plotting of atomic basins using the bisection
   !> algorithm. The method parameter indicates the initial
@@ -1166,76 +565,6 @@ contains
 
   end subroutine bundleplot
 
-  !> Find the integrated properties in a sphere cenetered at x0
-  !> (cartesian coordinates) with radius rad using a Gauss-Legendre
-  !> angular quadrature with ntheta * nphi nodes. The INT_radquad_*
-  !> apply to the radial integration. The properties are written in
-  !> the sprop array. abserr is integrated radial absoulte error.
-  !> neval, number of evaluations; meaneval, mean number of
-  !> evaluations per ray
-  module subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
-    use systemmod, only: sy
-    use surface, only: minisurf
-    use integration, only: gauleg_mquad
-    
-    real*8, intent(in) :: x0(3), rad
-    integer, intent(in) :: ntheta, nphi
-    real*8, intent(out) :: sprop(sy%npropi) 
-    real*8, intent(out) :: abserr
-    integer, intent(out) :: neval, meaneval
-
-    type(minisurf) :: srf
-    integer :: m
-    real*8 :: iaserr(sy%npropi)
-
-    m = 3 * ntheta * nphi + 1
-    call srf%init(m,0)
-    call srf%clean()
-    call srf%gauleg_nodes(ntheta,nphi)
-
-    srf%n = x0
-    srf%r = rad
-    call gauleg_mquad(srf,ntheta,nphi,0d0,sprop,abserr,neval,iaserr)
-    meaneval = ceiling(real(neval,8) / srf%nv)
-
-    call srf%end()
-
-  end subroutine sphereintegrals_gauleg
-
-  !> Find the integrated properties in a sphere cenetered at x0
-  !> (cartesian coordinates) with radius rad using a Lebedev angular
-  !> quadrature with nleb nodes. The INT_radquad_* apply to the radial
-  !> integration. The properties are written in the sprop
-  !> array. abserr is the integrated radial absolute error.
-  !> Neval, number of evaluations; meaneval, mean number of
-  !> evaluations per ray
-  module subroutine sphereintegrals_lebedev(x0,rad,nleb,sprop,abserr,neval,meaneval)
-    use systemmod, only: sy
-    use integration, only: lebedev_mquad
-    use surface, only: minisurf
-    
-    real*8, intent(in) :: x0(3), rad
-    integer, intent(in) :: nleb
-    real*8, intent(out) :: sprop(sy%npropi) 
-    real*8, intent(out) :: abserr
-    integer, intent(out) :: neval, meaneval
-
-    type(minisurf) :: srf
-    real*8 :: iaserr(sy%npropi)
-
-    call srf%init(nleb,0)
-    call srf%clean()
-    call srf%lebedev_nodes(nleb)
-
-    srf%n = x0
-    srf%r = rad
-    call lebedev_mquad(srf,nleb,0d0,sprop,abserr,neval,iaserr)
-    meaneval = ceiling(real(neval,8) / srf%nv)
-
-    call srf%end()
-
-  end subroutine sphereintegrals_lebedev
-
   !> Spherical integration driver. meth is the angular quadrature
   !> method with number of nodes n1 and n2, cpid is the cp identifier
   !> (non-equivalent atom list, 0 = all). nr is the number of
@@ -1454,250 +783,75 @@ contains
 
   end subroutine sphereintegrals
 
-  !> Integrate the atomic basin of the non-equivalent CP cpid 
-  !> using a fixed 2d Gauss-Legendre quadrature with n1 = ntheta
-  !> and n2 = nphi. If usefiles, read and/or write the .int files
-  !> containing the ZFS description for each atom. 
-  module subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
+  !> Find the integrated properties in a sphere cenetered at x0
+  !> (cartesian coordinates) with radius rad using a Gauss-Legendre
+  !> angular quadrature with ntheta * nphi nodes. The INT_radquad_*
+  !> apply to the radial integration. The properties are written in
+  !> the sprop array. abserr is integrated radial absoulte error.
+  !> neval, number of evaluations; meaneval, mean number of
+  !> evaluations per ray
+  module subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
     use systemmod, only: sy
     use surface, only: minisurf
     use integration, only: gauleg_mquad
-    use global, only: int_gauleg, int_iasprec
-    use tools_io, only: uout
-    real*8, intent(out) :: atprop(sy%npropi)
-    integer, intent(in) :: n1, n2, cpid
-    logical, intent(in) :: usefiles
-    logical, intent(in) :: verbose
+    
+    real*8, intent(in) :: x0(3), rad
+    integer, intent(in) :: ntheta, nphi
+    real*8, intent(out) :: sprop(sy%npropi) 
+    real*8, intent(out) :: abserr
+    integer, intent(out) :: neval, meaneval
 
     type(minisurf) :: srf
+    integer :: m
+    real*8 :: iaserr(sy%npropi)
 
-    real*8 :: xnuc(3)
-    integer :: ierr
-    integer :: ntheta, nphi, m
-    integer :: j
-    logical :: existfile
-    real*8 :: sprop(sy%npropi)
-    real*8 :: r_betaint, abserr, iaserr(sy%npropi)
-    integer :: neval, meaneval
-    integer :: smin, smax
-
-    smin = 1
-    smax = sy%c%nneq
-
-    ntheta = n1
-    nphi = n2
     m = 3 * ntheta * nphi + 1
     call srf%init(m,0)
     call srf%clean()
     call srf%gauleg_nodes(ntheta,nphi)
 
-    atprop = 0d0
-
-    ! initialize the surface for this atom
-    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
-    srf%n = xnuc
-    srf%r = -1d0
-
-    ! Read the input file
-    if (usefiles .and. allocated(intfile)) then
-       inquire(file=intfile(cpid),exist=existfile)
-       if (existfile) then
-          call srf%readint(ntheta,nphi,INT_gauleg,intfile(cpid),ierr)
-          ! The reading was not successful -> bisect
-          if (ierr > 0) then
-             existfile = .false.
-             srf%r = -1d0
-          end if
-       end if
-    end if
-       
-    ! bisect the surface 
-    if (.not.(usefiles .and. existfile)) then
-       ! bisect the surface
-       call bisect_msurface(srf,cpid,INT_iasprec,verbose)
-    end if
-       
-    ! beta-sphere... skip:
-    ! 1. by user's request
-    ! 2. the scalar field has shells and this is an effective nucleus
-    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
-
-    if (verbose) then
-       write (uout,'(a)') " Integrating the sphere..."
-    end if
-    ! integrate the sphere
-    if (bs_spherequad_type == INT_gauleg) then
-       call sphereintegrals_gauleg(xnuc,r_betaint,bs_spherequad_ntheta,bs_spherequad_nphi,sprop,&
-          abserr,neval,meaneval)
-    else
-       call sphereintegrals_lebedev(xnuc,r_betaint,bs_spherequad_nleb,sprop,abserr,neval,meaneval)
-    end if
-    if (verbose) then
-       write (uout,'(a,i10)') " Number of evaluations : ", neval
-       write (uout,'(a,i10)') " Avg. evaluations per ray : ", meaneval
-
-       write (uout,'(a,1p,E12.4)') " Beta-sphere radius : ",r_betaint
-       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
-          "IAS error","Integral (sph.)"
-       write (uout,'(2x,42("-"))')
-       do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
-       end do
-       write (uout,*)
-    end if
-
-    ! calculate properties
-    if (verbose) then
-       write (uout,'(a)') " Summing the quadrature formula..."
-    end if
-    call gauleg_mquad(srf,ntheta,nphi,r_betaint,atprop,abserr,neval,iaserr)
-    if (verbose) then
-       write (uout,'(a,i10)') " Number of evaluations : ", neval
-       write (uout,'(a,i10)') " Avg. evaluations per ray : ", ceiling(real(neval,8) / srf%nv)
-       write (uout,'(2xa2,x,a10,x,a12,x,a17)') "id","property",&
-          "IAS error","Integral"
-       write (uout,'(2x,42("-"))')
-       do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
-       end do
-       write (uout,*)
-    end if
-
-    ! sum 
-    atprop = atprop + sprop
-
-    if (usefiles) then
-       ! write the surface
-       write (uout,'(" Writing basin in file : ",A)') trim(intfile(cpid))
-       write (uout,*)
-       call srf%writeint(ntheta,nphi,INT_gauleg,intfile(cpid))
-    end if
+    srf%n = x0
+    srf%r = rad
+    call gauleg_mquad(srf,ntheta,nphi,0d0,sprop,abserr,neval,iaserr)
+    meaneval = ceiling(real(neval,8) / srf%nv)
 
     call srf%end()
 
-  end subroutine integrals_gauleg
+  end subroutine sphereintegrals_gauleg
 
-  !> Integrate the atomic basin of the non-equivalent CP cpid (0 for
-  !> all) using a fixed Lebedev quadrature with nleb points If
-  !> usefiles, read and/or write the .int files containing the ZFS
-  !> description for each atom.
-  module subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
+  !> Find the integrated properties in a sphere cenetered at x0
+  !> (cartesian coordinates) with radius rad using a Lebedev angular
+  !> quadrature with nleb nodes. The INT_radquad_* apply to the radial
+  !> integration. The properties are written in the sprop
+  !> array. abserr is the integrated radial absolute error.
+  !> Neval, number of evaluations; meaneval, mean number of
+  !> evaluations per ray
+  module subroutine sphereintegrals_lebedev(x0,rad,nleb,sprop,abserr,neval,meaneval)
     use systemmod, only: sy
     use integration, only: lebedev_mquad
     use surface, only: minisurf
-    use global, only: int_iasprec, int_gauleg
-    use tools_io, only: uout
-
-    real*8, intent(out) :: atprop(sy%npropi)
-    integer, intent(in) :: nleb, cpid
-    logical, intent(in) :: usefiles
-    logical, intent(in) :: verbose
+    
+    real*8, intent(in) :: x0(3), rad
+    integer, intent(in) :: nleb
+    real*8, intent(out) :: sprop(sy%npropi) 
+    real*8, intent(out) :: abserr
+    integer, intent(out) :: neval, meaneval
 
     type(minisurf) :: srf
-
-    real*8 :: xnuc(3)
-    integer :: ierr
-    integer :: j
-    logical :: existfile
-    real*8 :: sprop(sy%npropi)
-    real*8 :: r_betaint, abserr, iaserr(sy%npropi)
-    integer :: neval, meaneval
-    integer :: smin, smax
-
-    smin = 1
-    smax = sy%c%nneq
+    real*8 :: iaserr(sy%npropi)
 
     call srf%init(nleb,0)
     call srf%clean()
     call srf%lebedev_nodes(nleb)
 
-    atprop = 0d0
-
-    ! initialize the surface for this atom
-    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
-    srf%n = xnuc
-    srf%r = -1d0
-       
-    ! Read the input file
-    if (usefiles .and. allocated(intfile)) then
-       ! Name of the input / output file
-       inquire(file=intfile(cpid),exist=existfile)
-       if (existfile) then
-          call srf%readint(nleb,0,INT_lebedev,intfile(cpid),ierr)
-          ! The reading was not successful -> bisect
-          if (ierr > 0) then
-             existfile = .false.
-             srf%r = -1d0
-          end if
-       end if
-    end if
-
-    ! bisect the surface 
-    ! 1. It is not loaded from an int file
-    ! 2. This is not a 'spheres-only' block run
-    if (.not.(usefiles .and. existfile)) then
-       ! bisect the surface
-       call bisect_msurface(srf,cpid,INT_iasprec,verbose)
-    end if
-    
-    ! beta-sphere integration
-    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
-    if (verbose) then
-       write (uout,'(a)') " Integrating the sphere..."
-    end if
-    ! integrate the sphere
-    if (bs_spherequad_type == INT_gauleg) then
-       call sphereintegrals_gauleg(xnuc,r_betaint, &
-          bs_spherequad_ntheta,bs_spherequad_nphi,sprop,&
-          abserr,neval,meaneval)
-    else
-       call sphereintegrals_lebedev(xnuc,r_betaint, &
-          bs_spherequad_nleb,sprop,abserr,neval,meaneval)
-    end if
-
-    if (verbose) then
-       write (uout,'(a,1p,E12.4)') " Beta-sphere radius : ",r_betaint
-       write (uout,'(a,i10)') " Number of evaluations : ", neval
-       write (uout,'(a,i10)') " Avg. evaluations per ray : ", meaneval
-       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
-          "IAS error","Integral (sph.)"
-       write (uout,'(2x,42("-"))')
-       do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
-       end do
-       write (uout,*)
-    end if
-
-    ! calculate properties
-    if (verbose) then
-       write (uout,'(a)') " Summing the quadrature formula..."
-    end if
-    call lebedev_mquad(srf,nleb,r_betaint,atprop,abserr,neval,iaserr)
-    if (verbose) then
-       write (uout,'(a,i10)') " Number of evaluations : ", neval
-       write (uout,'(a,i10)') " Avg. evaluations per ray : ", ceiling(real(neval,8) / srf%nv)
-       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
-          "IAS error","Integral (neg.)"
-       write (uout,'(2x,42("-"))')
-       do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
-       end do
-       write (uout,*)
-    end if
-       
-    ! sum 
-    atprop = atprop + sprop
-
-    if (usefiles) then
-       ! write the surface
-       write (uout,'(" Writing basin in file : ",A)') trim(intfile(cpid))
-       write (uout,*)
-       call srf%writeint(nleb,0,INT_lebedev,intfile(cpid))
-    end if
+    srf%n = x0
+    srf%r = rad
+    call lebedev_mquad(srf,nleb,0d0,sprop,abserr,neval,iaserr)
+    meaneval = ceiling(real(neval,8) / srf%nv)
 
     call srf%end()
 
-  end subroutine integrals_lebedev
+  end subroutine sphereintegrals_lebedev
 
   !> Atomic basin integration driver. meth is the angular quadrature
   !> method with number of nodes n1 and n2, cpid is the cp identifier
@@ -1855,8 +1009,869 @@ contains
 
   end subroutine integrals
 
+  !xx! private procedures
+
+  !> Determine the limit of the zero flux surface. xnuc are the
+  !> coordinates of the cp generating the atomic basin. xin, xfin the
+  !> lower and upper bounds for the radial coordinate. delta, the
+  !> precision of the surface determination.  xmed is the final point
+  !> on the IAS. All xnuc, xin, xfin and xmed are given in
+  !> crystallographic coordinates. The cpid is an index from the non
+  !> -equivalent CP list
+  subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    integer, intent(in) :: cpid
+    real*8, dimension(3), intent(in) :: xin, xfin
+    real*8, intent(in) :: delta
+    real*8, dimension(3), intent(out) :: xmed
+    integer, intent(out) :: tstep
+    integer, intent(inout) :: nwarn
+
+    real*8 :: dist2, delta2
+    real*8, dimension(3) :: xpoint, xnuc
+    integer :: nstep, iup
+    integer :: i, imin, ier
+    real*8 :: xtemp(3), dtemp, plen
+    real*8 :: xin_(3), xfin_(3)
+    real*8 :: bsr, bsr2
+
+    ! define the close-to-nucleus condition
+    if (sy%f(sy%iref)%type == type_grid) then
+       bsr2 = bs_rnearnuc2_grid
+       bsr = bs_rnearnuc_grid
+    else
+       bsr2 = bs_rnearnuc2
+       bsr = bs_rnearnuc
+    end if
+
+    tstep = 0
+1   continue
+    xin_ = xin
+    xfin_ = xfin
+
+    delta2 = delta * delta
+    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
+
+    iup = -sign(1,sy%f(sy%iref)%typnuc)
+
+    ! do bisection between xin and xfin, until they converge within delta
+    dist2 = dot_product(xin_-xfin_,xin_-xfin_)
+    do while (dist2 > delta2)
+       xmed = 0.5d0 * (xin_ + xfin_)
+
+       xpoint = xmed
+       call sy%f(sy%iref)%gradient(xpoint,iup,nstep,ier,.true.,plen)
+       tstep = tstep + nstep
+
+       if (ier <= 0) then
+          ! normal gradient termination
+          xpoint = xpoint - xnuc
+
+          dist2 = dot_product(xpoint,xpoint)
+          if (dist2 <= bsr2) then
+             xin_ = xmed
+          else
+             xfin_ = xmed
+          endif
+       elseif (ier == 3) then
+          ! the gradient started at infinity (molecule)
+          xfin_ = xmed
+       else
+          ! error in gradient. Calculate the nearest nucleus
+          if (ier > 0) nwarn = nwarn + 1
+          xpoint = sy%c%c2x(xpoint)
+          call sy%f(sy%iref)%nearest_cp(xpoint,imin,dtemp,sy%f(sy%iref)%typnuc)
+          if (dtemp <= bsr) then
+             xin_ = xmed
+          else
+             xfin_ = xmed
+          endif
+       end if
+       dist2 = dot_product(xin_-xfin_,xin_-xfin_)
+    enddo
+    xmed = 0.5d0 * (xin_ + xfin_)
+
+    ! check if it is on the surface of a beta-sphere 
+    xpoint = sy%c%c2x(xmed)
+
+    ! check if it is inside a beta-sphere
+    do i = 1, sy%f(sy%iref)%ncpcel
+       if (sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%cp(cpid)%typ) cycle
+       xtemp = sy%f(sy%iref)%cpcel(i)%x - xpoint
+       call sy%c%shortest(xtemp,dtemp)
+       dtemp = sqrt(dtemp)
+       if (dtemp <= sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta) then
+          sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta = &
+             0.75d0 * sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta
+          ! start over again
+          goto 1
+       end if
+    end do
+
+  end subroutine lim_surf
+
+  !> Determine by bisection the limit of the primary bundle around
+  !> x0() with up-limit in xup(), dn-limit in xdn(), along the
+  !> line that connects xin() and xfin(), with precision delta; the
+  !> limit is returned in xmed(). All parameters in cartesian
+  !> coordinates. nstep is the number of function evaluations.
+  subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    real*8, intent(in) :: xup(3), xdn(3)
+    real*8, intent(inout) :: xin(3), xfin(3)
+    real*8, intent(in) :: delta
+    real*8, intent(out) :: xmed(3)
+    integer, intent(out) :: tstep
+    integer, intent(inout) :: nwarn
+
+    real*8 :: xpoint(3), delta2, rr2, plen
+    integer :: nstep
+    integer :: ier
+    logical :: inbundle
+    real*8 :: bsr, bsr2
+
+    ! define the close-to-nucleus condition
+    if (sy%f(sy%iref)%type == type_grid) then
+       bsr2 = bs_rnearnuc2_grid
+       bsr = bs_rnearnuc_grid
+    else
+       bsr2 = bs_rnearnuc2
+       bsr = bs_rnearnuc
+    end if
+
+    tstep = 0
+    delta2 = delta * delta
+
+    do while (dot_product(xin-xfin,xin-xfin) >= delta2)
+
+       !.take mean value, test if interior
+       xmed = 0.5d0*(xin+xfin)
+
+       !.alpha limit
+       xpoint = xmed
+
+       call sy%f(sy%iref)%gradient(xpoint,+1,nstep,ier,.true.,plen)
+       tstep = tstep + nstep
+       if (ier == 3) then
+          inbundle = .false.
+       else 
+          if (ier > 0) nwarn = nwarn + 1
+          xpoint = xpoint - xup
+          rr2 = dot_product(xpoint,xpoint)
+          inbundle = (rr2 <= bsr2)
+       endif
+
+       !.omega limit
+       if (inbundle) then
+          xpoint = xmed
+          call sy%f(sy%iref)%gradient(xpoint,-1,nstep,ier,.true.,plen)
+          tstep = tstep + nstep
+          if (ier == 3) then
+             inbundle = .false.
+          else
+             if (ier > 0) nwarn = nwarn + 1
+             xpoint = xpoint - xdn
+             rr2 = dot_product(xpoint,xpoint)
+             inbundle = inbundle .and. (rr2 <= bsr2)
+          endif
+       endif
+
+       !.bipartition
+       if (inbundle) then
+          xin = xmed
+       else
+          xfin = xmed
+       endif
+    enddo
+
+    !.Final value
+    xmed = 0.5d0 * (xin+xfin)
+    !
+  end subroutine lim_bundle
+
+  !> The rays contained in the input minisurface srf are lim_surfed up
+  !> to the IAS of the CP cpid (non-equivalent CP list). Adaptive
+  !> bracketing + bisection.
+  subroutine bisect_msurface(srf,cpid,prec,verbose)
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use global, only: iunit, iunitname0, dunit0
+    use surface, only: minisurf
+    use tools, only: mergesort
+    use tools_io, only: uout, string, ferror, faterr
+    use param, only: vbig
+    type(minisurf), intent(inout) :: srf
+    integer, intent(in) :: cpid
+    real*8, intent(in) :: prec
+    logical, intent(in) :: verbose
+
+    integer, parameter :: ntries = 7
+
+    real*8  :: xin(3), xfin(3), xcar(3), unit(3)
+    real*8  :: xmed(3), xnuc(3), xtemp(3)
+    real*8  :: rr2, raprox, riaprox, rmin, rminsame
+    real*8  :: rtry(ntries), rother, plen
+    integer :: itry(ntries)
+    integer :: iup, nstep, id1, id2
+    integer :: j, k, idone
+    real*8  :: rnearsum, rfarsum, rzfssum, rnearmin, rfarmax, rlim
+    integer :: ier, nwarn, nwarn0
+    real*8 :: bsr, bsr2
+
+    ! define the close-to-nucleus condition
+    if (sy%f(sy%iref)%type == type_grid) then
+       bsr2 = bs_rnearnuc2_grid
+       bsr = bs_rnearnuc_grid
+    else
+       bsr2 = bs_rnearnuc2
+       bsr = bs_rnearnuc
+    end if
+
+    iup = -sign(1,sy%f(sy%iref)%typnuc)
+
+    xcar = sy%f(sy%iref)%cp(cpid)%x
+    xnuc = xcar
+    xcar = sy%c%x2c(xcar)
+
+    ! get the distance to the nearest cp and the nearest cp of the
+    ! same type
+    rmin = VBIG
+    rminsame = VBIG
+    do j = 1, sy%f(sy%iref)%ncpcel
+       xtemp = sy%f(sy%iref)%cpcel(j)%x - xnuc
+       call sy%c%shortest(xtemp,rr2)
+       if (rr2 < 1d-10) cycle
+       if (rr2 < rmin) rmin = rr2
+       if (rr2 < rminsame .and. sy%f(sy%iref)%cpcel(j)%typ == sy%f(sy%iref)%cp(cpid)%typ) &
+          rminsame = rr2
+    end do
+    rmin = sqrt(rmin)
+    rminsame = sqrt(rminsame)
+    rnearsum = 0d0
+    rfarsum = 0d0
+    rzfssum = 0d0
+    rnearmin = VBIG
+    rfarmax = 0d0
+
+    if (verbose) then
+       write (uout,'("+ Starting bisection ")')
+       write (uout,'("  CP (non-equivalent) : ",I4)') cpid
+       write (uout,'("  GP tracing maximum num. of steps : ",I6)') BS_mstep
+       write (uout,*)
+       write (uout,'(A)') "r0_{near} ids: (0)One r0_{far}  (1)2d-5    (2)0.9*(rminCP)      (3)0.99*(rminCP) "
+       write (uout,'(A)') "               (4)0.9*(last r_{zfs}) (5)0.99* min(r_{near}) (6) mean(r_{near}) "
+       write (uout,'(A)') "               (7) 0.8*mean(r_{zfs})"
+       write (uout,'(A)') "r0_{far} ids : (0)One r0_{near} (1)min(aa) (2)0.99*(rminCPsame) (3)0.75*(rminCPsame) "
+       write (uout,'(A)') "               (4)1.1*(last r_{zfs}) (5)1.01* max(r_{far})  (6) mean(r_{far}) "
+       write (uout,'(A)') "               (7) 1.2*mean(r_{zfs})"
+       write (uout,'("Units: ",A)') string(iunitname0(iunit))
+       write (uout,'("* (",A5,"/",A5,") ",4(A12,2X))') "nray","total","r0_{near}","r_{ZFS}","r0_{far}","nsteps"
+    end if
+
+    idone = 0
+    nwarn = 0
+    nwarn0 = 0
+    !$omp parallel do private(unit,raprox,rother,riaprox,rtry,itry,id1,id2,&
+    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen) schedule(guided)
+    do j = 1, srf%nv
+       nwarn = 0
+       ! skip surfed points
+       if (srf%r(j) > 0d0) cycle
+
+       ! unitary vector for the direction of the ray
+       unit = (/ sin(srf%th(j)) * cos(srf%ph(j)),&
+                 sin(srf%th(j)) * sin(srf%ph(j)),&
+                 cos(srf%th(j)) /)
+
+       ! initialize bracket
+       raprox = VBIG
+       rother = VBIG
+       riaprox = 0d0
+       ! possible initial radii for inner point
+       rtry(1) = 2d-5                   ! very poor
+       rtry(2) = 0.9d0 * rmin           ! 90% to nearest CP
+       rtry(3) = 0.99d0 * rmin          ! 99% to nearest CP
+       if (idone > 0) then
+          rtry(4) = 0.99d0 * rnearmin      ! 99% of the nearest initial point up to now
+          rtry(5) = rnearsum / real(idone,8) ! mean of the in-basin initial points up to now
+          rtry(6) = 0.8d0*rzfssum / real(idone,8) ! 80% of the mean of the r_{zfs} up to now
+          rtry(7) = 0d0  ! really REALLY poor
+       else
+          rtry(4) = 0d0                 ! VERY poor
+          rtry(5) = 0d0
+          rtry(6) = 0d0
+          rtry(7) = 0d0
+       end if
+       itry = (/ (k,k=1,ntries) /)           ! sort from smaller to larger
+       call mergesort(rtry,itry)
+       id1 = 0
+       do k = ntries,1,-1                    ! find best initial point
+          riaprox = rtry(itry(k))
+          xin = xcar + riaprox * unit
+          xtemp = xin
+          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,ier,.true.,plen)
+          if (ier == 3) then
+             ! started outside molcell
+             if (rtry(itry(k)) < rother) rother = rtry(itry(k))
+          else
+             if (ier > 0) nwarn = nwarn + 1
+             xtemp = xtemp - xcar
+             rr2 = dot_product(xtemp,xtemp)
+             if (rr2 <= bsr2) then
+                id1 = itry(k)
+                exit
+             else
+                if (rtry(itry(k)) < rother) rother = rtry(itry(k))
+             end if
+          endif
+       end do
+
+       ! possible initial radii for outer point
+       rtry(1) = min(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! very poor
+       rtry(2) = 0.99d0 * rminsame      ! 99% to nearest same type CP 
+       rtry(3) = 0.75d0 * rminsame      ! 75% to nearest same type CP 
+       if (idone > 0) then
+          rtry(4) = 1.01d0 * rfarmax       ! 101% of the farthest initial point up to now
+          rtry(5) = rfarsum / real(idone,8)  ! mean of the out-basin initial points up to now
+          rtry(6) = 1.2d0*rzfssum / real(idone,8) ! 120% of the mean of the r_{zfs} up to now
+          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! really, REALLY poor
+       else
+          rtry(4) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  ! VERY poor
+          rtry(5) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
+          rtry(6) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
+          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
+       end if
+       itry = (/ (k,k=1,ntries) /)       ! sort from smaller to larger
+       call mergesort(rtry,itry)
+       id2 = 0
+       raprox = rother
+       do k = 1,ntries                   ! find best initial point
+          ! If I already have a bracket, the try must be better than a bisection step. 
+          ! Note that raprox is initialized to VBIG, so in case I do not have a bracket, 
+          ! all the rtrys are tested
+          raprox = rtry(itry(k))
+          if (raprox > (rother+riaprox) / 2d0 .or. raprox < riaprox) then
+             raprox = rother
+             cycle  
+          end if
+          xfin = xcar + raprox * unit
+          xtemp = xfin
+          call sy%f(sy%iref)%gradient(xtemp,iup,nstep,ier,.true.,plen)
+          if (ier == 3)  then
+             ! started outside molcell
+             ! it is in the inner part of the basin: is it better than riaprox?
+             if (raprox > riaprox) then
+                id1 = 0
+                riaprox = raprox
+             end if
+             ! default to rother
+             raprox = rother
+          else
+             if (ier > 0) nwarn = nwarn + 1
+             xtemp = xtemp - xcar
+             rr2 = dot_product(xtemp,xtemp)
+             if (rr2 > bsr2) then
+                id2 = itry(k)
+                exit
+             else
+                ! it is in the inner part of the basin: is it better than riaprox?
+                if (raprox > riaprox) then
+                   id1 = 0
+                   riaprox = raprox
+                end if
+                ! default to rother
+                raprox = rother
+             end if
+          end if
+       end do
+
+       ! Use final riaprox and raprox
+       if (raprox == VBIG .or. riaprox == 0d0) then
+          call ferror('bisect_msurface','Can not find ray limits.',faterr)
+       else
+          xin = xcar + riaprox * unit
+          xfin = xcar + raprox * unit
+       end if
+
+       call lim_surf(cpid,xin,xfin,prec,xmed,nstep,nwarn)
+       xmed = xmed - xcar
+       rlim = sqrt(dot_product(xmed,xmed))
+       if (verbose) then
+          !$omp critical (IO)
+          write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,"(",I1,")",1X,E14.6,2X,E14.6,1X,"(",I1,") ",I8)') &
+             j,srf%nv,riaprox*dunit0(iunit),id1,rlim*dunit0(iunit),raprox*dunit0(iunit),id2,nstep
+          !$omp end critical (IO)
+       end if
+
+       ! accumulate 
+       !$omp ATOMIC
+       nwarn0 = nwarn0 + nwarn
+       !$omp ATOMIC
+       rnearsum = rnearsum + riaprox
+       !$omp ATOMIC
+       rfarsum = rfarsum + raprox
+       !$omp ATOMIC
+       rzfssum = rzfssum + rlim
+       !$omp ATOMIC
+       rnearmin = min(rnearmin,riaprox)
+       !$omp ATOMIC
+       rfarmax = max(rfarmax,raprox)
+       !$omp ATOMIC
+       idone = idone + 1
+       !$omp critical (srfwrite)
+       srf%r(j) = rlim
+       !$omp end critical (srfwrite)
+    enddo
+    !$omp end parallel do
+
+    if (verbose) then
+       if (nwarn0 > 0) then
+          write (uout,'("+ nwarns = ",I8)') nwarn0
+          ! call ferror('bisect_msurface',"Some gradient paths were not terminated",warning)
+       end if
+       write (uout,'(A/)') "+ End of bisection "
+    end if
+
+  end subroutine bisect_msurface
+
+  !> Determine the surface representing the primary bundle with seed
+  !> srf%n (cartesian) by bisection.
+  subroutine bundle_msurface(srf,prec,verbose)
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
+    use surface, only: minisurf
+    use global, only: rbetadef
+    use tools_math, only: norm
+    use tools_io, only: uout, string, faterr, ferror
+    use param, only: vbig
+    type(minisurf), intent(inout) :: srf
+    real*8, intent(in) :: prec
+    logical, intent(in) :: verbose
+
+    integer :: i, j, nwarn, nwarn0
+    integer :: nstep, iup, ier
+    real*8 :: xtemp(3), xseed(3), xup(3), xdn(3), xin(3), xfin(3)
+    real*8 :: xmed(3), unit(3), raprox, riaprox
+    logical :: ok
+    real*8 :: oldrbeta(sy%f(sy%iref)%ncp), rmin, rmax
+    real*8 :: bsr, bsr2, plen
+
+    ! define the close-to-nucleus condition
+    if (sy%f(sy%iref)%type == type_grid) then
+       bsr2 = bs_rnearnuc2_grid
+       bsr = bs_rnearnuc_grid
+    else
+       bsr2 = bs_rnearnuc2
+       bsr = bs_rnearnuc
+    end if
+
+    iup = -sign(1,sy%f(sy%iref)%typnuc)
+
+    xseed = srf%n
+
+    ! beta spheres + primary bundles is not such a good idea.
+    oldrbeta = sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta
+    sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta = Rbetadef
+
+    ! alpha-limit
+    xtemp = xseed
+    call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
+    xup = xtemp
+    ! omega-limit
+    xtemp = xseed
+    call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
+    xdn = xtemp
+
+    if (verbose) then
+       write (uout,'("+ Starting bisection (primary bundle)")')
+       write (uout,'("  Seed (cartesian coords.) : ",3(A,X))') (string(xseed(j),'e',decimal=6),j=1,3)
+       write (uout,'("  Seed up-limit (omega) : ",3(A,X))') (string(xup(j),'e',decimal=6),j=1,3)
+       write (uout,'("  Seed dn-limit (alpha) : ",3(A,X))') (string(xdn(j),'e',decimal=6),j=1,3)
+       write (uout,'("  GP tracing maximum num. of steps : ",A)') string(BS_mstep)
+       write (uout,*)
+       write (uout,'("  (",A5,"/",A5,") ",A12,1X,A12,2X,A12,1X,A8)') &
+          "nray","mray","r_inner","r_ias","r_outer","nstep"
+       write (uout,'(64("-"))') 
+    end if
+
+    rmin = VBIG
+    rmax = 0d0
+    nwarn = 0
+    nwarn0 = 0
+    !$omp parallel do private(unit,raprox,riaprox,ok,xtemp,nstep,ier,&
+    !$omp  xin,xfin,xmed,nwarn,plen) schedule(guided)
+    do i = 1, srf%nv
+       nwarn = 0
+       ! skip surfed points
+       if (srf%r(i) > 0d0) cycle
+
+       ! unitary vector for the direction of the ray
+       unit = (/sin(srf%th(i)) * cos(srf%ph(i)), sin(srf%th(i)) * sin(srf%ph(i)), cos(srf%th(i))/)
+
+       raprox = 0.5d0 * maxval(sy%c%aa)
+       riaprox = 0.5d0 * maxval(sy%c%aa)
+
+       ! inner limit, reuse previous steps riaprox
+       if (rmin /= VBIG) then
+          riaprox = rmin
+       end if
+       ok = .false.
+       do while (riaprox > 1d-5)
+          xtemp = xseed + riaprox * unit
+          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
+          if (ier == 3)  then
+             ok = .false.
+          else
+             if (ier > 0) nwarn = nwarn + 1
+             xtemp = xtemp - xup
+             ok = (dot_product(xtemp,xtemp) <= bsr2)
+          end if
+          if (ok) then
+             ! omega-limit
+             xtemp = xseed + riaprox * unit
+             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
+             if (ier == 3)  then
+                ok = .false.
+             else
+                if (ier > 0) nwarn = nwarn + 1
+                xtemp = xtemp - xdn
+                ok = ok .and. (dot_product(xtemp,xtemp) <= bsr2)
+             end if
+          end if
+          if (ok) then
+             exit
+          else
+             raprox = riaprox
+             riaprox = 0.5d0 * riaprox
+          end if
+       end do
+       if (riaprox <= 1d-5) then
+          call ferror('bundle_msurface','Can not find inner bracket limit.',faterr)
+       end if
+
+       ! outer limit, reuse previous steps raprox
+       if (rmax /= 0d0) raprox = rmax
+       ok = .false.
+       do while (raprox < 10d0 * maxval(sy%c%aa))
+          xtemp = xseed + raprox * unit
+          call sy%f(sy%iref)%gradient(xtemp,+1,nstep,ier,.true.,plen)
+          if (ier == 3)  then
+             ok = .false.
+          else
+             if (ier > 0) nwarn = nwarn + 1
+             xtemp = xtemp - xup
+             ok = (dot_product(xtemp,xtemp) > bsr2)
+          endif
+          if (.not.ok) then
+             ! omega-limit
+             xtemp = xseed + raprox * unit
+             call sy%f(sy%iref)%gradient(xtemp,-1,nstep,ier,.true.,plen)
+             if (ier == 3)  then
+                ok = .false.
+             else
+                if (ier > 0) nwarn = nwarn + 1
+                xtemp = xtemp - xdn
+                ok = ok .or. (dot_product(xtemp,xtemp) > bsr2)
+             end if
+          end if
+          if (ok) then
+             exit
+          else
+             if (raprox > riaprox) riaprox = raprox
+             raprox = 2d0 * raprox
+          end if
+       end do
+       if (raprox > 10d0 * maxval(sy%c%aa)) then
+          call ferror('bundle_msurface','Can not find outer bracket limit.',faterr)
+       end if
+
+       xin = xseed + riaprox * unit
+       xfin = xseed + raprox * unit
+
+       call lim_bundle(xup,xdn,xin,xfin,prec,xmed,nstep,nwarn)
+
+       xmed = xmed - xseed
+
+       !$omp ATOMIC
+       nwarn0 = nwarn0 + nwarn
+       !$omp ATOMIC
+       rmin = min(rmin,riaprox)
+       !$omp ATOMIC
+       rmax = max(rmax,raprox)
+       !$omp critical (srfwrite)
+       srf%r(i) = norm(xmed)
+       !$omp end critical (srfwrite)
+       if (verbose) then
+          !$omp critical (IO)
+          write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,E14.6,2X,E14.6,1X,I8)') &
+             i,srf%nv,riaprox,srf%r(i),raprox,nstep
+          !$omp end critical (IO)
+       end if
+    enddo
+    !$omp end parallel do
+
+    if (nwarn0 > 0) then
+       write (uout,'("* nwarns = ",A)') string(nwarn0)
+       ! call ferror('bundle_msurface',"Some gradient paths were not terminated",warning)
+    end if
+    if (verbose) then
+       write (uout,'(A/)') "+ End of bisection "
+    end if
+
+    ! Restore the original beta radius
+    sy%f(sy%iref)%cp(1:sy%f(sy%iref)%ncp)%rbeta = oldrbeta
+
+  end subroutine bundle_msurface
+
+  !> Integrate the atomic basin of the non-equivalent CP cpid 
+  !> using a fixed 2d Gauss-Legendre quadrature with n1 = ntheta
+  !> and n2 = nphi. If usefiles, read and/or write the .int files
+  !> containing the ZFS description for each atom. 
+  subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
+    use systemmod, only: sy
+    use surface, only: minisurf
+    use integration, only: gauleg_mquad
+    use global, only: int_gauleg, int_iasprec
+    use tools_io, only: uout
+    real*8, intent(out) :: atprop(sy%npropi)
+    integer, intent(in) :: n1, n2, cpid
+    logical, intent(in) :: usefiles
+    logical, intent(in) :: verbose
+
+    type(minisurf) :: srf
+
+    real*8 :: xnuc(3)
+    integer :: ierr
+    integer :: ntheta, nphi, m
+    integer :: j
+    logical :: existfile
+    real*8 :: sprop(sy%npropi)
+    real*8 :: r_betaint, abserr, iaserr(sy%npropi)
+    integer :: neval, meaneval
+    integer :: smin, smax
+
+    smin = 1
+    smax = sy%c%nneq
+
+    ntheta = n1
+    nphi = n2
+    m = 3 * ntheta * nphi + 1
+    call srf%init(m,0)
+    call srf%clean()
+    call srf%gauleg_nodes(ntheta,nphi)
+
+    atprop = 0d0
+
+    ! initialize the surface for this atom
+    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
+    srf%n = xnuc
+    srf%r = -1d0
+
+    ! Read the input file
+    if (usefiles .and. allocated(intfile)) then
+       inquire(file=intfile(cpid),exist=existfile)
+       if (existfile) then
+          call srf%readint(ntheta,nphi,INT_gauleg,intfile(cpid),ierr)
+          ! The reading was not successful -> bisect
+          if (ierr > 0) then
+             existfile = .false.
+             srf%r = -1d0
+          end if
+       end if
+    end if
+       
+    ! bisect the surface 
+    if (.not.(usefiles .and. existfile)) then
+       ! bisect the surface
+       call bisect_msurface(srf,cpid,INT_iasprec,verbose)
+    end if
+       
+    ! beta-sphere... skip:
+    ! 1. by user's request
+    ! 2. the scalar field has shells and this is an effective nucleus
+    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
+
+    if (verbose) then
+       write (uout,'(a)') " Integrating the sphere..."
+    end if
+    ! integrate the sphere
+    if (bs_spherequad_type == INT_gauleg) then
+       call sphereintegrals_gauleg(xnuc,r_betaint,bs_spherequad_ntheta,bs_spherequad_nphi,sprop,&
+          abserr,neval,meaneval)
+    else
+       call sphereintegrals_lebedev(xnuc,r_betaint,bs_spherequad_nleb,sprop,abserr,neval,meaneval)
+    end if
+    if (verbose) then
+       write (uout,'(a,i10)') " Number of evaluations : ", neval
+       write (uout,'(a,i10)') " Avg. evaluations per ray : ", meaneval
+
+       write (uout,'(a,1p,E12.4)') " Beta-sphere radius : ",r_betaint
+       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
+          "IAS error","Integral (sph.)"
+       write (uout,'(2x,42("-"))')
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
+       end do
+       write (uout,*)
+    end if
+
+    ! calculate properties
+    if (verbose) then
+       write (uout,'(a)') " Summing the quadrature formula..."
+    end if
+    call gauleg_mquad(srf,ntheta,nphi,r_betaint,atprop,abserr,neval,iaserr)
+    if (verbose) then
+       write (uout,'(a,i10)') " Number of evaluations : ", neval
+       write (uout,'(a,i10)') " Avg. evaluations per ray : ", ceiling(real(neval,8) / srf%nv)
+       write (uout,'(2xa2,x,a10,x,a12,x,a17)') "id","property",&
+          "IAS error","Integral"
+       write (uout,'(2x,42("-"))')
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
+       end do
+       write (uout,*)
+    end if
+
+    ! sum 
+    atprop = atprop + sprop
+
+    if (usefiles) then
+       ! write the surface
+       write (uout,'(" Writing basin in file : ",A)') trim(intfile(cpid))
+       write (uout,*)
+       call srf%writeint(ntheta,nphi,INT_gauleg,intfile(cpid))
+    end if
+
+    call srf%end()
+
+  end subroutine integrals_gauleg
+
+  !> Integrate the atomic basin of the non-equivalent CP cpid (0 for
+  !> all) using a fixed Lebedev quadrature with nleb points If
+  !> usefiles, read and/or write the .int files containing the ZFS
+  !> description for each atom.
+  subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
+    use systemmod, only: sy
+    use integration, only: lebedev_mquad
+    use surface, only: minisurf
+    use global, only: int_iasprec, int_gauleg
+    use tools_io, only: uout
+
+    real*8, intent(out) :: atprop(sy%npropi)
+    integer, intent(in) :: nleb, cpid
+    logical, intent(in) :: usefiles
+    logical, intent(in) :: verbose
+
+    type(minisurf) :: srf
+
+    real*8 :: xnuc(3)
+    integer :: ierr
+    integer :: j
+    logical :: existfile
+    real*8 :: sprop(sy%npropi)
+    real*8 :: r_betaint, abserr, iaserr(sy%npropi)
+    integer :: neval, meaneval
+    integer :: smin, smax
+
+    smin = 1
+    smax = sy%c%nneq
+
+    call srf%init(nleb,0)
+    call srf%clean()
+    call srf%lebedev_nodes(nleb)
+
+    atprop = 0d0
+
+    ! initialize the surface for this atom
+    xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
+    srf%n = xnuc
+    srf%r = -1d0
+       
+    ! Read the input file
+    if (usefiles .and. allocated(intfile)) then
+       ! Name of the input / output file
+       inquire(file=intfile(cpid),exist=existfile)
+       if (existfile) then
+          call srf%readint(nleb,0,INT_lebedev,intfile(cpid),ierr)
+          ! The reading was not successful -> bisect
+          if (ierr > 0) then
+             existfile = .false.
+             srf%r = -1d0
+          end if
+       end if
+    end if
+
+    ! bisect the surface 
+    ! 1. It is not loaded from an int file
+    ! 2. This is not a 'spheres-only' block run
+    if (.not.(usefiles .and. existfile)) then
+       ! bisect the surface
+       call bisect_msurface(srf,cpid,INT_iasprec,verbose)
+    end if
+    
+    ! beta-sphere integration
+    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
+    if (verbose) then
+       write (uout,'(a)') " Integrating the sphere..."
+    end if
+    ! integrate the sphere
+    if (bs_spherequad_type == INT_gauleg) then
+       call sphereintegrals_gauleg(xnuc,r_betaint, &
+          bs_spherequad_ntheta,bs_spherequad_nphi,sprop,&
+          abserr,neval,meaneval)
+    else
+       call sphereintegrals_lebedev(xnuc,r_betaint, &
+          bs_spherequad_nleb,sprop,abserr,neval,meaneval)
+    end if
+
+    if (verbose) then
+       write (uout,'(a,1p,E12.4)') " Beta-sphere radius : ",r_betaint
+       write (uout,'(a,i10)') " Number of evaluations : ", neval
+       write (uout,'(a,i10)') " Avg. evaluations per ray : ", meaneval
+       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
+          "IAS error","Integral (sph.)"
+       write (uout,'(2x,42("-"))')
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
+       end do
+       write (uout,*)
+    end if
+
+    ! calculate properties
+    if (verbose) then
+       write (uout,'(a)') " Summing the quadrature formula..."
+    end if
+    call lebedev_mquad(srf,nleb,r_betaint,atprop,abserr,neval,iaserr)
+    if (verbose) then
+       write (uout,'(a,i10)') " Number of evaluations : ", neval
+       write (uout,'(a,i10)') " Avg. evaluations per ray : ", ceiling(real(neval,8) / srf%nv)
+       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
+          "IAS error","Integral (neg.)"
+       write (uout,'(2x,42("-"))')
+       do j = 1, sy%npropi
+          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
+       end do
+       write (uout,*)
+    end if
+       
+    ! sum 
+    atprop = atprop + sprop
+
+    if (usefiles) then
+       ! write the surface
+       write (uout,'(" Writing basin in file : ",A)') trim(intfile(cpid))
+       write (uout,*)
+       call srf%writeint(nleb,0,INT_lebedev,intfile(cpid))
+    end if
+
+    call srf%end()
+
+  end subroutine integrals_lebedev
+
   !> Header output for the integrals subroutine.
-  module subroutine integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
+  subroutine integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
     use systemmod, only: sy
     use global, only: int_gauleg, int_radquad_type, int_radquad_nr,&
        int_qags, int_radquad_abserr, int_radquad_relerr, int_qng, int_qag,&
@@ -1952,7 +1967,7 @@ contains
   end subroutine integrals_header
 
   !> Write the minisurface s to the OFF file offfile.
-  module subroutine minisurf_write3dmodel(s,fmt,file,expr)
+  subroutine minisurf_write3dmodel(s,fmt,file,expr)
     use systemmod, only: sy
     use surface, only: minisurf
     use graphics, only: grhandle
@@ -1996,7 +2011,7 @@ contains
   end subroutine minisurf_write3dmodel
 
   !> Write the surface s to the BASIN file offfile. Minisurface version.
-  module subroutine minisurf_writebasin(s,offfile,doprops)
+  subroutine minisurf_writebasin(s,offfile,doprops)
     use systemmod, only: sy
     use surface, only: minisurf
     use tools_io, only: faterr, ferror, fopen_write, fclose
@@ -2071,7 +2086,7 @@ contains
 
   !> Write the minisurface s and scalar field information on the
   !> basin rays to the DBASIN file offfile.
-  module subroutine minisurf_writedbasin(s,npoint,offfile)
+  subroutine minisurf_writedbasin(s,npoint,offfile)
     use systemmod, only: sy
     use surface, only: minisurf
     use tools_io, only: ferror, faterr, fopen_write, fclose
@@ -2130,7 +2145,7 @@ contains
 
   !> Transform the points in the minisurface s using the symmetry operation op 
   !> and the translation vector tvec.
-  module subroutine minisurf_transform(s,op,tvec)
+  subroutine minisurf_transform(s,op,tvec)
     use systemmod, only: sy
     use surface, only: minisurf
     type(minisurf) :: s

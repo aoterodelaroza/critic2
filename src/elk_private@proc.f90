@@ -25,6 +25,13 @@
 submodule (elk_private) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine elk_geometry(f,filename)
+  ! subroutine read_elk_state(f,filename)
+  ! subroutine read_elk_myout(f,filename)
+  ! subroutine sortidx(n,a,idx)
+  ! subroutine local_nearest_atom(f,xp,nid,dist,lvec)
+
   ! private to the module
   integer, parameter :: matom = 100
 
@@ -83,11 +90,195 @@ contains
 
   end subroutine read_out
 
+  !> Calculate the density and its derivatives at a point in the unit
+  !> cell vpl (crystallographic).  This routine is thread-safe.
+  module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
+    use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
+    use tools_io, only: ferror, faterr
+    class(elkwfn), intent(in) :: f
+    real(8), intent(in) :: vpl(3)
+    real(8), intent(out) :: frho, gfrho(3), hfrho(3,3)
+    integer, intent(in) :: nder
+
+    integer :: nid, lvec(3)
+    real*8 :: dist
+    integer :: i, j
+    real*8 :: ct1, st1, fac1, fac2
+    integer :: is
+    integer :: ir0
+    integer l,m,lm,ig,ifg
+    real(8) r,tp(2), t0, t1, t2
+    real(8) v1(3)
+    complex*16 :: ylm((f%lmaxvr+1+2)**2)
+    real*8 :: xrho, xgrad(3)
+    complex*16 :: xgrad1(3), xgrad2(3)
+    real*8 :: xhess(6)
+    complex*16 :: xhess1(6), xhess2(6)
+    real*8 :: isig
+
+    integer :: elem
+    real*8, parameter :: twopi1 = 1d0 / sqrt(2d0)
+    complex*16, parameter :: twopi1i = 1d0 / sqrt(2d0) / (0d0,1d0)
+
+    ! inline functions
+    elem(l,m)=l*(l+1)+m+1
+    !
+
+    frho = 0d0
+    gfrho = 0d0
+    hfrho = 0d0
+    nid = 0
+    call local_nearest_atom(f,vpl,nid,dist,lvec)
+    ! write (*,*) "vpl:", vpl
+    ! do i = 1, f%ncel0
+    !    write (*,*) i, matmul(f%x2c,f%xcel(:,i))
+    ! end do
+    ! write (*,*) "nid:", nid
+    ! write (*,*) "pos:", matmul(f%x2c,f%xcel(:,nid))
+    ! write (*,*) "dist:", dist
+    ! write (*,*) "rhomt:", f%rhomt(1,1,:)
+
+    ! inside a muffin tin
+    is = f%iesp(nid)
+    if (dist < f%rmt(is)) then
+       v1 = vpl + lvec - f%xcel(:,nid)
+       v1 = matmul(f%x2c,v1)
+       call tosphere(v1,r,tp)
+       if (abs(r-dist) > 1d-12) &
+          call ferror("elk_rho2","invalid radius",faterr)
+       call genylm(f%lmaxvr+2,tp,ylm)
+       r = min(max(r,f%spr(1,is)),f%rmt(is))
+       ir0 = min(max(floor(log(r / f%spr_a(is)) / &
+          f%spr_b(is) + 1),1),f%nrmt(is))
+
+       lm = 0
+       isig = -1d0
+       do l = 0, f%lmaxvr
+          do m = -l, l
+             !isig = (-1)**m
+             isig = -isig
+             lm = lm + 1
+             call radial_derivs(f%rhomt(1:f%nrmt(is),lm,nid),t0,t1,t2,r,f%spr_a(is),f%spr_b(is))
+             call ylmderiv(ylm,r,l,m,t0,t1,t2,xgrad1,xhess1)
+             if (m /= 0) call ylmderiv(ylm,r,l,-m,t0,t1,t2,xgrad2,xhess2)
+             if (m > 0) then
+                xrho = real((ylm(elem(l,m)) + isig * ylm(elem(l,-m))),8) * twopi1
+                xgrad = real(xgrad1 + isig * xgrad2,8) * twopi1
+                xhess = real(xhess1 + isig * xhess2,8) * twopi1
+             else if (m < 0) then
+                xrho = real((ylm(elem(l,m)) - isig * ylm(elem(l,-m))) * twopi1i,8)
+                xgrad = real((xgrad1 - isig * xgrad2) * twopi1i,8)
+                xhess = real((xhess1 - isig * xhess2) * twopi1i,8)
+             else
+                xrho = dble(ylm(elem(l,0)))
+                xgrad = real(xgrad1,8)
+                xhess = real(xhess1,8)
+             end if
+             frho = frho + t0 * xrho
+             gfrho = gfrho + xgrad
+             do i = 1, 3
+                hfrho(1,i) = hfrho(1,i) + xhess(i)
+             end do
+             hfrho(2,2) = hfrho(2,2) + xhess(4)
+             hfrho(2,3) = hfrho(2,3) + xhess(5)
+             hfrho(3,3) = hfrho(3,3) + xhess(6)
+          end do
+       end do
+
+       ! nullify gradient at the nucleus
+       if (dist < 1d-5) then
+          gfrho = 0d0
+       end if
+    else
+       ! interstitial
+       v1 = matmul(f%x2c,vpl)
+       do ig=1,f%ngvec
+          ifg=f%igfft(ig)
+          t1=f%vgc(1,ig)*v1(1)+f%vgc(2,ig)*v1(2)+f%vgc(3,ig)*v1(3)
+          ct1 = cos(t1)
+          st1 = sin(t1)
+          fac1 = dble(f%rhok(ifg)*cmplx(ct1,st1,8))
+          fac2 = dble(f%rhok(ifg)*cmplx(-st1,ct1,8))
+
+          frho = frho + fac1
+          if (nder <= 0) cycle
+          gfrho = gfrho + fac2 * f%vgc(:,ig) 
+          if (nder <= 1) cycle
+          do i = 1, 3
+             do j = i, 3
+                hfrho(i,j) = hfrho(i,j) - fac1 * f%vgc(i,ig) * f%vgc(j,ig)
+             end do
+          end do
+       end do
+    end if
+
+    ! fill missing hessian elements
+    do i = 1, 3
+       do j = i+1, 3
+          hfrho(j,i) = hfrho(i,j)
+       end do
+    end do
+
+    ! transform to derivatives wrt cryst coordinates
+    gfrho = matmul(transpose(f%x2c),gfrho)
+    hfrho = matmul(matmul(transpose(f%x2c),hfrho),f%x2c)
+
+  end subroutine rho2
+
+  !> Convert a given wien2k scalar field into its laplacian.
+  module subroutine tolap(f)
+    use tools_math, only: radial_derivs
+    class(elkwfn), intent(inout) :: f
+
+    integer :: ig, ifg
+    real*8 :: krec2, rho, rho1, rho2
+    integer :: nspecies
+    integer :: l, lp1, m, lm, is, ir, iat
+    real*8 :: r, r1, r2
+    real*8, allocatable :: rgrid(:)
+
+    ! atomic spheres
+    nspecies = maxval(f%iesp)
+    allocate(rgrid(size(f%rhomt,1)))
+    do iat = 1, f%ncel0
+       is = f%iesp(iat)
+       lm = 0
+       do l = 0, f%lmaxvr
+          lp1 = l + 1
+          do m = -l, l
+             lm = lm + 1
+             ! save the old radial grid
+             rgrid = f%rhomt(1:f%nrmt(is),lm,iat)
+
+             ! run over all radial points
+             do ir = 1, f%nrmt(is)
+                r = f%spr(ir,is)
+                r1 = 1d0 / r
+                r2 = r1 * r1
+                call radial_derivs(rgrid(1:f%nrmt(is)),rho,rho1,rho2,r,f%spr_a(is),f%spr_b(is))
+                f%rhomt(ir,lm,iat) = -l*lp1*rho*r2 + 2d0*r1*rho1 + rho2
+             end do
+          end do
+       end do
+    end do
+    deallocate(rgrid)
+
+    ! interstitial
+    do ig = 1, f%ngvec
+       ifg = f%igfft(ig)
+       krec2 = -dot_product(f%vgc(:,ig),f%vgc(:,ig))
+       f%rhok(ifg) = f%rhok(ifg) * krec2
+    end do
+
+  end subroutine tolap
+
+  !xx! private procedures
+
   ! The following code has been adapted from the elk distribution,
   ! version 1.3.2 Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma
   ! and C. Ambrosch-Draxl.  This file is distributed under the terms
   ! of the GNU General Public License.
-  module subroutine elk_geometry(f,filename)
+  subroutine elk_geometry(f,filename)
     use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, zatguess,&
        fclose
     use tools_math, only: matinv
@@ -162,8 +353,7 @@ contains
 
   end subroutine elk_geometry
 
-  !xx! private readers
-  module subroutine read_elk_state(f,filename)
+  subroutine read_elk_state(f,filename)
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det
     use param, only: pi
@@ -363,8 +553,7 @@ contains
 
   end subroutine read_elk_state
 
-  !xx! private readers
-  module subroutine read_elk_myout(f,filename)
+  subroutine read_elk_myout(f,filename)
     use tools_io, only: ferror, faterr, fopen_read, fclose
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
@@ -412,142 +601,7 @@ contains
 
   end subroutine read_elk_myout
 
-  !> Calculate the density and its derivatives at a point in the unit
-  !> cell vpl (crystallographic).  This routine is thread-safe.
-  module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
-    use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
-    use tools_io, only: ferror, faterr
-    class(elkwfn), intent(in) :: f
-    real(8), intent(in) :: vpl(3)
-    real(8), intent(out) :: frho, gfrho(3), hfrho(3,3)
-    integer, intent(in) :: nder
-
-    integer :: nid, lvec(3)
-    real*8 :: dist
-    integer :: i, j
-    real*8 :: ct1, st1, fac1, fac2
-    integer :: is
-    integer :: ir0
-    integer l,m,lm,ig,ifg
-    real(8) r,tp(2), t0, t1, t2
-    real(8) v1(3)
-    complex*16 :: ylm((f%lmaxvr+1+2)**2)
-    real*8 :: xrho, xgrad(3)
-    complex*16 :: xgrad1(3), xgrad2(3)
-    real*8 :: xhess(6)
-    complex*16 :: xhess1(6), xhess2(6)
-    real*8 :: isig
-
-    integer :: elem
-    real*8, parameter :: twopi1 = 1d0 / sqrt(2d0)
-    complex*16, parameter :: twopi1i = 1d0 / sqrt(2d0) / (0d0,1d0)
-
-    ! inline functions
-    elem(l,m)=l*(l+1)+m+1
-    !
-
-    frho = 0d0
-    gfrho = 0d0
-    hfrho = 0d0
-    nid = 0
-    call local_nearest_atom(f,vpl,nid,dist,lvec)
-    ! write (*,*) "vpl:", vpl
-    ! do i = 1, f%ncel0
-    !    write (*,*) i, matmul(f%x2c,f%xcel(:,i))
-    ! end do
-    ! write (*,*) "nid:", nid
-    ! write (*,*) "pos:", matmul(f%x2c,f%xcel(:,nid))
-    ! write (*,*) "dist:", dist
-    ! write (*,*) "rhomt:", f%rhomt(1,1,:)
-
-    ! inside a muffin tin
-    is = f%iesp(nid)
-    if (dist < f%rmt(is)) then
-       v1 = vpl + lvec - f%xcel(:,nid)
-       v1 = matmul(f%x2c,v1)
-       call tosphere(v1,r,tp)
-       if (abs(r-dist) > 1d-12) &
-          call ferror("elk_rho2","invalid radius",faterr)
-       call genylm(f%lmaxvr+2,tp,ylm)
-       r = min(max(r,f%spr(1,is)),f%rmt(is))
-       ir0 = min(max(floor(log(r / f%spr_a(is)) / &
-          f%spr_b(is) + 1),1),f%nrmt(is))
-
-       lm = 0
-       isig = -1d0
-       do l = 0, f%lmaxvr
-          do m = -l, l
-             !isig = (-1)**m
-             isig = -isig
-             lm = lm + 1
-             call radial_derivs(f%rhomt(1:f%nrmt(is),lm,nid),t0,t1,t2,r,f%spr_a(is),f%spr_b(is))
-             call ylmderiv(ylm,r,l,m,t0,t1,t2,xgrad1,xhess1)
-             if (m /= 0) call ylmderiv(ylm,r,l,-m,t0,t1,t2,xgrad2,xhess2)
-             if (m > 0) then
-                xrho = real((ylm(elem(l,m)) + isig * ylm(elem(l,-m))),8) * twopi1
-                xgrad = real(xgrad1 + isig * xgrad2,8) * twopi1
-                xhess = real(xhess1 + isig * xhess2,8) * twopi1
-             else if (m < 0) then
-                xrho = real((ylm(elem(l,m)) - isig * ylm(elem(l,-m))) * twopi1i,8)
-                xgrad = real((xgrad1 - isig * xgrad2) * twopi1i,8)
-                xhess = real((xhess1 - isig * xhess2) * twopi1i,8)
-             else
-                xrho = dble(ylm(elem(l,0)))
-                xgrad = real(xgrad1,8)
-                xhess = real(xhess1,8)
-             end if
-             frho = frho + t0 * xrho
-             gfrho = gfrho + xgrad
-             do i = 1, 3
-                hfrho(1,i) = hfrho(1,i) + xhess(i)
-             end do
-             hfrho(2,2) = hfrho(2,2) + xhess(4)
-             hfrho(2,3) = hfrho(2,3) + xhess(5)
-             hfrho(3,3) = hfrho(3,3) + xhess(6)
-          end do
-       end do
-
-       ! nullify gradient at the nucleus
-       if (dist < 1d-5) then
-          gfrho = 0d0
-       end if
-    else
-       ! interstitial
-       v1 = matmul(f%x2c,vpl)
-       do ig=1,f%ngvec
-          ifg=f%igfft(ig)
-          t1=f%vgc(1,ig)*v1(1)+f%vgc(2,ig)*v1(2)+f%vgc(3,ig)*v1(3)
-          ct1 = cos(t1)
-          st1 = sin(t1)
-          fac1 = dble(f%rhok(ifg)*cmplx(ct1,st1,8))
-          fac2 = dble(f%rhok(ifg)*cmplx(-st1,ct1,8))
-
-          frho = frho + fac1
-          if (nder <= 0) cycle
-          gfrho = gfrho + fac2 * f%vgc(:,ig) 
-          if (nder <= 1) cycle
-          do i = 1, 3
-             do j = i, 3
-                hfrho(i,j) = hfrho(i,j) - fac1 * f%vgc(i,ig) * f%vgc(j,ig)
-             end do
-          end do
-       end do
-    end if
-
-    ! fill missing hessian elements
-    do i = 1, 3
-       do j = i+1, 3
-          hfrho(j,i) = hfrho(i,j)
-       end do
-    end do
-
-    ! transform to derivatives wrt cryst coordinates
-    gfrho = matmul(transpose(f%x2c),gfrho)
-    hfrho = matmul(matmul(transpose(f%x2c),hfrho),f%x2c)
-
-  end subroutine rho2
-
-  module subroutine sortidx(n,a,idx)
+  subroutine sortidx(n,a,idx)
     ! !INPUT/OUTPUT PARAMETERS:
     !   n   : number of elements in array (in,integer)
     !   a   : real array (in,real(n))
@@ -613,56 +667,9 @@ contains
     goto 10
   end subroutine sortidx
 
-  !> Convert a given wien2k scalar field into its laplacian.
-  module subroutine tolap(f)
-    use tools_math, only: radial_derivs
-    class(elkwfn), intent(inout) :: f
-
-    integer :: ig, ifg
-    real*8 :: krec2, rho, rho1, rho2
-    integer :: nspecies
-    integer :: l, lp1, m, lm, is, ir, iat
-    real*8 :: r, r1, r2
-    real*8, allocatable :: rgrid(:)
-
-    ! atomic spheres
-    nspecies = maxval(f%iesp)
-    allocate(rgrid(size(f%rhomt,1)))
-    do iat = 1, f%ncel0
-       is = f%iesp(iat)
-       lm = 0
-       do l = 0, f%lmaxvr
-          lp1 = l + 1
-          do m = -l, l
-             lm = lm + 1
-             ! save the old radial grid
-             rgrid = f%rhomt(1:f%nrmt(is),lm,iat)
-
-             ! run over all radial points
-             do ir = 1, f%nrmt(is)
-                r = f%spr(ir,is)
-                r1 = 1d0 / r
-                r2 = r1 * r1
-                call radial_derivs(rgrid(1:f%nrmt(is)),rho,rho1,rho2,r,f%spr_a(is),f%spr_b(is))
-                f%rhomt(ir,lm,iat) = -l*lp1*rho*r2 + 2d0*r1*rho1 + rho2
-             end do
-          end do
-       end do
-    end do
-    deallocate(rgrid)
-
-    ! interstitial
-    do ig = 1, f%ngvec
-       ifg = f%igfft(ig)
-       krec2 = -dot_product(f%vgc(:,ig),f%vgc(:,ig))
-       f%rhok(ifg) = f%rhok(ifg) * krec2
-    end do
-
-  end subroutine tolap
-
   !> Calculate the nearest atom based on the structural information
   !> in elkwfn.
-  module subroutine local_nearest_atom(f,xp,nid,dist,lvec)
+  subroutine local_nearest_atom(f,xp,nid,dist,lvec)
     class(elkwfn), intent(in) :: f
     real*8, intent(in) :: xp(:)
     integer, intent(inout) :: nid

@@ -39,6 +39,21 @@
 submodule (bader) proc
   implicit none
 
+  !xx! private procedure
+  ! subroutine refine_edge(f,irefine_edge,ref_itrs)
+  ! subroutine max_neargrid(f,p)
+  ! subroutine step_neargrid(f,p)
+  ! subroutine step_ongrid(f,p)
+  ! function rho_grad_dir(f,p) result(res)
+  ! function is_max(f,p)
+  ! subroutine pbc(p)
+  ! function rho_val(ff,p1,p2,p3)
+  ! function volnum_val(p1,p2,p3)
+  ! subroutine assign_surrounding_pts(p)
+  ! subroutine known_volnum_ongrid(p)
+  ! function is_vol_edge(p)
+  ! subroutine reassign_volnum_ongrid2(p)
+
   ! private to the module, initialized at the beginning of bader_integrate
   integer, allocatable :: volnum(:,:,:) !< Bader volume identifier
   integer, allocatable :: known(:,:,:) !< Is the point known?
@@ -223,7 +238,9 @@ contains
 
   end subroutine bader_integrate
 
-  module subroutine refine_edge(f,irefine_edge,ref_itrs)
+  !xx! private procedure
+
+  subroutine refine_edge(f,irefine_edge,ref_itrs)
     use tools_io, only: faterr, ferror
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: irefine_edge
@@ -350,7 +367,7 @@ contains
   ! max_neargrid
   ! From the point p do a maximization on the charge density grid and
   ! assign the maximum found to the volnum array.
-  module subroutine max_neargrid(f,p)
+  subroutine max_neargrid(f,p)
     use types, only: realloc
     real*8, intent(in) :: f(:,:,:)
     integer, dimension(3), intent(inout) :: p
@@ -378,7 +395,7 @@ contains
   ! step_neargrid
   ! Do a single iteration of a maximization on the charge density 
   ! grid from the point (px,py,pz).
-  module subroutine step_neargrid(f,p)
+  subroutine step_neargrid(f,p)
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: p(3)
 
@@ -423,7 +440,7 @@ contains
   ! Do a single iteration of a maximization on the charge density 
   ! grid from the point (px,py,pz).  Return a logical indicating 
   ! if the current  point is a charge density maximum.
-  module subroutine step_ongrid(f,p)
+  subroutine step_ongrid(f,p)
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: p(3)
 
@@ -455,7 +472,7 @@ contains
   !rho_grad_dir
   ! Return the direction of the gradient in lattice vectors
   ! at the grid position p
-  module function rho_grad_dir(f,p) result(res)
+  function rho_grad_dir(f,p) result(res)
     real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
     real*8 :: res(3)
@@ -494,7 +511,7 @@ contains
 
   ! is_max
   ! return .true. if the grid point is a maximum of charge density
-  module function is_max(f,p)
+  function is_max(f,p)
     real*8, intent(in) :: f(:,:,:)
     integer, intent(in) :: p(3)
     logical :: is_max
@@ -524,7 +541,7 @@ contains
 
   ! pbc
   ! Wrap the point (p(1),p(2),p(3)) to the boundary conditions [0,pmax].
-  module subroutine pbc(p)
+  subroutine pbc(p)
     integer, intent(inout) :: p(3)
 
     integer :: i
@@ -542,7 +559,7 @@ contains
 
   end subroutine pbc
 
-  module function rho_val(ff,p1,p2,p3)
+  function rho_val(ff,p1,p2,p3)
     real*8, intent(in) :: ff(:,:,:)
     integer, intent(in) :: p1, p2, p3
     real*8 :: rho_val
@@ -564,7 +581,7 @@ contains
 
   end function rho_val
 
-  module function volnum_val(p1,p2,p3)
+  function volnum_val(p1,p2,p3)
     integer, intent(in) :: p1, p2, p3
     integer :: volnum_val
 
@@ -588,7 +605,7 @@ contains
   ! assign_surrounding_pts
   ! check the surrounding points of p to see if their volnum
   ! is known
-  module subroutine assign_surrounding_pts(p)
+  subroutine assign_surrounding_pts(p)
     integer, intent(in) :: p(3)
     integer :: pt(3)
 
@@ -628,7 +645,7 @@ contains
   ! known_volnum_ongrid
   ! return number of the associated bader volnum if nearest
   ! grid points are known to be associated with the same bader volnum
-  module subroutine known_volnum_ongrid(p)
+  subroutine known_volnum_ongrid(p)
     integer, intent(in) :: p(3)
 
     integer :: volnum_, p1, p2, p3
@@ -653,7 +670,7 @@ contains
 
   ! is_vol_edge
   ! return .true. if the grid point is on the edge of a Bader volume.
-  module function is_vol_edge(p)
+  function is_vol_edge(p)
     logical :: is_vol_edge
     integer, intent(in) :: p(3)
 
@@ -679,7 +696,7 @@ contains
 
   ! reassign_volnum_ongrid
   ! reassign the surrounding points of a edge point as unknown points
-  module subroutine reassign_volnum_ongrid2(p)
+  subroutine reassign_volnum_ongrid2(p)
     integer, intent(in) :: p(3)
 
     integer :: d1, d2, d3, pt(3)

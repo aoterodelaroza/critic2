@@ -18,6 +18,21 @@
 submodule (autocp) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine critshell(shmax)
+  ! subroutine writechk()
+  ! subroutine readchk()
+  ! subroutine atomic_connect_report()
+  ! subroutine cp_short_report()
+  ! subroutine barycentric(iniv,depthmax,nn,xseed)
+  ! recursive subroutine barycentric_divide(n,simp,depth)
+  ! subroutine seed_from_simplex(simp, dim, nn, xseed)
+  ! subroutine cp_long_report()
+  ! subroutine cp_vlong_report()
+  ! subroutine graph_short_report()
+  ! subroutine makegraph()
+  ! subroutine scale_ws(rad,wso,ntetrag,tetrag)
+
   ! private for barycentric, initialized at the beginning of auto
   integer :: nstack
   integer, allocatable :: barstack(:,:,:), depstack(:)
@@ -913,8 +928,10 @@ contains
 
   end subroutine cpreport
 
+  !xx! private procedures
+
   !> Calculates the neighbor environment of each non-equivalent CP.
-  module subroutine critshell(shmax)
+  subroutine critshell(shmax)
     use systemmod, only: sy
     use global, only: iunit, iunitname0, dunit0
     use tools_io, only: uout, string, ioj_center
@@ -1006,7 +1023,7 @@ contains
   end subroutine critshell
 
   !> Write the CP information to the checkpoint file.
-  module subroutine writechk()
+  subroutine writechk()
     use systemmod, only: sy
     use global, only: fileroot
     use tools_io, only: uout, fopen_write, fclose, string
@@ -1027,7 +1044,7 @@ contains
   end subroutine writechk
 
   !> Read the CP information from the checkpoint file.
-  module subroutine readchk()
+  subroutine readchk()
     use systemmod, only: sy
     use global, only: fileroot
     use tools_io, only: uout, fopen_write, string, fclose
@@ -1067,7 +1084,8 @@ contains
 
   end subroutine readchk
 
-  module subroutine atomic_connect_report()
+  !> Report on the atomic connectivity
+  subroutine atomic_connect_report()
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_center
     integer :: i, j, k, i1, i2, m1, m2
@@ -1125,8 +1143,8 @@ contains
 
   end subroutine atomic_connect_report
 
-  ! write the short report about the non-equivalent cps
-  module subroutine cp_short_report()
+  !> write the short report about the non-equivalent cps
+  subroutine cp_short_report()
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     use types, only: scalar_value
@@ -1196,7 +1214,7 @@ contains
   !> common variables nstack, barstack and depstack to store the list
   !> of simplex where a search is launched. Accumulates the seeds in
   !> xseed (number of seeds nn).
-  module subroutine barycentric(iniv,depthmax,nn,xseed)
+  subroutine barycentric(iniv,depthmax,nn,xseed)
     real*8, dimension(4,3), intent(in) :: iniv
     integer, intent(in) :: depthmax
     integer, intent(inout) :: nn
@@ -1303,7 +1321,7 @@ contains
 
   !> Recursive subdivision of the simplex simp up to some depth. uses
   !> convex coordinates and integer arithmetic.
-  recursive module subroutine barycentric_divide(n,simp,depth)
+  recursive subroutine barycentric_divide(n,simp,depth)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n
     integer, intent(in) :: simp(:,:)
@@ -1489,7 +1507,7 @@ contains
   !> max. number of seeds. depth, id and mid are only used in the
   !> output to stdout. this routine directly writes the cp to the cp
   !> list if one is found.
-  module subroutine seed_from_simplex(simp, dim, nn, xseed)
+  subroutine seed_from_simplex(simp, dim, nn, xseed)
     use systemmod, only: sy
     use types, only: realloc
     real*8, intent(in) :: simp(4,3)
@@ -1518,7 +1536,7 @@ contains
   end subroutine seed_from_simplex
 
   !> Write a long report to the stdout about the current CP list
-  module subroutine cp_long_report()
+  subroutine cp_long_report()
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     integer :: i, j
@@ -1577,7 +1595,7 @@ contains
   end subroutine cp_long_report
 
   !> Write a very long report to the stdout about the current CP list
-  module subroutine cp_vlong_report()
+  subroutine cp_vlong_report()
     use systemmod, only: sy
     use tools_io, only: uout, string
     use types, only: scalar_value
@@ -1618,7 +1636,7 @@ contains
   end subroutine cp_vlong_report
 
   !> Write to the stdout information about the graph.
-  module subroutine graph_short_report()
+  subroutine graph_short_report()
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_center
     use global, only: iunit, iunitname0, dunit0
@@ -1685,7 +1703,7 @@ contains
   !> gradient paths. If dograph is >1, determine the stable and
   !> unstable cps on each 2d manifold associated to every
   !> non-equivalent bcp and rcp.
-  module subroutine makegraph()
+  subroutine makegraph()
     use systemmod, only: sy
     use tools_math, only: norm, eig
     use types, only: scalar_value
@@ -1829,7 +1847,7 @@ contains
 
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
   !> rad. 
-  module subroutine scale_ws(rad,wso,ntetrag,tetrag)
+  subroutine scale_ws(rad,wso,ntetrag,tetrag)
     use systemmod, only: sy
     use tools_math, only: norm
     real*8, intent(in) :: rad

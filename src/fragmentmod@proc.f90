@@ -180,26 +180,6 @@ contains
 
   end function cmass
 
-  !> Adapt the size of an allocatable 1D type(fragment) array
-  module subroutine realloc_fragment(a,nnew)
-    use tools_io, only: ferror, faterr
-    type(fragment), intent(inout), allocatable :: a(:)
-    integer, intent(in) :: nnew
-
-    type(fragment), allocatable :: temp(:)
-    integer :: nold
-
-    if (.not.allocated(a)) &
-       call ferror('realloc_fragment','array not allocated',faterr)
-    nold = size(a)
-    if (nold == nnew) return
-    allocate(temp(nnew))
-
-    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
-    call move_alloc(temp,a)
-
-  end subroutine realloc_fragment
-
   !> write an xyz-style file from an array of atomic coordinates.
   module subroutine writexyz(fr,file)
     use tools_io, only: fopen_write, nameguess, fclose
@@ -323,5 +303,25 @@ contains
     call fclose(lu)
 
   end subroutine writegjf
+
+  !> Adapt the size of an allocatable 1D type(fragment) array
+  module subroutine realloc_fragment(a,nnew)
+    use tools_io, only: ferror, faterr
+    type(fragment), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(fragment), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) &
+       call ferror('realloc_fragment','array not allocated',faterr)
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_fragment
 
 end submodule proc

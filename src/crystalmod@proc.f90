@@ -18,6 +18,30 @@
 submodule (crystalmod) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine lattpg(rmat,ncen,xcen,nn,rot)
+  ! subroutine typeop(rot,type,vec,order)
+  ! function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
+  ! function perm3(p,r,t) result(res)
+
+  ! symmetry operation symbols
+  integer, parameter :: ident=0 !< identifier for sym. operations
+  integer, parameter :: inv=1 !< identifier for sym. operations
+  integer, parameter :: c2=2 !< identifier for sym. operations
+  integer, parameter :: c3=3 !< identifier for sym. operations
+  integer, parameter :: c4=4 !< identifier for sym. operations
+  integer, parameter :: c6=5 !< identifier for sym. operations
+  integer, parameter :: s3=6 !< identifier for sym. operations
+  integer, parameter :: s4=7 !< identifier for sym. operations
+  integer, parameter :: s6=8 !< identifier for sym. operations
+  integer, parameter :: sigma=9 !< identifier for sym. operations
+
+  ! array initialization values
+  integer, parameter :: mspc0 = 4
+  integer, parameter :: mneq0 = 4
+  integer, parameter :: mcel0 = 10
+  integer, parameter :: menv0 = 100
+
 contains
 
   !xx! crystal class methods
@@ -3720,157 +3744,6 @@ contains
 
   end subroutine pmwigner
 
-  !xx! Private for wigner
-
-  !> Private for wigner. Determines if two tetrahedra are equivalent.
-  module function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
-    logical :: equiv_tetrah
-    type(crystal), intent(in) :: c
-    real*8, intent(in) :: x0(3)
-    real*8, dimension(0:3,3), intent(in) :: t1, t2
-    integer, intent(in) :: leqv
-    real*8, intent(in) :: lrotm(3,3,48), eps
-
-    integer :: i, k, p
-    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), eps2, xdum(3)
-
-    eps2 = eps*eps
-    equiv_tetrah = .false.
-
-    do i = 1, leqv
-       do k = 0, 3
-          r1(k,:) = matmul(lrotm(:,1:3,i),t1(k,:)-x0) + x0
-       end do
-
-       do p = 1, 6
-          d1 = perm3(p,r1,t2)
-          do k = 0, 3
-             xdum = d1(k,:)
-             d1(k,:) = c%x2c(xdum)
-             dist2(k) = dot_product(d1(k,:),d1(k,:))
-          end do
-          if (all(dist2 < eps2)) then
-             equiv_tetrah = .true.
-             return
-          end if
-       end do
-    end do
-
-  end function equiv_tetrah
-
-  !> Private for equiv_tetrah, wigner. 3! permutations.
-  module function perm3(p,r,t) result(res)
-    integer, intent(in) :: p
-    real*8, intent(in) :: r(0:3,3), t(0:3,3)
-    real*8 :: res(0:3,3)
-
-    select case(p)
-    case(1)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(1,:)
-       res(2,:) = r(2,:) - t(2,:)
-       res(3,:) = r(3,:) - t(3,:)
-    case(2)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(1,:)
-       res(2,:) = r(2,:) - t(3,:)
-       res(3,:) = r(3,:) - t(2,:)
-    case(3)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(2,:)
-       res(2,:) = r(2,:) - t(1,:)
-       res(3,:) = r(3,:) - t(3,:)
-    case(4)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(2,:)
-       res(2,:) = r(2,:) - t(3,:)
-       res(3,:) = r(3,:) - t(1,:)
-    case(5)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(3,:)
-       res(2,:) = r(2,:) - t(1,:)
-       res(3,:) = r(3,:) - t(2,:)
-    case(6)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(3,:)
-       res(2,:) = r(2,:) - t(2,:)
-       res(3,:) = r(3,:) - t(1,:)
-    end select
-
-  end function perm3
-
-  !> Calculate the point group of a lattice. rmat is the matrix of
-  !> lattice vectors (G = rmat * rmat'). verbose activates output to
-  !> uout. ncen and xcen are the centering vectors for the lattice in
-  !> crystallographic coordinates. nn and rot, if present, receive the
-  !> symmetry operations for the lattice.
-  module subroutine lattpg(rmat,ncen,xcen,nn,rot)
-    use sympg, only: nopsym, opsym, sym3d
-    use tools_math, only: matinv
-    use types, only: realloc
-    real*8, intent(in) :: rmat(3,3)
-    integer, intent(in) :: ncen
-    real*8, intent(in) :: xcen(3,ncen)
-    integer, intent(out), optional :: nn
-    real*8, intent(out), optional :: rot(3,3,48)
-
-    real*8 :: rmati(3,3), aal(3), gmat(3,3)
-    integer :: i, na, nb, nc, npos, ia, ib, ic, it, op
-    real*8  :: amax, amax2e, x(3), t(3), d2
-    real*8, allocatable :: ax(:,:)
-    integer, allocatable :: atZmol(:)
-
-    ! the reciprocal-space matrix is the transpose of the inverse
-    rmati = matinv(rmat)
-    gmat = matmul(rmat,transpose(rmat))
-    do i = 1, 3
-       aal(i) = sqrt(gmat(i,i))
-    end do
-
-    ! every lattice vector must be represented in the molecule
-    amax = 2d0*maxval(aal)
-    amax2e = amax * amax + 1d-5
-    na = int((amax/aal(1)) - 1d-7) + 2
-    nb = int((amax/aal(2)) - 1d-7) + 2
-    nc = int((amax/aal(3)) - 1d-7) + 2
-
-    ! build the lattice point molecule
-    npos = 0
-    allocate(ax(3,10))
-    do ia = -na, na
-       do ib = -nb, nb
-          do ic = -nc, nc
-             do it = 1, ncen
-                x = real((/ia,ib,ic/),8) + xcen(:,it)
-                t = matmul(x,rmat)
-                d2 = dot_product(t,t)
-                if (d2 <= amax2e) then
-                   npos = npos + 1
-                   if (npos > size(ax,2)) call realloc(ax,3,2*npos)
-                   ax(:,npos) = t
-                end if
-             end do
-          end do
-       end do
-    end do
-    call realloc(ax,3,npos)
-    allocate(atZmol(npos))
-    atzmol = 1
-
-    ! Use symmetry to determine the point group. Default options
-    call sym3d(rmat,ax,atZmol,npos,.false.)
-
-    ! fill the reciprocal space matrices and clean up
-    if (present(nn) .and. present(rot)) then
-       nn = nopsym
-       do op = 1, nn
-          rot(:,:,op) = matmul(transpose(rmati),matmul(opsym(op,:,:),transpose(rmat)))
-       end do
-    end if
-    deallocate(atZmol,ax)
-
-  end subroutine lattpg
-
   !> Calculate the number of lattice vectors in each direction in
   !> order to be sure that the main cell is surrounded by a shell at
   !> least rmax thick. x2r is the cryst-to-car matrix for the
@@ -3908,122 +3781,6 @@ contains
     kmax = ceiling(rmax / acell(3)) + nadd
 
   end subroutine search_lattice
-
-  !> For the symmetry operation rot, compute the order and
-  !> characteristic direction of the operation. The output is given in
-  !> type (the type of operation: ident, c2, c3,...)  and vec (the
-  !> direction of the axis or the normal to the plane, 0 for a point
-  !> symmetry element). Used in the structure initialization.
-  module subroutine typeop(rot,type,vec,order)
-    use tools_math, only: norm, eigns
-    use tools_io, only: ferror, faterr
-    use param, only: tpi, eye
-
-    real*8, intent(in) :: rot(3,4) !< rotm operation
-    integer, intent(out) :: type !< output type
-    real*8, dimension(3), intent(out) :: vec !< output eigenvector
-    integer, intent(out) :: order
-
-    real*8, parameter :: eps = 1e-3
-
-    integer, dimension(2,2) :: iord
-    real*8 :: trace, tone
-    real*8, dimension(3) :: eigen, eigeni
-    real*8, dimension(3,3) :: mat, mat3
-    integer :: nm, nones, nminusones
-    integer :: i
-
-    trace = rot(1,1) + rot(2,2) + rot(3,3)
-    eigen = 0d0
-    eigeni = 0d0
-    mat = rot(1:3,1:3)
-    iord = 0
-    vec = 0d0
-
-    !.Determine type of operation
-    order = 1
-    if (abs(trace+3) .lt. eps) then
-       ! inversion
-       order = 2
-       type = inv
-       return
-    elseif (abs(trace-3) .lt.eps) then
-       ! identity
-       type = ident
-       return
-    else
-       nm=3
-       ! It is an axis or a plane. Diagonalize.
-       call eigns(mat,eigen,eigeni)
-
-       ! Determine actual operation.
-       nones = 0
-       nminusones = 0
-       do i = 1, 3
-          if (abs(eigen(i)-1) < eps .and. abs(eigeni(i)) < eps) then
-             nones = nones + 1
-             iord(1,nones) = i
-          elseif (abs(eigen(i)+1) < eps .and. abs(eigeni(i)) < eps) then
-             nminusones = nminusones +1
-             iord(2,nminusones) = i
-          endif
-       enddo
-
-       ! What is it?
-       if (nones .eq. 1) then
-          !.A proper axis. Order?
-          tone = min(max((trace-1) / 2,-1d0),1d0)
-          order = nint(abs(tpi/(acos(tone))))
-          do i = 1,3
-             vec(i) = mat(i,iord(1,1))
-          enddo
-          if (order .eq. 2) then
-             type = c2
-          elseif (order .eq. 3) then
-             type = c3
-          elseif (order .eq. 4) then
-             type = c4
-          elseif (order .eq. 6) then
-             type = c6
-          else
-             call ferror ('typeop','Axis unknown',faterr)
-          endif
-       elseif (nones .eq. 2) then
-          !A plane, Find directions.
-          order = 2
-          type = sigma
-          do i = 1,3
-             vec(i) = mat(i,iord(2,1))
-          enddo
-       elseif (nminusones .eq. 1) then
-          !.An improper axes. Order?
-          tone = min(max((trace+1) / 2,-1d0),1d0)
-          order = nint(abs(tpi/(acos(tone))))
-          do i = 1,3
-             vec(i) = mat(i,iord(2,1))
-          enddo
-          if (order .eq. 3) then
-             type = s3
-          elseif (order .eq. 4) then
-             type = s4
-          elseif (order .eq. 6) then
-             mat3 = rot(1:3,1:3)
-             mat3 = matmul(matmul(mat3,mat3),mat3)
-             if (all(abs(mat3+eye) < 1d-5)) then
-                type = s3
-             else
-                type = s6
-             end if
-          else
-             call ferror ('typeop','Axis unknown',faterr)
-          endif
-       else
-          call ferror ('typeop', 'Sym. Element unknown', faterr)
-       endif
-    endif
-    vec = vec / norm(vec)
-
-  end subroutine typeop
 
   !> Get the holohedry and the Laue class from the Hermann-Mauguin
   !> point group label. Adapted from spglib, takes spglib HM point
@@ -5915,5 +5672,272 @@ contains
     !$omp end parallel do
 
   end subroutine promolecular_grid
+
+  !xx! private procedures
+
+  !> Calculate the point group of a lattice. rmat is the matrix of
+  !> lattice vectors (G = rmat * rmat'). verbose activates output to
+  !> uout. ncen and xcen are the centering vectors for the lattice in
+  !> crystallographic coordinates. nn and rot, if present, receive the
+  !> symmetry operations for the lattice.
+  subroutine lattpg(rmat,ncen,xcen,nn,rot)
+    use sympg, only: nopsym, opsym, sym3d
+    use tools_math, only: matinv
+    use types, only: realloc
+    real*8, intent(in) :: rmat(3,3)
+    integer, intent(in) :: ncen
+    real*8, intent(in) :: xcen(3,ncen)
+    integer, intent(out), optional :: nn
+    real*8, intent(out), optional :: rot(3,3,48)
+
+    real*8 :: rmati(3,3), aal(3), gmat(3,3)
+    integer :: i, na, nb, nc, npos, ia, ib, ic, it, op
+    real*8  :: amax, amax2e, x(3), t(3), d2
+    real*8, allocatable :: ax(:,:)
+    integer, allocatable :: atZmol(:)
+
+    ! the reciprocal-space matrix is the transpose of the inverse
+    rmati = matinv(rmat)
+    gmat = matmul(rmat,transpose(rmat))
+    do i = 1, 3
+       aal(i) = sqrt(gmat(i,i))
+    end do
+
+    ! every lattice vector must be represented in the molecule
+    amax = 2d0*maxval(aal)
+    amax2e = amax * amax + 1d-5
+    na = int((amax/aal(1)) - 1d-7) + 2
+    nb = int((amax/aal(2)) - 1d-7) + 2
+    nc = int((amax/aal(3)) - 1d-7) + 2
+
+    ! build the lattice point molecule
+    npos = 0
+    allocate(ax(3,10))
+    do ia = -na, na
+       do ib = -nb, nb
+          do ic = -nc, nc
+             do it = 1, ncen
+                x = real((/ia,ib,ic/),8) + xcen(:,it)
+                t = matmul(x,rmat)
+                d2 = dot_product(t,t)
+                if (d2 <= amax2e) then
+                   npos = npos + 1
+                   if (npos > size(ax,2)) call realloc(ax,3,2*npos)
+                   ax(:,npos) = t
+                end if
+             end do
+          end do
+       end do
+    end do
+    call realloc(ax,3,npos)
+    allocate(atZmol(npos))
+    atzmol = 1
+
+    ! Use symmetry to determine the point group. Default options
+    call sym3d(rmat,ax,atZmol,npos,.false.)
+
+    ! fill the reciprocal space matrices and clean up
+    if (present(nn) .and. present(rot)) then
+       nn = nopsym
+       do op = 1, nn
+          rot(:,:,op) = matmul(transpose(rmati),matmul(opsym(op,:,:),transpose(rmat)))
+       end do
+    end if
+    deallocate(atZmol,ax)
+
+  end subroutine lattpg
+
+  !> For the symmetry operation rot, compute the order and
+  !> characteristic direction of the operation. The output is given in
+  !> type (the type of operation: ident, c2, c3,...)  and vec (the
+  !> direction of the axis or the normal to the plane, 0 for a point
+  !> symmetry element). Used in the structure initialization.
+  subroutine typeop(rot,type,vec,order)
+    use tools_math, only: norm, eigns
+    use tools_io, only: ferror, faterr
+    use param, only: tpi, eye
+
+    real*8, intent(in) :: rot(3,4) !< rotm operation
+    integer, intent(out) :: type !< output type
+    real*8, dimension(3), intent(out) :: vec !< output eigenvector
+    integer, intent(out) :: order
+
+    real*8, parameter :: eps = 1e-3
+
+    integer, dimension(2,2) :: iord
+    real*8 :: trace, tone
+    real*8, dimension(3) :: eigen, eigeni
+    real*8, dimension(3,3) :: mat, mat3
+    integer :: nm, nones, nminusones
+    integer :: i
+
+    trace = rot(1,1) + rot(2,2) + rot(3,3)
+    eigen = 0d0
+    eigeni = 0d0
+    mat = rot(1:3,1:3)
+    iord = 0
+    vec = 0d0
+
+    !.Determine type of operation
+    order = 1
+    if (abs(trace+3) .lt. eps) then
+       ! inversion
+       order = 2
+       type = inv
+       return
+    elseif (abs(trace-3) .lt.eps) then
+       ! identity
+       type = ident
+       return
+    else
+       nm=3
+       ! It is an axis or a plane. Diagonalize.
+       call eigns(mat,eigen,eigeni)
+
+       ! Determine actual operation.
+       nones = 0
+       nminusones = 0
+       do i = 1, 3
+          if (abs(eigen(i)-1) < eps .and. abs(eigeni(i)) < eps) then
+             nones = nones + 1
+             iord(1,nones) = i
+          elseif (abs(eigen(i)+1) < eps .and. abs(eigeni(i)) < eps) then
+             nminusones = nminusones +1
+             iord(2,nminusones) = i
+          endif
+       enddo
+
+       ! What is it?
+       if (nones .eq. 1) then
+          !.A proper axis. Order?
+          tone = min(max((trace-1) / 2,-1d0),1d0)
+          order = nint(abs(tpi/(acos(tone))))
+          do i = 1,3
+             vec(i) = mat(i,iord(1,1))
+          enddo
+          if (order .eq. 2) then
+             type = c2
+          elseif (order .eq. 3) then
+             type = c3
+          elseif (order .eq. 4) then
+             type = c4
+          elseif (order .eq. 6) then
+             type = c6
+          else
+             call ferror ('typeop','Axis unknown',faterr)
+          endif
+       elseif (nones .eq. 2) then
+          !A plane, Find directions.
+          order = 2
+          type = sigma
+          do i = 1,3
+             vec(i) = mat(i,iord(2,1))
+          enddo
+       elseif (nminusones .eq. 1) then
+          !.An improper axes. Order?
+          tone = min(max((trace+1) / 2,-1d0),1d0)
+          order = nint(abs(tpi/(acos(tone))))
+          do i = 1,3
+             vec(i) = mat(i,iord(2,1))
+          enddo
+          if (order .eq. 3) then
+             type = s3
+          elseif (order .eq. 4) then
+             type = s4
+          elseif (order .eq. 6) then
+             mat3 = rot(1:3,1:3)
+             mat3 = matmul(matmul(mat3,mat3),mat3)
+             if (all(abs(mat3+eye) < 1d-5)) then
+                type = s3
+             else
+                type = s6
+             end if
+          else
+             call ferror ('typeop','Axis unknown',faterr)
+          endif
+       else
+          call ferror ('typeop', 'Sym. Element unknown', faterr)
+       endif
+    endif
+    vec = vec / norm(vec)
+
+  end subroutine typeop
+
+  !> Private for wigner. Determines if two tetrahedra are equivalent.
+  function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
+    logical :: equiv_tetrah
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: x0(3)
+    real*8, dimension(0:3,3), intent(in) :: t1, t2
+    integer, intent(in) :: leqv
+    real*8, intent(in) :: lrotm(3,3,48), eps
+
+    integer :: i, k, p
+    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), eps2, xdum(3)
+
+    eps2 = eps*eps
+    equiv_tetrah = .false.
+
+    do i = 1, leqv
+       do k = 0, 3
+          r1(k,:) = matmul(lrotm(:,1:3,i),t1(k,:)-x0) + x0
+       end do
+
+       do p = 1, 6
+          d1 = perm3(p,r1,t2)
+          do k = 0, 3
+             xdum = d1(k,:)
+             d1(k,:) = c%x2c(xdum)
+             dist2(k) = dot_product(d1(k,:),d1(k,:))
+          end do
+          if (all(dist2 < eps2)) then
+             equiv_tetrah = .true.
+             return
+          end if
+       end do
+    end do
+
+  end function equiv_tetrah
+
+  !> Private for equiv_tetrah, wigner. 3! permutations.
+  function perm3(p,r,t) result(res)
+    integer, intent(in) :: p
+    real*8, intent(in) :: r(0:3,3), t(0:3,3)
+    real*8 :: res(0:3,3)
+
+    select case(p)
+    case(1)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(1,:)
+       res(2,:) = r(2,:) - t(2,:)
+       res(3,:) = r(3,:) - t(3,:)
+    case(2)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(1,:)
+       res(2,:) = r(2,:) - t(3,:)
+       res(3,:) = r(3,:) - t(2,:)
+    case(3)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(2,:)
+       res(2,:) = r(2,:) - t(1,:)
+       res(3,:) = r(3,:) - t(3,:)
+    case(4)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(2,:)
+       res(2,:) = r(2,:) - t(3,:)
+       res(3,:) = r(3,:) - t(1,:)
+    case(5)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(3,:)
+       res(2,:) = r(2,:) - t(1,:)
+       res(3,:) = r(3,:) - t(2,:)
+    case(6)
+       res(0,:) = r(0,:) - t(0,:)
+       res(1,:) = r(1,:) - t(3,:)
+       res(2,:) = r(2,:) - t(2,:)
+       res(3,:) = r(3,:) - t(1,:)
+    end select
+
+  end function perm3
 
 end submodule proc

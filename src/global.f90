@@ -28,7 +28,6 @@ module global
      module procedure eval_next_real
      module procedure eval_next_int
   end interface eval_next
-  private :: eval_next_real, eval_next_int
 
   ! *** dimension parameters ***
   integer, parameter :: mneq = 200 !< maximum number of non-equivalent atoms

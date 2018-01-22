@@ -200,34 +200,10 @@ module crystalmod
   end type crystal
   public :: crystal
 
-  ! private to this module
-  private :: lattpg
-  private :: typeop
-  ! private for wigner-seitz routines
-  private :: equiv_tetrah
-  private :: perm3
   ! other crystallography tools that are crystal-independent
   public :: search_lattice
   public :: pointgroup_info
   
-  ! symmetry operation symbols
-  integer, parameter :: ident=0 !< identifier for sym. operations
-  integer, parameter :: inv=1 !< identifier for sym. operations
-  integer, parameter :: c2=2 !< identifier for sym. operations
-  integer, parameter :: c3=3 !< identifier for sym. operations
-  integer, parameter :: c4=4 !< identifier for sym. operations
-  integer, parameter :: c6=5 !< identifier for sym. operations
-  integer, parameter :: s3=6 !< identifier for sym. operations
-  integer, parameter :: s4=7 !< identifier for sym. operations
-  integer, parameter :: s6=8 !< identifier for sym. operations
-  integer, parameter :: sigma=9 !< identifier for sym. operations
-
-  ! array initialization values
-  integer, parameter :: mspc0 = 4
-  integer, parameter :: mneq0 = 4
-  integer, parameter :: mcel0 = 10
-  integer, parameter :: menv0 = 100
-
   ! holohedry identifier
   integer, parameter, public :: holo_unk = 0 ! unknown
   integer, parameter, public :: holo_tric = 1 ! triclinic
@@ -515,36 +491,10 @@ module crystalmod
        integer, intent(out), optional :: ntetrag
        real*8, allocatable, intent(out), optional :: tetrag(:,:,:)
      end subroutine pmwigner
-     module function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
-       logical :: equiv_tetrah
-       type(crystal), intent(in) :: c
-       real*8, intent(in) :: x0(3)
-       real*8, dimension(0:3,3), intent(in) :: t1, t2
-       integer, intent(in) :: leqv
-       real*8, intent(in) :: lrotm(3,3,48), eps
-     end function equiv_tetrah
-     module function perm3(p,r,t) result (res)
-       integer, intent(in) :: p
-       real*8, intent(in) :: r(0:3,3), t(0:3,3)
-       real*8 :: res(0:3,3)
-     end function perm3
-     module subroutine lattpg(rmat,ncen,xcen,nn,rot)
-       real*8, intent(in) :: rmat(3,3)
-       integer, intent(in) :: ncen
-       real*8, intent(in) :: xcen(3,ncen)
-       integer, intent(out), optional :: nn
-       real*8, intent(out), optional :: rot(3,3,48)
-     end subroutine lattpg
      module subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
        real*8, intent(in) :: x2r(3,3), rmax
        integer, intent(out) :: imax, jmax, kmax
      end subroutine search_lattice
-     module subroutine typeop(rot,type,vec,order)
-       real*8, intent(in) :: rot(3,4)
-       integer, intent(out) :: type
-       real*8, dimension(3), intent(out) :: vec
-       integer, intent(out) :: order
-     end subroutine typeop
      module subroutine pointgroup_info(hmpg,schpg,holo,laue)
        character*(*), intent(in) :: hmpg
        character(len=3), intent(out) :: schpg

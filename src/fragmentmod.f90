@@ -61,10 +61,6 @@ module fragmentmod
        logical, intent(in), optional :: weight0
        real*8 :: x(3)
      end function cmass
-     module subroutine realloc_fragment(a,nnew)
-       type(fragment), intent(inout), allocatable :: a(:)
-       integer, intent(in) :: nnew
-     end subroutine realloc_fragment
      module subroutine writexyz(fr,file)
        class(fragment), intent(in) :: fr
        character*(*), intent(in) :: file
@@ -79,6 +75,10 @@ module fragmentmod
        class(fragment), intent(in) :: fr
        character*(*), intent(in) :: file
      end subroutine writegjf
+     module subroutine realloc_fragment(a,nnew)
+       type(fragment), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_fragment
   end interface
 
 end module fragmentmod

@@ -23,58 +23,23 @@ module bisect
 
   private 
 
-  private :: lim_surf
-  private :: lim_bundle
-  private :: bisect_msurface
-  private :: bundle_msurface
   public :: basinplot
   public :: bundleplot
+  public :: sphereintegrals
   public :: sphereintegrals_gauleg
   public :: sphereintegrals_lebedev
-  public :: sphereintegrals
-  private :: integrals_gauleg
-  private :: integrals_lebedev
   public :: integrals
-  private :: integrals_header
-  private :: minisurf_write3dmodel
-  private :: minisurf_writebasin
-  private :: minisurf_writedbasin
-  private :: minisurf_transform
   
   interface
-     module subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
-       integer, intent(in) :: cpid
-       real*8, dimension(3), intent(in) :: xin, xfin
-       real*8, intent(in) :: delta
-       real*8, dimension(3), intent(out) :: xmed
-       integer, intent(out) :: tstep
-       integer, intent(inout) :: nwarn
-     end subroutine lim_surf
-     module subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
-       real*8, intent(in) :: xup(3), xdn(3)
-       real*8, intent(inout) :: xin(3), xfin(3)
-       real*8, intent(in) :: delta
-       real*8, intent(out) :: xmed(3)
-       integer, intent(out) :: tstep
-       integer, intent(inout) :: nwarn
-     end subroutine lim_bundle
-     module subroutine bisect_msurface(srf,cpid,prec,verbose)
-       type(minisurf), intent(inout) :: srf
-       integer, intent(in) :: cpid
-       real*8, intent(in) :: prec
-       logical, intent(in) :: verbose
-     end subroutine bisect_msurface
-     module subroutine bundle_msurface(srf,prec,verbose)
-       type(minisurf), intent(inout) :: srf
-       real*8, intent(in) :: prec
-       logical, intent(in) :: verbose
-     end subroutine bundle_msurface
      module subroutine basinplot(line)
        character*(*), intent(in) :: line
      end subroutine basinplot
      module subroutine bundleplot(line)
        character*(*), intent(in) :: line
      end subroutine bundleplot
+     module subroutine sphereintegrals(line)
+       character*(*), intent(in) :: line
+     end subroutine sphereintegrals
      module subroutine sphereintegrals_gauleg(x0,rad,ntheta,nphi,sprop,abserr,neval,meaneval)
        real*8, intent(in) :: x0(3), rad
        integer, intent(in) :: ntheta, nphi
@@ -89,50 +54,9 @@ module bisect
        real*8, intent(out) :: abserr
        integer, intent(out) :: neval, meaneval
      end subroutine sphereintegrals_lebedev
-     module subroutine sphereintegrals(line)
-       character*(*), intent(in) :: line
-     end subroutine sphereintegrals
-     module subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
-       real*8, intent(out) :: atprop(sy%npropi)
-       integer, intent(in) :: n1, n2, cpid
-       logical, intent(in) :: usefiles
-       logical, intent(in) :: verbose
-     end subroutine integrals_gauleg
-     module subroutine integrals_lebedev(atprop,nleb,cpid,usefiles,verbose)
-       real*8, intent(out) :: atprop(sy%npropi)
-       integer, intent(in) :: nleb, cpid
-       logical, intent(in) :: usefiles
-       logical, intent(in) :: verbose
-     end subroutine integrals_lebedev
      module subroutine integrals(line)
        character*(*), intent(in) :: line
      end subroutine integrals
-     module subroutine integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
-       integer, intent(in) :: meth, ntheta, nphi, np, cpid
-       logical, intent(in) :: usefiles
-       character(10), intent(in) :: pname
-     end subroutine integrals_header
-     module subroutine minisurf_write3dmodel(s,fmt,file,expr)
-       type(minisurf), intent(inout) :: s
-       character*3, intent(in) :: fmt
-       character*(*), intent(in) :: file
-       character*(*), intent(in), optional :: expr
-     end subroutine minisurf_write3dmodel
-     module subroutine minisurf_writebasin(s,offfile,doprops)
-       type(minisurf), intent(inout) :: s
-       character*(*), intent(in) :: offfile
-       logical, intent(in) :: doprops
-     end subroutine minisurf_writebasin
-     module subroutine minisurf_writedbasin(s,npoint,offfile)
-       type(minisurf), intent(inout) :: s
-       integer, intent(in) :: npoint
-       character*(*), intent(in) :: offfile
-     end subroutine minisurf_writedbasin
-     module subroutine minisurf_transform(s,op,tvec)
-       type(minisurf) :: s
-       integer, intent(in) :: op
-       real*8, intent(in) :: tvec(3)
-     end subroutine minisurf_transform
   end interface
 
 end module bisect
