@@ -60,6 +60,41 @@
 !
 submodule (tools_math) lebedev
   implicit none
+  
+  !xx! private procedures
+  ! subroutine gen_oh(code, num, x, y, z, w, a, b, v)
+  ! SUBROUTINE LD0006(X,Y,Z,W,N)
+  ! SUBROUTINE LD0014(X,Y,Z,W,N)
+  ! SUBROUTINE LD0026(X,Y,Z,W,N)
+  ! SUBROUTINE LD0038(X,Y,Z,W,N)
+  ! SUBROUTINE LD0050(X,Y,Z,W,N)
+  ! SUBROUTINE LD0074(X,Y,Z,W,N)
+  ! SUBROUTINE LD0086(X,Y,Z,W,N)
+  ! SUBROUTINE LD0110(X,Y,Z,W,N)
+  ! SUBROUTINE LD0146(X,Y,Z,W,N)
+  ! SUBROUTINE LD0170(X,Y,Z,W,N)
+  ! SUBROUTINE LD0194(X,Y,Z,W,N)
+  ! SUBROUTINE LD0230(X,Y,Z,W,N)
+  ! SUBROUTINE LD0266(X,Y,Z,W,N)
+  ! SUBROUTINE LD0302(X,Y,Z,W,N)
+  ! SUBROUTINE LD0350(X,Y,Z,W,N)
+  ! SUBROUTINE LD0434(X,Y,Z,W,N)
+  ! SUBROUTINE LD0590(X,Y,Z,W,N)
+  ! SUBROUTINE LD0770(X,Y,Z,W,N)
+  ! SUBROUTINE LD0974(X,Y,Z,W,N)
+  ! SUBROUTINE LD1202(X,Y,Z,W,N)
+  ! SUBROUTINE LD1454(X,Y,Z,W,N)
+  ! SUBROUTINE LD1730(X,Y,Z,W,N)
+  ! SUBROUTINE LD2030(X,Y,Z,W,N)
+  ! SUBROUTINE LD2354(X,Y,Z,W,N)
+  ! SUBROUTINE LD2702(X,Y,Z,W,N)
+  ! SUBROUTINE LD3074(X,Y,Z,W,N)
+  ! SUBROUTINE LD3470(X,Y,Z,W,N)
+  ! SUBROUTINE LD3890(X,Y,Z,W,N)
+  ! SUBROUTINE LD4334(X,Y,Z,W,N)
+  ! SUBROUTINE LD4802(X,Y,Z,W,N)
+  ! SUBROUTINE LD5294(X,Y,Z,W,N)
+  ! SUBROUTINE LD5810(X,Y,Z,W,N)
 
 contains
 
@@ -169,6 +204,8 @@ contains
     wleb(1:n) = wleb(1:n) * (4d0 * pi)
 
   end subroutine select_lebedev
+
+  !xx! private procedures
 
   !>
   !> Lebedev internal subroutine.

@@ -17,6 +17,21 @@
 
 submodule (xdm) proc
   implicit none
+  
+  !xx! private procedures
+  ! subroutine xdm_grid(line)
+  ! subroutine xdm_qe(line0)
+  ! subroutine xdm_excitation(line0)
+  ! subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
+  ! subroutine xdm_wfn(a1o,a2o,chf)
+  ! subroutine write_cube(file,line1,line2,n,c)
+  ! function free_volume(iz) result(afree)
+  ! function frevol(z,chf)
+  ! subroutine calc_edisp(c6,c8,c10,rvdw)
+  ! function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
+  ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
+  ! subroutine taufromelf(ielf,irho,itau)
+  
 
   integer, parameter :: chf_blyp = -1
   integer, parameter :: chf_b3lyp = -2
@@ -99,6 +114,8 @@ contains
     end if
 
   end subroutine xdm_driver
+
+  !xx! private procedures
 
   !> Calculate XDM using grids.
   module subroutine xdm_grid(line)

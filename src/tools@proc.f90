@@ -115,7 +115,7 @@ contains
 
   !> Same as qcksort, for integer arrays.
   !> WARNING! It is not stable!?!?
-  module subroutine iqcksort (iarr, iord, first, last)
+  module subroutine iqcksort(iarr, iord, first, last)
     use tools_io, only: ferror, faterr
     
     integer, dimension(:), intent(in) :: iarr !< Array to be sorted

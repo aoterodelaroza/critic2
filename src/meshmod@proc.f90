@@ -18,6 +18,16 @@
 submodule (meshmod) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine rmesh_postg(n,iz,r,wintr)
+  ! subroutine rmesh_franchini(n,iz,r,wintr)
+  ! function z2nr_postg(z) result(nr)
+  ! function z2nr_franchini(z,lvl) result(nr)
+  ! function z2nang_postg(z) result(nang)
+  ! function z2nang_franchini(z,lvl) result(nang)
+  ! subroutine bhole(rho,quad,hnorm,b)
+  ! subroutine xfuncs(x,rhs,f,df)
+
   integer, parameter :: mesh_type_becke = 0
   integer, parameter :: mesh_type_franchini_small = 1
   integer, parameter :: mesh_type_franchini_normal = 2
@@ -435,9 +445,11 @@ contains
 
   end subroutine fillmesh
 
+  !xx! private procedures
+
   !> Radial mesh for integration of exponential-like functions.
   !> From postg.
-  module subroutine rmesh_postg(n,iz,r,wintr)
+  subroutine rmesh_postg(n,iz,r,wintr)
     ! Radial mesh and integration weights,
     ! derivatives of variable r with respect to variable q.
     ! The q-mesh is uniform on the interval (0,+1). Transformation is
@@ -465,7 +477,7 @@ contains
   !> The transformation is:
   !>   r = zeta/ln(2) * (1+q) * ln(2/(1-q))
   !> where zeta is a function of the atomic number.
-  module subroutine rmesh_franchini(n,iz,r,wintr)
+  subroutine rmesh_franchini(n,iz,r,wintr)
     use tools_math, only: gauleg
     use param, only: log2, fourpi
     integer, intent(in) :: n
@@ -501,7 +513,7 @@ contains
 
   !> Atomic number to radial point number. From postg - really good
   !> accuracy but slow.
-  module function z2nr_postg(z) result(nr)
+  function z2nr_postg(z) result(nr)
     integer, intent(in) :: z
     integer :: nr
 
@@ -519,7 +531,7 @@ contains
   !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   !> Some changes to the choice of ni0
-  module function z2nr_franchini(z,lvl) result(nr)
+  function z2nr_franchini(z,lvl) result(nr)
     use tools_io, only: faterr, ferror
     integer, intent(in) :: z
     integer, intent(in) :: lvl
@@ -551,7 +563,7 @@ contains
 
   !> Select the number of points for the angular (Lebedev) quadrature.
   !> From postg.
-  module function z2nang_postg(z) result(nang)
+  function z2nang_postg(z) result(nang)
     integer, intent(in) :: z
     integer :: nang
 
@@ -562,7 +574,7 @@ contains
   !> Select the number of points for the angular (Lebedev) quadrature.
   !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
-  module function z2nang_franchini(z,lvl) result(nang)
+  function z2nang_franchini(z,lvl) result(nang)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: z
     integer, intent(in) :: lvl
@@ -584,7 +596,7 @@ contains
        
   endfunction z2nang_franchini
 
-  module subroutine bhole(rho,quad,hnorm,b)
+  subroutine bhole(rho,quad,hnorm,b)
     use param, only: twothird, pi, third
 
     real*8, intent(in) :: rho, quad, hnorm
@@ -633,7 +645,7 @@ contains
 1002 format(' ','bhole: newton algorithm fails to initialize!')
   end subroutine bhole
   
-  module subroutine xfuncs(x,rhs,f,df)
+  subroutine xfuncs(x,rhs,f,df)
     real*8, intent(in) :: x, rhs
     real*8, intent(out) :: f, df
 

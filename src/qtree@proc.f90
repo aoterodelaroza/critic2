@@ -18,6 +18,10 @@
 submodule (qtree) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine qtree_setsph1(lvl,verbose)
+  ! subroutine qtree_setsph2(verbose)
+
   integer, parameter :: INT_spherequad_type = INT_lebedev !< type of angular quadrature
   integer, parameter :: INT_spherequad_ntheta = 30 !< number of nodes in theta (polar)
   integer, parameter :: INT_spherequad_nphi = 30 !< number of nodes in phi (azimuthal)
@@ -744,9 +748,47 @@ contains
 
   end subroutine qtree_integration
 
+  module subroutine qtree_setsphfactor(line)
+    use systemmod, only: sy
+    use global, only: sphfactor, eval_next
+    use tools_io, only: ferror, faterr, getword, zatguess
+    character*(*), intent(in) :: line
+    
+    integer :: lp, i, idum, isym
+    logical :: ok
+    character(len=:), allocatable :: sym
+    real*8 :: rdum
+
+    lp = 1
+    ok = eval_next(idum,line,lp)
+    if (.not. ok) then
+       sym = getword(line,lp)
+       isym = zatguess(sym)
+       ok = eval_next(rdum,line,lp)
+       if (isym == -1 .or..not.ok) &
+          call ferror('setvariables','Wrong sphfactor',faterr,line)
+
+       do i = 1, sy%c%nneq
+          if (sy%c%spc(sy%c%at(i)%is)%z == isym) then
+             sphfactor(i) = rdum
+          end if
+       end do
+    else
+       ok = eval_next(rdum,line,lp)
+       if (.not. ok .or. idum == 0d0) then
+          sphfactor = rdum
+       else
+          sphfactor(idum) = rdum
+       end if
+    end if
+    
+  end subroutine qtree_setsphfactor
+
+  !xx! private procedures
+
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
   !> by analyzing the system at a smaller level (lvl).
-  module subroutine qtree_setsph1(lvl,verbose)
+  subroutine qtree_setsph1(lvl,verbose)
     use systemmod, only: sy
     use qtree_tetrawork, only: term_rec
     use qtree_basic, only: qtreeidx, qtreei, qtreer, torig, tvec, maxlen, nnuc,&
@@ -948,7 +990,7 @@ contains
 
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
   !> by analyzing the system at a smaller level (lvl).
-  module subroutine qtree_setsph2(verbose)
+  subroutine qtree_setsph2(verbose)
     use systemmod, only: sy
     use surface, only: minisurf
     use qtree_basic, only: nnuc, r_betagp, r_betaint, find_beta_rodriguez
@@ -1087,41 +1129,5 @@ contains
     deallocate(ido)
 
   end subroutine qtree_setsph2
-
-  module subroutine qtree_setsphfactor(line)
-    use systemmod, only: sy
-    use global, only: sphfactor, eval_next
-    use tools_io, only: ferror, faterr, getword, zatguess
-    character*(*), intent(in) :: line
-    
-    integer :: lp, i, idum, isym
-    logical :: ok
-    character(len=:), allocatable :: sym
-    real*8 :: rdum
-
-    lp = 1
-    ok = eval_next(idum,line,lp)
-    if (.not. ok) then
-       sym = getword(line,lp)
-       isym = zatguess(sym)
-       ok = eval_next(rdum,line,lp)
-       if (isym == -1 .or..not.ok) &
-          call ferror('setvariables','Wrong sphfactor',faterr,line)
-
-       do i = 1, sy%c%nneq
-          if (sy%c%spc(sy%c%at(i)%is)%z == isym) then
-             sphfactor(i) = rdum
-          end if
-       end do
-    else
-       ok = eval_next(rdum,line,lp)
-       if (.not. ok .or. idum == 0d0) then
-          sphfactor = rdum
-       else
-          sphfactor(idum) = rdum
-       end if
-    end if
-    
-  end subroutine qtree_setsphfactor
 
 end submodule proc

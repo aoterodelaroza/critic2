@@ -25,7 +25,11 @@ module tools
   private
 
   !xx! sorting and uniqing
-  public :: mergesort, imergesort, qcksort, iqcksort, uniqc
+  public :: qcksort
+  public :: iqcksort
+  public :: uniqc
+  public :: mergesort
+  public :: imergesort
   !xx! system
   public :: unlink
   

@@ -18,6 +18,276 @@
 submodule (grid3mod) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine grinterp_nearest(f,x0,y)
+  ! subroutine grinterp_trilinear(f,x0,y,yp)
+  ! subroutine grinterp_trispline(f,x0,y,yp,ypp)
+  ! subroutine grinterp_tricubic(f,xi,y,yp,ypp)
+  ! function grid_near(f,x) result(res)
+  ! function grid_floor(f,x) result(res)
+  ! subroutine init_trispline(f)
+  ! subroutine pop_grid(q,nq,s,ns,fail)
+
+  ! The 64x64 matrix for tricubic interpolation
+  real*8, parameter :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
+    1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&  ! 1-16, 1
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 1
+   -3d0,  0d0,  9d0, -6d0,  0d0,  0d0,  0d0,  0d0,  9d0,  0d0, -27d0,  18d0, -6d0,  0d0,  18d0, -12d0,&	 ! 33-48, 1
+    2d0,  0d0, -6d0,  4d0,  0d0,  0d0,  0d0,  0d0, -6d0,  0d0,  18d0, -12d0,  4d0,  0d0, -12d0,   8d0,&	 ! 49-64, 1
+    0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   6d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 1-16, 2
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 2
+    0d0,  0d0, -9d0,  6d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  27d0, -18d0,  0d0,  0d0, -18d0,  12d0,&	 ! 33-48, 2
+    0d0,  0d0,  6d0, -4d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -18d0,  12d0,  0d0,  0d0,  12d0,  -8d0,&	 ! 49-64, 2
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  0d0,  -9d0,   6d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 1-16, 3
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 3
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -9d0,  0d0,  27d0, -18d0,  6d0,  0d0, -18d0,  12d0,&	 ! 33-48, 3
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  6d0,  0d0, -18d0,  12d0, -4d0,  0d0,  12d0,  -8d0,&	 ! 49-64, 3
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -6d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 1-16, 4
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 4
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -27d0,  18d0,  0d0,  0d0,  18d0, -12d0,&	 ! 33-48, 4
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  18d0, -12d0,  0d0,  0d0, -12d0,   8d0,&	 ! 49-64, 4
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 5
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 5
+    3d0,  0d0, -9d0,  6d0,  0d0,  0d0,  0d0,  0d0, -9d0,  0d0,  27d0, -18d0,  6d0,  0d0, -18d0,  12d0,&	 ! 33-48, 5
+   -2d0,  0d0,  6d0, -4d0,  0d0,  0d0,  0d0,  0d0,  6d0,  0d0, -18d0,  12d0, -4d0,  0d0,  12d0,  -8d0,&	 ! 49-64, 5
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 6
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 6
+    0d0,  0d0,  9d0, -6d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -27d0,  18d0,  0d0,  0d0,  18d0, -12d0,&	 ! 33-48, 6
+    0d0,  0d0, -6d0,  4d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  18d0, -12d0,  0d0,  0d0, -12d0,   8d0,&	 ! 49-64, 6
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 7
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 7
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  9d0,  0d0, -27d0,  18d0, -6d0,  0d0,  18d0, -12d0,&	 ! 33-48, 7
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  0d0,  18d0, -12d0,  4d0,  0d0, -12d0,   8d0,&	 ! 49-64, 7
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 8
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 8
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  27d0, -18d0,  0d0,  0d0, -18d0,  12d0,&	 ! 33-48, 8
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -18d0,  12d0,  0d0,  0d0,  12d0,  -8d0,&	 ! 49-64, 8
+    0d0,  1d0, -2d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,   6d0,  -3d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 1-16, 9
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 9
+    0d0, -3d0,  6d0, -3d0,  0d0,  0d0,  0d0,  0d0,  0d0,  9d0, -18d0,   9d0,  0d0, -6d0,  12d0,  -6d0,&	 ! 33-48, 9
+    0d0,  2d0, -4d0,  2d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  12d0,  -6d0,  0d0,  4d0,  -8d0,   4d0,&	 ! 49-64, 9
+    0d0,  0d0, -1d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -3d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 1-16, 10
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 10
+    0d0,  0d0,  3d0, -3d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   9d0,  0d0,  0d0,   6d0,  -6d0,&	 ! 33-48, 10
+    0d0,  0d0, -2d0,  2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   6d0,  -6d0,  0d0,  0d0,  -4d0,   4d0,&	 ! 49-64, 10
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  -6d0,   3d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 1-16, 11
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 11
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -9d0,  18d0,  -9d0,  0d0,  6d0, -12d0,   6d0,&	 ! 33-48, 11
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  6d0, -12d0,   6d0,  0d0, -4d0,   8d0,  -4d0,&	 ! 49-64, 11
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   3d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 1-16, 12
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 12
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -9d0,  0d0,  0d0,  -6d0,   6d0,&	 ! 33-48, 12
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -6d0,   6d0,  0d0,  0d0,   4d0,  -4d0,&	 ! 49-64, 12
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 13
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 13
+    0d0,  3d0, -6d0,  3d0,  0d0,  0d0,  0d0,  0d0,  0d0, -9d0,  18d0,  -9d0,  0d0,  6d0, -12d0,   6d0,&	 ! 33-48, 13
+    0d0, -2d0,  4d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  6d0, -12d0,   6d0,  0d0, -4d0,   8d0,  -4d0,&	 ! 49-64, 13
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 14
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 14
+    0d0,  0d0, -3d0,  3d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -9d0,  0d0,  0d0,  -6d0,   6d0,&	 ! 33-48, 14
+    0d0,  0d0,  2d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -6d0,   6d0,  0d0,  0d0,   4d0,  -4d0,&	 ! 49-64, 14
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 15
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 15
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  9d0, -18d0,   9d0,  0d0, -6d0,  12d0,  -6d0,&	 ! 33-48, 15
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  12d0,  -6d0,  0d0,  4d0,  -8d0,   4d0,&	 ! 49-64, 15
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 16
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 16
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   9d0,  0d0,  0d0,   6d0,  -6d0,&	 ! 33-48, 16
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   6d0,  -6d0,  0d0,  0d0,  -4d0,   4d0,&	 ! 49-64, 16
+    0d0,  0d0,  0d0,  0d0,  1d0,  0d0, -3d0,  2d0, -2d0,  0d0,   6d0,  -4d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 1-16, 17
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 17
+    0d0,  0d0,  0d0,  0d0, -3d0,  0d0,  9d0, -6d0,  6d0,  0d0, -18d0,  12d0, -3d0,  0d0,   9d0,  -6d0,&	 ! 33-48, 17
+    0d0,  0d0,  0d0,  0d0,  2d0,  0d0, -6d0,  4d0, -4d0,  0d0,  12d0,  -8d0,  2d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 17
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  -6d0,   4d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 1-16, 18
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 18
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -9d0,  6d0,  0d0,  0d0,  18d0, -12d0,  0d0,  0d0,  -9d0,   6d0,&	 ! 33-48, 18
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  6d0, -4d0,  0d0,  0d0, -12d0,   8d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 18
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  0d0,   3d0,  -2d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 1-16, 19
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 19
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  0d0,  -9d0,   6d0, -3d0,  0d0,   9d0,  -6d0,&	 ! 33-48, 19
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -2d0,  0d0,   6d0,  -4d0,  2d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 19
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   2d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 1-16, 20
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 20
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -6d0,  0d0,  0d0,  -9d0,   6d0,&	 ! 33-48, 20
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -6d0,   4d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 20
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 21
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 21
+    0d0,  0d0,  0d0,  0d0,  3d0,  0d0, -9d0,  6d0, -6d0,  0d0,  18d0, -12d0,  3d0,  0d0,  -9d0,   6d0,&	 ! 33-48, 21
+    0d0,  0d0,  0d0,  0d0, -2d0,  0d0,  6d0, -4d0,  4d0,  0d0, -12d0,   8d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 21
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 22
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 22
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  9d0, -6d0,  0d0,  0d0, -18d0,  12d0,  0d0,  0d0,   9d0,  -6d0,&	 ! 33-48, 22
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  4d0,  0d0,  0d0,  12d0,  -8d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 22
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 23
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 23
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  3d0,  0d0,  -9d0,   6d0,&	 ! 33-48, 23
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  2d0,  0d0,  -6d0,   4d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 23
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 24
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 24
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   6d0,  0d0,  0d0,   9d0,  -6d0,&	 ! 33-48, 24
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   6d0,  -4d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 24
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 25
+    1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&	 ! 17-32, 25
+   -2d0,  0d0,  6d0, -4d0,  0d0,  0d0,  0d0,  0d0,  6d0,  0d0, -18d0,  12d0, -4d0,  0d0,  12d0,  -8d0,&	 ! 33-48, 25
+    1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 25
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 26
+    0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   6d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 17-32, 26
+    0d0,  0d0, -6d0,  4d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  18d0, -12d0,  0d0,  0d0, -12d0,   8d0,&	 ! 33-48, 26
+    0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   6d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 26
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 27
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  0d0,  -9d0,   6d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 17-32, 27
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  0d0,  18d0, -12d0,  4d0,  0d0, -12d0,   8d0,&	 ! 33-48, 27
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  0d0,  -9d0,   6d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 27
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 28
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -6d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 17-32, 28
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -18d0,  12d0,  0d0,  0d0,  12d0,  -8d0,&	 ! 33-48, 28
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -6d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 28
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 29
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 29
+   -1d0,  0d0,  3d0, -2d0,  0d0,  0d0,  0d0,  0d0,  3d0,  0d0,  -9d0,   6d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 33-48, 29
+    1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 29
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 30
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 30
+    0d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -6d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 33-48, 30
+    0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   6d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 30
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 31
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 31
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&	 ! 33-48, 31
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  0d0,  -9d0,   6d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 49-64, 31
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 32
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 32
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -9d0,   6d0,  0d0,  0d0,   6d0,  -4d0,&	 ! 33-48, 32
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   9d0,  -6d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 49-64, 32
+    0d0,  0d0,  0d0,  0d0,  0d0,  1d0, -2d0,  1d0,  0d0, -2d0,   4d0,  -2d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 1-16, 33
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 33
+    0d0,  0d0,  0d0,  0d0,  0d0, -3d0,  6d0, -3d0,  0d0,  6d0, -12d0,   6d0,  0d0, -3d0,   6d0,  -3d0,&	 ! 33-48, 33
+    0d0,  0d0,  0d0,  0d0,  0d0,  2d0, -4d0,  2d0,  0d0, -4d0,   8d0,  -4d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 49-64, 33
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  1d0,  0d0,  0d0,   2d0,  -2d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 1-16, 34
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 34
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0, -3d0,  0d0,  0d0,  -6d0,   6d0,  0d0,  0d0,   3d0,  -3d0,&	 ! 33-48, 34
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -2d0,  2d0,  0d0,  0d0,   4d0,  -4d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 49-64, 34
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,   2d0,  -1d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 1-16, 35
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 35
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  -6d0,   3d0,  0d0, -3d0,   6d0,  -3d0,&	 ! 33-48, 35
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -2d0,   4d0,  -2d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 49-64, 35
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 1-16, 36
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 36
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   3d0,  0d0,  0d0,   3d0,  -3d0,&	 ! 33-48, 36
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   2d0,  -2d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 49-64, 36
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 37
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 37
+    0d0,  0d0,  0d0,  0d0,  0d0,  3d0, -6d0,  3d0,  0d0, -6d0,  12d0,  -6d0,  0d0,  3d0,  -6d0,   3d0,&	 ! 33-48, 37
+    0d0,  0d0,  0d0,  0d0,  0d0, -2d0,  4d0, -2d0,  0d0,  4d0,  -8d0,   4d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 49-64, 37
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 38
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 38
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,  3d0,  0d0,  0d0,   6d0,  -6d0,  0d0,  0d0,  -3d0,   3d0,&	 ! 33-48, 38
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  2d0, -2d0,  0d0,  0d0,  -4d0,   4d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 49-64, 38
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 39
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 39
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,   6d0,  -3d0,  0d0,  3d0,  -6d0,   3d0,&	 ! 33-48, 39
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  2d0,  -4d0,   2d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 49-64, 39
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 40
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 40
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -3d0,  0d0,  0d0,  -3d0,   3d0,&	 ! 33-48, 40
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -2d0,   2d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 49-64, 40
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 41
+    0d0,  1d0, -2d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,   6d0,  -3d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 17-32, 41
+    0d0, -2d0,  4d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  6d0, -12d0,   6d0,  0d0, -4d0,   8d0,  -4d0,&	 ! 33-48, 41
+    0d0,  1d0, -2d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,   6d0,  -3d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 49-64, 41
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 42
+    0d0,  0d0, -1d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -3d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 17-32, 42
+    0d0,  0d0,  2d0, -2d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -6d0,   6d0,  0d0,  0d0,   4d0,  -4d0,&	 ! 33-48, 42
+    0d0,  0d0, -1d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -3d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 49-64, 42
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 43
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  -6d0,   3d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 17-32, 43
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  12d0,  -6d0,  0d0,  4d0,  -8d0,   4d0,&	 ! 33-48, 43
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  -6d0,   3d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 49-64, 43
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 44
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   3d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 17-32, 44
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   6d0,  -6d0,  0d0,  0d0,  -4d0,   4d0,&	 ! 33-48, 44
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   3d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 49-64, 44
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 45
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 45
+    0d0, -1d0,  2d0, -1d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  -6d0,   3d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 33-48, 45
+    0d0,  1d0, -2d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,   6d0,  -3d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 49-64, 45
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 46
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 46
+    0d0,  0d0,  1d0, -1d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   3d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 33-48, 46
+    0d0,  0d0, -1d0,  1d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -3d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 49-64, 46
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 47
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 47
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,   6d0,  -3d0,  0d0,  2d0,  -4d0,   2d0,&	 ! 33-48, 47
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0,  -6d0,   3d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 49-64, 47
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 48
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 48
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -3d0,  0d0,  0d0,  -2d0,   2d0,&	 ! 33-48, 48
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   3d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 49-64, 48
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 49
+    0d0,  0d0,  0d0,  0d0,  1d0,  0d0, -3d0,  2d0, -2d0,  0d0,   6d0,  -4d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 17-32, 49
+    0d0,  0d0,  0d0,  0d0, -2d0,  0d0,  6d0, -4d0,  4d0,  0d0, -12d0,   8d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 33-48, 49
+    0d0,  0d0,  0d0,  0d0,  1d0,  0d0, -3d0,  2d0, -2d0,  0d0,   6d0,  -4d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 49-64, 49
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 50
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  -6d0,   4d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 17-32, 50
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -6d0,  4d0,  0d0,  0d0,  12d0,  -8d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 33-48, 50
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  -6d0,   4d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 49-64, 50
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 51
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  0d0,   3d0,  -2d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 17-32, 51
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  2d0,  0d0,  -6d0,   4d0, -2d0,  0d0,   6d0,  -4d0,&	 ! 33-48, 51
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  0d0,   3d0,  -2d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 49-64, 51
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 52
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   2d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 17-32, 52
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   6d0,  -4d0,  0d0,  0d0,  -6d0,   4d0,&	 ! 33-48, 52
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   2d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 49-64, 52
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 53
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 53
+    0d0,  0d0,  0d0,  0d0, -1d0,  0d0,  3d0, -2d0,  2d0,  0d0,  -6d0,   4d0, -1d0,  0d0,   3d0,  -2d0,&	 ! 33-48, 53
+    0d0,  0d0,  0d0,  0d0,  1d0,  0d0, -3d0,  2d0, -2d0,  0d0,   6d0,  -4d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 49-64, 53
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 54
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 54
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -3d0,  2d0,  0d0,  0d0,   6d0,  -4d0,  0d0,  0d0,  -3d0,   2d0,&	 ! 33-48, 54
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  3d0, -2d0,  0d0,  0d0,  -6d0,   4d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 49-64, 54
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 55
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 55
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  1d0,  0d0,  -3d0,   2d0, -1d0,  0d0,   3d0,  -2d0,&	 ! 33-48, 55
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  0d0,   3d0,  -2d0,  1d0,  0d0,  -3d0,   2d0,&	 ! 49-64, 55
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 56
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 56
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   3d0,  -2d0,  0d0,  0d0,  -3d0,   2d0,&	 ! 33-48, 56
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -3d0,   2d0,  0d0,  0d0,   3d0,  -2d0,&	 ! 49-64, 56
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 57
+    0d0,  0d0,  0d0,  0d0,  0d0,  1d0, -2d0,  1d0,  0d0, -2d0,   4d0,  -2d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 17-32, 57
+    0d0,  0d0,  0d0,  0d0,  0d0, -2d0,  4d0, -2d0,  0d0,  4d0,  -8d0,   4d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 33-48, 57
+    0d0,  0d0,  0d0,  0d0,  0d0,  1d0, -2d0,  1d0,  0d0, -2d0,   4d0,  -2d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 49-64, 57
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 58
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  1d0,  0d0,  0d0,   2d0,  -2d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 17-32, 58
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  2d0, -2d0,  0d0,  0d0,  -4d0,   4d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 33-48, 58
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  1d0,  0d0,  0d0,   2d0,  -2d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 49-64, 58
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 59
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,   2d0,  -1d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 17-32, 59
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  2d0,  -4d0,   2d0,  0d0, -2d0,   4d0,  -2d0,&	 ! 33-48, 59
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,   2d0,  -1d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 49-64, 59
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 60
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 17-32, 60
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -2d0,   2d0,  0d0,  0d0,   2d0,  -2d0,&	 ! 33-48, 60
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 49-64, 60
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 61
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 61
+    0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  2d0, -1d0,  0d0,  2d0,  -4d0,   2d0,  0d0, -1d0,   2d0,  -1d0,&	 ! 33-48, 61
+    0d0,  0d0,  0d0,  0d0,  0d0,  1d0, -2d0,  1d0,  0d0, -2d0,   4d0,  -2d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 49-64, 61
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 62
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 62
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  1d0, -1d0,  0d0,  0d0,  -2d0,   2d0,  0d0,  0d0,   1d0,  -1d0,&	 ! 33-48, 62
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,  1d0,  0d0,  0d0,   2d0,  -2d0,  0d0,  0d0,  -1d0,   1d0,&	 ! 49-64, 62
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 63
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 63
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  1d0,  -2d0,   1d0,  0d0, -1d0,   2d0,  -1d0,&	 ! 33-48, 63
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0, -1d0,   2d0,  -1d0,  0d0,  1d0,  -2d0,   1d0,&	 ! 49-64, 63
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 64
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 64
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -1d0,   1d0,  0d0,  0d0,   1d0,  -1d0,&	 ! 33-48, 64
+    0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	 ! 49-64, 64
+    /),shape(c))
+
 contains
 
   !> Build a 3d grid using an arithmetic expression.
@@ -1073,654 +1343,6 @@ contains
 
   end subroutine interp
 
-  !> Interpolate by giving the value of the grid at the nearest point
-  !> (or the would-be nearest, it is nearest only in orthogonal
-  !> grids). f is the grid field to interpolate. xi is the point in
-  !> crystallographic coordinates. y is the interpolated value at xi.
-  !> This routine is thread-safe.
-  module subroutine grinterp_nearest(f,x0,y)
-    class(grid3), intent(in) :: f !< Input grid
-    real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
-    real*8, intent(out) :: y !< Interpolated value
-
-    real*8 :: x(3)
-    integer :: idx(3)
-
-    x = modulo(x0,1d0)
-    idx = grid_near(f,x)
-    y = f%f(idx(1),idx(2),idx(3))
-
-  end subroutine grinterp_nearest
-
-  !> Interpolate using a trilinear interpolant. f is the grid field to
-  !> interpolate. xi is the point in crystallographic coordinates. y
-  !> and yp are the value and gradient at xi.  This routine is
-  !> thread-safe.
-  module subroutine grinterp_trilinear(f,x0,y,yp)
-    class(grid3), intent(in) :: f !< Input grid
-    real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
-    real*8, intent(out) :: y !< Interpolated value
-    real*8, intent(out) :: yp(3) !< First derivative
-
-    integer :: idx(3), iidx(3), i, j, k
-    real*8 :: ff(0:2,0:2,0:2), r(3), s(3), x(3)
-
-    ! compute value at the cube vertices
-    x = modulo(x0,1d0)
-    idx = grid_floor(f,x)
-    do i = 0, 1
-       do j = 0, 1
-          do k = 0, 1
-             iidx = modulo(idx+(/i,j,k/)-1,f%n)+1
-             ff(i,j,k) = f%f(iidx(1),iidx(2),iidx(3))
-          end do
-       end do
-    end do
-
-    ! x and 1-x
-    r = f%n * x - idx + 1
-    s = 1d0 - r
-
-    ! trilinear interpolation
-    do i = 0, 1
-       do j = 0, 1
-          ff(i,j,2) = ff(i,j,0) * s(3) + ff(i,j,1) * r(3)
-          ff(2,i,j) = ff(0,i,j) * s(1) + ff(1,i,j) * r(1)
-       end do
-       ff(i,2,2) = ff(i,0,2) * s(2) + ff(i,1,2) * r(2)
-       ff(2,i,2) = ff(0,i,2) * s(1) + ff(1,i,2) * r(1)
-       ff(2,2,i) = ff(2,0,i) * s(2) + ff(2,1,i) * r(2)
-    end do
-    ff(2,2,2) = ff(0,2,2) * s(1) + ff(1,2,2) * r(1)
-    y = ff(2,2,2)
-    yp(1) = ff(1,2,2) - ff(0,2,2)
-    yp(2) = ff(2,1,2) - ff(2,0,2)
-    yp(3) = ff(2,2,1) - ff(2,2,0)
-
-    ! from cell to crystallographic coordinates
-    yp = yp * f%n
-
-  end subroutine grinterp_trilinear
-
-  !> Using the global cubic spline information (c2 array) with
-  !> periodic boundary conditions, calculate the density and c2
-  !> coeffs.  of the 6 points on the cube faces, and then average the
-  !> spline prediction. This is a modified version of the abinit
-  !> density interpolation subroutine. f is the grid field to
-  !> interpolate. xi is the point in crystallographic coordinates. y,
-  !> yp, and ypp are the value, gradient, and Hessian at xi.  This
-  !> routine is thread-safe.
-  module subroutine grinterp_trispline(f,x0,y,yp,ypp)
-    class(grid3), intent(inout), target :: f !< Input grid
-    real*8, intent(in) :: x0(3) !< Target point
-    real*8, intent(out) :: y !< Interpolated value
-    real*8, intent(out) :: yp(3) !< First derivative
-    real*8, intent(out) :: ypp(3,3) !< Second derivative
-
-    integer :: i, ii, jj, kk, ll, nn, indx(3), oii, onn, omm
-    integer :: inii(4,3)
-    real*8 :: bbb, ddu(2), hrh(2), hh(4,2), grd(4), lder(4)
-    real*8 :: cof(2,3), ddstar(6), rhstar(6), sqder(6,4), sqvlr(6,4)
-    real*8 :: pomsq(2,3), pom2sq(2,3)
-    real*8,pointer :: ptddx(:,:,:),ptddy(:,:,:),ptddz(:,:,:),ptrho(:,:,:)
-    real*8 :: xx(3), dix(3)
-
-    real*8, parameter :: eps = 1d-12
-
-    !$omp critical (checkalloc)
-    if (.not.allocated(f%c2)) then
-       call init_trispline(f)
-    end if
-    !$omp end critical (checkalloc)
-
-    nullify(ptddx,ptddy,ptddz,ptrho)
-
-    xx = modulo(x0,1d0)
-
-    do i=1,3
-       dix(i)=1d0/f%n(i)
-    end do
-
-    ! determine the index in the grid
-    do ii=1,3
-       indx(ii)=int(xx(ii)*f%n(ii))
-       bbb=(xx(ii)-indx(ii)*dix(ii))*f%n(ii)
-       if (indx(ii)==f%n(ii)) then
-          indx(ii)=1
-          xx(ii)=0.d0
-       else
-          indx(ii)=indx(ii)+1
-       end if
-       !  Explicit handling to avoid numeric problems
-       if (bbb > 1.d0+eps ) then
-          cof(1,ii)=0.d0
-          cof(2,ii)=1.d0
-       elseif (bbb < -eps ) then
-          cof(1,ii)=1.d0
-          cof(2,ii)=0.d0
-       else
-          cof(1,ii)=1.d0-bbb
-          cof(2,ii)=bbb
-       end if
-    end do
-
-    ! 3d interpolation of the valence density
-
-    ! determination of the values of density and of its second derivative
-    ! at the "star" = constructed at vv with primitive directions
-    ! To interpolation the values at the faces of the grid cell are needed
-
-    rhstar(:)=0.d0
-    sqder(:,:)=0.d0
-    sqvlr(:,:)=0.d0
-    ddstar(:)=0.d0
-    pomsq(:,:)=0.d0
-    pom2sq(:,:)=0.d0
-
-    oii=1; onn=1; omm=1
-    if (indx(1)==f%n(1)) oii=1-f%n(1)
-    if (indx(2)==f%n(2)) onn=1-f%n(2)
-    if (indx(3)==f%n(3)) omm=1-f%n(3)
-
-    ! the values in the corners of the grid cell
-
-    ptddx=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,1)
-    ptddy=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,2)
-    ptddz=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,3)
-    ptrho=>f%f(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm)
-
-    ! the coefficients for spline interpolation of density and its derivation
-    do ii=1,3
-       do jj=1,2
-          pomsq(jj,ii)=(cof(jj,ii)*cof(jj,ii)*cof(jj,ii)-cof(jj,ii))/6.d0*dix(ii)*dix(ii)
-          pom2sq(jj,ii)=(3.d0*cof(jj,ii)*cof(jj,ii)-1.d0)/6.d0*dix(ii)
-          if (jj==1) pom2sq(jj,ii)=-pom2sq(jj,ii)
-       end do
-    end do
-
-
-    do ii=1,2
-       do jj=1,2
-          do kk=1,2
-             ddstar(ii)=ddstar(ii)+cof(jj,2)*cof(kk,3)*ptddx(ii,jj,kk)
-             ddstar(ii+2)=ddstar(ii+2)+cof(jj,3)*cof(kk,1)*ptddy(kk,ii,jj)
-             ddstar(ii+4)=ddstar(ii+4)+cof(jj,1)*cof(kk,2)*ptddz(jj,kk,ii)
-             sqder(ii,jj)=sqder(ii,jj)+cof(kk,2)*ptddz(ii,kk,jj)
-             sqder(ii,jj+2)=sqder(ii,jj+2)+cof(kk,3)*ptddy(ii,jj,kk)
-             sqder(ii+2,jj)=sqder(ii+2,jj)+cof(kk,3)*ptddx(jj,ii,kk)
-             sqder(ii+2,jj+2)=sqder(ii+2,jj+2)+cof(kk,1)*ptddz(kk,ii,jj)
-             sqder(ii+4,jj)=sqder(ii+4,jj)+cof(kk,1)*ptddy(kk,jj,ii)
-             sqder(ii+4,jj+2)=sqder(ii+4,jj+2)+cof(kk,2)*ptddx(jj,kk,ii)
-             sqvlr(ii,jj)=sqvlr(ii,jj)+cof(kk,2)*ptrho(ii,kk,jj)+pomsq(kk,2)*ptddy(ii,kk,jj)
-             sqvlr(ii,jj+2)=sqvlr(ii,jj+2)+cof(kk,3)*ptrho(ii,jj,kk)+pomsq(kk,3)*ptddz(ii,jj,kk)
-             sqvlr(ii+2,jj+2)=sqvlr(ii+2,jj+2)+cof(kk,1)*ptrho(kk,ii,jj)+pomsq(kk,1)*ptddx(kk,ii,jj)
-          end do
-       end do
-    end do
-
-    do ii=1,2
-       do jj=1,2
-          sqvlr(ii+2,jj)=sqvlr(jj,ii+2)
-          sqvlr(ii+4,jj)=sqvlr(jj+2,ii+2)
-          sqvlr(ii+4,jj+2)=sqvlr(jj,ii)
-       end do
-    end do
-
-    do ii=1,2
-       do jj=1,2
-          rhstar(ii)=rhstar(ii)+cof(jj,3)*sqvlr(ii,jj)+pomsq(jj,3)*sqder(ii,jj)+&
-             &    cof(jj,2)*sqvlr(ii,jj+2)+pomsq(jj,2)*sqder(ii,jj+2)
-          rhstar(ii+2)=rhstar(ii+2)+cof(jj,1)*sqvlr(ii+2,jj)+pomsq(jj,1)*sqder(ii+2,jj)+&
-             &    cof(jj,3)*sqvlr(ii+2,jj+2)+pomsq(jj,3)*sqder(ii+2,jj+2)
-          rhstar(ii+4)=rhstar(ii+4)+cof(jj,2)*sqvlr(ii+4,jj)+pomsq(jj,2)*sqder(ii+4,jj)+&
-             &    cof(jj,1)*sqvlr(ii+4,jj+2)+pomsq(jj,1)*sqder(ii+4,jj+2)
-       end do
-    end do
-    rhstar(:)=rhstar(:)/2.d0
-
-    y = 0d0
-    yp = 0d0
-    ypp = 0d0
-    kk=1; nn=1
-    do ii=1,5,2
-       do jj=1,2
-          nn=-nn
-          y=y+cof(jj,kk)*rhstar(ii+jj-1)+pomsq(jj,kk)*ddstar(ii+jj-1)
-          yp(kk)=yp(kk)+pom2sq(jj,kk)*ddstar(ii+jj-1)
-          ypp(kk,kk)=ypp(kk,kk)+cof(jj,kk)*ddstar(ii+jj-1)
-          yp(kk)=yp(kk)+nn*rhstar(ii+jj-1)/dix(kk)
-       end do
-       kk=kk+1
-    end do
-    y=y/3.d0
-
-    ! Off-diagonal elements of the hessian
-
-    ! for the speed reasons the polynomial interpolation
-    ! for second derivation fields is used in this case
-    ! but the last step is always done by spline interpolation.
-
-
-    do ii=1,3
-       do jj=-1,2
-          inii(jj+2,ii)=indx(ii)+jj
-          if (inii(jj+2,ii) < 1) inii(jj+2,ii)=inii(jj+2,ii)+f%n(ii)
-          if (inii(jj+2,ii) > f%n(ii)) inii(jj+2,ii)=inii(jj+2,ii)-f%n(ii)
-       end do
-    end do
-
-    ! Not very nice
-
-    do ii=1,3
-       select case (ii)
-       case (1)
-          do jj=1,4
-             ddu(1)=cof(1,2)*f%c2(inii(jj,1),inii(2,2),inii(2,3),3)+cof(2,2)*f%c2(inii(jj,1),inii(3,2),inii(2,3),3)
-             ddu(2)=cof(1,2)*f%c2(inii(jj,1),inii(2,2),inii(3,3),3)+cof(2,2)*f%c2(inii(jj,1),inii(3,2),inii(3,3),3)
-             hrh(1)=cof(1,2)*f%f(inii(jj,1),inii(2,2),inii(2,3))+cof(2,2)*f%f(inii(jj,1),inii(3,2),inii(2,3))+&
-                &      pomsq(1,2)*f%c2(inii(jj,1),inii(2,2),inii(2,3),2)+pomsq(2,2)*f%c2(inii(jj,1),inii(3,2),inii(2,3),2)
-             hrh(2)=cof(1,2)*f%f(inii(jj,1),inii(2,2),inii(3,3))+cof(2,2)*f%f(inii(jj,1),inii(3,2),inii(3,3))+&
-                &      pomsq(1,2)*f%c2(inii(jj,1),inii(2,2),inii(3,3),2)+pomsq(2,2)*f%c2(inii(jj,1),inii(3,2),inii(3,3),2)
-             hh(jj,2)=(hrh(2)-hrh(1))/dix(3)+pom2sq(1,3)*ddu(1)+pom2sq(2,3)*ddu(2)
-
-             ddu(1)=cof(1,3)*f%c2(inii(jj,1),inii(2,2),inii(2,3),2)+cof(2,3)*f%c2(inii(jj,1),inii(2,2),inii(3,3),2)
-             ddu(2)=cof(1,3)*f%c2(inii(jj,1),inii(3,2),inii(2,3),2)+cof(2,3)*f%c2(inii(jj,1),inii(3,2),inii(3,3),2)
-             hrh(1)=cof(1,3)*f%f(inii(jj,1),inii(2,2),inii(2,3))+cof(2,3)*f%f(inii(jj,1),inii(2,2),inii(3,3))+&
-                &      pomsq(1,3)*f%c2(inii(jj,1),inii(2,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(jj,1),inii(2,2),inii(3,3),3)
-             hrh(2)=cof(1,3)*f%f(inii(jj,1),inii(3,2),inii(2,3))+cof(2,3)*f%f(inii(jj,1),inii(3,2),inii(3,3))+&
-                &      pomsq(1,3)*f%c2(inii(jj,1),inii(3,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(jj,1),inii(3,2),inii(3,3),3)
-             hh(jj,1)=(hrh(2)-hrh(1))/dix(2)+pom2sq(1,2)*ddu(1)+pom2sq(2,2)*ddu(2)
-          end do
-       case (2)
-          do jj=1,4
-             ddu(1)=cof(1,3)*f%c2(inii(2,1),inii(jj,2),inii(2,3),1)+cof(2,3)*f%c2(inii(2,1),inii(jj,2),inii(3,3),1)
-             ddu(2)=cof(1,3)*f%c2(inii(3,1),inii(jj,2),inii(2,3),1)+cof(2,3)*f%c2(inii(3,1),inii(jj,2),inii(3,3),1)
-             hrh(1)=cof(1,3)*f%f(inii(2,1),inii(jj,2),inii(2,3))+cof(2,3)*f%f(inii(2,1),inii(jj,2),inii(3,3))+&
-                &      pomsq(1,3)*f%c2(inii(2,1),inii(jj,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(2,1),inii(jj,2),inii(3,3),3)
-             hrh(2)=cof(1,3)*f%f(inii(3,1),inii(jj,2),inii(2,3))+cof(2,3)*f%f(inii(3,1),inii(jj,2),inii(3,3))+&
-                &      pomsq(1,3)*f%c2(inii(3,1),inii(jj,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(3,1),inii(jj,2),inii(3,3),3)
-             hh(jj,2)=(hrh(2)-hrh(1))/dix(1)+pom2sq(1,1)*ddu(1)+pom2sq(2,1)*ddu(2)
-
-             ddu(1)=cof(1,1)*f%c2(inii(2,1),inii(jj,2),inii(2,3),3)+cof(2,1)*f%c2(inii(3,1),inii(jj,2),inii(2,3),3)
-             ddu(2)=cof(1,1)*f%c2(inii(2,1),inii(jj,2),inii(3,3),3)+cof(2,1)*f%c2(inii(3,1),inii(jj,2),inii(3,3),3)
-             hrh(1)=cof(1,1)*f%f(inii(2,1),inii(jj,2),inii(2,3))+cof(2,1)*f%f(inii(3,1),inii(jj,2),inii(2,3))+&
-                &      pomsq(1,1)*f%c2(inii(2,1),inii(jj,2),inii(2,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(jj,2),inii(2,3),1)
-             hrh(2)=cof(1,1)*f%f(inii(2,1),inii(jj,2),inii(3,3))+cof(2,1)*f%f(inii(3,1),inii(jj,2),inii(3,3))+&
-                &      pomsq(1,1)*f%c2(inii(2,1),inii(jj,2),inii(3,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(jj,2),inii(3,3),1)
-             hh(jj,1)=(hrh(2)-hrh(1))/dix(3)+pom2sq(1,3)*ddu(1)+pom2sq(2,3)*ddu(2)
-          end do
-       case (3)
-          do jj=1,4
-             ddu(1)=cof(1,1)*f%c2(inii(2,1),inii(2,2),inii(jj,3),2)+cof(2,1)*f%c2(inii(3,1),inii(2,2),inii(jj,3),2)
-             ddu(2)=cof(1,1)*f%c2(inii(2,1),inii(3,2),inii(jj,3),2)+cof(2,1)*f%c2(inii(3,1),inii(3,2),inii(jj,3),2)
-             hrh(1)=cof(1,1)*f%f(inii(2,1),inii(2,2),inii(jj,3))+cof(2,1)*f%f(inii(3,1),inii(2,2),inii(jj,3))+&
-                &      pomsq(1,1)*f%c2(inii(2,1),inii(2,2),inii(jj,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(2,2),inii(jj,3),1)
-             hrh(2)=cof(1,1)*f%f(inii(2,1),inii(3,2),inii(jj,3))+cof(2,1)*f%f(inii(3,1),inii(3,2),inii(jj,3))+&
-                &      pomsq(1,1)*f%c2(inii(2,1),inii(3,2),inii(jj,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(3,2),inii(jj,3),1)
-             hh(jj,2)=(hrh(2)-hrh(1))/dix(2)+pom2sq(1,2)*ddu(1)+pom2sq(2,2)*ddu(2)
-
-             ddu(1)=cof(1,2)*f%c2(inii(2,1),inii(2,2),inii(jj,3),1)+cof(2,2)*f%c2(inii(2,1),inii(3,2),inii(jj,3),1)
-             ddu(2)=cof(1,2)*f%c2(inii(3,1),inii(2,2),inii(jj,3),1)+cof(2,2)*f%c2(inii(3,1),inii(3,2),inii(jj,3),1)
-             hrh(1)=cof(1,2)*f%f(inii(2,1),inii(2,2),inii(jj,3))+cof(2,2)*f%f(inii(2,1),inii(3,2),inii(jj,3))+&
-                &      pomsq(1,2)*f%c2(inii(2,1),inii(2,2),inii(jj,3),2)+pomsq(2,2)*f%c2(inii(2,1),inii(3,2),inii(jj,3),2)
-             hrh(2)=cof(1,2)*f%f(inii(3,1),inii(2,2),inii(jj,3))+cof(2,2)*f%f(inii(3,1),inii(3,2),inii(jj,3))+&
-                &      pomsq(1,2)*f%c2(inii(3,1),inii(2,2),inii(jj,3),2)+pomsq(2,2)*f%c2(inii(3,1),inii(3,2),inii(jj,3),2)
-             hh(jj,1)=(hrh(2)-hrh(1))/dix(1)+pom2sq(1,1)*ddu(1)+pom2sq(2,1)*ddu(2)
-          end do
-       end select
-       do jj=-2,1
-          grd(jj+3)=(indx(ii)+jj)*dix(ii)
-       end do
-
-       !  write(6,'("hh: ",/,4F16.8,/,4F16.8)') ((hh(kk,jj),kk=1,4),jj=1,2)
-       !  write(6,'("grad: ",3F16.8)') (grad(kk),kk=1,3)
-       !  write(6,'("dix: ",3F16.8)') (dix(kk),kk=1,3)
-       !  write(6,'("grd: ",4F16.8)') (grd(kk),kk=1,4)
-       !  write(6,'("inii: ",4I4)') (inii(kk,ii),kk=1,4)
-
-       do jj=1,2
-
-          !   polynomial interpolation
-
-          do kk=1,3
-             do ll=4,kk+1,-1
-                hh(ll,jj)=(hh(ll,jj)-hh(ll-1,jj))/(grd(ll)-grd(ll-1))
-             end do
-          end do
-          lder(4)=hh(4,jj)
-          do kk=3,1,-1
-             lder(kk)=hh(kk,jj)+(xx(ii)-grd(kk))*lder(kk+1)
-          end do
-          do kk=1,2
-             do ll=3,kk+1,-1
-                lder(ll)=lder(ll)+(xx(ii)-grd(ll-kk))*lder(ll+1)
-             end do
-          end do
-          nn=ii+jj
-          if (nn > 3) nn=nn-3
-          ypp(ii,nn)=ypp(ii,nn)+lder(2)
-          ypp(nn,ii)=ypp(nn,ii)+lder(2)
-       end do
-    end do
-
-    ! averaging of the mixed derivations obtained in different order
-    do ii=1,3
-       do jj=1,3
-          if (ii /= jj) ypp(ii,jj)=ypp(ii,jj)/2.d0
-       end do
-    end do
-
-    nullify(ptddx,ptddy,ptddz,ptrho)
-
-  end subroutine grinterp_trispline
-
-  !> Tricubic interpolation based on: Lekien and Marsden,
-  !> Int. J. Numer. Meth. Engng, 63 (2005) 455-471.  This
-  !> interpolation is C^1 and local (the interpolant uses information
-  !> of the grid points close to the point).  This subroutine has been
-  !> adapted from the likely code, by David Kirkby, University of
-  !> California, Irvine (https://github.com/deepzot/likely). f is the
-  !> grid field to interpolate. xi is the point in crystallographic
-  !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
-  !> at xi.  This routine is thread-safe.
-  module subroutine grinterp_tricubic(f,xi,y,yp,ypp)
-    class(grid3), intent(inout), target :: f !< Input grid
-    real*8, intent(in) :: xi(3) !< Target point
-    real*8, intent(out) :: y !< Interpolated value
-    real*8, intent(out) :: yp(3) !< First derivative
-    real*8, intent(out) :: ypp(3,3) !< Second derivative
-
-    integer :: idx(3), iidx(3), i, j, k, l
-    real*8 :: g(-1:2,-1:2,-1:2), x(3)
-    real*8 :: a(64), b(64)
-    real*8, dimension(0:3) :: aa, bb, bbx, bbxx, aax, aay, aaxy
-    real*8, dimension(0:3) :: aaxx, aayy
-
-    ! initialize
-    y = 0d0
-    yp = 0d0
-    ypp = 0d0
-
-    ! fetch values at the cube vertices
-    x = modulo(xi,1d0)
-    idx = grid_floor(f,x)
-    do i = -1, 2
-       do j = -1, 2
-          do k = -1, 2
-             iidx = modulo(idx+(/i,j,k/)-1,f%n)+1
-             g(i,j,k) = f%f(iidx(1),iidx(2),iidx(3))
-          end do
-       end do
-    end do
-
-    ! Fill the values in the b-vector (see Lekien and Marsden)
-    ! f
-    b(1) = g(0,0,0)
-    b(2) = g(1,0,0)
-    b(3) = g(0,1,0)
-    b(4) = g(1,1,0)
-    b(5) = g(0,0,1)
-    b(6) = g(1,0,1)
-    b(7) = g(0,1,1)
-    b(8) = g(1,1,1)
-
-    ! fx
-    b(9)  = 0.5d0*(g(1,0,0)-g(-1,0,0))
-    b(10) = 0.5d0*(g(2,0,0)-g(0,0,0))
-    b(11) = 0.5d0*(g(1,1,0)-g(-1,1,0))
-    b(12) = 0.5d0*(g(2,1,0)-g(0,1,0))
-    b(13) = 0.5d0*(g(1,0,1)-g(-1,0,1))
-    b(14) = 0.5d0*(g(2,0,1)-g(0,0,1))
-    b(15) = 0.5d0*(g(1,1,1)-g(-1,1,1))
-    b(16) = 0.5d0*(g(2,1,1)-g(0,1,1))
-
-    ! fy
-    b(17) = 0.5d0*(g(0,1,0)-g(0,-1,0))
-    b(18) = 0.5d0*(g(1,1,0)-g(1,-1,0))
-    b(19) = 0.5d0*(g(0,2,0)-g(0,0,0))
-    b(20) = 0.5d0*(g(1,2,0)-g(1,0,0))
-    b(21) = 0.5d0*(g(0,1,1)-g(0,-1,1))
-    b(22) = 0.5d0*(g(1,1,1)-g(1,-1,1))
-    b(23) = 0.5d0*(g(0,2,1)-g(0,0,1))
-    b(24) = 0.5d0*(g(1,2,1)-g(1,0,1))
-
-    ! fz
-    b(25) = 0.5d0*(g(0,0,1)-g(0,0,-1))
-    b(26) = 0.5d0*(g(1,0,1)-g(1,0,-1))
-    b(27) = 0.5d0*(g(0,1,1)-g(0,1,-1))
-    b(28) = 0.5d0*(g(1,1,1)-g(1,1,-1))
-    b(29) = 0.5d0*(g(0,0,2)-g(0,0,0))
-    b(30) = 0.5d0*(g(1,0,2)-g(1,0,0))
-    b(31) = 0.5d0*(g(0,1,2)-g(0,1,0))
-    b(32) = 0.5d0*(g(1,1,2)-g(1,1,0))
-
-    ! fxy
-    b(33) = 0.25d0*(g(1,1,0)-g(-1,1,0)-g(1,-1,0)+g(-1,-1,0))
-    b(34) = 0.25d0*(g(2,1,0)-g(0,1,0)-g(2,-1,0)+g(0,-1,0))
-    b(35) = 0.25d0*(g(1,2,0)-g(-1,2,0)-g(1,0,0)+g(-1,0,0))
-    b(36) = 0.25d0*(g(2,2,0)-g(0,2,0)-g(2,0,0)+g(0,0,0))
-    b(37) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1))
-    b(38) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1))
-    b(39) = 0.25d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1))
-    b(40) = 0.25d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1))
-
-    ! fxz
-    b(41) = 0.25d0*(g(1,0,1)-g(-1,0,1)-g(1,0,-1)+g(-1,0,-1))
-    b(42) = 0.25d0*(g(2,0,1)-g(0,0,1)-g(2,0,-1)+g(0,0,-1))
-    b(43) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,1,-1)+g(-1,1,-1))
-    b(44) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,1,-1)+g(0,1,-1))
-    b(45) = 0.25d0*(g(1,0,2)-g(-1,0,2)-g(1,0,0)+g(-1,0,0))
-    b(46) = 0.25d0*(g(2,0,2)-g(0,0,2)-g(2,0,0)+g(0,0,0))
-    b(47) = 0.25d0*(g(1,1,2)-g(-1,1,2)-g(1,1,0)+g(-1,1,0))
-    b(48) = 0.25d0*(g(2,1,2)-g(0,1,2)-g(2,1,0)+g(0,1,0))
-
-    ! fyz
-    b(49) = 0.25d0*(g(0,1,1)-g(0,-1,1)-g(0,1,-1)+g(0,-1,-1))
-    b(50) = 0.25d0*(g(1,1,1)-g(1,-1,1)-g(1,1,-1)+g(1,-1,-1))
-    b(51) = 0.25d0*(g(0,2,1)-g(0,0,1)-g(0,2,-1)+g(0,0,-1))
-    b(52) = 0.25d0*(g(1,2,1)-g(1,0,1)-g(1,2,-1)+g(1,0,-1))
-    b(53) = 0.25d0*(g(0,1,2)-g(0,-1,2)-g(0,1,0)+g(0,-1,0))
-    b(54) = 0.25d0*(g(1,1,2)-g(1,-1,2)-g(1,1,0)+g(1,-1,0))
-    b(55) = 0.25d0*(g(0,2,2)-g(0,0,2)-g(0,2,0)+g(0,0,0))
-    b(56) = 0.25d0*(g(1,2,2)-g(1,0,2)-g(1,2,0)+g(1,0,0))
-
-    ! fxyz
-    b(57) = 0.125d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1)-g(1,1,-1)+g(-1,1,-1)+g(1,-1,-1)-g(-1,-1,-1))
-    b(58) = 0.125d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1)-g(2,1,-1)+g(0,1,-1)+g(2,-1,-1)-g(0,-1,-1))
-    b(59) = 0.125d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1)-g(1,2,-1)+g(-1,2,-1)+g(1,0,-1)-g(-1,0,-1))
-    b(60) = 0.125d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1)-g(2,2,-1)+g(0,2,-1)+g(2,0,-1)-g(0,0,-1))
-    b(61) = 0.125d0*(g(1,1,2)-g(-1,1,2)-g(1,-1,2)+g(-1,-1,2)-g(1,1,0)+g(-1,1,0)+g(1,-1,0)-g(-1,-1,0))
-    b(62) = 0.125d0*(g(2,1,2)-g(0,1,2)-g(2,-1,2)+g(0,-1,2)-g(2,1,0)+g(0,1,0)+g(2,-1,0)-g(0,-1,0))
-    b(63) = 0.125d0*(g(1,2,2)-g(-1,2,2)-g(1,0,2)+g(-1,0,2)-g(1,2,0)+g(-1,2,0)+g(1,0,0)-g(-1,0,0))
-    b(64) = 0.125d0*(g(2,2,2)-g(0,2,2)-g(2,0,2)+g(0,0,2)-g(2,2,0)+g(0,2,0)+g(2,0,0)-g(0,0,0))
-
-    ! calculate the coefficient vector
-    a = matmul(c,b)
-
-    ! interpolation in integer coordinates
-    x = (x * f%n - (idx-1))
-
-    l = 1 ! packed coefficient vector index
-    do k = 0, 3
-       do j = 0, 3
-          ! horner's rule on x
-          bb(j) = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
-          bbx(j) = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
-          bbxx(j) = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
-
-          ! advance
-          l = l + 4
-       end do
-       ! horner's rule on y
-       aa(k) = bb(0) + x(2) * (bb(1) + x(2) * (bb(2) + x(2) * bb(3)))
-
-       aax(k) = bbx(0) + x(2) * (bbx(1) + x(2) * (bbx(2) + x(2) * bbx(3)))
-       aay(k) = bb(1) + x(2) * (2d0 * bb(2) + x(2) * 3d0 * bb(3))
-       aaxy(k) = bbx(1) + x(2) * (2d0 * bbx(2) + x(2) * 3d0 * bbx(3))
-
-       aaxx(k) = bbxx(0) + x(2) * (bbxx(1) + x(2) * (bbxx(2) + x(2) * bbxx(3)))
-       aayy(k) = 2d0 * bb(2) + 6d0 * x(2) * bb(3)
-    end do
-
-    ! field value
-    y = aa(0) + x(3) * (aa(1) + x(3) * (aa(2) + x(3) * aa(3)))
-
-    ! gradient
-    yp(1) = aax(0) + x(3) * (aax(1) + x(3) * (aax(2) + x(3) * aax(3)))
-    yp(2) = aay(0) + x(3) * (aay(1) + x(3) * (aay(2) + x(3) * aay(3)))
-    yp(3) = aa(1) + x(3) * (2d0 * aa(2) + x(3) * 3d0 * aa(3))
-
-    ! hessian
-    ypp(1,1) = aaxx(0) + x(3) * (aaxx(1) + x(3) * (aaxx(2) + x(3) * aaxx(3)))
-    ypp(1,2) = aaxy(0) + x(3) * (aaxy(1) + x(3) * (aaxy(2) + x(3) * aaxy(3)))
-    ypp(1,3) = aax(1) + x(3) * (2d0 * aax(2) + x(3) * 3d0 * aax(3))
-    ypp(2,2) = aayy(0) + x(3) * (aayy(1) + x(3) * (aayy(2) + x(3) * aayy(3)))
-    ypp(2,3) = aay(1) + x(3) * (2d0 * aay(2) + x(3) * 3d0 * aay(3))
-    ypp(3,3) = 2d0 * aa(2) + 6d0 * x(3) * aa(3)
-
-    ! transform back to fractional coordinates and fill the Hessian
-    do i = 1, 3
-       yp(i) = yp(i) * f%n(i)
-       do j = i, 3
-          ypp(i,j) = ypp(i,j) * f%n(i) * f%n(j)
-          ypp(j,i) = ypp(i,j)
-       end do
-    end do
-
-  end subroutine grinterp_tricubic
-
-  !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in 
-  !> orthogonal grids).
-  module function grid_near(f,x) result(res)
-    class(grid3), intent(in) :: f !< Input grid
-    real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
-    integer :: res(3)
-
-    res = modulo(nint(x * f%n),f%n)+1
-
-  end function grid_near
-
-  !> Floor grid point of a point x in crystallographic coords.
-  module function grid_floor(f,x) result(res)
-    class(grid3), intent(in) :: f !< Input grid
-    real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
-    integer :: res(3)
-
-    res = modulo(floor(x * f%n),f%n)+1
-
-  end function grid_floor
-
-  !> Initialize the grid for the trispline interpolation. This is a
-  !> modified version of the corresponding subroutine in abinit.
-  module subroutine init_trispline(f)
-    use tools_io, only: ferror, faterr
-    class(grid3), intent(inout) :: f !< Input grid
-
-    integer :: istat
-    integer :: d, nmax, i, i1, i2
-    real*8, allocatable :: l(:,:), fg(:)
-    real*8 :: fprev, fnext, fuse, fone
-
-    if (allocated(f%c2)) return
-
-    allocate(f%c2(f%n(1),f%n(2),f%n(3),3),stat=istat)
-    if (istat /= 0) &
-       call ferror('init_trispline','Error allocating c2 grids',faterr)
-
-    nmax = maxval(f%n)
-    allocate(l(nmax,nmax))
-    allocate(fg(nmax))
-
-    ! cholesky decomposition of the matrix: 
-    ! A = 
-    !  ( 4 1 0 ... 0 1 )
-    !  ( 1 4 1 ... 0 0 )
-    !  ( 0 1 4 ... 0 0 )
-    !      .......
-    !  ( 0 0 ... 1 4 1 )
-    !  ( 1 0 ... 0 1 4 )
-    ! that is the coefficient matrix of the system that determines
-    ! the x^2 coefficients of the cubic spline (array c2 / 2).
-    ! L is a lower-triangular matrix, A = L * L^t
-
-    ! direction x->y->z
-    do d = 1, 3
-       nmax = f%n(d)
-       l = 0d0
-       l(1,1) = 2d0
-       l(2,1) = 1d0 / l(1,1)
-       l(2,2) = sqrt(15d0) / 2d0
-       l(3,2) = 1d0 / l(2,2)
-       l(nmax,1) = 0.5d0
-       l(nmax,2) = - 0.5d0 / sqrt(15d0)
-       do i = 3, nmax-1
-          l(i,i) = sqrt(4d0 - 1d0 / l(i-1,i-1)**2)
-          l(i+1,i) = 1d0 / l(i,i)
-          l(nmax,i) = - l(nmax,i-1) * l(i,i-1) / l(i,i)
-       end do
-       l(nmax,nmax-1) = (1d0 - l(nmax,nmax-2)*l(nmax-1,nmax-2)) /&
-          l(nmax-1,nmax-1)
-       l(nmax,nmax) = sqrt(4d0 - sum(l(nmax,1:nmax-1)**2))
-       l = l / sqrt(6d0 * nmax**2)
-
-       ! for each of the grid points in the plane, find the spline c2
-       ! (c2*x^2) coefficients
-       do i1 = 1,f%n(mod(d,3)+1)
-          do i2 = 1,f%n(mod(d+1,3)+1)
-             select case(d)
-             case(1)
-                fg(1:nmax) = f%f(:,i1,i2)
-             case(2)
-                fg(1:nmax) = f%f(i2,:,i1)
-             case(3)
-                fg(1:nmax) = f%f(i1,i2,:)
-             end select
-
-             ! constant terms for the system
-             fone = fg(1)
-             fprev = fg(nmax)
-             do i = 1, nmax-1
-                fnext = fg(i+1)
-                fuse = fprev + fnext - fg(i) - fg(i)
-                fprev = fg(i)
-                fg(i) = fuse
-             end do
-             fg(nmax) = fprev + fone - fg(nmax) - fg(nmax)
-
-             ! solve by direct substitution, L^t b = c
-             fg(1) = fg(1) / l(1,1)
-             do i = 2, nmax-1
-                fg(i) = (fg(i) - l(i,i-1) * fg(i-1)) / l(i,i)
-             end do
-             fg(nmax) = (fg(nmax) - &
-                dot_product(l(nmax,1:nmax-1),fg(1:nmax-1))) / l(nmax,nmax)
-
-             ! again, L a = b
-             fg(nmax) = fg(nmax) / l(nmax,nmax)
-             fg(nmax-1) = (fg(nmax-1) - l(nmax,nmax-1) * fg(nmax)) / l(nmax-1,nmax-1)
-             do i = nmax-2, 1, -1
-                fg(i) = (fg(i) - l(i+1,i) * fg(i+1) - l(nmax,i)*fg(nmax)) / l(i,i)
-             end do
-
-             ! write down the second derivatives
-             select case(d)
-             case(1)
-                f%c2(:,i1,i2,d) = fg(1:nmax)
-             case(2)
-                f%c2(i2,:,i1,d) = fg(1:nmax)
-             case(3)
-                f%c2(i1,i2,:,d) = fg(1:nmax)
-             end select
-
-          end do
-       end do
-
-    end do
-
-    deallocate(l,fg)
-
-  end subroutine init_trispline
-
   !> Given the electron density in the frho field, calculate the
   !> laplacian in flap using FFT. x2c is the crystallographic to
   !> Cartesian matrix for this grid.
@@ -2189,9 +1811,659 @@ contains
 
   end subroutine get_qe_wnr
 
+  !xx! private procedures
+
+  !> Interpolate by giving the value of the grid at the nearest point
+  !> (or the would-be nearest, it is nearest only in orthogonal
+  !> grids). f is the grid field to interpolate. xi is the point in
+  !> crystallographic coordinates. y is the interpolated value at xi.
+  !> This routine is thread-safe.
+  subroutine grinterp_nearest(f,x0,y)
+    class(grid3), intent(in) :: f !< Input grid
+    real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
+    real*8, intent(out) :: y !< Interpolated value
+
+    real*8 :: x(3)
+    integer :: idx(3)
+
+    x = modulo(x0,1d0)
+    idx = grid_near(f,x)
+    y = f%f(idx(1),idx(2),idx(3))
+
+  end subroutine grinterp_nearest
+
+  !> Interpolate using a trilinear interpolant. f is the grid field to
+  !> interpolate. xi is the point in crystallographic coordinates. y
+  !> and yp are the value and gradient at xi.  This routine is
+  !> thread-safe.
+  subroutine grinterp_trilinear(f,x0,y,yp)
+    class(grid3), intent(in) :: f !< Input grid
+    real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
+    real*8, intent(out) :: y !< Interpolated value
+    real*8, intent(out) :: yp(3) !< First derivative
+
+    integer :: idx(3), iidx(3), i, j, k
+    real*8 :: ff(0:2,0:2,0:2), r(3), s(3), x(3)
+
+    ! compute value at the cube vertices
+    x = modulo(x0,1d0)
+    idx = grid_floor(f,x)
+    do i = 0, 1
+       do j = 0, 1
+          do k = 0, 1
+             iidx = modulo(idx+(/i,j,k/)-1,f%n)+1
+             ff(i,j,k) = f%f(iidx(1),iidx(2),iidx(3))
+          end do
+       end do
+    end do
+
+    ! x and 1-x
+    r = f%n * x - idx + 1
+    s = 1d0 - r
+
+    ! trilinear interpolation
+    do i = 0, 1
+       do j = 0, 1
+          ff(i,j,2) = ff(i,j,0) * s(3) + ff(i,j,1) * r(3)
+          ff(2,i,j) = ff(0,i,j) * s(1) + ff(1,i,j) * r(1)
+       end do
+       ff(i,2,2) = ff(i,0,2) * s(2) + ff(i,1,2) * r(2)
+       ff(2,i,2) = ff(0,i,2) * s(1) + ff(1,i,2) * r(1)
+       ff(2,2,i) = ff(2,0,i) * s(2) + ff(2,1,i) * r(2)
+    end do
+    ff(2,2,2) = ff(0,2,2) * s(1) + ff(1,2,2) * r(1)
+    y = ff(2,2,2)
+    yp(1) = ff(1,2,2) - ff(0,2,2)
+    yp(2) = ff(2,1,2) - ff(2,0,2)
+    yp(3) = ff(2,2,1) - ff(2,2,0)
+
+    ! from cell to crystallographic coordinates
+    yp = yp * f%n
+
+  end subroutine grinterp_trilinear
+
+  !> Using the global cubic spline information (c2 array) with
+  !> periodic boundary conditions, calculate the density and c2
+  !> coeffs.  of the 6 points on the cube faces, and then average the
+  !> spline prediction. This is a modified version of the abinit
+  !> density interpolation subroutine. f is the grid field to
+  !> interpolate. xi is the point in crystallographic coordinates. y,
+  !> yp, and ypp are the value, gradient, and Hessian at xi.  This
+  !> routine is thread-safe.
+  subroutine grinterp_trispline(f,x0,y,yp,ypp)
+    class(grid3), intent(inout), target :: f !< Input grid
+    real*8, intent(in) :: x0(3) !< Target point
+    real*8, intent(out) :: y !< Interpolated value
+    real*8, intent(out) :: yp(3) !< First derivative
+    real*8, intent(out) :: ypp(3,3) !< Second derivative
+
+    integer :: i, ii, jj, kk, ll, nn, indx(3), oii, onn, omm
+    integer :: inii(4,3)
+    real*8 :: bbb, ddu(2), hrh(2), hh(4,2), grd(4), lder(4)
+    real*8 :: cof(2,3), ddstar(6), rhstar(6), sqder(6,4), sqvlr(6,4)
+    real*8 :: pomsq(2,3), pom2sq(2,3)
+    real*8,pointer :: ptddx(:,:,:),ptddy(:,:,:),ptddz(:,:,:),ptrho(:,:,:)
+    real*8 :: xx(3), dix(3)
+
+    real*8, parameter :: eps = 1d-12
+
+    !$omp critical (checkalloc)
+    if (.not.allocated(f%c2)) then
+       call init_trispline(f)
+    end if
+    !$omp end critical (checkalloc)
+
+    nullify(ptddx,ptddy,ptddz,ptrho)
+
+    xx = modulo(x0,1d0)
+
+    do i=1,3
+       dix(i)=1d0/f%n(i)
+    end do
+
+    ! determine the index in the grid
+    do ii=1,3
+       indx(ii)=int(xx(ii)*f%n(ii))
+       bbb=(xx(ii)-indx(ii)*dix(ii))*f%n(ii)
+       if (indx(ii)==f%n(ii)) then
+          indx(ii)=1
+          xx(ii)=0.d0
+       else
+          indx(ii)=indx(ii)+1
+       end if
+       !  Explicit handling to avoid numeric problems
+       if (bbb > 1.d0+eps ) then
+          cof(1,ii)=0.d0
+          cof(2,ii)=1.d0
+       elseif (bbb < -eps ) then
+          cof(1,ii)=1.d0
+          cof(2,ii)=0.d0
+       else
+          cof(1,ii)=1.d0-bbb
+          cof(2,ii)=bbb
+       end if
+    end do
+
+    ! 3d interpolation of the valence density
+
+    ! determination of the values of density and of its second derivative
+    ! at the "star" = constructed at vv with primitive directions
+    ! To interpolation the values at the faces of the grid cell are needed
+
+    rhstar(:)=0.d0
+    sqder(:,:)=0.d0
+    sqvlr(:,:)=0.d0
+    ddstar(:)=0.d0
+    pomsq(:,:)=0.d0
+    pom2sq(:,:)=0.d0
+
+    oii=1; onn=1; omm=1
+    if (indx(1)==f%n(1)) oii=1-f%n(1)
+    if (indx(2)==f%n(2)) onn=1-f%n(2)
+    if (indx(3)==f%n(3)) omm=1-f%n(3)
+
+    ! the values in the corners of the grid cell
+
+    ptddx=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,1)
+    ptddy=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,2)
+    ptddz=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,3)
+    ptrho=>f%f(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm)
+
+    ! the coefficients for spline interpolation of density and its derivation
+    do ii=1,3
+       do jj=1,2
+          pomsq(jj,ii)=(cof(jj,ii)*cof(jj,ii)*cof(jj,ii)-cof(jj,ii))/6.d0*dix(ii)*dix(ii)
+          pom2sq(jj,ii)=(3.d0*cof(jj,ii)*cof(jj,ii)-1.d0)/6.d0*dix(ii)
+          if (jj==1) pom2sq(jj,ii)=-pom2sq(jj,ii)
+       end do
+    end do
+
+
+    do ii=1,2
+       do jj=1,2
+          do kk=1,2
+             ddstar(ii)=ddstar(ii)+cof(jj,2)*cof(kk,3)*ptddx(ii,jj,kk)
+             ddstar(ii+2)=ddstar(ii+2)+cof(jj,3)*cof(kk,1)*ptddy(kk,ii,jj)
+             ddstar(ii+4)=ddstar(ii+4)+cof(jj,1)*cof(kk,2)*ptddz(jj,kk,ii)
+             sqder(ii,jj)=sqder(ii,jj)+cof(kk,2)*ptddz(ii,kk,jj)
+             sqder(ii,jj+2)=sqder(ii,jj+2)+cof(kk,3)*ptddy(ii,jj,kk)
+             sqder(ii+2,jj)=sqder(ii+2,jj)+cof(kk,3)*ptddx(jj,ii,kk)
+             sqder(ii+2,jj+2)=sqder(ii+2,jj+2)+cof(kk,1)*ptddz(kk,ii,jj)
+             sqder(ii+4,jj)=sqder(ii+4,jj)+cof(kk,1)*ptddy(kk,jj,ii)
+             sqder(ii+4,jj+2)=sqder(ii+4,jj+2)+cof(kk,2)*ptddx(jj,kk,ii)
+             sqvlr(ii,jj)=sqvlr(ii,jj)+cof(kk,2)*ptrho(ii,kk,jj)+pomsq(kk,2)*ptddy(ii,kk,jj)
+             sqvlr(ii,jj+2)=sqvlr(ii,jj+2)+cof(kk,3)*ptrho(ii,jj,kk)+pomsq(kk,3)*ptddz(ii,jj,kk)
+             sqvlr(ii+2,jj+2)=sqvlr(ii+2,jj+2)+cof(kk,1)*ptrho(kk,ii,jj)+pomsq(kk,1)*ptddx(kk,ii,jj)
+          end do
+       end do
+    end do
+
+    do ii=1,2
+       do jj=1,2
+          sqvlr(ii+2,jj)=sqvlr(jj,ii+2)
+          sqvlr(ii+4,jj)=sqvlr(jj+2,ii+2)
+          sqvlr(ii+4,jj+2)=sqvlr(jj,ii)
+       end do
+    end do
+
+    do ii=1,2
+       do jj=1,2
+          rhstar(ii)=rhstar(ii)+cof(jj,3)*sqvlr(ii,jj)+pomsq(jj,3)*sqder(ii,jj)+&
+             &    cof(jj,2)*sqvlr(ii,jj+2)+pomsq(jj,2)*sqder(ii,jj+2)
+          rhstar(ii+2)=rhstar(ii+2)+cof(jj,1)*sqvlr(ii+2,jj)+pomsq(jj,1)*sqder(ii+2,jj)+&
+             &    cof(jj,3)*sqvlr(ii+2,jj+2)+pomsq(jj,3)*sqder(ii+2,jj+2)
+          rhstar(ii+4)=rhstar(ii+4)+cof(jj,2)*sqvlr(ii+4,jj)+pomsq(jj,2)*sqder(ii+4,jj)+&
+             &    cof(jj,1)*sqvlr(ii+4,jj+2)+pomsq(jj,1)*sqder(ii+4,jj+2)
+       end do
+    end do
+    rhstar(:)=rhstar(:)/2.d0
+
+    y = 0d0
+    yp = 0d0
+    ypp = 0d0
+    kk=1; nn=1
+    do ii=1,5,2
+       do jj=1,2
+          nn=-nn
+          y=y+cof(jj,kk)*rhstar(ii+jj-1)+pomsq(jj,kk)*ddstar(ii+jj-1)
+          yp(kk)=yp(kk)+pom2sq(jj,kk)*ddstar(ii+jj-1)
+          ypp(kk,kk)=ypp(kk,kk)+cof(jj,kk)*ddstar(ii+jj-1)
+          yp(kk)=yp(kk)+nn*rhstar(ii+jj-1)/dix(kk)
+       end do
+       kk=kk+1
+    end do
+    y=y/3.d0
+
+    ! Off-diagonal elements of the hessian
+
+    ! for the speed reasons the polynomial interpolation
+    ! for second derivation fields is used in this case
+    ! but the last step is always done by spline interpolation.
+
+
+    do ii=1,3
+       do jj=-1,2
+          inii(jj+2,ii)=indx(ii)+jj
+          if (inii(jj+2,ii) < 1) inii(jj+2,ii)=inii(jj+2,ii)+f%n(ii)
+          if (inii(jj+2,ii) > f%n(ii)) inii(jj+2,ii)=inii(jj+2,ii)-f%n(ii)
+       end do
+    end do
+
+    ! Not very nice
+
+    do ii=1,3
+       select case (ii)
+       case (1)
+          do jj=1,4
+             ddu(1)=cof(1,2)*f%c2(inii(jj,1),inii(2,2),inii(2,3),3)+cof(2,2)*f%c2(inii(jj,1),inii(3,2),inii(2,3),3)
+             ddu(2)=cof(1,2)*f%c2(inii(jj,1),inii(2,2),inii(3,3),3)+cof(2,2)*f%c2(inii(jj,1),inii(3,2),inii(3,3),3)
+             hrh(1)=cof(1,2)*f%f(inii(jj,1),inii(2,2),inii(2,3))+cof(2,2)*f%f(inii(jj,1),inii(3,2),inii(2,3))+&
+                &      pomsq(1,2)*f%c2(inii(jj,1),inii(2,2),inii(2,3),2)+pomsq(2,2)*f%c2(inii(jj,1),inii(3,2),inii(2,3),2)
+             hrh(2)=cof(1,2)*f%f(inii(jj,1),inii(2,2),inii(3,3))+cof(2,2)*f%f(inii(jj,1),inii(3,2),inii(3,3))+&
+                &      pomsq(1,2)*f%c2(inii(jj,1),inii(2,2),inii(3,3),2)+pomsq(2,2)*f%c2(inii(jj,1),inii(3,2),inii(3,3),2)
+             hh(jj,2)=(hrh(2)-hrh(1))/dix(3)+pom2sq(1,3)*ddu(1)+pom2sq(2,3)*ddu(2)
+
+             ddu(1)=cof(1,3)*f%c2(inii(jj,1),inii(2,2),inii(2,3),2)+cof(2,3)*f%c2(inii(jj,1),inii(2,2),inii(3,3),2)
+             ddu(2)=cof(1,3)*f%c2(inii(jj,1),inii(3,2),inii(2,3),2)+cof(2,3)*f%c2(inii(jj,1),inii(3,2),inii(3,3),2)
+             hrh(1)=cof(1,3)*f%f(inii(jj,1),inii(2,2),inii(2,3))+cof(2,3)*f%f(inii(jj,1),inii(2,2),inii(3,3))+&
+                &      pomsq(1,3)*f%c2(inii(jj,1),inii(2,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(jj,1),inii(2,2),inii(3,3),3)
+             hrh(2)=cof(1,3)*f%f(inii(jj,1),inii(3,2),inii(2,3))+cof(2,3)*f%f(inii(jj,1),inii(3,2),inii(3,3))+&
+                &      pomsq(1,3)*f%c2(inii(jj,1),inii(3,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(jj,1),inii(3,2),inii(3,3),3)
+             hh(jj,1)=(hrh(2)-hrh(1))/dix(2)+pom2sq(1,2)*ddu(1)+pom2sq(2,2)*ddu(2)
+          end do
+       case (2)
+          do jj=1,4
+             ddu(1)=cof(1,3)*f%c2(inii(2,1),inii(jj,2),inii(2,3),1)+cof(2,3)*f%c2(inii(2,1),inii(jj,2),inii(3,3),1)
+             ddu(2)=cof(1,3)*f%c2(inii(3,1),inii(jj,2),inii(2,3),1)+cof(2,3)*f%c2(inii(3,1),inii(jj,2),inii(3,3),1)
+             hrh(1)=cof(1,3)*f%f(inii(2,1),inii(jj,2),inii(2,3))+cof(2,3)*f%f(inii(2,1),inii(jj,2),inii(3,3))+&
+                &      pomsq(1,3)*f%c2(inii(2,1),inii(jj,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(2,1),inii(jj,2),inii(3,3),3)
+             hrh(2)=cof(1,3)*f%f(inii(3,1),inii(jj,2),inii(2,3))+cof(2,3)*f%f(inii(3,1),inii(jj,2),inii(3,3))+&
+                &      pomsq(1,3)*f%c2(inii(3,1),inii(jj,2),inii(2,3),3)+pomsq(2,3)*f%c2(inii(3,1),inii(jj,2),inii(3,3),3)
+             hh(jj,2)=(hrh(2)-hrh(1))/dix(1)+pom2sq(1,1)*ddu(1)+pom2sq(2,1)*ddu(2)
+
+             ddu(1)=cof(1,1)*f%c2(inii(2,1),inii(jj,2),inii(2,3),3)+cof(2,1)*f%c2(inii(3,1),inii(jj,2),inii(2,3),3)
+             ddu(2)=cof(1,1)*f%c2(inii(2,1),inii(jj,2),inii(3,3),3)+cof(2,1)*f%c2(inii(3,1),inii(jj,2),inii(3,3),3)
+             hrh(1)=cof(1,1)*f%f(inii(2,1),inii(jj,2),inii(2,3))+cof(2,1)*f%f(inii(3,1),inii(jj,2),inii(2,3))+&
+                &      pomsq(1,1)*f%c2(inii(2,1),inii(jj,2),inii(2,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(jj,2),inii(2,3),1)
+             hrh(2)=cof(1,1)*f%f(inii(2,1),inii(jj,2),inii(3,3))+cof(2,1)*f%f(inii(3,1),inii(jj,2),inii(3,3))+&
+                &      pomsq(1,1)*f%c2(inii(2,1),inii(jj,2),inii(3,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(jj,2),inii(3,3),1)
+             hh(jj,1)=(hrh(2)-hrh(1))/dix(3)+pom2sq(1,3)*ddu(1)+pom2sq(2,3)*ddu(2)
+          end do
+       case (3)
+          do jj=1,4
+             ddu(1)=cof(1,1)*f%c2(inii(2,1),inii(2,2),inii(jj,3),2)+cof(2,1)*f%c2(inii(3,1),inii(2,2),inii(jj,3),2)
+             ddu(2)=cof(1,1)*f%c2(inii(2,1),inii(3,2),inii(jj,3),2)+cof(2,1)*f%c2(inii(3,1),inii(3,2),inii(jj,3),2)
+             hrh(1)=cof(1,1)*f%f(inii(2,1),inii(2,2),inii(jj,3))+cof(2,1)*f%f(inii(3,1),inii(2,2),inii(jj,3))+&
+                &      pomsq(1,1)*f%c2(inii(2,1),inii(2,2),inii(jj,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(2,2),inii(jj,3),1)
+             hrh(2)=cof(1,1)*f%f(inii(2,1),inii(3,2),inii(jj,3))+cof(2,1)*f%f(inii(3,1),inii(3,2),inii(jj,3))+&
+                &      pomsq(1,1)*f%c2(inii(2,1),inii(3,2),inii(jj,3),1)+pomsq(2,1)*f%c2(inii(3,1),inii(3,2),inii(jj,3),1)
+             hh(jj,2)=(hrh(2)-hrh(1))/dix(2)+pom2sq(1,2)*ddu(1)+pom2sq(2,2)*ddu(2)
+
+             ddu(1)=cof(1,2)*f%c2(inii(2,1),inii(2,2),inii(jj,3),1)+cof(2,2)*f%c2(inii(2,1),inii(3,2),inii(jj,3),1)
+             ddu(2)=cof(1,2)*f%c2(inii(3,1),inii(2,2),inii(jj,3),1)+cof(2,2)*f%c2(inii(3,1),inii(3,2),inii(jj,3),1)
+             hrh(1)=cof(1,2)*f%f(inii(2,1),inii(2,2),inii(jj,3))+cof(2,2)*f%f(inii(2,1),inii(3,2),inii(jj,3))+&
+                &      pomsq(1,2)*f%c2(inii(2,1),inii(2,2),inii(jj,3),2)+pomsq(2,2)*f%c2(inii(2,1),inii(3,2),inii(jj,3),2)
+             hrh(2)=cof(1,2)*f%f(inii(3,1),inii(2,2),inii(jj,3))+cof(2,2)*f%f(inii(3,1),inii(3,2),inii(jj,3))+&
+                &      pomsq(1,2)*f%c2(inii(3,1),inii(2,2),inii(jj,3),2)+pomsq(2,2)*f%c2(inii(3,1),inii(3,2),inii(jj,3),2)
+             hh(jj,1)=(hrh(2)-hrh(1))/dix(1)+pom2sq(1,1)*ddu(1)+pom2sq(2,1)*ddu(2)
+          end do
+       end select
+       do jj=-2,1
+          grd(jj+3)=(indx(ii)+jj)*dix(ii)
+       end do
+
+       !  write(6,'("hh: ",/,4F16.8,/,4F16.8)') ((hh(kk,jj),kk=1,4),jj=1,2)
+       !  write(6,'("grad: ",3F16.8)') (grad(kk),kk=1,3)
+       !  write(6,'("dix: ",3F16.8)') (dix(kk),kk=1,3)
+       !  write(6,'("grd: ",4F16.8)') (grd(kk),kk=1,4)
+       !  write(6,'("inii: ",4I4)') (inii(kk,ii),kk=1,4)
+
+       do jj=1,2
+
+          !   polynomial interpolation
+
+          do kk=1,3
+             do ll=4,kk+1,-1
+                hh(ll,jj)=(hh(ll,jj)-hh(ll-1,jj))/(grd(ll)-grd(ll-1))
+             end do
+          end do
+          lder(4)=hh(4,jj)
+          do kk=3,1,-1
+             lder(kk)=hh(kk,jj)+(xx(ii)-grd(kk))*lder(kk+1)
+          end do
+          do kk=1,2
+             do ll=3,kk+1,-1
+                lder(ll)=lder(ll)+(xx(ii)-grd(ll-kk))*lder(ll+1)
+             end do
+          end do
+          nn=ii+jj
+          if (nn > 3) nn=nn-3
+          ypp(ii,nn)=ypp(ii,nn)+lder(2)
+          ypp(nn,ii)=ypp(nn,ii)+lder(2)
+       end do
+    end do
+
+    ! averaging of the mixed derivations obtained in different order
+    do ii=1,3
+       do jj=1,3
+          if (ii /= jj) ypp(ii,jj)=ypp(ii,jj)/2.d0
+       end do
+    end do
+
+    nullify(ptddx,ptddy,ptddz,ptrho)
+
+  end subroutine grinterp_trispline
+
+  !> Tricubic interpolation based on: Lekien and Marsden,
+  !> Int. J. Numer. Meth. Engng, 63 (2005) 455-471.  This
+  !> interpolation is C^1 and local (the interpolant uses information
+  !> of the grid points close to the point).  This subroutine has been
+  !> adapted from the likely code, by David Kirkby, University of
+  !> California, Irvine (https://github.com/deepzot/likely). f is the
+  !> grid field to interpolate. xi is the point in crystallographic
+  !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
+  !> at xi.  This routine is thread-safe.
+  subroutine grinterp_tricubic(f,xi,y,yp,ypp)
+    class(grid3), intent(inout), target :: f !< Input grid
+    real*8, intent(in) :: xi(3) !< Target point
+    real*8, intent(out) :: y !< Interpolated value
+    real*8, intent(out) :: yp(3) !< First derivative
+    real*8, intent(out) :: ypp(3,3) !< Second derivative
+
+    integer :: idx(3), iidx(3), i, j, k, l
+    real*8 :: g(-1:2,-1:2,-1:2), x(3)
+    real*8 :: a(64), b(64)
+    real*8, dimension(0:3) :: aa, bb, bbx, bbxx, aax, aay, aaxy
+    real*8, dimension(0:3) :: aaxx, aayy
+
+    ! initialize
+    y = 0d0
+    yp = 0d0
+    ypp = 0d0
+
+    ! fetch values at the cube vertices
+    x = modulo(xi,1d0)
+    idx = grid_floor(f,x)
+    do i = -1, 2
+       do j = -1, 2
+          do k = -1, 2
+             iidx = modulo(idx+(/i,j,k/)-1,f%n)+1
+             g(i,j,k) = f%f(iidx(1),iidx(2),iidx(3))
+          end do
+       end do
+    end do
+
+    ! Fill the values in the b-vector (see Lekien and Marsden)
+    ! f
+    b(1) = g(0,0,0)
+    b(2) = g(1,0,0)
+    b(3) = g(0,1,0)
+    b(4) = g(1,1,0)
+    b(5) = g(0,0,1)
+    b(6) = g(1,0,1)
+    b(7) = g(0,1,1)
+    b(8) = g(1,1,1)
+
+    ! fx
+    b(9)  = 0.5d0*(g(1,0,0)-g(-1,0,0))
+    b(10) = 0.5d0*(g(2,0,0)-g(0,0,0))
+    b(11) = 0.5d0*(g(1,1,0)-g(-1,1,0))
+    b(12) = 0.5d0*(g(2,1,0)-g(0,1,0))
+    b(13) = 0.5d0*(g(1,0,1)-g(-1,0,1))
+    b(14) = 0.5d0*(g(2,0,1)-g(0,0,1))
+    b(15) = 0.5d0*(g(1,1,1)-g(-1,1,1))
+    b(16) = 0.5d0*(g(2,1,1)-g(0,1,1))
+
+    ! fy
+    b(17) = 0.5d0*(g(0,1,0)-g(0,-1,0))
+    b(18) = 0.5d0*(g(1,1,0)-g(1,-1,0))
+    b(19) = 0.5d0*(g(0,2,0)-g(0,0,0))
+    b(20) = 0.5d0*(g(1,2,0)-g(1,0,0))
+    b(21) = 0.5d0*(g(0,1,1)-g(0,-1,1))
+    b(22) = 0.5d0*(g(1,1,1)-g(1,-1,1))
+    b(23) = 0.5d0*(g(0,2,1)-g(0,0,1))
+    b(24) = 0.5d0*(g(1,2,1)-g(1,0,1))
+
+    ! fz
+    b(25) = 0.5d0*(g(0,0,1)-g(0,0,-1))
+    b(26) = 0.5d0*(g(1,0,1)-g(1,0,-1))
+    b(27) = 0.5d0*(g(0,1,1)-g(0,1,-1))
+    b(28) = 0.5d0*(g(1,1,1)-g(1,1,-1))
+    b(29) = 0.5d0*(g(0,0,2)-g(0,0,0))
+    b(30) = 0.5d0*(g(1,0,2)-g(1,0,0))
+    b(31) = 0.5d0*(g(0,1,2)-g(0,1,0))
+    b(32) = 0.5d0*(g(1,1,2)-g(1,1,0))
+
+    ! fxy
+    b(33) = 0.25d0*(g(1,1,0)-g(-1,1,0)-g(1,-1,0)+g(-1,-1,0))
+    b(34) = 0.25d0*(g(2,1,0)-g(0,1,0)-g(2,-1,0)+g(0,-1,0))
+    b(35) = 0.25d0*(g(1,2,0)-g(-1,2,0)-g(1,0,0)+g(-1,0,0))
+    b(36) = 0.25d0*(g(2,2,0)-g(0,2,0)-g(2,0,0)+g(0,0,0))
+    b(37) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1))
+    b(38) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1))
+    b(39) = 0.25d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1))
+    b(40) = 0.25d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1))
+
+    ! fxz
+    b(41) = 0.25d0*(g(1,0,1)-g(-1,0,1)-g(1,0,-1)+g(-1,0,-1))
+    b(42) = 0.25d0*(g(2,0,1)-g(0,0,1)-g(2,0,-1)+g(0,0,-1))
+    b(43) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,1,-1)+g(-1,1,-1))
+    b(44) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,1,-1)+g(0,1,-1))
+    b(45) = 0.25d0*(g(1,0,2)-g(-1,0,2)-g(1,0,0)+g(-1,0,0))
+    b(46) = 0.25d0*(g(2,0,2)-g(0,0,2)-g(2,0,0)+g(0,0,0))
+    b(47) = 0.25d0*(g(1,1,2)-g(-1,1,2)-g(1,1,0)+g(-1,1,0))
+    b(48) = 0.25d0*(g(2,1,2)-g(0,1,2)-g(2,1,0)+g(0,1,0))
+
+    ! fyz
+    b(49) = 0.25d0*(g(0,1,1)-g(0,-1,1)-g(0,1,-1)+g(0,-1,-1))
+    b(50) = 0.25d0*(g(1,1,1)-g(1,-1,1)-g(1,1,-1)+g(1,-1,-1))
+    b(51) = 0.25d0*(g(0,2,1)-g(0,0,1)-g(0,2,-1)+g(0,0,-1))
+    b(52) = 0.25d0*(g(1,2,1)-g(1,0,1)-g(1,2,-1)+g(1,0,-1))
+    b(53) = 0.25d0*(g(0,1,2)-g(0,-1,2)-g(0,1,0)+g(0,-1,0))
+    b(54) = 0.25d0*(g(1,1,2)-g(1,-1,2)-g(1,1,0)+g(1,-1,0))
+    b(55) = 0.25d0*(g(0,2,2)-g(0,0,2)-g(0,2,0)+g(0,0,0))
+    b(56) = 0.25d0*(g(1,2,2)-g(1,0,2)-g(1,2,0)+g(1,0,0))
+
+    ! fxyz
+    b(57) = 0.125d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1)-g(1,1,-1)+g(-1,1,-1)+g(1,-1,-1)-g(-1,-1,-1))
+    b(58) = 0.125d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1)-g(2,1,-1)+g(0,1,-1)+g(2,-1,-1)-g(0,-1,-1))
+    b(59) = 0.125d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1)-g(1,2,-1)+g(-1,2,-1)+g(1,0,-1)-g(-1,0,-1))
+    b(60) = 0.125d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1)-g(2,2,-1)+g(0,2,-1)+g(2,0,-1)-g(0,0,-1))
+    b(61) = 0.125d0*(g(1,1,2)-g(-1,1,2)-g(1,-1,2)+g(-1,-1,2)-g(1,1,0)+g(-1,1,0)+g(1,-1,0)-g(-1,-1,0))
+    b(62) = 0.125d0*(g(2,1,2)-g(0,1,2)-g(2,-1,2)+g(0,-1,2)-g(2,1,0)+g(0,1,0)+g(2,-1,0)-g(0,-1,0))
+    b(63) = 0.125d0*(g(1,2,2)-g(-1,2,2)-g(1,0,2)+g(-1,0,2)-g(1,2,0)+g(-1,2,0)+g(1,0,0)-g(-1,0,0))
+    b(64) = 0.125d0*(g(2,2,2)-g(0,2,2)-g(2,0,2)+g(0,0,2)-g(2,2,0)+g(0,2,0)+g(2,0,0)-g(0,0,0))
+
+    ! calculate the coefficient vector
+    a = matmul(c,b)
+
+    ! interpolation in integer coordinates
+    x = (x * f%n - (idx-1))
+
+    l = 1 ! packed coefficient vector index
+    do k = 0, 3
+       do j = 0, 3
+          ! horner's rule on x
+          bb(j) = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
+          bbx(j) = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
+          bbxx(j) = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
+
+          ! advance
+          l = l + 4
+       end do
+       ! horner's rule on y
+       aa(k) = bb(0) + x(2) * (bb(1) + x(2) * (bb(2) + x(2) * bb(3)))
+
+       aax(k) = bbx(0) + x(2) * (bbx(1) + x(2) * (bbx(2) + x(2) * bbx(3)))
+       aay(k) = bb(1) + x(2) * (2d0 * bb(2) + x(2) * 3d0 * bb(3))
+       aaxy(k) = bbx(1) + x(2) * (2d0 * bbx(2) + x(2) * 3d0 * bbx(3))
+
+       aaxx(k) = bbxx(0) + x(2) * (bbxx(1) + x(2) * (bbxx(2) + x(2) * bbxx(3)))
+       aayy(k) = 2d0 * bb(2) + 6d0 * x(2) * bb(3)
+    end do
+
+    ! field value
+    y = aa(0) + x(3) * (aa(1) + x(3) * (aa(2) + x(3) * aa(3)))
+
+    ! gradient
+    yp(1) = aax(0) + x(3) * (aax(1) + x(3) * (aax(2) + x(3) * aax(3)))
+    yp(2) = aay(0) + x(3) * (aay(1) + x(3) * (aay(2) + x(3) * aay(3)))
+    yp(3) = aa(1) + x(3) * (2d0 * aa(2) + x(3) * 3d0 * aa(3))
+
+    ! hessian
+    ypp(1,1) = aaxx(0) + x(3) * (aaxx(1) + x(3) * (aaxx(2) + x(3) * aaxx(3)))
+    ypp(1,2) = aaxy(0) + x(3) * (aaxy(1) + x(3) * (aaxy(2) + x(3) * aaxy(3)))
+    ypp(1,3) = aax(1) + x(3) * (2d0 * aax(2) + x(3) * 3d0 * aax(3))
+    ypp(2,2) = aayy(0) + x(3) * (aayy(1) + x(3) * (aayy(2) + x(3) * aayy(3)))
+    ypp(2,3) = aay(1) + x(3) * (2d0 * aay(2) + x(3) * 3d0 * aay(3))
+    ypp(3,3) = 2d0 * aa(2) + 6d0 * x(3) * aa(3)
+
+    ! transform back to fractional coordinates and fill the Hessian
+    do i = 1, 3
+       yp(i) = yp(i) * f%n(i)
+       do j = i, 3
+          ypp(i,j) = ypp(i,j) * f%n(i) * f%n(j)
+          ypp(j,i) = ypp(i,j)
+       end do
+    end do
+
+  end subroutine grinterp_tricubic
+
+  !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in 
+  !> orthogonal grids).
+  function grid_near(f,x) result(res)
+    class(grid3), intent(in) :: f !< Input grid
+    real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
+    integer :: res(3)
+
+    res = modulo(nint(x * f%n),f%n)+1
+
+  end function grid_near
+
+  !> Floor grid point of a point x in crystallographic coords.
+  function grid_floor(f,x) result(res)
+    class(grid3), intent(in) :: f !< Input grid
+    real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
+    integer :: res(3)
+
+    res = modulo(floor(x * f%n),f%n)+1
+
+  end function grid_floor
+
+  !> Initialize the grid for the trispline interpolation. This is a
+  !> modified version of the corresponding subroutine in abinit.
+  subroutine init_trispline(f)
+    use tools_io, only: ferror, faterr
+    class(grid3), intent(inout) :: f !< Input grid
+
+    integer :: istat
+    integer :: d, nmax, i, i1, i2
+    real*8, allocatable :: l(:,:), fg(:)
+    real*8 :: fprev, fnext, fuse, fone
+
+    if (allocated(f%c2)) return
+
+    allocate(f%c2(f%n(1),f%n(2),f%n(3),3),stat=istat)
+    if (istat /= 0) &
+       call ferror('init_trispline','Error allocating c2 grids',faterr)
+
+    nmax = maxval(f%n)
+    allocate(l(nmax,nmax))
+    allocate(fg(nmax))
+
+    ! cholesky decomposition of the matrix: 
+    ! A = 
+    !  ( 4 1 0 ... 0 1 )
+    !  ( 1 4 1 ... 0 0 )
+    !  ( 0 1 4 ... 0 0 )
+    !      .......
+    !  ( 0 0 ... 1 4 1 )
+    !  ( 1 0 ... 0 1 4 )
+    ! that is the coefficient matrix of the system that determines
+    ! the x^2 coefficients of the cubic spline (array c2 / 2).
+    ! L is a lower-triangular matrix, A = L * L^t
+
+    ! direction x->y->z
+    do d = 1, 3
+       nmax = f%n(d)
+       l = 0d0
+       l(1,1) = 2d0
+       l(2,1) = 1d0 / l(1,1)
+       l(2,2) = sqrt(15d0) / 2d0
+       l(3,2) = 1d0 / l(2,2)
+       l(nmax,1) = 0.5d0
+       l(nmax,2) = - 0.5d0 / sqrt(15d0)
+       do i = 3, nmax-1
+          l(i,i) = sqrt(4d0 - 1d0 / l(i-1,i-1)**2)
+          l(i+1,i) = 1d0 / l(i,i)
+          l(nmax,i) = - l(nmax,i-1) * l(i,i-1) / l(i,i)
+       end do
+       l(nmax,nmax-1) = (1d0 - l(nmax,nmax-2)*l(nmax-1,nmax-2)) /&
+          l(nmax-1,nmax-1)
+       l(nmax,nmax) = sqrt(4d0 - sum(l(nmax,1:nmax-1)**2))
+       l = l / sqrt(6d0 * nmax**2)
+
+       ! for each of the grid points in the plane, find the spline c2
+       ! (c2*x^2) coefficients
+       do i1 = 1,f%n(mod(d,3)+1)
+          do i2 = 1,f%n(mod(d+1,3)+1)
+             select case(d)
+             case(1)
+                fg(1:nmax) = f%f(:,i1,i2)
+             case(2)
+                fg(1:nmax) = f%f(i2,:,i1)
+             case(3)
+                fg(1:nmax) = f%f(i1,i2,:)
+             end select
+
+             ! constant terms for the system
+             fone = fg(1)
+             fprev = fg(nmax)
+             do i = 1, nmax-1
+                fnext = fg(i+1)
+                fuse = fprev + fnext - fg(i) - fg(i)
+                fprev = fg(i)
+                fg(i) = fuse
+             end do
+             fg(nmax) = fprev + fone - fg(nmax) - fg(nmax)
+
+             ! solve by direct substitution, L^t b = c
+             fg(1) = fg(1) / l(1,1)
+             do i = 2, nmax-1
+                fg(i) = (fg(i) - l(i,i-1) * fg(i-1)) / l(i,i)
+             end do
+             fg(nmax) = (fg(nmax) - &
+                dot_product(l(nmax,1:nmax-1),fg(1:nmax-1))) / l(nmax,nmax)
+
+             ! again, L a = b
+             fg(nmax) = fg(nmax) / l(nmax,nmax)
+             fg(nmax-1) = (fg(nmax-1) - l(nmax,nmax-1) * fg(nmax)) / l(nmax-1,nmax-1)
+             do i = nmax-2, 1, -1
+                fg(i) = (fg(i) - l(i+1,i) * fg(i+1) - l(nmax,i)*fg(nmax)) / l(i,i)
+             end do
+
+             ! write down the second derivatives
+             select case(d)
+             case(1)
+                f%c2(:,i1,i2,d) = fg(1:nmax)
+             case(2)
+                f%c2(i2,:,i1,d) = fg(1:nmax)
+             case(3)
+                f%c2(i1,i2,:,d) = fg(1:nmax)
+             end select
+
+          end do
+       end do
+
+    end do
+
+    deallocate(l,fg)
+
+  end subroutine init_trispline
+
   !> Pop from the stack and operate on the queue.  This routine is
   !> thread-safe. Grid version
-  module subroutine pop_grid(q,nq,s,ns,fail)
+  subroutine pop_grid(q,nq,s,ns,fail)
     use arithmetic, only: istype, fun_plus, fun_minus, fun_prod, fun_div,&
        fun_power, fun_modulo, fun_atan2, fun_min, fun_max, fun_great,&
        fun_great, fun_less, fun_leq, fun_geq, fun_equal, fun_neq, fun_and,&

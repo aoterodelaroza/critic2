@@ -18,6 +18,14 @@
 submodule (nci) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
+  ! subroutine write_cube_body(lu,n,c)
+  ! function check_no_extra_word(line,lp,routine)
+  ! function read_fragment(lu) result(fr)
+  ! function readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
+  ! subroutine writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
+
 contains
 
   ! nci plots
@@ -705,7 +713,9 @@ contains
 
    end subroutine nciplot
 
-   module subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
+  !xx! private procedures
+
+   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
     use systemmod, only: sy
     use fragmentmod, only: fragment
 
@@ -791,7 +801,7 @@ contains
 
   end subroutine write_cube_header
 
-  module subroutine write_cube_body(lu,n,c)
+  subroutine write_cube_body(lu,n,c)
     use tools_io, only: fclose
 
     integer, intent(in) :: lu
@@ -809,7 +819,7 @@ contains
 
   end subroutine write_cube_body
 
-  module function check_no_extra_word(line,lp,routine)
+  function check_no_extra_word(line,lp,routine)
     use tools_io, only: getword, ferror, faterr
     character(len=:), allocatable :: aux2
     character*(*), intent(in) :: line, routine
@@ -824,7 +834,7 @@ contains
     end if
   end function check_no_extra_word
 
-  module function read_fragment(lu) result(fr)
+  function read_fragment(lu) result(fr)
     use systemmod, only: sy
     use global, only: eval_next
     use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
@@ -884,7 +894,7 @@ contains
   !> crho, cgrad, rhoat, and rhofrag contain the density, rdg,
   !> promolecular, and fragment promolecular densities on output, and
   !> they should already be allocated when passed to this function.
-  module function readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
+  function readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
     use global, only: fileroot
     use tools_io, only: uout, fopen_read, fclose
     logical :: lchk
@@ -948,7 +958,7 @@ contains
   end function readchk
 
   !> Write the checkpoint file.
-  module subroutine writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
+  subroutine writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
     use global, only: fileroot
     use tools_io, only: uout, fopen_write, fclose
     real*8, intent(in) :: x0(3), xmat(3,3)

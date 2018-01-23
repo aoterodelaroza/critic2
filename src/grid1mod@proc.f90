@@ -18,6 +18,9 @@
 submodule (grid1mod) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine read_critic(g,file,n,abspath)
+
   ! radial grid derivation formulas
   integer, parameter :: noef(6,3) = reshape((/&
      0,  1,  2,  3,  4,  5,&
@@ -78,10 +81,128 @@ contains
 
   end subroutine read_db
 
+  !> Interpolate the radial grid g at distance r0, and obtain the value,
+  !> first derivative and second derivative.
+  module subroutine interp(g,r0,f,fp,fpp)
+    class(grid1), intent(in) :: g !< The radial grid.
+    real*8, intent(in) :: r0 !< Value of the radial coordinate.
+    real*8, intent(out) :: f !< Interpolated value
+    real*8, intent(out) :: fp !< Interpolated first derivative
+    real*8, intent(out) :: fpp !< Interpolated second derivative
+
+    integer :: ir, i, j, ii
+    real*8 :: r, prod, rr(4), dr1(4), x1dr12(4,4)
+
+    f = 0d0
+    fp = 0d0
+    fpp = 0d0
+
+    if (.not.g%isinit) return
+    if (r0 >= g%rmax) return
+
+    ! careful with grid limits.
+    if (r0 <= g%r(1)) then
+       ir = 1
+       r = g%r(1)
+    else
+       ir = 1 + floor(log(r0/g%a)/g%b)
+       r = r0
+    end if
+
+    x1dr12 = 0d0
+    do i = 1, 4
+       ii = min(max(ir,2),g%ngrid-2) - 2 + i
+       rr(i) = g%r(ii)
+       dr1(i) = r - rr(i)
+       do j = 1, i-1
+          x1dr12(i,j) = 1d0 / (rr(i) - rr(j))
+          x1dr12(j,i) = -x1dr12(i,j)
+       end do
+    end do
+
+    ! interpolate, lagrange 3rd order, 4 nodes
+    do i = 1, 4
+       ii = min(max(ir,2),g%ngrid-2) - 2 + i
+       prod = 1.d0
+       do j = 1 ,4
+          if (i == j) cycle
+          prod = prod * dr1(j) * x1dr12(i,j)
+       end do
+       f = f + g%f(ii) * prod
+       fp = fp + g%fp(ii) * prod
+       fpp = fpp + g%fpp(ii) * prod
+    end do
+
+  end subroutine interp
+
+  !> Read the core density from the internal density tables for atom
+  !> with Z = iz and ZPSP = iq.
+  module subroutine grid1_register_core(iz,iq)
+    use param, only: maxzat0, maxzat
+    integer, intent(in) :: iz, iq
+    
+    integer :: i, j
+
+    if (iz <= 0 .or. iz > maxzat) return
+    if (iq <= 0 .or. iq > iz) return
+
+    if (.not.allocated(cgrid)) then
+       allocate(cgrid(maxzat0,maxzat0))
+       do i = 1, maxzat0
+          do j = 1, maxzat0
+             cgrid(i,j)%z = 0
+             cgrid(i,j)%qat = 0
+          end do
+       end do
+    end if
+
+    if (cgrid(iz,iq)%isinit .and. cgrid(iz,iq)%z == iz .and. &
+       cgrid(iz,iq)%qat == iq) return
+    
+    call cgrid(iz,iq)%read_db(iz,iq)
+
+  end subroutine grid1_register_core
+    
+  !> Read the all-electron density from the internal density tables
+  !> for atom with Z = iz.
+  module subroutine grid1_register_ae(iz)
+    use param, only: maxzat0, maxzat
+    integer, intent(in) :: iz
+    
+    integer :: i
+
+    if (iz <= 0 .or. iz > maxzat) return
+    if (.not.allocated(agrid)) then
+       allocate(agrid(maxzat0))
+       do i = 1, maxzat0
+          agrid(i)%isinit = .false.
+          agrid(i)%z = 0
+          agrid(i)%qat = 0
+       end do
+    end if
+
+    if (agrid(iz)%isinit) then
+       if (agrid(iz)%z == iz) return
+    end if
+
+    call agrid(iz)%read_db(iz,0)
+
+  end subroutine grid1_register_ae
+    
+  !> Deallocate the core and all-electron density grid
+  module subroutine grid1_clean_grids()
+
+    if (allocated(agrid)) deallocate(agrid)
+    if (allocated(cgrid)) deallocate(cgrid)
+
+  end subroutine grid1_clean_grids
+
+  !xx! private procedures
+
   !> Read grid in critic format. This format is adapted from the wfc files
   !> of the ld1 program in the quantum espresso distribution. Only n electrons
   !> out of the total Z are used to build the grid.
-  module subroutine read_critic(g,file,n,abspath)
+  subroutine read_critic(g,file,n,abspath)
     use types, only: realloc
     use tools_io, only: uout, warning, ferror, fopen_read, string, fclose
     use param, only: pi
@@ -210,121 +331,5 @@ contains
     deallocate(rr,wfcin,wfcl,occ)
 
   end subroutine read_critic
-
-  !> Interpolate the radial grid g at distance r0, and obtain the value,
-  !> first derivative and second derivative.
-  module subroutine interp(g,r0,f,fp,fpp)
-    class(grid1), intent(in) :: g !< The radial grid.
-    real*8, intent(in) :: r0 !< Value of the radial coordinate.
-    real*8, intent(out) :: f !< Interpolated value
-    real*8, intent(out) :: fp !< Interpolated first derivative
-    real*8, intent(out) :: fpp !< Interpolated second derivative
-
-    integer :: ir, i, j, ii
-    real*8 :: r, prod, rr(4), dr1(4), x1dr12(4,4)
-
-    f = 0d0
-    fp = 0d0
-    fpp = 0d0
-
-    if (.not.g%isinit) return
-    if (r0 >= g%rmax) return
-
-    ! careful with grid limits.
-    if (r0 <= g%r(1)) then
-       ir = 1
-       r = g%r(1)
-    else
-       ir = 1 + floor(log(r0/g%a)/g%b)
-       r = r0
-    end if
-
-    x1dr12 = 0d0
-    do i = 1, 4
-       ii = min(max(ir,2),g%ngrid-2) - 2 + i
-       rr(i) = g%r(ii)
-       dr1(i) = r - rr(i)
-       do j = 1, i-1
-          x1dr12(i,j) = 1d0 / (rr(i) - rr(j))
-          x1dr12(j,i) = -x1dr12(i,j)
-       end do
-    end do
-
-    ! interpolate, lagrange 3rd order, 4 nodes
-    do i = 1, 4
-       ii = min(max(ir,2),g%ngrid-2) - 2 + i
-       prod = 1.d0
-       do j = 1 ,4
-          if (i == j) cycle
-          prod = prod * dr1(j) * x1dr12(i,j)
-       end do
-       f = f + g%f(ii) * prod
-       fp = fp + g%fp(ii) * prod
-       fpp = fpp + g%fpp(ii) * prod
-    end do
-
-  end subroutine interp
-
-  !> Read the core density from the internal density tables for atom
-  !> with Z = iz and ZPSP = iq.
-  module subroutine grid1_register_core(iz,iq)
-    use param, only: maxzat0, maxzat
-    integer, intent(in) :: iz, iq
-    
-    integer :: i, j
-
-    if (iz <= 0 .or. iz > maxzat) return
-    if (iq <= 0 .or. iq > iz) return
-
-    if (.not.allocated(cgrid)) then
-       allocate(cgrid(maxzat0,maxzat0))
-       do i = 1, maxzat0
-          do j = 1, maxzat0
-             cgrid(i,j)%z = 0
-             cgrid(i,j)%qat = 0
-          end do
-       end do
-    end if
-
-    if (cgrid(iz,iq)%isinit .and. cgrid(iz,iq)%z == iz .and. &
-       cgrid(iz,iq)%qat == iq) return
-    
-    call cgrid(iz,iq)%read_db(iz,iq)
-
-  end subroutine grid1_register_core
-    
-  !> Read the all-electron density from the internal density tables
-  !> for atom with Z = iz.
-  module subroutine grid1_register_ae(iz)
-    use param, only: maxzat0, maxzat
-    integer, intent(in) :: iz
-    
-    integer :: i
-
-    if (iz <= 0 .or. iz > maxzat) return
-    if (.not.allocated(agrid)) then
-       allocate(agrid(maxzat0))
-       do i = 1, maxzat0
-          agrid(i)%isinit = .false.
-          agrid(i)%z = 0
-          agrid(i)%qat = 0
-       end do
-    end if
-
-    if (agrid(iz)%isinit) then
-       if (agrid(iz)%z == iz) return
-    end if
-
-    call agrid(iz)%read_db(iz,0)
-
-  end subroutine grid1_register_ae
-    
-  !> Deallocate the core and all-electron density grid
-  module subroutine grid1_clean_grids()
-
-    if (allocated(agrid)) deallocate(agrid)
-    if (allocated(cgrid)) deallocate(cgrid)
-
-  end subroutine grid1_clean_grids
 
 end submodule proc

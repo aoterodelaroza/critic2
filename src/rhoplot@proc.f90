@@ -18,6 +18,19 @@
 submodule (rhoplot) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
+  ! subroutine relief(rootname,outfile,zmin,zmax)
+  ! subroutine colormap(rootname,outfile,cmopt)
+  ! subroutine hallarpuntos(ff,zc,x,y,nx,ny)
+  ! subroutine ordenarpuntos (luw,calpha,ziso)
+  ! subroutine linea (x,y,n,luw,ziso)
+  ! subroutine plotvec(r0,r1,r2,autocheck,udat)
+  ! subroutine plotvec(r0,r1,r2,autocheck,udat)
+  ! subroutine autochk(rp0)
+  ! subroutine write_fichlabel(rootname)
+  ! subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
+
   ! contour lines common variables.
   integer, parameter :: nptcorte = 20000
   integer :: npuntos
@@ -964,533 +977,6 @@ contains
 
   end subroutine rhoplot_plane
 
-  !> Contour plots using the 2d-field ff, defined on a plane
-  !> determined by poitns r0, r1, r2 (crystallographic coords.). The
-  !> number of points in each direction is nx and ny. ziso(1:niso) is the
-  !> array contaiing the contour levels. rootname is the root for all
-  !> the files generated (.iso, .neg.iso, -grd.dat, -label.gnu,
-  !> .gnu). If dolabels, write the labels file. If dognu, write the
-  !> gnu file.
-  module subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
-    use systemmod, only: sy
-    use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
-    use tools_math, only: norm, cross, det, matinv
-    integer, intent(in) :: nx, ny
-    real*8, intent(in) :: ff(nx,ny)
-    real*8, intent(in) :: r0(3), r1(3), r2(3)
-    integer, intent(in) :: niso
-    real*8, intent(in) :: ziso(niso)
-    character*(*), intent(in) :: rootname
-    logical, intent(in) :: dognu, dolabels
-
-    character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
-    integer :: lud, lud1
-    integer :: i, j
-    real*8 :: du, dv, r012, ua, va, ub, vc
-    real*8, allocatable :: x(:), y(:)
-
-    ! set rootname
-    root0 = rootname
-
-    ! name files
-    fichgnu = trim(root0) // '-contour.gnu' 
-    fichiso = trim(root0) // '.iso' 
-    fichiso1 = trim(root0) // '.neg.iso' 
-
-    ! connect units for writing.
-    lud = fopen_write(fichiso)
-    lud1 = fopen_write(fichiso1)
-
-    write (uout,'("* Name of the contour lines file: ",a)') string(fichiso)
-    write (uout,'("* Name of the negative contour lines file: ",a)') string(fichiso1)
-
-    ! geometry
-    rp0 = sy%c%x2c(r0)
-    rp1 = sy%c%x2c(r1)
-    rp2 = sy%c%x2c(r2)
-    rp01 = rp1 - rp0
-    rp02 = rp2 - rp0
-    r01 = norm(rp01)
-    r02 = norm(rp02)
-    du = r01 / real(nx-1,8)
-    dv = r02 / real(ny-1,8)
-    r012 = dot_product(rp01,rp02)
-    cosalfa = r012/r01/r02
-    sinalfa = sqrt(max(1-cosalfa**2,0d0))
-
-    indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
-
-    ! normal vector and plane equation
-    rpn(1:3) = cross(rp01,rp02)
-    rpn(4) = -dot_product(rpn(1:3),rp0)
-    rpn = rpn / (r01*r02)
-
-    ! plane to cartesian
-    amat(:,1) = rp01
-    amat(:,2) = rp02
-    amat(:,3) = rpn(1:3)
-
-    ! cartesian to plane
-    if (abs(det(amat)) < 1d-15) &
-       call ferror('contour','Error in the input plane: singular matrix',faterr)
-    bmat = matinv(amat)
-
-    ! define plane limits
-    ua = 0d0
-    ub = r01
-    va = 0d0
-    vc = r02
-
-    ! calculate grid in each direction
-    isneg = minval(ff) < 0d0
-    allocate(x(nx))
-    allocate(y(ny))
-    do i = 1, nx
-       do j = 1, ny
-          x(i) = ua + (i-1) * (ub-ua) / real(nx-1,8)
-          y(j) = va + (j-1) * (vc-va) / real(ny-1,8)
-       end do
-    end do
-
-    do i = 1, niso
-       call hallarpuntos (ff,ziso(i),x,y,nx,ny)
-       if (ziso(i).gt.0) then
-          call ordenarpuntos (lud,cosalfa,ziso(i))
-       else
-          call ordenarpuntos (lud1,cosalfa,ziso(i))
-       endif
-    enddo
-    call fclose(lud)
-    call fclose(lud1)
-
-    if (dolabels) call write_fichlabel(root0)
-    if (dognu) call write_fichgnu(root0,dolabels,.true.,.false.)
-    if (allocated(x)) deallocate(x)
-    if (allocated(y)) deallocate(y)
-
-  end subroutine contour
-
-  !> Write a gnuplot template for the relief plot
-  module subroutine relief(rootname,outfile,zmin,zmax)
-    use tools_io, only: fopen_write, uout, string, fclose
-    real*8, intent(in) :: zmin, zmax
-    character*(*), intent(in) :: rootname, outfile
-
-    character(len=:), allocatable :: file
-    integer :: lu
-
-    ! file name
-    file = trim(rootname) // '-relief.gnu'
-
-    ! connect unit
-    lu = fopen_write(file)
-    write (uout,'("* Gnuplot file (relief): ",a)') string(file)
-
-    write (lu,'("set terminal pdfcairo")')
-    write (lu,'("set output """,A,"-relief.pdf""")') rootname
-    write (lu,'("set encoding iso_8859_1")')
-    write (lu,'("")')
-    write (lu,'("set style line 1 lt 1 lc rgb ""#000000"" ")')
-    write (lu,'("")')
-    write (lu,'("# Define the zrange and the capping functions")')
-    write (lu,'("zmin = ",A)') string(zmin,'e',12,5)
-    write (lu,'("zmax = ",A)') string(zmax,'e',12,5)
-    write (lu,'("stats """,A,""" u 6 nooutput")') outfile
-    write (lu,'("min(x) = (x<zmin)?min=x:zmin")')
-    write (lu,'("max(x) = (x>zmax)?max=zmax:x")')
-    write (lu,'("set zrange [(zmin<STATS_min)?STATS_min:zmin:(zmax>STATS_max)?STATS_max:zmax]")')
-    write (lu,'("")')
-    write (lu,'("# tics, etc")')
-    write (lu,'("unset colorbox")')
-    write (lu,'("unset title")')
-    write (lu,'("set format x ""%.1f""")')
-    write (lu,'("set format y ""%.1f""")')
-    write (lu,'("")')
-    write (lu,'("# Surface definition")')
-    write (lu,'("set pm3d depthorder hidden3d 1")')
-    write (lu,'("set hidden3d")')
-    write (lu,'("set style fill transparent solid 0.7")')
-    write (lu,'("set palette rgb 9,9,3")')
-    write (lu,'("set view 60,45")')
-    write (lu,'("set size ratio -1")')
-    write (lu,'("")')
-    write (lu,'("splot """,A,""" u 4:5:(max($6)) ls 1 w pm3d notitle")') outfile
-
-    ! wrap up
-    call fclose(lu)
-
-  end subroutine relief
-
-  !> Write a gnuplot template for the color map plot
-  module subroutine colormap(rootname,outfile,cmopt)
-    use tools_io, only: fopen_write, uout, string, fclose
-    character*(*), intent(in) :: rootname, outfile
-    integer, intent(in) :: cmopt
-
-    character(len=:), allocatable :: file
-    integer :: lu
-
-    ! file name
-    file = trim(rootname) // '-colormap.gnu'
-
-    ! connect unit
-    lu = fopen_write(file)
-    write (uout,'("* Gnuplot file (colormap): ",a)') string(file)
-
-    write (lu,'("set encoding iso_8859_1")')
-    write (lu,'("set terminal postscript eps color enhanced ""Helvetica""")')
-    write (lu,'("set output """,A,"-colormap.eps""")') rootname
-    write (lu,'("")')
-    write (lu,'("# line styles")')
-    write (lu,'("set style line 1 lt 1 lw 1 lc rgb ""#000000""")')
-    write (lu,'("set style line 2 lt 1 lw 1 lc rgb ""#000000""")')
-    write (lu,'("")')
-    write (lu,'("# title, key, size")')
-    write (lu,'("unset title")')
-    write (lu,'("unset key")')
-    write (lu,'("set size ratio -1")')
-    write (lu,'("")')
-    write (lu,'("# set pm3d at b map interpolate 5,5")')
-    write (lu,'("set pm3d at b map")')
-    write (lu,'("")')
-    write (lu,'("# tics")')
-    write (lu,'("set cbtics")')
-    write (lu,'("")')
-    write (lu,'("# color schemes")')
-    write (lu,'("set palette defined ( 0 ""red"", 1 ""white"", 2 ""green"" ) ")')
-    write (lu,'("")')
-    write (lu,'("# set contours")')
-    write (lu,'("unset clabel")')
-    write (lu,'("set contour base")')
-    write (lu,'("set cntrparam bspline")')
-    write (lu,'("# set cntrparam levels incremental -min,step,max")')
-    write (lu,'("")')
-    if (cmopt == 1) then
-       write (lu,'("splot """,A,""" u 4:5:(log(abs($6))) ls 1 w pm3d notitle")') outfile
-    elseif (cmopt == 2) then
-       write (lu,'("splot """,A,""" u 4:5:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
-    else
-       write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
-    end if
-
-    ! wrap up
-    call fclose(lu)
-
-  end subroutine colormap
-
-  !> Find contour with value = zc on a surface given by a grid.
-  !> uses linear interpolation.
-  module subroutine hallarpuntos(ff,zc,x,y,nx,ny)
-    use param, only: zero
-    integer, intent(in) :: nx, ny
-    real*8, intent(in) :: ff(nx,ny)
-    real*8, intent(in) :: zc
-    real*8, intent(in) :: x(:), y(:)
-
-    integer :: i, j
-    real*8 :: xa, ya, za, xb, yb, zb
-    real*8 :: zazc, zbzc
-
-    ! initialize
-    npuntos = 0
-
-    ! run over columns
-    do i = 1, nx
-       xa = x(i)
-       ya = y(1)
-       za = ff(i,1)
-       zazc = za-zc
-
-       ! check if it is an intersection
-       if (zazc.eq.zero) then
-          npuntos = npuntos+1
-          if (npuntos.gt.size(xc)) then
-             return
-          end if
-          xc(npuntos) = xa
-          yc(npuntos) = ya
-          pic(npuntos) = i
-          pjc(npuntos) = 1d0
-       endif
-
-       do j = 2,ny
-          xb = x(i)
-          yb = y(j)
-          zb = ff(i,j)
-          zbzc = zb-zc
-
-          ! sign changed, interpolate and write a point
-          if ((zazc*zbzc).lt.zero) then
-             npuntos = npuntos+1
-             if (npuntos.gt.size(xc)) then
-                return
-             end if
-             xc(npuntos) = xb
-             yc(npuntos) = ya-zazc*(yb-ya)/(zb-za)
-             pic(npuntos) = i
-             pjc(npuntos) = j-0.5d0
-          else if (zbzc.eq.zero) then
-             npuntos = npuntos+1
-             if (npuntos.gt.size(xc)) then
-                return
-             end if
-             xc(npuntos) = xb
-             yc(npuntos) = yb
-             pic(npuntos) = i
-             pjc(npuntos) = j
-          endif
-          ! reassign zazc
-          ya = yb
-          za = zb
-          zazc = zbzc
-       enddo
-    enddo
-
-    ! run over rows
-    do j = 1,ny
-       xa = x(1)
-       ya = y(j)
-       za = ff(1,j)
-       zazc = za-zc
-
-       do i = 2, nx
-          xb = x(i)
-          yb = y(j)
-          zb = ff(i,j)
-          zbzc = zb-zc
-          ! sign changed, interpolate and write a point
-          if ((zazc*zbzc).lt.zero) then
-             npuntos = npuntos+1
-             if (npuntos.gt.size(xc)) then
-                return
-             end if
-             xc(npuntos) = xa-zazc*(xb-xa)/(zb-za)
-             yc(npuntos) = yb
-             pic(npuntos) = i-0.5d0
-             pjc(npuntos) = j
-          endif
-          ! reassign zazc
-          xa = xb
-          za = zb
-          zazc = zbzc
-       enddo
-    enddo
-
-  end subroutine hallarpuntos
-
-  !> Determines the connectivity of the set of contour points.
-  module subroutine ordenarpuntos (luw,calpha,ziso)
-    use param, only: one, half, zero
-    real*8, parameter :: eps = 0.10d0
-
-    integer, intent(in) :: luw
-    real*8, intent(in) :: calpha, ziso
-
-    real*8 :: salpha
-
-    logical :: lc(size(xc)), cerrada, primerabusqueda, hallado
-    logical :: malla0, malla1, malla2, incompleta
-    integer :: punto(-1*size(xc)-1:size(xc)+1), puntoinicial
-    integer :: puntofinal, puntoactual, salto, nptoscurva
-    integer :: nptosestudiados
-    real*8  :: x(nptcorte+1), y(nptcorte+1)
-    integer :: k, n1
-    real*8  :: pi0, pj0, pi1, pj1, pi2, pj2, si1, sj1
-
-    ! inline functions
-    logical :: adyacentes
-    adyacentes(pi0,pj0,pi1,pj1,si1,sj1)=(abs(abs(pi0-pi1)-si1) < eps).and.&
-       (abs(abs(pj0-pj1)-sj1) < eps)
-
-    ! initialize
-    do k = 1, npuntos
-       lc(k) = .false.
-    enddo
-    nptosestudiados = 0
-
-    ! run over all points
-    x = 0d0
-    y = 0d0
-    n1 = 1
-    do while (nptosestudiados.lt.npuntos)
-
-       ! search for a non-used point and start a curve
-       k = n1
-       do while ((lc(k)) .and. (k.le.npuntos))
-          k = k+1
-       enddo
-       if (k.gt.npuntos) then
-          return
-       end if
-       ! the isoline starts at k
-       n1 = k
-
-       lc(n1) = .true.
-       pi1 = pic(n1)
-       pj1 = pjc(n1)
-
-       ! initialize search vars.
-       puntoinicial = 0
-       puntofinal = 0
-       puntoactual = 0
-       punto(puntoactual) = n1
-       salto = 1
-       primerabusqueda = .true.
-       incompleta = .true.
-       cerrada = .false.
-
-       ! search
-       do while (incompleta)
-          hallado = .true.
-          do while (hallado)
-             hallado = .false.
-
-             ! (pi1,pj1) is the last found point. Search for connection
-             ! with the rest of the points in the isoline
-             malla1 = (dabs(pi1-dint(pi1)).le.eps) .and.              &
-                &                (dabs(pj1-dint(pj1)).le.eps)
-             k = n1
-             do while ((.not.hallado) .and. (k.lt.npuntos))
-                k = k+1
-                if (.not.lc(k)) then
-
-                   !.search in non-connected points
-                   pi2 = pic(k)
-                   pj2 = pjc(k)
-                   malla2 = (dabs(pi2-dint(pi2)).le.eps) .and.        &
-                      &                      (dabs(pj2-dint(pj2)).le.eps)
-                   if (malla1 .or. malla2) then
-
-                      ! one of (pi1,pj1) and (pi2,pj2) is in the grid
-                      if (adyacentes(pi1,pj1,pi2,pj2,one,half)        &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,half,one)  &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,one,zero)  &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,zero,one)  &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,half,zero) &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,zero,half) &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,one,one)) then
-                         hallado = .true.
-                         puntoactual = puntoactual+salto
-                         punto(puntoactual) = k
-                         puntoinicial = min(puntoinicial,puntoactual)
-                         puntofinal = max(puntofinal,puntoactual)
-                         lc(k) = .true.
-                         pi1 = pi2
-                         pj1 = pj2
-                      endif
-                   else
-
-                      ! none of the points is in the grid. points are 
-                      si1 = zero
-                      sj1 = zero
-                      if (dabs(pi1-dint(pi1)).le.eps) si1 = one
-                      if (dabs(pj1-dint(pj1)).le.eps) sj1 = one
-                      if (adyacentes(pi1,pj1,pi2,pj2,half,half)       &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,si1,sj1)) then
-                         hallado = .true.
-                         puntoactual = puntoactual+salto
-                         punto(puntoactual) = k
-                         puntoinicial = min(puntoinicial,puntoactual)
-                         puntofinal = max(puntofinal,puntoactual)
-                         lc(k) = .true.
-                         pi1 = pi2
-                         pj1 = pj2
-                      endif
-                   endif
-                endif
-             enddo
-          enddo
-
-          ! no adyacent point found. Probe if it is a closed or open curve
-          if ((puntofinal-puntoinicial+1).gt.2) then
-             pi0 = pic(punto(puntoinicial))
-             pj0 = pjc(punto(puntoinicial))
-             malla0 = (dabs(pi0-dint(pi0)).le.eps) .and.              &
-                &                (dabs(pj0-dint(pj0)).le.eps)
-             pi1 = pic(punto(puntofinal))
-             pj1 = pjc(punto(puntofinal))
-             malla1 = (dabs(pi1-dint(pi1)).le.eps) .and.              &
-                &                (dabs(pj1-dint(pj1)).le.eps)
-             if (malla0 .or. malla1) then
-                if (adyacentes(pi0,pj0,pi1,pj1,one,half)              &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,half,one)           &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,one,zero)           &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,zero,one)           &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,half,zero)          &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,zero,half)          &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,one,one)) then
-                   cerrada = .true.
-                endif
-             else
-                si1 = zero
-                sj1 = zero
-                if (dabs(pi1-dint(pi1)).le.eps) si1 = one
-                if (dabs(pj1-dint(pj1)).le.eps) sj1 = one
-                if (adyacentes(pi0,pj0,pi1,pj1,half,half)             &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,si1,sj1)) then
-                   cerrada = .true.
-                endif
-             endif
-          endif
-
-          ! closed
-          if (cerrada) then
-             incompleta = .false.
-             puntofinal = puntofinal+1
-             punto(puntofinal) = punto(puntoinicial)
-             ! open -> back to the first point to explore the other branch
-          else if (primerabusqueda) then
-             primerabusqueda = .false.
-             puntoactual = 0
-             salto = -1
-             pi1 = pic(punto(puntoactual))
-             pj1 = pjc(punto(puntoactual))
-             ! curve is complete
-          else
-             incompleta = .false.
-          endif
-       enddo
-
-       ! write
-       nptoscurva = puntofinal-puntoinicial+1
-       do k = puntoinicial, puntofinal
-          x(k-puntoinicial+1) = xc(punto(k))
-          y(k-puntoinicial+1) = yc(punto(k))
-       enddo
-
-       ! transform to non-orthogonal coordinates
-       salpha = sqrt(1d0-calpha**2)
-       x = x + y * calpha
-       y = y * salpha
-
-       call linea(x,y,nptoscurva,luw,ziso)
-
-       ! update number of points
-       if (cerrada) nptoscurva = nptoscurva-1
-       nptosestudiados = nptosestudiados+nptoscurva
-    enddo
-
-  end subroutine ordenarpuntos
-
-  !> Write (x(n),y(n)) curve in luw.
-  module subroutine linea (x,y,n,luw,ziso)
-    use tools_io, only: string
-    integer, intent(in) :: n
-    real*8, dimension(n), intent(in) :: x, y
-    integer, intent(in) :: luw
-    real*8, intent(in) :: ziso
-
-    integer :: i
-
-    write (luw,*)
-    write (luw,'("# z = ",A)') string(ziso,'e',20,14)
-    do i = 1, n
-       write (luw,20) x(i), y(i)
-    enddo
-20  format (1p, 2(1x,e15.8))
-
-  end subroutine linea
-
   !> Plot of gradient paths and contours in the style of aimpac's grdvec.
   module subroutine rhoplot_grdvec()
     use systemmod, only: sy
@@ -1986,9 +1472,538 @@ contains
 
   end subroutine rhoplot_grdvec
 
+  !xx! private procedures
+
+  !> Contour plots using the 2d-field ff, defined on a plane
+  !> determined by poitns r0, r1, r2 (crystallographic coords.). The
+  !> number of points in each direction is nx and ny. ziso(1:niso) is the
+  !> array contaiing the contour levels. rootname is the root for all
+  !> the files generated (.iso, .neg.iso, -grd.dat, -label.gnu,
+  !> .gnu). If dolabels, write the labels file. If dognu, write the
+  !> gnu file.
+  subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
+    use systemmod, only: sy
+    use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
+    use tools_math, only: norm, cross, det, matinv
+    integer, intent(in) :: nx, ny
+    real*8, intent(in) :: ff(nx,ny)
+    real*8, intent(in) :: r0(3), r1(3), r2(3)
+    integer, intent(in) :: niso
+    real*8, intent(in) :: ziso(niso)
+    character*(*), intent(in) :: rootname
+    logical, intent(in) :: dognu, dolabels
+
+    character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
+    integer :: lud, lud1
+    integer :: i, j
+    real*8 :: du, dv, r012, ua, va, ub, vc
+    real*8, allocatable :: x(:), y(:)
+
+    ! set rootname
+    root0 = rootname
+
+    ! name files
+    fichgnu = trim(root0) // '-contour.gnu' 
+    fichiso = trim(root0) // '.iso' 
+    fichiso1 = trim(root0) // '.neg.iso' 
+
+    ! connect units for writing.
+    lud = fopen_write(fichiso)
+    lud1 = fopen_write(fichiso1)
+
+    write (uout,'("* Name of the contour lines file: ",a)') string(fichiso)
+    write (uout,'("* Name of the negative contour lines file: ",a)') string(fichiso1)
+
+    ! geometry
+    rp0 = sy%c%x2c(r0)
+    rp1 = sy%c%x2c(r1)
+    rp2 = sy%c%x2c(r2)
+    rp01 = rp1 - rp0
+    rp02 = rp2 - rp0
+    r01 = norm(rp01)
+    r02 = norm(rp02)
+    du = r01 / real(nx-1,8)
+    dv = r02 / real(ny-1,8)
+    r012 = dot_product(rp01,rp02)
+    cosalfa = r012/r01/r02
+    sinalfa = sqrt(max(1-cosalfa**2,0d0))
+
+    indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
+
+    ! normal vector and plane equation
+    rpn(1:3) = cross(rp01,rp02)
+    rpn(4) = -dot_product(rpn(1:3),rp0)
+    rpn = rpn / (r01*r02)
+
+    ! plane to cartesian
+    amat(:,1) = rp01
+    amat(:,2) = rp02
+    amat(:,3) = rpn(1:3)
+
+    ! cartesian to plane
+    if (abs(det(amat)) < 1d-15) &
+       call ferror('contour','Error in the input plane: singular matrix',faterr)
+    bmat = matinv(amat)
+
+    ! define plane limits
+    ua = 0d0
+    ub = r01
+    va = 0d0
+    vc = r02
+
+    ! calculate grid in each direction
+    isneg = minval(ff) < 0d0
+    allocate(x(nx))
+    allocate(y(ny))
+    do i = 1, nx
+       do j = 1, ny
+          x(i) = ua + (i-1) * (ub-ua) / real(nx-1,8)
+          y(j) = va + (j-1) * (vc-va) / real(ny-1,8)
+       end do
+    end do
+
+    do i = 1, niso
+       call hallarpuntos (ff,ziso(i),x,y,nx,ny)
+       if (ziso(i).gt.0) then
+          call ordenarpuntos (lud,cosalfa,ziso(i))
+       else
+          call ordenarpuntos (lud1,cosalfa,ziso(i))
+       endif
+    enddo
+    call fclose(lud)
+    call fclose(lud1)
+
+    if (dolabels) call write_fichlabel(root0)
+    if (dognu) call write_fichgnu(root0,dolabels,.true.,.false.)
+    if (allocated(x)) deallocate(x)
+    if (allocated(y)) deallocate(y)
+
+  end subroutine contour
+
+  !> Write a gnuplot template for the relief plot
+  subroutine relief(rootname,outfile,zmin,zmax)
+    use tools_io, only: fopen_write, uout, string, fclose
+    real*8, intent(in) :: zmin, zmax
+    character*(*), intent(in) :: rootname, outfile
+
+    character(len=:), allocatable :: file
+    integer :: lu
+
+    ! file name
+    file = trim(rootname) // '-relief.gnu'
+
+    ! connect unit
+    lu = fopen_write(file)
+    write (uout,'("* Gnuplot file (relief): ",a)') string(file)
+
+    write (lu,'("set terminal pdfcairo")')
+    write (lu,'("set output """,A,"-relief.pdf""")') rootname
+    write (lu,'("set encoding iso_8859_1")')
+    write (lu,'("")')
+    write (lu,'("set style line 1 lt 1 lc rgb ""#000000"" ")')
+    write (lu,'("")')
+    write (lu,'("# Define the zrange and the capping functions")')
+    write (lu,'("zmin = ",A)') string(zmin,'e',12,5)
+    write (lu,'("zmax = ",A)') string(zmax,'e',12,5)
+    write (lu,'("stats """,A,""" u 6 nooutput")') outfile
+    write (lu,'("min(x) = (x<zmin)?min=x:zmin")')
+    write (lu,'("max(x) = (x>zmax)?max=zmax:x")')
+    write (lu,'("set zrange [(zmin<STATS_min)?STATS_min:zmin:(zmax>STATS_max)?STATS_max:zmax]")')
+    write (lu,'("")')
+    write (lu,'("# tics, etc")')
+    write (lu,'("unset colorbox")')
+    write (lu,'("unset title")')
+    write (lu,'("set format x ""%.1f""")')
+    write (lu,'("set format y ""%.1f""")')
+    write (lu,'("")')
+    write (lu,'("# Surface definition")')
+    write (lu,'("set pm3d depthorder hidden3d 1")')
+    write (lu,'("set hidden3d")')
+    write (lu,'("set style fill transparent solid 0.7")')
+    write (lu,'("set palette rgb 9,9,3")')
+    write (lu,'("set view 60,45")')
+    write (lu,'("set size ratio -1")')
+    write (lu,'("")')
+    write (lu,'("splot """,A,""" u 4:5:(max($6)) ls 1 w pm3d notitle")') outfile
+
+    ! wrap up
+    call fclose(lu)
+
+  end subroutine relief
+
+  !> Write a gnuplot template for the color map plot
+  subroutine colormap(rootname,outfile,cmopt)
+    use tools_io, only: fopen_write, uout, string, fclose
+    character*(*), intent(in) :: rootname, outfile
+    integer, intent(in) :: cmopt
+
+    character(len=:), allocatable :: file
+    integer :: lu
+
+    ! file name
+    file = trim(rootname) // '-colormap.gnu'
+
+    ! connect unit
+    lu = fopen_write(file)
+    write (uout,'("* Gnuplot file (colormap): ",a)') string(file)
+
+    write (lu,'("set encoding iso_8859_1")')
+    write (lu,'("set terminal postscript eps color enhanced ""Helvetica""")')
+    write (lu,'("set output """,A,"-colormap.eps""")') rootname
+    write (lu,'("")')
+    write (lu,'("# line styles")')
+    write (lu,'("set style line 1 lt 1 lw 1 lc rgb ""#000000""")')
+    write (lu,'("set style line 2 lt 1 lw 1 lc rgb ""#000000""")')
+    write (lu,'("")')
+    write (lu,'("# title, key, size")')
+    write (lu,'("unset title")')
+    write (lu,'("unset key")')
+    write (lu,'("set size ratio -1")')
+    write (lu,'("")')
+    write (lu,'("# set pm3d at b map interpolate 5,5")')
+    write (lu,'("set pm3d at b map")')
+    write (lu,'("")')
+    write (lu,'("# tics")')
+    write (lu,'("set cbtics")')
+    write (lu,'("")')
+    write (lu,'("# color schemes")')
+    write (lu,'("set palette defined ( 0 ""red"", 1 ""white"", 2 ""green"" ) ")')
+    write (lu,'("")')
+    write (lu,'("# set contours")')
+    write (lu,'("unset clabel")')
+    write (lu,'("set contour base")')
+    write (lu,'("set cntrparam bspline")')
+    write (lu,'("# set cntrparam levels incremental -min,step,max")')
+    write (lu,'("")')
+    if (cmopt == 1) then
+       write (lu,'("splot """,A,""" u 4:5:(log(abs($6))) ls 1 w pm3d notitle")') outfile
+    elseif (cmopt == 2) then
+       write (lu,'("splot """,A,""" u 4:5:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
+    else
+       write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
+    end if
+
+    ! wrap up
+    call fclose(lu)
+
+  end subroutine colormap
+
+  !> Find contour with value = zc on a surface given by a grid.
+  !> uses linear interpolation.
+  subroutine hallarpuntos(ff,zc,x,y,nx,ny)
+    use param, only: zero
+    integer, intent(in) :: nx, ny
+    real*8, intent(in) :: ff(nx,ny)
+    real*8, intent(in) :: zc
+    real*8, intent(in) :: x(:), y(:)
+
+    integer :: i, j
+    real*8 :: xa, ya, za, xb, yb, zb
+    real*8 :: zazc, zbzc
+
+    ! initialize
+    npuntos = 0
+
+    ! run over columns
+    do i = 1, nx
+       xa = x(i)
+       ya = y(1)
+       za = ff(i,1)
+       zazc = za-zc
+
+       ! check if it is an intersection
+       if (zazc.eq.zero) then
+          npuntos = npuntos+1
+          if (npuntos.gt.size(xc)) then
+             return
+          end if
+          xc(npuntos) = xa
+          yc(npuntos) = ya
+          pic(npuntos) = i
+          pjc(npuntos) = 1d0
+       endif
+
+       do j = 2,ny
+          xb = x(i)
+          yb = y(j)
+          zb = ff(i,j)
+          zbzc = zb-zc
+
+          ! sign changed, interpolate and write a point
+          if ((zazc*zbzc).lt.zero) then
+             npuntos = npuntos+1
+             if (npuntos.gt.size(xc)) then
+                return
+             end if
+             xc(npuntos) = xb
+             yc(npuntos) = ya-zazc*(yb-ya)/(zb-za)
+             pic(npuntos) = i
+             pjc(npuntos) = j-0.5d0
+          else if (zbzc.eq.zero) then
+             npuntos = npuntos+1
+             if (npuntos.gt.size(xc)) then
+                return
+             end if
+             xc(npuntos) = xb
+             yc(npuntos) = yb
+             pic(npuntos) = i
+             pjc(npuntos) = j
+          endif
+          ! reassign zazc
+          ya = yb
+          za = zb
+          zazc = zbzc
+       enddo
+    enddo
+
+    ! run over rows
+    do j = 1,ny
+       xa = x(1)
+       ya = y(j)
+       za = ff(1,j)
+       zazc = za-zc
+
+       do i = 2, nx
+          xb = x(i)
+          yb = y(j)
+          zb = ff(i,j)
+          zbzc = zb-zc
+          ! sign changed, interpolate and write a point
+          if ((zazc*zbzc).lt.zero) then
+             npuntos = npuntos+1
+             if (npuntos.gt.size(xc)) then
+                return
+             end if
+             xc(npuntos) = xa-zazc*(xb-xa)/(zb-za)
+             yc(npuntos) = yb
+             pic(npuntos) = i-0.5d0
+             pjc(npuntos) = j
+          endif
+          ! reassign zazc
+          xa = xb
+          za = zb
+          zazc = zbzc
+       enddo
+    enddo
+
+  end subroutine hallarpuntos
+
+  !> Determines the connectivity of the set of contour points.
+  subroutine ordenarpuntos (luw,calpha,ziso)
+    use param, only: one, half, zero
+    real*8, parameter :: eps = 0.10d0
+
+    integer, intent(in) :: luw
+    real*8, intent(in) :: calpha, ziso
+
+    real*8 :: salpha
+
+    logical :: lc(size(xc)), cerrada, primerabusqueda, hallado
+    logical :: malla0, malla1, malla2, incompleta
+    integer :: punto(-1*size(xc)-1:size(xc)+1), puntoinicial
+    integer :: puntofinal, puntoactual, salto, nptoscurva
+    integer :: nptosestudiados
+    real*8  :: x(nptcorte+1), y(nptcorte+1)
+    integer :: k, n1
+    real*8  :: pi0, pj0, pi1, pj1, pi2, pj2, si1, sj1
+
+    ! inline functions
+    logical :: adyacentes
+    adyacentes(pi0,pj0,pi1,pj1,si1,sj1)=(abs(abs(pi0-pi1)-si1) < eps).and.&
+       (abs(abs(pj0-pj1)-sj1) < eps)
+
+    ! initialize
+    do k = 1, npuntos
+       lc(k) = .false.
+    enddo
+    nptosestudiados = 0
+
+    ! run over all points
+    x = 0d0
+    y = 0d0
+    n1 = 1
+    do while (nptosestudiados.lt.npuntos)
+
+       ! search for a non-used point and start a curve
+       k = n1
+       do while ((lc(k)) .and. (k.le.npuntos))
+          k = k+1
+       enddo
+       if (k.gt.npuntos) then
+          return
+       end if
+       ! the isoline starts at k
+       n1 = k
+
+       lc(n1) = .true.
+       pi1 = pic(n1)
+       pj1 = pjc(n1)
+
+       ! initialize search vars.
+       puntoinicial = 0
+       puntofinal = 0
+       puntoactual = 0
+       punto(puntoactual) = n1
+       salto = 1
+       primerabusqueda = .true.
+       incompleta = .true.
+       cerrada = .false.
+
+       ! search
+       do while (incompleta)
+          hallado = .true.
+          do while (hallado)
+             hallado = .false.
+
+             ! (pi1,pj1) is the last found point. Search for connection
+             ! with the rest of the points in the isoline
+             malla1 = (dabs(pi1-dint(pi1)).le.eps) .and.              &
+                &                (dabs(pj1-dint(pj1)).le.eps)
+             k = n1
+             do while ((.not.hallado) .and. (k.lt.npuntos))
+                k = k+1
+                if (.not.lc(k)) then
+
+                   !.search in non-connected points
+                   pi2 = pic(k)
+                   pj2 = pjc(k)
+                   malla2 = (dabs(pi2-dint(pi2)).le.eps) .and.        &
+                      &                      (dabs(pj2-dint(pj2)).le.eps)
+                   if (malla1 .or. malla2) then
+
+                      ! one of (pi1,pj1) and (pi2,pj2) is in the grid
+                      if (adyacentes(pi1,pj1,pi2,pj2,one,half)        &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,half,one)  &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,one,zero)  &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,zero,one)  &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,half,zero) &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,zero,half) &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,one,one)) then
+                         hallado = .true.
+                         puntoactual = puntoactual+salto
+                         punto(puntoactual) = k
+                         puntoinicial = min(puntoinicial,puntoactual)
+                         puntofinal = max(puntofinal,puntoactual)
+                         lc(k) = .true.
+                         pi1 = pi2
+                         pj1 = pj2
+                      endif
+                   else
+
+                      ! none of the points is in the grid. points are 
+                      si1 = zero
+                      sj1 = zero
+                      if (dabs(pi1-dint(pi1)).le.eps) si1 = one
+                      if (dabs(pj1-dint(pj1)).le.eps) sj1 = one
+                      if (adyacentes(pi1,pj1,pi2,pj2,half,half)       &
+                         .or. adyacentes(pi1,pj1,pi2,pj2,si1,sj1)) then
+                         hallado = .true.
+                         puntoactual = puntoactual+salto
+                         punto(puntoactual) = k
+                         puntoinicial = min(puntoinicial,puntoactual)
+                         puntofinal = max(puntofinal,puntoactual)
+                         lc(k) = .true.
+                         pi1 = pi2
+                         pj1 = pj2
+                      endif
+                   endif
+                endif
+             enddo
+          enddo
+
+          ! no adyacent point found. Probe if it is a closed or open curve
+          if ((puntofinal-puntoinicial+1).gt.2) then
+             pi0 = pic(punto(puntoinicial))
+             pj0 = pjc(punto(puntoinicial))
+             malla0 = (dabs(pi0-dint(pi0)).le.eps) .and.              &
+                &                (dabs(pj0-dint(pj0)).le.eps)
+             pi1 = pic(punto(puntofinal))
+             pj1 = pjc(punto(puntofinal))
+             malla1 = (dabs(pi1-dint(pi1)).le.eps) .and.              &
+                &                (dabs(pj1-dint(pj1)).le.eps)
+             if (malla0 .or. malla1) then
+                if (adyacentes(pi0,pj0,pi1,pj1,one,half)              &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,half,one)           &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,one,zero)           &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,zero,one)           &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,half,zero)          &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,zero,half)          &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,one,one)) then
+                   cerrada = .true.
+                endif
+             else
+                si1 = zero
+                sj1 = zero
+                if (dabs(pi1-dint(pi1)).le.eps) si1 = one
+                if (dabs(pj1-dint(pj1)).le.eps) sj1 = one
+                if (adyacentes(pi0,pj0,pi1,pj1,half,half)             &
+                   .or. adyacentes(pi0,pj0,pi1,pj1,si1,sj1)) then
+                   cerrada = .true.
+                endif
+             endif
+          endif
+
+          ! closed
+          if (cerrada) then
+             incompleta = .false.
+             puntofinal = puntofinal+1
+             punto(puntofinal) = punto(puntoinicial)
+             ! open -> back to the first point to explore the other branch
+          else if (primerabusqueda) then
+             primerabusqueda = .false.
+             puntoactual = 0
+             salto = -1
+             pi1 = pic(punto(puntoactual))
+             pj1 = pjc(punto(puntoactual))
+             ! curve is complete
+          else
+             incompleta = .false.
+          endif
+       enddo
+
+       ! write
+       nptoscurva = puntofinal-puntoinicial+1
+       do k = puntoinicial, puntofinal
+          x(k-puntoinicial+1) = xc(punto(k))
+          y(k-puntoinicial+1) = yc(punto(k))
+       enddo
+
+       ! transform to non-orthogonal coordinates
+       salpha = sqrt(1d0-calpha**2)
+       x = x + y * calpha
+       y = y * salpha
+
+       call linea(x,y,nptoscurva,luw,ziso)
+
+       ! update number of points
+       if (cerrada) nptoscurva = nptoscurva-1
+       nptosestudiados = nptosestudiados+nptoscurva
+    enddo
+
+  end subroutine ordenarpuntos
+
+  !> Write (x(n),y(n)) curve in luw.
+  subroutine linea (x,y,n,luw,ziso)
+    use tools_io, only: string
+    integer, intent(in) :: n
+    real*8, dimension(n), intent(in) :: x, y
+    integer, intent(in) :: luw
+    real*8, intent(in) :: ziso
+
+    integer :: i
+
+    write (luw,*)
+    write (luw,'("# z = ",A)') string(ziso,'e',20,14)
+    do i = 1, n
+       write (luw,20) x(i), y(i)
+    enddo
+20  format (1p, 2(1x,e15.8))
+
+  end subroutine linea
+
   !> Plot of the gradient vector field in the plane defined
   !> by the vectors (r1-r0) & (r2-r0).
-  module subroutine plotvec (r0,r1,r2,autocheck,udat)
+  subroutine plotvec(r0,r1,r2,autocheck,udat)
     use systemmod, only: sy
     use global, only: dunit0, iunit, prunedist, gcpchange
     use tools_math, only: cross, matinv, rsindex
@@ -2238,7 +2253,7 @@ contains
   end subroutine plotvec
 
   !> Write the gradient path to the udat logical unit.
-  module subroutine wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
+  subroutine wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
     use systemmod, only: sy
     use global, only: prunedist
     use types, only: gpathp
@@ -2310,7 +2325,7 @@ contains
   !> Check a user-entered collection of points to see if they
   !> are critical points, remove repeated points, and check which
   !> equivalents (within the main cell) lie on the plotting plane.
-  module subroutine autochk(rp0)
+  subroutine autochk(rp0)
     use systemmod, only: sy
     use global, only: cp_hdegen
     use tools_io, only: uout, string, ioj_left, ioj_right, faterr, ferror
@@ -2437,7 +2452,7 @@ contains
   !> Writes the "label" file to rootname-label.gnu. The labels file
   !> contains the list of critical points contained in the plot
   !> plane, ready to be read in gnuplot.
-  module subroutine write_fichlabel(rootname)
+  subroutine write_fichlabel(rootname)
     use systemmod, only: sy
     use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
@@ -2530,7 +2545,7 @@ contains
   !> labels file too. If docontour, write the .iso (postivie iso
   !> -values) and the .neg.iso (negative iso-values). If dograds,
   !> write the file containing the gradient paths.
-  module subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
+  subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
     use tools_io, only: uout, string, fopen_write, string, fclose
     character*(*), intent(in) :: rootname
     logical, intent(in) :: dolabels, docontour, dograds

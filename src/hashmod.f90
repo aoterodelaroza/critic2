@@ -20,6 +20,8 @@
 module hashmod
   implicit none
 
+  private
+
   !> Node of a linked list
   type node
      type(node), pointer :: next => NULL()
@@ -61,28 +63,7 @@ module hashmod
      procedure :: keys => keys_hash
      procedure :: getkey => getkey_hash
   end type hash
-
-  private
   public :: hash
-  private :: init_hash
-  private :: free_hash
-  private :: get_hash_i_
-  private :: get_hash_r_
-  private :: get_hash_s_
-  private :: get_hash_d_
-  private :: type_hash
-  private :: put_hash_i_
-  private :: put_hash_r_
-  private :: put_hash_s_
-  private :: put_hash_d_
-  private :: hashfun
-  private :: free_node
-  private :: get_node
-  private :: put_node
-  private :: iskey_node
-  private :: delkey_hash
-  private :: delkey_node
-  private :: assign_node
   
   interface
      module subroutine init_hash(self,lenh0)

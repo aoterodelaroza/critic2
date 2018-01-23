@@ -21,8 +21,6 @@ module grid1mod
 
   private
 
-  private :: read_critic
-
   !> Radial grid type.
   type grid1
      logical :: isinit = .false. !< Is initialized?
@@ -59,12 +57,6 @@ module grid1mod
        integer, intent(in) :: z
        integer, intent(in) :: q
      end subroutine read_db
-     module subroutine read_critic(g,file,n,abspath)
-       class(grid1), intent(inout) :: g
-       character*(*), intent(in) :: file
-       integer, intent(in) :: n
-       logical, intent(in) :: abspath
-     end subroutine read_critic
      module subroutine interp(g,r0,f,fp,fpp)
        class(grid1), intent(in) :: g
        real*8, intent(in) :: r0

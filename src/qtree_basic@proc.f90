@@ -18,6 +18,11 @@
 submodule (qtree_basic) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine find_tetrah_contacts()
+  ! subroutine inverse_operation(p,op,c,invp,invop,invc)
+  ! subroutine presplit_ws(plvl,ntetrag,tetrag)
+
   ! Butcher tableaus of ODE solvers
   ! c_1 |
   ! c_2 | a_21
@@ -736,147 +741,6 @@ contains
 
   end subroutine neargp
 
-  !> Find the contacts between tetrahedron faces
-  module subroutine find_tetrah_contacts()
-    use systemmod, only: sy
-    use tools_io, only: uout, ferror, faterr
-    integer :: t, f, p, op, c, i, t2, f2, invp, invc, invop
-    real*8 :: xface(3,3,4,nt_orig) ! xface(vcoords,vertex,face,tetrah)
-    real*8 :: aux(3,3), aux2(3,3)
-    logical :: cont
-    integer :: ldiff(3)
-
-    ! fill the faces
-    do t = 1, nt_orig
-       ! 0 1 2
-       xface(:,1,1,t) = torig(:,t)
-       xface(:,2,1,t) = torig(:,t) + tvec(:,1,t)
-       xface(:,3,1,t) = torig(:,t) + tvec(:,2,t)
-
-       ! 0 1 3
-       xface(:,1,2,t) = torig(:,t)
-       xface(:,2,2,t) = torig(:,t) + tvec(:,1,t)
-       xface(:,3,2,t) = torig(:,t) + tvec(:,3,t)
-
-       ! 0 2 3
-       xface(:,1,3,t) = torig(:,t)
-       xface(:,2,3,t) = torig(:,t) + tvec(:,2,t)
-       xface(:,3,3,t) = torig(:,t) + tvec(:,3,t)
-
-       ! 1 2 3
-       xface(:,1,4,t) = torig(:,t) + tvec(:,1,t)
-       xface(:,2,4,t) = torig(:,t) + tvec(:,2,t)
-       xface(:,3,4,t) = torig(:,t) + tvec(:,3,t)
-    end do
-
-    ! run over faces and check for equivalence
-    ! full point symmetry -> if 3 vertex are equivalent, the
-    !  plane is equivalent so trms can be copied safely.
-    do t = 1, nt_orig
-       do f = 1, 4
-          ! skip known faces
-          if (tcontact(t,f) /= tcontact_void) cycle
-          
-          cont = .false.
-          t1: do op = 1, leqv
-             c = 1
-             do p = 1, 6
-                ! transformed face
-                aux = matmul(lrotm(1:3,1:3,op),xface(:,:,f,t))
-                do i = 1, 3
-                   aux(:,i) = aux(:,i) + sy%c%cen(:,c)
-                end do
-                aux = matmul(aux,perm3(:,:,p))
-
-                ! compare with the other faces in the same tetrah.
-                do f2 = f, 4
-                   aux2 = aux - xface(:,:,f2,t)
-                   ldiff = nint(aux2(:,1))
-                   ! careful with identity
-                   if (f2 == f .and. op == 1 .and. c == 1) cycle
-                   do i = 1, 3
-                      aux2(:,i) = abs(aux2(:,i) - ldiff)
-                   end do
-                   if (all(aux2 < eps_tetrah_contact)) then
-                      cont = .true.
-                      tcontact(t,f) = (op-1)+leqv*((c-1)+1*((p-1)+6*((f2-1)+4*(t-1))))+1
-                      call inverse_operation(p,op,c,invp,invop,invc)
-                      tcontact(t,f2) = -((invop-1)+leqv*((invc-1)+1*((invp-1)+6*((f-1)+4*(t-1))))+1)
-                      exit t1
-                   end if
-                end do
-                ! compare with other tetrah.
-                do t2 = t+1, nt_orig
-                   do f2 = 1, 4
-                      aux2 = aux - xface(:,:,f2,t2)
-                      ldiff = nint(aux2(:,1))
-                      do i = 1, 3
-                         aux2(:,i) = abs(aux2(:,i) - ldiff)
-                      end do
-                      if (all(aux2 < eps_tetrah_contact)) then
-                         cont = .true.
-                         tcontact(t,f) = (op-1)+leqv*((c-1)+1*((p-1)+6*((f2-1)+4*(t2-1))))+1
-                         call inverse_operation(p,op,c,invp,invop,invc)
-                         tcontact(t2,f2) = -((invop-1)+leqv*((invc-1)+1*((invp-1)+6*((f-1)+4*(t-1))))+1)
-                         exit t1
-                      end if
-                   end do
-                end do
-             end do
-          end do t1
-          if (.not.cont .and. periodic) then
-             write (uout,'(" t = ",I3," f = ",I3)') t, f
-             call ferror('find_tetrah_contacts','failed to determine a contact, use nocontacts',faterr)
-          end if
-       end do
-    end do
-
-  end subroutine find_tetrah_contacts
-
-  !> Calculate the inverse of a tetrahedron face transformation, given
-  !> by a rotation (op), a centering translation (c) and a permutation of the 
-  !> vertex (p).
-  module subroutine inverse_operation(p,op,c,invp,invop,invc)
-    use systemmod, only: sy
-    use tools_io, only: ferror, faterr
-    use param, only: eye
-    integer, intent(in) :: p, op, c
-    integer, intent(out) :: invp, invop, invc
-
-    logical :: found
-    real*8 :: xaux(3)
-
-    ! inverse permutation
-    if (p == 2) then
-       invp = 3
-    else if (p == 3) then
-       invp = 2
-    else
-       invp = p
-    end if
-    ! inverse rotation
-    found = .false.
-    do invop = 1, leqv
-       if (all(abs(matmul(lrotm(1:3,1:3,op),lrotm(1:3,1:3,invop)) - eye) < eps_tetrah_contact)) then
-          found = .true.
-          exit
-       end if
-    end do
-    if (.not.found) call ferror('inverse_operation','could not find matrix inverse operation',faterr)
-    ! inverse translation
-    found = .false.
-    do invc = 1, sy%c%ncv
-       xaux = sy%c%cen(:,c) - sy%c%cen(:,invc)
-       xaux = xaux - nint(xaux)
-       if (all(abs(xaux) < eps_tetrah_contact)) then
-          found = .true.
-          exit
-       end if
-    end do
-    if (.not.found) call ferror('inverse_operation','could not find translation inverse',faterr)
-
-  end subroutine inverse_operation
-
   !> Calculate the maximum and minimum lengths of the grid 
   !> at the highest subdivision level.
   module subroutine get_tlengths(minlen,maxlen)
@@ -988,8 +852,151 @@ contains
 
   end subroutine get_tlengths
 
+  !xx! private procedures
+
+  !> Find the contacts between tetrahedron faces
+  subroutine find_tetrah_contacts()
+    use systemmod, only: sy
+    use tools_io, only: uout, ferror, faterr
+    integer :: t, f, p, op, c, i, t2, f2, invp, invc, invop
+    real*8 :: xface(3,3,4,nt_orig) ! xface(vcoords,vertex,face,tetrah)
+    real*8 :: aux(3,3), aux2(3,3)
+    logical :: cont
+    integer :: ldiff(3)
+
+    ! fill the faces
+    do t = 1, nt_orig
+       ! 0 1 2
+       xface(:,1,1,t) = torig(:,t)
+       xface(:,2,1,t) = torig(:,t) + tvec(:,1,t)
+       xface(:,3,1,t) = torig(:,t) + tvec(:,2,t)
+
+       ! 0 1 3
+       xface(:,1,2,t) = torig(:,t)
+       xface(:,2,2,t) = torig(:,t) + tvec(:,1,t)
+       xface(:,3,2,t) = torig(:,t) + tvec(:,3,t)
+
+       ! 0 2 3
+       xface(:,1,3,t) = torig(:,t)
+       xface(:,2,3,t) = torig(:,t) + tvec(:,2,t)
+       xface(:,3,3,t) = torig(:,t) + tvec(:,3,t)
+
+       ! 1 2 3
+       xface(:,1,4,t) = torig(:,t) + tvec(:,1,t)
+       xface(:,2,4,t) = torig(:,t) + tvec(:,2,t)
+       xface(:,3,4,t) = torig(:,t) + tvec(:,3,t)
+    end do
+
+    ! run over faces and check for equivalence
+    ! full point symmetry -> if 3 vertex are equivalent, the
+    !  plane is equivalent so trms can be copied safely.
+    do t = 1, nt_orig
+       do f = 1, 4
+          ! skip known faces
+          if (tcontact(t,f) /= tcontact_void) cycle
+          
+          cont = .false.
+          t1: do op = 1, leqv
+             c = 1
+             do p = 1, 6
+                ! transformed face
+                aux = matmul(lrotm(1:3,1:3,op),xface(:,:,f,t))
+                do i = 1, 3
+                   aux(:,i) = aux(:,i) + sy%c%cen(:,c)
+                end do
+                aux = matmul(aux,perm3(:,:,p))
+
+                ! compare with the other faces in the same tetrah.
+                do f2 = f, 4
+                   aux2 = aux - xface(:,:,f2,t)
+                   ldiff = nint(aux2(:,1))
+                   ! careful with identity
+                   if (f2 == f .and. op == 1 .and. c == 1) cycle
+                   do i = 1, 3
+                      aux2(:,i) = abs(aux2(:,i) - ldiff)
+                   end do
+                   if (all(aux2 < eps_tetrah_contact)) then
+                      cont = .true.
+                      tcontact(t,f) = (op-1)+leqv*((c-1)+1*((p-1)+6*((f2-1)+4*(t-1))))+1
+                      call inverse_operation(p,op,c,invp,invop,invc)
+                      tcontact(t,f2) = -((invop-1)+leqv*((invc-1)+1*((invp-1)+6*((f-1)+4*(t-1))))+1)
+                      exit t1
+                   end if
+                end do
+                ! compare with other tetrah.
+                do t2 = t+1, nt_orig
+                   do f2 = 1, 4
+                      aux2 = aux - xface(:,:,f2,t2)
+                      ldiff = nint(aux2(:,1))
+                      do i = 1, 3
+                         aux2(:,i) = abs(aux2(:,i) - ldiff)
+                      end do
+                      if (all(aux2 < eps_tetrah_contact)) then
+                         cont = .true.
+                         tcontact(t,f) = (op-1)+leqv*((c-1)+1*((p-1)+6*((f2-1)+4*(t2-1))))+1
+                         call inverse_operation(p,op,c,invp,invop,invc)
+                         tcontact(t2,f2) = -((invop-1)+leqv*((invc-1)+1*((invp-1)+6*((f-1)+4*(t-1))))+1)
+                         exit t1
+                      end if
+                   end do
+                end do
+             end do
+          end do t1
+          if (.not.cont .and. periodic) then
+             write (uout,'(" t = ",I3," f = ",I3)') t, f
+             call ferror('find_tetrah_contacts','failed to determine a contact, use nocontacts',faterr)
+          end if
+       end do
+    end do
+
+  end subroutine find_tetrah_contacts
+
+  !> Calculate the inverse of a tetrahedron face transformation, given
+  !> by a rotation (op), a centering translation (c) and a permutation of the 
+  !> vertex (p).
+  subroutine inverse_operation(p,op,c,invp,invop,invc)
+    use systemmod, only: sy
+    use tools_io, only: ferror, faterr
+    use param, only: eye
+    integer, intent(in) :: p, op, c
+    integer, intent(out) :: invp, invop, invc
+
+    logical :: found
+    real*8 :: xaux(3)
+
+    ! inverse permutation
+    if (p == 2) then
+       invp = 3
+    else if (p == 3) then
+       invp = 2
+    else
+       invp = p
+    end if
+    ! inverse rotation
+    found = .false.
+    do invop = 1, leqv
+       if (all(abs(matmul(lrotm(1:3,1:3,op),lrotm(1:3,1:3,invop)) - eye) < eps_tetrah_contact)) then
+          found = .true.
+          exit
+       end if
+    end do
+    if (.not.found) call ferror('inverse_operation','could not find matrix inverse operation',faterr)
+    ! inverse translation
+    found = .false.
+    do invc = 1, sy%c%ncv
+       xaux = sy%c%cen(:,c) - sy%c%cen(:,invc)
+       xaux = xaux - nint(xaux)
+       if (all(abs(xaux) < eps_tetrah_contact)) then
+          found = .true.
+          exit
+       end if
+    end do
+    if (.not.found) call ferror('inverse_operation','could not find translation inverse',faterr)
+
+  end subroutine inverse_operation
+
   !> Pre-split the initial tetrahedra list p times.
-  module subroutine presplit_ws(plvl,ntetrag,tetrag)
+  subroutine presplit_ws(plvl,ntetrag,tetrag)
     integer, intent(in) :: plvl
     integer, intent(inout) :: ntetrag
     real*8, intent(inout), allocatable :: tetrag(:,:,:)

@@ -18,6 +18,11 @@
 submodule (stm) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine detect_vacuum(ix,rtop)
+  ! function stm_bisect(x,ix,rho0) result(z)
+  ! function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
+
 contains
 
   module subroutine stm_driver(line)
@@ -128,7 +133,7 @@ contains
     axlen = sy%c%aa(ix)
     if (rhei < 0d0) rhei = rtop
     if (rtop0 < 0d0) rtop0 = rtop
-       
+
     if (.not.doline) then
        ! Calculate the STM signal in a plane
        ! Allocate the 2d plane
@@ -339,12 +344,14 @@ contains
 
   end subroutine stm_driver
 
-  module subroutine detect_vacuum(ix,rtop)
+  !xx! private procedures
+
+  subroutine detect_vacuum(ix,rtop)
     use systemmod, only: sy
     use tools_io, only: faterr, ferror
     integer, intent(out) :: ix
     real*8, intent(out) :: rtop
-    
+
     integer :: i, j, jj, idx, nempty
     integer, allocatable :: ibin(:)
     real*8 :: rcur
@@ -400,10 +407,10 @@ contains
   !> ix direction until the rho0 value of the reference field is found
   !> The reference field is assumed to be locally monotonic along ix.
   !> The output z is in cartesian.
-  module function stm_bisect(x,ix,rho0) result(z)
+  function stm_bisect(x,ix,rho0) result(z)
     use systemmod, only: sy
     use tools_io, only: faterr, ferror
-    
+
     real*8, intent(in) :: x(3)
     integer, intent(in) :: ix
     real*8, intent(in) :: rho0
@@ -470,11 +477,11 @@ contains
   !> by grid points i1 (ip1-axis) and i2 (ip2-axis) and the search starts
   !> at iz. The output z is in cartesian. The reference field is
   !> assumed to be locally monotonic along ix. 
-  module function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
+  function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
     use systemmod, only: sy
     use fieldmod, only: type_grid
     use tools_io, only: ferror, faterr
-    
+
     integer, intent(in) :: i1, i2, iz, ip1, ip2, ix
     real*8, intent(in) :: rho0
     real*8 :: z
@@ -495,7 +502,7 @@ contains
     else
        isign = -1
     endif
-    
+
     ! find the interval
     found = .false.
     k = iz
@@ -519,7 +526,7 @@ contains
        endif
     end do
     if (.not.found) call ferror('stm_bisect_grid','Could not find density bracket',faterr)
-    
+
     ! interpolate the point in grid coordinates (1 to nx)
     z = ibra(1) + (rho0-fbra(1))/(fbra(2)-fbra(1)) * (ibra(2)-ibra(1))
 

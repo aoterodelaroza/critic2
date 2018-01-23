@@ -18,6 +18,11 @@
 submodule (molcalc) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine molcalc_nelec()
+  ! subroutine molcalc_peach()
+  ! subroutine molcalc_integral()
+
 contains
 
   !> Driver for molecular calculations
@@ -49,7 +54,9 @@ contains
 
   end subroutine molcalc_driver
 
-  module subroutine molcalc_nelec()
+  !xx! private procedures
+
+  subroutine molcalc_nelec()
     use systemmod, only: sy
     use meshmod, only: mesh
     use tools_io, only: string, uout
@@ -86,7 +93,7 @@ contains
 
   end subroutine molcalc_nelec
 
-  module subroutine molcalc_peach()
+  subroutine molcalc_peach()
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn
@@ -178,7 +185,7 @@ contains
 
   end subroutine molcalc_peach
 
-  module subroutine molcalc_integral()
+  subroutine molcalc_integral()
     use tools_io, only: ferror, faterr
 #ifdef HAVE_CINT
 

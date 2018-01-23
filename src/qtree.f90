@@ -23,8 +23,6 @@ module qtree
   private
 
   public :: qtree_integration
-  private :: qtree_setsph1
-  private :: qtree_setsph2
   public :: qtree_setsphfactor
   
   interface
@@ -32,13 +30,6 @@ module qtree
        integer, intent(in) :: lvl
        integer, intent(in) :: plvl
      end subroutine qtree_integration
-     module subroutine qtree_setsph1(lvl,verbose)
-       integer, intent(in) :: lvl
-       logical, intent(in) :: verbose
-     end subroutine qtree_setsph1
-     module subroutine qtree_setsph2(verbose)
-       logical, intent(in) :: verbose
-     end subroutine qtree_setsph2
      module subroutine qtree_setsphfactor(line)
        character*(*), intent(in) :: line
      end subroutine qtree_setsphfactor

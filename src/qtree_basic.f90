@@ -31,10 +31,7 @@ module qtree_basic
   public :: crys2convex
   public :: locate_tetrah
   public :: neargp
-  private :: find_tetrah_contacts
-  private :: inverse_operation
   public :: get_tlengths
-  private :: presplit_ws
 
   ! logical units for differences and stick tess files
   integer, public :: ludif
@@ -175,20 +172,9 @@ module qtree_basic
        integer(qtreeidx), intent(out) :: idx
        real*8, intent(out) :: dist
      end subroutine neargp
-     module subroutine find_tetrah_contacts()
-     end subroutine find_tetrah_contacts
-     module subroutine inverse_operation(p,op,c,invp,invop,invc)
-       integer, intent(in) :: p, op, c
-       integer, intent(out) :: invp, invop, invc
-     end subroutine inverse_operation
      module subroutine get_tlengths(minlen,maxlen)
        real*8, intent(out) :: minlen, maxlen
      end subroutine get_tlengths
-     module subroutine presplit_ws(plvl,ntetrag,tetrag)
-       integer, intent(in) :: plvl
-       integer, intent(inout) :: ntetrag
-       real*8, intent(inout), allocatable :: tetrag(:,:,:)
-     end subroutine presplit_ws
   end interface
 
 end module qtree_basic

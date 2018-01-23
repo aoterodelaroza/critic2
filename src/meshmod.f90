@@ -28,13 +28,6 @@ module meshmod
   implicit none
 
   private
-  private :: rmesh_postg
-  private :: z2nr_postg
-  private :: z2nr_franchini
-  private :: z2nang_postg
-  private :: z2nang_franchini
-  private :: bhole
-  private :: xfuncs
 
   !> Becke-style mesh for molecular/crystal integration
   type mesh
@@ -76,42 +69,6 @@ module meshmod
        integer, intent(in) :: prop(:)
        logical, intent(in) :: periodic
      end subroutine fillmesh
-     module subroutine rmesh_postg(n,iz,r,wintr)
-       integer, intent(in) :: n
-       integer, intent(in) :: iz
-       real*8, intent(out) :: r(n), wintr(n)
-     end subroutine rmesh_postg
-     module subroutine rmesh_franchini(n,iz,r,wintr)
-       integer, intent(in) :: n
-       integer, intent(in) :: iz
-       real*8, intent(out) :: r(n), wintr(n)
-     end subroutine rmesh_franchini
-     module function z2nr_postg(z) result(nr)
-       integer, intent(in) :: z
-       integer :: nr
-     endfunction z2nr_postg
-     module function z2nr_franchini(z,lvl) result(nr)
-       integer, intent(in) :: z
-       integer, intent(in) :: lvl
-       integer :: nr
-     endfunction z2nr_franchini
-     module function z2nang_postg(z) result(nang)
-       integer, intent(in) :: z
-       integer :: nang
-     endfunction z2nang_postg
-     module function z2nang_franchini(z,lvl) result(nang)
-       integer, intent(in) :: z
-       integer, intent(in) :: lvl
-       integer :: nang
-     endfunction z2nang_franchini
-     module subroutine bhole(rho,quad,hnorm,b)
-       real*8, intent(in) :: rho, quad, hnorm
-       real*8, intent(out) :: b 
-     end subroutine bhole
-     module subroutine xfuncs(x,rhs,f,df)
-       real*8, intent(in) :: x, rhs
-       real*8, intent(out) :: f, df
-     end subroutine xfuncs
   end interface
 
 end module meshmod

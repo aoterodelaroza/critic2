@@ -54,10 +54,6 @@ module pi_private
   end type piwfn
   public :: piwfn
 
-  private :: buscapar
-  private :: entero
-  private :: rhoex1
-  
   interface
      module subroutine pi_end(f)
        class(piwfn), intent(inout) :: f
@@ -74,34 +70,15 @@ module pi_private
        character*(*) :: fichero
        integer :: ni
      end subroutine read_ion
-     module subroutine buscapar(line,chpar,nchpar,ipar,nipar)
-       integer, parameter :: mpar=3
-       character*(*) :: line
-       character*(*) :: chpar(mpar)
-       integer :: nchpar
-       integer :: ipar(mpar)
-       integer :: nipar
-     end subroutine buscapar
-     module function entero (palabra,ipal)
-       logical :: entero
-       character*(*) :: palabra
-       integer :: ipal
-     end function entero
-     module subroutine fillinterpol(f)
-       class(piwfn), intent(inout) :: f
-     end subroutine fillinterpol
-     module subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
-       class(piwfn), intent(in) :: f
-       integer, intent(in) :: ni
-       real*8, intent(in) :: rion0
-       real*8, intent(out) :: rhoval, firstder, secondder
-     end subroutine rhoex1
      module subroutine rho2(f,xpos,exact,rho,grad,h)
        class(piwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
        logical, intent(in) :: exact
        real*8, intent(out) :: rho, grad(3), h(3,3)
      end subroutine rho2
+     module subroutine fillinterpol(f)
+       class(piwfn), intent(inout) :: f
+     end subroutine fillinterpol
   end interface
 
 end module pi_private

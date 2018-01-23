@@ -18,6 +18,11 @@
 submodule (pi_private) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine buscapar(line,chpar,nchpar,ipar,nipar)
+  ! function entero (palabra,ipal)
+  ! subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
+
   ! parameters for PI common info
   integer, parameter :: msa = 4
   integer, parameter :: mnt = 20
@@ -267,213 +272,6 @@ contains
 
   end subroutine read_ion
 
-  !xx! PRIVATE functions and subroutines
-  module subroutine buscapar(line,chpar,nchpar,ipar,nipar)
-    
-    integer, parameter :: mpar=3
-    integer :: ipar(mpar)
-    character*(*) :: chpar(mpar)
-    character*(*) :: line
-    character*(1024) :: word
-    character*(1) :: ch
-    integer :: nchpar, nipar, nch, i, j
-
-    nchpar=0
-    nipar=0
-    nch=0
-    word=""
-    do i=1,mpar
-       chpar(i)=word
-       ipar(i)=0
-    end do
-
-    !.run over all the characters:
-    do i = 1, len(line)
-       ch=line(i:i)
-       if (ch == " ") then
-
-          !.each word is assumed to end with a blanc:
-          if (nch.gt.0) then
-
-             !.a new word has been found only if word has any character:
-             if (entero(word,j)) then
-
-                !.an integer parameter:
-                nipar=nipar+1
-                if (nipar.gt.mpar) return
-                ipar(nipar)=j
-             else
-
-                !.a character parameter:
-                nchpar=nchpar+1
-                if (nchpar.gt.mpar) return
-                chpar(nchpar)=word
-                if (nchpar.eq.1) then
-                   if (word(1:3).eq.'tit'.or.word(1:3).eq.'rem') then
-                      nchpar=nchpar+1
-                      chpar(nchpar)=line(5:)
-                      return
-                   endif
-                endif
-             endif
-             nch=0
-             word=" "
-          endif
-       else
-          !.store in word the non-blanc character found:
-          nch=nch+1
-          word(nch:nch)=ch
-       endif
-    end do
-
-    ! if the line doesn't end with a blanc, word may contain some
-    ! characters:
-    if (nch.gt.0) then
-       if (entero(word,j)) then
-          ! an integer parameter:
-          nipar=nipar+1
-          if (nipar.gt.mpar) then 
-             return
-          end if
-          ipar(nipar)=j
-       else
-          !.a character parameter:
-          nchpar=nchpar+1
-          if (nchpar.gt.mpar) then
-             return
-          end if
-          chpar(nchpar)=word
-          if (nchpar.eq.1) then
-             if (word(1:3).eq.'tit'.or.word(1:3).eq.'rem') then
-                nchpar=nchpar+1
-                chpar(nchpar)=line(5:)
-                return
-             endif
-          endif
-       endif
-    endif
-
-  end subroutine buscapar
-
-  module function entero (palabra,ipal)
-    logical :: entero
-    character*(*) :: palabra
-    integer :: ipal
-
-    character*(1)     cero,nueve,ch
-    data cero /'0'/, nueve /'9'/
-    integer           i
-
-      entero=.false.
-      ipal=0
-      do 10 i = 1, len(palabra)
-         ch=palabra(i:i)
-         if (ch.lt.cero .or. ch.gt.nueve) return
-         ipal=ipal*10+(ichar(ch)-ichar(cero))
- 10   continue
-      entero=.true.
-
-  end function entero
-
-  !> Fills the interpolation grids for ion densities.
-  module subroutine fillinterpol(f)
-    use global, only: cutrad
-    class(piwfn), intent(inout) :: f
-
-    real*8, parameter :: az = exp(-6d0)
-    real*8, parameter :: b = 0.002
-    real*8, parameter :: pi_cutdens = 1d-12 
-
-    integer :: i, ii, j
-    real*8 :: crad, rrho, rrho1, rrho2
-    logical :: done(mnt)
-
-    if (allocated(f%pgrid)) deallocate(f%pgrid)
-    allocate(f%pgrid(mnt))
-    done = .false.
-    do ii = 1, f%nenv
-       i = f%idxenv(ii)
-       if (done(i)) cycle
-       done(i) = .true.
-
-       ! determine cutoff radius (crad)
-       crad = cutrad(f%zenv(ii))
-       call rhoex1(f,i,crad,rrho,rrho1,rrho2)
-       do while (rrho > pi_cutdens) 
-          crad = crad * 1.05d0
-          call rhoex1(f,i,crad,rrho,rrho1,rrho2)
-       end do
-       
-       ! fill some grid info
-       f%pgrid(i)%isinit = .true.
-       f%pgrid(i)%a = az / real(f%zenv(ii),8)
-       f%pgrid(i)%b = b
-       f%pgrid(i)%ngrid = ceiling(log(crad/f%pgrid(i)%a) / f%pgrid(i)%b) + 1
-       f%pgrid(i)%rmax = f%pgrid(i)%a * exp((f%pgrid(i)%ngrid - 1) * f%pgrid(i)%b)
-       f%pgrid(i)%rmax2 = f%pgrid(i)%rmax * f%pgrid(i)%rmax
-       allocate(f%pgrid(i)%r(f%pgrid(i)%ngrid))
-       allocate(f%pgrid(i)%f(f%pgrid(i)%ngrid))
-       allocate(f%pgrid(i)%fp(f%pgrid(i)%ngrid))
-       allocate(f%pgrid(i)%fpp(f%pgrid(i)%ngrid))
-       do j = 1, f%pgrid(i)%ngrid
-          f%pgrid(i)%r(j) = f%pgrid(i)%a * exp((j-1)*f%pgrid(i)%b)
-          call rhoex1(f,i,f%pgrid(i)%r(j),f%pgrid(i)%f(j),f%pgrid(i)%fp(j),f%pgrid(i)%fpp(j))
-       end do
-    end do
-
-  end subroutine fillinterpol
-
-  !> Calculates radial density and its radial derivatives for an atom.
-  module subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
-    use tools_math, only: ep
-    use param, only: pi, zero, two
-    class(piwfn), intent(in) :: f
-    integer, intent(in) :: ni
-    real*8, intent(in) :: rion0
-    real*8, intent(out) :: rhoval, firstder, secondder
-
-    real*8, parameter :: pi4 = 4d0 * pi
-    real*8  :: dumr, dumgr, dumgr2, gradr, grad2r
-    real*8  :: or, zj, rion, rion1, rion2
-    integer :: nj1, nj2, l, norb, norb1, j, j1
-
-    real*8, parameter :: eps0 = 1d-7
-
-    rhoval = zero
-    gradr = zero
-    grad2r = zero
-
-    rion = max(rion0,eps0)
-    rion1 = 1d0 / rion
-    rion2 = rion1 * rion1
-    do l = 1, f%nsym(ni)
-       do norb = 1, f%naos(l,ni)
-          norb1  = norb + f%naaos(l,ni)
-          dumr   = zero
-          dumgr  = zero
-          dumgr2 = zero
-          do j = 1, f%nsto(l,ni)
-             j1  = j + f%nasto(l,ni)
-             nj1 = f%nn(j1,ni)-1
-             nj2 = nj1-1
-             zj  = f%z(j1,ni)
-             or  = ep(rion,nj1) * exp(-zj*rion) * f%c(j,norb1,ni)
-             or  = or * f%xnsto(j1,ni)
-             dumr = dumr + or
-             dumgr = dumgr + or * (nj1 * rion1 - zj)
-             dumgr2 = dumgr2 + or * (nj2*nj1*rion2-2*zj*nj1*rion1+zj*zj)
-          enddo
-          rhoval = rhoval + f%nelec(norb1,ni) * dumr * dumr
-          gradr = gradr + f%nelec(norb1,ni) * dumgr * dumr
-          grad2r = grad2r + f%nelec(norb1,ni) * (dumgr * dumgr + dumr * dumgr2)
-       enddo
-    enddo
-    rhoval = rhoval/pi4
-    firstder = gradr*two/pi4
-    secondder = grad2r*two/pi4
-
-  end subroutine rhoex1
-
   !> Determine the density and derivatives at a given target point
   !> (cartesian).  It is possible to use the 'approximate' method, by
   !> interpolating on a grid.  This routine is thread-safe.
@@ -615,5 +413,212 @@ contains
     endif
 
   end subroutine rho2
+
+  !> Fills the interpolation grids for ion densities.
+  module subroutine fillinterpol(f)
+    use global, only: cutrad
+    class(piwfn), intent(inout) :: f
+
+    real*8, parameter :: az = exp(-6d0)
+    real*8, parameter :: b = 0.002
+    real*8, parameter :: pi_cutdens = 1d-12 
+
+    integer :: i, ii, j
+    real*8 :: crad, rrho, rrho1, rrho2
+    logical :: done(mnt)
+
+    if (allocated(f%pgrid)) deallocate(f%pgrid)
+    allocate(f%pgrid(mnt))
+    done = .false.
+    do ii = 1, f%nenv
+       i = f%idxenv(ii)
+       if (done(i)) cycle
+       done(i) = .true.
+
+       ! determine cutoff radius (crad)
+       crad = cutrad(f%zenv(ii))
+       call rhoex1(f,i,crad,rrho,rrho1,rrho2)
+       do while (rrho > pi_cutdens) 
+          crad = crad * 1.05d0
+          call rhoex1(f,i,crad,rrho,rrho1,rrho2)
+       end do
+       
+       ! fill some grid info
+       f%pgrid(i)%isinit = .true.
+       f%pgrid(i)%a = az / real(f%zenv(ii),8)
+       f%pgrid(i)%b = b
+       f%pgrid(i)%ngrid = ceiling(log(crad/f%pgrid(i)%a) / f%pgrid(i)%b) + 1
+       f%pgrid(i)%rmax = f%pgrid(i)%a * exp((f%pgrid(i)%ngrid - 1) * f%pgrid(i)%b)
+       f%pgrid(i)%rmax2 = f%pgrid(i)%rmax * f%pgrid(i)%rmax
+       allocate(f%pgrid(i)%r(f%pgrid(i)%ngrid))
+       allocate(f%pgrid(i)%f(f%pgrid(i)%ngrid))
+       allocate(f%pgrid(i)%fp(f%pgrid(i)%ngrid))
+       allocate(f%pgrid(i)%fpp(f%pgrid(i)%ngrid))
+       do j = 1, f%pgrid(i)%ngrid
+          f%pgrid(i)%r(j) = f%pgrid(i)%a * exp((j-1)*f%pgrid(i)%b)
+          call rhoex1(f,i,f%pgrid(i)%r(j),f%pgrid(i)%f(j),f%pgrid(i)%fp(j),f%pgrid(i)%fpp(j))
+       end do
+    end do
+
+  end subroutine fillinterpol
+
+  !xx! private procedures
+
+  subroutine buscapar(line,chpar,nchpar,ipar,nipar)
+    integer, parameter :: mpar=3
+    integer :: ipar(mpar)
+    character*(*) :: chpar(mpar)
+    character*(*) :: line
+    character*(1024) :: word
+    character*(1) :: ch
+    integer :: nchpar, nipar, nch, i, j
+
+    nchpar=0
+    nipar=0
+    nch=0
+    word=""
+    do i=1,mpar
+       chpar(i)=word
+       ipar(i)=0
+    end do
+
+    !.run over all the characters:
+    do i = 1, len(line)
+       ch=line(i:i)
+       if (ch == " ") then
+
+          !.each word is assumed to end with a blanc:
+          if (nch.gt.0) then
+
+             !.a new word has been found only if word has any character:
+             if (entero(word,j)) then
+
+                !.an integer parameter:
+                nipar=nipar+1
+                if (nipar.gt.mpar) return
+                ipar(nipar)=j
+             else
+
+                !.a character parameter:
+                nchpar=nchpar+1
+                if (nchpar.gt.mpar) return
+                chpar(nchpar)=word
+                if (nchpar.eq.1) then
+                   if (word(1:3).eq.'tit'.or.word(1:3).eq.'rem') then
+                      nchpar=nchpar+1
+                      chpar(nchpar)=line(5:)
+                      return
+                   endif
+                endif
+             endif
+             nch=0
+             word=" "
+          endif
+       else
+          !.store in word the non-blanc character found:
+          nch=nch+1
+          word(nch:nch)=ch
+       endif
+    end do
+
+    ! if the line doesn't end with a blanc, word may contain some
+    ! characters:
+    if (nch.gt.0) then
+       if (entero(word,j)) then
+          ! an integer parameter:
+          nipar=nipar+1
+          if (nipar.gt.mpar) then 
+             return
+          end if
+          ipar(nipar)=j
+       else
+          !.a character parameter:
+          nchpar=nchpar+1
+          if (nchpar.gt.mpar) then
+             return
+          end if
+          chpar(nchpar)=word
+          if (nchpar.eq.1) then
+             if (word(1:3).eq.'tit'.or.word(1:3).eq.'rem') then
+                nchpar=nchpar+1
+                chpar(nchpar)=line(5:)
+                return
+             endif
+          endif
+       endif
+    endif
+
+  end subroutine buscapar
+
+  function entero (palabra,ipal)
+    logical :: entero
+    character*(*) :: palabra
+    integer :: ipal
+
+    character*(1)     cero,nueve,ch
+    data cero /'0'/, nueve /'9'/
+    integer           i
+
+      entero=.false.
+      ipal=0
+      do 10 i = 1, len(palabra)
+         ch=palabra(i:i)
+         if (ch.lt.cero .or. ch.gt.nueve) return
+         ipal=ipal*10+(ichar(ch)-ichar(cero))
+ 10   continue
+      entero=.true.
+
+  end function entero
+
+  !> Calculates radial density and its radial derivatives for an atom.
+  subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
+    use tools_math, only: ep
+    use param, only: pi, zero, two
+    class(piwfn), intent(in) :: f
+    integer, intent(in) :: ni
+    real*8, intent(in) :: rion0
+    real*8, intent(out) :: rhoval, firstder, secondder
+
+    real*8, parameter :: pi4 = 4d0 * pi
+    real*8  :: dumr, dumgr, dumgr2, gradr, grad2r
+    real*8  :: or, zj, rion, rion1, rion2
+    integer :: nj1, nj2, l, norb, norb1, j, j1
+
+    real*8, parameter :: eps0 = 1d-7
+
+    rhoval = zero
+    gradr = zero
+    grad2r = zero
+
+    rion = max(rion0,eps0)
+    rion1 = 1d0 / rion
+    rion2 = rion1 * rion1
+    do l = 1, f%nsym(ni)
+       do norb = 1, f%naos(l,ni)
+          norb1  = norb + f%naaos(l,ni)
+          dumr   = zero
+          dumgr  = zero
+          dumgr2 = zero
+          do j = 1, f%nsto(l,ni)
+             j1  = j + f%nasto(l,ni)
+             nj1 = f%nn(j1,ni)-1
+             nj2 = nj1-1
+             zj  = f%z(j1,ni)
+             or  = ep(rion,nj1) * exp(-zj*rion) * f%c(j,norb1,ni)
+             or  = or * f%xnsto(j1,ni)
+             dumr = dumr + or
+             dumgr = dumgr + or * (nj1 * rion1 - zj)
+             dumgr2 = dumgr2 + or * (nj2*nj1*rion2-2*zj*nj1*rion1+zj*zj)
+          enddo
+          rhoval = rhoval + f%nelec(norb1,ni) * dumr * dumr
+          gradr = gradr + f%nelec(norb1,ni) * dumgr * dumr
+          grad2r = grad2r + f%nelec(norb1,ni) * (dumgr * dumgr + dumr * dumgr2)
+       enddo
+    enddo
+    rhoval = rhoval/pi4
+    firstder = gradr*two/pi4
+    secondder = grad2r*two/pi4
+
+  end subroutine rhoex1
 
 end submodule proc

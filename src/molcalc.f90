@@ -22,20 +22,11 @@ module molcalc
   private
 
   public :: molcalc_driver
-  private :: molcalc_nelec
-  private :: molcalc_peach
-  private :: molcalc_integral
   
   interface
      module subroutine molcalc_driver(line)
        character*(*), intent(inout) :: line
      end subroutine molcalc_driver
-     module subroutine molcalc_nelec()
-     end subroutine molcalc_nelec
-     module subroutine molcalc_peach()
-     end subroutine molcalc_peach
-     module subroutine molcalc_integral()
-     end subroutine molcalc_integral
   end interface
 
 end module molcalc

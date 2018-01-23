@@ -18,6 +18,9 @@
 submodule (qtree_tetrawork) proc
   implicit none
 
+  !xx! private procedures
+  ! function cubpack_f(numfun,x) result(value)
+
 contains
 
   !> Stack-based recursive subdivision of one IWST with in-line
@@ -1522,8 +1525,10 @@ contains
     
   end subroutine paint_inside_spheres
 
+  !xx! private procedures
+
   !> Wrapper function for cubpack.
-  module function cubpack_f(numfun,x) result(value)
+  function cubpack_f(numfun,x) result(value)
     use systemmod, only: sy
     use precision_model, only: stnd
 

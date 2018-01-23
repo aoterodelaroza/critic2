@@ -18,7 +18,28 @@
 submodule (graphics) proc
   implicit none
 
-  !xx! private procedure
+  !xx! private procedures
+  ! subroutine graphics_init()
+  ! subroutine obj_open(g)
+  ! subroutine obj_close(g)
+  ! subroutine obj_ball(g,x,rgb,r)
+  ! subroutine obj_polygon(g,x,rgb)
+  ! subroutine obj_stick(g,x1,x2,rgb,r)
+  ! subroutine obj_surf(g,srf,fsurf)
+  ! function register_texture(g,rgb) result(imtl)
+  ! subroutine ply_open(g)
+  ! subroutine ply_close(g)
+  ! subroutine ply_ball(g,x,rgb,r)
+  ! subroutine ply_polygon(g,x,rgb)
+  ! subroutine ply_stick(g,x1,x2,rgb,r)
+  ! subroutine ply_surf(g,srf,fsurf)
+  ! subroutine off_open(g)
+  ! subroutine off_close(g)
+  ! subroutine off_ball(g,x,rgb,r)
+  ! subroutine off_polygon(g,x,rgb)
+  ! subroutine off_stick(g,x1,x2,rgb,r)
+  ! subroutine off_surf(g,srf,fsurf)
+  
 
   ! graphics database
   logical :: isinit = .false.
@@ -41,8 +62,148 @@ submodule (graphics) proc
 
 contains
 
+  !> Open a graphics file (file) with format fmt. Returns the logical
+  !> unit and (in obj files) the mtl file.
+  module subroutine graphics_open(g,fmt,file)
+    use tools_io, only: equal, lower
+    class(grhandle), intent(inout) :: g
+    character*3, intent(in) :: fmt
+    character*(*), intent(in) :: file
+
+    character*3 :: fmt0
+
+    if (.not.isinit) then
+       !$omp critical (initgraph)
+       call graphics_init()
+       !$omp end critical (initgraph)
+    end if
+
+    fmt0 = lower(fmt)
+    if (.not.(equal(fmt0,"obj") .or. equal(fmt0,"ply") .or. equal(fmt0,"off"))) &
+       return
+    g%file = adjustl(file)
+
+    if (equal(fmt0,"obj")) then
+       g%fmt = ifmt_obj
+       call obj_open(g)
+    elseif (equal(fmt0,"ply")) then
+       g%fmt = ifmt_ply
+       call ply_open(g)
+    elseif (equal(fmt0,"off")) then
+       g%fmt = ifmt_off
+       call off_open(g)
+    end if
+
+  end subroutine graphics_open
+
+  !> Open a graphics file (lu, lumtl) with format fmt.
+  module subroutine graphics_close(g)
+    use tools_io, only: equal
+    class(grhandle), intent(inout) :: g
+
+    if (g%fmt == ifmt_obj) then
+       call obj_close(g)
+    elseif (g%fmt == ifmt_ply) then 
+       call ply_close(g)
+    elseif (g%fmt == ifmt_off) then
+       call off_close(g)
+    end if
+    g%lu = 0
+    g%lumtl = 0
+    g%fmt = ifmt_unk
+    g%file = ""
+    g%nball = 0
+    g%nface = 0
+    g%nstick = 0
+    g%nsurf = 0
+    g%nmtl = 0
+    g%nv = 0
+    g%nf = 0
+    if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
+
+  end subroutine graphics_close
+
+  !> Write a ball to graphics file with LU lu and format fmt. The
+  !> center is at x and the radius is r. rgb is the color.
+  module subroutine graphics_ball(g,x,rgb,r)
+    use tools_io, only: equal
+    class(grhandle), intent(inout) :: g
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: rgb(3)
+    real*8, intent(in) :: r
+
+    if (g%fmt == ifmt_obj) then
+       call obj_ball(g,x,rgb,r)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_ball(g,x,rgb,r)
+    elseif (g%fmt == ifmt_off) then
+       call off_ball(g,x,rgb,r)
+    end if
+
+  end subroutine graphics_ball
+
+  !> Write a polygon to graphics file with LU lu and format fmt.  The
+  !> vertices are in x, and are assumed to be consecutive. rgb is the
+  !> color.
+  module subroutine graphics_polygon(g,x,rgb)
+    use tools_io, only: equal
+    class(grhandle), intent(inout) :: g
+    real*8, intent(in) :: x(:,:)
+    integer, intent(in) :: rgb(3)
+
+    if (g%fmt == ifmt_obj) then
+       call obj_polygon(g,x,rgb)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_polygon(g,x,rgb)
+    elseif (g%fmt == ifmt_off) then
+       call off_polygon(g,x,rgb)
+    end if
+
+  end subroutine graphics_polygon
+
+  !> Write a stick to graphics file with LU lu and format fmt.  The
+  !> vertices are in x, and are assumed to be consecutive. rgb is the
+  !> color.
+  module subroutine graphics_stick(g,x1,x2,rgb,r)
+    use tools_io, only: equal
+    class(grhandle), intent(inout) :: g
+    real*8, intent(in) :: x1(3), x2(3)
+    integer, intent(in) :: rgb(3)
+    real*8, intent(in) :: r
+
+    if (g%fmt == ifmt_obj) then
+       call obj_stick(g,x1,x2,rgb,r)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_stick(g,x1,x2,rgb,r)
+    elseif (g%fmt == ifmt_off) then
+       call off_stick(g,x1,x2,rgb,r)
+    end if
+
+  end subroutine graphics_stick
+
+  !> Write a surface (srf with colors fsurf) to graphics file with LU
+  !> lu and format fmt.
+  module subroutine graphics_surf(g,srf,fsurf)
+    use tools_io, only: equal
+    use surface, only: minisurf
+    class(grhandle), intent(inout) :: g
+    type(minisurf), intent(in) :: srf
+    real*8, intent(in), optional :: fsurf(:)
+
+    if (g%fmt == ifmt_obj) then
+       call obj_surf(g,srf,fsurf)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_surf(g,srf,fsurf)
+    elseif (g%fmt == ifmt_off) then
+       call off_surf(g,srf,fsurf)
+    end if
+
+  end subroutine graphics_surf
+
+  !xx! private procedures
+
   ! initialize the icosahedron vertices and faces
-  module subroutine graphics_init()
+  subroutine graphics_init()
     
     ! fill the icosahedron models
     vsph = 0d0
@@ -390,146 +551,8 @@ contains
 
   end subroutine graphics_init
 
-  !> Open a graphics file (file) with format fmt. Returns the logical
-  !> unit and (in obj files) the mtl file.
-  module subroutine graphics_open(g,fmt,file)
-    use tools_io, only: equal, lower
-    class(grhandle), intent(inout) :: g
-    character*3, intent(in) :: fmt
-    character*(*), intent(in) :: file
-
-    character*3 :: fmt0
-
-    if (.not.isinit) then
-       !$omp critical (initgraph)
-       call graphics_init()
-       !$omp end critical (initgraph)
-    end if
-
-    fmt0 = lower(fmt)
-    if (.not.(equal(fmt0,"obj") .or. equal(fmt0,"ply") .or. equal(fmt0,"off"))) &
-       return
-    g%file = adjustl(file)
-
-    if (equal(fmt0,"obj")) then
-       g%fmt = ifmt_obj
-       call obj_open(g)
-    elseif (equal(fmt0,"ply")) then
-       g%fmt = ifmt_ply
-       call ply_open(g)
-    elseif (equal(fmt0,"off")) then
-       g%fmt = ifmt_off
-       call off_open(g)
-    end if
-
-  end subroutine graphics_open
-
-  !> Open a graphics file (lu, lumtl) with format fmt.
-  module subroutine graphics_close(g)
-    use tools_io, only: equal
-    class(grhandle), intent(inout) :: g
-
-    if (g%fmt == ifmt_obj) then
-       call obj_close(g)
-    elseif (g%fmt == ifmt_ply) then 
-       call ply_close(g)
-    elseif (g%fmt == ifmt_off) then
-       call off_close(g)
-    end if
-    g%lu = 0
-    g%lumtl = 0
-    g%fmt = ifmt_unk
-    g%file = ""
-    g%nball = 0
-    g%nface = 0
-    g%nstick = 0
-    g%nsurf = 0
-    g%nmtl = 0
-    g%nv = 0
-    g%nf = 0
-    if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
-
-  end subroutine graphics_close
-
-  !> Write a ball to graphics file with LU lu and format fmt. The
-  !> center is at x and the radius is r. rgb is the color.
-  module subroutine graphics_ball(g,x,rgb,r)
-    use tools_io, only: equal
-    class(grhandle), intent(inout) :: g
-    real*8, intent(in) :: x(3)
-    integer, intent(in) :: rgb(3)
-    real*8, intent(in) :: r
-
-    if (g%fmt == ifmt_obj) then
-       call obj_ball(g,x,rgb,r)
-    elseif (g%fmt == ifmt_ply) then
-       call ply_ball(g,x,rgb,r)
-    elseif (g%fmt == ifmt_off) then
-       call off_ball(g,x,rgb,r)
-    end if
-
-  end subroutine graphics_ball
-
-  !> Write a polygon to graphics file with LU lu and format fmt.  The
-  !> vertices are in x, and are assumed to be consecutive. rgb is the
-  !> color.
-  module subroutine graphics_polygon(g,x,rgb)
-    use tools_io, only: equal
-    class(grhandle), intent(inout) :: g
-    real*8, intent(in) :: x(:,:)
-    integer, intent(in) :: rgb(3)
-
-    if (g%fmt == ifmt_obj) then
-       call obj_polygon(g,x,rgb)
-    elseif (g%fmt == ifmt_ply) then
-       call ply_polygon(g,x,rgb)
-    elseif (g%fmt == ifmt_off) then
-       call off_polygon(g,x,rgb)
-    end if
-
-  end subroutine graphics_polygon
-
-  !> Write a stick to graphics file with LU lu and format fmt.  The
-  !> vertices are in x, and are assumed to be consecutive. rgb is the
-  !> color.
-  module subroutine graphics_stick(g,x1,x2,rgb,r)
-    use tools_io, only: equal
-    class(grhandle), intent(inout) :: g
-    real*8, intent(in) :: x1(3), x2(3)
-    integer, intent(in) :: rgb(3)
-    real*8, intent(in) :: r
-
-    if (g%fmt == ifmt_obj) then
-       call obj_stick(g,x1,x2,rgb,r)
-    elseif (g%fmt == ifmt_ply) then
-       call ply_stick(g,x1,x2,rgb,r)
-    elseif (g%fmt == ifmt_off) then
-       call off_stick(g,x1,x2,rgb,r)
-    end if
-
-  end subroutine graphics_stick
-
-  !> Write a surface (srf with colors fsurf) to graphics file with LU
-  !> lu and format fmt.
-  module subroutine graphics_surf(g,srf,fsurf)
-    use tools_io, only: equal
-    use surface, only: minisurf
-    class(grhandle), intent(inout) :: g
-    type(minisurf), intent(in) :: srf
-    real*8, intent(in), optional :: fsurf(:)
-
-    if (g%fmt == ifmt_obj) then
-       call obj_surf(g,srf,fsurf)
-    elseif (g%fmt == ifmt_ply) then
-       call ply_surf(g,srf,fsurf)
-    elseif (g%fmt == ifmt_off) then
-       call off_surf(g,srf,fsurf)
-    end if
-
-  end subroutine graphics_surf
-
   !> Open an obj file (and its mtl companion)
-  module subroutine obj_open(g)
+  subroutine obj_open(g)
     use tools_io, only: faterr, ferror, fopen_write
     type(grhandle), intent(inout) :: g
 
@@ -565,7 +588,7 @@ contains
   end subroutine obj_open
 
   !> Close an obj file (and its mtl companion)
-  module subroutine obj_close(g)
+  subroutine obj_close(g)
     use tools_io, only: ferror, string, fclose
     type(grhandle), intent(inout) :: g
 
@@ -598,7 +621,7 @@ contains
   end subroutine obj_close
 
   !> Write a ball to the obj file
-  module subroutine obj_ball(g,x,rgb,r)
+  subroutine obj_ball(g,x,rgb,r)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
@@ -634,7 +657,7 @@ contains
 
   !> Write a polygon to the obj file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  module subroutine obj_polygon(g,x,rgb)
+  subroutine obj_polygon(g,x,rgb)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
@@ -664,7 +687,7 @@ contains
   end subroutine obj_polygon
   
   !> Write a stick to the obj file
-  module subroutine obj_stick(g,x1,x2,rgb,r)
+  subroutine obj_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
     use tools_math, only: norm, cross
     type(grhandle), intent(inout) :: g
@@ -719,7 +742,7 @@ contains
   end subroutine obj_stick
   
   !> Write a surface to the obj file
-  module subroutine obj_surf(g,srf,fsurf)
+  subroutine obj_surf(g,srf,fsurf)
     use surface, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
@@ -776,7 +799,7 @@ contains
   end subroutine obj_surf
 
   !> Register a texture using the color triplet.
-  module function register_texture(g,rgb) result(imtl)
+  function register_texture(g,rgb) result(imtl)
     use types, only: realloc
     type(grhandle), intent(inout) :: g
     integer, intent(in) :: rgb(3)
@@ -798,7 +821,7 @@ contains
   end function register_texture
 
   !> Open a ply file
-  module subroutine ply_open(g)
+  subroutine ply_open(g)
     use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
 
@@ -812,7 +835,7 @@ contains
   end subroutine ply_open
 
   !> Close a ply file 
-  module subroutine ply_close(g)
+  subroutine ply_close(g)
     use tools_io, only: ferror, getline_raw, fopen_write, string, fclose
     type(grhandle), intent(inout) :: g
 
@@ -867,7 +890,7 @@ contains
   end subroutine ply_close
 
   !> Write a ball to the ply file
-  module subroutine ply_ball(g,x,rgb,r)
+  subroutine ply_ball(g,x,rgb,r)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
@@ -901,7 +924,7 @@ contains
   
   !> Write a polygon to the ply file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  module subroutine ply_polygon(g,x,rgb)
+  subroutine ply_polygon(g,x,rgb)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
@@ -936,7 +959,7 @@ contains
   end subroutine ply_polygon
 
   !> Write a stick to the ply file
-  module subroutine ply_stick(g,x1,x2,rgb,r)
+  subroutine ply_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
     use tools_math, only: norm, cross
     type(grhandle), intent(inout) :: g
@@ -989,7 +1012,7 @@ contains
   end subroutine ply_stick
   
   !> Write a surface to the ply file
-  module subroutine ply_surf(g,srf,fsurf)
+  subroutine ply_surf(g,srf,fsurf)
     use surface, only: minisurf
     use tools_io, only: ferror, faterr, string
     use param, only: pi
@@ -1042,7 +1065,7 @@ contains
   end subroutine ply_surf
 
   !> Open an off file
-  module subroutine off_open(g)
+  subroutine off_open(g)
     use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
 
@@ -1056,7 +1079,7 @@ contains
   end subroutine off_open
 
   !> Close a off file 
-  module subroutine off_close(g)
+  subroutine off_close(g)
     use tools_io, only: ferror, getline_raw, string, fopen_write, fclose
     type(grhandle), intent(inout) :: g
 
@@ -1099,7 +1122,7 @@ contains
   end subroutine off_close
 
   !> Write a ball to the off file
-  module subroutine off_ball(g,x,rgb,r)
+  subroutine off_ball(g,x,rgb,r)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
@@ -1135,7 +1158,7 @@ contains
   
   !> Write a polygon to the off file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  module subroutine off_polygon(g,x,rgb)
+  subroutine off_polygon(g,x,rgb)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
@@ -1170,7 +1193,7 @@ contains
   end subroutine off_polygon
 
   !> Write a stick to the off file
-  module subroutine off_stick(g,x1,x2,rgb,r)
+  subroutine off_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
     use tools_math, only: norm, cross
     type(grhandle), intent(inout) :: g
@@ -1225,7 +1248,7 @@ contains
   end subroutine off_stick
   
   !> Write a surface to the off file
-  module subroutine off_surf(g,srf,fsurf)
+  subroutine off_surf(g,srf,fsurf)
     use surface, only: minisurf
     use tools_io, only: faterr, ferror, string
     use param, only: pi

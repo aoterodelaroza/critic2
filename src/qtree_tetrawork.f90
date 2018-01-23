@@ -31,7 +31,6 @@ module qtree_tetrawork
   public :: integ_corner_deferred
   public :: integ_corner_sum
   public :: paint_inside_spheres
-  private :: cubpack_f
   
   interface
      module subroutine tetrah_subdivide(base_t,iiv,il,acum_atprop,trm,fgr,lapgr,vgr)
@@ -117,12 +116,6 @@ module qtree_tetrawork
        integer, intent(in) :: tt, tto
        integer(qtreei), intent(inout) :: trm(:,:)
      end subroutine paint_inside_spheres
-     module function cubpack_f(numfun,x) result(value)
-       use precision_model, only: stnd
-       integer, intent(in) :: numfun
-       real(kind=stnd), dimension(:), intent(in) :: x
-       real(kind=stnd), dimension(numfun) :: value
-     end function cubpack_f
   end interface
 
 end module qtree_tetrawork

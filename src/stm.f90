@@ -28,29 +28,11 @@ module stm
   private
 
   public :: stm_driver
-  private :: detect_vacuum
-  private :: stm_bisect
-  private :: stm_bisect_grid
   
   interface
      module subroutine stm_driver(line)
        character*(*), intent(inout) :: line
      end subroutine stm_driver
-     module subroutine detect_vacuum(ix,rtop)
-       integer, intent(out) :: ix
-       real*8, intent(out) :: rtop
-     end subroutine detect_vacuum
-     module function stm_bisect(x,ix,rho0) result(z)
-       real*8, intent(in) :: x(3)
-       integer, intent(in) :: ix
-       real*8, intent(in) :: rho0
-       real*8 :: z
-     endfunction stm_bisect
-     module function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
-       integer, intent(in) :: i1, i2, iz, ip1, ip2, ix
-       real*8, intent(in) :: rho0
-       real*8 :: z
-     endfunction stm_bisect_grid
   end interface
   
 end module stm

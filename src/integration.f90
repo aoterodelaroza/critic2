@@ -66,53 +66,16 @@ module integration
 
   ! integration properties
   public :: intgrid_driver
-  private :: intgrid_multipoles
-  private :: intgrid_deloc_wfn
-  private :: intgrid_deloc_wannier
   public :: int_radialquad
   public :: gauleg_mquad
   public :: lebedev_mquad
-  private :: quadpack_f
   public :: int_output
-  private :: int_output_multipoles
-  private :: int_output_deloc_wfn
-  private :: int_output_deloc_wannier
-  private :: assign_strings
   public :: int_reorder_gridout
-  private :: int_gridbasins
-  private :: unpackidx
-  private :: packidx
   
   interface
      module subroutine intgrid_driver(line)
        character*(*), intent(in) :: line
      end subroutine intgrid_driver
-     module subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
-       real*8, intent(in) :: fint(:,:,:,:)
-       integer, intent(in) :: idprop(:)
-       integer, intent(in) :: natt
-       real*8, intent(in) :: xgatt(3,natt)
-       integer, intent(in) :: idg(:,:,:)
-       integer, intent(in) :: imtype
-       integer, intent(in) :: luw
-       real*8, allocatable, intent(inout) :: mpole(:,:,:)
-     end subroutine intgrid_multipoles
-     module subroutine intgrid_deloc_wfn(natt,xgatt,idg,imtype,luw,sij)
-       integer, intent(in) :: natt
-       real*8, intent(in) :: xgatt(3,natt)
-       integer, intent(in) :: idg(:,:,:)
-       integer, intent(in) :: imtype
-       integer, intent(in) :: luw
-       real*8, intent(inout), allocatable :: sij(:,:,:,:,:)
-     end subroutine intgrid_deloc_wfn
-     module subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
-       integer, intent(in) :: natt
-       real*8, intent(in) :: xgatt(3,natt)
-       integer, intent(in) :: idg(:,:,:)
-       integer, intent(in) :: imtype
-       integer, intent(in) :: luw
-       complex*16, allocatable, intent(inout) :: sij(:,:,:,:,:)
-     end subroutine intgrid_deloc_wannier
      module subroutine int_radialquad(x,theta,phi,r0,rend,lprop,abserr,neval,iaserr,ierr)
        real*8, intent(in) :: x(3)  !< The center of the basin (cartesian coords)
        real*8, intent(in) :: theta !< Polar angle of the ray
@@ -144,12 +107,6 @@ module integration
        integer, intent(out) :: neval !< Number of evaluations
        real*8, intent(out) :: iaserr(sy%npropi) !< Integrated IAS precision error
      end subroutine lebedev_mquad
-     module function quadpack_f(x,unit,xnuc) result(res)
-       real*8, intent(in) :: x
-       real*8, intent(in) :: unit(3)
-       real*8, intent(in) :: xnuc(3)
-       real*8 :: res(sy%npropi)
-     end function quadpack_f
      module subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,sij,mpole)
        logical, intent(in) :: pmask(sy%npropi)
        character*(*), intent(in) :: reason(sy%npropi)
@@ -161,28 +118,6 @@ module integration
        real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
        real*8, intent(in), allocatable, optional :: mpole(:,:,:)
      end subroutine int_output
-     module subroutine int_output_multipoles(nattr,icp,mpole)
-       integer, intent(in) :: nattr
-       integer, intent(in) :: icp(nattr)
-       real*8, intent(in), allocatable, optional :: mpole(:,:,:)
-     end subroutine int_output_multipoles
-     module subroutine int_output_deloc_wfn(nattr,icp,sij)
-       integer, intent(in) :: nattr
-       integer, intent(in) :: icp(nattr)
-       real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
-     end subroutine int_output_deloc_wfn
-     module subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
-       integer, intent(in) :: natt
-       integer, intent(in) :: icp(natt)
-       real*8, intent(in) :: xgatt(3,natt)
-       complex*16, intent(in), allocatable, optional :: sij(:,:,:,:,:)
-     end subroutine int_output_deloc_wannier
-     module subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
-       integer, intent(in) :: i
-       integer, intent(in) :: icp
-       logical, intent(in) :: usesym
-       character(len=:), allocatable, intent(out) :: sncp, scp, sname, sz, smult
-     end subroutine assign_strings
      module subroutine int_reorder_gridout(ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
        type(field), intent(inout) :: ff
        integer, intent(inout) :: nattr
@@ -193,23 +128,6 @@ module integration
        integer, intent(inout) :: luw
        integer, intent(inout), allocatable :: icp(:)
      end subroutine int_reorder_gridout
-     module subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
-       character*3, intent(in) :: fmt
-       integer, intent(in) :: nattr
-       integer, intent(in), allocatable :: icp(:)
-       real*8, intent(in) :: xgatt(3,nattr)
-       integer, intent(in) :: idg(:,:,:)
-       integer, intent(in) :: imtype
-       integer, intent(in) :: luw
-     end subroutine int_gridbasins
-     module subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
-       integer, intent(in) :: idx, nmo, nbnd, nwan(3)
-       integer, intent(out) :: io, jo, ko, bo
-     end subroutine unpackidx
-     module subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nwan)
-       integer, intent(in) :: io, jo, ko, bo, nmo, nbnd, nwan(3)
-       integer, intent(out) :: idx
-     end subroutine packidx
   end interface
 
 end module integration

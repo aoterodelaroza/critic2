@@ -44,36 +44,7 @@ module graphics
   end type grhandle
   public :: grhandle
 
-  private :: graphics_init
-  private :: graphics_open
-  private :: graphics_close
-  private :: graphics_ball
-  private :: graphics_polygon
-  private :: graphics_stick
-  private :: graphics_surf
-  private :: obj_open
-  private :: obj_close
-  private :: obj_ball
-  private :: obj_polygon
-  private :: obj_stick
-  private :: obj_surf
-  private :: register_texture
-  private :: ply_open
-  private :: ply_close
-  private :: ply_ball
-  private :: ply_polygon
-  private :: ply_stick
-  private :: ply_surf
-  private :: off_open
-  private :: off_close
-  private :: off_ball
-  private :: off_polygon
-  private :: off_stick
-  private :: off_surf
-  
   interface
-     module subroutine graphics_init()
-     end subroutine graphics_init
      module subroutine graphics_open(g,fmt,file)
        class(grhandle), intent(inout) :: g
        character*3, intent(in) :: fmt
@@ -105,98 +76,6 @@ module graphics
        type(minisurf), intent(in) :: srf
        real*8, intent(in), optional :: fsurf(:)
      end subroutine graphics_surf
-     module subroutine obj_open(g)
-       type(grhandle), intent(inout) :: g
-     end subroutine obj_open
-     module subroutine obj_close(g)
-       type(grhandle), intent(inout) :: g
-     end subroutine obj_close
-     module subroutine obj_ball(g,x,rgb,r)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x(3)
-       integer, intent(in) :: rgb(3)
-       real*8, intent(in) :: r
-     end subroutine obj_ball
-     module subroutine obj_polygon(g,x,rgb)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x(:,:)
-       integer, intent(in) :: rgb(3)
-     end subroutine obj_polygon
-     module subroutine obj_stick(g,x1,x2,rgb,r)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x1(3), x2(3)
-       integer, intent(in) :: rgb(3)
-       real*8, intent(in) :: r
-     end subroutine obj_stick
-     module subroutine obj_surf(g,srf,fsurf)
-       use surface, only: minisurf
-       type(grhandle), intent(inout) :: g
-       type(minisurf), intent(in) :: srf
-       real*8, intent(in), optional :: fsurf(:)
-     end subroutine obj_surf
-     module function register_texture(g,rgb) result(imtl)
-       type(grhandle), intent(inout) :: g
-       integer, intent(in) :: rgb(3)
-       integer :: imtl
-     end function register_texture
-     module subroutine ply_open(g)
-       type(grhandle), intent(inout) :: g
-     end subroutine ply_open
-     module subroutine ply_close(g)
-       type(grhandle), intent(inout) :: g
-     end subroutine ply_close
-     module subroutine ply_ball(g,x,rgb,r)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x(3)
-       integer, intent(in) :: rgb(3)
-       real*8, intent(in) :: r
-     end subroutine ply_ball
-     module subroutine ply_polygon(g,x,rgb)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x(:,:)
-       integer, intent(in) :: rgb(3)
-     end subroutine ply_polygon
-     module subroutine ply_stick(g,x1,x2,rgb,r)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x1(3), x2(3)
-       integer, intent(in) :: rgb(3)
-       real*8, intent(in) :: r
-     end subroutine ply_stick
-     module subroutine ply_surf(g,srf,fsurf)
-       use surface, only: minisurf
-       type(grhandle), intent(inout) :: g
-       type(minisurf), intent(in) :: srf
-       real*8, intent(in), optional :: fsurf(:)
-     end subroutine ply_surf
-     module subroutine off_open(g)
-       type(grhandle), intent(inout) :: g
-     end subroutine off_open
-     module subroutine off_close(g)
-       type(grhandle), intent(inout) :: g
-     end subroutine off_close
-     module subroutine off_ball(g,x,rgb,r)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x(3)
-       integer, intent(in) :: rgb(3)
-       real*8, intent(in) :: r
-     end subroutine off_ball
-     module subroutine off_polygon(g,x,rgb)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x(:,:)
-       integer, intent(in) :: rgb(3)
-     end subroutine off_polygon
-     module subroutine off_stick(g,x1,x2,rgb,r)
-       type(grhandle), intent(inout) :: g
-       real*8, intent(in) :: x1(3), x2(3)
-       integer, intent(in) :: rgb(3)
-       real*8, intent(in) :: r
-     end subroutine off_stick
-     module subroutine off_surf(g,srf,fsurf)
-       use surface, only: minisurf
-       type(grhandle), intent(inout) :: g
-       type(minisurf), intent(in) :: srf
-       real*8, intent(in), optional :: fsurf(:)
-     end subroutine off_surf
   end interface
 
 end module graphics
