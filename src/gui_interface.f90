@@ -126,6 +126,9 @@ module gui_interface
   type(c_ptr), bind(c) :: molx0
   type(c_ptr), bind(c) :: molborder
 
+  ! parameters
+  real(c_float), parameter :: minsrad = 10.0_c_float !< minimum scene radius
+
 contains
 
   !> Initialize the critic2 GUI.
@@ -171,7 +174,7 @@ contains
     nsc = 0
     isinit = 0
     idfile = 0
-    scenerad = 10._c_float
+    scenerad = minsrad
     scupdated = .true.
 
   end subroutine gui_initialize
@@ -231,10 +234,11 @@ contains
     use param, only: atmcov, jmlcol
     integer(c_int), value, intent(in) :: isc
 
-    integer :: i, j, idx, iz, is
+    integer :: i, j, idx, iz, is, i1, i2, i3
     real(c_float) :: xmin(3), xmax(3)
     integer :: mncon_, id
     character(len=:), allocatable :: errmsg
+    real*8 :: x(3)
 
     if (isc > nsc .or. isc < 1) return
     if (sc(isc)%isinit == 0 .or. sc(isc)%isinit == 2) return
@@ -323,25 +327,37 @@ contains
        end do
     end do
 
+    ! lattice vectors
+    sc(isc)%avec = real(sc(isc)%sy%c%crys2car,c_float)
+    sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
+    sc(isc)%molx0 = real(sc(isc)%sy%c%molx0,c_float)
+    sc(isc)%molborder = real(sc(isc)%sy%c%molborder,c_float)
+
     ! calculate the scene radius
-    if (sc(isc)%nat > 0) then
+    if (sc(isc)%nat == 0) then
+       xmin = 0._c_float
+       xmax = 0._c_float
+    else
        xmin = sc(isc)%at(1)%r
        xmax = sc(isc)%at(1)%r
        do i = 2, sc(isc)%nat
           xmax = max(sc(isc)%at(i)%r,xmax)
           xmin = min(sc(isc)%at(i)%r,xmin)
        end do
-    else
-       xmin = 0._c_float
-       xmax = 0._c_float
+       if (.not.sc(isc)%ismolecule) then
+          do i1 = 0, 1
+             do i2 = 0, 1
+                do i3 = 0, 1
+                   x = real((/i1,i2,i3/),8)
+                   x = sc(isc)%sy%c%x2c(x)
+                   xmax = max(real(x,c_float),xmax)
+                   xmin = min(real(x,c_float),xmin)
+                end do
+             end do
+          end do
+       end if
     end if
-    sc(isc)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),0.1_c_float)
-
-    ! lattice vectors
-    sc(isc)%avec = real(sc(isc)%sy%c%crys2car,c_float)
-    sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
-    sc(isc)%molx0 = real(sc(isc)%sy%c%molx0,c_float)
-    sc(isc)%molborder = real(sc(isc)%sy%c%molborder,c_float)
+    sc(isc)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),minsrad)
 
     ! this scene has been updated
     if (isc == icursc) scupdated = .true.
