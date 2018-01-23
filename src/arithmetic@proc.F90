@@ -220,10 +220,11 @@ contains
     use hashmod, only: hash
     use tools_io, only: string
     use types, only: realloc
+    use param, only: mlen
     character(*), intent(in) :: expr
     type(hash), intent(in) :: fh
     integer, intent(out) :: n
-    character*255, allocatable, intent(inout) :: idlist(:)
+    character(len=mlen), allocatable, intent(inout) :: idlist(:)
 
     integer :: lp, i
     logical :: ok

@@ -17,6 +17,7 @@
 
 !> Qtree, utilities.
 module qtree_utils
+  use param, only: mlen
   implicit none
 
   private
@@ -28,15 +29,18 @@ module qtree_utils
   interface
      module subroutine small_writetess(roottess,otrm,trm)
        use qtree_basic, only: qtreei
-       character*50, intent(in) :: roottess
+       use param, only: mlen
+       character(len=mlen), intent(in) :: roottess
        integer, intent(in) :: otrm
        integer(qtreei), intent(in) :: trm(:,:)
      end subroutine small_writetess
      module subroutine open_difftess(roottess)
-       character*50, intent(in) :: roottess
+       use param, only: mlen
+       character(len=mlen), intent(in) :: roottess
      end subroutine open_difftess
      module subroutine close_difftess(roottess)
-       character*50, intent(in) :: roottess
+       use param, only: mlen
+       character(len=mlen), intent(in) :: roottess
      end subroutine close_difftess
      module subroutine getkeast()
      end subroutine getkeast

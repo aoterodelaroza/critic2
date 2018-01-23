@@ -20,7 +20,7 @@
 
 ! Field seed class. 
 module fieldseedmod
-  use param, only: ifformat_unknown
+  use param, only: ifformat_unknown, mlen, mmlen
   implicit none
 
   private
@@ -29,26 +29,26 @@ module fieldseedmod
   !> pointer to an external field).
   type fieldseed
      integer :: iff = ifformat_unknown !< Field format/type
-     character*255 :: errmsg = "" !< Error message
+     character(len=mlen) :: errmsg = "" !< Error message
      integer :: nfile = 0 !< Number of external files provided
-     character*255, allocatable :: file(:) !< External scalar field file names
+     character(len=mlen), allocatable :: file(:) !< External scalar field file names
      character*10, allocatable :: piat(:) !< pi atomic symbols
      integer :: n(3) !< grid size for load as
      logical :: isry = .false. !< use rydberg units in LOAD AS POT
      integer :: clm1, clm2 !< clm fields for add and sub
-     character*255 :: ids = "" !< sizeof for load as promolecular/core; id.s for lap/grad; id1.s in clm
-     character*255 :: ids2 = "" !< id2.s in clm
-     character*255 :: expr = "" !< expression in load as
-     character*2048 :: elseopt = "" !< options to be handled elsewhere
+     character(len=mlen) :: ids = "" !< sizeof for load as promolecular/core; id.s for lap/grad; id1.s in clm
+     character(len=mlen) :: ids2 = "" !< id2.s in clm
+     character(len=mlen) :: expr = "" !< expression in load as
+     character(len=mmlen) :: elseopt = "" !< options to be handled elsewhere
      logical :: testrmt = .true. !< whether to test rmt in wien/elk fields
      logical :: readvirtual = .false. !< Read the virtual orbitals
-     character*255 :: fid = "" !< field ID
+     character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
      logical :: sijchk = .true. !< wannier option sijchk
      logical :: fachk = .true. !< wannier option fachk
      real*8 :: wancut = -1d0 !< wannier option wancut
-     character*255 :: unkgen = "" !< wannier option unkgen
-     character*255 :: evc = "" !< wannier option evc
+     character(len=mlen) :: unkgen = "" !< wannier option unkgen
+     character(len=mlen) :: evc = "" !< wannier option evc
    contains
      procedure :: end => fieldseed_end !< Terminate a fieldseed; set the type to unknown
      procedure :: parse => fieldseed_parse !< Build a field seed from an external command

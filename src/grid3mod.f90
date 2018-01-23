@@ -19,6 +19,7 @@
 module grid3mod
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr
+  use param, only: mlen
   implicit none
 
   private
@@ -34,7 +35,7 @@ module grid3mod
      logical :: haschk !< A chk-sij file is currently available
      logical :: useu = .true. !< Use the U transformation to get MLWF
      real*8 :: cutoff !< Cutoff for atomic overlaps
-     character*(255) :: fevc !< evc file name
+     character(len=mlen) :: fevc !< evc file name
      real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
      real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
      real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)

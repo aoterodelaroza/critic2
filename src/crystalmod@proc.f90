@@ -3185,8 +3185,9 @@ contains
   module subroutine struct_report_symxyz(c,strfin)
     use tools_io, only: uout, string
     use global, only: symprec
+    use param, only: mlen
     class(crystal), intent(in) :: c
-    character*255, intent(out), optional :: strfin(c%neqv)
+    character(len=mlen), intent(out), optional :: strfin(c%neqv)
 
     real*8, parameter :: rfrac(25) = (/-12d0/12d0,-11d0/12d0,-10d0/12d0,&
        -9d0/12d0,-8d0/12d0,-7d0/12d0,-6d0/12d0,-5d0/12d0,-4d0/12d0,-3d0/12d0,&

@@ -23,7 +23,7 @@ module crystalmod
   use spglib, only: SpglibDataset
   use types, only: atom, celatom, neighstar, species
   use fragmentmod, only: fragment
-  use param, only: maxzat0
+  use param, only: maxzat0, mlen
   implicit none
 
   private
@@ -40,7 +40,7 @@ module crystalmod
      logical :: isnn = .false. !< information about the nearest neighbors
 
      ! file name for the occasional critic2 trick
-     character(len=512) :: file
+     character(len=mlen) :: file
 
      !! Initialization level: isinit !!
      ! species list
@@ -465,7 +465,7 @@ module crystalmod
      end subroutine struct_report
      module subroutine struct_report_symxyz(c,strfin)
        class(crystal), intent(in) :: c
-       character*255, intent(out), optional :: strfin(c%neqv)
+       character(len=mlen), intent(out), optional :: strfin(c%neqv)
      end subroutine struct_report_symxyz
      module subroutine spglib_wrap(c,usenneq,onlyspg)
        class(crystal), intent(inout) :: c

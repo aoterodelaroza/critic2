@@ -26,7 +26,7 @@ module fieldmod
   use grid3mod, only: grid3
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
-  use param, only: maxzat0
+  use param, only: maxzat0, mlen, mmlen
   use types, only: cp_type, scalar_value, gpathp
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
@@ -83,8 +83,8 @@ module fieldmod
      logical :: numerical = .false. !< numerical derivatives
      logical :: exact = .false. !< exact or approximate calc
      integer :: typnuc = -3 !< type of nuclei
-     character*(512) :: name = "" !< field name
-     character*(512) :: file = "" !< file name
+     character(len=mlen) :: name = "" !< field name
+     character(len=mlen) :: file = "" !< file name
      ! scalar field types
      type(elkwfn) :: elk
      type(wienwfn) :: wien
@@ -96,7 +96,7 @@ module fieldmod
      type(fragment) :: fr
      integer :: zpsp(maxzat0)
      ! ghost field
-     character*(2048) :: expr
+     character(len=mmlen) :: expr
      type(hash), pointer :: fh => null()
      type(c_ptr) :: sptr = c_null_ptr
      procedure(fcheck), pointer, nopass :: fcheck => null()

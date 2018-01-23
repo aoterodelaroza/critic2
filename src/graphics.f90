@@ -17,6 +17,7 @@
 
 ! Output in several common graphics formats
 module graphics
+  use param, only: mlen
   implicit none
   
   private
@@ -25,7 +26,7 @@ module graphics
      integer :: lu = 0 !< Logical unit for the graphics file
      integer :: lumtl = 0 !< Logical unit for the matierlas file (obj format)
      integer :: fmt = 0 !< File format
-     character*(255) :: file = "" !< File name
+     character(len=mlen) :: file = "" !< File name
      integer :: nball = 0 !< Number of balls
      integer :: nstick = 0 !< Number of sticks
      integer :: nsurf = 0 !< Number of surfaces

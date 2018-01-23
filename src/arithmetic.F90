@@ -24,6 +24,7 @@ module arithmetic
   use hashmod, only: hash
   use types, only: scalar_value
   use iso_c_binding, only: c_ptr
+  use param, only: mlen
   implicit none
 
   public :: eval
@@ -157,10 +158,11 @@ module arithmetic
        end interface
      end function eval
      module subroutine fields_in_eval(expr,fh,n,idlist)
+       use param, only: mlen
        character(*), intent(in) :: expr
        type(hash), intent(in) :: fh
        integer, intent(out) :: n
-       character*255, allocatable, intent(inout) :: idlist(:)
+       character(len=mlen), allocatable, intent(inout) :: idlist(:)
      end subroutine fields_in_eval
      module function tokenize(expr,ntok,toklist,lpexit,fh) 
        logical :: tokenize

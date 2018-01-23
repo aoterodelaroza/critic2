@@ -84,6 +84,8 @@ module param
   ! limits for critic2
   integer, parameter :: maxzat = 118 ! maximum atomic number supported
   integer, parameter :: maxzat0 = 118+5 ! maximum atomic number supported plus critical point types
+  integer, parameter :: mlen = 512 ! length for fixed-length strings (filenames, etc.)
+  integer, parameter :: mmlen = 2048 ! long length for fixed-length strings
 
   ! Enumerate for structure formats
   integer, parameter, public :: isformat_unknown = 0

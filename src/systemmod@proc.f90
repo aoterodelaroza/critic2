@@ -382,7 +382,7 @@ contains
     use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_lap, ifformat_as_grad, &
        ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
-       ifformat_as
+       ifformat_as, mlen
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
     class(system), intent(inout), target :: s
     character*(*), intent(in) :: line
@@ -394,7 +394,7 @@ contains
     type(fieldseed) :: seed
     integer :: idx
     character(len=:), allocatable :: str, aux
-    character*255, allocatable :: idlist(:)
+    character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
     
     ! is the environment sane?
@@ -947,6 +947,7 @@ contains
     use tools_io, only: getword, lower, equal, string
     use arithmetic, only: fields_in_eval
     use types, only: realloc
+    use param, only: mlen
     class(system), intent(inout) :: s
     character*(*), intent(in) :: line0
     character(len=:), allocatable, intent(out) :: errmsg
@@ -954,7 +955,7 @@ contains
     logical :: isblank, isstress
     integer :: lp, n, i
     character(len=:), allocatable :: expr, word, lword, line
-    character*255, allocatable :: idlist(:)
+    character(len=mlen), allocatable :: idlist(:)
 
     errmsg = ""
     lp = 1
