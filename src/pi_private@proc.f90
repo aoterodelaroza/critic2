@@ -276,7 +276,7 @@ contains
   !> (cartesian).  It is possible to use the 'approximate' method, by
   !> interpolating on a grid.  This routine is thread-safe.
   module subroutine rho2(f,xpos,exact,rho,grad,h)
-    use tools_math, only: ep, norm
+    use tools_math, only: ep
     use param, only: pi, one
     class(piwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
@@ -390,7 +390,7 @@ contains
        h = 0d0
        do i = 1, f%nenv
           xxion = xpos - f%renv(:,i)
-          rion = max(norm(xxion),eps0)
+          rion = max(norm2(xxion),eps0)
           rion1 = 1d0 / rion
           rion2 = rion1 * rion1
           ni = f%idxenv(i)

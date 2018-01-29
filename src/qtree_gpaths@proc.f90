@@ -128,7 +128,7 @@ contains
              xp2 = xp + h0 * ystp
              ngrd_term = ngrd_term + ode_o - 1
              xerr = h0 * xerr
-             derr = sqrt(dot_product(xerr,xerr)) / ode_abserr
+             derr = norm2(xerr) / ode_abserr
 
              ! adapt the step, gsl version
              if (derr > 1.1d0) then
@@ -374,7 +374,7 @@ contains
              xp2 = xp + h0 * ystp
              ngrd_term = ngrd_term + ode_o - 1
              xerr = h0 * xerr
-             derr = sqrt(dot_product(xerr,xerr)) / ode_abserr
+             derr = norm2(xerr) / ode_abserr
 
              ! adapt the step, gsl version
              if (derr > 1.1d0) then
@@ -583,7 +583,7 @@ contains
              xp2 = xp + h0 * ystp
              ngrd_term = ngrd_term + ode_o - 1
              xerr = h0 * xerr
-             derr = sqrt(dot_product(xerr,xerr)) / ode_abserr
+             derr = norm2(xerr) / ode_abserr
 
              ! adapt the step, gsl version
              if (derr > 1.1d0) then

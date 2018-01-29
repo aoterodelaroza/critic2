@@ -30,17 +30,17 @@ module qtree_utils
      module subroutine small_writetess(roottess,otrm,trm)
        use qtree_basic, only: qtreei
        use param, only: mlen
-       character(len=mlen), intent(in) :: roottess
+       character*(*), intent(in) :: roottess
        integer, intent(in) :: otrm
        integer(qtreei), intent(in) :: trm(:,:)
      end subroutine small_writetess
      module subroutine open_difftess(roottess)
        use param, only: mlen
-       character(len=mlen), intent(in) :: roottess
+       character*(*), intent(in) :: roottess
      end subroutine open_difftess
      module subroutine close_difftess(roottess)
        use param, only: mlen
-       character(len=mlen), intent(in) :: roottess
+       character*(*), intent(in) :: roottess
      end subroutine close_difftess
      module subroutine getkeast()
      end subroutine getkeast

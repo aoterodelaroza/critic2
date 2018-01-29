@@ -1528,7 +1528,7 @@ contains
     integer :: n(3), i1, i2, i3
 
     complex*16 :: zaux(frho%n(1)*frho%n(2)*frho%n(3))
-    real*8 :: bvec(3,3), vol
+    real*8 :: bvec(3,3), vol, vgc2
     integer :: ig, ntot
     integer :: j1, j2, j3
     integer, allocatable :: ivg(:,:), igfft(:)
@@ -1593,10 +1593,11 @@ contains
     call cfftnd(3,n,-1,zaux)
 
     do ig = 1, ntot
-       if (dot_product(vgc(:,ig),vgc(:,ig)) < 1d-12) then
+       vgc2 = dot_product(vgc(:,ig),vgc(:,ig))
+       if (vgc2 < 1d-12) then
           zaux(igfft(ig)) = 0d0;
        else
-          zaux(igfft(ig)) = -zaux(igfft(ig)) / dot_product(vgc(:,ig),vgc(:,ig))
+          zaux(igfft(ig)) = -zaux(igfft(ig)) / vgc2
        end if
     end do
 

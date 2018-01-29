@@ -37,7 +37,6 @@ module tools_math
   public :: rsindex
   public :: cross
   public :: mixed
-  public :: norm
   public :: mnorm2
   public :: detsym
   public :: det

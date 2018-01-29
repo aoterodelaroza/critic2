@@ -148,7 +148,6 @@ contains
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
-    use tools_math, only: norm
     use types, only: scalar_value
     character*(*), intent(in) :: line
 
@@ -325,7 +324,7 @@ contains
     ! write the line to output
     do i = 1, np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
-       dist = norm(xp-x0) * dunit0(iunit)
+       dist = norm2(xp-x0) * dunit0(iunit)
        if (.not.sy%c%ismolecule) then
           xout = sy%c%c2x(xp)
        else
@@ -357,7 +356,6 @@ contains
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, fileroot
     use arithmetic, only: eval
-    use tools_math, only: norm
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string
     use types, only: scalar_value
@@ -421,7 +419,7 @@ contains
     x0 = sy%c%x2c(x0)
     do i = 1, 3
        xd(:,i) = sy%c%x2c(xd(:,i))
-       dd(i) = norm(xd(:,i))
+       dd(i) = norm2(xd(:,i))
     end do
 
     if (.not.dogrid) then
@@ -643,7 +641,7 @@ contains
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
-    use tools_math, only: norm, plane_scale_extend, assign_ziso, niso_manual,&
+    use tools_math, only: plane_scale_extend, assign_ziso, niso_manual,&
        niso_lin, niso_log, niso_atan, niso_bader
     use types, only: scalar_value, realloc
     character*(*), intent(in) :: line
@@ -872,9 +870,9 @@ contains
     x2 = sy%c%x2c(x2)
     call plane_scale_extend(x0,x1,x2,sx0,sy0,zx0,zx1,zy0,zy1)
     uu = (x1-x0) / real(nx-1,8)
-    du = norm(uu)
+    du = norm2(uu)
     vv = (x2-x0) / real(ny-1,8)
-    dv = norm(vv)
+    dv = norm2(vv)
 
     ! allocate space for field values on the plane
     allocate(ff(nx,ny))
@@ -1484,7 +1482,7 @@ contains
   subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
     use systemmod, only: sy
     use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
-    use tools_math, only: norm, cross, det, matinv
+    use tools_math, only: cross, det, matinv
     integer, intent(in) :: nx, ny
     real*8, intent(in) :: ff(nx,ny)
     real*8, intent(in) :: r0(3), r1(3), r2(3)
@@ -1520,8 +1518,8 @@ contains
     rp2 = sy%c%x2c(r2)
     rp01 = rp1 - rp0
     rp02 = rp2 - rp0
-    r01 = norm(rp01)
-    r02 = norm(rp02)
+    r01 = norm2(rp01)
+    r02 = norm2(rp02)
     du = r01 / real(nx-1,8)
     dv = r02 / real(ny-1,8)
     r012 = dot_product(rp01,rp02)

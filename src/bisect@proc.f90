@@ -45,10 +45,8 @@ submodule (bisect) proc
   integer, parameter :: BS_mstep = 6000
 
   ! near-nuc
-  real*8, parameter :: bs_rnearnuc2_grid = 5d-1
-  real*8, parameter :: bs_rnearnuc_grid = sqrt(bs_rnearnuc2_grid)
-  real*8, parameter :: bs_rnearnuc2 = 1d-5
-  real*8, parameter :: bs_rnearnuc = sqrt(bs_rnearnuc2)
+  real*8, parameter :: bs_rnearnuc_grid = sqrt(5d-1)
+  real*8, parameter :: bs_rnearnuc = sqrt(1d-5)
 
   ! default integration parameters for atomic spheres
   integer, parameter :: bs_spherequad_type = INT_lebedev
@@ -1028,20 +1026,18 @@ contains
     integer, intent(out) :: tstep
     integer, intent(inout) :: nwarn
 
-    real*8 :: dist2, delta2
+    real*8 :: dist
     real*8, dimension(3) :: xpoint, xnuc
     integer :: nstep, iup
     integer :: i, imin, ier
     real*8 :: xtemp(3), dtemp, plen
     real*8 :: xin_(3), xfin_(3)
-    real*8 :: bsr, bsr2
+    real*8 :: bsr
 
     ! define the close-to-nucleus condition
     if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
-       bsr2 = bs_rnearnuc2
        bsr = bs_rnearnuc
     end if
 
@@ -1050,14 +1046,13 @@ contains
     xin_ = xin
     xfin_ = xfin
 
-    delta2 = delta * delta
     xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
 
     iup = -sign(1,sy%f(sy%iref)%typnuc)
 
     ! do bisection between xin and xfin, until they converge within delta
-    dist2 = dot_product(xin_-xfin_,xin_-xfin_)
-    do while (dist2 > delta2)
+    dist = norm2(xin_-xfin_)
+    do while (dist > delta)
        xmed = 0.5d0 * (xin_ + xfin_)
 
        xpoint = xmed
@@ -1068,8 +1063,8 @@ contains
           ! normal gradient termination
           xpoint = xpoint - xnuc
 
-          dist2 = dot_product(xpoint,xpoint)
-          if (dist2 <= bsr2) then
+          dist = norm2(xpoint)
+          if (dist <= bsr) then
              xin_ = xmed
           else
              xfin_ = xmed
@@ -1088,7 +1083,7 @@ contains
              xfin_ = xmed
           endif
        end if
-       dist2 = dot_product(xin_-xfin_,xin_-xfin_)
+       dist = norm2(xin_-xfin_)
     enddo
     xmed = 0.5d0 * (xin_ + xfin_)
 
@@ -1126,25 +1121,22 @@ contains
     integer, intent(out) :: tstep
     integer, intent(inout) :: nwarn
 
-    real*8 :: xpoint(3), delta2, rr2, plen
+    real*8 :: xpoint(3), rr2, plen
     integer :: nstep
     integer :: ier
     logical :: inbundle
-    real*8 :: bsr, bsr2
+    real*8 :: bsr
 
     ! define the close-to-nucleus condition
     if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
-       bsr2 = bs_rnearnuc2
        bsr = bs_rnearnuc
     end if
 
     tstep = 0
-    delta2 = delta * delta
 
-    do while (dot_product(xin-xfin,xin-xfin) >= delta2)
+    do while (norm2(xin-xfin) >= delta)
 
        !.take mean value, test if interior
        xmed = 0.5d0*(xin+xfin)
@@ -1160,7 +1152,7 @@ contains
           if (ier > 0) nwarn = nwarn + 1
           xpoint = xpoint - xup
           rr2 = dot_product(xpoint,xpoint)
-          inbundle = (rr2 <= bsr2)
+          inbundle = (rr2 <= bsr)
        endif
 
        !.omega limit
@@ -1173,8 +1165,8 @@ contains
           else
              if (ier > 0) nwarn = nwarn + 1
              xpoint = xpoint - xdn
-             rr2 = dot_product(xpoint,xpoint)
-             inbundle = inbundle .and. (rr2 <= bsr2)
+             rr2 = norm2(xpoint)
+             inbundle = inbundle .and. (rr2 <= bsr)
           endif
        endif
 
@@ -1218,14 +1210,12 @@ contains
     integer :: j, k, idone
     real*8  :: rnearsum, rfarsum, rzfssum, rnearmin, rfarmax, rlim
     integer :: ier, nwarn, nwarn0
-    real*8 :: bsr, bsr2
+    real*8 :: bsr
 
     ! define the close-to-nucleus condition
     if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
-       bsr2 = bs_rnearnuc2
        bsr = bs_rnearnuc
     end if
 
@@ -1318,8 +1308,8 @@ contains
           else
              if (ier > 0) nwarn = nwarn + 1
              xtemp = xtemp - xcar
-             rr2 = dot_product(xtemp,xtemp)
-             if (rr2 <= bsr2) then
+             rr2 = norm2(xtemp)
+             if (rr2 <= bsr) then
                 id1 = itry(k)
                 exit
              else
@@ -1371,8 +1361,8 @@ contains
           else
              if (ier > 0) nwarn = nwarn + 1
              xtemp = xtemp - xcar
-             rr2 = dot_product(xtemp,xtemp)
-             if (rr2 > bsr2) then
+             rr2 = norm2(xtemp)
+             if (rr2 > bsr) then
                 id2 = itry(k)
                 exit
              else
@@ -1443,7 +1433,6 @@ contains
     use fieldmod, only: type_grid
     use surface, only: minisurf
     use global, only: rbetadef
-    use tools_math, only: norm
     use tools_io, only: uout, string, faterr, ferror
     use param, only: vbig
     type(minisurf), intent(inout) :: srf
@@ -1456,14 +1445,12 @@ contains
     real*8 :: xmed(3), unit(3), raprox, riaprox
     logical :: ok
     real*8 :: oldrbeta(sy%f(sy%iref)%ncp), rmin, rmax
-    real*8 :: bsr, bsr2, plen
+    real*8 :: bsr, plen
 
     ! define the close-to-nucleus condition
     if (sy%f(sy%iref)%type == type_grid) then
-       bsr2 = bs_rnearnuc2_grid
        bsr = bs_rnearnuc_grid
     else
-       bsr2 = bs_rnearnuc2
        bsr = bs_rnearnuc
     end if
 
@@ -1526,7 +1513,7 @@ contains
           else
              if (ier > 0) nwarn = nwarn + 1
              xtemp = xtemp - xup
-             ok = (dot_product(xtemp,xtemp) <= bsr2)
+             ok = (norm2(xtemp) <= bsr)
           end if
           if (ok) then
              ! omega-limit
@@ -1537,7 +1524,7 @@ contains
              else
                 if (ier > 0) nwarn = nwarn + 1
                 xtemp = xtemp - xdn
-                ok = ok .and. (dot_product(xtemp,xtemp) <= bsr2)
+                ok = ok .and. (norm2(xtemp) <= bsr)
              end if
           end if
           if (ok) then
@@ -1562,7 +1549,7 @@ contains
           else
              if (ier > 0) nwarn = nwarn + 1
              xtemp = xtemp - xup
-             ok = (dot_product(xtemp,xtemp) > bsr2)
+             ok = (norm2(xtemp) > bsr)
           endif
           if (.not.ok) then
              ! omega-limit
@@ -1573,7 +1560,7 @@ contains
              else
                 if (ier > 0) nwarn = nwarn + 1
                 xtemp = xtemp - xdn
-                ok = ok .or. (dot_product(xtemp,xtemp) > bsr2)
+                ok = ok .or. (norm2(xtemp) > bsr)
              end if
           end if
           if (ok) then
@@ -1601,7 +1588,7 @@ contains
        !$omp ATOMIC
        rmax = max(rmax,raprox)
        !$omp critical (srfwrite)
-       srf%r(i) = norm(xmed)
+       srf%r(i) = norm2(xmed)
        !$omp end critical (srfwrite)
        if (verbose) then
           !$omp critical (IO)

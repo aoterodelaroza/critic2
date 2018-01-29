@@ -690,15 +690,6 @@ contains
 
   end function mixed
 
-  !> Norm of a 3d vector
-  module function norm(v)
-    real*8, intent(in) :: v(3)
-    real*8 :: norm
-    
-    norm = sqrt(v(1)*v(1)+v(2)*v(2)+v(3)*v(3))
-    
-  end function norm
-
   !> Norm-2 of a 3x3 matrix
   module function mnorm2(a)
     real*8, intent(in) :: a(3,3)
@@ -782,8 +773,8 @@ contains
     
     ax = (x1-x0)
     ay = (x2-x0)
-    dx = norm(ax)
-    dy = norm(ay)
+    dx = norm2(ax)
+    dy = norm2(ay)
     if (dx < VSMALL .or. dy < VSMALL) &
        call ferror('plane_scale_extend','zero-area plane',faterr)
 
@@ -1041,7 +1032,7 @@ contains
     call eigns(a,eval,evali)
     idx = maxloc(eval,1)
     xex = a(:,idx)
-    xex = xex / sqrt(dot_product(xex,xex))
+    xex = xex / norm2(xex)
     w = wmat(xex)
     q = qmat(xex)
     q = matmul(transpose(wmat(xex)),qmat(xex))

@@ -996,7 +996,6 @@ contains
     use qtree_basic, only: nnuc, r_betagp, r_betaint, find_beta_rodriguez
     use fieldmod, only: type_elk, type_wien
     use global, only: sphfactor, sphintfactor
-    use tools_math, only: norm
     use tools_io, only: uout, string
     logical, intent(in) :: verbose
 
@@ -1084,7 +1083,7 @@ contains
                 cos(srf%th(j)) /)
              xx = x0 + r_betagp(i) * unit
              call sy%f(sy%iref)%gradient(xx,+1,nstep,ier,.true.,plen)
-             dist = norm(xx - x0)
+             dist = norm2(xx - x0)
              if (dist > dthres) then
                 !$omp critical (write)
                 r_betagp(i) = r_betagp(i) * shrink

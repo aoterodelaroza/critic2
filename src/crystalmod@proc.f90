@@ -689,7 +689,7 @@ contains
     real*8 :: xd(3)
 
     xd = c%x2c(x1 - x2)
-    distance = sqrt(dot_product(xd,xd))
+    distance = norm2(xd)
 
   end function distance
 
@@ -1105,7 +1105,6 @@ contains
   !> If dmax is given, use that number as an estimate of how many cells
   !> should be included in the search for atoms. 
   module subroutine build_env(c,dmax0)
-    use tools_math, only: norm
     use global, only: cutrad
     use types, only: realloc
     class(crystal), intent(inout) :: c !< Input crystal
@@ -1139,10 +1138,10 @@ contains
        return
     endif
 
-    sphmax = norm(c%x2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-    sphmax = max(sphmax,norm(c%x2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm(c%x2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm(c%x2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = norm2(c%x2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+    sphmax = max(sphmax,norm2(c%x2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(c%x2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(c%x2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
 
     if (present(dmax0)) then
        dmax = dmax0
@@ -1164,7 +1163,7 @@ contains
              do m = 1, c%ncel
                 l = (/i,j,k/)
                 xx = c%atcel(m)%x + l
-                dist = norm(c%x2c(xx - (/0.5d0,0.5d0,0.5d0/)))
+                dist = norm2(c%x2c(xx - (/0.5d0,0.5d0,0.5d0/)))
                 if (dist > sphmax+dmax) cycle
 
                 c%nenv = c%nenv + 1
@@ -1369,7 +1368,7 @@ contains
     type(fragment) :: fr
 
     integer :: ix, iy, iz, i, nn
-    real*8 :: x0(3), d, rsph2
+    real*8 :: x0(3), d
     logical :: doagain, dosph
 
     if (.not.(present(rsph).and.present(xsph)).and..not.(present(rcub).and.present(xcub))) &
@@ -1385,7 +1384,6 @@ contains
     ! all atoms in a sphere
     doagain = .true.
     nn = -1
-    if (dosph) rsph2 = rsph * rsph
     do while(doagain)
        doagain = .false.
        nn = nn + 1
@@ -1397,8 +1395,8 @@ contains
                    if (dosph) then
                       x0 = c%x2c(c%atcel(i)%x + (/ix,iy,iz/) - xsph)
                       if (all(abs(x0) > rsph)) cycle
-                      d = dot_product(x0,x0)
-                      if (d >= rsph2) cycle
+                      d = norm2(x0)
+                      if (d >= rsph) cycle
                    else
                       x0 = c%x2c(c%atcel(i)%x + (/ix,iy,iz/) - xcub)
                       if (any(abs(x0) > rcub)) cycle
@@ -1690,7 +1688,7 @@ contains
   !> and the distance in dist. If the argument xenv is present,
   !> return the position of a representative atom from each shell.
   module subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
-    use global, only: atomeps, atomeps2
+    use global, only: atomeps
     use types, only: realloc
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
@@ -1715,8 +1713,8 @@ contains
     nneig = 0
     wat = 0
     do j = 1, c%nenv
-       d2 = dot_product(c%atenv(j)%r-x0c,c%atenv(j)%r-x0c)
-       if (d2 < atomeps2) cycle
+       d2 = norm2(c%atenv(j)%r-x0c)
+       if (d2 < atomeps) cycle
        do l = 1, shmax
           if (abs(d2 - dist(l)) < atomeps) then
              nneig(l) = nneig(l) + 1
@@ -1752,7 +1750,6 @@ contains
           end if
        end do
     end do
-    dist = sqrt(dist)
     if (allocated(aux2)) deallocate(aux2)
 
   end subroutine pointshell
@@ -2112,7 +2109,6 @@ contains
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges.
   module subroutine rdf(c,rend,sigma,npts,t,ih)
-    use tools_math, only: norm
     class(crystal), intent(in) :: c
     real*8, intent(in) :: rend
     real*8, intent(in) :: sigma
@@ -2140,7 +2136,7 @@ contains
     if (.not.c%ismolecule) then
        do i = 1, c%nneq
           do j = 1, c%nenv
-             d = norm(c%at(i)%r - c%atenv(j)%r)
+             d = norm2(c%at(i)%r - c%atenv(j)%r)
              if (d < 1d-10 .or. d > rend) cycle
              int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atenv(j)%is)%z,8))
              ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
@@ -2153,7 +2149,7 @@ contains
     else
        do i = 1, c%nneq
           do j = 1, c%ncel
-             d = norm(c%at(i)%r - c%atcel(j)%r)
+             d = norm2(c%at(i)%r - c%atcel(j)%r)
              if (d < 1d-10 .or. d > rend) cycle
              int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atcel(j)%is)%z,8))
              ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
@@ -2723,7 +2719,7 @@ contains
   !> the delaunay reduced cells).
   module subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
     use tools, only: qcksort
-    use tools_math, only: norm, det
+    use tools_math, only: det
     use tools_io, only: faterr, ferror
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
@@ -2789,7 +2785,7 @@ contains
        xstar(:,6)  = rmat(:,1)+rmat(:,3)
        xstar(:,7)  = rmat(:,2)+rmat(:,3)
        do i = 1, 7
-          xlen(i) = norm(xstar(:,i))
+          xlen(i) = norm2(xstar(:,i))
           iord(i) = i
        end do
        call qcksort(xlen,iord,1,7)
@@ -2824,7 +2820,7 @@ contains
   !> information about the structure. lq = charges.
   module subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
-    use tools_math, only: gcd, norm
+    use tools_math, only: gcd
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi
     class(crystal), intent(in) :: c
@@ -3104,7 +3100,7 @@ contains
              x0 = c%x2c(c%vws(:,i))
              write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
                 (string(c%vws(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
-                string(norm(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
+                string(norm2(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
           enddo
           write (uout,*)
 
@@ -3132,7 +3128,7 @@ contains
           do i = 1, 3
              x0 = c%rdeli(i,:)
              xred(:,i) = c%x2c(x0)
-             xlen(i) = sqrt(dot_product(xred(:,i),xred(:,i)))
+             xlen(i) = norm2(xred(:,i))
           end do
           xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
           xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
@@ -3361,7 +3357,7 @@ contains
      nvert_ws,nside_ws,iside_ws,vws)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
     use global, only: fileroot
-    use tools_math, only: norm, mixed, cross
+    use tools_math, only: mixed, cross
     use tools_io, only: string, filepath, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use param, only: dirsep
@@ -3651,7 +3647,7 @@ contains
              k = mod(j,nside(i))+1
              av = av + cross(xws(:,iside(i,j)),xws(:,iside(i,k)))
           end do
-          area = 0.5d0 * abs(dot_product(bary,av) / norm(bary)) / rnorm**2
+          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary)) / rnorm**2
           bary = matmul(r2x,bary)
 
           nvec = nvec + 1
@@ -3945,7 +3941,7 @@ contains
   module subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
      environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
     use global, only: dunit0, iunit
-    use tools_math, only: norm, nchoosek, comb
+    use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
        equal
     use types, only: realloc
@@ -4016,7 +4012,7 @@ contains
                    do l = 1, c%nmol
                       xcm = c%c2x(cmlist(:,l)) + lvec
                       xcm = c%x2c(xcm)
-                      dist = norm(xcm)
+                      dist = norm2(xcm)
                       if (dist <= renv) then
                          ncm = ncm + 1
                          if (ncm > size(cmlist,2)) then
@@ -4218,7 +4214,6 @@ contains
   module subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
      docell,domolcell,rsph,xsph,rcub,xcub,gr0)
     use graphics, only: grhandle
-    use tools_math, only: norm
     use fragmentmod, only: fragment
     use tools_io, only: equal
     use param, only: maxzat, atmcov, jmlcol
@@ -4296,7 +4291,7 @@ contains
        do j = i+1, fr%nat
           if (fr%spc(fr%at(i)%is)%z > maxzat .or. fr%spc(fr%at(j)%is)%z > maxzat) cycle
           xd = fr%at(i)%r - fr%at(j)%r
-          d = norm(xd)
+          d = norm2(xd)
           if (d < (atmcov(fr%spc(fr%at(i)%is)%z) + atmcov(fr%spc(fr%at(j)%is)%z)) * rfac) then
              xd = fr%at(i)%r + 0.5d0 * (fr%at(j)%r - fr%at(i)%r)
              call gr%stick(fr%at(i)%r,xd,JMLcol(:,fr%spc(fr%at(i)%is)%z),0.05d0)
@@ -4902,7 +4897,6 @@ contains
   !> Write a gulp input script
   module subroutine write_gulp(c,file,dodreiding)
     use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose
-    use tools_math, only: norm
     use param, only: bohrtoa, atmcov, pi
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
@@ -4944,7 +4938,7 @@ contains
           ! determine covalent bonds
           do j = 1, c%nenv
              jz = c%spc(c%atenv(j)%is)%z
-             d = sqrt(dot_product(c%atenv(j)%r-c%at(i)%r,c%atenv(j)%r-c%at(i)%r))
+             d = norm2(c%atenv(j)%r-c%at(i)%r)
              if (d < 1d-10) cycle
              if (d < (atmcov(iz) + atmcov(jz)) * rfac) then
                 n = n + 1
@@ -4963,7 +4957,7 @@ contains
                 n = n + 1
                 x1 = c%atenv(ineigh(j,i))%r - c%at(i)%r
                 x2 = c%atenv(ineigh(k,i))%r - c%at(i)%r
-                ang = abs(acos(dot_product(x1,x2) / norm(x1) / norm(x2)) * 180d0 / pi)
+                ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
                 avgang(i) = avgang(i) + ang
              end do
           end do
@@ -4976,7 +4970,7 @@ contains
                 jz = c%spc(c%atenv(j)%is)%z
                 ! only with N, O, and S
                 if (jz==7 .or. jz==8 .or. jz==9 .or. jz==16 .or. jz==17 .or. jz==35 .or. jz==53) then
-                   d = sqrt(dot_product(c%atenv(j)%r-c%at(i)%r,c%atenv(j)%r-c%at(i)%r))
+                   d = norm2(c%atenv(j)%r-c%at(i)%r)
                    ! only in the correct distance range
                    if (d > hbmin .and. d < hbmax) then
                       ! only if the angles to all other neighbor atoms is more than 145
@@ -4984,7 +4978,7 @@ contains
                       do k = 1, nneigh(i)
                          x1 = c%atenv(ineigh(k,i))%r - c%at(i)%r
                          x2 = c%atenv(j)%r - c%at(i)%r
-                         ang = abs(acos(dot_product(x1,x2) / norm(x1) / norm(x2)) * 180d0 / pi)
+                         ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
                          kz = c%spc(c%atenv(ineigh(k,i))%is)%z
                          isat = (kz==7 .or. kz==8 .or. kz==9 .or. kz==16 .or. kz==17 .or. kz==35 .or. kz==53)
                          if (ang < 145d0 .or..not.isat) then
@@ -5573,8 +5567,8 @@ contains
           end if
           if (.not.g%isinit) cycle
           xx = xc - c%atenv(i)%r
-          r2 = dot_product(xx,xx)
-          if (r2 > g%rmax2) cycle
+          r2 = norm2(xx)
+          if (r2 > g%rmax) cycle
           nido = nido + 1
           idolist(nido) = i
        end do
@@ -5603,8 +5597,8 @@ contains
           xx = xc - fr%at(ii)%r
        end if
 
-       r2 = dot_product(xx,xx)
-       r = max(sqrt(r2),g%r(1))
+       r2 = norm2(xx)
+       r = max(r2,g%r(1))
        r = max(r,1d-14)
        call g%interp(r,rho,rhop,rhopp)
        rho = max(rho,0d0)
@@ -5706,7 +5700,7 @@ contains
 
     ! every lattice vector must be represented in the molecule
     amax = 2d0*maxval(aal)
-    amax2e = amax * amax + 1d-5
+    amax2e = amax + 1d-5
     na = int((amax/aal(1)) - 1d-7) + 2
     nb = int((amax/aal(2)) - 1d-7) + 2
     nc = int((amax/aal(3)) - 1d-7) + 2
@@ -5720,7 +5714,7 @@ contains
              do it = 1, ncen
                 x = real((/ia,ib,ic/),8) + xcen(:,it)
                 t = matmul(x,rmat)
-                d2 = dot_product(t,t)
+                d2 = norm2(t)
                 if (d2 <= amax2e) then
                    npos = npos + 1
                    if (npos > size(ax,2)) call realloc(ax,3,2*npos)
@@ -5754,7 +5748,7 @@ contains
   !> direction of the axis or the normal to the plane, 0 for a point
   !> symmetry element). Used in the structure initialization.
   subroutine typeop(rot,type,vec,order)
-    use tools_math, only: norm, eigns
+    use tools_math, only: eigns
     use tools_io, only: ferror, faterr
     use param, only: tpi, eye
 
@@ -5860,7 +5854,7 @@ contains
           call ferror ('typeop', 'Sym. Element unknown', faterr)
        endif
     endif
-    vec = vec / norm(vec)
+    vec = vec / norm2(vec)
 
   end subroutine typeop
 
@@ -5874,9 +5868,8 @@ contains
     real*8, intent(in) :: lrotm(3,3,48), eps
 
     integer :: i, k, p
-    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), eps2, xdum(3)
+    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), xdum(3)
 
-    eps2 = eps*eps
     equiv_tetrah = .false.
 
     do i = 1, leqv
@@ -5889,9 +5882,9 @@ contains
           do k = 0, 3
              xdum = d1(k,:)
              d1(k,:) = c%x2c(xdum)
-             dist2(k) = dot_product(d1(k,:),d1(k,:))
+             dist2(k) = norm2(d1(k,:))
           end do
-          if (all(dist2 < eps2)) then
+          if (all(dist2 < eps)) then
              equiv_tetrah = .true.
              return
           end if

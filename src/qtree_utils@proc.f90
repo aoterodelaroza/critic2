@@ -28,8 +28,8 @@ contains
        torig, tvec, lrotm, leqv, nt_orig
     use global, only: ws_origin, plot_mode, fileroot, plotsticks
     use tools_io, only: fopen_write, fclose
-    use param, only: maxzat0, jmlcol, jmlcol2, mlen
-    character(len=mlen), intent(in) :: roottess
+    use param, only: maxzat0, jmlcol, jmlcol2
+    character*(*), intent(in) :: roottess
     integer, intent(in) :: otrm
     integer(qtreei), intent(in) :: trm(:,:)
 
@@ -229,8 +229,7 @@ contains
     use qtree_basic, only: ludif, minlen, maxl
     use global, only: gradient_mode, qtree_ode_mode, ws_origin
     use tools_io, only: fopen_write
-    use param, only: mlen
-    character(len=mlen), intent(in) :: roottess
+    character*(*), intent(in) :: roottess
 
     integer :: i
     character*2 :: label
@@ -319,8 +318,7 @@ contains
   module subroutine close_difftess(roottess)
     use qtree_basic, only: ludif
     use tools_io, only: fclose
-    use param, only: mlen
-    character(len=mlen), intent(in) :: roottess
+    character*(*), intent(in) :: roottess
 
     write (ludif,'(X,A)') "endfreehand"
     write (ludif,'(X,3A)') " vrml ", trim(roottess), ".wrl"

@@ -283,22 +283,22 @@ contains
        xp1 = sy%c%x2c(tvec(:,1,i))
        xp2 = sy%c%x2c(tvec(:,2,i))
        xp3 = sy%c%x2c(tvec(:,3,i))
-       dist = dot_product(xp1,xp1)
+       dist = norm2(xp1)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
-       dist = dot_product(xp2,xp2)
+       dist = norm2(xp2)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
-       dist = dot_product(xp3,xp3)
+       dist = norm2(xp3)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
-       dist = dot_product(xp3-xp1,xp3-xp1)
+       dist = norm2(xp3-xp1)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
-       dist = dot_product(xp3-xp2,xp3-xp2)
+       dist = norm2(xp3-xp2)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
-       dist = dot_product(xp2-xp1,xp2-xp1)
+       dist = norm2(xp2-xp1)
        maxlen = max(maxlen,dist)
        minlen = min(minlen,dist)
 
@@ -332,8 +332,6 @@ contains
     deallocate(tetrag)
 
     ! total volume and maximum and minimum lengths
-    maxlen = sqrt(maxlen)
-    minlen = sqrt(minlen)
     if (ws_scale > 0d0) then
        vtotal = sy%c%omega / ws_scale**3 
     else
@@ -728,7 +726,7 @@ contains
        if (any(neigh(:,i) < 0) .or. sum(neigh(:,i)) > l2) cycle
        difver = (rver - real(neigh(:,i),8)) / l2
        xnew = borig(:,base_t) + matmul(dmat(:,:,base_t),difver)
-       ndist = dot_product(xnew,xnew)
+       ndist = norm2(xnew)
        if (ndist < dist) then
           nn = i
           dist = ndist
@@ -737,7 +735,6 @@ contains
     rver = real(neigh(:,nn),8) / l2
     xp = borig(:,base_t) + matmul(dmat(:,:,base_t),rver)
     idx = cindex(neigh(:,nn),maxl)
-    dist = sqrt(dist)
 
   end subroutine neargp
 
@@ -841,14 +838,12 @@ contains
              do k = 1, 3
                 xx = xx + dif(k) * bvec(:,k,tt)
              end do
-             d2 = dot_product(xx,xx)
+             d2 = norm2(xx)
              minlen = min(d2,minlen)
              maxlen = max(d2,maxlen)
           end do
        end if
     end do
-    minlen = sqrt(minlen)
-    maxlen = sqrt(maxlen) 
 
   end subroutine get_tlengths
 

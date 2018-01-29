@@ -357,7 +357,7 @@ contains
           end do
        end if
     end if
-    sc(isc)%srad = max(sqrt(dot_product(xmax-xmin,xmax-xmin)),minsrad)
+    sc(isc)%srad = max(norm2(xmax-xmin),minsrad)
 
     ! this scene has been updated
     if (isc == icursc) scupdated = .true.

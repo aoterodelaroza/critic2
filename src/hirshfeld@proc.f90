@@ -85,7 +85,7 @@ contains
                    do i = 1, n(1)
                       x = lvec + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + &
                          (k-1) * xdelta(:,3) - sy%c%at(iat)%r
-                      dist = sqrt(dot_product(x,x))
+                      dist = norm2(x)
                       if (.not.agrid(sy%c%spc(sy%c%at(iat)%is)%z)%isinit) cycle
                       if (dist > agrid(sy%c%spc(sy%c%at(iat)%is)%z)%rmax / 2) cycle
 

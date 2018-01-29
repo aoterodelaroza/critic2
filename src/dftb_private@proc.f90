@@ -250,7 +250,7 @@ contains
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
        if (any(abs(xion) > rcut)) cycle
-       dist = sqrt(dot_product(xion,xion))
+       dist = norm2(xion)
        if (dist > rcut) cycle
 
        ! write down this atom
@@ -452,7 +452,6 @@ contains
   !> lattice vector, index in the complete list, and atomic number.
   module subroutine register_struct(f,rmat,atenv,spc)
     use types, only: celatom, atom, species
-    use tools_math, only: norm
     use types, only: realloc
     class(dftbwfn), intent(inout) :: f
     real*8, intent(in) :: rmat(3,3)
@@ -473,10 +472,10 @@ contains
 
     ! calculate the sphere radius that encompasses the unit cell
     if (maxcutoff > f%globalcutoff) then
-       sphmax = norm(matmul(rmat,(/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-       sphmax = max(sphmax,norm(matmul(rmat,(/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-       sphmax = max(sphmax,norm(matmul(rmat,(/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-       sphmax = max(sphmax,norm(matmul(rmat,(/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+       sphmax = norm2(matmul(rmat,(/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+       sphmax = max(sphmax,norm2(matmul(rmat,(/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+       sphmax = max(sphmax,norm2(matmul(rmat,(/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+       sphmax = max(sphmax,norm2(matmul(rmat,(/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
 
        nenv = size(atenv)
        if (allocated(f%renv)) deallocate(f%renv)
@@ -492,7 +491,7 @@ contains
        f%nenv = 0
        x0 = matmul(rmat,(/0.5d0,0.5d0,0.5d0/))
        do i = 1, nenv
-          dist = norm(atenv(i)%r - x0)
+          dist = norm2(atenv(i)%r - x0)
           if (dist <= sphmax+maxcutoff) then
              f%nenv = f%nenv + 1
              f%renv(:,f%nenv) = atenv(i)%r

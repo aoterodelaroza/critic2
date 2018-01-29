@@ -1037,9 +1037,9 @@ contains
        end if
     end if
 
-    v1 = v1 / sqrt(dot_product(v1,v1))
-    v2 = v2 / sqrt(dot_product(v2,v2))
-    vup = vup / sqrt(dot_product(vup,vup))
+    v1 = v1 / norm2(v1)
+    v2 = v2 / norm2(v2)
+    vup = vup / norm2(vup)
 
     if (iup == 0 .or. iup == ircp) then
        xpoint = xbcp + change * vup

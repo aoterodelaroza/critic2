@@ -703,7 +703,6 @@ contains
     use arithmetic, only: eval
     use types, only: scalar_value
     use tools_io, only: ferror, faterr
-    use tools_math, only: norm
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
@@ -783,7 +782,7 @@ contains
              res%hf(3,2) = res%hf(2,3)
           end if
        end if
-       res%gfmod = norm(res%gf)
+       res%gfmod = norm2(res%gf)
        res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
        ! valence quantities
        res%fval = res%f
@@ -904,7 +903,7 @@ contains
        res%isnuc = (dist < 1d-5)
        if (res%isnuc) res%gf = 0d0
     end if
-    res%gfmod = norm(res%gf)
+    res%gfmod = norm2(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
   end subroutine grd
@@ -1771,11 +1770,11 @@ contains
              if (f%c%atcel(i)%idx > f%c%nneq) cycle
              aux = x - f%c%atcel(i)%x
              aux = f%c%x2c(aux - nint(aux))
-             dist = dot_product(aux,aux)
+             dist = norm2(aux)
              if (f%type == type_wien) then
-                inrmt = (dist < f%wien%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x)**2)
+                inrmt = (dist < f%wien%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x))
              else
-                inrmt = (dist < f%elk%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x)**2)
+                inrmt = (dist < f%elk%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x))
              end if
              if (inrmt) then
                 if (wpts(f%c%atcel(i)%idx) >= npts) cycle out
@@ -1886,7 +1885,7 @@ contains
   !> (-3,-1,1,3).
   module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,itype)
     use arithmetic, only: eval
-    use tools_math, only: norm, rsindex
+    use tools_math, only: rsindex
     use tools_io, only: ferror, string
     use types, only: scalar_value, realloc
     use global, only: CP_hdegen, rbetadef
@@ -2130,7 +2129,7 @@ contains
   !> present, initialize the output path with this point (Cartesian).
   module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
-    use tools_math, only: eigns, norm
+    use tools_math, only: eigns
     use types, only: scalar_value, gpathp, realloc
     class(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
@@ -2197,14 +2196,14 @@ contains
        ! this point
        xcart = xpoint
        xpoint = fid%c%c2x(xpoint)
-       plen = plen + norm(xcart-xlast)
+       plen = plen + norm2(xcart-xlast)
 
        ! save to the gradient path
        if (present(path)) then
           if (nstep == 1) then
              call addtopath(nstep,xcart,xpoint,res)
           else
-             dd = norm(xcart - path(npath)%r)
+             dd = norm2(xcart - path(npath)%r)
              if (dd > prune0) then
                 if (prune0 < 0d0) then
                    call addtopath(nstep,xcart,xpoint,res)
@@ -2214,7 +2213,7 @@ contains
                       xxaux = fid%c%c2x(xcaux)
                       call fid%grd(xcaux,2,resaux)
                       call addtopath(nstep,xcaux,xxaux,resaux)
-                      dd = norm(xcart - path(npath)%r)
+                      dd = norm2(xcart - path(npath)%r)
                    end do
                 end if
              end if
@@ -2358,7 +2357,6 @@ contains
   function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
     use global, only: nav_stepper, nav_stepper_heun, nav_stepper_rkck, nav_stepper_dp,&
        nav_stepper_bs, nav_stepper_euler, nav_maxerr
-    use tools_math, only: norm
     use types, only: scalar_value
     use param, only: vsmall
     logical :: adaptive_stepper
@@ -2429,7 +2427,7 @@ contains
           end if
        else
           ! use the error estimate
-          nerr = norm(xerrv)
+          nerr = norm2(xerrv)
           if (nerr < NAV_maxerr) then
              ! accept point
              ier = 0

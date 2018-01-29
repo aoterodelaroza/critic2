@@ -59,7 +59,6 @@ contains
     use surface, only: minisurf
     use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot
     use tools, only: uniqc
-    use tools_math, only: norm
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
     use types, only: realloc
@@ -367,7 +366,7 @@ contains
           do i1 = 1, sy%c%ncel
              do i2 = 1, sy%c%ncel
                 if (i1 == i2) cycle
-                dist = norm(sy%c%atcel(i1)%r - sy%c%atcel(i2)%r)
+                dist = norm2(sy%c%atcel(i1)%r - sy%c%atcel(i2)%r)
                 if (dist > seed(i)%dist) cycle
                 do k = 1, seed(i)%npts
                    nn = nn + 1
@@ -382,13 +381,13 @@ contains
           do i1 = 1, sy%c%ncel
              do i2 = 1, sy%c%ncel
                 if (i1 == i2) cycle
-                dist = norm(sy%c%atcel(i1)%r - sy%c%atcel(i2)%r)
+                dist = norm2(sy%c%atcel(i1)%r - sy%c%atcel(i2)%r)
                 if (dist > seed(i)%dist) cycle
                 do i3 = 1, sy%c%ncel
                    if (i1 == i3 .or. i2 == i3) cycle
-                   dist = norm(sy%c%atcel(i1)%r - sy%c%atcel(i3)%r)
+                   dist = norm2(sy%c%atcel(i1)%r - sy%c%atcel(i3)%r)
                    if (dist > seed(i)%dist) cycle
-                   dist = norm(sy%c%atcel(i2)%r - sy%c%atcel(i3)%r)
+                   dist = norm2(sy%c%atcel(i2)%r - sy%c%atcel(i3)%r)
                    if (dist > seed(i)%dist) cycle
 
                    nn = nn + 1
@@ -695,7 +694,7 @@ contains
                    ! sphere
                    x = x - x0clip
                    x = sy%c%x2c(x)
-                   ok = .not.(norm(x) >= rclip) 
+                   ok = .not.(norm2(x) >= rclip) 
                 end if
              end if
 
@@ -939,14 +938,14 @@ contains
 
     integer :: i, j, k, l, ln, lvec(3), ilo, ihi
     real*8 :: x0(3), xq(3)
-    real*8 :: dist2(sy%f(sy%iref)%ncp,shmax), d2, dmin
+    real*8 :: dist(sy%f(sy%iref)%ncp,shmax), d2, dmin
     integer :: nneig(sy%f(sy%iref)%ncp,shmax), imin
     integer :: wcp(sy%f(sy%iref)%ncp,shmax)
 
     character*1, parameter :: namecrit(0:4) = &
        (/'n','b','r','c','?'/)
 
-    dist2 = 1d30
+    dist = 1d30
     dmin = 1d30
     nneig = 0
     wcp = 0
@@ -968,17 +967,17 @@ contains
              ln = ln / 3
              lvec(3) = mod(ln,3) - 1
              xq = sy%c%x2c(sy%f(sy%iref)%cpcel(j)%x + lvec)
-             d2 = dot_product(xq-x0,xq-x0)
+             d2 = norm2(xq-x0)
              if (d2 < 1d-12) cycle
              do l = 1, shmax
-                if (abs(d2 - dist2(i,l)) < 1d-12) then
+                if (abs(d2 - dist(i,l)) < 1d-8) then
                    nneig(i,l) = nneig(i,l) + 1
                    exit
-                else if (d2 < dist2(i,l)) then 
-                   dist2(i,l+1:shmax) = dist2(i,l:shmax-1)
+                else if (d2 < dist(i,l)) then 
+                   dist(i,l+1:shmax) = dist(i,l:shmax-1)
                    nneig(i,l+1:shmax) = nneig(i,l:shmax-1)
                    wcp(i,l+1:shmax) = wcp(i,l:shmax-1)
-                   dist2(i,l) = d2
+                   dist(i,l) = d2
                    nneig(i,l) = 1
                    wcp(i,l) = sy%f(sy%iref)%cpcel(j)%idx
                    exit
@@ -986,8 +985,8 @@ contains
              end do
           end do
        end do
-       if (dist2(i,1) < dmin) then
-          dmin = dist2(i,1)
+       if (dist(i,1) < dmin) then
+          dmin = dist(i,1)
           imin = i
        end if
     end do
@@ -1000,14 +999,14 @@ contains
              write (uout,'(6(A,X))') &
                 string(i,length=6,justify=ioj_center), namecrit(sy%f(sy%iref)%cp(i)%typind),&
                 string(nneig(i,j),length=5,justify=ioj_center), &
-                string(sqrt(dist2(i,j))*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
+                string(dist(i,j)*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
                 string(wcp(i,j),length=4,justify=ioj_center), &
                 namecrit(sy%f(sy%iref)%cp(wcp(i,j))%typind)
           else
              if (wcp(i,j) /= 0) then
                 write (uout,'(6X,"...",6(A,X))') &
                    string(nneig(i,j),length=5,justify=ioj_center), &
-                   string(sqrt(dist2(i,j))*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
+                   string(dist(i,j)*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
                    string(wcp(i,j),length=4,justify=ioj_center), &
                    namecrit(sy%f(sy%iref)%cp(wcp(i,j))%typind)
              end if
@@ -1016,7 +1015,7 @@ contains
     end do
     write (uout,*)
     write (uout,'("* Minimum CP distance is ",A,X,A," between CP# ",A," and ",A)') &
-       string(sqrt(dmin)*dunit0(iunit),'f',length=12,decimal=7,justify=ioj_center), &
+       string(dmin*dunit0(iunit),'f',length=12,decimal=7,justify=ioj_center), &
        string(iunitname0(iunit)), string(imin), string(wcp(imin,1))
     write (uout,*)
 
@@ -1705,7 +1704,7 @@ contains
   !> non-equivalent bcp and rcp.
   subroutine makegraph()
     use systemmod, only: sy
-    use tools_math, only: norm, eig
+    use tools_math, only: eig
     use types, only: scalar_value
     use param, only: pi
     integer :: i, j, k
@@ -1745,7 +1744,7 @@ contains
             else
                xx = evec(:,1)
             end if
-            xx = xx / norm(xx)
+            xx = xx / norm2(xx)
             xdtemp(:,1) = f%cp(i)%r + change * xx
             xdtemp(:,2) = f%cp(i)%r - change * xx
 
@@ -1783,7 +1782,7 @@ contains
             else
                xx = evec(:,1)
             end if
-            f%cpcel(i)%brvec = xx / norm(xx)
+            f%cpcel(i)%brvec = xx / norm2(xx)
          else
             f%cpcel(i)%brvec = 0d0
          end if
@@ -1796,7 +1795,7 @@ contains
             do j = 1, 2
                ! save difference vector and distance
                xdif(:,j) = xdis(:,j,i) - f%cp(i)%r
-               f%cp(i)%brdist(j) = sqrt(dot_product(xdif(:,j),xdif(:,j)))
+               f%cp(i)%brdist(j) = norm2(xdif(:,j))
                f%cp(i)%brpathlen(j) = xplen(j,i)
 
                ! check the identity of the cp
@@ -1832,10 +1831,13 @@ contains
                   f%cpcel(k)%ilvec(:,j) = nint(v - f%cpcel(wcp)%x)
                end do
             end do
-            f%cp(i)%brang = dot_product(xdif(:,1),xdif(:,2)) / &
-               (f%cp(i)%brdist(1)+1d-12) / (f%cp(i)%brdist(2)+1d-12)
+            if (f%cp(i)%brdist(1) > 1d-12) then
+               f%cp(i)%brang = dot_product(xdif(:,1),xdif(:,2)) / f%cp(i)%brdist(1) / f%cp(i)%brdist(2)
+            else
+               f%cp(i)%brang = 0d0
+            end if
             if (abs(f%cp(i)%brang) > 1d0) &
-               f%cp(i)%brang = f%cp(i)%brang / abs(f%cp(i)%brang+1d-12)
+               f%cp(i)%brang = f%cp(i)%brang / abs(f%cp(i)%brang)
             f%cp(i)%brang = acos(f%cp(i)%brang) * 180d0 / pi
          end if
       end do
@@ -1849,7 +1851,6 @@ contains
   !> rad. 
   subroutine scale_ws(rad,wso,ntetrag,tetrag)
     use systemmod, only: sy
-    use tools_math, only: norm
     real*8, intent(in) :: rad
     real*8, intent(in) :: wso(3)
     integer, intent(inout) :: ntetrag
@@ -1864,7 +1865,7 @@ contains
        do j = 1, 4
           x = tetrag(j,:,i) - wso
           x = sy%c%x2c(x)
-          maxn = max(norm(x),maxn)
+          maxn = max(norm2(x),maxn)
        end do
        ! scale to rad
        do j = 1, 4

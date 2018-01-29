@@ -380,10 +380,10 @@ contains
           if (istep == -1 .and. sy%f(sy%iref)%type == type_grid) then
              nstep = sy%f(sy%iref)%grid%n
           elseif (istep == 0 .or. istep == -1) then
-             nstep(i) = ceiling(sqrt(dot_product(x1,x1)) / xinc(i))
+             nstep(i) = ceiling(norm2(x1) / xinc(i))
           end if
           xmat(:,i) = x1 / real(nstep(i),8)
-          xinc(i) = sqrt(dot_product(xmat(:,i),xmat(:,i)))
+          xinc(i) = norm2(xmat(:,i))
        end do
     else
        ! use the grid step
@@ -521,7 +521,7 @@ contains
                     do ifr = 1, nfrag
                        do iat = 1, fr(ifr)%nat
                           xd = x - fr(ifr)%at(iat)%r
-                          dist = sqrt(dot_product(xd,xd))
+                          dist = norm2(xd)
                           iz = fr(ifr)%spc(fr(ifr)%at(iat)%is)%z
                           if (.not.agrid(iz)%isinit) cycle
                           if (dist > agrid(iz)%rmax) cycle

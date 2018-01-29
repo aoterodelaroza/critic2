@@ -1001,7 +1001,6 @@ contains
     use fieldmod, only: type_wfn, type_dftb
     use grid1mod, only: grid1, agrid
     use global, only: mesh_type
-    use tools_math, only: norm
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
     use param, only: bohrtoa, im_rho, im_null, im_b
     
@@ -1096,7 +1095,7 @@ contains
 
        do j = 1, m%n
           x = m%x(:,j) - sy%c%atcel(i)%r
-          r = norm(x)
+          r = norm2(x)
           call agrid(iz)%interp(r,rho,rhop,rhopp)
           m%f(j,2) = m%f(j,2) + rho
           m%f(j,3) = rho
@@ -1142,7 +1141,7 @@ contains
 
        ! calculate hole dipole and moments
        do j = 1, m%n
-          r = norm(m%x(:,j)-sy%c%atcel(i)%r)
+          r = norm2(m%x(:,j)-sy%c%atcel(i)%r)
           rb = max(0.d0,r-m%f(j,4))
 
           mm(1,i) = mm(1,i) + m%w(j) * m%f(j,2) * m%f(j,1) * (r-rb)**2

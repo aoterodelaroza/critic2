@@ -1312,7 +1312,7 @@ contains
     use types, only: realloc
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
        ferror, warning
-    use tools_math, only: norm, matinv
+    use tools_math, only: matinv
 
     integer, intent(in) :: natt
     real*8, intent(in) :: xgatt(3,natt)

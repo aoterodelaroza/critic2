@@ -684,7 +684,7 @@ contains
              xdif = matmul(xdif, rmati)
              xdif = xdif - nint(xdif)
              xdif = matmul(xdif, rmat)
-             found = sqrt(dot_product(xdif,xdif)) .le. TOLdist
+             found = norm2(xdif) .le. TOLdist
           endif
           j = j + 1
        enddo
@@ -706,7 +706,7 @@ contains
     integer :: i, j
     real*8  :: adj(3,3), det0, ddet, norm0
 
-    norm0 = (norm(xmat(:,1)) + norm(xmat(:,2)) + norm(xmat(:,3)))/3d0
+    norm0 = (norm2(xmat(:,1)) + norm2(xmat(:,2)) + norm2(xmat(:,3)))/3d0
     ierror = 0
     adj(1,1) = xmat(2,2)*xmat(3,3) - xmat(2,3)*xmat(3,2)
     adj(1,2) = xmat(2,3)*xmat(3,1) - xmat(2,1)*xmat(3,3)

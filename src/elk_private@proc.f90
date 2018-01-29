@@ -676,12 +676,12 @@ contains
     real*8, intent(out) :: dist
     integer, intent(out) :: lvec(3)
 
-    real*8 :: temp(3), d2, d2min
+    real*8 :: temp(3), d2
     integer :: j, i1, i2, i3
 
     integer, parameter :: imax = 1
 
-    d2min = 1d30
+    dist = 1d30
     do j= 1, f%ncel0
        do i1 = -imax, imax
           do i2 = -imax, imax
@@ -689,17 +689,16 @@ contains
                 temp = f%xcel(:,j) - xp
                 temp = temp - (nint(temp) + (/i1,i2,i3/))
                 temp = matmul(f%x2c,temp)
-                d2 = dot_product(temp,temp)
-                if (d2 < d2min) then
+                d2 = norm2(temp)
+                if (d2 < dist) then
                    nid = j
-                   d2min = d2
+                   dist = d2
                    lvec = nint(f%xcel(:,j) - xp) + (/i1,i2,i3/)
                 end if
              end do
           end do
        end do
     end do
-    dist = sqrt(d2min)
 
   end subroutine local_nearest_atom
 

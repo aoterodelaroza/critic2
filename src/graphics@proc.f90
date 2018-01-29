@@ -689,7 +689,7 @@ contains
   !> Write a stick to the obj file
   subroutine obj_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
-    use tools_math, only: norm, cross
+    use tools_math, only: cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
@@ -707,7 +707,7 @@ contains
 
     ! kill degenerate sticks
     xd = x2 - x1
-    dist = norm(xd)
+    dist = norm2(xd)
     if (dist < 1d-6) return
     
     ! local coordinates of the tube
@@ -721,8 +721,8 @@ contains
        return
     endif
     v2 = cross(xd,v1)
-    v1 = v1 / norm(v1) * r
-    v2 = v2 / norm(v2) * r
+    v1 = v1 / norm2(v1) * r
+    v2 = v2 / norm2(v2) * r
 
     ! write the stick to the obj
     g%nstick = g%nstick + 1
@@ -961,7 +961,7 @@ contains
   !> Write a stick to the ply file
   subroutine ply_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
-    use tools_math, only: norm, cross
+    use tools_math, only: cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
@@ -979,7 +979,7 @@ contains
     
     ! kill degenerate sticks
     xd = x2 - x1
-    dist = norm(xd)
+    dist = norm2(xd)
     if (dist < 1d-6) return
     
     ! local coordinates of the tube
@@ -993,8 +993,8 @@ contains
        return
     endif
     v2 = cross(xd,v1)
-    v1 = v1 / norm(v1) * r
-    v2 = v2 / norm(v2) * r
+    v1 = v1 / norm2(v1) * r
+    v2 = v2 / norm2(v2) * r
 
     ! write the stick to the ply
     do i = 1, nvcyl(lvl)
@@ -1195,7 +1195,7 @@ contains
   !> Write a stick to the off file
   subroutine off_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
-    use tools_math, only: norm, cross
+    use tools_math, only: cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
@@ -1214,7 +1214,7 @@ contains
     
     ! kill degenerate sticks
     xd = x2 - x1
-    dist = norm(xd)
+    dist = norm2(xd)
     if (dist < 1d-6) return
     
     ! local coordinates of the tube
@@ -1228,8 +1228,8 @@ contains
        return
     endif
     v2 = cross(xd,v1)
-    v1 = v1 / norm(v1) * r
-    v2 = v2 / norm(v2) * r
+    v1 = v1 / norm2(v1) * r
+    v2 = v2 / norm2(v2) * r
 
     ! write the stick to the off
     do i = 1, nvcyl(lvl)
