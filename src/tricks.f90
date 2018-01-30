@@ -33,7 +33,8 @@ contains
     ! call trick_grid_sphere()
     ! call trick_stephens_nnm_channel(line0)
     ! call trick_cell_integral()
-    write (*,*) "no tricks for now"
+    call trick_check_shortest()
+    ! write (*,*) "no tricks for now"
     
   end subroutine trick
 
@@ -364,5 +365,73 @@ contains
   !   write (uout,'("cell integral ",A)') string(sum(m%f(:,1) * m%w),'f',12,6)
 
   ! end subroutine trick_cell_integral
+
+  !> Check that the shortest vector is inside the calculated WS cell.
+  subroutine trick_check_shortest()
+    use systemmod, only: sy
+    use tools_io, only: uout, string, ioj_right
+
+    integer :: i, j, k, l
+    real*8 :: x(3), xs(3), xin(3), dd
+    integer :: nvws, nnok
+    real*8, allocatable :: xvws(:,:)
+    logical :: inside
+
+    integer, parameter :: npts = 10
+
+    write (uout,*) "* Checking the implementation of the shortest routine"
+    write (uout,*)
+
+    write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
+    nvws = sy%c%nws
+    do i = 1, nvws
+       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ivws(j,i)),j=1,3)
+    end do
+    write (uout,*)
+
+    allocate(xvws(3,nvws))
+    write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
+    do i = 1, nvws
+       x = 0.5d0 * sy%c%x2c(real(sy%c%ivws(:,i),8))
+       xvws(:,i) = x
+       write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
+    end do
+    write (uout,*)
+
+    write (uout,'("Testing points")') 
+    nnok = 0
+    do i = 1, npts
+       do j = 1, npts
+          do k = 1, npts
+             xs = (/real(i-1,8),real(j-1,8),real(k-1,8)/) / real(npts,8)
+             xin = xs
+             call sy%c%shortest(xs,dd)
+             x = sy%c%c2x(xs)
+
+             inside = .true.
+             do l = 1, nvws
+                inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= 1d-14)
+             end do
+             if (.not.inside) then
+                nnok = nnok + 1
+                write (uout,'("Orig:",3(X,A)," | Tran:",3(X,A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+                   (string(x(l),'f',10,5,ioj_right),l=1,3), string(inside)
+             end if
+
+             write (uout,'("Orig:",3(X,A)," | L:",3(X,A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+                (string(x(l)-xin(l),'f',10,5,ioj_right),l=1,3)
+          end do
+       end do
+    end do
+    if (nnok == 0) then
+       write (uout,'("All points OK.")')
+    else
+       write (uout,'("There were ",A," points outside the WS cell")') string(nnok)
+    end if
+    write(uout,*)
+
+    deallocate(xvws)
+
+  end subroutine trick_check_shortest
 
 end module tricks

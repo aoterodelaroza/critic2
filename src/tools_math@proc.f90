@@ -76,12 +76,12 @@ contains
     calphl = cos(bbl(1) * deg2rad)
     cbetal = cos(bbl(2) * deg2rad)
     cgamml = cos(bbl(3) * deg2rad)
-    HH1 = sqrt(1d0-cgamml*cgamml)
-    HH2 = (calphl-cbetal*cgamml) / sqrt(1d0-cgamml*cgamml)
+    HH1 = sqrt(max(1d0-cgamml*cgamml,0d0))
+    HH2 = (calphl-cbetal*cgamml) / HH1
     fac = 1d0 - cbetal*cbetal - HH2*HH2
     if (fac < 0d0) &
        call ferror("crys2car_from_cellpar","invalid cell",faterr)
-    HH3 = sqrt(1d0 - cbetal*cbetal - HH2*HH2)
+    HH3 = sqrt(max(1d0 - cbetal*cbetal - HH2*HH2,0d0))
 
     mat = 0d0
     mat(1,1) = aal(1)
