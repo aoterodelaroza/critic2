@@ -4427,7 +4427,7 @@ contains
     call fclose(lu)
 
     if (verbose) &
-       write (uout,'("+ Atom type sequence: ",A)') lbl1
+       write (uout,'("+ Atom type sequence: ",999(A,X))') (string(c%spc(j)%name),j=1,c%nspc)
 
   end subroutine write_vasp
 
