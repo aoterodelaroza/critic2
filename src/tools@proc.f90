@@ -580,23 +580,4 @@ contains
 
   end subroutine imergesort
 
-  !> Delete a file
-  module subroutine unlink(file)
-    use, intrinsic :: iso_c_binding
-    character(len=*), intent(in) :: file
-
-    interface 
-       subroutine unlink_wrap(file) bind(c,name="unlink_wrap")
-         use, intrinsic :: iso_c_binding
-         character(kind=c_char) :: file
-       end subroutine unlink_wrap
-    end interface
-
-    character(len=len_trim(file)+1) :: filec
-
-    filec = trim(file) // C_NULL_CHAR
-    call unlink_wrap(filec)
-
-  end subroutine unlink
-
 end submodule proc

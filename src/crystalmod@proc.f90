@@ -3355,14 +3355,13 @@ contains
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
   module subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
      nvert_ws,nside_ws,iside_ws,vws)
-    use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
+    use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
     use global, only: fileroot
     use tools_math, only: mixed, cross
     use tools_io, only: string, filepath, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use param, only: dirsep
     use types, only: realloc
-
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xorigin(3) !< Origin of the WS cell
     integer, intent(out), optional :: nvec !< Number of lattice point neighbors
@@ -3376,64 +3375,54 @@ contains
     real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell
 
     interface
-       subroutine doqhull(fin,fvert,fface,ithr) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int
-         character(kind=c_char) :: fin(*), fvert(*), fface(*)
-         integer(kind=c_int) :: ithr
-       end subroutine doqhull
+       subroutine runqhull1(n,xstar,nf,nv,mnfv) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: n
+         real(c_double) :: xstar(3,n)
+         integer(c_int) :: nf, nv, mnfv
+       end subroutine runqhull1
+       subroutine runqhull2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: nf, nv, mnfv
+         integer(c_int) :: ivws(nf)
+         real(c_double) :: xvws(3,nv)
+         integer(c_int) :: nfvws(mnfv)
+         integer(c_int) :: fvws(mnfv)
+       end subroutine runqhull2
     end interface
 
     ! three WS vertices are collinear if det < -eps
     real*8, parameter :: eps_wspesca = 1d-5 !< Criterion for tetrahedra equivalence
     real*8, parameter :: ws_eps_vol = 1d-5 !< Reject tetrahedra smaller than this.
     real*8, parameter :: eps_bary = 1d-1 !< barycenter identification
-    integer, parameter :: icelmax_def = 2 !< maximum number of cells in a direction.
-    integer, parameter :: icelmax_safe = 4 !< maximum number of cells in a direction (safe)
-    integer, parameter :: icelmax_usafe = 10 !< maximum number of cells in a direction (ultra-safe)
+    real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
 
-    real*8 :: rnorm
-    integer :: i, j, k, n, npolig, leqv, icelmax
-    real*8 :: xp1(3), xp2(3), xp3(3), x0(3)
+    integer :: leqv, i, j, k, n
+    real*8 :: xp1(3), xp2(3), xp3(3), sumi, av(3), area, dd
     logical, allocatable :: active(:)
-    real*8, allocatable :: tvol(:), xstar(:,:)
-    real*8 :: lrotm(3,3,48), sumi, xoriginc(3)
-    real*8 :: area, bary(3), av(3)
-    real*8 :: x2r(3,3), r2x(3,3)
-    real*8, allocatable :: xws(:,:)
-    integer :: nvert, iaux, lu
-    integer, allocatable :: nside(:), iside(:,:)
-    character(len=:), allocatable :: file1, file2, file3
-    character(kind=c_char,len=1024) :: file1c, file2c, file3c
+    real*8, allocatable :: tvol(:)
+    real*8 :: lrotm(3,3,48), xoriginc(3), x0(3), bary(3)
     character*3 :: pg
     real*8 :: rmat(3,4), rmati(3,3)
-    ! qhull threshold for face recognition
-    integer(c_int) :: ithr
-    integer(c_int), parameter :: ithr_def = 5
+    integer(c_int) :: n, nf, nv, mnfv
+    real(c_double) :: xstar(3,14)
+    integer :: i, j
+    integer(c_int), allocatable :: ivws(:), nfvws(:), fvws(:,:)
+    real(c_double), allocatable :: xvws(:,:)
 
     ! set origin
     xoriginc = c%x2c(xorigin)
 
-    ! input for delaunay
+    ! delaunay reduction
     rmati = 0d0
     do i = 1, 3
        rmati(i,i) = 1d0
     end do
-
-    ! cartesian/crystallographic
-    x2r = c%crys2car
-    r2x = c%car2crys
-    rnorm = 1d0
-
-    ! anchor for when critic2 and qhull fight each other
-    ithr = ithr_def
-    icelmax = icelmax_def
-99  continue
+    call c%delaunay_reduction(rmat,rmati)
 
     ! construct star of lattice vectors -> use Delaunay reduction
     ! see 9.1.8 in ITC.
     n = 14
-    allocate(xstar(3,14))
-    call c%delaunay_reduction(rmat,rmati)
     xstar(:,1)  = rmat(:,1)
     xstar(:,2)  = rmat(:,2)
     xstar(:,3)  = rmat(:,3)
@@ -3449,92 +3438,45 @@ contains
     xstar(:,13) = -(rmat(:,1)+rmat(:,3))
     xstar(:,14) = -(rmat(:,2)+rmat(:,3))
     do i = 1, 14
-       xstar(:,i) = matmul(x2r,xstar(:,i))
+       xstar(:,i) = matmul(c%crys2car,xstar(:,i))
+       if (norm2(xstar(:,i)) < eps_dnorm) &
+          call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
 
-    ! compute the voronoi polyhedron using libqhull
-    file1 = trim(filepath) // dirsep // trim(fileroot) // "_wsstar.dat"
-    file1c = trim(file1) // C_NULL_CHAR
-    file2 = trim(filepath) // dirsep // trim(fileroot) // "_wsvert.dat"
-    file2c = trim(file2) // C_NULL_CHAR
-    file3 = trim(filepath) // dirsep // trim(fileroot) // "_wsface.dat"
-    file3c = trim(file3) // C_NULL_CHAR
+    call runqhull1(n,xstar,nf,nv,mnfv)
+    allocate(ivws(nf),nfvws(nf),fvws(mnfv,nf),xvws(3,nv))
+    call runqhull2(nf,nv,mnfv,ivws,xvws,nfvws,fvws)
 
-    ! write the file with the star vertices
-    lu = fopen_write(file1,abspath0=.true.)
-    write (lu,'("3"/I4)') n+1
-    write (lu,'(3(E24.14,X))') 0d0,0d0,0d0
-    do i = 1, n
-       write (lu,'(3(E24.14,X))') xstar(:,i)
-    end do
-    call fclose(lu)
-    deallocate(xstar)
+    ! nvert = nv
+    ! xws = xvws
+    ! npolig = nf
+    ! nside = nfvws
+    ! iside = fvws
 
-    ! run qhull
-    call doqhull(file1c,file2c,file3c,ithr)
-
-    ! read the vertices from file number 2
-    lu = fopen_read(file2,abspath0=.true.)
-    read(lu,*)
-    read(lu,*) nvert
-    allocate(xws(3,nvert))
-    do i = 1, nvert
-       read(lu,*) xws(:,i)
-    end do
-    call fclose(lu)
-
-    ! first pass, the number of sides of each polygon
-    lu = fopen_read(file3,abspath0=.true.)
-    read(lu,*)
-    read(lu,*) iaux, npolig
-    allocate(nside(npolig))
-    do i = 1, nvert
-       read(lu,*)
-    end do
-    do i = 1, npolig
-       read(lu,*) nside(i)
-    end do
-
-    ! second pass, the side indices
-    rewind(lu)
-    read(lu,*)
-    read(lu,*)
-    do i = 1, nvert
-       read(lu,*)
-    end do
-    allocate(iside(npolig,maxval(nside)))
-    do i = 1, npolig
-       read(lu,*) iaux, (iside(i,j),j=1,nside(i))
-    end do
-    iside = iside + 1
-
-    call fclose(lu)
+    ! nside_ws = nfvws
+    ! iside_ws = fvws
+    ! nvert_ws = nv
+    ! vws = xvws (converted to crystallographic)
 
     ! save faces and vertices
     if (present(nside_ws)) then
        if (allocated(nside_ws)) deallocate(nside_ws)
-       allocate(nside_ws(npolig))
-       nside_ws = nside(1:npolig)
+       allocate(nside_ws(nf))
+       nside_ws = nfvws(1:nf)
     end if
     if (present(iside_ws)) then
        if(allocated(iside_ws)) deallocate(iside_ws)
-       allocate(iside_ws(maxval(nside(1:npolig)),npolig))
-       iside_ws = 0
-       do i = 1, npolig
-          do j = 1, nside(i)
-             iside_ws(j,i) = iside(i,j)
-          end do
-       end do
+       allocate(iside_ws(mnfv,nf))
+       iside_ws = fvws
     end if
     if (present(nvert_ws)) then
-       nvert_ws = nvert
+       nvert_ws = nv
     end if
     if (present(vws)) then
        if (allocated(vws)) deallocate(vws)
-       allocate(vws(3,nvert))
-       do i = 1, nvert
-          x0 = matmul(r2x,xws(:,i))
-          vws(:,i) = x0
+       allocate(vws(3,nv))
+       do i = 1, nv
+          vws(:,i) = matmul(c%car2crys,xvws(:,i))
        end do
     end if
 
@@ -3547,18 +3489,18 @@ contains
        ntetrag = 0
        if (allocated(tetrag)) deallocate(tetrag)
        allocate(tetrag(4,3,10))
-       do i = 1, npolig
-          n = nside(i)
+       do i = 1, nf
+          n = nfvws(i)
           ! calculate middle point of the face
           x0 = 0d0
           do j = 1, n
-             x0 = x0 + xws(:,iside(i,j))
+             x0 = x0 + xvws(:,fvws(j,i))
           end do
           x0 = x0 / n
 
           do j = 1, n
-             xp1 = xws(:,iside(i,j))
-             xp2 = xws(:,iside(i,mod(j,n)+1))
+             xp1 = xvws(:,fvws(j,i))
+             xp2 = xvws(:,fvws(mod(j,n)+1,i))
              if (ntetrag+2>size(tetrag,3)) &
                 call realloc(tetrag,4,3,2*size(tetrag,3))
              ! tetrah 1
@@ -3592,7 +3534,7 @@ contains
           end if
           sumi = sumi + tvol(i)
           do j = 1, 4
-             tetrag(j,:,i) = matmul(r2x,tetrag(j,:,i))
+             tetrag(j,:,i) = matmul(c%car2crys,tetrag(j,:,i))
           end do
        end do
 
@@ -3633,63 +3575,35 @@ contains
           call ferror('wigner','incorrect call',faterr)
        ! calculate neighbors and areas
        nvec = 0
-       do i = 1, npolig
+       do i = 1, nf
           ! lattice point
           bary = 0d0
-          do j = 1, nside(i)
-             bary = bary + xws(:,iside(i,j))
+          do j = 1, nfvws(i)
+             bary = bary + xvws(:,fvws(j,i))
           end do
-          bary = 2d0 * bary / nside(i)
-
+          bary = 2d0 * bary / nfvws(i)
+          
           ! area of a convex polygon
           av = 0d0
-          do j = 1, nside(i)
-             k = mod(j,nside(i))+1
-             av = av + cross(xws(:,iside(i,j)),xws(:,iside(i,k)))
+          do j = 1, nfvws(i)
+             k = mod(j,nfvws(i))+1
+             av = av + cross(xvws(:,fvws(j,i)),xvws(:,fvws(k,i)))
           end do
-          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary)) / rnorm**2
-          bary = matmul(r2x,bary)
+          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
+          bary = matmul(c%car2crys,bary)
 
           nvec = nvec + 1
           vec(:,nvec) = nint(bary)
-          if (any(bary - nint(bary) > eps_bary)) then
-             ithr = ithr - 1
-             if (ithr > 1) then
-                ! write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
-                ! call ferror("wigner","wrong lattice vector",warning)
-             else
-                if (icelmax == icelmax_def) then
-                   icelmax = icelmax_safe
-                   ithr = ithr_def
-                   ! write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
-                   ! call ferror("wigner","wrong lattice vector",warning)
-                elseif (icelmax == icelmax_safe) then
-                   icelmax = icelmax_usafe
-                   ithr = ithr_def
-                   ! write (uout,'("(!!) Restarting with ithr = ",I2," icelmax = ",I2)') ithr, icelmax
-                   ! call ferror("wigner","wrong lattice vector",warning)
-                else
-                   call ferror("wigner","wrong lattice vector",faterr)
-                end if
-             end if
-             call unlink(file1)
-             call unlink(file2)
-             call unlink(file3)
-             deallocate(xws,iside,nside)
-             goto 99
-          end if
+          if (any(bary - nint(bary) > eps_bary)) &
+             call ferror("wigner","Barycenter does not match any lattice vector.",faterr)
           if (present(area0)) then
              area0(nvec) = area
           endif
        end do
     end if
 
-    ! remove the temporary files and cleanup
-    call unlink(file1)
-    call unlink(file2)
-    call unlink(file3)
-    deallocate(xws,iside,nside)
-
+    deallocate(ivws,nfvws,fvws,xvws)
+    
   end subroutine wigner
 
   !> Partition the unit cell in tetrahedra.

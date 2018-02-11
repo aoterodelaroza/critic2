@@ -30,8 +30,6 @@ module tools
   public :: uniqc
   public :: mergesort
   public :: imergesort
-  !xx! system
-  public :: unlink
   
   interface
      module subroutine qcksort (arr, iord, first, last)
@@ -60,9 +58,6 @@ module tools
        integer, dimension (:), intent (in) :: xvalt
        integer, dimension (:), intent (out) :: irngt
      end subroutine imergesort
-     module subroutine unlink(file)
-       character(len=*), intent(in) :: file
-     end subroutine unlink
   end interface
 
 end module tools
