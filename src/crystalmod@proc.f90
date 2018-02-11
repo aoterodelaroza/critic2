@@ -3570,11 +3570,15 @@ contains
        deallocate(active,tvol)
     end if
 
-    if (present(nvec)) then
-       if (.not.present(vec)) &
-          call ferror('wigner','incorrect call',faterr)
-       ! calculate neighbors and areas
-       nvec = 0
+    if (present(nvec)) &
+       nvec = nf
+    if (present(vec)) then
+       vec = 0
+       do i = 1, nf
+          vec(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
+       end do
+    end if
+    if (present(area0)) then
        do i = 1, nf
           ! lattice point
           bary = 0d0
@@ -3582,23 +3586,14 @@ contains
              bary = bary + xvws(:,fvws(j,i))
           end do
           bary = 2d0 * bary / nfvws(i)
-          
+
           ! area of a convex polygon
           av = 0d0
           do j = 1, nfvws(i)
              k = mod(j,nfvws(i))+1
              av = av + cross(xvws(:,fvws(j,i)),xvws(:,fvws(k,i)))
           end do
-          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
-          bary = matmul(c%car2crys,bary)
-
-          nvec = nvec + 1
-          vec(:,nvec) = nint(bary)
-          if (any(bary - nint(bary) > eps_bary)) &
-             call ferror("wigner","Barycenter does not match any lattice vector.",faterr)
-          if (present(area0)) then
-             area0(nvec) = area
-          endif
+          area0(i) = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
        end do
     end if
 
