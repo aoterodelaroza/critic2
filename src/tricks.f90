@@ -383,16 +383,16 @@ contains
     write (uout,*)
 
     write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
-    nvws = sy%c%nws
+    nvws = sy%c%ws_nf
     do i = 1, nvws
-       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ivws(j,i)),j=1,3)
+       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineigh(j,i)),j=1,3)
     end do
     write (uout,*)
 
     allocate(xvws(3,nvws))
     write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
     do i = 1, nvws
-       x = 0.5d0 * sy%c%x2c(real(sy%c%ivws(:,i),8))
+       x = 0.5d0 * sy%c%x2c(real(sy%c%ws_ineigh(:,i),8))
        xvws(:,i) = x
        write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
     end do

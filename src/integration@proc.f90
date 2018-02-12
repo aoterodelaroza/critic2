@@ -2303,10 +2303,10 @@ contains
     caux%bb = sy%c%bb
     caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
     caux%car2crys = matinv(caux%crys2car)
-    call caux%wigner((/0d0,0d0,0d0/),nvec=caux%nws,vec=caux%ivws,&
-       nvert_ws=caux%nvert_ws,nside_ws=caux%nside_ws,iside_ws=caux%iside_ws,&
-       vws=caux%vws)
-    allocate(xface(3,size(caux%iside_ws,1)))
+    call caux%wigner((/0d0,0d0,0d0/),nv=caux%ws_nv,nf=caux%ws_nf,mnfv=caux%ws_mnfv,&
+       ineigh=caux%ws_ineigh,nside=caux%ws_nside,iside=caux%ws_iside,&
+       vws=caux%ws_x)
+    allocate(xface(3,caux%ws_mnfv))
 
     ! output
     write (uout,'("* Basins written to ",A,"_basins-*.",A/)') trim(fileroot), fmt
@@ -2354,11 +2354,11 @@ contains
                    x = sy%c%x2c(xgatt(:,i)) + xd
 
                    ! plot, if on the border of the cell
-                   do j = 1, caux%nws
-                      q = modulo(p + caux%ivws(:,j) - 1,n) + 1
+                   do j = 1, caux%ws_nf
+                      q = modulo(p + caux%ws_ineigh(:,j) - 1,n) + 1
                       if (idg0(q(1),q(2),q(3)) /= i) then
-                         do k = 1, caux%nside_ws(j)
-                            xface(:,k) = x + caux%x2c(caux%vws(:,caux%iside_ws(k,j)))
+                         do k = 1, caux%ws_nside(j)
+                            xface(:,k) = x + caux%x2c(caux%ws_x(:,caux%ws_iside(k,j)))
                          end do
                          call gr%polygon(xface,rgb1)
                       end if

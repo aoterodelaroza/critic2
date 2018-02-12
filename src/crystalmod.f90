@@ -77,12 +77,18 @@ module crystalmod
      real*8 :: molx0(3) !< centering vector for the molecule
      real*8 :: molborder(3) !< molecular cell border (cryst coords)
      ! wigner-seitz cell 
-     integer :: nws !< number of WS neighbors/faces
-     integer :: ivws(3,16) !< WS neighbor lattice points
-     integer :: nvert_ws !< number of vertices of the WS cell
-     integer, allocatable :: nside_ws(:) !< number of sides of WS faces
-     integer, allocatable :: iside_ws(:,:) !< sides of the WS faces
-     real*8, allocatable :: vws(:,:) !< vertices of the WS cell
+     integer :: ws_nv !< number of vertices
+     integer :: ws_nf !< number of facets
+     integer :: ws_mnfv !< maximum number of vertices per facet
+     integer :: ws_ineigh(3,14) !< WS neighbor lattice points (cryst. coords.)
+     integer :: ws_nside(14) !< number of sides of WS faces
+     integer, allocatable :: ws_iside(:,:) !< sides of the WS faces
+     real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
+
+     ! ws_x - vws
+
+     ! ivws_del
+
      logical :: isortho !< is the cell orthogonal?
      ! rotations and translations for finding shortest vectors
      real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
@@ -472,19 +478,20 @@ module crystalmod
        logical, intent(in) :: usenneq
        logical, intent(in) :: onlyspg
      end subroutine spglib_wrap
-     module subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
-        nvert_ws,nside_ws,iside_ws,vws)
+     module subroutine wigner(c,xorigin,nv,nf,mnfv,ineigh,nside,iside,area,vws,&
+        ntetrag,tetrag)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xorigin(3)
-       integer, intent(out), optional :: nvec
-       integer, intent(out), optional :: vec(3,16)
-       real*8, intent(out), optional :: area0(40)
+       integer, intent(out), optional :: nv
+       integer, intent(out), optional :: nf
+       integer, intent(out), optional :: mnfv
+       integer, intent(out), optional :: ineigh(3,14)
+       integer, intent(out), optional :: nside(14)
+       integer, allocatable, intent(inout), optional :: iside(:,:)
+       real*8, intent(out), optional :: area(14)
+       real*8, allocatable, intent(inout), optional :: vws(:,:)
        integer, intent(out), optional :: ntetrag
        real*8, allocatable, intent(inout), optional :: tetrag(:,:,:)
-       integer, intent(out), optional :: nvert_ws
-       integer, allocatable, intent(inout), optional :: nside_ws(:)
-       integer, allocatable, intent(inout), optional :: iside_ws(:,:)
-       real*8, allocatable, intent(inout), optional :: vws(:,:)
      end subroutine wigner
      module subroutine pmwigner(c,ntetrag,tetrag)
        class(crystal), intent(in) :: c

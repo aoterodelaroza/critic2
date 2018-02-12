@@ -104,7 +104,7 @@ contains
     caux%bb = s%c%bb
     caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
     caux%car2crys = matinv(caux%crys2car)
-    call caux%wigner((/0d0,0d0,0d0/),nvec=nvec,vec=vec,area0=al)
+    call caux%wigner((/0d0,0d0,0d0/),nf=nvec,ineigh=vec,area=al)
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))

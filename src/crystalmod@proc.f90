@@ -90,7 +90,9 @@ contains
     c%cen = 0d0
     c%isortho = .false.
     c%isortho_del = .false.
-    c%nws = 0
+    c%ws_nv = 0
+    c%ws_nf = 0
+    c%ws_mnfv = 0
     c%spg%n_atoms = 0
 
     ! no molecule
@@ -197,9 +199,8 @@ contains
     if (allocated(c%at)) deallocate(c%at)
     if (allocated(c%atcel)) deallocate(c%atcel)
     if (allocated(c%cen)) deallocate(c%cen)
-    if (allocated(c%nside_ws)) deallocate(c%nside_ws)
-    if (allocated(c%iside_ws)) deallocate(c%iside_ws)
-    if (allocated(c%vws)) deallocate(c%vws)
+    if (allocated(c%ws_iside)) deallocate(c%ws_iside)
+    if (allocated(c%ws_x)) deallocate(c%ws_x)
     if (allocated(c%atenv)) deallocate(c%atenv)
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
@@ -221,8 +222,9 @@ contains
     c%ismolecule = .false.
     c%molx0 = 0d0
     c%molborder = 0d0
-    c%nws = 0
-    c%nvert_ws = 0
+    c%ws_nv = 0
+    c%ws_nf = 0
+    c%ws_mnfv = 0
     c%nenv = 0
     c%nmol = 0
 
@@ -412,8 +414,8 @@ contains
     c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
 
     ! calculate the wigner-seitz cell
-    call c%wigner((/0d0,0d0,0d0/),nvec=c%nws,vec=c%ivws,&
-       nvert_ws=c%nvert_ws,nside_ws=c%nside_ws,iside_ws=c%iside_ws,vws=c%vws)
+    call c%wigner((/0d0,0d0,0d0/),nv=c%ws_nv,nf=c%ws_nf,mnfv=c%ws_mnfv,&
+       ineigh=c%ws_ineigh,nside=c%ws_nside,iside=c%ws_iside,vws=c%ws_x)
 
     ! calculate the translations for shortest vector search
     call c%delaunay_reduction(rdel4,rbas=rdel)
@@ -421,17 +423,17 @@ contains
     c%rdeli = transpose(rdel)
     c%rdelr = matinv(c%rdeli)
     c%rdeli_x2c = matmul(c%rdeli,transpose(c%crys2car))
-    do i = 1, c%nws
-       c%ivws_del(:,i) = nint(matmul(c%ivws(:,i),c%rdelr))
+    do i = 1, c%ws_nf
+       c%ivws_del(:,i) = nint(matmul(c%ws_ineigh(:,i),c%rdelr))
     end do
 
     ! orthogonality of the cell and the reduced cell
-    c%isortho = (c%nws <= 6)
+    c%isortho = (c%ws_nf <= 6)
     if (c%isortho) then
        c%isortho_del = .true.
-       do i = 1, c%nws
-          c%isortho = c%isortho .and. (count(abs(c%ivws(:,i)) == 1) == 1) .and.&
-             (count(abs(c%ivws(:,i)) == 0) == 2)
+       do i = 1, c%ws_nf
+          c%isortho = c%isortho .and. (count(abs(c%ws_ineigh(:,i)) == 1) == 1) .and.&
+             (count(abs(c%ws_ineigh(:,i)) == 0) == 2)
           c%isortho_del = c%isortho_del .and. (count(abs(c%ivws_del(:,i)) == 1) == 1) .and.&
              (count(abs(c%ivws_del(:,i)) == 0) == 2)
        end do
@@ -733,7 +735,7 @@ contains
        x = matmul(x,c%rdeli_x2c)
        dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
        if (.not.c%isortho_del) then
-          do i = 1, c%nws
+          do i = 1, c%ws_nf
              xtry = x0 + c%ivws_del(:,i)
              xtry = matmul(xtry,c%rdeli_x2c)
              dvws = xtry(1)*xtry(1)+xtry(2)*xtry(2)+xtry(3)*xtry(3)
@@ -1239,13 +1241,13 @@ contains
              x0 = x0 - lvec0
              d0 = bondfactor * (atmcov(c%spc(c%atcel(i)%is)%z)+atmcov(c%spc(c%atcel(j)%is)%z))
 
-             do k = 0, c%nws
+             do k = 0, c%ws_nf
                 if (k == 0) then
                    rvws = x0
                    lvec = lvec0
                 else
-                   rvws = x0 - c%ivws(:,k)
-                   lvec = lvec0 + c%ivws(:,k)
+                   rvws = x0 - c%ws_ineigh(:,k)
+                   lvec = lvec0 + c%ws_ineigh(:,k)
                 endif
                 rvws = matmul(c%crys2car,rvws)
                 dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
@@ -3096,26 +3098,26 @@ contains
              string("y",length=11,justify=ioj_center),&
              string("z",length=11,justify=ioj_center),&
              string("d ("//iunitname0(iunit)//")",length=14,justify=ioj_center)
-          do i = 1, c%nvert_ws
-             x0 = c%x2c(c%vws(:,i))
+          do i = 1, c%ws_nv
+             x0 = c%x2c(c%ws_x(:,i))
              write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
-                (string(c%vws(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
+                (string(c%ws_x(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
                 string(norm2(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
           enddo
           write (uout,*)
 
           write (uout,'("+ Faces of the WS cell")')
-          write (uout,'("  Number of faces: ",A)') string(c%nws)
-          do i = 1, c%nws
+          write (uout,'("  Number of faces: ",A)') string(c%ws_nf)
+          do i = 1, c%ws_nf
              write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
-                (string(c%iside_ws(j,i),length=2),j=1,c%nside_ws(i))
+                (string(c%ws_iside(j,i),length=2),j=1,c%ws_nside(i))
           end do
           write (uout,*)
 
           write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
-          do i = 1, c%nws
+          do i = 1, c%ws_nf
              write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
-                (string(c%ivws(j,i),length=2,justify=ioj_right),j=1,size(c%ivws,1))
+                (string(c%ws_ineigh(j,i),length=2,justify=ioj_right),j=1,3)
           end do
           write (uout,*)
 
@@ -3353,8 +3355,8 @@ contains
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
-  module subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
-     nvert_ws,nside_ws,iside_ws,vws)
+  module subroutine wigner(c,xorigin,nv,nf,mnfv,ineigh,nside,iside,area,vws,&
+     ntetrag,tetrag)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
     use global, only: fileroot
     use tools_math, only: mixed, cross
@@ -3364,15 +3366,16 @@ contains
     use types, only: realloc
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xorigin(3) !< Origin of the WS cell
-    integer, intent(out), optional :: nvec !< Number of lattice point neighbors
-    integer, intent(out), optional :: vec(3,16) !< Integer vectors to neighbors
-    real*8, intent(out), optional :: area0(40) !< Area to neighbors
+    integer, intent(out), optional :: nv !< Number of vertices
+    integer, intent(out), optional :: nf !< Number of faces
+    integer, intent(out), optional :: mnfv !< Maximum number of vertices per face
+    integer, intent(out), optional :: ineigh(3,14) !< WS neighbors (cryst. coords.)
+    integer, intent(out), optional :: nside(14) !< number of sides of WS faces
+    integer, allocatable, intent(inout), optional :: iside(:,:) !< sides of the WS faces
+    real*8, intent(out), optional :: area(14) !< area of the WS faces 
+    real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell (cryst coords)
     integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
     real*8, allocatable, intent(inout), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
-    integer, intent(out), optional :: nvert_ws !< number of vertices of the WS cell
-    integer, allocatable, intent(inout), optional :: nside_ws(:) !< number of sides of WS faces
-    integer, allocatable, intent(inout), optional :: iside_ws(:,:) !< sides of the WS faces
-    real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell
 
     interface
        subroutine runqhull1(n,xstar,nf,nv,mnfv) bind(c)
@@ -3398,16 +3401,17 @@ contains
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
 
     integer :: leqv, i, j, k, n
-    real*8 :: xp1(3), xp2(3), xp3(3), sumi, av(3), area, dd
+    real*8 :: xp1(3), xp2(3), xp3(3), sumi, av(3), dd
     logical, allocatable :: active(:)
     real*8, allocatable :: tvol(:)
     real*8 :: lrotm(3,3,48), xoriginc(3), x0(3), bary(3)
     character*3 :: pg
     real*8 :: rmat(3,4), rmati(3,3)
-    integer(c_int) :: n, nf, nv, mnfv
+    integer(c_int) :: n, nf_, nv_, mnfv_
     real(c_double) :: xstar(3,14)
     integer :: i, j
-    integer(c_int), allocatable :: ivws(:), nfvws(:), fvws(:,:)
+    integer :: nside_(14)
+    integer(c_int), allocatable :: ivws(:), iside_(:,:)
     real(c_double), allocatable :: xvws(:,:)
 
     ! set origin
@@ -3443,39 +3447,31 @@ contains
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
 
-    call runqhull1(n,xstar,nf,nv,mnfv)
-    allocate(ivws(nf),nfvws(nf),fvws(mnfv,nf),xvws(3,nv))
-    call runqhull2(nf,nv,mnfv,ivws,xvws,nfvws,fvws)
+    call runqhull1(n,xstar,nf_,nv_,mnfv_)
+    allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_))
+    nside_ = 0
+    call runqhull2(nf_,nv_,mnfv_,ivws,xvws,nside_(1:nf_),iside_)
 
-    ! nvert = nv
     ! xws = xvws
-    ! npolig = nf
-    ! nside = nfvws
-    ! iside = fvws
-
-    ! nside_ws = nfvws
-    ! iside_ws = fvws
-    ! nvert_ws = nv
     ! vws = xvws (converted to crystallographic)
 
     ! save faces and vertices
-    if (present(nside_ws)) then
-       if (allocated(nside_ws)) deallocate(nside_ws)
-       allocate(nside_ws(nf))
-       nside_ws = nfvws(1:nf)
+    if (present(nv)) nv = nv_
+    if (present(nf)) nf = nf_
+    if (present(mnfv)) mnfv = mnfv_
+
+    if (present(nside)) then
+       nside = nside_
     end if
-    if (present(iside_ws)) then
-       if(allocated(iside_ws)) deallocate(iside_ws)
-       allocate(iside_ws(mnfv,nf))
-       iside_ws = fvws
-    end if
-    if (present(nvert_ws)) then
-       nvert_ws = nv
+    if (present(iside)) then
+       if(allocated(iside)) deallocate(iside)
+       allocate(iside(mnfv_,nf_))
+       iside = iside_
     end if
     if (present(vws)) then
        if (allocated(vws)) deallocate(vws)
-       allocate(vws(3,nv))
-       do i = 1, nv
+       allocate(vws(3,nv_))
+       do i = 1, nv_
           vws(:,i) = matmul(c%car2crys,xvws(:,i))
        end do
     end if
@@ -3489,18 +3485,18 @@ contains
        ntetrag = 0
        if (allocated(tetrag)) deallocate(tetrag)
        allocate(tetrag(4,3,10))
-       do i = 1, nf
-          n = nfvws(i)
+       do i = 1, nf_
+          n = nside_(i)
           ! calculate middle point of the face
           x0 = 0d0
           do j = 1, n
-             x0 = x0 + xvws(:,fvws(j,i))
+             x0 = x0 + xvws(:,iside_(j,i))
           end do
           x0 = x0 / n
 
           do j = 1, n
-             xp1 = xvws(:,fvws(j,i))
-             xp2 = xvws(:,fvws(mod(j,n)+1,i))
+             xp1 = xvws(:,iside_(j,i))
+             xp2 = xvws(:,iside_(mod(j,n)+1,i))
              if (ntetrag+2>size(tetrag,3)) &
                 call realloc(tetrag,4,3,2*size(tetrag,3))
              ! tetrah 1
@@ -3570,34 +3566,32 @@ contains
        deallocate(active,tvol)
     end if
 
-    if (present(nvec)) &
-       nvec = nf
-    if (present(vec)) then
-       vec = 0
-       do i = 1, nf
-          vec(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
+    if (present(ineigh)) then
+       ineigh = 0
+       do i = 1, nf_
+          ineigh(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
        end do
     end if
-    if (present(area0)) then
-       do i = 1, nf
+    if (present(area)) then
+       do i = 1, nf_
           ! lattice point
           bary = 0d0
-          do j = 1, nfvws(i)
-             bary = bary + xvws(:,fvws(j,i))
+          do j = 1, nside_(i)
+             bary = bary + xvws(:,iside_(j,i))
           end do
-          bary = 2d0 * bary / nfvws(i)
+          bary = 2d0 * bary / nside_(i)
 
           ! area of a convex polygon
           av = 0d0
-          do j = 1, nfvws(i)
-             k = mod(j,nfvws(i))+1
-             av = av + cross(xvws(:,fvws(j,i)),xvws(:,fvws(k,i)))
+          do j = 1, nside_(i)
+             k = mod(j,nside_(i))+1
+             av = av + cross(xvws(:,iside_(j,i)),xvws(:,iside_(k,i)))
           end do
-          area0(i) = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
+          area(i) = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
        end do
     end if
 
-    deallocate(ivws,nfvws,fvws,xvws)
+    deallocate(ivws,iside_,xvws)
     
   end subroutine wigner
 
