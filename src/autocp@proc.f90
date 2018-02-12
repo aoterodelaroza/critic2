@@ -348,13 +348,14 @@ contains
        n0 = nn
        seed(i)%nseed = 0
        if (seed(i)%typ == styp_ws) then
-          ! Determine the WS cell
-          call sy%c%wigner(seed(i)%x0,ntetrag=ntetrag,tetrag=tetrag)
+          ! find the IWS
+          call sy%c%getiws(seed(i)%x0,ntetrag=ntetrag,tetrag=tetrag)
+
           if (seed(i)%rad > 0) call scale_ws(seed(i)%rad,seed(i)%x0,ntetrag,tetrag)
           ! Recursively subdivide each tetrahedron
           do nt = 1, ntetrag     
              do j = 1, 4
-                xdum = tetrag(j,:,nt)
+                xdum = tetrag(:,j,nt)
                 iniv(j,:) = sy%c%x2c(xdum)
              end do
              call barycentric(iniv,seed(i)%depth,nn,xseed)
@@ -1863,15 +1864,15 @@ contains
        ! calculate the max norm for this tetrag
        maxn = -1d30
        do j = 1, 4
-          x = tetrag(j,:,i) - wso
+          x = tetrag(:,j,i) - wso
           x = sy%c%x2c(x)
           maxn = max(norm2(x),maxn)
        end do
        ! scale to rad
        do j = 1, 4
-          x = tetrag(j,:,i) - wso
+          x = tetrag(:,j,i) - wso
           x = x / maxn * rad
-          tetrag(j,:,i) = x + wso
+          tetrag(:,j,i) = x + wso
        end do
     end do
 

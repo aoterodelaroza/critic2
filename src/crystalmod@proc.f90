@@ -3355,8 +3355,7 @@ contains
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell and its irreducible wedge.
-  module subroutine wigner(c,xorigin,nv,nf,mnfv,ineigh,nside,iside,area,vws,&
-     ntetrag,tetrag)
+  module subroutine wigner(c,xorigin,nv,nf,mnfv,ineigh,nside,iside,area,vws)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
     use global, only: fileroot
     use tools_math, only: mixed, cross
@@ -3374,8 +3373,6 @@ contains
     integer, allocatable, intent(inout), optional :: iside(:,:) !< sides of the WS faces
     real*8, intent(out), optional :: area(14) !< area of the WS faces 
     real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell (cryst coords)
-    integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
-    real*8, allocatable, intent(inout), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
 
     interface
        subroutine runqhull1(n,xstar,nf,nv,mnfv) bind(c)
@@ -3476,96 +3473,6 @@ contains
        end do
     end if
 
-    ! tetrahedra
-    if (present(ntetrag).and.present(tetrag)) then
-       ! local symmetry group
-       pg = c%sitesymm(xorigin,leqv=leqv,lrotm=lrotm)
-
-       ! build all the tetrahedra
-       ntetrag = 0
-       if (allocated(tetrag)) deallocate(tetrag)
-       allocate(tetrag(4,3,10))
-       do i = 1, nf_
-          n = nside_(i)
-          ! calculate middle point of the face
-          x0 = 0d0
-          do j = 1, n
-             x0 = x0 + xvws(:,iside_(j,i))
-          end do
-          x0 = x0 / n
-
-          do j = 1, n
-             xp1 = xvws(:,iside_(j,i))
-             xp2 = xvws(:,iside_(mod(j,n)+1,i))
-             if (ntetrag+2>size(tetrag,3)) &
-                call realloc(tetrag,4,3,2*size(tetrag,3))
-             ! tetrah 1
-             ntetrag = ntetrag + 1
-             tetrag(1,:,ntetrag) = (/ 0d0, 0d0, 0d0 /) + xoriginc
-             tetrag(2,:,ntetrag) = x0 + xoriginc
-             tetrag(3,:,ntetrag) = xp1 + xoriginc
-             tetrag(4,:,ntetrag) = 0.5d0 * (xp1 + xp2) + xoriginc
-             ! tetrah 2
-             ntetrag = ntetrag + 1
-             tetrag(1,:,ntetrag) = (/ 0d0, 0d0, 0d0 /) + xoriginc
-             tetrag(2,:,ntetrag) = x0 + xoriginc
-             tetrag(3,:,ntetrag) = xp2 + xoriginc
-             tetrag(4,:,ntetrag) = 0.5d0 * (xp1 + xp2) + xoriginc
-          end do
-       end do
-
-       ! output some info
-       sumi = 0d0
-       allocate(active(ntetrag),tvol(ntetrag))
-       active = .true.
-       do i = 1, ntetrag
-          ! calculate volume
-          xp1 = tetrag(2,:,i) - tetrag(1,:,i)
-          xp2 = tetrag(3,:,i) - tetrag(1,:,i)
-          xp3 = tetrag(4,:,i) - tetrag(1,:,i)
-          tvol(i) = abs(mixed(xp1,xp2,xp3)) / 6d0
-          if (tvol(i) < ws_eps_vol) then
-             active(i) = .false.
-             cycle
-          end if
-          sumi = sumi + tvol(i)
-          do j = 1, 4
-             tetrag(j,:,i) = matmul(c%car2crys,tetrag(j,:,i))
-          end do
-       end do
-
-       ! reduce tetrahedra equivalent by symmetry
-       do i = 1, ntetrag
-          if (.not.active(i)) cycle
-          do j = i+1, ntetrag
-             if (equiv_tetrah(c,xorigin,tetrag(:,:,i),tetrag(:,:,j),leqv,lrotm,eps_wspesca)) then
-                active(j) = .false.
-             end if
-          end do
-       end do
-
-       ! rebuild the tetrahedra list
-       in: do i = 1, ntetrag
-          if (active(i)) cycle
-          do j = i+1, ntetrag
-             if (active(j)) then
-                tetrag(:,:,i) = tetrag(:,:,j)
-                tvol(i) = tvol(j)
-                active(j) = .false.
-                cycle in
-             end if
-          end do
-          ntetrag = i - 1
-          exit
-       end do in
-       call realloc(tetrag,4,3,ntetrag)
-
-       ! renormalize
-       tvol = tvol
-
-       deallocate(active,tvol)
-    end if
-
     if (present(ineigh)) then
        ineigh = 0
        do i = 1, nf_
@@ -3643,6 +3550,115 @@ contains
     end do
 
   end subroutine pmwigner
+
+  !> Calculate the irreducible WS wedge around point xorigin (cryst coords)
+  !> and partition it into tetrahedra.
+  module subroutine getiws(c,xorigin,ntetrag,tetrag)
+    use tools_math, only: mixed
+    use types, only: realloc
+    class(crystal), intent(in) :: c !< the crystal structure
+    real*8, intent(in) :: xorigin(3)
+    integer, intent(out), optional :: ntetrag
+    real*8, allocatable, intent(inout), optional :: tetrag(:,:,:)
+    
+    integer :: leqv
+    real*8 :: lrotm(3,3,48)
+    logical, allocatable :: active(:)
+    character*3 :: pg
+    integer :: i, j, n, m
+    real*8 :: x0(3), xp1(3), xp2(3), xp3(3), xoriginc(3)
+
+    real*8, parameter :: eps_wspesca = 1d-5 !< Criterion for tetrahedra equivalence
+    real*8, parameter :: ws_eps_vol = 1d-5 !< Reject tetrahedra smaller than this.
+
+    ! origin in Cartesian
+    xoriginc = c%x2c(xorigin)
+
+    ! local symmetry group
+    pg = c%sitesymm(xorigin,leqv=leqv,lrotm=lrotm)
+
+    ! count tetrahedra
+    ntetrag = 0
+    do i = 1, c%ws_nf
+       ntetrag = ntetrag + 2 * c%ws_nside(i)
+    end do
+
+    ! build all the tetrahedra
+    m = 0
+    if (allocated(tetrag)) deallocate(tetrag)
+    allocate(tetrag(3,4,ntetrag))
+    do i = 1, c%ws_nf
+       n = c%ws_nside(i)
+       ! calculate middle point of the face
+       x0 = 0d0
+       do j = 1, n
+          x0 = x0 + c%ws_x(:,c%ws_iside(j,i))
+       end do
+       x0 = c%x2c(x0) / n
+
+       do j = 1, n
+          xp1 = c%x2c(c%ws_x(:,c%ws_iside(j,i)))
+          xp2 = c%x2c(c%ws_x(:,c%ws_iside(mod(j,n)+1,i)))
+          ! tetrah 1
+          m = m + 1
+          tetrag(:,1,m) = (/ 0d0, 0d0, 0d0 /) + xoriginc
+          tetrag(:,2,m) = x0 + xoriginc
+          tetrag(:,3,m) = xp1 + xoriginc
+          tetrag(:,4,m) = 0.5d0 * (xp1 + xp2) + xoriginc
+          ! tetrah 2
+          m = m + 1
+          tetrag(:,1,m) = (/ 0d0, 0d0, 0d0 /) + xoriginc
+          tetrag(:,2,m) = x0 + xoriginc
+          tetrag(:,3,m) = xp2 + xoriginc
+          tetrag(:,4,m) = 0.5d0 * (xp1 + xp2) + xoriginc
+       end do
+    end do
+
+    ! check volumes and convert to crystallographic
+    allocate(active(ntetrag))
+    active = .true.
+    do i = 1, ntetrag
+       ! calculate volume
+       xp1 = tetrag(:,2,i) - tetrag(:,1,i)
+       xp2 = tetrag(:,3,i) - tetrag(:,1,i)
+       xp3 = tetrag(:,4,i) - tetrag(:,1,i)
+       if (abs(mixed(xp1,xp2,xp3)) / 6d0 < ws_eps_vol) then
+          active(i) = .false.
+          cycle
+       end if
+       do j = 1, 4
+          tetrag(:,j,i) = matmul(c%car2crys,tetrag(:,j,i))
+       end do
+    end do
+
+    ! reduce tetrahedra equivalent by symmetry
+    do i = 1, ntetrag
+       if (.not.active(i)) cycle
+       do j = i+1, ntetrag
+          if (equiv_tetrah(c,xorigin,tetrag(:,:,i),tetrag(:,:,j),leqv,lrotm,eps_wspesca)) then
+             active(j) = .false.
+          end if
+       end do
+    end do
+
+    ! rebuild the tetrahedra list
+    in: do i = 1, ntetrag
+       if (active(i)) cycle
+       do j = i+1, ntetrag
+          if (active(j)) then
+             tetrag(:,:,i) = tetrag(:,:,j)
+             active(j) = .false.
+             cycle in
+          end if
+       end do
+       ntetrag = i - 1
+       exit
+    end do in
+    call realloc(tetrag,3,4,ntetrag)
+
+    deallocate(active)
+
+  end subroutine getiws
 
   !> Calculate the number of lattice vectors in each direction in
   !> order to be sure that the main cell is surrounded by a shell at
@@ -5766,26 +5782,26 @@ contains
     logical :: equiv_tetrah
     type(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
-    real*8, dimension(0:3,3), intent(in) :: t1, t2
+    real*8, dimension(3,0:3), intent(in) :: t1, t2
     integer, intent(in) :: leqv
     real*8, intent(in) :: lrotm(3,3,48), eps
 
     integer :: i, k, p
-    real*8 :: r1(0:3,3), d1(0:3,3), dist2(0:3), xdum(3)
+    real*8 :: r1(3,0:3), d1(3,0:3), dist2(0:3), xdum(3)
 
     equiv_tetrah = .false.
 
     do i = 1, leqv
        do k = 0, 3
-          r1(k,:) = matmul(lrotm(:,1:3,i),t1(k,:)-x0) + x0
+          r1(:,k) = matmul(lrotm(:,1:3,i),t1(:,k)-x0) + x0
        end do
 
        do p = 1, 6
           d1 = perm3(p,r1,t2)
           do k = 0, 3
-             xdum = d1(k,:)
-             d1(k,:) = c%x2c(xdum)
-             dist2(k) = norm2(d1(k,:))
+             xdum = d1(:,k)
+             d1(:,k) = c%x2c(xdum)
+             dist2(k) = norm2(d1(:,k))
           end do
           if (all(dist2 < eps)) then
              equiv_tetrah = .true.
@@ -5799,40 +5815,40 @@ contains
   !> Private for equiv_tetrah, wigner. 3! permutations.
   function perm3(p,r,t) result(res)
     integer, intent(in) :: p
-    real*8, intent(in) :: r(0:3,3), t(0:3,3)
-    real*8 :: res(0:3,3)
+    real*8, intent(in) :: r(3,0:3), t(3,0:3)
+    real*8 :: res(3,0:3)
 
     select case(p)
     case(1)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(1,:)
-       res(2,:) = r(2,:) - t(2,:)
-       res(3,:) = r(3,:) - t(3,:)
+       res(:,0) = r(:,0) - t(:,0)
+       res(:,1) = r(:,1) - t(:,1)
+       res(:,2) = r(:,2) - t(:,2)
+       res(:,3) = r(:,3) - t(:,3)
     case(2)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(1,:)
-       res(2,:) = r(2,:) - t(3,:)
-       res(3,:) = r(3,:) - t(2,:)
+       res(:,0) = r(:,0) - t(:,0)
+       res(:,1) = r(:,1) - t(:,1)
+       res(:,2) = r(:,2) - t(:,3)
+       res(:,3) = r(:,3) - t(:,2)
     case(3)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(2,:)
-       res(2,:) = r(2,:) - t(1,:)
-       res(3,:) = r(3,:) - t(3,:)
+       res(:,0) = r(:,0) - t(:,0)
+       res(:,1) = r(:,1) - t(:,2)
+       res(:,2) = r(:,2) - t(:,1)
+       res(:,3) = r(:,3) - t(:,3)
     case(4)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(2,:)
-       res(2,:) = r(2,:) - t(3,:)
-       res(3,:) = r(3,:) - t(1,:)
+       res(:,0) = r(:,0) - t(:,0)
+       res(:,1) = r(:,1) - t(:,2)
+       res(:,2) = r(:,2) - t(:,3)
+       res(:,3) = r(:,3) - t(:,1)
     case(5)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(3,:)
-       res(2,:) = r(2,:) - t(1,:)
-       res(3,:) = r(3,:) - t(2,:)
+       res(:,0) = r(:,0) - t(:,0)
+       res(:,1) = r(:,1) - t(:,3)
+       res(:,2) = r(:,2) - t(:,1)
+       res(:,3) = r(:,3) - t(:,2)
     case(6)
-       res(0,:) = r(0,:) - t(0,:)
-       res(1,:) = r(1,:) - t(3,:)
-       res(2,:) = r(2,:) - t(2,:)
-       res(3,:) = r(3,:) - t(1,:)
+       res(:,0) = r(:,0) - t(:,0)
+       res(:,1) = r(:,1) - t(:,3)
+       res(:,2) = r(:,2) - t(:,2)
+       res(:,3) = r(:,3) - t(:,1)
     end select
 
   end function perm3

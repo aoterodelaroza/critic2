@@ -154,7 +154,6 @@ contains
     real*8 :: vtotal, sumi
     integer :: l2
     integer(qtreeidx) :: siz
-    character*3 :: pg
     real*8, allocatable :: tetrag(:,:,:)
 
     ! count non-equivalent maxima (nuclear and non-nuclear)
@@ -242,9 +241,7 @@ contains
 
     ! Determine local point group
     if (ws_use) then
-       ! Build initial tetrahedron list
-       pg = sy%c%sitesymm(ws_origin,leqv=leqv,lrotm=lrotm)
-       call sy%c%wigner(ws_origin,ntetrag=ntetrag,tetrag=tetrag) 
+       call sy%c%getiws(ws_origin,ntetrag=ntetrag,tetrag=tetrag)
     else
        ws_scale = -1d0
        ws_origin = 0d0
@@ -270,10 +267,10 @@ contains
     ! Tetrahedra initialization
     do i = 1, nt_orig
        ! vertex in crystallographic coordinates
-       torig(:,i) = tetrag(1,:,i) 
-       tvec(:,1,i) = tetrag(2,:,i) - torig(:,i) 
-       tvec(:,2,i) = tetrag(3,:,i) - torig(:,i) 
-       tvec(:,3,i) = tetrag(4,:,i) - torig(:,i) 
+       torig(:,i) = tetrag(:,1,i) 
+       tvec(:,1,i) = tetrag(:,2,i) - torig(:,i) 
+       tvec(:,2,i) = tetrag(:,3,i) - torig(:,i) 
+       tvec(:,3,i) = tetrag(:,4,i) - torig(:,i) 
        if (ws_scale > 0d0) then
           tvec(:,1:3,i) = tvec(:,1:3,i) / ws_scale
           periodic = .false.
@@ -344,7 +341,7 @@ contains
        do i = 1, ntetrag
           write (uout,'("+ Tetrahedron : ",I3," with points at ")') i
           do j = 1, 4
-             write (uout,'(4X,I3,3(1X,E20.13))') j, tetrag(j,1,i), tetrag(j,2,i), tetrag(j,3,i)
+             write (uout,'(4X,I3,3(1X,E20.13))') j, tetrag(:,j,i)
           end do
           write (uout,'(4X," Volume : ",1p,E20.12)') tvol(i)
           sumi = sumi + tvol(i)
@@ -997,75 +994,75 @@ contains
     real*8, intent(inout), allocatable :: tetrag(:,:,:)
 
     integer :: i, l, n
-    real*8 :: tsave(0:3,3)
+    real*8 :: tsave(3,0:3)
 
     do l = 1, plvl
        n = ntetrag
        do i = 1, n
 
-          tsave = tetrag(:,1:3,i)
+          tsave = tetrag(1:3,:,i)
 
           ! 1, 1-2, 1-3, 1-4
-          tetrag(1,:,i) = tsave(0,:) 
-          tetrag(2,:,i) = tsave(0,:) + tsave(1,:)
-          tetrag(3,:,i) = tsave(0,:) + tsave(2,:)
-          tetrag(4,:,i) = tsave(0,:) + tsave(3,:)
-          tetrag(2:4,:,i) = 0.5d0 * tetrag(2:4,:,i) 
+          tetrag(:,1,i) = tsave(:,0) 
+          tetrag(:,2,i) = tsave(:,0) + tsave(:,1)
+          tetrag(:,3,i) = tsave(:,0) + tsave(:,2)
+          tetrag(:,4,i) = tsave(:,0) + tsave(:,3)
+          tetrag(:,2:4,i) = 0.5d0 * tetrag(:,2:4,i) 
 
           ! 2, 1-2, 2-3, 2-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(1,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(1,:)
-          tetrag(3,:,ntetrag) = tsave(1,:) + tsave(2,:)
-          tetrag(4,:,ntetrag) = tsave(1,:) + tsave(3,:)
-          tetrag(2:4,:,ntetrag) = 0.5d0 * tetrag(2:4,:,ntetrag) 
+          tetrag(:,1,ntetrag) = tsave(:,1) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,1)
+          tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
+          tetrag(:,4,ntetrag) = tsave(:,1) + tsave(:,3)
+          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag) 
 
           ! 3, 1-3, 2-3, 3-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(2,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(2,:)
-          tetrag(3,:,ntetrag) = tsave(1,:) + tsave(2,:)
-          tetrag(4,:,ntetrag) = tsave(2,:) + tsave(3,:)
-          tetrag(2:4,:,ntetrag) = 0.5d0 * tetrag(2:4,:,ntetrag) 
+          tetrag(:,1,ntetrag) = tsave(:,2) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,2)
+          tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
+          tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
+          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag) 
 
           ! 4, 1-4, 2-4, 3-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(3,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(3,:)
-          tetrag(3,:,ntetrag) = tsave(1,:) + tsave(3,:)
-          tetrag(4,:,ntetrag) = tsave(2,:) + tsave(3,:)
-          tetrag(2:4,:,ntetrag) = 0.5d0 * tetrag(2:4,:,ntetrag) 
+          tetrag(:,1,ntetrag) = tsave(:,3) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,3)
+          tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,3)
+          tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
+          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag) 
 
           ! 2-3, 1-2, 1-3, 1-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(1,:) + tsave(2,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(1,:)
-          tetrag(3,:,ntetrag) = tsave(0,:) + tsave(2,:)
-          tetrag(4,:,ntetrag) = tsave(0,:) + tsave(3,:)
+          tetrag(:,1,ntetrag) = tsave(:,1) + tsave(:,2) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,1)
+          tetrag(:,3,ntetrag) = tsave(:,0) + tsave(:,2)
+          tetrag(:,4,ntetrag) = tsave(:,0) + tsave(:,3)
           tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
 
           ! 1-4, 1-2, 2-3, 2-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(0,:) + tsave(3,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(1,:)
-          tetrag(3,:,ntetrag) = tsave(1,:) + tsave(2,:)
-          tetrag(4,:,ntetrag) = tsave(1,:) + tsave(3,:)
+          tetrag(:,1,ntetrag) = tsave(:,0) + tsave(:,3) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,1)
+          tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
+          tetrag(:,4,ntetrag) = tsave(:,1) + tsave(:,3)
           tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
 
           ! 1-4, 1-3, 2-3, 3-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(0,:) + tsave(3,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(2,:)
-          tetrag(3,:,ntetrag) = tsave(1,:) + tsave(2,:)
-          tetrag(4,:,ntetrag) = tsave(2,:) + tsave(3,:)
+          tetrag(:,1,ntetrag) = tsave(:,0) + tsave(:,3) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,2)
+          tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
+          tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
           tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
 
           ! 2-3, 1-4, 2-4, 3-4
           ntetrag = ntetrag + 1
-          tetrag(1,:,ntetrag) = tsave(1,:) + tsave(2,:) 
-          tetrag(2,:,ntetrag) = tsave(0,:) + tsave(3,:)
-          tetrag(3,:,ntetrag) = tsave(1,:) + tsave(3,:)
-          tetrag(4,:,ntetrag) = tsave(2,:) + tsave(3,:)
+          tetrag(:,1,ntetrag) = tsave(:,1) + tsave(:,2) 
+          tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,3)
+          tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,3)
+          tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
           tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
        end do
     end do
