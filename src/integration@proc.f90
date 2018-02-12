@@ -2303,9 +2303,7 @@ contains
     caux%bb = sy%c%bb
     caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
     caux%car2crys = matinv(caux%crys2car)
-    call caux%wigner((/0d0,0d0,0d0/),nv=caux%ws_nv,nf=caux%ws_nf,mnfv=caux%ws_mnfv,&
-       ineigh=caux%ws_ineigh,nside=caux%ws_nside,iside=caux%ws_iside,&
-       vws=caux%ws_x)
+    call caux%wigner()
     allocate(xface(3,caux%ws_mnfv))
 
     ! output

@@ -414,8 +414,7 @@ contains
     c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
 
     ! calculate the wigner-seitz cell
-    call c%wigner((/0d0,0d0,0d0/),nv=c%ws_nv,nf=c%ws_nf,mnfv=c%ws_mnfv,&
-       ineigh=c%ws_ineigh,nside=c%ws_nside,iside=c%ws_iside,vws=c%ws_x)
+    call c%wigner()
 
     ! calculate the translations for shortest vector search
     call c%delaunay_reduction(rdel4,rbas=rdel)
@@ -3354,25 +3353,15 @@ contains
 
   !xx! Wigner-Seitz cell tools and cell partition
 
-  !> Builds the Wigner-Seitz cell and its irreducible wedge.
-  module subroutine wigner(c,xorigin,nv,nf,mnfv,ineigh,nside,iside,area,vws)
+  !> Builds the Wigner-Seitz cell. Writes the WS components of c.
+  module subroutine wigner(c,area)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
-    use global, only: fileroot
     use tools_math, only: mixed, cross
-    use tools_io, only: string, filepath, fopen_write, fopen_read,&
+    use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
-    use param, only: dirsep
     use types, only: realloc
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: xorigin(3) !< Origin of the WS cell
-    integer, intent(out), optional :: nv !< Number of vertices
-    integer, intent(out), optional :: nf !< Number of faces
-    integer, intent(out), optional :: mnfv !< Maximum number of vertices per face
-    integer, intent(out), optional :: ineigh(3,14) !< WS neighbors (cryst. coords.)
-    integer, intent(out), optional :: nside(14) !< number of sides of WS faces
-    integer, allocatable, intent(inout), optional :: iside(:,:) !< sides of the WS faces
+    class(crystal), intent(inout) :: c
     real*8, intent(out), optional :: area(14) !< area of the WS faces 
-    real*8, allocatable, intent(inout), optional :: vws(:,:) !< vertices of the WS cell (cryst coords)
 
     interface
        subroutine runqhull1(n,xstar,nf,nv,mnfv) bind(c)
@@ -3391,28 +3380,15 @@ contains
        end subroutine runqhull2
     end interface
 
-    ! three WS vertices are collinear if det < -eps
-    real*8, parameter :: eps_wspesca = 1d-5 !< Criterion for tetrahedra equivalence
-    real*8, parameter :: ws_eps_vol = 1d-5 !< Reject tetrahedra smaller than this.
-    real*8, parameter :: eps_bary = 1d-1 !< barycenter identification
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
 
-    integer :: leqv, i, j, k, n
-    real*8 :: xp1(3), xp2(3), xp3(3), sumi, av(3), dd
-    logical, allocatable :: active(:)
-    real*8, allocatable :: tvol(:)
-    real*8 :: lrotm(3,3,48), xoriginc(3), x0(3), bary(3)
-    character*3 :: pg
-    real*8 :: rmat(3,4), rmati(3,3)
-    integer(c_int) :: n, nf_, nv_, mnfv_
+    integer :: i, j, k, n
+    real*8 :: av(3), bary(3), rmat(3,4), rmati(3,3)
+    integer(c_int) :: n
     real(c_double) :: xstar(3,14)
     integer :: i, j
-    integer :: nside_(14)
-    integer(c_int), allocatable :: ivws(:), iside_(:,:)
+    integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
-
-    ! set origin
-    xoriginc = c%x2c(xorigin)
 
     ! delaunay reduction
     rmati = 0d0
@@ -3444,61 +3420,41 @@ contains
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
 
-    call runqhull1(n,xstar,nf_,nv_,mnfv_)
-    allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_))
-    nside_ = 0
-    call runqhull2(nf_,nv_,mnfv_,ivws,xvws,nside_(1:nf_),iside_)
+    call runqhull1(n,xstar,c%ws_nf,c%ws_nv,c%ws_mnfv)
+    allocate(ivws(c%ws_nf),c%ws_iside(c%ws_mnfv,c%ws_nf),xvws(3,c%ws_nv))
+    c%ws_nside = 0
+    call runqhull2(c%ws_nf,c%ws_nv,c%ws_mnfv,ivws,xvws,c%ws_nside(1:c%ws_nf),c%ws_iside)
 
-    ! xws = xvws
-    ! vws = xvws (converted to crystallographic)
+    if (allocated(c%ws_x)) deallocate(c%ws_x)
+    allocate(c%ws_x(3,c%ws_nv))
+    do i = 1, c%ws_nv
+       c%ws_x(:,i) = matmul(c%car2crys,xvws(:,i))
+    end do
 
-    ! save faces and vertices
-    if (present(nv)) nv = nv_
-    if (present(nf)) nf = nf_
-    if (present(mnfv)) mnfv = mnfv_
-
-    if (present(nside)) then
-       nside = nside_
-    end if
-    if (present(iside)) then
-       if(allocated(iside)) deallocate(iside)
-       allocate(iside(mnfv_,nf_))
-       iside = iside_
-    end if
-    if (present(vws)) then
-       if (allocated(vws)) deallocate(vws)
-       allocate(vws(3,nv_))
-       do i = 1, nv_
-          vws(:,i) = matmul(c%car2crys,xvws(:,i))
-       end do
-    end if
-
-    if (present(ineigh)) then
-       ineigh = 0
-       do i = 1, nf_
-          ineigh(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
-       end do
-    end if
+    c%ws_ineigh = 0
+    do i = 1, c%ws_nf
+       c%ws_ineigh(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
+    end do
     if (present(area)) then
-       do i = 1, nf_
+       do i = 1, c%ws_nf
           ! lattice point
           bary = 0d0
-          do j = 1, nside_(i)
-             bary = bary + xvws(:,iside_(j,i))
+          do j = 1, c%ws_nside(i)
+             bary = bary + xvws(:,c%ws_iside(j,i))
           end do
-          bary = 2d0 * bary / nside_(i)
+          bary = 2d0 * bary / c%ws_nside(i)
 
           ! area of a convex polygon
           av = 0d0
-          do j = 1, nside_(i)
-             k = mod(j,nside_(i))+1
-             av = av + cross(xvws(:,iside_(j,i)),xvws(:,iside_(k,i)))
+          do j = 1, c%ws_nside(i)
+             k = mod(j,c%ws_nside(i))+1
+             av = av + cross(xvws(:,c%ws_iside(j,i)),xvws(:,c%ws_iside(k,i)))
           end do
           area(i) = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
        end do
     end if
 
-    deallocate(ivws,iside_,xvws)
+    deallocate(ivws,xvws)
     
   end subroutine wigner
 

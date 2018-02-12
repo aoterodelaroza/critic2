@@ -717,7 +717,6 @@ contains
   recursive module function field_feval(sptr,id,nder,fder,x0,periodic)
     use iso_c_binding, only: c_ptr, c_f_pointer
     use types, only: scalar_value
-    use param, only: sqpi, pi
     type(scalar_value) :: field_feval
     type(c_ptr), intent(in) :: sptr
     character*(*), intent(in) :: id
@@ -727,9 +726,8 @@ contains
     logical, intent(in), optional :: periodic
 
     type(system), pointer :: syl
-    integer :: iid, lvec(3)
-    real*8 :: xp(3), dist, u
-    real*8, parameter :: rc = 1.4d0
+    integer :: iid
+    real*8 :: xp(3)
     
     field_feval%f = 0d0
     field_feval%fval = 0d0

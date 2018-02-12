@@ -142,7 +142,6 @@ contains
        ws_scale
     use tools_math, only: mixed, cross
     use tools_io, only: ferror, faterr, uout, warning
-    use param, only: eye
     integer, intent(in) :: lvl, plvl
     logical, intent(in) :: verbose
     integer(qtreei), allocatable, intent(out) :: trm(:,:)

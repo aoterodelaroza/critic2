@@ -84,12 +84,6 @@ module crystalmod
      integer :: ws_nside(14) !< number of sides of WS faces
      integer, allocatable :: ws_iside(:,:) !< sides of the WS faces
      real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
-
-     ! xxxx
-     ! ws_x - vws
-
-     ! ivws_del
-
      logical :: isortho !< is the cell orthogonal?
      ! rotations and translations for finding shortest vectors
      real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
@@ -479,17 +473,9 @@ module crystalmod
        logical, intent(in) :: usenneq
        logical, intent(in) :: onlyspg
      end subroutine spglib_wrap
-     module subroutine wigner(c,xorigin,nv,nf,mnfv,ineigh,nside,iside,area,vws)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: xorigin(3)
-       integer, intent(out), optional :: nv
-       integer, intent(out), optional :: nf
-       integer, intent(out), optional :: mnfv
-       integer, intent(out), optional :: ineigh(3,14)
-       integer, intent(out), optional :: nside(14)
-       integer, allocatable, intent(inout), optional :: iside(:,:)
+     module subroutine wigner(c,area)
+       class(crystal), intent(inout) :: c
        real*8, intent(out), optional :: area(14)
-       real*8, allocatable, intent(inout), optional :: vws(:,:)
      end subroutine wigner
      module subroutine getiws(c,xorigin,ntetrag,tetrag)
        class(crystal), intent(in) :: c

@@ -52,7 +52,7 @@ contains
 
     real*8, allocatable :: g(:)
     integer, allocatable :: io(:), iio(:)
-    integer :: i, ii, j, n(3), nn, nvec, vec(3,16), ib(3), jb(3), jj, k, kk
+    integer :: i, ii, j, n(3), nn, nvec, vec(3,14), ib(3), jb(3), jj, k, kk
     real*8 :: al(40), csum
     integer :: nhi
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
@@ -104,7 +104,10 @@ contains
     caux%bb = s%c%bb
     caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
     caux%car2crys = matinv(caux%crys2car)
-    call caux%wigner((/0d0,0d0,0d0/),nf=nvec,ineigh=vec,area=al)
+    call caux%wigner(area=al)
+    nvec = caux%ws_nf
+    vec = caux%ws_ineigh
+    call caux%end()
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))
