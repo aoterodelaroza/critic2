@@ -88,17 +88,24 @@ contains
     if (allocated(c%cen)) deallocate(c%cen)
     allocate(c%cen(3,4))
     c%cen = 0d0
-    c%isortho = .false.
-    c%isortho_del = .false.
-    c%ws_nv = 0
-    c%ws_nf = 0
-    c%ws_mnfv = 0
     c%spg%n_atoms = 0
 
     ! no molecule
     c%ismolecule = .false.
     c%molx0 = 0d0
     c%molborder = 0d0
+
+    ! no ws
+    c%ws_nv = 0
+    c%ws_nf = 0
+    c%ws_mnfv = 0
+    c%ws_ineighx = 0
+    c%ws_ineighc = 0d0
+    c%ws_nside = 00
+    if (allocated(c%ws_iside)) deallocate(c%ws_iside)
+    if (allocated(c%ws_x)) deallocate(c%ws_x)
+    c%isortho = .false.
+    c%isortho_del = .false.
 
     ! initialize species
     do i = 1, mspc0
@@ -119,11 +126,14 @@ contains
     c%zpsp = -1
 
     ! the crystal is not initialized until struct_fill is run
+    c%file = ""
     c%isinit = .false. 
     c%isenv = .false. 
     c%havesym = 0 
     c%isast = .false. 
     c%isewald = .false. 
+    c%isrecip = .false. 
+    c%isnn = .false. 
 
   end subroutine struct_init
 
@@ -149,7 +159,7 @@ contains
     logical :: env, ast, recip, nn, ewald
     integer :: iast
     character(len=:), allocatable :: reason
-    logical :: lflag(8)
+    logical :: lflag(5)
 
     ! initialize optional arguments
     env = .false.
@@ -164,27 +174,27 @@ contains
     if (present(ewald0)) ewald = ewald0
 
     lflag = .false.
-    if (env .and. .not.c%isenv) lflag(2) = .true.
-    if (ast .and. .not.c%isast) lflag(4) = .true.
-    if (recip .and. .not.c%isrecip) lflag(5) = .true.
-    if (nn .and. .not.c%isnn) lflag(6) = .true.
-    if (ewald .and. .not.c%isewald) lflag(7) = .true.
+    if (env .and. .not.c%isenv) lflag(1) = .true.
+    if (ast .and. .not.c%isast) lflag(2) = .true.
+    if (recip .and. .not.c%isrecip) lflag(3) = .true.
+    if (nn .and. .not.c%isnn) lflag(4) = .true.
+    if (ewald .and. .not.c%isewald) lflag(5) = .true.
 
     if (any(lflag)) then
        if (crash) then
-          if (lflag(2)) reason = "atomic environments not determined for this crystal"
-          if (lflag(4)) reason = "molecular connectivity has not been calculated"
-          if (lflag(5)) reason = "reciprocal cell metrics and symmetry not determined"
-          if (lflag(6)) reason = "nearest-neighbor information not available"
-          if (lflag(7)) reason = "ewald cutoffs not available"
+          if (lflag(1)) reason = "atomic environments not determined for this crystal"
+          if (lflag(2)) reason = "molecular connectivity has not been calculated"
+          if (lflag(3)) reason = "reciprocal cell metrics and symmetry not determined"
+          if (lflag(4)) reason = "nearest-neighbor information not available"
+          if (lflag(5)) reason = "ewald cutoffs not available"
           call ferror('checkflags',reason,faterr)
        else
-          if (lflag(4)) then
+          if (lflag(2)) then
              iast = 1
           else
              iast = 0
           end if
-          call c%struct_fill(lflag(2),iast,lflag(5),lflag(6),lflag(7))
+          call c%struct_fill(lflag(1),iast,lflag(3),lflag(4),lflag(5))
        end if
     end if
 
@@ -2560,10 +2570,10 @@ contains
     logical, intent(in) :: verbose
     
     integer :: ntyp, nat
-    integer :: i, id
+    integer :: i, id, iprim
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types(:)
-    real*8 :: rmat(3,3), t(3)
+    real*8 :: rmat(3,3)
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2578,23 +2588,15 @@ contains
        types(i) = c%atcel(i)%is
     end do
 
-    if (toprim) then
-       id = spg_standardize_cell(rmat,x,types,nat,1,1,symprec)
-       if (id == 0) &
-          call ferror("cell_standard","could not find primitive cell",faterr)
-       rmat = transpose(rmat)
-       do i = 1, 3
-          rmat(:,i) = c%c2x(rmat(:,i))
-       end do
-    else
-       id = spg_standardize_cell(rmat,x,types,nat,0,1,symprec)
-       if (id == 0) &
-          call ferror("cell_standard","could not find standard cell",faterr)
-       rmat = transpose(rmat)
-       do i = 1, 3
-          rmat(:,i) = c%c2x(rmat(:,i))
-       end do
-    end if
+    iprim = 0
+    if (toprim) iprim = 1
+    id = spg_standardize_cell(rmat,x,types,nat,iprim,1,symprec)
+    if (id == 0) &
+       call ferror("cell_standard","could not find primitive cell",faterr)
+    rmat = transpose(rmat)
+    do i = 1, 3
+       rmat(:,i) = c%c2x(rmat(:,i))
+    end do
 
     ! flip the cell?
     if (det(rmat) < 0d0) rmat = -rmat
@@ -2611,10 +2613,8 @@ contains
        return
     end if
 
-    ! transform -> use the origin shift
-    t = -matmul(c%spg%origin_shift,rmat)
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
-    call c%newcell(rmat,t,verbose)
+    call c%newcell(rmat,verbose0=verbose)
 
   end subroutine cell_standard
 
@@ -2634,7 +2634,7 @@ contains
     ! ignore molecules
     if (c%ismolecule) return
 
-    ! use spglib delaunay reduction
+    ! use spglib niggli reduction
     rmat = transpose(c%crys2car)
     id = spg_niggli_reduce(rmat,symprec)
     if (id == 0) &
@@ -2688,20 +2688,16 @@ contains
 
   !> Transforms the current basis to the Delaunay reduced basis.
   !> Return the four Delaunay vectors in crystallographic coordinates
-  !> (rmat) cell, see 9.1.8 in ITC. If rmati is given, use the three
-  !> vectors (cryst. coords.) as the basis for the reduction. If sco
-  !> is present, use it in output for the scalar products. If rbas is
-  !> present, it contains the three shortest of the seven Delaunay
-  !> lattice vectors that form a cell (useful to transform to one of
-  !> the delaunay reduced cells).
-  module subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
+  !> (rmat) cell, see 9.1.8 in ITC. If rbas is present, it contains
+  !> the three shortest of the seven Delaunay lattice vectors that
+  !> form a cell (useful to transform to one of the delaunay reduced
+  !> cells).
+  module subroutine delaunay_reduction(c,rmat,rbas)
     use tools, only: qcksort
     use tools_math, only: det
     use tools_io, only: faterr, ferror
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
-    real*8, intent(in), optional :: rmati(3,3)
-    real*8, intent(out), optional :: sco(4,4)
     real*8, intent(out), optional :: rbas(3,3)
     
     integer :: i, j, k, iord(7)
@@ -2711,17 +2707,11 @@ contains
     real*8, parameter :: eps = 1d-10
 
     ! build the four Delaunay vectors
-    if (present(rmati)) then
-       do i = 1, 3
-          rmat(:,i) = c%x2c(rmati(:,i))
-       end do
-    else
-       rmat = 0d0
-       do i = 1, 3
-          rmat(i,i) = 1d0
-          rmat(:,i) = c%x2c(rmat(:,i))
-       end do
-    end if
+    rmat = 0d0
+    do i = 1, 3
+       rmat(i,i) = 1d0
+       rmat(:,i) = c%x2c(rmat(:,i))
+    end do
     rmat(:,4) = -(rmat(:,1)+rmat(:,2)+rmat(:,3))
 
     ! reduce until all the scalar products are negative or zero
@@ -2750,8 +2740,6 @@ contains
           again = .false.
        end if
     end do
-
-    if (present(sco)) sco = sc
 
     if (present(rbas)) then
        xstar(:,1)  = rmat(:,1)
@@ -3330,6 +3318,8 @@ contains
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell. Writes the WS components of c.
+  !> Also writes the Delaunay reduction parameters and, if area is
+  !> present, calculates the areas of the WS facets.
   module subroutine wigner(c,area)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
     use tools_math, only: mixed, cross, matinv

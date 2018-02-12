@@ -452,11 +452,9 @@ module crystalmod
        class(crystal), intent(inout) :: c
        logical, intent(in) :: verbose
      end subroutine cell_delaunay
-     module subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
+     module subroutine delaunay_reduction(c,rmat,rbas)
        class(crystal), intent(in) :: c
        real*8, intent(out) :: rmat(3,4)
-       real*8, intent(in), optional :: rmati(3,3)
-       real*8, intent(out), optional :: sco(4,4)
        real*8, intent(out), optional :: rbas(3,3)
      end subroutine delaunay_reduction
      module subroutine struct_report(c,lcrys,lq)

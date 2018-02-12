@@ -5746,7 +5746,8 @@ NEWCELL also admits specific keywords. The cell can be transformed to:
 * DELAUNAY: Delaunay-reduced cell for the current lattice. Use a
   NEWCELL PRIMITIVE first to get the primitive Delaunay cell.
 
-See the spglib manual for more information.
+The origin is not translated in any of these keywords. See the spglib
+manual for more information.
 
 ::
 
