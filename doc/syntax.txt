@@ -302,7 +302,6 @@ xxxx
   + WS_ORIGIN x.r y.r z.r
   + WS_SCALE scale.r
   + WS_EPS_VOL eps_vol.r
-  + NOWS
   + KILLEXT
   + NOKILLEXT
   + AUTOSPH {1|2} # default is 2

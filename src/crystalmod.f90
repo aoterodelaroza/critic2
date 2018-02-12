@@ -175,7 +175,6 @@ module crystalmod
      ! symmetry and WS cell
      procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
-     procedure :: pmwigner !< Poor man's wigner
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
 
      ! structure writers
@@ -492,11 +491,6 @@ module crystalmod
        real*8, intent(out), optional :: area(14)
        real*8, allocatable, intent(inout), optional :: vws(:,:)
      end subroutine wigner
-     module subroutine pmwigner(c,ntetrag,tetrag)
-       class(crystal), intent(in) :: c
-       integer, intent(out), optional :: ntetrag
-       real*8, allocatable, intent(out), optional :: tetrag(:,:,:)
-     end subroutine pmwigner
      module subroutine getiws(c,xorigin,ntetrag,tetrag)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xorigin(3)

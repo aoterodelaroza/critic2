@@ -3502,55 +3502,6 @@ contains
     
   end subroutine wigner
 
-  !> Partition the unit cell in tetrahedra.
-  module subroutine pmwigner(c,ntetrag,tetrag)
-    use tools_math, only: mixed
-    class(crystal), intent(in) :: c !< the crystal structure
-    integer, intent(out), optional :: ntetrag !< number of tetrahedra forming the irreducible WS cell
-    real*8, allocatable, intent(out), optional :: tetrag(:,:,:) !< vertices of the tetrahedra
-
-    real*8 :: sumi, tvol(5), xp1(3), xp2(3), xp3(3)
-    integer :: i
-
-    if (allocated(tetrag)) deallocate(tetrag)
-    allocate(tetrag(4,3,5))
-    ntetrag = 5
-    tetrag(1,:,1) = (/ 1d0, 0d0, 0d0 /)
-    tetrag(2,:,1) = (/ 1d0, 0d0, 1d0 /)
-    tetrag(3,:,1) = (/ 1d0, 1d0, 0d0 /)
-    tetrag(4,:,1) = (/ 0d0, 0d0, 0d0 /)
-
-    tetrag(1,:,2) = (/ 0d0, 1d0, 0d0 /)
-    tetrag(2,:,2) = (/ 0d0, 1d0, 1d0 /)
-    tetrag(3,:,2) = (/ 0d0, 0d0, 0d0 /)
-    tetrag(4,:,2) = (/ 1d0, 1d0, 0d0 /)
-
-    tetrag(1,:,3) = (/ 0d0, 0d0, 1d0 /)
-    tetrag(2,:,3) = (/ 0d0, 0d0, 0d0 /)
-    tetrag(3,:,3) = (/ 0d0, 1d0, 1d0 /)
-    tetrag(4,:,3) = (/ 1d0, 0d0, 1d0 /)
-
-    tetrag(1,:,4) = (/ 1d0, 1d0, 1d0 /)
-    tetrag(2,:,4) = (/ 1d0, 1d0, 0d0 /)
-    tetrag(3,:,4) = (/ 1d0, 0d0, 1d0 /)
-    tetrag(4,:,4) = (/ 0d0, 1d0, 1d0 /)
-
-    tetrag(1,:,5) = (/ 0d0, 0d0, 0d0 /)
-    tetrag(2,:,5) = (/ 0d0, 1d0, 1d0 /)
-    tetrag(3,:,5) = (/ 1d0, 0d0, 1d0 /)
-    tetrag(4,:,5) = (/ 1d0, 1d0, 0d0 /)
-
-    do i = 1, ntetrag
-       ! calculate volume
-       xp1 = c%x2c(tetrag(2,:,i) - tetrag(1,:,i))
-       xp2 = c%x2c(tetrag(3,:,i) - tetrag(1,:,i))
-       xp3 = c%x2c(tetrag(4,:,i) - tetrag(1,:,i))
-       tvol(i) = abs(mixed(xp1,xp2,xp3)) / 6d0
-       sumi = sumi + tvol(i)
-    end do
-
-  end subroutine pmwigner
-
   !> Calculate the irreducible WS wedge around point xorigin (cryst coords)
   !> and partition it into tetrahedra.
   module subroutine getiws(c,xorigin,ntetrag,tetrag)

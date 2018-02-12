@@ -4471,7 +4471,6 @@ Qtree (QTREE)
   WS_ORIGIN x.r y.r z.r
   WS_SCALE scale.r
   WS_EPS_VOL eps_vol.r
-  NOWS
   KILLEXT
   NOKILLEXT
   CHECKBETA

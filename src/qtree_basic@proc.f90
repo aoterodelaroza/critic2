@@ -138,7 +138,7 @@ contains
   module subroutine qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,verbose)
     use systemmod, only: sy
     use global, only: minl, prop_mode, integ_scheme, integ_mode, keastnum,&
-       qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_use, ws_origin,&
+       qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_origin,&
        ws_scale
     use tools_math, only: mixed, cross
     use tools_io, only: ferror, faterr, uout, warning
@@ -240,15 +240,7 @@ contains
     end if
 
     ! Determine local point group
-    if (ws_use) then
-       call sy%c%getiws(ws_origin,ntetrag=ntetrag,tetrag=tetrag)
-    else
-       ws_scale = -1d0
-       ws_origin = 0d0
-       leqv = 1
-       lrotm(:,:,1) = eye
-       call sy%c%pmwigner(ntetrag=ntetrag,tetrag=tetrag)
-    end if
+    call sy%c%getiws(ws_origin,ntetrag=ntetrag,tetrag=tetrag)
     periodic = .true.
        
     ! Pre-split level
@@ -358,9 +350,7 @@ contains
     crys2convex_eps1 = 1d0 + crys2convex_eps
 
     ! check symmetry
-    if (ws_use) then
-       call qtree_checksymmetry()
-    end if
+    call qtree_checksymmetry()
 
     ! tetrahedra contacts
     if (docontacts) then

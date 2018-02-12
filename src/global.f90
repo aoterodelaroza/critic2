@@ -175,7 +175,6 @@ module global
   integer :: plot_mode
   logical :: docontacts
   real*8 :: ws_origin(3), ws_scale
-  logical :: ws_use
   integer :: autosph
   logical :: killext, checkbeta
   integer :: minl 

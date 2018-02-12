@@ -140,7 +140,6 @@ contains
     docontacts = .false.
     ws_origin = (/0d0, 0d0, 0d0/)
     ws_scale = -1d0
-    ws_use = .true.
     killext = .true.
     plotsticks = .true.
     autosph = 2
@@ -485,9 +484,6 @@ contains
        else
           call check_no_extra_word(ok)
        end if
-    elseif (equal(word,'nows')) then
-       ws_use = .false.
-       call check_no_extra_word(ok)
     elseif (equal(word,'killext')) then
        killext = .true.
        call check_no_extra_word(ok)

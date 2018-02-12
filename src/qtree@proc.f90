@@ -43,7 +43,7 @@ contains
     use CUI, only: cubpack_info
     use keast, only: keast_rule, keast_order_num
     use integration, only: int_output
-    use global, only: quiet, plot_mode, color_allocate, docontacts, ws_use, setsph_lvl,&
+    use global, only: quiet, plot_mode, color_allocate, docontacts, setsph_lvl,&
        autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
        integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
        ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
@@ -107,12 +107,6 @@ contains
     !$ end if
     if (docontacts .and. color_allocate == 0) then
        call ferror('qtree','DOCONTACTS is not compatible with a single color array',warning)
-       write (uout,'("* The contacts are NOT going to be used.")') 
-       write (uout,*)
-       docontacts = .false.
-    end if
-    if (docontacts .and. .not.ws_use) then
-       call ferror('qtree','DOCONTACTS is not compatible with conventional unit cell partitioning (NOWS)',warning)
        write (uout,'("* The contacts are NOT going to be used.")') 
        write (uout,*)
        docontacts = .false.
@@ -198,19 +192,6 @@ contains
     end if
     write (uout,*)
 
-    ! ! Wigner-Seitz information
-    ! if (ws_use) then
-    !    write (uout,'("* LOCAL symmetry of : ",3(A,2X))') (string(ws_origin(j),'f',decimal=6),j=1,3)
-    !    write (uout,'("Number of sym. ops.: ",A)') string(leqv)
-    !    do i = 1, leqv
-    !       write (uout,'("Operation ",A)') string(i)
-    !       write (uout,'(3(A,2X))') (string(lrotm(1,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-    !       write (uout,'(3(A,2X))') (string(lrotm(2,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-    !       write (uout,'(3(A,2X))') (string(lrotm(3,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-    !    end do
-    !    write (uout,*)
-    ! end if
-
     ! Integration spehres
     if (sy%c%nneq > size(sphfactor)) then
        call ferror('qtree_integration','too many non-equivalent atoms',faterr)
@@ -241,41 +222,6 @@ contains
     end if
 
     write (uout,'("+ Initial number of tetrahedra in IWS: ",A)') string(nt_orig)
-    ! if (ws_use) then
-    !    write (uout,'("* Origin of WS cell: ",A)') (string(ws_origin(j),'e',decimal=6),j=1,3)
-    !    if (ws_scale > 0d0) then
-    !       write (uout,'("* Scaling of WS cell: ",A)') string(ws_scale,'f',decimal=6)
-    !    end if
-    ! else
-    !    write (uout,'("* Using the conventional unit cell")') 
-    ! end if
-    ! write (uout,'("* LIST of tetrahedra in crystallographic coordinates")')
-    ! do i = 1, nt_orig
-    !    ! output
-    !    write (uout,'("* Tetrahedron number: ",A)') string(i)
-    !    write (uout,'("     Origin: ",3(A,2X))') (string(torig(j,i),'f',decimal=6),j=1,3)
-    !    do j = 1, 3
-    !       write (uout,'("     Edge ",A,": ",3(A,2X))') string(j), (string(tvec(k,j,i),'f',decimal=6),k=1,3)
-    !    end do
-    !    write (uout,'("     Volume : ",A)') string(tvol(i),'f',decimal=6)
-    !    if (tvol(i) < vcutoff) then
-    !       write (uout,'(" (the volume of this tetrahedron is smaller than the vcutoff, will be skipped)")')
-    !    end if
-    !    write (uout,'(" Cartesian to convex matrix: ")')
-    !    write (uout,'(4X,3(A,2X))') (string(cmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(cmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(cmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(" Convex to cartesian matrix: ")')
-    !    write (uout,'(4X,3(A,2X))') (string(dmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(dmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(dmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'("* Origin (cart.): ",3(A,2X))') (string(borig(j,i),'f',decimal=6),j=1,3)
-    !    do j = 1, 3
-    !       write (uout,'("* (v",A,"-v0) (cart./2**l): ",3(A,2X))') string(j), &
-    !          (string(bvec(k,j,i),'f',decimal=6,length=12,justify=4),k=1,3)
-    !    end do
-    !    write (uout,*)
-    ! end do
 
     if (ws_scale > 0d0) then
        vtotal = sy%c%omega / ws_scale**3 
