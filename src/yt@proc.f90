@@ -106,7 +106,7 @@ contains
     caux%car2crys = matinv(caux%crys2car)
     call caux%wigner(area=al)
     nvec = caux%ws_nf
-    vec = caux%ws_ineigh
+    vec = caux%ws_ineighx
     call caux%end()
 
     ! run over grid points in order of decreasing density

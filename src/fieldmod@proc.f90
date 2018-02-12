@@ -1514,7 +1514,7 @@ contains
     integer, intent(in), optional :: idx
     logical, intent(in), optional :: nozero
 
-    real*8, parameter :: eps2 = 1d-10 * 1d-10
+    real*8, parameter :: eps = 1d-10
 
     real*8 :: temp(3), d2, d2min
     integer :: j
@@ -1532,14 +1532,14 @@ contains
        temp = f%cpcel(j)%x - xp
        call f%c%shortest(temp,d2)
        if (present(nozero)) then
-          if (d2 < eps2) cycle
+          if (d2 < eps) cycle
        end if
        if (d2 < d2min) then
           nid = j
           d2min = d2
        end if
     end do
-    dist = sqrt(d2min)
+    dist = d2min
 
   end subroutine nearest_cp
 
@@ -1556,11 +1556,10 @@ contains
     integer :: i
 
     identify_cp = 0
-    eps2 = eps*eps
     do i = 1, f%ncpcel
        x = x0 - f%cpcel(i)%x
        call f%c%shortest(x,dist2)
-       if (dist2 < eps2) then
+       if (dist2 < eps) then
           identify_cp = i
           return
        end if
@@ -2241,7 +2240,6 @@ contains
           xcpr = 0d0
        end if
        if (fid%ncpcel > 0) then
-          cprad = cprad * cprad
           do i = 1, fid%ncpcel
              if (.not.(fid%cpcel(i)%typ==-3 .and. iup==1 .or. fid%cpcel(i)%typ==3 .and. iup==-1)) cycle  ! only cages if down, only ncps if up
              dx = xpoint - fid%cpcel(i)%x
@@ -2253,7 +2251,6 @@ contains
                 xcpr = fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx)
              end if
           end do
-          cprad = sqrt(cprad)
        end if
 
        ! is it a nuclear position? 

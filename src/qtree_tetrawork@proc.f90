@@ -704,7 +704,7 @@ contains
           end if
        end do
        xnuc = sy%c%x2c(sy%f(sy%iref)%cpcel(nid)%x - lvec)
-       if (abs(sqrt(r2)-r_betaint(its)) > 2d0*maxlen) then
+       if (abs(r2-r_betaint(its)) > 2d0*maxlen) then
           call ferror('integ_border_keast','unknown xnuc for the tetrahedron',faterr)
        end if
        r2 = r_betaint(its) * r_betaint(its)
@@ -1004,7 +1004,7 @@ contains
           end if
        end do
        xnuc = sy%c%x2c(sy%f(sy%iref)%cpcel(nid)%x - lvec)
-       if (abs(sqrt(r2)-r_betaint(its)) > 2d0*maxlen) then
+       if (abs(r2-r_betaint(its)) > 2d0*maxlen) then
           call ferror('integ_border_keast','unknown xnuc for the tetrahedron',faterr)
        end if
        r2 = r_betaint(its) * r_betaint(its)

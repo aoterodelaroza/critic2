@@ -1095,7 +1095,6 @@ contains
        if (sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%cp(cpid)%typ) cycle
        xtemp = sy%f(sy%iref)%cpcel(i)%x - xpoint
        call sy%c%shortest(xtemp,dtemp)
-       dtemp = sqrt(dtemp)
        if (dtemp <= sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta) then
           sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta = &
              0.75d0 * sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta
@@ -1232,13 +1231,13 @@ contains
     do j = 1, sy%f(sy%iref)%ncpcel
        xtemp = sy%f(sy%iref)%cpcel(j)%x - xnuc
        call sy%c%shortest(xtemp,rr2)
-       if (rr2 < 1d-10) cycle
+       if (rr2 < 1d-5) cycle
        if (rr2 < rmin) rmin = rr2
        if (rr2 < rminsame .and. sy%f(sy%iref)%cpcel(j)%typ == sy%f(sy%iref)%cp(cpid)%typ) &
           rminsame = rr2
     end do
-    rmin = sqrt(rmin)
-    rminsame = sqrt(rminsame)
+    rmin = rmin
+    rminsame = rminsame
     rnearsum = 0d0
     rfarsum = 0d0
     rzfssum = 0d0

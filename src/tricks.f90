@@ -119,9 +119,9 @@ contains
   !            do i = 1, cr%ncel
   !               x = cr%atcel(i)%x - x0
   !               call cr%shortest(x,d2)
-  !               if (d2 <= rsph(i)*rsph(i)) then
+  !               if (d2 <= rsph(i)) then
   !                  !$omp critical (smooth)
-  !                  f(4)%f(ix,iy,iz) = f(4)%f(ix,iy,iz) * sin(0.5d0*pi*sqrt(d2)/rsph(i))**6
+  !                  f(4)%f(ix,iy,iz) = f(4)%f(ix,iy,iz) * sin(0.5d0*pi*d2/rsph(i))**6
   !                  !$omp end critical (smooth)
   !                  exit
   !               end if
@@ -378,6 +378,7 @@ contains
     logical :: inside
 
     integer, parameter :: npts = 10
+    real*8, parameter :: eps = 1d-10
 
     write (uout,*) "* Checking the implementation of the shortest routine"
     write (uout,*)
@@ -385,14 +386,14 @@ contains
     write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
     nvws = sy%c%ws_nf
     do i = 1, nvws
-       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineigh(j,i)),j=1,3)
+       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineighx(j,i)),j=1,3)
     end do
     write (uout,*)
 
     allocate(xvws(3,nvws))
     write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
     do i = 1, nvws
-       x = 0.5d0 * sy%c%x2c(real(sy%c%ws_ineigh(:,i),8))
+       x = 0.5d0 * sy%c%ws_ineighc(:,i)
        xvws(:,i) = x
        write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
     end do
@@ -410,7 +411,7 @@ contains
 
              inside = .true.
              do l = 1, nvws
-                inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= 1d-14)
+                inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= eps)
              end do
              if (.not.inside) then
                 nnok = nnok + 1

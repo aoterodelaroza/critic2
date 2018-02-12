@@ -252,7 +252,7 @@ contains
     integer :: nnew, icpy
     real*8, allocatable :: atpos(:,:)
     integer, allocatable :: irotm(:), icenv(:)
-    real*8 :: v1(3), v2(3), rdel(3,3), rdel4(3,4)
+    real*8 :: v1(3), v2(3)
 
     if (.not.seed%isused) then
        if (crashfail) then
@@ -415,28 +415,6 @@ contains
 
     ! calculate the wigner-seitz cell
     call c%wigner()
-
-    ! calculate the translations for shortest vector search
-    call c%delaunay_reduction(rdel4,rbas=rdel)
-    c%crys2car_del = matmul(c%crys2car,rdel)
-    c%rdeli = transpose(rdel)
-    c%rdelr = matinv(c%rdeli)
-    c%rdeli_x2c = matmul(c%rdeli,transpose(c%crys2car))
-    do i = 1, c%ws_nf
-       c%ivws_del(:,i) = nint(matmul(c%ws_ineigh(:,i),c%rdelr))
-    end do
-
-    ! orthogonality of the cell and the reduced cell
-    c%isortho = (c%ws_nf <= 6)
-    if (c%isortho) then
-       c%isortho_del = .true.
-       do i = 1, c%ws_nf
-          c%isortho = c%isortho .and. (count(abs(c%ws_ineigh(:,i)) == 1) == 1) .and.&
-             (count(abs(c%ws_ineigh(:,i)) == 0) == 2)
-          c%isortho_del = c%isortho_del .and. (count(abs(c%ivws_del(:,i)) == 1) == 1) .and.&
-             (count(abs(c%ivws_del(:,i)) == 0) == 2)
-       end do
-    endif
 
     ! copy the symmetry information, if available
     if (seed%havesym > 0 .and..not.seed%ismolecule) then
@@ -703,11 +681,11 @@ contains
     real*8, intent(in) :: x2(3) !< Second point in cryst. coordinates
     real*8 :: eql_distance
 
-    real*8 :: xd(3), dist2
+    real*8 :: xd(3), dist
 
     xd = x1 - x2
-    call c%shortest(xd,dist2)
-    eql_distance = sqrt(dist2)
+    call c%shortest(xd,dist)
+    eql_distance = dist
 
   end function eql_distance
 
@@ -715,32 +693,33 @@ contains
   !> lattice-translated copy of x with the shortest length. Returns
   !> the shortest-length vector in Cartesian coordinates and 
   !> the square of the distance. This routine is thread-safe.
-  pure module subroutine shortest(c,x,dist2)
+  pure module subroutine shortest(c,x,dist)
     class(crystal), intent(in) :: c
     real*8, intent(inout) :: x(3)
-    real*8, intent(out) :: dist2
+    real*8, intent(out) :: dist
 
     integer :: i
     real*8 :: xtry(3), dvws, x0(3)
+    real*8, parameter :: eps = 1d-13
 
     if (c%isortho) then
        x = x - nint(x)
        x = matmul(c%crys2car,x)
-       dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-    else
+       dist = norm2(x)
+    else 
        x = matmul(x,c%rdelr)
        x = x - nint(x)
-       x0 = x
        x = matmul(x,c%rdeli_x2c)
-       dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+       dist = norm2(x)
+
        if (.not.c%isortho_del) then
+          x0 = x
           do i = 1, c%ws_nf
-             xtry = x0 + c%ivws_del(:,i)
-             xtry = matmul(xtry,c%rdeli_x2c)
-             dvws = xtry(1)*xtry(1)+xtry(2)*xtry(2)+xtry(3)*xtry(3)
-             if (dvws < dist2) then
+             xtry = x0 + c%ws_ineighc(:,i)
+             dvws = norm2(xtry)
+             if (dvws < dist) then
                 x = xtry
-                dist2 = dvws
+                dist = dvws
              endif
           end do
        end if
@@ -749,17 +728,17 @@ contains
   end subroutine shortest
 
   !> Determine if two points x0 and x1 (cryst.) are at a distance less
-  !> than eps. Logical veresion of c%distance(). If d2 is present and
+  !> than eps. Logical version of c%distance(). If d2 is present and
   !> are_close is .true., return the square of the distance in that
   !> argument.  This routine is thread-safe.
-  module function are_close(c,x0,x1,eps,d2)
+  module function are_close(c,x0,x1,eps,dd)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
-    real*8, intent(out), optional :: d2
+    real*8, intent(out), optional :: dd
     logical :: are_close
 
-    real*8 :: x(3), dbound, dist2
+    real*8 :: x(3), dbound, dist
 
     are_close = .false.
     x = x0 - x1
@@ -767,9 +746,9 @@ contains
     if (dbound > eps) return
     x = matmul(c%crys2car,x)
     if (any(abs(x) > eps)) return
-    dist2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-    are_close = (dist2 < (eps*eps))
-    if (present(d2) .and. are_close) d2 = dist2
+    dist = norm2(x)
+    are_close = (dist < eps)
+    if (present(dd) .and. are_close) dd = dist
 
   end function are_close
 
@@ -778,20 +757,20 @@ contains
   !> coords. Logical version of c%ldistance(). If d2 is present and
   !> are_close is .true., return the square of the distance in that
   !> argument. This routine is thread-safe.
-  module function are_lclose(c,x0,x1,eps,d2)
+  module function are_lclose(c,x0,x1,eps,dd)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
-    real*8, intent(out), optional :: d2
+    real*8, intent(out), optional :: dd
     logical :: are_lclose
 
-    real*8 :: x(3), dist2
+    real*8 :: x(3), dist
 
     are_lclose = .false.
     x = x0 - x1
-    call c%shortest(x,dist2)
-    are_lclose = (dist2 < (eps*eps))
-    if (present(d2) .and. are_lclose) d2 = dist2
+    call c%shortest(x,dist)
+    are_lclose = (dist < eps)
+    if (present(dd) .and. are_lclose) dd = dist
 
   end function are_lclose
 
@@ -823,7 +802,7 @@ contains
           lvec = nint(c%atcel(j)%x - xp - temp)
        end if
     end do
-    dist = sqrt(d2min)
+    dist = d2min
 
   end subroutine nearest_atom
 
@@ -851,7 +830,7 @@ contains
     do i = 1, c%ncel
        xd = x - c%atcel(i)%x
        call c%shortest(xd,dist2)
-       if (dist2 < 1d-6) then
+       if (dist2 < 1d-3) then
           if (lncel) then
              identify_atom = i
           else
@@ -968,7 +947,6 @@ contains
     integer :: i, j, k, l
     integer :: mrot, mrot0
     real*8 :: tmp(3), xp(3)
-    real*8 :: l2
     real*8 :: loweps, dist2, eps
 
     real*8, parameter :: eps_default = 1d-2
@@ -1029,7 +1007,6 @@ contains
 
     ! rotation matrix identifier
     loweps = 1d-2 * eps
-    l2 = loweps*loweps
     alo: do j = 1, mmult
        blo: do k = 1, c%neqv
           clo: do l = 1, c%ncv
@@ -1039,7 +1016,7 @@ contains
              tmp = matmul(c%rotm(:,1:3,k),xp) + c%rotm(:,4,k) + c%cen(:,l)
              tmp = tmp - vec(:,j)
              call c%shortest(tmp,dist2)
-             if (dist2 < l2) then
+             if (dist2 < loweps) then
                 irotm(j) = k
                 icenv(j) = l
                 exit blo
@@ -1245,8 +1222,8 @@ contains
                    rvws = x0
                    lvec = lvec0
                 else
-                   rvws = x0 - c%ws_ineigh(:,k)
-                   lvec = lvec0 + c%ws_ineigh(:,k)
+                   rvws = x0 - c%ws_ineighx(:,k)
+                   lvec = lvec0 + c%ws_ineighx(:,k)
                 endif
                 rvws = matmul(c%crys2car,rvws)
                 dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
@@ -1770,7 +1747,7 @@ contains
     real*8, optional :: lrotm(3,3,48) !< Point group operations
 
     integer :: i, m
-    real*8 :: dumy(3), eps2, dist2, eps, vec(3)
+    real*8 :: dumy(3), dist2, eps, vec(3)
     integer :: type
     logical :: ok
     integer :: highest, highests
@@ -1784,7 +1761,6 @@ contains
     else
        eps = eps_default
     end if
-    eps2 = eps*eps
 
     ! Run over all proper symmetry elements of symmetry
     nnsym = 0
@@ -1796,7 +1772,7 @@ contains
           dumy = matmul(c%rotm(1:3,1:3,i),x0) 
           dumy = - dumy + x0 - c%rotm(1:3,4,i) - c%cen(:,m)
           call c%shortest(dumy,dist2)
-          ok = (dist2 < eps2)
+          ok = (dist2 < eps)
           if (ok) exit
        end do
        if (ok) then
@@ -3116,7 +3092,7 @@ contains
           write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
           do i = 1, c%ws_nf
              write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
-                (string(c%ws_ineigh(j,i),length=2,justify=ioj_right),j=1,3)
+                (string(c%ws_ineighx(j,i),length=2,justify=ioj_right),j=1,3)
           end do
           write (uout,*)
 
@@ -3136,9 +3112,9 @@ contains
           xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
 
           write (uout,'("  Delaunay reduced cell lengths: ",99(A,X))') &
-             (string(xlen(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
+             (string(xlen(j),'f',length=12,decimal=6,justify=ioj_right),j=1,3)
           write (uout,'("  Delaunay reduced cell angles: ",99(A,X))') &
-             (string(xang(j),'f',length=10,decimal=4,justify=ioj_right),j=1,3)
+             (string(xang(j),'f',length=12,decimal=6,justify=ioj_right),j=1,3)
           write (uout,*)
 
           write (uout,'("+ Is the cell orthogonal? ",L1)') c%isortho
@@ -3356,7 +3332,7 @@ contains
   !> Builds the Wigner-Seitz cell. Writes the WS components of c.
   module subroutine wigner(c,area)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
-    use tools_math, only: mixed, cross
+    use tools_math, only: mixed, cross, matinv
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use types, only: realloc
@@ -3389,13 +3365,10 @@ contains
     integer :: i, j
     integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
+    real*8 :: rdel(3,3)
 
     ! delaunay reduction
-    rmati = 0d0
-    do i = 1, 3
-       rmati(i,i) = 1d0
-    end do
-    call c%delaunay_reduction(rmat,rmati)
+    call c%delaunay_reduction(rmat,rbas=rdel)
 
     ! construct star of lattice vectors -> use Delaunay reduction
     ! see 9.1.8 in ITC.
@@ -3431,9 +3404,11 @@ contains
        c%ws_x(:,i) = matmul(c%car2crys,xvws(:,i))
     end do
 
-    c%ws_ineigh = 0
+    c%ws_ineighc = 0
+    c%ws_ineighx = 0
     do i = 1, c%ws_nf
-       c%ws_ineigh(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
+       c%ws_ineighc(:,i) = xstar(:,ivws(i))
+       c%ws_ineighx(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
     end do
     if (present(area)) then
        do i = 1, c%ws_nf
@@ -3456,6 +3431,29 @@ contains
 
     deallocate(ivws,xvws)
     
+    ! is the cell orthogonal?
+    c%isortho = (c%ws_nf <= 6)
+    if (c%isortho) then
+       do i = 1, c%ws_nf
+          c%isortho = c%isortho .and. (count(abs(c%ws_ineighx(:,i)) == 1) == 1) .and.&
+             (count(abs(c%ws_ineighx(:,i)) == 0) == 2)
+       end do
+    end if
+
+    ! calculate the delaunay reduction parameters for shortest vector search
+    c%rdeli = transpose(rdel)
+    c%rdelr = matinv(c%rdeli)
+    c%rdeli_x2c = matmul(c%rdeli,transpose(c%crys2car))
+    do i = 1, c%ws_nf
+       c%ivws_del(:,i) = nint(matmul(c%ws_ineighx(:,i),c%rdelr))
+    end do
+
+    c%isortho_del = .true.
+    do i = 1, c%ws_nf
+       c%isortho_del = c%isortho_del .and. (count(abs(c%ivws_del(:,i)) == 1) == 1) .and.&
+          (count(abs(c%ivws_del(:,i)) == 0) == 2)
+    end do
+
   end subroutine wigner
 
   !> Calculate the irreducible WS wedge around point xorigin (cryst coords)

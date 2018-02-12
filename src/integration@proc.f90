@@ -1535,7 +1535,7 @@ contains
                             if (ibb /= ibnd2) cycle
                             x = (sy%f(fid)%grid%wan%center(:,ibnd1,is) + (/ia,ja,ka/) - (/ib,jb,kb/) - sy%f(fid)%grid%wan%center(:,ibnd2,is)) / real(nwan,8)
                             call nc%shortest(x,d2)
-                            if (sqrt(d2) > d0) &
+                            if (d2 > d0) &
                                lovrlp(ia,ja,ka,ib,jb,kb) = .false.
                          end do
                       end do
@@ -2064,7 +2064,7 @@ contains
                       io(m) = m
                       r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
-                      dist(m) = sqrt(d2) * dunit0(iunit)
+                      dist(m) = d2 * dunit0(iunit)
                       diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
@@ -2182,7 +2182,7 @@ contains
                          io(m) = m
                          r1 = (xcm(:,j) + (/ic,jc,kc/) - xcm(:,i)) / real(nwan,8)
                          call cr1%shortest(r1,d2)
-                         dist(m) = sqrt(d2) * dunit0(iunit)
+                         dist(m) = d2 * dunit0(iunit)
                          diout(m) = dimol(i,j,ic,jc,kc)
                          idat(m) = j
                          ilvec(:,m) = nint(xcm(:,i) + cr1%c2x(r1) * nwan - xcm(:,j))
@@ -2353,7 +2353,7 @@ contains
 
                    ! plot, if on the border of the cell
                    do j = 1, caux%ws_nf
-                      q = modulo(p + caux%ws_ineigh(:,j) - 1,n) + 1
+                      q = modulo(p + caux%ws_ineighx(:,j) - 1,n) + 1
                       if (idg0(q(1),q(2),q(3)) /= i) then
                          do k = 1, caux%ws_nside(j)
                             xface(:,k) = x + caux%x2c(caux%ws_x(:,caux%ws_iside(k,j)))

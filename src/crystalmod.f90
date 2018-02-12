@@ -80,16 +80,16 @@ module crystalmod
      integer :: ws_nv !< number of vertices
      integer :: ws_nf !< number of facets
      integer :: ws_mnfv !< maximum number of vertices per facet
-     integer :: ws_ineigh(3,14) !< WS neighbor lattice points (cryst. coords.)
+     integer :: ws_ineighx(3,14) !< WS neighbor lattice points (cryst. coords.)
+     real*8 :: ws_ineighc(3,14) !< WS neighbor lattice points (Cart. coords.)
      integer :: ws_nside(14) !< number of sides of WS faces
      integer, allocatable :: ws_iside(:,:) !< sides of the WS faces
      real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
      logical :: isortho !< is the cell orthogonal?
-     ! rotations and translations for finding shortest vectors
+     ! delaunay reduction
      real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
      real*8 :: rdeli(3,3) !< x_cur = x_del * c%rdeli
      real*8 :: rdeli_x2c(3,3) !< c_cur = x_del * c%rdeli_x2c
-     real*8 :: crys2car_del(3,3) !< crys2car delaunay cell
      integer :: ivws_del(3,16) !< WS neighbor lattice points (del cell, Cartesian)
      logical :: isortho_del !< is the reduced cell orthogonal?
      ! core charges
@@ -285,23 +285,23 @@ module crystalmod
        real*8, intent(in) :: x2(3)
        real*8 :: eql_distance
      end function eql_distance
-     pure module subroutine shortest(c,x,dist2)
+     pure module subroutine shortest(c,x,dist)
        class(crystal), intent(in) :: c
        real*8, intent(inout) :: x(3)
-       real*8, intent(out) :: dist2
+       real*8, intent(out) :: dist
      end subroutine shortest
-     module function are_close(c,x0,x1,eps,d2)
+     module function are_close(c,x0,x1,eps,dd)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3), x1(3)
        real*8, intent(in) :: eps
-       real*8, intent(out), optional :: d2
+       real*8, intent(out), optional :: dd
        logical :: are_close
      end function are_close
-     module function are_lclose(c,x0,x1,eps,d2)
+     module function are_lclose(c,x0,x1,eps,dd)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3), x1(3)
        real*8, intent(in) :: eps
-       real*8, intent(out), optional :: d2
+       real*8, intent(out), optional :: dd
        logical :: are_lclose
      end function are_lclose
      module subroutine nearest_atom(c,xp,nid,dist,lvec)
