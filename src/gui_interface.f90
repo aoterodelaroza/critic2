@@ -158,9 +158,6 @@ contains
     call spgs_init()
     call systemmod_init(1)
 
-    ! always calculate the bonds
-    crsmall = huge(crsmall)
-
     ! banner and compilation info; do not copy input
     call initial_banner()
     call config_write()
@@ -275,7 +272,11 @@ contains
        sc(isc)%at(i)%cidx = i
        sc(isc)%at(i)%z = iz
        call f_c_string(sc(isc)%sy%c%spc(is)%name,sc(isc)%at(i)%name,11)
-       sc(isc)%at(i)%ncon = sc(isc)%sy%c%nstar(i)%ncon
+       if (allocated(sc(isc)%sy%c%nstar)) then
+          sc(isc)%at(i)%ncon = sc(isc)%sy%c%nstar(i)%ncon
+       else
+          sc(isc)%at(i)%ncon = 0
+       end if
        mncon_ = max(mncon_,sc(isc)%at(i)%ncon)
 
        if (atmcov(iz) > 1) then

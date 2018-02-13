@@ -765,6 +765,8 @@ contains
     real*8, parameter :: shrink = 0.95d0
     integer, parameter :: miter = 400
 
+    call sy%c%checkflags(.false.,nn0=.true.)
+
     ! save the color_allocate variable
     icolor = color_allocate
     color_allocate = 1
@@ -958,6 +960,8 @@ contains
     real*8, parameter :: shrink = 0.95d0
     integer, parameter :: nleb = 38
     real*8, parameter :: dthres = 0.5d0
+
+    call sy%c%checkflags(.false.,nn0=.true.)
 
     ! get the nnuc
     nnuc = 0

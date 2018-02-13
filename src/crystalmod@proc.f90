@@ -475,39 +475,39 @@ contains
        ! symmetry was not available, and I want it
        call c%spglib_wrap(.true.,.false.)
        hasspg = .true.
-    end if
 
-    ! eliminate redundant atoms 
-    nnew = 0
-    do i = 1, c%nneq
-       found = .false.
-       if (c%spc(c%at(i)%is)%z <= maxzat) then ! skip critical points
-          loio: do io = 1, c%neqv
-             do it = 1, c%ncv
-                v1 = matmul(c%rotm(1:3,1:3,io), c%at(i)%x) + c%rotm(:,4,io) + c%cen(:,it)
-                do j = 1, nnew
-                   if (c%spc(c%at(j)%is)%z > maxzat) cycle ! skip critical points
-                   v2 = c%at(j)%x
-                   if (c%are_lclose(v1,v2,atomeps) .and. c%at(i)%is == c%at(j)%is) then
-                      found = .true.
-                      icpy = j
-                      exit loio
-                   end if
+       ! eliminate redundant atoms 
+       nnew = 0
+       do i = 1, c%nneq
+          found = .false.
+          if (c%spc(c%at(i)%is)%z <= maxzat) then ! skip critical points
+             loio: do io = 1, c%neqv
+                do it = 1, c%ncv
+                   v1 = matmul(c%rotm(1:3,1:3,io), c%at(i)%x) + c%rotm(:,4,io) + c%cen(:,it)
+                   do j = 1, nnew
+                      if (c%spc(c%at(j)%is)%z > maxzat) cycle ! skip critical points
+                      v2 = c%at(j)%x
+                      if (c%are_lclose(v1,v2,atomeps) .and. c%at(i)%is == c%at(j)%is) then
+                         found = .true.
+                         icpy = j
+                         exit loio
+                      end if
+                   end do
                 end do
-             end do
-          end do loio
-       end if
-       if (.not.found) then
-          nnew = nnew + 1
-          if (nnew > size(c%at)) then
-             call realloc(c%at,2*size(c%at))
+             end do loio
           end if
-          c%at(nnew) = c%at(i)
-       end if
-    end do
-    c%nneq = nnew
-    if (c%nneq > 0) &
-       call realloc(c%at,c%nneq)
+          if (.not.found) then
+             nnew = nnew + 1
+             if (nnew > size(c%at)) then
+                call realloc(c%at,2*size(c%at))
+             end if
+             c%at(nnew) = c%at(i)
+          end if
+       end do
+       c%nneq = nnew
+       if (c%nneq > 0) &
+          call realloc(c%at,c%nneq)
+    end if
 
     ! generate the complete atom list
     if (c%nneq > 0) then
@@ -710,7 +710,6 @@ contains
 
     integer :: i
     real*8 :: xtry(3), dvws, x0(3)
-    real*8, parameter :: eps = 1d-13
 
     if (c%isortho) then
        x = x - nint(x)
@@ -1875,6 +1874,10 @@ contains
     
     integer :: i
 
+    !$omp critical (fill_ewald)
+    call c%checkflags(.false.,nn0=.true.)
+    !$omp end critical (fill_ewald)
+
     px = 0d0
     do i = 1, c%nneq
        px = px + c%at(i)%mult * 4d0/3d0 * pi * c%at(i)%rnn2**3
@@ -2547,7 +2550,7 @@ contains
 
     ! initialize the structure
     call c%struct_new(ncseed,.true.)
-    call c%struct_fill(.true.,-1,.false.,.true.,.false.)
+    call c%struct_fill(.true.,-1,.false.,.false.,.false.)
     if (verbose) call c%report(.true.,.true.)
 
   end subroutine newcell
@@ -2792,15 +2795,12 @@ contains
     logical, intent(in) :: lcrys
     logical, intent(in) :: lq
 
-    integer, parameter :: natenvmax = 2000
-
     integer :: i, j, k, iz, is
     integer :: nelec, holo, laue
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
-    character(len=:), allocatable :: str1, str2
+    character(len=:), allocatable :: str1
     character(len=3) :: schpg
-    integer, allocatable :: nneig(:), wat(:)
-    real*8, allocatable :: dist(:)
+    integer, allocatable :: nis(:)
 
     if (lcrys) then
        ! Header
@@ -2823,15 +2823,22 @@ contains
        endif
 
        ! Compute unit formula, and z
+       allocate(nis(c%nspc))
+       nis = 0
+       do i = 1, c%nneq
+          nis(c%at(i)%is) = nis(c%at(i)%is) + c%at(i)%mult
+       end do
+       maxdv = gcd(nis,c%nspc)
+       write (uout,'("  Empirical formula: ",999(/4X,10(A,"(",A,") ")))') &
+          (string(c%spc(i)%name), string(nint(nis(i)/maxdv)), i=1,c%nspc)
+       deallocate(nis)
        if (.not.c%ismolecule) then
-          maxdv = gcd(c%at(1:c%nneq)%mult,c%nneq)
-          write (uout,'("  Molecular formula: ",999(/4X,10(A,"(",A,") ")))') &
-             (string(c%spc(c%at(i)%is)%name), string(nint(c%at(i)%mult/maxdv)), i=1,c%nneq)
           write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
           write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
        else
           write (uout,'("  Number of atoms: ",A)') string(c%ncel)
        endif
+       write (uout,'("  Number of atomic species: ",A)') string(c%nspc)
        nelec = 0
        do i = 1, c%nneq
           iz = c%spc(c%at(i)%is)%z
@@ -2840,39 +2847,50 @@ contains
        end do
        write (uout,'("  Number of electrons (with zero atomic charge): ",A/)') string(nelec)
 
+       write (uout,'("+ List of atomic species: ")')
+       write (uout,'("# ",3(A,X))') string("id",2,ioj_center), &
+          string("Z",3,ioj_center), string("name",7,ioj_center)
+       do i = 1, c%nspc
+          write (uout,'("  ",3(A,X))') string(i,2,ioj_center), &
+             string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center)
+       end do
+       write (uout,*)
+
        ! List of atoms in crystallographic coordinates
        if (.not.c%ismolecule) then
           write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
-          write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
+          write (uout,'("# ",8(A,X))') string("nat",3,ioj_center), &
              string("x",14,ioj_center), string("y",14,ioj_center),&
-             string("z",14,ioj_center), string("name",10,ioj_center), &
-             string("mult",4,ioj_center), string("Z",4,ioj_center)
+             string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center), &
+             string("mult",3,ioj_center), string("Z",3,ioj_center)
           do i=1, c%nneq
              is = c%at(i)%is
-             write (uout,'(2x,7(A,X))') &
+             write (uout,'(2x,8(A,X))') &
                 string(i,3,ioj_center),&
                 string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
                 string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(c%spc(is)%name,10,ioj_center), &
-                string(c%at(i)%mult,4,ioj_center), string(c%spc(is)%z,4,ioj_center)
+                string(is,3,ioj_center), &
+                string(c%spc(is)%name,7,ioj_center), &
+                string(c%at(i)%mult,3,ioj_center), string(c%spc(is)%z,3,ioj_center)
           enddo
           write (uout,*)
 
           write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
-          write (uout,'("# ",6(A,X))') string("at",3,ioj_center),&
+          write (uout,'("# ",7(A,X))') string("at",3,ioj_center),&
              string("x",14,ioj_center), string("y",14,ioj_center),&
-             string("z",14,ioj_center), string("name",10,ioj_center),&
-             string("Z",4,ioj_center)
+             string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
+             string("Z",3,ioj_center)
           do i=1,c%ncel
              is = c%atcel(i)%is
-             write (uout,'(2x,6(A,X))') &
+             write (uout,'(2x,7(A,X))') &
                 string(i,3,ioj_center),&
                 string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(c%spc(is)%name,10,ioj_center),&
-                string(c%spc(is)%z,4,ioj_center)
+                string(is,3,ioj_center),&
+                string(c%spc(is)%name,7,ioj_center),&
+                string(c%spc(is)%z,3,ioj_center)
           enddo
           write (uout,*)
 
@@ -2885,17 +2903,17 @@ contains
 
        ! List of atoms in Cartesian coordinates
        write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
-       write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
+       write (uout,'("# ",7(A,X))') string("at",3,ioj_center), &
           string("x",16,ioj_center), string("y",16,ioj_center),&
-          string("z",16,ioj_center), string("name",10,ioj_center),&
-          string("Z",4,ioj_center)
+          string("z",16,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
+          string("Z",3,ioj_center)
        do i=1,c%ncel
           is = c%atcel(i)%is
-          write (uout,'(2x,6(A,X))') &
+          write (uout,'(2x,7(A,X))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(c%spc(is)%name,10,ioj_center),&
-             string(c%spc(is)%z,4,ioj_center)
+             string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center),&
+             string(c%spc(is)%z,3,ioj_center)
        enddo
        write (uout,*)
 
@@ -3002,58 +3020,7 @@ contains
           write (uout,*)
        end if
 
-       ! Print out atomic environments and determine the nearest neighbor distances
-       if (c%nneq <= natenvmax) then
-          write (uout,'("+ Atomic environments (distances in ",A,")")') iunitname0(iunit)
-          write (uout,'("# ",6(A,2X))') &
-             string("id",length=4,justify=ioj_center), &
-             string("atom",length=5,justify=ioj_center), &
-             string("nneig",length=5,justify=ioj_center), &
-             string("distance",length=11,justify=ioj_right), &
-             string("nat",length=4,justify=ioj_center), &
-             string("type",length=10,justify=ioj_left)
-          allocate(nneig(10),wat(10),dist(10))
-          do i = 1, c%nneq
-             call c%pointshell(c%at(i)%x,10,nneig,wat,dist)
-             do j = 1, 10
-                if (j == 1) then
-                   str1 = string(i,length=4,justify=ioj_center)
-                   str2 = string(c%spc(c%at(i)%is)%name,length=5,justify=ioj_center)
-                else
-                   str1 = string("",length=4,justify=ioj_center)
-                   str2 = " ... "
-                end if
-                if (wat(j) /= 0) then
-                   write (uout,'(6(2X,A))') &
-                      str1, str2, &
-                      string(nneig(j),length=5,justify=ioj_center), &
-                      string(dist(j)*dunit0(iunit),'f',length=12,decimal=7,justify=5), &
-                      string(wat(j),length=4,justify=ioj_center), &
-                      string(c%spc(c%at(wat(j))%is)%name,length=10,justify=ioj_left)
-                end if
-             end do
-          end do
-          write (uout,*)
-          deallocate(nneig,wat,dist)
-       else
-          write (uout,'("+ Atomic environments not written because of the large number ")')
-          write (uout,'("  of non-equivalent atoms (",A," > ",A,"). Please, use the")') string(c%nneq), string(natenvmax)
-          write (uout,'("  ENVIRON keyword to calculate the atomic environments.")')
-       end if
-
-       ! Determine nn/2 for every atom
-       write (uout,'("+ List of half nearest neighbor distances (",A,")")') iunitname0(iunit)
-       write (uout,'(3(2X,A))') string("id",length=4,justify=ioj_center),&
-          string("atom",length=5,justify=ioj_center), &
-          string("rnn/2",length=12,justify=ioj_center)
-       do i = 1, c%nneq
-          write (uout,'(3(2X,A))') string(i,length=4,justify=ioj_center),&
-             string(c%spc(c%at(i)%is)%name,length=5,justify=ioj_center), &
-             string(c%at(i)%rnn2*dunit0(iunit),'f',length=12,decimal=7,justify=4)
-       end do
-       write (uout,*)
-
-       ! Determine the wigner-seitz cell
+       ! Wigner-Seitz cell
        if (.not.c%ismolecule) then
           write (uout,'("+ Vertex of the WS cell (cryst. coords.)")')
           write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
@@ -3100,9 +3067,9 @@ contains
           xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
 
           write (uout,'("  Delaunay reduced cell lengths: ",99(A,X))') &
-             (string(xlen(j),'f',length=12,decimal=6,justify=ioj_right),j=1,3)
+             (string(xlen(j),'f',decimal=6,justify=ioj_right),j=1,3)
           write (uout,'("  Delaunay reduced cell angles: ",99(A,X))') &
-             (string(xang(j),'f',length=12,decimal=6,justify=ioj_right),j=1,3)
+             (string(xang(j),'f',decimal=3,justify=ioj_right),j=1,3)
           write (uout,*)
 
           write (uout,'("+ Is the cell orthogonal? ",L1)') c%isortho
@@ -3115,6 +3082,7 @@ contains
        write (uout,'("* Atomic charges")')
        write (uout,'("# ",99(A,2X))') &
           string("nat",length=3,justify=ioj_right), &
+          string("spc",length=3,justify=ioj_center), &
           string("name",length=5,justify=ioj_center), &
           string("Z",length=2,justify=ioj_right), &
           string("Q",length=4,justify=ioj_right), &
@@ -3129,6 +3097,7 @@ contains
           end if
           write (uout,'(99(2X,A))') &
              string(i,length=3,justify=ioj_right), &
+             string(is,length=3,justify=ioj_center), &
              string(c%spc(is)%name,length=5,justify=ioj_center), &
              string(c%spc(is)%z,length=2,justify=ioj_right), &
              string(c%spc(is)%qat,'f',length=4,decimal=1,justify=ioj_right),&
@@ -3349,7 +3318,7 @@ contains
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
 
     integer :: i, j, k, n
-    real*8 :: av(3), bary(3), rmat(3,4), rmati(3,3)
+    real*8 :: av(3), bary(3), rmat(3,4)
     integer(c_int) :: n
     real(c_double) :: xstar(3,14)
     integer :: i, j

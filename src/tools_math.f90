@@ -112,7 +112,7 @@ module tools_math
        real*8 :: ep
      end function ep
      module function gcd(n,num)
-       integer, dimension(:) :: n
+       integer :: n(num)
        integer :: num
        integer :: gcd 
      end function gcd

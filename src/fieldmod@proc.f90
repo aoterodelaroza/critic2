@@ -1552,7 +1552,7 @@ contains
     real*8, intent(in) :: x0(3)
     real*8, intent(in) :: eps
 
-    real*8 :: x(3), dist2, eps2
+    real*8 :: x(3), dist2
     integer :: i
 
     identify_cp = 0

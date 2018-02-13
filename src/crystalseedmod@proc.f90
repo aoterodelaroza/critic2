@@ -3278,6 +3278,8 @@ contains
              seed(i)%findsym = 0
           elseif (doguess == 1 .and. seed(i)%havesym == 0) then
              seed(i)%findsym = 1
+          else
+             seed(i)%findsym = -1
           end if
        end if
     end do

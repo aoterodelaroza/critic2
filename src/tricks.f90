@@ -67,6 +67,8 @@ contains
   !   integer, allocatable :: idg(:,:,:), icp(:)
   !   real*8, allocatable :: w(:,:,:)
 
+  !   call sy%c%checkflags(.false.,nn0=.true.)
+
   !   ntot = f(2)%n(1)*f(2)%n(2)*f(2)%n(3)
 
   !   !! model input:

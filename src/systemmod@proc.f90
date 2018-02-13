@@ -108,7 +108,6 @@ contains
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
     call s%fh%init()
     call s%fh%put("rho0",0)
-    call s%f(0)%init_cplist
     call s%set_reference(0,.false.)
     s%refset = .false.
 
@@ -362,7 +361,7 @@ contains
        s%isinit = .true.
 
        ! fill environments, asterisms, nearest neighbors
-       call s%c%struct_fill(.true.,-1,.false.,.true.,.false.)
+       call s%c%struct_fill(.true.,-1,.false.,.false.,.false.)
 
        ! load the promolecular density field and set it as reference
        call s%reset_fields()

@@ -200,7 +200,7 @@ contains
        istring_f77, istring_fc, istring_cc, istring_fflags,&
        istring_fcflags, istring_cflags, istring_ldflags,&
        istring_atarget, istring_adate, istring_enabledebug,&
-       istring_revision, istring_datadir, istring_version
+       istring_datadir, istring_version
     use param, only: dirsep
     use tools_io, only: uout
     logical :: lchk
