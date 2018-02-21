@@ -118,7 +118,7 @@ contains
   !xx! private procedures
 
   !> Calculate XDM using grids.
-  module subroutine xdm_grid(line)
+  subroutine xdm_grid(line)
     use systemmod, only: sy
     use crystalmod, only: search_lattice
     use grid1mod, only: grid1, agrid
@@ -731,7 +731,7 @@ contains
   end subroutine xdm_grid
 
   !> Calculate XDM from the information in a QE output
-  module subroutine xdm_qe(line0)
+  subroutine xdm_qe(line0)
     use systemmod, only: sy
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
        lgetword, isinteger, equal
@@ -873,7 +873,7 @@ contains
   end subroutine xdm_qe
 
   !> Calculate XDM from the information in a QE output
-  module subroutine xdm_excitation(line0)
+  subroutine xdm_excitation(line0)
     use systemmod, only: sy
     use tools_io, only: ferror, faterr, uin, uout, ucopy, getline, isreal,&
        equal, lgetword, getword, string
@@ -944,7 +944,7 @@ contains
 
   end subroutine xdm_excitation
 
-  module subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
+  subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
     use systemmod, only: sy
     use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, getword,&
        ferror, faterr
@@ -995,7 +995,7 @@ contains
   end subroutine xdm_excitation_readpostg
 
   !> Calculate XDM in molecules and crystals using the wavefunction.
-  module subroutine xdm_wfn(a1o,a2o,chf)
+  subroutine xdm_wfn(a1o,a2o,chf)
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn, type_dftb
@@ -1161,7 +1161,7 @@ contains
   end subroutine xdm_wfn
 
   !> Write the header of a cube file
-  module subroutine write_cube(file,line1,line2,n,c)
+  subroutine write_cube(file,line1,line2,n,c)
     use systemmod, only: sy
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
@@ -1207,7 +1207,7 @@ contains
 
   end subroutine write_cube
 
-  module function free_volume(iz) result(afree)
+  function free_volume(iz) result(afree)
     use grid1mod, only: grid1, agrid
     use param, only: pi
     integer, intent(in) :: iz
@@ -1229,7 +1229,7 @@ contains
     end do
   end function free_volume
 
-  module function frevol(z,chf)
+  function frevol(z,chf)
     use tools_io, only: faterr, ferror
     use param, only: maxzat0
     integer, intent(in) :: z
@@ -1461,7 +1461,7 @@ contains
   !> Calculate and print the dispersion energy and its derivatives
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
-  module subroutine calc_edisp(c6,c8,c10,rvdw)
+  subroutine calc_edisp(c6,c8,c10,rvdw)
     use systemmod, only: sy
     use crystalmod, only: crystal
     use tools_io, only: uout
@@ -1516,7 +1516,7 @@ contains
 
   !> Calculate the dispersion energy using moments and volumes
   !> for a given molecular motif.
-  module function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
+  function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
     use systemmod, only: sy
     use crystalmod, only: crystal
     use param, only: alpha_free
@@ -1614,7 +1614,7 @@ contains
   !> volumes and moments (v, mm) and the damping function parameters
   !> (a1, a2, chf). Print out the calculated values. Works for
   !> molecules and crystals.
-  module subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
+  subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
     use systemmod, only: sy
     use tools_io, only: uout, string
     use param, only: alpha_free
@@ -1674,7 +1674,7 @@ contains
   end subroutine calc_coefs
 
   !> Calculate the kinetic energy density from the elf
-  module subroutine taufromelf(ielf,irho,itau)
+  subroutine taufromelf(ielf,irho,itau)
     use systemmod, only: sy
     use fieldmod, only: type_grid
     use grid3mod, only: grid3

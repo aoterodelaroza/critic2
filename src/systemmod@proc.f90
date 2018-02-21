@@ -753,7 +753,7 @@ contains
 
   !> Check that the field given by id is a grid of size n
   !> and return the grid, or return ifail = .true..
-  module function field_cube(sptr,n,id,fder,dry,ifail) result(q)
+  module subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
     use iso_c_binding, only: c_ptr, c_f_pointer
     use fieldmod, only: type_grid
     type(c_ptr), intent(in) :: sptr
@@ -762,7 +762,7 @@ contains
     character*(*), intent(in) :: fder
     logical, intent(in) :: dry
     logical, intent(out) :: ifail
-    real*8 :: q(n(1),n(2),n(3))
+    real*8, intent(out) :: q(n(1),n(2),n(3))
 
     type(system), pointer :: syl
     integer :: iid
@@ -792,7 +792,7 @@ contains
 999 continue
     ifail = .true.
     q = 0d0
-  end function field_cube
+  end subroutine field_cube
 
   !> Unload a field given by identifier id.
   module subroutine unload_field(s,id)

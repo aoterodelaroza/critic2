@@ -608,7 +608,7 @@ contains
 
   !> Does this identifier correspond to a special field. This routine
   !> is thread-safe.
-  module function isspecialfield(fid)
+  function isspecialfield(fid)
     use tools_io, only: lower
     character*(*), intent(in) :: fid
     logical :: isspecialfield

@@ -92,7 +92,7 @@ module grid3mod
        character(*), intent(in) :: expr
        type(hash), intent(in) :: fh
        interface
-          real*8 function field_cube(sptr,n,id,fder,dry,ifail)
+          subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
             import c_ptr
             type(c_ptr), intent(in) :: sptr
             character*(*), intent(in) :: id
@@ -100,8 +100,8 @@ module grid3mod
             character*(*), intent(in) :: fder
             logical, intent(in) :: dry
             logical, intent(out) :: ifail
-            dimension field_cube(n(1),n(2),n(3))
-          end function field_cube
+            real*8, intent(out) :: q(n(1),n(2),n(3))
+          end subroutine field_cube
        end interface
      end subroutine new_eval
      module subroutine grid_end(f)

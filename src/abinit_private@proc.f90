@@ -759,7 +759,7 @@ contains
 
   end subroutine hdr_io_2
 
-  module subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
+  subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
     implicit none
     !Arguments ------------------------------------
     !scalars

@@ -304,7 +304,7 @@ contains
     character(*), intent(in) :: expr
     type(hash), intent(in) :: fh
     interface
-       real*8 function field_cube(sptr,n,id,fder,dry,ifail)
+       subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
          import c_ptr
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
@@ -312,8 +312,8 @@ contains
          character*(*), intent(in) :: fder
          logical, intent(in) :: dry
          logical, intent(out) :: ifail
-         dimension field_cube(n(1),n(2),n(3))
-       end function field_cube
+         real*8, intent(out) :: q(n(1),n(2),n(3))
+       end subroutine field_cube
     end interface
 
     integer :: i, ntok, lp
@@ -347,7 +347,7 @@ contains
        if (toklist(i)%ival == fun_xc) goto 999
        if (istype(toklist(i)%ival,'chemfunction')) goto 999
        if (toklist(i)%type == token_field) then
-          q(:,:,:,1) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.true.,ifail)
+          call field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.true.,ifail,q(:,:,:,1))
           if (ifail) goto 999
        end if
     end do
@@ -412,7 +412,7 @@ contains
            ! a field
            nq = nq + 1
            if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-           q(:,:,:,nq) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.false.,ifail)
+           call field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.false.,ifail,q(:,:,:,nq))
            if (ifail) goto 999
        else
           goto 999

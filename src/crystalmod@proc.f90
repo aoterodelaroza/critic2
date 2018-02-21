@@ -3317,11 +3317,10 @@ contains
 
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
 
-    integer :: i, j, k, n
+    integer :: i, j, k
     real*8 :: av(3), bary(3), rmat(3,4)
     integer(c_int) :: n
     real(c_double) :: xstar(3,14)
-    integer :: i, j
     integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
     real*8 :: rdel(3,3)

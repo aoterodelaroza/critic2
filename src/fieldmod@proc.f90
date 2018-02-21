@@ -265,7 +265,7 @@ contains
          logical, intent(in), optional :: periodic
        end function feval
        !> Return the grid from field id
-       real*8 function cube(sptr,n,id,fder,dry,ifail)
+       subroutine cube(sptr,n,id,fder,dry,ifail,q)
          use iso_c_binding, only: c_ptr
          type(c_ptr), intent(in) :: sptr
          character*(*), intent(in) :: id
@@ -273,8 +273,8 @@ contains
          character*(*), intent(in) :: fder
          logical, intent(in) :: dry
          logical, intent(out) :: ifail
-         dimension cube(n(1),n(2),n(3))
-       end function cube
+         real*8, intent(out) :: q(n(1),n(2),n(3))
+       end subroutine cube
     end interface
 
     character(len=:), allocatable :: ofile

@@ -226,7 +226,7 @@ contains
   !> code=5:   (a,b,0) etc, b=sqrt(1-a^2), a input        ( 24 points)
   !> code=6:   (a,b,c) etc, c=sqrt(1-a^2-b^2), a/b input  ( 48 points)
   !>
-  module subroutine gen_oh(code, num, x, y, z, w, a, b, v)
+  subroutine gen_oh(code, num, x, y, z, w, a, b, v)
     implicit logical(a-z)
     double precision x(*),y(*),z(*),w(*)
     double precision a,b,v
@@ -760,7 +760,7 @@ contains
   !>
   !> Lebedev quadrature, 6 points
   !> 
-  module SUBROUTINE LD0006(X,Y,Z,W,N)
+  SUBROUTINE LD0006(X,Y,Z,W,N)
     DOUBLE PRECISION X(   6)
     DOUBLE PRECISION Y(   6)
     DOUBLE PRECISION Z(   6)
@@ -825,7 +825,7 @@ contains
   !>
   !> Lebedev quadrature, 14 points
   !> 
-  module SUBROUTINE LD0014(X,Y,Z,W,N)
+  SUBROUTINE LD0014(X,Y,Z,W,N)
     DOUBLE PRECISION X(  14)
     DOUBLE PRECISION Y(  14)
     DOUBLE PRECISION Z(  14)
@@ -892,7 +892,7 @@ contains
   !>
   !> Lebedev quadrature, 26 points
   !> 
-  module SUBROUTINE LD0026(X,Y,Z,W,N)
+  SUBROUTINE LD0026(X,Y,Z,W,N)
     DOUBLE PRECISION X(  26)
     DOUBLE PRECISION Y(  26)
     DOUBLE PRECISION Z(  26)
@@ -961,7 +961,7 @@ contains
   !>
   !> Lebedev quadrature, 38 points
   !> 
-  module SUBROUTINE LD0038(X,Y,Z,W,N)
+  SUBROUTINE LD0038(X,Y,Z,W,N)
     DOUBLE PRECISION X(  38)
     DOUBLE PRECISION Y(  38)
     DOUBLE PRECISION Z(  38)
@@ -1031,7 +1031,7 @@ contains
   !>
   !> Lebedev quadrature, 50 points
   !> 
-  module SUBROUTINE LD0050(X,Y,Z,W,N)
+  SUBROUTINE LD0050(X,Y,Z,W,N)
     DOUBLE PRECISION X(  50)
     DOUBLE PRECISION Y(  50)
     DOUBLE PRECISION Z(  50)
@@ -1103,7 +1103,7 @@ contains
   !>
   !> Lebedev quadrature, 74 points
   !> 
-  module SUBROUTINE LD0074(X,Y,Z,W,N)
+  SUBROUTINE LD0074(X,Y,Z,W,N)
     DOUBLE PRECISION X(  74)
     DOUBLE PRECISION Y(  74)
     DOUBLE PRECISION Z(  74)
@@ -1178,7 +1178,7 @@ contains
   !>
   !> Lebedev quadrature, 86 points
   !> 
-  module SUBROUTINE LD0086(X,Y,Z,W,N)
+  SUBROUTINE LD0086(X,Y,Z,W,N)
     DOUBLE PRECISION X(  86)
     DOUBLE PRECISION Y(  86)
     DOUBLE PRECISION Z(  86)
@@ -1254,7 +1254,7 @@ contains
   !>
   !> Lebedev quadrature, 110 points
   !> 
-  module SUBROUTINE LD0110(X,Y,Z,W,N)
+  SUBROUTINE LD0110(X,Y,Z,W,N)
     DOUBLE PRECISION X( 110)
     DOUBLE PRECISION Y( 110)
     DOUBLE PRECISION Z( 110)
@@ -1333,7 +1333,7 @@ contains
   !>
   !> Lebedev quadrature, 146 points
   !> 
-  module SUBROUTINE LD0146(X,Y,Z,W,N)
+  SUBROUTINE LD0146(X,Y,Z,W,N)
     DOUBLE PRECISION X( 146)
     DOUBLE PRECISION Y( 146)
     DOUBLE PRECISION Z( 146)
@@ -1415,7 +1415,7 @@ contains
   !>
   !> Lebedev quadrature, 170 points
   !> 
-  module SUBROUTINE LD0170(X,Y,Z,W,N)
+  SUBROUTINE LD0170(X,Y,Z,W,N)
     DOUBLE PRECISION X( 170)
     DOUBLE PRECISION Y( 170)
     DOUBLE PRECISION Z( 170)
@@ -1500,7 +1500,7 @@ contains
   !>
   !> Lebedev quadrature, 194 points
   !> 
-  module SUBROUTINE LD0194(X,Y,Z,W,N)
+  SUBROUTINE LD0194(X,Y,Z,W,N)
     DOUBLE PRECISION X( 194)
     DOUBLE PRECISION Y( 194)
     DOUBLE PRECISION Z( 194)
@@ -1588,7 +1588,7 @@ contains
   !>
   !> Lebedev quadrature, 230 points
   !> 
-  module SUBROUTINE LD0230(X,Y,Z,W,N)
+  SUBROUTINE LD0230(X,Y,Z,W,N)
     DOUBLE PRECISION X( 230)
     DOUBLE PRECISION Y( 230)
     DOUBLE PRECISION Z( 230)
@@ -1680,7 +1680,7 @@ contains
   !>
   !> Lebedev quadrature, 266 points
   !> 
-  module SUBROUTINE LD0266(X,Y,Z,W,N)
+  SUBROUTINE LD0266(X,Y,Z,W,N)
     DOUBLE PRECISION X( 266)
     DOUBLE PRECISION Y( 266)
     DOUBLE PRECISION Z( 266)
@@ -1775,7 +1775,7 @@ contains
   !>
   !> Lebedev quadrature, 302 points
   !> 
-  module SUBROUTINE LD0302(X,Y,Z,W,N)
+  SUBROUTINE LD0302(X,Y,Z,W,N)
     DOUBLE PRECISION X( 302)
     DOUBLE PRECISION Y( 302)
     DOUBLE PRECISION Z( 302)
@@ -1874,7 +1874,7 @@ contains
   !>
   !> Lebedev quadrature, 350 points
   !> 
-  module SUBROUTINE LD0350(X,Y,Z,W,N)
+  SUBROUTINE LD0350(X,Y,Z,W,N)
     DOUBLE PRECISION X( 350)
     DOUBLE PRECISION Y( 350)
     DOUBLE PRECISION Z( 350)
@@ -1977,7 +1977,7 @@ contains
   !>
   !> Lebedev quadrature, 434 points
   !> 
-  module SUBROUTINE LD0434(X,Y,Z,W,N)
+  SUBROUTINE LD0434(X,Y,Z,W,N)
     DOUBLE PRECISION X( 434)
     DOUBLE PRECISION Y( 434)
     DOUBLE PRECISION Z( 434)
@@ -2089,7 +2089,7 @@ contains
   !>
   !> Lebedev quadrature, 590 points
   !> 
-  module SUBROUTINE LD0590(X,Y,Z,W,N)
+  SUBROUTINE LD0590(X,Y,Z,W,N)
     DOUBLE PRECISION X( 590)
     DOUBLE PRECISION Y( 590)
     DOUBLE PRECISION Z( 590)
@@ -2216,7 +2216,7 @@ contains
   !>
   !> Lebedev quadrature, 770 points
   !> 
-  module SUBROUTINE LD0770(X,Y,Z,W,N)
+  SUBROUTINE LD0770(X,Y,Z,W,N)
     DOUBLE PRECISION X( 770)
     DOUBLE PRECISION Y( 770)
     DOUBLE PRECISION Z( 770)
@@ -2360,7 +2360,7 @@ contains
   !>
   !> Lebedev quadrature, 974 points
   !> 
-  module SUBROUTINE LD0974(X,Y,Z,W,N)
+  SUBROUTINE LD0974(X,Y,Z,W,N)
     DOUBLE PRECISION X( 974)
     DOUBLE PRECISION Y( 974)
     DOUBLE PRECISION Z( 974)
@@ -2523,7 +2523,7 @@ contains
   !>
   !> Lebedev quadrature, 1202 points
   !> 
-  module SUBROUTINE LD1202(X,Y,Z,W,N)
+  SUBROUTINE LD1202(X,Y,Z,W,N)
     DOUBLE PRECISION X(1202)
     DOUBLE PRECISION Y(1202)
     DOUBLE PRECISION Z(1202)
@@ -2707,7 +2707,7 @@ contains
   !>
   !> Lebedev quadrature, 1454 points
   !> 
-  module SUBROUTINE LD1454(X,Y,Z,W,N)
+  SUBROUTINE LD1454(X,Y,Z,W,N)
     DOUBLE PRECISION X(1454)
     DOUBLE PRECISION Y(1454)
     DOUBLE PRECISION Z(1454)
@@ -2914,7 +2914,7 @@ contains
   !>
   !> Lebedev quadrature, 1730 points
   !> 
-  module SUBROUTINE LD1730(X,Y,Z,W,N)
+  SUBROUTINE LD1730(X,Y,Z,W,N)
     DOUBLE PRECISION X(1730)
     DOUBLE PRECISION Y(1730)
     DOUBLE PRECISION Z(1730)
@@ -3146,7 +3146,7 @@ contains
   !>
   !> Lebedev quadrature, 2030 points
   !> 
-  module SUBROUTINE LD2030(X,Y,Z,W,N)
+  SUBROUTINE LD2030(X,Y,Z,W,N)
     DOUBLE PRECISION X(2030)
     DOUBLE PRECISION Y(2030)
     DOUBLE PRECISION Z(2030)
@@ -3405,7 +3405,7 @@ contains
   !>
   !> Lebedev quadrature, 2354 points
   !> 
-  module SUBROUTINE LD2354(X,Y,Z,W,N)
+  SUBROUTINE LD2354(X,Y,Z,W,N)
     DOUBLE PRECISION X(2354)
     DOUBLE PRECISION Y(2354)
     DOUBLE PRECISION Z(2354)
@@ -3693,7 +3693,7 @@ contains
   !>
   !> Lebedev quadrature, 2702 points
   !> 
-  module SUBROUTINE LD2702(X,Y,Z,W,N)
+  SUBROUTINE LD2702(X,Y,Z,W,N)
     DOUBLE PRECISION X(2702)
     DOUBLE PRECISION Y(2702)
     DOUBLE PRECISION Z(2702)
@@ -4012,7 +4012,7 @@ contains
   !>
   !> Lebedev quadrature, 3074 points
   !> 
-  module SUBROUTINE LD3074(X,Y,Z,W,N)
+  SUBROUTINE LD3074(X,Y,Z,W,N)
     DOUBLE PRECISION X(3074)
     DOUBLE PRECISION Y(3074)
     DOUBLE PRECISION Z(3074)
@@ -4364,7 +4364,7 @@ contains
   !>
   !> Lebedev quadrature, 3470 points
   !> 
-  module SUBROUTINE LD3470(X,Y,Z,W,N)
+  SUBROUTINE LD3470(X,Y,Z,W,N)
     DOUBLE PRECISION X(3470)
     DOUBLE PRECISION Y(3470)
     DOUBLE PRECISION Z(3470)
@@ -4751,7 +4751,7 @@ contains
   !>
   !> Lebedev quadrature, 3890 points
   !> 
-  module SUBROUTINE LD3890(X,Y,Z,W,N)
+  SUBROUTINE LD3890(X,Y,Z,W,N)
     DOUBLE PRECISION X(3890)
     DOUBLE PRECISION Y(3890)
     DOUBLE PRECISION Z(3890)
@@ -5175,7 +5175,7 @@ contains
   !>
   !> Lebedev quadrature, 4334 points
   !> 
-  module SUBROUTINE LD4334(X,Y,Z,W,N)
+  SUBROUTINE LD4334(X,Y,Z,W,N)
     DOUBLE PRECISION X(4334)
     DOUBLE PRECISION Y(4334)
     DOUBLE PRECISION Z(4334)
@@ -5638,7 +5638,7 @@ contains
   !>
   !> Lebedev quadrature, 4802 points
   !> 
-  module SUBROUTINE LD4802(X,Y,Z,W,N)
+  SUBROUTINE LD4802(X,Y,Z,W,N)
     DOUBLE PRECISION X(4802)
     DOUBLE PRECISION Y(4802)
     DOUBLE PRECISION Z(4802)
@@ -6142,7 +6142,7 @@ contains
   !>
   !> Lebedev quadrature, 5294 points
   !> 
-  module SUBROUTINE LD5294(X,Y,Z,W,N)
+  SUBROUTINE LD5294(X,Y,Z,W,N)
     DOUBLE PRECISION X(5294)
     DOUBLE PRECISION Y(5294)
     DOUBLE PRECISION Z(5294)
@@ -6689,7 +6689,7 @@ contains
   !>
   !> Lebedev quadrature, 5810 points
   !> 
-  module SUBROUTINE LD5810(X,Y,Z,W,N)
+  SUBROUTINE LD5810(X,Y,Z,W,N)
     DOUBLE PRECISION X(5810)
     DOUBLE PRECISION Y(5810)
     DOUBLE PRECISION Z(5810)

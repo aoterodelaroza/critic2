@@ -185,16 +185,17 @@ module systemmod
        real*8, intent(in) :: x0(3)
        logical, intent(in), optional :: periodic
      end function field_feval
-     module function field_cube(sptr,n,id,fder,dry,ifail) result(q)
-       use iso_c_binding, only: c_ptr
+     module subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
+       use iso_c_binding, only: c_ptr, c_f_pointer
+       use fieldmod, only: type_grid
        type(c_ptr), intent(in) :: sptr
        character*(*), intent(in) :: id
        integer, intent(in) :: n(3)
        character*(*), intent(in) :: fder
        logical, intent(in) :: dry
        logical, intent(out) :: ifail
-       real*8 :: q(n(1),n(2),n(3))
-     end function field_cube
+       real*8, intent(out) ::q(n(1),n(2),n(3))
+     end subroutine field_cube
      module subroutine unload_field(s,id)
        class(system), intent(inout) :: s
        integer, intent(in) :: id
