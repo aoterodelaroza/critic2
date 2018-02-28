@@ -4210,7 +4210,7 @@ contains
           if (seed%nspc > size(seed%spc,1)) &
              call realloc(seed%spc,2*seed%nspc)
           seed%spc(seed%nspc)%z = iznum
-          seed%spc(seed%nspc)%name = nameguess(iznum)
+          seed%spc(seed%nspc)%name = nameguess(iznum,.true.)
           it = seed%nspc
        end if
        seed%is(seed%nat) = it
