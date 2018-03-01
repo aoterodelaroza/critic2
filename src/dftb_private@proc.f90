@@ -446,7 +446,7 @@ contains
 
   end subroutine rho2
 
-  !> Register structural information. rmat is the crys2car matrix,
+  !> Register structural information. rmat is the m_x2c matrix,
   !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
   !> and zenv is the environment information (number, position,
   !> lattice vector, index in the complete list, and atomic number.

@@ -705,10 +705,10 @@ contains
 
        if (.not.sy%c%ismolecule) then
           maux = 0d0
-          maux(1:3,1:3) = sy%c%crys2car
+          maux(1:3,1:3) = sy%c%m_x2c
           maux(4,4) = 1d0
           write (luout,'(A/1p,4("#",4E22.14/))') "# Crys2Car : ", ((maux(i,j),j=1,4),i=1,4)
-          maux(1:3,1:3) = sy%c%car2crys
+          maux(1:3,1:3) = sy%c%m_c2x
           write (luout,'(A/1p,4("#",4E22.14/))') "# Car2Crys : ", ((maux(i,j),j=1,4),i=1,4)
           write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"

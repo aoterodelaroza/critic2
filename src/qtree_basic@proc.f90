@@ -598,7 +598,7 @@ contains
     integer :: i
     real*8 :: xp(3)
 
-    xp = matmul(sy%c%crys2car(1:3,1:3),x(1:3))
+    xp = matmul(sy%c%m_x2c(1:3,1:3),x(1:3))
     base_t = 0
     do i = 1, nt_orig
        rver = matmul(cmat(:,:,i),xp - borig(:,i))

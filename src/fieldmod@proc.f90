@@ -408,7 +408,7 @@ contains
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
        call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
-       call f%dftb%register_struct(f%c%crys2car,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
+       call f%dftb%register_struct(f%c%m_x2c,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -672,17 +672,17 @@ contains
     f%isinit = .true.
     f%type = type_grid
     if (ityp == ifformat_as_lap) then
-       call f%grid%laplacian(g,c%crys2car)
+       call f%grid%laplacian(g,c%m_x2c)
     elseif (ityp == ifformat_as_grad) then
-       call f%grid%gradrho(g,c%crys2car)
+       call f%grid%gradrho(g,c%m_x2c)
     elseif (ityp == ifformat_as_pot) then
-       call f%grid%pot(g,c%crys2car,isry)
+       call f%grid%pot(g,c%m_x2c,isry)
     elseif (ityp == ifformat_as_hxx1) then
-       call f%grid%hxx(g,1,c%crys2car)
+       call f%grid%hxx(g,1,c%m_x2c)
     elseif (ityp == ifformat_as_hxx2) then
-       call f%grid%hxx(g,2,c%crys2car)
+       call f%grid%hxx(g,2,c%m_x2c)
     elseif (ityp == ifformat_as_hxx3) then
-       call f%grid%hxx(g,3,c%crys2car)
+       call f%grid%hxx(g,3,c%m_x2c)
     end if
     f%usecore = .false. 
     f%numerical = .false. 
@@ -829,19 +829,19 @@ contains
           res%hf = 0d0
        else
           call f%grid%interp(wx,res%f,res%gf,res%hf)
-          res%gf = matmul(transpose(f%c%car2crys),res%gf)
-          res%hf = matmul(matmul(transpose(f%c%car2crys),res%hf),f%c%car2crys)
+          res%gf = matmul(transpose(f%c%m_c2x),res%gf)
+          res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
        endif
 
     case(type_wien)
        call f%wien%rho2(wx,res%f,res%gf,res%hf)
-       res%gf = matmul(transpose(f%c%car2crys),res%gf)
-       res%hf = matmul(matmul(transpose(f%c%car2crys),res%hf),f%c%car2crys)
+       res%gf = matmul(transpose(f%c%m_c2x),res%gf)
+       res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
     case(type_elk)
        call f%elk%rho2(wx,nder,res%f,res%gf,res%hf)
-       res%gf = matmul(transpose(f%c%car2crys),res%gf)
-       res%hf = matmul(matmul(transpose(f%c%car2crys),res%hf),f%c%car2crys)
+       res%gf = matmul(transpose(f%c%m_c2x),res%gf)
+       res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
     case(type_pi)
        call f%pi%rho2(wc,f%exact,res%f,res%gf,res%hf)

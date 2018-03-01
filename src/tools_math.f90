@@ -22,8 +22,8 @@ module tools_math
   private
 
   public :: crosscorr_triangle
-  public :: crys2car_from_cellpar
-  public :: car2crys_from_cellpar
+  public :: m_x2c_from_cellpar
+  public :: m_c2x_from_cellpar
   public :: factorial
   public :: genrlm_real
   public :: genylm
@@ -65,14 +65,14 @@ module tools_math
        real*8, intent(in) :: f(:), g(:)
        real*8 :: dfg
      end function crosscorr_triangle
-     module function crys2car_from_cellpar(aal,bbl) result(mat)
+     module function m_x2c_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
-     end function crys2car_from_cellpar
-     module function car2crys_from_cellpar(aal,bbl) result(mat)
+     end function m_x2c_from_cellpar
+     module function m_c2x_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
-     end function car2crys_from_cellpar
+     end function m_c2x_from_cellpar
      module function factorial(n) result(f)
        real*8 :: f
        integer, intent(in) :: n

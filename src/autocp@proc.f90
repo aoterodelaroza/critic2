@@ -854,7 +854,7 @@ contains
              end if
           end do
           seed%useabr = 2
-          seed%crys2car = sy%c%crys2car
+          seed%m_x2c = sy%c%m_x2c
           seed%havesym = 0
           seed%findsym = 0
 

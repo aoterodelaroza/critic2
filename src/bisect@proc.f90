@@ -2025,13 +2025,13 @@ contains
     write (lud,'("# CRYS2CART ")') 
     rr = 0d0
     do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%crys2car(i,1:3), rr
+       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_x2c(i,1:3), rr
     end do
     write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
     write (lud,'("# CART2CRYS ")') 
     rr = 0d0
     do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%car2crys(i,1:3), rr
+       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_c2x(i,1:3), rr
     end do
     write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
 

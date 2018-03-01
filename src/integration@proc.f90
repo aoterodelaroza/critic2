@@ -277,10 +277,10 @@ contains
              fint(:,:,:,nn) = sy%f(fid)%grid%f
           elseif (sy%propi(k)%itype == itype_lapval .or.&
                   sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
-             call faux%laplacian(sy%f(fid)%grid,sy%c%crys2car)
+             call faux%laplacian(sy%f(fid)%grid,sy%c%m_x2c)
              fint(:,:,:,nn) = faux%f
           elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
-             call faux%gradrho(sy%f(fid)%grid,sy%c%crys2car)
+             call faux%gradrho(sy%f(fid)%grid,sy%c%m_x2c)
              fint(:,:,:,nn) = faux%f
           else
              fillgrd = .true.
@@ -1495,7 +1495,7 @@ contains
           ! build the supercell
           ncseed%isused = .true.
           do i = 1, 3
-             ncseed%crys2car(:,i) = sy%c%crys2car(:,i) * nwan(i)
+             ncseed%m_x2c(:,i) = sy%c%m_x2c(:,i) * nwan(i)
           end do
           ncseed%useabr = 2
           ncseed%nat = 0
@@ -2029,7 +2029,7 @@ contains
        ! build the supercell
        ncseed%isused = .true.
        do i = 1, 3
-          ncseed%crys2car(:,i) = sy%c%crys2car(:,i) * nwan(i)
+          ncseed%m_x2c(:,i) = sy%c%m_x2c(:,i) * nwan(i)
        end do
        ncseed%useabr = 2
        ncseed%nat = 0
@@ -2273,7 +2273,7 @@ contains
     use crystalmod, only: crystal
     use global, only: fileroot
     use graphics, only: grhandle
-    use tools_math, only: crys2car_from_cellpar, matinv
+    use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: string, uout
     character*3, intent(in) :: fmt
     integer, intent(in) :: nattr
@@ -2301,8 +2301,8 @@ contains
     caux%isinit = .true.
     caux%aa = sy%c%aa / real(n,8)
     caux%bb = sy%c%bb
-    caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
-    caux%car2crys = matinv(caux%crys2car)
+    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
+    caux%m_c2x = matinv(caux%m_x2c)
     call caux%wigner()
     allocate(xface(3,caux%ws_mnfv))
 

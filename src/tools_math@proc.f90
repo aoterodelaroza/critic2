@@ -63,7 +63,7 @@ contains
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor. Input angles in degrees.
-  module function crys2car_from_cellpar(aal,bbl) result(mat)
+  module function m_x2c_from_cellpar(aal,bbl) result(mat)
     use tools_io, only: ferror, faterr
 
     real*8, intent(in) :: aal(3),bbl(3)
@@ -80,7 +80,7 @@ contains
     HH2 = (calphl-cbetal*cgamml) / HH1
     fac = 1d0 - cbetal*cbetal - HH2*HH2
     if (fac < 0d0) &
-       call ferror("crys2car_from_cellpar","invalid cell",faterr)
+       call ferror("m_x2c_from_cellpar","invalid cell",faterr)
     HH3 = sqrt(max(1d0 - cbetal*cbetal - HH2*HH2,0d0))
 
     mat = 0d0
@@ -91,12 +91,12 @@ contains
     mat(2,3) = aal(3) * HH2
     mat(3,3) = aal(3) * HH3
 
-  end function crys2car_from_cellpar
+  end function m_x2c_from_cellpar
 
   !> Gives a cartesian to crystallographic conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor.
-  module function car2crys_from_cellpar(aal,bbl) result(mat)
+  module function m_c2x_from_cellpar(aal,bbl) result(mat)
     real*8, intent(in) :: aal(3),bbl(3)
     real*8 :: mat(3,3)
 
@@ -118,7 +118,7 @@ contains
     mat(2,3) = - HH2 / (aal(2) * HH1 * HH3)
     mat(3,3) = 1d0 / (aal(3) * HH3)
 
-  end function car2crys_from_cellpar
+  end function m_c2x_from_cellpar
 
   !> Factorial of an integer (returns real)
   module function factorial(n) result(f)

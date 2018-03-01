@@ -128,7 +128,7 @@ contains
     ! metrics
     do i = 1, 3
        n(i) = size(ff,i)
-       lat2car(:,i) = s%c%crys2car(:,i) / n(i)
+       lat2car(:,i) = s%c%m_x2c(:,i) / n(i)
     end do
     car2lat = matinv(lat2car)
 

@@ -362,7 +362,7 @@ contains
     if (ilap < 0 .and. ib < 0) then
        ilap = sy%getfieldnum()
        write (uout,'("+ Calculating Laplacian of rho")')
-       call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%crys2car)
+       call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%m_x2c)
        sy%f(ilap)%isinit = .true.
        write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
        call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
@@ -372,7 +372,7 @@ contains
     if (igrad < 0 .and. ib < 0) then
        igrad = sy%getfieldnum()
        write (uout,'("+ Calculating gradient of rho")')
-       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
        sy%f(igrad)%isinit = .true.
        write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
        call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
@@ -461,7 +461,7 @@ contains
     do i = 1, sy%c%nneq
        rmax = max(rmax,cutrad(sy%c%spc(sy%c%at(i)%is)%z))
     end do
-    call search_lattice(sy%c%crys2car,rmax,imax,jmax,kmax)
+    call search_lattice(sy%c%m_x2c,rmax,imax,jmax,kmax)
     allocate(lvec(3,(2*imax+1)*(2*jmax+1)*(2*kmax+1)))
     nvec = 0
     do i = -imax,imax
@@ -1705,7 +1705,7 @@ contains
 
     ! allocate a temporary field for the gradient
     igrad = sy%getfieldnum()
-    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
     sy%f(igrad)%isinit = .true.
     
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))

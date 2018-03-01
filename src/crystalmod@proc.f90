@@ -72,8 +72,8 @@ contains
     c%omega = 0d0
     c%gtensor = 0d0
     c%grtensor = 0d0
-    c%crys2car = 0d0
-    c%car2crys = 0d0
+    c%m_x2c = 0d0
+    c%m_c2x = 0d0
     c%n2_x2c = 0d0
     c%n2_c2x = 0d0
 
@@ -247,7 +247,7 @@ contains
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, atomeps
-    use tools_math, only: crys2car_from_cellpar, car2crys_from_cellpar, matinv, &
+    use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
@@ -326,21 +326,21 @@ contains
        c%aa = xmax - xmin
        c%bb = 90d0
 
-       c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
-       c%car2crys = matinv(c%crys2car)
-       g = matmul(transpose(c%crys2car),c%crys2car)
+       c%m_x2c = m_x2c_from_cellpar(c%aa,c%bb)
+       c%m_c2x = matinv(c%m_x2c)
+       g = matmul(transpose(c%m_x2c),c%m_x2c)
     elseif (seed%useabr == 1) then
        ! use aa and bb
        c%aa = seed%aa
        c%bb = seed%bb
-       c%crys2car = crys2car_from_cellpar(c%aa,c%bb)
-       c%car2crys = matinv(c%crys2car)
-       g = matmul(transpose(c%crys2car),c%crys2car)
+       c%m_x2c = m_x2c_from_cellpar(c%aa,c%bb)
+       c%m_c2x = matinv(c%m_x2c)
+       g = matmul(transpose(c%m_x2c),c%m_x2c)
     elseif (seed%useabr == 2) then
-       ! use crys2car
-       c%crys2car = seed%crys2car
-       c%car2crys = matinv(c%crys2car)
-       g = matmul(transpose(c%crys2car),c%crys2car)
+       ! use m_x2c
+       c%m_x2c = seed%m_x2c
+       c%m_c2x = matinv(c%m_x2c)
+       g = matmul(transpose(c%m_x2c),c%m_x2c)
        do i = 1, 3
           c%aa(i) = sqrt(g(i,i))
        end do
@@ -420,8 +420,8 @@ contains
     do i = 1, 3
        c%ar(i) = sqrt(c%grtensor(i,i))
     end do
-    c%n2_x2c = ctsq3 / mnorm2(c%crys2car)
-    c%n2_c2x = ctsq3 / mnorm2(c%car2crys)
+    c%n2_x2c = mnorm2(c%m_x2c)
+    c%n2_c2x = mnorm2(c%m_c2x)
 
     ! calculate the wigner-seitz cell
     call c%wigner()
@@ -619,7 +619,7 @@ contains
     if (recip) then
        ! Reciprocal space point group
        vec = 0d0
-       call lattpg(c%car2crys,1,vec,c%neqvg,c%rotg)
+       call lattpg(c%m_c2x,1,vec,c%neqvg,c%rotg)
        c%isrecip = .true.
     end if
 
@@ -647,25 +647,65 @@ contains
 
   end subroutine struct_fill
 
-  !> Transform crystallographic to cartesian. This routine is thread-safe.
+  !> Convert input cryst. -> cartesian. This routine is thread-safe.
   pure module function x2c(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xx(3) 
     real*8 :: res(3)
 
-    res = matmul(c%crys2car,xx)
+    res = matmul(c%m_x2c,xx)
 
   end function x2c
 
-  !> Transform cartesian to crystallographic. This routine is thread-safe. 
+  !> Convert input cartesian -> cryst. This routine is thread-safe. 
   pure module function c2x(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
     real*8 :: res(3)
 
-    res = matmul(c%car2crys,xx)
+    res = matmul(c%m_c2x,xx)
 
   end function c2x
+
+  !> Convert reduced cryst. -> cartesian. This routine is thread-safe. 
+  pure module function xr2c(c,xx) result(res)
+    class(crystal), intent(in) :: c
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+
+    res = matmul(c%m_xr2c,xx)
+
+  end function xr2c
+
+  !> Convert cartesian -> reduced cryst. This routine is thread-safe. 
+  pure module function c2xr(c,xx) result(res)
+    class(crystal), intent(in) :: c
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+
+    res = matmul(c%m_c2xr,xx)
+
+  end function c2xr
+
+  !> Convert reduced cryst. -> input cryst. This routine is thread-safe. 
+  pure module function xr2x(c,xx) result(res)
+    class(crystal), intent(in) :: c
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+
+    res = matmul(c%m_xr2x,xx)
+
+  end function xr2x
+
+  !> Convert input cryst. -> reduced cryst. This routine is thread-safe. 
+  pure module function x2xr(c,xx) result(res)
+    class(crystal), intent(in) :: c
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+
+    res = matmul(c%m_x2xr,xx)
+
+  end function x2xr
 
   !> Compute the distance between points in crystallographic.  This
   !> routine is thread-safe.
@@ -713,12 +753,12 @@ contains
 
     if (c%isortho) then
        x = x - nint(x)
-       x = matmul(c%crys2car,x)
+       x = matmul(c%m_x2c,x)
        dist = norm2(x)
     else 
-       x = matmul(x,c%rdelr)
+       x = matmul(x,c%m_x2xr)
        x = x - nint(x)
-       x = matmul(x,c%rdeli_x2c)
+       x = matmul(x,c%m_xr2c)
        dist = norm2(x)
 
        if (.not.c%isortho_del) then
@@ -741,6 +781,7 @@ contains
   !> are_close is .true., return the square of the distance in that
   !> argument.  This routine is thread-safe.
   module function are_close(c,x0,x1,eps,dd)
+    use param, only: ctsq3
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3), x1(3)
     real*8, intent(in) :: eps
@@ -751,9 +792,9 @@ contains
 
     are_close = .false.
     x = x0 - x1
-    dbound = minval(abs(x)) * c%n2_c2x
+    dbound = minval(abs(x)) * ctsq3 / c%n2_c2x
     if (dbound > eps) return
-    x = matmul(c%crys2car,x)
+    x = matmul(c%m_x2c,x)
     if (any(abs(x) > eps)) return
     dist = norm2(x)
     are_close = (dist < eps)
@@ -1139,7 +1180,7 @@ contains
        end do
     end if
     c%dmax0_env = dmax
-    call search_lattice(c%crys2car,dmax,imax,jmax,kmax)
+    call search_lattice(c%m_x2c,dmax,imax,jmax,kmax)
 
     ! build environment
     c%nenv = 0
@@ -1234,7 +1275,7 @@ contains
                    rvws = x0 - c%ws_ineighx(:,k)
                    lvec = lvec0 + c%ws_ineighx(:,k)
                 endif
-                rvws = matmul(c%crys2car,rvws)
+                rvws = matmul(c%m_x2c,rvws)
                 dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
                 if (all(abs(rvws) < d0+1d-6)) then
                    dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
@@ -2448,8 +2489,8 @@ contains
     x0inv = matinv(x0)
 
     ! metrics of the new cell
-    r = matmul(transpose(x0),transpose(c%crys2car))
-    ncseed%crys2car = transpose(r)
+    r = matmul(transpose(x0),transpose(c%m_x2c))
+    ncseed%m_x2c = transpose(r)
     ncseed%useabr = 2
     fvol = abs(det(r)) / c%omega
     if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
@@ -2582,7 +2623,7 @@ contains
     if (c%ismolecule) return
 
     ! use spglib transformation to the standard cell
-    rmat = transpose(c%crys2car)
+    rmat = transpose(c%m_x2c)
     nat = c%ncel
     ntyp = c%nspc
     allocate(x(3,c%ncel),types(c%ncel))
@@ -2638,7 +2679,7 @@ contains
     if (c%ismolecule) return
 
     ! use spglib niggli reduction
-    rmat = transpose(c%crys2car)
+    rmat = transpose(c%m_x2c)
     id = spg_niggli_reduce(rmat,symprec)
     if (id == 0) &
        call ferror("cell_niggli","could not find Niggli reduction",faterr)
@@ -2672,7 +2713,7 @@ contains
     if (c%ismolecule) return
 
     ! use spglib delaunay reduction
-    rmat = transpose(c%crys2car)
+    rmat = transpose(c%m_x2c)
     id = spg_delaunay_reduce(rmat,symprec)
     if (id == 0) &
        call ferror("cell_delaunay","could not find Delaunay reduction",faterr)
@@ -2896,7 +2937,7 @@ contains
 
           write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%crys2car(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,*)
        end if
@@ -2981,11 +3022,11 @@ contains
           write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
           write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,3(A,X))') (string(c%car2crys(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'(4X,3(A,X))') (string(c%m_c2x(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,3(A,X))') (string(c%crys2car(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'(4X,3(A,X))') (string(c%m_x2c(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname0(iunit)
           do i = 1, 3
@@ -3054,11 +3095,11 @@ contains
           write (uout,'("+ Lattice vectors for the Delaunay reduced cell (fractional)")')
           do i = 1, 3
              write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
-                (string(nint(c%rdeli(i,j)),length=2,justify=ioj_right),j=1,3)
+                (string(nint(c%m_xr2x(i,j)),length=2,justify=ioj_right),j=1,3)
           end do
 
           do i = 1, 3
-             x0 = c%rdeli(i,:)
+             x0 = c%m_xr2x(i,:)
              xred(:,i) = c%x2c(x0)
              xlen(i) = norm2(xred(:,i))
           end do
@@ -3184,7 +3225,7 @@ contains
   end subroutine struct_report_symxyz
 
   !> Use the spg library to find information about the space group.
-  !> In: cell vectors (crys2car), ncel, atcel(:), at(:) Out: neqv,
+  !> In: cell vectors (m_x2c), ncel, atcel(:), at(:) Out: neqv,
   !> rotm, spg. If usenneq is .true., use nneq and at(:) instead of 
   !> ncel and atcel. If onlyspg is .true., fill only the spg field
   !> and leave the others unchanged.
@@ -3209,7 +3250,7 @@ contains
     real*8 :: rotm(3,3)
 
     ! get the dataset from spglib
-    lattice = transpose(c%crys2car)
+    lattice = transpose(c%m_x2c)
     iz = 0
     ntyp = 0
     if (usenneq) then
@@ -3288,10 +3329,11 @@ contains
 
   !> Builds the Wigner-Seitz cell. Writes the WS components of c.
   !> Also writes the Delaunay reduction parameters and, if area is
-  !> present, calculates the areas of the WS facets.
+  !> present, calculates the areas of the WS facets. Sets the matrices
+  !> for the Delaunay transformations.
   module subroutine wigner(c,area)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
-    use tools_math, only: mixed, cross, matinv
+    use tools_math, only: mixed, cross, matinv, mnorm2
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use types, only: realloc
@@ -3346,7 +3388,7 @@ contains
     xstar(:,13) = -(rmat(:,1)+rmat(:,3))
     xstar(:,14) = -(rmat(:,2)+rmat(:,3))
     do i = 1, 14
-       xstar(:,i) = matmul(c%crys2car,xstar(:,i))
+       xstar(:,i) = matmul(c%m_x2c,xstar(:,i))
        if (norm2(xstar(:,i)) < eps_dnorm) &
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
@@ -3359,14 +3401,14 @@ contains
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     allocate(c%ws_x(3,c%ws_nv))
     do i = 1, c%ws_nv
-       c%ws_x(:,i) = matmul(c%car2crys,xvws(:,i))
+       c%ws_x(:,i) = matmul(c%m_c2x,xvws(:,i))
     end do
 
     c%ws_ineighc = 0
     c%ws_ineighx = 0
     do i = 1, c%ws_nf
        c%ws_ineighc(:,i) = xstar(:,ivws(i))
-       c%ws_ineighx(:,i) = nint(matmul(c%car2crys,xstar(:,ivws(i))))
+       c%ws_ineighx(:,i) = nint(matmul(c%m_c2x,xstar(:,ivws(i))))
     end do
     if (present(area)) then
        do i = 1, c%ws_nf
@@ -3399,17 +3441,24 @@ contains
     end if
 
     ! calculate the delaunay reduction parameters for shortest vector search
-    c%rdeli = transpose(rdel)
-    c%rdelr = matinv(c%rdeli)
-    c%rdeli_x2c = matmul(c%rdeli,transpose(c%crys2car))
+    c%m_xr2x = transpose(rdel)
+    c%m_x2xr = matinv(c%m_xr2x)
+    c%m_xr2c = matmul(c%m_xr2x,transpose(c%m_x2c))
+    c%m_c2xr = matinv(c%m_xr2c)
+
+    c%n2_xr2x = mnorm2(c%m_xr2x)
+    c%n2_x2xr = mnorm2(c%m_x2xr)
+    c%n2_xr2c = mnorm2(c%m_xr2c)
+    c%n2_c2xr = mnorm2(c%m_c2xr)
+
     do i = 1, c%ws_nf
-       c%ivws_del(:,i) = nint(matmul(c%ws_ineighx(:,i),c%rdelr))
+       c%ws_ineighxr(:,i) = nint(matmul(c%ws_ineighx(:,i),c%m_x2xr))
     end do
 
     c%isortho_del = .true.
     do i = 1, c%ws_nf
-       c%isortho_del = c%isortho_del .and. (count(abs(c%ivws_del(:,i)) == 1) == 1) .and.&
-          (count(abs(c%ivws_del(:,i)) == 0) == 2)
+       c%isortho_del = c%isortho_del .and. (count(abs(c%ws_ineighxr(:,i)) == 1) == 1) .and.&
+          (count(abs(c%ws_ineighxr(:,i)) == 0) == 2)
     end do
 
   end subroutine wigner
@@ -3490,7 +3539,7 @@ contains
           cycle
        end if
        do j = 1, 4
-          tetrag(:,j,i) = matmul(c%car2crys,tetrag(:,j,i))
+          tetrag(:,j,i) = matmul(c%m_c2x,tetrag(:,j,i))
        end do
     end do
 
@@ -3953,7 +4002,7 @@ contains
          if (c%ismolecule) then
             call fro%writecml(fileo,luout=luout)
          else
-            call fro%writecml(fileo,c%crys2car,luout=luout)
+            call fro%writecml(fileo,c%m_x2c,luout=luout)
          end if
       else
          call ferror("write_mol","Unknown format",faterr)
@@ -4160,7 +4209,7 @@ contains
     write (lu,'(/"K_POINTS automatic"/"2 2 2 1 1 1"/)')
     write (lu,'("CELL_PARAMETERS cubic")')
     do i = 1, 3
-       write (lu,'(3(F18.12,X))') c%crys2car(:,i)
+       write (lu,'(3(F18.12,X))') c%m_x2c(:,i)
     end do
     call fclose(lu)
 
@@ -4182,7 +4231,7 @@ contains
     write (lu,'("crystal")')
     write (lu,'("1.0")')
     do i = 1, 3
-       write (lu,'(3(F15.10,X))') c%crys2car(:,i) * bohrtoa
+       write (lu,'(3(F15.10,X))') c%m_x2c(:,i) * bohrtoa
     end do
 
     ! Number of atoms per type and Direct
@@ -4226,7 +4275,7 @@ contains
     integer :: i, j, lu
 
     ! Find the lengths and angles of the cell
-    gpq = matmul(transpose(c%crys2car),c%crys2car)
+    gpq = matmul(transpose(c%m_x2c),c%m_x2c)
     do i = 1, 3
        aap(i) = sqrt(gpq(i,i))
     end do
@@ -4305,7 +4354,7 @@ contains
     write (lu,'("xctype"/,"20"/)')
     write (lu,'("avec")')
     do i = 1, 3
-       write (lu,'(2X,3(F15.10,X))') c%crys2car(:,i)
+       write (lu,'(2X,3(F15.10,X))') c%m_x2c(:,i)
     end do
     write (lu,*)
 
@@ -4363,7 +4412,7 @@ contains
     end do
     do i = 1, 3
        write (lu,'(99(A,X))') string("Tv",2,ioj_left),&
-          (string(c%crys2car(j,i)*bohrtoa,'f',14,8,ioj_left),j=1,3)
+          (string(c%m_x2c(j,i)*bohrtoa,'f',14,8,ioj_left),j=1,3)
     end do
     write (lu,*)
 
@@ -4624,7 +4673,7 @@ contains
     write (lu,'("cr.ntyp = ",I6,";")') c%nspc
     write (lu,'("cr.r = [")')
     do i = 1, 3
-       write (lu,'(2X,1p,3(E22.14,X))') c%crys2car(:,i)
+       write (lu,'(2X,1p,3(E22.14,X))') c%m_x2c(:,i)
     end do
     write (lu,'(2X,"];")')
     write (lu,'("cr.g = [")')
@@ -4823,7 +4872,7 @@ contains
   !> Write a lammps data file
   module subroutine write_lammps(c,file)
     use tools_io, only: fopen_write, ferror, faterr, fclose
-    use tools_math, only: crys2car_from_cellpar
+    use tools_math, only: m_x2c_from_cellpar
     use param, only: bohrtoa, atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -4841,14 +4890,14 @@ contains
     write (lu,*)
 
     ! metrics of the cell --> this needs more testing
-    rnew = crys2car_from_cellpar(c%aa,c%bb)
-    if (abs(c%crys2car(1,2)) > 1d-12 .or. abs(c%crys2car(1,3)) > 1d-12 .or.&
-       abs(c%crys2car(2,3)) > 1d-12) then
+    rnew = m_x2c_from_cellpar(c%aa,c%bb)
+    if (abs(c%m_x2c(1,2)) > 1d-12 .or. abs(c%m_x2c(1,3)) > 1d-12 .or.&
+       abs(c%m_x2c(2,3)) > 1d-12) then
        call ferror ('write_lammps','non-orthogonal cells not implemented',faterr)
     end if
-    write (lu,'(2(F18.10,X)," xlo xhi")') 0d0, c%crys2car(1,1)*bohrtoa
-    write (lu,'(2(F18.10,X)," ylo yhi")') 0d0, c%crys2car(2,2)*bohrtoa
-    write (lu,'(2(F18.10,X)," zlo zhi")') 0d0, c%crys2car(3,3)*bohrtoa
+    write (lu,'(2(F18.10,X)," xlo xhi")') 0d0, c%m_x2c(1,1)*bohrtoa
+    write (lu,'(2(F18.10,X)," ylo yhi")') 0d0, c%m_x2c(2,2)*bohrtoa
+    write (lu,'(2(F18.10,X)," zlo zhi")') 0d0, c%m_x2c(3,3)*bohrtoa
     write (lu,'(3(F18.10,X)," xy xz yz")') 0d0, 0d0, 0d0
     write (lu,*)
 
@@ -4957,7 +5006,7 @@ contains
     lu = fopen_write(file)
 
     ! lattice vectors
-    r = transpose(c%crys2car) * bohrtoa
+    r = transpose(c%m_x2c) * bohrtoa
     do i = 1, 3
        write (lu,'(3(F20.12,X))') r(i,:)
     end do
@@ -5154,7 +5203,7 @@ contains
        end do
 
        ! lattice vectors
-       r = c%crys2car * bohrtoa
+       r = c%m_x2c * bohrtoa
        write (lu,'(3(A,X))') (string(0d0,'f',20,12),j=1,3)
        do i = 1, 3
           write (lu,'(3(A,X))') (string(r(j,i),'f',20,12),j=1,3)
@@ -5261,7 +5310,7 @@ contains
     write (lu,'("CHGCAR generated by critic2")')
     write (lu,'("1.0")')
     do i = 1, 3
-       write (lu,'(1p,3(E22.14,X))') c%crys2car(:,i) * bohrtoa
+       write (lu,'(1p,3(E22.14,X))') c%m_x2c(:,i) * bohrtoa
     end do
 
     line0 = ""

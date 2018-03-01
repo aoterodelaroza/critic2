@@ -40,10 +40,10 @@ module crystalseedmod
      integer :: nspc = 0 !< Number of species
      type(species), allocatable :: spc(:) !< Species
      ! cell
-     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use crys2car
+     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use m_x2c
      real*8 :: aa(3) !< Cell lengths (bohr)
      real*8 :: bb(3) !< Cell angles (degrees)
-     real*8 :: crys2car(3,3) !< Crystallographic to cartesian matrix
+     real*8 :: m_x2c(3,3) !< Crystallographic to cartesian matrix
      ! symmetry
      integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
      integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small

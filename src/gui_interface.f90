@@ -329,7 +329,7 @@ contains
     end do
 
     ! lattice vectors
-    sc(isc)%avec = real(sc(isc)%sy%c%crys2car,c_float)
+    sc(isc)%avec = real(sc(isc)%sy%c%m_x2c,c_float)
     sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
     sc(isc)%molx0 = real(sc(isc)%sy%c%molx0,c_float)
     sc(isc)%molborder = real(sc(isc)%sy%c%molborder,c_float)

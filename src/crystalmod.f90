@@ -59,11 +59,19 @@ module crystalmod
      real*8 :: gtensor(3,3) !< metric tensor (3,3)
      real*8 :: ar(3) !< reciprocal cell lengths
      real*8 :: grtensor(3,3) !< reciprocal metric tensor (3,3)
-     ! crystallographic/cartesian conversion matrices
-     real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
-     real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
-     real*8 :: n2_x2c !< sqrt(3)/norm-2 of the crystallographic to cartesian matrix
-     real*8 :: n2_c2x !< sqrt(3)/norm-2 of the cartesian to crystallographic matrix
+     ! crystallographic/cartesian conversion matrices and norm-2s
+     real*8 :: m_x2c(3,3) !< input cell, crystallographic -> cartesian
+     real*8 :: m_c2x(3,3) !< input cell, cartesian -> crystallographic
+     real*8 :: m_xr2c(3,3) !< reduced cryst -> input cartesian
+     real*8 :: m_c2xr(3,3) !< cartesian -> reduced cryst
+     real*8 :: m_xr2x(3,3) !< reduced cryst -> input cryst
+     real*8 :: m_x2xr(3,3) !< input cryst -> reduced cryst
+     real*8 :: n2_x2c !< norm2 of input cell, crystallographic -> cartesian
+     real*8 :: n2_c2x !< norm2 of input cell, cartesian -> crystallographic
+     real*8 :: n2_xr2c !< norm2 of reduced cryst -> input cartesian
+     real*8 :: n2_c2xr !< norm2 of cartesian -> reduced cryst
+     real*8 :: n2_xr2x !< norm2 of reduced cryst -> input cryst
+     real*8 :: n2_x2xr !< norm2 of input cryst -> reduced cryst
      ! space-group symmetry
      type(SpglibDataset) :: spg !< spglib's symmetry dataset
      integer :: neqv !< number of symmetry operations
@@ -82,15 +90,11 @@ module crystalmod
      integer :: ws_mnfv !< maximum number of vertices per facet
      integer :: ws_ineighx(3,14) !< WS neighbor lattice points (cryst. coords.)
      real*8 :: ws_ineighc(3,14) !< WS neighbor lattice points (Cart. coords.)
+     integer :: ws_ineighxr(3,14) !< WS neighbor lattice points (del cell, cryst.)
      integer :: ws_nside(14) !< number of sides of WS faces
      integer, allocatable :: ws_iside(:,:) !< sides of the WS faces
      real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
      logical :: isortho !< is the cell orthogonal?
-     ! delaunay reduction
-     real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
-     real*8 :: rdeli(3,3) !< x_cur = x_del * c%rdeli
-     real*8 :: rdeli_x2c(3,3) !< c_cur = x_del * c%rdeli_x2c
-     integer :: ivws_del(3,16) !< WS neighbor lattice points (del cell, Cartesian)
      logical :: isortho_del !< is the reduced cell orthogonal?
      ! core charges
      integer :: zpsp(maxzat0)
@@ -122,8 +126,12 @@ module crystalmod
      procedure :: struct_fill !< Initialize the structure from minimal info (already in the object)
 
      ! basic crystallographic operations
-     procedure :: x2c !< Convert crystallographic to cartesian
-     procedure :: c2x !< Convert cartesian to crystallographic
+     procedure :: x2c !< Convert input cryst. -> cartesian
+     procedure :: c2x !< Convert input cartesian -> cryst.
+     procedure :: xr2c !< Convert reduced cryst. -> cartesian
+     procedure :: c2xr !< Convert cartesian -> reduced cryst.
+     procedure :: xr2x !< Convert reduced cryst. -> input cryst.
+     procedure :: x2xr !< Convert input cryst. -> reduced cryst.
      procedure :: distance !< Distance between points in crystallographic coordinates
      procedure :: eql_distance !< Shortest distance between lattice-translated vectors
      procedure :: shortest !< Gives the lattice-translated vector with shortest length
@@ -273,6 +281,26 @@ module crystalmod
        real*8, intent(in)  :: xx(3)
        real*8 :: res(3)
      end function c2x
+     pure module function xr2c(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function xr2c
+     pure module function c2xr(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function c2xr
+     pure module function xr2x(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function xr2x
+     pure module function x2xr(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function x2xr
      pure module function distance(c,x1,x2)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x1(3)

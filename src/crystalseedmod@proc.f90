@@ -162,8 +162,8 @@ contains
           if (.not.isset) then
              ascal = 1d0 / dunit0(iunit0)
           end if
-          seed%crys2car = transpose(rmat) * scal * ascal
-          rmat = matinv(seed%crys2car)
+          seed%m_x2c = transpose(rmat) * scal * ascal
+          rmat = matinv(seed%m_x2c)
           seed%useabr = 2
 
        else if (equal(word,'spg').or.equal(word,'spgr')) then
@@ -1155,7 +1155,7 @@ contains
        rmat(:,i) = rmat(:,i) * nstep(i)
     end do
 
-    seed%crys2car = rmat
+    seed%m_x2c = rmat
     rmat = transpose(rmat)
     rmat = matinv(rmat)
     seed%useabr = 2
@@ -1485,7 +1485,7 @@ contains
        errmsg = "Negative cell volume."
        goto 999
     end if
-    seed%crys2car = rprim
+    seed%m_x2c = rprim
     rprim = matinv(rprim)
     seed%useabr = 2
 
@@ -1615,7 +1615,7 @@ contains
 
     ! cell parameters
     rmat = hdr%rprimd(:,:)
-    seed%crys2car = rmat
+    seed%m_x2c = rmat
     seed%useabr = 2
 
     ! types
@@ -1687,9 +1687,9 @@ contains
        read(lu,*,err=999)
     end do
 
-    read(lu,'(3G18.10)',err=999) seed%crys2car(:,1)
-    read(lu,'(3G18.10)',err=999) seed%crys2car(:,2)
-    read(lu,'(3G18.10)',err=999) seed%crys2car(:,3)
+    read(lu,'(3G18.10)',err=999) seed%m_x2c(:,1)
+    read(lu,'(3G18.10)',err=999) seed%m_x2c(:,2)
+    read(lu,'(3G18.10)',err=999) seed%m_x2c(:,3)
     seed%useabr = 2
 
     ok = getline_raw(lu,line,.false.)
@@ -2050,8 +2050,8 @@ contains
     end do
 
     ! cell
-    seed%crys2car = transpose(r)
-    r = matinv(seed%crys2car)
+    seed%m_x2c = transpose(r)
+    r = matinv(seed%m_x2c)
     seed%useabr = 2
 
     ! transform atomic positions
@@ -2368,8 +2368,8 @@ contains
     endif
 
     ! fill the cell metrics
-    seed%crys2car = r
-    r = matinv(seed%crys2car)
+    seed%m_x2c = r
+    r = matinv(seed%m_x2c)
     seed%useabr = 2
 
     ! do the atom stuff
@@ -2507,8 +2507,8 @@ contains
     end if
 
     ! cell
-    seed%crys2car = transpose(r)
-    r = matinv(seed%crys2car)
+    seed%m_x2c = transpose(r)
+    r = matinv(seed%m_x2c)
     seed%useabr = 2
 
     ! atoms
@@ -2582,7 +2582,7 @@ contains
     call realloc(seed%spc,seed%nspc)
 
     ! fill the cell metrics
-    seed%crys2car = transpose(r)
+    seed%m_x2c = transpose(r)
     seed%useabr = 2
 
     errmsg = ""
@@ -2688,8 +2688,8 @@ contains
        r = r / bohrtoa
 
        ! fill the cell metrics
-       seed%crys2car = transpose(r)
-       r = matinv(seed%crys2car)
+       seed%m_x2c = transpose(r)
+       r = matinv(seed%m_x2c)
        if (isfrac == "c") then
           errmsg = 'Lattice plus C not supported.'
           goto 999
@@ -2871,8 +2871,8 @@ contains
 
     if (.not.ismol) then
        ! fill the cell metrics
-       seed%crys2car = transpose(r)
-       r = matinv(seed%crys2car)
+       seed%m_x2c = transpose(r)
+       r = matinv(seed%m_x2c)
        seed%useabr = 2
        
        ! convert atoms to crystallographic
@@ -3405,7 +3405,7 @@ contains
     real*8, allocatable :: x(:,:)
     integer, allocatable :: is(:)
     type(species), allocatable :: spc(:) !< Species
-    real*8 :: crys2car(3,3)
+    real*8 :: m_x2c(3,3)
     logical :: hasx, hasis, hasspc, hasr
 
     errmsg = ""
@@ -3493,7 +3493,7 @@ contains
              if (.not.ok) goto 999
           end do
           r = r * alat ! alat comes before crystal axes
-          crys2car = transpose(r)
+          m_x2c = transpose(r)
           tox = .false.
           hasr = .true.
 
@@ -3545,7 +3545,7 @@ contains
              if (.not.ok) goto 999
           end do
           r = r * cfac
-          crys2car = transpose(r)
+          m_x2c = transpose(r)
           hasr = .true.
 
        elseif (line(1:16) == "ATOMIC_POSITIONS") then
@@ -3606,10 +3606,10 @@ contains
           seed(is0)%spc = spc
           seed(is0)%x = x
           seed(is0)%is = is
-          seed(is0)%crys2car = crys2car
+          seed(is0)%m_x2c = m_x2c
 
           seed(is0)%useabr = 2
-          r = matinv(seed(is0)%crys2car)
+          r = matinv(seed(is0)%m_x2c)
           do i = 1, seed(is0)%nat
              if (tox) then
                 seed(is0)%x(:,i) = matmul(r,seed(is0)%x(:,i))
@@ -3651,7 +3651,7 @@ contains
 
   !> Read all structures from a QE outupt. Returns all crystal seeds.
   subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
-    use tools_math, only: crys2car_from_cellpar, matinv, det
+    use tools_math, only: m_x2c_from_cellpar, matinv, det
     use tools_io, only: fopen_read, fclose, getline_raw, string
     use types, only: realloc
     use param, only: maxzat0, bohrtoa
@@ -3737,7 +3737,7 @@ contains
              goto 999
           end if
 
-          rtrans = crys2car_from_cellpar(aa,bb)
+          rtrans = m_x2c_from_cellpar(aa,bb)
           rtrans = matinv(rtrans) * r
           dd = abs(det(rtrans))
           if (abs(dd - 1d0) > 1d-10) then
@@ -3755,7 +3755,7 @@ contains
           read (line,*,err=999) aa, bb
           aa = aa / bohrtoa
           if (hastrans) then
-             r = crys2car_from_cellpar(aa,bb) * rtrans
+             r = m_x2c_from_cellpar(aa,bb) * rtrans
              hasr = .true.
           end if
           hasab = .true.
@@ -3819,7 +3819,7 @@ contains
           hasab = .false.
           hasx = .false.
 
-          seed(is0)%crys2car = r
+          seed(is0)%m_x2c = r
           r = matinv(r)
           seed(is0)%useabr = 2
 

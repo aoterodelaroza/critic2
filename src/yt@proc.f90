@@ -34,7 +34,7 @@ contains
   module subroutine yt_integrate(s,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use tools_math, only: crys2car_from_cellpar, matinv
+    use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use arithmetic, only: eval
     use param, only: vsmall
@@ -102,8 +102,8 @@ contains
     caux%isinit = .true.
     caux%aa = s%c%aa / real(n,8)
     caux%bb = s%c%bb
-    caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
-    caux%car2crys = matinv(caux%crys2car)
+    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
+    caux%m_c2x = matinv(caux%m_x2c)
     call caux%wigner(area=al)
     nvec = caux%ws_nf
     vec = caux%ws_ineighx
