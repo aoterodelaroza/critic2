@@ -2887,16 +2887,29 @@ contains
           nelec = nelec + iz * c%at(i)%mult
        end do
        write (uout,'("  Number of electrons (with zero atomic charge): ",A/)') string(nelec)
+    end if
 
+    if (lq) then
        write (uout,'("+ List of atomic species: ")')
-       write (uout,'("# ",3(A,X))') string("id",2,ioj_center), &
-          string("Z",3,ioj_center), string("name",7,ioj_center)
+       write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
+          string("Z",3,ioj_center), string("name",7,ioj_center),&
+          string("Q",length=4,justify=ioj_center),&
+          string("ZPSP",length=4,justify=ioj_right)
        do i = 1, c%nspc
-          write (uout,'("  ",3(A,X))') string(i,2,ioj_center), &
-             string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center)
+          if (c%zpsp(c%spc(i)%z) > 0) then
+             str1 = string(c%zpsp(c%spc(i)%z))
+          else
+             str1 = " -- "
+          end if
+          write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
+             string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&
+             string(c%spc(i)%qat,'f',length=4,decimal=1,justify=ioj_right),&
+             str1
        end do
        write (uout,*)
+    end if
 
+    if (lcrys) then
        ! List of atoms in crystallographic coordinates
        if (.not.c%ismolecule) then
           write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
@@ -3116,37 +3129,6 @@ contains
           write (uout,'("+ Is the cell orthogonal? ",L1)') c%isortho
           write (uout,'("+ Is the reduced cell orthogonal? ",L1/)') c%isortho_del
        end if
-    end if
-
-    if (lq) then
-       ! density grids and number of electrons
-       write (uout,'("* Atomic charges")')
-       write (uout,'("# ",99(A,2X))') &
-          string("nat",length=3,justify=ioj_right), &
-          string("spc",length=3,justify=ioj_center), &
-          string("name",length=5,justify=ioj_center), &
-          string("Z",length=2,justify=ioj_right), &
-          string("Q",length=4,justify=ioj_right), &
-          string("ZPSP",length=4,justify=ioj_right)
-       nelec = 0
-       do i = 1, c%nneq
-          is = c%at(i)%is
-          if (c%zpsp(c%spc(is)%z) > 0) then
-             str1 = string(c%zpsp(c%spc(is)%z))
-          else
-             str1 = "--"
-          end if
-          write (uout,'(99(2X,A))') &
-             string(i,length=3,justify=ioj_right), &
-             string(is,length=3,justify=ioj_center), &
-             string(c%spc(is)%name,length=5,justify=ioj_center), &
-             string(c%spc(is)%z,length=2,justify=ioj_right), &
-             string(c%spc(is)%qat,'f',length=4,decimal=1,justify=ioj_right),&
-             str1
-          nelec = nelec + c%at(i)%mult * c%spc(is)%z
-       end do
-       write (uout,'("+ Number of electrons: ",A)') string(nelec)
-       write (uout,*)
     end if
 
   end subroutine struct_report
