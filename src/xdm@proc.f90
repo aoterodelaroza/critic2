@@ -277,17 +277,19 @@ contains
        call ferror("xdm_driver","Using default a1 and a2 parameters",warning)
 
     ! we need at least the density and the b or kinetic energy density or elf
-    if (ielf > 0) then
-       itau = sy%getfieldnum()
-       write (uout,'("+ Calculating tau from elf and rho")')
-       call taufromelf(ielf,irho,itau)
-       nclean = nclean + 1
-       iclean(nclean) = itau
-       write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
-       call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
-    else
-       call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
-       return
+    if (itau == 0) then
+       if (ielf > 0) then
+          itau = sy%getfieldnum()
+          write (uout,'("+ Calculating tau from elf and rho")')
+          call taufromelf(ielf,irho,itau)
+          nclean = nclean + 1
+          iclean(nclean) = itau
+          write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
+          call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
+       else
+          call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
+          return
+       endif
     endif
 
     ! initialize
@@ -409,7 +411,7 @@ contains
 
                 ds = taus - 0.25d0 * grho**2 / rhos
                 qs = 1d0/6d0 * (lap - 2d0 * ds)
-                rhs = 2d0/3d0 * pi**(2d0/3d0) * (rhos)**(5d0/3d0) / max(qs,1d-14)
+                rhs = 2d0/3d0 * pi**(2d0/3d0) * (rhos)**(5d0/3d0) / qs
 
                 if (rhs > 0d0) then
                    xroot = 3d0
@@ -498,10 +500,11 @@ contains
     do iat = 1, sy%c%nneq
        mll = 0d0
        avoll = 0d0
+
        do ll = 1, nvec
-          do i = 1, n(1)
+          do k = 1, n(3)
              do j = 1, n(2)
-                do k = 1, n(3)
+                do i = 1, n(1)
                    x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/) + lvec(:,ll)
                    x = sy%c%x2c(x - sy%c%at(iat)%x)
                    if (any(abs(x) > cutrad(sy%c%spc(sy%c%at(iat)%is)%z))) cycle
