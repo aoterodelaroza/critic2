@@ -284,8 +284,8 @@ contains
           call taufromelf(ielf,irho,itau)
           nclean = nclean + 1
           iclean(nclean) = itau
-          write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
-          call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
+          ! write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
+          ! call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
        else
           call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
           return
@@ -350,13 +350,13 @@ contains
 
        if (dopro) then
           sy%f(ipdens)%grid%isinit = .true.
-          write (uout,'("+ Writing promolecular density to: ",A)') trim(fileroot)//"-pdens.cube"
-          call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,sy%f(ipdens)%grid%f)
+          ! write (uout,'("+ Writing promolecular density to: ",A)') trim(fileroot)//"-pdens.cube"
+          ! call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,sy%f(ipdens)%grid%f)
        end if
        if (docor) then
           sy%f(icor)%grid%isinit = .true.
-          write (uout,'("+ Writing core density to: ",A)') trim(fileroot)//"-core.cube"
-          call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,sy%f(icor)%grid%f)
+          ! write (uout,'("+ Writing core density to: ",A)') trim(fileroot)//"-core.cube"
+          ! call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,sy%f(icor)%grid%f)
        endif
     end if
 
@@ -366,8 +366,8 @@ contains
        write (uout,'("+ Calculating Laplacian of rho")')
        call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%m_x2c)
        sy%f(ilap)%isinit = .true.
-       write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
-       call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
+       ! write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
+       ! call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = ilap
     endif
@@ -376,8 +376,8 @@ contains
        write (uout,'("+ Calculating gradient of rho")')
        call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
        sy%f(igrad)%isinit = .true.
-       write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
-       call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
+       ! write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
+       ! call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = igrad
     endif
@@ -449,8 +449,8 @@ contains
 
        ! write the cube for b
        sy%f(ib)%grid%isinit = .true.
-       write (uout,'("+ Writing BR exchange-hole dipole (b) to: ",A)') trim(fileroot)//"-b.cube"
-       call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,sy%f(ib)%grid%f)
+       ! write (uout,'("+ Writing BR exchange-hole dipole (b) to: ",A)') trim(fileroot)//"-b.cube"
+       ! call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,sy%f(ib)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = ib
     else
