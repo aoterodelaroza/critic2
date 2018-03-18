@@ -64,6 +64,7 @@ module crystalseedmod
      procedure :: read_cif 
      procedure :: read_shelx 
      procedure :: read_cube 
+     procedure :: read_bincube 
      procedure :: read_wien 
      procedure :: read_vasp 
      procedure :: read_potcar
@@ -120,6 +121,12 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cube
+     module subroutine read_bincube(seed,file,mol,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_bincube
      module subroutine read_wien(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

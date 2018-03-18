@@ -1215,6 +1215,97 @@ contains
 
   end subroutine read_cube
 
+  !> Read the structure from a binary cube file
+  module subroutine read_bincube(seed,file,mol,errmsg)
+    use tools_io, only: fopen_read, fclose, nameguess, getline_raw
+    use tools_math, only: matinv
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu
+    integer :: i, j, nstep(3), nn, iz, it
+    real*8 :: x0(3), rmat(3,3), rdum, rx(3)
+    logical :: ismo, ok
+    character(len=:), allocatable :: line
+
+     errmsg = "Error reading file."
+     lu = fopen_read(file,form="unformatted")
+     if (lu < 0) then
+        errmsg = "Error opening file."
+        return
+     end if
+
+     ! number of atoms and unit cell
+     read (lu,err=999) seed%nat, x0
+
+     read (lu,err=999) nstep, rmat
+     do i = 1, 3
+        rmat(:,i) = rmat(:,i) * nstep(i)
+     end do
+
+     seed%m_x2c = rmat
+     rmat = transpose(rmat)
+     rmat = matinv(rmat)
+     seed%useabr = 2
+     
+     ! Atomic positions.
+     allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+     allocate(seed%spc(2))
+     nn = seed%nat
+     seed%nat = 0
+     do i = 1, nn
+        read (lu,err=999) iz, rdum, rx
+        if (iz > 0) then
+           seed%nat = seed%nat + 1
+           rx = matmul(rx - x0,rmat)
+           seed%x(:,seed%nat) = rx - floor(rx)
+           it = 0
+           do j = 1, seed%nspc
+              if (seed%spc(j)%z == iz) then
+                 it = j
+                 exit
+              end if
+           end do
+           if (it == 0) then
+              seed%nspc = seed%nspc + 1
+              if (seed%nspc > size(seed%spc,1)) &
+                 call realloc(seed%spc,2*seed%nspc)
+              seed%spc(seed%nspc)%z = iz
+              seed%spc(seed%nspc)%name = nameguess(iz)
+              it = seed%nspc
+           end if
+           seed%is(seed%nat) = it
+        endif
+     end do
+     if (seed%nat /= nn) then
+        call realloc(seed%x,3,seed%nat)
+        call realloc(seed%is,seed%nat)
+     end if
+     call realloc(seed%spc,seed%nspc)
+
+     errmsg = ""
+999  continue
+     call fclose(lu)
+
+     ! no symmetry
+     seed%havesym = 0
+     seed%findsym = -1
+
+     ! molecule
+     seed%ismolecule = mol
+     seed%havex0 = .true.
+     seed%molx0 = x0
+
+     ! rest of the seed information
+     seed%isused = .true.
+     seed%cubic = .false.
+     seed%border = 0d0
+
+  end subroutine read_bincube
+
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
   module subroutine read_wien(seed,file,mol,errmsg)
@@ -2933,7 +3024,7 @@ contains
   !> contains a scalar field.
   module subroutine struct_detect_format(file,isformat,ismol,alsofield)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
-       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
@@ -2969,6 +3060,10 @@ contains
        ismol = .false.
     elseif (equal(wextdot,'cube')) then
        isformat = isformat_cube
+       ismol = .false.
+       alsofield_ = .true.
+    elseif (equal(wextdot,'bincube')) then
+       isformat = isformat_bincube
        ismol = .false.
        alsofield_ = .true.
     elseif (equal(wextdot,'struct')) then
@@ -3142,9 +3237,9 @@ contains
   module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
-    use param, only: isformat_cube, isformat_xyz, isformat_wfn, isformat_wfx,&
-       isformat_fchk, isformat_molden, isformat_gaussian, isformat_abinit,&
-       isformat_cif,&
+    use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
+       isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian,&
+       isformat_abinit,isformat_cif,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_unknown, dirsep
@@ -3195,6 +3290,10 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_cube(file,mol,errmsg)
+    else if (isformat == isformat_bincube) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_bincube(file,mol,errmsg)
     elseif (isformat == isformat_struct) then
        nseed = 1
        allocate(seed(1))

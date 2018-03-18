@@ -5203,7 +5203,7 @@ contains
   !> is given, use it as the metric of the cube; otherwise, use the
   !> unit cell. If x00 is given, use it as the origin of the cube
   !> (in bohr). Otherwise, use the crystal's molx0.
-  module subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
+  module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00)
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
     use param, only: eye
@@ -5211,6 +5211,7 @@ contains
     real*8, intent(in) :: g(:,:,:)
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
+    logical, intent(in) :: binary
     real*8, intent(in), optional :: xd0(3,3)
     real*8, intent(in), optional :: x00(3)
 
@@ -5235,36 +5236,46 @@ contains
        x0 = c%molx0
     endif
 
-    lu = fopen_write(file)
-    write(lu,'("critic2-cube")')
-    write(lu,'("critic2-cube")')
-    if (precisecube) then
-       write(lu,'(I5,1x,3(E22.14,1X))') c%ncel, x0
-       do i = 1, 3
-          write(lu,'(I5,1x,3(E22.14,1X))') n(i), xd(:,i)
-       end do
+    if (binary) then
+       lu = fopen_write(file,form="unformatted")
+       write(lu) c%ncel, x0
+       write(lu) n, xd
        do i = 1, c%ncel
-          write(lu,'(I4,F5.1,3(E22.14,1X))') c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+          write(lu) c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
        end do
+       write (lu) g
     else
-       write(lu,'(I5,3(F12.6))') c%ncel, x0
-       do i = 1, 3
-          write(lu,'(I5,3(F12.6))') n(i), xd(:,i)
-       end do
-       do i = 1, c%ncel
-          write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
-       end do
-    end if
-    if (.not.onlyheader) then
-       do ix = 1, n(1)
-          do iy = 1, n(2)
-             if (precisecube) then
-                write (lu,'(6(1x,e22.14))') (g(ix,iy,iz),iz=1,n(3))
-             else
-                write (lu,'(1p,6(1x,e12.5))') (g(ix,iy,iz),iz=1,n(3))
-             end if
+       lu = fopen_write(file)
+       write(lu,'("critic2-cube")')
+       write(lu,'("critic2-cube")')
+       if (precisecube) then
+          write(lu,'(I5,1x,3(E22.14,1X))') c%ncel, x0
+          do i = 1, 3
+             write(lu,'(I5,1x,3(E22.14,1X))') n(i), xd(:,i)
+          end do
+          do i = 1, c%ncel
+             write(lu,'(I4,F5.1,3(E22.14,1X))') c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+          end do
+       else
+          write(lu,'(I5,3(F12.6))') c%ncel, x0
+          do i = 1, 3
+             write(lu,'(I5,3(F12.6))') n(i), xd(:,i)
+          end do
+          do i = 1, c%ncel
+             write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') c%spc(c%atcel(i)%is)%z, 0d0, c%atcel(i)%r(:) + c%molx0
+          end do
+       end if
+       if (.not.onlyheader) then
+          do ix = 1, n(1)
+             do iy = 1, n(2)
+                if (precisecube) then
+                   write (lu,'(6(1x,e22.14))') (g(ix,iy,iz),iz=1,n(3))
+                else
+                   write (lu,'(1p,6(1x,e12.5))') (g(ix,iy,iz),iz=1,n(3))
+                end if
+             enddo
           enddo
-       enddo
+       end if
     end if
     call fclose(lu)
 

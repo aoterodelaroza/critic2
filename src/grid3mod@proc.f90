@@ -557,6 +557,49 @@ contains
 
   end subroutine read_cube
 
+  !> Read a grid in binary CUBE format
+  module subroutine read_bincube(f,file)
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: file !< Input file
+
+    integer :: luc
+    integer :: nat
+    integer :: istat, n(3), i, j, k, iz
+    logical :: ismo
+    real*8 :: x0(3), xd(3,3), rdum
+
+    call f%end()
+    luc = fopen_read(file,form="unformatted")
+
+    read (luc,iostat=istat) nat, x0
+    ismo = (nat < 0)
+    nat = abs(nat)
+
+    if (istat /= 0) &
+       call ferror('read_cube','Error reading nat',faterr,file)
+    read (luc,iostat=istat) n, xd
+    if (istat /= 0) &
+       call ferror('read_cube','Error reading nx, ny, nz',faterr,file)
+    do i = 1, nat
+       read (luc) iz, rdum, x0
+    end do
+
+    f%isinit = .true.
+    f%iswan = .false.
+    f%mode = mode_default
+    f%n(:) = n
+    allocate(f%f(n(1),n(2),n(3)),stat=istat)
+    if (istat /= 0) &
+       call ferror('read_cube','Error allocating grid',faterr,file)
+    read(luc,iostat=istat) f%f
+    if (istat /= 0) &
+       call ferror('read_cube','Error reading grid',faterr,file)
+
+    call fclose(luc)
+
+  end subroutine read_bincube
+
   !> Read a grid in siesta RHO format
   module subroutine read_siesta(f,file)
     use tools_io, only: fopen_read, faterr, ferror, fclose

@@ -60,6 +60,7 @@ module grid3mod
      procedure :: normalize !< normalize the grid to a given value
      procedure :: from_array3 !< build a grid3 from a 3d array of real numbers
      procedure :: read_cube !< grid3 from a Gaussian cube file
+     procedure :: read_bincube !< grid3 from a binary cube file
      procedure :: read_siesta !< grid3 from siesta RHO file
      procedure :: read_abinit !< grid3 from abinit binary file
      procedure :: read_vasp !< grid3 from VASP file (CHG, CHGCAR, etc.)
@@ -123,6 +124,10 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
      end subroutine read_cube
+     module subroutine read_bincube(f,file)
+       class(grid3), intent(inout) :: f
+       character*(*), intent(in) :: file !< Input file
+     end subroutine read_bincube
      module subroutine read_siesta(f,file)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file

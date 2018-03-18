@@ -58,7 +58,8 @@ contains
     use tools_io, only: getword, lower, ferror, equal, isinteger, zatguess,&
        isexpression
     use param, only: dirsep,&
-       ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube, ifformat_abinit,&
+       ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
+       ifformat_bincube, ifformat_abinit,&
        ifformat_vasp, ifformat_vaspchg, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_chk, ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
@@ -92,6 +93,9 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"cube")) then
        f%iff = ifformat_cube
+       call read_next_as_file()
+    elseif (equal(lfile,"bincube")) then
+       f%iff = ifformat_bincube
        call read_next_as_file()
     elseif (equal(lfile,"abinit")) then
        f%iff = ifformat_abinit
@@ -157,6 +161,8 @@ contains
     if (f%iff == ifformat_unknown) then
        if (equal(extdot,'cube')) then
           f%iff = ifformat_cube
+       elseif (equal(extdot,'bincube')) then
+          f%iff = ifformat_bincube
        else if (equal(extdot,'DEN').or.equal(extund,'DEN').or.equal(extdot,'ELF').or.equal(extund,'ELF').or.&
           equal(extdot,'POT').or.equal(extund,'POT').or.equal(extdot,'VHA').or.equal(extund,'VHA').or.&
           equal(extdot,'VHXC').or.equal(extund,'VHXC').or.equal(extdot,'VXC').or.equal(extund,'VXC').or.&
@@ -210,7 +216,8 @@ contains
     if (f%iff == ifformat_promolecular .or. f%iff == ifformat_as .or. f%iff == ifformat_copy) then
        ! no files needed
        nfile = 0
-    elseif (f%iff == ifformat_cube .or. f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or.&
+    elseif (f%iff == ifformat_cube .or. f%iff == ifformat_bincube .or.&
+       f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or.&
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspchg .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.& 
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&

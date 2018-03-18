@@ -30,7 +30,8 @@ contains
     use systemmod, only: system
     use crystalmod, only: crystal
     use param, only: isformat_cif, isformat_shelx,&
-       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
+       isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
@@ -106,6 +107,9 @@ contains
 
     elseif (isformat == isformat_cube) then
        call seed%read_cube(word,mol,errmsg)
+
+    elseif (isformat == isformat_bincube) then
+       call seed%read_bincube(word,mol,errmsg)
 
     elseif (isformat == isformat_struct) then
        call seed%read_wien(word,mol,errmsg)

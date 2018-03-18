@@ -363,7 +363,7 @@ contains
              end where
           endif
           file = trim(fileroot) // "_wcube_" // string(i,2,pad0=.true.) // ".cube"
-          call sy%c%writegrid_cube(w,file,.false.)
+          call sy%c%writegrid_cube(w,file,.false.,.false.)
        end do
        write (uout,'("* Weights written to ",A,"_wcube_*.cube")') trim(fileroot)
     end if

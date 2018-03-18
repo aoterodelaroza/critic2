@@ -372,7 +372,7 @@ contains
     logical :: ok, iok
     integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
-    logical :: dogrid, useexpr, iscube, doheader
+    logical :: dogrid, useexpr, iscube, isbincube, doheader
     type(grid3) :: faux
 
     ! read the points
@@ -448,7 +448,8 @@ contains
     prop = "f"
     id = sy%iref
     useexpr = .false.
-    iscube = .true.
+    iscube = .false.
+    isbincube = .false.
     outfile = trim(fileroot) // ".cube" 
     do while (.true.)
        word = lgetword(line,lp)
@@ -460,6 +461,7 @@ contains
           end if
           wext1 = outfile(index(outfile,'.',.true.)+1:)
           iscube = (equal(wext1,'cube')) 
+          isbincube = (equal(wext1,'bincube')) 
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
@@ -541,8 +543,10 @@ contains
     ! write cube header
     write (uout,'("* CUBE written to file: ",A/)') string(outfile)
     if (doheader) then
-       if (iscube) then
-          call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,xd,x0+sy%c%molx0)
+       if (isbincube) then
+          call ferror("rhoplot_cube","BINCUBE format is incompatible with HEADER",faterr)
+       else if (iscube) then
+          call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,.false.,xd,x0+sy%c%molx0)
        else
           call sy%c%writegrid_vasp(sy%f(id)%grid%f,outfile,.true.)
        endif
@@ -561,8 +565,8 @@ contains
        else
           faux = sy%f(id)%grid
        end if
-       if (iscube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,xd,x0+sy%c%molx0)
+       if (iscube .or. isbincube) then
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,isbincube,xd,x0+sy%c%molx0)
        else
           call sy%c%writegrid_vasp(faux%f,outfile,.false.)
        end if
@@ -624,8 +628,8 @@ contains
           !$omp end parallel do
        end if
        ! cube body
-       if (iscube) then
-          call sy%c%writegrid_cube(lf,outfile,.false.,xd,x0+sy%c%molx0)
+       if (iscube .or. isbincube) then
+          call sy%c%writegrid_cube(lf,outfile,.false.,isbincube,xd,x0+sy%c%molx0)
        else
           call sy%c%writegrid_vasp(lf,outfile,.false.)
        endif

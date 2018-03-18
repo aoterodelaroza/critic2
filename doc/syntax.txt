@@ -49,6 +49,7 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.res
   CRYSTAL file.ins
   CRYSTAL file.cube
+  CRYSTAL file.bincube
   CRYSTAL file.struct
   CRYSTAL [file.]{POSCAR,CONTCAR,CHGCAR,CHG,ELFCAR,AECCAR0,AECCAR2} [at1.s at2.s ...|POTCAR]
   CRYSTAL file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
@@ -86,6 +87,7 @@ expression.r # prints the value of the expression to the output.
   MOLECULE file.log [border.r] [CUBIC|CUBE]
   MOLECULE file.gen [border.r] [CUBIC|CUBE]
   MOLECULE file.cube
+  MOLECULE file.bincube
   MOLECULE file.cif
   MOLECULE ...
   MOLECULE
@@ -130,6 +132,7 @@ expression.r # prints the value of the expression to the output.
   WRITE file.hsd
   WRITE file.gen
 * LOAD file.cube
+  LOAD file.bincube
   LOAD file_{DEN|PAWDEN|ELF|ELF|POT|VHA|VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN}
   LOAD [file.]{CHGCAR|AECCAR0|AECCAR2}
   LOAD {[file.]CHG|[file.]ELFCAR}
@@ -190,6 +193,7 @@ xxxx
   CUBE GRID ...
   CUBE ... FILE CHGCAR
   CUBE ... FILE bleh.cube
+  CUBE ... FILE bleh.bincube
 * AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [NUCEPSH nepsh.r]
        [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]

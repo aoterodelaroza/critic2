@@ -614,11 +614,12 @@ module crystalmod
        character*(*), intent(in) :: file
        integer, intent(in), optional :: lu0
      end subroutine write_dftbp_gen
-     module subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
+     module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
+       logical, intent(in) :: binary
        real*8, intent(in), optional :: xd0(3,3)
        real*8, intent(in), optional :: x00(3)
      end subroutine writegrid_cube
