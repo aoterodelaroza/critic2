@@ -753,6 +753,10 @@ contains
     write (uout,'("# Z = atomic number")')
     write (uout,'("# Position = atomic position")')
     write (uout,'("# Mol = molecule identifier (see corresponding table above)")')
+    write (uout,'("# Volume = volume of the reference field basins.")')
+    write (uout,'("# Pop (population) = the reference field integrated in its own basins.")')
+    write (uout,'("# Lap = Laplacian of the reference field integrated in the reference field basins.")')
+    write (uout,'("# $xxx = field xxx integrated in the basins of the reference field.")')
     write (uout,*)
 
     ! List of attractors and positions
@@ -777,6 +781,7 @@ contains
 
     ! Integrated scalar atomic properties
     write (uout,'("* Integrated atomic properties")')
+    write (uout,'("# (See key above for interpretation of column headings.)")')
     iplast = 0
     do ip = 0, (count(pmask)-1)/5
        ! show only the properties that are active
@@ -861,6 +866,7 @@ contains
        
        ! List of integrated properties in the molecules
        write (uout,'("* Integrated molecular properties")')
+       write (uout,'("# (See key above for interpretation of column headings.)")')
        iplast = 0
        do ip = 0, (count(pmask)-1)/5
           ! show only the properties that are active
