@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string>
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 
 #include "imgui/imgui.h"
