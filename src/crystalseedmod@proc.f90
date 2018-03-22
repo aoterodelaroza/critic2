@@ -1228,8 +1228,6 @@ contains
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
-    logical :: ismo, ok
-    character(len=:), allocatable :: line
 
      errmsg = "Error reading file."
      lu = fopen_read(file,form="unformatted")
@@ -2148,7 +2146,7 @@ contains
     ! transform atomic positions
     do i = 1, seed%nat
        if (tox) then
-          seed%x(:,i) = matmul(r,seed%x(:,i) * alat)
+          seed%x(:,i) = matmul(r,seed%x(:,i))
        end if
        seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
     end do
