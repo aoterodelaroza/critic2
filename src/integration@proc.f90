@@ -2071,7 +2071,7 @@ contains
                       r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
                       dist(m) = d2 * dunit0(iunit)
-                      diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
+                      diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:),8))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
                       ilvec(:,m) = nint(xgatt(:,i) + cr1%c2x(r1) * nwan - xgatt(:,j))
@@ -2143,7 +2143,7 @@ contains
                          lvec2 = sy%c%mol(ja)%at(idxmol(2,j))%lvec
                          lvec3 = lvec1 - lvec2 + (/ic,jc,kc/)
                          lvec3 = modulo(lvec3,nwan)
-                         raux = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
+                         raux = 2d0 * sum(abs(real(fa(i,j,k,:),8))) * fspin
                          if (ia == ja .and. all(lvec3 == 0)) then
                             limol(ia) = limol(ia) + 0.5d0 * raux
                          else
