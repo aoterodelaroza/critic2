@@ -251,7 +251,7 @@ contains
        det, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
-    use param, only: pi, eyet, ctsq3, maxzat
+    use param, only: pi, eyet, maxzat
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
@@ -4706,6 +4706,29 @@ contains
     call fclose(lu)
 
   end subroutine write_escher
+
+  !> Write a db file for the dcp automatic input generator
+  module subroutine write_db(c,file)
+    use tools_io, only: fopen_write, string, fclose, nameguess
+    use param, only: bohrtoa
+    class(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+
+    integer :: lu, i, j
+
+    lu = fopen_write(file)
+    write (lu,'("type crystal_energy")')
+    write (lu,'("kpts 4")')
+    write (lu,'("crys")')
+    write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',18,10),i=1,3), (string(c%bb(i),'f',18,10),i=1,3)
+    do i = 1, c%ncel
+       write (lu,'(A,X,1p,3(A,X))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)), &
+          (string(c%atcel(i)%x(j),'f',18,10),j=1,3)
+    end do
+    write (lu,'("end")')
+    call fclose(lu)
+
+  end subroutine write_db
 
   !> Write a gulp input script
   module subroutine write_gulp(c,file,dodreiding)

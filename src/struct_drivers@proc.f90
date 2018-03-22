@@ -568,6 +568,12 @@ contains
        call s%c%write_escher(file)
        ok = check_no_extra_word()
        if (.not.ok) return
+    elseif (equal(wext,'db')) then
+       ! db
+       write (uout,'("* WRITE db file: ",A)') string(file)
+       call s%c%write_db(file)
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'gin')) then
        ! gulp
        dodreiding = .false.

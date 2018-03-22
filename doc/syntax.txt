@@ -125,6 +125,7 @@ expression.r # prints the value of the expression to the output.
   WRITE file.cif 
   WRITE file.d12 [NOSYM|NOSYMM]
   WRITE file.m
+  WRITE file.db
   WRITE file.gin [DREIDING]
   WRITE file.lammps
   WRITE file.fdf

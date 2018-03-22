@@ -192,6 +192,7 @@ module crystalmod
      procedure :: write_cif
      procedure :: write_d12
      procedure :: write_escher
+     procedure :: write_db
      procedure :: write_gulp
      procedure :: write_lammps
      procedure :: write_siesta_fdf
@@ -588,6 +589,10 @@ module crystalmod
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
      end subroutine write_escher
+     module subroutine write_db(c,file)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+     end subroutine write_db
      module subroutine write_gulp(c,file,dodreiding)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file

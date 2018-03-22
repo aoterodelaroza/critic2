@@ -1917,6 +1917,7 @@ options`_). The full syntax of the WRITE keyword is::
   WRITE file.cif
   WRITE file.d12 [NOSYM|NOSYMM]
   WRITE file.m
+  WRITE file.db
   WRITE file.gin [DREIDING]
   WRITE file.lammps
   WRITE file.fdf
@@ -2059,7 +2060,9 @@ corresponding to a finite molecule, use gjf (see above).
 
 The octave script file (extension .m) contains the structure in octave
 format, to be read using the escher library (visit
-http://schooner.chem.dal.ca for more information).
+http://schooner.chem.dal.ca for more information). The db file format
+is intended for a set of automated input generation scripts written in
+octave (https://github.com/aoterodelaroza/dcp).
 
 A simple GULP template input file containing the structure (and EEM as
 the first line) can be written using the .gin extension. If the
