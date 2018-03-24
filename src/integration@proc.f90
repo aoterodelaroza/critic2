@@ -1907,7 +1907,7 @@ contains
     integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3), n(3)
     real*8 :: fspin, xnn, xli, r1(3), d2, asum, fatemp, raux
     integer, allocatable :: imap(:,:), io(:), ilvec(:,:), idat(:)
-    real*8, allocatable :: fa(:,:,:,:)
+    real*8, allocatable :: rfa(:,:,:,:)
     real*8, allocatable :: diout(:), dist(:), dimol(:,:,:,:,:), limol(:), namol(:)
     real*8 :: xcm(3,sy%c%nmol)
     integer :: imo, jmo, ia, ja, ka, iba
@@ -1979,15 +1979,15 @@ contains
        if (sy%f(fid)%grid%wan%fachk) &
           inquire(file=fafname,exist=haschk)
 
-       allocate(fa(natt,natt,nlat,nspin))
+       allocate(rfa(natt,natt,nlat,nspin))
        if (haschk) then
           write (uout,'("+ Reading Fa checkpoint file: ",A)') trim(fafname)
           lu = fopen_read(fafname,"unformatted")
-          read(lu) fa
+          read(lu) rfa
           call fclose(lu)
        else
           write (uout,'("+ Calculating Fa")')
-          fa = 0d0
+          rfa = 0d0
           !$omp parallel do private(fatemp) schedule(dynamic)
           do i = 1, natt
              do j = 1, natt
@@ -2000,7 +2000,7 @@ contains
                          end do
                       end do
                       !$omp critical (addfa)
-                      fa(i,j,k,is) = fatemp
+                      rfa(i,j,k,is) = fatemp
                       !$omp end critical (addfa)
                    end do
                 end do
@@ -2012,7 +2012,7 @@ contains
           if (sy%f(fid)%grid%wan%fachk) then
              write (uout,'("+ Writing Fa checkpoint file: ",A)') trim(fafname)
              lu = fopen_write(fafname,"unformatted")
-             write(lu) fa
+             write(lu) rfa
              call fclose(lu)
           end if
        end if
@@ -2024,8 +2024,8 @@ contains
        write (uout,'("# Id   cp   ncp   Name  Z       LI(A)           N(A)")')
        do i = 1, natt
           call assign_strings(i,icp(i),.false.,scp,sncp,sname,smult,sz)
-          xli = sum(abs(fa(i,i,1,:))) * fspin
-          xnn = sum(abs(fa(i,:,:,:))) * fspin
+          xli = sum(abs(rfa(i,i,1,:))) * fspin
+          xnn = sum(abs(rfa(i,:,:,:))) * fspin
           write (uout,'(2X,99(A,X))') & 
              string(i,4,ioj_left), scp, sncp, sname, sz, &
              string(xli,'f',15,8,4), string(xnn,'f',12,8,4)
@@ -2071,7 +2071,7 @@ contains
                       r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
                       dist(m) = d2 * dunit0(iunit)
-                      diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:),8))) * fspin
+                      diout(m) = 2d0 * sum(abs(rfa(i,j,k,:))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
                       ilvec(:,m) = nint(xgatt(:,i) + cr1%c2x(r1) * nwan - xgatt(:,j))
@@ -2125,8 +2125,8 @@ contains
           do i = 1, natt
              ia = idxmol(1,i)
              if (ia == 0) cycle
-             limol(ia) = limol(ia) + sum(abs(fa(i,i,1,:))) * fspin
-             namol(ia) = namol(ia) + sum(abs(fa(i,:,:,:))) * fspin
+             limol(ia) = limol(ia) + sum(abs(rfa(i,i,1,:))) * fspin
+             namol(ia) = namol(ia) + sum(abs(rfa(i,:,:,:))) * fspin
              lvec1 = sy%c%mol(ia)%at(idxmol(2,i))%lvec
              k = 0
              m = 0
@@ -2143,7 +2143,7 @@ contains
                          lvec2 = sy%c%mol(ja)%at(idxmol(2,j))%lvec
                          lvec3 = lvec1 - lvec2 + (/ic,jc,kc/)
                          lvec3 = modulo(lvec3,nwan)
-                         raux = 2d0 * sum(abs(real(fa(i,j,k,:),8))) * fspin
+                         raux = 2d0 * sum(abs(rfa(i,j,k,:))) * fspin
                          if (ia == ja .and. all(lvec3 == 0)) then
                             limol(ia) = limol(ia) + 0.5d0 * raux
                          else
@@ -2221,7 +2221,7 @@ contains
        
        ! clean up
        call cr1%end()
-       deallocate(fa,dist,io,diout,ilvec,idat)
+       deallocate(rfa,dist,io,diout,ilvec,idat)
     end do
 
   end subroutine int_output_deloc_wannier
