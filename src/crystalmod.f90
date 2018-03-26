@@ -60,7 +60,7 @@ module crystalmod
      real*8 :: ar(3) !< reciprocal cell lengths
      real*8 :: grtensor(3,3) !< reciprocal metric tensor (3,3)
      ! crystallographic/cartesian conversion matrices and norm-2s
-     real*8 :: m_x2c(3,3) !< input cell, crystallographic -> cartesian
+     real*8 :: m_x2c(3,3) !< input cell, crystallographic -> cartesian (m_x2c(:,i) are the lattice vectors)
      real*8 :: m_c2x(3,3) !< input cell, cartesian -> crystallographic
      real*8 :: m_xr2c(3,3) !< reduced cryst -> input cartesian
      real*8 :: m_c2xr(3,3) !< cartesian -> reduced cryst

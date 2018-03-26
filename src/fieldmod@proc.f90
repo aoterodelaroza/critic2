@@ -415,7 +415,7 @@ contains
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
        call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
-       call f%dftb%register_struct(f%c%m_x2c,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
+       call f%dftb%register_struct(f%c%m_c2x,f%c%m_xr2c,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -717,7 +717,7 @@ contains
     character*(*), intent(in), optional :: fder !< modifier for the special field
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wc(3), dist, x(3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3), dist, x(3)
     integer :: i, nid, lvec(3), idx(3)
     real*8 :: rho, grad(3), h(3,3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
@@ -801,10 +801,13 @@ contains
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
     wx = f%c%c2x(v)
+    wxr = f%c%c2xr(v)
     if (per) then
        do i = 1, 3
           if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
              wx(i) = wx(i) - real(floor(wx(i)),8)
+          if (wxr(i) < -flooreps .or. wxr(i) > 1d0+flooreps) &
+             wxr(i) = wxr(i) - real(floor(wxr(i)),8)
        end do
     else
        if (.not.f%c%ismolecule) &
@@ -818,6 +821,7 @@ contains
        end if
     end if
     wc = f%c%x2c(wx)
+    wcr = f%c%xr2c(wxr)
 
     ! type selector
     select case(f%type)
@@ -851,7 +855,7 @@ contains
        res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
     case(type_pi)
-       call f%pi%rho2(wc,f%exact,res%f,res%gf,res%hf)
+       call f%pi%rho2(wcr,f%exact,res%f,res%gf,res%hf)
        ! transformation not needed because of pi_register_struct:
        ! all work done in Cartesians in a finite environment.
 
@@ -868,7 +872,8 @@ contains
        ! a big cube).
 
     case(type_dftb)
-       call f%dftb%rho2(wc,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
+       ! transform to the center of the reduced-cell coordinates
+       call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
        ! transformation not needed because of dftb_register_struct:
        ! all work done in Cartesians in a finite environment.
 
@@ -927,7 +932,7 @@ contains
     real*8 :: grd0
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wc(3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
     logical :: iok, per
@@ -943,10 +948,13 @@ contains
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
     wx = f%c%c2x(v)
+    wxr = f%c%c2xr(v)
     if (per) then
        do i = 1, 3
           if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
              wx(i) = wx(i) - real(floor(wx(i)),8)
+          if (wxr(i) < -flooreps .or. wxr(i) > 1d0+flooreps) &
+             wxr(i) = wxr(i) - real(floor(wxr(i)),8)
        end do
     else
        if (.not.f%c%ismolecule) &
@@ -960,6 +968,7 @@ contains
        end if
     end if
     wc = f%c%x2c(wx)
+    wcr = f%c%xr2c(wxr)
 
     ! type selector
     select case(f%type)
@@ -970,11 +979,11 @@ contains
     case(type_elk)
        call f%elk%rho2(wx,0,rho,grad,h)
     case(type_pi)
-       call f%pi%rho2(wc,f%exact,rho,grad,h)
+       call f%pi%rho2(wcr,f%exact,rho,grad,h)
     case(type_wfn)
        call f%wfn%rho2(wc,0,rho,grad,h,gkin,vir,stress)
     case(type_dftb)
-       call f%dftb%rho2(wc,f%exact,0,rho,grad,h,gkin)
+       call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)
        call f%c%promolecular(wc,rho,grad,h,0,periodic=periodic)
     case(type_promol_frag)

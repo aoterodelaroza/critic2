@@ -91,9 +91,10 @@ module dftb_private
        real*8, intent(out) :: h(3,3)
        real*8, intent(out) :: gkin
      end subroutine rho2
-     module subroutine register_struct(f,rmat,atenv,spc)
+     module subroutine register_struct(f,xmat,rmat,atenv,spc)
        use types, only: celatom, species
        class(dftbwfn), intent(inout) :: f
+       real*8, intent(in) :: xmat(3,3)
        real*8, intent(in) :: rmat(3,3)
        type(celatom), intent(in) :: atenv(:)
        type(species), intent(in) :: spc(:)

@@ -450,16 +450,17 @@ contains
   !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
   !> and zenv is the environment information (number, position,
   !> lattice vector, index in the complete list, and atomic number.
-  module subroutine register_struct(f,rmat,atenv,spc)
+  module subroutine register_struct(f,xmat,rmat,atenv,spc)
     use types, only: celatom, atom, species
     use types, only: realloc
     class(dftbwfn), intent(inout) :: f
+    real*8, intent(in) :: xmat(3,3)
     real*8, intent(in) :: rmat(3,3)
     type(celatom), intent(in) :: atenv(:)
     type(species), intent(in) :: spc(:)
 
     real*8 :: maxcutoff
-    real*8 :: sphmax, x0(3), dist
+    real*8 :: sphmax, x0(3), dist, x(3)
     integer :: i, j, nenv
 
     ! calculate the maximum cutoff
@@ -495,7 +496,8 @@ contains
           if (dist <= sphmax+maxcutoff) then
              f%nenv = f%nenv + 1
              f%renv(:,f%nenv) = atenv(i)%r
-             f%lenv(:,f%nenv) = atenv(i)%lenv
+             ! l referred to the original cell (for phase calculation)
+             f%lenv(:,f%nenv) = floor(matmul(xmat,atenv(i)%r))
              f%idxenv(f%nenv) = atenv(i)%cidx
              f%zenv(f%nenv) = spc(atenv(i)%is)%z
           end if

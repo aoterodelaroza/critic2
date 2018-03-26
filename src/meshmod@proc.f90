@@ -245,7 +245,7 @@ contains
     integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
-    real*8 :: x(3), fscal, fscal2
+    real*8 :: x(3), fscal, fscal2, xnuc(3)
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
 
     ! reset the arrays
@@ -278,9 +278,12 @@ contains
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
-    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1) &
+    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1,xnuc) &
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
+       xnuc = c%x2xr(c%atcel(i)%x)
+       xnuc = xnuc - floor(xnuc)
+       xnuc = c%xr2c(xnuc)
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) then
           cycle
@@ -306,7 +309,7 @@ contains
           vp0 = fscal * exp(-2d0 * r) / max(r,1d-10)**3
 
           do il = 1, nang
-             x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
+             x = xnuc + r * (/xang(il),yang(il),zang(il)/)
 
              vpsum = 0d0
              do j = 1, c%nenv

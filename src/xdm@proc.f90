@@ -122,7 +122,7 @@ contains
     use systemmod, only: sy
     use crystalmod, only: search_lattice
     use grid1mod, only: grid1, agrid
-    use global, only: eval_next, fileroot, cutrad
+    use global, only: eval_next, cutrad
     use tools_io, only: uout, lgetword, equal, getword, ferror, faterr, string,&
        warning, ioj_right
     use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa
@@ -132,7 +132,7 @@ contains
     character(len=:), allocatable :: word
     integer :: lp, irho, itau, ielf, ipdens, icor, ilap, igrad, irhoae, ib
     integer :: i, j, k, l, n(3), ntot, ii, jj, nn, m1, m2
-    real*8 :: x(3), rhoat, rhocore, rdum1(3), rdum2(3,3), maxc6
+    real*8 :: x(3), xi(3), rhoat, rhocore, rdum1(3), rdum2(3,3), maxc6
     real*8 :: rhos, rhot, grho, lap, taus, ds, qs, rhs, xroot, xshift, xold, expx
     real*8 :: gx, fx, ffx, rmax, rmax2, ri, rhofree, raux1, raux2, wei, db
     real*8 :: mll(3), avoll, a1, a2, c6, c8, c9, c10, rvdw, ri2, db2
@@ -277,7 +277,7 @@ contains
        call ferror("xdm_driver","Using default a1 and a2 parameters",warning)
 
     ! we need at least the density and the b or kinetic energy density or elf
-    if (itau == 0) then
+    if (itau < 0) then
        if (ielf > 0) then
           itau = sy%getfieldnum()
           write (uout,'("+ Calculating tau from elf and rho")')
@@ -639,11 +639,15 @@ contains
     rmax2 = rmax*rmax
     do ii = 1, sy%c%ncel
        i = sy%c%atcel(ii)%idx
+       xi = sy%c%x2xr(sy%c%atcel(ii)%x)
+       xi = xi - floor(xi)
+       xi = sy%c%xr2c(xi)
+
        eat = 0d0
        sat = 0d0
        do jj = 1, sy%c%nenv
           j = sy%c%atenv(jj)%idx
-          x = sy%c%atenv(jj)%r - sy%c%atcel(ii)%r
+          x = sy%c%atenv(jj)%r - xi
           ri2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
           if (ri2 < 1d-15 .or. ri2>rmax2) cycle
           ri = sqrt(ri2)
@@ -1474,7 +1478,7 @@ contains
     type(crystal) :: caux
     integer :: i, j, jj, iz
     real*8 :: d, d2
-    real*8 :: xij(3)
+    real*8 :: xij(3), xi(3)
     real*8 :: e
     real*8 :: rmax, rmax2, maxc6
 
@@ -1495,11 +1499,15 @@ contains
     do i = 1, caux%ncel
        iz = caux%spc(caux%atcel(i)%is)%z
        if (iz < 1) cycle
+       xi = sy%c%x2xr(sy%c%atcel(i)%x)
+       xi = xi - floor(xi)
+       xi = sy%c%xr2c(xi)
+
        do jj = 1, caux%nenv
           j = caux%atenv(jj)%cidx
           iz = caux%spc(caux%atenv(jj)%is)%z
           if (iz < 1) cycle
-          xij = caux%atenv(jj)%r-caux%atcel(i)%r
+          xij = caux%atenv(jj)%r-xi
           d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
           if (d2 < 1d-15 .or. d2>rmax2) cycle
           d = sqrt(d2)

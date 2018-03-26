@@ -1139,8 +1139,10 @@ contains
     real*8, intent(in), optional :: dmax0
 
     integer :: i, j, k, l(3), m
-    real*8 :: xx(3), dmax, sphmax, dist
+    real*8 :: xx(3), xc(3), mid(3), dmax, sphmax, dist
     integer :: imax, jmax, kmax
+
+    real*8, allocatable :: xenv_(:,:)
 
     ! allocate atenv
     if (.not.allocated(c%atenv)) allocate(c%atenv(menv0))
@@ -1166,10 +1168,10 @@ contains
        return
     endif
 
-    sphmax = norm2(c%x2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-    sphmax = max(sphmax,norm2(c%x2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm2(c%x2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm2(c%x2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = norm2(c%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+    sphmax = max(sphmax,norm2(c%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(c%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(c%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
 
     if (present(dmax0)) then
        dmax = dmax0
@@ -1180,9 +1182,16 @@ contains
        end do
     end if
     c%dmax0_env = dmax
-    call search_lattice(c%m_x2c,dmax,imax,jmax,kmax)
+    call search_lattice(c%m_xr2c,dmax,imax,jmax,kmax)
+
+    allocate(xenv_(3,c%ncel))
+    do m = 1, c%ncel
+       xenv_(:,m) = c%x2xr(c%atcel(m)%x)
+       xenv_(:,m) = xenv_(:,m) - nint(xenv_(:,m))
+    end do
 
     ! build environment
+    mid = c%xr2c((/0.5d0,0.5d0,0.5d0/))
     c%nenv = 0
     do i = -imax, imax
        do j = -jmax, jmax
@@ -1190,8 +1199,9 @@ contains
              !.run over the ions in the (i,j,k) cell
              do m = 1, c%ncel
                 l = (/i,j,k/)
-                xx = c%atcel(m)%x + l
-                dist = norm2(c%x2c(xx - (/0.5d0,0.5d0,0.5d0/)))
+                xx = xenv_(:,m) + l
+                xc = c%xr2c(xx)
+                dist = norm2(xc - mid)
                 if (dist > sphmax+dmax) cycle
 
                 c%nenv = c%nenv + 1
@@ -1201,7 +1211,7 @@ contains
 
                 ! Store the point
                 c%atenv(c%nenv)%x = xx
-                c%atenv(c%nenv)%r = c%x2c(xx)
+                c%atenv(c%nenv)%r = xc
                 c%atenv(c%nenv)%idx = c%atcel(m)%idx
                 c%atenv(c%nenv)%cidx = m
                 c%atenv(c%nenv)%ir = c%atcel(m)%ir
@@ -1215,6 +1225,7 @@ contains
     enddo  !i
 
     call realloc(c%atenv,c%nenv)
+    deallocate(xenv_)
 
   end subroutine build_env
 
@@ -2148,7 +2159,7 @@ contains
     real*8, allocatable, intent(inout) :: ih(:)
 
     integer :: i, j
-    real*8 :: d, hfac, int, sigma2
+    real*8 :: d, hfac, int, sigma2, xi(3)
 
     sigma2 = sigma * sigma
 
@@ -2166,8 +2177,11 @@ contains
     hfac = (npts-1) / rend
     if (.not.c%ismolecule) then
        do i = 1, c%nneq
+          xi = c%x2xr(c%at(i)%x)
+          xi = xi - floor(xi)
+          xi = c%xr2c(xi)
           do j = 1, c%nenv
-             d = norm2(c%at(i)%r - c%atenv(j)%r)
+             d = norm2(xi - c%atenv(j)%r)
              if (d < 1d-10 .or. d > rend) cycle
              int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atenv(j)%is)%z,8))
              ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
@@ -2419,7 +2433,7 @@ contains
     type(crystalseed) :: ncseed
     logical :: ok, found, verbose
     real*8 :: x0(3,3), x0inv(3,3), fvol
-    real*8 :: r(3,3), x(3), dx(3), dd, t(3)
+    real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
     integer :: nr, nn
     integer :: nlat
@@ -2489,10 +2503,9 @@ contains
     x0inv = matinv(x0)
 
     ! metrics of the new cell
-    r = matmul(transpose(x0),transpose(c%m_x2c))
-    ncseed%m_x2c = transpose(r)
+    ncseed%m_x2c = matmul(c%m_x2c,x0)
     ncseed%useabr = 2
-    fvol = abs(det(r)) / c%omega
+    fvol = abs(det(x0))
     if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
        call ferror("newcell","Inconsistent newcell volume",faterr)
 
@@ -2533,7 +2546,7 @@ contains
 
     ! build the new atom list
     ncseed%nat = 0
-    nn = ceiling(c%ncel * abs(det(r)) / c%omega)
+    nn = nint(c%ncel * fvol)
     allocate(ncseed%x(3,nn),ncseed%is(nn))
     do i = 1, nlat
        do j = 1, c%ncel
@@ -3108,11 +3121,11 @@ contains
           write (uout,'("+ Lattice vectors for the Delaunay reduced cell (fractional)")')
           do i = 1, 3
              write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
-                (string(nint(c%m_xr2x(i,j)),length=2,justify=ioj_right),j=1,3)
+                (string(nint(c%m_xr2x(j,i)),length=2,justify=ioj_right),j=1,3)
           end do
 
           do i = 1, 3
-             x0 = c%m_xr2x(i,:)
+             x0 = c%m_xr2x(:,i)
              xred(:,i) = c%x2c(x0)
              xlen(i) = norm2(xred(:,i))
           end do
@@ -3315,10 +3328,11 @@ contains
   !> for the Delaunay transformations.
   module subroutine wigner(c,area)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
-    use tools_math, only: mixed, cross, matinv, mnorm2
+    use tools_math, only: mixed, cross, matinv, mnorm2, det
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use types, only: realloc
+    use param, only: pi
     class(crystal), intent(inout) :: c
     real*8, intent(out), optional :: area(14) !< area of the WS faces 
 
@@ -3348,6 +3362,7 @@ contains
     integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
     real*8 :: rdel(3,3)
+    real*8 :: xlen(3), xang(3), x0(3), xred(3,3)
 
     ! delaunay reduction
     call c%delaunay_reduction(rmat,rbas=rdel)
@@ -3423,10 +3438,19 @@ contains
     end if
 
     ! calculate the delaunay reduction parameters for shortest vector search
-    c%m_xr2x = transpose(rdel)
+    c%m_xr2x = rdel
     c%m_x2xr = matinv(c%m_xr2x)
-    c%m_xr2c = matmul(c%m_xr2x,transpose(c%m_x2c))
+    c%m_xr2c = matmul(c%m_x2c,c%m_xr2x)
     c%m_c2xr = matinv(c%m_xr2c)
+
+    do i = 1, 3
+       x0 = c%m_xr2x(i,:)
+       xred(:,i) = c%x2c(x0)
+       xlen(i) = norm2(xred(:,i))
+    end do
+    xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
+    xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
+    xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
 
     c%n2_xr2x = mnorm2(c%m_xr2x)
     c%n2_x2xr = mnorm2(c%m_x2xr)
@@ -4455,19 +4479,20 @@ contains
 
   !> Write a critic2 input template
   module subroutine write_critic(c,file)
-    use tools_io, only: fopen_write, fclose
+    use tools_io, only: fopen_write, fclose, string
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
-    integer :: lu, i
+    integer :: lu, i, j
 
     lu = fopen_write(file)
 
     write (lu,'("crystal")')
-    write (lu,'("  cell ",3(F15.11,X),3(F9.5,X))') c%aa, c%bb
+    write (lu,'("  cell ",6(A,X))') (string(c%aa(i),'f',20,10),i=1,3),&
+       (string(c%bb(i),'f',20,10),i=1,3)
     do i = 1, c%ncel
-       write (lu,'("  neq ",3(F12.8," "),A10)') c%atcel(i)%x,&
-          trim(c%spc(c%atcel(i)%is)%name)
+       write (lu,'("  neq ",3(A," "),A10)') (string(c%atcel(i)%x(j),'f',20,10),j=1,3),&
+          string(c%spc(c%atcel(i)%is)%name)
     end do
     write (lu,'("endcrystal")')
     write (lu,'("end")')
@@ -4732,7 +4757,7 @@ contains
 
   !> Write a gulp input script
   module subroutine write_gulp(c,file,dodreiding)
-    use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose
+    use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose, string
     use param, only: bohrtoa, atmcov, pi
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
@@ -4749,7 +4774,7 @@ contains
     integer :: nneigh(maxneigh), ineigh(maxneigh,c%nneq)
     real*8 :: dneigh(maxneigh,c%nneq), dhb(maxneigh,c%nneq), avgang(c%nneq)
     integer :: nhb(maxneigh), ihb(maxneigh,c%nneq)
-    real*8 :: d, x1(3), x2(3), ang
+    real*8 :: d, x1(3), x2(3), ang, xi(3)
     logical :: ok, isat
 
     ! check that we have an environment
@@ -4758,23 +4783,28 @@ contains
     lu = fopen_write(file)
     if (.not. dodreiding) then
        write (lu,'("eem")')
-       write (lu,'("cell ",3(F13.9,X),3(F10.5,X))') c%aa * bohrtoa, c%bb
+       write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
+          (string(c%bb(j),'f',10,5),j=1,3)
        write (lu,'("fractional")')
        do i = 1, c%ncel
-          write (lu,'(A5,X,3(F15.9,X))') trim(c%spc(c%atcel(i)%is)%name),&
-             c%atcel(i)%x
+          write (lu,'(A5,X,3(A,X))') trim(c%spc(c%atcel(i)%is)%name),&
+             (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
        end do
     else
        ! calculate bonded neighbors
        nneigh = 0
        nhb = 0
        do i = 1, c%nneq
+          xi = c%x2xr(c%at(i)%x)
+          xi = xi - floor(xi)
+          xi = c%xr2c(xi)
+
           iz = c%spc(c%at(i)%is)%z
           n = 0
           ! determine covalent bonds
           do j = 1, c%nenv
              jz = c%spc(c%atenv(j)%is)%z
-             d = norm2(c%atenv(j)%r-c%at(i)%r)
+             d = norm2(c%atenv(j)%r-xi)
              if (d < 1d-10) cycle
              if (d < (atmcov(iz) + atmcov(jz)) * rfac) then
                 n = n + 1
@@ -4791,8 +4821,8 @@ contains
           do j = 1, nneigh(i)
              do k = j+1, nneigh(i)
                 n = n + 1
-                x1 = c%atenv(ineigh(j,i))%r - c%at(i)%r
-                x2 = c%atenv(ineigh(k,i))%r - c%at(i)%r
+                x1 = c%atenv(ineigh(j,i))%r - xi
+                x2 = c%atenv(ineigh(k,i))%r - xi
                 ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
                 avgang(i) = avgang(i) + ang
              end do
@@ -4806,14 +4836,14 @@ contains
                 jz = c%spc(c%atenv(j)%is)%z
                 ! only with N, O, and S
                 if (jz==7 .or. jz==8 .or. jz==9 .or. jz==16 .or. jz==17 .or. jz==35 .or. jz==53) then
-                   d = norm2(c%atenv(j)%r-c%at(i)%r)
+                   d = norm2(c%atenv(j)%r-xi)
                    ! only in the correct distance range
                    if (d > hbmin .and. d < hbmax) then
                       ! only if the angles to all other neighbor atoms is more than 145
                       ok = .true.
                       do k = 1, nneigh(i)
-                         x1 = c%atenv(ineigh(k,i))%r - c%at(i)%r
-                         x2 = c%atenv(j)%r - c%at(i)%r
+                         x1 = c%atenv(ineigh(k,i))%r - xi
+                         x2 = c%atenv(j)%r - xi
                          ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
                          kz = c%spc(c%atenv(ineigh(k,i))%is)%z
                          isat = (kz==7 .or. kz==8 .or. kz==9 .or. kz==16 .or. kz==17 .or. kz==35 .or. kz==53)
@@ -4836,7 +4866,8 @@ contains
        end do
 
        write (lu,'("eem")')
-       write (lu,'("cell ",3(F13.9,X),3(F10.5,X))') c%aa * bohrtoa, c%bb
+       write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
+          (string(c%bb(j),'f',10,5),j=1,3)
        write (lu,'("fractional")')
        do i = 1, c%ncel
           idx = c%atcel(i)%idx
@@ -4867,7 +4898,7 @@ contains
              iz == 49 .or. iz == 50 .or. iz == 51 .or. iz == 52) then
              lbl(3:3) = "3"
           end if
-          write (lu,'(A5,X,3(F15.9,X))') adjustl(trim(lbl)), c%atcel(i)%x
+          write (lu,'(A5,X,3(A,X))') adjustl(trim(lbl)), (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
        end do
     end if
     call fclose(lu)
@@ -5394,9 +5425,9 @@ contains
     xc = x0
     if (present(periodic)) then
        if (periodic) then
-          xc = c%c2x(x0)
+          xc = c%c2xr(x0)
           xc = xc - floor(xc)
-          xc = c%x2c(xc)
+          xc = c%xr2c(xc)
        end if
     end if
 
