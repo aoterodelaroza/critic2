@@ -1061,6 +1061,7 @@ contains
        f%f = f%f * fspin / omega / real(nk,8)
     end if
 
+    f%wan%useunkgen = .false.
     f%wan%sijchk = dochk
     f%wan%haschk = haschk
     f%isinit = .true.
@@ -1304,6 +1305,7 @@ contains
        call fclose(luc)
     end if
 
+    f%wan%useunkgen = .true.
     f%wan%sijchk = dochk
     f%wan%haschk = haschk
     f%isinit = .true.

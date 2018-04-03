@@ -34,6 +34,7 @@ module grid3mod
      logical :: fachk = .true. !< Save the fa to a checkpoint (chk-fa) file
      logical :: haschk !< A chk-sij file is currently available
      logical :: useu = .true. !< Use the U transformation to get MLWF
+     logical :: useunkgen !< true = from a unkgen file, false = from UNKx.y files
      real*8 :: cutoff !< Cutoff for atomic overlaps
      character(len=mlen) :: fevc !< evc file name
      real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.

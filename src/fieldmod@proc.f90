@@ -1428,7 +1428,7 @@ contains
        if (f%grid%wan%haschk) then
           write (uout,'("  Source: sij-chk checkpoint file")') 
        else
-          if (allocated(f%grid%wan%ngk)) then
+          if (f%grid%wan%useunkgen) then
              write (uout,'("  Source: unkgen")') 
           else
              write (uout,'("  Source: UNK files")') 
