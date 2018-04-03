@@ -756,9 +756,9 @@ contains
        x = matmul(c%m_x2c,x)
        dist = norm2(x)
     else 
-       x = matmul(x,c%m_x2xr)
+       x = matmul(c%m_x2xr,x)
        x = x - nint(x)
-       x = matmul(x,c%m_xr2c)
+       x = matmul(c%m_xr2c,x)
        dist = norm2(x)
 
        if (.not.c%isortho_del) then
