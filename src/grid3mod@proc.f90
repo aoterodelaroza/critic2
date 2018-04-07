@@ -1757,11 +1757,11 @@ contains
     class(grid3), intent(in) :: f
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
-    complex*16, intent(out) :: fout(f%wan%nwan(1)*f%n(1),f%wan%nwan(2)*f%n(2),f%wan%nwan(3)*f%n(3))
+    complex*16, intent(out) :: fout(f%n(1),f%n(2),f%n(3),f%wan%nwan(1)*f%wan%nwan(2)*f%wan%nwan(3))
 
     integer :: luc, i, j, k, nk1, nk2, nk3
-    integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk
-    integer :: jbnd, imax(3)
+    integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk, ilat
+    integer :: jbnd, imax(4)
     complex*16 :: raux(f%n(1),f%n(2),f%n(3)), rseq(f%n(1)*f%n(2)*f%n(3))
     complex*16 :: raux2(f%n(1),f%n(2),f%n(3))
     character(len=:), allocatable :: fname
@@ -1779,7 +1779,7 @@ contains
     nall(2) = n(2) * nk2
     nall(3) = n(3) * nk3
 
-    if (allocated(f%wan%ngk)) then
+    if (f%wan%useunkgen) then
        allocate(evc(maxval(f%wan%ngk(1:nk))))
        luc = fopen_read(f%wan%fevc,form="unformatted")
        if (ispin == 2) then
@@ -1803,7 +1803,7 @@ contains
           end do
        end do
 
-       if (allocated(f%wan%ngk)) then
+       if (f%wan%useunkgen) then
           ! from a unkgen
           if (f%wan%useu) then
              rseq = 0d0
@@ -1837,21 +1837,20 @@ contains
           ik1 = nint(f%wan%kpt(1,ikk) * nk1)
           ik2 = nint(f%wan%kpt(2,ikk) * nk2)
           ik3 = nint(f%wan%kpt(3,ikk) * nk3)
+          ilat = 1 + ik3 + nk3 * (ik2 + nk2 * ik1)
           ph = exp(tpi*img*(f%wan%kpt(1,ik)*ik1+f%wan%kpt(2,ik)*ik2+f%wan%kpt(3,ik)*ik3))
-          fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) = &
-             fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) + &
-             raux2 * ph
+          fout(:,:,:,ilat) = fout(:,:,:,ilat) + raux2 * ph
        end do
     end do
 
-    if (allocated(f%wan%ngk)) then
+    if (f%wan%useunkgen) then
        deallocate(evc)
        call fclose(luc)
     end if
 
     ! normalize
     imax = maxloc(abs(fout))
-    tnorm = fout(imax(1),imax(2),imax(3))
+    tnorm = fout(imax(1),imax(2),imax(3),imax(4))
     tnorm = tnorm / abs(tnorm) * nk
     fout = fout / tnorm
 

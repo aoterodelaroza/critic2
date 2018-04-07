@@ -204,7 +204,7 @@ module grid3mod
        class(grid3), intent(in) :: f
        integer, intent(in) :: ibnd
        integer, intent(in) :: ispin
-       complex*16, intent(out) :: fout(f%wan%nwan(1)*f%n(1),f%wan%nwan(2)*f%n(2),f%wan%nwan(3)*f%n(3))
+       complex*16, intent(out) :: fout(f%n(1),f%n(2),f%n(3),f%wan%nwan(1)*f%wan%nwan(2)*f%wan%nwan(3))
      end subroutine get_qe_wnr
   end interface
 

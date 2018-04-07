@@ -1329,7 +1329,7 @@ contains
 
     integer :: is, nspin, ndeloc, natt1, lu
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, l, ibnd1, ibnd2
+    integer :: i, j, l, ibnd1, ibnd2, ilata, ilatb
     integer :: nwan(3), m1, m2, m3
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
@@ -1341,7 +1341,7 @@ contains
     integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
     logical, allocatable :: wmask(:,:,:)
     type(ytdata) :: dat
-    complex*16, allocatable :: f1(:,:,:), f2(:,:,:)
+    complex*16, allocatable :: f1(:,:,:,:), f2(:,:,:,:)
     logical, allocatable :: lovrlp(:,:,:,:,:,:)
     type(crystalseed) :: ncseed
     type(crystal) :: nc
@@ -1511,8 +1511,8 @@ contains
           call nc%struct_new(ncseed,.true.)
 
           allocate(psic(n(1),n(2),n(3)))
-          allocate(f1(sy%f(fid)%grid%n(1)*nwan(1),sy%f(fid)%grid%n(2)*nwan(2),sy%f(fid)%grid%n(3)*nwan(3)))
-          allocate(f2(sy%f(fid)%grid%n(1)*nwan(1),sy%f(fid)%grid%n(2)*nwan(2),sy%f(fid)%grid%n(3)*nwan(3)))
+          allocate(f1(sy%f(fid)%grid%n(1),sy%f(fid)%grid%n(2),sy%f(fid)%grid%n(3),nlat))
+          allocate(f2(sy%f(fid)%grid%n(1),sy%f(fid)%grid%n(2),sy%f(fid)%grid%n(3),nlat))
           allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
           if (imtype == imtype_yt) &
              allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
@@ -1558,12 +1558,14 @@ contains
                       do imo = 1, nmo
                          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                          if (iba /= ibnd1) cycle
+                         ilata = 1 + ka + nwan(3) * (ja + nwan(2) * ia)
                          do jmo = 1, nmo
                             call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                             if (ibb /= ibnd2) cycle
                             if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
-                            psic = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * &
-                               f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
+                            ilatb = 1 + kb + nwan(3) * (jb + nwan(2) * ib)
+
+                            psic = conjg(f1(:,:,:,ilata)) * f2(:,:,:,ilatb)
                             do i = 1, natt1
                                padd = sum(psic,idg1==i)
                                call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
@@ -1606,19 +1608,20 @@ contains
                          do imo = 1, nmo
                             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                             if (iba /= ibnd1) cycle
+                            ilata = 1 + ka + nwan(3) * (ja + nwan(2) * ia)
                             where (wmask)
-                               psic2 = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * w
+                               psic2 = conjg(f1(:,:,:,ilata)) * w
                             end where
 
                             do jmo = 1, nmo
                                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                                if (ibb /= ibnd2) cycle
                                if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
-
+                               ilatb = 1 + kb + nwan(3) * (jb + nwan(2) * ib)
                                where (wmask)
-                                  psic =  psic2 * &
-                                     f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
+                                  psic =  psic2 * f2(:,:,:,ilatb)
                                end where
+
                                padd = sum(psic,wmask)
                                call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                                call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
@@ -2388,18 +2391,14 @@ contains
 
     ! unpack
     iaux = modulo(idx-1,nmo)
-    bo = modulo(iaux,nbnd) + 1
-    iaux = (idx-1 - (bo-1)) / nbnd
-    ko = modulo(iaux,nwan(3)) + 1
-    iaux = (iaux - (ko-1)) / nwan(3)
-    jo = modulo(iaux,nwan(2)) + 1
-    iaux = (iaux - (jo-1)) / nwan(2)
-    io = modulo(iaux,nwan(1)) + 1
-
-    ! translate
-    io = io - 1
-    jo = jo - 1
-    ko = ko - 1
+    bo = modulo(iaux,nbnd)
+    iaux = (idx-1 - bo) / nbnd
+    ko = modulo(iaux,nwan(3))
+    iaux = (iaux - ko) / nwan(3)
+    jo = modulo(iaux,nwan(2))
+    iaux = (iaux - jo) / nwan(2)
+    io = modulo(iaux,nwan(1))
+    bo = bo + 1
 
   end subroutine unpackidx
 
@@ -2411,12 +2410,12 @@ contains
     integer :: zio, zjo, zko
 
     ! transformed indices
-    zio = modulo(io,nwan(1)) + 1
-    zjo = modulo(jo,nwan(2)) + 1
-    zko = modulo(ko,nwan(3)) + 1
+    zio = modulo(io,nwan(1))
+    zjo = modulo(jo,nwan(2))
+    zko = modulo(ko,nwan(3))
 
     ! translate and pack
-    idx = (bo-1) + nbnd * ((zko-1) + nwan(3) * ((zjo-1) + nwan(2) * (zio-1))) + 1
+    idx = bo + nbnd * (zko + nwan(3) * (zjo + nwan(2) * zio))
 
   end subroutine packidx
 
