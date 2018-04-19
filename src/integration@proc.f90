@@ -1554,7 +1554,7 @@ contains
                    if (imtype == imtype_bader) then
                       ! bader integration
                       psic = 0d0
-                      !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic) schedule(dynamic)
+                      !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic) schedule(dynamic)
                       do imo = 1, nmo
                          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                          if (iba /= ibnd1) cycle
@@ -1586,7 +1586,7 @@ contains
                       psic2 = 0d0
                       w = 0d0
                       wmask = .false.
-                      !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic,psic2,w,wmask) schedule(dynamic)
+                      !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic,psic2,w,wmask) schedule(dynamic)
                       do i = 1, natt1
                          call yt_weights(din=dat,idb=iatt(i),w=w)
                          wmask = .false.
