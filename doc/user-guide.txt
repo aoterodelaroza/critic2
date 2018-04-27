@@ -3087,6 +3087,7 @@ Planes and contour plots (PLANE)
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
         [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i|BADER|LIN niso.i rini.r rend.r|
         i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
+        [LABELZ labelz.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
@@ -3136,6 +3137,11 @@ The COLORMAP keyword writes a template for a colormap plot of the
 field on the plane. If the LOG or ATAN keywords are given, the
 logarithm or the arctangent of the field are represented in the
 colormap.
+
+For the plots that display atomic or critical point labels, LABELZ
+controls how many labels are represented. Any atom or critical point
+that is at a distance less than labelz.r (default: 0.1 bohr) is shown
+as a label in the plot.
 
 Grids (CUBE)
 ~~~~~~~~~~~~

@@ -54,6 +54,8 @@ submodule (rhoplot) proc
   integer :: cpup(mncritp), cpdn(mncritp)
   integer :: indmax
   logical :: isneg
+
+  ! label height
   real*8 :: RHOP_Hmax = 1d-1
 
   real*8, parameter  :: epsdis = 1d-4 !< distance cutoff (bohr) for in-plane
@@ -694,6 +696,7 @@ contains
     ny = max(ny,2)
 
     ! read additional options
+    RHOP_Hmax = 1d-1
     logset = .false.
     lin0 = 0d0
     lin1 = 1d0
@@ -759,6 +762,12 @@ contains
           end if
           zy0 = zy0 / dunit0(iunit)
           zy1 = zy1 / dunit0(iunit)
+       elseif (equal(word,'labelz')) then
+          ok = eval_next(RHOP_Hmax,line,lp)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong LABELZ keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'relief')) then
           dorelief = .true.
           zmin = -1d0
@@ -1044,6 +1053,7 @@ contains
     zx1 = 0d0
     zy0 = 0d0
     zy1 = 0d0
+    RHOP_Hmax = 1d-1
 
     !.Read user options:
     ll = len(line)
