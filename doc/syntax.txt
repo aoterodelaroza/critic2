@@ -159,7 +159,7 @@ expression.r # prints the value of the expression to the output.
   LOAD ... [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] [EXACT|APPROXIMATE]
            [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
            [TYPNUC {-3,-1,1,3}] [NORMALIZE n.r] [{NAME|ID} id.s]
-	   [NOTESTMT] [ZPSP at1.s q1.r...]
+           [NOTESTMT] [ZPSP at1.s q1.r...]
   LOAD AS "expression.s" [n1.i n2.i n3.i|SIZEOF id.s|GHOST]
   LOAD AS PROMOLECULAR {n1.i n2.i n3.i|SIZEOF id.s} [FRAGMENT file.xyz]
   LOAD AS CORE {n1.i n2.i n3.i|SIZEOF id.s}
@@ -182,11 +182,11 @@ xxxx
 * LINE x0.r y0.r z0.r x1.r y1.r z1.r npts.i [FILE file.s] [FIELD id.s/"expr"]
        [GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
 * PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r nx.i ny.i 
-   	[SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
+        [SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
         [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-        [CONTOUR {LOG niso.i|ATAN niso.i|BADER|LIN niso.i rini.r rend.r|
-	i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
+        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i|BADER|LIN niso.i rini.r rend.r|
+        i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
 * CUBE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i nz.i [FILE file.s] [FIELD id.s/"expr"]
        [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] [HEADER]
   CUBE x0.r y0.r z0.r x1.r y1.r z1.r bpp.r ...
@@ -250,8 +250,10 @@ xxxx
         x.r y.r z.r
         ...
    ENDCHECK/END
-   CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP} nptsu.i nptsv.i 
-     {LIN niso.i cini.r cend.r|LOG niso.i|ATAN niso.i|BADER|i1.i i2.i...}
+   CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP} 
+     nptsu.i nptsv.i {LIN niso.i cini.r cend.r|
+     LOG niso.i [zmin.r zmax.r]|
+     ATAN niso.i|BADER|i1.i i2.i...}
   ENDGRDVEC/END
 * FLUXPRINT
     POINT {1|-1|0} x.r y.r z.r 

@@ -652,9 +652,9 @@ contains
 
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
     real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt
-    real*8 :: uu(3), vv(3), lin0, lin1
+    real*8 :: uu(3), vv(3), lin0, lin1, log0, log1
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, zmin, zmax, rdum
-    logical :: docontour, dorelief, docolormap
+    logical :: docontour, dorelief, docolormap, logset
     character(len=:), allocatable :: word, outfile, root0, expr
     type(scalar_value) :: res
     logical :: ok, iok
@@ -694,6 +694,7 @@ contains
     ny = max(ny,2)
 
     ! read additional options
+    logset = .false.
     lin0 = 0d0
     lin1 = 1d0
     sx0 = 1d0
@@ -815,6 +816,15 @@ contains
                 if (.not.ok) then
                    call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line,syntax=.true.)
                    return
+                end if
+             else if (niso_type == niso_log) then
+                lp2 = lp
+                ok = eval_next(log0,line,lp)
+                ok = ok .and. eval_next(log1,line,lp)
+                if (.not.ok) then
+                   lp = lp2
+                else
+                   logset = .true.
                 end if
              end if
           end if
@@ -962,7 +972,11 @@ contains
 
     ! contour/relief/colormap plots
     if (docontour) then
-       call assign_ziso(niso_type,niso,ziso,lin0,lin1,maxval(ff),minval(ff))
+       if (.not.logset) then
+          log0 = minval(ff)
+          log1 = maxval(ff)
+       end if
+       call assign_ziso(niso_type,niso,ziso,lin0,lin1,log1,log0)
        call contour(ff,x0,x1,x2,nx,ny,niso,ziso,root0,.true.,.true.)
     end if
     if (dorelief) call relief(root0,string(outfile),zmin,zmax)
@@ -999,8 +1013,8 @@ contains
     integer :: cpid
     integer :: niso_type, nfi, ix, iy
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, rdum
-    real*8 :: ehess(3), x0(3), uu(3), vv(3), lin0, lin1
-    logical :: docontour, dograds, goodplane
+    real*8 :: ehess(3), x0(3), uu(3), vv(3), lin0, lin1, log0, log1
+    logical :: docontour, dograds, goodplane, logset
     integer :: n1, n2, niso, nder
     type(scalar_value) :: res
     real*8, allocatable :: ff(:,:), ziso(:)
@@ -1297,6 +1311,7 @@ contains
           n2 = max(n2,2)
 
           ok = .true.
+          logset = .false.
           lin0 = 0d0
           lin1 = 1d0
           lpold = lp
@@ -1307,6 +1322,17 @@ contains
           else if (equal(word,'log')) then
              niso_type = niso_log
              ok = eval_next (niso, line, lp)
+             if (ok) then
+                lpold = lp
+                ok = eval_next (log0, line, lp)
+                ok = ok .and. eval_next (log1, line, lp)
+                if (.not.ok) then
+                   lp = lpold
+                   ok = .true.
+                else
+                   logset = .true.
+                end if
+             end if
           else if (equal(word,'bader')) then
              niso_type = niso_bader
           else if (equal(word,'lin')) then
@@ -1441,7 +1467,11 @@ contains
           end do
        end do
        !$omp end parallel do
-       call assign_ziso(niso_type,niso,ziso,lin0,lin1,maxval(ff),minval(ff))
+       if (.not.logset) then
+          log0 = minval(ff)
+          log1 = maxval(ff)
+       end if
+       call assign_ziso(niso_type,niso,ziso,lin0,lin1,log1,log0)
        call contour(ff,r0,r1,r2,n1,n2,niso,ziso,rootname,.false.,.false.)
        if (allocated(ziso)) deallocate(ziso)
        deallocate(ff)
