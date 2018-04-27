@@ -5257,7 +5257,7 @@ Yu and Trinkle (YT)
 
 ::
 
-  YT [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+  YT [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF] [ibasin.i]] [RATOM ratom.r]
      [DISCARD expr.s]
 
 The Yu-Trinkle (YT) algorithm uses the reference field to calculate
@@ -5298,7 +5298,9 @@ names <root>_wcube_xx.cube, where xx is the attractor number.
 
 Use the BASINS option to write a graphical representation of the
 calculated basins. The format can be chosen using the OBJ, PLY, and
-OFF keywords (default: OBJ).
+OFF keywords (default: OBJ). If an integer is given after the format
+selector (ibasin.i), then plot only the basin for that
+attractor. Otherwise, plot all of them.
 
 Any maxima that is not assigned to an existing atom or non-nuclear
 critical point is automatically added to the critical point list, see
@@ -5347,7 +5349,7 @@ The algorithm by Henkelman et al. uses the BADER keyword:
 
 ::
 
-  BADER [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF]] [RATOM ratom.r]
+  BADER [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF] [ibasin.i]] [RATOM ratom.r]
      [DISCARD expr.s]
 
 The BADER algorithm uses the reference field to calculate the basins;

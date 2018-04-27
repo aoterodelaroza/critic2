@@ -27,7 +27,7 @@ submodule (integration) proc
   ! subroutine int_output_deloc_wfn(nattr,icp,sij)
   ! subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
-  ! subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
+  ! subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,nbasin,luw)
   ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
   ! subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nwan)
 
@@ -47,7 +47,7 @@ contains
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, iunitname0, fileroot
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
-       string, fclose
+       string, fclose, isinteger
 
     character*(*), intent(in) :: line
 
@@ -55,9 +55,9 @@ contains
 
     character(len=:), allocatable :: word, file, expr
     character*3 :: basinfmt
-    integer :: i, k, n(3), nn, ntot
+    integer :: i, k, n(3), nn, ntot, ndrawbasin
     integer :: lp, lp2, imtype, i1, i2, i3
-    logical :: ok, nonnm, noatoms, atexist, dowcube, dobasins
+    logical :: ok, nonnm, noatoms, atexist, dowcube
     logical, allocatable :: pmask(:), plmask(:)
     real*8 :: ratom, ratom_def, padd
     real*8 :: x(3), x2(3)
@@ -112,7 +112,7 @@ contains
     nonnm = .true.
     noatoms = .false.
     dowcube = .false.
-    dobasins = .false.
+    ndrawbasin = -1
     basinfmt = "obj"
     expr = ""
     do while(.true.)
@@ -132,7 +132,6 @@ contains
        elseif (equal(word,"wcube")) then
           dowcube = .true.
        elseif (equal(word,"basins")) then
-          dobasins = .true.
           lp2 = lp
           word = lgetword(line,lp)
           if (equal(word,"obj")) then
@@ -145,6 +144,9 @@ contains
              lp = lp2
              basinfmt = "obj"
           end if
+          ok = isinteger(ndrawbasin,line,lp)
+          if (.not.ok) &
+             ndrawbasin = 0
        elseif (equal(word,"discard")) then
           ok = isexpression_or_word(expr,line,lp)
           if (.not. ok) then
@@ -400,8 +402,8 @@ contains
     end if
 
     ! bains plotting
-    if (dobasins) &
-       call int_gridbasins(basinfmt,nattr,icp,xgatt,idg,imtype,luw)
+    if (ndrawbasin >= 0) &
+       call int_gridbasins(basinfmt,nattr,icp,xgatt,idg,imtype,ndrawbasin,luw)
 
     ! clean up YT weight file
     if (imtype == imtype_yt) then
@@ -2276,7 +2278,7 @@ contains
   !> coords. of the attractors. idg: basin assignment of each
   !> point in the grid. imtype: type of grid integration carried out.
   !> luw: logical unit for YT weights.
-  subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
+  subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,ndrawbasin,luw)
     use yt, only: yt_weights, ytdata_clean, ytdata
     use systemmod, only: sy
     use crystalmod, only: crystal
@@ -2290,6 +2292,7 @@ contains
     real*8, intent(in) :: xgatt(3,nattr)
     integer, intent(in) :: idg(:,:,:)
     integer, intent(in) :: imtype
+    integer, intent(in) :: ndrawbasin
     integer, intent(in) :: luw
 
     character(len=:), allocatable :: str
@@ -2342,6 +2345,7 @@ contains
 
     ! write the basins
     do i = 1, nattr
+       if (ndrawbasin > 0 .and. ndrawbasin /= i) cycle
        ! name this file
        str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
        call gr%open(fmt,str)
