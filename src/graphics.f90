@@ -78,11 +78,12 @@ module graphics
        type(minisurf), intent(in) :: srf
        real*8, intent(in), optional :: fsurf(:)
      end subroutine graphics_surf
-     module subroutine graphics_triangulation(g,nv,xv,nf,if)
+     module subroutine graphics_triangulation(g,nv,xv,nf,if,xrho)
        class(grhandle), intent(inout) :: g
        integer, intent(in) :: nv, nf
        real*8, intent(in) :: xv(3,nv)
        integer, intent(in) :: if(3,nf)
+       real*8, intent(in), optional :: xrho(nv)
      end subroutine graphics_triangulation
   end interface
 

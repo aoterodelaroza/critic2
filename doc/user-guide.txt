@@ -5300,7 +5300,8 @@ Use the BASINS option to write a graphical representation of the
 calculated basins. The format can be chosen using the OBJ, PLY, and
 OFF keywords (default: OBJ). If an integer is given after the format
 selector (ibasin.i), then plot only the basin for that
-attractor. Otherwise, plot all of them.
+attractor. Otherwise, plot all of them. The basin surfaces are colored
+by the value of the reference field, in the default gnuplot scale.
 
 Any maxima that is not assigned to an existing atom or non-nuclear
 critical point is automatically added to the critical point list, see

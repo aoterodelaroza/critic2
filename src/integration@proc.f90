@@ -27,7 +27,7 @@ submodule (integration) proc
   ! subroutine int_output_deloc_wfn(nattr,icp,sij)
   ! subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
-  ! subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,nbasin,luw)
+  ! subroutine int_gridbasins(fmt,nattr,xgatt,idg,fbasin,imtype,ndrawbasin,luw)
   ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
   ! subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nwan)
 
@@ -212,7 +212,6 @@ contains
        call yt_integrate(sy,fbasin,expr,atexist,ratom,nattr,xgatt,idg,luw)
        write (uout,'("+ Attractors in YT: ",A)') string(nattr)
     endif
-    deallocate(fbasin)
 
     ! reorder the attractors
     call int_reorder_gridout(sy%f(sy%iref),nattr,xgatt,idg,atexist,ratom,luw,icp)
@@ -376,6 +375,11 @@ contains
        call ytdata_clean(dat)
     end if
 
+    ! bains plotting
+    if (ndrawbasin >= 0) &
+       call int_gridbasins(basinfmt,nattr,xgatt,idg,fbasin,imtype,ndrawbasin,luw)
+    deallocate(fbasin)
+
     ! calculate atomic basin multipoles
     if (dompole) &
        call intgrid_multipoles(fint,idprop,nattr,xgatt,idg,imtype,luw,mpole)
@@ -400,10 +404,6 @@ contains
     else
        call int_output_deloc_wannier(nattr,icp,xgatt,sijc)
     end if
-
-    ! bains plotting
-    if (ndrawbasin >= 0) &
-       call int_gridbasins(basinfmt,nattr,icp,xgatt,idg,imtype,ndrawbasin,luw)
 
     ! clean up YT weight file
     if (imtype == imtype_yt) then
@@ -2274,11 +2274,11 @@ contains
 
   !> Plot the atomic basins found by YT or BADER to graphical files.
   !> Use format fmt (obj, ply, off). nattr: number of attractors.
-  !> icp: identification of the attractors as CPs. xgatt: crsyt.
-  !> coords. of the attractors. idg: basin assignment of each
-  !> point in the grid. imtype: type of grid integration carried out.
-  !> luw: logical unit for YT weights.
-  subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,ndrawbasin,luw)
+  !> xgatt: crsyt.  coords. of the attractors. idg: basin assignment
+  !> of each point in the grid. fbasin: reference density at each
+  !> point. imtype: type of grid integration carried out.  luw:
+  !> logical unit for YT weights.
+  subroutine int_gridbasins(fmt,nattr,xgatt,idg,fbasin,imtype,ndrawbasin,luw)
     use yt, only: yt_weights, ytdata_clean, ytdata
     use systemmod, only: sy
     use crystalmod, only: crystal
@@ -2289,9 +2289,9 @@ contains
     use types, only: realloc
     character*3, intent(in) :: fmt
     integer, intent(in) :: nattr
-    integer, intent(in), allocatable :: icp(:)
     real*8, intent(in) :: xgatt(3,nattr)
     integer, intent(in) :: idg(:,:,:)
+    real*8, intent(in) :: fbasin(:,:,:)
     integer, intent(in) :: imtype
     integer, intent(in) :: ndrawbasin
     integer, intent(in) :: luw
@@ -2300,12 +2300,12 @@ contains
     integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3), iaux
     real*8 :: x(3), xd(3), d2, x1(3), x2(3)
     type(crystal) :: caux
-    real*8, allocatable :: xface(:,:), w(:,:,:)
+    real*8, allocatable :: w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
     type(grhandle) :: gr
     integer :: nvert, nf
-    real*8, allocatable :: xvert(:,:)
+    real*8, allocatable :: xvert(:,:), xrho(:)
     integer, allocatable :: iface(:,:)
 
     integer, parameter :: rgb1(3) = (/128,128,128/)
@@ -2336,7 +2336,6 @@ contains
     caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
     caux%m_c2x = matinv(caux%m_x2c)
     call caux%wigner()
-    allocate(xface(3,caux%ws_mnfv))
 
     ! output
     write (uout,'("* Basins written to ",A,"_basins-*.",A/)') trim(fileroot), fmt
@@ -2364,7 +2363,7 @@ contains
     endif
 
     ! write the basins
-    allocate(xvert(3,10))
+    allocate(xvert(3,10),xrho(10))
     do i = 1, nattr
        if (ndrawbasin > 0 .and. ndrawbasin /= i) cycle
 
@@ -2389,9 +2388,12 @@ contains
                       ! add to the list of basin points
                       !$omp critical (addvertex)
                       nvert = nvert + 1
-                      if (nvert > size(xvert,2)) &
+                      if (nvert > size(xvert,2)) then
                          call realloc(xvert,3,2*nvert)
+                         call realloc(xrho,2*nvert)
+                      end if
                       xvert(:,nvert) = x
+                      xrho(nvert) = fbasin(q(1),q(2),q(3))
                       !$omp end critical (addvertex)
                    end if
                 end do
@@ -2425,12 +2427,11 @@ contains
        ! write the triangulation to a file
        str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
        call gr%open(fmt,str)
-       call gr%triangulation(nvert,xvert,nf,iface)
+       call gr%triangulation(nvert,xvert,nf,iface,xrho)
        call gr%close()
        deallocate(iface)
     end do
-
-    deallocate(xface)
+    deallocate(xvert,xrho)
 
   end subroutine int_gridbasins
 
