@@ -2286,6 +2286,7 @@ contains
     use graphics, only: grhandle
     use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: string, uout
+    use types, only: realloc
     character*3, intent(in) :: fmt
     integer, intent(in) :: nattr
     integer, intent(in), allocatable :: icp(:)
@@ -2303,6 +2304,8 @@ contains
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
     type(grhandle) :: gr
+    integer :: nvert
+    real*8, allocatable :: xvert(:,:)
 
     integer, parameter :: rgb1(3) = (/128,128,128/)
 
@@ -2344,41 +2347,44 @@ contains
     endif
 
     ! write the basins
+    allocate(xvert(3,10))
     do i = 1, nattr
        if (ndrawbasin > 0 .and. ndrawbasin /= i) cycle
-       ! name this file
-       str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
-       call gr%open(fmt,str)
 
+       nvert = 0
        do i1 = 1, n(1)
           do i2 = 1, n(2)
              do i3 = 1, n(3)
-                if (idg0(i1,i2,i3) == i) then
-                   p = (/i1,i2,i3/)
-                   x = real(p-1,8) / n
+                if (idg0(i1,i2,i3) /= i) cycle
 
-                   ! move to the ws of the attractor
-                   xd = x - xgatt(:,i)
-                   call sy%c%shortest(xd,d2)
+                ! is this point on the border of the basin?
+                p = (/i1,i2,i3/)
+                do j = 1, caux%ws_nf
+                   q = modulo(p + caux%ws_ineighx(:,j) - 1,n) + 1
+                   if (idg0(q(1),q(2),q(3)) /= i) then
+                      ! move the point to the WS of the attractor and convert to Cartesian
+                      x = real(p-1,8) / n
+                      xd = x - xgatt(:,i)
+                      call sy%c%shortest(xd,d2)
+                      x = sy%c%x2c(xgatt(:,i)) + xd
 
-                   ! convert to Cartesian
-                   x = sy%c%x2c(xgatt(:,i)) + xd
-
-                   ! plot, if on the border of the cell
-                   do j = 1, caux%ws_nf
-                      q = modulo(p + caux%ws_ineighx(:,j) - 1,n) + 1
-                      if (idg0(q(1),q(2),q(3)) /= i) then
-                         do k = 1, caux%ws_nside(j)
-                            xface(:,k) = x + caux%x2c(caux%ws_x(:,caux%ws_iside(k,j)))
-                         end do
-                         call gr%polygon(xface,rgb1)
-                      end if
-                   end do
-                end if
+                      ! add to the list of basin points
+                      nvert = nvert + 1
+                      if (nvert > size(xvert,2)) &
+                         call realloc(xvert,3,2*nvert)
+                      xvert(:,nvert) = x
+                   end if
+                end do
              end do
           end do
        end do
 
+       ! name this file
+       str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
+       call gr%open(fmt,str)
+       do j = 1, nvert
+          call gr%ball(xvert(:,j),(/0,0,128/),0.05d0)
+       end do
        call gr%close()
     end do
 

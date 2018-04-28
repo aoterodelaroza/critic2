@@ -124,7 +124,8 @@ contains
   end subroutine graphics_close
 
   !> Write a ball to graphics file with LU lu and format fmt. The
-  !> center is at x and the radius is r. rgb is the color.
+  !> center is at x (Cartesian) and the radius is r. rgb is the
+  !> color.
   module subroutine graphics_ball(g,x,rgb,r)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
