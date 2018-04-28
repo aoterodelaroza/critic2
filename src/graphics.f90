@@ -30,7 +30,7 @@ module graphics
      integer :: nball = 0 !< Number of balls
      integer :: nstick = 0 !< Number of sticks
      integer :: nsurf = 0 !< Number of surfaces
-     integer :: nface = 0 !< Number of faces
+     integer :: npoly = 0 !< Number of polygons
      integer :: nmtl = 0 !< Number of materials
      integer :: nv = 0 !< Number of vertices
      integer :: nf = 0 !< Number of faces
@@ -42,6 +42,7 @@ module graphics
      procedure :: polygon => graphics_polygon
      procedure :: stick => graphics_stick
      procedure :: surf => graphics_surf
+     procedure :: triangulation => graphics_triangulation
   end type grhandle
   public :: grhandle
 
@@ -77,6 +78,12 @@ module graphics
        type(minisurf), intent(in) :: srf
        real*8, intent(in), optional :: fsurf(:)
      end subroutine graphics_surf
+     module subroutine graphics_triangulation(g,nv,xv,nf,if)
+       class(grhandle), intent(inout) :: g
+       integer, intent(in) :: nv, nf
+       real*8, intent(in) :: xv(3,nv)
+       integer, intent(in) :: if(3,nf)
+     end subroutine graphics_triangulation
   end interface
 
 end module graphics

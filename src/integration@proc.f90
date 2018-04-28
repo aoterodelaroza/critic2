@@ -2284,7 +2284,7 @@ contains
     use crystalmod, only: crystal
     use global, only: fileroot
     use graphics, only: grhandle
-    use tools_math, only: m_x2c_from_cellpar, matinv
+    use tools_math, only: m_x2c_from_cellpar, matinv, cross
     use tools_io, only: string, uout
     use types, only: realloc
     character*3, intent(in) :: fmt
@@ -2297,17 +2297,34 @@ contains
     integer, intent(in) :: luw
 
     character(len=:), allocatable :: str
-    integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3)
-    real*8 :: x(3), xd(3), d2
+    integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3), iaux
+    real*8 :: x(3), xd(3), d2, x1(3), x2(3)
     type(crystal) :: caux
     real*8, allocatable :: xface(:,:), w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
     type(grhandle) :: gr
-    integer :: nvert
+    integer :: nvert, nf
     real*8, allocatable :: xvert(:,:)
+    integer, allocatable :: iface(:,:)
 
     integer, parameter :: rgb1(3) = (/128,128,128/)
+
+    interface
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: n
+         real(c_double) :: x0(3)
+         real(c_double) :: xvert(3,n)
+         integer(c_int) :: nf
+       end subroutine runqhull_basintriangulate_step1
+       subroutine runqhull_basintriangulate_step2(nf,iface) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: nf
+         integer(c_int) :: iface(3,nf)
+       end subroutine runqhull_basintriangulate_step2
+    end interface
 
     ! prepare wigner-seitz tetrahedra
     do i = 1, 3
@@ -2352,6 +2369,7 @@ contains
        if (ndrawbasin > 0 .and. ndrawbasin /= i) cycle
 
        nvert = 0
+       !$omp parallel do private(p,q,x,xd,d2) schedule(dynamic)
        do i1 = 1, n(1)
           do i2 = 1, n(2)
              do i3 = 1, n(3)
@@ -2369,23 +2387,47 @@ contains
                       x = sy%c%x2c(xgatt(:,i)) + xd
 
                       ! add to the list of basin points
+                      !$omp critical (addvertex)
                       nvert = nvert + 1
                       if (nvert > size(xvert,2)) &
                          call realloc(xvert,3,2*nvert)
                       xvert(:,nvert) = x
+                      !$omp end critical (addvertex)
                    end if
                 end do
              end do
           end do
        end do
+       !$omp end parallel do
 
-       ! name this file
+       ! run qhull
+       x = sy%c%x2c(xgatt(:,i))
+       call runqhull_basintriangulate_step1(nvert,x,xvert,nf)
+       allocate(iface(3,nf))
+       call runqhull_basintriangulate_step2(nf,iface)
+       
+       ! orient the faces
+       !$omp parallel do private(x1,x2,iaux) schedule(dynamic)
+       do j = 1, nf
+          x1 = xvert(:,iface(2,j)) - xvert(:,iface(1,j))
+          x2 = xvert(:,iface(3,j)) - xvert(:,iface(1,j))
+          x1 = cross(x1,x2)
+
+          x2 = (xvert(:,iface(1,j)) + xvert(:,iface(2,j)) + xvert(:,iface(3,j))) / 3d0 - x
+          if (dot_product(x1,x2) < 0d0) then
+             iaux = iface(1,j)
+             iface(1,j) = iface(2,j)
+             iface(2,j) = iaux
+          end if
+       end do
+       !$omp end parallel do
+
+       ! write the triangulation to a file
        str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
        call gr%open(fmt,str)
-       do j = 1, nvert
-          call gr%ball(xvert(:,j),(/0,0,128/),0.05d0)
-       end do
+       call gr%triangulation(nvert,xvert,nf,iface)
        call gr%close()
+       deallocate(iface)
     end do
 
     deallocate(xface)
