@@ -2297,8 +2297,8 @@ contains
     integer, intent(in) :: luw
 
     character(len=:), allocatable :: str
-    integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3), iaux
-    real*8 :: x(3), xd(3), d2, x1(3), x2(3)
+    integer :: i, j, i1, i2, i3, iaux, n(3), q(3), p(3)
+    real*8 :: d2, x(3), x1(3), x2(3), xd(3)
     type(crystal) :: caux
     real*8, allocatable :: w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
@@ -2307,8 +2307,6 @@ contains
     integer :: nvert, nf
     real*8, allocatable :: xvert(:,:), xrho(:)
     integer, allocatable :: iface(:,:)
-
-    integer, parameter :: rgb1(3) = (/128,128,128/)
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
@@ -2325,6 +2323,8 @@ contains
          integer(c_int) :: iface(3,nf)
        end subroutine runqhull_basintriangulate_step2
     end interface
+
+    if (ndrawbasin < 0) return
 
     ! prepare wigner-seitz tetrahedra
     do i = 1, 3
