@@ -123,7 +123,12 @@ void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[
   fclose(fidsave_voronoi);
 }
 
-// towrite xxxx
+// From a list of n vertices (xvert), and an inside point (x0),
+// calculate the convex hull of the vertices by first projecting the
+// input vertices onto the unit sphere, then running qhull. The number
+// of faces in the convex hull (nf) is returned.  The temporary file
+// containing the face information remains open until the user calls
+// step2. The handle is saved in fidsave_basintri.
 void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], int *nf){
   // write input file
 
@@ -169,11 +174,9 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], in
   fidsave_basintri = fid2;
 }
 
-// Read the Voronoi polyhedron calculated in step 1. Input: number of faces
-// (nf), number of vertices (nv) and maximum number of vertices per face (mnfv). 
-// Returns: the neighbor vertex identifier for a given face (ivws), the vertices
-// of the polyhedron (xvws), the number of vertices for each face (nfvws), and
-// the list of vertices for each face (fvws).
+// Read the convex hull faces calculated in step 1. Input: number of
+// faces (nf). Returns: the list of vertex identifiers for each face
+// (iface).
 void runqhull_basintriangulate_step2(int nf, int iface[nf][3]){
   rewind(fidsave_basintri);
   char buf[1024];
