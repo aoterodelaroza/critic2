@@ -23,7 +23,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 static FILE *fidsave = NULL;
 
-void runqhull1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv){
+// From a list of n vertices (xstar), calculate the Voronoi polyhedron
+// of the first point in xstar and return its number of faces (nf),
+// number of vertices (nv), and the maximum number of vertex per face (mnfv).
+// The temporary file containing the vertex/edge/face information
+// remains open until the user calls step2. The handle is saved in fidsave.
+void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv){
   // write input file
   FILE *fid1 = tmpfile();
   fprintf(fid1,"3\n");
@@ -81,7 +86,12 @@ void runqhull1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv){
   fidsave = fid2;
 }
 
-void runqhull2(int nf, int nv, int mnfv, int ivws[nf], double xvws[nv][3], 
+// Read the Voronoi polyhedron calculated in step 1. Input: number of faces
+// (nf), number of vertices (nv) and maximum number of vertices per face (mnfv). 
+// Returns: the neighbor vertex identifier for a given face (ivws), the vertices
+// of the polyhedron (xvws), the number of vertices for each face (nfvws), and
+// the list of vertices for each face (fvws).
+void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[nv][3], 
 	       int nfvws[nf], int fvws[nf][mnfv]){
 
   rewind(fidsave);

@@ -3337,20 +3337,21 @@ contains
     real*8, intent(out), optional :: area(14) !< area of the WS faces 
 
     interface
-       subroutine runqhull1(n,xstar,nf,nv,mnfv) bind(c)
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
-       end subroutine runqhull1
-       subroutine runqhull2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
+       end subroutine runqhull_voronoi_step1
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
-       end subroutine runqhull2
+       end subroutine runqhull_voronoi_step2
     end interface
 
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
@@ -3390,10 +3391,10 @@ contains
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
 
-    call runqhull1(n,xstar,c%ws_nf,c%ws_nv,c%ws_mnfv)
+    call runqhull_voronoi_step1(n,xstar,c%ws_nf,c%ws_nv,c%ws_mnfv)
     allocate(ivws(c%ws_nf),c%ws_iside(c%ws_mnfv,c%ws_nf),xvws(3,c%ws_nv))
     c%ws_nside = 0
-    call runqhull2(c%ws_nf,c%ws_nv,c%ws_mnfv,ivws,xvws,c%ws_nside(1:c%ws_nf),c%ws_iside)
+    call runqhull_voronoi_step2(c%ws_nf,c%ws_nv,c%ws_mnfv,ivws,xvws,c%ws_nside(1:c%ws_nf),c%ws_iside)
 
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     allocate(c%ws_x(3,c%ws_nv))
