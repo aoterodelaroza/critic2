@@ -742,9 +742,9 @@ contains
           s%c%atcel(i)%is = s%c%at(s%c%atcel(i)%idx)%is
        end do
     end if
-    if (allocated(s%c%atenv)) then
-       do i = 1, s%c%nenv
-          s%c%atenv(i)%is = s%c%at(s%c%atenv(i)%idx)%is
+    if (allocated(s%c%env%at)) then
+       do i = 1, s%c%env%n
+          s%c%env%at(i)%is = s%c%at(s%c%env%at(i)%idx)%is
        end do
     end if
     deallocate(is)

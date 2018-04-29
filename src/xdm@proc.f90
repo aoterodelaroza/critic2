@@ -32,7 +32,6 @@ submodule (xdm) proc
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
   
-
   integer, parameter :: chf_blyp = -1
   integer, parameter :: chf_b3lyp = -2
   integer, parameter :: chf_bhahlyp = -3
@@ -645,9 +644,9 @@ contains
 
        eat = 0d0
        sat = 0d0
-       do jj = 1, sy%c%nenv
-          j = sy%c%atenv(jj)%idx
-          x = sy%c%atenv(jj)%r - xi
+       do jj = 1, sy%c%env%n
+          j = sy%c%env%at(jj)%idx
+          x = sy%c%env%at(jj)%r - xi
           ri2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
           if (ri2 < 1d-15 .or. ri2>rmax2) cycle
           ri = sqrt(ri2)
@@ -833,7 +832,11 @@ contains
     deallocate(ito,ifrom)
 
     lu = fopen_read(string(sy%c%file))
-    call sy%c%build_env(150d0)
+    if (sy%c%ismolecule) then
+       call sy%c%env%build_mol(sy%c%ncel,sy%c%atcel(1:sy%c%ncel))
+    else
+       call sy%c%env%build_crys(sy%c%nspc,sy%c%spc(1:sy%c%nspc),sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr,150d0)
+    end if
 
     main: do while (getline(lu,line))
        ! read the parameters
@@ -1492,7 +1495,11 @@ contains
     rmax = (maxc6/ecut)**(1d0/6d0)
     rmax2 = rmax * rmax
     caux = sy%c
-    call caux%build_env(150d0)
+    if (sy%c%ismolecule) then
+       call caux%env%build_mol(caux%ncel,caux%atcel(1:caux%ncel))
+    else
+       call caux%env%build_crys(caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,150d0)
+    end if
 
     ! calculate the energies and derivatives
     e = 0d0
@@ -1503,11 +1510,11 @@ contains
        xi = xi - floor(xi)
        xi = sy%c%xr2c(xi)
 
-       do jj = 1, caux%nenv
-          j = caux%atenv(jj)%cidx
-          iz = caux%spc(caux%atenv(jj)%is)%z
+       do jj = 1, caux%env%n
+          j = caux%env%at(jj)%cidx
+          iz = caux%spc(caux%env%at(jj)%is)%z
           if (iz < 1) cycle
-          xij = caux%atenv(jj)%r-xi
+          xij = caux%env%at(jj)%r-xi
           d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
           if (d2 < 1d-15 .or. d2>rmax2) cycle
           d = sqrt(d2)
@@ -1574,7 +1581,11 @@ contains
     rmax = (maxc6/ecut)**(1d0/6d0)
     rmax2 = rmax * rmax
     caux = sy%c
-    call caux%build_env(150d0)
+    if (sy%c%ismolecule) then
+       call caux%env%build_mol(caux%ncel,caux%atcel(1:caux%ncel))
+    else
+       call caux%env%build_crys(caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,150d0)
+    end if
 
     ! calculate the energies and derivatives
     e = 0d0
@@ -1585,17 +1596,17 @@ contains
        alpha1 = alpha(i,i1)
        ml1 = mm(:,i,i1)
 
-       do jj = 1, caux%nenv
-          j = caux%atenv(jj)%cidx
-          iz = caux%spc(caux%atenv(jj)%is)%z
+       do jj = 1, caux%env%n
+          j = caux%env%at(jj)%cidx
+          iz = caux%spc(caux%env%at(jj)%is)%z
           if (iz < 1) cycle
 
-          xij = caux%atenv(jj)%r - x0
+          xij = caux%env%at(jj)%r - x0
           d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
           if (d2 < 1d-15 .or. d2>rmax2) cycle
           d = sqrt(d2)
 
-          if (all(caux%atenv(jj)%lenv == lvec(:,j,i1))) then
+          if (all(caux%env%at(jj)%lenv == lvec(:,j,i1))) then
              alpha0 = alpha(j,i1)
              ml0 = mm(:,j,i1)
           else

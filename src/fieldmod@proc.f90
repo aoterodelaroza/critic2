@@ -353,7 +353,7 @@ contains
           end if
        end do
 
-       call f%pi%register_struct(f%c%nenv,f%c%spc,f%c%atenv(1:f%c%nenv))
+       call f%pi%register_struct(f%c%env%n,f%c%spc,f%c%env%at(1:f%c%env%n))
        call f%pi%fillinterpol()
        f%type = type_pi
        f%file = "<pi ion files>"
@@ -415,7 +415,7 @@ contains
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
        call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
-       call f%dftb%register_struct(f%c%m_c2x,f%c%m_xr2c,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
+       call f%dftb%register_struct(f%c%m_c2x,f%c%m_xr2c,f%c%env%at(1:f%c%env%n),f%c%spc(1:f%c%nspc))
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -932,7 +932,7 @@ contains
     real*8 :: grd0
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
     logical :: iok, per
@@ -1298,7 +1298,7 @@ contains
     if (f%type == type_promol) then
        ! promolecular densities
        if (isload) then
-          write (uout,'("  Atoms in the environment: ",A)') string(f%c%nenv)
+          write (uout,'("  Atoms in the environment: ",A)') string(f%c%env%n)
        end if
     elseif (f%type == type_grid) then
        ! grids

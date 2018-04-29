@@ -68,7 +68,7 @@ module types
   !> Non-equivalent atom list type (nneq)
   type atom
      real*8 :: x(3)   !< coordinates (crystallographic)
-     real*8 :: r(3)   !< coordinates (cartesian)
+     real*8 :: r(3)   !< coordinates (Cartesian)
      integer :: is = 0 !< species
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
@@ -77,7 +77,7 @@ module types
   !> Equivalent atom list (type)
   type celatom
      real*8 :: x(3)  !< coordinates (reduced crystallographic)
-     real*8 :: r(3)  !< coordinates (cartesian)
+     real*8 :: r(3)  !< coordinates (Cartesian)
      integer :: is   !< species
      integer :: idx  !< corresponding atom from the non-equivalent atom list
      integer :: cidx !< corresponding equivalent atom from the complete atom list

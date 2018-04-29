@@ -40,7 +40,6 @@ submodule (crystalmod) proc
   integer, parameter :: mspc0 = 4
   integer, parameter :: mneq0 = 4
   integer, parameter :: mcel0 = 10
-  integer, parameter :: menv0 = 100
 
 contains
 
@@ -59,11 +58,12 @@ contains
     if (.not.allocated(c%spc)) allocate(c%spc(mspc0))
     if (.not.allocated(c%at)) allocate(c%at(mneq0))
     if (.not.allocated(c%atcel)) allocate(c%atcel(mcel0))
-    if (.not.allocated(c%atenv)) allocate(c%atenv(menv0))
     c%nspc = 0
     c%nneq = 0
     c%ncel = 0
-    c%nenv = 0
+
+    ! initialize the environment
+    call c%env%init()
 
     ! nullify metrics
     c%aa = 0d0
@@ -211,10 +211,10 @@ contains
     if (allocated(c%cen)) deallocate(c%cen)
     if (allocated(c%ws_iside)) deallocate(c%ws_iside)
     if (allocated(c%ws_x)) deallocate(c%ws_x)
-    if (allocated(c%atenv)) deallocate(c%atenv)
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
     if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
+    call c%env%end()
     c%isinit = .false.
     c%isenv = .false. 
     c%havesym = 0
@@ -235,7 +235,6 @@ contains
     c%ws_nv = 0
     c%ws_nf = 0
     c%ws_mnfv = 0
-    c%nenv = 0
     c%nmol = 0
 
   end subroutine struct_end
@@ -611,7 +610,11 @@ contains
 
     ! Build the atomic environments
     if (env) then
-       call c%build_env()
+       if (c%ismolecule) then
+          call c%env%build_mol(c%ncel,c%atcel(1:c%ncel))
+       else
+          call c%env%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr)
+       end if
        c%isenv = .true.
     end if
 
@@ -1125,109 +1128,6 @@ contains
     mult = nvec
 
   end function get_mult_reciprocal
-
-  !> Build succesive shells around the target point. Each shell is
-  !> formed by all the identical atoms equidistant to the target.
-  !> A density cutoff of 1d-12 is used to determine atoms that contribute
-  !> to the unit cell's density. Used in the structure initialization.
-  !> If dmax is given, use that number as an estimate of how many cells
-  !> should be included in the search for atoms. 
-  module subroutine build_env(c,dmax0)
-    use global, only: cutrad
-    use types, only: realloc
-    class(crystal), intent(inout) :: c !< Input crystal
-    real*8, intent(in), optional :: dmax0
-
-    integer :: i, j, k, l(3), m
-    real*8 :: xx(3), xc(3), mid(3), dmax, sphmax, dist
-    integer :: imax, jmax, kmax
-
-    real*8, allocatable :: xenv_(:,:)
-
-    ! allocate atenv
-    if (.not.allocated(c%atenv)) allocate(c%atenv(menv0))
-
-    ! In molecules, use only the atoms in the main cell
-    if (c%ismolecule) then
-       c%nenv = c%ncel
-       if (c%nenv > size(c%atenv)) &
-          call realloc(c%atenv,c%nenv)
-       l = 0
-       do m = 1, c%ncel
-          xx = c%atcel(m)%x
-          c%atenv(m)%x = xx
-          c%atenv(m)%r = c%x2c(xx)
-          c%atenv(m)%idx = c%atcel(m)%idx
-          c%atenv(m)%cidx = m
-          c%atenv(m)%ir = c%atcel(m)%ir
-          c%atenv(m)%ic = c%atcel(m)%ic
-          c%atenv(m)%lvec = c%atcel(m)%lvec + l
-          c%atenv(m)%lenv = l
-          c%atenv(m)%is = c%atcel(m)%is
-       end do
-       return
-    endif
-
-    sphmax = norm2(c%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-    sphmax = max(sphmax,norm2(c%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm2(c%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm2(c%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
-
-    if (present(dmax0)) then
-       dmax = dmax0
-    else
-       dmax = 0d0
-       do i = 1, c%nneq
-          if (c%spc(c%at(i)%is)%z > 0) dmax = max(dmax,cutrad(c%spc(c%at(i)%is)%z))
-       end do
-    end if
-    c%dmax0_env = dmax
-    call search_lattice(c%m_xr2c,dmax,imax,jmax,kmax)
-
-    allocate(xenv_(3,c%ncel))
-    do m = 1, c%ncel
-       xenv_(:,m) = c%x2xr(c%atcel(m)%x)
-       xenv_(:,m) = xenv_(:,m) - nint(xenv_(:,m))
-    end do
-
-    ! build environment
-    mid = c%xr2c((/0.5d0,0.5d0,0.5d0/))
-    c%nenv = 0
-    do i = -imax, imax
-       do j = -jmax, jmax
-          do k = -kmax, kmax
-             !.run over the ions in the (i,j,k) cell
-             do m = 1, c%ncel
-                l = (/i,j,k/)
-                xx = xenv_(:,m) + l
-                xc = c%xr2c(xx)
-                dist = norm2(xc - mid)
-                if (dist > sphmax+dmax) cycle
-
-                c%nenv = c%nenv + 1
-                if (c%nenv > size(c%atenv)) then
-                   call realloc(c%atenv,2*size(c%atenv))
-                endif
-
-                ! Store the point
-                c%atenv(c%nenv)%x = xx
-                c%atenv(c%nenv)%r = xc
-                c%atenv(c%nenv)%idx = c%atcel(m)%idx
-                c%atenv(c%nenv)%cidx = m
-                c%atenv(c%nenv)%ir = c%atcel(m)%ir
-                c%atenv(c%nenv)%ic = c%atcel(m)%ic
-                c%atenv(c%nenv)%lvec = c%atcel(m)%lvec + l
-                c%atenv(c%nenv)%lenv = l
-                c%atenv(c%nenv)%is = c%atcel(m)%is
-             enddo  !m
-          enddo  !k
-       enddo  !j
-    enddo  !i
-
-    call realloc(c%atenv,c%nenv)
-    deallocate(xenv_)
-
-  end subroutine build_env
 
   !> Find asterisms. For every atom in the unit cell, find the atoms in the 
   !> main cell or adjacent cells that are connected to it. 
@@ -1751,8 +1651,8 @@ contains
     endif
     nneig = 0
     wat = 0
-    do j = 1, c%nenv
-       d2 = norm2(c%atenv(j)%r-x0c)
+    do j = 1, c%env%n
+       d2 = norm2(c%env%at(j)%r-x0c)
        if (d2 < atomeps) cycle
        do l = 1, shmax
           if (abs(d2 - dist(l)) < atomeps) then
@@ -1764,7 +1664,7 @@ contains
                    call realloc(aux2,3,2*n,shmax)
                    xenv(:,n+1:,:) = 0d0
                 endif
-                xenv(:,nneig(l),l) = c%atenv(j)%x
+                xenv(:,nneig(l),l) = c%env%at(j)%x
              endif
              exit
           else if (d2 < dist(l)) then
@@ -1781,9 +1681,9 @@ contains
 
              dist(l) = d2
              nneig(l) = 1
-             wat(l) = c%atenv(j)%idx
+             wat(l) = c%env%at(j)%idx
              if (present(xenv)) then
-                xenv(:,1,l) = c%atenv(j)%x
+                xenv(:,1,l) = c%env%at(j)%x
              endif
              exit
           end if
@@ -2173,17 +2073,17 @@ contains
     ih = 0d0
 
     ! calculate the radial distribution function for the crystal
-    ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%nenv sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
+    ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%env%n sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
     hfac = (npts-1) / rend
     if (.not.c%ismolecule) then
        do i = 1, c%nneq
           xi = c%x2xr(c%at(i)%x)
           xi = xi - floor(xi)
           xi = c%xr2c(xi)
-          do j = 1, c%nenv
-             d = norm2(xi - c%atenv(j)%r)
+          do j = 1, c%env%n
+             d = norm2(xi - c%env%at(j)%r)
              if (d < 1d-10 .or. d > rend) cycle
-             int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atenv(j)%is)%z,8))
+             int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%env%at(j)%is)%z,8))
              ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
           end do
        end do
@@ -3083,7 +2983,7 @@ contains
        ! Number of atoms in the atomic environment
        if (.not.c%ismolecule) then
           write (uout,'("+ Atomic environment of the main cell")')
-          write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%nenv)
+          write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%env%n)
           write (uout,*)
        end if
 
@@ -4803,9 +4703,9 @@ contains
           iz = c%spc(c%at(i)%is)%z
           n = 0
           ! determine covalent bonds
-          do j = 1, c%nenv
-             jz = c%spc(c%atenv(j)%is)%z
-             d = norm2(c%atenv(j)%r-xi)
+          do j = 1, c%env%n
+             jz = c%spc(c%env%at(j)%is)%z
+             d = norm2(c%env%at(j)%r-xi)
              if (d < 1d-10) cycle
              if (d < (atmcov(iz) + atmcov(jz)) * rfac) then
                 n = n + 1
@@ -4822,8 +4722,8 @@ contains
           do j = 1, nneigh(i)
              do k = j+1, nneigh(i)
                 n = n + 1
-                x1 = c%atenv(ineigh(j,i))%r - xi
-                x2 = c%atenv(ineigh(k,i))%r - xi
+                x1 = c%env%at(ineigh(j,i))%r - xi
+                x2 = c%env%at(ineigh(k,i))%r - xi
                 ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
                 avgang(i) = avgang(i) + ang
              end do
@@ -4833,20 +4733,20 @@ contains
           ! determine hydrogen bonds, only for hydrogen
           if (iz == 1) then
              n = 0
-             do j = 1, c%nenv
-                jz = c%spc(c%atenv(j)%is)%z
+             do j = 1, c%env%n
+                jz = c%spc(c%env%at(j)%is)%z
                 ! only with N, O, and S
                 if (jz==7 .or. jz==8 .or. jz==9 .or. jz==16 .or. jz==17 .or. jz==35 .or. jz==53) then
-                   d = norm2(c%atenv(j)%r-xi)
+                   d = norm2(c%env%at(j)%r-xi)
                    ! only in the correct distance range
                    if (d > hbmin .and. d < hbmax) then
                       ! only if the angles to all other neighbor atoms is more than 145
                       ok = .true.
                       do k = 1, nneigh(i)
-                         x1 = c%atenv(ineigh(k,i))%r - xi
-                         x2 = c%atenv(j)%r - xi
+                         x1 = c%env%at(ineigh(k,i))%r - xi
+                         x2 = c%env%at(j)%r - xi
                          ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
-                         kz = c%spc(c%atenv(ineigh(k,i))%is)%z
+                         kz = c%spc(c%env%at(ineigh(k,i))%is)%z
                          isat = (kz==7 .or. kz==8 .or. kz==9 .or. kz==16 .or. kz==17 .or. kz==35 .or. kz==53)
                          if (ang < 145d0 .or..not.isat) then
                             ok = .false.
@@ -5405,7 +5305,7 @@ contains
     integer :: i, j, k, ii, iz
     real*8 :: xc(3), xx(3), r2, r, rinv1, rinv2
     real*8 :: rho, rhop, rhopp, rfac, radd
-    integer :: idolist(c%nenv), nido
+    integer :: idolist(c%env%n), nido
     logical :: iscore
     type(grid1), pointer :: g
 
@@ -5435,8 +5335,8 @@ contains
     ! precompute the list of atoms that contribute
     if (.not.present(fr)) then
        nido = 0
-       do i = 1, c%nenv
-          iz = c%spc(c%atenv(i)%is)%z
+       do i = 1, c%env%n
+          iz = c%spc(c%env%at(i)%is)%z
           if (iz == 0 .or. iz > maxzat) cycle
           if (iscore) then
              if (zpsp(iz) <= 0 .or. iz - zpsp(iz) == 0) cycle
@@ -5445,7 +5345,7 @@ contains
              g => agrid(iz)
           end if
           if (.not.g%isinit) cycle
-          xx = xc - c%atenv(i)%r
+          xx = xc - c%env%at(i)%r
           r2 = norm2(xx)
           if (r2 > g%rmax) cycle
           nido = nido + 1
@@ -5459,13 +5359,13 @@ contains
     do ii = 1, nido
        if (.not.present(fr)) then
           i = idolist(ii)
-          iz = c%spc(c%atenv(i)%is)%z
+          iz = c%spc(c%env%at(i)%is)%z
           if (iscore) then
              g => cgrid(iz,zpsp(iz))
           else
              g => agrid(iz)
           end if
-          xx = xc - c%atenv(i)%r
+          xx = xc - c%env%at(i)%r
        else
           iz = fr%spc(fr%at(ii)%is)%z
           if (iscore) then

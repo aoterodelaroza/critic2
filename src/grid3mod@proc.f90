@@ -565,7 +565,7 @@ contains
 
     integer :: luc
     integer :: nat
-    integer :: istat, n(3), i, j, k, iz
+    integer :: istat, n(3), i, iz
     logical :: ismo
     real*8 :: x0(3), xd(3,3), rdum
 

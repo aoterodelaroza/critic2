@@ -312,8 +312,8 @@ contains
              x = xnuc + r * (/xang(il),yang(il),zang(il)/)
 
              vpsum = 0d0
-             do j = 1, c%nenv
-                iz2 = c%spc(c%atenv(j)%is)%z 
+             do j = 1, c%env%n
+                iz2 = c%spc(c%env%at(j)%is)%z 
                 if (iz2 < 1 .or. iz2 > maxzat) then
                    cycle
                 elseif (iz2 == 1) then
@@ -321,7 +321,7 @@ contains
                 else
                    fscal2 = 1d0
                 end if
-                r1 = sqrt((x(1)-c%atenv(j)%r(1))**2+(x(2)-c%atenv(j)%r(2))**2+(x(3)-c%atenv(j)%r(3))**2)
+                r1 = sqrt((x(1)-c%env%at(j)%r(1))**2+(x(2)-c%env%at(j)%r(2))**2+(x(3)-c%env%at(j)%r(3))**2)
                 vpsum = vpsum + fscal2 * exp(-2d0 * r1) / max(r1,1d-10)**3
              enddo
                 

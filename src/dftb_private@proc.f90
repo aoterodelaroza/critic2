@@ -460,7 +460,7 @@ contains
     type(species), intent(in) :: spc(:)
 
     real*8 :: maxcutoff
-    real*8 :: sphmax, x0(3), dist, x(3)
+    real*8 :: sphmax, x0(3), dist
     integer :: i, j, nenv
 
     ! calculate the maximum cutoff

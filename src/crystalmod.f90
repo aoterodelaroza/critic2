@@ -20,6 +20,7 @@
 
 ! Structure class and routines for basic crystallography computations
 module crystalmod
+  use environmod, only: environ
   use spglib, only: SpglibDataset
   use types, only: atom, celatom, neighstar, species
   use fragmentmod, only: fragment
@@ -101,9 +102,7 @@ module crystalmod
 
      !! Initialization level: isenv !!
      ! atomic environment of the cell
-     integer :: nenv = 0 !< Environment around the main cell
-     real*8 :: dmax0_env !< Maximum environment distance
-     type(celatom), allocatable :: atenv(:) !< Atoms around the main cell
+     type(environ) :: env
 
      !! Initialization level: isast !!
      ! asterisms
@@ -146,7 +145,6 @@ module crystalmod
      procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
 
      ! molecular environments and neighbors
-     procedure :: build_env !< Build the crystal environment (atenv)
      procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
@@ -246,6 +244,7 @@ module crystalmod
 
   ! module procedure interfaces
   interface
+     !xx! proc submodule
      module subroutine struct_init(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_init
@@ -653,6 +652,13 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)  
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_grid
+     !xx! environproc submodule
+     module subroutine environ_init(e)
+       class(environ), intent(inout) :: e
+     end subroutine environ_init
+     module subroutine environ_end(e)
+       class(environ), intent(inout) :: e
+     end subroutine environ_end
   end interface
 
 end module crystalmod
