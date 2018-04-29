@@ -25,16 +25,30 @@ module environmod
 
   private
 
-  !> Atomic environment type
+  !> Atomic environment type.
+  !> The first ncell atoms correspond to the atoms in the main
+  !> cell (c%ncel). The main cell atoms are centered around the
+  !> origin.
   type environ
-     real*8 :: dmax0 !< Maximum environment distance
-     integer :: n = 0 !< Number of atoms
+     real*8 :: dmax0 !< The environment contains all atoms at a distance of dmax0 or more to every point in the main cell
+     real*8 :: boxsize !< length of the region side (bohr)
+     real*8 :: xmin(3), xmax(3) !< encompassing box (environment)
+     real*8 :: xminc(3), xmaxc(3) !< encompassing box (main cell)
+     real*8 :: x0(3) !< origin of the to-region transformation
+     integer :: n = 0 !< Number of atoms in the environment
+     integer :: ncell = 0 !< Number of atoms in the unit cell
+     integer :: nregc(3) !< Number of regions that cover the unit cell
+     integer :: nreg(3) !< Number of regions that cover the environment
+     integer :: nmin(3), nmax(3) !< Minimum and maximum region id
      type(celatom), allocatable :: at(:) !< Atoms 
    contains
      procedure :: init => environ_init !< Allocate arrays and nullify variables
      procedure :: end => environ_end !< Deallocate arrays and nullify variables
      procedure :: build_mol => environ_build_from_molecule !< Build an environment from molecule input
      procedure :: build_crys => environ_build_from_crystal !< Build an environment from molecule input
+     procedure :: c2p !< Cartesian to region
+     procedure :: p2i !< Region to integer region
+     procedure :: c2i !< Cartesian to integer region
   end type environ
   public :: environ
 
@@ -61,6 +75,21 @@ module environmod
        real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in), optional :: dmax0
      end subroutine environ_build_from_crystal
+     pure module function c2p(e,xx) result(res)
+       class(environ), intent(in) :: e
+       real*8, intent(in)  :: xx(3)
+       integer :: res(3)
+     end function c2p
+     pure module function p2i(e,xx) result(res)
+       class(environ), intent(in) :: e
+       integer, intent(in)  :: xx(3)
+       integer :: res
+     end function p2i
+     pure module function c2i(e,xx) result(res)
+       class(environ), intent(in) :: e
+       real*8, intent(in)  :: xx(3)
+       integer :: res
+     end function c2i
   end interface
 
 end module environmod

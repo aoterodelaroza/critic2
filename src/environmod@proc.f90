@@ -21,6 +21,11 @@ submodule (environmod) proc
 
   integer, parameter :: menv0 = 10
 
+  real*8 :: boxsize_default = 4 ! length of the region side (bohr)
+
+  !xx! private procedures
+  ! subroutine calculate_regions(e)
+
 contains
   
   !xx! environ class methods
@@ -30,7 +35,18 @@ contains
 
     if (.not.allocated(e%at)) allocate(e%at(menv0))
     e%n = 0
+    e%ncell = 0
+    e%nregc = 0
+    e%nreg = 0
+    e%nmin = 0
+    e%nmax = 0
     e%dmax0 = 0d0
+    e%boxsize = 0d0
+    e%xmin = 0d0
+    e%xmax = 0d0
+    e%xminc = 0d0
+    e%xmaxc = 0d0
+    e%x0 = 0d0
 
   end subroutine environ_init
 
@@ -40,7 +56,18 @@ contains
 
     if (allocated(e%at)) deallocate(e%at)
     e%n = 0
+    e%ncell = 0
+    e%nregc = 0
+    e%nreg = 0
+    e%nmin = 0
+    e%nmax = 0
     e%dmax0 = 0d0
+    e%boxsize = 0d0
+    e%xmin = 0d0
+    e%xmax = 0d0
+    e%xminc = 0d0
+    e%xmaxc = 0d0
+    e%x0 = 0d0
 
   end subroutine environ_end
   
@@ -68,6 +95,9 @@ contains
        e%at(i)%lenv = 0
        e%at(i)%is = at(i)%is
     end do
+    e%ncell = n
+
+    call calculate_regions(e)
 
   end subroutine environ_build_from_molecule
 
@@ -126,6 +156,7 @@ contains
        e%at(i)%lvec = at(i)%lvec + e%at(i)%lenv
        e%at(i)%is = at(i)%is
     end do
+    e%ncell = n
 
     ! include all atoms at a distance sphmax+dmax from the origin
     dorepeat = .true.
@@ -165,6 +196,8 @@ contains
     end do
     call realloc(e%at,e%n)
 
+    call calculate_regions(e)
+
   contains
     pure function xr2c(xx) result(res)
       real*8, intent(in)  :: xx(3)
@@ -182,5 +215,73 @@ contains
       res = matmul(m_xr2x,xx)
     end function xr2x
   end subroutine environ_build_from_crystal
+
+  !> Cartesian to region transform
+  pure module function c2p(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    integer :: res(3)
+
+    res = floor((max(min(xx,e%xmax),e%xmin) - e%x0) / e%boxsize)
+
+  end function c2p
+
+  !> Region to integer region transform
+  pure module function p2i(e,xx) result(res)
+    class(environ), intent(in) :: e
+    integer, intent(in)  :: xx(3)
+    integer :: res
+
+    integer :: ix(3)
+
+    ix = min(max(xx,e%nmin),e%nmax) - e%nmin
+    res = 1 + ix(1) + e%nreg(1) * (ix(2) + e%nreg(2) * ix(3))
+
+  end function p2i
+
+  !> Cartesian to integer region transform
+  pure module function c2i(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    integer :: res
+
+    res = e%p2i(e%c2p(xx))
+
+  end function c2i
+
+  !xx! private procedures
+
+  !> Calculate regions associated with the current environment and
+  !> assign atoms to each region.
+  subroutine calculate_regions(e)
+    type(environ), intent(inout) :: e
+    
+    integer :: i
+
+    ! find the encompassing boxes, for the main cell
+    e%xminc(3) = 1d40
+    e%xmaxc(3) = -1d40
+    do i = 1, e%ncell
+       e%xminc = min(e%xminc,e%at(i)%r)
+       e%xmaxc = max(e%xmaxc,e%at(i)%r)
+    end do
+
+    ! for the whole environment
+    e%xmin = e%xminc
+    e%xmax = e%xmaxc
+    do i = e%ncell+1,e%n
+       e%xmin = min(e%xmin,e%at(i)%r)
+       e%xmax = max(e%xmax,e%at(i)%r)
+    end do
+
+    ! calculate the position of the origin and the region partition
+    e%boxsize = boxsize_default
+    e%nregc = ceiling((e%xmaxc - e%xminc) / e%boxsize)
+    e%x0 = e%xminc - 0.5d0 * (e%nregc * e%boxsize - (e%xmaxc - e%xminc))
+    e%nmin = floor((e%xmin - e%x0) / e%boxsize)
+    e%nmax = floor((e%xmax - e%x0) / e%boxsize)
+    e%nreg = e%nmax - e%nmin + 1
+
+  end subroutine calculate_regions
 
 end submodule proc
