@@ -767,6 +767,10 @@ contains
        enddo
     end if
 
+    if (lp == i-1) then
+       if (expr(lp:i-1) == ".") return
+    end if
+
 999 continue
     isnumber=.true.
     read(expr(lp:i-1),*) rval
