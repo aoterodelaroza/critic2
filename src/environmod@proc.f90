@@ -283,8 +283,8 @@ contains
     integer, allocatable :: iord(:)
 
     ! find the encompassing boxes, for the main cell
-    e%xminc(3) = 1d40
-    e%xmaxc(3) = -1d40
+    e%xminc = 1d40
+    e%xmaxc = -1d40
     do i = 1, e%ncell
        e%xminc = min(e%xminc,e%at(i)%r)
        e%xmaxc = max(e%xmaxc,e%at(i)%r)
