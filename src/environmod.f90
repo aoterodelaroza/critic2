@@ -25,6 +25,19 @@ module environmod
 
   private
 
+  !> Stencil for interatomic distances.
+  !> For an atom in a region given by integer region coordinate i, the
+  !> stencil gives all regions that completely cover the sphere of
+  !> radius rcut around the atom. rsph is the radius of the sphere
+  !> centered at the origin of the zero region.
+  type stencil
+     integer :: nreg !< Number of regions in the stencil
+     integer, allocatable :: iadd(:) !< Stencil regions as integer offsets
+     real*8 :: rsph !< A sphere of this radius is covered by the stencil
+     real*8 :: rcut !< The stencil allows calculation of distances <= rcut
+  end type stencil
+  public :: stencil
+
   !> Atomic environment type.
   !> The first ncell atoms correspond to the atoms in the main
   !> cell (c%ncel). The main cell atoms are centered around the
@@ -41,6 +54,7 @@ module environmod
      integer :: nreg(3) !< Number of regions that cover the environment
      integer :: nmin(3), nmax(3) !< Minimum and maximum region id
      integer :: nregion !< number of regions
+     type(stencil) :: st_small !< stencil for nearest-atom search
      integer, allocatable :: nrlo(:), nrup(:) !< lower and upper bound for list of atoms in a region (applied to imap)
      integer, allocatable :: imap(:) !< atoms ordered by region, c2i(imap(1->n)) is ordered
      type(celatom), allocatable :: at(:) !< Atoms 
@@ -51,6 +65,7 @@ module environmod
      procedure :: c2p !< Cartesian to region
      procedure :: p2i !< Region to integer region
      procedure :: c2i !< Cartesian to integer region
+     procedure :: make_stencil !< Build a stencil from a cutoff distance
   end type environ
   public :: environ
 
@@ -89,6 +104,11 @@ module environmod
        real*8, intent(in)  :: xx(3)
        integer :: res
      end function c2i
+     module function make_stencil(e,rcut) result(st)
+       class(environ), intent(in) :: e
+       real*8, intent(in) :: rcut
+       type(stencil) :: st
+     end function make_stencil
   end interface
 
 end module environmod
