@@ -40,9 +40,11 @@ module environmod
      integer :: nregc(3) !< Number of regions that cover the unit cell
      integer :: nreg(3) !< Number of regions that cover the environment
      integer :: nmin(3), nmax(3) !< Minimum and maximum region id
+     integer :: nregion !< number of regions
+     integer, allocatable :: nrlo(:), nrup(:) !< lower and upper bound for list of atoms in a region (applied to imap)
+     integer, allocatable :: imap(:) !< atoms ordered by region, c2i(imap(1->n)) is ordered
      type(celatom), allocatable :: at(:) !< Atoms 
    contains
-     procedure :: init => environ_init !< Allocate arrays and nullify variables
      procedure :: end => environ_end !< Deallocate arrays and nullify variables
      procedure :: build_mol => environ_build_from_molecule !< Build an environment from molecule input
      procedure :: build_crys => environ_build_from_crystal !< Build an environment from molecule input
@@ -54,9 +56,6 @@ module environmod
 
   ! module procedure interfaces
   interface
-     module subroutine environ_init(e)
-       class(environ), intent(inout) :: e
-     end subroutine environ_init
      module subroutine environ_end(e)
        class(environ), intent(inout) :: e
      end subroutine environ_end

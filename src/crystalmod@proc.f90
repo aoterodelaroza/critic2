@@ -62,9 +62,6 @@ contains
     c%nneq = 0
     c%ncel = 0
 
-    ! initialize the environment
-    call c%env%init()
-
     ! nullify metrics
     c%aa = 0d0
     c%bb = 0d0

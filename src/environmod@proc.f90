@@ -29,45 +29,21 @@ submodule (environmod) proc
 contains
   
   !xx! environ class methods
-  !> Initialize the environ arrays and nullify variables
-  module subroutine environ_init(e)
-    class(environ), intent(inout) :: e
-
-    if (.not.allocated(e%at)) allocate(e%at(menv0))
-    e%n = 0
-    e%ncell = 0
-    e%nregc = 0
-    e%nreg = 0
-    e%nmin = 0
-    e%nmax = 0
-    e%dmax0 = 0d0
-    e%boxsize = 0d0
-    e%xmin = 0d0
-    e%xmax = 0d0
-    e%xminc = 0d0
-    e%xmaxc = 0d0
-    e%x0 = 0d0
-
-  end subroutine environ_init
-
   !> Free allocated arrays and nullify variables
   module subroutine environ_end(e)
     class(environ), intent(inout) :: e
 
     if (allocated(e%at)) deallocate(e%at)
+    if (allocated(e%imap)) deallocate(e%imap)
+    if (allocated(e%nrlo)) deallocate(e%nrlo)
+    if (allocated(e%nrup)) deallocate(e%nrup)
     e%n = 0
     e%ncell = 0
     e%nregc = 0
     e%nreg = 0
     e%nmin = 0
     e%nmax = 0
-    e%dmax0 = 0d0
-    e%boxsize = 0d0
-    e%xmin = 0d0
-    e%xmax = 0d0
-    e%xminc = 0d0
-    e%xmaxc = 0d0
-    e%x0 = 0d0
+    e%nregion = 0
 
   end subroutine environ_end
   
@@ -80,9 +56,9 @@ contains
 
     integer :: i 
 
-    call e%init()
     e%n = n
-    call realloc(e%at,e%n)
+    if (allocated(e%at)) deallocate(e%at)
+    allocate(e%at(e%n))
     do i = 1, n
        e%at(i)%x = at(i)%x
        e%at(i)%x = e%at(i)%x - nint(e%at(i)%x)
@@ -140,9 +116,9 @@ contains
     e%dmax0 = dmax
 
     ! add all atoms in the main reduced cell (around 0,0,0)
-    call e%init()
     e%n = n
-    call realloc(e%at,n)
+    if (allocated(e%at)) deallocate(e%at)
+    allocate(e%at(e%n))
     do i = 1, n
        e%at(i)%x = x2xr(at(i)%x)
        e%at(i)%x = e%at(i)%x - nint(e%at(i)%x)
@@ -245,7 +221,10 @@ contains
     real*8, intent(in)  :: xx(3)
     integer :: res
 
-    res = e%p2i(e%c2p(xx))
+    integer :: ix(3)
+
+    ix = min(max(floor((xx - e%x0) / e%boxsize),e%nmin),e%nmax) - e%nmin
+    res = 1 + ix(1) + e%nreg(1) * (ix(2) + e%nreg(2) * ix(3))
 
   end function c2i
 
@@ -254,9 +233,11 @@ contains
   !> Calculate regions associated with the current environment and
   !> assign atoms to each region.
   subroutine calculate_regions(e)
+    use tools, only: iqcksort
     type(environ), intent(inout) :: e
     
-    integer :: i
+    integer :: i, m
+    integer, allocatable :: iord(:)
 
     ! find the encompassing boxes, for the main cell
     e%xminc(3) = 1d40
@@ -281,6 +262,33 @@ contains
     e%nmin = floor((e%xmin - e%x0) / e%boxsize)
     e%nmax = floor((e%xmax - e%x0) / e%boxsize)
     e%nreg = e%nmax - e%nmin + 1
+    e%nregion = product(e%nreg)
+
+    ! build the ordered list of atoms
+    if (allocated(e%imap)) deallocate(e%imap)
+    allocate(iord(e%n),e%imap(e%n))
+    do i = 1, e%n
+       iord(i) = e%c2i(e%at(i)%r)
+       e%imap(i) = i
+    end do
+    call iqcksort(iord,e%imap,1,e%n)
+
+    ! limits for each region
+    if (allocated(e%nrlo)) deallocate(e%nrlo)
+    if (allocated(e%nrup)) deallocate(e%nrup)
+    allocate(e%nrlo(e%nregion),e%nrup(e%nregion))
+    e%nrlo = 1
+    e%nrup = 0
+    m = 0
+    do i = 1, e%n
+       if (iord(e%imap(i)) /= m) then
+          if (i > 1) e%nrup(m) = i-1
+          e%nrlo(iord(e%imap(i))) = i
+          e%nrup(iord(e%imap(i))) = i
+       end if
+       m = iord(e%imap(i))
+    end do
+    deallocate(iord)
 
   end subroutine calculate_regions
 
