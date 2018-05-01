@@ -185,9 +185,9 @@ xxxx
         [SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
         [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i|BADER|LIN niso.i rini.r rend.r|
-        i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
-        [LABELZ labelz.r]
+        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
+        BADER|LIN niso.i rini.r rend.r|i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] 
+        [RELIEF zmin.r zmax.r] [LABELZ labelz.r]
 * CUBE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i nz.i [FILE file.s] [FIELD id.s/"expr"]
        [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] [HEADER]
   CUBE x0.r y0.r z0.r x1.r y1.r z1.r bpp.r ...
@@ -253,8 +253,8 @@ xxxx
    ENDCHECK/END
    CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP} 
      nptsu.i nptsv.i {LIN niso.i cini.r cend.r|
-     LOG niso.i [zmin.r zmax.r]|
-     ATAN niso.i|BADER|i1.i i2.i...}
+     LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
+     BADER|i1.i i2.i...}
   ENDGRDVEC/END
 * FLUXPRINT
     POINT {1|-1|0} x.r y.r z.r 

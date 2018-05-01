@@ -812,8 +812,7 @@ contains
                 call ferror("rhoplot_plane","Unknown contour keyword",faterr,line,syntax=.true.)
              end if
           end if
-          if (niso_type == niso_lin .or. niso_type == niso_log .or.&
-             niso_type == niso_atan) then
+          if (niso_type == niso_lin .or. niso_type == niso_log .or. niso_type == niso_atan) then
              ok = eval_next(niso,line,lp)
              if (.not.ok) then
                 call ferror("rhoplot_plane","number of isovalues not found",faterr,line,syntax=.true.)
@@ -826,7 +825,7 @@ contains
                    call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line,syntax=.true.)
                    return
                 end if
-             else if (niso_type == niso_log) then
+             else if (niso_type == niso_log .or. niso_type == niso_atan) then
                 lp2 = lp
                 ok = eval_next(log0,line,lp)
                 ok = ok .and. eval_next(log1,line,lp)
@@ -1326,11 +1325,12 @@ contains
           lin1 = 1d0
           lpold = lp
           word = lgetword(line,lp)
-          if (equal(word,'atan')) then
-             niso_type = niso_atan
-             ok = eval_next (niso, line, lp)
-          else if (equal(word,'log')) then
-             niso_type = niso_log
+          if (equal(word,'atan') .or. equal(word,'log')) then
+             if (equal(word,'log')) then
+                niso_type = niso_log
+             else
+                niso_type = niso_atan
+             end if
              ok = eval_next (niso, line, lp)
              if (ok) then
                 lpold = lp

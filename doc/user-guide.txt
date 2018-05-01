@@ -3085,9 +3085,9 @@ Planes and contour plots (PLANE)
         [SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
         [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i|BADER|LIN niso.i rini.r rend.r|
-        i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] [RELIEF zmin.r zmax.r]
-        [LABELZ labelz.r]
+        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
+        BADER|LIN niso.i rini.r rend.r|i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] 
+        [RELIEF zmin.r zmax.r] [LABELZ labelz.r]
 
 Calculate the value or other properties of the reference field on a
 plane. The results are written to a file, with default name
@@ -3118,10 +3118,10 @@ two contour line files (.iso and .neg.iso) and a gnuplot script
 niso.i contours), arctangent (ATAN, with niso.i contours), same as in
 the aimpac program (BADER, {1,2,4,8}x10^{-3,-2,-1,0,1}), linear (LIN,
 niso.i contours from r0.r to r1.r), or the user can specify the
-contour values manually (no keyword). In LOG, the default contours
-range from the minimum to the maximum value of the field in the
-plot. These quantities can be changed by passing the optional zmin.r
-and zmax.r parameters to LOG. The field or any of its
+contour values manually (no keyword). In LOG and ATAN, the default
+contours range from the minimum to the maximum value of the field in
+the plot. These quantities can be changed by passing the optional
+zmin.r and zmax.r parameters to LOG/ATAN. The field or any of its
 derivatives, selected with the [F|GX|...] keyword, is used for the
 contour plot.  The GRDVEC keyword (see `Gradient path representations
 in a plane (GRDVEC)`_) performs the same functions as PLANE with the
@@ -3970,8 +3970,8 @@ Gradient path representations in a plane (GRDVEC)
      ENDCHECK/END
      CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP} 
        nptsu.i nptsv.i {LIN niso.i cini.r cend.r|
-       LOG niso.i [zmin.r zmax.r]|
-       ATAN niso.i|BADER|i1.i i2.i...}
+       LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
+       BADER|i1.i i2.i...}
   ENDGRDVEC/END
 
 GRDVEC plots a plane containing all the gradient paths originating
@@ -4070,9 +4070,10 @@ can be: logarithmic (LOG, with niso.i contours), arctangent (ATAN,
 with niso.i contours), same as in the aimpac program (BADER,
 {1,2,4,8}x10^{-3,-2,-1,0,1}), linear (LIN, niso.i contours from r0.r
 to r1.r), or the user can specify the contour values manually (no
-keyword). In LOG, the default contours range from the minimum to the
-maximum value of the field in the plot. These quantities can be
-changed by passing the optional zmin.r and zmax.r parameters to LOG.
+keyword). In LOG and ATAN, the default contours range from the minimum
+to the maximum value of the field in the plot. These quantities can be
+changed by passing the optional zmin.r and zmax.r parameters to
+LOG/ATAN.
 
 Note that GRDVEC is able to handle non-orthogonal axis. If
 the two plane axis determined in the PLANE keyword are
