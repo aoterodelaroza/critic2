@@ -1226,7 +1226,7 @@ contains
     integer :: luwfn, istat, ityp
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
-    integer :: idum, lp, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir
+    integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir
     real*8 :: rdum, norm, cons
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:)
     real*8, allocatable :: exppri(:), ccontr(:), motemp(:), cpri(:), mocoef(:,:), cnorm(:)
@@ -1610,7 +1610,9 @@ contains
              do while (.true.)
                 ok = getline_raw(luwfn,line,.false.)
                 if (.not.ok) exit main
-                if (index(lower(line),"sym=") > 0) exit
+                lp2 = 1
+                ok = isinteger(idum,line,lp2)
+                if (.not.ok) exit
                 read(line,*,end=99) idum, rdum
                 motemp((lnmo-1)*nbassph+idum) = rdum
              end do
