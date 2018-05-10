@@ -1213,7 +1213,7 @@ contains
   !> Read the wavefunction from a molden file. See the manual for
   !> the list of molden-generating programs that have been tested.
   module subroutine read_molden(f,file,readvirtual)
-    use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, lgetword, &
+    use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
@@ -1225,7 +1225,7 @@ contains
     integer :: luwfn, istat, ityp
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
-    integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir
+    integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir, nmf
     real*8 :: rdum, norm, cons
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:)
     real*8, allocatable :: exppri(:), ccontr(:), motemp(:), cpri(:), mocoef(:,:), cnorm(:)
@@ -1295,10 +1295,18 @@ contains
     issto = .false.
     isgto = .false.
     f%nedf = 0
+    nmf = 0
 
     ! parse the molden file, first pass -> read dimensions prior to allocation
     do while(next_keyword())
-       if (trim(keyword) == "atoms") then
+       if (trim(keyword) == "molden format") then
+          nmf = nmf + 1
+          if (nmf > 1) then
+             call ferror("read_molden","Several wavefunctions in the molden file. Reading the first wfn ONLY.",warning)
+             exit
+          end if
+          ok = getline_raw(luwfn,line,.false.)
+       else if (trim(keyword) == "atoms") then
           ! read the number of atoms 
           ok = getline_raw(luwfn,line,.true.)
           do while(index(lower(line),"[") == 0 .and. len(trim(line)) > 0)
@@ -1574,6 +1582,7 @@ contains
     main: do while(.true.)
        ok = getline_raw(luwfn,line,.false.)
        if (.not.ok) exit main
+       if (index(lower(line),"molden format") /= 0) exit
 
        ! is this an alpha electron?
        if (index(lower(line),"spin=") /= 0 .and. f%wfntyp /= wfn_rhf) then
