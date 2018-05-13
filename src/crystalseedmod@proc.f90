@@ -4198,7 +4198,7 @@ contains
           laste = .true.
        end if
     end do
-    if (.not.laste) then
+    if (.not.laste .and. nseed > 1) then
        seed(1)%name = "(final) " // trim(seed(nseed)%name)
        seed(2)%name = "(initial) " // trim(seed(2)%name)
     end if
