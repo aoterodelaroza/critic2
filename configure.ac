@@ -86,22 +86,15 @@ if test "${enable_debug}" = "yes"; then
    "gfortran"|"i686-w64-mingw32-gfortran"|"x86_64-w64-mingw32-gfortran"|"gfortran-5"|"gfortran-6"|"gfortran-7")
 	FCFLAGS+=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
 	#FFLAGS+=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
+        CFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
+	CXXFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
+	LDFLAGS+=" -rdynamic"
 	;;
    "ifort")
         FCFLAGS+=" -g -C -traceback -debug -fpp -check all -check noarg_temp_created -O0"
         #FFLAGS+=" -g -C -traceback -debug -fpp -check all -check noarg_temp_created -O0"
 	;;
    esac
-   dnl case $CC in
-   dnl "gcc"|"x86_64-linux-gnu-gcc-6"|"gcc-5"|"gcc-6"|"cc")
-   dnl 	CFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
-   dnl 	;;
-   dnl esac
-   dnl case $CXX in
-   dnl "g++"|"g++-6"|"x86_64-linux-gnu-g++-6"|"g++-5"|"x86_64-linux-gnu-g++-5")
-   dnl 	CXXFLAGS+=" -g -fbounds-check -Wall -Wunused-parameter -rdynamic"
-   dnl 	;;
-   dnl esac
 fi
 
 # enable compilation of the gui
