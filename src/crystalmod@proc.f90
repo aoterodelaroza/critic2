@@ -741,8 +741,8 @@ contains
 
   !> Given a point in crystallographic coordinates (x), find the
   !> lattice-translated copy of x with the shortest length. Returns
-  !> the shortest-length vector in Cartesian coordinates and 
-  !> the square of the distance. This routine is thread-safe.
+  !> the shortest-length vector in Cartesian coordinates and the
+  !> distance. This routine is thread-safe.
   pure module subroutine shortest(c,x,dist)
     class(crystal), intent(in) :: c
     real*8, intent(inout) :: x(3)
