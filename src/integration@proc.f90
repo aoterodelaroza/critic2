@@ -1332,7 +1332,7 @@ contains
     integer :: is, nspin, ndeloc, natt1, lu
     integer :: ia, ja, ka, iba, ib, jb, kb, ibb
     integer :: i, j, l, ibnd1, ibnd2, ilata, ilatb
-    integer :: nwan(3), m1, m2, m3
+    integer :: nwan(3), m1, m2, m3, ncalc
     integer :: fid, n(3), p(3)
     integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
     real*8, allocatable :: w(:,:,:)
@@ -1383,6 +1383,7 @@ contains
     end if
 
     ! Recalculate the number of attractors without cell translation symmetry.
+    ! Calculate basin spreads
     allocate(iatt(natt))
     natt1 = natt
     do i = 1, natt
@@ -1496,6 +1497,11 @@ contains
           write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
           write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nmo)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
+          if (sy%f(fid)%grid%wan%cutoff > 0d0) then
+             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%f(fid)%grid%wan%cutoff,'f',5,2)
+          else
+             write (uout,'(99(A,X))') "  Discarding no overlaps."
+          end if
 
           write (uout,'(99(A,X))') "  Calculating overlaps..."
           sij(:,:,:,:,ndeloc) = 0d0
@@ -1516,6 +1522,8 @@ contains
           allocate(f1(sy%f(fid)%grid%n(1),sy%f(fid)%grid%n(2),sy%f(fid)%grid%n(3),nlat))
           allocate(f2(sy%f(fid)%grid%n(1),sy%f(fid)%grid%n(2),sy%f(fid)%grid%n(3),nlat))
           allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
+
+          ! the big loop
           if (imtype == imtype_yt) &
              allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
           do is = 1, nspin
@@ -1549,10 +1557,7 @@ contains
                       end do
                    end if
 
-                   write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
-                      string(ibnd1), string(ibnd2), string(nbnd), string(is), string(nspin),&
-                      string(count(lovrlp)), string(nlat*nlat)
-
+                   ncalc = 0
                    if (imtype == imtype_bader) then
                       ! bader integration
                       psic = 0d0
@@ -1628,6 +1633,7 @@ contains
                                call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                                call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
                                !$omp critical (add)
+                               ncalc = ncalc + 1
                                sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
                                if (ibnd1 /= ibnd2) then
                                   sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(jmo1,imo1,iatt(i),is,ndeloc) + conjg(padd)
@@ -1639,6 +1645,9 @@ contains
                       !$omp end parallel do
                    end if
 
+                   write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
+                      string(ibnd1), string(ibnd2), string(nbnd), string(is), string(nspin),&
+                      string(ncalc), string(natt1*nlat*nlat)
                 end do
              end do
           end do
