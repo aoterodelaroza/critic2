@@ -31,6 +31,6 @@
 #include <string>
 
 void InitFreetype();
-void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
+void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, bool center=false);
 
 #endif

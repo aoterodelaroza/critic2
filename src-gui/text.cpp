@@ -33,6 +33,7 @@
 
 #include <string>
 #include <map>
+#include <algorithm>
 
 static FT_Library ftlib;
 static FT_Face ftface;
@@ -57,7 +58,7 @@ void InitFreetype(){
   if (FT_New_Face(ftlib,str.c_str(), 0, &ftface))
     exit(1);
 
-  FT_Set_Pixel_Sizes(ftface, 0, 48);  
+  FT_Set_Pixel_Sizes(ftface, 0, 24);  
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
 
   // build the character map
@@ -100,19 +101,27 @@ void InitFreetype(){
   glBindVertexArray(0);
 }
 
-void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color){
+void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, bool center/*=false*/){
   // Activate corresponding render state	
   glActiveTexture(GL_TEXTURE0);
   glBindVertexArray(VAO);
-  shader->setTextColor(value_ptr(color));
+
+  // Measure the total width and height of the text
+  float wt = 0.f, ht = 0.f;
+  if (center){
+    for (std::string::const_iterator c = text.begin(); c != text.end(); c++){
+      Character ch = Characters[*c];
+      wt += (ch.Advance >> 6) * scale;
+      ht = std::max(ht,ch.Size.y * scale);
+    }
+  }
 
   // Iterate through all characters
-  std::string::const_iterator c;
-  for (c = text.begin(); c != text.end(); c++){
+  for (std::string::const_iterator c = text.begin(); c != text.end(); c++){
     Character ch = Characters[*c];
     
-    GLfloat xpos = x + ch.Bearing.x * scale;
-    GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+    GLfloat xpos = x + ch.Bearing.x * scale - 0.5f * wt;
+    GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale - 0.5f * ht;
     
     GLfloat w = ch.Size.x * scale;
     GLfloat h = ch.Size.y * scale;

@@ -422,10 +422,12 @@ void View::Update(){
     // pos_to_texpos(v0);
     // glm::vec2 v0 = {1000.,1000.};
     shader->usetext();
+    glm::vec3 textcolor(1.0f,1.0f,1.0f);
+    shader->setTextColor(value_ptr(textcolor));
     for (int i=0;i<c2::nat;i++){
       glm::vec3 r0 = glm::make_vec3(c2::at[i].r) - center;
       glm::vec2 v0 = world_to_texpos(r0);
-      RenderText(to_string(i+1),v0.x,v0.y,1.0f,glm::vec3(1.0f,1.0f,1.0f));
+      RenderText(to_string(i+1),v0.x,v0.y,1.0f,true);
     }
     shader->use();
 
