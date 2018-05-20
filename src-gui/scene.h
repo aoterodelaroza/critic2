@@ -72,7 +72,6 @@ struct Scene{
 
   // Constructor
   Scene(int isc){
-    printf("executed!\n");
     iscene = isc;
     grabFromC2();
     setDefaults();
