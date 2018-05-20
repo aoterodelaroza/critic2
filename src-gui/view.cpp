@@ -32,6 +32,7 @@
 #include "view.h"
 #include "settings.h"
 #include "keybinding.h"
+#include "text.h"
 
 using namespace ImGui;
 
@@ -415,13 +416,26 @@ void View::Update(){
       drawUnitCell(v0_,vx_,vy_,vz_,false);
     }
 
+    // Labels
+    // ImGuiContext *g = GetCurrentContext();
+    // glm::vec2 v0 = {g->IO.MousePos.x,g->IO.MousePos.y};
+    // pos_to_texpos(v0);
+    // glm::vec2 v0 = {1000.,1000.};
+    shader->usetext();
+    for (int i=0;i<c2::nat;i++){
+      glm::vec3 r0 = glm::make_vec3(c2::at[i].r) - center;
+      glm::vec2 v0 = world_to_texpos(r0);
+      RenderText(to_string(i+1),v0.x,v0.y,1.0f,glm::vec3(1.0f,1.0f,1.0f));
+    }
+    shader->use();
+
     // // the scenerad spehre, for testing
     // vec3 v0 = vec3(0.f,0.f,0.f);
     // vec4 rgb = {1.0f,1.0f,1.0f,0.4f};
     // drawSphere(v0,c2::scenerad,rgb,3,true);
   }
-
   glDisable(GL_MULTISAMPLE);
+
   glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO0);
   glBlitFramebuffer(0, 0, FBO_atex, FBO_atex, 0, 0, FBO_atex, FBO_atex, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT, GL_NEAREST);
@@ -682,8 +696,12 @@ bool View::updateTexSize(){
 
   if (FBO_a != amax){
     FBO_a = amax;
+    shader->usetext();
+    shader->setTextProjection(FBO_a);
+    shader->use();
     redraw = true;
   }
+
   return redraw;
 }
 
@@ -796,12 +814,8 @@ float View::texpos_viewdepth(glm::vec2 texpos){
 
 void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend){
   if (!sc) return;
-  if (blend){
-    glEnable(GL_BLEND);
-    glEnable(GL_CULL_FACE);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  if (blend)
     glDepthMask(0);
-  }
   glBindVertexArray(sphVAO[res]);
 
   glm::mat4 m_model = glm::mat4(1.0f);
@@ -813,20 +827,14 @@ void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blen
   shader->setMat4("model",value_ptr(m_model));
   shader->setMat3("normrot",value_ptr(m_normrot));
   glDrawElements(GL_TRIANGLES, 3*sphnel[res], GL_UNSIGNED_INT, 0);
-  if (blend){
-    glDisable(GL_BLEND);
-    glDisable(GL_CULL_FACE);
+  if (blend)
     glDepthMask(1);
-  }
 }
 
 void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend){
   if (!sc) return;
-  if (blend){
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  if (blend)
     glDepthMask(0);
-  }
   glBindVertexArray(cylVAO[res]);
   glm::vec3 xmid = 0.5f * (r1 + r2);
   glm::vec3 xdif = r2 - r1;
@@ -845,10 +853,8 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
   shader->setVec4("vColor",value_ptr(rgb));
   shader->setMat4("model",value_ptr(m_model));
   glDrawElements(GL_TRIANGLES, 3*cylnel[sc->icylres], GL_UNSIGNED_INT, 0);
-  if (blend){
-    glDisable(GL_BLEND);
+  if (blend)
     glDepthMask(1);
-  }
 }
 
 void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors){

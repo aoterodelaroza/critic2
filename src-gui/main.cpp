@@ -36,10 +36,12 @@
 #include "keybinding.h"
 #include "menu.h"
 #include "tree.h"
+#include "text.h"
 
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstdlib>
 
 using namespace ImGui;
 
@@ -75,7 +77,7 @@ int main(int argc, char *argv[]){
     UpdateTreeData();
   }
 
-  // Initialize
+  // Initialize glfw
   glfwSetErrorCallback(error_callback);
   if (!glfwInit()) exit(EXIT_FAILURE);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -89,6 +91,9 @@ int main(int argc, char *argv[]){
   glfwMakeContextCurrent(rootwin);
   gl3wInit();
   glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
+
+  // Initialize the freetype library
+  InitFreetype();
 
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
@@ -109,6 +114,8 @@ int main(int argc, char *argv[]){
   // Shader and opengl settings
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)
   CreateAndFillBuffers();
@@ -198,7 +205,9 @@ int main(int argc, char *argv[]){
   c2::gui_end();
   DeleteBuffers();
   ShutdownDock();
+
   delete shader;
+
   ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();
 
