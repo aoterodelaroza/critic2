@@ -46,7 +46,7 @@ module gui_interface
      integer(c_int) :: ncon !< number of neighbors
   end type c_atom
 
-  ! Scene type - holds all the information to render one scene.
+  ! scene type - holds all the information to render one scene.
   type scene
      integer :: idfile !< id of the file that generated this scene
      character(kind=c_char,len=1) :: file(512) !< name of the file

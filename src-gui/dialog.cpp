@@ -395,7 +395,7 @@ static void DialogPreferences(bool *p_open){
 	    changed |= Checkbox("Show labels", &view_show_labels);
 	  if (filter.PassFilter("Label text")){
             PushItemWidth(3.0f * itemwidth);
-	    changed |= Combo("Label text", &view_format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0");
+	    changed |= Combo("Label text", &view_format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0Fragment\0");
             PopItemWidth();
           }
 	  if (filter.PassFilter("Label shows lattice vector"))

@@ -288,7 +288,7 @@ void View::Draw(){
       if (sc->show_labels){
         Indent();
         PushItemWidth(2.5f * itemwidth);
-        changed |= Combo("Label text", &sc->format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0");
+        changed |= Combo("Label text", &sc->format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0Fragment\0");
         PopItemWidth();
         changed |= Checkbox("Show lattice vector", &sc->lat_labels);
         changed |= DragFloat("Label size", &sc->scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
@@ -923,6 +923,8 @@ void View::drawLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
     label = c2::at[iatom].name;
   else if (sc->format_labels == 3)
     label = c2::at[iatom].zsymb;
+  else if (sc->format_labels == 4)
+    label = to_string(c2::at[iatom].ifrag+1);
   else
     return;
   label.erase(std::find_if(label.rbegin(), label.rend(), std::bind1st(std::not_equal_to<char>(), ' ')).base(), label.end());
