@@ -52,6 +52,11 @@ struct Scene{
   int isphres; // atom resolution
   bool show_bonds; // show bonds?
   float scale_bonds; // global scale bonds
+  bool show_labels; // show labels?
+  int format_labels; // format of the labels (0=ncel, 1=nneq, 2=name, 3=symbol)
+  bool lat_labels; // labels show lattice vector
+  float scale_labels; // scale of the labels
+  float rgb_labels[3]; // color of the labels
   int icylres; // bond resolution
   bool iswire = false; // use wire
   bool isortho = false; // is ortho or perspective?

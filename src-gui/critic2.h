@@ -10,6 +10,7 @@ namespace c2 {
     float r[3];
     int is;
     int z;
+    char zsymb[3];
     char name[11];
     int idx;
     int cidx;

@@ -65,6 +65,11 @@ float view_scale_atoms; // global scale atoms
 int view_isphres; // resolution of the atom spheres
 bool view_show_bonds; // show bonds?
 float view_scale_bonds; // global scale bonds
+bool view_show_labels; // show labels?
+int view_format_labels; // format of the labels (0=ncel, 1=nneq, 2=name, 3=symbol)
+bool view_lat_labels; // labels contain the lattice vector in crystals
+float view_scale_labels; // scale for the labels
+float view_rgb_labels[3]; // color for the labels
 int view_icylres; // resolution of the bond cylinders
 float view_mousesens_rot; // mouse rotation sensitivity (scale factor)
 float view_mousesens_zoom; // mouse zoom sensitivity (scale factor)
@@ -126,6 +131,13 @@ static confvar_ confvar[] = {
   {"ViewIsphres",&view_isphres,Type_Int},
   {"ViewShowBonds",&view_show_bonds,Type_Bool},
   {"ViewScaleBonds",&view_scale_bonds,Type_Float},
+  {"ViewShowLabels",&view_show_labels,Type_Bool},
+  {"ViewFormatLabels",&view_format_labels,Type_Int},
+  {"ViewLatLabels",&view_lat_labels,Type_Bool},
+  {"ViewScaleLabels",&view_scale_labels,Type_Float},
+  {"ViewLabelrgb[0]",&view_rgb_labels[0],Type_Float},
+  {"ViewLabelrgb[1]",&view_rgb_labels[1],Type_Float},
+  {"ViewLabelrgb[2]",&view_rgb_labels[2],Type_Float},
   {"ViewIcylres",&view_icylres,Type_Int},
   {"ViewMousesensRot",&view_mousesens_rot,Type_Float},
   {"ViewMousesensZoom",&view_mousesens_zoom,Type_Float},
@@ -328,6 +340,11 @@ void DefaultSettings(){
   view_isphres = 2;
   view_show_bonds = true;
   view_scale_bonds = 1.0f;
+  view_show_labels = false;
+  view_format_labels = 0;
+  view_lat_labels = true;
+  view_scale_labels = 1.0f;
+  view_rgb_labels[0] = view_rgb_labels[1] = view_rgb_labels[2] = 1.0f;
   view_icylres = 1;
   view_mousesens_rot = 1.0f;
   view_mousesens_zoom = 1.0f;

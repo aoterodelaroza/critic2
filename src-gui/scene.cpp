@@ -53,6 +53,12 @@ void Scene::setDefaults(){
   isphres = view_isphres;
   show_bonds = view_show_bonds;
   scale_bonds = view_scale_bonds;
+  show_labels = view_show_labels;
+  format_labels = view_format_labels;
+  lat_labels = view_lat_labels;
+  scale_labels = view_scale_labels;
+  for (int i=0;i<3;i++)
+    rgb_labels[i] = view_rgb_labels[i];
   icylres = view_icylres;
   iswire = view_wireframe;
   isortho = view_orthogonal;

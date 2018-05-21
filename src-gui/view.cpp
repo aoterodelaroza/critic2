@@ -284,6 +284,17 @@ void View::Draw(){
         changed |= DragFloat("Bond size", &sc->scale_bonds, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
         Unindent();
       }
+      changed |= Checkbox("Show labels", &sc->show_labels);
+      if (sc->show_labels){
+        Indent();
+        PushItemWidth(2.5f * itemwidth);
+        changed |= Combo("Label text", &sc->format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0");
+        PopItemWidth();
+        changed |= Checkbox("Show lattice vector", &sc->lat_labels);
+        changed |= DragFloat("Label size", &sc->scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+        changed |= ColorEdit3("Label color", sc->rgb_labels, coloreditflags);
+        Unindent();
+      }
       PopItemWidth();
       Separator();
     }
@@ -377,6 +388,8 @@ void View::Update(){
             glm::vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
             if (sc->show_atoms)
               drawSphere(x0,sc->scale_atoms * c2::at[i].rad,rgb,sc->isphres,false);
+            if (sc->show_labels)
+              drawLabel(x0,i,ix,iy,iz);
 
             if (!sc->show_bonds) continue;
             for (int j=0;j<c2::at[i].ncon;j++){
@@ -415,21 +428,6 @@ void View::Update(){
       glm::vec3 vz_ = vz * (1.f - 2.f * c2::molborder[2]);
       drawUnitCell(v0_,vx_,vy_,vz_,false);
     }
-
-    // Labels
-    // ImGuiContext *g = GetCurrentContext();
-    // glm::vec2 v0 = {g->IO.MousePos.x,g->IO.MousePos.y};
-    // pos_to_texpos(v0);
-    // glm::vec2 v0 = {1000.,1000.};
-    shader->usetext();
-    glm::vec3 textcolor(1.0f,1.0f,1.0f);
-    shader->setTextColor(value_ptr(textcolor));
-    for (int i=0;i<c2::nat;i++){
-      glm::vec3 r0 = glm::make_vec3(c2::at[i].r) - center;
-      glm::vec2 v0 = world_to_texpos(r0);
-      RenderText(to_string(i+1),v0.x,v0.y,1.0f,true);
-    }
-    shader->use();
 
     // // the scenerad spehre, for testing
     // vec3 v0 = vec3(0.f,0.f,0.f);
@@ -906,6 +904,37 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
       }
     }
   }
+}
+
+void View::drawLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
+  if (!sc) return;
+  shader->usetext();
+  glm::vec3 textcolor(sc->rgb_labels[0],sc->rgb_labels[1],sc->rgb_labels[2]);
+  shader->setTextColor(value_ptr(textcolor));
+  glm::vec2 v0 = world_to_texpos(x0);
+  
+  // build the label (remove trailing blank space)
+  string label;
+  if (sc->format_labels == 0) 
+    label = to_string(c2::at[iatom].cidx);
+  else if (sc->format_labels == 1)
+    label = to_string(c2::at[iatom].idx);
+  else if (sc->format_labels == 2)
+    label = c2::at[iatom].name;
+  else if (sc->format_labels == 3)
+    label = c2::at[iatom].zsymb;
+  else
+    return;
+  label.erase(std::find_if(label.rbegin(), label.rend(), std::bind1st(std::not_equal_to<char>(), ' ')).base(), label.end());
+  
+  glm::vec2 size = RenderText(label,v0.x,v0.y,sc->scale_labels,true);
+  if (sc->lat_labels && (ix != 0 || iy != 0 || iz != 0)){
+    const int pady = 2.0f;
+    const float scalevec = 0.75f;
+    label = "(" + to_string(ix) + "," + to_string(iy) + "," + to_string(iz) + ")";
+    RenderText(label,v0.x,v0.y-size.y-pady,scalevec * sc->scale_labels,true);
+  }
+  shader->use();
 }
 
 View *CreateView(char *title, int iscene/*=0*/){

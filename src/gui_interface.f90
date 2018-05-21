@@ -35,6 +35,7 @@ module gui_interface
      real(c_float) :: r(3) !< atom position (Cartesian, bohr) 
      integer(c_int) :: is !< atom species
      integer(c_int) :: z !< atomic number
+     character(kind=c_char,len=1) :: zsymb(3) !< atomic symbol
      character(kind=c_char,len=1) :: name(11) !< atomic name
      integer(c_int) :: idx !< index from the nneq list
      integer(c_int) :: cidx !< index from the complete list
@@ -227,6 +228,7 @@ contains
   end function open_file
 
   subroutine scene_initialize(isc) bind(c)
+    use tools_io, only: nameguess
     use c_interface_module, only: f_c_string
     use param, only: atmcov, jmlcol
     integer(c_int), value, intent(in) :: isc
@@ -236,6 +238,7 @@ contains
     integer :: mncon_, id
     character(len=:), allocatable :: errmsg
     real*8 :: x(3)
+    character*2 :: zsymb
 
     if (isc > nsc .or. isc < 1) return
     if (sc(isc)%isinit == 0 .or. sc(isc)%isinit == 2) return
@@ -271,7 +274,9 @@ contains
        sc(isc)%at(i)%idx = idx
        sc(isc)%at(i)%cidx = i
        sc(isc)%at(i)%z = iz
+       zsymb = nameguess(iz,.true.)
        call f_c_string(sc(isc)%sy%c%spc(is)%name,sc(isc)%at(i)%name,11)
+       call f_c_string(zsymb,sc(isc)%at(i)%zsymb,3)
        if (allocated(sc(isc)%sy%c%nstar)) then
           sc(isc)%at(i)%ncon = sc(isc)%sy%c%nstar(i)%ncon
        else

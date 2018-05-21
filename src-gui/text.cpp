@@ -101,27 +101,25 @@ void InitFreetype(){
   glBindVertexArray(0);
 }
 
-void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, bool center/*=false*/){
+glm::vec2 RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, bool center/*=false*/){
   // Activate corresponding render state	
   glActiveTexture(GL_TEXTURE0);
   glBindVertexArray(VAO);
 
   // Measure the total width and height of the text
-  float wt = 0.f, ht = 0.f;
-  if (center){
-    for (std::string::const_iterator c = text.begin(); c != text.end(); c++){
-      Character ch = Characters[*c];
-      wt += (ch.Advance >> 6) * scale;
-      ht = std::max(ht,ch.Size.y * scale);
-    }
+  glm::vec2 size;
+  for (std::string::const_iterator c = text.begin(); c != text.end(); c++){
+    Character ch = Characters[*c];
+    size.x += (ch.Advance >> 6) * scale;
+    size.y = std::max(size.y,ch.Size.y * scale);
   }
 
   // Iterate through all characters
   for (std::string::const_iterator c = text.begin(); c != text.end(); c++){
     Character ch = Characters[*c];
     
-    GLfloat xpos = x + ch.Bearing.x * scale - 0.5f * wt;
-    GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale - 0.5f * ht;
+    GLfloat xpos = x + ch.Bearing.x * scale - 0.5f * size.x;
+    GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale - 0.5f * size.y;
     
     GLfloat w = ch.Size.x * scale;
     GLfloat h = ch.Size.y * scale;
@@ -148,4 +146,6 @@ void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, bool cent
   }
   glBindVertexArray(0);
   glBindTexture(GL_TEXTURE_2D, 0);
+
+  return size;
 }

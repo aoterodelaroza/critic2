@@ -391,6 +391,19 @@ static void DialogPreferences(bool *p_open){
 	    changed |= Checkbox("Show bonds", &view_show_bonds);
 	  if (filter.PassFilter("Bond resolution"))
 	    changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
+	  if (filter.PassFilter("Show labels"))
+	    changed |= Checkbox("Show labels", &view_show_labels);
+	  if (filter.PassFilter("Label text")){
+            PushItemWidth(3.0f * itemwidth);
+	    changed |= Combo("Label text", &view_format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0");
+            PopItemWidth();
+          }
+	  if (filter.PassFilter("Label shows lattice vector"))
+            changed |= Checkbox("Label shows lattice vector", &view_lat_labels);
+	  if (filter.PassFilter("Label size"))
+            changed |= DragFloat("Label size", &view_scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+	  if (filter.PassFilter("Label color"))
+	    changed |= ColorEdit3("label color", view_rgb_labels, coloreditflags);
 	  PopItemWidth();
 
 	  if (changed)
@@ -475,7 +488,7 @@ static void DialogPreferences(bool *p_open){
 	int ostyle_idx = style_idx;
 	PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
 	if (filter.PassFilter("Color theme")){
-	  if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0"),4){
+	  if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0",4)){
 	    if (style_idx != ostyle_idx){
 	      switch (style_idx){
 	      case 0: UIStyleColorsMutantOrange(); break;
