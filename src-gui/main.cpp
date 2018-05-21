@@ -84,6 +84,7 @@ int main(int argc, char *argv[]){
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_SAMPLES, 4);
 
   // Set up window
   GLFWwindow* rootwin = glfwCreateWindow(850, 720, "gcritic2", nullptr, nullptr);
@@ -115,6 +116,7 @@ int main(int argc, char *argv[]){
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
   glEnable(GL_BLEND);
+  glEnable(GL_MULTISAMPLE);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // Create and fill vertex, element, and frame buffers (shapes.h)

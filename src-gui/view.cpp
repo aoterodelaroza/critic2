@@ -310,7 +310,6 @@ void View::Draw(){
 }
 
 void View::Update(){
-  glEnable(GL_MULTISAMPLE);
   glBindFramebuffer(GL_FRAMEBUFFER, FBO);
   glViewport(0.,0.,FBO_a,FBO_a);
 
@@ -434,7 +433,6 @@ void View::Update(){
     // vec4 rgb = {1.0f,1.0f,1.0f,0.4f};
     // drawSphere(v0,c2::scenerad,rgb,3,true);
   }
-  glDisable(GL_MULTISAMPLE);
 
   glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO0);
@@ -618,7 +616,7 @@ bool View::Navigate(bool hover){
 }
 
 void View::createTex(float atex){
-  const int nsample = 4;
+  const int nsample = 10;
 
   // Create the multisampling FBO and buffers
   glGenTextures(1, &(FBOtex));
