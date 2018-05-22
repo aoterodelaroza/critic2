@@ -71,6 +71,15 @@ static string view_tooltip_label(int id){
   return str.str();
 }
 
+View::View(char *title_, float atex, int iscene/*=0*/){
+  title = title_;
+  createTex(atex);
+  if (iscene > 0)
+    changeScene(iscene);
+  for (int i=0; i++; i<4)
+    bgrgb[i] = view_bgrgb[i];
+}
+
 void View::changeScene(int isc){
   if (isc > 0 && isc <= c2::nsc && isc != iscene){
     if (scmap.find(isc) == scmap.end()){

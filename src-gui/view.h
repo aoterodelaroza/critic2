@@ -43,14 +43,7 @@ struct View
 		      MB_Builder,MB_Alignment,MB_Query};
 
   // constructor
-  View(char *title_, float atex, int iscene=0){
-    title = title_;
-    createTex(atex);
-    if (iscene > 0)
-      changeScene(iscene);
-    for (int i=0; i++; i<4)
-      bgrgb[i] = view_bgrgb[i];
-  };
+  View(char *title_, float atex, int iscene=0);
 
   // view methods
   void changeScene(int isc);
