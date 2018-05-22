@@ -388,7 +388,7 @@ void View::Update(){
             if (sc->show_atoms)
               drawSphere(x0,sc->scale_atoms * c2::at[i].rad,rgb,sc->isphres,false);
             if (sc->show_labels)
-              drawLabel(x0,i,ix,iy,iz);
+              drawAtomLabel(x0,i,ix,iy,iz);
 
             if (!sc->show_bonds) continue;
             for (int j=0;j<c2::at[i].ncon;j++){
@@ -904,7 +904,7 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
   }
 }
 
-void View::drawLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
+void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
   if (!sc) return;
   shader->usetext();
   glm::vec3 textcolor(sc->rgb_labels[0],sc->rgb_labels[1],sc->rgb_labels[2]);

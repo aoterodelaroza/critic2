@@ -85,11 +85,13 @@ struct View
   glm::vec3 texpos_to_view(glm::vec2 pos, float depth); 
   float texpos_viewdepth(glm::vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
   
-  // draw shapes (requires setting the c2 scene pointers first)
+  // draw atomic labels (requires setting the c2 scene pointers first)
+  void drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz);
+
+  // draw shapes
   void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
   void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
   void drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors);
-  void drawLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz);
 
   // map of scenes
   std::map<int,Scene *> scmap; // map of the known scenes
