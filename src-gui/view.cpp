@@ -388,6 +388,15 @@ void View::Update(){
 
   if (sc){
     sc->updatescene = false;
+
+    // prepare for rendering text
+    if (sc->show_labels){
+      sc->shader->usetext();
+      sc->shader->setTextProjection(FBO_a);
+      glm::vec3 textcolor(sc->rgb_labels[0],sc->rgb_labels[1],sc->rgb_labels[2]);
+      sc->shader->setTextColor(value_ptr(textcolor));
+    }
+
     sc->shader->use();
     sc->shader->setInt("uselighting",1);
     if (sc->iswire)
@@ -758,9 +767,6 @@ bool View::updateTexSize(){
 
   if (FBO_a != amax){
     FBO_a = amax;
-    sc->shader->usetext();
-    sc->shader->setTextProjection(FBO_a);
-    sc->shader->use();
     redraw = true;
   }
 
@@ -971,8 +977,6 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
 void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
   if (!sc) return;
   sc->shader->usetext();
-  glm::vec3 textcolor(sc->rgb_labels[0],sc->rgb_labels[1],sc->rgb_labels[2]);
-  sc->shader->setTextColor(value_ptr(textcolor));
   glm::vec2 v0 = world_to_texpos(x0);
   
   // build the label (remove trailing blank space)

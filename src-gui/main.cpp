@@ -92,9 +92,6 @@ int main(int argc, char *argv[]){
   gl3wInit();
   glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1);
 
-  // Initialize the freetype library
-  InitFreetype();
-
   // Setup ImGui binding
   ImGui_ImplGlfwGL3_Init(rootwin, true);
 
@@ -104,6 +101,9 @@ int main(int argc, char *argv[]){
   // io.MouseDrawCursor = true; // can't get anything other than the arrow otherwise
   DefaultSettings();
   SetDefaultKeyBindings();
+
+  // Initialize the freetype library
+  InitFreetype();
 
   // Find and read configuration file
   if (!FindConfigurationFile())
