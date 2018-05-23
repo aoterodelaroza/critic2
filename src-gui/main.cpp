@@ -28,7 +28,6 @@
 #include "imgui/imgui_widgets.h"
 
 #include "critic2.h"
-#include "shader.h"
 #include "shapes.h"
 #include "view.h"
 #include "dialog.h"
@@ -112,7 +111,7 @@ int main(int argc, char *argv[]){
   else if (!ReadConfigurationFile(conffile))
     NewMessage(Message_Error,"Could not read configuration file. Using defaults.");
 
-  // Shader and opengl settings
+  // Opengl settings
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
   glEnable(GL_BLEND);
@@ -207,8 +206,6 @@ int main(int argc, char *argv[]){
   c2::gui_end();
   DeleteBuffers();
   ShutdownDock();
-
-  delete shader;
 
   ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();

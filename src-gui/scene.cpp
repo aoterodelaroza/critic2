@@ -62,6 +62,44 @@ void Scene::setDefaults(){
   icylres = view_icylres;
   iswire = view_wireframe;
   isortho = view_orthogonal;
+
+  setLightpos(view_lightpos);
+  setLightcolor(view_lightcolor);
+  setAmbient(view_ambient);
+  setDiffuse(view_diffuse);
+  setSpecular(view_specular);
+  setShininess(view_shininess);
+}
+
+void Scene::setLightpos(glm::vec3 lightpos_){
+  lightpos = lightpos_;
+  shader->use();
+  shader->setVec3("lightPos",value_ptr(lightpos));
+}
+void Scene::setLightcolor(glm::vec3 lightcolor_){
+  lightcolor = lightcolor_;
+  shader->use();
+  shader->setVec3("lightColor",value_ptr(lightcolor));
+}
+void Scene::setAmbient(float ambient_){
+  ambient = ambient_;
+  shader->use();
+  shader->setFloat("ambient",ambient);
+}
+void Scene::setDiffuse(float diffuse_){
+  diffuse = diffuse_;
+  shader->use();
+  shader->setFloat("diffuse",diffuse);
+}
+void Scene::setSpecular(float specular_){
+  specular = specular_;
+  shader->use();
+  shader->setFloat("specular",specular);
+}
+void Scene::setShininess(int shininess_){
+  shininess = shininess_;
+  shader->use();
+  shader->setInt("shininess",shininess);
 }
 
 void Scene::resetView(){
@@ -89,18 +127,18 @@ void Scene::updateProjection(){
   } else {
     m_projection = glm::infinitePerspective(glm::radians(zfov),1.0f,znear);
   }
-  setshaderp = true;
+  shader->setMat4("projection",value_ptr(m_projection));
   updatescene = true;
 }
 
 void Scene::updateView(){
   m_view = lookAt(v_pos,v_pos+v_front,v_up);
-  setshaderv = true;
+  shader->setMat4("view",value_ptr(m_view));
   updatescene = true;
 }
 
 void Scene::updateWorld(){
-  setshaderw = true;
+  shader->setMat4("world",value_ptr(m_world));
   updatescene = true;
 }
 

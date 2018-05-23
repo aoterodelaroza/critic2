@@ -15,8 +15,6 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_dock.h"
 
-#include "shader.h"
-
 // constants
 #define PI 3.14159265358979323846
 #define AUTOANG 0.52917720859
@@ -73,9 +71,6 @@ struct ImGuiStyleUI_ {
   };
 };
 extern ImGuiStyleUI_ ImGuiStyleUI;
-
-// Shader
-extern Shader *shader;
 
 // Fonts (defined in main.cpp)
 extern ImFont* fontdefault;

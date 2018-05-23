@@ -26,6 +26,8 @@
 #include "settings.h"
 #include <glm/glm.hpp>
 
+#include "shader.h"
+
 #include "critic2.h"
 
 struct Scene{
@@ -69,14 +71,23 @@ struct Scene{
   glm::mat4 m_view = glm::mat4(1.0); // view
   glm::mat4 m_world = glm::mat4(1.0); // world
 
+  // shader light variables
+  glm::vec3 lightpos;
+  glm::vec3 lightcolor;
+  float ambient;
+  float diffuse;
+  float specular;
+  int shininess;
+
   // True if the scene needs updating
   bool updatescene = false; // update the scene next pass
-  bool setshaderp = false; // send the projection matrix to the shader next pass
-  bool setshaderv = false; // send the view matrix to the shader next pass
-  bool setshaderw = false; // send the world matrix to the shader next pass
+
+  // Shader
+  Shader *shader;
 
   // Constructor
   Scene(int isc){
+    shader = new Shader;
     iscene = isc;
     grabFromC2();
     setDefaults();
@@ -84,8 +95,19 @@ struct Scene{
     updateAll();  
   };
 
+  ~Scene(){
+    delete shader;
+  }
+
   void grabFromC2(); // Get the scene parameters from the critic2 interface
   void setDefaults(); // Set the scene to the default settings (does not update)
+  void setLightpos(glm::vec3 lightpos_); // Set variable: light position.
+  void setLightcolor(glm::vec3 lightcolor_); // Set variable: light color.
+  void setAmbient(float ambient); // Set variable: ambient
+  void setDiffuse(float diffuse); // Set variable: diffuse
+  void setSpecular(float specular); // Set variable: specular
+  void setShininess(int shininess); // Set variable: shininess
+
   void resetView(); // Reset the view parameters (does not update)
   void updateAll(); // Update all matrices
   void updateProjection(); // Update the projection matrix
@@ -96,8 +118,6 @@ struct Scene{
   bool alignViewAxis(int iaxis);
   glm::vec3 cam_world_coords();
   glm::vec3 cam_view_coords();
-
-  
 };
 
 #endif

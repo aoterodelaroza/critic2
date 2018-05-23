@@ -42,11 +42,19 @@ struct View
   enum MouseBehavior_{MB_Navigation,MB_Pointer,MB_Angle,MB_Ruler,
 		      MB_Builder,MB_Alignment,MB_Query};
 
+  enum Variable_{V_ALL, V_lightpos, V_lightcolor, V_ambient, V_diffuse, V_specular, V_shininess,
+                 V_wireframe, V_orthogonal, V_fov, V_resetdistance, V_bgrgb, V_show_atoms,
+                 V_isphres, V_show_bonds, V_icylres, V_show_labels, V_format_labels, V_lat_labels,
+                 V_scale_labels, V_rgb_labels
+  };
+
   // constructor
   View(char *title_, float atex, int iscene=0);
 
   // view methods
   void changeScene(int isc);
+  void setDefaultAllScenes(Variable_ var);
+  void setDefault(Scene *sc_=nullptr, Variable_ var=V_ALL);
   void Draw();
   void Update();
   void Delete();
@@ -132,7 +140,7 @@ void DrawAllViews();
 void ForceUpdateAllViews();
 
 // Set default values for all views
-void SetDefaultAllViews();
+void SetDefaultAllViews(View::Variable_ var=View::V_ALL);
 
 // Main view
 extern View *mainview;

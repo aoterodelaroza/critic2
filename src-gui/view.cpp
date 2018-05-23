@@ -95,6 +95,61 @@ void View::changeScene(int isc){
   }
 }
 
+void View::setDefaultAllScenes(Variable_ var){
+  for (auto it = scmap.begin(); it != scmap.end(); it++)
+    setDefault(it->second,var);
+}
+
+void View::setDefault(Scene *sc_/*=nullptr*/, Variable_ var/*=V_ALL*/){
+  if (!sc_) sc_ = sc;
+  if (!sc_) return;
+
+  if (var == V_ALL)
+    sc_->setDefaults();
+  else if (var == V_lightpos)
+    sc_->setLightpos(view_lightpos);
+  else if (var == V_lightcolor)
+    sc_->setLightcolor(view_lightcolor);
+  else if (var == V_ambient)
+    sc_->setAmbient(view_ambient);
+  else if (var == V_diffuse)
+    sc_->setDiffuse(view_diffuse);
+  else if (var == V_specular)
+    sc_->setSpecular(view_specular);
+  else if (var == V_shininess)
+    sc_->setShininess(view_shininess);
+  else if (var == V_wireframe)
+    sc_->iswire = view_wireframe;
+  else if (var == V_orthogonal)
+    sc_->isortho = view_orthogonal;
+  else if (var == V_fov)
+    sc_->zfov = view_fov;
+  else if (var == V_resetdistance)
+    sc_->resetd = view_resetdistance; 
+  else if (var == V_bgrgb)
+    for (int i=0; i++; i<4)
+      bgrgb[i] = view_bgrgb[i];
+  else if (var == V_show_atoms)
+    sc_->show_atoms = view_show_atoms;
+  else if (var == V_isphres)
+    sc_->isphres = view_isphres;
+  else if (var == V_show_bonds)
+    sc_->show_bonds = view_show_bonds;
+  else if (var == V_icylres)
+    sc_->icylres = view_icylres;
+  else if (var == V_show_labels)
+    sc_->show_labels = view_show_labels;
+  else if (var == V_format_labels)
+    sc_->format_labels = view_format_labels;
+  else if (var == V_lat_labels)
+    sc_->lat_labels = view_lat_labels;
+  else if (var == V_scale_labels)
+    sc_->scale_labels = view_scale_labels;
+  else if (var == V_rgb_labels)
+    for (int i=0;i<3;i++)
+      sc_->rgb_labels[i] = view_rgb_labels[i];
+}
+
 void View::Draw(){
   ImGuiContext *g = GetCurrentContext();
   ImGuiIO& io = GetIO();
@@ -326,15 +381,9 @@ void View::Update(){
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   if (sc){
-    if (sc->setshaderp)
-      shader->setMat4("projection",value_ptr(sc->m_projection));
-    if (sc->setshaderv)
-      shader->setMat4("view",value_ptr(sc->m_view));
-    if (sc->setshaderw)
-      shader->setMat4("world",value_ptr(sc->m_world));
-    sc->setshaderp = sc->setshaderv = sc->setshaderw = sc->updatescene = false;
-
-    shader->setInt("uselighting",1);
+    sc->updatescene = false;
+    sc->shader->use();
+    sc->shader->setInt("uselighting",1);
     if (sc->iswire)
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     const float rthr = 0.01f;
@@ -426,7 +475,7 @@ void View::Update(){
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // unit cell
-    shader->setInt("uselighting",0);
+    sc->shader->setInt("uselighting",0);
     if (sc->isucell)
       drawUnitCell(v0,vx,vy,vz,true);
     if (sc->ismolcell){
@@ -703,9 +752,9 @@ bool View::updateTexSize(){
 
   if (FBO_a != amax){
     FBO_a = amax;
-    shader->usetext();
-    shader->setTextProjection(FBO_a);
-    shader->use();
+    sc->shader->usetext();
+    sc->shader->setTextProjection(FBO_a);
+    sc->shader->use();
     redraw = true;
   }
 
@@ -830,9 +879,9 @@ void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blen
   m_model = glm::scale(m_model,glm::vec3(rad,rad,rad));
   glm::mat3 m_normrot = glm::transpose(glm::inverse(glm::mat3(sc->m_view) * glm::mat3(sc->m_world) * glm::mat3(m_model)));
 
-  shader->setVec4("vColor",value_ptr(rgb));
-  shader->setMat4("model",value_ptr(m_model));
-  shader->setMat3("normrot",value_ptr(m_normrot));
+  sc->shader->setVec4("vColor",value_ptr(rgb));
+  sc->shader->setMat4("model",value_ptr(m_model));
+  sc->shader->setMat3("normrot",value_ptr(m_normrot));
   glDrawElements(GL_TRIANGLES, 3*sphnel[res], GL_UNSIGNED_INT, 0);
   if (blend)
     glDepthMask(1);
@@ -856,9 +905,9 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
     m_model = m_model * glm::rotate(acos(dot(xdif,up)),crs);
   m_model = glm::scale(m_model,glm::vec3(rad,rad,blen));
   glm::mat3 m_normrot = glm::transpose(glm::inverse(glm::mat3(sc->m_view) * glm::mat3(sc->m_world) * glm::mat3(m_model)));
-  shader->setMat3("normrot",value_ptr(m_normrot));
-  shader->setVec4("vColor",value_ptr(rgb));
-  shader->setMat4("model",value_ptr(m_model));
+  sc->shader->setMat3("normrot",value_ptr(m_normrot));
+  sc->shader->setVec4("vColor",value_ptr(rgb));
+  sc->shader->setMat4("model",value_ptr(m_model));
   glDrawElements(GL_TRIANGLES, 3*cylnel[sc->icylres], GL_UNSIGNED_INT, 0);
   if (blend)
     glDepthMask(1);
@@ -915,9 +964,9 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
 
 void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
   if (!sc) return;
-  shader->usetext();
+  sc->shader->usetext();
   glm::vec3 textcolor(sc->rgb_labels[0],sc->rgb_labels[1],sc->rgb_labels[2]);
-  shader->setTextColor(value_ptr(textcolor));
+  sc->shader->setTextColor(value_ptr(textcolor));
   glm::vec2 v0 = world_to_texpos(x0);
   
   // build the label (remove trailing blank space)
@@ -943,7 +992,7 @@ void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
     label = "(" + to_string(ix) + "," + to_string(iy) + "," + to_string(iz) + ")";
     RenderText(label,v0.x,v0.y-size.y-pady,scalevec * sc->scale_labels,true);
   }
-  shader->use();
+  sc->shader->use();
 }
 
 View *CreateView(char *title, int iscene/*=0*/){
@@ -963,10 +1012,10 @@ void ForceUpdateAllViews(){
       iv->sc->updatescene = true;
 }
 
-void SetDefaultAllViews(){
+void SetDefaultAllViews(View::Variable_ var/*=View::V_ALL*/){
   for (auto iv : viewlist){
     if (iv->sc){
-      iv->sc->setDefaults();
+      iv->setDefaultAllScenes(var);
       iv->sc->updateAll();  
     }
   }

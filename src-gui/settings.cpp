@@ -45,9 +45,6 @@ const float fontsizebake = 48.0f;
 // UI style
 ImGuiStyleUI_ ImGuiStyleUI;
 
-// Shader
-Shader *shader;
-
 // View defaults and settings
 bool view_wireframe; // render objects in wireframe
 bool view_orthogonal; // orthogonal/perspective projection
@@ -348,18 +345,6 @@ void DefaultSettings(){
   view_icylres = 1;
   view_mousesens_rot = 1.0f;
   view_mousesens_zoom = 1.0f;
-
-  // set up shader and fill uniforms
-  if (firstpass){
-    shader = new Shader();
-    shader->use();
-  }
-  shader->setVec3("lightPos",value_ptr(view_lightpos));
-  shader->setVec3("lightColor",value_ptr(view_lightcolor));
-  shader->setFloat("ambient",view_ambient);
-  shader->setFloat("diffuse",view_diffuse);
-  shader->setFloat("specular",view_specular);
-  shader->setInt("shininess",view_shininess);
 
   ImGuiIO& io = GetIO();
   if (firstpass){
