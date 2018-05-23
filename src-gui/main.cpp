@@ -206,6 +206,7 @@ int main(int argc, char *argv[]){
   c2::gui_end();
   DeleteBuffers();
   ShutdownDock();
+  delete mainview;
 
   ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();

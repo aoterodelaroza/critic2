@@ -50,6 +50,7 @@ struct View
 
   // constructor
   View(char *title_, float atex, int iscene=0);
+  ~View();
 
   // view methods
   void changeScene(int isc);

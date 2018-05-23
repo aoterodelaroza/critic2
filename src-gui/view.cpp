@@ -79,6 +79,12 @@ View::View(char *title_, float atex, int iscene/*=0*/){
   for (int i=0; i++; i<4)
     bgrgb[i] = view_bgrgb[i];
 }
+View::~View(){
+  deleteTex();
+  for (auto it = scmap.begin(); it != scmap.end(); it++)
+    delete it->second;
+  scmap.clear();
+}
 
 void View::changeScene(int isc){
   if (isc > 0 && isc <= c2::nsc && isc != iscene){
