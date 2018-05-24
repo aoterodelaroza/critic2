@@ -115,9 +115,9 @@ struct View
   float mpos0_s; // mouse y position (for scrolling using keys)
 
   // associated textures
-  GLuint FBO; // framebuffer object (multisample)
-  GLuint FBOtex; // framebuffer object (multisample) texture
-  GLuint FBOdepth; // framebuffer object (multisample) depth buffer
+  GLuint FBO; // framebuffer object
+  GLuint FBOtex; // framebuffer object texture
+  GLuint FBOdepth; // framebuffer object depth buffer
   float FBO_atex; // side of the texture (pixels)
   float FBO_a; // side of the texture square used for rendering (pixels)
 
