@@ -212,7 +212,7 @@ void View::Draw(){
     bool hover = false;
     SetCursorPos(cpos);
     if (sc){
-      ImageInteractive((void *) FBOtex0,FBO_a/FBO_atex,&hover,&vrect);
+      ImageInteractive((void *) FBOtex,FBO_a/FBO_atex,&hover,&vrect);
     } else {
       hover = false;
       if (dock && dock->window)
@@ -507,11 +507,6 @@ void View::Update(){
     // drawSphere(v0,c2::scenerad,rgb,3,true);
   }
 
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO0);
-  glBlitFramebuffer(0, 0, FBO_atex, FBO_atex, 0, 0, FBO_atex, FBO_atex, GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -691,53 +686,27 @@ bool View::Navigate(bool hover){
 void View::createTex(float atex){
   const int nsample = 10;
 
-  // Create the multisampling FBO and buffers
+  // FBO and buffers
   glGenTextures(1, &(FBOtex));
   glGenRenderbuffers(1, &(FBOdepth));
   glGenFramebuffers(1, &(FBO));
 
   // texture
-  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, FBOtex);
-  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA, atex, atex, GL_TRUE);
-  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
-  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-
-  // render buffer
-  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth);
-  glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT, atex, atex);
-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-  // frame buffer
-  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FBOtex, 0); 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth);
-
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    exit(EXIT_FAILURE);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-  // non-multisampled FBO and buffers
-  glGenTextures(1, &(FBOtex0));
-  glGenRenderbuffers(1, &(FBOdepth0));
-  glGenFramebuffers(1, &(FBO0));
-
-  // texture
-  glBindTexture(GL_TEXTURE_2D, FBOtex0);
+  glBindTexture(GL_TEXTURE_2D, FBOtex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
   glBindTexture(GL_TEXTURE_2D, 0);
 
   // render buffer
-  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth0);
+  glBindRenderbuffer(GL_RENDERBUFFER, FBOdepth);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex);
   glBindRenderbuffer(GL_RENDERBUFFER, 0);
   
   // frame buffer
-  glBindFramebuffer(GL_FRAMEBUFFER, FBO0);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex0, 0); 
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth0);
+  glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex, 0); 
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth);
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     exit(EXIT_FAILURE);
@@ -750,9 +719,6 @@ void View::deleteTex(){
   glDeleteTextures(1, &FBOtex);
   glDeleteRenderbuffers(1, &FBOdepth);
   glDeleteFramebuffers(1, &FBO);
-  glDeleteTextures(1, &FBOtex0);
-  glDeleteRenderbuffers(1, &FBOdepth0);
-  glDeleteFramebuffers(1, &FBO0);
 }
 
 bool View::updateTexSize(){
@@ -874,7 +840,7 @@ glm::vec3 View::texpos_to_view(glm::vec2 pos, float depth){
 
 float View::texpos_viewdepth(glm::vec2 texpos){
     float depth;
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO0);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
     glReadPixels(texpos.x,texpos.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return depth;
