@@ -1549,7 +1549,7 @@ contains
                          do jmo = 1, nmo
                             call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                             if (ibb /= ibnd2) cycle
-                            x = (sy%f(fid)%grid%wan%center(:,ibnd1,is) + (/ia,ja,ka/) - (/ib,jb,kb/) - sy%f(fid)%grid%wan%center(:,ibnd2,is)) / real(nwan,8)
+                            x = (sy%f(fid)%grid%wan%center(:,ibnd1,is) + (/ia,ja,ka/) - (sy%f(fid)%grid%wan%center(:,ibnd2,is) + (/ib,jb,kb/))) / real(nwan,8)
                             call nc%shortest(x,d2)
                             if (d2 > d0) &
                                lovrlp(ia,ja,ka,ib,jb,kb) = .false.
@@ -1575,8 +1575,8 @@ contains
                             psic = conjg(f1(:,:,:,ilata)) * f2(:,:,:,ilatb)
                             do i = 1, natt1
                                padd = sum(psic,idg1==i)
-                               call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                               call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                               call packidx(ia-ilvec(1,i),ja-ilvec(2,i),ka-ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                               call packidx(ib-ilvec(1,i),jb-ilvec(2,i),kb-ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
                                !$omp critical (add)
                                ncalc = ncalc + 1
                                sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
@@ -1631,8 +1631,8 @@ contains
                                end where
 
                                padd = sum(psic,wmask)
-                               call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                               call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                               call packidx(ia-ilvec(1,i),ja-ilvec(2,i),ka-ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                               call packidx(ib-ilvec(1,i),jb-ilvec(2,i),kb-ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
                                !$omp critical (add)
                                ncalc = ncalc + 1
                                sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
@@ -1980,7 +1980,7 @@ contains
              do jc = 0, nwan(2)-1
                 do kc = 0, nwan(3)-1
                    k = k + 1
-                   idx = (/ic+ia, jc+ja, kc+ka/)
+                   idx = (/ia-ic, ja-jc, ka-kc/)
                    idx = modulo(idx,sy%f(fid)%grid%wan%nwan)
                    call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nwan)
                 end do

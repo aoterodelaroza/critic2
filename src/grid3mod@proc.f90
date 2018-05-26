@@ -1838,7 +1838,7 @@ contains
           ik2 = nint(f%wan%kpt(2,ikk) * nk2)
           ik3 = nint(f%wan%kpt(3,ikk) * nk3)
           ilat = 1 + ik3 + nk3 * (ik2 + nk2 * ik1)
-          ph = exp(tpi*img*(f%wan%kpt(1,ik)*ik1+f%wan%kpt(2,ik)*ik2+f%wan%kpt(3,ik)*ik3))
+          ph = exp(-tpi*img*(f%wan%kpt(1,ik)*ik1+f%wan%kpt(2,ik)*ik2+f%wan%kpt(3,ik)*ik3))
           fout(:,:,:,ilat) = fout(:,:,:,ilat) + raux2 * ph
        end do
     end do
