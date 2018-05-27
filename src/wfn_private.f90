@@ -269,7 +269,7 @@ contains
   !> Read the molecular geometry from a wfx file
   subroutine wfn_read_wfx_geometry(file,n,x,z,name)
     use types, only: atom
-    use tools_io, only: fopen_read, getline_raw, ferror, faterr, nameguess, fclose
+    use tools_io, only: fopen_read, getline_raw, ferror, faterr, nameguess, zatguess, fclose
 
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -280,6 +280,7 @@ contains
     integer :: lu
     character(len=:), allocatable :: line, line2
     integer :: i
+    logical :: atnumfound, atnamefound, coordsfound
 
     ! deallocate
     if (allocated(x)) deallocate(x)
@@ -303,22 +304,44 @@ contains
 
     ! read the geometry
     rewind(lu)
+    atnumfound = .false.
+    atnamefound = .false.
+    coordsfound = .false.
     do while (.true.)
        read(lu,'(A)',end=20) line
        line2 = adjustl(line)
        line = line2
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Atomic Numbers>") then
+             atnumfound = .true.
              z = wfx_read_integers(lu,n)
+          else if (trim(line) == "<Nuclear Names>") then
+             atnamefound = .true.
              do i = 1, n
-                name(i) = nameguess(z(i))
+                read (lu,*) name(i)
              end do
           elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
+             coordsfound = .true.
              x = reshape(wfx_read_reals1(lu,3*n),shape(x))
           endif
        endif
     enddo
 20  continue
+
+    if (.not.atnamefound .and..not.atnumfound) &
+       call ferror("wfn_read_wfx_geometry","Neither 'Nuclear Names' nor 'Atomic Numbers' cards were found",faterr)
+    if (.not.coordsfound) &
+       call ferror("wfn_read_wfx_geometry","Atomic coordinates were not found",faterr)
+    if (.not.atnamefound) then
+       do i = 1, n
+          name(i) = nameguess(z(i),.true.)
+       end do
+    end if
+    if (.not.atnumfound) then
+       do i = 1, n
+          z(i) = zatguess(name(i))
+       end do
+    end if
 
     call fclose(lu)
 
