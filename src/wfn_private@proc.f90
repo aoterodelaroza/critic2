@@ -278,7 +278,7 @@ contains
   !> Read the molecular geometry from a wfx file
   module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
     use types, only: atom
-    use tools_io, only: fopen_read, getline_raw, nameguess, fclose
+    use tools_io, only: fopen_read, getline_raw, nameguess, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -289,6 +289,7 @@ contains
     integer :: lu
     character(len=:), allocatable :: line, line2, errmsg2
     integer :: i
+    logical :: atnumfound, atnamefound, coordsfound
 
     errmsg = ""
     ! deallocate
@@ -318,22 +319,29 @@ contains
     end if
     allocate(name(n),z(n),x(3,n))
 
-    ! read the geometry
+    ! read the geometry, using the "atomic numbers" tag
     rewind(lu)
+    atnumfound = .false.
+    atnamefound = .false.
+    coordsfound = .false.
     do while (getline_raw(lu,line))
        line2 = adjustl(line)
        line = line2
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Atomic Numbers>") then
+             atnumfound = .true.
              z = wfx_read_integers(lu,n,errmsg2)
              if (len_trim(errmsg2) > 0) then
                 errmsg = errmsg2
                 goto 20
              end if
+          else if (trim(line) == "<Nuclear Names>") then
+             atnamefound = .true.
              do i = 1, n
-                name(i) = nameguess(z(i))
+                read (lu,*) name(i)
              end do
           elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
+             coordsfound = .true.
              x = reshape(wfx_read_reals1(lu,3*n,errmsg2),shape(x))
              if (len_trim(errmsg2) > 0) then
                 errmsg = errmsg2
@@ -342,6 +350,24 @@ contains
           endif
        endif
     enddo
+    if (.not.atnamefound .and..not.atnumfound) then
+       errmsg = "Neither 'Nuclear Names' nor 'Atomic Numbers' cards were found"
+       goto 20
+    end if
+    if (.not.coordsfound) then
+       errmsg = "Atomic coordinates were not found"
+       goto 20
+    end if
+    if (.not.atnamefound) then
+       do i = 1, n
+          name(i) = nameguess(z(i),.true.)
+       end do
+    end if
+    if (.not.atnumfound) then
+       do i = 1, n
+          z(i) = zatguess(name(i))
+       end do
+    end if
 
     errmsg = ""
 20  continue
