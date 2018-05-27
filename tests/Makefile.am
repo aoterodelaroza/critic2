@@ -46,6 +46,7 @@ TESTS=\
 006_load_elk_lap.sh 006_load_elk_lap2.sh 006_load_siesta_rho.sh\
 006_load_dftbp1.sh 006_load_dftbp2.sh\
 006_load_copy.sh 006_load_ghost1.sh 006_load_lots.sh 006_load_labels.sh\
+006_load_weird.sh\
 007_point.sh\
 008_line.sh\
 009_plane1.sh 009_plane2.sh 009_plane3.sh\
