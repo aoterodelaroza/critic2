@@ -4082,9 +4082,6 @@ are several plotting comands:
 
   * 2 : print bond paths associated to the bcps.
 
-  These options are only available if an AUTO task was carried
-  out with the option SET GRAPH.
-
 Several parameters of FLUXPRINT can be changed. The color to be
 applied to the paths resulting from subsequent FLUXPRINT commands can
 be changed using the COLOR keyword (three integers from 0 to 255 for
