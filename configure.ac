@@ -47,8 +47,8 @@ AM_CONDITIONAL([WIN], [test x$win32 = xtrue -o x$win64 = xtrue])
 
 # Some fortran compiler flags I'll need
 AC_LANG([Fortran])
-AC_PROG_FC([ifort gfortran])
-AC_PROG_F77([ifort gfortran])
+AC_PROG_FC([gfortran ifort])
+AC_PROG_F77([gfortran ifort])
 AC_FC_FREEFORM
 AC_FC_LINE_LENGTH([unlimited])
 AC_OPENMP
