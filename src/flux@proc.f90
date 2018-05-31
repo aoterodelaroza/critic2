@@ -25,6 +25,7 @@ submodule (flux) proc
   ! subroutine flx_initialize(nosym,noballs,nocell)
   ! subroutine flx_printpath(rgb0)
   ! subroutine flx_symprintpath(x,flxsym,rgb)
+  ! subroutine flx_prepareprintpath(x,title,n,iup,dir,icp)
   ! subroutine flx_point(x,iup,flxsym,rgb)
   ! subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
   ! subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
@@ -37,6 +38,13 @@ submodule (flux) proc
   ! General info
   integer :: flx_n
   integer :: flx_iup
+  character(len=:), allocatable :: flx_title
+  character*10 :: flx_cpname
+  integer :: flx_cpid
+  integer :: flx_cpcelid
+  real*8 :: flx_xpos(3)
+  real*8 :: flx_cpos(3)
+  real*8 :: flx_direction(3)
 
   ! output format
   character*3 :: outfmt
@@ -687,21 +695,37 @@ contains
   !> Print gradient path info to standard output.
   subroutine flx_printpath(rgb0)
     use systemmod, only : sy
-    use global, only: dunit0, iunit
+    use global, only: dunit0, iunit, iunitname0
     use tools_io, only: string
     use param, only: bohrtoa
     integer, intent(in) :: rgb0(3)
 
     integer :: i, j
     real*8 :: x(3)
+    character(len=:), allocatable :: str
+    real*8 :: maux(4,4)
     real*8, parameter :: rrad = 0.15d0
 
-    real*8 :: maux(4,4)
-
     if (outfmt == "txt") then
-       write (luout,'(A,A50)') "# Gradient path "
-       write (luout,'(A,I2)') "# Iup  : ", flx_iup
-       write (luout,'(A,I6)') "# Number of points  : ", flx_n
+       if (flx_iup == 1) then
+          str = "(upwards)"
+       elseif (flx_iup == -1) then
+          str = "(downwards)"
+       else
+          str = ""
+       end if
+       write (luout,'("# ",A,X,a)') string(flx_title), str
+       write (luout,'("# name: ",A," ncp: ",A," ncpcel: ",A," rho: ",A," grad: ",A," lap: ",A)') &
+          string(flx_cpname), string(flx_cpid), string(flx_cpcelid), &
+          string(flx_path(1)%f,'e',decimal=9), string(norm2(flx_path(1)%gf),'e',decimal=9), &
+          string(flx_path(1)%hf(1,1)+flx_path(1)%hf(2,2)+flx_path(1)%hf(3,3),'e',decimal=9)
+       write (luout,'("# number of points: ",A)') string(flx_n)
+       write (luout,'("# position (cryst.): ",3(A,X))') (string(flx_xpos(i),'f',12,8),i=1,3)
+       write (luout,'("# position (",A,"): ",3(A,X))') iunitname0(iunit), &
+          (string((flx_cpos(i)+sy%c%molx0(i))*dunit0(iunit),'f',12,8),i=1,3)
+       write (luout,'("# starting path direction (",A,"): ",3(A,X))') iunitname0(iunit), &
+          (string(flx_direction(i)*dunit0(iunit),'f',12,8),i=1,3)
+       write (luout,'("# ",A)') 
 
        if (.not.sy%c%ismolecule) then
           maux = 0d0
@@ -839,7 +863,45 @@ contains
 
   end subroutine flx_symprintpath
 
-  !> Print gradient paths from point x (cryst. coords.), with step
+  !> Fill the global variables for the current path.
+  subroutine flx_prepareprintpath(x,title,n,iup,dir,icp)
+    use systemmod, only: sy
+
+    real*8, intent(in) :: x(3)
+    character*(*), intent(in) :: title
+    integer, intent(in) :: n
+    integer, intent(in) :: iup
+    real*8, intent(in) :: dir(3)
+    integer :: icp
+
+    integer :: idx
+    real*8 :: nn2
+
+    flx_cpos = x
+    flx_xpos = sy%c%c2x(x)
+    flx_title = title
+    flx_n = n
+    flx_iup = iup
+    nn2 = norm2(dir)
+    if (nn2 > 1d-4) then
+       flx_direction = dir / nn2
+    else
+       flx_direction = 0d0
+    end if
+    if (icp > 0) then
+       idx = sy%f(sy%iref)%cpcel(icp)%idx
+       flx_cpname = sy%f(sy%iref)%cp(idx)%name
+       flx_cpid = idx
+       flx_cpcelid = icp
+    else
+       flx_cpname = "n/a"
+       flx_cpid = 0
+       flx_cpcelid = 0
+    end if
+
+  end subroutine flx_prepareprintpath
+
+  !> Print gradient paths from point x (Cartesian coords.), with step
   !> step, gradient norm criterion eps and in the iup
   !> direction. flxsym = -1, ignore symmetry ; 0, apply x symmetry
   !> to the unit cell and its boundary; >0 to a shell of flxsym unit
@@ -853,20 +915,24 @@ contains
     integer, intent(in) :: flxsym
     integer, intent(in) :: rgb(3)
 
-    real*8, dimension(3) :: tempx, xini
-    integer :: ier
+    real*8 :: tempx(3), xini(3), xinic(3)
+    integer :: ier, n
 
     xini = x
     tempx = sy%c%x2c(x)
+    xinic = tempx
 
     if (iup /= 0) then
-       call sy%f(sy%iref)%gradient(tempx,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
+       call sy%f(sy%iref)%gradient(tempx,iup,n,ier,.false.,flx_plen,flx_path,prunedist)
+       call flx_prepareprintpath(xinic,"Gradient from POINT",n,iup,(/0d0,0d0,0d0/),0)
        call flx_symprintpath(xini,flxsym,rgb)
     else
-       call sy%f(sy%iref)%gradient(tempx,1,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
+       call sy%f(sy%iref)%gradient(tempx,1,n,ier,.false.,flx_plen,flx_path,prunedist)
+       call flx_prepareprintpath(xinic,"Gradient from POINT",n,1,(/0d0,0d0,0d0/),0)
        call flx_symprintpath(xini,flxsym,rgb)
        tempx = sy%c%x2c(x)
-       call sy%f(sy%iref)%gradient(tempx,-1,flx_n,ier,.false.,flx_plen,flx_path,prunedist)
+       call sy%f(sy%iref)%gradient(tempx,-1,n,ier,.false.,flx_plen,flx_path,prunedist)
+       call flx_prepareprintpath(xinic,"Gradient from POINT",n,-1,(/0d0,0d0,0d0/),0)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -890,9 +956,9 @@ contains
 
     real*8, parameter :: change = 0.1d0
 
-    real*8, dimension(3) :: xncp, xpoint
+    real*8, dimension(3) :: xncp, xpoint, dir
     real*8 :: phi, theta
-    integer :: i, j
+    integer :: i, j, n
     integer :: ier, iup
     real*8, dimension(3) :: xini
 
@@ -916,8 +982,10 @@ contains
        do j = 1,ntheta
           phi = pi * real(i,8) / real(nphi+1,8)
           theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
-          xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-          call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
+          dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
+          xpoint = xncp + change * dir
+          call sy%f(sy%iref)%gradient(xpoint,iup,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
+          call flx_prepareprintpath(xncp,"Gradient from NCP/CCP",n,iup,dir,id)
           call flx_symprintpath(xini,flxsym,rgb)
        end do
     end do
@@ -925,13 +993,17 @@ contains
     ! special points on the unit sphere
     phi = 0d0
     theta = 0d0
-    xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-    call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
+    dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
+    xpoint = xncp + change * dir
+    call sy%f(sy%iref)%gradient(xpoint,iup,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
+    call flx_prepareprintpath(xncp,"Gradient from NCP/CCP",n,iup,dir,id)
     call flx_symprintpath(xini,flxsym,rgb)
     phi = pi
     theta = 0d0
-    xpoint = xncp + change * (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-    call sy%f(sy%iref)%gradient(xpoint,iup,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
+    dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
+    xpoint = xncp + change * dir
+    call sy%f(sy%iref)%gradient(xpoint,iup,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
+    call flx_prepareprintpath(xncp,"Gradient from NCP/CCP",n,iup,dir,id)
     call flx_symprintpath(xini,flxsym,rgb)
 
   end subroutine flx_ncp
@@ -973,7 +1045,7 @@ contains
     integer :: n
     real*8 :: R
     real*8, dimension(npoints) :: thetavec
-    integer :: ier, ircp
+    integer :: ier, ircp, n
     type(scalar_value) :: res
     
     if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_bcp','CP identifier < 0 or > # of CPs',faterr)
@@ -1043,10 +1115,12 @@ contains
 
     if (iup == 0 .or. iup == ircp) then
        xpoint = xbcp + change * vup
-       call sy%f(sy%iref)%gradient(xpoint,ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+       call sy%f(sy%iref)%gradient(xpoint,ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+       call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,ircp,vup,id)
        call flx_symprintpath(xini,flxsym,rgb)
        xpoint = xbcp - change * vup
-       call sy%f(sy%iref)%gradient(xpoint,ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+       call sy%f(sy%iref)%gradient(xpoint,ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+       call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,ircp,-vup,id)
        call flx_symprintpath(xini,flxsym,rgb)
     end if
 
@@ -1060,7 +1134,8 @@ contains
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else if (bcpmethod == "quo") then
@@ -1074,14 +1149,16 @@ contains
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
              angle = angle + pi
              cangle = cos(angle)
              sangle = sin(angle)
              v = v1 * sangle + v2 * cangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
           end do
        else
@@ -1094,7 +1171,7 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
              ! last point before newton -> not converted to the main cell
              xpoint = sy%c%x2c(flx_path(size(flx_path,1)-1)%x)
              r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
@@ -1113,7 +1190,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1121,7 +1199,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = -thetavec(i) + pi
@@ -1129,7 +1208,8 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
 
              angle = angle + pi
@@ -1137,24 +1217,28 @@ contains
              sangle = sin(angle)
              v = v1 * cangle + v2 * sangle
              xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v,id)
              call flx_symprintpath(xini,flxsym,rgb)
-
           end do
 
           ! Manually do 0, pi/2, pi, 3pi/2
           ! write (uout,'("+ dyn: fluxing special angles.")')
           xpoint = xbcp + change * v1
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v1,id)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp + change * v2
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,v2,id)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v1
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,-v1,id)
           call flx_symprintpath(xini,flxsym,rgb)
           xpoint = xbcp - change * v2
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,flx_n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
+          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",n,-ircp,-v2,id)
           call flx_symprintpath(xini,flxsym,rgb)
        end if
        ! write (uout,*)

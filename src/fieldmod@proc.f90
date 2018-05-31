@@ -2199,7 +2199,7 @@ contains
           xcaux = pathini
           xxaux = fid%c%c2x(xcaux)
           call fid%grd(xcaux,2,resaux)
-          call addtopath(nstep,xcaux,xxaux,resaux)
+          call addtopath(0,xcaux,xxaux,resaux)
        end if
     end if
 
