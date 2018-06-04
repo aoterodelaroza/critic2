@@ -767,7 +767,7 @@ contains
     use struct_drivers, only: struct_write
     use crystalseedmod, only: crystalseed
     use global, only: eval_next, prunedist, gcpchange
-    use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
+    use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess, lower
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 
@@ -806,7 +806,7 @@ contains
           agraph = .false.
           do while (.true.)
              word = getword(line,lp2)
-             if (equal(word,'graph')) then
+             if (equal(lower(word),'graph')) then
                 agraph = .true.
              elseif (len_trim(word) > 0) then
                 aux = line2 // " " // trim(word)
