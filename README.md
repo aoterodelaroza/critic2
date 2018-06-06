@@ -155,10 +155,12 @@ code (though if you find that it is, please let me know).
 If a recent compiler is not available, an alternative is to compile
 the program elsewhere with the static linking option:
 
-    LDFLAGS=-static ./configure ...
+    LDFLAGS='-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive' ./configure ...
 
-provided the machine has the same architecture. You can choose the
-compiler by changing the FC and F77 flags before configure:
+provided the machine has the same architecture. (The part between the
+-Wl is there to prevent statically-linked gfortran executables from
+segfaulting.) You can choose the compiler by changing the FC and F77
+flags before configure:
 
     FC=gfortran F77=gfortran ./configure ...
 
