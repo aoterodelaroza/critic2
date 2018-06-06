@@ -138,7 +138,7 @@ contains
     use systemmod, only: systemmod_init
     use spgs, only: spgs_init
     use config, only: getstring, istring_datadir
-    use global, only: global_init, config_write, initial_banner, crsmall
+    use global, only: global_init, config_write, initial_banner
     use tools_io, only: ioinit, ucopy, uout, start_clock, &
        tictac, interactive, uin, filepath
     use param, only: param_init

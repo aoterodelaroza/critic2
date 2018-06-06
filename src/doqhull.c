@@ -180,7 +180,6 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], in
 void runqhull_basintriangulate_step2(int nf, int iface[nf][3]){
   rewind(fidsave_basintri);
   char buf[1024];
-  int idum;
 
   // read the faces
   fgets(buf, sizeof(buf), fidsave_basintri);

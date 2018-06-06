@@ -910,8 +910,8 @@ contains
     real*8, intent(in) :: dir(3)
     integer :: icp
 
-    integer :: i, idx, lvec(3)
-    real*8 :: nn2, xfin(3), dist
+    integer :: lvec(3)
+    real*8 :: nn2, dist
 
     real*8 :: nuceps, nucepsh
     real*8 :: cpeps
