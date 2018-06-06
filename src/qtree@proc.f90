@@ -874,7 +874,7 @@ contains
                       do nid = 1, nnuc
                          if (.not.nucmask(nid)) cycle
                          ! check if this point is inside a shell around the nucleus
-                         call sy%f(sy%iref)%nearest_cp(xx,nid0,dist,idx=nid)
+                         call sy%f(sy%iref)%nearest_cp(xx,nid0,dist,nid0=nid)
                          if (dist > r_betagp(nid)-mdist .and. dist < r_betagp(nid)+min(rdist,r_betagp(nid))) then
                             idx = cindex(vin,lvl)
                             trm(idx,tto) = int(term_rec(tt,vin,lvl,trm,fgr,lapgr),1)

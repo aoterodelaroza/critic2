@@ -909,8 +909,7 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    nid = 0
-    call f%c%nearest_atom(wx,nid,dist,lvec)
+    call f%c%nearest_atom(wx,nid,dist,lvec=lvec)
     if (per .or. .not.per .and. all(lvec == 0)) then
        res%isnuc = (dist < 1d-5)
        if (res%isnuc) res%gf = 0d0
@@ -1518,44 +1517,54 @@ contains
   end subroutine init_cplist
 
   !> Given the point xp in crystallographic coordinates, calculates
-  !> the nearest CP of type 'type' or non-equivalent index 'idx'. In the
-  !> output, nid represents the id (complete CP list), dist is the
-  !> distance. If nozero is true, skip zero-distance CPs.
-  module subroutine nearest_cp(f,xp,nid,dist,type,idx,nozero)
+  !> the nearest CP. In output, nid is the id from the complete CP
+  !> list and dist is the distance. If type is given, only search
+  !> among the CPs of that type. If nid0, consider only CPs with index
+  !> nid0 (complete list) If id0, consider only CPs with index id0
+  !> (non-equivalent list). If nozero, skip zero-distance CPs.
+  module subroutine nearest_cp(f,xp,nid,dist,lvec,type,nid0,id0,nozero)
     class(field), intent(in) :: f
     real*8, intent(in) :: xp(:)
     integer, intent(out) :: nid
     real*8, intent(out) :: dist
+    integer, intent(out), optional :: lvec(3)
     integer, intent(in), optional :: type
-    integer, intent(in), optional :: idx
+    integer, intent(in), optional :: nid0
+    integer, intent(in), optional :: id0
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: eps = 1d-10
 
-    real*8 :: temp(3), d2, d2min
+    real*8 :: temp(3), dd, dmin
     integer :: j
 
-    ! check if it is a known cp
     nid = 0
-    d2min = 1d30
+    dmin = 1d30
     do j = 1, f%ncpcel
        if (present(type)) then
           if (f%cpcel(j)%typ /= type) cycle
        end if
-       if (present(idx)) then
-          if (f%cpcel(j)%idx /= idx) cycle
+       if (present(nid0)) then
+          if (f%cpcel(j)%idx /= nid0) cycle
        end if
+       if (present(id0)) then
+          if (j /= id0) cycle
+       end if
+
        temp = f%cpcel(j)%x - xp
-       call f%c%shortest(temp,d2)
+       call f%c%shortest(temp,dd)
        if (present(nozero)) then
-          if (d2 < eps) cycle
+          if (dd < eps) cycle
        end if
-       if (d2 < d2min) then
+       if (dd < dmin) then
           nid = j
-          d2min = d2
+          dmin = dd
+          if (present(lvec)) then
+             lvec = nint(f%cpcel(j)%x - xp - temp)
+          end if
        end if
     end do
-    dist = d2min
+    dist = dmin
 
   end subroutine nearest_cp
 
@@ -1950,8 +1959,7 @@ contains
     end if
 
     ! distance to atoms
-    nid = 0
-    call f%c%nearest_atom(xc,nid,dist,lvec)
+    call f%c%nearest_atom(xc,nid,dist,lvec=lvec)
     if (dist < nuceps) then
        goto 999
     end if
@@ -2236,8 +2244,7 @@ contains
        end if
 
        ! nearest nucleus
-       idnuc = 0
-       call fid%c%nearest_atom(xpoint,idnuc,sphrad,lvec)
+       call fid%c%nearest_atom(xpoint,idnuc,sphrad,lvec=lvec)
        xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x - lvec)
        xnucr = fid%c%atcel(idnuc)%x - lvec
        idnuc = fid%c%atcel(idnuc)%idx

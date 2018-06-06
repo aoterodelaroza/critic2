@@ -1531,8 +1531,7 @@ contains
 
           found = .false.
           do j = 1, s%c%nneq
-             idx = j
-             call s%c%nearest_atom(x,idx,dist,lvec)
+             call s%c%nearest_atom(x,idx,dist,nid0=j,lvec=lvec)
              found = (dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
              if (found) exit
           end do

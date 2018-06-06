@@ -332,12 +332,15 @@ module crystalmod
        real*8, intent(out), optional :: dd
        logical :: are_lclose
      end function are_lclose
-     module subroutine nearest_atom(c,xp,nid,dist,lvec)
+     module subroutine nearest_atom(c,xp,nid,dist,lvec,nid0,id0,nozero)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xp(:)
-       integer, intent(inout) :: nid
+       integer, intent(out) :: nid
        real*8, intent(out) :: dist
-       integer, intent(out) :: lvec(3)
+       integer, intent(out), optional :: lvec(3)
+       integer, intent(in), optional :: nid0
+       integer, intent(in), optional :: id0
+       logical, intent(in), optional :: nozero
      end subroutine nearest_atom
      module function identify_atom(c,x0,lncel0)
        class(crystal), intent(in) :: c

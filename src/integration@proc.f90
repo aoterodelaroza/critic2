@@ -958,13 +958,12 @@ contains
     ! assign attractors to atoms
     if (atexist) then
        do i = 1, nattr0
-          nid = 0
-          call ff%c%nearest_atom(xgatt(:,i),nid,dist,lvec)
+          call ff%c%nearest_atom(xgatt(:,i),nid,dist,lvec=lvec)
           if (dist < ratom) then
              assigned(i) = nid
           else
              ! maybe the closest point is a known nnm
-             call ff%nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
+             call ff%nearest_cp(xgatt(:,i),nid,dist,type=ff%typnuc)
              if (dist < ratom) then
                 assigned(i) = nid
              end if

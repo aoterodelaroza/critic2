@@ -2312,11 +2312,9 @@ contains
 
     ! identify the endpoints
     x0 = xpath(1)%x
-    nid1 = 0
-    call sy%c%nearest_atom(x0,nid1,dist1,lvec)
+    call sy%c%nearest_atom(x0,nid1,dist1,lvec=lvec)
     x0 = xpath(nptf)%x
-    nid2 = 0
-    call sy%c%nearest_atom(x0,nid2,dist2,lvec)
+    call sy%c%nearest_atom(x0,nid2,dist2,lvec=lvec)
     rgb = (/0,0,0/)
     if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
        iz = sy%c%spc(sy%c%atcel(nid1)%is)%z

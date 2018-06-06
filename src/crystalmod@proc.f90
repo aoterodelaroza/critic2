@@ -786,34 +786,51 @@ contains
   end function are_lclose
 
   !> Given the point xp in crystallographic coordinates, calculates
-  !> the nearest atom. If nid /= 0, then consider only atoms of the
-  !> nid type (nneq atom list). In the output, nid represents the
-  !> complete list id (atcel). dist is the distance and lvec the
-  !> lattice vector required to transform atcel(nid)%x to the nearest
-  !> position. This routine is thread-safe.
-  module subroutine nearest_atom(c,xp,nid,dist,lvec)
+  !> the nearest atom. The nearest atom has ID nid from the complete
+  !> list (atcel) and is at a distance dist. On output, the optional
+  !> argument lvec contains the lattice vector to the nearest atom
+  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
+  !> only atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list.
+  !> If nozero, disregard zero-distance atoms.
+  module subroutine nearest_atom(c,xp,nid,dist,lvec,nid0,id0,nozero)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xp(:)
-    integer, intent(inout) :: nid
+    integer, intent(out) :: nid
     real*8, intent(out) :: dist
-    integer, intent(out) :: lvec(3)
+    integer, intent(out), optional :: lvec(3)
+    integer, intent(in), optional :: nid0
+    integer, intent(in), optional :: id0
+    logical, intent(in), optional :: nozero
 
-    real*8 :: temp(3), d2, d2min
-    integer :: j, nin
+    real*8, parameter :: eps = 1d-10
 
-    nin = nid
-    d2min = 1d30
-    do j= 1, c%ncel
-       if (nin /= 0 .and. c%atcel(j)%idx /= nin) cycle
+    real*8 :: temp(3), dd, dmin
+    integer :: j
+
+    nid = 0
+    dmin = 1d30
+    do j = 1, c%ncel
+       if (present(nid0)) then
+          if (c%atcel(j)%idx /= nid0) cycle
+       end if
+       if (present(id0)) then
+          if (j /= id0) cycle
+       end if
        temp = c%atcel(j)%x - xp
-       call c%shortest(temp,d2)
-       if (d2 < d2min) then
+       call c%shortest(temp,dd)
+       if (present(nozero)) then
+          if (dd < eps) cycle
+       end if
+       if (dd < dmin) then
           nid = j
-          d2min = d2
-          lvec = nint(c%atcel(j)%x - xp - temp)
+          dmin = dd
+          if (present(lvec)) then
+             lvec = nint(c%atcel(j)%x - xp - temp)
+          end if
        end if
     end do
-    dist = d2min
+    dist = dmin
 
   end subroutine nearest_atom
 

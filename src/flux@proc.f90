@@ -945,8 +945,7 @@ contains
     if (flx_n > 0) then
        call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),dist)
        if (dist <= cpeps) goto 999
-       flx_cpcelid(2) = 0
-       call sy%c%nearest_atom(flx_path(flx_n)%x,flx_cpcelid(2),dist,lvec)
+       call sy%c%nearest_atom(flx_path(flx_n)%x,flx_cpcelid(2),dist,lvec=lvec)
        if (dist <= nuceps) goto 999
        if (sy%c%spc(sy%c%atcel(flx_cpcelid(2))%is)%z == 1 .and. dist <= nucepsh) goto 999
     end if

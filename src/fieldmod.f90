@@ -283,13 +283,15 @@ module fieldmod
      module subroutine init_cplist(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist
-     module subroutine nearest_cp(f,xp,nid,dist,type,idx,nozero)
+     module subroutine nearest_cp(f,xp,nid,dist,lvec,type,nid0,id0,nozero)
        class(field), intent(in) :: f
        real*8, intent(in) :: xp(:)
        integer, intent(out) :: nid
        real*8, intent(out) :: dist
+       integer, intent(out), optional :: lvec(3)
        integer, intent(in), optional :: type
-       integer, intent(in), optional :: idx
+       integer, intent(in), optional :: nid0
+       integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_cp
      module function identify_cp(f,x0,eps)

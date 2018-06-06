@@ -167,8 +167,7 @@ contains
                    ! check if it is an atom (use ratom)
                    isassigned = .false.
                    if (atexist) then
-                      nid = 0
-                      call s%c%nearest_atom(dv,nid,dist,lvec)
+                      call s%c%nearest_atom(dv,nid,dist,lvec=lvec)
                       if (dist < ratom) then
                          path_volnum = nid
                          isassigned = .true.
