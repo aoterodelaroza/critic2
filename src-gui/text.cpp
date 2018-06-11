@@ -54,7 +54,7 @@ void InitFreetype(){
   const char *home = getenv("CRITIC_HOME");
   if (!home)
     exit(1);
-  std::string str = std::string(home) + std::string("/dat/ProggyClean.ttf");
+  std::string str = std::string(home) + std::string("/dat/fonts/ProggyClean.ttf");
   if (FT_New_Face(ftlib,str.c_str(), 0, &ftface))
     exit(1);
 

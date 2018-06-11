@@ -66,9 +66,7 @@ contains
     character(len=:), allocatable :: file
 
     ! build the file name
-    file = trim(critic_home) // dirsep // lower(nameguess(z))
-    file = trim(file) // "_pbe"
-    file = trim(file) // ".wfc"
+    file = trim(critic_home) // dirsep // "wfc" // dirsep // lower(nameguess(z)) // "_pbe.wfc"
 
     ! anions not supported
     if (q < 0) &

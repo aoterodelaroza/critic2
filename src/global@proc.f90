@@ -31,15 +31,17 @@ contains
     integer :: isenv
     logical :: lchk
 
-    character(len=:), allocatable :: msg1, msg2, msg3
+    character(len=:), allocatable :: cifstr, msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
+
+    cifstr = dirsep // "cif" // dirsep // "cif_core.dic"
 
     ! read the -r option
     if (len_trim(ghome) > 0) then
        critic_home = string(ghome) // dirsep // "dat"
-       inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+       inquire(file=trim(critic_home) // cifstr,exist=lchk)
        if (lchk) goto 99
-       write (uout,'("  File not found: ",A)') trim(critic_home)// dirsep // "cif_core.dic"
+       write (uout,'("  File not found: ",A)') trim(critic_home) // cifstr
     endif
 
     ! read env variable CRITIC_HOME
@@ -47,24 +49,24 @@ contains
     call get_environment_variable("CRITIC_HOME",critic_home,status=isenv)
     if (isenv ==0) then
        critic_home = trim(critic_home) // dirsep // "dat"
-       inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+       inquire(file=trim(critic_home) // cifstr,exist=lchk)
        if (lchk) goto 99
-       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home)// dirsep // "cif_core.dic"
+       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home) // cifstr
     else
        msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
     ! then the install path
     critic_home = trim(adjustl(datadir))
-    inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+    inquire(file=trim(critic_home) // cifstr,exist=lchk)
     if (lchk) goto 99
-    msg2 = "(!) 2. Not found (install path): " // trim(critic_home)// dirsep // "cif_core.dic"
+    msg2 = "(!) 2. Not found (install path): " // trim(critic_home) // cifstr
 
     ! then the current directory
     critic_home = "."
-    inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+    inquire(file=trim(critic_home) // cifstr,exist=lchk)
     if (lchk) goto 99
-    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home)// dirsep // "cif_core.dic"
+    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home) // cifstr
 
     ! argh!
     call ferror("grda_init","Could not find data files.",warning)
@@ -76,8 +78,8 @@ contains
 99  continue
 
     ! library file path
-    clib_file = trim(critic_home) // dirsep // "crystal.dat"
-    mlib_file = trim(critic_home) // dirsep // "molecule.dat"
+    clib_file = trim(critic_home) // dirsep // "lib" // dirsep // "crystal.dat"
+    mlib_file = trim(critic_home) // dirsep // "lib" // dirsep // "molecule.dat"
 
     ! set all default values
     call global_set_defaults()
@@ -215,8 +217,8 @@ contains
     write (uout,'("       debug?: ",A)') getstring(istring_enabledebug)
     write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)
     write (uout,'("      datadir: ",A)') trim(critic_home)
-    inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
-    write (uout,'("     dic file: ",A)') trim(critic_home)// dirsep // "cif_core.dic"
+    inquire(file=trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic",exist=lchk)
+    write (uout,'("     dic file: ",A)') trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic"
     write (uout,'("...was found?: ",L)') lchk
     write (uout,*)
 

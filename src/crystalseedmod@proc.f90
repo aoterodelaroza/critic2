@@ -672,7 +672,7 @@ contains
     if (.not.checkcifop()) goto 999
 
     ! open dictionary
-    dictfile = trim(adjustl(critic_home)) // dirsep // 'cif_core.dic'
+    dictfile = trim(adjustl(critic_home)) // dirsep // "cif" // dirsep // 'cif_core.dic'
     fl = dict_(dictfile,'valid')
     if (.not.checkcifop()) goto 999
     if (.not.fl) then
@@ -3423,7 +3423,7 @@ contains
     if (.not.checkcifop()) goto 999
 
     ! open dictionary
-    dictfile = trim(adjustl(critic_home)) // dirsep // 'cif_core.dic'
+    dictfile = trim(adjustl(critic_home)) // dirsep // "cif" // dirsep // 'cif_core.dic'
     fl = dict_(dictfile,'valid')
     if (.not.checkcifop()) goto 999
     if (.not.fl) then
