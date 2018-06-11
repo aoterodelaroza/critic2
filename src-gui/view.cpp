@@ -77,7 +77,7 @@ View::View(char *title_, float atex, int iscene/*=0*/){
   FBO_a = atex;
   if (iscene > 0)
     changeScene(iscene);
-  for (int i=0; i++; i<4)
+  for (int i=0; i<4; i++)
     bgrgb[i] = view_bgrgb[i];
 }
 View::~View(){
@@ -136,7 +136,7 @@ void View::setDefault(Scene *sc_/*=nullptr*/, Variable_ var/*=V_ALL*/){
   else if (var == V_resetdistance)
     sc_->resetd = view_resetdistance; 
   else if (var == V_bgrgb)
-    for (int i=0; i++; i<4)
+    for (int i=0; i<4; i++)
       bgrgb[i] = view_bgrgb[i];
   else if (var == V_show_atoms)
     sc_->show_atoms = view_show_atoms;
