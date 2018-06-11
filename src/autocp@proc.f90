@@ -100,7 +100,7 @@ contains
     real*8, allocatable :: tetrag(:,:,:)
     logical :: cpdebug, seedobj
     integer :: nseed 
-    integer :: i, j, k, i1, i2, i3, lp, lpo, n0
+    integer :: i, j, k, i1, i2, i3, lp, lpo, n0, nrun
     integer :: m, nf, ntheta, nphi, nr
     type(seed_), allocatable :: seed(:), saux(:)
     logical :: firstseed, hadx1
@@ -156,8 +156,6 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'dry')) then
           dryrun = .true.
-       elseif (equal(word,'verbose')) then
-          cpdebug = .true.
        elseif (equal(word,'seedobj')) then
           seedobj = .true.
        elseif (equal(word,'gradeps')) then
@@ -685,19 +683,18 @@ contains
     ! If not a dry run, do the search
     if (.not.dryrun) then
        write (uout,'("+ Searching for CPs")')
-       if (cpdebug) &
-          write (uout,'("  CP localization progress:")')
+       write (uout,'("  CP localization progress:")')
        nss = max(nn / 25,1)
        ndegenr = 0
+       nrun = 0
        !$omp parallel do private(ier,x0) schedule(dynamic)
        do i = 1, nn
-          if (cpdebug) then
-             !$omp critical (progress)
-             if (mod(i,nss) == 1) then
-                write (uout,'("  [",A,"/",A,"]")') string(i), string(nn)
-             end if
-             !$omp end critical (progress)
+          !$omp critical (progress)
+          nrun = nrun + 1
+          if (mod(nrun,nss) == 1) then
+             write (uout,'("  [",A,"/",A,"]")') string(nrun), string(nn)
           end if
+          !$omp end critical (progress)
           x0 = xseed(:,i)
           call sy%f(sy%iref)%newton(x0,gfnormeps,ier)
           if (ier <= 0) then

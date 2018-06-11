@@ -3204,8 +3204,7 @@ Automatic determination of critical points (AUTO)
 ::
 
   AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [NUCEPSH nepsh.r]
-       [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [VERBOSE] [DRY]
-       [SEEDOBJ] ...
+       [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [DRY] [SEEDOBJ] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
   AUTO ... [SEED ...] [SEED ...] ...
@@ -3339,8 +3338,7 @@ seed per pair), a recursive subdivision of the WS cell (one level),
 and a single seed at (0.25 0.25 0.25). The seed placement can be
 visualized using the optional SEEDOBJ keyword that writes an OBJ file
 (<root>_seeds.obj) containing the unit cell and all the seed
-positions. The keyword VERBOSE writes additional information about the
-search to the output.
+positions.
 
 The AUTO search can be restricted to a portion of the unit cell using
 the CLIP keyword. The CLIP keyword specifies a region of real
@@ -3373,7 +3371,7 @@ involve any number of fields, not just the reference field.
 
 If DRY (dry run) is used, then the seeding is done but the actual CP
 search is skipped. This is useful to examine the seed placement (in
-combination with VERBOSE) and also to print the current list of CPs at
+combination with SEEDOBJ) and also to print the current list of CPs at
 zero computational cost (for intsance, after a CHECK run).
 
 CPEPS controls the minimum distance between CPs to consider them
