@@ -124,6 +124,8 @@ void View::setDefault(Scene *sc_/*=nullptr*/, Variable_ var/*=V_ALL*/){
     sc_->setSpecular(view_specular);
   else if (var == V_shininess)
     sc_->setShininess(view_shininess);
+  else if (var == V_rgb_labels)
+    sc_->setTextColor(glm::vec3(view_rgb_labels[0],view_rgb_labels[1],view_rgb_labels[2]));
   else if (var == V_wireframe)
     sc_->iswire = view_wireframe;
   else if (var == V_orthogonal)
@@ -151,9 +153,6 @@ void View::setDefault(Scene *sc_/*=nullptr*/, Variable_ var/*=V_ALL*/){
     sc_->lat_labels = view_lat_labels;
   else if (var == V_scale_labels)
     sc_->scale_labels = view_scale_labels;
-  else if (var == V_rgb_labels)
-    for (int i=0;i<3;i++)
-      sc_->rgb_labels[i] = view_rgb_labels[i];
 }
 
 void View::Draw(){
@@ -362,7 +361,7 @@ void View::Draw(){
         PopItemWidth();
         changed |= Checkbox("Show lattice vector", &sc->lat_labels);
         changed |= DragFloat("Label size", &sc->scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
-        changed |= ColorEdit3("Label color", sc->rgb_labels, coloreditflags);
+        changed |= ColorEdit3("Label color", value_ptr(sc->textcolor), coloreditflags);
         Unindent();
       }
       PopItemWidth();
@@ -389,16 +388,8 @@ void View::Update(){
   if (sc){
     sc->updatescene = false;
 
-    // prepare for rendering text
-    if (sc->show_labels){
-      sc->shader->usetext();
-      sc->shader->setTextProjection(FBO_a);
-      glm::vec3 textcolor(sc->rgb_labels[0],sc->rgb_labels[1],sc->rgb_labels[2]);
-      sc->shader->setTextColor(value_ptr(textcolor));
-    }
-
-    sc->shader->use();
-    sc->shader->setInt("uselighting",1);
+    sc->shphong->use();
+    sc->shphong->setInt("uselighting",1);
     if (sc->iswire)
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     const float rthr = 0.01f;
@@ -458,39 +449,47 @@ void View::Update(){
         for (int iy=imin[i][1]; iy<imax[i][1]; iy++){
           for (int iz=imin[i][2]; iz<imax[i][2]; iz++){
             glm::vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
+            // atoms
             if (sc->show_atoms)
               drawSphere(x0,sc->scale_atoms * c2::at[i].rad,rgb,sc->isphres,false);
-            if (sc->show_labels)
+
+            // bonds
+            if (sc->show_bonds){
+              for (int j=0;j<c2::at[i].ncon;j++){
+                int ineigh = idcon_[i][j];
+                int ixn = ix + lcon_[i][j][0];
+                int iyn = iy + lcon_[i][j][1];
+                int izn = iz + lcon_[i][j][2];
+                if (ineigh < i || ineigh == i && (ixn < ix || ixn == ix && (iyn < iy || iyn == iy && izn < iz))) continue;
+                if (ixn < imin[ineigh][0] || ixn >= imax[ineigh][0] || iyn < imin[ineigh][1] || iyn >= imax[ineigh][1] ||
+                    izn < imin[ineigh][2] || izn >= imax[ineigh][2]) continue;
+
+                glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) - center + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
+                glm::vec3 xmid = x0 + 0.5f * (x1 - x0);
+                glm::vec4 rgbn = glm::make_vec4(c2::at[ineigh].rgb);
+
+                const float rad = 0.2f;
+                drawCylinder(x0,xmid,sc->scale_bonds * rad,rgb,sc->icylres,false);
+                drawCylinder(xmid,x1,sc->scale_bonds * rad,rgbn,sc->icylres,false);
+              }
+            }
+
+            // labels
+            if (sc->show_labels){
+              sc->shtext->use();
               drawAtomLabel(x0,i,ix,iy,iz);
-
-            if (!sc->show_bonds) continue;
-            for (int j=0;j<c2::at[i].ncon;j++){
-              int ineigh = idcon_[i][j];
-              int ixn = ix + lcon_[i][j][0];
-              int iyn = iy + lcon_[i][j][1];
-              int izn = iz + lcon_[i][j][2];
-              if (ineigh < i || ineigh == i && (ixn < ix || ixn == ix && (iyn < iy || iyn == iy && izn < iz))) continue;
-              if (ixn < imin[ineigh][0] || ixn >= imax[ineigh][0] || iyn < imin[ineigh][1] || iyn >= imax[ineigh][1] ||
-        	  izn < imin[ineigh][2] || izn >= imax[ineigh][2]) continue;
-
-              glm::vec3 x1 = glm::make_vec3(c2::at[ineigh].r) - center + (float) ixn * vx + (float) iyn * vy + (float) izn * vz;
-              glm::vec3 xmid = x0 + 0.5f * (x1 - x0);
-              glm::vec4 rgbn = glm::make_vec4(c2::at[ineigh].rgb);
-
-              const float rad = 0.2f;
-              drawCylinder(x0,xmid,sc->scale_bonds * rad,rgb,sc->icylres,false);
-              drawCylinder(xmid,x1,sc->scale_bonds * rad,rgbn,sc->icylres,false);
+              sc->shphong->use();
             }
           }
         }
       }
-    }
+    } // for (int i=0;i<c2::nat;i++)
 
     if (sc->iswire)
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // unit cell
-    sc->shader->setInt("uselighting",0);
+    sc->shphong->setInt("uselighting",0);
     if (sc->isucell)
       drawUnitCell(v0,vx,vy,vz,true);
     if (sc->ismolcell){
@@ -505,7 +504,8 @@ void View::Update(){
     // vec3 v0 = vec3(0.f,0.f,0.f);
     // vec4 rgb = {1.0f,1.0f,1.0f,0.4f};
     // drawSphere(v0,c2::scenerad,rgb,3,true);
-  }
+
+  } // if (sc)
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -733,6 +733,9 @@ bool View::updateTexSize(){
 
   if (FBO_a != amax){
     FBO_a = amax;
+    sc->shtext->use();
+    glm::mat4 proj = glm::ortho(0.0f, FBO_a, 0.0f, FBO_a);
+    sc->shtext->setMat4("projection",value_ptr(proj));
     redraw = true;
   }
 
@@ -857,9 +860,9 @@ void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blen
   m_model = glm::scale(m_model,glm::vec3(rad,rad,rad));
   glm::mat3 m_normrot = glm::transpose(glm::inverse(glm::mat3(sc->m_view) * glm::mat3(sc->m_world) * glm::mat3(m_model)));
 
-  sc->shader->setVec4("vColor",value_ptr(rgb));
-  sc->shader->setMat4("model",value_ptr(m_model));
-  sc->shader->setMat3("normrot",value_ptr(m_normrot));
+  sc->shphong->setVec4("vColor",value_ptr(rgb));
+  sc->shphong->setMat4("model",value_ptr(m_model));
+  sc->shphong->setMat3("normrot",value_ptr(m_normrot));
   glDrawElements(GL_TRIANGLES, 3*sphnel[res], GL_UNSIGNED_INT, 0);
   if (blend)
     glDepthMask(1);
@@ -883,9 +886,9 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
     m_model = m_model * glm::rotate(acos(dot(xdif,up)),crs);
   m_model = glm::scale(m_model,glm::vec3(rad,rad,blen));
   glm::mat3 m_normrot = glm::transpose(glm::inverse(glm::mat3(sc->m_view) * glm::mat3(sc->m_world) * glm::mat3(m_model)));
-  sc->shader->setMat3("normrot",value_ptr(m_normrot));
-  sc->shader->setVec4("vColor",value_ptr(rgb));
-  sc->shader->setMat4("model",value_ptr(m_model));
+  sc->shphong->setMat3("normrot",value_ptr(m_normrot));
+  sc->shphong->setVec4("vColor",value_ptr(rgb));
+  sc->shphong->setMat4("model",value_ptr(m_model));
   glDrawElements(GL_TRIANGLES, 3*cylnel[sc->icylres], GL_UNSIGNED_INT, 0);
   if (blend)
     glDepthMask(1);
@@ -942,7 +945,6 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
 
 void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
   if (!sc) return;
-  sc->shader->usetext();
   glm::vec2 v0 = world_to_texpos(x0);
   
   // build the label (remove trailing blank space)
@@ -968,7 +970,6 @@ void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
     label = "(" + to_string(ix) + "," + to_string(iy) + "," + to_string(iz) + ")";
     RenderText(label,v0.x,v0.y-size.y-pady,scalevec * sc->scale_labels,true);
   }
-  sc->shader->use();
 }
 
 View *CreateView(char *title, int iscene/*=0*/){

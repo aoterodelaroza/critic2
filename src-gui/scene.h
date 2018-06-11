@@ -58,7 +58,7 @@ struct Scene{
   int format_labels; // format of the labels (0=ncel, 1=nneq, 2=name, 3=symbol)
   bool lat_labels; // labels show lattice vector
   float scale_labels; // scale of the labels
-  float rgb_labels[3]; // color of the labels
+  glm::vec3 textcolor; // color of the labels
   int icylres; // bond resolution
   bool iswire = false; // use wire
   bool isortho = false; // is ortho or perspective?
@@ -83,20 +83,17 @@ struct Scene{
   bool updatescene = false; // update the scene next pass
 
   // Shader
-  Shader *shader;
+  Shader *shphong = nullptr;
+  Shader *shtext = nullptr;
 
   // Constructor
-  Scene(int isc){
-    shader = new Shader;
-    iscene = isc;
-    grabFromC2();
-    setDefaults();
-    resetView();
-    updateAll();  
-  };
+  Scene(int isc);
 
   ~Scene(){
-    delete shader;
+    if (shphong)
+      delete shphong;
+    if (shtext)
+      delete shtext;
   }
 
   void grabFromC2(); // Get the scene parameters from the critic2 interface
@@ -107,6 +104,7 @@ struct Scene{
   void setDiffuse(float diffuse); // Set variable: diffuse
   void setSpecular(float specular); // Set variable: specular
   void setShininess(int shininess); // Set variable: shininess
+  void setTextColor(glm::vec3 textcolor); // Set variable: text color
 
   void resetView(); // Reset the view parameters (does not update)
   void updateAll(); // Update all matrices

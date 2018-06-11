@@ -20,6 +20,8 @@
 */
 
 #include "scene.h"
+#include "shader.h"
+#include "critic2.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/rotate_vector.hpp>
@@ -28,6 +30,24 @@
 #include <glm/glm.hpp>
 
 const float ofov = 45.0f; // "field of view" for orthogonal projection
+
+Scene::Scene(int isc){
+  std::string vpath = std::string(c2::c2home) + std::string("/shaders/phong.vs");
+  std::string fpath = std::string(c2::c2home) + std::string("/shaders/phong.fs");
+  shphong = new Shader(vpath.c_str(),fpath.c_str());
+
+  vpath = std::string(c2::c2home) + std::string("/shaders/text.vs");
+  fpath = std::string(c2::c2home) + std::string("/shaders/text.fs");
+  shtext = new Shader(vpath.c_str(),fpath.c_str());
+
+  iscene = isc;
+  grabFromC2();
+  setDefaults();
+  resetView();
+
+  shphong->use();
+  updateAll();  
+}
 
 void Scene::grabFromC2(){
   c2::scene_initialize(iscene);
@@ -57,8 +77,6 @@ void Scene::setDefaults(){
   format_labels = view_format_labels;
   lat_labels = view_lat_labels;
   scale_labels = view_scale_labels;
-  for (int i=0;i<3;i++)
-    rgb_labels[i] = view_rgb_labels[i];
   icylres = view_icylres;
   iswire = view_wireframe;
   isortho = view_orthogonal;
@@ -69,37 +87,43 @@ void Scene::setDefaults(){
   setDiffuse(view_diffuse);
   setSpecular(view_specular);
   setShininess(view_shininess);
+  setTextColor(glm::vec3(view_rgb_labels[0],view_rgb_labels[1],view_rgb_labels[2]));
 }
 
 void Scene::setLightpos(glm::vec3 lightpos_){
   lightpos = lightpos_;
-  shader->use();
-  shader->setVec3("lightPos",value_ptr(lightpos));
+  shphong->use();
+  shphong->setVec3("lightPos",value_ptr(lightpos));
 }
 void Scene::setLightcolor(glm::vec3 lightcolor_){
   lightcolor = lightcolor_;
-  shader->use();
-  shader->setVec3("lightColor",value_ptr(lightcolor));
+  shphong->use();
+  shphong->setVec3("lightColor",value_ptr(lightcolor));
 }
 void Scene::setAmbient(float ambient_){
   ambient = ambient_;
-  shader->use();
-  shader->setFloat("ambient",ambient);
+  shphong->use();
+  shphong->setFloat("ambient",ambient);
 }
 void Scene::setDiffuse(float diffuse_){
   diffuse = diffuse_;
-  shader->use();
-  shader->setFloat("diffuse",diffuse);
+  shphong->use();
+  shphong->setFloat("diffuse",diffuse);
 }
 void Scene::setSpecular(float specular_){
   specular = specular_;
-  shader->use();
-  shader->setFloat("specular",specular);
+  shphong->use();
+  shphong->setFloat("specular",specular);
 }
 void Scene::setShininess(int shininess_){
   shininess = shininess_;
-  shader->use();
-  shader->setInt("shininess",shininess);
+  shphong->use();
+  shphong->setInt("shininess",shininess);
+}
+void Scene::setTextColor(glm::vec3 textcolor_){
+  textcolor = textcolor_;
+  shtext->use();
+  shtext->setVec3("textColor",value_ptr(textcolor));
 }
 
 void Scene::resetView(){
@@ -127,18 +151,18 @@ void Scene::updateProjection(){
   } else {
     m_projection = glm::infinitePerspective(glm::radians(zfov),1.0f,znear);
   }
-  shader->setMat4("projection",value_ptr(m_projection));
+  shphong->setMat4("projection",value_ptr(m_projection));
   updatescene = true;
 }
 
 void Scene::updateView(){
   m_view = lookAt(v_pos,v_pos+v_front,v_up);
-  shader->setMat4("view",value_ptr(m_view));
+  shphong->setMat4("view",value_ptr(m_view));
   updatescene = true;
 }
 
 void Scene::updateWorld(){
-  shader->setMat4("world",value_ptr(m_world));
+  shphong->setMat4("world",value_ptr(m_world));
   updatescene = true;
 }
 

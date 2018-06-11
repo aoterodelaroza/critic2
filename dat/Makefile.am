@@ -1,2 +1,2 @@
-SUBDIRS=wfc lib cif fonts
+SUBDIRS=wfc lib cif fonts shaders
 
