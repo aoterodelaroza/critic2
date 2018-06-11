@@ -210,6 +210,7 @@ xxxx
   AUTO SEED TRIPLET [DIST dist.r]
   AUTO SEED LINE [X0 x0.r y0.r z0.r] [X1 x0.r y0.r z0.r] [NPTS n.i]
   AUTO SEED POINT  [X0 x0.r y0.r z0.r]
+  AUTO SEED MESH
 * CPREPORT {SHORT|LONG|VERYLONG|SHELLS [n.i]}
   CPREPORT file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
            [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]

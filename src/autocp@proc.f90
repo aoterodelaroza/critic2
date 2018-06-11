@@ -55,9 +55,11 @@ contains
   module subroutine autocritic(line)
     use systemmod, only: sy
     use fieldmod, only: type_grid
+    use meshmod, only: mesh
     use graphics, only: grhandle
     use surface, only: minisurf
-    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot
+    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
+       mesh_type
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -70,8 +72,9 @@ contains
     integer, parameter :: styp_triplet = 3 ! triplets
     integer, parameter :: styp_line = 4    ! line
     integer, parameter :: styp_sphere = 5  ! sphere
-    integer, parameter :: styp_oh = 6  ! octahedron subdivision
+    integer, parameter :: styp_oh = 6      ! octahedron subdivision
     integer, parameter :: styp_point = 7   ! point
+    integer, parameter :: styp_mesh = 7    ! molecular mesh
     type seed_
        integer :: typ        ! type of seeding strategy
        integer :: depth = 1  ! WS recursive subdivision level
@@ -111,6 +114,7 @@ contains
     real*8 :: nuceps
     real*8 :: nucepsh
     type(grhandle) :: gr
+    type(mesh) :: meshseed
 
     if (.not.quiet) then
        call tictac("Start AUTO")
@@ -247,6 +251,8 @@ contains
              seed(nseed)%typ = styp_oh
           elseif (equal(word,'point')) then
              seed(nseed)%typ = styp_point
+          elseif (equal(word,'mesh')) then
+             seed(nseed)%typ = styp_mesh
           else
              call ferror('autocritic','Unknown keyword in AUTO/SEED',faterr,line,syntax=.true.)
              return
@@ -489,6 +495,15 @@ contains
 
           ! clean up
           call srf%end()
+       elseif (seed(i)%typ == styp_mesh) then
+          call meshseed%gen(sy%c,MESH_type)
+          
+          call realloc(xseed,3,nn+meshseed%n)
+          do j = 1, meshseed%n
+             nn = nn + 1
+             xseed(:,nn) = sy%c%c2x(meshseed%x(:,j))
+          end do
+
        elseif (seed(i)%typ == styp_point) then
           ! add a point
           nn = nn + 1
@@ -564,6 +579,8 @@ contains
              string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
           str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
           str = str // ", nr=" // string(seed(i)%nr)
+       elseif (seed(i)%typ == styp_mesh) then
+          str = str // " Molecular integration mesh "
        elseif (seed(i)%typ == styp_point) then
           str = str // " Point         "
           str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &

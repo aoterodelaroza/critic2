@@ -3219,6 +3219,7 @@ Automatic determination of critical points (AUTO)
   AUTO SEED LINE [X0 x0.r y0.r z0.r] [X1 x0.r y0.r z0.r]
                  [NPTS n.i]
   AUTO SEED POINT [X0 x0.r y0.r z0.r]
+  AUTO SEED MESH
 
 The search for the critical points (CP) of a scalar field (the points
 where the gradient of the field vanishes) is a basic task in QTAIM. In
@@ -3250,13 +3251,13 @@ In addition, AUTO provides multiple seeding strategies that can be
 combined by the user using the SEED keyword. These include searches
 between pairs of atoms (PAIR), atomic triplets (TRIPLET), uniform
 seeding in a sphere (SPHERE), a recursive subdivision of an octahedron
-(OH), and seeding along lines (LINE) and at points (POINT). The seed
-list built using these "seeding actions" is pruned to remove
-duplicates. Optionally, a portion of the unit cell can be selected to
-restrict the search in real space using the CLIP keyword. Once the
-seed list is built, Newton-Raphson is applied at each of the seeds on
-the list, making full use of shared-memory parallelization and crystal
-symmetry.
+(OH), seeding along lines (LINE) and at points (POINT), and seeding at
+a molecular integration mesh (MESH). The seed list built using these
+"seeding actions" is pruned to remove duplicates. Optionally, a
+portion of the unit cell can be selected to restrict the search in
+real space using the CLIP keyword. Once the seed list is built,
+Newton-Raphson is applied at each of the seeds on the list, making
+full use of shared-memory parallelization and crystal symmetry.
 
 The default seeding can be changed using one or more SEED
 keywords. When a SEED keyword is used, the default seeding strategy is
@@ -3322,6 +3323,10 @@ immediately after SEED. This keyword can be:
   mandatory). The units for x0 are crystallographic coordinates in
   crystals and molecular Cartesian coordinates in molecules (default:
   angstrom unless changed by UNITS).
+
+* MESH: place seeds at the nodes of a molecular integration mesh. The
+  type of mesh can be controlled with the MESHTYP keyword (see
+  `Control commands and options`_).
 
 Multiple SEED keywords can be given in the same AUTO command. For
 instance::
@@ -6222,7 +6227,8 @@ errprop is the field value and the Laplacian. delta.r = 1e-5 bohr.
 
 Choose the type and quality of the molecular integration mesh. These
 meshes are used in molecular and crystals to calculate integrals over
-the whole space. For now, they are only used in the XDM module. 
+the whole space (cell in crystals, R3 in molecules - used in XDM), and
+for the MESH seeding option in AUTO.
 
 + BECKE: Becke-style integration grids with the same quality
   parameters as in postg. As currently implemented, it is quite slow
