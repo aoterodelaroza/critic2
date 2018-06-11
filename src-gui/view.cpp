@@ -74,6 +74,7 @@ static string view_tooltip_label(int id){
 View::View(char *title_, float atex, int iscene/*=0*/){
   title = title_;
   createTex(atex);
+  FBO_a = atex;
   if (iscene > 0)
     changeScene(iscene);
   for (int i=0; i++; i<4)
@@ -89,7 +90,7 @@ View::~View(){
 void View::changeScene(int isc){
   if (isc > 0 && isc <= c2::nsc && isc != iscene){
     if (scmap.find(isc) == scmap.end()){
-      sc = new Scene(isc);
+      sc = new Scene(isc,FBO_a);
       llock = false;
       rlock = false;
       scmap[isc] = sc;
@@ -730,9 +731,7 @@ bool View::updateTexSize(){
 
   if (FBO_a != amax){
     FBO_a = amax;
-    sc->usetext();
-    glm::mat4 proj = glm::ortho(0.0f, FBO_a, 0.0f, FBO_a);
-    sc->shtext->setMat4("projection",value_ptr(proj));
+    sc->setTextureSize(amax);
     redraw = true;
   }
 

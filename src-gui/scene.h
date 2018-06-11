@@ -88,7 +88,7 @@ struct Scene{
   Shader *shtext = nullptr;
 
   // Constructor
-  Scene(int isc);
+  Scene(int isc, float atex);
 
   ~Scene(){
     if (shphong)
@@ -109,6 +109,7 @@ struct Scene{
   void setSpecular(float specular); // Set variable: specular
   void setShininess(int shininess); // Set variable: shininess
   void setTextColor(glm::vec3 textcolor); // Set variable: text color
+  void setTextureSize(float atex); // Set variable: texture size
 
   void resetView(); // Reset the view parameters (does not update)
   void updateAll(); // Update all matrices

@@ -31,7 +31,7 @@
 
 const float ofov = 45.0f; // "field of view" for orthogonal projection
 
-Scene::Scene(int isc){
+Scene::Scene(int isc, float atex){
   std::string vpath = std::string(c2::c2home) + std::string("/shaders/phong.vs");
   std::string fpath = std::string(c2::c2home) + std::string("/shaders/phong.fs");
   shphong = new Shader(vpath.c_str(),fpath.c_str());
@@ -45,6 +45,7 @@ Scene::Scene(int isc){
   setDefaults();
   resetView();
   updateAll();  
+  setTextureSize(atex);
 }
 
 void Scene::usephong(){
@@ -136,6 +137,11 @@ void Scene::setTextColor(glm::vec3 textcolor_){
   textcolor = textcolor_;
   usetext();
   shtext->setVec3("textColor",value_ptr(textcolor));
+}
+void Scene::setTextureSize(float atex){
+  usetext();
+  glm::mat4 proj = glm::ortho(0.0f, atex, 0.0f, atex);
+  shtext->setMat4("projection",value_ptr(proj));
 }
 
 void Scene::resetView(){
