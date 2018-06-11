@@ -276,12 +276,12 @@ void View::Draw(){
   if (drawprefs)
     ImGui::OpenPopup("prefview");
   if (BeginPopup("prefview")){
-    bool changed = false;
+    bool changedany = false, changedphong = false, changedtext = false;
     if (sc){
       float itemwidth = 5.f * g->FontSize;
-      changed |= Checkbox("Unit cell", &sc->isucell);
+      changedany |= Checkbox("Unit cell", &sc->isucell);
       if (sc->ismolecule)
-        changed |= Checkbox("Molecular cell", &sc->ismolcell);
+        changedany |= Checkbox("Molecular cell", &sc->ismolcell);
       PushItemWidth(itemwidth);
 
       if (!sc->ismolecule){
@@ -289,19 +289,19 @@ void View::Draw(){
 	Text("Number of cells:");
 	SameLine();
 	if (Button("Reset")){
-	  changed = true;
 	  sc->ncell[0] = sc->ncell[1] = sc->ncell[2] = 1;
-	}
+          changedany = true;
+        }
 	Indent();
 	AlignTextToFramePadding();
 	Text("a:"); SameLine(0.f,0.f);
-	changed |= InputInt("##aaxis", &sc->ncell[0]);
+	changedany |= InputInt("##aaxis", &sc->ncell[0]);
 	SameLine();
 	Text("b:"); SameLine(0.f,0.f);
-	changed |= InputInt("##baxis", &sc->ncell[1]);
+	changedany |= InputInt("##baxis", &sc->ncell[1]);
 	SameLine();
 	Text("c:"); SameLine(0.f,0.f);
-	changed |= InputInt("##caxis", &sc->ncell[2]);
+	changedany |= InputInt("##caxis", &sc->ncell[2]);
 	for (int i=0; i<3; i++)
 	  sc->ncell[i] = std::max(1,sc->ncell[i]);
 	Unindent();
@@ -322,56 +322,60 @@ void View::Draw(){
         Unindent();
         if (ialign != 0){
           sc->alignViewAxis(ialign);
-          changed = true;
+          changedphong = true;
         }
 
         if (!sc->ismolecule){
-          changed |= Checkbox("Crystal packing", &sc->isborder);
-          changed |= Checkbox("Molecular motif", &sc->ismotif);
+          changedany |= Checkbox("Crystal packing", &sc->isborder);
+          changedany |= Checkbox("Molecular motif", &sc->ismotif);
         }
       }
 
       Separator();
-      changed |= Checkbox("Wireframe rendering", &sc->iswire);
-      changed |= Checkbox("Orthgonal projection", &sc->isortho);
+      changedphong |= Checkbox("Wireframe rendering", &sc->iswire);
+      changedphong |= Checkbox("Orthgonal projection", &sc->isortho);
       if (!sc->isortho){
         Indent();
-        changed |= DragFloat("Field of view (degrees)", &sc->zfov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
+        changedphong |= DragFloat("Field of view (degrees)", &sc->zfov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
         Unindent();
       }
-      changed |= DragFloat("Reset distance (scene radius)", &sc->resetd, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
-      changed |= Checkbox("Show atoms", &sc->show_atoms);
+      changedany |= DragFloat("Reset distance (scene radius)", &sc->resetd, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
+      changedany |= Checkbox("Show atoms", &sc->show_atoms);
       if (sc->show_atoms){
         Indent();
-        changed |= SliderInt("Atom resolution", &sc->isphres, 0, nmaxsph-1); 
-        changed |= DragFloat("Atom size", &sc->scale_atoms, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+        changedany |= SliderInt("Atom resolution", &sc->isphres, 0, nmaxsph-1); 
+        changedany |= DragFloat("Atom size", &sc->scale_atoms, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
         Unindent();
       }
-      changed |= Checkbox("Show bonds", &sc->show_bonds);
+      changedany |= Checkbox("Show bonds", &sc->show_bonds);
       if (sc->show_bonds){
         Indent();
-        changed |= SliderInt("Bond resolution", &sc->icylres, 0, nmaxcyl-1); 
-        changed |= DragFloat("Bond size", &sc->scale_bonds, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+        changedany |= SliderInt("Bond resolution", &sc->icylres, 0, nmaxcyl-1); 
+        changedany |= DragFloat("Bond size", &sc->scale_bonds, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
         Unindent();
       }
-      changed |= Checkbox("Show labels", &sc->show_labels);
+      changedany |= Checkbox("Show labels", &sc->show_labels);
       if (sc->show_labels){
         Indent();
         PushItemWidth(2.5f * itemwidth);
-        changed |= Combo("Label text", &sc->format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0Fragment\0");
+        changedany |= Combo("Label text", &sc->format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0Fragment\0");
         PopItemWidth();
-        changed |= Checkbox("Show lattice vector", &sc->lat_labels);
-        changed |= DragFloat("Label size", &sc->scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
-        changed |= ColorEdit3("Label color", value_ptr(sc->textcolor), coloreditflags);
+        changedany |= Checkbox("Show lattice vector", &sc->lat_labels);
+        changedany |= DragFloat("Label size", &sc->scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f);
+        changedtext |= ColorEdit3("Label color", value_ptr(sc->textcolor), coloreditflags);
         Unindent();
       }
       PopItemWidth();
       Separator();
     }
-    changed |= ColorEdit4("Background color", bgrgb, coloreditflags);
+    changedany |= ColorEdit4("Background color", bgrgb, coloreditflags);
 
-    if (changed && sc)
+    if (changedphong && sc)
       sc->updateAll();
+    if (changedtext && sc)
+      sc->setTextColor(sc->textcolor);
+    if (changedany || changedphong || changedtext)
+      sc->updatescene = true;
 
     if (IsMouseClicked(1) || IsBindEvent(BIND_CLOSE_LAST_DIALOG,false))
       CloseCurrentPopup();
