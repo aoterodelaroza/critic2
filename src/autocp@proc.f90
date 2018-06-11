@@ -88,7 +88,6 @@ contains
        integer :: nphi = 0   ! number of phi (azimuthal) points
        integer :: nseed = 0  ! number of seeds generated
     end type seed_
-    real*8, parameter :: seed_eps = 1d-5
     integer, parameter :: maxpointstr(0:7) =  (/ 6, 18,  66, 258, 1026, 4098, 16386, 66003  /)
     integer, parameter :: maxfacestr(0:7) =   (/ 8, 32, 128, 512, 2048, 8192, 32768, 131072 /)
 
@@ -656,8 +655,8 @@ contains
        xseed(:,i) = sy%c%x2c(xseed(:,i))
     end do
 
-    ! uniq the list
-    call uniqc(xseed,1,nn,seed_eps)
+    ! ! uniq the list - double sum over seeds, bad idea
+    ! call uniqc(xseed,1,nn,seed_eps)
 
     ! this is the final list of seeds
     write (uout,'("+ Number of seeds: ",A)') string(nn)
