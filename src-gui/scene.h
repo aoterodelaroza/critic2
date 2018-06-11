@@ -83,6 +83,7 @@ struct Scene{
   bool updatescene = false; // update the scene next pass
 
   // Shader
+  Shader *shcurrent = nullptr; // pointer to the shader in current use
   Shader *shphong = nullptr;
   Shader *shtext = nullptr;
 
@@ -95,6 +96,9 @@ struct Scene{
     if (shtext)
       delete shtext;
   }
+
+  void usephong(); // use the Phong shader
+  void usetext(); // use the text shader
 
   void grabFromC2(); // Get the scene parameters from the critic2 interface
   void setDefaults(); // Set the scene to the default settings (does not update)

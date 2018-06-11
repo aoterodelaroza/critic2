@@ -44,9 +44,21 @@ Scene::Scene(int isc){
   grabFromC2();
   setDefaults();
   resetView();
-
-  shphong->use();
   updateAll();  
+}
+
+void Scene::usephong(){
+  if (shphong && shcurrent != shphong){
+    shphong->use();
+    shcurrent = shphong;
+  }
+}
+
+void Scene::usetext(){
+  if (shtext && shcurrent != shtext){
+    shtext->use();
+    shcurrent = shtext;
+  }
 }
 
 void Scene::grabFromC2(){
@@ -92,37 +104,37 @@ void Scene::setDefaults(){
 
 void Scene::setLightpos(glm::vec3 lightpos_){
   lightpos = lightpos_;
-  shphong->use();
+  usephong();
   shphong->setVec3("lightPos",value_ptr(lightpos));
 }
 void Scene::setLightcolor(glm::vec3 lightcolor_){
   lightcolor = lightcolor_;
-  shphong->use();
+  usephong();
   shphong->setVec3("lightColor",value_ptr(lightcolor));
 }
 void Scene::setAmbient(float ambient_){
   ambient = ambient_;
-  shphong->use();
+  usephong();
   shphong->setFloat("ambient",ambient);
 }
 void Scene::setDiffuse(float diffuse_){
   diffuse = diffuse_;
-  shphong->use();
+  usephong();
   shphong->setFloat("diffuse",diffuse);
 }
 void Scene::setSpecular(float specular_){
   specular = specular_;
-  shphong->use();
+  usephong();
   shphong->setFloat("specular",specular);
 }
 void Scene::setShininess(int shininess_){
   shininess = shininess_;
-  shphong->use();
+  usephong();
   shphong->setInt("shininess",shininess);
 }
 void Scene::setTextColor(glm::vec3 textcolor_){
   textcolor = textcolor_;
-  shtext->use();
+  usetext();
   shtext->setVec3("textColor",value_ptr(textcolor));
 }
 
@@ -139,6 +151,7 @@ void Scene::resetView(){
 }
 
 void Scene::updateAll(){
+  usephong();
   updateProjection();
   updateView();
   updateWorld();

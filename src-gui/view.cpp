@@ -388,7 +388,7 @@ void View::Update(){
   if (sc){
     sc->updatescene = false;
 
-    sc->shphong->use();
+    sc->usephong();
     sc->shphong->setInt("uselighting",1);
     if (sc->iswire)
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -475,11 +475,8 @@ void View::Update(){
             }
 
             // labels
-            if (sc->show_labels){
-              sc->shtext->use();
+            if (sc->show_labels)
               drawAtomLabel(x0,i,ix,iy,iz);
-              sc->shphong->use();
-            }
           }
         }
       }
@@ -733,7 +730,7 @@ bool View::updateTexSize(){
 
   if (FBO_a != amax){
     FBO_a = amax;
-    sc->shtext->use();
+    sc->usetext();
     glm::mat4 proj = glm::ortho(0.0f, FBO_a, 0.0f, FBO_a);
     sc->shtext->setMat4("projection",value_ptr(proj));
     redraw = true;
@@ -851,6 +848,8 @@ float View::texpos_viewdepth(glm::vec2 texpos){
 
 void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend){
   if (!sc) return;
+
+  sc->usephong();
   if (blend)
     glDepthMask(0);
   glBindVertexArray(sphVAO[res]);
@@ -870,6 +869,8 @@ void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blen
 
 void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend){
   if (!sc) return;
+
+  sc->usephong();
   if (blend)
     glDepthMask(0);
   glBindVertexArray(cylVAO[res]);
@@ -896,6 +897,8 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
 
 void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors){
   if (!sc) return;
+
+  sc->usephong();
   const float cellthick = 0.1f;
   glm::vec4 ucellrgbx, ucellrgby, ucellrgbz, ucellrgbo;
   if (colors){
@@ -947,6 +950,8 @@ void View::drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz){
   if (!sc) return;
   glm::vec2 v0 = world_to_texpos(x0);
   
+  sc->usetext();
+
   // build the label (remove trailing blank space)
   string label;
   if (sc->format_labels == 0) 
