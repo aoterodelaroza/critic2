@@ -3204,7 +3204,8 @@ Automatic determination of critical points (AUTO)
 ::
 
   AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [NUCEPSH nepsh.r]
-       [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [VERBOSE] [DRY] ...
+       [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [VERBOSE] [DRY]
+       [SEEDOBJ] ...
   AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
   AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
   AUTO ... [SEED ...] [SEED ...] ...
@@ -3336,9 +3337,10 @@ instance::
 executes three seeding actions: a search between all atoms pairs (1
 seed per pair), a recursive subdivision of the WS cell (one level),
 and a single seed at (0.25 0.25 0.25). The seed placement can be
-visualized using the optional VERBOSE keyword that writes an OBJ file
+visualized using the optional SEEDOBJ keyword that writes an OBJ file
 (<root>_seeds.obj) containing the unit cell and all the seed
-positions.
+positions. The keyword VERBOSE writes additional information about the
+search to the output.
 
 The AUTO search can be restricted to a portion of the unit cell using
 the CLIP keyword. The CLIP keyword specifies a region of real

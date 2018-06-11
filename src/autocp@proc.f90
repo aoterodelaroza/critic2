@@ -98,7 +98,7 @@ contains
     real*8 :: gfnormeps
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
-    logical :: cpdebug
+    logical :: cpdebug, seedobj
     integer :: nseed 
     integer :: i, j, k, i1, i2, i3, lp, lpo, n0
     integer :: m, nf, ntheta, nphi, nr
@@ -124,6 +124,7 @@ contains
     dochk = .false.
     gfnormeps = 1d-12
     cpdebug = .false.
+    seedobj = .false.
     dryrun = .false.
     if (.not.sy%c%ismolecule) then
        nseed = 1
@@ -157,6 +158,8 @@ contains
           dryrun = .true.
        elseif (equal(word,'verbose')) then
           cpdebug = .true.
+       elseif (equal(word,'seedobj')) then
+          seedobj = .true.
        elseif (equal(word,'gradeps')) then
           ok = eval_next(gfnormeps,line,lp)
           if (.not.ok) then
@@ -662,7 +665,7 @@ contains
     write (uout,'("+ Number of seeds: ",A)') string(nn)
 
     ! write the seeds to an obj file
-    if (cpdebug) then
+    if (seedobj) then
        str = trim(fileroot) // "_seeds.obj" 
        write (uout,'("+ Writing seeds to file: ",A)') str
        call sy%c%write_3dmodel(str,"obj",(/1,1,1/),.true.,.false.,.false.,&
