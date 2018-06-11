@@ -22,6 +22,7 @@
 
 #include "settings.h"
 #include "text.h"
+#include "critic2.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H  
@@ -51,12 +52,11 @@ static GLuint VAO, VBO;
 void InitFreetype(){
   if (FT_Init_FreeType(&ftlib))
     exit(EXIT_FAILURE);
-  const char *home = getenv("CRITIC_HOME");
-  if (!home)
+  std::string str = std::string(c2::c2home) + std::string("/fonts/ProggyClean.ttf");
+  if (FT_New_Face(ftlib,str.c_str(), 0, &ftface)){
+    printf("Could not locate font file in: %s\n", str.c_str());
     exit(1);
-  std::string str = std::string(home) + std::string("/dat/fonts/ProggyClean.ttf");
-  if (FT_New_Face(ftlib,str.c_str(), 0, &ftface))
-    exit(1);
+  }
 
   FT_Set_Pixel_Sizes(ftface, 0, fontsizebake);  
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 

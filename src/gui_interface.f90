@@ -46,7 +46,9 @@ module gui_interface
      integer(c_int) :: ncon !< number of neighbors
   end type c_atom
 
-  ! scene type - holds all the information to render one scene.
+  ! scene type - holds all the information to render one scene.  This
+  ! type is not c-interoperable. Access to individual scenes is
+  ! achieved by remapping the pointers below.
   type scene
      integer :: idfile !< id of the file that generated this scene
      character(kind=c_char,len=1) :: file(512) !< name of the file
@@ -76,19 +78,11 @@ module gui_interface
      real(c_float) :: avec(3,3) ! lattice vectors
      real(c_float) :: molx0(3) ! molecule centering translation
      real(c_float) :: molborder(3) ! molecular cell
-
   end type scene
 
-  integer(c_int), bind(c) :: nfiles = 0
-  integer(c_int), bind(c) :: nsc = 0
-  type(scene), allocatable, target :: sc(:)
-  integer :: ilastfile = 0
-
-  character(kind=c_char,len=1), target :: errmsg_c(512)
-  type(c_ptr), bind(c) :: errmsg
-
   !xx! public interface
-  ! routines
+
+  ! Routines. All public routines are accessed from the GUI via critic2.h
   public :: gui_initialize
   public :: open_file
   public :: scene_initialize
@@ -97,25 +91,46 @@ module gui_interface
   public :: gui_end
   private :: realloc_scene
 
-  ! pointers to the current scene
-  integer(c_int) :: icursc = -1
-  logical :: scupdated = .false.
+  ! Variables. All bind(c) variables are accessed from the GUI via critic2.h.
 
-  integer(c_int), bind(c) :: isinit 
+  ! General information for the run
+  character(kind=c_char,len=1), allocatable, target :: c2home_c(:) ! Location of data files
+  type(c_ptr), bind(c) :: c2home
+
+  ! File and scene tree
+  integer(c_int), bind(c) :: nfiles = 0 ! Number of files
+  integer(c_int), bind(c) :: nsc = 0 ! Number of scenes
+  type(scene), allocatable, target :: sc(:) ! Information about the loaded scenes
+  integer :: ilastfile = 0 ! Integer pointer to the last file
+  
+  ! Error message container to pass errors to the GUI
+  character(kind=c_char,len=1), target :: errmsg_c(512)
+  type(c_ptr), bind(c) :: errmsg
+
+  ! Pointers to the current scene. The correspond mostly to pointers
+  ! to (or copies of) the information in an instance of the scene type
+  ! above. Those variables that do not appear in the scene type have a
+  ! comment after them.
+  integer(c_int) :: icursc = -1 ! Id of the current scene
+  logical :: scupdated = .false. ! .true. if the current scene is up to date
+
   integer(c_int), bind(c) :: idfile
   type(c_ptr), bind(c) :: file
   type(c_ptr), bind(c) :: name
+  integer(c_int), bind(c) :: isinit
 
-  real(c_float), bind(c) :: scenerad
+  real(c_float), bind(c) :: scenerad ! (srad, radius of the encompassing sphere)
+
+  integer(c_int), bind(c) :: ismolecule
 
   integer(c_int), bind(c) :: nf
-  integer(c_int), bind(c) :: iref
+  integer(c_int), bind(c) :: iref ! Current reference field for this system
   type(c_ptr), bind(c) :: fieldname
 
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
 
-  integer(c_int), bind(c) :: mncon
+  integer(c_int), bind(c) :: mncon ! Maximum number of atom neighbors
   type(c_ptr), bind(c) :: idcon
   type(c_ptr), bind(c) :: lcon
 
@@ -123,22 +138,24 @@ module gui_interface
   type(c_ptr), bind(c) :: moldiscrete
 
   type(c_ptr), bind(c) :: avec(3)
-  integer(c_int), bind(c) :: ismolecule
   type(c_ptr), bind(c) :: molx0
   type(c_ptr), bind(c) :: molborder
 
+  !xx! private interface
   ! parameters
-  real(c_float), parameter :: minsrad = 10.0_c_float !< minimum scene radius
+  real(c_float), parameter, private :: minsrad = 10.0_c_float ! minimum scene radius
 
 contains
 
   !> Initialize the critic2 GUI.
   subroutine gui_initialize() bind(c)
+    use c_interface_module, only: f_c_string
     use iso_fortran_env, only: input_unit, output_unit
+    use iso_c_binding, only: c_loc
     use systemmod, only: systemmod_init
     use spgs, only: spgs_init
     use config, only: getstring, istring_datadir
-    use global, only: global_init, config_write, initial_banner
+    use global, only: global_init, config_write, initial_banner, critic_home
     use tools_io, only: ioinit, ucopy, uout, start_clock, &
        tictac, interactive, uin, filepath
     use param, only: param_init
@@ -174,6 +191,12 @@ contains
     idfile = 0
     scenerad = minsrad
     scupdated = .true.
+
+    ! set the global information variables
+    if (allocated(c2home_c)) deallocate(c2home_c)
+    allocate(c2home_c(len(critic_home)+1))
+    call f_c_string(critic_home,c2home_c)
+    c2home = c_loc(c2home_c)
 
   end subroutine gui_initialize
 
