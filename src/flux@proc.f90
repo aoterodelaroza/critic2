@@ -1104,7 +1104,6 @@ contains
     integer :: i
     real*8 :: reval(3), evec(3,3), v1(3), v2(3), vup(3), v(3)
     real*8 :: ev1, ev2
-    integer :: n
     real*8 :: R
     real*8, dimension(npoints) :: thetavec
     integer :: ier, ircp, n
