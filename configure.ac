@@ -57,17 +57,17 @@ FCFLAGS+=" $OPENMP_FCFLAGS"
 AC_EXEEXT
 
 # C language
+AC_LANG_PUSH([C])
 AC_PROG_CC
-# AC_PROG_CC_STDC
-
-# C++ language
-AC_PROG_CXX
-
-# header files
-## AC_LANG_PUSH([C])
+AC_PROG_CC_STDC
 ## AC_CONFIG_HEADERS([config.h])
 ## AC_CHECK_HEADERS([stdio.h string.h stdlib.h GL/gl3w.h])
-## AC_LANG_POP([C])
+AC_LANG_POP
+
+# C++ language
+AC_LANG_PUSH([C++])
+AC_PROG_CXX
+AC_LANG_POP
 
 # check for programs
 AC_PROG_RANLIB
