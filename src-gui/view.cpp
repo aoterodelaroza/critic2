@@ -96,7 +96,7 @@ void View::changeScene(int isc){
       scmap[isc] = sc;
     } else {
       sc = scmap[isc];
-      sc->updateAll();
+      sc->updateAllMatrix();
     }
     iscene = isc;
   }
@@ -161,7 +161,7 @@ void View::Draw(){
   ImGuiIO& io = GetIO();
 
   // Variables for associated dialogs
-  bool drawprefs = false;
+  bool drawprefs = false, draweffects = false;
   PushStyleColor(ImGuiCol_WindowBg,ImVec4(bgrgb[0],bgrgb[1],bgrgb[2],bgrgb[3]));
     
   if (BeginDock(title)){
@@ -273,12 +273,12 @@ void View::Draw(){
   PopStyleColor();
 
   // Preferences dialog
+  float itemwidth = 5.f * g->FontSize;
   if (drawprefs)
     ImGui::OpenPopup("prefview");
   if (BeginPopup("prefview")){
     bool changedany = false, changedphong = false, changedtext = false;
     if (sc){
-      float itemwidth = 5.f * g->FontSize;
       changedany |= Checkbox("Unit cell", &sc->isucell);
       if (sc->ismolecule)
         changedany |= Checkbox("Molecular cell", &sc->ismolcell);
@@ -329,7 +329,7 @@ void View::Draw(){
           changedany |= Checkbox("Crystal packing", &sc->isborder);
           changedany |= Checkbox("Molecular motif", &sc->ismotif);
         }
-      }
+      } // if (sc)
 
       Separator();
       changedphong |= Checkbox("Wireframe rendering", &sc->iswire);
@@ -367,16 +367,34 @@ void View::Draw(){
       }
       PopItemWidth();
       Separator();
-    }
+    } // if (BeginPopup("prefview"))
     changedany |= ColorEdit4("Background color", bgrgb, coloreditflags);
+    if (Button("Effects")) 
+      draweffects = true;
 
+    // Effects dialog
+    if (draweffects)
+      ImGui::OpenPopup("effectsview");
+    if (BeginPopup("effectsview")){
+      PushItemWidth(itemwidth);
+      changedany |= DragFloat("Pixelation", &SE_pixelated, 0.1f, 1.0f, 50.f, "%.1f", 1.0f);
+      if (Button("Reset")){
+        SE_pixelated = 1.0f;
+        changedany = true;
+      }
+      PopItemWidth();
+      EndPopup();
+    }
+
+    // Update the scene
     if (changedphong && sc)
-      sc->updateAll();
+      sc->updateAllMatrix();
     if (changedtext && sc)
       sc->setTextColor(sc->textcolor);
     if (changedany || changedphong || changedtext)
       sc->updatescene = true;
 
+    // close popup on rmb or escape
     if (IsMouseClicked(1) || IsBindEvent(BIND_CLOSE_LAST_DIALOG,false))
       CloseCurrentPopup();
     EndPopup();
@@ -733,9 +751,9 @@ bool View::updateTexSize(){
     redraw = true;
   }
 
-  if (FBO_a != amax){
-    FBO_a = amax;
-    sc->setTextureSize(amax);
+  if (FBO_a != amax / SE_pixelated){
+    FBO_a = amax / SE_pixelated;
+    sc->setTextureSize(FBO_a);
     redraw = true;
   }
 
@@ -1001,7 +1019,7 @@ void SetDefaultAllViews(View::Variable_ var/*=View::V_ALL*/){
   for (auto iv : viewlist){
     if (iv->sc){
       iv->setDefaultAllScenes(var);
-      iv->sc->updateAll();  
+      iv->sc->updateAllMatrix();  
     }
   }
 }
