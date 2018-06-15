@@ -514,6 +514,7 @@ void View::Update(){
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // unit cell
+    sc->usephong();
     sc->shphong->setInt("uselighting",0);
     if (sc->isucell)
       drawUnitCell(v0,vx,vy,vz,true);
