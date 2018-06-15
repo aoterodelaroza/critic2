@@ -812,7 +812,7 @@ contains
 
     do i = 0, n(1)-1
        do j = 0, n(2)-1
-          write (lu,'(6(1x,e12.5))') (c(k,j,i),k=0,n(3)-1)
+          write (lu,'(6(1x,e13.5e3))') (c(k,j,i),k=0,n(3)-1)
        enddo
     enddo
     call fclose(lu)
