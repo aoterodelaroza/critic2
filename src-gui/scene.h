@@ -112,7 +112,7 @@ struct Scene{
   void setTextureSize(float atex); // Set variable: texture size
 
   void resetView(); // Reset the view parameters (does not update)
-  void updateAll(); // Update all matrices
+  void updateAllMatrix(); // Update all matrices
   void updateProjection(); // Update the projection matrix
   void updateView(); // Update the view matrix
   void updateWorld(); // Update the world matrix

@@ -106,13 +106,14 @@ struct View
   bool rlock = false; // dragging
   glm::vec3 mpos0_r; // saved mouse position (for dragging)
   glm::vec3 cpos0_r; // saved camera position in view coords (for dragging)
-
   bool llock = false; // lmb is dragging
   glm::vec3 mpos0_l; // saved mouse position (for rotating)
   glm::vec3 cpos0_l; // saved camera position in view coords (for rotating)
-
   bool slock = false; // scroll dragging
   float mpos0_s; // mouse y position (for scrolling using keys)
+
+  // special effects for this view
+  float SE_pixelated = 1.0f;
 
   // associated textures
   GLuint FBO; // framebuffer object

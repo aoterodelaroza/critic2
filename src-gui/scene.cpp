@@ -44,7 +44,7 @@ Scene::Scene(int isc, float atex){
   grabFromC2();
   setDefaults();
   resetView();
-  updateAll();  
+  updateAllMatrix();  
   setTextureSize(atex);
 }
 
@@ -156,7 +156,7 @@ void Scene::resetView(){
   m_world = glm::mat4(1.0f);
 }
 
-void Scene::updateAll(){
+void Scene::updateAllMatrix(){
   usephong();
   updateProjection();
   updateView();
@@ -221,7 +221,7 @@ bool Scene::alignViewAxis(int iaxis){
     raxis = glm::normalize(raxis);
     m_world = glm::rotate(-angle,raxis);
   }
-  updateAll();
+  updateAllMatrix();
   return true;
 }
 
