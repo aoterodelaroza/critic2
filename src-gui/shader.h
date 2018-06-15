@@ -19,10 +19,15 @@
 
 class Shader{
 public:
-  GLuint id;
+  // id of the shader program. glDeleteProgram(id): A value of id = 0 will be silently ignored.
+  GLuint id = 0;
 
-  // Constructor adapted from learnopengl.com by Joey de Vries (https://joeydevries.com).
   Shader(const char* vpath, const char* fpath){
+    loadShader(vpath,fpath,true);
+  }
+
+  // Adapted from learnopengl.com by Joey de Vries (https://joeydevries.com).
+  void loadShader(const char* vpath, const char* fpath, bool crashiffail){
     std::string vcode, fcode;
     std::ifstream vfile, ffile;
 
@@ -50,23 +55,45 @@ public:
     const char* vcodec = vcode.c_str();
     const char* fcodec = fcode.c_str();
 
-    unsigned int vertex = glCreateShader(GL_VERTEX_SHADER);
+    GLuint vertex, fragment, idnew;
+    
+    vertex = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex, 1, &vcodec, NULL);
     glCompileShader(vertex);
-    checkCompileErrors(vertex, "VERTEX");
+    if (!checkCompileErrors(vertex, "VERTEX", crashiffail))
+      goto fail;
 
-    unsigned int fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    fragment = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment, 1, &fcodec, NULL);
     glCompileShader(fragment);
-    checkCompileErrors(fragment, "FRAGMENT");
+    if (!checkCompileErrors(fragment, "FRAGMENT", crashiffail))
+      goto faildeletevertex;
 
     id = glCreateProgram();
     glAttachShader(id, vertex);
     glAttachShader(id, fragment);
     glLinkProgram(id);
+    if (!checkCompileErrors(id, "PROGRAM", crashiffail))
+      goto faildeletefragment;
 
-    glDeleteShader(vertex);
+    idnew = glCreateProgram();
+    glAttachShader(idnew, vertex);
+    glAttachShader(idnew, fragment);
+    glLinkProgram(idnew);
+    if (!checkCompileErrors(idnew, "PROGRAM", crashiffail))
+      goto faildeletefragment;
+    
+    glDeleteProgram(id);
+    id = idnew;
+
+    faildeletefragment:
     glDeleteShader(fragment);
+
+    faildeletevertex:
+    glDeleteShader(vertex);
+
+    fail:
+    return;
   }
 
   void use(){ 
@@ -93,7 +120,7 @@ public:
   }
 
 private:
-  void checkCompileErrors(unsigned int shader, std::string type) const{
+  bool checkCompileErrors(unsigned int shader, std::string type, bool crashiffail) const{
     int success;
     char infoLog[1024];
     if (type != "PROGRAM"){
@@ -101,16 +128,23 @@ private:
       if (!success){
 	glGetShaderInfoLog(shader, 1024, NULL, infoLog);
 	std::cout << "Shader compilation error of type: " << type << std::endl << infoLog << std::endl;
-	exit(EXIT_FAILURE);
+        if (crashiffail) 
+          exit(EXIT_FAILURE);
+        else
+          return false;
       }
     } else {
       glGetProgramiv(shader, GL_LINK_STATUS, &success);
       if (!success){
 	glGetProgramInfoLog(shader, 1024, NULL, infoLog);
 	std::cout << "Shader linking error of type: " << type << std::endl << infoLog << std::endl;
-	exit(EXIT_FAILURE);
+        if (crashiffail) 
+          exit(EXIT_FAILURE);
+        else
+          return false;
       }
     }
+    return true;
   }
 };
 #endif

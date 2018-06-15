@@ -371,6 +371,11 @@ void View::Draw(){
     changedany |= ColorEdit4("Background color", bgrgb, coloreditflags);
     if (Button("Effects")) 
       draweffects = true;
+    SameLine();
+    if (Button("Reload shaders")){
+      sc->loadShader(true);
+      changedphong = changedtext = true;
+    }
 
     // Effects dialog
     if (draweffects)

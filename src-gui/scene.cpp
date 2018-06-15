@@ -31,21 +31,33 @@
 
 const float ofov = 45.0f; // "field of view" for orthogonal projection
 
-Scene::Scene(int isc, float atex){
-  std::string vpath = std::string(c2::c2home) + std::string("/shaders/phong.vs");
-  std::string fpath = std::string(c2::c2home) + std::string("/shaders/phong.fs");
-  shphong = new Shader(vpath.c_str(),fpath.c_str());
-
-  vpath = std::string(c2::c2home) + std::string("/shaders/text.vs");
-  fpath = std::string(c2::c2home) + std::string("/shaders/text.fs");
-  shtext = new Shader(vpath.c_str(),fpath.c_str());
-
+Scene::Scene(int isc, float atex_){
+  loadShader(false);
   iscene = isc;
   grabFromC2();
   setDefaults();
   resetView();
   updateAllMatrix();  
-  setTextureSize(atex);
+  setTextureSize(atex_);
+}
+
+void Scene::loadShader(bool reload){
+  std::string vpath = std::string(c2::c2home) + std::string("/shaders/phong.vs");
+  std::string fpath = std::string(c2::c2home) + std::string("/shaders/phong.fs");
+  if (reload)
+    shphong->loadShader(vpath.c_str(),fpath.c_str(),false);
+  else
+    shphong = new Shader(vpath.c_str(),fpath.c_str());
+
+  vpath = std::string(c2::c2home) + std::string("/shaders/text.vs");
+  fpath = std::string(c2::c2home) + std::string("/shaders/text.fs");
+  if (reload)
+    shtext->loadShader(vpath.c_str(),fpath.c_str(),false);
+  else
+    shtext = new Shader(vpath.c_str(),fpath.c_str());
+  shcurrent = nullptr;
+  if (reload)
+    updateAllShaderUniforms();
 }
 
 void Scene::usephong(){
@@ -138,7 +150,8 @@ void Scene::setTextColor(glm::vec3 textcolor_){
   usetext();
   shtext->setVec3("textColor",value_ptr(textcolor));
 }
-void Scene::setTextureSize(float atex){
+void Scene::setTextureSize(float atex_){
+  atex = atex_;
   usetext();
   glm::mat4 proj = glm::ortho(0.0f, atex, 0.0f, atex);
   shtext->setMat4("projection",value_ptr(proj));
@@ -154,6 +167,22 @@ void Scene::resetView(){
   else
     v_pos[2] = iscene > 0? resetd * scaledsrad / (tan(0.5f*glm::radians(zfov))):10.f;
   m_world = glm::mat4(1.0f);
+}
+
+void Scene::updateAllShaderUniforms(){
+  usephong();
+  updateAllMatrix();
+  shphong->setVec3("lightPos",value_ptr(lightpos));
+  shphong->setVec3("lightColor",value_ptr(lightcolor));
+  shphong->setFloat("ambient",ambient);
+  shphong->setFloat("diffuse",diffuse);
+  shphong->setFloat("specular",specular);
+  shphong->setInt("shininess",shininess);
+
+  usetext();
+  shtext->setVec3("textColor",value_ptr(textcolor));
+  glm::mat4 proj = glm::ortho(0.0f, atex, 0.0f, atex);
+  shtext->setMat4("projection",value_ptr(proj));
 }
 
 void Scene::updateAllMatrix(){

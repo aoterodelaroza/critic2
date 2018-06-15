@@ -47,6 +47,7 @@ struct Scene{
   int ncell[3]; // number of unit cells in each direction
 
   // view settings
+  float atex; // texture size
   float resetd; // reset distance (scenerad)
   float zfov; // field of view angle (degrees)
   bool show_atoms; // show atoms?
@@ -97,6 +98,7 @@ struct Scene{
       delete shtext;
   }
 
+  void loadShader(bool crashiffail); // load the shader from the files
   void usephong(); // use the Phong shader
   void usetext(); // use the text shader
 
@@ -112,6 +114,7 @@ struct Scene{
   void setTextureSize(float atex); // Set variable: texture size
 
   void resetView(); // Reset the view parameters (does not update)
+  void updateAllShaderUniforms(); // Update all shader uniforms
   void updateAllMatrix(); // Update all matrices
   void updateProjection(); // Update the projection matrix
   void updateView(); // Update the view matrix
