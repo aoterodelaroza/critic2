@@ -2132,6 +2132,7 @@ field formats are supported:
   LOAD AS GRAD id.s
   LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
+  LOAD file.chk file.unkgen file.evc [NOU] [NOSIJCHK] [NOFACHK] [WANCUT cut.r]
 
 Critic2 loads scalar fields in "field slots": integer identifiers that
 represent the field throughout the run. The NAME (or ID) keyword can
@@ -2256,6 +2257,29 @@ CHGCAR with:
 I have never seen an ELFCAR that is multiplied by the volume (it would
 not make much sense anyway), so the default behavior for ELFCAR files
 is to assume that it is not.
+
+Wannier checkpoint files (chk)
+++++++++++++++++++++++++++++++
+
+Critic2 read three files from a maximally localized Wannier function
+(MLWF) calculation: the checkpoint file (chk) from wannier90 and the
+evc and unkgen files from pw2wannier. Currently, only QE is supported,
+and the use of a specific modification of the pw2wannier program is
+necessary to get the last two files. The chk file contains information
+about the MLWFs, the unkgen contains the k-point mapping, and the evc
+file contains the Bloch state coefficients. Critic reads these
+coefficients and the U matrices from the chk file and calculates the
+MLWFs internally. This field is used mostly to obtain the
+delocalization indices (DI) via YT or BADER.
+
+The options are. NOU, do not use the U matrices to calculate the
+MLWFs. This yields Wannier functions via a straight Wannier
+transformation from the Bloch states. NOSIJCHK, do not save/use the
+checkpoint file for the atomic overlap matrices in the DI
+calculation. NOFACHK, do not save/use the checkpoint file for the F
+integrals in the DI calculation. WANCUT, discard overlaps between
+MLWFs whose centers are farther than cut.r (default: 4.0). NOU cancels
+the use of WANCUT.
 
 WIEN2k (clmsum, etc.)
 +++++++++++++++++++++
@@ -4365,8 +4389,8 @@ List of properties integrated in the attractor basins (INTEGRABLE)
 
 ::
 
-  INTEGRABLE id.s [F|FVAL|GMOD|LAP|LAPVAL|
-             {MULTIPOLE|MULTIPOLES} [lmax.i]] [NAME name.s]
+  INTEGRABLE id.s [F|FVAL|GMOD|LAP|LAPVAL|{MULTIPOLE|MULTIPOLES} 
+                   [lmax.i]|DELOC] [NAME name.s]
   INTEGRABLE "expr.s"
   INTEGRABLE CLEAR
 
@@ -4389,6 +4413,12 @@ multipole moments of the field are calculated up to l=lmax.i (default:
 for the others, it is equivalent to the field value (same as F). The
 units for all calculated multipoles are atomic units. The name for the
 integrand can be changed using the keyword NAME.
+
+The option DELOC activates the calculation of the delocalization
+indices using field id.s. The field must contain the (maximally
+localized) Wannier functions from wannier90, and its grid must be
+consistent with that of the reference field. The DIs are calculated
+using YT or BADER only.
 
 In addition, it is possible to define an integrable property using an
 expression involving more than one field (expr.s). For instance, if
