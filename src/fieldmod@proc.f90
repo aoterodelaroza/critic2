@@ -43,7 +43,7 @@ contains
 
     type(field), allocatable :: temp(:)
     integer :: l1, u1
-
+    
     if (.not.allocated(a)) &
        call ferror('realloc_field','array not allocated',faterr)
     l1 = lbound(a,1)
@@ -278,7 +278,6 @@ contains
        end subroutine cube
     end interface
 
-    character(len=:), allocatable :: ofile
     integer :: i, j, k, n(3), ithis
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
@@ -422,26 +421,14 @@ contains
     elseif (seed%iff == ifformat_chk) then
        call f%grid%end()
 
-       if (seed%nfile == 1) then
-          ofile = ""
-       else
-          ofile = seed%file(2)
-       end if
        f%grid%wan%useu = .not.seed%nou
        f%grid%wan%sijchk = seed%sijchk
        f%grid%wan%fachk = seed%fachk
-       f%grid%wan%haschk = .false.
        f%grid%wan%cutoff = seed%wancut
        f%type = type_grid
        f%file = seed%file(1)
 
-       if (len_trim(seed%unkgen) > 0 .and. len_trim(seed%evc) > 0) then
-          call f%grid%read_unkgen(seed%file(1),ofile,seed%unkgen,seed%evc,&
-             f%c%omega,seed%sijchk)
-       else
-          call f%grid%read_unk(seed%file(1),ofile,f%c%omega,seed%nou,&
-             seed%sijchk)
-       end if
+       call f%grid%read_unkgen(seed%file(1),seed%file(2),seed%file(3),f%c%omega,seed%sijchk)
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
@@ -1424,14 +1411,10 @@ contains
     if (f%grid%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions available for this field")') 
-       if (f%grid%wan%haschk) then
-          write (uout,'("  Source: sij-chk checkpoint file")') 
+       if (f%grid%wan%evcavail) then
+          write (uout,'("  Source: sij-chk checkpoint file (no evc or unkgen - only DIs)")') 
        else
-          if (f%grid%wan%useunkgen) then
-             write (uout,'("  Source: unkgen")') 
-          else
-             write (uout,'("  Source: UNK files")') 
-          end if
+          write (uout,'("  Source: unkgen/evc files")') 
        endif
        write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%wan%nwan(i)),i=1,3)
        write (uout,'("  Number of bands: ",A)') string(f%grid%wan%nbnd)

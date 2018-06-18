@@ -42,9 +42,7 @@ contains
     f%nou = .false.
     f%sijchk = .true.
     f%fachk = .true.
-    f%wancut = -1d0
-    f%unkgen = ""
-    f%evc = ""
+    f%wancut = 4d0
 
   end subroutine fieldseed_end
 
@@ -231,9 +229,9 @@ contains
        ! three files are needed
        nfile = 3
     elseif (f%iff == ifformat_chk) then
-       ! one or two files are needed
-       nfile = 2
-       nofoundexit = .false.
+       ! three files are needed
+       nfile = 3
+       nofoundexit = .true.
     elseif (f%iff == ifformat_elk) then
        ! one, two, or three files are needed
        nfile = 3
@@ -570,20 +568,6 @@ contains
           if (.not.ok) then
              call f%end()
              f%errmsg = "wrong value for wancut"
-             return
-          end if
-       elseif (equal(lword,'unkgen')) then
-          f%unkgen = getword(line,lp)
-          if (len_trim(f%unkgen) < 1) then
-             call f%end()
-             f%errmsg = "missing unkgen file name"
-             return
-          end if
-
-          f%evc = getword(line,lp)
-          if (len_trim(f%evc) < 1) then
-             call f%end()
-             f%errmsg = "missing evc file name"
              return
           end if
        else

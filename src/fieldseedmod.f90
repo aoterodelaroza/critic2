@@ -46,9 +46,7 @@ module fieldseedmod
      logical :: nou = .false. !< wannier option nou
      logical :: sijchk = .true. !< wannier option sijchk
      logical :: fachk = .true. !< wannier option fachk
-     real*8 :: wancut = -1d0 !< wannier option wancut
-     character(len=mlen) :: unkgen = "" !< wannier option unkgen
-     character(len=mlen) :: evc = "" !< wannier option evc
+     real*8 :: wancut = 4d0 !< wannier option wancut
    contains
      procedure :: end => fieldseed_end !< Terminate a fieldseed; set the type to unknown
      procedure :: parse => fieldseed_parse !< Build a field seed from an external command
