@@ -167,8 +167,7 @@ expression.r # prints the value of the expression to the output.
   LOAD AS GRAD id.s
   LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
-  LOAD file.chk file.unkgen file.evc [NOU] [NOSIJCHK] [NOFACHK] [WANCUT cut.r]
-
+  LOAD file.chk file.unkgen file.evc [NOU]
 * UNLOAD {id.s|ALL}
 * SETFIELD [id.s] [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] [EXACT|APPROXIMATE]
                   [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
@@ -277,9 +276,12 @@ expression.r # prints the value of the expression to the output.
 * POINTPROP name.s expr.s
   POINTPROP CLEAR
   POINTPROP
-* INTEGRABLE id.s [F|FVAL|GMOD|LAP|LAPVAL|{MULTIPOLE|MULTIPOLES} [lmax.i]] [NAME name.s]
+* INTEGRABLE id.s {F|FVAL|GMOD|LAP|LAPVAL} [NAME name.s]
+  INTEGRABLE id.s {MULTIPOLE|MULTIPOLES} [lmax.i] 
+  INTEGRABLE id.s DELOC [NOSIJCHK] [NOFACHK] [WANCUT wancut.r]
   INTEGRABLE "expr.s" 
   INTEGRABLE CLEAR
+  INTEGRABLE ... [NAME name.s]
 * INTEGRALS {GAULEG ntheta.i nphi.i|LEBEDEV nleb.i}
             [CP ncp.i] [RWINT] [VERBOSE]
 * SPHEREINTEGRALS {GAULEG [ntheta.i nphi.i]|LEBEDEV [nleb.i]}

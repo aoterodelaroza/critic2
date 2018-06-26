@@ -26,8 +26,7 @@ submodule (integration) proc
   ! subroutine int_output_multipoles(nattr,icp,mpole)
   ! subroutine int_output_deloc_wfn(nattr,icp,sij)
   ! subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
-  ! subroutine calc_sij_wannier_complex(natt,icp,xgatt,sij)
-  ! subroutine calc_sij_wannier_real(natt,icp,xgatt,sij)
+  ! subroutine calc_sij_wannier(fid,wancut,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,luevc,luevc_ibnd,sij)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
   ! subroutine int_gridbasins(fmt,nattr,xgatt,idg,fbasin,imtype,ndrawbasin,luw)
   ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
@@ -1478,7 +1477,20 @@ contains
 
        sijfname = trim(sy%f(fid)%file) // "-sij"
        inquire(file=sijfname,exist=haschk)
-       if (.not.haschk) then
+       if (sy%f(fid)%grid%wan%sijavail .and. sy%propi(l)%sijchk) then
+          ! read the checkpoint file
+          write (uout,'("+ Reading Sij checkpoint file: ",A)') trim(sijfname)
+          lu = fopen_read(sijfname,"unformatted")
+          read (lu) n
+          if (allocated(w)) deallocate(w)
+          allocate(w(n(1),n(2),n(3)))
+          read (lu) w
+          deallocate(w)
+
+          read (lu) is, ia, imo
+          read (lu) sij(:,:,:,:,ndeloc)
+          call fclose(lu)
+       else
           if (.not.sy%f(fid)%grid%wan%evcavail) &
              call ferror("intgrid_deloc_wannier","unkgen/evc and checkpoint files not found",faterr)
 
@@ -1495,8 +1507,8 @@ contains
           write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
           write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nmo)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
-          if (sy%f(fid)%grid%wan%cutoff > 0d0 .and. sy%f(fid)%grid%wan%useu) then
-             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%f(fid)%grid%wan%cutoff,'f',5,2)
+          if (sy%propi(l)%wancut > 0d0 .and. sy%f(fid)%grid%wan%useu) then
+             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%propi(l)%wancut,'f',5,2)
           else
              write (uout,'(99(A,X))') "  Discarding no overlaps."
           end if
@@ -1509,7 +1521,7 @@ contains
 
           ! calculate overlaps
           write (uout,'(99(A,X))') "  Calculating overlaps..."
-          call calc_sij_wannier(fid,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,&
+          call calc_sij_wannier(fid,sy%propi(l)%wancut,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,&
              luevc,luevc_ibnd,sij(:,:,:,:,ndeloc))
 
           ! close the rotated evc scratch files
@@ -1517,7 +1529,7 @@ contains
           if (luevc(2) >= 0) call fclose(luevc(2))
 
           ! write the checkpoint
-          if (sy%f(fid)%grid%wan%sijchk) then
+          if (sy%propi(l)%sijchk) then
              write (uout,'("+ Writing Sij checkpoint file: ",A)') trim(sijfname)
              lu = fopen_write(sijfname,"unformatted")
              write (lu) sy%f(fid)%grid%n
@@ -1526,24 +1538,11 @@ contains
              write (lu) sij(:,:,:,:,ndeloc)
              call fclose(lu)
           end if
-       else
-          ! read the checkpoint file
-          write (uout,'("+ Reading Sij checkpoint file: ",A)') trim(sijfname)
-          lu = fopen_read(sijfname,"unformatted")
-          read (lu) n
-          if (allocated(w)) deallocate(w)
-          allocate(w(n(1),n(2),n(3)))
-          read (lu) w
-          deallocate(w)
-
-          read (lu) is, ia, imo
-          read (lu) sij(:,:,:,:,ndeloc)
-          call fclose(lu)
-       end if
+       end if ! sijavail .and. sijchk
 
        ! final message
        write (uout,'("+ Done."/)')
-    end do
+    end do ! l = 1, sy%npropi
 
     ! clean up
     if (imtype == imtype_yt) &
@@ -1560,13 +1559,14 @@ contains
   !> to attractors in Bader, xgatt = attractor position, dat = YT data
   !> type. luevc are the two scratch files for the rotated evc and
   !> luevc_ibnd are the band pointers in those files.
-  subroutine calc_sij_wannier(fid,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,luevc,luevc_ibnd,sij)
+  subroutine calc_sij_wannier(fid,wancut,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,luevc,luevc_ibnd,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_io, only: ferror, faterr, uout, string
     integer, intent(in) :: fid
+    real*8, intent(in) :: wancut
     integer, intent(in) :: imtype
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
@@ -1637,8 +1637,8 @@ contains
 
              ! lovrlp
              lovrlp = .true.
-             if (sy%f(fid)%grid%wan%cutoff > 0d0 .and. sy%f(fid)%grid%wan%useu) then
-                d0 = (sy%f(fid)%grid%wan%spread(ibnd1,is)+sy%f(fid)%grid%wan%spread(ibnd2,is)) * sy%f(fid)%grid%wan%cutoff
+             if (wancut > 0d0 .and. sy%f(fid)%grid%wan%useu) then
+                d0 = (sy%f(fid)%grid%wan%spread(ibnd1,is)+sy%f(fid)%grid%wan%spread(ibnd2,is)) * wancut
                 do imo = 1, nmo
                    call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                    if (iba /= ibnd1) cycle
@@ -2053,7 +2053,7 @@ contains
        ! calculate the values of the fa matrix or read them from the checkpoint file
        haschk = .false.
        fafname = trim(sy%f(fid)%file) // "-fa"
-       if (sy%f(fid)%grid%wan%fachk) &
+       if (sy%propi(l)%fachk) &
           inquire(file=fafname,exist=haschk)
 
        allocate(rfa(natt,natt,nlat,nspin))
@@ -2086,7 +2086,7 @@ contains
           !$omp end parallel do
 
           ! write the checkpoint file
-          if (sy%f(fid)%grid%wan%fachk) then
+          if (sy%propi(l)%fachk) then
              write (uout,'("+ Writing Fa checkpoint file: ",A)') trim(fafname)
              lu = fopen_write(fafname,"unformatted")
              write(lu) rfa

@@ -40,9 +40,6 @@ contains
     f%readvirtual = .false.
     f%fid = ""
     f%nou = .false.
-    f%sijchk = .true.
-    f%fachk = .true.
-    f%wancut = 4d0
 
   end subroutine fieldseed_end
 
@@ -556,20 +553,6 @@ contains
        elseif (equal(lword,'nou')) then
           ! wannier option: nou
           f%nou = .true.
-       elseif (equal(lword,'nosijchk')) then
-          ! wannier option: sijchk
-          f%sijchk = .false.
-       elseif (equal(lword,'nofachk')) then
-          ! wannier option: fachk
-          f%fachk = .false.
-       elseif (equal(lword,'wancut')) then
-          ! wannier option: wancut
-          ok = eval_next(f%wancut,line,lp)
-          if (.not.ok) then
-             call f%end()
-             f%errmsg = "wrong value for wancut"
-             return
-          end if
        else
           call f%end()
           f%errmsg = "unknown load keyword: " // word

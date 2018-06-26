@@ -2132,7 +2132,7 @@ field formats are supported:
   LOAD AS GRAD id.s
   LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
-  LOAD file.chk file.unkgen file.evc [NOU] [NOSIJCHK] [NOFACHK] [WANCUT cut.r]
+  LOAD file.chk file.unkgen file.evc [NOU]
 
 Critic2 loads scalar fields in "field slots": integer identifiers that
 represent the field throughout the run. The NAME (or ID) keyword can
@@ -2263,23 +2263,21 @@ Wannier checkpoint files (chk)
 
 Critic2 read three files from a maximally localized Wannier function
 (MLWF) calculation: the checkpoint file (chk) from wannier90 and the
-evc and unkgen files from pw2wannier. Currently, only QE is supported,
-and the use of a specific modification of the pw2wannier program is
-necessary to get the last two files. The chk file contains information
+evc and unkgen files from the pw2critic program. The latter is a
+specific modification of QE's pw2wannier program that is required to
+generate the evc and unkgen files. The chk file contains information
 about the MLWFs, the unkgen contains the k-point mapping, and the evc
 file contains the Bloch state coefficients. Critic reads these
 coefficients and the U matrices from the chk file and calculates the
 MLWFs internally. This field is used mostly to obtain the
 delocalization indices (DI) via YT or BADER.
 
-The options are. NOU, do not use the U matrices to calculate the
+The NOU options disables the use of the U matrices to calculate the
 MLWFs. This yields Wannier functions via a straight Wannier
-transformation from the Bloch states. NOSIJCHK, do not save/use the
-checkpoint file for the atomic overlap matrices in the DI
-calculation. NOFACHK, do not save/use the checkpoint file for the F
-integrals in the DI calculation. WANCUT, discard overlaps between
-MLWFs whose centers are farther than cut.r (default: 4.0). NOU cancels
-the use of WANCUT.
+transformation from the Bloch states. See `List of properties
+integrated in the attractor basins (INTEGRABLE)`_ for more options
+regarding the use of Wannier functions to calculate localization and
+delocalization indices.
 
 WIEN2k (clmsum, etc.)
 +++++++++++++++++++++
@@ -4389,36 +4387,39 @@ List of properties integrated in the attractor basins (INTEGRABLE)
 
 ::
 
-  INTEGRABLE id.s [F|FVAL|GMOD|LAP|LAPVAL|{MULTIPOLE|MULTIPOLES} 
-                   [lmax.i]|DELOC] [NAME name.s]
-  INTEGRABLE "expr.s"
+  INTEGRABLE id.s {F|FVAL|GMOD|LAP|LAPVAL} [NAME name.s]
+  INTEGRABLE id.s {MULTIPOLE|MULTIPOLES} [lmax.i] 
+  INTEGRABLE id.s DELOC [NOSIJCHK] [NOFACHK] [WANCUT wancut.r]
+  INTEGRABLE "expr.s" 
   INTEGRABLE CLEAR
+  INTEGRABLE ... [NAME name.s]
 
-In critic2 there is an internal list of the properties that will be
-integrated in the attraction basins, which can be modified by the user
-with the INTEGRABLE keyword. This follows a similar strategy to field
-loading (`Loading a field (LOAD)`_) and the list of properties
-calculated at the critical points (`List of properties calculated at
-points (POINTPROP)`_).
+Critic2 uses an internal list of all properties that will be
+integrated in the attraction basins. This list can be modified by the
+user with the INTEGRABLE keyword. This keyword has a syntax similar to
+the list of properties calculated at the critical points (`List of
+properties calculated at points (POINTPROP)`_).
 
-INTEGRABLE defines a new quantity to be integrated in the atomic
-basins. The new integrable property is related to field id.s (given as
-field number or identifier). This quantity can be the field value
-itself (F), its valence component (if the field is core-augmented,
-FVAL), the gradient norm (GMOD), the Laplacian (LAP), or the
-valence-component of the Laplacian (LAPVAL). If no keyword is given
-after id.s, F is used by default. With MULTIPOLES (or MULTIPOLE), the
-multipole moments of the field are calculated up to l=lmax.i (default:
-5). This keyword only applies to the BADER and YT integration methods;
-for the others, it is equivalent to the field value (same as F). The
-units for all calculated multipoles are atomic units. The name for the
-integrand can be changed using the keyword NAME.
+A single INTEGRABLE command assigns a new quantity to be integrated in
+the atomic basins. The new integrable property is related to field
+id.s (given as field number or identifier). This quantity can be the
+field value itself (F), its valence component (if the field is
+core-augmented, FVAL), the gradient norm (GMOD), the Laplacian (LAP),
+or the valence-component of the Laplacian (LAPVAL). If no keyword is
+given after id.s, F is used by default.
 
-The option DELOC activates the calculation of the delocalization
-indices using field id.s. The field must contain the (maximally
-localized) Wannier functions from wannier90, and its grid must be
-consistent with that of the reference field. The DIs are calculated
-using YT or BADER only.
+With the MULTIPOLES (or MULTIPOLE) keyword, the multipole moments of
+the field are calculated up to l=lmax.i (default: 5). This keyword
+only applies to the BADER and YT integration methods; for the others,
+it is equivalent to the field value (same as F). The units for all
+calculated multipoles are atomic units.
+
+The keyword DELOC activates the calculation of the delocalization
+indices using field id.s using maximally localized wannier functions
+(see `Loading a field (LOAD)`_). The field id.s must contain the
+Wannier functions information from wannier90 and QE, and its grid must
+be consistent with that of the reference field. The DIs can be
+calculated using YT or BADER only.
 
 In addition, it is possible to define an integrable property using an
 expression involving more than one field (expr.s). For instance, if
@@ -4429,8 +4430,17 @@ field 2, the atomic moments can be obtained using::
   REFERENCE 3
   INTEGRABLE "$1-$2"
 
-Note that the double quotation marks are required. The default
-integrable properties are:
+Note that the double quotation marks are required. 
+
+The additional keyword NAME can be used with any of the options above
+to change the name of the integrable property, for easy identification
+in the output.
+
+The keyword CLEAR resets the list to its initial state (volume, charge
+and Laplacian). Using the INTEGRABLE keyword will print a report on
+the list of integrable properties.
+
+The default integrable properties are:
 
 * Volume (1)
 
@@ -4454,10 +4464,6 @@ integrable properties are:
 
   If f is a core-augmented field, only the valence Laplacian is
   integrated. 
-
-The keyword CLEAR resets the list to its initial state (volume, charge
-and Laplacian). Using the INTEGRABLE keyword will print a report on
-the list of integrable properties.
 
 Bisection (INTEGRALS and SPHEREINTEGRALS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

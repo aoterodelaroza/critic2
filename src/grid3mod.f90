@@ -30,11 +30,9 @@ module grid3mod
      integer :: nwan(3) !< Number of lattice vectors
      integer :: nbnd !< Number of bands
      integer :: nspin !< Number of spins
-     logical :: sijchk = .true. !< Save to/load from the sij checkpoint file (chk-sij).
-     logical :: fachk = .true. !< Save to/load from the fa checkpoint file (chk-fa).
      logical :: useu = .true. !< Use the U transformation to get MLWF
+     logical :: sijavail = .false. !< true if the sij checkpoint file available
      logical :: evcavail = .false. !< true if the evc/unkgen files are available
-     real*8 :: cutoff !< Cutoff for atomic overlaps
      character(len=mlen) :: fevc !< evc file name
      real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
      real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
@@ -157,13 +155,12 @@ module grid3mod
        logical, intent(in) :: nou
        logical, intent(in) :: dochk
      end subroutine read_unk
-     module subroutine read_unkgen(f,fchk,funkgen,fevc,omega,dochk)
+     module subroutine read_unkgen(f,fchk,funkgen,fevc,omega)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fchk !< Input file (chk file from wannier90)
        character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
        character*(*), intent(in) :: fevc !< unkgen file (evc file from pw2wannier)
        real*8, intent(in) :: omega !< unit cell
-       logical, intent(in) :: dochk !< use checkpoint file
      end subroutine read_unkgen
      module subroutine read_elk(f,file)
        class(grid3), intent(inout) :: f

@@ -422,13 +422,10 @@ contains
        call f%grid%end()
 
        f%grid%wan%useu = .not.seed%nou
-       f%grid%wan%sijchk = seed%sijchk
-       f%grid%wan%fachk = seed%fachk
-       f%grid%wan%cutoff = seed%wancut
        f%type = type_grid
        f%file = seed%file(1)
 
-       call f%grid%read_unkgen(seed%file(1),seed%file(2),seed%file(3),f%c%omega,seed%sijchk)
+       call f%grid%read_unkgen(seed%file(1),seed%file(2),seed%file(3),f%c%omega)
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
@@ -1410,17 +1407,25 @@ contains
     ! Wannier information
     if (f%grid%iswan) then
        write (uout,*)
-       write (uout,'("+ Wannier functions available for this field")') 
+       write (uout,'("+ Wannier functions information for this field")') 
        if (f%grid%wan%evcavail) then
-          write (uout,'("  Source: sij-chk checkpoint file (no evc or unkgen - only DIs)")') 
+          write (uout,'("  Bloch coefficients are available.")') 
+          if (f%grid%wan%useu) then
+             write (uout,'("  MLWF rotation matrix U will be used.")') 
+          else
+             write (uout,'("  MLWF rotation matrix U will NOT be used.")') 
+          end if
        else
-          write (uout,'("  Source: unkgen/evc files")') 
+          write (uout,'("  Bloch coefficients are NOT available.)")') 
+       endif
+       if (f%grid%wan%sijavail) then
+          write (uout,'("  Sij checkpoint file is available.")') 
+       else
+          write (uout,'("  Sij checkpoint file is NOT currently available.")') 
        endif
        write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%wan%nwan(i)),i=1,3)
        write (uout,'("  Number of bands: ",A)') string(f%grid%wan%nbnd)
        write (uout,'("  Number of spin channels: ",A)') string(f%grid%wan%nspin)
-       if (f%grid%wan%cutoff > 0d0) &
-          write (uout,'("  Overlap calculation distance cutoff: ",A)') string(f%grid%wan%cutoff,'f',10,4)
        write (uout,'("  List of k-points: ")')
        do i = 1, f%grid%wan%nks
           write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f%grid%wan%kpt(j,i),'f',8,4),j=1,3)

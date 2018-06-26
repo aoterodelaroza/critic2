@@ -44,9 +44,6 @@ module fieldseedmod
      logical :: readvirtual = .false. !< Read the virtual orbitals
      character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
-     logical :: sijchk = .true. !< wannier option sijchk
-     logical :: fachk = .true. !< wannier option fachk
-     real*8 :: wancut = 4d0 !< wannier option wancut
    contains
      procedure :: end => fieldseed_end !< Terminate a fieldseed; set the type to unknown
      procedure :: parse => fieldseed_parse !< Build a field seed from an external command

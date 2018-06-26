@@ -835,7 +835,7 @@ contains
   end subroutine read_xsf
 
   !> Read unkgen file created by pw2wannier.x.
-  module subroutine read_unkgen(f,fchk,funkgen,fevc,omega,dochk)
+  module subroutine read_unkgen(f,fchk,funkgen,fevc,omega)
     use tools_math, only: det, matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose, string, uout
@@ -846,7 +846,6 @@ contains
     character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
     character*(*), intent(in) :: fevc !< evc file (evc file from pw2wannier)
     real*8, intent(in) :: omega !< unit cell
-    logical, intent(in) :: dochk !< use checkpoint file
 
     integer :: luc
     integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
@@ -860,7 +859,7 @@ contains
     character(len=33) :: header
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
     character(len=20) :: chkpt1
-    logical :: have_disentangled, ok1, ok2, haschk
+    logical :: have_disentangled, ok1, ok2
     complex*16 :: cdum
 
     call f%end()
@@ -870,14 +869,11 @@ contains
     fspin = 2d0
     
     ! checkpoint files
-    haschk = .false.
-    if (dochk) then
-       sijfname = trim(fchk) // "-sij"
-       inquire(file=sijfname,exist=haschk)
-    end if
+    sijfname = trim(fchk) // "-sij"
+    inquire(file=sijfname,exist=f%wan%sijavail)
     inquire(file=funkgen,exist=ok1)
     inquire(file=fevc,exist=ok2)
-    if (haschk) then
+    if (f%wan%sijavail) then
        f%wan%evcavail = (ok1 .and. ok2)
     else
        if (.not. (ok1.and.ok2)) &
@@ -886,13 +882,13 @@ contains
     end if
 
     ! read the grid size from the unkgen or the checkpoint
-    if (haschk) then
-       luc = fopen_read(sijfname,form="unformatted")
+    if (.not.f%wan%sijavail) then
+       luc = fopen_read(funkgen,form="unformatted")
+       read (luc) ikk, idum, ibnd, ispin
        read (luc) n
        call fclose(luc)
     else
-       luc = fopen_read(funkgen,form="unformatted")
-       read (luc) ikk, idum, ibnd, ispin
+       luc = fopen_read(sijfname,form="unformatted")
        read (luc) n
        call fclose(luc)
     end if
@@ -997,7 +993,7 @@ contains
     ! save the evc file name
     f%wan%fevc = fevc
 
-    if (.not.haschk) then
+    if (f%wan%evcavail) then
        ! read the unkgen info
        luc = fopen_read(funkgen,form="unformatted")
        read (luc) ikk, idum, ibnd, ispin
@@ -1027,7 +1023,7 @@ contains
     allocate(f%f(f%n(1),f%n(2),f%n(3)))
     f%f = 0d0
 
-    if (.not.haschk) then
+    if (f%wan%evcavail) then
        ! open the evc file
        luc = fopen_read(fevc,form="unformatted")
        allocate(evc(maxval(f%wan%ngk(1:nk))))
@@ -1056,7 +1052,6 @@ contains
        call fclose(luc)
     end if
 
-    f%wan%sijchk = dochk
     f%isinit = .true.
     f%mode = mode_default
     f%iswan = .true.

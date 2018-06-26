@@ -189,7 +189,7 @@ contains
 
     integer :: i, j, nal
     character*4 :: sprop, yesno
-    character(len=:), allocatable :: aux, str
+    character(len=:), allocatable :: aux, str, stradd
     integer :: numclass(0:3), multclass(0:3)
 
     if (lcrys) call s%c%report(.true.,.true.)
@@ -220,6 +220,7 @@ contains
        end if
        do i = 1, s%npropi
           if (.not.s%propi(i)%used) cycle
+          stradd = ""
           select case(s%propi(i)%itype)
           case(itype_v)
              sprop = "v"
@@ -239,6 +240,8 @@ contains
              sprop = "mpol"
           case(itype_deloc)
              sprop = "dloc"
+             stradd = " | use_Sij_chk = " // string(s%propi(i)%sijchk) // ", use_Fa_chk = " // string(s%propi(i)%fachk) //&
+                ", Wannier_cutoff = " // string(s%propi(i)%wancut,'f',5,2)
           case default
              call ferror('report','unknown property',faterr)
           end select
@@ -248,9 +251,10 @@ contains
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
                 string(s%propi(i)%expr)
           else
-             write (uout,'(2X,4(A,2X))') &
+             write (uout,'(2X,99(A,2X))') &
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
-                string(s%propi(i)%fid,length=5,justify=ioj_right), string(s%propi(i)%prop_name)
+                string(s%propi(i)%fid,length=5,justify=ioj_right), string(s%propi(i)%prop_name), &
+                string(stradd)
           end if
        end do
        write (uout,*)
@@ -835,14 +839,14 @@ contains
   module subroutine new_integrable_string(s,line,errmsg)
     use global, only: eval_next
     use tools_io, only: getword, lgetword, equal,&
-       isexpression_or_word, string, isinteger, getline
+       isexpression_or_word, string, isinteger, getline, isreal
     use types, only: realloc
     class(system), intent(inout) :: s
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg
 
     logical :: ok
-    integer :: id, lp, lpold, idum
+    integer :: id, lp, lpold, idum, lp2
     character(len=:), allocatable :: word, expr, str
     logical :: useexpr
 
@@ -918,6 +922,27 @@ contains
           elseif (equal(word,"deloc")) then
              s%propi(s%npropi)%itype = itype_deloc
              str = trim(str) // "#deloca"
+             
+             do while (.true.)
+                lp2 = lp
+                word = lgetword(line,lp)
+                if (equal(word,"nosijchk")) then
+                   s%propi(s%npropi)%sijchk = .false.
+                else if (equal(word,"nofachk")) then
+                   s%propi(s%npropi)%fachk = .false.
+                else if (equal(word,"wancut")) then
+                   ok = isreal(s%propi(s%npropi)%wancut,line,lp)
+                   if (.not.ok) then
+                      errmsg = "Wrong WANCUT value"
+                      s%npropi = s%npropi - 1
+                      return
+                   end if
+                else
+                   lp = lp2
+                   exit
+                end if
+             end do
+
           elseif (equal(word,"deloc")) then
              s%propi(s%npropi)%itype = itype_deloc
              str = trim(str) // "#deloca"

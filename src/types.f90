@@ -160,6 +160,10 @@ module types
      character*(2048) :: expr
      integer :: lmax
      real*8 :: x0(3)
+     ! integration of delocalization indices with Wannier functions
+     logical :: sijchk = .true.
+     logical :: fachk = .true.
+     real*8 :: wancut = 4d0
   end type integrable
 
   !> Information about a point-property field
