@@ -1568,10 +1568,8 @@ contains
     integer :: i, j, k, nk1, nk2, nk3
     integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk, ilat, ikg, ik0
     integer :: imax(4)
-    complex*16 :: raux(f%n(1),f%n(2),f%n(3)), rseq(f%n(1)*f%n(2)*f%n(3))
-    complex*16 :: raux2(f%n(1),f%n(2),f%n(3))
     complex*16 :: tnorm
-    complex*16, allocatable :: evc(:)
+    complex*16, allocatable :: evc(:), rseq(:), raux(:,:,:), raux2(:,:,:)
     integer :: n(3)
 
     n = f%n
@@ -1599,9 +1597,17 @@ contains
        luevc_ibnd(ispin) = ibnd
     end if
 
+    ! allocate auxiliary arrays
+    allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
+    allocate(raux(f%n(1),f%n(2),f%n(3)))
+    allocate(raux2(f%n(1),f%n(2),f%n(3)))
+    rseq = 0d0
+    raux2 = 0d0
+    raux = 0d0
+
     ! run over k-points
     ikg = 0
-    !$omp parallel do private(rseq,raux,raux2,ik1,ik2,ik3,ilat,ik0) firstprivate(evc) schedule(dynamic)
+    !$omp parallel do private(ik1,ik2,ik3,ilat,ik0) firstprivate(evc,rseq,raux,raux2) schedule(dynamic)
     do ik = 1, nk
        rseq = 0d0
        !$omp critical (readio)
@@ -1637,6 +1643,7 @@ contains
     end do
     !$omp end parallel do
 
+    deallocate(rseq,raux,raux2)
     luevc_ibnd(ispin) = luevc_ibnd(ispin) + 1
     if (allocated(evc)) deallocate(evc)
 
