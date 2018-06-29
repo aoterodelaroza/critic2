@@ -74,7 +74,7 @@ static string view_tooltip_label(int id){
 View::View(char *title_, float atex, int iscene/*=0*/){
   title = title_;
   createTex(atex);
-  FBO_a = atex;
+  arender = atex;
   if (iscene > 0)
     changeScene(iscene);
   for (int i=0; i<4; i++)
@@ -90,7 +90,7 @@ View::~View(){
 void View::changeScene(int isc){
   if (isc > 0 && isc <= c2::nsc && isc != iscene){
     if (scmap.find(isc) == scmap.end()){
-      sc = new Scene(isc,FBO_a);
+      sc = new Scene(isc,arender);
       llock = false;
       rlock = false;
       scmap[isc] = sc;
@@ -212,7 +212,7 @@ void View::Draw(){
     bool hover = false;
     SetCursorPos(cpos);
     if (sc){
-      ImageInteractive((void *) FBOtex,FBO_a/FBO_atex,&hover,&vrect);
+      ImageInteractive((void *) FBOtex,arender/FBO_atex,&hover,&vrect);
     } else {
       hover = false;
       if (dock && dock->window)
@@ -408,7 +408,7 @@ void View::Draw(){
 
 void View::Update(){
   glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-  glViewport(0.,0.,FBO_a,FBO_a);
+  glViewport(0.,0.,arender,arender);
 
   glClearColor(0.f,0.f,0.f,0.f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -585,7 +585,7 @@ bool View::processMouseEvents(bool hover){
 
 bool View::Navigate(bool hover){
   const float eps = 1e-8;
-  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  const glm::vec4 viewport = {0.f,0.f,arender,arender};
   bool updateview = false, updateworld = false, updateprojection = false;
   bool updatenone = false;
 
@@ -608,7 +608,7 @@ bool View::Navigate(bool hover){
   } else if (slock) {
     if (IsBindEvent(BIND_NAV_ZOOM,true)){
       // 10/a to make it adimensional
-      ratio = mousesens_zoom0 * view_mousesens_zoom * (mpos0_s-mousepos.y) * (10.f / FBO_a); 
+      ratio = mousesens_zoom0 * view_mousesens_zoom * (mpos0_s-mousepos.y) * (10.f / arender); 
       mpos0_s = mousepos.y;
     } else {
       slock = false;
@@ -678,7 +678,7 @@ bool View::Navigate(bool hover){
 	if (lax > 1e-10f && sc){
 	  axis = glm::inverse(glm::mat3(sc->m_world)) * glm::normalize(axis);
 	  glm::vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
-	  float ang = 2.0f * glm::length(mpos) * mousesens_rot0 * view_mousesens_rot / FBO_a;
+	  float ang = 2.0f * glm::length(mpos) * mousesens_rot0 * view_mousesens_rot / arender;
 	  sc->m_world = glm::rotate(sc->m_world,ang,axis);
 	  updateworld = true;
 	}
@@ -710,8 +710,6 @@ bool View::Navigate(bool hover){
 }
 
 void View::createTex(float atex){
-  const int nsample = 10;
-
   // FBO and buffers
   glGenTextures(1, &(FBOtex));
   glGenRenderbuffers(1, &(FBOdepth));
@@ -734,8 +732,10 @@ void View::createTex(float atex){
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex, 0); 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, FBOdepth);
 
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE){
+    printf("Error: frambuffer is not complete\n");
     exit(EXIT_FAILURE);
+  }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   FBO_atex = atex;
@@ -757,9 +757,9 @@ bool View::updateTexSize(){
     redraw = true;
   }
 
-  if (FBO_a != amax / SE_pixelated){
-    FBO_a = amax / SE_pixelated;
-    sc->setTextureSize(FBO_a);
+  if (arender != amax / SE_pixelated){
+    arender = amax / SE_pixelated;
+    sc->setTextureSize(arender);
     redraw = true;
   }
 
@@ -797,16 +797,16 @@ void View::texpos_to_pos(glm::vec2 &pos){
 }
 
 void View::texpos_to_ntexpos(glm::vec2 &pos){
-  pos = (pos / FBO_a) * 2.f - 1.f;
+  pos = (pos / arender) * 2.f - 1.f;
 }
 
 void View::ntexpos_to_texpos(glm::vec2 &pos){
-  pos = (0.5f * pos + 0.5f) * FBO_a;
+  pos = (0.5f * pos + 0.5f) * arender;
 }
 
 glm::vec2 View::world_to_texpos(glm::vec3 pos){
   if (!sc) return glm::vec2();
-  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  const glm::vec4 viewport = {0.f,0.f,arender,arender};
   glm::vec3 pos3 = project(pos,sc->m_view * sc->m_world,sc->m_projection,viewport);
   return glm::vec2(pos3);
 }
@@ -815,7 +815,7 @@ glm::vec2 View::world_to_texpos(glm::vec3 pos){
 glm::vec3 View::texpos_to_world(glm::vec2 pos, float dist/*=-1.f*/){
   if (!sc) return glm::vec3();
 
-  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  const glm::vec4 viewport = {0.f,0.f,arender,arender};
   glm::vec3 wpos = {};
   if (dist < 0.f){
     // Set the point on the plane parallel to the z-plane that passes through
@@ -851,7 +851,7 @@ glm::vec3 View::ntexpos_to_world(glm::vec2 pos, float dist/*=-1.f*/){
 
 glm::vec2 View::view_to_texpos(glm::vec3 pos, float *depth){
   if (!sc) return glm::vec2();
-  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  const glm::vec4 viewport = {0.f,0.f,arender,arender};
   glm::vec3 pos3 = project(pos,sc->m_view,sc->m_projection,viewport);
   *depth = pos3.z;
   return glm::vec2(pos3);
@@ -859,7 +859,7 @@ glm::vec2 View::view_to_texpos(glm::vec3 pos, float *depth){
 
 glm::vec3 View::texpos_to_view(glm::vec2 pos, float depth){
   if (!sc) return glm::vec3();
-  const glm::vec4 viewport = {0.f,0.f,FBO_a,FBO_a};
+  const glm::vec4 viewport = {0.f,0.f,arender,arender};
   glm::vec3 wpos = {pos.x,pos.y,depth};
   wpos = unProject(wpos,sc->m_view,sc->m_projection,viewport);
   return wpos;

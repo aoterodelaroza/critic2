@@ -119,8 +119,8 @@ struct View
   GLuint FBO; // framebuffer object
   GLuint FBOtex; // framebuffer object texture
   GLuint FBOdepth; // framebuffer object depth buffer
-  float FBO_atex; // side of the texture (pixels)
-  float FBO_a; // side of the texture square used for rendering (pixels)
+  float FBO_atex; // side of the render texture (pixels)
+  float arender; // side of the square used for rendering (pixels), arender <= FBO_atex
 
   // dock
   float bgrgb[4]; // background color
