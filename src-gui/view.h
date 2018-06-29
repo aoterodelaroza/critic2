@@ -91,8 +91,8 @@ struct View
   void drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz);
 
   // draw shapes
-  void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
-  void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
+  void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res);
+  void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res);
   void drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors);
 
   // map of scenes

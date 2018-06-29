@@ -479,7 +479,7 @@ void View::Update(){
             glm::vec3 x0 = r0 + (float) ix * vx + (float) iy * vy + (float) iz * vz;
             // atoms
             if (sc->show_atoms)
-              drawSphere(x0,sc->scale_atoms * c2::at[i].rad,rgb,sc->isphres,false);
+              drawSphere(x0,sc->scale_atoms * c2::at[i].rad,rgb,sc->isphres);
 
             // bonds
             if (sc->show_bonds){
@@ -497,8 +497,8 @@ void View::Update(){
                 glm::vec4 rgbn = glm::make_vec4(c2::at[ineigh].rgb);
 
                 const float rad = 0.2f;
-                drawCylinder(x0,xmid,sc->scale_bonds * rad,rgb,sc->icylres,false);
-                drawCylinder(xmid,x1,sc->scale_bonds * rad,rgbn,sc->icylres,false);
+                drawCylinder(x0,xmid,sc->scale_bonds * rad,rgb,sc->icylres);
+                drawCylinder(xmid,x1,sc->scale_bonds * rad,rgbn,sc->icylres);
               }
             }
 
@@ -873,12 +873,10 @@ float View::texpos_viewdepth(glm::vec2 texpos){
     return depth;
 }
 
-void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend){
+void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res){
   if (!sc) return;
 
   sc->usephong();
-  if (blend)
-    glDepthMask(0);
   glBindVertexArray(sphVAO[res]);
 
   glm::mat4 m_model = glm::mat4(1.0f);
@@ -890,16 +888,12 @@ void View::drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blen
   sc->shphong->setMat4("model",value_ptr(m_model));
   sc->shphong->setMat3("normrot",value_ptr(m_normrot));
   glDrawElements(GL_TRIANGLES, 3*sphnel[res], GL_UNSIGNED_INT, 0);
-  if (blend)
-    glDepthMask(1);
 }
 
-void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend){
+void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res){
   if (!sc) return;
 
   sc->usephong();
-  if (blend)
-    glDepthMask(0);
   glBindVertexArray(cylVAO[res]);
   glm::vec3 xmid = 0.5f * (r1 + r2);
   glm::vec3 xdif = r2 - r1;
@@ -918,8 +912,6 @@ void View::drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, in
   sc->shphong->setVec4("vColor",value_ptr(rgb));
   sc->shphong->setMat4("model",value_ptr(m_model));
   glDrawElements(GL_TRIANGLES, 3*cylnel[sc->icylres], GL_UNSIGNED_INT, 0);
-  if (blend)
-    glDepthMask(1);
 }
 
 void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors){
@@ -939,35 +931,35 @@ void View::drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &
   }
   ucellrgbo = {1.0f,1.0f,1.0f,1.f};
   
-  drawCylinder(v0,v0+vx,cellthick,ucellrgbx,0,false);
-  drawCylinder(v0,v0+vy,cellthick,ucellrgby,0,false);
-  drawCylinder(v0,v0+vz,cellthick,ucellrgbz,0,false);
+  drawCylinder(v0,v0+vx,cellthick,ucellrgbx,0);
+  drawCylinder(v0,v0+vy,cellthick,ucellrgby,0);
+  drawCylinder(v0,v0+vz,cellthick,ucellrgbz,0);
   for (int ix=0; ix<sc->ncell[0]; ix++){
     for (int iy=0; iy<sc->ncell[1]; iy++){
       for (int iz=0; iz<sc->ncell[2]; iz++){
         glm::vec3 lvec = (float) ix * vx + (float) iy * vy + (float) iz * vz;
 
         if (ix == 0 && iy == 0 && iz > 0)
-          drawCylinder(v0+lvec,v0+vz+lvec,cellthick,ucellrgbo,0,false);
+          drawCylinder(v0+lvec,v0+vz+lvec,cellthick,ucellrgbo,0);
         if (ix == 0 && iz == 0 && iy > 0)
-          drawCylinder(v0+lvec,v0+vy+lvec,cellthick,ucellrgbo,0,false);
+          drawCylinder(v0+lvec,v0+vy+lvec,cellthick,ucellrgbo,0);
         if (iy == 0 && iz == 0 && ix > 0)
-          drawCylinder(v0+lvec,v0+vx+lvec,cellthick,ucellrgbo,0,false);
+          drawCylinder(v0+lvec,v0+vx+lvec,cellthick,ucellrgbo,0);
         if (iz == 0) { 
-          drawCylinder(v0+vx+lvec,v0+vx+vy+lvec,cellthick,ucellrgbo,0,false);
-          drawCylinder(v0+vy+lvec,v0+vy+vx+lvec,cellthick,ucellrgbo,0,false);
+          drawCylinder(v0+vx+lvec,v0+vx+vy+lvec,cellthick,ucellrgbo,0);
+          drawCylinder(v0+vy+lvec,v0+vy+vx+lvec,cellthick,ucellrgbo,0);
         }
         if (ix == 0){
-          drawCylinder(v0+vy+lvec,v0+vy+vz+lvec,cellthick,ucellrgbo,0,false);
-          drawCylinder(v0+vz+lvec,v0+vz+vy+lvec,cellthick,ucellrgbo,0,false);
+          drawCylinder(v0+vy+lvec,v0+vy+vz+lvec,cellthick,ucellrgbo,0);
+          drawCylinder(v0+vz+lvec,v0+vz+vy+lvec,cellthick,ucellrgbo,0);
         }
         if (iy == 0){
-          drawCylinder(v0+vx+lvec,v0+vx+vz+lvec,cellthick,ucellrgbo,0,false);
-          drawCylinder(v0+vz+lvec,v0+vz+vx+lvec,cellthick,ucellrgbo,0,false);
+          drawCylinder(v0+vx+lvec,v0+vx+vz+lvec,cellthick,ucellrgbo,0);
+          drawCylinder(v0+vz+lvec,v0+vz+vx+lvec,cellthick,ucellrgbo,0);
         }
-        drawCylinder(v0+vx+vy+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0,false);
-        drawCylinder(v0+vx+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0,false);
-        drawCylinder(v0+vy+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0,false);
+        drawCylinder(v0+vx+vy+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0);
+        drawCylinder(v0+vx+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0);
+        drawCylinder(v0+vy+vz+lvec,v0+vx+vy+vz+lvec,cellthick,ucellrgbo,0);
       }
     }
   }
