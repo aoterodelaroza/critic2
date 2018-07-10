@@ -1557,6 +1557,7 @@ contains
   !> updated by calls to this routine. isreal is .true. in output
   !> if the Wannier function is real (abs(max(imag)/max(real)) < 1e-7).
   module subroutine get_qe_wnr(f,ibnd,ispin,luevc,luevc_ibnd,fout)
+    use tools_io, only: uout, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
     integer, intent(in) :: ibnd
@@ -1571,6 +1572,7 @@ contains
     complex*16 :: tnorm
     complex*16, allocatable :: evc(:), rseq(:), raux(:,:,:), raux2(:,:,:)
     integer :: n(3)
+    real*8 :: xkpt(3)
 
     n = f%n
     nk1 = f%wan%nwan(1)
@@ -1607,7 +1609,7 @@ contains
 
     ! run over k-points
     ikg = 0
-    !$omp parallel do private(ik1,ik2,ik3,ilat,ik0) firstprivate(evc,rseq,raux,raux2) schedule(dynamic)
+    !$omp parallel do private(ik1,ik2,ik3,ilat,ik0,xkpt) firstprivate(evc,rseq,raux,raux2) schedule(dynamic)
     do ik = 1, nk
        rseq = 0d0
        !$omp critical (readio)
@@ -1631,11 +1633,22 @@ contains
 
        ! add the contribution from this k-point
        do ikk = 1, nk
-          ik1 = nint(f%wan%kpt(1,ikk) * nk1)
-          ik2 = nint(f%wan%kpt(2,ikk) * nk2)
-          ik3 = nint(f%wan%kpt(3,ikk) * nk3)
+          xkpt = f%wan%kpt(:,ikk) - floor(f%wan%kpt(:,ikk))
+          ik1 = nint(xkpt(1) * nk1)
+          ik2 = nint(xkpt(2) * nk2)
+          ik3 = nint(xkpt(3) * nk3)
           ilat = 1 + ik3 + nk3 * (ik2 + nk2 * ik1)
           raux2 = raux * exp(-tpi*img*(f%wan%kpt(1,ik0)*ik1+f%wan%kpt(2,ik0)*ik2+f%wan%kpt(3,ik0)*ik3))
+          if (ilat < 1 .or. ilat > nk) then 
+             !$omp critical (ioerror)
+             write (uout,*) "kpoint number ", ikk
+             write (uout,*) "kpoint coords ", f%wan%kpt(:,ikk)
+             write (uout,*) "kpoint coords (main cell) ", xkpt
+             write (uout,*) "ik ", ik1, ik2, ik3
+             write (uout,*) "ilat ", ilat
+             call ferror("get_qe_wnr","could not classify a k-point, non-uniform grid?",faterr)
+             !$omp end critical (ioerror)
+          end if
           !$omp critical (sum)
           fout(:,:,:,ilat) = fout(:,:,:,ilat) + raux2
           !$omp end critical (sum)
