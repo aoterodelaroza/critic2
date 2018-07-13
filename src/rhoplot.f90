@@ -974,9 +974,7 @@ contains
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-          if (cr%ismolecule) then
-             xp = (cr%x2c(xp) + cr%molx0) * dunit0(iunit)
-          endif
+          xp = (cr%x2c(xp) + cr%molx0) * dunit0(iunit)
           write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') &
              xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
        end do
@@ -1204,11 +1202,11 @@ contains
     write (lu,'("# set cntrparam levels incremental -min,step,max")')
     write (lu,'("")')
     if (cmopt == 1) then
-       write (lu,'("splot """,A,""" u 4:5:(log(abs($6))) ls 1 w pm3d notitle")') outfile
+       write (lu,'("splot """,A,""" u 1:2:(log(abs($6))) ls 1 w pm3d notitle")') outfile
     elseif (cmopt == 2) then
-       write (lu,'("splot """,A,""" u 4:5:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
+       write (lu,'("splot """,A,""" u 1:2:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
     else
-       write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
+       write (lu,'("splot """,A,""" u 1:2:6 ls 1 w pm3d notitle")') outfile
     end if
 
     ! wrap up
