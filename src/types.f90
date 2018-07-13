@@ -110,10 +110,16 @@ module types
      ! additional local properties
      real*8 :: hfevec(3,3), hfeval(3)
      integer :: r, s
-     ! is it a nuclear position?
-     logical :: isnuc
      ! specialized return field (molecular orbital values, etc.)
      real*8 :: fspc
+     ! is it a nuclear position?
+     logical :: isnuc
+     ! are the fields significant?
+     logical :: avail_der1 ! first derivatives of the scalar field
+     logical :: avail_der2 ! second derivatives of the scalar field
+     logical :: avail_gkin ! kinetic energy density
+     logical :: avail_stress ! stress tensor
+     logical :: avail_vir ! virial field
   end type scalar_value
 
   !> Critical point type

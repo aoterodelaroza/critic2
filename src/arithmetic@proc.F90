@@ -1381,10 +1381,14 @@ contains
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
        res = feval(sptr,sia,1,"",x0,periodic)
+       if (.not.res%avail_gkin) &
+          call die("Tried to calculate GKIN with a field that cannot provide the kinetic energy density.")
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
        res = feval(sptr,sia,2,"",x0,periodic)
+       if (.not.res%avail_gkin) &
+          call die("Tried to calculate KKIN with a field that cannot provide the kinetic energy density.")
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
@@ -1394,6 +1398,8 @@ contains
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
        res = feval(sptr,sia,1,"",x0,periodic)
+       if (.not.res%avail_gkin) &
+          call die("Tried to calculate the ELF with a field that cannot provide the kinetic energy density.")
        if (res%f < 1d-30) then
           q = 0d0
        else
@@ -1407,17 +1413,23 @@ contains
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
        res = feval(sptr,sia,2,"",x0,periodic)
+       if (.not.res%avail_vir) &
+          call die("Tried to calculate VIR with a field that cannot provide the virial.")
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
        res = feval(sptr,sia,2,"",x0,periodic)
+       if (.not.res%avail_vir) &
+          call die("Tried to calculate HE with a field that cannot provide the kinetic energy density and/or the virial.")
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
        res = feval(sptr,sia,2,"",x0,periodic)
+       if (.not.res%avail_vir) &
+          call die("Tried to calculate the LOL with a field that cannot provide the kinetic energy density.")
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)

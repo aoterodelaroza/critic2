@@ -726,6 +726,11 @@ contains
     res%stress = 0d0
     res%fspc = 0d0
     res%isnuc = .false.
+    res%avail_der1 = (nder > 0)
+    res%avail_der2 = (nder > 1)
+    res%avail_gkin = .false.
+    res%avail_stress = .false.
+    res%avail_vir = .false.
 
     ! check consistency
     if (nder < 0 .and. f%type /= type_wfn) &
@@ -846,6 +851,9 @@ contains
     case(type_wfn)
        if (nder >= 0) then
           call f%wfn%rho2(wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
+          res%avail_gkin = .true.
+          res%avail_stress = .true.
+          res%avail_vir = .true.
        else
           call f%wfn%calculate_mo(wc,res%fspc,fder)
           return
@@ -858,6 +866,7 @@ contains
     case(type_dftb)
        ! transform to the center of the reduced-cell coordinates
        call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
+       res%avail_gkin = .true.
        ! transformation not needed because of dftb_register_struct:
        ! all work done in Cartesians in a finite environment.
 
