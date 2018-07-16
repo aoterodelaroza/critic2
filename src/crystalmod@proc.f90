@@ -569,7 +569,7 @@ contains
     ! Build the atomic environments
     if (env) then
        if (c%ismolecule) then
-          call c%env%build_mol(c%ncel,c%atcel(1:c%ncel))
+          call c%env%build_mol(c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr)
        else
           call c%env%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr)
        end if
@@ -826,7 +826,7 @@ contains
           nid = j
           dmin = dd
           if (present(lvec)) then
-             lvec = nint(c%atcel(j)%x - xp - temp)
+             lvec = nint(xp + c%c2x(temp) - c%atcel(j)%x)
           end if
        end if
     end do
@@ -3236,7 +3236,7 @@ contains
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use types, only: realloc
-    use param, only: pi
+    use param, only: pi, eye
     class(crystal), intent(inout) :: c
     real*8, intent(out), optional :: area(14) !< area of the WS faces 
 
@@ -3343,8 +3343,13 @@ contains
     end if
 
     ! calculate the delaunay reduction parameters for shortest vector search
-    c%m_xr2x = rdel
-    c%m_x2xr = matinv(c%m_xr2x)
+    if (c%ismolecule) then
+       c%m_xr2x = eye
+       c%m_x2xr = eye
+    else
+       c%m_xr2x = rdel
+       c%m_x2xr = matinv(c%m_xr2x)
+    end if
     c%m_xr2c = matmul(c%m_x2c,c%m_xr2x)
     c%m_c2xr = matinv(c%m_xr2c)
 

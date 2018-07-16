@@ -51,20 +51,39 @@ contains
   end subroutine environ_end
   
   !> Build an environment from molecule data
-  module subroutine environ_build_from_molecule(e,n,at)
+  module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr)
+    use tools_math, only: matinv
     use types, only: realloc
     class(environ), intent(inout) :: e
     integer, intent(in) :: n
     type(celatom), intent(in) :: at(n)
+    real*8, intent(in) :: m_xr2c(3,3)
+    real*8, intent(in) :: m_x2xr(3,3)
 
     integer :: i 
+    real*8 :: sphmax
+
+    e%ismolecule = .true.
+
+    ! fill the matrices
+    e%m_xr2c = m_xr2c
+    e%m_c2xr = matinv(m_xr2c)
+    e%m_x2xr = m_x2xr
+    e%m_xr2x = matinv(m_x2xr)
+
+    ! calculate the maximum diagonal half-length (sphmax)
+    sphmax = norm2(e%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+    sphmax = max(sphmax,norm2(e%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(e%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(e%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    e%sphmax = sphmax
+    e%dmax0 = sphmax
 
     e%n = n
     if (allocated(e%at)) deallocate(e%at)
     allocate(e%at(e%n))
     do i = 1, n
        e%at(i)%x = at(i)%x
-       e%at(i)%x = e%at(i)%x - nint(e%at(i)%x)
        e%at(i)%r = at(i)%r
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
@@ -103,14 +122,19 @@ contains
     real*8 :: sphmax, dmax, m_xr2x(3,3), x(3), xc(3), dd
     integer :: i1, i2, i3, i, imax, p(3), px(3)
 
-    ! prepare
-    m_xr2x = matinv(m_x2xr)
+    e%ismolecule = .false.
+
+    ! fill the matrices
+    e%m_xr2c = m_xr2c
+    e%m_c2xr = matinv(m_xr2c)
+    e%m_x2xr = m_x2xr
+    e%m_xr2x = matinv(m_x2xr)
 
     ! calculate the maximum diagonal half-length (sphmax)
-    sphmax = norm2(xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-    sphmax = max(sphmax,norm2(xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm2(xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    sphmax = max(sphmax,norm2(xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = norm2(e%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+    sphmax = max(sphmax,norm2(e%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(e%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(e%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
     e%sphmax = sphmax
 
     ! calculate the dmax if not given
@@ -129,10 +153,10 @@ contains
     if (allocated(e%at)) deallocate(e%at)
     allocate(e%at(e%n))
     do i = 1, n
-       e%at(i)%x = x2xr(at(i)%x)
+       e%at(i)%x = e%x2xr(at(i)%x)
        e%at(i)%x = e%at(i)%x - nint(e%at(i)%x)
-       x = xr2x(e%at(i)%x)
-       e%at(i)%r = xr2c(e%at(i)%x)
+       x = e%xr2x(e%at(i)%x)
+       e%at(i)%r = e%xr2c(e%at(i)%x)
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
        e%at(i)%ir = at(i)%ir
@@ -156,10 +180,10 @@ contains
 
                 do i = 1, n
                    p = (/i1, i2, i3/)
-                   px = nint(xr2x(real(p,8)))
+                   px = nint(e%xr2x(real(p,8)))
 
                    x = e%at(i)%x + p
-                   xc = xr2c(x)
+                   xc = e%xr2c(x)
                    dd = norm2(xc)
                    if (dd < sphmax+dmax) then
                       dorepeat = .true.
@@ -186,22 +210,62 @@ contains
     call calculate_regions(e)
 
   contains
-    pure function xr2c(xx) result(res)
-      real*8, intent(in)  :: xx(3)
-      real*8 :: res(3)
-      res = matmul(m_xr2c,xx)
-    end function xr2c
-    pure function x2xr(xx) result(res)
-      real*8, intent(in)  :: xx(3)
-      real*8 :: res(3)
-      res = matmul(m_x2xr,xx)
-    end function x2xr
-    pure function xr2x(xx) result(res)
-      real*8, intent(in)  :: xx(3)
-      real*8 :: res(3)
-      res = matmul(m_xr2x,xx)
-    end function xr2x
   end subroutine environ_build_from_crystal
+
+  !> Reduced crystallographic to Cartesian transform
+  pure module function xr2c(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+    res = matmul(e%m_xr2c,xx)
+  end function xr2c
+
+  !> Cartesian to reduced crystallographic transform
+  pure module function c2xr(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+    res = matmul(e%m_c2xr,xx)
+  end function c2xr
+
+  !> Reduced crystallographic to crystallographic transform
+  pure module function xr2x(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+    res = matmul(e%m_xr2x,xx)
+  end function xr2x
+
+  !> Crystallographic to reduced crystallographic transform
+  pure module function x2xr(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+    res = matmul(e%m_x2xr,xx)
+  end function x2xr
+
+  !> Convert between coordinate type icrd (cartesian, cryst., reduced
+  !> cryst.) and type ocrd. x2c and c2x not available.
+  pure module function y2z(e,xx,icrd,ocrd) result(res)
+    use param, only: icrd_cart, icrd_crys, icrd_rcrys
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    integer, intent(in) :: icrd, ocrd
+    real*8 :: res(3)
+
+    if (icrd == icrd_rcrys .and. ocrd == icrd_cart) then
+       res = matmul(e%m_xr2c,xx)
+    else if (icrd == icrd_cart .and. ocrd == icrd_rcrys) then
+       res = matmul(e%m_c2xr,xx)
+    else if (icrd == icrd_rcrys .and. ocrd == icrd_crys) then
+       res = matmul(e%m_xr2x,xx)
+    else if (icrd == icrd_crys .and. ocrd == icrd_rcrys) then
+       res = matmul(e%m_x2xr,xx)
+    else
+       res = xx
+    end if
+
+  end function y2z
 
   !> Cartesian to region transform
   pure module function c2p(e,xx) result(res)
@@ -238,6 +302,80 @@ contains
     res = 1 + ix(1) + e%nreg(1) * (ix(2) + e%nreg(2) * ix(3))
 
   end function c2i
+
+  !> Given the point xp, calculates the nearest atom. icrd = type of
+  !> input coordinates. The nearest atom has ID nid from the complete
+  !> list (atcel) and is at a distance dist. On output, the optional
+  !> argument lvec contains the lattice vector to the nearest atom
+  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
+  !> only atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list.  If
+  !> nozero, disregard zero-distance atoms.
+  module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
+    use param, only: icrd_rcrys
+    class(environ), intent(in) :: e
+    real*8, intent(in) :: xp(3)
+    integer, intent(in) :: icrd
+    integer, intent(out) :: nid
+    real*8, intent(out) :: dist
+    integer, intent(out), optional :: lvec(3)
+    integer, intent(in), optional :: nid0
+    integer, intent(in), optional :: id0
+    logical, intent(in), optional :: nozero
+
+    real*8, parameter :: eps = 1d-10
+
+    real*8 :: x0(3), dist, distmin
+    integer :: ireg0, ireg
+    integer :: i, j, k, kmin, lvec0(3)
+
+    ! Find the integer region for the main cell copy of the input point
+    x0 = e%y2z(xp,icrd,icrd_rcrys)
+    if (e%ismolecule) then
+       lvec0 = floor(x0)
+       x0 = x0 - floor(x0)
+    else
+       lvec0 = nint(x0)
+       x0 = x0 - nint(x0)
+    end if
+    x0 = e%xr2c(x0)
+    ireg0 = e%c2i(x0)
+    
+    ! run over regions sorted by distance
+    distmin = 1d40
+    kmin = 0
+    main: do i = 1, e%nregs
+       ireg = ireg0 + e%iaddregs(i)
+       if (ireg > 0 .and. ireg < e%nregion) then
+          do j = e%nrlo(ireg), e%nrhi(ireg)
+             k = e%imap(j)
+             if (distmin < e%rcutregs(i)) exit main
+             if (present(nid0)) then
+                if (e%at(k)%idx /= nid0) cycle
+             end if
+             if (present(id0)) then
+                if (e%at(k)%cidx /= id0) cycle
+             end if
+
+             dist = norm2(e%at(k)%r - x0)
+             if (present(nozero)) then
+                if (dist < eps) cycle
+             end if
+             if (dist < distmin) then
+                distmin = dist
+                kmin = k
+             end if
+          end do
+       end if
+    end do main
+
+    nid = e%at(kmin)%cidx
+    dist = distmin
+    if (present(lvec)) then
+       lvec = e%at(kmin)%lenv + nint(e%xr2x(real(lvec0,8)))
+    end if
+
+  end subroutine nearest_atom
 
   !> Write a report about the environment to stdout
   module subroutine environ_report(e)

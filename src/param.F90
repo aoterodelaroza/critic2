@@ -87,6 +87,11 @@ module param
   integer, parameter :: mlen = 512 ! length for fixed-length strings (filenames, etc.)
   integer, parameter :: mmlen = 2048 ! long length for fixed-length strings
 
+  ! Enumerate for coordinate types
+  integer, parameter, public :: icrd_cart = 0 ! Cartesian
+  integer, parameter, public :: icrd_crys = 1 ! Crystallographic
+  integer, parameter, public :: icrd_rcrys = 2 ! Reduced crystallographic
+
   ! Enumerate for structure formats
   integer, parameter, public :: isformat_unknown = 0
   integer, parameter, public :: isformat_cif = 1

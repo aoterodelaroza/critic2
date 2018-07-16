@@ -441,9 +441,11 @@ contains
   subroutine trick_test_environment()
     use systemmod, only: sy
     use tools_io, only: uout, string
+    use param, only: icrd_cart, icrd_crys, icrd_rcrys
     
     integer :: i, j
-    real*8 :: xx(3), x(3)
+    real*8 :: xx(3), x(3), dist1, dist2
+    integer :: nid1, nid2, lvec1(3), lvec2(3)
 
     associate(env => sy%c%env, cr => sy%c)
 
@@ -452,11 +454,11 @@ contains
       ! ! Two tests for correctness of lvec and lenv
       ! do i = 1, env%n
       !    write (uout,'("  Atom ",A)') string(i)
-
+      
       !    xx = cr%xr2x(env%at(i)%x)
       !    x = cr%atcel(env%at(i)%cidx)%x + env%at(i)%lenv
       !    write (uout,'("  Test 1 (lenv) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
-
+      
       !    xx = cr%xr2x(env%at(i)%x)
       !    x = matmul(cr%rotm(1:3,1:3,env%at(i)%ir),cr%at(env%at(i)%idx)%x) +&
       !       cr%rotm(:,4,env%at(i)%ir) + cr%cen(:,env%at(i)%ic) + env%at(i)%lvec
@@ -466,12 +468,44 @@ contains
       ! ! Write the environment info
       ! call env%report()
 
+      ! do i = 1, 100
+      !    call random_number(x)
+      !    x = x * 10d0 - 5d0
+      !    call cr%nearest_atom(x,nid1,dist1,lvec1)
+      !    call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
+      !    write (*,*) "point ", i
+      !    write (*,*) "x = ", x
+      !    write (*,*) "nid1 = ", nid1
+      !    write (*,*) "nid2 = ", nid2
+      !    write (*,*) "nid = ", abs(nid1-nid2)
+      !    write (*,*) "dist1 = ", dist1
+      !    write (*,*) "dist2 = ", dist2
+      !    write (*,*) "dist = ", abs(dist1-dist2)
+      !    write (*,*) "lvec1 = ", lvec1
+      !    write (*,*) "lvec2 = ", lvec2
+      !    write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
+      ! end do
+
+      ! x = 0.5d0
+      ! call cr%nearest_atom(x,nid1,dist1,lvec1)
+      ! call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
+      ! write (*,*) "point ", i
+      ! write (*,*) "x = ", x
+      ! write (*,*) "nid = ", nid1, nid2
+      ! write (*,*) "dist = ", dist1, dist2
+      ! ! write (*,*) "lvecdif = ", lvec1 - lvec2
+      ! write (*,*) "lvec1 = ", lvec1
+      ! write (*,*) "lvec2 = ", lvec2
+
+      ! write (*,*) "pos = ", x
+      ! write (*,*) "pos1 = ", cr%atcel(nid1)%x + lvec1
+      ! write (*,*) "pos2 = ", cr%atcel(nid2)%x + lvec2
+      ! write (*,*) "dist1 = ", norm2(cr%x2c(x - (cr%atcel(nid1)%x + lvec1)))
+      ! write (*,*) "dist2 = ", norm2(cr%x2c(x - (cr%atcel(nid2)%x + lvec2)))
+
+
     end associate
 
-    ! m_xr2c
-    ! m_x2xr
-    ! m_xr2x (= matinv(m_x2xr)
-    
   end subroutine trick_test_environment
 
 end module tricks
