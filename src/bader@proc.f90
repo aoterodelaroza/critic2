@@ -95,7 +95,7 @@ contains
     integer, allocatable, intent(inout) :: volnum0(:,:,:)
 
     integer :: i, j, k, l, path_volnum, p(3)
-    integer :: ptemp(3), ref_itrs, irefine_edge, nid, lvec(3)
+    integer :: ptemp(3), ref_itrs, irefine_edge, nid
     real*8 :: dlat(3), dcar(3), dist, dv(3), x(3), fval
     integer :: bat(s%c%ncel)
     logical :: isassigned, ok
@@ -167,7 +167,7 @@ contains
                    ! check if it is an atom (use ratom)
                    isassigned = .false.
                    if (atexist) then
-                      call s%c%nearest_atom(dv,nid,dist,lvec=lvec)
+                      call s%c%nearest_atom(dv,nid,dist)
                       if (dist < ratom) then
                          path_volnum = nid
                          isassigned = .true.

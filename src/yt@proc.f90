@@ -58,7 +58,7 @@ contains
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
     real*8, allocatable :: chi(:), fnear(:,:)
     logical :: isias, isassigned, ok
-    integer :: nid, lvec(3)
+    integer :: nid
     real*8 :: dist, dv(3), fval, x(3)
     type(crystal) :: caux
 
@@ -145,7 +145,7 @@ contains
           ! check if it is an atom (use ratom)
           isassigned = .false.
           if (atexist) then
-             call s%c%nearest_atom(dv,nid,dist,lvec=lvec)
+             call s%c%nearest_atom(dv,nid,dist)
              if (dist < ratom) then
                 ibasin(ii) = nid
                 isassigned = .true.

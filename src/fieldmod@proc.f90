@@ -1919,7 +1919,7 @@ contains
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
 
     real*8 :: xc(3), ehess(3)
-    integer :: nid, lvec(3)
+    integer :: nid
     real*8 :: dist
     integer :: n, i, num
     real*8, allocatable  :: sympos(:,:)
@@ -1956,7 +1956,7 @@ contains
     end if
 
     ! distance to atoms
-    call f%c%nearest_atom(xc,nid,dist,lvec=lvec)
+    call f%c%nearest_atom(xc,nid,dist)
     if (dist < nuceps) then
        goto 999
     end if
@@ -2242,8 +2242,8 @@ contains
 
        ! nearest nucleus
        call fid%c%nearest_atom(xpoint,idnuc,sphrad,lvec=lvec)
-       xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x - lvec)
-       xnucr = fid%c%atcel(idnuc)%x - lvec
+       xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x + lvec)
+       xnucr = fid%c%atcel(idnuc)%x + lvec
        idnuc = fid%c%atcel(idnuc)%idx
 
        ! get nearest -3 CP (idncp) and +3 CP (idccp), skip hydrogens

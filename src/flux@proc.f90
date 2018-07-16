@@ -910,7 +910,6 @@ contains
     real*8, intent(in) :: dir(3)
     integer :: icp
 
-    integer :: lvec(3)
     real*8 :: nn2, dist
 
     real*8 :: nuceps, nucepsh
@@ -945,7 +944,7 @@ contains
     if (flx_n > 0) then
        call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),dist)
        if (dist <= cpeps) goto 999
-       call sy%c%nearest_atom(flx_path(flx_n)%x,flx_cpcelid(2),dist,lvec=lvec)
+       call sy%c%nearest_atom(flx_path(flx_n)%x,flx_cpcelid(2),dist)
        if (dist <= nuceps) goto 999
        if (sy%c%spc(sy%c%atcel(flx_cpcelid(2))%is)%z == 1 .and. dist <= nucepsh) goto 999
     end if

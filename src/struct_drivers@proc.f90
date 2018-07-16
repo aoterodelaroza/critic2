@@ -1465,7 +1465,6 @@ contains
     logical :: dovdw, found, ok
     character(len=:), allocatable :: word
     integer :: i, j, n(3), ii(3), ntot, iaux, idx
-    integer :: lvec(3)
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
 
@@ -1518,7 +1517,7 @@ contains
        vout = 0d0
        dv = s%c%omega / ntot
 
-       !$omp parallel do reduction(+:vout) private(ii,iaux,x,found,idx,dist,lvec) schedule(dynamic)
+       !$omp parallel do reduction(+:vout) private(ii,iaux,x,found,idx,dist) schedule(dynamic)
        do i = 0, ntot-1
           ! unpack the index
           ii(1) = modulo(i,n(1))
@@ -1531,7 +1530,7 @@ contains
 
           found = .false.
           do j = 1, s%c%nneq
-             call s%c%nearest_atom(x,idx,dist,nid0=j,lvec=lvec)
+             call s%c%nearest_atom(x,idx,dist,nid0=j)
              found = (dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
              if (found) exit
           end do

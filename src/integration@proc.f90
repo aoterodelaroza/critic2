@@ -941,7 +941,7 @@ contains
     integer, allocatable :: idgaux(:,:,:)
     real*8, allocatable :: xattr(:,:)
     integer, allocatable :: assigned(:)
-    integer :: nn, nid, nattr0, luw2, n(3), lvec(3), nbasin, nvec
+    integer :: nn, nid, nattr0, luw2, n(3), nbasin, nvec
     real*8 :: dist
     integer, allocatable :: nlo(:), ibasin(:), ibasin2(:), iio(:), inear(:,:)
     real*8, allocatable :: fnear(:,:)
@@ -959,7 +959,7 @@ contains
     ! assign attractors to atoms
     if (atexist) then
        do i = 1, nattr0
-          call ff%c%nearest_atom(xgatt(:,i),nid,dist,lvec=lvec)
+          call ff%c%nearest_atom(xgatt(:,i),nid,dist)
           if (dist < ratom) then
              assigned(i) = nid
           else
