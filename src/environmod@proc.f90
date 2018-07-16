@@ -37,6 +37,8 @@ contains
     if (allocated(e%imap)) deallocate(e%imap)
     if (allocated(e%nrlo)) deallocate(e%nrlo)
     if (allocated(e%nrhi)) deallocate(e%nrhi)
+    if (allocated(e%iaddregs)) deallocate(e%iaddregs)
+    if (allocated(e%rcutregs)) deallocate(e%rcutregs)
     e%n = 0
     e%ncell = 0
     e%nregc = 0
@@ -44,6 +46,7 @@ contains
     e%nmin = 0
     e%nmax = 0
     e%nregion = 0
+    e%nregs = 0
 
   end subroutine environ_end
   
@@ -395,6 +398,9 @@ contains
        iord(i) = i
     end do
     call qcksort(rcut,iord,1,nreg)
+
+    if (allocated(e%iaddregs)) deallocate(e%iaddregs)
+    if (allocated(e%rcutregs)) deallocate(e%rcutregs)
     allocate(e%iaddregs(nreg),e%rcutregs(nreg))
     do i = 1, nreg
        e%iaddregs(i) = iadd(iord(i))
