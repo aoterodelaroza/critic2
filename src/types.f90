@@ -76,7 +76,7 @@ module types
   
   !> Equivalent atom list (type)
   type celatom
-     real*8 :: x(3)  !< coordinates (reduced crystallographic)
+     real*8 :: x(3)  !< coordinates (crystallographic)
      real*8 :: r(3)  !< coordinates (Cartesian)
      integer :: is   !< species
      integer :: idx  !< corresponding atom from the non-equivalent atom list

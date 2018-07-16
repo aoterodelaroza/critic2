@@ -33,7 +33,8 @@ contains
     ! call trick_grid_sphere()
     ! call trick_stephens_nnm_channel(line0)
     ! call trick_cell_integral()
-    call trick_check_shortest()
+    ! call trick_check_shortest()
+    call trick_test_environment()
     ! write (*,*) "no tricks for now"
     
   end subroutine trick
@@ -368,73 +369,106 @@ contains
 
   ! end subroutine trick_cell_integral
 
-  !> Check that the shortest vector is inside the calculated WS cell.
-  subroutine trick_check_shortest()
+  ! !> Check that the shortest vector is inside the calculated WS cell.
+  ! subroutine trick_check_shortest()
+  !   use systemmod, only: sy
+  !   use tools_io, only: uout, string, ioj_right
+
+  !   integer :: i, j, k, l
+  !   real*8 :: x(3), xs(3), xin(3), dd
+  !   integer :: nvws, nnok
+  !   real*8, allocatable :: xvws(:,:)
+  !   logical :: inside
+
+  !   integer, parameter :: npts = 10
+  !   real*8, parameter :: eps = 1d-10
+
+  !   write (uout,*) "* Checking the implementation of the shortest routine"
+  !   write (uout,*)
+
+  !   write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
+  !   nvws = sy%c%ws_nf
+  !   do i = 1, nvws
+  !      write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineighx(j,i)),j=1,3)
+  !   end do
+  !   write (uout,*)
+
+  !   allocate(xvws(3,nvws))
+  !   write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
+  !   do i = 1, nvws
+  !      x = 0.5d0 * sy%c%ws_ineighc(:,i)
+  !      xvws(:,i) = x
+  !      write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
+  !   end do
+  !   write (uout,*)
+
+  !   write (uout,'("Testing points")') 
+  !   nnok = 0
+  !   do i = 1, npts
+  !      do j = 1, npts
+  !         do k = 1, npts
+  !            xs = (/real(i-1,8),real(j-1,8),real(k-1,8)/) / real(npts,8)
+  !            xin = xs
+  !            call sy%c%shortest(xs,dd)
+  !            x = sy%c%c2x(xs)
+
+  !            inside = .true.
+  !            do l = 1, nvws
+  !               inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= eps)
+  !            end do
+  !            if (.not.inside) then
+  !               nnok = nnok + 1
+  !               write (uout,'("Orig:",3(X,A)," | Tran:",3(X,A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+  !                  (string(x(l),'f',10,5,ioj_right),l=1,3), string(inside)
+  !            end if
+
+  !            write (uout,'("Orig:",3(X,A)," | L:",3(X,A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+  !               (string(x(l)-xin(l),'f',10,5,ioj_right),l=1,3)
+  !         end do
+  !      end do
+  !   end do
+  !   if (nnok == 0) then
+  !      write (uout,'("All points OK.")')
+  !   else
+  !      write (uout,'("There were ",A," points outside the WS cell")') string(nnok)
+  !   end if
+  !   write(uout,*)
+
+  !   deallocate(xvws)
+
+  ! end subroutine trick_check_shortest
+
+  subroutine trick_test_environment()
     use systemmod, only: sy
-    use tools_io, only: uout, string, ioj_right
+    use tools_io, only: uout, string
+    
+    integer :: i, j
+    real*8 :: xx(3), x(3)
 
-    integer :: i, j, k, l
-    real*8 :: x(3), xs(3), xin(3), dd
-    integer :: nvws, nnok
-    real*8, allocatable :: xvws(:,:)
-    logical :: inside
+    associate(env => sy%c%env, cr => sy%c)
 
-    integer, parameter :: npts = 10
-    real*8, parameter :: eps = 1d-10
+      write (uout,'("* Testing the environment....")')
 
-    write (uout,*) "* Checking the implementation of the shortest routine"
-    write (uout,*)
+      ! Two tests for correctness of lvec and lenv
+      do i = 1, env%n
+         write (uout,'("  Atom ",A)') string(i)
 
-    write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
-    nvws = sy%c%ws_nf
-    do i = 1, nvws
-       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineighx(j,i)),j=1,3)
-    end do
-    write (uout,*)
+         xx = cr%xr2x(env%at(i)%x)
+         x = cr%atcel(env%at(i)%cidx)%x + env%at(i)%lenv
+         write (uout,'("  Test 1 (lenv) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
 
-    allocate(xvws(3,nvws))
-    write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
-    do i = 1, nvws
-       x = 0.5d0 * sy%c%ws_ineighc(:,i)
-       xvws(:,i) = x
-       write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
-    end do
-    write (uout,*)
+         xx = cr%xr2x(env%at(i)%x)
+         x = matmul(cr%rotm(1:3,1:3,env%at(i)%ir),cr%at(env%at(i)%idx)%x) +&
+            cr%rotm(:,4,env%at(i)%ir) + cr%cen(:,env%at(i)%ic) + env%at(i)%lvec
+         write (uout,'("  Test 2 (lvec) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
+      end do
 
-    write (uout,'("Testing points")') 
-    nnok = 0
-    do i = 1, npts
-       do j = 1, npts
-          do k = 1, npts
-             xs = (/real(i-1,8),real(j-1,8),real(k-1,8)/) / real(npts,8)
-             xin = xs
-             call sy%c%shortest(xs,dd)
-             x = sy%c%c2x(xs)
+    end associate
 
-             inside = .true.
-             do l = 1, nvws
-                inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= eps)
-             end do
-             if (.not.inside) then
-                nnok = nnok + 1
-                write (uout,'("Orig:",3(X,A)," | Tran:",3(X,A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
-                   (string(x(l),'f',10,5,ioj_right),l=1,3), string(inside)
-             end if
-
-             write (uout,'("Orig:",3(X,A)," | L:",3(X,A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
-                (string(x(l)-xin(l),'f',10,5,ioj_right),l=1,3)
-          end do
-       end do
-    end do
-    if (nnok == 0) then
-       write (uout,'("All points OK.")')
-    else
-       write (uout,'("There were ",A," points outside the WS cell")') string(nnok)
-    end if
-    write(uout,*)
-
-    deallocate(xvws)
-
-  end subroutine trick_check_shortest
+    ! m_xr2c
+    ! m_x2xr
+    ! m_xr2x (= matinv(m_x2xr)
+    
+  end subroutine trick_test_environment
 
 end module tricks

@@ -78,7 +78,12 @@ contains
 
   end subroutine environ_build_from_molecule
 
-  !> Build an environment from crystal data
+  !> Build an environment from crystal data. nspc = number of species.
+  !> spc = species. n = number of atoms in the cell. at = atoms in the
+  !> cell. m_xr2c = reduced crystallographic to Cartesian matrix. 
+  !> m_x2xr = crystallographic to reduced crystallographic matrix.
+  !> dmax0 = the environment will contain all atoms within a distance 
+  !> dmax0 of any point in the unit cell.
   module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,dmax0)
     use global, only: cutrad
     use tools_math, only: matinv
@@ -94,7 +99,7 @@ contains
 
     logical :: dorepeat
     real*8 :: sphmax, dmax, m_xr2x(3,3), x(3), xc(3), dd
-    integer :: i1, i2, i3, i, imax, p(3)
+    integer :: i1, i2, i3, i, imax, p(3), px(3)
 
     ! prepare
     m_xr2x = matinv(m_x2xr)
@@ -104,6 +109,7 @@ contains
     sphmax = max(sphmax,norm2(xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
     sphmax = max(sphmax,norm2(xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
     sphmax = max(sphmax,norm2(xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    e%sphmax = sphmax
 
     ! calculate the dmax if not given
     if (present(dmax0)) then
@@ -148,6 +154,8 @@ contains
 
                 do i = 1, n
                    p = (/i1, i2, i3/)
+                   px = nint(xr2x(real(p,8)))
+
                    x = e%at(i)%x + p
                    xc = xr2c(x)
                    dd = norm2(xc)
@@ -162,8 +170,8 @@ contains
                       e%at(e%n)%cidx = e%at(i)%cidx
                       e%at(e%n)%ir = e%at(i)%ir
                       e%at(e%n)%ic = e%at(i)%ic
-                      e%at(e%n)%lenv = e%at(i)%lenv + p
-                      e%at(e%n)%lvec = e%at(i)%lvec + p
+                      e%at(e%n)%lenv = e%at(i)%lenv + px
+                      e%at(e%n)%lvec = e%at(i)%lvec + px
                       e%at(e%n)%is = e%at(i)%is
                    end if
                 end do

@@ -39,11 +39,17 @@ module environmod
   public :: stencil
 
   !> Atomic environment type.
-  !> The first ncell atoms correspond to the atoms in the main
-  !> cell (c%ncel). The main cell atoms are centered around the
-  !> origin.
+  !> - The first ncell atoms correspond to the atoms in the main cell (c%ncel). 
+  !> - For atom i in the environment,
+  !>   %x - coordinates in the reduced cell (-0.5 to 0.5 if i = 1..ncell).
+  !>   %r - Cartesian coordinates corresponding to %x
+  !>   %idx - id from the non-equivalent list
+  !>   %cidx - id from the complete list
+  !>   %lenv - atcel(%cidx)%x + %lenv = xr2x(%x)
+  !>   %ir, %ic, %lvec - rotm(%ir,1:3) * at(%idx)%x + rotm(%ir,4) + cenv(%ic) + %lvec = xr2x(%x)
   type environ
-     real*8 :: dmax0 !< The environment contains all atoms at a distance of dmax0 or more to every point in the main cell
+     real*8 :: dmax0 !< Environment contains all atoms within dmax0 of every point in the cell
+     real*8 :: sphmax !< The reduced cell is circumscribed by a sphere of radius sphmax
      real*8 :: boxsize !< length of the region side (bohr)
      real*8 :: xmin(3), xmax(3) !< encompassing box (environment)
      real*8 :: xminc(3), xmaxc(3) !< encompassing box (main cell)
@@ -57,7 +63,7 @@ module environmod
      type(stencil) :: st_small !< stencil for nearest-atom search
      integer, allocatable :: nrlo(:), nrup(:) !< lower and upper bound for list of atoms in a region (applied to imap)
      integer, allocatable :: imap(:) !< atoms ordered by region, c2i(imap(1->n)) is ordered
-     type(celatom), allocatable :: at(:) !< Atoms 
+     type(celatom), allocatable :: at(:) !< Atoms (first ncell in the main cell)
    contains
      procedure :: end => environ_end !< Deallocate arrays and nullify variables
      procedure :: build_mol => environ_build_from_molecule !< Build an environment from molecule input
