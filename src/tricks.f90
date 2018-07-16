@@ -449,19 +449,22 @@ contains
 
       write (uout,'("* Testing the environment....")')
 
-      ! Two tests for correctness of lvec and lenv
-      do i = 1, env%n
-         write (uout,'("  Atom ",A)') string(i)
+      ! ! Two tests for correctness of lvec and lenv
+      ! do i = 1, env%n
+      !    write (uout,'("  Atom ",A)') string(i)
 
-         xx = cr%xr2x(env%at(i)%x)
-         x = cr%atcel(env%at(i)%cidx)%x + env%at(i)%lenv
-         write (uout,'("  Test 1 (lenv) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
+      !    xx = cr%xr2x(env%at(i)%x)
+      !    x = cr%atcel(env%at(i)%cidx)%x + env%at(i)%lenv
+      !    write (uout,'("  Test 1 (lenv) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
 
-         xx = cr%xr2x(env%at(i)%x)
-         x = matmul(cr%rotm(1:3,1:3,env%at(i)%ir),cr%at(env%at(i)%idx)%x) +&
-            cr%rotm(:,4,env%at(i)%ir) + cr%cen(:,env%at(i)%ic) + env%at(i)%lvec
-         write (uout,'("  Test 2 (lvec) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
-      end do
+      !    xx = cr%xr2x(env%at(i)%x)
+      !    x = matmul(cr%rotm(1:3,1:3,env%at(i)%ir),cr%at(env%at(i)%idx)%x) +&
+      !       cr%rotm(:,4,env%at(i)%ir) + cr%cen(:,env%at(i)%ic) + env%at(i)%lvec
+      !    write (uout,'("  Test 2 (lvec) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
+      ! end do
+
+      ! ! Write the environment info
+      ! call env%report()
 
     end associate
 

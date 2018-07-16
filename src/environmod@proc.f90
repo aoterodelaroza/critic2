@@ -36,7 +36,7 @@ contains
     if (allocated(e%at)) deallocate(e%at)
     if (allocated(e%imap)) deallocate(e%imap)
     if (allocated(e%nrlo)) deallocate(e%nrlo)
-    if (allocated(e%nrup)) deallocate(e%nrup)
+    if (allocated(e%nrhi)) deallocate(e%nrhi)
     e%n = 0
     e%ncell = 0
     e%nregc = 0
@@ -74,7 +74,6 @@ contains
     e%ncell = n
 
     call calculate_regions(e)
-    e%st_small = e%make_stencil(0d0)
 
   end subroutine environ_build_from_molecule
 
@@ -182,7 +181,6 @@ contains
     call realloc(e%at,e%n)
 
     call calculate_regions(e)
-    e%st_small = e%make_stencil(0d0)
 
   contains
     pure function xr2c(xx) result(res)
@@ -238,57 +236,60 @@ contains
 
   end function c2i
 
-  module function make_stencil(e,rcut) result(st)
+  !> Write a report about the environment to stdout
+  module subroutine environ_report(e)
+    use global, only: iunitname0, dunit0, iunit
+    use tools_io, only: uout, string
     class(environ), intent(in) :: e
-    real*8, intent(in) :: rcut
-    type(stencil) :: st
 
-    real*8 :: rsphmin
-    integer :: i1, i2, i3, ix(3), ibase
+    integer :: j
+    integer :: idmax, idavg
 
-    st%rcut = rcut
-    st%rsph = rcut + e%boxsize / sqrt(2d0)
+    write (uout,'("+ Atomic environment")')
+    write (uout,'("  Number of atoms (reduced cell/environment): ",A," / ",A)') string(e%ncell), string(e%n)
+    write (uout,'("  Radius of (unit cell/environment) circumscribed sphere (",A,"): ",A," / ",A)') &
+       iunitname0(iunit), trim(string(e%sphmax*dunit0(iunit),'f',8,4)), trim(string((e%sphmax+e%dmax0)*dunit0(iunit),'f',8,4))
+    write (uout,'("  Maximum interaction distance: ",A)') string(e%dmax0,'f',8,4)
+    write (uout,'("  Covering regions: ")')
+    write (uout,'("    Unit cell: ",3(A,X))') (string(e%nregc(j)),j=1,3)
+    write (uout,'("    Environment: ",3(A,X))') (string(e%nreg(j)),j=1,3)
+    write (uout,'("    Search offsets: ",A)') string(e%nregs)
+    write (uout,'("    Total: ",A)') string(e%nregion)
+    write (uout,'("    Region side (",A,"): ",A)') iunitname0(iunit), trim(string(e%boxsize * dunit0(iunit),'f',8,4))
+    write (uout,'("    Transformation origin (",A,"): ",A,",",A,",",A)') iunitname0(iunit), &
+       (trim(string(e%x0(j) * dunit0(iunit),'f',8,4)),j=1,3)
+    write (uout,'("    Minimum region ID: ",3(A,X))') (string(e%nmin(j)),j=1,3)
+    write (uout,'("    Maximum region ID: ",3(A,X))') (string(e%nmax(j)),j=1,3)
+    
+    idavg = 0
+    idmax = 0
+    do j = 1, e%nregion
+       idavg = idavg + (e%nrhi(j) - e%nrlo(j) + 1)
+       idmax = max(idmax,e%nrhi(j) - e%nrlo(j) + 1,idmax)
+    end do
+    write (uout,'("    Average number of atoms per region: ",A)') trim(string(real(idavg,8)/real(e%nregion,8),'f',8,4))
+    write (uout,'("    Maximum number of atoms in a region: ",A)') string(idmax)
 
-    rsphmin = 1.5d0 * e%boxsize
+    write (uout,*)
 
-    if (st%rsph <= rsphmin) then
-       st%rsph = rsphmin
-       st%rcut = rsphmin - e%boxsize / sqrt(2d0)
-
-       allocate(st%iadd(27))
-       st%nreg = 1
-       st%iadd(1) = 0
-       ix = 0
-       ibase = e%p2i(ix)
-
-       do i1 = -1, 1
-          ix(1) = i1
-          do i2 = -1, 1
-             ix(2) = i2
-             do i3 = -1, 1
-                ix(3) = i3
-                if (all(ix == 0)) cycle
-                st%nreg = st%nreg + 1
-                st%iadd(st%nreg) = e%p2i(ix) - ibase
-             end do
-          end do
-       end do
-    else
-       write (*,*) "bleh2 not implemented in make_stencil"
-    end if
-
-  end function make_stencil
+  end subroutine environ_report
 
   !xx! private procedures
 
   !> Calculate regions associated with the current environment and
   !> assign atoms to each region.
   subroutine calculate_regions(e)
-    use tools, only: iqcksort
+    use tools, only: iqcksort, qcksort
+    use types, only: realloc
     type(environ), intent(inout) :: e
     
     integer :: i, m
     integer, allocatable :: iord(:)
+    logical :: dorepeat
+    integer :: i1, i2, i3, imax, iadd, nreg
+    real*8 :: x0(3), x1(3), dist, rcut0
+    integer, allocatable :: iadd(:)
+    real*8, allocatable :: rcut(:)
 
     ! find the encompassing boxes, for the main cell
     e%xminc = 1d40
@@ -326,20 +327,81 @@ contains
 
     ! limits for each region
     if (allocated(e%nrlo)) deallocate(e%nrlo)
-    if (allocated(e%nrup)) deallocate(e%nrup)
-    allocate(e%nrlo(e%nregion),e%nrup(e%nregion))
+    if (allocated(e%nrhi)) deallocate(e%nrhi)
+    allocate(e%nrlo(e%nregion),e%nrhi(e%nregion))
     e%nrlo = 1
-    e%nrup = 0
+    e%nrhi = 0
     m = 0
     do i = 1, e%n
        if (iord(e%imap(i)) /= m) then
-          if (i > 1) e%nrup(m) = i-1
+          if (i > 1) e%nrhi(m) = i-1
           e%nrlo(iord(e%imap(i))) = i
-          e%nrup(iord(e%imap(i))) = i
+          e%nrhi(iord(e%imap(i))) = i
        end if
        m = iord(e%imap(i))
     end do
+    e%nrhi(iord(e%imap(e%n))) = e%n
     deallocate(iord)
+
+    ! Take a reference point and calculate regions around it. The
+    ! regions are sorted by distance to the reference point. This will
+    ! become useful for nearest neighbor searches.
+    allocate(iadd(e%nregion),rcut(e%nregion))
+    dorepeat = .true.
+    imax = 0
+    nreg = 1
+    iadd(1) = 0
+    rcut(1) = 0d0
+    do while (dorepeat)
+       dorepeat = .false.
+       imax = imax + 1
+       do i1 = -imax, imax
+          do i2 = -imax, imax
+             do i3 = -imax, imax
+                if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
+                x0 = e%boxsize * ((/i1,i2,i3/) - 0.5d0)
+                x1 = e%boxsize * ((/i1,i2,i3/) + 0.5d0)
+
+                ! dist = minimum distance from the origin to the (x0,x1) cube
+                ! rcut = this cube has to be included in all searches where the maximum interaction
+                !        distance is rcut or higher
+                dist = sqrt(max(x0(1),0d0)**2 + max(-x1(1),0d0)**2 + max(x0(2),0d0)**2 + max(-x1(2),0d0)**2 + &
+                   max(x0(3),0d0)**2 + max(-x1(3),0d0)**2)
+                rcut0 = max(dist - e%boxsize * sqrt(3d0) / 2d0,0d0)
+
+                if (rcut0 < 1.5d0 * e%dmax0) then
+                   dorepeat = .true. 
+                   
+                   nreg = nreg + 1
+                   if (nreg > size(iadd,1)) then
+                      call realloc(iadd,2*nreg)
+                      call realloc(rcut,2*nreg)
+                   end if
+                   ! because the p -> i transformation is linear, we can write the offset as a single
+                   ! integer
+                   iadd(nreg) = i1 + e%nreg(1) * (i2 + e%nreg(2) * i3)
+                   rcut(nreg) = rcut0
+                end if
+             end do
+          end do
+       end do
+    end do
+    call realloc(iadd,nreg)
+    call realloc(rcut,nreg)
+
+    ! sort and populate the environ arrays
+    allocate(iord(nreg))
+    do i = 1, nreg
+       iord(i) = i
+    end do
+    call qcksort(rcut,iord,1,nreg)
+    allocate(e%iaddregs(nreg),e%rcutregs(nreg))
+    do i = 1, nreg
+       e%iaddregs(i) = iadd(iord(i))
+       e%rcutregs(i) = rcut(iord(i))
+    end do
+    e%nregs = nreg
+    deallocate(iord,iadd,rcut)
 
   end subroutine calculate_regions
 

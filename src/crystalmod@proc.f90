@@ -2926,10 +2926,8 @@ contains
        end if
 
        ! Number of atoms in the atomic environment
-       if (.not.c%ismolecule) then
-          write (uout,'("+ Atomic environment of the main cell")')
-          write (uout,'("  Number of atoms contributing density to the main cell: ",A)') string(c%env%n)
-          write (uout,*)
+       if (c%isenv) then
+          call c%env%report()
        end if
 
        ! Wigner-Seitz cell
