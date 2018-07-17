@@ -817,8 +817,14 @@ contains
        if (present(id0)) then
           if (j /= id0) cycle
        end if
-       temp = c%atcel(j)%x - xp
-       call c%shortest(temp,dd)
+       if (c%ismolecule) then
+          temp = c%atcel(j)%x - (xp - floor(xp))
+          temp = c%x2c(temp)
+          dd = norm2(temp)
+       else
+          temp = c%atcel(j)%x - xp
+          call c%shortest(temp,dd)
+       end if
        if (present(nozero)) then
           if (dd < eps) cycle
        end if

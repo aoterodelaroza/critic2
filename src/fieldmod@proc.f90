@@ -1548,8 +1548,14 @@ contains
           if (j /= id0) cycle
        end if
 
-       temp = f%cpcel(j)%x - xp
-       call f%c%shortest(temp,dd)
+       if (f%c%ismolecule) then
+          temp = f%cpcel(j)%x - (xp - floor(xp))
+          temp = f%c%x2c(temp)
+          dd = norm2(temp)
+       else
+          temp = f%cpcel(j)%x - xp
+          call f%c%shortest(temp,dd)
+       end if
        if (present(nozero)) then
           if (dd < eps) cycle
        end if

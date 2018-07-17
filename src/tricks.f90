@@ -468,21 +468,39 @@ contains
       ! ! Write the environment info
       ! call env%report()
 
-      ! do i = 1, 100
-      !    call random_number(x)
-      !    x = x * 10d0 - 5d0
-      !    call cr%nearest_atom(x,nid1,dist1,lvec1)
-      !    call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
+      ! Test the nearest_atom routine
+      do i = 1, 100
+         call random_number(x)
+         x = x * 10d0 - 5d0
+         call cr%nearest_atom(x,nid1,dist1,lvec1)
+         call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
+         write (*,*) "point ", i
+         write (*,*) "x = ", x
+         ! write (*,*) "nid1 = ", nid1
+         ! write (*,*) "nid2 = ", nid2
+         write (*,*) "nid = ", abs(nid1-nid2)
+         write (*,*) "dist1 = ", dist1
+         write (*,*) "dist2 = ", dist2
+         write (*,*) "dist = ", abs(dist1-dist2)
+         write (*,*) "lvec1 = ", lvec1
+         write (*,*) "lvec2 = ", lvec2
+         write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
+      end do
+
+      ! do i = 1, cr%ncel
+      !    x = cr%atcel(i)%x
+      !    call cr%nearest_atom(x,nid1,dist1,lvec1,nozero=.true.)
+      !    call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2,nozero=.true.)
       !    write (*,*) "point ", i
-      !    write (*,*) "x = ", x
-      !    write (*,*) "nid1 = ", nid1
-      !    write (*,*) "nid2 = ", nid2
+      !    ! write (*,*) "x = ", x
+      !    ! write (*,*) "nid1 = ", nid1
+      !    ! write (*,*) "nid2 = ", nid2
       !    write (*,*) "nid = ", abs(nid1-nid2)
       !    write (*,*) "dist1 = ", dist1
       !    write (*,*) "dist2 = ", dist2
       !    write (*,*) "dist = ", abs(dist1-dist2)
-      !    write (*,*) "lvec1 = ", lvec1
-      !    write (*,*) "lvec2 = ", lvec2
+      !    ! write (*,*) "lvec1 = ", lvec1
+      !    ! write (*,*) "lvec2 = ", lvec2
       !    write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
       ! end do
 
