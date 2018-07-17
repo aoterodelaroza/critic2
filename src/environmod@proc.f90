@@ -51,7 +51,7 @@ contains
   end subroutine environ_end
   
   !> Build an environment from molecule data
-  module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr)
+  module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr,m_x2c)
     use tools_math, only: matinv
     use types, only: realloc
     class(environ), intent(inout) :: e
@@ -59,6 +59,7 @@ contains
     type(celatom), intent(in) :: at(n)
     real*8, intent(in) :: m_xr2c(3,3)
     real*8, intent(in) :: m_x2xr(3,3)
+    real*8, intent(in) :: m_x2c(3,3)
 
     integer :: i 
     real*8 :: sphmax
@@ -70,6 +71,8 @@ contains
     e%m_c2xr = matinv(m_xr2c)
     e%m_x2xr = m_x2xr
     e%m_xr2x = matinv(m_x2xr)
+    e%m_x2c = m_x2c
+    e%m_c2x = matinv(m_x2c)
 
     ! calculate the maximum diagonal half-length (sphmax)
     sphmax = norm2(e%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
@@ -105,7 +108,7 @@ contains
   !> m_x2xr = crystallographic to reduced crystallographic matrix.
   !> dmax0 = the environment will contain all atoms within a distance 
   !> dmax0 of any point in the unit cell.
-  module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,dmax0)
+  module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0)
     use global, only: cutrad
     use tools_math, only: matinv
     use types, only: realloc, species, celatom
@@ -116,6 +119,7 @@ contains
     type(celatom), intent(in) :: at(n)
     real*8, intent(in) :: m_xr2c(3,3)
     real*8, intent(in) :: m_x2xr(3,3)
+    real*8, intent(in) :: m_x2c(3,3)
     real*8, intent(in), optional :: dmax0
 
     logical :: dorepeat
@@ -129,6 +133,8 @@ contains
     e%m_c2xr = matinv(m_xr2c)
     e%m_x2xr = m_x2xr
     e%m_xr2x = matinv(m_x2xr)
+    e%m_x2c = m_x2c
+    e%m_c2x = matinv(m_x2c)
 
     ! calculate the maximum diagonal half-length (sphmax)
     sphmax = norm2(e%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
@@ -244,6 +250,22 @@ contains
     res = matmul(e%m_x2xr,xx)
   end function x2xr
 
+  !> Cartesian to crystallographic transform
+  pure module function c2x(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+    res = matmul(e%m_c2x,xx)
+  end function c2x
+
+  !> Crystallographic to Cartesian transform
+  pure module function x2c(e,xx) result(res)
+    class(environ), intent(in) :: e
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+    res = matmul(e%m_x2c,xx)
+  end function x2c
+
   !> Convert between coordinate type icrd (cartesian, cryst., reduced
   !> cryst.) and type ocrd. x2c and c2x not available.
   pure module function y2z(e,xx,icrd,ocrd) result(res)
@@ -261,11 +283,39 @@ contains
        res = matmul(e%m_xr2x,xx)
     else if (icrd == icrd_crys .and. ocrd == icrd_rcrys) then
        res = matmul(e%m_x2xr,xx)
+    else if (icrd == icrd_cart .and. ocrd == icrd_crys) then
+       res = matmul(e%m_c2x,xx)
+    else if (icrd == icrd_crys .and. ocrd == icrd_cart) then
+       res = matmul(e%m_x2c,xx)
     else
        res = xx
     end if
 
   end function y2z
+
+  !> Given a point xx in icrd coordinates, lattice-translate to the
+  !> center of the environment and transform to ocrd
+  !> coordinates. Optionally, returns the lattice translation in
+  !> reduced crystallographic coordinates.
+  pure module subroutine y2z_center(e,xx,icrd,ocrd,lvec)
+    use param, only: icrd_rcrys
+    class(environ), intent(in) :: e
+    real*8, intent(inout) :: xx(3)
+    integer, intent(in) :: icrd
+    integer, intent(in) :: ocrd
+    integer, intent(out), optional :: lvec(3)
+
+    xx = e%y2z(xx,icrd,icrd_rcrys)
+    if (e%ismolecule) then
+       if (present(lvec)) lvec = floor(xx)
+       xx = xx - floor(xx)
+    else
+       if (present(lvec)) lvec = nint(xx)
+       xx = xx - nint(xx)
+    end if
+    xx = e%y2z(xx,icrd_rcrys,ocrd)
+
+  end subroutine y2z_center
 
   !> Cartesian to region transform
   pure module function c2p(e,xx) result(res)
@@ -303,16 +353,16 @@ contains
 
   end function c2i
 
-  !> Given the point xp, calculates the nearest atom. icrd = type of
-  !> input coordinates. The nearest atom has ID nid from the complete
-  !> list (atcel) and is at a distance dist. On output, the optional
-  !> argument lvec contains the lattice vector to the nearest atom
-  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
-  !> only atoms with index nid0 from the non-equivalent list. If id0,
-  !> consider only atoms with index id0 from the complete list.  If
-  !> nozero, disregard zero-distance atoms.
+  !> Given the point xp (in icrd coordinates), calculates the nearest
+  !> atom.  The nearest atom has ID nid from the complete list (atcel)
+  !> and is at a distance dist. On output, the optional argument lvec
+  !> contains the lattice vector to the nearest atom (i.e. its
+  !> position is atcel(nid)%x + lvec). If nid0, consider only atoms
+  !> with index nid0 from the non-equivalent list. If id0, consider
+  !> only atoms with index id0 from the complete list.  If nozero,
+  !> disregard zero-distance atoms.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
-    use param, only: icrd_rcrys
+    use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -330,15 +380,8 @@ contains
     integer :: i, j, k, kmin, lvec0(3)
 
     ! Find the integer region for the main cell copy of the input point
-    x0 = e%y2z(xp,icrd,icrd_rcrys)
-    if (e%ismolecule) then
-       lvec0 = floor(x0)
-       x0 = x0 - floor(x0)
-    else
-       lvec0 = nint(x0)
-       x0 = x0 - nint(x0)
-    end if
-    x0 = e%xr2c(x0)
+    x0 = xp
+    call e%y2z_center(x0,icrd,icrd_cart,lvec0)
     ireg0 = e%c2i(x0)
     
     ! run over regions sorted by distance
@@ -376,6 +419,351 @@ contains
     end if
 
   end subroutine nearest_atom
+
+  !> Given the point xp (in icrd coordinates), calculates the list of
+  !> nearest atoms. The output list contains nat atoms with IDs
+  !> nid(1:nat) from the complete list, distances to the input point
+  !> equal to dist(1:nat) and lattice vectors lvec(1:3,1:nat). The
+  !> position of atom i in cryst. coords. is atcel(i)%x +
+  !> lvec(:,i). Optionally, ishell(i) contains the shell ID for atom i
+  !> in the output list. One or more of three cutoff criteria must be
+  !> chosen: list up to a distance up2d, up to a number of shells
+  !> up2sh or up to a number of atoms up2n. If nid0, consider only
+  !> atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list.  If
+  !> nozero, disregard zero-distance atoms.
+  module subroutine list_near_atoms(e,xp,icrd,nat,nid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
+    use global, only: atomeps
+    use tools_io, only: ferror, faterr
+    use tools, only: qcksort, iqcksort
+    use types, only: realloc
+    use param, only: icrd_rcrys, icrd_cart
+    class(environ), intent(in) :: e
+    real*8, intent(in) :: xp(3)
+    integer, intent(in) :: icrd
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: nid(:)
+    real*8, allocatable, intent(inout) :: dist(:)
+    integer, allocatable, intent(inout) :: lvec(:,:)
+    integer, allocatable, intent(inout), optional :: ishell0(:)
+    real*8, intent(in), optional :: up2d
+    integer, intent(in), optional :: up2sh
+    integer, intent(in), optional :: up2n
+    integer, intent(in), optional :: nid0
+    integer, intent(in), optional :: id0
+    logical, intent(in), optional :: nozero
+
+    real*8, parameter :: eps = 1d-10
+
+    real*8 :: x0(3), dist0, rcutshel, rcutn
+    integer :: lvec0(3), ireg0, ireg
+    integer :: i, j, k, l, lthis
+    integer, allocatable :: iord(:), iiord(:), ishell(:)
+    integer :: nshel
+    real*8, allocatable :: rshel(:)
+    integer, allocatable :: idxshel(:)
+    logical :: doshell
+
+    if (.not.present(up2d).and..not.present(up2sh).and..not.present(up2n)) &
+       call ferror("list_near_atoms","must give one of up2d, up2sh, or up2n",faterr)
+    doshell = present(ishell0) .or. present(up2sh)
+
+    ! Find the integer region for the main cell copy of the input point
+    x0 = xp
+    call e%y2z_center(x0,icrd,icrd_cart,lvec0)
+    ireg0 = e%c2i(x0)
+
+    ! Initialize the output arrays
+    nat = 0
+    nshel = 0
+    rcutshel = -1d0
+    rcutn = -1d0
+    if (allocated(nid)) deallocate(nid)
+    if (allocated(dist)) deallocate(dist)
+    if (allocated(lvec)) deallocate(lvec)
+    allocate(nid(10),dist(10),lvec(3,10))
+    if (doshell) then
+       allocate(ishell(10),rshel(10),idxshel(10))
+    end if
+
+    ! run over regions around ireg0 and over atoms belonging to those regions
+    main: do i = 1, e%nregs
+       ireg = ireg0 + e%iaddregs(i)
+       if (ireg > 0 .and. ireg < e%nregion) then
+          do j = e%nrlo(ireg), e%nrhi(ireg)
+             k = e%imap(j)
+
+             ! apply nid0 and id0 conditions
+             if (present(nid0)) then
+                if (e%at(k)%idx /= nid0) cycle
+             end if
+             if (present(id0)) then
+                if (e%at(k)%cidx /= id0) cycle
+             end if
+             
+             ! calculate the distance to this atom
+             dist0 = norm2(e%at(k)%r - x0)
+
+             ! apply the nozero and up2x conditions
+             if (present(nozero)) then
+                if (dist0 < eps) cycle
+             end if
+             if (present(up2d)) then
+                if (e%rcutregs(i) > up2d) exit main
+                if (dist0 > up2d) cycle
+             end if
+             if (present(up2sh)) then
+                if (nshel >= up2sh .and. e%rcutregs(i) > rcutshel) &
+                   exit main
+             end if
+             if (present(up2n)) then
+                if (nat >= up2n .and. e%rcutregs(i) > rcutn) &
+                   exit main
+             end if
+             
+             ! add this atom
+             nat = nat + 1
+             if (nat > size(nid,1)) then
+                call realloc(nid,2*nat)
+                call realloc(dist,2*nat)
+                call realloc(lvec,3,2*nat)
+                if (doshell) call realloc(ishell,2*nat)
+             end if
+             nid(nat) = e%at(k)%cidx
+             dist(nat) = dist0
+             lvec(:,nat) = e%at(k)%lenv + nint(e%xr2x(real(lvec0,8)))
+
+             ! update the up2n rcut. All remaining atoms will have
+             ! dist > than the current region's rcut. rcutn will be >
+             ! than all atom distances from 1 to up2n.
+             if (present(up2n)) then
+                if (nat <= up2n) rcutn = max(dist0,rcutn)
+             end if
+
+             ! process the shells
+             if (doshell) then
+                ! see if this shell is already known
+                lthis = 0
+                do l = 1, nshel
+                   if ((abs(dist0 - rshel(l)) < atomeps) .and. (idxshel(l) == e%at(k)%idx)) then
+                      lthis = l
+                      exit
+                   end if
+                end do
+
+                ! if not known, create the new shell
+                if (lthis == 0) then
+                   nshel = nshel + 1
+                   if (nshel > size(rshel,1)) then
+                      call realloc(rshel,2*nshel)
+                      call realloc(idxshel,2*nshel)
+                   end if
+                   lthis = nshel
+                   idxshel(nshel) = e%at(k)%idx
+                   rshel(nshel) = dist0
+                end if
+
+                ! update the up2sh rcut. All remaining atoms will have
+                ! dist > than the current region's rcut. rcutsh will be >
+                ! than all atom distances from 1 to shell up2sh.
+                if (present(up2sh)) then
+                   if (up2sh <= nshel) rcutshel = max(dist0,rcutshel)
+                end if
+
+                ! write down the shell for this atom
+                ishell(nat) = lthis
+             end if
+          end do
+       end if
+    end do main
+
+    ! rearrange the arrays 
+    if (nat > 0) then
+       ! first reallocation
+       call realloc(nid,nat)
+       call realloc(dist,nat)
+       call realloc(lvec,3,nat)
+       if (doshell) call realloc(ishell,nat)
+
+       ! re-order shell labels
+       if (doshell) then
+          allocate(iord(nshel),iiord(nshel))
+          do i = 1, nshel
+             iord(i) = i
+          end do
+          call iqcksort(idxshel,iord,1,nshel)
+          call qcksort(rshel,iord,1,nshel)
+          do i = 1, nshel
+             iiord(iord(i)) = i
+          end do
+          deallocate(iord)
+          do i = 1, nat
+             ishell(i) = iiord(ishell(i))
+          end do
+          deallocate(iiord)
+       end if
+
+       ! sort by distance and by shell
+       allocate(iord(nat))
+       do i = 1, nat
+          iord(i) = i
+       end do
+       if (doshell) call iqcksort(ishell,iord,1,nat)
+       call qcksort(dist,iord,1,nat)
+       nid = nid(iord)
+       dist = dist(iord)
+       lvec(:,:) = lvec(:,iord)
+       if (doshell) ishell = ishell(iord)
+       deallocate(iord)
+
+       ! prune the extra atoms
+       if (present(up2sh) .or. present(up2n)) then
+          if (present(up2sh)) then
+             do i = 1, nat
+                if (ishell(i) > up2sh) then
+                   nat = i-1
+                   exit
+                end if
+             end do
+          end if
+          if (present(up2n)) nat = up2n
+          call realloc(nid,nat)
+          call realloc(dist,nat)
+          call realloc(lvec,3,nat)
+          call realloc(ishell,nat)
+       end if
+    end if
+    if (allocated(rshel)) deallocate(rshel)
+    if (allocated(idxshel)) deallocate(idxshel)
+    if (present(ishell0)) then
+       if (allocated(ishell0)) deallocate(ishell0)
+       call move_alloc(ishell,ishell0)
+    end if
+
+  end subroutine list_near_atoms
+    
+  !> Calculate the core (if zpsp is present) or promolecular densities
+  !> at a point x0 (coord format given by icrd) using atomic radial
+  !> grids. If a fragment is given, then only the atoms in it
+  !> contribute.  This routine is thread-safe.
+  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,periodic)
+    use grid1mod, only: cgrid, agrid, grid1
+    use fragmentmod, only: fragment
+    use tools_io, only: ferror, faterr
+    use param, only: maxzat, icrd_cart, icrd_rcrys
+    class(environ), intent(in) :: e
+    real*8, intent(in) :: x0(3) !< Point in cryst. coords.
+    integer, intent(in) :: icrd !< Input coordinates
+    real*8, intent(out) :: f !< Density
+    real*8, intent(out) :: fp(3) !< Density gradient
+    real*8, intent(out) :: fpp(3,3) !< Density hessian
+    integer, intent(in) :: nder !< Number of derivatives to calculate
+    integer, intent(in), optional :: zpsp(:) 
+    type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
+    logical, intent(in), optional :: periodic
+
+    ! integer :: i, j, k, ii, iz
+    real*8 :: xc(3)
+    ! real*8 :: xx(3), r2, r, rinv1, rinv2
+    ! real*8 :: rho, rhop, rhopp, rfac, radd
+    ! integer :: idolist(e%env%n), nido
+    logical :: iscore, okper
+    ! type(grid1), pointer :: g
+
+    f = 0d0
+    fp = 0d0
+    fpp = 0d0
+    iscore = present(zpsp)
+    if (iscore) then
+       if (all(zpsp <= 0)) return
+    end if
+    if (iscore.and..not.allocated(cgrid)) then
+       call ferror("promolecular","cgrid not allocated",faterr)
+    elseif (.not.iscore.and..not.allocated(agrid)) then
+       call ferror("promolecular","agrid not allocated",faterr)
+    end if
+
+    ! convert to Cartesian and move to the main cell if periodic
+    okper = present(periodic)
+    if (okper) okper = okper .and. periodic
+    if (okper) then
+       xc = x0
+       call e%y2z_center(xc,icrd,icrd_cart)
+    else
+       xc = e%y2z(x0,icrd,icrd_cart)
+    end if
+
+    ! ! precompute the list of atoms that contribute
+    ! if (.not.present(fr)) then
+    !    nido = 0
+    !    do i = 1, e%env%n
+    !       iz = e%spc(e%env%at(i)%is)%z
+    !       if (iz == 0 .or. iz > maxzat) cycle
+    !       if (iscore) then
+    !          if (zpsp(iz) <= 0 .or. iz - zpsp(iz) == 0) cycle
+    !          g => cgrid(iz,zpsp(iz)) 
+    !       else
+    !          g => agrid(iz)
+    !       end if
+    !       if (.not.g%isinit) cycle
+    !       xx = xc - e%env%at(i)%r
+    !       r2 = norm2(xx)
+    !       if (r2 > g%rmax) cycle
+    !       nido = nido + 1
+    !       idolist(nido) = i
+    !    end do
+    ! else
+    !    nido = fr%nat
+    ! end if
+
+    ! ! do the sum
+    ! do ii = 1, nido
+    !    if (.not.present(fr)) then
+    !       i = idolist(ii)
+    !       iz = e%spc(e%env%at(i)%is)%z
+    !       if (iscore) then
+    !          g => cgrid(iz,zpsp(iz))
+    !       else
+    !          g => agrid(iz)
+    !       end if
+    !       xx = xc - e%env%at(i)%r
+    !    else
+    !       iz = fr%spc(fr%at(ii)%is)%z
+    !       if (iscore) then
+    !          g => cgrid(iz,zpsp(iz))
+    !       else
+    !          g => agrid(iz)
+    !       end if
+    !       xx = xc - fr%at(ii)%r
+    !    end if
+
+    !    r2 = norm2(xx)
+    !    r = max(r2,g%r(1))
+    !    r = max(r,1d-14)
+    !    call g%interp(r,rho,rhop,rhopp)
+    !    rho = max(rho,0d0)
+
+    !    f = f + rho
+    !    if (nder < 1) cycle
+    !    rinv1 = 1d0 / r
+    !    fp = fp + rhop * xx * rinv1
+    !    if (nder < 2) cycle
+    !    rinv2 = rinv1 * rinv1
+    !    rfac = (rhopp - rhop * rinv1)
+    !    do j = 1, 3
+    !       fpp(j,j) = fpp(j,j) + rhop * rinv1 + rfac * rinv2 * xx(j) * xx(j)
+    !       do k = 1, j-1
+    !          radd = rfac * rinv2 * xx(j) * xx(k)
+    !          fpp(j,k) = fpp(j,k) + radd
+    !          fpp(k,j) = fpp(k,j) + radd
+    !       end do
+    !    end do
+    ! end do
+
+    write (*,*) "bleh!"
+    stop 1
+
+  end subroutine promolecular
 
   !> Write a report about the environment to stdout
   module subroutine environ_report(e)
@@ -427,10 +815,8 @@ contains
     integer :: i, m
     integer, allocatable :: iord(:)
     logical :: dorepeat
-    integer :: i1, i2, i3, imax, iadd, nreg
+    integer :: i1, i2, i3, imax, nreg
     real*8 :: x0(3), x1(3), dist, rcut0
-    integer, allocatable :: iadd(:)
-    real*8, allocatable :: rcut(:)
 
     ! find the encompassing boxes, for the main cell
     e%xminc = 1d40
@@ -487,12 +873,14 @@ contains
     ! Take a reference point and calculate regions around it. The
     ! regions are sorted by distance to the reference point. This will
     ! become useful for nearest neighbor searches.
-    allocate(iadd(e%nregion),rcut(e%nregion))
+    if (allocated(e%iaddregs)) deallocate(e%iaddregs)
+    if (allocated(e%rcutregs)) deallocate(e%rcutregs)
+    allocate(e%iaddregs(e%nregion),e%rcutregs(e%nregion))
     dorepeat = .true.
     imax = 0
     nreg = 1
-    iadd(1) = 0
-    rcut(1) = 0d0
+    e%iaddregs(1) = 0
+    e%rcutregs(1) = 0d0
     do while (dorepeat)
        dorepeat = .false.
        imax = imax + 1
@@ -514,38 +902,32 @@ contains
                    dorepeat = .true. 
                    
                    nreg = nreg + 1
-                   if (nreg > size(iadd,1)) then
-                      call realloc(iadd,2*nreg)
-                      call realloc(rcut,2*nreg)
+                   if (nreg > size(e%iaddregs,1)) then
+                      call realloc(e%iaddregs,2*nreg)
+                      call realloc(e%rcutregs,2*nreg)
                    end if
                    ! because the p -> i transformation is linear, we can write the offset as a single
                    ! integer
-                   iadd(nreg) = i1 + e%nreg(1) * (i2 + e%nreg(2) * i3)
-                   rcut(nreg) = rcut0
+                   e%iaddregs(nreg) = i1 + e%nreg(1) * (i2 + e%nreg(2) * i3)
+                   e%rcutregs(nreg) = rcut0
                 end if
              end do
           end do
        end do
     end do
-    call realloc(iadd,nreg)
-    call realloc(rcut,nreg)
+    call realloc(e%iaddregs,nreg)
+    call realloc(e%rcutregs,nreg)
 
     ! sort and populate the environ arrays
     allocate(iord(nreg))
     do i = 1, nreg
        iord(i) = i
     end do
-    call qcksort(rcut,iord,1,nreg)
-
-    if (allocated(e%iaddregs)) deallocate(e%iaddregs)
-    if (allocated(e%rcutregs)) deallocate(e%rcutregs)
-    allocate(e%iaddregs(nreg),e%rcutregs(nreg))
-    do i = 1, nreg
-       e%iaddregs(i) = iadd(iord(i))
-       e%rcutregs(i) = rcut(iord(i))
-    end do
+    call qcksort(e%rcutregs,iord,1,nreg)
+    e%iaddregs = e%iaddregs(iord)
+    e%rcutregs = e%rcutregs(iord)
     e%nregs = nreg
-    deallocate(iord,iadd,rcut)
+    deallocate(iord)
 
   end subroutine calculate_regions
 

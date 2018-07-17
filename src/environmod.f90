@@ -53,6 +53,8 @@ module environmod
      real*8 :: m_xr2x(3,3) !< reduced cryst. -> cryst.
      real*8 :: m_c2xr(3,3) !< cart. -> reduced cryst.
      real*8 :: m_xr2c(3,3) !< reduced cryst. -> cart.
+     real*8 :: m_c2x(3,3) !< cart. -> cryst.
+     real*8 :: m_x2c(3,3) !< cryst. -> cart.
      integer, allocatable :: imap(:) !< atoms ordered by region, c2i(at(imap(1->n))%r) is ordered
      integer, allocatable :: nrlo(:) !< nrlo(ireg) = i, at(imap(i)) is the first atom in region ireg
      integer, allocatable :: nrhi(:) !< nrlo(ireg) = i, at(imap(i)) is the last atom in region ireg
@@ -69,12 +71,17 @@ module environmod
      procedure :: c2xr !< Cartesian to reduced crystallographic
      procedure :: xr2x !< Reduced crystallographic to crystallographic
      procedure :: x2xr !< Crystallographic to reduced crystallographic
+     procedure :: c2x  !< Cartesian to crystallographic
+     procedure :: x2c  !< Crystallographic to Cartesian
      procedure :: y2z !< Any to any (c,x,xr)
+     procedure :: y2z_center !< Any to any (c,x,xr) and move to the center of the environment
      procedure :: c2p !< Cartesian to region
      procedure :: p2i !< Region to integer region
      procedure :: c2i !< Cartesian to integer region
      ! calculation routines
      procedure :: nearest_atom !< Returns the ID of the atom nearest to a given point
+     procedure :: list_near_atoms !< Returns a list of atoms nearest to a given point
+     procedure :: promolecular !< Calculates the promolecular or core density at a point
      ! utility routines
      procedure :: report => environ_report !< Write a report to stdout about the environment.
   end type environ
@@ -85,14 +92,15 @@ module environmod
      module subroutine environ_end(e)
        class(environ), intent(inout) :: e
      end subroutine environ_end
-     module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr)
+     module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr,m_x2c)
        class(environ), intent(inout) :: e
        integer, intent(in) :: n
        type(celatom), intent(in) :: at(n)
        real*8, intent(in) :: m_xr2c(3,3)
        real*8, intent(in) :: m_x2xr(3,3)
+       real*8, intent(in) :: m_x2c(3,3)
      end subroutine environ_build_from_molecule
-     module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,dmax0)
+     module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0)
        class(environ), intent(inout) :: e
        integer, intent(in) :: nspc
        type(species), intent(in) :: spc(nspc)
@@ -100,6 +108,7 @@ module environmod
        type(celatom), intent(in) :: at(n)
        real*8, intent(in) :: m_xr2c(3,3)
        real*8, intent(in) :: m_x2xr(3,3)
+       real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in), optional :: dmax0
      end subroutine environ_build_from_crystal
      pure module function xr2c(e,xx) result(res)
@@ -122,12 +131,29 @@ module environmod
        real*8, intent(in)  :: xx(3)
        real*8 :: res(3)
      end function x2xr
+     pure module function c2x(e,xx) result(res)
+       class(environ), intent(in) :: e
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function c2x
+     pure module function x2c(e,xx) result(res)
+       class(environ), intent(in) :: e
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function x2c
      pure module function y2z(e,xx,icrd,ocrd) result(res)
        class(environ), intent(in) :: e
        real*8, intent(in)  :: xx(3)
        integer, intent(in) :: icrd, ocrd
        real*8 :: res(3)
      end function y2z
+     pure module subroutine y2z_center(e,xx,icrd,ocrd,lvec)
+       class(environ), intent(in) :: e
+       real*8, intent(inout) :: xx(3)
+       integer, intent(in) :: icrd
+       integer, intent(in) :: ocrd
+       integer, intent(out), optional :: lvec(3)
+     end subroutine y2z_center
      pure module function c2p(e,xx) result(res)
        class(environ), intent(in) :: e
        real*8, intent(in)  :: xx(3)
@@ -154,6 +180,36 @@ module environmod
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
+     module subroutine list_near_atoms(e,xp,icrd,nat,nid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
+       use param, only: icrd_rcrys
+       class(environ), intent(in) :: e
+       real*8, intent(in) :: xp(3)
+       integer, intent(in) :: icrd
+       integer, intent(out) :: nat
+       integer, allocatable, intent(inout) :: nid(:)
+       real*8, allocatable, intent(inout) :: dist(:)
+       integer, allocatable, intent(inout) :: lvec(:,:)
+       integer, allocatable, intent(inout), optional :: ishell0(:)
+       real*8, intent(in), optional :: up2d
+       integer, intent(in), optional :: up2sh
+       integer, intent(in), optional :: up2n
+       integer, intent(in), optional :: nid0
+       integer, intent(in), optional :: id0
+       logical, intent(in), optional :: nozero
+     end subroutine list_near_atoms
+     module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,periodic)
+       use fragmentmod, only: fragment
+       class(environ), intent(in) :: e
+       real*8, intent(in) :: x0(3) 
+       integer, intent(in) :: icrd
+       real*8, intent(out) :: f
+       real*8, intent(out) :: fp(3)
+       real*8, intent(out) :: fpp(3,3)
+       integer, intent(in) :: nder
+       integer, intent(in), optional :: zpsp(:) 
+       type(fragment), intent(in), optional :: fr
+       logical, intent(in), optional :: periodic
+     end subroutine promolecular
      module subroutine environ_report(e)
        class(environ), intent(in) :: e
      end subroutine environ_report

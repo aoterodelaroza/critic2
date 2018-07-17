@@ -833,9 +833,9 @@ contains
 
     lu = fopen_read(string(sy%c%file))
     if (sy%c%ismolecule) then
-       call sy%c%env%build_mol(sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr)
+       call sy%c%env%build_mol(sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr,sy%c%m_x2c)
     else
-       call sy%c%env%build_crys(sy%c%nspc,sy%c%spc(1:sy%c%nspc),sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr,150d0)
+       call sy%c%env%build_crys(sy%c%nspc,sy%c%spc(1:sy%c%nspc),sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr,sy%c%m_x2c,150d0)
     end if
 
     main: do while (getline(lu,line))
@@ -1496,9 +1496,9 @@ contains
     rmax2 = rmax * rmax
     caux = sy%c
     if (sy%c%ismolecule) then
-       call caux%env%build_mol(caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr)
+       call caux%env%build_mol(caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c)
     else
-       call caux%env%build_crys(caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,150d0)
+       call caux%env%build_crys(caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c,150d0)
     end if
 
     ! calculate the energies and derivatives
@@ -1582,9 +1582,9 @@ contains
     rmax2 = rmax * rmax
     caux = sy%c
     if (sy%c%ismolecule) then
-       call caux%env%build_mol(caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr)
+       call caux%env%build_mol(caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c)
     else
-       call caux%env%build_crys(caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,150d0)
+       call caux%env%build_crys(caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c,150d0)
     end if
 
     ! calculate the energies and derivatives
