@@ -30,25 +30,28 @@ module environmod
   !> - For atom i in the environment,
   !>   %x - coordinates in the reduced cell (-0.5 to 0.5 if i = 1..ncell in crystals, 0 to 1 in mols).
   !>   %r - Cartesian coordinates corresponding to %x
+  !>   %is - species
   !>   %idx - id from the non-equivalent list
   !>   %cidx - id from the complete list
   !>   %lenv - atcel(%cidx)%x + %lenv = xr2x(%x)
   !>   %ir, %ic, %lvec - rotm(%ir,1:3) * at(%idx)%x + rotm(%ir,4) + cenv(%ic) + %lvec = xr2x(%x)
   type environ
-     logical :: ismolecule !< is this a molecule or a crystal?
+     logical :: ismolecule !< Is this a molecule or a crystal?
+     integer :: nspc !< Number of species
+     type(species), allocatable :: spc(:) !< Species
      real*8 :: dmax0 !< Environment contains all atoms within dmax0 of every point in the cell
      real*8 :: sphmax !< The reduced cell is circumscribed by a sphere of radius sphmax
-     real*8 :: boxsize !< length of the region side (bohr)
-     real*8 :: xmin(3), xmax(3) !< encompassing box (environment)
-     real*8 :: xminc(3), xmaxc(3) !< encompassing box (main cell)
-     real*8 :: x0(3) !< origin of the to-region transformation
+     real*8 :: boxsize !< Length of the region side (bohr)
+     real*8 :: xmin(3), xmax(3) !< Encompassing box (environment)
+     real*8 :: xminc(3), xmaxc(3) !< Encompassing box (main cell)
+     real*8 :: x0(3) !< Origin of the to-region transformation
      integer :: n = 0 !< Number of atoms in the environment
      integer :: ncell = 0 !< Number of atoms in the unit cell
      integer :: nregc(3) !< Number of regions that cover the unit cell
      integer :: nreg(3) !< Number of regions that cover the environment
      integer :: nmin(3), nmax(3) !< Minimum and maximum region id
-     integer :: nregion !< number of regions
-     integer :: nregs !< number of regions in the search arrays (iaddregs, rcutregs)
+     integer :: nregion !< Number of regions
+     integer :: nregs !< Number of regions in the search arrays (iaddregs, rcutregs)
      real*8 :: m_x2xr(3,3) !< cryst. -> reduced cryst.
      real*8 :: m_xr2x(3,3) !< reduced cryst. -> cryst.
      real*8 :: m_c2xr(3,3) !< cart. -> reduced cryst.
@@ -92,8 +95,10 @@ module environmod
      module subroutine environ_end(e)
        class(environ), intent(inout) :: e
      end subroutine environ_end
-     module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr,m_x2c)
+     module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
        class(environ), intent(inout) :: e
+       integer, intent(in) :: nspc
+       type(species), intent(in) :: spc(nspc)
        integer, intent(in) :: n
        type(celatom), intent(in) :: at(n)
        real*8, intent(in) :: m_xr2c(3,3)
@@ -180,15 +185,15 @@ module environmod
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine list_near_atoms(e,xp,icrd,nat,nid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
+     module subroutine list_near_atoms(e,xp,icrd,nat,eid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
        use param, only: icrd_rcrys
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
        integer, intent(out) :: nat
-       integer, allocatable, intent(inout) :: nid(:)
+       integer, allocatable, intent(inout) :: eid(:)
        real*8, allocatable, intent(inout) :: dist(:)
-       integer, allocatable, intent(inout) :: lvec(:,:)
+       integer, intent(out) :: lvec(3)
        integer, allocatable, intent(inout), optional :: ishell0(:)
        real*8, intent(in), optional :: up2d
        integer, intent(in), optional :: up2sh

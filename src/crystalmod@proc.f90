@@ -569,7 +569,7 @@ contains
     ! Build the atomic environments
     if (env) then
        if (c%ismolecule) then
-          call c%env%build_mol(c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+          call c%env%build_mol(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
        else
           call c%env%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
        end if

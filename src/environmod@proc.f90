@@ -33,6 +33,7 @@ contains
   module subroutine environ_end(e)
     class(environ), intent(inout) :: e
 
+    if (allocated(e%spc)) deallocate(e%spc)
     if (allocated(e%at)) deallocate(e%at)
     if (allocated(e%imap)) deallocate(e%imap)
     if (allocated(e%nrlo)) deallocate(e%nrlo)
@@ -40,6 +41,7 @@ contains
     if (allocated(e%iaddregs)) deallocate(e%iaddregs)
     if (allocated(e%rcutregs)) deallocate(e%rcutregs)
     e%n = 0
+    e%nspc = 0
     e%ncell = 0
     e%nregc = 0
     e%nreg = 0
@@ -50,11 +52,16 @@ contains
 
   end subroutine environ_end
   
-  !> Build an environment from molecule data
-  module subroutine environ_build_from_molecule(e,n,at,m_xr2c,m_x2xr,m_x2c)
+  !> Build an environment from molecule data. nspc = number of species.
+  !> spc = species. n = number of atoms in the cell. at = atoms in the
+  !> cell. m_xr2c = reduced crystallographic to Cartesian matrix. 
+  !> m_x2xr = crystallographic to reduced crystallographic matrix.
+  module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
     use tools_math, only: matinv
     use types, only: realloc
     class(environ), intent(inout) :: e
+    integer, intent(in) :: nspc
+    type(species), intent(in) :: spc(nspc)
     integer, intent(in) :: n
     type(celatom), intent(in) :: at(n)
     real*8, intent(in) :: m_xr2c(3,3)
@@ -65,6 +72,9 @@ contains
     real*8 :: sphmax
 
     e%ismolecule = .true.
+    e%nspc = nspc
+    if (allocated(e%spc)) deallocate(e%spc)
+    e%spc = spc
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
@@ -127,6 +137,9 @@ contains
     integer :: i1, i2, i3, i, imax, p(3), px(3)
 
     e%ismolecule = .false.
+    e%nspc = nspc
+    if (allocated(e%spc)) deallocate(e%spc)
+    e%spc = spc
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
@@ -422,17 +435,17 @@ contains
 
   !> Given the point xp (in icrd coordinates), calculates the list of
   !> nearest atoms. The output list contains nat atoms with IDs
-  !> nid(1:nat) from the complete list, distances to the input point
-  !> equal to dist(1:nat) and lattice vectors lvec(1:3,1:nat). The
-  !> position of atom i in cryst. coords. is atcel(i)%x +
-  !> lvec(:,i). Optionally, ishell(i) contains the shell ID for atom i
-  !> in the output list. One or more of three cutoff criteria must be
-  !> chosen: list up to a distance up2d, up to a number of shells
-  !> up2sh or up to a number of atoms up2n. If nid0, consider only
-  !> atoms with index nid0 from the non-equivalent list. If id0,
-  !> consider only atoms with index id0 from the complete list.  If
-  !> nozero, disregard zero-distance atoms.
-  module subroutine list_near_atoms(e,xp,icrd,nat,nid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
+  !> nid(1:nat) from the environment, distances to the input point
+  !> equal to dist(1:nat) and lattice vector lvec in
+  !> cryst. coords. The position of atom i in cryst. coords. is
+  !> e%at(nid(i))%x + lvec. Optionally, ishell(i) contains the shell
+  !> ID for atom i in the output list. One or more of three cutoff
+  !> criteria must be chosen: list up to a distance up2d, up to a
+  !> number of shells up2sh or up to a number of atoms up2n. If nid0,
+  !> consider only atoms with index nid0 from the non-equivalent
+  !> list. If id0, consider only atoms with index id0 from the
+  !> complete list.  If nozero, disregard zero-distance atoms.
+  module subroutine list_near_atoms(e,xp,icrd,nat,eid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: qcksort, iqcksort
@@ -442,9 +455,9 @@ contains
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
     integer, intent(out) :: nat
-    integer, allocatable, intent(inout) :: nid(:)
+    integer, allocatable, intent(inout) :: eid(:)
     real*8, allocatable, intent(inout) :: dist(:)
-    integer, allocatable, intent(inout) :: lvec(:,:)
+    integer, intent(out) :: lvec(3)
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
     integer, intent(in), optional :: up2sh
@@ -456,7 +469,7 @@ contains
     real*8, parameter :: eps = 1d-10
 
     real*8 :: x0(3), dist0, rcutshel, rcutn
-    integer :: lvec0(3), ireg0, ireg
+    integer :: ireg0, ireg
     integer :: i, j, k, l, lthis
     integer, allocatable :: iord(:), iiord(:), ishell(:)
     integer :: nshel
@@ -470,18 +483,18 @@ contains
 
     ! Find the integer region for the main cell copy of the input point
     x0 = xp
-    call e%y2z_center(x0,icrd,icrd_cart,lvec0)
+    call e%y2z_center(x0,icrd,icrd_cart,lvec)
     ireg0 = e%c2i(x0)
+    lvec = nint(e%xr2x(real(lvec,8)))
 
     ! Initialize the output arrays
     nat = 0
     nshel = 0
     rcutshel = -1d0
     rcutn = -1d0
-    if (allocated(nid)) deallocate(nid)
+    if (allocated(eid)) deallocate(eid)
     if (allocated(dist)) deallocate(dist)
-    if (allocated(lvec)) deallocate(lvec)
-    allocate(nid(10),dist(10),lvec(3,10))
+    allocate(eid(10),dist(10))
     if (doshell) then
        allocate(ishell(10),rshel(10),idxshel(10))
     end if
@@ -523,15 +536,13 @@ contains
              
              ! add this atom
              nat = nat + 1
-             if (nat > size(nid,1)) then
-                call realloc(nid,2*nat)
+             if (nat > size(eid,1)) then
+                call realloc(eid,2*nat)
                 call realloc(dist,2*nat)
-                call realloc(lvec,3,2*nat)
                 if (doshell) call realloc(ishell,2*nat)
              end if
-             nid(nat) = e%at(k)%cidx
+             eid(nat) = k
              dist(nat) = dist0
-             lvec(:,nat) = e%at(k)%lenv + nint(e%xr2x(real(lvec0,8)))
 
              ! update the up2n rcut. All remaining atoms will have
              ! dist > than the current region's rcut. rcutn will be >
@@ -580,9 +591,8 @@ contains
     ! rearrange the arrays 
     if (nat > 0) then
        ! first reallocation
-       call realloc(nid,nat)
+       call realloc(eid,nat)
        call realloc(dist,nat)
-       call realloc(lvec,3,nat)
        if (doshell) call realloc(ishell,nat)
 
        ! re-order shell labels
@@ -610,9 +620,8 @@ contains
        end do
        if (doshell) call iqcksort(ishell,iord,1,nat)
        call qcksort(dist,iord,1,nat)
-       nid = nid(iord)
+       eid = eid(iord)
        dist = dist(iord)
-       lvec(:,:) = lvec(:,iord)
        if (doshell) ishell = ishell(iord)
        deallocate(iord)
 
@@ -627,9 +636,8 @@ contains
              end do
           end if
           if (present(up2n)) nat = up2n
-          call realloc(nid,nat)
+          call realloc(eid,nat)
           call realloc(dist,nat)
-          call realloc(lvec,3,nat)
           call realloc(ishell,nat)
        end if
     end if
@@ -648,9 +656,11 @@ contains
   !> contribute.  This routine is thread-safe.
   module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,periodic)
     use grid1mod, only: cgrid, agrid, grid1
+    use global, only: cutrad
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
-    use param, only: maxzat, icrd_cart, icrd_rcrys
+    ! use param, only: maxzat, icrd_cart, icrd_rcrys
+    use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
     integer, intent(in) :: icrd !< Input coordinates
@@ -662,13 +672,14 @@ contains
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
     logical, intent(in), optional :: periodic
 
-    ! integer :: i, j, k, ii, iz
-    real*8 :: xc(3)
-    ! real*8 :: xx(3), r2, r, rinv1, rinv2
-    ! real*8 :: rho, rhop, rhopp, rfac, radd
-    ! integer :: idolist(e%env%n), nido
+    integer :: i, j, k, ii, iz
+    real*8 :: xc(3), xx(3), rcutmax, rlvec(3), r, rinv1, rinv2
+    real*8 :: rho, rhop, rhopp, rfac, radd
     logical :: iscore, okper
-    ! type(grid1), pointer :: g
+    type(grid1), pointer :: g
+    integer :: nat, lvec(3)
+    integer, allocatable :: nid(:)
+    real*8, allocatable :: dist(:)
 
     f = 0d0
     fp = 0d0
@@ -693,75 +704,49 @@ contains
        xc = e%y2z(x0,icrd,icrd_cart)
     end if
 
-    ! ! precompute the list of atoms that contribute
-    ! if (.not.present(fr)) then
-    !    nido = 0
-    !    do i = 1, e%env%n
-    !       iz = e%spc(e%env%at(i)%is)%z
-    !       if (iz == 0 .or. iz > maxzat) cycle
-    !       if (iscore) then
-    !          if (zpsp(iz) <= 0 .or. iz - zpsp(iz) == 0) cycle
-    !          g => cgrid(iz,zpsp(iz)) 
-    !       else
-    !          g => agrid(iz)
-    !       end if
-    !       if (.not.g%isinit) cycle
-    !       xx = xc - e%env%at(i)%r
-    !       r2 = norm2(xx)
-    !       if (r2 > g%rmax) cycle
-    !       nido = nido + 1
-    !       idolist(nido) = i
-    !    end do
-    ! else
-    !    nido = fr%nat
-    ! end if
+    ! compute the list of atoms that contribute
+    rcutmax = 0d0
+    do i = 1, e%nspc
+       rcutmax = max(rcutmax,cutrad(e%spc(i)%z))
+    end do
+    call e%list_near_atoms(xc,icrd_cart,nat,nid,dist,lvec,up2d=rcutmax)
+    rlvec = lvec
+    rlvec = e%x2c(rlvec)
+    
+    ! do the sum
+    do ii = 1, nat
+       i = nid(ii)
+       iz = e%spc(e%at(i)%is)%z
+       r = dist(ii)
+       if (r > cutrad(iz)) cycle
 
-    ! ! do the sum
-    ! do ii = 1, nido
-    !    if (.not.present(fr)) then
-    !       i = idolist(ii)
-    !       iz = e%spc(e%env%at(i)%is)%z
-    !       if (iscore) then
-    !          g => cgrid(iz,zpsp(iz))
-    !       else
-    !          g => agrid(iz)
-    !       end if
-    !       xx = xc - e%env%at(i)%r
-    !    else
-    !       iz = fr%spc(fr%at(ii)%is)%z
-    !       if (iscore) then
-    !          g => cgrid(iz,zpsp(iz))
-    !       else
-    !          g => agrid(iz)
-    !       end if
-    !       xx = xc - fr%at(ii)%r
-    !    end if
+       if (iscore) then
+          g => cgrid(iz,zpsp(iz))
+       else
+          g => agrid(iz)
+       end if
+       r = max(max(r,g%r(1)),1d-14)
+       call g%interp(r,rho,rhop,rhopp)
+       rho = max(rho,0d0)
+       f = f + rho
 
-    !    r2 = norm2(xx)
-    !    r = max(r2,g%r(1))
-    !    r = max(r,1d-14)
-    !    call g%interp(r,rho,rhop,rhopp)
-    !    rho = max(rho,0d0)
+       if (nder < 1) cycle
+       xx = xc - (e%at(i)%r + rlvec)
+       rinv1 = 1d0 / r
+       fp = fp + rhop * xx * rinv1
 
-    !    f = f + rho
-    !    if (nder < 1) cycle
-    !    rinv1 = 1d0 / r
-    !    fp = fp + rhop * xx * rinv1
-    !    if (nder < 2) cycle
-    !    rinv2 = rinv1 * rinv1
-    !    rfac = (rhopp - rhop * rinv1)
-    !    do j = 1, 3
-    !       fpp(j,j) = fpp(j,j) + rhop * rinv1 + rfac * rinv2 * xx(j) * xx(j)
-    !       do k = 1, j-1
-    !          radd = rfac * rinv2 * xx(j) * xx(k)
-    !          fpp(j,k) = fpp(j,k) + radd
-    !          fpp(k,j) = fpp(k,j) + radd
-    !       end do
-    !    end do
-    ! end do
-
-    write (*,*) "bleh!"
-    stop 1
+       if (nder < 2) cycle
+       rinv2 = rinv1 * rinv1
+       rfac = (rhopp - rhop * rinv1)
+       do j = 1, 3
+          fpp(j,j) = fpp(j,j) + rhop * rinv1 + rfac * rinv2 * xx(j) * xx(j)
+          do k = 1, j-1
+             radd = rfac * rinv2 * xx(j) * xx(k)
+             fpp(j,k) = fpp(j,k) + radd
+             fpp(k,j) = fpp(k,j) + radd
+          end do
+       end do
+    end do
 
   end subroutine promolecular
 
