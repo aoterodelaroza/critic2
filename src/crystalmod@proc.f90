@@ -1593,7 +1593,7 @@ contains
     integer :: iaux(shmax)
     real*8, allocatable :: aux2(:,:,:)
 
-    x0c = c%x2c(x0)
+    x0c = c%x2c(x0 - floor(x0))
     dist = 1d30
     if (present(xenv)) then
        if (allocated(xenv)) deallocate(xenv)

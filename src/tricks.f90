@@ -519,7 +519,7 @@ contains
       !    end do
       ! end do
 
-      x = 0.5d0
+      x = 15.5d0
 
       write (*,*) "point ", i, x
       call cr%pointshell(x,10,nneig1,wat1,dd1)
@@ -536,7 +536,7 @@ contains
          write (*,*) j, nneig1(j), wat1(j), dd1(j)
       end do
 
-      call env%list_near_atoms(x,icrd_crys,nat,nida,dista,lveca,ishella,up2n=57,id0=1)
+      call env%list_near_atoms(x,icrd_crys,nat,nida,dista,lveca,ishella,up2sh=10,nozero=.true.)
       write (*,*) "list_near_atoms environment, nat = ", nat
       do j = 1, nat
          write (*,*) j, cr%atcel(nida(j))%idx, nida(j), dista(j), lveca(:,j), ishella(j)
