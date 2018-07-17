@@ -468,59 +468,24 @@ contains
       ! ! Write the environment info
       ! call env%report()
 
-      ! Test the nearest_atom routine
-      do i = 1, 100
-         call random_number(x)
-         x = x * 10d0 - 5d0
-         call cr%nearest_atom(x,nid1,dist1,lvec1)
-         call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
-         write (*,*) "point ", i
-         write (*,*) "x = ", x
-         ! write (*,*) "nid1 = ", nid1
-         ! write (*,*) "nid2 = ", nid2
-         write (*,*) "nid = ", abs(nid1-nid2)
-         write (*,*) "dist1 = ", dist1
-         write (*,*) "dist2 = ", dist2
-         write (*,*) "dist = ", abs(dist1-dist2)
-         write (*,*) "lvec1 = ", lvec1
-         write (*,*) "lvec2 = ", lvec2
-         write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
-      end do
-
-      ! do i = 1, cr%ncel
-      !    x = cr%atcel(i)%x
-      !    call cr%nearest_atom(x,nid1,dist1,lvec1,nozero=.true.)
-      !    call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2,nozero=.true.)
+      ! ! Test the nearest_atom routine
+      ! do i = 1, 100
+      !    call random_number(x)
+      !    x = x * 10d0 - 5d0
+      !    call cr%nearest_atom(x,nid1,dist1,lvec1)
+      !    call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
       !    write (*,*) "point ", i
-      !    ! write (*,*) "x = ", x
+      !    write (*,*) "x = ", x
       !    ! write (*,*) "nid1 = ", nid1
       !    ! write (*,*) "nid2 = ", nid2
       !    write (*,*) "nid = ", abs(nid1-nid2)
       !    write (*,*) "dist1 = ", dist1
       !    write (*,*) "dist2 = ", dist2
       !    write (*,*) "dist = ", abs(dist1-dist2)
-      !    ! write (*,*) "lvec1 = ", lvec1
-      !    ! write (*,*) "lvec2 = ", lvec2
+      !    write (*,*) "lvec1 = ", lvec1
+      !    write (*,*) "lvec2 = ", lvec2
       !    write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
       ! end do
-
-      ! x = 0.5d0
-      ! call cr%nearest_atom(x,nid1,dist1,lvec1)
-      ! call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
-      ! write (*,*) "point ", i
-      ! write (*,*) "x = ", x
-      ! write (*,*) "nid = ", nid1, nid2
-      ! write (*,*) "dist = ", dist1, dist2
-      ! ! write (*,*) "lvecdif = ", lvec1 - lvec2
-      ! write (*,*) "lvec1 = ", lvec1
-      ! write (*,*) "lvec2 = ", lvec2
-
-      ! write (*,*) "pos = ", x
-      ! write (*,*) "pos1 = ", cr%atcel(nid1)%x + lvec1
-      ! write (*,*) "pos2 = ", cr%atcel(nid2)%x + lvec2
-      ! write (*,*) "dist1 = ", norm2(cr%x2c(x - (cr%atcel(nid1)%x + lvec1)))
-      ! write (*,*) "dist2 = ", norm2(cr%x2c(x - (cr%atcel(nid2)%x + lvec2)))
-
 
     end associate
 

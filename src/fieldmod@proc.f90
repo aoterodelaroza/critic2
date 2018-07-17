@@ -2271,6 +2271,7 @@ contains
              dx = xpoint - fid%cpcel(i)%x
              call fid%c%shortest(dx,dist2)
              if (dist2 < cprad) then
+                dx = fid%c%c2x(dx)
                 cprad = dist2
                 idcp = fid%cpcel(i)%idx
                 xcp = fid%c%x2c(fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx))
