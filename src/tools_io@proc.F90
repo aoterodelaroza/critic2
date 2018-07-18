@@ -1272,8 +1272,7 @@ contains
 
   end subroutine ferror
 
-  !> Interface to the timer routines of different computers. Returns
-  !> machine seconds at the calling time. (private)
+  !> Write a timestamp to the output, with an optional prefix message.
   module subroutine tictac(mesg)
     character*(*), intent(in) :: mesg !< Prefix message
     integer :: values(8)
