@@ -25,9 +25,24 @@ module environmod
 
   private
 
-  !> Atomic environment type.
-  !> - The first ncell atoms correspond to the atoms in the main cell (c%ncel). 
-  !> - For atom i in the environment,
+  !> --- Atomic environment type. ---
+  !> An atomic environment is built as the collection of all atoms whose distance is e%dmax0 or less to any point in the main
+  !> cell. In molecules, the main cell is x: 0 -> 1, with x in reduced crystallographic coordinates. In crystals, 
+  !> it is x: -0.5 -> 0.5. I.e. to translate to the main cell, use:
+  !>   x = x - floor(x) in molecules
+  !>   x = x - nint(x) in crystals
+  !> 
+  !> The atomic environment is encased in a box (vertices xmin/xmax), which is then divided into regions to facilitate distance
+  !> searches. There are e%nregion regions, e%nreg in each direction, with indices between e%nmin and e%nmax. The regions are cubes with
+  !> side length equal to boxsize. In addition to Cartesian (c), crystallographic (x), and reduced crystallographic (rx), we define
+  !> two additional sets of coordinates: 
+  !>   region partition (p): three integer indices that give the region to which a point belongs
+  !>   region index (i): the integer index (1..e%nregion) of the encompassing region
+  !> The routine c2p, c2i, and p2i convert between Cartesian and these two sets of coordinates. The origin of the c2p transformation
+  !> is e%x0.
+  !>
+  !> The environment has env%n atoms. The first env%ncell atoms correspond to the atoms in the main cell (c%ncel). For atom i in
+  !> the environment, at(i) contains:
   !>   %x - coordinates in the reduced cell (-0.5 to 0.5 if i = 1..ncell in crystals, 0 to 1 in mols).
   !>   %r - Cartesian coordinates corresponding to %x
   !>   %is - species
@@ -35,6 +50,15 @@ module environmod
   !>   %cidx - id from the complete list
   !>   %lenv - atcel(%cidx)%x + %lenv = xr2x(%x)
   !>   %ir, %ic, %lvec - rotm(%ir,1:3) * at(%idx)%x + rotm(%ir,4) + cenv(%ic) + %lvec = xr2x(%x)
+  !>
+  !> To perform atomic distance calculations, the atoms are ordered by their region index (i coordinate) in the array e%imap.
+  !> If k runs from 1 to env%n, c2i(at(imap(k))%r) is in ascending order. If l is a region, k1 = nrlo(l) and k2 = nrup(l)
+  !> give the slice of the c2i(at(imap(1:n))%r) array corresponding to region l.
+  !> 
+  !> A number of region offsets (e%nregs) is stored. If l is an offset index, e%iaddregs(l) contains a packed index
+  !> for the region offset (the packing/unpacking operations are handled by the packoffset and unpackoffset routines).
+  !> All points in the current region are at a distance of at least e%rcutregs(l) from all points in the region given
+  !> by offset e%iaddregs(l).
   type environ
      logical :: ismolecule !< Is this a molecule or a crystal?
      integer :: nspc !< Number of species
