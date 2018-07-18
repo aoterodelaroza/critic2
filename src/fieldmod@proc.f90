@@ -631,7 +631,7 @@ contains
     f%file = ""
     f%typnuc = -3
     f%zpsp = c%zpsp
-    ! call f%init_cplist()
+    call f%init_cplist()
 
   end subroutine load_promolecular
 

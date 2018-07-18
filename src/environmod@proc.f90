@@ -133,7 +133,7 @@ contains
     real*8, intent(in), optional :: dmax0
 
     logical :: dorepeat
-    real*8 :: sphmax, dmax, m_xr2x(3,3), x(3), xc(3), dd
+    real*8 :: sphmax, dmax, x(3), xc(3), dd
     integer :: i1, i2, i3, i, imax, p(3), px(3)
 
     e%ismolecule = .false.
@@ -449,13 +449,15 @@ contains
   !> number of shells up2sh or up to a number of atoms up2n. If nid0,
   !> consider only atoms with index nid0 from the non-equivalent
   !> list. If id0, consider only atoms with index id0 from the
-  !> complete list.  If nozero, disregard zero-distance atoms.
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
+  !> complete list. If nozero, disregard zero-distance atoms.
+  !> If periodic is present and .false., do not move the input point
+  !> to the main cell (for molecules).
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero,periodic)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: qcksort, iqcksort
     use types, only: realloc
-    use param, only: icrd_rcrys, icrd_cart
+    use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -472,6 +474,7 @@ contains
     integer, intent(in), optional :: nid0
     integer, intent(in), optional :: id0
     logical, intent(in), optional :: nozero
+    logical, intent(in), optional :: periodic
 
     real*8, parameter :: eps = 1d-10
 
@@ -482,15 +485,22 @@ contains
     integer :: nshel, nreg21(3)
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
-    logical :: doshell
+    logical :: doshell, okper
 
     if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2sh).and..not.present(up2n)) &
        call ferror("list_near_atoms","must give one of up2d, up2dsp, up2sh, or up2n",faterr)
     doshell = present(ishell0) .or. present(up2sh)
 
     ! Find the integer region for the main cell copy of the input point
-    x0 = xp
-    call e%y2z_center(x0,icrd,icrd_cart,lvec)
+    okper = .true.
+    if (present(periodic)) okper = periodic
+    if (okper) then
+       x0 = xp
+       call e%y2z_center(x0,icrd,icrd_cart,lvec)
+    else
+       x0 = e%y2z(xp,icrd,icrd_cart)
+       lvec = 0
+    end if
     ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
 
@@ -668,8 +678,12 @@ contains
     
   !> Calculate the core (if zpsp is present) or promolecular densities
   !> at a point x0 (coord format given by icrd) using atomic radial
-  !> grids. If a fragment is given, then only the atoms in it
-  !> contribute.  This routine is thread-safe.
+  !> grids up to a number of derivatives nder (max: 2). Returns the
+  !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
+  !> 2). If a fragment (fr) is given, then only the atoms in it
+  !> contribute. If periodic is present and false, do not translate
+  !> the point to the main cell (for molecules). This routine is
+  !> thread-safe.
   module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,periodic)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
@@ -683,9 +697,9 @@ contains
     real*8, intent(out) :: fp(3) !< Density gradient
     real*8, intent(out) :: fpp(3,3) !< Density hessian
     integer, intent(in) :: nder !< Number of derivatives to calculate
-    integer, intent(in), optional :: zpsp(:) 
+    integer, intent(in), optional :: zpsp(:) !< core charges
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
-    logical, intent(in), optional :: periodic
+    logical, intent(in), optional :: periodic !< Translate the input point to the main cell?
 
     integer :: i, j, k, ii, iz
     real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
@@ -710,8 +724,8 @@ contains
     end if
 
     ! convert to Cartesian and move to the main cell if periodic
-    okper = present(periodic)
-    if (okper) okper = okper .and. periodic
+    okper = .true.
+    if (present(periodic)) okper = periodic
     if (okper) then
        xc = x0
        call e%y2z_center(xc,icrd,icrd_cart)
@@ -734,8 +748,9 @@ contains
     call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
     rlvec = lvec
     rlvec = e%x2c(rlvec)
+    deallocate(rcutmax)
 
-    ! do the sum
+    ! Do the density and derivatives sum
     do ii = 1, nat
        i = nid(ii)
        iz = e%spc(e%at(i)%is)%z

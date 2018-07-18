@@ -5321,7 +5321,7 @@ contains
     real*8 :: xc(3), xx(3), r2, r, rinv1, rinv2
     real*8 :: rho, rhop, rhopp, rfac, radd
     integer :: idolist(c%env%n), nido
-    logical :: iscore
+    logical :: iscore, okper
     type(grid1), pointer :: g
 
     f = 0d0
@@ -5338,13 +5338,13 @@ contains
     end if
 
     ! initialize 
+    okper = .true.
+    if (present(periodic)) okper = periodic
     xc = x0
-    if (present(periodic)) then
-       if (periodic) then
-          xc = c%c2xr(x0)
-          xc = xc - nint(xc)
-          xc = c%xr2c(xc)
-       end if
+    if (okper) then
+       xc = c%c2xr(x0)
+       xc = xc - nint(xc)
+       xc = c%xr2c(xc)
     end if
 
     ! precompute the list of atoms that contribute
