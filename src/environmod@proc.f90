@@ -336,7 +336,7 @@ contains
     real*8, intent(in)  :: xx(3)
     integer :: res(3)
 
-    res = floor((max(min(xx,e%xmax),e%xmin) - e%x0) / e%boxsize)
+    res = min(max(floor((xx - e%x0) / e%boxsize),e%nmin),e%nmax)
 
   end function c2p
 
@@ -389,40 +389,43 @@ contains
     real*8, parameter :: eps = 1d-10
 
     real*8 :: x0(3), dist, distmin
-    integer :: ireg0, ireg
-    integer :: i, j, k, kmin, lvec0(3)
+    integer :: ireg0(3), ireg(3), idxreg
+    integer :: i, j, k, kmin, lvec0(3), nreg21(3)
 
     ! Find the integer region for the main cell copy of the input point
     x0 = xp
     call e%y2z_center(x0,icrd,icrd_cart,lvec0)
-    ireg0 = e%c2i(x0)
+    ireg0 = e%c2p(x0)
     
     ! run over regions sorted by distance
+    nreg21 = 2 * e%nreg + 1
     distmin = 1d40
     kmin = 0
     main: do i = 1, e%nregs
-       ireg = ireg0 + e%iaddregs(i)
-       if (ireg > 0 .and. ireg < e%nregion) then
-          do j = e%nrlo(ireg), e%nrhi(ireg)
-             k = e%imap(j)
-             if (distmin < e%rcutregs(i)) exit main
-             if (present(nid0)) then
-                if (e%at(k)%idx /= nid0) cycle
-             end if
-             if (present(id0)) then
-                if (e%at(k)%cidx /= id0) cycle
-             end if
+       ireg = ireg0 + unpackoffset(e%iaddregs(i),e%nreg,nreg21)
+       if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
+       idxreg = e%p2i(ireg)
+       if (e%nrhi(idxreg) == 0) cycle
 
-             dist = norm2(e%at(k)%r - x0)
-             if (present(nozero)) then
-                if (dist < eps) cycle
-             end if
-             if (dist < distmin) then
-                distmin = dist
-                kmin = k
-             end if
-          end do
-       end if
+       do j = e%nrlo(idxreg), e%nrhi(idxreg)
+          k = e%imap(j)
+          if (distmin < e%rcutregs(i)) exit main
+          if (present(nid0)) then
+             if (e%at(k)%idx /= nid0) cycle
+          end if
+          if (present(id0)) then
+             if (e%at(k)%cidx /= id0) cycle
+          end if
+
+          dist = norm2(e%at(k)%r - x0)
+          if (present(nozero)) then
+             if (dist < eps) cycle
+          end if
+          if (dist < distmin) then
+             distmin = dist
+             kmin = k
+          end if
+       end do
     end do main
 
     nid = e%at(kmin)%cidx
@@ -434,18 +437,20 @@ contains
   end subroutine nearest_atom
 
   !> Given the point xp (in icrd coordinates), calculates the list of
-  !> nearest atoms. The output list contains nat atoms with IDs
-  !> nid(1:nat) from the environment, distances to the input point
-  !> equal to dist(1:nat) and lattice vector lvec in
-  !> cryst. coords. The position of atom i in cryst. coords. is
-  !> e%at(nid(i))%x + lvec. Optionally, ishell(i) contains the shell
-  !> ID for atom i in the output list. One or more of three cutoff
-  !> criteria must be chosen: list up to a distance up2d, up to a
+  !> nearest atoms. The list is sorted by distance and shell if sorted
+  !> is true (using up2n or up2sh makes sorted = true). The output
+  !> list contains nat atoms with IDs nid(1:nat) from the environment,
+  !> distances to the input point equal to dist(1:nat) and lattice
+  !> vector lvec in cryst. coords. The position of atom i in
+  !> cryst. coords. is e%at(nid(i))%x + lvec. Optionally, ishell(i)
+  !> contains the shell ID for atom i in the output list. One or more
+  !> of four cutoff criteria must be chosen: list up to a distance
+  !> up2d, list up to a species-dependent distance (up2dsp), up to a
   !> number of shells up2sh or up to a number of atoms up2n. If nid0,
   !> consider only atoms with index nid0 from the non-equivalent
   !> list. If id0, consider only atoms with index id0 from the
   !> complete list.  If nozero, disregard zero-distance atoms.
-  module subroutine list_near_atoms(e,xp,icrd,nat,eid,dist,lvec,ishell0,up2d,up2sh,up2n,nid0,id0,nozero)
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: qcksort, iqcksort
@@ -454,12 +459,14 @@ contains
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
+    logical, intent(in) :: sorted
     integer, intent(out) :: nat
     integer, allocatable, intent(inout) :: eid(:)
     real*8, allocatable, intent(inout) :: dist(:)
     integer, intent(out) :: lvec(3)
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
+    real*8, intent(in), optional :: up2dsp(:)
     integer, intent(in), optional :: up2sh
     integer, intent(in), optional :: up2n
     integer, intent(in), optional :: nid0
@@ -469,25 +476,25 @@ contains
     real*8, parameter :: eps = 1d-10
 
     real*8 :: x0(3), dist0, rcutshel, rcutn
-    integer :: ireg0, ireg
+    integer :: ireg0(3), ireg(3), idxreg
     integer :: i, j, k, l, lthis
     integer, allocatable :: iord(:), iiord(:), ishell(:)
-    integer :: nshel
+    integer :: nshel, nreg21(3)
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
     logical :: doshell
 
-    if (.not.present(up2d).and..not.present(up2sh).and..not.present(up2n)) &
-       call ferror("list_near_atoms","must give one of up2d, up2sh, or up2n",faterr)
+    if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2sh).and..not.present(up2n)) &
+       call ferror("list_near_atoms","must give one of up2d, up2dsp, up2sh, or up2n",faterr)
     doshell = present(ishell0) .or. present(up2sh)
 
     ! Find the integer region for the main cell copy of the input point
     x0 = xp
     call e%y2z_center(x0,icrd,icrd_cart,lvec)
-    ireg0 = e%c2i(x0)
+    ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
 
-    ! Initialize the output arrays
+    ! initialize the output arrays
     nat = 0
     nshel = 0
     rcutshel = -1d0
@@ -499,93 +506,100 @@ contains
        allocate(ishell(10),rshel(10),idxshel(10))
     end if
 
+    nreg21 = 2 * e%nreg + 1
     ! run over regions around ireg0 and over atoms belonging to those regions
     main: do i = 1, e%nregs
-       ireg = ireg0 + e%iaddregs(i)
-       if (ireg > 0 .and. ireg < e%nregion) then
-          do j = e%nrlo(ireg), e%nrhi(ireg)
-             k = e%imap(j)
+       ireg = ireg0 + unpackoffset(e%iaddregs(i),e%nreg,nreg21)
+       if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
+       idxreg = e%p2i(ireg)
+       if (e%nrhi(idxreg) == 0) cycle
 
-             ! apply nid0 and id0 conditions
-             if (present(nid0)) then
-                if (e%at(k)%idx /= nid0) cycle
-             end if
-             if (present(id0)) then
-                if (e%at(k)%cidx /= id0) cycle
-             end if
-             
-             ! calculate the distance to this atom
-             dist0 = norm2(e%at(k)%r - x0)
+       do j = e%nrlo(idxreg), e%nrhi(idxreg)
+          k = e%imap(j)
 
-             ! apply the nozero and up2x conditions
-             if (present(nozero)) then
-                if (dist0 < eps) cycle
+          ! apply nid0 and id0 conditions
+          if (present(nid0)) then
+             if (e%at(k)%idx /= nid0) cycle
+          end if
+          if (present(id0)) then
+             if (e%at(k)%cidx /= id0) cycle
+          end if
+
+          ! calculate the distance to this atom
+          dist0 = norm2(e%at(k)%r - x0)
+
+          ! apply the nozero and up2x conditions
+          if (present(nozero)) then
+             if (dist0 < eps) cycle
+          end if
+          if (present(up2d)) then
+             if (e%rcutregs(i) > up2d) exit main
+             if (dist0 > up2d) cycle
+          end if
+          if (present(up2dsp)) then
+             if (e%rcutregs(i) > maxval(up2dsp)) exit main
+             if (dist0 > up2dsp(e%at(k)%is)) cycle
+          end if
+          if (present(up2sh)) then
+             if (nshel >= up2sh .and. e%rcutregs(i) > rcutshel) &
+                exit main
+          end if
+          if (present(up2n)) then
+             if (nat >= up2n .and. e%rcutregs(i) > rcutn) &
+                exit main
+          end if
+
+          ! ! add this atom
+          nat = nat + 1
+          if (nat > size(eid,1)) then
+             call realloc(eid,2*nat)
+             call realloc(dist,2*nat)
+             if (doshell) call realloc(ishell,2*nat)
+          end if
+          eid(nat) = k
+          dist(nat) = dist0
+
+          ! update the up2n rcut. All remaining atoms will have
+          ! dist > than the current region's rcut. rcutn will be >
+          ! than all atom distances from 1 to up2n.
+          if (present(up2n)) then
+             if (nat <= up2n) rcutn = max(dist0,rcutn)
+          end if
+
+          ! process the shells
+          if (doshell) then
+             ! see if this shell is already known
+             lthis = 0
+             do l = 1, nshel
+                if ((abs(dist0 - rshel(l)) < atomeps) .and. (idxshel(l) == e%at(k)%idx)) then
+                   lthis = l
+                   exit
+                end if
+             end do
+
+             ! if not known, create the new shell
+             if (lthis == 0) then
+                nshel = nshel + 1
+                if (nshel > size(rshel,1)) then
+                   call realloc(rshel,2*nshel)
+                   call realloc(idxshel,2*nshel)
+                end if
+                lthis = nshel
+                idxshel(nshel) = e%at(k)%idx
+                rshel(nshel) = dist0
              end if
-             if (present(up2d)) then
-                if (e%rcutregs(i) > up2d) exit main
-                if (dist0 > up2d) cycle
-             end if
+
+             ! update the up2sh rcut. All remaining atoms will have
+             ! dist > than the current region's rcut. rcutsh will be >
+             ! than all atom distances from 1 to shell up2sh.
              if (present(up2sh)) then
-                if (nshel >= up2sh .and. e%rcutregs(i) > rcutshel) &
-                   exit main
-             end if
-             if (present(up2n)) then
-                if (nat >= up2n .and. e%rcutregs(i) > rcutn) &
-                   exit main
-             end if
-             
-             ! add this atom
-             nat = nat + 1
-             if (nat > size(eid,1)) then
-                call realloc(eid,2*nat)
-                call realloc(dist,2*nat)
-                if (doshell) call realloc(ishell,2*nat)
-             end if
-             eid(nat) = k
-             dist(nat) = dist0
-
-             ! update the up2n rcut. All remaining atoms will have
-             ! dist > than the current region's rcut. rcutn will be >
-             ! than all atom distances from 1 to up2n.
-             if (present(up2n)) then
-                if (nat <= up2n) rcutn = max(dist0,rcutn)
+                if (up2sh <= nshel) rcutshel = max(dist0,rcutshel)
              end if
 
-             ! process the shells
-             if (doshell) then
-                ! see if this shell is already known
-                lthis = 0
-                do l = 1, nshel
-                   if ((abs(dist0 - rshel(l)) < atomeps) .and. (idxshel(l) == e%at(k)%idx)) then
-                      lthis = l
-                      exit
-                   end if
-                end do
-
-                ! if not known, create the new shell
-                if (lthis == 0) then
-                   nshel = nshel + 1
-                   if (nshel > size(rshel,1)) then
-                      call realloc(rshel,2*nshel)
-                      call realloc(idxshel,2*nshel)
-                   end if
-                   lthis = nshel
-                   idxshel(nshel) = e%at(k)%idx
-                   rshel(nshel) = dist0
-                end if
-
-                ! update the up2sh rcut. All remaining atoms will have
-                ! dist > than the current region's rcut. rcutsh will be >
-                ! than all atom distances from 1 to shell up2sh.
-                if (present(up2sh)) then
-                   if (up2sh <= nshel) rcutshel = max(dist0,rcutshel)
-                end if
-
-                ! write down the shell for this atom
-                ishell(nat) = lthis
-             end if
-          end do
-       end if
+             ! write down the shell for this atom
+             ishell(nat) = lthis
+          end if
+       end do
     end do main
 
     ! rearrange the arrays 
@@ -613,32 +627,34 @@ contains
           deallocate(iiord)
        end if
 
-       ! sort by distance and by shell
-       allocate(iord(nat))
-       do i = 1, nat
-          iord(i) = i
-       end do
-       if (doshell) call iqcksort(ishell,iord,1,nat)
-       call qcksort(dist,iord,1,nat)
-       eid = eid(iord)
-       dist = dist(iord)
-       if (doshell) ishell = ishell(iord)
-       deallocate(iord)
+       if (sorted .or. present(up2sh) .or. present(up2n)) then
+          ! sort by distance and by shell
+          allocate(iord(nat))
+          do i = 1, nat
+             iord(i) = i
+          end do
+          if (doshell) call iqcksort(ishell,iord,1,nat)
+          call qcksort(dist,iord,1,nat)
+          eid = eid(iord)
+          dist = dist(iord)
+          if (doshell) ishell = ishell(iord)
+          deallocate(iord)
 
-       ! prune the extra atoms
-       if (present(up2sh) .or. present(up2n)) then
-          if (present(up2sh)) then
-             do i = 1, nat
-                if (ishell(i) > up2sh) then
-                   nat = i-1
-                   exit
-                end if
-             end do
+          ! prune the extra atoms
+          if (present(up2sh) .or. present(up2n)) then
+             if (present(up2sh)) then
+                do i = 1, nat
+                   if (ishell(i) > up2sh) then
+                      nat = i-1
+                      exit
+                   end if
+                end do
+             end if
+             if (present(up2n)) nat = up2n
+             call realloc(eid,nat)
+             call realloc(dist,nat)
+             call realloc(ishell,nat)
           end if
-          if (present(up2n)) nat = up2n
-          call realloc(eid,nat)
-          call realloc(dist,nat)
-          call realloc(ishell,nat)
        end if
     end if
     if (allocated(rshel)) deallocate(rshel)
@@ -659,7 +675,6 @@ contains
     use global, only: cutrad
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
-    ! use param, only: maxzat, icrd_cart, icrd_rcrys
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
@@ -673,13 +688,13 @@ contains
     logical, intent(in), optional :: periodic
 
     integer :: i, j, k, ii, iz
-    real*8 :: xc(3), xx(3), rcutmax, rlvec(3), r, rinv1, rinv2
+    real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
     real*8 :: rho, rhop, rhopp, rfac, radd
     logical :: iscore, okper
     type(grid1), pointer :: g
     integer :: nat, lvec(3)
     integer, allocatable :: nid(:)
-    real*8, allocatable :: dist(:)
+    real*8, allocatable :: dist(:), rcutmax(:)
 
     f = 0d0
     fp = 0d0
@@ -704,15 +719,22 @@ contains
        xc = e%y2z(x0,icrd,icrd_cart)
     end if
 
-    ! compute the list of atoms that contribute
+    ! compute the list of atoms that contribute to the point
+    allocate(rcutmax(e%nspc))
     rcutmax = 0d0
     do i = 1, e%nspc
-       rcutmax = max(rcutmax,cutrad(e%spc(i)%z))
+       iz = e%spc(i)%z
+       if (iscore) then
+          g => cgrid(iz,zpsp(iz))
+       else
+          g => agrid(iz)
+       end if
+       rcutmax(i) = min(cutrad(iz),g%rmax)
     end do
-    call e%list_near_atoms(xc,icrd_cart,nat,nid,dist,lvec,up2d=rcutmax)
+    call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
     rlvec = lvec
     rlvec = e%x2c(rlvec)
-    
+
     ! do the sum
     do ii = 1, nat
        i = nid(ii)
@@ -733,15 +755,15 @@ contains
        if (nder < 1) cycle
        xx = xc - (e%at(i)%r + rlvec)
        rinv1 = 1d0 / r
-       fp = fp + rhop * xx * rinv1
+       rinv1rp = rinv1 * rhop
+       fp = fp + xx * rinv1rp
 
        if (nder < 2) cycle
-       rinv2 = rinv1 * rinv1
-       rfac = (rhopp - rhop * rinv1)
+       rfac = (rhopp - rinv1rp) * rinv1 * rinv1
        do j = 1, 3
-          fpp(j,j) = fpp(j,j) + rhop * rinv1 + rfac * rinv2 * xx(j) * xx(j)
+          fpp(j,j) = fpp(j,j) + rinv1rp + rfac * xx(j) * xx(j)
           do k = 1, j-1
-             radd = rfac * rinv2 * xx(j) * xx(k)
+             radd = rfac * xx(j) * xx(k)
              fpp(j,k) = fpp(j,k) + radd
              fpp(k,j) = fpp(k,j) + radd
           end do
@@ -800,7 +822,7 @@ contains
     integer :: i, m
     integer, allocatable :: iord(:)
     logical :: dorepeat
-    integer :: i1, i2, i3, imax, nreg
+    integer :: i1, i2, i3, imax, nreg, nreg21(3)
     real*8 :: x0(3), x1(3), dist, rcut0
 
     ! find the encompassing boxes, for the main cell
@@ -861,18 +883,22 @@ contains
     if (allocated(e%iaddregs)) deallocate(e%iaddregs)
     if (allocated(e%rcutregs)) deallocate(e%rcutregs)
     allocate(e%iaddregs(e%nregion),e%rcutregs(e%nregion))
+    nreg21 = 2 * e%nreg + 1
     dorepeat = .true.
     imax = 0
     nreg = 1
-    e%iaddregs(1) = 0
+    e%iaddregs(1) = packoffset(0,0,0,e%nreg,nreg21)
     e%rcutregs(1) = 0d0
     do while (dorepeat)
        dorepeat = .false.
        imax = imax + 1
+       if (all(imax >= e%nreg)) exit
+
        do i1 = -imax, imax
           do i2 = -imax, imax
              do i3 = -imax, imax
                 if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
+                if (abs(i1) >= e%nreg(1) .or. abs(i2) >= e%nreg(2) .or. abs(i3) >= e%nreg(3)) cycle
                 x0 = e%boxsize * ((/i1,i2,i3/) - 0.5d0)
                 x1 = e%boxsize * ((/i1,i2,i3/) + 0.5d0)
 
@@ -885,7 +911,7 @@ contains
 
                 if (rcut0 < 1.5d0 * e%dmax0) then
                    dorepeat = .true. 
-                   
+
                    nreg = nreg + 1
                    if (nreg > size(e%iaddregs,1)) then
                       call realloc(e%iaddregs,2*nreg)
@@ -893,7 +919,7 @@ contains
                    end if
                    ! because the p -> i transformation is linear, we can write the offset as a single
                    ! integer
-                   e%iaddregs(nreg) = i1 + e%nreg(1) * (i2 + e%nreg(2) * i3)
+                   e%iaddregs(nreg) = packoffset(i1,i2,i3,e%nreg,nreg21)
                    e%rcutregs(nreg) = rcut0
                 end if
              end do
@@ -915,5 +941,37 @@ contains
     deallocate(iord)
 
   end subroutine calculate_regions
+
+  !> Pack an offset into a single integer index. nr are the offset
+  !> limits (i1,i2,i3 = -(nr-1) .. nr-1). nr21 = 2 * nr + 1.
+  function packoffset(i1,i2,i3,nr,nr21) result(ip)
+    integer, intent(in) :: i1, i2, i3, nr(3), nr21(3)
+    integer :: ip
+
+    ip = i1 + nr(1) + nr21(1) * (i2 + nr(2) + nr21(2) * (i3 + nr(3)))
+
+  end function packoffset
+
+  !> Unpack an offset from a single integer index. nr are the offset
+  !> limits (i1,i2,i3 = -(nr-1) .. nr-1). nr21 = 2 * nr + 1.
+  function unpackoffset(ip,nr,nr21) result(ioff)
+    integer, intent(in) :: ip, nr(3), nr21(3)
+    integer :: ioff(3)
+
+    integer :: iaux, idd
+
+    iaux = ip
+
+    idd = modulo(iaux,nr21(1))
+    ioff(1) = idd - nr(1)
+    iaux = (iaux - idd) / nr21(1)
+
+    idd = modulo(iaux,nr21(2))
+    ioff(2) = idd - nr(2)
+    iaux = (iaux - idd) / nr21(2)
+
+    ioff(3) = iaux - nr(3)
+
+  end function unpackoffset
 
 end submodule proc

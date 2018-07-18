@@ -5342,7 +5342,7 @@ contains
     if (present(periodic)) then
        if (periodic) then
           xc = c%c2xr(x0)
-          xc = xc - floor(xc)
+          xc = xc - nint(xc)
           xc = c%xr2c(xc)
        end if
     end if
@@ -5362,6 +5362,7 @@ contains
           if (.not.g%isinit) cycle
           xx = xc - c%env%at(i)%r
           r2 = norm2(xx)
+
           if (r2 > g%rmax) cycle
           nido = nido + 1
           idolist(nido) = i

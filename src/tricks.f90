@@ -474,7 +474,7 @@ contains
 
       ! ! Write the environment info
       ! call env%report()
-
+      
       ! ! Test the nearest_atom routine
       ! do i = 1, 100
       !    call random_number(x)
@@ -514,10 +514,10 @@ contains
       !       write (*,*) j, nneig1(j), wat1(j), dd1(j)
       !    end do
 
-      !    call env%list_near_atoms(x,icrd_crys,nat,nida,dista,lveca,ishella,up2d=10d0)
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ishella,up2d=10d0)
       !    write (*,*) "list_near_atoms environment, nat = ", nat
       !    do j = 1, nat
-      !       write (*,*) j, nida(j), dista(j), lveca(:,j), ishella(j)
+      !       write (*,*) j, nida(j), dista(j), ishella(j)
       !    end do
       ! end do
 
@@ -530,10 +530,10 @@ contains
       !    write (*,*) j, nneig1(j), wat1(j), dd1(j)
       ! end do
 
-      ! call env%list_near_atoms(x,icrd_crys,nat,nida,dista,lveca,ishella,up2sh=10,nozero=.true.)
+      ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ishella,up2sh=10,nozero=.true.)
       ! write (*,*) "list_near_atoms environment, nat = ", nat
       ! do j = 1, nat
-      !    write (*,*) j, cr%atcel(nida(j))%idx, nida(j), dista(j), ishella(j)
+      !    write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
       ! end do
 
       ! ! Test the promolecular routine
@@ -556,22 +556,22 @@ contains
       !    write (*,*) "fpp2 ", fpp2(3,:)
       ! end do
 
-      ! Test the promolecular routine times
-      call tictac("1")
-      do i = 1, 1000
-         call random_number(x)
-         x = x * 10d0 - 5d0
-         x = cr%x2c(x)
-         call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
-      end do
-      call tictac("2")
-      do i = 1, 1000
-         call random_number(x)
-         x = x * 10d0 - 5d0
-         x = cr%x2c(x)
-         call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
-      end do
-      call tictac("3")
+      ! ! Test the promolecular routine times
+      ! call tictac("1")
+      ! do i = 1, 100000
+      !    call random_number(x)
+      !    x = x * 10d0 - 5d0
+      !    x = cr%x2c(x)
+      !    call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
+      ! end do
+      ! call tictac("2")
+      ! do i = 1, 100000
+      !    call random_number(x)
+      !    x = x * 10d0 - 5d0
+      !    x = cr%x2c(x)
+      !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+      ! end do
+      ! call tictac("3")
 
     end associate
 
