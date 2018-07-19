@@ -209,7 +209,7 @@ module environmod
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero,periodic)
+     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
        use param, only: icrd_rcrys
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)
@@ -227,9 +227,8 @@ module environmod
        integer, intent(in), optional :: nid0
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
-       logical, intent(in), optional :: periodic
      end subroutine list_near_atoms
-     module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,periodic)
+     module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        use fragmentmod, only: fragment
        class(environ), intent(in) :: e
        real*8, intent(in) :: x0(3) 
@@ -240,7 +239,6 @@ module environmod
        integer, intent(in) :: nder
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
-       logical, intent(in), optional :: periodic
      end subroutine promolecular
      module subroutine environ_report(e)
        class(environ), intent(in) :: e

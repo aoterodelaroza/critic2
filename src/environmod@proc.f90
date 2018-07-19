@@ -306,10 +306,10 @@ contains
 
   end function y2z
 
-  !> Given a point xx in icrd coordinates, lattice-translate to the
-  !> center of the environment and transform to ocrd
-  !> coordinates. Optionally, returns the lattice translation in
-  !> reduced crystallographic coordinates.
+  !> Given a point xx in icrd coordinates, transform to ocrd
+  !> coordinates. If the environment belongs to a crystal, also
+  !> translate to the main cell. If lvec is present, returns the
+  !> lattice translation in reduced crystallographic coordinates.
   pure module subroutine y2z_center(e,xx,icrd,ocrd,lvec)
     use param, only: icrd_rcrys
     class(environ), intent(in) :: e
@@ -318,15 +318,15 @@ contains
     integer, intent(in) :: ocrd
     integer, intent(out), optional :: lvec(3)
 
-    xx = e%y2z(xx,icrd,icrd_rcrys)
     if (e%ismolecule) then
-       if (present(lvec)) lvec = floor(xx)
-       xx = xx - floor(xx)
+       xx = e%y2z(xx,icrd,ocrd)
+       if (present(lvec)) lvec = 0
     else
+       xx = e%y2z(xx,icrd,icrd_rcrys)
        if (present(lvec)) lvec = nint(xx)
        xx = xx - nint(xx)
+       xx = e%y2z(xx,icrd_rcrys,ocrd)
     end if
-    xx = e%y2z(xx,icrd_rcrys,ocrd)
 
   end subroutine y2z_center
 
@@ -373,7 +373,7 @@ contains
   !> position is atcel(nid)%x + lvec). If nid0, consider only atoms
   !> with index nid0 from the non-equivalent list. If id0, consider
   !> only atoms with index id0 from the complete list.  If nozero,
-  !> disregard zero-distance atoms.
+  !> disregard zero-distance atoms. This routine is thread-safe.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
@@ -450,9 +450,7 @@ contains
   !> consider only atoms with index nid0 from the non-equivalent
   !> list. If id0, consider only atoms with index id0 from the
   !> complete list. If nozero, disregard zero-distance atoms.
-  !> If periodic is present and .false., do not move the input point
-  !> to the main cell (for molecules).
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero,periodic)
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: qcksort, iqcksort
@@ -474,7 +472,6 @@ contains
     integer, intent(in), optional :: nid0
     integer, intent(in), optional :: id0
     logical, intent(in), optional :: nozero
-    logical, intent(in), optional :: periodic
 
     real*8, parameter :: eps = 1d-10
 
@@ -492,15 +489,8 @@ contains
     doshell = present(ishell0) .or. present(up2sh)
 
     ! Find the integer region for the main cell copy of the input point
-    okper = .true.
-    if (present(periodic)) okper = periodic
-    if (okper) then
-       x0 = xp
-       call e%y2z_center(x0,icrd,icrd_cart,lvec)
-    else
-       x0 = e%y2z(xp,icrd,icrd_cart)
-       lvec = 0
-    end if
+    x0 = xp
+    call e%y2z_center(x0,icrd,icrd_cart,lvec)
     ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
 
@@ -681,10 +671,8 @@ contains
   !> grids up to a number of derivatives nder (max: 2). Returns the
   !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
   !> 2). If a fragment (fr) is given, then only the atoms in it
-  !> contribute. If periodic is present and false, do not translate
-  !> the point to the main cell (for molecules). This routine is
-  !> thread-safe.
-  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,periodic)
+  !> contribute. This routine is thread-safe.
+  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
     use fragmentmod, only: fragment
@@ -699,7 +687,6 @@ contains
     integer, intent(in) :: nder !< Number of derivatives to calculate
     integer, intent(in), optional :: zpsp(:) !< core charges
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
-    logical, intent(in), optional :: periodic !< Translate the input point to the main cell?
 
     integer :: i, j, k, ii, iz
     real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
@@ -723,15 +710,9 @@ contains
        call ferror("promolecular","agrid not allocated",faterr)
     end if
 
-    ! convert to Cartesian and move to the main cell if periodic
-    okper = .true.
-    if (present(periodic)) okper = periodic
-    if (okper) then
-       xc = x0
-       call e%y2z_center(xc,icrd,icrd_cart)
-    else
-       xc = e%y2z(x0,icrd,icrd_cart)
-    end if
+    ! convert to Cartesian and move to the main cell
+    xc = x0
+    call e%y2z_center(xc,icrd,icrd_cart)
 
     ! compute the list of atoms that contribute to the point
     allocate(rcutmax(e%nspc))
