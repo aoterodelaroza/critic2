@@ -2180,7 +2180,7 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use tools_io, only: fopen_read, getline_raw, lower, lgetword,&
+    use tools_io, only: fopen_read, getline_raw, lower, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2391,7 +2391,7 @@ contains
     do while (getline_raw(lu,line))
        line = lower(line)
        lp = 1
-       word = lgetword(line,lp)
+       word = getword(line,lp)
        if (equal(word,'atomic_species')) then
           do i = 1, ntyp
              read (lu,*,iostat=ios) seed%spc(i)%name
@@ -2403,7 +2403,7 @@ contains
           end do
 
        else if (equal(word,'atomic_positions')) then
-          word = lgetword(line,lp)
+          word = getword(line,lp)
           if (equal(word,"crystal")) then
              iunit = icrystal
           elseif (equal(word,"bohr")) then
@@ -2434,7 +2434,7 @@ contains
              end if
           end do
        elseif (equal(word,'cell_parameters')) then
-          word = lgetword(line,lp)
+          word = getword(line,lp)
           cunit = ialat
           if (equal(word,"bohr")) then
              cunit = ibohr
@@ -2466,7 +2466,6 @@ contains
        end if
        r = transpose(r)
     else
-       r = transpose(r)
        call qe_latgen(ibrav,celldm,r(:,1),r(:,2),r(:,3),errmsg)
        if (len_trim(errmsg) > 0) goto 999
     endif
