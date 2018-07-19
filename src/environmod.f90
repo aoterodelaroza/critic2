@@ -20,7 +20,7 @@
 
 ! Atomic environment class
 module environmod
-  use types, only: celatom, species
+  use types, only: anyatom, celatom, species
   implicit none
 
   private
@@ -48,8 +48,7 @@ module environmod
   !>   %is - species
   !>   %idx - id from the non-equivalent list
   !>   %cidx - id from the complete list
-  !>   %lenv - atcel(%cidx)%x + %lenv = xr2x(%x)
-  !>   %ir, %ic, %lvec - rotm(%ir,1:3) * at(%idx)%x + rotm(%ir,4) + cenv(%ic) + %lvec = xr2x(%x)
+  !>   %lvec - atcel(%cidx)%x + %lenv = xr2x(%x)
   !>
   !> To perform atomic distance calculations, the atoms are ordered by their region index (i coordinate) in the array e%imap.
   !> If k runs from 1 to env%n, c2i(at(imap(k))%r) is in ascending order. If l is a region, k1 = nrlo(l) and k2 = nrup(l)
@@ -87,7 +86,7 @@ module environmod
      integer, allocatable :: nrhi(:) !< nrlo(ireg) = i, at(imap(i)) is the last atom in region ireg
      integer, allocatable :: iaddregs(:) !< integer addition for each search region
      real*8, allocatable :: rcutregs(:) !< rcut for each search region (sorted array)
-     type(celatom), allocatable :: at(:) !< Atoms (first ncell in the main cell)
+     type(anyatom), allocatable :: at(:) !< Atoms (first ncell in the main cell)
    contains
      procedure :: end => environ_end !< Deallocate arrays and nullify variables
      ! initialization routines

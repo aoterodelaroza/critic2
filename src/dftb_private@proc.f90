@@ -451,12 +451,12 @@ contains
   !> and zenv is the environment information (number, position,
   !> lattice vector, index in the complete list, and atomic number.
   module subroutine register_struct(f,xmat,rmat,atenv,spc)
-    use types, only: celatom, atom, species
+    use types, only: anyatom, atom, species
     use types, only: realloc
     class(dftbwfn), intent(inout) :: f
     real*8, intent(in) :: xmat(3,3)
     real*8, intent(in) :: rmat(3,3)
-    type(celatom), intent(in) :: atenv(:)
+    type(anyatom), intent(in) :: atenv(:)
     type(species), intent(in) :: spc(:)
 
     real*8 :: maxcutoff

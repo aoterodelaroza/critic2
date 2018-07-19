@@ -58,7 +58,7 @@ contains
   !> m_x2xr = crystallographic to reduced crystallographic matrix.
   module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
     use tools_math, only: matinv
-    use types, only: realloc
+    use types, only: realloc, celatom
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
@@ -100,10 +100,7 @@ contains
        e%at(i)%r = at(i)%r
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
-       e%at(i)%ir = at(i)%ir
-       e%at(i)%ic = at(i)%ic
        e%at(i)%lvec = 0
-       e%at(i)%lenv = 0
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
@@ -178,10 +175,7 @@ contains
        e%at(i)%r = e%xr2c(e%at(i)%x)
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
-       e%at(i)%ir = at(i)%ir
-       e%at(i)%ic = at(i)%ic
-       e%at(i)%lenv = floor(x - at(i)%x)
-       e%at(i)%lvec = at(i)%lvec + e%at(i)%lenv
+       e%at(i)%lvec = floor(x - at(i)%x)
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
@@ -215,9 +209,6 @@ contains
                       e%at(e%n)%r = xc
                       e%at(e%n)%idx = e%at(i)%idx
                       e%at(e%n)%cidx = e%at(i)%cidx
-                      e%at(e%n)%ir = e%at(i)%ir
-                      e%at(e%n)%ic = e%at(i)%ic
-                      e%at(e%n)%lenv = e%at(i)%lenv + px
                       e%at(e%n)%lvec = e%at(i)%lvec + px
                       e%at(e%n)%is = e%at(i)%is
                    end if
@@ -433,7 +424,7 @@ contains
     nid = e%at(kmin)%cidx
     dist = distmin
     if (present(lvec)) then
-       lvec = e%at(kmin)%lenv + nint(e%xr2x(real(lvec0,8)))
+       lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec0,8)))
     end if
 
   end subroutine nearest_atom

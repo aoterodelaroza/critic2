@@ -59,11 +59,11 @@ module pi_private
        class(piwfn), intent(inout) :: f
      end subroutine pi_end
      module subroutine register_struct(f,nenv,spc,atenv)
-       use types, only: celatom, species
+       use types, only: anyatom, species
        class(piwfn), intent(inout) :: f
        integer, intent(in) :: nenv
        type(species), intent(in) :: spc(*)
-       type(celatom), intent(in) :: atenv(nenv)
+       type(anyatom), intent(in) :: atenv(nenv)
      end subroutine register_struct
      module subroutine read_ion(f,fichero,ni)
        class(piwfn), intent(inout) :: f

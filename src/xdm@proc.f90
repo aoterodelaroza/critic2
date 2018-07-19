@@ -1606,7 +1606,7 @@ contains
           if (d2 < 1d-15 .or. d2>rmax2) cycle
           d = sqrt(d2)
 
-          if (all(caux%env%at(jj)%lenv == lvec(:,j,i1))) then
+          if (all(caux%env%at(jj)%lvec == lvec(:,j,i1))) then
              alpha0 = alpha(j,i1)
              ml0 = mm(:,j,i1)
           else
