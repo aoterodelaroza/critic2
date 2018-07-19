@@ -577,7 +577,7 @@ contains
       xx = 0.5d0
       do i = 1, 1000
          x = 0.5d0 + 2000d0 * real(i-1,8) / real(1000-1,8)
-         call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.false.)
+         call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
          call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
          write (*,*) i, f1, f2
       end do

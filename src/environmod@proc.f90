@@ -133,7 +133,7 @@ contains
     real*8, intent(in), optional :: dmax0
 
     logical :: dorepeat
-    real*8 :: sphmax, dmax, x(3), xc(3), dd
+    real*8 :: sphmax, dmax, x(3), xc(3), dd, xhalf(3)
     integer :: i1, i2, i3, i, imax, p(3), px(3)
 
     e%ismolecule = .false.
@@ -173,22 +173,24 @@ contains
     allocate(e%at(e%n))
     do i = 1, n
        e%at(i)%x = e%x2xr(at(i)%x)
-       e%at(i)%x = e%at(i)%x - nint(e%at(i)%x)
+       e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
        x = e%xr2x(e%at(i)%x)
        e%at(i)%r = e%xr2c(e%at(i)%x)
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
        e%at(i)%ir = at(i)%ir
        e%at(i)%ic = at(i)%ic
-       e%at(i)%lenv = nint(x - at(i)%x)
+       e%at(i)%lenv = floor(x - at(i)%x)
        e%at(i)%lvec = at(i)%lvec + e%at(i)%lenv
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
 
-    ! include all atoms at a distance sphmax+dmax from the origin
+    ! include all atoms at a distance sphmax+dmax from the center of the cell
     dorepeat = .true.
     imax = 0
+    xhalf = 0.5d0
+    xhalf = e%xr2c(xhalf)
     do while (dorepeat)
        dorepeat = .false.
        imax = imax + 1
@@ -203,7 +205,7 @@ contains
 
                    x = e%at(i)%x + p
                    xc = e%xr2c(x)
-                   dd = norm2(xc)
+                   dd = norm2(xc - xhalf)
                    if (dd < sphmax+dmax) then
                       dorepeat = .true.
                       e%n = e%n + 1
@@ -323,8 +325,8 @@ contains
        if (present(lvec)) lvec = 0
     else
        xx = e%y2z(xx,icrd,icrd_rcrys)
-       if (present(lvec)) lvec = nint(xx)
-       xx = xx - nint(xx)
+       if (present(lvec)) lvec = floor(xx)
+       xx = xx - floor(xx)
        xx = e%y2z(xx,icrd_rcrys,ocrd)
     end if
 
@@ -482,7 +484,7 @@ contains
     integer :: nshel, nreg21(3)
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
-    logical :: doshell, okper
+    logical :: doshell
 
     if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2sh).and..not.present(up2n)) &
        call ferror("list_near_atoms","must give one of up2d, up2dsp, up2sh, or up2n",faterr)
@@ -691,7 +693,7 @@ contains
     integer :: i, j, k, ii, iz
     real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
     real*8 :: rho, rhop, rhopp, rfac, radd
-    logical :: iscore, okper
+    logical :: iscore
     type(grid1), pointer :: g
     integer :: nat, lvec(3)
     integer, allocatable :: nid(:)
