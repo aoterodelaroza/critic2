@@ -679,7 +679,7 @@ contains
     use global, only: cutrad
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
-    use param, only: icrd_cart
+    use param, only: icrd_cart, maxzat
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
     integer, intent(in) :: icrd !< Input coordinates
@@ -721,6 +721,7 @@ contains
     rcutmax = 0d0
     do i = 1, e%nspc
        iz = e%spc(i)%z
+       if (iz == 0 .or. iz > maxzat) cycle
        if (iscore) then
           g => cgrid(iz,zpsp(iz))
        else
@@ -737,6 +738,7 @@ contains
     do ii = 1, nat
        i = nid(ii)
        iz = e%spc(e%at(i)%is)%z
+       if (iz == 0 .or. iz > maxzat) cycle
        r = dist(ii)
        if (r > cutrad(iz)) cycle
 
