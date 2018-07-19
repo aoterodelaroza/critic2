@@ -2180,7 +2180,7 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use tools_io, only: fopen_read, getline_raw, lower, getword,&
+    use tools_io, only: fopen_read, getline_raw, lower, lgetword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2328,9 +2328,8 @@ contains
     integer :: lu, ios, lp, i, j
     character(len=:), allocatable :: line, word
     character*10 :: atm
-    logical :: havecell
     real*8 :: r(3,3)
-    integer :: iunit
+    integer :: iunit, cunit
     integer, parameter :: icrystal = 1
     integer, parameter :: ibohr = 2
     integer, parameter :: iang = 3
@@ -2387,12 +2386,12 @@ contains
     allocate(seed%x(3,nat),seed%is(nat),seed%spc(ntyp))
 
     ! read the cards
-    havecell = .false.
     iunit = icrystal
+    cunit = ialat
     do while (getline_raw(lu,line))
        line = lower(line)
        lp = 1
-       word = getword(line,lp)
+       word = lgetword(line,lp)
        if (equal(word,'atomic_species')) then
           do i = 1, ntyp
              read (lu,*,iostat=ios) seed%spc(i)%name
@@ -2404,7 +2403,7 @@ contains
           end do
 
        else if (equal(word,'atomic_positions')) then
-          word = getword(line,lp)
+          word = lgetword(line,lp)
           if (equal(word,"crystal")) then
              iunit = icrystal
           elseif (equal(word,"bohr")) then
@@ -2435,7 +2434,19 @@ contains
              end if
           end do
        elseif (equal(word,'cell_parameters')) then
-          havecell = .true.
+          word = lgetword(line,lp)
+          cunit = ialat
+          if (equal(word,"bohr")) then
+             cunit = ibohr
+          elseif (equal(word,"angstrom")) then
+             cunit = iang
+          elseif (equal(word,"alat")) then
+             cunit = ialat
+          elseif (len_trim(word) == 0) then
+             cunit = ialat
+          else
+             cunit = ibohr
+          end if
           do i = 1, 3
              read (lu,*,iostat=ios) (r(i,j),j=1,3)
              if (ios/=0) then
@@ -2448,7 +2459,11 @@ contains
 
     ! figure it out
     if (ibrav == 0) then
-       if (celldm(1) /= 0.D0) r = r * celldm(1)
+       if (cunit == ialat) then
+          if (celldm(1) /= 0.D0) r = r * celldm(1)
+       elseif (cunit == iang) then
+          r = r / bohrtoa
+       end if
        r = transpose(r)
     else
        r = transpose(r)
