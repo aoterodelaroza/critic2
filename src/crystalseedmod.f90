@@ -2003,7 +2003,7 @@ contains
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
     use tools_io, only: fopen_read, faterr, ferror, getline_raw, upper, getword,&
-       equal, zatguess, fclose
+       equal, zatguess, fclose, lower
     use tools_math, only: matinv
     use param, only: pi, bohrtoa, eye
     use types, only: realloc
@@ -2148,9 +2148,8 @@ contains
     ! local to this routine
     integer :: lu, ios, lp, i, j
     character(len=:), allocatable :: line, word
-    logical :: havecell
     real*8 :: r(3,3)
-    integer :: iunit
+    integer :: iunit, cunit
     integer, parameter :: icrystal = 1
     integer, parameter :: ibohr = 2
     integer, parameter :: iang = 3
@@ -2184,20 +2183,21 @@ contains
     allocate(seed%x(3,nat),seed%name(nat))
 
     ! read the cards
-    havecell = .false.
+    iunit = icrystal
+    cunit = ialat
     do while (getline_raw(lu,line))
-       line = upper(line)
+       line = lower(line)
        lp = 1
        word = getword(line,lp)
-       if (equal(word,'ATOMIC_POSITIONS')) then
+       if (equal(word,'atomic_positions')) then
           word = getword(line,lp)
-          if (equal(word,"CRYSTAL")) then
+          if (equal(word,"crystal")) then
              iunit = icrystal
-          elseif (equal(word,"BOHR")) then
+          elseif (equal(word,"bohr")) then
              iunit = ibohr
-          elseif (equal(word,"ANGSTROM")) then
+          elseif (equal(word,"angstrom")) then
              iunit = iang
-          elseif (equal(word,"ALAT")) then
+          elseif (equal(word,"alat")) then
              iunit = ialat
           else
              iunit = ialat
@@ -2205,8 +2205,20 @@ contains
           do i = 1, nat
              read (lu,*) seed%name(i), seed%x(:,i)
           end do
-       elseif (equal(word,'CELL_PARAMETERS')) then
-          havecell = .true.
+       elseif (equal(word,'cell_parameters')) then
+          word = getword(line,lp)
+          cunit = ialat
+          if (equal(word,"bohr")) then
+             cunit = ibohr
+          elseif (equal(word,"angstrom")) then
+             cunit = iang
+          elseif (equal(word,"alat")) then
+             cunit = ialat
+          elseif (len_trim(word) == 0) then
+             cunit = ialat
+          else
+             cunit = ibohr
+          end if
           do i = 1, 3
              read (lu,*) (r(i,j),j=1,3)
           end do
@@ -2217,13 +2229,18 @@ contains
 
     ! figure it out
     if (ibrav == 0) then
-       if (celldm(1) /= 0.D0) r = r * celldm(1)
+       if (cunit == ialat) then
+          if (celldm(1) /= 0.D0) r = r * celldm(1)
+       elseif (cunit == iang) then
+          r = r / bohrtoa
+       end if
+       r = transpose(r)
     else
        call qe_latgen(ibrav,celldm,r(1,:),r(2,:),r(3,:))
     endif
 
     ! fill the cell metrics
-    seed%crys2car = transpose(r)
+    seed%crys2car = r
     r = matinv(seed%crys2car)
     seed%useabr = 2
 
