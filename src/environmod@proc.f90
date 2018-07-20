@@ -665,7 +665,7 @@ contains
   !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
   !> 2). If a fragment (fr) is given, then only the atoms in it
   !> contribute. This routine is thread-safe.
-  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
+  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,frper)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
     use fragmentmod, only: fragment
@@ -689,6 +689,7 @@ contains
     integer :: nat, lvec(3)
     integer, allocatable :: nid(:)
     real*8, allocatable :: dist(:), rcutmax(:)
+    logical, allocatable :: isinfr(:)
 
     f = 0d0
     fp = 0d0
@@ -725,9 +726,22 @@ contains
     rlvec = e%x2c(rlvec)
     deallocate(rcutmax)
 
+    ! if fragment is provided, use only the atoms in it (by their cell index)
+    if (present(fr)) then
+       allocate(isinfr(e%ncell))
+       isinfr = .false.
+       do i = 1, fr%nat
+          isinfr(fr%at(i)%cidx) = .true.
+       end do
+    end if
+
     ! Do the density and derivatives sum
     do ii = 1, nat
        i = nid(ii)
+       if (present(fr)) then
+          if (.not.isinfr(e%at(i)%cidx)) cycle
+       end if
+
        iz = e%spc(e%at(i)%is)%z
        if (iz == 0 .or. iz > maxzat) cycle
        r = dist(ii)
@@ -741,6 +755,7 @@ contains
        r = max(max(r,g%r(1)),1d-14)
        call g%interp(r,rho,rhop,rhopp)
        rho = max(rho,0d0)
+       write (*,*) i, e%at(i)%r, r, rho
        f = f + rho
 
        if (nder < 1) cycle
@@ -760,6 +775,8 @@ contains
           end do
        end do
     end do
+
+    if (allocated(isinfr)) deallocate(isinfr)
 
   end subroutine promolecular
 

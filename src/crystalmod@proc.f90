@@ -5343,7 +5343,7 @@ contains
     xc = x0
     if (okper) then
        xc = c%c2xr(x0)
-       xc = xc - nint(xc)
+       xc = xc - floor(xc)
        xc = c%xr2c(xc)
     end if
 
@@ -5399,6 +5399,9 @@ contains
        rho = max(rho,0d0)
 
        f = f + rho
+       if (present(fr)) then
+          write (*,*) ii, fr%at(ii)%r, r, rho
+       end if
        if (nder < 1) cycle
        rinv1 = 1d0 / r
        fp = fp + rhop * xx * rinv1
