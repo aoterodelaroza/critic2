@@ -665,7 +665,7 @@ contains
   !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
   !> 2). If a fragment (fr) is given, then only the atoms in it
   !> contribute. This routine is thread-safe.
-  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr,frper)
+  module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
     use fragmentmod, only: fragment
