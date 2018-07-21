@@ -825,6 +825,7 @@ contains
   subroutine calculate_regions(e)
     use tools, only: iqcksort, qcksort
     use types, only: realloc
+    use param, only: ctsq32
     type(environ), intent(inout) :: e
     
     integer :: i, m
@@ -907,15 +908,14 @@ contains
              do i3 = -imax, imax
                 if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
                 if (abs(i1) >= e%nreg(1) .or. abs(i2) >= e%nreg(2) .or. abs(i3) >= e%nreg(3)) cycle
-                x0 = e%boxsize * ((/i1,i2,i3/) - 0.5d0)
-                x1 = e%boxsize * ((/i1,i2,i3/) + 0.5d0)
+                x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
+                x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
 
                 ! dist = minimum distance from the origin to the (x0,x1) cube
                 ! rcut = this cube has to be included in all searches where the maximum interaction
                 !        distance is rcut or higher
-                dist = sqrt(max(x0(1),0d0)**2 + max(-x1(1),0d0)**2 + max(x0(2),0d0)**2 + max(-x1(2),0d0)**2 + &
-                   max(x0(3),0d0)**2 + max(-x1(3),0d0)**2)
-                rcut0 = max(dist - e%boxsize * sqrt(3d0) / 2d0,0d0)
+                dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
+                rcut0 = max(dist - ctsq32,0d0) * e%boxsize
 
                 if (rcut0 < 1.5d0 * e%dmax0) then
                    dorepeat = .true. 
