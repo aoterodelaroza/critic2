@@ -537,24 +537,24 @@ contains
       ! end do
 
       ! ! Test the promolecular routine
-      ! do i = 1, 100
-      !    call random_number(x)
-      !    x = x * 10d0 - 5d0
-      !    x = cr%x2c(x)
-      !    call cr%promolecular(x,f1,fp1,fpp1,2)
-      !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
-      !    write (*,*) "point ", i
-      !    write (*,*) "x = ", x
-      !    write (*,*) "f ", f1, f2
-      !    write (*,*) "fp1 ", fp1
-      !    write (*,*) "fp2 ", fp2
-      !    write (*,*) "fpp1 ", fpp1(1,:)
-      !    write (*,*) "fpp2 ", fpp2(1,:)
-      !    write (*,*) "fpp1 ", fpp1(2,:)
-      !    write (*,*) "fpp2 ", fpp2(2,:)
-      !    write (*,*) "fpp1 ", fpp1(3,:)
-      !    write (*,*) "fpp2 ", fpp2(3,:)
-      ! end do
+      do i = 1, 100
+         call random_number(x)
+         x = x * 10d0 - 5d0
+         x = cr%x2c(x)
+         call cr%promolecular(x,f1,fp1,fpp1,2)
+         call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+         ! write (*,*) "point ", i
+         ! write (*,*) "x = ", x
+         write (*,*) "f ", abs(f1-f2)
+         ! write (*,*) "fp1 ", fp1
+         ! write (*,*) "fp2 ", fp2
+         ! write (*,*) "fpp1 ", fpp1(1,:)
+         ! write (*,*) "fpp2 ", fpp2(1,:)
+         ! write (*,*) "fpp1 ", fpp1(2,:)
+         ! write (*,*) "fpp2 ", fpp2(2,:)
+         ! write (*,*) "fpp1 ", fpp1(3,:)
+         ! write (*,*) "fpp2 ", fpp2(3,:)
+      end do
 
       ! ! Test the promolecular routine timing
       ! call tictac("1")
@@ -579,33 +579,33 @@ contains
       !    x = 0.5d0 + 2000d0 * real(i-1,8) / real(1000-1,8)
       !    call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
       !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
-      !    write (*,*) i, f1, f2
+      !    write (*,*) i, abs(f1-f2)
       ! end do
 
-      ! Test the promolecular routine
-      do i = 1, 100
-         call random_number(x)
-         ! x = x * 10d0 - 5d0
-         x = cr%x2c(x)
+     !  ! Test the promolecular routine
+     !  do i = 1, 100
+     !     call random_number(x)
+     !     ! x = x * 10d0 - 5d0
+     !     x = cr%x2c(x)
          
-         ! write (*,*) x
-         call cr%promolecular(x,f1,fp1,fpp1,2,fr=cr%mol(1),periodic=.true.)
-         call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2,fr=cr%mol(1))
-         write (*,*) "fa ", f1-f2
+     !     ! write (*,*) x
+     !     call cr%promolecular(x,f1,fp1,fpp1,2,fr=cr%mol(1),periodic=.true.)
+     !     call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2,fr=cr%mol(1))
+     !     write (*,*) "fa ", f1-f2
 
-         ! call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
-         ! call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
-         ! write (*,*) "fb ", f1, f2
+     !     ! call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
+     !     ! call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+     !     ! write (*,*) "fb ", f1, f2
          
-         ! write (*,*) "fp1 ", fp1
-         ! write (*,*) "fp2 ", fp2
-         ! write (*,*) "fpp1 ", fpp1(1,:)
-         ! write (*,*) "fpp2 ", fpp2(1,:)
-         ! write (*,*) "fpp1 ", fpp1(2,:)
-         ! write (*,*) "fpp2 ", fpp2(2,:)
-         ! write (*,*) "fpp1 ", fpp1(3,:)
-         ! write (*,*) "fpp2 ", fpp2(3,:)
-     end do
+     !     ! write (*,*) "fp1 ", fp1
+     !     ! write (*,*) "fp2 ", fp2
+     !     ! write (*,*) "fpp1 ", fpp1(1,:)
+     !     ! write (*,*) "fpp2 ", fpp2(1,:)
+     !     ! write (*,*) "fpp1 ", fpp1(2,:)
+     !     ! write (*,*) "fpp2 ", fpp2(2,:)
+     !     ! write (*,*) "fpp1 ", fpp1(3,:)
+     !     ! write (*,*) "fpp2 ", fpp2(3,:)
+     ! end do
 
     end associate
 

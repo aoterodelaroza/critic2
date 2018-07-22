@@ -74,18 +74,25 @@ module environmod
      integer :: nreg(3) !< Number of regions that cover the environment
      integer :: nmin(3), nmax(3) !< Minimum and maximum region id
      integer :: nregion !< Number of regions
-     integer :: nregs !< Number of regions in the search arrays (iaddregs, rcutregs)
+     ! coordinate conversion matrices
      real*8 :: m_x2xr(3,3) !< cryst. -> reduced cryst.
      real*8 :: m_xr2x(3,3) !< reduced cryst. -> cryst.
      real*8 :: m_c2xr(3,3) !< cart. -> reduced cryst.
      real*8 :: m_xr2c(3,3) !< reduced cryst. -> cart.
      real*8 :: m_c2x(3,3) !< cart. -> cryst.
      real*8 :: m_x2c(3,3) !< cryst. -> cart.
+     ! atom/region mappings 
      integer, allocatable :: imap(:) !< atoms ordered by region, c2i(at(imap(1->n))%r) is ordered
      integer, allocatable :: nrlo(:) !< nrlo(ireg) = i, at(imap(i)) is the first atom in region ireg
      integer, allocatable :: nrhi(:) !< nrlo(ireg) = i, at(imap(i)) is the last atom in region ireg
-     integer, allocatable :: iaddregs(:) !< integer addition for each search region
-     real*8, allocatable :: rcutregs(:) !< rcut for each search region (sorted array)
+     ! offset for region search
+     integer :: rs_imax !< all offsets from -imax to +imax are included
+     integer :: rs_2imax1 !< 2*rs_imax + 1
+     real*8 :: rs_dmax !< max interaction dist. in -imax->imax cube (rs_2imax1 * sqrt(3)/2 * boxsize)
+     integer :: rs_nreg !< Number of region offsets (rs_2imax1**3)
+     integer, allocatable :: rs_ioffset(:) !< packed offsets for the search
+     real*8, allocatable :: rs_rcut(:) !< All atoms in the cell with offset i are at a distance of at least rs_cut(i) from the main cell
+     ! atom structure
      type(anyatom), allocatable :: at(:) !< Atoms (first ncell in the main cell)
    contains
      procedure :: end => environ_end !< Deallocate arrays and nullify variables

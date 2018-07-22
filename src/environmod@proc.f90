@@ -25,6 +25,8 @@ submodule (environmod) proc
 
   !xx! private procedures
   ! subroutine calculate_regions(e)
+  ! function packoffset(i1,i2,i3,nr,nr21) result(ip)
+  ! function unpackoffset(ip,nr,nr21) result(ioff)
 
 contains
   
@@ -38,8 +40,8 @@ contains
     if (allocated(e%imap)) deallocate(e%imap)
     if (allocated(e%nrlo)) deallocate(e%nrlo)
     if (allocated(e%nrhi)) deallocate(e%nrhi)
-    if (allocated(e%iaddregs)) deallocate(e%iaddregs)
-    if (allocated(e%rcutregs)) deallocate(e%rcutregs)
+    if (allocated(e%rs_ioffset)) deallocate(e%rs_ioffset)
+    if (allocated(e%rs_rcut)) deallocate(e%rs_rcut)
     e%n = 0
     e%nspc = 0
     e%ncell = 0
@@ -48,7 +50,7 @@ contains
     e%nmin = 0
     e%nmax = 0
     e%nregion = 0
-    e%nregs = 0
+    e%rs_nreg = 0
 
   end subroutine environ_end
   
@@ -329,7 +331,7 @@ contains
     real*8, intent(in)  :: xx(3)
     integer :: res(3)
 
-    res = min(max(floor((xx - e%x0) / e%boxsize),e%nmin),e%nmax)
+    res = floor((xx - e%x0) / e%boxsize)
 
   end function c2p
 
@@ -394,15 +396,15 @@ contains
     nreg21 = 2 * e%nreg + 1
     distmin = 1d40
     kmin = 0
-    main: do i = 1, e%nregs
-       ireg = ireg0 + unpackoffset(e%iaddregs(i),e%nreg,nreg21)
+    main: do i = 1, e%rs_nreg
+       ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
        if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
        idxreg = e%p2i(ireg)
        if (e%nrhi(idxreg) == 0) cycle
 
        do j = e%nrlo(idxreg), e%nrhi(idxreg)
           k = e%imap(j)
-          if (distmin < e%rcutregs(i)) exit main
+          if (distmin < e%rs_rcut(i)) exit main
           if (present(nid0)) then
              if (e%at(k)%idx /= nid0) cycle
           end if
@@ -501,8 +503,8 @@ contains
 
     nreg21 = 2 * e%nreg + 1
     ! run over regions around ireg0 and over atoms belonging to those regions
-    main: do i = 1, e%nregs
-       ireg = ireg0 + unpackoffset(e%iaddregs(i),e%nreg,nreg21)
+    main: do i = 1, e%rs_nreg
+       ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
        if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
        idxreg = e%p2i(ireg)
        if (e%nrhi(idxreg) == 0) cycle
@@ -526,19 +528,19 @@ contains
              if (dist0 < eps) cycle
           end if
           if (present(up2d)) then
-             if (e%rcutregs(i) > up2d) exit main
+             if (e%rs_rcut(i) > up2d) exit main
              if (dist0 > up2d) cycle
           end if
           if (present(up2dsp)) then
-             if (e%rcutregs(i) > maxval(up2dsp)) exit main
+             if (e%rs_rcut(i) > maxval(up2dsp)) exit main
              if (dist0 > up2dsp(e%at(k)%is)) cycle
           end if
           if (present(up2sh)) then
-             if (nshel >= up2sh .and. e%rcutregs(i) > rcutshel) &
+             if (nshel >= up2sh .and. e%rs_rcut(i) > rcutshel) &
                 exit main
           end if
           if (present(up2n)) then
-             if (nat >= up2n .and. e%rcutregs(i) > rcutn) &
+             if (nat >= up2n .and. e%rs_rcut(i) > rcutn) &
                 exit main
           end if
 
@@ -755,7 +757,6 @@ contains
        r = max(max(r,g%r(1)),1d-14)
        call g%interp(r,rho,rhop,rhopp)
        rho = max(rho,0d0)
-       write (*,*) i, e%at(i)%r, r, rho
        f = f + rho
 
        if (nder < 1) cycle
@@ -797,7 +798,7 @@ contains
     write (uout,'("  Covering regions: ")')
     write (uout,'("    Unit cell: ",3(A,X))') (string(e%nregc(j)),j=1,3)
     write (uout,'("    Environment: ",3(A,X))') (string(e%nreg(j)),j=1,3)
-    write (uout,'("    Search offsets: ",A)') string(e%nregs)
+    write (uout,'("    Search offsets: ",A)') string(e%rs_nreg)
     write (uout,'("    Total: ",A)') string(e%nregion)
     write (uout,'("    Region side (",A,"): ",A)') iunitname0(iunit), trim(string(e%boxsize * dunit0(iunit),'f',8,4))
     write (uout,'("    Transformation origin (",A,"): ",A,",",A,",",A)') iunitname0(iunit), &
@@ -823,16 +824,17 @@ contains
   !> Calculate regions associated with the current environment and
   !> assign atoms to each region.
   subroutine calculate_regions(e)
+    use grid1mod, only: agrid
+    use global, only: cutrad
     use tools, only: iqcksort, qcksort
     use types, only: realloc
-    use param, only: ctsq32
+    use param, only: ctsq3, ctsq32, maxzat
     type(environ), intent(inout) :: e
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    logical :: dorepeat
-    integer :: i1, i2, i3, imax, nreg, nreg21(3)
-    real*8 :: x0(3), x1(3), dist, rcut0
+    integer :: i1, i2, i3, imax, nreg, iz
+    real*8 :: x0(3), x1(3), dist, rcut0, rmax
 
     ! find the encompassing boxes, for the main cell
     e%xminc = 1d40
@@ -886,28 +888,32 @@ contains
     e%nrhi(iord(e%imap(e%n))) = e%n
     deallocate(iord)
 
+    ! calculate the limits of the search region
+    rmax = 0d0
+    do i = 1, e%nspc
+       iz = e%spc(i)%z
+       if (iz == 0 .or. iz > maxzat) cycle
+       rmax = min(cutrad(iz),agrid(iz)%rmax)
+    end do
+    e%rs_imax = ceiling(rmax / e%boxsize)
+    e%rs_2imax1 = 2 * e%rs_imax + 1
+    e%rs_dmax = e%boxsize * e%rs_imax
+    e%rs_nreg = e%rs_2imax1**3
+
     ! Take a reference point and calculate regions around it. The
     ! regions are sorted by distance to the reference point. This will
     ! become useful for nearest neighbor searches.
-    if (allocated(e%iaddregs)) deallocate(e%iaddregs)
-    if (allocated(e%rcutregs)) deallocate(e%rcutregs)
-    allocate(e%iaddregs(e%nregion),e%rcutregs(e%nregion))
-    nreg21 = 2 * e%nreg + 1
-    dorepeat = .true.
-    imax = 0
-    nreg = 1
-    e%iaddregs(1) = packoffset(0,0,0,e%nreg,nreg21)
-    e%rcutregs(1) = 0d0
-    do while (dorepeat)
-       dorepeat = .false.
-       imax = imax + 1
-       if (all(imax >= e%nreg)) exit
+    if (allocated(e%rs_ioffset)) deallocate(e%rs_ioffset)
+    if (allocated(e%rs_rcut)) deallocate(e%rs_rcut)
+    allocate(e%rs_ioffset(e%rs_nreg),e%rs_rcut(e%rs_nreg))
 
+    nreg = 0
+    do imax = 0, e%rs_imax
        do i1 = -imax, imax
           do i2 = -imax, imax
              do i3 = -imax, imax
                 if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
-                if (abs(i1) >= e%nreg(1) .or. abs(i2) >= e%nreg(2) .or. abs(i3) >= e%nreg(3)) cycle
+                nreg = nreg + 1
                 x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
                 x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
 
@@ -917,35 +923,21 @@ contains
                 dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
                 rcut0 = max(dist - ctsq32,0d0) * e%boxsize
 
-                if (rcut0 < 1.5d0 * e%dmax0) then
-                   dorepeat = .true. 
-
-                   nreg = nreg + 1
-                   if (nreg > size(e%iaddregs,1)) then
-                      call realloc(e%iaddregs,2*nreg)
-                      call realloc(e%rcutregs,2*nreg)
-                   end if
-                   ! because the p -> i transformation is linear, we can write the offset as a single
-                   ! integer
-                   e%iaddregs(nreg) = packoffset(i1,i2,i3,e%nreg,nreg21)
-                   e%rcutregs(nreg) = rcut0
-                end if
+                e%rs_ioffset(nreg) = packoffset(i1,i2,i3,e%rs_imax,e%rs_2imax1)
+                e%rs_rcut(nreg) = rcut0
              end do
           end do
        end do
     end do
-    call realloc(e%iaddregs,nreg)
-    call realloc(e%rcutregs,nreg)
 
     ! sort and populate the environ arrays
-    allocate(iord(nreg))
-    do i = 1, nreg
+    allocate(iord(e%rs_nreg))
+    do i = 1, e%rs_nreg
        iord(i) = i
     end do
-    call qcksort(e%rcutregs,iord,1,nreg)
-    e%iaddregs = e%iaddregs(iord)
-    e%rcutregs = e%rcutregs(iord)
-    e%nregs = nreg
+    call qcksort(e%rs_rcut,iord,1,e%rs_nreg)
+    e%rs_ioffset = e%rs_ioffset(iord)
+    e%rs_rcut = e%rs_rcut(iord)
     deallocate(iord)
 
   end subroutine calculate_regions
@@ -953,32 +945,32 @@ contains
   !> Pack an offset into a single integer index. nr are the offset
   !> limits (i1,i2,i3 = -(nr-1) .. nr-1). nr21 = 2 * nr + 1.
   function packoffset(i1,i2,i3,nr,nr21) result(ip)
-    integer, intent(in) :: i1, i2, i3, nr(3), nr21(3)
+    integer, intent(in) :: i1, i2, i3, nr, nr21
     integer :: ip
 
-    ip = i1 + nr(1) + nr21(1) * (i2 + nr(2) + nr21(2) * (i3 + nr(3)))
+    ip = i1 + nr + nr21 * (i2 + nr + nr21 * (i3 + nr))
 
   end function packoffset
 
   !> Unpack an offset from a single integer index. nr are the offset
   !> limits (i1,i2,i3 = -(nr-1) .. nr-1). nr21 = 2 * nr + 1.
   function unpackoffset(ip,nr,nr21) result(ioff)
-    integer, intent(in) :: ip, nr(3), nr21(3)
+    integer, intent(in) :: ip, nr, nr21
     integer :: ioff(3)
 
     integer :: iaux, idd
 
     iaux = ip
 
-    idd = modulo(iaux,nr21(1))
-    ioff(1) = idd - nr(1)
-    iaux = (iaux - idd) / nr21(1)
+    idd = modulo(iaux,nr21)
+    ioff(1) = idd - nr
+    iaux = (iaux - idd) / nr21
 
-    idd = modulo(iaux,nr21(2))
-    ioff(2) = idd - nr(2)
-    iaux = (iaux - idd) / nr21(2)
+    idd = modulo(iaux,nr21)
+    ioff(2) = idd - nr
+    iaux = (iaux - idd) / nr21
 
-    ioff(3) = iaux - nr(3)
+    ioff(3) = iaux - nr
 
   end function unpackoffset
 

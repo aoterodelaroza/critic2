@@ -5399,9 +5399,6 @@ contains
        rho = max(rho,0d0)
 
        f = f + rho
-       if (present(fr)) then
-          write (*,*) ii, fr%at(ii)%r, r, rho
-       end if
        if (nder < 1) cycle
        rinv1 = 1d0 / r
        fp = fp + rhop * xx * rinv1
