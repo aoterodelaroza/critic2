@@ -62,8 +62,9 @@ module environmod
      logical :: ismolecule !< Is this a molecule or a crystal?
      integer :: nspc !< Number of species
      type(species), allocatable :: spc(:) !< Species
-     real*8 :: dmax0 !< Environment contains all atoms within dmax0 of every point in the cell
-     real*8 :: sphmax !< The reduced cell is circumscribed by a sphere of radius sphmax
+     real*8 :: dmax0 !< Environment contains all atoms within dmax0 of every point in the main cell
+     real*8 :: rsph_uc !< Radius of the sphere that circumscribes the main cell
+     real*8 :: rsph_env !< Radius of the sphere that circumscribes the environment
      real*8 :: boxsize !< Length of the region side (bohr)
      real*8 :: xmin(3), xmax(3) !< Encompassing box (environment)
      real*8 :: xminc(3), xmaxc(3) !< Encompassing box (main cell)

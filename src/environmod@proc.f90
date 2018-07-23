@@ -71,7 +71,7 @@ contains
     real*8, intent(in) :: m_x2c(3,3)
 
     integer :: i 
-    real*8 :: sphmax
+    real*8 :: sphmax, rmin(3), rmax(3)
 
     e%ismolecule = .true.
     e%nspc = nspc
@@ -91,21 +91,26 @@ contains
     sphmax = max(sphmax,norm2(e%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
     sphmax = max(sphmax,norm2(e%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
     sphmax = max(sphmax,norm2(e%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    e%sphmax = sphmax
-    e%dmax0 = sphmax
+    e%rsph_uc = sphmax
 
+    rmin = 1d40
+    rmax = -1d40
     e%n = n
     if (allocated(e%at)) deallocate(e%at)
     allocate(e%at(e%n))
     do i = 1, n
        e%at(i)%x = at(i)%x
        e%at(i)%r = at(i)%r
+       rmin = min(e%at(i)%r,rmin)
+       rmax = max(e%at(i)%r,rmax)
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
        e%at(i)%lvec = 0
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
+    e%rsph_env = 0.5d0 * norm2(rmax-rmin)
+    e%dmax0 = huge(1d0)
 
     call calculate_regions(e)
 
@@ -153,7 +158,7 @@ contains
     sphmax = max(sphmax,norm2(e%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
     sphmax = max(sphmax,norm2(e%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
     sphmax = max(sphmax,norm2(e%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
-    e%sphmax = sphmax
+    e%rsph_uc = sphmax
 
     ! calculate the dmax if not given
     if (present(dmax0)) then
@@ -220,6 +225,7 @@ contains
        end do
     end do
     call realloc(e%at,e%n)
+    e%rsph_env = sphmax+dmax
 
     call calculate_regions(e)
 
@@ -917,8 +923,12 @@ contains
     write (uout,'("+ Atomic environment")')
     write (uout,'("  Number of atoms (reduced cell/environment): ",A," / ",A)') string(e%ncell), string(e%n)
     write (uout,'("  Radius of (unit cell/environment) circumscribed sphere (",A,"): ",A," / ",A)') &
-       iunitname0(iunit), trim(string(e%sphmax*dunit0(iunit),'f',8,4)), trim(string((e%sphmax+e%dmax0)*dunit0(iunit),'f',8,4))
-    write (uout,'("  Maximum interaction distance: ",A)') string(e%dmax0,'f',8,4)
+       iunitname0(iunit), trim(string(e%rsph_uc*dunit0(iunit),'f',8,4)), trim(string(e%rsph_env*dunit0(iunit),'f',8,4))
+    if (e%dmax0 == huge(1d0)) then
+       write (uout,'("  Maximum interaction distance: all atoms in the environment.")')
+    else
+       write (uout,'("  Maximum interaction distance: ",A)') string(e%dmax0,'f',8,4)
+    end if
     write (uout,'("  Covering regions: ")')
     write (uout,'("    Unit cell: ",3(A,X))') (string(e%nregc(j)),j=1,3)
     write (uout,'("    Environment: ",3(A,X))') (string(e%nreg(j)),j=1,3)
