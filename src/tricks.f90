@@ -448,8 +448,8 @@ contains
     real*8 :: f1, fp1(3), fpp1(3,3)
     real*8 :: f2, fp2(3), fpp2(3,3)
     integer :: nid1, nid2, lvec1(3), lvec2(3)
-    integer :: nneig1(10), wat1(10)
-    real*8 :: dd1(10)
+    integer :: nneig1(20), wat1(20), ierr
+    real*8 :: dd1(20)
     integer :: nat, lveca(3)
     integer, allocatable :: nida(:), ishella(:)
     real*8, allocatable :: dista(:)
@@ -521,40 +521,41 @@ contains
       !    end do
       ! end do
 
-      ! x = 0.5d0
+      x = 0.5d0
 
       ! write (*,*) "point ", i, x
-      ! call cr%pointshell(x,10,nneig1,wat1,dd1)
+      ! call cr%pointshell(x,20,nneig1,wat1,dd1)
       ! write (*,*) "pointshell environment"
-      ! do j = 1, 10
+      ! do j = 1, 20
       !    write (*,*) j, nneig1(j), wat1(j), dd1(j)
       ! end do
 
-      ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ishella,up2sh=10,nozero=.true.)
-      ! write (*,*) "list_near_atoms environment, nat = ", nat
-      ! do j = 1, nat
-      !    write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
-      ! end do
+      x = -5d0
+      call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=13)
+      write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
+      do j = 1, nat
+         write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
+      end do
 
       ! ! Test the promolecular routine
-      do i = 1, 100
-         call random_number(x)
-         x = x * 10d0 - 5d0
-         x = cr%x2c(x)
-         call cr%promolecular(x,f1,fp1,fpp1,2)
-         call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
-         ! write (*,*) "point ", i
-         ! write (*,*) "x = ", x
-         write (*,*) "f ", abs(f1-f2)
-         ! write (*,*) "fp1 ", fp1
-         ! write (*,*) "fp2 ", fp2
-         ! write (*,*) "fpp1 ", fpp1(1,:)
-         ! write (*,*) "fpp2 ", fpp2(1,:)
-         ! write (*,*) "fpp1 ", fpp1(2,:)
-         ! write (*,*) "fpp2 ", fpp2(2,:)
-         ! write (*,*) "fpp1 ", fpp1(3,:)
-         ! write (*,*) "fpp2 ", fpp2(3,:)
-      end do
+      ! do i = 1, 100
+      !    call random_number(x)
+      !    x = x * 10d0 - 5d0
+      !    x = cr%x2c(x)
+      !    call cr%promolecular(x,f1,fp1,fpp1,2)
+      !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+      !    ! write (*,*) "point ", i
+      !    ! write (*,*) "x = ", x
+      !    write (*,*) "f ", abs(f1-f2)
+      !    ! write (*,*) "fp1 ", fp1
+      !    ! write (*,*) "fp2 ", fp2
+      !    ! write (*,*) "fpp1 ", fpp1(1,:)
+      !    ! write (*,*) "fpp2 ", fpp2(1,:)
+      !    ! write (*,*) "fpp1 ", fpp1(2,:)
+      !    ! write (*,*) "fpp2 ", fpp2(2,:)
+      !    ! write (*,*) "fpp1 ", fpp1(3,:)
+      !    ! write (*,*) "fpp2 ", fpp2(3,:)
+      ! end do
 
       ! ! Test the promolecular routine timing
       ! call tictac("1")

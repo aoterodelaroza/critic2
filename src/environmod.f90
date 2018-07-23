@@ -88,7 +88,8 @@ module environmod
      ! offset for region search
      integer :: rs_imax !< all offsets from -imax to +imax are included
      integer :: rs_2imax1 !< 2*rs_imax + 1
-     real*8 :: rs_dmax !< max interaction dist. in -imax->imax cube (rs_2imax1 * sqrt(3)/2 * boxsize)
+     real*8 :: rs_dmax !< All interactions between any atom in the main cell and all atoms up to rs_dmax are captured by this set of regions.
+                       !< Equivalently, all regions i outside this set of regions have rs_rcut(i) > rs_dmax.
      integer :: rs_nreg !< Number of region offsets (rs_2imax1**3)
      integer, allocatable :: rs_ioffset(:) !< packed offsets for the search
      real*8, allocatable :: rs_rcut(:) !< All atoms in the cell with offset i are at a distance of at least rs_cut(i) from the main cell
@@ -119,6 +120,10 @@ module environmod
      procedure :: report => environ_report !< Write a report to stdout about the environment.
   end type environ
   public :: environ
+
+  ! error conditions for list_near_atoms
+  integer, parameter, public :: ierr_lna_noerr = 0
+  integer, parameter, public :: ierr_lna_notenoughatoms = 1
 
   ! module procedure interfaces
   interface
@@ -215,7 +220,7 @@ module environmod
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
+     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
        use param, only: icrd_rcrys
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)
@@ -225,6 +230,7 @@ module environmod
        integer, allocatable, intent(inout) :: eid(:)
        real*8, allocatable, intent(inout) :: dist(:)
        integer, intent(out) :: lvec(3)
+       integer, intent(out) :: ierr
        integer, allocatable, intent(inout), optional :: ishell0(:)
        real*8, intent(in), optional :: up2d
        real*8, intent(in), optional :: up2dsp(:)

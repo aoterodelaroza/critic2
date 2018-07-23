@@ -445,12 +445,12 @@ contains
   !> consider only atoms with index nid0 from the non-equivalent
   !> list. If id0, consider only atoms with index id0 from the
   !> complete list. If nozero, disregard zero-distance atoms.
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: qcksort, iqcksort
     use types, only: realloc
-    use param, only: icrd_cart
+    use param, only: icrd_cart, ctsq32
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -459,6 +459,7 @@ contains
     integer, allocatable, intent(inout) :: eid(:)
     real*8, allocatable, intent(inout) :: dist(:)
     integer, intent(out) :: lvec(3)
+    integer, intent(out) :: ierr
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
     real*8, intent(in), optional :: up2dsp(:)
@@ -470,14 +471,14 @@ contains
 
     real*8, parameter :: eps = 1d-10
 
-    real*8 :: x0(3), dist0, rcutshel, rcutn
+    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, rext
     integer :: ireg0(3), ireg(3), idxreg
-    integer :: i, j, k, l, lthis
+    integer :: i, j, k, imax, i1, i2, i3
     integer, allocatable :: iord(:), iiord(:), ishell(:)
-    integer :: nshel, nreg21(3)
+    integer :: nshel
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
-    logical :: doshell
+    logical :: doshell, enough
 
     if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2sh).and..not.present(up2n)) &
        call ferror("list_near_atoms","must give one of up2d, up2dsp, up2sh, or up2n",faterr)
@@ -489,7 +490,7 @@ contains
     ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
 
-    ! initialize the output arrays
+    ! Initialize the output arrays
     nat = 0
     nshel = 0
     rcutshel = -1d0
@@ -500,9 +501,12 @@ contains
     if (doshell) then
        allocate(ishell(10),rshel(10),idxshel(10))
     end if
+    if (present(up2dsp)) up2rmax = maxval(up2dsp(1:e%nspc))
 
-    nreg21 = 2 * e%nreg + 1
-    ! run over regions around ireg0 and over atoms belonging to those regions
+    ! Internal search: run over search regions around ireg0 and over
+    ! atoms belonging to those regions. Use the data in the rs_*
+    ! variables.
+    enough = .false.
     main: do i = 1, e%rs_nreg
        ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
        if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
@@ -528,83 +532,139 @@ contains
              if (dist0 < eps) cycle
           end if
           if (present(up2d)) then
-             if (e%rs_rcut(i) > up2d) exit main
+             ! We captured all the atoms up to distance up2d if:
+             ! - Current region has all its points at a distance > up2d from any point in the reference cell (e%rs_rcut(i) > up2d).
+             ! - The external regions all have rs_rcut(i) > e%rs_dmax > up2d
+             if (e%rs_rcut(i) > up2d .and. e%rs_dmax > up2d) then
+                enough = .true.
+                exit main
+             end if
              if (dist0 > up2d) cycle
           end if
           if (present(up2dsp)) then
-             if (e%rs_rcut(i) > maxval(up2dsp)) exit main
+             ! Same as above, but with maxval(up2dsp).
+             if (e%rs_rcut(i) > up2rmax .and. e%rs_dmax > up2rmax) then
+                enough = .true.
+                exit main
+             end if
              if (dist0 > up2dsp(e%at(k)%is)) cycle
           end if
           if (present(up2sh)) then
-             if (nshel >= up2sh .and. e%rs_rcut(i) > rcutshel) &
+             ! We captured all the atoms up to shell up2sh if:
+             ! - We know at least up2sh shells and the farthest known shell is at rcutshel distance
+             ! - Current region has all its points at a distance > farthest shell (rs_rcut(i) > rcutshel > rcutshel(ordered list))
+             ! - The external regions all have rs_rcut(i) > e%rs_dmax > rcutshel > rcutshel(ordered list)
+             if (nshel >= up2sh .and. e%rs_rcut(i) > rcutshel .and. e%rs_dmax > rcutshel) then
+                enough = .true.
                 exit main
+             end if
           end if
           if (present(up2n)) then
-             if (nat >= up2n .and. e%rs_rcut(i) > rcutn) &
+             ! We captured all the atoms up to number up2n if:
+             ! - We know at least up2n atoms, and the farthest known atom is at rcutn distance
+             ! - Current region has all its points at a distance > farthest atom (rs_rcut(i) > rcutn > rcutn(ordered list))
+             ! - The external regions all have rs_rcut(i) > e%rs_dmax > rcutn > rcutn(ordered list)
+             if (nat >= up2n .and. e%rs_rcut(i) > rcutn .and. e%rs_dmax > rcutn) then
+                enough = .true.
                 exit main
-          end if
-
-          ! ! add this atom
-          nat = nat + 1
-          if (nat > size(eid,1)) then
-             call realloc(eid,2*nat)
-             call realloc(dist,2*nat)
-             if (doshell) call realloc(ishell,2*nat)
-          end if
-          eid(nat) = k
-          dist(nat) = dist0
-
-          ! update the up2n rcut. All remaining atoms will have
-          ! dist > than the current region's rcut. rcutn will be >
-          ! than all atom distances from 1 to up2n.
-          if (present(up2n)) then
-             if (nat <= up2n) rcutn = max(dist0,rcutn)
-          end if
-
-          ! process the shells
-          if (doshell) then
-             ! see if this shell is already known
-             lthis = 0
-             do l = 1, nshel
-                if ((abs(dist0 - rshel(l)) < atomeps) .and. (idxshel(l) == e%at(k)%idx)) then
-                   lthis = l
-                   exit
-                end if
-             end do
-
-             ! if not known, create the new shell
-             if (lthis == 0) then
-                nshel = nshel + 1
-                if (nshel > size(rshel,1)) then
-                   call realloc(rshel,2*nshel)
-                   call realloc(idxshel,2*nshel)
-                end if
-                lthis = nshel
-                idxshel(nshel) = e%at(k)%idx
-                rshel(nshel) = dist0
              end if
-
-             ! update the up2sh rcut. All remaining atoms will have
-             ! dist > than the current region's rcut. rcutsh will be >
-             ! than all atom distances from 1 to shell up2sh.
-             if (present(up2sh)) then
-                if (up2sh <= nshel) rcutshel = max(dist0,rcutshel)
-             end if
-
-             ! write down the shell for this atom
-             ishell(nat) = lthis
           end if
+
+          ! Add this atom to the list (contains section subroutine) and update rcutn.
+          call add_atom_to_output_list()
+
+          ! Add this shell to the list (contains section subroutine) and update rcutshel.
+          call add_shell_to_output_list()
        end do
     end do main
 
-    ! rearrange the arrays 
+    ! Run the external search. The external search is run if there is
+    ! the possibility that the default region search might not be
+    ! enough to satisfy the demands of the input arguments. The
+    ! external search is done in cubic shells starting at the imax of
+    ! the internal region search.
+    if (.not.enough) then
+       enough = .false.
+       write (*,*) "external! initial imax = ", e%rs_imax
+       imax = e%rs_imax
+       do while (.not.enough)
+          imax = imax + 1
+          do i1 = -imax, imax
+             do i2 = -imax, imax
+                do i3 = -imax, imax
+                   if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
+                   ireg = ireg0 + (/i1,i2,i3/)
+
+                   if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
+                   idxreg = e%p2i(ireg)
+                   if (e%nrhi(idxreg) == 0) cycle
+
+                   do j = e%nrlo(idxreg), e%nrhi(idxreg)
+                      k = e%imap(j)
+
+                      ! apply nid0 and id0 conditions
+                      if (present(nid0)) then
+                         if (e%at(k)%idx /= nid0) cycle
+                      end if
+                      if (present(id0)) then
+                         if (e%at(k)%cidx /= id0) cycle
+                      end if
+
+                      ! calculate the distance to this atom
+                      dist0 = norm2(e%at(k)%r - x0)
+
+                      ! apply the nozero and up2x conditions
+                      if (present(nozero)) then
+                         if (dist0 < eps) cycle
+                      end if
+                      if (present(up2d)) then
+                         if (dist0 > up2d) cycle
+                      end if
+                      if (present(up2dsp)) then
+                         if (dist0 > up2dsp(e%at(k)%is)) cycle
+                      end if
+
+                      ! Add this atom to the list (contains section subroutine) and update rcutn.
+                      write (*,*) "added atom in external, imax = ", imax
+                      call add_atom_to_output_list()
+
+                      ! Add this shell to the list (contains section subroutine) and update rcutshel.
+                      call add_shell_to_output_list()
+                   end do ! nrlo -> nrhi
+                end do ! i3
+             end do ! i2
+          end do ! 11
+
+          ! This imax captured all atoms with distance up to rext from the reference cell
+          rext = (imax+0.5d0-ctsq32) * e%boxsize
+          
+          ! Check if this imax was enough
+          if (present(up2d)) then
+             if (rext > up2d) enough = .true.
+          end if
+          if (present(up2dsp)) then
+             if (rext > up2rmax) enough = .true.
+          end if
+          if (present(up2sh)) then
+             if (nshel >= up2sh .and. rext > rcutshel) enough = .true.
+          end if
+          if (present(up2n)) then
+             if (nat >= up2n .and. rext > rcutn) enough = .true.
+          end if
+
+          ! Check if we exhausted the environment
+          if (nat >= e%n) exit
+       end do ! while(.not.enough)
+    end if
+
+    ! Rearrange the arrays 
     if (nat > 0) then
-       ! first reallocation
+       ! First reallocation
        call realloc(eid,nat)
        call realloc(dist,nat)
        if (doshell) call realloc(ishell,nat)
 
-       ! re-order shell labels
+       ! Re-order shell labels first by distance, then by atom ID
        if (doshell) then
           allocate(iord(nshel),iiord(nshel))
           do i = 1, nshel
@@ -622,8 +682,9 @@ contains
           deallocate(iiord)
        end if
 
+       ! Sort output atoms by distance
        if (sorted .or. present(up2sh) .or. present(up2n)) then
-          ! sort by distance and by shell
+          ! First by shell (if available) then by distance
           allocate(iord(nat))
           do i = 1, nat
              iord(i) = i
@@ -635,7 +696,7 @@ contains
           if (doshell) ishell = ishell(iord)
           deallocate(iord)
 
-          ! prune the extra atoms
+          ! Prune the extra atoms and reallocate
           if (present(up2sh) .or. present(up2n)) then
              if (present(up2sh)) then
                 do i = 1, nat
@@ -645,7 +706,7 @@ contains
                    end if
                 end do
              end if
-             if (present(up2n)) nat = up2n
+             if (present(up2n)) nat = min(up2n,nat)
              call realloc(eid,nat)
              call realloc(dist,nat)
              call realloc(ishell,nat)
@@ -658,6 +719,69 @@ contains
        if (allocated(ishell0)) deallocate(ishell0)
        call move_alloc(ishell,ishell0)
     end if
+
+    ! Write the output error condition
+    ierr = ierr_lna_noerr
+    if (.not.enough) then
+       if (present(up2n)) then
+          if (nat < up2n) ierr = ierr_lna_notenoughatoms
+       end if
+    end if
+
+  contains
+    subroutine add_atom_to_output_list()
+      nat = nat + 1
+      if (nat > size(eid,1)) then
+         call realloc(eid,2*nat)
+         call realloc(dist,2*nat)
+         if (doshell) call realloc(ishell,2*nat)
+      end if
+      eid(nat) = k
+      dist(nat) = dist0
+
+      ! Update the up2n rcut, distance to farthest known atom in the initial 1->up2n list.  
+      ! The final (ordered) list will have its farthest atom at a distance less than rcutn.
+      if (present(up2n)) then
+         if (nat <= up2n) rcutn = max(dist0,rcutn)
+      end if
+    end subroutine add_atom_to_output_list
+    
+    subroutine add_shell_to_output_list()
+      integer :: lthis, l
+
+      if (.not.doshell) return
+
+      ! See if this shell is already known
+      lthis = 0
+      do l = 1, nshel
+         if ((abs(dist0 - rshel(l)) < atomeps) .and. (idxshel(l) == e%at(k)%idx)) then
+            lthis = l
+            exit
+         end if
+      end do
+
+      ! If not known, create the new shell
+      if (lthis == 0) then
+         nshel = nshel + 1
+         if (nshel > size(rshel,1)) then
+            call realloc(rshel,2*nshel)
+            call realloc(idxshel,2*nshel)
+         end if
+         lthis = nshel
+         idxshel(nshel) = e%at(k)%idx
+         rshel(nshel) = dist0
+      end if
+
+      ! Update the up2sh rcut, distance to farthest known shell in the initial 1->up2sh list.
+      ! The final (ordered) list will have its farthest shell at a distance less than rcutshel.
+      if (present(up2sh)) then
+         if (up2sh <= nshel) rcutshel = max(dist0,rcutshel)
+      end if
+
+      ! Write down the assigned shell for this atom
+      ishell(nat) = lthis
+
+    end subroutine add_shell_to_output_list
 
   end subroutine list_near_atoms
     
@@ -683,7 +807,7 @@ contains
     integer, intent(in), optional :: zpsp(:) !< core charges
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
 
-    integer :: i, j, k, ii, iz
+    integer :: i, j, k, ii, iz, ierr
     real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
     real*8 :: rho, rhop, rhopp, rfac, radd
     logical :: iscore
@@ -723,7 +847,7 @@ contains
        end if
        rcutmax(i) = min(cutrad(iz),g%rmax)
     end do
-    call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+    call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,ierr,up2dsp=rcutmax)
     rlvec = lvec
     rlvec = e%x2c(rlvec)
     deallocate(rcutmax)
@@ -895,9 +1019,10 @@ contains
        if (iz == 0 .or. iz > maxzat) cycle
        rmax = min(cutrad(iz),agrid(iz)%rmax)
     end do
-    e%rs_imax = ceiling(rmax / e%boxsize)
+    e%rs_imax = ceiling(rmax / e%boxsize + ctsq32 - 0.5d0)
     e%rs_2imax1 = 2 * e%rs_imax + 1
-    e%rs_dmax = e%boxsize * e%rs_imax
+    rmax = 0.5d0 * e%rs_2imax1 * e%boxsize
+    e%rs_dmax = rmax - ctsq32 * e%boxsize
     e%rs_nreg = e%rs_2imax1**3
 
     ! Take a reference point and calculate regions around it. The
