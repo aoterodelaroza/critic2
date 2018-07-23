@@ -74,6 +74,7 @@ contains
     real*8 :: sphmax, rmin(3), rmax(3)
 
     e%ismolecule = .true.
+    e%boxsize = boxsize_default
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
@@ -137,10 +138,11 @@ contains
     real*8, intent(in), optional :: dmax0
 
     logical :: dorepeat
-    real*8 :: sphmax, dmax, x(3), xc(3), dd, xhalf(3)
-    integer :: i1, i2, i3, i, imax, p(3), px(3)
+    real*8 :: sphmax, dmax, x(3), xhalf(3)
+    integer :: i1, i2, i3, i, imax, i3min
 
     e%ismolecule = .false.
+    e%boxsize = boxsize_default
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
@@ -197,29 +199,16 @@ contains
        imax = imax + 1
        do i1 = -imax, imax
           do i2 = -imax, imax
-             do i3 = -imax, imax
-                if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
+             if (abs(i1) == imax .or. abs(i2) == imax) then
+                i3min = 0
+             else
+                i3min = imax
+             end if
 
-                do i = 1, n
-                   p = (/i1, i2, i3/)
-                   px = nint(e%xr2x(real(p,8)))
-
-                   x = e%at(i)%x + p
-                   xc = e%xr2c(x)
-                   dd = norm2(xc - xhalf)
-                   if (dd < sphmax+dmax) then
-                      dorepeat = .true.
-                      e%n = e%n + 1
-                      if (e%n > size(e%at,1)) call realloc(e%at,2*e%n)
-
-                      e%at(e%n)%x = x
-                      e%at(e%n)%r = xc
-                      e%at(e%n)%idx = e%at(i)%idx
-                      e%at(e%n)%cidx = e%at(i)%cidx
-                      e%at(e%n)%lvec = e%at(i)%lvec + px
-                      e%at(e%n)%is = e%at(i)%is
-                   end if
-                end do
+             do i3 = i3min, imax
+                call addcell(i1,i2,i3)
+                if (i3 /= 0) &
+                   call addcell(i1,i2,-i3)
              end do
           end do
        end do
@@ -230,6 +219,34 @@ contains
     call calculate_regions(e)
 
   contains
+    subroutine addcell(i1,i2,i3)
+      integer, intent(in) :: i1, i2, i3
+
+      integer :: p(3), px(3)
+      real*8 :: xc(3), dd
+
+      do i = 1, n
+         p = (/i1, i2, i3/)
+         px = nint(e%xr2x(real(p,8)))
+
+         x = e%at(i)%x + p
+         xc = e%xr2c(x)
+         dd = norm2(xc - xhalf)
+         if (dd < sphmax+dmax) then
+            dorepeat = .true.
+            e%n = e%n + 1
+            if (e%n > size(e%at,1)) call realloc(e%at,2*e%n)
+
+            e%at(e%n)%x = x
+            e%at(e%n)%r = xc
+            e%at(e%n)%idx = e%at(i)%idx
+            e%at(e%n)%cidx = e%at(i)%cidx
+            e%at(e%n)%lvec = e%at(i)%lvec + px
+            e%at(e%n)%is = e%at(i)%is
+         end if
+      end do
+
+    end subroutine addcell
   end subroutine environ_build_from_crystal
 
   !> Reduced crystallographic to Cartesian transform
@@ -979,8 +996,8 @@ contains
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    integer :: i1, i2, i3, imax, nreg, iz
-    real*8 :: x0(3), x1(3), dist, rcut0, rmax
+    integer :: i1, i2, i3, imax, nreg, iz, i3min
+    real*8 :: rmax
 
     ! find the encompassing boxes, for the main cell
     e%xminc = 1d40
@@ -999,7 +1016,6 @@ contains
     end do
 
     ! calculate the position of the origin and the region partition
-    e%boxsize = boxsize_default
     e%nregc = ceiling((e%xmaxc - e%xminc) / e%boxsize)
     e%x0 = e%xminc - 0.5d0 * (e%nregc * e%boxsize - (e%xmaxc - e%xminc))
     e%nmin = floor((e%xmin - e%x0) / e%boxsize)
@@ -1058,20 +1074,15 @@ contains
     do imax = 0, e%rs_imax
        do i1 = -imax, imax
           do i2 = -imax, imax
-             do i3 = -imax, imax
-                if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
-                nreg = nreg + 1
-                x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
-                x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
-
-                ! dist = minimum distance from the origin to the (x0,x1) cube
-                ! rcut = this cube has to be included in all searches where the maximum interaction
-                !        distance is rcut or higher
-                dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
-                rcut0 = max(dist - ctsq32,0d0) * e%boxsize
-
-                e%rs_ioffset(nreg) = packoffset(i1,i2,i3,e%rs_imax,e%rs_2imax1)
-                e%rs_rcut(nreg) = rcut0
+             if (abs(i1) == imax .or. abs(i2) == imax) then
+                i3min = 0
+             else
+                i3min = imax
+             end if
+             do i3 = i3min, imax
+                call addcell(i1,i2,i3)
+                if (i3 /= 0) &
+                   call addcell(i1,i2,-i3)
              end do
           end do
        end do
@@ -1087,6 +1098,26 @@ contains
     e%rs_rcut = e%rs_rcut(iord)
     deallocate(iord)
 
+  contains
+    subroutine addcell(i1,i2,i3)
+      integer, intent(in) :: i1, i2, i3
+
+      real*8 :: dist, rcut0, x0(3), x1(3)
+
+      nreg = nreg + 1
+      x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
+      x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
+
+      ! dist = minimum distance from the origin to the (x0,x1) cube
+      ! rcut = this cube has to be included in all searches where the maximum interaction
+      !        distance is rcut or higher
+      dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
+      rcut0 = max(dist - ctsq32,0d0) * e%boxsize
+
+      e%rs_ioffset(nreg) = packoffset(i1,i2,i3,e%rs_imax,e%rs_2imax1)
+      e%rs_rcut(nreg) = rcut0
+
+    end subroutine addcell
   end subroutine calculate_regions
 
   !> Pack an offset into a single integer index. nr are the offset
