@@ -532,7 +532,7 @@ contains
 
       ! x = 100d0
       ! x = 0.6d0
-      call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=10d0)
+      call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=12)
       write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
       do j = 1, nat
          write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
