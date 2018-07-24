@@ -204,7 +204,6 @@ contains
              else
                 i3min = imax
              end if
-
              do i3 = i3min, imax
                 call addcell(i1,i2,i3)
                 if (i3 /= 0) &
@@ -217,7 +216,7 @@ contains
     e%rsph_env = sphmax+dmax
 
     call calculate_regions(e)
-
+    
   contains
     subroutine addcell(i1,i2,i3)
       integer, intent(in) :: i1, i2, i3
@@ -496,7 +495,7 @@ contains
 
     real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, rext, xhalf(3)
     integer :: ireg0(3), ireg(3), idxreg
-    integer :: i, j, k, imax, i1, i2, i3, imaxmin, imaxmax
+    integer :: i, j, k, imax, i1, i2, i3, ii1, ii2, ii3, imaxmin(3), imaxmax(3), isign(3), i0loop
     integer, allocatable :: iord(:), iiord(:), ishell(:)
     integer :: nshel
     real*8, allocatable :: rshel(:)
@@ -512,11 +511,6 @@ contains
     call e%y2z_center(x0,icrd,icrd_cart,lvec)
     ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
-
-    ! All environment atoms are between imaxmin and imaxmax offsets
-    imaxmin = minval(max(e%nmin - ireg0,0) + max(ireg0 - e%nmax,0))
-    imaxmax = maxval(max(e%nmax - ireg0,0) + max(ireg0 - e%nmin,0))
-    if (.not.e%ismolecule) imaxmin = 0
 
     ! Initialize the output and auxiliary arrays
     nat = 0
@@ -536,7 +530,7 @@ contains
     ! the rs_* variables. Only if the point is inside the environment
     ! or not very far (imaxmin).
     enough = .false.
-    if (imaxmin <= e%rs_imax) then
+    if (minval(max(e%nmin - ireg0,0) + max(ireg0 - e%nmax,0)) <= e%rs_imax) then
        main: do i = 1, e%rs_nreg
           ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
           if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
@@ -615,25 +609,51 @@ contains
     ! external search is done in cubic shells starting at the imax of
     ! the internal region search.
     if (.not.enough) then
-       enough = .false.
+       ! Calculate the limits of the external search based on the offsets to the
+       ! whole environment.
+       imaxmin = max(e%nmin - ireg0,0) + max(ireg0 - e%nmax,0)
+       imaxmax = max(e%nmax - ireg0,0) + max(ireg0 - e%nmin,0)
+       isign = 1
+       do i = 1, 3
+          if (ireg0(i) < e%nmin(i)) then
+             imaxmin(i) = e%nmin(i) - ireg0(i)
+             imaxmax(i) = e%nmax(i) - ireg0(i)
+             isign(i) = 1
+          else if (ireg0(i) > e%nmax(i)) then
+             imaxmin(i) = ireg0(i) - e%nmax(i)
+             imaxmax(i) = ireg0(i) - e%nmin(i)
+             isign(i) = -1
+          else
+             imaxmin(i) = e%nmin(i) - ireg0(i) 
+             imaxmax(i) = e%nmax(i) - ireg0(i)
+             isign(i) = 1
+          end if
+       end do
+       write (*,*) "go away!"
+       stop 1
 
-       ! advance to the minimum imax offset where we will find the environment atoms
-       imax = max(e%rs_imax,imaxmin-1)
-       do while (.not.enough)
-          imax = imax + 1
+       do imax = max(e%rs_imax+1,minval(imaxmin)), maxval(imaxmax)
+          if ((imax < imaxmin(1) .or. imax > imaxmax(1)).and.(imax < imaxmin(2) .or. imax > imaxmax(2)).and.(imax < imaxmin(3) .or. imax > imaxmax(3))) cycle
 
-          ! check if we will not find more atoms
-          if (imax > imaxmax) exit
-
-          do i1 = -imax, imax
-             do i2 = -imax, imax
-                do i3 = -imax, imax
-                   if (abs(i1) /= imax .and. abs(i2) /= imax .and. abs(i3) /= imax) cycle
+          do ii1 = imaxmin(1), imaxmax(1)
+             do ii2 = imaxmin(2), imaxmax(2)
+                do ii3 = imaxmin(3), imaxmax(3)
+                   if (abs(ii1) /= imax .and. abs(ii2) /= imax .and. abs(ii3) /= imax) cycle
+                   i1 = isign(1) * ii1
+                   i2 = isign(2) * ii2
+                   i3 = isign(3) * ii3
                    ireg = ireg0 + (/i1,i2,i3/)
 
+                   write (*,*) "ireg0", ireg0
+                   write (*,*) "i1i2i3", i1, i2, i3
+                   write (*,*) "ireg", ireg, e%nmin, e%nmax
+                   write (*,*) "nmin", e%nmin, e%nmax
+                   write (*,*) "nmax", e%nmax
                    if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
+                   write (*,*) "here1"
                    idxreg = e%p2i(ireg)
                    if (e%nrhi(idxreg) == 0) cycle
+                   write (*,*) "here2"
 
                    do j = e%nrlo(idxreg), e%nrhi(idxreg)
                       k = e%imap(j)
@@ -687,6 +707,8 @@ contains
              if (nat >= up2n .and. rext > rcutn) enough = .true.
           end if
 
+          ! Check if we had enough
+          if (enough) exit
           ! Check if we exhausted the environment
           if (nat >= e%n) exit
        end do ! while(.not.enough)
@@ -962,6 +984,8 @@ contains
     write (uout,'("    Unit cell: ",3(A,X))') (string(e%nregc(j)),j=1,3)
     write (uout,'("    Environment: ",3(A,X))') (string(e%nreg(j)),j=1,3)
     write (uout,'("    Search offsets: ",A)') string(e%rs_nreg)
+    write (uout,'("    Maximum search offset: ",A)') string(e%rs_imax)
+    write (uout,'("    Maximum search distance: ",A)') string(e%rs_dmax,'f',8,4)
     write (uout,'("    Total: ",A)') string(e%nregion)
     write (uout,'("    Region side (",A,"): ",A)') iunitname0(iunit), trim(string(e%boxsize * dunit0(iunit),'f',8,4))
     write (uout,'("    Transformation origin (",A,"): ",A,",",A,",",A)') iunitname0(iunit), &
@@ -996,8 +1020,8 @@ contains
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    integer :: i1, i2, i3, imax, nreg, iz, i3min
-    real*8 :: rmax
+    integer :: i1, i2, i3, imax, nreg, iz
+    real*8 :: x0(3), x1(3), dist, rcut0, rmax
 
     ! find the encompassing boxes, for the main cell
     e%xminc = 1d40
@@ -1051,13 +1075,8 @@ contains
     deallocate(iord)
 
     ! calculate the limits of the search region
-    rmax = 0d0
-    do i = 1, e%nspc
-       iz = e%spc(i)%z
-       if (iz == 0 .or. iz > maxzat) cycle
-       rmax = min(cutrad(iz),agrid(iz)%rmax)
-    end do
-    e%rs_imax = ceiling(rmax / e%boxsize + ctsq32 - 0.5d0)
+    rmax = e%rsph_env
+    e%rs_imax = ceiling(rmax / e%boxsize - 0.5d0)
     e%rs_2imax1 = 2 * e%rs_imax + 1
     rmax = 0.5d0 * e%rs_2imax1 * e%boxsize
     e%rs_dmax = rmax - ctsq32 * e%boxsize
@@ -1071,19 +1090,21 @@ contains
     allocate(e%rs_ioffset(e%rs_nreg),e%rs_rcut(e%rs_nreg))
 
     nreg = 0
-    do imax = 0, e%rs_imax
-       do i1 = -imax, imax
-          do i2 = -imax, imax
-             if (abs(i1) == imax .or. abs(i2) == imax) then
-                i3min = 0
-             else
-                i3min = imax
-             end if
-             do i3 = i3min, imax
-                call addcell(i1,i2,i3)
-                if (i3 /= 0) &
-                   call addcell(i1,i2,-i3)
-             end do
+    do i1 = -e%rs_imax, e%rs_imax
+       do i2 = -e%rs_imax, e%rs_imax
+          do i3 = -e%rs_imax, e%rs_imax
+             nreg = nreg + 1
+             x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
+             x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
+
+             ! dist = minimum distance from the origin to the (x0,x1) cube
+             ! rcut = this cube has to be included in all searches where the maximum interaction
+             !        distance is rcut or higher
+             dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
+             rcut0 = max(dist - ctsq32,0d0) * e%boxsize
+
+             e%rs_ioffset(nreg) = packoffset(i1,i2,i3,e%rs_imax,e%rs_2imax1)
+             e%rs_rcut(nreg) = rcut0
           end do
        end do
     end do
@@ -1098,26 +1119,6 @@ contains
     e%rs_rcut = e%rs_rcut(iord)
     deallocate(iord)
 
-  contains
-    subroutine addcell(i1,i2,i3)
-      integer, intent(in) :: i1, i2, i3
-
-      real*8 :: dist, rcut0, x0(3), x1(3)
-
-      nreg = nreg + 1
-      x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
-      x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
-
-      ! dist = minimum distance from the origin to the (x0,x1) cube
-      ! rcut = this cube has to be included in all searches where the maximum interaction
-      !        distance is rcut or higher
-      dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
-      rcut0 = max(dist - ctsq32,0d0) * e%boxsize
-
-      e%rs_ioffset(nreg) = packoffset(i1,i2,i3,e%rs_imax,e%rs_2imax1)
-      e%rs_rcut(nreg) = rcut0
-
-    end subroutine addcell
   end subroutine calculate_regions
 
   !> Pack an offset into a single integer index. nr are the offset
