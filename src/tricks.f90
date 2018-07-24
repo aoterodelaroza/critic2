@@ -486,11 +486,11 @@ contains
       !    ! write (*,*) "nid1 = ", nid1
       !    ! write (*,*) "nid2 = ", nid2
       !    write (*,*) "nid = ", abs(nid1-nid2)
-      !    write (*,*) "dist1 = ", dist1
-      !    write (*,*) "dist2 = ", dist2
+      !    ! write (*,*) "dist1 = ", dist1
+      !    ! write (*,*) "dist2 = ", dist2
       !    write (*,*) "dist = ", abs(dist1-dist2)
-      !    write (*,*) "lvec1 = ", lvec1
-      !    write (*,*) "lvec2 = ", lvec2
+      !    ! write (*,*) "lvec1 = ", lvec1
+      !    ! write (*,*) "lvec2 = ", lvec2
       !    write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
       ! end do
 
@@ -521,22 +521,20 @@ contains
       !    end do
       ! end do
 
-      x = 0.5d0
-
-      ! write (*,*) "point ", i, x
-      ! call cr%pointshell(x,20,nneig1,wat1,dd1)
-      ! write (*,*) "pointshell environment"
-      ! do j = 1, 20
-      !    write (*,*) j, nneig1(j), wat1(j), dd1(j)
+      ! x = 0.5d0
+      ! ! write (*,*) "point ", i, x
+      ! ! call cr%pointshell(x,20,nneig1,wat1,dd1)
+      ! ! write (*,*) "pointshell environment"
+      ! ! do j = 1, 20
+      ! !    write (*,*) j, nneig1(j), wat1(j), dd1(j)
+      ! ! end do
+      ! ! x = 100d0
+      ! ! x = 0.6d0
+      ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=12)
+      ! write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
+      ! do j = 1, nat
+      !    write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
       ! end do
-
-      ! x = 100d0
-      ! x = 0.6d0
-      call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=12)
-      write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
-      do j = 1, nat
-         write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
-      end do
 
       ! ! Test the promolecular routine
       ! do i = 1, 100

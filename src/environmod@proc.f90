@@ -407,7 +407,7 @@ contains
 
     real*8 :: x0(3), dist, distmin
     integer :: ireg0(3), ireg(3), idxreg
-    integer :: i, j, k, kmin, lvec0(3), nreg21(3)
+    integer :: i, j, k, kmin, lvec0(3)
 
     ! Find the integer region for the main cell copy of the input point
     x0 = xp
@@ -415,7 +415,6 @@ contains
     ireg0 = e%c2p(x0)
     
     ! run over regions sorted by distance
-    nreg21 = 2 * e%nreg + 1
     distmin = 1d40
     kmin = 0
     main: do i = 1, e%rs_nreg
@@ -445,10 +444,16 @@ contains
        end do
     end do main
 
-    nid = e%at(kmin)%cidx
-    dist = distmin
-    if (present(lvec)) then
-       lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec0,8)))
+    if (kmin > 0) then
+       nid = e%at(kmin)%cidx
+       dist = distmin
+       if (present(lvec)) then
+          lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec0,8)))
+       end if
+    else
+       nid = 0
+       dist = 0d0
+       if (present(lvec)) lvec = 0
     end if
 
   end subroutine nearest_atom
@@ -511,12 +516,6 @@ contains
     call e%y2z_center(x0,icrd,icrd_cart,lvec)
     ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
-
-    ! write (*,*) "ireg0: ", ireg0
-    ! write (*,*) "nmin: ", e%nmin
-    ! write (*,*) "nmax: ", e%nmax
-    ! write (*,*) "imax: ",e%rs_imax
-    ! write (*,*) "nreg: ",e%rs_nreg
 
     ! Initialize the output and auxiliary arrays
     nat = 0
@@ -614,117 +613,6 @@ contains
        end do main
     end if
 
-    ! ! Run the external search. The external search is run if there is
-    ! ! the possibility that the default region search might not be
-    ! ! enough to satisfy the demands of the input arguments. The
-    ! ! external search is done in cubic shells starting at the imax of
-    ! ! the internal region search.
-    ! if (.not.enough) then
-    !    ! Calculate the limits of the external search based on the offsets to the
-    !    ! whole environment.
-    !    imaxmin = max(e%nmin - ireg0,0) + max(ireg0 - e%nmax,0)
-    !    imaxmax = max(e%nmax - ireg0,0) + max(ireg0 - e%nmin,0)
-    !    isign = 1
-    !    do i = 1, 3
-    !       if (ireg0(i) < e%nmin(i)) then
-    !          imaxmin(i) = e%nmin(i) - ireg0(i)
-    !          imaxmax(i) = e%nmax(i) - ireg0(i)
-    !          isign(i) = 1
-    !       else if (ireg0(i) > e%nmax(i)) then
-    !          imaxmin(i) = ireg0(i) - e%nmax(i)
-    !          imaxmax(i) = ireg0(i) - e%nmin(i)
-    !          isign(i) = -1
-    !       else
-    !          imaxmin(i) = e%nmin(i) - ireg0(i) 
-    !          imaxmax(i) = e%nmax(i) - ireg0(i)
-    !          isign(i) = 1
-    !       end if
-    !    end do
-    !    write (*,*) "go away!"
-    !    stop 1
-
-    !    do imax = max(e%rs_imax+1,minval(imaxmin)), maxval(imaxmax)
-    !       if ((imax < imaxmin(1) .or. imax > imaxmax(1)).and.(imax < imaxmin(2) .or. imax > imaxmax(2)).and.(imax < imaxmin(3) .or. imax > imaxmax(3))) cycle
-
-    !       do ii1 = imaxmin(1), imaxmax(1)
-    !          do ii2 = imaxmin(2), imaxmax(2)
-    !             do ii3 = imaxmin(3), imaxmax(3)
-    !                if (abs(ii1) /= imax .and. abs(ii2) /= imax .and. abs(ii3) /= imax) cycle
-    !                i1 = isign(1) * ii1
-    !                i2 = isign(2) * ii2
-    !                i3 = isign(3) * ii3
-    !                ireg = ireg0 + (/i1,i2,i3/)
-
-    !                write (*,*) "ireg0", ireg0
-    !                write (*,*) "i1i2i3", i1, i2, i3
-    !                write (*,*) "ireg", ireg, e%nmin, e%nmax
-    !                write (*,*) "nmin", e%nmin, e%nmax
-    !                write (*,*) "nmax", e%nmax
-    !                if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
-    !                write (*,*) "here1"
-    !                idxreg = e%p2i(ireg)
-    !                if (e%nrhi(idxreg) == 0) cycle
-    !                write (*,*) "here2"
-
-    !                do j = e%nrlo(idxreg), e%nrhi(idxreg)
-    !                   k = e%imap(j)
-
-    !                   ! apply nid0 and id0 conditions
-    !                   if (present(nid0)) then
-    !                      if (e%at(k)%idx /= nid0) cycle
-    !                   end if
-    !                   if (present(id0)) then
-    !                      if (e%at(k)%cidx /= id0) cycle
-    !                   end if
-
-    !                   ! calculate the distance to this atom
-    !                   dist0 = norm2(e%at(k)%r - x0)
-
-    !                   ! apply the nozero and up2x conditions
-    !                   if (present(nozero)) then
-    !                      if (dist0 < eps) cycle
-    !                   end if
-    !                   if (present(up2d)) then
-    !                      if (dist0 > up2d) cycle
-    !                   end if
-    !                   if (present(up2dsp)) then
-    !                      if (dist0 > up2dsp(e%at(k)%is)) cycle
-    !                   end if
-
-    !                   ! Add this atom to the list (contains section subroutine) and update rcutn.
-    !                   call add_atom_to_output_list()
-
-    !                   ! Add this shell to the list (contains section subroutine) and update rcutshel.
-    !                   call add_shell_to_output_list()
-    !                end do ! nrlo -> nrhi
-    !             end do ! i3
-    !          end do ! i2
-    !       end do ! 11
-
-    !       ! This imax captured all atoms with distance up to rext from the reference cell
-    !       rext = (imax+0.5d0-ctsq32) * e%boxsize
-          
-    !       ! Check if this imax was enough
-    !       if (present(up2d)) then
-    !          if (rext > up2d) enough = .true.
-    !       end if
-    !       if (present(up2dsp)) then
-    !          if (rext > up2rmax) enough = .true.
-    !       end if
-    !       if (present(up2sh)) then
-    !          if (nshel >= up2sh .and. rext > rcutshel) enough = .true.
-    !       end if
-    !       if (present(up2n)) then
-    !          if (nat >= up2n .and. rext > rcutn) enough = .true.
-    !       end if
-
-    !       ! Check if we had enough
-    !       if (enough) exit
-    !       ! Check if we exhausted the environment
-    !       if (nat >= e%n) exit
-    !    end do ! while(.not.enough)
-    ! end if
-
     ! Rearrange the arrays 
     if (nat > 0) then
        ! First reallocation
@@ -789,13 +677,8 @@ contains
     end if
 
     ! Write the output error condition
-    ierr = ierr_lna_noerr
-    if (.not.enough) then
-       ierr = 2
-       if (present(up2n)) then
-          if (nat < up2n) ierr = ierr_lna_notenoughatoms
-       end if
-    end if
+    ierr = 0
+    if (.not.enough) ierr = 1
 
   contains
     subroutine add_atom_to_output_list()

@@ -122,10 +122,6 @@ module environmod
   end type environ
   public :: environ
 
-  ! error conditions for list_near_atoms
-  integer, parameter, public :: ierr_lna_noerr = 0
-  integer, parameter, public :: ierr_lna_notenoughatoms = 1
-
   ! module procedure interfaces
   interface
      module subroutine environ_end(e)
