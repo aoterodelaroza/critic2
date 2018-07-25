@@ -2063,65 +2063,22 @@ contains
     class(field), intent(inout) :: f
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
 
-    integer :: i, j, k, iperm(f%ncp), nin, nina
-    integer :: perms, perm(2,f%ncp)
-    integer :: num, mi
-    type(cp_type) :: aux
+    integer :: i, j, mi
     real*8, allocatable :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:), iaux(:)
+    real*8, allocatable :: raux(:)
+    integer, allocatable :: iperm(:)
 
-    ! Sort the nneq CP list
-    iperm(1:f%ncp) = (/ (j,j=1,f%ncp) /)
-
-    ! The nuclei are already ordered. 
-    nin = f%c%nneq
-    do i = 0, 3
-       ! First sort by class
-       num = count(f%cp(1:f%ncp)%typind == i)
-       nina = nin + 1
-       do j = 1, num
-          do k = nin+1, f%ncp
-             if (f%cp(k)%typind == i) then
-                aux = f%cp(k)
-                f%cp(k) = f%cp(nin+1)
-                f%cp(nin+1) = aux
-                nin = nin + 1
-                exit
-             end if
-          end do
-       end do
-
-       ! Then sort by density
-       call mergesort(f%cp(nina:nin)%s%f,iperm(nina:nin))
-
-       ! reverse
-       allocate(iaux(nina:nin))
-       iaux = iperm(nina:nin) + nina - 1
-       do j = nina, nin
-          iperm(j) = iaux(nin-j+nina)
-       end do
-       deallocate(iaux)
-    end do
-
-    ! unroll transposition as product of permutations
-    perms = 0
+    ! Sort the nneq CP list: first by type then by density, the atoms at the top
+    allocate(iperm(f%ncp),raux(f%ncp),iaux(f%ncp))
     do i = 1, f%ncp
-       if (iperm(i) /= i) then
-          do j = i+1, f%ncp
-             if (iperm(j) == i) exit
-          end do
-          perms = perms + 1
-          perm(1,perms) = i
-          perm(2,perms) = j
-          iperm(j) = iperm(i)
-          iperm(i) = i
-       end if
+       raux(i) = -f%cp(i)%s%f
+       iaux(i) = f%cp(i)%typind
+       iperm(i) = i
     end do
-    do i = perms, 1, -1
-       aux = f%cp(perm(1,i))
-       f%cp(perm(1,i)) = f%cp(perm(2,i))
-       f%cp(perm(2,i)) = aux
-    end do
+    call mergesort(raux,iperm,f%c%nneq+1,f%ncp)
+    call mergesort(iaux,iperm,f%c%nneq+1,f%ncp)
+    f%cp = f%cp(iperm)
 
     ! Rewrite the complete CP list
     f%ncpcel = 0

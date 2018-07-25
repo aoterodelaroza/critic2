@@ -1192,7 +1192,7 @@ contains
     use fieldmod, only: type_grid
     use global, only: iunit, iunitname0, dunit0
     use surface, only: minisurf
-    use tools, only: mergesort
+    use tools, only: qcksort
     use tools_io, only: uout, string, ferror, faterr
     use param, only: vbig
     type(minisurf), intent(inout) :: srf
@@ -1296,7 +1296,7 @@ contains
           rtry(7) = 0d0
        end if
        itry = (/ (k,k=1,ntries) /)           ! sort from smaller to larger
-       call mergesort(rtry,itry)
+       call qcksort(rtry,itry,1,ntries)
        id1 = 0
        do k = ntries,1,-1                    ! find best initial point
           riaprox = rtry(itry(k))
@@ -1335,7 +1335,7 @@ contains
           rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
        end if
        itry = (/ (k,k=1,ntries) /)       ! sort from smaller to larger
-       call mergesort(rtry,itry)
+       call qcksort(rtry,itry,1,ntries)
        id2 = 0
        raprox = rother
        do k = 1,ntries                   ! find best initial point

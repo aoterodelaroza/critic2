@@ -475,7 +475,7 @@ contains
   module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
-    use tools, only: qcksort, iqcksort
+    use tools, only: mergesort
     use types, only: realloc
     use param, only: icrd_cart, ctsq32, ctsq3
     class(environ), intent(in) :: e
@@ -626,8 +626,8 @@ contains
           do i = 1, nshel
              iord(i) = i
           end do
-          call iqcksort(idxshel,iord,1,nshel)
-          call qcksort(rshel,iord,1,nshel)
+          call mergesort(idxshel,iord,1,nshel)
+          call mergesort(rshel,iord,1,nshel)
           do i = 1, nshel
              iiord(iord(i)) = i
           end do
@@ -645,8 +645,8 @@ contains
           do i = 1, nat
              iord(i) = i
           end do
-          if (doshell) call iqcksort(ishell,iord,1,nat)
-          call qcksort(dist,iord,1,nat)
+          if (doshell) call mergesort(ishell,iord,1,nat)
+          call mergesort(dist,iord,1,nat)
           eid = eid(iord)
           dist = dist(iord)
           if (doshell) ishell = ishell(iord)
@@ -908,7 +908,7 @@ contains
   subroutine calculate_regions(e)
     use grid1mod, only: agrid
     use global, only: cutrad
-    use tools, only: iqcksort, qcksort
+    use tools, only: qcksort
     use types, only: realloc
     use param, only: ctsq3, ctsq32, maxzat
     type(environ), intent(inout) :: e
@@ -949,7 +949,7 @@ contains
        iord(i) = e%c2i(e%at(i)%r)
        e%imap(i) = i
     end do
-    call iqcksort(iord,e%imap,1,e%n)
+    call qcksort(iord,e%imap,1,e%n)
 
     ! limits for each region
     if (allocated(e%nrlo)) deallocate(e%nrlo)
