@@ -2357,7 +2357,7 @@ contains
     use global, only: fileroot
     use graphics, only: grhandle
     use tools_math, only: m_x2c_from_cellpar, matinv, cross
-    use tools_io, only: string, uout
+    use tools_io, only: string, uout, ferror, noerr, string
     use types, only: realloc
     character*3, intent(in) :: fmt
     integer, intent(in) :: nattr
@@ -2474,34 +2474,38 @@ contains
        end do
        !$omp end parallel do
 
-       ! run qhull
-       x = sy%c%x2c(xgatt(:,i))
-       call runqhull_basintriangulate_step1(nvert,x,xvert,nf)
-       allocate(iface(3,nf))
-       call runqhull_basintriangulate_step2(nf,iface)
-       
-       ! orient the faces
-       !$omp parallel do private(x1,x2,iaux) schedule(dynamic)
-       do j = 1, nf
-          x1 = xvert(:,iface(2,j)) - xvert(:,iface(1,j))
-          x2 = xvert(:,iface(3,j)) - xvert(:,iface(1,j))
-          x1 = cross(x1,x2)
+       if (nvert > 0) then
+          ! run qhull
+          x = sy%c%x2c(xgatt(:,i))
+          call runqhull_basintriangulate_step1(nvert,x,xvert,nf)
+          allocate(iface(3,nf))
+          call runqhull_basintriangulate_step2(nf,iface)
 
-          x2 = (xvert(:,iface(1,j)) + xvert(:,iface(2,j)) + xvert(:,iface(3,j))) / 3d0 - x
-          if (dot_product(x1,x2) < 0d0) then
-             iaux = iface(1,j)
-             iface(1,j) = iface(2,j)
-             iface(2,j) = iaux
-          end if
-       end do
-       !$omp end parallel do
+          ! orient the faces
+          !$omp parallel do private(x1,x2,iaux) schedule(dynamic)
+          do j = 1, nf
+             x1 = xvert(:,iface(2,j)) - xvert(:,iface(1,j))
+             x2 = xvert(:,iface(3,j)) - xvert(:,iface(1,j))
+             x1 = cross(x1,x2)
 
-       ! write the triangulation to a file
-       str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
-       call gr%open(fmt,str)
-       call gr%triangulation(nvert,xvert,nf,iface,xrho)
-       call gr%close()
-       deallocate(iface)
+             x2 = (xvert(:,iface(1,j)) + xvert(:,iface(2,j)) + xvert(:,iface(3,j))) / 3d0 - x
+             if (dot_product(x1,x2) < 0d0) then
+                iaux = iface(1,j)
+                iface(1,j) = iface(2,j)
+                iface(2,j) = iaux
+             end if
+          end do
+          !$omp end parallel do
+
+          ! write the triangulation to a file
+          str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
+          call gr%open(fmt,str)
+          call gr%triangulation(nvert,xvert,nf,iface,xrho)
+          call gr%close()
+          deallocate(iface)
+       else
+          call ferror("int_gridbasins","Basin " // string(i) // " has zero volume.",noerr)
+       end if
     end do
     deallocate(xvert,xrho)
 
