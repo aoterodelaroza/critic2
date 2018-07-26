@@ -109,7 +109,7 @@ contains
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
-    e%rsph_env = 0.5d0 * norm2(rmax-rmin)
+    e%rsph_env = max(0.5d0 * norm2(rmax-rmin),e%rsph_uc)
     e%dmax0 = huge(1d0)
 
     call calculate_regions(e)
@@ -914,7 +914,7 @@ contains
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    integer :: i1, i2, i3, imax, nreg, iz, nbox
+    integer :: i1, i2, i3, imax, nreg, iz
     real*8 :: x0(3), x1(3), dist, rcut0, rmax
 
     ! find the encompassing boxes, for the main cell
@@ -934,11 +934,10 @@ contains
     end do
 
     ! determine the box size - cap it at around 100^3 boxes
-    nbox = nint(real(product(nint((e%xmax - e%xmin) / boxsize_default)),8)**(1d0/3d0))
-    e%boxsize = boxsize_default * (max(nbox,100) / 100d0)
+    e%boxsize = max(boxsize_default,2d0*e%rsph_env/100d0)
 
     ! calculate the position of the origin and the region partition
-    e%nregc = ceiling((e%xmaxc - e%xminc) / e%boxsize)
+    e%nregc = ceiling(max((e%xmaxc - e%xminc) / e%boxsize,1d-14))
     e%x0 = e%xminc - 0.5d0 * (e%nregc * e%boxsize - (e%xmaxc - e%xminc))
     e%nmin = floor((e%xmin - e%x0) / e%boxsize)
     e%nmax = floor((e%xmax - e%x0) / e%boxsize)
