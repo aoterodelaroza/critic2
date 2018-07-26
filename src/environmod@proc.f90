@@ -74,7 +74,6 @@ contains
     real*8 :: sphmax, rmin(3), rmax(3)
 
     e%ismolecule = .true.
-    e%boxsize = boxsize_default
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
@@ -915,7 +914,7 @@ contains
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    integer :: i1, i2, i3, imax, nreg, iz
+    integer :: i1, i2, i3, imax, nreg, iz, nbox
     real*8 :: x0(3), x1(3), dist, rcut0, rmax
 
     ! find the encompassing boxes, for the main cell
@@ -933,6 +932,10 @@ contains
        e%xmin = min(e%xmin,e%at(i)%r)
        e%xmax = max(e%xmax,e%at(i)%r)
     end do
+
+    ! determine the box size - cap it at around 100^3 boxes
+    nbox = nint(real(product(nint((e%xmax - e%xmin) / boxsize_default)),8)**(1d0/3d0))
+    e%boxsize = boxsize_default * (max(nbox,100) / 100d0)
 
     ! calculate the position of the origin and the region partition
     e%nregc = ceiling((e%xmaxc - e%xminc) / e%boxsize)
