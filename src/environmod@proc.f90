@@ -45,7 +45,6 @@ contains
     e%n = 0
     e%nspc = 0
     e%ncell = 0
-    e%nregc = 0
     e%nreg = 0
     e%nmin = 0
     e%nmax = 0
@@ -334,15 +333,10 @@ contains
     integer, intent(in) :: ocrd
     integer, intent(out), optional :: lvec(3)
 
-    if (e%ismolecule) then
-       xx = e%y2z(xx,icrd,ocrd)
-       if (present(lvec)) lvec = 0
-    else
-       xx = e%y2z(xx,icrd,icrd_rcrys)
-       if (present(lvec)) lvec = floor(xx)
-       xx = xx - floor(xx)
-       xx = e%y2z(xx,icrd_rcrys,ocrd)
-    end if
+    xx = e%y2z(xx,icrd,icrd_rcrys)
+    if (present(lvec)) lvec = floor(xx)
+    xx = xx - floor(xx)
+    xx = e%y2z(xx,icrd_rcrys,ocrd)
 
   end subroutine y2z_center
 
@@ -875,17 +869,15 @@ contains
        write (uout,'("  Maximum interaction distance: ",A)') string(e%dmax0,'f',8,4)
     end if
     write (uout,'("  Covering regions: ")')
-    write (uout,'("    Unit cell: ",3(A,X))') (string(e%nregc(j)),j=1,3)
-    write (uout,'("    Environment: ",3(A,X))') (string(e%nreg(j)),j=1,3)
-    write (uout,'("    Search offsets: ",A)') string(e%rs_nreg)
-    write (uout,'("    Maximum search offset: ",A)') string(e%rs_imax)
-    write (uout,'("    Maximum search distance: ",A)') string(e%rs_dmax,'f',8,4)
-    write (uout,'("    Total: ",A)') string(e%nregion)
+    write (uout,'("    Total number of regions: ",A," (",2(A,X),A,")")') string(e%nregion), (string(e%nreg(j)),j=1,3)
+    write (uout,'("    Minimum region ID: ",3(A,X))') (string(e%nmin(j)),j=1,3)
+    write (uout,'("    Maximum region ID: ",3(A,X))') (string(e%nmax(j)),j=1,3)
     write (uout,'("    Region side (",A,"): ",A)') iunitname0(iunit), trim(string(e%boxsize * dunit0(iunit),'f',8,4))
     write (uout,'("    Transformation origin (",A,"): ",A,",",A,",",A)') iunitname0(iunit), &
        (trim(string(e%x0(j) * dunit0(iunit),'f',8,4)),j=1,3)
-    write (uout,'("    Minimum region ID: ",3(A,X))') (string(e%nmin(j)),j=1,3)
-    write (uout,'("    Maximum region ID: ",3(A,X))') (string(e%nmax(j)),j=1,3)
+    write (uout,'("    Search offsets: ",A)') string(e%rs_nreg)
+    write (uout,'("    Maximum search offset: ",A)') string(e%rs_imax)
+    write (uout,'("    Maximum search distance: ",A)') string(e%rs_dmax,'f',8,4)
     
     idavg = 0
     idmax = 0
@@ -914,33 +906,40 @@ contains
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    integer :: i1, i2, i3, imax, nreg, iz
+    integer :: i1, i2, i3, imax, nreg, iz, nregc(3)
     real*8 :: x0(3), x1(3), dist, rcut0, rmax
+    real*8 :: xmin(3), xmax(3), xminc(3), xmaxc(3)
 
     ! find the encompassing boxes, for the main cell
-    e%xminc = 1d40
-    e%xmaxc = -1d40
-    do i = 1, e%ncell
-       e%xminc = min(e%xminc,e%at(i)%r)
-       e%xmaxc = max(e%xmaxc,e%at(i)%r)
+    xminc = 1d40
+    xmaxc = -1d40
+    do i1 = 0, 1
+       do i2 = 0, 1
+          do i3 = 0, 1
+             x0 = (/i1,i2,i3/)
+             x0 = e%xr2c(x0)
+             xminc = min(xminc,x0)
+             xmaxc = max(xmaxc,x0)
+          end do
+       end do
     end do
 
     ! for the whole environment
-    e%xmin = e%xminc
-    e%xmax = e%xmaxc
+    xmin = xminc
+    xmax = xmaxc
     do i = e%ncell+1,e%n
-       e%xmin = min(e%xmin,e%at(i)%r)
-       e%xmax = max(e%xmax,e%at(i)%r)
+       xmin = min(xmin,e%at(i)%r)
+       xmax = max(xmax,e%at(i)%r)
     end do
 
     ! determine the box size - cap it at around 100^3 boxes
     e%boxsize = max(boxsize_default,2d0*e%rsph_env/100d0)
 
     ! calculate the position of the origin and the region partition
-    e%nregc = ceiling(max((e%xmaxc - e%xminc) / e%boxsize,1d-14))
-    e%x0 = e%xminc - 0.5d0 * (e%nregc * e%boxsize - (e%xmaxc - e%xminc))
-    e%nmin = floor((e%xmin - e%x0) / e%boxsize)
-    e%nmax = floor((e%xmax - e%x0) / e%boxsize)
+    nregc = ceiling(max((xmaxc - xminc) / e%boxsize,1d-14))
+    e%x0 = xminc - 0.5d0 * (nregc * e%boxsize - (xmaxc - xminc))
+    e%nmin = floor((xmin - e%x0) / e%boxsize)
+    e%nmax = floor((xmax - e%x0) / e%boxsize)
     e%nreg = e%nmax - e%nmin + 1
     e%nregion = product(e%nreg)
 
@@ -976,7 +975,7 @@ contains
     e%rs_imax = ceiling(rmax / e%boxsize - 0.5d0)
     e%rs_2imax1 = 2 * e%rs_imax + 1
     rmax = 0.5d0 * e%rs_2imax1 * e%boxsize
-    e%rs_dmax = rmax - ctsq32 * e%boxsize
+    e%rs_dmax = min(rmax - ctsq32 * e%boxsize,e%dmax0)
     e%rs_nreg = e%rs_2imax1**3
 
     ! Take a reference point and calculate regions around it. The

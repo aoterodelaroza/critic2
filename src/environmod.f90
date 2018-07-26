@@ -32,14 +32,18 @@ module environmod
   !> The unit cell is inscribed in a sphere of radius e%rsph_uc. The environment is contained in a sphere of radius
   !> e%rsph_env (with e%rsph_env >= e%rsph_uc).
   !> 
-  !> The atomic environment is contained in a box (vertices xmin/xmax), which is then divided into regions to enable constant-time distance
+  !> The atomic environment is contained in a box that is divided into regions to enable constant-time distance
   !> searches. There are e%nregion regions, e%nreg in each direction, with indices between e%nmin and e%nmax. The regions are cubes with
-  !> side length equal to boxsize. In addition to Cartesian (c), crystallographic (x), and reduced crystallographic (rx), we define
+  !> side length equal to e%boxsize. e%boxsize is 4 bohr by default, but may be larger so as not to exceed a maximum of around 100 boxes
+  !> in each direction. 
+  !>
+  !> In addition to Cartesian (c), crystallographic (x), and reduced crystallographic (rx), we define
   !> two additional sets of coordinates: 
-  !>   region partition (p): three integer indices that give the region to which a point belongs
+  !>   region partition (p): three integer indices that give the region to which a point belongs. 
   !>   region index (i): the integer index (1..e%nregion) of the encompassing region
   !> The routine c2p, c2i, and p2i convert between Cartesian and these two sets of coordinates. The origin of the c2p transformation
-  !> is e%x0.
+  !> is e%x0. p-coordinates are meaningful everywhere in space, i-coordinates only make sense if the point is inside the region
+  !> covered by the boxes.
   !>
   !> The environment has e%n atoms. The first e%ncell atoms correspond to the atoms in the main cell (c%ncel). For atom i in
   !> the environment, at(i) contains:
@@ -57,7 +61,10 @@ module environmod
   !> A number of region offsets (e%nregs) is stored. If l is an offset index, e%iaddregs(l) contains a packed index
   !> for the region offset (the packing/unpacking operations are handled by the packoffset and unpackoffset routines).
   !> All points in the current region are at a distance of at least e%rcutregs(l) from all points in the region given
-  !> by offset e%iaddregs(l).
+  !> by offset e%iaddregs(l). The search regions are sorted in order of increasing distance (e%rcutregs). 
+  !> A given search started inside the main cell guarantees it will find all atoms up to a distance e%rs_dmax.
+  !> (e%rs_dmax <= e%dmax0). The region offsets always form a cube of boxes from -e%rs_imax to e%rs_imax. Therefore,
+  !> there are (2*e%rs_imax+1)**3 = (e%rs_2imax1)**3 search regions.
   type environ
      logical :: ismolecule !< Is this environment for a molecule or a crystal?
      integer :: nspc !< Number of species
@@ -66,12 +73,9 @@ module environmod
      real*8 :: rsph_uc !< Radius of the sphere that circumscribes the main cell
      real*8 :: rsph_env !< Radius of the sphere that circumscribes the environment
      real*8 :: boxsize !< Length of the region side (bohr)
-     real*8 :: xmin(3), xmax(3) !< Encompassing box (environment)
-     real*8 :: xminc(3), xmaxc(3) !< Encompassing box (main cell)
      real*8 :: x0(3) !< Origin of the to-region transformation
      integer :: n = 0 !< Number of atoms in the environment
      integer :: ncell = 0 !< Number of atoms in the unit cell
-     integer :: nregc(3) !< Number of regions that cover the unit cell
      integer :: nreg(3) !< Number of regions that cover the environment
      integer :: nmin(3), nmax(3) !< Minimum and maximum region id
      integer :: nregion !< Number of regions
