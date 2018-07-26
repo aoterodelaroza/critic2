@@ -112,7 +112,6 @@ contains
     use tools_io, only: string, lgetword, equal, isexpression_or_word, zatguess,&
        isinteger, getword
     use param, only: sqfp
-    use hashmod, only: hash
     class(field), intent(inout) :: ff
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg

@@ -58,11 +58,11 @@ module environmod
   !> If k runs from 1 to e%n, c2i(at(imap(k))%r) is in ascending order. If l is a region, k1 = nrlo(l) and k2 = nrup(l)
   !> give the slice of the c2i(at(imap(1:n))%r) array corresponding to region l.
   !> 
-  !> A number of region offsets (e%nregs) is stored. If l is an offset index, e%iaddregs(l) contains a packed index
+  !> A number of region offsets (e%nregs) is stored. The offsets cover the entire environment.
+  !> If l is an offset index, e%iaddregs(l) contains a packed index
   !> for the region offset (the packing/unpacking operations are handled by the packoffset and unpackoffset routines).
   !> All points in the current region are at a distance of at least e%rcutregs(l) from all points in the region given
   !> by offset e%iaddregs(l). The search regions are sorted in order of increasing distance (e%rcutregs). 
-  !> A given search started inside the main cell guarantees it will find all atoms up to a distance e%rs_dmax.
   !> (e%rs_dmax <= e%dmax0). The region offsets always form a cube of boxes from -e%rs_imax to e%rs_imax. Therefore,
   !> there are (2*e%rs_imax+1)**3 = (e%rs_2imax1)**3 search regions.
   type environ

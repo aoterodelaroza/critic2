@@ -453,28 +453,12 @@ contains
     integer :: nat, lveca(3)
     integer, allocatable :: nida(:), ishella(:)
     real*8, allocatable :: dista(:)
+    logical :: ok1, ok2, ok3
 
     associate(env => sy%c%env, cr => sy%c)
 
       write (uout,'("* Testing the environment....")')
 
-      ! ! Two tests for correctness of lvec and lenv
-      ! do i = 1, env%n
-      !    write (uout,'("  Atom ",A)') string(i)
-      
-      !    xx = cr%xr2x(env%at(i)%x)
-      !    x = cr%atcel(env%at(i)%cidx)%x + env%at(i)%lenv
-      !    write (uout,'("  Test 1 (lenv) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
-      
-      !    xx = cr%xr2x(env%at(i)%x)
-      !    x = matmul(cr%rotm(1:3,1:3,env%at(i)%ir),cr%at(env%at(i)%idx)%x) +&
-      !       cr%rotm(:,4,env%at(i)%ir) + cr%cen(:,env%at(i)%ic) + env%at(i)%lvec
-      !    write (uout,'("  Test 2 (lvec) ",99(A,X))') (string(abs(x(j))-abs(xx(j)),'f',10,5),j=1,3)
-      ! end do
-
-      ! ! Write the environment info
-      ! call env%report()
-      
       ! ! Test the nearest_atom routine
       ! do i = 1, 100
       !    call random_number(x)
@@ -499,6 +483,7 @@ contains
       !    call random_number(x)
       !    x = x * 10d0 - 5d0
 
+      !    ! slow test
       !    write (*,*) "point ", i, x
       !    call cr%pointshell(x,10,nneig1,wat1,dd1)
       !    write (*,*) "pointshell environment"
@@ -506,21 +491,44 @@ contains
       !       write (*,*) j, nneig1(j), wat1(j), dd1(j)
       !    end do
 
-      !    x = x - floor(x)
-      !    write (*,*) "point ", i, x
-      !    call cr%pointshell(x,10,nneig1,wat1,dd1)
-      !    write (*,*) "pointshell environment"
-      !    do j = 1, 10
-      !       write (*,*) j, nneig1(j), wat1(j), dd1(j)
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=10)
+      !    write (*,*) "list_near_atoms environment (n), nat = ", nat, "(",ierr,")"
+      !    do j = 1, nat
+      !       write (*,*) j, nida(j), dista(j), ishella(j)
       !    end do
 
-      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ishella,up2d=10d0)
-      !    write (*,*) "list_near_atoms environment, nat = ", nat
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=10000)
+      !    write (*,*) "list_near_atoms environment (n), nat = ", nat, "(",ierr,")"
+      !    do j = 1, nat
+      !       write (*,*) j, nida(j), dista(j), ishella(j)
+      !    end do
+
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2sh=10)
+      !    write (*,*) "list_near_atoms environment (sh), nat = ", nat, "(",ierr,")"
+      !    do j = 1, nat
+      !       write (*,*) j, nida(j), dista(j), ishella(j)
+      !    end do
+
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2sh=10000)
+      !    write (*,*) "list_near_atoms environment (sh), nat = ", nat, "(",ierr,")"
+      !    do j = 1, nat
+      !       write (*,*) j, nida(j), dista(j), ishella(j)
+      !    end do
+
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=5d0)
+      !    write (*,*) "list_near_atoms environment (dist), nat = ", nat, "(",ierr,")"
+      !    do j = 1, nat
+      !       write (*,*) j, nida(j), dista(j), ishella(j)
+      !    end do
+
+      !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=3000d0)
+      !    write (*,*) "list_near_atoms environment (dist), nat = ", nat, "(",ierr,")"
       !    do j = 1, nat
       !       write (*,*) j, nida(j), dista(j), ishella(j)
       !    end do
       ! end do
 
+      ! ! Test the list_near_atoms routine in a high-symmetry environment
       ! x = 0.5d0
       ! ! write (*,*) "point ", i, x
       ! ! call cr%pointshell(x,20,nneig1,wat1,dd1)
@@ -530,7 +538,7 @@ contains
       ! ! end do
       ! ! x = 100d0
       ! ! x = 0.6d0
-      ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=12)
+      ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=20d0)
       ! write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
       ! do j = 1, nat
       !    write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
@@ -581,31 +589,6 @@ contains
       !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
       !    write (*,*) i, abs(f1-f2)
       ! end do
-
-     !  ! Test the promolecular routine
-     !  do i = 1, 100
-     !     call random_number(x)
-     !     ! x = x * 10d0 - 5d0
-     !     x = cr%x2c(x)
-         
-     !     ! write (*,*) x
-     !     call cr%promolecular(x,f1,fp1,fpp1,2,fr=cr%mol(1),periodic=.true.)
-     !     call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2,fr=cr%mol(1))
-     !     write (*,*) "fa ", f1-f2
-
-     !     ! call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
-     !     ! call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
-     !     ! write (*,*) "fb ", f1, f2
-         
-     !     ! write (*,*) "fp1 ", fp1
-     !     ! write (*,*) "fp2 ", fp2
-     !     ! write (*,*) "fpp1 ", fpp1(1,:)
-     !     ! write (*,*) "fpp2 ", fpp2(1,:)
-     !     ! write (*,*) "fpp1 ", fpp1(2,:)
-     !     ! write (*,*) "fpp2 ", fpp2(2,:)
-     !     ! write (*,*) "fpp1 ", fpp1(3,:)
-     !     ! write (*,*) "fpp2 ", fpp2(3,:)
-     ! end do
 
     end associate
 

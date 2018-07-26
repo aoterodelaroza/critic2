@@ -376,14 +376,16 @@ contains
 
   end function c2i
 
-  !> Given the point xp (in icrd coordinates), calculates the nearest
-  !> atom.  The nearest atom has ID nid from the complete list (atcel)
-  !> and is at a distance dist. On output, the optional argument lvec
-  !> contains the lattice vector to the nearest atom (i.e. its
-  !> position is atcel(nid)%x + lvec). If nid0, consider only atoms
-  !> with index nid0 from the non-equivalent list. If id0, consider
-  !> only atoms with index id0 from the complete list.  If nozero,
-  !> disregard zero-distance atoms. This routine is thread-safe.
+  !> Given the point xp (in icrd coordinates), translates to the main
+  !> cell and calculates the nearest atom.  The nearest atom has ID
+  !> nid from the complete list (atcel) and is at a distance dist, or
+  !> nid=0 and dist=0d0 if the search did not produce any atoms.  On
+  !> output, the optional argument lvec contains the lattice vector to
+  !> the nearest atom (i.e. its position is atcel(nid)%x + lvec). If
+  !> nid0, consider only atoms with index nid0 from the non-equivalent
+  !> list. If id0, consider only atoms with index id0 from the
+  !> complete list. If nozero, disregard zero-distance atoms. This
+  !> routine is thread-safe.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
@@ -451,20 +453,23 @@ contains
 
   end subroutine nearest_atom
 
-  !> Given the point xp (in icrd coordinates), calculates the list of
-  !> nearest atoms. The list is sorted by distance and shell if sorted
-  !> is true (using up2n or up2sh makes sorted = true). The output
-  !> list contains nat atoms with IDs nid(1:nat) from the environment,
-  !> distances to the input point equal to dist(1:nat) and lattice
-  !> vector lvec in cryst. coords. The position of atom i in
-  !> cryst. coords. is e%at(nid(i))%x + lvec. Optionally, ishell(i)
-  !> contains the shell ID for atom i in the output list. One or more
-  !> of four cutoff criteria must be chosen: list up to a distance
-  !> up2d, list up to a species-dependent distance (up2dsp), up to a
-  !> number of shells up2sh or up to a number of atoms up2n. If nid0,
-  !> consider only atoms with index nid0 from the non-equivalent
-  !> list. If id0, consider only atoms with index id0 from the
-  !> complete list. If nozero, disregard zero-distance atoms.
+  !> Given the point xp (in icrd coordinates), center the point in the
+  !> main cell and calculate the list of nearest atoms. If sorted is
+  !> true, the list is sorted by distance and shell (if up2n or up2sh
+  !> is used, the list is always sorted). The output list contains nat
+  !> atoms with IDs nid(1:nat) from the environment, distances to the
+  !> input point equal to dist(1:nat) and lattice vector lvec in
+  !> cryst. coords. The position of atom i in cryst. coords. is
+  !> e%at(nid(i))%x + lvec. Optionally, ishell0(i) contains the shell
+  !> ID for atom i in the output list. One or more of four cutoff
+  !> criteria must be chosen: list up to a distance up2d, list up to a
+  !> species-dependent distance (up2dsp), up to a number of shells
+  !> up2sh or up to a number of atoms up2n. If nid0, consider only
+  !> atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list. If
+  !> nozero, disregard zero-distance atoms. The output error
+  !> condition ierr is 0 if the search was successful or non-zero if the
+  !> input search conditions could not be met by this environment.
   module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
@@ -491,9 +496,9 @@ contains
 
     real*8, parameter :: eps = 1d-10
 
-    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, rext, xhalf(3)
-    integer :: ireg0(3), ireg(3), idxreg
-    integer :: i, j, k, imax, i1, i2, i3, ii1, ii2, ii3, imaxmin(3), imaxmax(3), isign(3), i0loop
+    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, rext, xhalf(3), dmaxenv
+    integer :: ireg0(3), ireg(3), idxreg, nats
+    integer :: i, j, k, imax, i1, i2, i3, ii1, ii2, ii3, isign(3), i0loop
     integer, allocatable :: iord(:), iiord(:), ishell(:)
     integer :: nshel
     real*8, allocatable :: rshel(:)
@@ -510,6 +515,12 @@ contains
     ireg0 = e%c2p(x0)
     lvec = nint(e%xr2x(real(lvec,8)))
 
+    ! calculate the maximum distance for which we guarantee we will
+    ! get all the atoms
+    xhalf = 0.5d0
+    xhalf = e%xr2c(xhalf)
+    dmaxenv = max(e%rsph_env - norm2(x0 - xhalf),0d0)
+
     ! Initialize the output and auxiliary arrays
     nat = 0
     nshel = 0
@@ -523,88 +534,83 @@ contains
     end if
     if (present(up2dsp)) up2rmax = maxval(up2dsp(1:e%nspc))
 
-    ! Internal search: run over search regions around ireg0 and over
-    ! atoms belonging to those regions. Use the sorted search data in
-    ! the rs_* variables. Only if the point is inside the environment
-    ! or not very far (imaxmin).
+    ! Run over search regions around ireg0 and over atoms belonging to
+    ! those regions. Use the sorted search data in the rs_* variables.
     enough = .false.
-    if (minval(max(e%nmin - ireg0,0) + max(ireg0 - e%nmax,0)) <= e%rs_imax) then
-       main: do i = 1, e%rs_nreg
-          ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
+    i = 0
+    nats = 0
+    do while (.not.enough .and. i < e%rs_nreg)
+       i = i + 1
+       ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
 
-          if (all(ireg >= e%nmin) .and. all(ireg <= e%nmax)) then
-             idxreg = e%p2i(ireg)
-             do j = e%nrlo(idxreg), e%nrhi(idxreg)
-                k = e%imap(j)
+       if (all(ireg >= e%nmin) .and. all(ireg <= e%nmax)) then
+          idxreg = e%p2i(ireg)
+          do j = e%nrlo(idxreg), e%nrhi(idxreg)
+             k = e%imap(j)
+             nats = nats + 1
 
-                ! apply nid0 and id0 conditions
-                if (present(nid0)) then
-                   if (e%at(k)%idx /= nid0) cycle
-                end if
-                if (present(id0)) then
-                   if (e%at(k)%cidx /= id0) cycle
-                end if
-
-                ! calculate the distance to this atom
-                dist0 = norm2(e%at(k)%r - x0)
-
-                ! apply the nozero and up2x conditions
-                if (present(nozero)) then
-                   if (dist0 < eps) cycle
-                end if
-                if (present(up2d)) then
-                   if (dist0 > up2d) cycle
-                end if
-                if (present(up2dsp)) then
-                   if (dist0 > up2dsp(e%at(k)%is)) cycle
-                end if
-
-                ! Add this atom to the list (contains section subroutine) and update rcutn.
-                call add_atom_to_output_list()
-
-                ! Add this shell to the list (contains section subroutine) and update rcutshel.
-                call add_shell_to_output_list()
-             end do
-          end if
-
-          if (present(up2d)) then
-             ! We captured all the atoms up to distance up2d if:
-             ! - Current region has all its points at a distance > up2d from any point in the reference cell (e%rs_rcut(i) > up2d).
-             ! - The external regions all have rs_rcut(i) > e%rs_dmax > up2d
-             if (e%rs_rcut(i) > up2d .and. e%rs_dmax > up2d) then
-                enough = .true.
-                exit
+             ! apply nid0 and id0 conditions
+             if (present(nid0)) then
+                if (e%at(k)%idx /= nid0) cycle
              end if
-          end if
-          if (present(up2dsp)) then
-             ! Same as above, but with maxval(up2dsp).
-             if (e%rs_rcut(i) > up2rmax .and. e%rs_dmax > up2rmax) then
-                enough = .true.
-                exit
+             if (present(id0)) then
+                if (e%at(k)%cidx /= id0) cycle
              end if
-          end if
-          if (present(up2sh)) then
-             ! We captured all the atoms up to shell up2sh if:
-             ! - We know at least up2sh shells and the farthest known shell is at rcutshel distance
-             ! - Current region has all its points at a distance > farthest shell (rs_rcut(i) > rcutshel > rcutshel(ordered list))
-             ! - The external regions all have rs_rcut(i) > e%rs_dmax > rcutshel > rcutshel(ordered list)
-             if (nshel >= up2sh .and. e%rs_rcut(i) > rcutshel .and. e%rs_dmax > rcutshel) then
-                enough = .true.
-                exit
+
+             ! calculate the distance to this atom
+             dist0 = norm2(e%at(k)%r - x0)
+
+             ! apply the nozero and up2x conditions
+             if (present(nozero)) then
+                if (dist0 < eps) cycle
              end if
-          end if
-          if (present(up2n)) then
-             ! We captured all the atoms up to number up2n if:
-             ! - We know at least up2n atoms, and the farthest known atom is at rcutn distance
-             ! - Current region has all its points at a distance > farthest atom (rs_rcut(i) > rcutn > rcutn(ordered list))
-             ! - The external regions all have rs_rcut(i) > e%rs_dmax > rcutn > rcutn(ordered list)
-             if (nat >= up2n .and. e%rs_rcut(i) > rcutn .and. e%rs_dmax > rcutn) then
-                enough = .true.
-                exit
+             if (present(up2d)) then
+                if (dist0 > up2d) cycle
              end if
-          end if
-       end do main
-    end if
+             if (present(up2dsp)) then
+                if (dist0 > up2dsp(e%at(k)%is)) cycle
+             end if
+
+             ! Add this atom to the list (contains section subroutine) and update rcutn.
+             call add_atom_to_output_list()
+
+             ! Add this shell to the list (contains section subroutine) and update rcutshel.
+             call add_shell_to_output_list()
+          end do
+       end if
+
+       ! We have enough if...
+       ! - this is a molecule and we went over all the atoms
+       enough = (e%n == nats .and. e%ismolecule)
+       if (present(up2d)) then
+          ! ...or we captured all the atoms up to distance up2d, which happens if:
+          ! - Current region has all its points at a distance > up2d from any point in the reference cell (e%rs_rcut(i) > up2d).
+          ! - The regions not considered by our offsets all have rs_rcut(i) > rsph_env > dmaxenv > up2d or there are no
+          !   regions not considered by our offsets because this is a molecule
+          !   (note: a molecule has no atoms outside the search offsets)
+          enough = enough .or. (e%rs_rcut(i) > up2d .and. (dmaxenv > up2d .or. e%ismolecule))
+       end if
+       if (present(up2dsp)) then
+          ! Same as above, but with maxval(up2dsp).
+          enough = enough .or. (e%rs_rcut(i) > up2rmax .and. (dmaxenv > up2rmax .or. e%ismolecule))
+       end if
+       if (present(up2sh)) then
+          ! ...or we captured all the atoms up to shell up2sh if:
+          ! - We know at least up2sh shells and the farthest known shell is at rcutshel distance
+          ! - Current region has all its points at a distance > farthest shell (rs_rcut(i) > rcutshel > rcutshel(ordered list))
+          ! - The external regions all have rs_rcut(i) > rsph_env > dmaxenv > rcutshel > rcutshel(ordered list)
+          !   (note: a molecule has no atoms outside the search offsets)
+          enough = enough .or. (nshel >= up2sh .and. e%rs_rcut(i) > rcutshel .and. (dmaxenv > rcutshel .or. e%ismolecule))
+       end if
+       if (present(up2n)) then
+          ! ...or we captured all the atoms up to number up2n if:
+          ! - We know at least up2n atoms, and the farthest known atom is at rcutn distance
+          ! - Current region has all its points at a distance > farthest atom (rs_rcut(i) > rcutn > rcutn(ordered list))
+          ! - The external regions all have rs_rcut(i) > rsph_env > dmaxenv > rcutn > rcutn(ordered list)
+          !   (note: a molecule has no atoms outside the search offsets)
+          enough = enough .or. (nat >= up2n .and. e%rs_rcut(i) > rcutn .and. (dmaxenv > rcutn .or. e%ismolecule))
+       end if
+    end do
 
     ! Rearrange the arrays 
     if (nat > 0) then
@@ -692,11 +698,12 @@ contains
     end subroutine add_atom_to_output_list
     
     subroutine add_shell_to_output_list()
+      use tools_io, only: string
       integer :: lthis, l
 
       if (.not.doshell) return
 
-      ! See if this shell is already known
+      ! See if this shell is already known. (Make a better hash to improve this.)
       lthis = 0
       do l = 1, nshel
          if ((abs(dist0 - rshel(l)) < atomeps) .and. (idxshel(l) == e%at(k)%idx)) then
@@ -720,7 +727,7 @@ contains
       ! Update the up2sh rcut, distance to farthest known shell in the initial 1->up2sh list.
       ! The final (ordered) list will have its farthest shell at a distance less than rcutshel.
       if (present(up2sh)) then
-         if (up2sh <= nshel) rcutshel = max(dist0,rcutshel)
+         if (nshel <= up2sh) rcutshel = max(dist0,rcutshel)
       end if
 
       ! Write down the assigned shell for this atom
@@ -730,11 +737,12 @@ contains
 
   end subroutine list_near_atoms
     
-  !> Calculate the core (if zpsp is present) or promolecular densities
-  !> at a point x0 (coord format given by icrd) using atomic radial
-  !> grids up to a number of derivatives nder (max: 2). Returns the
-  !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
-  !> 2). If a fragment (fr) is given, then only the atoms in it
+  !> Translate the point x0 to the main cell and calculate the core
+  !> (if zpsp is present) or promolecular densities at a point x0
+  !> (coord format given by icrd) using atomic radial grids up to a
+  !> number of derivatives nder (max: 2). Returns the density (f),
+  !> gradient (fp, nder >= 1), and Hessian (fpp, nder >= 2). If a
+  !> fragment (fr) is given, then only the atoms in it
   !> contribute. This routine is thread-safe.
   module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
     use grid1mod, only: cgrid, agrid, grid1
@@ -877,7 +885,6 @@ contains
        (trim(string(e%x0(j) * dunit0(iunit),'f',8,4)),j=1,3)
     write (uout,'("    Search offsets: ",A)') string(e%rs_nreg)
     write (uout,'("    Maximum search offset: ",A)') string(e%rs_imax)
-    write (uout,'("    Maximum search distance: ",A)') string(e%rs_dmax,'f',8,4)
     
     idavg = 0
     idmax = 0
@@ -907,7 +914,7 @@ contains
     integer :: i, m
     integer, allocatable :: iord(:)
     integer :: i1, i2, i3, imax, nreg, iz, nregc(3)
-    real*8 :: x0(3), x1(3), dist, rcut0, rmax
+    real*8 :: x0(3), x1(3), dist, rcut0
     real*8 :: xmin(3), xmax(3), xminc(3), xmaxc(3)
 
     ! find the encompassing boxes, for the main cell
@@ -970,12 +977,9 @@ contains
     e%nrhi(iord(e%imap(e%n))) = e%n
     deallocate(iord)
 
-    ! calculate the limits of the search region
-    rmax = e%rsph_env
-    e%rs_imax = ceiling(rmax / e%boxsize - 0.5d0)
+    ! Calculate the limits of the search region
+    e%rs_imax = ceiling(e%rsph_env / e%boxsize - 0.5d0)
     e%rs_2imax1 = 2 * e%rs_imax + 1
-    rmax = 0.5d0 * e%rs_2imax1 * e%boxsize
-    e%rs_dmax = min(rmax - ctsq32 * e%boxsize,e%dmax0)
     e%rs_nreg = e%rs_2imax1**3
 
     ! Take a reference point and calculate regions around it. The
