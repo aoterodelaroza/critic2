@@ -846,7 +846,6 @@ contains
   !> thread-safe.
   module function identify_atom(c,x0,lncel0)
     use tools_io, only: ferror, faterr
-    
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3)
     logical, intent(in), optional :: lncel0

@@ -447,7 +447,7 @@ contains
     real*8 :: xx(3), x(3), dist1, dist2
     real*8 :: f1, fp1(3), fpp1(3,3)
     real*8 :: f2, fp2(3), fpp2(3,3)
-    integer :: nid1, nid2, lvec1(3), lvec2(3)
+    integer :: nid1, nid2, lvec1(3), lvec2(3), nid3, nid4
     integer :: nneig1(20), wat1(20), ierr
     real*8 :: dd1(20)
     integer :: nat, lveca(3)
@@ -588,6 +588,28 @@ contains
       !    call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
       !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
       !    write (*,*) i, abs(f1-f2)
+      ! end do
+
+      ! ! Test the identify_atom routine
+      ! do i = 1, 1000
+      !    ! test that it gives the same result as with the crystal version
+      !    call random_number(x)
+      !    call random_number(xx)
+      !    x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/1000d0)
+
+      !    nid1 = cr%identify_atom(x,.true.)
+      !    nid2 = env%identify_atom(x,icrd_cart,.true.)
+      !    nid3 = cr%identify_atom(x,.false.)
+      !    nid4 = env%identify_atom(x,icrd_cart,.false.)
+      !    write (*,*) i, abs(nid1-nid2), abs(nid3-nid4), x
+
+      !    ! ! test for not finding the atom
+      !    ! call random_number(x)
+      !    ! call random_number(xx)
+      !    ! x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/30d0)
+      !    ! nid1 = env%identify_atom(x,icrd_cart,.true.)
+      !    ! nid2 = env%identify_atom(x,icrd_cart,.false.)
+      !    ! write (*,*) i, nid1, nid2
       ! end do
 
     end associate

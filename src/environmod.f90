@@ -118,6 +118,7 @@ module environmod
      procedure :: p2i !< Region to integer region
      procedure :: c2i !< Cartesian to integer region
      ! calculation routines
+     procedure :: identify_atom !< Returns the ID of the atom at the given point (or 0 if none)
      procedure :: nearest_atom !< Returns the ID of the atom nearest to a given point
      procedure :: list_near_atoms !< Returns a list of atoms nearest to a given point
      procedure :: promolecular !< Calculates the promolecular or core density at a point
@@ -210,6 +211,13 @@ module environmod
        real*8, intent(in)  :: xx(3)
        integer :: res
      end function c2i
+     module function identify_atom(e,x0,icrd,lncel)
+       class(environ), intent(in) :: e
+       real*8, intent(in) :: x0(3)
+       integer, intent(in) :: icrd
+       logical, intent(in), optional :: lncel
+       integer :: identify_atom
+     end function identify_atom
      module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)

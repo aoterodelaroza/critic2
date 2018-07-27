@@ -376,6 +376,79 @@ contains
 
   end function c2i
 
+  !> Translate point x0 (with icrd input coordinates) to the main cell
+  !> and, if it corresponds to an atomic position (to within atomeps),
+  !> return the ID of the atom. Otherwise, return 0. If lncel is
+  !> .false. or not present, the ID is for the non-equivalent atom
+  !> list. Otherwise, it is for the complete list. This routine is
+  !> thread-safe.
+  module function identify_atom(e,x0,icrd,lncel)
+    use global, only: atomeps
+    use param, only: icrd_cart
+    class(environ), intent(in) :: e
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: icrd
+    logical, intent(in), optional :: lncel
+    integer :: identify_atom
+    
+    real*8 :: xp(3), x0r(3), x1r(3), dist, distmin
+    logical :: ln
+    integer :: ireg0(3), idx0, imin(3), imax(3), i, j, k, i1, i2, i3
+    integer :: ireg(3), idx, kmin
+
+    ! initialize
+    ln = .false.
+    if (present(lncel)) ln = lncel
+
+    ! bring the atom to the main cell, convert, identify the region
+    xp = x0
+    call e%y2z_center(xp,icrd,icrd_cart)
+    ireg0 = e%c2p(x0)
+    idx0 = e%p2i(ireg0)
+
+    ! calculate the regions to explore
+    imin = 0
+    imax = 0
+    x0r = e%x0 + e%boxsize * ireg0
+    x1r = e%x0 + e%boxsize * (ireg0+1)
+    do i = 1, 3
+       if (xp(i)-x0r(i) <= atomeps) imin(i) = -1
+       if (x1r(i)-xp(i) <= atomeps) imax(i) = 1
+    end do
+
+    ! Identify the atom
+    kmin = 0
+    distmin = 1d40
+    do i1 = imin(1), imax(1)
+       do i2 = imin(2), imax(2)
+          do i3 = imin(3), imax(3)
+             ireg = ireg0 + (/i1,i2,i3/)
+             if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
+             idx = e%p2i(ireg)
+             if (e%nrhi(idx) == 0) cycle
+             do j = e%nrlo(idx), e%nrhi(idx)
+                k = e%imap(j)
+                dist = norm2(e%at(k)%r - xp)
+                if (dist < distmin .and. dist < atomeps) then
+                   kmin = k
+                end if
+             end do
+          end do
+       end do
+    end do
+
+    ! return the atom index
+    identify_atom = 0
+    if (kmin > 0) then
+       if (ln) then
+          identify_atom = e%at(kmin)%cidx
+       else
+          identify_atom = e%at(kmin)%idx
+       end if
+    end if
+
+  end function identify_atom
+
   !> Given the point xp (in icrd coordinates), translates to the main
   !> cell and calculates the nearest atom.  The nearest atom has ID
   !> nid from the complete list (atcel) and is at a distance dist, or
