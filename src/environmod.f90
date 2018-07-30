@@ -20,7 +20,7 @@
 
 ! Atomic environment class
 module environmod
-  use types, only: anyatom, celatom, species
+  use types, only: anyatom, celatom, species, neighstar
   implicit none
 
   private
@@ -122,6 +122,7 @@ module environmod
      procedure :: nearest_atom !< Returns the ID of the atom nearest to a given point
      procedure :: list_near_atoms !< Returns a list of atoms nearest to a given point
      procedure :: promolecular !< Calculates the promolecular or core density at a point
+     procedure :: find_asterisms
      ! utility routines
      procedure :: report => environ_report !< Write a report to stdout about the environment.
   end type environ
@@ -261,6 +262,11 @@ module environmod
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
+     module subroutine find_asterisms(e,nstar,rtable)
+       class(environ), intent(in) :: e
+       type(neighstar), allocatable, intent(inout) :: nstar(:)
+       real*8, intent(in) :: rtable(:)
+     end subroutine find_asterisms
      module subroutine environ_report(e)
        class(environ), intent(in) :: e
      end subroutine environ_report

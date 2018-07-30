@@ -931,6 +931,17 @@ contains
 
   end subroutine promolecular
 
+  !> Find asterisms
+  module subroutine find_asterisms(e,nstar,rtable)
+    class(environ), intent(in) :: e
+    type(neighstar), allocatable, intent(inout) :: nstar(:)
+    real*8, intent(in) :: rtable(:)
+    
+    write (*,*) "bleh!"
+    stop 1
+
+  end subroutine find_asterisms
+
   !> Write a report about the environment to stdout
   module subroutine environ_report(e)
     use global, only: iunitname0, dunit0, iunit
