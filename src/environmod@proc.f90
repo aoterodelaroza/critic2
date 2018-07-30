@@ -529,20 +529,21 @@ contains
   !> Given the point xp (in icrd coordinates), center the point in the
   !> main cell and calculate the list of nearest atoms. If sorted is
   !> true, the list is sorted by distance and shell (if up2n or up2sh
-  !> is used, the list is always sorted). The output list contains nat
-  !> atoms with IDs nid(1:nat) from the environment, distances to the
-  !> input point equal to dist(1:nat) and lattice vector lvec in
+  !> is used, the list is always sorted). The output list eid contains
+  !> nat atoms with IDs nid(1:nat) from the environment, distances to
+  !> the input point equal to dist(1:nat) and lattice vector lvec in
   !> cryst. coords. The position of atom i in cryst. coords. is
   !> e%at(nid(i))%x + lvec. Optionally, ishell0(i) contains the shell
   !> ID for atom i in the output list. One or more of four cutoff
-  !> criteria must be chosen: list up to a distance up2d, list up to a
-  !> species-dependent distance (up2dsp), up to a number of shells
-  !> up2sh or up to a number of atoms up2n. If nid0, consider only
-  !> atoms with index nid0 from the non-equivalent list. If id0,
-  !> consider only atoms with index id0 from the complete list. If
-  !> nozero, disregard zero-distance atoms. The output error
-  !> condition ierr is 0 if the search was successful or non-zero if the
-  !> input search conditions could not be met by this environment.
+  !> criteria must be chosen: list up to a distance up2d, between a
+  !> minimum and a maximum species-dependent distance (up2dsp), up to
+  !> a number of shells up2sh or up to a number of atoms up2n. If
+  !> nid0, consider only atoms with index nid0 from the non-equivalent
+  !> list. If id0, consider only atoms with index id0 from the
+  !> complete list. If nozero, disregard zero-distance atoms. The
+  !> output error condition ierr is 0 if the search was successful or
+  !> non-zero if the input search conditions could not be met by this
+  !> environment.
   module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
@@ -560,7 +561,7 @@ contains
     integer, intent(out) :: ierr
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
-    real*8, intent(in), optional :: up2dsp(:)
+    real*8, intent(in), optional :: up2dsp(:,:)
     integer, intent(in), optional :: up2sh
     integer, intent(in), optional :: up2n
     integer, intent(in), optional :: nid0
@@ -605,7 +606,7 @@ contains
     if (doshell) then
        allocate(ishell(10),rshel(10),idxshel(10))
     end if
-    if (present(up2dsp)) up2rmax = maxval(up2dsp(1:e%nspc))
+    if (present(up2dsp)) up2rmax = maxval(up2dsp(1:e%nspc,2))
 
     ! Run over search regions around ireg0 and over atoms belonging to
     ! those regions. Use the sorted search data in the rs_* variables.
@@ -641,7 +642,7 @@ contains
                 if (dist0 > up2d) cycle
              end if
              if (present(up2dsp)) then
-                if (dist0 > up2dsp(e%at(k)%is)) cycle
+                if (dist0 < up2dsp(e%at(k)%is,1) .or. dist0 > up2dsp(e%at(k)%is,2)) cycle
              end if
 
              ! Add this atom to the list (contains section subroutine) and update rcutn.
@@ -840,7 +841,7 @@ contains
     type(grid1), pointer :: g
     integer :: nat, lvec(3)
     integer, allocatable :: nid(:)
-    real*8, allocatable :: dist(:), rcutmax(:)
+    real*8, allocatable :: dist(:), rcutmax(:,:)
     logical, allocatable :: isinfr(:)
 
     f = 0d0
@@ -861,7 +862,7 @@ contains
     call e%y2z_center(xc,icrd,icrd_cart)
 
     ! compute the list of atoms that contribute to the point
-    allocate(rcutmax(e%nspc))
+    allocate(rcutmax(e%nspc,2))
     rcutmax = 0d0
     do i = 1, e%nspc
        iz = e%spc(i)%z
@@ -871,7 +872,7 @@ contains
        else
           g => agrid(iz)
        end if
-       rcutmax(i) = min(cutrad(iz),g%rmax)
+       rcutmax(i,2) = min(cutrad(iz),g%rmax)
     end do
     call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,ierr,up2dsp=rcutmax)
     rlvec = lvec
@@ -932,13 +933,53 @@ contains
   end subroutine promolecular
 
   !> Find asterisms
-  module subroutine find_asterisms(e,nstar,rtable)
+  module subroutine find_asterisms(e,nstar,rtable,etol)
+    use param, only: icrd_cart
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, intent(in) :: rtable(:)
+    real*8, intent(in) :: etol
     
-    write (*,*) "bleh!"
-    stop 1
+    integer :: i, j, iz, ierr, lvec(3), nat
+    real*8, allocatable :: d0sp(:), dsp(:,:), dist(:)
+    integer, allocatable :: eid(:)
+
+    if (allocated(nstar)) deallocate(nstar)
+    allocate(nstar(e%ncell))
+    
+    ! build the table of radii for the species
+    allocate(d0sp(e%nspc),dsp(e%nspc,2))
+    d0sp = 0d0
+    do i = 1, e%nspc
+       iz = e%spc(i)%z
+       if (iz > 0) then
+          d0sp(i) = rtable(iz)
+       else
+          d0sp(i) = -1d40
+       end if
+    end do
+
+    do i = 1, e%ncell
+       iz = e%spc(e%at(i)%is)%z
+       nstar(i)%ncon = 0
+       if (iz > 0) then
+          dsp(:,1) = d0sp + rtable(iz) - (etol + 1d-10)
+          dsp(:,2) = d0sp + rtable(iz) + (etol + 1d-10)
+          call e%list_near_atoms(e%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2dsp=dsp,nozero=.true.)
+
+          if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
+          if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
+
+          if (nat > 0) then
+             allocate(nstar(i)%idcon(nat),nstar(i)%lcon(3,nat))
+             nstar(i)%ncon = nat
+             do j = 1, nat
+                nstar(i)%idcon(j) = e%at(eid(j))%cidx
+                nstar(i)%lcon(:,j) = e%at(eid(j))%lvec + lvec
+             end do
+          end if
+       end if
+    end do
 
   end subroutine find_asterisms
 

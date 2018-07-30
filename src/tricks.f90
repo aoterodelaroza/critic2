@@ -441,7 +441,7 @@ contains
   subroutine trick_test_environment()
     use systemmod, only: sy
     use tools_io, only: uout, string, tictac
-    use param, only: icrd_cart, icrd_crys, icrd_rcrys
+    use param, only: icrd_cart, icrd_crys, icrd_rcrys, atmcov, bohrtoa
     
     integer :: i, j
     real*8 :: xx(3), x(3), dist1, dist2
@@ -611,6 +611,28 @@ contains
       !    ! nid2 = env%identify_atom(x,icrd_cart,.false.)
       !    ! write (*,*) i, nid1, nid2
       ! end do
+
+      ! ! find asterisms
+      ! write (*,*) "old asterisms:"
+      ! do i = 1, cr%ncel
+      !    write (*,*) "atom ", i, " is bonded to ", cr%nstar(i)%ncon
+      !    do j = 1, cr%nstar(i)%ncon
+      !       write (*,*) "-", cr%nstar(i)%idcon(j), " (", cr%nstar(i)%lcon(:,j), ")"
+      !    end do
+      ! end do
+      ! write (*,*) "new asterisms:"
+      ! call env%find_asterisms(cr%nstar,atmcov,0.4d0/bohrtoa)
+      ! do i = 1, cr%ncel
+      !    write (*,*) "atom ", i, " is bonded to ", cr%nstar(i)%ncon
+      !    do j = 1, cr%nstar(i)%ncon
+      !       write (*,*) "-", cr%nstar(i)%idcon(j), " (", cr%nstar(i)%lcon(:,j), ")"
+      !    end do
+      ! end do
+
+      ! find asterisms, timing info
+      call tictac("1")
+      call env%find_asterisms(cr%nstar,atmcov,0.4d0/bohrtoa)
+      call tictac("2")
 
     end associate
 

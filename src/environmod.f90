@@ -52,7 +52,7 @@ module environmod
   !>   %is - species
   !>   %idx - id from the non-equivalent list
   !>   %cidx - id from the complete list
-  !>   %lvec - atcel(%cidx)%x + %lenv = xr2x(%x)
+  !>   %lvec - atcel(%cidx)%x + %lvec = xr2x(%x)
   !>
   !> To perform atomic distance calculations, the atoms are ordered by their region index (i coordinate) in the array e%imap.
   !> If k runs from 1 to e%n, c2i(at(imap(k))%r) is in ascending order. If l is a region, k1 = nrlo(l) and k2 = nrup(l)
@@ -243,7 +243,7 @@ module environmod
        integer, intent(out) :: ierr
        integer, allocatable, intent(inout), optional :: ishell0(:)
        real*8, intent(in), optional :: up2d
-       real*8, intent(in), optional :: up2dsp(:)
+       real*8, intent(in), optional :: up2dsp(:,:)
        integer, intent(in), optional :: up2sh
        integer, intent(in), optional :: up2n
        integer, intent(in), optional :: nid0
@@ -262,10 +262,11 @@ module environmod
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
-     module subroutine find_asterisms(e,nstar,rtable)
+     module subroutine find_asterisms(e,nstar,rtable,etol)
        class(environ), intent(in) :: e
        type(neighstar), allocatable, intent(inout) :: nstar(:)
        real*8, intent(in) :: rtable(:)
+       real*8, intent(in) :: etol
      end subroutine find_asterisms
      module subroutine environ_report(e)
        class(environ), intent(in) :: e
