@@ -122,7 +122,8 @@ module environmod
      procedure :: nearest_atom !< Returns the ID of the atom nearest to a given point
      procedure :: list_near_atoms !< Returns a list of atoms nearest to a given point
      procedure :: promolecular !< Calculates the promolecular or core density at a point
-     procedure :: find_asterisms
+     procedure :: find_asterisms_covalent !< Calculate the covalent bond connectivity
+     procedure :: find_asterisms_listatoms !< Calculate the connectivity with arbitrary radii/tolerance
      ! utility routines
      procedure :: report => environ_report !< Write a report to stdout about the environment.
   end type environ
@@ -262,12 +263,16 @@ module environmod
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
-     module subroutine find_asterisms(e,nstar,rtable,etol)
+     module subroutine find_asterisms_covalent(e,nstar)
+       class(environ), intent(in) :: e
+       type(neighstar), allocatable, intent(inout) :: nstar(:)
+     end subroutine find_asterisms_covalent
+     module subroutine find_asterisms_listatoms(e,nstar,rtable,factor)
        class(environ), intent(in) :: e
        type(neighstar), allocatable, intent(inout) :: nstar(:)
        real*8, intent(in) :: rtable(:)
-       real*8, intent(in) :: etol
-     end subroutine find_asterisms
+       real*8, intent(in) :: factor
+     end subroutine find_asterisms_listatoms
      module subroutine environ_report(e)
        class(environ), intent(in) :: e
      end subroutine environ_report

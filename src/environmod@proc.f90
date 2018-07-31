@@ -60,7 +60,7 @@ contains
   module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
     use tools_math, only: matinv
     use types, only: realloc, celatom
-    use param, only: atmcov, bohrtoa
+    use param, only: atmcov
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
@@ -78,14 +78,14 @@ contains
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
 
-    ! calculate the boxsize
+    ! calculate the boxsize, maximum bondfactor of 2.0
     dmax = 0d0
     do i = 1, nspc
        if (spc(i)%z > 0) then
           dmax = max(dmax,atmcov(spc(i)%z))
        end if
     end do
-    e%boxsize = max(boxsize_default,2d0*dmax + 0.4d0/bohrtoa + 1d-10)
+    e%boxsize = max(boxsize_default,4d0*dmax + 1d-10)
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
@@ -162,7 +162,7 @@ contains
           dmax = max(dmax,atmcov(spc(i)%z))
        end if
     end do
-    e%boxsize = max(boxsize_default,2d0*dmax + 0.4d0/bohrtoa + 1d-10)
+    e%boxsize = max(boxsize_default,4d0*dmax + 1d-10)
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
@@ -951,15 +951,16 @@ contains
 
   end subroutine promolecular
 
-  !> Find asterisms
-  module subroutine find_asterisms(e,nstar,rtable,etol)
-    use global, only: atomeps
+  !> Find the covalent bond connectivity and return the bonds in the
+  !> nstar array. To use this routine it is necessary that the boxsize
+  !> is larger than the maximum covalent distance plus the tolerance.
+  subroutine find_asterisms_covalent(e,nstar)
+    use global, only: atomeps, bondfactor
+    use tools_io, only: ferror, faterr
     use types, only: realloc
-    use param, only: icrd_cart
+    use param, only: icrd_cart, atmcov
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
-    real*8, intent(in) :: rtable(:)
-    real*8, intent(in) :: etol
     
     integer :: i, j, imin(3), imax(3)
     real*8 :: xmin(3), xmax(3), x0(3), dist2, ri, rj, rij2, r2
@@ -980,20 +981,23 @@ contains
     
     ! pre-calculate the distance^2 matrix
     allocate(rij2(e%nspc,e%nspc,2))
+    rij2 = 0d0
     do i = 1, e%nspc
-       ri = rtable(e%spc(i)%z)
+       ri = atmcov(e%spc(i)%z)
        do j = 1, e%nspc
-          rj = rtable(e%spc(j)%z)
+          rj = atmcov(e%spc(j)%z)
           
-          r2 = ri+rj+etol+1d-10
+          r2 = (ri+rj) * bondfactor
           rij2(i,j,2) = r2*r2
           rij2(j,i,2) = rij2(i,j,2)
 
-          r2 = ri+rj-(etol+1d-10)
+          r2 = ri+rj / bondfactor
           rij2(i,j,1) = r2*r2
           rij2(j,i,1) = rij2(i,j,1)
        end do
     end do
+    if (sqrt(maxval(rij2)) > e%boxsize) &
+       call ferror("find_asterisms_covalent","boxsize too small for find_asterisms_covalent",faterr)
 
     ! find the first and last region that cover the unit cell
     xmin = 1d40
@@ -1005,7 +1009,7 @@ contains
     imin = e%c2p(xmin)
     imax = e%c2p(xmax)
 
-    ! run over atoms in the unit cell
+    ! run over atoms in the unit cell and build the connectivity star
     do ki = 1, e%ncell
        p0 = e%c2p(e%at(ki)%r)
        idx0 = e%p2i(p0)
@@ -1050,7 +1054,62 @@ contains
        end if
     end do
 
-  end subroutine find_asterisms
+  end subroutine find_asterisms_covalent
+
+  !> Find the bond connectivity using the radii in rtable (bohr) and a
+  !> tolerance factor. rtable is indexed with the atomic number.
+  !> Return the bonds in the nstar array. This routine can be used
+  !> regardless of boxsize but is slower than find_asterisms_covalent.
+  subroutine find_asterisms_listatoms(e,nstar,rtable,factor)
+    use param, only: icrd_cart
+    class(environ), intent(in) :: e
+    type(neighstar), allocatable, intent(inout) :: nstar(:)
+    real*8, intent(in) :: rtable(:)
+    real*8, intent(in) :: factor
+    
+    integer :: i, j, iz, ierr, lvec(3), nat
+    real*8, allocatable :: d0sp(:), dsp(:,:), dist(:)
+    integer, allocatable :: eid(:)
+
+    if (allocated(nstar)) deallocate(nstar)
+    allocate(nstar(e%ncell))
+    
+    ! build the table of radii for the species
+    allocate(d0sp(e%nspc),dsp(e%nspc,2))
+    d0sp = 0d0
+    do i = 1, e%nspc
+       iz = e%spc(i)%z
+       if (iz > 0) then
+          d0sp(i) = rtable(iz)
+       else
+          d0sp(i) = -1d40
+       end if
+    end do
+
+    ! list the neighbors for each atom in the unit cell and build the stars
+    do i = 1, e%ncell
+       iz = e%spc(e%at(i)%is)%z
+       nstar(i)%ncon = 0
+       if (iz > 0) then
+          dsp(:,1) = (d0sp + rtable(iz)) * factor
+          dsp(:,2) = (d0sp + rtable(iz)) / factor
+          call e%list_near_atoms(e%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2dsp=dsp,nozero=.true.)
+
+          if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
+          if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
+
+          if (nat > 0) then
+             allocate(nstar(i)%idcon(nat),nstar(i)%lcon(3,nat))
+             nstar(i)%ncon = nat
+             do j = 1, nat
+                nstar(i)%idcon(j) = e%at(eid(j))%cidx
+                nstar(i)%lcon(:,j) = e%at(eid(j))%lvec + lvec
+             end do
+          end if
+       end if
+    end do
+
+  end subroutine find_asterisms_listatoms
 
   !> Write a report about the environment to stdout
   module subroutine environ_report(e)

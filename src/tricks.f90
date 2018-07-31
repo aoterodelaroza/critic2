@@ -621,7 +621,7 @@ contains
       !    end do
       ! end do
       ! write (*,*) "new asterisms:"
-      ! call env%find_asterisms(cr%nstar,atmcov,0.4d0/bohrtoa)
+      ! call env%find_asterisms_covalent(cr%nstar)
       ! do i = 1, cr%ncel
       !    write (*,*) "atom ", i, " is bonded to ", cr%nstar(i)%ncon
       !    do j = 1, cr%nstar(i)%ncon
@@ -629,10 +629,11 @@ contains
       !    end do
       ! end do
 
-      ! ! find asterisms, timing info
-      ! call tictac("1")
-      ! call env%find_asterisms(cr%nstar,atmcov,0.4d0/bohrtoa)
-      ! call tictac("2")
+      ! find asterisms, timing info
+      call env%report()
+      call tictac("1")
+      call env%find_asterisms_covalent(cr%nstar)
+      call tictac("2")
 
     end associate
 

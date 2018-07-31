@@ -255,6 +255,7 @@ contains
        ok = isreal(bondfactor,line,lp)
        if (.not.ok) &
           call ferror('critic_setvariables','Wrong bondfactor',faterr,line,syntax=.true.)
+       bondfactor = min(bondfactor,2.0d0)
        call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)
