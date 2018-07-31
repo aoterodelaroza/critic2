@@ -125,6 +125,8 @@ int main(int argc, char *argv[]){
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
+    static bool first = true;
+
     // New frame
     ImGui_ImplGlfwGL3_ResetKeyMouseEvents();
     glfwPollEvents();
@@ -165,7 +167,6 @@ int main(int argc, char *argv[]){
     MessageDispatch();
 
     // Dock everything in the first pass and set default sizes
-    static bool first = true;
     if (first){
       first = false;
 

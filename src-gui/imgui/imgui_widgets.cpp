@@ -63,6 +63,21 @@ static float tooltip_lastactive = 0.f;
 // Variable for the widget styles
 ImGuiStyleWidgets_ ImGuiStyleWidgets;
 
+// Helper functions //
+ImVec4 OpaqueColor(ImGuiCol_ color, float newalpha){
+  ImGuiContext *g = ImGui::GetCurrentContext();
+  ImVec4 col = g->Style.Colors[color];
+  col.w = newalpha;
+  return col;
+}
+ImVec4 TransparentColor(ImGuiCol_ color){
+  const float small_alpha = 1e-15;
+  ImGuiContext *g = ImGui::GetCurrentContext();
+  ImVec4 col = g->Style.Colors[color];
+  col.w = small_alpha;
+  return col;
+}
+
 // Function definitions //
 
 bool ImGui::IsMouseHoveringConvexPoly(const ImVec2* points, const int num_points){
