@@ -629,10 +629,10 @@ contains
       !    end do
       ! end do
 
-      ! find asterisms, timing info
-      call tictac("1")
-      call env%find_asterisms(cr%nstar,atmcov,0.4d0/bohrtoa)
-      call tictac("2")
+      ! ! find asterisms, timing info
+      ! call tictac("1")
+      ! call env%find_asterisms(cr%nstar,atmcov,0.4d0/bohrtoa)
+      ! call tictac("2")
 
     end associate
 

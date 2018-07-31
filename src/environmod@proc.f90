@@ -21,7 +21,7 @@ submodule (environmod) proc
 
   integer, parameter :: menv0 = 10
 
-  real*8 :: boxsize_default = 4 ! length of the region side (bohr)
+  real*8 :: boxsize_default = 4.0 ! length of the region side (bohr)
 
   !xx! private procedures
   ! subroutine calculate_regions(e)
@@ -60,6 +60,7 @@ contains
   module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
     use tools_math, only: matinv
     use types, only: realloc, celatom
+    use param, only: atmcov, bohrtoa
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
@@ -70,12 +71,21 @@ contains
     real*8, intent(in) :: m_x2c(3,3)
 
     integer :: i 
-    real*8 :: sphmax, rmin(3), rmax(3)
+    real*8 :: sphmax, rmin(3), rmax(3), dmax
 
     e%ismolecule = .true.
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
+
+    ! calculate the boxsize
+    dmax = 0d0
+    do i = 1, nspc
+       if (spc(i)%z > 0) then
+          dmax = max(dmax,atmcov(spc(i)%z))
+       end if
+    end do
+    e%boxsize = max(boxsize_default,2d0*dmax + 0.4d0/bohrtoa + 1d-10)
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
@@ -125,6 +135,7 @@ contains
     use global, only: cutrad
     use tools_math, only: matinv
     use types, only: realloc, species, celatom
+    use param, only: atmcov, bohrtoa
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
@@ -140,10 +151,18 @@ contains
     integer :: i1, i2, i3, i, imax, i3min
 
     e%ismolecule = .false.
-    e%boxsize = boxsize_default
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
+
+    ! calculate the boxsize
+    dmax = 0d0
+    do i = 1, nspc
+       if (spc(i)%z > 0) then
+          dmax = max(dmax,atmcov(spc(i)%z))
+       end if
+    end do
+    e%boxsize = max(boxsize_default,2d0*dmax + 0.4d0/bohrtoa + 1d-10)
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
@@ -934,50 +953,100 @@ contains
 
   !> Find asterisms
   module subroutine find_asterisms(e,nstar,rtable,etol)
+    use global, only: atomeps
+    use types, only: realloc
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, intent(in) :: rtable(:)
     real*8, intent(in) :: etol
     
-    integer :: i, j, iz, ierr, lvec(3), nat
-    real*8, allocatable :: d0sp(:), dsp(:,:), dist(:)
-    integer, allocatable :: eid(:)
+    integer :: i, j, imin(3), imax(3)
+    real*8 :: xmin(3), xmax(3), x0(3), dist2, ri, rj, rij2, r2
+    integer :: i1, i2, i3, p0(3), p1(3), idx0, idx1
+    integer :: j1, j2, j3, ki, kj, iz, is, js
+    real*8, allocatable :: rij2(:,:,:)
 
+    ! allocate the asterism arrays
     if (allocated(nstar)) deallocate(nstar)
     allocate(nstar(e%ncell))
+    do i = 1, e%ncell
+       nstar(i)%ncon = 0
+       if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
+       if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
+       allocate(nstar(i)%idcon(20))
+       allocate(nstar(i)%lcon(3,20))
+    end do
     
-    ! build the table of radii for the species
-    allocate(d0sp(e%nspc),dsp(e%nspc,2))
-    d0sp = 0d0
+    ! pre-calculate the distance^2 matrix
+    allocate(rij2(e%nspc,e%nspc,2))
     do i = 1, e%nspc
-       iz = e%spc(i)%z
-       if (iz > 0) then
-          d0sp(i) = rtable(iz)
-       else
-          d0sp(i) = -1d40
-       end if
+       ri = rtable(e%spc(i)%z)
+       do j = 1, e%nspc
+          rj = rtable(e%spc(j)%z)
+          
+          r2 = ri+rj+etol+1d-10
+          rij2(i,j,2) = r2*r2
+          rij2(j,i,2) = rij2(i,j,2)
+
+          r2 = ri+rj-(etol+1d-10)
+          rij2(i,j,1) = r2*r2
+          rij2(j,i,1) = rij2(i,j,1)
+       end do
     end do
 
+    ! find the first and last region that cover the unit cell
+    xmin = 1d40
+    xmax = -1d40
     do i = 1, e%ncell
-       iz = e%spc(e%at(i)%is)%z
-       nstar(i)%ncon = 0
-       if (iz > 0) then
-          dsp(:,1) = d0sp + rtable(iz) - (etol + 1d-10)
-          dsp(:,2) = d0sp + rtable(iz) + (etol + 1d-10)
-          call e%list_near_atoms(e%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2dsp=dsp,nozero=.true.)
+       xmin = min(xmin,e%at(i)%r)
+       xmax = max(xmax,e%at(i)%r)
+    end do
+    imin = e%c2p(xmin)
+    imax = e%c2p(xmax)
 
-          if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
-          if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
+    ! run over atoms in the unit cell
+    do ki = 1, e%ncell
+       p0 = e%c2p(e%at(ki)%r)
+       idx0 = e%p2i(p0)
+       is = e%at(ki)%is
+       if (e%spc(is)%z == 0) cycle
 
-          if (nat > 0) then
-             allocate(nstar(i)%idcon(nat),nstar(i)%lcon(3,nat))
-             nstar(i)%ncon = nat
-             do j = 1, nat
-                nstar(i)%idcon(j) = e%at(eid(j))%cidx
-                nstar(i)%lcon(:,j) = e%at(eid(j))%lvec + lvec
+       do j1 = -1, 1
+          do j2 = -1, 1
+             do j3 = -1, 1
+                p1 = p0 + (/j1,j2,j3/)
+                if (any(p1 < e%nmin .or. p1 > e%nmax)) cycle
+                idx1 = e%p2i(p1)
+
+                do j = e%nrlo(idx1), e%nrhi(idx1)
+                   kj = e%imap(j)
+                   js = e%at(kj)%is
+                   if (e%spc(js)%z == 0) cycle
+
+                   x0 = e%at(ki)%r - e%at(kj)%r
+                   dist2 = x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)
+                   if (dist2 >= rij2(is,js,1) .and. dist2 <= rij2(is,js,2)) then
+                      nstar(ki)%ncon = nstar(ki)%ncon + 1
+                      if (nstar(ki)%ncon > size(nstar(ki)%idcon,1)) then
+                         call realloc(nstar(ki)%idcon,2*nstar(ki)%ncon)
+                         call realloc(nstar(ki)%lcon,3,2*nstar(ki)%ncon)
+                      end if
+                      nstar(ki)%idcon(nstar(ki)%ncon) = e%at(kj)%cidx
+                      nstar(ki)%lcon(:,nstar(ki)%ncon) = e%at(kj)%lvec
+                   end if
+                end do
+
              end do
-          end if
+          end do
+       end do
+    end do
+
+    ! reallocate the asterism arrays
+    do i = 1, e%ncell
+       if (nstar(i)%ncon > 0) then
+          call realloc(nstar(i)%idcon,nstar(i)%ncon)
+          call realloc(nstar(i)%lcon,3,nstar(i)%ncon)
        end if
     end do
 
@@ -1064,7 +1133,7 @@ contains
        xmax = max(xmax,e%at(i)%r)
     end do
 
-    ! determine the box size - cap it at around 100^3 boxes
+    ! cap the box size at around 100^3 boxes
     e%boxsize = max(boxsize_default,2d0*e%rsph_env/100d0)
 
     ! calculate the position of the origin and the region partition
