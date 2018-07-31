@@ -1995,12 +1995,15 @@ contains
 
   !> Calculate the radial distribution function.  On input, npts is
   !> the number of bins points from the initial (0) to the final
-  !> (rend) distance. On output, t is the distance grid, and ih is the
-  !> value of the RDF. This routine is based on:
+  !> (rend) distance and sigma is the Gaussian broadening of the
+  !> peaks. On output, t is the distance grid, and ih is the value of
+  !> the RDF. This routine is based on:
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges.
   module subroutine rdf(c,rend,sigma,npts,t,ih)
+    use param, only: icrd_cart
+    use environmod, only: environ
     class(crystal), intent(in) :: c
     real*8, intent(in) :: rend
     real*8, intent(in) :: sigma
@@ -2008,8 +2011,12 @@ contains
     real*8, allocatable, intent(inout) :: t(:)
     real*8, allocatable, intent(inout) :: ih(:)
 
-    integer :: i, j
-    real*8 :: d, hfac, int, sigma2, xi(3)
+    integer :: i, j, nat, lvec(3), ierr, iz, jz
+    real*8 :: hfac, int, sigma2
+    logical :: localenv
+    type(environ) :: le
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
 
     sigma2 = sigma * sigma
 
@@ -2022,35 +2029,48 @@ contains
     end do
     ih = 0d0
 
+    ! prepare the environment
+    localenv = .true.
+    if (c%isenv) then
+       if (c%ismolecule .or. c%env%dmax0 > rend) then
+          localenv = .false.
+       end if
+    end if
+    if (localenv) then
+       if (c%ismolecule) then
+          call le%build_mol(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+       else
+          call le%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c,rend+1d-10)
+       end if
+    end if
+
     ! calculate the radial distribution function for the crystal
     ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%env%n sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
     hfac = (npts-1) / rend
-    if (.not.c%ismolecule) then
-       do i = 1, c%nneq
-          xi = c%x2xr(c%at(i)%x)
-          xi = xi - floor(xi)
-          xi = c%xr2c(xi)
-          do j = 1, c%env%n
-             d = norm2(xi - c%env%at(j)%r)
-             if (d < 1d-10 .or. d > rend) cycle
-             int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%env%at(j)%is)%z,8))
-             ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
-          end do
+    do i = 1, c%nneq
+       iz = c%spc(c%at(i)%is)%z
+       if (localenv) then
+          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend,nozero=.true.)
+       else
+          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend,nozero=.true.)
+       end if
+
+       do j = 1, nat
+          if (localenv) then
+             jz = le%spc(le%at(eid(j))%is)%z
+          else
+             jz = c%env%spc(c%env%at(eid(j))%is)%z
+          end if
+          int = sqrt(real(iz * jz,8)) * c%at(i)%mult
+          ih = ih + int * exp(-(t - dist(j))**2 / 2d0 / sigma2)
        end do
+    end do
+    if (.not.c%ismolecule) then
        do i = 2, npts
           ih(i) = ih(i) / t(i)**2
        end do
-       ih = ih / c%nneq
-    else
-       do i = 1, c%nneq
-          do j = 1, c%ncel
-             d = norm2(c%at(i)%r - c%atcel(j)%r)
-             if (d < 1d-10 .or. d > rend) cycle
-             int = sqrt(real(c%spc(c%at(i)%is)%z * c%spc(c%atcel(j)%is)%z,8))
-             ih = ih + int * exp(-(t - d)**2 / 2d0 / sigma2)
-          end do
-       end do
-    endif
+       ih = ih / c%ncel
+    end if
 
   end subroutine rdf
 
