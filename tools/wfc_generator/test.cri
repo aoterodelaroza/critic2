@@ -1,0 +1,6 @@
+crystal
+ cell 100 100 100 90 90 90
+ Pu 0 0 0
+endcrystal
+x = 0.2
+line 0 0 0 0 0 x 301 file blehref.txt
