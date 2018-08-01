@@ -125,12 +125,9 @@ contains
     ! the crystal is not initialized until struct_fill is run
     c%file = ""
     c%isinit = .false. 
-    c%isenv = .false. 
     c%havesym = 0 
-    c%isast = .false. 
     c%isewald = .false. 
     c%isrecip = .false. 
-    c%isnn = .false. 
 
   end subroutine struct_init
 
@@ -143,55 +140,34 @@ contains
   !> set. If crash=.false., take the necessary steps to initialize the
   !> crystal flags that are .true.  This routine is thread-safe if
   !> crash = .true.
-  module subroutine checkflags(c,crash,env0,ast0,recip0,nn0,ewald0)
+  module subroutine checkflags(c,crash,recip0,ewald0)
     use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     logical :: crash
-    logical, intent(in), optional :: env0
-    logical, intent(in), optional :: ast0
     logical, intent(in), optional :: recip0
-    logical, intent(in), optional :: nn0
     logical, intent(in), optional :: ewald0
 
-    logical :: env, ast, recip, nn, ewald
-    integer :: iast
+    logical :: recip, ewald
     character(len=:), allocatable :: reason
     logical :: lflag(5)
 
     ! initialize optional arguments
-    env = .false.
-    if (present(env0)) env = env0
-    ast = .false.
-    if (present(ast0)) ast = ast0
     recip = .false.
     if (present(recip0)) recip = recip0
-    nn = .false.
-    if (present(nn0)) nn = nn0
     ewald = .false.
     if (present(ewald0)) ewald = ewald0
 
     lflag = .false.
-    if (env .and. .not.c%isenv) lflag(1) = .true.
-    if (ast .and. .not.c%isast) lflag(2) = .true.
     if (recip .and. .not.c%isrecip) lflag(3) = .true.
-    if (nn .and. .not.c%isnn) lflag(4) = .true.
     if (ewald .and. .not.c%isewald) lflag(5) = .true.
 
     if (any(lflag)) then
        if (crash) then
-          if (lflag(1)) reason = "atomic environments not determined for this crystal"
-          if (lflag(2)) reason = "molecular connectivity has not been calculated"
           if (lflag(3)) reason = "reciprocal cell metrics and symmetry not determined"
-          if (lflag(4)) reason = "nearest-neighbor information not available"
           if (lflag(5)) reason = "ewald cutoffs not available"
           call ferror('checkflags',reason,faterr)
        else
-          if (lflag(2)) then
-             iast = 1
-          else
-             iast = 0
-          end if
-          call c%struct_fill(lflag(1),iast,lflag(3),lflag(4),lflag(5))
+          call c%struct_fill(lflag(3),lflag(5))
        end if
     end if
 
@@ -213,12 +189,9 @@ contains
     if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
     call c%env%end()
     c%isinit = .false.
-    c%isenv = .false. 
     c%havesym = 0
-    c%isast = .false. 
     c%isewald = .false. 
     c%isrecip = .false. 
-    c%isnn = .false. 
     c%file = ""
     c%nspc = 0
     c%nneq = 0
@@ -247,15 +220,15 @@ contains
        det, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
-    use param, only: pi, eyet
+    use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
     
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3)
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
     logical :: good, hasspg
     integer :: i, j, iat
-    real*8, allocatable :: atpos(:,:)
+    real*8, allocatable :: atpos(:,:), rnn2(:)
     integer, allocatable :: irotm(:), icenv(:)
 
     if (.not.seed%isused) then
@@ -524,6 +497,28 @@ contains
        call grid1_register_ae(c%spc(i)%z)
     end do
 
+    ! Build the atomic environments
+    if (c%ismolecule) then
+       call c%env%build_mol(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+    else
+       call c%env%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+    end if
+
+    ! Find the atomic connectivity and the molecular fragments
+    call c%env%find_asterisms_covalent(c%nstar,rnn2)
+    call c%fill_molecular_fragments()
+
+    ! Write the half nearest-neighbor distance
+    do i = 1, c%nneq
+       if (rnn2(i) > 0d0) then
+          c%at(i)%rnn2 = 0.5d0 * rnn2(i)
+       else
+          call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
+          c%at(i)%rnn2 = 0.5d0 * dist 
+       end if
+    end do
+    if (allocated(rnn2)) deallocate(rnn2)
+
     ! the initialization is done - this crystal is ready to use
     c%file = seed%file
     c%isinit = .true.
@@ -537,44 +532,16 @@ contains
   !> small crystals.  If recip0, determine the reciprocal cell metrics
   !> and symmetry.  If lnn0, determine the nearest-neighbor
   !> information. If ewald0, calculate the cutoffs for Ewald method.
-  module subroutine struct_fill(c,env0,iast0,recip0,lnn0,ewald0)
-    use global, only: crsmall
-
+  module subroutine struct_fill(c,recip0,ewald0)
     class(crystal), intent(inout) :: c
-    integer :: iast0
-    logical, intent(in) :: env0, recip0, lnn0, ewald0
+    logical, intent(in) :: recip0, ewald0
 
-    logical :: env, ast, recip, lnn, ewald
-    integer :: i
+    logical :: recip, ewald
     real*8 :: vec(3)
-    real*8 :: dist(1)
-    integer :: nneig(1), wat(1)
 
     ! Handle input flag dependencies
-    env = env0
-    if (iast0 == 1) then
-       ast = .true.
-    elseif (iast0 == 0) then
-       ast = .false.
-    else
-       ast = (c%nneq <= crsmall)
-    end if
     recip = recip0
-    lnn = lnn0
     ewald = ewald0
-
-    ! nearest-neighbor shells requires environment
-    if (lnn) env = .true.
-
-    ! Build the atomic environments
-    if (env) then
-       if (c%ismolecule) then
-          call c%env%build_mol(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-       else
-          call c%env%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-       end if
-       c%isenv = .true.
-    end if
 
     ! Reciprocal cell symmetry
     if (recip) then
@@ -582,22 +549,6 @@ contains
        vec = 0d0
        call lattpg(c%m_c2x,1,vec,c%neqvg,c%rotg)
        c%isrecip = .true.
-    end if
-
-    ! asterisms 
-    if (ast) then
-       call c%find_asterisms()
-       c%isast = .true.
-       call c%fill_molecular_fragments()
-    end if
-
-    ! nearest neighbors
-    if (lnn) then
-       do i = 1, c%nneq
-          call c%pointshell(c%at(i)%x,1,nneig,wat,dist)
-          c%at(i)%rnn2 = dist(1) / 2d0
-       end do
-       c%isnn = .true.
     end if
 
     ! preparation for ewald 
@@ -1048,96 +999,6 @@ contains
 
   end function get_mult_reciprocal
 
-  !> Find asterisms. For every atom in the unit cell, find the atoms in the 
-  !> main cell or adjacent cells that are connected to it. 
-  module subroutine find_asterisms(c)
-    use global, only: bondfactor
-    use param, only: atmcov, vsmall
-    use types, only: realloc
-
-    class(crystal), intent(inout) :: c
-
-    integer :: i, j, k
-    real*8 :: rvws(3), x0(3), dist, dist2
-    real*8 :: d0
-    integer :: lvec0(3), lvec(3)
-
-    if (allocated(c%nstar)) deallocate(c%nstar)
-    if (.not.allocated(c%nstar)) allocate(c%nstar(c%ncel))
-
-    ! allocate the neighbor star
-    do i = 1, c%ncel
-       allocate(c%nstar(i)%idcon(4))
-       allocate(c%nstar(i)%lcon(3,4))
-    end do
-
-    if (c%ismolecule) then
-       ! run over all pairs of atoms in the molecule
-       lvec = 0
-       do i = 1, c%ncel
-          do j = i+1, c%ncel
-             d0 = bondfactor * (atmcov(c%spc(c%atcel(i)%is)%z)+atmcov(c%spc(c%atcel(j)%is)%z))
-             ! use the Cartesian directly
-             x0 = c%atcel(j)%r - c%atcel(i)%r
-             if (any(abs(x0) > d0)) cycle
-             d0 = d0 * d0
-             dist2 = x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)
-             if (dist2 < d0) then
-                call addpair(i,j,lvec)
-                call addpair(j,i,lvec)
-             end if
-          end do
-       end do
-    else
-       ! run over all pairs of atoms in the unit cell
-       do i = 1, c%ncel
-          do j = i, c%ncel
-             x0 = c%atcel(j)%x - c%atcel(i)%x
-             lvec0 = nint(x0)
-             x0 = x0 - lvec0
-             d0 = bondfactor * (atmcov(c%spc(c%atcel(i)%is)%z)+atmcov(c%spc(c%atcel(j)%is)%z))
-
-             do k = 0, c%ws_nf
-                if (k == 0) then
-                   rvws = x0
-                   lvec = lvec0
-                else
-                   rvws = x0 - c%ws_ineighx(:,k)
-                   lvec = lvec0 + c%ws_ineighx(:,k)
-                endif
-                rvws = matmul(c%m_x2c,rvws)
-                dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
-                if (all(abs(rvws) < d0+1d-6)) then
-                   dist = sqrt(rvws(1)*rvws(1)+rvws(2)*rvws(2)+rvws(3)*rvws(3))
-                   if (dist > vsmall .and. dist < d0) then
-                      call addpair(i,j,lvec)
-                      call addpair(j,i,-lvec)
-                   end if
-                end if
-             end do
-          end do
-       end do
-    end if
-    do i = 1, c%ncel
-       call realloc(c%nstar(i)%idcon,c%nstar(i)%ncon)
-       call realloc(c%nstar(i)%lcon,3,c%nstar(i)%ncon)
-    end do
-
-  contains
-    subroutine addpair(i,j,lvec)
-      integer :: i, j, lvec(3)
-
-      c%nstar(i)%ncon = c%nstar(i)%ncon + 1
-      if (c%nstar(i)%ncon > size(c%nstar(i)%idcon)) then
-         call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
-         call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
-      end if
-      c%nstar(i)%idcon(c%nstar(i)%ncon) = j
-      c%nstar(i)%lcon(:,c%nstar(i)%ncon) = -lvec
-
-    end subroutine addpair
-  end subroutine find_asterisms
-
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
   module function listatoms_cells(c,nx,doborder) result(fr)
@@ -1427,9 +1288,6 @@ contains
     integer :: nseed
     integer, allocatable :: idseed(:), lseed(:,:)
     logical, allocatable :: fseed(:)
-
-    ! find the neighbor stars, if not already done
-    call c%checkflags(.false.,ast0=.true.)
 
     ! unwrap the input fragment
     nseed = fri%nat
@@ -1746,10 +1604,6 @@ contains
     
     integer :: i
 
-    !$omp critical (fill_ewald)
-    call c%checkflags(.false.,nn0=.true.)
-    !$omp end critical (fill_ewald)
-
     px = 0d0
     do i = 1, c%nneq
        px = px + c%at(i)%mult * 4d0/3d0 * pi * c%at(i)%rnn2**3
@@ -2001,10 +1855,8 @@ contains
 
     ! prepare the environment
     localenv = .true.
-    if (c%isenv) then
-       if (c%ismolecule .or. c%env%dmax0 > rend) then
-          localenv = .false.
-       end if
+    if (c%ismolecule .or. c%env%dmax0 > rend) then
+       localenv = .false.
     end if
     if (localenv) then
        if (c%ismolecule) then
@@ -2444,7 +2296,7 @@ contains
 
     ! initialize the structure
     call c%struct_new(ncseed,.true.)
-    call c%struct_fill(.true.,-1,.false.,.false.,.false.)
+    call c%struct_fill(.false.,.false.)
     if (verbose) call c%report(.true.,.true.)
 
   end subroutine newcell
@@ -2921,9 +2773,7 @@ contains
        end if
 
        ! Number of atoms in the atomic environment
-       if (c%isenv) then
-          call c%env%report()
-       end if
+       call c%env%report()
 
        ! Wigner-Seitz cell
        if (.not.c%ismolecule) then
@@ -3710,10 +3560,6 @@ contains
     logical :: doagain
     real*8, allocatable :: cmlist(:,:)
     real*8 :: xcm(3), dist
-
-    ! calculate the motifs if necessary
-    if (onemotif .or. environ) &
-       call c%checkflags(.false.,ast0=.true.)
 
     ! determine the fragments
     if (onemotif) then
@@ -4662,27 +4508,12 @@ contains
 
   !> Write a gulp input script
   module subroutine write_gulp(c,file)
-    use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose, string
-    use param, only: bohrtoa, atmcov, pi
+    use tools_io, only: fopen_write, nameguess, fclose, string
+    use param, only: bohrtoa
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
 
-    integer, parameter :: maxneigh = 20
-    real*8, parameter :: rfac = 1.4d0
-    real*8, parameter :: hbmin = 1.6 / bohrtoa
-    real*8, parameter :: hbmax = 3.2 / bohrtoa
-
-    character*(5) :: lbl
-    integer :: lu, i, j, iz, jz, n, k, kz
-    integer :: idx
-    integer :: nneigh(maxneigh), ineigh(maxneigh,c%nneq)
-    real*8 :: dneigh(maxneigh,c%nneq), dhb(maxneigh,c%nneq), avgang(c%nneq)
-    integer :: nhb(maxneigh), ihb(maxneigh,c%nneq)
-    real*8 :: d, x1(3), x2(3), ang, xi(3)
-    logical :: ok, isat
-
-    ! check that we have an environment
-    call c%checkflags(.true.,env0=.true.)
+    integer :: lu, i, j
 
     lu = fopen_write(file)
     write (lu,'("eem")')
@@ -5185,10 +5016,7 @@ contains
   !> contribute. This routine is a wrapper for the environment's
   !> promolecular. Thread-safe.
   module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
-    use grid1mod, only: cgrid, agrid, grid1
     use fragmentmod, only: fragment
-    use tools_io, only: ferror, faterr
-    use param, only: maxzat
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
     integer, intent(in) :: icrd !< Input coordinate format

@@ -591,8 +591,6 @@ contains
     logical :: ok
     character(10) :: pname
 
-    call sy%c%checkflags(.false.,nn0=.true.)
-
     ntheta = 20
     nphi = 20
     np = 770

@@ -263,9 +263,10 @@ module environmod
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
-     module subroutine find_asterisms_covalent(e,nstar)
+     module subroutine find_asterisms_covalent(e,nstar,rnn2)
        class(environ), intent(in) :: e
        type(neighstar), allocatable, intent(inout) :: nstar(:)
+       real*8, allocatable, intent(inout), optional :: rnn2(:)
      end subroutine find_asterisms_covalent
      module subroutine find_asterisms_listatoms(e,nstar,rtable,factor)
        class(environ), intent(in) :: e

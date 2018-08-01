@@ -33,12 +33,9 @@ module crystalmod
   type crystal
      ! Initialization flags
      logical :: isinit = .false. !< has the crystal structure been initialized?
-     logical :: isenv = .false. !< were the atomic environments determined?
      integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
-     logical :: isast = .false. !< have the molecular asterisms and connectivity been calculated?
      logical :: isewald = .false. !< do we have the data for ewald's sum?
      logical :: isrecip = .false. !< symmetry information about the reciprocal cell
-     logical :: isnn = .false. !< information about the nearest neighbors
 
      ! file name for the occasional critic2 trick
      character(len=mlen) :: file
@@ -145,7 +142,6 @@ module crystalmod
      procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
 
      ! molecular environments and neighbors
-     procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
@@ -248,13 +244,10 @@ module crystalmod
      module subroutine struct_init(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_init
-     module subroutine checkflags(c,crash,env0,ast0,recip0,nn0,ewald0)
+     module subroutine checkflags(c,crash,recip0,ewald0)
        class(crystal), intent(inout) :: c
        logical :: crash
-       logical, intent(in), optional :: env0
-       logical, intent(in), optional :: ast0
        logical, intent(in), optional :: recip0
-       logical, intent(in), optional :: nn0
        logical, intent(in), optional :: ewald0
      end subroutine checkflags
      module subroutine struct_end(c)
@@ -266,10 +259,9 @@ module crystalmod
        type(crystalseed), intent(in) :: seed
        logical, intent(in) :: crashfail
      end subroutine struct_new
-     module subroutine struct_fill(c,env0,iast0,recip0,lnn0,ewald0)
+     module subroutine struct_fill(c,recip0,ewald0)
        class(crystal), intent(inout) :: c
-       integer :: iast0
-       logical, intent(in) :: env0, recip0, lnn0, ewald0
+       logical, intent(in) :: recip0, ewald0
      end subroutine struct_fill
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
@@ -383,9 +375,6 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8, intent(in), optional :: dmax0
      end subroutine build_env
-     module subroutine find_asterisms(c)
-       class(crystal), intent(inout) :: c
-     end subroutine find_asterisms
      module function listatoms_cells(c,nx,doborder) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nx(3)

@@ -281,11 +281,8 @@ contains
     end do
 
     ! recalculate the environments and asterisms and report
-    s%c%isenv = .false.
-    s%c%isast = .false.
     s%c%isrecip = .false.
-    s%c%isnn = .false.
-    call s%c%struct_fill(.true.,-1,.false.,.false.,.false.)
+    call s%c%struct_fill(.false.,.false.)
     call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_clearsym

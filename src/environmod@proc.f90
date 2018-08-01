@@ -954,13 +954,16 @@ contains
   !> Find the covalent bond connectivity and return the bonds in the
   !> nstar array. To use this routine it is necessary that the boxsize
   !> is larger than the maximum covalent distance plus the tolerance.
-  subroutine find_asterisms_covalent(e,nstar)
+  !> If present, return half the nearest-neighbor distance for each
+  !> atom in rnn2, or -1 if not found.
+  subroutine find_asterisms_covalent(e,nstar,rnn2)
     use global, only: atomeps, bondfactor
     use tools_io, only: ferror, faterr
     use types, only: realloc
     use param, only: icrd_cart, atmcov
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
+    real*8, allocatable, intent(inout), optional :: rnn2(:)
     
     integer :: i, j, imin(3), imax(3)
     real*8 :: xmin(3), xmax(3), x0(3), dist2, ri, rj, rij2, r2
@@ -979,6 +982,13 @@ contains
        allocate(nstar(i)%lcon(3,20))
     end do
     
+    ! allocate the rnn2 array
+    if (present(rnn2)) then
+       if (allocated(rnn2)) deallocate(rnn2)
+       allocate(rnn2(e%ncell))
+       rnn2 = 0d0
+    end if
+
     ! pre-calculate the distance^2 matrix
     allocate(rij2(e%nspc,e%nspc,2))
     rij2 = 0d0
@@ -1038,6 +1048,11 @@ contains
                       end if
                       nstar(ki)%idcon(nstar(ki)%ncon) = e%at(kj)%cidx
                       nstar(ki)%lcon(:,nstar(ki)%ncon) = e%at(kj)%lvec
+                      if (present(rnn2)) then
+                         if (rnn2(ki) < 1d-10 .or. dist2 < rnn2(ki)) then
+                            rnn2(ki) = dist2
+                         end if
+                      end if
                    end if
                 end do
 
@@ -1046,13 +1061,17 @@ contains
        end do
     end do
 
-    ! reallocate the asterism arrays
+    ! reallocate the asterism arrays and convert to half nearest
+    ! neighbor distance
     do i = 1, e%ncell
        if (nstar(i)%ncon > 0) then
           call realloc(nstar(i)%idcon,nstar(i)%ncon)
           call realloc(nstar(i)%lcon,3,nstar(i)%ncon)
        end if
     end do
+    if (present(rnn2)) then
+       rnn2 = sqrt(rnn2)
+    end if
 
   end subroutine find_asterisms_covalent
 

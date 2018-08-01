@@ -365,7 +365,7 @@ contains
        s%isinit = .true.
 
        ! fill environments, asterisms, nearest neighbors
-       call s%c%struct_fill(.true.,-1,.false.,.false.,.false.)
+       call s%c%struct_fill(.false.,.false.)
 
        ! load the promolecular density field and set it as reference
        call s%reset_fields()
