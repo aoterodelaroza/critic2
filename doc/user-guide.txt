@@ -5862,8 +5862,8 @@ prec.r. The default prec.r is 0.1.
 
 ::
 
-  IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL|file.xyz]
-   x.r y.r z.r [ANG|ANGSTROM|BOHR|AU|CRYST|RECIPROCAL]
+  IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|file.xyz]
+   x.r y.r z.r [ANG|ANGSTROM|BOHR|AU|CRYST]
    ...
    file.xyz
   ENDIDENTIFY/END
@@ -5887,11 +5887,6 @@ number of atoms in the first line and the title in the second line).
 
 In addition, critic2 provides the vertices of the cube that
 encompasses all the points in the list that did match an atom or CP.
-
-The RECIPROCAL keyword is special in that points under this keyword
-are assumed to belong to reciprocal space. Critic2 will calculate
-the multiplicity using the reciprocal point group operations, which
-can be useful for determining k-point weights.
 
 ::
 

@@ -35,7 +35,6 @@ module crystalmod
      logical :: isinit = .false. !< has the crystal structure been initialized?
      integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
      logical :: isewald = .false. !< do we have the data for ewald's sum?
-     logical :: isrecip = .false. !< symmetry information about the reciprocal cell
 
      ! file name for the occasional critic2 trick
      character(len=mlen) :: file
@@ -73,11 +72,9 @@ module crystalmod
      ! space-group symmetry
      type(SpglibDataset) :: spg !< spglib's symmetry dataset
      integer :: neqv !< number of symmetry operations
-     integer :: neqvg !< number of symmetry operations, reciprocal space
      integer :: ncv  !< number of centering vectors
      real*8, allocatable :: cen(:,:) !< centering vectors
      real*8 :: rotm(3,4,48) !< symmetry operations
-     real*8 :: rotg(3,3,48) !< symmetry operations, reciprocal space
      ! variables for molecular systems
      logical :: ismolecule = .false. !< is it a molecule?
      real*8 :: molx0(3) !< centering vector for the molecule
@@ -116,10 +113,8 @@ module crystalmod
    contains
      ! construction, destruction, initialization
      procedure :: init => struct_init !< Allocate arrays and nullify variables
-     procedure :: checkflags !< Check the flags for a given crystal
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
-     procedure :: struct_fill !< Initialize the structure from minimal info (already in the object)
 
      ! basic crystallographic operations
      procedure :: x2c !< Convert input cryst. -> cartesian
@@ -139,7 +134,6 @@ module crystalmod
      procedure :: identify_fragment_from_xyz !< Build a crystal fragment from an xyz file
      procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
      procedure :: get_mult !< Multiplicity of a point
-     procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
 
      ! molecular environments and neighbors
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
@@ -244,12 +238,6 @@ module crystalmod
      module subroutine struct_init(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_init
-     module subroutine checkflags(c,crash,recip0,ewald0)
-       class(crystal), intent(inout) :: c
-       logical :: crash
-       logical, intent(in), optional :: recip0
-       logical, intent(in), optional :: ewald0
-     end subroutine checkflags
      module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
@@ -259,10 +247,6 @@ module crystalmod
        type(crystalseed), intent(in) :: seed
        logical, intent(in) :: crashfail
      end subroutine struct_new
-     module subroutine struct_fill(c,recip0,ewald0)
-       class(crystal), intent(inout) :: c
-       logical, intent(in) :: recip0, ewald0
-     end subroutine struct_fill
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xx(3) 
@@ -366,11 +350,6 @@ module crystalmod
        real*8, intent(in) :: x0(3)
        integer :: mult
      end function get_mult
-     module function get_mult_reciprocal(c,x0) result (mult)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: x0(3)
-       integer :: mult
-     end function get_mult_reciprocal
      module subroutine build_env(c,dmax0)
        class(crystal), intent(inout) :: c
        real*8, intent(in), optional :: dmax0

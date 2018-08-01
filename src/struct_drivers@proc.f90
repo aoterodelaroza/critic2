@@ -281,8 +281,6 @@ contains
     end do
 
     ! recalculate the environments and asterisms and report
-    s%c%isrecip = .false.
-    call s%c%struct_fill(.false.,.false.)
     call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_clearsym
@@ -1728,7 +1726,6 @@ contains
     character(len=:), allocatable :: line, word
     real*8 :: x0(3), xmin(3), xmax(3), x0out(3)
     real*8, allocatable :: pointlist(:,:)
-    logical, allocatable :: isrec(:)
     integer :: i, j, n, idx
     logical :: found, doenv
 
@@ -1736,7 +1733,6 @@ contains
     integer, parameter :: unit_au = 1
     integer, parameter :: unit_ang = 2
     integer, parameter :: unit_x = 3
-    integer, parameter :: unit_rec = 4
 
     real*8, parameter :: eps = 1d-4
 
@@ -1760,14 +1756,12 @@ contains
        ldunit = unit_au
     elseif (equal(word,'cryst')) then
        ldunit = unit_x
-    elseif (equal(word,'reciprocal')) then
-       ldunit = unit_rec
     elseif (len_trim(word) > 0) then
        doenv = .false.
     endif
 
     ! read the input coordinates
-    allocate(pointlist(3,10),isrec(10))
+    allocate(pointlist(3,10))
     n = 0
     if (doenv) then
        word = lgetword(line0,lp)
@@ -1798,8 +1792,6 @@ contains
                 unit = unit_au
              elseif (equal(word,'cryst')) then
                 unit = unit_x
-             elseif (equal(word,'reciprocal')) then
-                unit = unit_rec
              else
                 unit = ldunit
              endif
@@ -1812,10 +1804,8 @@ contains
              n = n + 1
              if (n > size(pointlist,2)) then
                 call realloc(pointlist,3,2*n)
-                call realloc(isrec,2*n)
              end if
              pointlist(:,n) = x0
-             isrec(n) = (unit == unit_rec)
           else
              ! this is an xyz file
              call readxyz()
@@ -1856,38 +1846,29 @@ contains
     do i = 1, n
        x0 = pointlist(:,i)
        x0out = x0
-       if (.not.isrec(i)) then
-          if (s%c%ismolecule) x0out = (s%c%x2c(x0)+s%c%molx0) * dunit0(iunit)
-          idx = s%f(s%iref)%identify_cp(x0,eps)
-          mm = s%c%get_mult(x0)
-          if (idx > 0) then
-             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
-                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
-                string(mm,length=3,justify=ioj_center), &
-                string(s%f(s%iref)%cpcel(idx)%name,length=5,justify=ioj_center), &
-                string(s%f(s%iref)%cpcel(idx)%idx,length=4,justify=ioj_center), &
-                string(idx,length=4,justify=ioj_center)
-             do j = 1, 3
-                xmin(j) = min(xmin(j),x0(j))
-                xmax(j) = max(xmax(j),x0(j))
-                found = .true.
-             end do
-          else
-             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
-                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
-                string(mm,length=3,justify=ioj_center), &
-                string(" --- not found --- ")
-          endif
+       if (s%c%ismolecule) x0out = (s%c%x2c(x0)+s%c%molx0) * dunit0(iunit)
+       idx = s%f(s%iref)%identify_cp(x0,eps)
+       mm = s%c%get_mult(x0)
+       if (idx > 0) then
+          write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+             (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+             string(mm,length=3,justify=ioj_center), &
+             string(s%f(s%iref)%cpcel(idx)%name,length=5,justify=ioj_center), &
+             string(s%f(s%iref)%cpcel(idx)%idx,length=4,justify=ioj_center), &
+             string(idx,length=4,justify=ioj_center)
+          do j = 1, 3
+             xmin(j) = min(xmin(j),x0(j))
+             xmax(j) = max(xmax(j),x0(j))
+             found = .true.
+          end do
        else
-          call s%c%checkflags(.false.,recip0=.true.)
-          mm = s%c%get_mult_reciprocal(x0)
           write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
              string(mm,length=3,justify=ioj_center), &
              string(" --- not found --- ")
        endif
     end do
-    deallocate(pointlist,isrec)
+    deallocate(pointlist)
 
     if (found) then
        if (.not.s%c%ismolecule) then
@@ -1929,10 +1910,8 @@ contains
          n = n + 1
          if (n > size(pointlist,2)) then
             call realloc(pointlist,3,2*n)
-            call realloc(isrec,2*n)
          end if
          pointlist(:,n) = x0
-         isrec(n) = (ldunit == unit_rec)
       end do
       call fclose(lu)
     end subroutine readxyz

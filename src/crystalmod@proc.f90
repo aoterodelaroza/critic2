@@ -78,9 +78,6 @@ contains
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,:,1) = eyet
-    c%neqvg = 1
-    c%rotg = 0d0
-    c%rotg(:,:,1) = eye
     c%ncv = 1
     if (allocated(c%cen)) deallocate(c%cen)
     allocate(c%cen(3,4))
@@ -127,51 +124,8 @@ contains
     c%isinit = .false. 
     c%havesym = 0 
     c%isewald = .false. 
-    c%isrecip = .false. 
 
   end subroutine struct_init
-
-  !> Check that the flags necessary for the operation of critic2 using
-  !> the given crystal structure have been set. Several flags are
-  !> available: environments available (env), wigner-seitz cell
-  !> calculated (ws), asterisms determined (ast), reciprocal cell
-  !> symmetry known (recip), nearest-neighbor information (nn). If
-  !> crash=.true., crash with error if the requested flag is not
-  !> set. If crash=.false., take the necessary steps to initialize the
-  !> crystal flags that are .true.  This routine is thread-safe if
-  !> crash = .true.
-  module subroutine checkflags(c,crash,recip0,ewald0)
-    use tools_io, only: ferror, faterr
-    class(crystal), intent(inout) :: c
-    logical :: crash
-    logical, intent(in), optional :: recip0
-    logical, intent(in), optional :: ewald0
-
-    logical :: recip, ewald
-    character(len=:), allocatable :: reason
-    logical :: lflag(5)
-
-    ! initialize optional arguments
-    recip = .false.
-    if (present(recip0)) recip = recip0
-    ewald = .false.
-    if (present(ewald0)) ewald = ewald0
-
-    lflag = .false.
-    if (recip .and. .not.c%isrecip) lflag(3) = .true.
-    if (ewald .and. .not.c%isewald) lflag(5) = .true.
-
-    if (any(lflag)) then
-       if (crash) then
-          if (lflag(3)) reason = "reciprocal cell metrics and symmetry not determined"
-          if (lflag(5)) reason = "ewald cutoffs not available"
-          call ferror('checkflags',reason,faterr)
-       else
-          call c%struct_fill(lflag(3),lflag(5))
-       end if
-    end if
-
-  end subroutine checkflags
 
   !> Terminate allocated arrays
   module subroutine struct_end(c)
@@ -191,13 +145,11 @@ contains
     c%isinit = .false.
     c%havesym = 0
     c%isewald = .false. 
-    c%isrecip = .false. 
     c%file = ""
     c%nspc = 0
     c%nneq = 0
     c%ncel = 0
     c%neqv = 0
-    c%neqvg = 0
     c%ncv = 0
     c%ismolecule = .false.
     c%molx0 = 0d0
@@ -524,40 +476,6 @@ contains
     c%isinit = .true.
 
   end subroutine struct_new
-
-  !> This routine fills ancillary information in the crystal structure
-  !> if it is not already available.  If env0, build the atomic
-  !> environments. If iast0 = 1, determine the molecular asterisms;
-  !> iast0 = 0, do not determine the asterisms; iast0 = -1, only for
-  !> small crystals.  If recip0, determine the reciprocal cell metrics
-  !> and symmetry.  If lnn0, determine the nearest-neighbor
-  !> information. If ewald0, calculate the cutoffs for Ewald method.
-  module subroutine struct_fill(c,recip0,ewald0)
-    class(crystal), intent(inout) :: c
-    logical, intent(in) :: recip0, ewald0
-
-    logical :: recip, ewald
-    real*8 :: vec(3)
-
-    ! Handle input flag dependencies
-    recip = recip0
-    ewald = ewald0
-
-    ! Reciprocal cell symmetry
-    if (recip) then
-       ! Reciprocal space point group
-       vec = 0d0
-       call lattpg(c%m_c2x,1,vec,c%neqvg,c%rotg)
-       c%isrecip = .true.
-    end if
-
-    ! preparation for ewald 
-    if (ewald) then
-       call c%calculate_ewald_cutoffs()
-       c%isewald = .true.
-    end if
-
-  end subroutine struct_fill
 
   !> Convert input cryst. -> cartesian. This routine is thread-safe.
   pure module function x2c(c,xx) result(res)
@@ -959,45 +877,6 @@ contains
     call c%symeqv(x0,mult)
 
   end function get_mult
-
-  !> Calculate the multiplicity of the point x0 in reciprocal space
-  !> (fractional coordinates). 
-  module function get_mult_reciprocal(c,x0) result (mult)
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: x0(3)
-    integer :: mult
-
-    real*8 :: xp(3), x(3), d(3)
-    real*8 :: avec(3,48)
-    integer :: i, j, nvec
-    logical :: found
-
-    mult = 0
-
-    !.Translate position to main cell
-    xp = x0 - floor(x0)
-
-    !.Run over symmetry operations and create the list of copies
-    nvec = 0
-    do i = 1, c%neqvg
-       x = matmul(c%rotg(:,:,i),xp)
-       found = .false.
-       do j = 1, nvec
-          d = x - avec(:,j)
-          d = abs(d - nint(d))
-          if (all(d < 1d-5)) then
-             found = .true.
-             exit
-          end if
-       end do
-       if (.not.found) then
-          nvec = nvec + 1
-          avec(:,nvec) = x
-       end if
-    enddo
-    mult = nvec
-
-  end function get_mult_reciprocal
 
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
@@ -1913,6 +1792,8 @@ contains
     real*8 :: rcut1, rcut2, err_real
     real*8 :: hcut1, hcut2, err_rec
 
+    if (c%isewald) return
+
     ! calculate sum of charges and charges**2
     c%qsum = 0d0
     q2sum = 0d0
@@ -1994,6 +1875,7 @@ contains
     c%hcut = 0.5*(hcut1+hcut2)
     ! reciprocal space cells to explore
     c%lhmax = ceiling(c%aa(ia) / tpi * c%hcut)
+    c%isewald = .true.
 
   end subroutine calculate_ewald_cutoffs
 
@@ -2005,7 +1887,8 @@ contains
     real*8 :: x(3)
     integer :: i
 
-    call c%checkflags(.false.,ewald0=.true.)
+    if (.not.c%isewald) &
+       call c%calculate_ewald_cutoffs()
     
     ewe = 0d0
     do i = 1, c%nneq
@@ -2035,10 +1918,12 @@ contains
     real*8 :: sfac_c, sfacp, bbarg
     real*8 :: sum_real, sum_rec, sum0, sum_back
 
-    !$omp critical (fill_ewald)
-    call c%checkflags(.false.,ewald0=.true.)
-    !$omp end critical (fill_ewald)
-    
+    if (.not.c%isewald) then
+       !$omp critical (fill_ewald)
+       call c%calculate_ewald_cutoffs()
+       !$omp end critical (fill_ewald)
+    end if
+
     ! is this a nuclear position? -> get charge
     qnuc = 0d0
     if (isnuc) then
@@ -2296,7 +2181,6 @@ contains
 
     ! initialize the structure
     call c%struct_new(ncseed,.true.)
-    call c%struct_fill(.false.,.false.)
     if (verbose) call c%report(.true.,.true.)
 
   end subroutine newcell
