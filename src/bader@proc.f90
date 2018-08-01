@@ -83,7 +83,7 @@ contains
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv
     use arithmetic, only: eval
-    use param, only: vsmall
+    use param, only: vsmall, icrd_crys
     use types, only: realloc
     type(system), intent(inout) :: s
     real*8, intent(in) :: ff(:,:,:)
@@ -167,7 +167,7 @@ contains
                    ! check if it is an atom (use ratom)
                    isassigned = .false.
                    if (atexist) then
-                      call s%c%nearest_atom(dv,nid,dist)
+                      call s%c%nearest_atom(dv,icrd_crys,nid,dist)
                       if (dist < ratom) then
                          path_volnum = nid
                          isassigned = .true.

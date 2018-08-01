@@ -928,6 +928,7 @@ contains
     use fieldmod, only: field, type_grid
     use tools_io, only: ferror, faterr, fopen_scratch, fclose
     use types, only: realloc
+    use param, only: icrd_crys
     type(field), intent(inout) :: ff
     integer, intent(inout) :: nattr
     real*8, intent(inout), allocatable :: xgatt(:,:)
@@ -959,8 +960,8 @@ contains
     ! assign attractors to atoms
     if (atexist) then
        do i = 1, nattr0
-          call ff%c%nearest_atom(xgatt(:,i),nid,dist)
-          if (dist < ratom) then
+          call ff%c%nearest_atom(xgatt(:,i),icrd_crys,nid,dist)
+          if (nid > 0 .and. dist < ratom) then
              assigned(i) = nid
           else
              ! maybe the closest point is a known nnm

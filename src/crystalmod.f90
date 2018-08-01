@@ -332,9 +332,10 @@ module crystalmod
        real*8, intent(out), optional :: dd
        logical :: are_lclose
      end function are_lclose
-     module subroutine nearest_atom(c,xp,nid,dist,lvec,nid0,id0,nozero)
+     module subroutine nearest_atom(c,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xp(:)
+       integer, intent(in) :: icrd
        integer, intent(out) :: nid
        real*8, intent(out) :: dist
        integer, intent(out), optional :: lvec(3)
@@ -595,10 +596,9 @@ module crystalmod
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
      end subroutine write_db
-     module subroutine write_gulp(c,file,dodreiding)
+     module subroutine write_gulp(c,file)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
-       logical :: dodreiding
      end subroutine write_gulp
      module subroutine write_lammps(c,file)
        class(crystal), intent(in) :: c
@@ -636,16 +636,16 @@ module crystalmod
        character*(*), intent(in) :: file
        logical :: onlyheader
      end subroutine writegrid_vasp
-     module subroutine promolecular(c,x0,f,fp,fpp,nder,zpsp,fr,periodic)
+     module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)
+       integer, intent(in) :: icrd
        real*8, intent(out) :: f
        real*8, intent(out) :: fp(3)
        real*8, intent(out) :: fpp(3,3)
        integer, intent(in) :: nder
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
-       logical, intent(in), optional :: periodic
      end subroutine promolecular
      module subroutine promolecular_grid(c,f,n,zpsp,fr)
        use grid3mod, only: grid3

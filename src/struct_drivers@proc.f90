@@ -379,7 +379,7 @@ contains
 
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer
-    logical :: doborder, molmotif, dodreiding, dosym, docell, domolcell, ok
+    logical :: doborder, molmotif, dosym, docell, domolcell, ok
     logical :: onemotif, environ, lnmer
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv
 
@@ -576,20 +576,8 @@ contains
        if (.not.ok) return
     elseif (equal(wext,'gin')) then
        ! gulp
-       dodreiding = .false.
-       do while(.true.)
-          word = lgetword(line,lp)
-          if (equal(word,'dreiding')) then
-             dodreiding = .true.
-          elseif (len_trim(word) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
-          else
-             exit
-          end if
-       end do
        write (uout,'("* WRITE gulp file: ",A)') string(file)
-       call s%c%write_gulp(file,dodreiding)
+       call s%c%write_gulp(file)
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
        call s%c%write_lammps(file)
@@ -1457,7 +1445,7 @@ contains
     use systemmod, only: system
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
-    use param, only: atmvdw
+    use param, only: atmvdw, icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
@@ -1530,8 +1518,8 @@ contains
 
           found = .false.
           do j = 1, s%c%nneq
-             call s%c%nearest_atom(x,idx,dist,nid0=j)
-             found = (dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
+             call s%c%nearest_atom(x,icrd_crys,idx,dist,nid0=j)
+             found = (idx > 0 .and. dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
              if (found) exit
           end do
           if (.not.found) then

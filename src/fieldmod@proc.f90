@@ -693,6 +693,7 @@ contains
     use arithmetic, only: eval
     use types, only: scalar_value
     use tools_io, only: ferror, faterr
+    use param, only: icrd_crys, icrd_cart
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
@@ -870,11 +871,11 @@ contains
        ! all work done in Cartesians in a finite environment.
 
     case(type_promol)
-       call f%c%promolecular(wc,res%f,res%gf,res%hf,nder,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,res%f,res%gf,res%hf,nder)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call f%c%promolecular(wc,res%f,res%gf,res%hf,nder,fr=f%fr,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
@@ -893,7 +894,7 @@ contains
 
     ! augment with the core if applicable
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular(wc,rho,grad,h,nder,zpsp=f%zpsp,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
        res%f = res%f + rho
        res%gf  = res%gf + grad
        res%hf = res%hf + h
@@ -901,9 +902,9 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    call f%c%nearest_atom(wx,nid,dist,lvec=lvec)
+    call f%c%nearest_atom(wx,icrd_crys,nid,dist,lvec=lvec)
     if (per .or. .not.per .and. all(lvec == 0)) then
-       res%isnuc = (dist < 1d-5)
+       res%isnuc = (nid > 0) .and. (dist < 1d-5)
        if (res%isnuc) res%gf = 0d0
     end if
     res%gfmod = norm2(res%gf)
@@ -918,6 +919,7 @@ contains
   recursive module function grd0(f,v,periodic)
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr
+    use param, only: icrd_cart
     class(field), intent(inout) :: f
     real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
     real*8 :: grd0
@@ -976,9 +978,9 @@ contains
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)
-       call f%c%promolecular(wc,rho,grad,h,0,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
-       call f%c%promolecular(wc,rho,grad,h,0,fr=f%fr,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,rho,grad,h,0,fr=f%fr)
     case(type_ghost)
        rho = eval(f%expr,.true.,iok,wc,f%sptr,f%fh,f%fcheck,f%feval,periodic)
     case default
@@ -986,7 +988,7 @@ contains
     end select
 
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular(wc,rhoaux,grad,h,0,zpsp=f%zpsp,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,rhoaux,grad,h,0,zpsp=f%zpsp)
        rho = rho + rhoaux
     end if
     grd0 = rho
@@ -1916,6 +1918,7 @@ contains
     use types, only: scalar_value, realloc
     use global, only: CP_hdegen, rbetadef
     use types, only: realloc
+    use param, only: icrd_crys
     class(field), intent(inout) :: f
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
@@ -1961,8 +1964,8 @@ contains
     end if
 
     ! distance to atoms
-    call f%c%nearest_atom(xc,nid,dist)
-    if (dist < nuceps) then
+    call f%c%nearest_atom(xc,icrd_crys,nid,dist)
+    if (nid > 0 .and. dist < nuceps) then
        goto 999
     end if
 
@@ -2113,6 +2116,7 @@ contains
     use global, only: nav_step, nav_gradeps, rbetadef
     use tools_math, only: eigns
     use types, only: scalar_value, gpathp, realloc
+    use param, only: icrd_crys
     class(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
     integer, intent(in) :: iup
@@ -2203,7 +2207,7 @@ contains
        end if
 
        ! nearest nucleus
-       call fid%c%nearest_atom(xpoint,idnuc,sphrad,lvec=lvec)
+       call fid%c%nearest_atom(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
        xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x + lvec)
        xnucr = fid%c%atcel(idnuc)%x + lvec
        idnuc = fid%c%atcel(idnuc)%idx

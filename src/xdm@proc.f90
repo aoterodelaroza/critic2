@@ -124,7 +124,7 @@ contains
     use global, only: eval_next, cutrad
     use tools_io, only: uout, lgetword, equal, getword, ferror, faterr, string,&
        warning, ioj_right
-    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa
+    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa, icrd_crys
     character*(*), intent(inout) :: line
 
     logical :: ok, dopro, docor
@@ -334,10 +334,9 @@ contains
           do j = 1, n(2)
              do i = 1, n(1)
                 x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/)
-                x = sy%c%x2c(x)
 
-                if (dopro) call sy%c%promolecular(x,rhoat,rdum1,rdum2,0)
-                if (docor) call sy%c%promolecular(x,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
+                if (dopro) call sy%c%promolecular(x,icrd_crys,rhoat,rdum1,rdum2,0)
+                if (docor) call sy%c%promolecular(x,icrd_crys,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
                 !$omp critical(write)
                 if (dopro) sy%f(ipdens)%grid%f(i,j,k) = rhoat
                 if (docor) sy%f(icor)%grid%f(i,j,k) = rhocore
@@ -1012,7 +1011,7 @@ contains
     use grid1mod, only: grid1, agrid
     use global, only: mesh_type
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
-    use param, only: bohrtoa, im_rho, im_null, im_b
+    use param, only: bohrtoa, im_rho, im_null, im_b, icrd_cart
     
     real*8, intent(in) :: a1o, a2o
     real*8, intent(in) :: chf
@@ -1116,7 +1115,7 @@ contains
     ! fill the actual periodic promolecular density
     if (.not.sy%c%ismolecule) then
        do j = 1, m%n
-          call sy%c%promolecular(m%x(:,j),rho,dum1,dum2,0,periodic=.true.)
+          call sy%c%promolecular(m%x(:,j),icrd_cart,rho,dum1,dum2,0)
           m%f(j,2) = rho
        enddo
     end if

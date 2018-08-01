@@ -845,7 +845,7 @@ contains
     use param, only: icrd_cart, maxzat
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
-    integer, intent(in) :: icrd !< Input coordinates
+    integer, intent(in) :: icrd !< Input coordinate format
     real*8, intent(out) :: f !< Density
     real*8, intent(out) :: fp(3) !< Density gradient
     real*8, intent(out) :: fpp(3,3) !< Density hessian

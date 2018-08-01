@@ -1918,7 +1918,7 @@ options`_). The full syntax of the WRITE keyword is::
   WRITE file.d12 [NOSYM|NOSYMM]
   WRITE file.m
   WRITE file.db
-  WRITE file.gin [DREIDING]
+  WRITE file.gin
   WRITE file.lammps
   WRITE file.fdf
   WRITE file.STRUCT_IN
@@ -2065,14 +2065,12 @@ is intended for a set of automated input generation scripts written in
 octave (https://github.com/aoterodelaroza/dcp).
 
 A simple GULP template input file containing the structure (and EEM as
-the first line) can be written using the .gin extension. If the
-DREIDING keyword is used, critic2 will attempt to find the atom types
-in the DREIDING force field. No resonant carbon atoms are detected.
-For file names with an extension .lammps, critic2 writes a simple
-LAMMPS data file containing one unit cell (length units are
-angstrom). Only orthogonal cells are supported for now. Both the GULP
-and the LAMMPS outputs are experimental, so please exercise care and
-double-check the templates.
+the first line) can be written using the .gin extension. No resonant
+carbon atoms are detected.  For file names with an extension .lammps,
+critic2 writes a simple LAMMPS data file containing one unit cell
+(length units are angstrom). Only orthogonal cells are supported for
+now. Both the GULP and the LAMMPS outputs are experimental, so please
+exercise care and double-check the templates.
 
 Two types of siesta inputs can be generated. The fdf extension writes
 a template for a proper functional siesta input template containing
@@ -3822,7 +3820,7 @@ Requesting more information about the critical point list (CPREPORT)
   CPREPORT file.gau
   CPREPORT file.cif
   CPREPORT file.m
-  CPREPORT file.gin [DREIDING]
+  CPREPORT file.gin 
   CPREPORT file.lammps
   CPREPORT file.fdf
   CPREPORT file.STRUCT_IN

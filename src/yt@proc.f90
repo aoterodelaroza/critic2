@@ -37,7 +37,7 @@ contains
     use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use arithmetic, only: eval
-    use param, only: vsmall
+    use param, only: vsmall, icrd_crys
     use tools, only: qcksort
     use types, only: realloc
     type(system), intent(inout) :: s
@@ -145,8 +145,8 @@ contains
           ! check if it is an atom (use ratom)
           isassigned = .false.
           if (atexist) then
-             call s%c%nearest_atom(dv,nid,dist)
-             if (dist < ratom) then
+             call s%c%nearest_atom(dv,icrd_crys,nid,dist)
+             if (nid > 0 .and. dist < ratom) then
                 ibasin(ii) = nid
                 isassigned = .true.
              end if

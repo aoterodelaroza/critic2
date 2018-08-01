@@ -2297,7 +2297,7 @@ contains
     use systemmod, only: sy
     use global, only: prunedist
     use types, only: gpathp
-    use param, only: jmlcol
+    use param, only: jmlcol, icrd_crys
     type(gpathp) :: xpath(*)
     integer, intent(in) :: nptf
     integer, intent(in) :: udat
@@ -2310,9 +2310,9 @@ contains
 
     ! identify the endpoints
     x0 = xpath(1)%x
-    call sy%c%nearest_atom(x0,nid1,dist1)
+    call sy%c%nearest_atom(x0,icrd_crys,nid1,dist1)
     x0 = xpath(nptf)%x
-    call sy%c%nearest_atom(x0,nid2,dist2)
+    call sy%c%nearest_atom(x0,icrd_crys,nid2,dist2)
     rgb = (/0,0,0/)
     if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
        iz = sy%c%spc(sy%c%atcel(nid1)%is)%z

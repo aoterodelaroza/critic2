@@ -903,7 +903,7 @@ contains
   subroutine flx_prepareprintpath(x,title,iup,dir,icp)
     use systemmod, only: sy
     use fieldmod, only: type_grid
-
+    use param, only: icrd_crys
     real*8, intent(in) :: x(3)
     character*(*), intent(in) :: title
     integer, intent(in) :: iup
@@ -944,8 +944,8 @@ contains
     if (flx_n > 0) then
        call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),dist)
        if (dist <= cpeps) goto 999
-       call sy%c%nearest_atom(flx_path(flx_n)%x,flx_cpcelid(2),dist)
-       if (dist <= nuceps) goto 999
+       call sy%c%nearest_atom(flx_path(flx_n)%x,icrd_crys,flx_cpcelid(2),dist)
+       if (flx_cpcelid(2) > 0 .and. dist <= nuceps) goto 999
        if (sy%c%spc(sy%c%atcel(flx_cpcelid(2))%is)%z == 1 .and. dist <= nucepsh) goto 999
     end if
 

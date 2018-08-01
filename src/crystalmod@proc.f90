@@ -785,17 +785,19 @@ contains
 
   end function are_lclose
 
-  !> Given the point xp in crystallographic coordinates, calculates
-  !> the nearest atom. The nearest atom has ID nid from the complete
-  !> list (atcel) and is at a distance dist. On output, the optional
-  !> argument lvec contains the lattice vector to the nearest atom
-  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
-  !> only atoms with index nid0 from the non-equivalent list. If id0,
-  !> consider only atoms with index id0 from the complete list.
-  !> If nozero, disregard zero-distance atoms.
-  module subroutine nearest_atom(c,xp,nid,dist,lvec,nid0,id0,nozero)
+  !> Given the point xp (in icrd coordinates), calculates the nearest
+  !> atom. The nearest atom has ID nid from the complete list (atcel)
+  !> and is at a distance dist. On output, the optional argument lvec
+  !> contains the lattice vector to the nearest atom (i.e. its
+  !> position is atcel(nid)%x + lvec). If nid0, consider only atoms
+  !> with index nid0 from the non-equivalent list. If id0, consider
+  !> only atoms with index id0 from the complete list.  If nozero,
+  !> disregard zero-distance atoms. This routine is a wrapper for 
+  !> the environment's nearest_atom. Thread-safe.
+  module subroutine nearest_atom(c,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xp(:)
+    integer, intent(in) :: icrd
     integer, intent(out) :: nid
     real*8, intent(out) :: dist
     integer, intent(out), optional :: lvec(3)
@@ -803,40 +805,7 @@ contains
     integer, intent(in), optional :: id0
     logical, intent(in), optional :: nozero
 
-    real*8, parameter :: eps = 1d-10
-
-    real*8 :: temp(3), dd, dmin
-    integer :: j
-
-    nid = 0
-    dmin = 1d30
-    do j = 1, c%ncel
-       if (present(nid0)) then
-          if (c%atcel(j)%idx /= nid0) cycle
-       end if
-       if (present(id0)) then
-          if (j /= id0) cycle
-       end if
-       if (c%ismolecule) then
-          temp = c%atcel(j)%x - (xp - floor(xp))
-          temp = c%x2c(temp)
-          dd = norm2(temp)
-       else
-          temp = c%atcel(j)%x - xp
-          call c%shortest(temp,dd)
-       end if
-       if (present(nozero)) then
-          if (dd < eps) cycle
-       end if
-       if (dd < dmin) then
-          nid = j
-          dmin = dd
-          if (present(lvec)) then
-             lvec = nint(xp + c%c2x(temp) - c%atcel(j)%x)
-          end if
-       end if
-    end do
-    dist = dmin
+    call c%env%nearest_atom(xp,icrd,nid,dist,lvec,nid0,id0,nozero)
 
   end subroutine nearest_atom
 
@@ -1405,6 +1374,7 @@ contains
        ! add this fragment to the list
        used(i) = .true.
        allocate(c%mol(c%nmol)%spc(c%nspc))
+       c%mol(c%nmol)%nspc = c%nspc
        c%mol(c%nmol)%spc = c%spc(1:c%nspc)
        allocate(c%mol(c%nmol)%at(nat))
        c%mol(c%nmol)%nat = nat
@@ -4691,12 +4661,11 @@ contains
   end subroutine write_db
 
   !> Write a gulp input script
-  module subroutine write_gulp(c,file,dodreiding)
+  module subroutine write_gulp(c,file)
     use tools_io, only: fopen_write, faterr, ferror, nameguess, fclose, string
     use param, only: bohrtoa, atmcov, pi
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
-    logical :: dodreiding
 
     integer, parameter :: maxneigh = 20
     real*8, parameter :: rfac = 1.4d0
@@ -4716,126 +4685,15 @@ contains
     call c%checkflags(.true.,env0=.true.)
 
     lu = fopen_write(file)
-    if (.not. dodreiding) then
-       write (lu,'("eem")')
-       write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
-          (string(c%bb(j),'f',10,5),j=1,3)
-       write (lu,'("fractional")')
-       do i = 1, c%ncel
-          write (lu,'(A5,X,3(A,X))') trim(c%spc(c%atcel(i)%is)%name),&
-             (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
-       end do
-    else
-       ! calculate bonded neighbors
-       nneigh = 0
-       nhb = 0
-       do i = 1, c%nneq
-          xi = c%x2xr(c%at(i)%x)
-          xi = xi - floor(xi)
-          xi = c%xr2c(xi)
+    write (lu,'("eem")')
+    write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
+       (string(c%bb(j),'f',10,5),j=1,3)
+    write (lu,'("fractional")')
+    do i = 1, c%ncel
+       write (lu,'(A5,X,3(A,X))') trim(c%spc(c%atcel(i)%is)%name),&
+          (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
+    end do
 
-          iz = c%spc(c%at(i)%is)%z
-          n = 0
-          ! determine covalent bonds
-          do j = 1, c%env%n
-             jz = c%spc(c%env%at(j)%is)%z
-             d = norm2(c%env%at(j)%r-xi)
-             if (d < 1d-10) cycle
-             if (d < (atmcov(iz) + atmcov(jz)) * rfac) then
-                n = n + 1
-                if (n > maxneigh) call ferror("write_gulp","too many neighbors",faterr)
-                ineigh(n,i) = j
-                dneigh(n,i) = d
-                continue
-             endif
-          end do
-          nneigh(i) = n
-          ! determine average angles with bonded neighbors
-          avgang(i) = 0d0
-          n = 0
-          do j = 1, nneigh(i)
-             do k = j+1, nneigh(i)
-                n = n + 1
-                x1 = c%env%at(ineigh(j,i))%r - xi
-                x2 = c%env%at(ineigh(k,i))%r - xi
-                ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
-                avgang(i) = avgang(i) + ang
-             end do
-          end do
-          if (n > 0) avgang(i) = avgang(i) / n
-
-          ! determine hydrogen bonds, only for hydrogen
-          if (iz == 1) then
-             n = 0
-             do j = 1, c%env%n
-                jz = c%spc(c%env%at(j)%is)%z
-                ! only with N, O, and S
-                if (jz==7 .or. jz==8 .or. jz==9 .or. jz==16 .or. jz==17 .or. jz==35 .or. jz==53) then
-                   d = norm2(c%env%at(j)%r-xi)
-                   ! only in the correct distance range
-                   if (d > hbmin .and. d < hbmax) then
-                      ! only if the angles to all other neighbor atoms is more than 145
-                      ok = .true.
-                      do k = 1, nneigh(i)
-                         x1 = c%env%at(ineigh(k,i))%r - xi
-                         x2 = c%env%at(j)%r - xi
-                         ang = abs(acos(dot_product(x1,x2) / norm2(x1) / norm2(x2)) * 180d0 / pi)
-                         kz = c%spc(c%env%at(ineigh(k,i))%is)%z
-                         isat = (kz==7 .or. kz==8 .or. kz==9 .or. kz==16 .or. kz==17 .or. kz==35 .or. kz==53)
-                         if (ang < 145d0 .or..not.isat) then
-                            ok = .false.
-                            exit
-                         end if
-                      end do
-                      ! oh, sure, fine... you're a hydrogen bond
-                      if (ok) then
-                         n = n + 1
-                         ihb(n,i) = j
-                         dhb(n,i) = d
-                      endif
-                   end if
-                end if
-             end do
-             nhb(i) = n
-          endif
-       end do
-
-       write (lu,'("eem")')
-       write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
-          (string(c%bb(j),'f',10,5),j=1,3)
-       write (lu,'("fractional")')
-       do i = 1, c%ncel
-          idx = c%atcel(i)%idx
-          iz = c%spc(c%at(idx)%is)%z
-          ang = avgang(idx)
-          ! the first two letters is the atomic symbol
-          lbl = adjustl(nameguess(iz))
-          ! hydrogen types: H_ (normal), H___A (hydrogen-bonded to N, O, or S), H___b (bridging)
-          if (iz == 1 .and. nneigh(idx) > 1) lbl = "H___b"
-          if (iz == 1 .and. nhb(idx) > 0) lbl = "H___A"
-          ! boron: sp3 (109.47 angles) and sp2 (120 angles)
-          if (iz == 5 .and. abs(ang-109.47d0)<abs(ang-120d0)) lbl = "B_3"
-          if (iz == 5 .and. abs(ang-109.47d0)>abs(ang-120d0)) lbl = "B_2"
-          ! carbon: sp3 (109.47 angles), sp2 (120 angles), sp (180 angles)
-          if (iz == 6 .and. abs(ang-109.47d0)<abs(ang-120d0) .and. abs(ang-109.47d0)<abs(ang-180d0)) lbl = "C_3"
-          if (iz == 6 .and. abs(ang-120d0)<abs(ang-109.47d0) .and. abs(ang-120d0)<abs(ang-180d0)) lbl = "C_2"
-          if (iz == 6 .and. abs(ang-180d0)<abs(ang-109.47d0) .and. abs(ang-180d0)<abs(ang-120d0)) lbl = "C_1"
-          ! nitrogen: sp3 (109.47 angles), sp2 (120 angles), sp (180 angles)
-          if (iz == 7 .and. abs(ang-109.47d0)<abs(ang-120d0) .and. abs(ang-109.47d0)<abs(ang-180d0)) lbl = "N_3"
-          if (iz == 7 .and. abs(ang-120d0)<abs(ang-109.47d0) .and. abs(ang-120d0)<abs(ang-180d0)) lbl = "N_2"
-          if (iz == 7 .and. (abs(ang-180d0)<abs(ang-109.47d0) .and. abs(ang-180d0)<abs(ang-120d0) .or. nneigh(idx) == 1)) lbl = "N_1"
-          ! oxygen: sp3 (109.47 angles), sp2 (120 angles), sp (180 angles)
-          if (iz == 8 .and. abs(ang-109.47d0)<abs(ang-120d0) .and. abs(ang-109.47d0)<abs(ang-180d0)) lbl = "O_3"
-          if (iz == 8 .and. (abs(ang-120d0)<abs(ang-109.47d0) .and. abs(ang-120d0)<abs(ang-180d0) .or. nneigh(idx) == 1)) lbl = "O_2"
-          if (iz == 8 .and. abs(ang-180d0)<abs(ang-109.47d0) .and. abs(ang-180d0)<abs(ang-120d0)) lbl = "O_1"
-          ! Al, Si, P, S, Ga, Ge, As, Se, In, Sn, Sb, Te -> only sp3 is known
-          if (iz == 13 .or. iz == 14 .or. iz == 15 .or. iz == 16 .or. iz == 31 .or. iz == 32 .or. iz == 33 .or. iz == 34 .or.&
-             iz == 49 .or. iz == 50 .or. iz == 51 .or. iz == 52) then
-             lbl(3:3) = "3"
-          end if
-          write (lu,'(A5,X,3(A,X))') adjustl(trim(lbl)), (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
-       end do
-    end if
     call fclose(lu)
 
   end subroutine write_gulp
@@ -5317,122 +5175,31 @@ contains
 
   end subroutine writegrid_vasp
 
-  !> Calculate the core (if zpsp is present) or promolecular densities
-  !> at a point x0 (Cartesian coords) using atomic radial grids. If a
-  !> fragment is given, then only the atoms in it contribute.  This
-  !> routine is thread-safe.
-  module subroutine promolecular(c,x0,f,fp,fpp,nder,zpsp,fr,periodic)
+
+  !> Translate the point x0 to the main cell and calculate the core
+  !> (if zpsp is present) or promolecular densities at a point x0
+  !> (coord format given by icrd) using atomic radial grids up to a
+  !> number of derivatives nder (max: 2). Returns the density (f),
+  !> gradient (fp, nder >= 1), and Hessian (fpp, nder >= 2). If a
+  !> fragment (fr) is given, then only the atoms in it
+  !> contribute. This routine is a wrapper for the environment's
+  !> promolecular. Thread-safe.
+  module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
     use grid1mod, only: cgrid, agrid, grid1
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
     use param, only: maxzat
     class(crystal), intent(in) :: c
     real*8, intent(in) :: x0(3) !< Point in cryst. coords.
+    integer, intent(in) :: icrd !< Input coordinate format
     real*8, intent(out) :: f !< Density
     real*8, intent(out) :: fp(3) !< Density gradient
     real*8, intent(out) :: fpp(3,3) !< Density hessian
     integer, intent(in) :: nder !< Number of derivatives to calculate
     integer, intent(in), optional :: zpsp(:) 
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
-    logical, intent(in), optional :: periodic
 
-    integer :: i, j, k, ii, iz
-    real*8 :: xc(3), xx(3), r2, r, rinv1, rinv2
-    real*8 :: rho, rhop, rhopp, rfac, radd
-    integer :: idolist(c%env%n), nido
-    logical :: iscore, okper
-    type(grid1), pointer :: g
-
-    f = 0d0
-    fp = 0d0
-    fpp = 0d0
-    iscore = present(zpsp)
-    if (iscore) then
-       if (all(zpsp <= 0)) return
-    end if
-    if (iscore.and..not.allocated(cgrid)) then
-       call ferror("promolecular","cgrid not allocated",faterr)
-    elseif (.not.iscore.and..not.allocated(agrid)) then
-       call ferror("promolecular","agrid not allocated",faterr)
-    end if
-
-    ! initialize 
-    okper = .true.
-    if (present(periodic)) okper = periodic
-    xc = x0
-    if (okper) then
-       xc = c%c2xr(x0)
-       xc = xc - floor(xc)
-       xc = c%xr2c(xc)
-    end if
-
-    ! precompute the list of atoms that contribute
-    if (.not.present(fr)) then
-       nido = 0
-       do i = 1, c%env%n
-          iz = c%spc(c%env%at(i)%is)%z
-          if (iz == 0 .or. iz > maxzat) cycle
-          if (iscore) then
-             if (zpsp(iz) <= 0 .or. iz - zpsp(iz) == 0) cycle
-             g => cgrid(iz,zpsp(iz)) 
-          else
-             g => agrid(iz)
-          end if
-          if (.not.g%isinit) cycle
-          xx = xc - c%env%at(i)%r
-          r2 = norm2(xx)
-
-          if (r2 > g%rmax) cycle
-          nido = nido + 1
-          idolist(nido) = i
-       end do
-    else
-       nido = fr%nat
-    end if
-
-    ! do the sum
-    do ii = 1, nido
-       if (.not.present(fr)) then
-          i = idolist(ii)
-          iz = c%spc(c%env%at(i)%is)%z
-          if (iscore) then
-             g => cgrid(iz,zpsp(iz))
-          else
-             g => agrid(iz)
-          end if
-          xx = xc - c%env%at(i)%r
-       else
-          iz = fr%spc(fr%at(ii)%is)%z
-          if (iscore) then
-             g => cgrid(iz,zpsp(iz))
-          else
-             g => agrid(iz)
-          end if
-          xx = xc - fr%at(ii)%r
-       end if
-
-       r2 = norm2(xx)
-       r = max(r2,g%r(1))
-       r = max(r,1d-14)
-       call g%interp(r,rho,rhop,rhopp)
-       rho = max(rho,0d0)
-
-       f = f + rho
-       if (nder < 1) cycle
-       rinv1 = 1d0 / r
-       fp = fp + rhop * xx * rinv1
-       if (nder < 2) cycle
-       rinv2 = rinv1 * rinv1
-       rfac = (rhopp - rhop * rinv1)
-       do j = 1, 3
-          fpp(j,j) = fpp(j,j) + rhop * rinv1 + rfac * rinv2 * xx(j) * xx(j)
-          do k = 1, j-1
-             radd = rfac * rinv2 * xx(j) * xx(k)
-             fpp(j,k) = fpp(j,k) + radd
-             fpp(k,j) = fpp(k,j) + radd
-          end do
-       end do
-    end do
+    call c%env%promolecular(x0,icrd,f,fp,fpp,nder,zpsp,fr)
 
   end subroutine promolecular
 
@@ -5443,6 +5210,7 @@ contains
     use grid3mod, only: grid3
     use grid1mod, only: grid1
     use fragmentmod, only: fragment
+    use param, only: icrd_crys
     class(crystal), intent(in) :: c 
     type(grid3), intent(out) :: f 
     integer, intent(in) :: n(3)
@@ -5468,9 +5236,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             x = c%x2c(x)
-
-             call c%promolecular(x,rho,rdum1,rdum2,0,zpsp,fr,.false.)
+             call c%promolecular(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
 
              !$omp critical(write)
              f%f(i,j,k) = rho
