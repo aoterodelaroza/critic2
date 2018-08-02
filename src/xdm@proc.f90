@@ -954,6 +954,7 @@ contains
     use systemmod, only: sy
     use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, getword,&
        ferror, faterr
+    use param, only: icrd_cart
     character*(*), intent(in) :: file
     logical, intent(inout) :: haveit(sy%c%ncel,0:1)
     real*8, intent(inout) :: v(sy%c%ncel,0:1)
@@ -980,7 +981,7 @@ contains
        elseif (equal(w1,"#") .and. equal(w2,"n")) then
           do i = 1, nat
              read (lu,*) id, atsym, x(1:3)
-             idx = sy%c%identify_atom(x,.true.)
+             idx = sy%c%identify_atom(x,icrd_cart,.true.)
              if (idx == 0) &
                 call ferror("xdm_excitation_readpostg","atom not found",faterr)
              idmap(i) = idx

@@ -678,13 +678,17 @@ contains
 
   end subroutine nearest_atom
 
-  !> Identify an atom in the unit cell. Input: cartesian coords. Output:
-  !> the non-equivalent atom index (default if lncel is false) or the
-  !> complete atom index (if lncel is true). This routine is
-  !> thread-safe.
-  module function identify_atom(c,x0,lncel0)
+  !> Translate point x0 (with icrd input coordinates) to the main cell
+  !> and, if it corresponds to an atomic position (to within atomeps),
+  !> return the ID of the atom. Otherwise, return 0. If lncel is
+  !> .false. or not present, the ID is for the non-equivalent atom
+  !> list. Otherwise, it is for the complete list. This routine is
+  !> mostly a wrapper for the environment's identify_atom function
+  !> (except lattice translation of x0). Thread-safe.
+  module function identify_atom(c,x0,icrd,lncel0)
     use tools_io, only: ferror, faterr
     class(crystal), intent(in) :: c
+    integer, intent(in) :: icrd
     real*8, intent(in) :: x0(3)
     logical, intent(in), optional :: lncel0
     integer :: identify_atom
@@ -693,24 +697,7 @@ contains
     integer :: i
     logical :: lncel
 
-    lncel = .false.
-    if (present(lncel0)) lncel = lncel0
-
-    identify_atom = 0
-    x = c%c2x(x0)
-    do i = 1, c%ncel
-       xd = x - c%atcel(i)%x
-       call c%shortest(xd,dist2)
-       if (dist2 < 1d-3) then
-          if (lncel) then
-             identify_atom = i
-          else
-             identify_atom = c%atcel(i)%idx
-          endif
-          return
-       end if
-    end do
-    call ferror('identify_atom','atom in fragment not in list',faterr)
+    identify_atom = c%env%identify_atom(x0,icrd,lncel0)
 
   endfunction identify_atom
 
@@ -718,28 +705,35 @@ contains
   !> A fragment object. This routine is thread-safe.
   module function identify_fragment(c,nat,x0) result(fr)
     use types, only: realloc
+    use param, only: icrd_cart
     class(crystal), intent(in) :: c
     integer, intent(in) :: nat
     real*8, intent(in) :: x0(3,nat)
     type(fragment) :: fr
 
-    integer :: id, i
+    integer :: id, i, n
 
     fr%nat = nat
     allocate(fr%at(nat))
     fr%nspc = c%nspc
     allocate(fr%spc(c%nspc))
     fr%spc = c%spc
+
+    n = 0
     do i = 1, nat
-       id = identify_atom(c,x0(:,i),.true.)
-       fr%at(i)%r = x0(:,i)
-       fr%at(i)%x = c%c2x(x0(:,i))
-       fr%at(i)%cidx = id
-       fr%at(i)%idx = c%atcel(id)%idx
-       fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(id)%x)
-       fr%at(i)%is = c%atcel(id)%is
+       id = identify_atom(c,x0(:,i),icrd_cart,.true.)
+       if (id > 0) then
+          n = n + 1
+          fr%at(n)%r = x0(:,i)
+          fr%at(n)%x = c%c2x(x0(:,i))
+          fr%at(n)%cidx = id
+          fr%at(n)%idx = c%atcel(id)%idx
+          fr%at(n)%lvec = nint(fr%at(n)%x - c%atcel(id)%x)
+          fr%at(n)%is = c%atcel(id)%is
+       end if
     end do
-    call realloc(fr%at,fr%nat)
+    fr%nat = n
+    call realloc(fr%at,n)
 
   end function identify_fragment
 
@@ -748,7 +742,7 @@ contains
   !> atoms is not correctly identified, return 0.
   module function identify_fragment_from_xyz(c,file) result(fr)
     use tools_io, only: fopen_read, string, ferror, faterr, fclose
-    use param, only: bohrtoa
+    use param, only: bohrtoa, icrd_cart
     use types, only: realloc
 
     class(crystal), intent(in) :: c
@@ -773,7 +767,7 @@ contains
        word = ""
        read(lu,*,err=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
-       id = c%identify_atom(x0,.true.)
+       id = c%identify_atom(x0,icrd_cart,.true.)
        if (id == 0) then
           fr%nat = 0
           deallocate(fr%at)

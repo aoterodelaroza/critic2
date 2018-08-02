@@ -840,7 +840,7 @@ contains
     use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
     use fragmentmod, only: fragment
     use types, only: realloc
-    use param, only: bohrtoa
+    use param, only: bohrtoa, icrd_cart
 
     type(fragment) :: fr
     integer, intent(in) :: lu
@@ -866,21 +866,24 @@ contains
        lp = 1
        word = lgetword(line,lp)
        if (.not.equal(word,"end") .and. .not.equal(word,"endfragment")) then
-          fr%nat = fr%nat + 1
-          if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
           lp = 1
           ok = eval_next(x(1),line,lp)
           ok = ok .and. eval_next(x(2),line,lp)
           ok = ok .and. eval_next(x(3),line,lp)
           if (.not.ok) call ferror('nciplot','bad atom in fragment',faterr)
           x = x / bohrtoa - sy%c%molx0
-          id = sy%c%identify_atom(x,.true.)
-          fr%at(fr%nat)%r = x
-          fr%at(fr%nat)%x = sy%c%c2x(x)
-          fr%at(fr%nat)%cidx = id
-          fr%at(fr%nat)%idx = sy%c%atcel(id)%idx
-          fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - sy%c%atcel(id)%x)
-          fr%at(fr%nat)%is = sy%c%atcel(id)%is
+          id = sy%c%identify_atom(x,icrd_cart,.true.)
+
+          if (id > 0) then
+             fr%nat = fr%nat + 1
+             if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
+             fr%at(fr%nat)%r = x
+             fr%at(fr%nat)%x = sy%c%c2x(x)
+             fr%at(fr%nat)%cidx = id
+             fr%at(fr%nat)%idx = sy%c%atcel(id)%idx
+             fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - sy%c%atcel(id)%x)
+             fr%at(fr%nat)%is = sy%c%atcel(id)%is
+          end if
        else
           exit
        end if

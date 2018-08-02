@@ -319,9 +319,10 @@ module crystalmod
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module function identify_atom(c,x0,lncel0)
+     module function identify_atom(c,x0,icrd,lncel0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)
+       integer, intent(in) :: icrd
        logical, intent(in), optional :: lncel0
        integer :: identify_atom
      end function identify_atom
