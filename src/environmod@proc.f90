@@ -135,7 +135,7 @@ contains
     use global, only: cutrad
     use tools_math, only: matinv
     use types, only: realloc, species, celatom
-    use param, only: atmcov, bohrtoa
+    use param, only: atmcov
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
@@ -422,7 +422,7 @@ contains
     ! bring the atom to the main cell, convert, identify the region
     xp = x0
     call e%y2z_center(xp,icrd,icrd_cart)
-    ireg0 = e%c2p(x0)
+    ireg0 = e%c2p(xp)
     idx0 = e%p2i(ireg0)
 
     ! calculate the regions to explore
