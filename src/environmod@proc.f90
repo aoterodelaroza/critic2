@@ -958,7 +958,7 @@ contains
   !> atom in rnn2, or 0.0 if not found.
   subroutine find_asterisms_covalent(e,nstar,rnn2)
     use global, only: atomeps, bondfactor
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, uout, string
     use types, only: realloc
     use param, only: icrd_cart, atmcov
     class(environ), intent(in) :: e
@@ -1006,8 +1006,11 @@ contains
           rij2(j,i,1) = rij2(i,j,1)
        end do
     end do
-    if (sqrt(maxval(rij2)) > e%boxsize) &
+    if (sqrt(maxval(rij2)) > e%boxsize) then
+       write (uout,'("rij2    = ",A)') string(sqrt(maxval(rij2)),'f',10,4)
+       write (uout,'("boxsize = ",A)') string(e%boxsize,'f',10,4)
        call ferror("find_asterisms_covalent","boxsize too small for find_asterisms_covalent",faterr)
+    end if
 
     ! find the first and last region that cover the unit cell
     xmin = 1d40
@@ -1212,7 +1215,7 @@ contains
     end do
 
     ! cap the box size at around 100^3 boxes
-    e%boxsize = max(boxsize_default,2d0*e%rsph_env/100d0)
+    e%boxsize = max(e%boxsize,2d0*e%rsph_env/100d0)
 
     ! calculate the position of the origin and the region partition
     nregc = ceiling(max((xmaxc - xminc) / e%boxsize,1d-14))
