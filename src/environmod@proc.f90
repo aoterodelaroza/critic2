@@ -955,7 +955,7 @@ contains
   !> nstar array. To use this routine it is necessary that the boxsize
   !> is larger than the maximum covalent distance plus the tolerance.
   !> If present, return half the nearest-neighbor distance for each
-  !> atom in rnn2, or -1 if not found.
+  !> atom in rnn2, or 0.0 if not found.
   subroutine find_asterisms_covalent(e,nstar,rnn2)
     use global, only: atomeps, bondfactor
     use tools_io, only: ferror, faterr

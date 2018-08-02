@@ -46,7 +46,7 @@ contains
   !xx! crystal class methods
   !> Initialize the struct arrays
   module subroutine struct_init(c)
-    use param, only: eyet, eye
+    use param, only: eyet
     class(crystal), intent(inout) :: c
 
     integer :: i
@@ -464,7 +464,7 @@ contains
     do i = 1, c%nneq
        if (rnn2(i) > 0d0) then
           c%at(i)%rnn2 = 0.5d0 * rnn2(i)
-       else
+       elseif (.not.c%ismolecule .or. c%ncel > 1) then
           call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
           c%at(i)%rnn2 = 0.5d0 * dist 
        end if
@@ -2432,6 +2432,8 @@ contains
     character(len=3) :: schpg
     integer, allocatable :: nis(:)
 
+    character*1, parameter :: lvecname(3) = (/"a","b","c"/)
+
     if (lcrys) then
        ! Header
        if (.not.c%ismolecule) then
@@ -2480,6 +2482,8 @@ contains
 
     if (lq) then
        write (uout,'("+ List of atomic species: ")')
+       write (uout,'("# spc = atomic species. Z = atomic number. name = atomic name (symbol).")')
+       write (uout,'("# Q = charge. ZPSP = pseudopotential charge.")')
        write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
           string("Z",3,ioj_center), string("name",7,ioj_center),&
           string("Q",length=4,justify=ioj_center),&
@@ -2502,6 +2506,8 @@ contains
        ! List of atoms in crystallographic coordinates
        if (.not.c%ismolecule) then
           write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
+          write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
+          write (uout,'("# name = atomic name (symbol). mult = multiplicity. Z = atomic number.")')
           write (uout,'("# ",8(A,X))') string("nat",3,ioj_center), &
              string("x",14,ioj_center), string("y",14,ioj_center),&
              string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center), &
@@ -2520,6 +2526,8 @@ contains
           write (uout,*)
 
           write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
+          write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
+          write (uout,'("# name = atomic name (symbol). Z = atomic number.")')
           write (uout,'("# ",7(A,X))') string("at",3,ioj_center),&
              string("x",14,ioj_center), string("y",14,ioj_center),&
              string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
@@ -2539,32 +2547,34 @@ contains
 
           write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,A,": ",3(A,X))') string(i), (string(c%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'(4X,A,": ",3(A,X))') lvecname(i), (string(c%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,*)
        end if
 
        ! List of atoms in Cartesian coordinates
        write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
-       write (uout,'("# ",7(A,X))') string("at",3,ioj_center), &
+       write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
+       write (uout,'("# name = atomic name (symbol). Z = atomic number. dnn = nearest-neighbor distance.")')
+       write (uout,'("# ",99(A,X))') string("at",3,ioj_center), &
           string("x",16,ioj_center), string("y",16,ioj_center),&
           string("z",16,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
-          string("Z",3,ioj_center)
+          string("Z",3,ioj_center), string("dnn",10,ioj_center)
        do i=1,c%ncel
           is = c%atcel(i)%is
-          write (uout,'(2x,7(A,X))') &
+          write (uout,'(2x,99(A,X))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
              string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center),&
-             string(c%spc(is)%z,3,ioj_center)
+             string(c%spc(is)%z,3,ioj_center), string(2d0*c%at(c%atcel(i)%idx)%rnn2*dunit0(iunit),'f',length=10,decimal=4,justify=4)
        enddo
        write (uout,*)
 
        ! Encompassing region for the molecule
        if (c%ismolecule) then
-          write (uout,'("+ Limits of the molecular cell (in fractions of the encompassing cell).")')
-          write (uout,'("  The region of the encompassing cell outside the molecular cell is")')
-          write (uout,'("  assumed to represent infinity (no CPs or gradient paths in it).")')
+          write (uout,'("+ Limits of the molecular cell (in fractions of the unit cell).")')
+          write (uout,'("# The part of the unit cell outside the molecular cell represents")')
+          write (uout,'("# infinity (no CPs or gradient paths in it).")')
           write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
           write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
           write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
@@ -2639,9 +2649,10 @@ contains
 
        ! Discrete molecules, if available
        if (allocated(c%nstar) .and. allocated(c%mol) .and. c%nmol > 0) then
-          write (uout,'("+ List of fragments in the system")')
-          write (uout,'("  Number of fragments: ",A)') string(c%nmol)
-          write (uout,'("# Id  nat           Center of mass          Discrete? ")')
+          write (uout,'("+ List of fragments in the system (",A,")")') string(c%nmol)
+          write (uout,'("# Id = fragment ID. nat = number of atoms in fragment. C-o-m = center of mass (",A,").")') iunitname0(iunit)
+          write (uout,'("# Discrete = is this fragment finite?")')
+          write (uout,'("# Id  nat           Center of mass            Discrete  ")')
           do i = 1, c%nmol
              if (c%ismolecule) then
                 xcm = (c%mol(i)%cmass()+c%molx0) * dunit0(iunit)
@@ -2661,7 +2672,8 @@ contains
 
        ! Wigner-Seitz cell
        if (.not.c%ismolecule) then
-          write (uout,'("+ Vertex of the WS cell (cryst. coords.)")')
+          write (uout,'("+ Vertex of the WS cell in cryst. coords. (",A,")")') string(c%ws_nv)
+          write (uout,'("# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (",A,").")') iunitname0(iunit)
           write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
              string("x",length=11,justify=ioj_center),&
              string("y",length=11,justify=ioj_center),&
@@ -2675,8 +2687,8 @@ contains
           enddo
           write (uout,*)
 
-          write (uout,'("+ Faces of the WS cell")')
-          write (uout,'("  Number of faces: ",A)') string(c%ws_nf)
+          write (uout,'("+ Faces of the WS cell (",A,")")') string(c%ws_nf)
+          write (uout,'("# Face ID: vertexID1 vertexID2 ...")')
           do i = 1, c%ws_nf
              write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
                 (string(c%ws_iside(j,i),length=2),j=1,c%ws_nside(i))
@@ -2684,15 +2696,16 @@ contains
           write (uout,*)
 
           write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
+          write (uout,'("# FaceID: Voronoi lattice vector (cryst. coords.)")')
           do i = 1, c%ws_nf
              write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
                 (string(c%ws_ineighx(j,i),length=2,justify=ioj_right),j=1,3)
           end do
           write (uout,*)
 
-          write (uout,'("+ Lattice vectors for the Delaunay reduced cell (fractional)")')
+          write (uout,'("+ Lattice vectors for the Delaunay reduced cell (cryst. coords.)")')
           do i = 1, 3
-             write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+             write (uout,'(2X,A,": ",99(A,X))') lvecname(i), &
                 (string(nint(c%m_xr2x(j,i)),length=2,justify=ioj_right),j=1,3)
           end do
 
