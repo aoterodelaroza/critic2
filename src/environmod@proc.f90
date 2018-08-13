@@ -201,7 +201,7 @@ contains
        e%at(i)%r = e%xr2c(e%at(i)%x)
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
-       e%at(i)%lvec = floor(x - at(i)%x)
+       e%at(i)%lvec = nint(x - at(i)%x)
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
@@ -1075,7 +1075,7 @@ contains
                          call realloc(nstar(ki)%lcon,3,2*nstar(ki)%ncon)
                       end if
                       nstar(ki)%idcon(nstar(ki)%ncon) = e%at(kj)%cidx
-                      nstar(ki)%lcon(:,nstar(ki)%ncon) = e%at(kj)%lvec
+                      nstar(ki)%lcon(:,nstar(ki)%ncon) = e%at(kj)%lvec- e%at(ki)%lvec
                       if (present(rnn2)) then
                          if (rnn2(ki) < 1d-10 .or. dist2 < rnn2(ki)) then
                             rnn2(ki) = dist2
