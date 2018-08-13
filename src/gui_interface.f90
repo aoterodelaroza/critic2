@@ -307,11 +307,7 @@ contains
        end if
        mncon_ = max(mncon_,sc(isc)%at(i)%ncon)
 
-       if (atmcov(iz) > 1) then
-          sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
-       else
-          sc(isc)%at(i)%rad = real(1.5d0*atmcov(iz),c_float)
-       end if
+       sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
        sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
        sc(isc)%at(i)%rgb(4) = 1.0
     end do
