@@ -559,11 +559,11 @@ contains
   !> a number of shells up2sh or up to a number of atoms up2n. If
   !> nid0, consider only atoms with index nid0 from the non-equivalent
   !> list. If id0, consider only atoms with index id0 from the
-  !> complete list. If nozero, disregard zero-distance atoms. The
-  !> output error condition ierr is 0 if the search was successful or
-  !> non-zero if the input search conditions could not be met by this
-  !> environment.
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,nozero)
+  !> complete list. If iz0, consider only atoms with atomic number
+  !> iz0.  If nozero, disregard zero-distance atoms. The output error
+  !> condition ierr is 0 if the search was successful or non-zero if
+  !> the input search conditions could not be met by this environment.
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,iz0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: mergesort
@@ -585,6 +585,7 @@ contains
     integer, intent(in), optional :: up2n
     integer, intent(in), optional :: nid0
     integer, intent(in), optional :: id0
+    integer, intent(in), optional :: iz0
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: eps = 1d-10
@@ -592,8 +593,8 @@ contains
     real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, rext, xhalf(3), dmaxenv
     integer :: ireg0(3), ireg(3), idxreg, nats
     integer :: i, j, k, imax, i1, i2, i3, ii1, ii2, ii3, isign(3), i0loop
-    integer, allocatable :: iord(:), iiord(:), ishell(:)
-    integer :: nshel
+    integer, allocatable :: iord(:), iiord(:), ishell(:), iaux(:,:)
+    integer :: nshel, ishl0, ishl1
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
     logical :: doshell, enough
@@ -648,6 +649,9 @@ contains
              end if
              if (present(id0)) then
                 if (e%at(k)%cidx /= id0) cycle
+             end if
+             if (present(iz0)) then
+                if (e%spc(e%at(k)%is)%z /= iz0) cycle
              end if
 
              ! calculate the distance to this atom
@@ -732,13 +736,34 @@ contains
 
        ! Sort output atoms by distance
        if (sorted .or. present(up2sh) .or. present(up2n)) then
-          ! First by shell (if available) then by distance
           allocate(iord(nat))
           do i = 1, nat
              iord(i) = i
           end do
-          if (doshell) call mergesort(ishell,iord,1,nat)
-          call mergesort(dist,iord,1,nat)
+          if (doshell) then
+             ! First by shell (if available) then by distance within each shell
+             ! (otherwise the atomeps threshold may screw up the shell order)
+             call mergesort(ishell,iord,1,nat)
+
+             allocate(iaux(2,nshel))
+             do i = 1, nat
+                if (i == 1) then
+                   iaux(1,ishell(iord(i))) = 1
+                else if (ishell(iord(i)) /= ishell(iord(i-1))) then
+                   iaux(2,ishell(iord(i-1))) = i-1
+                   iaux(:,ishell(iord(i))) = i
+                else if (i == nat) then
+                   iaux(2,ishell(iord(i))) = i
+                end if
+             end do
+             do i = 1, nshel
+                call mergesort(dist,iord,iaux(1,i),iaux(2,i))
+             end do
+             deallocate(iaux)
+          else
+             ! We do not do shell so by distance only
+             call mergesort(dist,iord,1,nat)
+          end if
           eid = eid(iord)
           dist = dist(iord)
           if (doshell) ishell = ishell(iord)
