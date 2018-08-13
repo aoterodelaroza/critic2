@@ -57,7 +57,7 @@ module tools
        integer, intent(in) :: first
        integer, intent(in) :: last 
      end subroutine qcksort_i4
-     module subroutine mergesort_r8(arr, iord, ini, n)
+     module subroutine mergesort_r8(arr,iord,ini,n)
        real*8, dimension(:), intent(in) :: arr
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n

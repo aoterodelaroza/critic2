@@ -253,12 +253,12 @@ contains
     endif
     go to 10
   end subroutine qcksort_i4
-
+  
   !> Sort a real*8 array (arr(ini:n)) in ascending order by
   !> mergesort. Returns the ordering permutation in array iord
   !> (normally, iord = ini:n). This sort is stable and uses n
   !> additional work space.
-  module subroutine mergesort_r8(arr, iord, ini, n)
+  module subroutine mergesort_r8(arr,iord,ini,n)
     real*8, dimension(:), intent(in) :: arr
     integer, dimension(:), intent(inout) :: iord
     integer, intent(in) :: ini, n

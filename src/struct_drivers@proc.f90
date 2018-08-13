@@ -1256,43 +1256,52 @@ contains
   !> non-equivalent atoms in the unit cell.
   module subroutine struct_environ(s,line)
     use systemmod, only: system
+    use environmod, only: environ
     use global, only: eval_next, dunit0, iunit, iunitname0
-    use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
+    use tools_io, only: string, lgetword, equal, ferror, faterr, noerr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
+    use param, only: bohrtoa, icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    integer :: lp, lp2
-    integer :: nn, i, j, k, l
-    real*8 :: x0(3), xout(3), x0in(3)
-    logical :: doatoms, ok
+    real*8 :: up2d
+    integer :: nat, lvec(3)
+    integer, allocatable :: eid(:), ishell(:)
+    real*8, allocatable :: dist(:)
+    integer :: lp, lp2, ierr
     character(len=:), allocatable :: word
-    integer, allocatable :: nneig(:), wat(:)
-    real*8, allocatable :: dist(:), xenv(:,:,:)
+    real*8 :: x0(3), x0in(3)
+    logical :: doatoms, ok, groupshell
+    integer :: i, j, k, l
+    type(environ), target :: eaux
+    type(environ), pointer :: eptr
 
     integer :: iat, iby, iat_mode, iby_mode
     integer, parameter :: inone = 0
     integer, parameter :: iznuc = 1
     integer, parameter :: iid = 2
 
-    nn = 10
+    up2d = 5d0 / bohrtoa
+
     x0 = 0d0
     doatoms = .true.
     iat = 0
     iat_mode = inone
     iby = 0
     iby_mode = inone
+    groupshell = .false.
 
     ! parse input
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
-       if (equal(word,"shells")) then
-          ok = eval_next(nn,line,lp)
+       if (equal(word,"dist")) then
+          ok = eval_next(up2d,line,lp)
           if (.not.ok) then
-             call ferror('struct_environ','Wrong SHELLS syntax',faterr,line,syntax=.true.)
+             call ferror('struct_environ','Wrong DIST syntax',faterr,line,syntax=.true.)
              return
           end if
+          up2d = up2d / dunit0(iunit)
        elseif (equal(word,"point")) then
           ok = eval_next(x0(1),line,lp)
           ok = ok .and. eval_next(x0(2),line,lp)
@@ -1305,7 +1314,8 @@ contains
           x0in = x0
           if (s%c%ismolecule) &
              x0 = s%c%c2x(x0 / dunit0(iunit) - s%c%molx0)
-       elseif (equal(word,"at")) then
+       elseif (equal(word,"atom")) then
+          doatoms = .true.
           lp2 = lp
           word = lgetword(line,lp)
           iat = zatguess(word)
@@ -1331,6 +1341,8 @@ contains
           else
              iby_mode = iznuc
           end if
+       elseif (equal(word,"shells")) then
+          groupshell = .true.
        elseif (len_trim(word) > 0) then
           call ferror('struct_environ','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -1340,99 +1352,154 @@ contains
     end do
 
     write (uout,'("* ENVIRON")')
-    allocate(nneig(nn),wat(nn),dist(nn))
+    eptr => s%c%env
     if (doatoms) then
-       write (uout,'("+ Atomic environments")')
-       if (.not.s%c%ismolecule) then
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
-             iunitname0(iunit)
-       else
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
-             iunitname0(iunit), iunitname0(iunit)
-       end if
        do i = 1, s%c%nneq
-          if (iat_mode == iid) then
-             if (iat /= i) cycle
-          elseif (iat_mode == iznuc) then
-             if (iat /= s%c%spc(s%c%at(i)%is)%z) cycle
-          end if
-          call s%c%pointshell(s%c%at(i)%x,nn,nneig,wat,dist,xenv)
-          do j = 1, nn
-             if (iby_mode == iid) then
-                if (iby /= wat(j)) cycle
-             elseif (iby_mode == iznuc) then
-                if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
-             end if
-             xout = xenv(:,1,j)
-             if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
-             if (j == 1) then
-                write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                   i, s%c%spc(s%c%at(i)%is)%name, nneig(j), dist(j)*dunit0(iunit), wat(j), &
-                   s%c%spc(s%c%at(wat(j))%is)%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
-             else
-                if (wat(j) /= 0) then
-                   write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                      nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%spc(s%c%at(wat(j))%is)%name,&
-                      (string(xout(k),'f',12,7,ioj_right),k=1,3)
-                end if
-             end if
-          end do
-       end do
-       write (uout,*)
-    else
-       call s%c%pointshell(x0,nn,nneig,wat,dist,xenv)
-       ! List of atomic environments
-       write (uout,'("+ Atomic environments of (",A,",",A,",",A,")")') &
-          string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
-       if (.not.s%c%ismolecule) then
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
-             iunitname0(iunit)
-       else
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
-             iunitname0(iunit), iunitname0(iunit)
-       end if
-       do j = 1, nn
-          if (iby_mode == iid) then
-             if (iby /= wat(j)) cycle
-          elseif (iby_mode == iznuc) then
-             if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
-          end if
-          xout = xenv(:,1,j)
-          if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
-          if (wat(j) /= 0) then
-             write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%spc(s%c%at(wat(j))%is)%name, &
-                (string(xout(k),'f',12,7,ioj_right),k=1,3)
-          end if
-       end do
-       write (uout,*)
+          if (iat_mode == iid .and. i /= iat) cycle
+          if (iat_mode == iznuc .and. s%c%spc(s%c%at(i)%is)%z == iat) cycle
 
-       ! Detailed list of neighbors
-       write (uout,'("+ Neighbors of (",A,",",A,",",A,")")') &
-          string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
-       write (uout,'(" Atom Id           position (cryst. coords)      Distance (",A,")")') &
-          iunitname0(iunit)
-       do j = 1, nn
-          if (wat(j) == 0) cycle
           if (iby_mode == iid) then
-             if (iby /= wat(j)) cycle
+             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
           elseif (iby_mode == iznuc) then
-             if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
+             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+          else
+             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
           end if
-          do k = 1, nneig(j)
-             xout = xenv(:,k,j)
-             if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
-             write (uout,'(6(A,X))') &
-                string(s%c%spc(s%c%at(wat(j))%is)%name,5,ioj_center), string(wat(j),2),&
-                (string(xout(l),'f',12,7,ioj_right),l=1,3),&
-                string(dist(j)*dunit0(iunit),'f',12,5,ioj_right)
-          end do
+          if (ierr > 0 .and..not.s%c%ismolecule) then
+             call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
+             call eaux%build_crys(s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
+             if (iby_mode == iid) then
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+             elseif (iby_mode == iznuc) then
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+             else
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+             end if
+             if (ierr > 0) &
+                call ferror('struct_environ','unknown error calculating atom environment',faterr)
+             eptr => eaux
+          end if
+
+          write (uout,'("+ Environment of atom ",A," (",A,") at ",3(A,X))') string(i), string(s%c%spc(s%c%at(i)%is)%name), &
+             (string(s%c%at(i)%x(j),'f',length=10,decimal=6),j=1,3)
+
+          if (groupshell) then
+             call output_by_shell()
+          else
+             call output_by_distance()
+          end if
        end do
-       write (uout,*)
+    else
+       if (iby_mode == iid) then
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+       elseif (iby_mode == iznuc) then
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+       else
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+       end if
+       if (ierr > 0 .and..not.s%c%ismolecule) then
+          call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
+          call eaux%build_crys(s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
+          if (iby_mode == iid) then
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+          elseif (iby_mode == iznuc) then
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+          else
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+          end if
+          if (ierr > 0) &
+             call ferror('struct_environ','unknown error calculating point environment',faterr)
+          eptr => eaux
+       end if
+
+       write (uout,'("+ Environment of point ",3(A,X))') (string(x0in(j),'f',length=10,decimal=6),j=1,3)
+
+       if (groupshell) then
+          call output_by_shell()
+       else
+          call output_by_distance()
+       end if
     end if
-    deallocate(nneig,wat,dist)
-    if (allocated(xenv)) deallocate(xenv)
-    
+
+  contains
+    subroutine output_by_distance()
+      integer :: mshel, eidx, cidx, nidx
+      real*8 :: xx(3)
+
+      mshel = maxval(ishell)
+      write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
+      write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
+      write (uout,'("# Number of atomic shells in the environment: ",A)') string(mshel)
+      write (uout,'("# nid = non-equivalent list atomic ID. id = complete list atomic ID plus lattice vector (lvec).")')
+      write (uout,'("# name = atomic name (symbol). spc = atomic species. dist = distance. shel = shell ID.")')
+      if (s%c%ismolecule) then
+         write (uout,'("#nid   id      lvec     name   spc  dist(",A,") shel          Coordinates (",A,") ")') &
+            iunitname0(iunit), iunitname0(iunit)
+      else
+         write (uout,'("#nid   id      lvec     name   spc  dist(",A,") shel      Coordinates (cryst. coord.) ")') iunitname0(iunit)
+      end if
+      do j = 1, nat
+         eidx = eid(j)
+         nidx = eptr%at(eidx)%idx
+         cidx = eptr%at(eidx)%cidx
+         if (s%c%ismolecule) then
+            xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
+         else
+            xx = eptr%at(eidx)%x + lvec
+         end if
+
+         write (uout,'(2X,2(A,X),"(",A,X,A,X,A,")",99(X,A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
+            (string(eptr%at(eidx)%lvec(k)+lvec(k),2,ioj_right),k=1,3), string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center),&
+            string(eptr%at(eidx)%is,2,ioj_right), string(dist(j)*dunit0(iunit),'f',12,6,4), string(ishell(j),3,ioj_center),&
+            (string(xx(k),'f',12,8,4),k=1,3)
+      end do
+      write (uout,*)
+    end subroutine output_by_distance
+
+    subroutine output_by_shell()
+      integer :: mshel, eidx, cidx, nidx, nneig, ishl0
+      real*8 :: xx(3)
+
+      mshel = maxval(ishell)
+      write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
+      write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
+      write (uout,'("# Number of atomic shells in the environment: ",A)') string(mshel)
+      write (uout,'("# ishl = shell ID. nneig = number of neighbors in the shell. nid = non-equivalent list atomic ID.")')
+      write (uout,'("# name = atomic name (symbol). spc = atomic species. dist = distance. Rest of fields are for a single")') 
+      write (uout,'("# representative of the shell: id = complete list atomic ID plus lattice vector (lvec) and coordinates. ")')
+      if (s%c%ismolecule) then
+         write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec            Coordinates (",A,") ")') &
+            iunitname0(iunit), iunitname0(iunit)
+      else
+         write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec        Coordinates (cryst. coord.) ")') iunitname0(iunit)
+      end if
+      k = 1
+      main: do j = 1, mshel
+         ishl0 = k
+         do while (ishell(k) == j)
+            k = k + 1
+            if (k > nat) exit
+         end do
+         if (k == 1) exit
+         nneig = k - ishl0
+
+         eidx = eid(k-1)
+         nidx = eptr%at(k-1)%idx
+         cidx = eptr%at(k-1)%cidx
+         if (s%c%ismolecule) then
+            xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
+         else
+            xx = eptr%at(eidx)%x + lvec
+         end if
+
+         write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center), string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
+            string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center), string(eptr%at(eidx)%is,2,ioj_right),&
+            string(dist(j)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
+            (string(eptr%at(eidx)%lvec(l)+lvec(l),2,ioj_right),l=1,3), (string(xx(l),'f',12,8,4),l=1,3)
+      end do main
+      write (uout,*)
+    end subroutine output_by_shell
+
   end subroutine struct_environ
 
   !> Calculate the packing ratio of the crystal.

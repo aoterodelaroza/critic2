@@ -140,7 +140,6 @@ module crystalmod
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
-     procedure :: pointshell !< Calculate atomic shells around a point
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
 
@@ -377,15 +376,6 @@ module crystalmod
        type(fragment), intent(out), allocatable :: fr(:)
        logical, intent(out), allocatable :: isdiscrete(:)
      end subroutine listmolecules
-     module subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: x0(3)
-       integer, intent(in) :: shmax
-       integer, intent(out) :: nneig(shmax)
-       integer, intent(out) :: wat(shmax)
-       real*8, intent(out) :: dist(shmax)
-       real*8, intent(inout), allocatable, optional :: xenv(:,:,:)
-     end subroutine pointshell
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

@@ -357,7 +357,8 @@ expression.r # prints the value of the expression to the output.
 * ROOT {root.s}
 * HIRSHFELD
 * EWALD
-* ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r] [AT at.s/iat.i] [BY by.s/iby.i]
+* ENVIRON [DIST dist.r] [POINT x0.r y0.r z0.r|ATOM at.s/iat.i]
+  [BY by.s/iby.i] [SHELLS]
 * PACKING [VDW] [PREC prec.r]
 * IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|file.xyz]
     x y z [ANG|ANGSTROM|BOHR|AU|CRYST]

@@ -4301,7 +4301,7 @@ Primary bundle plots (BUNDLEPLOT)
 
 Plot a primary bundle starting from a point in its interior, given by
 x.r y.r z.r in crystallographic coordinates (crystal) or molecular
-Cartesian coordinates (moelcule, default units: angstrom). The
+Cartesian coordinates (molecule, default units: angstrom). The
 bisection algorithm is used with precision delta.r (PREC keyword,
 default: 1d-5 bohr). The rays traced are obtained by a recursive
 subdivision (lvl.i cycles) a cube (CUBE), an octahedron (TRIANG) or
@@ -5827,24 +5827,27 @@ manual for more information.
 
 ::
 
-  ENVIRON [SHELLS nshel.i] [POINT x0.r y0.r z0.r] [AT at.s/iat.i] [BY by.s/iby.i]
+  ENVIRON [DIST dist.r] [POINT x0.r y0.r z0.r|ATOM at.s/iat.i]
+  [BY by.s/iby.i] [SHELLS]
 
-Print the shells of atomic neighbors for every non-equivalent atom
-in the cell, up to nshel.i shells (default: 10). If a point is given
-with the POINT keyword (crystallographic coordinates), then print the
-atomic environment of that point instead. When the POINT keyword is
-used, critic2 also prints a complete list of all the atoms in the
-vicinity of that point. 
+Print list of neighbor atoms. If POINT is given, print the neighbors
+around the point with coordinates x0.r y0.r z0.r in crystallographic
+coordinates (crystal) or or molecular Cartesian coordinates (moelcule,
+default units: angstrom). If ATOM is given, print the neighbors around
+atom iat.i from the non-equivalent atom list or around every atom with
+atomic symbol at.s (converted internally to atomic number). If neither
+POINT nor ATOM are given, print the environments of all non-equivalent
+atoms in the unit cell.
 
-The list of atoms in the environment can be filtered with the AT and
-BY keywords. If AT is given with an atomic symbol (at.s), only the
-environments of the atoms with the same atomic number are printed. If
-an integer is given (iat.i), the environments of non-equivalent atom
-iat.i are printed. The BY keyword filters the atoms in each
-environment. If a string is used as argument to BY, only the atoms in
-the environment with the same atomic number as by.s are printed. If an
-integer is used, only the atoms equivalent by symmetry to
-non-equivalent atom iby.i are shown.
+By default, the environments extend up to 5 angstrom from the central
+point. The DIST keyword can be used to change this value (by default,
+dist.r is in bohr in crystals and angstrom in molecules). The BY
+keyword allows filtering the neighbor list to print only certain kinds
+of atoms. If iby.i is given, print only atoms whose non-equivalent ID
+is the same as iby.i. If by.s is given, print only atoms with the same
+atomic symbol as by.s (converted internally to atomic number). If
+SHELLS is given, group the neighbors in shells by distance (1e-2
+atomic distance threshold) and non-equivalent ID.
 
 ::
 

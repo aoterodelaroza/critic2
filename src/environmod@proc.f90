@@ -181,7 +181,7 @@ contains
 
     ! calculate the dmax if not given
     if (present(dmax0)) then
-       dmax = dmax0
+       dmax = dmax0 + 1d-2
     else
        dmax = 0d0
        do i = 1, n
