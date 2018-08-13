@@ -1019,14 +1019,14 @@ contains
     rij2 = 0d0
     do i = 1, e%nspc
        ri = atmcov(e%spc(i)%z)
-       do j = 1, e%nspc
+       do j = i, e%nspc
           rj = atmcov(e%spc(j)%z)
           
           r2 = (ri+rj) * bondfactor
           rij2(i,j,2) = r2*r2
           rij2(j,i,2) = rij2(i,j,2)
 
-          r2 = ri+rj / bondfactor
+          r2 = (ri+rj) / bondfactor
           rij2(i,j,1) = r2*r2
           rij2(j,i,1) = rij2(i,j,1)
        end do
@@ -1082,12 +1082,12 @@ contains
                          end if
                       end if
                    end if
-                end do
+                end do ! j = e%nrlo(idx1), e%nrhi(idx1)
 
-             end do
-          end do
-       end do
-    end do
+             end do ! j3 = -1, 1
+          end do ! j2 = -1, 1
+       end do ! j1 = -1, 1
+    end do ! ki = 1, e%ncell
 
     ! reallocate the asterism arrays and convert to half nearest
     ! neighbor distance
