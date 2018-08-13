@@ -119,7 +119,7 @@ contains
     ! core charges
     c%zpsp = -1
 
-    ! the crystal is not initialized until struct_fill is run
+    ! the crystal is not initialized until struct_new is run
     c%file = ""
     c%isinit = .false. 
     c%havesym = 0 
@@ -1024,9 +1024,10 @@ contains
 
     integer :: i, j, k, l, jid, newid, newl(3)
     integer :: nat
-    logical :: used(c%ncel), found, fdisc
+    logical :: found, fdisc
     integer, allocatable :: id(:), lvec(:,:)
     logical, allocatable :: ldone(:)
+    logical, allocatable :: used(:)
     real*8 :: xcm(3)
 
     if (.not.allocated(c%nstar)) &
@@ -1035,6 +1036,7 @@ contains
     if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
 
     ! initizialize 
+    allocate(used(c%ncel))
     used = .false.
     c%nmol = 0
     allocate(c%mol(1),c%moldiscrete(1),id(10),lvec(3,10),ldone(10))
@@ -1123,6 +1125,7 @@ contains
     end do
     call realloc_fragment(c%mol,c%nmol)
     call realloc(c%moldiscrete,c%nmol)
+    deallocate(used)
 
     ! translate all fragments to the main cell
     if (.not.c%ismolecule) then
