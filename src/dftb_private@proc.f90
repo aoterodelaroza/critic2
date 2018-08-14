@@ -266,15 +266,22 @@ contains
 
     ! precalculate the quantities that depend only on the environment
     allocate(rl(f%maxnorb,nenv),rlp(f%maxnorb,nenv),rlpp(f%maxnorb,nenv),ylm(f%maxlm))
-    allocate(phi(f%maxlm,f%maxnorb,nenv),phip(3,f%maxlm,f%maxnorb,nenv),phipp(6,f%maxlm,f%maxnorb,nenv))
     allocate(idxion(nenv))
     if (.not.f%isreal) then
        allocate(phase(nenv,f%nkpt))
     end if
-    nenvl = 0
+    allocate(phi(f%maxlm,f%maxnorb,nenv))
     phi = 0d0
-    phip = 0d0
-    phipp = 0d0
+    if (nder >= 1) then
+       allocate(phip(3,f%maxlm,f%maxnorb,nenv))
+       phip = 0d0
+    end if
+    if (nder >= 2) then
+       allocate(phipp(6,f%maxlm,f%maxnorb,nenv))
+       phipp = 0d0
+    end if
+
+    nenvl = 0
     do ion = 1, nenv
        xion = xpos - f%e%at(eid(ion))%r
        it = f%ispec(f%e%at(eid(ion))%is)
@@ -312,8 +319,10 @@ contains
           ip = imin+l
           call ylmderiv(ylm,r,l,0,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad1,xhess1)
           phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(ylm(ip),8)
-          phip(:,ip,iorb,nenvl) = real(xgrad1,8)
-          phipp(:,ip,iorb,nenvl) = real(xhess1,8)
+          if (nder >= 1) &
+             phip(:,ip,iorb,nenvl) = real(xgrad1,8)
+          if (nder >= 2) &
+             phipp(:,ip,iorb,nenvl) = real(xhess1,8)
 
           ! |m| > 0
           do m = 1, l
@@ -324,11 +333,12 @@ contains
              call ylmderiv(ylm,r,l,-m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad2,xhess2)
 
              phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
-             phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
-             phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
-
              phi(im,iorb,nenvl) = rl(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
+             if (nder < 1) cycle
+             phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
              phip(:,im,iorb,nenvl) = real(-iphas*img*xgrad1+img*xgrad2,8) / sqrt(2d0)
+             if (nder < 2) cycle
+             phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
              phipp(:,im,iorb,nenvl) = real(-iphas*img*xhess1+img*xhess2,8) / sqrt(2d0)
           end do
        end do
@@ -343,16 +353,12 @@ contains
     end do
     deallocate(rl,rlp,rlpp,ylm)
 
-    ! initialize
-    rho = 0d0
-    grad = 0d0
-    h = 0d0
-    gkin = 0d0
-
     if (.not.f%isreal) then
        allocate(xao(f%midxorb),xaol(f%midxorb))
-       allocate(xaolp(3,f%midxorb),xaolpp(6,f%midxorb))
-       allocate(xaop(3,f%midxorb), xaopp(6,f%midxorb))
+       if (nder >= 1) &
+          allocate(xaolp(3,f%midxorb),xaop(3,f%midxorb))
+       if (nder >= 2) &
+          allocate(xaolpp(6,f%midxorb),xaopp(6,f%midxorb))
 
        ! complex version; for crystals with non-gamma k-points
        ! run over spins
@@ -366,8 +372,10 @@ contains
                 ! in critic are in the same order as in dftb+, which is
                 ! why indexing the evecc/evecr works.
                 xao = 0d0
-                xaop = 0d0
-                xaopp = 0d0
+                if (nder >= 1) &
+                   xaop = 0d0
+                if (nder >= 2) &
+                   xaopp = 0d0
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
@@ -381,14 +389,18 @@ contains
                       do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                          ixorb = ixorb + 1
                          xaol(ixorb) = phi(i,iorb,ionl)
-                         xaolp(:,ixorb) = phip(:,i,iorb,ionl)
-                         xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
+                         if (nder >= 1) &
+                            xaolp(:,ixorb) = phip(:,i,iorb,ionl)
+                         if (nder >= 2) &
+                            xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                       end do
                    end do ! iorb
 
                    xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phase(ionl,ik)
-                   xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
-                   xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
+                   if (nder >= 1) &
+                      xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
+                   if (nder >= 2) &
+                      xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
                 end do ! ion
 
                 ! calculate the value of this extended orbital and its derivatives
@@ -397,29 +409,39 @@ contains
                 xmopp = 0d0
                 do i = 1, f%midxorb
                    xmo = xmo + conjg(xao(i))*f%evecc(i,istate,ik,is)
-                   xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
-                   xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
+                   if (nder >= 1) &
+                      xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
+                   if (nder >= 2) &
+                      xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
                 end do
 
                 ! accumulate properties
                 rho = rho + real(conjg(xmo)*xmo,8) * f%docc(istate,ik,is)
+                if (nder < 1) cycle
                 grad = grad + real(conjg(xmop)*xmo+conjg(xmo)*xmop,8) * f%docc(istate,ik,is)
+                gkin = gkin + real(conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3),8) * f%docc(istate,ik,is)
+                if (nder < 2) cycle
                 h(1,1) = h(1,1) + real(conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1),8) * f%docc(istate,ik,is)
                 h(1,2) = h(1,2) + real(conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2),8) * f%docc(istate,ik,is)
                 h(1,3) = h(1,3) + real(conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3),8) * f%docc(istate,ik,is)
                 h(2,2) = h(2,2) + real(conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4),8) * f%docc(istate,ik,is)
                 h(2,3) = h(2,3) + real(conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5),8) * f%docc(istate,ik,is)
                 h(3,3) = h(3,3) + real(conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6),8) * f%docc(istate,ik,is)
-                gkin = gkin + real(conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3),8) * f%docc(istate,ik,is)
              end do ! states
           end do ! k-points
        end do ! spins
-       deallocate(xao,xaol,xaolp,xaolpp,xaop,xaopp)
+       deallocate(xao,xaol)
+       if (nder >= 1) &
+          deallocate(xaolp,xaop)
+       if (nder >= 2) &
+          deallocate(xaolpp,xaopp)
        deallocate(phase)
     else
        allocate(rao(f%midxorb),raol(f%midxorb))
-       allocate(raolp(3,f%midxorb),raolpp(6,f%midxorb))
-       allocate(raop(3,f%midxorb),raopp(6,f%midxorb))
+       if (nder >= 1) &
+          allocate(raolp(3,f%midxorb),raop(3,f%midxorb))
+       if (nder >= 2) &
+          allocate(raolpp(6,f%midxorb),raopp(6,f%midxorb))
        ! real, for molecules or crystals with a single k-point at gamma
        ! run over spins
        do is = 1, f%nspin
@@ -430,8 +452,10 @@ contains
              ! in critic are in the same order as in dftb+, which is
              ! why indexing the evecc/evecr works.
              rao = 0d0
-             raop = 0d0
-             raopp = 0d0
+             if (nder >= 1) &
+                raop = 0d0
+             if (nder >= 2) &
+                raopp = 0d0
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
@@ -445,14 +469,18 @@ contains
                    do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                       ixorb = ixorb + 1
                       raol(ixorb) = phi(i,iorb,ionl)
-                      raolp(:,ixorb) = phip(:,i,iorb,ionl)
-                      raolpp(:,ixorb) = phipp(:,i,iorb,ionl)
+                      if (nder >= 1) &
+                         raolp(:,ixorb) = phip(:,i,iorb,ionl)
+                      if (nder >= 2) &
+                         raolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                    end do
                 end do ! iorb
 
                 rao(ixorb0:ixorb) = rao(ixorb0:ixorb) + raol(ixorb0:ixorb)
-                raop(:,ixorb0:ixorb) = raop(:,ixorb0:ixorb) + raolp(:,ixorb0:ixorb)
-                raopp(:,ixorb0:ixorb) = raopp(:,ixorb0:ixorb) + raolpp(:,ixorb0:ixorb)
+                if (nder >= 1) &
+                   raop(:,ixorb0:ixorb) = raop(:,ixorb0:ixorb) + raolp(:,ixorb0:ixorb)
+                if (nder >= 2) &
+                   raopp(:,ixorb0:ixorb) = raopp(:,ixorb0:ixorb) + raolpp(:,ixorb0:ixorb)
              end do ! ion
 
              ! calculate the value of this extended orbital and its derivatives
@@ -461,25 +489,33 @@ contains
              rmopp = 0d0
              do i = 1, f%midxorb
                 rmo = rmo + rao(i)*f%evecr(i,istate,is)
-                rmop = rmop + raop(:,i)*f%evecr(i,istate,is)
-                rmopp = rmopp + raopp(:,i)*f%evecr(i,istate,is)
+                if (nder >= 1) &
+                   rmop = rmop + raop(:,i)*f%evecr(i,istate,is)
+                if (nder >= 2) &
+                   rmopp = rmopp + raopp(:,i)*f%evecr(i,istate,is)
              end do
 
              ! accumulate properties
              rho = rho + (rmo*rmo) * f%docc(istate,1,is)
+             if (nder < 1) cycle
              grad = grad + (rmop*rmo+rmo*rmop) * f%docc(istate,1,is)
+             gkin = gkin + (rmop(1)*rmop(1)+rmop(2)*rmop(2)+rmop(3)*rmop(3)) * f%docc(istate,1,is)
+             if (nder < 2) cycle
              h(1,1) = h(1,1) + (rmopp(1)*rmo+rmop(1)*rmop(1)+rmop(1)*rmop(1)+rmo*rmopp(1)) * f%docc(istate,1,is)
              h(1,2) = h(1,2) + (rmopp(2)*rmo+rmop(1)*rmop(2)+rmop(2)*rmop(1)+rmo*rmopp(2)) * f%docc(istate,1,is)
              h(1,3) = h(1,3) + (rmopp(3)*rmo+rmop(1)*rmop(3)+rmop(3)*rmop(1)+rmo*rmopp(3)) * f%docc(istate,1,is)
              h(2,2) = h(2,2) + (rmopp(4)*rmo+rmop(2)*rmop(2)+rmop(2)*rmop(2)+rmo*rmopp(4)) * f%docc(istate,1,is)
              h(2,3) = h(2,3) + (rmopp(5)*rmo+rmop(2)*rmop(3)+rmop(3)*rmop(2)+rmo*rmopp(5)) * f%docc(istate,1,is)
              h(3,3) = h(3,3) + (rmopp(6)*rmo+rmop(3)*rmop(3)+rmop(3)*rmop(3)+rmo*rmopp(6)) * f%docc(istate,1,is)
-             gkin = gkin + (rmop(1)*rmop(1)+rmop(2)*rmop(2)+rmop(3)*rmop(3)) * f%docc(istate,1,is)
           end do ! states
        end do ! spins
-       deallocate(rao,raol,raolp,raolpp,raop,raopp)
+       deallocate(rao,raol)
+       if (nder >= 1) deallocate(raolp,raop)
+       if (nder >= 2) deallocate(raolpp,raopp)
     end if
-    deallocate(idxion,phi,phip,phipp)
+    deallocate(idxion,phi)
+    if (allocated(phip)) deallocate(phip)
+    if (allocated(phipp)) deallocate(phipp)
     ! clean up
     h(2,1) = h(1,2)
     h(3,1) = h(1,3)
