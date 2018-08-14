@@ -59,13 +59,13 @@ contains
   !> m_x2xr = crystallographic to reduced crystallographic matrix.
   module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
     use tools_math, only: matinv
-    use types, only: realloc, celatom
+    use types, only: realloc, anyatom
     use param, only: atmcov
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
     integer, intent(in) :: n
-    type(celatom), intent(in) :: at(n)
+    class(anyatom), intent(in) :: at(n)
     real*8, intent(in) :: m_xr2c(3,3)
     real*8, intent(in) :: m_x2xr(3,3)
     real*8, intent(in) :: m_x2c(3,3)
@@ -134,13 +134,13 @@ contains
   module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0)
     use global, only: cutrad
     use tools_math, only: matinv
-    use types, only: realloc, species, celatom
+    use types, only: realloc, species, anyatom
     use param, only: atmcov
     class(environ), intent(inout) :: e
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
     integer, intent(in) :: n
-    type(celatom), intent(in) :: at(n)
+    class(anyatom), intent(in) :: at(n)
     real*8, intent(in) :: m_xr2c(3,3)
     real*8, intent(in) :: m_x2xr(3,3)
     real*8, intent(in) :: m_x2c(3,3)

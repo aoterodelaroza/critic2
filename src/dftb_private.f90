@@ -71,12 +71,12 @@ module dftb_private
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
      module subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
-       use types, only: celatom, species
+       use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
-       type(celatom), intent(in) :: atcel(:)
+       class(anyatom), intent(in) :: atcel(:)
        type(species), intent(in) :: spc(:)
      end subroutine dftb_read
      module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)

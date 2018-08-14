@@ -391,6 +391,7 @@ contains
                 c%atcel(iat)%x = atpos(:,j)
                 c%atcel(iat)%r = c%x2c(atpos(:,j))
                 c%atcel(iat)%idx = i
+                c%atcel(iat)%cidx = iat
                 c%atcel(iat)%ir = irotm(j)
                 c%atcel(iat)%ic = icenv(j)
                 c%atcel(iat)%lvec = nint(atpos(:,j) - &
@@ -437,6 +438,7 @@ contains
           c%atcel(i)%x = c%at(i)%x
           c%atcel(i)%r = c%at(i)%r
           c%atcel(i)%idx = i
+          c%atcel(i)%cidx = i
           c%atcel(i)%ir = 1
           c%atcel(i)%ic = 1
           c%atcel(i)%lvec = 0

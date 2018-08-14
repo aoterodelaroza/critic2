@@ -20,7 +20,7 @@
 
 ! Atomic environment class
 module environmod
-  use types, only: anyatom, celatom, species, neighstar
+  use types, only: anyatom, species, neighstar
   implicit none
 
   private
@@ -140,7 +140,7 @@ module environmod
        integer, intent(in) :: nspc
        type(species), intent(in) :: spc(nspc)
        integer, intent(in) :: n
-       type(celatom), intent(in) :: at(n)
+       class(anyatom), intent(in) :: at(n)
        real*8, intent(in) :: m_xr2c(3,3)
        real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in) :: m_x2c(3,3)
@@ -150,7 +150,7 @@ module environmod
        integer, intent(in) :: nspc
        type(species), intent(in) :: spc(nspc)
        integer, intent(in) :: n
-       type(celatom), intent(in) :: at(n)
+       class(anyatom), intent(in) :: at(n)
        real*8, intent(in) :: m_xr2c(3,3)
        real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in) :: m_x2c(3,3)
