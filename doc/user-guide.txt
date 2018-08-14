@@ -2306,6 +2306,10 @@ comparable to aiPI. Molecules use real wavefunctions and they tend to
 be less crowded than crystals, so using molecular DFTB fields should
 be considerably faster. 
 
+Note: deactivate symmetry with NOSYMM before you load a DFTB crystal
+geometry. Otherwise, the atoms will be incorrectly mapped (this
+problem has been fixed in more recent versions of critic2).
+
 Gaussian wavefunction files (wfn/wfx)
 +++++++++++++++++++++++++++++++++++++
 
