@@ -50,7 +50,7 @@ contains
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  module subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
+  module subroutine dftb_read(f,filexml,filebin,filehsd,env)
     use types, only: anyatom, species
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
     use param, only: tpi, maxzat0
@@ -58,22 +58,13 @@ contains
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
-    class(anyatom), intent(in) :: atcel(:) !< complete atom list
-    type(species), intent(in) :: spc(:) !< species list
+    type(environ), intent(in), target :: env !< environment of the cell
 
-    integer :: lu, i, j, k, idum, n, nat, id
-    integer, allocatable :: zcel(:)
+    integer :: lu, i, j, k, idum, n, id
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
     type(dftbatom) :: at
     real*8, allocatable :: dw(:)
-
-    ! number of atoms in the cell
-    nat = size(atcel)
-    allocate(zcel(nat))
-    do i = 1, nat
-       zcel(i) = spc(atcel(i)%is)%z
-    end do
 
     ! detailed.xml, first pass
     lu = fopen_read(filexml)
@@ -150,7 +141,7 @@ contains
     allocate(f%bas(10))
     n = 0
     do while(next_hsd_atom(lu,at))
-       if (.not.any(zcel == at%z)) cycle
+       if (.not.any(env%spc(1:env%nspc)%z == at%z)) cycle
        n = n + 1 
        if (n > size(f%bas)) call realloc_dftbatom(f%bas,2*n)
        f%bas(n) = at
@@ -173,13 +164,13 @@ contains
 
     ! indices for the atomic orbitals, for array sizes later on
     if (allocated(f%idxorb)) deallocate(f%idxorb)
-    allocate(f%idxorb(nat))
+    allocate(f%idxorb(env%ncell))
     n = 0
     f%maxnorb = 0
     f%maxlm = 0
-    do i = 1, nat
-       id = f%ispec(zcel(i))
-       if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(zcel(i)),faterr)
+    do i = 1, env%ncell
+       id = f%ispec(env%spc(env%at(i)%is)%z)
+       if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(env%spc(env%at(i)%is)%z),faterr)
 
        f%maxnorb = max(f%maxnorb,f%bas(id)%norb)
        f%idxorb(i) = n + 1
@@ -192,7 +183,22 @@ contains
     f%maxlm = (f%maxlm+3)*(f%maxlm+3)
 
     call build_interpolation_grid1(f)
-    deallocate(zcel)
+
+    ! find the maximum cutoff
+    f%globalcutoff = -1d0
+    do i = 1, size(f%bas)
+       do j = 1, f%bas(i)%norb
+          f%globalcutoff = max(f%globalcutoff,f%bas(i)%cutoff(j))
+       end do
+    end do
+
+    ! keep a pointer to the environment
+    f%isealloc = .false.
+    f%e => env
+    ! f%isealloc = .true.
+    ! nullify(f%e)
+    ! allocate(f%e)
+    ! call f%e%build_env(e,f%globalcutoff)
 
   end subroutine dftb_read
 
@@ -455,40 +461,6 @@ contains
     gkin = 0.50 * gkin
 
   end subroutine rho2
-
-  !> Register structural information. rmat is the m_x2c matrix,
-  !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
-  !> and zenv is the environment information (number, position,
-  !> lattice vector, index in the complete list, and atomic number.
-  module subroutine register_struct(f,e)
-    use environmod, only: environ
-    use types, only: species, realloc
-    class(dftbwfn), intent(inout) :: f
-    type(environ), intent(in), target :: e
-
-    real*8 :: maxcutoff
-    real*8 :: sphmax, x0(3), dist
-    integer :: i, j, nenv
-
-    ! calculate the maximum cutoff
-    maxcutoff = -1d0
-    do i = 1, size(f%bas)
-       do j = 1, f%bas(i)%norb
-          maxcutoff = max(maxcutoff,f%bas(i)%cutoff(j))
-       end do
-    end do
-    f%globalcutoff = max(maxcutoff,f%globalcutoff)
-
-    f%isealloc = .false.
-    f%e => e
-
-    ! xxxx !
-    ! f%isealloc = .true.
-    ! nullify(f%e)
-    ! allocate(f%e)
-    ! call f%e%build_env(e,f%globalcutoff)
-
-  end subroutine register_struct
 
   !xx! private procedures
 

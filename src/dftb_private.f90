@@ -62,7 +62,6 @@ module dftb_private
      procedure :: end => dftb_end
      procedure :: read => dftb_read
      procedure :: rho2
-     procedure :: register_struct
   end type dftbwfn
   public :: dftbwfn
 
@@ -70,14 +69,13 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
+     module subroutine dftb_read(f,filexml,filebin,filehsd,env)
        use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
-       class(anyatom), intent(in) :: atcel(:)
-       type(species), intent(in) :: spc(:)
+       type(environ), intent(in), target :: env
      end subroutine dftb_read
      module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
        class(dftbwfn), intent(inout) :: f
@@ -89,11 +87,6 @@ module dftb_private
        real*8, intent(out) :: h(3,3)
        real*8, intent(out) :: gkin
      end subroutine rho2
-     module subroutine register_struct(f,e)
-       use types, only: anyatom, species
-       class(dftbwfn), intent(inout) :: f
-       type(environ), intent(in), target :: e
-     end subroutine register_struct
   end interface
 
 end module dftb_private
