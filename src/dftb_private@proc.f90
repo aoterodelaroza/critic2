@@ -222,7 +222,6 @@ contains
   !> thread-safe.
   module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
     use tools_math, only: tosphere, genylm, ylmderiv
-    use tools_io, only: ferror, faterr
     use param, only: img, icrd_cart
     class(dftbwfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
@@ -233,26 +232,20 @@ contains
     real*8, intent(out) :: h(3,3) !< Hessian 
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
-    integer, parameter :: maxenvl = 50
-
     integer :: ion, it, is, istate, ik, iorb, i, l, m, lmax
     integer :: ixorb, ixorb0
     real*8 :: xion(3), rcut, r, tp(2)
-    complex*16 :: xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
-    complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
-    complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
-    real*8 :: rao(f%midxorb), raol(f%midxorb), rmo, rmop(3), rmopp(6)
-    real*8 :: raolp(3,f%midxorb), raolpp(6,f%midxorb)
-    real*8 :: raop(3,f%midxorb), raopp(6,f%midxorb)
-    integer :: nenvl, idxion(maxenvl), ionl
-    real*8 :: rl(f%maxnorb,maxenvl), rlp(f%maxnorb,maxenvl), rlpp(f%maxnorb,maxenvl)
-    complex*16 :: phase(maxenvl,f%nkpt), ylm(f%maxlm)
+    complex*16, allocatable :: xao(:), xaol(:), xaolp(:,:), xaolpp(:,:), xaop(:,:), xaopp(:,:)
+    complex*16, allocatable :: phase(:,:), ylm(:)
+    complex*16 :: xmo, xmop(3), xmopp(6)
+    real*8, allocatable :: rao(:), raol(:), raolp(:,:), raolpp(:,:), raop(:,:), raopp(:,:)
+    real*8, allocatable :: rl(:,:), rlp(:,:), rlpp(:,:)
+    real*8, allocatable :: phi(:,:,:), phip(:,:,:,:), phipp(:,:,:,:)
+    integer, allocatable :: idxion(:)
+    real*8 :: rmo, rmop(3), rmopp(6)
+    integer :: nenvl, ionl
     integer :: imin, ip, im, iphas
-    real*8 :: phi(f%maxlm,f%maxnorb,maxenvl)
-    real*8 :: phip(3,f%maxlm,f%maxnorb,maxenvl)
-    real*8 :: phipp(6,f%maxlm,f%maxnorb,maxenvl)
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
-    ! xxxx
     integer :: nenv, lvec(3), ierr, lenv(3)
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
@@ -266,6 +259,12 @@ contains
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
+    allocate(rl(f%maxnorb,nenv),rlp(f%maxnorb,nenv),rlpp(f%maxnorb,nenv),ylm(f%maxlm))
+    allocate(phi(f%maxlm,f%maxnorb,nenv),phip(3,f%maxlm,f%maxnorb,nenv),phipp(6,f%maxlm,f%maxnorb,nenv))
+    allocate(idxion(nenv))
+    if (.not.f%isreal) then
+       allocate(phase(nenv,f%nkpt))
+    end if
     nenvl = 0
     phi = 0d0
     phip = 0d0
@@ -280,7 +279,6 @@ contains
 
        ! write down this atom
        nenvl = nenvl + 1
-       if (nenvl > maxenvl) call ferror('rho2','local environment exceeded array size',faterr)
        idxion(nenvl) = eid(ion)
 
        ! calculate the spherical harmonics contributions for this atom
@@ -337,6 +335,7 @@ contains
           end do
        end if
     end do
+    deallocate(rl,rlp,rlpp,ylm)
 
     ! initialize
     rho = 0d0
@@ -345,6 +344,10 @@ contains
     gkin = 0d0
 
     if (.not.f%isreal) then
+       allocate(xao(f%midxorb),xaol(f%midxorb))
+       allocate(xaolp(3,f%midxorb),xaolpp(6,f%midxorb))
+       allocate(xaop(3,f%midxorb), xaopp(6,f%midxorb))
+
        ! complex version; for crystals with non-gamma k-points
        ! run over spins
        do is = 1, f%nspin
@@ -405,7 +408,12 @@ contains
              end do ! states
           end do ! k-points
        end do ! spins
+       deallocate(xao,xaol,xaolp,xaolpp,xaop,xaopp)
+       deallocate(phase)
     else
+       allocate(rao(f%midxorb),raol(f%midxorb))
+       allocate(raolp(3,f%midxorb),raolpp(6,f%midxorb))
+       allocate(raop(3,f%midxorb),raopp(6,f%midxorb))
        ! real, for molecules or crystals with a single k-point at gamma
        ! run over spins
        do is = 1, f%nspin
@@ -463,7 +471,9 @@ contains
              gkin = gkin + (rmop(1)*rmop(1)+rmop(2)*rmop(2)+rmop(3)*rmop(3)) * f%docc(istate,1,is)
           end do ! states
        end do ! spins
+       deallocate(rao,raol,raolp,raolpp,raop,raopp)
     end if
+    deallocate(idxion,phi,phip,phipp)
     ! clean up
     h(2,1) = h(1,2)
     h(3,1) = h(1,3)
