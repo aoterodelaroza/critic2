@@ -18,6 +18,7 @@
 ! Interface to DFTB+ wavefunctions.
 module dftb_private
   use grid1mod, only: grid1
+  use environmod, only: environ
   implicit none
   
   private
@@ -54,12 +55,9 @@ module dftb_private
      integer :: maxlm
      type(dftbatom), allocatable :: bas(:)
      ! structural info
-     integer :: nenv
-     real*8, allocatable :: renv(:,:)
-     integer, allocatable :: lenv(:,:)
-     integer, allocatable :: idxenv(:)
-     integer, allocatable :: zenv(:)
      real*8 :: globalcutoff = 0d0
+     logical :: isealloc = .false.
+     type(environ), pointer :: e
    contains
      procedure :: end => dftb_end
      procedure :: read => dftb_read
@@ -91,13 +89,10 @@ module dftb_private
        real*8, intent(out) :: h(3,3)
        real*8, intent(out) :: gkin
      end subroutine rho2
-     module subroutine register_struct(f,xmat,rmat,atenv,spc)
+     module subroutine register_struct(f,e)
        use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
-       real*8, intent(in) :: xmat(3,3)
-       real*8, intent(in) :: rmat(3,3)
-       type(anyatom), intent(in) :: atenv(:)
-       type(species), intent(in) :: spc(:)
+       type(environ), intent(in), target :: e
      end subroutine register_struct
   end interface
 

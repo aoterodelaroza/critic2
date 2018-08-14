@@ -105,6 +105,7 @@ module environmod
      ! initialization routines
      procedure :: build_mol => environ_build_from_molecule !< Build an environment from molecule input
      procedure :: build_crys => environ_build_from_crystal !< Build an environment from molecule input
+     procedure :: build_env => environ_build_from_environ !< Build an env from another env
      ! coordinate transformations
      procedure :: xr2c !< Reduced crystallographic to Cartesian
      procedure :: c2xr !< Cartesian to reduced crystallographic
@@ -155,6 +156,11 @@ module environmod
        real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in), optional :: dmax0
      end subroutine environ_build_from_crystal
+     module subroutine environ_build_from_environ(e,e0,dmax0)
+       class(environ), intent(inout) :: e
+       type(environ), intent(in) :: e0
+       real*8, intent(in) :: dmax0
+     end subroutine environ_build_from_environ
      pure module function xr2c(e,xx) result(res)
        class(environ), intent(in) :: e
        real*8, intent(in)  :: xx(3)

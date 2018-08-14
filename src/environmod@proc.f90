@@ -265,6 +265,23 @@ contains
     end subroutine addcell
   end subroutine environ_build_from_crystal
 
+  module subroutine environ_build_from_environ(e,e0,dmax0)
+    class(environ), intent(inout) :: e
+    type(environ), intent(in) :: e0
+    real*8, intent(in) :: dmax0
+
+    ! xxxx !
+    ! if (e0%ismolecule) then
+    !    call e%build_mol(e0%nspc,e0%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+    ! else
+    !    call e%build_crys(e0%nspc,e0%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+    ! end if
+
+    write (*,*) "bleh!"
+    stop 1
+
+  end subroutine environ_build_from_environ
+
   !> Reduced crystallographic to Cartesian transform
   pure module function xr2c(e,xx) result(res)
     class(environ), intent(in) :: e

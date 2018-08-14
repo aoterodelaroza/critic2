@@ -413,7 +413,7 @@ contains
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
        call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
-       call f%dftb%register_struct(f%c%m_c2x,f%c%m_xr2c,f%c%env%at(1:f%c%env%n),f%c%spc(1:f%c%nspc))
+       call f%dftb%register_struct(f%c%env)
        f%type = type_dftb
        f%file = seed%file(1)
 

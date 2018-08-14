@@ -45,10 +45,6 @@ contains
     if (allocated(f%ispec)) deallocate(f%ispec)
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     if (allocated(f%bas)) deallocate(f%bas)
-    if (allocated(f%renv)) deallocate(f%renv)
-    if (allocated(f%lenv)) deallocate(f%lenv)
-    if (allocated(f%idxenv)) deallocate(f%idxenv)
-    if (allocated(f%zenv)) deallocate(f%zenv)
 
   end subroutine dftb_end
 
@@ -208,7 +204,7 @@ contains
   module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
     use tools_math, only: tosphere, genylm, ylmderiv
     use tools_io, only: ferror, faterr
-    use param, only: img
+    use param, only: img, icrd_cart
     class(dftbwfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     logical, intent(in) :: exact !< exact or approximate calculation
@@ -222,7 +218,7 @@ contains
 
     integer :: ion, it, is, istate, ik, iorb, i, l, m, lmax
     integer :: ixorb, ixorb0
-    real*8 :: xion(3), rcut, dist, r, tp(2)
+    real*8 :: xion(3), rcut, r, tp(2)
     complex*16 :: xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
     complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
     complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
@@ -237,26 +233,37 @@ contains
     real*8 :: phip(3,f%maxlm,f%maxnorb,maxenvl)
     real*8 :: phipp(6,f%maxlm,f%maxnorb,maxenvl)
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
+    ! xxxx
+    integer :: nenv, lvec(3), ierr, iz, lenv(3)
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+    
+    ! calculate the environment of the input point
+    rho = 0d0
+    grad = 0d0
+    h = 0d0
+    gkin = 0d0
+    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2d=f%globalcutoff)
+    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
     nenvl = 0
     phi = 0d0
     phip = 0d0
     phipp = 0d0
-    do ion = 1, f%nenv
-       xion = xpos - f%renv(:,ion)
-       it = f%ispec(f%zenv(ion))
+    do ion = 1, nenv
+       xion = xpos - f%e%at(eid(ion))%r
+       iz = f%e%spc(f%e%at(eid(ion))%is)%z
+       it = f%ispec(iz)
 
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
-       if (any(abs(xion) > rcut)) cycle
-       dist = norm2(xion)
-       if (dist > rcut) cycle
+       if (dist(ion) > rcut) cycle
 
        ! write down this atom
        nenvl = nenvl + 1
        if (nenvl > maxenvl) call ferror('rho2','local environment exceeded array size',faterr)
-       idxion(nenvl) = ion
+       idxion(nenvl) = eid(ion)
 
        ! calculate the spherical harmonics contributions for this atom
        lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
@@ -266,11 +273,11 @@ contains
 
        ! calculate the radial contributions for this atom
        do iorb = 1, f%bas(it)%norb
-          if (dist > f%bas(it)%cutoff(iorb)) cycle
+          if (dist(ion) > f%bas(it)%cutoff(iorb)) cycle
           if (exact) then
-             call calculate_rl(f,it,iorb,dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+             call calculate_rl(f,it,iorb,dist(ion),rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
           else
-             call f%bas(it)%orb(iorb)%interp(dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+             call f%bas(it)%orb(iorb)%interp(dist(ion),rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
           end if
        end do
 
@@ -304,10 +311,11 @@ contains
           end do
        end do
 
+       lenv = floor(f%e%c2x(f%e%at(eid(ion))%r))
        ! calculate the phases
        if (.not.f%isreal) then
           do ik = 1, f%nkpt
-             phase(nenvl,ik) = exp(img * dot_product(f%lenv(:,ion),f%dkpt(:,ik)))
+             phase(nenvl,ik) = exp(img * dot_product(lenv,f%dkpt(:,ik)))
           end do
        end if
     end do
@@ -336,10 +344,11 @@ contains
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
-                   it = f%ispec(f%zenv(ion))
+                   iz = f%e%spc(f%e%at(ion)%is)%z
+                   it = f%ispec(iz)
 
                    ! run over atomic orbitals
-                   ixorb0 = f%idxorb(f%idxenv(ion))
+                   ixorb0 = f%idxorb(f%e%at(ion)%cidx)
                    ixorb = ixorb0 - 1
                    do iorb = 1, f%bas(it)%norb
                       ! run over ms for the same l
@@ -395,10 +404,11 @@ contains
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
-                it = f%ispec(f%zenv(ion))
+                iz = f%e%spc(f%e%at(ion)%is)%z
+                it = f%ispec(iz)
 
                 ! run over atomic orbitals
-                ixorb0 = f%idxorb(f%idxenv(ion))
+                ixorb0 = f%idxorb(f%e%at(ion)%cidx)
                 ixorb = ixorb0 - 1
                 do iorb = 1, f%bas(it)%norb
                    ! run over ms for the same l
@@ -450,14 +460,11 @@ contains
   !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
   !> and zenv is the environment information (number, position,
   !> lattice vector, index in the complete list, and atomic number.
-  module subroutine register_struct(f,xmat,rmat,atenv,spc)
-    use types, only: anyatom, atom, species
-    use types, only: realloc
+  module subroutine register_struct(f,e)
+    use environmod, only: environ
+    use types, only: anyatom, atom, species, realloc
     class(dftbwfn), intent(inout) :: f
-    real*8, intent(in) :: xmat(3,3)
-    real*8, intent(in) :: rmat(3,3)
-    type(anyatom), intent(in) :: atenv(:)
-    type(species), intent(in) :: spc(:)
+    type(environ), intent(in), target :: e
 
     real*8 :: maxcutoff
     real*8 :: sphmax, x0(3), dist
@@ -470,44 +477,16 @@ contains
           maxcutoff = max(maxcutoff,f%bas(i)%cutoff(j))
        end do
     end do
+    f%globalcutoff = max(maxcutoff,f%globalcutoff)
 
-    ! calculate the sphere radius that encompasses the unit cell
-    if (maxcutoff > f%globalcutoff) then
-       sphmax = norm2(matmul(rmat,(/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-       sphmax = max(sphmax,norm2(matmul(rmat,(/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-       sphmax = max(sphmax,norm2(matmul(rmat,(/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-       sphmax = max(sphmax,norm2(matmul(rmat,(/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    f%isealloc = .false.
+    f%e => e
 
-       nenv = size(atenv)
-       if (allocated(f%renv)) deallocate(f%renv)
-       allocate(f%renv(3,nenv))
-       if (allocated(f%lenv)) deallocate(f%lenv)
-       allocate(f%lenv(3,nenv))
-       if (allocated(f%idxenv)) deallocate(f%idxenv)
-       allocate(f%idxenv(nenv))
-       if (allocated(f%zenv)) deallocate(f%zenv)
-       allocate(f%zenv(nenv))
-
-       ! save the atomic environment
-       f%nenv = 0
-       x0 = matmul(rmat,(/0.5d0,0.5d0,0.5d0/))
-       do i = 1, nenv
-          dist = norm2(atenv(i)%r - x0)
-          if (dist <= sphmax+maxcutoff) then
-             f%nenv = f%nenv + 1
-             f%renv(:,f%nenv) = atenv(i)%r
-             ! l referred to the original cell (for phase calculation)
-             f%lenv(:,f%nenv) = floor(matmul(xmat,atenv(i)%r))
-             f%idxenv(f%nenv) = atenv(i)%cidx
-             f%zenv(f%nenv) = spc(atenv(i)%is)%z
-          end if
-       end do
-       f%globalcutoff = maxcutoff
-       call realloc(f%renv,3,f%nenv)
-       call realloc(f%lenv,3,f%nenv)
-       call realloc(f%idxenv,f%nenv)
-       call realloc(f%zenv,f%nenv)
-    end if
+    ! xxxx !
+    ! f%isealloc = .true.
+    ! nullify(f%e)
+    ! allocate(f%e)
+    ! call f%e%build_env(e,f%globalcutoff)
 
   end subroutine register_struct
 
