@@ -56,6 +56,7 @@ module dftb_private
      type(dftbatom), allocatable :: bas(:)
      ! structural info
      real*8 :: globalcutoff = 0d0
+     real*8, allocatable :: spcutoff(:,:)
      logical :: isealloc = .false.
      type(environ), pointer :: e
    contains

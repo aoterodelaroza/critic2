@@ -45,6 +45,7 @@ contains
     if (allocated(f%ispec)) deallocate(f%ispec)
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     if (allocated(f%bas)) deallocate(f%bas)
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
     if (f%isealloc) then
        if (associated(f%e)) deallocate(f%e)
     end if
@@ -188,12 +189,17 @@ contains
 
     call build_interpolation_grid1(f)
 
-    ! find the maximum cutoff
+    ! find the individual species cutoffs and maximum cutoff
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    allocate(f%spcutoff(env%nspc,2))
+    f%spcutoff = 0d0
     f%globalcutoff = -1d0
-    do i = 1, size(f%bas)
-       do j = 1, f%bas(i)%norb
-          f%globalcutoff = max(f%globalcutoff,f%bas(i)%cutoff(j))
+    do i = 1, env%nspc
+       id = f%ispec(i)
+       do j = 1, f%bas(id)%norb
+          f%spcutoff(i,2) = max(f%spcutoff(i,2),f%bas(id)%cutoff(j))
        end do
+       f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
     end do
 
     if (f%isealloc) then
@@ -255,7 +261,7 @@ contains
     grad = 0d0
     h = 0d0
     gkin = 0d0
-    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2d=f%globalcutoff)
+    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
