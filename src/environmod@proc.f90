@@ -130,8 +130,10 @@ contains
   !> cell. m_xr2c = reduced crystallographic to Cartesian matrix. 
   !> m_x2xr = crystallographic to reduced crystallographic matrix.
   !> dmax0 = the environment will contain all atoms within a distance 
-  !> dmax0 of any point in the unit cell.
-  module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0)
+  !> dmax0 of any point in the unit cell. If atx_in_xr is present and true,
+  !> the at(:)%x field is interpreted as reduced crystallographic, instead
+  !> of crystallographic (to load from another environment).
+  module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,atx_in_xr)
     use global, only: cutrad
     use tools_math, only: matinv
     use types, only: realloc, species, anyatom
@@ -145,8 +147,9 @@ contains
     real*8, intent(in) :: m_x2xr(3,3)
     real*8, intent(in) :: m_x2c(3,3)
     real*8, intent(in), optional :: dmax0
+    logical, intent(in), optional :: atx_in_xr
 
-    logical :: dorepeat
+    logical :: dorepeat, inxr
     real*8 :: sphmax, dmax, x(3), xhalf(3)
     integer :: i1, i2, i3, i, imax, i3min
 
@@ -154,6 +157,8 @@ contains
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
+    inxr = .false.
+    if (present(atx_in_xr)) inxr = atx_in_xr
 
     ! calculate the boxsize
     dmax = 0d0
@@ -195,13 +200,18 @@ contains
     if (allocated(e%at)) deallocate(e%at)
     allocate(e%at(e%n))
     do i = 1, n
-       e%at(i)%x = e%x2xr(at(i)%x)
-       e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
-       x = e%xr2x(e%at(i)%x)
+       if (.not.inxr) then
+          e%at(i)%x = e%x2xr(at(i)%x)
+          e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
+          e%at(i)%lvec = nint(e%xr2x(e%at(i)%x) - at(i)%x)
+       else
+          e%at(i)%x = at(i)%x
+          e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
+          e%at(i)%lvec = nint(e%xr2x(e%at(i)%x - at(i)%x))
+       end if
        e%at(i)%r = e%xr2c(e%at(i)%x)
        e%at(i)%idx = at(i)%idx
        e%at(i)%cidx = i
-       e%at(i)%lvec = nint(x - at(i)%x)
        e%at(i)%is = at(i)%is
     end do
     e%ncell = n
@@ -270,15 +280,12 @@ contains
     type(environ), intent(in) :: e0
     real*8, intent(in) :: dmax0
 
-    ! xxxx !
-    ! if (e0%ismolecule) then
-    !    call e%build_mol(e0%nspc,e0%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-    ! else
-    !    call e%build_crys(e0%nspc,e0%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-    ! end if
-
-    write (*,*) "bleh!"
-    stop 1
+    call e%end()
+    if (e0%ismolecule) then
+       call e%build_mol(e0%nspc,e0%spc(1:e0%nspc),e0%ncell,e0%at(1:e0%ncell),e0%m_xr2c,e0%m_x2xr,e0%m_x2c)
+    else
+       call e%build_crys(e0%nspc,e0%spc(1:e0%nspc),e0%ncell,e0%at(1:e0%ncell),e0%m_xr2c,e0%m_x2xr,e0%m_x2c,dmax0,atx_in_xr=.true.)
+    end if
 
   end subroutine environ_build_from_environ
 

@@ -196,13 +196,22 @@ contains
        end do
     end do
 
-    ! keep a pointer to the environment
-    f%isealloc = .false.
-    f%e => env
-    ! f%isealloc = .true.
-    ! nullify(f%e)
-    ! allocate(f%e)
-    ! call f%e%build_env(e,f%globalcutoff)
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
+       ! Create a new environment to satisfy all searches.
+       ! The environment contains all the atoms in molecules anyway. 
+       f%isealloc = .true.
+       nullify(f%e)
+       allocate(f%e)
+       call f%e%build_env(env,f%globalcutoff)
+    else
+       ! keep a pointer to the environment
+       f%isealloc = .false.
+       f%e => env
+    end if
 
   end subroutine dftb_read
 

@@ -145,7 +145,7 @@ module environmod
        real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in) :: m_x2c(3,3)
      end subroutine environ_build_from_molecule
-     module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0)
+     module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,atx_in_xr)
        class(environ), intent(inout) :: e
        integer, intent(in) :: nspc
        type(species), intent(in) :: spc(nspc)
@@ -155,6 +155,7 @@ module environmod
        real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in), optional :: dmax0
+       logical, intent(in), optional :: atx_in_xr
      end subroutine environ_build_from_crystal
      module subroutine environ_build_from_environ(e,e0,dmax0)
        class(environ), intent(inout) :: e
