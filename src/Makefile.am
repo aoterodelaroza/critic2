@@ -136,7 +136,7 @@ fieldmod.o fieldmod.mod fieldmod.smod : dftb_private.mod
 dftb_private@proc.o: dftb_private.smod dftb_private.mod
 fieldmod.o fieldmod.mod fieldmod.smod : elk_private.mod
 elk_private@proc.o: elk_private.smod elk_private.mod
-struct_drivers@proc.o struct_drivers@proc.smod dftb_private@proc.o dftb_private@proc.smod dftb_private.o dftb_private.mod dftb_private.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : environmod.mod
+struct_drivers@proc.o struct_drivers@proc.smod dftb_private.o dftb_private.mod dftb_private.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : environmod.mod
 environmod@proc.o: environmod.smod environmod.mod
 molcalc@proc.o molcalc@proc.smod critic2.o critic2.mod xdm@proc.o xdm@proc.smod systemmod@proc.o systemmod@proc.smod systemmod.o systemmod.mod systemmod.smod stm@proc.o stm@proc.smod rhoplot@proc.o rhoplot@proc.smod qtree@proc.o qtree@proc.smod nci@proc.o nci@proc.smod meshmod@proc.o meshmod@proc.smod meshmod.o meshmod.mod meshmod.smod integration@proc.o integration@proc.smod integration.o integration.mod integration.smod hirshfeld@proc.o hirshfeld@proc.smod flux@proc.o flux@proc.smod bisect@proc.o bisect@proc.smod autocp@proc.o autocp@proc.smod : fieldmod.mod
 fieldmod@proc.o: fieldmod.smod fieldmod.mod

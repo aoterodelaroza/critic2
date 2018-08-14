@@ -592,7 +592,7 @@ contains
     use tools_io, only: ferror, faterr
     use tools, only: mergesort
     use types, only: realloc
-    use param, only: icrd_cart, ctsq32, ctsq3
+    use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -614,11 +614,11 @@ contains
 
     real*8, parameter :: eps = 1d-10
 
-    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, rext, xhalf(3), dmaxenv
+    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, xhalf(3), dmaxenv
     integer :: ireg0(3), ireg(3), idxreg, nats
-    integer :: i, j, k, imax, i1, i2, i3, ii1, ii2, ii3, isign(3), i0loop
+    integer :: i, j, k
     integer, allocatable :: iord(:), iiord(:), ishell(:), iaux(:,:)
-    integer :: nshel, ishl0, ishl1
+    integer :: nshel
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
     logical :: doshell, enough
@@ -1006,18 +1006,18 @@ contains
   !> If present, return half the nearest-neighbor distance for each
   !> atom in rnn2, or 0.0 if not found.
   subroutine find_asterisms_covalent(e,nstar,rnn2)
-    use global, only: atomeps, bondfactor
+    use global, only: bondfactor
     use tools_io, only: ferror, faterr, uout, string
     use types, only: realloc
-    use param, only: icrd_cart, atmcov
+    use param, only: atmcov
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, allocatable, intent(inout), optional :: rnn2(:)
     
     integer :: i, j, imin(3), imax(3)
     real*8 :: xmin(3), xmax(3), x0(3), dist2, ri, rj, rij2, r2
-    integer :: i1, i2, i3, p0(3), p1(3), idx0, idx1
-    integer :: j1, j2, j3, ki, kj, iz, is, js
+    integer :: p0(3), p1(3), idx0, idx1
+    integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
 
     ! allocate the asterism arrays
@@ -1228,16 +1228,14 @@ contains
   !> Calculate regions associated with the current environment and
   !> assign atoms to each region.
   subroutine calculate_regions(e)
-    use grid1mod, only: agrid
-    use global, only: cutrad
     use tools, only: qcksort
     use types, only: realloc
-    use param, only: ctsq3, ctsq32, maxzat
+    use param, only: ctsq32
     type(environ), intent(inout) :: e
     
     integer :: i, m
     integer, allocatable :: iord(:)
-    integer :: i1, i2, i3, imax, nreg, iz, nregc(3)
+    integer :: i1, i2, i3, nreg, nregc(3)
     real*8 :: x0(3), x1(3), dist, rcut0
     real*8 :: xmin(3), xmax(3), xminc(3), xmaxc(3)
 

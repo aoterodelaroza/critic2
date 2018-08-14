@@ -695,10 +695,6 @@ contains
     logical, intent(in), optional :: lncel0
     integer :: identify_atom
 
-    real*8 :: x(3), xd(3), dist2
-    integer :: i
-    logical :: lncel
-
     identify_atom = c%env%identify_atom(x0,icrd,lncel0)
 
   endfunction identify_atom
