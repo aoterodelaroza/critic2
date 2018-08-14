@@ -60,7 +60,7 @@ contains
 
   !> Register structural information
   module subroutine register_struct(f,nenv,spc,atenv)
-    use types, only: atom, anyatom, species
+    use types, only: anyatom, species
     class(piwfn), intent(inout) :: f
     integer, intent(in) :: nenv
     type(species), intent(in) :: spc(*)

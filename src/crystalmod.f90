@@ -22,7 +22,7 @@
 module crystalmod
   use environmod, only: environ
   use spglib, only: SpglibDataset
-  use types, only: atom, celatom, neighstar, species
+  use types, only: neqatom, celatom, neighstar, species
   use fragmentmod, only: fragment
   use param, only: maxzat0, mlen
   implicit none
@@ -45,7 +45,7 @@ module crystalmod
      type(species), allocatable :: spc(:) !< Species
      ! non-equivalent atoms list
      integer :: nneq = 0 !< Number of non-equivalent atoms
-     type(atom), allocatable :: at(:) !< Non-equivalent atom array
+     type(neqatom), allocatable :: at(:) !< Non-equivalent atom array
      ! complete atoms list
      integer :: ncel = 0 !< Number of atoms in the main cell
      type(celatom), allocatable :: atcel(:) !< List of atoms in the main cell

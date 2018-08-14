@@ -234,12 +234,12 @@ contains
   !> Clear the symmetry in the system.
   module subroutine struct_clearsym(s)
     use systemmod, only: system
-    use types, only: atom, realloc
+    use types, only: neqatom, realloc
     use tools_io, only: uout
     use param, only: eyet
     type(system), intent(inout) :: s
 
-    type(atom) :: aux(s%c%nneq)
+    type(neqatom) :: aux(s%c%nneq)
     integer :: i, j
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')

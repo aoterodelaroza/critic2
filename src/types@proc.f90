@@ -91,11 +91,11 @@ contains
   end subroutine realloc_species
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_atom(a,nnew)
-    type(atom), intent(inout), allocatable :: a(:)
+  module subroutine realloc_basicatom(a,nnew)
+    type(basicatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
-    type(atom), allocatable :: temp(:)
+    type(basicatom), allocatable :: temp(:)
     integer :: nold
 
     if (.not.allocated(a)) then
@@ -109,7 +109,28 @@ contains
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
     call move_alloc(temp,a)
 
-  end subroutine realloc_atom
+  end subroutine realloc_basicatom
+
+  !> Adapt the size of an allocatable 1D type(atom) array
+  module subroutine realloc_neqatom(a,nnew)
+    type(neqatom), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(neqatom), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_neqatom
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   module subroutine realloc_celatom(a,nnew)

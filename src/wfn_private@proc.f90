@@ -163,7 +163,6 @@ contains
 
   !> Read the molecular geometry from an xyz file
   module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg)
-    use types, only: atom
     use tools_io, only: fopen_read, zatguess, isinteger, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name
@@ -220,7 +219,6 @@ contains
 
   !> Read the molecular geometry from a wfn file
   module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg)
-    use types, only: atom
     use tools_io, only: fopen_read, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -277,7 +275,6 @@ contains
 
   !> Read the molecular geometry from a wfx file
   module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
-    use types, only: atom
     use tools_io, only: fopen_read, getline_raw, nameguess, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -377,7 +374,6 @@ contains
 
   !> Read the molecular geometry from a fchk file
   module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg)
-    use types, only: atom
     use tools_io, only: fopen_read, getline_raw, isinteger, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -454,7 +450,6 @@ contains
   !> Read the molecular geometry from a molden file. See the manual
   !> for the list of molden-generating programs that have been tested.
   module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg)
-    use types, only: atom
     use tools_io, only: fopen_read, lower, getline_raw, lgetword, nameguess, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name

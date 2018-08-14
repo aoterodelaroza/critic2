@@ -21,7 +21,8 @@ module types
 
   private
   public :: species
-  public :: atom
+  public :: basicatom
+  public :: neqatom
   public :: celatom
   public :: anyatom
   public :: cp_type
@@ -37,7 +38,8 @@ module types
      module procedure realloc_pointpropable
      module procedure realloc_integrable
      module procedure realloc_species
-     module procedure realloc_atom
+     module procedure realloc_basicatom
+     module procedure realloc_neqatom
      module procedure realloc_celatom
      module procedure realloc_anyatom
      module procedure realloc_cp
@@ -65,14 +67,18 @@ module types
      real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
   end type species
 
-  !> Non-equivalent atom list type (nneq)
-  type atom
+  !> The most basic atom possible
+  type basicatom
      real*8 :: x(3)   !< coordinates (crystallographic)
      real*8 :: r(3)   !< coordinates (Cartesian)
      integer :: is = 0 !< species
+  end type basicatom
+
+  !> Atom from the non-equivalent atom list (nneq)
+  type, extends(basicatom) :: neqatom
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
-  end type atom
+  end type neqatom
   
   !> Equivalent atom list (type)
   type celatom
@@ -211,10 +217,14 @@ module types
        type(species), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_species
-     module subroutine realloc_atom(a,nnew)
-       type(atom), intent(inout), allocatable :: a(:)
+     module subroutine realloc_basicatom(a,nnew)
+       type(basicatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
-     end subroutine realloc_atom
+     end subroutine realloc_basicatom
+     module subroutine realloc_neqatom(a,nnew)
+       type(neqatom), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_neqatom
      module subroutine realloc_celatom(a,nnew)
        type(celatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

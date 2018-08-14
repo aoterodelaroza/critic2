@@ -51,7 +51,7 @@ contains
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
   module subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
-    use types, only: celatom, atom, species
+    use types, only: celatom, species
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
     use param, only: tpi, maxzat0
     class(dftbwfn), intent(inout) :: f !< Output field
@@ -462,7 +462,7 @@ contains
   !> lattice vector, index in the complete list, and atomic number.
   module subroutine register_struct(f,e)
     use environmod, only: environ
-    use types, only: anyatom, atom, species, realloc
+    use types, only: anyatom, species, realloc
     class(dftbwfn), intent(inout) :: f
     type(environ), intent(in), target :: e
 
