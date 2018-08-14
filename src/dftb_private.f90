@@ -740,8 +740,9 @@ contains
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     character(len=:), allocatable :: line, word, aux
-    integer :: idx, nb, lp, i, n
+    integer :: idx, nb, lp, i, j, k, n
     real*8 :: rdum
+    real*8, allocatable :: caux(:)
 
     ok = .false.
     at%norb = 0
@@ -760,10 +761,11 @@ contains
           do while(getline(lu,line,.true.))
              lp = 1
              word = lgetword(line,lp)
-             idx = index(line,"{")
-             aux = word
-             if (idx > 0) aux = word(1:idx-1)
-             word = trim(adjustl(aux))
+             idx = index(word,"{")
+             if (idx > 0) then
+                aux = word(1:idx-1)
+                word = trim(adjustl(aux))
+             end if
 
              if (equal(word,"atomicnumber")) then
                 idx = index(line,"=")
@@ -777,10 +779,12 @@ contains
                 do while(getline(lu,line,.true.))
                    lp = 1
                    word = lgetword(line,lp)
-                   idx = index(line,"{")
-                   aux = word
-                   if (idx > 0) aux = word(1:idx-1)
-                   word = trim(adjustl(aux))
+                   idx = index(word,"{")
+                   if (idx > 0) then
+                      aux = word(1:idx-1)
+                      word = trim(adjustl(aux))
+                   end if
+
                    if (equal(word,"angularmomentum")) then
                       idx = index(line,"=")
                       word = line(idx+1:)
@@ -794,28 +798,53 @@ contains
                       word = line(idx+1:)
                       read (word,*) at%cutoff(at%norb)
                    elseif (equal(word,"exponents")) then
-                      nb = nb + 1
-                      ok = getline(lu,line,.true.)
+                      idx = index(line,"{")
+                      aux = line(idx+1:)
+                      line = aux
+
                       at%nexp(at%norb) = 0
-                      lp = 1
-                      do while (isreal(rdum,line,lp))
-                         at%nexp(at%norb) = at%nexp(at%norb) + 1
-                         at%eexp(at%nexp(at%norb),at%norb) = rdum
+                      do while (.true.)
+                         lp = 1
+                         do while (isreal(rdum,line,lp))
+                            at%nexp(at%norb) = at%nexp(at%norb) + 1
+                            at%eexp(at%nexp(at%norb),at%norb) = rdum
+                         end do
+                         if (index(line,"}") > 0) exit
+                         ok = getline(lu,line,.true.)
+                         if (.not.ok) exit
                       end do
                    elseif (equal(word,"coefficients")) then
-                      nb = nb + 1
                       if (at%nexp(at%norb) == 0) &
                          call ferror('next_hsd_atom','coefficients must come after exponents',faterr)
-                      do i = 1, at%nexp(at%norb)
-                         ok = getline(lu,line,.true.)
-                         n = 0
+                      idx = index(line,"{")
+                      aux = line(idx+1:)
+                      line = aux
+
+                      allocate(caux(10))
+                      n = 0
+                      do while(.true.)
                          lp = 1
                          do while (isreal(rdum,line,lp))
                             n = n + 1
-                            at%coef(n,i,at%norb) = rdum
+                            if (n > size(caux,1)) call realloc(caux,2*n)
+                            caux(n) = rdum
                          end do
-                         at%ncoef(i,at%norb) = n
+                         if (index(line,"}") > 0) exit
+                         ok = getline(lu,line,.true.)
+                         if (.not.ok) exit
                       end do
+                      if (mod(n,at%nexp(at%norb)) /= 0) &
+                         call ferror('next_hsd_atom','inconsistent number of coefficients',faterr)
+                         
+                      k = 0
+                      do i = 1, at%nexp(at%norb)
+                         at%ncoef(i,at%norb) = n / at%nexp(at%norb)
+                         do j = 1, at%ncoef(i,at%norb)
+                            k = k + 1
+                            at%coef(j,i,at%norb) = caux(k)
+                         end do
+                      end do
+                      deallocate(caux)
                    elseif (equal(word,"}")) then
                       nb = nb - 1
                       if (nb == 1) exit
