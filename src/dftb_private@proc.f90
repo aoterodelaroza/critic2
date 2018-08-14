@@ -45,6 +45,10 @@ contains
     if (allocated(f%ispec)) deallocate(f%ispec)
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     if (allocated(f%bas)) deallocate(f%bas)
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
 
   end subroutine dftb_end
 
@@ -53,7 +57,7 @@ contains
   module subroutine dftb_read(f,filexml,filebin,filehsd,env)
     use types, only: anyatom, species
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
-    use param, only: tpi, maxzat0
+    use param, only: tpi
     class(dftbwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
@@ -151,11 +155,11 @@ contains
 
     ! tie the atomic numbers to the basis types
     if (allocated(f%ispec)) deallocate(f%ispec)
-    allocate(f%ispec(maxzat0))
+    allocate(f%ispec(env%nspc))
     f%ispec = 0
-    do i = 1, maxzat0
+    do i = 1, env%nspc
        do j = 1, n
-          if (f%bas(j)%z == i) then
+          if (f%bas(j)%z == env%spc(i)%z) then
              f%ispec(i) = j
              exit
           end if
@@ -169,7 +173,7 @@ contains
     f%maxnorb = 0
     f%maxlm = 0
     do i = 1, env%ncell
-       id = f%ispec(env%spc(env%at(i)%is)%z)
+       id = f%ispec(env%at(i)%is)
        if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(env%spc(env%at(i)%is)%z),faterr)
 
        f%maxnorb = max(f%maxnorb,f%bas(id)%norb)
@@ -240,7 +244,7 @@ contains
     real*8 :: phipp(6,f%maxlm,f%maxnorb,maxenvl)
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
     ! xxxx
-    integer :: nenv, lvec(3), ierr, iz, lenv(3)
+    integer :: nenv, lvec(3), ierr, lenv(3)
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     
@@ -259,8 +263,7 @@ contains
     phipp = 0d0
     do ion = 1, nenv
        xion = xpos - f%e%at(eid(ion))%r
-       iz = f%e%spc(f%e%at(eid(ion))%is)%z
-       it = f%ispec(iz)
+       it = f%ispec(f%e%at(eid(ion))%is)
 
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
@@ -350,8 +353,7 @@ contains
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
-                   iz = f%e%spc(f%e%at(ion)%is)%z
-                   it = f%ispec(iz)
+                   it = f%ispec(f%e%at(ion)%is)
 
                    ! run over atomic orbitals
                    ixorb0 = f%idxorb(f%e%at(ion)%cidx)
@@ -410,8 +412,7 @@ contains
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
-                iz = f%e%spc(f%e%at(ion)%is)%z
-                it = f%ispec(iz)
+                it = f%ispec(f%e%at(ion)%is)
 
                 ! run over atomic orbitals
                 ixorb0 = f%idxorb(f%e%at(ion)%cidx)
