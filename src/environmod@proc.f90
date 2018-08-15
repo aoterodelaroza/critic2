@@ -323,12 +323,15 @@ contains
 
   !> Extend an environment e0 to a new interaction distance equal to dmax0.
   module subroutine environ_extend(e,e0,dmax0)
+    use types, only: celatom
     class(environ), intent(inout) :: e
     type(environ), intent(in) :: e0
     real*8, intent(in) :: dmax0
 
+    type(celatom) :: at(1)
+
     call e%end()
-    ! call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,e0%at(1:e0%ncell),e0%m_xr2c,e0%m_x2xr,e0%m_x2c)
+    call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,at,e0%m_xr2c,e0%m_x2xr,e0%m_x2c,dmax0,e0%at(1:e0%ncell))
 
   end subroutine environ_extend
 
