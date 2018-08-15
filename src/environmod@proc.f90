@@ -427,10 +427,15 @@ contains
     integer, intent(in) :: ocrd
     integer, intent(out), optional :: lvec(3)
 
-    xx = e%y2z(xx,icrd,icrd_rcrys)
-    if (present(lvec)) lvec = floor(xx)
-    xx = xx - floor(xx)
-    xx = e%y2z(xx,icrd_rcrys,ocrd)
+    if (e%ismolecule) then
+       xx = e%y2z(xx,icrd,ocrd)
+       if (present(lvec)) lvec = 0
+    else
+       xx = e%y2z(xx,icrd,icrd_rcrys)
+       if (present(lvec)) lvec = floor(xx)
+       xx = xx - floor(xx)
+       xx = e%y2z(xx,icrd_rcrys,ocrd)
+    end if
 
   end subroutine y2z_center
 
@@ -470,12 +475,12 @@ contains
 
   end function c2i
 
-  !> Translate point x0 (with icrd input coordinates) to the main cell
-  !> and, if it corresponds to an atomic position (to within atomeps),
-  !> return the ID of the atom. Otherwise, return 0. If lncel is
-  !> .false. or not present, the ID is for the non-equivalent atom
-  !> list. Otherwise, it is for the complete list. This routine is
-  !> thread-safe.
+  !> Given point x0 (with icrd input coordinates), translate to the
+  !> main cell if the environment is from a crystal. Then if x0
+  !> corresponds to an atomic position (to within atomeps), return the
+  !> ID of the atom. Otherwise, return 0. If lncel is .false. or not
+  !> present, the ID is for the non-equivalent atom list. Otherwise,
+  !> it is for the complete list. This routine is thread-safe.
   module function identify_atom(e,x0,icrd,lncel)
     use global, only: atomeps
     use param, only: icrd_cart
@@ -542,16 +547,17 @@ contains
 
   end function identify_atom
 
-  !> Given the point xp (in icrd coordinates), translates to the main
-  !> cell and calculates the nearest atom.  The nearest atom has ID
-  !> nid from the complete list (atcel) and is at a distance dist, or
-  !> nid=0 and dist=0d0 if the search did not produce any atoms.  On
-  !> output, the optional argument lvec contains the lattice vector to
-  !> the nearest atom (i.e. its position is atcel(nid)%x + lvec). If
-  !> nid0, consider only atoms with index nid0 from the non-equivalent
-  !> list. If id0, consider only atoms with index id0 from the
-  !> complete list. If nozero, disregard zero-distance atoms. This
-  !> routine is thread-safe.
+  !> Given the point xp (in icrd coordinates), translate to the main
+  !> cell if the environment is from a crystal. Then, calculate the
+  !> nearest atom.  The nearest atom has ID nid from the complete list
+  !> (atcel) and is at a distance dist, or nid=0 and dist=0d0 if the
+  !> search did not produce any atoms.  On output, the optional
+  !> argument lvec contains the lattice vector to the nearest atom
+  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
+  !> only atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list. If
+  !> nozero, disregard zero-distance atoms. This routine is
+  !> thread-safe.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
@@ -620,11 +626,12 @@ contains
   end subroutine nearest_atom
 
   !> Given the point xp (in icrd coordinates), center the point in the
-  !> main cell and calculate the list of nearest atoms. If sorted is
-  !> true, the list is sorted by distance and shell (if up2n or up2sh
-  !> is used, the list is always sorted). The output list eid contains
-  !> nat atoms with IDs nid(1:nat) from the environment, distances to
-  !> the input point equal to dist(1:nat) and lattice vector lvec in
+  !> main cell if the environment is from a crystal. Then, calculate
+  !> the list of nearest atoms. If sorted is true, the list is sorted
+  !> by distance and shell (if up2n or up2sh is used, the list is
+  !> always sorted). The output list eid contains nat atoms with IDs
+  !> nid(1:nat) from the environment, distances to the input point
+  !> equal to dist(1:nat) and lattice vector lvec in
   !> cryst. coords. The position of atom i in cryst. coords. is
   !> e%at(nid(i))%x + lvec. Optionally, ishell0(i) contains the shell
   !> ID for atom i in the output list. One or more of four cutoff
@@ -927,13 +934,13 @@ contains
 
   end subroutine list_near_atoms
     
-  !> Translate the point x0 to the main cell and calculate the core
-  !> (if zpsp is present) or promolecular densities at a point x0
-  !> (coord format given by icrd) using atomic radial grids up to a
-  !> number of derivatives nder (max: 2). Returns the density (f),
-  !> gradient (fp, nder >= 1), and Hessian (fpp, nder >= 2). If a
-  !> fragment (fr) is given, then only the atoms in it
-  !> contribute. This routine is thread-safe.
+  !> Translate the point x0 to the main cell if the environment is
+  !> from a crystal. Then, calculate the core (if zpsp is present) or
+  !> promolecular densities at a point x0 (coord format given by icrd)
+  !> using atomic radial grids up to a number of derivatives nder
+  !> (max: 2). Returns the density (f), gradient (fp, nder >= 1), and
+  !> Hessian (fpp, nder >= 2). If a fragment (fr) is given, then only
+  !> the atoms in it contribute. This routine is thread-safe.
   module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
@@ -952,7 +959,7 @@ contains
 
     integer :: i, j, k, ii, iz, ierr
     real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
-    real*8 :: rho, rhop, rhopp, rfac, radd
+    real*8 :: rho, rhop, rhopp, rfac, radd, rmax
     logical :: iscore
     type(grid1), pointer :: g
     integer :: nat, lvec(3)
@@ -973,13 +980,14 @@ contains
        call ferror("promolecular","agrid not allocated",faterr)
     end if
 
-    ! convert to Cartesian and move to the main cell
+    ! convert to Cartesian and move to the main cell (crystals)
     xc = x0
     call e%y2z_center(xc,icrd,icrd_cart)
 
-    ! compute the list of atoms that contribute to the point
+    ! calculate the cutoffs
     allocate(rcutmax(e%nspc,2))
     rcutmax = 0d0
+    rmax = 0d0
     do i = 1, e%nspc
        iz = e%spc(i)%z
        if (iz == 0 .or. iz > maxzat) cycle
@@ -989,11 +997,17 @@ contains
           g => agrid(iz)
        end if
        rcutmax(i,2) = min(cutrad(iz),g%rmax)
+       rmax = max(rcutmax(i,2),rmax)
     end do
+    if (rmax >= e%dmax0) &
+       call ferror("promolecular","dmax0 not large enough for promolecular",faterr)
+
+    ! compute the list of atoms that contribute to the point
     call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,ierr,up2dsp=rcutmax)
+    deallocate(rcutmax)
     rlvec = lvec
     rlvec = e%x2c(rlvec)
-    deallocate(rcutmax)
+    if (nat == 0) return
 
     ! if fragment is provided, use only the atoms in it (by their cell index)
     if (present(fr)) then

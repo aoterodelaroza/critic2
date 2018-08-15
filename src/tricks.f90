@@ -440,6 +440,7 @@ contains
 
   subroutine trick_test_environment()
     use systemmod, only: sy
+    use global, only: atomeps
     use tools_io, only: uout, string, tictac
     use param, only: icrd_cart, icrd_crys, icrd_rcrys, atmcov, bohrtoa
     
@@ -629,11 +630,16 @@ contains
       !    end do
       ! end do
 
-      ! find asterisms, timing info
-      call env%report()
-      call tictac("1")
-      call env%find_asterisms_covalent(cr%nstar)
-      call tictac("2")
+      ! ! find asterisms, timing info
+      ! call env%report()
+      ! call tictac("1")
+      ! call env%find_asterisms_covalent(cr%nstar)
+      ! call tictac("2")
+
+      ! do i = 1, 101
+      !    call env%list_near_atoms(cr%atcel(1)%r + (/real(i,8),0d0,0d0/) / 1d0,icrd_cart,.false.,nat,nida,dista,lveca,ierr,up2d=10d0)
+      !    write (*,*) i, nat, ierr
+      ! end do
 
     end associate
 

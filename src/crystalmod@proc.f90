@@ -652,15 +652,17 @@ contains
 
   end function are_lclose
 
-  !> Given the point xp (in icrd coordinates), calculates the nearest
-  !> atom. The nearest atom has ID nid from the complete list (atcel)
-  !> and is at a distance dist. On output, the optional argument lvec
-  !> contains the lattice vector to the nearest atom (i.e. its
-  !> position is atcel(nid)%x + lvec). If nid0, consider only atoms
-  !> with index nid0 from the non-equivalent list. If id0, consider
-  !> only atoms with index id0 from the complete list.  If nozero,
-  !> disregard zero-distance atoms. This routine is a wrapper for 
-  !> the environment's nearest_atom. Thread-safe.
+  !> Given the point xp (in icrd coordinates), translate to the main
+  !> cell if the environment is from a crystal. Then, calculate the
+  !> nearest atom.  The nearest atom has ID nid from the complete list
+  !> (atcel) and is at a distance dist, or nid=0 and dist=0d0 if the
+  !> search did not produce any atoms.  On output, the optional
+  !> argument lvec contains the lattice vector to the nearest atom
+  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
+  !> only atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list. If
+  !> nozero, disregard zero-distance atoms. This routine is a wrapper
+  !> for the environment's nearest_atom. Thread-safe.
   module subroutine nearest_atom(c,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xp(:)
@@ -676,13 +678,14 @@ contains
 
   end subroutine nearest_atom
 
-  !> Translate point x0 (with icrd input coordinates) to the main cell
-  !> and, if it corresponds to an atomic position (to within atomeps),
-  !> return the ID of the atom. Otherwise, return 0. If lncel is
-  !> .false. or not present, the ID is for the non-equivalent atom
-  !> list. Otherwise, it is for the complete list. This routine is
-  !> mostly a wrapper for the environment's identify_atom function
-  !> (except lattice translation of x0). Thread-safe.
+  !> Given point x0 (with icrd input coordinates), translate to the
+  !> main cell if the environment is from a crystal. Then if x0
+  !> corresponds to an atomic position (to within atomeps), return the
+  !> ID of the atom. Otherwise, return 0. If lncel is .false. or not
+  !> present, the ID is for the non-equivalent atom list. Otherwise,
+  !> it is for the complete list. This routine is mostly a wrapper for
+  !> the environment's identify_atom function (except lattice
+  !> translation of x0). Thread-safe.
   module function identify_atom(c,x0,icrd,lncel0)
     use tools_io, only: ferror, faterr
     class(crystal), intent(in) :: c
