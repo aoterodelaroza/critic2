@@ -487,7 +487,7 @@ contains
     
     real*8 :: xp(3), x0r(3), x1r(3), dist, distmin
     logical :: ln
-    integer :: ireg0(3), idx0, imin(3), imax(3), i, j, k, i1, i2, i3
+    integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
     integer :: ireg(3), idx, kmin
 
     ! initialize
@@ -498,7 +498,6 @@ contains
     xp = x0
     call e%y2z_center(xp,icrd,icrd_cart)
     ireg0 = e%c2p(xp)
-    idx0 = e%p2i(ireg0)
 
     ! calculate the regions to explore
     imin = 0
@@ -1055,7 +1054,7 @@ contains
   !> If present, return half the nearest-neighbor distance for each
   !> atom in rnn2, or 0.0 if not found.
   subroutine find_asterisms_covalent(e,nstar,rnn2)
-    use global, only: bondfactor
+    use global, only: bondfactor, atomeps
     use tools_io, only: ferror, faterr, uout, string
     use types, only: realloc
     use param, only: atmcov
@@ -1063,9 +1062,9 @@ contains
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, allocatable, intent(inout), optional :: rnn2(:)
     
-    integer :: i, j, imin(3), imax(3)
-    real*8 :: xmin(3), xmax(3), x0(3), dist2, ri, rj, rij2, r2
-    integer :: p0(3), p1(3), idx0, idx1
+    integer :: i, j
+    real*8 :: x0(3), dist2, ri, rj, rij2, r2
+    integer :: p0(3), p1(3), idx1
     integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
 
@@ -1084,7 +1083,7 @@ contains
     if (present(rnn2)) then
        if (allocated(rnn2)) deallocate(rnn2)
        allocate(rnn2(e%ncell))
-       rnn2 = 0d0
+       rnn2 = atomeps * atomeps
     end if
 
     ! pre-calculate the distance^2 matrix
@@ -1110,20 +1109,9 @@ contains
        call ferror("find_asterisms_covalent","boxsize too small for find_asterisms_covalent",faterr)
     end if
 
-    ! find the first and last region that cover the unit cell
-    xmin = 1d40
-    xmax = -1d40
-    do i = 1, e%ncell
-       xmin = min(xmin,e%at(i)%r)
-       xmax = max(xmax,e%at(i)%r)
-    end do
-    imin = e%c2p(xmin)
-    imax = e%c2p(xmax)
-
     ! run over atoms in the unit cell and build the connectivity star
     do ki = 1, e%ncell
        p0 = e%c2p(e%at(ki)%r)
-       idx0 = e%p2i(p0)
        is = e%at(ki)%is
        if (e%spc(is)%z == 0) cycle
 
