@@ -154,13 +154,14 @@ contains
           e%at(i)%lvec = 0
        end do
        e%ncell = n
-       e%rsph_env = 0.5d0 * norm2(rmax-rmin) + e%dmax0
 
        ! origin is approximately the center of the molecule
        e%x0 = 0.5d0 * (rmin + rmax)
     else
        ! A crystal
        ! add all atoms in the main reduced cell (coords: 0 -> 1)
+       rmin = 1d40
+       rmax = -1d40
        do i = 1, n
           if (present(at_in_xr)) then
              e%at(i)%x = at_in_xr(i)%x
@@ -176,6 +177,8 @@ contains
              e%at(i)%is = at(i)%is
           end if
           e%at(i)%r = e%xr2c(e%at(i)%x)
+          rmin = min(e%at(i)%r,rmin)
+          rmax = max(e%at(i)%r,rmax)
           e%at(i)%cidx = i
        end do
        e%ncell = n
@@ -204,18 +207,20 @@ contains
           end do
        end do
        call realloc(e%at,e%n)
-       e%rsph_env = sphmax+e%dmax0
 
        ! origin is the center of the unit cell
        e%x0 = xhalf
     end if
 
+    ! sphere that circumscribes the environment
+    e%rsph_env = 0.5d0 * norm2(rmax-rmin)
+
     ! cap the box size at around 100^3 boxes
     e%boxsize = max(e%boxsize,2d0*e%rsph_env/100d0)
 
     ! minimum and maximum region
-    e%nmin = floor(-e%rsph_env / e%boxsize)
-    e%nmax = floor( e%rsph_env / e%boxsize)
+    e%nmin = floor((rmin - e%x0) / e%boxsize)
+    e%nmax = floor((rmax - e%x0) / e%boxsize)
 
     ! number of regions
     e%nreg = e%nmax - e%nmin + 1
@@ -248,8 +253,10 @@ contains
     e%nrhi(iord(e%imap(e%n))) = e%n
     deallocate(iord)
 
-    ! Calculate the limits of the search region
-    e%rs_imax = ceiling(e%rsph_env / e%boxsize)
+    ! Calculate the limits of the search region. This choice of
+    ! rs_imax ensures that rs_rcut(i) > e%rsph_env and e%dmax0 for all
+    ! the regions no covered by the offsets.
+    e%rs_imax = ceiling(max(e%dmax0,e%rsph_env) / e%boxsize)
     e%rs_2imax1 = 2 * e%rs_imax + 1
     e%rs_nreg = e%rs_2imax1**3
 
@@ -311,6 +318,8 @@ contains
 
             e%at(e%n)%x = x
             e%at(e%n)%r = xc
+            rmin = min(e%at(e%n)%r,rmin)
+            rmax = max(e%at(e%n)%r,rmax)
             e%at(e%n)%idx = e%at(i)%idx
             e%at(e%n)%cidx = e%at(i)%cidx
             e%at(e%n)%lvec = e%at(i)%lvec + px
