@@ -144,6 +144,7 @@ module environmod
      procedure :: find_asterisms_listatoms !< Calculate the connectivity with arbitrary radii/tolerance
      ! utility routines
      procedure :: report => environ_report !< Write a report to stdout about the environment.
+     procedure :: check => environ_check !< Check the consistency of an environment
   end type environ
   public :: environ
 
@@ -297,6 +298,9 @@ module environmod
      module subroutine environ_report(e)
        class(environ), intent(in) :: e
      end subroutine environ_report
+     module subroutine environ_check(e)
+       class(environ), intent(in) :: e
+     end subroutine environ_check
   end interface
 
 end module environmod

@@ -81,7 +81,7 @@ contains
     type(anyatom), intent(in), optional :: at_in_xr(:)
 
     logical :: dorepeat
-    real*8 :: sphmax, dmax, x(3), xhalf(3), rmin(3), rmax(3)
+    real*8 :: sphmax, dmax, x(3), rmin(3), rmax(3)
     real*8 :: x0(3), x1(3), dist, rcut0
     integer :: i1, i2, i3, i, m, imax, i3min, nreg
     integer, allocatable :: iord(:)
@@ -132,6 +132,10 @@ contains
     if (allocated(e%at)) deallocate(e%at)
     allocate(e%at(e%n))
 
+    ! origin is the center of the unit cell
+    e%x0 = 0.5d0
+    e%x0 = e%xr2c(e%x0)
+
     if (ismol) then
        ! A molecule: add all atoms in the molecule to the environment
        rmin = 1d40
@@ -154,9 +158,6 @@ contains
           e%at(i)%lvec = 0
        end do
        e%ncell = n
-
-       ! origin is approximately the center of the molecule
-       e%x0 = 0.5d0 * (rmin + rmax)
     else
        ! A crystal
        ! add all atoms in the main reduced cell (coords: 0 -> 1)
@@ -186,8 +187,6 @@ contains
        ! include all atoms at a distance sphmax+dmax from the center of the cell
        dorepeat = .true.
        imax = 0
-       xhalf = 0.5d0
-       xhalf = e%xr2c(xhalf)
        do while (dorepeat)
           dorepeat = .false.
           imax = imax + 1
@@ -207,9 +206,6 @@ contains
           end do
        end do
        call realloc(e%at,e%n)
-
-       ! origin is the center of the unit cell
-       e%x0 = xhalf
     end if
 
     ! sphere that circumscribes the environment
@@ -310,7 +306,7 @@ contains
 
          x = e%at(i)%x + p
          xc = e%xr2c(x)
-         dd = norm2(xc - xhalf)
+         dd = norm2(xc - e%x0)
          if (dd < sphmax+e%dmax0) then
             dorepeat = .true.
             e%n = e%n + 1
@@ -669,7 +665,7 @@ contains
 
     real*8, parameter :: eps = 1d-10
 
-    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, xhalf(3), dmaxenv
+    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, dmaxenv
     integer :: ireg0(3), ireg(3), idxreg, nats
     integer :: i, j, k
     integer, allocatable :: iord(:), iiord(:), ishell(:), iaux(:,:)
@@ -690,9 +686,7 @@ contains
 
     ! calculate the maximum distance for which we guarantee we will
     ! get all the atoms
-    xhalf = 0.5d0
-    xhalf = e%xr2c(xhalf)
-    dmaxenv = max(e%rsph_env - norm2(x0 - xhalf),0d0)
+    dmaxenv = max(e%rsph_env - norm2(x0 - e%x0),0d0)
 
     ! Initialize the output and auxiliary arrays
     nat = 0
@@ -1277,6 +1271,60 @@ contains
     write (uout,*)
 
   end subroutine environ_report
+
+  !> Check the consistency of an environment. For debug
+  module subroutine environ_check(e)
+    use tools_io, only: ferror, faterr
+    use param, only: ctsq32, atmcov
+    class(environ), intent(in) :: e
+
+    integer :: i, ireg(3), i1, i2, i3, imax, i3min
+    real*8 :: mcov, x0(3), x1(3), dist, rcut0
+
+    ! all atoms in the covered regions
+    do i = 1, e%n
+       ireg = e%c2p(e%at(i)%r)
+       if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) then
+          call ferror("environ_check","atoms outside covered regions",faterr)
+       end if
+    end do
+
+    ! calculate the boxsize, maximum bondfactor of 2.0
+    mcov = 0d0
+    do i = 1, e%nspc
+       if (e%spc(i)%z > 0) then
+          mcov = max(mcov,atmcov(e%spc(i)%z))
+       end if
+    end do
+    if (e%boxsize < 4d0 * mcov) then
+       call ferror("environ_check","boxsize too small",faterr)
+    end if
+
+    ! all atoms not in the search region have rs_rcut(i) > rsph_env
+    imax = e%rs_imax + 1
+    do i1 = -imax, imax
+       do i2 = -imax, imax
+          if (abs(i1) == imax .or. abs(i2) == imax) then
+             i3min = 0
+          else
+             i3min = imax
+          end if
+          do i3 = i3min, imax
+             x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
+             x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
+             dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
+             rcut0 = max(dist - ctsq32,0d0) * e%boxsize
+             if (rcut0 <= e%rsph_env) then
+                call ferror("environ_check","one instance of rs_rcut(i) <= rsph_env",faterr)
+             end if
+          end do
+       end do
+    end do
+    
+    write (*,*) "all tests passed!"
+    stop 1
+
+  end subroutine environ_check
 
   !xx! private procedures
 
