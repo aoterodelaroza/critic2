@@ -26,27 +26,39 @@ module environmod
   private
 
   !> --- Atomic environment type. ---
-  !> An atomic environment is built as the collection of all atoms whose distance is e%dmax0 or less to any point in the main
-  !> cell. The main cell is x: 0 -> 1, with x in reduced crystallographic coordinates (i.e. x = x - floor(x)).
-  !> In molecules (e%ismolecule = .true.), the environment is simply a list of the atoms in the molecule (and dmax0=huge).
-  !> The unit cell is inscribed in a sphere of radius e%rsph_uc. The environment is contained in a sphere of radius
-  !> e%rsph_env (with e%rsph_env >= e%rsph_uc).
+  !> An atomic environment is built as the collection of all atoms
+  !> whose distance is e%dmax0 or less to any point in the main
+  !> cell. The main cell is x: 0 -> 1, with x in reduced
+  !> crystallographic coordinates (i.e. x = x - floor(x)).  In
+  !> molecules (e%ismolecule = .true.), the environment is simply a
+  !> list of the atoms in the molecule plus neighboring regions so
+  !> that the environment covers all points within dmax0 of any atom
+  !> in the molecule.  The unit cell is inscribed in a sphere of
+  !> radius e%rsph_uc. The environment is contained in a sphere of
+  !> radius e%rsph_env (with e%rsph_env >= e%rsph_uc).
   !> 
-  !> The atomic environment is contained in a box that is divided into regions to enable constant-time distance
-  !> searches. There are e%nregion regions, e%nreg in each direction, with indices between e%nmin and e%nmax. The regions are cubes with
-  !> side length equal to e%boxsize. e%boxsize is 4 bohr by default, but may be larger so as not to exceed a maximum of around 100 boxes
-  !> in each direction. 
+  !> The atomic environment is covered by a box that is divided into
+  !> regions to enable constant-time distance searches. There are
+  !> e%nregion regions, e%nreg in each direction, with indices between
+  !> e%nmin and e%nmax. The regions are cubes with side length equal
+  !> to e%boxsize. e%boxsize is max(4,4*dmax0) bohr by default, but
+  !> may be larger so as not to exceed a maximum of around 100 boxes
+  !> in each direction.
   !>
-  !> In addition to Cartesian (c), crystallographic (x), and reduced crystallographic (rx), we define
-  !> two additional sets of coordinates: 
+  !> In addition to Cartesian (c), crystallographic (x), and reduced
+  !> crystallographic (rx), we define two additional sets of
+  !> coordinates:
   !>   region partition (p): three integer indices that give the region to which a point belongs. 
   !>   region index (i): the integer index (1..e%nregion) of the encompassing region
-  !> The routine c2p, c2i, and p2i convert between Cartesian and these two sets of coordinates. The origin of the c2p transformation
-  !> is e%x0. p-coordinates are meaningful everywhere in space, i-coordinates only make sense if the point is inside the region
+  !> The routine c2p, c2i, and p2i convert between Cartesian and these
+  !> two sets of coordinates. The origin of the c2p transformation is
+  !> e%x0. p-coordinates are meaningful everywhere in space,
+  !> i-coordinates only make sense if the point is inside the region
   !> covered by the boxes.
   !>
-  !> The environment has e%n atoms. The first e%ncell atoms correspond to the atoms in the main cell (c%ncel). For atom i in
-  !> the environment, at(i) contains:
+  !> The environment has e%n atoms. The first e%ncell atoms correspond
+  !> to the atoms in the main cell (c%ncel). For atom i in the
+  !> environment, at(i) contains:
   !>   %x - coordinates in the reduced cell (-0.5 to 0.5 if i = 1..ncell in crystals, 0 to 1 in mols).
   !>   %r - Cartesian coordinates corresponding to %x
   !>   %is - species
@@ -54,22 +66,28 @@ module environmod
   !>   %cidx - id from the complete list
   !>   %lvec - atcel(%cidx)%x + %lvec = xr2x(%x)
   !>
-  !> To perform atomic distance calculations, the atoms are ordered by their region index (i coordinate) in the array e%imap.
-  !> If k runs from 1 to e%n, c2i(at(imap(k))%r) is in ascending order. If l is a region, k1 = nrlo(l) and k2 = nrup(l)
-  !> give the slice of the c2i(at(imap(1:n))%r) array corresponding to region l.
+  !> To perform atomic distance calculations, the atoms are ordered by
+  !> their region index (i coordinate) in the array e%imap.  If k runs
+  !> from 1 to e%n, c2i(at(imap(k))%r) is in ascending order. If l is
+  !> a region, k1 = nrlo(l) and k2 = nrup(l) give the slice of the
+  !> c2i(at(imap(1:n))%r) array corresponding to region l.
   !> 
-  !> A number of region offsets (e%nregs) is stored. The offsets cover the entire environment.
-  !> If l is an offset index, e%iaddregs(l) contains a packed index
-  !> for the region offset (the packing/unpacking operations are handled by the packoffset and unpackoffset routines).
-  !> All points in the current region are at a distance of at least e%rcutregs(l) from all points in the region given
-  !> by offset e%iaddregs(l). The search regions are sorted in order of increasing distance (e%rcutregs). 
-  !> (e%rs_dmax <= e%dmax0). The region offsets always form a cube of boxes from -e%rs_imax to e%rs_imax. Therefore,
-  !> there are (2*e%rs_imax+1)**3 = (e%rs_2imax1)**3 search regions.
+  !> A number of region offsets (e%nregs) are stored. The offsets cover
+  !> the entire environment.  If l is an offset index, e%iaddregs(l)
+  !> contains a packed index for the region offset (the
+  !> packing/unpacking operations are handled by the packoffset and
+  !> unpackoffset routines).  All points in the current region are at
+  !> a distance of at least e%rcutregs(l) from all points in the
+  !> region given by offset e%iaddregs(l). The search regions are
+  !> sorted in order of increasing distance (e%rcutregs).  (e%rs_dmax
+  !> <= e%dmax0). The region offsets always form a cube of boxes from
+  !> -e%rs_imax to e%rs_imax. Therefore, there are (2*e%rs_imax+1)**3
+  !> = (e%rs_2imax1)**3 search regions.
   type environ
      logical :: ismolecule !< Is this environment for a molecule or a crystal?
      integer :: nspc !< Number of species
      type(species), allocatable :: spc(:) !< Species
-     real*8 :: dmax0 !< Environment contains all atoms within dmax0 of every point in the main cell
+     real*8 :: dmax0 !< Environment contains all atoms within dmax0 of every point in the main cell/molecule
      real*8 :: rsph_uc !< Radius of the sphere that circumscribes the main cell
      real*8 :: rsph_env !< Radius of the sphere that circumscribes the environment
      real*8 :: boxsize !< Length of the region side (bohr)
@@ -103,9 +121,8 @@ module environmod
    contains
      procedure :: end => environ_end !< Deallocate arrays and nullify variables
      ! initialization routines
-     procedure :: build_mol => environ_build_from_molecule !< Build an environment from molecule input
-     procedure :: build_crys => environ_build_from_crystal !< Build an environment from molecule input
-     procedure :: build_env => environ_build_from_environ !< Build an env from another env
+     procedure :: build => environ_build !< Build an environment from a crystal/molecule
+     procedure :: extend => environ_extend !< Extend an env to a larger env
      ! coordinate transformations
      procedure :: xr2c !< Reduced crystallographic to Cartesian
      procedure :: c2xr !< Cartesian to reduced crystallographic
@@ -135,18 +152,13 @@ module environmod
      module subroutine environ_end(e)
        class(environ), intent(inout) :: e
      end subroutine environ_end
-     module subroutine environ_build_from_molecule(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c)
+     module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,atx_in_xr)
+       use global, only: cutrad
+       use tools_math, only: matinv
+       use types, only: realloc, species, anyatom
+       use param, only: atmcov
        class(environ), intent(inout) :: e
-       integer, intent(in) :: nspc
-       type(species), intent(in) :: spc(nspc)
-       integer, intent(in) :: n
-       class(anyatom), intent(in) :: at(n)
-       real*8, intent(in) :: m_xr2c(3,3)
-       real*8, intent(in) :: m_x2xr(3,3)
-       real*8, intent(in) :: m_x2c(3,3)
-     end subroutine environ_build_from_molecule
-     module subroutine environ_build_from_crystal(e,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,atx_in_xr)
-       class(environ), intent(inout) :: e
+       logical, intent(in) :: ismol
        integer, intent(in) :: nspc
        type(species), intent(in) :: spc(nspc)
        integer, intent(in) :: n
@@ -156,12 +168,12 @@ module environmod
        real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in), optional :: dmax0
        logical, intent(in), optional :: atx_in_xr
-     end subroutine environ_build_from_crystal
-     module subroutine environ_build_from_environ(e,e0,dmax0)
+     endsubroutine environ_build
+     module subroutine environ_extend(e,e0,dmax0)
        class(environ), intent(inout) :: e
        type(environ), intent(in) :: e0
        real*8, intent(in) :: dmax0
-     end subroutine environ_build_from_environ
+     end subroutine environ_extend
      pure module function xr2c(e,xx) result(res)
        class(environ), intent(in) :: e
        real*8, intent(in)  :: xx(3)

@@ -1367,7 +1367,7 @@ contains
           end if
           if (ierr > 0 .and..not.s%c%ismolecule) then
              call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
-             call eaux%build_crys(s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
+             call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
              if (iby_mode == iid) then
                 call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
              elseif (iby_mode == iznuc) then
@@ -1399,7 +1399,7 @@ contains
        end if
        if (ierr > 0 .and..not.s%c%ismolecule) then
           call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
-          call eaux%build_crys(s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
+          call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
           if (iby_mode == iid) then
              call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
           elseif (iby_mode == iznuc) then

@@ -27,7 +27,7 @@ submodule (dftb_private) proc
   ! function next_hsd_atom(lu,at) result(ok)
   ! subroutine build_interpolation_grid1(ff)
   ! subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
-  ! subroutine realloc_dftbatom(a,nnew)
+  ! subroutine realloc_dftbbasis(a,nnew)
   
   ! minimum distance (bohr)
   real*8, parameter :: mindist = 1d-6
@@ -68,7 +68,7 @@ contains
     integer :: lu, i, j, k, idum, n, id
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
-    type(dftbatom) :: at
+    type(dftbbasis) :: at
     real*8, allocatable :: dw(:)
 
     ! detailed.xml, first pass
@@ -148,10 +148,10 @@ contains
     do while(next_hsd_atom(lu,at))
        if (.not.any(env%spc(1:env%nspc)%z == at%z)) cycle
        n = n + 1 
-       if (n > size(f%bas)) call realloc_dftbatom(f%bas,2*n)
+       if (n > size(f%bas)) call realloc_dftbbasis(f%bas,2*n)
        f%bas(n) = at
     end do
-    call realloc_dftbatom(f%bas,n)
+    call realloc_dftbbasis(f%bas,n)
     call fclose(lu)
 
     ! tie the atomic numbers to the basis types
@@ -212,7 +212,7 @@ contains
        f%isealloc = .true.
        nullify(f%e)
        allocate(f%e)
-       call f%e%build_env(env,f%globalcutoff)
+       call f%e%extend(env,f%globalcutoff)
     else
        ! keep a pointer to the environment
        f%isealloc = .false.
@@ -764,7 +764,7 @@ contains
     use types, only: realloc
     use tools_io, only: ferror, faterr, lgetword, equal, getline, isreal, string
     integer, intent(in) :: lu
-    type(dftbatom), intent(out) :: at
+    type(dftbbasis), intent(out) :: at
     logical :: ok
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
@@ -981,16 +981,16 @@ contains
   end subroutine calculate_rl
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  subroutine realloc_dftbatom(a,nnew)
+  subroutine realloc_dftbbasis(a,nnew)
     use tools_io, only: ferror, faterr
-    type(dftbatom), intent(inout), allocatable :: a(:)
+    type(dftbbasis), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
-    type(dftbatom), allocatable :: temp(:)
+    type(dftbbasis), allocatable :: temp(:)
     integer :: nold
 
     if (.not.allocated(a)) &
-       call ferror('realloc_dftbatom','array not allocated',faterr)
+       call ferror('realloc_dftbbasis','array not allocated',faterr)
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -998,6 +998,6 @@ contains
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
     call move_alloc(temp,a)
 
-  end subroutine realloc_dftbatom
+  end subroutine realloc_dftbbasis
 
 end submodule proc

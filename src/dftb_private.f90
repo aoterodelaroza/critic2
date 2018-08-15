@@ -24,7 +24,7 @@ module dftb_private
   private
   
   !> atomic basis set information in dftb fields
-  type dftbatom
+  type dftbbasis
      character*10 :: name  !< name of the atom
      integer :: z !< atomic number
      integer :: norb !< number of orbitals
@@ -36,7 +36,7 @@ module dftb_private
      integer :: ncoef(5,4) !< number of coefficients
      real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
      type(grid1), allocatable :: orb(:) !< radial component of the orbitals (grid)
-  end type dftbatom
+  end type dftbbasis
   
   type dftbwfn
      logical :: isreal
@@ -53,7 +53,7 @@ module dftb_private
      integer :: midxorb
      integer :: maxnorb
      integer :: maxlm
-     type(dftbatom), allocatable :: bas(:)
+     type(dftbbasis), allocatable :: bas(:)
      ! structural info
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:,:)

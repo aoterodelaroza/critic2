@@ -452,11 +452,7 @@ contains
     end do
 
     ! Build the atomic environments
-    if (c%ismolecule) then
-       call c%env%build_mol(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-    else
-       call c%env%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-    end if
+    call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
 
     ! Find the atomic connectivity and the molecular fragments
     call c%env%find_asterisms_covalent(c%nstar,rnn2)
@@ -1661,11 +1657,7 @@ contains
        localenv = .false.
     end if
     if (localenv) then
-       if (c%ismolecule) then
-          call le%build_mol(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
-       else
-          call le%build_crys(c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c,rend+1d-10)
-       end if
+       call le%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
     end if
 
     ! calculate the radial distribution function for the crystal
