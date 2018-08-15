@@ -40,6 +40,7 @@ contains
     class(piwfn), intent(inout) :: f
 
     if (allocated(f%bas)) deallocate(f%bas)
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
     if (f%isealloc) then
        if (associated(f%e)) deallocate(f%e)
     end if
