@@ -50,6 +50,7 @@ contains
        if (associated(f%e)) deallocate(f%e)
     end if
     nullify(f%e)
+    f%isealloc = .false.
 
   end subroutine dftb_end
 

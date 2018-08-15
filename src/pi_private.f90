@@ -20,6 +20,7 @@
 
 !> Interface to aiPI (pi7) densities.
 module pi_private
+  use environmod, only: environ
   use grid1mod, only: grid1
   implicit none
 
@@ -41,16 +42,14 @@ module pi_private
      real*8, allocatable :: nelec(:,:)
      type(grid1), allocatable :: pgrid(:)
      ! structural info
-     real*8, allocatable :: renv(:,:)
-     integer, allocatable :: idxenv(:)
-     integer, allocatable :: zenv(:)
-     integer :: nenv
+     real*8 :: globalcutoff = 0d0
+     real*8, allocatable :: spcutoff(:,:)
+     logical :: isealloc = .false.
+     type(environ), pointer :: e
    contains
      procedure :: end => pi_end
-     procedure :: register_struct
-     procedure :: read_ion
+     procedure :: read => pi_read
      procedure :: rho2
-     procedure :: fillinterpol
   end type piwfn
   public :: piwfn
 
@@ -58,27 +57,21 @@ module pi_private
      module subroutine pi_end(f)
        class(piwfn), intent(inout) :: f
      end subroutine pi_end
-     module subroutine register_struct(f,nenv,spc,atenv)
-       use types, only: anyatom, species
+     module subroutine pi_read(f,nfile,piat,file,env,errmsg)
+       use param, only: mlen
        class(piwfn), intent(inout) :: f
-       integer, intent(in) :: nenv
-       type(species), intent(in) :: spc(*)
-       type(anyatom), intent(in) :: atenv(nenv)
-     end subroutine register_struct
-     module subroutine read_ion(f,fichero,ni)
-       class(piwfn), intent(inout) :: f
-       character*(*) :: fichero
-       integer :: ni
-     end subroutine read_ion
+       integer, intent(in) :: nfile
+       character*10, intent(in) :: piat(:)
+       character(len=mlen), intent(in) :: file(:)
+       type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine pi_read
      module subroutine rho2(f,xpos,exact,rho,grad,h)
        class(piwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
        logical, intent(in) :: exact
        real*8, intent(out) :: rho, grad(3), h(3,3)
      end subroutine rho2
-     module subroutine fillinterpol(f)
-       class(piwfn), intent(inout) :: f
-     end subroutine fillinterpol
   end interface
 
 end module pi_private

@@ -329,30 +329,11 @@ contains
        endif
 
     elseif (seed%iff == ifformat_pi) then
-       call f%pi%end()
-       do i = 1, seed%nfile
-          iok = isinteger(ithis,seed%piat(i))
-          found = .false.
-          do j = 1, c%nneq
-             if (equal(seed%piat(i),c%spc(c%at(j)%is)%name)) then
-                call f%pi%read_ion(seed%file(i),j)
-                found = .true.
-             else if (iok) then
-                if (ithis == j) then
-                   call f%pi%read_ion(seed%file(i),j)
-                   found = .true.
-                end if
-             end if
-          end do
-          if (.not.found) then
-             errmsg = "unknown atom for pi ion file: " // trim(seed%file(i))
-             call f%end()
-             return
-          end if
-       end do
-
-       call f%pi%register_struct(f%c%env%n,f%c%spc,f%c%env%at(1:f%c%env%n))
-       call f%pi%fillinterpol()
+       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call f%end()
+          return
+       end if
        f%type = type_pi
        f%file = "<pi ion files>"
 
@@ -413,8 +394,6 @@ contains
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
        call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env)
-       ! f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
-       ! call f%dftb%register_struct(f%c%env)
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -846,37 +825,31 @@ contains
 
     case(type_pi)
        call f%pi%rho2(wcr,f%exact,res%f,res%gf,res%hf)
-       ! transformation not needed because of pi_register_struct:
        ! all work done in Cartesians in a finite environment.
 
     case(type_wfn)
        if (nder >= 0) then
-          call f%wfn%rho2(wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
+          call f%wfn%rho2(wcr,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
           res%avail_gkin = .true.
           res%avail_stress = .true.
           res%avail_vir = .true.
        else
-          call f%wfn%calculate_mo(wc,res%fspc,fder)
+          call f%wfn%calculate_mo(wcr,res%fspc,fder)
           return
        end if
-       ! transformation not needed because all work done in Cartesians
-       ! in a finite environment. wfn assumes the crystal structure
-       ! resulting from load xyz/wfn/wfx (molecule at the center of 
-       ! a big cube).
+       ! all work done in Cartesians in a finite environment.
 
     case(type_dftb)
-       ! transform to the center of the reduced-cell coordinates
        call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
        res%avail_gkin = .true.
-       ! transformation not needed because of dftb_register_struct:
        ! all work done in Cartesians in a finite environment.
 
     case(type_promol)
-       call f%c%promolecular(wc,icrd_cart,res%f,res%gf,res%hf,nder)
+       call f%c%promolecular(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call f%c%promolecular(wc,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
+       call f%c%promolecular(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
@@ -975,13 +948,13 @@ contains
     case(type_pi)
        call f%pi%rho2(wcr,f%exact,rho,grad,h)
     case(type_wfn)
-       call f%wfn%rho2(wc,0,rho,grad,h,gkin,vir,stress)
+       call f%wfn%rho2(wcr,0,rho,grad,h,gkin,vir,stress)
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)
-       call f%c%promolecular(wc,icrd_cart,rho,grad,h,0)
+       call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
-       call f%c%promolecular(wc,icrd_cart,rho,grad,h,0,fr=f%fr)
+       call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
     case(type_ghost)
        rho = eval(f%expr,.true.,iok,wc,f%sptr,f%fh,f%fcheck,f%feval,periodic)
     case default
