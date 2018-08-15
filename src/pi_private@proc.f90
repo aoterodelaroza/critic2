@@ -112,7 +112,7 @@ contains
           end if
        end do
        if (.not.found) then
-          errmsg = "unknown atom for pi ion file: " // trim(file(i))
+          errmsg = "unknown species for pi ion file: " // trim(file(i))
           call f%end()
           return
        end if
@@ -147,6 +147,7 @@ contains
 
     ! fill the interpolation tables
     do i = 1, env%nspc
+       if (.not.f%pi_used(i)) cycle
        ! determine cutoff radius (crad)
        crad = cutrad(env%spc(i)%z)
        call rhoex1(f,i,crad,rrho,rrho1,rrho2)
@@ -212,6 +213,8 @@ contains
        ! calculate exactly the contribution of each atom
        !.....recorre todos los iones de la red
        do ion= 1, nenv 
+          ni = f%e%at(eid(ion))%is
+          if (.not.f%pi_used(ni)) cycle
           rhop = 0d0
           rhopp = 0d0
           !
@@ -247,7 +250,6 @@ contains
              return
           endif
           !........Every atomic symmetry
-          ni= f%e%at(eid(ion))%is
           do l = 1, f%nsym(ni)
              llplus1=l*(l-1)
              !...........every orbital
@@ -293,11 +295,13 @@ contains
     else
        ! use the density grids
        do i = 1, nenv
+          ni = f%e%at(eid(i))%is
+          if (.not.f%pi_used(ni)) cycle
+
           xxion = xpos - f%e%at(eid(i))%r
           rion = max(norm2(xxion),eps0)
           rion1 = 1d0 / rion
           rion2 = rion1 * rion1
-          ni = f%e%at(eid(i))%is
           call f%pgrid(ni)%interp(rion,tmprho,rhop,rhopp)
           rho = rho + tmprho
           grad = grad + rhop * xxion * rion1

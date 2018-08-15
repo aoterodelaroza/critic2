@@ -687,7 +687,6 @@ contains
   !> the environment's identify_atom function (except lattice
   !> translation of x0). Thread-safe.
   module function identify_atom(c,x0,icrd,lncel0)
-    use tools_io, only: ferror, faterr
     class(crystal), intent(in) :: c
     integer, intent(in) :: icrd
     real*8, intent(in) :: x0(3)

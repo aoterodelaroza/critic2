@@ -277,10 +277,10 @@ contains
        end subroutine cube
     end interface
 
-    integer :: i, j, k, n(3), ithis
+    integer :: i, j, k, n(3)
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
-    logical :: iok, found
+    logical :: iok
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -1305,9 +1305,9 @@ contains
        if (isset) then
           write (uout,'("  Exact calculation? ",L)') f%exact
        end if
-       write (uout,'("  List of atoms and associated ion files")')
-       write (uout,'("# nat  name    Z  ion file")')
-       do i = 1, f%c%nneq
+       write (uout,'("  List of species and associated ion files")')
+       write (uout,'("# spc  name    Z  ion file")')
+       do i = 1, f%c%nspc
           if (f%pi%pi_used(i)) then
              str = f%pi%piname(i)
           else
