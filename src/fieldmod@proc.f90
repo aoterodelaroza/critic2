@@ -1308,8 +1308,8 @@ contains
        write (uout,'("  List of species and associated ion files")')
        write (uout,'("# spc  name    Z  ion file")')
        do i = 1, f%c%nspc
-          if (f%pi%pi_used(i)) then
-             str = f%pi%piname(i)
+          if (f%pi%bas(i)%pi_used) then
+             str = trim(f%pi%bas(i)%piname)
           else
              str = "<not used>"
           end if

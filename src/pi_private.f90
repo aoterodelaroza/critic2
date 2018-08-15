@@ -26,22 +26,24 @@ module pi_private
 
   private
 
+  type piatom
+     character*(20) :: piname = ""
+     logical :: pi_used = .false.
+     integer :: nsym
+     integer, allocatable :: naos(:)
+     integer, allocatable :: naaos(:)
+     integer, allocatable :: nsto(:)
+     integer, allocatable :: nasto(:)
+     integer, allocatable :: nn(:)
+     real*8, allocatable :: z(:)
+     real*8, allocatable :: xnsto(:)
+     real*8, allocatable :: c(:,:)
+     real*8, allocatable :: nelec(:)
+     type(grid1) :: pgrid
+  end type piatom
+
   type piwfn
-     ! atomic orbitals
-     character*(20), allocatable :: piname(:)
-     logical, allocatable :: pi_used(:)
-     integer, allocatable :: nsym(:)
-     integer, allocatable :: naos(:,:)
-     integer, allocatable :: naaos(:,:)
-     integer, allocatable :: nsto(:,:)
-     integer, allocatable :: nasto(:,:)
-     integer, allocatable :: nn(:,:)
-     real*8, allocatable :: z(:,:)
-     real*8, allocatable :: xnsto(:,:)
-     real*8, allocatable :: c(:,:,:)
-     real*8, allocatable :: nelec(:,:)
-     type(grid1), allocatable :: pgrid(:)
-     ! structural info
+     type(piatom), allocatable :: bas(:)
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:,:)
      logical :: isealloc = .false.
