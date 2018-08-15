@@ -171,10 +171,10 @@ module wfn_private
        logical, intent(in) :: readvirtual
      end subroutine read_molden
      module subroutine register_struct(f,ncel,atcel)
-       use types, only: basicatom
+       use types, only: celatom
        class(molwfn), intent(inout) :: f
        integer, intent(in) :: ncel
-       class(basicatom), intent(in) :: atcel(:)
+       type(celatom), intent(in) :: atcel(:)
      end subroutine register_struct
      module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
        use tools_io, only: ferror, faterr

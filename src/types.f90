@@ -75,20 +75,32 @@ module types
   end type basicatom
 
   !> Atom from the non-equivalent atom list (nneq)
-  type, extends(basicatom) :: neqatom
+  type :: neqatom
+     real*8 :: x(3)   !< coordinates (crystallographic)
+     real*8 :: r(3)   !< coordinates (Cartesian)
+     integer :: is = 0 !< species
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
   end type neqatom
   
   !> Any atom in the crystal type
-  type, extends(basicatom) :: anyatom
+  type :: anyatom
+     real*8 :: x(3)   !< coordinates (crystallographic)
+     real*8 :: r(3)   !< coordinates (Cartesian)
+     integer :: is = 0 !< species
      integer :: idx !< corresponding atom from the non-equivalent atom list
      integer :: cidx !< corresponding atom from the complete atom list
      integer :: lvec(3) !< lattice vector to the atom in the complete atom list
   end type anyatom
 
   !> Atom from the complete atom list
-  type, extends(anyatom) :: celatom
+  type :: celatom
+     real*8 :: x(3)   !< coordinates (crystallographic)
+     real*8 :: r(3)   !< coordinates (Cartesian)
+     integer :: is = 0 !< species
+     integer :: idx !< corresponding atom from the non-equivalent atom list
+     integer :: cidx !< corresponding atom from the complete atom list
+     integer :: lvec(3) !< lattice vector to the atom in the complete atom list
      integer :: ir   !< rotation matrix to the representative equivalent atom
      integer :: ic   !< translation vector to the representative equivalent atom
      integer :: lenv(3) !< lattice vector to the main cell atom (for environments)

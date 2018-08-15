@@ -59,28 +59,28 @@ contains
   !> to Cartesian matrix.  m_x2xr = crystallographic to reduced
   !> crystallographic matrix. dmax0 = the environment will contain all
   !> atoms within a distance dmax0 of any atom in the unit
-  !> cell/molecule.  If atx_in_xr is present and true, the at(:)%x
-  !> field is interpreted as reduced crystallographic, instead of
-  !> crystallographic (to load from another environment).
-  module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,atx_in_xr)
+  !> cell/molecule. If at_in_xr is present, it contains the unit cell
+  !> atoms in reduced crystallographic coords with anyatom type, and
+  !> at(:) is ignored (used to load from another environment).
+  module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,at_in_xr)
     use global, only: cutrad
     use tools, only: qcksort
     use tools_math, only: matinv
-    use types, only: realloc, species, anyatom
+    use types, only: realloc, species, celatom
     use param, only: atmcov, ctsq32
     class(environ), intent(inout) :: e
     logical, intent(in) :: ismol
     integer, intent(in) :: nspc
     type(species), intent(in) :: spc(nspc)
     integer, intent(in) :: n
-    class(anyatom), intent(in) :: at(n)
+    type(celatom), intent(in) :: at(n)
     real*8, intent(in) :: m_xr2c(3,3)
     real*8, intent(in) :: m_x2xr(3,3)
     real*8, intent(in) :: m_x2c(3,3)
     real*8, intent(in), optional :: dmax0
-    logical, intent(in), optional :: atx_in_xr
+    type(anyatom), intent(in), optional :: at_in_xr(:)
 
-    logical :: dorepeat, inxr
+    logical :: dorepeat
     real*8 :: sphmax, dmax, x(3), xhalf(3), rmin(3), rmax(3)
     real*8 :: x0(3), x1(3), dist, rcut0
     integer :: i1, i2, i3, i, m, imax, i3min, nreg
@@ -91,10 +91,6 @@ contains
     e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
-
-    ! input in reduced crystallographic?
-    inxr = .false.
-    if (present(atx_in_xr)) inxr = atx_in_xr
 
     ! calculate the boxsize, maximum bondfactor of 2.0
     dmax = 0d0
@@ -125,28 +121,37 @@ contains
        e%dmax0 = dmax0 + 1d-2
     else
        e%dmax0 = 0d0
-       do i = 1, n
-          if (spc(at(i)%is)%z > 0) e%dmax0 = max(e%dmax0,cutrad(spc(at(i)%is)%z))
+       do i = 1, nspc
+          if (spc(i)%z > 0) e%dmax0 = max(e%dmax0,cutrad(spc(i)%z))
        end do
        e%dmax0 = e%dmax0 + 1d-2
     end if
+
+    ! parepare to write down the first n atoms
+    e%n = n
+    if (allocated(e%at)) deallocate(e%at)
+    allocate(e%at(e%n))
 
     if (ismol) then
        ! A molecule: add all atoms in the molecule to the environment
        rmin = 1d40
        rmax = -1d40
-       e%n = n
-       if (allocated(e%at)) deallocate(e%at)
-       allocate(e%at(e%n))
        do i = 1, n
-          e%at(i)%x = at(i)%x
-          e%at(i)%r = at(i)%r
+          if (present(at_in_xr)) then
+             e%at(i)%x = at_in_xr(i)%x
+             e%at(i)%r = at_in_xr(i)%r
+             e%at(i)%idx = at_in_xr(i)%idx
+             e%at(i)%is = at_in_xr(i)%is
+          else
+             e%at(i)%x = at(i)%x
+             e%at(i)%r = at(i)%r
+             e%at(i)%idx = at(i)%idx
+             e%at(i)%is = at(i)%is
+          end if
           rmin = min(e%at(i)%r,rmin)
           rmax = max(e%at(i)%r,rmax)
-          e%at(i)%idx = at(i)%idx
           e%at(i)%cidx = i
           e%at(i)%lvec = 0
-          e%at(i)%is = at(i)%is
        end do
        e%ncell = n
        e%rsph_env = 0.5d0 * norm2(rmax-rmin) + e%dmax0
@@ -156,23 +161,22 @@ contains
     else
        ! A crystal
        ! add all atoms in the main reduced cell (coords: 0 -> 1)
-       e%n = n
-       if (allocated(e%at)) deallocate(e%at)
-       allocate(e%at(e%n))
        do i = 1, n
-          if (.not.inxr) then
+          if (present(at_in_xr)) then
+             e%at(i)%x = at_in_xr(i)%x
+             e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
+             e%at(i)%lvec = nint(e%xr2x(e%at(i)%x - at_in_xr(i)%x))
+             e%at(i)%idx = at_in_xr(i)%idx
+             e%at(i)%is = at_in_xr(i)%is
+          else
              e%at(i)%x = e%x2xr(at(i)%x)
              e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
              e%at(i)%lvec = nint(e%xr2x(e%at(i)%x) - at(i)%x)
-          else
-             e%at(i)%x = at(i)%x
-             e%at(i)%x = e%at(i)%x - floor(e%at(i)%x)
-             e%at(i)%lvec = nint(e%xr2x(e%at(i)%x - at(i)%x))
+             e%at(i)%idx = at(i)%idx
+             e%at(i)%is = at(i)%is
           end if
           e%at(i)%r = e%xr2c(e%at(i)%x)
-          e%at(i)%idx = at(i)%idx
           e%at(i)%cidx = i
-          e%at(i)%is = at(i)%is
        end do
        e%ncell = n
 
@@ -324,7 +328,7 @@ contains
     real*8, intent(in) :: dmax0
 
     call e%end()
-    call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,e0%at(1:e0%ncell),e0%m_xr2c,e0%m_x2xr,e0%m_x2c)
+    ! call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,e0%at(1:e0%ncell),e0%m_xr2c,e0%m_x2xr,e0%m_x2c)
 
   end subroutine environ_extend
 

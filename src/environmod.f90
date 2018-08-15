@@ -152,22 +152,22 @@ module environmod
      module subroutine environ_end(e)
        class(environ), intent(inout) :: e
      end subroutine environ_end
-     module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,atx_in_xr)
+     module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,at_in_xr)
        use global, only: cutrad
        use tools_math, only: matinv
-       use types, only: realloc, species, anyatom
+       use types, only: realloc, species, celatom
        use param, only: atmcov
        class(environ), intent(inout) :: e
        logical, intent(in) :: ismol
        integer, intent(in) :: nspc
        type(species), intent(in) :: spc(nspc)
        integer, intent(in) :: n
-       class(anyatom), intent(in) :: at(n)
+       type(celatom), intent(in) :: at(n)
        real*8, intent(in) :: m_xr2c(3,3)
        real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in), optional :: dmax0
-       logical, intent(in), optional :: atx_in_xr
+       type(anyatom), intent(in), optional :: at_in_xr(:)
      endsubroutine environ_build
      module subroutine environ_extend(e,e0,dmax0)
        class(environ), intent(inout) :: e

@@ -1818,10 +1818,10 @@ contains
 
   !> Register structural information.
   module subroutine register_struct(f,ncel,atcel)
-    use types, only: basicatom
+    use types, only: celatom
     class(molwfn), intent(inout) :: f
     integer, intent(in) :: ncel
-    class(basicatom), intent(in) :: atcel(:)
+    type(celatom), intent(in) :: atcel(:)
 
     integer :: i
 
