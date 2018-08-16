@@ -81,7 +81,7 @@ module wfn_private
      real*8, allocatable :: c_edf(:) !< EDF coefficients
      ! structural info
      real*8 :: globalcutoff = 0d0
-     real*8, allocatable :: spcutoff(:,:)
+     real*8, allocatable :: spcutoff(:)
      logical :: isealloc = .false.
      type(environ), pointer :: env
    contains

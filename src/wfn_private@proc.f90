@@ -1880,7 +1880,7 @@ contains
     gkin = 0d0
     vir = 0d0
     stress = 0d0
-    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dcidx=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! calculate the MO values and derivatives at the point
@@ -2032,7 +2032,7 @@ contains
        call ferror("calculate_mo","Invalid molecular orbital",faterr)
 
     phi = 0d0
-    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dcidx=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     if (f%issto) then
@@ -2499,7 +2499,7 @@ contains
 
     ! allocate the species cutoffs
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    allocate(f%spcutoff(env%nspc,2))
+    allocate(f%spcutoff(env%ncell))
     f%spcutoff = 0d0
     f%globalcutoff = -1d0
 
@@ -2510,10 +2510,10 @@ contains
     do i = 1, f%npri
        f%dran(i) = -log(rprim_thres) / f%e(i)
        if (f%issto) then
-          f%spcutoff(env%at(f%icenter(i))%is,2) = max(f%spcutoff(env%at(f%icenter(i))%is,2),f%dran(i))
+          f%spcutoff(env%at(f%icenter(i))%cidx) = max(f%spcutoff(env%at(f%icenter(i))%cidx),f%dran(i))
        else
           f%dran(i) = sqrt(f%dran(i))
-          f%spcutoff(env%at(f%icenter(i))%is,2) = max(f%spcutoff(env%at(f%icenter(i))%is,2),f%dran(i))
+          f%spcutoff(env%at(f%icenter(i))%cidx) = max(f%spcutoff(env%at(f%icenter(i))%cidx),f%dran(i))
        end if
     end do
 
@@ -2544,7 +2544,7 @@ contains
        if (istat /= 0) call ferror('complete_struct','could not allocate memory for dran_edf',faterr)
        do i = 1, f%nedf
           f%dran_edf(i) = sqrt(-log(rprim_thres) / f%e_edf(i))
-          f%spcutoff(env%at(f%icenter_edf(i))%is,2) = max(f%spcutoff(env%at(f%icenter_edf(i))%is,2),f%dran_edf(i))
+          f%spcutoff(env%at(f%icenter_edf(i))%cidx) = max(f%spcutoff(env%at(f%icenter_edf(i))%cidx),f%dran_edf(i))
        end do
 
        ! Find the ordered list of primitive centers
@@ -2569,9 +2569,7 @@ contains
     end if
 
     ! calculate the global cutoff
-    do i = 1, env%nspc
-       f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
-    end do
+    f%globalcutoff = maxval(f%spcutoff(1:env%ncell))
 
     ! associate the environment
     if (f%isealloc) then
