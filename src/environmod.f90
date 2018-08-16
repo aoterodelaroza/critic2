@@ -251,7 +251,7 @@ module environmod
        integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,iz0,nozero)
+     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)
        use param, only: icrd_rcrys
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)
@@ -265,6 +265,7 @@ module environmod
        integer, allocatable, intent(inout), optional :: ishell0(:)
        real*8, intent(in), optional :: up2d
        real*8, intent(in), optional :: up2dsp(:,:)
+       real*8, intent(in), optional :: up2dcidx(:)
        integer, intent(in), optional :: up2sh
        integer, intent(in), optional :: up2n
        integer, intent(in), optional :: nid0

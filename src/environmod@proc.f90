@@ -636,7 +636,8 @@ contains
   !> e%at(nid(i))%x + lvec. Optionally, ishell0(i) contains the shell
   !> ID for atom i in the output list. One or more of four cutoff
   !> criteria must be chosen: list up to a distance up2d, between a
-  !> minimum and a maximum species-dependent distance (up2dsp), up to
+  !> minimum and a maximum species-dependent distance (up2dsp), up
+  !> to a distance to each atom in the complete list (up2dcidx), up to
   !> a number of shells up2sh or up to a number of atoms up2n. If
   !> nid0, consider only atoms with index nid0 from the non-equivalent
   !> list. If id0, consider only atoms with index id0 from the
@@ -644,7 +645,7 @@ contains
   !> iz0.  If nozero, disregard zero-distance atoms. The output error
   !> condition ierr is 0 if the search was successful or non-zero if
   !> the input search conditions could not be met by this environment.
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2sh,up2n,nid0,id0,iz0,nozero)
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: mergesort
@@ -662,6 +663,7 @@ contains
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
     real*8, intent(in), optional :: up2dsp(:,:)
+    real*8, intent(in), optional :: up2dcidx(:)
     integer, intent(in), optional :: up2sh
     integer, intent(in), optional :: up2n
     integer, intent(in), optional :: nid0
@@ -680,8 +682,9 @@ contains
     integer, allocatable :: idxshel(:)
     logical :: doshell, enough
 
-    if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2sh).and..not.present(up2n)) &
-       call ferror("list_near_atoms","must give one of up2d, up2dsp, up2sh, or up2n",faterr)
+    if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2dcidx).and.&
+        .not.present(up2sh).and..not.present(up2n)) &
+       call ferror("list_near_atoms","must give one of up2d, up2dsp, up2dcidx, up2sh, or up2n",faterr)
     doshell = present(ishell0) .or. present(up2sh)
 
     ! Find the integer region for the main cell copy of the input point
@@ -706,6 +709,7 @@ contains
        allocate(ishell(10),rshel(10),idxshel(10))
     end if
     if (present(up2dsp)) up2rmax = maxval(up2dsp(1:e%nspc,2))
+    if (present(up2dcidx)) up2rmax = maxval(up2dcidx(1:e%ncell))
 
     ! Run over search regions around ireg0 and over atoms belonging to
     ! those regions. Use the sorted search data in the rs_* variables.
@@ -746,6 +750,9 @@ contains
              if (present(up2dsp)) then
                 if (dist0 < up2dsp(e%at(k)%is,1) .or. dist0 > up2dsp(e%at(k)%is,2)) cycle
              end if
+             if (present(up2dcidx)) then
+                if (dist0 > up2dcidx(e%at(k)%cidx)) cycle
+             end if
 
              ! Add this atom to the list (contains section subroutine) and update rcutn.
              call add_atom_to_output_list()
@@ -768,6 +775,10 @@ contains
        end if
        if (present(up2dsp)) then
           ! Same as above, but with maxval(up2dsp).
+          enough = enough .or. (e%rs_rcut(i) > up2rmax .and. (dmaxenv > up2rmax .or. e%ismolecule))
+       end if
+       if (present(up2dcidx)) then
+          ! Same as above, but with maxval(up2dcidx).
           enough = enough .or. (e%rs_rcut(i) > up2rmax .and. (dmaxenv > up2rmax .or. e%ismolecule))
        end if
        if (present(up2sh)) then
