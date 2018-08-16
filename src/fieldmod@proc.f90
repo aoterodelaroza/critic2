@@ -872,11 +872,9 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    call f%c%nearest_atom(wx,icrd_crys,nid,dist,lvec=lvec)
-    if (per .or. .not.per .and. all(lvec == 0)) then
-       res%isnuc = (nid > 0) .and. (dist < 1d-5)
-       if (res%isnuc) res%gf = 0d0
-    end if
+    nid = f%c%identify_atom(wc,icrd_cart,eps=1d-5)
+    res%isnuc = (nid > 0)
+    if (res%isnuc) res%gf = 0d0
     res%gfmod = norm2(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 

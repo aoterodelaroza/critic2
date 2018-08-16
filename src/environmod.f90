@@ -233,11 +233,12 @@ module environmod
        real*8, intent(in)  :: xx(3)
        integer :: res
      end function c2i
-     module function identify_atom(e,x0,icrd,lncel)
+     module function identify_atom(e,x0,icrd,lncel,eps)
        class(environ), intent(in) :: e
        real*8, intent(in) :: x0(3)
        integer, intent(in) :: icrd
        logical, intent(in), optional :: lncel
+       real*8, intent(in), optional :: eps
        integer :: identify_atom
      end function identify_atom
      module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)

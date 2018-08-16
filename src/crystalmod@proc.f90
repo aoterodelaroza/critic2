@@ -686,14 +686,15 @@ contains
   !> it is for the complete list. This routine is mostly a wrapper for
   !> the environment's identify_atom function (except lattice
   !> translation of x0). Thread-safe.
-  module function identify_atom(c,x0,icrd,lncel0)
+  module function identify_atom(c,x0,icrd,lncel0,eps)
     class(crystal), intent(in) :: c
     integer, intent(in) :: icrd
     real*8, intent(in) :: x0(3)
     logical, intent(in), optional :: lncel0
     integer :: identify_atom
+    real*8, intent(in), optional :: eps
 
-    identify_atom = c%env%identify_atom(x0,icrd,lncel0)
+    identify_atom = c%env%identify_atom(x0,icrd,lncel0,eps)
 
   endfunction identify_atom
 

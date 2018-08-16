@@ -2190,7 +2190,7 @@ contains
 
     integer :: l(3)
     integer :: iat, ityp, ipri, imo, ix, phimo
-    real*8 :: al, ex, xl(3,0:2), xl2, d2, xx(3)
+    real*8 :: al, ex, exc, xl(3,0:2,0:5), d2, xx(3)
     real*8 :: chi(10)
     integer :: i, j, iat
     
@@ -2217,6 +2217,28 @@ contains
        d2 = dist(i) * dist(i)
        xx = xpos - f%env%at(iat)%r
 
+       ! calculate the powers of xyz
+       do ix = 1, 3
+          xl(ix,0,0) = 1d0
+          xl(ix,1,0) = 0d0
+          xl(ix,2,0) = 0d0
+          xl(ix,0,1) = xx(ix)
+          xl(ix,1,1) = 1d0
+          xl(ix,2,1) = 0d0
+          xl(ix,0,2) = xl(ix,0,1) * xx(ix)
+          xl(ix,1,2) = 2d0 * xl(ix,0,1)
+          xl(ix,2,2) = 2d0
+          xl(ix,0,3) = xl(ix,0,2) * xx(ix)
+          xl(ix,1,3) = 3d0 * xl(ix,0,2)
+          xl(ix,2,3) = 6d0 * xl(ix,0,1)
+          xl(ix,0,4) = xl(ix,0,3) * xx(ix)
+          xl(ix,1,4) = 4d0 * xl(ix,0,3)
+          xl(ix,2,4) = 12d0 * xl(ix,0,2)
+          xl(ix,0,5) = xl(ix,0,4) * xx(ix)
+          xl(ix,1,5) = 5d0 * xl(ix,0,4)
+          xl(ix,2,5) = 20d0 * xl(ix,0,3)
+       end do ! ix = 1, 3
+
        ! valence contribution
        do j = f%iprilo(iat), f%iprihi(iat)
           ipri = f%icord(j)
@@ -2225,54 +2247,21 @@ contains
           ityp = f%itype(ipri)
           al = f%e(ipri)
           ex = exp(-al * d2)
-
           l = li(1:3,ityp)
-          do ix = 1, 3
-             if (l(ix) == 0) then
-                xl(ix,0) = 1d0
-                xl(ix,1) = 0d0
-                xl(ix,2) = 0d0
-             else if (l(ix) == 1) then
-                xl(ix,0) = xx(ix)
-                xl(ix,1) = 1d0
-                xl(ix,2) = 0d0
-             else if (l(ix) == 2) then
-                xl(ix,0) = xx(ix) * xx(ix)
-                xl(ix,1) = 2d0 * xx(ix)
-                xl(ix,2) = 2d0
-             else if (l(ix) == 3) then
-                xl2 = xx(ix) * xx(ix)
-                xl(ix,0) = xl2 * xx(ix)
-                xl(ix,1) = 3d0 * xl2
-                xl(ix,2) = 6d0 * xx(ix)
-             else if (l(ix) == 4) then
-                xl2 = xx(ix) * xx(ix)
-                xl(ix,0) = xl2 * xl2
-                xl(ix,1) = 4d0 * xl2 * xx(ix)
-                xl(ix,2) = 12d0 * xl2
-             else if (l(ix) == 5) then
-                xl2 = xx(ix) * xx(ix)
-                xl(ix,0) = xl2 * xl2 * xx(ix)
-                xl(ix,1) = 5d0 * xl2 * xl2
-                xl(ix,2) = 20d0 * xl2 * xx(ix)
-             else
-                call ferror('calculate_mo_gto','power of L not supported',faterr)
-             end if
-          end do ! ix = 1, 3
 
           ! calculate the primitive contribution and its derivatives
-          chi(1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
+          chi(1) = xl(1,0,l(1))*xl(2,0,l(2))*xl(3,0,l(3))*ex
           if (nder > 0) then
-             chi(2) = (xl(1,1)-2*al*xx(1)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
-             chi(3) = (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
-             chi(4) = (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+             chi(2) = (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * xl(2,0,l(2))*xl(3,0,l(3))*ex
+             chi(3) = (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*xl(3,0,l(3))*ex
+             chi(4) = (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(1,0,l(1))*xl(2,0,l(2))*ex
              if (nder > 1) then
-                chi(5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
-                chi(6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
-                chi(7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
-                chi(8) = (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(3,0)*ex
-                chi(9) = (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(2,0)*ex
-                chi(10)= (xl(3,1)-2*al*xx(3)**(l(3)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*ex
+                chi(5) = (xl(1,2,l(1))-2*al*(2*l(1)+1)*xl(1,0,l(1)) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0,l(2))*xl(3,0,l(3))*ex
+                chi(6) = (xl(2,2,l(2))-2*al*(2*l(2)+1)*xl(2,0,l(2)) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0,l(3))*xl(1,0,l(1))*ex
+                chi(7) = (xl(3,2,l(3))-2*al*(2*l(3)+1)*xl(3,0,l(3)) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0,l(1))*xl(2,0,l(2))*ex
+                chi(8) = (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(3,0,l(3))*ex
+                chi(9) = (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(2,0,l(2))*ex
+                chi(10)= (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*ex
              endif
           endif
 
@@ -2295,56 +2284,23 @@ contains
              ityp = f%itype_edf(ipri)
              al = f%e_edf(ipri)
              ex = exp(-al * d2)
-             
+             exc = f%c_edf(ipri) * ex
              l = li(1:3,ityp)
-             do ix = 1, 3
-                if (l(ix) == 0) then
-                   xl(ix,0) = 1d0
-                   xl(ix,1) = 0d0
-                   xl(ix,2) = 0d0
-                else if (l(ix) == 1) then
-                   xl(ix,0) = xx(ix)
-                   xl(ix,1) = 1d0
-                   xl(ix,2) = 0d0
-                else if (l(ix) == 2) then
-                   xl(ix,0) = xx(ix) * xx(ix)
-                   xl(ix,1) = 2d0 * xx(ix)
-                   xl(ix,2) = 2d0
-                else if (l(ix) == 3) then
-                   xl2 = xx(ix) * xx(ix)
-                   xl(ix,0) = xl2 * xx(ix)
-                   xl(ix,1) = 3d0 * xl2
-                   xl(ix,2) = 6d0 * xx(ix)
-                else if (l(ix) == 4) then
-                   xl2 = xx(ix) * xx(ix)
-                   xl(ix,0) = xl2 * xl2
-                   xl(ix,1) = 4d0 * xl2 * xx(ix)
-                   xl(ix,2) = 12d0 * xl2
-                else if (l(ix) == 5) then
-                   xl2 = xx(ix) * xx(ix)
-                   xl(ix,0) = xl2 * xl2 * xx(ix)
-                   xl(ix,1) = 5d0 * xl2 * xl2
-                   xl(ix,2) = 20d0 * xl2 * xx(ix)
-                else
-                   call ferror('calculate_mo_gto','power of L not supported (core)',faterr)
-                end if
-             end do ! ix = 1, 3
 
-             rhoc = rhoc + f%c_edf(ipri) * xl(1,0)*xl(2,0)*xl(3,0)*ex
+             rhoc = rhoc + f%c_edf(ipri) * xl(1,0,l(1))*xl(2,0,l(2))*xl(3,0,l(3))*ex
              if (nder < 1) cycle
-             gradc(1) = gradc(1) + f%c_edf(ipri) * (xl(1,1)-2*al*xx(1)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
-             gradc(2) = gradc(2) + f%c_edf(ipri) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
-             gradc(3) = gradc(3) + f%c_edf(ipri) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+             gradc(1) = gradc(1) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * xl(2,0,l(2))*xl(3,0,l(3))*exc
+             gradc(2) = gradc(2) + (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*xl(3,0,l(3))*exc
+             gradc(3) = gradc(3) + (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(1,0,l(1))*xl(2,0,l(2))*exc
              if (nder < 2) cycle
-             hc(1) = hc(1) + f%c_edf(ipri) * (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
-             hc(2) = hc(2) + f%c_edf(ipri) * (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
-             hc(3) = hc(3) + f%c_edf(ipri) * (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
-             hc(4) = hc(4) + f%c_edf(ipri) * (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(3,0)*ex
-             hc(5) = hc(5) + f%c_edf(ipri) * (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(2,0)*ex
-             hc(6) = hc(6) + f%c_edf(ipri) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*ex
+             hc(1) = hc(1) + (xl(1,2,l(1))-2*al*(2*l(1)+1)*xl(1,0,l(1)) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0,l(2))*xl(3,0,l(3))*exc
+             hc(2) = hc(2) + (xl(2,2,l(2))-2*al*(2*l(2)+1)*xl(2,0,l(2)) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0,l(3))*xl(1,0,l(1))*exc
+             hc(3) = hc(3) + (xl(3,2,l(3))-2*al*(2*l(3)+1)*xl(3,0,l(3)) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0,l(1))*xl(2,0,l(2))*exc
+             hc(4) = hc(4) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(3,0,l(3))*exc
+             hc(5) = hc(5) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(2,0,l(2))*exc
+             hc(6) = hc(6) + (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*exc
           end do ! j = f%iprilo_edf(iat), f%iprihi_edf(iat)
-       end if
-
+       end if ! if (f%nedf > 0)
     end do ! i = 1, nenv
 
   end subroutine calculate_mo_gto

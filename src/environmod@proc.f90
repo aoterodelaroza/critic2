@@ -477,20 +477,22 @@ contains
 
   !> Given point x0 (with icrd input coordinates), translate to the
   !> main cell if the environment is from a crystal. Then if x0
-  !> corresponds to an atomic position (to within atomeps), return the
-  !> ID of the atom. Otherwise, return 0. If lncel is .false. or not
-  !> present, the ID is for the non-equivalent atom list. Otherwise,
-  !> it is for the complete list. This routine is thread-safe.
-  module function identify_atom(e,x0,icrd,lncel)
+  !> corresponds to an atomic position (to within eps or atomeps if
+  !> eps is not given), return the ID of the atom. Otherwise, return
+  !> 0. If lncel is .false. or not present, the ID is for the
+  !> non-equivalent atom list. Otherwise, it is for the complete
+  !> list. This routine is thread-safe.
+  module function identify_atom(e,x0,icrd,lncel,eps)
     use global, only: atomeps
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3)
     integer, intent(in) :: icrd
     logical, intent(in), optional :: lncel
+    real*8, intent(in), optional :: eps
     integer :: identify_atom
     
-    real*8 :: xp(3), x0r(3), x1r(3), dist, distmin
+    real*8 :: xp(3), x0r(3), x1r(3), dist, distmin, eps0
     logical :: ln
     integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
     integer :: ireg(3), idx, kmin
@@ -498,6 +500,8 @@ contains
     ! initialize
     ln = .false.
     if (present(lncel)) ln = lncel
+    eps0 = atomeps
+    if (present(eps)) eps0 = eps
 
     ! bring the atom to the main cell, convert, identify the region
     xp = x0
@@ -510,8 +514,8 @@ contains
     x0r = e%x0 + e%boxsize * ireg0
     x1r = e%x0 + e%boxsize * (ireg0+1)
     do i = 1, 3
-       if (xp(i)-x0r(i) <= atomeps) imin(i) = -1
-       if (x1r(i)-xp(i) <= atomeps) imax(i) = 1
+       if (xp(i)-x0r(i) <= eps0) imin(i) = -1
+       if (x1r(i)-xp(i) <= eps0) imax(i) = 1
     end do
 
     ! Identify the atom
@@ -527,8 +531,9 @@ contains
              do j = e%nrlo(idx), e%nrhi(idx)
                 k = e%imap(j)
                 dist = norm2(e%at(k)%r - xp)
-                if (dist < distmin .and. dist < atomeps) then
+                if (dist < distmin .and. dist < eps0) then
                    kmin = k
+                   distmin = dist
                 end if
              end do
           end do
