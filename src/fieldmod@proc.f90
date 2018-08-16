@@ -408,29 +408,25 @@ contains
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
-       call f%wfn%read_wfn(seed%file(1))
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_wfn(seed%file(1),f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
        call f%wfn%end()
-       call f%wfn%read_wfx(seed%file(1))
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_wfx(seed%file(1),f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1),seed%readvirtual)
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%readvirtual)
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_molden(seed%file(1),seed%readvirtual,f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 

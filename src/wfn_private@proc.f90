@@ -19,10 +19,12 @@ submodule (wfn_private) proc
   implicit none
 
   !xx! private procedures
+  ! subroutine calculate_mo_sto(f,xpos,phi,philb,imo0,imo1,nder,nenv,eid,dist)
+  ! subroutine calculate_mo_gto(f,xpos,phi,rhoc,gradc,hc,philb,imo0,imo1,nder,nenv,eid,dist)
   ! function gnorm(type,a) result(N)
   ! function wfx_read_integers(lu,n,errmsg) result(x)
   ! function wfx_read_reals1(lu,n,errmsg) result(x)
-  ! subroutine calculate_d2ran(f)
+  ! subroutine complete_struct(f,env)
 
   ! double factorials minus one
   integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/) 
@@ -148,16 +150,28 @@ contains
     class(molwfn), intent(inout) :: f
     
     if (allocated(f%icenter)) deallocate(f%icenter)
+    if (allocated(f%icord)) deallocate(f%icord)
+    if (allocated(f%iprilo)) deallocate(f%iprilo)
+    if (allocated(f%iprihi)) deallocate(f%iprihi)
     if (allocated(f%itype)) deallocate(f%itype)
-    if (allocated(f%d2ran)) deallocate(f%d2ran)
+    if (allocated(f%dran)) deallocate(f%dran)
     if (allocated(f%e)) deallocate(f%e)
     if (allocated(f%occ)) deallocate(f%occ)
     if (allocated(f%cmo)) deallocate(f%cmo)
     if (allocated(f%icenter_edf)) deallocate(f%icenter_edf)
+    if (allocated(f%icord_edf)) deallocate(f%icord_edf)
+    if (allocated(f%iprilo_edf)) deallocate(f%iprilo_edf)
+    if (allocated(f%iprihi_edf)) deallocate(f%iprihi_edf)
     if (allocated(f%itype_edf)) deallocate(f%itype_edf)
+    if (allocated(f%dran_edf)) deallocate(f%dran_edf)
     if (allocated(f%e_edf)) deallocate(f%e_edf)
     if (allocated(f%c_edf)) deallocate(f%c_edf)
-    if (allocated(f%xat)) deallocate(f%xat)
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    if (f%isealloc) then
+       if (associated(f%env)) deallocate(f%env)
+    end if
+    nullify(f%env)
+    f%isealloc = .false.
 
   end subroutine wfn_end
 
@@ -624,10 +638,11 @@ contains
   end subroutine wfn_read_log_geometry
 
   !> Read the wavefunction from a wfn file
-  module subroutine read_wfn(f,file)
+  module subroutine read_wfn(f,file,env)
     use tools_io, only: fopen_read, zatguess, ferror, faterr, fclose
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
+    type(environ), intent(in), target :: env
 
     integer :: luwfn, nat, iz, istat, i, j, num1, num2
     integer :: nalpha, ioc
@@ -729,7 +744,7 @@ contains
     call fclose(luwfn)
 
     ! calculate the range of each primitive (in distance^2)
-    call calculate_d2ran(f)
+    call complete_struct(f,env)
 
 101  format (4X,A4,10X,3(I5,15X))
 102  format(20X,20I3)
@@ -741,10 +756,11 @@ contains
   end subroutine read_wfn
 
   !> Read the wavefunction from a wfx file
-  module subroutine read_wfx(f,file)
+  module subroutine read_wfx(f,file,env)
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
+    type(environ), intent(in), target :: env
 
     integer :: luwfn, ncore, istat, i, num1, num2, ioc
     character(len=:), allocatable :: line, line2
@@ -866,21 +882,22 @@ contains
        call ferror("read_wfx","restricted-open wfx files not supported",faterr)
     endif
     
-    ! calculate the range of each primitive (in distance^2)
-    call calculate_d2ran(f)
-
     ! done
     call fclose(luwfn)
+
+    ! calculate the range of each primitive (in distance^2)
+    call complete_struct(f,env)
 
   end subroutine read_wfx
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
-  module subroutine read_fchk(f,file,readvirtual)
+  module subroutine read_fchk(f,file,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, isinteger, faterr, ferror, fclose
     use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
+    type(environ), intent(in), target :: env
 
     character(len=:), allocatable :: line
     integer :: lp, i, j, k, k1, k2, nn, nm, nl, nc, ns, ncar, nsph
@@ -1221,25 +1238,26 @@ contains
        nm = nm + ishlpri(i)
     end do
 
-    ! calculate the range of each primitive (in distance^2)
-    call calculate_d2ran(f)
-
     ! clean up
     deallocate(ishlt,ishlpri,ishlat)
     deallocate(exppri,ccontr)
     deallocate(mocoef)
 
+    ! calculate the range of each primitive (in distance^2)
+    call complete_struct(f,env)
+
   end subroutine read_fchk
 
   !> Read the wavefunction from a molden file. See the manual for
   !> the list of molden-generating programs that have been tested.
-  module subroutine read_molden(f,file,readvirtual)
+  module subroutine read_molden(f,file,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
+    type(environ), intent(in), target :: env
 
     character(len=:), allocatable :: line, keyword, word, word1
     logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc
@@ -1676,7 +1694,7 @@ contains
        deallocate(motemp,ccontr)
        
        ! calculate the range of each primitive (in distance^2)
-       call calculate_d2ran(f)
+       call complete_struct(f,env)
 
        return
     end if
@@ -1780,13 +1798,13 @@ contains
        nm = nm + ishlpri(i)
     end do
 
-    ! calculate the range of each primitive (in distance^2)
-    call calculate_d2ran(f)
-
     ! clean up and exit
     deallocate(ishlt,ishlpri,ishlat)
     deallocate(exppri,ccontr)
     deallocate(mocoef,cpri)
+
+    ! calculate the range of each primitive (in distance^2)
+    call complete_struct(f,env)
 
     return
 99  continue
@@ -1816,30 +1834,12 @@ contains
 
   end subroutine read_molden
 
-  !> Register structural information.
-  module subroutine register_struct(f,ncel,atcel)
-    use types, only: celatom
-    class(molwfn), intent(inout) :: f
-    integer, intent(in) :: ncel
-    type(celatom), intent(in) :: atcel(:)
-
-    integer :: i
-
-    f%nat = ncel
-    if (allocated(f%xat)) deallocate(f%xat)
-    allocate(f%xat(3,f%nat))
-    do i = 1, f%nat
-       f%xat(:,i) = atcel(i)%r
-    end do
-    
-  end subroutine register_struct
-
   !> Determine the density and derivatives at a given target point.
-  !> xpos is in cartesian coordiantes and assume that the molecule has
+  !> xpos is in Cartesian coordiantes and assume that the molecule has
   !> been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx. This routine is thread-safe.
   module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
-    use tools_io, only: ferror, faterr
+    use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
@@ -1853,12 +1853,13 @@ contains
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
 
-    real*8 :: al, ex, xl(3,0:2), xl2
-    integer :: iat, ityp, i, l(3)
-    integer :: imo, ix
-    real*8 :: phi(1:f%nmoocc,imax(nder))
-    real*8 :: dd(3,f%nat), d2(f%nat)
+    integer :: i
+    integer :: imo
     real*8 :: hh(6), aocc
+    integer :: nenv, lvec(3), ierr
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+    real*8, allocatable :: phi(:,:)
     
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
@@ -1872,11 +1873,22 @@ contains
        1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
        3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
 
+    ! initialize and calculate the environment of the point
+    rho = 0d0
+    grad = 0d0
+    hh = 0d0
+    gkin = 0d0
+    vir = 0d0
+    stress = 0d0
+    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
+
     ! calculate the MO values and derivatives at the point
+    allocate(phi(1:f%nmoocc,imax(nder)))
     if (f%issto) then
-       call f%calculate_mo_sto(xpos,phi,1,1,f%nmoocc,nder)
+       call calculate_mo_sto(f,xpos,phi,1,1,f%nmoocc,nder,nenv,eid,dist)
     else
-       call f%calculate_mo_gto(xpos,phi,1,1,f%nmoocc,nder)
+       call calculate_mo_gto(f,xpos,phi,rho,grad,hh,1,1,f%nmoocc,nder,nenv,eid,dist)
     end if
 
     ! save the MO values
@@ -1888,13 +1900,7 @@ contains
        xmo(1:f%nmoocc) = phi(1:f%nmoocc,1)
     end if
 
-    ! calculate the density, etc.
-    rho = 0d0
-    grad = 0d0
-    hh = 0d0
-    gkin = 0d0
-    vir = 0d0
-    stress = 0d0
+    ! Calculate the (valence) density, etc. Adds to the core contribution, if available.
     do imo = 1, f%nmoocc
        aocc = f%occ(imo) 
        rho = rho + aocc * phi(imo,1) * phi(imo,1)
@@ -1915,72 +1921,15 @@ contains
           stress(3,3) = stress(3,3) + aocc * (phi(imo,1) * phi(imo,7)  - phi(imo,4)*phi(imo,4))
        endif
     enddo
+    deallocate(phi)
+
+    ! re-order and assign output values
     stress(2,1) = stress(1,2)
     stress(3,1) = stress(1,3)
     stress(3,2) = stress(2,3)
     stress = stress * 0.5d0
     gkin = 0.5d0 * gkin
     vir = stress(1,1)+stress(2,2)+stress(3,3)
-
-    ! core contribution to the density and its derivatives
-    if (f%nedf > 0) then
-       do i = 1, f%nedf
-          ityp = f%itype_edf(i)
-          iat = f%icenter_edf(i)
-          al = f%e_edf(i)
-          ex = exp(-al * d2(iat))
-
-          l = li(1:3,ityp)
-          do ix = 1, 3
-             if (l(ix) == 0) then
-                xl(ix,0) = 1d0
-                xl(ix,1) = 0d0
-                xl(ix,2) = 0d0
-             else if (l(ix) == 1) then
-                xl(ix,0) = dd(ix,iat)
-                xl(ix,1) = 1d0
-                xl(ix,2) = 0d0
-             else if (l(ix) == 2) then
-                xl(ix,0) = dd(ix,iat) * dd(ix,iat)
-                xl(ix,1) = 2d0 * dd(ix,iat)
-                xl(ix,2) = 2d0
-             else if (l(ix) == 3) then
-                xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
-                xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
-                xl(ix,2) = 6d0 * dd(ix,iat)
-             else if (l(ix) == 4) then
-                xl2 = dd(ix,iat) * dd(ix,iat)
-                xl(ix,0) = xl2 * xl2
-                xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
-                xl(ix,2) = 12d0 * xl2
-             else if (l(ix) == 5) then
-                xl2 = dd(ix,iat) * dd(ix,iat)
-                xl(ix,0) = xl2 * xl2 * dd(ix,iat)
-                xl(ix,1) = 5d0 * xl2 * xl2
-                xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
-             else
-                call ferror('wfn_rho2','power of L not supported',faterr)
-             end if
-          end do
-          
-          rho = rho + f%c_edf(i) * xl(1,0)*xl(2,0)*xl(3,0)*ex
-          if (nder > 0) then
-             grad(1) = grad(1) + f%c_edf(i) * (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
-             grad(2) = grad(2) + f%c_edf(i) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
-             grad(3) = grad(3) + f%c_edf(i) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
-             if (nder > 1) then
-                hh(1) = hh(1) + f%c_edf(i) * (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
-                hh(2) = hh(2) + f%c_edf(i) * (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
-                hh(3) = hh(3) + f%c_edf(i) * (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
-                hh(4) = hh(4) + f%c_edf(i) * (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
-                hh(5) = hh(5) + f%c_edf(i) * (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
-                hh(6) = hh(6) + f%c_edf(i) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
-             endif
-          endif
-       end do
-    end if
-
-    ! re-order the hessian
     do i = 1, 3
        h(i,i) = hh(i)
     end do
@@ -1997,6 +1946,7 @@ contains
   !> returns it in phi. fder is the selector for the MO.
   module subroutine calculate_mo(f,xpos,phi,fder)
     use tools_io, only: lower, isinteger, ferror, faterr, string
+    use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(out) :: phi !< MO value
@@ -2004,8 +1954,11 @@ contains
     
     integer :: imo, lp
     logical :: ok
-    real*8 :: phi_(1,1)
+    real*8 :: phi_(1,1), rho, grad(3), hh(6)
     character*10 :: fderl
+    integer :: nenv, lvec(3), ierr
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
 
     imo = 0
     lp = 1
@@ -2078,12 +2031,16 @@ contains
     if (imo < 1 .or. imo > f%nmoall) &
        call ferror("calculate_mo","Invalid molecular orbital",faterr)
 
+    phi = 0d0
+    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
+
     if (f%issto) then
        ! STO wavefunction
-       call f%calculate_mo_sto(xpos,phi_,imo,imo,imo,0)
+       call calculate_mo_sto(f,xpos,phi_,imo,imo,imo,0,nenv,eid,dist)
     else
        ! GTO wavefunction
-       call f%calculate_mo_gto(xpos,phi_,imo,imo,imo,0)
+       call calculate_mo_gto(f,xpos,phi_,rho,grad,hh,imo,imo,imo,0,nenv,eid,dist)
     end if
     phi = phi_(1,1)
 
@@ -2093,138 +2050,149 @@ contains
 
   end subroutine calculate_mo
 
+  !xx! private procedures
+
   !> Calculate the MO values at position xpos (Cartesian). STO version.
-  module subroutine calculate_mo_sto(f,xpos,phi,philb,imo0,imo1,nder)
-    class(molwfn), intent(in) :: f !< Input field
+  subroutine calculate_mo_sto(f,xpos,phi,philb,imo0,imo1,nder,nenv,eid,dist)
+    type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(inout) :: phi(:,:) !< array for the final values
     integer, intent(in) :: philb !< lower bound for phi
     integer, intent(in) :: imo0 !< first MO
     integer, intent(in) :: imo1 !< last MO
     integer, intent(in) :: nder !< number of derivatives
+    integer, intent(in) :: nenv !< number of atoms in the environment
+    integer, intent(in) :: eid(:) !< ids for the atoms in the environment
+    real*8, intent(in) :: dist(:) !< distances for the atoms in the environment
 
-    integer :: i, j
-    real*8 :: xx(4), al, ex, xratio(3)
-    real*8 :: dx(4,-2:maxval(f%ixmaxsto),f%nat)
+    integer :: i, j, k
+    real*8 :: dx(4,-2:maxval(f%ixmaxsto))
+    real*8 :: xx(4), al, ex, exc, xratio(3)
     integer :: ipri, imo, phimo, ityp, ixx(4), iat
     real*8 :: fprod(-2:0,-2:0,-2:0), f0r, f1r, f2r
 
     real*8, parameter :: stoeps = 1d-40
 
-    ! calculate distances and their powers
-    dx = 1d0
-    dx(:,-2:-1,:) = 0d0
-    do iat = 1, f%nat
-       xx(1:3) = xpos - f%xat(:,iat)
-       xx(4) = sqrt(xx(1)*xx(1)+xx(2)*xx(2)+xx(3)*xx(3))
-       dx(:,1,iat) = xx
+    ! run over atoms, then over primitives
+    phi = 0d0
+    do i = 1, nenv
+       iat = f%env%at(eid(i))%cidx
+       xx(1:3) = xpos - f%env%at(iat)%r
+       xx(4) = dist(i)
+       ! calculate distances and their powers
+       dx = 1d0
+       dx(:,-2:-1) = 0d0
+       dx(:,1) = xx
        ! positive powers
-       do i = 1, 4
-          do j = 2, f%ixmaxsto(i)
-             dx(i,j,iat) = dx(i,j-1,iat) * xx(i)
+       do j = 2, f%ixmaxsto(i)
+          do k = 1, 4
+             dx(k,j) = dx(k,j-1) * xx(k)
           end do
        end do
-    enddo
 
-    ! build the MO values at the point
-    phi = 0d0
-    do ipri = 1, f%npri
-       if (dx(4,1,f%icenter(ipri)) > f%d2ran(ipri)) cycle
-       do imo = imo0, imo1
-          phimo = imo - philb + 1
+       do j = f%iprilo(iat), f%iprihi(iat)
+          ipri = f%icord(j)
+          if (dist(i) > f%dran(ipri)) cycle
+          do imo = imo0, imo1
+             phimo = imo - philb + 1
 
-          ! unpack the exponents
-          ityp = f%itype(ipri)
-          ixx(1) = modulo(ityp,100)
-          ityp = ityp / 100
-          ixx(2) = modulo(ityp,100)
-          ityp = ityp / 100
-          ixx(3) = modulo(ityp,100)
-          ixx(4) = ityp / 100
+             ! unpack the exponents
+             ityp = f%itype(ipri)
+             ixx(1) = modulo(ityp,100)
+             ityp = ityp / 100
+             ixx(2) = modulo(ityp,100)
+             ityp = ityp / 100
+             ixx(3) = modulo(ityp,100)
+             ixx(4) = ityp / 100
 
-          ! calculate the exponentials
-          iat = f%icenter(ipri)
-          al = f%e(ipri)
-          ex = exp(-al * dx(4,1,iat))
+             ! calculate the exponentials
+             al = f%e(ipri)
+             ex = exp(-al * dist(i))
+             exc = f%cmo(imo,ipri) * ex
 
-          ! MO value
-          fprod = 0d0
-          f0r = f%cmo(imo,ipri) * dx(4,ixx(4),iat) * ex
-          fprod(0,0,0) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
-          phi(phimo,1) = phi(phimo,1) + fprod(0,0,0) * f0r 
-          if (nder > 0) then
-             fprod(-1,0,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
-             fprod(0,-1,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
-             fprod(0,0,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
-             f1r = (-al * dx(4,ixx(4),iat) + ixx(4) * dx(4,ixx(4)-1,iat)) * f%cmo(imo,ipri) * ex
+             ! MO value
+             fprod = 0d0
+             f0r = exc * dx(4,ixx(4)) 
+             fprod(0,0,0) = dx(1,ixx(1)) * dx(2,ixx(2)) * dx(3,ixx(3))
+             phi(phimo,1) = phi(phimo,1) + fprod(0,0,0) * f0r 
+             if (nder < 1) cycle
+             fprod(-1,0,0) = dx(1,ixx(1)-1) * dx(2,ixx(2)) * dx(3,ixx(3))
+             fprod(0,-1,0) = dx(1,ixx(1)) * dx(2,ixx(2)-1) * dx(3,ixx(3))
+             fprod(0,0,-1) = dx(1,ixx(1)) * dx(2,ixx(2)) * dx(3,ixx(3)-1)
+             f1r = (-al * dx(4,ixx(4)) + ixx(4) * dx(4,ixx(4)-1)) * exc
 
-             xratio(:) = dx(1:3,1,iat) / max(dx(4,1,iat),stoeps)
+             xratio(:) = dx(1:3,1) / max(dx(4,1),stoeps)
              phi(phimo,2) = phi(phimo,2) + ixx(1) * fprod(-1,0,0) * f0r + xratio(1) * fprod(0,0,0) * f1r
              phi(phimo,3) = phi(phimo,3) + ixx(2) * fprod(0,-1,0) * f0r + xratio(2) * fprod(0,0,0) * f1r
              phi(phimo,4) = phi(phimo,4) + ixx(3) * fprod(0,0,-1) * f0r + xratio(3) * fprod(0,0,0) * f1r
 
-             if (nder > 1) then
-                f2r = (al * al * dx(4,ixx(4),iat) - 2d0 * al * ixx(4) * dx(4,ixx(4)-1,iat) &
-                   + ixx(4) * (ixx(4)-1) * dx(4,ixx(4)-2,iat)) * f%cmo(imo,ipri) * ex
-                fprod(-2,0,0) = dx(1,ixx(1)-2,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3),iat)
-                fprod(0,-2,0) = dx(1,ixx(1),iat) * dx(2,ixx(2)-2,iat) * dx(3,ixx(3),iat)
-                fprod(0,0,-2) = dx(1,ixx(1),iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-2,iat)
-                fprod(-1,-1,0) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3),iat)
-                fprod(-1,0,-1) = dx(1,ixx(1)-1,iat) * dx(2,ixx(2),iat) * dx(3,ixx(3)-1,iat)
-                fprod(0,-1,-1) = dx(1,ixx(1),iat) * dx(2,ixx(2)-1,iat) * dx(3,ixx(3)-1,iat)
+             if (nder < 2) cycle
+             f2r = (al * al * dx(4,ixx(4)) - 2d0 * al * ixx(4) * dx(4,ixx(4)-1) &
+                + ixx(4) * (ixx(4)-1) * dx(4,ixx(4)-2)) * exc
+             fprod(-2,0,0) = dx(1,ixx(1)-2) * dx(2,ixx(2)) * dx(3,ixx(3))
+             fprod(0,-2,0) = dx(1,ixx(1)) * dx(2,ixx(2)-2) * dx(3,ixx(3))
+             fprod(0,0,-2) = dx(1,ixx(1)) * dx(2,ixx(2)) * dx(3,ixx(3)-2)
+             fprod(-1,-1,0) = dx(1,ixx(1)-1) * dx(2,ixx(2)-1) * dx(3,ixx(3))
+             fprod(-1,0,-1) = dx(1,ixx(1)-1) * dx(2,ixx(2)) * dx(3,ixx(3)-1)
+             fprod(0,-1,-1) = dx(1,ixx(1)) * dx(2,ixx(2)-1) * dx(3,ixx(3)-1)
 
-                ! xx=5, yy=6, zz=7
-                phi(phimo,5) = phi(phimo,5) + ixx(1) * (ixx(1)-1) * fprod(-2,0,0) * f0r &
-                   + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r & 
-                   + (1 - xratio(1)*xratio(1)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
-                   + fprod(0,0,0) * xratio(1)*xratio(1) * f2r
-                phi(phimo,6) = phi(phimo,6) + ixx(2) * (ixx(2)-1) * fprod(0,-2,0) * f0r &
-                   + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r & 
-                   + (1 - xratio(2)*xratio(2)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
-                   + fprod(0,0,0) * xratio(2)*xratio(2) * f2r
-                phi(phimo,7) = phi(phimo,7) + ixx(3) * (ixx(3)-1) * fprod(0,0,-2) * f0r &
-                   + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r & 
-                   + (1 - xratio(3)*xratio(3)) * fprod(0,0,0) * f1r / max(dx(4,1,iat),stoeps) &
-                   + fprod(0,0,0) * xratio(3)*xratio(3) * f2r
+             ! xx=5, yy=6, zz=7
+             phi(phimo,5) = phi(phimo,5) + ixx(1) * (ixx(1)-1) * fprod(-2,0,0) * f0r &
+                + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r & 
+                + (1 - xratio(1)*xratio(1)) * fprod(0,0,0) * f1r / max(dx(4,1),stoeps) &
+                + fprod(0,0,0) * xratio(1)*xratio(1) * f2r
+             phi(phimo,6) = phi(phimo,6) + ixx(2) * (ixx(2)-1) * fprod(0,-2,0) * f0r &
+                + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r & 
+                + (1 - xratio(2)*xratio(2)) * fprod(0,0,0) * f1r / max(dx(4,1),stoeps) &
+                + fprod(0,0,0) * xratio(2)*xratio(2) * f2r
+             phi(phimo,7) = phi(phimo,7) + ixx(3) * (ixx(3)-1) * fprod(0,0,-2) * f0r &
+                + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r & 
+                + (1 - xratio(3)*xratio(3)) * fprod(0,0,0) * f1r / max(dx(4,1),stoeps) &
+                + fprod(0,0,0) * xratio(3)*xratio(3) * f2r
 
-                ! xy=8, xz=9, yz=10
-                phi(phimo,8) = phi(phimo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
-                   + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
-                   + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
-                   + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / dx(4,1,iat))
-                phi(phimo,9) = phi(phimo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
-                   + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
-                   + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
-                   + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / dx(4,1,iat))
-                phi(phimo,10) = phi(phimo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
-                   + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
-                   + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
-                   + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / dx(4,1,iat))
-             endif
-          endif
-       enddo
-    enddo
+             ! xy=8, xz=9, yz=10
+             phi(phimo,8) = phi(phimo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
+                + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
+                + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
+                + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / dx(4,1))
+             phi(phimo,9) = phi(phimo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
+                + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
+                + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
+                + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / dx(4,1))
+             phi(phimo,10) = phi(phimo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
+                + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
+                + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
+                + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / dx(4,1))
+          enddo ! imo = imo0, imo1
+       end do ! j = f%iprilo(iat), f%iprihi(iat)
+    end do ! i = 1, nenv
     
   end subroutine calculate_mo_sto
 
   !> Calculate the MO values at position xpos (Cartesian). GTO version.
-  module subroutine calculate_mo_gto(f,xpos,phi,philb,imo0,imo1,nder)
+  subroutine calculate_mo_gto(f,xpos,phi,rhoc,gradc,hc,philb,imo0,imo1,nder,nenv,eid,dist)
     use tools_io, only: ferror, faterr
-    class(molwfn), intent(in) :: f !< Input field
+    type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(inout) :: phi(:,:) !< array for the final values
+    real*8, intent(out) :: rhoc
+    real*8, intent(out) :: gradc(3)
+    real*8, intent(out) :: hc(6)
     integer, intent(in) :: philb !< lower bound for phi
     integer, intent(in) :: imo0 !< first MO
     integer, intent(in) :: imo1 !< last MO
     integer, intent(in) :: nder !< number of derivatives
+    integer, intent(in) :: nenv !< number of atoms in the environment
+    integer, intent(in) :: eid(:) !< ids for the atoms in the environment
+    real*8, intent(in) :: dist(:) !< distances for the atoms in the environment
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
 
     integer :: l(3)
     integer :: iat, ityp, ipri, imo, ix, phimo
-    real*8 :: dd(3,f%nat), d2(f%nat), al, ex, xl(3,0:2), xl2
-    logical :: ldopri(f%npri)
-    real*8 :: chi(f%npri,imax(nder))
+    real*8 :: al, ex, xl(3,0:2), xl2, d2, xx(3)
+    real*8 :: chi(10)
+    integer :: i, j, iat
     
     ! real*8, parameter :: stoeps = 1d-40
     integer, parameter :: li(3,56) = reshape((/&
@@ -2239,88 +2207,148 @@ contains
        1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
        3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
 
-    ! calculate distances
-    do iat = 1, f%nat
-       dd(:,iat) = xpos - f%xat(:,iat)
-       d2(iat) = dd(1,iat)*dd(1,iat)+dd(2,iat)*dd(2,iat)+dd(3,iat)*dd(3,iat)
-    enddo
-
-    ! primitive values and their derivatives
-    ldopri = .true.
-    do ipri = 1, f%npri
-       if (d2(f%icenter(ipri)) > f%d2ran(ipri)) then
-          ldopri(ipri) = .false.
-          cycle
-       end if
-       ityp = f%itype(ipri)
-       iat = f%icenter(ipri)
-       al = f%e(ipri)
-       ex = exp(-al * d2(iat))
-       
-       l = li(1:3,ityp)
-       do ix = 1, 3
-          if (l(ix) == 0) then
-             xl(ix,0) = 1d0
-             xl(ix,1) = 0d0
-             xl(ix,2) = 0d0
-          else if (l(ix) == 1) then
-             xl(ix,0) = dd(ix,iat)
-             xl(ix,1) = 1d0
-             xl(ix,2) = 0d0
-          else if (l(ix) == 2) then
-             xl(ix,0) = dd(ix,iat) * dd(ix,iat)
-             xl(ix,1) = 2d0 * dd(ix,iat)
-             xl(ix,2) = 2d0
-          else if (l(ix) == 3) then
-             xl(ix,0) = dd(ix,iat) * dd(ix,iat) * dd(ix,iat)
-             xl(ix,1) = 3d0 * dd(ix,iat) * dd(ix,iat)
-             xl(ix,2) = 6d0 * dd(ix,iat)
-          else if (l(ix) == 4) then
-             xl2 = dd(ix,iat) * dd(ix,iat)
-             xl(ix,0) = xl2 * xl2
-             xl(ix,1) = 4d0 * xl2 * dd(ix,iat)
-             xl(ix,2) = 12d0 * xl2
-          else if (l(ix) == 5) then
-             xl2 = dd(ix,iat) * dd(ix,iat)
-             xl(ix,0) = xl2 * xl2 * dd(ix,iat)
-             xl(ix,1) = 5d0 * xl2 * xl2
-             xl(ix,2) = 20d0 * xl2 * dd(ix,iat)
-          else
-             call ferror('wfn_rho2','power of L not supported',faterr)
-          end if
-       end do
-
-       chi(ipri,1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
-       if (nder > 0) then
-          chi(ipri,2) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
-          chi(ipri,3) = (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
-          chi(ipri,4) = (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
-          if (nder > 1) then
-             chi(ipri,5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*dd(1,iat)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
-             chi(ipri,6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*dd(2,iat)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
-             chi(ipri,7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*dd(3,iat)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
-             chi(ipri,8) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(3,0)*ex
-             chi(ipri,9) = (xl(1,1)-2*al*dd(1,iat)**(l(1)+1)) * (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * xl(2,0)*ex
-             chi(ipri,10)= (xl(3,1)-2*al*dd(3,iat)**(l(3)+1)) * (xl(2,1)-2*al*dd(2,iat)**(l(2)+1)) * xl(1,0)*ex
-          endif
-       endif
-    enddo ! ipri = 1, npri
-
-    ! build the MO values at the point
+    ! run over atoms, then over primitives
+    rhoc = 0d0
+    gradc = 0d0
+    hc = 0d0
     phi = 0d0
-    do ix = 1, imax(nder)
-       do ipri = 1, f%npri
-          if (.not.ldopri(ipri)) cycle
-          do imo = imo0, imo1
-             phimo = imo - philb + 1
-             phi(phimo,ix) = phi(phimo,ix) + f%cmo(imo,ipri)*chi(ipri,ix)
-          enddo
-       enddo
-    enddo
-    
+    do i = 1, nenv
+       iat = f%env%at(eid(i))%cidx
+       d2 = dist(i) * dist(i)
+       xx = xpos - f%env%at(iat)%r
+
+       ! valence contribution
+       do j = f%iprilo(iat), f%iprihi(iat)
+          ipri = f%icord(j)
+          if (dist(i) > f%dran(ipri)) cycle
+
+          ityp = f%itype(ipri)
+          al = f%e(ipri)
+          ex = exp(-al * d2)
+
+          l = li(1:3,ityp)
+          do ix = 1, 3
+             if (l(ix) == 0) then
+                xl(ix,0) = 1d0
+                xl(ix,1) = 0d0
+                xl(ix,2) = 0d0
+             else if (l(ix) == 1) then
+                xl(ix,0) = xx(ix)
+                xl(ix,1) = 1d0
+                xl(ix,2) = 0d0
+             else if (l(ix) == 2) then
+                xl(ix,0) = xx(ix) * xx(ix)
+                xl(ix,1) = 2d0 * xx(ix)
+                xl(ix,2) = 2d0
+             else if (l(ix) == 3) then
+                xl2 = xx(ix) * xx(ix)
+                xl(ix,0) = xl2 * xx(ix)
+                xl(ix,1) = 3d0 * xl2
+                xl(ix,2) = 6d0 * xx(ix)
+             else if (l(ix) == 4) then
+                xl2 = xx(ix) * xx(ix)
+                xl(ix,0) = xl2 * xl2
+                xl(ix,1) = 4d0 * xl2 * xx(ix)
+                xl(ix,2) = 12d0 * xl2
+             else if (l(ix) == 5) then
+                xl2 = xx(ix) * xx(ix)
+                xl(ix,0) = xl2 * xl2 * xx(ix)
+                xl(ix,1) = 5d0 * xl2 * xl2
+                xl(ix,2) = 20d0 * xl2 * xx(ix)
+             else
+                call ferror('calculate_mo_gto','power of L not supported',faterr)
+             end if
+          end do ! ix = 1, 3
+
+          ! calculate the primitive contribution and its derivatives
+          chi(1) = xl(1,0)*xl(2,0)*xl(3,0)*ex
+          if (nder > 0) then
+             chi(2) = (xl(1,1)-2*al*xx(1)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
+             chi(3) = (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
+             chi(4) = (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+             if (nder > 1) then
+                chi(5) = (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
+                chi(6) = (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
+                chi(7) = (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
+                chi(8) = (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(3,0)*ex
+                chi(9) = (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(2,0)*ex
+                chi(10)= (xl(3,1)-2*al*xx(3)**(l(3)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*ex
+             endif
+          endif
+
+          ! accumulate in the MOs
+          do ix = 1, imax(nder)
+             do imo = imo0, imo1
+                phimo = imo - philb + 1
+                phi(phimo,ix) = phi(phimo,ix) + f%cmo(imo,ipri)*chi(ix)
+             enddo
+          end do ! ix = 1, imax(nder)
+       end do ! j = f%iprilo(iat), f%iprihi(iat)
+
+       ! core contribution to the density and its derivatives
+       if (f%nedf > 0) then
+          ! core contribution
+          do j = f%iprilo_edf(iat), f%iprihi_edf(iat)
+             ipri = f%icord_edf(j)
+             if (dist(i) > f%dran_edf(ipri)) cycle
+
+             ityp = f%itype_edf(ipri)
+             al = f%e_edf(ipri)
+             ex = exp(-al * d2)
+             
+             l = li(1:3,ityp)
+             do ix = 1, 3
+                if (l(ix) == 0) then
+                   xl(ix,0) = 1d0
+                   xl(ix,1) = 0d0
+                   xl(ix,2) = 0d0
+                else if (l(ix) == 1) then
+                   xl(ix,0) = xx(ix)
+                   xl(ix,1) = 1d0
+                   xl(ix,2) = 0d0
+                else if (l(ix) == 2) then
+                   xl(ix,0) = xx(ix) * xx(ix)
+                   xl(ix,1) = 2d0 * xx(ix)
+                   xl(ix,2) = 2d0
+                else if (l(ix) == 3) then
+                   xl2 = xx(ix) * xx(ix)
+                   xl(ix,0) = xl2 * xx(ix)
+                   xl(ix,1) = 3d0 * xl2
+                   xl(ix,2) = 6d0 * xx(ix)
+                else if (l(ix) == 4) then
+                   xl2 = xx(ix) * xx(ix)
+                   xl(ix,0) = xl2 * xl2
+                   xl(ix,1) = 4d0 * xl2 * xx(ix)
+                   xl(ix,2) = 12d0 * xl2
+                else if (l(ix) == 5) then
+                   xl2 = xx(ix) * xx(ix)
+                   xl(ix,0) = xl2 * xl2 * xx(ix)
+                   xl(ix,1) = 5d0 * xl2 * xl2
+                   xl(ix,2) = 20d0 * xl2 * xx(ix)
+                else
+                   call ferror('calculate_mo_gto','power of L not supported (core)',faterr)
+                end if
+             end do ! ix = 1, 3
+
+             rhoc = rhoc + f%c_edf(ipri) * xl(1,0)*xl(2,0)*xl(3,0)*ex
+             if (nder < 1) cycle
+             gradc(1) = gradc(1) + f%c_edf(ipri) * (xl(1,1)-2*al*xx(1)**(l(1)+1)) * xl(2,0)*xl(3,0)*ex
+             gradc(2) = gradc(2) + f%c_edf(ipri) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*xl(3,0)*ex
+             gradc(3) = gradc(3) + f%c_edf(ipri) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(1,0)*xl(2,0)*ex
+             if (nder < 2) cycle
+             hc(1) = hc(1) + f%c_edf(ipri) * (xl(1,2)-2*al*(2*l(1)+1)*xl(1,0) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0)*xl(3,0)*ex
+             hc(2) = hc(2) + f%c_edf(ipri) * (xl(2,2)-2*al*(2*l(2)+1)*xl(2,0) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0)*xl(1,0)*ex
+             hc(3) = hc(3) + f%c_edf(ipri) * (xl(3,2)-2*al*(2*l(3)+1)*xl(3,0) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0)*xl(2,0)*ex
+             hc(4) = hc(4) + f%c_edf(ipri) * (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(3,0)*ex
+             hc(5) = hc(5) + f%c_edf(ipri) * (xl(1,1)-2*al*xx(1)**(l(1)+1)) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * xl(2,0)*ex
+             hc(6) = hc(6) + f%c_edf(ipri) * (xl(3,1)-2*al*xx(3)**(l(3)+1)) * (xl(2,1)-2*al*xx(2)**(l(2)+1)) * xl(1,0)*ex
+          end do ! j = f%iprilo_edf(iat), f%iprihi_edf(iat)
+       end if
+
+    end do ! i = 1, nenv
+
   end subroutine calculate_mo_gto
 
-  !xx! private procedures
   !> Calculate the normalization factor of a primitive of a given type
   !> with exponent a.
   function gnorm(type,a) result(N)
@@ -2461,19 +2489,108 @@ contains
   end function wfx_read_reals1
 
   !> Calculate the distance range of each primitive
-  subroutine calculate_d2ran(f)
+  subroutine complete_struct(f,env)
+    use tools, only: qcksort
     use tools_io, only: ferror, faterr
     class(molwfn), intent(inout) :: f
+    type(environ), intent(in), target :: env
 
-    integer :: istat, i
+    integer :: istat, i, iat
 
-    if (allocated(f%d2ran)) deallocate(f%d2ran)
-    allocate(f%d2ran(f%npri),stat=istat)
-    if (istat /= 0) call ferror('calculate_d2ran','could not allocate memory for d2ran',faterr)
+    ! allocate the species cutoffs
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    allocate(f%spcutoff(env%nspc,2))
+    f%spcutoff = 0d0
+    f%globalcutoff = -1d0
+
+    ! find the primitive ranges and the species and global cutoffs
+    if (allocated(f%dran)) deallocate(f%dran)
+    allocate(f%dran(f%npri),stat=istat)
+    if (istat /= 0) call ferror('complete_struct','could not allocate memory for dran',faterr)
     do i = 1, f%npri
-       f%d2ran(i) = -log(rprim_thres) / f%e(i)
+       f%dran(i) = -log(rprim_thres) / f%e(i)
+       if (f%issto) then
+          f%spcutoff(env%at(f%icenter(i))%is,2) = max(f%spcutoff(env%at(f%icenter(i))%is,2),f%dran(i))
+       else
+          f%dran(i) = sqrt(f%dran(i))
+          f%spcutoff(env%at(f%icenter(i))%is,2) = max(f%spcutoff(env%at(f%icenter(i))%is,2),f%dran(i))
+       end if
     end do
 
-  end subroutine calculate_d2ran
+    ! Find the ordered list of primitive centers
+    if (allocated(f%icord)) deallocate(f%icord)
+    allocate(f%icord(f%npri))
+    do i = 1, f%npri
+       f%icord(i) = i
+    end do
+    call qcksort(f%icenter,f%icord,1,f%npri)
+
+    ! limits for each atom in the ordered primitive list
+    if (allocated(f%iprilo)) deallocate(f%iprilo)
+    if (allocated(f%iprihi)) deallocate(f%iprihi)
+    allocate(f%iprilo(env%ncell),f%iprihi(env%ncell))
+    f%iprilo = 0
+    f%iprihi = -1
+    do i = 1, f%npri
+       iat = f%icenter(f%icord(i))
+       if (f%iprilo(iat) == 0) f%iprilo(iat) = i
+       f%iprihi(iat) = i
+    end do
+    
+    ! core arrays
+    if (f%nedf > 0) then
+       if (allocated(f%dran_edf)) deallocate(f%dran_edf)
+       allocate(f%dran_edf(f%nedf),stat=istat)
+       if (istat /= 0) call ferror('complete_struct','could not allocate memory for dran_edf',faterr)
+       do i = 1, f%nedf
+          f%dran_edf(i) = sqrt(-log(rprim_thres) / f%e_edf(i))
+          f%spcutoff(env%at(f%icenter_edf(i))%is,2) = max(f%spcutoff(env%at(f%icenter_edf(i))%is,2),f%dran_edf(i))
+       end do
+
+       ! Find the ordered list of primitive centers
+       if (allocated(f%icord_edf)) deallocate(f%icord_edf)
+       allocate(f%icord_edf(f%nedf))
+       do i = 1, f%nedf
+          f%icord_edf(i) = i
+       end do
+       call qcksort(f%icenter_edf,f%icord_edf,1,f%nedf)
+
+       ! limits for each atom in the ordered primitive list
+       if (allocated(f%iprilo_edf)) deallocate(f%iprilo_edf)
+       if (allocated(f%iprihi_edf)) deallocate(f%iprihi_edf)
+       allocate(f%iprilo_edf(env%ncell),f%iprihi_edf(env%ncell))
+       f%iprilo_edf = 0
+       f%iprihi_edf = -1
+       do i = 1, f%nedf
+          iat = f%icenter_edf(f%icord_edf(i))
+          if (f%iprilo_edf(iat) == 0) f%iprilo_edf(iat) = i
+          f%iprihi_edf(iat) = i
+       end do
+    end if
+
+    ! calculate the global cutoff
+    do i = 1, env%nspc
+       f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
+    end do
+
+    ! associate the environment
+    if (f%isealloc) then
+       if (associated(f%env)) deallocate(f%env)
+    end if
+    nullify(f%env)
+    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
+       ! Create a new environment to satisfy all searches.
+       ! The environment contains all the atoms in molecules anyway. 
+       f%isealloc = .true.
+       nullify(f%env)
+       allocate(f%env)
+       call f%env%extend(env,f%globalcutoff)
+    else
+       ! keep a pointer to the environment
+       f%isealloc = .false.
+       f%env => env
+    end if
+
+  end subroutine complete_struct
 
 end submodule proc
