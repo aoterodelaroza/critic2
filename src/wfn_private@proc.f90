@@ -154,6 +154,7 @@ contains
     if (allocated(f%iprilo)) deallocate(f%iprilo)
     if (allocated(f%iprihi)) deallocate(f%iprihi)
     if (allocated(f%itype)) deallocate(f%itype)
+    if (allocated(f%lmax)) deallocate(f%lmax)
     if (allocated(f%dran)) deallocate(f%dran)
     if (allocated(f%e)) deallocate(f%e)
     if (allocated(f%occ)) deallocate(f%occ)
@@ -1861,18 +1862,6 @@ contains
     real*8, allocatable :: dist(:)
     real*8, allocatable :: phi(:,:)
     
-    integer, parameter :: li(3,56) = reshape((/&
-       0,0,0, & ! s
-       1,0,0, 0,1,0, 0,0,1, & ! p
-       2,0,0, 0,2,0, 0,0,2, 1,1,0, 1,0,1, 0,1,1, & !d
-       3,0,0, 0,3,0, 0,0,3, 2,1,0, 2,0,1, 0,2,1, &
-       1,2,0, 1,0,2, 0,1,2, 1,1,1,& ! f
-       4,0,0, 0,4,0, 0,0,4, 3,1,0, 3,0,1, 1,3,0, 0,3,1, 1,0,3,&
-       0,1,3, 2,2,0, 2,0,2, 0,2,2, 2,1,1, 1,2,1, 1,1,2,& ! g
-       0,0,5, 0,1,4, 0,2,3, 0,3,2, 0,4,1, 0,5,0, 1,0,4, 1,1,3,&
-       1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
-       3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
-
     ! initialize and calculate the environment of the point
     rho = 0d0
     grad = 0d0
@@ -2186,15 +2175,13 @@ contains
     integer, intent(in) :: eid(:) !< ids for the atoms in the environment
     real*8, intent(in) :: dist(:) !< distances for the atoms in the environment
 
-    integer, parameter :: imax(0:2) = (/1,4,10/)
-
     integer :: l(3)
     integer :: iat, ityp, ipri, imo, ix, phimo
     real*8 :: al, ex, exc, xl(3,0:2,0:5), d2, xx(3)
     real*8 :: chi(10)
     integer :: i, j, iat
     
-    ! real*8, parameter :: stoeps = 1d-40
+    integer, parameter :: imax(0:2) = (/1,4,10/)
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
        1,0,0, 0,1,0, 0,0,1, & ! p
@@ -2222,18 +2209,23 @@ contains
           xl(ix,0,0) = 1d0
           xl(ix,1,0) = 0d0
           xl(ix,2,0) = 0d0
+          if (f%lmax(iat) < 1) cycle
           xl(ix,0,1) = xx(ix)
           xl(ix,1,1) = 1d0
           xl(ix,2,1) = 0d0
+          if (f%lmax(iat) < 2) cycle
           xl(ix,0,2) = xl(ix,0,1) * xx(ix)
           xl(ix,1,2) = 2d0 * xl(ix,0,1)
           xl(ix,2,2) = 2d0
+          if (f%lmax(iat) < 3) cycle
           xl(ix,0,3) = xl(ix,0,2) * xx(ix)
           xl(ix,1,3) = 3d0 * xl(ix,0,2)
           xl(ix,2,3) = 6d0 * xl(ix,0,1)
+          if (f%lmax(iat) < 4) cycle
           xl(ix,0,4) = xl(ix,0,3) * xx(ix)
           xl(ix,1,4) = 4d0 * xl(ix,0,3)
           xl(ix,2,4) = 12d0 * xl(ix,0,2)
+          if (f%lmax(iat) < 5) cycle
           xl(ix,0,5) = xl(ix,0,4) * xx(ix)
           xl(ix,1,5) = 5d0 * xl(ix,0,4)
           xl(ix,2,5) = 20d0 * xl(ix,0,3)
@@ -2452,6 +2444,9 @@ contains
     type(environ), intent(in), target :: env
 
     integer :: istat, i, iat
+    integer, parameter :: limax(56) = (/&
+       0,1,1,1,2,2,2,1,1,1,3,3,3,2,2,2,2,2,2,1,4,4,4,3,3,3,3,3,&
+       3,2,2,2,2,2,2,5,4,3,3,4,5,4,3,2,3,4,3,2,2,3,3,3,3,4,4,5/)
 
     ! allocate the species cutoffs
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
@@ -2462,6 +2457,9 @@ contains
     ! find the primitive ranges and the species and global cutoffs
     if (allocated(f%dran)) deallocate(f%dran)
     allocate(f%dran(f%npri),stat=istat)
+    if (allocated(f%lmax)) deallocate(f%lmax)
+    allocate(f%lmax(env%ncell))
+    f%lmax = 0
     if (istat /= 0) call ferror('complete_struct','could not allocate memory for dran',faterr)
     do i = 1, f%npri
        f%dran(i) = -log(rprim_thres) / f%e(i)
@@ -2470,6 +2468,7 @@ contains
        else
           f%dran(i) = sqrt(f%dran(i))
           f%spcutoff(env%at(f%icenter(i))%cidx) = max(f%spcutoff(env%at(f%icenter(i))%cidx),f%dran(i))
+          f%lmax(f%icenter(i)) = limax(f%itype(i))
        end if
     end do
 

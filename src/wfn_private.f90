@@ -66,6 +66,7 @@ module wfn_private
      integer, allocatable :: iprilo(:) !< atom i has primitives from iprilo(i) to iprihi(i)
      integer, allocatable :: iprihi(:) !< atom i has primitives from iprilo(i) to iprihi(i)
      integer, allocatable :: itype(:) !< primitive type (see li(:,:) array)
+     integer, allocatable :: lmax(:) !< maximum l for each atom
      real*8, allocatable :: dran(:) !< maximum d^2 (GTO) or d (STO) to discard the primitive
      real*8, allocatable :: e(:) !< primitive exponents
      real*8, allocatable :: occ(:) !< MO occupation numbers
