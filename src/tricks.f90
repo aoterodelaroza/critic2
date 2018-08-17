@@ -636,10 +636,17 @@ contains
       ! call env%find_asterisms_covalent(cr%nstar)
       ! call tictac("2")
 
-      ! do i = 1, 101
-      !    call env%list_near_atoms(cr%atcel(1)%r + (/real(i,8),0d0,0d0/) / 1d0,icrd_cart,.false.,nat,nida,dista,lveca,ierr,up2d=10d0)
-      !    write (*,*) i, nat, ierr
-      ! end do
+      do i = 0, 100
+         ! module subroutine nearest_atom_short(e,x0,icrd,distmax,eid,dist,ierr,cidx0,idx0,nozero)
+         xx = cr%x2c(cr%atcel(1)%x + (cr%atcel(2)%x-cr%atcel(1)%x) + (/4,-8,12/)) * real(i,8) / 100d0
+         write (*,*) "input: ", xx
+         call env%nearest_atom_short(xx,icrd_cart,0.5d0*env%boxsize-1d-10,nid1,lveca,dist1,ierr)
+         if (nid1 > 0) then
+            write (*,*) i/100d0, ierr, nid1, lveca, dist1, norm2(cr%x2c(cr%atcel(nid1)%x + lveca) - xx)
+         else
+            write (*,*) i/100d0, ierr, nid1, dist1
+         end if
+      end do
 
     end associate
 
