@@ -1932,16 +1932,10 @@ contains
     end if
 
     ! distance to atoms
-    call f%c%nearest_atom(xc,icrd_crys,nid,dist)
-    if (nid > 0 .and. dist < nuceps) then
-       goto 999
-    end if
-
-    ! distance to hydrogens
-    if (f%c%spc(f%c%atcel(nid)%is)%z == 1) then
-       if (dist < nucepsh) then
-          goto 999
-       end if
+    nid = f%c%identify_atom(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
+    if (nid > 0) then
+       if (dist < nuceps) goto 999
+       if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
     end if
 
     ! reallocate if more slots are needed for the new cp

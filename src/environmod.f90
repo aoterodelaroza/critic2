@@ -244,7 +244,7 @@ module environmod
        real*8, intent(in), optional :: distmax
        integer :: identify_atom
      end function identify_atom
-     module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
+     module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
@@ -254,9 +254,10 @@ module environmod
        integer, intent(out), optional :: lvec(3)
        integer, intent(in), optional :: cidx0
        integer, intent(in), optional :: idx0
+       integer, intent(in), optional :: is0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine nearest_atom_short(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,nozero)
+     module subroutine nearest_atom_short(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,is0,nozero)
        class(environ), intent(in) :: e
        real*8, intent(in) :: x0(3)
        integer, intent(in) :: icrd
@@ -267,9 +268,10 @@ module environmod
        integer, intent(out) :: ierr
        integer, intent(in), optional :: cidx0
        integer, intent(in), optional :: idx0
+       integer, intent(in), optional :: is0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom_short
-     module subroutine nearest_atom_long(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,nozero)
+     module subroutine nearest_atom_long(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,is0,nozero)
        class(environ), intent(in) :: e
        real*8, intent(in) :: x0(3)
        integer, intent(in) :: icrd
@@ -280,6 +282,7 @@ module environmod
        integer, intent(out) :: ierr
        integer, intent(in), optional :: cidx0
        integer, intent(in), optional :: idx0
+       integer, intent(in), optional :: is0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom_long
      module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)

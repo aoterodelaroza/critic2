@@ -664,9 +664,10 @@ contains
   !> atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
   !> consider only atoms with index cidx0 from the complete list. If
   !> idx0, consider only atoms with index id0 from the non-equivalent
-  !> list. If nozero, disregard zero-distance atoms. This routine is a
-  !> wrapper for the environment's nearest_atom. Thread-safe.
-  module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
+  !> list. If is0, consider only atoms of species is0. If nozero,
+  !> disregard zero-distance atoms. This routine is a wrapper for the
+  !> environment's nearest_atom. Thread-safe.
+  module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -676,9 +677,10 @@ contains
     integer, intent(out), optional :: lvec(3)
     integer, intent(in), optional :: cidx0
     integer, intent(in), optional :: idx0
+    integer, intent(in), optional :: is0
     logical, intent(in), optional :: nozero
 
-    call c%env%nearest_atom(xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
+    call c%env%nearest_atom(xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
 
   end subroutine nearest_atom
 

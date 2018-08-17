@@ -1553,6 +1553,7 @@ contains
     if (.not.dovdw) then
        write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
+
        ! prepare the grid
        write (uout,'("+ Est. precision in the % packing ratio: ",A)') string(prec,'e',10,3)
        prec = prec * s%c%omega / 100d0
@@ -1579,9 +1580,12 @@ contains
           x = real(ii,8) / real(n)
 
           found = .false.
-          do j = 1, s%c%nneq
-             idx = s%c%identify_atom(x,icrd_crys,distmax=atmvdw(s%c%spc(s%c%at(j)%is)%z))
-             if (idx > 0) exit
+          do j = 1, s%c%nspc
+             call s%c%nearest_atom(x,icrd_crys,idx,dist,distmax=atmvdw(s%c%spc(j)%z),is0=j)
+             if (idx > 0) then
+                found = .true.
+                exit
+             end if
           end do
           if (.not.found) then
              vout = vout + dv

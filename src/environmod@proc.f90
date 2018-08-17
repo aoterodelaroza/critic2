@@ -501,7 +501,7 @@ contains
 
     eps = atomeps
     if (present(distmax)) eps = distmax
-
+    
     call e%nearest_atom_short(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
     if (ierr == 0 .or. ierr == 1) then
        if (present(lvec)) lvec = lvec0
@@ -528,9 +528,9 @@ contains
   !> atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
   !> consider only atoms with index cidx0 from the complete list. If
   !> idx0, consider only atoms with index id0 from the non-equivalent
-  !> list. If nozero, disregard zero-distance atoms. This routine is
-  !> thread-safe.
-  module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
+  !> list. If is0, consider only atoms of species is0. If nozero,
+  !> disregard zero-distance atoms. This routine is thread-safe.
+  module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
@@ -541,6 +541,7 @@ contains
     integer, intent(out), optional :: lvec(3)
     integer, intent(in), optional :: cidx0
     integer, intent(in), optional :: idx0
+    integer, intent(in), optional :: is0
     logical, intent(in), optional :: nozero
 
     real*8 :: eps
@@ -549,13 +550,13 @@ contains
     eps = e%dmax0
     if (present(distmax)) eps = distmax
 
-    call e%nearest_atom_short(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,nozero)
+    call e%nearest_atom_short(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,is0,nozero)
     if (ierr == 0 .or. ierr == 1) then
        if (present(lvec)) lvec = lvec0
        return
     end if
 
-    call e%nearest_atom_long(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,nozero)
+    call e%nearest_atom_long(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,is0,nozero)
     if (present(lvec)) lvec = lvec0
     if (ierr == 2) then
        nid = 0
@@ -580,7 +581,7 @@ contains
   !> x0 (1d-10 default). This routine is limited to a distmax equal to
   !> half the environment's boxsize, but it is significantly faster
   !> than nearest_atom_long. Thread-safe.
-  module subroutine nearest_atom_short(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,nozero)
+  module subroutine nearest_atom_short(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,is0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3)
@@ -592,6 +593,7 @@ contains
     integer, intent(out) :: ierr
     integer, intent(in), optional :: cidx0
     integer, intent(in), optional :: idx0
+    integer, intent(in), optional :: is0
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: epsmall2 = 1d-20
@@ -637,6 +639,9 @@ contains
                 end if
                 if (present(idx0)) then
                    if (e%at(k)%idx /= idx0) cycle
+                end if
+                if (present(is0)) then
+                   if (e%at(k)%is /= is0) cycle
                 end if
 
                 x = e%at(k)%r - xp
@@ -689,7 +694,7 @@ contains
   !> x0 (1d-10 default). This routine is limited to a distmax equal to
   !> the dmax0 of the environment. It is slower than the short-range
   !> version, nearest_atom_short. Thread-safe.
-  module subroutine nearest_atom_long(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,nozero)
+  module subroutine nearest_atom_long(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,is0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3)
@@ -701,6 +706,7 @@ contains
     integer, intent(out) :: ierr
     integer, intent(in), optional :: cidx0
     integer, intent(in), optional :: idx0
+    integer, intent(in), optional :: is0
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: epsmall2 = 1d-20
@@ -738,6 +744,9 @@ contains
           end if
           if (present(idx0)) then
              if (e%at(k)%idx /= idx0) cycle
+          end if
+          if (present(is0)) then
+             if (e%at(k)%is /= is0) cycle
           end if
 
           x = e%at(k)%r - xp
