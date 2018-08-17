@@ -477,78 +477,43 @@ contains
 
   !> Given point x0 (with icrd input coordinates), translate to the
   !> main cell if the environment is from a crystal. Then if x0
-  !> corresponds to an atomic position (to within eps or atomeps if
-  !> eps is not given), return the ID of the atom. Otherwise, return
-  !> 0. If lncel is .false. or not present, the ID is for the
-  !> non-equivalent atom list. Otherwise, it is for the complete
-  !> list. This routine is thread-safe.
-  module function identify_atom(e,x0,icrd,lncel,eps)
+  !> corresponds to an atomic position (to within distmax or atomeps
+  !> if distmax is not given), return the complete-list ID of the
+  !> atom. Otherwise, return 0. Optionally, return the lattice vector
+  !> translation (lvec) and the distance (dist) to the closest atom.
+  !> This routine is thread-safe.
+  module function identify_atom(e,x0,icrd,lvec,dist,distmax)
     use global, only: atomeps
-    use param, only: icrd_cart
+    use tools_io, only: ferror, faterr
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3)
     integer, intent(in) :: icrd
-    logical, intent(in), optional :: lncel
-    real*8, intent(in), optional :: eps
+    integer, intent(out), optional :: lvec(3)
+    real*8, intent(out), optional :: dist
+    real*8, intent(in), optional :: distmax
     integer :: identify_atom
     
-    real*8 :: xp(3), x0r(3), x1r(3), dist, distmin, eps0
-    logical :: ln
-    integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
-    integer :: ireg(3), idx, kmin
+    real*8 :: eps, dist0
+    integer :: ierr, lvec0(3)
 
-    ! initialize
-    ln = .false.
-    if (present(lncel)) ln = lncel
-    eps0 = atomeps
-    if (present(eps)) eps0 = eps
+    eps = atomeps
+    if (present(distmax)) eps = distmax
 
-    ! bring the atom to the main cell, convert, identify the region
-    xp = x0
-    call e%y2z_center(xp,icrd,icrd_cart)
-    ireg0 = e%c2p(xp)
-
-    ! calculate the regions to explore
-    imin = 0
-    imax = 0
-    x0r = e%x0 + e%boxsize * ireg0
-    x1r = e%x0 + e%boxsize * (ireg0+1)
-    do i = 1, 3
-       if (xp(i)-x0r(i) <= eps0) imin(i) = -1
-       if (x1r(i)-xp(i) <= eps0) imax(i) = 1
-    end do
-
-    ! Identify the atom
-    kmin = 0
-    distmin = 1d40
-    do i1 = imin(1), imax(1)
-       do i2 = imin(2), imax(2)
-          do i3 = imin(3), imax(3)
-             ireg = ireg0 + (/i1,i2,i3/)
-             if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
-             idx = e%p2i(ireg)
-             if (e%nrhi(idx) == 0) cycle
-             do j = e%nrlo(idx), e%nrhi(idx)
-                k = e%imap(j)
-                dist = norm2(e%at(k)%r - xp)
-                if (dist < distmin .and. dist < eps0) then
-                   kmin = k
-                   distmin = dist
-                end if
-             end do
-          end do
-       end do
-    end do
-
-    ! return the atom index
-    identify_atom = 0
-    if (kmin > 0) then
-       if (ln) then
-          identify_atom = e%at(kmin)%cidx
-       else
-          identify_atom = e%at(kmin)%idx
+    if (eps < 0.5d0 * e%boxsize) then
+       call e%nearest_atom_short(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
+       if (ierr == 0 .or. ierr == 1) then
+          if (present(lvec)) lvec = lvec0
+          if (present(dist)) dist = dist0
+          return
        end if
     end if
+
+    call e%nearest_atom_long(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
+    if (ierr == 2) then
+       call ferror("identify_atom","distmax too large for environment boxsize",faterr)
+    end if
+    if (present(lvec)) lvec = lvec0
+    if (present(dist)) dist = dist0
 
   end function identify_atom
 

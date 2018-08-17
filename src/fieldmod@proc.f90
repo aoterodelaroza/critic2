@@ -318,12 +318,12 @@ contains
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
           call f%elk%end()
-          call f%elk%read_out(seed%file(1),seed%file(2))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2))
           f%type = type_elk
           f%file = seed%file(1)
        else
           call f%elk%end()
-          call f%elk%read_out(seed%file(1),seed%file(2),seed%file(3))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3))
           f%type = type_elk
           f%file = seed%file(3)
        endif
@@ -669,7 +669,7 @@ contains
     use arithmetic, only: eval
     use types, only: scalar_value
     use tools_io, only: ferror, faterr
-    use param, only: icrd_crys, icrd_cart
+    use param, only: icrd_cart
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
@@ -677,8 +677,8 @@ contains
     character*(*), intent(in), optional :: fder !< modifier for the special field
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wxr(3), wc(3), wcr(3), dist, x(3)
-    integer :: i, nid, lvec(3), idx(3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3)
+    integer :: i, nid, idx(3)
     real*8 :: rho, grad(3), h(3,3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
     logical :: isgrid, iok, per
@@ -872,7 +872,7 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    nid = f%c%identify_atom(wc,icrd_cart,eps=1d-5)
+    nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
     res%isnuc = (nid > 0)
     if (res%isnuc) res%gf = 0d0
     res%gfmod = norm2(res%gf)

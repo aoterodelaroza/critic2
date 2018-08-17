@@ -70,10 +70,13 @@ contains
   end function rmt_atom
 
   !> Read a elkwfn scalar field from an OUT file 
-  module subroutine read_out(f,file,file2,file3)
+  module subroutine read_out(f,env,file,file2,file3)
     class(elkwfn), intent(inout) :: f
+    type(environ), intent(in), target :: env
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
+
+    integer :: i
 
     call f%end()
 
@@ -86,6 +89,25 @@ contains
     ! read the third file
     if (present(file3)) then
        call read_elk_myout(f,file3)
+    end if
+
+    ! save pointer to the environment
+    f%maxrmt = maxval(f%rmt(1:env%nspc))
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    if (f%maxrmt >= env%dmax0 .and..not.env%ismolecule) then
+       ! Create a new environment to satisfy all searches.
+       ! The environment contains all the atoms in molecules anyway. 
+       f%isealloc = .true.
+       nullify(f%e)
+       allocate(f%e)
+       call f%e%extend(env,f%maxrmt)
+    else
+       ! keep a pointer to the environment
+       f%isealloc = .false.
+       f%e => env
     end if
 
   end subroutine read_out
@@ -120,7 +142,7 @@ contains
     real*8, parameter :: twopi1 = 1d0 / sqrt(2d0)
     complex*16, parameter :: twopi1i = 1d0 / sqrt(2d0) / (0d0,1d0)
 
-    ! inline functions
+    ! inline function
     elem(l,m)=l*(l+1)+m+1
     !
 
@@ -129,14 +151,6 @@ contains
     hfrho = 0d0
     nid = 0
     call local_nearest_atom(f,vpl,nid,dist,lvec)
-    ! write (*,*) "vpl:", vpl
-    ! do i = 1, f%ncel0
-    !    write (*,*) i, matmul(f%x2c,f%xcel(:,i))
-    ! end do
-    ! write (*,*) "nid:", nid
-    ! write (*,*) "pos:", matmul(f%x2c,f%xcel(:,nid))
-    ! write (*,*) "dist:", dist
-    ! write (*,*) "rhomt:", f%rhomt(1,1,:)
 
     ! inside a muffin tin
     is = f%iesp(nid)

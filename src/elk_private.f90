@@ -24,6 +24,7 @@
 
 !> Interface to ELK densities.
 module elk_private
+  use environmod, only: environ
   implicit none
 
   private
@@ -46,6 +47,9 @@ module elk_private
      complex*16, allocatable :: rhok(:)
      real*8, allocatable :: rmt(:)
      integer :: n(3)
+     real*8 :: maxrmt = 0d0
+     logical :: isealloc = .false.
+     type(environ), pointer :: e
    contains
      procedure :: end => elkwfn_end !< Deallocate all data
      procedure :: rmt_atom !< RMT from the closest atom
@@ -64,8 +68,9 @@ module elk_private
        real*8, intent(in) :: x(3)
        real*8 :: rmt_atom
      end function rmt_atom
-     module subroutine read_out(f,file,file2,file3)
+     module subroutine read_out(f,env,file,file2,file3)
        class(elkwfn), intent(inout) :: f
+       type(environ), intent(in), target :: env
        character*(*), intent(in) :: file, file2
        character*(*), intent(in), optional :: file3
      end subroutine read_out

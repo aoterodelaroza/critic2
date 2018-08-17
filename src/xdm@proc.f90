@@ -981,7 +981,7 @@ contains
        elseif (equal(w1,"#") .and. equal(w2,"n")) then
           do i = 1, nat
              read (lu,*) id, atsym, x(1:3)
-             idx = sy%c%identify_atom(x,icrd_cart,.true.)
+             idx = sy%c%identify_atom(x,icrd_cart)
              if (idx == 0) &
                 call ferror("xdm_excitation_readpostg","atom not found",faterr)
              idmap(i) = idx

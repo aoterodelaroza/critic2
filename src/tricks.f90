@@ -636,20 +636,20 @@ contains
       ! call env%find_asterisms_covalent(cr%nstar)
       ! call tictac("2")
 
-      ! do i = 0, 100
-      !    ! module subroutine nearest_atom_short(e,x0,icrd,distmax,eid,dist,ierr,cidx0,idx0,nozero)
-      !    xx = cr%x2c(cr%atcel(1)%x + (cr%atcel(2)%x-cr%atcel(1)%x) + (/4,-8,12/)) * real(i,8) / 100d0
-      !    write (*,*) "input: ", xx
-      !    call env%nearest_atom_long(xx,icrd_cart,env%dmax0-1d-10,nid1,lvec1,dist1,ierr1)
-      !    call env%nearest_atom_short(xx,icrd_cart,0.5d0*env%boxsize-1d-10,nid2,lvec2,dist2,ierr2)
-      !    if (ierr1 == 0 .and. ierr2 == 0) then
-      !       write (*,*) i/100d0, ierr1, ierr2, nid1, nid2, lvec1, lvec2, dist1, dist2, norm2(cr%x2c(cr%atcel(nid1)%x + lvec1) - xx)
-      !    else if (ierr1 == 0) then
-      !       write (*,*) i/100d0, ierr1, nid1, lvec1, dist1, norm2(cr%x2c(cr%atcel(nid1)%x + lvec1) - xx)
-      !    else
-      !       write (*,*) i/100d0, ierr1, ierr2
-      !    end if
-      ! end do
+      do i = 0, 100
+         ! module subroutine nearest_atom_short(e,x0,icrd,distmax,eid,dist,ierr,cidx0,idx0,nozero)
+         xx = cr%x2c(cr%atcel(1)%x + (cr%atcel(2)%x-cr%atcel(1)%x) * real(i,8) / 100d0 + (/4,-8,12/))
+         write (*,*) "input: ", xx
+         call env%nearest_atom_long(xx,icrd_cart,env%dmax0-1d-10,nid1,lvec1,dist1,ierr1)
+         call env%nearest_atom_short(xx,icrd_cart,0.5d0*env%boxsize-1d-10,nid2,lvec2,dist2,ierr2)
+         if (ierr1 == 0 .and. ierr2 == 0) then
+            write (*,*) i/100d0, ierr1, ierr2, nid1, nid2, lvec1, lvec2, dist1, dist2, norm2(cr%x2c(cr%atcel(nid1)%x + lvec1) - xx)
+         else if (ierr1 == 0) then
+            write (*,*) i/100d0, ierr1, nid1, lvec1, dist1, norm2(cr%x2c(cr%atcel(nid1)%x + lvec1) - xx)
+         else
+            write (*,*) i/100d0, ierr1, ierr2
+         end if
+      end do
 
     end associate
 

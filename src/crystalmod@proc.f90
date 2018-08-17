@@ -680,21 +680,22 @@ contains
 
   !> Given point x0 (with icrd input coordinates), translate to the
   !> main cell if the environment is from a crystal. Then if x0
-  !> corresponds to an atomic position (to within atomeps), return the
-  !> ID of the atom. Otherwise, return 0. If lncel is .false. or not
-  !> present, the ID is for the non-equivalent atom list. Otherwise,
-  !> it is for the complete list. This routine is mostly a wrapper for
-  !> the environment's identify_atom function (except lattice
-  !> translation of x0). Thread-safe.
-  module function identify_atom(c,x0,icrd,lncel0,eps)
+  !> corresponds to an atomic position (to within distmax or atomeps
+  !> if distmax is not given), return the complete-list ID of the
+  !> atom. Otherwise, return 0. Optionally, return the lattice vector
+  !> translation (lvec) and the distance (dist) to the closest atom.
+  !> This routine is a wrapper for the environment's identify_atom
+  !> function. Thread-safe.
+  module function identify_atom(c,x0,icrd,lvec,dist,distmax)
     class(crystal), intent(in) :: c
-    integer, intent(in) :: icrd
     real*8, intent(in) :: x0(3)
-    logical, intent(in), optional :: lncel0
+    integer, intent(in) :: icrd
+    integer, intent(out), optional :: lvec(3)
+    real*8, intent(out), optional :: dist
+    real*8, intent(in), optional :: distmax
     integer :: identify_atom
-    real*8, intent(in), optional :: eps
 
-    identify_atom = c%env%identify_atom(x0,icrd,lncel0,eps)
+    identify_atom = c%env%identify_atom(x0,icrd,lvec,dist,distmax)
 
   endfunction identify_atom
 
@@ -718,7 +719,7 @@ contains
 
     n = 0
     do i = 1, nat
-       id = identify_atom(c,x0(:,i),icrd_cart,.true.)
+       id = c%identify_atom(x0(:,i),icrd_cart)
        if (id > 0) then
           n = n + 1
           fr%at(n)%r = x0(:,i)
@@ -764,7 +765,7 @@ contains
        word = ""
        read(lu,*,err=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
-       id = c%identify_atom(x0,icrd_cart,.true.)
+       id = c%identify_atom(x0,icrd_cart)
        if (id == 0) then
           fr%nat = 0
           deallocate(fr%at)
