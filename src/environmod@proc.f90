@@ -660,8 +660,8 @@ contains
     integer, intent(in), optional :: idx0
     logical, intent(in), optional :: nozero
 
+    real*8, parameter :: epsmall2 = 1d-20
     real*8 :: xp(3), x0r(3), x1r(3), dist, d2, d2min, eps2, x(3), d0
-    logical :: ln
     integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
     integer :: ireg(3), idx, kmin
     
@@ -707,6 +707,10 @@ contains
 
                 x = e%at(k)%r - xp
                 d2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+                if (present(nozero)) then
+                   if (nozero .and. d2 < epsmall2) cycle
+                end if
+
                 if (d2 < d2min .and. d2 < eps2) then
                    kmin = k
                    d2min = d2
@@ -716,8 +720,8 @@ contains
        end do
     end do
 
-    ! return the atom index
-    if (kmin > 0 .and. d2min < d0) then
+    ! return the atom index and other info
+    if (kmin > 0 .and. d2min < eps2) then
        cidx = e%at(kmin)%cidx
        dist = sqrt(d2min)
        lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec,8)))
@@ -734,6 +738,105 @@ contains
     end if
 
   end subroutine nearest_atom_short
+
+  !> Given point x0 (with icrd input coordinates), translate to the
+  !> main cell if the environment is from a crystal. Then, calculate
+  !> the environment atom closest to x0 up to a distance of
+  !> distmax. If an atom was found within distmax, return the
+  !> complete list ID (cidx), the lattice vector translation to the
+  !> closest point (lvec), the distance (dist), and ierr = 0. If no
+  !> atom was found, return eid = 0 and: a) ierr = 1 if it is
+  !> guaranteed that there are no atoms up to distmax or b) ierr = 2
+  !> if distmax exceeds half the environment's boxsize and therefore
+  !> we can be sure there are no atoms only up to distmax=boxisze/2.
+  !> If cidx0, consider only atoms with ID cidx0 from the complete
+  !> list. If idx0, consider only atoms with ID idx0 from the
+  !> non-equivalent atom list. If nozero, discard atoms very close to
+  !> x0 (1d-10 default). This routine is limited to a distmax equal to
+  !> the dmax0 of the environment. It is slower than the short-range
+  !> version, nearest_atom_short. Thread-safe.
+  module subroutine nearest_atom_long(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,nozero)
+    use param, only: icrd_cart
+    class(environ), intent(in) :: e
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: icrd
+    real*8, intent(in) :: distmax
+    integer, intent(out) :: cidx
+    integer, intent(out) :: lvec(3)
+    real*8, intent(out) :: dist
+    integer, intent(out) :: ierr
+    integer, intent(in), optional :: cidx0
+    integer, intent(in), optional :: idx0
+    logical, intent(in), optional :: nozero
+
+    real*8, parameter :: epsmall2 = 1d-20
+    real*8 :: x(3), xp(3)
+    integer :: ireg0(3), ireg(3), kmin, idxreg
+    integer :: i, j, k
+    real*8 :: d0, eps2, d2min, d2, rcut2
+
+    d0 = min(distmax,e%dmax0)
+    dist = 0d0
+    lvec = 0
+    ierr = 0
+    eps2 = d0 * d0
+
+    ! Find the integer region for the main cell copy of the input point
+    xp = x0
+    call e%y2z_center(xp,icrd,icrd_cart,lvec)
+    ireg0 = e%c2p(xp)
+    
+    ! run over regions sorted by distance
+    kmin = 0
+    d2min = 1d40
+    do i = 1, e%rs_nreg
+       ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
+       if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
+
+       rcut2 = e%rs_rcut(i) * e%rs_rcut(i)
+       if (d2min < rcut2 .or. eps2 < rcut2) exit
+       idxreg = e%p2i(ireg)
+       
+       do j = e%nrlo(idxreg), e%nrhi(idxreg)
+          k = e%imap(j)
+          if (present(cidx0)) then
+             if (e%at(k)%cidx /= cidx0) cycle
+          end if
+          if (present(idx0)) then
+             if (e%at(k)%idx /= idx0) cycle
+          end if
+
+          x = e%at(k)%r - xp
+          d2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+          if (present(nozero)) then
+             if (nozero .and. d2 < epsmall2) cycle
+          end if
+
+          if (d2 < d2min .and. d2 < eps2) then
+             kmin = k
+             d2min = d2
+          end if
+       end do
+    end do
+
+    ! return the atom index and other info
+    if (kmin > 0 .and. d2min < eps2) then
+       cidx = e%at(kmin)%cidx
+       dist = sqrt(d2min)
+       lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec,8)))
+       ierr = 0
+    else
+       cidx = 0
+       dist = 0d0
+       lvec = 0
+       if (d0 == distmax) then
+          ierr = 1
+       else
+          ierr = 2
+       end if
+    end if
+
+  end subroutine nearest_atom_long
 
   !> Given the point xp (in icrd coordinates), center the point in the
   !> main cell if the environment is from a crystal. Then, calculate
