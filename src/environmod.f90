@@ -244,15 +244,16 @@ module environmod
        real*8, intent(in), optional :: distmax
        integer :: identify_atom
      end function identify_atom
-     module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
+     module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
        class(environ), intent(in) :: e
        real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
        integer, intent(out) :: nid
        real*8, intent(out) :: dist
+       real*8, intent(in), optional :: distmax
        integer, intent(out), optional :: lvec(3)
-       integer, intent(in), optional :: nid0
-       integer, intent(in), optional :: id0
+       integer, intent(in), optional :: cidx0
+       integer, intent(in), optional :: idx0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
      module subroutine nearest_atom_short(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,nozero)

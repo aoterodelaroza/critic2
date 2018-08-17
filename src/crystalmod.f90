@@ -230,7 +230,7 @@ module crystalmod
   character(len=12), parameter, public :: laue_string(0:11) = (/ &
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
-
+  
   ! module procedure interfaces
   interface
      !xx! proc submodule
@@ -307,15 +307,16 @@ module crystalmod
        real*8, intent(out), optional :: dd
        logical :: are_lclose
      end function are_lclose
-     module subroutine nearest_atom(c,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
+     module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
        class(crystal), intent(in) :: c
-       real*8, intent(in) :: xp(:)
+       real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
        integer, intent(out) :: nid
        real*8, intent(out) :: dist
+       real*8, intent(in), optional :: distmax
        integer, intent(out), optional :: lvec(3)
-       integer, intent(in), optional :: nid0
-       integer, intent(in), optional :: id0
+       integer, intent(in), optional :: cidx0
+       integer, intent(in), optional :: idx0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
      module function identify_atom(c,x0,icrd,lvec,dist,distmax)

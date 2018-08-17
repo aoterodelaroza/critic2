@@ -2160,7 +2160,6 @@ contains
 
   !> Calculate the MO values at position xpos (Cartesian). GTO version.
   subroutine calculate_mo_gto(f,xpos,phi,rhoc,gradc,hc,philb,imo0,imo1,nder,nenv,eid,dist)
-    use tools_io, only: ferror, faterr
     type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(inout) :: phi(:,:) !< array for the final values

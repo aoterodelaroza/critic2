@@ -1580,9 +1580,8 @@ contains
 
           found = .false.
           do j = 1, s%c%nneq
-             call s%c%nearest_atom(x,icrd_crys,idx,dist,nid0=j)
-             found = (idx > 0 .and. dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
-             if (found) exit
+             idx = s%c%identify_atom(x,icrd_crys,distmax=atmvdw(s%c%spc(s%c%at(j)%is)%z))
+             if (idx > 0) exit
           end do
           if (.not.found) then
              vout = vout + dv

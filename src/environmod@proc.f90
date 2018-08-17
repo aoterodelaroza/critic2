@@ -499,13 +499,11 @@ contains
     eps = atomeps
     if (present(distmax)) eps = distmax
 
-    if (eps < 0.5d0 * e%boxsize) then
-       call e%nearest_atom_short(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
-       if (ierr == 0 .or. ierr == 1) then
-          if (present(lvec)) lvec = lvec0
-          if (present(dist)) dist = dist0
-          return
-       end if
+    call e%nearest_atom_short(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
+    if (ierr == 0 .or. ierr == 1) then
+       if (present(lvec)) lvec = lvec0
+       if (present(dist)) dist = dist0
+       return
     end if
 
     call e%nearest_atom_long(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
@@ -519,78 +517,46 @@ contains
 
   !> Given the point xp (in icrd coordinates), translate to the main
   !> cell if the environment is from a crystal. Then, calculate the
-  !> nearest atom.  The nearest atom has ID nid from the complete list
-  !> (atcel) and is at a distance dist, or nid=0 and dist=0d0 if the
-  !> search did not produce any atoms.  On output, the optional
-  !> argument lvec contains the lattice vector to the nearest atom
-  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
-  !> only atoms with index nid0 from the non-equivalent list. If id0,
-  !> consider only atoms with index id0 from the complete list. If
-  !> nozero, disregard zero-distance atoms. This routine is
+  !> nearest atom up to a distance distmax. The nearest atom has ID
+  !> nid from the complete list (atcel) and is at a distance dist, or
+  !> nid=0 and dist=distmax if the search did not produce any atoms.
+  !> The default distmax is the environment's dmax0.  On output, the
+  !> optional argument lvec contains the lattice vector to the nearest
+  !> atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
+  !> consider only atoms with index cidx0 from the complete list. If
+  !> idx0, consider only atoms with index id0 from the non-equivalent
+  !> list. If nozero, disregard zero-distance atoms. This routine is
   !> thread-safe.
-  module subroutine nearest_atom(e,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
+  module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
     integer, intent(out) :: nid
     real*8, intent(out) :: dist
+    real*8, intent(in), optional :: distmax
     integer, intent(out), optional :: lvec(3)
-    integer, intent(in), optional :: nid0
-    integer, intent(in), optional :: id0
+    integer, intent(in), optional :: cidx0
+    integer, intent(in), optional :: idx0
     logical, intent(in), optional :: nozero
 
-    real*8, parameter :: eps = 1d-10
+    real*8 :: eps
+    integer :: ierr, lvec0(3)
 
-    real*8 :: x0(3), dist, distmin
-    integer :: ireg0(3), ireg(3), idxreg
-    integer :: i, j, k, kmin, lvec0(3)
+    eps = e%dmax0
+    if (present(distmax)) eps = distmax
 
-    ! Find the integer region for the main cell copy of the input point
-    x0 = xp
-    call e%y2z_center(x0,icrd,icrd_cart,lvec0)
-    ireg0 = e%c2p(x0)
-    
-    ! run over regions sorted by distance
-    distmin = 1d40
-    kmin = 0
-    main: do i = 1, e%rs_nreg
-       ireg = ireg0 + unpackoffset(e%rs_ioffset(i),e%rs_imax,e%rs_2imax1)
-       if (any(ireg < e%nmin) .or. any(ireg > e%nmax)) cycle
-       idxreg = e%p2i(ireg)
-       if (e%nrhi(idxreg) == 0) cycle
+    call e%nearest_atom_short(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,nozero)
+    if (ierr == 0 .or. ierr == 1) then
+       if (present(lvec)) lvec = lvec0
+       return
+    end if
 
-       do j = e%nrlo(idxreg), e%nrhi(idxreg)
-          k = e%imap(j)
-          if (distmin < e%rs_rcut(i)) exit main
-          if (present(nid0)) then
-             if (e%at(k)%idx /= nid0) cycle
-          end if
-          if (present(id0)) then
-             if (e%at(k)%cidx /= id0) cycle
-          end if
-
-          dist = norm2(e%at(k)%r - x0)
-          if (present(nozero)) then
-             if (dist < eps) cycle
-          end if
-          if (dist < distmin) then
-             distmin = dist
-             kmin = k
-          end if
-       end do
-    end do main
-
-    if (kmin > 0) then
-       nid = e%at(kmin)%cidx
-       dist = distmin
-       if (present(lvec)) then
-          lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec0,8)))
-       end if
-    else
+    call e%nearest_atom_long(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,nozero)
+    if (present(lvec)) lvec = lvec0
+    if (ierr == 2) then
        nid = 0
-       dist = 0d0
-       if (present(lvec)) lvec = 0
+       dist = eps
     end if
 
   end subroutine nearest_atom

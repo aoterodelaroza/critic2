@@ -654,27 +654,29 @@ contains
 
   !> Given the point xp (in icrd coordinates), translate to the main
   !> cell if the environment is from a crystal. Then, calculate the
-  !> nearest atom.  The nearest atom has ID nid from the complete list
-  !> (atcel) and is at a distance dist, or nid=0 and dist=0d0 if the
-  !> search did not produce any atoms.  On output, the optional
-  !> argument lvec contains the lattice vector to the nearest atom
-  !> (i.e. its position is atcel(nid)%x + lvec). If nid0, consider
-  !> only atoms with index nid0 from the non-equivalent list. If id0,
-  !> consider only atoms with index id0 from the complete list. If
-  !> nozero, disregard zero-distance atoms. This routine is a wrapper
-  !> for the environment's nearest_atom. Thread-safe.
-  module subroutine nearest_atom(c,xp,icrd,nid,dist,lvec,nid0,id0,nozero)
+  !> nearest atom up to a distance distmax. The nearest atom has ID
+  !> nid from the complete list (atcel) and is at a distance dist, or
+  !> nid=0 and dist=distmax if the search did not produce any atoms.
+  !> The default distmax is the environment's dmax0.  On output, the
+  !> optional argument lvec contains the lattice vector to the nearest
+  !> atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
+  !> consider only atoms with index cidx0 from the complete list. If
+  !> idx0, consider only atoms with index id0 from the non-equivalent
+  !> list. If nozero, disregard zero-distance atoms. This routine is a
+  !> wrapper for the environment's nearest_atom. Thread-safe.
+  module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
     class(crystal), intent(in) :: c
-    real*8, intent(in) :: xp(:)
+    real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
     integer, intent(out) :: nid
     real*8, intent(out) :: dist
+    real*8, intent(in), optional :: distmax
     integer, intent(out), optional :: lvec(3)
-    integer, intent(in), optional :: nid0
-    integer, intent(in), optional :: id0
+    integer, intent(in), optional :: cidx0
+    integer, intent(in), optional :: idx0
     logical, intent(in), optional :: nozero
 
-    call c%env%nearest_atom(xp,icrd,nid,dist,lvec,nid0,id0,nozero)
+    call c%env%nearest_atom(xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,nozero)
 
   end subroutine nearest_atom
 
