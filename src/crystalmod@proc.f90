@@ -451,23 +451,25 @@ contains
        call grid1_register_ae(c%spc(i)%z)
     end do
 
-    ! Build the atomic environments
-    call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
+    if (c%ncel > 0) then
+       ! Build the atomic environments
+       call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
 
-    ! Find the atomic connectivity and the molecular fragments
-    call c%env%find_asterisms_covalent(c%nstar,rnn2)
-    call c%fill_molecular_fragments()
-
-    ! Write the half nearest-neighbor distance
-    do i = 1, c%nneq
-       if (rnn2(i) > 0d0) then
-          c%at(i)%rnn2 = 0.5d0 * rnn2(i)
-       elseif (.not.c%ismolecule .or. c%ncel > 1) then
-          call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
-          c%at(i)%rnn2 = 0.5d0 * dist 
-       end if
-    end do
-    if (allocated(rnn2)) deallocate(rnn2)
+       ! Find the atomic connectivity and the molecular fragments
+       call c%env%find_asterisms_covalent(c%nstar,rnn2)
+       call c%fill_molecular_fragments()
+       
+       ! Write the half nearest-neighbor distance
+       do i = 1, c%nneq
+          if (rnn2(i) > 0d0) then
+             c%at(i)%rnn2 = 0.5d0 * rnn2(i)
+          elseif (.not.c%ismolecule .or. c%ncel > 1) then
+             call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
+             c%at(i)%rnn2 = 0.5d0 * dist 
+          end if
+       end do
+       if (allocated(rnn2)) deallocate(rnn2)
+    end if
 
     ! the initialization is done - this crystal is ready to use
     c%file = seed%file

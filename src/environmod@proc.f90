@@ -86,9 +86,21 @@ contains
     integer :: i1, i2, i3, i, m, imax, i3min, nreg
     integer, allocatable :: iord(:)
 
+    ! fill the matrices
+    e%m_xr2c = m_xr2c
+    e%m_c2xr = matinv(m_xr2c)
+    e%m_x2xr = m_x2xr
+    e%m_xr2x = matinv(m_x2xr)
+    e%m_x2c = m_x2c
+    e%m_c2x = matinv(m_x2c)
+
+    ! do nothing else if there are no atoms
+    e%n = n
+    e%nspc = nspc
+    if (n == 0 .or. nspc == 0) return
+
     ! species and ismolecule
     e%ismolecule = ismol
-    e%nspc = nspc
     if (allocated(e%spc)) deallocate(e%spc)
     e%spc = spc
 
@@ -100,14 +112,6 @@ contains
        end if
     end do
     e%boxsize = max(boxsize_default,4d0*dmax + 1d-10)
-
-    ! fill the matrices
-    e%m_xr2c = m_xr2c
-    e%m_c2xr = matinv(m_xr2c)
-    e%m_x2xr = m_x2xr
-    e%m_xr2x = matinv(m_x2xr)
-    e%m_x2c = m_x2c
-    e%m_c2x = matinv(m_x2c)
 
     ! calculate the maximum diagonal half-length (sphmax)
     sphmax = norm2(e%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
@@ -128,7 +132,6 @@ contains
     end if
 
     ! parepare to write down the first n atoms
-    e%n = n
     if (allocated(e%at)) deallocate(e%at)
     allocate(e%at(e%n))
 
@@ -1236,6 +1239,9 @@ contains
     integer :: p0(3), p1(3), idx1
     integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
+
+    ! return if there are no atoms
+    if (e%n == 0 .or. e%nspc == 0) return
 
     ! allocate the asterism arrays
     if (allocated(nstar)) deallocate(nstar)
