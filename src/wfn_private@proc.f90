@@ -2467,7 +2467,7 @@ contains
        else
           f%dran(i) = sqrt(f%dran(i))
           f%spcutoff(env%at(f%icenter(i))%cidx) = max(f%spcutoff(env%at(f%icenter(i))%cidx),f%dran(i))
-          f%lmax(f%icenter(i)) = limax(f%itype(i))
+          f%lmax(f%icenter(i)) = max(limax(f%itype(i)),f%lmax(f%icenter(i)))
        end if
     end do
 
