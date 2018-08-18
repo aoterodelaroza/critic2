@@ -29,27 +29,23 @@ module elk_private
 
   private
 
+  ! elk wavefunction type
   type elkwfn
-     real*8 :: x2c(3,3)
-     real*8 :: c2x(3,3)
-     integer :: lmaxvr
-     real*8, allocatable :: spr(:,:)
-     real*8, allocatable :: spr_a(:)
-     real*8, allocatable :: spr_b(:)
-     integer, allocatable :: nrmt(:)
-     integer :: ngvec
-     real*8, allocatable :: vgc(:,:) 
-     integer, allocatable :: igfft(:)
-     integer :: ncel0
-     real*8, allocatable :: xcel(:,:)
-     integer, allocatable :: iesp(:)
-     real*8, allocatable :: rhomt(:,:,:)
-     complex*16, allocatable :: rhok(:)
-     real*8, allocatable :: rmt(:)
-     integer :: n(3)
-     real*8 :: maxrmt = 0d0
-     logical :: isealloc = .false.
-     type(environ), pointer :: e
+     real*8 :: x2c(3,3) ! cryst to cart matrix (elk's may be different from critic's)
+     integer :: lmaxvr ! max LM in muffin tins
+     real*8, allocatable :: spr(:,:) ! radial grid
+     real*8, allocatable :: spr_a(:) ! radial coef - prefactor
+     real*8, allocatable :: spr_b(:) ! radial coef - exponent
+     integer, allocatable :: nrmt(:) ! number of radial points
+     integer :: ngvec ! number of G-vectors
+     real*8, allocatable :: vgc(:,:) ! G-vector coordinates
+     integer, allocatable :: igfft(:) ! G-vector mapping
+     real*8, allocatable :: rhomt(:,:,:) ! muffin tin coeffs
+     complex*16, allocatable :: rhok(:) ! interstitial rho coeffs
+     real*8, allocatable :: rmt(:) ! muffin tin radii
+     integer :: n(3) ! interstitial grid size
+     logical :: isealloc = .false. ! is the environment local?
+     type(environ), pointer :: e ! pointer to the environment
    contains
      procedure :: end => elkwfn_end !< Deallocate all data
      procedure :: rmt_atom !< RMT from the closest atom
