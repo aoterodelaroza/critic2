@@ -51,26 +51,6 @@ contains
 
   end subroutine elkwfn_end
 
-  !> Return the rmt for the atom at position x (crystallographic).
-  module function rmt_atom(f,x)
-    use param, only: icrd_crys
-    class(elkwfn), intent(in) :: f
-    real*8, intent(in) :: x(3)
-    real*8 :: rmt_atom
-
-    integer :: nid
-    real*8 :: dist
-    integer :: lvec(3)
-
-    nid = f%e%identify_atom(x,icrd_crys)
-    if (nid > 0) then
-       rmt_atom = f%rmt(f%e%at(nid)%is)
-    else
-       rmt_atom = 0d0
-    end if
-
-  end function rmt_atom
-
   !> Read a elkwfn scalar field from an OUT file 
   module subroutine read_out(f,env,file,file2,file3)
     class(elkwfn), intent(inout) :: f

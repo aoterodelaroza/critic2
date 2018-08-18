@@ -48,7 +48,6 @@ module elk_private
      type(environ), pointer :: e ! pointer to the environment
    contains
      procedure :: end => elkwfn_end !< Deallocate all data
-     procedure :: rmt_atom !< RMT from the closest atom
      procedure :: read_out !< Read the elkwfn data from an elk's OUT file
      procedure :: rho2 !< Calculate the density and derivatives at a point
      procedure :: tolap !< Convert an elkwfn into its Laplacian
@@ -59,11 +58,6 @@ module elk_private
      module subroutine elkwfn_end(f)
        class(elkwfn), intent(inout) :: f
      end subroutine elkwfn_end
-     module function rmt_atom(f,x)
-       class(elkwfn), intent(in) :: f
-       real*8, intent(in) :: x(3)
-       real*8 :: rmt_atom
-     end function rmt_atom
      module subroutine read_out(f,env,file,file2,file3)
        class(elkwfn), intent(inout) :: f
        type(environ), intent(in), target :: env

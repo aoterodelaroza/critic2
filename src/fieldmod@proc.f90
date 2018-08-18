@@ -1604,7 +1604,7 @@ contains
        if (f%type == type_wien) then
           rmt = f%wien%rmt_atom(f%c%at(n)%x)
        else
-          rmt = f%elk%rmt_atom(f%c%at(n)%x)
+          rmt = f%elk%rmt(f%c%at(n)%is)
        end if
        mepsm = 0d0
        mepsp = 0d0
@@ -1770,7 +1770,7 @@ contains
              if (f%type == type_wien) then
                 inrmt = (dist < f%wien%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x))
              else
-                inrmt = (dist < f%elk%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x))
+                inrmt = (dist < f%elk%rmt(f%c%atcel(i)%is))
              end if
              if (inrmt) then
                 if (wpts(f%c%atcel(i)%idx) >= npts) cycle out

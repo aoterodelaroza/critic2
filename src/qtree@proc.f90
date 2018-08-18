@@ -783,7 +783,7 @@ contains
     nfrozen = .false.
     do i = 1, nnuc
        if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
-          rmt = sy%f(sy%iref)%elk%rmt_atom(sy%c%at(i)%x)
+          rmt = sy%f(sy%iref)%elk%rmt(sy%c%at(i)%is)
        elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
           rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        else
@@ -972,7 +972,7 @@ contains
     ndo = 0
     do i = 1, nnuc
        if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
-          rmt = sy%f(sy%iref)%elk%rmt_atom(sy%c%at(i)%x)
+          rmt = sy%f(sy%iref)%elk%rmt(sy%c%at(i)%is)
        elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
           rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        elseif (i<=sy%c%nneq) then
