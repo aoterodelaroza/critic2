@@ -102,9 +102,9 @@ ${CRITIC_HOME}/dat/.
 ## Which compilers work?
 
 Critic2 uses some features from the more modern Fortran standards,
-which may not be available in old compilers. In consequence, not all
-compilers may be able to generate the binary and, even if they do, it
-may be broken. Two versions of critic2 are distributed. The
+which may not be available in some (most) compilers. In consequence,
+not all compilers may be able to generate the binary and, even if they
+do, it may be broken. Two versions of critic2 are distributed. The
 **development** version, corresponding to the master branch of the
 repository, and the **stable** version, in the stable branch. Only
 patches addressing serious bugs will be introduced in the stable
@@ -115,11 +115,11 @@ starting at 4.9. All intel fortran compiler versions from 2011 onwards
 also compile the stable code. To download the stable version, click on
 the **Branch:** button above and select **stable**.
 
-The development version can be compiled with gfortran-6 and
-later. Most other compilers have issues. This is the list of compilers
-tested:
+The development version can be compiled with gfortran-6 and later. All
+other compilers tested have issues, and fail to produce a working
+binary. This is the list of compilers tested:
 
-* gfortran 4.8: critic2 can not be compiled with this version because
+* gfortran 4.8: critic2 cannot be compiled with this version because
   allocatable components in user-defined types are not supported.
 * gfortran 4.9 through 5.4 (and possibly older and newer gfortran-5):
   the code compiles correctly but there are errors allocating and
@@ -127,30 +127,22 @@ tested:
   user-defined types. The program is usable, but problems will arise
   if more than one crystal structure or more than 10 scalar fields are
   loaded.
-* gfortran 6.x and gfortran 7.x: no errors.
-* ifort 12.1: catastrophic internal compiler error of unknown origin. 
-* ifort-14.0.2.144, ifort-15.0.5.233, and ifort-15.2: the compilation
-  succeeds, but inexplicable errors happen at runtime when the global
-  field array is deallocated in the system_end subroutine. The run may
-  also hang if the field array is reallocated (move_alloc
-  bug?). Similarly to early versions of gfortran, the program is
-  usable, but errors will occur if several crystal structures are
-  loaded.
-* ifort 16.0.4 and ifort 17.0.1: they gives less problems than earlier
-  versions of ifort but occasional errors still occur when loading and
-  unloading very many crystal structures in sequence. For ifort
-  17.0.1, the trispline interpolation in grids does not work.
+* gfortran 6.x, 7.x, 8.x: no errors.
+* ifort, all versions from 12.1 up to 18.0.3: catastrophic internal
+  compiler errors of unknown origin.
 * Portland Group Fortran compiler (pgfortran), version 17.3. There are
   two important compiler problems: i) passing subroutines and
   functions whose interface includes multidimensional arrays as
   arguments or function results does not work, and ii) internal
   compiler error when compiling meshmod.f90.
 
-In summary: **Only recent versions of gfortran and intel fortran are
-guaranteed to work with the development version. If you can not use
-gfortran 6 or newer or ifort 16.x or newer, download the stable
-version.** I do not think this is because of errors in the critic2
-code (though if you find that it is, please let me know).
+In summary: **Only recent versions of gfortran are guaranteed to work
+with the development version. If you cannot use gfortran 6 or newer,
+download the stable version.** I do not think this is because of
+errors in the critic2 code (though if you find that it is, please let
+me know). If you paid for a recent version of your compiler and it
+throws an internal compiler error while trying to build critic2, you
+may want to consider submitting a bug report to the developer.
 
 If a recent compiler is not available, an alternative is to compile
 the program elsewhere with the static linking option:
