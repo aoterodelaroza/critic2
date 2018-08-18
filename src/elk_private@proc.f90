@@ -116,7 +116,7 @@ contains
     integer l,m,lm,ig,ifg
     real(8) r,tp(2), t0, t1, t2
     real(8) v1(3)
-    complex*16 :: ylm((f%lmaxvr+1+2)**2)
+    complex*16, allocatable :: ylm(:)
     real*8 :: xrho, xgrad(3)
     complex*16 :: xgrad1(3), xgrad2(3)
     real*8 :: xhess(6)
@@ -149,6 +149,8 @@ contains
        call tosphere(v1,r,tp)
        if (abs(r-dist) > 1d-12) &
           call ferror("elk_rho2","invalid radius",faterr)
+
+       allocate(ylm((f%lmaxvr+1+2)**2))
        call genylm(f%lmaxvr+2,tp,ylm)
        r = min(max(r,f%spr(1,is)),f%rmt(is))
        ir0 = min(max(floor(log(r / f%spr_a(is)) / f%spr_b(is) + 1),1),f%nrmt(is))
@@ -186,6 +188,7 @@ contains
              hfrho(3,3) = hfrho(3,3) + xhess(6)
           end do
        end do
+       deallocate(ylm)
 
        ! nullify gradient at the nucleus
        if (dist < 1d-5) then
@@ -279,16 +282,14 @@ contains
   ! and C. Ambrosch-Draxl.  This file is distributed under the terms
   ! of the GNU General Public License.
   subroutine elk_geometry(f,filename)
-    use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, zatguess,&
-       fclose
+    use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, fclose
     use tools_math, only: matinv
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, nat, j, lp
-    integer, allocatable :: natoms(:)
-    integer :: nspecies
+    integer :: nspecies, natoms
     real*8, allocatable :: aux(:,:)
     logical :: ok
     real*8 :: x(3)
@@ -308,8 +309,6 @@ contains
     if (equal(line,'molecule')) call ferror('read_elk_geometry','Isolated molecules not supported',faterr,line)
 
     read(lu,'(I4)') nspecies
-    if (allocated(natoms)) deallocate(natoms)
-    allocate(natoms(nspecies))
     do i = 1, nspecies
        ok = getline_raw(lu,line,.true.)
        lp = 1
@@ -318,10 +317,8 @@ contains
           if (atname(j:j) == "'") atname(j:j) = " "
           if (atname(j:j) == '"') atname(j:j) = " "
        end do
-       zat = zatguess(atname)
-       if (zat == -1) call ferror('read_elk_geometry','Species file name must start with an atomic symbol',faterr)
-       read(lu,*) natoms(i)
-       do j = 1, natoms(i)
+       read(lu,*) natoms
+       do j = 1, natoms
           read(lu,*) x
        end do
     end do
@@ -330,6 +327,7 @@ contains
   end subroutine elk_geometry
 
   subroutine read_elk_state(f,filename,env)
+    use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det
     use param, only: pi
@@ -481,7 +479,8 @@ contains
        end do
     end do
     ! sort by vector length
-    call sortidx(ngrtot,gc,idx)
+    call qcksort(gc,idx,1,ngrtot)
+
     ! re-order arrays
     do ig=1,ngrtot
        rar(ig)=gc(ig)
@@ -576,67 +575,5 @@ contains
     deallocate(rhoktmp)
 
   end subroutine read_elk_myout
-
-  subroutine sortidx(n,a,idx)
-    use tools_io, only: ferror, faterr
-    ! !INPUT/OUTPUT PARAMETERS:
-    !   n   : number of elements in array (in,integer)
-    !   a   : real array (in,real(n))
-    !   idx : permutation index (out,integer(n))
-    ! !DESCRIPTION:
-    !   Finds the permutation index {\tt idx} which sorts the real array {\tt a}
-    !   into ascending order. No sorting of the array {\tt a} itself is performed.
-    !   Uses the heapsort algorthim.
-    !
-    ! !REVISION HISTORY:
-    !   Created October 2002 (JKD)
-    !   Included tolerance eps, April 2006 (JKD)
-    ! arguments
-    integer, intent(in) :: n
-    real(8), intent(in) :: a(n)
-    integer, intent(out) :: idx(n)
-    ! local variables
-    integer i,j,k,l,m
-    ! tolerance for deciding if one number is smaller than another
-    real(8), parameter :: eps=1.d-14
-    if (n.le.0) call ferror("sortidx","n <= 0",faterr)
-    do i=1,n
-       idx(i)=i
-    end do
-    if (n.eq.1) return
-    l=n/2+1
-    k=n
-10  continue
-    if (l.gt.1) then
-       l=l-1
-       m=idx(l)
-    else
-       m=idx(k)
-       idx(k)=idx(1)
-       k=k-1
-       if (k.eq.1) then
-          idx(1)=m
-          return
-       end if
-    end if
-    i=l
-    j=l+l
-20  continue
-    if (j.le.k) then
-       if (j.lt.k) then
-          if (a(idx(j)).lt.a(idx(j+1))+eps) j=j+1
-       end if
-       if (a(m).lt.a(idx(j))+eps) then
-          idx(i)=idx(j)
-          i=j
-          j=j+j
-       else
-          j=k+1
-       end if
-       goto 20
-    end if
-    idx(i)=m
-    goto 10
-  end subroutine sortidx
 
 end submodule proc
