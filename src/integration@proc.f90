@@ -960,8 +960,8 @@ contains
     ! assign attractors to atoms
     if (atexist) then
        do i = 1, nattr0
-          call ff%c%nearest_atom(xgatt(:,i),icrd_crys,nid,dist)
-          if (nid > 0 .and. dist < ratom) then
+          nid = ff%c%identify_atom(xgatt(:,i),icrd_crys,distmax=ratom)
+          if (nid > 0) then
              assigned(i) = nid
           else
              ! maybe the closest point is a known nnm

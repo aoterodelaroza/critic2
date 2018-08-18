@@ -2304,20 +2304,18 @@ contains
     real*8, intent(in) :: rp0(3), r01, r02, cosalfa, sinalfa
 
     integer :: i, j, nid1, nid2, iz, rgb(3)
-    real*8 :: xxx, yyy, zzz, u, v, h, uort, vort, x0(3)
+    real*8 :: xxx, yyy, zzz, u, v, h, uort, vort
     real*8 :: dist1, dist2
     logical :: wasblank
 
     ! identify the endpoints
-    x0 = xpath(1)%x
-    call sy%c%nearest_atom(x0,icrd_crys,nid1,dist1)
-    x0 = xpath(nptf)%x
-    call sy%c%nearest_atom(x0,icrd_crys,nid2,dist2)
+    nid1 = sy%c%identify_atom(xpath(1)%x,icrd_crys,dist=dist1,distmax=1.1d0*prunedist)
+    nid2 = sy%c%identify_atom(xpath(nptf)%x,icrd_crys,dist=dist2,distmax=1.1d0*prunedist)
     rgb = (/0,0,0/)
-    if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
+    if (nid1 > 0 .and. (dist1 < dist2 .or. nid2 == 0)) then
        iz = sy%c%spc(sy%c%atcel(nid1)%is)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
-    elseif (dist2 < dist1 .and. dist2 < 1.1d0*prunedist) then
+    elseif (nid2 > 0 .and. (dist2 < dist1 .or. nid1 == 0)) then
        iz = sy%c%spc(sy%c%atcel(nid2)%is)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     endif
