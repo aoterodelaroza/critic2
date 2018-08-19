@@ -104,7 +104,7 @@ module crystalmod
      integer :: nmol = 0 !< Number of molecules in the unit cell
      type(fragment), allocatable :: mol(:) !< Molecular fragments
      integer :: nlvac = 0 !< Number of vacuum lattice vectors
-     real*8, allocatable :: lvac(:,:) !< Vacuum lattice vectors
+     integer :: lvac(3,2) !< Vacuum lattice vectors
 
      !! Initialization level: isewald !!
      ! ewald data

@@ -32,7 +32,9 @@ module tools_math
   public :: radial_derivs
   public :: ep
   public :: gcd
+  public :: lcm
   public :: rational_approx
+  public :: lattice_direction
   public :: eig
   public :: eigns
   public :: rsindex
@@ -58,6 +60,16 @@ module tools_math
   integer, parameter, public :: niso_atan = 3
   integer, parameter, public :: niso_bader = 4
   
+  ! overloaded functions
+  interface gcd
+     module procedure gcd2
+     module procedure gcdn
+  end interface gcd
+  interface lcm
+     module procedure lcm2
+     module procedure lcmn
+  end interface lcm
+
   interface
      !xx! proc submodule
      module function crosscorr_triangle(h,f,g,l) result(dfg)
@@ -112,16 +124,33 @@ module tools_math
        real*8, intent(in) ::  x
        real*8 :: ep
      end function ep
-     module function gcd(n,num)
-       integer :: n(num)
-       integer :: num
-       integer :: gcd 
-     end function gcd
+     module function gcdn(n,num)
+       integer, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer :: gcdn
+     end function gcdn
+     module function gcd2(m,n)
+       integer, intent(in) :: m, n
+       integer :: gcd2
+     end function gcd2
+     module function lcmn(n,num)
+       integer, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer :: lcmn
+     end function lcmn
+     module function lcm2(m,n)
+       integer, intent(in) :: m, n
+       integer :: lcm2
+     end function lcm2
      module subroutine rational_approx(x0,q,r,eps)
        real*8, intent(in) :: x0
        integer*8, intent(out):: q, r
        real*8, intent(in) :: eps
      end subroutine rational_approx
+     module function lattice_direction(x0) result (yy)
+       real*8, intent(in) :: x0(3)
+       integer :: yy(3)
+     end function lattice_direction
      module subroutine eig(mat,eval)
        real*8, intent(inout) :: mat(:,:)
        real*8, intent(out), optional :: eval(:)

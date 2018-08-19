@@ -118,7 +118,7 @@ contains
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
     c%nlvac = 0
-    if (allocated(c%lvac)) deallocate(c%lvac)
+    c%lvac = 0
 
     ! core charges
     c%zpsp = -1
@@ -144,7 +144,6 @@ contains
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
-    if (allocated(c%lvac)) deallocate(c%lvac)
     call c%env%end()
     c%isinit = .false.
     c%havesym = 0
@@ -1028,6 +1027,7 @@ contains
   !> extended or molecular. Fills c%nmol and c%mol.
   module subroutine fill_molecular_fragments(c)
     use fragmentmod, only: realloc_fragment
+    use tools_math, only: lattice_direction
     use tools_io, only: ferror, faterr, warning
     use types, only: realloc
     class(crystal), intent(inout) :: c
@@ -1038,7 +1038,7 @@ contains
     integer, allocatable :: id(:), lvec(:,:)
     logical, allocatable :: ldone(:), used(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
-    real*8 :: xcm(3)
+    real*8 :: xcm(3), x(3)
 
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
@@ -1193,10 +1193,8 @@ contains
        if (c%nlvac < 1 .or. c%nlvac > 3) &
           call ferror("fill_molecular_fragments","incorrect number of vacuum vectors",faterr)
 
-       if (allocated(c%lvac)) deallocate(c%lvac)
-       allocate(c%lvac(3,c%nlvac))
        do i = 1, c%nlvac
-          c%lvac(:,i) = uvec(:,4-i)
+          c%lvac(:,i) = lattice_direction(uvec(:,4-1))
        end do
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if

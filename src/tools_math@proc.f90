@@ -565,34 +565,82 @@ contains
     return
   end function ep
 
-  !> Compute greatest common divisor of array of integers n
-  !> num is the number of elements of n to be included.
-  module function gcd(n,num)
-    use tools_io, only: ferror, faterr
-    integer :: n(num) !< Input array of numbers
-    integer :: num !< Do the gcd of 1..num
-    integer :: gcd 
+  !> Compute the greatest common divisor of an array of num integers (n). 
+  module function gcdn(n,num)
+    integer, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer :: gcdn
 
     integer :: ini, i, mayor, menor, nresto
 
-    if (num <= 0 .or. any(n <= 0)) call ferror('gcd','incorrect arguments',faterr)
+    gcdn = 0
+    if (num <= 0) return
+    if (num == 1) then
+       gcdn = n(1)
+       return
+    end if
 
-    ini=n(1)
-    do i=2,num
-       mayor=max(ini,n(i))
-       menor=min(ini,n(i))
-       nresto=mod(mayor,menor)
-       do while (nresto .ne. 0)
-          mayor=menor
-          menor=nresto
-          nresto=mod(mayor,menor)
-       enddo
-       ini=menor
-    enddo
-    gcd=ini
+    gcdn = gcd2(n(1),n(2))
+    do i = 3, num
+       gcdn = gcd2(gcdn,n(i))
+    end do
 
-  end function gcd
+  end function gcdn
   
+  !> Compute greatest common divisor of two integers.
+  module function gcd2(m,n)
+    integer, intent(in) :: m
+    integer, intent(in) :: n
+    integer :: gcd2
+
+    integer :: mhi, mlo, q
+
+    gcd2 = 1
+
+    mhi = max(m,n)
+    mlo = min(m,n)
+    do while (.true.)
+       q = mod(mhi,mlo)
+       if (q == 0) exit
+       mhi = mlo
+       mlo = q
+    end do
+    gcd2 = mlo
+
+  end function gcd2
+  
+  !> Compute the least common multiple of an array of num integers (n). 
+  module function lcmn(n,num)
+    integer, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer :: lcmn
+
+    integer :: i
+
+    lcmn = 0
+    if (num <= 0) return
+    if (num == 1) then
+       lcmn = n(1)
+       return
+    end if
+
+    lcmn = lcm2(n(1),n(2))
+    do i = 3, num
+       lcmn = lcm2(lcmn,n(i))
+    end do
+
+  end function lcmn
+
+  !> Compute the least common multiple of two integers.
+  module function lcm2(m,n)
+    integer, intent(in) :: m, n
+    integer :: lcm2
+
+    lcm2 = m * (n / gcd2(m,n))
+
+  end function lcm2
+
+  !> Find a rational number q/r that approximates x0 to within eps.
   module subroutine rational_approx(x0,q,r,eps)
     real*8, intent(in) :: x0
     integer*8, intent(out):: q, r
@@ -650,6 +698,21 @@ contains
     return
 
   end subroutine rational_approx
+
+  !> Find a rational number q/r that approximates x0 to within eps.
+  module function lattice_direction(x0) result(yy)
+    real*8, intent(in) :: x0(3)
+    integer :: yy(3)
+
+    integer*8 :: q(3), r(3)
+    integer :: i
+
+    do i = 1, 3
+       call rational_approx(x0(i),q(i),r(i),1d-5)
+    end do
+
+
+  end function lattice_direction
 
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric matrix.
   !> The eigenvectors are stored column-wise in mat.
