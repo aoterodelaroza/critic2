@@ -571,7 +571,7 @@ contains
     integer, intent(in) :: num
     integer :: gcdn
 
-    integer :: ini, i, mayor, menor, nresto
+    integer :: i
 
     gcdn = 0
     if (num <= 0) return
@@ -640,7 +640,86 @@ contains
 
   end function lcm2
 
-  !> Find a rational number q/r that approximates x0 to within eps.
+  !> Compute the greatest common divisor of an array of num integers (n). 
+  !> integer*8 version.
+  module function gcdn_i8(n,num)
+    integer*8, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer*8 :: gcdn_i8
+
+    integer :: i
+
+    gcdn_i8 = 0
+    if (num <= 0) return
+    if (num == 1) then
+       gcdn_i8 = n(1)
+       return
+    end if
+
+    gcdn_i8 = gcd2_i8(n(1),n(2))
+    do i = 3, num
+       gcdn_i8 = gcd2_i8(gcdn_i8,n(i))
+    end do
+
+  end function gcdn_i8
+  
+  !> Compute greatest common divisor of two integers.  integer*8
+  !> version.
+  module function gcd2_i8(m,n)
+    integer*8, intent(in) :: m
+    integer*8, intent(in) :: n
+    integer*8 :: gcd2_i8
+
+    integer*8 :: mhi, mlo, q
+
+    gcd2_i8 = 1
+
+    mhi = max(m,n)
+    mlo = min(m,n)
+    do while (.true.)
+       q = mod(mhi,mlo)
+       if (q == 0) exit
+       mhi = mlo
+       mlo = q
+    end do
+    gcd2_i8 = mlo
+
+  end function gcd2_i8
+  
+  !> Compute the least common multiple of an array of num integers
+  !> (n).  integer*8 version.
+  module function lcmn_i8(n,num)
+    integer*8, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer*8 :: lcmn_i8
+
+    integer :: i
+
+    lcmn_i8 = 0
+    if (num <= 0) return
+    if (num == 1) then
+       lcmn_i8 = n(1)
+       return
+    end if
+
+    lcmn_i8 = lcm2_i8(n(1),n(2))
+    do i = 3, num
+       lcmn_i8 = lcm2_i8(lcmn_i8,n(i))
+    end do
+
+  end function lcmn_i8
+
+  !> Compute the least common multiple of two integers.  integer*8
+  !> version.
+  module function lcm2_i8(m,n)
+    integer*8, intent(in) :: m, n
+    integer*8 :: lcm2
+
+    lcm2_i8 = m * (n / gcd2_i8(m,n))
+
+  end function lcm2_i8
+
+  !> Find a rational number q/r that approximates x0 to within eps (r > 0).
   module subroutine rational_approx(x0,q,r,eps)
     real*8, intent(in) :: x0
     integer*8, intent(out):: q, r
@@ -699,18 +778,39 @@ contains
 
   end subroutine rational_approx
 
-  !> Find a rational number q/r that approximates x0 to within eps.
-  module function lattice_direction(x0) result(yy)
+  !> Find the lattice vector corresponding to the input real vector
+  !> x0. If allowr is .true. yy can be either in x0 or -x0 direction,
+  !> and the routine chooses the one with fewer minus signs.
+  module function lattice_direction(x0,allowr) result(yy)
     real*8, intent(in) :: x0(3)
+    logical, intent(in) :: allowr
     integer :: yy(3)
 
-    integer*8 :: q(3), r(3)
-    integer :: i
+    integer*8 :: q(3), r(3), dl
+    integer :: i, miny, nminus, nplus
 
     do i = 1, 3
        call rational_approx(x0(i),q(i),r(i),1d-5)
     end do
+    dl = lcm(r,3)
 
+    do i = 1, 3
+       yy(i) = int(q(i) * (dl / r(i)),4)
+    end do
+
+    miny = maxval(abs(yy))
+    do i = 1, 3
+       if (yy(i) /= 0) then
+          miny = min(miny,abs(yy(i)))
+       end if
+    end do
+    yy = yy / miny
+
+    if (allowr) then
+       nminus = count(yy < 0)
+       nplus = count(yy > 0)
+       if (nminus > nplus) yy = - yy
+    end if
 
   end function lattice_direction
 

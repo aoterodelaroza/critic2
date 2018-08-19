@@ -1194,7 +1194,7 @@ contains
           call ferror("fill_molecular_fragments","incorrect number of vacuum vectors",faterr)
 
        do i = 1, c%nlvac
-          c%lvac(:,i) = lattice_direction(uvec(:,4-1))
+          c%lvac(:,i) = lattice_direction(uvec(:,4-1),.true.)
        end do
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if

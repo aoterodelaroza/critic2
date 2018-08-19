@@ -64,10 +64,14 @@ module tools_math
   interface gcd
      module procedure gcd2
      module procedure gcdn
+     module procedure gcd2_i8
+     module procedure gcdn_i8
   end interface gcd
   interface lcm
      module procedure lcm2
      module procedure lcmn
+     module procedure lcm2_i8
+     module procedure lcmn_i8
   end interface lcm
 
   interface
@@ -142,13 +146,32 @@ module tools_math
        integer, intent(in) :: m, n
        integer :: lcm2
      end function lcm2
+     module function gcdn_i8(n,num)
+       integer*8, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer*8 :: gcdn_i8
+     end function gcdn_i8
+     module function gcd2_i8(m,n)
+       integer*8, intent(in) :: m, n
+       integer*8 :: gcd2_i8
+     end function gcd2_i8
+     module function lcmn_i8(n,num)
+       integer*8, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer*8 :: lcmn_i8
+     end function lcmn_i8
+     module function lcm2_i8(m,n)
+       integer*8, intent(in) :: m, n
+       integer*8 :: lcm2_i8
+     end function lcm2_i8
      module subroutine rational_approx(x0,q,r,eps)
        real*8, intent(in) :: x0
        integer*8, intent(out):: q, r
        real*8, intent(in) :: eps
      end subroutine rational_approx
-     module function lattice_direction(x0) result (yy)
+     module function lattice_direction(x0,allowr) result (yy)
        real*8, intent(in) :: x0(3)
+       logical, intent(in) :: allowr
        integer :: yy(3)
      end function lattice_direction
      module subroutine eig(mat,eval)
