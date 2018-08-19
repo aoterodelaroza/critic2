@@ -234,9 +234,10 @@ contains
   !> weights does not involve a double sum over atoms.
   module subroutine genmesh_franchini(m,c,lvl)
     use crystalmod, only: crystal
+    use environmod, only: environ
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: faterr, ferror
-    use param, only: maxzat, fourpi
+    use param, only: maxzat, fourpi, icrd_cart
     class(mesh), intent(inout) :: m
     type(crystal), intent(in) :: c
     integer, intent(in) :: lvl
@@ -244,12 +245,28 @@ contains
     real*8 :: r, r1, vp0, vpsum
     integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
-    integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
+    integer, allocatable :: eid(:)
+    integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2, nat, lvec(3), ierr
     real*8 :: x(3), fscal, fscal2, xnuc(3)
-    real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
+    real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:), dist(:)
+    logical :: isealloc
+    type(environ), allocatable :: env
+
+    real*8, parameter :: rthres = 12d0 ! contribution to weight: 2e-14
 
     ! reset the arrays
     call m%end()
+
+    ! pointer to the environment
+    if (rthres >= c%env%dmax0.and..not.c%ismolecule) then
+       isealloc = .true.
+       allocate(env)
+       call env%extend(c%env,rthres)
+    else
+       ! keep a pointer to the environment
+       isealloc = .false.
+    end if
+    
 
     ! allocate space for the mesh
     m%n = 0
@@ -278,8 +295,8 @@ contains
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
-    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1,xnuc) &
-    !$omp firstprivate(rads,wrads,xang,yang,zang,wang)
+    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1,xnuc,nat,lvec,ierr) &
+    !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist)
     do i = 1, c%ncel
        xnuc = c%x2xr(c%atcel(i)%x)
        xnuc = xnuc - floor(xnuc)
@@ -311,9 +328,23 @@ contains
           do il = 1, nang
              x = xnuc + r * (/xang(il),yang(il),zang(il)/)
 
+             ! find all atoms within a distance = rthres from the mesh point
+             if (isealloc) then
+                call env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rthres)
+             else
+                call c%env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rthres)
+             end if
+             if (ierr > 0) then
+                call ferror('genmesh_franchini','could not find environment of a mesh point',faterr)
+             end if
+
              vpsum = 0d0
-             do j = 1, c%env%n
-                iz2 = c%spc(c%env%at(j)%is)%z 
+             do j = 1, nat
+                if (isealloc) then
+                   iz2 = c%spc(env%at(eid(j))%is)%z 
+                else
+                   iz2 = c%spc(c%env%at(eid(j))%is)%z 
+                end if
                 if (iz2 < 1 .or. iz2 > maxzat) then
                    cycle
                 elseif (iz2 == 1) then
@@ -321,12 +352,11 @@ contains
                 else
                    fscal2 = 1d0
                 end if
-                r1 = sqrt((x(1)-c%env%at(j)%r(1))**2+(x(2)-c%env%at(j)%r(2))**2+(x(3)-c%env%at(j)%r(3))**2)
-                vpsum = vpsum + fscal2 * exp(-2d0 * r1) / max(r1,1d-10)**3
+                vpsum = vpsum + fscal2 * exp(-2d0 * dist(j)) / max(dist(j),1d-10)**3
              enddo
                 
              !$omp critical (mmesh)
-             meshrl(il,ir,i) = vp0/vpsum * wrads(ir) * wang(il)
+             meshrl(il,ir,i) = vp0/max(vpsum,1d-40) * wrads(ir) * wang(il)
              meshx(:,il,ir,i) = x
              !$omp end critical (mmesh)
           enddo
@@ -341,6 +371,7 @@ contains
     if (allocated(yang)) deallocate(yang)
     if (allocated(zang)) deallocate(zang)
     if (allocated(wang)) deallocate(wang)
+    if (isealloc) deallocate(env)
 
     ! fill the 3d mesh
     kk = 0
