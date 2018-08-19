@@ -479,6 +479,9 @@ contains
        end do
     end do
     ! sort by vector length
+    do i = 1, ngrtot
+       idx(i) = i
+    end do
     call qcksort(gc,idx,1,ngrtot)
 
     ! re-order arrays
