@@ -115,6 +115,10 @@ contains
 
     ! no molecular fragments
     c%nmol = 0
+    if (allocated(c%nstar)) deallocate(c%nstar)
+    if (allocated(c%mol)) deallocate(c%mol)
+    c%nlvac = 0
+    if (allocated(c%lvac)) deallocate(c%lvac)
 
     ! core charges
     c%zpsp = -1
@@ -140,6 +144,7 @@ contains
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
+    if (allocated(c%lvac)) deallocate(c%lvac)
     call c%env%end()
     c%isinit = .false.
     c%havesym = 0
@@ -157,6 +162,7 @@ contains
     c%ws_nf = 0
     c%ws_mnfv = 0
     c%nmol = 0
+    c%nlvac = 0
 
   end subroutine struct_end
 
@@ -1022,16 +1028,16 @@ contains
   !> extended or molecular. Fills c%nmol and c%mol.
   module subroutine fill_molecular_fragments(c)
     use fragmentmod, only: realloc_fragment
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, warning
     use types, only: realloc
     class(crystal), intent(inout) :: c
 
     integer :: i, j, k, l, jid, newid, newl(3)
-    integer :: nat
+    integer :: nat, nlvec, lwork, info
     logical :: found, fdisc
     integer, allocatable :: id(:), lvec(:,:)
-    logical, allocatable :: ldone(:)
-    logical, allocatable :: used(:)
+    logical, allocatable :: ldone(:), used(:)
+    real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8 :: xcm(3)
 
     if (.not.allocated(c%nstar)) &
@@ -1086,13 +1092,13 @@ contains
                 if (found) exit
              end do
              if (found) then
-                if (.not.fdisc) then
+                if (.not.fdisc.and..not.c%ismolecule) then
                    if (.not.allocated(c%mol(c%nmol)%lvec)) allocate(c%mol(c%nmol)%lvec(3,1))
 
-                   newl = abs(newl - lvec(:,l))
+                   newl = newl - lvec(:,l)
                    found = .false.
                    do l = 1, c%mol(c%nmol)%nlvec
-                      if (all(c%mol(c%nmol)%lvec(:,l) == newl)) then
+                      if (all(c%mol(c%nmol)%lvec(:,l) == newl) .or. all(c%mol(c%nmol)%lvec(:,l) == -newl)) then
                          found = .true.
                          exit
                       end if
@@ -1159,6 +1165,38 @@ contains
              c%mol(i)%at(j)%lvec = c%mol(i)%at(j)%lvec - newl
           end do
        end do
+    end if
+
+    ! accumulate all the lattice vectors and calculate the vacuum lattice vectors 
+    nlvec = 0
+    c%nlvac = 0
+    do i = 1, c%nmol
+       nlvec = nlvec + c%mol(i)%nlvec
+    end do
+    if (nlvec > 0) then
+       allocate(rlvec(3,nlvec))
+       k = 0
+       do i = 1, c%nmol
+          do j = 1, c%mol(i)%nlvec
+             k = k + 1
+             rlvec(:,k) = c%mol(i)%lvec(:,j)
+          end do
+       end do
+
+       lwork = 5*3 + max(nlvec,3)
+       allocate(sigma(3),uvec(3,3),vvec(1,1),work(lwork))
+       call dgesvd('A','N',3,k,rlvec,3,sigma,uvec,3,vvec,1,work,lwork,info)
+       if (info /= 0) then
+          call ferror("fill_molecular_fragments","dgesvd failed!",warning)
+       end if
+
+       c%nlvac = count(abs(sigma) < 1d-12)
+       if (allocated(c%lvac)) deallocate(c%lvac)
+       allocate(c%lvac(3,c%nlvac))
+       do i = 1, c%nlvac
+          c%lvac(:,i) = uvec(:,4-i)
+       end do
+       deallocate(rlvec,sigma,uvec,vvec,work)
     end if
 
   end subroutine fill_molecular_fragments
