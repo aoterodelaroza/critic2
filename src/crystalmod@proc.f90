@@ -1194,7 +1194,7 @@ contains
           call ferror("fill_molecular_fragments","incorrect number of vacuum vectors",faterr)
 
        do i = 1, c%nlvac
-          c%lvac(:,i) = lattice_direction(uvec(:,4-1),.true.)
+          c%lvac(:,i) = lattice_direction(uvec(:,4-i),.true.)
        end do
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if
@@ -2647,8 +2647,11 @@ contains
                 write (uout,'(/"+ This is a molecular crystal.")')
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
+                write (uout,'("  Vacuum lattice vector (1): ",3(A,X))') (string(c%lvac(j,1)),j=1,3)
+                write (uout,'("  Vacuum lattice vector (2): ",3(A,X))') (string(c%lvac(j,2)),j=1,3)
              else if (c%nlvac == 1) then
                 write (uout,'(/"+ This is a 2D periodic (layered) structure.")')
+                write (uout,'("  Vacuum lattice vector: ",3(A,X))') (string(c%lvac(j,1)),j=1,3)
              else 
                 write (uout,'(/"+ This is a 3D periodic structure.")')
              end if
