@@ -32,6 +32,7 @@ module tools_math
   public :: radial_derivs
   public :: ep
   public :: gcd
+  public :: rational_approx
   public :: eig
   public :: eigns
   public :: rsindex
@@ -116,6 +117,11 @@ module tools_math
        integer :: num
        integer :: gcd 
      end function gcd
+     module subroutine rational_approx(x0,q,r,eps)
+       real*8, intent(in) :: x0
+       integer*8, intent(out):: q, r
+       real*8, intent(in) :: eps
+     end subroutine rational_approx
      module subroutine eig(mat,eval)
        real*8, intent(inout) :: mat(:,:)
        real*8, intent(out), optional :: eval(:)

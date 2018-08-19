@@ -592,6 +592,64 @@ contains
     gcd=ini
 
   end function gcd
+  
+  module subroutine rational_approx(x0,q,r,eps)
+    real*8, intent(in) :: x0
+    integer*8, intent(out):: q, r
+    real*8, intent(in) :: eps
+
+    real*8 :: x, diff, qr
+    integer*8 :: nx, a, b, c, d
+
+    ! convert to 0->1
+    nx = floor(x0)
+    x = x0 - nx
+
+    ! set a and b and check if x0 is an integer
+    a = 0
+    b = 1
+    diff = abs(real(a,8)/real(b,8) - x)
+    if (diff < eps) then
+       q = a
+       r = b
+       goto 999
+    end if
+
+    ! set c and d and check if x0 is an integer
+    c = 1
+    d = 1
+    diff = abs(real(c,8)/real(d,8) - x)
+    if (diff < eps) then
+       q = c
+       r = d
+       goto 999
+    end if
+
+    ! bisect the fraction: a/b < (a+c)/(b+d) < c/d
+    do while (.true.)
+       q = a+c
+       r = b+d
+
+       qr = real(q,8) / real(r,8)
+       diff = abs(qr - x)
+       if (diff < eps) exit
+
+       if (x > qr) then
+          a = q
+          b = r
+       else
+          c = q
+          d = r
+       end if
+    end do
+
+    ! recover the original value
+999 continue
+    q = r * nx + q
+
+    return
+
+  end subroutine rational_approx
 
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric matrix.
   !> The eigenvectors are stored column-wise in mat.

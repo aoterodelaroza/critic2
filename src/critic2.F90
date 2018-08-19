@@ -538,7 +538,6 @@ program critic
 
         ! temp, for testing
      elseif (equal(word,'temp')) then
-        !
 
         ! end
      elseif (equal(word,'end')) then
