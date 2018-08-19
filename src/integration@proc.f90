@@ -830,7 +830,7 @@ contains
     end do
     
     ! Molecular properties
-    if (.not.sy%c%ismolecule .and. all(sy%c%moldiscrete(1:sy%c%nmol))) then
+    if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
        ! Assign attractors to molecules
        idxmol = 0
        do i = 1, nattr
@@ -2180,7 +2180,7 @@ contains
        end do
 
        ! Integrated molecular LI/DI
-       if (.not.sy%c%ismolecule .and. all(sy%c%moldiscrete(1:sy%c%nmol))) then
+       if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
           ! Assign attractors to molecules
           idxmol = 0
           do i = 1, natt

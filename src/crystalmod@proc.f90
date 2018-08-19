@@ -140,7 +140,6 @@ contains
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
-    if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
     call c%env%end()
     c%isinit = .false.
     c%havesym = 0
@@ -1018,8 +1017,9 @@ contains
   end function listatoms_sphcub
 
   !> Using the calculated asterisms for each atom determine the
-  !> molecular in the system and whether the crystal is extended or
-  !> molecular. This routine fills nmol, mol, and moldiscrete.
+  !> molecules in the system by finding the connected components of
+  !> the graph. This routine also determines whether the crystal is
+  !> extended or molecular. Fills c%nmol and c%mol.
   module subroutine fill_molecular_fragments(c)
     use fragmentmod, only: realloc_fragment
     use tools_io, only: ferror, faterr
@@ -1037,14 +1037,12 @@ contains
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
     if (allocated(c%mol)) deallocate(c%mol)
-    if (allocated(c%moldiscrete)) deallocate(c%moldiscrete)
 
     ! initizialize 
     allocate(used(c%ncel))
     used = .false.
     c%nmol = 0
-    allocate(c%mol(1),c%moldiscrete(1),id(10),lvec(3,10),ldone(10))
-    c%moldiscrete = .true.
+    allocate(c%mol(1),id(10),lvec(3,10),ldone(10))
 
     ! run over atoms in the unit cell
     do i = 1, c%ncel
@@ -1054,9 +1052,9 @@ contains
        c%nmol = c%nmol + 1
        if (c%nmol > size(c%mol)) then
           call realloc_fragment(c%mol,2*c%nmol)
-          call realloc(c%moldiscrete,2*c%nmol)
-          c%moldiscrete(c%nmol:2*c%nmol) = .true.
        end if
+       c%mol(c%nmol)%discrete = .true.
+       c%mol(c%nmol)%nlvec = 0
 
        ! initialize the stack with atom i in the seed
        nat = 1
@@ -1089,7 +1087,25 @@ contains
              end do
              if (found) then
                 if (.not.fdisc) then
-                   c%moldiscrete(c%nmol) = .false.
+                   if (.not.allocated(c%mol(c%nmol)%lvec)) allocate(c%mol(c%nmol)%lvec(3,1))
+
+                   newl = abs(newl - lvec(:,l))
+                   found = .false.
+                   do l = 1, c%mol(c%nmol)%nlvec
+                      if (all(c%mol(c%nmol)%lvec(:,l) == newl)) then
+                         found = .true.
+                         exit
+                      end if
+                   end do
+                   if (.not.found) then
+                      c%mol(c%nmol)%nlvec = c%mol(c%nmol)%nlvec + 1
+                      if (c%mol(c%nmol)%nlvec > size(c%mol(c%nmol)%lvec,2)) then
+                         call realloc(c%mol(c%nmol)%lvec,3,2*c%mol(c%nmol)%nlvec)
+                      end if
+                      c%mol(c%nmol)%lvec(:,c%mol(c%nmol)%nlvec) = newl
+                   end if
+
+                   c%mol(c%nmol)%discrete = .false.
                 end if
                 cycle
              end if
@@ -1126,9 +1142,10 @@ contains
           c%mol(c%nmol)%at(j)%lvec = lvec(:,j)
           c%mol(c%nmol)%at(j)%is = c%atcel(id(j))%is
        end do
+       if (c%mol(c%nmol)%nlvec > 0) &
+          call realloc(c%mol(c%nmol)%lvec,3,c%mol(c%nmol)%nlvec)
     end do
     call realloc_fragment(c%mol,c%nmol)
-    call realloc(c%moldiscrete,c%nmol)
     deallocate(used)
 
     ! translate all fragments to the main cell
@@ -2585,9 +2602,9 @@ contains
                 xcm = c%c2x(c%mol(i)%cmass())
              end if
              write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
-                (string(xcm(j),'f',10,6,3),j=1,3), string(c%moldiscrete(i))
+                (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
           end do
-          if (.not.c%ismolecule .and. all(c%moldiscrete(1:c%nmol))) &
+          if (.not.c%ismolecule .and. all(c%mol(1:c%nmol)%discrete)) &
              write (uout,'(/"+ This is a molecular crystal.")')
           write (uout,*)
        end if

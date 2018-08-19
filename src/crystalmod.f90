@@ -103,7 +103,6 @@ module crystalmod
      type(neighstar), allocatable :: nstar(:) !< Neighbor stars
      integer :: nmol = 0 !< Number of molecules in the unit cell
      type(fragment), allocatable :: mol(:) !< Molecular fragments
-     logical, allocatable :: moldiscrete(:) !< Is the crystal extended or molecular?
 
      !! Initialization level: isewald !!
      ! ewald data

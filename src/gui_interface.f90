@@ -326,7 +326,7 @@ contains
     if (allocated(sc(isc)%moldiscrete)) deallocate(sc(isc)%moldiscrete)
     allocate(sc(isc)%moldiscrete(sc(isc)%nmol))
     do i = 1, sc(isc)%sy%c%nmol
-       if (sc(isc)%sy%c%moldiscrete(i)) then
+       if (sc(isc)%sy%c%mol(i)%discrete) then
           sc(isc)%moldiscrete(i) = 1
        else
           sc(isc)%moldiscrete(i) = 0
