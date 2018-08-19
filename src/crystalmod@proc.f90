@@ -1186,11 +1186,13 @@ contains
        lwork = 5*3 + max(nlvec,3)
        allocate(sigma(3),uvec(3,3),vvec(1,1),work(lwork))
        call dgesvd('A','N',3,k,rlvec,3,sigma,uvec,3,vvec,1,work,lwork,info)
-       if (info /= 0) then
-          call ferror("fill_molecular_fragments","dgesvd failed!",warning)
-       end if
+       if (info /= 0) &
+          call ferror("fill_molecular_fragments","dgesvd failed!",faterr)
 
        c%nlvac = count(abs(sigma) < 1d-12)
+       if (c%nlvac < 1 .or. c%nlvac > 3) &
+          call ferror("fill_molecular_fragments","incorrect number of vacuum vectors",faterr)
+
        if (allocated(c%lvac)) deallocate(c%lvac)
        allocate(c%lvac(3,c%nlvac))
        do i = 1, c%nlvac
@@ -2642,9 +2644,18 @@ contains
              write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
                 (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
           end do
-          if (.not.c%ismolecule .and. all(c%mol(1:c%nmol)%discrete)) &
-             write (uout,'(/"+ This is a molecular crystal.")')
-          write (uout,*)
+          if (.not.c%ismolecule) then
+             if (all(c%mol(1:c%nmol)%discrete)) then
+                write (uout,'(/"+ This is a molecular crystal.")')
+             else if (c%nlvac == 2) then
+                write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
+             else if (c%nlvac == 1) then
+                write (uout,'(/"+ This is a 2D periodic (layered) structure.")')
+             else 
+                write (uout,'(/"+ This is a 3D periodic structure.")')
+             end if
+             write (uout,*)
+          end if
        end if
 
        ! Number of atoms in the atomic environment
