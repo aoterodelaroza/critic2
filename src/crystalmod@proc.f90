@@ -1180,6 +1180,7 @@ contains
           do j = 1, c%mol(i)%nlvec
              k = k + 1
              rlvec(:,k) = c%mol(i)%lvec(:,j)
+             write (*,*) k, rlvec(:,k)
           end do
        end do
 
@@ -1190,9 +1191,6 @@ contains
           call ferror("fill_molecular_fragments","dgesvd failed!",faterr)
 
        c%nlvac = count(abs(sigma) < 1d-12)
-       if (c%nlvac < 1 .or. c%nlvac > 3) &
-          call ferror("fill_molecular_fragments","incorrect number of vacuum vectors",faterr)
-
        do i = 1, c%nlvac
           c%lvac(:,i) = lattice_direction(uvec(:,4-i),.true.)
        end do
@@ -2643,7 +2641,7 @@ contains
                 (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
           end do
           if (.not.c%ismolecule) then
-             if (all(c%mol(1:c%nmol)%discrete)) then
+             if (all(c%mol(1:c%nmol)%discrete) .or. c%nlvac == 3) then
                 write (uout,'(/"+ This is a molecular crystal.")')
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
