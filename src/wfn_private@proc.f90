@@ -744,6 +744,9 @@ contains
     endif
     call fclose(luwfn)
 
+    ! prune repeated primitives
+    call prune_primitives(f)
+
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
 
@@ -885,6 +888,9 @@ contains
     
     ! done
     call fclose(luwfn)
+
+    ! prune repeated primitives
+    call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
@@ -1243,6 +1249,9 @@ contains
     deallocate(ishlt,ishlpri,ishlat)
     deallocate(exppri,ccontr)
     deallocate(mocoef)
+
+    ! prune repeated primitives
+    call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
@@ -1694,6 +1703,9 @@ contains
        end do
        deallocate(motemp,ccontr)
        
+       ! prune repeated primitives
+       call prune_primitives(f)
+
        ! calculate the range of each primitive (in distance^2)
        call complete_struct(f,env)
 
@@ -1803,6 +1815,9 @@ contains
     deallocate(ishlt,ishlpri,ishlat)
     deallocate(exppri,ccontr)
     deallocate(mocoef,cpri)
+
+    ! prune repeated primitives
+    call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
@@ -2435,11 +2450,73 @@ contains
 
   end function wfx_read_reals1
 
-  !> Calculate the distance range of each primitive
+  !> Prune primitives with the same exponent and center. This routine
+  !> must be used before the order mapping and range arrays are 
+  !> calculated (i.e. before complete_struct).
+  subroutine prune_primitives(f)
+    use tools, only: qcksort
+    use types, only: realloc
+    type(molwfn), intent(inout) :: f
+
+    integer :: i, j
+    integer, allocatable :: iord(:)
+    logical, allocatable :: keep(:)
+
+    real*8, parameter :: eps = 1d-12
+
+    ! order by exponent
+    allocate(iord(f%npri))
+    do i = 1, f%npri
+       iord(i) = i
+    end do
+    call qcksort(f%e,iord,1,f%npri)
+
+    ! prune the list
+    allocate(keep(f%npri))
+    keep = .true.
+    do i = 1, f%npri
+       if (.not.keep(iord(i))) cycle
+       do j = i+1, f%npri
+          if (abs(f%e(iord(j)) - f%e(iord(i))) > eps) cycle
+          if ((f%itype(iord(i)) == f%itype(iord(j))) .and. (f%icenter(iord(i)) == f%icenter(iord(j)))) then
+             f%cmo(:,iord(i)) = f%cmo(:,iord(i)) + f%cmo(:,iord(j))
+             keep(iord(j)) = .false.
+          end if
+       end do
+    end do
+    deallocate(iord)
+
+    ! remap all the variables
+    j = 0
+    do i = 1, f%npri
+       if (.not.keep(i)) cycle
+       j = j + 1
+       if (j /= i) then
+          f%cmo(:,j) = f%cmo(:,i)
+       end if
+    end do
+    f%npri = count(keep)
+    f%e(1:f%npri) = pack(f%e,keep)
+    f%icenter(1:f%npri) = pack(f%icenter,keep)
+    f%itype(1:f%npri) = pack(f%itype,keep)
+    call realloc(f%e,f%npri)
+    call realloc(f%icenter,f%npri)
+    call realloc(f%itype,f%npri)
+    call realloc(f%cmo,f%nmoocc,f%npri)
+    deallocate(keep)
+
+  end subroutine prune_primitives
+
+  !> Calculate the distance range of each primitive, global and
+  !> per-species cutoffs, maximum L for each atom, primitive ordering
+  !> mapping, and registers the environment.  If EDFs are available,
+  !> it does the same thing with the core functions. This routine sets
+  !> f%spcutoff, f%globalcutoff, f%dran, f%lmax, f%icord, f%iprilo,
+  !> f%iprihi, f%dran_edf, f%icord_edf, f%iprilo_edf, f%irpihi_edf.
   subroutine complete_struct(f,env)
     use tools, only: qcksort
     use tools_io, only: ferror, faterr
-    class(molwfn), intent(inout) :: f
+    type(molwfn), intent(inout) :: f
     type(environ), intent(in), target :: env
 
     integer :: istat, i, iat
