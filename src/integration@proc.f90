@@ -1360,7 +1360,7 @@ contains
           write (uout,'("Warning: inconsistent grids")')
           write (uout,'(" integrable field: ",3(A,X))') (string(sy%f(fid)%grid%n(j)),j=1,3)
           write (uout,'(" reference field: ",3(A,X))') (string(n(j)),j=1,3)
-          call ferror('intgrid_deloc_wannier','Inconsistent grids',warning)
+          call ferror('intgrid_deloc_wannier','Inconsistent grids - calculation of DIs failed',warning)
           cycle
        end if
        ndeloc = ndeloc + 1
