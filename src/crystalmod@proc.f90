@@ -1180,7 +1180,6 @@ contains
           do j = 1, c%mol(i)%nlvec
              k = k + 1
              rlvec(:,k) = c%mol(i)%lvec(:,j)
-             write (*,*) k, rlvec(:,k)
           end do
        end do
 
