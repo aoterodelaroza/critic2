@@ -1244,7 +1244,7 @@ contains
     real*8, allocatable, intent(inout), optional :: rnn2(:)
     
     integer :: i, j
-    real*8 :: x0(3), dist2, ri, rj, rij2, r2
+    real*8 :: x0(3), dist2, ri, rj, rij2, r2, aeps2
     integer :: p0(3), p1(3), idx1
     integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
@@ -1264,6 +1264,7 @@ contains
     end do
     
     ! allocate the rnn2 array
+    aeps2 = atomeps * atomeps + 1d-10
     if (present(rnn2)) then
        if (allocated(rnn2)) deallocate(rnn2)
        allocate(rnn2(e%ncell))
@@ -1322,7 +1323,7 @@ contains
                       nstar(ki)%idcon(nstar(ki)%ncon) = e%at(kj)%cidx
                       nstar(ki)%lcon(:,nstar(ki)%ncon) = e%at(kj)%lvec- e%at(ki)%lvec
                       if (present(rnn2)) then
-                         if (rnn2(ki) < 1d-10 .or. dist2 < rnn2(ki)) then
+                         if (rnn2(ki) < aeps2 .or. dist2 < rnn2(ki)) then
                             rnn2(ki) = dist2
                          end if
                       end if
