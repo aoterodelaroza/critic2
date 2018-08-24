@@ -105,6 +105,7 @@ module crystalmod
      type(fragment), allocatable :: mol(:) !< Molecular fragments
      integer :: nlvac = 0 !< Number of vacuum lattice vectors
      integer :: lvac(3,2) !< Vacuum lattice vectors
+     integer :: lcon(3,2) !< Connected lattice vectors
 
      !! Initialization level: isewald !!
      ! ewald data

@@ -119,6 +119,7 @@ contains
     if (allocated(c%mol)) deallocate(c%mol)
     c%nlvac = 0
     c%lvac = 0
+    c%lcon = 0
 
     ! core charges
     c%zpsp = -1
@@ -1190,9 +1191,17 @@ contains
           call ferror("fill_molecular_fragments","dgesvd failed!",faterr)
 
        c%nlvac = count(abs(sigma) < 1d-12)
-       do i = 1, c%nlvac
-          c%lvac(:,i) = lattice_direction(uvec(:,4-i),.true.)
-       end do
+       c%lvac = 0d0
+       c%lcon = 0d0
+       if (c%nlvac == 2) then
+          c%lvac(:,1) = lattice_direction(uvec(:,3),.true.)
+          c%lvac(:,2) = lattice_direction(uvec(:,2),.true.)
+          c%lcon(:,1) = lattice_direction(uvec(:,1),.true.)
+       elseif (c%nlvac == 1) then
+          c%lvac(:,1) = lattice_direction(uvec(:,3),.true.)
+          c%lcon(:,1) = lattice_direction(uvec(:,2),.true.)
+          c%lcon(:,2) = lattice_direction(uvec(:,1),.true.)
+       end if
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if
 
@@ -2644,11 +2653,16 @@ contains
                 write (uout,'(/"+ This is a molecular crystal.")')
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
-                write (uout,'("  Vacuum lattice vector (1): ",3(A,X))') (string(c%lvac(j,1)),j=1,3)
-                write (uout,'("  Vacuum lattice vector (2): ",3(A,X))') (string(c%lvac(j,2)),j=1,3)
+                write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
+                   (string(c%lvac(j,1)),j=1,3), (string(c%lvac(j,2)),j=1,3)
+                write (uout,'("  Connected lattice vectors: (",2(A,X),A,")")') &
+                   (string(c%lcon(j,1)),j=1,3)
              else if (c%nlvac == 1) then
                 write (uout,'(/"+ This is a 2D periodic (layered) structure.")')
-                write (uout,'("  Vacuum lattice vector: ",3(A,X))') (string(c%lvac(j,1)),j=1,3)
+                write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,")")') &
+                   (string(c%lvac(j,1)),j=1,3)
+                write (uout,'("  Connected lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
+                   (string(c%lcon(j,1)),j=1,3), (string(c%lcon(j,2)),j=1,3)
              else 
                 write (uout,'(/"+ This is a 3D periodic structure.")')
              end if
