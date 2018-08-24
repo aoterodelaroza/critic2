@@ -463,10 +463,11 @@ module crystalmod
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv)
      end subroutine struct_report_symxyz
-     module subroutine spglib_wrap(c,usenneq,onlyspg)
+     module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: usenneq
        logical, intent(in) :: onlyspg
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine spglib_wrap
      module subroutine wigner(c,area)
        class(crystal), intent(inout) :: c
