@@ -1543,7 +1543,9 @@ contains
   function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
     use systemmod, only: sy
     use crystalmod, only: crystal
-    use param, only: alpha_free
+    use environmod, only: environ
+    use tools_io, only: ferror, faterr
+    use param, only: alpha_free, icrd_cart
     real*8, intent(in) :: a1, a2
     real*8, intent(in) :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1)
     real*8, intent(in) :: mm(3,sy%c%ncel,0:1)
@@ -1551,13 +1553,15 @@ contains
     integer, intent(in) :: i0, i1
     real*8 :: calc_edisp_from_mv
 
-    type(crystal) :: caux
     real*8 :: d, d2
     real*8 :: xij(3), x0(3)
     real*8 :: e, alpha0, alpha1, ml0(3), ml1(3)
-    integer :: jj, i, j, k, iz
+    integer :: jj, i, j, k, iz, nat, lvec2(3), ierr
     real*8 :: rmax, rmax2, maxc6, c6, c8, c10, rc, rvdw
-    real*8, allocatable :: alpha(:,:)
+    real*8, allocatable :: alpha(:,:), dist(:)
+    integer, allocatable :: eid(:)
+    type(environ), pointer :: lenv
+    logical :: isealloc
 
     real*8, parameter :: ecut = 1d-11
 
@@ -1583,33 +1587,37 @@ contains
     ! build the environment
     rmax = (maxc6/ecut)**(1d0/6d0)
     rmax2 = rmax * rmax
-    caux = sy%c
-    if (sy%c%ismolecule) then
-       call caux%env%build(sy%c%ismolecule,caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c)
+    if (rmax >= sy%c%env%dmax0) then
+       isealloc = .true.
+       allocate(lenv)
+       call lenv%extend(sy%c%env,rmax)
     else
-       call caux%env%build(sy%c%ismolecule,caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c,150d0)
+       isealloc = .false.
+       lenv => sy%c%env
     end if
 
     ! calculate the energies and derivatives
     e = 0d0
-    do i = 1, caux%ncel
-       iz = caux%spc(caux%atcel(i)%is)%z
+    do i = 1, lenv%ncell
+       iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
-       x0 = caux%x2c(caux%atcel(i)%x + lvec(:,i,i1))
+       x0 = sy%c%x2c(sy%c%atcel(i)%x + lvec(:,i,i1))
        alpha1 = alpha(i,i1)
        ml1 = mm(:,i,i1)
 
-       do jj = 1, caux%env%n
-          j = caux%env%at(jj)%cidx
-          iz = caux%spc(caux%env%at(jj)%is)%z
+       call lenv%list_near_atoms(x0,icrd_cart,.false.,nat,eid,dist,lvec2,ierr,up2d=rmax,nozero=.true.)
+       if (ierr /= 0) &
+          call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
+
+       do jj = 1, nat
+          j = lenv%at(eid(jj))%cidx
+          iz = lenv%spc(lenv%at(eid(jj))%is)%z
           if (iz < 1) cycle
 
-          xij = caux%env%at(jj)%r - x0
-          d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
-          if (d2 < 1d-15 .or. d2>rmax2) cycle
-          d = sqrt(d2)
+          if (dist(jj) < 1d-15 .or. dist(jj)>rmax2) cycle
+          d = dist(jj)
 
-          if (all(caux%env%at(jj)%lvec == lvec(:,j,i1))) then
+          if (all(lenv%at(eid(jj))%lvec + lvec2 == lvec(:,j,i1))) then
              alpha0 = alpha(j,i1)
              ml0 = mm(:,j,i1)
           else
@@ -1632,6 +1640,7 @@ contains
     end do
     calc_edisp_from_mv = 0.5d0 * e
     deallocate(alpha)
+    if (isealloc) deallocate(lenv)
 
   end function calc_edisp_from_mv
 
