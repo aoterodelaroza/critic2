@@ -843,12 +843,6 @@ contains
     deallocate(ito,ifrom)
 
     lu = fopen_read(string(sy%c%file))
-    if (sy%c%ismolecule) then
-       call sy%c%env%build(sy%c%ismolecule,sy%c%nspc,sy%c%spc(1:sy%c%nspc),sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr,sy%c%m_x2c)
-    else
-       call sy%c%env%build(sy%c%ismolecule,sy%c%nspc,sy%c%spc(1:sy%c%nspc),sy%c%ncel,sy%c%atcel(1:sy%c%ncel),sy%c%m_xr2c,sy%c%m_x2xr,sy%c%m_x2c,150d0)
-    end if
-
     main: do while (getline(lu,line))
        ! read the parameters
        if (trim(line) == "* XDM dispersion") then
@@ -1486,54 +1480,57 @@ contains
   subroutine calc_edisp(c6,c8,c10,rvdw)
     use systemmod, only: sy
     use crystalmod, only: crystal
-    use tools_io, only: uout
+    use environmod, only: environ
+    use tools_io, only: uout, ferror, faterr
+    use param, only: icrd_cart
     real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
     real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
 
-    type(crystal) :: caux
-    integer :: i, j, jj, iz
+    integer :: i, j, jj, iz, nat, ierr, lvec(3)
     real*8 :: d, d2
-    real*8 :: xij(3), xi(3)
     real*8 :: e
-    real*8 :: rmax, rmax2, maxc6
+    real*8 :: rmax, maxc6
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+    type(environ), pointer :: lenv
+    logical :: isealloc
 
     real*8, parameter :: ecut = 1d-11
 
     ! build the environment
     maxc6 = maxval(c6)
     rmax = (maxc6/ecut)**(1d0/6d0)
-    rmax2 = rmax * rmax
-    caux = sy%c
-    if (sy%c%ismolecule) then
-       call caux%env%build(sy%c%ismolecule,caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c)
+    if (rmax >= sy%c%env%dmax0) then
+       isealloc = .true.
+       allocate(lenv)
+       call lenv%extend(sy%c%env,rmax)
     else
-       call caux%env%build(sy%c%ismolecule,caux%nspc,caux%spc(1:caux%nspc),caux%ncel,caux%atcel(1:caux%ncel),caux%m_xr2c,caux%m_x2xr,caux%m_x2c,150d0)
+       isealloc = .false.
+       lenv => sy%c%env
     end if
 
     ! calculate the energies and derivatives
     e = 0d0
-    do i = 1, caux%ncel
-       iz = caux%spc(caux%atcel(i)%is)%z
+    do i = 1, lenv%ncell
+       iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
-       xi = sy%c%x2xr(sy%c%atcel(i)%x)
-       xi = xi - floor(xi)
-       xi = sy%c%xr2c(xi)
+       call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax,nozero=.true.)
+       if (ierr /= 0) &
+          call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
 
-       do jj = 1, caux%env%n
-          j = caux%env%at(jj)%cidx
-          iz = caux%spc(caux%env%at(jj)%is)%z
+       do jj = 1, nat
+          j = lenv%at(eid(jj))%cidx
+          iz = lenv%spc(lenv%at(eid(jj))%is)%z
           if (iz < 1) cycle
-          xij = caux%env%at(jj)%r-xi
-          d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
-          if (d2 < 1d-15 .or. d2>rmax2) cycle
-          d = sqrt(d2)
-
+          if (dist(jj) < 1d-15 .or. dist(jj) > rmax) cycle
+          d = dist(jj)
           e = e - c6(i,j) / (rvdw(i,j)**6 + d**6) &
                 - c8(i,j) / (rvdw(i,j)**8 + d**8) &
                 - c10(i,j) / (rvdw(i,j)**10 + d**10)
        end do
     end do
     e = 0.5d0 * e
+    if (isealloc) deallocate(lenv)
 
     write (uout,'("dispersion energy (Ha) ",1p,E20.12)') e
     write (uout,'("dispersion energy (Ry) ",1p,E20.12)') 2d0*e
