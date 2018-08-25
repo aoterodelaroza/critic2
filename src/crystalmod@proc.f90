@@ -119,6 +119,7 @@ contains
     if (allocated(c%mol)) deallocate(c%mol)
     c%nlvac = 0
     c%lvac = 0
+    c%lcon = 0
 
     ! core charges
     c%zpsp = -1
@@ -174,7 +175,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string
+    use tools_io, only: ferror, faterr, warning, zatguess, string
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -182,10 +183,11 @@ contains
     logical, intent(in) :: crashfail
     
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
-    logical :: good, hasspg
+    logical :: good, hasspg, clearsym
     integer :: i, j, iat
     real*8, allocatable :: atpos(:,:), rnn2(:)
     integer, allocatable :: irotm(:), icenv(:)
+    character(len=:), allocatable :: errmsg
 
     if (.not.seed%isused) then
        if (crashfail) then
@@ -424,16 +426,31 @@ contains
 
     ! symmetry from spglib
     hasspg = .false.
+    clearsym = .false.
     if (.not.seed%ismolecule .and. seed%havesym == 0 .and. (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
        ! symmetry was not available, and I want it
        ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
-       call c%spglib_wrap(.true.,.false.)
-       hasspg = .true.
+       call c%spglib_wrap(.true.,.false.,errmsg)
+       if (len_trim(errmsg) > 0) then
+          clearsym = .true.
+          call ferror("struct_new",errmsg,warning)
+       else
+          hasspg = .true.
+       end if
     else if (c%havesym > 0 .and..not.hasspg) then
        ! symmetry was already available, but I still want the space group details
-       call c%spglib_wrap(.false.,.true.)
+       call c%spglib_wrap(.false.,.true.,errmsg)
+       if (len_trim(errmsg) > 0) then
+          clearsym = .true.
+          call ferror("struct_new",errmsg,warning)
+       end if
     else
-       ! symmetry was not available, and I do not want it - make a copy of at() to atcel()
+       clearsym = .true.
+    end if
+
+    if (clearsym) then
+       ! symmetry was not available or there was an error, and I do not 
+       ! want symmetry - make a copy of at() to atcel()
        c%ncel = c%nneq
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))
@@ -448,6 +465,10 @@ contains
           c%atcel(i)%lvec = 0
           c%atcel(i)%is = c%at(i)%is
        end do
+       c%neqv = 1
+       c%rotm = 0d0
+       c%rotm(:,:,1) = eyet
+       c%spg%n_atoms = 0
     end if
 
     ! load the atomic density grids
@@ -1190,9 +1211,17 @@ contains
           call ferror("fill_molecular_fragments","dgesvd failed!",faterr)
 
        c%nlvac = count(abs(sigma) < 1d-12)
-       do i = 1, c%nlvac
-          c%lvac(:,i) = lattice_direction(uvec(:,4-i),.true.)
-       end do
+       c%lvac = 0d0
+       c%lcon = 0d0
+       if (c%nlvac == 2) then
+          c%lvac(:,1) = lattice_direction(uvec(:,3),.true.)
+          c%lvac(:,2) = lattice_direction(uvec(:,2),.true.)
+          c%lcon(:,1) = lattice_direction(uvec(:,1),.true.)
+       elseif (c%nlvac == 1) then
+          c%lvac(:,1) = lattice_direction(uvec(:,3),.true.)
+          c%lcon(:,1) = lattice_direction(uvec(:,2),.true.)
+          c%lcon(:,2) = lattice_direction(uvec(:,1),.true.)
+       end if
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if
 
@@ -2644,11 +2673,16 @@ contains
                 write (uout,'(/"+ This is a molecular crystal.")')
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
-                write (uout,'("  Vacuum lattice vector (1): ",3(A,X))') (string(c%lvac(j,1)),j=1,3)
-                write (uout,'("  Vacuum lattice vector (2): ",3(A,X))') (string(c%lvac(j,2)),j=1,3)
+                write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
+                   (string(c%lvac(j,1)),j=1,3), (string(c%lvac(j,2)),j=1,3)
+                write (uout,'("  Connected lattice vectors: (",2(A,X),A,")")') &
+                   (string(c%lcon(j,1)),j=1,3)
              else if (c%nlvac == 1) then
                 write (uout,'(/"+ This is a 2D periodic (layered) structure.")')
-                write (uout,'("  Vacuum lattice vector: ",3(A,X))') (string(c%lvac(j,1)),j=1,3)
+                write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,")")') &
+                   (string(c%lvac(j,1)),j=1,3)
+                write (uout,'("  Connected lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
+                   (string(c%lcon(j,1)),j=1,3), (string(c%lcon(j,2)),j=1,3)
              else 
                 write (uout,'(/"+ This is a 3D periodic structure.")')
              end if
@@ -2798,16 +2832,17 @@ contains
   !> spg, at()%mult, ncel, and atcel(). If usenneq is .true., use nneq
   !> and at(:) instead of ncel and atcel. If onlyspg is .true., fill
   !> only the spg field and leave the others unchanged.
-  module subroutine spglib_wrap(c,usenneq,onlyspg)
+  module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
     use global, only: symprec, atomeps
-    use tools_io, only: string, ferror, equal, faterr
+    use tools_io, only: string, equal
     use param, only: maxzat0, eyet, eye
     use types, only: realloc
     class(crystal), intent(inout) :: c
     logical, intent(in) :: usenneq
     logical, intent(in) :: onlyspg
+    character(len=:), allocatable, intent(out) :: errmsg
 
     real(c_double) :: lattice(3,3)
     real(c_double), allocatable :: x(:,:)
@@ -2820,6 +2855,7 @@ contains
     logical, allocatable :: used(:)
 
     ! get the dataset from spglib
+    errmsg = ""
     lattice = transpose(c%m_x2c)
     iz = 0
     ntyp = 0
@@ -2845,8 +2881,10 @@ contains
 
     ! check error messages
     error = trim(spg_get_error_message(c%spg%spglib_error))
-    if (.not.equal(error,"no error")) &
-       call ferror("spglib_wrap","error from spglib: "//string(error),faterr)
+    if (.not.equal(error,"no error")) then
+       errmsg = string(error)
+       return
+    end if
 
     if (onlyspg) return
 
@@ -2950,9 +2988,10 @@ contains
           end do
        end do
     end do main
-    if (.not.all(used)) &
-       call ferror("spglib_wrap","error building rotation and center information for atom list",faterr)
-
+    if (.not.all(used)) then
+       errmsg = "error building rotation and center information for atom list"
+    end if
+       
   end subroutine spglib_wrap
 
   !xx! Wigner-Seitz cell tools and cell partition
