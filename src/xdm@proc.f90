@@ -118,6 +118,7 @@ contains
 
   !> Calculate XDM using grids.
   subroutine xdm_grid(line)
+    use environmod, only: environ
     use systemmod, only: sy
     use crystalmod, only: search_lattice
     use grid1mod, only: grid1, agrid
@@ -131,17 +132,19 @@ contains
     character(len=:), allocatable :: word
     integer :: lp, irho, itau, ielf, ipdens, icor, ilap, igrad, irhoae, ib
     integer :: i, j, k, l, n(3), ntot, ii, jj, nn, m1, m2
-    real*8 :: x(3), xi(3), rhoat, rhocore, rdum1(3), rdum2(3,3), maxc6
+    real*8 :: x(3), rhoat, rhocore, rdum1(3), rdum2(3,3), maxc6
     real*8 :: rhos, rhot, grho, lap, taus, ds, qs, rhs, xroot, xshift, xold, expx
     real*8 :: gx, fx, ffx, rmax, rmax2, ri, rhofree, raux1, raux2, wei, db
     real*8 :: mll(3), avoll, a1, a2, c6, c8, c9, c10, rvdw, ri2, db2
     real*8 :: eat, sat(3,3), ri3, rix, fcom, cn0, fll, rvdwx, exx, fxx
     integer :: ll, iat, nvec, imax, jmax, kmax, i3, i3i, l1, l2
-    real*8, allocatable :: rc(:,:), alpha(:), ml(:,:), avol(:), afree(:)
-    integer, allocatable :: lvec(:,:), ityp(:)
+    real*8, allocatable :: rc(:,:), alpha(:), ml(:,:), avol(:), afree(:), dist(:)
+    integer, allocatable :: lvec(:,:), ityp(:), eid(:)
     logical :: isdefa, onlyc
     real*8 :: etotal, sigma(3,3), for(3,sy%c%ncel), ehadd(6:10)
-    integer :: nclean, iclean(8), upto
+    integer :: nclean, iclean(8), upto, lvec2(3), nat, ierr
+    logical :: isealloc
+    type(environ), pointer :: lenv
 
     real*8, parameter :: ecut = 1d-11
 
@@ -631,21 +634,30 @@ contains
 
     ! set the atomic environment for the sum
     rmax = (maxc6/ecut)**(1d0/6d0)
+    if (rmax >= sy%c%env%dmax0) then
+       isealloc = .true.
+       allocate(lenv)
+       call lenv%extend(sy%c%env,rmax)
+    else
+       isealloc = .false.
+       lenv => sy%c%env
+    end if
     rmax2 = rmax*rmax
     do ii = 1, sy%c%ncel
        i = sy%c%atcel(ii)%idx
-       xi = sy%c%x2xr(sy%c%atcel(ii)%x)
-       xi = xi - floor(xi)
-       xi = sy%c%xr2c(xi)
+       call lenv%list_near_atoms(sy%c%atcel(ii)%x,icrd_crys,.false.,nat,eid,dist,lvec2,ierr,up2d=rmax,nozero=.true.)
+       if (ierr /= 0) &
+          call ferror("xdm_grid","error listing atoms from the environment",faterr)
 
        eat = 0d0
        sat = 0d0
-       do jj = 1, sy%c%env%n
-          j = sy%c%env%at(jj)%idx
-          x = sy%c%env%at(jj)%r - xi
-          ri2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
-          if (ri2 < 1d-15 .or. ri2>rmax2) cycle
-          ri = sqrt(ri2)
+       do jj = 1, nat
+          j = lenv%at(eid(jj))%idx
+          x = lenv%x2c((lenv%xr2x(lenv%at(eid(jj))%x) + lvec2 - sy%c%atcel(ii)%x))
+
+          if (dist(jj) < 1d-10 .or. dist(jj)>rmax) cycle
+          ri = dist(jj)
+          ri2 = ri * ri
           ri3 = ri2 * ri
 
           fcom = 1.5d0 * alpha(i)*alpha(j) / (ml(1,i)*alpha(j)+ml(1,j)*alpha(i))
@@ -692,6 +704,9 @@ contains
     etotal= - 0.5d0 * etotal
     sigma = - 0.5d0 * sigma / sy%c%omega
     ehadd = - 0.5d0 * ehadd
+    if (allocated(eid)) deallocate(eid)
+    if (allocated(dist)) deallocate(dist)
+    if (isealloc) deallocate(lenv)
      
     write (uout,'("  Evdw = ",A," Hartree, ",A," Ry")') &
        string(etotal,'e',decimal=10), string(etotal*2,'e',decimal=10)

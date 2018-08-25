@@ -786,10 +786,10 @@ contains
   !> the list of nearest atoms. If sorted is true, the list is sorted
   !> by distance and shell (if up2n or up2sh is used, the list is
   !> always sorted). The output list eid contains nat atoms with IDs
-  !> nid(1:nat) from the environment, distances to the input point
+  !> eid(1:nat) from the environment, distances to the input point
   !> equal to dist(1:nat) and lattice vector lvec in
   !> cryst. coords. The position of atom i in cryst. coords. is
-  !> e%at(nid(i))%x + lvec. Optionally, ishell0(i) contains the shell
+  !> xr2x(e%at(eid(i))%x) + lvec. Optionally, ishell0(i) contains the shell
   !> ID for atom i in the output list. One or more of four cutoff
   !> criteria must be chosen: list up to a distance up2d, between a
   !> minimum and a maximum species-dependent distance (up2dsp), up
