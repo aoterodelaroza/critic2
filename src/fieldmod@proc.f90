@@ -81,6 +81,7 @@ contains
     nullify(f%fcheck)
     nullify(f%feval)
     call f%fr%init()
+    f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
     f%ncp = 0
@@ -1431,6 +1432,7 @@ contains
 
     if (.not.f%c%isinit) return
 
+    f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
 
@@ -1461,7 +1463,6 @@ contains
        f%cp(i)%brdist = 0d0
        f%cp(i)%brpathlen = 0d0
        f%cp(i)%brang = 0d0
-       call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
 
        ! calculate the point group symbol
        f%cp(i)%pg = f%c%sitesymm(f%cp(i)%x,atomeps)
@@ -1481,6 +1482,24 @@ contains
     end do
 
   end subroutine init_cplist
+
+  !> Calculate the scalar field at the nuclei and fill the
+  !> corresponding fields in f%cp and f%cpcel. This operation is
+  !> deferred from init_cplist to avoid the slow down of field
+  !> initalization it causes.
+  module subroutine init_cplist_deferred(f)
+    class(field), intent(inout) :: f
+
+    integer :: i
+
+    if (.not.f%fcp_deferred) return
+    f%fcp_deferred = .false.
+    
+    do i = 1, f%c%nneq
+       call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
+    end do
+
+  end subroutine init_cplist_deferred
 
   !> Given the point xp in crystallographic coordinates, calculates
   !> the nearest CP. In output, nid is the id from the complete CP
@@ -2032,6 +2051,11 @@ contains
     integer, allocatable :: symrotm(:), symcenv(:), iaux(:)
     real*8, allocatable :: raux(:)
     integer, allocatable :: iperm(:)
+
+    if (f%fcp_deferred) then
+       call f%init_cplist_deferred()
+       f%fcp_deferred = .false.
+    end if
 
     ! Sort the nneq CP list: first by type then by density, the atoms at the top
     allocate(iperm(f%ncp),raux(f%ncp),iaux(f%ncp))

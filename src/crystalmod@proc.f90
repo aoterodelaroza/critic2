@@ -1367,6 +1367,7 @@ contains
   !> operations (lrotm)
   module function sitesymm(c,x0,eps0,leqv,lrotm)
     use tools_io, only: string
+    use param, only: eye
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in) :: x0(3) !< Input point in cryst. coords.
     real*8, intent(in), optional :: eps0 !< Two points are different if distance is > eps
@@ -1383,6 +1384,15 @@ contains
     integer :: ordersym(c%neqv), masksym(0:9)
 
     real*8, parameter :: eps_default = 1d-2
+
+    if (c%ismolecule .or. c%havesym == 0 .or. (c%neqv == 1 .and. c%ncv == 1)) then
+       sitesymm='C1'
+       if (present(leqv).and.present(lrotm)) then
+          leqv = 1
+          lrotm(:,:,1) = eye
+       end if
+       return
+    end if
 
     if (present(eps0)) then
        eps = eps0

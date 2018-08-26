@@ -675,7 +675,7 @@ contains
     endif
 
     ! Initialize the CP search
-    if (.not.allocated(sy%f(sy%iref)%cp)) call sy%f(sy%iref)%init_cplist
+    if (.not.allocated(sy%f(sy%iref)%cp)) call sy%f(sy%iref)%init_cplist()
 
     ! Read cps from external file
     if (dochk) call readchk()
@@ -742,6 +742,12 @@ contains
     end if
     write (uout,*)
 
+    ! Calculate the field at the nuclei, if deferred
+    if (sy%f(sy%iref)%fcp_deferred) then
+       call sy%f(sy%iref)%init_cplist_deferred()
+       sy%f(sy%iref)%fcp_deferred = .false.
+    end if
+
     ! Short report of non-equivalent cp-list
     call cp_short_report()
 
@@ -797,6 +803,12 @@ contains
     type(system) :: syaux
     real*8 :: x(3), plen
     type(gpathp), allocatable :: xpath(:)
+
+    ! Calculate the field at the nuclei, if deferred
+    if (sy%f(sy%iref)%fcp_deferred) then
+       call sy%f(sy%iref)%init_cplist_deferred()
+       sy%f(sy%iref)%fcp_deferred = .false.
+    end if
 
     lp = 1
     do while (.true.)

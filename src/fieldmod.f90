@@ -102,6 +102,7 @@ module fieldmod
      procedure(fcheck), pointer, nopass :: fcheck => null()
      procedure(feval), pointer, nopass :: feval => null()
      ! critical point list
+     logical :: fcp_deferred = .true.
      integer :: ncp = 0
      type(cp_type), allocatable :: cp(:)
      integer :: ncpcel = 0
@@ -122,6 +123,7 @@ module fieldmod
      procedure :: typestring !< Return a string identifying the field type
      procedure :: printinfo !< Print field information to stdout
      procedure :: init_cplist !< Initialize the CP list
+     procedure :: init_cplist_deferred !< Calculate the scalar field for nuclei (deferred)
      procedure :: nearest_cp !< Given a point, find the nearest CP of a certain type
      procedure :: identify_cp !< Identify the CP given the position
      procedure :: testrmt !< Test for MT discontinuities
@@ -283,6 +285,9 @@ module fieldmod
      module subroutine init_cplist(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist
+     module subroutine init_cplist_deferred(f)
+       class(field), intent(inout) :: f
+     end subroutine init_cplist_deferred
      module subroutine nearest_cp(f,xp,nid,dist,lvec,type,nid0,id0,nozero)
        class(field), intent(in) :: f
        real*8, intent(in) :: xp(:)
