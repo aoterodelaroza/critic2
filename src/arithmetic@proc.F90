@@ -295,7 +295,7 @@ contains
     real*8, intent(out) :: f(n(1),n(2),n(3))
     logical, intent(out) :: iok
 
-    integer :: i, ntok, lp
+    integer :: i, ntok, lp, idx
     integer :: c, s(100)
     logical :: again, ok, ifail
     integer :: nq, ns
@@ -328,7 +328,8 @@ contains
        if (toklist(i)%ival == fun_xc) goto 999
        if (istype(toklist(i)%ival,'chemfunction')) goto 999
        if (toklist(i)%type == token_field) then
-          call syl%fieldcube(n,toklist(i)%sval,toklist(i)%fder,.true.,ifail,q(:,:,:,1))
+          ifail = .not.syl%goodfield(key=toklist(i)%sval,n=n)
+          ifail = ifail .or. (trim(toklist(i)%fder) /= "" .and. trim(toklist(i)%fder)/="v")
           if (ifail) goto 999
        end if
     end do
@@ -390,11 +391,11 @@ contains
           end do
           if (s(ns) /= fun_openpar) goto 999
        elseif (toklist(i)%type == token_field) then
-          ! a field
+          ! a field (already made all the checks at the parsing stage)
           nq = nq + 1
           if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-          call syl%fieldcube(n,toklist(i)%sval,toklist(i)%fder,.false.,ifail,q(:,:,:,nq))
-          if (ifail) goto 999
+          idx = syl%fieldname_to_idx(toklist(i)%sval)
+          q(:,:,:,nq) = syl%f(idx)%grid%f
        else
           goto 999
        end if

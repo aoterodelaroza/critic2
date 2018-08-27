@@ -73,7 +73,6 @@ module systemmod
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
      procedure :: fieldeval !< Evaluate one of the system's fields
-     procedure :: fieldcube !< If a field is a grid, return said grid.
   end type system
   public :: system
 
@@ -149,10 +148,15 @@ module systemmod
        integer, intent(out) :: id
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine load_field_string
-     module function goodfield(s,id,key) result(ok)
+     module function goodfield(s,id,key,type,n,idout) result(ok)
+       use fieldmod, only: type_grid
+       use tools_io, only: ferror, faterr
        class(system), intent(in) :: s
        integer, intent(in), optional :: id
        character*(*), intent(in), optional :: key
+       integer, intent(in), optional :: type
+       integer, intent(in), optional :: n(3)
+       integer, intent(out), optional :: idout
        logical :: ok
      end function goodfield
      module function fieldname_to_idx(s,id) result(fid)
@@ -230,16 +234,6 @@ module systemmod
        logical, intent(in), optional :: periodic
        type(scalar_value) :: fieldeval
      end function fieldeval
-     module subroutine fieldcube(s,n,id,fder,dry,ifail,q)
-       use fieldmod, only: type_grid
-       class(system), intent(inout) :: s
-       character*(*), intent(in) :: id
-       integer, intent(in) :: n(3)
-       character*(*), intent(in) :: fder
-       logical, intent(in) :: dry
-       logical, intent(out) :: ifail
-       real*8, intent(out) :: q(n(1),n(2),n(3))
-     end subroutine fieldcube
   end interface
 
 end module systemmod

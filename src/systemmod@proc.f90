@@ -598,11 +598,20 @@ contains
   end subroutine load_field_string
 
   !> Returns true if the field is initialized. The field can be
-  !> indexed by number (id) or by key (key).
-  module function goodfield(s,id,key) result(ok)
+  !> indexed by number (id) or by key (key), and one of them must be
+  !> present. If type is given, the field is only good if it is of the
+  !> given type. If n is given and the type is a grid the field is
+  !> only good if its grid has dimensions n. If idout is present,
+  !> return the numeric ID of the field in that variable.
+  module function goodfield(s,id,key,type,n,idout) result(ok)
+    use fieldmod, only: type_grid
+    use tools_io, only: ferror, faterr
     class(system), intent(in) :: s
     integer, intent(in), optional :: id
     character*(*), intent(in), optional :: key
+    integer, intent(in), optional :: type
+    integer, intent(in), optional :: n(3)
+    integer, intent(out), optional :: idout
     logical :: ok
 
     integer :: id0
@@ -613,9 +622,20 @@ contains
        id0 = id
     elseif (present(key)) then
        id0 = s%fieldname_to_idx(key)
+    else
+       call ferror("goodfield","must give either id or key",faterr)
     end if
     if (id0 < 0 .or. id0 > s%nf) return
     if (.not.s%f(id0)%isinit) return
+    if (present(type)) then
+       if (s%f(id0)%type /= type) return
+    end if
+    if (present(n)) then
+       if (s%f(id0)%type /= type_grid) return
+       if (.not.s%f(id0)%grid%isinit) return
+       if (any(s%f(id0)%grid%n /= n)) return
+    end if
+    if (present(idout)) idout = id0
     ok = .true.
 
   end function goodfield
@@ -1231,45 +1251,5 @@ contains
     end if
 
   end function fieldeval
-
-  !> Check that the field given by id is a grid of size n and return
-  !> the grid, or return ifail = .true.  Used in the
-  !> arithmetic module.
-  module subroutine fieldcube(s,n,id,fder,dry,ifail,q)
-    use fieldmod, only: type_grid
-    class(system), intent(inout) :: s
-    character*(*), intent(in) :: id
-    integer, intent(in) :: n(3)
-    character*(*), intent(in) :: fder
-    logical, intent(in) :: dry
-    logical, intent(out) :: ifail
-    real*8, intent(out) :: q(n(1),n(2),n(3))
-
-    integer :: iid
-    logical :: isgrid
-
-    ifail = .false.
-    q = 0d0
-    if (.not.s%isinit) goto 999
-    iid = s%fieldname_to_idx(id)
-    if (.not.s%f(iid)%isinit) goto 999
-    isgrid = (s%f(iid)%type == type_grid)
-    if (isgrid) isgrid = isgrid .and. all(s%f(iid)%grid%n == n)
-    if (isgrid) isgrid = isgrid .and. (trim(fder) == "" .or. trim(fder)=="v")
-    if (isgrid) then
-       if (.not.dry) then
-          q = s%f(iid)%grid%f
-       else
-          q = 0d0
-       end if
-    else
-       goto 999
-    end if
-
-    return
-999 continue
-    ifail = .true.
-    q = 0d0
-  end subroutine fieldcube
 
 end submodule proc
