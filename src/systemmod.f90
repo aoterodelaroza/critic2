@@ -28,6 +28,16 @@ module systemmod
   public :: systemmod_init
   public :: systemmod_end
 
+  ! The system class. A system contains:
+  ! - One crystal structure (%c)
+  ! - One or more fields (%nf fields in %f(:))
+  ! - A reference field with id %iref
+  ! - Several integrable properties (%npropi and %propi(:))
+  ! - Several point properties (%npropp and %propp(:))
+  ! - A set of field aliases (%fh)
+  ! Some of the methods in this object require pass a C pointer down
+  ! the hierarchy over to the arithmetic module. If one of those methods needs
+  ! to be used, the system itself must be declared as TARGET.
   type system
      logical :: isinit = .false. !< Is the system initialized?
      type(crystal), pointer :: c => null() !< Crystal structure (always allocated)

@@ -289,7 +289,8 @@ submodule (grid3mod) proc
 
 contains
 
-  !> Build a 3d grid using an arithmetic expression.
+  !> Build a 3d grid of dimension n using an arithmetic expression
+  !> (expr). sptr = C pointer to the associated system.
   module subroutine new_eval(f,sptr,n,expr)
     use arithmetic, only: eval_grid
     use types, only: realloc

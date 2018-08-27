@@ -48,7 +48,12 @@ module fieldmod
   integer, parameter, public :: type_promol_frag = 8 !< promolecular density from a fragment
   integer, parameter, public :: type_ghost = 9 !< a ghost field
 
-  !> Definition of the field class
+  !> The field class. A field contains the information necessary to evaluate
+  !> a scalar field (like the density, but can be something else) at any point
+  !> in the unit cell. The class contains:
+  !> - One component for a certain type (%type) containing the density or wavefunction.
+  !> - The list of critical points: non-equivalent (%cp) and complete list (%cpcel).
+  !> - A number of flags controlling the behavior of the field.
   type field
      ! parent structure information
      type(crystal), pointer :: c => null() !< crsytal
@@ -63,24 +68,24 @@ module fieldmod
      character(len=mlen) :: name = "" !< field name
      character(len=mlen) :: file = "" !< file name
      ! scalar field types
-     type(elkwfn) :: elk
-     type(wienwfn) :: wien
-     type(piwfn) :: pi
-     type(grid3) :: grid
-     type(molwfn) :: wfn
-     type(dftbwfn) :: dftb
+     type(elkwfn) :: elk !< Elk densities
+     type(wienwfn) :: wien !< WIEN2k densities
+     type(piwfn) :: pi !< PI wavefunctions
+     type(grid3) :: grid !< Grid fields
+     type(molwfn) :: wfn !< GTO/STO atom-centered wavefunctions
+     type(dftbwfn) :: dftb !< DFTB wavefunctions
      ! promolecular and core densities
-     type(fragment) :: fr
-     integer :: zpsp(maxzat0)
+     type(fragment) :: fr !< Fragment for the fragment-based promolecular density
+     integer :: zpsp(maxzat0) !< Pseudopotential charges
      ! ghost field
-     character(len=mmlen) :: expr
-     type(c_ptr) :: sptr = c_null_ptr
+     character(len=mmlen) :: expr !< Expression for the ghost field
+     type(c_ptr) :: sptr = c_null_ptr !< Pointer to the parent system
      ! critical point list
-     logical :: fcp_deferred = .true.
-     integer :: ncp = 0
-     type(cp_type), allocatable :: cp(:)
-     integer :: ncpcel = 0
-     type(cp_type), allocatable :: cpcel(:)
+     logical :: fcp_deferred = .true. !< True if the calculation of CPs on nuclei was deferred
+     integer :: ncp = 0 !< Number of critical points (non-equivalent)
+     type(cp_type), allocatable :: cp(:) !< Critical points (non-equivalent)
+     integer :: ncpcel = 0 !< Number of critical points (complete list)
+     type(cp_type), allocatable :: cpcel(:) !< Critical points (complete list)
    contains
      procedure :: end => field_end !< Deallocate data and uninitialize
      procedure :: set_default_options => field_set_default_options !< Sets field default options

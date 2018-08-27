@@ -17,8 +17,6 @@
 
 ! Class for 3d grids and related tools.
 module grid3mod
-  use hashmod, only: hash
-  use iso_c_binding, only: c_ptr
   use param, only: mlen
   implicit none
 
@@ -85,6 +83,7 @@ module grid3mod
 
   interface
      module subroutine new_eval(f,sptr,n,expr)
+       use iso_c_binding, only: c_ptr
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: sptr
        integer, intent(in) :: n(3)

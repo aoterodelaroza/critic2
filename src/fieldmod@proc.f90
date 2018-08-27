@@ -215,9 +215,10 @@ contains
 
   end subroutine field_set_options
 
-  !> Load a new field using the given field seed and the crystal
-  !> structure pointer. The ID of the field in the system is also
-  !> required.
+  !> Load a new field using the given field seed, the crystal
+  !> structure pointer, the ID of the new field in the system (id)
+  !> and the parent system's C pointer (sptr). If an error was 
+  !> found, returns a non-zero-length error message (errmsg).
   module subroutine field_new(f,seed,c,id,sptr,errmsg)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
@@ -252,6 +253,7 @@ contains
     end if
     call f%end()
     f%c => c
+    f%sptr = sptr
     f%id = id
     f%name = adjustl(trim(seed%fid))
 
@@ -483,7 +485,9 @@ contains
 
   end subroutine field_new
 
-  !> Load a ghost field.
+  !> Load a ghost field using expression expr. c = pointer to the
+  !> crystal structure, id = numerical ID of the new field. name =
+  !> name of the new field. sptr = C pointer to the parent system.
   module subroutine load_ghost(f,c,id,name,expr,sptr)
     use grid3mod, only: grid3
     use fragmentmod, only: fragment

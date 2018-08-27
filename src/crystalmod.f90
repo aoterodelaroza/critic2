@@ -29,7 +29,11 @@ module crystalmod
 
   private
 
-  !> Crystal type
+  !> The crystal class. A crystal contains the structural information for the
+  !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule 
+  !> (%ismolecule=.true.) embedded in a large cell. When use in combination
+  !> with the system class, the crystal needs to be passed as pointer to the
+  !> system, and therefore needs to be declared as TARGET.
   type crystal
      ! Initialization flags
      logical :: isinit = .false. !< has the crystal structure been initialized?
