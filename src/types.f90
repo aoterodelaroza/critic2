@@ -105,30 +105,34 @@ module types
      integer :: ic   !< translation vector to the representative equivalent atom
      integer :: lenv(3) !< lattice vector to the main cell atom (for environments)
   end type celatom
-
+  
   !> Result of the evaluation of a scalar field
   type scalar_value
      ! basic
-     real*8 :: f, fval, gf(3), hf(3,3), gfmod, gfmodval, del2f, del2fval
-     ! kinetic energy density
-     real*8 :: gkin
-     ! schrodinger stress tensor
-     real*8 :: stress(3,3)
-     ! electronic potential energy density, virial field
-     real*8 :: vir
-     ! additional local properties
-     real*8 :: hfevec(3,3), hfeval(3)
-     integer :: r, s
-     ! specialized return field (molecular orbital values, etc.)
-     real*8 :: fspc
-     ! is it a nuclear position?
-     logical :: isnuc
-     ! are the fields significant?
-     logical :: avail_der1 ! first derivatives of the scalar field
-     logical :: avail_der2 ! second derivatives of the scalar field
-     logical :: avail_gkin ! kinetic energy density
-     logical :: avail_stress ! stress tensor
-     logical :: avail_vir ! virial field
+     real*8 :: f = 0d0 ! field
+     real*8 :: fval = 0d0 ! field (valence only)
+     real*8 :: gf(3) = 0d0 ! field gradient
+     real*8 :: hf(3,3) = 0d0 ! field Hessian
+     real*8 :: gfmod = 0d0 ! field gradient norm
+     real*8 :: gfmodval = 0d0 ! field gradient norm (valence only)
+     real*8 :: del2f = 0d0 ! field Laplacian
+     real*8 :: del2fval = 0d0 ! field Laplacian (valence only)
+     real*8 :: gkin = 0d0 ! kinetic energy density
+     real*8 :: stress(3,3) = 0d0 ! schrodinger stress tensor
+     real*8 :: vir = 0d0 ! electronic potential energy density, virial field
+     real*8 :: hfevec(3,3) = 0d0 ! field Hessian eigenvectors
+     real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues
+     integer :: r = 0 ! field Hessian rank
+     integer :: s = 0 ! field Hessian signature
+     real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
+     logical :: isnuc = .false. ! is it a nuclear position?
+     logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
+     logical :: avail_der2 = .false. ! second derivatives of the scalar field are available
+     logical :: avail_gkin = .false. ! kinetic energy density is available
+     logical :: avail_stress = .false. ! stress tensor is available
+     logical :: avail_vir = .false. ! virial field is available
+   contains
+     procedure :: clear => scalar_value_clear
   end type scalar_value
 
   !> Critical point type
@@ -208,6 +212,9 @@ module types
   end type gpathp
   
   interface
+     module subroutine scalar_value_clear(s)
+       class(scalar_value), intent(inout) :: s
+     end subroutine scalar_value_clear
      module subroutine realloc_pointpropable(a,nnew)
        type(pointpropable), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

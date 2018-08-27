@@ -68,11 +68,10 @@ module systemmod
      procedure :: unload_field !< Unload a field
      procedure :: new_integrable_string !< Define a field as integrable from a command
      procedure :: new_pointprop_string !< Define a field as point prop from a command
-     procedure :: eval => system_eval !< Evaluate an arithmetic expression using the system's fields
+     procedure :: eval => system_eval_expression !< Evaluate an arithmetic expression using the system's fields
      procedure :: propty !< Calculate the properties of a field or all fields at a point
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
-     procedure :: fieldeval !< Evaluate one of the system's fields
   end type system
   public :: system
 
@@ -191,14 +190,14 @@ module systemmod
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
-     module function system_eval(s,expr,hardfail,iok,x0) 
+     module function system_eval_expression(s,expr,hardfail,iok,x0) 
        class(system), intent(inout), target :: s
        character(*), intent(in) :: expr
        logical, intent(in) :: hardfail
        logical, intent(out) :: iok
        real*8, intent(in), optional :: x0(3)
-       real*8 :: system_eval
-     end function system_eval
+       real*8 :: system_eval_expression
+     end function system_eval_expression
      module subroutine propty(s,id,x0,res,verbose,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s
@@ -224,16 +223,6 @@ module systemmod
        real*8, intent(in) :: nucepsh
        integer, intent(in), optional :: itype
      end subroutine addcp
-     recursive module function fieldeval(s,id,nder,fder,x0,periodic)
-       use types, only: scalar_value
-       class(system), intent(inout) :: s
-       character*(*), intent(in) :: id
-       integer, intent(in) :: nder
-       character*(*), intent(in) :: fder
-       real*8, intent(in) :: x0(3)
-       logical, intent(in), optional :: periodic
-       type(scalar_value) :: fieldeval
-     end function fieldeval
   end interface
 
 end module systemmod

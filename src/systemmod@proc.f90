@@ -1015,7 +1015,7 @@ contains
   end subroutine new_pointprop_string
   
   !> Evaluate an arithmetic expression using the system's fields  
-  module function system_eval(s,expr,hardfail,iok,x0) 
+  module function system_eval_expression(s,expr,hardfail,iok,x0) 
     use arithmetic, only: eval
     use iso_c_binding, only: c_loc
     class(system), intent(inout), target :: s
@@ -1023,14 +1023,14 @@ contains
     logical, intent(in) :: hardfail
     logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
-    real*8 :: system_eval
+    real*8 :: system_eval_expression
 
     type(system), pointer :: syl
 
     syl => s
-    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl))
+    system_eval_expression = eval(expr,hardfail,iok,x0,c_loc(syl))
 
-  end function system_eval
+  end function system_eval_expression
 
   !> Calculate the properties of a field or all fields at a point plus
   !> the defined point properties of the system. The properties at
@@ -1213,43 +1213,4 @@ contains
 
   end subroutine addcp
   
-  !> Evaluate field with ID id at point x0 (Cartesian) and derivatives
-  !> up to nder. fder = modifier for special fields. periodic =
-  !> whether the system is to be considered periodic (molecules only).
-  !> Used in the arithmetic module.
-  recursive module function fieldeval(s,id,nder,fder,x0,periodic)
-    use types, only: scalar_value
-    class(system), intent(inout) :: s
-    character*(*), intent(in) :: id
-    integer, intent(in) :: nder
-    character*(*), intent(in) :: fder
-    real*8, intent(in) :: x0(3)
-    logical, intent(in), optional :: periodic
-    type(scalar_value) :: fieldeval
-
-    integer :: iid
-    real*8 :: xp(3)
-
-    fieldeval%f = 0d0
-    fieldeval%fval = 0d0
-    fieldeval%gf = 0d0
-    fieldeval%gfmod = 0d0
-    fieldeval%gfmodval = 0d0
-    fieldeval%hf = 0d0
-    fieldeval%del2f = 0d0
-    fieldeval%del2fval = 0d0
-    fieldeval%fspc = 0d0
-
-    if (.not.s%isinit) return
-    iid = s%fieldname_to_idx(id)
-    if (iid >= 0) then
-       call s%f(iid)%grd(x0,nder,fieldeval,fder=fder,periodic=periodic)
-    elseif (trim(id) == "ewald") then
-       xp = s%c%c2x(x0)
-       fieldeval%f = s%c%ewald_pot(xp,.false.)
-       fieldeval%fval = fieldeval%f
-    end if
-
-  end function fieldeval
-
 end submodule proc

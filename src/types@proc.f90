@@ -20,6 +20,35 @@ submodule (types) proc
 
 contains
 
+  !> Clear of values and flags of a scalar value type.
+  module subroutine scalar_value_clear(s)
+    class(scalar_value), intent(inout) :: s
+
+    s%f = 0d0
+    s%fval = 0d0
+    s%gf = 0d0
+    s%hf = 0d0
+    s%gfmod = 0d0
+    s%gfmodval = 0d0
+    s%del2f = 0d0
+    s%del2fval = 0d0
+    s%gkin = 0d0
+    s%stress = 0d0
+    s%vir = 0d0
+    s%hfevec = 0d0
+    s%hfeval = 0d0
+    s%r = 0
+    s%s = 0
+    s%fspc = 0d0
+    s%isnuc = .false.
+    s%avail_der1 = .false.
+    s%avail_der2 = .false.
+    s%avail_gkin = .false.
+    s%avail_stress = .false.
+    s%avail_vir = .false.
+
+  end subroutine scalar_value_clear
+
   !> Adapt the size of an allocatable 1D type(pointpropable) array
   module subroutine realloc_pointpropable(a,nnew)
     type(pointpropable), intent(inout), allocatable :: a(:)

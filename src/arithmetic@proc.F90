@@ -849,10 +849,12 @@ contains
     type(c_ptr), intent(in), optional :: sptr
     logical, intent(in), optional :: periodic
 
-    integer :: nder
+    integer :: nder, idx
     type(scalar_value) :: res
     character*10 :: fderl
     type(system), pointer :: syl => null()
+    logical :: ok
+    real*8 :: xp(3)
 
     ! recover the system pointer
     if (present(sptr)) then
@@ -863,58 +865,66 @@ contains
 
     fieldeval = 0d0
     if (present(x0).and.present(sptr)) then
-       if (.not.syl%goodfield(key=fid).and..not.isspecialfield(fid)) &
-          call die('wrong field (' // string(fid) // ') in expression')
-       fderl = lower(fder)
-       select case (trim(fderl))
-       case ("","v","c")
-          nder = 0
-       case ("x","y","z","g")
-          nder = 1
-       case ("xx","xy","xz","yx","yy","yz","zx","zy","zz","l","lv","lc")
-          nder = 2
-       case default
-          ! let feval interpret fder - field-specific (e.g. a MO)
-          nder = -1
-       end select
-       res = syl%fieldeval(fid,nder,fder,x0,periodic)
+       if (syl%goodfield(key=fid,idout=idx)) then
+          fderl = lower(fder)
+          select case (trim(fderl))
+          case ("","v","c")
+             nder = 0
+          case ("x","y","z","g")
+             nder = 1
+          case ("xx","xy","xz","yx","yy","yz","zx","zy","zz","l","lv","lc")
+             nder = 2
+          case default
+             ! let feval interpret fder - field-specific (e.g. a MO)
+             nder = -1
+          end select
+          call syl%f(idx)%grd(x0,nder,res,fder=fder,periodic=periodic)
 
-       select case (trim(fderl))
-       case ("")
-          fieldeval = res%f
-       case ("v")
-          fieldeval = res%fval
-       case ("c")
-          fieldeval = res%f - res%fval
-       case ("x")
-          fieldeval = res%gf(1)
-       case ("y")
-          fieldeval = res%gf(2)
-       case ("z")
-          fieldeval = res%gf(3)
-       case ("xx")
-          fieldeval = res%hf(1,1)
-       case ("xy")
-          fieldeval = res%hf(1,2)
-       case ("xz")
-          fieldeval = res%hf(1,3)
-       case ("yy")
-          fieldeval = res%hf(2,2)
-       case ("yz")
-          fieldeval = res%hf(2,3)
-       case ("zz")
-          fieldeval = res%hf(3,3)
-       case ("l")
-          fieldeval = res%del2f
-       case ("lv")
-          fieldeval = res%del2fval
-       case ("lc")
-          fieldeval = res%del2f - res%del2fval
-       case ("g")
-          fieldeval = res%gfmod
-       case default
-          fieldeval = res%fspc
-       end select
+          select case (trim(fderl))
+          case ("")
+             fieldeval = res%f
+          case ("v")
+             fieldeval = res%fval
+          case ("c")
+             fieldeval = res%f - res%fval
+          case ("x")
+             fieldeval = res%gf(1)
+          case ("y")
+             fieldeval = res%gf(2)
+          case ("z")
+             fieldeval = res%gf(3)
+          case ("xx")
+             fieldeval = res%hf(1,1)
+          case ("xy")
+             fieldeval = res%hf(1,2)
+          case ("xz")
+             fieldeval = res%hf(1,3)
+          case ("yy")
+             fieldeval = res%hf(2,2)
+          case ("yz")
+             fieldeval = res%hf(2,3)
+          case ("zz")
+             fieldeval = res%hf(3,3)
+          case ("l")
+             fieldeval = res%del2f
+          case ("lv")
+             fieldeval = res%del2fval
+          case ("lc")
+             fieldeval = res%del2f - res%del2fval
+          case ("g")
+             fieldeval = res%gfmod
+          case default
+             fieldeval = res%fspc
+          end select
+       else if (isspecialfield(fid)) then
+          ! interpret special fields
+          if (trim(fid) == "ewald") then
+             xp = syl%c%c2x(x0)
+             fieldeval = syl%c%ewald_pot(xp,.false.)
+          end if
+       else
+          call die('wrong field (' // string(fid) // ') in expression')
+       end if
     else
        call die('evaluating field ' // string(fid) // ' without point')
     end if
@@ -1650,6 +1660,7 @@ contains
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0
     type(system), pointer :: syl => null()
+    integer :: idx
   
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
@@ -1662,22 +1673,24 @@ contains
     if (.not.syl%isinit) &
        call die('error: system not initialized')
 
+    idx = syl%fieldname_to_idx(sia)
+
     select case(c)
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
-       res = syl%fieldeval(sia,0,"",x0,periodic)
+       call syl%f(idx)%grd(x0,0,res,periodic=periodic)
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -1689,14 +1702,14 @@ contains
        !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
        ! for more references and its use applied to experimental electron
        ! densities.
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
     case (fun_vtf_kir)
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -1704,31 +1717,31 @@ contains
     case (fun_htf_kir)
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = 0.25d0 * res%del2f - q
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
-       res = syl%fieldeval(sia,1,"",x0,periodic)
+       call syl%f(idx)%grd(x0,1,res,periodic=periodic)
        if (.not.res%avail_gkin) &
           call die("Tried to calculate GKIN with a field that cannot provide the kinetic energy density.")
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        if (.not.res%avail_gkin) &
           call die("Tried to calculate KKIN with a field that cannot provide the kinetic energy density.")
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       res = syl%fieldeval(sia,1,"",x0,periodic)
+       call syl%f(idx)%grd(x0,1,res,periodic=periodic)
        if (.not.res%avail_gkin) &
           call die("Tried to calculate the ELF with a field that cannot provide the kinetic energy density.")
        if (res%f < 1d-30) then
@@ -1743,14 +1756,14 @@ contains
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        if (.not.res%avail_vir) &
           call die("Tried to calculate VIR with a field that cannot provide the virial.")
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        if (.not.res%avail_vir) &
           call die("Tried to calculate HE with a field that cannot provide the kinetic energy density and/or the virial.")
        q = res%vir + res%gkin
@@ -1758,7 +1771,7 @@ contains
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        if (.not.res%avail_vir) &
           call die("Tried to calculate the LOL with a field that cannot provide the kinetic energy density.")
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
@@ -1766,7 +1779,7 @@ contains
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
-       res = syl%fieldeval(sia,2,"",x0,periodic)
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0) 
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
