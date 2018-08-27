@@ -22,14 +22,21 @@ submodule (arithmetic) proc
   implicit none
 
   !xx! private procedures
+  ! function tokenize(expr,ntok,toklist,lpexit,syl) 
+  ! function iprec(c)
+  ! function iassoc(c)
+  ! function istype(c,type)
+  ! function isspecialfield(fid)
   ! recursive function fieldeval(fid,fder,x0,sptr,periodic)
   ! function isnumber(rval,expr,lp)
   ! function isoperator(c,expr,lp)
   ! function isfunction(c,expr,lp,wasop)
   ! function isidentifier(id,expr,lp,fder)
   ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,fail)
+  ! subroutine pop_grid(q,nq,s,ns,fail)
   ! subroutine die(msg,msg2)
   ! function chemfunction(c,sia,x0,sptr,periodic) result(q)
+  ! function specialfieldeval(fid,syl,x0) result(res)
 
   ! enum for operators and functions
   integer, parameter :: fun_openpar  = 1  !< open parenthesis
@@ -477,12 +484,98 @@ contains
 
   end subroutine fields_in_eval
 
+  !> Set the value of a variable.
+  module subroutine setvariable(ikey,ival)
+    use param, only: vh
+
+    character*(*), intent(in) :: ikey
+    real*8, intent(in) :: ival
+
+    call vh%put(trim(ikey),ival)
+
+  end subroutine setvariable
+
+  !> Determine if a variable is defined This routine is thread-safe.
+  module function isvariable(ikey,ival)
+    use param, only: vh
+
+    character*(*), intent(in) :: ikey
+    real*8, intent(out) :: ival
+    logical :: isvariable
+
+    isvariable = vh%iskey(trim(ikey))
+    if (isvariable) then
+       ival = vh%get(trim(ikey),ival)
+    end if
+
+  end function isvariable
+
+  !> Clear a variable.
+  module subroutine clearvariable(ikey)
+    use param, only: vh
+
+    character*(*), intent(in) :: ikey
+
+    call vh%delkey(trim(ikey))
+
+  end subroutine clearvariable
+
+  !> Clear all the variables by freeing the hash.
+  module subroutine clearallvariables()
+    use param, only: vh
+
+    call vh%free()
+
+  end subroutine clearallvariables
+
+  !> List of the variables in the internal database.  This routine is
+  !> thread-safe.
+  module subroutine listvariables()
+    use tools_io, only: uout, string, ioj_right
+    use param, only: vh
+
+    integer :: i, nkeys, idum
+    character(len=:), allocatable :: key, typx, val
+    character*2 :: typ
+    real*4 :: rdum
+    real*8 :: ddum
+    character*1 :: sdum
+
+    nkeys = vh%keys()
+    write (uout,'("* LIST of variables (",A,")")') string(nkeys)
+    do i = 1, nkeys
+       key = vh%getkey(i)
+       typ = vh%type(key)
+       val = ""
+       select case (typ)
+       case ("i_")
+          typx = "integer"
+          val = string(vh%get(key,idum))
+       case ("r_")
+          typx = "real"
+          val = string(vh%get(key,rdum),'G')
+       case ("d_")
+          typx = "double"
+          val = string(vh%get(key,ddum),'G')
+       case ("s_")
+          typx = "string"
+          val = string(vh%get(key,sdum))
+       end select
+       write (uout,'(A,". ",A," = ",A)') string(i,3,ioj_right), &
+          string(key), string(val)
+    end do
+    write (uout,*)
+
+  end subroutine listvariables
+
+  !xx! private procedures
+
   !> Given an expression in string expr starting at lpexit, parse all
   !> tokens for the arithmetic evaluation. Return the tokens in
   !> toklist and the number of tokens in ntok, and advance the string
   !> pointer lpexit. syl = calling system. This routine is
   !> thread-safe.
-  module function tokenize(expr,ntok,toklist,lpexit,syl) 
+  function tokenize(expr,ntok,toklist,lpexit,syl) 
     use systemmod, only: system
     use tools_io, only: lower, isinteger
     use param, only: vh
@@ -651,7 +744,7 @@ contains
   end function tokenize
 
   !> Return an operator precedence. This routine is thread-safe.
-  module function iprec(c)
+  function iprec(c)
     integer :: iprec
     integer, intent(in) :: c
 
@@ -679,7 +772,7 @@ contains
 
   !> Return 1 for right-associative operator and -1 for
   !> left-associative.  This routine is thread-safe.
-  module function iassoc(c)
+  function iassoc(c)
     integer :: iassoc
     integer, intent(in) :: c
 
@@ -698,7 +791,7 @@ contains
 
   !> Return the type of stack element (operator, function, unary,
   !> binary).  This routine is thread-safe.
-  module function istype(c,type)
+  function istype(c,type)
     integer, intent(in) :: c
     character*(*), intent(in) :: type
     logical :: istype
@@ -751,90 +844,6 @@ contains
 
   endfunction istype
 
-  !> Set the value of a variable.
-  module subroutine setvariable(ikey,ival)
-    use param, only: vh
-
-    character*(*), intent(in) :: ikey
-    real*8, intent(in) :: ival
-
-    call vh%put(trim(ikey),ival)
-
-  end subroutine setvariable
-
-  !> Determine if a variable is defined This routine is thread-safe.
-  module function isvariable(ikey,ival)
-    use param, only: vh
-
-    character*(*), intent(in) :: ikey
-    real*8, intent(out) :: ival
-    logical :: isvariable
-
-    isvariable = vh%iskey(trim(ikey))
-    if (isvariable) then
-       ival = vh%get(trim(ikey),ival)
-    end if
-
-  end function isvariable
-
-  !> Clear a variable.
-  module subroutine clearvariable(ikey)
-    use param, only: vh
-
-    character*(*), intent(in) :: ikey
-
-    call vh%delkey(trim(ikey))
-
-  end subroutine clearvariable
-
-  !> Clear all the variables by freeing the hash.
-  module subroutine clearallvariables()
-    use param, only: vh
-
-    call vh%free()
-
-  end subroutine clearallvariables
-
-  !> List of the variables in the internal database.  This routine is
-  !> thread-safe.
-  module subroutine listvariables()
-    use tools_io, only: uout, string, ioj_right
-    use param, only: vh
-
-    integer :: i, nkeys, idum
-    character(len=:), allocatable :: key, typx, val
-    character*2 :: typ
-    real*4 :: rdum
-    real*8 :: ddum
-    character*1 :: sdum
-
-    nkeys = vh%keys()
-    write (uout,'("* LIST of variables (",A,")")') string(nkeys)
-    do i = 1, nkeys
-       key = vh%getkey(i)
-       typ = vh%type(key)
-       val = ""
-       select case (typ)
-       case ("i_")
-          typx = "integer"
-          val = string(vh%get(key,idum))
-       case ("r_")
-          typx = "real"
-          val = string(vh%get(key,rdum),'G')
-       case ("d_")
-          typx = "double"
-          val = string(vh%get(key,ddum),'G')
-       case ("s_")
-          typx = "string"
-          val = string(vh%get(key,sdum))
-       end select
-       write (uout,'(A,". ",A," = ",A)') string(i,3,ioj_right), &
-          string(key), string(val)
-    end do
-    write (uout,*)
-
-  end subroutine listvariables
-
   !> Does this identifier correspond to a special field. This routine
   !> is thread-safe.
   function isspecialfield(fid)
@@ -845,8 +854,6 @@ contains
     isspecialfield = (trim(fid) == "ewald")
     
   end function isspecialfield
-
-  !xx! private procedures
 
   !> Evaluate field with identifier fid and field flag fder at 
   !> point x0. syl = calling system. fcheck checks whether
@@ -859,7 +866,7 @@ contains
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
     character*(*), intent(in) :: fder
-    real*8, intent(in), optional :: x0(3) !< position
+    real*8, intent(in), optional :: x0(3)
     type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
 
@@ -867,7 +874,6 @@ contains
     type(scalar_value) :: res
     character*10 :: fderl
     logical :: ok
-    real*8 :: xp(3)
 
     ! recover the system pointer
     if (present(syl)) then
@@ -929,11 +935,7 @@ contains
              fieldeval = res%fspc
           end select
        else if (isspecialfield(fid)) then
-          ! interpret special fields
-          if (trim(fid) == "ewald") then
-             xp = syl%c%c2x(x0)
-             fieldeval = syl%c%ewald_pot(xp,.false.)
-          end if
+          fieldeval = specialfieldeval(fid,syl,x0)
        else
           call die('wrong field (' // string(fid) // ') in expression')
        end if
@@ -1643,6 +1645,8 @@ contains
 
   end subroutine pop_grid
 
+  !> Crash the execution, emit two messages (the second message is
+  !> optional and gives more info).
   subroutine die(msg,msg2)
     use tools_io, only: ferror, faterr
     character*(*), intent(in) :: msg
@@ -1790,5 +1794,24 @@ contains
     end select
   
   end function chemfunction
+
+  !> Evaluate a special field (id string fid) at point x0 (cryst. coords.)
+  !> using system syl
+  function specialfieldeval(fid,syl,x0) result(res)
+    use systemmod, only: system
+    character*(*), intent(in) :: fid
+    type(system), intent(inout) :: syl
+    real*8, intent(in) :: x0(3)
+    real*8 :: res
+
+    real*8 :: xp(3)
+
+    if (trim(fid) == "ewald") then
+       ! Ewald potential at point x0
+       xp = syl%c%c2x(x0)
+       res = syl%c%ewald_pot(xp,.false.)
+    end if
+    
+  end function specialfieldeval
 
 end submodule proc
