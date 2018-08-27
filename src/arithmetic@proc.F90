@@ -131,7 +131,8 @@ contains
   !> sptr C pointer to the calling system. This routine is
   !> thread-safe.
   recursive module function eval(expr,hardfail,iok,x0,sptr,periodic)
-    use iso_c_binding, only: c_ptr
+    use systemmod, only: system
+    use iso_c_binding, only: c_ptr, c_f_pointer
     use hashmod, only: hash
     real*8 :: eval
     character(*), intent(in) :: expr
@@ -147,12 +148,22 @@ contains
     real*8 :: q(100)
     integer :: nq, ns
     type(token), allocatable :: toklist(:)
+    type(system), pointer :: syl => null()
+
+    ! recover the system pointer
+    if (present(sptr)) then
+       call c_f_pointer(sptr,syl)
+       if (.not.syl%isinit) then
+          call dofail('system not initialized')
+          return
+       end if
+    end if
 
     ! tokenize the expression in input
     iok = .false.
     eval = 0d0
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,sptr)
+    ok = tokenize(expr,ntok,toklist,lp,syl)
     if (.not.ok) then
        call dofail(expr(1:lp-1) // " -- " // expr(lp:))
        return
@@ -181,7 +192,7 @@ contains
              again = .false.
              if (ns > 0) then
                 if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop(q,nq,s,ns,x0,sptr,periodic,ifail)
+                   call pop(q,nq,s,ns,x0,syl,periodic,ifail)
                    if (ifail) then
                       call dofail()
                       return
@@ -200,7 +211,7 @@ contains
           ! right parenthesis
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,sptr,periodic,ifail)
+              call pop(q,nq,s,ns,x0,syl,periodic,ifail)
               if (ifail) then
                  call dofail()
                  return
@@ -215,7 +226,7 @@ contains
            if (ns > 0) then
               c = s(ns)
               if (istype(c,'function')) then
-                 call pop(q,nq,s,ns,x0,sptr,periodic,ifail)
+                 call pop(q,nq,s,ns,x0,syl,periodic,ifail)
                  if (ifail) then
                     call dofail()
                     return
@@ -226,7 +237,7 @@ contains
            ! a comma
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,sptr,periodic,ifail)
+              call pop(q,nq,s,ns,x0,syl,periodic,ifail)
               if (ifail) then
                  call dofail()
                  return
@@ -240,7 +251,7 @@ contains
            ! a field
            nq = nq + 1
            if (present(x0)) then
-              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,sptr,periodic)
+              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,syl,periodic)
            else
               call dofail()
               return
@@ -253,7 +264,7 @@ contains
 
     ! unwind the stack
     do while (ns > 0)
-       call pop(q,nq,s,ns,x0,sptr,periodic,ifail)
+       call pop(q,nq,s,ns,x0,syl,periodic,ifail)
        if (ifail) then
           call dofail()
           return
@@ -310,7 +321,7 @@ contains
     ! tokenize the expression in input
     iok = .true.
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,sptr)
+    ok = tokenize(expr,ntok,toklist,lp,syl)
     if (.not.ok) then
        goto 999
        return
@@ -422,10 +433,11 @@ contains
   !> (idlist).  sptr = C pointer to the calling system. This routine
   !> is thread-safe.
   module subroutine fields_in_eval(expr,n,idlist,sptr)
+    use systemmod, only: system
     use tools_io, only: string
     use types, only: realloc
     use param, only: mlen
-    use iso_c_binding, only: c_ptr
+    use iso_c_binding, only: c_ptr, c_f_pointer
     character(*), intent(in) :: expr
     integer, intent(out) :: n
     character(len=mlen), allocatable, intent(inout) :: idlist(:)
@@ -435,6 +447,12 @@ contains
     logical :: ok
     integer :: ntok
     type(token), allocatable :: toklist(:)
+    type(system), pointer :: syl => null()
+
+    ! recover the system pointer
+    call c_f_pointer(sptr,syl)
+    if (.not.syl%isinit) &
+       call die("system not initialized evaluating expression: " // string(expr))
 
     ! allocate space for the field ids
     if (allocated(idlist)) deallocate(idlist)
@@ -442,7 +460,7 @@ contains
 
     ! tokenize the expression
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,sptr)
+    ok = tokenize(expr,ntok,toklist,lp,syl)
     if (.not. ok) &
        call die("error evaluating expression: " // string(expr))
 
@@ -462,19 +480,18 @@ contains
   !> Given an expression in string expr starting at lpexit, parse all
   !> tokens for the arithmetic evaluation. Return the tokens in
   !> toklist and the number of tokens in ntok, and advance the string
-  !> pointer lpexit. sptr = C pointer to the calling system. This
-  !> routine is thread-safe.
-  module function tokenize(expr,ntok,toklist,lpexit,sptr) 
+  !> pointer lpexit. syl = calling system. This routine is
+  !> thread-safe.
+  module function tokenize(expr,ntok,toklist,lpexit,syl) 
     use systemmod, only: system
     use tools_io, only: lower, isinteger
     use param, only: vh
-    use iso_c_binding, only: c_ptr, c_f_pointer
     logical :: tokenize
     character(*), intent(in) :: expr
     integer, intent(out) :: ntok
     type(token), intent(inout), allocatable :: toklist(:)
     integer, intent(inout) :: lpexit
-    type(c_ptr), intent(in), optional :: sptr
+    type(system), intent(inout), optional :: syl
 
     integer :: lp, ll
     character(len=:), allocatable :: str
@@ -482,11 +499,9 @@ contains
     logical :: ok, wasop, inchem
     real*8 :: a
     integer :: c, npar, id, lp2
-    type(system), pointer :: syl => null()
 
     ! recover the system pointer
-    if (present(sptr)) then
-       call c_f_pointer(sptr,syl)
+    if (present(syl)) then
        if (.not.syl%isinit) goto 999
     end if
 
@@ -558,7 +573,7 @@ contains
           ! an integer or a known key
           lp2 = 1
           ok = isinteger(id,str,lp2)
-          if (present(sptr)) ok = ok .or. syl%fh%iskey(trim(str))
+          if (present(syl)) ok = ok .or. syl%fh%iskey(trim(str))
 
           if (.not.ok) then
              ! a special field
@@ -572,7 +587,7 @@ contains
              call addtok(token_field,sval=str,fder=fder)
           else
              ! inside a chemical function
-             if (.not.present(sptr)) goto 999
+             if (.not.present(syl)) goto 999
              ok = syl%fh%iskey(trim(str))
              if (.not.ok) goto 999
              id = syl%fh%get(trim(str),1)
@@ -587,7 +602,7 @@ contains
              call addtok(token_num,fval=vh%get(trim(str),a))
           else
              ! inside a chemical function -> field identifier
-             if (.not.present(sptr)) goto 999
+             if (.not.present(syl)) goto 999
              ok = syl%fh%iskey(trim(str))
              if (.not.ok) goto 999
              id = syl%fh%get(trim(str),1)
@@ -834,37 +849,34 @@ contains
   !xx! private procedures
 
   !> Evaluate field with identifier fid and field flag fder at 
-  !> point x0. sptr is the system C pointer. fcheck checks whether
+  !> point x0. syl = calling system. fcheck checks whether
   !> the field is sane. feval is the evaluation function. If periodic
   !> is true, evaluate the field under pbc.
-  recursive function fieldeval(fid,fder,x0,sptr,periodic)
+  recursive function fieldeval(fid,fder,x0,syl,periodic)
     use systemmod, only: system
     use tools_io, only: string, isinteger, lower
     use types, only: scalar_value
-    use iso_c_binding, only: c_ptr, c_f_pointer
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
     character*(*), intent(in) :: fder
     real*8, intent(in), optional :: x0(3) !< position
-    type(c_ptr), intent(in), optional :: sptr
+    type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
 
     integer :: nder, idx
     type(scalar_value) :: res
     character*10 :: fderl
-    type(system), pointer :: syl => null()
     logical :: ok
     real*8 :: xp(3)
 
     ! recover the system pointer
-    if (present(sptr)) then
-       call c_f_pointer(sptr,syl)
+    if (present(syl)) then
        if (.not.syl%isinit) &
           call die('evaluating field ' // string(fid) // ', system not initialized')
     end if
 
     fieldeval = 0d0
-    if (present(x0).and.present(sptr)) then
+    if (present(x0).and.present(syl)) then
        if (syl%goodfield(key=fid,idout=idx)) then
           fderl = lower(fder)
           select case (trim(fderl))
@@ -1254,29 +1266,26 @@ contains
   !> Pop from the stack and operate on the queue. q is the stack of
   !> values (with nq elements). s is the stack of operations (with ns
   !> elements). If the expression contains fields ($), use x0 as the
-  !> evaluation point (Cartesian). sptr = C pointer to the calling
-  !> system.  If periodic is present and false, evaluate the
-  !> expression at x0 considering the field as non-periodic. Return
-  !> fail=.true. if an error was found. This routine is thread-safe.
-  subroutine pop(q,nq,s,ns,x0,sptr,periodic,fail)
+  !> evaluation point (Cartesian). syl = calling system.  If periodic
+  !> is present and false, evaluate the expression at x0 considering
+  !> the field as non-periodic. Return fail=.true. if an error was
+  !> found. This routine is thread-safe.
+  subroutine pop(q,nq,s,ns,x0,syl,periodic,fail)
     use systemmod, only: system
     use tools_io, only: string
-    use iso_c_binding, only: c_ptr, c_f_pointer
 #ifdef HAVE_LIBXC
     use xc_f90_types_m
     use libxc_funcs_m
     use xc_f90_lib_m
 #endif
-
     real*8, intent(inout) :: q(:)
     integer, intent(inout) :: s(:)
     integer, intent(inout) :: nq, ns
     real*8, intent(in), optional :: x0(3)
-    type(c_ptr), intent(in), optional :: sptr
+    type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
     logical, intent(out) :: fail
 
-    type(system), pointer :: syl => null()
     integer :: ia
     integer :: c
     real*8 :: a, b
@@ -1286,8 +1295,7 @@ contains
 #endif
 
     ! recover the system pointer
-    if (present(sptr)) then
-       call c_f_pointer(sptr,syl)
+    if (present(syl)) then
        if (.not.syl%isinit) &
           call die('error: system not initialized')
     end if
@@ -1460,7 +1468,7 @@ contains
        end select
     elseif (istype(c,'chemfunction')) then
        ! We need a point and the evaluator
-       if (.not.present(x0).or..not.present(sptr)) then
+       if (.not.present(x0).or..not.present(syl)) then
           fail = .true.
           return
        endif
@@ -1473,7 +1481,7 @@ contains
           call die('wrong field ' // string(sia))
     
        ! Use the library of chemical functions
-       q(nq) = chemfunction(c,sia,x0,sptr,periodic)
+       q(nq) = chemfunction(c,sia,x0,syl,periodic)
     else
        call die('error in expression')
     end if
@@ -1646,32 +1654,26 @@ contains
 
   !> Calculate a chemical function for a given field.  This routine is
   !> thread-safe.
-  function chemfunction(c,sia,x0,sptr,periodic) result(q)
+  function chemfunction(c,sia,x0,syl,periodic) result(q)
     use systemmod, only: system
     use types, only: scalar_value
-    use iso_c_binding, only: c_ptr, c_f_pointer
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
     real*8 :: q
     logical, intent(in), optional :: periodic
-    type(c_ptr), intent(in), optional :: sptr
+    type(system), intent(inout), optional :: syl
   
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0
-    type(system), pointer :: syl => null()
     integer :: idx
   
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
   
     q = 0d0
-    if (.not.present(sptr)) return
-
-    ! recover the system pointer
-    call c_f_pointer(sptr,syl)
-    if (.not.syl%isinit) &
-       call die('error: system not initialized')
+    if (.not.present(syl)) return
+    if (.not.syl%isinit) return
 
     idx = syl%fieldname_to_idx(sia)
 
