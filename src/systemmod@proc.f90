@@ -1232,25 +1232,6 @@ contains
 
   end function fieldeval
 
-  !> Check the field with string identifier id exists and is sane. If
-  !> iout is present, return the numeric ID for the field.  
-  !> Used in the arithmetic module.
-  module function fieldcheck(s,id,iout)
-    class(system), intent(inout) :: s
-    character*(*), intent(in) :: id
-    integer, intent(out), optional :: iout
-    logical :: fieldcheck
-
-    integer :: iid
-
-    fieldcheck = .false.
-    if (.not.s%isinit) return
-    iid = s%fieldname_to_idx(id)
-    fieldcheck = s%goodfield(iid)
-    if (present(iout)) iout = iid
-
-  end function fieldcheck
-
   !> Check that the field given by id is a grid of size n and return
   !> the grid, or return ifail = .true.  Used in the
   !> arithmetic module.

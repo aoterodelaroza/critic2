@@ -73,7 +73,6 @@ module systemmod
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
      procedure :: fieldeval !< Evaluate one of the system's fields
-     procedure :: fieldcheck !< Check a field exists and is sane
      procedure :: fieldcube !< If a field is a grid, return said grid.
   end type system
   public :: system
@@ -221,12 +220,6 @@ module systemmod
        real*8, intent(in) :: nucepsh
        integer, intent(in), optional :: itype
      end subroutine addcp
-     module function fieldcheck(s,id,iout)
-       class(system), intent(inout) :: s
-       character*(*), intent(in) :: id
-       integer, intent(out), optional :: iout
-       logical :: fieldcheck
-     end function fieldcheck
      recursive module function fieldeval(s,id,nder,fder,x0,periodic)
        use types, only: scalar_value
        class(system), intent(inout) :: s

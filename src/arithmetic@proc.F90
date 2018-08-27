@@ -305,6 +305,7 @@ contains
 
     ! recover the system pointer
     call c_f_pointer(sptr,syl)
+    if (.not.syl%isinit) goto 999
 
     ! tokenize the expression in input
     iok = .true.
@@ -320,8 +321,9 @@ contains
     ns = 0
     allocate(q(n(1),n(2),n(3),1))
     
-    ! the grid version of the arithmetic evaluator does not support
-    ! certain types of operators (xc, chemfunction).
+    ! The grid version of the arithmetic evaluator does not support
+    ! certain types of operators (xc, chemfunction). Check that the
+    ! grid fields are all correct
     do i = 1, ntok
        if (toklist(i)%ival == fun_xc) goto 999
        if (istype(toklist(i)%ival,'chemfunction')) goto 999
@@ -482,7 +484,10 @@ contains
     type(system), pointer :: syl => null()
 
     ! recover the system pointer
-    if (present(sptr)) call c_f_pointer(sptr,syl)
+    if (present(sptr)) then
+       call c_f_pointer(sptr,syl)
+       if (.not.syl%isinit) goto 999
+    end if
 
     ! initialize
     tokenize = .true.
@@ -849,11 +854,15 @@ contains
     type(system), pointer :: syl => null()
 
     ! recover the system pointer
-    if (present(sptr)) call c_f_pointer(sptr,syl)
+    if (present(sptr)) then
+       call c_f_pointer(sptr,syl)
+       if (.not.syl%isinit) &
+          call die('evaluating field ' // string(fid) // ', system not initialized')
+    end if
 
     fieldeval = 0d0
     if (present(x0).and.present(sptr)) then
-       if (.not.syl%fieldcheck(fid).and..not.isspecialfield(fid)) &
+       if (.not.syl%goodfield(key=fid).and..not.isspecialfield(fid)) &
           call die('wrong field (' // string(fid) // ') in expression')
        fderl = lower(fder)
        select case (trim(fderl))
@@ -1266,7 +1275,11 @@ contains
 #endif
 
     ! recover the system pointer
-    if (present(sptr)) call c_f_pointer(sptr,syl)
+    if (present(sptr)) then
+       call c_f_pointer(sptr,syl)
+       if (.not.syl%isinit) &
+          call die('error: system not initialized')
+    end if
 
     ! pop from the stack
     fail = .false.
@@ -1445,7 +1458,7 @@ contains
        ia = tointeger(q(nq))
        write (sia,'(I8)') ia
        sia = adjustl(sia)
-       if (.not.syl%fieldcheck(sia)) &
+       if (.not.syl%goodfield(key=sia)) &
           call die('wrong field ' // string(sia))
     
        ! Use the library of chemical functions
@@ -1645,6 +1658,8 @@ contains
 
     ! recover the system pointer
     call c_f_pointer(sptr,syl)
+    if (.not.syl%isinit) &
+       call die('error: system not initialized')
 
     select case(c)
     case (fun_gtf)
