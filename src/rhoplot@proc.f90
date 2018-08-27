@@ -575,7 +575,7 @@ contains
     else
        ok = .false.
        if (useexpr) then
-          call faux%new_eval(c_loc(sy),nn,expr,sy%fh,sy%cube)
+          call faux%new_eval(c_loc(sy),nn,expr)
           ok = faux%isinit
        end if
        allocate(lf(nn(1),nn(2),nn(3)))

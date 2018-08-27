@@ -84,24 +84,11 @@ module grid3mod
   integer, parameter :: mode_default = mode_tricubic
 
   interface
-     module subroutine new_eval(f,sptr,n,expr,fh,field_cube)
+     module subroutine new_eval(f,sptr,n,expr)
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: sptr
        integer, intent(in) :: n(3)
        character(*), intent(in) :: expr
-       type(hash), intent(in) :: fh
-       interface
-          subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
-            import c_ptr
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: n(3)
-            character*(*), intent(in) :: fder
-            logical, intent(in) :: dry
-            logical, intent(out) :: ifail
-            real*8, intent(out) :: q(n(1),n(2),n(3))
-          end subroutine field_cube
-       end interface
      end subroutine new_eval
      module subroutine grid_end(f)
        class(grid3), intent(inout) :: f

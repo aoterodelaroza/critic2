@@ -51,7 +51,6 @@ program critic
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
      start_clock, print_clock
-  use types, only: scalar_value
   use param, only: param_init
   implicit none
 

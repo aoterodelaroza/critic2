@@ -80,9 +80,6 @@ contains
     
     call s%end()
     allocate(s%c)
-    s%fcheck => field_fcheck
-    s%feval => field_feval
-    s%cube => field_cube
 
   end subroutine system_init
   
@@ -424,7 +421,8 @@ contains
     ! Maybe we can load it as a grid if all the fields are grids
     ! and they are the same size
     if (seed%iff == ifformat_as_ghost) then
-       call fields_in_eval(seed%expr,s%fh,nn,idlist)
+       syl => s
+       call fields_in_eval(seed%expr,nn,idlist,c_loc(syl))
        ok = .true.
        n = -1
        do i = 1, nn
@@ -565,7 +563,7 @@ contains
        end if
 
        syl => s
-       call s%f(id)%field_new(seed,s%c,id,s%fh,c_loc(syl),s%fcheck,s%feval,s%cube,errmsg)
+       call s%f(id)%field_new(seed,s%c,id,c_loc(syl),errmsg)
 
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
@@ -689,111 +687,6 @@ contains
     call s%f(id1)%init_cplist
 
   end subroutine field_copy
-
-  !> Check that the id is a grid and is a sane field. Wrapper around
-  !> goodfield() to pass it to the arithmetic module.  This routine is
-  !> thread-safe. psy is the pointer to the system.
-  module function field_fcheck(sptr,id,iout)
-    use iso_c_binding, only: c_ptr, c_associated, c_f_pointer
-    type(c_ptr), intent(in) :: sptr
-    character*(*), intent(in) :: id
-    integer, intent(out), optional :: iout
-    logical :: field_fcheck
-
-    type(system), pointer :: syl => null()
-    integer :: iid
-
-    call c_f_pointer(sptr,syl)
-    field_fcheck = .false.
-    if (.not.associated(syl)) return
-    iid = syl%fieldname_to_idx(id)
-    field_fcheck = syl%goodfield(iid)
-    if (present(iout)) iout = iid
-
-  end function field_fcheck
-
-  !> Evaluate the field at a point. Wrapper around grd() to pass it to
-  !> the arithmetic module.  This routine is thread-safe.
-  recursive module function field_feval(sptr,id,nder,fder,x0,periodic)
-    use iso_c_binding, only: c_ptr, c_f_pointer
-    use types, only: scalar_value
-    type(scalar_value) :: field_feval
-    type(c_ptr), intent(in) :: sptr
-    character*(*), intent(in) :: id
-    integer, intent(in) :: nder
-    character*(*), intent(in) :: fder
-    real*8, intent(in) :: x0(3)
-    logical, intent(in), optional :: periodic
-
-    type(system), pointer :: syl
-    integer :: iid
-    real*8 :: xp(3)
-    
-    field_feval%f = 0d0
-    field_feval%fval = 0d0
-    field_feval%gf = 0d0
-    field_feval%gfmod = 0d0
-    field_feval%gfmodval = 0d0
-    field_feval%hf = 0d0
-    field_feval%del2f = 0d0
-    field_feval%del2fval = 0d0
-    field_feval%fspc = 0d0
-
-    call c_f_pointer(sptr,syl)
-    if (.not.associated(syl)) return
-    iid = syl%fieldname_to_idx(id)
-    if (iid >= 0) then
-       call syl%f(iid)%grd(x0,nder,field_feval,fder=fder,periodic=periodic)
-    elseif (trim(id) == "ewald") then
-       xp = syl%c%c2x(x0)
-       field_feval%f = syl%c%ewald_pot(xp,.false.)
-       field_feval%fval = field_feval%f
-    end if
-
-  end function field_feval
-
-  !> Check that the field given by id is a grid of size n
-  !> and return the grid, or return ifail = .true..
-  module subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
-    use iso_c_binding, only: c_ptr, c_f_pointer
-    use fieldmod, only: type_grid
-    type(c_ptr), intent(in) :: sptr
-    character*(*), intent(in) :: id
-    integer, intent(in) :: n(3)
-    character*(*), intent(in) :: fder
-    logical, intent(in) :: dry
-    logical, intent(out) :: ifail
-    real*8, intent(out) :: q(n(1),n(2),n(3))
-
-    type(system), pointer :: syl
-    integer :: iid
-    logical :: isgrid
-
-    call c_f_pointer(sptr,syl)
-
-    ifail = .false.
-    q = 0d0
-    if (.not.associated(syl)) goto 999
-    iid = syl%fieldname_to_idx(id)
-    if (.not.syl%f(iid)%isinit) goto 999
-    isgrid = (syl%f(iid)%type == type_grid)
-    if (isgrid) isgrid = isgrid .and. all(syl%f(iid)%grid%n == n)
-    if (isgrid) isgrid = isgrid .and. (trim(fder) == "" .or. trim(fder)=="v")
-    if (isgrid) then
-       if (.not.dry) then
-          q = syl%f(iid)%grid%f
-       else
-          q = 0d0
-       end if
-    else
-       goto 999
-    end if
-
-    return
-999 continue
-    ifail = .true.
-    q = 0d0
-  end subroutine field_cube
 
   !> Unload a field given by identifier id.
   module subroutine unload_field(s,id)
@@ -967,7 +860,8 @@ contains
     use arithmetic, only: fields_in_eval
     use types, only: realloc
     use param, only: mlen
-    class(system), intent(inout) :: s
+    use iso_c_binding, only: c_loc, c_ptr
+    class(system), intent(inout), target :: s
     character*(*), intent(in) :: line0
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -975,6 +869,7 @@ contains
     integer :: lp, n, i
     character(len=:), allocatable :: expr, word, lword, line
     character(len=mlen), allocatable :: idlist(:)
+    type(system), pointer :: syl
 
     errmsg = ""
     lp = 1
@@ -1070,7 +965,8 @@ contains
 
     ! Determine the fields in the expression, check that they are defined
     if (s%propp(s%npropp)%ispecial == 0) then
-       call fields_in_eval(expr,s%fh,n,idlist)
+       syl => s
+       call fields_in_eval(expr,n,idlist,c_loc(syl))
        do i = 1, n
           if (.not.s%goodfield(s%fieldname_to_idx(idlist(i)))) then
              errmsg = "Unknown field in arithmetic expression (POINTPROP)"
@@ -1112,7 +1008,7 @@ contains
     type(system), pointer :: syl
 
     syl => s
-    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl),s%fh,s%fcheck,s%feval)
+    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl))
 
   end function system_eval
 
@@ -1296,5 +1192,103 @@ contains
     call s%f(id)%addcp(x0,cpeps,nuceps,nucepsh,itype)
 
   end subroutine addcp
+  
+  !> Evaluate field with ID id at point x0 (Cartesian) and derivatives
+  !> up to nder. fder = modifier for special fields. periodic =
+  !> whether the system is to be considered periodic (molecules only).
+  !> Used in the arithmetic module.
+  recursive module function fieldeval(s,id,nder,fder,x0,periodic)
+    use types, only: scalar_value
+    class(system), intent(inout) :: s
+    character*(*), intent(in) :: id
+    integer, intent(in) :: nder
+    character*(*), intent(in) :: fder
+    real*8, intent(in) :: x0(3)
+    logical, intent(in), optional :: periodic
+    type(scalar_value) :: fieldeval
+
+    integer :: iid
+    real*8 :: xp(3)
+
+    fieldeval%f = 0d0
+    fieldeval%fval = 0d0
+    fieldeval%gf = 0d0
+    fieldeval%gfmod = 0d0
+    fieldeval%gfmodval = 0d0
+    fieldeval%hf = 0d0
+    fieldeval%del2f = 0d0
+    fieldeval%del2fval = 0d0
+    fieldeval%fspc = 0d0
+
+    if (.not.s%isinit) return
+    iid = s%fieldname_to_idx(id)
+    if (iid >= 0) then
+       call s%f(iid)%grd(x0,nder,fieldeval,fder=fder,periodic=periodic)
+    elseif (trim(id) == "ewald") then
+       xp = s%c%c2x(x0)
+       fieldeval%f = s%c%ewald_pot(xp,.false.)
+       fieldeval%fval = fieldeval%f
+    end if
+
+  end function fieldeval
+
+  !> Check the field with string identifier id exists and is sane. If
+  !> iout is present, return the numeric ID for the field.  
+  !> Used in the arithmetic module.
+  module function fieldcheck(s,id,iout)
+    class(system), intent(inout) :: s
+    character*(*), intent(in) :: id
+    integer, intent(out), optional :: iout
+    logical :: fieldcheck
+
+    integer :: iid
+
+    fieldcheck = .false.
+    if (.not.s%isinit) return
+    iid = s%fieldname_to_idx(id)
+    fieldcheck = s%goodfield(iid)
+    if (present(iout)) iout = iid
+
+  end function fieldcheck
+
+  !> Check that the field given by id is a grid of size n and return
+  !> the grid, or return ifail = .true.  Used in the
+  !> arithmetic module.
+  module subroutine fieldcube(s,n,id,fder,dry,ifail,q)
+    use fieldmod, only: type_grid
+    class(system), intent(inout) :: s
+    character*(*), intent(in) :: id
+    integer, intent(in) :: n(3)
+    character*(*), intent(in) :: fder
+    logical, intent(in) :: dry
+    logical, intent(out) :: ifail
+    real*8, intent(out) :: q(n(1),n(2),n(3))
+
+    integer :: iid
+    logical :: isgrid
+
+    ifail = .false.
+    q = 0d0
+    if (.not.s%isinit) goto 999
+    iid = s%fieldname_to_idx(id)
+    if (.not.s%f(iid)%isinit) goto 999
+    isgrid = (s%f(iid)%type == type_grid)
+    if (isgrid) isgrid = isgrid .and. all(s%f(iid)%grid%n == n)
+    if (isgrid) isgrid = isgrid .and. (trim(fder) == "" .or. trim(fder)=="v")
+    if (isgrid) then
+       if (.not.dry) then
+          q = s%f(iid)%grid%f
+       else
+          q = 0d0
+       end if
+    else
+       goto 999
+    end if
+
+    return
+999 continue
+    ifail = .true.
+    q = 0d0
+  end subroutine fieldcube
 
 end submodule proc

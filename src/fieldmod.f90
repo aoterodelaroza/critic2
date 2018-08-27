@@ -36,29 +36,6 @@ module fieldmod
 
   public :: realloc_field
 
-  ! pointers for the arithmetic module
-  interface
-     !> Check that the id is a grid and is a sane field
-     function fcheck(sptr,id,iout)
-       import c_ptr
-       logical :: fcheck
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(out), optional :: iout
-     end function fcheck
-     !> Evaluate the field at a point
-     function feval(sptr,id,nder,fder,x0,periodic)
-       import c_ptr, scalar_value
-       type(scalar_value) :: feval
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(in) :: nder
-       character*(*), intent(in) :: fder
-       real*8, intent(in) :: x0(3)
-       logical, intent(in), optional :: periodic
-     end function feval
-  end interface
-
   !> Scalar field types
   integer, parameter, public :: type_uninit = -1 !< uninitialized
   integer, parameter, public :: type_promol = 0 !< promolecular density
@@ -97,10 +74,7 @@ module fieldmod
      integer :: zpsp(maxzat0)
      ! ghost field
      character(len=mmlen) :: expr
-     type(hash), pointer :: fh => null()
      type(c_ptr) :: sptr = c_null_ptr
-     procedure(fcheck), pointer, nopass :: fcheck => null()
-     procedure(feval), pointer, nopass :: feval => null()
      ! critical point list
      logical :: fcp_deferred = .true.
      integer :: ncp = 0
@@ -153,71 +127,21 @@ module fieldmod
        character*(*), intent(in) :: line
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine field_set_options
-     module subroutine field_new(f,seed,c,id,fh,sptr,fcheck,feval,cube,errmsg)
+     module subroutine field_new(f,seed,c,id,sptr,errmsg)
        class(field), intent(inout) :: f
        type(fieldseed), intent(in) :: seed 
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
-       type(hash), intent(in) :: fh
        type(c_ptr), intent(in) :: sptr
        character(len=:), allocatable, intent(out) :: errmsg
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-          subroutine cube(sptr,n,id,fder,dry,ifail,q)
-            use iso_c_binding, only: c_ptr
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: n(3)
-            character*(*), intent(in) :: fder
-            logical, intent(in) :: dry
-            logical, intent(out) :: ifail
-            real*8, intent(out) :: q(n(1),n(2),n(3))
-          end subroutine cube
-       end interface
      end subroutine field_new
-     module subroutine load_ghost(f,c,id,name,expr,sptr,fh,fcheck,feval)
+     module subroutine load_ghost(f,c,id,name,expr,sptr)
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
        character*(*), intent(in) :: name
        character*(*), intent(in) :: expr
        type(c_ptr), intent(in) :: sptr
-       type(hash), intent(in), target :: fh 
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-       end interface
      end subroutine load_ghost
      module subroutine load_promolecular(f,c,id,name,fr)
        class(field), intent(inout) :: f

@@ -27,9 +27,6 @@ module systemmod
 
   public :: systemmod_init
   public :: systemmod_end
-  private :: field_fcheck
-  private :: field_feval
-  private :: field_cube
 
   type system
      logical :: isinit = .false. !< Is the system initialized?
@@ -43,9 +40,6 @@ module systemmod
      integer :: npropp = 0 !< Number of properties at points
      type(pointpropable), allocatable :: propp(:) !< Properties at points
      type(hash) :: fh !< Hash of function aliases
-     procedure(field_fcheck), nopass, pointer :: fcheck => null() !< Pointer to functions for arithmetics
-     procedure(field_feval), nopass, pointer :: feval => null() !< Pointer to functions for arithmetics
-     procedure(field_cube), nopass, pointer :: cube => null() !< Pointer to functions for arithmetics
    contains
      procedure :: end => system_end !< Terminate a system object
      procedure :: init => system_init !< Allocate space for crystal structure
@@ -68,6 +62,9 @@ module systemmod
      procedure :: propty !< Calculate the properties of a field or all fields at a point
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
+     procedure :: fieldeval !< Evaluate one of the system's fields
+     procedure :: fieldcheck !< Check a field exists and is sane
+     procedure :: fieldcube !< If a field is a grid, return said grid.
   end type system
   public :: system
 
@@ -167,35 +164,6 @@ module systemmod
        integer, intent(in) :: id0
        integer, intent(in) :: id1
      end subroutine field_copy
-     module function field_fcheck(sptr,id,iout)
-       use iso_c_binding, only: c_ptr
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(out), optional :: iout
-       logical :: field_fcheck
-     end function field_fcheck
-     recursive module function field_feval(sptr,id,nder,fder,x0,periodic)
-       use iso_c_binding, only: c_ptr
-       use types, only: scalar_value
-       type(scalar_value) :: field_feval
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(in) :: nder
-       character*(*), intent(in) :: fder
-       real*8, intent(in) :: x0(3)
-       logical, intent(in), optional :: periodic
-     end function field_feval
-     module subroutine field_cube(sptr,n,id,fder,dry,ifail,q)
-       use iso_c_binding, only: c_ptr, c_f_pointer
-       use fieldmod, only: type_grid
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(in) :: n(3)
-       character*(*), intent(in) :: fder
-       logical, intent(in) :: dry
-       logical, intent(out) :: ifail
-       real*8, intent(out) ::q(n(1),n(2),n(3))
-     end subroutine field_cube
      module subroutine unload_field(s,id)
        class(system), intent(inout) :: s
        integer, intent(in) :: id
@@ -206,7 +174,7 @@ module systemmod
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_integrable_string
      module subroutine new_pointprop_string(s,line0,errmsg)
-       class(system), intent(inout) :: s
+       class(system), intent(inout), target :: s
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
@@ -243,6 +211,32 @@ module systemmod
        real*8, intent(in) :: nucepsh
        integer, intent(in), optional :: itype
      end subroutine addcp
+     module function fieldcheck(s,id,iout)
+       class(system), intent(inout) :: s
+       character*(*), intent(in) :: id
+       integer, intent(out), optional :: iout
+       logical :: fieldcheck
+     end function fieldcheck
+     recursive module function fieldeval(s,id,nder,fder,x0,periodic)
+       use types, only: scalar_value
+       class(system), intent(inout) :: s
+       character*(*), intent(in) :: id
+       integer, intent(in) :: nder
+       character*(*), intent(in) :: fder
+       real*8, intent(in) :: x0(3)
+       logical, intent(in), optional :: periodic
+       type(scalar_value) :: fieldeval
+     end function fieldeval
+     module subroutine fieldcube(s,n,id,fder,dry,ifail,q)
+       use fieldmod, only: type_grid
+       class(system), intent(inout) :: s
+       character*(*), intent(in) :: id
+       integer, intent(in) :: n(3)
+       character*(*), intent(in) :: fder
+       logical, intent(in) :: dry
+       logical, intent(out) :: ifail
+       real*8, intent(out) :: q(n(1),n(2),n(3))
+     end subroutine fieldcube
   end interface
 
 end module systemmod

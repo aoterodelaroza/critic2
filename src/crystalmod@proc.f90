@@ -1049,7 +1049,7 @@ contains
   module subroutine fill_molecular_fragments(c)
     use fragmentmod, only: realloc_fragment
     use tools_math, only: lattice_direction
-    use tools_io, only: ferror, faterr, warning
+    use tools_io, only: ferror, faterr
     use types, only: realloc
     class(crystal), intent(inout) :: c
 
@@ -1059,7 +1059,7 @@ contains
     integer, allocatable :: id(:), lvec(:,:)
     logical, allocatable :: ldone(:), used(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
-    real*8 :: xcm(3), x(3)
+    real*8 :: xcm(3)
 
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
