@@ -482,7 +482,7 @@ contains
         allocate(rhofragl(nfrag))
         rhofragl = 0d0
         !$omp parallel do private (x,res,resg,ehess,dimgrad,rhoatl,&
-        !$omp xd,dist,rrho,rrho1,rrho2) firstprivate(rhofragl) schedule(dynamic)
+        !$omp xd,dist,rrho,rrho1,rrho2,iz) firstprivate(rhofragl) schedule(dynamic)
         do i = 0, nstep(1)-1
            do j = 0, nstep(2)-1
               do k = 0, nstep(3)-1
