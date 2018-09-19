@@ -97,6 +97,7 @@ contains
 
     if (.not.g%isinit) return
     if (r0 >= g%rmax) return
+    if (g%z - g%qat <= 0) return
 
     ! careful with grid limits.
     if (r0 <= g%r(1)) then
