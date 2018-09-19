@@ -2032,7 +2032,7 @@ contains
     integer :: nlat
     real*8, allocatable :: xlat(:,:)
 
-    real*8, parameter :: eps = 1d-6
+    real*8, parameter :: eps = 1d-4
 
     if (c%ismolecule) &
        call ferror('newcell','NEWCELL incompatible with molecules',faterr)
