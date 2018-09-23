@@ -1042,7 +1042,7 @@ contains
     dopowder = .true.
     xend = -1d0
     allocate(fname(1))
-    sorted = .true.
+    sorted = .false.
     sigma = sigma0
 
     ! read the input options
