@@ -246,8 +246,8 @@ contains
     integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer, allocatable :: eid(:)
-    integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2, nat, lvec(3), ierr
-    real*8 :: x(3), fscal, fscal2, xnuc(3)
+    integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat, lvec(3), ierr
+    real*8 :: x(3), fscal, fscal2, xnuc(3), rmax
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:), dist(:)
     logical :: isealloc
     type(environ), allocatable :: env
@@ -256,17 +256,6 @@ contains
 
     ! reset the arrays
     call m%end()
-
-    ! pointer to the environment
-    if (rthres >= c%env%dmax0.and..not.c%ismolecule) then
-       isealloc = .true.
-       allocate(env)
-       call env%extend(c%env,rthres)
-    else
-       ! keep a pointer to the environment
-       isealloc = .false.
-    end if
-    
 
     ! allocate space for the mesh
     m%n = 0
@@ -278,19 +267,39 @@ contains
     allocate(m%w(m%n),m%x(3,m%n),stat=istat)
 
     ! allocate work arrays
+    rmax = 0d0
+    izmr = -1
     mr = -1
     mang = -1
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang_franchini(iz,lvl))
-       mr = max(mr,z2nr_franchini(iz,lvl))
+       nr = z2nr_franchini(iz,lvl)
+       if (nr > mr .or. nr == mr .and. iz > izmr) then
+          mr = nr
+          izmr = iz
+       end if
     end do
     allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
     allocate(rads(mr),wrads(mr),stat=istat)
     if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for radial meshes',faterr)
     allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
     if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for angular meshes',faterr)
+    
+    ! calculate the maximum r
+    call rmesh_franchini(mr,izmr,rads,wrads)
+    rmax = max(rads(mr),rthres)
+
+    ! pointer to the environment
+    if (rmax >= c%env%dmax0.and..not.c%ismolecule) then
+       isealloc = .true.
+       allocate(env)
+       call env%extend(c%env,rmax)
+    else
+       ! keep a pointer to the environment
+       isealloc = .false.
+    end if
     
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
@@ -330,9 +339,9 @@ contains
 
              ! find all atoms within a distance = rthres from the mesh point
              if (isealloc) then
-                call env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rthres)
+                call env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax)
              else
-                call c%env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rthres)
+                call c%env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax)
              end if
              if (ierr > 0) then
                 call ferror('genmesh_franchini','could not find environment of a mesh point',faterr)
@@ -354,6 +363,7 @@ contains
                 end if
                 vpsum = vpsum + fscal2 * exp(-2d0 * dist(j)) / max(dist(j),1d-10)**3
              enddo
+             vpsum = max(vp0,vpsum)
                 
              !$omp critical (mmesh)
              meshrl(il,ir,i) = vp0/max(vpsum,1d-40) * wrads(ir) * wang(il)

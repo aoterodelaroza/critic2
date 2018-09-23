@@ -1284,7 +1284,7 @@ contains
   end function rmsd_walker
 
   !> Find the Gauss-Legendre nodes and weights for an interval.
-  module subroutine gauleg (x1,x2,x,w,n)
+  module subroutine gauleg(x1,x2,x,w,n)
     use param, only: pi
     real*8, intent(in) :: x1 !< Left limit of the interval
     real*8, intent(in) :: x2 !< Right limit of the interval
