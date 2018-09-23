@@ -2502,7 +2502,7 @@ contains
     call realloc(f%e,f%npri)
     call realloc(f%icenter,f%npri)
     call realloc(f%itype,f%npri)
-    call realloc(f%cmo,f%nmoocc,f%npri)
+    call realloc(f%cmo,size(f%cmo,1),f%npri)
     deallocate(keep)
 
   end subroutine prune_primitives
