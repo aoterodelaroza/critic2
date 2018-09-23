@@ -1206,6 +1206,7 @@ contains
 
        lwork = 5*3 + max(nlvec,3)
        allocate(sigma(3),uvec(3,3),vvec(1,1),work(lwork))
+       sigma = 0d0
        call dgesvd('A','N',3,k,rlvec,3,sigma,uvec,3,vvec,1,work,lwork,info)
        if (info /= 0) &
           call ferror("fill_molecular_fragments","dgesvd failed!",faterr)
