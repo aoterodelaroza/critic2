@@ -1487,7 +1487,7 @@ contains
     real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
 
     integer :: i, j, jj, iz, nat, ierr, lvec(3)
-    real*8 :: d, d2
+    real*8 :: d
     real*8 :: e
     real*8 :: rmax, maxc6
     integer, allocatable :: eid(:)
@@ -1553,8 +1553,8 @@ contains
     integer, intent(in) :: i0, i1
     real*8 :: calc_edisp_from_mv
 
-    real*8 :: d, d2
-    real*8 :: xij(3), x0(3)
+    real*8 :: d
+    real*8 :: x0(3)
     real*8 :: e, alpha0, alpha1, ml0(3), ml1(3)
     integer :: jj, i, j, k, iz, nat, lvec2(3), ierr
     real*8 :: rmax, rmax2, maxc6, c6, c8, c10, rc, rvdw

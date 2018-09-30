@@ -59,7 +59,7 @@ contains
     real*8, allocatable :: chi(:), fnear(:,:)
     logical :: isias, isassigned, ok
     integer :: nid
-    real*8 :: dist, dv(3), fval, x(3)
+    real*8 :: dv(3), fval, x(3)
     type(crystal) :: caux
 
     if (.not.s%isinit) &

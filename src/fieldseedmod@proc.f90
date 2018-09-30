@@ -39,7 +39,6 @@ contains
     f%testrmt = .true.
     f%readvirtual = .false.
     f%fid = ""
-    f%nou = .false.
 
   end subroutine fieldseed_end
 
@@ -558,9 +557,6 @@ contains
              f%errmsg = "missing file name in fragment"
              return
           end if
-       elseif (equal(lword,'nou')) then
-          ! wannier option: nou
-          f%nou = .true.
        else
           call f%end()
           f%errmsg = "unknown load keyword: " // word

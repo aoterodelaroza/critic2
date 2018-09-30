@@ -28,17 +28,18 @@ module grid3mod
      integer :: nk(3) !< Number of k-points in each grid direction (0 if not a grid)
      integer :: nbnd !< Number of bands
      integer :: nspin !< Number of spins
-     logical :: useu = .true. !< Use the U transformation to get MLWF
-     logical :: sijavail = .false. !< true if the sij checkpoint file available
-     logical :: evcavail = .false. !< true if the evc/unkgen files are available
-     character(len=mlen) :: fevc !< evc file name
-     real*8, allocatable :: kpt(:,:) !< k-points in fract. coords.
+     logical :: gamma_only !< Whether gamma-only tricks are being used
+     character(len=mlen) :: fpwc !< pwc file name
+     real*8, allocatable :: kpt(:,:) !< k-points in cryst. coords. (3,k)
+     real*8, allocatable :: wk(:) !< k-point weights (k)
+     real*8, allocatable :: ek(:,:) !< band energies (bnd,spin*k)
+     real*8, allocatable :: occ(:,:) !< band occupations (bnd,spin*k)
+     integer, allocatable :: ngk(:) !< number of plane-waves for each k-point (k)
+     integer, allocatable :: igk_k(:,:) !< fft reorder (npw,nk)
+     integer, allocatable :: nl(:) !< fft reorder (ngms)
+     integer, allocatable :: nlm(:) !< fft reorder (ngms) (gamma only)
      real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
      real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
-     integer, allocatable :: ngk(:) !< number of plane-waves for each k-point
-     integer, allocatable :: igk_k(:,:) !< fft reorder
-     integer, allocatable :: nl(:) !< fft reorder
-     integer, allocatable :: nlm(:) !< fft reorder (gamma only)
      complex*16, allocatable :: u(:,:,:) !< u matrix
   end type qedat
 
@@ -50,7 +51,7 @@ module grid3mod
      integer :: n(3) !< number of grid points in each direction
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
-     type(qedat) :: wan !< Wannier functions and related information
+     type(qedat) :: qe !< QE band states and Wannier function transformation
    contains
      procedure :: end => grid_end !< deallocate all arrays and uninitialize
      procedure :: setmode !< set the interpolation mode of a grid
@@ -195,10 +196,11 @@ module grid3mod
        integer, intent(inout) :: luevc_ibnd(2)
        complex*16, intent(out), optional :: fout(:,:,:,:)
      end subroutine get_qe_wnr
-     module subroutine rotate_qe_evc(f,luevc,luevc_ibnd)
+     module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu)
        class(grid3), intent(inout) :: f
        integer, intent(out) :: luevc(2)
        integer, intent(out) :: luevc_ibnd(2)
+       logical, intent(in) :: useu
      end subroutine rotate_qe_evc
   end interface
 

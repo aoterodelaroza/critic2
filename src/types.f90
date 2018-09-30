@@ -180,6 +180,7 @@ module types
      integer :: lmax
      real*8 :: x0(3)
      ! integration of delocalization indices with Wannier functions
+     logical :: useu = .true.
      logical :: sijchk = .true.
      logical :: fachk = .true.
      real*8 :: wancut = 4d0

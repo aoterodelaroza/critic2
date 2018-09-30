@@ -2130,7 +2130,7 @@ field formats are supported:
   LOAD AS GRAD id.s
   LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
-  LOAD file.chk file.unkgen file.evc [NOU]
+  LOAD file.chk file.unkgen file.evc
 
 Critic2 loads scalar fields in "field slots": integer identifiers that
 represent the field throughout the run. The NAME (or ID) keyword can
@@ -2269,13 +2269,6 @@ file contains the Bloch state coefficients. Critic reads these
 coefficients and the U matrices from the chk file and calculates the
 MLWFs internally. This field is used mostly to obtain the
 delocalization indices (DI) via YT or BADER.
-
-The NOU options disables the use of the U matrices to calculate the
-MLWFs. This yields Wannier functions via a straight Wannier
-transformation from the Bloch states. See `List of properties
-integrated in the attractor basins (INTEGRABLE)`_ for more options
-regarding the use of Wannier functions to calculate localization and
-delocalization indices.
 
 WIEN2k (clmsum, etc.)
 +++++++++++++++++++++
@@ -4387,7 +4380,7 @@ List of properties integrated in the attractor basins (INTEGRABLE)
 
   INTEGRABLE id.s {F|FVAL|GMOD|LAP|LAPVAL} [NAME name.s]
   INTEGRABLE id.s {MULTIPOLE|MULTIPOLES} [lmax.i] 
-  INTEGRABLE id.s DELOC [NOSIJCHK] [NOFACHK] [WANCUT wancut.r]
+  INTEGRABLE id.s DELOC [NOU] [NOSIJCHK] [NOFACHK] [WANCUT wancut.r]
   INTEGRABLE "expr.s" 
   INTEGRABLE CLEAR
   INTEGRABLE ... [NAME name.s]
@@ -4417,7 +4410,9 @@ indices using field id.s using maximally localized wannier functions
 (see `Loading a field (LOAD)`_). The field id.s must contain the
 Wannier functions information from wannier90 and QE, and its grid must
 be consistent with that of the reference field. The DIs can be
-calculated using YT or BADER only.
+calculated using YT or BADER only. The NOU options disables the use of
+the U matrices to calculate the MLWFs. This yields Wannier functions
+via a straight Wannier transformation from the Bloch states. 
 
 In addition, it is possible to define an integrable property using an
 expression involving more than one field (expr.s). For instance, if

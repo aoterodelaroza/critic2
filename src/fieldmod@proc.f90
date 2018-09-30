@@ -366,7 +366,6 @@ contains
     elseif (seed%iff == ifformat_chk) then
        call f%grid%end()
 
-       f%grid%wan%useu = .not.seed%nou
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -375,7 +374,6 @@ contains
     elseif (seed%iff == ifformat_pwc) then
        call f%grid%end()
 
-       f%grid%wan%useu = .not.seed%nou
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -1337,35 +1335,20 @@ contains
     if (f%grid%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions information for this field")') 
-       if (f%grid%wan%evcavail) then
-          write (uout,'("  Bloch coefficients are available.")') 
-          if (f%grid%wan%useu) then
-             write (uout,'("  MLWF rotation matrix U will be used.")') 
-          else
-             write (uout,'("  MLWF rotation matrix U will NOT be used.")') 
-          end if
-       else
-          write (uout,'("  Bloch coefficients are NOT available.)")') 
-       endif
-       if (f%grid%wan%sijavail) then
-          write (uout,'("  Sij checkpoint file is available.")') 
-       else
-          write (uout,'("  Sij checkpoint file is NOT currently available.")') 
-       endif
-       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%wan%nk(i)),i=1,3)
-       write (uout,'("  Number of bands: ",A)') string(f%grid%wan%nbnd)
-       write (uout,'("  Number of spin channels: ",A)') string(f%grid%wan%nspin)
+       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%qe%nk(i)),i=1,3)
+       write (uout,'("  Number of bands: ",A)') string(f%grid%qe%nbnd)
+       write (uout,'("  Number of spin channels: ",A)') string(f%grid%qe%nspin)
        write (uout,'("  List of k-points: ")')
-       do i = 1, f%grid%wan%nks
-          write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f%grid%wan%kpt(j,i),'f',8,4),j=1,3)
+       do i = 1, f%grid%qe%nks
+          write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f%grid%qe%kpt(j,i),'f',8,4),j=1,3)
        end do
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
        write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
-       do i = 1, f%grid%wan%nspin
-          do j = 1, f%grid%wan%nbnd
+       do i = 1, f%grid%qe%nspin
+          do j = 1, f%grid%qe%nbnd
              write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
-                (string(f%grid%wan%center(k,j,i),'f',10,6,4),k=1,3),&
-                string(f%grid%wan%spread(j,i) * dunit0(iunit),'f',14,8,4)
+                (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
+                string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)
           end do
        end do
     end if

@@ -1364,9 +1364,9 @@ contains
           cycle
        end if
        ndeloc = ndeloc + 1
-       nspin = max(nspin,sy%f(fid)%grid%wan%nspin)
-       nbnd = sy%f(fid)%grid%wan%nbnd
-       nlat = sy%f(fid)%grid%wan%nks
+       nspin = max(nspin,sy%f(fid)%grid%qe%nspin)
+       nbnd = sy%f(fid)%grid%qe%nbnd
+       nlat = sy%f(fid)%grid%qe%nks
        nmo = max(nmo,nlat * nbnd)
     end do
     if (ndeloc == 0) return
@@ -1478,7 +1478,7 @@ contains
 
        sijfname = trim(sy%f(fid)%file) // "-sij"
        inquire(file=sijfname,exist=haschk)
-       if (sy%f(fid)%grid%wan%sijavail .and. sy%propi(l)%sijchk) then
+       if (haschk .and. sy%propi(l)%sijchk) then
           ! read the checkpoint file
           write (uout,'("+ Reading Sij checkpoint file: ",A)') trim(sijfname)
           lu = fopen_read(sijfname,"unformatted")
@@ -1492,15 +1492,12 @@ contains
           read (lu) sij(:,:,:,:,ndeloc)
           call fclose(lu)
        else
-          if (.not.sy%f(fid)%grid%wan%evcavail) &
-             call ferror("intgrid_deloc_wannier","unkgen/evc and checkpoint files not found",faterr)
-
           ! assign values to some integers
-          nbnd = sy%f(fid)%grid%wan%nbnd
-          nwan = sy%f(fid)%grid%wan%nk
-          nlat = sy%f(fid)%grid%wan%nks
+          nbnd = sy%f(fid)%grid%qe%nbnd
+          nwan = sy%f(fid)%grid%qe%nk
+          nlat = sy%f(fid)%grid%qe%nks
           nmo = nlat * nbnd
-          nspin = sy%f(fid)%grid%wan%nspin
+          nspin = sy%f(fid)%grid%qe%nspin
 
           ! write out some info
           write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
@@ -1508,7 +1505,7 @@ contains
           write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
           write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nmo)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
-          if (sy%propi(l)%wancut > 0d0 .and. sy%f(fid)%grid%wan%useu) then
+          if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
              write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%propi(l)%wancut,'f',5,2)
           else
              write (uout,'(99(A,X))') "  Discarding no overlaps."
@@ -1518,12 +1515,12 @@ contains
           luevc = -1
           luevc_ibnd = 0
           write (uout,'(99(A,X))') "  Writing temporary evc files..."
-          call sy%f(fid)%grid%rotate_qe_evc(luevc,luevc_ibnd)
+          call sy%f(fid)%grid%rotate_qe_evc(luevc,luevc_ibnd,sy%propi(l)%useu)
 
           ! calculate overlaps
           write (uout,'(99(A,X))') "  Calculating overlaps..."
-          call calc_sij_wannier(fid,sy%propi(l)%wancut,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,&
-             luevc,luevc_ibnd,sij(:,:,:,:,ndeloc))
+          call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,imtype,natt1,iatt,ilvec,&
+             idg1,xgatt,dat,luevc,luevc_ibnd,sij(:,:,:,:,ndeloc))
 
           ! close the rotated evc scratch files
           if (luevc(1) >= 0) call fclose(luevc(1))
@@ -1560,7 +1557,7 @@ contains
   !> to attractors in Bader, xgatt = attractor position, dat = YT data
   !> type. luevc are the two scratch files for the rotated evc and
   !> luevc_ibnd are the band pointers in those files.
-  subroutine calc_sij_wannier(fid,wancut,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,luevc,luevc_ibnd,sij)
+  subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xgatt,dat,luevc,luevc_ibnd,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
@@ -1568,6 +1565,7 @@ contains
     use tools_io, only: ferror, faterr, uout, string
     integer, intent(in) :: fid
     real*8, intent(in) :: wancut
+    logical, intent(in) :: useu
     integer, intent(in) :: imtype
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
@@ -1595,11 +1593,11 @@ contains
 
     sij = 0d0
     n = sy%f(sy%iref)%grid%n
-    nbnd = sy%f(fid)%grid%wan%nbnd
-    nwan = sy%f(fid)%grid%wan%nk
-    nlat = sy%f(fid)%grid%wan%nks
+    nbnd = sy%f(fid)%grid%qe%nbnd
+    nwan = sy%f(fid)%grid%qe%nk
+    nlat = sy%f(fid)%grid%qe%nks
     nmo = nlat * nbnd
-    nspin = sy%f(fid)%grid%wan%nspin
+    nspin = sy%f(fid)%grid%qe%nspin
 
     ! build the supercell
     ncseed%isused = .true.
@@ -1638,15 +1636,15 @@ contains
 
              ! lovrlp
              lovrlp = .true.
-             if (wancut > 0d0 .and. sy%f(fid)%grid%wan%useu) then
-                d0 = (sy%f(fid)%grid%wan%spread(ibnd1,is)+sy%f(fid)%grid%wan%spread(ibnd2,is)) * wancut
+             if (wancut > 0d0 .and. useu) then
+                d0 = (sy%f(fid)%grid%qe%spread(ibnd1,is)+sy%f(fid)%grid%qe%spread(ibnd2,is)) * wancut
                 do imo = 1, nmo
                    call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                    if (iba /= ibnd1) cycle
                    do jmo = 1, nmo
                       call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                       if (ibb /= ibnd2) cycle
-                      x = (sy%f(fid)%grid%wan%center(:,ibnd1,is) + (/ia,ja,ka/) - (sy%f(fid)%grid%wan%center(:,ibnd2,is) + (/ib,jb,kb/))) / real(nwan,8)
+                      x = (sy%f(fid)%grid%qe%center(:,ibnd1,is) + (/ia,ja,ka/) - (sy%f(fid)%grid%qe%center(:,ibnd2,is) + (/ib,jb,kb/))) / real(nwan,8)
                       call nc%shortest(x,d2)
                       if (d2 > d0) &
                          lovrlp(ia,ja,ka,ib,jb,kb) = .false.
@@ -2018,9 +2016,9 @@ contains
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
 
        ! some integers for the run
-       nwan = sy%f(fid)%grid%wan%nk
-       nspin = sy%f(fid)%grid%wan%nspin
-       nbnd = sy%f(fid)%grid%wan%nbnd
+       nwan = sy%f(fid)%grid%qe%nk
+       nspin = sy%f(fid)%grid%qe%nspin
+       nbnd = sy%f(fid)%grid%qe%nbnd
        nlat = nwan(1)*nwan(2)*nwan(3)
        nmo = nlat * nbnd
 
@@ -2044,7 +2042,7 @@ contains
                 do kc = 0, nwan(3)-1
                    k = k + 1
                    idx = (/ia-ic, ja-jc, ka-kc/)
-                   idx = modulo(idx,sy%f(fid)%grid%wan%nk)
+                   idx = modulo(idx,sy%f(fid)%grid%qe%nk)
                    call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nwan)
                 end do
              end do

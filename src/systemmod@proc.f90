@@ -840,6 +840,8 @@ contains
                    s%propi(s%npropi)%sijchk = .false.
                 else if (equal(word,"nofachk")) then
                    s%propi(s%npropi)%fachk = .false.
+                else if (equal(word,"nou")) then
+                   s%propi(s%npropi)%useu = .false.
                 else if (equal(word,"wancut")) then
                    ok = isreal(s%propi(s%npropi)%wancut,line,lp)
                    if (.not.ok) then
