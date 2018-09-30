@@ -3037,6 +3037,75 @@ contains
 
   end subroutine read_xsf
 
+  !> Read the structure from a pwc file.
+  module subroutine read_pwc(seed,file,mol,errmsg)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, fclose, zatguess
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu
+    integer :: version, nspin, i
+    character*3, allocatable :: atm(:)
+    real*8 :: r(3,3)
+
+    errmsg = ""
+    ! open
+    lu = fopen_read(file,errstop=.false.,form="unformatted")
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    ! header
+    read (lu,err=999) version
+    read (lu,err=999) seed%nspc, seed%nat
+
+    ! species
+    allocate(atm(seed%nspc),seed%spc(seed%nspc))
+    read (lu,err=999) atm
+    do i = 1, seed%nspc
+       seed%spc(i)%name = trim(atm(i))
+       seed%spc(i)%z = zatguess(seed%spc(i)%name)
+    end do
+    deallocate(atm)
+
+    ! read the rest
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    read (lu,err=999) seed%is
+    read (lu,err=999) seed%x
+    read (lu,err=999) seed%m_x2c
+
+    ! convert to crystallographic
+    r = matinv(seed%m_x2c)
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(r,seed%x(:,i))
+    end do
+    seed%useabr = 2
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+
+  end subroutine read_pwc
+
   !> Adapt the size of an allocatable 1D type(crystalseed) array
   module subroutine realloc_crystalseed(a,nnew)
     use tools_io, only: ferror, faterr
@@ -3071,7 +3140,7 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp
+       isformat_vasp, isformat_pwc
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3097,6 +3166,9 @@ contains
 
     if (equal(wextdot,'cif')) then
        isformat = isformat_cif
+       ismol = .false.
+    elseif (equal(wextdot,'pwc')) then
+       isformat = isformat_pwc
        ismol = .false.
     elseif (equal(wextdot,'res').or.equal(wextdot,'ins')) then
        isformat = isformat_shelx
@@ -3282,7 +3354,7 @@ contains
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian,&
-       isformat_abinit,isformat_cif,&
+       isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_unknown, dirsep
@@ -3325,6 +3397,14 @@ contains
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
        call read_all_cif(nseed,seed,file,mol,errmsg)
+    elseif (isformat == isformat_pwc) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_pwc(file,mol,errmsg)
+    elseif (isformat == isformat_shelx) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_shelx(file,mol,errmsg)
     elseif (isformat == isformat_shelx) then
        nseed = 1
        allocate(seed(1))

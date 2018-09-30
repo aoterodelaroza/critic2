@@ -35,7 +35,7 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp
+       isformat_vasp, isformat_pwc
     use crystalseedmod, only: crystalseed, struct_detect_format
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
@@ -176,6 +176,11 @@ contains
 
     elseif (isformat == isformat_gen) then
        call seed%read_dftbp(word,rborder,docube,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_pwc) then
+       call seed%read_pwc(word,mol,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 

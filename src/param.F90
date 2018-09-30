@@ -115,6 +115,7 @@ module param
   integer, parameter, public :: isformat_xsf = 18
   integer, parameter, public :: isformat_gen = 19
   integer, parameter, public :: isformat_vasp = 20
+  integer, parameter, public :: isformat_pwc = 21
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields. 
@@ -142,25 +143,26 @@ module param
   integer, parameter, public :: ifformat_siestagrid = 12
   integer, parameter, public :: ifformat_dftb = 13
   integer, parameter, public :: ifformat_chk = 14
-  integer, parameter, public :: ifformat_wfn = 15
-  integer, parameter, public :: ifformat_wfx = 16
-  integer, parameter, public :: ifformat_fchk = 17
-  integer, parameter, public :: ifformat_molden = 18
-  integer, parameter, public :: ifformat_as = 19
-  integer, parameter, public :: ifformat_as_promolecular = 20
-  integer, parameter, public :: ifformat_as_core = 21
-  integer, parameter, public :: ifformat_as_lap = 22
-  integer, parameter, public :: ifformat_as_grad = 23
-  integer, parameter, public :: ifformat_as_pot = 24
-  integer, parameter, public :: ifformat_as_clm = 25
-  integer, parameter, public :: ifformat_as_clm_sub = 26
-  integer, parameter, public :: ifformat_as_ghost = 27
-  integer, parameter, public :: ifformat_copy = 28
-  integer, parameter, public :: ifformat_promolecular = 29
-  integer, parameter, public :: ifformat_promolecular_fragment = 30
-  integer, parameter, public :: ifformat_as_hxx1 = 31
-  integer, parameter, public :: ifformat_as_hxx2 = 32
-  integer, parameter, public :: ifformat_as_hxx3 = 33
+  integer, parameter, public :: ifformat_pwc = 15
+  integer, parameter, public :: ifformat_wfn = 16
+  integer, parameter, public :: ifformat_wfx = 17
+  integer, parameter, public :: ifformat_fchk = 18
+  integer, parameter, public :: ifformat_molden = 19
+  integer, parameter, public :: ifformat_as = 20
+  integer, parameter, public :: ifformat_as_promolecular = 21
+  integer, parameter, public :: ifformat_as_core = 22
+  integer, parameter, public :: ifformat_as_lap = 23
+  integer, parameter, public :: ifformat_as_grad = 24
+  integer, parameter, public :: ifformat_as_pot = 25
+  integer, parameter, public :: ifformat_as_clm = 26
+  integer, parameter, public :: ifformat_as_clm_sub = 27
+  integer, parameter, public :: ifformat_as_ghost = 28
+  integer, parameter, public :: ifformat_copy = 29
+  integer, parameter, public :: ifformat_promolecular = 30
+  integer, parameter, public :: ifformat_promolecular_fragment = 31
+  integer, parameter, public :: ifformat_as_hxx1 = 32
+  integer, parameter, public :: ifformat_as_hxx2 = 33
+  integer, parameter, public :: ifformat_as_hxx3 = 34
 
   ! free atomic polarizabilities from CRC handbook, 88th ed.
   real*8, parameter :: alpha_free(1:maxzat0) = (/  0.6668D0,  0.2051D0, 24.3300D0,  5.6000D0,& ! 1-4

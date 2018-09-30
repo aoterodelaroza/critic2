@@ -228,6 +228,7 @@ contains
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspchg, ifformat_qub,&
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb, ifformat_chk,&
+       ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
        ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
@@ -370,6 +371,15 @@ contains
        f%file = seed%file(1)
 
        call f%grid%read_unkgen(seed%file(1),seed%file(2),seed%file(3),f%c%omega)
+
+    elseif (seed%iff == ifformat_pwc) then
+       call f%grid%end()
+
+       f%grid%wan%useu = .not.seed%nou
+       f%type = type_grid
+       f%file = seed%file(1)
+
+       call f%grid%read_pwc(seed%file(1))
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
@@ -1342,7 +1352,7 @@ contains
        else
           write (uout,'("  Sij checkpoint file is NOT currently available.")') 
        endif
-       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%wan%nwan(i)),i=1,3)
+       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%wan%nk(i)),i=1,3)
        write (uout,'("  Number of bands: ",A)') string(f%grid%wan%nbnd)
        write (uout,'("  Number of spin channels: ",A)') string(f%grid%wan%nspin)
        write (uout,'("  List of k-points: ")')

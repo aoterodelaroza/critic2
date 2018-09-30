@@ -1497,7 +1497,7 @@ contains
 
           ! assign values to some integers
           nbnd = sy%f(fid)%grid%wan%nbnd
-          nwan = sy%f(fid)%grid%wan%nwan
+          nwan = sy%f(fid)%grid%wan%nk
           nlat = sy%f(fid)%grid%wan%nks
           nmo = nlat * nbnd
           nspin = sy%f(fid)%grid%wan%nspin
@@ -1596,7 +1596,7 @@ contains
     sij = 0d0
     n = sy%f(sy%iref)%grid%n
     nbnd = sy%f(fid)%grid%wan%nbnd
-    nwan = sy%f(fid)%grid%wan%nwan
+    nwan = sy%f(fid)%grid%wan%nk
     nlat = sy%f(fid)%grid%wan%nks
     nmo = nlat * nbnd
     nspin = sy%f(fid)%grid%wan%nspin
@@ -2018,7 +2018,7 @@ contains
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
 
        ! some integers for the run
-       nwan = sy%f(fid)%grid%wan%nwan
+       nwan = sy%f(fid)%grid%wan%nk
        nspin = sy%f(fid)%grid%wan%nspin
        nbnd = sy%f(fid)%grid%wan%nbnd
        nlat = nwan(1)*nwan(2)*nwan(3)
@@ -2044,7 +2044,7 @@ contains
                 do kc = 0, nwan(3)-1
                    k = k + 1
                    idx = (/ia-ic, ja-jc, ka-kc/)
-                   idx = modulo(idx,sy%f(fid)%grid%wan%nwan)
+                   idx = modulo(idx,sy%f(fid)%grid%wan%nk)
                    call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nwan)
                 end do
              end do

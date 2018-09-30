@@ -325,7 +325,8 @@ contains
     if (allocated(f%wan%spread)) deallocate(f%wan%spread)
     if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
     if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
-    if (allocated(f%wan%nls)) deallocate(f%wan%nls)
+    if (allocated(f%wan%nl)) deallocate(f%wan%nl)
+    if (allocated(f%wan%nlm)) deallocate(f%wan%nlm)
     if (allocated(f%wan%u)) deallocate(f%wan%u)
     
   end subroutine grid_end
@@ -847,18 +848,18 @@ contains
        call fclose(luc)
 
        ! dimensions for the supercell
-       f%wan%nwan = (/nk1,nk2,nk3/)
-       nall = f%n * f%wan%nwan
+       f%wan%nk = (/nk1,nk2,nk3/)
+       nall = f%n * f%wan%nk
 
        ! convert centers to crystallographic and spread to bohr
        rlatti = matinv(rlatt)
        do i = 1, nbnd
           f%wan%center(:,i,ispin) = matmul(f%wan%center(:,i,ispin),rlatti)
           do j = 1, 3
-             if (f%wan%center(j,i,ispin) > f%wan%nwan(j)) &
-                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) - f%wan%nwan(j)
+             if (f%wan%center(j,i,ispin) > f%wan%nk(j)) &
+                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) - f%wan%nk(j)
              if (f%wan%center(j,i,ispin) < 0d0) &
-                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) + f%wan%nwan(j)
+                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) + f%wan%nk(j)
           end do
           f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
        end do
@@ -887,11 +888,11 @@ contains
        allocate(f%wan%ngk(nk))
        if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
        allocate(f%wan%igk_k(naux(2),nk))
-       if (allocated(f%wan%nls)) deallocate(f%wan%nls)
-       allocate(f%wan%nls(naux(3)))
+       if (allocated(f%wan%nl)) deallocate(f%wan%nl)
+       allocate(f%wan%nl(naux(3)))
        read (luc) f%wan%ngk
        read (luc) f%wan%igk_k
-       read (luc) f%wan%nls
+       read (luc) f%wan%nl
        call fclose(luc)
     end if
 
@@ -912,7 +913,7 @@ contains
              do ibnd = 1, nbnd
                 read (luc) evc(1:f%wan%ngk(ik))
                 rseq = 0d0
-                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
+                rseq(f%wan%nl(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
                 raux = reshape(rseq,shape(raux))
                 call cfftnd(3,n,+1,raux)
                 f%f = f%f + real(conjg(raux) * raux,8)
@@ -936,6 +937,151 @@ contains
     f%wan%nspin = nspin
 
   end subroutine read_unkgen
+
+  !> Read pwc file created by pw2critic.x in Quantum ESPRESSO. Contains
+  !> the Bloch states, k-points, and structural info.
+  module subroutine read_pwc(f,fpwc)
+    use tools_math, only: det
+    use tools_io, only: fopen_read, fclose, ferror, faterr
+    use param, only: hartoev
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: fpwc
+    
+    integer :: i, ispin, ik, ibnd, ikk
+    integer :: luc
+    integer :: npwx, ngms, nkstot
+    real*8, allocatable :: ek(:,:), occ(:,:), wk(:)
+    integer, allocatable :: isk(:)
+    real*8 :: at(3,3), fspin
+    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
+    logical :: gamma_only
+
+    ! initialize
+    call f%end()
+
+    ! xxxx ! without wf_collect? -> parallelization!
+    ! xxxx ! clean up constants and variables in both codes
+    ! xxxx ! read the chk file from wannier90 for the U rotation; consistency checks
+    ! xxxx ! read the chk file: center and spread
+    f%wan%fevc = fpwc ! xxxx (change the name?) also change the name of wan
+    f%iswan = .false. ! xxxx !
+    f%wan%sijavail = .false. ! xxxx (true if .chk-sij exists)
+    f%wan%evcavail = .true. ! xxxx (true if .evc and .unkgen exist)
+    ! xxxx ! deallocate the new wan fields
+    ! xxxx ! write some output about the wavefunction
+    ! xxxx ! delete intermediate report
+    ! xxxx ! read all necessary information into corresponding variables.
+    ! xxxx ! parallel: see pw2casino
+
+    ! xxxx ! move checks to the delocalization/rotation
+    ! xxxx ! 1. uniform grid (one of the nwan will be zero)
+
+    luc = fopen_read(fpwc,form="unformatted")
+
+    read (luc) ! version
+    read (luc) ! nsp, nat
+    read (luc) ! atm
+    read (luc) ! ityp 
+    read (luc) ! tau
+    read (luc) at
+
+    read (luc) f%wan%nks, f%wan%nbnd, f%wan%nspin, gamma_only
+    if (f%wan%nspin == 1) then
+       fspin = 2d0
+    else
+       fspin = 1d0
+    end if
+    nkstot = f%wan%nspin * f%wan%nks
+
+    read (luc) f%wan%nk(1), f%wan%nk(2), f%wan%nk(3)
+
+    read (luc) f%n
+
+    read (luc) npwx, ngms
+
+    if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
+    allocate(f%wan%kpt(3,f%wan%nks),wk(f%wan%nks))
+    allocate(occ(f%wan%nbnd,nkstot),ek(f%wan%nbnd,nkstot))
+    read (luc) f%wan%kpt
+    read (luc) wk
+    read (luc) ek
+    read (luc) occ
+
+    ! convert k-point coordinates to reciprocal crystallographic
+    ! band energies to Hartree
+    do i = 1, f%wan%nks
+       f%wan%kpt(:,i) = matmul(f%wan%kpt(:,i),at)
+    end do
+    ek = 0.5d0 * ek
+
+    if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
+    allocate(f%wan%ngk(f%wan%nks))
+    if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
+    allocate(f%wan%igk_k(npwx,f%wan%nks))
+    if (allocated(f%wan%nl)) deallocate(f%wan%nl)
+    allocate(f%wan%nl(ngms))
+    read (luc) f%wan%ngk
+    read (luc) f%wan%igk_k
+    read (luc) f%wan%nl
+    if (gamma_only) then
+       if (allocated(f%wan%nlm)) deallocate(f%wan%nlm)
+       allocate(f%wan%nlm(ngms))
+       read (luc) f%wan%nlm
+    end if
+
+    ! calculate the electron density
+    if (allocated(f%f)) deallocate(f%f)
+    allocate(f%f(f%n(1),f%n(2),f%n(3)))
+    allocate(raux(f%n(1),f%n(2),f%n(3)),rseq(f%n(1)*f%n(2)*f%n(3)))
+    allocate(evc(maxval(f%wan%ngk(1:f%wan%nks))))
+    f%f = 0d0
+
+    ikk = 0
+    do ispin = 1, f%wan%nspin
+       do ik = 1, f%wan%nks
+          ikk = ikk + 1
+          do ibnd = 1, f%wan%nbnd
+             rseq = 0d0
+             read (luc) evc(1:f%wan%ngk(ik))
+             rseq(f%wan%nl(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
+             if (gamma_only) &
+                rseq(f%wan%nlm(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = conjg(evc(1:f%wan%ngk(ik)))
+             raux = reshape(rseq,shape(raux))
+             call cfftnd(3,f%n,+1,raux)
+             f%f = f%f + occ(ibnd,ikk) * real(conjg(raux) * raux,8)
+          end do
+       end do
+    end do
+    deallocate(raux,rseq,evc)
+    f%f = f%f * fspin / (det(at) * sum(wk))
+
+    call fclose(luc)
+    f%isinit = .true.
+    f%mode = mode_default
+
+    ! report some stuff
+    write (*,*) "---- report on the wfn ----"
+    write (*,*) "nspin = ", f%wan%nspin
+    write (*,*) "nk = ", f%wan%nks
+    write (*,*) "sumwk = ", sum(wk)
+    write (*,*) "nbnd = ", f%wan%nbnd
+    write (*,*) "- list of kpoints -"
+    do i = 1, f%wan%nks
+       write (*,*) i, f%wan%kpt(:,i)
+    end do
+    write (*,*) "- list of orbital energies and occupations -"
+    do i = 1, f%wan%nks
+       write (*,*) "kpoint : ", i, f%wan%kpt(:,i)
+       do ispin = 1, f%wan%nspin
+          ik = (ispin-1) * f%wan%nks + i
+          write (*,'("spin = ",I2)') ispin
+          write (*,'(10(F12.5,X))') ek(:,ik) * hartoev
+          write (*,'(5(F17.10,X))') occ(:,ik)
+       end do
+    end do
+    write (*,*) "---- end of report on the wfn ----"
+
+  end subroutine read_pwc
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
   module subroutine read_elk(f,file)
@@ -1391,7 +1537,7 @@ contains
 
     luc = fopen_read(f%wan%fevc,form="unformatted")
 
-    nk = f%wan%nwan(1) * f%wan%nwan(2) * f%wan%nwan(3)
+    nk = f%wan%nk(1) * f%wan%nk(2) * f%wan%nk(3)
     allocate(evc(maxval(f%wan%ngk(1:nk))),evcnew(maxval(f%wan%ngk(1:nk))))
 
     do i = 1, f%wan%nspin
@@ -1441,7 +1587,7 @@ contains
     integer, intent(in) :: ispin
     integer, intent(in) :: luevc(2)
     integer, intent(inout) :: luevc_ibnd(2)
-    complex*16, intent(out), optional :: fout(f%n(1),f%n(2),f%n(3),f%wan%nwan(1)*f%wan%nwan(2)*f%wan%nwan(3))
+    complex*16, intent(out), optional :: fout(:,:,:,:)
 
     integer :: i, j, k, nk1, nk2, nk3
     integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk, ilat, ikg, ik0
@@ -1451,10 +1597,17 @@ contains
     integer :: n(3)
     real*8 :: xkpt(3)
 
+    if (present(fout)) then
+       if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
+          call ferror("get_qe_wnr","inconsistent grid size",faterr)
+       if (f%wan%nk(1)*f%wan%nk(2)*f%wan%nk(3) /= size(fout,4)) &
+          call ferror("get_qe_wnr","inconsistent number of k-points",faterr)
+    end if
+
     n = f%n
-    nk1 = f%wan%nwan(1)
-    nk2 = f%wan%nwan(2)
-    nk3 = f%wan%nwan(3)
+    nk1 = f%wan%nk(1)
+    nk2 = f%wan%nk(2)
+    nk3 = f%wan%nk(3)
     fout = 0d0
     nk = nk1 * nk2 * nk3
     nall(1) = n(1) * nk1
@@ -1494,7 +1647,7 @@ contains
        ik0 = ikg
        read (luevc(ispin)) evc(1:f%wan%ngk(ikg))
        !$omp end critical (readio)
-       rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik0),ik0))) = evc(1:f%wan%ngk(ik0))
+       rseq(f%wan%nl(f%wan%igk_k(1:f%wan%ngk(ik0),ik0))) = evc(1:f%wan%ngk(ik0))
        raux = reshape(rseq,shape(raux))
        call cfftnd(3,n,+1,raux)
 

@@ -22,10 +22,10 @@ module grid3mod
 
   private
 
-  !> Information for wannier functions
-  type wandat
-     integer :: nks !< Number of k-points (lattice vectors)
-     integer :: nwan(3) !< Number of lattice vectors
+  !> Information for QE Kohn-Sham states plus wannier functions
+  type qedat
+     integer :: nks !< Number of k-points (nk1*nk2*nk3)
+     integer :: nk(3) !< Number of k-points in each grid direction (0 if not a grid)
      integer :: nbnd !< Number of bands
      integer :: nspin !< Number of spins
      logical :: useu = .true. !< Use the U transformation to get MLWF
@@ -37,9 +37,10 @@ module grid3mod
      real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
      integer, allocatable :: ngk(:) !< number of plane-waves for each k-point
      integer, allocatable :: igk_k(:,:) !< fft reorder
-     integer, allocatable :: nls(:) !< fft reorder
+     integer, allocatable :: nl(:) !< fft reorder
+     integer, allocatable :: nlm(:) !< fft reorder (gamma only)
      complex*16, allocatable :: u(:,:,:) !< u matrix
-  end type wandat
+  end type qedat
 
   !> Three-dimensional grid class
   type grid3
@@ -49,7 +50,7 @@ module grid3mod
      integer :: n(3) !< number of grid points in each direction
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
-     type(wandat) :: wan !< Wannier functions and related information
+     type(qedat) :: wan !< Wannier functions and related information
    contains
      procedure :: end => grid_end !< deallocate all arrays and uninitialize
      procedure :: setmode !< set the interpolation mode of a grid
@@ -63,6 +64,7 @@ module grid3mod
      procedure :: read_qub !< grid3 from aimpac qub format
      procedure :: read_xsf !< grid3 from xsf (xcrysden) file
      procedure :: read_unkgen !< read a unkgen file created by pw2wannier.x
+     procedure :: read_pwc !< read a pwc file created by pw2critic.x
      procedure :: read_elk !< grid3 from elk file format
      procedure :: interp !< interpolate the grid at an arbitrary point
      procedure :: laplacian !< grid3 as the Laplacian of another grid3
@@ -148,6 +150,10 @@ module grid3mod
        character*(*), intent(in) :: fevc !< unkgen file (evc file from pw2wannier)
        real*8, intent(in) :: omega !< unit cell
      end subroutine read_unkgen
+     module subroutine read_pwc(f,fpwc)
+       class(grid3), intent(inout) :: f
+       character*(*), intent(in) :: fpwc !< Input file (pwc file from QE)
+     end subroutine read_pwc
      module subroutine read_elk(f,file)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
@@ -187,7 +193,7 @@ module grid3mod
        integer, intent(in) :: ispin
        integer, intent(in) :: luevc(2)
        integer, intent(inout) :: luevc_ibnd(2)
-       complex*16, intent(out), optional :: fout(f%n(1),f%n(2),f%n(3),f%wan%nwan(1)*f%wan%nwan(2)*f%wan%nwan(3))
+       complex*16, intent(out), optional :: fout(:,:,:,:)
      end subroutine get_qe_wnr
      module subroutine rotate_qe_evc(f,luevc,luevc_ibnd)
        class(grid3), intent(inout) :: f

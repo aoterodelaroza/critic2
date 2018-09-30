@@ -56,7 +56,8 @@ contains
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
        ifformat_bincube, ifformat_abinit,&
        ifformat_vasp, ifformat_vaspchg, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
-       ifformat_siestagrid, ifformat_dftb, ifformat_chk, ifformat_wfn, ifformat_wfx, ifformat_fchk,&
+       ifformat_siestagrid, ifformat_dftb, ifformat_chk, ifformat_pwc,&
+       ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
        ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
        ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost
@@ -118,6 +119,9 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"chk")) then
        f%iff = ifformat_chk
+       call read_next_as_file()
+    elseif (equal(lfile,"pwc")) then
+       f%iff = ifformat_pwc
        call read_next_as_file()
     elseif (equal(lfile,"wfn")) then
        f%iff = ifformat_wfn
@@ -197,8 +201,11 @@ contains
           f%iff = ifformat_pi
        else if (equal(extdot,'chk')) then
           f%iff = ifformat_chk
+       else if (equal(extdot,'pwc')) then
+          f%iff = ifformat_pwc
        end if
     end if
+
     if (f%iff == ifformat_unknown) then
        call f%end()
        f%errmsg = "unknown file format"
@@ -216,7 +223,8 @@ contains
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspchg .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.& 
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
-       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment) then
+       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment .or.&
+       f%iff == ifformat_pwc) then
        ! formats for which only one file is needed
        nfile = 1
     elseif (f%iff == ifformat_wien) then
