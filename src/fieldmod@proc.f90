@@ -376,8 +376,9 @@ contains
 
        f%type = type_grid
        f%file = seed%file(1)
-
        call f%grid%read_pwc(seed%file(1))
+       if (seed%nfile > 1) &
+          call f%grid%read_wannier_chk(seed%file(2))
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()

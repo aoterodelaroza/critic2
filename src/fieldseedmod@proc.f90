@@ -222,13 +222,16 @@ contains
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspchg .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.& 
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
-       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment .or.&
-       f%iff == ifformat_pwc) then
+       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment) then
        ! formats for which only one file is needed
        nfile = 1
     elseif (f%iff == ifformat_wien) then
        ! two files are needed
        nfile = 2
+    elseif (f%iff == ifformat_pwc) then
+       ! one or two files
+       nfile = 2
+       nofoundexit = .false.
     elseif (f%iff == ifformat_dftb) then
        ! three files are needed
        nfile = 3
@@ -559,7 +562,7 @@ contains
           end if
        else
           call f%end()
-          f%errmsg = "unknown load keyword: " // word
+          f%errmsg = "unknown load keyword or file name: " // word
           return
        end if
     end do

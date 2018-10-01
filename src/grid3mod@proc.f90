@@ -321,12 +321,15 @@ contains
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
     if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
-    if (allocated(f%qe%center)) deallocate(f%qe%center)
-    if (allocated(f%qe%spread)) deallocate(f%qe%spread)
+    if (allocated(f%qe%wk)) deallocate(f%qe%wk)
+    if (allocated(f%qe%ek)) deallocate(f%qe%ek)
+    if (allocated(f%qe%occ)) deallocate(f%qe%occ)
     if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
     if (allocated(f%qe%igk_k)) deallocate(f%qe%igk_k)
     if (allocated(f%qe%nl)) deallocate(f%qe%nl)
     if (allocated(f%qe%nlm)) deallocate(f%qe%nlm)
+    if (allocated(f%qe%center)) deallocate(f%qe%center)
+    if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     if (allocated(f%qe%u)) deallocate(f%qe%u)
     
   end subroutine grid_end
@@ -929,7 +932,6 @@ contains
     integer :: i, ispin, ik, ibnd, ikk
     integer :: luc
     integer :: npwx, ngms, nkstot
-    real*8, allocatable :: ek(:,:), occ(:,:), wk(:)
     real*8 :: at(3,3), fspin
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
@@ -942,11 +944,9 @@ contains
     ! xxxx ! read the chk file from wannier90 for the U rotation; consistency checks
     ! xxxx ! read the chk file: center and spread
     f%iswan = .false. ! xxxx !
-    ! xxxx ! deallocate the new wan fields
     ! xxxx ! write some output about the wavefunction
     ! xxxx ! delete intermediate report -> fieldmod / printinfo
-    ! xxxx ! read all necessary information into corresponding variables.
-    ! xxxx ! parallel: see pw2casino
+    ! xxxx ! parallel: see pw2casino, pwexport
     ! xxxx ! document.
 
     ! xxxx ! move checks to the delocalization/rotation
@@ -1033,12 +1033,12 @@ contains
                 rseq(f%qe%nlm(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = conjg(evc(1:f%qe%ngk(ik)))
              raux = reshape(rseq,shape(raux))
              call cfftnd(3,f%n,+1,raux)
-             f%f = f%f + occ(ibnd,ikk) * real(conjg(raux) * raux,8)
+             f%f = f%f + f%qe%occ(ibnd,ikk) * real(conjg(raux) * raux,8)
           end do
        end do
     end do
     deallocate(raux,rseq,evc)
-    f%f = f%f * fspin / (det(at) * sum(wk))
+    f%f = f%f * fspin / (det(at) * sum(f%qe%wk))
 
     ! close and clean up
     call fclose(luc)
@@ -1054,7 +1054,7 @@ contains
     write (*,*) "---- report on the wfn ----"
     write (*,*) "nspin = ", f%qe%nspin
     write (*,*) "nk = ", f%qe%nks
-    write (*,*) "sumwk = ", sum(wk)
+    write (*,*) "sumwk = ", sum(f%qe%wk)
     write (*,*) "nbnd = ", f%qe%nbnd
     write (*,*) "- list of kpoints -"
     do i = 1, f%qe%nks
@@ -1066,8 +1066,8 @@ contains
        do ispin = 1, f%qe%nspin
           ik = (ispin-1) * f%qe%nks + i
           write (*,'("spin = ",I2)') ispin
-          write (*,'(10(F12.5,X))') ek(:,ik) * hartoev
-          write (*,'(5(F17.10,X))') occ(:,ik)
+          write (*,'(10(F12.5,X))') f%qe%ek(:,ik) * hartoev
+          write (*,'(5(F17.10,X))') f%qe%occ(:,ik)
        end do
     end do
     write (*,*) "---- end of report on the wfn ----"
@@ -1113,6 +1113,17 @@ contains
     f%mode = mode_default
 
   end subroutine read_elk
+
+  !> Reads information from a wannier90 checkpoint file (.chk). Sets
+  !> the wannier information in the qe field only (center, spread, u).
+  module subroutine read_wannier_chk(f,file)
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: file
+
+    write (*,*) "bleh"
+    stop 1
+
+  end subroutine read_wannier_chk
 
   !> Interpolate the function value, first and second derivative at
   !> point x0 (crystallographic coords.) using the grid g.  This
