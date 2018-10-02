@@ -55,7 +55,7 @@ contains
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
        ifformat_bincube, ifformat_abinit,&
        ifformat_vasp, ifformat_vaspchg, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
-       ifformat_siestagrid, ifformat_dftb, ifformat_chk, ifformat_pwc,&
+       ifformat_siestagrid, ifformat_dftb, ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
        ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
@@ -115,9 +115,6 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"dftb")) then
        f%iff = ifformat_dftb
-       call read_next_as_file()
-    elseif (equal(lfile,"chk")) then
-       f%iff = ifformat_chk
        call read_next_as_file()
     elseif (equal(lfile,"pwc")) then
        f%iff = ifformat_pwc
@@ -198,8 +195,6 @@ contains
           f%iff = ifformat_elk
        else if (equal(extdot,'ion')) then
           f%iff = ifformat_pi
-       else if (equal(extdot,'chk')) then
-          f%iff = ifformat_chk
        else if (equal(extdot,'pwc')) then
           f%iff = ifformat_pwc
        end if
@@ -235,10 +230,6 @@ contains
     elseif (f%iff == ifformat_dftb) then
        ! three files are needed
        nfile = 3
-    elseif (f%iff == ifformat_chk) then
-       ! three files are needed
-       nfile = 3
-       nofoundexit = .true.
     elseif (f%iff == ifformat_elk) then
        ! one, two, or three files are needed
        nfile = 3

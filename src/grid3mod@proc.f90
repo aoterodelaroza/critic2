@@ -729,212 +729,6 @@ contains
 
   end subroutine read_xsf
 
-  !> Read unkgen file created by pw2wannier.x.
-  module subroutine read_unkgen(f,fchk,funkgen,fevc,omega)
-    use tools_math, only: det, matinv
-    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
-       fclose, string, uout
-    use types, only: realloc
-    use param, only: bohrtoa
-    class(grid3), intent(inout) :: f
-    character*(*), intent(in) :: fchk !< Input file (chk file from wannier90)
-    character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
-    character*(*), intent(in) :: fevc !< evc file (evc file from pw2wannier)
-    real*8, intent(in) :: omega !< unit cell
-
-    integer :: luc
-    integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
-    integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
-    real*8 :: fspin
-    integer :: i, j, k, l
-    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
-    integer :: nk1, nk2, nk3, nk
-    character(len=:), allocatable :: sijfname
-    ! for the wannier checkpoint (wannier90, 2.0.1)
-    character(len=33) :: header
-    real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
-    character(len=20) :: chkpt1
-    logical :: have_disentangled, ok1, ok2
-    complex*16 :: cdum
-
-    call f%end()
-
-    ! spin
-    nspin = 1
-    fspin = 2d0
-    
-    ! checkpoint files
-    sijfname = trim(fchk) // "-sij"
-    inquire(file=funkgen,exist=ok1)
-    inquire(file=fevc,exist=ok2)
-    if (.not. (ok1.and.ok2)) &
-       call ferror("read_unkgen","unkgen/evc files not found",faterr)
-
-    ! read the grid size from the unkgen
-    luc = fopen_read(funkgen,form="unformatted")
-    read (luc) ikk, idum, ibnd, ispin
-    read (luc) n
-    call fclose(luc)
-    f%n = n
-
-    ! read the chk file/s
-    do ispin = 1, nspin
-       luc = fopen_read(fchk,form="unformatted")
-
-       ! header and number of bands
-       read(luc) header
-       read(luc) nbnd 
-       read(luc) jbnd 
-       if (jbnd > 0) &
-          call ferror("read_unkgen","number of excluded bands /= 0",faterr)
-       read(luc) (idum,i=1,jbnd) 
-
-       ! real and reciprocal lattice
-       read(luc) ((rlatt(i,j),i=1,3),j=1,3)
-       if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-          call ferror("read_unkgen","wannier and current structure's volumes differ by more than 1%",faterr)
-       read(luc) ((rclatt(i,j),i=1,3),j=1,3)
-    
-       ! number of k-points
-       read(luc) nk 
-       read(luc) nk1, nk2, nk3
-       if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-          call ferror("read_unkgen","no monkhorst-pack grid or inconsistent k-point number",faterr)
-
-       ! k-points
-       if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
-       allocate(f%qe%kpt(3,nk))
-       read(luc) ((f%qe%kpt(i,j),i=1,3),j=1,nk) 
-       do i = 1, nk
-          ik1 = nint(f%qe%kpt(1,i) * nk1)
-          ik2 = nint(f%qe%kpt(2,i) * nk2)
-          ik3 = nint(f%qe%kpt(3,i) * nk3)
-          if (abs(f%qe%kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%qe%kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
-             abs(f%qe%kpt(3,i) * nk3 - ik3) > 1d-5) then
-             write (uout,*) f%qe%kpt(:,i)
-             write (uout,*) f%qe%kpt(1,i)*nk1,f%qe%kpt(1,i)*nk2,f%qe%kpt(1,i)*nk3
-             write (uout,*) ik1, ik2, ik3
-             call ferror("read_unkgen","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
-          end if
-       end do
-
-       read(luc) idum ! number of nearest k-point neighbours
-       read(luc) jbnd ! number of wannier functions
-       if (jbnd /= nbnd) &
-          call ferror("read_unkgen","number of wannier functions /= number of bands",faterr)
-       
-       ! checkpoint positon and disentanglement
-       read(luc) chkpt1
-       read(luc) have_disentangled
-       if (have_disentangled) & 
-          call ferror("read_unkgen","can not handle disentangled wannier functions",faterr)
-
-       ! u and m matrices
-       if (allocated(f%qe%u)) deallocate(f%qe%u)
-       allocate(f%qe%u(nbnd,nbnd,nk))
-       read(luc) (((f%qe%u(i,j,k),i=1,nbnd),j=1,nbnd),k=1,nk)
-       read(luc) ((((cdum,i=1,nbnd),j=1,nbnd),k=1,idum),l=1,nk) ! m matrix
-
-       ! wannier centers and spreads
-       if (ispin == 1) then
-          if (allocated(f%qe%center)) deallocate(f%qe%center)
-          if (allocated(f%qe%spread)) deallocate(f%qe%spread)
-          allocate(f%qe%center(3,nbnd,nspin),f%qe%spread(nbnd,nspin))
-       else
-          if (nbnd > size(f%qe%spread,1)) then
-             call realloc(f%qe%center,3,nbnd,nspin)
-             call realloc(f%qe%spread,nbnd,nspin)
-          end if
-       end if
-       read(luc) ((f%qe%center(i,j,ispin),i=1,3),j=1,nbnd)
-       read(luc) (f%qe%spread(i,ispin),i=1,nbnd)
-
-       ! end of wannier checkpoint
-       call fclose(luc)
-
-       ! dimensions for the supercell
-       f%qe%nk = (/nk1,nk2,nk3/)
-       nall = f%n * f%qe%nk
-
-       ! convert centers to crystallographic and spread to bohr
-       rlatti = matinv(rlatt)
-       do i = 1, nbnd
-          f%qe%center(:,i,ispin) = matmul(f%qe%center(:,i,ispin),rlatti)
-          do j = 1, 3
-             if (f%qe%center(j,i,ispin) > f%qe%nk(j)) &
-                f%qe%center(j,i,ispin) = f%qe%center(j,i,ispin) - f%qe%nk(j)
-             if (f%qe%center(j,i,ispin) < 0d0) &
-                f%qe%center(j,i,ispin) = f%qe%center(j,i,ispin) + f%qe%nk(j)
-          end do
-          f%qe%spread(i,ispin) = sqrt(f%qe%spread(i,ispin)) / bohrtoa
-       end do
-    end do
-    f%qe%nks = nk
-    f%qe%nbnd = nbnd
-    f%qe%nspin = nspin
-
-    ! save the evc file name
-    f%qe%fpwc = fevc
-
-    ! read the unkgen info
-    luc = fopen_read(funkgen,form="unformatted")
-    read (luc) ikk, idum, ibnd, ispin
-    if (ikk /= 1 .or. idum /= nk .or. ibnd /= nbnd .or. ispin /= nspin) &
-       call ferror("read_unkgen","inconsistent unkgen",faterr)
-
-    read (luc) n
-    if (any(n /= f%n)) &
-       call ferror("read_unkgen","inconsistent unkgen",faterr)
-
-    ! allocate and read integer indices
-    read(luc) naux
-    if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
-    allocate(f%qe%ngk(nk))
-    if (allocated(f%qe%igk_k)) deallocate(f%qe%igk_k)
-    allocate(f%qe%igk_k(naux(2),nk))
-    if (allocated(f%qe%nl)) deallocate(f%qe%nl)
-    allocate(f%qe%nl(naux(3)))
-    read (luc) f%qe%ngk
-    read (luc) f%qe%igk_k
-    read (luc) f%qe%nl
-    call fclose(luc)
-
-    ! allocate the density
-    if (allocated(f%f)) deallocate(f%f)
-    allocate(f%f(f%n(1),f%n(2),f%n(3)))
-    f%f = 0d0
-
-    ! open the evc file
-    luc = fopen_read(fevc,form="unformatted")
-    allocate(evc(maxval(f%qe%ngk(1:nk))))
-
-    ! calculate the electron density
-    allocate(raux(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
-    do ispin = 1, nspin
-       do ik = 1, nk
-          do ibnd = 1, nbnd
-             read (luc) evc(1:f%qe%ngk(ik))
-             rseq = 0d0
-             rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
-             raux = reshape(rseq,shape(raux))
-             call cfftnd(3,n,+1,raux)
-             f%f = f%f + real(conjg(raux) * raux,8)
-          end do
-       end do
-    end do
-    deallocate(raux,rseq,evc)
-    call fclose(luc)
-    f%f = f%f * fspin / omega / real(nk,8)
-
-    f%isinit = .true.
-    f%isqe = .true.
-    f%iswan = .true.
-    f%mode = mode_default
-    f%qe%nbnd = nbnd
-    f%qe%nspin = nspin
-
-  end subroutine read_unkgen
-
   !> Read pwc file created by pw2critic.x in Quantum ESPRESSO. Contains
   !> the Bloch states, k-points, and structural info.
   module subroutine read_pwc(f,fpwc)
@@ -950,22 +744,18 @@ contains
     real*8 :: at(3,3), fspin
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
-
-    ! xxxx ! clean up unkgen/evc
-    ! xxxx ! verify it works for all systems
+    
     ! xxxx ! handle flags no wannier, etc.
     ! xxxx ! handle sij and fa checkpoint files correctly
-    ! xxxx ! check the consistency of items in the wannier chk file
-    ! xxxx ! flags for wannier available and for evc available
     ! xxxx ! read two chk files for two spins - develop example for spinpolarized DI calc
     ! xxxx ! write some output about the wavefunction
     ! xxxx ! delete intermediate report -> fieldmod / printinfo
     ! xxxx ! parallel: see pw2casino, pwexport
     ! xxxx ! without wf_collect? -> parallelization!
-    ! xxxx ! document and cleanup unkgen/evc
+    ! xxxx ! document (search xxxx in the manual)
     ! xxxx ! move checks to the delocalization/rotation
     ! xxxx ! 1. uniform grid (one of the nwan will be zero)
-
+    
     ! initialize
     call f%end()
     f%qe%fpwc = fpwc

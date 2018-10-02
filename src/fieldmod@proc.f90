@@ -227,7 +227,7 @@ contains
     use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspchg, ifformat_qub,&
-       ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb, ifformat_chk,&
+       ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb,&
        ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
@@ -362,14 +362,6 @@ contains
        call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env)
        f%type = type_dftb
        f%file = seed%file(1)
-
-    elseif (seed%iff == ifformat_chk) then
-       call f%grid%end()
-
-       f%type = type_grid
-       f%file = seed%file(1)
-
-       call f%grid%read_unkgen(seed%file(1),seed%file(2),seed%file(3),f%c%omega)
 
     elseif (seed%iff == ifformat_pwc) then
        call f%grid%end()

@@ -2130,7 +2130,7 @@ field formats are supported:
   LOAD AS GRAD id.s
   LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
-  LOAD file.chk file.unkgen file.evc
+  LOAD file.pwc [file.chk]
 
 Critic2 loads scalar fields in "field slots": integer identifiers that
 represent the field throughout the run. The NAME (or ID) keyword can
@@ -2256,19 +2256,20 @@ I have never seen an ELFCAR that is multiplied by the volume (it would
 not make much sense anyway), so the default behavior for ELFCAR files
 is to assume that it is not.
 
-Wannier checkpoint files (chk)
-++++++++++++++++++++++++++++++
+QE wavefunction plus Wannier checkpoint files (pwc)
++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Critic2 read three files from a maximally localized Wannier function
-(MLWF) calculation: the checkpoint file (chk) from wannier90 and the
-evc and unkgen files from the pw2critic program. The latter is a
-specific modification of QE's pw2wannier program that is required to
-generate the evc and unkgen files. The chk file contains information
-about the MLWFs, the unkgen contains the k-point mapping, and the evc
-file contains the Bloch state coefficients. Critic reads these
-coefficients and the U matrices from the chk file and calculates the
-MLWFs internally. This field is used mostly to obtain the
-delocalization indices (DI) via YT or BADER.
+xxxx towrite xxxx this is old:
+xx Critic2 read three files from a maximally localized Wannier function
+xx (MLWF) calculation: the checkpoint file (chk) from wannier90 and the
+xx evc and unkgen files from the pw2critic program. The latter is a
+xx specific modification of QE's pw2wannier program that is required to
+xx generate the evc and unkgen files. The chk file contains information
+xx about the MLWFs, the unkgen contains the k-point mapping, and the evc
+xx file contains the Bloch state coefficients. Critic reads these
+xx coefficients and the U matrices from the chk file and calculates the
+xx MLWFs internally. This field is used mostly to obtain the
+xx delocalization indices (DI) via YT or BADER.
 
 WIEN2k (clmsum, etc.)
 +++++++++++++++++++++

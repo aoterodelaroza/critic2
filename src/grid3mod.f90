@@ -65,7 +65,6 @@ module grid3mod
      procedure :: read_vasp !< grid3 from VASP file (CHG, CHGCAR, etc.)
      procedure :: read_qub !< grid3 from aimpac qub format
      procedure :: read_xsf !< grid3 from xsf (xcrysden) file
-     procedure :: read_unkgen !< read a unkgen file created by pw2wannier.x
      procedure :: read_pwc !< read a pwc file created by pw2critic.x
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
@@ -138,21 +137,6 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
      end subroutine read_xsf
-     module subroutine read_unk(f,file,filedn,omega,nou,dochk)
-       class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file (spin up or total)
-       character*(*), intent(in) :: filedn !< Input file (spin down)
-       real*8, intent(in) :: omega
-       logical, intent(in) :: nou
-       logical, intent(in) :: dochk
-     end subroutine read_unk
-     module subroutine read_unkgen(f,fchk,funkgen,fevc,omega)
-       class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: fchk !< Input file (chk file from wannier90)
-       character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
-       character*(*), intent(in) :: fevc !< unkgen file (evc file from pw2wannier)
-       real*8, intent(in) :: omega !< unit cell
-     end subroutine read_unkgen
      module subroutine read_pwc(f,fpwc)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc !< Input file (pwc file from QE)

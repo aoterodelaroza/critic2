@@ -167,7 +167,7 @@ expression.r # prints the value of the expression to the output.
   LOAD AS GRAD id.s
   LOAD AS POT id.s [RY|RYDBERG]
   LOAD AS CLM {ADD id1.s id2.s|SUB id1.s id2.s}
-  LOAD file.chk file.unkgen file.evc [NOU]
+  LOAD file.pwc [file.chk]
 * UNLOAD {id.s|ALL}
 * SETFIELD [id.s] [NEAREST|TRILINEAR|TRISPLINE|TRICUBIC] [EXACT|APPROXIMATE]
                   [RHONORM|VNORM] [CORE|NOCORE] [NUMERICAL|ANALYTICAL]
