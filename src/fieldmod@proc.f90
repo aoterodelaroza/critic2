@@ -1333,6 +1333,18 @@ contains
     write (uout,'("  Number of critical points in the unit cell: ",A)') string(f%ncpcel)
 
     ! Wannier information
+    ! xxxx !
+    ! write (*,*) "---- report on the wannier transformation ----"
+    ! do i = 1, f%qe%nbnd
+    !    write (*,*) "band: ", i
+    !    write (*,*) "center: ", f%qe%center(:,i,1)
+    !    write (*,*) "spread: ", f%qe%spread(i,1)
+    ! end do
+    ! do i = 1, nks
+    !    write (*,*) "u-check: ", i, matmul(transpose(conjg(f%qe%u(:,:,i))),f%qe%u(:,:,i))
+    ! end do
+    ! write (*,*) "---- end of report on wannier ----"
+
     if (f%grid%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions information for this field")') 

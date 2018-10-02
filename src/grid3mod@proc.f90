@@ -317,6 +317,7 @@ contains
 
     f%mode = mode_default
     f%isinit = .false.
+    f%isqe = .false.
     f%iswan = .false.
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
@@ -379,6 +380,7 @@ contains
 
     call f%end()
     f%isinit = .true.
+    f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
@@ -424,6 +426,7 @@ contains
        read (luc,*)
 
     f%isinit = .true.
+    f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
@@ -467,6 +470,7 @@ contains
     end do
 
     f%isinit = .true.
+    f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
@@ -495,6 +499,8 @@ contains
     ! initialize
     call f%end()
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
 
     ! open file
@@ -548,6 +554,8 @@ contains
        call ferror('read_abinit',errmsg,faterr,file)
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     f%n(:) = hdr%ngfft(:)
     n = f%n
@@ -590,6 +598,8 @@ contains
        call ferror('read_vasp','Error reading nx, ny, nz',faterr,file)
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -621,6 +631,8 @@ contains
        call ferror('read_qub','Error reading n1, n2, n3',faterr,file)
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     n = f%n(:)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -696,6 +708,8 @@ contains
     read (luc,*,iostat=istat) x0, x1, x2, x3
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     allocate(ggloc(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -913,8 +927,9 @@ contains
     f%f = f%f * fspin / omega / real(nk,8)
 
     f%isinit = .true.
-    f%mode = mode_default
+    f%isqe = .true.
     f%iswan = .true.
+    f%mode = mode_default
     f%qe%nbnd = nbnd
     f%qe%nspin = nspin
 
@@ -936,10 +951,6 @@ contains
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
 
-    ! initialize
-    call f%end()
-    f%qe%fpwc = fpwc
-
     ! xxxx ! check the consistency of items in the wannier chk file
     ! xxxx ! flags for wannier available and for evc available
     ! xxxx ! read two chk files for two spins - develop example for spinpolarized DI calc
@@ -948,9 +959,14 @@ contains
     ! xxxx ! parallel: see pw2casino, pwexport
     ! xxxx ! without wf_collect? -> parallelization!
     ! xxxx ! document and cleanup unkgen/evc
-    f%iswan = .false. ! xxxx !
     ! xxxx ! move checks to the delocalization/rotation
     ! xxxx ! 1. uniform grid (one of the nwan will be zero)
+
+    ! initialize
+    call f%end()
+    f%qe%fpwc = fpwc
+    f%isqe = .true.
+    f%iswan = .false.
 
     ! open file
     luc = fopen_read(fpwc,form="unformatted")
@@ -1110,6 +1126,8 @@ contains
 
     n = f%n
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
 
   end subroutine read_elk
@@ -1134,8 +1152,16 @@ contains
     complex*16 :: cdum
     real*8, allocatable :: kpt(:,:)
 
+    if (.not.f%isinit) then
+       call ferror("read_wannier_chk","cannot read wannier data with non-initialized grid",faterr)
+    end if
+    if (.not.f%isqe) then
+       call ferror("read_wannier_chk","cannot read wannier data without qe data",faterr)
+    end if
+
     ! open file
     luc = fopen_read(file,form="unformatted")
+    f%iswan = .true.
 
     ! header and number of bands
     read(luc) header
@@ -1143,6 +1169,8 @@ contains
     read(luc) jbnd 
     if (jbnd > 0) &
        call ferror("read_wannier_chk","number of excluded bands must be 0",faterr)
+    if (nbnd /= f%qe%nbnd) &
+       call ferror("read_wannier_chk","number of bands different in wannier and qe",faterr)
     read(luc) (idum,i=1,jbnd) 
     
     ! real and reciprocal lattice
@@ -1152,8 +1180,10 @@ contains
     ! number of k-points
     read(luc) nks
     read(luc) nk
-    if (nks == 0 .or. nk(1) == 0 .or. nk(2) == 0 .or. nk(2) == 0 .or. nks /= (nk(1)*nk(2)*nk(3))) &
-       call ferror("read_wannier_chk","no monkhorst-pack grid or inconsistent k-point number",faterr)
+    if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) &
+       call ferror("read_wannier_chk","error in number of k-points (wannier)",faterr)
+    if (nks /= f%qe%nks) &
+       call ferror("read_wannier_chk","number of k-points wannier different than qe",faterr)
     
     ! k-points
     allocate(kpt(3,nks))
@@ -1169,8 +1199,18 @@ contains
           write (uout,*) ik1, ik2, ik3
           call ferror("read_wannier_chk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
        end if
+       if (any(abs(kpt(:,i) - f%qe%kpt(:,i)) > 1d-5)) then
+          write (uout,*) i
+          write (uout,*) kpt(:,i)
+          write (uout,*) f%qe%kpt(:,i)
+          call ferror("read_wannier_chk","inconsistent wannier/qe k-point coordinates",faterr)
+       end if
     end do
     
+    ! overwrite the k-point in the qe data (if this was a nscf calculation, the nk(3)
+    ! from qe is zero)
+    f%qe%nk = nk
+
     read(luc) idum ! number of nearest k-point neighbours
     read(luc) jbnd ! number of wannier functions
     if (jbnd /= nbnd) &
@@ -1220,18 +1260,6 @@ contains
        end do
        f%qe%spread(i,ispin) = sqrt(f%qe%spread(i,ispin)) / bohrtoa
     end do
-
-    ! report some stuff
-    write (*,*) "---- report on the wannier transformation ----"
-    do i = 1, f%qe%nbnd
-       write (*,*) "band: ", i
-       write (*,*) "center: ", f%qe%center(:,i,1)
-       write (*,*) "spread: ", f%qe%spread(i,1)
-    end do
-    do i = 1, nks
-       write (*,*) "u-check: ", i, matmul(transpose(conjg(f%qe%u(:,:,i))),f%qe%u(:,:,i))
-    end do
-    write (*,*) "---- end of report on wannier ----"
 
   end subroutine read_wannier_chk
 

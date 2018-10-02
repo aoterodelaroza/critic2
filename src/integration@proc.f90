@@ -243,9 +243,15 @@ contains
           if (sy%f(fid)%type == type_wfn .and. sy%c%ismolecule) then
              dodelocwfn = .true.
              reason(k) = "DIs integrated separately (see table below)"
-          elseif (sy%f(fid)%type == type_grid .and. sy%f(fid)%grid%iswan) then
-             dodelocwan = .true.
-             reason(k) = "DIs integrated separately (see table below)"
+          elseif (sy%f(fid)%type == type_grid) then
+             if (sy%f(fid)%grid%isqe .and. sy%f(fid)%grid%iswan) then
+                dodelocwan = .true.
+                reason(k) = "DIs integrated separately (see table below)"
+             elseif (.not.sy%f(fid)%grid%isqe) then
+                reason(k) = "QE wavefunction data not available for this field."
+             elseif (.not.sy%f(fid)%grid%iswan) then
+                reason(k) = "Wannier data not available for this field."
+             end if
           else
              reason(k) = "Integrable field not a molecular wavefunction/wannier set."
           end if
@@ -1355,7 +1361,7 @@ contains
        if (.not.sy%propi(l)%used) cycle
        if (.not.sy%propi(l)%itype == itype_deloc) cycle
        fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_grid .or..not.sy%f(fid)%grid%iswan) cycle
+       if (sy%f(fid)%type /= type_grid.or..not.sy%f(fid)%grid%isqe.or..not.sy%f(fid)%grid%iswan) cycle
        if (.not.all(sy%f(fid)%grid%n == n)) then
           write (uout,'("Warning: inconsistent grids")')
           write (uout,'(" integrable field: ",3(A,X))') (string(sy%f(fid)%grid%n(j)),j=1,3)
@@ -1472,7 +1478,7 @@ contains
        if (.not.sy%propi(l)%used) cycle
        if (.not.sy%propi(l)%itype == itype_deloc) cycle
        fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_grid .or..not.sy%f(fid)%grid%iswan) cycle
+       if (sy%f(fid)%type /= type_grid.or..not.sy%f(fid)%grid%isqe.or..not.sy%f(fid)%grid%iswan) cycle
        if (.not.all(sy%f(fid)%grid%n == n)) cycle
        ndeloc = ndeloc + 1
 
@@ -2008,7 +2014,7 @@ contains
        if (.not.sy%propi(l)%used) cycle
        if (.not.sy%propi(l)%itype == itype_deloc) cycle
        fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_grid .or..not.sy%f(fid)%grid%iswan) cycle
+       if (sy%f(fid)%type /= type_grid.or..not.sy%f(fid)%grid%isqe.or..not.sy%f(fid)%grid%iswan) cycle
        if (.not.all(sy%f(fid)%grid%n == n)) cycle
        ndeloc = ndeloc + 1
 

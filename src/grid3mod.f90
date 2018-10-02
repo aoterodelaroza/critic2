@@ -46,6 +46,7 @@ module grid3mod
   !> Three-dimensional grid class
   type grid3
      logical :: isinit = .false. !< is the grid initialized?
+     logical :: isqe = .false. !< does it have qe ks states info?
      logical :: iswan = .false. !< does it have wannier info?
      integer :: mode !< interpolation mode
      integer :: n(3) !< number of grid points in each direction
