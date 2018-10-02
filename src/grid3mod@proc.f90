@@ -951,6 +951,10 @@ contains
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
 
+    ! xxxx ! clean up unkgen/evc
+    ! xxxx ! verify it works for all systems
+    ! xxxx ! handle flags no wannier, etc.
+    ! xxxx ! handle sij and fa checkpoint files correctly
     ! xxxx ! check the consistency of items in the wannier chk file
     ! xxxx ! flags for wannier available and for evc available
     ! xxxx ! read two chk files for two spins - develop example for spinpolarized DI calc
@@ -1656,11 +1660,11 @@ contains
 
   end subroutine hxx
 
-  !> Read the evc file from QE and write temporary, perhaps rotated
+  !> Read the pwc file from QE and write temporary, perhaps rotated
   !> versions of the same file. This operation pre-arranges the data
   !> in a manner that makes it easy for get_qe_wnr to work in
   !> parallel. Returns the LUs of the spin-up and spin-down rotated
-  !> evc files, which remain open. luevc_ibnd keeps track of the next
+  !> pwc files, which remain open. luevc_ibnd keeps track of the next
   !> band in the LU (returns 1 for both spins). If useu is false, do
   !> not rotate the coefficients (but still write the scratch files).
   module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu)
@@ -1670,7 +1674,7 @@ contains
     integer, intent(out) :: luevc_ibnd(2)
     logical, intent(in) :: useu
 
-    integer :: i, ik, nk, ibnd, jbnd, luc
+    integer :: i, ik, ibnd, jbnd, luc, ireg
     complex*16, allocatable :: evc(:), evcnew(:)
 
     luevc = -1
@@ -1678,16 +1682,25 @@ contains
 
     luc = fopen_read(f%qe%fpwc,form="unformatted")
 
-    nk = f%qe%nk(1) * f%qe%nk(2) * f%qe%nk(3)
-    allocate(evc(maxval(f%qe%ngk(1:nk))),evcnew(maxval(f%qe%ngk(1:nk))))
+    ! skip the header of the pwc file
+    if (f%qe%gamma_only) then
+       ireg = 18
+    else
+       ireg = 17
+    end if
+
+    allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))),evcnew(maxval(f%qe%ngk(1:f%qe%nks))))
 
     do i = 1, f%qe%nspin
        luevc(i) = fopen_scratch(form="unformatted")
     end do
     do ibnd = 1, f%qe%nbnd
        rewind(luc)
+       do i = 1, ireg
+          read (luc)
+       end do
        do i = 1, f%qe%nspin
-          do ik = 1, nk
+          do ik = 1, f%qe%nks
              evcnew = 0d0
              do jbnd = 1, f%qe%nbnd
                 read (luc) evc(1:f%qe%ngk(ik))
@@ -1805,9 +1818,9 @@ contains
        ! add the contribution from this k-point
        do ikk = 1, nk
           xkpt = f%qe%kpt(:,ikk) - floor(f%qe%kpt(:,ikk))
-          ik1 = nint(xkpt(1) * nk1)
-          ik2 = nint(xkpt(2) * nk2)
-          ik3 = nint(xkpt(3) * nk3)
+          ik1 = mod(nint(xkpt(1) * nk1),nk1)
+          ik2 = mod(nint(xkpt(2) * nk2),nk2)
+          ik3 = mod(nint(xkpt(3) * nk3),nk3)
           ilat = 1 + ik3 + nk3 * (ik2 + nk2 * ik1)
           raux2 = raux * exp(-tpi*img*(f%qe%kpt(1,ik0)*ik1+f%qe%kpt(2,ik0)*ik2+f%qe%kpt(3,ik0)*ik3))
           if (ilat < 1 .or. ilat > nk) then 
