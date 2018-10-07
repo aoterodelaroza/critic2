@@ -32,6 +32,7 @@ contains
   !> Main driver for the QTREE integration.
   module subroutine qtree_integration(lvl, plvl)
     use systemmod, only: sy
+    use integration, only: int_output_header, int_output_fields
     use qtree_tetrawork, only: paint_inside_spheres, tetrah_subdivide, integ_corner_sum
     use qtree_utils, only: open_difftess, close_difftess, small_writetess, getkeast
     use qtree_basic, only: qtreeidx, qtreei, qtreer, nterm, ngrd_term, ngrd_int, nlocate,&
@@ -42,13 +43,13 @@ contains
        qtree_cleanup
     use CUI, only: cubpack_info
     use keast, only: keast_rule, keast_order_num
-    use integration, only: int_output
     use global, only: quiet, plot_mode, color_allocate, docontacts, setsph_lvl,&
        autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
        integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
        ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
     use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
+    use types, only: basindat, int_result, out_field
 
     integer, intent(in) :: lvl
     integer, intent(in) :: plvl
@@ -66,7 +67,6 @@ contains
     real*8 :: abserr
     integer :: neval, meaneval, vin(3), vino(3)
     character(10) :: pname
-    logical :: maskprop(sy%npropi)
     real*8 :: xface_orig(3,3), xface_end(3,3), vtotal, memsum
     real*8 :: rface_orig(3,3), rface_end(3,3), face_diff(3)
     integer :: nalloc, ralloc
@@ -76,9 +76,8 @@ contains
     real(qtreer), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable :: acum_atprop(:,:)
     ! for the output
-    integer, allocatable :: icp(:)
-    real*8, allocatable :: xattr(:,:), outprop(:,:)
-    character*30 :: reason(sy%npropi)
+    type(basindat) :: bas
+    type(int_result), allocatable :: res(:)
 
     real*8, parameter :: eps = 1d-6
 
@@ -132,32 +131,34 @@ contains
     korder = 0
 
     ! mask for the property output
+    allocate(res(sy%npropi))
     do i = 1, sy%npropi
-       reason(i) = ""
+       res(i)%reason = ""
+       res(i)%done = .false.
+       allocate(res(i)%psum(nnuc))
+       res(i)%psum = 0d0
+       res(i)%outmode = out_field
     end do
     if (prop_mode == 0) then
-       maskprop = .false.
-       maskprop(1) = .true.
+       res(1)%done = .true.
        do i = 2, sy%npropi
-          reason(i) = "because prop_mode = 0"
+          res(i)%reason = "because prop_mode = 0"
        end do
     else if (prop_mode == 1) then
-       maskprop = .false.
-       maskprop(1) = .true.
-       maskprop(2) = .true.
+       res(1)%done = .true.
+       res(2)%done = .true.
        do i = 3, sy%npropi
-          reason(i) = "because prop_mode = 1"
+          res(i)%reason = "because prop_mode = 1"
        end do
     else if (prop_mode == 2) then
-       maskprop = .false.
-       maskprop(1) = .true.
-       maskprop(2) = .true.
-       maskprop(3) = .true.
+       res(1)%done = .true.
+       res(2)%done = .true.
+       res(3)%done = .true.
        do i = 4, sy%npropi
-          reason(i) = "because prop_mode = 2"
+          res(i)%reason = "because prop_mode = 2"
        end do
     else
-       maskprop = .true.
+       res(:)%done = .true.
     end if
 
     ! header
@@ -667,21 +668,26 @@ contains
     end do
 
     ! output the results
-    allocate(icp(nnuc),xattr(3,nnuc),outprop(sy%npropi,nnuc))
+    bas%nattr = nnuc
+    allocate(bas%icp(nnuc),bas%xattr(3,nnuc))
     k = 0
     do i = 1, nnuc
        k = k + 1
-       outprop(:,k) = atprop(i,:)
+       do j = 1, sy%npropi
+          res(j)%psum(i) = atprop(i,j)
+       end do
        do j = 1, sy%f(sy%iref)%ncpcel
           if (sy%f(sy%iref)%cpcel(j)%idx == i) then
-             icp(k) = j
-             xattr(:,k) = sy%f(sy%iref)%cpcel(j)%x
+             bas%icp(k) = j
+             bas%xattr(:,k) = sy%f(sy%iref)%cpcel(j)%x
              exit
           end if
        end do
     end do
-    call int_output(maskprop,reason,nnuc,icp(1:nnuc),xattr(:,1:nnuc),outprop(:,1:nnuc),.true.)
-    deallocate(icp,xattr,outprop)
+
+    call int_output_header(bas,res,.true.,.true.)
+    call int_output_fields(bas,res,.true.,.true.)
+    deallocate(bas%icp,bas%xattr,res)
 
     ! clean up
     if (.not.quiet) call tictac("End QTREE")

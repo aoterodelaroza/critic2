@@ -158,6 +158,7 @@ contains
     type(system), pointer :: syl => null()
 
     ! recover the system pointer
+    eval = 0d0
     if (present(sptr)) then
        call c_f_pointer(sptr,syl)
        if (.not.syl%isinit) then
@@ -168,7 +169,6 @@ contains
 
     ! tokenize the expression in input
     iok = .false.
-    eval = 0d0
     lp = 1
     ok = tokenize(expr,ntok,toklist,lp,syl)
     if (.not.ok) then
@@ -873,7 +873,6 @@ contains
     integer :: nder, idx
     type(scalar_value) :: res
     character*10 :: fderl
-    logical :: ok
 
     ! recover the system pointer
     if (present(syl)) then

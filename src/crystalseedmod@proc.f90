@@ -3047,7 +3047,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
-    integer :: version, nspin, i
+    integer :: version, i
     character*3, allocatable :: atm(:)
     real*8 :: r(3,3)
 

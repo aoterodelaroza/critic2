@@ -858,27 +858,27 @@ contains
   !> for this method. This routine handles the output and calls the
   !> low-level integrals_*.
   module subroutine integrals(line)
-    use integration, only: int_output
     use systemmod, only: sy
+    use integration, only: int_output_header, int_output_fields
     use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop,&
        fileroot
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
-
+    use types, only: basindat, int_result, out_field
     character*(*), intent(in) :: line
 
     integer :: meth, cpid, ntheta, nphi, np
-    logical :: usefiles, verbose
+    logical :: usefiles, verbose, ok
     integer :: lp
     integer :: linmin, linmax
     integer :: i, j, n
     real*8, allocatable :: atprop(:,:)
-    logical :: maskprop(sy%npropi), ok
     character(len=:), allocatable :: aux, word
     character*(10) :: pname
-    character*(30) :: reason(sy%npropi)
     integer, allocatable :: icp(:)
     real*8, allocatable :: xattr(:,:)
+    type(basindat) :: bas
+    type(int_result), allocatable :: res(:)
 
     ntheta = 0
     nphi = 0
@@ -926,10 +926,6 @@ contains
     end do
 
     if (.not.quiet) call tictac("Start INTEGRALS")
-    maskprop = .true.
-    do i = 1, sy%npropi
-       reason(i) = ""
-    end do
 
     if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
        pname = sy%propi(INT_radquad_errprop)%prop_name
@@ -957,8 +953,17 @@ contains
 
     ! allocate space for results
     n = linmax - linmin + 1
-    allocate(icp(n),xattr(3,n))
     allocate(atprop(sy%npropi,n))
+    atprop = 0d0
+    bas%nattr = n
+    allocate(res(sy%npropi),bas%icp(bas%nattr),bas%xattr(3,bas%nattr))
+    do i = 1, sy%npropi
+       res(i)%done = .true.
+       res(i)%reason = ""
+       allocate(res(i)%psum(n))
+       res(i)%psum = 0d0
+       res(i)%outmode = out_field
+    end do
 
     ! define the int files
     if (usefiles) then
@@ -987,15 +992,21 @@ contains
        ! arrange results for int_output
        do j = 1, sy%f(sy%iref)%ncpcel
           if (sy%f(sy%iref)%cpcel(j)%idx == i) then
-             icp(n) = j
-             xattr(:,n) = sy%f(sy%iref)%cpcel(j)%x
+             bas%icp(n) = j
+             bas%xattr(:,n) = sy%f(sy%iref)%cpcel(j)%x
              exit
           end if
        end do
     end do
     write (uout,*)
 
-    call int_output(maskprop,reason,n,icp(1:n),xattr(:,1:n),atprop(:,1:n),.true.)
+    do i = 1, sy%npropi
+       res(i)%psum = atprop(i,:)
+    end do
+
+    call int_output_header(bas,res,.true.,.true.)
+    call int_output_fields(bas,res,.true.,.true.)
+    deallocate(bas%icp,bas%xattr,res)
 
     ! Cleanup files
     if (allocated(intfile)) deallocate(intfile)

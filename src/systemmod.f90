@@ -90,9 +90,12 @@ module systemmod
   integer, parameter, public :: itype_expr = 7
   integer, parameter, public :: itype_mpoles = 8
   integer, parameter, public :: itype_deloc = 9
-  character*10, parameter, public :: itype_names(9) = (/&
+  integer, parameter, public :: itype_deloc_sijchk = 10
+  integer, parameter, public :: itype_deloc_fachk = 11
+  character*10, parameter, public :: itype_names(11) = (/&
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
-     "Laplcn (v)","Expression","Multipoles","Deloc indx"/)
+     "Laplcn (v)","Expression","Multipoles","Deloc indx","Deloc indx",&
+     "Deloc indx"/)
   
   interface
      module subroutine systemmod_init(isy)

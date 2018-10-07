@@ -58,7 +58,6 @@ contains
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
 
-    integer :: i
     real*8 :: maxrmt
 
     call f%end()
@@ -288,9 +287,8 @@ contains
     character*(*), intent(in) :: filename
 
     character(len=:), allocatable :: line, atname
-    integer :: lu, i, zat, nat, j, lp
+    integer :: lu, i, j, lp
     integer :: nspecies, natoms
-    real*8, allocatable :: aux(:,:)
     logical :: ok
     real*8 :: x(3)
 

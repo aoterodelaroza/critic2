@@ -31,7 +31,7 @@ contains
   !> added as attractors at the beginning of the run. Two attractors
   !> are considered equal if they are within a ditsance of ratom
   !> (bohr).
-  module subroutine yt_integrate(s,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
+  module subroutine yt_integrate(s,bas)
     use systemmod, only: system
     use crystalmod, only: crystal
     use tools_math, only: m_x2c_from_cellpar, matinv
@@ -39,16 +39,9 @@ contains
     use arithmetic, only: eval
     use param, only: vsmall, icrd_crys
     use tools, only: qcksort
-    use types, only: realloc
+    use types, only: realloc, basindat
     type(system), intent(inout) :: s
-    real*8, intent(in) :: ff(:,:,:)
-    character*(*), intent(in) :: discexpr
-    logical, intent(in) :: atexist
-    real*8, intent(in) :: ratom
-    integer, intent(out) :: nbasin
-    real*8, allocatable, intent(inout) :: xcoord(:,:)
-    integer, allocatable, intent(inout) :: idg(:,:,:)
-    integer, intent(out) :: luw
+    type(basindat), intent(inout) :: bas
 
     real*8, allocatable :: g(:)
     integer, allocatable :: io(:), iio(:)
@@ -68,24 +61,24 @@ contains
        call ferror("yt_integrate","system does not have crystal",faterr)
 
     ! Pre-allocate atoms as maxima
-    allocate(xcoord(3,s%c%ncel))
-    xcoord = 0d0
-    if (atexist) then
-       nbasin = s%c%ncel
+    allocate(bas%xattr(3,s%c%ncel))
+    bas%xattr = 0d0
+    if (bas%atexist) then
+       bas%nattr = s%c%ncel
        do i = 1, s%c%ncel
-          xcoord(:,i) = s%c%atcel(i)%x
+          bas%xattr(:,i) = s%c%atcel(i)%x
        end do
     else
-       nbasin = 0
+       bas%nattr = 0
     end if
 
     ! Copy the field onto a one-dimensional array
     do i = 1, 3
-       n(i) = size(ff,i)
+       n(i) = size(bas%f,i)
     end do
     nn = n(1)*n(2)*n(3)
     allocate(g(nn))
-    g = reshape(ff,shape(g))
+    g = reshape(bas%f,shape(g))
 
     ! sort g, from smaller to larger field value
     allocate(io(nn),iio(nn))
@@ -144,17 +137,17 @@ contains
 
           ! check if it is an atom (use ratom)
           isassigned = .false.
-          if (atexist) then
-             nid = s%c%identify_atom(dv,icrd_crys,distmax=ratom)
+          if (bas%atexist) then
+             nid = s%c%identify_atom(dv,icrd_crys,distmax=bas%ratom)
              if (nid > 0) then
                 ibasin(ii) = nid
                 isassigned = .true.
              end if
           end if
           ! check if it is a known nnm
-          if (.not.isassigned .and. ratom > vsmall) then
-             do k = 1, nbasin
-                if (s%c%are_lclose(dv,xcoord(:,k),ratom)) then
+          if (.not.isassigned .and. bas%ratom > vsmall) then
+             do k = 1, bas%nattr
+                if (s%c%are_lclose(dv,bas%xattr(:,k),bas%ratom)) then
                    ibasin(ii) = k
                    isassigned = .true.
                    exit
@@ -164,18 +157,18 @@ contains
           ! well, it must be a new attractor then
           if (.not.isassigned) then
              ok = .true.
-             if (len_trim(discexpr) > 0) then
+             if (len_trim(bas%expr) > 0) then
                 x = s%c%x2c(dv)
-                fval = s%eval(discexpr,.false.,ok,x)
+                fval = s%eval(bas%expr,.false.,ok,x)
                 if (.not.ok) &
                    call ferror("yt","invalid DISCARD expression",faterr)
                 ok = (abs(fval) < 1d-30)
              end if
              if (ok) then
-                nbasin = nbasin + 1
-                if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
-                ibasin(ii) = nbasin
-                xcoord(:,nbasin) = dv
+                bas%nattr = bas%nattr + 1
+                if (bas%nattr > size(bas%xattr,2)) call realloc(bas%xattr,3,2*bas%nattr)
+                ibasin(ii) = bas%nattr
+                bas%xattr(:,bas%nattr) = dv
              end if
           end if
        else
@@ -205,22 +198,22 @@ contains
     ! Save the necessary information to reproduce the weights to an
     ! external file. Saving the weights directly gives files
     ! that are too large.
-    luw = fopen_scratch()
-    write (luw) nbasin, nn, nvec
-    write (luw) nlo
-    write (luw) ibasin
-    write (luw) iio
-    write (luw) inear
-    write (luw) fnear
-    call flush(luw)
-    rewind(luw)
+    bas%luw = fopen_scratch()
+    write (bas%luw) bas%nattr, nn, nvec
+    write (bas%luw) nlo
+    write (bas%luw) ibasin
+    write (bas%luw) iio
+    write (bas%luw) inear
+    write (bas%luw) fnear
+    call flush(bas%luw)
+    rewind(bas%luw)
     deallocate(inear,fnear,nlo,g,iio)
 
     ! clean up and output 
-    allocate(idg(n(1),n(2),n(3)))
-    idg = reshape(ibasin,shape(idg))
+    allocate(bas%idg(n(1),n(2),n(3)))
+    bas%idg = reshape(ibasin,shape(bas%idg))
     deallocate(ibasin)
-    call realloc(xcoord,3,nbasin)
+    call realloc(bas%xattr,3,bas%nattr)
 
   contains
     function to3(k)

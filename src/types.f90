@@ -17,6 +17,7 @@
 
 !> User-defined types and overloaded reallocation procedures.
 module types
+  use param, only: mlen
   implicit none
 
   private
@@ -32,6 +33,8 @@ module types
   public :: neighstar
   public :: realloc
   public :: gpathp
+  public :: basindat
+  public :: int_result
 
   ! overloaded functions
   interface realloc
@@ -176,7 +179,7 @@ module types
      integer :: itype
      integer :: fid
      character*(10) :: prop_name
-     character*(2048) :: expr
+     character(len=mlen) :: expr
      integer :: lmax
      real*8 :: x0(3)
      ! integration of delocalization indices with Wannier functions
@@ -184,6 +187,8 @@ module types
      logical :: sijchk = .true.
      logical :: fachk = .true.
      real*8 :: wancut = 4d0
+     character(len=mlen) :: sijchkfile = ""
+     character(len=mlen) :: fachkfile = ""
   end type integrable
 
   !> Information about a point-property field
@@ -212,6 +217,45 @@ module types
      real*8 :: hf(3,3)
   end type gpathp
   
+  !> Basin data for grid integration
+  type basindat
+     ! integration input
+     integer :: imtype ! integration type (imtype_*)
+     logical :: atexist ! .true. if atoms are assumed to be attractors
+     real*8 :: ratom ! size of the atoms in bohr
+     integer :: ndrawbasin ! draw basins? -1 = none, 0 = all, num.
+     character*3 :: basinfmt ! draw basin format (obj, ply, off)
+     character(len=:), allocatable :: expr ! discard attractor expression
+     logical :: wcube ! write weight cubes
+     ! integration grid
+     integer :: n(3) ! number of grid points
+     real*8, allocatable :: f(:,:,:) ! basin field
+     ! integration results
+     integer :: nattr ! number of attractors
+     real*8, allocatable :: xattr(:,:) ! coordinates of attractors (cryst. coords.a)
+     integer, allocatable :: idg(:,:,:) ! attractor assignment of grid nodes
+     integer, allocatable :: icp(:) ! identify of the attractors in the CP list
+     integer :: luw ! YT weights generator, logical unit
+  end type basindat
+
+  !> Integration results, type and outmode values
+  integer, parameter, public :: out_none = 0
+  integer, parameter, public :: out_field = 1
+  integer, parameter, public :: out_mpoles = 2
+  integer, parameter, public :: out_delocwan = 3
+  type int_result
+     logical :: done = .false. ! Whether it was integrated
+     integer :: outmode = out_none ! In which part of the output does this result go?
+     character*60 :: reason = "" ! Reason for not integrating or delaying
+     integer :: nwan(3) ! Number of R vectors in wannier
+     integer :: nspin ! Number of spins in wannier
+     real*8, allocatable :: psum(:) ! integrated atomic properties
+     real*8, allocatable :: mpole(:,:) ! integrated multipoles
+     real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions
+     complex*16, allocatable :: sijc(:,:,:,:) ! Sij from Wannier
+     real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
+  end type int_result
+
   interface
      module subroutine scalar_value_clear(s)
        class(scalar_value), intent(inout) :: s

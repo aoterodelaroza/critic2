@@ -531,7 +531,6 @@ contains
   !> list. If is0, consider only atoms of species is0. If nozero,
   !> disregard zero-distance atoms. This routine is thread-safe.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
-    use param, only: icrd_cart
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd

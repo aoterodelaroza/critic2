@@ -239,6 +239,12 @@ contains
              sprop = "dloc"
              stradd = " | use_Sij_chk = " // string(s%propi(i)%sijchk) // ", use_Fa_chk = " // string(s%propi(i)%fachk) //&
                 ", Wannier_cutoff = " // string(s%propi(i)%wancut,'f',5,2)
+          case(itype_deloc_sijchk)
+             sprop = "dloc"
+             stradd = " | read Sij from checkpoint file: " // string(s%propi(i)%sijchkfile)
+          case(itype_deloc_fachk)
+             sprop = "dloc"
+             stradd = " | read Fa from checkpoint file: " // string(s%propi(i)%fachkfile)
           case default
              call ferror('report','unknown property',faterr)
           end select
@@ -758,11 +764,13 @@ contains
     logical :: ok
     integer :: id, lp, lpold, idum, lp2
     character(len=:), allocatable :: word, expr, str
-    logical :: useexpr
+    logical :: useexpr, inpsijchk, inpfachk
 
     lp=1
     useexpr = .false.
     errmsg = ""
+    inpsijchk = .false.
+    inpfachk = .false.
 
     lpold = lp
     word = getword(line,lp)
@@ -774,6 +782,10 @@ contains
        if (equal(word,'clear')) then
           call s%set_default_integprop()
           return
+       elseif (equal(word,'deloc_sijchk')) then
+          inpsijchk = .true.
+       elseif (equal(word,'deloc_fachk')) then
+          inpfachk = .true.
        else 
           lp = lpold
           if (isexpression_or_word(expr,line,lp)) then
@@ -801,6 +813,18 @@ contains
        s%propi(s%npropi)%itype = itype_expr
        s%propi(s%npropi)%prop_name = trim(adjustl(expr))
        s%propi(s%npropi)%expr = expr
+    elseif (inpsijchk) then
+       s%propi(s%npropi)%used = .true.
+       s%propi(s%npropi)%fid = -1
+       s%propi(s%npropi)%itype = itype_deloc_sijchk
+       s%propi(s%npropi)%prop_name = "delocsij"
+       s%propi(s%npropi)%sijchkfile = getword(line,lp)
+    elseif (inpfachk) then
+       s%propi(s%npropi)%used = .true.
+       s%propi(s%npropi)%fid = -1
+       s%propi(s%npropi)%itype = itype_deloc_fachk
+       s%propi(s%npropi)%prop_name = "delocfa"
+       s%propi(s%npropi)%fachkfile = getword(line,lp)
     else
        s%propi(s%npropi)%used = .true.
        s%propi(s%npropi)%fid = id
@@ -832,6 +856,12 @@ contains
           elseif (equal(word,"deloc")) then
              s%propi(s%npropi)%itype = itype_deloc
              str = trim(str) // "#deloca"
+             s%propi(s%npropi)%useu = .true.
+             s%propi(s%npropi)%sijchk = .true.
+             s%propi(s%npropi)%fachk = .true.
+             s%propi(s%npropi)%wancut = 4d0
+             s%propi(s%npropi)%sijchkfile = ""
+             s%propi(s%npropi)%fachkfile = ""
              
              do while (.true.)
                 lp2 = lp

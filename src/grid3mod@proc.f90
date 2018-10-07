@@ -733,7 +733,7 @@ contains
   !> the Bloch states, k-points, and structural info.
   module subroutine read_pwc(f,fpwc)
     use tools_math, only: det
-    use tools_io, only: fopen_read, fclose, ferror, faterr
+    use tools_io, only: fopen_read, fclose, ferror
     use param, only: hartoev
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
@@ -745,11 +745,10 @@ contains
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
     
-    ! xxxx ! handle flags no wannier, etc.
-    ! xxxx ! handle sij and fa checkpoint files correctly
     ! xxxx ! read two chk files for two spins - develop example for spinpolarized DI calc
     ! xxxx ! write some output about the wavefunction
     ! xxxx ! delete intermediate report -> fieldmod / printinfo
+    ! xxxx ! check that all work
     ! xxxx ! parallel: see pw2casino, pwexport
     ! xxxx ! without wf_collect? -> parallelization!
     ! xxxx ! document (search xxxx in the manual)

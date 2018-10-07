@@ -713,7 +713,6 @@ contains
   !> version.
   module function lcm2_i8(m,n)
     integer*8, intent(in) :: m, n
-    integer*8 :: lcm2
 
     lcm2_i8 = m * (n / gcd2_i8(m,n))
 
