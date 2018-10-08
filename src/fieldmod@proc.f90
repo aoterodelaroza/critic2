@@ -1173,13 +1173,14 @@ contains
     use global, only: dunit0, iunit, iunitname0
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
        ioj_right
-    use param, only: maxzat0
+    use param, only: maxzat0, hartoev
     class(field), intent(in) :: f
     logical, intent(in) :: isload
     logical, intent(in) :: isset
+    real*8 :: fspin
 
     character(len=:), allocatable :: str, aux
-    integer :: i, j, k, n(3)
+    integer :: i, j, k, n(3), i2
 
     ! header
     if (.not.f%isinit) then
@@ -1324,29 +1325,38 @@ contains
     write (uout,'("  Number of non-equivalent critical points: ",A)') string(f%ncp)
     write (uout,'("  Number of critical points in the unit cell: ",A)') string(f%ncpcel)
 
-    ! Wannier information
-    ! xxxx !
-    ! write (*,*) "---- report on the wannier transformation ----"
-    ! do i = 1, f%qe%nbnd
-    !    write (*,*) "band: ", i
-    !    write (*,*) "center: ", f%qe%center(:,i,1)
-    !    write (*,*) "spread: ", f%qe%spread(i,1)
-    ! end do
-    ! do i = 1, nks
-    !    write (*,*) "u-check: ", i, matmul(transpose(conjg(f%qe%u(:,:,i))),f%qe%u(:,:,i))
-    ! end do
-    ! write (*,*) "---- end of report on wannier ----"
+    if (f%grid%isqe) then
+       if (f%grid%qe%nspin == 1) then
+          fspin = 2d0
+       else
+          fspin = 1d0
+       end if
+
+       write (uout,*)
+       write (uout,'("+ Plane-wave Kohn-Sham states for this field")') 
+       write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
+          string(f%grid%qe%nbnd)
+       do i = 1, f%grid%qe%nks
+          write (uout,'("# kpt ",A," (",A,X,A,X,A,")")') string(i,2,justify=ioj_right), &
+             (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3)
+          if (f%grid%qe%nspin == 1) then
+             write (uout,'(10(X,A))') " Ek:", (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+          else
+             write (uout,'(10(X,A))') "Eup:", (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             i2 = i + f%grid%qe%nks
+             write (uout,'(10(X,A))') "Edn:", (string(f%grid%qe%ek(j,i2) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i2)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+          end if
+       end do
+    end if
 
     if (f%grid%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions information for this field")') 
        write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%qe%nk(i)),i=1,3)
-       write (uout,'("  Number of bands: ",A)') string(f%grid%qe%nbnd)
-       write (uout,'("  Number of spin channels: ",A)') string(f%grid%qe%nspin)
-       write (uout,'("  List of k-points: ")')
-       do i = 1, f%grid%qe%nks
-          write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f%grid%qe%kpt(j,i),'f',8,4),j=1,3)
-       end do
+       write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
        write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
        do i = 1, f%grid%qe%nspin

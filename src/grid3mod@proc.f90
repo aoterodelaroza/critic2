@@ -745,16 +745,6 @@ contains
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
     
-    ! xxxx ! read two chk files for two spins - develop example for spinpolarized DI calc
-    ! xxxx ! write some output about the wavefunction
-    ! xxxx ! delete intermediate report -> fieldmod / printinfo
-    ! xxxx ! check that all work
-    ! xxxx ! parallel: see pw2casino, pwexport
-    ! xxxx ! without wf_collect? -> parallelization!
-    ! xxxx ! document (search xxxx in the manual)
-    ! xxxx ! move checks to the delocalization/rotation
-    ! xxxx ! 1. uniform grid (one of the nwan will be zero)
-    
     ! initialize
     call f%end()
     f%qe%fpwc = fpwc
@@ -858,28 +848,6 @@ contains
     if (allocated(f%qe%center)) deallocate(f%qe%center)
     if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     if (allocated(f%qe%u)) deallocate(f%qe%u)
-
-    ! report some stuff
-    write (*,*) "---- report on the wfn ----"
-    write (*,*) "nspin = ", f%qe%nspin
-    write (*,*) "nk = ", f%qe%nks
-    write (*,*) "sumwk = ", sum(f%qe%wk)
-    write (*,*) "nbnd = ", f%qe%nbnd
-    write (*,*) "- list of kpoints -"
-    do i = 1, f%qe%nks
-       write (*,*) i, f%qe%kpt(:,i)
-    end do
-    write (*,*) "- list of orbital energies and occupations -"
-    do i = 1, f%qe%nks
-       write (*,*) "kpoint : ", i, f%qe%kpt(:,i)
-       do ispin = 1, f%qe%nspin
-          ik = (ispin-1) * f%qe%nks + i
-          write (*,'("spin = ",I2)') ispin
-          write (*,'(10(F12.5,X))') f%qe%ek(:,ik) * hartoev
-          write (*,'(5(F17.10,X))') f%qe%occ(:,ik)
-       end do
-    end do
-    write (*,*) "---- end of report on the wfn ----"
 
   end subroutine read_pwc
 
