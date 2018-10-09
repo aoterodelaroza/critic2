@@ -369,8 +369,11 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(seed%file(1))
-       if (seed%nfile > 1) &
+       if (seed%nfile == 2) then
           call f%grid%read_wannier_chk(seed%file(2))
+       elseif (seed%nfile == 3) then
+          call f%grid%read_wannier_chk(seed%file(2),seed%file(3))
+       end if
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
@@ -1360,7 +1363,7 @@ contains
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
        write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
        do i = 1, f%grid%qe%nspin
-          do j = 1, f%grid%qe%nbnd
+          do j = 1, f%grid%qe%nbndw(i)
              write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
                 (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
                 string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)

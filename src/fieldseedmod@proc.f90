@@ -224,8 +224,8 @@ contains
        ! two files are needed
        nfile = 2
     elseif (f%iff == ifformat_pwc) then
-       ! one or two files
-       nfile = 2
+       ! one, two, or three files
+       nfile = 3
        nofoundexit = .false.
     elseif (f%iff == ifformat_dftb) then
        ! three files are needed

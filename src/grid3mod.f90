@@ -38,9 +38,11 @@ module grid3mod
      integer, allocatable :: igk_k(:,:) !< fft reorder (npw,nk)
      integer, allocatable :: nl(:) !< fft reorder (ngms)
      integer, allocatable :: nlm(:) !< fft reorder (ngms) (gamma only)
+     ! Wannier transformation
+     integer :: nbndw(2) !< Number of occuped bands (for the Wannier transform)
      real*8, allocatable :: center(:,:,:) !< wannier function centers (cryst)
      real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
-     complex*16, allocatable :: u(:,:,:) !< u matrix
+     complex*16, allocatable :: u(:,:,:,:) !< u matrix
   end type qedat
 
   !> Three-dimensional grid class
@@ -145,9 +147,10 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
      end subroutine read_elk
-     module subroutine read_wannier_chk(f,file)
+     module subroutine read_wannier_chk(f,fileup,filedn)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file
+       character*(*), intent(in) :: fileup
+       character*(*), intent(in), optional :: filedn
      end subroutine read_wannier_chk
      module subroutine interp(f,xi,y,yp,ypp) 
        class(grid3), intent(inout) :: f !< Grid to interpolate

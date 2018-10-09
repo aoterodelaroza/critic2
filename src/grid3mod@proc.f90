@@ -896,16 +896,17 @@ contains
   !> Reads information from a wannier90 checkpoint file (.chk). Sets
   !> the wannier information in the qe field only (center, spread, u).
   !> Specs from wannier90, 2.0.1 (works, too: 2.1.0)
-  module subroutine read_wannier_chk(f,file)
+  module subroutine read_wannier_chk(f,fileup,filedn)
     use tools_math, only: matinv
     use tools_io, only: faterr, ferror, uout, fopen_read, fclose
     use param, only: bohrtoa
     class(grid3), intent(inout) :: f
-    character*(*), intent(in) :: file
+    character*(*), intent(in) :: fileup
+    character*(*), intent(in), optional :: filedn
 
-    integer :: luc, ispin
+    integer :: lu(2), ispin
     character(len=33) :: header
-    integer :: i, j, k, l
+    integer :: i, j, k, l, nspin, is
     integer :: nbnd, jbnd, idum, nks, nk(3), ik1, ik2, ik3
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
     character(len=20) :: chkpt1
@@ -913,6 +914,7 @@ contains
     complex*16 :: cdum
     real*8, allocatable :: kpt(:,:)
 
+    ! check qe is available
     if (.not.f%isinit) then
        call ferror("read_wannier_chk","cannot read wannier data with non-initialized grid",faterr)
     end if
@@ -920,107 +922,118 @@ contains
        call ferror("read_wannier_chk","cannot read wannier data without qe data",faterr)
     end if
 
-    ! open file
-    luc = fopen_read(file,form="unformatted")
-    f%iswan = .true.
+    ! check nspin consistency
+    if (present(filedn)) then
+       if (f%qe%nspin /= 2) &
+          call ferror("read_wannier_chk","two chk files but nspin = 1",faterr)
+    else
+       if (f%qe%nspin /= 1) &
+          call ferror("read_wannier_chk","one chk file but nspin = 2",faterr)
+    end if
+    nspin = f%qe%nspin
+
+    ! open files and initialize
+    lu(1) = fopen_read(fileup,form="unformatted")
+    if (nspin == 2) &
+       lu(2) = fopen_read(filedn,form="unformatted")
 
     ! header and number of bands
-    read(luc) header
-    read(luc) nbnd 
-    read(luc) jbnd 
-    if (jbnd > 0) &
-       call ferror("read_wannier_chk","number of excluded bands must be 0",faterr)
-    if (nbnd /= f%qe%nbnd) &
-       call ferror("read_wannier_chk","number of bands different in wannier and qe",faterr)
-    read(luc) (idum,i=1,jbnd) 
+    do is = nspin, 1, -1
+       read(lu(is)) header
+       read(lu(is)) nbnd 
+       read(lu(is)) jbnd 
+       if (jbnd > 0) &
+          call ferror("read_wannier_chk","number of excluded bands must be 0",faterr)
+       if (nbnd /= f%qe%nbnd .and. nspin == 1) &
+          call ferror("read_wannier_chk","number of bands different in wannier and qe",faterr)
+       read(lu(is)) (idum,i=1,jbnd) 
+
+       ! real and reciprocal lattice
+       read(lu(is)) ((rlatt(i,j),i=1,3),j=1,3)
+       read(lu(is)) ((rclatt(i,j),i=1,3),j=1,3)
     
-    ! real and reciprocal lattice
-    read(luc) ((rlatt(i,j),i=1,3),j=1,3)
-    read(luc) ((rclatt(i,j),i=1,3),j=1,3)
-    
-    ! number of k-points
-    read(luc) nks
-    read(luc) nk
-    if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) &
-       call ferror("read_wannier_chk","error in number of k-points (wannier)",faterr)
-    if (nks /= f%qe%nks) &
-       call ferror("read_wannier_chk","number of k-points wannier different than qe",faterr)
-    
+       ! number of k-points
+       read(lu(is)) nks
+       read(lu(is)) nk
+       if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) &
+          call ferror("read_wannier_chk","error in number of k-points (wannier)",faterr)
+       if (nks /= f%qe%nks) &
+          call ferror("read_wannier_chk","number of k-points from wannier different than qe",faterr)
+    end do
+
     ! k-points
     allocate(kpt(3,nks))
-    read(luc) ((kpt(i,j),i=1,3),j=1,nks) 
-    do i = 1, nks
-       ik1 = nint(kpt(1,i) * nk(1))
-       ik2 = nint(kpt(2,i) * nk(2))
-       ik3 = nint(kpt(3,i) * nk(3))
-       if (abs(kpt(1,i) * nk(1) - ik1) > 1d-5 .or.abs(kpt(2,i) * nk(2) - ik2) > 1d-5 .or.&
-           abs(kpt(3,i) * nk(3) - ik3) > 1d-5) then
-          write (uout,*) kpt(:,i)
-          write (uout,*) kpt(1,i)*nk(1),kpt(1,i)*nk(2),kpt(1,i)*nk(3)
-          write (uout,*) ik1, ik2, ik3
-          call ferror("read_wannier_chk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
-       end if
-       if (any(abs(kpt(:,i) - f%qe%kpt(:,i)) > 1d-5)) then
-          write (uout,*) i
-          write (uout,*) kpt(:,i)
-          write (uout,*) f%qe%kpt(:,i)
-          call ferror("read_wannier_chk","inconsistent wannier/qe k-point coordinates",faterr)
-       end if
+    do is = nspin, 1, -1
+       read(lu(is)) ((kpt(i,j),i=1,3),j=1,nks) 
+       do i = 1, nks
+          ik1 = nint(kpt(1,i) * nk(1))
+          ik2 = nint(kpt(2,i) * nk(2))
+          ik3 = nint(kpt(3,i) * nk(3))
+          if (abs(kpt(1,i) * nk(1) - ik1) > 1d-5 .or.abs(kpt(2,i) * nk(2) - ik2) > 1d-5 .or.&
+             abs(kpt(3,i) * nk(3) - ik3) > 1d-5) then
+             write (uout,*) kpt(:,i)
+             write (uout,*) kpt(1,i)*nk(1),kpt(1,i)*nk(2),kpt(1,i)*nk(3)
+             write (uout,*) ik1, ik2, ik3
+             call ferror("read_wannier_chk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+          end if
+          if (any(abs(kpt(:,i) - f%qe%kpt(:,i)) > 1d-5)) then
+             write (uout,*) i
+             write (uout,*) kpt(:,i)
+             write (uout,*) f%qe%kpt(:,i)
+             call ferror("read_wannier_chk","inconsistent wannier/qe k-point coordinates",faterr)
+          end if
+       end do
     end do
-    
+
     ! overwrite the k-point in the qe data (if this was a nscf calculation, the nk(3)
     ! from qe is zero)
     f%qe%nk = nk
+    f%qe%nbndw = 0
 
-    read(luc) idum ! number of nearest k-point neighbours
-    read(luc) jbnd ! number of wannier functions
-    if (jbnd /= nbnd) &
-       call ferror("read_wannier_chk","number of wannier functions /= number of bands",faterr)
+    do is = nspin, 1, -1
+       read(lu(is)) idum ! number of nearest k-point neighbours
+       read(lu(is)) jbnd ! number of wannier functions
+       f%qe%nbndw(is) = jbnd
+
+       ! checkpoint position and disentanglement
+       read(lu(is)) chkpt1
+       read(lu(is)) have_disentangled
+       if (have_disentangled) & 
+          call ferror("read_wannier_chk","cannot handle disentangled wannier functions",faterr)
+    end do
     
-    ! checkpoint positon and disentanglement
-    read(luc) chkpt1
-    read(luc) have_disentangled
-    if (have_disentangled) & 
-       call ferror("read_wannier_chk","cannot handle disentangled wannier functions",faterr)
-    
-    ! u and m matrices
+    ! rest of the file: u and m matrices, wannier centers and spreads
+    jbnd = maxval(f%qe%nbndw(1:nspin))
     if (allocated(f%qe%u)) deallocate(f%qe%u)
-    allocate(f%qe%u(nbnd,nbnd,nks))
-    read(luc) (((f%qe%u(i,j,k),i=1,nbnd),j=1,nbnd),k=1,nks)
-    read(luc) ((((cdum,i=1,nbnd),j=1,nbnd),k=1,idum),l=1,nks) ! m matrix
-    
-    ! wannier centers and spreads
-    ispin = 1 ! xxxx !
-    if (ispin == 1) then
-       if (allocated(f%qe%center)) deallocate(f%qe%center)
-       if (allocated(f%qe%spread)) deallocate(f%qe%spread)
-       allocate(f%qe%center(3,nbnd,f%qe%nspin),f%qe%spread(nbnd,f%qe%nspin))
-    else
-       write (*,*) "two-spin!!"
-       stop 1
-       ! if (nbnd > size(f%qe%spread,1)) then
-       !    call realloc(f%qe%center,3,nbnd,nspin)
-       !    call realloc(f%qe%spread,nbnd,nspin)
-       ! end if
-    end if
-    read(luc) ((f%qe%center(i,j,ispin),i=1,3),j=1,nbnd)
-    read(luc) (f%qe%spread(i,ispin),i=1,nbnd)
-    
-    ! end of wannier checkpoint
-    call fclose(luc)
+    if (allocated(f%qe%center)) deallocate(f%qe%center)
+    if (allocated(f%qe%spread)) deallocate(f%qe%spread)
+    allocate(f%qe%u(jbnd,jbnd,nks,nspin))
+    allocate(f%qe%center(3,jbnd,nspin),f%qe%spread(jbnd,nspin))
+    do is = nspin, 1, -1
+       read(lu(is)) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
+       read(lu(is)) ! m matrix
+       read(lu(is)) ((f%qe%center(i,j,is),i=1,3),j=1,f%qe%nbndw(is))
+       read(lu(is)) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
+       call fclose(lu(is))
+    end do
     
     ! convert centers to crystallographic and spread to bohr
     rlatti = matinv(rlatt)
-    do i = 1, nbnd
-       f%qe%center(:,i,ispin) = matmul(f%qe%center(:,i,ispin),rlatti)
-       do j = 1, 3
-          if (f%qe%center(j,i,ispin) > nk(j)) &
-             f%qe%center(j,i,ispin) = f%qe%center(j,i,ispin) - nk(j)
-          if (f%qe%center(j,i,ispin) < 0d0) &
-             f%qe%center(j,i,ispin) = f%qe%center(j,i,ispin) + nk(j)
+    do is = 1, nspin
+       do i = 1, f%qe%nbndw(is)
+          f%qe%center(:,i,is) = matmul(f%qe%center(:,i,is),rlatti)
+          do j = 1, 3
+             if (f%qe%center(j,i,is) > nk(j)) &
+                f%qe%center(j,i,is) = f%qe%center(j,i,is) - nk(j)
+             if (f%qe%center(j,i,is) < 0d0) &
+                f%qe%center(j,i,is) = f%qe%center(j,i,is) + nk(j)
+          end do
+          f%qe%spread(i,is) = sqrt(f%qe%spread(i,is)) / bohrtoa
        end do
-       f%qe%spread(i,ispin) = sqrt(f%qe%spread(i,ispin)) / bohrtoa
     end do
+
+    ! clean up
+    f%iswan = .true.
 
   end subroutine read_wannier_chk
 
@@ -1461,13 +1474,14 @@ contains
              evcnew = 0d0
              do jbnd = 1, f%qe%nbnd
                 read (luc) evc(1:f%qe%ngk(ik))
+                if (ibnd > f%qe%nbndw(i) .or. jbnd > f%qe%nbndw(i)) cycle
                 if (useu) then
-                   evcnew(1:f%qe%ngk(ik)) = evcnew(1:f%qe%ngk(ik)) + &
-                      f%qe%u(jbnd,ibnd,ik) * evc(1:f%qe%ngk(ik))
+                   evcnew(1:f%qe%ngk(ik)) = evcnew(1:f%qe%ngk(ik)) + f%qe%u(jbnd,ibnd,ik,i) * evc(1:f%qe%ngk(ik))
                 elseif (ibnd == jbnd) then
                    evcnew(1:f%qe%ngk(ik)) = evc(1:f%qe%ngk(ik))
                 end if
              end do
+             if (ibnd > f%qe%nbndw(i)) cycle
              write (luevc(i)) evcnew(1:f%qe%ngk(ik))
           end do
        end do

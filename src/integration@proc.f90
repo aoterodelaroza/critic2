@@ -25,9 +25,9 @@ submodule (integration) proc
   ! subroutine int_reorder_gridout(ff,bas)
   ! subroutine intgrid_fields(bas,res)
   ! subroutine intgrid_deloc_wannier(bas,res)
-  ! subroutine write_sijchk(sijfname,nbnd,nwan,nmo,nlat,nspin,nattr,sij)
-  ! subroutine write_fachk(fafname,nbnd,nwan,nmo,nlat,nspin,nattr,fa)
-  ! function read_chk_header(fname,nbnd,nwan,nmo,nlat,nspin,nattr)
+  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,sij)
+  ! subroutine write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,fa)
+  ! function read_chk_header(fname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr)
   ! subroutine read_sijchk_body(sijfname,sij)
   ! subroutine read_fachk_body(fafname,fa)
   ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
@@ -1189,12 +1189,14 @@ contains
     integer :: imo, jmo, ia, ja, ka, iba, ic, jc, kc, is
     integer :: m1, m2, m3, idx(3)
     integer :: fid, p(3)
-    integer :: nwan(3), nbnd, nlat, nmo, nspin, nattn, natt1
+    integer :: nwan(3), nbnd, nbndw(2), nlat, nmo, nspin, nattn, natt1
     real*8 :: x(3), xs(3), d2, fatemp
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:), imap(:,:)
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
+    complex*16 :: aa ! xxxx
+    integer :: ib, jb, kb, ibb, ix1, ix2
 
     first = .true.
     do l = 1, sy%npropi
@@ -1220,7 +1222,7 @@ contains
 
        ! maybe we can read the Fa information and jump to the end
        if (sy%propi(l)%itype == itype_deloc_fachk) then
-          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(sy%propi(l)%fachkfile)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
@@ -1236,11 +1238,11 @@ contains
              cycle
           end if
        else if (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%fachk) then
-          if (read_chk_header(fafname,nbnd,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
              fid = sy%propi(l)%fid
-             if (nbnd == sy%f(fid)%grid%qe%nbnd .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
+             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
                 nlat == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
-                natt1 == bas%nattr) then
+                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(fafname)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
                 allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
@@ -1254,7 +1256,7 @@ contains
        calcsij = .true.
        if (sy%propi(l)%itype == itype_deloc_sijchk) then
           ! read the sij from a checkpoint file (without the corresponding field)
-          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sy%propi(l)%sijchkfile)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
@@ -1272,11 +1274,11 @@ contains
              cycle
           end if
        elseif (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%sijchk) then
-          if (read_chk_header(sijfname,nbnd,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
              fid = sy%propi(l)%fid
-             if (nbnd == sy%f(fid)%grid%qe%nbnd .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
+             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
                 nlat == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
-                natt1 == bas%nattr) then
+                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sijfname)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
                 allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
@@ -1308,11 +1310,12 @@ contains
           end if
           ! assign integers
           nbnd = sy%f(fid)%grid%qe%nbnd
+          nbndw = sy%f(fid)%grid%qe%nbndw
           nwan = sy%f(fid)%grid%qe%nk
           nlat = sy%f(fid)%grid%qe%nks
           nspin = sy%f(fid)%grid%qe%nspin
+          nmo = nlat * nbnd
        end if
-       nmo = nlat * nbnd
 
        !!! calculate Sij !!!
        if (calcsij) then
@@ -1418,7 +1421,7 @@ contains
           ! write out some info
           write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
           write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
-          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nmo)
+          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nlat)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
           if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
              write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%propi(l)%wancut,'f',5,2)
@@ -1446,9 +1449,29 @@ contains
           ! write the checkpoint
           if (sy%propi(l)%sijchk) then
              write (uout,'("# Writing Sij checkpoint file: ",A)') trim(sijfname)
-             call write_sijchk(sijfname,nbnd,nwan,nmo,nlat,nspin,bas%nattr,res(l)%sijc)
+             call write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,bas%nattr,res(l)%sijc)
           end if
        end if ! calcsij
+
+       ! write (*,*) "checking S sum rules"
+       ! do ix1 = 1, nbndw(1)
+       !    do ix2 = 1, nbndw(2)
+       !       do is = 1, nspin
+       !          aa = 0d0
+       !          do imo = 1, nmo
+       !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+       !             if (iba /= ix1) cycle
+       !             do jmo = 1, nmo
+       !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+       !                if (ibb /= ix2) cycle
+       !                aa = aa + sum(res(l)%sijc(jmo,imo,:,is))
+       !             end do
+       !          end do
+       !          write (*,*) is, ix1, ix2, aa
+       !       end do
+       !    end do
+       ! end do
+       ! stop 1
 
        !!! calculate Fa !!!
        write (uout,'("# Calculating Fa")')
@@ -1476,14 +1499,18 @@ contains
        if (allocated(res(l)%fa)) deallocate(res(l)%fa)
        allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
        res(l)%fa = 0d0
-       !$omp parallel do private(fatemp) schedule(dynamic)
+       !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb) schedule(dynamic)
        do i = 1, bas%nattr
           do j = 1, bas%nattr
              do is = 1, nspin
                 do k = 1, nlat
                    fatemp = 0d0
                    do imo = 1, nmo
+                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                      ! if (iba > nbndw(is)) cycle
                       do jmo = 1, nmo
+                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                         ! if (ibb > nbndw(is)) cycle
                          fatemp = fatemp + real(res(l)%sijc(jmo,imo,i,is) * res(l)%sijc(imap(imo,k),imap(jmo,k),j,is),8)
                       end do
                    end do
@@ -1497,10 +1524,23 @@ contains
        !$omp end parallel do
        deallocate(imap)
 
+       ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
+       ! write (*,*) "Atomic charges..."
+       ! do i = 1, bas%nattr
+       !    write (*,*) i, sum(res(l)%fa(i,:,:,:)), sum(res(l)%fa(:,i,:,:))
+       ! end do
+       ! write (*,*) "Spin charges..."
+       ! do is = 1, nspin
+       !    do i = 1, bas%nattr
+       !       write (*,*) i, sum(res(l)%fa(i,:,:,is)), sum(res(l)%fa(:,i,:,is))
+       !    end do
+       ! end do
+       ! stop 1
+       
        ! write the checkpoint file
        if (sy%propi(l)%fachk) then
           write (uout,'("# Writing Fa checkpoint file: ",A)') trim(fafname)
-          call write_fachk(fafname,nbnd,nwan,nmo,nlat,nspin,bas%nattr,res(l)%fa)
+          call write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,bas%nattr,res(l)%fa)
        end if
 
        ! finished successfully
@@ -1511,7 +1551,7 @@ contains
        res(l)%outmode = out_delocwan
        res(l)%nwan = nwan
        res(l)%nspin = nspin
-    end do ! l = 1, sy%npropi
+   end do ! l = 1, sy%npropi
 
     ! clean up
     if (bas%imtype == imtype_yt) then
@@ -1522,32 +1562,32 @@ contains
   end subroutine intgrid_deloc_wannier
 
   !> Write the Sij checkpoint file (Wannier DI integration).
-  subroutine write_sijchk(sijfname,nbnd,nwan,nmo,nlat,nspin,nattr,sij)
+  subroutine write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,sij)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: sijfname
-    integer, intent(in) :: nbnd, nwan(3), nmo, nlat, nspin, nattr
+    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
     complex*16, intent(in) :: sij(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(sijfname,"unformatted")
-    write (lu) nbnd, nwan, nmo, nlat, nspin, nattr
+    write (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
     write (lu) sij
     call fclose(lu)
     
   end subroutine write_sijchk
 
   !> Write the Fa checkpoint file (Wannier DI integration).
-  subroutine write_fachk(fafname,nbnd,nwan,nmo,nlat,nspin,nattr,fa)
+  subroutine write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,fa)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: fafname
-    integer, intent(in) :: nbnd, nwan(3), nmo, nlat, nspin, nattr
+    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
     real*8, intent(in) :: fa(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(fafname,"unformatted")
-    write (lu) nbnd, nwan, nmo, nlat, nspin, nattr
+    write (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
     write (lu) fa
     call fclose(lu)
     
@@ -1555,10 +1595,10 @@ contains
 
   !> Read the header for the Sij/Fa checkpoint file (Wannier DI
   !> integration). If found and read, return .true.
-  function read_chk_header(fname,nbnd,nwan,nmo,nlat,nspin,nattr) result(haschk)
+  function read_chk_header(fname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr) result(haschk)
     use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: fname
-    integer, intent(out) :: nbnd, nwan(3), nmo, nlat, nspin, nattr
+    integer, intent(out) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
     logical :: haschk
 
     integer :: lu
@@ -1566,7 +1606,7 @@ contains
     inquire(file=fname,exist=haschk)
     if (.not.haschk) return
     lu = fopen_read(fname,"unformatted")
-    read (lu) nbnd, nwan, nmo, nlat, nspin, nattr
+    read (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
     call fclose(lu)
 
   end function read_chk_header
@@ -1630,7 +1670,7 @@ contains
 
     integer :: i, is, ibnd1, ibnd2
     integer :: imo, imo1, ia, ja, ka, iba, ilata, jmo, jmo1, ib, jb, kb, ibb, ilatb
-    integer :: n(3), nbnd, nwan(3), nlat, nmo, nspin
+    integer :: n(3), nbnd, nbndw(2), nwan(3), nlat, nmo, nspin
     integer :: ncalc, m1, m2, m3, p(3)
     real*8 :: d0, d2, x(3), xs(3)
     type(crystalseed) :: ncseed
@@ -1644,11 +1684,12 @@ contains
 
     sij = 0d0
     n = sy%f(sy%iref)%grid%n
-    nbnd = sy%f(fid)%grid%qe%nbnd
     nwan = sy%f(fid)%grid%qe%nk
     nlat = sy%f(fid)%grid%qe%nks
-    nmo = nlat * nbnd
     nspin = sy%f(fid)%grid%qe%nspin
+    nbnd = sy%f(fid)%grid%qe%nbnd
+    nbndw = sy%f(fid)%grid%qe%nbndw
+    nmo = nlat * nbnd
 
     ! build the supercell
     ncseed%isused = .true.
@@ -1673,11 +1714,11 @@ contains
     if (imtype == imtype_yt) &
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
     do is = 1, nspin
-       do ibnd1 = 1, nbnd
+       do ibnd1 = 1, nbndw(is)
           ! first wannier function
           call sy%f(fid)%grid%get_qe_wnr(ibnd1,is,luevc,luevc_ibnd,f1)
 
-          do ibnd2 = ibnd1, nbnd
+          do ibnd2 = ibnd1, nbndw(is)
              ! second wannier function
              if (ibnd1 == ibnd2) then
                 f2 = f1
@@ -1793,7 +1834,7 @@ contains
              end if ! imtype == bader/yt
 
              write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
-                string(ibnd1), string(ibnd2), string(nbnd), string(is), string(nspin),&
+                string(ibnd1), string(ibnd2), string(nbndw(is)), string(is), string(nspin),&
                 string(ncalc), string(natt1*nlat*nlat)
           end do ! ibnd2
        end do ! ibnd1 
@@ -1981,7 +2022,7 @@ contains
              string(xli,'f',15,8,4), string(xnn,'f',12,8,4)
        end do
        write (uout,*)
-       
+
        ! build the supercell
        ncseed%isused = .true.
        do i = 1, 3
