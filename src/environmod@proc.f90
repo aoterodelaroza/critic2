@@ -1162,7 +1162,11 @@ contains
        else
           g => agrid(iz)
        end if
-       rcutmax(i,2) = min(cutrad(iz),g%rmax)
+       if (g%isinit) then
+          rcutmax(i,2) = min(cutrad(iz),g%rmax)
+       else
+          rcutmax(i,2) = cutrad(iz)
+       end if
        rmax = max(rcutmax(i,2),rmax)
     end do
     if (rmax >= e%dmax0) &
@@ -1201,6 +1205,8 @@ contains
        else
           g => agrid(iz)
        end if
+       if (.not.g%isinit) cycle
+
        r = max(max(r,g%r(1)),1d-14)
        call g%interp(r,rho,rhop,rhopp)
        rho = max(rho,0d0)

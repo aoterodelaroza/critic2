@@ -1225,6 +1225,7 @@ contains
 
   function free_volume(iz) result(afree)
     use grid1mod, only: grid1, agrid
+    use tools_io, only: ferror, faterr
     use param, only: pi
     integer, intent(in) :: iz
     real*8 :: afree
@@ -1240,6 +1241,9 @@ contains
        q = h * k
        r = rmid * q / (1d0-q)
        rwei = 4d0*pi*h * r**2 * rmid/(1d0-q)**2
+       if (.not.agrid(iz)%isinit) then
+          call ferror("free_volume","atomic density grids not initialized",faterr)
+       end if
        call agrid(iz)%interp(r,rhofree,raux1,raux2)
        afree = afree + rhofree * rwei * r**3
     end do
