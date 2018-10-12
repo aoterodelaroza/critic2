@@ -766,7 +766,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
 
-    integer :: luwfn, ncore, istat, i, num1, num2, ioc
+    integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
     character(len=:), allocatable :: line, line2
     logical :: isfrac
 
@@ -781,12 +781,15 @@ contains
     ncore = 0
     f%npri = 0
     f%nedf = 0
+    nalpha = 0
     do while (getline_raw(luwfn,line))
        if (len_trim(line) < 1) exit
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*) f%nmoocc
              f%nmoall = f%nmoocc
+          elseif (trim(line) == "<Number of Alpha Electrons>") then
+             read (luwfn,*) nalpha
           elseif (trim(line) == "<Number of Core Electrons>") then
              read (luwfn,*) ncore
           elseif (trim(line) == "<Number of Primitives>") then
@@ -876,12 +879,17 @@ contains
           num2 = num2 + 1
        endif
     end do
+
+    ! it is assumed that the alpha and beta electrons are in order
     if (isfrac) then
        f%wfntyp = wfn_frac
+       f%nalpha = 0
     else if (num1 == 0) then
        f%wfntyp = wfn_rhf
+       f%nalpha = nalpha
     else if (num2 == 0) then
        f%wfntyp = wfn_uhf
+       f%nalpha = nalpha
     else
        call ferror("read_wfx","restricted-open wfx files not supported",faterr)
     endif
