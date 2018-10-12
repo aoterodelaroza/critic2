@@ -12,6 +12,7 @@
 ## Field modifiers ($field:modifier):
 ## v - valence-only value of the field
 ## c - core-only value of the field
+## up, dn, sp - alpha, beta, spin density
 ## x, y, z: first derivatives.
 ## xx, xy, yx, xz, zx, yy, yz, zy, zz: second derivatives.
 ## g: norm of the gradient.

@@ -127,6 +127,9 @@ module types
      real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues
      integer :: r = 0 ! field Hessian rank
      integer :: s = 0 ! field Hessian signature
+     real*8 :: fup = 0d0 ! spin-up density/field
+     real*8 :: fdn = 0d0 ! spin-down density/field
+     real*8 :: fspin = 0d0 ! spin density
      real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
      logical :: isnuc = .false. ! is it a nuclear position?
      logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
@@ -134,6 +137,7 @@ module types
      logical :: avail_gkin = .false. ! kinetic energy density is available
      logical :: avail_stress = .false. ! stress tensor is available
      logical :: avail_vir = .false. ! virial field is available
+     logical :: avail_spin = .false. ! spin quantities are available
    contains
      procedure :: clear => scalar_value_clear
   end type scalar_value

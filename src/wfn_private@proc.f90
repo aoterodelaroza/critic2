@@ -1862,12 +1862,15 @@ contains
   !> xpos is in Cartesian coordiantes and assume that the molecule has
   !> been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx. This routine is thread-safe.
-  module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
+  module subroutine rho2(f,xpos,nder,rho,rhoup,rhodn,rhos,grad,h,gkin,vir,stress,xmo)
     use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
     real*8, intent(out) :: rho !< Density
+    real*8, intent(out) :: rhoup !< Spin-up density
+    real*8, intent(out) :: rhodn !< Spin-dn density
+    real*8, intent(out) :: rhos !< Spin density
     real*8, intent(out) :: grad(3) !< Gradient
     real*8, intent(out) :: h(3,3) !< Hessian 
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
@@ -1879,7 +1882,7 @@ contains
 
     integer :: i
     integer :: imo
-    real*8 :: hh(6), aocc
+    real*8 :: hh(6), aocc, rhosum
     integer :: nenv, lvec(3), ierr
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
@@ -1887,6 +1890,9 @@ contains
     
     ! initialize and calculate the environment of the point
     rho = 0d0
+    rhoup = 0d0
+    rhodn = 0d0
+    rhos = 0d0
     grad = 0d0
     hh = 0d0
     gkin = 0d0
@@ -1915,7 +1921,15 @@ contains
     ! Calculate the (valence) density, etc. Adds to the core contribution, if available.
     do imo = 1, f%nmoocc
        aocc = f%occ(imo) 
-       rho = rho + aocc * phi(imo,1) * phi(imo,1)
+       rhosum = aocc * phi(imo,1) * phi(imo,1)
+       rho = rho + rhosum
+       if (f%wfntyp == wfn_uhf) then
+          if (imo <= f%nalpha) then
+             rhoup = rhoup + rhosum
+          else
+             rhodn = rhodn + rhosum
+          end if
+       end if
        if (nder>0) then
           grad = grad + 2 * aocc * phi(imo,1) * phi(imo,2:4) 
           gkin = gkin + aocc * (phi(imo,2)*phi(imo,2) + phi(imo,3)*phi(imo,3) + phi(imo,4)*phi(imo,4))
@@ -1934,6 +1948,11 @@ contains
        endif
     enddo
     deallocate(phi)
+    if (f%wfntyp /= wfn_uhf) then
+       rhoup = rho / 2d0
+       rhodn = rhoup
+    end if
+    rhos = rhoup - rhodn
 
     ! re-order and assign output values
     stress(2,1) = stress(1,2)

@@ -885,7 +885,7 @@ contains
        if (syl%goodfield(key=fid,idout=idx)) then
           fderl = lower(fder)
           select case (trim(fderl))
-          case ("","v","c")
+          case ("","v","c","up","dn","sp")
              nder = 0
           case ("x","y","z","g")
              nder = 1
@@ -904,6 +904,18 @@ contains
              fieldeval = res%fval
           case ("c")
              fieldeval = res%f - res%fval
+          case ("up")
+             fieldeval = res%fup
+             if (.not.res%avail_spin) &
+                call die('evaluating field ' // string(fid) // ', spin quantities not available')
+          case ("dn")
+             fieldeval = res%fdn
+             if (.not.res%avail_spin) &
+                call die('evaluating field ' // string(fid) // ', spin quantities not available')
+          case ("sp")
+             fieldeval = res%fspin
+             if (.not.res%avail_spin) &
+                call die('evaluating field ' // string(fid) // ', spin quantities not available')
           case ("x")
              fieldeval = res%gf(1)
           case ("y")
