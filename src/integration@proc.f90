@@ -1177,7 +1177,7 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use global, only: fileroot
-    use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror
+    use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror, faterr
     use tools_math, only: matinv
     use types, only: basindat, realloc, int_result, out_delocwan
     type(basindat), intent(in) :: bas
@@ -1195,8 +1195,9 @@ contains
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
-    complex*16 :: aa ! xxxx
-    integer :: ib, jb, kb, ibb, ix1, ix2
+    integer :: ib, jb, kb, ibb
+    ! real*8 :: ix1, ix2
+    ! complex*16 :: aa 
 
     first = .true.
     do l = 1, sy%npropi
@@ -1300,7 +1301,7 @@ contains
              res(l)%reason = "QE data not available for this field"
              cycle
           end if
-          if (.not.sy%f(fid)%grid%iswan) then
+          if (.not.sy%f(fid)%grid%iswan .and. sy%propi(l)%useu) then
              res(l)%reason = "Wannier data not available for this field"
              cycle
           end if
@@ -1310,11 +1311,28 @@ contains
           end if
           ! assign integers
           nbnd = sy%f(fid)%grid%qe%nbnd
-          nbndw = sy%f(fid)%grid%qe%nbndw
           nwan = sy%f(fid)%grid%qe%nk
           nlat = sy%f(fid)%grid%qe%nks
           nspin = sy%f(fid)%grid%qe%nspin
           nmo = nlat * nbnd
+          if (sy%f(fid)%grid%iswan) then
+             nbndw = sy%f(fid)%grid%qe%nbndw
+          else
+             if (nspin == 1) then
+                nbndw = nbnd
+             else
+                nbndw(1) = nint(sum(sy%f(fid)%grid%qe%occ(:,1) / sy%f(fid)%grid%qe%wk(1)))
+                nbndw(2) = nint(sum(sy%f(fid)%grid%qe%occ(:,1+nlat) / sy%f(fid)%grid%qe%wk(1)))
+                ! trick to get it working without the Wannier info
+                do i = 2, sy%f(fid)%grid%qe%nks
+                   m1 = nint(sum(sy%f(fid)%grid%qe%occ(:,i) / sy%f(fid)%grid%qe%wk(i)))
+                   m2 = nint(sum(sy%f(fid)%grid%qe%occ(:,i+nlat) / sy%f(fid)%grid%qe%wk(i)))
+                   if (m1 /= nbndw(1) .or. m2 /= nbndw(2)) &
+                      call ferror("intgrid_deloc_wannier","Incorrect band occupation in nspin=2 case",faterr)
+                end do
+                sy%f(fid)%grid%qe%nbndw = nbndw
+             end if
+          end if
        end if
 
        !!! calculate Sij !!!
