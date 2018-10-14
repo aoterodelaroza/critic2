@@ -766,7 +766,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
 
-    integer :: luwfn, ncore, istat, i, num1, num2, ioc
+    integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
     character(len=:), allocatable :: line, line2
     logical :: isfrac
 
@@ -781,12 +781,15 @@ contains
     ncore = 0
     f%npri = 0
     f%nedf = 0
+    nalpha = 0
     do while (getline_raw(luwfn,line))
        if (len_trim(line) < 1) exit
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*) f%nmoocc
              f%nmoall = f%nmoocc
+          elseif (trim(line) == "<Number of Alpha Electrons>") then
+             read (luwfn,*) nalpha
           elseif (trim(line) == "<Number of Core Electrons>") then
              read (luwfn,*) ncore
           elseif (trim(line) == "<Number of Primitives>") then
@@ -876,12 +879,17 @@ contains
           num2 = num2 + 1
        endif
     end do
+
+    ! it is assumed that the alpha and beta electrons are in order
     if (isfrac) then
        f%wfntyp = wfn_frac
+       f%nalpha = 0
     else if (num1 == 0) then
        f%wfntyp = wfn_rhf
+       f%nalpha = nalpha
     else if (num2 == 0) then
        f%wfntyp = wfn_uhf
+       f%nalpha = nalpha
     else
        call ferror("read_wfx","restricted-open wfx files not supported",faterr)
     endif
@@ -1854,12 +1862,15 @@ contains
   !> xpos is in Cartesian coordiantes and assume that the molecule has
   !> been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx. This routine is thread-safe.
-  module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
+  module subroutine rho2(f,xpos,nder,rho,rhoup,rhodn,rhos,grad,h,gkin,vir,stress,xmo)
     use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
     real*8, intent(out) :: rho !< Density
+    real*8, intent(out) :: rhoup !< Spin-up density
+    real*8, intent(out) :: rhodn !< Spin-dn density
+    real*8, intent(out) :: rhos !< Spin density
     real*8, intent(out) :: grad(3) !< Gradient
     real*8, intent(out) :: h(3,3) !< Hessian 
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
@@ -1871,7 +1882,7 @@ contains
 
     integer :: i
     integer :: imo
-    real*8 :: hh(6), aocc
+    real*8 :: hh(6), aocc, rhosum
     integer :: nenv, lvec(3), ierr
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
@@ -1879,6 +1890,9 @@ contains
     
     ! initialize and calculate the environment of the point
     rho = 0d0
+    rhoup = 0d0
+    rhodn = 0d0
+    rhos = 0d0
     grad = 0d0
     hh = 0d0
     gkin = 0d0
@@ -1907,7 +1921,15 @@ contains
     ! Calculate the (valence) density, etc. Adds to the core contribution, if available.
     do imo = 1, f%nmoocc
        aocc = f%occ(imo) 
-       rho = rho + aocc * phi(imo,1) * phi(imo,1)
+       rhosum = aocc * phi(imo,1) * phi(imo,1)
+       rho = rho + rhosum
+       if (f%wfntyp == wfn_uhf) then
+          if (imo <= f%nalpha) then
+             rhoup = rhoup + rhosum
+          else
+             rhodn = rhodn + rhosum
+          end if
+       end if
        if (nder>0) then
           grad = grad + 2 * aocc * phi(imo,1) * phi(imo,2:4) 
           gkin = gkin + aocc * (phi(imo,2)*phi(imo,2) + phi(imo,3)*phi(imo,3) + phi(imo,4)*phi(imo,4))
@@ -1926,6 +1948,11 @@ contains
        endif
     enddo
     deallocate(phi)
+    if (f%wfntyp /= wfn_uhf) then
+       rhoup = rho / 2d0
+       rhodn = rhoup
+    end if
+    rhos = rhoup - rhodn
 
     ! re-order and assign output values
     stress(2,1) = stress(1,2)

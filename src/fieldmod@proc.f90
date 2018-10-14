@@ -634,24 +634,9 @@ contains
     if (.not.f%isinit) call ferror("grd","field not initialized",faterr)
 
     ! initialize output quantities 
-    res%f = 0d0
-    res%fval = 0d0
-    res%gf = 0d0
-    res%hf = 0d0
-    res%gfmod = 0d0
-    res%gfmodval = 0d0
-    res%del2f = 0d0
-    res%del2fval = 0d0
-    res%gkin = 0d0
-    res%vir = 0d0
-    res%stress = 0d0
-    res%fspc = 0d0
-    res%isnuc = .false.
+    call res%clear()
     res%avail_der1 = (nder > 0)
     res%avail_der2 = (nder > 1)
-    res%avail_gkin = .false.
-    res%avail_stress = .false.
-    res%avail_vir = .false.
 
     ! check consistency
     if (nder < 0 .and. f%type /= type_wfn) &
@@ -770,10 +755,11 @@ contains
 
     case(type_wfn)
        if (nder >= 0) then
-          call f%wfn%rho2(wcr,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
+          call f%wfn%rho2(wcr,nder,res%f,res%fup,res%fdn,res%fspin,res%gf,res%hf,res%gkin,res%vir,res%stress)
           res%avail_gkin = .true.
           res%avail_stress = .true.
           res%avail_vir = .true.
+          res%avail_spin = .true.
        else
           call f%wfn%calculate_mo(wcr,res%fspc,fder)
           return
@@ -840,7 +826,7 @@ contains
 
     real*8 :: wx(3), wxr(3), wc(3), wcr(3)
     integer :: i
-    real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
+    real*8 :: h(3,3), grad(3), rho, rhoaux, rhoup, rhodn, rhos, gkin, vir, stress(3,3)
     logical :: iok, per
 
     ! initialize 
@@ -887,7 +873,7 @@ contains
     case(type_pi)
        call f%pi%rho2(wcr,f%exact,rho,grad,h)
     case(type_wfn)
-       call f%wfn%rho2(wcr,0,rho,grad,h,gkin,vir,stress)
+       call f%wfn%rho2(wcr,0,rho,rhoup,rhodn,rhos,grad,h,gkin,vir,stress)
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)

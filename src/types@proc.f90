@@ -39,6 +39,9 @@ contains
     s%hfeval = 0d0
     s%r = 0
     s%s = 0
+    s%fup = 0d0
+    s%fdn = 0d0
+    s%fspin = 0d0
     s%fspc = 0d0
     s%isnuc = .false.
     s%avail_der1 = .false.
@@ -46,6 +49,7 @@ contains
     s%avail_gkin = .false.
     s%avail_stress = .false.
     s%avail_vir = .false.
+    s%avail_spin = .false.
 
   end subroutine scalar_value_clear
 

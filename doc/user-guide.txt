@@ -865,6 +865,8 @@ case insensitive, may be one of:
   the valence density in a grid field in which core augmentation is
   active).
 + c: core-only value of the field.
++ up,dn,sp: alpha, beta, and spin densities (currently only in
+  molecular wfn fields).
 + x, y, z: first derivatives.
 + xx, xy, yx, xz, zx, yy, yz, zy, zz: second derivatives.
 + g: norm of the gradient.
