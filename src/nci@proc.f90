@@ -70,7 +70,7 @@ contains
     ! cube limits
     real*8 :: x(3), xd(3), x0(3), x1(3), x0x(3), x1x(3), xinc(3), xmat(3,3)
     real*8 :: xx0(3), xx1(3)
-    integer :: nstep(3)
+    integer :: nstep(3), imin(3), imax(3)
     ! cutoffs
     real*8 :: rhocut, dimcut, rhoplot, dimplot, rhoatl
     real*8, allocatable :: rhofragl(:)
@@ -392,6 +392,11 @@ contains
        ! use the grid step
        x0 = sy%c%x2c(x0)
        x1 = sy%c%x2c(x1)
+       xx0 = min(x0,x1)
+       xx1 = max(x0,x1)
+       x0 = xx0
+       x1 = xx1
+       
        if (istep == 0 .or. istep == -1) then
           nstep = ceiling(abs(x1 - x0) / xinc)
        else
@@ -630,18 +635,20 @@ contains
 
            xx0 = sy%c%c2x(x0 - rthres_xyz)
            xx1 = sy%c%c2x(x1 + rthres_xyz)
-           do i = floor(xx0(1))-1, ceiling(xx1(1))+1
-              do j = floor(xx0(2))-1, ceiling(xx1(2))+1
-                 do k = floor(xx0(3))-1, ceiling(xx1(3))+1
+           imin = floor(min(xx0,xx1)) - 1
+           imax = ceiling(max(xx0,xx1)) + 1
+           do i = imin(1), imax(1)
+              do j = imin(2), imax(2)
+                 do k = imin(3), imax(3)
                     do l = 1, sy%c%ncel
-                       x = sy%c%atcel(l)%x + real((/i,j,k/),8)
-                       if (x(1) > xx0(1) .and. x(1) < xx1(1) .and.&
-                          x(2) > xx0(2) .and. x(2) < xx1(2) .and.&
-                          x(3) > xx0(3) .and. x(3) < xx1(3)) then
+                       x = sy%c%x2c(sy%c%atcel(l)%x + real((/i,j,k/),8))
+                       if (x(1) > x0(1) .and. x(1) < x1(1) .and.&
+                           x(2) > x0(2) .and. x(2) < x1(2) .and.&
+                           x(3) > x0(3) .and. x(3) < x1(3)) then
                           fr0%nat = fr0%nat + 1
                           if (fr0%nat > size(fr0%at)) call realloc(fr0%at,2*fr0%nat)
-                          fr0%at(fr0%nat)%x = x
-                          fr0%at(fr0%nat)%r = sy%c%x2c(x)
+                          fr0%at(fr0%nat)%r = x
+                          fr0%at(fr0%nat)%x = sy%c%c2x(x)
                           fr0%at(fr0%nat)%cidx = l
                           fr0%at(fr0%nat)%idx = sy%c%atcel(l)%idx
                           fr0%at(fr0%nat)%lvec = (/i,j,k/)
@@ -656,6 +663,8 @@ contains
      else
         call fr0%merge_array(fr(1:nfrag),.false.)
      end if
+     if (fr0%nat == 0) &
+        call ferror('nciplot','no atoms in region',faterr)
 
      ! transform the coordinates in fr0 to vmd coordinates. vmd internally converts the
      ! coordinate system to a Cartesian matrix that is lower triangular.
@@ -663,6 +672,8 @@ contains
      aal(1) = sqrt(gg(1,1))
      aal(2) = sqrt(gg(2,2))
      aal(3) = sqrt(gg(3,3))
+     if (any(abs(aal) < 1d-2)) &
+        call ferror('nciplot','region too small',faterr)
      bbl(1) = acos(gg(2,3) / aal(2) / aal(3)) * 180d0 / pi
      bbl(2) = acos(gg(1,3) / aal(1) / aal(3)) * 180d0 / pi
      bbl(3) = acos(gg(1,2) / aal(1) / aal(2)) * 180d0 / pi
