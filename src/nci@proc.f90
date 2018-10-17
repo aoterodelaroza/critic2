@@ -620,11 +620,9 @@ contains
      if (nfrag == 0) then
         if (periodic) then
            fr0 = sy%c%listatoms_cells((/1,1,1/),.true.)
-           if (.not.sy%c%ismolecule) then
-              if (all(sy%c%mol(1:sy%c%nmol)%discrete)) then
-                 call sy%c%listmolecules(fr0,nmol,fr,isdiscrete)
-                 call fr0%merge_array(fr,.false.)
-              end if
+           if (domolmotif) then
+              call sy%c%listmolecules(fr0,nmol,fr,isdiscrete)
+              call fr0%merge_array(fr,.false.)
            end if
            if (allocated(isdiscrete)) deallocate(isdiscrete)
         else
