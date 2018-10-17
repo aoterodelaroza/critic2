@@ -404,6 +404,7 @@ contains
        xsph = 0d0
        rcub = -1d0
        xcub = 0d0
+       renv = 0d0
        do while(.true.)
           word = lgetword(line,lp)
           lp2 = 1

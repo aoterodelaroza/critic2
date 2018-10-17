@@ -38,7 +38,7 @@ contains
     use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
-    use tools_math, only: eig
+    use tools_math, only: eig, m_x2c_from_cellpar, matinv
     use types, only: scalar_value, realloc
     use param, only: pi, vsmall, bohrtoa, ifformat_as_grad, ifformat_as_hxx1,&
        ifformat_as_hxx2, ifformat_as_hxx3
@@ -47,7 +47,7 @@ contains
     character(len=:), allocatable :: line, word, oname, file
     logical :: ok, ok2
     integer :: lp, istat
-    integer :: i, j, k, iat, ifr, l
+    integer :: i, j, k, iat, ifr, l, nmol
     integer :: lugc, ludc, luvmd, ludat, lupc
     real*8, allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
     real*8, allocatable, dimension(:,:,:,:) :: rhofrag
@@ -58,6 +58,7 @@ contains
     logical :: periodic, usecore
     ! molmotif
     logical :: domolmotif
+    logical, allocatable :: isdiscrete(:)
     ! chk
     logical :: usechk, dopromol
     ! fragments
@@ -77,6 +78,8 @@ contains
     real*8 :: rhoparam, rhoparam2
     ! rthres
     real*8 :: rthres, srhorange(2)
+    ! Cartesian matrix for the vmd coordinate system 
+    real*8 :: rchol(3,3), gg(3,3), aal(3), bbl(3)
 
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
@@ -607,13 +610,18 @@ contains
      if (allocated(rhoat)) deallocate(rhoat)
      if (allocated(rhofrag)) deallocate(rhofrag)
 
-     ! write xyz file
+     ! compute the atomic positions for the xyz file
      file = trim(oname) // "_cell.xyz"
      if (nfrag == 0) then
         if (periodic) then
-           file = trim(file) // " border"
-           if (domolmotif) file = trim(file) // " molmotif"
-           call struct_write(sy,file)
+           fr0 = sy%c%listatoms_cells((/1,1,1/),.true.)
+           if (.not.sy%c%ismolecule) then
+              if (all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+                 call sy%c%listmolecules(fr0,nmol,fr,isdiscrete)
+                 call fr0%merge_array(fr,.false.)
+              end if
+           end if
+           if (allocated(isdiscrete)) deallocate(isdiscrete)
         else
            call fr0%init()
            fr0%nspc = sy%c%nspc
@@ -643,15 +651,31 @@ contains
                  end do
               end do
            end do
-           call realloc(fr0%at,fr0%nat)
-           call fr0%writexyz(file)
         end if
+        call realloc(fr0%at,fr0%nat)
      else
         call fr0%merge_array(fr(1:nfrag),.false.)
-        call fr0%writexyz(file)
      end if
 
-     ! ! write vmd script
+     ! transform the coordinates in fr0 to vmd coordinates. vmd internally converts the
+     ! coordinate system to a Cartesian matrix that is lower triangular.
+     gg = matmul(transpose(xmat),xmat)
+     aal(1) = sqrt(gg(1,1))
+     aal(2) = sqrt(gg(2,2))
+     aal(3) = sqrt(gg(3,3))
+     bbl(1) = acos(gg(2,3) / aal(2) / aal(3)) * 180d0 / pi
+     bbl(2) = acos(gg(1,3) / aal(1) / aal(3)) * 180d0 / pi
+     bbl(3) = acos(gg(1,2) / aal(1) / aal(2)) * 180d0 / pi
+     rchol = m_x2c_from_cellpar(aal,bbl)
+     rchol = transpose(matmul(rchol,matinv(xmat)))
+     do i = 1, fr0%nat
+        fr0%at(i)%r = matmul(fr0%at(i)%r,rchol)
+     end do
+
+     ! write the fragment to the file
+     call fr0%writexyz(file)
+
+     ! write vmd script
      write (luvmd,'("#!/usr/local/bin/vmd")')
      write (luvmd,'("")')
      write (luvmd,'("# Display settings            ")')
@@ -677,8 +701,8 @@ contains
         write (luvmd,'("# Cell")')
         write (luvmd,'("draw color red")')
         do i = 1, 12
-           xx0 = sy%c%x2c(xlist0(:,i))
-           xx1 = sy%c%x2c(xlist1(:,i))
+           xx0 = matmul(sy%c%x2c(xlist0(:,i)),rchol)
+           xx1 = matmul(sy%c%x2c(xlist1(:,i)),rchol)
            write (luvmd,'("draw cylinder {",3(F14.4,X),"} {",3(F14.4,X),"} radius 0.05 resolution 20")') &
               xx0 * bohrtoa, xx1 * bohrtoa
         end do
