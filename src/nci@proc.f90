@@ -79,7 +79,8 @@ contains
     ! rthres
     real*8 :: rthres, srhorange(2)
     ! Cartesian matrix for the vmd coordinate system 
-    real*8 :: rchol(3,3), gg(3,3), aal(3), bbl(3)
+    real*8 :: rchol(3,3), gg(3,3), aal(3), bbl(3), delta(3)
+    logical :: isortho
 
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
@@ -447,10 +448,10 @@ contains
     end if
 
     ! write cube headers
-    call write_cube_header(lugc,'grad_cube','3d plot, reduced density gradient',periodic,nfrag,fr,x0x,x1x,x0,x1,nstep,xmat)
-    call write_cube_header(ludc,'dens_cube','3d plot, density',periodic,nfrag,fr,x0x,x1x,x0,x1,nstep,xmat)
+    call write_cube_header(lugc,'grad_cube','3d plot, reduced density gradient',periodic,nfrag,fr,x0x,x1x,x0,x1,nstep,xmat,isortho)
+    call write_cube_header(ludc,'dens_cube','3d plot, density',periodic,nfrag,fr,x0x,x1x,x0,x1,nstep,xmat,isortho)
     if (dopromol) then
-       call write_cube_header(lupc,'pdens_cube','3d plot, promolecular density',periodic,nfrag,fr,x0x,x1x,x0,x1,nstep,xmat)
+       call write_cube_header(lupc,'pdens_cube','3d plot, promolecular density',periodic,nfrag,fr,x0x,x1x,x0,x1,nstep,xmat,isortho)
     end if
 
     ! allocate memory for density and gradient
@@ -664,8 +665,10 @@ contains
      if (fr0%nat == 0) &
         call ferror('nciplot','no atoms in region',faterr)
 
-     ! transform the coordinates in fr0 to vmd coordinates. vmd internally converts the
-     ! coordinate system to a Cartesian matrix that is lower triangular.
+     ! VMD screw-up log, entry #1:
+     ! Transform the coordinates in fr0 to vmd coordinates. vmd
+     ! internally converts the coordinate system to a Cartesian matrix
+     ! that is lower triangular.
      gg = matmul(transpose(xmat),xmat)
      aal(1) = sqrt(gg(1,1))
      aal(2) = sqrt(gg(2,2))
@@ -675,10 +678,19 @@ contains
      bbl(1) = acos(gg(2,3) / aal(2) / aal(3)) * 180d0 / pi
      bbl(2) = acos(gg(1,3) / aal(1) / aal(3)) * 180d0 / pi
      bbl(3) = acos(gg(1,2) / aal(1) / aal(2)) * 180d0 / pi
+     isortho = all(abs(bbl - 90d0) < 1d-4)
      rchol = m_x2c_from_cellpar(aal,bbl)
      rchol = transpose(matmul(rchol,matinv(xmat)))
+
+     ! VMD screw-up log, entry #3:
+     ! The origin of the isosurface box is translated by -1/2 of 
+     ! a step in each direction. Translate the atoms and the cell
+     ! by this delta
+     delta = -0.5d0 * (xmat(:,1) + xmat(:,2) + xmat(:,3))
+
+     ! Transform the atoms and the cell to agree with vmd
      do i = 1, fr0%nat
-        fr0%at(i)%r = matmul(fr0%at(i)%r,rchol)
+        fr0%at(i)%r = matmul(fr0%at(i)%r + delta,rchol)
      end do
 
      ! write the fragment to the file
@@ -710,8 +722,8 @@ contains
         write (luvmd,'("# Cell")')
         write (luvmd,'("draw color red")')
         do i = 1, 12
-           xx0 = matmul(sy%c%x2c(xlist0(:,i)),rchol)
-           xx1 = matmul(sy%c%x2c(xlist1(:,i)),rchol)
+           xx0 = matmul(sy%c%x2c(xlist0(:,i)) + delta,rchol)
+           xx1 = matmul(sy%c%x2c(xlist1(:,i)) + delta,rchol)
            write (luvmd,'("draw cylinder {",3(F14.4,X),"} {",3(F14.4,X),"} radius 0.05 resolution 20")') &
               xx0 * bohrtoa, xx1 * bohrtoa
         end do
@@ -748,10 +760,9 @@ contains
 
   !xx! private procedures
 
-   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat)
+   subroutine write_cube_header(lu,l1,l2,periodic,nfrag,frag,x0x,x1x,x0,x1,nstep,xmat,isortho)
     use systemmod, only: sy
     use fragmentmod, only: fragment
-
     integer, intent(in) :: lu
     character*(*), intent(in) :: l1, l2
     logical, intent(in) :: periodic
@@ -760,6 +771,7 @@ contains
     real*8, intent(in) :: x0x(3), x1x(3), x0(3), x1(3)
     integer, intent(in) :: nstep(3)
     real*8, intent(in) :: xmat(3,3)
+    logical :: isortho
 
     integer :: i, j, nc
     integer :: i1, i2, i3, nmin(3), nmax(3)
@@ -802,8 +814,20 @@ contains
     write(lu,*) trim(l2)
     write(lu,'(I5,3(F12.6))') nc, x0
     write(lu,'(I5,3(F12.6))') nstep(1), xmat(:,1)
-    write(lu,'(I5,3(F12.6))') nstep(2), xmat(:,2)
+
+    ! VMD screw-up log, entry #2:
+    ! vmd detects whether a cube is orthogonal or not by the (1,2) element
+    ! of the Cartesian matrix only. If this value is zero, vmd will misalign
+    ! the isosurface and its box, the latter being displayed correctly. To
+    ! prevent this, nudge the (1,2) element a little big if the cube is not
+    ! orthogonal and that element happens to be zero.
+    if (isortho .or. abs(xmat(1,2)) > 2.d-6) then
+       write(lu,'(I5,3(F12.6))') nstep(2), xmat(:,2)
+    else
+       write(lu,'(I5,3(F12.6))') nstep(2), 1.01d-6, xmat(2:3,2)
+    end if
     write(lu,'(I5,3(F12.6))') nstep(3), xmat(:,3)
+
     if (periodic .or. iszero) then
        do i = 1, sy%c%ncel
           write(lu,'(I4,F5.1,F11.6,F11.6,F11.6)') sy%c%spc(sy%c%atcel(i)%is)%z, 0d0, sy%c%atcel(i)%r
