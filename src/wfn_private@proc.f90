@@ -650,7 +650,7 @@ contains
     real*8 :: x(3), zreal, ene0, ene
     character*4 :: orbtyp
     character*2 :: dums, elem
-    logical :: isfrac
+    logical :: isfrac, found
     character*8 :: dum1
 
     f%useecp = .false.
@@ -710,6 +710,7 @@ contains
     num2 = 0
     ene0 = -1d30
     nalpha = -1
+    found = .false.
     do i = 1, f%nmoocc
        read(luwfn,104) f%occ(i), ene
        read(luwfn,105) (f%cmo(i,j),j=1,f%npri)
@@ -721,7 +722,10 @@ contains
        else if (ioc == 2) then
           num2 = num2 + 1
        endif
-       if (ene < ene0-1d-3) nalpha = i-1
+       if (ene < ene0-1d-3) then
+          nalpha = i-1
+          found = .true.
+       end if
        ene0 = ene
     end do
     read(luwfn,*) dum1
@@ -736,6 +740,7 @@ contains
        f%nalpha = nalpha
        f%nalpha_virt = 0
     else if (num2 == 0) then
+       if (.not.found) nalpha = f%nmoocc ! special case: there are no beta orbitals
        f%wfntyp = wfn_uhf
        f%nalpha = nalpha
        f%nalpha_virt = 0
