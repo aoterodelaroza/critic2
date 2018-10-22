@@ -1060,7 +1060,7 @@ contains
     type(system), pointer :: syl
 
     syl => s
-    system_eval_expression = eval(expr,hardfail,iok,x0,c_loc(syl))
+    system_eval_expression = eval(expr,hardfail,iok,x0,c_loc(syl),.not.sy%c%ismolecule)
 
   end function system_eval_expression
 

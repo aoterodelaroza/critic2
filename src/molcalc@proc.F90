@@ -22,35 +22,37 @@ submodule (molcalc) proc
   ! subroutine molcalc_nelec()
   ! subroutine molcalc_peach()
   ! subroutine molcalc_integral()
+  ! subroutine molcalc_expression(expr)
 
 contains
 
   !> Driver for molecular calculations
   module subroutine molcalc_driver(line)
-    use tools_io, only: ferror, faterr, uout, lgetword, equal
+    use tools_io, only: ferror, faterr, uout, isexpression_or_word, lower, equal
     character*(*), intent(inout) :: line
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, lword
     integer :: lp
+    logical :: ok
 
     write (uout,'("* MOLCALC: calculations using molecular meshes and wavefunctions ")')
 
     lp = 1
-    do while(.true.)
-       word = lgetword(line,lp)
-       if (equal(word,"nelec")) then
-          call molcalc_nelec()
-       elseif (equal(word,"peach")) then
-          call molcalc_peach()
-       elseif (equal(word,"integral")) then
-          call molcalc_integral()
-       elseif (len_trim(word) > 0) then
-          call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
-          return
-       else
-          exit
-       end if
-    end do
+
+    ok =  isexpression_or_word(word,line,lp)
+    lword = lower(word)
+    if (.not.ok) then
+       call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
+       return
+    else if (equal(lword,"nelec")) then
+       call molcalc_nelec()
+    elseif (equal(lword,"peach")) then
+       call molcalc_peach()
+    elseif (equal(lword,"integral")) then
+       call molcalc_integral()
+    else
+       call molcalc_expression(word)
+    end if
 
   end subroutine molcalc_driver
 
@@ -67,7 +69,7 @@ contains
 
     call m%gen(sy%c)
 
-    write (uout,'("+ Molecular integrals (NELEC)")')
+    write (uout,'("+ Simple molecular integrals (NELEC)")')
     write (uout,'(2X,"mesh size      ",A)') string(m%n)
     if (m%type == 0) then
        write (uout,'(2X,"mesh type      Becke")')
@@ -195,5 +197,52 @@ contains
     call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
 #endif
   end subroutine molcalc_integral
+
+  subroutine molcalc_expression(expr)
+    use systemmod, only: sy
+    use meshmod, only: mesh
+    use tools_io, only: string, uout
+    use types, only: scalar_value
+    use param, only: im_volume, im_rho
+    character*(*), intent(in) :: expr
+    
+    type(mesh) :: m
+    real*8, allocatable :: ff(:)
+    real*8 :: fval
+    integer :: i
+    logical :: ok
+
+    call m%gen(sy%c)
+
+    write (uout,'("+ Molecular integral calculation")')
+    write (uout,'("  Expression: ",A)') trim(expr)
+    write (uout,'(2X,"Mesh size      ",A)') string(m%n)
+    if (m%type == 0) then
+       write (uout,'(2X,"Mesh type      Becke")')
+    elseif (m%type == 1) then
+       write (uout,'(2X,"Mesh type      Franchini (small)")')
+    elseif (m%type == 2) then
+       write (uout,'(2X,"Mesh type      Franchini (normal)")')
+    elseif (m%type == 3) then
+       write (uout,'(2X,"Mesh type      Franchini (good)")')
+    elseif (m%type == 4) then
+       write (uout,'(2X,"Mesh type      Franchini (very good)")')
+    elseif (m%type == 5) then
+       write (uout,'(2X,"Mesh type      Franchini (excellent)")')
+    end if
+
+    allocate(ff(m%n))
+    !$omp parallel do private(fval,ok)
+    do i = 1, m%n
+       fval = sy%eval(expr,.true.,ok,m%x(:,i))
+       !$omp critical (save)
+       ff(i) = fval
+       !$omp end critical (save)
+    end do
+    !$omp end parallel do
+    write (uout,'("+ Integral(",A,") = ",A/)') string(expr), string(sum(ff * m%w),'f',14,8)
+    deallocate(ff)
+
+  end subroutine molcalc_expression
 
 end submodule proc

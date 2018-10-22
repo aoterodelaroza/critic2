@@ -412,14 +412,12 @@ contains
     use fieldmod, only: field
     use tools_io, only: faterr, ferror
     use types, only: scalar_value, realloc
-    use param, only: im_volume, im_rho, im_gradrho, im_gkin, im_b
+    use param, only: im_volume, im_rho, im_gradrho, im_gkin
     class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
     integer, intent(in) :: prop(:)
     logical, intent(in) :: periodic
     
-    real*8, parameter :: bsmall = 1d-10
-
     type(scalar_value) :: res
     integer :: i, j, n, nder
     real*8 :: rhos, drho2, d2rho, taup, dsigs, quads
@@ -446,8 +444,6 @@ contains
           nder = max(nder,0)
        case(im_gradrho,im_gkin)
           nder = max(nder,1)
-       case(im_b)
-          nder = max(nder,2)
        end select
     end do
 
@@ -465,16 +461,6 @@ contains
              fval = res%gfmod
           else if (prop(j) == im_gkin) then
              fval = res%gkin
-          else if (prop(j) == im_b) then
-             if (res%f > bsmall) then
-                rhos = 0.5d0 * res%fval
-                drho2 = 0.25d0 * res%gfmodval * res%gfmodval
-                d2rho = 0.5d0 * res%del2fval
-                taup = res%gkin
-                dsigs = taup - 0.25d0 * drho2 / max(rhos,1d-30)
-                quads = (d2rho - 2d0 * dsigs) / 6d0
-                call bhole(rhos,quads,1d0,fval)
-             endif
           else if (prop(j) > 100) then
              write (fder,'(I10)') prop(j) - 100
              call ff%grd(m%x(:,i),-1,res,fder=fder,periodic=periodic)
@@ -639,65 +625,5 @@ contains
     end if
        
   endfunction z2nang_franchini
-
-  subroutine bhole(rho,quad,hnorm,b)
-    use param, only: twothird, pi, third
-
-    real*8, intent(in) :: rho, quad, hnorm
-    real*8, intent(out) :: b 
-
-    real*8 :: rhs, x0, shift, x, x1, expo, prefac, alf, f, df
-    integer :: i
-
-    rhs=twothird*(pi*rho/hnorm)**twothird*rho/quad
-    x0=2.d0
-    shift=1.d0
-    if(rhs.lt.0.d0)go to 10
-    if(rhs.gt.0.d0)go to 20
-10  do i=1,16
-       x=x0-shift
-       call xfuncs(x,rhs,f,df)
-       if(f.lt.0.d0)go to 88
-       shift=0.1d0*shift
-    enddo
-    write(*,1002)
-    stop
-20  do i=1,16
-       x=x0+shift
-       call xfuncs(x,rhs,f,df)
-       if(f.gt.0.d0)go to 88
-       shift=0.1d0*shift
-    enddo
-    write(*,1002)
-    stop
-88  continue
-    do i=1,100
-       call xfuncs(x,rhs,f,df)
-       x1=x-f/df
-       if(dabs(x1-x).lt.1.d-10)go to 111
-       x=x1
-    enddo
-    write(*,1001)
-    stop
-111 x=x1
-    expo=dexp(-x)
-    prefac=rho/expo
-    alf=(8.d0*pi*prefac/hnorm)**third
-    b=x/alf
-    return
-1001 format(' ','bhole: newton algorithm fails to converge!')
-1002 format(' ','bhole: newton algorithm fails to initialize!')
-  end subroutine bhole
-  
-  subroutine xfuncs(x,rhs,f,df)
-    real*8, intent(in) :: x, rhs
-    real*8, intent(out) :: f, df
-
-    real*8 :: expo23
-
-    expo23=dexp(-2.d0/3.d0*x)
-    f = x*expo23/(x-2.d0) - rhs
-    df=2.d0/3.d0*(2.d0*x-x**2-3.d0)/(x-2.d0)**2*expo23
-  end subroutine xfuncs
 
 end submodule proc

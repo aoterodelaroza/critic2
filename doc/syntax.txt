@@ -363,6 +363,7 @@ expression.r # prints the value of the expression to the output.
     mo2a [->] mo2r k2
     [...]
   ENDMOLCALC/END
+  MOLCALC expr.s
 * BENCHMARK nn.i
 * SUM [id.s]
 * MIN [id.s]
