@@ -1155,7 +1155,7 @@ contains
              call die('atom ID in rho0nuc structural variable out of range')
           call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec,cidx0=nid)
        else
-          call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec)
+          call syl%c%nearest_atom(x0,icrd_cart,nid,dist,lvec=lvec)
        end if
 
        if (svar == svar_dnuc) then

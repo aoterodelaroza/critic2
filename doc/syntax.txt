@@ -7,28 +7,11 @@
 ## double quotes (""), parentheses, or without quoting as long as
 ## there are no spaces. They can be used in most places that a real or
 ## integer can. Variables can be used almost everywhere. Fields are
-## accessed using the $ symbol. 
-##
-## Field modifiers ($field:modifier):
-## v - valence-only value of the field
-## c - core-only value of the field
-## x, y, z: first derivatives.
-## xx, xy, yx, xz, zx, yy, yz, zy, zz: second derivatives.
-## g: norm of the gradient.
-## l: Laplacian.
-## lv: valence Laplacian.
-## lc: core Laplacian.
-## In molecular wavefunctions:
-##   <n>: value of MO number <n>.
-##   HOMO: highest-occupied molecular orbital (RHF).
-##   LUMO: lowest-unoccupied molecular orbital (RHF).
-##   A<n>: alpha MO number <n>.
-##   B<n>: beta MO number <n>.
-##   AHOMO: alpha highest-occupied molecular orbital (UHF).
-##   ALUMO: alpha lowest-unoccupied molecular orbital (UHF).
-##   BHOMO: beta highest-occupied molecular orbital (UHF).
-##   BLUMO: beta lowest-unoccupied molecular orbital (UHF).
-##   up, dn, sp - alpha, beta, spin density
+## accessed using the $ symbol and modified with a colon and a field
+## modifier ($field:modifier). Structural variables are accessed using
+## the @ symbol, and they can be used to incorporate
+## position-dependent quantities to the expression.  See the end of
+## this file for the complete list.
 
 ## In non-quiet mode (no -q argument), a copy of each input line
 ## is written to the output after a '%%' prefix.
@@ -420,4 +403,54 @@ expression.r # prints the value of the expression to the output.
 * he(id) [he] # electronic energy density, gkin+vir.
 * lol(id) [lol] # localized-orbital locator
 * lol_kir(id) [lol_kir] # localized-orbital locator, with Kirzhnits k.e.d.
+* brhole_a1(id), brhole_a2(id), brhole_a(id) # BR hole, A prefactor (spin up, down, and average)
+* brhole_b1(id), brhole_b2(id), brhole_b(id) # BR hole, hole-reference distance (spin up, down, and average)
+* brhole_alf1(id), brhole_alf2(id), brhole_alf(id) # BR hole, exponent (spin up, down, and average)
+* xhcurv1(id), xhcurv2(id), xhcurv(id) # Curvature of the exchange hole at the reference point (spin up, down, and average)
+* dsigs1(id), dsigs2(id), dsigs(id) # Same-spin pair density leading coefficient (Dsigma) (spin up, down, and average)
+* stress [STRESS] # Schrodinger stress tensor of the reference field
 * xc(...,idx)
+
+# List of field modifiers ($field:modifier):
+* v - valence-only value of the field
+* c - core-only value of the field
+* x, y, z: first derivatives.
+* xx, xy, yx, xz, zx, yy, yz, zy, zz: second derivatives.
+* g: norm of the gradient.
+* l: Laplacian.
+* lv: valence Laplacian.
+* lc: core Laplacian.
+* In molecular wavefunctions:
+*   <n>: value of MO number <n>.
+*   HOMO: highest-occupied molecular orbital (RHF).
+*   LUMO: lowest-unoccupied molecular orbital (RHF).
+*   A<n>: alpha MO number <n>.
+*   B<n>: beta MO number <n>.
+*   AHOMO: alpha highest-occupied molecular orbital (UHF).
+*   ALUMO: alpha lowest-unoccupied molecular orbital (UHF).
+*   BHOMO: beta highest-occupied molecular orbital (UHF).
+*   BLUMO: beta lowest-unoccupied molecular orbital (UHF).
+*   up, dn, sp - alpha, beta, spin density
+
+# List of structural variables (@strucvar):
+* dnuc:     distance to the closest nucleus
+* xnucx:    x of the closest nucleus (crystallographic)
+* ynucx:    y of the closest nucleus (crystallographic)
+* znucx:    z of the closest nucleus (crystallographic)
+* xnucc:    x of the closest nucleus (Cartesian)
+* ynucc:    y of the closest nucleus (Cartesian)
+* znucc:    z of the closest nucleus (Cartesian)
+* xx:       x of the evaluation point (crystallographic)
+* yx:       y of the evaluation point (crystallographic)
+* zx:       z of the evaluation point (crystallographic)
+* xc:       x of the evaluation point (Cartesian)
+* yc:       y of the evaluation point (Cartesian)
+* zc:       z of the evaluation point (Cartesian)
+* xxr:      x of the evaluation point (reduced crystallographic)
+* yxr:      y of the evaluation point (reduced crystallographic)
+* zxr:      z of the evaluation point (reduced crystallographic)
+* idnuc:    complete-list id of the closest nucleus
+* nidnuc:   non-equivalent-list id of the closest nucleus
+* rho0nuc:  atomic density contribution from the closest nucleus
+* spcnuc:   species id of the closest nucleus
+* zatnuc:   atomic number of the closest nucleus

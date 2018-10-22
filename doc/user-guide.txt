@@ -792,10 +792,11 @@ you can start critic2 and write::
 
 Similarly, variables can be defined and utilized in any
 expression. Variable names must start with a letter and are composed
-only of letters, numbers, and the underscore character. Also, they can
-not have the same name as a known constant (pi, e, eps) or a function,
-regardless of case. Variables in expressions are case-sensitive. To
-use a variable, first you need to assign it. For instance::
+only of letters, numbers, and the underscore character. Also, they
+cannot have the same name as a known constant (pi, e, eps) or a
+function, regardless of case. Variables in expressions are
+case-sensitive. To use a variable, first you need to assign it. For
+instance::
 
   #ascii#
   a = 20+10
@@ -828,7 +829,8 @@ but this is not:
 
    NEQ 1/3 2 /3 1/4 Be
 
-Arithmetic expressions can contain:
+because it contains one field too many (the space between 2 and /3 is
+the problem). Arithmetic expressions can contain:
 
 * Operators: +, -, *, /, ** or ^, % (modulo)
 
@@ -838,28 +840,31 @@ Arithmetic expressions can contain:
 
 * Variables defined by the user as above.
 
+* Structural variables. See `List of structural variables`_.
+
 Parentheses can be used and the usual rules of associativity and
 precedence apply.
 
-In some cases, arithmetic expressions can be applied to transform a
-scalar field. Scalar fields are denoted with a dollar sign ($)
-followed by an identifier and, optionally, a modifier. The default
-identifier for a field is the number in which the field was loaded in
-the input.  For instance, if the first field ($1) is the spin-up
-density and the second ($2) is the spin-down density, the total
-density can be calculated with the expression "$1+$2". The expressions
-"$0" or "$rho0" represent the promolecular density (which is always
-available once the crystal structure is known) so "$1+$2-$rho0" would
-represent the density difference between the actual crystal density
-and the sum of atomic densities. Fields can also be referred by a
-name, if the ID keyword is used (see `Loading a field (LOAD)`_ and
-`Additional LOAD options`_). Named fields simplify working with them
-if you load many of them.
+In some cases, arithmetic expressions can be applied to make new
+scalar fields by transforming existing fields. Scalar fields are
+denoted with a dollar sign ($) followed by an identifier and,
+optionally, a modifier. The default identifier for a field is the
+order in which the field was loaded in the input. For instance, if the
+first field ($1) is the spin-up density and the second ($2) is the
+spin-down density, the total density can be calculated with the
+expression "$1+$2". The expressions "$0" or "$rho0" represent the
+promolecular density (which is always available once the crystal
+structure is known) so "$1+$2-$rho0" would represent the density
+difference between the actual crystal density and the sum of atomic
+densities. Fields can also be referred by a name, if the ID keyword is
+used (see `Loading a field (LOAD)`_ and `Additional LOAD
+options`_). Named fields simplify the work if you load many fields.
 
 It is possible to specify a field modifier right after the number or
-name for that field in order to access its derivatives. The modifier,
-which is separated by the field name using the ":" character and is
-case insensitive, may be one of:
+name for that field in order to access its derivatives and other
+properties related to that scalar field. The modifier, which is
+separated by the field name using the ":" character and is case
+insensitive, may be one of:
 
 + v: valence-only value of the field (it is usually employed to access
   the valence density in a grid field in which core augmentation is
@@ -887,11 +892,14 @@ can be selected using the following field modifiers:
 + BLUMO: the beta lowest-unoccupied MO in a UHF wavefunction.
 + A<n>: alpha MO number n in a UHF wavefunction.
 + B<n>: beta MO number n in a UHF wavefunction.
-+ up,dn,sp: alpha, beta, and spin densities.
 
 The flags that select virtual orbitals require a file format that
 contains that information, and the field has to be loaded using the
-READVIRTUAL keyword (see `Loading a field (LOAD)`_).
+READVIRTUAL keyword (see `Loading a field (LOAD)`_). Also in
+unrestricted molecular wavefunction fields, one can access the spin
+densities:
+
++ up,dn,sp: alpha, beta, and spin densities.
 
 There is a clear distinction between expressions that reference fields
 and those that do not and, for certain keywords, critic2 will decide
@@ -902,7 +910,7 @@ instance::
   CUBE CELL FIELD "a*$1"
 
 calculates a grid spanning the entire cell for a scalar field that is
-built as two times the field number 1, but::
+built as two times the value of field number 1, but::
 
   a = 2
   CUBE CELL FIELD "a*1"
@@ -910,6 +918,10 @@ built as two times the field number 1, but::
 uses field number two (a*1 = 2) to calculate the same
 grid. Expressions involving fields can also be used in LOAD and in
 other keywords (POINT, LINE, INTEGRABLE, etc.).
+
+When using arithmetic expressions to create new fields, it is possible
+to refer to coordinates in real space in those expressions by using
+"structural variables". See `List of structural variables`_.
 
 The value of a variable can be cleared using the CLEAR keyword::
 
@@ -1115,6 +1127,68 @@ using, for instance:
 ::
 
   LOAD AS GRAD 1
+
+List of structural variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When creating new fields as transformations of existing fields, it is
+possible to refer to the crystal or molecular structure (the nearest
+atom, the position, etc.) using structural variables. Structural
+variables start with the symbol "@" followed by an identifier that
+select the type of variable. For some of the variables, an additional
+modifier can be applied using the ":" symbol after the variable
+identifier. For instance, "@dnuc" gives the distance to the nearest
+nucleus. "@rho0nuc:3" is the atomic density at the given point of the
+nearest atom number 3 (from the complete list). The following
+structural variables are accepted in critic2:
+
+* dnuc: Distance to the closest nucleus
+
+* xnucx,ynucx,znucx: x,y,z coordinates of the nearest nucleus in
+  crystallographic coordinates.
+
+* xnucc,ynucc,znucx: x,y,z coordinates of the nearest nucleus in
+  Cartesian coordinates (bohr).
+
+* xx,yx,zx: the x,y,z coordinates of the point where the arithmetic
+  expression is being evaluated (crystallographic coordinates).
+
+* xc,yc,zc: the x,y,z coordinates of the point where the arithmetic
+  expression is being evaluated (Cartesian).
+
+* xxr,yxr,zxr: the x,y,z coordinates of the point where the arithmetic
+  expression is being evaluated (crystallographic coordinates in the
+  reduced unit cell).
+
+* idnuc: complete-list ID of the closest nucleus.
+
+* nidnuc: non-equivalent list ID of the closest nucleus.
+
+* rho0nuc: atomic density contribution from the nearest nucleus. If
+  followed by a modifier and a number id.i, the contribution from atom
+  id.i (from the complete list) is used instead. id.i must be between
+  1 and the number of atoms in the unit cell/molecule.
+
+* spcnuc: species ID of the nearest nucleus.
+
+* zatnuc: atomic number of the closest nucleus.
+
+For instance, if we have a crystal structure and its electron density
+in field $1 as a grid, the following calculates a field that, when
+integrated, gives the Voronoi charge of the first atom::
+
+  load as "(@idnuc == 1) * $1"
+
+Likewise, this calculates the field whose integral is the Hirshfeld
+charge of the same atom::
+
+  load as "@rho0nuc:1/$0 * $1"
+
+(Note: the "Cell integral" line when these two commands are executed
+contains the integral of the newly created field over the whole unit
+cell. Therefore, it is possible to calcualte charges in this
+way). Similar expressions can be used to restrict or modify the values
+of a scalar field only in certain areas of the system.
 
 The crystal structure
 ---------------------
