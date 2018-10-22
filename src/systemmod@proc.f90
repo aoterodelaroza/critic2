@@ -1112,6 +1112,9 @@ contains
        write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
        write (uout,'("  Gradient (grad f): ",3(A,2X))') (string(res%gf(j),'e',decimal=9),j=1,3)
        write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
+       if (res%avail_gkin) then
+          write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
+       end if
        write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
        write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
        write (uout,'("  Hessian:")')
@@ -1126,8 +1129,14 @@ contains
        if (dospin) then
           write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(1),'e',decimal=9), &
              string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
+          if (res%avail_gkin) then
+             write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
+          end if
           write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(2),'e',decimal=9), &
              string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
+          if (res%avail_gkin) then
+             write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
+          end if
        end if
 
        ! properties at points defined by the user

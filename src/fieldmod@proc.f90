@@ -761,10 +761,11 @@ contains
           res%gf = gradx(:,1)
           res%gfmodspin(1) = norm2(gradx(:,2))
           res%gfmodspin(2) = norm2(gradx(:,3))
+          res%gkin = gkinx(1)
+          res%gkinspin = gkinx(2:3)
           res%hf = hx(:,:,1)
           res%lapspin(1) = hx(1,1,2) + hx(2,2,2) + hx(3,3,2)
           res%lapspin(2) = hx(1,1,3) + hx(2,2,3) + hx(3,3,3)
-          res%gkinspin = gkinx(2:3)
           res%avail_gkin = .true.
           res%avail_stress = .true.
           res%avail_vir = .true.
