@@ -12,7 +12,6 @@
 ## Field modifiers ($field:modifier):
 ## v - valence-only value of the field
 ## c - core-only value of the field
-## up, dn, sp - alpha, beta, spin density
 ## x, y, z: first derivatives.
 ## xx, xy, yx, xz, zx, yy, yz, zy, zz: second derivatives.
 ## g: norm of the gradient.
@@ -29,6 +28,7 @@
 ##   ALUMO: alpha lowest-unoccupied molecular orbital (UHF).
 ##   BHOMO: beta highest-occupied molecular orbital (UHF).
 ##   BLUMO: beta lowest-unoccupied molecular orbital (UHF).
+##   up, dn, sp - alpha, beta, spin density
 
 ## In non-quiet mode (no -q argument), a copy of each input line
 ## is written to the output after a '%%' prefix.
@@ -181,7 +181,7 @@ expression.r # prints the value of the expression to the output.
         [SCALE sx.r sy.r] [EXTENDX zx0.r zx1.r] [EXTENDY zy0.r zy1.r]
         [FILE file.s] [FIELD id.s/"expr"]
         [F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP] 
-        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
+	        [CONTOUR {LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
         BADER|LIN niso.i rini.r rend.r|i1.r i2.r ...}] [COLORMAP [LOG|ATAN]] 
         [RELIEF zmin.r zmax.r] [LABELZ labelz.r]
 * CUBE x0.r y0.r z0.r x1.r y1.r z1.r nx.i ny.i nz.i [FILE file.s] [FIELD id.s/"expr"]

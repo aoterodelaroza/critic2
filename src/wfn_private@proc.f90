@@ -1862,27 +1862,24 @@ contains
   !> xpos is in Cartesian coordiantes and assume that the molecule has
   !> been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx. This routine is thread-safe.
-  module subroutine rho2(f,xpos,nder,rho,rhoup,rhodn,rhos,grad,h,gkin,vir,stress,xmo)
+  module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
     use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
-    real*8, intent(out) :: rho !< Density
-    real*8, intent(out) :: rhoup !< Spin-up density
-    real*8, intent(out) :: rhodn !< Spin-dn density
-    real*8, intent(out) :: rhos !< Spin density
-    real*8, intent(out) :: grad(3) !< Gradient
-    real*8, intent(out) :: h(3,3) !< Hessian 
-    real*8, intent(out) :: gkin !< G(r), kinetic energy density
+    real*8, intent(out) :: rho(3) !< Density (total,up,down)
+    real*8, intent(out) :: grad(3,3) !< Gradient (total,up,down)
+    real*8, intent(out) :: h(3,3,3) !< Hessian (total,up,down)
+    real*8, intent(out) :: gkin(3) !< G(r), kinetic energy density (total,up,down)
     real*8, intent(out) :: vir !< Virial field
     real*8, intent(out) :: stress(3,3) !< Schrodinger stress tensor
     real*8, allocatable, intent(out), optional :: xmo(:) !< Values of the MO
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
 
-    integer :: i
+    integer :: i, j
     integer :: imo
-    real*8 :: hh(6), aocc, rhosum
+    real*8 :: hh(6,3), aocc, rhosum, gradsum(3), gkinsum, hsum(6)
     integer :: nenv, lvec(3), ierr
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
@@ -1890,11 +1887,9 @@ contains
     
     ! initialize and calculate the environment of the point
     rho = 0d0
-    rhoup = 0d0
-    rhodn = 0d0
-    rhos = 0d0
     grad = 0d0
     hh = 0d0
+    h = 0d0
     gkin = 0d0
     vir = 0d0
     stress = 0d0
@@ -1906,7 +1901,7 @@ contains
     if (f%issto) then
        call calculate_mo_sto(f,xpos,phi,1,1,f%nmoocc,nder,nenv,eid,dist)
     else
-       call calculate_mo_gto(f,xpos,phi,rho,grad,hh,1,1,f%nmoocc,nder,nenv,eid,dist)
+       call calculate_mo_gto(f,xpos,phi,rho(1),grad(:,1),hh(:,1),1,1,f%nmoocc,nder,nenv,eid,dist)
     end if
 
     ! save the MO values
@@ -1922,23 +1917,52 @@ contains
     do imo = 1, f%nmoocc
        aocc = f%occ(imo) 
        rhosum = aocc * phi(imo,1) * phi(imo,1)
-       rho = rho + rhosum
+       rho(1) = rho(1) + rhosum
        if (f%wfntyp == wfn_uhf) then
           if (imo <= f%nalpha) then
-             rhoup = rhoup + rhosum
+             rho(2) = rho(2) + rhosum
           else
-             rhodn = rhodn + rhosum
+             rho(3) = rho(3) + rhosum
           end if
        end if
        if (nder>0) then
-          grad = grad + 2 * aocc * phi(imo,1) * phi(imo,2:4) 
-          gkin = gkin + aocc * (phi(imo,2)*phi(imo,2) + phi(imo,3)*phi(imo,3) + phi(imo,4)*phi(imo,4))
+          gradsum = 2 * aocc * phi(imo,1) * phi(imo,2:4) 
+          gkinsum = aocc * (phi(imo,2)*phi(imo,2) + phi(imo,3)*phi(imo,3) + phi(imo,4)*phi(imo,4))
+          grad(:,1) = grad(:,1) + gradsum
+          gkin(1) = gkin(1) + gkinsum
+          if (f%wfntyp == wfn_uhf) then
+             if (imo <= f%nalpha) then
+                grad(:,2) = grad(:,2) + gradsum
+                gkin(2) = gkin(2) + gkinsum
+             else
+                grad(:,3) = grad(:,3) + gradsum
+                gkin(3) = gkin(3) + gkinsum
+             end if
+          end if
        endif
        if (nder>1) then
-          hh(1:3) = hh(1:3) + 2 * aocc * (phi(imo,1)*phi(imo,5:7)+phi(imo,2:4)**2)
-          hh(4) = hh(4) + 2 * aocc * (phi(imo,1)*phi(imo,8)+phi(imo,2)*phi(imo,3))
-          hh(5) = hh(5) + 2 * aocc * (phi(imo,1)*phi(imo,9)+phi(imo,2)*phi(imo,4))
-          hh(6) = hh(6) + 2 * aocc * (phi(imo,1)*phi(imo,10)+phi(imo,3)*phi(imo,4))
+          hsum(1:3) = 2 * aocc * (phi(imo,1)*phi(imo,5:7)+phi(imo,2:4)**2)
+          hsum(4) = 2 * aocc * (phi(imo,1)*phi(imo,8)+phi(imo,2)*phi(imo,3))
+          hsum(5) = 2 * aocc * (phi(imo,1)*phi(imo,9)+phi(imo,2)*phi(imo,4))
+          hsum(6) = 2 * aocc * (phi(imo,1)*phi(imo,10)+phi(imo,3)*phi(imo,4))
+
+          hh(1:3,1) = hh(1:3,1) + hsum(1:3)
+          hh(4,1) = hh(4,1) + hsum(4)
+          hh(5,1) = hh(5,1) + hsum(5)
+          hh(6,1) = hh(6,1) + hsum(6)
+          if (f%wfntyp == wfn_uhf) then
+             if (imo <= f%nalpha) then
+                hh(1:3,2) = hh(1:3,2) + hsum(1:3)
+                hh(4,2) = hh(4,2) + hsum(4)
+                hh(5,2) = hh(5,2) + hsum(5)
+                hh(6,2) = hh(6,2) + hsum(6)
+             else
+                hh(1:3,3) = hh(1:3,3) + hsum(1:3)
+                hh(4,3) = hh(4,3) + hsum(4)
+                hh(5,3) = hh(5,3) + hsum(5)
+                hh(6,3) = hh(6,3) + hsum(6)
+             end if
+          end if
           stress(1,1) = stress(1,1) + aocc * (phi(imo,1) * phi(imo,5)  - phi(imo,2)*phi(imo,2))
           stress(1,2) = stress(1,2) + aocc * (phi(imo,1) * phi(imo,8)  - phi(imo,2)*phi(imo,3))
           stress(1,3) = stress(1,3) + aocc * (phi(imo,1) * phi(imo,9)  - phi(imo,2)*phi(imo,4))
@@ -1949,27 +1973,38 @@ contains
     enddo
     deallocate(phi)
     if (f%wfntyp /= wfn_uhf) then
-       rhoup = rho / 2d0
-       rhodn = rhoup
+       rho(2) = rho(1) / 2d0
+       rho(3) = rho(2)
+       if (nder>0) then
+          grad(:,2) = grad(:,1) / 2d0
+          grad(:,3) = grad(:,2)
+          gkin(2) = gkin(1) / 2d0
+          gkin(3) = gkin(2)
+       end if
+       if (nder>1) then
+          hh(:,2) = hh(:,1) / 2d0
+          hh(:,3) = hh(:,2)
+       end if
     end if
-    rhos = rhoup - rhodn
 
     ! re-order and assign output values
     stress(2,1) = stress(1,2)
     stress(3,1) = stress(1,3)
     stress(3,2) = stress(2,3)
     stress = stress * 0.5d0
-    gkin = 0.5d0 * gkin
     vir = stress(1,1)+stress(2,2)+stress(3,3)
-    do i = 1, 3
-       h(i,i) = hh(i)
+    do j = 1, 3
+       gkin(j) = 0.5d0 * gkin(j)
+       do i = 1, 3
+          h(i,i,j) = hh(i,j)
+       end do
+       h(1,2,j) = hh(4,j)
+       h(2,1,j) = h(1,2,j)
+       h(1,3,j) = hh(5,j)
+       h(3,1,j) = h(1,3,j)
+       h(2,3,j) = hh(6,j)
+       h(3,2,j) = h(2,3,j)
     end do
-    h(1,2) = hh(4)
-    h(2,1) = h(1,2)
-    h(1,3) = hh(5)
-    h(3,1) = h(1,3)
-    h(2,3) = hh(6)
-    h(3,2) = h(2,3)
 
   end subroutine rho2
 

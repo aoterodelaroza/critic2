@@ -39,9 +39,10 @@ contains
     s%hfeval = 0d0
     s%r = 0
     s%s = 0
-    s%fup = 0d0
-    s%fdn = 0d0
     s%fspin = 0d0
+    s%gfmodspin = 0d0
+    s%lapspin = 0d0
+    s%gkinspin = 0d0
     s%fspc = 0d0
     s%isnuc = .false.
     s%avail_der1 = .false.

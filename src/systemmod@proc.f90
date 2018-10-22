@@ -1071,6 +1071,8 @@ contains
   !> the properties in res and, if verbose is .true., write to the
   !> standard output.
   module subroutine propty(s,id,x0,res,verbose,allfields)
+    use fieldmod, only: type_wfn
+    use wfn_private, only: wfn_uhf
     use global, only: cp_hdegen
     use tools_math, only: rsindex
     use tools_io, only: uout, string
@@ -1086,7 +1088,7 @@ contains
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
     integer :: str, sts
     integer :: i, j, k
-    logical :: iok
+    logical :: iok, dospin
     type(scalar_value) :: res2
 
     ! get the scalar field properties
@@ -1098,6 +1100,9 @@ contains
     call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
 
     if (verbose) then
+       dospin = res%avail_spin .and. s%f(id)%type == type_wfn
+       if (dospin) dospin = dospin .and. s%f(id)%wfn%wfntyp == wfn_uhf
+
        if (res%isnuc) then
           write (uout,'("  Type : nucleus")') 
        else
@@ -1118,6 +1123,12 @@ contains
        if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
+       if (dospin) then
+          write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(1),'e',decimal=9), &
+             string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
+          write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(2),'e',decimal=9), &
+             string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
+       end if
 
        ! properties at points defined by the user
        do i = 1, s%npropp

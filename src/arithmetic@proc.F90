@@ -905,15 +905,15 @@ contains
           case ("c")
              fieldeval = res%f - res%fval
           case ("up")
-             fieldeval = res%fup
+             fieldeval = res%fspin(1)
              if (.not.res%avail_spin) &
                 call die('evaluating field ' // string(fid) // ', spin quantities not available')
           case ("dn")
-             fieldeval = res%fdn
+             fieldeval = res%fspin(2)
              if (.not.res%avail_spin) &
                 call die('evaluating field ' // string(fid) // ', spin quantities not available')
           case ("sp")
-             fieldeval = res%fspin
+             fieldeval = res%fspin(1) - res%fspin(2)
              if (.not.res%avail_spin) &
                 call die('evaluating field ' // string(fid) // ', spin quantities not available')
           case ("x")

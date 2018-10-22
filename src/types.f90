@@ -127,9 +127,10 @@ module types
      real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues
      integer :: r = 0 ! field Hessian rank
      integer :: s = 0 ! field Hessian signature
-     real*8 :: fup = 0d0 ! spin-up density/field
-     real*8 :: fdn = 0d0 ! spin-down density/field
-     real*8 :: fspin = 0d0 ! spin density
+     real*8 :: fspin(2) ! density, spin up/dn
+     real*8 :: gfmodspin(2) ! gradient norm, spin up/dn
+     real*8 :: lapspin(2) ! laplacian, spin up/dn
+     real*8 :: gkinspin(2) ! kinetic energy density, spin up/dn
      real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
      logical :: isnuc = .false. ! is it a nuclear position?
      logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
