@@ -1717,7 +1717,6 @@ contains
     real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
     real*8 :: br_b, br_alf, br_a, raux(3)
     integer :: idx
-    logical :: dospin(0:2)
   
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
@@ -1850,22 +1849,22 @@ contains
        
        if (res%avail_spin .and. res%spinpol) then
           if (c == fun_brhole_a1 .or. c == fun_brhole_b1 .or. c == fun_brhole_alf1) then
-             call assign_basic_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
+             call assign_bhole_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
              call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
           elseif (c == fun_brhole_a2 .or. c == fun_brhole_b2 .or. c == fun_brhole_alf2) then
-             call assign_basic_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
+             call assign_bhole_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
              call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
           else
-             call assign_basic_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
+             call assign_bhole_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
              call bhole(rhos,quads,1d0,raux(1),raux(2),raux(3))
-             call assign_basic_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
+             call assign_bhole_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
              call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
              br_b = 0.5d0 * (raux(1) + br_b)
              br_alf = 0.5d0 * (raux(2) + br_alf)
              br_a = 0.5d0 * (raux(3) + br_a)
           end if
        else
-          call assign_basic_variables(res%f,res%del2f,res%gkin,res%gfmod,.true.)
+          call assign_bhole_variables(res%f,res%del2f,res%gkin,res%gfmod,.true.)
           call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
        end if
        if (c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a) then
@@ -1878,12 +1877,12 @@ contains
     end select
   
   contains
-    subroutine assign_basic_variables(rhos_,laps_,tau_,gfmod_,dohalf)
+    subroutine assign_bhole_variables(rhos_,laps_,tau_,gfmod_,dohalf)
       real*8, intent(in) :: rhos_, laps_, tau_, gfmod_
       logical, intent(in) :: dohalf
 
       if (dohalf) then
-         rhos = 0.5d0 * rhos_
+         rhos = rhos_
          laps = 0.5d0 * laps_
          tau = tau_
          drhos2 = (0.5d0 * gfmod_)
@@ -1897,7 +1896,7 @@ contains
       dsigs = tau - 0.25d0 * drhos2 / max(rhos,1d-30)
       quads = (laps - 2d0 * dsigs) / 6d0
 
-    end subroutine assign_basic_variables
+    end subroutine assign_bhole_variables
   end function chemfunction
 
   !> Evaluate a special field (id string fid) at point x0 (cryst. coords.)

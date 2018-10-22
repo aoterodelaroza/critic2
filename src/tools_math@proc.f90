@@ -1398,11 +1398,18 @@ contains
        x=x1
     enddo
     call ferror("bhole","bhole: newton algorithm failed to converge",faterr)
-111 x=x1
-    expo=dexp(-x)
-    prefac=rho/expo
-    alf=(8.d0*pi*prefac/max(hnorm,tiny))**third
-    b=x/alf
+111 x = x1
+    if (x1 < tiny) then
+       expo=dexp(-tiny)
+       prefac=max(tiny/expo,0d0)
+       alf=(8.d0*pi*prefac/max(hnorm,tiny))**third
+       b = x/alf
+    else
+       expo=dexp(-x)
+       prefac=max(rho/expo,0d0)
+       alf=(8.d0*pi*prefac/max(hnorm,tiny))**third
+       b = x/alf
+    end if
 
   end subroutine bhole
 
