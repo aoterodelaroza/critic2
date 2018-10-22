@@ -102,6 +102,12 @@ submodule (arithmetic) proc
   integer, parameter :: fun_brhole_b1   = 61 !< BR hole, hole distance (b), spin up
   integer, parameter :: fun_brhole_b2   = 62 !< BR hole, hole distance (b), spin down
   integer, parameter :: fun_brhole_b    = 63 !< BR hole, hole distance (b), spin average
+  integer, parameter :: fun_xhcurv1     = 64 !< exchange-hole curvature, spin up
+  integer, parameter :: fun_xhcurv2     = 65 !< exchange-hole curvature, spin down
+  integer, parameter :: fun_xhcurv      = 66 !< exchange-hole curvature, spin average
+  integer, parameter :: fun_dsigs1      = 67 !< leading coefficient same-spin pair density, spin up
+  integer, parameter :: fun_dsigs2      = 68 !< leading coefficient same-spin pair density, spin down
+  integer, parameter :: fun_dsigs       = 69 !< leading coefficient same-spin pair density, spin avg.
 
   ! libxc functional
 #ifdef HAVE_LIBXC
@@ -821,7 +827,9 @@ contains
           c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir .or.&
           c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or. &
           c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
-          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b
+          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
+          c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
+          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
@@ -830,7 +838,9 @@ contains
           c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir .or.&
           c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or. &
           c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
-          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b
+          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
+          c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
+          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs
     elseif (type == 'operator') then
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
@@ -1239,6 +1249,18 @@ contains
           c = fun_brhole_b2
        case ("brhole_b")
           c = fun_brhole_b
+       case ("xhcurv1")
+          c = fun_xhcurv1
+       case ("xhcurv2")
+          c = fun_xhcurv2
+       case ("xhcurv")
+          c = fun_xhcurv
+       case ("dsigs1")
+          c = fun_dsigs1
+       case ("dsigs2")
+          c = fun_dsigs2
+       case ("dsigs")
+          c = fun_dsigs
        case default
           lp = lpo
           return
@@ -1717,6 +1739,7 @@ contains
     real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
     real*8 :: br_b, br_alf, br_a, raux(3)
     integer :: idx
+    logical :: dohole, use1, use2
   
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
@@ -1838,34 +1861,55 @@ contains
        q = g0 / g
        q = q / (1d0+q)
     case (fun_brhole_a1,fun_brhole_a2,fun_brhole_a,fun_brhole_b1,fun_brhole_b2,fun_brhole_b,&
-          fun_brhole_alf1,fun_brhole_alf2,fun_brhole_alf)
-       ! Becke-Roussel (BR) hole parameters. The spherically averaged exchange hole in
-       ! the BR model is an exponential A*exp(-alpha * r) at a distance b from the reference
-       ! point. 
+          fun_brhole_alf1,fun_brhole_alf2,fun_brhole_alf,fun_xhcurv1,fun_xhcurv2,fun_xhcurv,&
+          fun_dsigs1,fun_dsigs2,fun_dsigs)
+       ! - brhole: Becke-Roussel (BR) hole parameters. The spherically
+       ! averaged exchange hole in the BR model is an exponential
+       ! A*exp(-alpha * r) at a distance b from the reference point.
        !  A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+       ! - xhcurv: curvature of the spherically averaged exchange
+       ! hole at the reference point. (Q_sigma)
+       ! - dsigs: leading coefficient of the same-spin pair density 
+       ! (D_sigma).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%avail_gkin) &
+       dohole = (c==fun_brhole_a1).or.(c==fun_brhole_a2).or.(c==fun_brhole_a).or.&
+          (c==fun_brhole_b1).or.(c==fun_brhole_b2).or.(c==fun_brhole_b).or.&
+          (c==fun_brhole_alf1).or.(c==fun_brhole_alf2).or.(c==fun_brhole_alf)
+       use1 = (c==fun_brhole_a1).or.(c==fun_brhole_b1).or.(c==fun_brhole_alf1).or.(c==fun_xhcurv1).or.(c==fun_dsigs1)
+       use2 = (c==fun_brhole_a2).or.(c==fun_brhole_b2).or.(c==fun_brhole_alf2).or.(c==fun_xhcurv2).or.(c==fun_dsigs2)
+
+       if (dohole .and..not.res%avail_gkin) &
           call die("Tried to calculate BR hole with a field that cannot provide the kinetic energy density.")
        
        if (res%avail_spin .and. res%spinpol) then
-          if (c == fun_brhole_a1 .or. c == fun_brhole_b1 .or. c == fun_brhole_alf1) then
+          if (use1) then
              call assign_bhole_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
-             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
-          elseif (c == fun_brhole_a2 .or. c == fun_brhole_b2 .or. c == fun_brhole_alf2) then
+             if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+          elseif (use2) then
              call assign_bhole_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
-             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+             if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
           else
              call assign_bhole_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
-             call bhole(rhos,quads,1d0,raux(1),raux(2),raux(3))
+             if (dohole) then
+                call bhole(rhos,quads,1d0,raux(1),raux(2),raux(3))
+             else
+                raux(1) = dsigs
+                raux(2) = quads
+             end if
              call assign_bhole_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
-             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
-             br_b = 0.5d0 * (raux(1) + br_b)
-             br_alf = 0.5d0 * (raux(2) + br_alf)
-             br_a = 0.5d0 * (raux(3) + br_a)
+             if (dohole) then
+                call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+                br_b = 0.5d0 * (raux(1) + br_b)
+                br_alf = 0.5d0 * (raux(2) + br_alf)
+                br_a = 0.5d0 * (raux(3) + br_a)
+             else
+                dsigs = 0.5d0 * (dsigs + raux(1))
+                quads = 0.5d0 * (quads + raux(2))
+             end if
           end if
        else
           call assign_bhole_variables(res%f,res%del2f,res%gkin,res%gfmod,.true.)
-          call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+          if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
        end if
        if (c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a) then
           q = br_a
@@ -1873,6 +1917,10 @@ contains
           q = br_b
        elseif (c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf) then
           q = br_alf
+       elseif (c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv) then
+          q = quads
+       elseif (c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
+          q = dsigs
        end if
     end select
   
