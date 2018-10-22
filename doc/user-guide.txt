@@ -1061,9 +1061,36 @@ convenient. The library of chemical functions includes:
 
   + Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
 
-The name in square brackets is a shorthand for applying the chemical
-function to the reference field (case-insensitive) in the POINTPROP
-keyword.
+* brhole_a1(id), brhole_a2(id), brhole_a(id): the A prefactor of the
+  spherically averaged hole model proposd by Becke and Roussel
+  (spin up, down, and average, respectively). The BR hole is an
+  exponential A*exp(-alpha * r) at a distance b from the reference
+  point. 
+
+  + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+
+* brhole_b1(id), brhole_b2(id), brhole_b(id): the b parameter of the
+  BR hole model (spin up, down, and average). b is distance from the
+  exponential center to the reference point.
+
+* brhole_alf1(id), brhole_alf2(id), brhole_alf(id): the exponent of
+  the BR hole model (spin up, down, and average).
+
+* xhcurv1(id), xhcurv2(id), xhcurv(id): the curvature of the exchange
+  hole at the reference point (spin up, down, and average). Q_sigma in
+  the literature:
+
+  + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+
+* dsigs1(id), dsigs2(id), dsigs(id): the leading coefficient of the
+  same-spin pair density (spin up, down, and average). D_sigma in the
+  literature:
+
+  + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+
+The name in square brackets, if available, is a shorthand for applying
+the chemical function to the reference field (case-insensitive) in the
+POINTPROP keyword.
 
 Other special labels can be used, that activate the calculation of
 properties for the reference field. These are:
