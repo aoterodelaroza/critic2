@@ -21,6 +21,7 @@ module tools_math
 
   private
 
+  !xx! proc submodule !xx!
   public :: crosscorr_triangle
   public :: m_x2c_from_cellpar
   public :: m_c2x_from_cellpar
@@ -50,6 +51,8 @@ module tools_math
   public :: nchoosek
   public :: rmsd_walker
   public :: gauleg
+  public :: bhole
+  !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
 
@@ -248,6 +251,14 @@ module tools_math
        real*8, dimension(n), intent(out) :: w
        integer, intent(in) :: n
      end subroutine gauleg
+     module subroutine bhole(rho,quad,hnorm,b,alf,prefac)
+       real*8, intent(in) :: rho
+       real*8, intent(in) :: quad
+       real*8, intent(in) :: hnorm
+       real*8, intent(out) :: b
+       real*8, intent(out) :: alf
+       real*8, intent(out) :: prefac
+     end subroutine bhole
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts

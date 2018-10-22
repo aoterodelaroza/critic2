@@ -611,6 +611,7 @@ contains
   !> is present and false, consider the field is defined in a
   !> non-periodic system. This routine is thread-safe.
   recursive module subroutine grd(f,v,nder,res,fder,periodic)
+    use wfn_private, only: wfn_uhf
     use arithmetic, only: eval
     use types, only: scalar_value
     use tools_io, only: ferror, faterr
@@ -770,6 +771,7 @@ contains
           res%avail_stress = .true.
           res%avail_vir = .true.
           res%avail_spin = .true.
+          res%spinpol = (f%wfn%wfntyp == wfn_uhf)
        else
           call f%wfn%calculate_mo(wcr,res%fspc,fder)
           return

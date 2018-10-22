@@ -39,60 +39,69 @@ submodule (arithmetic) proc
   ! function specialfieldeval(fid,syl,x0) result(res)
 
   ! enum for operators and functions
-  integer, parameter :: fun_openpar  = 1  !< open parenthesis
-  integer, parameter :: fun_closepar = 2  !< close parenthesis
-  integer, parameter :: fun_uplus    = 3  !< unary +
-  integer, parameter :: fun_uminus   = 4  !< unary -
-  integer, parameter :: fun_abs      = 5  !< abs(.)
-  integer, parameter :: fun_exp      = 6  !< exp(.)
-  integer, parameter :: fun_sqrt     = 7  !< sqrt(.)
-  integer, parameter :: fun_floor    = 8  !< floor(.)
-  integer, parameter :: fun_ceiling  = 9  !< ceiling(.)
-  integer, parameter :: fun_round    = 10 !< round(.)
-  integer, parameter :: fun_log      = 11 !< log(.)
-  integer, parameter :: fun_log10    = 12 !< log10(.)
-  integer, parameter :: fun_sin      = 13 !< sin(.)
-  integer, parameter :: fun_asin     = 14 !< asin(.)
-  integer, parameter :: fun_cos      = 15 !< cos(.)
-  integer, parameter :: fun_acos     = 16 !< acos(.)
-  integer, parameter :: fun_tan      = 17 !< tan(.)
-  integer, parameter :: fun_atan     = 18 !< atan(.)
-  integer, parameter :: fun_atan2    = 19 !< atan2(.)
-  integer, parameter :: fun_sinh     = 20 !< sinh(.)
-  integer, parameter :: fun_cosh     = 21 !< cosh(.)
-  integer, parameter :: fun_erf      = 22 !< erf(.)
-  integer, parameter :: fun_erfc     = 23 !< erfc(.)
-  integer, parameter :: fun_min      = 24 !< min(.)
-  integer, parameter :: fun_max      = 25 !< max(.)
-  integer, parameter :: fun_power    = 26 !< **
-  integer, parameter :: fun_leq      = 27 !< <=
-  integer, parameter :: fun_geq      = 28 !< >=
-  integer, parameter :: fun_equal    = 29 !< ==
-  integer, parameter :: fun_neq      = 30 !< !=
-  integer, parameter :: fun_and      = 31 !< &&
-  integer, parameter :: fun_or       = 32 !< ||
-  integer, parameter :: fun_plus     = 33 !< binary +
-  integer, parameter :: fun_minus    = 34 !< binary -
-  integer, parameter :: fun_prod     = 35 !< *
-  integer, parameter :: fun_div      = 36 !< /
-  integer, parameter :: fun_modulo   = 37 !< %
-  integer, parameter :: fun_great    = 38 !< >
-  integer, parameter :: fun_less     = 39 !< <
-  integer, parameter :: fun_xc       = 40 !< xc(.,...)  (X)
-  integer, parameter :: fun_gtf      = 41 !< Thomas-Fermi kinetic energy density
-  integer, parameter :: fun_vtf      = 42 !< Potential energy density calcd using gtf and the local virial theorem
-  integer, parameter :: fun_htf      = 43 !< Total energy density calcd using gtf and the local virial theorem
-  integer, parameter :: fun_gtf_kir  = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
-  integer, parameter :: fun_vtf_kir  = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter :: fun_htf_kir  = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter :: fun_gkin     = 47 !< Kinetic energy density, G-version (grho * grho)
-  integer, parameter :: fun_kkin     = 48 !< Kinetic energy density, K-version (rho * laprho)
-  integer, parameter :: fun_l        = 49 !< Lagrangian density (-1/4 * laprho)
-  integer, parameter :: fun_elf      = 50 !< Electron localization function (ELF)
-  integer, parameter :: fun_vir      = 51 !< Electronic potential energy density, virial field
-  integer, parameter :: fun_he       = 52 !< Energy density, G + V
-  integer, parameter :: fun_lol      = 53 !< Localized-orbital locator (LOL)
-  integer, parameter :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
+  integer, parameter :: fun_openpar     = 1  !< open parenthesis
+  integer, parameter :: fun_closepar    = 2  !< close parenthesis
+  integer, parameter :: fun_uplus       = 3  !< unary +
+  integer, parameter :: fun_uminus      = 4  !< unary -
+  integer, parameter :: fun_abs         = 5  !< abs(.)
+  integer, parameter :: fun_exp         = 6  !< exp(.)
+  integer, parameter :: fun_sqrt        = 7  !< sqrt(.)
+  integer, parameter :: fun_floor       = 8  !< floor(.)
+  integer, parameter :: fun_ceiling     = 9  !< ceiling(.)
+  integer, parameter :: fun_round       = 10 !< round(.)
+  integer, parameter :: fun_log         = 11 !< log(.)
+  integer, parameter :: fun_log10       = 12 !< log10(.)
+  integer, parameter :: fun_sin         = 13 !< sin(.)
+  integer, parameter :: fun_asin        = 14 !< asin(.)
+  integer, parameter :: fun_cos         = 15 !< cos(.)
+  integer, parameter :: fun_acos        = 16 !< acos(.)
+  integer, parameter :: fun_tan         = 17 !< tan(.)
+  integer, parameter :: fun_atan        = 18 !< atan(.)
+  integer, parameter :: fun_atan2       = 19 !< atan2(.)
+  integer, parameter :: fun_sinh        = 20 !< sinh(.)
+  integer, parameter :: fun_cosh        = 21 !< cosh(.)
+  integer, parameter :: fun_erf         = 22 !< erf(.)
+  integer, parameter :: fun_erfc        = 23 !< erfc(.)
+  integer, parameter :: fun_min         = 24 !< min(.)
+  integer, parameter :: fun_max         = 25 !< max(.)
+  integer, parameter :: fun_power       = 26 !< **
+  integer, parameter :: fun_leq         = 27 !< <=
+  integer, parameter :: fun_geq         = 28 !< >=
+  integer, parameter :: fun_equal       = 29 !< ==
+  integer, parameter :: fun_neq         = 30 !< !=
+  integer, parameter :: fun_and         = 31 !< &&
+  integer, parameter :: fun_or          = 32 !< ||
+  integer, parameter :: fun_plus        = 33 !< binary +
+  integer, parameter :: fun_minus       = 34 !< binary -
+  integer, parameter :: fun_prod        = 35 !< *
+  integer, parameter :: fun_div         = 36 !< /
+  integer, parameter :: fun_modulo      = 37 !< %
+  integer, parameter :: fun_great       = 38 !< >
+  integer, parameter :: fun_less        = 39 !< <
+  integer, parameter :: fun_xc          = 40 !< xc(.,...)  (X)
+  integer, parameter :: fun_gtf         = 41 !< Thomas-Fermi kinetic energy density
+  integer, parameter :: fun_vtf         = 42 !< Potential energy density calcd using gtf and the local virial theorem
+  integer, parameter :: fun_htf         = 43 !< Total energy density calcd using gtf and the local virial theorem
+  integer, parameter :: fun_gtf_kir     = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
+  integer, parameter :: fun_vtf_kir     = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
+  integer, parameter :: fun_htf_kir     = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
+  integer, parameter :: fun_gkin        = 47 !< Kinetic energy density, G-version (grho * grho)
+  integer, parameter :: fun_kkin        = 48 !< Kinetic energy density, K-version (rho * laprho)
+  integer, parameter :: fun_l           = 49 !< Lagrangian density (-1/4 * laprho)
+  integer, parameter :: fun_elf         = 50 !< Electron localization function (ELF)
+  integer, parameter :: fun_vir         = 51 !< Electronic potential energy density, virial field
+  integer, parameter :: fun_he          = 52 !< Energy density, G + V
+  integer, parameter :: fun_lol         = 53 !< Localized-orbital locator (LOL)
+  integer, parameter :: fun_lol_kir     = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
+  integer, parameter :: fun_brhole_a1   = 55 !< BR hole, A prefactor, spin up
+  integer, parameter :: fun_brhole_a2   = 56 !< BR hole, A prefactor, spin down
+  integer, parameter :: fun_brhole_a    = 57 !< BR hole, A prefactor, spin average
+  integer, parameter :: fun_brhole_alf1 = 58 !< BR hole, alpha exponent, spin up
+  integer, parameter :: fun_brhole_alf2 = 59 !< BR hole, alpha exponent, spin down
+  integer, parameter :: fun_brhole_alf  = 60 !< BR hole, alpha exponent, spin average
+  integer, parameter :: fun_brhole_b1   = 61 !< BR hole, hole distance (b), spin up
+  integer, parameter :: fun_brhole_b2   = 62 !< BR hole, hole distance (b), spin down
+  integer, parameter :: fun_brhole_b    = 63 !< BR hole, hole distance (b), spin average
 
   ! libxc functional
 #ifdef HAVE_LIBXC
@@ -809,13 +818,19 @@ contains
           c == fun_xc .or. c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
           c == fun_gtf_kir .or. c == fun_vtf_kir .or. c == fun_htf_kir .or.&
           c == fun_gkin .or. c == fun_kkin .or. c == fun_l .or. c == fun_elf .or.&
-          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir
+          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir .or.&
+          c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or. &
+          c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
+          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
           c == fun_gtf_kir .or. c == fun_vtf_kir .or. c == fun_htf_kir .or.&
           c == fun_gkin .or. c == fun_kkin .or. c == fun_l .or. c == fun_elf .or.&
-          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir
+          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir .or.&
+          c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or. &
+          c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
+          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b
     elseif (type == 'operator') then
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
@@ -1206,6 +1221,24 @@ contains
           c = fun_lol
        case ("lol_kir")
           c = fun_lol_kir
+       case ("brhole_a1")
+          c = fun_brhole_a1
+       case ("brhole_a2")
+          c = fun_brhole_a2
+       case ("brhole_a")
+          c = fun_brhole_a
+       case ("brhole_alf1")
+          c = fun_brhole_alf1
+       case ("brhole_alf2")
+          c = fun_brhole_alf2
+       case ("brhole_alf")
+          c = fun_brhole_alf
+       case ("brhole_b1")
+          c = fun_brhole_b1
+       case ("brhole_b2")
+          c = fun_brhole_b2
+       case ("brhole_b")
+          c = fun_brhole_b
        case default
           lp = lpo
           return
@@ -1671,6 +1704,7 @@ contains
   !> thread-safe.
   function chemfunction(c,sia,x0,syl,periodic) result(q)
     use systemmod, only: system
+    use tools_math, only: bhole
     use types, only: scalar_value
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
@@ -1680,8 +1714,10 @@ contains
     type(system), intent(inout), optional :: syl
   
     type(scalar_value) :: res
-    real*8 :: f0, ds, ds0, g, g0
+    real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
+    real*8 :: br_b, br_alf, br_a, raux(3)
     integer :: idx
+    logical :: dospin(0:2)
   
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
@@ -1802,8 +1838,66 @@ contains
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = g0 / g
        q = q / (1d0+q)
+    case (fun_brhole_a1,fun_brhole_a2,fun_brhole_a,fun_brhole_b1,fun_brhole_b2,fun_brhole_b,&
+          fun_brhole_alf1,fun_brhole_alf2,fun_brhole_alf)
+       ! Becke-Roussel (BR) hole parameters. The spherically averaged exchange hole in
+       ! the BR model is an exponential A*exp(-alpha * r) at a distance b from the reference
+       ! point. 
+       !  A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%avail_gkin) &
+          call die("Tried to calculate BR hole with a field that cannot provide the kinetic energy density.")
+       
+       if (res%avail_spin .and. res%spinpol) then
+          if (c == fun_brhole_a1 .or. c == fun_brhole_b1 .or. c == fun_brhole_alf1) then
+             call assign_basic_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
+             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+          elseif (c == fun_brhole_a2 .or. c == fun_brhole_b2 .or. c == fun_brhole_alf2) then
+             call assign_basic_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
+             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+          else
+             call assign_basic_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
+             call bhole(rhos,quads,1d0,raux(1),raux(2),raux(3))
+             call assign_basic_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
+             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+             br_b = 0.5d0 * (raux(1) + br_b)
+             br_alf = 0.5d0 * (raux(2) + br_alf)
+             br_a = 0.5d0 * (raux(3) + br_a)
+          end if
+       else
+          call assign_basic_variables(res%f,res%del2f,res%gkin,res%gfmod,.true.)
+          call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+       end if
+       if (c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a) then
+          q = br_a
+       elseif (c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b) then
+          q = br_b
+       elseif (c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf) then
+          q = br_alf
+       end if
     end select
   
+  contains
+    subroutine assign_basic_variables(rhos_,laps_,tau_,gfmod_,dohalf)
+      real*8, intent(in) :: rhos_, laps_, tau_, gfmod_
+      logical, intent(in) :: dohalf
+
+      if (dohalf) then
+         rhos = 0.5d0 * rhos_
+         laps = 0.5d0 * laps_
+         tau = tau_
+         drhos2 = (0.5d0 * gfmod_)
+         drhos2 = drhos2 * drhos2
+      else
+         rhos = rhos_
+         laps = laps_
+         tau = 0.5d0 * tau_
+         drhos2 = gfmod_ * gfmod_
+      end if
+      dsigs = tau - 0.25d0 * drhos2 / max(rhos,1d-30)
+      quads = (laps - 2d0 * dsigs) / 6d0
+
+    end subroutine assign_basic_variables
   end function chemfunction
 
   !> Evaluate a special field (id string fid) at point x0 (cryst. coords.)

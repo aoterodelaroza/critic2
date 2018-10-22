@@ -18,6 +18,9 @@
 submodule (tools_math) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine bhole_xfuncs(x,rhs,f,df)
+
 contains
 
   !> Calculate the cross-correlation between two functions with
@@ -1345,5 +1348,79 @@ contains
     end do
 
   end subroutine gauleg
+
+  !> Calculates the Becke-Roussel (BR) hole parameters. The
+  !> spherically averaged exchange hole in the BR model is an
+  !> exponential A*exp(-alpha * r) at a distance b from the reference
+  !> point. A = prefac, alpha = alf, b = b. Input: spin density
+  !> (rho), curvature of the hole (quad), and normalization (hnorm). 
+  !>  A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+  module subroutine bhole(rho,quad,hnorm,b,alf,prefac)
+    use tools_io, only: ferror, faterr
+    use param, only: pi, third, twothird
+    real*8, intent(in) :: rho !< Density
+    real*8, intent(in) :: quad !< Q-value
+    real*8, intent(in) :: hnorm !< Hole normalization
+    real*8, intent(out) :: b !< Hole b
+    real*8, intent(out) :: alf !< Hole a
+    real*8, intent(out) :: prefac !< Hole A
+
+    real*8 :: rhs, x0, shift, x1, x, expo, f, df, quad0
+    integer :: i
+    real*8, parameter :: tiny = 1d-20
+
+    quad0 = quad
+    if (abs(quad) < tiny) quad0 = sign(tiny,quad)
+    rhs=twothird*(pi*rho/max(hnorm,tiny))**twothird*rho/quad0
+    x0=2.d0
+    shift=1.d0
+    if(rhs.lt.0.d0)go to 10
+    if(rhs.gt.0.d0)go to 20
+10  do i=1,16
+       x=x0-shift
+       call bhole_xfuncs(x,rhs,f,df)
+       if(f.lt.0.d0)go to 88
+       shift=0.1d0*shift
+    enddo
+    call ferror("bhole","bhole: newton algorithm failed to initialize",faterr)
+20  do i=1,16
+       x=x0+shift
+       call bhole_xfuncs(x,rhs,f,df)
+       if(f.gt.0.d0)go to 88
+       shift=0.1d0*shift
+    enddo
+    call ferror("bhole","bhole: newton algorithm failed to initialize",faterr)
+88  continue
+    do i=1,100
+       call bhole_xfuncs(x,rhs,f,df)
+       x1=x-f/df
+       if(dabs(x1-x).lt.1.d-10)go to 111
+       x=x1
+    enddo
+    call ferror("bhole","bhole: newton algorithm failed to converge",faterr)
+111 x=x1
+    expo=dexp(-x)
+    prefac=rho/expo
+    alf=(8.d0*pi*prefac/max(hnorm,tiny))**third
+    b=x/alf
+
+  end subroutine bhole
+
+  !xx! private procedures
+
+  !< RHS of the BR hole equation, and derivative. 
+  subroutine bhole_xfuncs(x,rhs,f,df)
+    real*8, intent(in) :: x !< x-value
+    real*8, intent(in) :: rhs !< Right-hand side
+    real*8, intent(out) :: f !< Value of the function
+    real*8, intent(out) :: df !< Value of the function derivative
+
+    real*8 :: expo23
+
+    expo23=dexp(-2.d0/3.d0*x)
+    f = x*expo23/(x-2.d0) - rhs
+    df=2.d0/3.d0*(2.d0*x-x**2-3.d0)/(x-2.d0)**2*expo23
+
+  end subroutine bhole_xfuncs
 
 end submodule proc

@@ -1088,7 +1088,7 @@ contains
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
     integer :: str, sts
     integer :: i, j, k
-    logical :: iok, dospin
+    logical :: iok
     type(scalar_value) :: res2
 
     ! get the scalar field properties
@@ -1100,9 +1100,6 @@ contains
     call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
 
     if (verbose) then
-       dospin = res%avail_spin .and. s%f(id)%type == type_wfn
-       if (dospin) dospin = dospin .and. s%f(id)%wfn%wfntyp == wfn_uhf
-
        if (res%isnuc) then
           write (uout,'("  Type : nucleus")') 
        else
@@ -1126,7 +1123,7 @@ contains
        if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
-       if (dospin) then
+       if (res%avail_spin .and. res%spinpol) then
           write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(1),'e',decimal=9), &
              string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
           if (res%avail_gkin) then

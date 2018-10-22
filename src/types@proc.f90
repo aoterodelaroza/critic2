@@ -39,6 +39,7 @@ contains
     s%hfeval = 0d0
     s%r = 0
     s%s = 0
+    s%spinpol = .false.
     s%fspin = 0d0
     s%gfmodspin = 0d0
     s%lapspin = 0d0
