@@ -27,7 +27,9 @@ submodule (arithmetic) proc
   ! function iassoc(c)
   ! function istype(c,type)
   ! function isspecialfield(fid)
+  ! function isstructvar(fid,c,fder)
   ! recursive function fieldeval(fid,fder,x0,sptr,periodic)
+  ! function structvareval(svar,x0,syl,periodic) result(q)
   ! function isnumber(rval,expr,lp)
   ! function isoperator(c,expr,lp)
   ! function isfunction(c,expr,lp,wasop)
@@ -109,6 +111,29 @@ submodule (arithmetic) proc
   integer, parameter :: fun_dsigs2      = 68 !< leading coefficient same-spin pair density, spin down
   integer, parameter :: fun_dsigs       = 69 !< leading coefficient same-spin pair density, spin avg.
 
+  ! enum for structural variables
+  integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
+  integer, parameter :: svar_xnucx   = 2  !< x of the closest nucleus (crystallographic)
+  integer, parameter :: svar_ynucx   = 3  !< y of the closest nucleus (crystallographic)
+  integer, parameter :: svar_znucx   = 4  !< z of the closest nucleus (crystallographic)
+  integer, parameter :: svar_xnucc   = 5  !< x of the closest nucleus (Cartesian)
+  integer, parameter :: svar_ynucc   = 6  !< y of the closest nucleus (Cartesian)
+  integer, parameter :: svar_znucc   = 7  !< z of the closest nucleus (Cartesian)
+  integer, parameter :: svar_xx      = 8  !< x of the evaluation point (crystallographic)
+  integer, parameter :: svar_yx      = 9  !< y of the evaluation point (crystallographic)
+  integer, parameter :: svar_zx      = 10 !< z of the evaluation point (crystallographic)
+  integer, parameter :: svar_xc      = 11 !< x of the evaluation point (Cartesian)
+  integer, parameter :: svar_yc      = 12 !< y of the evaluation point (Cartesian)
+  integer, parameter :: svar_zc      = 13 !< z of the evaluation point (Cartesian)
+  integer, parameter :: svar_xxr     = 14 !< x of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_yxr     = 15 !< y of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_zxr     = 16 !< z of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_idnuc   = 17 !< complete-list id of the closest nucleus
+  integer, parameter :: svar_nidnuc  = 18 !< non-equivalent-list id of the closest nucleus
+  integer, parameter :: svar_rho0nuc = 19 !< atomic density contribution from the closest nucleus
+  integer, parameter :: svar_spcnuc  = 20 !< species id of the closest nucleus
+  integer, parameter :: svar_zatnuc  = 21 !< atomic number of the closest nucleus
+
   ! libxc functional
 #ifdef HAVE_LIBXC
   integer, parameter :: maxfun = 600
@@ -138,9 +163,8 @@ submodule (arithmetic) proc
   integer, parameter :: token_rpar = 5
   integer, parameter :: token_comma = 6
   integer, parameter :: token_field = 7
+  integer, parameter :: token_structvar = 8
   
-  
-
 contains
   
   !> Evaluate an arithmetic expression expr. If the expression
@@ -278,6 +302,15 @@ contains
               call dofail()
               return
            end if
+        elseif (toklist(i)%type == token_structvar) then
+           ! a structural variable
+           nq = nq + 1
+           if (present(x0)) then
+              q(nq) = structvareval(toklist(i)%ival,toklist(i)%fder,x0,syl,periodic)
+           else
+              call dofail()
+              return
+           end if
         else
            call dofail()
            return
@@ -355,10 +388,11 @@ contains
     allocate(q(n(1),n(2),n(3),1))
     
     ! The grid version of the arithmetic evaluator does not support
-    ! certain types of operators (xc, chemfunction). Check that the
-    ! grid fields are all correct
+    ! certain types of operators (xc, chemfunction) or structural
+    ! variables. Check that the grid fields are all correct
     do i = 1, ntok
        if (toklist(i)%ival == fun_xc) goto 999
+       if (toklist(i)%type == token_structvar) goto 999
        if (istype(toklist(i)%ival,'chemfunction')) goto 999
        if (toklist(i)%type == token_field) then
           ifail = .not.syl%goodfield(key=toklist(i)%sval,n=n)
@@ -671,6 +705,15 @@ contains
           call addtok(token_comma)
           wasop = .true.
           lp = lp + 1
+       elseif (expr(lp:lp) == '@') then
+          ! a structural variable
+          lp = lp + 1
+          ok = isidentifier(str,expr,lp,fder)
+          if (.not.ok) goto 999
+          ok = isstructvar(str,c,fder)
+          if (.not.ok) goto 999
+          call addtok(token_structvar,ival=c,fder=fder)
+
        elseif (expr(lp:lp) == '$') then
           ! a field read the field identifier and the : identifier
           lp = lp + 1
@@ -880,6 +923,71 @@ contains
     
   end function isspecialfield
 
+  !> If this identifier corresponds to a structural variable, return
+  !> .true. and the integer ID for the variable in c. Otherwise,
+  !> return .false.. This routine is thread-safe.
+  function isstructvar(fid,c,fder)
+    use tools_io, only: lower
+    character*(*), intent(in) :: fid
+    integer, intent(out) :: c
+    character*(*), intent(in) :: fder
+    logical :: isstructvar
+    logical :: fderallow
+    
+    isstructvar = .true.
+    fderallow = .false.
+    select case (trim(lower(fid)))
+    case("dnuc")
+       c = svar_dnuc
+    case("xnucx")
+       c = svar_xnucx
+    case("ynucx")
+       c = svar_ynucx
+    case("znucx")
+       c = svar_znucx
+    case("xnucc")
+       c = svar_xnucc
+    case("ynucc")
+       c = svar_ynucc
+    case("znucc")
+       c = svar_znucc
+    case("xx")
+       c = svar_xx
+    case("yx")
+       c = svar_yx
+    case("zx")
+       c = svar_zx
+    case("xc")
+       c = svar_xc
+    case("yc")
+       c = svar_yc
+    case("zc")
+       c = svar_zc
+    case("xxr")
+       c = svar_xxr
+    case("yxr")
+       c = svar_yxr
+    case("zxr")
+       c = svar_zxr
+    case("idnuc")
+       c = svar_idnuc
+    case("nidnuc")
+       c = svar_nidnuc
+    case("rho0nuc")
+       c = svar_rho0nuc
+       fderallow = .true.
+    case("spcnuc")
+       c = svar_spcnuc
+    case("zatnuc")
+       c = svar_zatnuc
+    case default
+       isstructvar = .false.
+    end select
+    
+    if (.not.fderallow.and.len_trim(fder) > 0) isstructvar = .false.
+
+  end function isstructvar
+
   !> Evaluate field with identifier fid and field flag fder at 
   !> point x0. syl = calling system. fcheck checks whether
   !> the field is sane. feval is the evaluation function. If periodic
@@ -980,6 +1088,114 @@ contains
     end if
 
   end function fieldeval
+
+  !> Evaluate a structural variable at point x0 using the crystal/molecular
+  !> structure in syl. periodic=.true. if the system is assumed periodic.
+  function structvareval(svar,fder,x0,syl,periodic) result(q)
+    use systemmod, only: system
+    use grid1mod, only: agrid
+    use tools_io, only: string, isinteger, lower
+    use types, only: scalar_value
+    use param, only: icrd_cart
+    real*8 :: q
+    integer, intent(in) :: svar
+    character*(*), intent(in) :: fder
+    real*8, intent(in), optional :: x0(3)
+    type(system), intent(inout), optional :: syl
+    logical, intent(in), optional :: periodic
+
+    integer :: nid, nid0, lvec(3), iz, lp
+    real*8 :: dist, x(3), rrho1, rrho2
+    logical :: ok
+
+    ! recover the system pointer
+    if (present(syl)) then
+       if (.not.syl%isinit) &
+          call die('evaluating structural variable but system not initialized')
+       if (.not.syl%c%isinit) &
+          call die('evaluating structural variable but structure not initialized')
+    end if
+    if (.not.present(x0)) then
+       call die('evaluating structural variable without point')
+    end if
+
+    select case (svar)
+    case(svar_xc)
+       q = x0(1)
+    case(svar_yc)
+       q = x0(2)
+    case(svar_zc)
+       q = x0(3)
+    case(svar_xx,svar_yx,svar_zx)
+       x = syl%c%c2x(x0)
+       if (svar == svar_xx) then
+          q = x(1)
+       elseif (svar == svar_yx) then
+          q = x(2)
+       else
+          q = x(3)
+       end if
+    case(svar_xxr,svar_yxr,svar_zxr)
+       x = syl%c%c2xr(x0)
+       if (svar == svar_xxr) then
+          q = x(1)
+       elseif (svar == svar_yxr) then
+          q = x(2)
+       else
+          q = x(3)
+       end if
+    case(svar_dnuc,svar_xnucx,svar_ynucx,svar_znucx,svar_xnucc,svar_ynucc,svar_znucc,&
+         svar_idnuc,svar_nidnuc,svar_rho0nuc,svar_spcnuc,svar_zatnuc)
+       if (svar == svar_rho0nuc .and. len_trim(fder) > 0) then
+          lp = 1
+          ok = isinteger(nid,fder,lp)
+          if (.not.ok) &
+             call die('wrong selector in rho0nuc structural variable')
+          if (nid < 1 .or. nid > syl%c%ncel) &
+             call die('atom ID in rho0nuc structural variable out of range')
+          call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec,cidx0=nid)
+       else
+          call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec)
+       end if
+
+       if (svar == svar_dnuc) then
+          q = dist
+       elseif (svar == svar_xnucx) then
+          q = syl%c%atcel(nid)%x(1)
+       elseif (svar == svar_ynucx) then
+          q = syl%c%atcel(nid)%x(2)
+       elseif (svar == svar_znucx) then
+          q = syl%c%atcel(nid)%x(3)
+       elseif (svar == svar_xnucc) then
+          q = syl%c%atcel(nid)%r(1)
+       elseif (svar == svar_ynucc) then
+          q = syl%c%atcel(nid)%r(2)
+       elseif (svar == svar_znucc) then
+          q = syl%c%atcel(nid)%r(3)
+       elseif (svar == svar_idnuc) then
+          q = nid
+       elseif (svar == svar_nidnuc) then
+          q = syl%c%atcel(nid)%idx
+       elseif (svar == svar_rho0nuc) then
+          iz = syl%c%spc(syl%c%atcel(nid)%is)%z
+          q = 0d0
+          if (iz > 0) then
+             if (agrid(iz)%isinit) then
+                if (dist <= agrid(iz)%rmax) then
+                   call agrid(iz)%interp(dist,q,rrho1,rrho2)
+                end if
+             end if
+          end if
+       elseif (svar == svar_spcnuc) then
+          q = syl%c%atcel(nid)%is
+       elseif (svar == svar_zatnuc) then
+          q = syl%c%spc(syl%c%atcel(nid)%is)%z
+       end if
+    case default
+       call die('evaluating structural variable: unknown variable')
+    end select
+
+  end function structvareval
 
   !> Read an unsigned number or return false and leave lp unchanged
   !> This routine is thread-safe.
