@@ -1013,15 +1013,14 @@ contains
   end subroutine plane_scale_extend
 
   !> This routine selects particular contour values (ziso(1:niso))
-  !> based on the given selection scheme (niso_type). lin0 and lin1
-  !> are the limits of the linear range fmax and fmin are the maximum
-  !> and minimum values of the field. 
-  module subroutine assign_ziso(niso_type,niso,ziso,lin0,lin1,fmax,fmin)
+  !> based on the given selection scheme (niso_type). fmax and fmin
+  !> are the maximum and minimum values of the field.
+  module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
     use param, only: pi
     integer, intent(in) :: niso_type
     integer, intent(inout) :: niso
     real*8, allocatable, intent(inout) :: ziso(:)
-    real*8, intent(in) :: lin0, lin1, fmax, fmin
+    real*8, intent(in) :: fmin, fmax
 
     real*8 :: ffmin, ffmax, delta
     integer :: i
@@ -1035,7 +1034,7 @@ contains
        if (allocated(ziso)) deallocate(ziso)
        allocate(ziso(niso))
        do i = 1, niso
-          ziso(i) = lin0 + real(i-1,8) * (lin1 - lin0) / real(niso-1,8)
+          ziso(i) = fmin + real(i-1,8) * (fmax - fmin) / real(niso-1,8)
        end do
     elseif (niso_type == niso_log) then
        if (allocated(ziso)) deallocate(ziso)

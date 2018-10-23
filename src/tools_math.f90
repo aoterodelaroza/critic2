@@ -227,11 +227,11 @@ module tools_math
        real*8, intent(inout) :: x0(3), x1(3), x2(3)
        real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
      end subroutine plane_scale_extend
-     module subroutine assign_ziso(niso_type,niso,ziso,lin0,lin1,fmax,fmin)
+     module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
        integer, intent(in) :: niso_type
        integer, intent(inout) :: niso
        real*8, allocatable, intent(inout) :: ziso(:)
-       real*8, intent(in) :: lin0, lin1, fmax, fmin
+       real*8, intent(in) :: fmin, fmax
      end subroutine assign_ziso
      module subroutine comb(n, p, l, c)
        integer :: n, p, l, c(p)
