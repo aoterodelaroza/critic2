@@ -1147,6 +1147,7 @@ contains
        end if
     case(svar_dnuc,svar_xnucx,svar_ynucx,svar_znucx,svar_xnucc,svar_ynucc,svar_znucc,&
          svar_idnuc,svar_nidnuc,svar_rho0nuc,svar_spcnuc,svar_zatnuc)
+       q = 0d0
        if ((svar == svar_rho0nuc.or.svar == svar_dnuc) .and. len_trim(fder) > 0) then
           lp = 1
           ok = isinteger(nid,fder,lp)
@@ -1155,11 +1156,16 @@ contains
           if (nid < 1 .or. nid > syl%c%ncel) &
              call die('atom ID in rho0nuc structural variable out of range')
           call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec,cidx0=nid)
+          if (nid /= nid0) return ! fixme: the atom was too far
+             
        else
           call syl%c%nearest_atom(x0,icrd_cart,nid,dist,lvec=lvec)
        end if
 
-       if (svar == svar_dnuc) then
+       if (nid == 0) then
+          ! fixme: the atom was too far
+          q = 0d0
+       else if (svar == svar_dnuc) then
           q = dist
        elseif (svar == svar_xnucx) then
           q = syl%c%atcel(nid)%x(1)
