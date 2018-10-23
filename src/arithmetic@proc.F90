@@ -2153,7 +2153,7 @@ contains
       logical, intent(in) :: dohalf
 
       if (dohalf) then
-         rhos = rhos_
+         rhos = 0.5d0 * rhos_
          laps = 0.5d0 * laps_
          tau = tau_
          drhos2 = (0.5d0 * gfmod_)
