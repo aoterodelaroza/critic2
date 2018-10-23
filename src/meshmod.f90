@@ -42,6 +42,7 @@ module meshmod
      procedure :: gen_becke => genmesh_becke
      procedure :: gen_franchini => genmesh_franchini
      procedure :: fill => fillmesh
+     procedure :: report
   end type mesh
   public :: mesh
   
@@ -69,6 +70,9 @@ module meshmod
        integer, intent(in) :: prop(:)
        logical, intent(in) :: periodic
      end subroutine fillmesh
+     module subroutine report(m)
+       class(mesh), intent(inout) :: m
+     end subroutine report
   end interface
 
 end module meshmod

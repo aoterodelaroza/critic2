@@ -70,20 +70,7 @@ contains
     call m%gen(sy%c)
 
     write (uout,'("+ Simple molecular integrals (NELEC)")')
-    write (uout,'(2X,"mesh size      ",A)') string(m%n)
-    if (m%type == 0) then
-       write (uout,'(2X,"mesh type      Becke")')
-    elseif (m%type == 1) then
-       write (uout,'(2X,"mesh type      Franchini (small)")')
-    elseif (m%type == 2) then
-       write (uout,'(2X,"mesh type      Franchini (normal)")')
-    elseif (m%type == 3) then
-       write (uout,'(2X,"mesh type      Franchini (good)")')
-    elseif (m%type == 4) then
-       write (uout,'(2X,"mesh type      Franchini (very good)")')
-    elseif (m%type == 5) then
-       write (uout,'(2X,"mesh type      Franchini (excellent)")')
-    end if
+    call m%report()
 
     prop(1) = im_volume
     prop(2) = im_rho
@@ -120,8 +107,9 @@ contains
        return
     end if
 
-    write (uout,'("  Measure of overlap between orbitals in an excitation. ")')
+    write (uout,'("+ Measure of overlap between orbitals in an excitation (PEACH). ")')
     write (uout,'("  Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118.")')
+    call m%report()
     allocate(imo1(10),imo2(10),kk(10))
     n = 0
     do while (getline(uin,line,ucopy=ucopy))
@@ -216,20 +204,7 @@ contains
 
     write (uout,'("+ Molecular integral calculation")')
     write (uout,'("  Expression: ",A)') trim(expr)
-    write (uout,'(2X,"Mesh size      ",A)') string(m%n)
-    if (m%type == 0) then
-       write (uout,'(2X,"Mesh type      Becke")')
-    elseif (m%type == 1) then
-       write (uout,'(2X,"Mesh type      Franchini (small)")')
-    elseif (m%type == 2) then
-       write (uout,'(2X,"Mesh type      Franchini (normal)")')
-    elseif (m%type == 3) then
-       write (uout,'(2X,"Mesh type      Franchini (good)")')
-    elseif (m%type == 4) then
-       write (uout,'(2X,"Mesh type      Franchini (very good)")')
-    elseif (m%type == 5) then
-       write (uout,'(2X,"Mesh type      Franchini (excellent)")')
-    end if
+    call m%report()
 
     allocate(ff(m%n))
     !$omp parallel do private(fval,ok)

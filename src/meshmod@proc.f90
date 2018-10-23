@@ -76,6 +76,7 @@ contains
     else
        call m%gen_franchini(c,tmesh)
     end if
+    m%type = tmesh
     
   end subroutine genmesh
 
@@ -474,6 +475,28 @@ contains
     !$omp end parallel do
 
   end subroutine fillmesh
+
+  !> Write information about the mesh to the standard output.
+  module subroutine report(m)
+    use tools_io, only: uout, string
+    class(mesh), intent(inout) :: m
+    
+    write (uout,'(2X,"Mesh size      ",A)') string(m%n)
+    if (m%type == mesh_type_becke) then
+       write (uout,'(2X,"Mesh type      Becke")')
+    elseif (m%type == mesh_type_franchini_small) then
+       write (uout,'(2X,"Mesh type      Franchini (small)")')
+    elseif (m%type == mesh_type_franchini_normal) then
+       write (uout,'(2X,"Mesh type      Franchini (normal)")')
+    elseif (m%type == mesh_type_franchini_good) then
+       write (uout,'(2X,"Mesh type      Franchini (good)")')
+    elseif (m%type == mesh_type_franchini_vgood) then
+       write (uout,'(2X,"Mesh type      Franchini (very good)")')
+    elseif (m%type == mesh_type_franchini_amazing) then
+       write (uout,'(2X,"Mesh type      Franchini (excellent)")')
+    end if
+
+  end subroutine report
 
   !xx! private procedures
 

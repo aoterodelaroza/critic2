@@ -939,6 +939,7 @@ contains
     select case (trim(lower(fid)))
     case("dnuc")
        c = svar_dnuc
+       fderallow = .true.
     case("xnucx")
        c = svar_xnucx
     case("ynucx")
@@ -1146,7 +1147,7 @@ contains
        end if
     case(svar_dnuc,svar_xnucx,svar_ynucx,svar_znucx,svar_xnucc,svar_ynucc,svar_znucc,&
          svar_idnuc,svar_nidnuc,svar_rho0nuc,svar_spcnuc,svar_zatnuc)
-       if (svar == svar_rho0nuc .and. len_trim(fder) > 0) then
+       if ((svar == svar_rho0nuc.or.svar == svar_dnuc) .and. len_trim(fder) > 0) then
           lp = 1
           ok = isinteger(nid,fder,lp)
           if (.not.ok) &
