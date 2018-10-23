@@ -935,11 +935,9 @@ contains
     logical :: fderallow
     
     isstructvar = .true.
-    fderallow = .false.
     select case (trim(lower(fid)))
     case("dnuc")
        c = svar_dnuc
-       fderallow = .true.
     case("xnucx")
        c = svar_xnucx
     case("ynucx")
@@ -976,7 +974,6 @@ contains
        c = svar_nidnuc
     case("rho0nuc")
        c = svar_rho0nuc
-       fderallow = .true.
     case("spcnuc")
        c = svar_spcnuc
     case("zatnuc")
@@ -985,6 +982,9 @@ contains
        isstructvar = .false.
     end select
     
+    fderallow = (c==svar_dnuc).or.(c==svar_xnucx).or.(c==svar_ynucx).or.(c==svar_znucx).or.&
+       (c==svar_xnucc).or.(c==svar_ynucc).or.(c==svar_znucc).or.(c==svar_rho0nuc)
+
     if (.not.fderallow.and.len_trim(fder) > 0) isstructvar = .false.
 
   end function isstructvar
@@ -1148,7 +1148,7 @@ contains
     case(svar_dnuc,svar_xnucx,svar_ynucx,svar_znucx,svar_xnucc,svar_ynucc,svar_znucc,&
          svar_idnuc,svar_nidnuc,svar_rho0nuc,svar_spcnuc,svar_zatnuc)
        q = 0d0
-       if ((svar == svar_rho0nuc.or.svar == svar_dnuc) .and. len_trim(fder) > 0) then
+       if (len_trim(fder) > 0) then
           lp = 1
           ok = isinteger(nid,fder,lp)
           if (.not.ok) &
@@ -1157,7 +1157,6 @@ contains
              call die('atom ID in rho0nuc structural variable out of range')
           call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec,cidx0=nid)
           if (nid /= nid0) return ! fixme: the atom was too far
-             
        else
           call syl%c%nearest_atom(x0,icrd_cart,nid,dist,lvec=lvec)
        end if

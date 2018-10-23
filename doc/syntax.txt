@@ -434,24 +434,28 @@ expression.r # prints the value of the expression to the output.
 *   up, dn, sp - alpha, beta, spin density
 
 # List of structural variables (@strucvar):
-* dnuc:     distance to the closest nucleus
-* xnucx:    x of the closest nucleus (crystallographic)
-* ynucx:    y of the closest nucleus (crystallographic)
-* znucx:    z of the closest nucleus (crystallographic)
-* xnucc:    x of the closest nucleus (Cartesian)
-* ynucc:    y of the closest nucleus (Cartesian)
-* znucc:    z of the closest nucleus (Cartesian)
-* xx:       x of the evaluation point (crystallographic)
-* yx:       y of the evaluation point (crystallographic)
-* zx:       z of the evaluation point (crystallographic)
-* xc:       x of the evaluation point (Cartesian)
-* yc:       y of the evaluation point (Cartesian)
-* zc:       z of the evaluation point (Cartesian)
-* xxr:      x of the evaluation point (reduced crystallographic)
-* yxr:      y of the evaluation point (reduced crystallographic)
-* zxr:      z of the evaluation point (reduced crystallographic)
-* idnuc:    complete-list id of the closest nucleus
-* nidnuc:   non-equivalent-list id of the closest nucleus
-* rho0nuc:  atomic density contribution from the closest nucleus
-* spcnuc:   species id of the closest nucleus
-* zatnuc:   atomic number of the closest nucleus
+* dnuc: distance to the closest nucleus. (*)
+* xnucx: x of the closest nucleus (crystallographic). (*)
+* ynucx: y of the closest nucleus (crystallographic). (*)
+* znucx: z of the closest nucleus (crystallographic). (*)
+* xnucc: x of the closest nucleus (Cartesian). (*)
+* ynucc: y of the closest nucleus (Cartesian). (*)
+* znucc: z of the closest nucleus (Cartesian). (*)
+* xx: x of the evaluation point (crystallographic).
+* yx: y of the evaluation point (crystallographic).
+* zx: z of the evaluation point (crystallographic).
+* xc: x of the evaluation point (Cartesian).
+* yc: y of the evaluation point (Cartesian).
+* zc: z of the evaluation point (Cartesian).
+* xxr: x of the evaluation point (reduced crystallographic).
+* yxr: y of the evaluation point (reduced crystallographic).
+* zxr: z of the evaluation point (reduced crystallographic).
+* idnuc: complete-list id of the closest nucleus.
+* nidnuc: non-equivalent-list id of the closest nucleus.
+* rho0nuc: atomic density contribution from the closest nucleus. (*)
+* spcnuc: species id of the closest nucleus.
+* zatnuc: atomic number of the closest nucleus.
+Entries with a (*) at the end accept a numerical modifier (:n) to
+indicate the same quantity but referred to the nearest atom with ID
+equal to n (from the complete list)
+

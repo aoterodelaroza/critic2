@@ -1169,13 +1169,13 @@ nucleus. "@rho0nuc:3" is the atomic density at the given point of the
 nearest atom number 3 (from the complete list). The following
 structural variables are accepted in critic2:
 
-* dnuc: Distance to the closest nucleus
+* dnuc: Distance to the closest nucleus. (*)
 
 * xnucx,ynucx,znucx: x,y,z coordinates of the nearest nucleus in
-  crystallographic coordinates.
+  crystallographic coordinates. (*)
 
 * xnucc,ynucc,znucx: x,y,z coordinates of the nearest nucleus in
-  Cartesian coordinates (bohr).
+  Cartesian coordinates (bohr). (*)
 
 * xx,yx,zx: the x,y,z coordinates of the point where the arithmetic
   expression is being evaluated (crystallographic coordinates).
@@ -1191,31 +1191,34 @@ structural variables are accepted in critic2:
 
 * nidnuc: non-equivalent list ID of the closest nucleus.
 
-* rho0nuc: atomic density contribution from the nearest nucleus. If
-  followed by a modifier and a number id.i, the contribution from atom
-  id.i (from the complete list) is used instead. id.i must be between
-  1 and the number of atoms in the unit cell/molecule.
+* rho0nuc: atomic density contribution from the nearest nucleus. (*)
 
 * spcnuc: species ID of the nearest nucleus.
 
 * zatnuc: atomic number of the closest nucleus.
 
+Entries marked by a (*) at the end correspond to the structural
+variables that accept a modifier. A modifieris a colon (:) followed by
+a number id.i. If given, the modifier restricts the structural
+variable to atoms with ID id.i (from the complete list). 
+
 For instance, if we have a crystal structure and its electron density
-in field $1 as a grid, the following calculates a field that, when
-integrated, gives the Voronoi charge of the first atom::
+in field $1 as a grid, then::
 
-  load as "(@idnuc == 1) * $1"
+  load as "(@idnuc == 1) * $1" id voronoi
+  sum voronoi
 
-Likewise, this calculates the field whose integral is the Hirshfeld
-charge of the same atom::
+calculates the Voronoi charge of atom 1. Likewise, this::
 
-  load as "@rho0nuc:1/$0 * $1"
+  load as "@rho0nuc:1/$0 * $1" id hirsh
+  sum hirsh
 
-(Note: the "Cell integral" line when these two commands are executed
-contains the integral of the newly created field over the whole unit
-cell. Therefore, it is possible to calcualte charges in this
-way). Similar expressions can be used to restrict or modify the values
-of a scalar field only in certain areas of the system.
+calculates the Hirshfeld charge. Structural variables are also useful
+in molecules in combination with the MOLCALC keyword. 
+
+Similar expressions can be used to create new scalar fields by
+restricting or modifying the values of a scalar field only in certain
+areas of the system.
 
 The crystal structure
 ---------------------
