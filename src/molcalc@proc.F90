@@ -28,30 +28,49 @@ contains
 
   !> Driver for molecular calculations
   module subroutine molcalc_driver(line)
-    use tools_io, only: ferror, faterr, uout, isexpression_or_word, lower, equal
+    use tools_io, only: ferror, faterr, uout, isexpression_or_word, lower, equal,&
+       lgetword, getword
     character*(*), intent(inout) :: line
 
-    character(len=:), allocatable :: word, lword
+    character(len=:), allocatable :: word, lword, expr, savevar
     integer :: lp
     logical :: ok
 
     write (uout,'("* MOLCALC: calculations using molecular meshes and wavefunctions ")')
 
+    savevar = ""
     lp = 1
-
-    ok =  isexpression_or_word(word,line,lp)
-    lword = lower(word)
+    ok =  isexpression_or_word(expr,line,lp)
     if (.not.ok) then
        call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
        return
-    else if (equal(lword,"nelec")) then
+    end if
+
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,'assign')) then
+          savevar = getword(line,lp)
+          if (len_trim(savevar) == 0) then
+             call ferror('molcalc_driver','Zero-length variable name in MOLCALC/ASSIGN',faterr,line,syntax=.true.)
+             return
+          end if
+       else if (len_trim(word) > 0) then
+          call ferror('molcalc_driver','Unknown keyword',faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+
+    lword = lower(expr)
+    if (equal(lword,"nelec")) then
        call molcalc_nelec()
     elseif (equal(lword,"peach")) then
        call molcalc_peach()
     elseif (equal(lword,"integral")) then
        call molcalc_integral()
     else
-       call molcalc_expression(word)
+       call molcalc_expression(expr,savevar)
     end if
 
   end subroutine molcalc_driver
@@ -186,17 +205,20 @@ contains
 #endif
   end subroutine molcalc_integral
 
-  subroutine molcalc_expression(expr)
+  !> Compute an expression in the molecular mesh. Save the result in variable
+  !> savevar.
+  subroutine molcalc_expression(expr,savevar)
     use systemmod, only: sy
     use meshmod, only: mesh
+    use arithmetic, only: setvariable
     use tools_io, only: string, uout
     use types, only: scalar_value
     use param, only: im_volume, im_rho
-    character*(*), intent(in) :: expr
+    character*(*), intent(in) :: expr, savevar
     
     type(mesh) :: m
     real*8, allocatable :: ff(:)
-    real*8 :: fval
+    real*8 :: fval, fsum
     integer :: i
     logical :: ok
 
@@ -215,8 +237,10 @@ contains
        !$omp end critical (save)
     end do
     !$omp end parallel do
-    write (uout,'("+ Integral(",A,") = ",A/)') string(expr), string(sum(ff * m%w),'f',14,8)
+    fsum = sum(ff * m%w)
+    write (uout,'("+ Integral(",A,") = ",A/)') string(expr), string(fsum,'f',14,8)
     deallocate(ff)
+    if (len_trim(savevar) > 0) call setvariable(trim(savevar),fsum)
 
   end subroutine molcalc_expression
 

@@ -1095,6 +1095,7 @@ contains
   function structvareval(svar,fder,x0,syl,periodic) result(q)
     use systemmod, only: system
     use grid1mod, only: agrid
+    use global, only: dunit0, iunit
     use tools_io, only: string, isinteger, lower
     use types, only: scalar_value
     use param, only: icrd_cart
@@ -1122,11 +1123,11 @@ contains
 
     select case (svar)
     case(svar_xc)
-       q = x0(1)
+       q = (x0(1) + syl%c%molx0(1)) * dunit0(iunit)
     case(svar_yc)
-       q = x0(2)
+       q = (x0(2) + syl%c%molx0(2)) * dunit0(iunit)
     case(svar_zc)
-       q = x0(3)
+       q = (x0(3) + syl%c%molx0(3)) * dunit0(iunit)
     case(svar_xx,svar_yx,svar_zx)
        x = syl%c%c2x(x0)
        if (svar == svar_xx) then
@@ -1165,7 +1166,7 @@ contains
           ! fixme: the atom was too far
           q = 0d0
        else if (svar == svar_dnuc) then
-          q = dist
+          q = dist * dunit0(iunit)
        elseif (svar == svar_xnucx) then
           q = syl%c%atcel(nid)%x(1)
        elseif (svar == svar_ynucx) then
@@ -1173,11 +1174,11 @@ contains
        elseif (svar == svar_znucx) then
           q = syl%c%atcel(nid)%x(3)
        elseif (svar == svar_xnucc) then
-          q = syl%c%atcel(nid)%r(1)
+          q = (syl%c%atcel(nid)%r(1) + syl%c%molx0(1)) * dunit0(iunit)
        elseif (svar == svar_ynucc) then
-          q = syl%c%atcel(nid)%r(2)
+          q = (syl%c%atcel(nid)%r(2) + syl%c%molx0(2)) * dunit0(iunit)
        elseif (svar == svar_znucc) then
-          q = syl%c%atcel(nid)%r(3)
+          q = (syl%c%atcel(nid)%r(3) + syl%c%molx0(3)) * dunit0(iunit)
        elseif (svar == svar_idnuc) then
           q = nid
        elseif (svar == svar_nidnuc) then

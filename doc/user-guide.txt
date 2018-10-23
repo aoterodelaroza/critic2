@@ -1169,19 +1169,25 @@ nucleus. "@rho0nuc:3" is the atomic density at the given point of the
 nearest atom number 3 (from the complete list). The following
 structural variables are accepted in critic2:
 
-* dnuc: Distance to the closest nucleus. (*)
+* dnuc: Distance to the closest nucleus. By default, the distance is
+  in angstrom for molecules and in bohr for crystals, unless changed
+  using the UNITS keyword (see `Input and output units`_). (*)
 
 * xnucx,ynucx,znucx: x,y,z coordinates of the nearest nucleus in
   crystallographic coordinates. (*)
 
-* xnucc,ynucc,znucx: x,y,z coordinates of the nearest nucleus in
-  Cartesian coordinates (bohr). (*)
+* xnucc,ynucc,znucc: x,y,z coordinates of the nearest nucleus in
+  Cartesian coordinates. By default, the coordinates have units of
+  bohr in crystals, and are referred to the molecular center and have
+  units of angstrom in molecules. (*)
 
 * xx,yx,zx: the x,y,z coordinates of the point where the arithmetic
   expression is being evaluated (crystallographic coordinates).
 
 * xc,yc,zc: the x,y,z coordinates of the point where the arithmetic
-  expression is being evaluated (Cartesian).
+  expression is being evaluated. By default, the coordinates have
+  units of bohr in crystals, and are referred to the molecular center
+  and have units of angstrom in molecules. (*)
 
 * xxr,yxr,zxr: the x,y,z coordinates of the point where the arithmetic
   expression is being evaluated (crystallographic coordinates in the
