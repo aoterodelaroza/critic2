@@ -713,6 +713,7 @@ contains
           ok = isstructvar(str,c,fder)
           if (.not.ok) goto 999
           call addtok(token_structvar,ival=c,fder=fder)
+          wasop=.false.
 
        elseif (expr(lp:lp) == '$') then
           ! a field read the field identifier and the : identifier
