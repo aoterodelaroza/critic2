@@ -2107,20 +2107,20 @@ contains
        
        if (res%avail_spin .and. res%spinpol) then
           if (use1) then
-             call assign_bhole_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
+             call assign_bhole_variables(res%fspinval(1),res%lapspin(1),res%gkinspin(1),res%gfmodspinval(1),.false.)
              if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
           elseif (use2) then
-             call assign_bhole_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
+             call assign_bhole_variables(res%fspinval(2),res%lapspinval(2),res%gkinspin(2),res%gfmodspinval(2),.false.)
              if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
           else
-             call assign_bhole_variables(res%fspin(1),res%lapspin(1),res%gkinspin(1),res%gfmodspin(1),.false.)
+             call assign_bhole_variables(res%fspinval(1),res%lapspinval(1),res%gkinspin(1),res%gfmodspinval(1),.false.)
              if (dohole) then
                 call bhole(rhos,quads,1d0,raux(1),raux(2),raux(3))
              else
                 raux(1) = dsigs
                 raux(2) = quads
              end if
-             call assign_bhole_variables(res%fspin(2),res%lapspin(2),res%gkinspin(2),res%gfmodspin(2),.false.)
+             call assign_bhole_variables(res%fspinval(2),res%lapspinval(2),res%gkinspin(2),res%gfmodspinval(2),.false.)
              if (dohole) then
                 call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
                 br_b = 0.5d0 * (raux(1) + br_b)
