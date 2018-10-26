@@ -21,7 +21,7 @@ submodule (rhoplot) proc
   !xx! private procedures
   ! subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
   ! subroutine relief(rootname,outfile,zmin,zmax)
-  ! subroutine colormap(rootname,outfile,cmopt)
+  ! subroutine colormap(rootname,outfile,cmopt,r0,r1,r2,dolabels)
   ! subroutine hallarpuntos(ff,zc,x,y,nx,ny)
   ! subroutine ordenarpuntos (luw,calpha,ziso)
   ! subroutine linea (x,y,n,luw,ziso)
@@ -129,6 +129,7 @@ contains
        write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
        write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
     else
+       write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
        xp = x0 / dunit0(iunit) - sy%c%molx0
        x0 = sy%c%c2x(xp)
     endif
@@ -643,7 +644,7 @@ contains
   !> Calculate properties on a plane.
   module subroutine rhoplot_plane(line)
     use systemmod, only: sy
-    use global, only: eval_next, dunit0, iunit, fileroot
+    use global, only: eval_next, dunit0, iunit, fileroot, iunitname0, iunit, dunit0
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -726,7 +727,7 @@ contains
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) then
-                call ferror('rhoplot_point','wrong FIELD in LINE',faterr,line,syntax=.true.)
+                call ferror('rhoplot_plane','wrong FIELD in PLANE',faterr,line,syntax=.true.)
                 return
              end if
           else
@@ -881,9 +882,9 @@ contains
     x2 = sy%c%x2c(x2)
     call plane_scale_extend(x0,x1,x2,sx0,sy0,zx0,zx1,zy0,zy1)
     uu = (x1-x0) / real(nx-1,8)
-    du = norm2(uu)
     vv = (x2-x0) / real(ny-1,8)
-    dv = norm2(vv)
+    du = norm2(uu) * dunit0(iunit)
+    dv = norm2(vv) * dunit0(iunit)
 
     ! allocate space for field values on the plane
     allocate(ff(nx,ny))
@@ -947,7 +948,7 @@ contains
     end if
 
     ! header
-    write (luout,'("# Field values (and derivatives) on a plane")')
+    write (luout,'("# Field values (and derivatives) on a plane (units=",A,").")') iunitname0(iunit)
     write (luout,'("# x y z u v f ")')
 
     x0 = sy%c%c2x(x0)
@@ -959,8 +960,7 @@ contains
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
           xp = (sy%c%x2c(xp) + sy%c%molx0) * dunit0(iunit)
-          write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') &
-             xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
+          write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
        end do
        write (luout,*)
     end do
@@ -975,7 +975,7 @@ contains
        call contour(ff,x0,x1,x2,nx,ny,niso,ziso,root0,.true.,.true.)
     end if
     if (dorelief) call relief(root0,string(outfile),zmin,zmax)
-    if (docolormap) call colormap(root0,string(outfile),cmopt)
+    if (docolormap) call colormap(root0,string(outfile),cmopt,x0,x1,x2,.true.)
 
     if (len_trim(outfile) > 0) then
        call fclose(luout)
@@ -1520,7 +1520,7 @@ contains
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
     integer :: lud, lud1
     integer :: i, j
-    real*8 :: du, dv, r012, ua, va, ub, vc
+    real*8 :: r012, ua, va, ub, vc
     real*8, allocatable :: x(:), y(:)
 
     ! set rootname
@@ -1546,8 +1546,6 @@ contains
     rp02 = rp2 - rp0
     r01 = norm2(rp01)
     r02 = norm2(rp02)
-    du = r01 / real(nx-1,8)
-    dv = r02 / real(ny-1,8)
     r012 = dot_product(rp01,rp02)
     cosalfa = r012/r01/r02
     sinalfa = sqrt(max(1-cosalfa**2,0d0))
@@ -1587,11 +1585,11 @@ contains
     end do
 
     do i = 1, niso
-       call hallarpuntos (ff,ziso(i),x,y,nx,ny)
+       call hallarpuntos(ff,ziso(i),x,y,nx,ny)
        if (ziso(i).gt.0) then
-          call ordenarpuntos (lud,cosalfa,ziso(i))
+          call ordenarpuntos(lud,cosalfa,ziso(i))
        else
-          call ordenarpuntos (lud1,cosalfa,ziso(i))
+          call ordenarpuntos(lud1,cosalfa,ziso(i))
        endif
     enddo
     call fclose(lud)
@@ -1656,16 +1654,49 @@ contains
   end subroutine relief
 
   !> Write a gnuplot template for the color map plot
-  subroutine colormap(rootname,outfile,cmopt)
-    use tools_io, only: fopen_write, uout, string, fclose
+  subroutine colormap(rootname,outfile,cmopt,r0,r1,r2,dolabels)
+    use systemmod, only: sy
+    use tools_math, only: cross, det, matinv
+    use tools_io, only: fopen_write, uout, string, fclose, ferror ,faterr
     character*(*), intent(in) :: rootname, outfile
     integer, intent(in) :: cmopt
+    real*8, intent(in) :: r0(3), r1(3), r2(3)
+    logical :: dolabels
 
-    character(len=:), allocatable :: file
+    character(len=:), allocatable :: file, fichlabel
     integer :: lu
+    real*8 :: r012
 
     ! file name
     file = trim(rootname) // '-colormap.gnu'
+
+    ! geometry
+    rp0 = sy%c%x2c(r0)
+    rp1 = sy%c%x2c(r1)
+    rp2 = sy%c%x2c(r2)
+    rp01 = rp1 - rp0
+    rp02 = rp2 - rp0
+    r01 = norm2(rp01)
+    r02 = norm2(rp02)
+    r012 = dot_product(rp01,rp02)
+    cosalfa = r012/r01/r02
+    sinalfa = sqrt(max(1-cosalfa**2,0d0))
+    indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
+
+    ! normal vector and plane equation
+    rpn(1:3) = cross(rp01,rp02)
+    rpn(4) = -dot_product(rpn(1:3),rp0)
+    rpn = rpn / (r01*r02)
+
+    ! plane to cartesian
+    amat(:,1) = rp01
+    amat(:,2) = rp02
+    amat(:,3) = rpn(1:3)
+
+    ! cartesian to plane
+    if (abs(det(amat)) < 1d-15) &
+       call ferror('colormap','Error in the input plane: singular matrix',faterr)
+    bmat = matinv(amat)
 
     ! connect unit
     lu = fopen_write(file)
@@ -1699,6 +1730,13 @@ contains
     write (lu,'("set cntrparam bspline")')
     write (lu,'("# set cntrparam levels incremental -min,step,max")')
     write (lu,'("")')
+
+    if (dolabels) then
+       fichlabel = trim(rootname) // "-label.gnu" 
+       write (lu,'("load ''",A,"''")') string(fichlabel) 
+       call write_fichlabel(rootname)
+    end if
+
     if (cmopt == 1) then
        write (lu,'("splot """,A,""" u 1:2:(log(abs($6))) ls 1 w pm3d notitle")') outfile
     elseif (cmopt == 2) then
@@ -1813,7 +1851,7 @@ contains
   end subroutine hallarpuntos
 
   !> Determines the connectivity of the set of contour points.
-  subroutine ordenarpuntos (luw,calpha,ziso)
+  subroutine ordenarpuntos(luw,calpha,ziso)
     use param, only: one, half, zero
     real*8, parameter :: eps = 0.10d0
 
@@ -2007,7 +2045,8 @@ contains
   end subroutine ordenarpuntos
 
   !> Write (x(n),y(n)) curve in luw.
-  subroutine linea (x,y,n,luw,ziso)
+  subroutine linea(x,y,n,luw,ziso)
+    use global, only: dunit0, iunit
     use tools_io, only: string
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: x, y
@@ -2019,7 +2058,7 @@ contains
     write (luw,*)
     write (luw,'("# z = ",A)') string(ziso,'e',20,14)
     do i = 1, n
-       write (luw,20) x(i), y(i)
+       write (luw,20) x(i) * dunit0(iunit), y(i) * dunit0(iunit)
     enddo
 20  format (1p, 2(1x,e15.8))
 
@@ -2279,7 +2318,7 @@ contains
   !> Write the gradient path to the udat logical unit.
   subroutine wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
     use systemmod, only: sy
-    use global, only: prunedist
+    use global, only: prunedist, dunit0, iunit
     use types, only: gpathp
     use param, only: jmlcol, icrd_crys
     type(gpathp) :: xpath(*)
@@ -2289,7 +2328,7 @@ contains
 
     integer :: i, j, nid1, nid2, iz, rgb(3)
     real*8 :: xxx, yyy, zzz, u, v, h, uort, vort
-    real*8 :: dist1, dist2
+    real*8 :: dist1, dist2, dd
     logical :: wasblank
 
     ! identify the endpoints
@@ -2307,6 +2346,7 @@ contains
     write (udat,*)
     write (udat,*)
     wasblank = .true.
+    dd = dunit0(iunit)
     do i = 1, nptf
        !.transform the point to the plotting plane coordinates:
        xxx = xpath(i)%r(1) - rp0(1)
@@ -2323,7 +2363,7 @@ contains
              uort = u*r01 + v*r02*cosalfa
              vort = v*r02*sinalfa
              if (abs(h) < grphcutoff .or. grpproj > 0) then
-                write (udat,200) uort, vort, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+                write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
              end if
           end if
           if (.not.wasblank) write (udat,*)
@@ -2333,7 +2373,7 @@ contains
           uort = u*r01 + v*r02*cosalfa
           vort = v*r02*sinalfa
           if (abs(h) < grphcutoff .or. grpproj > 0) then
-             write (udat,200) uort, vort, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+             write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
           end if
        endif
     enddo
@@ -2473,7 +2513,9 @@ contains
   !> contains the list of critical points contained in the plot
   !> plane, ready to be read in gnuplot.
   subroutine write_fichlabel(rootname)
+    use global, only: dunit0, iunit
     use systemmod, only: sy
+    use tools_math, only: det
     use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
     character*(*), intent(in) :: rootname
@@ -2508,8 +2550,6 @@ contains
        enddo
     enddo
 
-    ! write (uout,'("+ CPs accepted/rejected in the plot plane ")')
-    ! write (uout,'("A?(cp,lvec)       u               v               h")')
     do i = 1, sy%f(sy%iref)%ncpcel
        do j = 1, (inum)**3
           xp = sy%c%x2c(sy%f(sy%iref)%cpcel(i)%x + indcell(:,j))
@@ -2525,14 +2565,7 @@ contains
           if (uu.ge.-epsdis .and. uu.le.one+epsdis .and. &
              vv.ge.-epsdis .and. vv.le.one+epsdis .and. &
              abs(hh).le.RHOP_Hmax) then
-             ! write (uout,'("A(",A,",",A,")",X,3(A,X))') &
-             !    string(i,length=3), string(j,length=3),&
-             !    string(u,'e',length=15,decimal=8,justify=4),&
-             !    string(v,'e',length=15,decimal=8,justify=4),&
-             !    string(hh,'e',length=15,decimal=8,justify=4)
-
-             ! assign cp letter
-             ! check if it is a nucleus
+             ! assign cp letter, check if it is a nucleus
              select case (sy%f(sy%iref)%cpcel(i)%typ)
              case (3)
                 cpletter = "c"
@@ -2547,16 +2580,11 @@ contains
                    cpletter = "n"
                 endif
              end select
-             write (lul,'(3a,f12.6,a,f12.6,a)') 'set label "',trim(cpletter),'" at ',u,',',v,' center front'
-          else
-             ! write(uout,'("r(",A,",",A,")",X,3(A,X))') &
-             !    string(i,length=3), string(j,length=3), string(u,'e',length=15,decimal=8,justify=4),&
-             !    string(v,'e',length=15,decimal=8,justify=4),&
-             !    string(hh,'e',length=15,decimal=8,justify=4)
+             write (lul,'(3a,f12.6,a,f12.6,a)') 'set label "',trim(cpletter),'" at ',u * dunit0(iunit),&
+                ',',v * dunit0(iunit),' center front'
           end if
        end do
     end do
-    ! write (uout,*)
     call fclose(lul)
 
   end subroutine write_fichlabel
@@ -2566,6 +2594,7 @@ contains
   !> -values) and the .neg.iso (negative iso-values). If dograds,
   !> write the file containing the gradient paths.
   subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
+    use global, only: iunitname0, iunit, dunit0
     use tools_io, only: uout, string, fopen_write, string, fclose
     character*(*), intent(in) :: rootname
     logical, intent(in) :: dolabels, docontour, dograds
@@ -2573,7 +2602,9 @@ contains
     integer :: lun
     character(len=:), allocatable :: fichgnu, fichlabel, fichiso, fichiso1, fichgrd
     character(len=:), allocatable :: swri
+    real*8 :: dd
 
+    dd = dunit0(iunit)
     fichgnu = trim(rootname) // '.gnu' 
     fichlabel = trim(rootname) // "-label.gnu" 
     fichiso = trim(rootname) // ".iso" 
@@ -2592,11 +2623,10 @@ contains
     write (lun,*) 'set size ratio -1'
     write (lun,*) 'unset key'
     ! title
-    write (lun,*) 'set xlabel "x"'
-    write (lun,*) 'set ylabel "y"'
+    write (lun,*) 'set xlabel "x (',trim(iunitname0(iunit)),' )"'
+    write (lun,*) 'set ylabel "y (',trim(iunitname0(iunit)),' )"'
     ! ranges
-    write (lun,18) min(0d0,r02*cosalfa),&
-       max(r01,r01+r02*cosalfa),0d0,r02*sinalfa
+    write (lun,18) min(0d0,r02*cosalfa)*dd, max(r01,r01+r02*cosalfa)*dd, 0d0, r02*sinalfa*dd
     ! labels
     if (dolabels) &
        write (lun,*) 'load "',string(fichlabel),'"'
