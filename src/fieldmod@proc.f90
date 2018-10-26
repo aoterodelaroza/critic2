@@ -625,9 +625,10 @@ contains
 
     real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3)
     integer :: i, nid, idx(3)
-    real*8 :: rho, grad(3), h(3,3), rhox(3), gradx(3,3), hx(3,3,3), gkinx(3)
+    real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
+    real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
-    logical :: isgrid, iok, per
+    logical :: isgrid, iok, per, skipvalassign
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
@@ -720,6 +721,7 @@ contains
     wcr = f%c%xr2c(wxr)
 
     ! type selector
+    skipvalassign = .false.
     select case(f%type)
     case(type_grid)
        isgrid = .false.
@@ -756,17 +758,31 @@ contains
 
     case(type_wfn)
        if (nder >= 0) then
-          call f%wfn%rho2(wcr,nder,rhox,gradx,hx,gkinx,res%vir,res%stress)
+          call f%wfn%rho2(wcr,nder,rhox,rhov,gradx,gradv,hx,hv,gkinx,res%vir,res%stress)
+          skipvalassign = .true.
+          ! arrange output values
           res%f = rhox(1)
+          res%fval = rhov(1)
           res%fspin = rhox(2:3)
+          res%fspinval = rhov(2:3)
+
           res%gf = gradx(:,1)
+          res%gfmodval = norm2(gradv(:,1))
           res%gfmodspin(1) = norm2(gradx(:,2))
           res%gfmodspin(2) = norm2(gradx(:,3))
+          res%gfmodspinval(1) = norm2(gradv(:,2))
+          res%gfmodspinval(2) = norm2(gradv(:,3))
+
           res%gkin = gkinx(1)
           res%gkinspin = gkinx(2:3)
+
           res%hf = hx(:,:,1)
+          res%del2fval = hv(1,1,1)+hv(2,2,1)+hv(3,3,1)
           res%lapspin(1) = hx(1,1,2) + hx(2,2,2) + hx(3,3,2)
           res%lapspin(2) = hx(1,1,3) + hx(2,2,3) + hx(3,3,3)
+          res%lapspinval(1) = hv(1,1,2) + hv(2,2,2) + hv(3,3,2)
+          res%lapspinval(2) = hv(1,1,3) + hv(2,2,3) + hv(3,3,3)
+
           res%avail_gkin = .true.
           res%avail_stress = .true.
           res%avail_vir = .true.
@@ -800,10 +816,12 @@ contains
        call ferror("grd","unknown scalar field type",faterr)
     end select
 
-    ! save the valence-only value
-    res%fval = res%f
-    res%gfmodval = res%gfmod
-    res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+    if (.not.skipvalassign) then
+       ! save the valence-only value
+       res%fval = res%f
+       res%gfmodval = res%gfmod
+       res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+    end if
 
     ! augment with the core if applicable
     if (f%usecore .and. any(f%zpsp /= -1)) then
@@ -839,7 +857,8 @@ contains
     real*8 :: wx(3), wxr(3), wc(3), wcr(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
-    real*8 :: hx(3,3,3), gradx(3,3), rhox(3), gkinx(3)
+    real*8 :: hx(3,3,3), hv(3,3,3), gradx(3,3), gradv(3,3)
+    real*8 :: rhox(3), rhov(3), gkinx(3)
     logical :: iok, per
 
     ! initialize 
@@ -886,7 +905,7 @@ contains
     case(type_pi)
        call f%pi%rho2(wcr,f%exact,rho,grad,h)
     case(type_wfn)
-       call f%wfn%rho2(wcr,0,rhox,gradx,hx,gkinx,vir,stress)
+       call f%wfn%rho2(wcr,0,rhox,rhov,gradx,gradv,hx,hv,gkinx,vir,stress)
        rho = rhox(1)
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)

@@ -182,14 +182,17 @@ module wfn_private
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
      end subroutine read_molden
-     module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
+     module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
        use tools_io, only: ferror, faterr
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
        integer, intent(in) :: nder 
        real*8, intent(out) :: rho(3)
+       real*8, intent(out) :: rhoval(3)
        real*8, intent(out) :: grad(3,3)
+       real*8, intent(out) :: gradval(3,3)
        real*8, intent(out) :: h(3,3,3)
+       real*8, intent(out) :: hval(3,3,3)
        real*8, intent(out) :: gkin(3)
        real*8, intent(out) :: vir
        real*8, intent(out) :: stress(3,3)

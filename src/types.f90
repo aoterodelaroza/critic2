@@ -129,8 +129,11 @@ module types
      integer :: s = 0 ! field Hessian signature
      logical :: spinpol = .false. ! whether this wavefuntion is spin-polarized
      real*8 :: fspin(2) ! density, spin up/dn
+     real*8 :: fspinval(2) ! density, spin up/dn, valence only
      real*8 :: gfmodspin(2) ! gradient norm, spin up/dn
+     real*8 :: gfmodspinval(2) ! gradient norm, spin up/dn, valence only
      real*8 :: lapspin(2) ! laplacian, spin up/dn
+     real*8 :: lapspinval(2) ! laplacian, spin up/dn, valence only
      real*8 :: gkinspin(2) ! kinetic energy density, spin up/dn
      real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
      logical :: isnuc = .false. ! is it a nuclear position?

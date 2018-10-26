@@ -41,8 +41,11 @@ contains
     s%s = 0
     s%spinpol = .false.
     s%fspin = 0d0
+    s%fspinval = 0d0
     s%gfmodspin = 0d0
+    s%gfmodspinval = 0d0
     s%lapspin = 0d0
+    s%lapspinval = 0d0
     s%gkinspin = 0d0
     s%fspc = 0d0
     s%isnuc = .false.

@@ -213,7 +213,6 @@ contains
     use arithmetic, only: setvariable
     use tools_io, only: string, uout
     use types, only: scalar_value
-    use param, only: im_volume, im_rho
     character*(*), intent(in) :: expr, savevar
     
     type(mesh) :: m

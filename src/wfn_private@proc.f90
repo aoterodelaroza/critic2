@@ -21,6 +21,7 @@ submodule (wfn_private) proc
   !xx! private procedures
   ! subroutine calculate_mo_sto(f,xpos,phi,philb,imo0,imo1,nder,nenv,eid,dist)
   ! subroutine calculate_mo_gto(f,xpos,phi,rhoc,gradc,hc,philb,imo0,imo1,nder,nenv,eid,dist)
+  ! subroutine calculate_edf(f,xpos,rhoc,gradc,hc,nder,nenv,eid,dist)
   ! function gnorm(type,a) result(N)
   ! function wfx_read_integers(lu,n,errmsg) result(x)
   ! function wfx_read_reals1(lu,n,errmsg) result(x)
@@ -1867,14 +1868,17 @@ contains
   !> xpos is in Cartesian coordiantes and assume that the molecule has
   !> been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx. This routine is thread-safe.
-  module subroutine rho2(f,xpos,nder,rho,grad,h,gkin,vir,stress,xmo)
+  module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
     use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
     real*8, intent(out) :: rho(3) !< Density (total,up,down)
+    real*8, intent(out) :: rhoval(3) !< Density (total,up,down), valence only
     real*8, intent(out) :: grad(3,3) !< Gradient (total,up,down)
+    real*8, intent(out) :: gradval(3,3) !< Gradient (total,up,down), valence only
     real*8, intent(out) :: h(3,3,3) !< Hessian (total,up,down)
+    real*8, intent(out) :: hval(3,3,3) !< Hessian (total,up,down), valence only
     real*8, intent(out) :: gkin(3) !< G(r), kinetic energy density (total,up,down)
     real*8, intent(out) :: vir !< Virial field
     real*8, intent(out) :: stress(3,3) !< Schrodinger stress tensor
@@ -1889,6 +1893,7 @@ contains
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     real*8, allocatable :: phi(:,:)
+    real*8 :: rhoc, gradc(3), hhc(6), hhval(6,3)
     
     ! initialize and calculate the environment of the point
     rho = 0d0
@@ -1918,7 +1923,7 @@ contains
        xmo(1:f%nmoocc) = phi(1:f%nmoocc,1)
     end if
 
-    ! Calculate the (valence) density, etc. Adds to the core contribution, if available.
+    ! Calculate the (valence) density, etc.
     do imo = 1, f%nmoocc
        aocc = f%occ(imo) 
        rhosum = aocc * phi(imo,1) * phi(imo,1)
@@ -1977,18 +1982,56 @@ contains
        endif
     enddo
     deallocate(phi)
+
+    ! calculate the core contribution
+    if (f%nedf > 0) then
+       call calculate_edf(f,xpos,rhoc,gradc,hhc,nder,nenv,eid,dist)
+    else
+       rhoc = 0d0
+       gradc = 0d0
+       hhc = 0d0
+    end if
+
     if (f%wfntyp /= wfn_uhf) then
-       rho(2) = rho(1) / 2d0
+       rhoval(1) = rho(1)
+       rhoval(2) = 0.5d0 * rhoval(1)
+       rhoval(3) = rhoval(2)
+       rho(1) = rho(1) + rhoc
+       rho(2) = 0.5d0 * rho(1)
        rho(3) = rho(2)
        if (nder>0) then
-          grad(:,2) = grad(:,1) / 2d0
+          gradval(:,1) = grad(:,1)
+          gradval(:,2) = 0.5d0 * gradval(:,1)
+          gradval(:,3) = gradval(:,2)
+          grad(:,1) = grad(:,1) + gradc
+          grad(:,2) = 0.5d0 * grad(:,1)
           grad(:,3) = grad(:,2)
           gkin(2) = gkin(1) / 2d0
           gkin(3) = gkin(2)
        end if
        if (nder>1) then
-          hh(:,2) = hh(:,1) / 2d0
+          hhval(:,1) = hh(:,1)
+          hhval(:,2) = 0.5d0 * hhval(:,1)
+          hhval(:,3) = hhval(:,2)
+          hh(:,1) = hh(:,1) + hhc
+          hh(:,2) = 0.5d0 * hh(:,1)
           hh(:,3) = hh(:,2)
+       end if
+    else
+       rhoval = rho
+       rho(1) = rho(1) + rhoc
+       rho(2:3) = rho(2:3) + 0.5d0 * rhoc
+       if (nder > 0) then
+          gradval = grad
+          grad(:,1) = grad(:,1) + gradc
+          grad(:,2) = grad(:,2) + 0.5d0 * gradc
+          grad(:,3) = grad(:,3) + 0.5d0 * gradc
+       end if
+       if (nder>1) then
+          hhval = hh
+          hh(:,1) = hh(:,1) + hhc
+          hh(:,2) = hh(:,2) + 0.5d0 * hhc
+          hh(:,3) = hh(:,3) + 0.5d0 * hhc
        end if
     end if
 
@@ -2002,6 +2045,7 @@ contains
        gkin(j) = 0.5d0 * gkin(j)
        do i = 1, 3
           h(i,i,j) = hh(i,j)
+          hval(i,i,j) = hhval(i,j)
        end do
        h(1,2,j) = hh(4,j)
        h(2,1,j) = h(1,2,j)
@@ -2009,6 +2053,12 @@ contains
        h(3,1,j) = h(1,3,j)
        h(2,3,j) = hh(6,j)
        h(3,2,j) = h(2,3,j)
+       hval(1,2,j) = hhval(4,j)
+       hval(2,1,j) = hval(1,2,j)
+       hval(1,3,j) = hhval(5,j)
+       hval(3,1,j) = hval(1,3,j)
+       hval(2,3,j) = hhval(6,j)
+       hval(3,2,j) = hval(2,3,j)
     end do
 
   end subroutine rho2
@@ -2258,7 +2308,7 @@ contains
 
     integer :: l(3)
     integer :: iat, ityp, ipri, imo, ix, phimo
-    real*8 :: al, ex, exc, xl(3,0:2,0:5), d2, xx(3)
+    real*8 :: al, ex, xl(3,0:2,0:5), d2, xx(3)
     real*8 :: chi(10)
     integer :: i, j, iat
     
@@ -2347,36 +2397,101 @@ contains
           end do ! ix = 1, imax(nder)
        end do ! j = f%iprilo(iat), f%iprihi(iat)
 
-       ! core contribution to the density and its derivatives
-       if (f%nedf > 0) then
-          ! core contribution
-          do j = f%iprilo_edf(iat), f%iprihi_edf(iat)
-             ipri = f%icord_edf(j)
-             if (dist(i) > f%dran_edf(ipri)) cycle
-
-             ityp = f%itype_edf(ipri)
-             al = f%e_edf(ipri)
-             ex = exp(-al * d2)
-             exc = f%c_edf(ipri) * ex
-             l = li(1:3,ityp)
-
-             rhoc = rhoc + f%c_edf(ipri) * xl(1,0,l(1))*xl(2,0,l(2))*xl(3,0,l(3))*ex
-             if (nder < 1) cycle
-             gradc(1) = gradc(1) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * xl(2,0,l(2))*xl(3,0,l(3))*exc
-             gradc(2) = gradc(2) + (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*xl(3,0,l(3))*exc
-             gradc(3) = gradc(3) + (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(1,0,l(1))*xl(2,0,l(2))*exc
-             if (nder < 2) cycle
-             hc(1) = hc(1) + (xl(1,2,l(1))-2*al*(2*l(1)+1)*xl(1,0,l(1)) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0,l(2))*xl(3,0,l(3))*exc
-             hc(2) = hc(2) + (xl(2,2,l(2))-2*al*(2*l(2)+1)*xl(2,0,l(2)) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0,l(3))*xl(1,0,l(1))*exc
-             hc(3) = hc(3) + (xl(3,2,l(3))-2*al*(2*l(3)+1)*xl(3,0,l(3)) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0,l(1))*xl(2,0,l(2))*exc
-             hc(4) = hc(4) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(3,0,l(3))*exc
-             hc(5) = hc(5) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(2,0,l(2))*exc
-             hc(6) = hc(6) + (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*exc
-          end do ! j = f%iprilo_edf(iat), f%iprihi_edf(iat)
-       end if ! if (f%nedf > 0)
     end do ! i = 1, nenv
 
   end subroutine calculate_mo_gto
+  
+  subroutine calculate_edf(f,xpos,rhoc,gradc,hc,nder,nenv,eid,dist)
+    type(molwfn), intent(in) :: f !< Input field
+    real*8, intent(in) :: xpos(3) !< Position in Cartesian
+    real*8, intent(out) :: rhoc
+    real*8, intent(out) :: gradc(3)
+    real*8, intent(out) :: hc(6)
+    integer, intent(in) :: nder !< number of derivatives
+    integer, intent(in) :: nenv !< number of atoms in the environment
+    integer, intent(in) :: eid(:) !< ids for the atoms in the environment
+    real*8, intent(in) :: dist(:) !< distances for the atoms in the environment
+
+    integer :: i, j, ipri, ityp, l(3), iat, ix
+    real*8 :: al, ex, exc, xl(3,0:2,0:5), d2, xx(3)
+
+    integer, parameter :: li(3,56) = reshape((/&
+       0,0,0, & ! s
+       1,0,0, 0,1,0, 0,0,1, & ! p
+       2,0,0, 0,2,0, 0,0,2, 1,1,0, 1,0,1, 0,1,1, & !d
+       3,0,0, 0,3,0, 0,0,3, 2,1,0, 2,0,1, 0,2,1, &
+       1,2,0, 1,0,2, 0,1,2, 1,1,1,& ! f
+       4,0,0, 0,4,0, 0,0,4, 3,1,0, 3,0,1, 1,3,0, 0,3,1, 1,0,3,&
+       0,1,3, 2,2,0, 2,0,2, 0,2,2, 2,1,1, 1,2,1, 1,1,2,& ! g
+       0,0,5, 0,1,4, 0,2,3, 0,3,2, 0,4,1, 0,5,0, 1,0,4, 1,1,3,&
+       1,2,2, 1,3,1, 1,4,0, 2,0,3, 2,1,2, 2,2,1, 2,3,0, 3,0,2,&
+       3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
+
+    if (f%nedf == 0) return
+
+    rhoc = 0d0
+    gradc = 0d0
+    hc = 0d0
+
+    do i = 1, nenv
+       iat = f%env%at(eid(i))%cidx
+       d2 = dist(i) * dist(i)
+       xx = xpos - f%env%at(iat)%r
+
+       ! calculate the powers of xyz
+       do ix = 1, 3
+          xl(ix,0,0) = 1d0
+          xl(ix,1,0) = 0d0
+          xl(ix,2,0) = 0d0
+          if (f%lmax(iat) < 1) cycle
+          xl(ix,0,1) = xx(ix)
+          xl(ix,1,1) = 1d0
+          xl(ix,2,1) = 0d0
+          if (f%lmax(iat) < 2) cycle
+          xl(ix,0,2) = xl(ix,0,1) * xx(ix)
+          xl(ix,1,2) = 2d0 * xl(ix,0,1)
+          xl(ix,2,2) = 2d0
+          if (f%lmax(iat) < 3) cycle
+          xl(ix,0,3) = xl(ix,0,2) * xx(ix)
+          xl(ix,1,3) = 3d0 * xl(ix,0,2)
+          xl(ix,2,3) = 6d0 * xl(ix,0,1)
+          if (f%lmax(iat) < 4) cycle
+          xl(ix,0,4) = xl(ix,0,3) * xx(ix)
+          xl(ix,1,4) = 4d0 * xl(ix,0,3)
+          xl(ix,2,4) = 12d0 * xl(ix,0,2)
+          if (f%lmax(iat) < 5) cycle
+          xl(ix,0,5) = xl(ix,0,4) * xx(ix)
+          xl(ix,1,5) = 5d0 * xl(ix,0,4)
+          xl(ix,2,5) = 20d0 * xl(ix,0,3)
+       end do ! ix = 1, 3
+
+       ! core contribution
+       do j = f%iprilo_edf(iat), f%iprihi_edf(iat)
+          ipri = f%icord_edf(j)
+          if (dist(i) > f%dran_edf(ipri)) cycle
+
+          ityp = f%itype_edf(ipri)
+          al = f%e_edf(ipri)
+          ex = exp(-al * d2)
+          exc = f%c_edf(ipri) * ex
+          l = li(1:3,ityp)
+
+          rhoc = rhoc + f%c_edf(ipri) * xl(1,0,l(1))*xl(2,0,l(2))*xl(3,0,l(3))*ex
+          if (nder < 1) cycle
+          gradc(1) = gradc(1) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * xl(2,0,l(2))*xl(3,0,l(3))*exc
+          gradc(2) = gradc(2) + (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*xl(3,0,l(3))*exc
+          gradc(3) = gradc(3) + (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(1,0,l(1))*xl(2,0,l(2))*exc
+          if (nder < 2) cycle
+          hc(1) = hc(1) + (xl(1,2,l(1))-2*al*(2*l(1)+1)*xl(1,0,l(1)) + 4*al*al*xx(1)**(l(1)+2)) * xl(2,0,l(2))*xl(3,0,l(3))*exc
+          hc(2) = hc(2) + (xl(2,2,l(2))-2*al*(2*l(2)+1)*xl(2,0,l(2)) + 4*al*al*xx(2)**(l(2)+2)) * xl(3,0,l(3))*xl(1,0,l(1))*exc
+          hc(3) = hc(3) + (xl(3,2,l(3))-2*al*(2*l(3)+1)*xl(3,0,l(3)) + 4*al*al*xx(3)**(l(3)+2)) * xl(1,0,l(1))*xl(2,0,l(2))*exc
+          hc(4) = hc(4) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(3,0,l(3))*exc
+          hc(5) = hc(5) + (xl(1,1,l(1))-2*al*xx(1)**(l(1)+1)) * (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * xl(2,0,l(2))*exc
+          hc(6) = hc(6) + (xl(3,1,l(3))-2*al*xx(3)**(l(3)+1)) * (xl(2,1,l(2))-2*al*xx(2)**(l(2)+1)) * xl(1,0,l(1))*exc
+       end do ! j = f%iprilo_edf(iat), f%iprihi_edf(iat)
+    end do
+
+  end subroutine calculate_edf
 
   !> Calculate the normalization factor of a primitive of a given type
   !> with exponent a.

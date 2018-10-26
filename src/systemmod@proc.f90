@@ -1071,8 +1071,6 @@ contains
   !> the properties in res and, if verbose is .true., write to the
   !> standard output.
   module subroutine propty(s,id,x0,res,verbose,allfields)
-    use fieldmod, only: type_wfn
-    use wfn_private, only: wfn_uhf
     use global, only: cp_hdegen
     use tools_math, only: rsindex
     use tools_io, only: uout, string
@@ -1109,6 +1107,7 @@ contains
        write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
        write (uout,'("  Gradient (grad f): ",3(A,2X))') (string(res%gf(j),'e',decimal=9),j=1,3)
        write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
+       write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
        if (res%avail_gkin) then
           write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
        end if
