@@ -1234,6 +1234,7 @@ contains
           do k = 1, ishlpri(i)
              nn = nn + 1
              cpri(nn) = cnorm(k) * norm
+             write (*,*) "xx ", cpri(nn)
           end do
        end do
        nm = nm + ishlpri(i)

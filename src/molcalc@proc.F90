@@ -194,17 +194,6 @@ contains
 
   end subroutine molcalc_peach
 
-  subroutine molcalc_integral()
-    use tools_io, only: ferror, faterr
-#ifdef HAVE_CINT
-
-    write (*,*) "bleh!"
-
-#else
-    call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
-#endif
-  end subroutine molcalc_integral
-
   !> Compute an expression in the molecular mesh. Save the result in variable
   !> savevar.
   subroutine molcalc_expression(expr,savevar)
@@ -242,5 +231,105 @@ contains
     if (len_trim(savevar) > 0) call setvariable(trim(savevar),fsum)
 
   end subroutine molcalc_expression
+
+  subroutine molcalc_integral()
+    use tools_io, only: ferror, faterr
+#ifdef HAVE_CINT
+
+    integer :: off
+    integer :: natm, atm(6,2), nbas, bas(8,2)
+    integer :: i, j, di, dj, is0, shls(4)
+    real*8 :: env(1000)
+    real*8, allocatable :: buf1e(:,:,:)
+    real*8, external :: CINTgto_norm
+    integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart
+    real*8 :: tmn(2,2), pmn(2,2), tkin
+
+    off = 0
+    natm = 2
+    atm = 0
+    env = 0d0
+    nbas = 2
+    bas = 0
+    env = 0d0
+
+    atm(1,1) = 1
+    atm(2,1) = off
+    atm(3,1) = 1
+    atm(4,1) = off+3
+    atm(5:6,1) = 0
+    env(off+1:off+3) = (/0d0,0d0,0.5d0/) / 0.52917720859d0 ! in bohr!
+    env(off+4) = 0d0
+    off = off + 4
+
+    atm(1,2) = 1
+    atm(2,2) = off
+    atm(3,2) = 1
+    atm(4,2) = off+3
+    atm(5:6,2) = 0
+    env(off+1:off+3) = (/0d0,0d0,-0.5d0/) / 0.52917720859d0 ! in bohr!
+    env(off+4) = 0d0
+    off = off + 4
+
+    ! CINTgto_norm is same as my gnorm but ---without the 4*pi---!
+    ! S   3   1.00
+    ! 3.42525091             0.15432897
+    ! 0.62391373             0.53532814
+    ! 0.16885540             0.44463454
+    env(off+1) = 3.42525091d0
+    env(off+2) = 0.62391373d0
+    env(off+3) = 0.16885540d0
+    env(off+4) = 0.15432897d0 * CINTgto_norm(0,env(off+1))
+    env(off+5) = 0.53532814d0 * CINTgto_norm(0,env(off+2))
+    env(off+6) = 0.44463454d0 * CINTgto_norm(0,env(off+3))
+
+    bas(1,1) = 0
+    bas(2,1) = 0
+    bas(3,1) = 3
+    bas(4,1) = 1
+    bas(5,1) = 0
+    bas(6,1) = off
+    bas(7,1) = off+3
+    bas(8,1) = 0
+
+    bas(1,2) = 1
+    bas(2,2) = 0
+    bas(3,2) = 3
+    bas(4,2) = 1
+    bas(5,2) = 0
+    bas(6,2) = off
+    bas(7,2) = off+3
+    bas(8,2) = 0
+
+    do i = 1, nbas
+       di = CINTcgto_cart(i-1, bas)
+       do j = 1, i
+          dj = CINTcgto_cart(j-1, bas)
+          allocate(buf1e(di,di,1))
+          shls(1) = i-1
+          shls(2) = j-1
+          is0 = CINT1e_kin_cart(buf1e,shls,atm,natm,bas,nbas,env)          
+          ! is0 = CINT1e_ovlp_cart(buf1e,shls,atm,natm,bas,nbas,env)          
+          tmn(i,j) = buf1e(1,1,1)
+          deallocate(buf1e)
+       end do
+    end do
+    tmn(1,2) = tmn(2,1)
+
+    pmn = (5.78027982d-01 * sqrt(2d0))**2 ! this matches pyscf's make_rdm1
+
+    tkin = pmn(1,1)*tmn(1,1) + pmn(1,2)*tmn(1,2) + pmn(2,1)*tmn(2,1) + pmn(2,2)*tmn(2,2)
+    write (*,*) pmn(1,1), tmn(1,1), pmn(1,1)*tmn(1,1)
+    write (*,*) pmn(1,2), tmn(1,2), pmn(1,2)*tmn(1,2)
+    write (*,*) pmn(2,1), tmn(2,1), pmn(2,1)*tmn(2,1)
+    write (*,*) pmn(2,2), tmn(2,2), pmn(2,2)*tmn(2,2)
+    write (*,*) tkin
+
+    stop 1
+
+#else
+    call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
+#endif
+  end subroutine molcalc_integral
 
 end submodule proc
