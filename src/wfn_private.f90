@@ -28,6 +28,11 @@ module wfn_private
   
   private
 
+  ! Molecular basis set information for integral calculation
+  type molbas
+     real*8, allocatable :: moc(:,:) ! molecular orbital coefficients
+  end type molbas
+
   ! Molecular wavefunction type
   ! Order of the orbitals:
   ! Restricted wavefunctions (wfntyp = wfn_rhf):
@@ -80,6 +85,10 @@ module wfn_private
      real*8, allocatable :: dran_edf(:) !< maximum d^2 (GTO) or d (STO) to discard the primitive
      real*8, allocatable :: e_edf(:) !< EDF exponents
      real*8, allocatable :: c_edf(:) !< EDF coefficients
+#ifdef HAVE_CINT
+     ! basis set information
+     type(molbas) :: bas
+#endif
      ! structural info
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:)

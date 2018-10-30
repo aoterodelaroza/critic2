@@ -1234,13 +1234,29 @@ contains
           do k = 1, ishlpri(i)
              nn = nn + 1
              cpri(nn) = cnorm(k) * norm
-             write (*,*) "xx ", cpri(nn)
           end do
        end do
        nm = nm + ishlpri(i)
     end do
     deallocate(cnorm)
 
+#ifdef HAVE_CINT
+    ! save the basis set information
+    if (allocated(f%bas%moc)) deallocate(f%bas%moc)
+    allocate(f%bas%moc(f%nmoocc,nbascar))
+    ! nl = 0
+    ! do i = 1, ncshel
+    !    do j = jshl0(abs(ishlt(i))), jshl1(abs(ishlt(i)))
+    !       ityp = typtrans(j)
+    !       nl = nl + 1
+    !       write (*,*) i, j, ityp
+    !       ! f%bas%moc(:,:) = mocoef(:,nl)
+    !    end do
+    ! end do
+    ! stop 1
+    f%bas%moc = mocoef(1:f%nmoocc,:)
+#endif
+    
     ! build the wavefunction coefficients for the primitives
     nn = 0
     nm = 0
