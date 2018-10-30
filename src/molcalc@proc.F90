@@ -251,7 +251,7 @@ contains
     integer, allocatable :: imap(:), itype(:)
     real*8 :: norm1, norm2, aexp
 
-    off = 20
+    off = 0
     natm = 3
     env = 0d0
     nbas = 10
@@ -288,7 +288,7 @@ contains
     env(off+1:off+3) = (/0.0000000000d0,-0.7566529960d0,-0.4755289978d0/) / 0.52917720859d0 ! in bohr!
     env(off+4) = 0d0
     off = off + 4
-    
+
     ! coefficients and exponents
     ! CINTgto_norm is same as my gnorm but ---without the 4*pi---!
     ! -- oxygen --
@@ -459,7 +459,7 @@ contains
           shls(1) = i-1
           shls(2) = j-1
 
-          is0 = CINT1e_kin_cart(buf1e,shls,atm,natm,bas,nbas,env)          
+          is0 = CINT1e_kin_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
           tmn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
 
           is0 = CINT1e_ovlp_cart(buf1e,shls,atm,natm,bas,nbas,env)          
@@ -472,7 +472,7 @@ contains
     end do
     
     ! remap the moc matrix
-    allocate(aux(size(sy%f(1)%wfn%bas%moc,1),nbast),imap(nbast),itype(nbast))
+    allocate(aux(size(sy%f(1)%wfn%cint%moc,1),nbast),imap(nbast),itype(nbast))
     ! fchk -> libcint
     ! 1 -> 1
     ! 2 -> 2
@@ -504,7 +504,7 @@ contains
           norm1 = 1d0
           norm2 = 1d0
        end if
-       aux(:,imap(i)) = sy%f(1)%wfn%bas%moc(:,i) * norm1 / norm2
+       aux(:,imap(i)) = sy%f(1)%wfn%cint%moc(:,i) * norm1 / norm2
     end do
 
     ! make the 1-dm

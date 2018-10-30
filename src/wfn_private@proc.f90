@@ -168,6 +168,12 @@ contains
     if (allocated(f%dran_edf)) deallocate(f%dran_edf)
     if (allocated(f%e_edf)) deallocate(f%e_edf)
     if (allocated(f%c_edf)) deallocate(f%c_edf)
+#ifdef HAVE_CINT
+    if (allocated(f%cint%moc)) deallocate(f%cint%moc)
+    if (allocated(f%cint%atm)) deallocate(f%cint%atm)
+    if (allocated(f%cint%bas)) deallocate(f%cint%bas)
+    if (allocated(f%cint%env)) deallocate(f%cint%env)
+#endif
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
     if (f%isealloc) then
        if (associated(f%env)) deallocate(f%env)
@@ -930,7 +936,11 @@ contains
     real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:)
     real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:)
     logical, allocatable :: icdup(:)
-
+#ifdef HAVE_CINT
+    integer :: off
+    real*8, external :: CINTgto_norm
+    integer, external :: CINTcgto_cart
+#endif
     ! translation between primitive ordering fchk -> critic2
     !           1   2 3 4    5  6  7  8  9 10    11  12  13  14  15  16  17  18  19  20
     ! fchk:     s   x y z   xx yy zz xy xz yz   xxx yyy zzz xyy xxy xxz xzz yzz yyz xyz
@@ -1242,19 +1252,62 @@ contains
 
 #ifdef HAVE_CINT
     ! save the basis set information
-    if (allocated(f%bas%moc)) deallocate(f%bas%moc)
-    allocate(f%bas%moc(f%nmoocc,nbascar))
-    ! nl = 0
-    ! do i = 1, ncshel
-    !    do j = jshl0(abs(ishlt(i))), jshl1(abs(ishlt(i)))
-    !       ityp = typtrans(j)
-    !       nl = nl + 1
-    !       write (*,*) i, j, ityp
-    !       ! f%bas%moc(:,:) = mocoef(:,nl)
-    !    end do
-    ! end do
-    ! stop 1
-    f%bas%moc = mocoef(1:f%nmoocc,:)
+    allocate(f%cint%moc(f%nmoocc,nbascar),stat=istat)
+    if (istat /= 0) call ferror('read_fchk','could not allocate memory for icenter',faterr)
+    
+    ! type cintdata
+    !    integer :: nbas !< number of shells (basis, in the manual)
+    !    integer, allocatable :: bas(:,:) !< shell information
+    !    real*8, allocatable :: env(:) !< double data (coordinates, exponents, coefficients)
+    ! end type cintdata
+    
+    ! prepare space for the doubles
+    allocate(f%cint%env(4*env%ncell + 2*nshel))
+
+    ! atom info
+    off = 0
+    f%cint%natm = env%ncell
+    allocate(f%cint%atm(6,f%cint%natm))
+    do i = 1, env%ncell
+       f%cint%atm(1,i) = env%spc(env%at(i)%is)%z
+       f%cint%atm(2,i) = off
+       f%cint%atm(3,i) = 1
+       f%cint%atm(4,i) = off + 3
+       f%cint%atm(5:6,i) = 0
+       f%cint%env(off+1:off+3) = env%at(i)%r
+       f%cint%env(off+4) = 0d0
+       off = off + 4
+    end do
+
+    ! shells
+    f%cint%nbas = ncshel
+    allocate(f%cint%bas(8,ncshel))
+    nn = 0
+    f%cint%nbast = 0
+    do i = 1, ncshel
+       f%cint%bas(1,i) = ishlat(i)-1
+       f%cint%bas(2,i) = abs(ishlt(i))
+       f%cint%bas(3,i) = ishlpri(i)
+       f%cint%bas(4,i) = 1
+       f%cint%bas(5,i) = 0
+       f%cint%bas(6,i) = off
+       f%cint%bas(7,i) = off + ishlpri(i)
+       do j = 1, ishlpri(i)
+          nn = nn + 1
+          f%cint%env(off+j) = exppri(nn)
+          f%cint%env(off+ishlpri(i)+j) = ccontr(nn) * CINTgto_norm(f%cint%bas(2,i),f%cint%env(off+j))
+       end do
+       off = off + 2 * ishlpri(i)
+    end do
+
+    ! number of basis functions
+    f%cint%nbast = 0
+    do i = 1, ncshel
+       f%cint%nbast = f%cint%nbast + CINTcgto_cart(i-1, f%cint%bas)
+    end do
+
+    ! molecular orbital coefficients
+    f%cint%moc = mocoef(1:f%nmoocc,:)
 #endif
     
     ! build the wavefunction coefficients for the primitives

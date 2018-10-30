@@ -28,11 +28,17 @@ module wfn_private
   
   private
 
-  ! Molecular basis set information for integral calculation
-  type molbas
-     real*8, allocatable :: moc(:,:) ! molecular orbital coefficients
-  end type molbas
-
+  ! Molecular basis set information for libCINT integral calculations
+  type cintdata
+     real*8, allocatable :: moc(:,:) ! molecular orbital coefficients xxxx
+     integer :: natm !< number of atoms
+     integer :: nbas !< number of shells (basis, in the manual)
+     integer :: nbast !< number of basis functions
+     integer, allocatable :: atm(:,:) !< atom information
+     integer, allocatable :: bas(:,:) !< shell information
+     real*8, allocatable :: env(:) !< double data (coordinates, exponents, coefficients)
+  end type cintdata
+  
   ! Molecular wavefunction type
   ! Order of the orbitals:
   ! Restricted wavefunctions (wfntyp = wfn_rhf):
@@ -86,8 +92,8 @@ module wfn_private
      real*8, allocatable :: e_edf(:) !< EDF exponents
      real*8, allocatable :: c_edf(:) !< EDF coefficients
 #ifdef HAVE_CINT
-     ! basis set information
-     type(molbas) :: bas
+     ! basis set information for libCINT
+     type(cintdata) :: cint
 #endif
      ! structural info
      real*8 :: globalcutoff = 0d0
