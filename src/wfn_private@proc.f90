@@ -920,7 +920,7 @@ contains
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
   module subroutine read_fchk(f,file,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, isinteger, faterr, ferror, fclose
-    use param, only: pi
+    use param, only: pi, sqpi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
@@ -957,6 +957,18 @@ contains
        1,   2, 3, 4,   5, 6, 7, 8, 9, 10,   11, 12, 13, 17, 14, 15, 18, 19, 16, 20,&
        !21 22  23  24  25  26  27  28  29  30  31  32  33  34  35
        23, 29, 32, 27, 22, 28, 35, 34, 26, 31, 33, 30, 25, 24, 21&
+       /)
+
+    ! Delta for reordering the MO coefficients when interfacing with libCINT:
+    ! cint:  s   x y z   xx xy xz yy yz zz
+    !        1   2 3 4    5  6  7  8  9 10
+    ! fchk:  s   x y z   xx yy zz xy xz yz
+    !        1   2 3 4    5  8 10  6  7  9
+    !        -----------------------------
+    ! delta: 0   0 0 0    0  2  3 -2 -2 -1
+    !
+    integer, parameter :: ideltacint(10) = (/&
+       0, 0, 0, 0, 0, 2, 3, -2, -2, -1&
        /)
 
     ! no ecps for now
@@ -1255,12 +1267,6 @@ contains
     allocate(f%cint%moc(f%nmoocc,nbascar),stat=istat)
     if (istat /= 0) call ferror('read_fchk','could not allocate memory for icenter',faterr)
     
-    ! type cintdata
-    !    integer :: nbas !< number of shells (basis, in the manual)
-    !    integer, allocatable :: bas(:,:) !< shell information
-    !    real*8, allocatable :: env(:) !< double data (coordinates, exponents, coefficients)
-    ! end type cintdata
-    
     ! prepare space for the doubles
     allocate(f%cint%env(4*env%ncell + 2*nshel))
 
@@ -1307,7 +1313,28 @@ contains
     end do
 
     ! molecular orbital coefficients
-    f%cint%moc = mocoef(1:f%nmoocc,:)
+    nc = 0
+    do i = 1, ncshel
+       do j = jshl0(abs(ishlt(i))), jshl1(abs(ishlt(i)))
+          nc = nc + 1
+          ityp = typtrans(j)
+          
+          if (ityp == 1) then ! s
+             norm = 1d0
+          elseif (ityp >= 2 .and. ityp <= 4) then ! p
+             norm = 1d0
+          elseif (ityp >= 5 .and. ityp <= 7) then ! d (xx yy zz)
+             norm = sqrt(5d0) / (2d0 * sqpi)
+          elseif (ityp >= 8 .and. ityp <= 10) then ! d (xy xz yz)
+             norm = sqrt(15d0) / (2d0 * sqpi)
+          else
+             write (*,*) "fixme libcint fchk"
+             stop 1
+          end if
+
+          f%cint%moc(:,nc+ideltacint(ityp)) = mocoef(:,nc) * norm
+       end do
+    end do
 #endif
     
     ! build the wavefunction coefficients for the primitives
