@@ -234,23 +234,27 @@ contains
 
   subroutine molcalc_integral()
     use systemmod, only: sy
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, uout, string
 #ifdef HAVE_CINT
 
-    integer :: ioff, joff
+    integer :: ioff, joff, koff, loff
     integer :: nbas, nbast
-    integer :: i, j, di, dj, is0, shls(4)
-    real*8, allocatable :: buf1e(:,:,:)
+    integer :: i, j, k, l, di, dj, dk, dl, is0, shls(4)
+    real*8, allocatable :: buf1e(:,:,:), buf2e(:,:,:,:,:)
     real*8, external :: CINTgto_norm
-    integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart
-    real*8, allocatable :: tmn(:,:), pmn(:,:), smn(:,:)
+    integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart, CINT1e_nuc_cart
+    integer, external :: CINT2e_cart
+    real*8, allocatable :: hmn(:,:), pmn(:,:), smn(:,:), eri(:,:,:,:), jmn(:,:), kmn(:,:)
+    real*8, allocatable :: vmn(:,:)
+    real*8 :: ee, enuc, etot, dij
 
     nbas = sy%f(1)%wfn%cint%nbas
     nbast = sy%f(1)%wfn%cint%nbast
-    allocate(tmn(nbast,nbast),smn(nbast,nbast),pmn(nbast,nbast))
+    allocate(hmn(nbast,nbast),smn(nbast,nbast),pmn(nbast,nbast),eri(nbast,nbast,nbast,nbast))
+    allocate(jmn(nbast,nbast),kmn(nbast,nbast),vmn(nbast,nbast))
 
     ioff = 0
-    tmn = 0d0
+    hmn = 0d0
     smn = 0d0
     do i = 1, nbas
        di = CINTcgto_cart(i-1, sy%f(1)%wfn%cint%bas)
@@ -262,14 +266,21 @@ contains
              shls(1) = i-1
              shls(2) = j-1
 
+             ! kinetic energy
              is0 = CINT1e_kin_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             tmn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
-             tmn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(buf1e(:,:,1))
+             hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
+             ! nuclear attraction
+             is0 = CINT1e_nuc_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
+             ! overlap
              is0 = CINT1e_ovlp_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
              smn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
-             smn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(buf1e(:,:,1))
+
+             ! propagate to the upper half
+             hmn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(hmn(ioff+1:ioff+di,joff+1:joff+dj))
+             smn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(smn(ioff+1:ioff+di,joff+1:joff+dj))
 
              deallocate(buf1e)
           end if
@@ -278,14 +289,66 @@ contains
        ioff = ioff + di
     end do
 
+    eri = 0d0
+    ioff = 0
+    do i = 1, nbas
+       di = CINTcgto_cart(i-1, sy%f(1)%wfn%cint%bas)
+       joff = 0
+       do j = 1, nbas
+          dj = CINTcgto_cart(j-1, sy%f(1)%wfn%cint%bas)
+          koff = 0
+          do k = 1, nbas
+             dk = CINTcgto_cart(k-1, sy%f(1)%wfn%cint%bas)
+             loff = 0
+             do l = 1, nbas
+                dl = CINTcgto_cart(l-1, sy%f(1)%wfn%cint%bas)
+
+                allocate(buf2e(di,dj,dk,dl,1))
+                shls = (/i-1,j-1,k-1,l-1/)
+                is0 = CINT2e_cart(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
+                eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
+                deallocate(buf2e)
+
+                loff = loff + dl
+             end do
+             koff = koff + dk
+          end do
+          joff = joff + dj
+       end do
+       ioff = ioff + di
+    end do
+
+    ! write (*,*) eri(2,7,10,3), eri(7,2,10,3), eri(7,2,3,10), eri(2,7,3,10)
+    ! write (*,*) eri(10,3,2,7), eri(10,3,7,2), eri(3,10,7,2), eri(3,10,2,7)
+
     ! make the 1-dm
     pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
 
-    ! kinetic energy
-    write (*,*) sum(pmn * tmn), sum(pmn * smn)
-    
+    ! calculate J, K, V
+    jmn = 0d0
+    kmn = 0d0
+    do i = 1, nbast
+       do j = 1, nbast
+          jmn(i,j) = sum(pmn * eri(:,:,i,j))
+          kmn(i,j) = sum(pmn * eri(:,i,:,j))
+       end do
+    end do
+    vmn = jmn - 0.5d0 * kmn
 
-    stop 1
+    ! calculate energies
+    ee = sum(pmn * (hmn + 0.5d0 * vmn))
+    enuc = 0d0
+    do i = 1, sy%c%ncel
+       do j = i+1, sy%c%ncel
+          dij = norm2(sy%c%at(i)%r - sy%c%at(j)%r)
+          enuc = enuc + sy%c%spc(sy%c%at(i)%is)%z * sy%c%spc(sy%c%at(j)%is)%z / dij
+       end do
+    end do
+    etot = enuc + ee
+
+    ! energies
+    write (uout,'("+ Total energy = ",A," Hartree")') string(etot,'f',decimal=10)
+    write (uout,*)
 
 #else
     call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
