@@ -239,7 +239,7 @@ contains
 
     integer :: ioff, joff, koff, loff
     integer :: nbas, nbast
-    integer :: i, j, k, l, di, dj, dk, dl, is0, shls(4)
+    integer :: i, j, k, l, di, dj, dk, dl, is0, shls(4), i1, j1
     real*8, allocatable :: buf1e(:,:,:), buf2e(:,:,:,:,:)
     real*8, external :: CINTgto_norm
     integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart, CINT1e_nuc_cart
@@ -250,8 +250,9 @@ contains
 
     nbas = sy%f(1)%wfn%cint%nbas
     nbast = sy%f(1)%wfn%cint%nbast
-    allocate(hmn(nbast,nbast),smn(nbast,nbast),pmn(nbast,nbast),eri(nbast,nbast,nbast,nbast))
+    allocate(hmn(nbast,nbast),smn(nbast,nbast),pmn(nbast,nbast))
     allocate(jmn(nbast,nbast),kmn(nbast,nbast),vmn(nbast,nbast))
+    ! allocate(eri(nbast,nbast,nbast,nbast)) ! in-core - cannot be done for most systems
 
     ioff = 0
     hmn = 0d0
@@ -289,7 +290,14 @@ contains
        ioff = ioff + di
     end do
 
-    eri = 0d0
+    ! make the 1-dm
+    pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
+    write (*,*) sum(pmn * smn)
+    stop 1
+
+    ! eri = 0d0
+    jmn = 0d0
+    kmn = 0d0
     ioff = 0
     do i = 1, nbas
        di = CINTcgto_cart(i-1, sy%f(1)%wfn%cint%bas)
@@ -306,7 +314,17 @@ contains
                 allocate(buf2e(di,dj,dk,dl,1))
                 shls = (/i-1,j-1,k-1,l-1/)
                 is0 = CINT2e_cart(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
-                eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
+
+                ! eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
+                do j1 = loff+1, loff+dl
+                   do i1 = joff+1, joff+dj
+                      kmn(i1,j1) = kmn(i1,j1) + sum(pmn(ioff+1:ioff+di,koff+1:koff+dk) * buf2e(:,i1-joff,:,j1-loff,1))
+                   end do
+                   do i1 = koff+1, koff+dk
+                      jmn(i1,j1) = jmn(i1,j1) + sum(pmn(ioff+1:ioff+di,joff+1:joff+dj) * buf2e(:,:,i1-koff,j1-loff,1))
+                   end do
+                end do
+
                 deallocate(buf2e)
 
                 loff = loff + dl
@@ -318,21 +336,7 @@ contains
        ioff = ioff + di
     end do
 
-    ! write (*,*) eri(2,7,10,3), eri(7,2,10,3), eri(7,2,3,10), eri(2,7,3,10)
-    ! write (*,*) eri(10,3,2,7), eri(10,3,7,2), eri(3,10,7,2), eri(3,10,2,7)
-
-    ! make the 1-dm
-    pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
-
-    ! calculate J, K, V
-    jmn = 0d0
-    kmn = 0d0
-    do i = 1, nbast
-       do j = 1, nbast
-          jmn(i,j) = sum(pmn * eri(:,:,i,j))
-          kmn(i,j) = sum(pmn * eri(:,i,:,j))
-       end do
-    end do
+    ! calculate V
     vmn = jmn - 0.5d0 * kmn
 
     ! calculate energies
