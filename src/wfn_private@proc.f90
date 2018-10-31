@@ -960,16 +960,23 @@ contains
        /)
 
     ! Delta for reordering the MO coefficients when interfacing with libCINT:
-    ! cint:  s   x y z   xx xy xz yy yz zz
-    !        1   2 3 4    5  6  7  8  9 10
-    ! fchk:  s   x y z   xx yy zz xy xz yz
-    !        1   2 3 4    5  8 10  6  7  9
-    !        -----------------------------
-    ! delta: 0   0 0 0    0  2  3 -2 -2 -1
+    ! cint:  s   x y z   xx xy xz yy yz zz   xxx xxy xxz xyy xyz xzz yyy yyz yzz zzz
+    !        1   2 3 4    5  6  7  8  9 10    11  12  13  14  15  16  17  18  19  20
+    ! fchk:  s   x y z   xx yy zz xy xz yz   xxx yyy zzz xyy xxy xxz xzz yzz yyz xyz
+    !        1   2 3 4    5  8 10  6  7  9    11  17  20  14  12  13  16  19  18  15
+    !        ------------------------------------------------------------------------
+    ! delta: 0   0 0 0    0  2  3 -2 -2 -1     0   5   7   0  -3  -3  -1   1  -1  -5
     !
-    integer, parameter :: ideltacint(10) = (/&
-       0, 0, 0, 0, 0, 2, 3, -2, -2, -1&
-       /)
+    ! cint:  xxxx xxxy xxxz xxyy xxyz xxzz xyyy xyyz xyzz xzzz yyyy yyyz yyzz yzzz zzzz
+    !         21   22   23   24   25   26   27   28   29   30   31   32   33   34   35
+    ! fchk:  zzzz yzzz yyzz yyyz yyyy xzzz xyzz xyyz xyyy xxzz xxyz xxyy xxxz xxxy xxxx
+    !         35   34   33   32   31   30   29   28   27   26   25   24   23   22   21
+    !        --------------------------------------------------------------------------
+    ! delta:  14   12   10    8    6    4    2    0   -2   -4   -6   -8  -10  -12   -14
+    !
+    integer, parameter :: ideltacint(35) = (/&
+       0, 0, 0, 0, 0, 2, 3, -2, -2, -1, 0, 5, 7, 0, -3, -3, -1, 1, -1, -5,&
+       14, 12, 10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -12, -14/)
 
     ! no ecps for now
     f%useecp = .false.
@@ -1327,12 +1334,25 @@ contains
              norm = sqrt(5d0) / (2d0 * sqpi)
           elseif (ityp >= 8 .and. ityp <= 10) then ! d (xy xz yz)
              norm = sqrt(15d0) / (2d0 * sqpi)
+          elseif (ityp >= 11 .and. ityp <= 13) then ! f (xxx yyy zzz)
+             norm = sqrt(7d0) / (2d0 * sqpi)
+          elseif (ityp >= 14 .and. ityp <= 19) then ! f (xyy xxy xxz xzz yzz yyz)
+             norm = sqrt(35d0) / (2d0 * sqpi)
+          elseif (ityp == 20) then ! f (xyz)
+             norm = sqrt(105d0) / (2d0 * sqpi) 
+          elseif (ityp >= 21 .and. ityp <= 23) then ! g (xxxx yyyy zzzz)
+             norm = sqrt(27d0) / (2d0 * sqpi)
+          elseif (ityp >= 24 .and. ityp <= 29) then ! g (xxxy xxxz xyyy yyyz xzzz yzzz)
+             norm = sqrt(189d0) / (2d0 * sqpi)
+          elseif (ityp >= 30 .and. ityp <= 32) then ! g (xxyy xxzz yyzz)
+             norm = sqrt(315d0) / (2d0 * sqpi)
+          elseif (ityp >= 33 .and. ityp <= 35) then ! g (xxyz xyyz xyzz)
+             norm = sqrt(945d0) / (2d0 * sqpi)
           else
-             write (*,*) "fixme libcint fchk"
-             stop 1
+             if (istat /= 0) call ferror('read_fchk','libcint: h primitives not suppported (fixme)',faterr)
           end if
 
-          f%cint%moc(:,nc+ideltacint(ityp)) = mocoef(:,nc) * norm
+          f%cint%moc(:,nc+ideltacint(j)) = mocoef(:,nc) * norm
        end do
     end do
 #endif
