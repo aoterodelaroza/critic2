@@ -292,8 +292,6 @@ contains
 
     ! make the 1-dm
     pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
-    write (*,*) sum(pmn * smn)
-    stop 1
 
     ! eri = 0d0
     jmn = 0d0

@@ -1341,13 +1341,13 @@ contains
           elseif (ityp == 20) then ! f (xyz)
              norm = sqrt(105d0) / (2d0 * sqpi) 
           elseif (ityp >= 21 .and. ityp <= 23) then ! g (xxxx yyyy zzzz)
-             norm = sqrt(27d0) / (2d0 * sqpi)
+             norm = sqrt(9d0) / (2d0 * sqpi)  
           elseif (ityp >= 24 .and. ityp <= 29) then ! g (xxxy xxxz xyyy yyyz xzzz yzzz)
-             norm = sqrt(189d0) / (2d0 * sqpi)
+             norm = sqrt(63d0) / (2d0 * sqpi) 
           elseif (ityp >= 30 .and. ityp <= 32) then ! g (xxyy xxzz yyzz)
-             norm = sqrt(315d0) / (2d0 * sqpi)
+             norm = sqrt(105d0) / (2d0 * sqpi)
           elseif (ityp >= 33 .and. ityp <= 35) then ! g (xxyz xyyz xyzz)
-             norm = sqrt(945d0) / (2d0 * sqpi)
+             norm = sqrt(315d0) / (2d0 * sqpi)
           else
              if (istat /= 0) call ferror('read_fchk','libcint: h primitives not suppported (fixme)',faterr)
           end if
