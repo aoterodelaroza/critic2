@@ -30,6 +30,7 @@ module wfn_private
 
   ! Molecular basis set information for libCINT integral calculations
   type cintdata
+     logical, allocatable :: lsph !< whether primitives are spherical or Cartesian
      real*8, allocatable :: moc(:,:) ! molecular orbital coefficients xxxx
      integer :: natm !< number of atoms
      integer :: nbas !< number of shells (basis, in the manual)

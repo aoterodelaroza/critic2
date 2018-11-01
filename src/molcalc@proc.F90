@@ -243,7 +243,8 @@ contains
     real*8, allocatable :: buf1e(:,:,:), buf2e(:,:,:,:,:)
     real*8, external :: CINTgto_norm
     integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart, CINT1e_nuc_cart
-    integer, external :: CINT2e_cart
+    integer, external :: CINTcgto_spheric, CINT1e_kin_sph, CINT1e_ovlp_sph, CINT1e_nuc_sph
+    integer, external :: CINT2e_cart, CINT2e_sph
     real*8, allocatable :: hmn(:,:), pmn(:,:), smn(:,:), eri(:,:,:,:), jmn(:,:), kmn(:,:)
     real*8, allocatable :: vmn(:,:)
     real*8 :: ee, enuc, etot, dij
@@ -258,25 +259,37 @@ contains
     hmn = 0d0
     smn = 0d0
     do i = 1, nbas
-       di = CINTcgto_cart(i-1, sy%f(1)%wfn%cint%bas)
+       di = CINTcgto(i-1)
        joff = 0
        do j = 1, nbas
-          dj = CINTcgto_cart(j-1, sy%f(1)%wfn%cint%bas)
+          dj = CINTcgto(j-1)
           if (j >= i) then
              allocate(buf1e(di,dj,1))
              shls(1) = i-1
              shls(2) = j-1
 
              ! kinetic energy
-             is0 = CINT1e_kin_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             if (sy%f(1)%wfn%cint%lsph) then
+                is0 = CINT1e_kin_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             else
+                is0 = CINT1e_kin_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             end if
              hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
-             ! nuclear attraction
-             is0 = CINT1e_nuc_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
+             ! ! nuclear attraction
+             ! if (sy%f(1)%wfn%cint%lsph) then
+             !    is0 = CINT1e_nuc_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             ! else
+             !    is0 = CINT1e_nuc_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             ! end if
+             ! hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
              ! overlap
-             is0 = CINT1e_ovlp_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             if (sy%f(1)%wfn%cint%lsph) then
+                is0 = CINT1e_ovlp_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             else
+                is0 = CINT1e_ovlp_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             end if
              smn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
 
              ! propagate to the upper half
@@ -289,29 +302,38 @@ contains
        end do
        ioff = ioff + di
     end do
-
+    
     ! make the 1-dm
     pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
+    do i = 1, nbast
+       write (*,*) "xx ", pmn(i,i), hmn(i,i)
+    end do
+    write (*,*) "xx ", sum(pmn * smn)
+    stop 1
 
     ! eri = 0d0
     jmn = 0d0
     kmn = 0d0
     ioff = 0
     do i = 1, nbas
-       di = CINTcgto_cart(i-1, sy%f(1)%wfn%cint%bas)
+       di = CINTcgto(i-1)
        joff = 0
        do j = 1, nbas
-          dj = CINTcgto_cart(j-1, sy%f(1)%wfn%cint%bas)
+          dj = CINTcgto(j-1)
           koff = 0
           do k = 1, nbas
-             dk = CINTcgto_cart(k-1, sy%f(1)%wfn%cint%bas)
+             dk = CINTcgto(k-1)
              loff = 0
              do l = 1, nbas
-                dl = CINTcgto_cart(l-1, sy%f(1)%wfn%cint%bas)
+                dl = CINTcgto(l-1)
 
                 allocate(buf2e(di,dj,dk,dl,1))
                 shls = (/i-1,j-1,k-1,l-1/)
-                is0 = CINT2e_cart(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
+                if (sy%f(1)%wfn%cint%lsph) then
+                   is0 = CINT2e_sph(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
+                else
+                   is0 = CINT2e_cart(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
+                end if
 
                 ! eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
                 do j1 = loff+1, loff+dl
@@ -352,6 +374,15 @@ contains
     write (uout,'("+ Total energy = ",A," Hartree")') string(etot,'f',decimal=10)
     write (uout,*)
 
+  contains
+    integer function CINTcgto(i)
+      integer :: i
+      if (sy%f(1)%wfn%cint%lsph) then
+         CINTcgto = CINTcgto_spheric(i, sy%f(1)%wfn%cint%bas)
+      else
+         CINTcgto = CINTcgto_cart(i, sy%f(1)%wfn%cint%bas)
+      end if
+    end function CINTcgto
 #else
     call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
 #endif
