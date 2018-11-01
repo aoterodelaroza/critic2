@@ -977,23 +977,12 @@ contains
     integer, parameter :: icintcar(35) = (/&
        0, 0, 0, 0, 0, 2, 3, -2, -2, -1, 0, 5, 7, 0, -3, -3, -1, 1, -1, -5,&
        14, 12, 10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -12, -14/)
-    ! Delta for reordering the MO coefficients when interfacing with libCINT (Cartesian):
-    ! cint:  s   x y z   xy yz z2 xz x2-y2
-    !        1   2 3 4    5  6  7  8   9
-    ! fchk:  s   x y z   z2 xz yz x2-y2 xy
-    !        1   2 3 4    7  8  6  9   5
-    !        ------------------------------------------------------------------------
-    ! delta: 0   0 0 0    2  2 -2  1  -4
-    !
-    ! cint:  
-    !        
-    ! fchk:  
-    !        
-    !        --------------------------------------------------------------------------
-    ! delta:  14   12   10    8    6    4    2    0   -2   -4   -6   -8  -10  -12   -14
-    !
+
+    ! Delta for reordering the MO coefficients when interfacing with libCINT (spherical):
+    ! I couldn't find the specs for the fchk and libCINT orders (beyond f-shell). These
+    ! were determined by examining the diagonal of the DM in simple calculations.
     integer, parameter :: icintsph(35) = (/&
-       0, 0, 0, 0, 2, 2, -1, 1, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,&
+       0, 0, 0, 0, 2, 2, -1, 1, -4, 3, 3, 0, 2, -3, 1, -6, 0, 0, 0, 0,&
        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
 
     ! no ecps for now
