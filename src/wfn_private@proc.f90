@@ -981,9 +981,8 @@ contains
     ! Delta for reordering the MO coefficients when interfacing with libCINT (spherical):
     ! I couldn't find the specs for the fchk and libCINT orders (beyond f-shell). These
     ! were determined by examining the diagonal of the DM in simple calculations.
-    integer, parameter :: icintsph(35) = (/&
-       0, 0, 0, 0, 2, 2, -1, 1, -4, 3, 3, 0, 2, -3, 1, -6, 0, 0, 0, 0,&
-       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
+    integer, parameter :: icintsph(25) = (/&
+       0, 0, 0, 0, 2, 2, -1, 1, -4, 3, 3, 0, 2, -3, 1, -6, 4, 4, 1, 3, -2, 2, -5, 1, -8 /)
 
     ! no ecps for now
     f%useecp = .false.

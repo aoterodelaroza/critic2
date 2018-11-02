@@ -276,13 +276,13 @@ contains
              end if
              hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
-             ! ! nuclear attraction
-             ! if (sy%f(1)%wfn%cint%lsph) then
-             !    is0 = CINT1e_nuc_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             ! else
-             !    is0 = CINT1e_nuc_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             ! end if
-             ! hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
+             ! nuclear attraction
+             if (sy%f(1)%wfn%cint%lsph) then
+                is0 = CINT1e_nuc_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             else
+                is0 = CINT1e_nuc_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
+             end if
+             hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
              ! overlap
              if (sy%f(1)%wfn%cint%lsph) then
@@ -305,11 +305,6 @@ contains
     
     ! make the 1-dm
     pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
-    do i = 1, nbast
-       write (*,*) "xx ", pmn(i,i), hmn(i,i)
-    end do
-    write (*,*) "xx ", sum(pmn * smn)
-    stop 1
 
     ! eri = 0d0
     jmn = 0d0
@@ -372,6 +367,7 @@ contains
 
     ! energies
     write (uout,'("+ Total energy = ",A," Hartree")') string(etot,'f',decimal=10)
+    write (uout,'("  Number of electrons = ",A)') string(sum(pmn * smn),'f',decimal=10)
     write (uout,*)
 
   contains
