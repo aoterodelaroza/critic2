@@ -21,7 +21,7 @@ submodule (molcalc) proc
   !xx! private procedures
   ! subroutine molcalc_nelec()
   ! subroutine molcalc_peach()
-  ! subroutine molcalc_integral()
+  ! subroutine molcalc_hfenergy()
   ! subroutine molcalc_expression(expr)
 
 contains
@@ -67,8 +67,8 @@ contains
        call molcalc_nelec()
     elseif (equal(lword,"peach")) then
        call molcalc_peach()
-    elseif (equal(lword,"integral")) then
-       call molcalc_integral()
+    elseif (equal(lword,"hf")) then
+       call molcalc_hfenergy()
     else
        call molcalc_expression(expr,savevar)
     end if
@@ -212,7 +212,7 @@ contains
 
     call m%gen(sy%c)
 
-    write (uout,'("+ Molecular integral calculation")')
+    write (uout,'("+ Molecular mesh integral calculation")')
     write (uout,'("  Expression: ",A)') trim(expr)
     call m%report()
 
@@ -232,8 +232,10 @@ contains
 
   end subroutine molcalc_expression
 
-  subroutine molcalc_integral()
+  subroutine molcalc_hfenergy()
     use systemmod, only: sy
+    use fieldmod, only: type_wfn
+    use wfn_private, only: wfn_rhf
     use tools_io, only: ferror, faterr, uout, string
 #ifdef HAVE_CINT
 
@@ -245,143 +247,157 @@ contains
     integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart, CINT1e_nuc_cart
     integer, external :: CINTcgto_spheric, CINT1e_kin_sph, CINT1e_ovlp_sph, CINT1e_nuc_sph
     integer, external :: CINT2e_cart, CINT2e_sph
-    real*8, allocatable :: hmn(:,:), pmn(:,:), smn(:,:), eri(:,:,:,:), jmn(:,:), kmn(:,:)
+    real*8, allocatable :: hmn(:,:), pmn(:,:), smn(:,:), jmn(:,:), kmn(:,:)
     real*8, allocatable :: vmn(:,:)
     real*8 :: ee, enuc, etot, dij
 
-    nbas = sy%f(1)%wfn%cint%nbas
-    nbast = sy%f(1)%wfn%cint%nbast
-    allocate(hmn(nbast,nbast),smn(nbast,nbast),pmn(nbast,nbast))
-    allocate(jmn(nbast,nbast),kmn(nbast,nbast),vmn(nbast,nbast))
-    ! allocate(eri(nbast,nbast,nbast,nbast)) ! in-core - cannot be done for most systems
+    if (.not.sy%goodfield(id=sy%iref,type=type_wfn)) then
+       call ferror("molcalc_hfenergy","HF requires a molecular wavefunction",faterr)
+    end if
+    if (.not.allocated(sy%f(sy%iref)%wfn%cint)) then
+       call ferror("molcalc_hfenergy","No basis set information present in this field",faterr)
+    end if
+    if (sy%f(sy%iref)%wfn%wfntyp /= wfn_rhf) then
+       call ferror("molcalc_hfenergy","HF only implemented for restricted wavefunctions",faterr)
+    end if
 
-    ioff = 0
-    hmn = 0d0
-    smn = 0d0
-    do i = 1, nbas
-       di = CINTcgto(i-1)
-       joff = 0
-       do j = 1, nbas
-          dj = CINTcgto(j-1)
-          if (j >= i) then
-             allocate(buf1e(di,dj,1))
-             shls(1) = i-1
-             shls(2) = j-1
+    associate(cint => sy%f(sy%iref)%wfn%cint)
 
-             ! kinetic energy
-             if (sy%f(1)%wfn%cint%lsph) then
-                is0 = CINT1e_kin_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             else
-                is0 = CINT1e_kin_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             end if
-             hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
+      nbas = cint%nbas
+      nbast = cint%nbast
+      allocate(hmn(nbast,nbast),smn(nbast,nbast),pmn(nbast,nbast))
+      allocate(jmn(nbast,nbast),kmn(nbast,nbast),vmn(nbast,nbast))
+      ! allocate(eri(nbast,nbast,nbast,nbast)) ! in-core - cannot be done for most systems
 
-             ! nuclear attraction
-             if (sy%f(1)%wfn%cint%lsph) then
-                is0 = CINT1e_nuc_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             else
-                is0 = CINT1e_nuc_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             end if
-             hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
+      ioff = 0
+      hmn = 0d0
+      smn = 0d0
+      do i = 1, nbas
+         di = CINTcgto(i-1)
+         joff = 0
+         do j = 1, nbas
+            dj = CINTcgto(j-1)
+            if (j >= i) then
+               allocate(buf1e(di,dj,1))
+               shls(1) = i-1
+               shls(2) = j-1
 
-             ! overlap
-             if (sy%f(1)%wfn%cint%lsph) then
-                is0 = CINT1e_ovlp_sph(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             else
-                is0 = CINT1e_ovlp_cart(buf1e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env)
-             end if
-             smn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
+               ! kinetic energy
+               if (cint%lsph) then
+                  is0 = CINT1e_kin_sph(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
+               else
+                  is0 = CINT1e_kin_cart(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
+               end if
+               hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
-             ! propagate to the upper half
-             hmn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(hmn(ioff+1:ioff+di,joff+1:joff+dj))
-             smn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(smn(ioff+1:ioff+di,joff+1:joff+dj))
+               ! nuclear attraction
+               if (cint%lsph) then
+                  is0 = CINT1e_nuc_sph(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
+               else
+                  is0 = CINT1e_nuc_cart(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
+               end if
+               hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
 
-             deallocate(buf1e)
-          end if
-          joff = joff + dj
-       end do
-       ioff = ioff + di
-    end do
-    
-    ! make the 1-dm
-    pmn = matmul(transpose(sy%f(1)%wfn%cint%moc),sy%f(1)%wfn%cint%moc) * 2d0
+               ! overlap
+               if (cint%lsph) then
+                  is0 = CINT1e_ovlp_sph(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
+               else
+                  is0 = CINT1e_ovlp_cart(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
+               end if
+               smn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
 
-    ! eri = 0d0
-    jmn = 0d0
-    kmn = 0d0
-    ioff = 0
-    do i = 1, nbas
-       di = CINTcgto(i-1)
-       joff = 0
-       do j = 1, nbas
-          dj = CINTcgto(j-1)
-          koff = 0
-          do k = 1, nbas
-             dk = CINTcgto(k-1)
-             loff = 0
-             do l = 1, nbas
-                dl = CINTcgto(l-1)
+               ! propagate to the upper half
+               hmn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(hmn(ioff+1:ioff+di,joff+1:joff+dj))
+               smn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(smn(ioff+1:ioff+di,joff+1:joff+dj))
 
-                allocate(buf2e(di,dj,dk,dl,1))
-                shls = (/i-1,j-1,k-1,l-1/)
-                if (sy%f(1)%wfn%cint%lsph) then
-                   is0 = CINT2e_sph(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
-                else
-                   is0 = CINT2e_cart(buf2e,shls,sy%f(1)%wfn%cint%atm,sy%f(1)%wfn%cint%natm,sy%f(1)%wfn%cint%bas,sy%f(1)%wfn%cint%nbas,sy%f(1)%wfn%cint%env,0_8)
-                end if
+               deallocate(buf1e)
+            end if
+            joff = joff + dj
+         end do
+         ioff = ioff + di
+      end do
 
-                ! eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
-                do j1 = loff+1, loff+dl
-                   do i1 = joff+1, joff+dj
-                      kmn(i1,j1) = kmn(i1,j1) + sum(pmn(ioff+1:ioff+di,koff+1:koff+dk) * buf2e(:,i1-joff,:,j1-loff,1))
-                   end do
-                   do i1 = koff+1, koff+dk
-                      jmn(i1,j1) = jmn(i1,j1) + sum(pmn(ioff+1:ioff+di,joff+1:joff+dj) * buf2e(:,:,i1-koff,j1-loff,1))
-                   end do
-                end do
+      ! make the 1-dm
+      pmn = matmul(transpose(cint%moc),cint%moc) * 2d0
 
-                deallocate(buf2e)
+      ! eri = 0d0
+      jmn = 0d0
+      kmn = 0d0
+      ioff = 0
+      do i = 1, nbas
+         di = CINTcgto(i-1)
+         joff = 0
+         do j = 1, nbas
+            dj = CINTcgto(j-1)
+            koff = 0
+            do k = 1, nbas
+               dk = CINTcgto(k-1)
+               loff = 0
+               do l = 1, nbas
+                  dl = CINTcgto(l-1)
 
-                loff = loff + dl
-             end do
-             koff = koff + dk
-          end do
-          joff = joff + dj
-       end do
-       ioff = ioff + di
-    end do
+                  allocate(buf2e(di,dj,dk,dl,1))
+                  shls = (/i-1,j-1,k-1,l-1/)
+                  if (cint%lsph) then
+                     is0 = CINT2e_sph(buf2e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env,0_8)
+                  else
+                     is0 = CINT2e_cart(buf2e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env,0_8)
+                  end if
 
-    ! calculate V
-    vmn = jmn - 0.5d0 * kmn
+                  ! eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
+                  do j1 = loff+1, loff+dl
+                     do i1 = joff+1, joff+dj
+                        kmn(i1,j1) = kmn(i1,j1) + sum(pmn(ioff+1:ioff+di,koff+1:koff+dk) * buf2e(:,i1-joff,:,j1-loff,1))
+                     end do
+                     do i1 = koff+1, koff+dk
+                        jmn(i1,j1) = jmn(i1,j1) + sum(pmn(ioff+1:ioff+di,joff+1:joff+dj) * buf2e(:,:,i1-koff,j1-loff,1))
+                     end do
+                  end do
 
-    ! calculate energies
-    ee = sum(pmn * (hmn + 0.5d0 * vmn))
-    enuc = 0d0
-    do i = 1, sy%c%ncel
-       do j = i+1, sy%c%ncel
-          dij = norm2(sy%c%at(i)%r - sy%c%at(j)%r)
-          enuc = enuc + sy%c%spc(sy%c%at(i)%is)%z * sy%c%spc(sy%c%at(j)%is)%z / dij
-       end do
-    end do
-    etot = enuc + ee
+                  deallocate(buf2e)
 
-    ! energies
-    write (uout,'("+ Total energy = ",A," Hartree")') string(etot,'f',decimal=10)
-    write (uout,'("  Number of electrons = ",A)') string(sum(pmn * smn),'f',decimal=10)
-    write (uout,*)
+                  loff = loff + dl
+               end do
+               koff = koff + dk
+            end do
+            joff = joff + dj
+         end do
+         ioff = ioff + di
+      end do
+
+      ! calculate V
+      vmn = jmn - 0.5d0 * kmn
+
+      ! calculate energies
+      ee = sum(pmn * (hmn + 0.5d0 * vmn))
+      enuc = 0d0
+      do i = 1, sy%c%ncel
+         do j = i+1, sy%c%ncel
+            dij = norm2(sy%c%at(i)%r - sy%c%at(j)%r)
+            enuc = enuc + sy%c%spc(sy%c%at(i)%is)%z * sy%c%spc(sy%c%at(j)%is)%z / dij
+         end do
+      end do
+      etot = enuc + ee
+
+      ! energies
+      write (uout,'("+ Total energy = ",A," Hartree")') string(etot,'f',decimal=10)
+      write (uout,'("  Number of electrons = ",A)') string(sum(pmn * smn),'f',decimal=10)
+      write (uout,*)
+
+    end associate
 
   contains
     integer function CINTcgto(i)
       integer :: i
-      if (sy%f(1)%wfn%cint%lsph) then
-         CINTcgto = CINTcgto_spheric(i, sy%f(1)%wfn%cint%bas)
+      if (sy%f(sy%iref)%wfn%cint%lsph) then
+         CINTcgto = CINTcgto_spheric(i, sy%f(sy%iref)%wfn%cint%bas)
       else
-         CINTcgto = CINTcgto_cart(i, sy%f(1)%wfn%cint%bas)
+         CINTcgto = CINTcgto_cart(i, sy%f(sy%iref)%wfn%cint%bas)
       end if
     end function CINTcgto
 #else
-    call ferror("molcalc_integral","INTEGRAL requires the CINT library",faterr)
+    call ferror("molcalc_hfenergy","HF requires the CINT library",faterr)
 #endif
-  end subroutine molcalc_integral
+  end subroutine molcalc_hfenergy
 
 end submodule proc

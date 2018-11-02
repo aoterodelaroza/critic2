@@ -160,7 +160,7 @@ flags before configure:
 
 Critic2 can be compiled with [libxc](http://octopus-code.org/wiki/Libxc) and
 [libcint](https://github.com/sunqm/libcint) support. Libxc is a
-library that implements the calculatio nof exchange-correlation
+library that implements the calculation of exchange-correlation
 energies and potentials for a number of different functionals. It is
 used in critic2 to calculate exchange and correlation energy densities
 via the xc() function in arithmetic expressions. See 'Use of LIBXC in
@@ -180,7 +180,7 @@ for testing and in some options to the MOLCALC keyword. To compile
 critic2 with libcint support, do either of these two:
 
     ./configure --with-cint-shared=/opt/libcint/build 
-    ./configure --with-cint-static=/opt/libcint/build/
+    ./configure --with-cint-static=/opt/libcint/build
 
 The first will use the libcint.so file in that directory and
 dynamically link to it. The libcint.so path needs to be available when

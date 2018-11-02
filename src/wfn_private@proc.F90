@@ -1178,8 +1178,9 @@ contains
        f%npri = f%npri + nshlt(abs(ishlt(i))) * ishlpri(i)
     enddo
     
-    ! convert spherical basis functions to Cartesian and build the mocoef
-    ! deallocate the temporary motemp
+    ! Convert spherical basis functions to Cartesian and build the
+    ! mocoef.  The spherical coeffs are used in libCINT, so keep the
+    ! original coeffs around. Deallocate the temporary motemp.
     allocate(mocoef(nmoread,nbascar),mosph(nmoread,nbassph))
     nc = 0
     ns = 0
@@ -1273,6 +1274,8 @@ contains
     end do
     deallocate(cnorm)
 
+    ! Build the information for the libCINT interface - calculation of 
+    ! molecular integrals.
 #ifdef HAVE_CINT
     ! save the basis set information
     allocate(f%cint)
@@ -1376,8 +1379,9 @@ contains
        end do
     end do
 #endif
+    deallocate(mosph)
     
-    ! build the wavefunction coefficients for the primitives
+    ! Build the wavefunction coefficients for the primitives
     nn = 0
     nm = 0
     nl = 0

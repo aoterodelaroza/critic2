@@ -6102,6 +6102,7 @@ Molecular calculations (MOLCALC)
     [...]
   ENDMOLCALC/END
   MOLCALC expr.s
+  MOLCALC HF
 
 This keyword allows the calculation of molecular quantities. Mostly
 using molecular wavefunction (wfn/wfx/fchk/molden) fields and
@@ -6126,6 +6127,18 @@ used, copying and pasting the output of the TD keyword is
 recommended. Using the PEACH keyword requires the virtual orbitals,
 which in turn requires using a fchk or molden file format with the
 READVIRTUAL keyword (see `Loading a field (LOAD)`_).
+
+MOLCALC HF calculates the Hartree-Fock energy from the basis set
+information in the reference field using molecular integrals, which
+are in turn calculated by the libCINT library. Using this keyword
+requires compiling with critic2 with libCINT. At this moment, this
+keyword serves mostly for testing, debug, and development purposes, as
+it is very inefficient. The routine called by this keyword shows how
+to use libCINT inside critic. Only molecular wavefunctions can be used
+with MOLCALC HF and only file formats that provied basis set
+information (right now, only Gaussian fchk, but molden-style files
+could be implemented). Gaussian wfn/wfx do not provide basis set
+shells, only primitives, so they cannot be used with MOLCALC HF.
 
 Hirshfeld charges (HIRSHFELD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

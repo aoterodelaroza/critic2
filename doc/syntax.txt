@@ -364,6 +364,7 @@ expression.r # prints the value of the expression to the output.
     [...]
   ENDMOLCALC/END
   MOLCALC expr.s
+  MOLCALC HF
 * BENCHMARK nn.i
 * SUM [id.s]
 * MIN [id.s]
