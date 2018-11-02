@@ -1,0 +1,14 @@
+%nprocs=4
+%mem=2GB
+%chk=h2o-atz.chk
+#p hf aug-cc-pvtz output=wfx
+ 
+title
+ 
+0 1
+O	0.000000 0.000000 0.118882
+H	0.000000 0.756653 -0.475529
+H	0.000000 -0.756653 -0.475529
+
+h2o-atz.wfx
+

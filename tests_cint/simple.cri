@@ -1,0 +1,7 @@
+molecule h2o-atz.fchk
+load h2o-atz.fchk
+molcalc hf
+
+molecule hooh-atz.fchk
+load hooh-atz.fchk
+molcalc hf

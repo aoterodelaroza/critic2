@@ -1,0 +1,15 @@
+%nprocs=4
+%mem=2GB
+%chk=hooh-aqz.chk
+#p hf aug-cc-pvqz 6d 10f output=wfx iop(3/60=-1)
+ 
+title
+ 
+0 1
+O	0.000000 0.722944 -0.058893
+O	0.000000 -0.722944 -0.058893
+H	0.789982 0.897694 0.471145
+H	-0.789982 -0.897694 0.471145
+
+hooh-aqz.wfx
+
