@@ -1155,6 +1155,12 @@ using, for instance:
 
   LOAD AS GRAD 1
 
+or, if the field is not a grid, in direct way by doing:
+
+::
+
+  xc($1,$1:g,101)+xc($1,$1:g,130)
+
 List of structural variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
