@@ -29,9 +29,27 @@ module wfn_private
   private
 
   ! Molecular basis set information for libCINT integral calculations
+  ! * env: array that holds the double numbers for atomic coordinates,
+  !   coefficients, and exponents.
+  ! * atm: atom information, atm(6,natm), natm = number of atoms
+  !   atm(1,n) = atomic number
+  !   atm(2,n) = env offset to coordinates (minus 1, because of 0-indexing)
+  !   atm(3,n) = nuclear model of atom n
+  !   atm(4,n) = env offset for the nuclear charge distribution parameter
+  !   atm(5:6,n) = unused
+  ! * bas: shell information, bas(8,nbas), nbas = number of shells
+  !   bas(1,n) = 0-based index for the atom
+  !   bas(2,n) = angular momentum number
+  !   bas(3,n) = number of primitive GTOs
+  !   bas(4,n) = number of contracted functions
+  !   bas(5,n) = kappa for spinor functions
+  !   bas(6,n) = env offset for primitive GTO exponents
+  !   bas(7,n) = env offset for contraction coefficients
+  !   bas(8,n) = unused
+  ! All input and output arrays in Fortran ordering.
   type cintdata
      logical, allocatable :: lsph !< whether primitives are spherical or Cartesian
-     real*8, allocatable :: moc(:,:) ! molecular orbital coefficients xxxx
+     real*8, allocatable :: moc(:,:) ! molecular orbital coefficients
      integer :: natm !< number of atoms
      integer :: nbas !< number of shells (basis, in the manual)
      integer :: nbast !< number of basis functions
@@ -92,10 +110,8 @@ module wfn_private
      real*8, allocatable :: dran_edf(:) !< maximum d^2 (GTO) or d (STO) to discard the primitive
      real*8, allocatable :: e_edf(:) !< EDF exponents
      real*8, allocatable :: c_edf(:) !< EDF coefficients
-#ifdef HAVE_CINT
-     ! basis set information for libCINT
-     type(cintdata) :: cint
-#endif
+     ! basis set information for libCINT, calculation of molecular integrals
+     type(cintdata), allocatable :: cint
      ! structural info
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:)

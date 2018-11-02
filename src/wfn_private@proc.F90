@@ -168,12 +168,7 @@ contains
     if (allocated(f%dran_edf)) deallocate(f%dran_edf)
     if (allocated(f%e_edf)) deallocate(f%e_edf)
     if (allocated(f%c_edf)) deallocate(f%c_edf)
-#ifdef HAVE_CINT
-    if (allocated(f%cint%moc)) deallocate(f%cint%moc)
-    if (allocated(f%cint%atm)) deallocate(f%cint%atm)
-    if (allocated(f%cint%bas)) deallocate(f%cint%bas)
-    if (allocated(f%cint%env)) deallocate(f%cint%env)
-#endif
+    if (allocated(f%cint)) deallocate(f%cint)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
     if (f%isealloc) then
        if (associated(f%env)) deallocate(f%env)
@@ -1280,6 +1275,7 @@ contains
 
 #ifdef HAVE_CINT
     ! save the basis set information
+    allocate(f%cint)
     allocate(f%cint%moc(f%nmoocc,nbassph),stat=istat)
     if (istat /= 0) call ferror('read_fchk','could not allocate memory for moc',faterr)
     
@@ -1293,7 +1289,7 @@ contains
     do i = 1, env%ncell
        f%cint%atm(1,i) = env%spc(env%at(i)%is)%z
        f%cint%atm(2,i) = off
-       f%cint%atm(3,i) = 1
+       f%cint%atm(3,i) = 0
        f%cint%atm(4,i) = off + 3
        f%cint%atm(5:6,i) = 0
        f%cint%env(off+1:off+3) = env%at(i)%r

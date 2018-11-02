@@ -118,7 +118,7 @@ if test "${with_qhull_inc}" != "" && test "${with_qhull_lib}" != ""; then
 else
   ## use the internal qhull    
   CFLAGS+=" -Iqhull/"
-  LIBADD+=" qhull/libqhull_critic.a"
+  LIBADD+=" \$(top_srcdir)/src/qhull/libqhull_critic.a"
 fi
 
 # libcint
