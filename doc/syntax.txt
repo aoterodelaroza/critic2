@@ -413,6 +413,7 @@ expression.r # prints the value of the expression to the output.
 * stress [STRESS] # Schrodinger stress tensor of the reference field
 * mep(id) # Molecular electrostatic potential
 * uslater(id) # Slater potential
+* nheff(id) # Reverse-BR effective hole normalization
 * xc(...,idx)
 
 # List of field modifiers ($field:modifier):

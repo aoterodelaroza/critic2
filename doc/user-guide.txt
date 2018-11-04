@@ -1101,7 +1101,11 @@ library to calculate the integrals involved.
 * uslater(id): Slater potential U_x. The HF exchange energy is 
   the integral of rho times U_x. See:
 
-  A.D. Becke, J. Chem. Phys. 138 (2013) 074109.
+  A.D. Becke, J. Chem. Phys. 138 (2013) 074109 and references therein.
+
+* nheff(id): reverse BR efefctive hole normalization. See:
+
+  A.D. Becke, J. Chem. Phys. 138 (2013) 074109 and references therein.
 
 The name in square brackets, if available, is a shorthand for applying
 the chemical function to the reference field (case-insensitive) in the
