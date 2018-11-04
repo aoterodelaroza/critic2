@@ -2221,7 +2221,7 @@ contains
     integer :: i, j, is0
     integer :: nbast, ioff, di, joff, dj
     integer :: shls(4)
-    real*8 :: dd, vnuc
+    real*8 :: vnuc
     real*8, allocatable :: pmn(:,:), vmn(:,:), buf1e(:,:,:), env(:)
     integer, external :: CINTcgto_cart, CINT1e_rinv_cart
     integer, external :: CINTcgto_spheric, CINT1e_rinv_sph
@@ -2293,13 +2293,15 @@ contains
   end function mep
 
   !> Calculate the Slater potential at point xpos (Cartesian).
-  module function uslater(f,xpos)
+  module subroutine uslater(f,xpos,ux,nheff)
+    use tools_math, only: xlnorm
     use tools_io, only: faterr, ferror
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
-    real*8 :: uslater
+    real*8, intent(out) :: ux
+    real*8, intent(out), optional :: nheff
 #ifdef HAVE_CINT
-    integer :: i, j, is0
+    integer :: i, j, is0, nder
     integer :: nbast, ioff, di, joff, dj
     integer :: shls(4)
     real*8, allocatable :: vmn(:,:), buf1e(:,:,:), env(:)
@@ -2307,14 +2309,20 @@ contains
     integer, external :: CINTcgto_spheric, CINT1e_rinv_sph
     real*8, allocatable :: xmo(:), q(:)
     real*8 :: rho(3), rhoval(3), grad(3,3), gradval(3,3), h(3,3,3), hval(3,3,3)
-    real*8 :: gkin(3), vir, stress(3,3)
+    real*8 :: gkin(3), vir, stress(3,3), rhos, drhos2, laps, dsigs, quads
 
     if (.not.allocated(f%cint)) then
        call ferror('uslater','basis set data required for USLATER calculation',faterr)
     end if
 
+    if (present(nheff)) then
+       nder = 2
+    else
+       nder = 0
+    end if
+
     ! calculate the density and the MO values at the point
-    call f%rho2(xpos,0,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
+    call f%rho2(xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
 
     ! calculate the q-mu = sum_i psi_i * c_{mu,i}
     nbast = f%cint%nbast
@@ -2366,12 +2374,24 @@ contains
     end do
 
     ! calculate the Slater potential
-    uslater = -dot_product(matmul(q,vmn),q) / max(rho(1),1d-40)
+    ux = -dot_product(matmul(q,vmn),q) / max(rhoval(1),1d-40)
+
+    ! calculate the effective hole normalization
+    if (present(nheff)) then
+       rhos = 0.5d0 * rhoval(1)
+       laps = 0.5d0 * (hval(1,1,1)+hval(2,2,1)+hval(3,3,1))
+       drhos2 = 0.5d0 * norm2(gradval(:,1))
+       drhos2 = drhos2 * drhos2
+       dsigs = gkin(1) - 0.25d0 * drhos2 / max(rhos,1d-40)
+       quads = (laps - 2d0 * dsigs) / 6d0
+       ux = 2d0 * ux
+       call xlnorm(rhos,quads,ux,nheff)
+    end if
 #else
-    uslater = 0d0
+    ux = 0d0
     call ferror('mep','USLATER calculation requires compiling with the libCINT library',faterr)
 #endif
-  end function uslater
+  end subroutine uslater
 
   !> Calculate a particular MO values at position xpos (Cartesian) and
   !> returns it in phi. fder is the selector for the MO.

@@ -236,11 +236,12 @@ module wfn_private
        real*8, intent(in) :: xpos(3)
        real*8 :: mep
      end function mep
-     module function uslater(f,xpos)
+     module subroutine uslater(f,xpos,ux,nheff)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
-       real*8 :: uslater
-     end function uslater
+       real*8, intent(out) :: ux
+       real*8, intent(out), optional :: nheff
+     end subroutine uslater
      module subroutine calculate_mo(f,xpos,phi,fder)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)

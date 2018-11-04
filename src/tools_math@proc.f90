@@ -1412,6 +1412,83 @@ contains
 
   end subroutine bhole
 
+  !> Calculate the effective hole normalization using the reverse BR
+  !> trick. From numol. rho = spin density; quad = qsigma; uxpos = 
+  !> Slater potential (spin). xlnrm = effective hole normalization.
+  module subroutine xlnorm(rho,quad,uxpos,xlnrm)
+    use tools_io, only: ferror, faterr
+    use param, only: pi
+    real*8, intent(in) :: rho, quad, uxpos
+    real*8, intent(out) :: xlnrm
+
+    real*8 :: rhs, x0, shift, x, f, df, x1, alf, a
+    integer :: i
+    logical :: found
+
+    if (rho < 1.d-10) then
+       xlnrm=1.D0
+       return
+    end if
+    rhs=-4.d0*pi/3.d0*rho*rho/quad/uxpos
+    x0=2.D0
+    shift=1.D0
+    found = .false.
+    if (rhs < 0.d0) then
+       do i = 1, 16
+          x = x0 - shift
+          call xlfuns(x,rhs,f,df)
+          if (f < 0.D0) then
+             found = .true.
+             exit
+          end if
+          shift=0.1d0*shift
+       end do
+       if (.not.found) &
+          call ferror('xlnorm','newton algorithm failed to initialize',faterr)
+    else
+       do i=1, 16
+          x=x0+shift
+          call xlfuns(x,rhs,f,df)
+          if(f > 0.D0) then
+             found = .true.
+             exit
+          endif
+          shift=0.1d0*shift
+       end DO
+       if (.not.found) &
+          call ferror('xlnorm','newton algorithm failed to initialize',faterr)
+    endif
+    found = .false.
+    do i = 1, 100
+       call xlfuns(x,rhs,f,df)
+       x1=x-f/df
+       if(dabs(x1-x) < 1.d-10) then
+          found = .true.
+          exit
+       end if
+       x=x1
+    end do
+    if (.not.found) &
+       call ferror('xlnorm','newton algorithm failed to converge',faterr)
+    x=x1
+    alf=dsqrt(6.d0*quad*x/rho/(x-2.d0))
+    a=rho*exp(x)
+    xlnrm=min(8.d0*pi*a/alf**3,2.d0)
+
+  contains
+    ! RHS of the BR hole equation and derivative
+    subroutine xlfuns(x,rhs,f,df)
+      real*8, intent(in) :: x, rhs
+      real*8, intent(out) :: f, df
+      real*8 :: expo, bot
+      expo=exp(x)
+      bot=(x-2.d0)*(expo-1.d0-0.5d0*x)
+      f = x*x/bot - rhs
+      df=4.d0*x-(4.d0*x-3.d0*x*x+x**3)*expo
+      df=df/bot**2
+    end subroutine xlfuns
+  end subroutine xlnorm
+
   !xx! private procedures
 
   !< RHS of the BR hole equation, and derivative. 

@@ -52,6 +52,7 @@ module tools_math
   public :: rmsd_walker
   public :: gauleg
   public :: bhole
+  public :: xlnorm
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -259,6 +260,10 @@ module tools_math
        real*8, intent(out) :: alf
        real*8, intent(out) :: prefac
      end subroutine bhole
+     module subroutine xlnorm(rho,quad,uxpos,xlnrm)
+       real*8, intent(in) :: rho, quad, uxpos
+       real*8, intent(out) :: xlnrm
+     end subroutine xlnorm
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts

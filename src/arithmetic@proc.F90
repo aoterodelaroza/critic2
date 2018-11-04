@@ -112,6 +112,7 @@ submodule (arithmetic) proc
   integer, parameter :: fun_dsigs       = 69 !< leading coefficient same-spin pair density, spin avg.
   integer, parameter :: fun_mep         = 70 !< Molecular electrostatic potential
   integer, parameter :: fun_uslater     = 71 !< Slater potential
+  integer, parameter :: fun_nheff       = 72 !< Effective exchange hole normalization
 
   ! enum for structural variables
   integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
@@ -876,7 +877,7 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater
+          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
@@ -888,7 +889,7 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater
+          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff
     elseif (type == 'operator') then
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
@@ -1493,6 +1494,8 @@ contains
           c = fun_mep
        case ("uslater")
           c = fun_uslater
+       case ("nheff")
+          c = fun_nheff
        case default
           lp = lpo
           return
@@ -1970,7 +1973,7 @@ contains
   
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
-    real*8 :: br_b, br_alf, br_a, raux(3)
+    real*8 :: br_b, br_alf, br_a, raux(3), ux
     integer :: idx
     logical :: dohole, use1, use2
   
@@ -2155,13 +2158,15 @@ contains
        elseif (c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
           q = dsigs
        end if
-    case (fun_mep,fun_uslater)
+    case (fun_mep,fun_uslater,fun_nheff)
        if (.not.syl%goodfield(id=idx,type=type_wfn)) &
-          call die("Tried to calculate MEP with a non-wavefunction field")
+          call die("Tried to calculate MEP/USLATER/etc. with a non-wavefunction field")
        if (c == fun_mep) then
           q = syl%f(idx)%wfn%mep(x0)
-       else 
-          q = syl%f(idx)%wfn%uslater(x0)
+       else if (c == fun_uslater) then
+          call syl%f(idx)%wfn%uslater(x0,q)
+       else if (c == fun_nheff) then
+          call syl%f(idx)%wfn%uslater(x0,ux,nheff=q)
        end if
     end select
   
