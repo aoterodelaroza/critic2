@@ -111,6 +111,7 @@ submodule (arithmetic) proc
   integer, parameter :: fun_dsigs2      = 68 !< leading coefficient same-spin pair density, spin down
   integer, parameter :: fun_dsigs       = 69 !< leading coefficient same-spin pair density, spin avg.
   integer, parameter :: fun_mep         = 70 !< Molecular electrostatic potential
+  integer, parameter :: fun_uslater     = 71 !< Slater potential
 
   ! enum for structural variables
   integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
@@ -875,7 +876,7 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep
+          c == fun_mep .or. c == fun_uslater
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
@@ -887,7 +888,7 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep
+          c == fun_mep .or. c == fun_uslater
     elseif (type == 'operator') then
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
@@ -1490,6 +1491,8 @@ contains
           c = fun_dsigs
        case ("mep")
           c = fun_mep
+       case ("uslater")
+          c = fun_uslater
        case default
           lp = lpo
           return
@@ -2152,10 +2155,14 @@ contains
        elseif (c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
           q = dsigs
        end if
-    case (fun_mep)
+    case (fun_mep,fun_uslater)
        if (.not.syl%goodfield(id=idx,type=type_wfn)) &
           call die("Tried to calculate MEP with a non-wavefunction field")
-       q = syl%f(idx)%wfn%mep(x0)
+       if (c == fun_mep) then
+          q = syl%f(idx)%wfn%mep(x0)
+       else 
+          q = syl%f(idx)%wfn%uslater(x0)
+       end if
     end select
   
   contains

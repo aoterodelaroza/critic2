@@ -2211,7 +2211,7 @@ contains
 
   end subroutine rho2
   
-  !> Calculate the molecular electrostatic potential.
+  !> Calculate the molecular electrostatic potential at point xpos (Cartesian).
   module function mep(f,xpos)
     use tools_io, only: faterr, ferror
     class(molwfn), intent(in) :: f
@@ -2223,8 +2223,8 @@ contains
     integer :: shls(4)
     real*8 :: dd, vnuc
     real*8, allocatable :: pmn(:,:), vmn(:,:), buf1e(:,:,:), env(:)
-    integer, external :: CINTcgto_cart, CINT1e_rinv_cart, CINT1e_ovlp_cart
-    integer, external :: CINTcgto_spheric, CINT1e_rinv_sph, CINT1e_ovlp_sph
+    integer, external :: CINTcgto_cart, CINT1e_rinv_cart
+    integer, external :: CINTcgto_spheric, CINT1e_rinv_sph
 
     if (.not.allocated(f%cint)) then
        call ferror('mep','basis set data required for MEP calculation',faterr)
@@ -2291,6 +2291,87 @@ contains
     call ferror('mep','MEP calculation requires compiling with the libCINT library',faterr)
 #endif
   end function mep
+
+  !> Calculate the Slater potential at point xpos (Cartesian).
+  module function uslater(f,xpos)
+    use tools_io, only: faterr, ferror
+    class(molwfn), intent(in) :: f
+    real*8, intent(in) :: xpos(3)
+    real*8 :: uslater
+#ifdef HAVE_CINT
+    integer :: i, j, is0
+    integer :: nbast, ioff, di, joff, dj
+    integer :: shls(4)
+    real*8, allocatable :: vmn(:,:), buf1e(:,:,:), env(:)
+    integer, external :: CINTcgto_cart, CINT1e_rinv_cart
+    integer, external :: CINTcgto_spheric, CINT1e_rinv_sph
+    real*8, allocatable :: xmo(:), q(:)
+    real*8 :: rho(3), rhoval(3), grad(3,3), gradval(3,3), h(3,3,3), hval(3,3,3)
+    real*8 :: gkin(3), vir, stress(3,3)
+
+    if (.not.allocated(f%cint)) then
+       call ferror('uslater','basis set data required for USLATER calculation',faterr)
+    end if
+
+    ! calculate the density and the MO values at the point
+    call f%rho2(xpos,0,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
+
+    ! calculate the q-mu = sum_i psi_i * c_{mu,i}
+    nbast = f%cint%nbast
+    allocate(q(nbast))
+    q = matmul(xmo,f%cint%moc)
+
+    ! allocate space for the vmn integrals
+    shls = 0
+    allocate(vmn(nbast,nbast))
+    vmn = 0d0
+
+    ! set the target point
+    allocate(env(size(f%cint%env,1)))
+    env = f%cint%env
+    env(cint_ptr_rinv_orig+1:cint_ptr_rinv_orig+3) = xpos
+
+    ! calculate the electronic contribution
+    ioff = 0
+    do i = 1, f%cint%nbas
+       if (f%cint%lsph) then
+          di = CINTcgto_spheric(i-1, f%cint%bas)
+       else
+          di = CINTcgto_cart(i-1, f%cint%bas)
+       end if
+       joff = 0
+       do j = 1, f%cint%nbas
+          if (f%cint%lsph) then
+             dj = CINTcgto_spheric(j-1, f%cint%bas)
+          else
+             dj = CINTcgto_cart(j-1, f%cint%bas)
+          end if
+          if (j >= i) then
+             allocate(buf1e(di,dj,1))
+             shls(1) = i-1
+             shls(2) = j-1
+
+             if (f%cint%lsph) then
+                is0 = CINT1e_rinv_sph(buf1e,shls,f%cint%atm,f%cint%natm,f%cint%bas,f%cint%nbas,env)
+             else
+                is0 = CINT1e_rinv_cart(buf1e,shls,f%cint%atm,f%cint%natm,f%cint%bas,f%cint%nbas,env)
+             end if
+             vmn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
+             vmn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(vmn(ioff+1:ioff+di,joff+1:joff+dj))
+             deallocate(buf1e)
+          end if
+          joff = joff + dj
+       end do
+       ioff = ioff + di
+    end do
+
+    ! calculate the Slater potential
+    uslater = -dot_product(matmul(q,vmn),q) / (0.5d0 * max(rho(1),1d-40))
+#else
+    uslater = 0d0
+    call ferror('mep','USLATER calculation requires compiling with the libCINT library',faterr)
+#endif
+  end function uslater
 
   !> Calculate a particular MO values at position xpos (Cartesian) and
   !> returns it in phi. fder is the selector for the MO.

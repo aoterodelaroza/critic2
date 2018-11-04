@@ -125,6 +125,7 @@ module wfn_private
      procedure :: read_molden !< read wavefunction from a molden file
      procedure :: rho2 !< calculate the density, derivatives, and other properties
      procedure :: mep !< calculate the molecular electrostatic potential
+     procedure :: uslater !< calculate the Slater potential
      procedure :: calculate_mo !< calculate the MO values at a point (driver)
   end type molwfn
   public :: molwfn
@@ -235,6 +236,11 @@ module wfn_private
        real*8, intent(in) :: xpos(3)
        real*8 :: mep
      end function mep
+     module function uslater(f,xpos)
+       class(molwfn), intent(in) :: f
+       real*8, intent(in) :: xpos(3)
+       real*8 :: uslater
+     end function uslater
      module subroutine calculate_mo(f,xpos,phi,fder)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
