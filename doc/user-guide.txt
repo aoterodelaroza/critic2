@@ -1061,6 +1061,9 @@ convenient. The library of chemical functions includes:
 
   + Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
 
+The following functions can be used with molecular wavefunction fields
+only:
+
 * brhole_a1(id), brhole_a2(id), brhole_a(id): the A prefactor of the
   spherically averaged hole model proposd by Becke and Roussel
   (spin up, down, and average, respectively). The BR hole is an
@@ -1087,6 +1090,11 @@ convenient. The library of chemical functions includes:
   literature:
 
   + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+
+* mep(id): molecular electrostatic potential. This function requires a
+  molecular wavefunction with basis set information (at present, a
+  Gaussian fchk file) and having critic2 compiled with the libCINT
+  library to calculate the molecular integrals involved.
 
 The name in square brackets, if available, is a shorthand for applying
 the chemical function to the reference field (case-insensitive) in the

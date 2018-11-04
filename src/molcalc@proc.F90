@@ -297,7 +297,7 @@ contains
                   is0 = CINT1e_nuc_cart(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
                end if
                hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
-
+               
                ! overlap
                if (cint%lsph) then
                   is0 = CINT1e_ovlp_sph(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)

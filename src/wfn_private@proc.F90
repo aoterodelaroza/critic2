@@ -144,6 +144,10 @@ submodule (wfn_private) proc
   ! threshold for primitive exponential range
   real*8, parameter :: rprim_thres = 1d-12
 
+  ! some offsets for libCINT, from cint_const.h
+  integer, parameter :: cint_ptr_rinv_orig = 4
+  integer, parameter :: cint_ptr_env_start = 20
+
 contains
 
   !> Terminate the wfn arrays
@@ -1283,12 +1287,14 @@ contains
     if (istat /= 0) call ferror('read_fchk','could not allocate memory for moc',faterr)
     
     ! prepare space for the doubles
-    allocate(f%cint%env(4*env%ncell + 2*nshel))
+    allocate(f%cint%env(cint_ptr_env_start + 4*env%ncell + 2*nshel))
+    f%cint%env = 0d0
 
     ! atom info
-    off = 0
+    off = cint_ptr_env_start
     f%cint%natm = env%ncell
     allocate(f%cint%atm(6,f%cint%natm))
+    f%cint%atm = 0
     do i = 1, env%ncell
        f%cint%atm(1,i) = env%spc(env%at(i)%is)%z
        f%cint%atm(2,i) = off
@@ -1309,6 +1315,7 @@ contains
     ! shells
     f%cint%nbas = ncshel
     allocate(f%cint%bas(8,ncshel))
+    f%cint%bas = 0
     nn = 0
     f%cint%nbast = 0
     do i = 1, ncshel
@@ -2203,6 +2210,87 @@ contains
     end do
 
   end subroutine rho2
+  
+  !> Calculate the molecular electrostatic potential.
+  module function mep(f,xpos)
+    use tools_io, only: faterr, ferror
+    class(molwfn), intent(in) :: f
+    real*8, intent(in) :: xpos(3)
+    real*8 :: mep
+#ifdef HAVE_CINT
+    integer :: i, j, is0
+    integer :: nbast, ioff, di, joff, dj
+    integer :: shls(4)
+    real*8 :: dd, vnuc
+    real*8, allocatable :: pmn(:,:), vmn(:,:), buf1e(:,:,:), env(:)
+    integer, external :: CINTcgto_cart, CINT1e_rinv_cart, CINT1e_ovlp_cart
+    integer, external :: CINTcgto_spheric, CINT1e_rinv_sph, CINT1e_ovlp_sph
+
+    if (.not.allocated(f%cint)) then
+       call ferror('mep','basis set data required for MEP calculation',faterr)
+    end if
+
+    ! allocate space for the integrals, initialize with the 1-dm
+    shls = 0
+    nbast = f%cint%nbast
+    allocate(vmn(nbast,nbast),pmn(nbast,nbast))
+    pmn = 2d0 * matmul(transpose(f%cint%moc),f%cint%moc)
+    vmn = 0d0
+
+    ! set the target point
+    allocate(env(size(f%cint%env,1)))
+    env = f%cint%env
+    env(cint_ptr_rinv_orig+1:cint_ptr_rinv_orig+3) = xpos
+
+    ! calculate the electronic contribution
+    ioff = 0
+    do i = 1, f%cint%nbas
+       if (f%cint%lsph) then
+          di = CINTcgto_spheric(i-1, f%cint%bas)
+       else
+          di = CINTcgto_cart(i-1, f%cint%bas)
+       end if
+       joff = 0
+       do j = 1, f%cint%nbas
+          if (f%cint%lsph) then
+             dj = CINTcgto_spheric(j-1, f%cint%bas)
+          else
+             dj = CINTcgto_cart(j-1, f%cint%bas)
+          end if
+          if (j >= i) then
+             allocate(buf1e(di,dj,1))
+             shls(1) = i-1
+             shls(2) = j-1
+
+             if (f%cint%lsph) then
+                is0 = CINT1e_rinv_sph(buf1e,shls,f%cint%atm,f%cint%natm,f%cint%bas,f%cint%nbas,env)
+             else
+                is0 = CINT1e_rinv_cart(buf1e,shls,f%cint%atm,f%cint%natm,f%cint%bas,f%cint%nbas,env)
+             end if
+             vmn(ioff+1:ioff+di,joff+1:joff+dj) = buf1e(:,:,1)
+             vmn(joff+1:joff+dj,ioff+1:ioff+di) = transpose(vmn(ioff+1:ioff+di,joff+1:joff+dj))
+             deallocate(buf1e)
+          end if
+          joff = joff + dj
+       end do
+       ioff = ioff + di
+    end do
+    mep = sum(pmn * vmn)
+
+    ! calculate the nuclear contribution
+    vnuc = 0d0
+    do i = 1, f%env%n
+       vnuc = vnuc + f%env%spc(f%env%at(i)%is)%z / norm2(xpos - f%env%at(i)%r)
+    end do
+
+    ! final result
+    mep = vnuc - mep
+
+#else
+    mep = 0d0
+    call ferror('mep','MEP calculation requires compiling with the libCINT library',faterr)
+#endif
+  end function mep
 
   !> Calculate a particular MO values at position xpos (Cartesian) and
   !> returns it in phi. fder is the selector for the MO.

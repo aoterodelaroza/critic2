@@ -124,6 +124,7 @@ module wfn_private
      procedure :: read_fchk !< read wavefunction from a Gaussian formatted checkpoint file
      procedure :: read_molden !< read wavefunction from a molden file
      procedure :: rho2 !< calculate the density, derivatives, and other properties
+     procedure :: mep !< calculate the molecular electrostatic potential
      procedure :: calculate_mo !< calculate the MO values at a point (driver)
   end type molwfn
   public :: molwfn
@@ -215,7 +216,6 @@ module wfn_private
        type(environ), intent(in), target :: env
      end subroutine read_molden
      module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
-       use tools_io, only: ferror, faterr
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
        integer, intent(in) :: nder 
@@ -230,6 +230,11 @@ module wfn_private
        real*8, intent(out) :: stress(3,3)
        real*8, allocatable, intent(out), optional :: xmo(:)
      end subroutine rho2
+     module function mep(f,xpos)
+       class(molwfn), intent(in) :: f
+       real*8, intent(in) :: xpos(3)
+       real*8 :: mep
+     end function mep
      module subroutine calculate_mo(f,xpos,phi,fder)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)

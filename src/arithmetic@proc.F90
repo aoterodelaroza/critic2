@@ -110,6 +110,7 @@ submodule (arithmetic) proc
   integer, parameter :: fun_dsigs1      = 67 !< leading coefficient same-spin pair density, spin up
   integer, parameter :: fun_dsigs2      = 68 !< leading coefficient same-spin pair density, spin down
   integer, parameter :: fun_dsigs       = 69 !< leading coefficient same-spin pair density, spin avg.
+  integer, parameter :: fun_mep         = 70 !< Molecular electrostatic potential
 
   ! enum for structural variables
   integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
@@ -873,7 +874,8 @@ contains
           c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
-          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs
+          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
+          c == fun_mep
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
@@ -884,7 +886,8 @@ contains
           c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
-          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs
+          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
+          c == fun_mep
     elseif (type == 'operator') then
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
@@ -1485,6 +1488,8 @@ contains
           c = fun_dsigs2
        case ("dsigs")
           c = fun_dsigs
+       case ("mep")
+          c = fun_mep
        case default
           lp = lpo
           return
@@ -1950,6 +1955,7 @@ contains
   !> thread-safe.
   function chemfunction(c,sia,x0,syl,periodic) result(q)
     use systemmod, only: system
+    use fieldmod, only: type_wfn
     use tools_math, only: bhole
     use types, only: scalar_value
     integer, intent(in) :: c
@@ -2146,6 +2152,10 @@ contains
        elseif (c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
           q = dsigs
        end if
+    case (fun_mep)
+       if (.not.syl%goodfield(id=idx,type=type_wfn)) &
+          call die("Tried to calculate MEP with a non-wavefunction field")
+       q = syl%f(idx)%wfn%mep(x0)
     end select
   
   contains

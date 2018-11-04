@@ -411,6 +411,7 @@ expression.r # prints the value of the expression to the output.
 * xhcurv1(id), xhcurv2(id), xhcurv(id) # Curvature of the exchange hole at the reference point (spin up, down, and average)
 * dsigs1(id), dsigs2(id), dsigs(id) # Same-spin pair density leading coefficient (Dsigma) (spin up, down, and average)
 * stress [STRESS] # Schrodinger stress tensor of the reference field
+* mep(id) # Molecular electrostatic potential
 * xc(...,idx)
 
 # List of field modifiers ($field:modifier):
