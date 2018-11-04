@@ -2366,7 +2366,7 @@ contains
     end do
 
     ! calculate the Slater potential
-    uslater = -dot_product(matmul(q,vmn),q) / (0.5d0 * max(rho(1),1d-40))
+    uslater = -dot_product(matmul(q,vmn),q) / max(rho(1),1d-40)
 #else
     uslater = 0d0
     call ferror('mep','USLATER calculation requires compiling with the libCINT library',faterr)

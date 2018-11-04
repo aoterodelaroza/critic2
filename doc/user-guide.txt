@@ -1091,10 +1091,17 @@ only:
 
   + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
 
-* mep(id): molecular electrostatic potential. This function requires a
-  molecular wavefunction with basis set information (at present, a
-  Gaussian fchk file) and having critic2 compiled with the libCINT
-  library to calculate the molecular integrals involved.
+The following functions require both a molecular wavefunction and
+basis set information (at present, from a Gaussian fchk file noly). In
+addition, it is necessary to have critic2 compiled with the libCINT
+library to calculate the integrals involved.
+
+* mep(id): molecular electrostatic potential. 
+
+* uslater(id): Slater potential U_x. The HF exchange energy is 
+  the integral of rho times U_x. See:
+
+  A.D. Becke, J. Chem. Phys. 138 (2013) 074109.
 
 The name in square brackets, if available, is a shorthand for applying
 the chemical function to the reference field (case-insensitive) in the

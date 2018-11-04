@@ -412,6 +412,7 @@ expression.r # prints the value of the expression to the output.
 * dsigs1(id), dsigs2(id), dsigs(id) # Same-spin pair density leading coefficient (Dsigma) (spin up, down, and average)
 * stress [STRESS] # Schrodinger stress tensor of the reference field
 * mep(id) # Molecular electrostatic potential
+* uslater(id) # Slater potential
 * xc(...,idx)
 
 # List of field modifiers ($field:modifier):
