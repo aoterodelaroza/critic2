@@ -2045,9 +2045,12 @@ contains
     
     ! initialize and calculate the environment of the point
     rho = 0d0
+    rhoval = 0d0
     grad = 0d0
+    gradval = 0d0
     hh = 0d0
     h = 0d0
+    hval = 0d0
     gkin = 0d0
     vir = 0d0
     stress = 0d0

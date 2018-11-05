@@ -4220,8 +4220,8 @@ identified and an adequate number of gradient paths are started
 according to its character: for a ncp and ccp, 36 upwards or downwards
 and for a bcp or rcp, 2 upwards and 2 downwards.
 
-The CONTOUR keyword tells critic2 to generate a plot in which the
-gradient paths calculated in GRDVEC is merged with a contour plot, in
+The CONTOUR keyword makes critic2 generate a plot in which the
+gradient paths calculated in GRDVEC are merged with a contour plot, in
 the spirit of PLANE CONTOUR (see `Planes and contour plots
 (PLANE)`_). The scalar field for the contour plot can be selected with
 F (current reference field), GX, GY,... The syntax for the derivatives

@@ -1065,7 +1065,7 @@ contains
           ok = ok .and. eval_next (r2(2), line, lp)
           ok = ok .and. eval_next (r2(3), line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
              return
           end if
           if (sy%c%ismolecule) then
@@ -1079,14 +1079,14 @@ contains
           ok = eval_next(sx0,line,lp)
           ok = ok .and. eval_next(sy0,line,lp)
           if (.not. ok) then
-             call ferror('grdvec','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,'extendx')) then
           ok = eval_next(zx0,line,lp)
           ok = ok .and. eval_next(zx1,line,lp)
           if (.not. ok) then
-             call ferror('grdvec','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
           zx0 = zx0 / dunit0(iunit)
@@ -1095,7 +1095,7 @@ contains
           ok = eval_next(zy0,line,lp)
           ok = ok .and. eval_next(zy1,line,lp)
           if (.not. ok) then
-             call ferror('grdvec','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
           zy0 = zy0 / dunit0(iunit)
@@ -1104,7 +1104,7 @@ contains
           ok = eval_next(outcpx, line, lp)
           ok = ok .and. eval_next(outcpy, line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','Bad outcp options',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Bad outcp options',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -1114,7 +1114,7 @@ contains
           ok = eval_next (xdum, line, lp)
           if (ok) RHOP_Hmax = xdum / dunit0(iunit)
           if (.not. ok) then
-             call ferror ('grdvec','Wrong hmax line',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Wrong hmax line',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -1123,18 +1123,18 @@ contains
        else if (equal(word,'cp')) then
           newncriticp = newncriticp + 1
           if (newncriticp .gt. mncritp) then
-             call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
+             call ferror('rhoplot_grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
              return
           end if
           ok = eval_next (cpid, line, lp)
           ok = ok .and. eval_next (cpup(newncriticp), line, lp)
           ok = ok .and. eval_next (cpdn(newncriticp), line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','bad cp option',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','bad cp option',faterr,line,syntax=.true.)
              return
           end if
           if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
-             call ferror ('grdvec','cp not recognized',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','cp not recognized',faterr,line,syntax=.true.)
              return
           end if
           newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(cpid)%x
@@ -1212,7 +1212,7 @@ contains
           dograds = .true.
           norig = norig + 1
           if (norig .gt. MORIG) then
-             call ferror ('grdvec','Too many ORIGIN points. Increase MORIG',faterr,syntax=.true.)
+             call ferror('rhoplot_grdvec','Too many ORIGIN points. Increase MORIG',faterr,syntax=.true.)
              return
           end if
           ok = eval_next (grpx(1,norig), line, lp)
@@ -1222,7 +1222,7 @@ contains
           ok = ok .and. eval_next (grpup(norig), line, lp)
           ok = ok .and. eval_next (grpdwn(norig), line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
              return
           end if
           grpx(:,norig) = sy%c%c2x(grpx(:,norig) / dunit0(iunit) - sy%c%molx0)
@@ -1239,7 +1239,7 @@ contains
           do while (ok.and..not.equal(word, 'endcheck').and..not.equal(word, 'end'))
              newncriticp = newncriticp + 1
              if (newncriticp .gt. mncritp) then
-                call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
+                call ferror('rhoplot_grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
                 return
              end if
              lp = 1
@@ -1346,7 +1346,7 @@ contains
                 ziso(niso) = rdum
              end do
              if (niso == 0) then
-                call ferror("rhoplot_plane","wrong contour values",faterr,line,syntax=.true.)
+                call ferror("rhoplot_grdvec","wrong contour values",faterr,line,syntax=.true.)
                 return
              end if
              call realloc(ziso,niso)
@@ -1354,7 +1354,7 @@ contains
           end if
 
           if (.not.ok) then
-             call ferror ('grdvec','wrong contour values',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong contour values',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -1365,16 +1365,16 @@ contains
           if (.not.ok) return
           goto 999
        else
-          call ferror ('grdvec','Unkown keyword in GRDVEC',faterr,line,syntax=.true.)
+          call ferror('rhoplot_grdvec','Unkown keyword in GRDVEC',faterr,line,syntax=.true.)
           return
        endif
        doagain = getline(uin,line,ucopy=ucopy)
     enddo
-    call ferror('grdvec','Unexpected end of input',faterr,line,syntax=.true.)
+    call ferror('rhoplot_grdvec','Unexpected end of input',faterr,line,syntax=.true.)
     return
 999 continue
     if (.not.goodplane) then
-       call ferror ('grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
+       call ferror('rhoplot_grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
        return
     end if
 
@@ -1422,7 +1422,7 @@ contains
        else
           nder = 2
        end if
-       !$omp parallel do private (xp,res,rhopt) schedule(dynamic)
+       !$omp parallel do private(xp,res,rhopt) schedule(dynamic)
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1738,11 +1738,11 @@ contains
     end if
 
     if (cmopt == 1) then
-       write (lu,'("splot """,A,""" u 1:2:(log(abs($6))) ls 1 w pm3d notitle")') outfile
+       write (lu,'("splot """,A,""" u 4:5:(log(abs($6))) ls 1 w pm3d notitle")') outfile
     elseif (cmopt == 2) then
-       write (lu,'("splot """,A,""" u 1:2:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
+       write (lu,'("splot """,A,""" u 4:5:(2/pi*atan($6)) ls 1 w pm3d notitle")') outfile
     else
-       write (lu,'("splot """,A,""" u 1:2:6 ls 1 w pm3d notitle")') outfile
+       write (lu,'("splot """,A,""" u 4:5:6 ls 1 w pm3d notitle")') outfile
     end if
 
     ! wrap up
@@ -2068,7 +2068,7 @@ contains
   !> by the vectors (r1-r0) & (r2-r0).
   subroutine plotvec(r0,r1,r2,autocheck,udat)
     use systemmod, only: sy
-    use global, only: dunit0, iunit, prunedist, gcpchange
+    use global, only: dunit0, iunit, iunitname0, prunedist, gcpchange
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
@@ -2162,6 +2162,10 @@ contains
           string(u,'f',decimal=6,length=11,justify=4), string(v,'f',decimal=6,length=11,justify=4)
     enddo
     write (uout,*)
+
+    ! write the data file header
+    write (udat,'("# Gradient path information")') 
+    write (udat,'("# u(",A,") v(",A,") x(",A,") y(",A,") z(",A,") color")') (trim(iunitname0(iunit)),j=1,5)
 
     write (uout,'("+ List of gradient paths traced")')
     write (uout,'("# i       xcrys        ycrys        zcrys        type    up down    pts")')
@@ -2363,7 +2367,7 @@ contains
              uort = u*r01 + v*r02*cosalfa
              vort = v*r02*sinalfa
              if (abs(h) < grphcutoff .or. grpproj > 0) then
-                write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+                write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j)*dd, j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
              end if
           end if
           if (.not.wasblank) write (udat,*)
@@ -2373,7 +2377,7 @@ contains
           uort = u*r01 + v*r02*cosalfa
           vort = v*r02*sinalfa
           if (abs(h) < grphcutoff .or. grpproj > 0) then
-             write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+             write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j)*dd, j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
           end if
        endif
     enddo

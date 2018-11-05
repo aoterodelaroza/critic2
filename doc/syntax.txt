@@ -232,7 +232,7 @@ expression.r # prints the value of the expression to the output.
         ...
    ENDCHECK/END
    CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP} 
-     nptsu.i nptsv.i {LIN niso.i cini.r cend.r|
+     nptsu.i nptsv.i {LIN niso.i [cini.r cend.r]|
      LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
      BADER|i1.i i2.i...}
   ENDGRDVEC/END
