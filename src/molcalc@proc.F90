@@ -320,7 +320,7 @@ contains
       ! make the 1-dm
       pmn = matmul(transpose(cint%moc),cint%moc) * 2d0
 
-      ! eri = 0d0
+      ! fixme: use the ERI symmetries 
       jmn = 0d0
       kmn = 0d0
       ioff = 0
