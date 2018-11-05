@@ -1,0 +1,8 @@
+crystal feo.pwc
+load rhoae.cube id rho
+load feo.pwc feo_up.chk feo_dn.chk
+
+integrable 2
+integrable 2 deloc
+
+yt

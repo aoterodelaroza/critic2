@@ -1,0 +1,8 @@
+crystal urea.pwc
+load rhoae.cube id rho
+load urea.pwc urea.chk
+
+integrable 2
+integrable 2 deloc
+
+yt

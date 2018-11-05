@@ -1,0 +1,6 @@
+&inputpp 
+ prefix='crystal_open',
+ seedname = 'mgo',
+ write_mmn = .true.,
+ write_amn = .true.,
+/

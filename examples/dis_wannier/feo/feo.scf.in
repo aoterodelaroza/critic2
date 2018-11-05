@@ -1,0 +1,36 @@
+&control
+ title='crystal',
+ prefix='crystal',
+ pseudo_dir='../../data',
+ outdir='.',
+ wf_collect=.true.,
+/
+&system
+ ibrav=0,
+ celldm(1)=1.0,
+ nat=2,
+ ntyp=2,
+ ecutwfc=80.0,
+ ecutrho=320.0,
+ nspin=2,
+ tot_magnetization=4.0,
+ nosym=.true.,
+/
+&electrons
+ conv_thr = 1d-8,
+/
+ATOMIC_SPECIES
+fe    55.845000 fe.UPF
+o     15.999400 o.UPF
+
+ATOMIC_POSITIONS crystal
+fe    0.00000000     0.00000000     0.00000000
+o     0.50000000     0.50000000     0.50000000
+
+K_POINTS automatic
+6 6 6 0 0 0
+
+CELL_PARAMETERS
+   -0.000000000000     4.093146803830    -4.093146803830
+    4.093146803830     4.093146803830     0.000000000000
+    4.093146803830     0.000000000000    -4.093146803830

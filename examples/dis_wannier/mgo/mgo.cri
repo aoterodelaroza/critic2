@@ -1,0 +1,8 @@
+crystal mgo.pwc
+load rhoae.cube
+load mgo.pwc mgo.chk
+
+integrable 2
+integrable 2 deloc
+
+yt

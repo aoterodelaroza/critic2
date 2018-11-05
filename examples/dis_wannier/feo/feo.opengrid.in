@@ -1,0 +1,4 @@
+&inputpp
+ outdir='.',
+ prefix='crystal',
+/
