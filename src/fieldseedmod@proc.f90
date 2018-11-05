@@ -131,6 +131,9 @@ contains
     elseif (equal(lfile,"molden")) then
        f%iff = ifformat_molden
        call read_next_as_file()
+    elseif (equal(lfile,"pwc")) then
+       f%iff = ifformat_pwc
+       call read_next_as_file()
     elseif (equal(lfile,"as")) then
        f%iff = ifformat_as
     elseif (equal(lfile,"promolecular")) then
