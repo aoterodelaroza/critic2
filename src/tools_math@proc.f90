@@ -1066,7 +1066,7 @@ contains
           ! positive contours
           allocate(ziso(niso))
           ffmin = log(max(fmin,eps))
-          ffmax = log(abs(fmax))
+          ffmax = log(max(abs(fmax),eps))
           delta = (ffmax-ffmin)/(niso-1)
           do i = 1, niso
              ziso(i)=exp(ffmin+(i-1)*delta)

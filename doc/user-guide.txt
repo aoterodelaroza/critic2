@@ -1253,9 +1253,9 @@ in molecules in combination with the MOLCALC keyword. For instance, to
 calculate the dipole moment of a neutral molecule (in units of
 electrons*angstrom):
 
-molcalc "$wfx * @xc"
-molcalc "$wfx * @yc"
-molcalc "$wfx * @zc"
+  molcalc "$wfx * @xc"
+  molcalc "$wfx * @yc"
+  molcalc "$wfx * @zc"
 
 Similar expressions can also be used to create new scalar fields by
 restricting or modifying the values of a scalar field only in certain
