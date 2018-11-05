@@ -918,7 +918,7 @@ contains
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
   module subroutine read_fchk(f,file,readvirtual,env)
-    use tools_io, only: fopen_read, getline_raw, isinteger, faterr, ferror, fclose
+    use tools_io, only: fopen_read, getline_raw, isinteger, faterr, warning, ferror, fclose
     use param, only: pi, sqpi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
@@ -948,7 +948,6 @@ contains
     !             21   22   23   24   25   26   27   28   29   30   31   32   33   34   35   
     ! fchk:     zzzz yzzz yyzz yyyz yyyy xzzz xyzz xyyz xyyy xxzz xxyz xxyy xxxz xxxy xxxx
     ! critic2:  xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz 
-
     ! reorder the primitives within the same shell
     ! typtrans(fchk) = critic2
     integer, parameter :: typtrans(35) = (/&
@@ -982,6 +981,7 @@ contains
     ! were determined by examining the diagonal of the DM in simple calculations.
     integer, parameter :: icintsph(25) = (/&
        0, 0, 0, 0, 2, 2, -1, 1, -4, 3, 3, 0, 2, -3, 1, -6, 4, 4, 1, 3, -2, 2, -5, 1, -8 /)
+    !  s  <- p ->  <---   d   --->  <---       f     --->  <---          g         --->
 
     ! no ecps for now
     f%useecp = .false.
@@ -1171,12 +1171,18 @@ contains
     ccontr = rtemp(:,2)
     deallocate(itemp,rtemp)
 
+    ! h primitives not supported, for now
+    if (any(abs(ishlt) > 4)) then
+       call ferror('read_fchk','h primitives not suppported in fchk (fixme)',faterr)
+    end if
+
     ! count the number of primitives and basis functions
     f%npri = 0
     nbascar = 0
     nbassph = 0
     do i = 1, ncshel
        ityp = ishlt(i)
+       write (*,*) ishlt(i)
        nbascar = nbascar + nshlt(abs(ityp))
        nbassph = nbassph + nshlt(ityp)
        f%npri = f%npri + nshlt(abs(ishlt(i))) * ishlpri(i)
@@ -1281,110 +1287,116 @@ contains
     ! Build the information for the libCINT interface - calculation of 
     ! molecular integrals.
 #ifdef HAVE_CINT
-    ! save the basis set information
-    allocate(f%cint)
-    allocate(f%cint%moc(f%nmoocc,nbassph),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for moc',faterr)
-    
-    ! prepare space for the doubles
-    allocate(f%cint%env(cint_ptr_env_start + 4*env%ncell + 2*nshel))
-    f%cint%env = 0d0
+    ! For now, only for restricted wavefunctions, although the
+    ! following code also works for unrestricted.
+    if (f%wfntyp == wfn_rhf) then
+       ! save the basis set information
+       allocate(f%cint)
 
-    ! atom info
-    off = cint_ptr_env_start
-    f%cint%natm = env%ncell
-    allocate(f%cint%atm(6,f%cint%natm))
-    f%cint%atm = 0
-    do i = 1, env%ncell
-       f%cint%atm(1,i) = env%spc(env%at(i)%is)%z
-       f%cint%atm(2,i) = off
-       f%cint%atm(3,i) = 0
-       f%cint%atm(4,i) = off + 3
-       f%cint%atm(5:6,i) = 0
-       f%cint%env(off+1:off+3) = env%at(i)%r
-       f%cint%env(off+4) = 0d0
-       off = off + 4
-    end do
+       ! prepare space for the doubles
+       allocate(f%cint%env(cint_ptr_env_start + 4*env%ncell + 2*nshel))
+       f%cint%env = 0d0
 
-    ! cartesian/primitive
-    f%cint%lsph = any(ishlt(1:ncshel) < -1)
-    if (f%cint%lsph .and. any(ishlt(1:ncshel) > 1)) then
-       call ferror('read_fchk','libcint cannot mix cartesian and spherical primitives',faterr)
-    end if
-
-    ! shells
-    f%cint%nbas = ncshel
-    allocate(f%cint%bas(8,ncshel))
-    f%cint%bas = 0
-    nn = 0
-    f%cint%nbast = 0
-    do i = 1, ncshel
-       f%cint%bas(1,i) = ishlat(i)-1
-       f%cint%bas(2,i) = abs(ishlt(i))
-       f%cint%bas(3,i) = ishlpri(i)
-       f%cint%bas(4,i) = 1
-       f%cint%bas(5,i) = 0
-       f%cint%bas(6,i) = off
-       f%cint%bas(7,i) = off + ishlpri(i)
-       do j = 1, ishlpri(i)
-          nn = nn + 1
-          f%cint%env(off+j) = exppri(nn)
-          f%cint%env(off+ishlpri(i)+j) = ccontr(nn) * CINTgto_norm(f%cint%bas(2,i),f%cint%env(off+j))
+       ! atom info
+       off = cint_ptr_env_start
+       f%cint%natm = env%ncell
+       allocate(f%cint%atm(6,f%cint%natm))
+       f%cint%atm = 0
+       do i = 1, env%ncell
+          f%cint%atm(1,i) = env%spc(env%at(i)%is)%z
+          f%cint%atm(2,i) = off
+          f%cint%atm(3,i) = 0
+          f%cint%atm(4,i) = off + 3
+          f%cint%atm(5:6,i) = 0
+          f%cint%env(off+1:off+3) = env%at(i)%r
+          f%cint%env(off+4) = 0d0
+          off = off + 4
        end do
-       off = off + 2 * ishlpri(i)
-    end do
 
-    ! number of basis functions
-    f%cint%nbast = 0
-    do i = 1, ncshel
-       if (f%cint%lsph) then
-          f%cint%nbast = f%cint%nbast + CINTcgto_spheric(i-1, f%cint%bas)
-       else
-          f%cint%nbast = f%cint%nbast + CINTcgto_cart(i-1, f%cint%bas)
+       ! cartesian/primitive
+       f%cint%lsph = any(ishlt(1:ncshel) < -1)
+       if (f%cint%lsph .and. any(ishlt(1:ncshel) > 1)) then
+          call ferror('read_fchk','libcint cannot mix cartesian and spherical primitives - skipping',warning)
+          goto 99
        end if
-    end do
 
-    ! molecular orbital coefficients
-    nc = 0
-    do i = 1, ncshel
-       do j = jshl0(ishlt(i)), jshl1(ishlt(i))
-          nc = nc + 1
+       ! shells
+       f%cint%nbas = ncshel
+       allocate(f%cint%bas(8,ncshel))
+       f%cint%bas = 0
+       nn = 0
+       f%cint%nbast = 0
+       do i = 1, ncshel
+          f%cint%bas(1,i) = ishlat(i)-1
+          f%cint%bas(2,i) = abs(ishlt(i))
+          f%cint%bas(3,i) = ishlpri(i)
+          f%cint%bas(4,i) = 1
+          f%cint%bas(5,i) = 0
+          f%cint%bas(6,i) = off
+          f%cint%bas(7,i) = off + ishlpri(i)
+          do j = 1, ishlpri(i)
+             nn = nn + 1
+             f%cint%env(off+j) = exppri(nn)
+             f%cint%env(off+ishlpri(i)+j) = ccontr(nn) * CINTgto_norm(f%cint%bas(2,i),f%cint%env(off+j))
+          end do
+          off = off + 2 * ishlpri(i)
+       end do
 
-          if (ishlt(i) >= 0) then
-             ! Cartesian normalization factors to agree with libCINT convention
-             ityp = typtrans(j)
-             if (ityp == 1) then ! s
-                norm = 1d0
-             elseif (ityp >= 2 .and. ityp <= 4) then ! p
-                norm = 1d0
-             elseif (ityp >= 5 .and. ityp <= 7) then ! d (xx yy zz)
-                norm = sqrt(5d0) / (2d0 * sqpi)
-             elseif (ityp >= 8 .and. ityp <= 10) then ! d (xy xz yz)
-                norm = sqrt(15d0) / (2d0 * sqpi)
-             elseif (ityp >= 11 .and. ityp <= 13) then ! f (xxx yyy zzz)
-                norm = sqrt(7d0) / (2d0 * sqpi)
-             elseif (ityp >= 14 .and. ityp <= 19) then ! f (xyy xxy xxz xzz yzz yyz)
-                norm = sqrt(35d0) / (2d0 * sqpi)
-             elseif (ityp == 20) then ! f (xyz)
-                norm = sqrt(105d0) / (2d0 * sqpi) 
-             elseif (ityp >= 21 .and. ityp <= 23) then ! g (xxxx yyyy zzzz)
-                norm = sqrt(9d0) / (2d0 * sqpi)  
-             elseif (ityp >= 24 .and. ityp <= 29) then ! g (xxxy xxxz xyyy yyyz xzzz yzzz)
-                norm = sqrt(63d0) / (2d0 * sqpi) 
-             elseif (ityp >= 30 .and. ityp <= 32) then ! g (xxyy xxzz yyzz)
-                norm = sqrt(105d0) / (2d0 * sqpi)
-             elseif (ityp >= 33 .and. ityp <= 35) then ! g (xxyz xyyz xyzz)
-                norm = sqrt(315d0) / (2d0 * sqpi)
-             else
-                if (istat /= 0) call ferror('read_fchk','libcint: h primitives not suppported (fixme)',faterr)
-             end if
-             f%cint%moc(:,nc+icintcar(j)) = mosph(:,nc) * norm
+       ! number of basis functions
+       f%cint%nbast = 0
+       do i = 1, ncshel
+          if (f%cint%lsph) then
+             f%cint%nbast = f%cint%nbast + CINTcgto_spheric(i-1, f%cint%bas)
           else
-             ! spherical normalization factors to agree with libCINT convetion
-             f%cint%moc(:,nc+icintsph(j)) = mosph(:,nc)
+             f%cint%nbast = f%cint%nbast + CINTcgto_cart(i-1, f%cint%bas)
           end if
        end do
-    end do
+
+       ! molecular orbital coefficients
+       allocate(f%cint%moc(f%nmoocc,nbassph),stat=istat)
+       if (istat /= 0) call ferror('read_fchk','could not allocate memory for moc',faterr)
+       nc = 0
+       do i = 1, ncshel
+          do j = jshl0(ishlt(i)), jshl1(ishlt(i))
+             nc = nc + 1
+
+             if (ishlt(i) >= 0) then
+                ! Cartesian normalization factors to agree with libCINT convention
+                ityp = typtrans(j)
+                if (ityp == 1) then ! s
+                   norm = 1d0
+                elseif (ityp >= 2 .and. ityp <= 4) then ! p
+                   norm = 1d0
+                elseif (ityp >= 5 .and. ityp <= 7) then ! d (xx yy zz)
+                   norm = sqrt(5d0) / (2d0 * sqpi)
+                elseif (ityp >= 8 .and. ityp <= 10) then ! d (xy xz yz)
+                   norm = sqrt(15d0) / (2d0 * sqpi)
+                elseif (ityp >= 11 .and. ityp <= 13) then ! f (xxx yyy zzz)
+                   norm = sqrt(7d0) / (2d0 * sqpi)
+                elseif (ityp >= 14 .and. ityp <= 19) then ! f (xyy xxy xxz xzz yzz yyz)
+                   norm = sqrt(35d0) / (2d0 * sqpi)
+                elseif (ityp == 20) then ! f (xyz)
+                   norm = sqrt(105d0) / (2d0 * sqpi) 
+                elseif (ityp >= 21 .and. ityp <= 23) then ! g (xxxx yyyy zzzz)
+                   norm = sqrt(9d0) / (2d0 * sqpi)  
+                elseif (ityp >= 24 .and. ityp <= 29) then ! g (xxxy xxxz xyyy yyyz xzzz yzzz)
+                   norm = sqrt(63d0) / (2d0 * sqpi) 
+                elseif (ityp >= 30 .and. ityp <= 32) then ! g (xxyy xxzz yyzz)
+                   norm = sqrt(105d0) / (2d0 * sqpi)
+                elseif (ityp >= 33 .and. ityp <= 35) then ! g (xxyz xyyz xyzz)
+                   norm = sqrt(315d0) / (2d0 * sqpi)
+                else
+                   if (istat /= 0) call ferror('read_fchk','libcint: h primitives not suppported (fixme)',faterr)
+                end if
+                f%cint%moc(:,nc+icintcar(j)) = mosph(:,nc) * norm
+             else
+                ! spherical normalization factors to agree with libCINT convetion
+                f%cint%moc(:,nc+icintsph(j)) = mosph(:,nc)
+             end if
+          end do
+       end do
+    end if
+99  continue
 #endif
     deallocate(mosph)
     

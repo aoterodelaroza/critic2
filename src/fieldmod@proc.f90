@@ -1303,6 +1303,11 @@ contains
           end if
           write (uout,'("  Number of primitives ",A,": ",A)') str, string(f%wfn%npri)
           write (uout,'("  Number of EDFs: ",A)') string(f%wfn%nedf)
+          if (allocated(f%wfn%cint)) then
+             write (uout,'("  Basis set data available for molecular integrals")') 
+          else
+             write (uout,'("  Basis set data NOT available")') 
+          end if
        end if
     elseif (f%type == type_dftb) then
        if (isload) then
