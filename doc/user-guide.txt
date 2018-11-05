@@ -975,22 +975,32 @@ formulas. For instance, "gtf(1)" is the Thomas-Fermi kinetic energy
 density calculated using the electron density in field 1. In all
 instances, "gtf(1)" is equivalent to writing the formula in full
 ("3/10*(3*pi^2)^(2d0/3d0)*$1^(5/3)") but, obviously, much more
-convenient. The library of chemical functions includes:
+convenient. Some of the chemical functions like, for instance, those
+that require having access to the one-electron data, can only be used
+with fields of a certain type.
+
+In the lists below, the name in square brackets, if available, is a
+shorthand for applying the chemical function to the reference field
+(case-insensitive) in the POINTPROP keyword.
+
+The following list of chemical functions can be used with any field
+type. In all cases, field id must correspond to the system's electron
+density.
 
 * gtf(id) [GTF]: Thomas-Fermi kinetic energy density. The kinetic
-  energy density for a uniform electron gas with its density given
-  by the value of field id at the point. The argument field can be of
-  any type. See:
+  energy density for a uniform electron gas with its density given by
+  the value of field id at the point.
 
   + Yang and Parr, Density-Functional Theory of Atoms and Molecules.
 
-* vtf(id) [VTF]: the potential energy density calculated using
-  the Thomas-Fermi kinetic energy density and the local virial
-  theorem (2g(r) + v(r) = 1/4*lap(r) in au).
+* vtf(id) [VTF]: the potential energy density calculated using the
+  Thomas-Fermi kinetic energy density and the local virial theorem
+  (2g(r) + v(r) = 1/4*lap(r) in au).
 
 * htf(id) [HTF]: the total energy density calculated using the
   Thomas-Fermi kinetic energy density and the local virial theorem
-  (2g(r) + v(r) = 1/4*lap(r) in au).
+  (2g(r) + v(r) = 1/4*lap(r) in au). The field id must contain the
+  electron density of the system.
 
 * gtf_kir(id) [GTF_KIR]: Thomas-Fermi kinetic energy density with the
   semiclassical gradient correction proposed by Kirzhnits for the
@@ -1021,39 +1031,7 @@ convenient. The library of chemical functions includes:
   gtf_kir(id) and the local virial theorem (2g(r) + v(r) =
   1/4*lap(r) in au).
 
-* gkin(id) [GKIN]: the kinetic energy density, G-version (grad(rho) *
-  grad(rho)). The argument should be a molecular wavefunction
-  field. See: 
-
-  + Bader and Beddall, J. Chem. Phys. (1972) 56, 3320.
-
-  + Bader and Essen, J. Chem. Phys. (1984) 80, 1943.
-
-* kkin(id) [KKIN]: the kinetic energy density, K-version (rho *
-  lap(rho)). The argument should be a molecular wavefunction field. 
-
 * lag(id) [LAG]: the Lagrangian density (-1/4 * lap(rho)).
-
-* vir(id) [VIR]: the electronic potential energy density, also called
-  the virial field. The argument should be a molecular wavefunction
-  field. 
-
-  + Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-
-* he(id) [HE]: the electronic energy density, vir(id) + gkin(id).
-  The argument should be a molecular wavefunction field.
-
-* elf(id) [ELF]: the electron localization function (ELF). The
-  argument should be a molecular wavefunction field. See:
-
-  + Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-
-* lol(id) [LOL]: the localized-orbital locator (LOL). The argument
-  should be a molecular wavefunction field. See:
-
-  + Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
-
-  + Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
 
 * lol_ki(id) [LOL_KIR]: the localized-orbital locator (LOL) with the
   kinetic energy density calculated using the Thomas-Fermi
@@ -1061,8 +1039,37 @@ convenient. The library of chemical functions includes:
 
   + Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
 
-The following functions can be used with molecular wavefunction fields
-only:
+The following functions require the kinetic energy density, and
+therefore can only be used with fields that provide the one-electron
+states. At present, this is only available for molecular wavefunction
+fields. 
+
+* gkin(id) [GKIN]: the kinetic energy density, G-version (grad(rho) *
+  grad(rho)). See: 
+
+  + Bader and Beddall, J. Chem. Phys. (1972) 56, 3320.
+
+  + Bader and Essen, J. Chem. Phys. (1984) 80, 1943.
+
+* kkin(id) [KKIN]: the kinetic energy density, K-version (rho *
+  lap(rho)).
+
+* vir(id) [VIR]: the electronic potential energy density, also called
+  the virial field.
+
+  + Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
+
+* he(id) [HE]: the electronic energy density, vir(id) + gkin(id).
+
+* elf(id) [ELF]: the electron localization function (ELF).
+
+  + Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
+
+* lol(id) [LOL]: the localized-orbital locator (LOL).
+
+  + Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
+
+  + Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
 
 * brhole_a1(id), brhole_a2(id), brhole_a(id): the A prefactor of the
   spherically averaged hole model proposd by Becke and Roussel
@@ -1091,10 +1098,11 @@ only:
 
   + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
 
-The following functions require both a molecular wavefunction and
-basis set information (at present, from a Gaussian fchk file noly). In
-addition, it is necessary to have critic2 compiled with the libCINT
-library to calculate the integrals involved.
+The following chemical functions require both a molecular wavefunction
+and basis set information (at present, this is only read from a
+Gaussian fchk file). In addition, it is necessary to have critic2
+compiled with the libCINT library to calculate the molecular integrals
+involved (see README).
 
 * mep(id): molecular electrostatic potential. 
 
@@ -1107,10 +1115,6 @@ library to calculate the integrals involved.
 
   A.D. Becke, J. Chem. Phys. 138 (2013) 074109 and references therein.
 
-The name in square brackets, if available, is a shorthand for applying
-the chemical function to the reference field (case-insensitive) in the
-POINTPROP keyword.
-
 Other special labels can be used, that activate the calculation of
 properties for the reference field. These are:
 
@@ -1121,8 +1125,8 @@ properties for the reference field. These are:
 
 A particular case of chemical function is xc(), that allows the user
 to access the external LIBXC library. This is only possible if the
-library was linked during the compilation of critic2. See `Use of
-LIBXC in arithmetic expressions`_.
+LIBXC library was linked during the compilation of critic2. See `Use
+of LIBXC in arithmetic expressions`_.
 
 Use of LIBXC in arithmetic expressions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -6156,14 +6160,15 @@ READVIRTUAL keyword (see `Loading a field (LOAD)`_).
 MOLCALC HF calculates the Hartree-Fock energy from the basis set
 information in the reference field using molecular integrals, which
 are in turn calculated by the libCINT library. Using this keyword
-requires compiling with critic2 with libCINT. At this moment, this
-keyword serves mostly for testing, debug, and development purposes, as
-it is very inefficient. The routine called by this keyword shows how
-to use libCINT inside critic. Only molecular wavefunctions can be used
-with MOLCALC HF and only file formats that provied basis set
-information (right now, only Gaussian fchk, but molden-style files
-could be implemented). Gaussian wfn/wfx do not provide basis set
-shells, only primitives, so they cannot be used with MOLCALC HF.
+requires compiling with critic2 with libCINT (see the README). At this
+moment, this keyword serves mostly for testing, debug, and development
+purposes, as it is very inefficient. The routine called by this
+keyword shows how to use libCINT inside critic. Only molecular
+wavefunctions can be used with MOLCALC HF and only file formats that
+provied basis set information (right now, only Gaussian fchk, but
+molden-style files could be implemented). Gaussian wfn/wfx do not
+provide basis set shells, only primitives, so they cannot be used with
+MOLCALC HF.
 
 Hirshfeld charges (HIRSHFELD)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
