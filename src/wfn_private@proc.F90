@@ -1025,7 +1025,9 @@ contains
     enddo
 
     ! ECPs not implemented yet
-    if (isecp) call ferror("read_fchk","ECPs not supported.",faterr)
+    if (isecp) then
+       call ferror("read_fchk","ECPs detected in fchk, but fchk contains no EDF information -> no core density added",warning)
+    end if
     if (nelec == 0) call ferror("read_fchk","nelec = 0",faterr)
     if (nmoalla == 0) call ferror("read_fchk","nmoall = 0",faterr)
 
@@ -1182,7 +1184,6 @@ contains
     nbassph = 0
     do i = 1, ncshel
        ityp = ishlt(i)
-       write (*,*) ishlt(i)
        nbascar = nbascar + nshlt(abs(ityp))
        nbassph = nbassph + nshlt(ityp)
        f%npri = f%npri + nshlt(abs(ishlt(i))) * ishlpri(i)
