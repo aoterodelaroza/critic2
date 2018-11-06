@@ -451,7 +451,7 @@ contains
     prop = "f"
     id = sy%iref
     useexpr = .false.
-    iscube = .false.
+    iscube = .true.
     isbincube = .false.
     outfile = trim(fileroot) // ".cube" 
     do while (.true.)
