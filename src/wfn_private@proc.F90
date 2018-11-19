@@ -2551,8 +2551,8 @@ contains
        dx(:,-2:-1) = 0d0
        dx(:,1) = xx
        ! positive powers
-       do j = 2, f%ixmaxsto(i)
-          do k = 1, 4
+       do k = 1, 4
+          do j = 2, f%ixmaxsto(k)
              dx(k,j) = dx(k,j-1) * xx(k)
           end do
        end do
