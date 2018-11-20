@@ -2621,15 +2621,15 @@ contains
              phi(phimo,8) = phi(phimo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
                 + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
                 + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
-                + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / dx(4,1))
+                + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / max(dx(4,1),stoeps))
              phi(phimo,9) = phi(phimo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
                 + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
                 + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
-                + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / dx(4,1))
+                + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / max(dx(4,1),stoeps))
              phi(phimo,10) = phi(phimo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
                 + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
                 + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
-                + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / dx(4,1))
+                + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / max(dx(4,1),stoeps))
           enddo ! imo = imo0, imo1
        end do ! j = f%iprilo(iat), f%iprihi(iat)
     end do ! i = 1, nenv
