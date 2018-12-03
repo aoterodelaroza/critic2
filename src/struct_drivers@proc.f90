@@ -1500,7 +1500,7 @@ contains
 
          write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center), string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
             string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center), string(eptr%at(eidx)%is,2,ioj_right),&
-            string(dist(j)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
+            string(dist(k-1)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
             (string(eptr%at(eidx)%lvec(l)+lvec(l),2,ioj_right),l=1,3), (string(xx(l),'f',12,8,4),l=1,3)
       end do main
       write (uout,*)
