@@ -5,6 +5,7 @@
  calculation='nscf',
  wf_collect=.true.,
  verbosity='high',
+ outdir='.',
 /
 &system
  ibrav=0,

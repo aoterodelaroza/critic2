@@ -2,6 +2,7 @@
  title='crystal',
  prefix='crystal',
  pseudo_dir='../../data',
+ outdir='.',
 /
 &system
  ibrav=0,
