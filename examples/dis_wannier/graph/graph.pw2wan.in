@@ -3,4 +3,5 @@
  seedname = 'graph',
  write_mmn = .true.,
  write_amn = .true.,
+ outdir='.',
 /
