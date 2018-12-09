@@ -1508,6 +1508,148 @@ contains
 
   end subroutine struct_environ
 
+  !> Calculate the coordination numbers of all atoms.
+  module subroutine struct_coord(s,line)
+    use systemmod, only: system
+    use environmod, only: environ
+    use global, only: bondfactor, eval_next
+    use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
+       ioj_left, ioj_right, uout, string
+    use param, only: atmcov, icrd_crys
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    character(len=:), allocatable :: word, str
+    integer :: lp, lp2, lpold, i, j, iat, iz
+    real*8, allocatable :: rad(:)
+    real*8 :: fac, dd, rnew
+    logical :: ok
+    integer :: nat, ierr, lvec(3)
+    integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:)
+    real*8, allocatable :: dist(:), up2dsp(:,:)
+    type(environ), target :: eaux
+    type(environ), pointer :: eptr
+
+    ! allocate the default radii
+    fac = bondfactor
+    allocate(rad(s%c%nspc))
+    rad = 0d0
+    do i = 1, s%c%nspc
+       if (s%c%spc(i)%z > 0) then
+          rad(i) = atmcov(s%c%spc(i)%z)
+       end if
+    end do
+
+    ! parse the input
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"dist")) then
+          ok = eval_next(dd,line,lp)
+          if (.not.ok) then
+             call ferror('struct_coord','Wrong DIST keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          fac = 1d0
+          rad = 0.5d0 * dd
+       elseif (equal(word,"fac")) then
+          ok = eval_next(fac,line,lp)
+          if (.not.ok) then
+             call ferror('struct_coord','Wrong FAC keyword',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"radii")) then
+          do while (.true.)
+             lpold = lp
+             iat = 0
+             iz = 0
+             lp2 = 1
+             word = lgetword(line,lp)
+             if (equal(word,"fac").or.equal(word,"dist").or.equal(word,"radii")) then
+                lp = lpold
+                exit
+             end if
+             ok = isinteger(iat,word,lp2)
+             if (ok) then
+                ok = (iat > 0 .and. iat <= s%c%nspc)
+             end if
+             if (.not.ok) then
+                iz = zatguess(word)
+                ok = (iz >= 0)
+                if (.not. ok) then
+                   lp = lpold
+                   exit
+                end if
+             end if
+
+             ok = eval_next(rnew,line,lp)
+             if (.not.ok) then
+                call ferror('struct_coord','Wrong RADII keyword',faterr,line,syntax=.true.)
+                return
+             end if
+
+             if (iat > 0) then
+                rad(iat) = rnew
+             else
+                do i = 1, s%c%nspc
+                   if (s%c%spc(i)%z == iz) then
+                      rad(i) = rnew
+                   end if
+                end do
+             end if
+          end do
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_coord','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+
+    ! some output
+    write (uout,'("* COORD: calculation of coordination numbers")')
+    write (uout,'("+ Atomic radii for all species")')
+    write (uout,'("# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = ",A)') &
+       string(fac,'f',length=5,decimal=2,justify=ioj_left)
+    write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
+       string("Z",3,ioj_center), string("name",7,ioj_center),&
+       string("rad",length=5,justify=ioj_center)
+    do i = 1, s%c%nspc
+       write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
+          string(s%c%spc(i)%z,3,ioj_center), string(s%c%spc(i)%name,7,ioj_center),&
+          string(rad(i),'f',length=5,decimal=2,justify=ioj_right)
+    end do
+    write (uout,*)
+
+    ! calculate the coordination numbers
+    allocate(up2dsp(s%c%nspc,2),coord2(s%c%nneq,s%c%nspc))
+    up2dsp = 0d0
+    coord2 = 0
+    eptr => s%c%env
+    do i = 1, s%c%nneq
+       up2dsp(:,2) = rad + rad(s%c%at(i)%is)
+       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,eid,dist,lvec,ierr,up2dsp=up2dsp,nozero=.true.)
+       do j = 1, nat
+          coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
+       end do
+    end do
+
+    ! output coordination numbers (per non-equivalent atom)
+    write (uout,'("+ Pair coordination numbers (per non-equivalent atom in the cell)")')
+    write (uout,'("# id = non-equivalent atom ID. mult = multiplicity. spc = atomic species.")')
+    write (uout,'("# ",99(A,X))') string("nid",4,ioj_center), string("name",7,ioj_center), &
+       string("mult",5,ioj_center), (string(s%c%spc(j)%name,5,ioj_left),j=1,s%c%nspc), "total"
+    do i = 1, s%c%nneq
+       write (uout,'(2X,99(A,X))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
+          string(s%c%at(i)%mult,5,ioj_center), (string(coord2(i,j),5,ioj_center),j=1,s%c%nspc),&
+          string(sum(coord2(i,1:s%c%nspc)),5,ioj_center)
+    end do
+    write (uout,*)
+
+    deallocate(rad)
+
+  end subroutine struct_coord
+
   !> Calculate the packing ratio of the crystal.
   module subroutine struct_packing(s,line)
     use systemmod, only: system

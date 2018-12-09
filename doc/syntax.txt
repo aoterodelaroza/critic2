@@ -344,6 +344,7 @@ expression.r # prints the value of the expression to the output.
 * EWALD
 * ENVIRON [DIST dist.r] [POINT x0.r y0.r z0.r|ATOM at.s/iat.i]
   [BY by.s/iby.i] [SHELLS]
+* COORD [DIST dist.r] [FAC fac.r] [RADII [IONIC|COVALENT|VDW|at1.s r1.s ...]
 * PACKING [VDW] [PREC prec.r]
 * IDENTIFY [ANG|ANGSTROM|BOHR|AU|CRYST|file.xyz]
     x y z [ANG|ANGSTROM|BOHR|AU|CRYST]

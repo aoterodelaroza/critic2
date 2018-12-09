@@ -38,7 +38,7 @@ program critic
   use fieldmod, only: type_grid
   use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_clearsym, struct_charges, struct_atomlabel, struct_write,&
-     struct_powder, struct_rdf, struct_environ, struct_packing,&
+     struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_compare, struct_identify
   use systemmod, only: systemmod_init, systemmod_end, sy
   use spgs, only: spgs_init
@@ -444,6 +444,12 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_environ(sy,line(lp:))
+
+        ! coord
+     elseif (equal(word,'coord')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call struct_coord(sy,line(lp:))
 
         ! packing
      elseif (equal(word,'packing')) then
