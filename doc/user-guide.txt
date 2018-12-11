@@ -2053,7 +2053,7 @@ writing an xyz file::
 The MOLMOTIF keyword writes all atoms in the unit cell and completes
 the molecules by using the atoms in the neighboring cells. A covalent
 radii criterion is used to determine whether two atoms are bonded or
-not (see the BONDFACTOR keyword in `Control commands and
+not (see the BONDFACTOR and RADII keywords in `Control commands and
 options`_). The full syntax of the WRITE keyword is::
 
   WRITE file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]] 
@@ -2122,8 +2122,8 @@ requested crystal fragment are written to the xyz file. Then, the
 molecules are completed using atoms from outside the fragment. In
 order to do this, a connectivity criterion is used: two atoms are
 bonded if their distance is less than BONDFACTOR times their sum of
-covalent radii (see the BONDFACTOR keyword in `Control commands and
-options`_).
+covalent radii (see the BONDFACTOR and RADII keywords in `Control
+commands and options`_).
 
 The ONEMOTIF and ENVIRON keywords are also used in molecular
 crystals. ONEMOTIF writes all atoms in the unit cell, translated by
@@ -6563,6 +6563,15 @@ less than the sum of their covalent radii times bondfactor.r (default:
 
 ::
 
+  RADII [at1.s|z1.i] rad1.r [[at2.s|z2.i] rad2.r ...]
+
+Sets the covalent radii of atoms with atomic symbol at1.s or atomic
+number z1.i to rad1.r. (Units: bohr in crystals, angstroms in
+molecules). The radii of several atoms can be changed in the same
+command.
+
+::
+
   ROOT root.s
 
 Change the <root>. The root is used as prefix for most of the
@@ -6986,6 +6995,9 @@ QAT
 QTREE
   Integrate the attractor basins using the qtree method. See `Qtree
   (QTREE)`_.
+
+RADII
+  Sets the covalent radii of atoms. See `Control commands and options`_.
 
 REFERENCE
   Mark a field as the reference field. See `The reference field

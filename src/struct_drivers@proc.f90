@@ -1621,7 +1621,7 @@ contains
     end do
     write (uout,*)
 
-    ! calculate the coordination numbers
+    ! calculate the coordination numbers (per atom)
     allocate(up2dsp(s%c%nspc,2),coord2(s%c%nneq,s%c%nspc))
     up2dsp = 0d0
     coord2 = 0
@@ -1633,10 +1633,11 @@ contains
           coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
        end do
     end do
+    deallocate(up2dsp)
 
     ! output coordination numbers (per non-equivalent atom)
     write (uout,'("+ Pair coordination numbers (per non-equivalent atom in the cell)")')
-    write (uout,'("# id = non-equivalent atom ID. mult = multiplicity. spc = atomic species.")')
+    write (uout,'("# id = non-equivalent atom ID. mult = multiplicity. rest = atomic species (by name).")')
     write (uout,'("# ",99(A,X))') string("nid",4,ioj_center), string("name",7,ioj_center), &
        string("mult",5,ioj_center), (string(s%c%spc(j)%name,5,ioj_left),j=1,s%c%nspc), "total"
     do i = 1, s%c%nneq
@@ -1645,6 +1646,15 @@ contains
           string(sum(coord2(i,1:s%c%nspc)),5,ioj_center)
     end do
     write (uout,*)
+
+    ! calculate the coordination numbers (per species)
+    allocate(coord2sp(s%c%nspc,s%c%nspc))
+    coord2sp = 0d0
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          coord2sp(s%c%at(i)%is,j) = coord2sp(s%c%at(i)%is,j) + coord2(i,j) * s%c%at(i)%mult
+       end do
+    end do
 
     deallocate(rad)
 

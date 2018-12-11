@@ -228,14 +228,15 @@ contains
   module subroutine critic_setvariables(line,lp)
     use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
-       faterr, string, uout, isassignment, getword
+       faterr, string, uout, isassignment, getword, zatguess
+    use param, only: maxzat0, atmcov
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
     character(len=:), allocatable :: word, var
     logical :: ok
     real*8 :: rdum
-    integer :: idum
+    integer :: idum, lp2
     logical :: iok
 
     word = lgetword(line,lp)
@@ -575,6 +576,30 @@ contains
     elseif (equal(word,'precisecube')) then
        precisecube = .true.
        call check_no_extra_word(ok)
+    elseif (equal(word,'radii')) then
+       do while(.true.)
+          lp2 = lp
+          ok = isinteger(idum,line,lp)
+          if (.not.ok) then
+             word = lgetword(line,lp)
+             if (len_trim(word) == 0) then
+                lp = lp2
+                exit
+             else
+                idum = zatguess(word)
+                if (idum < 1 .or. idum > maxzat0) then
+                   call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+                   return
+                end if
+             end if
+          end if
+          if (eval_next_real(rdum,line,lp)) then
+             atmcov(idum) = rdum / dunit0(iunit)
+          else
+             call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+             return
+          end if
+       end do
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,.false.,iok)
        if (.not.iok) then

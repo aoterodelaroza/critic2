@@ -285,7 +285,7 @@ module param
   ! Fe (26): h.s.=1.52 l.s.=1.32 -> average = 1.42
   ! Co (27): h.s.=1.50 l.s.=1.26 -> average = 1.38
   ! Elements that do not have radius are assigned 1.50 (CSD).
-  real*8, parameter :: atmcov(maxzat0) = (/&
+  real*8, parameter :: atmcov0(maxzat0) = (/&
      ! 1       2       3       4       5       6       7       8       9       0
      0.31d0, 0.28d0, 1.28d0, 0.96d0, 0.84d0, 0.73d0, 0.71d0, 0.66d0, 0.57d0, 0.58d0,& ! 1-10
      1.66d0, 1.41d0, 1.21d0, 1.11d0, 1.07d0, 1.05d0, 1.02d0, 1.06d0, 2.03d0, 1.76d0,& ! 11-20
@@ -300,6 +300,7 @@ module param
      1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0,& ! 101-110
      1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 0.00d0, 0.00d0,& ! 111-120
      0.00d0, 0.00d0, 0.00d0/) / bohrtoa ! 121-123
+  real*8 :: atmcov(maxzat0) = atmcov0
 
   ! Van der Waals radii follow the CSD:
   ! From Bondi: http://dx.doi.org/10.1021/j100785a001

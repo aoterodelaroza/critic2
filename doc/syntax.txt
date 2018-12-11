@@ -380,6 +380,7 @@ expression.r # prints the value of the expression to the output.
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
 * MESHTYPE {BECKE|FRANCHINI {1|2|3|4|5}}
 * PRECISECUBE|STANDARDCUBE
+* RADII [at1.s|z1.i] rad1.r [[at2.s|z2.i] rad2.r ...]
 * BONDFACTOR bondfactor.r
 * CLEAR {var1.s var2.s ...|ALL}
 * LIST
