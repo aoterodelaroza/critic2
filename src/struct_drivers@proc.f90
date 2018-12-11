@@ -1520,12 +1520,12 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, str
-    integer :: lp, lp2, lpold, i, j, iat, iz
+    integer :: lp, lp2, lpold, i, j, k, iat, iz
     real*8, allocatable :: rad(:)
     real*8 :: fac, dd, rnew
     logical :: ok
     integer :: nat, ierr, lvec(3)
-    integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:)
+    integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
     real*8, allocatable :: dist(:), up2dsp(:,:)
     type(environ), target :: eaux
     type(environ), pointer :: eptr
@@ -1633,7 +1633,7 @@ contains
           coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
        end do
     end do
-    deallocate(up2dsp)
+    deallocate(rad,up2dsp)
 
     ! output coordination numbers (per non-equivalent atom)
     write (uout,'("+ Pair coordination numbers (per non-equivalent atom in the cell)")')
@@ -1649,14 +1649,76 @@ contains
 
     ! calculate the coordination numbers (per species)
     allocate(coord2sp(s%c%nspc,s%c%nspc))
-    coord2sp = 0d0
+    coord2sp = 0
     do i = 1, s%c%nneq
        do j = 1, s%c%nspc
           coord2sp(s%c%at(i)%is,j) = coord2sp(s%c%at(i)%is,j) + coord2(i,j) * s%c%at(i)%mult
        end do
     end do
 
-    deallocate(rad)
+    write (uout,'("+ Pair coordination numbers (per species)")')
+    write (uout,'("# ",99(A,X))') string("spc",8,ioj_center), (string(s%c%spc(j)%name,5,ioj_center),j=1,s%c%nspc)
+    do i = 1, s%c%nspc
+       write (uout,'(2X,99(A,X))') string(i,3,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
+          (string((coord2sp(i,j)+coord2sp(j,i))/2,5,ioj_center),j=1,s%c%nspc)
+    end do
+    write (uout,*)
+    deallocate(coord2sp)
+
+    ! calculate the number of triplets
+    allocate(coord3(s%c%nneq,s%c%nspc,s%c%nspc))
+    coord3 = 0
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          do k = 1, s%c%nspc
+             if (j == k) then
+                coord3(i,j,k) = coord3(i,j,k) + coord2(i,j) * (coord2(i,k)-1) / 2
+             else
+                coord3(i,j,k) = coord3(i,j,k) + coord2(i,j) * coord2(i,k)
+             end if
+          end do
+       end do
+    end do
+
+    write (uout,'("+ Triplet coordination numbers (per non-equivalent atom in the cell)")')
+    write (uout,'("# Y runs over atoms in the cell: nid = non-equivalent atom ID. mult = multiplicity.")')
+    write (uout,'("#  ---    Y    ---     X     Z")')
+    write (uout,'("# nid   name   mult   spc   spc  X-Y-Z")')
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          do k = j, s%c%nspc
+             write (uout,'(2X,99(A,X))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
+                string(s%c%at(i)%mult,5,ioj_center), string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(k)%name,5,ioj_center),&
+                string((coord3(i,j,k)+coord3(i,k,j))/2,5,ioj_center)
+          end do
+       end do
+    end do
+    write (uout,*)
+
+    ! calculate the triplet coordination numbers (per species)
+    allocate(coord3sp(s%c%nspc,s%c%nspc,s%c%nspc))
+    coord3sp = 0
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          do k = 1, s%c%nspc
+             coord3sp(s%c%at(i)%is,j,k) = coord3sp(s%c%at(i)%is,j,k) + coord3(i,j,k) * s%c%at(i)%mult
+          end do
+       end do
+    end do
+
+    write (uout,'("+ Triplet coordination numbers (per species)")')
+    write (uout,'("#   Y     X     Z   X-Y-Z")')
+    do i = 1, s%c%nspc
+       do j = 1, s%c%nspc
+          do k = j, s%c%nspc
+             write (uout,'(2X,99(A,X))') string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
+                string(s%c%spc(k)%name,5,ioj_center), string((coord3sp(i,j,k)+coord3sp(i,k,j))/2,5,ioj_center)
+          end do
+       end do
+    end do
+    write (uout,*)
+
+    deallocate(coord3,coord3sp)
 
   end subroutine struct_coord
 
