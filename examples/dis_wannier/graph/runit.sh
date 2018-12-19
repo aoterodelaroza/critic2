@@ -40,7 +40,8 @@ EOF
 awk '/List to be put/,/^ *$/' graph.opengrid.out | grep -v List | grep -v '^ *$' >> graph.win
 echo "end kpoints" >> graph.win
 
-mpirun -np 4 wannier90.x -pp graph.win
+wannier90.x -pp graph.win
 mpirun -np 4 pw2wannier90.x < graph.pw2wan.in > graph.pw2wan.out
-mpirun -np 4 wannier90.x graph.win
+wannier90.x graph.win
+
 

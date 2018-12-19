@@ -8,7 +8,7 @@ mpirun -np 4 pw.x < mgo.nscf.in | tee mgo.nscf.out
 
 pw2critic.x < mgo.pw2critic.in
 
-mpirun -np 4 wannier90.x -pp mgo.win
+wannier90.x -pp mgo.win
 mpirun -np 4 pw2wannier90.x < mgo.pw2wan.in
-mpirun -np 4 wannier90.x mgo.win
+wannier90.x mgo.win
 

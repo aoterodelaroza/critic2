@@ -40,9 +40,9 @@ EOF
 awk '/List to be put/,/^ *$/' feo.opengrid.out | grep -v List | grep -v '^ *$' >> feo_up.win
 echo "end kpoints" >> feo_up.win
 
-mpirun -np 4 wannier90.x -pp feo_up.win
+wannier90.x -pp feo_up.win
 mpirun -np 4 pw2wannier90.x < feo.pw2wan.up.in | tee feo.pw2wan.up.out
-mpirun -np 4 wannier90.x feo_up.win
+wannier90.x feo_up.win
 
 cat > feo_dn.win <<EOF
 num_wann = 5
@@ -77,7 +77,7 @@ EOF
 awk '/List to be put/,/^ *$/' feo.opengrid.out | grep -v List | grep -v '^ *$' >> feo_dn.win
 echo "end kpoints" >> feo_dn.win
 
-mpirun -np 4 wannier90.x -pp feo_dn.win
+wannier90.x -pp feo_dn.win
 mpirun -np 4 pw2wannier90.x < feo.pw2wan.dn.in | tee feo.pw2wan.dn.out
 
 cat > feo_dn.win <<EOF
@@ -112,4 +112,4 @@ EOF
 awk '/List to be put/,/^ *$/' feo.opengrid.out | grep -v List | grep -v '^ *$' >> feo_dn.win
 echo "end kpoints" >> feo_dn.win
 
-mpirun -np 4 wannier90.x feo_dn.win
+wannier90.x feo_dn.win

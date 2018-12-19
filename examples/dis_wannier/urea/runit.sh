@@ -52,7 +52,7 @@ EOF
 awk '/List to be put/,/^ *$/' urea.opengrid.out | grep -v List | grep -v '^ *$' >> urea.win
 echo "end kpoints" >> urea.win
 
-mpirun -np 4 wannier90.x -pp urea.win
+wannier90.x -pp urea.win
 mpirun -np 4 pw2wannier90.x < urea.pw2wan.in
-mpirun -np 4 wannier90.x urea.win
+wannier90.x urea.win
 

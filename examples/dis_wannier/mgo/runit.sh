@@ -39,8 +39,8 @@ EOF
 awk '/List to be put/,/^ *$/' mgo.opengrid.out | grep -v List | grep -v '^ *$' >> mgo.win
 echo "end kpoints" >> mgo.win
 
-mpirun -np 4 wannier90.x -pp mgo.win
+wannier90.x -pp mgo.win
 mpirun -np 4 pw2wannier90.x < mgo.pw2wan.in
-mpirun -np 4 wannier90.x mgo.win
+wannier90.x mgo.win
 
 
