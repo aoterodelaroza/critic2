@@ -891,7 +891,7 @@ contains
              end if
           end do
 
-          ! succesfully read an atom
+          ! successfully read an atom
           ok = .true.
           exit
        end if
