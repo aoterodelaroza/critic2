@@ -1784,7 +1784,7 @@ contains
                idir = -1
             end if
             do j = 1, 2
-               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j)) 
+               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j),pathini=f%cp(i)%r)
             end do
             !$omp critical (xdis1)
             f%cp(i)%brvec = xx 

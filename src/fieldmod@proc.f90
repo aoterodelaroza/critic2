@@ -2127,12 +2127,15 @@ contains
     if (present(path)) then
        if (allocated(path)) deallocate(path)
        allocate(path(100))
-       if (present(pathini)) then
-          xcaux = pathini
-          xxaux = fid%c%c2x(xcaux)
+    end if
+    if (present(pathini)) then
+       xcaux = pathini
+       xxaux = fid%c%c2x(xcaux)
+       if (present(path)) then
           call fid%grd(xcaux,2,resaux)
           call addtopath(0,xcaux,xxaux,resaux)
        end if
+       plen = norm2(xpoint - pathini)
     end if
 
     ! properties at point
@@ -2212,6 +2215,7 @@ contains
        if (ok) then
           ! Found a CP as the last point in the path
           incstep = .true.
+          plen = plen + norm2(xcart - xcp)
           xpoint = xcp
           ier = 0
           if (present(path)) then
