@@ -167,13 +167,13 @@ via the xc() function in arithmetic expressions. See 'Use of LIBXC in
 arithmetic expressions' in the user's guide for instructions on how to
 use libxc in critic2. 
 
-To compile critic2 with libxc support, two --with-libxc options must
-be passed to configure:
+To compile critic2 with libxc support, use:
 
-    ./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
+    ./configure --with-libxc=/opt/libxc
 
 Here the /opt/libxc directory is the target for the libxc installation
-(use --prefix=/opt/libxc when you configure libxc). 
+(use --prefix=/opt/libxc when you configure libxc). Versions of libxc
+earlier than 3.0 are not supported. 
 
 libcint is a library for molecular integrals between GTOs. It is used
 for testing and in some options to the MOLCALC keyword. To compile
