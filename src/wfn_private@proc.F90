@@ -2438,7 +2438,7 @@ contains
     do imo = 1, f%nmoocc
        gam1 = gam1 + xmop(imo) * xmor(imo)
     end do
-    xh = - (gam1*gam1) / rho(2)
+    xh = - (gam1*gam1) / max(rho(2),1d-40)
 
   end subroutine xhole
 

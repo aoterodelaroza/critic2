@@ -1218,10 +1218,13 @@ structural variables are accepted in critic2:
 * xx,yx,zx: the x,y,z coordinates of the point where the arithmetic
   expression is being evaluated (crystallographic coordinates).
 
-* xc,yc,zc: the x,y,z coordinates of the point where the arithmetic
-  expression is being evaluated. By default, the coordinates have
-  units of bohr in crystals, and are referred to the molecular center
-  and have units of angstrom in molecules. (*)
+* xc,yc,zc: the x,y,z Cartesian coordinates of the point where the
+  arithmetic expression is being evaluated. Units are bohr. (*)
+
+* xm,ym,zm: the x,y,z Cartesian coordinates of the point where the
+  arithmetic expression is being evaluated. By default, the
+  coordinates have units of bohr in crystals, and are referred to the
+  molecular center and have units of angstrom in molecules. (*)
 
 * xxr,yxr,zxr: the x,y,z coordinates of the point where the arithmetic
   expression is being evaluated (crystallographic coordinates in the
@@ -1238,9 +1241,9 @@ structural variables are accepted in critic2:
 * zatnuc: atomic number of the closest nucleus.
 
 Entries marked by a (*) at the end correspond to the structural
-variables that accept a modifier. A modifieris a colon (:) followed by
-a number id.i. If given, the modifier restricts the structural
-variable to atoms with ID id.i (from the complete list). 
+variables that accept a modifier. A modifier is a colon (:) followed
+by a number id.i. If given, the modifier restricts the structural
+variable to atoms with ID id.i (from the complete list).
 
 For instance, if we have a crystal structure and its electron density
 in field $1 as a grid, then::
@@ -1258,9 +1261,9 @@ in molecules in combination with the MOLCALC keyword. For instance, to
 calculate the dipole moment of a neutral molecule (in units of
 electrons*angstrom):
 
-  molcalc "$wfx * @xc"
-  molcalc "$wfx * @yc"
-  molcalc "$wfx * @zc"
+  molcalc "$wfx * @xm"
+  molcalc "$wfx * @ym"
+  molcalc "$wfx * @zm"
 
 Similar expressions can also be used to create new scalar fields by
 restricting or modifying the values of a scalar field only in certain

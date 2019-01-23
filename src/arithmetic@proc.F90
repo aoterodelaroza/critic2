@@ -129,14 +129,17 @@ submodule (arithmetic) proc
   integer, parameter :: svar_xc      = 11 !< x of the evaluation point (Cartesian)
   integer, parameter :: svar_yc      = 12 !< y of the evaluation point (Cartesian)
   integer, parameter :: svar_zc      = 13 !< z of the evaluation point (Cartesian)
-  integer, parameter :: svar_xxr     = 14 !< x of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_yxr     = 15 !< y of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_zxr     = 16 !< z of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_idnuc   = 17 !< complete-list id of the closest nucleus
-  integer, parameter :: svar_nidnuc  = 18 !< non-equivalent-list id of the closest nucleus
-  integer, parameter :: svar_rho0nuc = 19 !< atomic density contribution from the closest nucleus
-  integer, parameter :: svar_spcnuc  = 20 !< species id of the closest nucleus
-  integer, parameter :: svar_zatnuc  = 21 !< atomic number of the closest nucleus
+  integer, parameter :: svar_xm      = 14 !< x of the evaluation point (Cartesian molecular)
+  integer, parameter :: svar_ym      = 15 !< y of the evaluation point (Cartesian molecular)
+  integer, parameter :: svar_zm      = 16 !< z of the evaluation point (Cartesian molecular)
+  integer, parameter :: svar_xxr     = 17 !< x of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_yxr     = 18 !< y of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_zxr     = 19 !< z of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_idnuc   = 20 !< complete-list id of the closest nucleus
+  integer, parameter :: svar_nidnuc  = 21 !< non-equivalent-list id of the closest nucleus
+  integer, parameter :: svar_rho0nuc = 22 !< atomic density contribution from the closest nucleus
+  integer, parameter :: svar_spcnuc  = 23 !< species id of the closest nucleus
+  integer, parameter :: svar_zatnuc  = 24 !< atomic number of the closest nucleus
 
   ! libxc functional
 #ifdef HAVE_LIBXC
@@ -981,6 +984,12 @@ contains
        c = svar_yc
     case("zc")
        c = svar_zc
+    case("xm")
+       c = svar_xm
+    case("ym")
+       c = svar_ym
+    case("zm")
+       c = svar_zm
     case("xxr")
        c = svar_xxr
     case("yxr")
@@ -1142,10 +1151,16 @@ contains
 
     select case (svar)
     case(svar_xc)
-       q = (x0(1) + syl%c%molx0(1)) * dunit0(iunit)
+       q = x0(1)
     case(svar_yc)
-       q = (x0(2) + syl%c%molx0(2)) * dunit0(iunit)
+       q = x0(2)
     case(svar_zc)
+       q = x0(3)
+    case(svar_xm)
+       q = (x0(1) + syl%c%molx0(1)) * dunit0(iunit)
+    case(svar_ym)
+       q = (x0(2) + syl%c%molx0(2)) * dunit0(iunit)
+    case(svar_zm)
        q = (x0(3) + syl%c%molx0(3)) * dunit0(iunit)
     case(svar_xx,svar_yx,svar_zx)
        x = syl%c%c2x(x0)

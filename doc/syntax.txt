@@ -455,6 +455,9 @@ expression.r # prints the value of the expression to the output.
 * xc: x of the evaluation point (Cartesian).
 * yc: y of the evaluation point (Cartesian).
 * zc: z of the evaluation point (Cartesian).
+* xm: x of the evaluation point (Cartesian molecular in angstrom).
+* ym: y of the evaluation point (Cartesian molecular in angstrom).
+* zm: z of the evaluation point (Cartesian molecular in angstrom).
 * xxr: x of the evaluation point (reduced crystallographic).
 * yxr: y of the evaluation point (reduced crystallographic).
 * zxr: z of the evaluation point (reduced crystallographic).
