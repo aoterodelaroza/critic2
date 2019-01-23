@@ -126,6 +126,7 @@ module wfn_private
      procedure :: rho2 !< calculate the density, derivatives, and other properties
      procedure :: mep !< calculate the molecular electrostatic potential
      procedure :: uslater !< calculate the Slater potential
+     procedure :: xhole !< calculate the exchange hole
      procedure :: calculate_mo !< calculate the MO values at a point (driver)
   end type molwfn
   public :: molwfn
@@ -242,6 +243,12 @@ module wfn_private
        real*8, intent(out) :: ux
        real*8, intent(out), optional :: nheff
      end subroutine uslater
+     module subroutine xhole(f,xpos,xref,xh)
+       class(molwfn), intent(in) :: f
+       real*8, intent(in) :: xpos(3)
+       real*8, intent(in) :: xref(3)
+       real*8, intent(out) :: xh
+     end subroutine xhole
      module subroutine calculate_mo(f,xpos,phi,fder)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)

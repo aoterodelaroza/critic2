@@ -413,6 +413,7 @@ expression.r # prints the value of the expression to the output.
 * brhole_alf1(id), brhole_alf2(id), brhole_alf(id) # BR hole, exponent (spin up, down, and average)
 * xhcurv1(id), xhcurv2(id), xhcurv(id) # Curvature of the exchange hole at the reference point (spin up, down, and average)
 * dsigs1(id), dsigs2(id), dsigs(id) # Same-spin pair density leading coefficient (Dsigma) (spin up, down, and average)
+* xhole(id,x,y,z) # Exchange hole with reference point at (x,y,z)
 * stress [STRESS] # Schrodinger stress tensor of the reference field
 * mep(id) # Molecular electrostatic potential
 * uslater(id) # Slater potential

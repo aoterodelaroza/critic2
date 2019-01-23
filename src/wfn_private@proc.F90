@@ -2409,6 +2409,34 @@ contains
 #endif
   end subroutine uslater
 
+  !> Calculate the exchange hole at position xpos (Cartesian) and 
+  !> reference point xref (Cartesian). Return the value in xhole.
+  module subroutine xhole(f,xpos,xref,xh)
+    class(molwfn), intent(in) :: f
+    real*8, intent(in) :: xpos(3)
+    real*8, intent(in) :: xref(3)
+    real*8, intent(out) :: xh
+
+    real*8 :: rho(3), rhoval(3), grad(3,3), gradval(3,3), h(3,3,3), hval(3,3,3)
+    real*8 :: gkin(3), vir, stress(3,3), gam1
+    real*8, allocatable :: xmor(:), xmop(:)
+    integer :: imo
+
+    ! calculate the density and the MO values at the position
+    call f%rho2(xpos,0,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmop)
+
+    ! calculate the density and the MO values at the reference point
+    call f%rho2(xref,0,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmor)
+    
+    ! calculate the 1-DM (assume real orbitals)
+    gam1 = 0d0
+    do imo = 1, f%nmoocc
+       gam1 = gam1 + f%occ(imo) * xmop(imo) * xmor(imo)
+    end do
+    xh = - 0.5d0 * (gam1*gam1) / rho(1)
+
+  end subroutine xhole
+
   !> Calculate a particular MO values at position xpos (Cartesian) and
   !> returns it in phi. fder is the selector for the MO.
   module subroutine calculate_mo(f,xpos,phi,fder)

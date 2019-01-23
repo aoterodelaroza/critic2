@@ -25,7 +25,7 @@ submodule (arithmetic) proc
   ! function tokenize(expr,ntok,toklist,lpexit,syl) 
   ! function iprec(c)
   ! function iassoc(c)
-  ! function istype(c,type)
+  ! function istype(c,type,iwantarg)
   ! function isspecialfield(fid)
   ! function isstructvar(fid,c,fder)
   ! recursive function fieldeval(fid,fder,x0,sptr,periodic)
@@ -37,7 +37,7 @@ submodule (arithmetic) proc
   ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,fail)
   ! subroutine pop_grid(q,nq,s,ns,fail)
   ! subroutine die(msg,msg2)
-  ! function chemfunction(c,sia,x0,sptr,periodic) result(q)
+  ! function chemfunction(c,sia,x0,args,sptr,periodic) result(q)
   ! function specialfieldeval(fid,syl,x0) result(res)
 
   ! enum for operators and functions
@@ -113,6 +113,7 @@ submodule (arithmetic) proc
   integer, parameter :: fun_mep         = 70 !< Molecular electrostatic potential
   integer, parameter :: fun_uslater     = 71 !< Slater potential
   integer, parameter :: fun_nheff       = 72 !< Effective exchange hole normalization
+  integer, parameter :: fun_xhole       = 73 !< exchange-hole
 
   ! enum for structural variables
   integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
@@ -852,12 +853,16 @@ contains
   end function iassoc
 
   !> Return the type of stack element (operator, function, unary,
-  !> binary).  This routine is thread-safe.
-  function istype(c,type)
+  !> binary). If iwantarg is present and c is a chemical function,
+  !> return the number of arguments the chemical function wants;
+  !> otherwise, return zero. This routine is thread-safe.
+  function istype(c,type,iwantarg)
     integer, intent(in) :: c
     character*(*), intent(in) :: type
+    integer, intent(inout), optional :: iwantarg
     logical :: istype
 
+    if (present(iwantarg)) iwantarg = 0
     istype = .false.
     if (type == 'function') then
        istype = &
@@ -877,7 +882,7 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff
+          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
@@ -889,7 +894,15 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff
+          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole
+       if (present(iwantarg)) then
+          if (c == fun_xhole) then
+             iwantarg = 4
+          else
+             iwantarg = 1
+          end if
+       end if
+
     elseif (type == 'operator') then
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
@@ -1494,6 +1507,8 @@ contains
           c = fun_mep
        case ("uslater")
           c = fun_uslater
+       case ("xhole")
+          c = fun_xhole
        case ("nheff")
           c = fun_nheff
        case default
@@ -1589,9 +1604,10 @@ contains
     logical, intent(in), optional :: periodic
     logical, intent(out) :: fail
 
-    integer :: ia
-    integer :: c
+    integer :: ia, iwantarg
+    integer :: c, i
     real*8 :: a, b
+    real*8, allocatable :: args(:)
     character*8 :: sia
 #ifdef HAVE_LIBXC
     real*8 :: rho, grho, lapl, tau, zk
@@ -1769,22 +1785,33 @@ contains
        case (fun_erfc)
           q(nq) = erfc(q(nq))
        end select
-    elseif (istype(c,'chemfunction')) then
+    elseif (istype(c,'chemfunction',iwantarg)) then
        ! We need a point and the evaluator
        if (.not.present(x0).or..not.present(syl)) then
           fail = .true.
           return
        endif
     
-       ! Also an integer field identifier as the first argument
+       ! Consume the extra arguments for this function
+       if (iwantarg > 1) then
+          allocate(args(iwantarg-1))
+          do i = 1, iwantarg-1
+             args(i) = q(nq - (iwantarg-1) + i)
+          end do
+          nq = nq - (iwantarg - 1)
+       end if
+
+       ! An integer field identifier as the first argument
        ia = tointeger(q(nq))
        write (sia,'(I8)') ia
        sia = adjustl(sia)
        if (.not.syl%goodfield(key=sia)) &
           call die('wrong field ' // string(sia))
-    
+
        ! Use the library of chemical functions
-       q(nq) = chemfunction(c,sia,x0,syl,periodic)
+       q(nq) = chemfunction(c,sia,x0,args,syl,periodic)
+       if (iwantarg > 1) &
+          deallocate(args)
     else
        call die('error in expression')
     end if
@@ -1959,15 +1986,18 @@ contains
 
   !> Calculate a chemical function for a given field.  This routine is
   !> thread-safe.
-  function chemfunction(c,sia,x0,syl,periodic) result(q)
+  function chemfunction(c,sia,x0,args,syl,periodic) result(q)
     use systemmod, only: system
     use fieldmod, only: type_wfn
+    use global, only: dunit0, iunit
     use tools_math, only: bhole
+    use tools_io, only: string
     use types, only: scalar_value
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
-    real*8 :: q
+    real*8, intent(in), allocatable :: args(:)
+    real*8 :: q, xref(3)
     logical, intent(in), optional :: periodic
     type(system), intent(inout), optional :: syl
   
@@ -2158,15 +2188,30 @@ contains
        elseif (c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
           q = dsigs
        end if
-    case (fun_mep,fun_uslater,fun_nheff)
+    case (fun_mep,fun_uslater,fun_nheff,fun_xhole)
+       if (.not.syl%goodfield(id=idx)) &
+          call die("Invalid field or incorrect number of arguments in expression.")
        if (.not.syl%goodfield(id=idx,type=type_wfn)) &
-          call die("Tried to calculate MEP/USLATER/etc. with a non-wavefunction field")
+          call die("Tried to calculate MEP/USLATER/etc. with a non-wavefunction field: " // string(idx))
        if (c == fun_mep) then
           q = syl%f(idx)%wfn%mep(x0)
        else if (c == fun_uslater) then
           call syl%f(idx)%wfn%uslater(x0,q)
        else if (c == fun_nheff) then
           call syl%f(idx)%wfn%uslater(x0,ux,nheff=q)
+       else if (c == fun_xhole) then
+          if (.not.allocated(args)) &
+             call die("xhole requires arguments for the reference point.")
+          if (size(args,1) /= 3) &
+             call die("xhole requires three arguments for the reference point.")
+
+          ! Transform units of the reference point
+          if (syl%c%ismolecule) then
+             xref = args / dunit0(iunit) - syl%c%molx0
+          else
+             xref = syl%c%x2c(args)
+          end if
+          call syl%f(idx)%wfn%xhole(x0,xref,q)
        end if
     end select
   

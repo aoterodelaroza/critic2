@@ -1098,6 +1098,11 @@ fields.
 
   + A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
 
+* xhole(id,x,y,z): Exchange hole with reference point at (x,y,z). The
+  coordinates are Cartesian in angstrom referred to the molecular
+  origin if the system is a molecule or crystallographic coordinates
+  if the system is a crystal.
+
 The following chemical functions require both a molecular wavefunction
 and basis set information (at present, this is only read from a
 Gaussian fchk file). In addition, it is necessary to have critic2
