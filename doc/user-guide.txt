@@ -6546,7 +6546,7 @@ errprop is the field value and the Laplacian. delta.r = 1e-5 bohr.
 
 ::
 
-  MESHTYPE {BECKE|FRANCHINI} {SMALL|NORMAL|GOOD|VERYGOOD|AMAZING}
+  MESHTYPE {BECKE|FRANCHINI} [SMALL|NORMAL|GOOD|VERYGOOD|AMAZING]
 
 Choose the type and quality of the molecular integration mesh. These
 meshes are used in molecules and crystals to calculate integrals over

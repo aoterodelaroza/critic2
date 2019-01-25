@@ -378,7 +378,7 @@ expression.r # prints the value of the expression to the output.
 * PRUNE_DISTANCE prune.r
 * INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
   [RELERR err.r] [ERRPROP prop.i] [PREC prec.r] [NOBETA]
-* MESHTYPE {BECKE|FRANCHINI} {SMALL|NORMAL|GOOD|VERYGOOD|AMAZING}
+* MESHTYPE {BECKE|FRANCHINI} [SMALL|NORMAL|GOOD|VERYGOOD|AMAZING]
 * PRECISECUBE|STANDARDCUBE
 * RADII [at1.s|z1.i] rad1.r [[at2.s|z2.i] rad2.r ...]
 * BONDFACTOR bondfactor.r
