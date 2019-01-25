@@ -25,12 +25,9 @@ contains
   module subroutine global_init(ghome,datadir)
     use tools_io, only: string, ferror, warning, uout
     use param, only: dirsep
-
     character*(*) :: ghome, datadir
-
     integer :: isenv
     logical :: lchk
-
     character(len=:), allocatable :: cifstr, msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
 
@@ -88,6 +85,7 @@ contains
 
   !> Set the default values for all the global variables
   module subroutine global_set_defaults()
+    use meshmod, only: mesh_type_franchini, mesh_level_good
 
     precisecube = .true.
 
@@ -119,7 +117,8 @@ contains
     INT_iasprec = 1d-5
 
     ! molecular mesh
-    MESH_type = 3
+    mesh_type = mesh_type_franchini
+    mesh_level = mesh_level_good
 
     ! qtree
     ! gradient_mode set in critic->set_reference
@@ -226,6 +225,8 @@ contains
 
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)
+    use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_small,&
+       mesh_level_normal, mesh_level_good, mesh_level_vgood, mesh_level_amazing
     use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
        faterr, string, uout, isassignment, getword, zatguess
@@ -336,15 +337,30 @@ contains
           end if
        end do
     else if (equal (word,'meshtype')) then
+       ! meshtype {becke|franchini} [small|normal|good|verygood|amazing]
        word = lgetword(line,lp)
        if (equal(word,'becke')) then
-          MESH_type = 0
+          mesh_type = mesh_type_becke
        elseif (equal(word,'franchini')) then
-          ok = isinteger(MESH_type,line,lp)
-          if (MESH_type < 0 .or. MESH_type > 5) &
-             call ferror('critic_setvariables','Invalid Franchini quality in MESHTYPE',faterr,line,syntax=.true.)
+          mesh_type = mesh_type_franchini
        else
           call ferror('critic_setvariables','Unknown keyword in MESHTYPE',faterr,line,syntax=.true.)
+       end if
+
+       lp2 = lp
+       word = lgetword(line,lp)
+       if (equal(word,'small')) then
+          MESH_level = mesh_level_small
+       else if (equal(word,'normal')) then
+          MESH_level = mesh_level_normal
+       else if (equal(word,'good')) then
+          MESH_level = mesh_level_good
+       else if (equal(word,'verygood')) then
+          MESH_level = mesh_level_vgood
+       else if (equal(word,'amazing')) then
+          MESH_level = mesh_level_amazing
+       else
+          lp = lp2
        end if
        call check_no_extra_word(ok)
        

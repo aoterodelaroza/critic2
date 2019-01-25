@@ -80,13 +80,14 @@ contains
   subroutine molcalc_nelec()
     use systemmod, only: sy
     use meshmod, only: mesh
+    use global, only: mesh_type, mesh_level
     use tools_io, only: string, uout
     use param, only: im_volume, im_rho
 
     type(mesh) :: m
     integer :: prop(2)
 
-    call m%gen(sy%c)
+    call m%gen(sy%c,mesh_type,mesh_level)
 
     write (uout,'("+ Simple molecular integrals (NELEC)")')
     call m%report()
@@ -105,6 +106,7 @@ contains
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn
+    use global, only: mesh_type, mesh_level
     use tools_io, only: ferror, faterr, getline, uin, ucopy, string, isinteger, isreal,&
        lgetword, equal, uout
     use types, only: realloc
@@ -166,7 +168,7 @@ contains
     end if
 
     ! generate and fill the mesh
-    call m%gen(sy%c)
+    call m%gen(sy%c,mesh_type,mesh_level)
     allocate(prop(2*n))
     do i = 1, n
        prop(i) = 100 + imo1(i)
@@ -199,6 +201,7 @@ contains
   subroutine molcalc_expression(expr,savevar)
     use systemmod, only: sy
     use meshmod, only: mesh
+    use global, only: mesh_type, mesh_level
     use arithmetic, only: setvariable
     use tools_io, only: string, uout
     use types, only: scalar_value
@@ -210,7 +213,7 @@ contains
     integer :: i
     logical :: ok
 
-    call m%gen(sy%c)
+    call m%gen(sy%c,mesh_type,mesh_level)
 
     write (uout,'("+ Molecular mesh integral calculation")')
     write (uout,'("  Expression: ",A)') trim(expr)

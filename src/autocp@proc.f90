@@ -59,7 +59,7 @@ contains
     use graphics, only: grhandle
     use surface, only: minisurf
     use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
-       mesh_type
+       mesh_type, mesh_level
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -496,7 +496,7 @@ contains
           ! clean up
           call srf%end()
        elseif (seed(i)%typ == styp_mesh) then
-          call meshseed%gen(sy%c,MESH_type)
+          call meshseed%gen(sy%c,mesh_type,mesh_level)
           
           call realloc(xseed,3,nn+meshseed%n)
           do j = 1, meshseed%n

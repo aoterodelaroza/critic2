@@ -6546,27 +6546,25 @@ errprop is the field value and the Laplacian. delta.r = 1e-5 bohr.
 
 ::
 
-  MESHTYPE {BECKE|FRANCHINI {1|2|3|4|5}}
+  MESHTYPE {BECKE|FRANCHINI} {SMALL|NORMAL|GOOD|VERYGOOD|AMAZING}
 
 Choose the type and quality of the molecular integration mesh. These
-meshes are used in molecular and crystals to calculate integrals over
-the whole space (cell in crystals, R3 in molecules - used in XDM), and
-for the MESH seeding option in AUTO.
+meshes are used in molecules and crystals to calculate integrals over
+the whole space (cell in crystals, R3 in molecules). The MESHTYPE
+affects XDM integration in molecules, MOLCALC, and the MESH seeding
+option to AUTO.
 
-+ BECKE: Becke-style integration grids with the same quality
-  parameters as in postg. As currently implemented, it is quite slow
-  and only available for molecules. If this option is chosen,
-  FRANCHINI 3 is used by default for crystals. 
++ BECKE: Becke-style integration grid. Only available for molecules.
 
 + FRANCHINI: a Becke-style molecular mesh with weights and quality 
   parameters adapted from Franchini et al. J. Comput. Chem. 34 (2013)
-  1819. Works for molecules and crystals, and it is relatively
-  efficient. No pruning is done yet. The number after the keyword is
-  hte quality selector, that controls the size of the mesh and the
-  accuracy of the integration.  The values are 1 (small), 2 (normal),
-  3 (good), 4(very good), 5 (excellent).
+  1819. Works with molecules and crystals.
 
-Default: FRANCHINI with lvl = 3 (good accuracy).
+The fineness of the integration grid is be chosen by using one
+of SMALL, NORMAL, GOOD, VERYGOOD, and AMAZING. No pruning of the mesh
+is done yet.
+
+Default: FRANCHINI, GOOD.
 
 :: 
 

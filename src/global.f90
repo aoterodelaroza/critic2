@@ -153,9 +153,8 @@ module global
   integer, parameter :: INT_lebedev = 5 !< lebedev
 
   ! mesh type and quality for molecular integrations
-  ! 0 = Becke, >0 = Franchini with 1 (small), 2 (normal), 3 (good),
-  ! 4(very good), 5 (excellent).
-  integer :: MESH_type !< type and quality of mesh for molecular integration
+  integer :: mesh_type !< type of mesh for molecular integrations (see meshmod)
+  integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
 
   ! qtree
   ! note: ws_origin also used in auto

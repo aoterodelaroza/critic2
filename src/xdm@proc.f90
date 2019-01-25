@@ -1016,7 +1016,7 @@ contains
     use meshmod, only: mesh
     use fieldmod, only: type_wfn, type_dftb
     use grid1mod, only: grid1, agrid
-    use global, only: mesh_type
+    use global, only: mesh_type, mesh_level
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
     use param, only: bohrtoa, im_rho, im_null, im_b, icrd_cart
     
@@ -1075,21 +1075,8 @@ contains
     endif
 
     ! prepare the mesh
-    call m%gen(sy%c,MESH_type)
-    write (uout,'("mesh size      ",A)') string(m%n)
-    if (MESH_type == 0) then
-       write (uout,'("mesh type      Becke")')
-    elseif (MESH_type == 1) then
-       write (uout,'("mesh type      Franchini (small)")')
-    elseif (MESH_type == 2) then
-       write (uout,'("mesh type      Franchini (normal)")')
-    elseif (MESH_type == 3) then
-       write (uout,'("mesh type      Franchini (good)")')
-    elseif (MESH_type == 4) then
-       write (uout,'("mesh type      Franchini (very good)")')
-    elseif (MESH_type == 5) then
-       write (uout,'("mesh type      Franchini (excellent)")')
-    end if
+    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%report()
 
     ! properties to calculate 
     prop(1) = im_rho

@@ -21,21 +21,10 @@ submodule (meshmod) proc
   !xx! private procedures
   ! subroutine rmesh_postg(n,iz,r,wintr)
   ! subroutine rmesh_franchini(n,iz,r,wintr)
-  ! function z2nr_postg(z) result(nr)
-  ! function z2nr_franchini(z,lvl) result(nr)
-  ! function z2nang_postg(z) result(nang)
-  ! function z2nang_franchini(z,lvl) result(nang)
+  ! function z2nr(z,lvl) result(nr)
+  ! function z2nang(z,lvl) result(nang)
   ! subroutine bhole(rho,quad,hnorm,b)
   ! subroutine xfuncs(x,rhs,f,df)
-
-  integer, parameter :: mesh_type_becke = 0
-  integer, parameter :: mesh_type_franchini_small = 1
-  integer, parameter :: mesh_type_franchini_normal = 2
-  integer, parameter :: mesh_type_franchini_good = 3
-  integer, parameter :: mesh_type_franchini_vgood = 4
-  integer, parameter :: mesh_type_franchini_amazing = 5
-  integer, parameter :: mesh_type_default_molecule = mesh_type_becke
-  integer, parameter :: mesh_type_default_crystal = mesh_type_franchini_good
 
 contains
 
@@ -52,42 +41,48 @@ contains
 
   !> Driver for the generation of a molecular mesh. Uses the global
   !> MESH_type to decide the type and quality of the mesh.
-  module subroutine genmesh(m,c,type)
+  module subroutine genmesh(m,c,type,lvl)
     use crystalmod, only: crystal
     class(mesh), intent(inout) :: m
     type(crystal), intent(inout) :: c
     integer, intent(in), optional :: type
+    integer, intent(in), optional :: lvl
 
-    integer :: tmesh
+    integer :: tmesh, lmesh
 
-    if (present(type)) then
+    if (.not.c%ismolecule) then
+       tmesh = mesh_type_franchini
+    else if (present(type)) then
        tmesh = type
-       if (.not.c%ismolecule .and. type == mesh_type_becke) then
-          tmesh = mesh_type_default_crystal
-       end if
-    elseif (c%ismolecule) then
-       tmesh = mesh_type_default_molecule
     else
-       tmesh = mesh_type_default_crystal
+       tmesh = mesh_type_becke
+    end if
+
+    if (present(lvl)) then
+       lmesh = lvl
+    else
+       lmesh = mesh_level_good
     end if
 
     if (tmesh == mesh_type_becke) then
-       call m%gen_becke(c)
+       call m%gen_becke(c,lmesh)
     else
-       call m%gen_franchini(c,tmesh)
+       call m%gen_franchini(c,lmesh)
     end if
     m%type = tmesh
+    m%lvl = lmesh
     
   end subroutine genmesh
 
   !> Generate a Becke-style molecular mesh. Only for molecules.
-  module subroutine genmesh_becke(m,c)
+  module subroutine genmesh_becke(m,c,lvl)
     use crystalmod, only: crystal
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: ferror, faterr
     use param, only: fourpi, maxzat
     class(mesh), intent(inout) :: m
     type(crystal), intent(in) :: c
+    integer, intent(in) :: lvl
 
     real*8 :: rr(c%ncel,c%ncel), r, r1, r2, hypr, vp0, vpsum, vpi
     integer :: i, j, k, kk
@@ -116,7 +111,7 @@ contains
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       m%n = m%n + z2nr_postg(iz) * z2nang_postg(iz)
+       m%n = m%n + z2nr(iz,lvl) * z2nang(iz,lvl)
     enddo
     allocate(m%w(m%n),m%x(3,m%n),stat=istat)
 
@@ -126,8 +121,8 @@ contains
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       mang = max(mang,z2nang_postg(iz))
-       mr = max(mr,z2nr_postg(iz))
+       mang = max(mang,z2nang(iz,lvl))
+       mr = max(mr,z2nr(iz,lvl))
     end do
     allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
     allocate(rads(mr),wrads(mr),stat=istat)
@@ -145,8 +140,8 @@ contains
        if (iz < 1 .or. iz > maxzat) cycle
 
        ! radial mesh
-       nr = z2nr_postg(iz)
-       nang = z2nang_postg(iz)
+       nr = z2nr(iz,lvl)
+       nang = z2nang(iz,lvl)
        call rmesh_postg(nr,iz,rads,wrads)
 
        ! angular mesh
@@ -214,8 +209,8 @@ contains
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       nr = z2nr_postg(iz)
-       nang = z2nang_postg(iz)
+       nr = z2nr(iz,lvl)
+       nang = z2nang(iz,lvl)
        do ir = 1, nr
           do il = 1, nang
              kk = kk + 1
@@ -263,7 +258,7 @@ contains
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       m%n = m%n + z2nr_franchini(iz,lvl) * z2nang_franchini(iz,lvl)
+       m%n = m%n + z2nr(iz,lvl) * z2nang(iz,lvl)
     enddo
     allocate(m%w(m%n),m%x(3,m%n),stat=istat)
 
@@ -275,8 +270,8 @@ contains
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       mang = max(mang,z2nang_franchini(iz,lvl))
-       nr = z2nr_franchini(iz,lvl)
+       mang = max(mang,z2nang(iz,lvl))
+       nr = z2nr(iz,lvl)
        if (nr > mr .or. nr == mr .and. iz > izmr) then
           mr = nr
           izmr = iz
@@ -321,8 +316,8 @@ contains
        end if
 
        ! radial mesh
-       nr = z2nr_franchini(iz,lvl)
-       nang = z2nang_franchini(iz,lvl)
+       nr = z2nr(iz,lvl)
+       nang = z2nang(iz,lvl)
        call rmesh_franchini(nr,iz,rads,wrads)
 
        ! angular mesh
@@ -389,8 +384,8 @@ contains
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z 
        if (iz < 1 .or. iz > maxzat) cycle
-       nr = z2nr_franchini(iz,lvl)
-       nang = z2nang_franchini(iz,lvl)
+       nr = z2nr(iz,lvl)
+       nang = z2nang(iz,lvl)
        do ir = 1, nr
           do il = 1, nang
              kk = kk + 1
@@ -484,16 +479,19 @@ contains
     write (uout,'(2X,"Mesh size      ",A)') string(m%n)
     if (m%type == mesh_type_becke) then
        write (uout,'(2X,"Mesh type      Becke")')
-    elseif (m%type == mesh_type_franchini_small) then
-       write (uout,'(2X,"Mesh type      Franchini (small)")')
-    elseif (m%type == mesh_type_franchini_normal) then
-       write (uout,'(2X,"Mesh type      Franchini (normal)")')
-    elseif (m%type == mesh_type_franchini_good) then
-       write (uout,'(2X,"Mesh type      Franchini (good)")')
-    elseif (m%type == mesh_type_franchini_vgood) then
-       write (uout,'(2X,"Mesh type      Franchini (very good)")')
-    elseif (m%type == mesh_type_franchini_amazing) then
-       write (uout,'(2X,"Mesh type      Franchini (excellent)")')
+    elseif (m%type == mesh_type_franchini) then
+       write (uout,'(2X,"Mesh type      Franchini")')
+    end if
+    if (m%lvl == mesh_level_small) then
+       write (uout,'(2X,"Mesh level     small")')
+    elseif (m%lvl == mesh_level_normal) then
+       write (uout,'(2X,"Mesh level     normal")')
+    elseif (m%lvl == mesh_level_good) then
+       write (uout,'(2X,"Mesh level     good")')
+    elseif (m%lvl == mesh_level_vgood) then
+       write (uout,'(2X,"Mesh level     very good")')
+    elseif (m%lvl == mesh_level_amazing) then
+       write (uout,'(2X,"Mesh level     amazing")')
     end if
 
   end subroutine report
@@ -564,27 +562,11 @@ contains
 
   end subroutine rmesh_franchini
 
-  !> Atomic number to radial point number. From postg - really good
-  !> accuracy but slow.
-  function z2nr_postg(z) result(nr)
-    integer, intent(in) :: z
-    integer :: nr
-
-    nr = 40
-    if (z > 2) nr = 60
-    if (z > 10) nr = 80
-    if (z > 18) nr = 100
-    if (z > 36) nr = 120
-    if (z > 54) nr = 140
-    if (z > 86) nr = 160
-
-  endfunction z2nr_postg
-
   !> Atomic number to radial point number. 
   !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   !> Some changes to the choice of ni0
-  function z2nr_franchini(z,lvl) result(nr)
+  function z2nr(z,lvl) result(nr)
     use tools_io, only: faterr, ferror
     integer, intent(in) :: z
     integer, intent(in) :: lvl
@@ -598,55 +580,45 @@ contains
     if (z > 54) nr = 85
     if (z > 86) nr = 110
 
-    if (lvl == 1) then
+    if (lvl == mesh_level_small) then
        nr = ceiling(nr * 2.37)
-    elseif (lvl == 2) then
+    elseif (lvl == mesh_level_normal) then
        nr = ceiling(nr * 3.08)
-    elseif (lvl == 3) then
+    elseif (lvl == mesh_level_good) then
        nr = ceiling(nr * 3.42)
-    elseif (lvl == 4) then
+    elseif (lvl == mesh_level_vgood) then
        nr = ceiling(nr * 4.27)
-    elseif (lvl == 5) then
+    elseif (lvl == mesh_level_amazing) then
        nr = ceiling(nr * 6.72)
     else
-       call ferror("z2nr_franchini","unknown accuracy level",faterr)
+       call ferror("z2nr","unknown accuracy level",faterr)
     end if
 
-  endfunction z2nr_franchini
-
-  !> Select the number of points for the angular (Lebedev) quadrature.
-  !> From postg.
-  function z2nang_postg(z) result(nang)
-    integer, intent(in) :: z
-    integer :: nang
-
-    nang = 194
-
-  endfunction z2nang_postg
+  endfunction z2nr
 
   !> Select the number of points for the angular (Lebedev) quadrature.
   !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
-  function z2nang_franchini(z,lvl) result(nang)
+  function z2nang(z,lvl) result(nang)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: z
     integer, intent(in) :: lvl
     integer :: nang
 
-    if (lvl == 1) then
+    if (lvl == mesh_level_small) then
        nang = 110
-    elseif (lvl == 2) then
+    elseif (lvl == mesh_level_normal) then
        nang = 194
-    elseif (lvl == 3) then
+    elseif (lvl == mesh_level_good) then
        nang = 302
-    elseif (lvl == 4) then
+    elseif (lvl == mesh_level_vgood) then
        nang = 590
-    elseif (lvl == 5) then
+    elseif (lvl == mesh_level_amazing) then
        nang = 770
     else
-       call ferror("z2nang_franchini","unknown accuracy level",faterr)
+       call ferror("z2nang","unknown accuracy level",faterr)
     end if
        
-  endfunction z2nang_franchini
+  endfunction z2nang
 
 end submodule proc
