@@ -749,7 +749,7 @@ contains
     real*8 :: xo, yo, zo
     logical :: iix, iiy, iiz
     integer :: lncv
-    integer, allocatable :: lcen(:,:)
+    real*8, allocatable :: lcen(:,:)
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
@@ -904,7 +904,7 @@ contains
                 lncv = lncv + 1
                 if (lncv > size(lcen,2)) &
                    call realloc(lcen,3,2*lncv)
-                lcen(:,lncv) = nint(rot0(:,4))
+                lcen(:,lncv) = rot0(:,4)
              endif
           else
              ! a rotation, with some pure translation in it
