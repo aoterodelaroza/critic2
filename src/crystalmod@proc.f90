@@ -175,7 +175,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det, mnorm2
-    use tools_io, only: ferror, faterr, warning, zatguess, string
+    use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -184,7 +184,7 @@ contains
     
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
     logical :: good, hasspg, clearsym
-    integer :: i, j, iat
+    integer :: i, j, k, iat
     real*8, allocatable :: atpos(:,:), rnn2(:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
@@ -392,7 +392,12 @@ contains
           do i = 1, c%nneq
              call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
 
-             do j = 1, c%at(i)%mult
+             jloop: do j = 1, c%at(i)%mult
+                if (seed%checkrepeats > 0) then
+                   do k = 1, iat
+                      if (c%eql_distance(atpos(:,j),c%atcel(k)%x) < atomeps) cycle jloop
+                   end do
+                end if
                 iat = iat + 1
                 c%atcel(iat)%x = atpos(:,j)
                 c%atcel(iat)%r = c%x2c(atpos(:,j))
@@ -404,7 +409,7 @@ contains
                    (matmul(c%rotm(1:3,1:3,irotm(j)),c%at(i)%x) + &
                    c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
                 c%atcel(iat)%is = c%at(i)%is
-             end do
+             end do jloop
           end do
           c%ncel = iat
           if (allocated(atpos)) deallocate(atpos)
@@ -433,7 +438,7 @@ contains
        call c%spglib_wrap(.true.,.false.,errmsg)
        if (len_trim(errmsg) > 0) then
           clearsym = .true.
-          call ferror("struct_new",errmsg,warning)
+          call ferror("struct_new","spglib: "//errmsg,faterr)
        else
           hasspg = .true.
        end if
@@ -442,7 +447,7 @@ contains
        call c%spglib_wrap(.false.,.true.,errmsg)
        if (len_trim(errmsg) > 0) then
           clearsym = .true.
-          call ferror("struct_new",errmsg,warning)
+          call ferror("struct_new","spglib: "//errmsg,faterr)
        end if
     else
        clearsym = .true.

@@ -47,6 +47,7 @@ module crystalseedmod
      ! symmetry
      integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
      integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
+     integer :: checkrepeats = 0 !< Check if atoms are repeated on crystal build
      integer :: neqv = 0 !< Number of symmetry operations
      integer :: ncv = 0 !< Number ofcentering vectors
      real*8, allocatable :: cen(:,:) !< Centering vectors
