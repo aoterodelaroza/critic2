@@ -3905,7 +3905,7 @@ contains
        write (lu,'(A,3(X,F13.8,X))') trim(c%spc(c%atcel(i)%is)%name), c%atcel(i)%x
     end do
     write (lu,'(/"K_POINTS automatic"/"2 2 2 1 1 1"/)')
-    write (lu,'("CELL_PARAMETERS")')
+    write (lu,'("CELL_PARAMETERS bohr")')
     do i = 1, 3
        write (lu,'(3(F18.12,X))') c%m_x2c(:,i)
     end do
