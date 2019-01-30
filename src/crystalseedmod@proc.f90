@@ -20,7 +20,7 @@ submodule (crystalseedmod) proc
 
   !xx! private subroutines
   ! subroutine read_all_cif(nseed,seed,file,mol,errmsg)
-  ! subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
+  ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
   ! subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
   ! subroutine read_all_xyz(nseed,seed,file,errmsg)
   ! subroutine read_all_log(nseed,seed,file,errmsg)
@@ -1952,9 +1952,12 @@ contains
   end subroutine read_mol
 
   !> Read the structure from a quantum espresso output (file) and
-  !> return it as a crystal object. If mol, the structure is assumed
-  !> to be a molecule.  If istruct is zero, read the last geometry;
-  !> otherwise, read geometry number istruct.
+  !> return it as a crystal seed. If mol, the structure is assumed to
+  !> be a molecule (currently, the only effect is that its value is
+  !> passed to the %ismolecule field). If istruct is zero, read the
+  !> last geometry; otherwise, read geometry number istruct. If an
+  !> error condition is found, return the error message in errmsg
+  !> (zero-length string if no error).
   module subroutine read_qeout(seed,file,mol,istruct,errmsg)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
@@ -1967,217 +1970,13 @@ contains
     integer, intent(in) :: istruct !< structure number
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, nstructs, is0, ideq, i, j
-    character(len=:), allocatable :: line
-    character*10 :: atn
-    integer :: ibrav, idum
-    real*8 :: alat, r(3,3), qaux, rfac, cfac
-    logical :: ok, tox
+    type(crystalseed), allocatable :: seedaux(:)
+    integer :: nseed
 
-    errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
-    if (lu < 0) then
-       errmsg = "Error opening file."
-       return
+    call read_all_qeout(nseed,seedaux,file,mol,istruct,errmsg)
+    if (allocated(seedaux) .and. nseed >= 1) then
+       seed = seedaux(1)
     end if
-    errmsg = "Error reading file"
-
-    ! first pass: read the number of structures
-    nstructs = 0
-    do while (getline_raw(lu,line))
-       if (index(line,"Self-consistent Calculation") > 0) then
-          nstructs = nstructs + 1
-       end if
-    end do
-
-    ! which of them?
-    if (istruct == 0) then
-       is0 = nstructs
-    else
-       if (istruct > nstructs .or. istruct < 0) then
-          errmsg = "Wrong structure number."
-          goto 999
-       end if
-       is0 = istruct
-    end if
-
-    ! rewind and read the correct structure
-    rewind(lu)
-    nstructs = 0
-    seed%nspc = 0
-    seed%nat = 0
-    tox = .false.
-    do while (getline_raw(lu,line))
-       ideq = index(line,"=") + 1
-
-       ! Count the structures
-       if (index(line,"Self-consistent Calculation") > 0) then
-          nstructs = nstructs + 1
-          if (is0 /= 0 .and. nstructs == is0) exit
-          ! Title: block at the beginning of the output (and at the end in minimizations) 
-       elseif (index(line,"bravais-lattice index") > 0) then
-          ok = isinteger(ibrav,line,ideq)
-       elseif (index(line,"lattice parameter (alat)") > 0) then
-          ok = isreal(alat,line,ideq)
-       elseif (index(line,"number of atoms/cell") > 0) then
-          ok = isinteger(seed%nat,line,ideq)
-          if (allocated(seed%x)) deallocate(seed%x)
-          if (allocated(seed%is)) deallocate(seed%is)
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat))
-          seed%is = 0
-       elseif (index(line,"number of atomic types") > 0) then
-          ok = isinteger(seed%nspc,line,ideq)
-          if (allocated(seed%spc)) then
-             if (seed%nspc /= size(seed%spc,1)) then
-                errmsg = "Inconsistent number of atoms."
-                goto 999
-             end if
-          else
-             allocate(seed%spc(seed%nspc))
-          end if
-       elseif (index(line,"crystal axes:") > 0) then
-          do i = 1, 3
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             ideq = index(line,"(",.true.) + 1
-             ok = isreal(r(i,1),line,ideq)
-             ok = ok.and.isreal(r(i,2),line,ideq)
-             ok = ok.and.isreal(r(i,3),line,ideq)
-          end do
-          r = r * alat ! alat comes before crystal axes
-       elseif (index(line,"atomic species   valence    mass     pseudopotential")>0) then
-          if (seed%nspc == 0) then
-             errmsg = "Number of atomic types unknown."
-             goto 999
-          end if
-          do i = 1, seed%nspc
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             read (line,*,err=999) seed%spc(i)%name, qaux
-             seed%spc(i)%z = zatguess(seed%spc(i)%name)
-             if (seed%spc(i)%z < 0) then
-                errmsg = "Unknown atomic symbol: "//trim(seed%spc(i)%name)//"."
-                goto 999
-             end if
-          end do
-       elseif (index(line,"Cartesian axes")>0) then
-          if (seed%nat == 0) then
-             errmsg = "Number of atoms unknown."
-             goto 999
-          end if
-          ok = getline_raw(lu,line)
-          if (.not.ok) goto 999
-          ok = getline_raw(lu,line)
-          if (.not.ok) goto 999
-          seed%is = 0
-          do i = 1, seed%nat
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             read(line,*,err=999) idum, atn
-             line = line(index(line,"(",.true.)+1:)
-             read(line,*,err=999) seed%x(:,i)
-             do j = 1, seed%nspc
-                if (equali(seed%spc(j)%name,atn)) then
-                   seed%is(i) = j
-                   exit
-                end if
-             end do
-             if (seed%is(i) == 0) then
-                errmsg = "Unknown atom type: "//atn//"."
-                goto 999
-             end if
-          end do
-          tox = .true.
-       elseif (line(1:15) == "CELL_PARAMETERS") then
-          cfac = 1d0
-          if (index(line,"angstrom") > 0) then
-             cfac = 1d0 / bohrtoa 
-          elseif (index(line,"alat") > 0) then
-             cfac = alat
-          elseif (index(line,"bohr") > 0) then
-             cfac = 1d0
-          end if
-          do i = 1, 3
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             ideq = 1
-             ok = isreal(r(i,1),line,ideq)
-             ok = ok.and.isreal(r(i,2),line,ideq)
-             ok = ok.and.isreal(r(i,3),line,ideq)
-             if (.not.ok) goto 999
-          end do
-          r = r * cfac
-       elseif (line(1:16) == "ATOMIC_POSITIONS") then
-          if (seed%nat == 0) then
-             errmsg = "Number of atoms unknown."
-             goto 999
-          end if
-
-          rfac = 1d0
-          if (index(line,"angstrom") > 0) then
-             tox = .true.
-             rfac = 1d0 / bohrtoa 
-          elseif (index(line,"alat") > 0) then
-             tox = .true.
-             rfac = alat
-          elseif (index(line,"bohr") > 0) then
-             tox = .true.
-             rfac = 1d0
-          elseif (index(line,"crystal") > 0) then
-             tox = .false.
-             rfac = 1d0
-          end if
-          seed%is = 0
-          do i = 1, seed%nat
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             read(line,*,err=999) atn, seed%x(:,i)
-             do j = 1, seed%nspc
-                if (equali(seed%spc(j)%name,atn)) then
-                   seed%is(i) = j
-                   exit
-                end if
-             end do
-             if (seed%is(i) == 0) then
-                errmsg = "Unknown atom type: "//atn//"."
-                goto 999
-             end if
-          end do
-          seed%x = seed%x * rfac
-       end if
-    end do
-
-    ! cell
-    seed%m_x2c = transpose(r)
-    r = matinv(seed%m_x2c)
-    seed%useabr = 2
-
-    ! transform atomic positions
-    do i = 1, seed%nat
-       if (tox) then
-          seed%x(:,i) = matmul(r,seed%x(:,i))
-       end if
-       seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
-    end do
-
-    errmsg = ""
-999 continue
-    call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = 0
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
 
   end subroutine read_qeout
 
@@ -3468,7 +3267,7 @@ contains
        allocate(seed(1))
        call seed(1)%read_elk(file,mol,errmsg)
     elseif (isformat == isformat_qeout) then
-       call read_all_qeout(nseed,seed,file,mol,errmsg)
+       call read_all_qeout(nseed,seed,file,mol,-1,errmsg)
     elseif (isformat == isformat_crystal) then
        call read_all_crystalout(nseed,seed,file,mol,errmsg)
     elseif (isformat == isformat_qein) then
@@ -3533,6 +3332,60 @@ contains
     end if
 
   end subroutine read_seeds_from_file
+
+  !> Define the assignment operator for the crystal seed class.
+  subroutine assign_crystalseed(to,from)
+    class(crystalseed), intent(out) :: to
+    type(crystalseed), intent(in) :: from
+
+    to%isused = from%isused
+    to%file = from%file
+    to%name = from%name
+    to%nat = from%nat
+    if (allocated(from%x)) then
+       to%x = from%x
+    else
+       if (allocated(to%x)) deallocate(to%x)
+    end if
+    if (allocated(from%is)) then
+       to%is = from%is
+    else
+       if (allocated(to%is)) deallocate(to%is)
+    end if
+    to%nspc = from%nspc
+    if (allocated(from%spc)) then
+       to%spc = from%spc
+    else
+       if (allocated(to%spc)) deallocate(to%spc)
+    end if
+    to%useabr = from%useabr
+    to%aa = from%aa
+    to%bb = from%bb
+    to%m_x2c = from%m_x2c
+    to%havesym = from%havesym
+    to%findsym = from%findsym
+    to%checkrepeats = from%checkrepeats
+    to%neqv = from%neqv
+    to%ncv = from%ncv
+    if (allocated(from%cen)) then
+       to%cen = from%cen
+    else
+       if (allocated(to%cen)) deallocate(to%cen)
+    end if
+    if (allocated(from%rotm)) then
+       to%rotm = from%rotm
+    else
+       if (allocated(to%rotm)) deallocate(to%rotm)
+    end if
+    to%ismolecule = from%ismolecule
+    to%cubic = from%cubic
+    to%border = from%border
+    to%havex0 = from%havex0
+    to%molx0 = from%molx0
+
+  end subroutine assign_crystalseed
+
+  !xx! private subroutines
 
   !> Read all structures from a CIF file (uses ciftbx) and returns all
   !> crystal seeds.
@@ -3619,8 +3472,16 @@ contains
     end function checkcifop
   end subroutine read_all_cif
 
-  !> Read all structures from a QE outupt. Returns all crystal seeds.
-  subroutine read_all_qeout(nseed,seed,file,mol,errmsg)
+  !> Read one or all structures from a QE output (filename file) and
+  !> return the corresponding crystal seeds in seed. If istruct < 0,
+  !> read all seeds and return the number of seeds read in nseed.  The
+  !> first seed is a repeat of the last. If istruct = 0, return a
+  !> single seed for the last structure. If istruct > 0, return that
+  !> particular structure. If mol=.true., interpret the structure as a
+  !> molecule (currently, this only sets the %ismolecule field). If
+  !> an error condition is found, return the error message in errmsg
+  !> (zero-length string if no error).
+  subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
     use tools_math, only: matinv
@@ -3629,6 +3490,7 @@ contains
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
+    integer, intent(in) :: istruct !< ID of the structure
     logical, intent(in) :: mol !< Is this a molecule? 
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -3640,7 +3502,7 @@ contains
     real*8 :: alat, r(3,3), qaux, rfac, cfac, rdum
     logical :: ok, tox
     ! interim copy of seed info
-    integer :: nat, nspc
+    integer :: nat, nspc, iuse
     real*8, allocatable :: x(:,:)
     integer, allocatable :: is(:)
     type(species), allocatable :: spc(:) !< Species
@@ -3666,18 +3528,26 @@ contains
        goto 999
     end if
     if (allocated(seed)) deallocate(seed)
-    if (nseed > 1) then
-       nseed = nseed + 1
-       is0 = 1
-    else
-       nseed = 1
+
+    if (istruct >= 0) then
        is0 = 0
+       allocate(seed(1))
+       seed(1)%nspc = 0
+       seed(1)%nat = 0
+    else
+       if (nseed > 1) then
+          nseed = nseed + 1
+          is0 = 1
+       else
+          nseed = 1
+          is0 = 0
+       end if
+       allocate(seed(nseed))
+       do i = 1, nseed
+          seed(i)%nspc = 0
+          seed(i)%nat = 0
+       end do
     end if
-    allocate(seed(nseed))
-    do i = 1, nseed
-       seed(i)%nspc = 0
-       seed(i)%nat = 0
-    end do
     alat = 1d0
 
     ! rewind and read all the structures
@@ -3840,40 +3710,55 @@ contains
           is0 = is0 + 1
           hasx = .false.
 
-          seed(is0)%nat = nat
-          seed(is0)%nspc = nspc
-          seed(is0)%spc = spc
-          seed(is0)%x = x
-          seed(is0)%is = is
-          seed(is0)%m_x2c = m_x2c
+          ! decide whether we want to keep this structure in a seed
+          iuse = 0
+          if (istruct < 0) then
+             iuse = is0
+          elseif (istruct == 0 .and. is0 == nseed) then
+             iuse = 1
+          elseif (istruct == is0) then
+             iuse = 1
+          end if
+          
+          ! keep the seed
+          if (iuse > 0) then
+             seed(iuse)%nat = nat
+             seed(iuse)%nspc = nspc
+             seed(iuse)%spc = spc
+             seed(iuse)%x = x
+             seed(iuse)%is = is
+             seed(iuse)%m_x2c = m_x2c
 
-          seed(is0)%useabr = 2
-          r = matinv(seed(is0)%m_x2c)
-          do i = 1, seed(is0)%nat
-             if (tox) then
-                seed(is0)%x(:,i) = matmul(r,seed(is0)%x(:,i))
-             end if
-             seed(is0)%x(:,i) = seed(is0)%x(:,i) - floor(seed(is0)%x(:,i))
-          end do
+             seed(iuse)%useabr = 2
+             r = matinv(seed(iuse)%m_x2c)
+             do i = 1, seed(iuse)%nat
+                if (tox) then
+                   seed(iuse)%x(:,i) = matmul(r,seed(iuse)%x(:,i))
+                end if
+                seed(iuse)%x(:,i) = seed(iuse)%x(:,i) - floor(seed(iuse)%x(:,i))
+             end do
 
-          seed(is0)%havesym = 0
-          seed(is0)%checkrepeats = 0
-          seed(is0)%findsym = -1
-          seed(is0)%isused = .true.
-          seed(is0)%ismolecule = mol
-          seed(is0)%cubic = .false.
-          seed(is0)%border = 0d0
-          seed(is0)%havex0 = .false.
-          seed(is0)%molx0 = 0d0
-          seed(is0)%file = file
+             seed(iuse)%havesym = 0
+             seed(iuse)%checkrepeats = 0
+             seed(iuse)%findsym = -1
+             seed(iuse)%isused = .true.
+             seed(iuse)%ismolecule = mol
+             seed(iuse)%cubic = .false.
+             seed(iuse)%border = 0d0
+             seed(iuse)%havex0 = .false.
+             seed(iuse)%molx0 = 0d0
+             seed(iuse)%file = file
 
-          read (line,*,err=999) sdum, sdum, sdum, sdum, sene
-          read (sene,*,err=999) rdum
-          seed(is0)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ry"
+             read (line,*,err=999) sdum, sdum, sdum, sdum, sene
+             read (sene,*,err=999) rdum
+             seed(iuse)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ry"
+          end if
        end if
     end do
 
-    if (nseed > 1) then
+    if (istruct >= 0) then
+       nseed = 1
+    else if (nseed > 1) then
        seed(1) = seed(nseed)
        seed(1)%name = "(final) " // trim(seed(1)%name)
        seed(2)%name = "(initial) " // trim(seed(2)%name)

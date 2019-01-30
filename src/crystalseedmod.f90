@@ -82,6 +82,14 @@ module crystalseedmod
   end type crystalseed
   public :: crystalseed
 
+  ! assignment operator for the crystalseed class
+  interface assignment(=)
+     module subroutine assign_crystalseed(to,from)
+       class(crystalseed), intent(out) :: to
+       type(crystalseed), intent(in) :: from
+     end subroutine assign_crystalseed
+  end interface
+
   public :: realloc_crystalseed
   public :: struct_detect_format
   public :: read_seeds_from_file
