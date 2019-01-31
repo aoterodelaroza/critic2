@@ -2702,8 +2702,8 @@ contains
              else 
                 write (uout,'(/"+ This is a 3D periodic structure.")')
              end if
-             write (uout,*)
           end if
+          write (uout,*)
        end if
 
        ! Number of atoms in the atomic environment
