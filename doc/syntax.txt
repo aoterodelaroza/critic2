@@ -134,8 +134,8 @@ expression.r # prints the value of the expression to the output.
   LOAD file.xml file.bin file.hsd
   LOAD file.wfn
   LOAD file.wfx
-  LOAD file.fchk
-  LOAD file.molden
+  LOAD file.fchk [READVIRTUAL]
+  LOAD file.molden [READVIRTUAL]
   LOAD COPY id.s [TO id2.s]
   LOAD PROMOLECULAR
   LOAD PROMOLECULAR [FRAGMENT file.xyz]
