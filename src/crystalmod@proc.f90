@@ -3884,7 +3884,6 @@ contains
     write (lu,'("/")')
     write (lu,'("&system")')
     write (lu,'(" ibrav=0,")')
-    write (lu,'(" celldm(1)=1.0,")')
     write (lu,'(" nat=",I6,",")') c%ncel
     write (lu,'(" ntyp=",I3,",")') c%nspc
     write (lu,'(" ecutwfc=60.0,")')
