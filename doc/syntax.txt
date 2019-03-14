@@ -45,6 +45,7 @@ expression.r # prints the value of the expression to the output.
   CRYSTAL file.STRUCT_OUT
   CRYSTAL file.gen
   CRYSTAL file.xsf
+  CRYSTAL file.axsf [istruct.i [xnudge.r]]
   CRYSTAL file.pwc
   CRYSTAL
    SPG spgsymbol.s

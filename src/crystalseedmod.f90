@@ -79,6 +79,7 @@ module crystalseedmod
      procedure :: read_dftbp 
      procedure :: read_xsf 
      procedure :: read_pwc
+     procedure :: read_axsf 
   end type crystalseed
   public :: crystalseed
 
@@ -215,6 +216,15 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_pwc
+     module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       integer, intent(in) :: nread0
+       real*8, intent(in) :: xnudge
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: docube
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_axsf
      module subroutine realloc_crystalseed(a,nnew)
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

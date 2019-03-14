@@ -116,6 +116,7 @@ module param
   integer, parameter, public :: isformat_gen = 19
   integer, parameter, public :: isformat_vasp = 20
   integer, parameter, public :: isformat_pwc = 21
+  integer, parameter, public :: isformat_axsf = 22
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields. 

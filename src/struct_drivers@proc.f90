@@ -35,11 +35,11 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc
+       isformat_vasp, isformat_pwc, isformat_axsf
     use crystalseedmod, only: crystalseed, struct_detect_format
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
-       string, uin, isinteger, lower
+       string, uin, isinteger, isreal, lower
     use types, only: realloc
     character*(*), intent(in) :: line
     integer, intent(in) :: mol0
@@ -52,7 +52,7 @@ contains
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, subline
     integer :: nn, isformat
-    real*8 :: rborder, raux
+    real*8 :: rborder, raux, xnudge
     logical :: docube, ok, ismol, mol, hastypes
     type(crystalseed) :: seed
     character(len=:), allocatable :: errmsg
@@ -151,6 +151,7 @@ contains
        call seed%read_elk(word,mol,errmsg)
 
     elseif (isformat == isformat_qeout) then
+       lp2 = 1
        ok = isinteger(istruct,word2,lp2)
        if (.not.ok) istruct = 0
        call seed%read_qeout(word,mol,istruct,errmsg)
@@ -181,6 +182,24 @@ contains
 
     elseif (isformat == isformat_pwc) then
        call seed%read_pwc(word,mol,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_axsf) then
+       istruct = 1
+       xnudge = 0d0
+
+       lp2 = 1
+       ok = isinteger(nn,word2,lp2)
+       if (ok) then
+          istruct = nn
+          word2 = getword(line,lp)
+          lp2 = 1
+          ok = isreal(raux,word2,lp2)
+          if (ok) xnudge = raux
+       end if
+
+       call seed%read_axsf(word,istruct,xnudge,rborder,docube,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 

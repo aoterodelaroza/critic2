@@ -1962,7 +1962,6 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
     use tools_math, only: matinv
-    use param, only: bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -2921,6 +2920,168 @@ contains
 
   end subroutine read_pwc
 
+  !> Read the structure from an axsf file (xcrysden). Read the coordinates
+  !> from PRIMCOORD block and nudge them using the eigenvector on the same block
+  !> scaled by the value of xnudge (bohr).
+  module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg)
+    use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isinteger, &
+       string, getword, isreal, nameguess, zatguess
+    use tools_math, only: matinv
+    use param, only: bohrtoa
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(in) :: nread0
+    real*8, intent(in) :: xnudge
+    real*8, intent(in) :: rborder !< user-defined border in bohr
+    logical, intent(in) :: docube !< if true, make the cell cubic
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    character(len=:), allocatable :: line, word, name
+    integer :: lu, lp, iprim, i, it, iz, j
+    real*8 :: r(3,3), x(3)
+    logical :: ok, ismol, didreadr, didreadx
+    
+    ! open
+    ismol = .false.
+    errmsg = ""
+    lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+
+    errmsg = "Error reading file."
+    didreadr = .false.
+    didreadx = .false.
+    do while (.true.)
+       ok = getline_raw(lu,line)
+       if (.not.ok) exit
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"primvec")) then
+          didreadr = .true.
+          do i = 1, 3
+             read (lu,*,err=999) r(i,:)
+          end do
+          r = r / bohrtoa
+          ismol = .false.
+       elseif (equal(word,"primcoord")) then
+          ok = isinteger(iprim,line,lp)
+          if (iprim == nread0) then
+             didreadx = .true.
+             read (lu,*,err=999) seed%nat
+             allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+             seed%nspc = 0
+             allocate(seed%spc(2))
+             do i = 1, seed%nat
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+
+                ! read the atomic coordinates
+                lp = 1
+                ok = isinteger(iz,line,lp)
+                if (ok) then
+                   ! Z x y z
+                   name = nameguess(iz,.true.)
+                else
+                   word = getword(line,lp)
+                   name = trim(adjustl(word))
+                   iz = zatguess(name)
+                end if
+                ok = isreal(seed%x(1,i),line,lp)
+                ok = ok.and.isreal(seed%x(2,i),line,lp)
+                ok = ok.and.isreal(seed%x(3,i),line,lp)
+                if (.not.ok) then
+                   errmsg = 'Wrong atomic position.'
+                   goto 999
+                end if
+                seed%x(:,i) = seed%x(:,i) / bohrtoa
+
+                ! file this species if it is a new species
+                it = 0
+                do j = 1, seed%nspc
+                   if (seed%spc(j)%z == iz) then
+                      it = j
+                      exit
+                   end if
+                end do
+                if (it == 0) then
+                   seed%nspc = seed%nspc + 1
+                   if (seed%nspc > size(seed%spc,1)) &
+                      call realloc(seed%spc,2*seed%nspc)
+                   seed%spc(seed%nspc)%z = iz
+                   seed%spc(seed%nspc)%name = name
+                   it = seed%nspc
+                end if
+                seed%is(i) = it
+
+                ! read the displacement vector and apply the nudge
+                ok = isreal(x(1),line,lp)
+                ok = ok.and.isreal(x(2),line,lp)
+                ok = ok.and.isreal(x(3),line,lp)
+                if (.not.ok) then
+                   errmsg = 'Wrong displacement vector.'
+                   goto 999
+                end if
+                seed%x(:,i) = seed%x(:,i) + xnudge * x
+             end do
+          end if
+       end if
+    end do
+    if (.not.didreadr) then
+       errmsg = "Could not find PRIMVEC block "
+       goto 999
+    end if
+    if (.not.didreadx) then
+       errmsg = "Could not find PRIMCOORD block number " // string(nread0)
+       goto 999
+    end if
+    call realloc(seed%spc,seed%nspc)
+    if (seed%nat == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+    if (seed%nspc == 0) then
+       errmsg = "No atomic species found."
+       goto 999
+    end if
+
+    if (.not.ismol) then
+       ! fill the cell metrics
+       seed%m_x2c = transpose(r)
+       r = matinv(seed%m_x2c)
+       seed%useabr = 2
+
+       ! convert atoms to crystallographic
+       do i = 1, seed%nat
+          seed%x(:,i) = matmul(r,seed%x(:,i))
+       end do
+    else
+       seed%useabr = 0
+    end if
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = 0
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = ismol
+    seed%cubic = docube
+    seed%border = rborder
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+
+  end subroutine read_axsf
+
   !> Adapt the size of an allocatable 1D type(crystalseed) array
   module subroutine realloc_crystalseed(a,nnew)
     use tools_io, only: ferror, faterr
@@ -2955,7 +3116,7 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc
+       isformat_vasp, isformat_pwc, isformat_axsf
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3091,6 +3252,9 @@ contains
           ismol = .false.
        end if
        call fclose(lu)
+    elseif (equal(wextdot,'axsf')) then
+       isformat = isformat_axsf
+       ismol = .false.
     elseif (isvasp) then
        isformat = isformat_vasp
        ismol = .false.
