@@ -128,6 +128,7 @@ contains
        do i = 1, nspc
           if (spc(i)%z > 0) e%dmax0 = max(e%dmax0,cutrad(spc(i)%z))
        end do
+       e%dmax0 = max(e%dmax0,sphmax)
        e%dmax0 = e%dmax0 + 1d-2
     end if
 
