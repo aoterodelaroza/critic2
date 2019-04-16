@@ -160,5 +160,5 @@ AC_OUTPUT([Makefile src/Makefile src/oldlibs/Makefile src/ciftbx/Makefile src/cu
            src/qhull/Makefile src/spglib/Makefile tools/Makefile \
            src/config@proc.F90 src-gui/Makefile src-gui/imgui/Makefile dat/Makefile \
 	   dat/wfc/Makefile dat/lib/Makefile dat/cif/Makefile dat/fonts/Makefile dat/shaders/Makefile \
-	   doc/Makefile tests/Makefile])
+	   tests/Makefile])
 
