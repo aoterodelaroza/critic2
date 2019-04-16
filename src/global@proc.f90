@@ -180,8 +180,8 @@ contains
     use tools_io, only: uout
 
     write (uout,'("Critic2 requires a sequence of keywords to operate. Please read the manual")')
-    write (uout,'("distributed with the program (dat/user-guide.txt) and the syntax file")')
-    write (uout,'("(doc/syntax.txt). The command-line syntax is:")')
+    write (uout,'("distributed with the program (https://aoterodelaroza.github.io/critic2/).")')
+    write (uout,'("The command-line syntax is:")')
     write (uout,'("")')
     write (uout,'("     critic2 [-q] [-h] [-r /path/to/critic2] [inputfile [outputfile]] ")')
     write (uout,'("")')
