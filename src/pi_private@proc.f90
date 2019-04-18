@@ -173,7 +173,7 @@ contains
     real*8 :: phi, phip, phipp, zj, or
     real*8 :: rhop, rhopp, rhofac1, xx2r(3), xxion(3), rfac, radd
     integer :: n0, nm1, nm2, nenv, ierr, lvec(3)
-    real*8 :: tmprho, dist
+    real*8 :: tmprho
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
 

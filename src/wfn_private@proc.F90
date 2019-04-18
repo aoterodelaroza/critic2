@@ -2689,7 +2689,7 @@ contains
     integer :: iat, ityp, ipri, imo, ix, phimo
     real*8 :: al, ex, xl(3,0:2,0:5), d2, xx(3)
     real*8 :: chi(10)
-    integer :: i, j, iat
+    integer :: i, j
     
     integer, parameter :: imax(0:2) = (/1,4,10/)
     integer, parameter :: li(3,56) = reshape((/&

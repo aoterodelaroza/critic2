@@ -665,7 +665,7 @@ contains
   !> atomic basins. bas = integration driver data, res(1:npropi) =
   !> results. If nomol0, prevent the output of molecular
   !> properties. If usesym0, use multiplicities.
-  subroutine int_output_fields(bas,res,nomol0,usesym0)
+  module subroutine int_output_fields(bas,res,nomol0,usesym0)
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_left, ioj_center
     use types, only: basindat, int_result, out_field
@@ -1189,7 +1189,7 @@ contains
     integer :: imo, jmo, ia, ja, ka, iba, ic, jc, kc, is
     integer :: m1, m2, m3, idx(3)
     integer :: fid, p(3)
-    integer :: nwan(3), nbnd, nbndw(2), nlat, nmo, nspin, nattn, natt1
+    integer :: nwan(3), nbnd, nbndw(2), nlat, nmo, nspin, nattn
     real*8 :: x(3), xs(3), d2, fatemp
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:), imap(:,:)
     type(ytdata) :: dat
@@ -1995,7 +1995,7 @@ contains
     type(int_result), intent(in) :: res(:)
 
     integer :: i, j, k, l, m
-    integer :: fid, natt, nwan(3), nspin, nlat, natt
+    integer :: fid, natt, nwan(3), nspin, nlat
     real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux
     real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
     real*8, allocatable :: dist(:), diout(:), xcm(:,:)

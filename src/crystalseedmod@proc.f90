@@ -3498,7 +3498,7 @@ contains
   end subroutine read_seeds_from_file
 
   !> Define the assignment operator for the crystal seed class.
-  subroutine assign_crystalseed(to,from)
+  module subroutine assign_crystalseed(to,from)
     class(crystalseed), intent(out) :: to
     type(crystalseed), intent(in) :: from
 

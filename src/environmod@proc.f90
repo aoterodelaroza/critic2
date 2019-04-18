@@ -597,7 +597,7 @@ contains
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: epsmall2 = 1d-20
-    real*8 :: xp(3), x0r(3), x1r(3), dist, d2, d2min, eps2, x(3), d0
+    real*8 :: xp(3), x0r(3), x1r(3), d2, d2min, eps2, x(3), d0
     integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
     integer :: ireg(3), idx, kmin
     
@@ -1240,7 +1240,7 @@ contains
   !> is larger than the maximum covalent distance plus the tolerance.
   !> If present, return half the nearest-neighbor distance for each
   !> atom in rnn2, or 0.0 if not found.
-  subroutine find_asterisms_covalent(e,nstar,rnn2)
+  module subroutine find_asterisms_covalent(e,nstar,rnn2)
     use global, only: bondfactor, atomeps
     use tools_io, only: ferror, faterr, uout, string
     use types, only: realloc
@@ -1250,7 +1250,7 @@ contains
     real*8, allocatable, intent(inout), optional :: rnn2(:)
     
     integer :: i, j
-    real*8 :: x0(3), dist2, ri, rj, rij2, r2, aeps2
+    real*8 :: x0(3), dist2, ri, rj, r2, aeps2
     integer :: p0(3), p1(3), idx1
     integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
@@ -1359,7 +1359,7 @@ contains
   !> tolerance factor. rtable is indexed with the atomic number.
   !> Return the bonds in the nstar array. This routine can be used
   !> regardless of boxsize but is slower than find_asterisms_covalent.
-  subroutine find_asterisms_listatoms(e,nstar,rtable,factor)
+  module subroutine find_asterisms_listatoms(e,nstar,rtable,factor)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
