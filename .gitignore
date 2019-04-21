@@ -12,6 +12,7 @@ tools/basin2off/basin2off
 tools/off2off/off2off
 
 # files that depend on some other files
+syntax.txt
 Makefile
 Makefile.in
 aclocal.m4
