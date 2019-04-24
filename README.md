@@ -55,7 +55,7 @@ environment generation, file conversion).
 If you downloaded the code from the git repository and not from a
 package, you will need to run:
 
-    autoreconf -i
+    autoreconf
 
 Prepare for compilation by doing:
 
