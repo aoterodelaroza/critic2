@@ -137,8 +137,9 @@ contains
   module subroutine set_default_integprop(s)
     class(system), intent(inout) :: s
 
-    s%npropi = max(s%npropi,3)
-    if (.not.allocated(s%propi)) allocate(s%propi(s%npropi))
+    s%npropi = 3
+    if (allocated(s%propi)) deallocate(s%propi)
+    allocate(s%propi(s%npropi))
     s%propi(1)%used = .true.
     s%propi(1)%itype = itype_v
     s%propi(1)%fid = 0
