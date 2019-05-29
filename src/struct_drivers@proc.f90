@@ -1380,8 +1380,9 @@ contains
     eptr => s%c%env
     if (doatoms) then
        do i = 1, s%c%nneq
+          if (iat_mode == inone) cycle
           if (iat_mode == iid .and. i /= iat) cycle
-          if (iat_mode == iznuc .and. s%c%spc(s%c%at(i)%is)%z == iat) cycle
+          if (iat_mode == iznuc .and. s%c%spc(s%c%at(i)%is)%z /= iat) cycle
 
           if (iby_mode == iid) then
              call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
