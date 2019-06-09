@@ -935,7 +935,8 @@ contains
     use systemmod, only: system
     use global, only: fileroot, eval_next
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
-       ioj_center, getword, string, fclose
+       ioj_center, getword, string, fclose, isinteger
+    use types, only: realloc
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
@@ -944,8 +945,8 @@ contains
     logical :: ok
     integer :: npts
     real*8, allocatable :: t(:), ih(:)
-
-    integer :: lp, lu, i
+    integer, allocatable :: ipairs(:,:)
+    integer :: lp, lu, i, npairs, ival
     real*8 :: sigma
 
     ! default values
@@ -953,6 +954,8 @@ contains
     root = trim(fileroot) // "_rdf"
     npts = 10001
     sigma = 0.05d0
+    npairs = 0
+    allocate(ipairs(2,10))
 
     ! header
     write (uout,'("* RDF: radial distribution function")')
@@ -982,6 +985,17 @@ contains
           end if
        elseif (equal(word,"root")) then
           root = getword(line,lp)
+       elseif (equal(word,"pair")) then
+          npairs = npairs + 1
+          if (npairs > size(ipairs,2)) then
+             call realloc(ipairs,2,2*npairs)
+          end if
+          ipairs(1,npairs) = s%c%identify_spc(getword(line,lp))
+          ipairs(2,npairs) = s%c%identify_spc(getword(line,lp))
+          if (ipairs(1,npairs) == 0 .or. ipairs(2,npairs) == 0) then
+             call ferror('struct_rdf','Unknown species in RDF/PAIR option',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
           call ferror('struct_rdf','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -990,7 +1004,7 @@ contains
        end if
     end do
 
-    call s%c%rdf(rend,sigma,npts,t,ih)
+    call s%c%rdf(rend,sigma,npts,t,ih,npairs,ipairs)
 
     ! write the data file 
     lu = fopen_write(trim(root) // ".dat")

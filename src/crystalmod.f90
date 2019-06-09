@@ -122,6 +122,9 @@ module crystalmod
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
 
+     ! get information about the structure or atoms
+     procedure :: identify_spc
+
      ! basic crystallographic operations
      procedure :: x2c !< Convert input cryst. -> cartesian
      procedure :: c2x !< Convert input cartesian -> cryst.
@@ -252,6 +255,12 @@ module crystalmod
        type(crystalseed), intent(in) :: seed
        logical, intent(in) :: crashfail
      end subroutine struct_new
+     module function identify_spc(c,str) result(res)
+       use crystalseedmod, only: crystalseed
+       class(crystal), intent(inout) :: c
+       character*(*), intent(in) :: str
+       integer :: res
+     end function identify_spc
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xx(3) 
@@ -412,13 +421,15 @@ module crystalmod
        real*8, allocatable, intent(inout) :: ip(:)
        integer, allocatable, intent(inout) :: hvecp(:,:)
      end subroutine powder
-     module subroutine rdf(c,rend,sigma,npts,t,ih)
+     module subroutine rdf(c,rend,sigma,npts,t,ih,npairs0,ipairs0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: rend
        real*8, intent(in) :: sigma
        integer, intent(in) :: npts
        real*8, allocatable, intent(inout) :: t(:)
        real*8, allocatable, intent(inout) :: ih(:)
+       integer, intent(in), optional :: npairs0
+       integer, intent(in), optional :: ipairs0(:,:)
      end subroutine rdf
      module subroutine calculate_ewald_cutoffs(c)
        class(crystal), intent(inout) :: c

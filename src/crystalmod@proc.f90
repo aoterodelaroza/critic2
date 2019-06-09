@@ -507,6 +507,51 @@ contains
 
   end subroutine struct_new
 
+  !> Identify a species in the crystal from a string. Step 1: check if
+  !> str is equal to the name of any species (case sensitive). 2: same
+  !> but case insensitive.  3: transform to Z and check if any species
+  !> has that Z (if several, return the first one). 4: return 0 (not
+  !> found).
+  module function identify_spc(c,str) result(res)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: equal, lower, zatguess
+    class(crystal), intent(inout) :: c
+    character*(*), intent(in) :: str
+    integer :: res
+
+    integer :: i, j, iz
+    character*(len_trim(str)) :: stri
+
+    stri = trim(str)
+
+    ! steps 1 and 2
+    do j = 1, 2
+       do i = 1, c%nspc
+          if (equal(c%spc(i)%name,stri)) then
+             res = i
+             return
+          end if
+       end do
+       if (j == 2) exit
+       stri = lower(stri)
+    end do
+
+    ! step 3
+    iz = zatguess(stri)
+    if (iz > 0) then
+       do i = 1, c%nspc
+          if (c%spc(i)%z == iz) then
+             res = i
+             return
+          end if
+       end do
+    end if
+
+    ! not found: return zero
+    res = 0
+
+  end function identify_spc
+
   !> Convert input cryst. -> cartesian. This routine is thread-safe.
   pure module function x2c(c,xx) result(res)
     class(crystal), intent(in) :: c
@@ -1729,8 +1774,10 @@ contains
   !> the RDF. This routine is based on:
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the 
-  !> charges.
-  module subroutine rdf(c,rend,sigma,npts,t,ih)
+  !> charges. Optionally, if npairs0/ipairs0 are given, return the 
+  !> RDF of only the pairs of species given in the ipairs0
+  !> array. npairs0 is the number of selected pairs.
+  module subroutine rdf(c,rend,sigma,npts,t,ih,npairs0,ipairs0)
     use param, only: icrd_cart
     use environmod, only: environ
     class(crystal), intent(in) :: c
@@ -1739,14 +1786,30 @@ contains
     integer, intent(in) :: npts
     real*8, allocatable, intent(inout) :: t(:)
     real*8, allocatable, intent(inout) :: ih(:)
+    integer, intent(in), optional :: npairs0
+    integer, intent(in), optional :: ipairs0(:,:)
 
-    integer :: i, j, nat, lvec(3), ierr, iz, jz
+    integer :: i, j, k, nat, lvec(3), ierr, iz, jz, kz, npairs, iaux
     real*8 :: hfac, int, sigma2
-    logical :: localenv
+    logical :: localenv, found
     type(environ) :: le
-    integer, allocatable :: eid(:)
+    integer, allocatable :: eid(:), ipairs(:,:)
     real*8, allocatable :: dist(:)
 
+    npairs = 0
+    if (present(npairs0) .and. present(ipairs0)) then
+       npairs = npairs0
+       if (npairs > 0) then
+          ipairs = ipairs0(:,1:npairs)
+          do i = 1, npairs
+             if (ipairs(2,i) < ipairs(1,i)) then
+                iaux = ipairs(1,i)
+                ipairs(1,i) = ipairs(2,i)
+                ipairs(2,i) = iaux
+             end if
+          end do
+       end if
+    end if
     sigma2 = sigma * sigma
 
     ! prepare the grid limits
@@ -1771,6 +1834,16 @@ contains
     ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%env%n sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
     hfac = (npts-1) / rend
     do i = 1, c%nneq
+       if (npairs > 0) then
+          found = .false.
+          do k = 1, npairs
+             if (ipairs(1,k) == c%at(i)%is) then
+                found = .true.
+                exit
+             end if
+          end do
+          if (.not.found) cycle
+       end if
        iz = c%spc(c%at(i)%is)%z
        if (localenv) then
           call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend,nozero=.true.)
@@ -1780,9 +1853,21 @@ contains
 
        do j = 1, nat
           if (localenv) then
-             jz = le%spc(le%at(eid(j))%is)%z
+             kz = le%at(eid(j))%is
+             jz = le%spc(kz)%z
           else
-             jz = c%env%spc(c%env%at(eid(j))%is)%z
+             kz = c%env%at(eid(j))%is
+             jz = c%env%spc(kz)%z
+          end if
+          if (npairs > 0) then
+             found = .false.
+             do k = 1, npairs
+                if (ipairs(1,k) == kz) then
+                   found = .true.
+                   exit
+                end if
+             end do
+             if (.not.found) cycle
           end if
           int = sqrt(real(iz * jz,8)) * c%at(i)%mult
           ih = ih + int * exp(-(t - dist(j))**2 / 2d0 / sigma2)
